@@ -1,0 +1,5 @@
+{
+    "base": "http://localhost/test",
+    "self": "carma.json",    
+    "name": "test"
+}
