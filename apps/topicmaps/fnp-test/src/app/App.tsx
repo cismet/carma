@@ -1,4 +1,4 @@
-import { DocumentViewer } from '@cismet/document-viewer';
+import { Doc, DocumentViewer } from '@cismet/document-viewer';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useState } from 'react';
@@ -12,7 +12,7 @@ import { getDocsForAEVGazetteerEntry } from '../utils/DocsHelper';
 export function App() {
   const dispatch = useDispatch();
   let { docPackageId, file, page } = useParams();
-  const [docs, setDocs] = useState([]);
+  const [docs, setDocs] = useState<Doc[]>([]);
 
   useEffect(() => {
     dispatch(loadAEVs());
