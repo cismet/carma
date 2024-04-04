@@ -25,7 +25,7 @@ const Component = () => {
       ref={leafletMapRef}
       //   backgroundlayers={'rvrGrau'}
     >
-      {/* <CismapLayer
+      <CismapLayer
         {...{
           type: 'tiles',
           //   _url: layer.layerUrl,
@@ -37,8 +37,8 @@ const Component = () => {
           maxNativeZoom: 12,
           key: 'tileLayer',
         }}
-      /> */}
-      <CismapLayer
+      />
+      {/* <CismapLayer
         {...{
           type: 'wmts',
           url: 'https://geodaten.metropoleruhr.de/spw2/service',
@@ -47,7 +47,7 @@ const Component = () => {
           tileSize: 256,
           transparent: true,
         }}
-      />
+      /> */}
     </RoutedMap>
   );
 };
