@@ -91,26 +91,26 @@ export function App() {
         </div>
         <div style={{ height: 50 }}></div>
         <RoutedMap
-        // style={mapStyle}
-        // key={'leafletRoutedMap'}
-        // referenceSystem={MappingConstants.crs3857}
-        // referenceSystemDefinition={MappingConstants.proj4crs3857def}
-        // ref={mapRef}
-        // layers=""
-        // doubleClickZoom={false}
-        // onclick={(e) => console.log('gazetteerHit', gazetteerHit)}
-        // ondblclick={(e) => console.log('doubleclick', e)}
-        // autoFitProcessedHandler={() =>
-        //   this.props.mappingActions.setAutoFit(false)
-        // }
-        // backgroundlayers={'ruhrWMSlight@40|trueOrtho2018@10|rvrSchrift@100'}
-        // urlSearchParams={urlSearchParams}
-        // fullScreenControlEnabled={false}
-        // locateControlEnabled={false}
-        // minZoom={7}
-        // maxZoom={18}
-        // zoomSnap={0.5}
-        // zoomDelta={0.5}
+          style={mapStyle}
+          key={'leafletRoutedMap'}
+          referenceSystem={MappingConstants.crs3857}
+          referenceSystemDefinition={MappingConstants.proj4crs3857def}
+          ref={mapRef}
+          layers=""
+          doubleClickZoom={false}
+          onclick={(e) => console.log('gazetteerHit', gazetteerHit)}
+          ondblclick={(e) => console.log('doubleclick', e)}
+          autoFitProcessedHandler={() =>
+            this.props.mappingActions.setAutoFit(false)
+          }
+          backgroundlayers={'rvrGrau'}
+          urlSearchParams={urlSearchParams}
+          fullScreenControlEnabled={false}
+          locateControlEnabled={false}
+          minZoom={7}
+          maxZoom={18}
+          zoomSnap={0.5}
+          zoomDelta={0.5}
         >
           {overlayFeature && (
             <ProjSingleGeoJson
@@ -131,3 +131,4 @@ export function App() {
 }
 
 export default App;
+z;
