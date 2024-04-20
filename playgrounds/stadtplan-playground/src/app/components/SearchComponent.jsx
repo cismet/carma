@@ -1,17 +1,6 @@
 import { useEffect, useState } from 'react';
 import Fuse from 'fuse.js';
-import { AutoComplete, Input } from 'antd';
-// import addresses from "./gazeteerdata/shortAdressenList.json";
-import addresses from './gazeteerdata/adressen.json';
-import districts from './gazeteerdata/bezirke.json';
-import ebikes from './gazeteerdata/ebikes.json';
-import geps from './gazeteerdata/geps.json';
-import kitas from './gazeteerdata/kitas.json';
-import no2 from './gazeteerdata/no2.json';
-import pois from './gazeteerdata/pois.json';
-import prbr from './gazeteerdata/prbr.json';
-import experimental from './gazeteerdata/testadresses.json';
-import shortAdressenList from './gazeteerdata/shortAdressenList.json';
+import { AutoComplete } from 'antd';
 
 const renderTitle = (title) => {
   return <span>{title}</span>;
@@ -45,17 +34,20 @@ const generateOptions = (results) => {
     const streetLabel = (
       <div>
         <span>
-          <i className={result.item?.g && 'fas ' + 'fa-' + result.item.g}></i>
+          <i
+            className={result.item?.glyph && 'fas ' + 'fa-' + result.item.glyph}
+          ></i>
           {'  '}
         </span>
-        <span>{result.item?.searchData}</span>
+        <span>{result.item?.string}</span>
       </div>
     );
 
     return {
       key: idx,
       label: <div>{streetLabel}</div>,
-      value: result.item?.searchData,
+      value: result.item?.string,
+      sData: result.item,
     };
   });
 };
@@ -120,7 +112,7 @@ const preps = [
 const articles = ['der', 'die', 'das', 'den', 'dem', 'des'];
 const stopwords = [...preps, ...articles];
 
-function SearchComponent({ allData }) {
+function SearchComponent({ allData, setGazHit }) {
   const [options, setOptions] = useState([]);
 
   // const [searchResult, setSearchResult] = useState([]);
@@ -128,49 +120,58 @@ function SearchComponent({ allData }) {
 
   const debugReplaceWordFunct = replaceFirstWord('bei der Blutfinke', 'auf');
   console.log('qqq', debugReplaceWordFunct);
-
-  useEffect(() => {
-    // const allData = {
-    //   addresses,
-    //   districts,
-    //   ebikes,
-    //   geps,
-    //   kitas,
-    //   no2,
-    //   pois,
-    //   prbr,
-    // };
-
-    const allModifiedData = prepareDataSources(allData);
-    console.log('ppp', allModifiedData);
-
-    setAllGazeteerData(allModifiedData);
-  }, []);
-
-  const fuseAddressesOptions = {
-    distance: 100,
-    useExtendedSearch: true,
-    // threshold: 0.5,
-    threshold: 0.5,
-    // keys: ["searchData", "an", "auf", "bei"],
-    keys: ['xSearchData'],
-  };
-
-  const fuse = new Fuse(allGazeteerData, fuseAddressesOptions);
-
   const handleSearchAutoComplete = (value) => {
-    //const removeStopWords = removeWordsWithSpaces(value);
-    const removeStopWords = removeStopwords(value, stopwords);
-    // const removeStopWords = value;
-    console.log('eee', removeStopWords);
-    const result = fuse.search(removeStopWords);
-    // const result = fuse.search(value);
-    console.log('mmm', result);
-    const groupedResults = mapDataToSearchResult(result);
+    if (allGazeteerData.length > 0) {
+      const fuseAddressesOptions = {
+        distance: 100,
+        useExtendedSearch: true,
+        threshold: 0.5,
+        keys: ['xSearchData'],
+      };
 
-    setOptions(generateOptions(result));
-    // setSearchResult(groupedResults);
+      const fuse = new Fuse(allGazeteerData, fuseAddressesOptions);
+
+      const removeStopWords = removeStopwords(value, stopwords);
+      const result = fuse.search(removeStopWords);
+      console.log('fff v', result);
+      const groupedResults = mapDataToSearchResult(result);
+
+      setOptions(generateOptions(result));
+    }
   };
+  useEffect(() => {
+    if (allData) {
+      const allModifiedData = prepareGazData(allData);
+      console.log('ppp', allModifiedData);
+
+      setAllGazeteerData(allModifiedData);
+    }
+  }, [allData]);
+
+  //   const fuseAddressesOptions = {
+  //     distance: 100,
+  //     useExtendedSearch: true,
+  //     // threshold: 0.5,
+  //     threshold: 0.5,
+  //     // keys: ["searchData", "an", "auf", "bei"],
+  //     keys: ['xSearchData'],
+  //   };
+
+  //   const fuse = new Fuse(allGazeteerData, fuseAddressesOptions);
+
+  //   const handleSearchAutoComplete = (value) => {
+  //     //const removeStopWords = removeWordsWithSpaces(value);
+  //     const removeStopWords = removeStopwords(value, stopwords);
+  //     // const removeStopWords = value;
+  //     console.log('eee', removeStopWords);
+  //     const result = fuse.search(removeStopWords);
+  //     // const result = fuse.search(value);
+  //     console.log('mmm', result);
+  //     const groupedResults = mapDataToSearchResult(result);
+
+  //     setOptions(generateOptions(result));
+  //     // setSearchResult(groupedResults);
+  //   };
 
   return (
     <div>
@@ -178,6 +179,11 @@ function SearchComponent({ allData }) {
         options={options}
         style={{ width: 600 }}
         onSearch={(value) => handleSearchAutoComplete(value)}
+        onSelect={(value, option) => {
+          console.log('sss o', option);
+          console.log('sss p', value);
+          setGazHit(option.sData);
+        }}
       />
       <hr />
       <div>
@@ -200,6 +206,14 @@ function SearchComponent({ allData }) {
 
 export default SearchComponent;
 
+// Prepare with category
+// function prepareDataSources(dataObj) {
+//   const dataWithCategories = Object.keys(dataObj).map((key) =>
+//     addCategoryAndSearchKeys(dataObj[key], key)
+//   );
+
+//   return dataWithCategories.flat();
+// }
 function prepareDataSources(dataObj) {
   const dataWithCategories = Object.keys(dataObj).map((key) =>
     addCategoryAndSearchKeys(dataObj[key], key)
@@ -219,20 +233,53 @@ function removeStopwords(text, stopwords) {
   });
   return placeholderWords.join(' ');
 }
-function addCategoryAndSearchKeys(data, category) {
+// Prepare with category
+// function addCategoryAndSearchKeys(data, category) {
+//   return data.map((item) => {
+//     const searchData = item?.s
+//       ? `${item.s} ${item?.nr || ''} ${item?.z || ''}`
+//       : `${item?.n} ${item?.nr || ''}`;
+//     const address = {
+//       ...item,
+//       gr: category,
+//       searchData,
+//       xSearchData: removeStopwords(searchData, stopwords),
+//     };
+
+//     return processPrepositions(address);
+//   });
+// }
+function addCategoryAndSearchKeys(data) {
   return data.map((item) => {
     const searchData = item?.s
       ? `${item.s} ${item?.nr || ''} ${item?.z || ''}`
       : `${item?.n} ${item?.nr || ''}`;
     const address = {
       ...item,
-      gr: category,
+      //   gr: category,
       searchData,
       xSearchData: removeStopwords(searchData, stopwords),
     };
-
-    return processPrepositions(address);
+    return address;
+    // return processPrepositions(address);
   });
+}
+function prepareGazData(data) {
+  const modifiedData = data.map((item) => {
+    const searchData = item?.string;
+    const address = {
+      ...item,
+      //   gr: category,
+      //   searchData,
+      xSearchData: removeStopwords(searchData, stopwords),
+    };
+    return address;
+    // return processPrepositions(address);
+  });
+
+  console.log('sss', modifiedData);
+
+  return modifiedData;
 }
 
 function processPrepositions(obj) {

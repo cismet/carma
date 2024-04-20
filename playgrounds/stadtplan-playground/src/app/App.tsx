@@ -12,6 +12,7 @@ import ProjSingleGeoJson from 'react-cismap/ProjSingleGeoJson';
 import { MappingConstants, RoutedMap } from 'react-cismap';
 import { md5FetchText, fetchJSON } from 'react-cismap/tools/fetching';
 import { getGazDataForTopicIds } from 'react-cismap/tools/gazetteerHelper';
+import SearchComponent from './components/SearchComponent.jsx';
 
 const host = 'https://wupp-topicmaps-data.cismet.de';
 
@@ -61,18 +62,32 @@ export function App() {
   };
   let urlSearchParams = new URLSearchParams(window.location.href);
   const mapRef = useRef(null);
-  const [gazetteerHit, setGazetteerHit] = useState(null);
+  const [gazetteerHit, setGazetteerHit] = useState({
+    sorter: 157,
+    string: 'Am Dönberg  (Grundsch.)',
+    glyph: 'graduation-cap',
+    x: 796496.49,
+    y: 6674261.36,
+    more: {
+      zl: 18,
+      pid: 20006,
+    },
+    type: 'pois',
+  });
   const [overlayFeature, setOverlayFeature] = useState(null);
   const [gazData, setGazData] = useState([]);
   useEffect(() => {
     const res = getGazData(setGazData);
-    console.log('ggg', res);
   }, []);
+
+  useEffect(() => {
+    console.log('hit', gazetteerHit);
+  }, [gazetteerHit]);
 
   return (
     <div>
       <div>Simple Map with detached GazetteerSearchControl</div>
-
+      <SearchComponent allData={gazData} setGazHit={setGazetteerHit} />
       <br />
       <TopicMapContextProvider featureItemsURL="/data/parkscheinautomatenfeatures.json">
         <div>
@@ -131,4 +146,3 @@ export function App() {
 }
 
 export default App;
-z;
