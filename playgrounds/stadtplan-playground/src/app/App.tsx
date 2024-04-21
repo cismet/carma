@@ -86,8 +86,9 @@ export function App() {
 
   return (
     <div>
-      <div>Simple Map with detached GazetteerSearchControl</div>
-      <SearchComponent allData={gazData} setGazHit={setGazetteerHit} />
+      <div style={{ marginLeft: '40px' }}>
+        <SearchComponent allData={gazData} setGazHit={setGazetteerHit} />
+      </div>
       <br />
       <TopicMapContextProvider featureItemsURL="/data/parkscheinautomatenfeatures.json">
         <div>
