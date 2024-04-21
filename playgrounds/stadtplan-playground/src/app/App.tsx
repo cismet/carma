@@ -62,18 +62,7 @@ export function App() {
   };
   let urlSearchParams = new URLSearchParams(window.location.href);
   const mapRef = useRef(null);
-  const [gazetteerHit, setGazetteerHit] = useState({
-    sorter: 157,
-    string: 'Am Dönberg  (Grundsch.)',
-    glyph: 'graduation-cap',
-    x: 796496.49,
-    y: 6674261.36,
-    more: {
-      zl: 18,
-      pid: 20006,
-    },
-    type: 'pois',
-  });
+  const [gazetteerHit, setGazetteerHit] = useState(null);
   const [overlayFeature, setOverlayFeature] = useState(null);
   const [gazData, setGazData] = useState([]);
   useEffect(() => {
@@ -83,11 +72,23 @@ export function App() {
   useEffect(() => {
     console.log('hit', gazetteerHit);
   }, [gazetteerHit]);
+  useEffect(() => {
+    console.log('hit oveyrlay', overlayFeature);
+  }, [overlayFeature]);
 
   return (
     <div>
       <div style={{ marginLeft: '40px' }}>
-        <SearchComponent allData={gazData} setGazHit={setGazetteerHit} />
+        <SearchComponent
+          mapRef={mapRef}
+          gazetteerHit={gazetteerHit}
+          setGazetteerHit={setGazetteerHit}
+          overlayFeature={overlayFeature}
+          setOverlayFeature={setOverlayFeature}
+          allData={gazData}
+          referenceSystem={MappingConstants.crs3857}
+          referenceSystemDefinition={MappingConstants.proj4crs3857def}
+        />
       </div>
       <br />
       <TopicMapContextProvider featureItemsURL="/data/parkscheinautomatenfeatures.json">

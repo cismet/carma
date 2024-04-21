@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import Fuse from 'fuse.js';
 import { AutoComplete } from 'antd';
+import { builtInGazetteerHitTrigger } from 'react-cismap/tools/gazetteerHelper';
 
 const renderTitle = (title) => {
   return <span>{title}</span>;
@@ -112,8 +113,30 @@ const preps = [
 const articles = ['der', 'die', 'das', 'den', 'dem', 'des'];
 const stopwords = [...preps, ...articles];
 
-function SearchComponent({ allData, setGazHit }) {
+function SearchComponent({
+  allData,
+  setGazetteerHit,
+  gazetteerHit,
+  mapRef,
+  overlayFeature,
+  setOverlayFeature,
+  referenceSystem,
+  referenceSystemDefinition,
+}) {
   const [options, setOptions] = useState([]);
+  const _gazetteerHitTrigger = undefined;
+
+  const internalGazetteerHitTrigger = (hit) => {
+    builtInGazetteerHitTrigger(
+      hit,
+      mapRef.current.leafletMap.leafletElement,
+      referenceSystem,
+      referenceSystemDefinition,
+      setGazetteerHit,
+      setOverlayFeature,
+      _gazetteerHitTrigger
+    );
+  };
 
   // const [searchResult, setSearchResult] = useState([]);
   const [allGazeteerData, setAllGazeteerData] = useState([]);
@@ -182,7 +205,8 @@ function SearchComponent({ allData, setGazHit }) {
         onSelect={(value, option) => {
           console.log('sss o', option);
           console.log('sss p', value);
-          setGazHit(option.sData);
+          internalGazetteerHitTrigger([option.sData]);
+          setGazetteerHit(option.sData);
         }}
       />
       <hr />
