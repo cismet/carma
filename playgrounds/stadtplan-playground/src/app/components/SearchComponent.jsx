@@ -141,6 +141,7 @@ function SearchComponent({
 
   // const [searchResult, setSearchResult] = useState([]);
   const [allGazeteerData, setAllGazeteerData] = useState([]);
+  const [value, setValue] = useState('');
 
   const debugReplaceWordFunct = replaceFirstWord('bei der Blutfinke', 'auf');
   const handleSearchAutoComplete = (value) => {
@@ -195,12 +196,21 @@ function SearchComponent({
 
   return (
     <div style={{ marginTop: '40px' }}>
-      <Button icon={<CloseOutlined />} style={{ borderRadius: '2px' }} />
+      <Button
+        icon={<CloseOutlined />}
+        style={{ borderRadius: '4px' }}
+        onClick={() => {
+          setGazetteerHit(null);
+          setValue('');
+        }}
+      />
       <AutoComplete
         options={options}
         style={{ width: 600, borderRadius: '2px' }}
         onSearch={(value) => handleSearchAutoComplete(value)}
+        onChange={(value) => setValue(value)}
         placeholder="Stadtteil | Adresse | POI"
+        value={value}
         onSelect={(value, option) => {
           internalGazetteerHitTrigger([option.sData]);
           setGazetteerHit(option.sData);

@@ -91,8 +91,8 @@ export function App() {
         />
       </div>
       <TopicMapContextProvider featureItemsURL="/data/parkscheinautomatenfeatures.json">
-        <div>
-          {/* <GazetteerSearchComponent
+        <div style={{ marginLeft: '10px', marginTop: '12px' }}>
+          <GazetteerSearchComponent
             mapRef={mapRef}
             gazetteerHit={gazetteerHit}
             setGazetteerHit={setGazetteerHit}
@@ -103,7 +103,7 @@ export function App() {
             dropup={false}
             referenceSystem={MappingConstants.crs3857}
             referenceSystemDefinition={MappingConstants.proj4crs3857def}
-          /> */}
+          />
         </div>
         <div style={{ height: 30 }}></div>
         <RoutedMap
