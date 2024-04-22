@@ -198,6 +198,7 @@ function SearchComponent({
         options={options}
         style={{ width: 600 }}
         onSearch={(value) => handleSearchAutoComplete(value)}
+        placeholder="Stadtteil | Adresse | POI"
         onSelect={(value, option) => {
           internalGazetteerHitTrigger([option.sData]);
           setGazetteerHit(option.sData);
