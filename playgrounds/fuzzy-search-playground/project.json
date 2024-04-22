@@ -1,7 +1,7 @@
 {
-  "name": "stadtplan-playground",
+  "name": "fuzzy-search-playground",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "playgrounds/stadtplan-playground/src",
+  "sourceRoot": "playgrounds/fuzzy-search-playground/src",
   "projectType": "application",
   "targets": {
     "build": {
@@ -9,7 +9,7 @@
       "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/playgrounds/stadtplan-playground"
+        "outputPath": "dist/playgrounds/fuzzy-search-playground"
       },
       "configurations": {
         "development": {
@@ -24,15 +24,15 @@
       "executor": "@nx/vite:dev-server",
       "defaultConfiguration": "development",
       "options": {
-        "buildTarget": "stadtplan-playground:build"
+        "buildTarget": "fuzzy-search-playground:build"
       },
       "configurations": {
         "development": {
-          "buildTarget": "stadtplan-playground:build:development",
+          "buildTarget": "fuzzy-search-playground:build:development",
           "hmr": true
         },
         "production": {
-          "buildTarget": "stadtplan-playground:build:production",
+          "buildTarget": "fuzzy-search-playground:build:production",
           "hmr": false
         }
       }
@@ -41,14 +41,14 @@
       "executor": "@nx/vite:preview-server",
       "defaultConfiguration": "development",
       "options": {
-        "buildTarget": "stadtplan-playground:build"
+        "buildTarget": "fuzzy-search-playground:build"
       },
       "configurations": {
         "development": {
-          "buildTarget": "stadtplan-playground:build:development"
+          "buildTarget": "fuzzy-search-playground:build:development"
         },
         "production": {
-          "buildTarget": "stadtplan-playground:build:production"
+          "buildTarget": "fuzzy-search-playground:build:production"
         }
       }
     },
@@ -56,7 +56,7 @@
       "executor": "@nx/vite:test",
       "outputs": ["{options.reportsDirectory}"],
       "options": {
-        "reportsDirectory": "../../coverage/playgrounds/stadtplan-playground"
+        "reportsDirectory": "../../coverage/playgrounds/fuzzy-search-playground"
       }
     },
     "lint": {
