@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import Fuse from 'fuse.js';
-import { AutoComplete } from 'antd';
+import { AutoComplete, Button } from 'antd';
+import { CloseOutlined } from '@ant-design/icons';
 import { builtInGazetteerHitTrigger } from 'react-cismap/tools/gazetteerHelper';
 
 const renderTitle = (title) => {
@@ -194,9 +195,10 @@ function SearchComponent({
 
   return (
     <div style={{ marginTop: '40px' }}>
+      <Button icon={<CloseOutlined />} style={{ borderRadius: '2px' }} />
       <AutoComplete
         options={options}
-        style={{ width: 600 }}
+        style={{ width: 600, borderRadius: '2px' }}
         onSearch={(value) => handleSearchAutoComplete(value)}
         placeholder="Stadtteil | Adresse | POI"
         onSelect={(value, option) => {
