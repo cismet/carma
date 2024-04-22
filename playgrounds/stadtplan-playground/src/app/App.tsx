@@ -78,7 +78,7 @@ export function App() {
 
   return (
     <div>
-      <div style={{ marginLeft: '40px' }}>
+      <div style={{ marginLeft: '10px' }}>
         <SearchComponent
           mapRef={mapRef}
           gazetteerHit={gazetteerHit}
@@ -90,7 +90,6 @@ export function App() {
           referenceSystemDefinition={MappingConstants.proj4crs3857def}
         />
       </div>
-      <br />
       <TopicMapContextProvider featureItemsURL="/data/parkscheinautomatenfeatures.json">
         <div>
           {/* <GazetteerSearchComponent
@@ -106,7 +105,7 @@ export function App() {
             referenceSystemDefinition={MappingConstants.proj4crs3857def}
           /> */}
         </div>
-        <div style={{ height: 50 }}></div>
+        <div style={{ height: 30 }}></div>
         <RoutedMap
           style={mapStyle}
           key={'leafletRoutedMap'}

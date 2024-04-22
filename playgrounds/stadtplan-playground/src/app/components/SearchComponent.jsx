@@ -142,7 +142,6 @@ function SearchComponent({
   const [allGazeteerData, setAllGazeteerData] = useState([]);
 
   const debugReplaceWordFunct = replaceFirstWord('bei der Blutfinke', 'auf');
-  console.log('qqq', debugReplaceWordFunct);
   const handleSearchAutoComplete = (value) => {
     if (allGazeteerData.length > 0) {
       const fuseAddressesOptions = {
@@ -156,7 +155,6 @@ function SearchComponent({
 
       const removeStopWords = removeStopwords(value, stopwords);
       const result = fuse.search(removeStopWords);
-      console.log('fff v', result);
       const groupedResults = mapDataToSearchResult(result);
 
       setOptions(generateOptions(result));
@@ -165,8 +163,6 @@ function SearchComponent({
   useEffect(() => {
     if (allData) {
       const allModifiedData = prepareGazData(allData);
-      console.log('ppp', allModifiedData);
-
       setAllGazeteerData(allModifiedData);
     }
   }, [allData]);
@@ -197,19 +193,16 @@ function SearchComponent({
   //   };
 
   return (
-    <div>
+    <div style={{ marginTop: '40px' }}>
       <AutoComplete
         options={options}
         style={{ width: 600 }}
         onSearch={(value) => handleSearchAutoComplete(value)}
         onSelect={(value, option) => {
-          console.log('sss o', option);
-          console.log('sss p', value);
           internalGazetteerHitTrigger([option.sData]);
           setGazetteerHit(option.sData);
         }}
       />
-      <hr />
       <div>
         {/* <AutoComplete
         popupClassName="certain-category-search-dropdown"
@@ -300,8 +293,6 @@ function prepareGazData(data) {
     return address;
     // return processPrepositions(address);
   });
-
-  console.log('sss', modifiedData);
 
   return modifiedData;
 }

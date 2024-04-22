@@ -10,6 +10,13 @@ export default defineConfig({
   server: {
     port: 4200,
     host: 'localhost',
+    fs: {
+      // Add the directory to the allow list
+      allow: [
+        // Allow serving files from the leaflet-extra-markers/dist/img directory
+        '/Users/cismet/Desktop/dev/work/carma-monorepo/node_modules/leaflet-extra-markers/dist/img/',
+      ],
+    },
   },
 
   preview: {
