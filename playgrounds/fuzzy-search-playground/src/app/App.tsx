@@ -88,6 +88,7 @@ export function App() {
           allData={gazData}
           referenceSystem={MappingConstants.crs3857}
           referenceSystemDefinition={MappingConstants.proj4crs3857def}
+          ifShowCategories={true}
         />
       </div>
       <TopicMapContextProvider featureItemsURL="/data/parkscheinautomatenfeatures.json">

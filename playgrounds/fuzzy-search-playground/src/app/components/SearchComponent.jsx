@@ -82,6 +82,7 @@ const generateOptions = (results) => {
 };
 
 const mapDataToSearchResult = (data) => {
+  // const categoryName =
   const splittedCategories = {};
 
   data.forEach((item) => {
@@ -150,6 +151,7 @@ function SearchComponent({
   setOverlayFeature,
   referenceSystem,
   referenceSystemDefinition,
+  ifShowCategories = false,
 }) {
   const [options, setOptions] = useState([]);
   const _gazetteerHitTrigger = undefined;
@@ -166,7 +168,7 @@ function SearchComponent({
     );
   };
 
-  // const [searchResult, setSearchResult] = useState([]);
+  const [searchResult, setSearchResult] = useState([]);
   const [allGazeteerData, setAllGazeteerData] = useState([]);
   const [value, setValue] = useState('');
 
@@ -182,8 +184,13 @@ function SearchComponent({
       const fuse = new Fuse(allGazeteerData, fuseAddressesOptions);
       const removeStopWords = removeStopwords(value, stopwords);
       const result = fuse.search(removeStopWords);
-      const groupedResults = mapDataToSearchResult(result);
-      setOptions(generateOptions(result));
+      console.log('rrr', result);
+      if (ifShowCategories) {
+        const groupedResults = mapDataToSearchResult(result);
+        setSearchResult(groupedResults);
+      } else {
+        setOptions(generateOptions(result));
+      }
     }
   };
   useEffect(() => {
@@ -230,40 +237,42 @@ function SearchComponent({
           setOverlayFeature(null);
         }}
       />
-      <AutoComplete
-        options={options}
-        style={{ width: 600, borderRadius: '2px' }}
-        onSearch={(value) => handleSearchAutoComplete(value)}
-        onChange={(value) => setValue(value)}
-        placeholder="Stadtteil | Adresse | POI"
-        value={value}
-        onSelect={(value, option) => {
-          internalGazetteerHitTrigger([option.sData]);
-          // setGazetteerHit(option.sData);
-          if (
-            option.sData.type === 'bezirke' ||
-            option.sData.type === 'quartiere'
-          ) {
-            setGazetteerHit(null);
-          } else {
-            setGazetteerHit(option.sData);
-          }
-        }}
-      />
-      <div>
-        {/* <AutoComplete
-        popupClassName="certain-category-search-dropdown"
-        popupMatchSelectWidth={500} 
-        onSearch={(value) => handleSearchAutoComplete(value)}
-        style={{
-          width: 500,
-        }}
-        options={searchResult}
-        size="large"
-      >
-      <Input.Search size="large" placeholder="input here" />
-    </AutoComplete> */}
-      </div>
+      {!ifShowCategories ? (
+        <AutoComplete
+          options={options}
+          style={{ width: 600, borderRadius: '2px' }}
+          onSearch={(value) => handleSearchAutoComplete(value)}
+          onChange={(value) => setValue(value)}
+          placeholder="Stadtteil | Adresse | POI"
+          value={value}
+          onSelect={(value, option) => {
+            internalGazetteerHitTrigger([option.sData]);
+            // setGazetteerHit(option.sData);
+            if (
+              option.sData.type === 'bezirke' ||
+              option.sData.type === 'quartiere'
+            ) {
+              setGazetteerHit(null);
+            } else {
+              setGazetteerHit(option.sData);
+            }
+          }}
+        />
+      ) : (
+        <AutoComplete
+          popupClassName="certain-category-search-dropdown"
+          popupMatchSelectWidth={500}
+          onSearch={(value) => handleSearchAutoComplete(value)}
+          style={{
+            width: 500,
+          }}
+          options={searchResult}
+          size="large"
+          placeholder="category"
+        >
+          {/* <Input.Search size="large" placeholder="input here" /> */}
+        </AutoComplete>
+      )}
     </div>
   );
 }
