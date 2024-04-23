@@ -211,6 +211,11 @@ jobs:
           echo "PRJ_DEPLOY=${prjDeploy}" >> $GITHUB_ENV
         shell: bash
 
+      - name: Debug of baseUrl
+        run: |
+          echo "ORG_DEPLOY: $ORG_DEPLOY"
+          echo "PROJECT_PATH: $PRJ_DEPLOY"
+
       - name: Build project
         run: |
           if [ "${{ env.BASE_URL }}" = "null" ]; then
