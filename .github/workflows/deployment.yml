@@ -13,6 +13,7 @@ on:
       - dev
       - omega
       - alpha
+      - feature/fix-techdemo-baseurl
 
 jobs:
   split_nx_projects:
