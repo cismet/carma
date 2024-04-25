@@ -15,6 +15,7 @@ import LayerTabs from './LayerTabs';
 import Fuse from 'fuse.js';
 import LibItem from './LibItem';
 import { baseConfig as config, serviceConfig } from '../helper/config';
+import { InView } from 'react-intersection-observer';
 import './input.css';
 
 // @ts-ignore
@@ -38,12 +39,17 @@ const LibModal = ({
   const [layers, setLayers] = useState<any[]>([]);
   const [allLayers, setAllLayers] = useState<any[]>([]);
   const services = serviceConfig;
+  const [inViewCategory, setInViewCategory] = useState('');
+  const [allCategoriesInView, setAllCategoriesInView] = useState<string[]>([]);
 
   const flattenedLayers = allLayers.flatMap((obj) => obj.layers);
   const fuse = new Fuse(flattenedLayers, {
     keys: ['Title'],
     shouldSort: false,
     includeMatches: true,
+    useExtendedSearch: true,
+    distance: 10,
+    threshold: 0.2,
   });
 
   const getDataFromJson = (data: any) => {
@@ -158,12 +164,16 @@ const LibModal = ({
               <FontAwesomeIcon icon={faX} />
             </Button>
           </div>
-          {layers.length > 0 && <LayerTabs layers={layers} />}
-          <hr className="h-px bg-gray-300 border-0 mt-0 mb-2" />
+          {layers.length > 0 && (
+            <>
+              <LayerTabs layers={layers} activeId={inViewCategory} />
+              <hr className="h-px bg-gray-300 border-0 mt-0 mb-2" />
+            </>
+          )}
         </div>
-        <div className="overflow-auto">
+        <div className="overflow-auto pt-0.5">
           <div className="px-6">
-            {layers.map((category) => (
+            {layers.map((category, i) => (
               <>
                 {category.layers.length > 0 && (
                   <InView
@@ -194,11 +204,10 @@ const LibModal = ({
                     id={category?.Title}
                     key={category?.Title}
                   >
-                    {/* <div id={category?.Title} key={category?.Title}> */}
                     <p className="mb-4 text-2xl font-semibold">
                       {category?.Title}
                     </p>
-                    <div className="grid xl:grid-cols-5 lg:grid-cols-4 sm:grid-cols-2 gap-8">
+                    <div className="grid xl:grid-cols-5 lg:grid-cols-4 sm:grid-cols-2 gap-8 mb-4">
                       {category?.layers?.map((layer: any, i) => (
                         <LibItem
                           setAdditionalLayers={setAdditionalLayers}
@@ -209,7 +218,6 @@ const LibModal = ({
                         />
                       ))}
                     </div>
-                    {/* </div> */}
                   </InView>
                 )}
               </>
