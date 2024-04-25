@@ -166,7 +166,35 @@ const LibModal = ({
             {layers.map((category) => (
               <>
                 {category.layers.length > 0 && (
-                  <div id={category?.Title} key={category?.Title}>
+                  <InView
+                    rootMargin="20px 0px 20px 0px"
+                    as="div"
+                    onChange={(inView, entry) => {
+                      if (inView) {
+                        setInViewCategory(entry.target.id);
+
+                        setAllCategoriesInView((prev) => {
+                          return [...prev, entry.target.id];
+                        });
+                      } else {
+                        const updatedCategoriesInView =
+                          allCategoriesInView.filter(
+                            (item) => item !== entry.target.id
+                          );
+                        setAllCategoriesInView(updatedCategoriesInView);
+                        if (inViewCategory === entry.target.id && i > 0) {
+                          for (let j = i - 1; j >= 0; j--) {
+                            if (layers[j].layers.length > 0) {
+                              setInViewCategory(layers[j].Title);
+                            }
+                          }
+                        }
+                      }
+                    }}
+                    id={category?.Title}
+                    key={category?.Title}
+                  >
+                    {/* <div id={category?.Title} key={category?.Title}> */}
                     <p className="mb-4 text-2xl font-semibold">
                       {category?.Title}
                     </p>
@@ -181,7 +209,8 @@ const LibModal = ({
                         />
                       ))}
                     </div>
-                  </div>
+                    {/* </div> */}
+                  </InView>
                 )}
               </>
             ))}

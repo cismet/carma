@@ -1,28 +1,11 @@
 import { Badge, Tabs } from 'antd';
-import { useState } from 'react';
-import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
 
 interface LayerTabsProps {
   layers: any[];
+  activeId: string;
 }
 
-const LayerTabs = ({ layers }: LayerTabsProps) => {
-  const [activeId, setActiveId] = useState<string>();
-
-  const layerIds = [
-    'WMS',
-    'WMS Gebiet',
-    'WMS Immo',
-    'WMS Infra',
-    'WMS Inspire',
-    'WMS Planung',
-    'WMS POI',
-    'WMS Umwelt',
-    'Verkehr',
-  ];
-
-  useIntersectionObserver(setActiveId, layerIds);
-
+const LayerTabs = ({ layers, activeId }: LayerTabsProps) => {
   return (
     <>
       <Tabs
