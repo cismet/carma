@@ -45,7 +45,7 @@ const LibItem = ({ setAdditionalLayers, layer }: LayerItemProps) => {
 
   return (
     <div
-      className="flex flex-col rounded-lg w-full h-fit hover:shadow-md p-1"
+      className="flex flex-col rounded-lg w-full shadow-sm h-fit hover:!shadow-lg bg-white"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -76,52 +76,57 @@ const LibItem = ({ setAdditionalLayers, layer }: LayerItemProps) => {
           }
           alt={title}
           loading="lazy"
-          className="object-cover h-full overflow-clip w-[calc(130%+7.2px)] hover:blur-sm"
+          className="object-cover h-full overflow-clip w-[calc(130%+7.2px)] hover:blur-sm hover:scale-125 transition-all duration-300"
           onLoad={(e) => {
             setIsLoading(false);
           }}
         />
         {/* <div className="absolute inset-0 bg-gray-200 opacity-0 hover:opacity-50 transition duration-150"></div> */}
-        {hovered && (
+        {/* {hovered && (
           <div className="flex flex-col gap-2 absolute top-0 w-full">
             <Button>Add</Button>
             <Button>Delete</Button>
           </div>
-        )}
+        )} */}
       </button>
-      <h3 className="text-lg">
-        {hightlightTextIndexes ? (
-          <>
-            {title.substring(0, hightlightTextIndexes[0])}
-            <span
-              style={{
-                backgroundColor: 'rgba(240, 215, 139, 0.8)',
-                padding: '0 0.08em',
-              }}
-            >
-              {title.substring(
-                hightlightTextIndexes[0],
-                hightlightTextIndexes[1] + 1
-              )}
-            </span>
+      <div className="flex flex-col gap-2 p-4">
+        <h3 className="text-lg">
+          {hightlightTextIndexes ? (
+            <>
+              {title.substring(0, hightlightTextIndexes[0])}
+              <span
+                style={{
+                  backgroundColor: 'rgba(240, 215, 139, 0.8)',
+                  padding: '0 0.08em',
+                }}
+              >
+                {title.substring(
+                  hightlightTextIndexes[0],
+                  hightlightTextIndexes[1] + 1
+                )}
+              </span>
 
-            {title.substring(hightlightTextIndexes[1] + 1)}
-          </>
-        ) : (
-          title
-        )}
-      </h3>
-      <p className="text-md line-clamp-3" style={{ color: 'rgba(0,0,0,0.7)' }}>
-        {match && match.length > 1 ? match[1].trim() : description}
-      </p>
-      <p style={{ color: 'rgba(0,0,0,0.5)', fontSize: '0.875rem' }}>
-        {tags?.map((tag, i) => (
-          <span key={'tag_' + tag + '_' + i}>
-            <span>{tag}</span>
-            {i + 1 < tags.length && <span> · </span>}
-          </span>
-        ))}
-      </p>
+              {title.substring(hightlightTextIndexes[1] + 1)}
+            </>
+          ) : (
+            title
+          )}
+        </h3>
+        <p
+          className="text-base line-clamp-3 h-[66px]"
+          style={{ color: 'rgba(0,0,0,0.7)' }}
+        >
+          {match && match.length > 1 ? match[1].trim() : description}
+        </p>
+        <p style={{ color: 'rgba(0,0,0,0.5)', fontSize: '0.875rem' }}>
+          {tags?.map((tag, i) => (
+            <span key={'tag_' + tag + '_' + i}>
+              <span>{tag}</span>
+              {i + 1 < tags.length && <span> · </span>}
+            </span>
+          ))}
+        </p>
+      </div>
     </div>
   );
 };

@@ -15,6 +15,7 @@ import LayerTabs from './LayerTabs';
 import Fuse from 'fuse.js';
 import LibItem from './LibItem';
 import { baseConfig as config, serviceConfig } from '../helper/config';
+import './input.css';
 
 // @ts-ignore
 const parser = new WMSCapabilities();
@@ -100,8 +101,8 @@ const LibModal = ({ open, setOpen, setAdditionalLayers }: LibModalProps) => {
       wrapClassName="h-full"
       className="h-[90%]"
     >
-      <div className="w-full h-full flex flex-col">
-        <div className="sticky top-0 px-6 pt-6 pb-4">
+      <div className="w-full h-full flex flex-col bg-[#f2f2f2]">
+        <div className="sticky top-0 px-6 pt-6">
           <div className="flex justify-between items-center">
             <h1 className="mb-0 text-2xl font-semibold">Wuppertal Layer</h1>
             {/* <Button
@@ -150,9 +151,10 @@ const LibModal = ({ open, setOpen, setAdditionalLayers }: LibModalProps) => {
             </Button>
           </div>
           {layers.length > 0 && <LayerTabs layers={layers} />}
+          <hr className="h-px bg-gray-300 border-0 mt-0 mb-2" />
         </div>
         <div className="overflow-auto">
-          <div className="p-6">
+          <div className="px-6">
             {layers.map((category) => (
               <>
                 {category.layers.length > 0 && (

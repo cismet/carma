@@ -1,0 +1,12 @@
+.ant-input {
+  background: #f2f2f2;
+}
+
+.ant-input:hover {
+  background: none;
+}
+
+.ant-input::placeholder {
+  color: black;
+  opacity: 0.6;
+}
