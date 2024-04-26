@@ -1,4 +1,4 @@
-import { Spin } from 'antd';
+import { Button, Spin } from 'antd';
 import { useState } from 'react';
 
 interface LayerItemProps {
@@ -7,6 +7,7 @@ interface LayerItemProps {
 }
 
 const LibItem = ({ setAdditionalLayers, layer }: LayerItemProps) => {
+  const [hovered, setHovered] = useState(false);
   const title = layer.Title;
   const description = layer.Abstract;
   const tags = layer.tags.slice(1);
@@ -43,7 +44,11 @@ const LibItem = ({ setAdditionalLayers, layer }: LayerItemProps) => {
   const hightlightTextIndexes = undefined;
 
   return (
-    <div className="flex flex-col rounded-lg w-full h-fit">
+    <div
+      className="flex flex-col rounded-lg w-full h-fit hover:shadow-md p-1"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
       <button
         onDoubleClick={(e) => {
           setAdditionalLayers({
@@ -71,11 +76,18 @@ const LibItem = ({ setAdditionalLayers, layer }: LayerItemProps) => {
           }
           alt={title}
           loading="lazy"
-          className="object-cover h-full overflow-clip w-[calc(130%+7.2px)]"
+          className="object-cover h-full overflow-clip w-[calc(130%+7.2px)] hover:blur-sm"
           onLoad={(e) => {
             setIsLoading(false);
           }}
         />
+        {/* <div className="absolute inset-0 bg-gray-200 opacity-0 hover:opacity-50 transition duration-150"></div> */}
+        {hovered && (
+          <div className="flex flex-col gap-2 absolute top-0 w-full">
+            <Button>Add</Button>
+            <Button>Delete</Button>
+          </div>
+        )}
       </button>
       <h3 className="text-lg">
         {hightlightTextIndexes ? (
