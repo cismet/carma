@@ -133,7 +133,7 @@ const LibItem = ({ setAdditionalLayers, layer }: LayerItemProps) => {
         {hovered && (
           <div className="flex flex-col items-center gap-2 absolute top-0 w-full h-full justify-center p-8 px-10">
             <button
-              className="w-1/3 bg-gray-100 hover:bg-gray-50 rounded-md py-2 flex text-center items-center px-2"
+              className="w-36 bg-gray-100 hover:bg-gray-50 rounded-md py-2 flex text-center items-center px-2"
               onClick={() => {
                 setAdditionalLayers({
                   name,
@@ -162,7 +162,7 @@ const LibItem = ({ setAdditionalLayers, layer }: LayerItemProps) => {
             </button>
             <button
               disabled
-              className="w-1/3 flex text-center items-center px-2 bg-gray-100 hover:bg-gray-50 rounded-md py-2 cursor-not-allowed"
+              className="w-36 flex text-center items-center px-2 bg-gray-100 hover:bg-gray-50 rounded-md py-2 cursor-not-allowed"
             >
               <FontAwesomeIcon icon={faCircleInfo} className="mr-2 text-lg" />
               Informationen
