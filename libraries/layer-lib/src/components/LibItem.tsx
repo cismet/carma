@@ -12,6 +12,7 @@ import { Button, Spin } from 'antd';
 import { useContext, useEffect, useState } from 'react';
 // @ts-ignore
 import { TopicMapStylingContext } from 'react-cismap/contexts/TopicMapStylingContextProvider';
+import { InfoOutlined } from '@ant-design/icons';
 
 interface LayerItemProps {
   setAdditionalLayers: any;
@@ -96,7 +97,7 @@ const LibItem = ({ setAdditionalLayers, layer }: LayerItemProps) => {
           alt={title}
           loading="lazy"
           className={`object-cover relative h-full overflow-clip w-[calc(130%+7.2px)] ${
-            hovered && 'blur-sm scale-110'
+            hovered && 'scale-110'
           } transition-all duration-200`}
           onLoad={(e) => {
             setIsLoading(false);
@@ -111,16 +112,28 @@ const LibItem = ({ setAdditionalLayers, layer }: LayerItemProps) => {
           />
         ) : (
           <FontAwesomeIcon
-            className="absolute right-1 top-1 text-3xl cursor-pointer z-50 text-white drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.9)]"
+            className="absolute right-1 top-1 text-3xl cursor-pointer z-50 text-white drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,1)]"
             icon={regularFaStar}
             onClick={() => setIsFavourite(true)}
           />
           // <StarOutlined className="absolute right-1 top-1 text-3xl text-white drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.9)]" />
         )}
+        <FontAwesomeIcon
+          onClick={() => {
+            setAdditionalLayers({
+              name,
+              title,
+              url: service.url,
+            });
+          }}
+          icon={isActiveLayer ? faMinus : faPlus}
+          className="absolute left-1 top-1 text-3xl cursor-pointer text-white drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,1)] z-50"
+        />
+        <InfoOutlined className="absolute right-1 bottom-1 text-3xl cursor-pointer text-white drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,1)] z-50" />
         {hovered && (
-          <div className="flex flex-col gap-2 absolute top-0 w-full h-full justify-center p-8 px-10">
+          <div className="flex flex-col items-center gap-2 absolute top-0 w-full h-full justify-center p-8 px-10">
             <button
-              className="w-full bg-gray-100 hover:bg-gray-50 rounded-md py-2 flex text-center items-center justify-center"
+              className="w-1/3 bg-gray-100 hover:bg-gray-50 rounded-md py-2 flex text-center items-center px-2"
               onClick={() => {
                 setAdditionalLayers({
                   name,
@@ -149,10 +162,9 @@ const LibItem = ({ setAdditionalLayers, layer }: LayerItemProps) => {
             </button>
             <button
               disabled
-              className="w-full flex text-center items-center justify-center bg-gray-100 hover:bg-gray-50 rounded-md py-2 cursor-not-allowed"
+              className="w-1/3 flex text-center items-center px-2 bg-gray-100 hover:bg-gray-50 rounded-md py-2 cursor-not-allowed"
             >
               <FontAwesomeIcon icon={faCircleInfo} className="mr-2 text-lg" />
-              {/* <InfoOutlined /> */}
               Informationen
             </button>
           </div>
