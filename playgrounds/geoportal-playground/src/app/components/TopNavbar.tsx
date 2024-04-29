@@ -30,9 +30,8 @@ const TopNavbar = () => {
   // @ts-ignore
   const { setAppMenuVisible } = useContext(UIDispatchContext);
   // @ts-ignore
-  const { setAdditionalLayerConfiguration } = useContext(
-    TopicMapStylingDispatchContext
-  );
+  const { setAdditionalLayerConfiguration, activateAdditionalLayer } =
+    useContext(TopicMapStylingDispatchContext);
   // @ts-ignore
   const { additionalLayerConfiguration } = useContext(TopicMapStylingContext);
 
@@ -66,6 +65,9 @@ const TopNavbar = () => {
     }
     try {
       setAdditionalLayerConfiguration(newAdditionalLayers);
+      if (newAdditionalLayers[layer.name]) {
+        activateAdditionalLayer(layer.name);
+      }
       messageApi.open({
         type: 'success',
         content: `${layer.title} wurde erfolgreich ${
