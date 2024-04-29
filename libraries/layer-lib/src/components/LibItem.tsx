@@ -23,6 +23,7 @@ const LibItem = ({ setAdditionalLayers, layer }: LayerItemProps) => {
   const [hovered, setHovered] = useState(false);
   const [isFavourite, setIsFavourite] = useState(false);
   const [isActiveLayer, setIsActiveLayer] = useState(false);
+  const [testUrl, setTestUrl] = useState('');
   // @ts-ignore
   const { additionalLayerConfiguration } = useContext(TopicMapStylingContext);
   const title = layer.Title;
@@ -73,6 +74,36 @@ const LibItem = ({ setAdditionalLayers, layer }: LayerItemProps) => {
     setIsActiveLayer(setActive);
   }, [additionalLayerConfiguration]);
 
+  useEffect(() => {
+    const getImgUrl = async (response, url) => {
+      const blob = await response.blob();
+      const imgUrl = URL.createObjectURL(blob);
+
+      localStorage.setItem(url, imgUrl);
+      setTestUrl(imgUrl);
+    };
+
+    if (layer.pictureBoundingBox) {
+      const cachedImage = localStorage.getItem(bboxUrl);
+      if (cachedImage) {
+        setTestUrl(cachedImage);
+      } else {
+        fetch(bboxUrl).then((response) => {
+          getImgUrl(response, bboxUrl);
+        });
+      }
+    } else {
+      const cachedImage = localStorage.getItem(url);
+      if (cachedImage) {
+        setTestUrl(cachedImage);
+      } else {
+        fetch(url).then((response) => {
+          getImgUrl(response, url);
+        });
+      }
+    }
+  }, []);
+
   return (
     <div
       className="flex flex-col rounded-lg w-full shadow-sm h-fit hover:!shadow-lg bg-white"
@@ -91,8 +122,8 @@ const LibItem = ({ setAdditionalLayers, layer }: LayerItemProps) => {
             layer.thumbnail
               ? layer.thumbnail
               : layer.pictureBoundingBox
-              ? bboxUrl
-              : url
+              ? testUrl
+              : testUrl
           }
           alt={title}
           loading="lazy"
