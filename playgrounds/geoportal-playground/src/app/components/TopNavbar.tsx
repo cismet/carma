@@ -39,31 +39,38 @@ const TopNavbar = () => {
   const [messageApi, contextHolder] = message.useMessage();
 
   const updateLayers = (layer: any) => {
-    const url = layer.getMapUrl.substring(0, layer.getMapUrl.length - 1);
-    console.log(layer);
+    const url = layer.url;
     let newAdditionalLayers;
+    let isRemoved = false;
     newAdditionalLayers = { ...additionalLayerConfiguration };
-    newAdditionalLayers[layer.title.replace(/\s/g, '_').toLowerCase()] = {
-      title: layer.title,
-      initialActive: true,
-      layer: (
-        <StyledWMSTileLayer
-          key={`key_${layer.title}`}
-          type="wms"
-          url={url}
-          layers={layer.name}
-          format="image/png"
-          tiled={true}
-          transparent="true"
-          opacity={0.7}
-        />
-      ),
-    };
+    if (newAdditionalLayers[layer.name]) {
+      delete newAdditionalLayers[layer.name];
+      isRemoved = true;
+    } else {
+      newAdditionalLayers[layer.name] = {
+        title: layer.title,
+        initialActive: true,
+        url,
+        layer: (
+          <StyledWMSTileLayer
+            type="wms"
+            url={url}
+            layers={layer.name}
+            format="image/png"
+            tiled={true}
+            transparent="true"
+            opacity={0.7}
+          />
+        ),
+      };
+    }
     try {
       setAdditionalLayerConfiguration(newAdditionalLayers);
       messageApi.open({
         type: 'success',
-        content: `${layer.title} wurde erfolgreich hinzugefügt.`,
+        content: `${layer.title} wurde erfolgreich ${
+          isRemoved ? 'entfernt' : 'hinzugefügt'
+        }.`,
       });
     } catch {
       messageApi.open({
