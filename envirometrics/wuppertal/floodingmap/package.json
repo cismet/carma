@@ -1,7 +1,0 @@
-{
-  "name": "floodingmap-wuppertal",
-  "dependencies": {
-    "@cismet-collab/flooding-wupp-texts": "^0.9.3",
-    "@cismet-dev/react-cismap-rainhazardmaps": "^2.0.0"
-  }
-}

@@ -12,11 +12,7 @@ export default defineConfig({
     port: 4200,
     host: 'localhost',
     fs: {
-      // Restrict file serving to only allow files in the project root and below
-      allow: [
-        path.resolve(__dirname, './'), // Allow project root
-        path.resolve(__dirname, '../..'), // Adjust this to include any necessary directories
-      ],
+      allow: ['../../..'],
     },
   },
 

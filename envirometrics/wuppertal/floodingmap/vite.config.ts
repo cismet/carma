@@ -2,7 +2,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
-
+import path from 'path';
 export default defineConfig({
   root: __dirname,
   cacheDir: '../../../node_modules/.vite/envirometrics/wuppertal/floodingmap',
@@ -11,7 +11,10 @@ export default defineConfig({
     port: 4200,
     host: 'localhost',
     fs: {
-      allow: ['../../..', './'],
+      allow: [
+        path.resolve(__dirname, './'), // Allow project root
+        path.resolve(__dirname, '../../..'), // Adjust this to include any necessary directories
+      ],
     },
   },
 

@@ -36,6 +36,10 @@ jobs:
         with:
           node-version: 20
           cache: 'npm'
+      - name: add cismet-dev registry secret to .npmrc
+        shell: bash
+        run: |
+          echo ${{ secrets.CISMET_DEV_REGISTRY_SECRET_4_DOT_NPMRC }} >> .npmrc
       - name: Install dependencies
         run: npm install
 
