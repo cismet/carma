@@ -220,7 +220,7 @@ const LibItem = ({
         )}
       </div>
       <div className="flex flex-col gap-2 p-4">
-        <h3 className="text-lg">
+        <h3 className="text-lg truncate">
           {hightlightTextIndexes ? (
             <>
               {title.substring(0, hightlightTextIndexes[0])}
@@ -248,7 +248,10 @@ const LibItem = ({
         >
           {match && match.length > 1 ? match[1].trim() : description}
         </p>
-        <p style={{ color: 'rgba(0,0,0,0.5)', fontSize: '0.875rem' }}>
+        <p
+          style={{ color: 'rgba(0,0,0,0.5)', fontSize: '0.875rem' }}
+          className="mb-0 h-10 line-clamp-2"
+        >
           {tags?.map((tag, i) => (
             <span key={'tag_' + tag + '_' + i}>
               <span>{tag}</span>
