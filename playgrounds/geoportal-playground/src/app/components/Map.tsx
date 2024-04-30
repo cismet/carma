@@ -46,6 +46,8 @@ const Map = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [mode]);
 
+  console.log('mmm', TopicMapComponent);
+
   return (
     <div className="h-full w-full" ref={wrapperRef}>
       <TopicMapComponent

@@ -9,6 +9,7 @@ import {
   faPrint,
   faRedo,
   faShareNodes,
+  faDrawPolygon,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useContext, useState } from 'react';
@@ -134,6 +135,12 @@ const TopNavbar = () => {
         <Tooltip title="Teilen">
           <FontAwesomeIcon
             icon={faShareNodes}
+            className="text-xl text-gray-300"
+          />
+        </Tooltip>
+        <Tooltip title="Messungen">
+          <FontAwesomeIcon
+            icon={faDrawPolygon}
             className="text-xl text-gray-300"
           />
         </Tooltip>

@@ -9,6 +9,7 @@ import TopicMapContextProvider from 'react-cismap/contexts/TopicMapContextProvid
 // @ts-ignore
 import Map from './components/Map';
 import TopNavbar from './components/TopNavbar';
+import TempMeasure from './components/TempMeasure';
 if (typeof global === 'undefined') {
   window.global = window;
 }
@@ -18,7 +19,7 @@ function App() {
     <TopicMapContextProvider>
       <div className="flex flex-col h-screen w-full">
         <TopNavbar />
-
+        <TempMeasure />
         <Map />
       </div>
     </TopicMapContextProvider>
