@@ -17,13 +17,20 @@ import { InfoOutlined } from '@ant-design/icons';
 interface LayerItemProps {
   setAdditionalLayers: any;
   layer: any;
+  thumbnails: any;
+  setThumbnail: any;
 }
 
-const LibItem = ({ setAdditionalLayers, layer }: LayerItemProps) => {
+const LibItem = ({
+  setAdditionalLayers,
+  layer,
+  thumbnails,
+  setThumbnail,
+}: LayerItemProps) => {
   const [hovered, setHovered] = useState(false);
   const [isFavourite, setIsFavourite] = useState(false);
   const [isActiveLayer, setIsActiveLayer] = useState(false);
-  const [testUrl, setTestUrl] = useState('');
+  const [thumbUrl, setThumbUrl] = useState('');
   // @ts-ignore
   const { additionalLayerConfiguration } = useContext(TopicMapStylingContext);
   const title = layer.Title;
@@ -36,6 +43,10 @@ const LibItem = ({ setAdditionalLayers, layer }: LayerItemProps) => {
   const service = layer.service;
 
   const box = layer.pictureBoundingBox;
+
+  const thumbnail = thumbnails?.find(
+    (element) => element.name === name + '_' + service.name
+  );
 
   const url = `${
     service.url
@@ -78,28 +89,37 @@ const LibItem = ({ setAdditionalLayers, layer }: LayerItemProps) => {
     const getImgUrl = async (response, url) => {
       const blob = await response.blob();
       const imgUrl = URL.createObjectURL(blob);
+      let reader = new FileReader();
+      let data;
 
-      localStorage.setItem(url, imgUrl);
-      setTestUrl(imgUrl);
+      reader.readAsDataURL(blob);
+
+      reader.onloadend = () => {
+        data = reader.result;
+        if (blob.size > 757) {
+          setThumbnail({ data, name: name + '_' + service.name });
+        }
+      };
+      setThumbUrl(imgUrl);
     };
 
-    if (layer.pictureBoundingBox) {
-      const cachedImage = localStorage.getItem(bboxUrl);
-      if (cachedImage) {
-        setTestUrl(cachedImage);
+    if (!layer.thumbnail) {
+      if (layer.pictureBoundingBox) {
+        if (thumbnail?.data) {
+          setThumbUrl(thumbnail.data);
+        } else {
+          fetch(bboxUrl).then((response) => {
+            getImgUrl(response, bboxUrl);
+          });
+        }
       } else {
-        fetch(bboxUrl).then((response) => {
-          getImgUrl(response, bboxUrl);
-        });
-      }
-    } else {
-      const cachedImage = localStorage.getItem(url);
-      if (cachedImage) {
-        setTestUrl(cachedImage);
-      } else {
-        fetch(url).then((response) => {
-          getImgUrl(response, url);
-        });
+        if (thumbnail?.data) {
+          setThumbUrl(thumbnail.data);
+        } else {
+          fetch(url).then((response) => {
+            getImgUrl(response, url);
+          });
+        }
       }
     }
   }, []);
@@ -117,23 +137,21 @@ const LibItem = ({ setAdditionalLayers, layer }: LayerItemProps) => {
           </div>
         )}
 
-        <img
-          src={
-            layer.thumbnail
-              ? layer.thumbnail
-              : layer.pictureBoundingBox
-              ? testUrl
-              : testUrl
-          }
-          alt={title}
-          loading="lazy"
-          className={`object-cover relative h-full overflow-clip w-[calc(130%+7.2px)] ${
-            hovered && 'scale-110'
-          } transition-all duration-200`}
-          onLoad={(e) => {
-            setIsLoading(false);
-          }}
-        />
+        {thumbUrl || layer.thumbnail ? (
+          <img
+            src={layer.thumbnail ? layer.thumbnail : thumbUrl}
+            alt={title}
+            loading="lazy"
+            className={`object-cover relative h-full overflow-clip w-[calc(130%+7.2px)] ${
+              hovered && 'scale-110'
+            } transition-all duration-200`}
+            onLoad={(e) => {
+              setIsLoading(false);
+            }}
+          />
+        ) : (
+          <div className="object-cover relative h-full overflow-clip w-[calc(130%+7.2px)]" />
+        )}
 
         {isFavourite ? (
           <FontAwesomeIcon
