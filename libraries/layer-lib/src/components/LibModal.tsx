@@ -24,9 +24,17 @@ export interface LibModalProps {
   open: boolean;
   setOpen: (open: boolean) => void;
   setAdditionalLayers: any;
+  setThumbnail: any;
+  thumbnails: any;
 }
 
-const LibModal = ({ open, setOpen, setAdditionalLayers }: LibModalProps) => {
+const LibModal = ({
+  open,
+  setOpen,
+  setAdditionalLayers,
+  thumbnails,
+  setThumbnail,
+}: LibModalProps) => {
   const [layers, setLayers] = useState<any[]>([]);
   const [allLayers, setAllLayers] = useState<any[]>([]);
   const services = serviceConfig;
@@ -167,6 +175,8 @@ const LibModal = ({ open, setOpen, setAdditionalLayers }: LibModalProps) => {
                         <LibItem
                           setAdditionalLayers={setAdditionalLayers}
                           layer={layer}
+                          thumbnails={thumbnails}
+                          setThumbnail={setThumbnail}
                           key={`${category.Title}_layer_${i}`}
                         />
                       ))}

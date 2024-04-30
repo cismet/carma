@@ -1,5 +1,6 @@
 import { configureStore } from '@reduxjs/toolkit';
 import mappingSlice from './slices/mapping';
+import layersSlice from './slices/layers';
 import uiSlice from './slices/ui';
 import { createLogger } from 'redux-logger';
 import { persistReducer } from 'redux-persist';
@@ -58,10 +59,17 @@ const mappingConfig = {
   whitelist: [],
 };
 
+const layersConfig = {
+  key: '@' + APP_KEY + '.' + STORAGE_PREFIX + '.app.layers',
+  storage: localForage,
+  whitelist: ['thumbnails'],
+};
+
 export default configureStore({
   reducer: {
     mapping: persistReducer(mappingConfig, mappingSlice.reducer),
     ui: persistReducer(uiConfig, uiSlice.reducer),
+    layers: persistReducer(layersConfig, layersSlice.reducer),
   },
   devTools: devToolsEnabled === true && inProduction === false,
   middleware,

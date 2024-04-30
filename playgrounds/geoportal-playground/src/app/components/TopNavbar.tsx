@@ -24,6 +24,8 @@ import {
 
 import './switch.css';
 import { LayerLib } from '@cismet/layer-lib';
+import { useDispatch, useSelector } from 'react-redux';
+import { getThumbnails, setThumbnail } from '../store/slices/layers';
 
 const TopNavbar = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -34,6 +36,8 @@ const TopNavbar = () => {
     useContext(TopicMapStylingDispatchContext);
   // @ts-ignore
   const { additionalLayerConfiguration } = useContext(TopicMapStylingContext);
+  const dispatch = useDispatch();
+  const thumbnails = useSelector(getThumbnails);
 
   const [messageApi, contextHolder] = message.useMessage();
 
@@ -89,6 +93,10 @@ const TopNavbar = () => {
         open={isModalOpen}
         setOpen={setIsModalOpen}
         setAdditionalLayers={updateLayers}
+        setThumbnail={(thumbnail) => {
+          dispatch(setThumbnail(thumbnail));
+        }}
+        thumbnails={thumbnails}
       />
 
       <div className="flex items-center gap-6">
