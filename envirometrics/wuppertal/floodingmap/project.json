@@ -1,0 +1,68 @@
+{
+  "name": "floodingmap-wuppertal",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "envirometrics/wuppertal/floodingmap/src",
+  "projectType": "application",
+  "targets": {
+    "build": {
+      "executor": "@nx/vite:build",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "outputPath": "dist/envirometrics/wuppertal/floodingmap"
+      },
+      "configurations": {
+        "development": {
+          "mode": "development"
+        },
+        "production": {
+          "mode": "production"
+        }
+      }
+    },
+    "serve": {
+      "executor": "@nx/vite:dev-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "floodingmap-wuppertal:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "floodingmap-wuppertal:build:development",
+          "hmr": true
+        },
+        "production": {
+          "buildTarget": "floodingmap-wuppertal:build:production",
+          "hmr": false
+        }
+      }
+    },
+    "preview": {
+      "executor": "@nx/vite:preview-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "floodingmap-wuppertal:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "floodingmap-wuppertal:build:development"
+        },
+        "production": {
+          "buildTarget": "floodingmap-wuppertal:build:production"
+        }
+      }
+    },
+    "test": {
+      "executor": "@nx/vite:test",
+      "outputs": ["{options.reportsDirectory}"],
+      "options": {
+        "reportsDirectory": "../../../coverage/envirometrics/wuppertal/floodingmap"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"]
+    }
+  },
+  "tags": []
+}

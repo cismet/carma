@@ -1,0 +1,68 @@
+{
+  "name": "rainhazardmap-wuppertal",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "envirometrics/wuppertal/rainhazardmap/src",
+  "projectType": "application",
+  "targets": {
+    "build": {
+      "executor": "@nx/vite:build",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "outputPath": "dist/envirometrics/wuppertal/rainhazardmap"
+      },
+      "configurations": {
+        "development": {
+          "mode": "development"
+        },
+        "production": {
+          "mode": "production"
+        }
+      }
+    },
+    "serve": {
+      "executor": "@nx/vite:dev-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "rainhazardmap-wuppertal:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "rainhazardmap-wuppertal:build:development",
+          "hmr": true
+        },
+        "production": {
+          "buildTarget": "rainhazardmap-wuppertal:build:production",
+          "hmr": false
+        }
+      }
+    },
+    "preview": {
+      "executor": "@nx/vite:preview-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "rainhazardmap-wuppertal:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "rainhazardmap-wuppertal:build:development"
+        },
+        "production": {
+          "buildTarget": "rainhazardmap-wuppertal:build:production"
+        }
+      }
+    },
+    "test": {
+      "executor": "@nx/vite:test",
+      "outputs": ["{options.reportsDirectory}"],
+      "options": {
+        "reportsDirectory": "../../../coverage/envirometrics/wuppertal/rainhazardmap"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"]
+    }
+  },
+  "tags": []
+}
