@@ -32,7 +32,7 @@ const TempMeasure = (props) => {
         icon_inactive: makeMeasureIcon,
         color_polygon: 'blue',
         fillColor_polygon: 'green',
-        weight_polygon: 2,
+        weight_polygon: 5,
         msj_disable_tool: 'Do you want to disable the tool?',
         cb: toggleMeasureToolState,
       };
