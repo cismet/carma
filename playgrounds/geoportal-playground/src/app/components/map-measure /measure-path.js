@@ -1,32 +1,32 @@
 // Crea una clase para el plugin
 L.Control.MeasurePolygon = L.Control.extend({
   options: {
-    position: "topright",
-    icon_active: "https://img.icons8.com/?size=48&id=98497&format=png",
-    icon_inactive: "https://img.icons8.com/?size=48&id=98463&format=png",
+    position: 'topright',
+    icon_active: 'https://img.icons8.com/?size=48&id=98497&format=png',
+    icon_inactive: 'https://img.icons8.com/?size=48&id=98463&format=png',
     html_template: `<p><strong><span style="text-decoration: underline;">Results</span></strong></p>
 <p><strong>Area: </strong><br>_p_area</p>
 <p><strong>Perimeter : </strong><br>_p_perimetro</p>`,
     height: 130,
     width: 150,
-    color_polygon: "black",
-    fillColor_polygon: "yellow",
-    weight_polygon: "2",
+    color_polygon: 'black',
+    fillColor_polygon: 'yellow',
+    weight_polygon: '2',
     checkonedrawpoligon: false,
-    msj_disable_tool: "¿Desea desabilitar la herramienta?",
+    msj_disable_tool: '¿Desea desabilitar la herramienta?',
     cb: function () {
-      console.log("Callback function executed!");
+      console.log('Callback function executed!');
     },
   },
 
   onAdd: function (map) {
-    const container = L.DomUtil.create("div", "leaflet-bar leaflet-control");
-    const icon = L.DomUtil.create("a", "", container);
-    icon.innerHTML = `<img id="img_plg_measure_polygon" src="${this.options.icon_inactive}" width="24" height="24" alt="Ruler Icon">`;
-    icon.href = "#";
-    icon.title = "Medir área y perímetro";
+    const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+    const icon = L.DomUtil.create('a', '', container);
+    icon.innerHTML = `<img id="img_plg_measure_polygon" src="${this.options.icon_inactive}" width="26" height="26" alt="Ruler Icon">`;
+    icon.href = '#';
+    icon.title = 'Medir área y perímetro';
     this.ui_icon = icon;
-    L.DomEvent.on(icon, "click", this._toggleMeasure, this);
+    L.DomEvent.on(icon, 'click', this._toggleMeasure, this);
 
     this._map = map;
     this._measureHandler = new L.Draw.Polygon(map, {
@@ -37,35 +37,35 @@ L.Control.MeasurePolygon = L.Control.extend({
         fillColor: this.options.fillColor_polygon,
         fillOpacity: 0.4,
         // dashArray: "3, 5",
-        lineCap: "round",
-        lineJoin: "round",
-        dashArray: "1, 9",
+        lineCap: 'round',
+        lineJoin: 'round',
+        dashArray: '1, 9',
         weight: this.options.weight_polygon,
       },
     });
     this._measureLayers = L.layerGroup().addTo(map);
 
     /*Creado el panel de los resultado*/
-    this._measurePanel = L.control({ position: "bottomright" });
+    this._measurePanel = L.control({ position: 'bottomright' });
     this._measurePanel.onAdd = () => {
-      const panel = L.DomUtil.create("div", "measure-panel");
-      panel.style.width = 0 + "px";
-      panel.style.height = 0 + "px";
+      const panel = L.DomUtil.create('div', 'measure-panel');
+      panel.style.width = 0 + 'px';
+      panel.style.height = 0 + 'px';
       // panel.style.width = this.options.height + "px";
       // panel.style.height = this.options.width + "px";
       // panel.style.backgroundColor = "white";
       // panel.style.padding = "10px";
       // panel.style.border = "1px solid black";
 
-      this._content = L.DomUtil.create("div", "", panel);
-      this._content.innerHTML = "Área y perímetro aparecerán aquí.";
+      this._content = L.DomUtil.create('div', '', panel);
+      this._content.innerHTML = 'Área y perímetro aparecerán aquí.';
       return panel;
     };
 
     this._measurePanel.addTo(map);
     this._measurePanel.remove();
 
-    map.on("draw:created", (event) => {
+    map.on('draw:created', (event) => {
       this.options.checkonedrawpoligon = true;
 
       this._measurePanel.addTo(map);
@@ -77,12 +77,21 @@ L.Control.MeasurePolygon = L.Control.extend({
       //L.DomEvent.off(this.ui_icon, 'click', this._toggleMeasure, this);
 
       // Agregar estilo al polígono
+      const debugLayer = layer.addTo(this._measureLayers);
+      console.log('eee showMeasurements', debugLayer.showMeasurements);
+      console.log('eee enableEdit', debugLayer.enableEdit);
+      console.log('eee', debugLayer);
+      console.log('eee _map');
 
-      layer.addTo(this._measureLayers).showMeasurements().enableEdit();
+      layer.addTo(this._measureLayers).showMeasurements();
+      // layer.addTo(this._measureLayers).showMeasurements();
+      //layer.addTo(this._measureLayers);
+      // console.log('eee', debugLayer);
+
       map.on(
-        "editable:vertex:drag editable:vertex:deleted",
+        'editable:vertex:drag editable:vertex:deleted',
         function () {
-          console.log("Modify path");
+          console.log('Modify path');
           layer.updateMeasurements();
           plugin._UpdateAreaPerimetro(layer);
         },
@@ -113,14 +122,14 @@ L.Control.MeasurePolygon = L.Control.extend({
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     };
-    let areaValue = `${area.toLocaleString("en-US", options)} m²`;
-    let perimeterValue = `${perimeter.toLocaleString("en-US", options)} m`;
+    let areaValue = `${area.toLocaleString('en-US', options)} m²`;
+    let perimeterValue = `${perimeter.toLocaleString('en-US', options)} m`;
     // Obtener el contenido HTML
     let htmlContent = this.options.html_template;
 
     // Reemplazar _p_area y _p_perimetro con los valores
-    htmlContent = htmlContent.replace("_p_area", areaValue);
-    htmlContent = htmlContent.replace("_p_perimetro", perimeterValue);
+    htmlContent = htmlContent.replace('_p_area', areaValue);
+    htmlContent = htmlContent.replace('_p_perimetro', perimeterValue);
 
     this._content.innerHTML = htmlContent;
   },
@@ -132,7 +141,7 @@ L.Control.MeasurePolygon = L.Control.extend({
       // let respuesta = confirm(this.options.msj_disable_tool);
       this._measureHandler.disable();
 
-      document.getElementById("img_plg_measure_polygon").src =
+      document.getElementById('img_plg_measure_polygon').src =
         this.options.icon_inactive;
       //this._measureHandler.disable();
       this._clearMeasurements();
@@ -152,7 +161,7 @@ L.Control.MeasurePolygon = L.Control.extend({
       // this._measureHandler.enable();
       //this._measurePanel.addTo(map);
       this._measureHandler.enable();
-      document.getElementById("img_plg_measure_polygon").src =
+      document.getElementById('img_plg_measure_polygon').src =
         this.options.icon_active;
       this.options.cb(true);
     }

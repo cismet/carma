@@ -6,13 +6,14 @@ import 'leaflet-draw/dist/leaflet.draw.css';
 import L from 'leaflet';
 import 'leaflet-draw';
 import 'leaflet-editable';
+import 'leaflet-measure-path';
 import './measure-path';
+import 'leaflet-measure-path/leaflet-measure-path.css';
 import makeMeasureIcon from './measure.png';
 import makeMeasureActiveIcon from './measure-active.png';
+
 const TempMeasure = (props) => {
   const { routedMapRef } = useContext(TopicMapContext);
-
-  const leafletRoutedMapRef = useRef(null);
 
   const [measurements, setMeasurements] = useState({ area: '' });
   const [measureControl, setMeasureControl] = useState(null);
@@ -20,8 +21,8 @@ const TempMeasure = (props) => {
 
   useEffect(() => {
     // if (!mapRef.current) return;
-    if (routedMapRef) {
-      // const mapExample = mapRef.current.leafletElement;
+    if (routedMapRef && !measureControl) {
+      // routedMapRef.leafletMap.leafletElement.editable = true;
       const mapExample = routedMapRef.leafletMap.leafletElement;
       console.log('xxx map', mapExample);
 
@@ -63,7 +64,7 @@ const TempMeasure = (props) => {
     if (routedMapRef) {
       console.log('mmm', routedMapRef.leafletMap.leafletElement);
     }
-  }, [routedMapRef]);
+  }, [routedMapRef, measureControl]);
 
   const handleVertexDrag = (event) => {
     // Recalculate area when vertex is dragged

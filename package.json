@@ -40,6 +40,7 @@
     "leaflet": "^1.9.4",
     "leaflet-draw": "^1.0.4",
     "leaflet-editable": "^1.2.0",
+    "leaflet-measure-path": "^1.5.0",
     "leaflet-rastercoords": "^1.0.6",
     "localforage": "^1.10.0",
     "lodash": "^4.17.21",
