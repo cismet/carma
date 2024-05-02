@@ -22,7 +22,7 @@ L.Control.MeasurePolygon = L.Control.extend({
   onAdd: function (map) {
     const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
     const icon = L.DomUtil.create('a', '', container);
-    icon.innerHTML = `<img id="img_plg_measure_polygon" src="${this.options.icon_inactive}" width="26" height="26" alt="Ruler Icon">`;
+    icon.innerHTML = `<img id="img_plg_measure_polygon" src="${this.options.icon_inactive}" width="24" height="24" alt="Ruler Icon" style="display: block; margin: auto; height: 100%;">`;
     icon.href = '#';
     icon.title = 'Flächen- und Umfangsmessungen';
     this.ui_icon = icon;
