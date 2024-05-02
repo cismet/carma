@@ -9,7 +9,7 @@ import TopicMapContextProvider from 'react-cismap/contexts/TopicMapContextProvid
 // @ts-ignore
 import Map from './components/Map';
 import TopNavbar from './components/TopNavbar';
-import TempMeasure from './components/TempMeasure';
+import TempMeasure from './components/map-measure /TempMeasure';
 if (typeof global === 'undefined') {
   window.global = window;
 }
