@@ -24,7 +24,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     const icon = L.DomUtil.create('a', '', container);
     icon.innerHTML = `<img id="img_plg_measure_polygon" src="${this.options.icon_inactive}" width="26" height="26" alt="Ruler Icon">`;
     icon.href = '#';
-    icon.title = 'Medir área y perímetro';
+    icon.title = 'Flächen- und Umfangsmessungen';
     this.ui_icon = icon;
     L.DomEvent.on(icon, 'click', this._toggleMeasure, this);
 
