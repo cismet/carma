@@ -117,7 +117,7 @@ const MeasurementResults = ({ data }) => {
       <div style={styles.area}>
         <div>
           <strong>Square:</strong>{' '}
-          {data.area !== '' ? data.area.toFixed(2) : ''} m²
+          {data.area !== '' ? formatArea(data.area) : ''}
         </div>
         <div>
           {' '}
@@ -157,5 +157,26 @@ function calculatePerimeter(layer) {
     maximumFractionDigits: 2,
   };
 
-  return `${perimeter.toLocaleString('en-US', options)} m`;
+  const formatPerimeter = (perimeter) => {
+    if (perimeter >= 1000) {
+      // Convert perimeter to kilometers and round to 2 decimal places
+      return `${(perimeter / 1000).toFixed(2)} km`;
+    } else {
+      // Display perimeter in meters and round to 2 decimal places
+      return `${perimeter.toFixed(2)} m`;
+    }
+  };
+
+  // Call the formatPerimeter function to format the perimeter measurement
+  return formatPerimeter(perimeter);
 }
+
+const formatArea = (area) => {
+  if (area >= 1000000) {
+    // Convert area to square kilometers and round to 2 decimal places
+    return `${(area / 1000000).toFixed(2)} km²`;
+  } else {
+    // Display area in square meters and round to 2 decimal places
+    return `${area.toFixed(2)} m²`;
+  }
+};
