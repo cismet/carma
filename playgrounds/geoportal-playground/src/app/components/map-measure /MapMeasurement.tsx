@@ -21,6 +21,7 @@ const MapMeasurement = (props) => {
   const [measurements, setMeasurements] = useState({ area: '' });
   const [measureControl, setMeasureControl] = useState(null);
   const [checkMeasureTool, setCheckMeasureTool] = useState(false);
+  const [polygons, setPolygons] = useState([]);
 
   useEffect(() => {
     if (routedMapRef && !measureControl) {
@@ -35,6 +36,7 @@ const MapMeasurement = (props) => {
         weight_polygon: 5,
         msj_disable_tool: 'Do you want to disable the tool?',
         cb: toggleMeasureToolState,
+        cbSavePol: savePolHandler,
       };
 
       const measurePolygonControl = L.control.measurePolygon(customOptions);
@@ -59,6 +61,8 @@ const MapMeasurement = (props) => {
       };
     }
   }, [routedMapRef]);
+  console.log('ppp', polygons);
+  useEffect(() => {}, [polygons]);
 
   const handleVertexDrag = (event) => {
     // Recalculate area when vertex is dragged
@@ -84,6 +88,9 @@ const MapMeasurement = (props) => {
   const toggleMeasureToolState = (status) => {
     setCheckMeasureTool(status);
     setMeasurements({ area: '' });
+  };
+  const savePolHandler = (layer) => {
+    setPolygons((prevPolygons) => [...prevPolygons, layer]);
   };
 
   return (

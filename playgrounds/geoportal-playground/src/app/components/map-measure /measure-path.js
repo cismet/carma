@@ -14,7 +14,11 @@ L.Control.MeasurePolygon = L.Control.extend({
     weight_polygon: '2',
     checkonedrawpoligon: false,
     msj_disable_tool: 'Möchten Sie das Tool deaktivieren?',
+    polygons: [],
     cb: function () {
+      console.log('Callback function executed!');
+    },
+    cbSavePol: function () {
       console.log('Callback function executed!');
     },
   },
@@ -32,6 +36,7 @@ L.Control.MeasurePolygon = L.Control.extend({
       fillOpacity,
     };
     console.log('yyy layer', preparePolygon);
+    this.options.cbSavePol(latlngs);
     // console.log('yyy', event.latlng);
     // this._measureLayers.removeLayer(clickedPolygon);
     this._toggleMeasure();
