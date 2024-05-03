@@ -22,8 +22,18 @@ L.Control.MeasurePolygon = L.Control.extend({
   _onPolygonClick: function (event) {
     console.log('Polygon clicked:', event);
     const clickedPolygon = event.target;
-
-    this._measureLayers.removeLayer(clickedPolygon);
+    const latlngs = clickedPolygon.getLatLngs();
+    const { stroke, color, fillColor, fillOpacity } = clickedPolygon.options;
+    const preparePolygon = {
+      latlngs,
+      stroke,
+      color,
+      fillColor,
+      fillOpacity,
+    };
+    console.log('yyy layer', preparePolygon);
+    // console.log('yyy', event.latlng);
+    // this._measureLayers.removeLayer(clickedPolygon);
     this._toggleMeasure();
   },
 
@@ -34,6 +44,29 @@ L.Control.MeasurePolygon = L.Control.extend({
     icon.href = '#';
     icon.title = 'Flächen- und Umfangsmessungen';
     this.ui_icon = icon;
+
+    const polygonOptions = {
+      latlngs: [
+        [51.299925466442645, 7.133216857910157],
+        [51.28854705640744, 7.179222106933595],
+        [51.28167570765906, 7.10643768310547],
+      ],
+      stroke: true,
+      color: 'blue',
+      fillColor: 'green',
+      fillOpacity: 0.4,
+    };
+    const polygon = L.polygon(polygonOptions.latlngs, {
+      stroke: true,
+      color: 'blue',
+      fillColor: 'green',
+      fillOpacity: 0.4,
+      dashArray: '1, 9',
+      weight: this.options.weight_polygon,
+    }).addTo(map);
+
+    polygon.enableEdit();
+    polygon.showMeasurements();
 
     L.DomEvent.on(
       icon,
@@ -77,7 +110,7 @@ L.Control.MeasurePolygon = L.Control.extend({
       panel.style.height = 0 + 'px';
 
       this._content = L.DomUtil.create('div', '', panel);
-      this._content.innerHTML = 'Área y perímetro aparecerán aquí.';
+      this._content.innerHTML = 'Area and perimeter will appear here.';
       return panel;
     };
 
@@ -115,30 +148,30 @@ L.Control.MeasurePolygon = L.Control.extend({
   },
 
   _UpdateAreaPerimetro: function (layer) {
-    const latlngs = layer.getLatLngs()[0];
-    const area = L.GeometryUtil.geodesicArea(latlngs);
+    // const latlngs = layer.getLatLngs()[0];
+    // const area = L.GeometryUtil.geodesicArea(latlngs);
 
-    let perimeter = 0;
-    for (let i = 0; i < latlngs.length - 1; i++) {
-      perimeter += latlngs[i].distanceTo(latlngs[i + 1]);
-    }
-    perimeter += latlngs[latlngs.length - 1].distanceTo(latlngs[0]);
+    // let perimeter = 0;
+    // for (let i = 0; i < latlngs.length - 1; i++) {
+    //   perimeter += latlngs[i].distanceTo(latlngs[i + 1]);
+    // }
+    // perimeter += latlngs[latlngs.length - 1].distanceTo(latlngs[0]);
 
-    this._content.innerHTML = this.options.html_template;
+    // this._content.innerHTML = this.options.html_template;
 
     const options = {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     };
-    let areaValue = `${area.toLocaleString('en-US', options)} m²`;
-    let perimeterValue = `${perimeter.toLocaleString('en-US', options)} m`;
+    // let areaValue = `${area.toLocaleString('en-US', options)} m²`;
+    // let perimeterValue = `${perimeter.toLocaleString('en-US', options)} m`;
 
     // Replace _p_area and _p_perimetro with the values
-    let htmlContent = this.options.html_template;
-    htmlContent = htmlContent.replace('_p_area', areaValue);
-    htmlContent = htmlContent.replace('_p_perimetro', perimeterValue);
+    // let htmlContent = this.options.html_template;
+    // htmlContent = htmlContent.replace('_p_area', areaValue);
+    // htmlContent = htmlContent.replace('_p_perimetro', perimeterValue);
 
-    this._content.innerHTML = htmlContent;
+    // this._content.innerHTML = htmlContent;
   },
 
   _toggleMeasure: function () {
