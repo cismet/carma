@@ -66,9 +66,12 @@ const MapMeasurement = (props) => {
   };
 
   const handleVertexDeleted = () => {
-    const latlngs = mapRef.current.leafletElement.editTools.featuresLayer
-      .getLayers()[0]
-      .getLatLngs()[0];
+    // const latlngs = mapRef.current.leafletElement.editTools.featuresLayer
+    const latlngs =
+      routedMapRef.leafletMap.leafletElement.editTools.featuresLayer
+
+        .getLayers()[0]
+        .getLatLngs()[0];
     const perimeter = calculatePerimeter(latlngs);
     const area = L.GeometryUtil.geodesicArea(latlngs);
     setMeasurements((prev) => ({ ...prev, area, perimeter }));
