@@ -13,7 +13,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     fillColor_polygon: 'yellow',
     weight_polygon: '2',
     checkonedrawpoligon: false,
-    msj_disable_tool: '¿Desea desabilitar la herramienta?',
+    msj_disable_tool: 'Möchten Sie das Tool deaktivieren?',
     cb: function () {
       console.log('Callback function executed!');
     },
@@ -43,6 +43,14 @@ L.Control.MeasurePolygon = L.Control.extend({
         weight: this.options.weight_polygon,
       },
     });
+
+    L.drawLocal.draw.handlers.polygon.tooltip.start =
+      'Klicken, um mit dem Zeichnen der Form zu beginnen';
+    L.drawLocal.draw.handlers.polygon.tooltip.cont =
+      'Klicken Sie, um mit dem Zeichnen der Form fortzufahren';
+    L.drawLocal.draw.handlers.polygon.tooltip.end =
+      'Klicken, um die Form zu beenden';
+
     this._measureLayers = L.layerGroup().addTo(map);
 
     /*Created the result panel*/
@@ -51,11 +59,6 @@ L.Control.MeasurePolygon = L.Control.extend({
       const panel = L.DomUtil.create('div', 'measure-panel');
       panel.style.width = 0 + 'px';
       panel.style.height = 0 + 'px';
-      // panel.style.width = this.options.height + "px";
-      // panel.style.height = this.options.width + "px";
-      // panel.style.backgroundColor = "white";
-      // panel.style.padding = "10px";
-      // panel.style.border = "1px solid black";
 
       this._content = L.DomUtil.create('div', '', panel);
       this._content.innerHTML = 'Área y perímetro aparecerán aquí.';
@@ -75,18 +78,12 @@ L.Control.MeasurePolygon = L.Control.extend({
       let plugin = this;
 
       // Add style to polygon
-      const debugLayer = layer.addTo(this._measureLayers);
-      console.log('eee showMeasurements', debugLayer.showMeasurements);
-      console.log('eee enableEdit', debugLayer.enableEdit);
-      console.log('eee', debugLayer);
-      console.log('eee _map');
 
       layer.addTo(this._measureLayers).showMeasurements().enableEdit();
 
       map.on(
         'editable:vertex:drag editable:vertex:deleted',
         function () {
-          console.log('Modify path');
           layer.updateMeasurements();
           plugin._UpdateAreaPerimetro(layer);
         },
@@ -156,7 +153,7 @@ L.Control.MeasurePolygon = L.Control.extend({
   },
 });
 
-// Añade el método para crear una nueva instancia del control
+// Adds the method to create a new instance of the control
 L.control.measurePolygon = function (options) {
   return new L.Control.MeasurePolygon(options);
 };

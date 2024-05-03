@@ -12,6 +12,7 @@ import { useSelector } from 'react-redux';
 // @ts-ignore
 import { getMode } from './../store/slices/ui';
 import { TopicMapContext } from 'react-cismap/contexts/TopicMapContextProvider';
+import ResponsiveInfoBox from 'react-cismap/topicmaps/ResponsiveInfoBox';
 
 const Map = () => {
   const [gazData, setGazData] = useState([]);
@@ -47,8 +48,6 @@ const Map = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [mode]);
 
-  console.log('mmm', TopicMapComponent);
-
   return (
     <div className="h-full w-full" ref={wrapperRef}>
       <TopicMapComponent
@@ -61,6 +60,9 @@ const Map = () => {
           console.log('xxx bbox', createWMSBbox(boundingbox));
         }}
         gazetteerSearchPlaceholder="Stadtteil | Adresse | POI"
+        infoBox={
+          <ResponsiveInfoBox pixelwidth={300} header={<span>Messen</span>} />
+        }
       >
         <StyledWMSTileLayer
           {...{

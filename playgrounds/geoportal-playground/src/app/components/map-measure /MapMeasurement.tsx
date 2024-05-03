@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef, useContext } from 'react';
-// import RoutedMap from '../RoutedMap';
+import React, { useState, useEffect, useContext } from 'react';
 import { TopicMapContext } from 'react-cismap/contexts/TopicMapContextProvider';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
@@ -12,7 +11,7 @@ import 'leaflet-measure-path/leaflet-measure-path.css';
 import makeMeasureIcon from './measure.png';
 import makeMeasureActiveIcon from './measure-active.png';
 
-const TempMeasure = (props) => {
+const MapMeasurement = (props) => {
   const { routedMapRef } = useContext(TopicMapContext);
 
   const [measurements, setMeasurements] = useState({ area: '' });
@@ -20,11 +19,8 @@ const TempMeasure = (props) => {
   const [checkMeasureTool, setCheckMeasureTool] = useState(false);
 
   useEffect(() => {
-    // if (!mapRef.current) return;
     if (routedMapRef && !measureControl) {
-      // routedMapRef.leafletMap.leafletElement.editable = true;
       const mapExample = routedMapRef.leafletMap.leafletElement;
-      console.log('xxx map', mapExample);
 
       const customOptions = {
         position: 'topleft',
@@ -60,12 +56,6 @@ const TempMeasure = (props) => {
     }
   }, [routedMapRef]);
 
-  useEffect(() => {
-    if (routedMapRef) {
-      console.log('mmm', routedMapRef.leafletMap.leafletElement);
-    }
-  }, [routedMapRef, measureControl]);
-
   const handleVertexDrag = (event) => {
     // Recalculate area when vertex is dragged
     const layer = event.layer;
@@ -76,20 +66,12 @@ const TempMeasure = (props) => {
   };
 
   const handleVertexDeleted = () => {
-    console.log('delete');
-    // Recalculate area when vertex is deleted
     const latlngs = mapRef.current.leafletElement.editTools.featuresLayer
       .getLayers()[0]
       .getLatLngs()[0];
     const perimeter = calculatePerimeter(latlngs);
     const area = L.GeometryUtil.geodesicArea(latlngs);
     setMeasurements((prev) => ({ ...prev, area, perimeter }));
-  };
-
-  const toggleMeasure = () => {
-    if (measureControl) {
-      measureControl._toggleMeasure();
-    }
   };
 
   const toggleMeasureToolState = (status) => {
@@ -99,13 +81,12 @@ const TempMeasure = (props) => {
 
   return (
     <div>
-      {/* <button onClick={toggleMeasure}>Toggle Measure</button>{' '} */}
-      {checkMeasureTool && <MeasurementResults data={measurements} />}
+      {/* {checkMeasureTool && <MeasurementResults data={measurements} />} */}
     </div>
   );
 };
 
-export default TempMeasure;
+export default MapMeasurement;
 
 const MeasurementResults = ({ data }) => {
   if (data.area === '') {

@@ -138,12 +138,12 @@ const TopNavbar = () => {
             className="text-xl text-gray-300"
           />
         </Tooltip>
-        <Tooltip title="Messungen">
+        {/* <Tooltip title="Messungen">
           <FontAwesomeIcon
             icon={faDrawPolygon}
             className="text-xl text-gray-300"
           />
-        </Tooltip>
+        </Tooltip> */}
       </div>
 
       <div className="flex items-center gap-6">
