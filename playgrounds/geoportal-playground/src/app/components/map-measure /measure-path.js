@@ -26,7 +26,16 @@ L.Control.MeasurePolygon = L.Control.extend({
     icon.href = '#';
     icon.title = 'Flächen- und Umfangsmessungen';
     this.ui_icon = icon;
-    L.DomEvent.on(icon, 'click', this._toggleMeasure, this);
+
+    L.DomEvent.on(
+      icon,
+      'click',
+      (event) => {
+        event.preventDefault(); // Prevent default action (e.g., redirection)
+        this._toggleMeasure(); // Call the toggle measure function
+      },
+      this
+    );
 
     this._map = map;
     this._measureHandler = new L.Draw.Polygon(map, {
@@ -36,7 +45,6 @@ L.Control.MeasurePolygon = L.Control.extend({
         color: this.options.color_polygon,
         fillColor: this.options.fillColor_polygon,
         fillOpacity: 0.4,
-        // dashArray: "3, 5",
         lineCap: 'round',
         lineJoin: 'round',
         dashArray: '1, 9',
@@ -78,7 +86,6 @@ L.Control.MeasurePolygon = L.Control.extend({
       let plugin = this;
 
       // Add style to polygon
-
       layer.addTo(this._measureLayers).showMeasurements().enableEdit();
 
       map.on(
@@ -98,7 +105,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     return container;
   },
 
-  _UpdateAreaPerimetro(layer) {
+  _UpdateAreaPerimetro: function (layer) {
     const latlngs = layer.getLatLngs()[0];
     const area = L.GeometryUtil.geodesicArea(latlngs);
 
@@ -116,10 +123,9 @@ L.Control.MeasurePolygon = L.Control.extend({
     };
     let areaValue = `${area.toLocaleString('en-US', options)} m²`;
     let perimeterValue = `${perimeter.toLocaleString('en-US', options)} m`;
-    // Obtener el contenido HTML
-    let htmlContent = this.options.html_template;
 
-    // Reemplazar _p_area y _p_perimetro con los valores
+    // Replace _p_area and _p_perimetro with the values
+    let htmlContent = this.options.html_template;
     htmlContent = htmlContent.replace('_p_area', areaValue);
     htmlContent = htmlContent.replace('_p_perimetro', perimeterValue);
 
