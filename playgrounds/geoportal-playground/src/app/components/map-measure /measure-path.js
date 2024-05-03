@@ -19,6 +19,14 @@ L.Control.MeasurePolygon = L.Control.extend({
     },
   },
 
+  _onPolygonClick: function (event) {
+    console.log('Polygon clicked:', event);
+    const clickedPolygon = event.target;
+
+    this._measureLayers.removeLayer(clickedPolygon);
+    this._toggleMeasure();
+  },
+
   onAdd: function (map) {
     const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
     const icon = L.DomUtil.create('a', '', container);
@@ -82,6 +90,7 @@ L.Control.MeasurePolygon = L.Control.extend({
       this._measurePanel.addTo(map);
 
       const layer = event.layer;
+      layer.on('dblclick', this._onPolygonClick.bind(this));
       this._UpdateAreaPerimetro(layer);
       let plugin = this;
 
@@ -154,7 +163,8 @@ L.Control.MeasurePolygon = L.Control.extend({
   },
 
   _clearMeasurements: function () {
-    this._measureLayers.clearLayers();
+    console.log('ccc', this._measureLayers);
+    // this._measureLayers.clearLayers();
     this.options.cb(false);
   },
 });
