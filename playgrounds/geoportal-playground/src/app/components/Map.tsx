@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useContext } from 'react';
 // @ts-ignore
 import StyledWMSTileLayer from 'react-cismap/StyledWMSTileLayer';
 // @ts-ignore
@@ -11,6 +11,7 @@ import { getGazData } from '../helper/helper';
 import { useSelector } from 'react-redux';
 // @ts-ignore
 import { getMode } from './../store/slices/ui';
+import { TopicMapContext } from 'react-cismap/contexts/TopicMapContextProvider';
 
 const Map = () => {
   const [gazData, setGazData] = useState([]);
@@ -55,6 +56,7 @@ const Map = () => {
         hamburgerMenu={false}
         locatorControl={true}
         mapStyle={{ width, height }}
+        leafletMapProps={{ editable: true }}
         mappingBoundsChanged={(boundingbox) => {
           console.log('xxx bbox', createWMSBbox(boundingbox));
         }}

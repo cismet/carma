@@ -1,4 +1,4 @@
-// Crea una clase para el plugin
+// Create a class for the plugin
 L.Control.MeasurePolygon = L.Control.extend({
   options: {
     position: 'topright',
@@ -45,7 +45,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     });
     this._measureLayers = L.layerGroup().addTo(map);
 
-    /*Creado el panel de los resultado*/
+    /*Created the result panel*/
     this._measurePanel = L.control({ position: 'bottomright' });
     this._measurePanel.onAdd = () => {
       const panel = L.DomUtil.create('div', 'measure-panel');
@@ -74,19 +74,14 @@ L.Control.MeasurePolygon = L.Control.extend({
       this._UpdateAreaPerimetro(layer);
       let plugin = this;
 
-      //L.DomEvent.off(this.ui_icon, 'click', this._toggleMeasure, this);
-
-      // Agregar estilo al polígono
+      // Add style to polygon
       const debugLayer = layer.addTo(this._measureLayers);
       console.log('eee showMeasurements', debugLayer.showMeasurements);
       console.log('eee enableEdit', debugLayer.enableEdit);
       console.log('eee', debugLayer);
       console.log('eee _map');
 
-      layer.addTo(this._measureLayers).showMeasurements();
-      // layer.addTo(this._measureLayers).showMeasurements();
-      //layer.addTo(this._measureLayers);
-      // console.log('eee', debugLayer);
+      layer.addTo(this._measureLayers).showMeasurements().enableEdit();
 
       map.on(
         'editable:vertex:drag editable:vertex:deleted',
@@ -99,7 +94,7 @@ L.Control.MeasurePolygon = L.Control.extend({
         plugin
       );
 
-      // Deshabilitar la herramienta de dibujo después de crear un polígono
+      // Disabling the drawing tool after creating a polygon
       this._measureHandler.disable();
     });
 
