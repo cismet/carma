@@ -11,8 +11,12 @@ import 'leaflet-measure-path/leaflet-measure-path.css';
 import makeMeasureIcon from './measure.png';
 import makeMeasureActiveIcon from './measure-active.png';
 
+interface TopicMapContextType {
+  routedMapRef: any;
+}
+
 const MapMeasurement = (props) => {
-  const { routedMapRef } = useContext(TopicMapContext);
+  const { routedMapRef } = useContext<TopicMapContextType>(TopicMapContext);
 
   const [measurements, setMeasurements] = useState({ area: '' });
   const [measureControl, setMeasureControl] = useState(null);
