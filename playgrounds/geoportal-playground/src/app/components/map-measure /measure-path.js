@@ -138,28 +138,16 @@ L.Control.MeasurePolygon = L.Control.extend({
     this.options.cb(true);
 
     if (this.options.checkonedrawpoligon) {
-      // let respuesta = confirm(this.options.msj_disable_tool);
       this._measureHandler.disable();
 
       document.getElementById('img_plg_measure_polygon').src =
         this.options.icon_inactive;
-      //this._measureHandler.disable();
       this._clearMeasurements();
       this._measurePanel.remove();
       this.options.checkonedrawpoligon = false;
-      // if (respuesta) {
-      //   this._measureHandler.disable();
 
-      //   document.getElementById("img_plg_measure_polygon").src =
-      //     this.options.icon_inactive;
-      //   //this._measureHandler.disable();
       this._clearMeasurements();
-      //   this._measurePanel.remove();
-      //   this.options.checkonedrawpoligon = false;
-      // }
     } else {
-      // this._measureHandler.enable();
-      //this._measurePanel.addTo(map);
       this._measureHandler.enable();
       document.getElementById('img_plg_measure_polygon').src =
         this.options.icon_active;
