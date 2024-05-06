@@ -84,26 +84,43 @@ L.Control.MeasurePolygon = L.Control.extend({
     );
 
     this._map = map;
-    this._measureHandler = new L.Draw.Polygon(map, {
-      showArea: true,
+    // this._measureHandler = new L.Draw.Polygon(map, {
+    //   showArea: true,
+    //   shapeOptions: {
+    //     stroke: true,
+    //     color: this.options.color_polygon,
+    //     fillColor: this.options.fillColor_polygon,
+    //     fillOpacity: 0.4,
+    //     lineCap: 'round',
+    //     lineJoin: 'round',
+    //     dashArray: '1, 9',
+    //     weight: this.options.weight_polygon,
+    //   },
+    // });
+
+    // L.drawLocal.draw.handlers.polygon.tooltip.start =
+    //   'Klicken, um mit dem Zeichnen der Form zu beginnen';
+    // L.drawLocal.draw.handlers.polygon.tooltip.cont =
+    //   'Klicken Sie, um mit dem Zeichnen der Form fortzufahren';
+    // L.drawLocal.draw.handlers.polygon.tooltip.end =
+    //   'Klicken, um die Form zu beenden';
+
+    this._measureHandler = new L.Draw.Polyline(map, {
+      // Use L.Draw.Polyline instead of L.Draw.Polygon
+      showLength: true, // Show length in tooltip
       shapeOptions: {
-        stroke: true,
+        // Customize polyline options here
         color: this.options.color_polygon,
-        fillColor: this.options.fillColor_polygon,
-        fillOpacity: 0.4,
-        lineCap: 'round',
-        lineJoin: 'round',
-        dashArray: '1, 9',
         weight: this.options.weight_polygon,
       },
     });
 
-    L.drawLocal.draw.handlers.polygon.tooltip.start =
-      'Klicken, um mit dem Zeichnen der Form zu beginnen';
-    L.drawLocal.draw.handlers.polygon.tooltip.cont =
-      'Klicken Sie, um mit dem Zeichnen der Form fortzufahren';
-    L.drawLocal.draw.handlers.polygon.tooltip.end =
-      'Klicken, um die Form zu beenden';
+    L.drawLocal.draw.handlers.polyline.tooltip.start =
+      'Click to start drawing a line'; // Tooltip for starting drawing
+    L.drawLocal.draw.handlers.polyline.tooltip.cont =
+      'Click to continue drawing the line'; // Tooltip for continuing drawing
+    L.drawLocal.draw.handlers.polyline.tooltip.end =
+      'Click last point to finish drawing'; // Tooltip for finishing drawing
 
     this._measureLayers = L.layerGroup().addTo(map);
 
