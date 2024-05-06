@@ -57,14 +57,14 @@ const Map = () => {
         mapStyle={{ width, height }}
         leafletMapProps={{ editable: true }}
         mappingBoundsChanged={(boundingbox) => {
-          console.log('xxx bbox', createWMSBbox(boundingbox));
+          // console.log('xxx bbox', createWMSBbox(boundingbox));
         }}
         gazetteerSearchPlaceholder="Stadtteil | Adresse | POI"
         _infoBox={
           <ResponsiveInfoBox pixelwidth={300} header={<span>Messen</span>} />
         }
       >
-        <StyledWMSTileLayer
+        {/* <StyledWMSTileLayer
           {...{
             type: 'wmts',
             url: 'https://geodaten.metropoleruhr.de/spw2/service',
@@ -74,7 +74,7 @@ const Map = () => {
             transparent: true,
             opacity: 0.3,
           }}
-        ></StyledWMSTileLayer>
+        ></StyledWMSTileLayer> */}
         <FeatureCollection></FeatureCollection>
       </TopicMapComponent>
     </div>
