@@ -38,7 +38,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     console.log('yyy layer', preparePolygon);
     this.options.cbSavePol(latlngs);
     // console.log('yyy', event.latlng);
-    // this._measureLayers.removeLayer(clickedPolygon);
+    this._measureLayers.removeLayer(clickedPolygon);
     this._toggleMeasure();
   },
 
