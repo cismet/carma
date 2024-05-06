@@ -56,9 +56,11 @@ const TopNavbar = () => {
         initialActive: true,
         url,
         layer: (
+          //Here comes the main template for every additional layer added to the map
           <StyledWMSTileLayer
             type="wms"
             url={url}
+            maxZoom={26}
             layers={layer.name}
             format="image/png"
             tiled={true}
