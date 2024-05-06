@@ -43,12 +43,32 @@ L.Control.MeasurePolygon = L.Control.extend({
   },
 
   onAdd: function (map) {
-    const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
-    const icon = L.DomUtil.create('a', '', container);
-    icon.innerHTML = `<img id="img_plg_measure_polygon" src="${this.options.icon_inactive}" width="24" height="24" alt="Ruler Icon" style="display: block; margin: auto; height: 100%;">`;
+    const polygonContainer = L.DomUtil.create(
+      'div',
+      'leaflet-bar leaflet-control'
+    );
+
+    const icon = L.DomUtil.create('a', '', polygonContainer);
+    icon.innerHTML = `<img id="img_plg_measure_polygon" src="${this.options.icon_inactive}" width="24" height="24" alt="Ruler Icon" style="display: block; margin:auto; height: 100%;">`;
     icon.href = '#';
     icon.title = 'Flächen- und Umfangsmessungen';
     this.ui_icon = icon;
+
+    const lineContainer = L.DomUtil.create(
+      'div',
+      'leaflet-bar leaflet-control'
+    );
+    const lineIcon = L.DomUtil.create('a', '', lineContainer);
+    lineIcon.innerHTML = `<img id="img_plg_measure_polygon" src="${this.options.icon_inactive}" width="24" height="24" alt="Ruler Icon" style="display: block; margin: auto; height: 100%;">`;
+    lineIcon.href = '#';
+    lineIcon.title = 'Flächen- und Umfangsmessungen';
+    this.ui_icon = icon;
+
+    const iconsWrapper = L.DomUtil.create('div', 'm-icons-wrapper');
+    iconsWrapper.appendChild(polygonContainer);
+    iconsWrapper.appendChild(lineContainer);
+
+    console.log('fff', iconsWrapper);
 
     // const polygonOptions = {
     //   latlngs: [
@@ -105,15 +125,15 @@ L.Control.MeasurePolygon = L.Control.extend({
     L.drawLocal.draw.handlers.polygon.tooltip.end =
       'Klicken, um die Form zu beenden';
 
-    this._measureHandler = new L.Draw.Polyline(map, {
-      // Use L.Draw.Polyline instead of L.Draw.Polygon
-      showLength: true, // Show length in tooltip
-      shapeOptions: {
-        // Customize polyline options here
-        color: this.options.color_polygon,
-        weight: this.options.weight_polygon,
-      },
-    });
+    // this._measureHandler = new L.Draw.Polyline(map, {
+    //   // Use L.Draw.Polyline instead of L.Draw.Polygon
+    //   showLength: true, // Show length in tooltip
+    //   shapeOptions: {
+    //     // Customize polyline options here
+    //     color: this.options.color_polygon,
+    //     weight: this.options.weight_polygon,
+    //   },
+    // });
 
     this._measureLayers = L.layerGroup().addTo(map);
 
@@ -159,7 +179,7 @@ L.Control.MeasurePolygon = L.Control.extend({
       this._measureHandler.disable();
     });
 
-    return container;
+    return iconsWrapper;
   },
 
   _UpdateAreaPerimetro: function (layer) {

@@ -10,6 +10,7 @@ import './measure-path';
 import 'leaflet-measure-path/leaflet-measure-path.css';
 import makeMeasureIcon from './measure.png';
 import makeMeasureActiveIcon from './measure-active.png';
+import './m-style.css';
 
 interface TopicMapContextType {
   routedMapRef: any;
