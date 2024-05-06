@@ -30,8 +30,8 @@ const MapMeasurement = (props) => {
 
       const customOptions = {
         position: 'topleft',
-        icon_active: makeMeasureActiveIcon,
-        icon_inactive: makeMeasureIcon,
+        icon_lineActive: makeMeasureActiveIcon,
+        icon_lineInactive: makeMeasureIcon,
         color_polygon: 'blue',
         fillColor_polygon: 'green',
         weight_polygon: 5,

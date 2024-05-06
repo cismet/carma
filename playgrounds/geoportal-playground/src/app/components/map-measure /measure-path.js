@@ -2,10 +2,10 @@
 L.Control.MeasurePolygon = L.Control.extend({
   options: {
     position: 'topright',
-    icon_active: 'https://img.icons8.com/?size=48&id=98497&format=png',
-    icon_inactive: 'https://img.icons8.com/?size=48&id=98463&format=png',
     icon_lineActive: 'https://img.icons8.com/?size=48&id=98497&format=png',
     icon_lineInactive: 'https://img.icons8.com/?size=48&id=98463&format=png',
+    icon_polygonActive: 'https://img.icons8.com/?size=48&id=98497&format=png',
+    icon_polygonInactive: 'https://img.icons8.com/?size=48&id=98463&format=png',
     html_template: `<p><strong><span style="text-decoration: underline;">Results</span></strong></p>
 <p><strong>Area: </strong><br>_p_area</p>
 <p><strong>Perimeter : </strong><br>_p_perimetro</p>`,
@@ -51,9 +51,9 @@ L.Control.MeasurePolygon = L.Control.extend({
     this._measureLayers = L.layerGroup().addTo(map);
 
     this._toggleMeasure(
-      'img_plg_measure_line',
-      'icon_lineActive',
-      'icon_lineInactive'
+      'img_plg_measure_polygon',
+      'icon_polygonActive',
+      'icon_polygonInactive'
     );
   },
 
@@ -67,9 +67,9 @@ L.Control.MeasurePolygon = L.Control.extend({
     });
     this._measureLayers = L.layerGroup().addTo(map);
     this._toggleMeasure(
-      'img_plg_measure_polygon',
-      'icon_active',
-      'icon_inactive'
+      'img_plg_lines',
+      'icon_lineActive',
+      'icon_lineInactive'
     );
   },
 
@@ -93,32 +93,32 @@ L.Control.MeasurePolygon = L.Control.extend({
   },
 
   onAdd: function (map) {
-    const polygonContainer = L.DomUtil.create(
+    const linesContainer = L.DomUtil.create(
       'div',
       'leaflet-bar leaflet-control'
     );
 
-    const icon = L.DomUtil.create('a', '', polygonContainer);
-    icon.innerHTML = `<img id="img_plg_measure_polygon" src="${this.options.icon_inactive}" width="28" alt="Ruler Icon" style="display: block; margin:auto; height: 100%;">`;
-    icon.href = '#';
-    icon.title = 'Flächen- und Umfangsmessungen';
-    // this.ui_icon = icon;
-
-    const lineContainer = L.DomUtil.create(
-      'div',
-      'leaflet-bar leaflet-control'
-    );
-    const lineIcon = L.DomUtil.create('a', '', lineContainer);
-    lineIcon.innerHTML = `<img id="img_plg_measure_line" src="${this.options.icon_lineInactive}" width="24" height="24" alt="Ruler Icon" style="display: block; margin: auto; height: 100%;">`;
+    const lineIcon = L.DomUtil.create('a', '', linesContainer);
+    lineIcon.innerHTML = `<img id="img_plg_lines" src="${this.options.icon_lineInactive}" width="28" alt="Ruler Icon" style="display: block; margin:auto; height: 100%;">`;
     lineIcon.href = '#';
     lineIcon.title = 'Flächen- und Umfangsmessungen';
     // this.ui_icon = icon;
 
+    const polygonContainer = L.DomUtil.create(
+      'div',
+      'leaflet-bar leaflet-control'
+    );
+    const polygonIcon = L.DomUtil.create('a', '', polygonContainer);
+    polygonIcon.innerHTML = `<img id="img_plg_measure_polygon" src="${this.options.icon_polygonInactive}" width="24" height="24" alt="Ruler Icon" style="display: block; margin: auto; height: 100%;">`;
+    polygonIcon.href = '#';
+    polygonIcon.title = 'Flächen- und Umfangsmessungen';
+    // this.ui_icon = icon;
+
     const iconsWrapper = L.DomUtil.create('div', 'm-icons-wrapper');
+    iconsWrapper.appendChild(linesContainer);
     iconsWrapper.appendChild(polygonContainer);
-    iconsWrapper.appendChild(lineContainer);
     L.DomEvent.on(
-      icon,
+      lineIcon,
       'click',
       (event) => {
         event.preventDefault(); // Prevent default action (e.g., redirection)
@@ -128,7 +128,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     );
 
     L.DomEvent.on(
-      lineIcon,
+      polygonIcon,
       'click',
       (event) => {
         event.preventDefault(); // Prevent default action (e.g., redirection)
@@ -214,23 +214,22 @@ L.Control.MeasurePolygon = L.Control.extend({
   },
 
   _toggleMeasure: function (btnId = '', activeIcon = '', inactiveIcon = '') {
-    this.options.cb(true);
+    // this.options.cb(true);
 
     if (this.options.checkonedrawpoligon) {
       this._measureHandler.disable();
 
       document.getElementById(btnId).src = this.options[inactiveIcon];
-      // document.getElementById(btnId).src = this.options.icon_inactive;
       this._clearMeasurements();
       this._measurePanel.remove();
       this.options.checkonedrawpoligon = false;
 
-      this._clearMeasurements();
+      // this._clearMeasurements();
     } else {
       this._measureHandler.enable();
       document.getElementById(btnId).src = this.options[activeIcon];
-      // document.getElementById(btnId).src = this.options.icon_active;
-      this.options.cb(true);
+      // document.getElementById(btnId).src = this.options.icon_lineActive;
+      // this.options.cb(true);
     }
   },
 
