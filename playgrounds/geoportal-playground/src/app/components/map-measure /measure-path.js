@@ -4,6 +4,8 @@ L.Control.MeasurePolygon = L.Control.extend({
     position: 'topright',
     icon_active: 'https://img.icons8.com/?size=48&id=98497&format=png',
     icon_inactive: 'https://img.icons8.com/?size=48&id=98463&format=png',
+    icon_lineActive: 'https://img.icons8.com/?size=48&id=98497&format=png',
+    icon_lineInactive: 'https://img.icons8.com/?size=48&id=98463&format=png',
     html_template: `<p><strong><span style="text-decoration: underline;">Results</span></strong></p>
 <p><strong>Area: </strong><br>_p_area</p>
 <p><strong>Perimeter : </strong><br>_p_perimetro</p>`,
@@ -15,6 +17,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     checkonedrawpoligon: false,
     msj_disable_tool: 'Möchten Sie das Tool deaktivieren?',
     polygons: [],
+    shapeMode: 'polygon',
     cb: function () {
       console.log('Callback function executed!');
     },
@@ -23,87 +26,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     },
   },
 
-  _onPolygonClick: function (event) {
-    console.log('Polygon clicked:', event);
-    const clickedPolygon = event.target;
-    const latlngs = clickedPolygon.getLatLngs();
-    const { stroke, color, fillColor, fillOpacity } = clickedPolygon.options;
-    const preparePolygon = {
-      latlngs,
-      stroke,
-      color,
-      fillColor,
-      fillOpacity,
-    };
-    console.log('yyy layer', preparePolygon);
-    this.options.cbSavePol(latlngs);
-    // console.log('yyy', event.latlng);
-    this._measureLayers.removeLayer(clickedPolygon);
-    this._toggleMeasure();
-  },
-
-  onAdd: function (map) {
-    const polygonContainer = L.DomUtil.create(
-      'div',
-      'leaflet-bar leaflet-control'
-    );
-
-    const icon = L.DomUtil.create('a', '', polygonContainer);
-    icon.innerHTML = `<img id="img_plg_measure_polygon" src="${this.options.icon_inactive}" width="24" height="24" alt="Ruler Icon" style="display: block; margin:auto; height: 100%;">`;
-    icon.href = '#';
-    icon.title = 'Flächen- und Umfangsmessungen';
-    this.ui_icon = icon;
-
-    const lineContainer = L.DomUtil.create(
-      'div',
-      'leaflet-bar leaflet-control'
-    );
-    const lineIcon = L.DomUtil.create('a', '', lineContainer);
-    lineIcon.innerHTML = `<img id="img_plg_measure_polygon" src="${this.options.icon_inactive}" width="24" height="24" alt="Ruler Icon" style="display: block; margin: auto; height: 100%;">`;
-    lineIcon.href = '#';
-    lineIcon.title = 'Flächen- und Umfangsmessungen';
-    this.ui_icon = icon;
-
-    const iconsWrapper = L.DomUtil.create('div', 'm-icons-wrapper');
-    iconsWrapper.appendChild(polygonContainer);
-    iconsWrapper.appendChild(lineContainer);
-
-    console.log('fff', iconsWrapper);
-
-    // const polygonOptions = {
-    //   latlngs: [
-    //     [51.299925466442645, 7.133216857910157],
-    //     [51.28854705640744, 7.179222106933595],
-    //     [51.28167570765906, 7.10643768310547],
-    //   ],
-    //   stroke: true,
-    //   color: 'blue',
-    //   fillColor: 'green',
-    //   fillOpacity: 0.4,
-    // };
-    // const polygon = L.polygon(polygonOptions.latlngs, {
-    //   stroke: true,
-    //   color: 'blue',
-    //   fillColor: 'green',
-    //   fillOpacity: 0.4,
-    //   dashArray: '1, 9',
-    //   weight: this.options.weight_polygon,
-    // }).addTo(map);
-
-    // polygon.enableEdit();
-    // polygon.showMeasurements();
-
-    L.DomEvent.on(
-      icon,
-      'click',
-      (event) => {
-        event.preventDefault(); // Prevent default action (e.g., redirection)
-        this._toggleMeasure(); // Call the toggle measure function
-      },
-      this
-    );
-
-    this._map = map;
+  drawingPolygons: function (map) {
     this._measureHandler = new L.Draw.Polygon(map, {
       showArea: true,
       shapeOptions: {
@@ -125,17 +48,98 @@ L.Control.MeasurePolygon = L.Control.extend({
     L.drawLocal.draw.handlers.polygon.tooltip.end =
       'Klicken, um die Form zu beenden';
 
-    // this._measureHandler = new L.Draw.Polyline(map, {
-    //   // Use L.Draw.Polyline instead of L.Draw.Polygon
-    //   showLength: true, // Show length in tooltip
-    //   shapeOptions: {
-    //     // Customize polyline options here
-    //     color: this.options.color_polygon,
-    //     weight: this.options.weight_polygon,
-    //   },
-    // });
-
     this._measureLayers = L.layerGroup().addTo(map);
+
+    this._toggleMeasure(
+      'img_plg_measure_line',
+      'icon_lineActive',
+      'icon_lineInactive'
+    );
+  },
+
+  drawingLines: function (map) {
+    this._measureHandler = new L.Draw.Polyline(map, {
+      showLength: true,
+      shapeOptions: {
+        color: this.options.color_polygon,
+        weight: this.options.weight_polygon,
+      },
+    });
+    this._measureLayers = L.layerGroup().addTo(map);
+    this._toggleMeasure(
+      'img_plg_measure_polygon',
+      'icon_active',
+      'icon_inactive'
+    );
+  },
+
+  _onPolygonClick: function (event) {
+    console.log('Polygon clicked:', event);
+    const clickedPolygon = event.target;
+    const latlngs = clickedPolygon.getLatLngs();
+    const { stroke, color, fillColor, fillOpacity } = clickedPolygon.options;
+    const preparePolygon = {
+      latlngs,
+      stroke,
+      color,
+      fillColor,
+      fillOpacity,
+    };
+    console.log('yyy layer', preparePolygon);
+    this.options.cbSavePol(latlngs);
+    // console.log('yyy', event.latlng);
+    this._measureLayers.removeLayer(clickedPolygon);
+    // this._toggleMeasure();
+  },
+
+  onAdd: function (map) {
+    const polygonContainer = L.DomUtil.create(
+      'div',
+      'leaflet-bar leaflet-control'
+    );
+
+    const icon = L.DomUtil.create('a', '', polygonContainer);
+    icon.innerHTML = `<img id="img_plg_measure_polygon" src="${this.options.icon_inactive}" width="28" alt="Ruler Icon" style="display: block; margin:auto; height: 100%;">`;
+    icon.href = '#';
+    icon.title = 'Flächen- und Umfangsmessungen';
+    // this.ui_icon = icon;
+
+    const lineContainer = L.DomUtil.create(
+      'div',
+      'leaflet-bar leaflet-control'
+    );
+    const lineIcon = L.DomUtil.create('a', '', lineContainer);
+    lineIcon.innerHTML = `<img id="img_plg_measure_line" src="${this.options.icon_lineInactive}" width="24" height="24" alt="Ruler Icon" style="display: block; margin: auto; height: 100%;">`;
+    lineIcon.href = '#';
+    lineIcon.title = 'Flächen- und Umfangsmessungen';
+    // this.ui_icon = icon;
+
+    const iconsWrapper = L.DomUtil.create('div', 'm-icons-wrapper');
+    iconsWrapper.appendChild(polygonContainer);
+    iconsWrapper.appendChild(lineContainer);
+    L.DomEvent.on(
+      icon,
+      'click',
+      (event) => {
+        event.preventDefault(); // Prevent default action (e.g., redirection)
+        this.drawingLines(map);
+      },
+      this
+    );
+
+    L.DomEvent.on(
+      lineIcon,
+      'click',
+      (event) => {
+        event.preventDefault(); // Prevent default action (e.g., redirection)
+        this.drawingPolygons(map);
+      },
+      this
+    );
+
+    this._map = map;
+
+    // this._measureLayers = L.layerGroup().addTo(map);
 
     /*Created the result panel*/
     this._measurePanel = L.control({ position: 'bottomright' });
@@ -209,14 +213,14 @@ L.Control.MeasurePolygon = L.Control.extend({
     // this._content.innerHTML = htmlContent;
   },
 
-  _toggleMeasure: function () {
+  _toggleMeasure: function (btnId = '', activeIcon = '', inactiveIcon = '') {
     this.options.cb(true);
 
     if (this.options.checkonedrawpoligon) {
       this._measureHandler.disable();
 
-      document.getElementById('img_plg_measure_polygon').src =
-        this.options.icon_inactive;
+      document.getElementById(btnId).src = this.options[inactiveIcon];
+      // document.getElementById(btnId).src = this.options.icon_inactive;
       this._clearMeasurements();
       this._measurePanel.remove();
       this.options.checkonedrawpoligon = false;
@@ -224,8 +228,8 @@ L.Control.MeasurePolygon = L.Control.extend({
       this._clearMeasurements();
     } else {
       this._measureHandler.enable();
-      document.getElementById('img_plg_measure_polygon').src =
-        this.options.icon_active;
+      document.getElementById(btnId).src = this.options[activeIcon];
+      // document.getElementById(btnId).src = this.options.icon_active;
       this.options.cb(true);
     }
   },
