@@ -60,7 +60,7 @@ const Map = () => {
           console.log('xxx bbox', createWMSBbox(boundingbox));
         }}
         gazetteerSearchPlaceholder="Stadtteil | Adresse | POI"
-        infoBox={
+        _infoBox={
           <ResponsiveInfoBox pixelwidth={300} header={<span>Messen</span>} />
         }
       >
