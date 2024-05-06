@@ -45,11 +45,11 @@ const MapMeasurement = (props) => {
 
       // Subscribe to the draw:created event
       mapExample.on('draw:created', (event) => {
-        const layer = event.layer;
-        const latlngs = layer.getLatLngs()[0];
-        const area = L.GeometryUtil.geodesicArea(latlngs);
-        const perimeter = calculatePerimeter(layer);
-        setMeasurements((prev) => ({ ...prev, area, perimeter }));
+        // const layer = event.layer;
+        // const latlngs = layer.getLatLngs()[0];
+        // const area = L.GeometryUtil.geodesicArea(latlngs);
+        // const perimeter = calculatePerimeter(layer);
+        // setMeasurements((prev) => ({ ...prev, area, perimeter }));
       });
 
       mapExample.on('editable:vertex:drag', handleVertexDrag);
@@ -66,23 +66,22 @@ const MapMeasurement = (props) => {
 
   const handleVertexDrag = (event) => {
     // Recalculate area when vertex is dragged
-    const layer = event.layer;
-    const latlngs = layer.getLatLngs()[0];
-    const area = L.GeometryUtil.geodesicArea(latlngs);
-    const perimeter = calculatePerimeter(layer);
-    setMeasurements((prev) => ({ ...prev, area, perimeter }));
+    // const layer = event.layer;
+    // const latlngs = layer.getLatLngs()[0];
+    // const area = L.GeometryUtil.geodesicArea(latlngs);
+    // const perimeter = calculatePerimeter(layer);
+    // setMeasurements((prev) => ({ ...prev, area, perimeter }));
   };
 
   const handleVertexDeleted = () => {
     // const latlngs = mapRef.current.leafletElement.editTools.featuresLayer
-    const latlngs =
-      routedMapRef.leafletMap.leafletElement.editTools.featuresLayer
-
-        .getLayers()[0]
-        .getLatLngs()[0];
-    const perimeter = calculatePerimeter(latlngs);
-    const area = L.GeometryUtil.geodesicArea(latlngs);
-    setMeasurements((prev) => ({ ...prev, area, perimeter }));
+    // const latlngs =
+    //   routedMapRef.leafletMap.leafletElement.editTools.featuresLayer
+    //     .getLayers()[0]
+    //     .getLatLngs()[0];
+    // const perimeter = calculatePerimeter(latlngs);
+    // const area = L.GeometryUtil.geodesicArea(latlngs);
+    // setMeasurements((prev) => ({ ...prev, area, perimeter }));
   };
 
   const toggleMeasureToolState = (status) => {
