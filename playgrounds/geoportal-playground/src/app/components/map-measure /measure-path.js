@@ -27,6 +27,7 @@ L.Control.MeasurePolygon = L.Control.extend({
   },
 
   drawingPolygons: function (map) {
+    this.options.shapeMode = 'polygon';
     this._measureHandler = new L.Draw.Polygon(map, {
       showArea: true,
       shapeOptions: {
@@ -58,6 +59,7 @@ L.Control.MeasurePolygon = L.Control.extend({
   },
 
   drawingLines: function (map) {
+    this.options.shapeMode = 'line';
     this._measureHandler = new L.Draw.Polyline(map, {
       showLength: true,
       shapeOptions: {
@@ -162,22 +164,70 @@ L.Control.MeasurePolygon = L.Control.extend({
       this._measurePanel.addTo(map);
 
       const layer = event.layer;
-      layer.on('dblclick', this._onPolygonClick.bind(this));
+      // layer.on('dblclick', this._onPolygonClick.bind(this));
       this._UpdateAreaPerimetro(layer);
       let plugin = this;
 
       // Add style to polygon
       layer.addTo(this._measureLayers).showMeasurements().enableEdit();
+      layer.options.draggable = false;
 
       map.on(
-        'editable:vertex:drag editable:vertex:deleted',
+        'editable:dragstart',
         function () {
+          console.log('xxxx');
+
           layer.updateMeasurements();
           plugin._UpdateAreaPerimetro(layer);
         },
         layer,
         plugin
       );
+
+      map.on(
+        'editable:drag',
+        function () {
+          console.log('xxxx');
+
+          layer.updateMeasurements();
+          plugin._UpdateAreaPerimetro(layer);
+        },
+        layer,
+        plugin
+      );
+      map.on(
+        'editable:dragend',
+        function () {
+          console.log('xxxx');
+
+          layer.updateMeasurements();
+          plugin._UpdateAreaPerimetro(layer);
+        },
+        layer,
+        plugin
+      );
+
+      map.on(
+        'editable:vertex:drag editable:vertex:deleted',
+        function () {
+          console.log('xxxx');
+
+          layer.updateMeasurements();
+          // plugin._UpdateAreaPerimetro(layer);
+        },
+        layer
+        // plugin
+      );
+
+      if (this.options.shapeMode === 'polygon') {
+        document.getElementById('img_plg_measure_polygon').src =
+          this.options.icon_polygonInactive;
+      } else {
+        document.getElementById('img_plg_lines').src =
+          this.options.icon_lineInactive;
+      }
+
+      this.options.checkonedrawpoligon = false;
 
       // Disabling the drawing tool after creating a polygon
       this._measureHandler.disable();
@@ -234,9 +284,9 @@ L.Control.MeasurePolygon = L.Control.extend({
   },
 
   _clearMeasurements: function () {
-    console.log('ccc', this._measureLayers);
-    // this._measureLayers.clearLayers();
-    this.options.cb(false);
+    // console.log('ccc', this._measureLayers);
+    this._measureLayers.clearLayers();
+    // this.options.cb(false);
   },
 });
 
