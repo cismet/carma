@@ -1,0 +1,4 @@
+[submodule "envirometrics/wuppertal/floodingmap/collab-texts"]
+	path = envirometrics/wuppertal/floodingmap/collab-texts
+	url = https://github.com/cismet-collab/flooding-wupp-texts.git
+	branch = main
