@@ -22,12 +22,12 @@ const MapMeasurement = (props) => {
   const [measurements, setMeasurements] = useState({ area: '' });
   const [measureControl, setMeasureControl] = useState(null);
   const [checkMeasureTool, setCheckMeasureTool] = useState(false);
-  const [polygons, setPolygons] = useState([]);
+  const [polygons, setPolygons] = useState(['test']);
+  // const savedLayerGroup = this._measureLayers.toGeoJSON();
 
   useEffect(() => {
     if (routedMapRef && !measureControl) {
       const mapExample = routedMapRef.leafletMap.leafletElement;
-
       const customOptions = {
         position: 'topleft',
         icon_lineActive: makeMeasureActiveIcon,
@@ -37,7 +37,8 @@ const MapMeasurement = (props) => {
         weight_polygon: 5,
         msj_disable_tool: 'Do you want to disable the tool?',
         cb: toggleMeasureToolState,
-        cbSavePol: savePolHandler,
+        cbSaveShape: saveShapeHandler,
+        cdDeleteShape: deleteShapeHandler,
       };
 
       const measurePolygonControl = L.control.measurePolygon(customOptions);
@@ -62,8 +63,10 @@ const MapMeasurement = (props) => {
       };
     }
   }, [routedMapRef]);
-  console.log('ppp', polygons);
-  useEffect(() => {}, [polygons]);
+
+  useEffect(() => {
+    console.log('ppp', polygons);
+  }, [polygons]);
 
   const handleVertexDrag = (event) => {
     // Recalculate area when vertex is dragged
@@ -89,12 +92,24 @@ const MapMeasurement = (props) => {
     setCheckMeasureTool(status);
     setMeasurements({ area: '' });
   };
-  const savePolHandler = (layer) => {
+  const saveShapeHandler = (layer) => {
+    console.log('ppp save', polygons);
+
     setPolygons((prevPolygons) => [...prevPolygons, layer]);
+  };
+  const deleteShapeHandler = (id) => {
+    setPolygons((prevPolygons) => {
+      console.log('yyy id', id);
+      console.log('yyy previous polygons', prevPolygons);
+      const cleaerShapesArr = prevPolygons.filter((s) => s.shapeId !== id);
+      console.log('yyy cleaerShapesArr', cleaerShapesArr);
+      return cleaerShapesArr;
+    });
   };
 
   return (
     <div>
+      <button onClick={deleteShapeHandler}>asddd</button>
       {/* {checkMeasureTool && <MeasurementResults data={measurements} />} */}
     </div>
   );

@@ -16,14 +16,18 @@ L.Control.MeasurePolygon = L.Control.extend({
     weight_polygon: '2',
     checkonedrawpoligon: false,
     msj_disable_tool: 'Möchten Sie das Tool deaktivieren?',
-    polygons: [],
+    shapes: [],
     shapeMode: 'polygon',
     cb: function () {
       console.log('Callback function executed!');
     },
-    cbSavePol: function () {
+    cbSaveShape: function () {
       console.log('Callback function executed!');
     },
+    cdDeleteShape: function () {
+      console.log('Callback function executed!');
+    },
+    localShapeStore: [],
   },
 
   drawingPolygons: function (map) {
@@ -80,6 +84,26 @@ L.Control.MeasurePolygon = L.Control.extend({
     );
   },
 
+  saveShapeHandler: function (layer) {
+    const latlngs = layer.getLatLngs();
+    const { stroke, color, fillColor, fillOpacity } = layer.options;
+    const shapeId = layer._leaflet_id;
+    console.log('lll', layer);
+    console.log('lll shape id', shapeId);
+    const preparePolygon = {
+      latlngs,
+      stroke,
+      color,
+      fillColor,
+      fillOpacity,
+      shapeId,
+    };
+    console.log('yyys', preparePolygon);
+    this.options.cbSaveShape(preparePolygon);
+
+    this.options.localShapeStore.push(preparePolygon);
+  },
+
   _onPolygonClick: function (event) {
     const clickedPolygon = event.target;
     const latlngs = clickedPolygon.getLatLngs();
@@ -92,13 +116,12 @@ L.Control.MeasurePolygon = L.Control.extend({
       fillOpacity,
     };
     console.log('Polygon clicked:', clickedPolygon);
-    console.log('this._measureLayers', this._measureLayers);
-    this.options.cbSavePol(latlngs);
-    const test = this._measureLayers.removeLayer(clickedPolygon._leaflet_id);
-    // const test = this._measureLayers.getLayers();
-    // clickedPolygon.clearLayers();
-    console.log('yyy layer', test);
-    // this._toggleMeasure();
+    // console.log('this._measureLayers', this._measureLayers);
+    this._measureLayers.removeLayer(clickedPolygon._leaflet_id);
+    this.options.cdDeleteShape(
+      clickedPolygon._leaflet_id,
+      this.options.localShapeStore
+    );
   },
 
   onAdd: function (map) {
@@ -167,7 +190,6 @@ L.Control.MeasurePolygon = L.Control.extend({
 
     map.on('draw:created', (event) => {
       this.options.checkonedrawpoligon = true;
-      console.log('mmm', this.debugVar);
 
       this._measurePanel.addTo(map);
 
@@ -179,6 +201,8 @@ L.Control.MeasurePolygon = L.Control.extend({
       // Add style to polygon
       layer.addTo(this._measureLayers).showMeasurements().enableEdit();
       layer.options.draggable = false;
+
+      this.saveShapeHandler(layer);
 
       map.on(
         'editable:dragstart',
