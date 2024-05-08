@@ -49,7 +49,9 @@ L.Control.MeasurePolygon = L.Control.extend({
     L.drawLocal.draw.handlers.polygon.tooltip.end =
       'Klicken, um die Form zu beenden';
 
-    this._measureLayers = L.layerGroup().addTo(map);
+    // this._measureLayers = L.layerGroup().addTo(map);
+
+    this.debugVar = 'polygon';
 
     this._toggleMeasure(
       'img_plg_measure_polygon',
@@ -67,7 +69,10 @@ L.Control.MeasurePolygon = L.Control.extend({
         weight: this.options.weight_polygon,
       },
     });
-    this._measureLayers = L.layerGroup().addTo(map);
+
+    this.debugVar = 'line';
+
+    // this._measureLayers = L.layerGroup().addTo(map);
     this._toggleMeasure(
       'img_plg_lines',
       'icon_lineActive',
@@ -76,7 +81,6 @@ L.Control.MeasurePolygon = L.Control.extend({
   },
 
   _onPolygonClick: function (event) {
-    console.log('Polygon clicked:', event);
     const clickedPolygon = event.target;
     const latlngs = clickedPolygon.getLatLngs();
     const { stroke, color, fillColor, fillOpacity } = clickedPolygon.options;
@@ -87,10 +91,13 @@ L.Control.MeasurePolygon = L.Control.extend({
       fillColor,
       fillOpacity,
     };
-    console.log('yyy layer', preparePolygon);
+    console.log('Polygon clicked:', clickedPolygon);
+    console.log('this._measureLayers', this._measureLayers);
     this.options.cbSavePol(latlngs);
-    // console.log('yyy', event.latlng);
-    this._measureLayers.removeLayer(clickedPolygon);
+    const test = this._measureLayers.removeLayer(clickedPolygon._leaflet_id);
+    // const test = this._measureLayers.getLayers();
+    // clickedPolygon.clearLayers();
+    console.log('yyy layer', test);
     // this._toggleMeasure();
   },
 
@@ -141,7 +148,7 @@ L.Control.MeasurePolygon = L.Control.extend({
 
     this._map = map;
 
-    // this._measureLayers = L.layerGroup().addTo(map);
+    this._measureLayers = L.layerGroup().addTo(map);
 
     /*Created the result panel*/
     this._measurePanel = L.control({ position: 'bottomright' });
@@ -160,11 +167,12 @@ L.Control.MeasurePolygon = L.Control.extend({
 
     map.on('draw:created', (event) => {
       this.options.checkonedrawpoligon = true;
+      console.log('mmm', this.debugVar);
 
       this._measurePanel.addTo(map);
 
       const layer = event.layer;
-      // layer.on('dblclick', this._onPolygonClick.bind(this));
+      layer.on('dblclick', this._onPolygonClick.bind(this));
       this._UpdateAreaPerimetro(layer);
       let plugin = this;
 
