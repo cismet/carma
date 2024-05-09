@@ -2,6 +2,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import mappingSlice from './slices/mapping';
 import layersSlice from './slices/layers';
 import uiSlice from './slices/ui';
+import measurementsSlice from './slices/measurements';
 import { createLogger } from 'redux-logger';
 import { persistReducer } from 'redux-persist';
 import localForage from 'localforage';
@@ -64,12 +65,18 @@ const layersConfig = {
   storage: localForage,
   whitelist: ['thumbnails'],
 };
+const measurementsConfig = {
+  key: '@' + APP_KEY + '.' + STORAGE_PREFIX + '.app.measurements',
+  storage: localForage,
+  whitelist: ['shapes'],
+};
 
 export default configureStore({
   reducer: {
     mapping: persistReducer(mappingConfig, mappingSlice.reducer),
     ui: persistReducer(uiConfig, uiSlice.reducer),
     layers: persistReducer(layersConfig, layersSlice.reducer),
+    measurements: persistReducer(measurementsConfig, measurementsSlice.reducer),
   },
   devTools: devToolsEnabled === true && inProduction === false,
   middleware,

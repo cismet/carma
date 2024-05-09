@@ -74,9 +74,6 @@ L.Control.MeasurePolygon = L.Control.extend({
       },
     });
 
-    this.debugVar = 'line';
-
-    // this._measureLayers = L.layerGroup().addTo(map);
     this._toggleMeasure(
       'img_plg_lines',
       'icon_lineActive',
@@ -85,17 +82,20 @@ L.Control.MeasurePolygon = L.Control.extend({
   },
 
   saveShapeHandler: function (layer) {
-    const latlngs = layer.getLatLngs();
+    // const latlngs = layer.getLatLngs();
+    const latlngs = layer.toGeoJSON();
     const { stroke, color, fillColor, fillOpacity } = layer.options;
     const shapeId = layer._leaflet_id;
     console.log('lll', layer);
     console.log('lll shape id', shapeId);
     const preparePolygon = {
       latlngs,
-      stroke,
-      color,
-      fillColor,
-      fillOpacity,
+      options: {
+        stroke,
+        color,
+        fillColor,
+        fillOpacity,
+      },
       shapeId,
     };
     console.log('yyys', preparePolygon);
@@ -171,7 +171,23 @@ L.Control.MeasurePolygon = L.Control.extend({
 
     this._map = map;
 
+    const latlngs = [
+      [5.215588, 51.795293],
+      [5.223141, 51.795505],
+      [5.227518, 51.79869],
+    ];
+
+    const options = {
+      color: 'red',
+      weight: 3,
+      opacity: 0.5,
+    };
+
+    const savedPolyline = L.polyline(latlngs, options);
+
     this._measureLayers = L.layerGroup().addTo(map);
+
+    this._measureLayers.addLayer(savedPolyline);
 
     /*Created the result panel*/
     this._measurePanel = L.control({ position: 'bottomright' });

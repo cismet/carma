@@ -11,7 +11,8 @@ import 'leaflet-measure-path/leaflet-measure-path.css';
 import makeMeasureIcon from './measure.png';
 import makeMeasureActiveIcon from './measure-active.png';
 import './m-style.css';
-
+import { useSelector, useDispatch } from 'react-redux';
+import { getShapes, setShapes } from '../../store/slices/measurements';
 interface TopicMapContextType {
   routedMapRef: any;
 }
@@ -19,12 +20,13 @@ interface TopicMapContextType {
 const MapMeasurement = (props) => {
   const { routedMapRef } = useContext<TopicMapContextType>(TopicMapContext);
 
+  const dispatch = useDispatch();
+  const measurementShapes = useSelector(getShapes);
+  // const savedLayerGroup = this._measureLayers.toGeoJSON();
   const [measurements, setMeasurements] = useState({ area: '' });
   const [measureControl, setMeasureControl] = useState(null);
   const [checkMeasureTool, setCheckMeasureTool] = useState(false);
-  const [polygons, setPolygons] = useState(['test']);
-  // const savedLayerGroup = this._measureLayers.toGeoJSON();
-
+  const [polygons, setPolygons] = useState([]);
   useEffect(() => {
     if (routedMapRef && !measureControl) {
       const mapExample = routedMapRef.leafletMap.leafletElement;
@@ -65,10 +67,15 @@ const MapMeasurement = (props) => {
   }, [routedMapRef]);
 
   useEffect(() => {
-    console.log('ppp', polygons);
+    dispatch(setShapes(polygons));
   }, [polygons]);
 
+  useEffect(() => {
+    console.log('ppp', measurementShapes);
+  }, [measurementShapes]);
+
   const handleVertexDrag = (event) => {
+    x;
     // Recalculate area when vertex is dragged
     // const layer = event.layer;
     // const latlngs = layer.getLatLngs()[0];
