@@ -86,10 +86,12 @@ L.Control.MeasurePolygon = L.Control.extend({
     const latlngsJSON = layer.toGeoJSON();
     const { stroke, color, fillColor, fillOpacity } = layer.options;
     const shapeId = layer._leaflet_id;
-    console.log('lll', layer);
-    console.log('lll shape id', shapeId);
+
+    const reversedCoordinates = latlngsJSON.geometry.coordinates.map((item) => {
+      return item.reverse();
+    });
     const preparePolygon = {
-      coordinates: [],
+      coordinates: reversedCoordinates,
       options: {
         stroke,
         color,
@@ -98,13 +100,6 @@ L.Control.MeasurePolygon = L.Control.extend({
       },
       shapeId,
     };
-    console.log('yyys json', latlngsJSON);
-    const clearCoordinates = latlngs.map((item) => {
-      // const { lat, lng } = item.LatLng;
-      console.log(item.LatLng);
-      return item;
-    });
-    console.log('yyys latlngs', latlngs);
     this.options.cbSaveShape(preparePolygon);
 
     this.options.localShapeStore.push(preparePolygon);
@@ -124,10 +119,11 @@ L.Control.MeasurePolygon = L.Control.extend({
     console.log('Polygon clicked:', clickedPolygon);
     // console.log('this._measureLayers', this._measureLayers);
     this._measureLayers.removeLayer(clickedPolygon._leaflet_id);
-    this.options.cdDeleteShape(
-      clickedPolygon._leaflet_id,
-      this.options.localShapeStore
-    );
+    const shapeId = clickedPolygon?.customID
+      ? clickedPolygon?.customID
+      : clickedPolygon._leaflet_id;
+
+    this.options.cdDeleteShape(shapeId, this.options.localShapeStore);
   },
 
   onAdd: function (map) {
@@ -199,9 +195,19 @@ L.Control.MeasurePolygon = L.Control.extend({
     // const savedPolyline = L.polyline(latlngs, options).addTo(map).enableEdit();
     const savedPolyline = L.polyline(latlngs, options);
 
-    // this._measureLayers.addLayer(savedPolyline);
-    // savedPolyline.addTo(this._measureLayers).enableEdit();
     savedPolyline.addTo(this._measureLayers).showMeasurements().enableEdit();
+    savedPolyline.on('dblclick', this._onPolygonClick.bind(this));
+
+    // add initial shapes
+
+    this.options.shapes.forEach((shape) => {
+      const { coordinates, options, shapeId } = shape;
+      const savedPolyline = L.polyline(coordinates, options);
+      savedPolyline.customID = shapeId;
+      savedPolyline.addTo(this._measureLayers).showMeasurements().enableEdit();
+      savedPolyline.on('dblclick', this._onPolygonClick.bind(this));
+    });
+
     /*Created the result panel*/
     this._measurePanel = L.control({ position: 'bottomright' });
     this._measurePanel.onAdd = () => {

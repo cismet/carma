@@ -13,6 +13,7 @@ import makeMeasureActiveIcon from './measure-active.png';
 import './m-style.css';
 import { useSelector, useDispatch } from 'react-redux';
 import { getShapes, setShapes } from '../../store/slices/measurements';
+import { log } from 'console';
 interface TopicMapContextType {
   routedMapRef: any;
 }
@@ -26,7 +27,7 @@ const MapMeasurement = (props) => {
   const [measurements, setMeasurements] = useState({ area: '' });
   const [measureControl, setMeasureControl] = useState(null);
   const [checkMeasureTool, setCheckMeasureTool] = useState(false);
-  const [polygons, setPolygons] = useState([]);
+  const [polygons, setPolygons] = useState(measurementShapes);
   useEffect(() => {
     if (routedMapRef && !measureControl) {
       const mapExample = routedMapRef.leafletMap.leafletElement;
@@ -38,6 +39,7 @@ const MapMeasurement = (props) => {
         fillColor_polygon: 'green',
         weight_polygon: 5,
         msj_disable_tool: 'Do you want to disable the tool?',
+        shapes: polygons,
         cb: toggleMeasureToolState,
         cbSaveShape: saveShapeHandler,
         cdDeleteShape: deleteShapeHandler,
@@ -104,11 +106,11 @@ const MapMeasurement = (props) => {
     setPolygons((prevPolygons) => [...prevPolygons, layer]);
   };
   const deleteShapeHandler = (id) => {
+    // const reduxShape = measurementShapes.filter((s) => s.shapeId !== id);
+    // console.log('vvv shape id', id);
+    // console.log('vvv r', reduxShape);
     setPolygons((prevPolygons) => {
-      console.log('yyy id', id);
-      console.log('yyy previous polygons', prevPolygons);
       const cleaerShapesArr = prevPolygons.filter((s) => s.shapeId !== id);
-      console.log('yyy cleaerShapesArr', cleaerShapesArr);
       return cleaerShapesArr;
     });
   };
