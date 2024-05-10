@@ -75,7 +75,6 @@ const MapMeasurement = (props) => {
   }, [measurementShapes]);
 
   const handleVertexDrag = (event) => {
-    x;
     // Recalculate area when vertex is dragged
     // const layer = event.layer;
     // const latlngs = layer.getLatLngs()[0];

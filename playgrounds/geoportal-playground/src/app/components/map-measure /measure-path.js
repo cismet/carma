@@ -82,14 +82,14 @@ L.Control.MeasurePolygon = L.Control.extend({
   },
 
   saveShapeHandler: function (layer) {
-    // const latlngs = layer.getLatLngs();
-    const latlngs = layer.toGeoJSON();
+    const latlngs = layer.getLatLngs();
+    const latlngsJSON = layer.toGeoJSON();
     const { stroke, color, fillColor, fillOpacity } = layer.options;
     const shapeId = layer._leaflet_id;
     console.log('lll', layer);
     console.log('lll shape id', shapeId);
     const preparePolygon = {
-      latlngs,
+      coordinates: [],
       options: {
         stroke,
         color,
@@ -98,7 +98,13 @@ L.Control.MeasurePolygon = L.Control.extend({
       },
       shapeId,
     };
-    console.log('yyys', preparePolygon);
+    console.log('yyys json', latlngsJSON);
+    const clearCoordinates = latlngs.map((item) => {
+      // const { lat, lng } = item.LatLng;
+      console.log(item.LatLng);
+      return item;
+    });
+    console.log('yyys latlngs', latlngs);
     this.options.cbSaveShape(preparePolygon);
 
     this.options.localShapeStore.push(preparePolygon);
@@ -171,24 +177,31 @@ L.Control.MeasurePolygon = L.Control.extend({
 
     this._map = map;
 
+    // const latlngs = [
+    //   [51.24837806090774, 7.103347778320313],
+    //   [51.26212969066805, 7.152099609375001],
+    //   [51.27523288450222, 7.206687927246095],
+    // ];
     const latlngs = [
-      [5.215588, 51.795293],
-      [5.223141, 51.795505],
-      [5.227518, 51.79869],
+      [51.269219, 7.077942],
+      [51.276307, 7.086525],
+      [51.283608, 7.099915],
     ];
 
     const options = {
-      color: 'red',
-      weight: 3,
-      opacity: 0.5,
+      color: 'blue',
+      fillColor: null,
+      fillOpacity: 0.2,
+      stroke: true,
     };
 
+    this._measureLayers = L.layerGroup().addTo(map);
+    // const savedPolyline = L.polyline(latlngs, options).addTo(map).enableEdit();
     const savedPolyline = L.polyline(latlngs, options);
 
-    this._measureLayers = L.layerGroup().addTo(map);
-
-    this._measureLayers.addLayer(savedPolyline);
-
+    // this._measureLayers.addLayer(savedPolyline);
+    // savedPolyline.addTo(this._measureLayers).enableEdit();
+    savedPolyline.addTo(this._measureLayers).showMeasurements().enableEdit();
     /*Created the result panel*/
     this._measurePanel = L.control({ position: 'bottomright' });
     this._measurePanel.onAdd = () => {
