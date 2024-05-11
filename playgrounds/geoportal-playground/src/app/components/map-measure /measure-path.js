@@ -85,10 +85,18 @@ L.Control.MeasurePolygon = L.Control.extend({
     const latlngsJSON = layer.toGeoJSON();
     const { stroke, color, fillColor, fillOpacity } = layer.options;
     const shapeId = layer._leaflet_id;
-    console.log('bbb', layer);
-    const reversedCoordinates = latlngsJSON.geometry.coordinates.map((item) => {
+    console.log('bbb', latlngsJSON);
+    const prepeareCoordinates =
+      this.options.shapeMode === 'line'
+        ? latlngsJSON.geometry.coordinates
+        : latlngsJSON.geometry.coordinates[0];
+    const reversedCoordinates = prepeareCoordinates.map((item) => {
+      console.log('bbb item', item);
       return item.reverse();
     });
+
+    console.log('bbb r', reversedCoordinates);
+
     const preparePolygon = {
       coordinates: reversedCoordinates,
       options: {
@@ -195,18 +203,32 @@ L.Control.MeasurePolygon = L.Control.extend({
     // add initial shapes
     if (this.options.shapes.length !== 0) {
       this.options.shapes.forEach((shape) => {
-        const { coordinates, options, shapeId } = shape;
-        const savedPolyline = L.polyline(coordinates, options);
-        savedPolyline.customID = shapeId;
-        savedPolyline
-          .addTo(this._measureLayers)
-          .showMeasurements()
-          .enableEdit();
-        savedPolyline.on('dblclick', this._onPolygonClick.bind(this));
-        savedPolyline.on(
-          'editable:drag editable:vertex:drag editable:vertex:deleted',
-          this._onPolylineDrag.bind(this)
-        );
+        const { coordinates, options, shapeId, shapeType } = shape;
+        if (shapeType === 'line') {
+          const savedPolyline = L.polyline(coordinates, options);
+          savedPolyline.customID = shapeId;
+          savedPolyline
+            .addTo(this._measureLayers)
+            .showMeasurements()
+            .enableEdit();
+          savedPolyline.on('dblclick', this._onPolygonClick.bind(this));
+          savedPolyline.on(
+            'editable:drag editable:vertex:drag editable:vertex:deleted',
+            this._onPolylineDrag.bind(this)
+          );
+        } else {
+          const savedPolyline = L.polygon(coordinates, options);
+          savedPolyline.customID = shapeId;
+          savedPolyline
+            .addTo(this._measureLayers)
+            .showMeasurements()
+            .enableEdit();
+          savedPolyline.on('dblclick', this._onPolygonClick.bind(this));
+          savedPolyline.on(
+            'editable:drag editable:vertex:drag editable:vertex:deleted',
+            this._onPolylineDrag.bind(this)
+          );
+        }
         // savedPolyline.addTo(map);
       });
     }
