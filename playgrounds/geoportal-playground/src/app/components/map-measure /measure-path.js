@@ -53,10 +53,6 @@ L.Control.MeasurePolygon = L.Control.extend({
     L.drawLocal.draw.handlers.polygon.tooltip.end =
       'Klicken, um die Form zu beenden';
 
-    // this._measureLayers = L.layerGroup().addTo(map);
-
-    this.debugVar = 'polygon';
-
     this._toggleMeasure(
       'img_plg_measure_polygon',
       'icon_polygonActive',
@@ -81,12 +77,12 @@ L.Control.MeasurePolygon = L.Control.extend({
     );
   },
 
-  saveShapeHandler: function (layer) {
+  saveShapeHandler: function (layer, distance = null, area = null) {
     const latlngs = layer.getLatLngs();
     const latlngsJSON = layer.toGeoJSON();
     const { stroke, color, fillColor, fillOpacity } = layer.options;
     const shapeId = layer._leaflet_id;
-
+    console.log('bbb', layer);
     const reversedCoordinates = latlngsJSON.geometry.coordinates.map((item) => {
       return item.reverse();
     });
@@ -99,10 +95,18 @@ L.Control.MeasurePolygon = L.Control.extend({
         fillOpacity,
       },
       shapeId,
+      distance,
+      area,
+      shapeType: this.options.shapeMode,
     };
     this.options.cbSaveShape(preparePolygon);
-
+    // TODO 001 delete it in all places
     this.options.localShapeStore.push(preparePolygon);
+  },
+
+  _onPolylineDrag: function (event) {
+    const polyline = event.target;
+    polyline.updateMeasurements();
   },
 
   _onPolygonClick: function (event) {
@@ -173,71 +177,40 @@ L.Control.MeasurePolygon = L.Control.extend({
 
     this._map = map;
 
-    // const latlngs = [
-    //   [51.24837806090774, 7.103347778320313],
-    //   [51.26212969066805, 7.152099609375001],
-    //   [51.27523288450222, 7.206687927246095],
-    // ];
-    const latlngs = [
-      [51.269219, 7.077942],
-      [51.276307, 7.086525],
-      [51.283608, 7.099915],
-    ];
-
-    const options = {
-      color: 'blue',
-      fillColor: null,
-      fillOpacity: 0.2,
-      stroke: true,
-    };
-
     this._measureLayers = L.layerGroup().addTo(map);
-    // const savedPolyline = L.polyline(latlngs, options).addTo(map).enableEdit();
-    const savedPolyline = L.polyline(latlngs, options);
-
-    savedPolyline.addTo(this._measureLayers).showMeasurements().enableEdit();
-    savedPolyline.on('dblclick', this._onPolygonClick.bind(this));
 
     // add initial shapes
-
-    this.options.shapes.forEach((shape) => {
-      const { coordinates, options, shapeId } = shape;
-      const savedPolyline = L.polyline(coordinates, options);
-      savedPolyline.customID = shapeId;
-      savedPolyline.addTo(this._measureLayers).showMeasurements().enableEdit();
-      savedPolyline.on('dblclick', this._onPolygonClick.bind(this));
-    });
-
-    /*Created the result panel*/
-    this._measurePanel = L.control({ position: 'bottomright' });
-    this._measurePanel.onAdd = () => {
-      const panel = L.DomUtil.create('div', 'measure-panel');
-      panel.style.width = 0 + 'px';
-      panel.style.height = 0 + 'px';
-
-      this._content = L.DomUtil.create('div', '', panel);
-      this._content.innerHTML = 'Area and perimeter will appear here.';
-      return panel;
-    };
-
-    this._measurePanel.addTo(map);
-    this._measurePanel.remove();
+    if (this.options.shapes.length !== 0) {
+      this.options.shapes.forEach((shape) => {
+        const { coordinates, options, shapeId } = shape;
+        const savedPolyline = L.polyline(coordinates, options);
+        savedPolyline.customID = shapeId;
+        savedPolyline
+          .addTo(this._measureLayers)
+          .showMeasurements()
+          .enableEdit();
+        savedPolyline.on('dblclick', this._onPolygonClick.bind(this));
+        savedPolyline.on('editable:drag', this._onPolylineDrag.bind(this));
+        // savedPolyline.addTo(map);
+      });
+    }
 
     map.on('draw:created', (event) => {
       this.options.checkonedrawpoligon = true;
 
-      this._measurePanel.addTo(map);
-
       const layer = event.layer;
       layer.on('dblclick', this._onPolygonClick.bind(this));
-      this._UpdateAreaPerimetro(layer);
+      // this._UpdateAreaPerimetro(layer);
       let plugin = this;
 
       // Add style to polygon
       layer.addTo(this._measureLayers).showMeasurements().enableEdit();
       layer.options.draggable = false;
 
-      this.saveShapeHandler(layer);
+      const distance = this._UpdateDistance(layer);
+      console.log('ddd', distance);
+
+      this.saveShapeHandler(layer, distance);
 
       map.on(
         'editable:dragstart',
@@ -257,7 +230,7 @@ L.Control.MeasurePolygon = L.Control.extend({
           console.log('xxxx');
 
           layer.updateMeasurements();
-          plugin._UpdateAreaPerimetro(layer);
+          // plugin._UpdateAreaPerimetro(layer);
         },
         layer,
         plugin
@@ -268,7 +241,7 @@ L.Control.MeasurePolygon = L.Control.extend({
           console.log('xxxx');
 
           layer.updateMeasurements();
-          plugin._UpdateAreaPerimetro(layer);
+          // plugin._UpdateAreaPerimetro(layer);
         },
         layer,
         plugin
@@ -304,7 +277,7 @@ L.Control.MeasurePolygon = L.Control.extend({
   },
 
   _UpdateAreaPerimetro: function (layer) {
-    // const latlngs = layer.getLatLngs()[0];
+    const latlngs = layer.getLatLngs()[0];
     // const area = L.GeometryUtil.geodesicArea(latlngs);
 
     // let perimeter = 0;
@@ -330,6 +303,30 @@ L.Control.MeasurePolygon = L.Control.extend({
     // this._content.innerHTML = htmlContent;
   },
 
+  _UpdateDistance: function (layer) {
+    let totalDistance = 0;
+    const latlngs = layer.getLatLngs();
+
+    for (let i = 0; i < latlngs.length - 1; i++) {
+      const point1 = latlngs[i];
+      const point2 = latlngs[i + 1];
+
+      const distance = point1.distanceTo(point2);
+
+      totalDistance += distance;
+    }
+
+    const formatPerimeter = (perimeter) => {
+      if (perimeter >= 1000) {
+        return `${(perimeter / 1000).toFixed(2)} km`;
+      } else {
+        return `${perimeter.toFixed(2)} m`;
+      }
+    };
+
+    return formatPerimeter(totalDistance);
+  },
+
   _toggleMeasure: function (btnId = '', activeIcon = '', inactiveIcon = '') {
     // this.options.cb(true);
 
@@ -338,7 +335,6 @@ L.Control.MeasurePolygon = L.Control.extend({
 
       document.getElementById(btnId).src = this.options[inactiveIcon];
       this._clearMeasurements();
-      this._measurePanel.remove();
       this.options.checkonedrawpoligon = false;
 
       // this._clearMeasurements();
