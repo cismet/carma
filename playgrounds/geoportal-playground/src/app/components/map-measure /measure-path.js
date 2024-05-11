@@ -190,7 +190,10 @@ L.Control.MeasurePolygon = L.Control.extend({
           .showMeasurements()
           .enableEdit();
         savedPolyline.on('dblclick', this._onPolygonClick.bind(this));
-        savedPolyline.on('editable:drag', this._onPolylineDrag.bind(this));
+        savedPolyline.on(
+          'editable:drag editable:vertex:drag editable:vertex:deleted',
+          this._onPolylineDrag.bind(this)
+        );
         // savedPolyline.addTo(map);
       });
     }

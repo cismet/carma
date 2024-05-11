@@ -13,7 +13,6 @@ import makeMeasureActiveIcon from './measure-active.png';
 import './m-style.css';
 import { useSelector, useDispatch } from 'react-redux';
 import { getShapes, setShapes } from '../../store/slices/measurements';
-import { log } from 'console';
 interface TopicMapContextType {
   routedMapRef: any;
 }
@@ -177,15 +176,12 @@ function calculatePerimeter(layer) {
 
   const formatPerimeter = (perimeter) => {
     if (perimeter >= 1000) {
-      // Convert perimeter to kilometers and round to 2 decimal places
       return `${(perimeter / 1000).toFixed(2)} km`;
     } else {
-      // Display perimeter in meters and round to 2 decimal places
       return `${perimeter.toFixed(2)} m`;
     }
   };
 
-  // Call the formatPerimeter function to format the perimeter measurement
   return formatPerimeter(perimeter);
 }
 
