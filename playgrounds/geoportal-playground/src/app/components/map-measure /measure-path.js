@@ -228,6 +228,11 @@ L.Control.MeasurePolygon = L.Control.extend({
 
       this.saveShapeHandler(layer, distance);
 
+      layer.on(
+        'editable:drag editable:vertex:drag editable:vertex:deleted',
+        this._onPolylineDrag.bind(this)
+      );
+
       map.on(
         'editable:dragstart',
         function () {
@@ -240,40 +245,40 @@ L.Control.MeasurePolygon = L.Control.extend({
         plugin
       );
 
-      map.on(
-        'editable:drag',
-        function () {
-          console.log('xxxx');
+      // map.on(
+      //   'editable:drag',
+      //   function () {
+      //     console.log('xxxx');
 
-          layer.updateMeasurements();
-          // plugin._UpdateAreaPerimetro(layer);
-        },
-        layer,
-        plugin
-      );
-      map.on(
-        'editable:dragend',
-        function () {
-          console.log('xxxx');
+      //     layer.updateMeasurements();
+      //     // plugin._UpdateAreaPerimetro(layer);
+      //   },
+      //   layer,
+      //   plugin
+      // );
+      // map.on(
+      //   'editable:dragend',
+      //   function () {
+      //     console.log('xxxx');
 
-          layer.updateMeasurements();
-          // plugin._UpdateAreaPerimetro(layer);
-        },
-        layer,
-        plugin
-      );
+      //     layer.updateMeasurements();
+      //     // plugin._UpdateAreaPerimetro(layer);
+      //   },
+      //   layer,
+      //   plugin
+      // );
 
-      map.on(
-        'editable:vertex:drag editable:vertex:deleted',
-        function () {
-          console.log('xxxx');
+      // map.on(
+      //   'editable:vertex:drag editable:vertex:deleted',
+      //   function () {
+      //     console.log('xxxx');
 
-          layer.updateMeasurements();
-          // plugin._UpdateAreaPerimetro(layer);
-        },
-        layer
-        // plugin
-      );
+      //     layer.updateMeasurements();
+      //     // plugin._UpdateAreaPerimetro(layer);
+      //   },
+      //   layer
+      //   // plugin
+      // );
 
       if (this.options.shapeMode === 'polygon') {
         document.getElementById('img_plg_measure_polygon').src =
