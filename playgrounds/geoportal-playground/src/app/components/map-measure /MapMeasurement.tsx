@@ -111,13 +111,14 @@ const MapMeasurement = (props) => {
       return cleaerShapesArr;
     });
   };
-  const updateShapeHandler = (id, newCoordinates) => {
+  const updateShapeHandler = (id, newCoordinates, newDistance) => {
     setPolygons((prevPolygons) => {
       const cleaerShapesArr = prevPolygons.map((s) => {
         if (s.shapeId === id) {
           return {
             ...s,
             coordinates: newCoordinates,
+            distance: newDistance,
           };
         } else {
           return s;

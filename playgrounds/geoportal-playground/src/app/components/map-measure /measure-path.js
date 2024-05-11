@@ -129,11 +129,13 @@ L.Control.MeasurePolygon = L.Control.extend({
     polyline.updateMeasurements();
     console.log('update c', reversedCoordinates);
 
+    const newDistance = this._UpdateDistance(layer);
+    console.log('ddd', newDistance);
     const shapeId = polyline?.customID
       ? polyline?.customID
       : polyline._leaflet_id;
 
-    this.options.cbUpdateShape(shapeId, reversedCoordinates);
+    this.options.cbUpdateShape(shapeId, reversedCoordinates, newDistance);
   },
 
   _onPolygonClick: function (event) {
