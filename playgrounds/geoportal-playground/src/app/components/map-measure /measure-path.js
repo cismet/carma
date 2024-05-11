@@ -231,11 +231,10 @@ L.Control.MeasurePolygon = L.Control.extend({
             .enableEdit();
           savedPolyline.on('dblclick', this._onPolygonClick.bind(this));
           savedPolyline.on(
-            'editable:drag editable:vertex:drag editable:vertex:deleted',
+            'editable:drag editable:dragstart editable:dragend editable:vertex:drag editable:vertex:deleted',
             this._onPolylineDrag.bind(this)
           );
         }
-        // savedPolyline.addTo(map);
       });
     }
 
@@ -257,56 +256,9 @@ L.Control.MeasurePolygon = L.Control.extend({
       this.saveShapeHandler(layer, distance);
 
       layer.on(
-        'editable:drag editable:vertex:drag editable:vertex:deleted',
+        'editable:drag editable:vertex:drag editable:vertex:deleted editable:dragstart editable:dragend',
         this._onPolylineDrag.bind(this)
       );
-
-      map.on(
-        'editable:dragstart',
-        function () {
-          console.log('xxxx');
-
-          layer.updateMeasurements();
-          plugin._UpdateAreaPerimetro(layer);
-        },
-        layer,
-        plugin
-      );
-
-      // map.on(
-      //   'editable:drag',
-      //   function () {
-      //     console.log('xxxx');
-
-      //     layer.updateMeasurements();
-      //     // plugin._UpdateAreaPerimetro(layer);
-      //   },
-      //   layer,
-      //   plugin
-      // );
-      // map.on(
-      //   'editable:dragend',
-      //   function () {
-      //     console.log('xxxx');
-
-      //     layer.updateMeasurements();
-      //     // plugin._UpdateAreaPerimetro(layer);
-      //   },
-      //   layer,
-      //   plugin
-      // );
-
-      // map.on(
-      //   'editable:vertex:drag editable:vertex:deleted',
-      //   function () {
-      //     console.log('xxxx');
-
-      //     layer.updateMeasurements();
-      //     // plugin._UpdateAreaPerimetro(layer);
-      //   },
-      //   layer
-      //   // plugin
-      // );
 
       if (this.options.shapeMode === 'polygon') {
         document.getElementById('img_plg_measure_polygon').src =
