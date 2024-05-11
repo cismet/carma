@@ -210,31 +210,16 @@ L.Control.MeasurePolygon = L.Control.extend({
     if (this.options.shapes.length !== 0) {
       this.options.shapes.forEach((shape) => {
         const { coordinates, options, shapeId, shapeType } = shape;
-        if (shapeType === 'line') {
-          const savedPolyline = L.polyline(coordinates, options);
-          savedPolyline.customID = shapeId;
-          savedPolyline
-            .addTo(this._measureLayers)
-            .showMeasurements()
-            .enableEdit();
-          savedPolyline.on('dblclick', this._onPolygonClick.bind(this));
-          savedPolyline.on(
-            'editable:drag editable:vertex:drag editable:vertex:deleted',
-            this._onPolylineDrag.bind(this)
-          );
-        } else {
-          const savedPolyline = L.polygon(coordinates, options);
-          savedPolyline.customID = shapeId;
-          savedPolyline
-            .addTo(this._measureLayers)
-            .showMeasurements()
-            .enableEdit();
-          savedPolyline.on('dblclick', this._onPolygonClick.bind(this));
-          savedPolyline.on(
-            'editable:drag editable:dragstart editable:dragend editable:vertex:drag editable:vertex:deleted',
-            this._onPolylineDrag.bind(this)
-          );
-        }
+        const shapeName = shapeType === 'line' ? 'polyline' : 'polygon';
+
+        const savedShape = L[shapeName](coordinates, options);
+        savedShape.customID = shapeId;
+        savedShape.addTo(this._measureLayers).showMeasurements().enableEdit();
+        savedShape.on('dblclick', this._onPolygonClick.bind(this));
+        savedShape.on(
+          'editable:drag editable:dragstart editable:dragend editable:vertex:drag editable:vertex:deleted',
+          this._onPolylineDrag.bind(this)
+        );
       });
     }
 
