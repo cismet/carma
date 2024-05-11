@@ -291,7 +291,8 @@ L.Control.MeasurePolygon = L.Control.extend({
 
   _UpdateDistance: function (layer) {
     let totalDistance = 0;
-    const latlngs = layer.getLatLngs();
+    const isLine = layer.toGeoJSON().geometry.type === 'LineString';
+    const latlngs = isLine ? layer.getLatLngs() : layer.getLatLngs()[0];
 
     for (let i = 0; i < latlngs.length - 1; i++) {
       const point1 = latlngs[i];
