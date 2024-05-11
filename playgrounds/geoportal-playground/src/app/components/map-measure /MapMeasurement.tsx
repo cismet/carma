@@ -41,6 +41,7 @@ const MapMeasurement = (props) => {
         shapes: polygons,
         cb: toggleMeasureToolState,
         cbSaveShape: saveShapeHandler,
+        cbUpdateShape: updateShapeHandler,
         cdDeleteShape: deleteShapeHandler,
       };
 
@@ -105,11 +106,23 @@ const MapMeasurement = (props) => {
     setPolygons((prevPolygons) => [...prevPolygons, layer]);
   };
   const deleteShapeHandler = (id) => {
-    // const reduxShape = measurementShapes.filter((s) => s.shapeId !== id);
-    // console.log('vvv shape id', id);
-    // console.log('vvv r', reduxShape);
     setPolygons((prevPolygons) => {
       const cleaerShapesArr = prevPolygons.filter((s) => s.shapeId !== id);
+      return cleaerShapesArr;
+    });
+  };
+  const updateShapeHandler = (id, newCoordinates) => {
+    setPolygons((prevPolygons) => {
+      const cleaerShapesArr = prevPolygons.map((s) => {
+        if (s.shapeId === id) {
+          return {
+            ...s,
+            coordinates: newCoordinates,
+          };
+        } else {
+          return s;
+        }
+      });
       return cleaerShapesArr;
     });
   };

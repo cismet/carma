@@ -27,6 +27,9 @@ L.Control.MeasurePolygon = L.Control.extend({
     cdDeleteShape: function () {
       console.log('Callback function executed!');
     },
+    cbUpdateShape: function () {
+      console.log('Callback function executed!');
+    },
     localShapeStore: [],
   },
 
@@ -106,7 +109,17 @@ L.Control.MeasurePolygon = L.Control.extend({
 
   _onPolylineDrag: function (event) {
     const polyline = event.target;
+    const layer = event.layer;
+    const latlngsJSON = layer.toGeoJSON();
+    const reversedCoordinates = latlngsJSON.geometry.coordinates.map((item) => {
+      return item.reverse();
+    });
     polyline.updateMeasurements();
+    const shapeId = polyline?.customID
+      ? polyline?.customID
+      : polyline._leaflet_id;
+
+    this.options.cbUpdateShape(shapeId, reversedCoordinates);
   },
 
   _onPolygonClick: function (event) {
