@@ -119,10 +119,16 @@ L.Control.MeasurePolygon = L.Control.extend({
     const polyline = event.target;
     const layer = event.layer;
     const latlngsJSON = layer.toGeoJSON();
-    const reversedCoordinates = latlngsJSON.geometry.coordinates.map((item) => {
+    const isLine = layer.toGeoJSON().geometry.type === 'LineString';
+    const prepeareCoordinates = isLine
+      ? latlngsJSON.geometry.coordinates
+      : latlngsJSON.geometry.coordinates[0];
+    const reversedCoordinates = prepeareCoordinates.map((item) => {
       return item.reverse();
     });
     polyline.updateMeasurements();
+    console.log('update c', reversedCoordinates);
+
     const shapeId = polyline?.customID
       ? polyline?.customID
       : polyline._leaflet_id;
