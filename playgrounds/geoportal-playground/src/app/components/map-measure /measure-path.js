@@ -73,6 +73,13 @@ L.Control.MeasurePolygon = L.Control.extend({
       },
     });
 
+    L.drawLocal.draw.handlers.polyline.tooltip.start =
+      'Klicken Sie, um die Linie zu zeichnen';
+    L.drawLocal.draw.handlers.polyline.tooltip.cont =
+      'Klicken Sie, um mit dem Zeichnen der Linie fortzufahren';
+    L.drawLocal.draw.handlers.polyline.tooltip.end =
+      'Klicken Sie auf den letzten Punkt der Ziellinie';
+
     this._toggleMeasure(
       'img_plg_lines',
       'icon_lineActive',
