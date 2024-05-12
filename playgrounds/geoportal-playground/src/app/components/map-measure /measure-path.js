@@ -261,6 +261,13 @@ L.Control.MeasurePolygon = L.Control.extend({
       this._measureHandler.disable();
     });
 
+    map.on('draw:canceled', () => {
+      document.getElementById('img_plg_measure_polygon').src =
+        this.options.icon_polygonInactive;
+      document.getElementById('img_plg_lines').src =
+        this.options.icon_lineInactive;
+    });
+
     return iconsWrapper;
   },
 

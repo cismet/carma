@@ -130,7 +130,6 @@ const MapMeasurement = (props) => {
 
   return (
     <div>
-      <button onClick={deleteShapeHandler}>asddd</button>
       {/* {checkMeasureTool && <MeasurementResults data={measurements} />} */}
     </div>
   );
