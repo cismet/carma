@@ -36,7 +36,7 @@ const MapMeasurement = (props) => {
         icon_lineInactive: makeMeasureIcon,
         color_polygon: 'blue',
         fillColor_polygon: 'green',
-        weight_polygon: 5,
+        weight_polygon: 2,
         msj_disable_tool: 'Do you want to disable the tool?',
         shapes: polygons,
         cb: toggleMeasureToolState,
