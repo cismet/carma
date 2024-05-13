@@ -17,6 +17,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     checkonedrawpoligon: false,
     msj_disable_tool: 'Möchten Sie das Tool deaktivieren?',
     shapes: [],
+    activeShape: null,
     shapeMode: 'polygon',
     cb: function () {
       console.log('Callback function executed!');
@@ -141,6 +142,12 @@ L.Control.MeasurePolygon = L.Control.extend({
     this.options.cbUpdateShape(shapeId, reversedCoordinates, newDistance);
   },
 
+  showActiveShape: function (map, coordinates) {
+    const center = L.latLngBounds(coordinates).getCenter();
+    console.log('fff', coordinates);
+    map.setView(center, 17);
+  },
+
   _onPolygonClick: function (event) {
     const clickedPolygon = event.target;
     const latlngs = clickedPolygon.getLatLngs();
@@ -241,10 +248,12 @@ L.Control.MeasurePolygon = L.Control.extend({
         );
       });
 
-      const lastShape = this.options.shapes[this.options.shapes.length - 1];
-      const center = L.latLngBounds(lastShape.coordinates).getCenter();
-      console.log('fff', lastShape.coordinates);
-      map.setView(center, 17);
+      if (!this.options.activeShape) {
+        const lastShape = this.options.shapes[this.options.shapes.length - 1];
+        const center = L.latLngBounds(lastShape.coordinates).getCenter();
+        console.log('fff', lastShape.coordinates);
+        map.setView(center, 17);
+      }
     }
 
     map.on('draw:created', (event) => {

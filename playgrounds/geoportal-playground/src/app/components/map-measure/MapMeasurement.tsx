@@ -14,7 +14,11 @@ import polygonIcon from './polygon.png';
 import polygonActiveIcon from './polygon-active.png';
 import './m-style.css';
 import { useSelector, useDispatch } from 'react-redux';
-import { getShapes, setShapes } from '../../store/slices/measurements';
+import {
+  getShapes,
+  setShapes,
+  getActiveShapes,
+} from '../../store/slices/measurements';
 interface TopicMapContextType {
   routedMapRef: any;
 }
@@ -24,6 +28,8 @@ const MapMeasurement = (props) => {
 
   const dispatch = useDispatch();
   const measurementShapes = useSelector(getShapes);
+  const activeShape = useSelector(getActiveShapes);
+
   // const savedLayerGroup = this._measureLayers.toGeoJSON();
   const [measurements, setMeasurements] = useState({ area: '' });
   const [measureControl, setMeasureControl] = useState(null);
@@ -38,6 +44,7 @@ const MapMeasurement = (props) => {
         icon_lineInactive: makeMeasureIcon,
         icon_polygonActive: polygonActiveIcon,
         icon_polygonInactive: polygonIcon,
+        activeShape,
         // color_polygon: 'blue',
         // fillColor_polygon: 'green',
         // weight_polygon: 2,
@@ -79,6 +86,17 @@ const MapMeasurement = (props) => {
   useEffect(() => {
     console.log('ppp', measurementShapes);
   }, [measurementShapes]);
+  useEffect(() => {
+    if (measureControl) {
+      const shapeCoordinates = measurementShapes.filter(
+        (s) => s.shapeId === activeShape
+      );
+      const map = routedMapRef.leafletMap.leafletElement;
+      console.log('fff', shapeCoordinates);
+      console.log('fff', activeShape);
+      measureControl.showActiveShape(map, shapeCoordinates[0].coordinates);
+    }
+  }, [activeShape]);
 
   const handleVertexDrag = (event) => {
     // Recalculate area when vertex is dragged
