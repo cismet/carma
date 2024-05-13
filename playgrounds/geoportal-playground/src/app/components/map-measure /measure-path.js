@@ -187,7 +187,11 @@ L.Control.MeasurePolygon = L.Control.extend({
       'leaflet-bar leaflet-control'
     );
     const polygonIcon = L.DomUtil.create('a', '', polygonContainer);
-    polygonIcon.innerHTML = `<img id="img_plg_measure_polygon" src="${this.options.icon_polygonInactive}" width="24" height="24" alt="Ruler Icon" style="display: block; margin: auto; height: 100%;">`;
+    polygonIcon.innerHTML = `
+    <div class="measure_icon_wrapper">
+      <img id="img_plg_measure_polygon" class='mesure_icon' src="${this.options.icon_polygonInactive}" alt="Ruler Icon">
+    </div>
+  `;
     polygonIcon.href = '#';
     polygonIcon.title = 'Flächen- und Umfangsmessungen';
     // this.ui_icon = icon;

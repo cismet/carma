@@ -10,6 +10,8 @@ import './measure-path';
 import 'leaflet-measure-path/leaflet-measure-path.css';
 import makeMeasureIcon from './measure.png';
 import makeMeasureActiveIcon from './measure-active.png';
+import polygonIcon from './polygon.png';
+import polygonActiveIcon from './polygon-active.png';
 import './m-style.css';
 import { useSelector, useDispatch } from 'react-redux';
 import { getShapes, setShapes } from '../../store/slices/measurements';
@@ -34,6 +36,8 @@ const MapMeasurement = (props) => {
         position: 'topleft',
         icon_lineActive: makeMeasureActiveIcon,
         icon_lineInactive: makeMeasureIcon,
+        icon_polygonActive: polygonActiveIcon,
+        icon_polygonInactive: polygonIcon,
         color_polygon: 'blue',
         fillColor_polygon: 'green',
         weight_polygon: 2,
