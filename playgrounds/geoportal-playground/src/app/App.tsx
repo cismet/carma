@@ -9,7 +9,7 @@ import TopicMapContextProvider from 'react-cismap/contexts/TopicMapContextProvid
 // @ts-ignore
 import Map from './components/Map';
 import TopNavbar from './components/TopNavbar';
-import MapMeasurement from './components/map-measure /MapMeasurement';
+import MapMeasurement from './components/map-measure/MapMeasurement';
 if (typeof global === 'undefined') {
   window.global = window;
 }

@@ -184,7 +184,7 @@ L.Control.MeasurePolygon = L.Control.extend({
 
     const polygonContainer = L.DomUtil.create(
       'div',
-      'leaflet-bar leaflet-control'
+      'leaflet-bar leaflet-control measure_icon_wrapper__polygon'
     );
     const polygonIcon = L.DomUtil.create('a', '', polygonContainer);
     polygonIcon.innerHTML = `

@@ -17,3 +17,7 @@
   /* height: 100%; */
   text-align: center;
 }
+
+.measure_icon_wrapper__polygon {
+  display: none;
+}
