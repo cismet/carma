@@ -1,13 +1,14 @@
 import ResponsiveInfoBox from 'react-cismap/topicmaps/ResponsiveInfoBox';
 import { getShapes } from '../../store/slices/measurements';
 import { useSelector } from 'react-redux';
+import { Carousel } from 'antd';
 
 const InfoBoxWrapper = () => {
   const measurementsData = useSelector(getShapes);
 
   return (
     <div>
-      <ResponsiveInfoBox
+      {/* <ResponsiveInfoBox
         pixelwidth={300}
         header={
           <span>
@@ -30,7 +31,18 @@ const InfoBoxWrapper = () => {
               : 'Collapsible Div'}
           </span>
         }
-      />
+      /> */}
+      {measurementsData.length !== 0 &&
+        measurementsData.map((data) => {
+          return (
+            <ResponsiveInfoBox
+              pixelwidth={300}
+              header={<span>{data.shapeId}</span>}
+              alwaysVisibleDiv={<span>{data.distance}</span>}
+              collapsibleDiv={<span>{data.shapeType}</span>}
+            />
+          );
+        })}
     </div>
   );
 };
