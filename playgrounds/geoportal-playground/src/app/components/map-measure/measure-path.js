@@ -65,7 +65,7 @@ L.Control.MeasurePolygon = L.Control.extend({
       showLength: true,
       shapeOptions: {
         weight: 3,
-        color: 'transparent',
+        color: '#267bdcd4',
         opacity: 1,
         fillColor: null,
       },
