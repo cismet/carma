@@ -173,7 +173,11 @@ L.Control.MeasurePolygon = L.Control.extend({
     );
 
     const lineIcon = L.DomUtil.create('a', '', linesContainer);
-    lineIcon.innerHTML = `<img id="img_plg_lines" src="${this.options.icon_lineInactive}" width="28" alt="Ruler Icon" style="display: block; margin:auto; height: 100%;">`;
+    lineIcon.innerHTML = `
+    <div class="measure_icon_wrapper">
+      <img id="img_plg_lines" class='mesure_icon' src="${this.options.icon_lineInactive}" alt="Ruler Icon">
+    </div>
+  `;
     lineIcon.href = '#';
     lineIcon.title = 'Flächen- und Umfangsmessungen';
     // this.ui_icon = icon;

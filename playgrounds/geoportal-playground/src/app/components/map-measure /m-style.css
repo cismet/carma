@@ -1,3 +1,19 @@
 .m-icons-wrapper.leaflet-control {
   margin: 0;
 }
+
+.measure_icon_wrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+}
+
+.mesure_icon {
+  /* display: block; */
+  width: 80%;
+  margin: auto;
+  /* height: 100%; */
+  text-align: center;
+}
