@@ -240,6 +240,11 @@ L.Control.MeasurePolygon = L.Control.extend({
           this._onPolylineDrag.bind(this)
         );
       });
+
+      const lastShape = this.options.shapes[this.options.shapes.length - 1];
+      const center = L.latLngBounds(lastShape.coordinates).getCenter();
+      console.log('fff', lastShape.coordinates);
+      map.setView(center, 17);
     }
 
     map.on('draw:created', (event) => {
