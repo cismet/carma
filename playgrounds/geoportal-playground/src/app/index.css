@@ -19,3 +19,12 @@ code {
   border: 2px solid black;
   border-radius: 50%;
 }
+
+/* .leaflet-interactive {
+  background-color: red !important;
+  color: red !important;
+} */
+
+path.leaflet-interactive {
+  stroke: #88ab1fd4;
+}

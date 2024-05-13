@@ -38,14 +38,10 @@ L.Control.MeasurePolygon = L.Control.extend({
     this._measureHandler = new L.Draw.Polygon(map, {
       showArea: true,
       shapeOptions: {
+        color: 'blue',
+        fillColor: null,
+        fillOpacity: 0.2,
         stroke: true,
-        color: this.options.color_polygon,
-        fillColor: this.options.fillColor_polygon,
-        fillOpacity: 0.4,
-        lineCap: 'round',
-        lineJoin: 'round',
-        dashArray: '1, 9',
-        weight: this.options.weight_polygon,
       },
     });
 
@@ -68,8 +64,10 @@ L.Control.MeasurePolygon = L.Control.extend({
     this._measureHandler = new L.Draw.Polyline(map, {
       showLength: true,
       shapeOptions: {
-        color: this.options.color_polygon,
-        weight: this.options.weight_polygon,
+        weight: 3,
+        color: 'transparent',
+        opacity: 1,
+        fillColor: null,
       },
     });
 
@@ -91,6 +89,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     const latlngs = layer.getLatLngs();
     const latlngsJSON = layer.toGeoJSON();
     const { stroke, color, fillColor, fillOpacity } = layer.options;
+
     const shapeId = layer._leaflet_id;
     console.log('bbb', latlngsJSON);
     const prepeareCoordinates =
@@ -107,10 +106,10 @@ L.Control.MeasurePolygon = L.Control.extend({
     const preparePolygon = {
       coordinates: reversedCoordinates,
       options: {
-        stroke,
-        color,
-        fillColor,
-        fillOpacity,
+        color: 'blue',
+        fillColor: null,
+        opacity: 0.5,
+        weigt: 4,
       },
       shapeId,
       distance,
@@ -134,10 +133,7 @@ L.Control.MeasurePolygon = L.Control.extend({
       return item.reverse();
     });
     polyline.updateMeasurements();
-    console.log('update c', reversedCoordinates);
-
     const newDistance = this._UpdateDistance(layer);
-    console.log('ddd', newDistance);
     const shapeId = polyline?.customID
       ? polyline?.customID
       : polyline._leaflet_id;
@@ -150,11 +146,10 @@ L.Control.MeasurePolygon = L.Control.extend({
     const latlngs = clickedPolygon.getLatLngs();
     const { stroke, color, fillColor, fillOpacity } = clickedPolygon.options;
     const preparePolygon = {
-      latlngs,
-      stroke,
-      color,
-      fillColor,
-      fillOpacity,
+      color: 'blue',
+      fillColor: null,
+      fillOpacity: 0.2,
+      stroke: true,
     };
     console.log('Polygon clicked:', clickedPolygon);
     // console.log('this._measureLayers', this._measureLayers);
@@ -229,7 +224,14 @@ L.Control.MeasurePolygon = L.Control.extend({
         const { coordinates, options, shapeId, shapeType } = shape;
         const shapeName = shapeType === 'line' ? 'polyline' : 'polygon';
 
-        const savedShape = L[shapeName](coordinates, options);
+        const savedShape = L[shapeName](coordinates, {
+          showLength: true,
+          shapeOptions: {
+            weight: 4,
+            color: 'blue',
+            opacity: 0.5,
+          },
+        });
         savedShape.customID = shapeId;
         savedShape.addTo(this._measureLayers).showMeasurements().enableEdit();
         savedShape.on('dblclick', this._onPolygonClick.bind(this));
