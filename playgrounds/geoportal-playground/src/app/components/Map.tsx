@@ -13,6 +13,7 @@ import { useSelector } from 'react-redux';
 import { getMode } from './../store/slices/ui';
 import { TopicMapContext } from 'react-cismap/contexts/TopicMapContextProvider';
 import ResponsiveInfoBox from 'react-cismap/topicmaps/ResponsiveInfoBox';
+import InfoBoxWrapper from './map-measure/InfoBoxWrapper';
 
 const Map = () => {
   const [gazData, setGazData] = useState([]);
@@ -60,9 +61,7 @@ const Map = () => {
           // console.log('xxx bbox', createWMSBbox(boundingbox));
         }}
         gazetteerSearchPlaceholder="Stadtteil | Adresse | POI"
-        _infoBox={
-          <ResponsiveInfoBox pixelwidth={300} header={<span>Messen</span>} />
-        }
+        infoBox={<InfoBoxWrapper />}
       >
         {/* <StyledWMSTileLayer
           {...{
