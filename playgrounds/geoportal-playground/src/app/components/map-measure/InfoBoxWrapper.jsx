@@ -56,28 +56,44 @@ const InfoBoxWrapper = () => {
       {measurementsData[currentMeasure] && (
         <ResponsiveInfoBox
           pixelwidth={300}
-          header={<span style={{ width: '100%', height: '6px' }}></span>}
+          header={<div className="w-full bg-blue-500 px-2">Messungen</div>}
           alwaysVisibleDiv={
             <span
               style={{ cursor: 'pointer' }}
+              className="capitalize"
               onClick={() =>
                 dispatch(
                   setActiveShape(measurementsData[currentMeasure].shapeId)
                 )
               }
             >
-              Messung Nummer #{measurementsData[currentMeasure].shapeId}
+              {measurementsData[currentMeasure].shapeType} Nummer #
+              {measurementsData[currentMeasure].shapeId}
             </span>
           }
           collapsibleDiv={
             <>
-              {' '}
-              <span>
-                {measurementsData[currentMeasure].distance} (
-                {measurementsData[currentMeasure].shapeType})
-              </span>
-              <div onClick={decreaseCurrentHandler}>Prev</div>
-              <div onClick={increaseCurrentHandler}>Next</div>
+              <span>{measurementsData[currentMeasure].distance}</span>
+              <div className="flex justify-center items-center">
+                <span className="mx-4">
+                  {measurementsData.length} Messungen angezeigt in Wuppertal
+                </span>
+              </div>
+              <div className="flex justify-between items-center w-[90%]">
+                <span
+                  onClick={decreaseCurrentHandler}
+                  style={{ fontSize: '20px' }}
+                >
+                  &laquo;
+                </span>
+                <span className="mx-4">Messungen angezeigt</span>
+                <span
+                  onClick={increaseCurrentHandler}
+                  style={{ fontSize: '20px' }}
+                >
+                  &raquo;
+                </span>
+              </div>
             </>
           }
         />
