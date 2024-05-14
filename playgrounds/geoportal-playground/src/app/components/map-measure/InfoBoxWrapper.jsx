@@ -20,14 +20,14 @@ const InfoBoxWrapper = () => {
       increaseCurrentHandler();
     }
     if (measurementsData.length < oldDataLength) {
-      // decreaseCurrentHandler();
-      setCurrentMeasure((prev) => {
-        if (measurementsData.length === 0) {
-          return 0;
-        }
+      decreaseCurrentHandler();
+      // setCurrentMeasure((prev) => {
+      //   if (measurementsData.length === 0) {
+      //     return 0;
+      //   }
 
-        return prev - 1;
-      });
+      //   return prev - 1;
+      // });
       console.log('nnn decrease');
     }
     // if (measurementsData.length !== 0) {
