@@ -1,52 +1,72 @@
 import ResponsiveInfoBox from 'react-cismap/topicmaps/ResponsiveInfoBox';
 import { getShapes, setActiveShape } from '../../store/slices/measurements';
 import { useSelector, useDispatch } from 'react-redux';
+import { useState, useEffect } from 'react';
 
 const InfoBoxWrapper = () => {
   const measurementsData = useSelector(getShapes);
   const dispatch = useDispatch();
+  const [currentMeasure, setCurrentMeasure] = useState(
+    measurementsData.length - 1
+  );
+
+  useEffect(() => {
+    console.log('nnn', currentMeasure);
+  }, [currentMeasure]);
+
+  const decreaseCurrentHandler = () => {
+    setCurrentMeasure((prev) => {
+      if (prev <= 0) {
+        return measurementsData.length - 1;
+      }
+
+      const newIndex = prev - 1;
+      return newIndex;
+    });
+  };
+
+  const increaseCurrentHandler = () => {
+    setCurrentMeasure((prev) => {
+      if (prev >= measurementsData.length - 1) {
+        return 0;
+      }
+
+      const newIndex = prev + 1;
+      return newIndex;
+    });
+  };
 
   return (
     <div>
-      {/* <ResponsiveInfoBox
-        pixelwidth={300}
-        header={
-          <span>
-            {measurementsData.length !== 0
-              ? measurementsData[0].shapeId
-              : 'Messen'}
-          </span>
-        }
-        alwaysVisibleDiv={
-          <span>
-            {measurementsData.length !== 0
-              ? measurementsData[0].distance
-              : 'Always Visible Div'}
-          </span>
-        }
-        collapsibleDiv={
-          <span>
-            {measurementsData.length !== 0
-              ? measurementsData[0].shapeType
-              : 'Collapsible Div'}
-          </span>
-        }
-      /> */}
-      {measurementsData.length !== 0 &&
-        measurementsData.map((data) => {
-          return (
-            <ResponsiveInfoBox
-              pixelwidth={300}
-              header={<span>{data.shapeId}</span>}
-              alwaysVisibleDiv={
-                <span onClick={() => dispatch(setActiveShape(data.shapeId))}>
-                  {data.distance}
-                </span>
+      {measurementsData.length !== 0 && (
+        <ResponsiveInfoBox
+          pixelwidth={300}
+          header={<span style={{ width: '100%', height: '6px' }}></span>}
+          alwaysVisibleDiv={
+            <span
+              style={{ cursor: 'pointer' }}
+              onClick={() =>
+                dispatch(
+                  setActiveShape(measurementsData[currentMeasure].shapeId)
+                )
               }
-              collapsibleDiv={<span>{data.shapeType}</span>}
-            />
-          );
-        })}
+            >
+              Messung Nummer #{measurementsData[currentMeasure].shapeId}
+            </span>
+          }
+          collapsibleDiv={
+            <>
+              {' '}
+              <span>
+                {measurementsData[currentMeasure].distance} (
+                {measurementsData[currentMeasure].shapeType})
+              </span>
+              <div onClick={decreaseCurrentHandler}>Prev</div>
+              <div onClick={increaseCurrentHandler}>Next</div>
+            </>
+          }
+        />
+      )}
     </div>
   );
 };
