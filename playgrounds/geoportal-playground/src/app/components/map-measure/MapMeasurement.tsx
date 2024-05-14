@@ -92,8 +92,6 @@ const MapMeasurement = (props) => {
         (s) => s.shapeId === activeShape
       );
       const map = routedMapRef.leafletMap.leafletElement;
-      console.log('fff', shapeCoordinates);
-      console.log('fff', activeShape);
       measureControl.showActiveShape(map, shapeCoordinates[0].coordinates);
       measureControl.changeColorByActivePolyline(
         map,

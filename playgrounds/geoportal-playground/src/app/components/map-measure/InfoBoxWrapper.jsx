@@ -14,7 +14,6 @@ const InfoBoxWrapper = () => {
   useEffect(() => {
     console.log('nnn length', measurementsData.length);
     console.log('nnn oldDataLength', oldDataLength);
-    console.log('nnn current', currentMeasure);
 
     if (measurementsData.length > oldDataLength) {
       increaseCurrentHandler();
@@ -24,7 +23,11 @@ const InfoBoxWrapper = () => {
     }
 
     setOldDataLength(measurementsData.length);
-  }, [measurementsData, oldDataLength, currentMeasure]);
+  }, [measurementsData, oldDataLength]);
+
+  useEffect(() => {
+    dispatch(setActiveShape(measurementsData[currentMeasure].shapeId));
+  }, [currentMeasure]);
 
   const decreaseCurrentHandler = () => {
     setCurrentMeasure((prev) => {
