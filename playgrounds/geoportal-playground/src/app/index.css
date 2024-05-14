@@ -13,10 +13,10 @@ code {
 }
 
 .leaflet-marker-icon.leaflet-div-icon {
-  width: 12px !important;
-  height: 12px !important;
-  background-color: white;
-  border: 2px solid black;
+  width: 8px !important;
+  height: 8px !important;
+  background-color: rgba(255, 255, 255, 0.512);
+  border: 0.75px solid black;
   border-radius: 50%;
 }
 
@@ -27,4 +27,15 @@ code {
 
 path.leaflet-interactive {
   stroke: #267bdcd4;
+}
+
+.leaflet-editing-icon {
+  margin-left: -4px !important;
+  margin-top: -4px !important;
+  height: 8px !important;
+  width: 8px !important;
+  background-color: rgba(255, 255, 255, 0.512) !important;
+  border: 0.75px solid black;
+  border-radius: 50% !important;
+  display: inline-block !important;
 }

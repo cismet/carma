@@ -68,7 +68,6 @@ L.Control.MeasurePolygon = L.Control.extend({
         weight: 3,
         color: '#267bdcd4',
         opacity: 1,
-        fillColor: null,
       },
     });
 
@@ -152,12 +151,12 @@ L.Control.MeasurePolygon = L.Control.extend({
     const clickedPolygon = event.target;
     const latlngs = clickedPolygon.getLatLngs();
     const { stroke, color, fillColor, fillOpacity } = clickedPolygon.options;
-    const preparePolygon = {
-      color: 'blue',
-      fillColor: null,
-      fillOpacity: 0.2,
-      stroke: true,
-    };
+    // const preparePolygon = {
+    //   color: 'blue',
+    //   fillColor: null,
+    //   fillOpacity: 0.2,
+    //   stroke: true,
+    // };
     console.log('Polygon clicked:', clickedPolygon);
     // console.log('this._measureLayers', this._measureLayers);
     this._measureLayers.removeLayer(clickedPolygon._leaflet_id);
@@ -235,8 +234,8 @@ L.Control.MeasurePolygon = L.Control.extend({
           showLength: true,
           shapeOptions: {
             weight: 4,
-            color: 'blue',
-            opacity: 0.5,
+            color: '#267bdcd4',
+            opacity: 1,
           },
         });
         savedShape.customID = shapeId;
