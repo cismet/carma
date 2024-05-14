@@ -7,12 +7,41 @@ const InfoBoxWrapper = () => {
   const measurementsData = useSelector(getShapes);
   const dispatch = useDispatch();
   const [currentMeasure, setCurrentMeasure] = useState(
-    measurementsData.length - 1
+    measurementsData.length - 1 < 0 ? 0 : measurementsData.length - 1
   );
+  const [oldDataLength, setOldDataLength] = useState(measurementsData.length);
 
   useEffect(() => {
-    console.log('nnn', currentMeasure);
-  }, [currentMeasure]);
+    console.log('nnn length', measurementsData.length);
+    console.log('nnn oldDataLength', oldDataLength);
+    console.log('nnn current', currentMeasure);
+
+    if (measurementsData.length > oldDataLength) {
+      increaseCurrentHandler();
+    }
+    if (measurementsData.length < oldDataLength) {
+      // decreaseCurrentHandler();
+      setCurrentMeasure((prev) => {
+        if (measurementsData.length === 0) {
+          return 0;
+        }
+
+        return prev - 1;
+      });
+      console.log('nnn decrease');
+    }
+    // if (measurementsData.length !== 0) {
+    //   setCurrentMeasure(0);
+    // }
+    setOldDataLength(measurementsData.length);
+  }, [measurementsData, oldDataLength, currentMeasure]);
+
+  // useEffect(() => {
+  //   console.log('nnn current', currentMeasure);
+  // }, [currentMeasure]);
+  // useEffect(() => {
+  //   console.log('nnn oldDataLength', oldDataLength);
+  // }, [oldDataLength]);
 
   const decreaseCurrentHandler = () => {
     setCurrentMeasure((prev) => {
@@ -38,7 +67,7 @@ const InfoBoxWrapper = () => {
 
   return (
     <div>
-      {measurementsData.length !== 0 && (
+      {measurementsData[currentMeasure] && (
         <ResponsiveInfoBox
           pixelwidth={300}
           header={<span style={{ width: '100%', height: '6px' }}></span>}
@@ -47,19 +76,28 @@ const InfoBoxWrapper = () => {
               style={{ cursor: 'pointer' }}
               onClick={() =>
                 dispatch(
-                  setActiveShape(measurementsData[currentMeasure].shapeId)
+                  setActiveShape(
+                    measurementsData[currentMeasure] &&
+                      measurementsData[currentMeasure].shapeId
+                  )
                 )
               }
             >
-              Messung Nummer #{measurementsData[currentMeasure].shapeId}
+              Messung Nummer #
+              {measurementsData[currentMeasure] &&
+                measurementsData[currentMeasure].shapeId}
             </span>
           }
           collapsibleDiv={
             <>
               {' '}
               <span>
-                {measurementsData[currentMeasure].distance} (
-                {measurementsData[currentMeasure].shapeType})
+                {measurementsData[currentMeasure] &&
+                  measurementsData[currentMeasure].distance}{' '}
+                (
+                {measurementsData[currentMeasure] &&
+                  measurementsData[currentMeasure].shapeType}
+                )
               </span>
               <div onClick={decreaseCurrentHandler}>Prev</div>
               <div onClick={increaseCurrentHandler}>Next</div>

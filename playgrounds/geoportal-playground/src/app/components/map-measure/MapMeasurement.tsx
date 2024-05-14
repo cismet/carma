@@ -84,7 +84,7 @@ const MapMeasurement = (props) => {
   }, [polygons]);
 
   useEffect(() => {
-    console.log('ppp', measurementShapes);
+    console.log('nnn', measurementShapes);
   }, [measurementShapes]);
   useEffect(() => {
     if (measureControl) {
