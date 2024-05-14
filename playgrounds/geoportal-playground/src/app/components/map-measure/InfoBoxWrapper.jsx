@@ -21,27 +21,10 @@ const InfoBoxWrapper = () => {
     }
     if (measurementsData.length < oldDataLength) {
       decreaseCurrentHandler();
-      // setCurrentMeasure((prev) => {
-      //   if (measurementsData.length === 0) {
-      //     return 0;
-      //   }
-
-      //   return prev - 1;
-      // });
-      console.log('nnn decrease');
     }
-    // if (measurementsData.length !== 0) {
-    //   setCurrentMeasure(0);
-    // }
+
     setOldDataLength(measurementsData.length);
   }, [measurementsData, oldDataLength, currentMeasure]);
-
-  // useEffect(() => {
-  //   console.log('nnn current', currentMeasure);
-  // }, [currentMeasure]);
-  // useEffect(() => {
-  //   console.log('nnn oldDataLength', oldDataLength);
-  // }, [oldDataLength]);
 
   const decreaseCurrentHandler = () => {
     setCurrentMeasure((prev) => {
@@ -76,28 +59,19 @@ const InfoBoxWrapper = () => {
               style={{ cursor: 'pointer' }}
               onClick={() =>
                 dispatch(
-                  setActiveShape(
-                    measurementsData[currentMeasure] &&
-                      measurementsData[currentMeasure].shapeId
-                  )
+                  setActiveShape(measurementsData[currentMeasure].shapeId)
                 )
               }
             >
-              Messung Nummer #
-              {measurementsData[currentMeasure] &&
-                measurementsData[currentMeasure].shapeId}
+              Messung Nummer #{measurementsData[currentMeasure].shapeId}
             </span>
           }
           collapsibleDiv={
             <>
               {' '}
               <span>
-                {measurementsData[currentMeasure] &&
-                  measurementsData[currentMeasure].distance}{' '}
-                (
-                {measurementsData[currentMeasure] &&
-                  measurementsData[currentMeasure].shapeType}
-                )
+                {measurementsData[currentMeasure].distance} (
+                {measurementsData[currentMeasure].shapeType})
               </span>
               <div onClick={decreaseCurrentHandler}>Prev</div>
               <div onClick={increaseCurrentHandler}>Next</div>
