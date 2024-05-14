@@ -91,7 +91,8 @@ L.Control.MeasurePolygon = L.Control.extend({
     const { stroke, color, fillColor, fillOpacity } = layer.options;
 
     const shapeId = layer._leaflet_id;
-    console.log('bbb', latlngsJSON);
+    layer.customID = shapeId;
+
     const prepeareCoordinates =
       this.options.shapeMode === 'line'
         ? latlngsJSON.geometry.coordinates
