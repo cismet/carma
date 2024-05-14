@@ -68,7 +68,7 @@ const InfoBoxWrapper = () => {
               }
             >
               {measurementsData[currentMeasure].shapeType} Nummer #
-              {measurementsData[currentMeasure].shapeId}
+              {measurementsData[currentMeasure].number}
             </span>
           }
           collapsibleDiv={

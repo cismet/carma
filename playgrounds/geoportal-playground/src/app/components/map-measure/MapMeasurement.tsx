@@ -81,7 +81,11 @@ const MapMeasurement = (props) => {
   }, [routedMapRef]);
 
   useEffect(() => {
-    dispatch(setShapes(polygons));
+    const addShapeSimpleNumber = polygons.map((s, idx) => ({
+      ...s,
+      number: idx + 1,
+    }));
+    dispatch(setShapes(addShapeSimpleNumber));
     if (polygons.length !== 0) {
       console.log('ppp', polygons[polygons.length - 1].shapeId);
       dispatch(setActiveShape(polygons[polygons.length - 1].shapeId));
