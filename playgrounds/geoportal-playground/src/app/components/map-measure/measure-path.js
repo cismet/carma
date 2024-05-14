@@ -379,19 +379,17 @@ L.Control.MeasurePolygon = L.Control.extend({
     // this.options.cb(false);
   },
 
-  getPolylineByCustomID: function (map, customID) {
+  changeColorByActivePolyline: function (map, customID) {
     map.eachLayer(function (layer) {
-      if (layer instanceof L.Polyline && layer.customID === customID) {
-        console.log('ddd', layer);
-        var polyline = layer;
-
-        if (polyline._path) {
+      const polyline = layer;
+      if (layer instanceof L.Polyline) {
+        if (layer.customID === customID) {
           polyline._path.classList.remove('custom-polyline');
+        } else {
+          polyline._path.classList.add('custom-polyline');
         }
-        return layer;
       }
     });
-    return null;
   },
 });
 

@@ -95,7 +95,10 @@ const MapMeasurement = (props) => {
       console.log('fff', shapeCoordinates);
       console.log('fff', activeShape);
       measureControl.showActiveShape(map, shapeCoordinates[0].coordinates);
-      measureControl.getPolylineByCustomID(map, shapeCoordinates[0].shapeId);
+      measureControl.changeColorByActivePolyline(
+        map,
+        shapeCoordinates[0].shapeId
+      );
     }
   }, [activeShape]);
 
