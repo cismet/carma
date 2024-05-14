@@ -232,6 +232,7 @@ L.Control.MeasurePolygon = L.Control.extend({
 
         const savedShape = L[shapeName](coordinates, {
           showLength: true,
+          className: 'custom-polyline',
           shapeOptions: {
             weight: 4,
             color: '#267bdcd4',
@@ -376,6 +377,21 @@ L.Control.MeasurePolygon = L.Control.extend({
     // console.log('ccc', this._measureLayers);
     this._measureLayers.clearLayers();
     // this.options.cb(false);
+  },
+
+  getPolylineByCustomID: function (map, customID) {
+    map.eachLayer(function (layer) {
+      if (layer instanceof L.Polyline && layer.customID === customID) {
+        console.log('ddd', layer);
+        var polyline = layer;
+
+        if (polyline._path) {
+          polyline._path.classList.remove('custom-polyline');
+        }
+        return layer;
+      }
+    });
+    return null;
   },
 });
 

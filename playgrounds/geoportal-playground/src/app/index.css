@@ -39,3 +39,7 @@ path.leaflet-interactive {
   border-radius: 50% !important;
   display: inline-block !important;
 }
+
+path.custom-polyline.leaflet-interactive {
+  stroke: gray;
+}
