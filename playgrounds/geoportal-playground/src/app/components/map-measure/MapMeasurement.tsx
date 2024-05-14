@@ -18,6 +18,7 @@ import {
   getShapes,
   setShapes,
   getActiveShapes,
+  setActiveShape,
 } from '../../store/slices/measurements';
 interface TopicMapContextType {
   routedMapRef: any;
@@ -81,6 +82,10 @@ const MapMeasurement = (props) => {
 
   useEffect(() => {
     dispatch(setShapes(polygons));
+    if (polygons.length !== 0) {
+      console.log('ppp', polygons[polygons.length - 1].shapeId);
+      dispatch(setActiveShape(polygons[polygons.length - 1].shapeId));
+    }
   }, [polygons]);
 
   useEffect(() => {
@@ -98,7 +103,7 @@ const MapMeasurement = (props) => {
         shapeCoordinates[0].shapeId
       );
     }
-  }, [activeShape]);
+  }, [activeShape, measureControl]);
 
   const handleVertexDrag = (event) => {
     // Recalculate area when vertex is dragged
