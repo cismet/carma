@@ -300,6 +300,15 @@ L.Control.MeasurePolygon = L.Control.extend({
         this.options.icon_lineInactive;
     });
 
+    map.on(
+      'moveend',
+      function () {
+        console.log('Map boundaries changed');
+        const allPolyLines = this.getVisiblePolylines(map);
+        this.getVisiblePolylinesIds(allPolyLines);
+      }.bind(this)
+    );
+
     return iconsWrapper;
   },
 
@@ -391,6 +400,31 @@ L.Control.MeasurePolygon = L.Control.extend({
         }
       }
     });
+  },
+
+  getVisiblePolylines: function (map) {
+    const visiblePolylines = [];
+    const mapBounds = map.getBounds();
+
+    map.eachLayer(function (layer) {
+      if (layer instanceof L.Polyline) {
+        if (mapBounds.intersects(layer.getBounds())) {
+          visiblePolylines.push(layer);
+        }
+      }
+    });
+
+    return visiblePolylines;
+  },
+
+  getVisiblePolylinesIds: function (polylinesArr) {
+    const idsPolylinesArr = [];
+
+    polylinesArr.forEach((m) => {
+      idsPolylinesArr.push(m.customID);
+    });
+
+    console.log('vvv', idsPolylinesArr);
   },
 });
 
