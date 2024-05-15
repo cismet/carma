@@ -264,7 +264,6 @@ L.Control.MeasurePolygon = L.Control.extend({
 
       const layer = event.layer;
       layer.on('dblclick', this._onPolygonClick.bind(this, map));
-      // this._UpdateAreaPerimetro(layer);
       let plugin = this;
 
       // Add style to polygon
@@ -292,6 +291,16 @@ L.Control.MeasurePolygon = L.Control.extend({
 
       // Disabling the drawing tool after creating a polygon
       this._measureHandler.disable();
+    });
+
+    map.on('draw:drawstart', function (event) {
+      const layer = event.layer;
+      console.log('ddd s', event);
+    });
+
+    map.on('draw:drawvertex', function (event) {
+      const layers = event.layers;
+      console.log('ddd c', event);
     });
 
     map.on('draw:canceled', () => {
