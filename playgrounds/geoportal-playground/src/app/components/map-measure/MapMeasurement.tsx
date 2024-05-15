@@ -116,6 +116,11 @@ const MapMeasurement = (props) => {
     if (measureControl) {
       console.log('vvv options', visiblePolylines);
       console.log('vvv shapes', measurementShapes);
+      const cleanedVisibleArr = filterArrByIds(
+        visiblePolylines,
+        measurementShapes
+      );
+      dispatch(setVisibleShapes(cleanedVisibleArr));
     }
   }, [visiblePolylines]);
 
@@ -254,3 +259,14 @@ const formatArea = (area) => {
     return `${area.toFixed(2)} m²`;
   }
 };
+
+function filterArrByIds(arrIds, fullArray) {
+  const finalResult = [];
+  fullArray.forEach((currentItem) => {
+    if (arrIds.includes(currentItem.shapeId)) {
+      finalResult.push(currentItem);
+    }
+  });
+
+  return finalResult;
+}
