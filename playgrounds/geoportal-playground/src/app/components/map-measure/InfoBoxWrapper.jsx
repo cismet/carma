@@ -26,7 +26,9 @@ const InfoBoxWrapper = () => {
   }, [measurementsData, oldDataLength]);
 
   useEffect(() => {
-    dispatch(setActiveShape(measurementsData[currentMeasure].shapeId));
+    if (measurementsData[currentMeasure]?.shapeId) {
+      dispatch(setActiveShape(measurementsData[currentMeasure].shapeId));
+    }
   }, [currentMeasure]);
 
   const decreaseCurrentHandler = () => {

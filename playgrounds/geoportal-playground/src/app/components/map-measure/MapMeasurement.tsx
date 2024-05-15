@@ -19,6 +19,7 @@ import {
   setShapes,
   getActiveShapes,
   setActiveShape,
+  setVisibleShapes,
 } from '../../store/slices/measurements';
 interface TopicMapContextType {
   routedMapRef: any;
@@ -36,6 +37,7 @@ const MapMeasurement = (props) => {
   const [measureControl, setMeasureControl] = useState(null);
   const [checkMeasureTool, setCheckMeasureTool] = useState(false);
   const [polygons, setPolygons] = useState(measurementShapes);
+  const [visiblePolylines, setVisiblePolylines] = useState();
   useEffect(() => {
     if (routedMapRef && !measureControl) {
       const mapExample = routedMapRef.leafletMap.leafletElement;
@@ -55,6 +57,7 @@ const MapMeasurement = (props) => {
         cbSaveShape: saveShapeHandler,
         cbUpdateShape: updateShapeHandler,
         cdDeleteShape: deleteShapeHandler,
+        cbVisiblePolylinesChange: visiblePolylinesChange,
       };
 
       const measurePolygonControl = L.control.measurePolygon(customOptions);
@@ -86,8 +89,8 @@ const MapMeasurement = (props) => {
       number: idx + 1,
     }));
     dispatch(setShapes(addShapeSimpleNumber));
+
     if (polygons.length !== 0) {
-      console.log('ppp', polygons[polygons.length - 1].shapeId);
       dispatch(setActiveShape(polygons[polygons.length - 1].shapeId));
     }
   }, [polygons]);
@@ -96,7 +99,7 @@ const MapMeasurement = (props) => {
     console.log('nnn', measurementShapes);
   }, [measurementShapes]);
   useEffect(() => {
-    if (measureControl) {
+    if (measureControl && activeShape) {
       const shapeCoordinates = measurementShapes.filter(
         (s) => s.shapeId === activeShape
       );
@@ -108,6 +111,13 @@ const MapMeasurement = (props) => {
       );
     }
   }, [activeShape, measureControl]);
+
+  useEffect(() => {
+    if (measureControl) {
+      console.log('vvv options', visiblePolylines);
+      console.log('vvv shapes', measurementShapes);
+    }
+  }, [visiblePolylines]);
 
   const handleVertexDrag = (event) => {
     // Recalculate area when vertex is dragged
@@ -159,6 +169,10 @@ const MapMeasurement = (props) => {
       });
       return cleaerShapesArr;
     });
+  };
+
+  const visiblePolylinesChange = (arr) => {
+    setVisiblePolylines(arr);
   };
 
   return (

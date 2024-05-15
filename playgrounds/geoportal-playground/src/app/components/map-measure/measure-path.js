@@ -31,6 +31,10 @@ L.Control.MeasurePolygon = L.Control.extend({
     cbUpdateShape: function () {
       console.log('Callback function executed!');
     },
+    cbVisiblePolylinesChange: function () {
+      console.log('Callback function executed!');
+    },
+    visiblePolylines: [],
     localShapeStore: [],
   },
 
@@ -148,24 +152,21 @@ L.Control.MeasurePolygon = L.Control.extend({
     map.setView(center, 17);
   },
 
-  _onPolygonClick: function (event) {
+  _onPolygonClick: function (map, event) {
     const clickedPolygon = event.target;
     const latlngs = clickedPolygon.getLatLngs();
-    const { stroke, color, fillColor, fillOpacity } = clickedPolygon.options;
-    // const preparePolygon = {
-    //   color: 'blue',
-    //   fillColor: null,
-    //   fillOpacity: 0.2,
-    //   stroke: true,
-    // };
-    console.log('Polygon clicked:', clickedPolygon);
-    // console.log('this._measureLayers', this._measureLayers);
+
+    console.log('Polygon clicked:', map);
+
     this._measureLayers.removeLayer(clickedPolygon._leaflet_id);
     const shapeId = clickedPolygon?.customID
       ? clickedPolygon?.customID
       : clickedPolygon._leaflet_id;
 
     this.options.cdDeleteShape(shapeId, this.options.localShapeStore);
+
+    const allPolyLines = this.getVisiblePolylines(map);
+    this.getVisiblePolylinesIds(allPolyLines);
   },
 
   onAdd: function (map) {
@@ -242,7 +243,7 @@ L.Control.MeasurePolygon = L.Control.extend({
         });
         savedShape.customID = shapeId;
         savedShape.addTo(this._measureLayers).showMeasurements().enableEdit();
-        savedShape.on('dblclick', this._onPolygonClick.bind(this));
+        savedShape.on('dblclick', this._onPolygonClick.bind(this, map));
         savedShape.on(
           'editable:drag editable:dragstart editable:dragend editable:vertex:drag editable:vertex:deleted',
           this._onPolylineDrag.bind(this)
@@ -261,7 +262,7 @@ L.Control.MeasurePolygon = L.Control.extend({
       this.options.checkonedrawpoligon = true;
 
       const layer = event.layer;
-      layer.on('dblclick', this._onPolygonClick.bind(this));
+      layer.on('dblclick', this._onPolygonClick.bind(this, map));
       // this._UpdateAreaPerimetro(layer);
       let plugin = this;
 
@@ -303,7 +304,6 @@ L.Control.MeasurePolygon = L.Control.extend({
     map.on(
       'moveend',
       function () {
-        console.log('Map boundaries changed');
         const allPolyLines = this.getVisiblePolylines(map);
         this.getVisiblePolylinesIds(allPolyLines);
       }.bind(this)
@@ -419,12 +419,13 @@ L.Control.MeasurePolygon = L.Control.extend({
 
   getVisiblePolylinesIds: function (polylinesArr) {
     const idsPolylinesArr = [];
-
+    this.options.visiblePolylines = [];
     polylinesArr.forEach((m) => {
       idsPolylinesArr.push(m.customID);
+      this.options.visiblePolylines.push(m.customID);
     });
 
-    console.log('vvv', idsPolylinesArr);
+    this.options.cbVisiblePolylinesChange(idsPolylinesArr);
   },
 });
 
