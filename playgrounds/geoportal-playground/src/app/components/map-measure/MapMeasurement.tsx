@@ -32,10 +32,7 @@ const MapMeasurement = (props) => {
   const measurementShapes = useSelector(getShapes);
   const activeShape = useSelector(getActiveShapes);
 
-  // const savedLayerGroup = this._measureLayers.toGeoJSON();
-  const [measurements, setMeasurements] = useState({ area: '' });
   const [measureControl, setMeasureControl] = useState(null);
-  const [checkMeasureTool, setCheckMeasureTool] = useState(false);
   const [polygons, setPolygons] = useState(measurementShapes);
   const [visiblePolylines, setVisiblePolylines] = useState();
   useEffect(() => {
@@ -48,9 +45,6 @@ const MapMeasurement = (props) => {
         icon_polygonActive: polygonActiveIcon,
         icon_polygonInactive: polygonIcon,
         activeShape,
-        // color_polygon: 'blue',
-        // fillColor_polygon: 'green',
-        // weight_polygon: 2,
         msj_disable_tool: 'Do you want to disable the tool?',
         shapes: polygons,
         cb: toggleMeasureToolState,
@@ -63,23 +57,6 @@ const MapMeasurement = (props) => {
       const measurePolygonControl = L.control.measurePolygon(customOptions);
       measurePolygonControl.addTo(mapExample);
       setMeasureControl(measurePolygonControl);
-
-      // Subscribe to the draw:created event
-      mapExample.on('draw:created', (event) => {
-        // const layer = event.layer;
-        // const latlngs = layer.getLatLngs()[0];
-        // const area = L.GeometryUtil.geodesicArea(latlngs);
-        // const perimeter = calculatePerimeter(layer);
-        // setMeasurements((prev) => ({ ...prev, area, perimeter }));
-      });
-
-      mapExample.on('editable:vertex:drag', handleVertexDrag);
-      mapExample.on('editable:vertex:deleted', handleVertexDeleted);
-
-      return () => {
-        mapExample.off('editable:vertex:drag', handleVertexDrag);
-        mapExample.off('editable:vertex:deleted', handleVertexDeleted);
-      };
     }
   }, [routedMapRef]);
 
@@ -112,8 +89,6 @@ const MapMeasurement = (props) => {
 
   useEffect(() => {
     if (measureControl) {
-      console.log('nnn options', visiblePolylines);
-      console.log('nnn shapes', measurementShapes);
       const cleanedVisibleArr = filterArrByIds(
         visiblePolylines,
         measurementShapes
@@ -121,26 +96,6 @@ const MapMeasurement = (props) => {
       dispatch(setVisibleShapes(cleanedVisibleArr));
     }
   }, [visiblePolylines, measurementShapes]);
-
-  const handleVertexDrag = (event) => {
-    // Recalculate area when vertex is dragged
-    // const layer = event.layer;
-    // const latlngs = layer.getLatLngs()[0];
-    // const area = L.GeometryUtil.geodesicArea(latlngs);
-    // const perimeter = calculatePerimeter(layer);
-    // setMeasurements((prev) => ({ ...prev, area, perimeter }));
-  };
-
-  const handleVertexDeleted = () => {
-    // const latlngs = mapRef.current.leafletElement.editTools.featuresLayer
-    // const latlngs =
-    //   routedMapRef.leafletMap.leafletElement.editTools.featuresLayer
-    //     .getLayers()[0]
-    //     .getLatLngs()[0];
-    // const perimeter = calculatePerimeter(latlngs);
-    // const area = L.GeometryUtil.geodesicArea(latlngs);
-    // setMeasurements((prev) => ({ ...prev, area, perimeter }));
-  };
 
   const toggleMeasureToolState = (status) => {
     setCheckMeasureTool(status);
@@ -186,77 +141,6 @@ const MapMeasurement = (props) => {
 };
 
 export default MapMeasurement;
-
-const MeasurementResults = ({ data }) => {
-  if (data.area === '') {
-    return <div></div>;
-  }
-  return (
-    <div style={styles.container}>
-      <h3 style={styles.title}>Measurement Results</h3>
-      <div style={styles.area}>
-        <div>
-          <strong>Square:</strong>{' '}
-          {data.area !== '' ? formatArea(data.area) : ''}
-        </div>
-        <div>
-          {' '}
-          <strong>Distance:</strong>{' '}
-          {data.perimeter !== '' ? data.perimeter : ''}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const styles = {
-  container: {
-    backgroundColor: 'white',
-    padding: '10px',
-  },
-  title: {
-    marginBottom: '10px',
-  },
-  area: {
-    fontSize: '14px',
-    // fontWeight: "bold",
-  },
-};
-
-function calculatePerimeter(layer) {
-  const latlngs = layer.getLatLngs()[0];
-
-  let perimeter = 0;
-  for (let i = 0; i < latlngs.length - 1; i++) {
-    perimeter += latlngs[i].distanceTo(latlngs[i + 1]);
-  }
-  perimeter += latlngs[latlngs.length - 1].distanceTo(latlngs[0]);
-
-  const options = {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  };
-
-  const formatPerimeter = (perimeter) => {
-    if (perimeter >= 1000) {
-      return `${(perimeter / 1000).toFixed(2)} km`;
-    } else {
-      return `${perimeter.toFixed(2)} m`;
-    }
-  };
-
-  return formatPerimeter(perimeter);
-}
-
-const formatArea = (area) => {
-  if (area >= 1000000) {
-    // Convert area to square kilometers and round to 2 decimal places
-    return `${(area / 1000000).toFixed(2)} km²`;
-  } else {
-    // Display area in square meters and round to 2 decimal places
-    return `${area.toFixed(2)} m²`;
-  }
-};
 
 function filterArrByIds(arrIds, fullArray) {
   const finalResult = [];

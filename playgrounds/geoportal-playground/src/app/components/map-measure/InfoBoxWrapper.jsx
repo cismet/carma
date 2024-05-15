@@ -11,39 +11,20 @@ import { useState, useEffect } from 'react';
 const InfoBoxWrapper = () => {
   const measurementsData = useSelector(getShapes);
   const visibleShapesData = useSelector(getVisibleShapes);
-  const activeLine = useSelector(getActiveShapes);
   const dispatch = useDispatch();
   const [currentMeasure, setCurrentMeasure] = useState(0);
-  // const [currentMeasure, setCurrentMeasure] = useState(
-  //   visibleShapesData.length - 1 < 0 ? 0 : visibleShapesData.length - 1
-  // );
   const [oldDataLength, setOldDataLength] = useState(visibleShapesData.length);
 
   useEffect(() => {
-    // console.log('nnn length', visibleShapesData.length);
-    console.log('nnn visibleShapesData');
-    // console.log('nnn oldDataLength', oldDataLength);
-
-    // if (visibleShapesData.length > oldDataLength) {
-    //   increaseCurrentHandler();
-    // }
-    // if (visibleShapesData.length < oldDataLength) {
-    //   decreaseCurrentHandler();
-    // }
-
     const initialCureentMeasure =
       visibleShapesData.length - 1 < 0 ? 0 : visibleShapesData.length - 1;
     setCurrentMeasure(initialCureentMeasure);
-    // setOldDataLength(visibleShapesData.length);
-  }, [visibleShapesData, oldDataLength]);
+  }, [visibleShapesData]);
 
   useEffect(() => {
     console.log('nnn', currentMeasure);
     if (visibleShapesData[currentMeasure]?.shapeId) {
       dispatch(setActiveShape(visibleShapesData[currentMeasure].shapeId));
-      // if (visibleShapesData[currentMeasure].shapeId !== activeLine) {
-      //   dispatch(setActiveShape(visibleShapesData[currentMeasure].shapeId));
-      // }
     }
   }, [currentMeasure]);
 
