@@ -293,14 +293,15 @@ L.Control.MeasurePolygon = L.Control.extend({
       this._measureHandler.disable();
     });
 
-    map.on('draw:drawstart', function (event) {
-      const layer = event.layer;
-      console.log('ddd s', event);
-    });
-
-    map.on('draw:drawvertex', function (event) {
+    map.on('draw:drawvertex', (event) => {
       const layers = event.layers;
-      console.log('ddd c', event);
+      const latlngs = [];
+      layers.eachLayer(function (layer) {
+        const latLng = layer.getLatLng();
+        latlngs.push(latLng);
+      });
+      const distance = this.calculateDistance(latlngs);
+      console.log('ddd d s', distance);
     });
 
     map.on('draw:canceled', () => {
@@ -371,6 +372,21 @@ L.Control.MeasurePolygon = L.Control.extend({
     };
 
     return formatPerimeter(totalDistance);
+  },
+
+  calculateDistance: function (latlngs) {
+    let totalDistance = 0;
+
+    for (let i = 0; i < latlngs.length - 1; i++) {
+      const point1 = latlngs[i];
+      const point2 = latlngs[i + 1];
+
+      const distance = point1.distanceTo(point2);
+
+      totalDistance += distance;
+    }
+
+    return totalDistance;
   },
 
   _toggleMeasure: function (btnId = '', activeIcon = '', inactiveIcon = '') {
