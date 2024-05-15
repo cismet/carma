@@ -95,9 +95,9 @@ const MapMeasurement = (props) => {
     }
   }, [polygons]);
 
-  useEffect(() => {
-    console.log('nnn', measurementShapes);
-  }, [measurementShapes]);
+  // useEffect(() => {
+  //   console.log('nnn', measurementShapes);
+  // }, [measurementShapes]);
   useEffect(() => {
     if (measureControl && activeShape) {
       const shapeCoordinates = measurementShapes.filter(
@@ -114,8 +114,8 @@ const MapMeasurement = (props) => {
 
   useEffect(() => {
     if (measureControl) {
-      console.log('vvv options', visiblePolylines);
-      console.log('vvv shapes', measurementShapes);
+      console.log('nnn options', visiblePolylines);
+      console.log('nnn shapes', measurementShapes);
       const cleanedVisibleArr = filterArrByIds(
         visiblePolylines,
         measurementShapes
