@@ -95,16 +95,14 @@ const MapMeasurement = (props) => {
     }
   }, [polygons]);
 
-  // useEffect(() => {
-  //   console.log('nnn', measurementShapes);
-  // }, [measurementShapes]);
   useEffect(() => {
     if (measureControl && activeShape) {
       const shapeCoordinates = measurementShapes.filter(
         (s) => s.shapeId === activeShape
       );
       const map = routedMapRef.leafletMap.leafletElement;
-      measureControl.showActiveShape(map, shapeCoordinates[0].coordinates);
+      // This code move map and make a bug with visible measurements switching
+      // measureControl.showActiveShape(map, shapeCoordinates[0].coordinates);
       measureControl.changeColorByActivePolyline(
         map,
         shapeCoordinates[0].shapeId
@@ -122,7 +120,7 @@ const MapMeasurement = (props) => {
       );
       dispatch(setVisibleShapes(cleanedVisibleArr));
     }
-  }, [visiblePolylines]);
+  }, [visiblePolylines, measurementShapes]);
 
   const handleVertexDrag = (event) => {
     // Recalculate area when vertex is dragged

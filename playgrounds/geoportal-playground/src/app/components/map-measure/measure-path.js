@@ -89,10 +89,11 @@ L.Control.MeasurePolygon = L.Control.extend({
     );
   },
 
-  saveShapeHandler: function (layer, distance = null, area = null) {
+  saveShapeHandler: function (layer, distance = null, area = null, map) {
     const latlngs = layer.getLatLngs();
     const latlngsJSON = layer.toGeoJSON();
     const { stroke, color, fillColor, fillOpacity } = layer.options;
+    console.log('mmm', map);
 
     const shapeId = layer._leaflet_id;
     layer.customID = shapeId;
@@ -105,8 +106,6 @@ L.Control.MeasurePolygon = L.Control.extend({
       console.log('bbb item', item);
       return item.reverse();
     });
-
-    console.log('bbb r', reversedCoordinates);
 
     const preparePolygon = {
       coordinates: reversedCoordinates,
@@ -123,7 +122,10 @@ L.Control.MeasurePolygon = L.Control.extend({
     };
     this.options.cbSaveShape(preparePolygon);
     // TODO 001 delete it in all places
-    this.options.localShapeStore.push(preparePolygon);
+    // this.options.localShapeStore.push(preparePolygon);
+
+    const allPolyLines = this.getVisiblePolylines(map);
+    this.getVisiblePolylinesIds(allPolyLines);
   },
 
   _onPolylineDrag: function (event) {
@@ -148,7 +150,6 @@ L.Control.MeasurePolygon = L.Control.extend({
 
   showActiveShape: function (map, coordinates) {
     const center = L.latLngBounds(coordinates).getCenter();
-    console.log('fff', coordinates);
     map.setView(center, 17);
   },
 
@@ -271,9 +272,8 @@ L.Control.MeasurePolygon = L.Control.extend({
       layer.options.draggable = false;
 
       const distance = this._UpdateDistance(layer);
-      console.log('ddd', distance);
 
-      this.saveShapeHandler(layer, distance);
+      this.saveShapeHandler(layer, distance, null, map);
 
       layer.on(
         'editable:drag editable:vertex:drag editable:vertex:deleted editable:dragstart editable:dragend',

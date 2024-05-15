@@ -40,12 +40,12 @@ const InfoBoxWrapper = () => {
   useEffect(() => {
     console.log('nnn', currentMeasure);
     if (visibleShapesData[currentMeasure]?.shapeId) {
-      console.log('aaa activeLine', activeLine);
-      if (visibleShapesData[currentMeasure].shapeId !== activeLine) {
-        dispatch(setActiveShape(visibleShapesData[currentMeasure].shapeId));
-      }
+      dispatch(setActiveShape(visibleShapesData[currentMeasure].shapeId));
+      // if (visibleShapesData[currentMeasure].shapeId !== activeLine) {
+      //   dispatch(setActiveShape(visibleShapesData[currentMeasure].shapeId));
+      // }
     }
-  }, [currentMeasure, activeLine]);
+  }, [currentMeasure]);
 
   const decreaseCurrentHandler = () => {
     setCurrentMeasure((prev) => {
