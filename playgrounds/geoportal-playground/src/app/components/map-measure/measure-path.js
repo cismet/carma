@@ -324,6 +324,8 @@ L.Control.MeasurePolygon = L.Control.extend({
         this.options.ifDrawing = true;
         this.options.cbSetDrawingStatus(true);
         this.options.cbSaveShape(shapesObj);
+      } else {
+        this.options.cbUpdateShape(5555, latlngs, distance);
       }
     });
 
