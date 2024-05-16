@@ -93,10 +93,18 @@ const MapMeasurement = (props) => {
       const map = routedMapRef.leafletMap.leafletElement;
       // This code move map and make a bug with visible measurements switching
       // measureControl.showActiveShape(map, shapeCoordinates[0].coordinates);
+
       measureControl.changeColorByActivePolyline(
         map,
         shapeCoordinates[0].shapeId
       );
+
+      // if (shapeCoordinates[0]?.shapeId) {
+      //   measureControl.changeColorByActivePolyline(
+      //     map,
+      //     shapeCoordinates[0].shapeId
+      //   );
+      // }
     }
   }, [activeShape, measureControl]);
 
@@ -125,6 +133,8 @@ const MapMeasurement = (props) => {
   useEffect(() => {
     if (drawingShape) {
       if (ifDrawing) {
+        console.log('sss drawing', drawingShape);
+        console.log('sss drawing', ifDrawing);
         const cleanArr = visibleShapes.filter((m) => m.shapeId !== 5555);
         const addOrderNumber = {
           ...drawingShape,

@@ -313,7 +313,17 @@ L.Control.MeasurePolygon = L.Control.extend({
       this._measureHandler.disable();
     });
 
-    map.on('draw:drawstart', (event) => {});
+    map.on('draw:drawstart', (event) => {
+      this.options.cbSetDrawingStatus(true);
+
+      const shapesObj = {
+        coordinates: [[51.352635, 7.209284]],
+        distance: 0,
+        shapeId: 5555,
+        shapeType: 'line',
+      };
+      // this.options.cbSetDrawingShape(shapesObj);
+    });
 
     map.on('draw:drawvertex', (event) => {
       const layers = event.layers;
