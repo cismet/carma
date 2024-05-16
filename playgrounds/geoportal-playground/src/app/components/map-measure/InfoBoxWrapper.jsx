@@ -70,7 +70,7 @@ const InfoBoxWrapper = () => {
           collapsibleDiv={
             <>
               <span>{visibleShapesData[currentMeasure].distance}</span>
-              <div className="flex justify-center items-center">
+              <div className="flex justify-center items-center w-[90%]">
                 <span className="mx-4">
                   {measurementsData.length} Messungen verfügbar
                 </span>
@@ -83,10 +83,7 @@ const InfoBoxWrapper = () => {
                 >
                   &lt;&lt;
                 </a>
-                <span className="mx-4">
-                  {currentMeasure + 1}/{visibleShapesData.length} Messungen
-                  angezeigt
-                </span>
+                <span className="mx-4">Messungen angezeigt</span>
                 <a
                   className="renderAsLink"
                   onClick={increaseCurrentHandler}
@@ -97,6 +94,7 @@ const InfoBoxWrapper = () => {
               </div>
             </>
           }
+          fixedRow={{}}
         />
       )}
     </div>
