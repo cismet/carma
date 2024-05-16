@@ -34,6 +34,9 @@ L.Control.MeasurePolygon = L.Control.extend({
     cbVisiblePolylinesChange: function () {
       console.log('Callback function executed!');
     },
+    cbSetDrawingStatus: function () {
+      console.log('Callback function executed!');
+    },
     visiblePolylines: [],
     localShapeStore: [],
     ifDrawing: false,
@@ -261,7 +264,12 @@ L.Control.MeasurePolygon = L.Control.extend({
     }
 
     map.on('draw:created', (event) => {
-      this.options.checkonedrawpoligon = true;
+      this.options.checkonedrawpoligon = false;
+      this.options.ifDrawing = false;
+
+      this.options.cbSetDrawingStatus(false);
+
+      this.options.cdDeleteShape(5555);
 
       const layer = event.layer;
       layer.on('dblclick', this._onPolygonClick.bind(this, map));
@@ -297,7 +305,6 @@ L.Control.MeasurePolygon = L.Control.extend({
     map.on('draw:drawstart', (event) => {});
 
     map.on('draw:drawvertex', (event) => {
-      console.log('ddd d s', this.options.ifDrawing);
       const layers = event.layers;
       const latlngs = [];
       layers.eachLayer(function (layer) {
@@ -306,19 +313,18 @@ L.Control.MeasurePolygon = L.Control.extend({
       });
       const distance = this.calculateDistance(latlngs);
 
-      // if (!this.options.ifDrawing) {
-      //   const shapesObj = {
-      //     coordinates: latlngs,
-      //     distance,
-      //     shapeId: 5555,
-      //     shapeType: 'line',
-      //   };
+      if (!this.options.ifDrawing) {
+        const shapesObj = {
+          coordinates: [latlngs],
+          distance,
+          shapeId: 5555,
+          shapeType: 'line',
+        };
 
-      //   this.options.cbSaveShape(shapesObj);
-      //   this.options.ifDrawing = true;
-      // }
-
-      console.log('ddd d s', event.layers);
+        this.options.ifDrawing = true;
+        this.options.cbSetDrawingStatus(true);
+        this.options.cbSaveShape(shapesObj);
+      }
     });
 
     map.on('draw:canceled', () => {

@@ -20,6 +20,9 @@ import {
   getActiveShapes,
   setActiveShape,
   setVisibleShapes,
+  getVisibleShapes,
+  getDrawingShape,
+  setDrawingShape,
 } from '../../store/slices/measurements';
 interface TopicMapContextType {
   routedMapRef: any;
@@ -31,6 +34,8 @@ const MapMeasurement = (props) => {
   const dispatch = useDispatch();
   const measurementShapes = useSelector(getShapes);
   const activeShape = useSelector(getActiveShapes);
+  const ifDrawing = useSelector(getDrawingShape);
+  const visibleShapes = useSelector(getVisibleShapes);
 
   const [measureControl, setMeasureControl] = useState(null);
   const [polygons, setPolygons] = useState(measurementShapes);
@@ -52,6 +57,7 @@ const MapMeasurement = (props) => {
         cbUpdateShape: updateShapeHandler,
         cdDeleteShape: deleteShapeHandler,
         cbVisiblePolylinesChange: visiblePolylinesChange,
+        cbSetDrawingStatus: drawingStatusHandler,
       };
 
       const measurePolygonControl = L.control.measurePolygon(customOptions);
@@ -89,13 +95,25 @@ const MapMeasurement = (props) => {
 
   useEffect(() => {
     if (measureControl) {
+      console.log('ddd v', visiblePolylines);
+      console.log('ddd m', measurementShapes);
+      console.log('ddd ifDrawing', measurementShapes);
       const cleanedVisibleArr = filterArrByIds(
         visiblePolylines,
         measurementShapes
       );
-      dispatch(setVisibleShapes(cleanedVisibleArr));
+      // dispatch(setVisibleShapes(cleanedVisibleArr));
+      if (ifDrawing) {
+        const lastAddedShape = measurementShapes.filter(
+          (s) => s.shapeId === 5555
+        );
+        console.log('ddd lastAddedShape', lastAddedShape[0]);
+        dispatch(setVisibleShapes([...visibleShapes, lastAddedShape]));
+      } else {
+        dispatch(setVisibleShapes(cleanedVisibleArr));
+      }
     }
-  }, [visiblePolylines, measurementShapes]);
+  }, [visiblePolylines, measurementShapes, ifDrawing]);
 
   const toggleMeasureToolState = (status) => {
     setCheckMeasureTool(status);
@@ -131,6 +149,10 @@ const MapMeasurement = (props) => {
 
   const visiblePolylinesChange = (arr) => {
     setVisiblePolylines(arr);
+  };
+
+  const drawingStatusHandler = (status) => {
+    dispatch(setDrawingShape(status));
   };
 
   return (
