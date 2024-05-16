@@ -37,15 +37,15 @@ L.Control.MeasurePolygon = L.Control.extend({
     cbSetDrawingStatus: function () {
       console.log('Callback function executed!');
     },
-    cbSetDrawingDistance: function () {
-      console.log('Callback function executed!');
-    },
+    // cbSetDrawingDistance: function () {
+    //   console.log('Callback function executed!');
+    // },
     cbSetDrawingShape: function () {
       console.log('Callback function executed!');
     },
-    cbDrawingShapeUpdate: function () {
-      console.log('Callback function executed!');
-    },
+    // cbDrawingShapeUpdate: function () {
+    //   console.log('Callback function executed!');
+    // },
     visiblePolylines: [],
     localShapeStore: [],
     ifDrawing: false,

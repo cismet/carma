@@ -38,7 +38,7 @@ const MapMeasurement = (props) => {
   const activeShape = useSelector(getActiveShapes);
   const ifDrawing = useSelector(getDrawingShape);
   const visibleShapes = useSelector(getVisibleShapes);
-  const drawingShapeDistance = useSelector(getDrawingShapesetDistance);
+  // const drawingShapeDistance = useSelector(getDrawingShapesetDistance);
 
   const [measureControl, setMeasureControl] = useState(null);
   const [polygons, setPolygons] = useState(measurementShapes);
@@ -62,9 +62,9 @@ const MapMeasurement = (props) => {
         cdDeleteShape: deleteShapeHandler,
         cbVisiblePolylinesChange: visiblePolylinesChange,
         cbSetDrawingStatus: drawingStatusHandler,
-        cbSetDrawingDistance: drawingStatusDistanceHandler,
+        // cbSetDrawingDistance: drawingStatusDistanceHandler,
         cbSetDrawingShape: drawingShapeHandler,
-        cbDrawingShapeUpdate: drawingShapeUpdateHandler,
+        // cbDrawingShapeUpdate: drawingShapeUpdateHandler,
       };
 
       const measurePolygonControl = L.control.measurePolygon(customOptions);
@@ -127,10 +127,6 @@ const MapMeasurement = (props) => {
       if (ifDrawing) {
         const cleanArr = visibleShapes.filter((m) => m.shapeId !== 5555);
         dispatch(setVisibleShapes([...cleanArr, drawingShape]));
-      } else {
-        const cleanArr = visibleShapes.filter((m) => m.shapeId !== 5555);
-
-        // dispatch(setVisibleShapes(cleanArr));
       }
     }
   }, [drawingShape, ifDrawing]);
@@ -175,19 +171,19 @@ const MapMeasurement = (props) => {
     dispatch(setDrawingShape(status));
   };
 
-  const drawingStatusDistanceHandler = (distance) => {
-    dispatch(setDrawingShapeDistance(distance));
-  };
+  // const drawingStatusDistanceHandler = (distance) => {
+  //   dispatch(setDrawingShapeDistance(distance));
+  // };
 
   const drawingShapeHandler = (draw) => {
     setDrawingLine(draw);
   };
 
-  const drawingShapeUpdateHandler = (distance) => {
-    setDrawingLine((prevState) => {
-      return { ...prevState, distance: distance };
-    });
-  };
+  // const drawingShapeUpdateHandler = (distance) => {
+  //   setDrawingLine((prevState) => {
+  //     return { ...prevState, distance: distance };
+  //   });
+  // };
 
   return (
     <div>
