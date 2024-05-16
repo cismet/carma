@@ -37,6 +37,15 @@ L.Control.MeasurePolygon = L.Control.extend({
     cbSetDrawingStatus: function () {
       console.log('Callback function executed!');
     },
+    cbSetDrawingDistance: function () {
+      console.log('Callback function executed!');
+    },
+    cbSetDrawingShape: function () {
+      console.log('Callback function executed!');
+    },
+    cbDrawingShapeUpdate: function () {
+      console.log('Callback function executed!');
+    },
     visiblePolylines: [],
     localShapeStore: [],
     ifDrawing: false,
@@ -271,6 +280,8 @@ L.Control.MeasurePolygon = L.Control.extend({
 
       this.options.cdDeleteShape(5555);
 
+      this.options.cbSetDrawingShape(null);
+
       const layer = event.layer;
       layer.on('dblclick', this._onPolygonClick.bind(this, map));
       let plugin = this;
@@ -324,8 +335,15 @@ L.Control.MeasurePolygon = L.Control.extend({
         this.options.ifDrawing = true;
         this.options.cbSetDrawingStatus(true);
         this.options.cbSaveShape(shapesObj);
+        this.options.cbSetDrawingShape(shapesObj);
       } else {
-        this.options.cbUpdateShape(5555, latlngs, distance);
+        const shapesObj = {
+          coordinates: [latlngs],
+          distance,
+          shapeId: 5555,
+          shapeType: 'line',
+        };
+        this.options.cbSetDrawingShape(shapesObj);
       }
     });
 

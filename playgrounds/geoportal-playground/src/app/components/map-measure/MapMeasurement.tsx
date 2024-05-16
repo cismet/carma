@@ -23,7 +23,10 @@ import {
   getVisibleShapes,
   getDrawingShape,
   setDrawingShape,
+  getDrawingShapesetDistance,
+  setDrawingShapeDistance,
 } from '../../store/slices/measurements';
+import { current } from '@reduxjs/toolkit';
 interface TopicMapContextType {
   routedMapRef: any;
 }
@@ -36,10 +39,12 @@ const MapMeasurement = (props) => {
   const activeShape = useSelector(getActiveShapes);
   const ifDrawing = useSelector(getDrawingShape);
   const visibleShapes = useSelector(getVisibleShapes);
+  const drawingShapeDistance = useSelector(getDrawingShapesetDistance);
 
   const [measureControl, setMeasureControl] = useState(null);
   const [polygons, setPolygons] = useState(measurementShapes);
   const [visiblePolylines, setVisiblePolylines] = useState();
+  const [drawingShape, setDrawingLine] = useState(null);
   useEffect(() => {
     if (routedMapRef && !measureControl) {
       const mapExample = routedMapRef.leafletMap.leafletElement;
@@ -58,6 +63,9 @@ const MapMeasurement = (props) => {
         cdDeleteShape: deleteShapeHandler,
         cbVisiblePolylinesChange: visiblePolylinesChange,
         cbSetDrawingStatus: drawingStatusHandler,
+        cbSetDrawingDistance: drawingStatusDistanceHandler,
+        cbSetDrawingShape: drawingShapeHandler,
+        cbDrawingShapeUpdate: drawingShapeUpdateHandler,
       };
 
       const measurePolygonControl = L.control.measurePolygon(customOptions);
@@ -114,10 +122,13 @@ const MapMeasurement = (props) => {
       }
     }
   }, [visiblePolylines, measurementShapes, ifDrawing]);
+  useEffect(() => {
+    console.log('ccc', drawingShape);
+  }, [drawingShape]);
 
   const toggleMeasureToolState = (status) => {
-    setCheckMeasureTool(status);
-    setMeasurements({ area: '' });
+    // setCheckMeasureTool(status);
+    // setMeasurements({ area: '' });
   };
   const saveShapeHandler = (layer) => {
     console.log('ppp save', polygons);
@@ -153,6 +164,20 @@ const MapMeasurement = (props) => {
 
   const drawingStatusHandler = (status) => {
     dispatch(setDrawingShape(status));
+  };
+
+  const drawingStatusDistanceHandler = (distance) => {
+    dispatch(setDrawingShapeDistance(distance));
+  };
+
+  const drawingShapeHandler = (draw) => {
+    setDrawingLine(draw);
+  };
+
+  const drawingShapeUpdateHandler = (distance) => {
+    setDrawingLine((prevState) => {
+      return { ...prevState, distance: distance };
+    });
   };
 
   return (
