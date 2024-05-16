@@ -26,7 +26,6 @@ import {
   getDrawingShapesetDistance,
   setDrawingShapeDistance,
 } from '../../store/slices/measurements';
-import { current } from '@reduxjs/toolkit';
 interface TopicMapContextType {
   routedMapRef: any;
 }
@@ -110,21 +109,31 @@ const MapMeasurement = (props) => {
         visiblePolylines,
         measurementShapes
       );
-      // dispatch(setVisibleShapes(cleanedVisibleArr));
+      dispatch(setVisibleShapes(cleanedVisibleArr));
+      // if (ifDrawing) {
+      //   const lastAddedShape = measurementShapes.filter(
+      //     (s) => s.shapeId === 5555
+      //   );
+      //   console.log('ddd lastAddedShape', lastAddedShape[0]);
+      //   dispatch(setVisibleShapes([...visibleShapes, lastAddedShape]));
+      // } else {
+      //   dispatch(setVisibleShapes(cleanedVisibleArr));
+      // }
+    }
+  }, [visiblePolylines, measurementShapes]);
+
+  useEffect(() => {
+    if (drawingShape) {
       if (ifDrawing) {
-        const lastAddedShape = measurementShapes.filter(
-          (s) => s.shapeId === 5555
-        );
-        console.log('ddd lastAddedShape', lastAddedShape[0]);
-        dispatch(setVisibleShapes([...visibleShapes, lastAddedShape]));
+        const cleanArr = visibleShapes.filter((m) => m.shapeId !== 5555);
+        dispatch(setVisibleShapes([...cleanArr, drawingShape]));
       } else {
-        dispatch(setVisibleShapes(cleanedVisibleArr));
+        const cleanArr = visibleShapes.filter((m) => m.shapeId !== 5555);
+
+        // dispatch(setVisibleShapes(cleanArr));
       }
     }
-  }, [visiblePolylines, measurementShapes, ifDrawing]);
-  useEffect(() => {
-    console.log('ccc', drawingShape);
-  }, [drawingShape]);
+  }, [drawingShape, ifDrawing]);
 
   const toggleMeasureToolState = (status) => {
     // setCheckMeasureTool(status);
