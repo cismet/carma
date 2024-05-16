@@ -322,7 +322,8 @@ L.Control.MeasurePolygon = L.Control.extend({
         const latLng = layer.getLatLng();
         latlngs.push(latLng);
       });
-      const distance = this.calculateDistance(latlngs);
+      const formatPerimeter = this.calculateDistance(latlngs);
+      const distance = this.formatDistance(formatPerimeter);
 
       if (!this.options.ifDrawing) {
         const shapesObj = {
@@ -430,6 +431,18 @@ L.Control.MeasurePolygon = L.Control.extend({
     }
 
     return totalDistance;
+  },
+
+  formatDistance: function (perimeter) {
+    const formatPerimeter = (perimeter) => {
+      if (perimeter >= 1000) {
+        return `${(perimeter / 1000).toFixed(2)} km`;
+      } else {
+        return `${perimeter.toFixed(2)} m`;
+      }
+    };
+
+    return formatPerimeter(perimeter);
   },
 
   _toggleMeasure: function (btnId = '', activeIcon = '', inactiveIcon = '') {
