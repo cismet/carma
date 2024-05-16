@@ -36,6 +36,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     },
     visiblePolylines: [],
     localShapeStore: [],
+    ifDrawing: false,
   },
 
   drawingPolygons: function (map) {
@@ -293,7 +294,10 @@ L.Control.MeasurePolygon = L.Control.extend({
       this._measureHandler.disable();
     });
 
+    map.on('draw:drawstart', (event) => {});
+
     map.on('draw:drawvertex', (event) => {
+      console.log('ddd d s', this.options.ifDrawing);
       const layers = event.layers;
       const latlngs = [];
       layers.eachLayer(function (layer) {
@@ -301,7 +305,20 @@ L.Control.MeasurePolygon = L.Control.extend({
         latlngs.push(latLng);
       });
       const distance = this.calculateDistance(latlngs);
-      console.log('ddd d s', distance);
+
+      // if (!this.options.ifDrawing) {
+      //   const shapesObj = {
+      //     coordinates: latlngs,
+      //     distance,
+      //     shapeId: 5555,
+      //     shapeType: 'line',
+      //   };
+
+      //   this.options.cbSaveShape(shapesObj);
+      //   this.options.ifDrawing = true;
+      // }
+
+      console.log('ddd d s', event.layers);
     });
 
     map.on('draw:canceled', () => {

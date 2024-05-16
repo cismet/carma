@@ -4,6 +4,7 @@ const initialState = {
   shapes: [],
   visibleShapes: [],
   activeShape: null,
+  drawingShape: false,
 };
 
 const slice = createSlice({
@@ -19,12 +20,16 @@ const slice = createSlice({
     setActiveShape(state, action) {
       state.activeShape = action.payload;
     },
+    setDrawingShape(state, action) {
+      state.drawingShape = action.payload;
+    },
   },
 });
 
 export default slice;
 
-export const { setShapes, setActiveShape, setVisibleShapes } = slice.actions;
+export const { setShapes, setActiveShape, setVisibleShapes, setDrawingShape } =
+  slice.actions;
 
 export const getShapes = (state) => {
   return state.measurements.shapes;
@@ -34,4 +39,7 @@ export const getActiveShapes = (state) => {
 };
 export const getVisibleShapes = (state) => {
   return state.measurements.visibleShapes;
+};
+export const getDrawingShape = (state) => {
+  return state.measurements.drawingShape;
 };
