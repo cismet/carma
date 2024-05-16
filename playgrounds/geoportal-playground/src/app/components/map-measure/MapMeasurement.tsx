@@ -126,7 +126,11 @@ const MapMeasurement = (props) => {
     if (drawingShape) {
       if (ifDrawing) {
         const cleanArr = visibleShapes.filter((m) => m.shapeId !== 5555);
-        dispatch(setVisibleShapes([...cleanArr, drawingShape]));
+        const addOrderNumber = {
+          ...drawingShape,
+          number: cleanArr.length + 1,
+        };
+        dispatch(setVisibleShapes([...cleanArr, addOrderNumber]));
       }
     }
   }, [drawingShape, ifDrawing]);
