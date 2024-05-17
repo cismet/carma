@@ -5,6 +5,8 @@ import {
   getActiveShapes,
   getVisibleShapes,
   setShowAllMeasurements,
+  getDeleteMeasurements,
+  setDeleteMeasurements,
 } from '../../store/slices/measurements';
 import { useSelector, useDispatch } from 'react-redux';
 import { useState, useEffect } from 'react';
@@ -14,6 +16,7 @@ const InfoBoxWrapper = () => {
   const measurementsData = useSelector(getShapes);
   const visibleShapesData = useSelector(getVisibleShapes);
   const activeShape = useSelector(getActiveShapes);
+  const deleteShape = useSelector(getDeleteMeasurements);
   const dispatch = useDispatch();
   const [currentMeasure, setCurrentMeasure] = useState(0);
   const [oldDataLength, setOldDataLength] = useState(visibleShapesData.length);
@@ -66,6 +69,9 @@ const InfoBoxWrapper = () => {
 
     return activeShapePosition;
   };
+  const deleteShapeHandler = () => {
+    dispatch(setDeleteMeasurements(true));
+  };
 
   return (
     <div>
@@ -90,6 +96,7 @@ const InfoBoxWrapper = () => {
                 Linienzug #{visibleShapesData[currentMeasure].number}
               </span>
               <FontAwesomeIcon
+                onClick={deleteShapeHandler}
                 className="cursor-pointer text-base text-[#808080]"
                 icon={faTrashCan}
               />
@@ -100,9 +107,9 @@ const InfoBoxWrapper = () => {
               <span className="text-[12px] mb-2">
                 {visibleShapesData[currentMeasure].distance}
               </span>
-              <div className="flex justify-center items-center w-[96%] mt-2 pt-4">
+              <div className="flex justify-center items-center w-[96%] mt-2 pt-3">
                 <span
-                  className="mx-4 text-[#0078a8]"
+                  className="mx-4 text-[#0078a8] cursor-pointer"
                   onClick={() => dispatch(setShowAllMeasurements(true))}
                 >
                   {measurementsData.length} Messungen verfügbar

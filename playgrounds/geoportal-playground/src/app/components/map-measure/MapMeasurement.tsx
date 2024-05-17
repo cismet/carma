@@ -25,6 +25,8 @@ import {
   setDrawingShape,
   setShowAllMeasurements,
   getShowAllMeasurements,
+  getDeleteMeasurements,
+  setDeleteMeasurements,
 } from '../../store/slices/measurements';
 interface TopicMapContextType {
   routedMapRef: any;
@@ -38,6 +40,7 @@ const MapMeasurement = (props) => {
   const activeShape = useSelector(getActiveShapes);
   const ifDrawing = useSelector(getDrawingShape);
   const showAllMeasurements = useSelector(getShowAllMeasurements);
+  const deleteShape = useSelector(getDeleteMeasurements);
   const visibleShapes = useSelector(getVisibleShapes);
   // const drawingShapeDistance = useSelector(getDrawingShapesetDistance);
 
@@ -89,13 +92,6 @@ const MapMeasurement = (props) => {
         (s) => s.shapeId === activeShape
       );
       const map = routedMapRef.leafletMap.leafletElement;
-      // This code move map and make a bug with visible measurements switching
-      // measureControl.showActiveShape(map, shapeCoordinates[0].coordinates);
-
-      // measureControl.changeColorByActivePolyline(
-      //   map,
-      //   shapeCoordinates[0].shapeId
-      // );
 
       if (shapeCoordinates[0]?.shapeId) {
         measureControl.changeColorByActivePolyline(
@@ -103,21 +99,29 @@ const MapMeasurement = (props) => {
           shapeCoordinates[0].shapeId
         );
       }
-      console.log('ccc !!!!!!');
       if (showAllMeasurements) {
         const allPolylines = measureControl.getAllPolylines(map);
 
         measureControl.fitMapToPolylines(map, allPolylines);
         dispatch(setShowAllMeasurements(false));
       }
+
+      if (deleteShape) {
+        measureControl.removePolylineById(map, activeShape);
+        dispatch(setDeleteMeasurements(false));
+        const cleanArr = visibleShapes.filter((m) => m.shapeId !== activeShape);
+        dispatch(setVisibleShapes(cleanArr));
+
+        const cleanAllArr = showAllMeasurements.filter(
+          (m) => m.shapeId !== activeShape
+        );
+        dispatch(setShapes(cleanAllArr));
+      }
     }
-  }, [activeShape, measureControl, showAllMeasurements]);
+  }, [activeShape, measureControl, showAllMeasurements, deleteShape]);
 
   useEffect(() => {
     if (measureControl) {
-      // console.log('ddd v', visiblePolylines);
-      // console.log('ddd m', measurementShapes);
-      // console.log('ddd ifDrawing', measurementShapes);
       const cleanedVisibleArr = filterArrByIds(
         visiblePolylines,
         measurementShapes
@@ -129,8 +133,6 @@ const MapMeasurement = (props) => {
   useEffect(() => {
     if (drawingShape) {
       if (ifDrawing) {
-        console.log('sss drawing', drawingShape);
-        console.log('sss drawing', ifDrawing);
         const cleanArr = visibleShapes.filter((m) => m.shapeId !== 5555);
         dispatch(setVisibleShapes([...cleanArr, drawingShape]));
       }

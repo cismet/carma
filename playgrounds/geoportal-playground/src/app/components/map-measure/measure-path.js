@@ -537,6 +537,14 @@ L.Control.MeasurePolygon = L.Control.extend({
     return polylines;
   },
 
+  removePolylineById: function (map, customID) {
+    map.eachLayer(function (layer) {
+      if (layer instanceof L.Polyline && layer.customID === customID) {
+        map.removeLayer(layer);
+      }
+    });
+  },
+
   fitMapToPolylines: function (map, polylines) {
     if (polylines.length === 0) {
       return;
