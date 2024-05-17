@@ -11,6 +11,7 @@ import { useState, useEffect } from 'react';
 const InfoBoxWrapper = () => {
   const measurementsData = useSelector(getShapes);
   const visibleShapesData = useSelector(getVisibleShapes);
+  const activeShape = useSelector(getActiveShapes);
   const dispatch = useDispatch();
   const [currentMeasure, setCurrentMeasure] = useState(0);
   const [oldDataLength, setOldDataLength] = useState(visibleShapesData.length);
@@ -27,6 +28,11 @@ const InfoBoxWrapper = () => {
       dispatch(setActiveShape(visibleShapesData[currentMeasure].shapeId));
     }
   }, [currentMeasure]);
+
+  useEffect(() => {
+    const positionInArr = activeShapeHandler(activeShape);
+    setCurrentMeasure(positionInArr);
+  }, [activeShape]);
 
   const decreaseCurrentHandler = () => {
     setCurrentMeasure((prev) => {
@@ -46,6 +52,17 @@ const InfoBoxWrapper = () => {
 
       return prev + 1;
     });
+  };
+
+  const activeShapeHandler = (shapeId) => {
+    let activeShapePosition = null;
+    visibleShapesData.forEach((s, idx) => {
+      if (s.shapeId === shapeId) {
+        activeShapePosition = idx;
+      }
+    });
+
+    return activeShapePosition;
   };
 
   return (

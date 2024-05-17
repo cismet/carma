@@ -44,9 +44,9 @@ L.Control.MeasurePolygon = L.Control.extend({
     cbSetDrawingShape: function () {
       console.log('Callback function executed!');
     },
-    // cbDrawingShapeUpdate: function () {
-    //   console.log('Callback function executed!');
-    // },
+    cbSetActiveShape: function () {
+      console.log('Callback function executed!');
+    },
     visiblePolylines: [],
     localShapeStore: [],
     ifDrawing: false,
@@ -106,10 +106,12 @@ L.Control.MeasurePolygon = L.Control.extend({
   saveShapeHandler: function (layer, distance = null, area = null, map) {
     const latlngs = layer.getLatLngs();
     const latlngsJSON = layer.toGeoJSON();
-    // const { stroke, color, fillColor, fillOpacity } = layer.options;
     const shapeId = layer._leaflet_id;
     layer.customID = shapeId;
-
+    layer.on('click', () => {
+      this.options.cbSetActiveShape(layer.customID);
+      console.log('ccc', layer.customID);
+    });
     const prepeareCoordinates =
       this.options.shapeMode === 'line'
         ? latlngsJSON.geometry.coordinates
@@ -256,6 +258,10 @@ L.Control.MeasurePolygon = L.Control.extend({
         savedShape.customID = shapeId;
         savedShape.addTo(this._measureLayers).showMeasurements().enableEdit();
         savedShape.on('dblclick', this._onPolygonClick.bind(this, map));
+        savedShape.on('click', () => {
+          this.options.cbSetActiveShape(savedShape.customID);
+          console.log('ccc', savedShape.customID);
+        });
         savedShape.on(
           'editable:drag editable:dragstart editable:dragend editable:vertex:drag editable:vertex:deleted',
           this._onPolylineDrag.bind(this)
@@ -275,13 +281,11 @@ L.Control.MeasurePolygon = L.Control.extend({
       this.options.ifDrawing = false;
 
       this.options.cbSetDrawingStatus(false);
-
-      // this.options.cdDeleteShape(5555);
-
       this.options.cbSetDrawingShape(null);
 
       const layer = event.layer;
       layer.on('dblclick', this._onPolygonClick.bind(this, map));
+
       let plugin = this;
 
       // Add style to polygon

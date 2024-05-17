@@ -62,8 +62,9 @@ const MapMeasurement = (props) => {
         cdDeleteShape: deleteShapeHandler,
         cbVisiblePolylinesChange: visiblePolylinesChange,
         cbSetDrawingStatus: drawingStatusHandler,
-        measurementOrder: findLargestNumber(measurementShapes),
         cbSetDrawingShape: drawingShapeHandler,
+        measurementOrder: findLargestNumber(measurementShapes),
+        cbSetActiveShape: setActiveShapeHandler,
         // cbDrawingShapeUpdate: drawingShapeUpdateHandler,
       };
 
@@ -106,9 +107,9 @@ const MapMeasurement = (props) => {
 
   useEffect(() => {
     if (measureControl) {
-      console.log('ddd v', visiblePolylines);
-      console.log('ddd m', measurementShapes);
-      console.log('ddd ifDrawing', measurementShapes);
+      // console.log('ddd v', visiblePolylines);
+      // console.log('ddd m', measurementShapes);
+      // console.log('ddd ifDrawing', measurementShapes);
       const cleanedVisibleArr = filterArrByIds(
         visiblePolylines,
         measurementShapes
@@ -174,6 +175,10 @@ const MapMeasurement = (props) => {
 
   const drawingShapeHandler = (draw) => {
     setDrawingLine(draw);
+  };
+  const setActiveShapeHandler = (id) => {
+    console.log('ccc set active shape', id);
+    dispatch(setActiveShape(id));
   };
 
   // const drawingShapeUpdateHandler = (distance) => {
