@@ -19,6 +19,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     shapes: [],
     activeShape: null,
     shapeMode: 'polygon',
+    measurementOrder: 0,
     cb: function () {
       console.log('Callback function executed!');
     },
@@ -105,9 +106,7 @@ L.Control.MeasurePolygon = L.Control.extend({
   saveShapeHandler: function (layer, distance = null, area = null, map) {
     const latlngs = layer.getLatLngs();
     const latlngsJSON = layer.toGeoJSON();
-    const { stroke, color, fillColor, fillOpacity } = layer.options;
-    console.log('mmm', map);
-
+    // const { stroke, color, fillColor, fillOpacity } = layer.options;
     const shapeId = layer._leaflet_id;
     layer.customID = shapeId;
 
@@ -130,12 +129,11 @@ L.Control.MeasurePolygon = L.Control.extend({
       },
       shapeId,
       distance,
+      number: this.options.measurementOrder,
       area,
       shapeType: this.options.shapeMode,
     };
     this.options.cbSaveShape(preparePolygon);
-    // TODO 001 delete it in all places
-    // this.options.localShapeStore.push(preparePolygon);
 
     const allPolyLines = this.getVisiblePolylines(map);
     this.getVisiblePolylinesIds(allPolyLines);
@@ -278,7 +276,7 @@ L.Control.MeasurePolygon = L.Control.extend({
 
       this.options.cbSetDrawingStatus(false);
 
-      this.options.cdDeleteShape(5555);
+      // this.options.cdDeleteShape(5555);
 
       this.options.cbSetDrawingShape(null);
 
@@ -315,14 +313,16 @@ L.Control.MeasurePolygon = L.Control.extend({
 
     map.on('draw:drawstart', (event) => {
       this.options.cbSetDrawingStatus(true);
-
+      this.options.measurementOrder = this.options.measurementOrder + 1;
       const shapesObj = {
         coordinates: [[51.352635, 7.209284]],
         distance: 0,
         shapeId: 5555,
+        number: this.options.measurementOrder,
         shapeType: 'line',
       };
       // this.options.cbSetDrawingShape(shapesObj);
+      this.changeColorByActivePolyline(map, 'ddfsc1231');
     });
 
     map.on('draw:drawvertex', (event) => {
@@ -340,12 +340,13 @@ L.Control.MeasurePolygon = L.Control.extend({
           coordinates: [latlngs],
           distance,
           shapeId: 5555,
+          number: this.options.measurementOrder,
           shapeType: 'line',
         };
 
         this.options.ifDrawing = true;
         this.options.cbSetDrawingStatus(true);
-        this.options.cbSaveShape(shapesObj);
+        // this.options.cbSaveShape(shapesObj);
         this.options.cbSetDrawingShape(shapesObj);
       } else {
         const shapesObj = {
@@ -353,6 +354,7 @@ L.Control.MeasurePolygon = L.Control.extend({
           distance,
           shapeId: 5555,
           shapeType: 'line',
+          number: this.options.measurementOrder,
         };
         this.options.cbSetDrawingShape(shapesObj);
       }

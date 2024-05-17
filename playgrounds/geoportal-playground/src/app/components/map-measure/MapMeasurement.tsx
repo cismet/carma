@@ -62,7 +62,7 @@ const MapMeasurement = (props) => {
         cdDeleteShape: deleteShapeHandler,
         cbVisiblePolylinesChange: visiblePolylinesChange,
         cbSetDrawingStatus: drawingStatusHandler,
-        // cbSetDrawingDistance: drawingStatusDistanceHandler,
+        measurementOrder: findLargestNumber(measurementShapes),
         cbSetDrawingShape: drawingShapeHandler,
         // cbDrawingShapeUpdate: drawingShapeUpdateHandler,
       };
@@ -74,11 +74,7 @@ const MapMeasurement = (props) => {
   }, [routedMapRef]);
 
   useEffect(() => {
-    const addShapeSimpleNumber = polygons.map((s, idx) => ({
-      ...s,
-      number: idx + 1,
-    }));
-    dispatch(setShapes(addShapeSimpleNumber));
+    dispatch(setShapes(polygons));
 
     if (polygons.length !== 0) {
       dispatch(setActiveShape(polygons[polygons.length - 1].shapeId));
@@ -94,17 +90,17 @@ const MapMeasurement = (props) => {
       // This code move map and make a bug with visible measurements switching
       // measureControl.showActiveShape(map, shapeCoordinates[0].coordinates);
 
-      measureControl.changeColorByActivePolyline(
-        map,
-        shapeCoordinates[0].shapeId
-      );
+      // measureControl.changeColorByActivePolyline(
+      //   map,
+      //   shapeCoordinates[0].shapeId
+      // );
 
-      // if (shapeCoordinates[0]?.shapeId) {
-      //   measureControl.changeColorByActivePolyline(
-      //     map,
-      //     shapeCoordinates[0].shapeId
-      //   );
-      // }
+      if (shapeCoordinates[0]?.shapeId) {
+        measureControl.changeColorByActivePolyline(
+          map,
+          shapeCoordinates[0].shapeId
+        );
+      }
     }
   }, [activeShape, measureControl]);
 
@@ -118,15 +114,6 @@ const MapMeasurement = (props) => {
         measurementShapes
       );
       dispatch(setVisibleShapes(cleanedVisibleArr));
-      // if (ifDrawing) {
-      //   const lastAddedShape = measurementShapes.filter(
-      //     (s) => s.shapeId === 5555
-      //   );
-      //   console.log('ddd lastAddedShape', lastAddedShape[0]);
-      //   dispatch(setVisibleShapes([...visibleShapes, lastAddedShape]));
-      // } else {
-      //   dispatch(setVisibleShapes(cleanedVisibleArr));
-      // }
     }
   }, [visiblePolylines, measurementShapes]);
 
@@ -136,11 +123,7 @@ const MapMeasurement = (props) => {
         console.log('sss drawing', drawingShape);
         console.log('sss drawing', ifDrawing);
         const cleanArr = visibleShapes.filter((m) => m.shapeId !== 5555);
-        const addOrderNumber = {
-          ...drawingShape,
-          number: cleanArr.length + 1,
-        };
-        dispatch(setVisibleShapes([...cleanArr, addOrderNumber]));
+        dispatch(setVisibleShapes([...cleanArr, drawingShape]));
       }
     }
   }, [drawingShape, ifDrawing]);
@@ -217,4 +200,16 @@ function filterArrByIds(arrIds, fullArray) {
   });
 
   return finalResult;
+}
+
+function findLargestNumber(measurements) {
+  let largestNumber = 0;
+
+  measurements.forEach((item) => {
+    if (item.number > largestNumber) {
+      largestNumber = item.number;
+    }
+  });
+
+  return largestNumber;
 }
