@@ -4,6 +4,7 @@ import {
   setActiveShape,
   getActiveShapes,
   getVisibleShapes,
+  setShowAllMeasurements,
 } from '../../store/slices/measurements';
 import { useSelector, useDispatch } from 'react-redux';
 import { useState, useEffect } from 'react';
@@ -88,7 +89,10 @@ const InfoBoxWrapper = () => {
             <>
               <span>{visibleShapesData[currentMeasure].distance}</span>
               <div className="flex justify-center items-center w-[90%]">
-                <span className="mx-4">
+                <span
+                  className="mx-4"
+                  onClick={() => sdispatch(setShowAllMeasurements(true))}
+                >
                   {measurementsData.length} Messungen verfügbar
                 </span>
               </div>

@@ -524,6 +524,33 @@ L.Control.MeasurePolygon = L.Control.extend({
 
     this.options.cbVisiblePolylinesChange(idsPolylinesArr);
   },
+
+  getAllPolylines: function (map) {
+    const polylines = [];
+
+    map.eachLayer(function (layer) {
+      if (layer instanceof L.Polyline) {
+        polylines.push(layer);
+      }
+    });
+
+    return polylines;
+  },
+
+  fitMapToPolylines: function (map, polylines) {
+    if (polylines.length === 0) {
+      return;
+    }
+
+    const allBounds = L.latLngBounds();
+
+    polylines.forEach((polyline) => {
+      const polylineBounds = polyline.getBounds();
+      allBounds.extend(polylineBounds);
+    });
+
+    map.fitBounds(allBounds);
+  },
 });
 
 // Adds the method to create a new instance of the control

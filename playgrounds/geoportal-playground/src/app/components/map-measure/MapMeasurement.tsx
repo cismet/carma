@@ -23,8 +23,8 @@ import {
   getVisibleShapes,
   getDrawingShape,
   setDrawingShape,
-  getDrawingShapesetDistance,
-  setDrawingShapeDistance,
+  setShowAllMeasurements,
+  getShowAllMeasurements,
 } from '../../store/slices/measurements';
 interface TopicMapContextType {
   routedMapRef: any;
@@ -37,6 +37,7 @@ const MapMeasurement = (props) => {
   const measurementShapes = useSelector(getShapes);
   const activeShape = useSelector(getActiveShapes);
   const ifDrawing = useSelector(getDrawingShape);
+  const showAllMeasurements = useSelector(getShowAllMeasurements);
   const visibleShapes = useSelector(getVisibleShapes);
   // const drawingShapeDistance = useSelector(getDrawingShapesetDistance);
 
@@ -102,8 +103,15 @@ const MapMeasurement = (props) => {
           shapeCoordinates[0].shapeId
         );
       }
+      console.log('ccc !!!!!!');
+      if (showAllMeasurements) {
+        const allPolylines = measureControl.getAllPolylines(map);
+
+        measureControl.fitMapToPolylines(map, allPolylines);
+        dispatch(setShowAllMeasurements(false));
+      }
     }
-  }, [activeShape, measureControl]);
+  }, [activeShape, measureControl, showAllMeasurements]);
 
   useEffect(() => {
     if (measureControl) {
