@@ -11,7 +11,11 @@ import {
 import { useSelector, useDispatch } from 'react-redux';
 import { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTrashCan } from '@fortawesome/free-solid-svg-icons';
+import {
+  faTrashCan,
+  faMagnifyingGlassLocation,
+} from '@fortawesome/free-solid-svg-icons';
+
 const InfoBoxWrapper = () => {
   const measurementsData = useSelector(getShapes);
   const visibleShapesData = useSelector(getVisibleShapes);
@@ -95,11 +99,18 @@ const InfoBoxWrapper = () => {
               >
                 Linienzug #{visibleShapesData[currentMeasure].number}
               </span>
-              <FontAwesomeIcon
-                onClick={deleteShapeHandler}
-                className="cursor-pointer text-base text-[#808080]"
-                icon={faTrashCan}
-              />
+              <div className="flex justify-between items-center w-[12%] gap-1">
+                <FontAwesomeIcon
+                  onClick={deleteShapeHandler}
+                  className="cursor-pointer text-[16px] text-[#808080]"
+                  icon={faMagnifyingGlassLocation}
+                />
+                <FontAwesomeIcon
+                  onClick={deleteShapeHandler}
+                  className="cursor-pointer text-base text-[#808080]"
+                  icon={faTrashCan}
+                />
+              </div>
             </div>
           }
           collapsibleDiv={
