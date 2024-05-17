@@ -71,11 +71,14 @@ const InfoBoxWrapper = () => {
       {visibleShapesData[currentMeasure] && (
         <ResponsiveInfoBox
           pixelwidth={300}
-          header={<div className="w-full bg-blue-500 px-2">Messungen</div>}
+          header={
+            <div className="w-full bg-blue-500 py-0.5 pl-1">Messungen</div>
+          }
+          s
           alwaysVisibleDiv={
             <span
               style={{ cursor: 'pointer' }}
-              className="capitalize"
+              className="capitalize text-[14px] py-4"
               onClick={() =>
                 dispatch(
                   setActiveShape(visibleShapesData[currentMeasure].shapeId)
@@ -87,18 +90,20 @@ const InfoBoxWrapper = () => {
           }
           collapsibleDiv={
             <>
-              <span>{visibleShapesData[currentMeasure].distance}</span>
-              <div className="flex justify-center items-center w-[90%]">
+              <span className="text-[12px] mt-4">
+                {visibleShapesData[currentMeasure].distance}
+              </span>
+              <div className="flex justify-center items-center w-[96%] pt-4">
                 <span
-                  className="mx-4"
-                  onClick={() => sdispatch(setShowAllMeasurements(true))}
+                  className="mx-4 text-[#0078a8]"
+                  onClick={() => dispatch(setShowAllMeasurements(true))}
                 >
                   {measurementsData.length} Messungen verfügbar
                 </span>
               </div>
-              <div className="flex justify-between items-center w-[90%]">
+              <div className="flex justify-between items-center w-[96%] mb-2">
                 <a
-                  className="renderAsLink"
+                  className="renderAsLink text-[#0078a8]"
                   onClick={decreaseCurrentHandler}
                   style={{ fontSize: '10.5px' }}
                 >
@@ -106,7 +111,7 @@ const InfoBoxWrapper = () => {
                 </a>
                 <span className="mx-4">Messungen angezeigt</span>
                 <a
-                  className="renderAsLink"
+                  className="renderAsLink text-[#0078a8]"
                   onClick={increaseCurrentHandler}
                   style={{ fontSize: '10.5px' }}
                 >
