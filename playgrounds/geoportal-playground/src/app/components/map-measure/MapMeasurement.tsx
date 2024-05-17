@@ -113,6 +113,7 @@ const MapMeasurement = (props) => {
         measureControl.removePolylineById(map, activeShape);
         dispatch(setDeleteMeasurements(false));
         const cleanArr = visibleShapes.filter((m) => m.shapeId !== activeShape);
+        deleteShapeHandler(activeShape);
         dispatch(setVisibleShapes(cleanArr));
 
         const cleanAllArr = measurementShapes.filter(
