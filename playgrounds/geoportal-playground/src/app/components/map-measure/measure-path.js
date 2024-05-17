@@ -545,17 +545,19 @@ L.Control.MeasurePolygon = L.Control.extend({
     });
   },
 
-  moveToPolyline: function moveToPolyline(map, customID) {
-    console.log('sss');
-    map.eachLayer(function (layer) {
-      if (layer instanceof L.Polyline) {
-        if (layer.options.customID === customID) {
-          const bounds = layer.getBounds();
-          const center = bounds.getCenter();
-          map.setView(center, 15);
-        }
-      }
+  fitMapToPolylines: function (map, polylines) {
+    if (polylines.length === 0) {
+      return;
+    }
+
+    const allBounds = L.latLngBounds();
+
+    polylines.forEach((polyline) => {
+      const polylineBounds = polyline.getBounds();
+      allBounds.extend(polylineBounds);
     });
+
+    map.fitBounds(allBounds);
   },
 });
 

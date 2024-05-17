@@ -107,8 +107,8 @@ const MapMeasurement = (props) => {
       }
       if (showAllMeasurements) {
         const allPolylines = measureControl.getAllPolylines(map);
-
-        // measureControl.fitMapToPolylines(map, allPolylines);
+        console.log(allPolylines);
+        measureControl.fitMapToPolylines(map, allPolylines);
         dispatch(setShowAllMeasurements(false));
       }
 
