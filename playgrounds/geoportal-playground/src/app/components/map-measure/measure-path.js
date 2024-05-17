@@ -163,7 +163,7 @@ L.Control.MeasurePolygon = L.Control.extend({
 
   showActiveShape: function (map, coordinates) {
     const center = L.latLngBounds(coordinates).getCenter();
-    map.setView(center, 17);
+    map.setView(center, 15);
   },
 
   _onPolygonClick: function (map, event) {
@@ -545,19 +545,17 @@ L.Control.MeasurePolygon = L.Control.extend({
     });
   },
 
-  fitMapToPolylines: function (map, polylines) {
-    if (polylines.length === 0) {
-      return;
-    }
-
-    const allBounds = L.latLngBounds();
-
-    polylines.forEach((polyline) => {
-      const polylineBounds = polyline.getBounds();
-      allBounds.extend(polylineBounds);
+  moveToPolyline: function moveToPolyline(map, customID) {
+    console.log('sss');
+    map.eachLayer(function (layer) {
+      if (layer instanceof L.Polyline) {
+        if (layer.options.customID === customID) {
+          const bounds = layer.getBounds();
+          const center = bounds.getCenter();
+          map.setView(center, 15);
+        }
+      }
     });
-
-    map.fitBounds(allBounds);
   },
 });
 

@@ -7,6 +7,8 @@ import {
   setShowAllMeasurements,
   getDeleteMeasurements,
   setDeleteMeasurements,
+  getMoveToShape,
+  setMoveToShape,
 } from '../../store/slices/measurements';
 import { useSelector, useDispatch } from 'react-redux';
 import { useState, useEffect } from 'react';
@@ -76,6 +78,9 @@ const InfoBoxWrapper = () => {
   const deleteShapeHandler = () => {
     dispatch(setDeleteMeasurements(true));
   };
+  const moveToShapeHandler = () => {
+    dispatch(setMoveToShape(true));
+  };
 
   return (
     <div>
@@ -101,7 +106,7 @@ const InfoBoxWrapper = () => {
               </span>
               <div className="flex justify-between items-center w-[12%] gap-1">
                 <FontAwesomeIcon
-                  onClick={deleteShapeHandler}
+                  onClick={moveToShapeHandler}
                   className="cursor-pointer text-[16px] text-[#808080]"
                   icon={faMagnifyingGlassLocation}
                 />

@@ -27,6 +27,8 @@ import {
   getShowAllMeasurements,
   getDeleteMeasurements,
   setDeleteMeasurements,
+  getMoveToShape,
+  setMoveToShape,
 } from '../../store/slices/measurements';
 interface TopicMapContextType {
   routedMapRef: any;
@@ -42,6 +44,7 @@ const MapMeasurement = (props) => {
   const showAllMeasurements = useSelector(getShowAllMeasurements);
   const deleteShape = useSelector(getDeleteMeasurements);
   const visibleShapes = useSelector(getVisibleShapes);
+  const moveToShape = useSelector(getMoveToShape);
   // const drawingShapeDistance = useSelector(getDrawingShapesetDistance);
 
   const [measureControl, setMeasureControl] = useState(null);
@@ -105,7 +108,7 @@ const MapMeasurement = (props) => {
       if (showAllMeasurements) {
         const allPolylines = measureControl.getAllPolylines(map);
 
-        measureControl.fitMapToPolylines(map, allPolylines);
+        // measureControl.fitMapToPolylines(map, allPolylines);
         dispatch(setShowAllMeasurements(false));
       }
 
@@ -121,6 +124,10 @@ const MapMeasurement = (props) => {
         );
         dispatch(setShapes(cleanAllArr));
       }
+      if (moveToShape) {
+        measureControl.showActiveShape(map, shapeCoordinates[0].coordinates);
+        dispatch(setMoveToShape(false));
+      }
     }
   }, [
     activeShape,
@@ -128,6 +135,7 @@ const MapMeasurement = (props) => {
     showAllMeasurements,
     deleteShape,
     ifDrawing,
+    moveToShape,
   ]);
 
   useEffect(() => {
