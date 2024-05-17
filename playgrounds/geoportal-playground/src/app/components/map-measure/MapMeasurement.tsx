@@ -93,7 +93,10 @@ const MapMeasurement = (props) => {
       );
       const map = routedMapRef.leafletMap.leafletElement;
 
-      if (shapeCoordinates[0]?.shapeId) {
+      console.log('www', activeShape);
+      console.log('www', shapeCoordinates);
+
+      if (shapeCoordinates[0]?.shapeId && !ifDrawing) {
         measureControl.changeColorByActivePolyline(
           map,
           shapeCoordinates[0].shapeId
@@ -112,13 +115,19 @@ const MapMeasurement = (props) => {
         const cleanArr = visibleShapes.filter((m) => m.shapeId !== activeShape);
         dispatch(setVisibleShapes(cleanArr));
 
-        const cleanAllArr = showAllMeasurements.filter(
+        const cleanAllArr = measurementShapes.filter(
           (m) => m.shapeId !== activeShape
         );
         dispatch(setShapes(cleanAllArr));
       }
     }
-  }, [activeShape, measureControl, showAllMeasurements, deleteShape]);
+  }, [
+    activeShape,
+    measureControl,
+    showAllMeasurements,
+    deleteShape,
+    ifDrawing,
+  ]);
 
   useEffect(() => {
     if (measureControl) {
@@ -132,12 +141,10 @@ const MapMeasurement = (props) => {
 
   useEffect(() => {
     if (drawingShape) {
-      if (ifDrawing) {
-        const cleanArr = visibleShapes.filter((m) => m.shapeId !== 5555);
-        dispatch(setVisibleShapes([...cleanArr, drawingShape]));
-      }
+      const cleanArr = visibleShapes.filter((m) => m.shapeId !== 5555);
+      dispatch(setVisibleShapes([...cleanArr, drawingShape]));
     }
-  }, [drawingShape, ifDrawing]);
+  }, [drawingShape]);
 
   const toggleMeasureToolState = (status) => {
     // setCheckMeasureTool(status);

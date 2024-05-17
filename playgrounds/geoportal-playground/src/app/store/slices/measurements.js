@@ -6,6 +6,7 @@ const initialState = {
   activeShape: null,
   showAllMeasurements: false,
   deleteMeasurements: false,
+  drawingShape: false,
 };
 
 const slice = createSlice({
