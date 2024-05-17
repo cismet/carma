@@ -8,7 +8,8 @@ import {
 } from '../../store/slices/measurements';
 import { useSelector, useDispatch } from 'react-redux';
 import { useState, useEffect } from 'react';
-
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTrashCan } from '@fortawesome/free-solid-svg-icons';
 const InfoBoxWrapper = () => {
   const measurementsData = useSelector(getShapes);
   const visibleShapesData = useSelector(getVisibleShapes);
@@ -70,26 +71,32 @@ const InfoBoxWrapper = () => {
     <div>
       {visibleShapesData[currentMeasure] && (
         <ResponsiveInfoBox
-          pixelwidth={300}
+          pixelwidth={350}
           header={
             <div className="w-full bg-blue-500 py-0.5 pl-1">Messungen</div>
           }
           s
           alwaysVisibleDiv={
-            <span
-              style={{ cursor: 'pointer' }}
-              className="capitalize text-[14px] py-4"
-              onClick={() =>
-                dispatch(
-                  setActiveShape(visibleShapesData[currentMeasure].shapeId)
-                )
-              }
-            >
-              Linienzug #{visibleShapesData[currentMeasure].number}
-            </span>
+            <div className="mt-2 mb-4 w-[96%] flex justify-between items-center">
+              <span
+                style={{ cursor: 'pointer' }}
+                className="capitalize text-[14px]"
+                onClick={() =>
+                  dispatch(
+                    setActiveShape(visibleShapesData[currentMeasure].shapeId)
+                  )
+                }
+              >
+                Linienzug #{visibleShapesData[currentMeasure].number}
+              </span>
+              <FontAwesomeIcon
+                className="cursor-pointer text-base text-[#808080]"
+                icon={faTrashCan}
+              />
+            </div>
           }
           collapsibleDiv={
-            <>
+            <div>
               <span className="text-[12px] mt-4">
                 {visibleShapesData[currentMeasure].distance}
               </span>
@@ -118,7 +125,7 @@ const InfoBoxWrapper = () => {
                   &gt;&gt;
                 </a>
               </div>
-            </>
+            </div>
           }
           fixedRow={{}}
         />
