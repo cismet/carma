@@ -77,7 +77,7 @@ const InfoBoxWrapper = () => {
           }
           s
           alwaysVisibleDiv={
-            <div className="mt-2 mb-4 w-[96%] flex justify-between items-center">
+            <div className="mt-2 mb-2 w-[96%] flex justify-between items-center">
               <span
                 style={{ cursor: 'pointer' }}
                 className="capitalize text-[14px]"
@@ -97,10 +97,10 @@ const InfoBoxWrapper = () => {
           }
           collapsibleDiv={
             <div>
-              <span className="text-[12px] mt-4">
+              <span className="text-[12px] mb-2">
                 {visibleShapesData[currentMeasure].distance}
               </span>
-              <div className="flex justify-center items-center w-[96%] pt-4">
+              <div className="flex justify-center items-center w-[96%] mt-2 pt-4">
                 <span
                   className="mx-4 text-[#0078a8]"
                   onClick={() => dispatch(setShowAllMeasurements(true))}
@@ -108,7 +108,7 @@ const InfoBoxWrapper = () => {
                   {measurementsData.length} Messungen verfügbar
                 </span>
               </div>
-              <div className="flex justify-between items-center w-[96%] mb-2">
+              <div className="flex justify-between items-center w-[96%] mt-1 mb-2">
                 <a
                   className="renderAsLink text-[#0078a8]"
                   onClick={decreaseCurrentHandler}

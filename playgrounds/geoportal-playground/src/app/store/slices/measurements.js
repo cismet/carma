@@ -5,6 +5,7 @@ const initialState = {
   visibleShapes: [],
   activeShape: null,
   showAllMeasurements: false,
+  deleteMeasurements: false,
 };
 
 const slice = createSlice({
@@ -26,6 +27,9 @@ const slice = createSlice({
     setShowAllMeasurements(state, action) {
       state.showAllMeasurements = action.payload;
     },
+    setDeleteMeasurements(state, action) {
+      state.deleteMeasurements = action.payload;
+    },
   },
 });
 
@@ -37,6 +41,7 @@ export const {
   setVisibleShapes,
   setDrawingShape,
   setShowAllMeasurements,
+  setDeleteMeasurements,
 } = slice.actions;
 
 export const getShapes = (state) => {
@@ -53,4 +58,7 @@ export const getDrawingShape = (state) => {
 };
 export const getShowAllMeasurements = (state) => {
   return state.measurements.showAllMeasurements;
+};
+export const getDeleteMeasurements = (state) => {
+  return state.measurements.deleteMeasurements;
 };
