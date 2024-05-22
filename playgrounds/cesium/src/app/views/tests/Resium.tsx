@@ -1,6 +1,6 @@
 import { Viewer } from 'resium';
 
-function App() {
+function View() {
   return (
     <Viewer
       // ViewerOtherProps (Resium)
@@ -12,4 +12,4 @@ function App() {
   );
 }
 
-export default App;
+export default View;

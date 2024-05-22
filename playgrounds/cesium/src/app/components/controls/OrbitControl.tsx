@@ -1,14 +1,14 @@
-import { ReactNode, MouseEvent, useContext, useEffect } from 'react';
+import { ReactNode, MouseEvent, useEffect } from 'react';
 import { faSync } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useCallback, useRef } from 'react';
 import { useCesium } from 'resium';
 import OnMapButton from './OnMapButton';
-import { getCanvasCenter } from './../../../lib/cesiumHelpers';
+import { getCanvasCenter } from '../../lib/cesiumHelpers';
 import { DEFAULT_ROTATION_SPEED } from '../../config';
 import { Cartesian3, Color, Matrix4, Transforms, Viewer } from 'cesium';
-import { SimpleAppState } from '../../App';
-
+import { RootState, setIsAnimating, toggleIsAnimating } from '../../store';
+import { useDispatch, useSelector } from 'react-redux';
 type SpinningControlProps = {
   showCenterPoint?: boolean;
   children?: ReactNode;
@@ -20,7 +20,8 @@ const OrbitControl = ({ showCenterPoint = true }: SpinningControlProps) => {
   const { viewer } = useCesium();
   const orbitPointRef = useRef<Cartesian3 | null>(null);
   const lastRenderTimeRef = useRef<number | null>(null);
-  const { isAnimating, setIsAnimating } = useContext(SimpleAppState);
+  const { isAnimating } = useSelector((state: RootState) => state.viewer);
+  const dispatch = useDispatch();
 
   const orbitListener = useCallback(() => {
     console.log('orbiting');
@@ -43,12 +44,14 @@ const OrbitControl = ({ showCenterPoint = true }: SpinningControlProps) => {
     viewer.camera.lookAtTransform(Matrix4.IDENTITY); // keep the camera unlocked while rotating
   }, [viewer]);
 
-  const toggleOrbit = (viewer: Viewer, active: boolean) => {
-    if (active) {
+  const toggleOrbit = (viewer: Viewer) => {
+    if (!isAnimating) {
       orbitPointRef.current = getCanvasCenter(viewer);
       lastRenderTimeRef.current = null;
       // console.log('orbitPoint', orbitPointRef.current);
       viewer.clock.onTick.addEventListener(orbitListener);
+
+      //showCenterPoint && viewer.entities.removeById(orbitCenterPointId);
 
       showCenterPoint &&
         viewer.entities.add({
@@ -68,23 +71,14 @@ const OrbitControl = ({ showCenterPoint = true }: SpinningControlProps) => {
       showCenterPoint && viewer.entities.removeById(orbitCenterPointId);
       setIsAnimating(false);
     }
+    dispatch(toggleIsAnimating());
   };
 
   const handleOrbit = (event: MouseEvent) => {
     event.preventDefault();
     if (!viewer) return;
-    const newIsAnimating = !isAnimating;
-    setIsAnimating(newIsAnimating);
-    toggleOrbit(viewer, newIsAnimating);
+    toggleOrbit(viewer);
   };
-
-  // listen for external changes to animation state
-  useEffect(() => {
-    if (!isAnimating && viewer) {
-      toggleOrbit(viewer, false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAnimating, viewer, orbitListener]);
 
   return (
     <OnMapButton

@@ -7,7 +7,7 @@ import {
   Cartesian3,
 } from 'cesium';
 import { useCesium, CesiumComponentRef } from 'resium';
-import { unlockPosition } from '../../../lib/position';
+import { unlockPosition } from '../../lib/position';
 
 type ExperimentsProps = {
   tilesetRef: CesiumComponentRef<Cesium3DTileset> | null;

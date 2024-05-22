@@ -10,17 +10,16 @@ How to fix Cesium related issues as of 2024-05-17, cesium@1.117
 
 0. make sure vite.config.mts is makred as module type script with .mts not .ts
 
-1. Import the styles in your app:
+1. Import the styles in your app
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
-2. Copy the assets to the dist folder:
+2. Copy the assets to the dist folder 
+see vitestaticcopy plugin
 
-3. Set CESIUM_BASE_URL in your index.html:
+3. Adjust CESIUM_BASE_URL in window
+window.CESIUM_BASE_URL = CESIUM_BASE_URL;
 
-    <script>
-      window.CESIUM_BASE_URL = '/__cesium__';
-    </script>
 
 Resources:
 https://community.cesium.com/t/is-there-a-good-way-to-use-cesium-with-vite/27545
@@ -57,7 +56,7 @@ export default defineConfig({
       targets: [
         {
           src: '../../node_modules/cesium/Build/Cesium/*', // dont use @cesium module folder
-          dest: CESIUM_PATHNAME, 
+          dest: CESIUM_PATHNAME,
         },
       ],
       silent: false,
@@ -72,9 +71,21 @@ export default defineConfig({
 
   build: {
     outDir: '../../dist/playgrounds/cesium',
-    sourcemap: true, // while not in actual production
     reportCompressedSize: true,
-    //commonjsOptions: {      transformMixedEsModules: true,    },
+    sourcemap: true, // while not in actual production,
+    commonjsOptions: { transformMixedEsModules: true },
+    rollupOptions: {
+      onwarn: (warning, warn) => {
+        // supress source map warnings on build
+        if (
+          warning.code === 'SOURCEMAP_ERROR' &&
+          warning.id?.includes('node_modules/antd')
+        ) {
+          return;
+        }
+        warn(warning);
+      },
+    },
   },
 
   test: {

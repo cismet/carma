@@ -6,7 +6,7 @@ import {
   Matrix4,
   Viewer,
 } from 'cesium';
-import { TilesetConfig } from '..';
+import { TilesetConfig } from '../..';
 
 export const toDegFactor = 180 / Math.PI;
 

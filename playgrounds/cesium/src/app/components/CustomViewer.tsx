@@ -1,12 +1,12 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useState } from 'react';
 import {
-  BoundingSphere,
   Cartesian3,
   Color,
   HeadingPitchRange,
   Viewer,
+  BoundingSphere,
 } from 'cesium';
-import { CameraFlyToBoundingSphere, Viewer as ResiumViewer } from 'resium';
+import { Viewer as ResiumViewer } from 'resium';
 import Crosshair from './Crosshair';
 import OrbitControl from './controls/OrbitControl';
 import ControlContainer from './controls/ControlContainer';
@@ -15,15 +15,14 @@ import ZoomControls from './controls/ZoomControls';
 import LockCenterControl from './controls/LockCenterControl';
 import ControlGroup from './controls/ControlGroup';
 import DebugInfo from './controls/DebugInfo';
+import { useViewerHome, useViewerHomeOffset } from '../store';
 
 type CustomViewerProps = {
-  children?: React.ReactNode;
+  children?: ReactNode;
   className?: string;
   postInit?: () => void;
 
   // Init
-  initialPos?: Cartesian3;
-  homePos?: Cartesian3;
   homeOrientation?: HeadingPitchRange;
   // UI
   showControls?: boolean;
@@ -38,10 +37,10 @@ type CustomViewerProps = {
   selectionIndicator?: boolean;
 
   // slots
-  topLeft?: React.ReactNode;
-  topRight?: React.ReactNode;
-  bottomLeft?: React.ReactNode;
-  bottomRight?: React.ReactNode;
+  topLeft?: ReactNode;
+  topRight?: ReactNode;
+  bottomLeft?: ReactNode;
+  bottomRight?: ReactNode;
 
   //disableZoomRestrictions?: boolean; // todo
   //minZoom?: number; // todo
@@ -50,6 +49,9 @@ type CustomViewerProps = {
 };
 
 function CustomViewer(props: CustomViewerProps) {
+  const home = useViewerHome();
+  const homeOffset = useViewerHomeOffset();
+
   const {
     topLeft,
     topRight,
@@ -58,8 +60,6 @@ function CustomViewer(props: CustomViewerProps) {
     children,
     className,
     showCrosshair = true,
-    initialPos,
-    homePos,
     //homeOrientation = new HeadingPitchRange(0, CMath.toRadians(-45), 500),
     showControls = true,
     showHome = true,
@@ -79,6 +79,20 @@ function CustomViewer(props: CustomViewerProps) {
       setViewer(node.cesiumElement);
     }
   }, []);
+
+  useEffect(() => {
+    if (viewer && home && homeOffset) {
+      console.log('Setting home position', home, homeOffset);
+      // Set the initial position of the camera a bit further away, to not show the globe at start
+      viewer.camera.lookAt(
+        home,
+        //homeOffset,
+        new Cartesian3(0, -5000, 5000)
+      );
+
+      viewer.camera.flyToBoundingSphere(new BoundingSphere(home, 500));
+    }
+  }, [viewer, home, homeOffset]);
 
   useEffect(() => {
     if (!viewer) return;
@@ -143,12 +157,6 @@ function CustomViewer(props: CustomViewerProps) {
       navigationHelpButton={false}
       navigationInstructionsInitiallyVisible={false}
     >
-      {initialPos && viewer && (
-        <CameraFlyToBoundingSphere
-          boundingSphere={new BoundingSphere(initialPos, 150)}
-          duration={0}
-        />
-      )}
       {children}
       {showControls && (
         <div className={'leaflet-control-container'}>
@@ -156,9 +164,9 @@ function CustomViewer(props: CustomViewerProps) {
             <ZoomControls />
             {
               //showHome && <button onClick={handleHomeClick}>Home</button>
-              showHome && homePos && (
+              showHome && home && (
                 <ControlGroup>
-                  <HomeControl home={homePos} />
+                  <HomeControl />
                 </ControlGroup>
               )
             }

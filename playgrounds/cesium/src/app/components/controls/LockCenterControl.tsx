@@ -3,7 +3,7 @@ import { faLock, faLockOpen } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useState } from 'react';
 import { useCesium } from 'resium';
-import { lockPosition, unlockPosition } from '../../../lib/position';
+import { lockPosition, unlockPosition } from '../../lib/position';
 import OnMapButton from './OnMapButton';
 
 type LockCenterControlProps = {

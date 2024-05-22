@@ -1,17 +1,10 @@
 import { Cesium3DTileset } from 'resium';
-import { Cartesian3, Cartographic } from 'cesium';
+import { Cartographic } from 'cesium';
 import { toDegFactor } from '../../lib/cesiumHelpers';
-import CustomViewer from '../components/CustomViewer';
-import { WUPP3D, FOOTPRINT_GEOJSON_SOURCES, WUPPERTAL } from '../config';
-import GeoJsonSelector from '../components/GeoJsonSelector';
-import { useRef, useEffect, useState, memo } from 'react';
-import RadioSelector from '../components/RadioSelector';
-
-const home = Cartesian3.fromDegrees(
-  WUPPERTAL.position.lon,
-  WUPPERTAL.position.lat,
-  WUPPERTAL.ground
-);
+import { WUPP3D, FOOTPRINT_GEOJSON_SOURCES } from '../../config';
+import GeoJsonSelector from '../../components/GeoJsonSelector';
+import { useState } from 'react';
+import RadioSelector from '../../components/RadioSelector';
 
 const jsonOptions = Object.entries(FOOTPRINT_GEOJSON_SOURCES).map(
   ([key, { url, name }]) => ({
@@ -64,7 +57,11 @@ const DebugGeoJsonSelector = ({ initialSrc, debug, renderPoint }) => {
   return (
     <>
       {show ? (
-        <GeoJsonSelector src={src} debug={debug} renderPoint={renderPoint} />
+        <GeoJsonSelector
+          srcExtruded={src}
+          debug={debug}
+          renderPoint={renderPoint}
+        />
       ) : null}
       <div
         className="leaflet-bar"
@@ -95,29 +92,17 @@ const DebugGeoJsonSelector = ({ initialSrc, debug, renderPoint }) => {
   );
 };
 
-function App() {
-  const [footprintsSrc, setFootprintsSrc] = useState(
-    FOOTPRINT_GEOJSON_SOURCES.VORONOI.url
-  );
-
-  const geoJsonSelector = (
-    <GeoJsonSelector src={footprintsSrc} debug={true} renderPoint={false} />
-  );
-
+function View() {
+  console.log('View Test Geojson.tsx');
   return (
-    <CustomViewer
-      initialPos={home}
-      homePos={home}
-      infoBox={true}
-      selectionIndicator={true}
-    >
+    <>
       <DebugTileset url={WUPP3D.url} onReady={getTileSetInfo} />
       <DebugGeoJsonSelector
         initialSrc={FOOTPRINT_GEOJSON_SOURCES.VORONOI.url}
         debug={true}
         renderPoint={false}
       />
-    </CustomViewer>
+    </>
   );
 }
-export default App;
+export default View;

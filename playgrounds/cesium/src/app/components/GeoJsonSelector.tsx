@@ -17,12 +17,15 @@ import {
 import ColorHash from 'color-hash';
 import CompareCartesian3Table from './CompareCartesian3Table';
 import { useClickAction, usePropertyKeysFromGeoJsonDataSource } from '../hooks';
+import { useSelectionTransparency } from '../store';
 
 interface GeoJsonSelectorProps {
-  src: string;
+  srcExtruded: string;
+  srcClamped?: string;
   debug?: boolean;
   renderPoint?: boolean;
   idProperty?: string;
+  single?: boolean;
 }
 
 type SelectionRef = {
@@ -47,17 +50,21 @@ const colorHash = new ColorHash({
 const colorLookup: Record<string, Color> = {};
 
 const GeoJsonSelector: React.FC<GeoJsonSelectorProps> = ({
-  src,
+  srcExtruded,
+  srcClamped,
   debug = false,
   idProperty = 'UUID',
+  single = false,
 }) => {
   const { viewer } = useCesium();
   const selectionRef = useRef<SelectionRef | null>(null);
 
+  srcClamped = srcClamped || srcExtruded;
+
   const [selectedEntity, setSelectedEntity] = useState<string | null>(null);
-  const [clampedFootprintAlpha, setClampedFootprintAlpha] = useState(
-    DEFAULT_CLAMPED_FOOTPRINT_ALPHA
-  );
+
+  const clampedFootprintAlpha = useSelectionTransparency();
+
   //const [tilesetAlpha, setTilesetAlpha] = useState(DEFAULT_TILESET_ALPHA);
   //const [clipPolygons, setClipPolygons] = useState(null);
 
@@ -144,7 +151,7 @@ const GeoJsonSelector: React.FC<GeoJsonSelectorProps> = ({
       if (selectedEntity === null) {
         clampedFootprints.entities.values.forEach((entity) => {
           if (entity.polygon !== undefined) {
-            //entity.show = false;
+            entity.show = false;
             //entity.polygon.material = getColorMaterialProperty( entity, clampedFootprintAlpha );
           }
         });
@@ -169,10 +176,14 @@ const GeoJsonSelector: React.FC<GeoJsonSelectorProps> = ({
               );
               entity.polygon.outlineWidth = new ConstantProperty(20.0);
             } else {
-              entity.polygon.material = getColorMaterialProperty(
-                entity,
-                clampedFootprintAlpha
-              );
+              if (single) {
+                entity.show = false;
+              } else {
+                entity.polygon.material = getColorMaterialProperty(
+                  entity,
+                  clampedFootprintAlpha
+                );
+              }
             }
           }
         });
@@ -184,51 +195,41 @@ const GeoJsonSelector: React.FC<GeoJsonSelectorProps> = ({
     <>
       <ResiumGeoJsonDataSource
         name="footprint_extruded"
-        data={src}
+        data={srcExtruded}
         onLoad={handleOnLoadExtrudedFootprints}
         //onClick={(entity) => setSelectedEntity(entity)}
       />
       <ResiumGeoJsonDataSource
         name="footprint_clamped"
-        data={src}
+        data={srcClamped}
         clampToGround={true}
         onLoad={handleOnLoadClampedFootprints}
       />
-      <div
-        className="leaflet-bar leaflet-control leaflet-control-layers-expanded"
-        style={{
-          position: 'absolute',
-          bottom: '10px',
-          left: '10px',
-          zIndex: 1000,
-        }}
-      >
-        {propertyKeys && (
-          <select
-            title="Select a property to color the buildings by:"
-            value={selectedProperty}
-            onChange={(event) => setSelectedProperty(event.target.value)}
-          >
-            {Array.from(propertyKeys).map((key) => (
-              <option key={key} value={key}>
-                {key}
-              </option>
-            ))}
-          </select>
-        )}
-        <hr />
-        <input
-          title="Set the transparency of the buildings:"
-          type="range"
-          min={0}
-          max={1}
-          step={0.01}
-          value={clampedFootprintAlpha}
-          onChange={(event) =>
-            setClampedFootprintAlpha(parseFloat(event.target.value))
-          }
-        />
-      </div>
+      {!single && (
+        <div
+          className="leaflet-bar leaflet-control leaflet-control-layers-expanded"
+          style={{
+            position: 'absolute',
+            bottom: '10px',
+            left: '10px',
+            zIndex: 1000,
+          }}
+        >
+          {propertyKeys && (
+            <select
+              title="Select a property to color the buildings by:"
+              value={selectedProperty}
+              onChange={(event) => setSelectedProperty(event.target.value)}
+            >
+              {Array.from(propertyKeys).map((key) => (
+                <option key={key} value={key}>
+                  {key}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
       {debug && (
         <div
           className="leaflet-bar leaflet-control leaflet-control-layers-expanded"

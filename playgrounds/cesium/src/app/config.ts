@@ -1,9 +1,9 @@
+import { Cartesian3 } from 'cesium';
+import { RootState } from './store';
+
 const APP_BASE_PATH = import.meta.env.BASE_URL;
-
 export const CESIUM_PATHNAME = '__cesium__';
-
 export const CESIUM_BASE_URL = `${APP_BASE_PATH}${CESIUM_PATHNAME}`;
-
 export const WUPP3D = {
   url: 'https://wupp-3d-data.cismet.de/mesh/tileset.json',
   translation: {
@@ -42,3 +42,31 @@ export const WUPPERTAL = {
 const fullRotationDuration = 60; // seconds
 export const DEFAULT_ROTATION_SPEED =
   (2 * Math.PI) / (fullRotationDuration * 1000); // rad per millisecond
+
+// SETUP Store State
+
+const { x, y, z } = Cartesian3.fromDegrees(
+  WUPPERTAL.position.lon,
+  WUPPERTAL.position.lat,
+  WUPPERTAL.ground
+);
+
+const homeOffset = { x: 0, y: 0, z: 10000 };
+
+export const defaultState: RootState = {
+  location: {
+    hash: null,
+  },
+  selectionTransparency: 0.5,
+  viewer: {
+    isAnimating: false,
+    homeOffset: homeOffset,
+    homePosition: { x, y, z },
+    dataSources: {
+      footprintGeoJson: FOOTPRINT_GEOJSON_SOURCES.VORONOI,
+      tileset: WUPP3D,
+    },
+  },
+};
+
+export default defaultState;

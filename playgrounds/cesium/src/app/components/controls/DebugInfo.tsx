@@ -1,10 +1,10 @@
 import { useCesium } from 'resium';
 import OnMapButton from './OnMapButton';
-import { getAll } from '../../../lib/position';
+import { getAll } from '../../lib/position';
 import { faInfo, faX } from '@fortawesome/free-solid-svg-icons';
 import { Cartesian3, Cartographic, Viewer } from 'cesium';
 import { MouseEvent, useEffect, useState } from 'react';
-import { getCanvasCenter, toDegFactor } from './../../../lib/cesiumHelpers';
+import { getCanvasCenter, toDegFactor } from '../../lib/cesiumHelpers';
 import { get } from 'http';
 
 type DebugInfoProps = {

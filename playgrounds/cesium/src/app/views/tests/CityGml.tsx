@@ -1,11 +1,11 @@
 import { Cesium3DTileset } from 'resium';
 import { Cartesian3, Cartographic, Cesium3DTileStyle, Color } from 'cesium';
 import { toDegFactor } from '../../lib/cesiumHelpers';
-import CustomViewer from '../components/CustomViewer';
-import { WUPP3D, FOOTPRINT_GEOJSON_SOURCES, WUPPERTAL } from '../config';
-import GeoJsonSelector from '../components/GeoJsonSelector';
+import CustomViewer from '../../components/CustomViewer';
+import { WUPP3D, FOOTPRINT_GEOJSON_SOURCES, WUPPERTAL } from '../../config';
+import GeoJsonSelector from '../../components/GeoJsonSelector';
 import { useRef, useEffect, useState, memo } from 'react';
-import RadioSelector from '../components/RadioSelector';
+import RadioSelector from '../../components/RadioSelector';
 
 const home = Cartesian3.fromDegrees(
   WUPPERTAL.position.lon,
@@ -71,7 +71,7 @@ const DebugGeoJsonSelector = ({ initialSrc, debug, renderPoint }) => {
   return (
     <>
       {show ? (
-        <GeoJsonSelector src={src} debug={debug} renderPoint={renderPoint} />
+        <GeoJsonSelector srcExtruded={src} debug={debug} renderPoint={renderPoint} />
       ) : null}
       <div
         className="leaflet-bar"
@@ -102,13 +102,13 @@ const DebugGeoJsonSelector = ({ initialSrc, debug, renderPoint }) => {
   );
 };
 
-function App() {
+function View() {
   const [footprintsSrc, setFootprintsSrc] = useState(
     FOOTPRINT_GEOJSON_SOURCES.VORONOI.url
   );
 
   const geoJsonSelector = (
-    <GeoJsonSelector src={footprintsSrc} debug={true} renderPoint={false} />
+    <GeoJsonSelector srcExtruded={footprintsSrc} debug={true} renderPoint={false} />
   );
 
   const myStyle = new Cesium3DTileStyle({
@@ -116,13 +116,7 @@ function App() {
     show: true,
   });
   return (
-    <CustomViewer
-      initialPos={home}
-      homePos={home}
-      infoBox={true}
-      selectionIndicator={true}
-      globeColor={Color.WHITE}
-    >
+    <>
       <Cesium3DTileset url="/data/tiles/tileset.json" />
 
       <DebugTileset url={WUPP3D.url} onReady={getTileSetInfo} style={myStyle} />
@@ -131,7 +125,7 @@ function App() {
         debug={true}
         renderPoint={false}
       />
-    </CustomViewer>
+    </>
   );
 }
-export default App;
+export default View;

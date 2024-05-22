@@ -6,7 +6,6 @@ import {
   Viewer,
 } from 'cesium';
 
-import 'leaflet/dist/leaflet.css';
 
 type ViewerProps = {
   minZoom?: number;

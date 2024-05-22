@@ -1,49 +1,54 @@
-import { createContext, useEffect, useState } from 'react';
-import {
-  createBrowserRouter,
-  createHashRouter,
-  RouterProvider,
-} from 'react-router-dom';
-import ViewGeoJson from './views/Geojson';
-import ViewTestGeoJson from './views/TestGeojson';
-import TestGeojsonWithCityGML from './views/TestGeojsonWithCityGML';
-
-import ViewTestResium from './views/TestResium';
-import ViewTestViewer from './views/TestCustomViewer';
-import ViewTestTileset from './views/TestTileset';
-import ViewFull from './views/Full';
-import ViewMesh from './views/WithMesh';
+import { HashRouter, Route, Routes } from 'react-router-dom';
 
 // Cesium Styles
 import 'cesium/Build/Cesium/Widgets/widgets.css';
+import Navigation from './components/Navigation';
+import LocationProvider from './components/LocationProvider';
+import { Provider } from 'react-redux';
+import store from './store';
+import { viewerRoutes, otherRoutes } from './routes';
+import CustomViewer from './components/CustomViewer';
 
-export const SimpleAppState = createContext({
-  isAnimating: false,
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
-  setIsAnimating: (value: boolean) => {},
-});
+import { routeGenerator } from './utils/routeGenerator';
 
-const router = createHashRouter([
-  { path: '/', element: <ViewGeoJson /> },
-  { path: '/geojson', element: <ViewGeoJson /> },
-  { path: '/full', element: <ViewFull /> },
-  { path: '/mesh', element: <ViewMesh /> },
+import 'leaflet/dist/leaflet.css';
 
-  { path: '/test/', element: <ViewTestViewer /> },
-  { path: '/test/geojson', element: <ViewTestGeoJson /> },
-  { path: '/test/geojsonWithCityGML', element: <TestGeojsonWithCityGML /> },
-  { path: '/test/resium', element: <ViewTestResium /> },
-  { path: '/test/viewer', element: <ViewTestViewer /> },
-  { path: '/test/tileset', element: <ViewTestTileset /> },
-]);
+const ViewerRoutes = routeGenerator(viewerRoutes);
+const OtherRoutes = routeGenerator(otherRoutes);
 
 export function App() {
-  const [isAnimating, setIsAnimating] = useState(false);
-
   return (
-    <SimpleAppState.Provider value={{ isAnimating, setIsAnimating }}>
-      <RouterProvider router={router} />
-    </SimpleAppState.Provider>
+    <Provider store={store}>
+      <HashRouter>
+        <LocationProvider>
+          <Navigation
+            className="leaflet-bar"
+            style={{
+              position: 'absolute',
+              bottom: 60,
+              left: '50%',
+              width: 500,
+              display: 'flex',
+              justifyContent: 'center',
+              transform: 'translate(-50%, 0)',
+              zIndex: 10,
+            }}
+            routes={[...viewerRoutes, ...otherRoutes]}
+          />
+          <Routes>
+            <Route
+              path="/*"
+              element={
+                <CustomViewer>
+                  <Routes>{...ViewerRoutes}</Routes>
+                </CustomViewer>
+              }
+            />
+            {...OtherRoutes}
+          </Routes>
+        </LocationProvider>
+      </HashRouter>
+    </Provider>
   );
 }
 export default App;

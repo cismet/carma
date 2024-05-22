@@ -1,24 +1,35 @@
 import { Cesium3DTileset } from 'resium';
-import { Cartesian3 } from 'cesium';
-import { logTileSetInfoOnReady } from '../../lib/cesiumHelpers';
-import CustomViewer from '../components/CustomViewer';
-import { WUPP3D, FOOTPRINT_GEOJSON_SOURCES, WUPPERTAL } from '../config';
+import { logTileSetInfoOnReady } from '../lib/cesiumHelpers';
 import GeoJsonSelector from '../components/GeoJsonSelector';
+import { setSelectionTransparency, useViewerDataSources } from '../store';
+import RangeInput from '../components/controls/RangeInput';
 
-const home = Cartesian3.fromDegrees(
-  WUPPERTAL.position.lon,
-  WUPPERTAL.position.lat,
-  WUPPERTAL.ground
-);
-
-function App() {
+function View() {
+  const { footprintGeoJson, tileset } = useViewerDataSources();
   return (
-    <CustomViewer initialPos={home} homePos={home}>
-      <Cesium3DTileset url={WUPP3D.url} onReady={logTileSetInfoOnReady} />
-
-      <GeoJsonSelector src={FOOTPRINT_GEOJSON_SOURCES.VORONOI.url} />
-    </CustomViewer>
+    footprintGeoJson &&
+    tileset && (
+      <>
+        <Cesium3DTileset url={tileset.url} onReady={logTileSetInfoOnReady} />
+        <GeoJsonSelector srcExtruded={footprintGeoJson.url} />
+        <div
+          className="leaflet-bar leaflet-control leaflet-control-layers-expanded"
+          style={{
+            position: 'absolute',
+            bottom: '60px',
+            left: '10px',
+            zIndex: 1000,
+          }}
+        >
+          <RangeInput
+            title="Set the transparency of the buildings:"
+            valueSelector={(state) => state.selectionTransparency}
+            actionCreator={setSelectionTransparency}
+          />
+        </div>
+      </>
+    )
   );
 }
 
-export default App;
+export default View;
