@@ -29,6 +29,7 @@ import {
   setDeleteMeasurements,
   getMoveToShape,
   setMoveToShape,
+  setUpdateShape,
 } from '../../store/slices/measurements';
 interface TopicMapContextType {
   routedMapRef: any;
@@ -179,6 +180,7 @@ const MapMeasurement = (props) => {
   };
   const updateShapeHandler = (id, newCoordinates, newDistance) => {
     console.log('www set polyline', id);
+    dispatch(setUpdateShape(true));
 
     setPolygons((prevPolygons) => {
       const cleaerShapesArr = prevPolygons.map((s) => {

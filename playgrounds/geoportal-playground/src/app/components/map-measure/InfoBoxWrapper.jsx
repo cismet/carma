@@ -5,7 +5,8 @@ import {
   getActiveShapes,
   getVisibleShapes,
   setShowAllMeasurements,
-  getDeleteMeasurements,
+  getUpdateShapeToShape,
+  setUpdateShape,
   setDeleteMeasurements,
   getMoveToShape,
   setMoveToShape,
@@ -23,9 +24,10 @@ const InfoBoxWrapper = () => {
   const visibleShapesData = useSelector(getVisibleShapes);
   const activeShape = useSelector(getActiveShapes);
   const moveToShape = useSelector(getMoveToShape);
+  const updateShape = useSelector(getUpdateShapeToShape);
   const dispatch = useDispatch();
   const [currentMeasure, setCurrentMeasure] = useState(0);
-  const [oldDataLength, setOldDataLength] = useState(visibleShapesData.length);
+  // const [oldDataLength, setOldDataLength] = useState(visibleShapesData.length);
 
   useEffect(() => {
     if (moveToShape) {
