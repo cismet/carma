@@ -7,7 +7,7 @@ const initialState = {
   showAllMeasurements: false,
   deleteMeasurements: false,
   drawingShape: false,
-  moveToShape: null,
+  moveToShape: false,
 };
 
 const slice = createSlice({

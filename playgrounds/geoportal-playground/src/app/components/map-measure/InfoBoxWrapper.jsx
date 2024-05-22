@@ -28,12 +28,14 @@ const InfoBoxWrapper = () => {
   const [oldDataLength, setOldDataLength] = useState(visibleShapesData.length);
 
   useEffect(() => {
-    const initialCureentMeasure =
-      visibleShapesData.length - 1 < 0 ? 0 : visibleShapesData.length - 1;
-    setCurrentMeasure(initialCureentMeasure);
+    console.log('www move visible change');
     if (moveToShape) {
-      // dispatch(setActiveShape(moveToShape));
-      setMoveToShape(null);
+      console.log('www move true', moveToShape);
+      dispatch(setActiveShape(245));
+    } else {
+      const initialCureentMeasure =
+        visibleShapesData.length - 1 < 0 ? 0 : visibleShapesData.length - 1;
+      setCurrentMeasure(initialCureentMeasure);
     }
   }, [visibleShapesData, moveToShape]);
 
@@ -47,9 +49,10 @@ const InfoBoxWrapper = () => {
   useEffect(() => {
     const positionInArr = activeShapeHandler(activeShape);
     setCurrentMeasure(positionInArr);
-  }, [activeShape, moveToShape]);
+  }, [activeShape]);
 
   const decreaseCurrentHandler = () => {
+    dispatch(setMoveToShape(false));
     setCurrentMeasure((prev) => {
       if (prev <= 0) {
         return visibleShapesData.length - 1;
@@ -60,6 +63,8 @@ const InfoBoxWrapper = () => {
   };
 
   const increaseCurrentHandler = () => {
+    dispatch(setMoveToShape(false));
+
     setCurrentMeasure((prev) => {
       if (prev >= visibleShapesData.length - 1) {
         return 0;
@@ -108,6 +113,7 @@ const InfoBoxWrapper = () => {
               >
                 Linienzug #{visibleShapesData[currentMeasure].number}
               </span>
+              <div>{visibleShapesData[currentMeasure].shapeId}</div>
               <div className="flex justify-between items-center w-[12%] gap-1">
                 <FontAwesomeIcon
                   onClick={moveToShapeHandler}

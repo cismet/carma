@@ -381,15 +381,14 @@ L.Control.MeasurePolygon = L.Control.extend({
     map.on('moveend', () => {
       const allPolyLines = this.getVisiblePolylines(map);
       this.getVisiblePolylinesIds(allPolyLines);
-      // this.options.moveToShape = false;
-      // if (this.options.moveToShape) {
-      //   console.log('www plagin if move', this.options.moveToShape);
-      // } else {
-      //   console.log('www plagin if else', this.options.moveToShape);
-      //   const allPolyLines = this.getVisiblePolylines(map);
-      //   this.getVisiblePolylinesIds(allPolyLines);
-      //   this.options.moveToShape = false;
-      // }
+      if (this.options.moveToShape) {
+        console.log('www plugin if move', this.options.moveToShape);
+      } else {
+        console.log('www plugin if else', this.options.moveToShape);
+        const allPolyLines = this.getVisiblePolylines(map);
+        this.getVisiblePolylinesIds(allPolyLines);
+        this.options.moveToShape = false;
+      }
     });
 
     return iconsWrapper;

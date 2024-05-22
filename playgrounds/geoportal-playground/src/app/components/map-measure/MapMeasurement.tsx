@@ -96,8 +96,9 @@ const MapMeasurement = (props) => {
       );
       const map = routedMapRef.leafletMap.leafletElement;
 
-      console.log('www', activeShape);
-      console.log('www', shapeCoordinates);
+      console.log('www active shape', activeShape);
+      console.log('www coordinates', shapeCoordinates);
+      console.log('www move to shape', moveToShape);
 
       if (shapeCoordinates[0]?.shapeId && !ifDrawing) {
         measureControl.changeColorByActivePolyline(
@@ -144,10 +145,10 @@ const MapMeasurement = (props) => {
         measurementShapes
       );
       dispatch(setVisibleShapes(cleanedVisibleArr));
-      if (moveToShape) {
-        dispatch(setActiveShape(moveToShape));
-        dispatch(setMoveToShape(null));
-      }
+      // if (moveToShape) {
+      //   dispatch(setActiveShape(moveToShape));
+      //   dispatch(setMoveToShape(null));
+      // }
     }
   }, [visiblePolylines, measurementShapes]);
 
