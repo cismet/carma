@@ -31,7 +31,7 @@ const InfoBoxWrapper = () => {
     console.log('www move visible change');
     if (moveToShape) {
       console.log('www move true', moveToShape);
-      dispatch(setActiveShape(245));
+      dispatch(setActiveShape(moveToShape));
     } else {
       const initialCureentMeasure =
         visibleShapesData.length - 1 < 0 ? 0 : visibleShapesData.length - 1;
@@ -116,7 +116,11 @@ const InfoBoxWrapper = () => {
               <div>{visibleShapesData[currentMeasure].shapeId}</div>
               <div className="flex justify-between items-center w-[12%] gap-1">
                 <FontAwesomeIcon
-                  onClick={moveToShapeHandler}
+                  onClick={() =>
+                    dispatch(
+                      setMoveToShape(visibleShapesData[currentMeasure].shapeId)
+                    )
+                  }
                   className="cursor-pointer text-[16px] text-[#808080]"
                   icon={faMagnifyingGlassLocation}
                 />
