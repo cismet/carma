@@ -22,7 +22,7 @@ const InfoBoxWrapper = () => {
   const measurementsData = useSelector(getShapes);
   const visibleShapesData = useSelector(getVisibleShapes);
   const activeShape = useSelector(getActiveShapes);
-  const deleteShape = useSelector(getDeleteMeasurements);
+  const moveToShape = useSelector(getMoveToShape);
   const dispatch = useDispatch();
   const [currentMeasure, setCurrentMeasure] = useState(0);
   const [oldDataLength, setOldDataLength] = useState(visibleShapesData.length);
@@ -31,7 +31,11 @@ const InfoBoxWrapper = () => {
     const initialCureentMeasure =
       visibleShapesData.length - 1 < 0 ? 0 : visibleShapesData.length - 1;
     setCurrentMeasure(initialCureentMeasure);
-  }, [visibleShapesData]);
+    if (moveToShape) {
+      // dispatch(setActiveShape(moveToShape));
+      setMoveToShape(null);
+    }
+  }, [visibleShapesData, moveToShape]);
 
   useEffect(() => {
     console.log('nnn', currentMeasure);
@@ -43,7 +47,7 @@ const InfoBoxWrapper = () => {
   useEffect(() => {
     const positionInArr = activeShapeHandler(activeShape);
     setCurrentMeasure(positionInArr);
-  }, [activeShape]);
+  }, [activeShape, moveToShape]);
 
   const decreaseCurrentHandler = () => {
     setCurrentMeasure((prev) => {

@@ -107,7 +107,6 @@ const MapMeasurement = (props) => {
       }
       if (showAllMeasurements) {
         const allPolylines = measureControl.getAllPolylines(map);
-        console.log(allPolylines);
         measureControl.fitMapToPolylines(map, allPolylines);
         dispatch(setShowAllMeasurements(false));
       }
@@ -126,7 +125,7 @@ const MapMeasurement = (props) => {
       }
       if (moveToShape) {
         measureControl.showActiveShape(map, shapeCoordinates[0].coordinates);
-        dispatch(setMoveToShape(false));
+        // dispatch(setMoveToShape(false));
       }
     }
   }, [
@@ -145,6 +144,10 @@ const MapMeasurement = (props) => {
         measurementShapes
       );
       dispatch(setVisibleShapes(cleanedVisibleArr));
+      if (moveToShape) {
+        dispatch(setActiveShape(moveToShape));
+        dispatch(setMoveToShape(null));
+      }
     }
   }, [visiblePolylines, measurementShapes]);
 
