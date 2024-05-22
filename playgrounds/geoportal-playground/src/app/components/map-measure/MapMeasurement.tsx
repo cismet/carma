@@ -103,8 +103,8 @@ const MapMeasurement = (props) => {
         dispatch(setMoveToShape(false));
       }
 
-      if (shapeCoordinates[0]?.shapeId && !ifDrawing) {
-        // dispatch(setMoveToShape(false));
+      if (shapeCoordinates[0]?.shapeId && !ifDrawing && !deleteShape) {
+        console.log('www coordinates block');
 
         measureControl.changeColorByActivePolyline(
           map,
@@ -118,8 +118,8 @@ const MapMeasurement = (props) => {
       }
 
       if (deleteShape) {
+        dispatch(setMoveToShape(null));
         measureControl.removePolylineById(map, activeShape);
-        dispatch(setDeleteMeasurements(false));
         const cleanArr = visibleShapes.filter((m) => m.shapeId !== activeShape);
         deleteShapeHandler(activeShape);
         dispatch(setVisibleShapes(cleanArr));
@@ -128,10 +128,11 @@ const MapMeasurement = (props) => {
           (m) => m.shapeId !== activeShape
         );
         dispatch(setShapes(cleanAllArr));
+        dispatch(setDeleteMeasurements(false));
       }
-      if (moveToShape) {
-        measureControl.showActiveShape(map, shapeCoordinates[0].coordinates);
-        // dispatch(setMoveToShape(false));
+      if (moveToShape && !deleteShape) {
+        console.log('www move block', deleteShape);
+        measureControl.showActiveShape(map, shapeCoordinates[0]?.coordinates);
       }
     }
   }, [
@@ -150,10 +151,6 @@ const MapMeasurement = (props) => {
         measurementShapes
       );
       dispatch(setVisibleShapes(cleanedVisibleArr));
-      // if (moveToShape) {
-      //   dispatch(setActiveShape(moveToShape));
-      //   dispatch(setMoveToShape(null));
-      // }
     }
   }, [visiblePolylines, measurementShapes]);
 
