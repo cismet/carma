@@ -150,6 +150,7 @@ const MapMeasurement = (props) => {
         visiblePolylines,
         measurementShapes
       );
+      console.log('www set polyline');
       dispatch(setVisibleShapes(cleanedVisibleArr));
     }
   }, [visiblePolylines, measurementShapes]);
@@ -177,6 +178,8 @@ const MapMeasurement = (props) => {
     });
   };
   const updateShapeHandler = (id, newCoordinates, newDistance) => {
+    console.log('www set polyline', id);
+
     setPolygons((prevPolygons) => {
       const cleaerShapesArr = prevPolygons.map((s) => {
         if (s.shapeId === id) {

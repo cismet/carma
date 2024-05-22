@@ -144,6 +144,8 @@ L.Control.MeasurePolygon = L.Control.extend({
   },
 
   _onPolylineDrag: function (event) {
+    console.log('www plugin if move !!!!!!');
+
     const polyline = event.target;
     const layer = event.layer;
     const latlngsJSON = layer.toGeoJSON();
@@ -263,7 +265,6 @@ L.Control.MeasurePolygon = L.Control.extend({
         savedShape.on('dblclick', this._onPolygonClick.bind(this, map));
         savedShape.on('click', () => {
           this.options.cbSetActiveShape(savedShape.customID);
-          console.log('ccc', savedShape.customID);
         });
         savedShape.on(
           'editable:drag editable:dragstart editable:dragend editable:vertex:drag editable:vertex:deleted',
@@ -274,7 +275,6 @@ L.Control.MeasurePolygon = L.Control.extend({
       if (!this.options.activeShape) {
         const lastShape = this.options.shapes[this.options.shapes.length - 1];
         const center = L.latLngBounds(lastShape.coordinates).getCenter();
-        console.log('fff', lastShape.coordinates);
         map.setView(center, 17);
       }
     }
@@ -314,7 +314,6 @@ L.Control.MeasurePolygon = L.Control.extend({
 
       this.options.checkonedrawpoligon = false;
 
-      // Disabling the drawing tool after creating a polygon
       this._measureHandler.disable();
     });
 
@@ -381,14 +380,6 @@ L.Control.MeasurePolygon = L.Control.extend({
     map.on('moveend', () => {
       const allPolyLines = this.getVisiblePolylines(map);
       this.getVisiblePolylinesIds(allPolyLines);
-      // if (this.options.moveToShape) {
-      //   console.log('www plugin if move', this.options.moveToShape);
-      // } else {
-      //   console.log('www plugin if else', this.options.moveToShape);
-      //   const allPolyLines = this.getVisiblePolylines(map);
-      //   this.getVisiblePolylinesIds(allPolyLines);
-      //   this.options.moveToShape = false;
-      // }
     });
 
     return iconsWrapper;
