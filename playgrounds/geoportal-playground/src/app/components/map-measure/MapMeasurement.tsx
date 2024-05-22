@@ -99,8 +99,13 @@ const MapMeasurement = (props) => {
       console.log('www active shape', activeShape);
       console.log('www coordinates', shapeCoordinates);
       console.log('www move to shape', moveToShape);
+      if (ifDrawing) {
+        dispatch(setMoveToShape(false));
+      }
 
       if (shapeCoordinates[0]?.shapeId && !ifDrawing) {
+        // dispatch(setMoveToShape(false));
+
         measureControl.changeColorByActivePolyline(
           map,
           shapeCoordinates[0].shapeId
@@ -209,6 +214,7 @@ const MapMeasurement = (props) => {
   const setActiveShapeHandler = (id) => {
     console.log('ccc set active shape', id);
     dispatch(setActiveShape(id));
+    dispatch(setMoveToShape(null));
   };
 
   // const drawingShapeUpdateHandler = (distance) => {

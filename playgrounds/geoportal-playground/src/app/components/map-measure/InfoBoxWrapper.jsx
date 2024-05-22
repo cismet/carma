@@ -28,11 +28,14 @@ const InfoBoxWrapper = () => {
   const [oldDataLength, setOldDataLength] = useState(visibleShapesData.length);
 
   useEffect(() => {
-    console.log('www move visible change');
     if (moveToShape) {
+      console.log('www move visible skip');
       console.log('www move true', moveToShape);
       dispatch(setActiveShape(moveToShape));
+      const positionInArr = activeShapeHandler(activeShape);
+      setCurrentMeasure(positionInArr);
     } else {
+      console.log('www move visible set');
       const initialCureentMeasure =
         visibleShapesData.length - 1 < 0 ? 0 : visibleShapesData.length - 1;
       setCurrentMeasure(initialCureentMeasure);
@@ -52,7 +55,7 @@ const InfoBoxWrapper = () => {
   }, [activeShape]);
 
   const decreaseCurrentHandler = () => {
-    dispatch(setMoveToShape(false));
+    dispatch(setMoveToShape(null));
     setCurrentMeasure((prev) => {
       if (prev <= 0) {
         return visibleShapesData.length - 1;
@@ -63,7 +66,7 @@ const InfoBoxWrapper = () => {
   };
 
   const increaseCurrentHandler = () => {
-    dispatch(setMoveToShape(false));
+    dispatch(setMoveToShape(null));
 
     setCurrentMeasure((prev) => {
       if (prev >= visibleShapesData.length - 1) {
@@ -75,6 +78,8 @@ const InfoBoxWrapper = () => {
   };
 
   const activeShapeHandler = (shapeId) => {
+    console.log('www positionInArr', visibleShapesData);
+
     let activeShapePosition = null;
     visibleShapesData.forEach((s, idx) => {
       if (s.shapeId === shapeId) {
@@ -82,6 +87,7 @@ const InfoBoxWrapper = () => {
       }
     });
 
+    console.log('www place', activeShapePosition);
     return activeShapePosition;
   };
   const deleteShapeHandler = () => {
