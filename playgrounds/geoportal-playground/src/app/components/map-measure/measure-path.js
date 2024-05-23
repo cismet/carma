@@ -48,7 +48,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     cbSetActiveShape: function () {
       console.log('Callback function executed!');
     },
-    cbDUpdateStausHandler: function () {
+    cbSetUpdateStatusHandler: function () {
       console.log('Callback function executed!');
     },
     visiblePolylines: [],
@@ -148,7 +148,7 @@ L.Control.MeasurePolygon = L.Control.extend({
 
   _onPolylineDrag: function (event) {
     console.log('www plugin if move !!!!!!');
-
+    this.options.cbSetUpdateStatusHandler(true);
     const polyline = event.target;
     const layer = event.layer;
     const latlngsJSON = layer.toGeoJSON();
@@ -273,7 +273,7 @@ L.Control.MeasurePolygon = L.Control.extend({
         );
 
         savedShape.on('editable:vertex:dragend', () => {
-          console.log('www drag end detected');
+          this.options.cbSetUpdateStatusHandler(false);
         });
       });
 

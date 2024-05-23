@@ -30,6 +30,7 @@ import {
   getMoveToShape,
   setMoveToShape,
   setUpdateShape,
+  getUpdateShapeToShape,
 } from '../../store/slices/measurements';
 interface TopicMapContextType {
   routedMapRef: any;
@@ -41,6 +42,7 @@ const MapMeasurement = (props) => {
   const dispatch = useDispatch();
   const measurementShapes = useSelector(getShapes);
   const activeShape = useSelector(getActiveShapes);
+  const updateShapeStatus = useSelector(getUpdateShapeToShape);
   const ifDrawing = useSelector(getDrawingShape);
   const showAllMeasurements = useSelector(getShowAllMeasurements);
   const deleteShape = useSelector(getDeleteMeasurements);
@@ -74,7 +76,7 @@ const MapMeasurement = (props) => {
         cbSetDrawingShape: drawingShapeHandler,
         measurementOrder: findLargestNumber(measurementShapes),
         cbSetActiveShape: setActiveShapeHandler,
-        // cbDrawingShapeUpdate: drawingShapeUpdateHandler,
+        cbSetUpdateStatusHandler: setUpdateStatusHandler,
       };
 
       const measurePolygonControl = L.control.measurePolygon(customOptions);
@@ -211,9 +213,11 @@ const MapMeasurement = (props) => {
     setDrawingLine(draw);
   };
   const setActiveShapeHandler = (id) => {
-    console.log('ccc set active shape', id);
     dispatch(setActiveShape(id));
     dispatch(setMoveToShape(null));
+  };
+  const setUpdateStatusHandler = (status) => {
+    dispatch(setUpdateShape(status));
   };
 
   return (
