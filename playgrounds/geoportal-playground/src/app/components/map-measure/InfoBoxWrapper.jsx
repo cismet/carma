@@ -77,8 +77,6 @@ const InfoBoxWrapper = () => {
   }, [currentMeasure]);
 
   useEffect(() => {
-    console.log('www active visible', visibleShapesData);
-
     const positionInArr = activeShapeHandler(activeShape);
 
     setCurrentMeasure(positionInArr);
@@ -87,10 +85,17 @@ const InfoBoxWrapper = () => {
       (m) => m.shapeId === activeShape && m.shapeId !== 5555
     );
 
-    if (!checkIfActiveShapeIsVisible) {
+    const checkOldAndNewMeasurementLength =
+      oldDataLength === measurementsData.length;
+
+    console.log('www active data less', checkOldAndNewMeasurementLength);
+
+    if (!checkIfActiveShapeIsVisible || !checkOldAndNewMeasurementLength) {
       console.log('www active !!!!!');
       setStepAfterCreating(true);
     }
+
+    setOldDataLength(measurementsData.length);
   }, [activeShape, measurementsData]);
 
   const decreaseCurrentHandler = () => {
