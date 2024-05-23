@@ -52,6 +52,7 @@ const MapMeasurement = (props) => {
   const [polygons, setPolygons] = useState(measurementShapes);
   const [visiblePolylines, setVisiblePolylines] = useState();
   const [drawingShape, setDrawingLine] = useState(null);
+
   useEffect(() => {
     if (routedMapRef && !measureControl) {
       const mapExample = routedMapRef.leafletMap.leafletElement;
@@ -84,8 +85,8 @@ const MapMeasurement = (props) => {
 
   useEffect(() => {
     dispatch(setShapes(polygons));
-
     if (polygons.length !== 0) {
+      console.log('www updateStatus/active shape');
       dispatch(setActiveShape(polygons[polygons.length - 1].shapeId));
     }
   }, [polygons]);
@@ -206,10 +207,6 @@ const MapMeasurement = (props) => {
     dispatch(setDrawingShape(status));
   };
 
-  // const drawingStatusDistanceHandler = (distance) => {
-  //   dispatch(setDrawingShapeDistance(distance));
-  // };
-
   const drawingShapeHandler = (draw) => {
     setDrawingLine(draw);
   };
@@ -218,12 +215,6 @@ const MapMeasurement = (props) => {
     dispatch(setActiveShape(id));
     dispatch(setMoveToShape(null));
   };
-
-  // const drawingShapeUpdateHandler = (distance) => {
-  //   setDrawingLine((prevState) => {
-  //     return { ...prevState, distance: distance };
-  //   });
-  // };
 
   return (
     <div>

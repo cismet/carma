@@ -48,6 +48,9 @@ L.Control.MeasurePolygon = L.Control.extend({
     cbSetActiveShape: function () {
       console.log('Callback function executed!');
     },
+    cbDUpdateStausHandler: function () {
+      console.log('Callback function executed!');
+    },
     visiblePolylines: [],
     localShapeStore: [],
     ifDrawing: false,
@@ -175,8 +178,6 @@ L.Control.MeasurePolygon = L.Control.extend({
     const clickedPolygon = event.target;
     const latlngs = clickedPolygon.getLatLngs();
 
-    console.log('Polygon clicked:', map);
-
     this._measureLayers.removeLayer(clickedPolygon._leaflet_id);
     const shapeId = clickedPolygon?.customID
       ? clickedPolygon?.customID
@@ -270,6 +271,10 @@ L.Control.MeasurePolygon = L.Control.extend({
           'editable:drag editable:dragstart editable:dragend editable:vertex:drag editable:vertex:deleted',
           this._onPolylineDrag.bind(this)
         );
+
+        savedShape.on('editable:vertex:dragend', () => {
+          console.log('www drag end detected');
+        });
       });
 
       if (!this.options.activeShape) {
