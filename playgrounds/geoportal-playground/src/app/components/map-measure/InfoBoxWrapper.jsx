@@ -41,13 +41,12 @@ const InfoBoxWrapper = () => {
     } else if (updateShape && checkUpdateAction) {
       console.log('www update shape');
     } else {
-      if (!checkUpdateAction) {
-        console.log('www move visible set');
-        const initialCureentMeasure =
-          visibleShapesData.length - 1 < 0 ? 0 : visibleShapesData.length - 1;
-        setCurrentMeasure(initialCureentMeasure);
-        setOldDataLength(measurementsData.length);
-      }
+      console.log('www visibleShapesData', visibleShapesData);
+
+      const initialCureentMeasure =
+        visibleShapesData.length - 1 < 0 ? 0 : visibleShapesData.length - 1;
+      setCurrentMeasure(initialCureentMeasure);
+      setOldDataLength(measurementsData.length);
     }
   }, [visibleShapesData, moveToShape, updateShape, measurementsData]);
 

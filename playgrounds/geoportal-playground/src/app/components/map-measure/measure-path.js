@@ -148,9 +148,11 @@ L.Control.MeasurePolygon = L.Control.extend({
 
   _onPolylineDrag: function (event) {
     console.log('www plugin if move !!!!!!');
+
     this.options.cbSetUpdateStatusHandler(true);
     const polyline = event.target;
     const layer = event.layer;
+    this.options.cbSetActiveShape(layer.customID);
     const latlngsJSON = layer.toGeoJSON();
     const isLine = layer.toGeoJSON().geometry.type === 'LineString';
     const prepeareCoordinates = isLine
