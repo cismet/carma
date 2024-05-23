@@ -10,6 +10,7 @@ import {
   setDeleteMeasurements,
   getMoveToShape,
   setMoveToShape,
+  getDrawingShape,
 } from '../../store/slices/measurements';
 import { useSelector, useDispatch } from 'react-redux';
 import { useState, useEffect } from 'react';
@@ -25,47 +26,48 @@ const InfoBoxWrapper = () => {
   const activeShape = useSelector(getActiveShapes);
   const moveToShape = useSelector(getMoveToShape);
   const updateShape = useSelector(getUpdateShapeToShape);
+  const drawingMode = useSelector(getDrawingShape);
   const dispatch = useDispatch();
   const [currentMeasure, setCurrentMeasure] = useState(0);
   const [oldDataLength, setOldDataLength] = useState(measurementsData.length);
+  const [stepAfterUpdating, setStepAfterUpdating] = useState(false);
+  const [stepAfterCreating, setStepAfterCreating] = useState(false);
 
   useEffect(() => {
-    const checkUpdateAction = oldDataLength === measurementsData.length;
-    console.log('www checkUpdateAction info', checkUpdateAction);
     if (moveToShape) {
       console.log('www move visible skip');
       console.log('www move true', moveToShape);
       dispatch(setActiveShape(moveToShape));
       const positionInArr = activeShapeHandler(activeShape);
       setCurrentMeasure(positionInArr);
-    } else if (updateShape && checkUpdateAction) {
+    } else if (updateShape) {
       console.log('www update shape');
+      setStepAfterUpdating(true);
     } else {
-      console.log('www visibleShapesData', visibleShapesData);
-
-      const checkIfActiveShapeIsVisible = visibleShapesData.some(
-        (m) => m.shapeId === activeShape && m.shapeId !== 5555
-      );
-      const checkIfActiveShapeIs5555 = visibleShapesData.some(
-        (m) => m.shapeId === 5555
-      );
-
-      console.log('www visible shape', checkIfActiveShapeIsVisible);
-
-      if (!checkIfActiveShapeIsVisible) {
+      if (!stepAfterUpdating) {
         const initialCureentMeasure =
           visibleShapesData.length - 1 < 0 ? 0 : visibleShapesData.length - 1;
         setCurrentMeasure(initialCureentMeasure);
-        setOldDataLength(measurementsData.length);
+        setStepAfterUpdating(false);
       }
-      if (checkIfActiveShapeIs5555) {
+
+      console.log('www visible drawing mode', drawingMode);
+
+      if (drawingMode) {
         const initialCureentMeasure =
           visibleShapesData.length - 1 < 0 ? 0 : visibleShapesData.length - 1;
         setCurrentMeasure(initialCureentMeasure);
-        setOldDataLength(measurementsData.length);
+      }
+
+      if (stepAfterCreating) {
+        console.log('www active ****!!!!!');
+        const initialCureentMeasure =
+          visibleShapesData.length - 1 < 0 ? 0 : visibleShapesData.length - 1;
+        setCurrentMeasure(initialCureentMeasure);
+        setStepAfterCreating(false);
       }
     }
-  }, [visibleShapesData, moveToShape, updateShape, measurementsData]);
+  }, [visibleShapesData, moveToShape, updateShape, stepAfterCreating]);
 
   useEffect(() => {
     console.log('nnn', currentMeasure);
@@ -75,11 +77,21 @@ const InfoBoxWrapper = () => {
   }, [currentMeasure]);
 
   useEffect(() => {
-    console.log('www visible active');
+    console.log('www active visible', visibleShapesData);
 
     const positionInArr = activeShapeHandler(activeShape);
+
     setCurrentMeasure(positionInArr);
-  }, [activeShape]);
+
+    const checkIfActiveShapeIsVisible = visibleShapesData.some(
+      (m) => m.shapeId === activeShape && m.shapeId !== 5555
+    );
+
+    if (!checkIfActiveShapeIsVisible) {
+      console.log('www active !!!!!');
+      setStepAfterCreating(true);
+    }
+  }, [activeShape, measurementsData]);
 
   const decreaseCurrentHandler = () => {
     dispatch(setMoveToShape(null));
