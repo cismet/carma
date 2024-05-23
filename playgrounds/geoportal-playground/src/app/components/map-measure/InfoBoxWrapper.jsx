@@ -43,10 +43,27 @@ const InfoBoxWrapper = () => {
     } else {
       console.log('www visibleShapesData', visibleShapesData);
 
-      const initialCureentMeasure =
-        visibleShapesData.length - 1 < 0 ? 0 : visibleShapesData.length - 1;
-      setCurrentMeasure(initialCureentMeasure);
-      setOldDataLength(measurementsData.length);
+      const checkIfActiveShapeIsVisible = visibleShapesData.some(
+        (m) => m.shapeId === activeShape && m.shapeId !== 5555
+      );
+      const checkIfActiveShapeIs5555 = visibleShapesData.some(
+        (m) => m.shapeId === 5555
+      );
+
+      console.log('www visible shape', checkIfActiveShapeIsVisible);
+
+      if (!checkIfActiveShapeIsVisible) {
+        const initialCureentMeasure =
+          visibleShapesData.length - 1 < 0 ? 0 : visibleShapesData.length - 1;
+        setCurrentMeasure(initialCureentMeasure);
+        setOldDataLength(measurementsData.length);
+      }
+      if (checkIfActiveShapeIs5555) {
+        const initialCureentMeasure =
+          visibleShapesData.length - 1 < 0 ? 0 : visibleShapesData.length - 1;
+        setCurrentMeasure(initialCureentMeasure);
+        setOldDataLength(measurementsData.length);
+      }
     }
   }, [visibleShapesData, moveToShape, updateShape, measurementsData]);
 
@@ -58,6 +75,8 @@ const InfoBoxWrapper = () => {
   }, [currentMeasure]);
 
   useEffect(() => {
+    console.log('www visible active');
+
     const positionInArr = activeShapeHandler(activeShape);
     setCurrentMeasure(positionInArr);
   }, [activeShape]);
