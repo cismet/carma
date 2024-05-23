@@ -87,11 +87,11 @@ const MapMeasurement = (props) => {
 
   useEffect(() => {
     dispatch(setShapes(polygons));
-    if (polygons.length !== 0) {
+    if (polygons.length !== 0 && !updateShapeStatus) {
       console.log('www updateStatus/active shape');
       dispatch(setActiveShape(polygons[polygons.length - 1].shapeId));
     }
-  }, [polygons]);
+  }, [polygons, updateShapeStatus]);
 
   useEffect(() => {
     if (measureControl && activeShape) {

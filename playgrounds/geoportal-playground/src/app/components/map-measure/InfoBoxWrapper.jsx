@@ -36,13 +36,15 @@ const InfoBoxWrapper = () => {
       dispatch(setActiveShape(moveToShape));
       const positionInArr = activeShapeHandler(activeShape);
       setCurrentMeasure(positionInArr);
+    } else if (updateShape) {
+      console.log('www update shape');
     } else {
       console.log('www move visible set');
       const initialCureentMeasure =
         visibleShapesData.length - 1 < 0 ? 0 : visibleShapesData.length - 1;
       setCurrentMeasure(initialCureentMeasure);
     }
-  }, [visibleShapesData, moveToShape]);
+  }, [visibleShapesData, moveToShape, updateShape]);
 
   useEffect(() => {
     console.log('nnn', currentMeasure);
