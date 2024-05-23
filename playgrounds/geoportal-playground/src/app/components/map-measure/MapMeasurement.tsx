@@ -52,6 +52,9 @@ const MapMeasurement = (props) => {
 
   const [measureControl, setMeasureControl] = useState(null);
   const [polygons, setPolygons] = useState(measurementShapes);
+  const [polygonsLength, setPolygonsLength] = useState(
+    measurementShapes.length
+  );
   const [visiblePolylines, setVisiblePolylines] = useState();
   const [drawingShape, setDrawingLine] = useState(null);
 
@@ -87,8 +90,12 @@ const MapMeasurement = (props) => {
 
   useEffect(() => {
     dispatch(setShapes(polygons));
-    if (polygons.length !== 0 && !updateShapeStatus) {
-      console.log('www updateStatus/active shape');
+    const checkUpdateAction = polygonsLength === polygons.length;
+    if (polygons.length !== 0 && !updateShapeStatus && !checkUpdateAction) {
+      // console.log('www polygons length', polygonsLength);
+      // console.log('www new polygons length', polygons.length);
+      console.log('www polygons shange', checkUpdateAction);
+      setPolygonsLength(polygons.length);
       dispatch(setActiveShape(polygons[polygons.length - 1].shapeId));
     }
   }, [polygons, updateShapeStatus]);

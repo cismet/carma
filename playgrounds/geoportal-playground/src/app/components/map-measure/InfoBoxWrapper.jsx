@@ -27,24 +27,29 @@ const InfoBoxWrapper = () => {
   const updateShape = useSelector(getUpdateShapeToShape);
   const dispatch = useDispatch();
   const [currentMeasure, setCurrentMeasure] = useState(0);
-  // const [oldDataLength, setOldDataLength] = useState(visibleShapesData.length);
+  const [oldDataLength, setOldDataLength] = useState(measurementsData.length);
 
   useEffect(() => {
+    const checkUpdateAction = oldDataLength === measurementsData.length;
+    console.log('www checkUpdateAction info', checkUpdateAction);
     if (moveToShape) {
       console.log('www move visible skip');
       console.log('www move true', moveToShape);
       dispatch(setActiveShape(moveToShape));
       const positionInArr = activeShapeHandler(activeShape);
       setCurrentMeasure(positionInArr);
-    } else if (updateShape) {
+    } else if (updateShape && checkUpdateAction) {
       console.log('www update shape');
     } else {
-      console.log('www move visible set');
-      const initialCureentMeasure =
-        visibleShapesData.length - 1 < 0 ? 0 : visibleShapesData.length - 1;
-      setCurrentMeasure(initialCureentMeasure);
+      if (!checkUpdateAction) {
+        console.log('www move visible set');
+        const initialCureentMeasure =
+          visibleShapesData.length - 1 < 0 ? 0 : visibleShapesData.length - 1;
+        setCurrentMeasure(initialCureentMeasure);
+        setOldDataLength(measurementsData.length);
+      }
     }
-  }, [visibleShapesData, moveToShape, updateShape]);
+  }, [visibleShapesData, moveToShape, updateShape, measurementsData]);
 
   useEffect(() => {
     console.log('nnn', currentMeasure);
