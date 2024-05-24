@@ -279,11 +279,11 @@ L.Control.MeasurePolygon = L.Control.extend({
         });
       });
 
-      if (!this.options.activeShape) {
-        const lastShape = this.options.shapes[this.options.shapes.length - 1];
-        const center = L.latLngBounds(lastShape.coordinates).getCenter();
-        map.setView(center, 17);
-      }
+      // if (!this.options.activeShape) {
+      //   const lastShape = this.options.shapes[this.options.shapes.length - 1];
+      //   const center = L.latLngBounds(lastShape.coordinates).getCenter();
+      //   map.setView(center, 17);
+      // }
     }
 
     map.on('draw:created', (event) => {
