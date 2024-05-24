@@ -173,7 +173,7 @@ L.Control.MeasurePolygon = L.Control.extend({
   showActiveShape: function (map, coordinates) {
     this.options.moveToShape = true;
     const center = L.latLngBounds(coordinates).getCenter();
-    map.setView(center, 15);
+    map.setView(center, 18);
   },
 
   _onPolygonClick: function (map, event) {
