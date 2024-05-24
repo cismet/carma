@@ -9,6 +9,7 @@ const initialState = {
   drawingShape: false,
   moveToShape: null,
   updateShape: false,
+  mapMovingEnd: false,
 };
 
 const slice = createSlice({
@@ -39,6 +40,9 @@ const slice = createSlice({
     setUpdateShape(state, action) {
       state.updateShape = action.payload;
     },
+    setMapMovingEnd(state, action) {
+      state.mapMovingEnd = action.payload;
+    },
   },
 });
 
@@ -53,6 +57,7 @@ export const {
   setDeleteMeasurements,
   setMoveToShape,
   setUpdateShape,
+  setMapMovingEnd,
 } = slice.actions;
 
 export const getShapes = (state) => {
@@ -78,4 +83,7 @@ export const getMoveToShape = (state) => {
 };
 export const getUpdateShapeToShape = (state) => {
   return state.measurements.updateShape;
+};
+export const getMapMovingEnd = (state) => {
+  return state.measurements.mapMovingEnd;
 };
