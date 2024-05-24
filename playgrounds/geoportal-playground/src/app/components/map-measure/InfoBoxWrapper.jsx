@@ -45,6 +45,7 @@ const InfoBoxWrapper = () => {
       dispatch(setActiveShape(moveToShape));
       const positionInArr = activeShapeHandler(activeShape);
       setCurrentMeasure(positionInArr);
+      dispatch(setMoveToShape(null));
     } else if (updateShape) {
       console.log('www visible b');
       setStepAfterUpdating(true);
