@@ -11,6 +11,8 @@ import {
   getMoveToShape,
   setMoveToShape,
   getDrawingShape,
+  setMapMovingEnd,
+  getMapMovingEnd,
 } from '../../store/slices/measurements';
 import { useSelector, useDispatch } from 'react-redux';
 import { useState, useEffect } from 'react';
@@ -27,6 +29,7 @@ const InfoBoxWrapper = () => {
   const moveToShape = useSelector(getMoveToShape);
   const updateShape = useSelector(getUpdateShapeToShape);
   const drawingMode = useSelector(getDrawingShape);
+  const mapMovingEnd = useSelector(getMapMovingEnd);
   const dispatch = useDispatch();
   const [currentMeasure, setCurrentMeasure] = useState(0);
   const [oldDataLength, setOldDataLength] = useState(measurementsData.length);
@@ -34,31 +37,37 @@ const InfoBoxWrapper = () => {
   const [stepAfterCreating, setStepAfterCreating] = useState(false);
 
   useEffect(() => {
-    console.log('www visible drawing mode', drawingMode);
-    console.log('www visible updateShape mode', updateShape);
-    console.log('www visible step after updating mode', updateShape);
+    // console.log('www visible drawing mode', drawingMode);
+    // console.log('www visible updateShape mode', updateShape);
+    // console.log('www visible step after updating mode', updateShape);
     if (moveToShape) {
-      console.log('www move visible skip');
-      console.log('www move true', moveToShape);
+      console.log('www visible a');
       dispatch(setActiveShape(moveToShape));
       const positionInArr = activeShapeHandler(activeShape);
       setCurrentMeasure(positionInArr);
     } else if (updateShape) {
-      console.log('www visible update shape');
+      console.log('www visible b');
       setStepAfterUpdating(true);
-    } else if (!stepAfterUpdating) {
-      console.log('www visible after updating ****!!!!!');
+    } else if (!stepAfterUpdating && !stepAfterCreating) {
+      console.log('www visible c');
       setLastMeasureActive();
       setStepAfterUpdating(false);
     } else if (drawingMode) {
-      console.log('www visible after drawing ****!!!!!');
+      console.log('www visible d');
       setLastMeasureActive();
     } else if (stepAfterCreating) {
-      console.log('www visible stepAfterCreating ****!!!!!');
+      console.log('www visible e');
       setLastMeasureActive();
       setStepAfterCreating(false);
       dispatch(setUpdateShape(false));
+    } else if (mapMovingEnd) {
+      console.log('www visible f');
+      setStepAfterUpdating(false);
+
+      // setLastMeasureActive();
+      dispatch(setMapMovingEnd(false));
     } else {
+      console.log('www visible else');
       // setLastMeasureActive();
     }
   }, [
@@ -67,10 +76,11 @@ const InfoBoxWrapper = () => {
     updateShape,
     stepAfterCreating,
     drawingMode,
+    mapMovingEnd,
   ]);
 
   useEffect(() => {
-    console.log('nnn', currentMeasure);
+    console.log('www visible currentMeasure', currentMeasure);
     if (visibleShapesData[currentMeasure]?.shapeId) {
       dispatch(setActiveShape(visibleShapesData[currentMeasure].shapeId));
     }
@@ -91,10 +101,11 @@ const InfoBoxWrapper = () => {
     const checkOldAndNewMeasurementLength =
       oldDataLength === measurementsData.length;
 
-    console.log('www visible less', checkOldAndNewMeasurementLength);
+    // console.log('www visible less', checkOldAndNewMeasurementLength);
+    console.log('www visible shape id', activeShape);
 
     if (!checkIfActiveShapeIsVisible && !checkOldAndNewMeasurementLength) {
-      console.log('www visible active !!!!!');
+      // console.log('www visible active !!!!!');
       setStepAfterCreating(true);
     }
 
