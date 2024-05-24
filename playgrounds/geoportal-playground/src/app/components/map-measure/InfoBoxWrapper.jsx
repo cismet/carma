@@ -46,24 +46,20 @@ const InfoBoxWrapper = () => {
     } else if (updateShape) {
       console.log('www visible update shape');
       setStepAfterUpdating(true);
+    } else if (!stepAfterUpdating) {
+      console.log('www visible after updating ****!!!!!');
+      setLastMeasureActive();
+      setStepAfterUpdating(false);
+    } else if (drawingMode) {
+      console.log('www visible after drawing ****!!!!!');
+      setLastMeasureActive();
+    } else if (stepAfterCreating) {
+      console.log('www visible stepAfterCreating ****!!!!!');
+      setLastMeasureActive();
+      setStepAfterCreating(false);
+      dispatch(setUpdateShape(false));
     } else {
-      if (!stepAfterUpdating) {
-        console.log('www visible after updating ****!!!!!');
-        setLastMeasureActive();
-        setStepAfterUpdating(false);
-      }
-
-      if (drawingMode) {
-        console.log('www visible after drawing ****!!!!!');
-        setLastMeasureActive();
-      }
-
-      if (stepAfterCreating) {
-        console.log('www visible stepAfterCreating ****!!!!!');
-        setLastMeasureActive();
-        setStepAfterCreating(false);
-        dispatch(setUpdateShape(false));
-      }
+      // setLastMeasureActive();
     }
   }, [
     visibleShapesData,
@@ -85,7 +81,7 @@ const InfoBoxWrapper = () => {
 
     setCurrentMeasure(positionInArr);
 
-    const checkIfActiveShapeIsVisible = visibleShapesData.some(
+    let checkIfActiveShapeIsVisible = visibleShapesData.some(
       (m) => m.shapeId === activeShape
     );
     // const checkIfActiveShapeIsVisible = visibleShapesData.some(
