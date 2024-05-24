@@ -45,25 +45,19 @@ const InfoBoxWrapper = () => {
       setStepAfterUpdating(true);
     } else {
       if (!stepAfterUpdating) {
-        const initialCureentMeasure =
-          visibleShapesData.length - 1 < 0 ? 0 : visibleShapesData.length - 1;
-        setCurrentMeasure(initialCureentMeasure);
+        setLastMeasureActive();
         setStepAfterUpdating(false);
       }
 
       console.log('www visible drawing mode', drawingMode);
 
       if (drawingMode) {
-        const initialCureentMeasure =
-          visibleShapesData.length - 1 < 0 ? 0 : visibleShapesData.length - 1;
-        setCurrentMeasure(initialCureentMeasure);
+        setLastMeasureActive();
       }
 
       if (stepAfterCreating) {
         console.log('www active ****!!!!!');
-        const initialCureentMeasure =
-          visibleShapesData.length - 1 < 0 ? 0 : visibleShapesData.length - 1;
-        setCurrentMeasure(initialCureentMeasure);
+        setLastMeasureActive();
         setStepAfterCreating(false);
       }
     }
@@ -139,6 +133,12 @@ const InfoBoxWrapper = () => {
   };
   const moveToShapeHandler = () => {
     dispatch(setMoveToShape(true));
+  };
+
+  const setLastMeasureActive = () => {
+    const initialCureentMeasure =
+      visibleShapesData.length - 1 < 0 ? 0 : visibleShapesData.length - 1;
+    setCurrentMeasure(initialCureentMeasure);
   };
 
   return (
