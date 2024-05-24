@@ -59,12 +59,19 @@ const InfoBoxWrapper = () => {
       }
 
       if (stepAfterCreating) {
-        console.log('www visible active ****!!!!!');
+        console.log('www visible stepAfterCreating ****!!!!!');
         setLastMeasureActive();
         setStepAfterCreating(false);
+        dispatch(setUpdateShape(false));
       }
     }
-  }, [visibleShapesData, moveToShape, updateShape, stepAfterCreating]);
+  }, [
+    visibleShapesData,
+    moveToShape,
+    updateShape,
+    stepAfterCreating,
+    drawingMode,
+  ]);
 
   useEffect(() => {
     console.log('nnn', currentMeasure);
@@ -79,13 +86,16 @@ const InfoBoxWrapper = () => {
     setCurrentMeasure(positionInArr);
 
     const checkIfActiveShapeIsVisible = visibleShapesData.some(
-      (m) => m.shapeId === activeShape && m.shapeId !== 5555
+      (m) => m.shapeId === activeShape
     );
+    // const checkIfActiveShapeIsVisible = visibleShapesData.some(
+    //   (m) => m.shapeId === activeShape && m.shapeId !== 5555
+    // );
 
     const checkOldAndNewMeasurementLength =
       oldDataLength === measurementsData.length;
 
-    console.log('www active data less', checkOldAndNewMeasurementLength);
+    console.log('www visible less', checkOldAndNewMeasurementLength);
 
     if (!checkIfActiveShapeIsVisible && !checkOldAndNewMeasurementLength) {
       console.log('www visible active !!!!!');

@@ -296,6 +296,10 @@ L.Control.MeasurePolygon = L.Control.extend({
       const layer = event.layer;
       layer.on('dblclick', this._onPolygonClick.bind(this, map));
 
+      layer.on('editable:vertex:dragend', () => {
+        this.options.cbSetUpdateStatusHandler(false);
+      });
+
       let plugin = this;
 
       // Add style to polygon
