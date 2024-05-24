@@ -34,6 +34,9 @@ const InfoBoxWrapper = () => {
   const [stepAfterCreating, setStepAfterCreating] = useState(false);
 
   useEffect(() => {
+    console.log('www visible drawing mode', drawingMode);
+    console.log('www visible updateShape mode', updateShape);
+    console.log('www visible step after updating mode', updateShape);
     if (moveToShape) {
       console.log('www move visible skip');
       console.log('www move true', moveToShape);
@@ -41,22 +44,22 @@ const InfoBoxWrapper = () => {
       const positionInArr = activeShapeHandler(activeShape);
       setCurrentMeasure(positionInArr);
     } else if (updateShape) {
-      console.log('www update shape');
+      console.log('www visible update shape');
       setStepAfterUpdating(true);
     } else {
       if (!stepAfterUpdating) {
+        console.log('www visible after updating ****!!!!!');
         setLastMeasureActive();
         setStepAfterUpdating(false);
       }
 
-      console.log('www visible drawing mode', drawingMode);
-
       if (drawingMode) {
+        console.log('www visible after drawing ****!!!!!');
         setLastMeasureActive();
       }
 
       if (stepAfterCreating) {
-        console.log('www active ****!!!!!');
+        console.log('www visible active ****!!!!!');
         setLastMeasureActive();
         setStepAfterCreating(false);
       }
@@ -84,8 +87,8 @@ const InfoBoxWrapper = () => {
 
     console.log('www active data less', checkOldAndNewMeasurementLength);
 
-    if (!checkIfActiveShapeIsVisible || !checkOldAndNewMeasurementLength) {
-      console.log('www active !!!!!');
+    if (!checkIfActiveShapeIsVisible && !checkOldAndNewMeasurementLength) {
+      console.log('www visible active !!!!!');
       setStepAfterCreating(true);
     }
 
