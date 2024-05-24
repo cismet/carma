@@ -31,6 +31,8 @@ import {
   setMoveToShape,
   setUpdateShape,
   getUpdateShapeToShape,
+  setMapMovingEnd,
+  getMapMovingEnd,
 } from '../../store/slices/measurements';
 interface TopicMapContextType {
   routedMapRef: any;
@@ -48,7 +50,7 @@ const MapMeasurement = (props) => {
   const deleteShape = useSelector(getDeleteMeasurements);
   const visibleShapes = useSelector(getVisibleShapes);
   const moveToShape = useSelector(getMoveToShape);
-  // const drawingShapeDistance = useSelector(getDrawingShapesetDistance);
+  const mapMovingEnd = useSelector(getMapMovingEnd);
 
   const [measureControl, setMeasureControl] = useState(null);
   const [polygons, setPolygons] = useState(measurementShapes);
@@ -80,6 +82,7 @@ const MapMeasurement = (props) => {
         measurementOrder: findLargestNumber(measurementShapes),
         cbSetActiveShape: setActiveShapeHandler,
         cbSetUpdateStatusHandler: setUpdateStatusHandler,
+        cbMapMovingEndHandler: mapMovingEndHandler,
       };
 
       const measurePolygonControl = L.control.measurePolygon(customOptions);
@@ -225,6 +228,9 @@ const MapMeasurement = (props) => {
   };
   const setUpdateStatusHandler = (status) => {
     dispatch(setUpdateShape(status));
+  };
+  const mapMovingEndHandler = (status) => {
+    dispatch(setMapMovingEnd(status));
   };
 
   return (

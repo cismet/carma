@@ -51,6 +51,9 @@ L.Control.MeasurePolygon = L.Control.extend({
     cbSetUpdateStatusHandler: function () {
       console.log('Callback function executed!');
     },
+    cbMapMovingEndHandler: function () {
+      console.log('Callback function executed!');
+    },
     visiblePolylines: [],
     localShapeStore: [],
     ifDrawing: false,
@@ -391,6 +394,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     map.on('moveend', () => {
       const allPolyLines = this.getVisiblePolylines(map);
       this.getVisiblePolylinesIds(allPolyLines);
+      this.options.cbMapMovingEndHandler(true);
     });
 
     return iconsWrapper;
