@@ -33,6 +33,7 @@ const InfoBoxWrapper = () => {
   const dispatch = useDispatch();
   const [currentMeasure, setCurrentMeasure] = useState(0);
   const [oldDataLength, setOldDataLength] = useState(measurementsData.length);
+  const [stepAfterMoveToShape, setStepAfterMoveToShape] = useState(null);
   const [stepAfterUpdating, setStepAfterUpdating] = useState(false);
   const [stepAfterCreating, setStepAfterCreating] = useState(false);
 
@@ -40,19 +41,28 @@ const InfoBoxWrapper = () => {
     // console.log('www visible drawing mode', drawingMode);
     // console.log('www visible updateShape mode', updateShape);
     // console.log('www visible step after updating mode', updateShape);
+
     if (moveToShape) {
       console.log('www visible a');
       dispatch(setActiveShape(moveToShape));
       const positionInArr = activeShapeHandler(activeShape);
-      setCurrentMeasure(positionInArr);
+      setStepAfterMoveToShape(activeShape);
+      // setCurrentMeasure(positionInArr);
       dispatch(setMoveToShape(null));
     } else if (updateShape) {
       console.log('www visible b');
       setStepAfterUpdating(true);
     } else if (!stepAfterUpdating && !stepAfterCreating) {
       console.log('www visible c');
-      setLastMeasureActive();
-      setStepAfterUpdating(false);
+      if (stepAfterMoveToShape) {
+        const positionInArr = activeShapeHandler(stepAfterMoveToShape);
+        setCurrentMeasure(positionInArr);
+        setStepAfterUpdating(false);
+        setStepAfterMoveToShape(null);
+      } else {
+        setLastMeasureActive();
+        setStepAfterUpdating(false);
+      }
     } else if (drawingMode) {
       console.log('www visible d');
       setLastMeasureActive();
@@ -78,6 +88,7 @@ const InfoBoxWrapper = () => {
     stepAfterCreating,
     drawingMode,
     mapMovingEnd,
+    // oldVisibleDataLength,
   ]);
 
   useEffect(() => {

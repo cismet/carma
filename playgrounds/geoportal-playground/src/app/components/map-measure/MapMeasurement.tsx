@@ -114,7 +114,7 @@ const MapMeasurement = (props) => {
       console.log('www coordinates', shapeCoordinates);
       console.log('www move to shape', moveToShape);
       if (ifDrawing) {
-        dispatch(setMoveToShape(false));
+        dispatch(setMoveToShape(null));
       }
 
       if (shapeCoordinates[0]?.shapeId && !ifDrawing && !deleteShape) {
