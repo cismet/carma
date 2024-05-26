@@ -21,6 +21,7 @@ import {
   faTrashCan,
   faMagnifyingGlassLocation,
 } from '@fortawesome/free-solid-svg-icons';
+import MeasurementTitle from './MeasurementTitle';
 
 const InfoBoxMeasurement = () => {
   const measurementsData = useSelector(getShapes);
@@ -181,7 +182,7 @@ const InfoBoxMeasurement = () => {
           header={
             <div className="w-full bg-blue-500 py-0.5 pl-1">Messungen</div>
           }
-          s
+          // s
           alwaysVisibleDiv={
             <div className="mt-2 mb-2 w-[96%] flex justify-between items-center">
               <span
@@ -194,6 +195,9 @@ const InfoBoxMeasurement = () => {
                 }
               >
                 Linienzug #{visibleShapesData[currentMeasure].number}
+                <MeasurementTitle
+                  title={visibleShapesData[currentMeasure].number}
+                />
               </span>
               <div>{visibleShapesData[currentMeasure].shapeId}</div>
               <div className="flex justify-between items-center w-[12%] gap-1">
