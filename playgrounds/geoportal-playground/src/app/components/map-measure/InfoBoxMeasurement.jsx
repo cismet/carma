@@ -22,7 +22,7 @@ import {
   faMagnifyingGlassLocation,
 } from '@fortawesome/free-solid-svg-icons';
 
-const InfoBoxWrapper = () => {
+const InfoBoxMeasurement = () => {
   const measurementsData = useSelector(getShapes);
   const visibleShapesData = useSelector(getVisibleShapes);
   const activeShape = useSelector(getActiveShapes);
@@ -253,4 +253,4 @@ const InfoBoxWrapper = () => {
   );
 };
 
-export default InfoBoxWrapper;
+export default InfoBoxMeasurement;
