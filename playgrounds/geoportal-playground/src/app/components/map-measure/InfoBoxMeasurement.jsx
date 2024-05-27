@@ -156,6 +156,33 @@ const InfoBoxMeasurement = () => {
     console.log('www place', activeShapePosition);
     return activeShapePosition;
   };
+
+  const getPositionInAllArray = (shapeId) => {
+    console.log('www positionInArr', measurementsData);
+
+    let activeShapePosition = null;
+    measurementsData.forEach((s, idx) => {
+      if (s.shapeId === shapeId) {
+        activeShapePosition = idx;
+      }
+    });
+
+    console.log('www place', activeShapePosition);
+    return activeShapePosition;
+  };
+
+  const getOrderOfShape = (shapeId) => {
+    let position;
+    if (shapeId === 5555) {
+      console.log('ppp', measurementsData.length);
+      position =
+        measurementsData.length === 0 ? 1 : measurementsData.length + 1;
+    } else {
+      position = getPositionInAllArray(shapeId) + 1;
+    }
+    return position;
+  };
+
   const deleteShapeHandler = () => {
     dispatch(setDeleteMeasurements(true));
   };
@@ -190,12 +217,18 @@ const InfoBoxMeasurement = () => {
                 }
               >
                 {/* Linienzug #{visibleShapesData[currentMeasure].number} */}
+                <span>
+                  Order
+                  {getOrderOfShape(visibleShapesData[currentMeasure].shapeId)}
+                </span>
                 <MeasurementTitle
-                  key={visibleShapesData[currentMeasure].number}
-                  title={`Linienzug #${visibleShapesData[currentMeasure].number}`}
+                  key={visibleShapesData[currentMeasure].shapeId}
+                  title={`Linienzug #${getOrderOfShape(
+                    visibleShapesData[currentMeasure].shapeId
+                  )}`}
                 />
               </span>
-              {/* <div>{visibleShapesData[currentMeasure].shapeId}</div> */}
+              <div>{visibleShapesData[currentMeasure].shapeId}</div>
               <div className="flex justify-between items-center w-[12%] mt-1 gap-2">
                 <Icon
                   name="search-location"
