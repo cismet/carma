@@ -10,9 +10,7 @@ const MeasurementTitle = ({ title }) => {
         contentEditable
         className="text-[14px]"
         dangerouslySetInnerHTML={{ __html: capitalizeFirstLetter(content) }}
-      >
-        {/* {capitalizeFirstLetter(content)} */}
-      </div>
+      ></div>
     </div>
   );
 };
