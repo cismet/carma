@@ -22,6 +22,8 @@ import {
   faMagnifyingGlassLocation,
 } from '@fortawesome/free-solid-svg-icons';
 import MeasurementTitle from './MeasurementTitle';
+import { faSearch } from '@fortawesome/free-solid-svg-icons';
+import Icon from 'react-cismap/commons/Icon';
 
 const InfoBoxMeasurement = () => {
   const measurementsData = useSelector(getShapes);
@@ -202,14 +204,14 @@ const InfoBoxMeasurement = () => {
               </span>
               {/* <div>{visibleShapesData[currentMeasure].shapeId}</div> */}
               <div className="flex justify-between items-center w-[12%] gap-1">
-                <FontAwesomeIcon
+                <Icon
+                  name="search-location"
                   onClick={() =>
                     dispatch(
                       setMoveToShape(visibleShapesData[currentMeasure].shapeId)
                     )
                   }
                   className="cursor-pointer text-[16px] text-[#808080]"
-                  icon={faMagnifyingGlassLocation}
                 />
                 <FontAwesomeIcon
                   onClick={deleteShapeHandler}
