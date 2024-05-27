@@ -186,7 +186,7 @@ const InfoBoxMeasurement = () => {
           }
           // s
           alwaysVisibleDiv={
-            <div className="mt-2 mb-2 w-[96%] flex justify-between items-center">
+            <div className="mt-2 mb-2 w-[96%] flex justify-between items-center gap-2">
               <span
                 style={{ cursor: 'pointer' }}
                 // className="capitalize text-[14px]"
