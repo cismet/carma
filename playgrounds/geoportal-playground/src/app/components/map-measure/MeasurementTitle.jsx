@@ -7,14 +7,14 @@ const MeasurementTitle = ({ title }) => {
     <div>
       <div
         onBlur={(t) => {
-          console.log('iii blur');
+          console.log('iii blur', t);
           setContent(t.currentTarget.innerHTML);
         }}
         onFocus={(t) => {
           console.log('iii focus');
         }}
         contentEditable
-        className="text-[14px]"
+        className="text-[14px] min-h-[40px] min-w-[100px]"
         dangerouslySetInnerHTML={{ __html: capitalizeFirstLetter(content) }}
       ></div>
     </div>
