@@ -46,17 +46,13 @@ const InfoBoxMeasurement = () => {
     // console.log('www visible step after updating mode', updateShape);
 
     if (moveToShape) {
-      console.log('www visible a');
       dispatch(setActiveShape(moveToShape));
       const positionInArr = activeShapeHandler(activeShape);
       setStepAfterMoveToShape(activeShape);
-      // setCurrentMeasure(positionInArr);
       dispatch(setMoveToShape(null));
     } else if (updateShape) {
-      console.log('www visible b');
       setStepAfterUpdating(true);
     } else if (!stepAfterUpdating && !stepAfterCreating) {
-      console.log('www visible c');
       if (stepAfterMoveToShape) {
         const positionInArr = activeShapeHandler(stepAfterMoveToShape);
         setCurrentMeasure(positionInArr);
@@ -67,15 +63,12 @@ const InfoBoxMeasurement = () => {
         setStepAfterUpdating(false);
       }
     } else if (drawingMode) {
-      console.log('www visible d');
       setLastMeasureActive();
     } else if (stepAfterCreating) {
-      console.log('www visible e');
       setLastMeasureActive();
       setStepAfterCreating(false);
       dispatch(setUpdateShape(false));
     } else if (mapMovingEnd) {
-      console.log('www visible f');
       setStepAfterUpdating(false);
 
       // setLastMeasureActive();

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 
 const MeasurementTitle = ({ title }) => {
   const [content, setContent] = React.useState(title);
@@ -6,7 +6,13 @@ const MeasurementTitle = ({ title }) => {
   return (
     <div>
       <div
-        onBlur={(t) => setContent(t.currentTarget.innerHTML)}
+        onBlur={(t) => {
+          console.log('iii blur');
+          setContent(t.currentTarget.innerHTML);
+        }}
+        onFocus={(t) => {
+          console.log('iii focus');
+        }}
         contentEditable
         className="text-[14px]"
         dangerouslySetInnerHTML={{ __html: capitalizeFirstLetter(content) }}
