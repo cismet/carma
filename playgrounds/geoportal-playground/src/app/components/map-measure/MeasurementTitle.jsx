@@ -9,13 +9,9 @@ const MeasurementTitle = ({ title }) => {
         onBlur={(t) => setContent(t.currentTarget.innerHTML)}
         contentEditable
         className="text-[14px]"
-        // style={{
-        //   border: '1px solid black',
-        //   padding: '10px',
-        //   minHeight: '20px',
-        // }}
+        dangerouslySetInnerHTML={{ __html: capitalizeFirstLetter(content) }}
       >
-        {capitalizeFirstLetter(content)}
+        {/* {capitalizeFirstLetter(content)} */}
       </div>
     </div>
   );

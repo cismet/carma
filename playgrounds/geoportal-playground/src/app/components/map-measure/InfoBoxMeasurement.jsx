@@ -186,7 +186,7 @@ const InfoBoxMeasurement = () => {
           }
           // s
           alwaysVisibleDiv={
-            <div className="mt-2 mb-2 w-[96%] flex justify-between items-center gap-2">
+            <div className="mt-2 mb-2 w-[96%] flex justify-between items-start gap-4">
               <span
                 style={{ cursor: 'pointer' }}
                 // className="capitalize text-[14px]"
@@ -203,7 +203,7 @@ const InfoBoxMeasurement = () => {
                 />
               </span>
               {/* <div>{visibleShapesData[currentMeasure].shapeId}</div> */}
-              <div className="flex justify-between items-center w-[12%] gap-1">
+              <div className="flex justify-between items-center w-[12%] mt-1 gap-2">
                 <Icon
                   name="search-location"
                   onClick={() =>
