@@ -39,6 +39,7 @@ const InfoBoxMeasurement = () => {
   const [stepAfterMoveToShape, setStepAfterMoveToShape] = useState(null);
   const [stepAfterUpdating, setStepAfterUpdating] = useState(false);
   const [stepAfterCreating, setStepAfterCreating] = useState(false);
+  const [firstLoading, setFirstLoading] = useState(true);
 
   useEffect(() => {
     // console.log('www visible drawing mode', drawingMode);
@@ -47,29 +48,46 @@ const InfoBoxMeasurement = () => {
 
     if (moveToShape) {
       dispatch(setActiveShape(moveToShape));
+      console.log('www a');
+
       const positionInArr = activeShapeHandler(activeShape);
       setStepAfterMoveToShape(activeShape);
       dispatch(setMoveToShape(null));
     } else if (updateShape) {
       setStepAfterUpdating(true);
+      console.log('www b');
     } else if (!stepAfterUpdating && !stepAfterCreating) {
+      console.log('www c');
       if (stepAfterMoveToShape) {
+        console.log('www c a');
         const positionInArr = activeShapeHandler(stepAfterMoveToShape);
         setCurrentMeasure(positionInArr);
         setStepAfterUpdating(false);
         setStepAfterMoveToShape(null);
+      } else if (visibleShapesData.length === 1) {
+        setLastMeasureActive();
+        console.log('www c b');
+        console.log('www c b', visibleShapesData.length);
+        console.log('www c b', visibleShapesData);
+        dispatch(setActiveShape(visibleShapesData[0].shapeId));
       } else {
         setLastMeasureActive();
         setStepAfterUpdating(false);
+        console.log('www c c');
       }
     } else if (drawingMode) {
+      console.log('www d');
+
       setLastMeasureActive();
     } else if (stepAfterCreating) {
+      console.log('www e');
+
       setLastMeasureActive();
       setStepAfterCreating(false);
       dispatch(setUpdateShape(false));
     } else if (mapMovingEnd) {
       setStepAfterUpdating(false);
+      console.log('www f');
 
       // setLastMeasureActive();
       dispatch(setMapMovingEnd(false));
@@ -88,7 +106,13 @@ const InfoBoxMeasurement = () => {
   ]);
 
   useEffect(() => {
-    console.log('www visible currentMeasure', currentMeasure);
+    console.log(
+      'www currentMeasure visibleShapesData',
+      visibleShapesData.length
+    );
+    if (visibleShapesData[currentMeasure]?.shapeId) {
+      dispatch(setActiveShape(visibleShapesData[currentMeasure].shapeId));
+    }
     if (visibleShapesData[currentMeasure]?.shapeId) {
       dispatch(setActiveShape(visibleShapesData[currentMeasure].shapeId));
     }
@@ -109,11 +133,7 @@ const InfoBoxMeasurement = () => {
     const checkOldAndNewMeasurementLength =
       oldDataLength === measurementsData.length;
 
-    // console.log('www visible less', checkOldAndNewMeasurementLength);
-    console.log('www visible shape id', activeShape);
-
     if (!checkIfActiveShapeIsVisible && !checkOldAndNewMeasurementLength) {
-      // console.log('www visible active !!!!!');
       setStepAfterCreating(true);
     }
 
@@ -144,37 +164,28 @@ const InfoBoxMeasurement = () => {
   };
 
   const activeShapeHandler = (shapeId) => {
-    console.log('www positionInArr', visibleShapesData);
-
     let activeShapePosition = null;
     visibleShapesData.forEach((s, idx) => {
       if (s.shapeId === shapeId) {
         activeShapePosition = idx;
       }
     });
-
-    console.log('www place', activeShapePosition);
     return activeShapePosition;
   };
 
   const getPositionInAllArray = (shapeId) => {
-    console.log('www positionInArr', measurementsData);
-
     let activeShapePosition = null;
     measurementsData.forEach((s, idx) => {
       if (s.shapeId === shapeId) {
         activeShapePosition = idx;
       }
     });
-
-    console.log('www place', activeShapePosition);
     return activeShapePosition;
   };
 
   const getOrderOfShape = (shapeId) => {
     let position;
     if (shapeId === 5555) {
-      console.log('ppp', measurementsData.length);
       position =
         measurementsData.length === 0 ? 1 : measurementsData.length + 1;
     } else {

@@ -95,31 +95,26 @@ const MapMeasurement = (props) => {
     dispatch(setShapes(polygons));
     const checkUpdateAction = polygonsLength === polygons.length;
     if (polygons.length !== 0 && !updateShapeStatus && !checkUpdateAction) {
-      // console.log('www polygons length', polygonsLength);
-      // console.log('www new polygons length', polygons.length);
-      console.log('www polygons shange', checkUpdateAction);
       setPolygonsLength(polygons.length);
       dispatch(setActiveShape(polygons[polygons.length - 1].shapeId));
     }
   }, [polygons, updateShapeStatus]);
 
   useEffect(() => {
+    console.log('www', deleteShape);
+    console.log('www', measureControl);
+    console.log('www', activeShape);
     if (measureControl && activeShape) {
       const shapeCoordinates = measurementShapes.filter(
         (s) => s.shapeId === activeShape
       );
       const map = routedMapRef.leafletMap.leafletElement;
 
-      console.log('www active shape', activeShape);
-      console.log('www coordinates', shapeCoordinates);
-      console.log('www move to shape', moveToShape);
       if (ifDrawing) {
         dispatch(setMoveToShape(null));
       }
 
       if (shapeCoordinates[0]?.shapeId && !ifDrawing && !deleteShape) {
-        console.log('www coordinates block');
-
         measureControl.changeColorByActivePolyline(
           map,
           shapeCoordinates[0].shapeId
@@ -132,6 +127,7 @@ const MapMeasurement = (props) => {
       }
 
       if (deleteShape) {
+        console.log('www', deleteShape);
         dispatch(setMoveToShape(null));
         measureControl.removePolylineById(map, activeShape);
         const cleanArr = visibleShapes.filter((m) => m.shapeId !== activeShape);
@@ -145,7 +141,6 @@ const MapMeasurement = (props) => {
         dispatch(setDeleteMeasurements(false));
       }
       if (moveToShape && !deleteShape) {
-        console.log('www move block', deleteShape);
         measureControl.showActiveShape(map, shapeCoordinates[0]?.coordinates);
       }
     }
@@ -164,7 +159,6 @@ const MapMeasurement = (props) => {
         visiblePolylines,
         measurementShapes
       );
-      console.log('www set polyline');
       dispatch(setVisibleShapes(cleanedVisibleArr));
     }
   }, [visiblePolylines, measurementShapes]);
@@ -181,8 +175,6 @@ const MapMeasurement = (props) => {
     // setMeasurements({ area: '' });
   };
   const saveShapeHandler = (layer) => {
-    console.log('ppp save', polygons);
-
     setPolygons((prevPolygons) => [...prevPolygons, layer]);
   };
   const deleteShapeHandler = (id) => {
@@ -192,7 +184,6 @@ const MapMeasurement = (props) => {
     });
   };
   const updateShapeHandler = (id, newCoordinates, newDistance) => {
-    console.log('www set polyline', id);
     dispatch(setUpdateShape(true));
 
     setPolygons((prevPolygons) => {
