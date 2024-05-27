@@ -1,6 +1,7 @@
 import ResponsiveInfoBox from 'react-cismap/topicmaps/ResponsiveInfoBox';
 import {
   getShapes,
+  setShapes,
   setActiveShape,
   getActiveShapes,
   getVisibleShapes,
@@ -13,6 +14,7 @@ import {
   getDrawingShape,
   setMapMovingEnd,
   getMapMovingEnd,
+  setVisibleShapes,
 } from '../../store/slices/measurements';
 import { useSelector, useDispatch } from 'react-redux';
 import { useState, useEffect } from 'react';
@@ -207,6 +209,32 @@ const InfoBoxMeasurement = () => {
     setCurrentMeasure(initialCureentMeasure);
   };
 
+  const setMeasurementById = (shapeId, customTitle) => {
+    const allMeasurements = measurementsData.map((m) => {
+      if (m.shapeId === shapeId) {
+        return {
+          ...m,
+          customTitle,
+        };
+      }
+
+      return m;
+    });
+    dispatch(setShapes(allMeasurements));
+
+    const visible = visibleShapesData.map((m) => {
+      if (m.shapeId === shapeId) {
+        return {
+          ...m,
+          customTitle,
+        };
+      }
+
+      return m;
+    });
+    dispatch(setVisibleShapes(visible));
+  };
+
   return (
     <div>
       {visibleShapesData[currentMeasure] && (
@@ -234,9 +262,15 @@ const InfoBoxMeasurement = () => {
                 </span>
                 <MeasurementTitle
                   key={visibleShapesData[currentMeasure].shapeId}
-                  title={`Linienzug #${getOrderOfShape(
-                    visibleShapesData[currentMeasure].shapeId
-                  )}`}
+                  title={
+                    visibleShapesData[currentMeasure]?.customTitle
+                      ? visibleShapesData[currentMeasure]?.customTitle
+                      : `Linienzug #${getOrderOfShape(
+                          visibleShapesData[currentMeasure].shapeId
+                        )}`
+                  }
+                  shapeId={visibleShapesData[currentMeasure].shapeId}
+                  setMeasurementById={setMeasurementById}
                 />
               </span>
               <div>{visibleShapesData[currentMeasure].shapeId}</div>

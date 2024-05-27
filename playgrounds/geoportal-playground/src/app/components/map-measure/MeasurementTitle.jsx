@@ -1,7 +1,12 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+const MeasurementTitle = ({ title, shapeId, setMeasurementById }) => {
+  //   const measurementsData = useSelector(getShapes);
 
-const MeasurementTitle = ({ title }) => {
-  const [content, setContent] = React.useState(title);
+  //   const visibleShapesData = useSelector(getVisibleShapes);
+  //   const [oldTitle, setOldTitle] = useState(title);
+  const [content, setContent] = useState(title);
+
+  //   console.log('bbb', measurementsData);
 
   return (
     <div>
@@ -9,6 +14,7 @@ const MeasurementTitle = ({ title }) => {
         onBlur={(t) => {
           console.log('iii blur', t);
           setContent(t.currentTarget.innerHTML);
+          setMeasurementById(shapeId, t.currentTarget.innerHTML);
         }}
         onFocus={(t) => {
           console.log('iii focus');
