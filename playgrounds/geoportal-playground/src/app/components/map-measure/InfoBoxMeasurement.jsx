@@ -187,19 +187,20 @@ const InfoBoxMeasurement = () => {
             <div className="mt-2 mb-2 w-[96%] flex justify-between items-center">
               <span
                 style={{ cursor: 'pointer' }}
-                className="capitalize text-[14px]"
+                // className="capitalize text-[14px]"
                 onClick={() =>
                   dispatch(
                     setActiveShape(visibleShapesData[currentMeasure].shapeId)
                   )
                 }
               >
-                Linienzug #{visibleShapesData[currentMeasure].number}
+                {/* Linienzug #{visibleShapesData[currentMeasure].number} */}
                 <MeasurementTitle
-                  title={visibleShapesData[currentMeasure].number}
+                  key={visibleShapesData[currentMeasure].number}
+                  title={`Linienzug #${visibleShapesData[currentMeasure].number}`}
                 />
               </span>
-              <div>{visibleShapesData[currentMeasure].shapeId}</div>
+              {/* <div>{visibleShapesData[currentMeasure].shapeId}</div> */}
               <div className="flex justify-between items-center w-[12%] gap-1">
                 <FontAwesomeIcon
                   onClick={() =>
