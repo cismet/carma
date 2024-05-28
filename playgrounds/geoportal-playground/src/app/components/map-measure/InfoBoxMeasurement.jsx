@@ -16,6 +16,7 @@ import {
   getMapMovingEnd,
   setVisibleShapes,
   setUpdateTitleStatus,
+  getUpdateTitleStatus,
 } from '../../store/slices/measurements';
 import { useSelector, useDispatch } from 'react-redux';
 import { useState, useEffect } from 'react';
@@ -36,6 +37,7 @@ const InfoBoxMeasurement = () => {
   const updateShape = useSelector(getUpdateShapeToShape);
   const drawingMode = useSelector(getDrawingShape);
   const mapMovingEnd = useSelector(getMapMovingEnd);
+  const updateTitleStatus = useSelector(getUpdateTitleStatus);
   const dispatch = useDispatch();
   const [currentMeasure, setCurrentMeasure] = useState(0);
   const [oldDataLength, setOldDataLength] = useState(measurementsData.length);
@@ -58,6 +60,7 @@ const InfoBoxMeasurement = () => {
       dispatch(setMoveToShape(null));
     } else if (updateShape) {
       setStepAfterUpdating(true);
+
       console.log('www b');
     } else if (!stepAfterUpdating && !stepAfterCreating) {
       console.log('www c');
@@ -74,8 +77,12 @@ const InfoBoxMeasurement = () => {
         console.log('www c b', visibleShapesData);
         dispatch(setActiveShape(visibleShapesData[0].shapeId));
       } else {
-        setLastMeasureActive();
-        setStepAfterUpdating(false);
+        if (updateTitleStatus) {
+          dispatch(setUpdateTitleStatus(false));
+        } else {
+          setLastMeasureActive();
+          setStepAfterUpdating(false);
+        }
         console.log('www c c');
       }
     } else if (drawingMode) {

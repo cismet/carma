@@ -97,15 +97,20 @@ const MapMeasurement = (props) => {
   useEffect(() => {
     if (updateTitleStatus) {
       updateShapeTitleStatusHandler(activeShape);
-      dispatch(setUpdateTitleStatus(false));
+      // dispatch(setUpdateTitleStatus(false));
       dispatch(setUpdateShape(false));
     } else {
       dispatch(setShapes(polygons));
+      // dispatch(setUpdateShape(false));
     }
     const checkUpdateAction = polygonsLength === polygons.length;
     if (polygons.length !== 0 && !updateShapeStatus && !checkUpdateAction) {
       console.log('www adjast shape after creation');
       setPolygonsLength(polygons.length);
+
+      // dispatch(
+      //   setVisibleShapes([...visibleShapes, polygons[polygons.length - 1]])
+      // );
       dispatch(setActiveShape(polygons[polygons.length - 1].shapeId));
     }
   }, [polygons, updateShapeStatus]);
