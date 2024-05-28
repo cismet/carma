@@ -33,6 +33,7 @@ import {
   getUpdateShapeToShape,
   setMapMovingEnd,
   getMapMovingEnd,
+  getUpdateTitleStatus,
 } from '../../store/slices/measurements';
 interface TopicMapContextType {
   routedMapRef: any;
@@ -51,6 +52,7 @@ const MapMeasurement = (props) => {
   const visibleShapes = useSelector(getVisibleShapes);
   const moveToShape = useSelector(getMoveToShape);
   const mapMovingEnd = useSelector(getMapMovingEnd);
+  const updateTitleStatus = useSelector(getUpdateTitleStatus);
 
   const [measureControl, setMeasureControl] = useState(null);
   const [polygons, setPolygons] = useState(measurementShapes);
@@ -92,7 +94,11 @@ const MapMeasurement = (props) => {
   }, [routedMapRef]);
 
   useEffect(() => {
-    dispatch(setShapes(polygons));
+    if (updateTitleStatus) {
+      console.log(updateTitleStatus);
+    } else {
+      dispatch(setShapes(polygons));
+    }
     const checkUpdateAction = polygonsLength === polygons.length;
     if (polygons.length !== 0 && !updateShapeStatus && !checkUpdateAction) {
       setPolygonsLength(polygons.length);
@@ -193,6 +199,24 @@ const MapMeasurement = (props) => {
             ...s,
             coordinates: newCoordinates,
             distance: newDistance,
+          };
+        } else {
+          return s;
+        }
+      });
+      return cleaerShapesArr;
+    });
+  };
+
+  const updateShapeTitleStatusHandler = (id) => {
+    const shapeFromVisible = visibleShapes.filter((s) => s.shapeId === id);
+
+    setPolygons((prevPolygons) => {
+      const cleaerShapesArr = prevPolygons.map((s) => {
+        if (s.shapeId === id) {
+          return {
+            ...s,
+            customTitle: cleaerShapesArr[0].cleaerShapesArr,
           };
         } else {
           return s;
