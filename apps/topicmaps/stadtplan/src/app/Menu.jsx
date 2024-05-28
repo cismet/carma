@@ -18,8 +18,8 @@ import Section from 'react-cismap/topicmaps/menu/Section';
 import LicenseLuftbildkarte from 'react-cismap/topicmaps/wuppertal/LicenseLuftbildkarte';
 import LicenseStadtplanTagNacht from 'react-cismap/topicmaps/wuppertal/LicenseStadtplanTagNacht';
 import { Link } from 'react-scroll';
-//import GenericDigitalTwinReferenceTextComponent from '@carma/custom-wupp-components/lib/help/GenericDigitalTwinReferenceTextComponent';
-import { GenericDigitalTwinReferenceTextComponent } from '@carma/custom-wupp-components';
+import GenericDigitalTwinReferenceTextComponent from '@carma/custom-wupp-components/lib/help/GenericDigitalTwinReferenceTextComponent';
+// import { GenericDigitalTwinReferenceTextComponent } from '@carma/custom-wupp-components';
 
 import FilterUI from './FilterUI';
 import MenuFooter from './MenuFooter';
