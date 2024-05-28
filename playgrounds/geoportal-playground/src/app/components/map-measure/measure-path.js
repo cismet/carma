@@ -118,6 +118,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     layer.customID = shapeId;
     layer.on('click', () => {
       this.options.cbSetActiveShape(layer.customID);
+      this.options.cbSetUpdateStatusHandler(false);
       console.log('ccc', layer.customID);
     });
     const prepeareCoordinates =
@@ -171,14 +172,6 @@ L.Control.MeasurePolygon = L.Control.extend({
       : polyline._leaflet_id;
 
     this.options.cbUpdateShape(shapeId, reversedCoordinates, newDistance);
-  },
-
-  showActiveShape: function (map, coordinates) {
-    this.options.moveToShape = true;
-    // const center = L.latLngBounds(coordinates).getCenter();
-    // map.setView(center, 18);
-    const bounds = L.latLngBounds(coordinates);
-    map.fitBounds(bounds);
   },
 
   _onPolygonClick: function (map, event) {
@@ -273,6 +266,7 @@ L.Control.MeasurePolygon = L.Control.extend({
         savedShape.on('dblclick', this._onPolygonClick.bind(this, map));
         savedShape.on('click', () => {
           this.options.cbSetActiveShape(savedShape.customID);
+          this.options.cbSetUpdateStatusHandler(false);
         });
         savedShape.on(
           'editable:drag editable:dragstart editable:dragend editable:vertex:drag editable:vertex:deleted',
@@ -397,6 +391,7 @@ L.Control.MeasurePolygon = L.Control.extend({
       const allPolyLines = this.getVisiblePolylines(map);
       this.getVisiblePolylinesIds(allPolyLines);
       this.options.cbMapMovingEndHandler(true);
+      this.options.cbSetUpdateStatusHandler(false);
     });
 
     return iconsWrapper;
@@ -563,6 +558,14 @@ L.Control.MeasurePolygon = L.Control.extend({
         map.removeLayer(layer);
       }
     });
+  },
+
+  showActiveShape: function (map, coordinates) {
+    this.options.moveToShape = true;
+    // const center = L.latLngBounds(coordinates).getCenter();
+    // map.setView(center, 18);
+    const bounds = L.latLngBounds(coordinates);
+    map.fitBounds(bounds);
   },
 
   fitMapToPolylines: function (map, polylines) {

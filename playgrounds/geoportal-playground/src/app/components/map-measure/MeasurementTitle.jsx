@@ -1,5 +1,10 @@
-import { useState } from 'react';
-const MeasurementTitle = ({ title, shapeId, setMeasurementById }) => {
+import { useState, useEffect } from 'react';
+const MeasurementTitle = ({
+  title,
+  shapeId,
+  updateTitleMeasurementById,
+  setUpdateMeasurementStatus,
+}) => {
   const [content, setContent] = useState(title);
   const [oldContent, setOldContent] = useState(title);
 
@@ -16,6 +21,19 @@ const MeasurementTitle = ({ title, shapeId, setMeasurementById }) => {
         //   setContent(t.currentTarget.innerHTML);
         //   setMeasurementById(shapeId, t.currentTarget.innerHTML);
         // }}
+        // onBlur={(t) => {
+        //   console.log('ccc', t.currentTarget.textContent.length);
+        //   setContent(t.currentTarget.innerHTML);
+        //   if (t.currentTarget.textContent.length === 0) {
+        //     console.log('ccc 000', oldContent);
+        //     setContent(oldContent);
+        //     t.currentTarget.textContent = oldContent;
+        //   } else {
+        //     console.log('ccc else');
+        //     setContent(t.currentTarget.innerHTML);
+        //     updateTitleMeasurementById(shapeId, t.currentTarget.innerHTML);
+        //   }
+        // }}
         onBlur={(t) => {
           console.log('ccc', t.currentTarget.textContent.length);
           setContent(t.currentTarget.innerHTML);
@@ -26,14 +44,15 @@ const MeasurementTitle = ({ title, shapeId, setMeasurementById }) => {
           } else {
             console.log('ccc else');
             setContent(t.currentTarget.innerHTML);
-            setMeasurementById(shapeId, t.currentTarget.innerHTML);
+            updateTitleMeasurementById(shapeId, t.currentTarget.innerHTML);
+            setUpdateMeasurementStatus(true);
           }
         }}
         onFocus={(t) => {
-          console.log('iii focus');
+          console.log('ccc focus');
         }}
         contentEditable
-        className="text-[14px] min-h-[40px] min-w-[100px]"
+        className="text-[14px] min-h-[20px] min-w-[100px]"
         dangerouslySetInnerHTML={{ __html: capitalizeFirstLetter(content) }}
       ></div>
     </div>

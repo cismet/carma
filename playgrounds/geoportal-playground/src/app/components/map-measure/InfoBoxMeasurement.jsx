@@ -15,6 +15,7 @@ import {
   setMapMovingEnd,
   getMapMovingEnd,
   setVisibleShapes,
+  setUpdateTitleStatus,
 } from '../../store/slices/measurements';
 import { useSelector, useDispatch } from 'react-redux';
 import { useState, useEffect } from 'react';
@@ -144,6 +145,7 @@ const InfoBoxMeasurement = () => {
 
   const decreaseCurrentHandler = () => {
     dispatch(setMoveToShape(null));
+    cleanUpdateMeasurementStatus();
     setCurrentMeasure((prev) => {
       if (prev <= 0) {
         return visibleShapesData.length - 1;
@@ -155,7 +157,7 @@ const InfoBoxMeasurement = () => {
 
   const increaseCurrentHandler = () => {
     dispatch(setMoveToShape(null));
-
+    cleanUpdateMeasurementStatus();
     setCurrentMeasure((prev) => {
       if (prev >= visibleShapesData.length - 1) {
         return 0;
@@ -198,9 +200,17 @@ const InfoBoxMeasurement = () => {
 
   const deleteShapeHandler = () => {
     dispatch(setDeleteMeasurements(true));
+    cleanUpdateMeasurementStatus();
   };
-  const moveToShapeHandler = () => {
-    dispatch(setMoveToShape(true));
+  // const moveToShapeHandler = () => {
+  //   dispatch(setMoveToShape(true));
+  // };
+  const setUpdateMeasurementStatus = (status) => {
+    dispatch(setUpdateShape(status));
+  };
+
+  const cleanUpdateMeasurementStatus = () => {
+    dispatch(setUpdateShape(false));
   };
 
   const setLastMeasureActive = () => {
@@ -209,18 +219,18 @@ const InfoBoxMeasurement = () => {
     setCurrentMeasure(initialCureentMeasure);
   };
 
-  const setMeasurementById = (shapeId, customTitle) => {
-    const allMeasurements = measurementsData.map((m) => {
-      if (m.shapeId === shapeId) {
-        return {
-          ...m,
-          customTitle,
-        };
-      }
+  const updateTitleMeasurementById = (shapeId, customTitle) => {
+    // const allMeasurements = measurementsData.map((m) => {
+    //   if (m.shapeId === shapeId) {
+    //     return {
+    //       ...m,
+    //       customTitle,
+    //     };
+    //   }
 
-      return m;
-    });
-    dispatch(setShapes(allMeasurements));
+    //   return m;
+    // });
+    // dispatch(setShapes(allMeasurements));
 
     const visible = visibleShapesData.map((m) => {
       if (m.shapeId === shapeId) {
@@ -233,6 +243,7 @@ const InfoBoxMeasurement = () => {
       return m;
     });
     dispatch(setVisibleShapes(visible));
+    dispatch(setUpdateTitleStatus(true));
   };
 
   return (
@@ -256,10 +267,10 @@ const InfoBoxMeasurement = () => {
                 }
               >
                 {/* Linienzug #{visibleShapesData[currentMeasure].number} */}
-                <span>
+                {/* <span>
                   Order
                   {getOrderOfShape(visibleShapesData[currentMeasure].shapeId)}
-                </span>
+                </span> */}
                 <MeasurementTitle
                   key={visibleShapesData[currentMeasure].shapeId}
                   title={
@@ -270,18 +281,20 @@ const InfoBoxMeasurement = () => {
                         )}`
                   }
                   shapeId={visibleShapesData[currentMeasure].shapeId}
-                  setMeasurementById={setMeasurementById}
+                  setUpdateMeasurementStatus={setUpdateMeasurementStatus}
+                  updateTitleMeasurementById={updateTitleMeasurementById}
                 />
               </span>
               <div>{visibleShapesData[currentMeasure].shapeId}</div>
               <div className="flex justify-between items-center w-[12%] mt-1 gap-2">
                 <Icon
                   name="search-location"
-                  onClick={() =>
+                  onClick={() => {
                     dispatch(
                       setMoveToShape(visibleShapesData[currentMeasure].shapeId)
-                    )
-                  }
+                    );
+                    cleanUpdateMeasurementStatus();
+                  }}
                   className="cursor-pointer text-[16px] text-[#808080]"
                 />
                 <FontAwesomeIcon
