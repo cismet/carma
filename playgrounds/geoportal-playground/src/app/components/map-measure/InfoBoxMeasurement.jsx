@@ -116,9 +116,6 @@ const InfoBoxMeasurement = () => {
     if (visibleShapesData[currentMeasure]?.shapeId) {
       dispatch(setActiveShape(visibleShapesData[currentMeasure].shapeId));
     }
-    if (visibleShapesData[currentMeasure]?.shapeId) {
-      dispatch(setActiveShape(visibleShapesData[currentMeasure].shapeId));
-    }
   }, [currentMeasure]);
 
   useEffect(() => {
@@ -260,11 +257,11 @@ const InfoBoxMeasurement = () => {
               <span
                 style={{ cursor: 'pointer' }}
                 // className="capitalize text-[14px]"
-                onClick={() =>
-                  dispatch(
-                    setActiveShape(visibleShapesData[currentMeasure].shapeId)
-                  )
-                }
+                // onClick={() =>
+                //   dispatch(
+                //     setActiveShape(visibleShapesData[currentMeasure].shapeId)
+                //   )
+                // }
               >
                 {/* Linienzug #{visibleShapesData[currentMeasure].number} */}
                 {/* <span>
