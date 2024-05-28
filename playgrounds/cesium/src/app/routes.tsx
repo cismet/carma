@@ -11,6 +11,7 @@ import TestGeojson from './views/tests/obsolete/Geojson';
 import TestClassifyByGeoJson from './views/tests/ClassifyByGeoJson';
 import TestGeojsonWithCityGML from './views/tests/CityGml';
 import TestTileset from './views/tests/Tileset';
+import TestMarkers from './views/tests/Markers';
 
 import ViewResium from './views/tests/Resium';
 import ViewTailwind from './views/tests/Tailwind';
@@ -49,6 +50,7 @@ export const viewerRoutes: RouteDescriptor[] = [
       ['/geojson', 'GeoJson', TestClassifyByGeoJson],
       ['/geojson-old', 'GeoJson(old)', TestGeojson],
       ['/citygml', 'Test GeoJson With CityGML', TestGeojsonWithCityGML],
+      ['/poi', 'POI Markers', TestMarkers],
       ['/viewer', 'Test Viewer', TestCustomViewer],
       ['/tileset', 'Test Tileset', TestTileset],
     ],

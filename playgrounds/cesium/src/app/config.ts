@@ -2,7 +2,7 @@ import { Cartesian3, Color, ColorMaterialProperty } from 'cesium';
 import { RootState } from './store';
 import { colorToArray } from './utils/cesiumHelpers';
 
-const APP_BASE_PATH = import.meta.env.BASE_URL;
+export const APP_BASE_PATH = import.meta.env.BASE_URL;
 export const CESIUM_PATHNAME = '__cesium__';
 export const CESIUM_BASE_URL = `${APP_BASE_PATH}${CESIUM_PATHNAME}`;
 export const WUPP3D = {
