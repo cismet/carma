@@ -34,6 +34,7 @@ import {
   setMapMovingEnd,
   getMapMovingEnd,
   getUpdateTitleStatus,
+  setUpdateTitleStatus,
 } from '../../store/slices/measurements';
 interface TopicMapContextType {
   routedMapRef: any;
@@ -95,7 +96,8 @@ const MapMeasurement = (props) => {
 
   useEffect(() => {
     if (updateTitleStatus) {
-      console.log(updateTitleStatus);
+      updateShapeTitleStatusHandler(activeShape);
+      dispatch(setUpdateTitleStatus(false));
     } else {
       dispatch(setShapes(polygons));
     }
@@ -216,7 +218,7 @@ const MapMeasurement = (props) => {
         if (s.shapeId === id) {
           return {
             ...s,
-            customTitle: cleaerShapesArr[0].cleaerShapesArr,
+            customTitle: shapeFromVisible[0].customTitle,
           };
         } else {
           return s;
