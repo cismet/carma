@@ -18,6 +18,8 @@ import Section from 'react-cismap/topicmaps/menu/Section';
 import LicenseLuftbildkarte from 'react-cismap/topicmaps/wuppertal/LicenseLuftbildkarte';
 import LicenseStadtplanTagNacht from 'react-cismap/topicmaps/wuppertal/LicenseStadtplanTagNacht';
 import { Link } from 'react-scroll';
+//import GenericDigitalTwinReferenceTextComponent from '@carma/custom-wupp-components/lib/help/GenericDigitalTwinReferenceTextComponent';
+import { GenericDigitalTwinReferenceTextComponent } from '@carma/custom-wupp-components';
 
 import FilterUI from './FilterUI';
 import MenuFooter from './MenuFooter';
@@ -198,6 +200,7 @@ const Menu = () => {
             sectionContent={<FilterUI />}
           />,
           <DefaultSettingsPanel key="settings" />,
+
           <Section
             key="help"
             sectionKey="help"
@@ -580,17 +583,33 @@ const Menu = () => {
                           ),
                         },
                       },
+                      // {
+                      //   title: 'DigiTal Zwilling',
+                      //   bsStyle: 'success',
+                      //   contentBlockConf: {
+                      //     type: 'REACTCOMP',
+                      //     content: <GenericDigitalTwinReferenceTextComponent />,
+                      //   },
+                      // },
                     ],
                   },
                 ]}
               />
             }
           />,
+          <Section
+            key="digiTal"
+            sectionKey="digiTal"
+            sectionTitle={'DigiTal Zwilling'}
+            sectionBsStyle="warning"
+            sectionContent={<GenericDigitalTwinReferenceTextComponent />}
+          ></Section>,
         ]}
       />
     </CustomizationContextProvider>
   );
 };
+console.log('yy Menu', <GenericDigitalTwinReferenceTextComponent />);
 export default Menu;
 const NW = (props) => {
   return <span style={{ whiteSpace: 'nowrap' }}>{props.children}</span>;

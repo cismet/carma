@@ -1,1 +1,1 @@
-export * from './lib/wuppertal-components';
+export * from './lib/help';
