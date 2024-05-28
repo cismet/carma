@@ -98,20 +98,19 @@ const MapMeasurement = (props) => {
     if (updateTitleStatus) {
       updateShapeTitleStatusHandler(activeShape);
       dispatch(setUpdateTitleStatus(false));
+      dispatch(setUpdateShape(false));
     } else {
       dispatch(setShapes(polygons));
     }
     const checkUpdateAction = polygonsLength === polygons.length;
     if (polygons.length !== 0 && !updateShapeStatus && !checkUpdateAction) {
+      console.log('www adjast shape after creation');
       setPolygonsLength(polygons.length);
       dispatch(setActiveShape(polygons[polygons.length - 1].shapeId));
     }
   }, [polygons, updateShapeStatus]);
 
   useEffect(() => {
-    console.log('www', deleteShape);
-    console.log('www', measureControl);
-    console.log('www', activeShape);
     if (measureControl && activeShape) {
       const shapeCoordinates = measurementShapes.filter(
         (s) => s.shapeId === activeShape

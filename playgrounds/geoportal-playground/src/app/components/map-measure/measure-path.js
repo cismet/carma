@@ -126,7 +126,6 @@ L.Control.MeasurePolygon = L.Control.extend({
         ? latlngsJSON.geometry.coordinates
         : latlngsJSON.geometry.coordinates[0];
     const reversedCoordinates = prepeareCoordinates.map((item) => {
-      console.log('bbb item', item);
       return item.reverse();
     });
 
