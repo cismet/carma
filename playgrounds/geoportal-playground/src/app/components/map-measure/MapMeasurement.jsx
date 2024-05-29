@@ -95,29 +95,6 @@ const MapMeasurement = (props) => {
   }, [routedMapRef]);
 
   useEffect(() => {
-    console.log('www uef all shapes');
-
-    if (updateTitleStatus) {
-      // updateShapeTitleStatusHandler(activeShape);
-      // dispatch(setUpdateTitleStatus(false));
-      // dispatch(setUpdateShape(false));
-    } else {
-      dispatch(setShapes(allShapes));
-      // dispatch(setUpdateShape(false));
-    }
-    const checkUpdateAction = allShapesLength === allShapes.length;
-    if (allShapes.length !== 0 && !updateShapeStatus && !checkUpdateAction) {
-      console.log('www adjast shape after creation');
-      setAllShapesLenth(allShapes.length);
-
-      // dispatch(
-      //   setVisibleShapes([...visibleShapes, polygons[polygons.length - 1]])
-      // );
-      dispatch(setActiveShape(allShapes[allShapes.length - 1].shapeId));
-    }
-  }, [allShapes, updateShapeStatus]);
-
-  useEffect(() => {
     console.log('www uef delete update move');
 
     if (measureControl && activeShape) {
@@ -203,22 +180,22 @@ const MapMeasurement = (props) => {
     dispatch(updateShapeById(id, newCoordinates, newDistance));
   };
 
-  const updateShapeTitleStatusHandler = (id) => {
-    const shapeFromVisible = visibleShapes.filter((s) => s.shapeId === id);
-    setAllShapes((prevPolygons) => {
-      const cleaerShapesArr = prevPolygons.map((s) => {
-        if (s.shapeId === id) {
-          return {
-            ...s,
-            customTitle: shapeFromVisible[0].customTitle,
-          };
-        } else {
-          return s;
-        }
-      });
-      return cleaerShapesArr;
-    });
-  };
+  // const updateShapeTitleStatusHandler = (id) => {
+  //   const shapeFromVisible = visibleShapes.filter((s) => s.shapeId === id);
+  //   setAllShapes((prevPolygons) => {
+  //     const cleaerShapesArr = prevPolygons.map((s) => {
+  //       if (s.shapeId === id) {
+  //         return {
+  //           ...s,
+  //           customTitle: shapeFromVisible[0].customTitle,
+  //         };
+  //       } else {
+  //         return s;
+  //       }
+  //     });
+  //     return cleaerShapesArr;
+  //   });
+  // };
 
   const visiblePolylinesChange = (arr) => {
     setVisiblePolylines(arr);
