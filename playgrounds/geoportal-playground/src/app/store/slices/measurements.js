@@ -151,3 +151,24 @@ export const deleteShapeById = (shapeId) => {
     dispatch(setShapes(cleaerShapesArr));
   };
 };
+
+export const updateShapeById = (shapeId, newCoordinates, newDistance) => {
+  return function (dispatch, getState) {
+    const state = getState();
+    dispatch(setUpdateShape(true));
+    const allShapes = state.measurements.shapes;
+    const cleaerShapesArr = allShapes.map((s) => {
+      if (s.shapeId === shapeId) {
+        return {
+          ...s,
+          coordinates: newCoordinates,
+          distance: newDistance,
+        };
+      } else {
+        return s;
+      }
+    });
+
+    dispatch(setShapes(cleaerShapesArr));
+  };
+};

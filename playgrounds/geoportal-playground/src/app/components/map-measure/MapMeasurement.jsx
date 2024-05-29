@@ -37,6 +37,7 @@ import {
   setUpdateTitleStatus,
   addShape,
   deleteShapeById,
+  updateShapeById,
 } from '../../store/slices/measurements';
 
 const MapMeasurement = (props) => {
@@ -199,22 +200,7 @@ const MapMeasurement = (props) => {
     dispatch(deleteShapeById(id));
   };
   const updateShapeHandler = (id, newCoordinates, newDistance) => {
-    dispatch(setUpdateShape(true));
-
-    setAllShapes((prevPolygons) => {
-      const cleaerShapesArr = prevPolygons.map((s) => {
-        if (s.shapeId === id) {
-          return {
-            ...s,
-            coordinates: newCoordinates,
-            distance: newDistance,
-          };
-        } else {
-          return s;
-        }
-      });
-      return cleaerShapesArr;
-    });
+    dispatch(updateShapeById(id, newCoordinates, newDistance));
   };
 
   const updateShapeTitleStatusHandler = (id) => {
