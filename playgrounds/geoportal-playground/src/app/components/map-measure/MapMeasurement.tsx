@@ -35,6 +35,7 @@ import {
   getMapMovingEnd,
   getUpdateTitleStatus,
   setUpdateTitleStatus,
+  addShape,
 } from '../../store/slices/measurements';
 interface TopicMapContextType {
   routedMapRef: any;
@@ -194,7 +195,7 @@ const MapMeasurement = (props) => {
     // setMeasurements({ area: '' });
   };
   const saveShapeHandler = (layer) => {
-    setAllShapes((prevPolygons) => [...prevPolygons, layer]);
+    dispatch(addShape(layer));
   };
   const deleteShapeHandler = (id) => {
     setAllShapes((prevPolygons) => {
