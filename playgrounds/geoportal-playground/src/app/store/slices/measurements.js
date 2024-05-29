@@ -95,3 +95,35 @@ export const getMapMovingEnd = (state) => {
 export const getUpdateTitleStatus = (state) => {
   return state.measurements.updateTitleStatus;
 };
+
+export const updateTitle = (shapeId, customTitle) => {
+  return function (dispatch, getState) {
+    const state = getState();
+    const shapeFromVisible = state.measurements.visibleShapes.filter(
+      (s) => s.shapeId === id
+    );
+    const visible = state.measurements.visibleShapes.map((m) => {
+      if (m.shapeId === shapeId) {
+        return {
+          ...shapeFromVisible[0],
+          customTitle,
+        };
+      }
+      return m;
+    });
+
+    const allMeasurements = state.measurements.shapes.map((m) => {
+      if (m.shapeId === shapeId) {
+        return {
+          ...shapeFromVisible[0],
+          customTitle,
+        };
+      }
+      return m;
+    });
+
+    dispatch(setVisibleShapes(visible));
+    dispatch(setShapes(allMeasurements));
+    dispatch(setUpdateTitleStatus(true));
+  };
+};
