@@ -47,9 +47,7 @@ const InfoBoxMeasurement = () => {
   const [firstLoading, setFirstLoading] = useState(true);
 
   useEffect(() => {
-    // console.log('www visible drawing mode', drawingMode);
-    // console.log('www visible updateShape mode', updateShape);
-    // console.log('www visible step after updating mode', updateShape);
+    console.log('www uef visibleShapesData');
 
     if (moveToShape) {
       dispatch(setActiveShape(moveToShape));
@@ -116,16 +114,15 @@ const InfoBoxMeasurement = () => {
   ]);
 
   useEffect(() => {
-    console.log(
-      'www currentMeasure visibleShapesData',
-      visibleShapesData.length
-    );
+    console.log('www uef currentMeasure');
     if (visibleShapesData[currentMeasure]?.shapeId) {
       dispatch(setActiveShape(visibleShapesData[currentMeasure].shapeId));
     }
   }, [currentMeasure]);
 
   useEffect(() => {
+    console.log('www uef active shape');
+
     const positionInArr = activeShapeHandler(activeShape);
 
     setCurrentMeasure(positionInArr);
