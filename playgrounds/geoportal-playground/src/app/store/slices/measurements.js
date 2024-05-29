@@ -98,10 +98,13 @@ export const getUpdateTitleStatus = (state) => {
 
 export const updateTitle = (shapeId, customTitle) => {
   return function (dispatch, getState) {
+    console.log('rrr customTitle', customTitle);
+    console.log('rrr shapeId', shapeId);
     const state = getState();
     const shapeFromVisible = state.measurements.visibleShapes.filter(
-      (s) => s.shapeId === id
+      (s) => s.shapeId === shapeId
     );
+
     const visible = state.measurements.visibleShapes.map((m) => {
       if (m.shapeId === shapeId) {
         return {
@@ -112,10 +115,14 @@ export const updateTitle = (shapeId, customTitle) => {
       return m;
     });
 
+    const shapeFromAllShapes = state.measurements.shapes.filter(
+      (s) => s.shapeId === shapeId
+    );
+
     const allMeasurements = state.measurements.shapes.map((m) => {
       if (m.shapeId === shapeId) {
         return {
-          ...shapeFromVisible[0],
+          ...shapeFromAllShapes[0],
           customTitle,
         };
       }

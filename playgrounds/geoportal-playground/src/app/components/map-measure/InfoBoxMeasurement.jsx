@@ -17,6 +17,7 @@ import {
   setVisibleShapes,
   setUpdateTitleStatus,
   getUpdateTitleStatus,
+  updateTitle,
 } from '../../store/slices/measurements';
 import { useSelector, useDispatch } from 'react-redux';
 import { useState, useEffect } from 'react';
@@ -222,30 +223,7 @@ const InfoBoxMeasurement = () => {
   };
 
   const updateTitleMeasurementById = (shapeId, customTitle) => {
-    // const allMeasurements = measurementsData.map((m) => {
-    //   if (m.shapeId === shapeId) {
-    //     return {
-    //       ...m,
-    //       customTitle,
-    //     };
-    //   }
-
-    //   return m;
-    // });
-    // dispatch(setShapes(allMeasurements));
-
-    const visible = visibleShapesData.map((m) => {
-      if (m.shapeId === shapeId) {
-        return {
-          ...m,
-          customTitle,
-        };
-      }
-
-      return m;
-    });
-    dispatch(setVisibleShapes(visible));
-    dispatch(setUpdateTitleStatus(true));
+    dispatch(updateTitle(shapeId, customTitle));
   };
 
   return (

@@ -100,7 +100,7 @@ const MapMeasurement = (props) => {
     if (updateTitleStatus) {
       updateShapeTitleStatusHandler(activeShape);
       dispatch(setUpdateTitleStatus(false));
-      // dispatch(setUpdateShape(false));
+      dispatch(setUpdateShape(false));
     } else {
       dispatch(setShapes(allShapes));
       // dispatch(setUpdateShape(false));
@@ -223,7 +223,6 @@ const MapMeasurement = (props) => {
 
   const updateShapeTitleStatusHandler = (id) => {
     const shapeFromVisible = visibleShapes.filter((s) => s.shapeId === id);
-
     setAllShapes((prevPolygons) => {
       const cleaerShapesArr = prevPolygons.map((s) => {
         if (s.shapeId === id) {
