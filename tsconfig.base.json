@@ -15,6 +15,7 @@
     "skipLibCheck": true,
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
+    "jsx": "react-jsx",
     "paths": {
       "@carma/custom-wupp-components": [
         "libraries/customer-specific/wuppertal/components/src/lib"
