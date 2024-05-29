@@ -37,12 +37,9 @@ import {
   setUpdateTitleStatus,
   addShape,
 } from '../../store/slices/measurements';
-interface TopicMapContextType {
-  routedMapRef: any;
-}
 
 const MapMeasurement = (props) => {
-  const { routedMapRef } = useContext<TopicMapContextType>(TopicMapContext);
+  const { routedMapRef } = useContext(TopicMapContext);
 
   const dispatch = useDispatch();
   const measurementShapes = useSelector(getShapes);
