@@ -71,16 +71,18 @@ const InfoBoxMeasurement = () => {
       } else if (visibleShapesData.length === 1) {
         setLastMeasureActive();
         console.log('www c b');
-        console.log('www c b', visibleShapesData);
         dispatch(setActiveShape(visibleShapesData[0].shapeId));
       } else {
-        if (updateTitleStatus) {
-          dispatch(setUpdateTitleStatus(false));
-        } else {
-          setLastMeasureActive();
-          setStepAfterUpdating(false);
-        }
-        console.log('www c c');
+        // if (updateTitleStatus) {
+        //   console.log('www c c');
+        //   dispatch(setUpdateTitleStatus(false));
+        // } else {
+        //   console.log('www c d');
+        //   setLastMeasureActive();
+        //   setStepAfterUpdating(false);
+        // }
+
+        setLastMeasureActive();
       }
     } else if (drawingMode) {
       console.log('www d');

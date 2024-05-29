@@ -99,8 +99,8 @@ const MapMeasurement = (props) => {
 
     if (updateTitleStatus) {
       updateShapeTitleStatusHandler(activeShape);
-      // dispatch(setUpdateTitleStatus(false));
-      dispatch(setUpdateShape(false));
+      dispatch(setUpdateTitleStatus(false));
+      // dispatch(setUpdateShape(false));
     } else {
       dispatch(setShapes(allShapes));
       // dispatch(setUpdateShape(false));
