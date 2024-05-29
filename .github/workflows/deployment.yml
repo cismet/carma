@@ -277,23 +277,34 @@ jobs:
           if [[ -f "$SRC_PATH/version.js" ]]; then
             sed -i "s/%APPLICATION_VERSION%/$SRC_MD5_SHORT/" $SRC_PATH/version.js
           else
-            echo "No version.js file found. Version information will not be updated."
+            if [[ -f "$SRC_PATH/app/version.js" ]]; then
+              sed -i "s/%APPLICATION_VERSION%/$SRC_MD5_SHORT/" $SRC_PATH/app/version.js
+            else
+              echo "No version.js file found. Version information will not be updated."
+            fi
           fi
       - name: Set hash
         run: |
           if [[ -f "$SRC_PATH/version.js" ]]; then
             sed -i "s/%APPLICATION_HASH%/$SRC_MD5/" $SRC_PATH/version.js
           else
-            echo "No version.js file found. Hash information will not be updated."
+            if [[ -f "$SRC_PATH/app/version.js" ]]; then
+              sed -i "s/%APPLICATION_HASH%/$SRC_MD5/" $SRC_PATH/app/version.js
+            else
+              echo "No version.js file found. Hash information will not be updated."
+            fi
           fi
       - name: debug log version.js
         run: |
           if [[ -f "$SRC_PATH/version.js" ]]; then
-          cat $SRC_PATH/version.js
+            cat $SRC_PATH/version.js
           else
-            echo "No version.js file found. Hash information will not be updated."
+            if [[ -f "$SRC_PATH/app/version.js" ]]; then
+              cat $SRC_PATH/app/version.js
+            else
+              echo "No version.js file found. Hash information will not be updated."
+            fi
           fi
-
       - name: create nx-cloud.env
         run: |
           echo "NX_CLOUD_ACCESS_TOKEN=${{ secrets.NX_CLOUD_ACCESS_TOKEN }}" >> nx-cloud.env
@@ -398,15 +409,33 @@ jobs:
           if [[ -f "$SRC_PATH/version.js" ]]; then
             sed -i "s/%APPLICATION_VERSION%/$SRC_MD5_SHORT/" $SRC_PATH/version.js
           else
-            echo "No version.js file found. Version information will not be updated."
+            if [[ -f "$SRC_PATH/app/version.js" ]]; then
+              sed -i "s/%APPLICATION_VERSION%/$SRC_MD5_SHORT/" $SRC_PATH/app/version.js
+            else
+              echo "No version.js file found. Version information will not be updated."
+            fi
           fi
-
       - name: Set hash
         run: |
           if [[ -f "$SRC_PATH/version.js" ]]; then
             sed -i "s/%APPLICATION_HASH%/$SRC_MD5/" $SRC_PATH/version.js
           else
-            echo "No version.js file found. Hash information will not be updated."
+            if [[ -f "$SRC_PATH/app/version.js" ]]; then
+              sed -i "s/%APPLICATION_HASH%/$SRC_MD5/" $SRC_PATH/app/version.js
+            else
+              echo "No version.js file found. Hash information will not be updated."
+            fi
+          fi
+      - name: debug log version.js
+        run: |
+          if [[ -f "$SRC_PATH/version.js" ]]; then
+            cat $SRC_PATH/version.js
+          else
+            if [[ -f "$SRC_PATH/app/version.js" ]]; then
+              cat $SRC_PATH/app/version.js
+            else
+              echo "No version.js file found. Hash information will not be updated."
+            fi
           fi
       - name: create nx-cloud.env
         run: |
