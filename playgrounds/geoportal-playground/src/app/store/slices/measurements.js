@@ -134,3 +134,11 @@ export const updateTitle = (shapeId, customTitle) => {
     // dispatch(setUpdateTitleStatus(true));
   };
 };
+
+export const addShape = (layer) => {
+  return function (dispatch, getState) {
+    const state = getState();
+    const allShapes = state.measurements.shapes;
+    dispatch(setShapes([...allShapes, layer]));
+  };
+};
