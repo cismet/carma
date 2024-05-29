@@ -142,7 +142,7 @@ export const addShape = (layer) => {
     dispatch(setShapes([...allShapes, layer]));
   };
 };
-export const deleteShape = (shapeId) => {
+export const deleteShapeById = (shapeId) => {
   return function (dispatch, getState) {
     const state = getState();
     const allShapes = state.measurements.shapes;

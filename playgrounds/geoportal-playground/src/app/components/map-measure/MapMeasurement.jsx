@@ -36,7 +36,7 @@ import {
   getUpdateTitleStatus,
   setUpdateTitleStatus,
   addShape,
-  deleteShape,
+  deleteShapeById,
 } from '../../store/slices/measurements';
 
 const MapMeasurement = (props) => {
@@ -196,7 +196,7 @@ const MapMeasurement = (props) => {
     dispatch(addShape(layer));
   };
   const deleteShapeHandler = (id) => {
-    dispatch(deleteShape(id));
+    dispatch(deleteShapeById(id));
   };
   const updateShapeHandler = (id, newCoordinates, newDistance) => {
     dispatch(setUpdateShape(true));
