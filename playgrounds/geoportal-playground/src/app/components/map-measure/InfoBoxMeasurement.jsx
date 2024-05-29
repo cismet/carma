@@ -1,7 +1,6 @@
 import ResponsiveInfoBox from 'react-cismap/topicmaps/ResponsiveInfoBox';
 import {
   getShapes,
-  setShapes,
   setActiveShape,
   getActiveShapes,
   getVisibleShapes,
@@ -14,20 +13,13 @@ import {
   getDrawingShape,
   setMapMovingEnd,
   getMapMovingEnd,
-  setVisibleShapes,
-  setUpdateTitleStatus,
-  getUpdateTitleStatus,
   updateTitle,
 } from '../../store/slices/measurements';
 import { useSelector, useDispatch } from 'react-redux';
 import { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-  faTrashCan,
-  faMagnifyingGlassLocation,
-} from '@fortawesome/free-solid-svg-icons';
+import { faTrashCan } from '@fortawesome/free-solid-svg-icons';
 import MeasurementTitle from './MeasurementTitle';
-import { faSearch } from '@fortawesome/free-solid-svg-icons';
 import Icon from 'react-cismap/commons/Icon';
 
 const InfoBoxMeasurement = () => {
@@ -38,14 +30,12 @@ const InfoBoxMeasurement = () => {
   const updateShape = useSelector(getUpdateShapeToShape);
   const drawingMode = useSelector(getDrawingShape);
   const mapMovingEnd = useSelector(getMapMovingEnd);
-  const updateTitleStatus = useSelector(getUpdateTitleStatus);
   const dispatch = useDispatch();
   const [currentMeasure, setCurrentMeasure] = useState(0);
   const [oldDataLength, setOldDataLength] = useState(measurementsData.length);
   const [stepAfterMoveToShape, setStepAfterMoveToShape] = useState(null);
   const [stepAfterUpdating, setStepAfterUpdating] = useState(false);
   const [stepAfterCreating, setStepAfterCreating] = useState(false);
-  const [firstLoading, setFirstLoading] = useState(true);
 
   useEffect(() => {
     console.log('www uef visibleShapesData');
@@ -54,7 +44,6 @@ const InfoBoxMeasurement = () => {
       dispatch(setActiveShape(moveToShape));
       console.log('www a');
 
-      const positionInArr = activeShapeHandler(activeShape);
       setStepAfterMoveToShape(activeShape);
       dispatch(setMoveToShape(null));
     } else if (updateShape) {
@@ -74,15 +63,6 @@ const InfoBoxMeasurement = () => {
         console.log('www c b');
         dispatch(setActiveShape(visibleShapesData[0].shapeId));
       } else {
-        // if (updateTitleStatus) {
-        //   console.log('www c c');
-        //   dispatch(setUpdateTitleStatus(false));
-        // } else {
-        //   console.log('www c d');
-        //   setLastMeasureActive();
-        //   setStepAfterUpdating(false);
-        // }
-
         setLastMeasureActive();
       }
     } else if (drawingMode) {
@@ -99,11 +79,9 @@ const InfoBoxMeasurement = () => {
       setStepAfterUpdating(false);
       console.log('www f');
 
-      // setLastMeasureActive();
       dispatch(setMapMovingEnd(false));
     } else {
       console.log('www visible else');
-      // setLastMeasureActive();
     }
   }, [
     visibleShapesData,
@@ -112,7 +90,6 @@ const InfoBoxMeasurement = () => {
     stepAfterCreating,
     drawingMode,
     mapMovingEnd,
-    // oldVisibleDataLength,
   ]);
 
   useEffect(() => {
@@ -132,9 +109,6 @@ const InfoBoxMeasurement = () => {
     let checkIfActiveShapeIsVisible = visibleShapesData.some(
       (m) => m.shapeId === activeShape
     );
-    // const checkIfActiveShapeIsVisible = visibleShapesData.some(
-    //   (m) => m.shapeId === activeShape && m.shapeId !== 5555
-    // );
 
     const checkOldAndNewMeasurementLength =
       oldDataLength === measurementsData.length;
@@ -205,9 +179,7 @@ const InfoBoxMeasurement = () => {
     dispatch(setDeleteMeasurements(true));
     cleanUpdateMeasurementStatus();
   };
-  // const moveToShapeHandler = () => {
-  //   dispatch(setMoveToShape(true));
-  // };
+
   const setUpdateMeasurementStatus = (status) => {
     dispatch(setUpdateShape(status));
   };
@@ -237,20 +209,7 @@ const InfoBoxMeasurement = () => {
           // s
           alwaysVisibleDiv={
             <div className="mt-2 mb-2 w-[96%] flex justify-between items-start gap-4">
-              <span
-                style={{ cursor: 'pointer' }}
-                // className="capitalize text-[14px]"
-                // onClick={() =>
-                //   dispatch(
-                //     setActiveShape(visibleShapesData[currentMeasure].shapeId)
-                //   )
-                // }
-              >
-                {/* Linienzug #{visibleShapesData[currentMeasure].number} */}
-                {/* <span>
-                  Order
-                  {getOrderOfShape(visibleShapesData[currentMeasure].shapeId)}
-                </span> */}
+              <span style={{ cursor: 'pointer' }}>
                 <MeasurementTitle
                   key={visibleShapesData[currentMeasure].shapeId}
                   title={
