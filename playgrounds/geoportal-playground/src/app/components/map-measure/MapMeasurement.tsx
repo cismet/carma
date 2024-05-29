@@ -56,8 +56,8 @@ const MapMeasurement = (props) => {
   const updateTitleStatus = useSelector(getUpdateTitleStatus);
 
   const [measureControl, setMeasureControl] = useState(null);
-  const [polygons, setPolygons] = useState(measurementShapes);
-  const [polygonsLength, setPolygonsLength] = useState(
+  const [allShapes, setAllShapes] = useState(measurementShapes);
+  const [allShapesLength, setAllShapesLenth] = useState(
     measurementShapes.length
   );
   const [visiblePolylines, setVisiblePolylines] = useState();
@@ -74,7 +74,7 @@ const MapMeasurement = (props) => {
         icon_polygonInactive: polygonIcon,
         activeShape,
         msj_disable_tool: 'Do you want to disable the tool?',
-        shapes: polygons,
+        shapes: allShapes,
         cb: toggleMeasureToolState,
         cbSaveShape: saveShapeHandler,
         cbUpdateShape: updateShapeHandler,
@@ -100,20 +100,20 @@ const MapMeasurement = (props) => {
       // dispatch(setUpdateTitleStatus(false));
       dispatch(setUpdateShape(false));
     } else {
-      dispatch(setShapes(polygons));
+      dispatch(setShapes(allShapes));
       // dispatch(setUpdateShape(false));
     }
-    const checkUpdateAction = polygonsLength === polygons.length;
-    if (polygons.length !== 0 && !updateShapeStatus && !checkUpdateAction) {
+    const checkUpdateAction = allShapesLength === allShapes.length;
+    if (allShapes.length !== 0 && !updateShapeStatus && !checkUpdateAction) {
       console.log('www adjast shape after creation');
-      setPolygonsLength(polygons.length);
+      setAllShapesLenth(allShapes.length);
 
       // dispatch(
       //   setVisibleShapes([...visibleShapes, polygons[polygons.length - 1]])
       // );
-      dispatch(setActiveShape(polygons[polygons.length - 1].shapeId));
+      dispatch(setActiveShape(allShapes[allShapes.length - 1].shapeId));
     }
-  }, [polygons, updateShapeStatus]);
+  }, [allShapes, updateShapeStatus]);
 
   useEffect(() => {
     if (measureControl && activeShape) {
@@ -187,10 +187,10 @@ const MapMeasurement = (props) => {
     // setMeasurements({ area: '' });
   };
   const saveShapeHandler = (layer) => {
-    setPolygons((prevPolygons) => [...prevPolygons, layer]);
+    setAllShapes((prevPolygons) => [...prevPolygons, layer]);
   };
   const deleteShapeHandler = (id) => {
-    setPolygons((prevPolygons) => {
+    setAllShapes((prevPolygons) => {
       const cleaerShapesArr = prevPolygons.filter((s) => s.shapeId !== id);
       return cleaerShapesArr;
     });
@@ -198,7 +198,7 @@ const MapMeasurement = (props) => {
   const updateShapeHandler = (id, newCoordinates, newDistance) => {
     dispatch(setUpdateShape(true));
 
-    setPolygons((prevPolygons) => {
+    setAllShapes((prevPolygons) => {
       const cleaerShapesArr = prevPolygons.map((s) => {
         if (s.shapeId === id) {
           return {
@@ -217,7 +217,7 @@ const MapMeasurement = (props) => {
   const updateShapeTitleStatusHandler = (id) => {
     const shapeFromVisible = visibleShapes.filter((s) => s.shapeId === id);
 
-    setPolygons((prevPolygons) => {
+    setAllShapes((prevPolygons) => {
       const cleaerShapesArr = prevPolygons.map((s) => {
         if (s.shapeId === id) {
           return {
