@@ -123,6 +123,8 @@ const MapMeasurement = (props) => {
         dispatch(setDeleteMeasurements(false));
       }
       if (moveToShape && !deleteShape) {
+        console.log('mmm', moveToShape);
+        console.log('mmm shape', shapeCoordinates[0]);
         measureControl.showActiveShape(map, shapeCoordinates[0]?.coordinates);
       }
     }

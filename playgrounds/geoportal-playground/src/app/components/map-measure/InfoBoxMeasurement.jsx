@@ -41,9 +41,7 @@ const InfoBoxMeasurement = () => {
     console.log('www uef visibleShapesData');
 
     if (moveToShape) {
-      dispatch(setActiveShape(moveToShape));
       console.log('www a');
-
       setStepAfterMoveToShape(activeShape);
       dispatch(setMoveToShape(null));
     } else if (updateShape) {
@@ -55,6 +53,7 @@ const InfoBoxMeasurement = () => {
       if (stepAfterMoveToShape) {
         console.log('www c a');
         const positionInArr = activeShapeHandler(stepAfterMoveToShape);
+        console.log('www c a position', positionInArr);
         setCurrentMeasure(positionInArr);
         setStepAfterUpdating(false);
         setStepAfterMoveToShape(null);

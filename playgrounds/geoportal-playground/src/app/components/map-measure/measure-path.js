@@ -389,7 +389,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     map.on('moveend', () => {
       const allPolyLines = this.getVisiblePolylines(map);
       this.getVisiblePolylinesIds(allPolyLines);
-      // this.options.cbMapMovingEndHandler(true);
+      this.options.cbMapMovingEndHandler(true);
       this.options.cbSetUpdateStatusHandler(false);
     });
 
