@@ -172,3 +172,13 @@ export const updateShapeById = (shapeId, newCoordinates, newDistance) => {
     dispatch(setShapes(cleaerShapesArr));
   };
 };
+
+export const setLastVisibleShapeActive = () => {
+  return function (dispatch, getState) {
+    const state = getState();
+    const allShapes = state.measurements.shapes;
+    const lastShapeId = allShapes[allShapes.length - 1].shapeId;
+
+    dispatch(setActiveShape(lastShapeId));
+  };
+};

@@ -30,14 +30,11 @@ import {
   getMoveToShape,
   setMoveToShape,
   setUpdateShape,
-  getUpdateShapeToShape,
   setMapMovingEnd,
-  getMapMovingEnd,
-  getUpdateTitleStatus,
-  setUpdateTitleStatus,
   addShape,
   deleteShapeById,
   updateShapeById,
+  setLastVisibleShapeActive,
 } from '../../store/slices/measurements';
 
 const MapMeasurement = (props) => {
@@ -46,20 +43,13 @@ const MapMeasurement = (props) => {
   const dispatch = useDispatch();
   const measurementShapes = useSelector(getShapes);
   const activeShape = useSelector(getActiveShapes);
-  const updateShapeStatus = useSelector(getUpdateShapeToShape);
   const ifDrawing = useSelector(getDrawingShape);
   const showAllMeasurements = useSelector(getShowAllMeasurements);
   const deleteShape = useSelector(getDeleteMeasurements);
   const visibleShapes = useSelector(getVisibleShapes);
   const moveToShape = useSelector(getMoveToShape);
-  const mapMovingEnd = useSelector(getMapMovingEnd);
-  const updateTitleStatus = useSelector(getUpdateTitleStatus);
 
   const [measureControl, setMeasureControl] = useState(null);
-  const [allShapes, setAllShapes] = useState(measurementShapes);
-  const [allShapesLength, setAllShapesLenth] = useState(
-    measurementShapes.length
-  );
   const [visiblePolylines, setVisiblePolylines] = useState();
   const [drawingShape, setDrawingLine] = useState(null);
 
@@ -74,8 +64,7 @@ const MapMeasurement = (props) => {
         icon_polygonInactive: polygonIcon,
         activeShape,
         msj_disable_tool: 'Do you want to disable the tool?',
-        shapes: allShapes,
-        cb: toggleMeasureToolState,
+        shapes: measurementShapes,
         cbSaveShape: saveShapeHandler,
         cbUpdateShape: updateShapeHandler,
         cdDeleteShape: deleteShapeHandler,
@@ -163,13 +152,11 @@ const MapMeasurement = (props) => {
     if (drawingShape) {
       const cleanArr = visibleShapes.filter((m) => m.shapeId !== 5555);
       dispatch(setVisibleShapes([...cleanArr, drawingShape]));
+    } else {
+      dispatch(setLastVisibleShapeActive());
     }
   }, [drawingShape]);
 
-  const toggleMeasureToolState = (status) => {
-    // setCheckMeasureTool(status);
-    // setMeasurements({ area: '' });
-  };
   const saveShapeHandler = (layer) => {
     dispatch(addShape(layer));
   };
@@ -219,11 +206,7 @@ const MapMeasurement = (props) => {
     dispatch(setMapMovingEnd(status));
   };
 
-  return (
-    <div>
-      {/* {checkMeasureTool && <MeasurementResults data={measurements} />} */}
-    </div>
-  );
+  return <div></div>;
 };
 
 export default MapMeasurement;
