@@ -98,9 +98,9 @@ const MapMeasurement = (props) => {
     console.log('www uef all shapes');
 
     if (updateTitleStatus) {
-      updateShapeTitleStatusHandler(activeShape);
-      dispatch(setUpdateTitleStatus(false));
-      dispatch(setUpdateShape(false));
+      // updateShapeTitleStatusHandler(activeShape);
+      // dispatch(setUpdateTitleStatus(false));
+      // dispatch(setUpdateShape(false));
     } else {
       dispatch(setShapes(allShapes));
       // dispatch(setUpdateShape(false));

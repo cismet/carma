@@ -131,6 +131,6 @@ export const updateTitle = (shapeId, customTitle) => {
 
     dispatch(setVisibleShapes(visible));
     dispatch(setShapes(allMeasurements));
-    dispatch(setUpdateTitleStatus(true));
+    // dispatch(setUpdateTitleStatus(true));
   };
 };
