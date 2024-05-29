@@ -71,7 +71,6 @@ const InfoBoxMeasurement = () => {
       } else if (visibleShapesData.length === 1) {
         setLastMeasureActive();
         console.log('www c b');
-        console.log('www c b', visibleShapesData.length);
         console.log('www c b', visibleShapesData);
         dispatch(setActiveShape(visibleShapesData[0].shapeId));
       } else {
