@@ -36,6 +36,7 @@ import {
   getUpdateTitleStatus,
   setUpdateTitleStatus,
   addShape,
+  deleteShape,
 } from '../../store/slices/measurements';
 
 const MapMeasurement = (props) => {
@@ -195,10 +196,7 @@ const MapMeasurement = (props) => {
     dispatch(addShape(layer));
   };
   const deleteShapeHandler = (id) => {
-    setAllShapes((prevPolygons) => {
-      const cleaerShapesArr = prevPolygons.filter((s) => s.shapeId !== id);
-      return cleaerShapesArr;
-    });
+    dispatch(deleteShape(id));
   };
   const updateShapeHandler = (id, newCoordinates, newDistance) => {
     dispatch(setUpdateShape(true));
