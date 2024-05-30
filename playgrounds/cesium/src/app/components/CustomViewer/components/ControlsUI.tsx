@@ -13,6 +13,7 @@ const ControlsUI = ({
   showHome = true,
   showOrbit = true,
   showDebug = false,
+  searchComponent,
 }) => {
   const UI = useContext(UIComponentContext);
   const home = useViewerHome();
@@ -43,6 +44,7 @@ const ControlsUI = ({
             )) // Workaround to prevent missing key warning
           }
         </ControlGroup>
+        <ControlGroup>{searchComponent}</ControlGroup>
       </ControlContainer>
       {showDebug && (
         <ControlContainer position="topright">

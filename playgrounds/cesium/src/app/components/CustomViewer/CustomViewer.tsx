@@ -2,6 +2,7 @@ import React, { ReactNode, useCallback, useEffect, useState } from 'react';
 import { Color, HeadingPitchRange, Viewer, BoundingSphere } from 'cesium';
 import { Viewer as ResiumViewer } from 'resium';
 import Crosshair from '../UI/Crosshair';
+import SearchWrapper from './components/SearchWrapper';
 
 import {
   useGlobeBaseColor,
@@ -132,6 +133,7 @@ function CustomViewer(props: CustomViewerProps) {
           showDebug={showDebug}
           showHome={showHome}
           showOrbit={showOrbit}
+          searchComponent={<SearchWrapper />}
         />
       )}
       {showCrosshair && <Crosshair lineColor="white" />}
