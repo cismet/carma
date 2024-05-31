@@ -44,7 +44,7 @@ const InfoBoxMeasurement = () => {
       console.log('www a');
       setStepAfterMoveToShape(activeShape);
       dispatch(setMoveToShape(null));
-    } else if (updateShape) {
+    } else if (updateShape && !drawingMode) {
       setStepAfterUpdating(true);
 
       console.log('www b');
