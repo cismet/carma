@@ -59,6 +59,9 @@ L.Control.MeasurePolygon = L.Control.extend({
     ifDrawing: false,
     nativeMove: false,
   },
+  _fireCreatedEvent: function () {
+    console.log('fff created event fired!');
+  },
 
   drawingPolygons: function (map) {
     this.options.shapeMode = 'polygon';
@@ -285,6 +288,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     }
 
     map.on('draw:created', (event) => {
+      console.log('fff draw:created');
       this.options.checkonedrawpoligon = false;
       this.options.ifDrawing = false;
 
@@ -344,12 +348,17 @@ L.Control.MeasurePolygon = L.Control.extend({
       const layers = event.layers;
       const latlngs = [];
       let index = 0;
+
       layers.eachLayer((layer) => {
         layer.customHandle = index++;
         layer.on('click', (e) => {
-          console.log('fff Vertex clicked!', e);
-          // console.log('fff Vertex index!', e.target.customHandle);
+          console.log('fff', this);
           console.log('fff Vertex index!', index);
+          console.log('fff e.target.customHandle', e.target.customHandle);
+          this._fireCreatedEvent();
+          // if (e.target.customHandle === 0) {
+          //   console.log('fff fire', this._fireCreatedEvent());
+          // }
         });
         const latLng = layer.getLatLng();
         latlngs.push(latLng);
