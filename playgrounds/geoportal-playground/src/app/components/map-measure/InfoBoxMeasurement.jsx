@@ -223,7 +223,7 @@ const InfoBoxMeasurement = () => {
                   updateTitleMeasurementById={updateTitleMeasurementById}
                 />
               </span>
-              <div>{visibleShapesData[currentMeasure].shapeId}</div>
+              {/* <div>{visibleShapesData[currentMeasure].shapeId}</div> */}
               <div className="flex justify-between items-center w-[12%] mt-1 gap-2">
                 <Icon
                   name="search-location"
@@ -264,7 +264,9 @@ const InfoBoxMeasurement = () => {
                 >
                   &lt;&lt;
                 </a>
-                <span className="mx-4">Messungen angezeigt</span>
+                <span className="mx-4">
+                  {visibleShapesData.length} Messungen angezeigt
+                </span>
                 <a
                   className="renderAsLink text-[#0078a8]"
                   onClick={increaseCurrentHandler}
