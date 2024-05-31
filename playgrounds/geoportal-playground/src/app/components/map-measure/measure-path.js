@@ -343,9 +343,13 @@ L.Control.MeasurePolygon = L.Control.extend({
     map.on('draw:drawvertex', (event) => {
       const layers = event.layers;
       const latlngs = [];
+      let index = 0;
       layers.eachLayer((layer) => {
+        layer.customHandle = index++;
         layer.on('click', (e) => {
           console.log('fff Vertex clicked!', e);
+          // console.log('fff Vertex index!', e.target.customHandle);
+          console.log('fff Vertex index!', index);
         });
         const latLng = layer.getLatLng();
         latlngs.push(latLng);
