@@ -1,8 +1,12 @@
 import { titleMapConfig } from './config';
-import { StopWords } from './types';
-import { md5FetchText, fetchJSON } from 'react-cismap/tools/fetching';
-import { getGazDataForTopicIds } from 'react-cismap/tools/gazetteerHelper';
-
+import {
+  GazDataItem,
+  SourceConfig,
+  SourceWithPayload,
+  StopWords,
+} from './types';
+import { md5FetchText } from './tools/fetching';
+import { getGazDataFromSources } from './tools/gazetteerHelper';
 export const titleMap = new Map(Object.entries(titleMapConfig));
 
 export function removeStopwords(text, stopwords: StopWords) {
@@ -32,19 +36,25 @@ export function prepareGazData(data, stopwords: StopWords) {
 }
 
 export const getGazData = async (
-  sourcesConfig,
+  sourcesConfig: SourceConfig[],
   prefix: string,
-  setGazData: (gazData: any) => void
+  setGazData: (gazData: GazDataItem[]) => void
 ) => {
-  const sources = {};
-
+  console.log('getGazData', sourcesConfig);
   await Promise.all(
-    Object.entries(sourcesConfig).map(async ([source, url]) => {
-      sources[source] = await md5FetchText(prefix, url);
+    sourcesConfig.map(async (config) => {
+      (config as SourceWithPayload).payload = await md5FetchText(
+        prefix,
+        config.url
+      );
     })
   );
 
-  const gazData = getGazDataForTopicIds(sources, Object.keys(sourcesConfig));
+  console.log('sourcesConfig', sourcesConfig);
+
+  const gazData = getGazDataFromSources(sourcesConfig as SourceWithPayload[]);
+
+  console.log('gazData', gazData && gazData.length > 0 ? gazData[0] : gazData);
 
   setGazData(gazData);
 };

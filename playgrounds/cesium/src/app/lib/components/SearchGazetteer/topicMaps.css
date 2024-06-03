@@ -1,0 +1,268 @@
+html {
+    font-size: 14px;
+  }
+  
+  .h5, h5 {
+    font-size: 14px;
+  }
+  
+  .h6, h6 {
+    font-size: 12px;
+  }
+  /* .leaflet-container a {
+    color:rgba(0, 0, 0);
+  }  */
+  
+  .form-label {
+    font-weight: 700;
+  }
+  .dropdown-menu a {
+    color:rgba(0, 0, 0);
+  } 
+  
+  :hover
+  *:focus,
+  *:active
+   {
+    outline: none;
+    box-shadow: none !important;
+    /* -webkit-appearance: none; */
+  }
+  
+  
+  btn:focus, a:focus
+  {
+           outline: none;
+  }
+  .navbar-toggler:focus
+  {
+           outline: none !important;
+           box-shadow: none;
+  }
+   
+  
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: sans-serif;
+  }
+  
+  .customGeoJSONFeatureTooltipClass {
+    background: none;
+    border: none;
+    box-shadow: none;
+  }
+  
+  .leaflet-tooltip-left.customGeoJSONFeatureTooltipClass::before {
+    border-left-color: none;
+  }
+  
+  .leaflet-tooltip-right.customGeoJSONFeatureTooltipClass::before {
+    border-right-color: none;
+  }
+  
+  a:hover {
+    cursor: pointer;
+  }
+  
+  .well {
+    margin-bottom: 0px;
+    border: 0px;
+  }
+  
+  .form-group {
+    margin-bottom: 0px;
+  }
+  
+  .leaflet-bottom {
+    margin-bottom: 5px !important;
+    
+  }
+  
+  .leaflet-control {
+    margin-bottom: 0px !important;
+  }
+  
+  
+  .leaflet-control-scale {
+    margin-bottom: 10px !important;
+    margin-left: 11px !important;
+  }
+  
+  
+  .pos-select .Select-value{
+    
+  }
+  
+  .neg-select .Select-value{
+    color: rgba(255, 90, 0, 0.68);
+    background-color: rgba(255, 90, 0, 0.28);
+  }
+  
+  /* .Select-menu { max-height: 350px;} */
+  
+  /* fixes an issue on mac os where no scrollbars beeing shown and a mousewheel action is translated in a zoom command */
+  /* Just a test to make sure that we have the right element*/
+  /*
+  .dropdown-menu {
+    background-color: #f00;   
+  }
+  */
+  
+  .dropdown-menu::-webkit-scrollbar {
+    -webkit-appearance: none;
+  }
+  
+  .dropdown-menu::-webkit-scrollbar:vertical {
+    width: 11px;
+  }
+  
+  .dropdown-menu::-webkit-scrollbar:horizontal {
+    height: 11px;
+  }
+  
+  .dropdown-menu::-webkit-scrollbar-thumb {
+    border-radius: 8px;
+    border: 2px solid white; /* should match background, can't be transparent */
+    background-color: rgba(0, 0, 0, .5);
+  }
+  
+  .dropdown-menu::-webkit-scrollbar-track { 
+    background-color: #fff; 
+    border-radius: 8px; 
+  } 
+  
+  
+  /* 
+  fix for https://github.com/cismet/wupp/issues/1477
+  */
+  
+  .rbt-input-wrapper>div>div {
+    width: 100% !important;
+  }
+  .rbt-input-hint {
+    width: 100% !important;
+  }
+  
+  
+  
+  
+  
+  /*
+  https://stackoverflow.com/questions/27028927/fade-in-leaflet-markers-when-added
+  
+  .leaflet-marker-icon,
+  .leaflet-marker-shadow {
+  -webkit-animation: fadein 1s; 
+  -moz-animation: fadein 1s; 
+  -ms-animation: fadein 1s; 
+  -o-animation: fadein 1s; 
+  animation: fadein 1s;
+  }
+  */
+  
+  /*
+  .cismap-hauptnutzung-highlighter {
+    opacity: 0.5;
+  animation-name: fadeInOpacity;
+  animation-iteration-count: 1;
+  animation-timing-function: ease-in;
+  animation-duration: 2s;
+  } */
+  @keyframes fadeInOpacity {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.5;
+  }
+  }
+  /* .cismap-hauptnutzung-highlighter {
+    -webkit-animation: fadeout 3s; 
+    -moz-animation: fadeout 3s; 
+    -ms-animation: fadeout 3s; 
+    -o-animation: fadeout 3s; 
+    animation: fadeout 3s;
+  } */
+  
+  @keyframes fadein {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  
+  /* Firefox < 16 */
+  @-moz-keyframes fadein {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  
+  /* Safari, Chrome and Opera > 12.1 */
+  @-webkit-keyframes fadein {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  
+  /* Internet Explorer */
+  @-ms-keyframes fadein {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  
+  /* Opera < 12.1 */
+  @-o-keyframes fadein {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  
+  
+  @keyframes fadeout {
+    from { opacity: 1; }
+    to   { opacity: 0; }
+  }
+  
+  /* Firefox < 16 */
+  @-moz-keyframes fadeout {
+    from { opacity: 1; }
+    to   { opacity: 0; }
+  }
+  
+  /* Safari, Chrome and Opera > 12.1 */
+  @-webkit-keyframes fadeout {
+    from { opacity: 1; }
+    to   { opacity: 0; }
+  }
+  
+  /* Internet Explorer */
+  @-ms-keyframes fadeout {
+    from { opacity: 1; }
+    to   { opacity: 0; }
+  }
+  
+  /* Opera < 12.1 */
+  @-o-keyframes fadeout {
+    from { opacity: 1; }
+    to   { opacity: 0; }
+  }
+
+
+  .hover {
+    position: relative;
+  
+    &:hover &__no-hover {
+      opacity: 0;
+    }
+  
+    &:hover &__hover {
+      opacity: 1;
+    }
+  
+    &__hover {
+      position: absolute;
+      top: 0;
+      opacity: 0;
+    }
+  
+    &__no-hover {
+      opacity: 1;
+    }
+  }

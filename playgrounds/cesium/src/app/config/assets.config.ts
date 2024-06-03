@@ -2,7 +2,7 @@ import { APP_BASE_PATH } from '.';
 import { ModelAsset } from '../components/CesiumMarkerContainer';
 
 const BEHOERDE_SVG = `${APP_BASE_PATH}data/img/behoerde.svg`;
-const GLB_SAMPLE = `${APP_BASE_PATH}data/glb/map_pointer.glb`;
+export const GLB_SAMPLE = `${APP_BASE_PATH}data/glb/map_pointer.glb`;
 const FROM_SVG_SAMPLE = `${APP_BASE_PATH}data/glb/behoerde.glb`;
 // https://sketchfab.com/3d-models/map-pointer-162fba8901ea4ce5894d8b0916d802b4
 // Placeholder asset - CC BY 4.0 DEED - thekiross
