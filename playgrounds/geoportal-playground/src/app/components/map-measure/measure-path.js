@@ -632,17 +632,30 @@ L.Control.MeasurePolygon = L.Control.extend({
 
     prepeareCoordinates.push(prepeareCoordinates[0]);
 
-    const polygon = L.polygon(prepeareCoordinates, {
+    const options = {
       color: 'blue',
-      fillColor: 'blue',
-      fillOpacity: 0.5,
-    })
+      fillColor: null,
+      opacity: 0.5,
+      weigt: 4,
+    };
+
+    const preparePolygon = {
+      coordinates: prepeareCoordinates,
+      options,
+      shapeId,
+      distance: 'llll',
+      number: this.options.measurementOrder,
+      area: 'llll',
+      shapeType: this.options.shapeMode,
+    };
+
+    const polygon = L.polygon(prepeareCoordinates, options)
       .addTo(map)
       .showMeasurements()
       .enableEdit();
 
     this.options.polygonMode = false;
-    return polygon;
+    return preparePolygon;
   },
 });
 
