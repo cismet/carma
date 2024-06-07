@@ -59,9 +59,10 @@ L.Control.MeasurePolygon = L.Control.extend({
     ifDrawing: false,
     nativeMove: false,
     currenLine: null,
+    polygonMode: false,
   },
   // _fireCreatedEvent: function () {
-  //   console.log('fff created event fired!', this.options.currenLine);
+  //   console.log('„© created event fired!', this.options.currenLine);
   // },
 
   drawingPolygons: function (map) {
@@ -302,7 +303,9 @@ L.Control.MeasurePolygon = L.Control.extend({
       const layer = event.layer;
       layer.on('dblclick', this._onPolygonClick.bind(this, map));
 
-      console.log('fff created line!', layer);
+      if (this.options.polygonMode) {
+        this.replaceLineToPolygon(map, layer);
+      }
 
       layer.on('editable:vertex:dragend', () => {
         this.options.cbSetUpdateStatusHandler(false);
@@ -337,7 +340,6 @@ L.Control.MeasurePolygon = L.Control.extend({
     });
 
     map.on('draw:drawstart', (event) => {
-      console.log('fff start event', event);
       this.options.cbSetDrawingStatus(true);
       this.options.measurementOrder = this.options.measurementOrder + 1;
       const shapesObj = {
@@ -347,7 +349,7 @@ L.Control.MeasurePolygon = L.Control.extend({
         number: this.options.measurementOrder,
         shapeType: 'line',
       };
-      // this.options.cbSetDrawingShape(shapesObj);
+      // this.options.cbSetDrawingShape(shapesObj);°G„©
       this.changeColorByActivePolyline(map, 'ddfsc1231');
     });
 
@@ -359,26 +361,8 @@ L.Control.MeasurePolygon = L.Control.extend({
       layers.eachLayer((layer) => {
         layer.customHandle = index++;
         layer.on('click', (e) => {
-          // console.log('fff Vertex index!', index);
-          // console.log('fff e.target.customHandle', e.target.customHandle);
-          console.log('fff this line!', this.options.currenLine);
+          this.options.polygonMode = true;
           this.options.currenLine.completeShape();
-
-          const polygonCoordinates = [
-            [51.31602217169266, 7.11193084716797],
-            [51.302286669881575, 7.152099609375001],
-            [51.28210519707482, 7.055282592773438],
-            [51.31602217169266, 7.11193084716797],
-          ];
-
-          L.polygon(polygonCoordinates, {
-            color: 'blue',
-            fillColor: 'blue',
-            fillOpacity: 0.5,
-          })
-            .addTo(map)
-            .showMeasurements()
-            .enableEdit();
         });
         const latLng = layer.getLatLng();
         latlngs.push(latLng);
@@ -616,6 +600,36 @@ L.Control.MeasurePolygon = L.Control.extend({
     });
 
     map.fitBounds(allBounds);
+  },
+
+  replaceLineToPolygon: function (map, layer) {
+    const latlngsJSON = layer.toGeoJSON();
+    const shapeId = layer._leaflet_id;
+    layer.customID = shapeId;
+    layer.on('click', () => {
+      this.options.cbSetActiveShape(layer.customID);
+      this.options.cbSetUpdateStatusHandler(false);
+      console.log('ccc', layer.customID);
+    });
+    const prepeareCoordinates = latlngsJSON.geometry.coordinates.map((l) => {
+      return l.reverse();
+    });
+
+    map.removeLayer(layer);
+
+    prepeareCoordinates.push(prepeareCoordinates[0]);
+    console.log('fff replaceLineToPolygon', prepeareCoordinates);
+
+    L.polygon(prepeareCoordinates, {
+      color: 'blue',
+      fillColor: 'blue',
+      fillOpacity: 0.5,
+    })
+      .addTo(map)
+      .showMeasurements()
+      .enableEdit();
+
+    this.options.polygonMode = false;
   },
 });
 
