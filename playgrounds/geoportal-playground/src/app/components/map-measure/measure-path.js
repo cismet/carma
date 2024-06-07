@@ -369,13 +369,17 @@ L.Control.MeasurePolygon = L.Control.extend({
       layers.eachLayer((layer) => {
         layer.customHandle = index++;
         layer.on('click', (e) => {
-          // this.options.polygonMode = true;
-          this.options.shapeMode = 'polyline';
-          this.options.currenLine.completeShape();
+          console.log('fff customHandle', e.target.customHandle === 0);
+          if (e.target.customHandle === 0) {
+            this.options.shapeMode = 'polyline';
+            this.options.currenLine.completeShape();
+          }
         });
+
         const latLng = layer.getLatLng();
         latlngs.push(latLng);
       });
+
       const formatPerimeter = this.calculateDistance(latlngs);
       const distance = this.formatDistance(formatPerimeter);
 
