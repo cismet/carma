@@ -58,10 +58,11 @@ L.Control.MeasurePolygon = L.Control.extend({
     localShapeStore: [],
     ifDrawing: false,
     nativeMove: false,
+    currenLine: null,
   },
-  _fireCreatedEvent: function () {
-    console.log('fff created event fired!');
-  },
+  // _fireCreatedEvent: function () {
+  //   console.log('fff created event fired!', this.options.currenLine);
+  // },
 
   drawingPolygons: function (map) {
     this.options.shapeMode = 'polygon';
@@ -99,6 +100,10 @@ L.Control.MeasurePolygon = L.Control.extend({
         opacity: 1,
       },
     });
+
+    this.options.currenLine = this._measureHandler;
+
+    console.log('fff this._measureHandler', this._measureHandler);
 
     L.drawLocal.draw.handlers.polyline.tooltip.start =
       'Klicken Sie, um die Linie zu zeichnen';
@@ -331,6 +336,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     });
 
     map.on('draw:drawstart', (event) => {
+      console.log('fff start event', event);
       this.options.cbSetDrawingStatus(true);
       this.options.measurementOrder = this.options.measurementOrder + 1;
       const shapesObj = {
@@ -355,7 +361,17 @@ L.Control.MeasurePolygon = L.Control.extend({
           console.log('fff', this);
           console.log('fff Vertex index!', index);
           console.log('fff e.target.customHandle', e.target.customHandle);
-          this._fireCreatedEvent();
+          this.options.currenLine.type = 'polygon';
+          console.log('fff created event fired!', this.options.currenLine.type);
+          console.log(
+            'fff completeShape!',
+            this.options.currenLine.completeShape
+          );
+
+          this.options.currenLine.completeShape();
+
+          //polygon
+          // this._fireCreatedEvent();
           // if (e.target.customHandle === 0) {
           //   console.log('fff fire', this._fireCreatedEvent());
           // }
