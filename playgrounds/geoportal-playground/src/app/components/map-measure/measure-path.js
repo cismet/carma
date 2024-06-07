@@ -18,7 +18,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     msj_disable_tool: 'Möchten Sie das Tool deaktivieren?',
     shapes: [],
     activeShape: null,
-    shapeMode: 'polygon',
+    shapeMode: 'line',
     measurementOrder: 0,
     moveToShape: false,
     cb: function () {
@@ -128,34 +128,42 @@ L.Control.MeasurePolygon = L.Control.extend({
     layer.on('click', () => {
       this.options.cbSetActiveShape(layer.customID);
       this.options.cbSetUpdateStatusHandler(false);
-      console.log('ccc', layer.customID);
-    });
-    const prepeareCoordinates =
-      this.options.shapeMode === 'line'
-        ? latlngsJSON.geometry.coordinates
-        : latlngsJSON.geometry.coordinates[0];
-    const reversedCoordinates = prepeareCoordinates.map((item) => {
-      return item.reverse();
     });
 
-    const preparePolygon = {
-      coordinates: reversedCoordinates,
-      options: {
-        color: 'blue',
-        fillColor: null,
-        opacity: 0.5,
-        weigt: 4,
-      },
-      shapeId,
-      distance,
-      number: this.options.measurementOrder,
-      area,
-      shapeType: this.options.shapeMode,
-    };
-    this.options.cbSaveShape(preparePolygon);
+    if (this.options.shapeMode === 'polyline') {
+      const polygon = this.replaceLineToPolygon(map, layer);
+      this.options.cbSaveShape(polygon);
 
-    const allPolyLines = this.getVisiblePolylines(map);
-    this.getVisiblePolylinesIds(allPolyLines);
+      const allPolyLines = this.getVisiblePolylines(map);
+      this.getVisiblePolylinesIds(allPolyLines);
+    } else {
+      const prepeareCoordinates =
+        this.options.shapeMode === 'line'
+          ? latlngsJSON.geometry.coordinates
+          : latlngsJSON.geometry.coordinates[0];
+      const reversedCoordinates = prepeareCoordinates.map((item) => {
+        return item.reverse();
+      });
+
+      const preparePolygon = {
+        coordinates: reversedCoordinates,
+        options: {
+          color: 'blue',
+          fillColor: null,
+          opacity: 0.5,
+          weigt: 4,
+        },
+        shapeId,
+        distance,
+        number: this.options.measurementOrder,
+        area,
+        shapeType: this.options.shapeMode,
+      };
+      this.options.cbSaveShape(preparePolygon);
+
+      const allPolyLines = this.getVisiblePolylines(map);
+      this.getVisiblePolylinesIds(allPolyLines);
+    }
   },
 
   _onPolylineDrag: function (event) {
@@ -303,9 +311,9 @@ L.Control.MeasurePolygon = L.Control.extend({
       const layer = event.layer;
       layer.on('dblclick', this._onPolygonClick.bind(this, map));
 
-      if (this.options.polygonMode) {
-        this.replaceLineToPolygon(map, layer);
-      }
+      // if (this.options.polygonMode) {
+      //   this.replaceLineToPolygon(map, layer);
+      // }
 
       layer.on('editable:vertex:dragend', () => {
         this.options.cbSetUpdateStatusHandler(false);
@@ -361,7 +369,8 @@ L.Control.MeasurePolygon = L.Control.extend({
       layers.eachLayer((layer) => {
         layer.customHandle = index++;
         layer.on('click', (e) => {
-          this.options.polygonMode = true;
+          // this.options.polygonMode = true;
+          this.options.shapeMode = 'polyline';
           this.options.currenLine.completeShape();
         });
         const latLng = layer.getLatLng();
@@ -618,9 +627,8 @@ L.Control.MeasurePolygon = L.Control.extend({
     map.removeLayer(layer);
 
     prepeareCoordinates.push(prepeareCoordinates[0]);
-    console.log('fff replaceLineToPolygon', prepeareCoordinates);
 
-    L.polygon(prepeareCoordinates, {
+    const polygon = L.polygon(prepeareCoordinates, {
       color: 'blue',
       fillColor: 'blue',
       fillOpacity: 0.5,
@@ -630,6 +638,7 @@ L.Control.MeasurePolygon = L.Control.extend({
       .enableEdit();
 
     this.options.polygonMode = false;
+    return polygon;
   },
 });
 
