@@ -293,7 +293,6 @@ L.Control.MeasurePolygon = L.Control.extend({
     }
 
     map.on('draw:created', (event) => {
-      console.log('fff draw:created');
       this.options.checkonedrawpoligon = false;
       this.options.ifDrawing = false;
 
@@ -302,6 +301,8 @@ L.Control.MeasurePolygon = L.Control.extend({
 
       const layer = event.layer;
       layer.on('dblclick', this._onPolygonClick.bind(this, map));
+
+      console.log('fff created line!', layer);
 
       layer.on('editable:vertex:dragend', () => {
         this.options.cbSetUpdateStatusHandler(false);
@@ -358,23 +359,26 @@ L.Control.MeasurePolygon = L.Control.extend({
       layers.eachLayer((layer) => {
         layer.customHandle = index++;
         layer.on('click', (e) => {
-          console.log('fff', this);
-          console.log('fff Vertex index!', index);
-          console.log('fff e.target.customHandle', e.target.customHandle);
-          this.options.currenLine.type = 'polygon';
-          console.log('fff created event fired!', this.options.currenLine.type);
-          console.log(
-            'fff completeShape!',
-            this.options.currenLine.completeShape
-          );
-
+          // console.log('fff Vertex index!', index);
+          // console.log('fff e.target.customHandle', e.target.customHandle);
+          console.log('fff this line!', this.options.currenLine);
           this.options.currenLine.completeShape();
 
-          //polygon
-          // this._fireCreatedEvent();
-          // if (e.target.customHandle === 0) {
-          //   console.log('fff fire', this._fireCreatedEvent());
-          // }
+          const polygonCoordinates = [
+            [51.31602217169266, 7.11193084716797],
+            [51.302286669881575, 7.152099609375001],
+            [51.28210519707482, 7.055282592773438],
+            [51.31602217169266, 7.11193084716797],
+          ];
+
+          L.polygon(polygonCoordinates, {
+            color: 'blue',
+            fillColor: 'blue',
+            fillOpacity: 0.5,
+          })
+            .addTo(map)
+            .showMeasurements()
+            .enableEdit();
         });
         const latLng = layer.getLatLng();
         latlngs.push(latLng);
