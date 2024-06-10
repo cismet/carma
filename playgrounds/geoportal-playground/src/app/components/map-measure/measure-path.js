@@ -396,10 +396,19 @@ L.Control.MeasurePolygon = L.Control.extend({
     });
 
     map.on('draw:canceled', () => {
-      document.getElementById('img_plg_measure_polygon').src =
-        this.options.icon_polygonInactive;
-      document.getElementById('img_plg_lines').src =
-        this.options.icon_lineInactive;
+      // document.getElementById('img_plg_measure_polygon').src =
+      //   this.options.icon_polygonInactive;
+      // document.getElementById('img_plg_lines').src =
+      //   this.options.icon_lineInactive;
+      this.options.checkonedrawpoligon = true;
+
+      this._toggleMeasure(
+        'img_plg_lines',
+        'icon_lineActive',
+        'icon_lineInactive'
+      );
+
+      this.changeColorByLastShape(map);
     });
 
     // map.on('drag', () => {
@@ -553,6 +562,21 @@ L.Control.MeasurePolygon = L.Control.extend({
     });
   },
 
+  changeColorByLastShape: function (map) {
+    let lastPolyline = null;
+
+    map.eachLayer(function (layer) {
+      if (layer instanceof L.Polyline) {
+        lastPolyline = layer;
+        layer._path.classList.add('custom-polyline');
+      }
+    });
+
+    if (lastPolyline) {
+      lastPolyline._path.classList.remove('custom-polyline');
+    }
+  },
+
   getVisiblePolylines: function (map) {
     const visiblePolylines = [];
     const mapBounds = map.getBounds();
@@ -577,8 +601,6 @@ L.Control.MeasurePolygon = L.Control.extend({
       idsPolylinesArr.push(m.customID);
       this.options.visiblePolylines.push(m.customID);
     });
-
-    console.log('fff idsPolylinesArr', idsPolylinesArr);
 
     this.options.cbVisiblePolylinesChange(idsPolylinesArr);
   },
@@ -685,7 +707,9 @@ L.Control.MeasurePolygon = L.Control.extend({
       'icon_lineInactive'
     );
 
-    this._measureHandler.disable();
+    // this.options.checkonedrawpoligon = false;
+
+    // this._measureHandler.disable();
 
     return preparePolygon;
   },
