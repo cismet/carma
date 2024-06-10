@@ -298,17 +298,11 @@ L.Control.MeasurePolygon = L.Control.extend({
       this.options.checkonedrawpoligon = false;
       this.options.ifDrawing = false;
 
-      console.log('fff created ****************************');
-
       this.options.cbSetDrawingStatus(false);
       this.options.cbSetDrawingShape(null);
 
       const layer = event.layer;
       layer.on('dblclick', this._onPolygonClick.bind(this, map));
-
-      // if (this.options.polygonMode) {
-      //   this.replaceLineToPolygon(map, layer);
-      // }
 
       layer.on('editable:vertex:dragend', () => {
         this.options.cbSetUpdateStatusHandler(false);
@@ -402,10 +396,6 @@ L.Control.MeasurePolygon = L.Control.extend({
     });
 
     map.on('draw:canceled', () => {
-      // document.getElementById('img_plg_measure_polygon').src =
-      //   this.options.icon_polygonInactive;
-      // document.getElementById('img_plg_lines').src =
-      //   this.options.icon_lineInactive;
       this.options.checkonedrawpoligon = true;
 
       this._toggleMeasure(
@@ -414,7 +404,6 @@ L.Control.MeasurePolygon = L.Control.extend({
         'icon_lineInactive'
       );
 
-      // this.changeColorByLastShape(map);
       this.options.cbChangeActiveCanceldShapeId();
     });
 

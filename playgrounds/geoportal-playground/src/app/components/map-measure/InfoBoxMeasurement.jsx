@@ -248,9 +248,14 @@ const InfoBoxMeasurement = () => {
           }
           collapsibleDiv={
             <div>
-              <span className="text-[12px] mb-2">
-                {visibleShapesData[currentMeasure].distance}
-              </span>
+              <div className="text-[12px] mb-2">
+                Entfernung: {visibleShapesData[currentMeasure].distance}
+              </div>
+              {visibleShapesData[currentMeasure]?.area && (
+                <div className="text-[12px] mb-2">
+                  Quadratisch: {visibleShapesData[currentMeasure].area}
+                </div>
+              )}
               <div className="flex justify-center items-center w-[96%] mt-2 pt-3">
                 <span
                   className="mx-4 text-[#0078a8] cursor-pointer"
