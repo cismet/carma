@@ -89,8 +89,6 @@ const MapMeasurement = (props) => {
   }, [routedMapRef]);
 
   useEffect(() => {
-    console.log('www uef delete update move');
-
     if (measureControl && activeShape) {
       const shapeCoordinates = measurementShapes.filter(
         (s) => s.shapeId === activeShape
@@ -114,7 +112,6 @@ const MapMeasurement = (props) => {
       }
 
       if (deleteShape) {
-        console.log('www', deleteShape);
         dispatch(setMoveToShape(null));
         measureControl.removePolylineById(map, activeShape);
         const cleanArr = visibleShapes.filter((m) => m.shapeId !== activeShape);
@@ -128,8 +125,6 @@ const MapMeasurement = (props) => {
         dispatch(setDeleteMeasurements(false));
       }
       if (moveToShape && !deleteShape) {
-        console.log('mmm', moveToShape);
-        console.log('mmm shape', shapeCoordinates[0]);
         measureControl.showActiveShape(map, shapeCoordinates[0]?.coordinates);
       }
     }
@@ -143,8 +138,6 @@ const MapMeasurement = (props) => {
   ]);
 
   useEffect(() => {
-    console.log('www uef visiblePolylines');
-
     if (measureControl) {
       const cleanedVisibleArr = filterArrByIds(
         visiblePolylines,
@@ -155,7 +148,6 @@ const MapMeasurement = (props) => {
   }, [visiblePolylines, measurementShapes]);
 
   useEffect(() => {
-    console.log('www uef drawing');
     if (drawingShape) {
       const cleanArr = visibleShapes.filter((m) => m.shapeId !== 5555);
       dispatch(setVisibleShapes([...cleanArr, drawingShape]));

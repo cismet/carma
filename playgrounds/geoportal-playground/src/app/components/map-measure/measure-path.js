@@ -123,7 +123,6 @@ L.Control.MeasurePolygon = L.Control.extend({
     const latlngsJSON = layer.toGeoJSON();
     const shapeId = layer._leaflet_id;
     layer.customID = shapeId;
-    console.log('fff first custom id', layer.customID);
     layer.on('click', () => {
       this.options.cbSetActiveShape(layer.customID);
       this.options.cbSetUpdateStatusHandler(false);
@@ -176,7 +175,6 @@ L.Control.MeasurePolygon = L.Control.extend({
     });
 
     const square = !isLine ? this.calculateArea(reversedCoordinates) : null;
-    console.log('uuu square', square);
     polyline.updateMeasurements();
     const newDistance = this._UpdateDistance(layer);
     const shapeId = polyline?.customID
@@ -617,7 +615,6 @@ L.Control.MeasurePolygon = L.Control.extend({
 
     map.eachLayer(function (layer) {
       if (layer instanceof L.Polyline) {
-        console.log('fff !!!!!!!!', layer.customID);
         if (mapBounds.intersects(layer.getBounds())) {
           visiblePolylines.push(layer);
         }
@@ -631,7 +628,6 @@ L.Control.MeasurePolygon = L.Control.extend({
     const idsPolylinesArr = [];
     this.options.visiblePolylines = [];
     polylinesArr.forEach((m) => {
-      console.log('fff custom id', m.customID);
       idsPolylinesArr.push(m.customID);
       this.options.visiblePolylines.push(m.customID);
     });
@@ -700,9 +696,6 @@ L.Control.MeasurePolygon = L.Control.extend({
     };
     const distance = this._UpdateDistanceByLatLngs(prepeareCoordinates);
     const square = this.calculateArea(prepeareCoordinates);
-
-    console.log('fff area', square);
-
     const preparePolygon = {
       coordinates: prepeareCoordinates,
       options,
@@ -751,7 +744,6 @@ L.Control.MeasurePolygon = L.Control.extend({
   },
   getVisibleShapeIdsArr: function (map) {
     const allPolyLines = this.getVisiblePolylines(map);
-    console.log('fff allPolyLines', allPolyLines);
     this.getVisiblePolylinesIds(allPolyLines);
   },
 

@@ -38,49 +38,33 @@ const InfoBoxMeasurement = () => {
   const [stepAfterCreating, setStepAfterCreating] = useState(false);
 
   useEffect(() => {
-    console.log('www uef visibleShapesData');
-
     if (moveToShape) {
-      console.log('www a');
       setStepAfterMoveToShape(activeShape);
       dispatch(setMoveToShape(null));
     } else if (updateShape && !drawingMode) {
       setStepAfterUpdating(true);
-
-      console.log('www b');
     } else if (!stepAfterUpdating && !stepAfterCreating) {
-      console.log('www c');
       if (stepAfterMoveToShape) {
-        console.log('www c a');
         const positionInArr = activeShapeHandler(stepAfterMoveToShape);
-        console.log('www c a position', positionInArr);
         setCurrentMeasure(positionInArr);
         setStepAfterUpdating(false);
         setStepAfterMoveToShape(null);
       } else if (visibleShapesData.length === 1) {
         setLastMeasureActive();
-        console.log('www c b');
         dispatch(setActiveShape(visibleShapesData[0].shapeId));
       } else {
         setLastMeasureActive();
       }
     } else if (drawingMode) {
-      console.log('www d');
-
       setLastMeasureActive();
     } else if (stepAfterCreating) {
-      console.log('www e');
-
       setLastMeasureActive();
       setStepAfterCreating(false);
       dispatch(setUpdateShape(false));
     } else if (mapMovingEnd) {
       setStepAfterUpdating(false);
-      console.log('www f');
-
       dispatch(setMapMovingEnd(false));
     } else {
-      console.log('www visible else');
     }
   }, [
     visibleShapesData,
@@ -92,15 +76,12 @@ const InfoBoxMeasurement = () => {
   ]);
 
   useEffect(() => {
-    console.log('www uef currentMeasure');
     if (visibleShapesData[currentMeasure]?.shapeId) {
       dispatch(setActiveShape(visibleShapesData[currentMeasure].shapeId));
     }
   }, [currentMeasure]);
 
   useEffect(() => {
-    console.log('www uef active shape');
-
     const positionInArr = activeShapeHandler(activeShape);
 
     setCurrentMeasure(positionInArr);
