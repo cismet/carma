@@ -283,6 +283,34 @@ const InfoBoxMeasurement = () => {
           fixedRow={{}}
         />
       )}
+      {!visibleShapesData[currentMeasure] && (
+        <ResponsiveInfoBox
+          pixelwidth={350}
+          isCollapsible={false}
+          alwaysVisibleDiv={
+            <div className="mt-2 w-[90%] p-2">
+              <p className="text-[#212529] font-normal text-xs leading-normal">
+                Um alle Messungen zu sehen, klicken Sie auf den unten stehenden
+                Link
+              </p>
+            </div>
+          }
+          collapsibleDiv={
+            <div>
+              <div className="flex justify-center items-center w-[96%]">
+                <span
+                  className="mx-4 text-[#0078a8] cursor-pointer"
+                  onClick={() => dispatch(setShowAllMeasurements(true))}
+                >
+                  {measurementsData.length} Messungen verfügbar
+                </span>
+              </div>
+              <div className="flex justify-between items-center w-[96%] mt-1 mb-1"></div>
+            </div>
+          }
+          fixedRow={{}}
+        />
+      )}
     </div>
   );
 };
