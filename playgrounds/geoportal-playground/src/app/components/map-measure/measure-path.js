@@ -323,13 +323,13 @@ L.Control.MeasurePolygon = L.Control.extend({
         this._onPolylineDrag.bind(this)
       );
 
-      if (this.options.shapeMode === 'polygon') {
-        document.getElementById('img_plg_measure_polygon').src =
-          this.options.icon_polygonInactive;
-      } else {
-        document.getElementById('img_plg_lines').src =
-          this.options.icon_lineInactive;
-      }
+      // if (this.options.shapeMode === 'polygon') {
+      //   document.getElementById('img_plg_measure_polygon').src =
+      //     this.options.icon_polygonInactive;
+      // } else {
+      //   document.getElementById('img_plg_lines').src =
+      //     this.options.icon_lineInactive;
+      // }
 
       this.options.checkonedrawpoligon = false;
 
@@ -486,6 +486,7 @@ L.Control.MeasurePolygon = L.Control.extend({
         return `${perimeter.toFixed(2)} m`;
       }
     };
+
     return formatPerimeter(totalDistance);
   },
 
@@ -523,7 +524,7 @@ L.Control.MeasurePolygon = L.Control.extend({
       this._measureHandler.disable();
 
       document.getElementById(btnId).src = this.options[inactiveIcon];
-      this._clearMeasurements();
+      // this._clearMeasurements();
       this.options.checkonedrawpoligon = false;
 
       // this._clearMeasurements();
@@ -682,6 +683,16 @@ L.Control.MeasurePolygon = L.Control.extend({
     });
 
     this.options.polygonMode = false;
+
+    this.options.checkonedrawpoligon = true;
+
+    this._toggleMeasure(
+      'img_plg_lines',
+      'icon_lineActive',
+      'icon_lineInactive'
+    );
+
+    this._measureHandler.disable();
 
     return preparePolygon;
   },
