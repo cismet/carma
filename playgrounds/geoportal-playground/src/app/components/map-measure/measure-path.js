@@ -126,6 +126,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     if (this.options.shapeMode === 'polygon') {
       const polygon = this.replaceLineToPolygon(map, layer);
       this.options.cbSaveShape(polygon);
+      this.getVisibleShapeIdsArr(map);
     } else {
       const prepeareCoordinates =
         this.options.shapeMode === 'line'
@@ -345,7 +346,6 @@ L.Control.MeasurePolygon = L.Control.extend({
         number: this.options.measurementOrder,
         shapeType: 'line',
       };
-      // this.options.cbSetDrawingShape(shapesObj);°G„©
       this.changeColorByActivePolyline(map, 'ddfsc1231');
     });
 
@@ -617,8 +617,6 @@ L.Control.MeasurePolygon = L.Control.extend({
       return l.reverse();
     });
 
-    const customId = layer.customID;
-
     map.removeLayer(layer);
 
     prepeareCoordinates.push(prepeareCoordinates[0]);
@@ -640,18 +638,27 @@ L.Control.MeasurePolygon = L.Control.extend({
       shapeType: this.options.shapeMode,
     };
 
-    const polygon = L.polygon(prepeareCoordinates, options)
-      .addTo(map)
-      .showMeasurements()
-      .enableEdit();
+    const polygon = L.polygon(prepeareCoordinates, options);
+
+    polygon.customID = layer.customID;
+    const distance = this._UpdateDistance(layer);
+
+    polygon.addTo(this._measureLayers).showMeasurements().enableEdit();
+    polygon.on('dblclick', this._onPolygonClick.bind(this, map));
+    polygon.on('click', () => {
+      this.options.cbSetActiveShape(polygon.customID);
+      this.options.cbSetUpdateStatusHandler(false);
+    });
+    polygon.on(
+      'editable:drag editable:dragstart editable:dragend editable:vertex:drag editable:vertex:deleted',
+      this._onPolylineDrag.bind(this)
+    );
+
+    polygon.on('editable:vertex:dragend', () => {
+      this.options.cbSetUpdateStatusHandler(false);
+    });
 
     this.options.polygonMode = false;
-
-    // const lastLayer = this.findLastCreatedLayer(polygon.editLayer);
-    // lastLayer.customId = customId;
-    // layer.addTo(this._measureLayers).showMeasurements().enableEdit();
-
-    // console.log('fff new created polygon', lastLayer);
 
     return preparePolygon;
   },
