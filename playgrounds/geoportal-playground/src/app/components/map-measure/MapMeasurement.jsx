@@ -36,7 +36,7 @@ import {
   updateShapeById,
   setLastVisibleShapeActive,
   setDrawingWithLastActiveShape,
-  getLastActiveShapeBeforeDrawing,
+  setActiveShapeIfDrawCanseld,
 } from '../../store/slices/measurements';
 
 const MapMeasurement = (props) => {
@@ -50,9 +50,6 @@ const MapMeasurement = (props) => {
   const deleteShape = useSelector(getDeleteMeasurements);
   const visibleShapes = useSelector(getVisibleShapes);
   const moveToShape = useSelector(getMoveToShape);
-  const lastActiveShapeBeforeDrawing = useSelector(
-    getLastActiveShapeBeforeDrawing
-  );
 
   const [measureControl, setMeasureControl] = useState(null);
   const [visiblePolylines, setVisiblePolylines] = useState();
@@ -82,6 +79,7 @@ const MapMeasurement = (props) => {
         cbMapMovingEndHandler: mapMovingEndHandler,
         cbSaveLastActiveShapeIdBeforeDrawingHandler:
           saveLastActiveShapeIdBeforeDrawingHandler,
+        cbChangeActiveCanceldShapeId: changeActiveCanceldShapeId,
       };
 
       const measurePolygonControl = L.control.measurePolygon(customOptions);
@@ -178,6 +176,9 @@ const MapMeasurement = (props) => {
 
   const saveLastActiveShapeIdBeforeDrawingHandler = () => {
     dispatch(setDrawingWithLastActiveShape());
+  };
+  const changeActiveCanceldShapeId = () => {
+    dispatch(setActiveShapeIfDrawCanseld());
   };
 
   const visiblePolylinesChange = (arr) => {

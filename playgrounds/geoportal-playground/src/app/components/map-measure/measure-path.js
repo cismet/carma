@@ -54,6 +54,9 @@ L.Control.MeasurePolygon = L.Control.extend({
     cbSaveLastActiveShapeIdBeforeDrawingHandler: function () {
       console.log('Callback function executed!');
     },
+    cbChangeActiveCanceldShapeId: function () {
+      console.log('Callback function executed!');
+    },
     visiblePolylines: [],
     localShapeStore: [],
     ifDrawing: false,
@@ -412,7 +415,7 @@ L.Control.MeasurePolygon = L.Control.extend({
       );
 
       // this.changeColorByLastShape(map);
-      this.options.cbSetDrawingStatus(false);
+      this.options.cbChangeActiveCanceldShapeId();
     });
 
     // map.on('drag', () => {

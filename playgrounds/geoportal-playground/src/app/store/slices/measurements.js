@@ -202,3 +202,13 @@ export const setDrawingWithLastActiveShape = () => {
     }
   };
 };
+export const setActiveShapeIfDrawCanseld = () => {
+  return function (dispatch, getState) {
+    const state = getState();
+    const lastActiveShape = state.measurements.lastActiveShapeBeforeDrawing;
+    if (lastActiveShape) {
+      dispatch(setActiveShape(lastActiveShape));
+      dispatch(setDrawingShape(false));
+    }
+  };
+};
