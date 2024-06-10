@@ -211,12 +211,13 @@ const InfoBoxMeasurement = () => {
               <span style={{ cursor: 'pointer' }}>
                 <MeasurementTitle
                   key={visibleShapesData[currentMeasure].shapeId}
+                  order={getOrderOfShape(
+                    visibleShapesData[currentMeasure].shapeId
+                  )}
                   title={
                     visibleShapesData[currentMeasure]?.customTitle
                       ? visibleShapesData[currentMeasure]?.customTitle
-                      : `Linienzug #${getOrderOfShape(
-                          visibleShapesData[currentMeasure].shapeId
-                        )}`
+                      : `Linienzug`
                   }
                   shapeId={visibleShapesData[currentMeasure].shapeId}
                   setUpdateMeasurementStatus={setUpdateMeasurementStatus}
@@ -248,12 +249,12 @@ const InfoBoxMeasurement = () => {
           }
           collapsibleDiv={
             <div>
-              <div className="text-[12px] mb-2">
+              <div className="text-[12px] mb-1">
                 Entfernung: {visibleShapesData[currentMeasure].distance}
               </div>
               {visibleShapesData[currentMeasure]?.area && (
-                <div className="text-[12px] mb-2">
-                  Quadratisch: {visibleShapesData[currentMeasure].area}
+                <div className="text-[12px] mb-1">
+                  Fläche: {visibleShapesData[currentMeasure].area}
                 </div>
               )}
               <div className="flex justify-center items-center w-[96%] mt-2 pt-3">
@@ -295,14 +296,15 @@ const InfoBoxMeasurement = () => {
           alwaysVisibleDiv={
             <div className="mt-2 w-[90%] p-2">
               <p className="text-[#212529] font-normal text-xs leading-normal">
-                Um alle Messungen zu sehen, klicken Sie auf den unten stehenden
-                Link
+                {measurementsData.length !== 0
+                  ? 'Um alle Messungen zu sehen, klicken Sie auf den unten stehenden Link'
+                  : 'Aktuell sind keine Messungen vorhanden'}
               </p>
             </div>
           }
           collapsibleDiv={
             <div>
-              <div className="flex justify-center items-center w-[96%]">
+              <div className="flex justify-center items-center w-[96%] justify-start">
                 <span
                   className="mx-4 text-[#0078a8] cursor-pointer"
                   onClick={() => dispatch(setShowAllMeasurements(true))}
