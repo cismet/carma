@@ -323,13 +323,13 @@ L.Control.MeasurePolygon = L.Control.extend({
         this._onPolylineDrag.bind(this)
       );
 
-      // if (this.options.shapeMode === 'polygon') {
-      //   document.getElementById('img_plg_measure_polygon').src =
-      //     this.options.icon_polygonInactive;
-      // } else {
-      //   document.getElementById('img_plg_lines').src =
-      //     this.options.icon_lineInactive;
-      // }
+      if (this.options.shapeMode === 'polygon') {
+        document.getElementById('img_plg_measure_polygon').src =
+          this.options.icon_polygonInactive;
+      } else {
+        document.getElementById('img_plg_lines').src =
+          this.options.icon_lineInactive;
+      }
 
       this.options.checkonedrawpoligon = false;
 
@@ -628,13 +628,6 @@ L.Control.MeasurePolygon = L.Control.extend({
 
   replaceLineToPolygon: function (map, layer) {
     const latlngsJSON = layer.toGeoJSON();
-    // const shapeId = layer._leaflet_id;
-    // layer.customID = shapeId;
-    // layer.on('click', () => {
-    //   this.options.cbSetActiveShape(layer.customID);
-    //   this.options.cbSetUpdateStatusHandler(false);
-    // });
-    console.log('fff replace layer', layer);
     const prepeareCoordinates = latlngsJSON.geometry.coordinates.map((l) => {
       return l.reverse();
     });
@@ -644,10 +637,10 @@ L.Control.MeasurePolygon = L.Control.extend({
     prepeareCoordinates.push(prepeareCoordinates[0]);
 
     const options = {
-      color: 'blue',
-      fillColor: null,
-      opacity: 0.5,
-      weigt: 4,
+      color: '#3388ff',
+      fillColor: '#3388ff',
+      opacity: 1,
+      weigt: 3,
     };
     const distance = this._UpdateDistanceByLatLngs(prepeareCoordinates);
 
