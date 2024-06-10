@@ -39,9 +39,6 @@ L.Control.MeasurePolygon = L.Control.extend({
     cbSetDrawingStatus: function () {
       console.log('Callback function executed!');
     },
-    // cbSetDrawingDistance: function () {
-    //   console.log('Callback function executed!');
-    // },
     cbSetDrawingShape: function () {
       console.log('Callback function executed!');
     },
@@ -61,9 +58,6 @@ L.Control.MeasurePolygon = L.Control.extend({
     currenLine: null,
     polygonMode: false,
   },
-  // _fireCreatedEvent: function () {
-  //   console.log('„© created event fired!', this.options.currenLine);
-  // },
 
   drawingPolygons: function (map) {
     this.options.shapeMode = 'polygon';
@@ -104,8 +98,6 @@ L.Control.MeasurePolygon = L.Control.extend({
 
     this.options.currenLine = this._measureHandler;
 
-    console.log('fff this._measureHandler', this._measureHandler);
-
     L.drawLocal.draw.handlers.polyline.tooltip.start =
       'Klicken Sie, um die Linie zu zeichnen';
     L.drawLocal.draw.handlers.polyline.tooltip.cont =
@@ -125,17 +117,15 @@ L.Control.MeasurePolygon = L.Control.extend({
     const latlngsJSON = layer.toGeoJSON();
     const shapeId = layer._leaflet_id;
     layer.customID = shapeId;
+    console.log('fff first custom id', layer.customID);
     layer.on('click', () => {
       this.options.cbSetActiveShape(layer.customID);
       this.options.cbSetUpdateStatusHandler(false);
     });
 
-    if (this.options.shapeMode === 'polyline') {
+    if (this.options.shapeMode === 'polygon') {
       const polygon = this.replaceLineToPolygon(map, layer);
       this.options.cbSaveShape(polygon);
-
-      const allPolyLines = this.getVisiblePolylines(map);
-      this.getVisiblePolylinesIds(allPolyLines);
     } else {
       const prepeareCoordinates =
         this.options.shapeMode === 'line'
@@ -160,15 +150,11 @@ L.Control.MeasurePolygon = L.Control.extend({
         shapeType: this.options.shapeMode,
       };
       this.options.cbSaveShape(preparePolygon);
-
-      const allPolyLines = this.getVisiblePolylines(map);
-      this.getVisiblePolylinesIds(allPolyLines);
+      this.getVisibleShapeIdsArr(map);
     }
   },
 
   _onPolylineDrag: function (event) {
-    console.log('www plugin if move !!!!!!');
-
     this.options.cbSetUpdateStatusHandler(true);
     const polyline = event.target;
     const layer = event.layer;
@@ -305,6 +291,8 @@ L.Control.MeasurePolygon = L.Control.extend({
       this.options.checkonedrawpoligon = false;
       this.options.ifDrawing = false;
 
+      console.log('fff created ****************************');
+
       this.options.cbSetDrawingStatus(false);
       this.options.cbSetDrawingShape(null);
 
@@ -369,9 +357,8 @@ L.Control.MeasurePolygon = L.Control.extend({
       layers.eachLayer((layer) => {
         layer.customHandle = index++;
         layer.on('click', (e) => {
-          console.log('fff customHandle', e.target.customHandle === 0);
           if (e.target.customHandle === 0) {
-            this.options.shapeMode = 'polyline';
+            this.options.shapeMode = 'polygon';
             this.options.currenLine.completeShape();
           }
         });
@@ -528,9 +515,7 @@ L.Control.MeasurePolygon = L.Control.extend({
   },
 
   _clearMeasurements: function () {
-    // console.log('ccc', this._measureLayers);
     this._measureLayers.clearLayers();
-    // this.options.cb(false);
   },
 
   changeColorByActivePolyline: function (map, customID) {
@@ -552,6 +537,7 @@ L.Control.MeasurePolygon = L.Control.extend({
 
     map.eachLayer(function (layer) {
       if (layer instanceof L.Polyline) {
+        console.log('fff !!!!!!!!', layer.customID);
         if (mapBounds.intersects(layer.getBounds())) {
           visiblePolylines.push(layer);
         }
@@ -565,9 +551,12 @@ L.Control.MeasurePolygon = L.Control.extend({
     const idsPolylinesArr = [];
     this.options.visiblePolylines = [];
     polylinesArr.forEach((m) => {
+      console.log('fff custom id', m.customID);
       idsPolylinesArr.push(m.customID);
       this.options.visiblePolylines.push(m.customID);
     });
+
+    console.log('fff idsPolylinesArr', idsPolylinesArr);
 
     this.options.cbVisiblePolylinesChange(idsPolylinesArr);
   },
@@ -617,16 +606,18 @@ L.Control.MeasurePolygon = L.Control.extend({
 
   replaceLineToPolygon: function (map, layer) {
     const latlngsJSON = layer.toGeoJSON();
-    const shapeId = layer._leaflet_id;
-    layer.customID = shapeId;
-    layer.on('click', () => {
-      this.options.cbSetActiveShape(layer.customID);
-      this.options.cbSetUpdateStatusHandler(false);
-      console.log('ccc', layer.customID);
-    });
+    // const shapeId = layer._leaflet_id;
+    // layer.customID = shapeId;
+    // layer.on('click', () => {
+    //   this.options.cbSetActiveShape(layer.customID);
+    //   this.options.cbSetUpdateStatusHandler(false);
+    // });
+    console.log('fff replace layer', layer);
     const prepeareCoordinates = latlngsJSON.geometry.coordinates.map((l) => {
       return l.reverse();
     });
+
+    const customId = layer.customID;
 
     map.removeLayer(layer);
 
@@ -642,7 +633,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     const preparePolygon = {
       coordinates: prepeareCoordinates,
       options,
-      shapeId,
+      shapeId: layer.customID,
       distance: 'llll',
       number: this.options.measurementOrder,
       area: 'llll',
@@ -655,7 +646,33 @@ L.Control.MeasurePolygon = L.Control.extend({
       .enableEdit();
 
     this.options.polygonMode = false;
+
+    // const lastLayer = this.findLastCreatedLayer(polygon.editLayer);
+    // lastLayer.customId = customId;
+    // layer.addTo(this._measureLayers).showMeasurements().enableEdit();
+
+    // console.log('fff new created polygon', lastLayer);
+
     return preparePolygon;
+  },
+  getVisibleShapeIdsArr: function (map) {
+    const allPolyLines = this.getVisiblePolylines(map);
+    console.log('fff allPolyLines', allPolyLines);
+    this.getVisiblePolylinesIds(allPolyLines);
+  },
+
+  findLastCreatedLayer: function (layerGroup) {
+    let lastLayer = null;
+    let highestId = -1;
+
+    layerGroup.eachLayer((layer) => {
+      if (layer._leaflet_id > highestId) {
+        highestId = layer._leaflet_id;
+        lastLayer = layer;
+      }
+    });
+
+    return lastLayer;
   },
 });
 
