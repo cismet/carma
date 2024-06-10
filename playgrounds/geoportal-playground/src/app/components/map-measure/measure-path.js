@@ -468,6 +468,27 @@ L.Control.MeasurePolygon = L.Control.extend({
     return formatPerimeter(totalDistance);
   },
 
+  _UpdateDistanceByLatLngs: function (latlngs) {
+    let totalDistance = 0;
+
+    for (let i = 0; i < latlngs.length - 1; i++) {
+      const point1 = L.latLng(latlngs[i][0], latlngs[i][1]);
+      const point2 = L.latLng(latlngs[i + 1][0], latlngs[i + 1][1]);
+
+      const distance = point1.distanceTo(point2);
+      totalDistance += distance;
+    }
+
+    const formatPerimeter = (perimeter) => {
+      if (perimeter >= 1000) {
+        return `${(perimeter / 1000).toFixed(2)} km`;
+      } else {
+        return `${perimeter.toFixed(2)} m`;
+      }
+    };
+    return formatPerimeter(totalDistance);
+  },
+
   calculateDistance: function (latlngs) {
     let totalDistance = 0;
 
@@ -627,12 +648,15 @@ L.Control.MeasurePolygon = L.Control.extend({
       opacity: 0.5,
       weigt: 4,
     };
+    const distance = this._UpdateDistanceByLatLngs(prepeareCoordinates);
+
+    console.log('fff distance', distance);
 
     const preparePolygon = {
       coordinates: prepeareCoordinates,
       options,
       shapeId: layer.customID,
-      distance: 'llll',
+      distance: distance,
       number: this.options.measurementOrder,
       area: 'llll',
       shapeType: this.options.shapeMode,
@@ -641,7 +665,6 @@ L.Control.MeasurePolygon = L.Control.extend({
     const polygon = L.polygon(prepeareCoordinates, options);
 
     polygon.customID = layer.customID;
-    const distance = this._UpdateDistance(layer);
 
     polygon.addTo(this._measureLayers).showMeasurements().enableEdit();
     polygon.on('dblclick', this._onPolygonClick.bind(this, map));
