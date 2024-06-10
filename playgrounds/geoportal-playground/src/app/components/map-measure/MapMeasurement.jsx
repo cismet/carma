@@ -80,7 +80,6 @@ const MapMeasurement = (props) => {
         cbSaveLastActiveShapeIdBeforeDrawingHandler:
           saveLastActiveShapeIdBeforeDrawingHandler,
         cbChangeActiveCanceldShapeId: changeActiveCanceldShapeId,
-        cbCalculateArea: calculateAreaHandler,
       };
 
       const measurePolygonControl = L.control.measurePolygon(customOptions);
@@ -171,8 +170,8 @@ const MapMeasurement = (props) => {
   const deleteShapeHandler = (id) => {
     dispatch(deleteShapeById(id));
   };
-  const updateShapeHandler = (id, newCoordinates, newDistance) => {
-    dispatch(updateShapeById(id, newCoordinates, newDistance));
+  const updateShapeHandler = (id, newCoordinates, newDistance, newSquare) => {
+    dispatch(updateShapeById(id, newCoordinates, newDistance, newSquare));
   };
 
   const saveLastActiveShapeIdBeforeDrawingHandler = () => {

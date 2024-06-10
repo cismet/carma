@@ -160,7 +160,12 @@ export const deleteShapeById = (shapeId) => {
   };
 };
 
-export const updateShapeById = (shapeId, newCoordinates, newDistance) => {
+export const updateShapeById = (
+  shapeId,
+  newCoordinates,
+  newDistance,
+  newSquare = null
+) => {
   return function (dispatch, getState) {
     const state = getState();
     dispatch(setUpdateShape(true));
@@ -171,6 +176,7 @@ export const updateShapeById = (shapeId, newCoordinates, newDistance) => {
           ...s,
           coordinates: newCoordinates,
           distance: newDistance,
+          area: newSquare,
         };
       } else {
         return s;

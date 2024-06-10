@@ -174,13 +174,21 @@ L.Control.MeasurePolygon = L.Control.extend({
     const reversedCoordinates = prepeareCoordinates.map((item) => {
       return item.reverse();
     });
+
+    const square = !isLine ? this.calculateArea(reversedCoordinates) : null;
+    console.log('uuu square', square);
     polyline.updateMeasurements();
     const newDistance = this._UpdateDistance(layer);
     const shapeId = polyline?.customID
       ? polyline?.customID
       : polyline._leaflet_id;
 
-    this.options.cbUpdateShape(shapeId, reversedCoordinates, newDistance);
+    this.options.cbUpdateShape(
+      shapeId,
+      reversedCoordinates,
+      newDistance,
+      square
+    );
   },
 
   _onPolygonClick: function (map, event) {
@@ -708,6 +716,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     const polygon = L.polygon(prepeareCoordinates, options);
 
     polygon.customID = layer.customID;
+    polygon.customShape = 'polygon';
 
     polygon.addTo(this._measureLayers).showMeasurements().enableEdit();
     polygon.on('dblclick', this._onPolygonClick.bind(this, map));
