@@ -7,6 +7,7 @@ const initialState = {
   showAllMeasurements: false,
   deleteMeasurements: false,
   drawingShape: false,
+  lastActiveShapeBeforeDrawing: null,
   moveToShape: null,
   updateShape: false,
   mapMovingEnd: false,
@@ -47,6 +48,9 @@ const slice = createSlice({
     setUpdateTitleStatus(state, action) {
       state.updateTitleStatus = action.payload;
     },
+    setLastActiveShapeBeforeDrawing(state, action) {
+      state.lastActiveShapeBeforeDrawing = action.payload;
+    },
   },
 });
 
@@ -63,6 +67,7 @@ export const {
   setUpdateShape,
   setMapMovingEnd,
   setUpdateTitleStatus,
+  setLastActiveShapeBeforeDrawing,
 } = slice.actions;
 
 export const getShapes = (state) => {
@@ -94,6 +99,9 @@ export const getMapMovingEnd = (state) => {
 };
 export const getUpdateTitleStatus = (state) => {
   return state.measurements.updateTitleStatus;
+};
+export const getLastActiveShapeBeforeDrawing = (state) => {
+  return state.measurements.lastActiveShapeBeforeDrawing;
 };
 
 export const updateTitle = (shapeId, customTitle) => {
@@ -180,6 +188,17 @@ export const setLastVisibleShapeActive = () => {
     const lastShapeId = allShapes[allShapes.length - 1]?.shapeId;
     if (lastShapeId) {
       dispatch(setActiveShape(lastShapeId));
+    }
+  };
+};
+
+export const setDrawingWithLastActiveShape = () => {
+  return function (dispatch, getState) {
+    const state = getState();
+    const lastActiveShape = state.measurements.activeShape;
+    if (lastActiveShape) {
+      dispatch(setLastActiveShapeBeforeDrawing(lastActiveShape));
+      dispatch(setDrawingShape(true));
     }
   };
 };

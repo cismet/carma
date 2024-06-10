@@ -51,6 +51,9 @@ L.Control.MeasurePolygon = L.Control.extend({
     cbMapMovingEndHandler: function () {
       console.log('Callback function executed!');
     },
+    cbSaveLastActiveShapeIdBeforeDrawingHandler: function () {
+      console.log('Callback function executed!');
+    },
     visiblePolylines: [],
     localShapeStore: [],
     ifDrawing: false,
@@ -337,7 +340,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     });
 
     map.on('draw:drawstart', (event) => {
-      this.options.cbSetDrawingStatus(true);
+      this.options.cbSaveLastActiveShapeIdBeforeDrawingHandler();
       this.options.measurementOrder = this.options.measurementOrder + 1;
       const shapesObj = {
         coordinates: [[51.352635, 7.209284]],
@@ -408,7 +411,8 @@ L.Control.MeasurePolygon = L.Control.extend({
         'icon_lineInactive'
       );
 
-      this.changeColorByLastShape(map);
+      // this.changeColorByLastShape(map);
+      this.options.cbSetDrawingStatus(false);
     });
 
     // map.on('drag', () => {
@@ -530,7 +534,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     // this.options.cb(true);
 
     if (this.options.checkonedrawpoligon) {
-      this._measureHandler.disable();
+      // this._measureHandler.disable();
 
       document.getElementById(btnId).src = this.options[inactiveIcon];
       // this._clearMeasurements();

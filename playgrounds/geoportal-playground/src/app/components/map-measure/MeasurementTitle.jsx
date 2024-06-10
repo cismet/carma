@@ -12,7 +12,7 @@ const MeasurementTitle = ({
 
   return (
     <div>
-      <Tooltip title={tooltip}>
+      <Tooltip title={tooltip} placement="topRight">
         <div
           onBlur={(t) => {
             setContent(t.currentTarget.innerHTML);

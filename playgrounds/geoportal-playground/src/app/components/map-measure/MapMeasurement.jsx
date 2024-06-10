@@ -35,6 +35,8 @@ import {
   deleteShapeById,
   updateShapeById,
   setLastVisibleShapeActive,
+  setDrawingWithLastActiveShape,
+  getLastActiveShapeBeforeDrawing,
 } from '../../store/slices/measurements';
 
 const MapMeasurement = (props) => {
@@ -48,6 +50,9 @@ const MapMeasurement = (props) => {
   const deleteShape = useSelector(getDeleteMeasurements);
   const visibleShapes = useSelector(getVisibleShapes);
   const moveToShape = useSelector(getMoveToShape);
+  const lastActiveShapeBeforeDrawing = useSelector(
+    getLastActiveShapeBeforeDrawing
+  );
 
   const [measureControl, setMeasureControl] = useState(null);
   const [visiblePolylines, setVisiblePolylines] = useState();
@@ -75,6 +80,8 @@ const MapMeasurement = (props) => {
         cbSetActiveShape: setActiveShapeHandler,
         cbSetUpdateStatusHandler: setUpdateStatusHandler,
         cbMapMovingEndHandler: mapMovingEndHandler,
+        cbSaveLastActiveShapeIdBeforeDrawingHandler:
+          saveLastActiveShapeIdBeforeDrawingHandler,
       };
 
       const measurePolygonControl = L.control.measurePolygon(customOptions);
@@ -169,22 +176,9 @@ const MapMeasurement = (props) => {
     dispatch(updateShapeById(id, newCoordinates, newDistance));
   };
 
-  // const updateShapeTitleStatusHandler = (id) => {
-  //   const shapeFromVisible = visibleShapes.filter((s) => s.shapeId === id);
-  //   setAllShapes((prevPolygons) => {
-  //     const cleaerShapesArr = prevPolygons.map((s) => {
-  //       if (s.shapeId === id) {
-  //         return {
-  //           ...s,
-  //           customTitle: shapeFromVisible[0].customTitle,
-  //         };
-  //       } else {
-  //         return s;
-  //       }
-  //     });
-  //     return cleaerShapesArr;
-  //   });
-  // };
+  const saveLastActiveShapeIdBeforeDrawingHandler = () => {
+    dispatch(setDrawingWithLastActiveShape());
+  };
 
   const visiblePolylinesChange = (arr) => {
     setVisiblePolylines(arr);
