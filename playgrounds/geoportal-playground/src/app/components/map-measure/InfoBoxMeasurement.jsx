@@ -221,6 +221,9 @@ const InfoBoxMeasurement = () => {
                   shapeId={visibleShapesData[currentMeasure].shapeId}
                   setUpdateMeasurementStatus={setUpdateMeasurementStatus}
                   updateTitleMeasurementById={updateTitleMeasurementById}
+                  tooltip={`Messungsnummer #${getOrderOfShape(
+                    visibleShapesData[currentMeasure].shapeId
+                  )}`}
                 />
               </span>
               <div>{visibleShapesData[currentMeasure].shapeId}</div>

@@ -1,60 +1,38 @@
 import { useState, useEffect } from 'react';
+import { Tooltip } from 'antd';
 const MeasurementTitle = ({
   title,
   shapeId,
   updateTitleMeasurementById,
   setUpdateMeasurementStatus,
+  tooltip,
 }) => {
   const [content, setContent] = useState(title);
   const [oldContent, setOldContent] = useState(title);
 
   return (
     <div>
-      <div
-        // onChange={(t) => {
-        //   console.log('ccc on change', t.currentTarget);
-        //   setContent(t.currentTarget.innerHTML);
-        //   setMeasurementById(shapeId, t.currentTarget.innerHTML);
-        // }}
-        // onInput={(t) => {
-        //   console.log('ccc on change', t.currentTarget.textContent);
-        //   setContent(t.currentTarget.innerHTML);
-        //   setMeasurementById(shapeId, t.currentTarget.innerHTML);
-        // }}
-        // onBlur={(t) => {
-        //   console.log('ccc', t.currentTarget.textContent.length);
-        //   setContent(t.currentTarget.innerHTML);
-        //   if (t.currentTarget.textContent.length === 0) {
-        //     console.log('ccc 000', oldContent);
-        //     setContent(oldContent);
-        //     t.currentTarget.textContent = oldContent;
-        //   } else {
-        //     console.log('ccc else');
-        //     setContent(t.currentTarget.innerHTML);
-        //     updateTitleMeasurementById(shapeId, t.currentTarget.innerHTML);
-        //   }
-        // }}
-        onBlur={(t) => {
-          console.log('ccc', t.currentTarget.textContent.length);
-          setContent(t.currentTarget.innerHTML);
-          if (t.currentTarget.textContent.length === 0) {
-            console.log('ccc 000', oldContent);
-            setContent(oldContent);
-            t.currentTarget.textContent = oldContent;
-          } else {
-            console.log('ccc else');
+      <Tooltip title={tooltip}>
+        <div
+          onBlur={(t) => {
             setContent(t.currentTarget.innerHTML);
-            updateTitleMeasurementById(shapeId, t.currentTarget.innerHTML);
-            setUpdateMeasurementStatus(true);
-          }
-        }}
-        onFocus={(t) => {
-          console.log('ccc focus');
-        }}
-        contentEditable
-        className="text-[14px] min-h-[20px] min-w-[100px]"
-        dangerouslySetInnerHTML={{ __html: capitalizeFirstLetter(content) }}
-      ></div>
+            if (t.currentTarget.textContent.length === 0) {
+              setContent(oldContent);
+              t.currentTarget.textContent = oldContent;
+            } else {
+              setContent(t.currentTarget.innerHTML);
+              updateTitleMeasurementById(shapeId, t.currentTarget.innerHTML);
+              setUpdateMeasurementStatus(true);
+            }
+          }}
+          onFocus={(t) => {
+            console.log('ccc focus');
+          }}
+          contentEditable
+          className="text-[14px] min-h-[20px] min-w-[100px]"
+          dangerouslySetInnerHTML={{ __html: capitalizeFirstLetter(content) }}
+        ></div>
+      </Tooltip>
     </div>
   );
 };
