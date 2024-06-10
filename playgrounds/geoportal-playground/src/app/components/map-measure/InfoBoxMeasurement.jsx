@@ -191,7 +191,10 @@ const InfoBoxMeasurement = () => {
             <div className="mt-2 mb-2 w-[96%] flex justify-between items-start gap-4">
               <span style={{ cursor: 'pointer' }}>
                 <MeasurementTitle
-                  key={visibleShapesData[currentMeasure].shapeId}
+                  key={
+                    visibleShapesData[currentMeasure].shapeId +
+                    visibleShapesData[currentMeasure]?.customTitle
+                  }
                   order={getOrderOfShape(
                     visibleShapesData[currentMeasure].shapeId
                   )}

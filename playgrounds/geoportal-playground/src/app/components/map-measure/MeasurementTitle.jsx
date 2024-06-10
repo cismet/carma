@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Tooltip } from 'antd';
+
 const MeasurementTitle = ({
   title,
   shapeId,
@@ -8,7 +8,7 @@ const MeasurementTitle = ({
   setUpdateMeasurementStatus,
   tooltip,
 }) => {
-  const [content, setContent] = useState(title);
+  const [content, setContent] = useState(title.trim());
   const [oldContent, setOldContent] = useState(title);
 
   return (
@@ -16,14 +16,16 @@ const MeasurementTitle = ({
       {/* <Tooltip title={tooltip} placement="topRight"> */}
       <span
         onBlur={(t) => {
-          setContent(t.currentTarget.innerHTML);
-          if (t.currentTarget.textContent.length === 0) {
+          const trimmedContent = t.currentTarget.textContent.trim();
+          setContent(trimmedContent);
+          console.log('xxx trim', trimmedContent);
+
+          if (trimmedContent.length === 0) {
             setContent(oldContent);
-            t.currentTarget.textContent = oldContent;
+            t.currentTarget.textContent = capitalizeFirstLetter(oldContent);
           } else {
-            setContent(t.currentTarget.innerHTML);
-            setOldContent(content);
-            updateTitleMeasurementById(shapeId, t.currentTarget.innerHTML);
+            setContent(trimmedContent);
+            updateTitleMeasurementById(shapeId, trimmedContent);
             setUpdateMeasurementStatus(true);
           }
         }}
@@ -34,7 +36,7 @@ const MeasurementTitle = ({
         className="text-[14px] min-h-[20px] min-w-[10px]"
         dangerouslySetInnerHTML={{ __html: capitalizeFirstLetter(content) }}
       ></span>
-      <span className="ml-1 text-[14px] text-[#848484]">#{order}</span>
+      <span className="ml-1 text-[14px] text-[#979797]">#{order}</span>
       {/* </Tooltip> */}
     </div>
   );
