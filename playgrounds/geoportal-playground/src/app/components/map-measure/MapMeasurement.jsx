@@ -194,11 +194,6 @@ const MapMeasurement = (props) => {
   const mapMovingEndHandler = (status) => {
     dispatch(setMapMovingEnd(status));
   };
-  const calculateAreaHandler = (latlngs) => {
-    const area = L.GeometryUtil.geodesicArea(latlngs);
-
-    return area;
-  };
 
   return <div></div>;
 };
