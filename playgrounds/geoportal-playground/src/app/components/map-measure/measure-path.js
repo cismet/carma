@@ -510,6 +510,36 @@ L.Control.MeasurePolygon = L.Control.extend({
     return totalDistance;
   },
 
+  calculateArea: function (latlngs) {
+    const toRadians = (degree) => (degree * Math.PI) / 180;
+
+    if (latlngs.length < 3) return 0;
+
+    const earthRadius = 6378137;
+
+    let total = 0;
+    for (let i = 0, l = latlngs.length; i < l; i++) {
+      const [lat1, lon1] = latlngs[i];
+      const [lat2, lon2] = latlngs[(i + 1) % l];
+
+      total +=
+        toRadians(lon2 - lon1) *
+        (2 + Math.sin(toRadians(lat1)) + Math.sin(toRadians(lat2)));
+    }
+
+    total = Math.abs((total * earthRadius * earthRadius) / 2);
+
+    const formatArea = (area) => {
+      if (area >= 1000000) {
+        return `${(area / 1000000).toFixed(2)} km²`;
+      } else {
+        return `${area.toFixed(2)} m²`;
+      }
+    };
+
+    return formatArea(total);
+  },
+
   formatDistance: function (perimeter) {
     const formatPerimeter = (perimeter) => {
       if (perimeter >= 1000) {
@@ -661,8 +691,9 @@ L.Control.MeasurePolygon = L.Control.extend({
       weigt: 3,
     };
     const distance = this._UpdateDistanceByLatLngs(prepeareCoordinates);
+    const square = this.calculateArea(prepeareCoordinates);
 
-    console.log('fff distance', distance);
+    console.log('fff area', square);
 
     const preparePolygon = {
       coordinates: prepeareCoordinates,
@@ -670,7 +701,7 @@ L.Control.MeasurePolygon = L.Control.extend({
       shapeId: layer.customID,
       distance: distance,
       number: this.options.measurementOrder,
-      area: 'llll',
+      area: square,
       shapeType: this.options.shapeMode,
     };
 

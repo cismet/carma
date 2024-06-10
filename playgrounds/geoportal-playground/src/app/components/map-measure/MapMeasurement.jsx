@@ -80,6 +80,7 @@ const MapMeasurement = (props) => {
         cbSaveLastActiveShapeIdBeforeDrawingHandler:
           saveLastActiveShapeIdBeforeDrawingHandler,
         cbChangeActiveCanceldShapeId: changeActiveCanceldShapeId,
+        cbCalculateArea: calculateAreaHandler,
       };
 
       const measurePolygonControl = L.control.measurePolygon(customOptions);
@@ -201,6 +202,11 @@ const MapMeasurement = (props) => {
   };
   const mapMovingEndHandler = (status) => {
     dispatch(setMapMovingEnd(status));
+  };
+  const calculateAreaHandler = (latlngs) => {
+    const area = L.GeometryUtil.geodesicArea(latlngs);
+
+    return area;
   };
 
   return <div></div>;
