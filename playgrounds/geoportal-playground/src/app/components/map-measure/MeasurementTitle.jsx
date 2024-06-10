@@ -12,9 +12,9 @@ const MeasurementTitle = ({
   const [oldContent, setOldContent] = useState(title);
 
   return (
-    <div className="flex items-center gap-1">
+    <div>
       {/* <Tooltip title={tooltip} placement="topRight"> */}
-      <div
+      <span
         onBlur={(t) => {
           setContent(t.currentTarget.innerHTML);
           if (t.currentTarget.textContent.length === 0) {
@@ -22,6 +22,7 @@ const MeasurementTitle = ({
             t.currentTarget.textContent = oldContent;
           } else {
             setContent(t.currentTarget.innerHTML);
+            setOldContent(content);
             updateTitleMeasurementById(shapeId, t.currentTarget.innerHTML);
             setUpdateMeasurementStatus(true);
           }
@@ -32,8 +33,8 @@ const MeasurementTitle = ({
         contentEditable
         className="text-[14px] min-h-[20px] min-w-[10px]"
         dangerouslySetInnerHTML={{ __html: capitalizeFirstLetter(content) }}
-      ></div>
-      <div className="text-[14px] text-[#9b9a9a]">#{order}</div>
+      ></span>
+      <span className="ml-1 text-[14px] text-[#848484]">#{order}</span>
       {/* </Tooltip> */}
     </div>
   );

@@ -296,7 +296,7 @@ const InfoBoxMeasurement = () => {
           alwaysVisibleDiv={
             <div className="mt-2 w-[90%] p-2">
               <p className="text-[#212529] font-normal text-xs leading-normal">
-                {measurementsData.length !== 0
+                {measurementsData.le !== 0
                   ? 'Um alle Messungen zu sehen, klicken Sie auf den unten stehenden Link'
                   : 'Aktuell sind keine Messungen vorhanden'}
               </p>
@@ -304,7 +304,7 @@ const InfoBoxMeasurement = () => {
           }
           collapsibleDiv={
             <div>
-              <div className="flex justify-center items-center w-[96%] justify-start">
+              <div className="flex justify-center items-center w-[96%]">
                 <span
                   className="mx-4 text-[#0078a8] cursor-pointer"
                   onClick={() => dispatch(setShowAllMeasurements(true))}
