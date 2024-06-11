@@ -6,6 +6,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     icon_lineInactive: 'https://img.icons8.com/?size=48&id=98463&format=png',
     height: 130,
     width: 150,
+    checkonedrawpoligon: false,
     cbToggleMeasurementMode: function () {
       console.log('Callback function executed!');
     },
@@ -41,7 +42,21 @@ L.Control.MeasurePolygon = L.Control.extend({
 
     return iconsWrapper;
   },
+  _toggleMeasure: function (btnId = '', activeIcon = '', inactiveIcon = '') {
+    // this.options.cb(true);
+
+    if (this.options.checkonedrawpoligon) {
+      document.getElementById('img_plg_lines').src =
+        this.options.icon_lineInactive;
+      this.options.checkonedrawpoligon = false;
+    } else {
+      document.getElementById('img_plg_lines').src =
+        this.options.icon_lineActive;
+      this.options.checkonedrawpoligon = true;
+    }
+  },
   toggleMeasurementMode: function () {
+    this._toggleMeasure();
     this.options.cbToggleMeasurementMode();
   },
 });

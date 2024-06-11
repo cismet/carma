@@ -10,6 +10,7 @@ import TopicMapContextProvider from 'react-cismap/contexts/TopicMapContextProvid
 import Map from './components/Map';
 import TopNavbar from './components/TopNavbar';
 import MapMeasurement from './components/map-measure/MapMeasurement';
+import MeasurementSwitcher from './components/map-measure/MeasurementSwitcher';
 if (typeof global === 'undefined') {
   window.global = window;
 }
@@ -18,8 +19,9 @@ function App() {
   return (
     <TopicMapContextProvider>
       <div className="flex flex-col h-screen w-full">
-        <TopNavbar />
-        <MapMeasurement />
+        <MeasurementSwitcher />
+        {/* <TopNavbar />
+        <MapMeasurement /> */}
         <Map />
       </div>
     </TopicMapContextProvider>
