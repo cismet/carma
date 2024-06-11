@@ -1,5 +1,8 @@
 .m-icons-wrapper.leaflet-control {
   margin: 0;
+  width: 100%;
+  display: flex;
+  /* background-color: gray; */
 }
 
 .measure_icon_wrapper {
@@ -18,6 +21,31 @@
   text-align: center;
 }
 
+.m-container {
+  display: flex;
+}
+
 .measure_icon_wrapper__polygon {
   display: none;
+}
+
+.measure_button_wrapper {
+  width: 30px;
+  height: 100%;
+  background-color: white;
+  display: flex;
+  justify-items: center;
+  align-items: center;
+  cursor: pointer;
+}
+
+.add_shape {
+  font-size: 16px;
+  width: 100%;
+  height: 100%;
+  margin-top: 3px;
+  /* background-color: green; */
+  /* line-height: 2em; */
+  text-align: center;
+  cursor: pointer;
 }

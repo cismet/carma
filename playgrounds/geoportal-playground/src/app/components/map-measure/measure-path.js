@@ -11,6 +11,7 @@ L.Control.MeasurePolygon = L.Control.extend({
 <p><strong>Perimeter : </strong><br>_p_perimetro</p>`,
     height: 130,
     width: 150,
+    mode_btn: '',
     color_polygon: 'black',
     fillColor_polygon: 'yellow',
     weight_polygon: '2',
@@ -214,8 +215,16 @@ L.Control.MeasurePolygon = L.Control.extend({
   onAdd: function (map) {
     const linesContainer = L.DomUtil.create(
       'div',
-      'leaflet-bar leaflet-control'
+      'leaflet-bar leaflet-control m-container'
     );
+
+    const modeBtn = L.DomUtil.create(
+      'div',
+      'leaflet-bar leaflet-control m-container',
+      linesContainer
+    );
+
+    modeBtn.innerHTML = this.options.mode_btn;
 
     const lineIcon = L.DomUtil.create('a', '', linesContainer);
     lineIcon.innerHTML = `
@@ -243,7 +252,8 @@ L.Control.MeasurePolygon = L.Control.extend({
 
     const iconsWrapper = L.DomUtil.create('div', 'm-icons-wrapper');
     iconsWrapper.appendChild(linesContainer);
-    iconsWrapper.appendChild(polygonContainer);
+    // iconsWrapper.appendChild(polygonContainer);
+    iconsWrapper.appendChild(modeBtn);
     L.DomEvent.on(
       lineIcon,
       'click',
