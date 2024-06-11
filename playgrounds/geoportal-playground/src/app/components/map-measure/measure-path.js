@@ -255,7 +255,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     // iconsWrapper.appendChild(polygonContainer);
     iconsWrapper.appendChild(modeBtn);
     L.DomEvent.on(
-      lineIcon,
+      modeBtn,
       'click',
       (event) => {
         event.preventDefault(); // Prevent default action (e.g., redirection)
@@ -309,12 +309,6 @@ L.Control.MeasurePolygon = L.Control.extend({
           this.options.cbSetUpdateStatusHandler(false);
         });
       });
-
-      // if (!this.options.activeShape) {
-      //   const lastShape = this.options.shapes[this.options.shapes.length - 1];
-      //   const center = L.latLngBounds(lastShape.coordinates).getCenter();
-      //   map.setView(center, 17);
-      // }
     }
 
     map.on('draw:created', (event) => {
@@ -583,14 +577,14 @@ L.Control.MeasurePolygon = L.Control.extend({
     if (this.options.checkonedrawpoligon) {
       // this._measureHandler.disable();
 
-      document.getElementById(btnId).src = this.options[inactiveIcon];
+      // document.getElementById(btnId).src = this.options[inactiveIcon];
       // this._clearMeasurements();
       this.options.checkonedrawpoligon = false;
 
       // this._clearMeasurements();
     } else {
       this._measureHandler.enable();
-      document.getElementById(btnId).src = this.options[activeIcon];
+      // document.getElementById(btnId).src = this.options[activeIcon];
       // document.getElementById(btnId).src = this.options.icon_lineActive;
       // this.options.cb(true);
     }
