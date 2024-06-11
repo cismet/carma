@@ -58,6 +58,9 @@ L.Control.MeasurePolygon = L.Control.extend({
     cbChangeActiveCanceldShapeId: function () {
       console.log('Callback function executed!');
     },
+    cbToggleMeasurementMode: function () {
+      console.log('Callback function executed!');
+    },
     visiblePolylines: [],
     localShapeStore: [],
     ifDrawing: false,
@@ -236,18 +239,18 @@ L.Control.MeasurePolygon = L.Control.extend({
     lineIcon.title = 'Flächen- und Umfangsmessungen';
     // this.ui_icon = icon;
 
-    const polygonContainer = L.DomUtil.create(
-      'div',
-      'leaflet-bar leaflet-control measure_icon_wrapper__polygon'
-    );
-    const polygonIcon = L.DomUtil.create('a', '', polygonContainer);
-    polygonIcon.innerHTML = `
-    <div class="measure_icon_wrapper">
-      <img id="img_plg_measure_polygon" class='mesure_icon' src="${this.options.icon_polygonInactive}" alt="Ruler Icon">
-    </div>
-  `;
-    polygonIcon.href = '#';
-    polygonIcon.title = 'Flächen- und Umfangsmessungen';
+    // const polygonContainer = L.DomUtil.create(
+    //   'div',
+    //   'leaflet-bar leaflet-control measure_icon_wrapper__polygon'
+    // );
+    //   const polygonIcon = L.DomUtil.create('a', '', polygonContainer);
+    //   polygonIcon.innerHTML = `
+    //   <div class="measure_icon_wrapper">
+    //     <img id="img_plg_measure_polygon" class='mesure_icon' src="${this.options.icon_polygonInactive}" alt="Ruler Icon">
+    //   </div>
+    // `;
+    //   polygonIcon.href = '#';
+    //   polygonIcon.title = 'Flächen- und Umfangsmessungen';
     // this.ui_icon = icon;
 
     const iconsWrapper = L.DomUtil.create('div', 'm-icons-wrapper');
@@ -265,14 +268,24 @@ L.Control.MeasurePolygon = L.Control.extend({
     );
 
     L.DomEvent.on(
-      polygonIcon,
+      lineIcon,
       'click',
       (event) => {
         event.preventDefault(); // Prevent default action (e.g., redirection)
-        this.drawingPolygons(map);
+        this.toggleMeasurementMode();
       },
       this
     );
+
+    // L.DomEvent.on(
+    //   polygonIcon,
+    //   'click',
+    //   (event) => {
+    //     event.preventDefault();
+    //     this.drawingPolygons(map);
+    //   },
+    //   this
+    // );
 
     this._map = map;
 
@@ -425,10 +438,6 @@ L.Control.MeasurePolygon = L.Control.extend({
 
       this.options.cbChangeActiveCanceldShapeId();
     });
-
-    // map.on('drag', () => {
-    //   this.options.moveToShape = false;
-    // });
 
     map.on('moveend', () => {
       const allPolyLines = this.getVisiblePolylines(map);
@@ -670,8 +679,6 @@ L.Control.MeasurePolygon = L.Control.extend({
 
   showActiveShape: function (map, coordinates) {
     this.options.moveToShape = true;
-    // const center = L.latLngBounds(coordinates).getCenter();
-    // map.setView(center, 18);
     const bounds = L.latLngBounds(coordinates);
     map.fitBounds(bounds);
   },
@@ -772,6 +779,11 @@ L.Control.MeasurePolygon = L.Control.extend({
     });
 
     return lastLayer;
+  },
+
+  toggleMeasurementMode: function () {
+    this._clearMeasurements();
+    this.options.cbToggleMeasurementMode();
   },
 });
 

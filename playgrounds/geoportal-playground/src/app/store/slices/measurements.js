@@ -235,3 +235,11 @@ export const setActiveShapeIfDrawCanseld = () => {
     }
   };
 };
+
+export const toggleMeasurementMode = () => {
+  return function (dispatch, getState) {
+    const state = getState();
+    const mode = state.measurements.measurementMode;
+    dispatch(setMeasurementMode(!mode));
+  };
+};
