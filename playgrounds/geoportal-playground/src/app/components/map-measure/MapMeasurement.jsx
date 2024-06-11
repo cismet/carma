@@ -38,6 +38,7 @@ import {
   setDrawingWithLastActiveShape,
   setActiveShapeIfDrawCanseld,
   toggleMeasurementMode,
+  getMeasurementMode,
 } from '../../store/slices/measurements';
 
 const MapMeasurement = (props) => {
@@ -51,6 +52,7 @@ const MapMeasurement = (props) => {
   const deleteShape = useSelector(getDeleteMeasurements);
   const visibleShapes = useSelector(getVisibleShapes);
   const moveToShape = useSelector(getMoveToShape);
+  const measurementMode = useSelector(getMeasurementMode);
 
   const [measureControl, setMeasureControl] = useState(null);
   const [visiblePolylines, setVisiblePolylines] = useState();
@@ -76,6 +78,7 @@ const MapMeasurement = (props) => {
         cbSetDrawingStatus: drawingStatusHandler,
         cbSetDrawingShape: drawingShapeHandler,
         measurementOrder: findLargestNumber(measurementShapes),
+        measurementMode: measurementMode,
         cbSetActiveShape: setActiveShapeHandler,
         cbSetUpdateStatusHandler: setUpdateStatusHandler,
         cbMapMovingEndHandler: mapMovingEndHandler,
@@ -130,6 +133,8 @@ const MapMeasurement = (props) => {
       if (moveToShape && !deleteShape) {
         measureControl.showActiveShape(map, shapeCoordinates[0]?.coordinates);
       }
+
+      // measureControl.options.measurementMode = measurementMode;
     }
   }, [
     activeShape,
@@ -200,6 +205,8 @@ const MapMeasurement = (props) => {
   const toggleMeasurementModeHandler = (status) => {
     dispatch(toggleMeasurementMode());
   };
+
+  const getMeasurementModeHandler = () => {};
 
   return <div></div>;
 };

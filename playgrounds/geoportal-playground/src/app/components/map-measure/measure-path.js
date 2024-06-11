@@ -67,6 +67,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     nativeMove: false,
     currenLine: null,
     polygonMode: false,
+    measurementMode: false,
   },
 
   drawingPolygons: function (map) {
@@ -292,37 +293,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     this._measureLayers = L.layerGroup().addTo(map);
 
     // add initial shapes
-    if (this.options.shapes.length !== 0) {
-      this.options.shapes.forEach((shape) => {
-        const { coordinates, options, shapeId, shapeType } = shape;
-        const shapeName = shapeType === 'line' ? 'polyline' : 'polygon';
-
-        const savedShape = L[shapeName](coordinates, {
-          showLength: true,
-          className: 'custom-polyline',
-          shapeOptions: {
-            weight: 4,
-            color: '#267bdcd4',
-            opacity: 1,
-          },
-        });
-        savedShape.customID = shapeId;
-        savedShape.addTo(this._measureLayers).showMeasurements().enableEdit();
-        savedShape.on('dblclick', this._onPolygonClick.bind(this, map));
-        savedShape.on('click', () => {
-          this.options.cbSetActiveShape(savedShape.customID);
-          this.options.cbSetUpdateStatusHandler(false);
-        });
-        savedShape.on(
-          'editable:drag editable:dragstart editable:dragend editable:vertex:drag editable:vertex:deleted',
-          this._onPolylineDrag.bind(this)
-        );
-
-        savedShape.on('editable:vertex:dragend', () => {
-          this.options.cbSetUpdateStatusHandler(false);
-        });
-      });
-    }
+    this.loadMeasurements(map);
 
     map.on('draw:created', (event) => {
       this.options.checkonedrawpoligon = false;
@@ -779,6 +750,40 @@ L.Control.MeasurePolygon = L.Control.extend({
     });
 
     return lastLayer;
+  },
+
+  loadMeasurements: function (map) {
+    if (this.options.shapes.length !== 0) {
+      this.options.shapes.forEach((shape) => {
+        const { coordinates, options, shapeId, shapeType } = shape;
+        const shapeName = shapeType === 'line' ? 'polyline' : 'polygon';
+
+        const savedShape = L[shapeName](coordinates, {
+          showLength: true,
+          className: 'custom-polyline',
+          shapeOptions: {
+            weight: 4,
+            color: '#267bdcd4',
+            opacity: 1,
+          },
+        });
+        savedShape.customID = shapeId;
+        savedShape.addTo(this._measureLayers).showMeasurements().enableEdit();
+        savedShape.on('dblclick', this._onPolygonClick.bind(this, map));
+        savedShape.on('click', () => {
+          this.options.cbSetActiveShape(savedShape.customID);
+          this.options.cbSetUpdateStatusHandler(false);
+        });
+        savedShape.on(
+          'editable:drag editable:dragstart editable:dragend editable:vertex:drag editable:vertex:deleted',
+          this._onPolylineDrag.bind(this)
+        );
+
+        savedShape.on('editable:vertex:dragend', () => {
+          this.options.cbSetUpdateStatusHandler(false);
+        });
+      });
+    }
   },
 
   toggleMeasurementMode: function () {
