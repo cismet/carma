@@ -346,14 +346,6 @@ L.Control.MeasurePolygon = L.Control.extend({
         this._onPolylineDrag.bind(this)
       );
 
-      if (this.options.shapeMode === 'polygon') {
-        document.getElementById('img_plg_measure_polygon').src =
-          this.options.icon_polygonInactive;
-      } else {
-        document.getElementById('img_plg_lines').src =
-          this.options.icon_lineInactive;
-      }
-
       this.options.checkonedrawpoligon = false;
 
       this._measureHandler.disable();
