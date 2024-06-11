@@ -12,6 +12,7 @@ const initialState = {
   updateShape: false,
   mapMovingEnd: false,
   updateTitleStatus: false,
+  measurementMode: false,
 };
 
 const slice = createSlice({
@@ -51,6 +52,9 @@ const slice = createSlice({
     setLastActiveShapeBeforeDrawing(state, action) {
       state.lastActiveShapeBeforeDrawing = action.payload;
     },
+    setMeasurementMode(state, action) {
+      state.measurementMode = action.payload;
+    },
   },
 });
 
@@ -68,6 +72,7 @@ export const {
   setMapMovingEnd,
   setUpdateTitleStatus,
   setLastActiveShapeBeforeDrawing,
+  setMeasurementMode,
 } = slice.actions;
 
 export const getShapes = (state) => {
@@ -102,6 +107,9 @@ export const getUpdateTitleStatus = (state) => {
 };
 export const getLastActiveShapeBeforeDrawing = (state) => {
   return state.measurements.lastActiveShapeBeforeDrawing;
+};
+export const getMeasurementMode = (state) => {
+  return state.measurements.measurementMode;
 };
 
 export const updateTitle = (shapeId, customTitle) => {
