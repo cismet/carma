@@ -42,4 +42,5 @@ path.leaflet-interactive {
 
 path.custom-polyline.leaflet-interactive {
   stroke: gray;
+  fill: gray;
 }
