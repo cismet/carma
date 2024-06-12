@@ -12,7 +12,7 @@ const initialState = {
   updateShape: false,
   mapMovingEnd: false,
   updateTitleStatus: false,
-  measurementMode: false,
+  measurementMode: 'default',
 };
 
 const slice = createSlice({
@@ -240,6 +240,10 @@ export const toggleMeasurementMode = () => {
   return function (dispatch, getState) {
     const state = getState();
     const mode = state.measurements.measurementMode;
-    dispatch(setMeasurementMode(!mode));
+    if (mode === 'default') {
+      dispatch(setMeasurementMode('measurement'));
+    } else {
+      dispatch(setMeasurementMode('default'));
+    }
   };
 };
