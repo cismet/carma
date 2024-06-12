@@ -9,7 +9,7 @@ import LayerWrapper from './layers/LayerWrapper';
 // @ts-ignore
 import StyledWMSTileLayer from 'react-cismap/StyledWMSTileLayer';
 import getBackgroundLayers from '../helper/layer';
-import { getMeasurementMode } from '../store/slices/measurements';
+import { getMode } from '../store/slices/ui';
 
 const Map = () => {
   const [gazData, setGazData] = useState([]);
@@ -18,7 +18,7 @@ const Map = () => {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const layers = useSelector(getLayers);
   const backgroundLayer = useSelector(getBackgroundLayer);
-  const measurementMode = useSelector(getMeasurementMode);
+  const mode = useSelector(getMode);
 
   useEffect(() => {
     getGazData(setGazData);
@@ -54,8 +54,8 @@ const Map = () => {
         }}
         gazetteerSearchPlaceholder="Stadtteil | Adresse | POI"
         infoBox={
-          measurementMode === 'measurement' ? (
-            <InfoBoxMeasurement key={measurementMode} />
+          mode === 'measurement' ? (
+            <InfoBoxMeasurement key={mode} />
           ) : (
             <div></div>
           )

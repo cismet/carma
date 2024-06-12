@@ -37,9 +37,9 @@ import {
   setLastVisibleShapeActive,
   setDrawingWithLastActiveShape,
   setActiveShapeIfDrawCanseld,
-  toggleMeasurementMode,
-  getMeasurementMode,
 } from '../../store/slices/measurements';
+
+import { getMode, toggletModeMeasuremen } from '../../store/slices/ui';
 
 const MapMeasurement = (props) => {
   const { routedMapRef } = useContext(TopicMapContext);
@@ -52,7 +52,7 @@ const MapMeasurement = (props) => {
   const deleteShape = useSelector(getDeleteMeasurements);
   const visibleShapes = useSelector(getVisibleShapes);
   const moveToShape = useSelector(getMoveToShape);
-  const measurementMode = useSelector(getMeasurementMode);
+  const mode = useSelector(getMode);
 
   const [measureControl, setMeasureControl] = useState(null);
   const [visiblePolylines, setVisiblePolylines] = useState();
@@ -78,7 +78,7 @@ const MapMeasurement = (props) => {
         cbSetDrawingStatus: drawingStatusHandler,
         cbSetDrawingShape: drawingShapeHandler,
         measurementOrder: findLargestNumber(measurementShapes),
-        measurementMode: measurementMode,
+        measurementMode: mode,
         cbSetActiveShape: setActiveShapeHandler,
         cbSetUpdateStatusHandler: setUpdateStatusHandler,
         cbMapMovingEndHandler: mapMovingEndHandler,
@@ -133,8 +133,9 @@ const MapMeasurement = (props) => {
       if (moveToShape && !deleteShape) {
         measureControl.showActiveShape(map, shapeCoordinates[0]?.coordinates);
       }
-      measureControl.changeMeasurementMode(measurementMode);
-      if (measurementMode === 'measurement' && visibleShapes.length === 0) {
+      measureControl.changeMeasurementMode(mode);
+      console.log('vvv', mode);
+      if (mode === 'measurement' && visibleShapes.length === 0) {
         console.log('vvv', visibleShapes);
         const visibleShapesIds = measureControl.getVisibleShapeIdsArr(
           measureControl._map
@@ -148,7 +149,7 @@ const MapMeasurement = (props) => {
     deleteShape,
     ifDrawing,
     moveToShape,
-    measurementMode,
+    mode,
   ]);
 
   useEffect(() => {
@@ -211,7 +212,7 @@ const MapMeasurement = (props) => {
     dispatch(setMapMovingEnd(status));
   };
   const toggleMeasurementModeHandler = (status) => {
-    dispatch(toggleMeasurementMode());
+    dispatch(toggletModeMeasuremen());
   };
 
   const getMeasurementModeHandler = () => {};
