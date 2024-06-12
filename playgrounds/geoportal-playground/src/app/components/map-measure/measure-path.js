@@ -296,7 +296,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     this._measureLayers = L.layerGroup().addTo(map);
 
     // add initial shapes
-    this.loadMeasurements(map);
+    // this.loadMeasurements(map);
 
     map.on('draw:created', (event) => {
       this.options.checkonedrawpoligon = false;
@@ -789,15 +789,28 @@ L.Control.MeasurePolygon = L.Control.extend({
     }
   },
 
+  _toggleMeasurementBtn: function () {
+    if (this.options.checkonedrawpoligon) {
+      document.getElementById('img_plg_lines').src =
+        this.options.icon_lineInactive;
+      this.options.checkonedrawpoligon = false;
+    } else {
+      document.getElementById('img_plg_lines').src =
+        this.options.icon_lineActive;
+      this.options.checkonedrawpoligon = true;
+    }
+  },
+
   toggleMeasurementMode: function () {
     const mode = this.options.measurementMode;
     if (mode === 'measurement') {
       this._clearMeasurements();
     } else {
       this._clearMeasurements();
+
       this.loadMeasurements();
     }
-
+    this._toggleMeasurementBtn();
     this.options.cbToggleMeasurementMode();
   },
 
