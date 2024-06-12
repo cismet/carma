@@ -56,3 +56,7 @@
 .leaflet-bar.leaflet-control.m-container.hide-draw-btn {
   display: none;
 }
+
+.leaflet-bar.leaflet-control.m-container.draw-custom-button {
+  margin-left: 4px;
+}

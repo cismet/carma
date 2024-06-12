@@ -228,7 +228,7 @@ L.Control.MeasurePolygon = L.Control.extend({
 
     const modeBtn = L.DomUtil.create(
       'div',
-      'leaflet-bar leaflet-control m-container hide-draw-btn',
+      'leaflet-bar leaflet-control m-container hide-draw-btn draw-custom-button',
       linesContainer
     );
 
