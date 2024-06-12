@@ -312,12 +312,8 @@ export default InfoBoxMeasurement;
 
 function addDefaultShapeNameToTitle(shape) {
   let newShape = 'Linienzug';
-  console.log('xxx area', shape.area);
-  console.log('xxx shape', shape);
   if (shape.area) {
     newShape = 'Polygon';
   }
-  console.log('xxx', newShape);
-
   return newShape;
 }

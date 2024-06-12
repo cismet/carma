@@ -134,7 +134,12 @@ const MapMeasurement = (props) => {
         measureControl.showActiveShape(map, shapeCoordinates[0]?.coordinates);
       }
       measureControl.changeMeasurementMode(measurementMode);
-      // measureControl.options.measurementMode = measurementMode;
+      if (measurementMode === 'measurement' && visibleShapes.length === 0) {
+        console.log('vvv', visibleShapes);
+        const visibleShapesIds = measureControl.getVisibleShapeIdsArr(
+          measureControl._map
+        );
+      }
     }
   }, [
     activeShape,

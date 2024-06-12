@@ -55,7 +55,7 @@ const Map = () => {
         gazetteerSearchPlaceholder="Stadtteil | Adresse | POI"
         infoBox={
           measurementMode === 'measurement' ? (
-            <InfoBoxMeasurement />
+            <InfoBoxMeasurement key={measurementMode} />
           ) : (
             <div></div>
           )
