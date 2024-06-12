@@ -13,15 +13,19 @@ import makeMeasureActiveIcon from './measure-active.png';
 import './m-style.css';
 import { useSelector, useDispatch } from 'react-redux';
 import { toggleMeasurementMode } from '../../store/slices/measurements';
+import { getMeasurementMode } from '../../store/slices/measurements';
 
 const MeasurementSwitcher = (props) => {
   const { routedMapRef } = useContext(TopicMapContext);
 
   const dispatch = useDispatch();
+  const measurementMode = useSelector(getMeasurementMode);
 
   const [measureControl, setMeasureControl] = useState(null);
 
   useEffect(() => {
+    let measurePolygonControl;
+    console.log('mode', measurementMode);
     if (routedMapRef && !measureControl) {
       const mapExample = routedMapRef.leafletMap.leafletElement;
       const customOptions = {
@@ -31,11 +35,23 @@ const MeasurementSwitcher = (props) => {
         cbToggleMeasurementMode: toggleMeasurementModeHandler,
       };
 
-      const measurePolygonControl = L.control.measurePolygon(customOptions);
+      measurePolygonControl = L.control.measurePolygon(customOptions);
       measurePolygonControl.addTo(mapExample);
       setMeasureControl(measurePolygonControl);
     }
-  }, [routedMapRef]);
+
+    if (!measurementMode && measureControl) {
+      console.log(measureControl);
+      const mapExample = routedMapRef.leafletMap.leafletElement;
+
+      mapExample.removeControl(measureControl);
+    }
+
+    // return () => {
+    //   measurePolygonControl.remove();
+    //   setMeasureControl(null);
+    // };
+  }, [routedMapRef, measurementMode]);
 
   const toggleMeasurementModeHandler = (status) => {
     dispatch(toggleMeasurementMode());

@@ -133,7 +133,7 @@ const MapMeasurement = (props) => {
       if (moveToShape && !deleteShape) {
         measureControl.showActiveShape(map, shapeCoordinates[0]?.coordinates);
       }
-
+      measureControl.changeMeasurementMode(measurementMode);
       // measureControl.options.measurementMode = measurementMode;
     }
   }, [
@@ -143,6 +143,7 @@ const MapMeasurement = (props) => {
     deleteShape,
     ifDrawing,
     moveToShape,
+    measurementMode,
   ]);
 
   useEffect(() => {

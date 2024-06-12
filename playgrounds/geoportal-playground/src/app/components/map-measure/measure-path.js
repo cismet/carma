@@ -61,6 +61,9 @@ L.Control.MeasurePolygon = L.Control.extend({
     cbToggleMeasurementMode: function () {
       console.log('Callback function executed!');
     },
+    cbGetMeasurementModeHandler: function () {
+      console.log('Callback function executed!');
+    },
     visiblePolylines: [],
     localShapeStore: [],
     ifDrawing: false,
@@ -787,8 +790,19 @@ L.Control.MeasurePolygon = L.Control.extend({
   },
 
   toggleMeasurementMode: function () {
-    this._clearMeasurements();
+    const mode = this.options.measurementMode;
+    if (mode === 'measurement') {
+      this._clearMeasurements();
+    } else {
+      this._clearMeasurements();
+      this.loadMeasurements();
+    }
+
     this.options.cbToggleMeasurementMode();
+  },
+
+  changeMeasurementMode: function (mode) {
+    this.options.measurementMode = mode;
   },
 });
 
