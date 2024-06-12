@@ -50,6 +50,10 @@
   cursor: pointer;
 }
 
+.add_shape.draw-active {
+  color: #fdb50f;
+}
+
 .leaflet-bar.leaflet-control.m-container.hide-draw-btn {
   display: none;
 }

@@ -68,7 +68,7 @@ const MapMeasurement = (props) => {
         icon_polygonActive: polygonActiveIcon,
         icon_polygonInactive: polygonIcon,
         activeShape,
-        mode_btn: `<div class='measure_button_wrapper'><div class='add_shape'>+</div></div>`,
+        mode_btn: `<div id='draw-shape-active' class='measure_button_wrapper'><div class='add_shape'>+</div></div>`,
         msj_disable_tool: 'Do you want to disable the tool?',
         shapes: measurementShapes,
         cbSaveShape: saveShapeHandler,
