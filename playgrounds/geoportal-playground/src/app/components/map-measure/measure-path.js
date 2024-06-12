@@ -16,6 +16,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     fillColor_polygon: 'yellow',
     weight_polygon: '2',
     checkonedrawpoligon: false,
+    changeModeButtonActive: false,
     msj_disable_tool: 'Möchten Sie das Tool deaktivieren?',
     shapes: [],
     activeShape: null,
@@ -792,14 +793,14 @@ L.Control.MeasurePolygon = L.Control.extend({
   },
 
   _toggleMeasurementBtn: function () {
-    if (this.options.checkonedrawpoligon) {
+    if (this.options.changeModeButtonActive) {
       document.getElementById('img_plg_lines').src =
         this.options.icon_lineInactive;
-      this.options.checkonedrawpoligon = false;
+      this.options.changeModeButtonActive = false;
     } else {
       document.getElementById('img_plg_lines').src =
         this.options.icon_lineActive;
-      this.options.checkonedrawpoligon = true;
+      this.options.changeModeButtonActive = true;
     }
   },
 
