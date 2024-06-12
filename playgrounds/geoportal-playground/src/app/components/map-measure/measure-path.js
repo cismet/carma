@@ -227,9 +227,11 @@ L.Control.MeasurePolygon = L.Control.extend({
 
     const modeBtn = L.DomUtil.create(
       'div',
-      'leaflet-bar leaflet-control m-container',
+      'leaflet-bar leaflet-control m-container hide-draw-btn',
       linesContainer
     );
+
+    modeBtn.id = 'draw_shape';
 
     modeBtn.innerHTML = this.options.mode_btn;
 
@@ -805,12 +807,16 @@ L.Control.MeasurePolygon = L.Control.extend({
     const mode = this.options.measurementMode;
     if (mode === 'measurement') {
       this._clearMeasurements();
+      const drawBtn = document.getElementById('draw_shape');
+      drawBtn.classList.add('hide-draw-btn');
     } else {
       this._clearMeasurements();
-
+      const drawBtn = document.getElementById('draw_shape');
+      drawBtn.classList.remove('hide-draw-btn');
       this.loadMeasurements();
     }
     this._toggleMeasurementBtn();
+
     this.options.cbToggleMeasurementMode();
   },
 
