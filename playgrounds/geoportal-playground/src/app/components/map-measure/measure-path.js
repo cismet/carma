@@ -242,7 +242,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     </div>
   `;
     lineIcon.href = '#';
-    lineIcon.title = 'Flächen- und Umfangsmessungen';
+    // lineIcon.title = 'Flächen- und Umfangsmessungen';
     // this.ui_icon = icon;
 
     // const polygonContainer = L.DomUtil.create(
@@ -822,6 +822,9 @@ L.Control.MeasurePolygon = L.Control.extend({
 
   changeMeasurementMode: function (mode) {
     this.options.measurementMode = mode;
+  },
+  changeMeasurementsArr: function (arr) {
+    this.options.shapes = arr;
   },
 });
 

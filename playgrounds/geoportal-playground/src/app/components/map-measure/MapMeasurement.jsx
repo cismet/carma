@@ -158,6 +158,8 @@ const MapMeasurement = (props) => {
         measurementShapes
       );
       dispatch(setVisibleShapes(cleanedVisibleArr));
+
+      measureControl.changeMeasurementsArr(measurementShapes);
     }
   }, [visiblePolylines, measurementShapes]);
 
