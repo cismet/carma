@@ -1,7 +1,7 @@
 {
-  "name": "generic-topicmaps",
+  "name": "map-control-playground",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "playgrounds/generic-topicmaps/src",
+  "sourceRoot": "playgrounds/map-control-playground/src",
   "projectType": "application",
   "targets": {
     "build": {
@@ -9,7 +9,7 @@
       "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/playgrounds/generic-topicmaps"
+        "outputPath": "dist/playgrounds/map-control-playground"
       },
       "configurations": {
         "development": {
@@ -24,15 +24,15 @@
       "executor": "@nx/vite:dev-server",
       "defaultConfiguration": "development",
       "options": {
-        "buildTarget": "generic-topicmaps:build"
+        "buildTarget": "map-control-playground:build"
       },
       "configurations": {
         "development": {
-          "buildTarget": "generic-topicmaps:build:development",
+          "buildTarget": "map-control-playground:build:development",
           "hmr": true
         },
         "production": {
-          "buildTarget": "generic-topicmaps:build:production",
+          "buildTarget": "map-control-playground:build:production",
           "hmr": false
         }
       }
@@ -41,14 +41,14 @@
       "executor": "@nx/vite:preview-server",
       "defaultConfiguration": "development",
       "options": {
-        "buildTarget": "generic-topicmaps:build"
+        "buildTarget": "map-control-playground:build"
       },
       "configurations": {
         "development": {
-          "buildTarget": "generic-topicmaps:build:development"
+          "buildTarget": "map-control-playground:build:development"
         },
         "production": {
-          "buildTarget": "generic-topicmaps:build:production"
+          "buildTarget": "map-control-playground:build:production"
         }
       }
     },
