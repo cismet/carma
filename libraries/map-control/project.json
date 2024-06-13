@@ -24,6 +24,49 @@
           "mode": "production"
         }
       }
+    },
+    "storybook": {
+      "executor": "@nx/storybook:storybook",
+      "options": {
+        "port": 4400,
+        "configDir": "libraries/map-control/.storybook"
+      },
+      "configurations": {
+        "ci": {
+          "quiet": true
+        }
+      }
+    },
+    "build-storybook": {
+      "executor": "@nx/storybook:build",
+      "outputs": ["{options.outputDir}"],
+      "options": {
+        "outputDir": "dist/storybook/map-control",
+        "configDir": "libraries/map-control/.storybook"
+      },
+      "configurations": {
+        "ci": {
+          "quiet": true
+        }
+      }
+    },
+    "test-storybook": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "test-storybook -c libraries/map-control/.storybook --url=http://localhost:4400"
+      }
+    },
+    "static-storybook": {
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "map-control:build-storybook",
+        "staticFilePath": "dist/storybook/map-control"
+      },
+      "configurations": {
+        "ci": {
+          "buildTarget": "map-control:build-storybook:ci"
+        }
+      }
     }
   }
 }
