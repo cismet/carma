@@ -22,3 +22,5 @@ export const Heading: Story = {
     expect(canvas.getByText(/Welcome to MapControl!/gi)).toBeTruthy();
   },
 };
+
+export const SimleExample = (args) => <div style={{}}>111</div>;
