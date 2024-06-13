@@ -1,7 +1,7 @@
 {
-  "name": "map-control-playground",
+  "name": "generic-topicmaps",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "playgrounds/map-control-playground/src",
+  "sourceRoot": "playgrounds/generic-topicmaps/src",
   "projectType": "application",
   "targets": {
     "build": {
@@ -9,7 +9,7 @@
       "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/playgrounds/map-control-playground"
+        "outputPath": "dist/playgrounds/generic-topicmaps"
       },
       "configurations": {
         "development": {
@@ -24,15 +24,15 @@
       "executor": "@nx/vite:dev-server",
       "defaultConfiguration": "development",
       "options": {
-        "buildTarget": "map-control-playground:build"
+        "buildTarget": "generic-topicmaps:build"
       },
       "configurations": {
         "development": {
-          "buildTarget": "map-control-playground:build:development",
+          "buildTarget": "generic-topicmaps:build:development",
           "hmr": true
         },
         "production": {
-          "buildTarget": "map-control-playground:build:production",
+          "buildTarget": "generic-topicmaps:build:production",
           "hmr": false
         }
       }
@@ -41,22 +41,15 @@
       "executor": "@nx/vite:preview-server",
       "defaultConfiguration": "development",
       "options": {
-        "buildTarget": "map-control-playground:build"
+        "buildTarget": "generic-topicmaps:build"
       },
       "configurations": {
         "development": {
-          "buildTarget": "map-control-playground:build:development"
+          "buildTarget": "generic-topicmaps:build:development"
         },
         "production": {
-          "buildTarget": "map-control-playground:build:production"
+          "buildTarget": "generic-topicmaps:build:production"
         }
-      }
-    },
-    "test": {
-      "executor": "@nx/vite:test",
-      "outputs": ["{options.reportsDirectory}"],
-      "options": {
-        "reportsDirectory": "../../coverage/playgrounds/map-control-playground"
       }
     },
     "lint": {

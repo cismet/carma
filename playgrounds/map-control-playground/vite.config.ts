@@ -5,11 +5,14 @@ import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 
 export default defineConfig({
   root: __dirname,
-  cacheDir: '../../node_modules/.vite/playgrounds/map-control-playground',
+  cacheDir: '../../node_modules/.vite/playgrounds/generic-topicmaps',
 
   server: {
     port: 4200,
     host: 'localhost',
+    fs: {
+      allow: ['../..'],
+    },
   },
 
   preview: {
@@ -25,25 +28,14 @@ export default defineConfig({
   // },
 
   build: {
-    outDir: '../../dist/playgrounds/map-control-playground',
+    outDir: '../../dist/playgrounds/generic-topicmaps',
     reportCompressedSize: true,
     commonjsOptions: {
       transformMixedEsModules: true,
     },
   },
 
-  test: {
-    globals: true,
-    cache: {
-      dir: '../../node_modules/.vitest',
-    },
-    environment: 'jsdom',
-    include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-
-    reporters: ['default'],
-    coverage: {
-      reportsDirectory: '../../coverage/playgrounds/map-control-playground',
-      provider: 'v8',
-    },
+  define: {
+    'import.meta.vitest': undefined,
   },
 });
