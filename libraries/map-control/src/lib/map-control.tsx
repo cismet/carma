@@ -1,12 +1,29 @@
 import styles from './map-control.module.css';
 import ControlLayout from './components/ControlLayout';
-/* eslint-disable-next-line */
+import Control from './components/Control';
+
 export interface MapControlProps {}
 
 export function MapControl(props: MapControlProps) {
   return (
     <div className={styles['container']}>
-      <ControlLayout />
+      <ControlLayout>
+        <Control position="topleft" order={20}>
+          <div>Foto</div>
+        </Control>
+        <Control position="topleft" order={20}>
+          <div>Foto</div>
+        </Control>
+        <Control position="topleft" order={20}>
+          <div>Foto</div>
+        </Control>
+        <Control position="topleft" order={20}>
+          <div>Foto</div>
+        </Control>
+        <Control position="topleft" order={20}>
+          <div>Foto</div>
+        </Control>
+      </ControlLayout>
     </div>
   );
 }

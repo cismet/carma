@@ -1,9 +1,11 @@
-// interface ControlLayoutProps {
+import React, { ReactNode } from 'react';
 
-// }
+interface ControlLayoutProps {
+  children: ReactNode;
+}
 
-const ControlLayout = () => {
-  return <div>Layout</div>;
+const ControlLayout: React.FC<ControlLayoutProps> = ({ children }) => {
+  return <div>{children}</div>;
 };
 
 export default ControlLayout;
