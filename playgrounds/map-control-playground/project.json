@@ -1,0 +1,68 @@
+{
+  "name": "map-control-playground",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "playgrounds/map-control-playground/src",
+  "projectType": "application",
+  "targets": {
+    "build": {
+      "executor": "@nx/vite:build",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "outputPath": "dist/playgrounds/map-control-playground"
+      },
+      "configurations": {
+        "development": {
+          "mode": "development"
+        },
+        "production": {
+          "mode": "production"
+        }
+      }
+    },
+    "serve": {
+      "executor": "@nx/vite:dev-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "map-control-playground:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "map-control-playground:build:development",
+          "hmr": true
+        },
+        "production": {
+          "buildTarget": "map-control-playground:build:production",
+          "hmr": false
+        }
+      }
+    },
+    "preview": {
+      "executor": "@nx/vite:preview-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "map-control-playground:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "map-control-playground:build:development"
+        },
+        "production": {
+          "buildTarget": "map-control-playground:build:production"
+        }
+      }
+    },
+    "test": {
+      "executor": "@nx/vite:test",
+      "outputs": ["{options.reportsDirectory}"],
+      "options": {
+        "reportsDirectory": "../../coverage/playgrounds/map-control-playground"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"]
+    }
+  },
+  "tags": []
+}
