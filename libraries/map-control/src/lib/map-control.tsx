@@ -8,16 +8,16 @@ export function MapControl(props: MapControlProps) {
   return (
     <div className={styles['container']}>
       <ControlLayout>
-        <Control position="topleft" order={20}>
+        <Control position="topright" order={20}>
+          <div>Foto</div>
+        </Control>
+        <Control position="topright" order={20}>
           <div>Foto</div>
         </Control>
         <Control position="topleft" order={20}>
           <div>Foto</div>
         </Control>
-        <Control position="topleft" order={20}>
-          <div>Foto</div>
-        </Control>
-        <Control position="topleft" order={20}>
+        <Control position="topright" order={20}>
           <div>Foto</div>
         </Control>
         <Control position="topleft" order={20}>
