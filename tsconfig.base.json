@@ -20,6 +20,7 @@
       "@carma/custom-wupp-components": [
         "libraries/customer-specific/wuppertal/components/src/lib"
       ],
+      "@carma/map-control": ["libraries/map-control/src/index.ts"],
       "@cismet/document-viewer": ["libraries/document-viewer/src/index.ts"],
       "@cismet/layer-lib": ["libraries/layer-lib/src/index.ts"]
     }
