@@ -4,7 +4,7 @@ interface MainProps {
   children: ReactNode;
 }
 
-const Main: React.FC<MainProps> = () => {
+const Main: React.FC<MainProps> = ({ children }) => {
   return <>{children}</>;
 };
 

@@ -1,6 +1,7 @@
 import React, { ReactNode } from 'react';
 import Control from './Control';
 import styles from '../map-control.module.css';
+import Main from './Main';
 
 interface ControlLayoutProps {
   children: ReactNode;
@@ -22,6 +23,7 @@ interface AllPositions {
 
 const ControlLayout: React.FC<ControlLayoutProps> = ({ children }) => {
   const allPositions: AllPositions = {};
+  const mainComponent: React.ReactNode[] = [];
 
   React.Children.forEach(children, (child) => {
     if (React.isValidElement(child)) {
@@ -31,14 +33,20 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({ children }) => {
           allPositions[position] = [];
         }
         allPositions[position]?.push({ ...child.props, order, id });
+      } else {
+        console.log('xxx', child);
+        mainComponent.push(child);
       }
     }
   });
 
-  console.log('xxx', allPositions);
-
   return (
-    <div>
+    <div className={styles['container']}>
+      {/* {mainComponent.map((m) => {
+        console.log(m);
+        return <Main>{m?.props?.children || <div></div>}</Main>;
+      })} */}
+      <div className={styles['main']}>{mainComponent}</div>
       {Object.keys(allPositions).map((position) => {
         return (
           <div className={styles[position]}>
