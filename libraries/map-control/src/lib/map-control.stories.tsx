@@ -106,9 +106,8 @@ export const LeafletExample = () => {
       </Control>
       <Main>
         <div style={{ height: '100%', width: '100%' }}>
-          {/* <Excalidraw /> */}
+          <MapExample />
         </div>
-        <MapExample />
       </Main>
     </ControlLayout>
   );

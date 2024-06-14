@@ -1,8 +1,33 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer } from 'react-leaflet';
+import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 // import "leaflet-draw/dist/leaflet.draw.css";
+import 'leaflet.locatecontrol/dist/L.Control.Locate.css';
+import 'leaflet.locatecontrol';
 import StyledWMSTileLayer from 'react-cismap/StyledWMSTileLayer';
+
+const LocateControl = () => {
+  const map = useMap();
+
+  useEffect(() => {
+    const lc = L.control
+      .locate({
+        position: 'topright',
+        strings: {
+          title: '',
+        },
+        flyTo: true,
+      })
+      .addTo(map);
+
+    return () => {
+      lc.remove();
+    };
+  }, [map]);
+
+  return null;
+};
+
 const MapExample = () => {
   const position = [51.256, 7.151];
   const mapRef = useRef(null);
@@ -13,9 +38,10 @@ const MapExample = () => {
         key={'leaflet-map-map-example'}
         center={position}
         zoom={20}
-        style={{ height: 'calc(90vh - 16px)', width: '100wh' }}
+        style={{ height: 'calc(100vh - 16px)', width: '100wh' }}
         ref={mapRef}
         editable={true}
+        zoomControl={false}
       >
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
         {/* <StyledWMSTileLayer
@@ -29,6 +55,7 @@ const MapExample = () => {
             opacity: 0.6,
           }}
         ></StyledWMSTileLayer> */}
+        <LocateControl />
       </MapContainer>
     </div>
   );
