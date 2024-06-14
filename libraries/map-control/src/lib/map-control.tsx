@@ -2,18 +2,18 @@ import React, { ReactNode } from 'react';
 import Control from './components/Control';
 import styles from './map-control.module.css';
 import Main from './components/Main';
-interface ControlLayoutProps {
+export interface ControlLayoutProps {
   children: ReactNode;
 }
 
-interface ControlProps {
+export interface ControlProps {
   position: string;
   order?: number;
   id?: string;
   children: React.ReactNode;
 }
 
-interface AllPositions {
+export interface AllPositions {
   topleft?: ControlProps[];
   topright?: ControlProps[];
   bottomleft?: ControlProps[];
