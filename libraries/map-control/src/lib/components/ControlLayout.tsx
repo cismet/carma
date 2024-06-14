@@ -56,16 +56,22 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({ children }) => {
 
   return (
     <div className={styles['container']}>
-      <div className={styles['main']}>{mainComponent}</div>
-      {Object.keys(allPositions).map((position) => {
-        return (
-          <div className={styles[position]}>
-            {allPositions[position].map((component, idx) => {
-              return <Control {...component} key={idx} />;
-            })}
-          </div>
-        );
-      })}
+      <div className={styles['controls-container']}>
+        <div className={styles['main']}>{mainComponent}</div>
+        {Object.keys(allPositions).map((position) => {
+          return (
+            <div className={styles[position]}>
+              {allPositions[position].map((component, idx) => {
+                return (
+                  <div className={styles['control-item']}>
+                    <Control {...component} key={idx} />
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };
