@@ -1,8 +1,25 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { MapControl } from './map-control';
-
+import Control from './components/Control';
+import ControlLayout from './components/ControlLayout';
+import Main from './components/Main';
+import {
+  HomeOutlined,
+  LoadingOutlined,
+  SettingFilled,
+  SmileOutlined,
+  SyncOutlined,
+  ShrinkOutlined,
+  MinusOutlined,
+  PlusOutlined,
+  ExclamationCircleOutlined,
+  MenuOutlined,
+  FilterOutlined,
+} from '@ant-design/icons';
 import { within } from '@storybook/testing-library';
 import { expect } from '@storybook/jest';
+import { Excalidraw } from '@excalidraw/excalidraw';
+import DemoPlugin from './components/DemoPlugin';
 
 const meta: Meta<typeof MapControl> = {
   component: MapControl,
@@ -23,4 +40,39 @@ export const Heading: Story = {
   },
 };
 
-export const SimleExample = (args) => <div style={{}}>111</div>;
+export const SimleExample = () => {
+  return (
+    <ControlLayout>
+      <Control position="topright" order={10}>
+        <FilterOutlined />
+      </Control>
+      <Control position="topright" order={20}>
+        <SettingFilled />
+      </Control>
+      <Control position="topright" order={30}>
+        <MenuOutlined />
+      </Control>
+      <Control position="topleft" order={30}>
+        <MinusOutlined />
+      </Control>
+      <Control position="topleft" order={20}>
+        <ShrinkOutlined />
+      </Control>
+      <Control position="topleft" order={40}>
+        <PlusOutlined />
+      </Control>
+      <Control position="bottomright" order={20}>
+        <ExclamationCircleOutlined />
+      </Control>
+      <Control position="bottomleft" order={20}>
+        <LoadingOutlined />
+      </Control>
+      <Main>
+        {/* <div style={{ height: '500px' }}>
+          <Excalidraw />
+        </div> */}
+        <DemoPlugin />
+      </Main>
+    </ControlLayout>
+  );
+};
