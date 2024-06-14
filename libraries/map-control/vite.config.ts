@@ -46,4 +46,7 @@ export default defineConfig({
       external: ['react', 'react-dom', 'react/jsx-runtime'],
     },
   },
+  define: {
+    'process.env.IS_PREACT': JSON.stringify('true'),
+  },
 });

@@ -68,10 +68,10 @@ export const SimleExample = () => {
         <LoadingOutlined />
       </Control>
       <Main>
-        {/* <div style={{ height: '500px' }}>
+        <div style={{ height: '80vh', width: '100%' }}>
           <Excalidraw />
-        </div> */}
-        <DemoPlugin />
+        </div>
+        {/* <DemoPlugin /> */}
       </Main>
     </ControlLayout>
   );

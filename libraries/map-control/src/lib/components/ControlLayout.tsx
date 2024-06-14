@@ -56,10 +56,6 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({ children }) => {
 
   return (
     <div className={styles['container']}>
-      {/* {mainComponent.map((m) => {
-        console.log(m);
-        return <Main>{m?.props?.children || <div></div>}</Main>;
-      })} */}
       <div className={styles['main']}>{mainComponent}</div>
       {Object.keys(allPositions).map((position) => {
         return (
