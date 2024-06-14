@@ -38,46 +38,12 @@ const Map = () => {
 
   return (
     <TopicMapComponent
-      gazData={gazData}
-      modalMenu={<Menu />}
       locatorControl={true}
-      gazetteerSearchPlaceholder="Stadtteil | Adresse | POI"
-      gazetteerHitTrigger={(hits) => {
-        if ((Array.isArray(hits) && hits[0]?.more?.pid) || hits[0]?.more?.kid) {
-          const gazId = hits[0]?.more?.pid || hits[0]?.more?.kid;
-          setSelectedFeatureByPredicate(
-            (feature) => feature.properties.id === gazId
-          );
-        }
-      }}
-      applicationMenuTooltipString="Einstellungen | Kompaktanleitung"
-      infoBox={
-        <GenericInfoBoxFromFeature
-          pixelwidth={350}
-          config={{
-            displaySecondaryInfoAction: false,
-            city: 'Wuppertal',
-            navigator: {
-              noun: {
-                singular: 'Bad',
-                plural: 'Bäder',
-              },
-            },
-            noCurrentFeatureTitle: 'Keine Bäder gefunden',
-            noCurrentFeatureContent: (
-              <span>
-                Für mehr Bäder Ansicht mit verkleinern oder mit dem
-                untenstehenden Link auf das komplette Stadtgebiet zoomen.
-              </span>
-            ),
-          }}
-          photoUrlManipulation={fotoKraemerUrlManipulation}
-          captionFactory={fotoKraemerCaptionFactory}
-        />
-      }
-    >
-      <FeatureCollection></FeatureCollection>
-    </TopicMapComponent>
+      gazetteerSearchControl={false}
+      hamburgerMenu={false}
+      zoomControls={false}
+      fullScreenControl={false}
+    ></TopicMapComponent>
   );
 };
 
