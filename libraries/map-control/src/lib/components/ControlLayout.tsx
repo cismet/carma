@@ -21,7 +21,7 @@ interface AllPositions {
   bottomright?: ControlProps[];
 }
 
-const ControlLayout: React.FC<ControlLayoutProps> = ({ children }) => {
+const ControlLayoutBasic: React.FC<ControlLayoutProps> = ({ children }) => {
   const allPositions: AllPositions = {};
   const mainComponent: React.ReactNode[] = [];
 
@@ -76,4 +76,4 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({ children }) => {
   );
 };
 
-export default ControlLayout;
+export default ControlLayoutBasic;

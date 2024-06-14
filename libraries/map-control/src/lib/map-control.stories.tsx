@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { MapControl } from './map-control';
+// import { MapControl } from './map-control';
 import Control from './components/Control';
-import ControlLayout from './components/ControlLayout';
 import Main from './components/Main';
 import {
   HomeOutlined,
@@ -16,31 +15,29 @@ import {
   MenuOutlined,
   FilterOutlined,
 } from '@ant-design/icons';
-import { within } from '@storybook/testing-library';
-import { expect } from '@storybook/jest';
 import { Excalidraw } from '@excalidraw/excalidraw';
-import DemoPlugin from './components/DemoPlugin';
 import MapExample from './components/MapExample.jsx';
 import { useState } from 'react';
+import ControlLayout from './map-control';
 
-const meta: Meta<typeof MapControl> = {
-  component: MapControl,
+const meta: Meta<typeof ControlLayout> = {
+  component: ControlLayout,
   title: 'MapControl',
 };
 export default meta;
-type Story = StoryObj<typeof MapControl>;
+type Story = StoryObj<typeof ControlLayout>;
 
 export const Primary = {
   args: {},
 };
 
-export const Heading: Story = {
-  args: {},
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    expect(canvas.getByText(/Welcome to MapControl!/gi)).toBeTruthy();
-  },
-};
+// export const Heading: Story = {
+//   args: {},
+//   play: async ({ canvasElement }) => {
+//     const canvas = within(canvasElement);
+//     expect(canvas.getByText(/Welcome to MapControl!/gi)).toBeTruthy();
+//   },
+// };
 
 export const SimleExample = () => {
   return (

@@ -1,55 +1,78 @@
-import styles from './map-control.module.css';
-import ControlLayout from './components/ControlLayout';
+import React, { ReactNode } from 'react';
 import Control from './components/Control';
+import styles from './map-control.module.css';
 import Main from './components/Main';
-export interface MapControlProps {}
-import {
-  HomeOutlined,
-  LoadingOutlined,
-  SettingFilled,
-  SmileOutlined,
-  SyncOutlined,
-  ShrinkOutlined,
-  MinusOutlined,
-  PlusOutlined,
-  ExclamationCircleOutlined,
-  MenuOutlined,
-  FilterOutlined,
-} from '@ant-design/icons';
-export function MapControl(props: MapControlProps) {
-  return (
-    <div>
-      <ControlLayout>
-        <Control position="topright" order={10}>
-          <FilterOutlined />
-        </Control>
-        <Control position="topright" order={20}>
-          <SettingFilled />
-        </Control>
-        <Control position="topright" order={30}>
-          <MenuOutlined />
-        </Control>
-        <Control position="topleft" order={30}>
-          <MinusOutlined />
-        </Control>
-        <Control position="topleft" order={20}>
-          <ShrinkOutlined />
-        </Control>
-        <Control position="topleft" order={40}>
-          <PlusOutlined />
-        </Control>
-        <Control position="bottomright" order={20}>
-          <ExclamationCircleOutlined />
-        </Control>
-        <Control position="bottomleft" order={20}>
-          <LoadingOutlined />
-        </Control>
-        <Main>
-          <div>Main</div>
-        </Main>
-      </ControlLayout>
-    </div>
-  );
+interface ControlLayoutProps {
+  children: ReactNode;
 }
 
-export default MapControl;
+interface ControlProps {
+  position: string;
+  order?: number;
+  id?: string;
+  children: React.ReactNode;
+}
+
+interface AllPositions {
+  topleft?: ControlProps[];
+  topright?: ControlProps[];
+  bottomleft?: ControlProps[];
+  bottomright?: ControlProps[];
+}
+
+const ControlLayout: React.FC<ControlLayoutProps> = ({ children }) => {
+  const allPositions: AllPositions = {};
+  const mainComponent: React.ReactNode[] = [];
+
+  React.Children.forEach(children, (child) => {
+    if (React.isValidElement(child)) {
+      if (child.type === Control) {
+        const { position, order = 0, id } = child.props as ControlProps;
+        if (!allPositions[position]) {
+          allPositions[position] = [];
+        }
+        allPositions[position]?.push({ ...child.props, order, id });
+        allPositions[position]
+          .sort((a, b) => {
+            const orderA = a.order;
+            const orderB = b.order;
+            if (orderA < orderB) {
+              return -1;
+            }
+            if (orderA > orderB) {
+              return 1;
+            }
+
+            return 0;
+          })
+          .reverse();
+      } else {
+        console.log('xxx', child);
+        mainComponent.push(child);
+      }
+    }
+  });
+
+  return (
+    <div className={styles['container']}>
+      <div className={styles['controls-container']}>
+        <div className={styles['main']}>{mainComponent}</div>
+        {Object.keys(allPositions).map((position) => {
+          return (
+            <div className={styles[position]}>
+              {allPositions[position].map((component, idx) => {
+                return (
+                  <div className={styles['control-item']}>
+                    <Control {...component} key={idx} />
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+export default ControlLayout;
