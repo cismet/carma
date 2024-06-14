@@ -9,25 +9,37 @@ import {
   SettingFilled,
   SmileOutlined,
   SyncOutlined,
+  ShrinkOutlined,
+  MinusOutlined,
+  PlusOutlined,
+  ExclamationCircleOutlined,
+  MenuOutlined,
+  FilterOutlined,
 } from '@ant-design/icons';
 export function MapControl(props: MapControlProps) {
   return (
     <div>
       <ControlLayout>
         <Control position="topright" order={10}>
-          <SmileOutlined rotate={180} />
+          <FilterOutlined />
         </Control>
         <Control position="topright" order={20}>
           <SettingFilled />
         </Control>
         <Control position="topright" order={30}>
-          <SyncOutlined spin />
+          <MenuOutlined />
+        </Control>
+        <Control position="topleft" order={30}>
+          <MinusOutlined />
         </Control>
         <Control position="topleft" order={20}>
-          <HomeOutlined />
+          <ShrinkOutlined />
         </Control>
-        <Control position="topleft" order={20}>
-          <SmileOutlined />
+        <Control position="topleft" order={40}>
+          <PlusOutlined />
+        </Control>
+        <Control position="bottomright" order={20}>
+          <ExclamationCircleOutlined />
         </Control>
         <Control position="bottomleft" order={20}>
           <LoadingOutlined />
