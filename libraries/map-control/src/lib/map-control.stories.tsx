@@ -43,7 +43,7 @@ export const Heading: Story = {
 export const SimleExample = () => {
   return (
     <ControlLayout>
-      <Control position="topright" order={10}>
+      <Control position="topright" order={40}>
         <FilterOutlined />
       </Control>
       <Control position="topright" order={20}>
@@ -68,7 +68,7 @@ export const SimleExample = () => {
         <LoadingOutlined />
       </Control>
       <Main>
-        <div style={{ height: '80vh', width: '100%' }}>
+        <div style={{ height: '90vh', width: '100%' }}>
           <Excalidraw />
         </div>
         {/* <DemoPlugin /> */}
