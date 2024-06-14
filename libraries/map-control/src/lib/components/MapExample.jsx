@@ -6,39 +6,47 @@ import 'leaflet.locatecontrol/dist/L.Control.Locate.css';
 import 'leaflet.locatecontrol';
 import StyledWMSTileLayer from 'react-cismap/StyledWMSTileLayer';
 
-const LocateControl = () => {
+const LocateControl = ({ startLocate }) => {
   const map = useMap();
+  const locateControlRef = useRef(null);
 
   useEffect(() => {
     const lc = L.control
       .locate({
         position: 'topright',
         strings: {
-          title: '',
+          title: 'Show me where I am!',
         },
         flyTo: true,
       })
       .addTo(map);
+    locateControlRef.current = lc;
 
     return () => {
       lc.remove();
     };
   }, [map]);
 
+  useEffect(() => {
+    if (startLocate && locateControlRef.current) {
+      locateControlRef.current.start();
+    }
+  }, [startLocate]);
+
   return null;
 };
 
-const MapExample = () => {
+const MapExample = ({ startLocate }) => {
   const position = [51.256, 7.151];
   const mapRef = useRef(null);
 
   return (
-    <div style={{ width: '100wh', height: 'calc(100vh - 16px)' }}>
+    <div style={{ width: '100wh', height: 'calc(100vh - 80px)' }}>
       <MapContainer
         key={'leaflet-map-map-example'}
         center={position}
         zoom={20}
-        style={{ height: 'calc(100vh - 16px)', width: '100wh' }}
+        style={{ height: 'calc(100vh - 80px)', width: '100wh' }}
         ref={mapRef}
         editable={true}
         zoomControl={false}
@@ -55,7 +63,7 @@ const MapExample = () => {
             opacity: 0.6,
           }}
         ></StyledWMSTileLayer> */}
-        <LocateControl />
+        <LocateControl startLocate={startLocate} />
       </MapContainer>
     </div>
   );

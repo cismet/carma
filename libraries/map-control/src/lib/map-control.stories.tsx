@@ -21,6 +21,7 @@ import { expect } from '@storybook/jest';
 import { Excalidraw } from '@excalidraw/excalidraw';
 import DemoPlugin from './components/DemoPlugin';
 import MapExample from './components/MapExample.jsx';
+import { useState } from 'react';
 
 const meta: Meta<typeof MapControl> = {
   component: MapControl,
@@ -78,35 +79,15 @@ export const SimleExample = () => {
 };
 
 export const LeafletExample = () => {
+  const [fireLocation, setFireLocation] = useState(false);
   return (
     <ControlLayout>
-      <Control position="topright" order={30}>
-        <FilterOutlined />
-      </Control>
-      <Control position="topright" order={20}>
-        <SettingFilled />
-      </Control>
-      <Control position="topright" order={40}>
-        <MenuOutlined />
-      </Control>
       <Control position="topleft" order={30}>
-        <MinusOutlined />
-      </Control>
-      <Control position="topleft" order={20}>
-        <ShrinkOutlined />
-      </Control>
-      <Control position="topleft" order={40}>
-        <PlusOutlined />
-      </Control>
-      <Control position="bottomright" order={20}>
-        <ExclamationCircleOutlined />
-      </Control>
-      <Control position="bottomleft" order={20}>
-        <LoadingOutlined />
+        <FilterOutlined onClick={() => setFireLocation(!fireLocation)} />
       </Control>
       <Main>
         <div style={{ height: '100%', width: '100%' }}>
-          <MapExample />
+          <MapExample startLocate={fireLocation} />
         </div>
       </Main>
     </ControlLayout>
