@@ -33,6 +33,20 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({ children }) => {
           allPositions[position] = [];
         }
         allPositions[position]?.push({ ...child.props, order, id });
+        allPositions[position]
+          .sort((a, b) => {
+            const orderA = a.order;
+            const orderB = b.order;
+            if (orderA < orderB) {
+              return -1;
+            }
+            if (orderA > orderB) {
+              return 1;
+            }
+
+            return 0;
+          })
+          .reverse();
       } else {
         console.log('xxx', child);
         mainComponent.push(child);

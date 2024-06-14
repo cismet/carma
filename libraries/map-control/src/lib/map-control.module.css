@@ -29,19 +29,34 @@
   position: absolute;
   top: 0;
   right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .topleft {
   top: 0;
   left: 0;
+  display: flex;
+
+  flex-direction: column;
+  gap: 10px;
 }
 
 .bottomleft {
   bottom: 0;
   left: 0;
+  display: flex;
+
+  flex-direction: column;
+  gap: 10px;
 }
 
 .bottomright {
   bottom: 0;
   left: 0;
+  display: flex;
+
+  flex-direction: column;
+  gap: 10px;
 }
