@@ -1,10 +1,11 @@
 import React, { ReactNode } from 'react';
 
-interface MainProps {
+export interface MainProps {
   children: ReactNode;
+  typeOfMap?: string;
 }
 
-const Main: React.FC<MainProps> = ({ children }) => {
+const Main: React.FC<MainProps> = ({ children, typeOfMap }) => {
   return <>{children}</>;
 };
 

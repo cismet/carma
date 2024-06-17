@@ -12,6 +12,19 @@ code {
     monospace;
 }
 
-.leaflet-control-locate {
-  opacity: 0 !important;
+/* .leaflet-control-locate {
+  opacity: 1 !important;
+} */
+.leaflet-top {
+  display: none !important;
+}
+
+.leaflet-left {
+  display: none !important;
+}
+.leaflet-right {
+  display: none !important;
+}
+.leaflet-bottom {
+  display: none !important;
 }

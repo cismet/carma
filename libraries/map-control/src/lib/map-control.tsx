@@ -1,7 +1,8 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useRef, useState, useEffect } from 'react';
 import Control from './components/Control';
 import styles from './map-control.module.css';
 import Main from './components/Main';
+
 export interface ControlLayoutProps {
   children: ReactNode;
 }
@@ -22,7 +23,10 @@ export interface AllPositions {
 
 const ControlLayout: React.FC<ControlLayoutProps> = ({ children }) => {
   const allPositions: AllPositions = {};
-  const mainComponent: React.ReactNode[] = [];
+  let mainComponent: React.ReactElement | null = null;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerHeight, setContainerHeight] = useState<number | null>(null);
+  console.log('rrr', containerRef);
 
   React.Children.forEach(children, (child) => {
     if (React.isValidElement(child)) {
@@ -46,17 +50,32 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({ children }) => {
             return 0;
           })
           .reverse();
-      } else {
-        console.log('xxx', child);
-        mainComponent.push(child);
+      } else if (child.type === Main) {
+        // const { position, order = 0, id } = child.props as Main;
+        if (child.props.children) {
+          React.Children.forEach(child.props.children, (nestedChild) => {
+            console.log('rrr nestedChild', nestedChild);
+            mainComponent = React.cloneElement(nestedChild, {
+              mapStyle: { width: '100%', height: `${containerHeight}px` },
+            });
+          });
+        }
       }
     }
   });
 
+  useEffect(() => {
+    if (containerRef.current) {
+      setContainerHeight(containerRef.current.clientHeight);
+    }
+  }, [containerRef.current]);
+
   return (
-    <div className={styles['container']}>
+    <div className={styles['container']} ref={containerRef}>
       <div className={styles['controls-container']}>
-        <div className={styles['main']}>{mainComponent}</div>
+        <div className={styles['main']}>
+          {mainComponent ? mainComponent : null}
+        </div>
         {Object.keys(allPositions).map((position) => {
           return (
             <div className={styles[position]}>

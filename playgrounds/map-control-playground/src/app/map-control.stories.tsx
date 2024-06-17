@@ -100,36 +100,35 @@ export const SimpleLayout = () => {
   const [locationProps, setLocationProps] = useState(0);
 
   return (
-    <ControlLayout>
-      <Control position="topleft" order={30}>
-        <AimOutlined onClick={() => setLocationProps((prev) => prev + 1)} />
-      </Control>
-
-      <Main>
-        <TopicMapContextProvider
-          appKey="OnlineBaederkarteWuppertal2022"
-          featureItemsURL={
-            'https://wupp-topicmaps-data.cismet.de/data/baeder.data.json'
-          }
-          referenceSystemDefinition={MappingConstants.proj4crs25832def}
-          mapEPSGCode="25832"
-          referenceSystem={MappingConstants.crs25832}
-          getFeatureStyler={getFeatureStyler}
-          featureTooltipFunction={(feature) => feature?.text}
-          convertItemToFeature={convertItemToFeature}
-          clusteringOptions={{
-            iconCreateFunction: getPoiClusterIconCreatorFunction({
-              svgSize: 24,
-            }),
-          }}
-        >
-          <Map />
+    <TopicMapContextProvider
+      appKey="OnlineBaederkarteWuppertal2022"
+      featureItemsURL={
+        'https://wupp-topicmaps-data.cismet.de/data/baeder.data.json'
+      }
+      referenceSystemDefinition={MappingConstants.proj4crs25832def}
+      mapEPSGCode="25832"
+      referenceSystem={MappingConstants.crs25832}
+      getFeatureStyler={getFeatureStyler}
+      featureTooltipFunction={(feature) => feature?.text}
+      convertItemToFeature={convertItemToFeature}
+      clusteringOptions={{
+        iconCreateFunction: getPoiClusterIconCreatorFunction({
+          svgSize: 24,
+        }),
+      }}
+    >
+      <ControlLayout>
+        <Control position="topleft" order={30}>
+          <AimOutlined onClick={() => setLocationProps((prev) => prev + 1)} />
           <LocateControl
             // key={`location-component${locationProps}`}
             startLocate={locationProps}
           />
-        </TopicMapContextProvider>
-      </Main>
-    </ControlLayout>
+        </Control>
+        <Main typeOfMap="leaflet">
+          <Map />
+        </Main>
+      </ControlLayout>
+    </TopicMapContextProvider>
   );
 };

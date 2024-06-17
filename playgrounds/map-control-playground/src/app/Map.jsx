@@ -1,8 +1,8 @@
 import React from 'react';
 import TopicMapComponent from 'react-cismap/topicmaps/TopicMapComponent';
 import { ControlLayout, Control, Main } from '@carma/map-control';
-console.log('xxx', ControlLayout);
-const Map = () => {
+const Map = ({ mapStyle = true }) => {
+  console.log('rrr mapStyle', mapStyle);
   return (
     <TopicMapComponent
       locatorControl={false}
@@ -10,7 +10,7 @@ const Map = () => {
       hamburgerMenu={false}
       zoomControls={false}
       fullScreenControl={false}
-      mapStyle={{ width: '100%', height: '90vh' }}
+      mapStyle={mapStyle}
     ></TopicMapComponent>
   );
 };
