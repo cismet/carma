@@ -19,6 +19,7 @@ import './index.css';
 import 'leaflet.locatecontrol/dist/L.Control.Locate.css';
 import 'leaflet.locatecontrol';
 import { ControlLayout, Control, Main } from '@carma/map-control';
+import { AimOutlined } from '@ant-design/icons';
 
 if (typeof global === 'undefined') {
   window.global = window;
@@ -57,20 +58,19 @@ export const SimpleExample = () => {
   return <MapWithProviders />;
 };
 
-const LocateControl = ({ startLocate = false }) => {
+const LocateControl = ({ startLocate = 0 }) => {
   console.log('yyy');
   const { routedMapRef } = useContext(TopicMapContext);
   const [locationInstance, setLocationInstance] = useState(null);
 
   useEffect(() => {
     if (!locationInstance && routedMapRef) {
-      console.log('yyy', routedMapRef.leafletMap.leafletElement);
       const mapExample = routedMapRef.leafletMap.leafletElement;
       const lc = L.control
         .locate({
           position: 'topright',
           strings: {
-            title: 'Show me where I am!',
+            title: 'demo location',
           },
           flyTo: true,
         })
@@ -78,25 +78,29 @@ const LocateControl = ({ startLocate = false }) => {
       setLocationInstance(lc);
     }
 
-    //   return () => {
-    //     lc.remove();
-    //   };
+    // return () => {
+    //   lc.remove();
+    // };
   }, [routedMapRef]);
 
-  // useEffect(() => {
-  //   if (startLocate && locateControlRef.current) {
-  //     locateControlRef.current.start();
-  //   }
-  // }, [startLocate]);
+  useEffect(() => {
+    if (startLocate) {
+      console.log('yyy', locationInstance);
+      locationInstance.start();
+      // locateControlRef.current.start();
+    }
+  }, [startLocate]);
 
   return null;
 };
 
 export const SimpleLayout = () => {
+  const [locationProps, setLocationProps] = useState(0);
+
   return (
     <ControlLayout>
-      <Control position="topright" order={30}>
-        <div>L</div>
+      <Control position="topleft" order={30}>
+        <AimOutlined onClick={() => setLocationProps((prev) => prev + 1)} />
       </Control>
 
       <Main>
@@ -118,7 +122,10 @@ export const SimpleLayout = () => {
           }}
         >
           <Map />
-          <LocateControl />
+          <LocateControl
+            // key={`location-component${locationProps}`}
+            startLocate={locationProps}
+          />
         </TopicMapContextProvider>
       </Main>
     </ControlLayout>
