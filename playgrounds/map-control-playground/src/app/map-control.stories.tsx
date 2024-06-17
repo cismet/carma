@@ -73,6 +73,8 @@ const LocateControl = ({ startLocate = 0 }) => {
             title: 'demo location',
           },
           flyTo: true,
+          drawMarker: false,
+          icon: 'custom_icon',
         })
         .addTo(mapExample);
       setLocationInstance(lc);

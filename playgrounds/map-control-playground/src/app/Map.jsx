@@ -10,6 +10,7 @@ const Map = () => {
       hamburgerMenu={false}
       zoomControls={false}
       fullScreenControl={false}
+      mapStyle={{ width: '100%', height: '90vh' }}
     ></TopicMapComponent>
   );
 };
