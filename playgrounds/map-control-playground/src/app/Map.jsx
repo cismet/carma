@@ -5,7 +5,7 @@ console.log('xxx', ControlLayout);
 const Map = () => {
   return (
     <TopicMapComponent
-      locatorControl={true}
+      locatorControl={false}
       gazetteerSearchControl={false}
       hamburgerMenu={false}
       zoomControls={false}
