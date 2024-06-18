@@ -19,8 +19,22 @@ import './index.css';
 import 'leaflet.locatecontrol/dist/L.Control.Locate.css';
 import 'leaflet.locatecontrol';
 import { ControlLayout, Control, Main } from '@carma/map-control';
-import { AimOutlined } from '@ant-design/icons';
+import {
+  AimOutlined,
+  HomeOutlined,
+  LoadingOutlined,
+  SettingFilled,
+  SmileOutlined,
+  SyncOutlined,
+  ShrinkOutlined,
+  MinusOutlined,
+  PlusOutlined,
+  ExclamationCircleOutlined,
+  MenuOutlined,
+  FilterOutlined,
+} from '@ant-design/icons';
 import GoogleMapIframe from './components/GoogleMapIframe';
+import DemoExcalidraw from './components/DemoExcalidraw';
 
 if (typeof global === 'undefined') {
   window.global = window;
@@ -60,7 +74,6 @@ export const SimpleExample = () => {
 };
 
 const LocateControl = ({ startLocate = 0 }) => {
-  console.log('yyy');
   const { routedMapRef } = useContext(TopicMapContext);
   const [locationInstance, setLocationInstance] = useState(null);
 
@@ -155,33 +168,97 @@ export const LibraryWithTitle = () => {
     }
   }, [containerRef]);
   return (
-    <TopicMapContextProvider
-      appKey="OnlineBaederkarteWuppertal2022"
-      featureItemsURL={
-        'https://wupp-topicmaps-data.cismet.de/data/baeder.data.json'
-      }
-      referenceSystemDefinition={MappingConstants.proj4crs25832def}
-      mapEPSGCode="25832"
-      referenceSystem={MappingConstants.crs25832}
-      getFeatureStyler={getFeatureStyler}
-      featureTooltipFunction={(feature) => feature?.text}
-      convertItemToFeature={convertItemToFeature}
-      clusteringOptions={{
-        iconCreateFunction: getPoiClusterIconCreatorFunction({
-          svgSize: 24,
-        }),
-      }}
-    >
-      <ControlLayout>
-        <Control position="topleft" order={30}>
-          <AimOutlined onClick={() => setLocationProps((prev) => prev + 1)} />
-          <LocateControl startLocate={locationProps} />
-        </Control>
-        <Main ref={containerRef}>
-          <h1>Component</h1>
-          <GoogleMapIframe />
-        </Main>
-      </ControlLayout>
-    </TopicMapContextProvider>
+    <ControlLayout>
+      <Control position="topleft" order={40}>
+        <AimOutlined />
+      </Control>
+      <Control position="topleft" order={30}>
+        <SettingFilled />
+      </Control>
+      <Control position="topleft" order={20}>
+        <ShrinkOutlined />
+      </Control>
+      <Control position="topleft" order={10}>
+        <PlusOutlined />
+      </Control>
+      <Control position="topleft" order={1}>
+        <HomeOutlined />
+      </Control>
+      <Control position="topleft" order={1}>
+        <LoadingOutlined />
+      </Control>
+      <Control position="topleft" order={1}>
+        <SyncOutlined />
+      </Control>
+      <Main ref={containerRef}>
+        <h1>Component</h1>
+        <GoogleMapIframe />
+      </Main>
+    </ControlLayout>
+  );
+};
+
+export const ExcalidrawExample = () => {
+  const [locationProps, setLocationProps] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (containerRef) {
+      setContainerHeight({
+        width: `100%`,
+        height: `${containerRef.current?.clientHeight}px`,
+      });
+    }
+  }, [containerRef]);
+  return (
+    <ControlLayout>
+      <Control position="topleft" order={40}>
+        <AimOutlined />
+      </Control>
+      <Control position="topleft" order={30}>
+        <SettingFilled />
+      </Control>
+      <Control position="topleft" order={20}>
+        <ShrinkOutlined />
+      </Control>
+      <Control position="topleft" order={10}>
+        <PlusOutlined />
+      </Control>
+      <Control position="topright" order={1}>
+        <SyncOutlined />
+      </Control>
+      <Control position="topright" order={40}>
+        <AimOutlined />
+      </Control>
+      <Control position="topright" order={30}>
+        <SettingFilled />
+      </Control>
+      <Control position="bottomright" order={20}>
+        <ShrinkOutlined />
+      </Control>
+      <Control position="bottomright" order={10}>
+        <PlusOutlined />
+      </Control>
+      <Control position="bottomright" order={1}>
+        <HomeOutlined />
+      </Control>
+      <Control position="bottomleft" order={80}>
+        <HomeOutlined />
+      </Control>
+      <Control position="bottomleft" order={1}>
+        <LoadingOutlined />
+      </Control>
+      <Control position="bottomleft" order={2}>
+        <LoadingOutlined />
+      </Control>
+      <Control position="bottomleft" order={1}>
+        <SyncOutlined />
+      </Control>
+      <Main ref={containerRef}>
+        <h1 className="text-center">Draws</h1>
+        <DemoExcalidraw />
+      </Main>
+    </ControlLayout>
   );
 };

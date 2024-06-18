@@ -37,5 +37,6 @@ export default defineConfig({
 
   define: {
     'import.meta.vitest': undefined,
+    'process.env.IS_PREACT': JSON.stringify('true'),
   },
 });
