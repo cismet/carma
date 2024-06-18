@@ -1,7 +1,7 @@
 import React from 'react';
 import TopicMapComponent from 'react-cismap/topicmaps/TopicMapComponent';
 import { ControlLayout, Control, Main } from '@carma/map-control';
-const Map = ({ mapStyle = true }) => {
+const Map = ({ mapStyle }) => {
   console.log('rrr mapStyle', mapStyle);
   return (
     <TopicMapComponent
