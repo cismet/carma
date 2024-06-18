@@ -20,6 +20,7 @@ import 'leaflet.locatecontrol/dist/L.Control.Locate.css';
 import 'leaflet.locatecontrol';
 import { ControlLayout, Control, Main } from '@carma/map-control';
 import { AimOutlined } from '@ant-design/icons';
+import GoogleMapIframe from './components/GoogleMapIframe';
 
 if (typeof global === 'undefined') {
   window.global = window;
@@ -134,6 +135,51 @@ export const SimpleLayout = () => {
         </Control>
         <Main ref={containerRef}>
           <Map mapStyle={containerHeight} />
+        </Main>
+      </ControlLayout>
+    </TopicMapContextProvider>
+  );
+};
+
+export const LibraryWithTitle = () => {
+  const [locationProps, setLocationProps] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (containerRef) {
+      setContainerHeight({
+        width: `100%`,
+        height: `${containerRef.current?.clientHeight}px`,
+      });
+    }
+  }, [containerRef]);
+  return (
+    <TopicMapContextProvider
+      appKey="OnlineBaederkarteWuppertal2022"
+      featureItemsURL={
+        'https://wupp-topicmaps-data.cismet.de/data/baeder.data.json'
+      }
+      referenceSystemDefinition={MappingConstants.proj4crs25832def}
+      mapEPSGCode="25832"
+      referenceSystem={MappingConstants.crs25832}
+      getFeatureStyler={getFeatureStyler}
+      featureTooltipFunction={(feature) => feature?.text}
+      convertItemToFeature={convertItemToFeature}
+      clusteringOptions={{
+        iconCreateFunction: getPoiClusterIconCreatorFunction({
+          svgSize: 24,
+        }),
+      }}
+    >
+      <ControlLayout>
+        <Control position="topleft" order={30}>
+          <AimOutlined onClick={() => setLocationProps((prev) => prev + 1)} />
+          <LocateControl startLocate={locationProps} />
+        </Control>
+        <Main ref={containerRef}>
+          <h1>Component</h1>
+          <GoogleMapIframe />
         </Main>
       </ControlLayout>
     </TopicMapContextProvider>
