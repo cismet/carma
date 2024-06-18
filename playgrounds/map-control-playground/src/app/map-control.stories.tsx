@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import React, { useEffect, useContext, useState } from 'react';
+import React, { useEffect, useContext, useState, useRef } from 'react';
 import { MappingConstants } from 'react-cismap';
 import TopicMapContextProvider from 'react-cismap/contexts/TopicMapContextProvider';
 
@@ -98,7 +98,17 @@ const LocateControl = ({ startLocate = 0 }) => {
 
 export const SimpleLayout = () => {
   const [locationProps, setLocationProps] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    if (containerRef) {
+      setContainerHeight({
+        width: `100%`,
+        height: `${containerRef.current?.clientHeight}px`,
+      });
+    }
+  }, [containerRef]);
   return (
     <TopicMapContextProvider
       appKey="OnlineBaederkarteWuppertal2022"
@@ -120,13 +130,10 @@ export const SimpleLayout = () => {
       <ControlLayout>
         <Control position="topleft" order={30}>
           <AimOutlined onClick={() => setLocationProps((prev) => prev + 1)} />
-          <LocateControl
-            // key={`location-component${locationProps}`}
-            startLocate={locationProps}
-          />
+          <LocateControl startLocate={locationProps} />
         </Control>
-        <Main>
-          <Map />
+        <Main ref={containerRef}>
+          <Map mapStyle={containerHeight} />
         </Main>
       </ControlLayout>
     </TopicMapContextProvider>
