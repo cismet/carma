@@ -24,9 +24,6 @@ export interface AllPositions {
 const ControlLayout: React.FC<ControlLayoutProps> = ({ children }) => {
   const allPositions: AllPositions = {};
   let mainComponent: React.ReactElement | null = null;
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [containerHeight, setContainerHeight] = useState<number | null>(null);
-  console.log('rrr', containerRef);
 
   React.Children.forEach(children, (child) => {
     if (React.isValidElement(child)) {
@@ -51,27 +48,13 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({ children }) => {
           })
           .reverse();
       } else if (child.type === Main) {
-        // const { position, order = 0, id } = child.props as Main;
-        if (child.props.children) {
-          React.Children.forEach(child.props.children, (nestedChild) => {
-            console.log('rrr nestedChild', nestedChild);
-            mainComponent = React.cloneElement(nestedChild, {
-              mapStyle: { width: '100%', height: `${containerHeight}px` },
-            });
-          });
-        }
+        mainComponent = React.cloneElement(child);
       }
     }
   });
 
-  useEffect(() => {
-    if (containerRef.current) {
-      setContainerHeight(containerRef.current.clientHeight);
-    }
-  }, [containerRef.current]);
-
   return (
-    <div className={styles['container']} ref={containerRef}>
+    <div className={styles['container']}>
       <div className={styles['controls-container']}>
         <div className={styles['main']}>
           {mainComponent ? mainComponent : null}

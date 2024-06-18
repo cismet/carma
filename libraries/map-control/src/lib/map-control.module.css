@@ -11,6 +11,7 @@
   height: calc(100vh - 70px);
   background-color: transparent;
   position: relative;
+  border: 1px solid yellow;
   /* padding: 15px; */
 }
 

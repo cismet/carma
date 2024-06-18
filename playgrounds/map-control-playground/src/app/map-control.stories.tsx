@@ -125,7 +125,7 @@ export const SimpleLayout = () => {
             startLocate={locationProps}
           />
         </Control>
-        <Main typeOfMap="leaflet">
+        <Main>
           <Map />
         </Main>
       </ControlLayout>
