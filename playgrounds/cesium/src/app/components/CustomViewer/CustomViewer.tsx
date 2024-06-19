@@ -5,7 +5,7 @@ import React, {
   useEffect,
   useState,
 } from 'react';
-import { Color, HeadingPitchRange, Viewer, Math as CeMath } from 'cesium';
+import { Color, HeadingPitchRange, Viewer } from 'cesium';
 import { Viewer as ResiumViewer } from 'resium';
 import Crosshair from '../UI/Crosshair';
 import SearchWrapper from './components/SearchWrapper';
@@ -24,11 +24,6 @@ import { useLocation } from 'react-router-dom';
 import useInitializeViewer from './hooks';
 import TopicMap from './components/TopicMap';
 import { TopicMapContext } from 'react-cismap/contexts/TopicMapContextProvider';
-import {
-  cesiumToLeafletZoom,
-  cesiumViewerToLeafletZoom,
-  getZoomFromElevation,
-} from '../../utils/cesiumHelpers';
 
 type CustomViewerProps = {
   children?: ReactNode;
@@ -78,7 +73,8 @@ function CustomViewer(props: CustomViewerProps) {
   } = props;
 
   const [viewer, setViewer] = useState<Viewer | null>(null);
-  const topicMapContext = useContext(TopicMapContext);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const topicMapContext: any = useContext(TopicMapContext);
   const leafletElement =
     topicMapContext?.routedMapRef?.leafletMap?.leafletElement;
 

@@ -27,8 +27,9 @@ export const MapTypeSwitcher = (props: Props) => {
   const isMode2d = useViewerIsMode2d();
 
   // TODO provide mapFramework context via props for UI?
-  const topicMapContext = useContext(TopicMapContext);
-  const leaflet = topicMapContext?.routedMapRef?.leafletMap?.leafletElement;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const topicMapContext: any = useContext(TopicMapContext)
+  const leaflet = topicMapContext?.routedMapRef?.leafletMap?.leafletElement
 
   const handleSwitchMapMode = async (e: MouseEvent) => {
     e.preventDefault();
