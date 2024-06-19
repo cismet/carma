@@ -301,13 +301,77 @@ export const ResponsiveControlCalcWidth = () => {
       <Control position="bottomright" order={1}>
         <div
           style={{
-            width: '800px',
+            width: '400px',
             background: containerWidth ? 'yellow' : 'blue',
           }}
         >
           Info banner
         </div>
       </Control>
+      <Main ref={containerRef}>
+        <GoogleMapIframe />
+      </Main>
+    </ControlLayout>
+  );
+};
+
+export const ResponsiveWithThreeColumns = () => {
+  const [locationProps, setLocationProps] = useState(0);
+  const [containerWidth, setContainerWidth] = useState(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (containerRef) {
+      setContainerWidth(containerRef.current?.clientWidth);
+    }
+  }, [containerRef]);
+  useEffect(() => {
+    console.log('ccc', containerWidth);
+  }, [containerWidth]);
+  return (
+    <ControlLayout>
+      <Control position="topleft" order={40}>
+        <AimOutlined />
+      </Control>
+      <Control position="topleft" order={30}>
+        <SettingFilled />
+      </Control>
+      <Control position="topleft" order={20}>
+        <ShrinkOutlined />
+      </Control>
+      <Control position="topright" order={40}>
+        <AimOutlined />
+      </Control>
+      <Control position="topright" order={30}>
+        <SettingFilled />
+      </Control>
+      <Control position="bottomleft" order={1}>
+        <div style={{ width: '400px', background: 'red' }}>
+          A search component
+        </div>
+      </Control>
+      <Control position="bottomright" order={1}>
+        <div
+          style={{
+            width: '400px',
+            background: containerWidth ? 'yellow' : 'blue',
+          }}
+        >
+          Info banner
+        </div>
+      </Control>
+
+      <Control position="bottomcenter" order={1}>
+        <div
+          style={{
+            width: '400px',
+            background: containerWidth ? 'yellow' : 'blue',
+          }}
+        >
+          Info banner
+        </div>
+      </Control>
+
       <Main ref={containerRef}>
         <GoogleMapIframe />
       </Main>
