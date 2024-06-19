@@ -3,17 +3,21 @@ import React, { useState, useEffect } from 'react';
 type ResizeableContainer = {
   minLeft?: number;
   minRight?: number;
+  start?: number;
   children?: React.ReactNode;
+  enableDragging?: boolean;
 };
 
 // TODO Remove this and replace component with topicmap
 
 export const ResizeableContainer = ({
-  minLeft = 5,
+  minLeft = 0,
   minRight = 1.5,
+  start = 2,
+  enableDragging = true,
   children,
 }: ResizeableContainer) => {
-  const [iframePadding, setIframePadding] = useState(100 - minRight);
+  const [iframePadding, setIframePadding] = useState(start);
   const [isDragging, setIsDragging] = useState(false);
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -57,6 +61,7 @@ export const ResizeableContainer = ({
         bottom: 0,
         overflow: 'hidden',
         zIndex: 100,
+        pointerEvents: 'none',
       }}
     >
       <div
@@ -69,19 +74,22 @@ export const ResizeableContainer = ({
       >
         {children}
       </div>
-      <div
-        onMouseDown={handleMouseDown}
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          zIndex: 101,
-          width: '20px',
-          height: '100%',
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          cursor: 'ew-resize',
-        }}
-      />
+      {enableDragging && (
+        <div
+          onMouseDown={handleMouseDown}
+          style={{
+            position: 'absolute',
+            pointerEvents: 'auto',
+            top: 0,
+            left: 0,
+            zIndex: 101,
+            width: '20px',
+            height: '100%',
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            cursor: 'ew-resize',
+          }}
+        />
+      )}
     </div>
   );
 };

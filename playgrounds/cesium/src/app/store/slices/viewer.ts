@@ -39,6 +39,7 @@ export type SceneStyles = {
 
 export interface ViewerState {
   isAnimating: boolean;
+  isMode2d: boolean;
   homePosition: PlainCartesian3;
   homeOffset: PlainCartesian3;
   showPrimaryTileset: boolean; // tileset is the base 3D model equivalent to a basemap
@@ -79,8 +80,12 @@ const slice = createSlice({
     setIsAnimating: (state: ViewerState, action: PayloadAction<boolean>) => {
       state.isAnimating = action.payload;
     },
+
     toggleIsAnimating: (state: ViewerState) => {
       state.isAnimating = !state.isAnimating;
+    },
+    setIsMode2d: (state: ViewerState, action: PayloadAction<boolean>) => {
+      state.isMode2d = action.payload;
     },
     setShowPrimaryTileset: (
       state: ViewerState,
@@ -126,6 +131,7 @@ const slice = createSlice({
 
 export const {
   setIsAnimating,
+  setIsMode2d,
   toggleIsAnimating,
   setShowPrimaryTileset,
   setShowSecondaryTileset,
@@ -135,6 +141,7 @@ export const {
 // selectors
 
 const selectViewerIsAnimating = (state: RootState) => state.viewer.isAnimating;
+const selectViewerIsMode2d = (state: RootState) => state.viewer.isMode2d;
 const selectViewerDataSources = (state: RootState) => state.viewer.dataSources;
 
 const selectViewerHome = createSelector(
@@ -153,6 +160,7 @@ const selectViewerSceneGlobalBaseColor = createSelector(
 );
 
 export const useViewerIsAnimating = () => useSelector(selectViewerIsAnimating);
+export const useViewerIsMode2d = () => useSelector(selectViewerIsMode2d);
 export const useViewerDataSources = () => useSelector(selectViewerDataSources);
 export const useViewerHome = () => useSelector(selectViewerHome);
 export const useViewerHomeOffset = () => useSelector(selectViewerHomeOffset);

@@ -199,6 +199,24 @@ export const getElevationFromZoom = (zoom: number, latitude: number) => {
   const scale = getMercatorScaleFactorAtLatitude(latitude);
   return EARTH_CIRCUMFERENCE / (Math.pow(2, zoom) * scale);
 };
+/*
+const FOV = 1.2; // in radians
+
+const TOP_DOWN_PLANAR_VIEW_DIAMETER_BY_FOV = Math.tan(FOV / 2) * 2; // Complete Top-Down FOV radius
+const TOP_DOWN_HOROPTER_ARC_LENGTH_BY_FOV = FOV;
+const SCALE_AT_CENTER = 1 / TOP_DOWN_HOROPTER_ARC_LENGTH_BY_FOV;
+const SCALE_AVG = 1 / TOP_DOWN_PLANAR_VIEW_DIAMETER_BY_FOV;
+
+const CONSTANT_FACTOR = 8; // TODO Find a better Reason for thsi constant
+const FOV_ZOOM_OFFSET = Math.log2(SCALE_AT_CENTER * CONSTANT_FACTOR);
+*/
+
+const FOV_ZOOM_OFFSET = 2.94; // empirically determined
+
+// TODO calculate offset value by FOV
+// TODO the visual error is still different for different zoom levels/elevations
+
+// TODO needs also to evaluate the render resolution of cesium to match styles for raster tiles
 
 // CESIUM TO WEB MAPS
 
@@ -225,46 +243,36 @@ export const getCameraHeightAboveTerrain = async (
   }
 };
 
-// WEB MAPS TO CESIUM
-
-export const getCesiumViewerZoomLevel = async (viewer: Viewer) => {
+export const cesiumViewerToLeafletZoom = async (viewer: Viewer) => {
   const cameraHeightAboveTerrain = await getCameraHeightAboveTerrain(viewer);
   console.log('zoom camera height above Terrain', cameraHeightAboveTerrain);
-  const webMercatorZoomEquivalent = getZoomFromElevation(
+  const zoomEquivalent = getZoomFromElevation(
     cameraHeightAboveTerrain,
     viewer.camera.positionCartographic.latitude
   );
-  return webMercatorZoomEquivalent;
-};
 
-/*
-const FOV = 1.2; // in radians
-
-const TOP_DOWN_PLANAR_VIEW_DIAMETER_BY_FOV = Math.tan(FOV / 2) * 2; // Complete Top-Down FOV radius
-const TOP_DOWN_HOROPTER_ARC_LENGTH_BY_FOV = FOV;
-const SCALE_AT_CENTER = 1 / TOP_DOWN_HOROPTER_ARC_LENGTH_BY_FOV;
-const SCALE_AVG = 1 / TOP_DOWN_PLANAR_VIEW_DIAMETER_BY_FOV;
-
-const CONSTANT_FACTOR = 8; // TODO Find a better Reason for thsi constant
-const FOV_ZOOM_OFFSET = Math.log2(SCALE_AT_CENTER * CONSTANT_FACTOR);
-*/
-
-const FOV_ZOOM_OFFSET = 3; // TODO calculate this value by FOV
-
-export const leafletToElevation = (zoom: number, latDeg = 0, dpr = 1) => {
+  // adjust zoom based on device pixel ratio
+  const dpr = window.devicePixelRatio;
   const dprZOffset = Math.log2(dpr);
-  const latRad = CeMath.toRadians(latDeg);
-  const elevation = getElevationFromZoom(
-    zoom + dprZOffset - FOV_ZOOM_OFFSET,
-    latRad
-  );
-  console.log('leaf2elev zoom', dprZOffset, zoom, elevation, latDeg, latRad);
-  return elevation;
-};
+  const zCompensated = zoomEquivalent - dprZOffset + FOV_ZOOM_OFFSET;
+  // console.log('leaflet zoom ', zoom, dpr, dprZOffset, zCompensated);
 
-export const cesiumToLeafletZoom = (zoom: number, dpr = 1) => {
-  const dprZOffset = Math.log2(dpr);
-  const zCompensated = zoom - dprZOffset + FOV_ZOOM_OFFSET;
-  console.log('leaflet zoom ', zoom, dpr, dprZOffset, zCompensated);
   return zCompensated;
+};
+
+// WEB MAPS TO CESIUM
+
+export const leafletToCesiumElevation = (
+  zoom: number,
+  latDeg = 0,
+  dpr = window.devicePixelRatio
+) => {
+  // adjust zoom based on device pixel ratio and fixed offset
+  const dprZOffset = Math.log2(dpr);
+  const zCompensated = zoom + dprZOffset - FOV_ZOOM_OFFSET;
+
+  const latRad = CeMath.toRadians(latDeg);
+  const elevation = getElevationFromZoom(zCompensated, latRad);
+  // console.log('leaf2elev zoom', dprZOffset, zoom, elevation, latDeg, latRad);
+  return elevation;
 };

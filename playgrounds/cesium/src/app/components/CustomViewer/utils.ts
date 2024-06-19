@@ -1,6 +1,6 @@
 import { Camera, Cartesian3, Cartographic, Scene, Viewer } from 'cesium';
 import {
-  getCesiumViewerZoomLevel,
+  cesiumViewerToLeafletZoom,
   toDegFactor,
 } from '../../utils/cesiumHelpers';
 
@@ -98,22 +98,22 @@ export type SceneStateDescription = {
   isSecondaryStyle?: boolean | null;
 };
 
-export async function encodeScene({
-  viewer,
-  isAnimating,
-  isSecondaryStyle,
-}: {
-  viewer: Viewer;
-  isAnimating?: boolean | null;
-  isSecondaryStyle?: boolean | null;
-}): Promise<{
+type AppState = {
+  isAnimating?: boolean;
+  isSecondaryStyle?: boolean;
+  zoom?: number;
+};
+
+export function encodeScene(
+  viewer: Viewer,
+  appState: AppState = {}
+): {
   hash: string;
   hashParams: FlatDecodedSceneHash;
   state: SceneStateDescription;
-}> {
+} {
   const { camera } = viewer;
   const { x, y, z } = camera.position;
-  const zoom = await getCesiumViewerZoomLevel(viewer);
 
   const { longitude, latitude, height } = Cartographic.fromCartesian(
     new Cartesian3(x, y, z)
@@ -122,6 +122,9 @@ export async function encodeScene({
   const heading = camera.heading;
   const pitch = camera.pitch;
 
+  const isAnimating = appState.isAnimating;
+  const isSecondaryStyle = appState.isSecondaryStyle;
+  const zoom = appState.zoom;
   // set param order here
   const hashParams = [
     longitude,
@@ -201,4 +204,17 @@ export const replaceHashRoutedHistory = (
     // see https://github.com/remix-run/react-router/discussions/9851#discussioncomment-9459061
     window.history.replaceState(null, '', fullHashState);
   }
+};
+
+export const setLeafletView = async (viewer: Viewer, leafletElement) => {
+  if (!viewer) return;
+  const zoom = await cesiumViewerToLeafletZoom(viewer);
+  if (zoom === Infinity || zoom === undefined || zoom === null) {
+    console.warn('zoom is infinity, skipping');
+    return;
+  }
+  // TODO add simple method to get lat, lng from cesium camera in degrees
+  const { hashParams } = encodeScene(viewer);
+  const { lat, lng } = hashParams;
+  leafletElement && leafletElement.setView([lat, lng], zoom);
 };

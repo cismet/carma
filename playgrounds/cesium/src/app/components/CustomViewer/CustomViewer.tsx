@@ -14,16 +14,21 @@ import {
   useShowSecondaryTileset,
   useViewerHome,
   useViewerHomeOffset,
+  useViewerIsMode2d,
 } from '../../store/slices/viewer';
 import { BaseTilesets } from './components/BaseTilesets';
 import ControlsUI from './components/ControlsUI';
-import { encodeScene, replaceHashRoutedHistory } from './utils';
+import { encodeScene, replaceHashRoutedHistory, setLeafletView } from './utils';
 import { ResizeableContainer } from './components/ResizeableContainer';
 import { useLocation } from 'react-router-dom';
 import useInitializeViewer from './hooks';
 import TopicMap from './components/TopicMap';
 import { TopicMapContext } from 'react-cismap/contexts/TopicMapContextProvider';
-import { cesiumToLeafletZoom } from '../../utils/cesiumHelpers';
+import {
+  cesiumToLeafletZoom,
+  cesiumViewerToLeafletZoom,
+  getZoomFromElevation,
+} from '../../utils/cesiumHelpers';
 
 type CustomViewerProps = {
   children?: ReactNode;
@@ -55,6 +60,7 @@ function CustomViewer(props: CustomViewerProps) {
   const homeOffset = useViewerHomeOffset();
   const globeBaseColor = Color.WHITE; //useGlobeBaseColor();
   const isSecondaryStyle = useShowSecondaryTileset();
+  const isMode2d = useViewerIsMode2d();
   //const isAnimating = useViewerIsAnimating();
 
   const {
@@ -117,28 +123,18 @@ function CustomViewer(props: CustomViewerProps) {
 
   const location = useLocation();
 
-  useEffect(() => {
-    console.log('HOOK: hashRoute changed', location.pathname);
-    if (viewer)
-      (async () => {
-        replaceHashRoutedHistory(
-          await encodeScene({ viewer, isSecondaryStyle }),
-          location.pathname
-        );
-      })();
-  }, [location.pathname, viewer, isSecondaryStyle]);
-
   useInitializeViewer(viewer, home, homeOffset);
 
   useEffect(() => {
     if (viewer) {
-      console.log('HOOK: update Hash, style changed', isSecondaryStyle);
-      (async () => {
-        replaceHashRoutedHistory(
-          await encodeScene({ viewer, isSecondaryStyle }),
-          location.pathname
-        );
-      })();
+      console.log(
+        'HOOK: update Hash, route or style changed',
+        isSecondaryStyle
+      );
+      replaceHashRoutedHistory(
+        encodeScene(viewer, { isSecondaryStyle }),
+        location.pathname
+      );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewer, location.pathname, isSecondaryStyle]);
@@ -161,22 +157,13 @@ function CustomViewer(props: CustomViewerProps) {
     const moveEndListener = async () => {
       if (viewer.camera.position) {
         console.log('LISTENER: moveEndListener', isSecondaryStyle);
-        const encodedScene = await encodeScene({ viewer, isSecondaryStyle });
-        replaceHashRoutedHistory(encodedScene, location.pathname);
+        const encodedScene = encodeScene(viewer, { isSecondaryStyle });
+
+        // let TopicMap/leaflet handle the view change in 2d Mode
+        !isMode2d && replaceHashRoutedHistory(encodedScene, location.pathname);
 
         if (isUserAction) {
-          const { state, hashParams } = encodedScene;
-          const { lat, lng } = hashParams;
-          const zoom = state.zoom;
-          if (zoom === Infinity || zoom === undefined || zoom === null) {
-            console.warn('zoom is infinity, skipping');
-            return;
-          }
-          const zoomLeaflet = cesiumToLeafletZoom(
-            zoom,
-            window.devicePixelRatio
-          );
-          leafletElement && leafletElement.setView([lat, lng], zoomLeaflet);
+          setLeafletView(viewer, leafletElement);
         }
         //setLocation(...vars);
 
@@ -254,7 +241,7 @@ function CustomViewer(props: CustomViewerProps) {
         />
       )}
       {showCrosshair && <Crosshair lineColor="white" />}
-      <ResizeableContainer>
+      <ResizeableContainer enableDragging={isMode2d}>
         <TopicMap />
       </ResizeableContainer>
     </ResiumViewer>

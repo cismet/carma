@@ -4,12 +4,16 @@ import { useCesium } from 'resium';
 
 import TopicMapComponent from 'react-cismap/topicmaps/TopicMapComponent';
 import StyledWMSTileLayer from 'react-cismap/StyledWMSTileLayer';
-import { leafletToElevation } from '../../../utils/cesiumHelpers';
-import { useShowPrimaryTileset } from '../../../store/slices/viewer';
+import { leafletToCesiumElevation } from '../../../utils/cesiumHelpers';
+import {
+  useShowPrimaryTileset,
+  useViewerIsMode2d,
+} from '../../../store/slices/viewer';
 
 export const TopicMap = () => {
   const { viewer } = useCesium();
   const isPrimaryStyle = useShowPrimaryTileset();
+  const isMode2d = useViewerIsMode2d();
 
   const [isFocused, setIsFocused] = useState<boolean>(false);
   const componentRef = useRef<null | HTMLDivElement>(null);
@@ -38,7 +42,11 @@ export const TopicMap = () => {
     }
     if (viewer) {
       const { lat, lng, zoom } = event;
-      const elevation = leafletToElevation(zoom, lat, window.devicePixelRatio);
+      const elevation = leafletToCesiumElevation(
+        zoom,
+        lat,
+        window.devicePixelRatio
+      );
       viewer.camera.flyTo({
         destination: Cartesian3.fromDegrees(lng, lat, elevation),
         duration: 0.25,
@@ -46,8 +54,19 @@ export const TopicMap = () => {
     }
   };
 
+  console.log('RENDER: TopicMap isMode2d', isMode2d);
+
   return (
-    <div ref={componentRef}>
+    <div
+      ref={componentRef}
+      style={{
+        animation: isMode2d ? 'fadeInOpacity 1s' : 'fadeOutOpacity 1s',
+        animationFillMode: 'both',
+        opacity: isMode2d ? 1 : 0,
+        pointerEvents: isMode2d ? 'auto' : 'none',
+      }}
+      //className={isMode2d ? 'fade-in' : 'fade-out'}
+    >
       <TopicMapComponent
         gazData={[]}
         backgroundlayers="empty"

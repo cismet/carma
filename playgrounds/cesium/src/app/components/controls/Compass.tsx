@@ -10,7 +10,6 @@ import {
   defined,
   Cartesian2,
 } from 'cesium';
-import { get } from 'http';
 import { getCanvasCenter } from '../../utils/cesiumHelpers';
 
 type CompassProps = {

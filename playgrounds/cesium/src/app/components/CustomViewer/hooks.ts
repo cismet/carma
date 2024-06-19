@@ -26,7 +26,7 @@ const useInitializeViewer = (
     if (viewer && hash === null) {
       const locationHash = window.location.hash ?? '';
       setHash(locationHash);
-      console.log('HOOK: set initialHash', hash);
+      console.log('HOOK: set initialHash', locationHash);
 
       const hashParams = locationHash.split('?')[1];
       const sceneFromHashParams = decodeSceneFromLocation(hashParams);
@@ -38,6 +38,8 @@ const useInitializeViewer = (
         viewer.camera.frustum.fov = 1.2;
       }
       */
+
+      // TODO enable 2D Mode if zoom value is present in hash on startup
 
       if (isSecondaryStyle) {
         console.log('HOOK: set secondary style from hash');

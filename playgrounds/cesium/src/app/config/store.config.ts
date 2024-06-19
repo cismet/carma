@@ -39,6 +39,7 @@ export const defaultState: RootState = {
   selectionTransparency: 0.5,
   viewer: {
     isAnimating: false,
+    isMode2d: false,
     homeOffset: homeOffset,
     homePosition: { x, y, z },
     showPrimaryTileset: true,

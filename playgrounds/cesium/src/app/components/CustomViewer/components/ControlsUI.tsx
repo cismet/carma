@@ -11,6 +11,7 @@ import { useViewerHome } from '../../../store/slices/viewer';
 import Compass from '../../controls/Compass';
 import { Scene } from 'resium';
 import SceneStyleToggle from '../../controls/SceneStyleToggle';
+import MapTypeSwitcher from '../../controls/MapTypeSwitcher';
 
 const ControlsUI = ({
   showHome = true,
@@ -42,6 +43,7 @@ const ControlsUI = ({
           <Compass />
         </ControlGroup>
         <ControlGroup>
+          <MapTypeSwitcher />
           <SceneStyleToggle />
         </ControlGroup>
       </ControlContainer>
