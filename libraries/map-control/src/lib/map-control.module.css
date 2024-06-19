@@ -107,9 +107,11 @@
     margin-top: auto;
     position: static;
     width: 100%;
+    order: 1;
   }
   .bottomright {
     position: static;
+    order: 2;
     width: 100%;
   }
 }

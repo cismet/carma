@@ -154,49 +154,6 @@ export const SimpleLayout = () => {
   );
 };
 
-export const LibraryWithTitle = () => {
-  const [locationProps, setLocationProps] = useState(0);
-  const [containerHeight, setContainerHeight] = useState(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (containerRef) {
-      setContainerHeight({
-        width: `100%`,
-        height: `${containerRef.current?.clientHeight}px`,
-      });
-    }
-  }, [containerRef]);
-  return (
-    <ControlLayout>
-      <Control position="topleft" order={40}>
-        <AimOutlined />
-      </Control>
-      <Control position="topleft" order={30}>
-        <SettingFilled />
-      </Control>
-      <Control position="topleft" order={20}>
-        <ShrinkOutlined />
-      </Control>
-      <Control position="topleft" order={10}>
-        <PlusOutlined />
-      </Control>
-      <Control position="topleft" order={1}>
-        <HomeOutlined />
-      </Control>
-      <Control position="topleft" order={1}>
-        <LoadingOutlined />
-      </Control>
-      <Control position="topleft" order={1}>
-        <SyncOutlined />
-      </Control>
-      <Main ref={containerRef}>
-        <GoogleMapIframe />
-      </Main>
-    </ControlLayout>
-  );
-};
-
 export const ExcalidrawExample = () => {
   const [locationProps, setLocationProps] = useState(0);
   const [containerHeight, setContainerHeight] = useState(null);
@@ -285,10 +242,50 @@ export const ResponsiveControls = () => {
       <Control position="topleft" order={20}>
         <ShrinkOutlined />
       </Control>
+      <Control position="topright" order={40}>
+        <AimOutlined />
+      </Control>
+      <Control position="topright" order={30}>
+        <SettingFilled />
+      </Control>
       <Control position="bottomleft" order={1}>
-        <div style={{ maxWidth: '400px', background: 'red' }}>
-          Sss dvfv cer ascadcadc
+        <div style={{ width: '400px', background: 'red' }}>
+          A search component
         </div>
+      </Control>
+      <Control position="bottomright" order={1}>
+        <div style={{ width: '800px', background: 'red' }}>Info banner</div>
+      </Control>
+      <Main ref={containerRef}>
+        <GoogleMapIframe />
+      </Main>
+    </ControlLayout>
+  );
+};
+
+export const ResponsiveControlCalcWidth = () => {
+  const [locationProps, setLocationProps] = useState(0);
+  const [containerWidth, setContainerWidth] = useState(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (containerRef) {
+      setContainerWidth(containerRef.current?.clientWidth);
+    }
+  }, [containerRef]);
+  useEffect(() => {
+    console.log('ccc', containerWidth);
+  }, [containerWidth]);
+  return (
+    <ControlLayout>
+      <Control position="topleft" order={40}>
+        <AimOutlined />
+      </Control>
+      <Control position="topleft" order={30}>
+        <SettingFilled />
+      </Control>
+      <Control position="topleft" order={20}>
+        <ShrinkOutlined />
       </Control>
       <Control position="topright" order={40}>
         <AimOutlined />
@@ -296,8 +293,18 @@ export const ResponsiveControls = () => {
       <Control position="topright" order={30}>
         <SettingFilled />
       </Control>
-      <Control position="bottomright" order={1}>
-        <div style={{ maxWidth: '800px', width: '400px', background: 'red' }}>
+      <Control position="bottomleft" order={1}>
+        <div style={{ width: '400px', background: 'red' }}>
+          A search component
+        </div>
+      </Control>
+      <Control key={containerWidth} position="bottomright" order={1}>
+        <div
+          style={{
+            width: containerWidth ? `${containerWidth / 2}px` : '1000px',
+            background: containerWidth ? 'yellow' : 'blue',
+          }}
+        >
           Info banner
         </div>
       </Control>
