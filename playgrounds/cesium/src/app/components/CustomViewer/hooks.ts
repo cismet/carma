@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react';
-import { Viewer, BoundingSphere, Cartesian3 } from 'cesium';
+import { Viewer, BoundingSphere, Cartesian3, PerspectiveFrustum } from 'cesium';
 import { useDispatch } from 'react-redux';
 import {
   setShowPrimaryTileset,
   setShowSecondaryTileset,
 } from '../../store/slices/viewer';
-import { decodeSceneFromLocation, replaceHashRoutedHistory } from './utils';
+import {
+  decodeSceneFromLocation,
+  encodeScene,
+  replaceHashRoutedHistory,
+} from './utils';
 import { setupSecondaryStyle } from './components/baseTileset.hook';
 import { useLocation } from 'react-router-dom';
 
@@ -29,6 +33,12 @@ const useInitializeViewer = (
       const { camera, isSecondaryStyle } = sceneFromHashParams;
       const { latitude, longitude, height, heading, pitch } = camera;
 
+      /* TODO enable syncing of leaflet view with dynamic fov
+      if (viewer.camera.frustum instanceof PerspectiveFrustum) {
+        viewer.camera.frustum.fov = 1.2;
+      }
+      */
+
       if (isSecondaryStyle) {
         console.log('HOOK: set secondary style from hash');
         setupSecondaryStyle(viewer);
@@ -48,11 +58,15 @@ const useInitializeViewer = (
             pitch: pitch ?? -Math.PI / 2,
           },
         });
-        replaceHashRoutedHistory(
-          viewer,
-          location.pathname,
-          isSecondaryStyle ?? false
-        );
+
+        /*
+        (async () => {
+          replaceHashRoutedHistory(
+            await encodeScene({ viewer, isSecondaryStyle }),
+            location.pathname
+          );
+        })();
+        */
       } else {
         console.log('no hash, using home');
         viewer.camera.lookAt(home, homeOffset);

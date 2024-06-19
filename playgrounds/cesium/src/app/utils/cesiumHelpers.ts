@@ -12,8 +12,10 @@ import {
   GroundPrimitive,
   Matrix4,
   Primitive,
+  sampleTerrainMostDetailed,
   Scene,
   Viewer,
+  Math as CeMath,
 } from 'cesium';
 import { ColorRgbaArray, TilesetConfig } from '../..';
 
@@ -139,30 +141,6 @@ export const getElevationAtPosition = async (
   return sample.height !== undefined ? sample.height : fallBackHeightOffset;
 };
 
-//const SCALE_AT_LATITUDE_51_27 = 1.593;
-const SCALE_AT_LATITUDE_51_27 = 0.95;
-const FUDGING_FACTOR_OFFSET = -0.0;
-const EARTH_CIRCUMFERENCE = 40075016.686;
-
-export const getCesiumViewerZoomLevel = async (
-  viewer: Viewer,
-  fallBackHeight = 160
-) => {
-  const ellipsoidalHeight = viewer.camera.positionCartographic.height;
-  const referenceElevation = await getElevationAtPosition(
-    viewer.scene,
-    viewer.camera,
-    fallBackHeight
-  );
-  // Calculate the vertical distance to the tileset
-  const verticalDistanceToTileset = ellipsoidalHeight - referenceElevation;
-  const webMercatorZoomEquivalent = Math.log2(
-    (EARTH_CIRCUMFERENCE / (verticalDistanceToTileset * 2 * Math.PI)) *
-      (SCALE_AT_LATITUDE_51_27 + FUDGING_FACTOR_OFFSET)
-  );
-  return webMercatorZoomEquivalent;
-};
-
 export function getPrimitiveById(viewer: Viewer, id: string) {
   const primitives = viewer.scene.primitives;
   const length = primitives.length;
@@ -188,3 +166,105 @@ export function getAllPrimitives(viewer: Viewer) {
   }
   return primitiveArray;
 }
+
+// GEO
+
+export const EARTH_CIRCUMFERENCE = 40075016.686;
+
+const WEB_MERCATOR_MAX_LATITUDE = 85.051129;
+export const WEB_MERCATOR_MAX_LATITUDE_RAD =
+  WEB_MERCATOR_MAX_LATITUDE * (Math.PI / 180);
+
+export const getMercatorScaleFactorAtLatitude = (latitude: number): number => {
+  if (latitude > WEB_MERCATOR_MAX_LATITUDE_RAD) {
+    console.warn(
+      'latitude is greater than max web mercator latitude, clamping applied'
+    );
+    latitude = WEB_MERCATOR_MAX_LATITUDE_RAD;
+  } else if (latitude < -WEB_MERCATOR_MAX_LATITUDE_RAD) {
+    console.warn(
+      'latitude is smaller than min web mercator latitude, clamping applied'
+    );
+    latitude = -WEB_MERCATOR_MAX_LATITUDE_RAD;
+  }
+  return 1 / Math.cos(latitude);
+};
+
+export const getZoomFromElevation = (elevation: number, latitude: number) => {
+  const scale = getMercatorScaleFactorAtLatitude(latitude);
+  return Math.log2(EARTH_CIRCUMFERENCE / (elevation * scale));
+};
+
+export const getElevationFromZoom = (zoom: number, latitude: number) => {
+  const scale = getMercatorScaleFactorAtLatitude(latitude);
+  return EARTH_CIRCUMFERENCE / (Math.pow(2, zoom) * scale);
+};
+
+// CESIUM TO WEB MAPS
+
+export const getCameraHeightAboveTerrain = async (
+  viewer: Viewer
+): Promise<number> => {
+  const LOCAL_FALLBACK_HEIGHT = 150;
+  const cameraPosition = viewer.camera.positionCartographic;
+  const cameraHeight = cameraPosition.height;
+  const terrainProvider = viewer.terrainProvider;
+
+  const [sample] = await sampleTerrainMostDetailed(
+    terrainProvider,
+    [cameraPosition],
+    true
+  );
+  if (sample) {
+    const relativeHeight = cameraHeight - sample.height;
+    // console.log('zoom sampled', cameraHeight, sample.height, relativeHeight);
+    return relativeHeight;
+  } else {
+    console.warn('zoom fallback height');
+    return cameraPosition.height - LOCAL_FALLBACK_HEIGHT;
+  }
+};
+
+// WEB MAPS TO CESIUM
+
+export const getCesiumViewerZoomLevel = async (viewer: Viewer) => {
+  const cameraHeightAboveTerrain = await getCameraHeightAboveTerrain(viewer);
+  console.log('zoom camera height above Terrain', cameraHeightAboveTerrain);
+  const webMercatorZoomEquivalent = getZoomFromElevation(
+    cameraHeightAboveTerrain,
+    viewer.camera.positionCartographic.latitude
+  );
+  return webMercatorZoomEquivalent;
+};
+
+/*
+const FOV = 1.2; // in radians
+
+const TOP_DOWN_PLANAR_VIEW_DIAMETER_BY_FOV = Math.tan(FOV / 2) * 2; // Complete Top-Down FOV radius
+const TOP_DOWN_HOROPTER_ARC_LENGTH_BY_FOV = FOV;
+const SCALE_AT_CENTER = 1 / TOP_DOWN_HOROPTER_ARC_LENGTH_BY_FOV;
+const SCALE_AVG = 1 / TOP_DOWN_PLANAR_VIEW_DIAMETER_BY_FOV;
+
+const CONSTANT_FACTOR = 8; // TODO Find a better Reason for thsi constant
+const FOV_ZOOM_OFFSET = Math.log2(SCALE_AT_CENTER * CONSTANT_FACTOR);
+*/
+
+const FOV_ZOOM_OFFSET = 3; // TODO calculate this value by FOV
+
+export const leafletToElevation = (zoom: number, latDeg = 0, dpr = 1) => {
+  const dprZOffset = Math.log2(dpr);
+  const latRad = CeMath.toRadians(latDeg);
+  const elevation = getElevationFromZoom(
+    zoom + dprZOffset - FOV_ZOOM_OFFSET,
+    latRad
+  );
+  console.log('leaf2elev zoom', dprZOffset, zoom, elevation, latDeg, latRad);
+  return elevation;
+};
+
+export const cesiumToLeafletZoom = (zoom: number, dpr = 1) => {
+  const dprZOffset = Math.log2(dpr);
+  const zCompensated = zoom - dprZOffset + FOV_ZOOM_OFFSET;
+  console.log('leaflet zoom ', zoom, dpr, dprZOffset, zCompensated);
+  return zCompensated;
+};

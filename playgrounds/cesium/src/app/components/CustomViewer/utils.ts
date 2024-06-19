@@ -51,7 +51,7 @@ const hashcodecs = {
     encode: (value: number) =>
       parseFloat(((value * toDegFactor) % 360).toFixed(CAMERA_DEGREE_DIGITS)),
   },
-  webMercatorZoomEquivalent: {
+  zoom: {
     key: 'zoom',
     decode: (value: string) => undefined,
     encode: (value: number) =>
@@ -73,11 +73,19 @@ const hashcodecs = {
   },
 };
 
-type FlatDecodedSceneHash = {
-  [K in keyof typeof hashcodecs]?: ReturnType<(typeof hashcodecs)[K]['decode']>;
+type HashKey = keyof typeof hashcodecs;
+
+type CodecKeys = {
+  [K in HashKey]: (typeof hashcodecs)[K]['key'];
 };
 
-export type DecodedSceneHash = {
+type FlatDecodedSceneHash = {
+  [K in CodecKeys[keyof CodecKeys]]?: ReturnType<
+    (typeof hashcodecs)[HashKey]['decode']
+  >;
+};
+
+export type SceneStateDescription = {
   camera: {
     longitude?: number | null;
     latitude?: number | null;
@@ -85,7 +93,7 @@ export type DecodedSceneHash = {
     heading?: number | null;
     pitch?: number | null;
   };
-  webMercatorZoomEquivalent?: number | null;
+  zoom?: number | null;
   isAnimating?: boolean | null;
   isSecondaryStyle?: boolean | null;
 };
@@ -96,9 +104,13 @@ export async function encodeScene({
   isSecondaryStyle,
 }: {
   viewer: Viewer;
-  isAnimating?: boolean;
-  isSecondaryStyle?: boolean;
-}): Promise<string> {
+  isAnimating?: boolean | null;
+  isSecondaryStyle?: boolean | null;
+}): Promise<{
+  hash: string;
+  hashParams: FlatDecodedSceneHash;
+  state: SceneStateDescription;
+}> {
   const { camera } = viewer;
   const { x, y, z } = camera.position;
   const zoom = await getCesiumViewerZoomLevel(viewer);
@@ -111,7 +123,7 @@ export async function encodeScene({
   const pitch = camera.pitch;
 
   // set param order here
-  const hashparams = [
+  const hashParams = [
     longitude,
     latitude,
     height,
@@ -131,11 +143,28 @@ export async function encodeScene({
     return acc;
   }, {});
   //console.log('hashparams', hashparams);
-  const urlStr = new URLSearchParams(hashparams).toString();
-  return urlStr;
+  const hash = new URLSearchParams(hashParams).toString();
+  return {
+    hash,
+    hashParams,
+    state: {
+      camera: {
+        longitude,
+        latitude,
+        height,
+        heading,
+        pitch,
+      },
+      zoom,
+      isAnimating,
+      isSecondaryStyle,
+    },
+  };
 }
 
-export function decodeSceneFromLocation(location: string): DecodedSceneHash {
+export function decodeSceneFromLocation(
+  location: string
+): SceneStateDescription {
   const params = new URLSearchParams(location);
   const decoded = Object.keys(hashcodecs).reduce((acc, key) => {
     const codec = hashcodecs[key];
@@ -145,11 +174,11 @@ export function decodeSceneFromLocation(location: string): DecodedSceneHash {
     return acc;
   }, {} as FlatDecodedSceneHash);
   const camera = {
-    longitude: decoded.longitude,
-    latitude: decoded.latitude,
-    height: decoded.height,
-    heading: decoded.heading,
-    pitch: decoded.pitch,
+    longitude: decoded.longitude as number,
+    latitude: decoded.latitude as number,
+    height: decoded.height as number,
+    heading: decoded.heading as number,
+    pitch: decoded.pitch as number,
   };
   return {
     camera,
@@ -157,30 +186,19 @@ export function decodeSceneFromLocation(location: string): DecodedSceneHash {
   };
 }
 
-export const replaceHashRoutedHistory = async (
-  viewer: Viewer,
-  routedPath: string,
-  isSecondaryStyle: boolean
+export const replaceHashRoutedHistory = (
+  encodedScene: { hash: string; state: SceneStateDescription },
+  routedPath: string
 ) => {
   // this is method is used to avoid triggering rerenders from the HashRouter when updating the hash
-
   console.log('replaceHashRoutedHistory sceneHash');
-  const sceneHash = await encodeScene({
-    viewer,
-    isSecondaryStyle,
-  });
-  if (sceneHash) {
-    const state = `#${routedPath}?${sceneHash}`;
+  if (encodedScene.hash) {
+    const fullHashState = `#${routedPath}?${encodedScene.hash}`;
     // console.log('updateSceneHash newState', state);
     // this is a workaround to avoid triggering rerenders from the HashRouter
     // navigate would cause rerenders
     // navigate(`${hashRouterPart}?${sceneHash}`, { replace: true });
     // see https://github.com/remix-run/react-router/discussions/9851#discussioncomment-9459061
-    window.history.replaceState(null, '', state);
-    return {
-      pathHash: routedPath,
-      sceneHash,
-      state,
-    };
+    window.history.replaceState(null, '', fullHashState);
   }
 };
