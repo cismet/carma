@@ -10,3 +10,9 @@ export type TilesetConfig = {
 };
 
 export type ColorRgbaArray = [number, number, number, number];
+
+export type CameraPositionAndOrientation = {
+  position: Cartesian3;
+  up: Cartesian3;
+  direction: Cartesian3;
+};

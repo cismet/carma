@@ -1,4 +1,4 @@
-import { MouseEvent, ReactNode, useContext } from 'react';
+import { MouseEvent, ReactNode, useContext, useState } from 'react';
 import { useCesium } from 'resium';
 import OnMapButton from './OnMapButton';
 import {
@@ -8,12 +8,16 @@ import {
   defined,
   Cartesian2,
 } from 'cesium';
-import { getCanvasCenter } from '../../utils/cesiumHelpers';
+import {
+  getCanvasCenter,
+  getTopDownCameraDeviationAngle,
+} from '../../utils/cesiumHelpers';
 import { useDispatch } from 'react-redux';
 import { useViewerIsMode2d, setIsMode2d } from '../../store/slices/viewer';
 import { setLeafletView } from '../CustomViewer/utils';
 
 import { TopicMapContext } from 'react-cismap/contexts/TopicMapContextProvider';
+import { CameraPositionAndOrientation } from '../../..';
 
 type Props = {
   children?: ReactNode;
@@ -26,10 +30,15 @@ export const MapTypeSwitcher = (props: Props) => {
   const dispatch = useDispatch();
   const isMode2d = useViewerIsMode2d();
 
+  const [prevCamera3d, setPrevCamera3d] =
+    useState<CameraPositionAndOrientation | null>(null);
+  const [prevCamera2dPosition, setPrevCamera2dPosition] =
+    useState<Cartesian3 | null>(null);
+  const [prevDuration, setPrevDuration] = useState<number>(0);
   // TODO provide mapFramework context via props for UI?
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const topicMapContext: any = useContext(TopicMapContext)
-  const leaflet = topicMapContext?.routedMapRef?.leafletMap?.leafletElement
+  const topicMapContext: any = useContext(TopicMapContext);
+  const leaflet = topicMapContext?.routedMapRef?.leafletMap?.leafletElement;
 
   const handleSwitchMapMode = async (e: MouseEvent) => {
     e.preventDefault();
@@ -73,22 +82,57 @@ export const MapTypeSwitcher = (props: Props) => {
             cartographic.height + MIN_TOP_DOWN_DISTANCE
           );
         }
+
+        const duration = getTopDownCameraDeviationAngle(viewer) * 2;
+        setPrevDuration(duration);
+        console.log('animation duration', duration);
+
+        // evaluate angles for animation duration
+
+        setPrevCamera3d({
+          position: viewer.camera.position.clone(),
+          direction: viewer.camera.direction.clone(),
+          up: viewer.camera.up.clone(),
+        });
+
+        // move the leaflet view to start position of animation to already allow fetching tiles if close
         setLeafletView(viewer, leaflet);
 
         viewer.camera.flyTo({
           destination,
-          orientation: {
-            heading: CeMath.toRadians(0), // facing north
-            pitch: CeMath.toRadians(-90), // looking straight down
-            roll: 0.0,
-          },
-          duration: 3,
+          // TOP DOWN by default
+          duration,
           complete: () => {
+            setLeafletView(viewer, leaflet);
+            setPrevCamera2dPosition(viewer.camera.position.clone());
             dispatch(setIsMode2d(true));
           },
         });
       } else {
         dispatch(setIsMode2d(false));
+        if (prevCamera2dPosition && prevCamera3d) {
+          if (
+            Cartesian3.equals(viewer.camera.position, prevCamera2dPosition) !==
+            true
+          ) {
+            console.log(
+              'camera position changed, aborting 2d to 3d transition'
+            );
+            return;
+          }
+
+          // wait until the css transition is done
+          setTimeout(() => {
+            viewer.camera.flyTo({
+              destination: prevCamera3d.position,
+              orientation: {
+                direction: prevCamera3d.direction,
+                up: prevCamera3d.up,
+              },
+              duration: prevDuration,
+            });
+          }, 500);
+        }
       }
     }
   };

@@ -97,6 +97,20 @@ export function create3DTileStyle(
   }
 }
 
+// CAMERA
+
+const TOP_DOWN_DIRECTION = new Cartesian3(0, 0, -1);
+
+export const getTopDownCameraDeviationAngle = (viewer: Viewer) => {
+  const currentDirection = viewer.camera.direction;
+
+  const internalAngle = Cartesian3.angleBetween(
+    currentDirection,
+    TOP_DOWN_DIRECTION
+  );
+  return Math.abs(internalAngle);
+};
+
 // SCENE
 
 const GEOJSON_DRILL_LIMIT = 10;
