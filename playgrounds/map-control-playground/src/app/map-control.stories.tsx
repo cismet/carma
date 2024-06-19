@@ -69,6 +69,18 @@ const MapWithProviders = () => {
   );
 };
 
+const iconPadding = {
+  backgroundColor: '#fff',
+  boxSadow: '0 1px 5px rgba(59, 58, 58, 0.65)',
+  borderRadius: '4px',
+  padding: '10px',
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: '18px',
+};
+
 export const SimpleExample = () => {
   return <MapWithProviders />;
 };
@@ -346,7 +358,7 @@ export const ResponsiveWithThreeColumns = () => {
         <SettingFilled />
       </Control>
       <Control position="bottomleft" order={1}>
-        <div style={{ width: '400px', background: 'red' }}>
+        <div style={{ width: '300px', background: 'red' }}>
           A search component
         </div>
       </Control>
@@ -354,21 +366,22 @@ export const ResponsiveWithThreeColumns = () => {
         <div
           style={{
             width: '400px',
-            background: containerWidth ? 'yellow' : 'blue',
+            background: 'yellow',
           }}
         >
-          Info banner
+          Center
         </div>
       </Control>
 
       <Control position="bottomcenter" order={1}>
         <div
           style={{
-            width: '400px',
-            background: containerWidth ? 'yellow' : 'blue',
+            width: '600px',
+            background: 'blue',
+            color: 'white',
           }}
         >
-          Info banner
+          Info Box
         </div>
       </Control>
 

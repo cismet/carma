@@ -24,7 +24,7 @@ export interface AllPositions {
 const ControlLayout: React.FC<ControlLayoutProps> = ({ children }) => {
   const allPositions: AllPositions = {};
   let mainComponent: React.ReactElement | null = null;
-
+  const containerRef = useRef<HTMLDivElement>(null);
   React.Children.forEach(children, (child) => {
     if (React.isValidElement(child)) {
       if (child.type === Control) {
@@ -53,9 +53,91 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({ children }) => {
     }
   });
 
+  // useEffect(() => {
+  //   if (containerRef) {
+  //     const containerWidth = containerRef.current?.clientWidth - 30;
+  //     let leftWidth = 0;
+  //     let rightWidth = 0;
+  //     containerRef.current.childNodes.forEach((currentItem) => {
+  //       if (currentItem.className.startsWith('_bottom')) {
+  //         console.log('www', currentItem.className);
+
+  //         const percent = (currentItem.clientWidth / containerWidth) * 100;
+  //         currentItem.style.maxWidth = `calc(${percent}%)`;
+
+  //         if (currentItem.className.includes('left')) {
+  //           leftWidth += currentItem.clientWidth;
+  //         } else if (currentItem.className.includes('right')) {
+  //           rightWidth += currentItem.clientWidth;
+  //         }
+  //       }
+  //     });
+
+  //     console.log('www', leftWidth);
+  //     console.log('www rightWidth', rightWidth);
+  //     let centerPosition = 0;
+  //     containerRef.current.childNodes.forEach((currentItem) => {
+  //       if (
+  //         currentItem instanceof HTMLElement &&
+  //         currentItem.className.startsWith('_bottom') &&
+  //         currentItem.className.includes('center')
+  //       ) {
+  //         const centerWidth = currentItem.clientWidth;
+  //         const translateXPercent =
+  //           ((centerPosition - centerWidth / 2) / containerWidth) * 100;
+  //         console.log('xxx', translateXPercent);
+  //         currentItem.style.transform = `translateX(${translateXPercent}%)`;
+  //       }
+  //     });
+  //   }
+  // }, [containerRef]);
+
+  useEffect(() => {
+    if (containerRef) {
+      const containerWidth = containerRef.current?.clientWidth - 30;
+      let leftWidth = 0;
+      let rightWidth = 0;
+      let centerWidth = 0;
+      containerRef.current.childNodes.forEach((currentItem) => {
+        if (currentItem.className.startsWith('_bottom')) {
+          console.log('www', currentItem.className);
+
+          const percent = (currentItem.clientWidth / containerWidth) * 100;
+          currentItem.style.maxWidth = `calc(${percent}%)`;
+
+          if (currentItem.className.includes('left')) {
+            leftWidth += percent;
+          } else if (currentItem.className.includes('right')) {
+            rightWidth += percent;
+          } else if (currentItem.className.includes('center')) {
+            centerWidth += percent;
+          }
+        }
+      });
+
+      let desiredWidth = (2 * (100 - leftWidth - rightWidth)) / 3;
+
+      console.log('www leftWidth', leftWidth);
+      console.log('www rightWidth', rightWidth);
+      console.log('www centerWidth', centerWidth);
+      console.log('www center shift', desiredWidth - centerWidth);
+
+      // containerRef.current.childNodes.forEach((currentItem) => {
+      //   if (
+      //     currentItem.className.startsWith('_bottom') &&
+      //     currentItem.className.includes('center')
+      //   ) {
+      //     currentItem.style.transform = `translateX(-${
+      //       rightWidth + centerWidth
+      //     }%)`;
+      //   }
+      // });
+    }
+  }, [containerRef]);
+
   return (
     <div className={styles['container']}>
-      <div className={styles['controls-container']}>
+      <div className={styles['controls-container']} ref={containerRef}>
         {mainComponent ? mainComponent : null}
         {Object.keys(allPositions).map((position) => {
           return (
