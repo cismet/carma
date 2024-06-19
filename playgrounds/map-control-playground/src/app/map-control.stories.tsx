@@ -298,10 +298,10 @@ export const ResponsiveControlCalcWidth = () => {
           A search component
         </div>
       </Control>
-      <Control key={containerWidth} position="bottomright" order={1}>
+      <Control position="bottomright" order={1}>
         <div
           style={{
-            width: containerWidth ? `${containerWidth / 2}px` : '1000px',
+            width: '800px',
             background: containerWidth ? 'yellow' : 'blue',
           }}
         >

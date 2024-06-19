@@ -44,9 +44,6 @@
   border-radius: 4px;
   padding: 10px;
   cursor: pointer;
-  /* margin: 5px; */
-  /* width: 34px;
-  height: 34px; */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -85,6 +82,8 @@
   gap: 10px;
   z-index: 500;
   margin: 5px;
+  max-width: 50%;
+  max-width: calc(50% - 15px);
 }
 
 .bottomright {
@@ -96,6 +95,8 @@
   gap: 10px;
   z-index: 500;
   margin: 5px;
+  max-width: calc(50% - 15px);
+  width: min-content;
 }
 
 @media (max-width: 700px) {
@@ -108,10 +109,12 @@
     position: static;
     width: 100%;
     order: 1;
+    max-width: calc(100% - 15px);
   }
   .bottomright {
     position: static;
     order: 2;
     width: 100%;
+    max-width: calc(100% - 15px);
   }
 }
