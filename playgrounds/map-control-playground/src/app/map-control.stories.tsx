@@ -191,7 +191,6 @@ export const LibraryWithTitle = () => {
         <SyncOutlined />
       </Control>
       <Main ref={containerRef}>
-        <h1>Component</h1>
         <GoogleMapIframe />
       </Main>
     </ControlLayout>
@@ -256,8 +255,54 @@ export const ExcalidrawExample = () => {
         <SyncOutlined />
       </Control>
       <Main ref={containerRef}>
-        <h1 className="text-center">Draws</h1>
         <DemoExcalidraw />
+      </Main>
+    </ControlLayout>
+  );
+};
+
+export const ResponsiveControls = () => {
+  const [locationProps, setLocationProps] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (containerRef) {
+      setContainerHeight({
+        width: `100%`,
+        height: `${containerRef.current?.clientHeight}px`,
+      });
+    }
+  }, [containerRef]);
+  return (
+    <ControlLayout>
+      <Control position="topleft" order={40}>
+        <AimOutlined />
+      </Control>
+      <Control position="topleft" order={30}>
+        <SettingFilled />
+      </Control>
+      <Control position="topleft" order={20}>
+        <ShrinkOutlined />
+      </Control>
+      <Control position="bottomleft" order={1}>
+        <div style={{ maxWidth: '400px', background: 'red' }}>
+          Sss dvfv cer ascadcadc
+        </div>
+      </Control>
+      <Control position="topright" order={40}>
+        <AimOutlined />
+      </Control>
+      <Control position="topright" order={30}>
+        <SettingFilled />
+      </Control>
+      <Control position="bottomright" order={1}>
+        <div style={{ maxWidth: '800px', width: '400px', background: 'red' }}>
+          Info banner
+        </div>
+      </Control>
+      <Main ref={containerRef}>
+        <GoogleMapIframe />
       </Main>
     </ControlLayout>
   );
