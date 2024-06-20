@@ -370,3 +370,83 @@ export const ResponsiveWithTwoColumnsWithMap = () => {
     </TopicMapContextProvider>
   );
 };
+
+export const ResponsiveThreeColumnsOnTop = () => {
+  const [containerWidth, setContainerWidth] = useState(null);
+  const [resonsiveCollapse, setResonsiveCollapse] = useState(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (containerRef) {
+      setContainerWidth({
+        width: `100%`,
+        height: `${containerRef.current?.clientHeight}px`,
+      });
+    }
+  }, [containerRef]);
+  useEffect(() => {
+    if (resonsiveCollapse) {
+      console.log('xxx', resonsiveCollapse);
+    }
+  }, [resonsiveCollapse]);
+  return (
+    <TopicMapContextProvider
+      appKey="OnlineBaederkarteWuppertal2022"
+      featureItemsURL={
+        'https://wupp-topicmaps-data.cismet.de/data/baeder.data.json'
+      }
+      referenceSystemDefinition={MappingConstants.proj4crs25832def}
+      mapEPSGCode="25832"
+      referenceSystem={MappingConstants.crs25832}
+      getFeatureStyler={getFeatureStyler}
+      featureTooltipFunction={(feature) => feature?.text}
+      convertItemToFeature={convertItemToFeature}
+      clusteringOptions={{
+        iconCreateFunction: getPoiClusterIconCreatorFunction({
+          svgSize: 24,
+        }),
+      }}
+    >
+      <ControlLayout
+        onResponsiveCollapse={(collapseEvent) => {
+          setResonsiveCollapse(collapseEvent);
+        }}
+      >
+        <Control position="topleft" order={40}>
+          <ControlButtonStyler>
+            <AimOutlined />
+          </ControlButtonStyler>
+        </Control>
+        <Control position="topleft" order={30}>
+          <ControlButtonStyler>
+            <SettingFilled />
+          </ControlButtonStyler>
+        </Control>
+        <Control position="topleft" order={20}>
+          <ControlButtonStyler>
+            <ShrinkOutlined />
+          </ControlButtonStyler>
+        </Control>
+        <Control position="topright" order={30}>
+          <ControlButtonStyler>
+            <MenuOutlined />
+          </ControlButtonStyler>
+        </Control>
+        <Control position="topcenter" order={30}>
+          <div
+            style={{
+              ...iconPadding,
+              opacity: 0.9,
+              width: resonsiveCollapse === 'screen' ? '600px' : '300px',
+            }}
+          >
+            <div>Center controller</div>
+          </div>
+        </Control>
+        <Main ref={containerRef}>
+          <Map mapStyle={containerWidth} />
+        </Main>
+      </ControlLayout>
+    </TopicMapContextProvider>
+  );
+};
