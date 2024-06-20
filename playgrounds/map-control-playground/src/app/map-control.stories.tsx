@@ -71,14 +71,16 @@ const MapWithProviders = () => {
 
 const iconPadding = {
   backgroundColor: '#fff',
-  boxSadow: '0 1px 5px rgba(59, 58, 58, 0.65)',
+  border: '2px solid rgba(0, 0, 0, .23)',
   borderRadius: '4px',
-  padding: '10px',
+  width: '34px',
+  height: '34px',
+  textAlign: 'center',
   cursor: 'pointer',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  fontSize: '18px',
+  fontSize: '16px',
 };
 
 export const SimpleExample = () => {
@@ -230,51 +232,6 @@ export const ExcalidrawExample = () => {
   );
 };
 
-export const ResponsiveControls = () => {
-  const [locationProps, setLocationProps] = useState(0);
-  const [containerHeight, setContainerHeight] = useState(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (containerRef) {
-      setContainerHeight({
-        width: `100%`,
-        height: `${containerRef.current?.clientHeight}px`,
-      });
-    }
-  }, [containerRef]);
-  return (
-    <ControlLayout>
-      <Control position="topleft" order={40}>
-        <AimOutlined />
-      </Control>
-      <Control position="topleft" order={30}>
-        <SettingFilled />
-      </Control>
-      <Control position="topleft" order={20}>
-        <ShrinkOutlined />
-      </Control>
-      <Control position="topright" order={40}>
-        <AimOutlined />
-      </Control>
-      <Control position="topright" order={30}>
-        <SettingFilled />
-      </Control>
-      <Control position="bottomleft" order={1}>
-        <div style={{ width: '400px', background: 'red' }}>
-          A search component
-        </div>
-      </Control>
-      <Control position="bottomright" order={1}>
-        <div style={{ width: '800px', background: 'red' }}>Info banner</div>
-      </Control>
-      <Main ref={containerRef}>
-        <GoogleMapIframe />
-      </Main>
-    </ControlLayout>
-  );
-};
-
 export const ResponsiveControlCalcWidth = () => {
   const [locationProps, setLocationProps] = useState(0);
   const [containerWidth, setContainerWidth] = useState(null);
@@ -327,83 +284,103 @@ export const ResponsiveControlCalcWidth = () => {
   );
 };
 
-export const ResponsiveWithThreeColumns = () => {
-  const [locationProps, setLocationProps] = useState(0);
+export const ResponsiveWithThreeColumnsWithMap = () => {
   const [containerWidth, setContainerWidth] = useState(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (containerRef) {
-      setContainerWidth(containerRef.current?.clientWidth);
+      setContainerWidth({
+        width: `100%`,
+        height: `${containerRef.current?.clientHeight}px`,
+      });
     }
   }, [containerRef]);
   useEffect(() => {
     console.log('ccc', containerWidth);
   }, [containerWidth]);
   return (
-    <ControlLayout>
-      <Control position="topleft" order={40}>
-        <div style={iconPadding}>
-          <AimOutlined />
-        </div>
-      </Control>
-      <Control position="topleft" order={30}>
-        <div style={iconPadding}>
-          <SettingFilled />
-        </div>
-      </Control>
-      <Control position="topleft" order={20}>
-        <div style={iconPadding}>
-          <ShrinkOutlined />
-        </div>
-      </Control>
-      <Control position="topright" order={30}>
-        <div style={iconPadding}>
-          <SettingFilled />
-        </div>
-      </Control>
-      <Control position="bottomleft" order={1}>
-        <div
-          style={{
-            width: '200px',
-            background: 'red',
-            maxWidth: '100%',
-            padding: '4px',
-          }}
-        >
-          A search component
-        </div>
-      </Control>
-      <Control position="bottomright" order={1}>
-        <div
-          style={{
-            width: '200px',
-            background: 'yellow',
-            maxWidth: '100%',
-            padding: '4px',
-          }}
-        >
-          Center
-        </div>
-      </Control>
+    <TopicMapContextProvider
+      appKey="OnlineBaederkarteWuppertal2022"
+      featureItemsURL={
+        'https://wupp-topicmaps-data.cismet.de/data/baeder.data.json'
+      }
+      referenceSystemDefinition={MappingConstants.proj4crs25832def}
+      mapEPSGCode="25832"
+      referenceSystem={MappingConstants.crs25832}
+      getFeatureStyler={getFeatureStyler}
+      featureTooltipFunction={(feature) => feature?.text}
+      convertItemToFeature={convertItemToFeature}
+      clusteringOptions={{
+        iconCreateFunction: getPoiClusterIconCreatorFunction({
+          svgSize: 24,
+        }),
+      }}
+    >
+      <ControlLayout onResponsiveCollapse={(collapseEvent) => {}}>
+        <Control position="topleft" order={40}>
+          <div style={iconPadding}>
+            <AimOutlined />
+          </div>
+        </Control>
+        <Control position="topleft" order={30}>
+          <div style={iconPadding}>
+            <SettingFilled />
+          </div>
+        </Control>
+        <Control position="topleft" order={20}>
+          <div style={iconPadding}>
+            <ShrinkOutlined />
+          </div>
+        </Control>
+        <Control position="topright" order={30}>
+          <div style={iconPadding}>
+            <MenuOutlined />
+          </div>
+        </Control>
+        <Control position="bottomleft" order={1}>
+          <div
+            style={{
+              width: '200px',
+              background: 'red',
+              maxWidth: '100%',
+              padding: '4px',
+            }}
+          >
+            A search component
+          </div>
+        </Control>
+        <Control position="bottomright" order={1}>
+          <div
+            style={{
+              width: '300px',
+              background: 'yellow',
+              maxWidth: '100%',
+              padding: '4px',
+            }}
+          >
+            Info Box
+          </div>
+        </Control>
 
-      <Control position="bottomcenter" order={1}>
-        <div
-          style={{
-            width: '600px',
-            background: 'blue',
-            color: 'white',
-            maxWidth: '100%',
-            padding: '4px',
-          }}
-        >
-          Info Box
-        </div>
-      </Control>
+        <Control position="bottomcenter" order={1}>
+          <div
+            style={{
+              width: '600px',
+              background: 'blue',
+              color: 'white',
+              maxWidth: '100%',
+              padding: '4px',
+            }}
+          >
+            Center
+          </div>
+        </Control>
 
-      <Main ref={containerRef}>
-        <GoogleMapIframe />
-      </Main>
-    </ControlLayout>
+        <Main ref={containerRef}>
+          <Map mapStyle={containerWidth} />
+        </Main>
+      </ControlLayout>
+    </TopicMapContextProvider>
   );
 };
