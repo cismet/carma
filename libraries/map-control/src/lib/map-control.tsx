@@ -5,6 +5,7 @@ import Main from './components/Main';
 
 export interface ControlLayoutProps {
   children: ReactNode;
+  onResponsiveCollapse?: Function;
 }
 
 export interface ControlProps {
@@ -21,8 +22,12 @@ export interface AllPositions {
   bottomright?: ControlProps[];
 }
 
-const ControlLayout: React.FC<ControlLayoutProps> = ({ children }) => {
+const ControlLayout: React.FC<ControlLayoutProps> = ({
+  children,
+  onResponsiveCollapse = () => console.log(),
+}) => {
   const [windowWidth, setWindowWidth] = useState(0);
+  const [screenSizeWatcher, setScreenSizeWatcher] = useState('');
   const allPositions: AllPositions = {};
   let mainComponent: React.ReactElement | null = null;
   const containerRef = useRef<HTMLDivElement>(null);
@@ -85,9 +90,18 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({ children }) => {
   useEffect(() => {
     if (containerRef) {
       const containerWidth = containerRef.current?.clientWidth;
-      console.log('xxx', containerWidth);
+      console.log('xxx', windowWidth);
     }
-  }, [containerRef, windowWidth]);
+    if (windowWidth < 641 && screenSizeWatcher !== 'mobile') {
+      setScreenSizeWatcher('mobile');
+      // console.log('xxx calback mobile');
+      onResponsiveCollapse('mobile');
+    } else if (windowWidth > 640 && screenSizeWatcher !== 'screen') {
+      setScreenSizeWatcher('screen');
+      // console.log('xxx calback screen');
+      onResponsiveCollapse('screen');
+    }
+  }, [containerRef, windowWidth, screenSizeWatcher]);
 
   return (
     <div className={styles['container']}>

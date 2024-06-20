@@ -315,7 +315,11 @@ export const ResponsiveWithTwoColumnsWithMap = () => {
         }),
       }}
     >
-      <ControlLayout onResponsiveCollapse={(collapseEvent) => {}}>
+      <ControlLayout
+        onResponsiveCollapse={(collapseEvent) => {
+          console.log('xxx', collapseEvent);
+        }}
+      >
         <Control position="topleft" order={40}>
           <div style={iconPadding}>
             <AimOutlined />
