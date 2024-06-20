@@ -306,7 +306,7 @@ export const ResponsiveControlCalcWidth = () => {
         <SettingFilled />
       </Control>
       <Control position="bottomleft" order={1}>
-        <div style={{ width: '400px', background: 'red' }}>
+        <div style={{ width: '600px', background: 'red' }}>
           A search component
         </div>
       </Control>
@@ -363,15 +363,23 @@ export const ResponsiveWithThreeColumns = () => {
         </div>
       </Control>
       <Control position="bottomleft" order={1}>
-        <div style={{ width: '300px', background: 'red', padding: '4px' }}>
+        <div
+          style={{
+            width: '200px',
+            background: 'red',
+            maxWidth: '100%',
+            padding: '4px',
+          }}
+        >
           A search component
         </div>
       </Control>
       <Control position="bottomright" order={1}>
         <div
           style={{
-            width: '400px',
+            width: '200px',
             background: 'yellow',
+            maxWidth: '100%',
             padding: '4px',
           }}
         >
@@ -385,6 +393,7 @@ export const ResponsiveWithThreeColumns = () => {
             width: '600px',
             background: 'blue',
             color: 'white',
+            maxWidth: '100%',
             padding: '4px',
           }}
         >

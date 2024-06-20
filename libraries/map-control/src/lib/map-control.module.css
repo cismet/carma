@@ -82,8 +82,8 @@
   gap: 10px;
   z-index: 500;
   margin: 5px;
-  max-width: 50%;
-  /* max-width: calc(30% - 15px); */
+  max-width: calc(30% - 15px);
+  width: min-content;
 }
 
 .bottomright {
@@ -95,8 +95,8 @@
   gap: 10px;
   z-index: 500;
   margin: 5px;
-  /* max-width: calc(30% - 15px); */
-  /* width: min-content; */
+  max-width: calc(30% - 15px);
+  width: min-content;
 }
 
 .bottomcenter {
@@ -108,8 +108,8 @@
   gap: 10px;
   z-index: 500;
   margin: 5px;
-  /* max-width: calc(30% - 15px); */
-  /* width: min-content; */
+  max-width: calc(30% - 15px);
+  width: min-content;
   transform: translateX(-50%);
 }
 
