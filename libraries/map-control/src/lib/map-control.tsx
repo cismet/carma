@@ -66,37 +66,21 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({ children }) => {
     };
   }, []);
 
-  useEffect(() => {
-    if (containerRef) {
-      const containerWidth = containerRef.current?.clientWidth;
-      const gap = 15;
-      console.log('xxx windowWidth', windowWidth);
+  // useEffect(() => {
+  //   if (containerRef) {
+  //     const containerWidth = containerRef.current?.clientWidth;
+  //     const gap = 15;
+  //     containerRef.current.childNodes.forEach((currentItem) => {
+  //       if (currentItem.className.startsWith('_bottom')) {
+  //         const percent = (currentItem.clientWidth / containerWidth) * 100;
+  //         console.log('xxx width', currentItem.clientWidth);
 
-      // let leftWidth = 0;
-      // let rightWidth = 0;
-      // let centerWidth = 0;
-      containerRef.current.childNodes.forEach((currentItem) => {
-        if (currentItem.className.startsWith('_bottom')) {
-          const percent = (currentItem.clientWidth / containerWidth) * 100;
-          console.log('xxx width', currentItem.clientWidth);
+  //         currentItem.style.maxWidth = `calc(${percent}%)`;
 
-          currentItem.style.maxWidth = `calc(${percent}%)`;
-
-          // if (currentItem.className.includes('left')) {
-          //   leftWidth += percent;
-          // } else if (currentItem.className.includes('right')) {
-          //   rightWidth += percent;
-          // } else if (currentItem.className.includes('center')) {
-          //   centerWidth += percent;
-          // }
-        }
-      });
-
-      // console.log('xxx leftWidth', leftWidth);
-      // console.log('xxx rightWidth', rightWidth);
-      // console.log('xxx centerWidth', centerWidth);
-    }
-  }, [containerRef]);
+  //       }
+  //     });
+  //   }
+  // }, [containerRef]);
 
   return (
     <div className={styles['container']}>

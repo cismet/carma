@@ -80,11 +80,7 @@ const iconPadding = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  fontSize: '16px',
-};
-
-export const SimpleExample = () => {
-  return <MapWithProviders />;
+  fontSize: '18px',
 };
 
 const LocateControl = ({ startLocate = 0 }) => {
@@ -284,7 +280,7 @@ export const ResponsiveControlCalcWidth = () => {
   );
 };
 
-export const ResponsiveWithThreeColumnsWithMap = () => {
+export const ResponsiveWithTwoColumnsWithMap = () => {
   const [containerWidth, setContainerWidth] = useState(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -341,9 +337,8 @@ export const ResponsiveWithThreeColumnsWithMap = () => {
         <Control position="bottomleft" order={1}>
           <div
             style={{
-              width: '200px',
+              width: '300px',
               background: 'red',
-              maxWidth: '100%',
               padding: '4px',
             }}
           >
@@ -355,25 +350,10 @@ export const ResponsiveWithThreeColumnsWithMap = () => {
             style={{
               width: '300px',
               background: 'yellow',
-              maxWidth: '100%',
               padding: '4px',
             }}
           >
             Info Box
-          </div>
-        </Control>
-
-        <Control position="bottomcenter" order={1}>
-          <div
-            style={{
-              width: '600px',
-              background: 'blue',
-              color: 'white',
-              maxWidth: '100%',
-              padding: '4px',
-            }}
-          >
-            Center
           </div>
         </Control>
 
