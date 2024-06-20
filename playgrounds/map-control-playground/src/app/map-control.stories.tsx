@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 import React, { useEffect, useContext, useState, useRef } from 'react';
 import { MappingConstants } from 'react-cismap';
 import TopicMapContextProvider from 'react-cismap/contexts/TopicMapContextProvider';
-
+import GazetteerSearchComponent from 'react-cismap/GazetteerSearchComponent';
 import convertItemToFeature from './helper/convertItemToFeature';
 import { TopicMapContext } from 'react-cismap/contexts/TopicMapContextProvider';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -35,6 +35,8 @@ import {
 } from '@ant-design/icons';
 import GoogleMapIframe from './components/GoogleMapIframe';
 import DemoExcalidraw from './components/DemoExcalidraw';
+import InfoBox from 'react-cismap/topicmaps/InfoBox';
+import GenericInfoBoxFromFeature from 'react-cismap/topicmaps/GenericInfoBoxFromFeature';
 
 if (typeof global === 'undefined') {
   window.global = window;
@@ -335,7 +337,7 @@ export const ResponsiveWithTwoColumnsWithMap = () => {
           </div>
         </Control>
         <Control position="bottomleft" order={1}>
-          <div
+          {/* <div
             style={{
               width: '300px',
               background: 'red',
@@ -343,7 +345,8 @@ export const ResponsiveWithTwoColumnsWithMap = () => {
             }}
           >
             A search component
-          </div>
+          </div> */}
+          <GazetteerSearchComponent />
         </Control>
         <Control position="bottomright" order={1}>
           <div
@@ -355,6 +358,7 @@ export const ResponsiveWithTwoColumnsWithMap = () => {
           >
             Info Box
           </div>
+          {/* <GenericInfoBoxFromFeature pixelwidth={300} /> */}
         </Control>
 
         <Main ref={containerRef}>

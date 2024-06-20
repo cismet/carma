@@ -112,28 +112,28 @@
   transform: translateX(-50%);
 }
 
-@media (max-width: 630px) {
+@media (max-width: 640px) {
   .controls-container {
     display: flex;
     flex-direction: column;
   }
   .bottomleft {
-    margin-top: auto;
     position: static;
     width: 100% !important;
-    order: 1;
+    order: 2;
   }
   .bottomright {
+    margin-top: auto;
     position: static;
-    order: 3;
+    order: 1;
     width: 100% !important;
   }
 
-  .bottomleft * {
-    width: calc(100% - 5px) !important;
+  .bottomleft > :first-child {
+    width: calc(100% - 10px) !important;
   }
 
-  .bottomright * {
-    width: calc(100% - 5px) !important;
+  .bottomright > :first-child {
+    width: calc(100% - 10px) !important;
   }
 }

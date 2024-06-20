@@ -82,6 +82,13 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({ children }) => {
   //   }
   // }, [containerRef]);
 
+  useEffect(() => {
+    if (containerRef) {
+      const containerWidth = containerRef.current?.clientWidth;
+      console.log('xxx', containerWidth);
+    }
+  }, [containerRef, windowWidth]);
+
   return (
     <div className={styles['container']}>
       <div className={styles['controls-container']} ref={containerRef}>
