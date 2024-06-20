@@ -237,7 +237,7 @@ export const ExcalidrawExample = () => {
   );
 };
 
-export const ResponsiveControlCalcWidth = () => {
+export const ResponsiveControlWithTwoColumns = () => {
   const [locationProps, setLocationProps] = useState(0);
   const [containerWidth, setContainerWidth] = useState(null);
   const containerRef = useRef<HTMLDivElement>(null);
