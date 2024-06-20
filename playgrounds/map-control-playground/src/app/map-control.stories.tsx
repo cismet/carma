@@ -18,7 +18,12 @@ import {
 import './index.css';
 import 'leaflet.locatecontrol/dist/L.Control.Locate.css';
 import 'leaflet.locatecontrol';
-import { ControlLayout, Control, Main } from '@carma/map-control';
+import {
+  ControlLayout,
+  Control,
+  Main,
+  ControlButtonStyler,
+} from '@carma/map-control';
 import {
   AimOutlined,
   HomeOutlined,
@@ -122,7 +127,7 @@ const LocateControl = ({ startLocate = 0 }) => {
   return null;
 };
 
-export const SimpleLayout = () => {
+export const ReplaceLocatorFromLeaflet = () => {
   const [locationProps, setLocationProps] = useState(0);
   const [containerHeight, setContainerHeight] = useState(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -155,7 +160,9 @@ export const SimpleLayout = () => {
     >
       <ControlLayout>
         <Control position="topleft" order={30}>
-          <AimOutlined onClick={() => setLocationProps((prev) => prev + 1)} />
+          <ControlButtonStyler>
+            <AimOutlined onClick={() => setLocationProps((prev) => prev + 1)} />
+          </ControlButtonStyler>
           <LocateControl startLocate={locationProps} />
         </Control>
         <Main ref={containerRef}>
@@ -321,35 +328,26 @@ export const ResponsiveWithTwoColumnsWithMap = () => {
         }}
       >
         <Control position="topleft" order={40}>
-          <div style={iconPadding}>
+          <ControlButtonStyler>
             <AimOutlined />
-          </div>
+          </ControlButtonStyler>
         </Control>
         <Control position="topleft" order={30}>
-          <div style={iconPadding}>
+          <ControlButtonStyler>
             <SettingFilled />
-          </div>
+          </ControlButtonStyler>
         </Control>
         <Control position="topleft" order={20}>
-          <div style={iconPadding}>
+          <ControlButtonStyler>
             <ShrinkOutlined />
-          </div>
+          </ControlButtonStyler>
         </Control>
         <Control position="topright" order={30}>
-          <div style={iconPadding}>
+          <ControlButtonStyler>
             <MenuOutlined />
-          </div>
+          </ControlButtonStyler>
         </Control>
         <Control position="bottomleft" order={1}>
-          {/* <div
-            style={{
-              width: '300px',
-              background: 'red',
-              padding: '4px',
-            }}
-          >
-            A search component
-          </div> */}
           <GazetteerSearchComponent />
         </Control>
         <Control position="bottomright" order={1}>
