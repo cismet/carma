@@ -343,22 +343,27 @@ export const ResponsiveWithThreeColumns = () => {
   return (
     <ControlLayout>
       <Control position="topleft" order={40}>
-        <AimOutlined />
+        <div style={iconPadding}>
+          <AimOutlined />
+        </div>
       </Control>
       <Control position="topleft" order={30}>
-        <SettingFilled />
+        <div style={iconPadding}>
+          <SettingFilled />
+        </div>
       </Control>
       <Control position="topleft" order={20}>
-        <ShrinkOutlined />
-      </Control>
-      <Control position="topright" order={40}>
-        <AimOutlined />
+        <div style={iconPadding}>
+          <ShrinkOutlined />
+        </div>
       </Control>
       <Control position="topright" order={30}>
-        <SettingFilled />
+        <div style={iconPadding}>
+          <SettingFilled />
+        </div>
       </Control>
       <Control position="bottomleft" order={1}>
-        <div style={{ width: '300px', background: 'red' }}>
+        <div style={{ width: '300px', background: 'red', padding: '4px' }}>
           A search component
         </div>
       </Control>
@@ -367,6 +372,7 @@ export const ResponsiveWithThreeColumns = () => {
           style={{
             width: '400px',
             background: 'yellow',
+            padding: '4px',
           }}
         >
           Center
@@ -379,6 +385,7 @@ export const ResponsiveWithThreeColumns = () => {
             width: '600px',
             background: 'blue',
             color: 'white',
+            padding: '4px',
           }}
         >
           Info Box
