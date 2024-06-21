@@ -13,6 +13,7 @@ export interface ControlProps {
   position: string;
   order?: number;
   id?: string;
+  fullCollapseWidth?: boolean;
   children: React.ReactNode;
 }
 
@@ -36,11 +37,21 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
   React.Children.forEach(children, (child) => {
     if (React.isValidElement(child)) {
       if (child.type === Control) {
-        const { position, order = 0, id } = child.props as ControlProps;
+        const {
+          position,
+          order = 0,
+          id,
+          fullCollapseWidth,
+        } = child.props as ControlProps;
         if (!allPositions[position]) {
           allPositions[position] = [];
         }
-        allPositions[position]?.push({ ...child.props, order, id });
+        allPositions[position]?.push({
+          ...child.props,
+          order,
+          id,
+          fullCollapseWidth,
+        });
         allPositions[position].sort((a, b) => {
           const orderA = a.order;
           const orderB = b.order;
@@ -144,10 +155,15 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
             return (
               <>
                 {allPositions[position].map((component, idx) => {
+                  console.log('yyy', component);
                   return (
                     <div
                       className={`${styles[position]} ${
                         debugMode ? styles['debug-mode'] : ''
+                      } ${
+                        component.fullCollapseWidth
+                          ? styles['full-collapse-width']
+                          : ''
                       }`}
                     >
                       <Control {...component} key={idx} />

@@ -609,7 +609,7 @@ export const ResponsiveDebugMode = () => {
         <Control position="bottomleft" order={1}>
           <GazetteerSearchComponent />
         </Control>
-        <Control position="bottomright" order={10}>
+        <Control position="bottomright" order={10} fullCollapseWidth={true}>
           <div
             style={{
               width: '300px',
@@ -635,20 +635,6 @@ export const ResponsiveDebugMode = () => {
             }}
           >
             Pic Box
-          </div>
-        </Control>
-        <Control position="bottomright" order={20}>
-          <div
-            style={{
-              width: '50px',
-              background: 'yellow',
-              height: '80px',
-              padding: '4px',
-              fontSize: '12px',
-              opacity: '0.9',
-            }}
-          >
-            New Box
           </div>
         </Control>
         <Main ref={containerRef}>
