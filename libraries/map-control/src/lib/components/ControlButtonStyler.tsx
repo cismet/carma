@@ -22,8 +22,9 @@ const ControlButtonStyler: React.FC<ControlButtonStylerProps> = ({
     textAlign: 'center',
     cursor: 'pointer',
     display: 'flex',
+    flexDirection: 'column',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-evenly',
     fontSize,
   };
   return <div style={iconPadding}>{children}</div>;

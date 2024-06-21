@@ -29,19 +29,17 @@ import {
   HomeOutlined,
   LoadingOutlined,
   SettingFilled,
-  SmileOutlined,
   SyncOutlined,
   ShrinkOutlined,
-  MinusOutlined,
-  PlusOutlined,
-  ExclamationCircleOutlined,
   MenuOutlined,
-  FilterOutlined,
+  PlusOutlined,
+  MinusOutlined,
 } from '@ant-design/icons';
 import GoogleMapIframe from './components/GoogleMapIframe';
 import DemoExcalidraw from './components/DemoExcalidraw';
 import InfoBox from 'react-cismap/topicmaps/InfoBox';
 import GenericInfoBoxFromFeature from 'react-cismap/topicmaps/GenericInfoBoxFromFeature';
+import { Divider } from 'antd';
 
 if (typeof global === 'undefined') {
   window.global = window;
@@ -469,9 +467,16 @@ export const ResponsiveAllPosition = () => {
           setResonsiveCollapse(collapseEvent);
         }}
       >
-        <Control position="topleft" order={40}>
-          <ControlButtonStyler>
-            <AimOutlined />
+        <Control position="topleft" order={10}>
+          <ControlButtonStyler height="70px">
+            <PlusOutlined />
+            <Divider
+              style={{
+                marginTop: '0px',
+                marginBottom: '0px',
+              }}
+            />
+            <MinusOutlined />
           </ControlButtonStyler>
         </Control>
         <Control position="topleft" order={30}>
