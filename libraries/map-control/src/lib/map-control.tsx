@@ -74,20 +74,30 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
   }, []);
 
   // useEffect(() => {
+  //   console.log('yyy');
   //   if (containerRef) {
   //     const containerWidth = containerRef.current?.clientWidth;
   //     const gap = 15;
+  //     // containerRef.current.childNodes.forEach((currentItem) => {
+  //     //   if (currentItem.className.startsWith('_bottom')) {
+  //     //     const percent = (currentItem.clientWidth / containerWidth) * 100;
+  //     //     console.log('xxx width', currentItem.clientWidth);
+
+  //     //     currentItem.style.maxWidth = `calc(${percent}%)`;
+
+  //     //   }
+  //     // });
   //     containerRef.current.childNodes.forEach((currentItem) => {
-  //       if (currentItem.className.startsWith('_bottom')) {
-  //         const percent = (currentItem.clientWidth / containerWidth) * 100;
-  //         console.log('xxx width', currentItem.clientWidth);
+  //       if (currentItem.className.startsWith('_topcenter')) {
+  //         // const percent = (currentItem.clientWidth / containerWidth) * 100;
+  //         // console.log('xxx width', currentItem.clientWidth);
 
-  //         currentItem.style.maxWidth = `calc(${percent}%)`;
-
+  //         // currentItem.style.maxWidth = `calc(${percent}%)`;
+  //         console.log('yyy', currentItem.clientWidth);
   //       }
   //     });
   //   }
-  // }, [containerRef]);
+  // }, [containerRef, windowWidth]);
 
   useEffect(() => {
     if (containerRef) {
@@ -103,6 +113,24 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
       console.log('xxx calback screen');
       onResponsiveCollapse('screen');
     }
+
+    const containerWidth = containerRef.current?.clientWidth;
+    const gap = 15;
+
+    let bottomRightShift = 0;
+    containerRef.current.childNodes.forEach((currentItem) => {
+      if (currentItem.className.startsWith('_bottomright')) {
+        console.log('yyy width', currentItem.clientHeight);
+        console.log('yyy width', currentItem.clientWidth);
+
+        if (bottomRightShift > 0) {
+          currentItem.style.bottom = bottomRightShift + 'px';
+          currentItem.style.marginBottom = '20px';
+        }
+
+        bottomRightShift += currentItem.clientHeight;
+      }
+    });
   }, [containerRef, windowWidth, screenSizeWatcher]);
 
   return (
@@ -114,17 +142,31 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
       <div className={styles['controls-container']} ref={containerRef}>
         {mainComponent ? mainComponent : null}
         {Object.keys(allPositions).map((position) => {
-          return (
-            <div
-              className={`${styles[position]} ${
-                debugMode ? styles['debug-mode'] : ''
-              }`}
-            >
-              {allPositions[position].map((component, idx) => {
-                return <Control {...component} key={idx} />;
-              })}
-            </div>
-          );
+          if (position.startsWith('bottom')) {
+            return (
+              <>
+                {allPositions[position].map((component, idx) => {
+                  return (
+                    <div className={`${styles[position]}`}>
+                      <Control {...component} key={idx} />
+                    </div>
+                  );
+                })}
+              </>
+            );
+          } else {
+            return (
+              <div
+                className={`${styles[position]} ${
+                  debugMode ? styles['debug-mode'] : ''
+                }`}
+              >
+                {allPositions[position].map((component, idx) => {
+                  return <Control {...component} key={idx} />;
+                })}
+              </div>
+            );
+          }
         })}
       </div>
     </div>

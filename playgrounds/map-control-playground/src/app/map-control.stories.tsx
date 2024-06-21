@@ -412,8 +412,12 @@ export const ResponsiveThreeColumnsOnTop = () => {
           <div
             style={{
               ...iconPadding,
+              fontSize: '14px',
               opacity: 0.9,
-              width: resonsiveCollapse === 'screen' ? '600px' : '300px',
+              width: '100%',
+              maxWidth: '100%',
+              height: '100%',
+              padding: '5px 4px',
             }}
           >
             <div>Center controller</div>
@@ -488,8 +492,12 @@ export const ResponsiveAllPosition = () => {
           <div
             style={{
               ...iconPadding,
+              fontSize: '14px',
               opacity: 0.9,
-              width: resonsiveCollapse === 'screen' ? '600px' : '300px',
+              width: '100%',
+              maxWidth: '100%',
+              height: '100%',
+              padding: '5px 4px',
             }}
           >
             <div>Center controller</div>
@@ -584,8 +592,11 @@ export const ResponsiveDebugMode = () => {
           <div
             style={{
               ...iconPadding,
+              fontSize: '14px',
               opacity: 0.9,
-              width: resonsiveCollapse === 'screen' ? '600px' : '300px',
+              width: '100%',
+              maxWidth: '100%',
+              height: '100%',
             }}
           >
             <div>Center controller</div>
@@ -594,7 +605,7 @@ export const ResponsiveDebugMode = () => {
         <Control position="bottomleft" order={1}>
           <GazetteerSearchComponent />
         </Control>
-        <Control position="bottomright" order={1}>
+        <Control position="bottomright" order={10}>
           <div
             style={{
               width: '300px',
@@ -606,6 +617,21 @@ export const ResponsiveDebugMode = () => {
             }}
           >
             Info Box
+          </div>
+          {/* <GenericInfoBoxFromFeature pixelwidth={300} /> */}
+        </Control>
+        <Control position="bottomright" order={20}>
+          <div
+            style={{
+              width: '120px',
+              background: 'blue',
+              height: '80px',
+              padding: '4px',
+              fontSize: '12px',
+              opacity: '0.9',
+            }}
+          >
+            Pic Box
           </div>
           {/* <GenericInfoBoxFromFeature pixelwidth={300} /> */}
         </Control>

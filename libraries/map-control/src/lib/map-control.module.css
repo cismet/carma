@@ -80,13 +80,14 @@
 .topcenter {
   position: absolute;
   top: 0;
-  left: 0;
-  right: 0;
+  left: 42px;
+  right: 42px;
   display: flex;
   flex-direction: column;
   gap: 10px;
   z-index: 500;
   margin: 10px;
+  font-size: 14px;
   /* border: 1px solid red; */
   /* width: 100%; */
   /* transform: translateX(-50%); */
@@ -122,6 +123,10 @@
   margin: 10px;
   /* max-width: calc(30% - 15px); */
   /* width: max-content; */
+}
+
+.bottomright * {
+  margin-left: auto;
 }
 
 .bottomcenter {
@@ -161,4 +166,11 @@
   .bottomright > :first-child {
     width: calc(100%) !important;
   }
+}
+
+@media (max-width: 450px) {
+  /* .topcenter {
+    left: 14%;
+    right: 14%;
+  } */
 }
