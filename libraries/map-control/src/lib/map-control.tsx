@@ -92,13 +92,13 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
       const containerWidth = containerRef.current?.clientWidth;
       console.log('xxx', windowWidth);
     }
-    if (windowWidth < 641 && screenSizeWatcher !== 'mobile') {
+    if (windowWidth < 655 && screenSizeWatcher !== 'mobile') {
       setScreenSizeWatcher('mobile');
-      // console.log('xxx calback mobile');
+      console.log('xxx calback mobile');
       onResponsiveCollapse('mobile');
-    } else if (windowWidth > 640 && screenSizeWatcher !== 'screen') {
+    } else if (windowWidth > 654 && screenSizeWatcher !== 'screen') {
       setScreenSizeWatcher('screen');
-      // console.log('xxx calback screen');
+      console.log('xxx calback screen');
       onResponsiveCollapse('screen');
     }
   }, [containerRef, windowWidth, screenSizeWatcher]);

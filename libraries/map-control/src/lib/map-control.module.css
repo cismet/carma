@@ -19,6 +19,7 @@
   position: relative;
   width: 100%;
   height: 100%;
+  border: 1px solid red;
   /* padding: 15px; */
   /* border: 1px solid red; */
 }
@@ -57,7 +58,7 @@
   flex-direction: column;
   gap: 10px;
   z-index: 500;
-  margin: 5px;
+  margin: 10px;
 }
 
 .topleft {
@@ -69,7 +70,7 @@
   flex-direction: column;
   gap: 10px;
   z-index: 500;
-  margin: 5px;
+  margin: 10px;
   border: '1px solid red';
 }
 .topcenter {
@@ -81,7 +82,7 @@
   flex-direction: column;
   gap: 10px;
   z-index: 500;
-  margin: 5px;
+  margin: 10px;
   /* border: 1px solid red; */
   /* width: 100%; */
   /* transform: translateX(-50%); */
@@ -101,7 +102,7 @@
   flex-direction: column;
   gap: 10px;
   z-index: 500;
-  margin: 5px;
+  margin: 10px;
 
   /* width: max-content; */
 }
@@ -114,7 +115,7 @@
   flex-direction: column;
   gap: 10px;
   z-index: 500;
-  margin: 5px;
+  margin: 10px;
   /* max-width: calc(30% - 15px); */
   /* width: max-content; */
 }
@@ -127,12 +128,12 @@
   flex-direction: column;
   gap: 10px;
   z-index: 500;
-  margin: 5px;
+  margin: 10px;
   /* max-width: calc(30% - 15px); */
   /* width: max-content; */
 }
 
-@media (max-width: 640px) {
+@media (max-width: 654px) {
   .controls-container {
     display: flex;
     flex-direction: column;
@@ -150,10 +151,10 @@
   }
 
   .bottomleft > :first-child {
-    width: calc(100% - 10px) !important;
+    width: calc(100% - 20px) !important;
   }
 
   .bottomright > :first-child {
-    width: calc(100% - 10px) !important;
+    width: calc(100% - 20px) !important;
   }
 }
