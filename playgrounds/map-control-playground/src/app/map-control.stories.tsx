@@ -418,6 +418,7 @@ export const ResponsiveThreeColumnsOnTop = () => {
               maxWidth: '100%',
               height: '100%',
               padding: '5px 4px',
+              border: 'none',
             }}
           >
             <div>Center controller</div>
@@ -498,6 +499,7 @@ export const ResponsiveAllPosition = () => {
               maxWidth: '100%',
               height: '100%',
               padding: '5px 4px',
+              border: 'none',
             }}
           >
             <div>Center controller</div>
@@ -597,6 +599,8 @@ export const ResponsiveDebugMode = () => {
               width: '100%',
               maxWidth: '100%',
               height: '100%',
+              padding: '5px 4px',
+              border: 'none',
             }}
           >
             <div>Center controller</div>
@@ -623,7 +627,7 @@ export const ResponsiveDebugMode = () => {
           <div
             style={{
               width: '120px',
-              background: 'blue',
+              background: 'green',
               height: '80px',
               padding: '4px',
               fontSize: '12px',

@@ -145,7 +145,11 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
               <>
                 {allPositions[position].map((component, idx) => {
                   return (
-                    <div className={`${styles[position]}`}>
+                    <div
+                      className={`${styles[position]} ${
+                        debugMode ? styles['debug-mode'] : ''
+                      }`}
+                    >
                       <Control {...component} key={idx} />
                     </div>
                   );
