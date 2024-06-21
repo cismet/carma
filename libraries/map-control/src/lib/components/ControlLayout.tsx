@@ -48,7 +48,6 @@ const ControlLayoutBasic: React.FC<ControlLayoutProps> = ({ children }) => {
           })
           .reverse();
       } else {
-        console.log('xxx', child);
         mainComponent.push(child);
       }
     }

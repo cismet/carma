@@ -118,9 +118,7 @@ const LocateControl = ({ startLocate = 0 }) => {
 
   useEffect(() => {
     if (startLocate) {
-      console.log('yyy', locationInstance);
       locationInstance.start();
-      // locateControlRef.current.start();
     }
   }, [startLocate]);
 
@@ -238,7 +236,6 @@ export const ExcalidrawExample = () => {
 };
 
 export const ResponsiveControlWithTwoColumns = () => {
-  const [locationProps, setLocationProps] = useState(0);
   const [containerWidth, setContainerWidth] = useState(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -247,26 +244,9 @@ export const ResponsiveControlWithTwoColumns = () => {
       setContainerWidth(containerRef.current?.clientWidth);
     }
   }, [containerRef]);
-  useEffect(() => {
-    console.log('ccc', containerWidth);
-  }, [containerWidth]);
+
   return (
     <ControlLayout>
-      <Control position="topleft" order={40}>
-        <AimOutlined />
-      </Control>
-      <Control position="topleft" order={30}>
-        <SettingFilled />
-      </Control>
-      <Control position="topleft" order={20}>
-        <ShrinkOutlined />
-      </Control>
-      <Control position="topright" order={40}>
-        <AimOutlined />
-      </Control>
-      <Control position="topright" order={30}>
-        <SettingFilled />
-      </Control>
       <Control position="bottomleft" order={1}>
         <div style={{ width: '600px', background: 'red' }}>
           A search component
@@ -289,7 +269,7 @@ export const ResponsiveControlWithTwoColumns = () => {
   );
 };
 
-export const ResponsiveWithTwoColumnsWithMap = () => {
+export const ResponsiveCollapsWithTwoColumnsOnBottom = () => {
   const [containerWidth, setContainerWidth] = useState(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -301,9 +281,6 @@ export const ResponsiveWithTwoColumnsWithMap = () => {
       });
     }
   }, [containerRef]);
-  useEffect(() => {
-    console.log('ccc', containerWidth);
-  }, [containerWidth]);
   return (
     <TopicMapContextProvider
       appKey="OnlineBaederkarteWuppertal2022"
@@ -384,11 +361,7 @@ export const ResponsiveThreeColumnsOnTop = () => {
       });
     }
   }, [containerRef]);
-  useEffect(() => {
-    if (resonsiveCollapse) {
-      console.log('xxx', resonsiveCollapse);
-    }
-  }, [resonsiveCollapse]);
+
   return (
     <TopicMapContextProvider
       appKey="OnlineBaederkarteWuppertal2022"
