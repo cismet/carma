@@ -6,6 +6,7 @@ import Main from './components/Main';
 export interface ControlLayoutProps {
   children: ReactNode;
   onResponsiveCollapse?: Function;
+  debugMode?: boolean;
 }
 
 export interface ControlProps {
@@ -25,6 +26,7 @@ export interface AllPositions {
 const ControlLayout: React.FC<ControlLayoutProps> = ({
   children,
   onResponsiveCollapse = () => console.log(),
+  debugMode = false,
 }) => {
   const [windowWidth, setWindowWidth] = useState(0);
   const [screenSizeWatcher, setScreenSizeWatcher] = useState('');
@@ -104,17 +106,21 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
   }, [containerRef, windowWidth, screenSizeWatcher]);
 
   return (
-    <div className={styles['container']}>
+    <div
+      className={`${styles['container']} ${
+        debugMode ? styles['debug-mode'] : ''
+      }`}
+    >
       <div className={styles['controls-container']} ref={containerRef}>
         {mainComponent ? mainComponent : null}
         {Object.keys(allPositions).map((position) => {
           return (
-            <div className={styles[position]}>
+            <div
+              className={`${styles[position]} ${
+                debugMode ? styles['debug-mode'] : ''
+              }`}
+            >
               {allPositions[position].map((component, idx) => {
-                // return (
-                //   <div className={styles['control-item']}>
-                //     <Control {...component} key={idx} />
-                //   </div>
                 return <Control {...component} key={idx} />;
               })}
             </div>

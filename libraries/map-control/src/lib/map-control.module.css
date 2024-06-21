@@ -15,6 +15,10 @@
   /* padding: 15px; */
 }
 
+.debug-mode {
+  border: 1px solid rgb(99, 99, 255);
+}
+
 .controls-container {
   position: relative;
   width: 100%;
@@ -140,21 +144,21 @@
   }
   .bottomleft {
     position: static;
-    width: 100% !important;
+    width: calc(100% - 20px) !important;
     order: 2;
   }
   .bottomright {
     margin-top: auto;
     position: static;
     order: 1;
-    width: 100% !important;
+    width: calc(100% - 20px) !important;
   }
 
   .bottomleft > :first-child {
-    width: calc(100% - 20px) !important;
+    width: calc(100%) !important;
   }
 
   .bottomright > :first-child {
-    width: calc(100% - 20px) !important;
+    width: calc(100%) !important;
   }
 }
