@@ -618,7 +618,6 @@ export const ResponsiveDebugMode = () => {
           >
             Info Box
           </div>
-          {/* <GenericInfoBoxFromFeature pixelwidth={300} /> */}
         </Control>
         <Control position="bottomright" order={20}>
           <div
@@ -633,7 +632,20 @@ export const ResponsiveDebugMode = () => {
           >
             Pic Box
           </div>
-          {/* <GenericInfoBoxFromFeature pixelwidth={300} /> */}
+        </Control>
+        <Control position="bottomright" order={20}>
+          <div
+            style={{
+              width: '50px',
+              background: 'yellow',
+              height: '80px',
+              padding: '4px',
+              fontSize: '12px',
+              opacity: '0.9',
+            }}
+          >
+            New Box
+          </div>
         </Control>
         <Main ref={containerRef}>
           <Map mapStyle={containerWidth} />

@@ -103,9 +103,9 @@
   position: absolute;
   bottom: 0;
   left: 0;
-  display: flex;
+  /* display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 10px; */
   z-index: 500;
   margin: 10px;
 
@@ -121,6 +121,7 @@
   gap: 10px;
   z-index: 500;
   margin: 10px;
+  border: 1px solid red;
   /* max-width: calc(30% - 15px); */
   /* width: max-content; */
 }

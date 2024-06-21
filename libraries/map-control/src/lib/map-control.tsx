@@ -41,20 +41,19 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
           allPositions[position] = [];
         }
         allPositions[position]?.push({ ...child.props, order, id });
-        allPositions[position]
-          .sort((a, b) => {
-            const orderA = a.order;
-            const orderB = b.order;
-            if (orderA < orderB) {
-              return -1;
-            }
-            if (orderA > orderB) {
-              return 1;
-            }
+        allPositions[position].sort((a, b) => {
+          const orderA = a.order;
+          const orderB = b.order;
+          if (orderA < orderB) {
+            return -1;
+          }
+          if (orderA > orderB) {
+            return 1;
+          }
 
-            return 0;
-          })
-          .reverse();
+          return 0;
+        });
+        // .reverse();
       } else if (child.type === Main) {
         mainComponent = React.cloneElement(child);
       }
@@ -125,10 +124,9 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
 
         if (bottomRightShift > 0) {
           currentItem.style.bottom = bottomRightShift + 'px';
-          currentItem.style.marginBottom = '20px';
         }
 
-        bottomRightShift += currentItem.clientHeight;
+        bottomRightShift += currentItem.clientHeight + 10;
       }
     });
   }, [containerRef, windowWidth, screenSizeWatcher]);
