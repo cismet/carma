@@ -99,9 +99,11 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
 
   useEffect(() => {
     if (containerRef) {
-      const containerWidth = containerRef.current?.clientWidth;
-      console.log('www containerWidth', containerWidth);
+      if (!mainComponent) {
+        throw new Error('ControlLayout requires a Main component as a child.');
+      }
 
+      const containerWidth = containerRef.current?.clientWidth;
       if (
         containerWidth &&
         containerWidth < bottomCollapsBrake &&
@@ -130,12 +132,19 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
           bottomRightShift += currentItem.clientHeight + 10;
         }
       });
+
+      let bottomLeftShift = 0;
+      containerRef.current.childNodes.forEach((currentItem) => {
+        if (currentItem.className.startsWith('_bottomleft')) {
+          if (bottomLeftShift > 0) {
+            currentItem.style.bottom = bottomLeftShift + 'px';
+          }
+
+          bottomLeftShift += currentItem.clientHeight + 10;
+        }
+      });
     }
   }, [containerRef, windowWidth, screenSizeWatcher]);
-
-  if (!mainComponent) {
-    throw new Error('ControlLayout requires a Main component as a child.');
-  }
 
   return (
     <div
@@ -169,6 +178,10 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
                       } ${
                         layoutWidth <= bottomCollapsBrake
                           ? styles[position + '__mobile']
+                          : ''
+                      } ${
+                        idx === 0 && layoutWidth <= bottomCollapsBrake
+                          ? styles[position + '__first']
                           : ''
                       }`}
                     >

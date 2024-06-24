@@ -612,7 +612,7 @@ export const ResponsiveDebugMode = () => {
             <div>Center controller</div>
           </div>
         </Control>
-        <Control position="bottomleft" order={1}>
+        <Control position="bottomleft" order={1} fullCollapseWidth={true}>
           <GazetteerSearchComponent />
         </Control>
         <Control position="bottomright" order={10} fullCollapseWidth={true}>
@@ -687,6 +687,7 @@ export const CalculateResponsiveBrake = () => {
         onResponsiveCollapse={(collapseEvent) => {
           setResonsiveCollapse(collapseEvent);
         }}
+        debugMode={true}
       >
         <Control
           position="bottomright"
@@ -721,10 +722,15 @@ export const CalculateResponsiveBrake = () => {
             Pic Box
           </div>
         </Control>
-        <Control position="bottomleft" order={20} bottomLeftWidth={500}>
+        <Control
+          position="bottomleft"
+          order={10}
+          bottomLeftWidth={500}
+          fullCollapseWidth={true}
+        >
           <GazetteerSearchComponent pixelwidth={500} />
         </Control>
-        <Control position="bottomleft" order={10} bottomLeftWidth={300}>
+        <Control position="bottomleft" order={20} bottomLeftWidth={300}>
           <div
             style={{
               width: '300px',
