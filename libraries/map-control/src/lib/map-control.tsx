@@ -133,6 +133,10 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
     }
   }, [containerRef, windowWidth, screenSizeWatcher]);
 
+  if (!mainComponent) {
+    throw new Error('ControlLayout requires a Main component as a child.');
+  }
+
   return (
     <div
       className={`${styles['container']} ${

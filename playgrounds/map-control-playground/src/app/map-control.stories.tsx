@@ -738,9 +738,9 @@ export const CalculateResponsiveBrake = () => {
             Second Gazetter
           </div>
         </Control>
-        {/* <Main ref={containerRef}>
+        <Main ref={containerRef}>
           <Map mapStyle={containerWidth} />
-        </Main> */}
+        </Main>
       </ControlLayout>
     </TopicMapContextProvider>
   );
