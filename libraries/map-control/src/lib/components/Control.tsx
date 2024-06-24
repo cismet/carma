@@ -1,12 +1,12 @@
 import React, { ReactNode } from 'react';
 
-interface ControlProps {
+export interface ControlProps {
   position: string;
   order: number;
   fullCollapseWidth?: boolean;
   children: ReactNode;
-  bottomLeftWidth?: number;
-  bottomRightWidth?: number;
+  bottomLeftWidth: number;
+  bottomRightWidth: number;
 }
 
 const Control: React.FC<ControlProps> = ({
@@ -14,6 +14,8 @@ const Control: React.FC<ControlProps> = ({
   order,
   children,
   fullCollapseWidth = false,
+  bottomLeftWidth = 300,
+  bottomRightWidth = 300,
 }) => {
   return <>{children}</>;
 };

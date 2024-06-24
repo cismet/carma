@@ -1,5 +1,5 @@
 import React, { ReactNode, useRef, useState, useEffect } from 'react';
-import Control from './components/Control';
+import Control, { ControlProps } from './components/Control';
 import styles from './map-control.module.css';
 import Main from './components/Main';
 
@@ -9,15 +9,15 @@ export interface ControlLayoutProps {
   debugMode?: boolean;
 }
 
-export interface ControlProps {
-  position: string;
-  order?: number;
-  id?: string;
-  fullCollapseWidth?: boolean;
-  children: React.ReactNode;
-  bottomLeftWidth?: number;
-  bottomRightWidth?: number;
-}
+// export interface ControlProps {
+//   position: string;
+//   order?: number;
+//   id?: string;
+//   fullCollapseWidth?: boolean;
+//   children: React.ReactNode;
+//   bottomLeftWidth: number;
+//   bottomRightWidth: number;
+// }
 
 export interface AllPositions {
   topleft?: ControlProps[];
@@ -36,8 +36,9 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
   const allPositions: AllPositions = {};
   let mainComponent: React.ReactElement | null = null;
   const containerRef = useRef<HTMLDivElement>(null);
-  let bottomLeftBiggestWidth = 0;
-  let bottomRightBiggestWidth = 0;
+  let bottomLeftBiggestWidth = 300;
+  let bottomRightBiggestWidth = 300;
+  const bottomGap = 26;
   React.Children.forEach(children, (child) => {
     if (React.isValidElement(child)) {
       if (child.type === Control) {
@@ -92,10 +93,11 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
     }
   });
 
-  const bottomGap = 26;
   const bottomCollapsBrake =
     bottomLeftBiggestWidth + bottomGap + bottomRightBiggestWidth;
   console.log('www brake', bottomCollapsBrake);
+
+  const layoutWidth = containerRef.current?.clientWidth;
 
   const handleResize = () => {
     setWindowWidth(window.innerWidth);
@@ -150,9 +152,6 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
       onResponsiveCollapse('screen');
     }
 
-    const containerWidth = containerRef.current?.clientWidth;
-    const gap = 15;
-
     let bottomRightShift = 0;
     containerRef.current.childNodes.forEach((currentItem) => {
       if (currentItem.className.startsWith('_bottomright')) {
@@ -174,7 +173,14 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
         debugMode ? styles['debug-mode'] : ''
       }`}
     >
-      <div className={styles['controls-container']} ref={containerRef}>
+      <div
+        className={`${styles['controls-container']} ${
+          layoutWidth <= bottomCollapsBrake
+            ? styles['controls-container__mobile']
+            : ''
+        }`}
+        ref={containerRef}
+      >
         {mainComponent ? mainComponent : null}
         {Object.keys(allPositions).map((position) => {
           if (position.startsWith('bottom')) {
@@ -187,8 +193,13 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
                       className={`${styles[position]} ${
                         debugMode ? styles['debug-mode'] : ''
                       } ${
-                        component.fullCollapseWidth
+                        component.fullCollapseWidth &&
+                        layoutWidth <= bottomCollapsBrake
                           ? styles['full-collapse-width']
+                          : ''
+                      } ${
+                        layoutWidth <= bottomCollapsBrake
+                          ? styles[position + '__mobile']
                           : ''
                       }`}
                     >
