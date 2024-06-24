@@ -9,13 +9,13 @@ interface ControlButtonStylerProps {
 
 const ControlButtonStyler: React.FC<ControlButtonStylerProps> = ({
   children,
-  width = '35px',
-  height = '35px',
+  width = '34px',
+  height = '34px',
   fontSize = '18px',
 }) => {
   const iconPadding = {
     backgroundColor: '#fff',
-    border: '2px solid rgba(0, 0, 0, .23)',
+    border: '2px solid rgba(0, 0, 0, .3)',
     borderRadius: '4px',
     width,
     height,
@@ -26,6 +26,7 @@ const ControlButtonStyler: React.FC<ControlButtonStylerProps> = ({
     alignItems: 'center',
     justifyContent: 'space-evenly',
     fontSize,
+    // fontWeight: 700,
   };
   return <div style={iconPadding}>{children}</div>;
 };

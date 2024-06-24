@@ -15,6 +15,8 @@ export interface ControlProps {
   id?: string;
   fullCollapseWidth?: boolean;
   children: React.ReactNode;
+  bottomLeftWidth?: number;
+  bottomRightWidth?: number;
 }
 
 export interface AllPositions {
@@ -34,6 +36,8 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
   const allPositions: AllPositions = {};
   let mainComponent: React.ReactElement | null = null;
   const containerRef = useRef<HTMLDivElement>(null);
+  let bottomLeftBiggestWidth = 0;
+  let bottomRightBiggestWidth = 0;
   React.Children.forEach(children, (child) => {
     if (React.isValidElement(child)) {
       if (child.type === Control) {
@@ -42,6 +46,8 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
           order = 0,
           id,
           fullCollapseWidth,
+          bottomLeftWidth,
+          bottomRightWidth,
         } = child.props as ControlProps;
         if (!allPositions[position]) {
           allPositions[position] = [];
@@ -52,6 +58,21 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
           id,
           fullCollapseWidth,
         });
+
+        console.log('www right', bottomRightWidth);
+        console.log('www left', bottomLeftWidth);
+        if (bottomLeftWidth) {
+          bottomLeftBiggestWidth =
+            bottomLeftWidth > bottomLeftBiggestWidth
+              ? bottomLeftWidth
+              : bottomLeftBiggestWidth;
+        }
+        if (bottomRightWidth) {
+          bottomRightBiggestWidth =
+            bottomRightWidth > bottomRightBiggestWidth
+              ? bottomRightWidth
+              : bottomRightBiggestWidth;
+        }
         allPositions[position].sort((a, b) => {
           const orderA = a.order;
           const orderB = b.order;
@@ -70,6 +91,11 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
       }
     }
   });
+
+  const bottomGap = 26;
+  const bottomCollapsBrake =
+    bottomLeftBiggestWidth + bottomGap + bottomRightBiggestWidth;
+  console.log('www brake', bottomCollapsBrake);
 
   const handleResize = () => {
     setWindowWidth(window.innerWidth);
@@ -112,7 +138,7 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
   useEffect(() => {
     if (containerRef) {
       const containerWidth = containerRef.current?.clientWidth;
-      console.log('xxx', windowWidth);
+      console.log('www containerWidth', containerWidth);
     }
     if (windowWidth < 655 && screenSizeWatcher !== 'mobile') {
       setScreenSizeWatcher('mobile');

@@ -468,7 +468,7 @@ export const ResponsiveAllPosition = () => {
         }}
       >
         <Control position="topleft" order={10}>
-          <ControlButtonStyler height="70px">
+          <ControlButtonStyler height="63px" fontSize="14px">
             <PlusOutlined />
             <Divider
               style={{
@@ -505,15 +505,16 @@ export const ResponsiveAllPosition = () => {
               height: '100%',
               padding: '5px 4px',
               border: 'none',
+              borderRadius: '0px',
             }}
           >
             <div>Center controller</div>
           </div>
         </Control>
-        <Control position="bottomleft" order={1}>
+        <Control position="bottomleft" order={10}>
           <GazetteerSearchComponent />
         </Control>
-        <Control position="bottomright" order={1}>
+        <Control position="bottomright" order={10} fullCollapseWidth={true}>
           <div
             style={{
               width: '300px',
@@ -641,6 +642,73 @@ export const ResponsiveDebugMode = () => {
           >
             Pic Box
           </div>
+        </Control>
+        <Main ref={containerRef}>
+          <Map mapStyle={containerWidth} />
+        </Main>
+      </ControlLayout>
+    </TopicMapContextProvider>
+  );
+};
+
+export const CalculateResponsiveBrake = () => {
+  const [containerWidth, setContainerWidth] = useState(null);
+  const [resonsiveCollapse, setResonsiveCollapse] = useState(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (containerRef) {
+      setContainerWidth({
+        width: `100%`,
+        height: `${containerRef.current?.clientHeight}px`,
+      });
+    }
+  }, [containerRef]);
+
+  return (
+    <TopicMapContextProvider
+      appKey="OnlineBaederkarteWuppertal2022"
+      featureItemsURL={
+        'https://wupp-topicmaps-data.cismet.de/data/baeder.data.json'
+      }
+      referenceSystemDefinition={MappingConstants.proj4crs25832def}
+      mapEPSGCode="25832"
+      referenceSystem={MappingConstants.crs25832}
+      getFeatureStyler={getFeatureStyler}
+      featureTooltipFunction={(feature) => feature?.text}
+      convertItemToFeature={convertItemToFeature}
+      clusteringOptions={{
+        iconCreateFunction: getPoiClusterIconCreatorFunction({
+          svgSize: 24,
+        }),
+      }}
+    >
+      <ControlLayout
+        onResponsiveCollapse={(collapseEvent) => {
+          setResonsiveCollapse(collapseEvent);
+        }}
+      >
+        <Control
+          position="bottomright"
+          order={10}
+          fullCollapseWidth={true}
+          bottomRightWidth={300}
+        >
+          <div
+            style={{
+              width: '300px',
+              background: 'white',
+              height: '80px',
+              padding: '4px',
+              fontSize: '12px',
+              opacity: '0.9',
+            }}
+          >
+            Info Box
+          </div>
+        </Control>
+        <Control position="bottomleft" order={10} bottomLeftWidth={300}>
+          <GazetteerSearchComponent />
         </Control>
         <Main ref={containerRef}>
           <Map mapStyle={containerWidth} />

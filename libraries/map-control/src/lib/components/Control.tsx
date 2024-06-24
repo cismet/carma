@@ -5,6 +5,8 @@ interface ControlProps {
   order: number;
   fullCollapseWidth?: boolean;
   children: ReactNode;
+  bottomLeftWidth?: number;
+  bottomRightWidth?: number;
 }
 
 const Control: React.FC<ControlProps> = ({
