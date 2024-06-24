@@ -5,6 +5,7 @@ interface ControlButtonStylerProps {
   width?: string;
   height?: string;
   fontSize?: string;
+  singleButtonClick?: () => void;
 }
 
 const ControlButtonStyler: React.FC<ControlButtonStylerProps> = ({
@@ -12,6 +13,7 @@ const ControlButtonStyler: React.FC<ControlButtonStylerProps> = ({
   width = '34px',
   height = '34px',
   fontSize = '18px',
+  singleButtonClick = () => {},
 }) => {
   const iconPadding = {
     backgroundColor: '#fff',
@@ -28,7 +30,11 @@ const ControlButtonStyler: React.FC<ControlButtonStylerProps> = ({
     fontSize,
     // fontWeight: 700,
   };
-  return <div style={iconPadding}>{children}</div>;
+  return (
+    <button style={iconPadding} onClick={singleButtonClick}>
+      {children}
+    </button>
+  );
 };
 
 export default ControlButtonStyler;

@@ -692,11 +692,11 @@ export const CalculateResponsiveBrake = () => {
           position="bottomright"
           order={10}
           fullCollapseWidth={true}
-          bottomRightWidth={400}
+          bottomRightWidth={500}
         >
           <div
             style={{
-              width: '400px',
+              width: '500px',
               background: 'white',
               height: '80px',
               padding: '4px',
@@ -721,22 +721,26 @@ export const CalculateResponsiveBrake = () => {
             Pic Box
           </div>
         </Control>
-        <Control position="topleft" order={40}>
-          <ControlButtonStyler>
-            <AimOutlined />
-          </ControlButtonStyler>
+        <Control position="bottomleft" order={20} bottomLeftWidth={500}>
+          <GazetteerSearchComponent pixelwidth={500} />
         </Control>
-        <Control position="topleft" order={30}>
-          <ControlButtonStyler>
-            <SettingFilled />
-          </ControlButtonStyler>
+        <Control position="bottomleft" order={10} bottomLeftWidth={300}>
+          <div
+            style={{
+              width: '300px',
+              background: 'white',
+              height: '80px',
+              padding: '4px',
+              fontSize: '12px',
+              opacity: '0.9',
+            }}
+          >
+            Second Gazetter
+          </div>
         </Control>
-        <Control position="bottomleft" order={10} bottomLeftWidth={400}>
-          <GazetteerSearchComponent pixelwidth={400} />
-        </Control>
-        <Main ref={containerRef}>
+        {/* <Main ref={containerRef}>
           <Map mapStyle={containerWidth} />
-        </Main>
+        </Main> */}
       </ControlLayout>
     </TopicMapContextProvider>
   );

@@ -9,16 +9,6 @@ export interface ControlLayoutProps {
   debugMode?: boolean;
 }
 
-// export interface ControlProps {
-//   position: string;
-//   order?: number;
-//   id?: string;
-//   fullCollapseWidth?: boolean;
-//   children: React.ReactNode;
-//   bottomLeftWidth: number;
-//   bottomRightWidth: number;
-// }
-
 export interface AllPositions {
   topleft?: ControlProps[];
   topright?: ControlProps[];
@@ -59,9 +49,6 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
           id,
           fullCollapseWidth,
         });
-
-        console.log('www right', bottomRightWidth);
-        console.log('www left', bottomLeftWidth);
         if (bottomLeftWidth) {
           bottomLeftBiggestWidth =
             bottomLeftWidth > bottomLeftBiggestWidth
@@ -95,7 +82,6 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
 
   const bottomCollapsBrake =
     bottomLeftBiggestWidth + bottomGap + bottomRightBiggestWidth;
-  console.log('www brake', bottomCollapsBrake);
 
   const layoutWidth = containerRef.current?.clientWidth;
 
@@ -111,60 +97,40 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
     };
   }, []);
 
-  // useEffect(() => {
-  //   console.log('yyy');
-  //   if (containerRef) {
-  //     const containerWidth = containerRef.current?.clientWidth;
-  //     const gap = 15;
-  //     // containerRef.current.childNodes.forEach((currentItem) => {
-  //     //   if (currentItem.className.startsWith('_bottom')) {
-  //     //     const percent = (currentItem.clientWidth / containerWidth) * 100;
-  //     //     console.log('xxx width', currentItem.clientWidth);
-
-  //     //     currentItem.style.maxWidth = `calc(${percent}%)`;
-
-  //     //   }
-  //     // });
-  //     containerRef.current.childNodes.forEach((currentItem) => {
-  //       if (currentItem.className.startsWith('_topcenter')) {
-  //         // const percent = (currentItem.clientWidth / containerWidth) * 100;
-  //         // console.log('xxx width', currentItem.clientWidth);
-
-  //         // currentItem.style.maxWidth = `calc(${percent}%)`;
-  //         console.log('yyy', currentItem.clientWidth);
-  //       }
-  //     });
-  //   }
-  // }, [containerRef, windowWidth]);
-
   useEffect(() => {
     if (containerRef) {
       const containerWidth = containerRef.current?.clientWidth;
       console.log('www containerWidth', containerWidth);
-    }
-    if (windowWidth < 655 && screenSizeWatcher !== 'mobile') {
-      setScreenSizeWatcher('mobile');
-      console.log('xxx calback mobile');
-      onResponsiveCollapse('mobile');
-    } else if (windowWidth > 654 && screenSizeWatcher !== 'screen') {
-      setScreenSizeWatcher('screen');
-      console.log('xxx calback screen');
-      onResponsiveCollapse('screen');
-    }
 
-    let bottomRightShift = 0;
-    containerRef.current.childNodes.forEach((currentItem) => {
-      if (currentItem.className.startsWith('_bottomright')) {
-        console.log('yyy width', currentItem.clientHeight);
-        console.log('yyy width', currentItem.clientWidth);
-
-        if (bottomRightShift > 0) {
-          currentItem.style.bottom = bottomRightShift + 'px';
-        }
-
-        bottomRightShift += currentItem.clientHeight + 10;
+      if (
+        containerWidth &&
+        containerWidth < bottomCollapsBrake &&
+        screenSizeWatcher !== 'mobile'
+      ) {
+        setScreenSizeWatcher('mobile');
+        console.log('xxx calback mobile');
+        onResponsiveCollapse('mobile');
+      } else if (
+        containerWidth &&
+        containerWidth > bottomCollapsBrake &&
+        screenSizeWatcher !== 'screen'
+      ) {
+        setScreenSizeWatcher('screen');
+        console.log('xxx calback screen');
+        onResponsiveCollapse('screen');
       }
-    });
+
+      let bottomRightShift = 0;
+      containerRef.current.childNodes.forEach((currentItem) => {
+        if (currentItem.className.startsWith('_bottomright')) {
+          if (bottomRightShift > 0) {
+            currentItem.style.bottom = bottomRightShift + 'px';
+          }
+
+          bottomRightShift += currentItem.clientHeight + 10;
+        }
+      });
+    }
   }, [containerRef, windowWidth, screenSizeWatcher]);
 
   return (
@@ -187,7 +153,6 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
             return (
               <>
                 {allPositions[position].map((component, idx) => {
-                  console.log('yyy', component);
                   return (
                     <div
                       className={`${styles[position]} ${
