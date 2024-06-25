@@ -271,7 +271,7 @@ export const ResponsiveControlWithTwoColumns = () => {
 export const ResponsiveCollapsWithTwoColumnsOnBottom = () => {
   const [containerWidth, setContainerWidth] = useState(null);
   const containerRef = useRef<HTMLDivElement>(null);
-
+  const [layoutHeight, setLayoutHeight] = useState(null);
   useEffect(() => {
     if (containerRef) {
       setContainerWidth({
@@ -279,7 +279,7 @@ export const ResponsiveCollapsWithTwoColumnsOnBottom = () => {
         height: `${containerRef.current?.clientHeight}px`,
       });
     }
-  }, [containerRef]);
+  }, [containerRef, layoutHeight]);
   return (
     <TopicMapContextProvider
       appKey="OnlineBaederkarteWuppertal2022"
@@ -302,6 +302,7 @@ export const ResponsiveCollapsWithTwoColumnsOnBottom = () => {
         onResponsiveCollapse={(collapseEvent) => {
           console.log('xxx', collapseEvent);
         }}
+        onHeightResize={setLayoutHeight}
       >
         <Control position="topleft" order={40}>
           <ControlButtonStyler>
@@ -323,10 +324,10 @@ export const ResponsiveCollapsWithTwoColumnsOnBottom = () => {
             <MenuOutlined />
           </ControlButtonStyler>
         </Control>
-        <Control position="bottomleft" order={1}>
+        <Control position="bottomleft" order={1} fullCollapseWidth={true}>
           <GazetteerSearchComponent />
         </Control>
-        <Control position="bottomright" order={1}>
+        <Control position="bottomright" order={1} fullCollapseWidth={true}>
           <div
             style={{
               width: '300px',
@@ -339,7 +340,6 @@ export const ResponsiveCollapsWithTwoColumnsOnBottom = () => {
           >
             Info Box
           </div>
-          {/* <GenericInfoBoxFromFeature pixelwidth={300} /> */}
         </Control>
 
         <Main ref={containerRef}>
@@ -531,6 +531,7 @@ export const ResponsiveDebugMode = () => {
   const [containerWidth, setContainerWidth] = useState(null);
   const [resonsiveCollapse, setResonsiveCollapse] = useState(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [layoutHeight, setLayoutHeight] = useState(null);
 
   useEffect(() => {
     if (containerRef) {
@@ -539,7 +540,7 @@ export const ResponsiveDebugMode = () => {
         height: `${containerRef.current?.clientHeight}px`,
       });
     }
-  }, [containerRef]);
+  }, [containerRef, layoutHeight]);
 
   return (
     <TopicMapContextProvider
@@ -564,6 +565,7 @@ export const ResponsiveDebugMode = () => {
           setResonsiveCollapse(collapseEvent);
         }}
         debugMode={true}
+        onHeightResize={setLayoutHeight}
       >
         <Control position="topleft" order={40}>
           <ControlButtonStyler>
@@ -644,6 +646,7 @@ export const CalculateResponsiveBrake = () => {
   const [containerWidth, setContainerWidth] = useState(null);
   const [resonsiveCollapse, setResonsiveCollapse] = useState(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [layoutHeight, setLayoutHeight] = useState(null);
 
   useEffect(() => {
     if (containerRef) {
@@ -652,7 +655,7 @@ export const CalculateResponsiveBrake = () => {
         height: `${containerRef.current?.clientHeight}px`,
       });
     }
-  }, [containerRef]);
+  }, [containerRef, layoutHeight]);
 
   return (
     <TopicMapContextProvider
@@ -676,6 +679,7 @@ export const CalculateResponsiveBrake = () => {
         onResponsiveCollapse={(collapseEvent) => {
           setResonsiveCollapse(collapseEvent);
         }}
+        onHeightResize={setLayoutHeight}
       >
         <Control
           position="bottomright"

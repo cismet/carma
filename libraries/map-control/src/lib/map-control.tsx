@@ -180,7 +180,6 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
       }`}
       style={{
         height: layoutHeight ? `${layoutHeight}px` : 'calc(100vh - 30px)',
-        border: '1px solid red',
       }}
     >
       <div
