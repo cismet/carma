@@ -8,6 +8,7 @@ export interface ControlLayoutProps {
   onResponsiveCollapse?: Function;
   onHeightResize?: Function;
   debugMode?: boolean;
+  ifStorybook: boolean;
 }
 
 export interface AllPositions {
@@ -100,6 +101,7 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
   onResponsiveCollapse = () => console.log(),
   debugMode = false,
   onHeightResize = () => {},
+  ifStorybook = true,
 }) => {
   const [windowWidth, setWindowWidth] = useState(0);
   const [layoutHeight, setLayoutHeight] = useState(null);
@@ -121,7 +123,7 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
 
   const handleResize = () => {
     setWindowWidth(window.innerWidth);
-    setLayoutHeight(window.innerHeight - 30);
+    setLayoutHeight(ifStorybook ? window.innerHeight - 28 : window.innerHeight);
   };
   useEffect(() => {
     window.addEventListener('resize', handleResize);
