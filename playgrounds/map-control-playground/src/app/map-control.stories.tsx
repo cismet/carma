@@ -23,6 +23,7 @@ import {
   Control,
   Main,
   ControlButtonStyler,
+  ControlCenterStyler,
 } from '@carma/map-control';
 import {
   AimOutlined,
@@ -407,20 +408,9 @@ export const ResponsiveThreeColumnsOnTop = () => {
           </ControlButtonStyler>
         </Control>
         <Control position="topcenter" order={30}>
-          <div
-            style={{
-              ...iconPadding,
-              fontSize: '14px',
-              opacity: 0.9,
-              width: '100%',
-              maxWidth: '100%',
-              height: '100%',
-              padding: '5px 4px',
-              border: 'none',
-            }}
-          >
+          <ControlCenterStyler>
             <div>Center controller</div>
-          </div>
+          </ControlCenterStyler>
         </Control>
         <Main ref={containerRef}>
           <Map mapStyle={containerWidth} />
@@ -687,7 +677,6 @@ export const CalculateResponsiveBrake = () => {
         onResponsiveCollapse={(collapseEvent) => {
           setResonsiveCollapse(collapseEvent);
         }}
-        debugMode={true}
       >
         <Control
           position="bottomright"
