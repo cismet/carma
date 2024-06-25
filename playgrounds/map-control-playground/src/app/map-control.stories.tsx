@@ -424,7 +424,7 @@ export const ResponsiveAllPosition = () => {
   const [containerWidth, setContainerWidth] = useState(null);
   const [resonsiveCollapse, setResonsiveCollapse] = useState(null);
   const containerRef = useRef<HTMLDivElement>(null);
-
+  const [layoutHeight, setLayoutHeight] = useState(null);
   useEffect(() => {
     if (containerRef) {
       setContainerWidth({
@@ -432,7 +432,7 @@ export const ResponsiveAllPosition = () => {
         height: `${containerRef.current?.clientHeight}px`,
       });
     }
-  }, [containerRef]);
+  }, [containerRef, layoutHeight]);
 
   return (
     <TopicMapContextProvider
@@ -456,6 +456,7 @@ export const ResponsiveAllPosition = () => {
         onResponsiveCollapse={(collapseEvent) => {
           setResonsiveCollapse(collapseEvent);
         }}
+        onHeightResize={setLayoutHeight}
       >
         <Control position="topleft" order={10}>
           <ControlButtonStyler height="63px" fontSize="14px">

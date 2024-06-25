@@ -6,6 +6,7 @@ import Main from './components/Main';
 export interface ControlLayoutProps {
   children: ReactNode;
   onResponsiveCollapse?: Function;
+  onHeightResize?: Function;
   debugMode?: boolean;
 }
 
@@ -85,8 +86,10 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
   children,
   onResponsiveCollapse = () => console.log(),
   debugMode = false,
+  onHeightResize = () => {},
 }) => {
   const [windowWidth, setWindowWidth] = useState(0);
+  const [layoutHeight, setLayoutHeight] = useState(null);
   const [screenSizeWatcher, setScreenSizeWatcher] = useState('');
   const {
     allPositions,
@@ -105,6 +108,7 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
 
   const handleResize = () => {
     setWindowWidth(window.innerWidth);
+    setLayoutHeight(window.innerHeight - 30);
   };
   useEffect(() => {
     window.addEventListener('resize', handleResize);
@@ -117,11 +121,12 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
 
   useEffect(() => {
     if (containerRef) {
-      if (!mainComponent) {
-        throw new Error('ControlLayout requires a Main component as a child.');
-      }
+      // if (!mainComponent) {
+      //   throw new Error('ControlLayout requires a Main component as a child.');
+      // }
 
       const containerWidth = containerRef.current?.clientWidth;
+      // setLayoutHeight(containerRef.current.clientHeight);
       if (
         containerWidth &&
         containerWidth < bottomCollapsBrake &&
@@ -164,11 +169,19 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
     }
   }, [containerRef, windowWidth, screenSizeWatcher]);
 
+  useEffect(() => {
+    onHeightResize(layoutHeight);
+  }, [layoutHeight]);
+
   return (
     <div
       className={`${styles['container']} ${
         debugMode ? styles['debug-mode'] : ''
       }`}
+      style={{
+        height: layoutHeight ? `${layoutHeight}px` : 'calc(100vh - 30px)',
+        border: '1px solid red',
+      }}
     >
       <div
         className={`${styles['controls-container']} ${
