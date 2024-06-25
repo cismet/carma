@@ -82,6 +82,19 @@ const buildLayoutControlsChildren = (children: ReactNode) => {
   };
 };
 
+const buildChildHiegthWithBottomShift = (childNodes, className, gap) => {
+  let bottomShift = 0;
+  childNodes.forEach((currentItem) => {
+    if (currentItem.className.startsWith(className)) {
+      if (bottomShift > 0) {
+        currentItem.style.bottom = bottomShift + 'px';
+      }
+
+      bottomShift += currentItem.clientHeight + gap;
+    }
+  });
+};
+
 const ControlLayout: React.FC<ControlLayoutProps> = ({
   children,
   onResponsiveCollapse = () => console.log(),
@@ -126,7 +139,7 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
       // }
 
       const containerWidth = containerRef.current?.clientWidth;
-      // setLayoutHeight(containerRef.current.clientHeight);
+
       if (
         containerWidth &&
         containerWidth < bottomCollapsBrake &&
@@ -145,27 +158,11 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
         onResponsiveCollapse('screen');
       }
 
-      let bottomRightShift = 0;
-      containerRef.current.childNodes.forEach((currentItem) => {
-        if (currentItem.className.startsWith('_bottomright')) {
-          if (bottomRightShift > 0) {
-            currentItem.style.bottom = bottomRightShift + 'px';
-          }
+      const childNodes = containerRef.current.childNodes;
 
-          bottomRightShift += currentItem.clientHeight + 10;
-        }
-      });
+      buildChildHiegthWithBottomShift(childNodes, '_bottomright', 10);
 
-      let bottomLeftShift = 0;
-      containerRef.current.childNodes.forEach((currentItem) => {
-        if (currentItem.className.startsWith('_bottomleft')) {
-          if (bottomLeftShift > 0) {
-            currentItem.style.bottom = bottomLeftShift + 'px';
-          }
-
-          bottomLeftShift += currentItem.clientHeight + 10;
-        }
-      });
+      buildChildHiegthWithBottomShift(childNodes, '_bottomleft', 10);
     }
   }, [containerRef, windowWidth, screenSizeWatcher]);
 
