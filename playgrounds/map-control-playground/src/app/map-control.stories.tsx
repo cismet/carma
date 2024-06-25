@@ -501,7 +501,7 @@ export const ResponsiveAllPosition = () => {
             <div>Center controller</div>
           </div>
         </Control>
-        <Control position="bottomleft" order={10}>
+        <Control position="bottomleft" order={10} fullCollapseWidth={true}>
           <GazetteerSearchComponent />
         </Control>
         <Control position="bottomright" order={10} fullCollapseWidth={true}>
@@ -517,8 +517,6 @@ export const ResponsiveAllPosition = () => {
           >
             Info Box
           </div>
-
-          {/* <GenericInfoBoxFromFeature pixelwidth={300} /> */}
         </Control>
         <Main ref={containerRef}>
           <Map mapStyle={containerWidth} />

@@ -16,19 +16,12 @@ export interface AllPositions {
   bottomright?: ControlProps[];
 }
 
-const ControlLayout: React.FC<ControlLayoutProps> = ({
-  children,
-  onResponsiveCollapse = () => console.log(),
-  debugMode = false,
-}) => {
-  const [windowWidth, setWindowWidth] = useState(0);
-  const [screenSizeWatcher, setScreenSizeWatcher] = useState('');
-  const allPositions: AllPositions = {};
+const buildLayoutControlsChildren = (children: ReactNode) => {
   let mainComponent: React.ReactElement | null = null;
-  const containerRef = useRef<HTMLDivElement>(null);
   let bottomLeftBiggestWidth = 300;
   let bottomRightBiggestWidth = 300;
-  const bottomGap = 26;
+  const allPositions: AllPositions = {};
+
   React.Children.forEach(children, (child) => {
     if (React.isValidElement(child)) {
       if (child.type === Control) {
@@ -79,6 +72,31 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
       }
     }
   });
+
+  return {
+    mainComponent,
+    allPositions,
+    bottomLeftBiggestWidth,
+    bottomRightBiggestWidth,
+  };
+};
+
+const ControlLayout: React.FC<ControlLayoutProps> = ({
+  children,
+  onResponsiveCollapse = () => console.log(),
+  debugMode = false,
+}) => {
+  const [windowWidth, setWindowWidth] = useState(0);
+  const [screenSizeWatcher, setScreenSizeWatcher] = useState('');
+  const {
+    allPositions,
+    mainComponent,
+    bottomLeftBiggestWidth,
+    bottomRightBiggestWidth,
+  } = buildLayoutControlsChildren(children);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const bottomGap = 26;
 
   const bottomCollapsBrake =
     bottomLeftBiggestWidth + bottomGap + bottomRightBiggestWidth;
