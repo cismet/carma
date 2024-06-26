@@ -187,6 +187,7 @@ function SearchComponent({
       const fuse = new Fuse(allGazeteerData, fuseAddressesOptions);
       const removeStopWords = removeStopwords(value, stopwords);
       const result = fuse.search(removeStopWords);
+      console.log('xxx res', result[0]);
       if (!showCategories) {
         setOptions(generateOptions(result));
       } else {
@@ -197,7 +198,6 @@ function SearchComponent({
   };
 
   const handleOnSelect = (option) => {
-    console.log('xxx clean');
     setCleanBtnDisable(false);
     internalGazetteerHitTrigger([option.sData]);
     if (option.sData.type === 'bezirke' || option.sData.type === 'quartiere') {
@@ -267,6 +267,7 @@ function SearchComponent({
           placeholder="Stadtteil | Adresse | POI"
           value={value}
           onSelect={(value, option) => handleOnSelect(option)}
+          defaultActiveFirstOption={true}
         />
       ) : (
         <AutoComplete
