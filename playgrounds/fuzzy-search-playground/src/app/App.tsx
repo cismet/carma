@@ -53,7 +53,6 @@ export const getGazData = async (
     prefix,
     host + '/data/3857/bpklimastandorte.json'
   );
-  // sources.no2 = await md5FetchText(prefix, host + "/data/3857/no2.json");
 
   const gazData = getGazDataForTopicIds(sources, topics);
 
@@ -82,41 +81,12 @@ export function App() {
   }, [overlayFeature]);
 
   return (
-    <TopicMapContextProvider
-      appKey="OnlineBaederkarteWuppertal2022"
-      featureItemsURL={
-        'https://wupp-topicmaps-data.cismet.de/data/baeder.data.json'
-      }
-      referenceSystemDefinition={MappingConstants.proj4crs25832def}
-      mapEPSGCode="25832"
-      referenceSystem={MappingConstants.crs25832}
-      getFeatureStyler={getFeatureStyler}
-      featureTooltipFunction={(feature) => feature?.text}
-      convertItemToFeature={convertItemToFeature}
-    >
+    <TopicMapContextProvider>
       <TopicMapComponent
         gazData={gazData}
-        infoBox={
-          <GenericInfoBoxFromFeature
-            config={{
-              city: 'Wuppertal',
-              header: 'Parkscheinautomat',
-              navigator: {
-                noun: {
-                  singular: 'Parkscheinautomat',
-                  plural: 'Parkscheinautomaten',
-                },
-              },
-              noCurrentFeatureTitle: 'Keine Parkscheinautomaten gefunden',
-              noCurrentFeatureContent: '',
-            }}
-          />
-        }
         gazetteerSearchComponent={SearchComponent}
         _gazetteerSearchComponent={GazetteerSearchComponent}
-      >
-        <FeatureCollection />
-      </TopicMapComponent>
+      ></TopicMapComponent>
     </TopicMapContextProvider>
   );
 }
