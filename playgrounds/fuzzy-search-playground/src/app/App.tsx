@@ -10,8 +10,14 @@ import GazetteerHitDisplay from 'react-cismap/GazetteerHitDisplay';
 import GazetteerSearchComponent from 'react-cismap/GazetteerSearchComponent';
 import GenericInfoBoxFromFeature from 'react-cismap/topicmaps/GenericInfoBoxFromFeature';
 import FeatureCollection from 'react-cismap/FeatureCollection';
-import { MappingConstants, RoutedMap } from 'react-cismap';
+import { MappingConstants } from 'react-cismap';
+import convertItemToFeature from './helper/convertItemToFeature';
 import { md5FetchText, fetchJSON } from 'react-cismap/tools/fetching';
+
+import {
+  getFeatureStyler,
+  getPoiClusterIconCreatorFunction,
+} from './helper/styler';
 
 const host = 'https://wupp-topicmaps-data.cismet.de';
 
@@ -76,7 +82,18 @@ export function App() {
   }, [overlayFeature]);
 
   return (
-    <TopicMapContextProvider featureItemsURL="/data/parkscheinautomatenfeatures.json">
+    <TopicMapContextProvider
+      appKey="OnlineBaederkarteWuppertal2022"
+      featureItemsURL={
+        'https://wupp-topicmaps-data.cismet.de/data/baeder.data.json'
+      }
+      referenceSystemDefinition={MappingConstants.proj4crs25832def}
+      mapEPSGCode="25832"
+      referenceSystem={MappingConstants.crs25832}
+      getFeatureStyler={getFeatureStyler}
+      featureTooltipFunction={(feature) => feature?.text}
+      convertItemToFeature={convertItemToFeature}
+    >
       <TopicMapComponent
         gazData={gazData}
         infoBox={
