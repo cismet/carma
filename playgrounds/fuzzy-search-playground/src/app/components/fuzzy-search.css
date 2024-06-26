@@ -42,3 +42,8 @@
     rgb(224, 224, 224) 100%
   );
 }
+
+.ant-btn-default:disabled {
+  border-color: rgba(255, 255, 255, 0) !important;
+  color: #495057 !important;
+}

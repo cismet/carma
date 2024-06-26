@@ -5,6 +5,9 @@ import { CloseOutlined } from '@ant-design/icons';
 import { builtInGazetteerHitTrigger } from 'react-cismap/tools/gazetteerHelper';
 import './fuzzy-search.css';
 import IconComp from 'react-cismap/commons/Icon';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+// import { location-dot } from '@fortawesome/free-solid-svg-icons';
+import { faLocationDot } from '@fortawesome/free-solid-svg-icons';
 
 const renderTitle = (category) => {
   let title = '???';
@@ -172,7 +175,7 @@ function SearchComponent({
   const [searchResult, setSearchResult] = useState([]);
   const [allGazeteerData, setAllGazeteerData] = useState([]);
   const [value, setValue] = useState('');
-
+  const [cleanBtnDisable, setCleanBtnDisable] = useState(true);
   const handleSearchAutoComplete = (value) => {
     if (allGazeteerData.length > 0) {
       const fuseAddressesOptions = {
@@ -194,6 +197,8 @@ function SearchComponent({
   };
 
   const handleOnSelect = (option) => {
+    console.log('xxx clean');
+    setCleanBtnDisable(false);
     internalGazetteerHitTrigger([option.sData]);
     if (option.sData.type === 'bezirke' || option.sData.type === 'quartiere') {
       setGazetteerHit(null);
@@ -211,6 +216,10 @@ function SearchComponent({
 
   useEffect(() => {}, [showCategories]);
 
+  useEffect(() => {
+    console.log('xxx clean status', cleanBtnDisable);
+  }, [cleanBtnDisable]);
+
   const handleShowCategories = (e) => {
     setSfStandardSearch(e.target.checked);
     setOptions([]);
@@ -227,15 +236,27 @@ function SearchComponent({
       className="fuzzy-search-container"
     >
       <Button
-        icon={<IconComp name="close" />}
-        className="clear-fuzzy-button"
+        icon={
+          cleanBtnDisable ? (
+            <FontAwesomeIcon icon={faLocationDot} />
+          ) : (
+            <IconComp name="close" />
+          )
+        }
+        className={
+          cleanBtnDisable
+            ? 'clear-fuzzy-button'
+            : 'clear-fuzzy-button clear-fuzzy-button__active'
+        }
         onClick={() => {
           setGazetteerHit(null);
           setValue('');
           setOptions([]);
           setSearchResult([]);
           setOverlayFeature(null);
+          setCleanBtnDisable(true);
         }}
+        disabled={cleanBtnDisable}
       />
       {!showCategories ? (
         <AutoComplete
