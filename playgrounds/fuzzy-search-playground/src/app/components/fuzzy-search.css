@@ -20,12 +20,25 @@
 }
 
 .clear-fuzzy-button {
-  background-color: rgb(224, 224, 224);
+  background-color: #e0e0e0;
   border-color: rgba(255, 255, 255, 0);
-  /* border-radius: 0.25rem; */
+  border-radius: 0.25rem;
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
   /* display: inline-block; */
   font-weight: 400;
-  opacity: 0.69;
+  opacity: 0.65;
+}
+
+.clear-fuzzy-button__active {
+  /* background-color: #007bff; */
+  /* background-color: #007bff;
+  border-color: #007bff; */
+  border: 1px solid #007bff;
+  opacity: 1;
+  color: black;
+  background-image: linear-gradient(
+    rgb(255, 255, 255) 0px,
+    rgb(224, 224, 224) 100%
+  );
 }
