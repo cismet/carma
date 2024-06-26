@@ -3,6 +3,8 @@ import Fuse from 'fuse.js';
 import { AutoComplete, Button, Checkbox } from 'antd';
 import { CloseOutlined } from '@ant-design/icons';
 import { builtInGazetteerHitTrigger } from 'react-cismap/tools/gazetteerHelper';
+import './fuzzy-search.css';
+import IconComp from 'react-cismap/commons/Icon';
 
 const renderTitle = (category) => {
   let title = '???';
@@ -152,7 +154,7 @@ function SearchComponent({
   const _gazetteerHitTrigger = undefined;
   const inputStyle = {
     width: 'calc(100% - 32px)',
-    borderRadius: '2px',
+    borderTopLeftRadius: 0,
   };
 
   const internalGazetteerHitTrigger = (hit) => {
@@ -192,7 +194,6 @@ function SearchComponent({
   };
 
   const handleOnSelect = (option) => {
-    console.log('hhh', option);
     internalGazetteerHitTrigger([option.sData]);
     if (option.sData.type === 'bezirke' || option.sData.type === 'quartiere') {
       setGazetteerHit(null);
@@ -202,8 +203,6 @@ function SearchComponent({
   };
 
   useEffect(() => {
-    console.log('bbb', gazData);
-
     if (gazData) {
       const allModifiedData = prepareGazData(gazData);
       setAllGazeteerData(allModifiedData);
@@ -225,10 +224,11 @@ function SearchComponent({
         marginTop: '20px',
         width: pixelwidth,
       }}
+      className="fuzzy-search-container"
     >
       <Button
-        icon={<CloseOutlined />}
-        style={{ borderRadius: '4px' }}
+        icon={<IconComp name="close" />}
+        className="clear-fuzzy-button"
         onClick={() => {
           setGazetteerHit(null);
           setValue('');
