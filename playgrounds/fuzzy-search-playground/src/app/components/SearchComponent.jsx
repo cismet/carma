@@ -55,7 +55,7 @@ function buildAddressWithIconUI(addresObj) {
     icon = addresObj.glyph;
   }
   const streetLabel = (
-    <div style={{ paddingLeft: '0.4rem' }}>
+    <div style={{ paddingLeft: '0.3rem' }}>
       <span style={{ marginRight: '0.4rem' }}>
         <i className={icon && 'fas ' + 'fa-' + icon}></i>
         {'  '}
@@ -80,7 +80,6 @@ const generateOptions = (results) => {
 };
 
 const mapDataToSearchResult = (data) => {
-  console.log('vvv', data);
   const splittedCategories = {};
 
   data.forEach((item) => {
@@ -175,19 +174,21 @@ function SearchComponent({
   const [searchResult, setSearchResult] = useState([]);
   const [allGazeteerData, setAllGazeteerData] = useState([]);
   const [value, setValue] = useState('');
+
   const [cleanBtnDisable, setCleanBtnDisable] = useState(true);
   const handleSearchAutoComplete = (value) => {
     if (allGazeteerData.length > 0) {
+      const searchParams = new URLSearchParams(window.location.hash);
       const fuseAddressesOptions = {
-        distance: 100,
+        distance: parseInt(searchParams.get('distance')) || 100,
+        threshold: parseFloat(searchParams.get('threshold')) || 0.5,
         useExtendedSearch: true,
-        threshold: 0.5,
         keys: ['xSearchData'],
       };
       const fuse = new Fuse(allGazeteerData, fuseAddressesOptions);
       const removeStopWords = removeStopwords(value, stopwords);
       const result = fuse.search(removeStopWords);
-      console.log('xxx res', result[0]);
+
       if (!showCategories) {
         setOptions(generateOptions(result));
       } else {
@@ -222,10 +223,6 @@ function SearchComponent({
   }, [gazData]);
 
   useEffect(() => {}, [showCategories]);
-
-  useEffect(() => {
-    console.log('xxx clean status', cleanBtnDisable);
-  }, [cleanBtnDisable]);
 
   const handleShowCategories = (e) => {
     setSfStandardSearch(e.target.checked);
