@@ -55,8 +55,8 @@ function buildAddressWithIconUI(addresObj) {
     icon = addresObj.glyph;
   }
   const streetLabel = (
-    <div>
-      <span>
+    <div style={{ paddingLeft: '0.4rem' }}>
+      <span style={{ marginRight: '0.4rem' }}>
         <i className={icon && 'fas ' + 'fa-' + icon}></i>
         {'  '}
       </span>
