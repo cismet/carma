@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Fuse from 'fuse.js';
 import { AutoComplete, Button, Checkbox } from 'antd';
 import { CloseOutlined } from '@ant-design/icons';
@@ -159,7 +159,7 @@ function SearchComponent({
     width: 'calc(100% - 32px)',
     borderTopLeftRadius: 0,
   };
-
+  const autoCompleteRef = useRef(null);
   const internalGazetteerHitTrigger = (hit) => {
     builtInGazetteerHitTrigger(
       hit,
@@ -196,6 +196,13 @@ function SearchComponent({
       }
     }
   };
+
+  useEffect(() => {
+    if (autoCompleteRef.current) {
+      const childNodes = autoCompleteRef.current;
+      autoCompleteRef.current.scrollTo(0);
+    }
+  }, [options]);
 
   const handleOnSelect = (option) => {
     setCleanBtnDisable(false);
@@ -260,6 +267,7 @@ function SearchComponent({
       />
       {!showCategories ? (
         <AutoComplete
+          ref={autoCompleteRef}
           options={options}
           style={inputStyle}
           onSearch={(value) => handleSearchAutoComplete(value)}
