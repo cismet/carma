@@ -86,6 +86,7 @@
     "stacktrace-js": "^2.0.2",
     "tailwind-merge": "^2.2.0",
     "tslib": "^2.3.0",
+    "tweakpane": "^4.0.3",
     "uuid": "^9.0.1",
     "wellknown": "^0.5.0",
     "whatwg-fetch": "^3.6.20",

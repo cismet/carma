@@ -15,43 +15,47 @@ import { routeGenerator } from './utils/routeGenerator';
 import 'leaflet/dist/leaflet.css';
 import { UIComponentProvider } from './components/UI/UIProvider';
 
+import { TweakpaneProvider } from '@carma/debug-ui';
+
 const ViewerRoutes = routeGenerator(viewerRoutes);
 const OtherRoutes = routeGenerator(otherRoutes);
 
 export function App() {
   return (
     <Provider store={store}>
-      <HashRouter>
-        <LocationProvider>
-          <UIComponentProvider>
-            <Navigation
-              className="leaflet-bar"
-              style={{
-                position: 'absolute',
-                top: 8,
-                left: '50%',
-                width: 'auto',
-                display: 'flex',
-                justifyContent: 'center',
-                transform: 'translate(-50%, 0)',
-                zIndex: 10,
-              }}
-              routes={[...viewerRoutes, ...otherRoutes]}
-            />
-            <Routes>
-              <Route
-                path="/*"
-                element={
-                  <CustomViewer>
-                    <Routes>{...ViewerRoutes}</Routes>
-                  </CustomViewer>
-                }
+      <TweakpaneProvider>
+        <HashRouter>
+          <LocationProvider>
+            <UIComponentProvider>
+              <Navigation
+                className="leaflet-bar"
+                style={{
+                  position: 'absolute',
+                  top: 8,
+                  left: '50%',
+                  width: 'auto',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  transform: 'translate(-50%, 0)',
+                  zIndex: 10,
+                }}
+                routes={[...viewerRoutes, ...otherRoutes]}
               />
-              {...OtherRoutes}
-            </Routes>
-          </UIComponentProvider>
-        </LocationProvider>
-      </HashRouter>
+              <Routes>
+                <Route
+                  path="/*"
+                  element={
+                    <CustomViewer>
+                      <Routes>{...ViewerRoutes}</Routes>
+                    </CustomViewer>
+                  }
+                />
+                {...OtherRoutes}
+              </Routes>
+            </UIComponentProvider>
+          </LocationProvider>
+        </HashRouter>
+      </TweakpaneProvider>
     </Provider>
   );
 }
