@@ -1,5 +1,11 @@
 import React, { ReactNode, useCallback, useEffect, useState } from 'react';
-import { Color, HeadingPitchRange, Viewer, Math as CeMath } from 'cesium';
+import {
+  Color,
+  HeadingPitchRange,
+  Viewer,
+  Math as CeMath,
+  PerspectiveFrustum,
+} from 'cesium';
 import { Viewer as ResiumViewer } from 'resium';
 import Crosshair from '../UI/Crosshair';
 import SearchWrapper from './components/SearchWrapper';
@@ -18,6 +24,7 @@ import { useLocation } from 'react-router-dom';
 import useInitializeViewer from './hooks';
 import TopicMap from './components/TopicMap';
 import { TopicMapContextProvider } from 'react-cismap/contexts/TopicMapContextProvider';
+import { useSliderBlade, useTweakpaneCtx } from '@carma/debug-ui';
 
 type CustomViewerProps = {
   children?: ReactNode;
@@ -51,6 +58,32 @@ function CustomViewer(props: CustomViewerProps) {
   const isSecondaryStyle = useShowSecondaryTileset();
   const isMode2d = useViewerIsMode2d();
   //const isAnimating = useViewerIsAnimating();
+
+  // DEV TWEAKPANE
+
+  const pane = useTweakpaneCtx(
+    {},
+    {
+      title: 'Scene Settings',
+    }
+  );
+
+  const [fov] = useSliderBlade(pane, {
+    label: 'FOV',
+    value: Math.PI / 3,
+    min: 0,
+    max: Math.PI / 2,
+    step: 0.01,
+    format: (value) => value.toFixed(2),
+  });
+
+  const [renderResolution] = useSliderBlade(pane, {
+    label: 'Render Resolution',
+    value: 0,
+    min: -4,
+    max: 2,
+    format: (value) => Math.pow(2, Math.round(value)).toString(),
+  });
 
   const {
     children,
@@ -113,6 +146,18 @@ function CustomViewer(props: CustomViewerProps) {
   const location = useLocation();
 
   useInitializeViewer(viewer, home, homeOffset);
+
+  useEffect(() => {
+    if (viewer && fov && renderResolution) {
+      if (viewer.scene && viewer.scene.camera) {
+        const { frustum } = viewer.scene.camera;
+        if (frustum instanceof PerspectiveFrustum) {
+          frustum.fov = fov; // Update the camera's FOV
+        }
+      }
+      viewer.resolutionScale = Math.pow(2, Math.round(renderResolution));
+    }
+  }, [fov, renderResolution, viewer]); // Depend on fov and viewer states
 
   useEffect(() => {
     if (viewer) {
