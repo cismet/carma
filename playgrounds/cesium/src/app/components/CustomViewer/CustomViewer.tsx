@@ -24,7 +24,7 @@ import { useLocation } from 'react-router-dom';
 import useInitializeViewer from './hooks';
 import TopicMap from './components/TopicMap';
 import { TopicMapContextProvider } from 'react-cismap/contexts/TopicMapContextProvider';
-import { useSliderBlade, useTweakpaneCtx } from '@carma/debug-ui';
+import { useTweakpaneCtx } from '@carma/debug-ui';
 
 type CustomViewerProps = {
   children?: ReactNode;
@@ -59,32 +59,6 @@ function CustomViewer(props: CustomViewerProps) {
   const isMode2d = useViewerIsMode2d();
   //const isAnimating = useViewerIsAnimating();
 
-  // DEV TWEAKPANE
-
-  const pane = useTweakpaneCtx(
-    {},
-    {
-      title: 'Scene Settings',
-    }
-  );
-
-  const [fov] = useSliderBlade(pane, {
-    label: 'FOV',
-    value: Math.PI / 3,
-    min: 0,
-    max: Math.PI / 2,
-    step: 0.01,
-    format: (value) => value.toFixed(2),
-  });
-
-  const [renderResolution] = useSliderBlade(pane, {
-    label: 'Render Resolution',
-    value: 0,
-    min: -4,
-    max: 2,
-    format: (value) => Math.pow(2, Math.round(value)).toString(),
-  });
-
   const {
     children,
     className,
@@ -105,6 +79,74 @@ function CustomViewer(props: CustomViewerProps) {
   // const leafletElement =    topicMapContext?.routedMapRef?.leafletMap?.leafletElement;
 
   const [isUserAction, setIsUserAction] = useState(false);
+  // DEV TWEAKPANE
+
+  // Create a callback function to set the FOV
+
+  useTweakpaneCtx(
+    {
+      title: 'Camera Settings',
+    },
+    {
+      get fov() {
+        return (viewer?.scene.camera.frustum as PerspectiveFrustum)?.fov || 1.0;
+      },
+
+      set fov(value: number) {
+        if (
+          viewer &&
+          viewer.scene.camera.frustum instanceof PerspectiveFrustum &&
+          !Number.isNaN(value)
+        ) {
+          viewer.scene.camera.frustum.fov = value;
+        }
+      },
+    },
+
+    [
+      {
+        name: 'fov',
+        label: 'FOV',
+        min: 0,
+        max: Math.PI,
+        step: 0.01,
+        format: (v) => `${parseFloat(CeMath.toDegrees(v).toFixed(2))}°`,
+      },
+    ]
+  );
+
+  useTweakpaneCtx(
+    {
+      title: 'Scene Settings',
+    },
+    {
+      get resolutionScale() {
+        return viewer?.resolutionScale || 1.0;
+      },
+      set resolutionScale(v) {
+        if (viewer) {
+          viewer.resolutionScale = v;
+        }
+      },
+    },
+
+    [
+      {
+        name: 'resolutionScale',
+        options: {
+          'LQ 1/8': 1 / 8,
+          'LQ 1/4': 1 / 4,
+          'LQ 1/3': 1 / 3,
+          'SQ 1/2': 1 / 2,
+          'HQ 1 pixelPerfect': 1,
+          'HQ 2': 2,
+          'HQ 3': 3,
+          'HQ 4': 4,
+        },
+        //label: 'Globe Base Color',
+      },
+    ]
+  );
 
   useEffect(() => {
     if (!viewer) return;
@@ -146,18 +188,6 @@ function CustomViewer(props: CustomViewerProps) {
   const location = useLocation();
 
   useInitializeViewer(viewer, home, homeOffset);
-
-  useEffect(() => {
-    if (viewer && fov && renderResolution) {
-      if (viewer.scene && viewer.scene.camera) {
-        const { frustum } = viewer.scene.camera;
-        if (frustum instanceof PerspectiveFrustum) {
-          frustum.fov = fov; // Update the camera's FOV
-        }
-      }
-      viewer.resolutionScale = Math.pow(2, Math.round(renderResolution));
-    }
-  }, [fov, renderResolution, viewer]); // Depend on fov and viewer states
 
   useEffect(() => {
     if (viewer) {

@@ -6,39 +6,67 @@ import React, {
   useState,
   ReactNode,
 } from 'react';
-import { useTweakpane } from './react-tweakpane-patched';
-import { PaneConfig } from 'tweakpane/dist/types/pane/pane-config';
-import {
-  useSliderBlade,
-  useListBlade,
-  usePaneFolder,
-  usePaneInput,
-  useTextBlade,
-} from './react-tweakpane-patched';
+import { FolderApi, Pane } from 'tweakpane';
+import localForage from 'localforage';
 
 interface TweakpaneContextType {
-  isEnabled: boolean;
-  containerRef: React.RefObject<HTMLDivElement>;
+  //isEnabled: boolean;
+  paneRef: React.RefObject<Pane | null>;
 }
 
-const eventKey = 'F8';
+const eventKeys = ['~', 'F12']; //
+const localForageKey = 'tweakpaneEnabled';
 
 const TweakpaneContext = createContext<TweakpaneContextType | null>(null);
 
-const useTweakpaneCtx = (params, config: PaneConfig) => {
+interface Input {
+  label?: string;
+  name: string;
+  [key: string]: unknown;
+}
+
+interface FolderConfig {
+  title: string;
+  expanded?: boolean;
+}
+
+export const useTweakpaneCtx = (
+  folderConfig: FolderConfig,
+  params: { [key: string]: unknown },
+  inputs: Input[]
+) => {
   const context = useContext(TweakpaneContext);
+  const folderRef = useRef<FolderApi | null>(null);
 
   if (!context) {
     throw new Error('useTweakpane must be used within a TweakpaneProvider');
   }
 
-  console.log('PROVIDER: TweakpaneProvider', context.containerRef.current);
+  const pane = context.paneRef.current;
 
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  return useTweakpane(params, {
-    ...config,
-    container: context.containerRef.current!,
-  });
+  useEffect(() => {
+    if (!pane) return;
+    folderRef.current = pane.addFolder(folderConfig);
+    inputs.forEach((input) => {
+      folderRef.current &&
+        folderRef.current.addBinding(params, input.name, input);
+    });
+
+    return () => {
+      folderRef.current && folderRef.current.dispose();
+      folderRef.current = null;
+    };
+  }, [folderConfig, params, inputs, pane]);
+
+  const folderCallback = (fn: (folder: FolderApi) => void) => {
+    if (folderRef.current) {
+      fn(folderRef.current);
+    } else {
+      console.warn('Folder not initialized yet');
+    }
+  };
+
+  return { folderRef, folderCallback };
 };
 
 const TweakpaneProvider: React.FC<{
@@ -47,20 +75,28 @@ const TweakpaneProvider: React.FC<{
 }> = ({ children, hashparam = 'dev' }) => {
   const [isEnabled, setIsEnabled] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const paneRef = useRef<Pane | null>(null);
 
   useEffect(() => {
-    const hashParams = new URLSearchParams(window.location.hash.slice(1));
-    const falsyStrings = ['false', '0', 'null', 'undefined'];
-    const value = hashParams.get(hashparam);
-    const isEnabledCheck = value !== null && !falsyStrings.includes(value);
-    console.log('HOOK: TweakpaneProvider', isEnabledCheck);
-    setIsEnabled(isEnabledCheck);
-    // Function to toggle isEnabled state
+    const checkHashAndStoredState = async () => {
+      const hashParams = new URLSearchParams(window.location.hash.slice(1));
+      const isEnabledFromHash = hashParams.has(hashparam);
+      const storedIsEnabled = await localForage.getItem(localForageKey);
 
+      const newIsEnabled = isEnabledFromHash || storedIsEnabled === true;
+      setIsEnabled(newIsEnabled);
+      await localForage.setItem(localForageKey, newIsEnabled);
+    };
+
+    checkHashAndStoredState();
+
+    // Define the function to toggle isEnabled state within useEffect
     const toggleTweakpane = (event: KeyboardEvent) => {
-      if (event.key === eventKey || event.key === 'b') {
-        setIsEnabled((prevState) => !prevState);
-        console.log('HOOK: TweakpaneProvider', isEnabled, event.key);
+      if (eventKeys.includes(event.key)) {
+        setIsEnabled((prevState) => {
+          localForage.setItem(localForageKey, !prevState);
+          return !prevState;
+        });
       }
     };
 
@@ -73,26 +109,44 @@ const TweakpaneProvider: React.FC<{
     };
   }, [hashparam]);
 
+  useEffect(() => {
+    if (!paneRef.current && containerRef.current) {
+      const pane = new Pane({
+        title: 'Debug Options',
+        container: containerRef.current,
+      });
+      paneRef.current = pane;
+    }
+
+    return () => {
+      if (paneRef.current) {
+        paneRef.current.dispose();
+        paneRef.current = null;
+      }
+    };
+  }, [containerRef]);
+
   return (
-    <TweakpaneContext.Provider value={{ isEnabled, containerRef }}>
+    <TweakpaneContext.Provider value={{ paneRef }}>
       <div
         ref={containerRef}
         id="tweakpane-container"
-        style={{ display: isEnabled ? 'absolute' : 'none' }}
+        style={{
+          position: 'absolute',
+          display: isEnabled ? 'block' : 'none',
+          top: 10,
+          left: 45,
+          zIndex: 10000,
+        }}
       ></div>
+
       {children}
     </TweakpaneContext.Provider>
   );
 };
 
 export {
-  useSliderBlade,
-  useListBlade,
-  usePaneFolder,
-  usePaneInput,
-  useTextBlade,
   //useTweakpane,
-  useTweakpaneCtx,
   TweakpaneProvider,
 };
 
