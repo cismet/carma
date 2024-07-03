@@ -1,7 +1,6 @@
 import { useContext } from 'react';
 import ControlContainer from '../../controls/ControlContainer';
 import ControlGroup from '../../controls/ControlGroup';
-import DebugInfo from '../../controls/DebugInfo';
 import HomeControl from '../../controls/HomeControl';
 import LockCenterControl from '../../controls/LockCenterControl';
 import OrbitControl from '../../controls/OrbitControl';
@@ -9,14 +8,12 @@ import ZoomControls from '../../controls/ZoomControls';
 import { UIComponentContext } from '../../UI/UIProvider';
 import { useViewerHome, useViewerIsMode2d } from '../../../store/slices/viewer';
 import Compass from '../../controls/Compass';
-import { Scene } from 'resium';
 import SceneStyleToggle from '../../controls/SceneStyleToggle';
 import MapTypeSwitcher from '../../controls/MapTypeSwitcher';
 
 const ControlsUI = ({
   showHome = true,
   showOrbit = true,
-  showDebug = false,
   searchComponent,
 }) => {
   const UI = useContext(UIComponentContext);
@@ -67,19 +64,6 @@ const ControlsUI = ({
           {!isMode2d && searchComponent}
         </ControlGroup>
       </ControlContainer>
-      {showDebug && (
-        <ControlContainer position="topright">
-          <ControlGroup
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'flex-end',
-            }}
-          >
-           <DebugInfo />
-          </ControlGroup>
-        </ControlContainer>
-      )}
     </div>
   );
 };

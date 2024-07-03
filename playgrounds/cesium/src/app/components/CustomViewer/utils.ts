@@ -75,7 +75,7 @@ type CodecKeys = {
   [K in HashKey]: (typeof hashcodecs)[K]['key'];
 };
 
-type FlatDecodedSceneHash = {
+export type FlatDecodedSceneHash = {
   [K in CodecKeys[keyof CodecKeys]]?: ReturnType<
     (typeof hashcodecs)[HashKey]['decode']
   >;
@@ -100,14 +100,15 @@ type AppState = {
   zoom?: number;
 };
 
+export type EncodedSceneParams = {
+  hashParams: Record<string, string>;
+  state: SceneStateDescription;
+};
+
 export function encodeScene(
   viewer: Viewer,
   appState: AppState = {}
-): {
-  hash: string;
-  hashParams: FlatDecodedSceneHash;
-  state: SceneStateDescription;
-} {
+): EncodedSceneParams {
   const { camera } = viewer;
   const { x, y, z } = camera.position;
 
@@ -142,9 +143,8 @@ export function encodeScene(
     return acc;
   }, {});
   //console.log('hashparams', hashparams);
-  const hash = new URLSearchParams(hashParams).toString();
+  //const hash = new URLSearchParams(hashParams).toString();
   return {
-    hash,
     hashParams,
     state: {
       camera: {
@@ -186,14 +186,24 @@ export function decodeSceneFromLocation(
 }
 
 export const replaceHashRoutedHistory = (
-  encodedScene: { hash: string; state: SceneStateDescription },
+  encodedScene: EncodedSceneParams,
   routedPath: string
 ) => {
   // this is method is used to avoid triggering rerenders from the HashRouter when updating the hash
-  console.log('replaceHashRoutedHistory sceneHash');
-  if (encodedScene.hash) {
-    const fullHashState = `#${routedPath}?${encodedScene.hash}`;
-    // console.log('updateSceneHash newState', state);
+  // console.log('replaceHashRoutedHistory sceneHash');
+  if (encodedScene.hashParams) {
+    const currentHash = window.location.hash.split('?')[1] || '';
+    const currentParams = Object.fromEntries(new URLSearchParams(currentHash));
+
+    const combinedParams = {
+      ...currentParams,
+      ...encodedScene.hashParams, // overwrite from state but keep others
+    };
+
+    const combinedSearchParams = new URLSearchParams(combinedParams);
+    const combinedHash = combinedSearchParams.toString();
+    const formattedHash = combinedHash.replace(/=&/g, '&').replace(/=$/, ''); // remove empty values
+    const fullHashState = `#${routedPath}?${formattedHash}`;
     // this is a workaround to avoid triggering rerenders from the HashRouter
     // navigate would cause rerenders
     // navigate(`${hashRouterPart}?${sceneHash}`, { replace: true });

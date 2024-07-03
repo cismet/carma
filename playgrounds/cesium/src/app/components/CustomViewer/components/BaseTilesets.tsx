@@ -15,7 +15,7 @@ import { useTweakpaneCtx } from '@carma/debug-ui';
 
 const preloadWhenHidden = true;
 let enableDebugWireframe = false;
-let baseScreenSpaceError = 1024;
+let maximumScreenSpaceError = 4; // 16 is default but quite Low Quality
 
 export const BaseTilesets = () => {
   const tilesets = useViewerDataSources().tilesets;
@@ -68,17 +68,17 @@ export const BaseTilesets = () => {
           tsB.show = v;
         }
       },
-      get baseScreenSpaceError() {
-        return baseScreenSpaceError;
+      get maximumScreenSpaceError() {
+        return maximumScreenSpaceError;
       },
-      set baseScreenSpaceError(v: number) {
-        baseScreenSpaceError = v;
+      set maximumScreenSpaceError(v: number) {
+        maximumScreenSpaceError = v;
 
         if (tsA) {
-          tsA.baseScreenSpaceError = v;
+          tsA.maximumScreenSpaceError = v;
         }
         if (tsB) {
-          tsB.baseScreenSpaceError = v;
+          tsB.maximumScreenSpaceError = v;
         }
       },
     },
@@ -87,7 +87,7 @@ export const BaseTilesets = () => {
       { name: 'enableDebugWireframe' },
       { name: 'showPrimary' },
       { name: 'showSecondary' },
-      { name: 'baseScreenSpaceError', min: 1, max: 8048 },
+      { name: 'maximumScreenSpaceError', min: 0.1, max: 64 },
     ]
   );
 
@@ -133,7 +133,16 @@ export const BaseTilesets = () => {
       <Resium3DTileset
         show={showPrimary}
         enableDebugWireframe={enableDebugWireframe}
-        baseScreenSpaceError={baseScreenSpaceError}
+        // quality
+        cacheBytes={536870912 * 2}
+        dynamicScreenSpaceError={false}
+        baseScreenSpaceError={256}
+        maximumScreenSpaceError={maximumScreenSpaceError}
+        foveatedScreenSpaceError={false}
+        skipScreenSpaceErrorFactor={8}
+        skipLevelOfDetail={true}
+        //immediatelyLoadDesiredLevelOfDetail={true}
+
         url={tilesets.primary.url}
         style={style}
         enableCollision={false}
@@ -143,7 +152,14 @@ export const BaseTilesets = () => {
       <Resium3DTileset
         show={showSecondary}
         enableDebugWireframe={enableDebugWireframe}
-        baseScreenSpaceError={baseScreenSpaceError}
+        // quality
+        dynamicScreenSpaceError={false}
+        maximumScreenSpaceError={maximumScreenSpaceError}
+        foveatedScreenSpaceError={false}
+        skipScreenSpaceErrorFactor={4}
+        skipLevelOfDetail={true}
+        //immediatelyLoadDesiredLevelOfDetail={true}
+
         url={tilesets.secondary.url}
         style={style}
         enableCollision={false}

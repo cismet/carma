@@ -79,18 +79,24 @@ const TweakpaneProvider: React.FC<{
 
   useEffect(() => {
     const checkHashAndStoredState = async () => {
-      const hashParams = new URLSearchParams(window.location.hash.slice(1));
+      console.log('Dev mode check');
+      const hashParams = new URLSearchParams(window.location.hash.split('?')[1]);
       const isEnabledFromHash = hashParams.has(hashparam);
-      const storedIsEnabled = await localForage.getItem(localForageKey);
-
-      const newIsEnabled = isEnabledFromHash || storedIsEnabled === true;
-      setIsEnabled(newIsEnabled);
-      await localForage.setItem(localForageKey, newIsEnabled);
+      console.log('Dev mode check', ...hashParams.keys(), isEnabledFromHash);
+      if (isEnabledFromHash) {
+        // If 'dev' is in the URL, enable debug view immediately
+        console.log('Dev mode enabled from hash');
+        setIsEnabled(true);
+        await localForage.setItem(localForageKey, true);
+      } else {
+        // If 'dev' is not in the URL, check localForage
+        const storedIsEnabled = await localForage.getItem(localForageKey);
+        setIsEnabled(storedIsEnabled === true);
+      }
     };
 
     checkHashAndStoredState();
 
-    // Define the function to toggle isEnabled state within useEffect
     const toggleTweakpane = (event: KeyboardEvent) => {
       if (eventKeys.includes(event.key)) {
         setIsEnabled((prevState) => {
@@ -99,11 +105,7 @@ const TweakpaneProvider: React.FC<{
         });
       }
     };
-
-    // Add event listener for keydown
     window.addEventListener('keydown', toggleTweakpane);
-
-    // Cleanup function to remove the event listener
     return () => {
       window.removeEventListener('keydown', toggleTweakpane);
     };
@@ -112,7 +114,7 @@ const TweakpaneProvider: React.FC<{
   useEffect(() => {
     if (!paneRef.current && containerRef.current) {
       const pane = new Pane({
-        title: 'Debug Options',
+        title: 'Developer Options',
         container: containerRef.current,
       });
       paneRef.current = pane;

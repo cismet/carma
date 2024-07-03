@@ -35,9 +35,8 @@ const useInitializeViewer = (
       const { camera, isSecondaryStyle } = sceneFromHashParams;
       const { latitude, longitude, height, heading, pitch } = camera;
 
-      // TODO enable syncing of leaflet view with dynamic fov
       if (viewer.camera.frustum instanceof PerspectiveFrustum) {
-        //viewer.camera.frustum.fov = 0.1;
+        viewer.camera.frustum.fov = Math.PI/4;
       }
 
       // TODO enable 2D Mode if zoom value is present in hash on startup
