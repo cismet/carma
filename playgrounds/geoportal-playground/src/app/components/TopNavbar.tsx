@@ -11,6 +11,7 @@ import {
   faEyeSlash,
   faF,
   faFileExport,
+  faBookOpenReader,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useContext, useState } from 'react';
@@ -269,6 +270,13 @@ const TopNavbar = () => {
           <Popover trigger="click" placement="bottom" content={<Save />}>
             <button className="hover:text-gray-600 text-xl">
               <FontAwesomeIcon icon={faFileExport} />
+            </button>
+          </Popover>
+        </Tooltip>
+        <Tooltip title="Hilfe Overlay">
+          <Popover trigger="click" placement="bottom">
+            <button className="hover:text-gray-600 text-xl">
+              <FontAwesomeIcon icon={faBookOpenReader} />
             </button>
           </Popover>
         </Tooltip>
