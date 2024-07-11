@@ -35,10 +35,16 @@ import {
 } from '../store/slices/mapping';
 import Share from './Share';
 import './switch.css';
-import { getShowLayerButtons, setShowLayerButtons } from '../store/slices/ui';
+import {
+  getShowLayerButtons,
+  setShowLayerButtons,
+  setMode,
+  getMode,
+} from '../store/slices/ui';
 import { cn } from '../helper/helper';
 import Save from './Save';
 import { layerMap } from '../helper/layer';
+import useOverlayHelper from '../hooks/useOverlayHelper.jsx';
 
 const TopNavbar = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -53,6 +59,7 @@ const TopNavbar = () => {
   const savedLayerConfigs = useSelector(getSavedLayerConfigs);
 
   const [messageApi, contextHolder] = message.useMessage();
+  const menuTour = useOverlayHelper('Menüleiste');
 
   const extractVectorStyles = (keywords: string[]) => {
     let vectorObject = null;
@@ -79,7 +86,7 @@ const TopNavbar = () => {
   const updateLayers = (
     layer: Item,
     deleteItem: boolean = false,
-    forceWMS: boolean = false
+    forceWMS: boolean = false,
   ) => {
     let newLayer: Layer;
 
@@ -218,8 +225,10 @@ const TopNavbar = () => {
           </p>
         </div>
       </div>
-
-      <div className="flex items-center gap-6 absolute left-1/2 -ml-[98px]">
+      <div
+        ref={menuTourRef}
+        className="flex items-center gap-6 absolute left-1/2 -ml-[98px]"
+      >
         <Tooltip title="Refresh">
           <button
             onClick={() => {
@@ -275,7 +284,16 @@ const TopNavbar = () => {
         </Tooltip>
         <Tooltip title="Hilfe Overlay">
           <Popover trigger="click" placement="bottom">
-            <button className="hover:text-gray-600 text-xl">
+            <button
+              className="hover:text-gray-600 text-xl"
+              onClick={() => {
+                if (mode === 'default') {
+                  dispatch(setMode('tour'));
+                } else {
+                  dispatch(setMode('default'));
+                }
+              }}
+            >
               <FontAwesomeIcon icon={faBookOpenReader} />
             </button>
           </Popover>
@@ -288,15 +306,14 @@ const TopNavbar = () => {
           </Popover>
         </Tooltip>
       </div>
-
       <div className="flex items-center gap-6">
-        <div className="lg:flex hidden">
+        <div className="lg:flex hidden" ref={hintagroundTourRef}>
           <Radio.Group
             value={backgroundLayer.id}
             onChange={(e) => {
               if (e.target.value === 'karte') {
                 dispatch(
-                  setBackgroundLayer({ ...selectedMapLayer, id: 'karte' })
+                  setBackgroundLayer({ ...selectedMapLayer, id: 'karte' }),
                 );
               } else {
                 dispatch(
@@ -314,7 +331,7 @@ const TopNavbar = () => {
                       url: layerMap[e.target.value].url,
                     },
                     layers: layerMap[e.target.value].layers,
-                  })
+                  }),
                 );
               }
             }}

@@ -32,8 +32,10 @@ import {
 import { cn } from '../../helper/helper';
 import './button.css';
 import SecondaryView from './SecondaryView';
+import useOverlayHelper from '../../hooks/useOverlayHelper';
 
 const LayerWrapper = () => {
+  const layerButtonTour = useOverlayHelper('Layer Buttons', 'center');
   const dispatch = useDispatch();
   const { routedMapRef } = useContext(TopicMapContext);
   const layers = useSelector(getLayers);
@@ -121,7 +123,10 @@ const LayerWrapper = () => {
                 <FontAwesomeIcon icon={faChevronRight} />
               </div>
             )}
-            <div className="w-full flex justify-center items-center h-full gap-2">
+            <div
+              className="w-full flex justify-center items-center h-full gap-2"
+              ref={layerButtonTour}
+            >
               <LayerButton
                 icon="background"
                 layer={backgroundLayer}

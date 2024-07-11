@@ -31,6 +31,7 @@ import { Layer } from '@carma-mapping/layers';
 import { Settings } from './components/Share';
 import CrossTabCommunicationContextProvider from 'react-cismap/contexts/CrossTabCommunicationContextProvider';
 import HomeButton from './components/HomeButton';
+import { OverlayTourProvider } from './hooks/useOverlayHelper';
 
 if (typeof global === 'undefined') {
   window.global = window;
@@ -108,14 +109,16 @@ function App({ published }: { published?: boolean }) {
   }, [allowUiChanges]);
 
   const content = (
-    <TopicMapContextProvider>
-      <div className="flex flex-col h-screen w-full">
-        {!published && <TopNavbar />}
-        <HomeButton />
-        {showMeasurementButton && <MapMeasurement />}
-        <Map />
-      </div>
-    </TopicMapContextProvider>
+    <OverlayTourProvider>
+      <TopicMapContextProvider>
+        <div className="flex flex-col h-screen w-full">
+          {!published && <TopNavbar />}
+          <HomeButton />
+          {showMeasurementButton && <MapMeasurement />}
+          <Map />
+        </div>
+      </TopicMapContextProvider>
+    </OverlayTourProvider>
   );
 
   return syncToken ? (

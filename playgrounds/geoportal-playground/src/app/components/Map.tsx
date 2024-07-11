@@ -18,6 +18,7 @@ import { useSearchParams } from 'react-router-dom';
 import getBackgroundLayers from '../helper/layer';
 import { getMode, getShowLayerButtons } from '../store/slices/ui';
 import CismapLayer from 'react-cismap/CismapLayer';
+import GazetteerSearchComponent from 'react-cismap/GazetteerSearchComponent';
 
 const Map = () => {
   const [gazData, setGazData] = useState([]);
