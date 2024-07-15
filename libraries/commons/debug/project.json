@@ -1,7 +1,7 @@
 {
   "name": "debug-ui",
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "libraries/debug-ui/src",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libraries/commons/debug/src",
   "projectType": "library",
   "tags": [],
   "targets": {
@@ -14,7 +14,7 @@
       "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/libraries/debug-ui"
+        "outputPath": "dist/libraries/commons/debug"
       },
       "configurations": {
         "development": {

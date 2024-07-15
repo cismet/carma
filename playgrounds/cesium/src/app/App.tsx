@@ -15,7 +15,7 @@ import { routeGenerator } from './utils/routeGenerator';
 import 'leaflet/dist/leaflet.css';
 import { UIComponentProvider } from './components/UI/UIProvider';
 
-import { TweakpaneProvider } from '@carma/debug-ui';
+import { TweakpaneProvider } from '@carma-commons/debug';
 import { TopicMapContextProvider } from 'react-cismap/contexts/TopicMapContextProvider';
 
 const ViewerRoutes = routeGenerator(viewerRoutes);

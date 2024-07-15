@@ -1,5 +1,5 @@
 {
-  "name": "@carma/debug-ui",
+  "name": "@carma-commons/debug",
   "version": "0.0.1",
   "main": "./index.js",
   "types": "./index.d.ts",

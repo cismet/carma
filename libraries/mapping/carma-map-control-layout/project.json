@@ -1,7 +1,7 @@
 {
-  "name": "map-control",
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "libraries/map-control/src",
+  "name": "carma-map-contols-layout",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libraries/mapping/carma-map-control-layout/src",
   "projectType": "library",
   "tags": [],
   "targets": {
@@ -14,7 +14,7 @@
       "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/libraries/map-control"
+        "outputPath": "dist/libraries/mapping/carma-map-control-layout"
       },
       "configurations": {
         "development": {
@@ -29,7 +29,7 @@
       "executor": "@nx/storybook:storybook",
       "options": {
         "port": 4400,
-        "configDir": "libraries/map-control/.storybook"
+        "configDir": "libraries/mapping/carma-map-control-layout/.storybook"
       },
       "configurations": {
         "ci": {
@@ -42,7 +42,7 @@
       "outputs": ["{options.outputDir}"],
       "options": {
         "outputDir": "dist/storybook/map-control",
-        "configDir": "libraries/map-control/.storybook"
+        "configDir": "libraries/mapping/carma-map-control-layout/.storybook"
       },
       "configurations": {
         "ci": {
@@ -53,18 +53,18 @@
     "test-storybook": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "test-storybook -c libraries/map-control/.storybook --url=http://localhost:4400"
+        "command": "test-storybook -c libraries/mapping/carma-map-control-layout/.storybook --url=http://localhost:4400"
       }
     },
     "static-storybook": {
       "executor": "@nx/web:file-server",
       "options": {
-        "buildTarget": "map-control:build-storybook",
+        "buildTarget": "carma-map-contols-layout:build-storybook",
         "staticFilePath": "dist/storybook/map-control"
       },
       "configurations": {
         "ci": {
-          "buildTarget": "map-control:build-storybook:ci"
+          "buildTarget": "carma-map-contols-layout:build-storybook:ci"
         }
       }
     }

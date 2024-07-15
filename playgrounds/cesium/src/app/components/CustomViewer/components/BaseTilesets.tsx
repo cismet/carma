@@ -16,7 +16,7 @@ import {
   viewerCesium3DTilesInspectorMixin,
 } from 'cesium';
 import { useSecondaryStyleTilesetClickHandler } from '../../../hooks';
-import { useTweakpaneCtx } from '@carma/debug-ui';
+import { useTweakpaneCtx } from '@carma-commons/debug';
 import {
   CUSTOM_SHADERS_DEFINITIONS,
   CustomShaderKeys,
@@ -28,8 +28,8 @@ let maximumScreenSpaceError = 4; // 16 is default but quite Low Quality
 
 const customShaderKeys = {
   clay: CustomShaderKeys.CLAY,
-  "unlit enhanced": CustomShaderKeys.UNLIT,
-  "unlit": CustomShaderKeys.UNLIT_BASE,
+  'unlit enhanced': CustomShaderKeys.UNLIT,
+  unlit: CustomShaderKeys.UNLIT_BASE,
   'unlit fog': CustomShaderKeys.UNLIT_FOG,
   monochrome: CustomShaderKeys.MONOCHROME,
   undefined: CustomShaderKeys.UNDEFINED,

@@ -2,7 +2,7 @@
 
 // eslint disable
 
-import { useTweakpaneCtx } from '@carma/debug-ui';
+import { useTweakpaneCtx } from '@carma-commons/debug';
 import CustomCesiumWidget from '../../../components/CustomCesiumWidget';
 import { useEffect, useState } from 'react';
 import { LatLngRecord } from '../../../../';
@@ -313,7 +313,6 @@ function View() {
           </CustomCesiumWidget>
         </div>
         <ViewToggle />
-
         <LocationToggle />
         Benannte Gebäude aus Sample-GeoJson mit gebufferten Umrissen:
         <GeoJSONDropdown />

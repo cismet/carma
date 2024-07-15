@@ -24,7 +24,7 @@ import {
   Main,
   ControlButtonStyler,
   ControlCenterStyler,
-} from '@carma/map-control';
+} from '@carma-mapping/map-controls-layout';
 import {
   AimOutlined,
   HomeOutlined,

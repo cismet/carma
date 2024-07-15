@@ -32,7 +32,7 @@ import { useLocation } from 'react-router-dom';
 import useInitializeViewer from './hooks';
 import TopicMap from './components/TopicMap';
 import { TopicMapContext } from 'react-cismap/contexts/TopicMapContextProvider';
-import { useTweakpaneCtx } from '@carma/debug-ui';
+import { useTweakpaneCtx } from '@carma-commons/debug';
 import {
   extentDegreesToRectangle,
   resolutionFractions,
