@@ -1,5 +1,5 @@
 {
-  "name": "debug-ui",
+  "name": "debug",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libraries/commons/debug/src",
   "projectType": "library",
