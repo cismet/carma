@@ -14,8 +14,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Button, Modal, Spin } from 'antd';
 import { useEffect, useState } from 'react';
 import { InfoOutlined } from '@ant-design/icons';
-import { Layer } from './LibModal';
-import { Item } from '../helper/types';
+import { Item, Layer } from '../helper/types';
 
 interface LayerItemProps {
   setAdditionalLayers: any;

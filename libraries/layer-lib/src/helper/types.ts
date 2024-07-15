@@ -1,4 +1,29 @@
-import { Layer } from '../components/LibModal';
+export type Layer = {
+  title: string;
+  // url: string;
+  id: string;
+  opacity: number;
+  description: string;
+  visible: boolean;
+  icon?: string;
+  other?: Item;
+  // type?: 'wmts' | 'wmts-nt' | 'tiles' | 'vector';
+  // legend?: { Format: string; OnlineResource: string; size: [number, number] }[];
+} & (
+  | {
+      layerType: 'wmts' | 'wmts-nt';
+      props: {
+        url: string;
+        name: string;
+        legend?: {
+          format: string;
+          OnlineResource: string;
+          size: [number, number];
+        }[];
+      };
+    }
+  | vectorProps
+);
 
 type Link = {
   type: 'link';

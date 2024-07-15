@@ -19,39 +19,12 @@ import LayerTabs from './LayerTabs';
 import LibItem from './LibItem';
 import './input.css';
 import './modal.css';
-import { Item, vectorProps, wmsProps } from '../helper/types';
+import { Item, Layer, vectorProps, wmsProps } from '../helper/types';
 import { isEqual } from 'lodash';
 const { Search } = Input;
 
 // @ts-ignore
 const parser = new WMSCapabilities();
-
-export type Layer = {
-  title: string;
-  // url: string;
-  id: string;
-  opacity: number;
-  description: string;
-  visible: boolean;
-  icon?: string;
-  other?: Item;
-  // type?: 'wmts' | 'wmts-nt' | 'tiles' | 'vector';
-  // legend?: { Format: string; OnlineResource: string; size: [number, number] }[];
-} & (
-  | {
-      layerType: 'wmts' | 'wmts-nt';
-      props: {
-        url: string;
-        name: string;
-        legend?: {
-          format: string;
-          OnlineResource: string;
-          size: [number, number];
-        }[];
-      };
-    }
-  | vectorProps
-);
 
 export interface LibModalProps {
   open: boolean;
