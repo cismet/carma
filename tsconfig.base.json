@@ -17,6 +17,25 @@
     "baseUrl": ".",
     "jsx": "react",
     "paths": {
+      "@carma-apps/portals": ["libraries/appframeworks/portals/src/index.ts"],
+      "@carma-apps/topicmaps": [
+        "libraries/appframeworks/topicmaps/src/index.ts"
+      ],
+      "@carma-mapping/cesium-engine": [
+        "libraries/mapping/engines/cesium/src/index.ts"
+      ],
+      "@carma-mapping/components": [
+        "libraries/mapping/carma-map-components/src/index.ts"
+      ],
+      "@carma-mapping/leaflet-engine": [
+        "libraries/mapping/engines/leaflet/src/index.ts"
+      ],
+      "@carma-mapping/maplibre-engine": [
+        "libraries/mapping/engines/maplibre/src/index.ts"
+      ],
+      "@carma-mapping/utils": [
+        "libraries/mapping/carma-map-utils/src/index.ts"
+      ],
       "@carma/custom-wupp-components": [
         "libraries/customer-specific/wuppertal/components/src/lib"
       ],
