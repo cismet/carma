@@ -1,7 +1,7 @@
 {
   "name": "document-viewer",
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "libraries/document-viewer/src",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libraries/commons/document-viewer/src",
   "projectType": "library",
   "tags": [],
   "targets": {

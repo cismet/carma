@@ -25,6 +25,9 @@
         "libraries/appframeworks/topicmaps/src/index.ts"
       ],
       "@carma-commons/debug": ["libraries/commons/debug/src/index.ts"],
+      "@carma-commons/document-viewer": [
+        "libraries/commons/document-viewer/src/index.ts"
+      ],
       "@carma-mapping/cesium-engine": [
         "libraries/mapping/engines/cesium/src/index.ts"
       ],
@@ -46,7 +49,6 @@
       "@carma/custom-wupp-components": [
         "libraries/customer-specific/wuppertal/components/src/lib"
       ],
-      "@cismet/document-viewer": ["libraries/document-viewer/src/index.ts"],
       "@cismet/layer-lib": ["libraries/layer-lib/src/index.ts"]
     }
   },

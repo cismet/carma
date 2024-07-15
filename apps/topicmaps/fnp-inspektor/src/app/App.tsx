@@ -1,4 +1,4 @@
-import { Doc, DocumentViewer } from '@cismet/document-viewer';
+import { Doc, DocumentViewer } from '@carma-commons/document-viewer';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useState } from 'react';
