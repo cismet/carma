@@ -18,8 +18,7 @@ import { useContext, useState } from 'react';
 // @ts-ignore
 import { UIDispatchContext } from 'react-cismap/contexts/UIContextProvider';
 
-import { LayerLib } from '@cismet/layer-lib';
-import { Layer } from 'libraries/layer-lib/src/components/LibModal';
+import { LayerLib, Item, Layer } from '@cismet/layer-lib';
 import { useDispatch, useSelector } from 'react-redux';
 import { getThumbnails, setThumbnail } from '../store/slices/layers';
 import {
@@ -39,7 +38,6 @@ import Share from './Share';
 import './switch.css';
 import { getShowLayerButtons, setShowLayerButtons } from '../store/slices/ui';
 import { cn } from '../helper/helper';
-import { Item } from 'libraries/layer-lib/src/helper/types';
 import Save from './Save';
 import { layerMap } from '../helper/layer';
 

@@ -1,6 +1,6 @@
 import { PayloadAction, createSlice } from '@reduxjs/toolkit';
 import { RootState } from '..';
-import { Layer } from 'libraries/layer-lib/src/components/LibModal';
+import { Layer } from '@cismet/layer-lib';
 
 export type BackgroundLayer = Layer & {
   layers: string;
