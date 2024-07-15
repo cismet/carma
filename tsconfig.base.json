@@ -17,6 +17,9 @@
     "baseUrl": ".",
     "jsx": "react",
     "paths": {
+      "@carma-apps/envirometrics": [
+        "libraries/appframeworks/envirometrics/src/index.ts"
+      ],
       "@carma-apps/portals": ["libraries/appframeworks/portals/src/index.ts"],
       "@carma-apps/topicmaps": [
         "libraries/appframeworks/topicmaps/src/index.ts"
