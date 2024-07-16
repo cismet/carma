@@ -1,6 +1,6 @@
 import { PayloadAction, createSlice } from '@reduxjs/toolkit';
 import { RootState } from '..';
-import { Layer } from '@cismet/layer-lib';
+import { Layer } from '@carma-mapping/layers';
 
 export type BackgroundLayer = Layer & {
   layers: string;

@@ -1,7 +1,7 @@
 {
-  "name": "layer-lib",
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "libraries/layer-lib/src",
+  "name": "carma-map-layers",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libraries/mapping/carma-map-layers/src",
   "projectType": "library",
   "tags": [],
   "targets": {

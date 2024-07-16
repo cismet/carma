@@ -18,7 +18,7 @@ import { useContext, useState } from 'react';
 // @ts-ignore
 import { UIDispatchContext } from 'react-cismap/contexts/UIContextProvider';
 
-import { LayerLib, Item, Layer } from '@cismet/layer-lib';
+import { LayerLib, Item, Layer } from '@carma-mapping/layers';
 import { useDispatch, useSelector } from 'react-redux';
 import { getThumbnails, setThumbnail } from '../store/slices/layers';
 import {

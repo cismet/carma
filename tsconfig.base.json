@@ -34,6 +34,9 @@
       "@carma-mapping/components": [
         "libraries/mapping/carma-map-components/src/index.ts"
       ],
+      "@carma-mapping/layers": [
+        "libraries/mapping/carma-map-layers/src/index.ts"
+      ],
       "@carma-mapping/leaflet-engine": [
         "libraries/mapping/engines/leaflet/src/index.ts"
       ],
@@ -48,8 +51,7 @@
       ],
       "@carma/custom-wupp-components": [
         "libraries/customer-specific/wuppertal/components/src/lib"
-      ],
-      "@cismet/layer-lib": ["libraries/layer-lib/src/index.ts"]
+      ]
     }
   },
   "exclude": ["node_modules", "tmp"]

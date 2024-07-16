@@ -8,7 +8,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Slider } from 'antd';
-import { Layer } from '@cismet/layer-lib';
+import { Layer } from '@carma-mapping/layers';
 import { useDispatch } from 'react-redux';
 import { changeOpacity, changeVisibility } from '../../store/slices/mapping';
 import { iconColorMap, iconMap } from './items';

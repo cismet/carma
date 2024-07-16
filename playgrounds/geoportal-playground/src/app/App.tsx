@@ -30,7 +30,7 @@ import {
   setShowLayerButtons,
   setShowLayerHideButtons,
 } from './store/slices/ui';
-import { Layer } from '@cismet/layer-lib';
+import { Layer } from '@carma-mapping/layers';
 import { Settings } from './components/Share';
 import CrossTabCommunicationContextProvider from 'react-cismap/contexts/CrossTabCommunicationContextProvider';
 import HomeButton from './components/HomeButton';

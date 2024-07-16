@@ -7,7 +7,7 @@ import {
   faX,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { Layer } from '@cismet/layer-lib';
+import { Layer } from '@carma-mapping/layers';
 import { useEffect, useRef } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useDispatch, useSelector } from 'react-redux';
