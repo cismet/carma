@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { titleMapConfig } from './config';
 import {
   GazDataItem,
@@ -9,9 +10,9 @@ import { md5FetchText } from './tools/fetching';
 import { getGazDataFromSources } from './tools/gazetteerHelper';
 export const titleMap = new Map(Object.entries(titleMapConfig));
 
-export function removeStopwords(text, stopwords: StopWords) {
+export function removeStopwords(text: string, stopwords: StopWords) {
   const words = text.split(' ');
-  const placeholderWords = words.map((word) => {
+  const placeholderWords = words.map((word: string) => {
     // Check if the word is in the stopwords array (case insensitive)
     if (stopwords.includes(word.toLowerCase())) {
       // Replace each character in the word with an underscore
@@ -22,8 +23,8 @@ export function removeStopwords(text, stopwords: StopWords) {
   return placeholderWords.join(' ');
 }
 
-export function prepareGazData(data, stopwords: StopWords) {
-  const modifiedData = data.map((item) => {
+export function prepareGazData(data: any[], stopwords: StopWords) {
+  const modifiedData = data.map((item: any) => {
     const searchData = item?.string;
     const address = {
       ...item,

@@ -1,4 +1,6 @@
 /* eslint-disable */
+// @ts-nocheck
+
 
 import L, { Marker, MarkerOptions, LatLng, PointExpression } from 'leaflet';
 
@@ -50,7 +52,7 @@ export const makeLeafletMarkerRotatable = (
 
     _applyRotation: function (this: RotatableMarker) {
       if (this.options.rotationAngle) {
-        this._icon.style[L.DomUtil.TRANSFORM + 'Origin'] =
+        this._icon.style[(L.DomUtil.TRANSFORM as string) + 'Origin'] =
           this.options.rotationOrigin;
         this._icon.style[
           L.DomUtil.TRANSFORM

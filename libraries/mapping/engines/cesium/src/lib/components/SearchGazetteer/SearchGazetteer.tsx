@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// TODO gazetteer will be replaced anyway
+import { ChangeEvent, useEffect, useState } from 'react';
 import Fuse from 'fuse.js';
 import L from 'leaflet';
 import { AutoComplete, Button } from 'antd';
 import { CloseOutlined } from '@ant-design/icons';
 import AddressLabel from './components/AddressLabel';
-import { ModelAsset, OptionItem } from './types';
+import { ModelAsset, Option, OptionItem } from './types';
 import Title from './components/Title';
 import { gazDataPrefix, sourcesConfig, stopwords } from './config';
 import { getGazData, prepareGazData, removeStopwords } from './utils';
@@ -19,7 +21,7 @@ import { Viewer } from 'cesium';
 import { removeMarker } from './tools/cesium3dMarker';
 import { removeGroundPrimitiveById } from './tools/cesium';
 
-const renderItem = (address) => {
+const renderItem = (address: any) => {
   return {
     key: address.sorter,
     value: address.string,
@@ -28,20 +30,20 @@ const renderItem = (address) => {
   };
 };
 
-const generateOptions = (results) => {
-  return results.map((result, idx) => {
+const generateOptions = (results: any[]) => {
+  return results.map((result: any) => {
     return renderItem(result.item);
   });
 };
 
-const mapDataToSearchResult = (data) => {
-  const splittedCategories = {};
+const mapDataToSearchResult = (data: any[]) => {
+  const splittedCategories: Record<string, Option[]> = {};
 
   data.forEach((item) => {
     const address = item.item;
     const catName = address.type;
 
-    if (splittedCategories.hasOwnProperty(catName)) {
+    if (Object.prototype.hasOwnProperty.call(splittedCategories, catName)) {
       splittedCategories[catName].push(renderItem(address));
     } else {
       splittedCategories[catName] = [renderItem(address)];
@@ -110,7 +112,7 @@ export function SearchGazetteer({
 
   //console.log('mapConsumers', mapConsumers);
 
-  const internalGazetteerHitTrigger = (hit) => {
+  const internalGazetteerHitTrigger = (hit: any) => {
     builtInGazetteerHitTrigger(hit, mapConsumers, {
       setGazetteerHit,
       marker3dStyle,
@@ -124,7 +126,7 @@ export function SearchGazetteer({
   const [value, setValue] = useState('');
   const [typeaheadPartValue, setTypeaheadPartValue] = useState('');
 
-  const handleSearchAutoComplete = (value) => {
+  const handleSearchAutoComplete = (value: any) => {
     if (allGazeteerData && allGazeteerData.length > 0) {
       const fuseAddressesOptions = {
         distance: 100,
@@ -135,7 +137,7 @@ export function SearchGazetteer({
       const fuse = new Fuse(allGazeteerData, fuseAddressesOptions);
       const result = fuse.search(removeStopwords(value, stopwords));
       if (!showCategories) {
-        setOptions(generateOptions(result));
+        setOptions(generateOptions(result) as any);
       } else {
         const groupedResults = mapDataToSearchResult(result);
         setSearchResult(groupedResults);
@@ -146,7 +148,7 @@ export function SearchGazetteer({
     }
   };
 
-  const handleOnSelect = (option) => {
+  const handleOnSelect = (option: any) => {
     console.log('Handle Selected Option', option);
     internalGazetteerHitTrigger([option.sData]);
     if (option.sData.type === 'bezirke' || option.sData.type === 'quartiere') {
@@ -160,7 +162,7 @@ export function SearchGazetteer({
     console.log('HOOK: gazData', gazData);
     if (!gazData) {
       console.info('no gazeteerdata defined, fetching gazData', sourcesConfig);
-      const setDataCallback = (data) => {
+      const setDataCallback = (data: any) => {
         setData(data);
         setAllGazeteerData(prepareGazData(data, stopwords));
       };
@@ -174,7 +176,7 @@ export function SearchGazetteer({
 
   useEffect(() => {}, [showCategories]);
 
-  const handleShowCategories = (e) => {
+  const handleShowCategories = (e: ChangeEvent<HTMLInputElement>) => {
     setSfStandardSearch(e.target.checked);
     setOptions([]);
     setSearchResult([]);

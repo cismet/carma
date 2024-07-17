@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { useCesium } from 'resium';
 
+// ts-expect-error import from js
 import TopicMapComponent from 'react-cismap/topicmaps/TopicMapComponent';
+// ts-expect-error import from js
 import StyledWMSTileLayer from 'react-cismap/StyledWMSTileLayer';
 
 import {

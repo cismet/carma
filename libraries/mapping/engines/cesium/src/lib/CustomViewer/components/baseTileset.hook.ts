@@ -7,13 +7,16 @@ import {
   setShowSecondaryTileset,
 } from '../../CustomViewerContextProvider/slices/viewer';
 import { SceneStyles } from '../../..';
-import { useCustomViewerContext } from '../../CustomViewerContextProvider/components/CustomViewerContextProvider';
+import {
+  CustomViewerContextType,
+  useCustomViewerContext,
+} from '../../CustomViewerContextProvider/components/CustomViewerContextProvider';
 
 // TODO move combined common setup out of here
 
 const setupPrimaryStyle = (
   viewer: Viewer,
-  { terrainProvider, imageryLayer }
+  { terrainProvider, imageryLayer }: CustomViewerContextType
 ) => {
   (async () => {
     viewer.scene.globe.baseColor = Color.DARKGRAY;
@@ -21,7 +24,10 @@ const setupPrimaryStyle = (
     if (viewer.scene.terrainProvider instanceof CesiumTerrainProvider) {
       //viewer.scene.terrainProvider = ellipsoidTerrainProvider;
     } else {
-      viewer.scene.terrainProvider = await terrainProvider;
+      const provider = await terrainProvider;
+      if (provider) {
+        viewer.scene.terrainProvider = provider;
+      }
     }
     // viewer.scene.globe.depthTestAgainstTerrain = false;
 
@@ -36,21 +42,24 @@ const setupPrimaryStyle = (
 
 export const setupSecondaryStyle = (
   viewer: Viewer,
-  { terrainProvider, imageryLayer }
+  { terrainProvider, imageryLayer }: CustomViewerContextType
 ) => {
   if (!viewer) return;
   (async () => {
     viewer.scene.globe.baseColor = Color.WHITE;
 
-    // console.log('setupSecondaryStyle', viewer.scene.terrainProvider);
+    // console.log('setnull) {daryStyle', viewer.scene.terrainProvider);
     if (!(viewer.scene.terrainProvider instanceof CesiumTerrainProvider)) {
-      viewer.scene.terrainProvider = await terrainProvider;
+      const provider = await terrainProvider;
+      if (provider) {
+        viewer.scene.terrainProvider = provider;
+      }
     }
     // DEPTH TEST is quite slow, only use if really necessary
     // viewer.scene.globe.depthTestAgainstTerrain = true;
     // viewer.scene.globe.show = false;
 
-    if (imageryLayer.ready) {
+    if (imageryLayer && imageryLayer.ready) {
       imageryLayer.show = true;
       // console.log('Secondary Style Setup: add imagery layer');
       if (!viewer.imageryLayers.contains(imageryLayer)) {

@@ -12,7 +12,16 @@ import {
   useViewerHome,
   useViewerIsMode2d,
 } from '../../CustomViewerContextProvider/slices/viewer';
-const ControlsUI = ({ showHome = true, showOrbit = true, searchComponent }) => {
+import { ReactNode } from 'react';
+const ControlsUI = ({
+  showHome = true,
+  showOrbit = true,
+  searchComponent,
+}: {
+  showHome: boolean;
+  showOrbit: boolean;
+  searchComponent: ReactNode;
+}) => {
   const home = useViewerHome();
   const isMode2d = useViewerIsMode2d();
 

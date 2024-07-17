@@ -2,8 +2,6 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "jsx": "react-jsx",
-    "sourceMap": true,
     "removeComments": true,
-    "forceConsistentCasingInFileNames": true
   }
 }

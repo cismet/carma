@@ -16,10 +16,7 @@ import {
 } from 'cesium';
 import { useSecondaryStyleTilesetClickHandler } from '../../hooks';
 import { useTweakpaneCtx } from '@carma-commons/debug';
-import {
-  CUSTOM_SHADERS_DEFINITIONS,
-  CustomShaderKeys as k,
-} from '../../shaders';
+import { CUSTOM_SHADERS_DEFINITIONS, CustomShaderKeys } from '../../shaders';
 
 import { create3DTileStyle } from '../../utils';
 
@@ -27,18 +24,18 @@ const preloadWhenHidden = true;
 let enableDebugWireframe = false;
 let maximumScreenSpaceError = 8; // 16 is default but quite Low Quality
 
-const customShaderKeys = {
-  clay: k.CLAY,
-  'unlit enhanced': k.UNLIT,
-  unlit: k.UNLIT_BASE,
-  'unlit fog': k.UNLIT_FOG,
-  monochrome: k.MONOCHROME,
-  undefined: k.UNDEFINED,
+const customShaderKeys: Record<string, CustomShaderKeys> = {
+  clay: CustomShaderKeys.CLAY,
+  'unlit enhanced': CustomShaderKeys.UNLIT,
+  unlit: CustomShaderKeys.UNLIT_BASE,
+  'unlit fog': CustomShaderKeys.UNLIT_FOG,
+  monochrome: CustomShaderKeys.MONOCHROME,
+  undefined: CustomShaderKeys.UNDEFINED,
 };
 
-const DEFAULT_MESH_SHADER_KEY = k.UNLIT;
+const DEFAULT_MESH_SHADER_KEY = CustomShaderKeys.UNLIT;
 const DEFAULT_MESH_SHADER = new CustomShader(
-  CUSTOM_SHADERS_DEFINITIONS[DEFAULT_MESH_SHADER_KEY]
+  CUSTOM_SHADERS_DEFINITIONS[DEFAULT_MESH_SHADER_KEY]!
 );
 
 export const BaseTilesets = () => {
@@ -86,14 +83,9 @@ export const BaseTilesets = () => {
         setCustomShaderKey(v);
         if (tsA) {
           const def = CUSTOM_SHADERS_DEFINITIONS[customShaderKeys[v]];
-          if (def === k.UNDEFINED) {
-            setCustomMeshShader(undefined);
-            tsA.customShader = undefined;
-          } else {
-            const shader = new CustomShader(CUSTOM_SHADERS_DEFINITIONS[v]);
-            tsA.customShader = shader;
-            setCustomMeshShader(shader);
-          }
+          const shader = def ? new CustomShader(def) : undefined;
+          tsA.customShader = shader;
+          setCustomMeshShader(shader);
         }
       },
 
@@ -210,7 +202,7 @@ export const BaseTilesets = () => {
         skipLevelOfDetail={true}
         //immediatelyLoadDesiredLevelOfDetail={true}
 
-        url={tilesets.primary?.url ?? ""}
+        url={tilesets.primary?.url ?? ''}
         style={style}
         enableCollision={false}
         preloadWhenHidden={preloadWhenHidden}
@@ -227,7 +219,7 @@ export const BaseTilesets = () => {
         skipLevelOfDetail={true}
         //immediatelyLoadDesiredLevelOfDetail={true}
 
-        url={tilesets.secondary?.url ?? ""}
+        url={tilesets.secondary?.url ?? ''}
         style={style}
         //style={styleThematicLod2}
 

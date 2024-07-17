@@ -9,7 +9,16 @@ export enum CustomShaderKeys {
   MONOCHROME = 'MONOCHROME',
 }
 
-export const CUSTOM_SHADERS_DEFINITIONS = {
+export type CustomShaderDefinition = {
+  lightingModel?: LightingModel;
+  fragmentShaderText?: string;
+};
+
+export const CUSTOM_SHADERS_DEFINITIONS: Record<
+  CustomShaderKeys,
+  CustomShaderDefinition | undefined
+> = {
+  [CustomShaderKeys.UNDEFINED]: undefined,
   [CustomShaderKeys.CLAY]: {
     fragmentShaderText: `
     void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material)

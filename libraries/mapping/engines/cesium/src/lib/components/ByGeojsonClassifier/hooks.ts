@@ -1,5 +1,6 @@
 import { pickFromClampedGeojson } from '../../utils';
 import {
+  Cartesian2,
   Color,
   ColorMaterialProperty,
   Entity,
@@ -40,7 +41,7 @@ export const useSelectAndHighlightGeoJsonEntity = (
     if (!isPrimaryStyle) {
       return;
     }
-    let originalMaterials;
+    let originalMaterials: Map<Entity, MaterialProperty>;
     if (viewer) {
       originalMaterials = new Map<Entity, MaterialProperty>();
       console.log('HOOK ByGeoJsonClassifier add ScreenSpaceEventHandler');
@@ -74,7 +75,7 @@ export const useSelectAndHighlightGeoJsonEntity = (
         }
       };
 
-      handler.current.setInputAction((event) => {
+      handler.current.setInputAction((event: { position: Cartesian2; }) => {
         let hasPick = false;
 
         // last picked object is the top one we need for highlighting

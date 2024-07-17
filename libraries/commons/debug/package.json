@@ -2,6 +2,7 @@
   "name": "@carma-commons/debug",
   "version": "0.0.1",
   "main": "./index.js",
+  "type": "module",
   "types": "./index.d.ts",
   "exports": {
     ".": {

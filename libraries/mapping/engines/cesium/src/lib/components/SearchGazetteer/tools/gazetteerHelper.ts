@@ -34,7 +34,7 @@ import {
 } from './cesium';
 import { addMarker, removeMarker } from './cesium3dMarker';
 
-const proj4ConverterLookup = {};
+const proj4ConverterLookup: Record<string, Converter> = {};
 const DEFAULT_ZOOM_LEVEL = 16;
 export const SELECTED_POLYGON_ID = 'searchgaz-highlight-polygon';
 export const INVERTED_SELECTED_POLYGON_ID = 'searchgaz-inverted-polygon';
@@ -112,7 +112,10 @@ const CesiumMapActions = {
     scene && scene.camera.flyToBoundingSphere(bounds),
 };
 
-const getPosInWGS84 = ({ x, y }, refSystem: Converter) => {
+const getPosInWGS84 = (
+  { x, y }: { x: number; y: number },
+  refSystem: Converter
+) => {
   const coords = PROJ4_CONVERTERS.CRS4326.forward(refSystem.inverse([x, y]));
   return {
     lat: coords[1],
@@ -158,7 +161,7 @@ const defaultGazetteerOptions = {
 };
 
 export const builtInGazetteerHitTrigger = (
-  hit,
+  hit: unknown,
   mapConsumers: MapConsumer[],
   {
     setGazetteerHit,
@@ -169,7 +172,7 @@ export const builtInGazetteerHitTrigger = (
     marker3dStyle,
   }: GazetteerOptions = defaultGazetteerOptions
 ) => {
-  if (hit !== undefined && hit.length !== undefined && hit.length > 0) {
+  if (hit && Array.isArray(hit) && hit.length !== undefined && hit.length > 0) {
     const lAction = (mapActions.leaflet = {
       ...LeafletMapActions,
       ...mapActions.leaflet,
@@ -186,9 +189,9 @@ export const builtInGazetteerHitTrigger = (
     // TODO extend hitobject with parsed and derived data
     const hitObject = Object.assign({}, hit[0]); //Change the Zoomlevel of the map
 
-    const { crs } = hitObject;
+    const { crs } = hitObject as { crs: string };
 
-    let refSystemConverter = proj4ConverterLookup[crs];
+    let refSystemConverter: Converter = proj4ConverterLookup[crs];
     if (!refSystemConverter) {
       console.log('create new proj4 converter for', crs);
       refSystemConverter = proj4(`EPSG:${crs}`);
@@ -202,7 +205,7 @@ export const builtInGazetteerHitTrigger = (
     const pos = getPosInWGS84(hitObject, refSystemConverter); //console.log(pos)
     const zoom = hitObject.more.zl ?? DEFAULT_ZOOM_LEVEL;
     const polygon = hasPolygon
-      ? hitObject.more.g.coordinates.map((ring) =>
+      ? hitObject.more.g.coordinates.map((ring: (string | number)[][]) =>
           getRingInWGS84(ring, refSystemConverter)
         )
       : null;
@@ -260,7 +263,9 @@ export const builtInGazetteerHitTrigger = (
             geometry: invertedPolygonGeometry,
             id: INVERTED_SELECTED_POLYGON_ID,
             attributes: {
-              color: ColorGeometryInstanceAttribute.fromColor(Color.GRAY.withAlpha(0.66)),
+              color: ColorGeometryInstanceAttribute.fromColor(
+                Color.GRAY.withAlpha(0.66)
+              ),
             },
           });
 

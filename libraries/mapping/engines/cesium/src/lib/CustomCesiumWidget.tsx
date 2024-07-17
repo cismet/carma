@@ -20,7 +20,7 @@ import { generateRingFromDegrees } from './utils/cesiumHelpers';
 import { LatLngRadians, LatLngRecord } from '..';
 import { CUSTOM_SHADERS_DEFINITIONS } from './shaders';
 
-const unlit = new CustomShader(CUSTOM_SHADERS_DEFINITIONS.UNLIT);
+const unlit = new CustomShader(CUSTOM_SHADERS_DEFINITIONS.UNLIT!);
 
 const addDebugPrimitives = (widget: CesiumWidget, cartesian: Cartesian3) => {
   const pointCollection = new PointPrimitiveCollection();

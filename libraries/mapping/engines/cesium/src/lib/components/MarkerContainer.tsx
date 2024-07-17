@@ -16,7 +16,7 @@ import {
   Quaternion,
   Transforms,
   VerticalOrigin,
-  Math as CeMath
+  Math as CeMath,
 } from 'cesium';
 import { Marker3dData, MarkerData } from '../..';
 
@@ -109,7 +109,7 @@ export const MarkerContainer: FC<MarkerContainerProps> = ({
           ({ modelMatrix, animatedModelMatrix, model }, i) => {
             const { isCameraFacing, rotation } = model || {};
             if (model && modelMatrix && animatedModelMatrix) {
-              let scale;
+              let scale = new Cartesian3(1, 1, 1);
               if (model.fixedScale) {
                 const dist = Cartesian3.distance(
                   viewer.camera.position,

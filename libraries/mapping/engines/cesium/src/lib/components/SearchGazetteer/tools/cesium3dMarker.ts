@@ -75,9 +75,9 @@ const updateMarker = (viewer: Viewer) => {
 
     const { modelMatrix, animatedModelMatrix, model } = entityData;
     const { isCameraFacing, rotation } = model;
+    let scale = new Cartesian3(1, 1, 1);
 
     if (model && modelMatrix && animatedModelMatrix) {
-      let scale;
       let translation = new Cartesian3(0, 0, 0);
       if (model.fixedScale) {
         const dist = Cartesian3.distance(

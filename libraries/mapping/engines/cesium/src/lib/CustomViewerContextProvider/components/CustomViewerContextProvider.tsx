@@ -13,7 +13,7 @@ import {
 } from 'cesium';
 import { ModelAsset, ViewerState } from '../../..';
 
-type CustomViewerContextType = {
+export type CustomViewerContextType = {
   terrainProvider: Promise<CesiumTerrainProvider> | null;
   //imageryProvider:    | WebMapServiceImageryProvider    | WebMapTileServiceImageryProvider    | null;
   imageryLayer: ImageryLayer | null;
