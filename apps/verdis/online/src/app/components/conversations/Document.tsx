@@ -8,14 +8,14 @@ interface DocumentProps {
   fileObject: any;
   remove?: any;
   background?: string;
-  addComma: boolean;
+  addComma?: boolean;
 }
 
 const Document = ({
   fileObject,
   remove,
   background = '#eeeeee',
-  addComma,
+  addComma = false,
 }: DocumentProps) => {
   const [verifiedState, setVerifiedState] = useState('unverified');
   useEffect(() => {

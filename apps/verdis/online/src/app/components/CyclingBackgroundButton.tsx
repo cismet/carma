@@ -19,7 +19,8 @@ const CyclingBackgroundButton = ({
   mapRef,
 }: CyclingBackgroundButtonInterface) => {
   const dispatch = useDispatch();
-  const mapping = useSelector(getMapping);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mapping = useSelector(getMapping) as any;
   let newIndex = mapping.selectedBackgroundIndex + 1;
   const backgrounds = mapping.backgrounds;
   let leafletElement = mapRef.current.leafletMap.leafletElement;
@@ -27,7 +28,8 @@ const CyclingBackgroundButton = ({
   if (newIndex >= backgrounds.length) {
     newIndex = 0;
   }
-  let buttonStates: any = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const buttonStates: any[] = [];
 
   for (let i = 0; i < backgrounds.length; ++i) {
     let newI = i + 1;

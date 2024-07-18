@@ -1,3 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck
 import {
   MappingConstants,
   RoutedMap,
@@ -63,12 +65,10 @@ const Map = ({ children }: MapProps) => {
   const featureClick = (event, feature) => {
     if (isFlaecheSelected(feature.properties)) {
       dispatch(
-        // @ts-ignore
         fitFeatureBounds(mapping.featureCollection[mapping.selectedIndex], '')
       );
     } else {
       dispatch(
-        // @ts-ignore
         setSelectedFeatureIndexWithSelector((testFeature) => {
           return testFeature.properties.id === feature.properties.id;
         })
@@ -137,7 +137,6 @@ const Map = ({ children }: MapProps) => {
         // hoverer={this.props.hoverer}
         featureClickHandler={featureClick}
         // mapRef={this.leafletRoutedMap}
-        // @ts-ignore
         showMarkerCollection={urlParams.get('zoom') >= 15}
         markerStyle={getMarkerStyleFromFeatureConsideringSelection}
         snappingGuides={true}

@@ -1,3 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck
 import { Alert } from 'react-bootstrap';
 import Navbar from './Navbar';
 import Waiting from './Waiting';
@@ -49,7 +51,7 @@ const KassenzeichenViewer = () => {
     );
   };
 
-  let selectedFlaeche: any = null;
+  let selectedFlaeche = null;
   if (mapping.selectedIndex !== undefined && mapping.selectedIndex !== -1) {
     selectedFlaeche = mapping.featureCollection[mapping.selectedIndex];
   }
@@ -139,7 +141,7 @@ const KassenzeichenViewer = () => {
   let kassenzeichenPanel = <div />;
   let kassenzeichenHorizontalFlaechenChartsPanel;
   let kassenzeichenVerticalFlaechenChartsPanel;
-  let flComps: any = [];
+  let flComps = [];
 
   flComps = flaechen.map(function (flaeche) {
     // const sel = that.isFlaecheSelected(flaeche);

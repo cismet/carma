@@ -1,27 +1,8 @@
 {
-  "extends": "../../../../tsconfig.base.json",
+  "extends": "../../../../tsconfig.legacy.base.json",
   // only specifying options not in base or overriding them 
   "compilerOptions": {
-    // Base Module Settings
-    "jsx": "react-jsxdev",
-    "target": "es2022", 
-    "moduleDetection": "force",
 
-    "moduleResolution": "bundler",
-
-    // Stricts
-    // should be default in base
-    "strict": true,
-    // should be changed eventually
-    "noImplicitAny": false,
-    "noUncheckedIndexedAccess": false,
-    "verbatimModuleSyntax": false, 
-
-    // lib stuff
-    //"declaration": true,
-    //"declarationMap": true,
-
-    "lib": ["ES2022", "DOM"]
   },
   "files": [],
   "include": [],

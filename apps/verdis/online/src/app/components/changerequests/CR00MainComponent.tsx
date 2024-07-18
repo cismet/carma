@@ -1,3 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck
 import { useDispatch, useSelector } from 'react-redux';
 import { getUiState, showChangeRequests } from '../../../store/slices/ui';
 import ModalApplicationMenu from 'react-cismap/topicmaps/menu/ModalApplicationMenu';

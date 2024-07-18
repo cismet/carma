@@ -1,27 +1,5 @@
 {
-  "extends": "../../../../tsconfig.base.json",
-  // only specifying options not in base or overriding them 
-  "compilerOptions": {
-    // Base Module Settings
-    "jsx": "react-jsxdev",
-    "target": "es2022", 
-    "moduleDetection": "force",
-
-    "moduleResolution": "bundler",
-
-    // Stricts
-    // should be default in base
-    "strict": true,
-    // should be changed eventually
-    "noImplicitAny": true,
-    "noUncheckedIndexedAccess": true,
-    "verbatimModuleSyntax": true, 
-
-    // lib stuff
-    // declaratiosn done by vite/dts
-
-    "lib": ["ES2022", "DOM"]
-  },
+  "extends": "../../../../tsconfig.strict.base.json",
   "files": [],
   "include": [],
   "references": [

@@ -4,11 +4,11 @@ import React, {
   useRef,
   useEffect,
   useState,
-  ReactNode,
 } from 'react';
+import type { ReactNode } from 'react';
 import { FolderApi, Pane } from 'tweakpane';
 import localForage from 'localforage';
-import { hasHashParam, removeHashParam, removeParamFromString } from './utils';
+import { hasHashParam, removeHashParam } from './utils';
 
 interface TweakpaneContextType {
   //isEnabled: boolean;
