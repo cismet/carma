@@ -3,6 +3,7 @@
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "apps/lagis/desktop/src",
   "projectType": "application",
+  "tags": [],
   "targets": {
     "build": {
       "executor": "@nx/vite:build",
@@ -60,8 +61,7 @@
       }
     },
     "lint": {
-      "executor": "@nx/eslint:lint",
-      "outputs": ["{options.outputFile}"]
+      "executor": "@nx/eslint:lint"
     },
     "serve-static": {
       "executor": "@nx/web:file-server",
@@ -108,6 +108,5 @@
         "command": "X=1; echo TESTING: $X . {projectName} {projectRoot}"
       }
     }
-  },
-  "tags": []
+  }
 }

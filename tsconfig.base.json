@@ -1,40 +1,25 @@
 {
+  "extends": "./tsconfig.base.options.json",
   "compileOnSave": false,
+  "include": [
+    "${configDir}/src/**/*.js",
+    "${configDir}/src/**/*.jsx",
+    "${configDir}/src/**/*.ts",
+    "${configDir}/src/**/*.tsx",
+    "${configDir}/vite.config.mts",
+    "${configDir}/vite.config.ts"
+  ],
+  "exclude": [".nx", "dist", "e2e", "node_modules", "tmp"],
   "compilerOptions": {
     "rootDir": ".",
     "baseUrl": ".",
-    // like @tsconfig/vite-react but with module preserve
-    "target": "es2022",
-    "useDefineForClassFields": true,
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "module": "preserve",
-    // ^ also implies:
-    // "moduleResolution": "bundler",
-    // "esModuleInterop": true,
-    // "resolveJsonModule": true,
-    "skipLibCheck": true,
-    "allowImportingTsExtensions": true,
-    "jsx": "react-jsx",
-
-    "noEmit": true,
-    "strict": true,
-    "verbatimModuleSyntax": true,
-    // ^ implies isolatedModules: true
-
-    "moduleDetection": "force",
-
     "types": [
       "vite/client",
       "node",
       "@nx/react/typings/cssmodule.d.ts",
-      "@nx/react/typings/image.d.ts"
+      "@nx/react/typings/image.d.ts",
+      "@nx/react/typings/styled-jsx.d.ts"
     ],
-    
-    // intended to be used with
-    // @tsconfig/strictest npm package
-    // or for legacy codebase as
-    // tsconfig.legacy.base.json
-
     "paths": {
       "@carma-apps/envirometrics": [
         "libraries/appframeworks/envirometrics/src/index.ts"
@@ -46,11 +31,11 @@
       "@carma-collab/wuppertal/baederkarte": [
         "libraries/collaboration/carma-wuppertal-collab/src/baederkarte/index.ts"
       ],
-      "@carma-collab/wuppertal/e-auto-ladestation": [
-        "libraries/collaboration/carma-wuppertal-collab/src/e-auto-ladestation/index.ts"
-      ],
       "@carma-collab/wuppertal/commons": [
         "libraries/collaboration/carma-wuppertal-collab/src/commons/index.ts"
+      ],
+      "@carma-collab/wuppertal/e-auto-ladestation": [
+        "libraries/collaboration/carma-wuppertal-collab/src/e-auto-ladestation/index.ts"
       ],
       "@carma-collab/wuppertal/hochwassergefahrenkarte": [
         "libraries/collaboration/carma-wuppertal-collab/src/hochwasssergefahrenkarte/index.jsx"
@@ -93,13 +78,7 @@
         "libraries/mapping/engines/maplibre/src/index.ts"
       ],
       "@carma-mapping/utils": ["libraries/mapping/carma-map-utils/src/index.ts"]
-    }
-  },
-  "include": [
-    "${configDir}/src/**/*.js",
-    "${configDir}/src/**/*.jsx",
-    "${configDir}/src/**/*.ts",
-    "${configDir}/src/**/*.tsx",
-    ],
-  "exclude": ["node_modules", "tmp"]
+    },
+    "skipLibCheck": true
+  }
 }

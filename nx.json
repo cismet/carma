@@ -1,22 +1,10 @@
 {
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
-  "affected": {
-    "defaultBase": "dev"
-  },
   "targetDefaults": {
     "build": {
       "cache": true,
       "dependsOn": ["^build"],
       "inputs": ["production", "^production"]
-    },
-    "lint": {
-      "cache": true,
-      "inputs": [
-        "default",
-        "{workspaceRoot}/.eslintrc.json",
-        "{workspaceRoot}/.eslintignore",
-        "{workspaceRoot}/eslint.config.js"
-      ]
     },
     "e2e": {
       "cache": true,
@@ -36,6 +24,15 @@
         "^production",
         "{projectRoot}/.storybook/**/*",
         "{projectRoot}/tsconfig.storybook.json"
+      ]
+    },
+    "@nx/eslint:lint": {
+      "cache": true,
+      "inputs": [
+        "default",
+        "{workspaceRoot}/.eslintrc.json",
+        "{workspaceRoot}/.eslintignore",
+        "{workspaceRoot}/eslint.config.js"
       ]
     }
   },
@@ -61,8 +58,7 @@
       "application": {
         "style": "css",
         "linter": "eslint",
-        "bundler": "vite",
-        "babel": true
+        "bundler": "vite"
       },
       "component": {
         "style": "css"
@@ -77,9 +73,9 @@
   "nxCloudAccessToken": "OTZiNTQ5MjMtM2NjZi00ZTg0LTlhMjYtYWYwNzU3NDlkOTNjfHJlYWQ=",
   "tasksRunnerOptions": {
     "default": {
-      "options": {
-        "cacheableOperations": ["build-storybook"]
-      }
+      "options": {}
     }
-  }
+  },
+  "useInferencePlugins": false,
+  "defaultBase": "dev"
 }

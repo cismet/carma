@@ -1,0 +1,30 @@
+{
+  // common options for all tsconfigs
+  // intentionally separate from tsconfig.base.json
+  // to be not reformatted by nx
+
+  // intended to be used with
+  // @tsconfig/strictest npm package as
+  // tsconfig.strict.base.json
+  // or for legacy codebase as
+  // tsconfig.legacy.base.json
+  "compilerOptions": {
+    // like @tsconfig/vite-react but with module preserve
+    "target": "es2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "preserve",
+    // ^ also implies:
+    // "moduleResolution": "bundler",
+    // "esModuleInterop": true,
+    // "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "strict": true,
+    "verbatimModuleSyntax": true,
+    // ^ implies isolatedModules: true
+    "moduleDetection": "force"
+  }
+}

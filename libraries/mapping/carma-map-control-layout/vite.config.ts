@@ -7,15 +7,15 @@ import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 
 export default defineConfig({
   root: __dirname,
-  cacheDir: '../../../node_modules/.vite/libraries/map-control',
+  cacheDir:
+    '../../../node_modules/.vite/libraries/mapping/carma-map-control-layout',
 
   plugins: [
     react(),
     nxViteTsPaths(),
     dts({
       entryRoot: 'src',
-      tsConfigFilePath: path.join(__dirname, 'tsconfig.lib.json'),
-      skipDiagnostics: true,
+      tsconfigPath: path.join(__dirname, 'tsconfig.lib.json'),
     }),
   ],
 
@@ -27,7 +27,7 @@ export default defineConfig({
   // Configuration for building your library.
   // See: https://vitejs.dev/guide/build.html#library-mode
   build: {
-    outDir: '../../../dist/libraries/map-control',
+    outDir: '../../../dist/libraries/mapping/carma-map-control-layout',
     reportCompressedSize: true,
     commonjsOptions: {
       transformMixedEsModules: true,

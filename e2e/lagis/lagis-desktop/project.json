@@ -3,6 +3,8 @@
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "e2e/lagis/lagis-desktop/src",
   "projectType": "application",
+  "tags": [],
+  "implicitDependencies": ["lagis-desktop"],
   "targets": {
     "e2e": {
       "executor": "@nx/cypress:cypress",
@@ -21,10 +23,7 @@
       }
     },
     "lint": {
-      "executor": "@nx/eslint:lint",
-      "outputs": ["{options.outputFile}"]
+      "executor": "@nx/eslint:lint"
     }
-  },
-  "tags": [],
-  "implicitDependencies": ["lagis-desktop"]
+  }
 }

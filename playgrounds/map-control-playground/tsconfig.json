@@ -2,5 +2,9 @@
   "extends": "../../tsconfig.legacy.base.json",
   "compilerOptions": {},
   "files": [],
-  "references": []
+  "references": [
+    {
+      "path": "./tsconfig.storybook.json"
+    }
+  ]
 }

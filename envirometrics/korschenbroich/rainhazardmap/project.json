@@ -3,6 +3,7 @@
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "envirometrics/korschenbroich/rainhazardmap/src",
   "projectType": "application",
+  "tags": [],
   "targets": {
     "build": {
       "executor": "@nx/vite:build",
@@ -60,8 +61,7 @@
       }
     },
     "lint": {
-      "executor": "@nx/eslint:lint",
-      "outputs": ["{options.outputFile}"]
+      "executor": "@nx/eslint:lint"
     },
     "container": {
       "executor": "@nx-tools/nx-container:build",
@@ -73,6 +73,5 @@
         "tags": ["cismet/carma-ais-korschenbroich:latest"]
       }
     }
-  },
-  "tags": []
+  }
 }
