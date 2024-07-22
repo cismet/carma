@@ -6,8 +6,11 @@
     "${configDir}/src/**/*.jsx",
     "${configDir}/src/**/*.ts",
     "${configDir}/src/**/*.tsx",
-    "${configDir}/vite.config.mts",
-    "${configDir}/vite.config.ts"
+    "${configDir}/*.config.cjs",
+    "${configDir}/*.config.js",
+    "${configDir}/*.config.mjs",
+    "${configDir}/*.config.ts",
+    "${configDir}/*.config.mts",
   ],
   "exclude": [".nx", "dist", "e2e", "node_modules", "tmp"],
   "compilerOptions": {
@@ -21,6 +24,7 @@
       "@nx/react/typings/styled-jsx.d.ts"
     ],
     "paths": {
+      "#/*": ["./*"],
       "@carma-apps/envirometrics": [
         "libraries/appframeworks/envirometrics/src/index.ts"
       ],
