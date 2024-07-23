@@ -20,13 +20,9 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 
 const FilterUI = () => {
-  // @ts-ignore
   const { filterState } = useContext(FeatureCollectionContext);
-  // @ts-ignore
   const { setFilterState } = useContext(FeatureCollectionDispatchContext);
-  // @ts-ignore
   const { windowSize } = useContext(ResponsiveTopicMapContext);
-  // @ts-ignore
   const { additionalStylingInfo } = useContext(TopicMapStylingContext);
 
   const width = windowSize?.width || 500;

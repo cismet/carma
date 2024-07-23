@@ -1,5 +1,4 @@
 import { Button, Popover, Radio, Tooltip, message } from 'antd';
-// @ts-ignore
 import {
   faB,
   faBars,
@@ -15,7 +14,6 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useContext, useState } from 'react';
-// @ts-ignore
 import { UIDispatchContext } from 'react-cismap/contexts/UIContextProvider';
 
 import { LayerLib, Item, Layer } from '@carma-mapping/layers';
@@ -43,7 +41,6 @@ import { layerMap } from '../helper/layer';
 
 const TopNavbar = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  // @ts-ignore
   const { setAppMenuVisible } = useContext(UIDispatchContext);
   const backgroundLayer = useSelector(getBackgroundLayer);
   const selectedMapLayer = useSelector(getSelectedMapLayer);

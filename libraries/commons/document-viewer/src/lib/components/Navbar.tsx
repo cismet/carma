@@ -5,7 +5,6 @@ import {
   Tooltip,
   OverlayTrigger,
 } from 'react-bootstrap';
-// @ts-ignore
 import Icon from 'react-cismap/commons/Icon';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Doc } from '../document-viewer';
@@ -104,13 +103,16 @@ const Navbar = ({
       zipnamePrefix = zipnamePrefix + '.';
     }
 
-    let downloadConf = {
+    let downloadConf : {
+      name: string;
+      files: unknown[];
+      encoding: string;
+    } = {
       name: zipnamePrefix + docPackageId,
       files: [],
       encoding: encoding,
     };
     for (const doc of docs) {
-      // @ts-ignore
       downloadConf.files.push({
         uri: doc.url,
         folder: doc.group,

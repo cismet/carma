@@ -112,8 +112,7 @@ const KassenzeichenFlaechenChartPanel = ({ orientation }: PanelProps) => {
           </Pie>
           <Legend />
           <Tooltip
-            formatter={(value) =>
-              // @ts-ignore
+            formatter={(value: number) =>
               Math.floor(value).toLocaleString('de-DE') + ' m²'
             }
           />

@@ -1,6 +1,5 @@
 import { configureStore } from '@reduxjs/toolkit';
 import bplaeneSlice from './slices/bplaene';
-// @ts-ignore
 import { createLogger } from 'redux-logger';
 import { persistReducer } from 'redux-persist';
 import { APP_KEY, STORAGE_PREFIX } from '../constants/bplaene';

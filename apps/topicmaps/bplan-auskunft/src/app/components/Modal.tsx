@@ -9,7 +9,6 @@ import meinStandpunktMarkerMitKompass from './MeinStandpunktMarkerMitKompass.jpg
 import Icon from 'react-cismap/commons/Icon';
 
 const Modal = () => {
-  // @ts-ignore
   const { setAppMenuActiveMenuSection } = useContext(UIDispatchContext);
   return (
     <ModalApplicationMenu

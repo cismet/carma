@@ -1,10 +1,12 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { WMSCapabilitiesJSON } from 'wms-capabilities';
 import { serviceConfig } from './config';
-import type { Item, XMLLayer } from './types';
+import type { Item, XMLLayer, Layer } from './types';
 
 export const flattenLayer = (
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   layer: any,
-  parentTitles: any = [],
+  parentTitles = [],
   url: string
 ) => {
   const layerTitle = layer.Title;
@@ -79,7 +81,6 @@ const getLeafLayers = (layer, leafLayers = []) => {
     layer.Layer.forEach((subLayer) => getLeafLayers(subLayer, leafLayers));
   } else {
     // If no sub-layers, it's a leaf layer, add it to the list
-    // @ts-ignore
     leafLayers.push(layer);
   }
   return leafLayers;
@@ -125,11 +126,11 @@ export const getLayerStructure = ({
   wms,
   serviceName,
 }: {
-  config: any;
+  config;
   wms?: WMSCapabilitiesJSON;
   serviceName: string;
 }) => {
-  const structure: any[] = [];
+  const structure: unknown[] = [];
   const services = serviceConfig;
   for (let category in config) {
     const categoryConfig = config[category];
@@ -161,7 +162,7 @@ export const getLayerStructure = ({
         }
         if (foundLayer) {
           if (wms) {
-            // @ts-ignore
+            // @ts-expect-error fix typing
             foundLayer.props['url'] =
               wms.Capability.Request.GetMap.DCPType[0].HTTP.Get.OnlineResource;
           }
@@ -190,7 +191,6 @@ export const getLayerStructure = ({
         );
         let foundLayer = wmsLayerToGenericItem(wmsLayer, serviceName);
         if (foundLayer) {
-          // @ts-ignore
           foundLayer.props['url'] =
             wms.Capability.Request.GetMap.DCPType[0].HTTP.Get.OnlineResource;
 

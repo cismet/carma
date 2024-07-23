@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react';
+import React, { CSSProperties, ReactNode } from 'react';
 
 interface ControlButtonStylerProps {
   children: ReactNode;
@@ -21,15 +21,15 @@ const ControlButtonStyler: React.FC<ControlButtonStylerProps> = ({
     borderRadius: '4px',
     width,
     height,
-    textAlign: 'center' as 'center',
+    textAlign: 'center', 
     cursor: 'pointer',
     display: 'flex',
-    flexDirection: 'column' as 'column',
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'space-evenly',
     fontSize,
     // fontWeight: 700,
-  };
+  } as CSSProperties;
   return (
     <button style={iconPadding} onClick={singleButtonClick}>
       {children}

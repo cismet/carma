@@ -19,7 +19,6 @@ import DokumenteBetrachten from './DokumenteBetrachten';
 import DokumenteHerunterladen from './DokumenteHerunterladen';
 
 const Modal = () => {
-  // @ts-ignore
   const { setAppMenuActiveMenuSection } = useContext(UIDispatchContext);
   return (
     <ModalApplicationMenu

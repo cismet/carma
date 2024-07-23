@@ -18,19 +18,14 @@ import {
 
 const Map = () => {
   const [gazData, setGazData] = useState([]);
-  // @ts-ignore
   const { setSelectedFeatureByPredicate, setClusteringOptions } = useContext(
     FeatureCollectionDispatchContext
   );
-  // @ts-ignore
   const { markerSymbolSize } = useContext(TopicMapStylingContext);
-  // @ts-ignore
   const { clusteringOptions, selectedFeature } = useContext(
     FeatureCollectionContext
   );
-  // @ts-ignore
   const { secondaryInfoVisible } = useContext(UIContext);
-  // @ts-ignore
   const { setSecondaryInfoVisible } = useContext(UIDispatchContext);
   useEffect(() => {
     getGazData(setGazData);

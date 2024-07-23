@@ -40,7 +40,6 @@ export const formatter: NonNullable<
 >['formatter'] = (value) => `${value * 100}%`;
 
 const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
-  // @ts-ignore
   const { routedMapRef } = useContext(TopicMapContext);
   const infoRef = useRef<HTMLDivElement>(null);
   const dispatch = useDispatch();

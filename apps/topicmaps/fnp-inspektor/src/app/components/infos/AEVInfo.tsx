@@ -18,7 +18,6 @@ const AEVInfo = () => {
   const selectedFeatureIndex = useSelector(getSelectedFeatureIndex);
   const currentFeature = features[selectedFeatureIndex];
   const dispatch = useDispatch();
-  // @ts-ignore
   const { routedMapRef } = useContext(TopicMapContext);
 
   const next = () => {
@@ -184,7 +183,6 @@ const AEVInfo = () => {
             <td style={{ textAlign: 'center', verticalAlign: 'center' }}>
               <a
                 onClick={() => {
-                  // @ts-ignore
                   const projectedFC = L.Proj.geoJson(features);
                   const bounds = projectedFC.getBounds();
                   const map = routedMapRef?.leafletMap?.leafletElement;

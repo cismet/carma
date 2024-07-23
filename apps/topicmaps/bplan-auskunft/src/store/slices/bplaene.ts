@@ -30,7 +30,7 @@ const slice = createSlice({
 export default slice;
 
 export const loadBPlaene = (finishedHandler = () => {}) => {
-  return async (dispatch: any) => {
+  return async (dispatch) => {
     dispatch(setLoading(true));
     fetch('https://wunda-geoportal.cismet.de/data/bplaene.data.json')
       .then((response) => {
@@ -41,7 +41,7 @@ export const loadBPlaene = (finishedHandler = () => {}) => {
       })
       .then((result) => {
         finishedHandler();
-        let features: any = [];
+        let features: unknown[] = [];
         let counter = 0;
         for (let item of result) {
           let itemFeature = convertBPlanToFeature(item, counter);
@@ -123,7 +123,7 @@ export function getPlanFeatureByGazObject(
   };
 }
 
-export function getPlanFeatureByTitle(title, done) {
+export function getPlanFeatureByTitle(title: string, done: (hit: any) => void) {
   return function (dispatch) {
     let status: string | undefined = undefined;
     let nr = title;

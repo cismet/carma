@@ -3,16 +3,17 @@
   "compileOnSave": false,
   "include": [
     "${configDir}/src/**/*.js",
-    "${configDir}/src/**/*.jsx",
     "${configDir}/src/**/*.ts",
+    "${configDir}/src/**/*.jsx",
     "${configDir}/src/**/*.tsx",
-    "${configDir}/*.config.cjs",
     "${configDir}/*.config.js",
-    "${configDir}/*.config.mjs",
     "${configDir}/*.config.ts",
+    "${configDir}/*.config.cjs",
+    "${configDir}/*.config.mjs",
     "${configDir}/*.config.mts",
+    "types/*.d.ts",
   ],
-  "exclude": [".nx", "dist", "e2e", "node_modules", "tmp"],
+  "exclude": [".nx", "dist", "node_modules", "tmp"],
   "compilerOptions": {
     "rootDir": ".",
     "baseUrl": ".",
@@ -25,19 +26,13 @@
     ],
     "paths": {
       "#/*": ["./*"],
-      "@carma-apps/envirometrics": [
-        "libraries/appframeworks/envirometrics/src/index.ts"
-      ],
+      "@carma-apps/envirometrics": ["libraries/appframeworks/envirometrics/src/index.ts"],
       "@carma-apps/portals": ["libraries/appframeworks/portals/src/index.ts"],
-      "@carma-apps/topicmaps": [
-        "libraries/appframeworks/topicmaps/src/index.ts"
-      ],
+      "@carma-apps/topicmaps": ["libraries/appframeworks/topicmaps/src/index.ts"],
       "@carma-collab/wuppertal/baederkarte": [
         "libraries/collaboration/carma-wuppertal-collab/src/baederkarte/index.ts"
       ],
-      "@carma-collab/wuppertal/commons": [
-        "libraries/collaboration/carma-wuppertal-collab/src/commons/index.ts"
-      ],
+      "@carma-collab/wuppertal/commons": ["libraries/collaboration/carma-wuppertal-collab/src/commons/index.ts"],
       "@carma-collab/wuppertal/e-auto-ladestation": [
         "libraries/collaboration/carma-wuppertal-collab/src/e-auto-ladestation/index.ts"
       ],
@@ -48,39 +43,17 @@
         "libraries/collaboration/carma-wuppertal-collab/src/starkregengefahrenkarte/index.jsx"
       ],
       "@carma-commons/debug": ["libraries/commons/debug/src/index.ts"],
-      "@carma-commons/document-viewer": [
-        "libraries/commons/document-viewer/src/index.ts"
-      ],
-      "@carma-mapping/cesium-engine": [
-        "libraries/mapping/engines/cesium/src/index.ts"
-      ],
-      "@carma-mapping/cesium-engine/shaders": [
-        "libraries/mapping/engines/cesium/src/lib/shaders.ts"
-      ],
-      "@carma-mapping/cesium-engine/types": [
-        "libraries/mapping/engines/cesium/src/index.d.ts"
-      ],
-      "@carma-mapping/cesium-engine/utils": [
-        "libraries/mapping/engines/cesium/src/lib/utils/index.ts"
-      ],
-      "@carma-mapping/cesium-widget-engine": [
-        "libraries/mapping/engines/cesium-widget/src/index.ts"
-      ],
-      "@carma-mapping/components": [
-        "libraries/mapping/carma-map-components/src/index.ts"
-      ],
-      "@carma-mapping/layers": [
-        "libraries/mapping/carma-map-layers/src/index.ts"
-      ],
-      "@carma-mapping/leaflet-engine": [
-        "libraries/mapping/engines/leaflet/src/index.ts"
-      ],
-      "@carma-mapping/map-controls-layout": [
-        "libraries/mapping/carma-map-control-layout/src/index.ts"
-      ],
-      "@carma-mapping/maplibre-engine": [
-        "libraries/mapping/engines/maplibre/src/index.ts"
-      ],
+      "@carma-commons/document-viewer": ["libraries/commons/document-viewer/src/index.ts"],
+      "@carma-mapping/cesium-engine": ["libraries/mapping/engines/cesium/src/index.ts"],
+      "@carma-mapping/cesium-engine/shaders": ["libraries/mapping/engines/cesium/src/lib/shaders.ts"],
+      "@carma-mapping/cesium-engine/types": ["libraries/mapping/engines/cesium/src/index.d.ts"],
+      "@carma-mapping/cesium-engine/utils": ["libraries/mapping/engines/cesium/src/lib/utils/index.ts"],
+      "@carma-mapping/cesium-widget-engine": ["libraries/mapping/engines/cesium-widget/src/index.ts"],
+      "@carma-mapping/components": ["libraries/mapping/carma-map-components/src/index.ts"],
+      "@carma-mapping/layers": ["libraries/mapping/carma-map-layers/src/index.ts"],
+      "@carma-mapping/leaflet-engine": ["libraries/mapping/engines/leaflet/src/index.ts"],
+      "@carma-mapping/map-controls-layout": ["libraries/mapping/carma-map-control-layout/src/index.ts"],
+      "@carma-mapping/maplibre-engine": ["libraries/mapping/engines/maplibre/src/index.ts"],
       "@carma-mapping/utils": ["libraries/mapping/carma-map-utils/src/index.ts"]
     },
     "skipLibCheck": true

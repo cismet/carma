@@ -5,8 +5,8 @@ import Main from './components/Main';
 
 export interface ControlLayoutProps {
   children: ReactNode;
-  onResponsiveCollapse?: Function;
-  onHeightResize?: Function;
+  onResponsiveCollapse?: (e: unknown) => void;
+  onHeightResize?: (set: number | null) => void;
   debugMode?: boolean;
   ifStorybook?: boolean;
 }
@@ -98,7 +98,7 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
   children,
   onResponsiveCollapse = () => console.log(),
   debugMode = false,
-  onHeightResize = () => {},
+  onHeightResize = (set: number|null) => set,
   ifStorybook = true,
 }) => {
   const [windowWidth, setWindowWidth] = useState(0);

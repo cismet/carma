@@ -16,12 +16,10 @@ const slice = createSlice({
     setSelectedFeatureIndex(state, action) {
       state.selectedFeatureIndex = action.payload;
       const features = state.featureCollection;
-      features.forEach((feature, i) => {
+      features.forEach((feature: {selected: boolean}, i) => {
         if (i === action.payload) {
-          // @ts-ignore
           feature.selected = true;
         } else {
-          // @ts-ignore
           feature.selected = false;
         }
       });

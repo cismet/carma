@@ -1,23 +1,24 @@
-/* eslint-disable */
+import L, { Marker, LatLng, IconOptions, Icon } from 'leaflet';
+import type { MarkerOptions, DivIcon, PointExpression } from 'leaflet';
 
-import L, { Marker, MarkerOptions, LatLng, PointExpression } from 'leaflet';
-
-interface RotatableMarkerOptions extends MarkerOptions {
+interface RotatableMarkerOptions {
   rotationOrigin?: string;
   rotationAngle?: number;
+  icon: Icon<IconOptions> | DivIcon | undefined;
 }
 
-interface RotatableMarker extends Marker {
+interface RotatableMarker extends Omit<Marker, 'on'> {
   options: RotatableMarkerOptions;
   _applyRotation(): void;
   _icon: HTMLElement;
   update(): void;
+  on(type: string, fn: (event: any) => void, context?: any): this;
   setRotationAngle(angle: number): this;
   setRotationOrigin(origin: string): this;
 }
 
 export const makeLeafletMarkerRotatable = (
-  MarkerClass: typeof Marker
+  MarkerClass: typeof Marker,
 ): void => {
   const proto_initIcon = (MarkerClass.prototype as any)._initIcon;
   const proto_setPos = (MarkerClass.prototype as any)._setPos;

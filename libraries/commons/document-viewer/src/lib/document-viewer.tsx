@@ -20,16 +20,18 @@ export type Doc = {
   docTitle?: string;
   group: string;
   file: string;
-  meta: {
-    [key: string]: {
-      x: number;
-      y: number;
-      maxZoom: number;
-    } & {
-      contentLength: string;
-      pages: number;
-    };
-  };
+  meta: // TODO fix type here
+    | string
+    | {
+        [key: string]: {
+          x: number;
+          y: number;
+          maxZoom: number;
+        } & {
+          contentLength: string;
+          pages: number;
+        };
+      };
 };
 
 /* eslint-disable-next-line */
@@ -53,7 +55,7 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
   const mapHeight = 'calc(100vh - 49px)';
 
   const handleMouseDown = (
-    event: React.MouseEvent<HTMLDivElement, MouseEvent>
+    event: React.MouseEvent<HTMLDivElement, MouseEvent>,
   ) => {
     event.preventDefault();
     event.stopPropagation();
@@ -102,8 +104,8 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
       >
         <Navbar
           title={docs[0]?.title || docs[0].docTitle}
-          // @ts-ignore
-          maxIndex={docs[parseInt(file!) - 1]?.meta.pages}
+          // @ts-expect-error type is wrong
+          maxIndex={docs[parseInt(file!) - 1]?.meta.pages as unknown as number}
           downloadUrl={docs[parseInt(file!) - 1]?.url}
           docs={docs}
           setHeightTrigger={setWholeHeightTrigger}
@@ -140,8 +142,9 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
             <Sidebar
               docs={docs}
               index={parseInt(file!)}
-              // @ts-ignore
-              maxIndex={docs[parseInt(file!) - 1]?.meta.pages}
+              // TODO fix type
+              // @ts-expect-error type is wrong
+              maxIndex={docs[parseInt(file!) - 1]?.meta.pages as unknown as number}
               mode={mode}
               compactView={compactView}
             />

@@ -11,7 +11,6 @@ import FilterUI from './menu/FilterUI';
 import Footer from './menu/Footer';
 
 const Menu = () => {
-  // @ts-ignore
   const { filteredItems, shownFeatures } = useContext(FeatureCollectionContext);
 
   const getFilterHeader = () => {

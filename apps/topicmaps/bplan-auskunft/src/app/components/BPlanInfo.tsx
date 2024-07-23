@@ -9,6 +9,7 @@ import Icon from 'react-cismap/commons/Icon';
 import { useNavigate } from 'react-router-dom';
 import Color from 'color';
 import L from 'leaflet';
+//import type {TopicMapContext} from 'react-cismap';
 import { TopicMapContext } from 'react-cismap/contexts/TopicMapContextProvider';
 import { UIDispatchContext } from 'react-cismap/contexts/UIContextProvider';
 
@@ -19,10 +20,8 @@ const BPlanInfo = ({
   setSelectedIndex,
   setFeatures,
 }) => {
-  // @ts-ignore
   const { setAppMenuVisible } = useContext(UIDispatchContext);
-  // @ts-ignore
-  const { routedMapRef } = useContext(TopicMapContext);
+  const { routedMapRef } = useContext(TopicMapContext) 
   let headertext;
   let headerColor;
 
@@ -222,7 +221,6 @@ const BPlanInfo = ({
             <td style={{ textAlign: 'center', verticalAlign: 'center' }}>
               <a
                 onClick={() => {
-                  // @ts-ignore
                   const projectedFC = L.Proj.geoJson(features);
                   const bounds = projectedFC.getBounds();
                   const map = routedMapRef?.leafletMap?.leafletElement;

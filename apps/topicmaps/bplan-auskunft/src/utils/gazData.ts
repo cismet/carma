@@ -2,10 +2,11 @@ import { md5FetchJSON, md5FetchText } from 'react-cismap/tools/fetching';
 import { getGazDataForTopicIds } from 'react-cismap/tools/gazetteerHelper';
 
 import { host } from '../constants/bplaene';
+import { ENDPOINT } from '#/libraries/mapping/engines/cesium/src/lib/components/SearchGazetteer/types';
 
 export const getGazData = async (setGazData) => {
   const prefix = 'GazData';
-  const sources: any = {};
+  const sources: Partial<Record<ENDPOINT, string>> = {};
 
   sources.adressen = await md5FetchText(prefix, host + '/data/adressen.json');
   sources.bezirke = await md5FetchText(prefix, host + '/data/bezirke.json');

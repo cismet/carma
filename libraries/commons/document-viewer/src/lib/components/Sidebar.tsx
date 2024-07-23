@@ -1,5 +1,4 @@
 import { useRef } from 'react';
-// @ts-ignore
 import Icon from 'react-cismap/commons/Icon';
 import { Doc } from '../document-viewer';
 import { useNavigate, useParams } from 'react-router-dom';

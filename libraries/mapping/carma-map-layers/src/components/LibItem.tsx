@@ -24,7 +24,7 @@ interface LayerItemProps {
   layer: Item;
   thumbnails: any;
   setThumbnail: any;
-  activeLayers: Layer[];
+  activeLayers: Item[];
 }
 
 const LibItem = ({
@@ -52,7 +52,7 @@ const LibItem = ({
       : layer?.tags?.slice(1);
 
   const name = layer.name;
-  // @ts-ignore
+  // @ts-expect-error tbd
   const service = layer.service;
 
   const box = layer.pictureBoundingBox || [];

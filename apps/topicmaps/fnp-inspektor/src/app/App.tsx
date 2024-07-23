@@ -12,6 +12,7 @@ import {
 } from '../store/slices/aenderungsverfahren';
 import { useParams } from 'react-router-dom';
 import { getDocsForAEVGazetteerEntry } from '../utils/DocsHelper';
+import { UnknownAction } from 'redux';
 
 export function App() {
   const dispatch = useDispatch();
@@ -35,7 +36,7 @@ export function App() {
   const getDocsWithUpdatedMetaData = async (tmpDocs: Doc[]) => {
     await Promise.all(
       tmpDocs.map(async (doc) => {
-        // @ts-ignore
+        // @ts-expect-error meta type inconsistent
         const test2 = await getMeta(doc.meta);
         doc.meta = test2;
       })
@@ -45,8 +46,7 @@ export function App() {
   };
 
   useEffect(() => {
-    // @ts-ignore
-    dispatch(loadAEVs());
+    dispatch(loadAEVs() as unknown as UnknownAction);
 
     const getUpdatedDocs = async (tmpDocs: Doc[]) => {
       const updatedDocs = await getDocsWithUpdatedMetaData(tmpDocs);
@@ -59,8 +59,7 @@ export function App() {
       tmpDocs = getDocsForAEVGazetteerEntry({
         gazHit: { type: 'aenderungsv', more: { v: docPackageId } },
         searchForAEVs: (aevs, done) =>
-          // @ts-ignore
-          dispatch(getAEVFeatureByGazObject(aevs, done)),
+          dispatch(getAEVFeatureByGazObject(aevs, done) as unknown as UnknownAction),
       });
 
       if (tmpDocs) {

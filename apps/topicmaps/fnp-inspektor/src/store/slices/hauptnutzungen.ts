@@ -148,8 +148,7 @@ export function searchForHauptnutzungen({
       if (finalResults.length === 0) {
         dispatch(setFeatureCollection([]));
       } else {
-        // @ts-ignore
-        done(finalResults);
+        done && done(finalResults);
       }
     } else if (point !== undefined) {
     }

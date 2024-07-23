@@ -1,4 +1,3 @@
-// @ts-ignore
 import TopicMapComponent from 'react-cismap/topicmaps/TopicMapComponent';
 import { FeatureCollectionDisplayWithTooltipLabels } from 'react-cismap';
 import BPlanInfo from './BPlanInfo';
@@ -20,29 +19,28 @@ import Modal from './Modal';
 import { useSearchParams } from 'react-router-dom';
 import L from 'leaflet';
 import { TopicMapContext } from 'react-cismap/contexts/TopicMapContextProvider';
+import { UnknownAction } from 'redux';
 
 const Map = () => {
   const dispatch = useDispatch();
   const isLoading = useSelector(getLoading);
-  const [features, setFeatures] = useState([]);
+  const [features, setFeatures] = useState<unknown[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [boundingBox, setBoundingBox] = useState(null);
   const [gazData, setGazData] = useState([]);
   const [searchParams, setSearchParams] = useSearchParams();
   let refRoutedMap = useRef(null);
   const zoom = searchParams.get('zoom');
-  // @ts-ignore
   const { routedMapRef } = useContext(TopicMapContext);
 
   const doubleMapClick = (event) => {
-    // @ts-ignore
-    const pos = proj4(proj4.defs('EPSG:4326'), proj4crs25832def, [
-      event.latlng.lng,
-      event.latlng.lat,
-    ]);
+    const pos = proj4(
+      proj4.defs('EPSG:4326') as unknown as string,
+      proj4crs25832def,
+      [event.latlng.lng, event.latlng.lat],
+    );
 
     dispatch(
-      // @ts-ignore
       getPlanFeatures({
         point: { x: pos[0], y: pos[1] },
         done: (hits) => {
@@ -50,13 +48,12 @@ const Map = () => {
           setFeatures(hits);
           setSelectedIndex(0);
         },
-      })
+      }) as unknown as UnknownAction,
     );
   };
 
   const bplanSearchButtonHit = (event) => {
     dispatch(
-      // @ts-ignore
       getPlanFeatures({
         boundingBox: boundingBox,
         done: (hits) => {
@@ -64,13 +61,12 @@ const Map = () => {
           setFeatures(hits);
           setSelectedIndex(0);
         },
-      })
+      }) as unknown as UnknownAction,
     );
   };
 
   useEffect(() => {
-    // @ts-ignore
-    dispatch(loadBPlaene());
+    dispatch(loadBPlaene() as unknown as UnknownAction);
     getGazData(setGazData);
     document.title = `B-Plan-Auskunft Wuppertal`;
   }, []);
@@ -130,15 +126,12 @@ const Map = () => {
           const gazObject = hits[0];
 
           dispatch(
-            // @ts-ignore
             getPlanFeatureByTitle(gazObject.string, (hit) => {
               const tmpHit = { ...hit };
               tmpHit.selected = true;
-              // @ts-ignore
               setFeatures([tmpHit]);
               setSelectedIndex(0);
 
-              // @ts-ignore
               const projectedFC = L.Proj.geoJson([tmpHit]);
               const bounds = projectedFC.getBounds();
               const map = routedMapRef?.leafletMap?.leafletElement;
@@ -146,7 +139,7 @@ const Map = () => {
                 return;
               }
               map.fitBounds(bounds);
-            })
+            }) as unknown as UnknownAction,
           );
         }
       }}

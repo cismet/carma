@@ -8,6 +8,7 @@ import { getKassenzeichenbySTAC } from '../../store/slices/kassenzeichen';
 import { getLoginInProgress, getLoginInfoText } from '../../store/slices/auth';
 import { useNavigate } from 'react-router-dom';
 import { getConfData, getUiState } from '../../store/slices/ui';
+import { UnknownAction } from 'redux';
 
 const VerdisOnlineLanding = () => {
   const [stac, setStac] = useState('');
@@ -49,7 +50,6 @@ const VerdisOnlineLanding = () => {
       let stac = rawStac.trim().replace(/[- ]/g, '');
       if (stac.length === 12) {
         dispatch(
-          // @ts-ignore
           getKassenzeichenbySTAC(stac, (success) => {
             if (success === true) {
               setTimeout(() => {
@@ -68,7 +68,7 @@ const VerdisOnlineLanding = () => {
                 setLoginAlertVisible(true);
               }, 1000);
             }
-          })
+          }) as unknown as UnknownAction,
         );
       }
     }

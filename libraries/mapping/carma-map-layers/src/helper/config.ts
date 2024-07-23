@@ -1,4 +1,4 @@
-import type { Config } from './types';
+import type { Config, LayerConfig, LayerProps } from './types';
 
 export const config = {
   Ortho: {
@@ -222,7 +222,7 @@ export const config = {
   },
 };
 
-export const serviceConfig = {
+export const serviceConfig: Record<string, LayerConfig> = {
   wuppKarten: {
     url: 'https://maps.wuppertal.de/karten',
     name: 'karten',

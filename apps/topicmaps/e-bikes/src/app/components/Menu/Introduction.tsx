@@ -2,7 +2,6 @@ import { useContext } from 'react';
 import { UIDispatchContext } from 'react-cismap/contexts/UIContextProvider';
 
 const Introduction = () => {
-  // @ts-ignore
   const { setAppMenuActiveMenuSection } = useContext(UIDispatchContext);
 
   return (

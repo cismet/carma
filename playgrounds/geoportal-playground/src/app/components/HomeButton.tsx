@@ -4,14 +4,13 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 const HomeButton = () => {
-  // @ts-ignore
   const { routedMapRef } = useContext(TopicMapContext);
 
   useEffect(() => {
     if (routedMapRef?.leafletMap) {
       const map = routedMapRef.leafletMap.leafletElement;
 
-      // @ts-ignore
+      // @ts-expect-error figure out proper type here
       L.Control.Button = L.Control.extend({
         options: {
           position: 'topleft',
@@ -33,14 +32,15 @@ const HomeButton = () => {
               animate: true,
             });
           });
-          return container;
+          return (container as unknown) ;
         },
-        onRemove: function (map) {
+        onRemove: () => {
+          // @ts-expect-error figure out proper type here
           return this.div;
         },
       });
 
-      // @ts-ignore
+      // @ts-expect-error figure out proper type here
       const home = new L.Control.Button();
       home.addTo(map);
     }

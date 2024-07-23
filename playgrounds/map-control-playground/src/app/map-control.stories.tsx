@@ -92,7 +92,8 @@ const iconPadding = {
 
 const LocateControlComponent = ({ startLocate = 0 }) => {
   const { routedMapRef } = useContext(TopicMapContext) as any;
-  const [locationInstance, setLocationInstance] = useState<LocateControl|null>(null);
+  const [locationInstance, setLocationInstance] =
+    useState<LocateControl | null>(null);
 
   useEffect(() => {
     if (!locationInstance && routedMapRef) {
@@ -127,7 +128,9 @@ const LocateControlComponent = ({ startLocate = 0 }) => {
 
 export const ReplaceLocatorFromLeaflet = () => {
   const [locationProps, setLocationProps] = useState(0);
-  const [containerHeight, setContainerHeight] = useState<CSSProperties|null>(null);
+  const [containerHeight, setContainerHeight] = useState<CSSProperties | null>(
+    null,
+  );
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -173,7 +176,9 @@ export const ReplaceLocatorFromLeaflet = () => {
 
 export const ExcalidrawExample = () => {
   const [locationProps, setLocationProps] = useState(0);
-  const [containerHeight, setContainerHeight] = useState<CSSProperties|null>(null);
+  const [containerHeight, setContainerHeight] = useState<CSSProperties | null>(
+    null,
+  );
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -236,7 +241,7 @@ export const ExcalidrawExample = () => {
 };
 
 export const ResponsiveControlWithTwoColumns = () => {
-  const [containerWidth, setContainerWidth] = useState<number|null>(null);
+  const [containerWidth, setContainerWidth] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -270,9 +275,11 @@ export const ResponsiveControlWithTwoColumns = () => {
 };
 
 export const ResponsiveCollapsWithTwoColumnsOnBottom = () => {
-  const [containerWidth, setContainerWidth] = useState<CSSProperties|null>(null);
+  const [containerWidth, setContainerWidth] = useState<CSSProperties | null>(
+    null,
+  );
   const containerRef = useRef<HTMLDivElement>(null);
-  const [layoutHeight, setLayoutHeight] = useState(null);
+  const [layoutHeight, setLayoutHeight] = useState<unknown | null>(null);
   useEffect(() => {
     if (containerRef) {
       setContainerWidth({
@@ -352,8 +359,12 @@ export const ResponsiveCollapsWithTwoColumnsOnBottom = () => {
 };
 
 export const ResponsiveThreeColumnsOnTop = () => {
-  const [containerWidth, setContainerWidth] = useState<CSSProperties|null>(null);
-  const [resonsiveCollapse, setResonsiveCollapse] = useState(null);
+  const [containerWidth, setContainerWidth] = useState<CSSProperties | null>(
+    null,
+  );
+  const [resonsiveCollapse, setResonsiveCollapse] = useState<unknown | null>(
+    null,
+  );
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -422,10 +433,14 @@ export const ResponsiveThreeColumnsOnTop = () => {
 };
 
 export const ResponsiveAllPosition = () => {
-  const [containerWidth, setContainerWidth] = useState<CSSProperties|null>(null);
-  const [resonsiveCollapse, setResonsiveCollapse] = useState(null);
+  const [containerWidth, setContainerWidth] = useState<CSSProperties | null>(
+    null,
+  );
+  const [resonsiveCollapse, setResonsiveCollapse] = useState<unknown | null>(
+    null,
+  );
   const containerRef = useRef<HTMLDivElement>(null);
-  const [layoutHeight, setLayoutHeight] = useState(null);
+  const [layoutHeight, setLayoutHeight] = useState<number | null>(null);
   useEffect(() => {
     if (containerRef) {
       setContainerWidth({
@@ -488,17 +503,19 @@ export const ResponsiveAllPosition = () => {
         </Control>
         <Control position="topcenter" order={30}>
           <div
-            style={{
-              ...iconPadding,
-              fontSize: '14px',
-              opacity: 0.9,
-              width: '100%',
-              maxWidth: '100%',
-              height: '100%',
-              padding: '5px 4px',
-              border: 'none',
-              borderRadius: '0px',
-            } as CSSProperties}
+            style={
+              {
+                ...iconPadding,
+                fontSize: '14px',
+                opacity: 0.9,
+                width: '100%',
+                maxWidth: '100%',
+                height: '100%',
+                padding: '5px 4px',
+                border: 'none',
+                borderRadius: '0px',
+              } as CSSProperties
+            }
           >
             <div>Center controller</div>
           </div>
@@ -529,10 +546,14 @@ export const ResponsiveAllPosition = () => {
 };
 
 export const ResponsiveDebugMode = () => {
-  const [containerWidth, setContainerWidth] = useState<CSSProperties|null>(null);
-  const [resonsiveCollapse, setResonsiveCollapse] = useState(null);
+  const [containerWidth, setContainerWidth] = useState<CSSProperties | null>(
+    null,
+  );
+  const [resonsiveCollapse, setResonsiveCollapse] = useState<unknown | null>(
+    null,
+  );
   const containerRef = useRef<HTMLDivElement>(null);
-  const [layoutHeight, setLayoutHeight] = useState(null);
+  const [layoutHeight, setLayoutHeight] = useState<number | null>(null);
 
   useEffect(() => {
     if (containerRef) {
@@ -590,16 +611,18 @@ export const ResponsiveDebugMode = () => {
         </Control>
         <Control position="topcenter" order={30}>
           <div
-            style={{
-              ...iconPadding,
-              fontSize: '14px',
-              opacity: 0.9,
-              width: '100%',
-              maxWidth: '100%',
-              height: '100%',
-              padding: '5px 4px',
-              border: 'none',
-            } as CSSProperties}
+            style={
+              {
+                ...iconPadding,
+                fontSize: '14px',
+                opacity: 0.9,
+                width: '100%',
+                maxWidth: '100%',
+                height: '100%',
+                padding: '5px 4px',
+                border: 'none',
+              } as CSSProperties
+            }
           >
             <div>Center controller</div>
           </div>
@@ -644,10 +667,14 @@ export const ResponsiveDebugMode = () => {
 };
 
 export const CalculateResponsiveBrake = () => {
-  const [containerWidth, setContainerWidth] = useState<CSSProperties|null>(null);
-  const [resonsiveCollapse, setResonsiveCollapse] = useState(null);
+  const [containerWidth, setContainerWidth] = useState<CSSProperties | null>(
+    null,
+  );
+  const [resonsiveCollapse, setResonsiveCollapse] = useState<unknown | null>(
+    null,
+  );
   const containerRef = useRef<HTMLDivElement>(null);
-  const [layoutHeight, setLayoutHeight] = useState(null);
+  const [layoutHeight, setLayoutHeight] = useState<number | null>(null);
 
   useEffect(() => {
     if (containerRef) {

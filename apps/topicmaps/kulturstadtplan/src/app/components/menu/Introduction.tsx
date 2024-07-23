@@ -3,7 +3,6 @@ import { UIDispatchContext } from 'react-cismap/contexts/UIContextProvider';
 import { Link } from 'react-scroll';
 
 const Introduction = () => {
-  // @ts-ignore
   const { setAppMenuActiveMenuSection } = useContext(UIDispatchContext);
 
   return (

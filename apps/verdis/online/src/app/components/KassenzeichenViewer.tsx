@@ -199,7 +199,6 @@ const KassenzeichenViewer = () => {
   verdisMapWithAdditionalComponents = (
     <div>
       <div
-        // @ts-ignore
         style={Object.assign({}, detailsStyle, {
           height: mapHeight + 'px',
           width: verticalPanelWidth + 'px',

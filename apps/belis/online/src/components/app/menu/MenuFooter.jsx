@@ -3,7 +3,6 @@ import { version as reactCismapVersion } from "react-cismap/meta";
 import { getBelisVersion } from "../../../constants/versions";
 
 const Footer = () => {
-  /*eslint jsx-a11y/anchor-is-valid: "off"*/
   return (
     <div style={{ fontSize: "11px" }}>
       <b>Hintergrundkarten</b>: Stadtkarte 2.0 © RVR | True Orthophoto 2022 © Stadt Wuppertal |

@@ -3,7 +3,6 @@ import { useContext } from 'react';
 import { UIDispatchContext } from 'react-cismap/contexts/UIContextProvider';
 
 const FlaechenInDerArbeitskarteAuswaehlenUndAbfragen = () => {
-  // @ts-ignore
   const { setAppMenuActiveMenuSection } = useContext(UIDispatchContext);
 
   return (

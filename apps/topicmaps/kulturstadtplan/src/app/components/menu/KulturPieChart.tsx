@@ -10,7 +10,6 @@ import { Doughnut } from 'react-chartjs-2';
 import 'chart.js/auto';
 
 const KulturPieChart = ({ visible = true }) => {
-  // @ts-ignore
   const { filteredItems } = useContext(FeatureCollectionContext);
 
   if (visible && filteredItems) {

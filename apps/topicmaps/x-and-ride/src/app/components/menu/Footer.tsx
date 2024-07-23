@@ -3,7 +3,6 @@ import { useContext } from 'react';
 import { UIDispatchContext } from 'react-cismap/contexts/UIContextProvider';
 
 const Footer = () => {
-  // @ts-ignore
   const { setAppMenuActiveMenuSection } = useContext(UIDispatchContext);
   return (
     <div style={{ fontSize: '11px' }}>

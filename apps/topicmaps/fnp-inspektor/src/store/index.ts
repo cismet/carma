@@ -2,7 +2,6 @@ import { configureStore } from '@reduxjs/toolkit';
 import aevSlice from './slices/aenderungsverfahren';
 import hauptnutzungenSlice from './slices/hauptnutzungen';
 import mappingSlice from './slices/mapping';
-// @ts-ignore
 import { createLogger } from 'redux-logger';
 import { persistReducer } from 'redux-persist';
 import { APP_KEY, STORAGE_PREFIX } from '../constants/fnp';

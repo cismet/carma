@@ -11,6 +11,7 @@ import {
 } from '../store/slices/bplaene';
 import { useParams } from 'react-router-dom';
 import { getDocsForBPlaeneGazetteerEntry } from '../utils/DocsHelper';
+import { UnknownAction } from 'redux';
 
 export function App() {
   const dispatch = useDispatch();
@@ -33,9 +34,9 @@ export function App() {
 
   const getDocsWithUpdatedMetaData = async (tmpDocs: Doc[]) => {
     await Promise.all(
-      tmpDocs.map(async (doc) => {
-        // @ts-ignore
-        const test2 = await getMeta(doc.meta);
+      tmpDocs.map(async (doc: Doc) => {
+        // @ts-expect-error meta type inconsistent
+        const test2 = await getMeta(doc.meta); // TODO check this
         doc.meta = test2;
       })
     );
@@ -44,8 +45,7 @@ export function App() {
   };
 
   useEffect(() => {
-    // @ts-ignore
-    dispatch(loadBPlaene());
+    dispatch(loadBPlaene() as unknown as UnknownAction);
 
     const getUpdatedDocs = async (tmpDocs: Doc[]) => {
       const updatedDocs = await getDocsWithUpdatedMetaData(tmpDocs);
@@ -61,8 +61,7 @@ export function App() {
           more: { v: docPackageId },
         },
         getPlanFeatureByGazObject: (aevs, done) =>
-          // @ts-ignore
-          dispatch(getPlanFeatureByGazObject(aevs, done)),
+          dispatch(getPlanFeatureByGazObject(aevs, done) as unknown as UnknownAction),
       });
 
       if (tmpDocs) {

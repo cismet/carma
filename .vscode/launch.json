@@ -1,12 +1,28 @@
 {
   "version": "0.2.0",
+  "resolveSourceMapLocations": ["${workspaceFolder}/**", "!**/node_modules/**"],
   "configurations": [
     {
-      "type": "pwa-chrome",
+      "type": "chrome",
       "request": "launch",
-      "name": "Launch Chrome against localhost",
-      "url": "http://localhost:4200", // Adjust the port if your app runs on a different port
-      "webRoot": "${workspaceFolder}/apps/topicmaps/klimaorte/src"
+      "name": "Debug App",
+      "url": "http://localhost:4200",
+      "webRoot": "${workspaceFolder}/playgrounds/cesium/src",
+      "sourceMapPathOverrides": {
+        "webpack:///./src/*": "${webRoot}/*"
+      },
+      "runtimeArgs": ["--remote-debugging-port=9222"],
+      "sourceMaps": true
+    }
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug myservice",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "nx",
+      "runtimeArgs": ["run", "cesium-playground:serve", "--inspect"],
+      "skipFiles": ["<node_internals>/**", "${workspaceFolder}/node_modules/*"],
+      "outFiles": ["${workspaceFolder}/dist/**/*.js"]
     }
   ]
 }

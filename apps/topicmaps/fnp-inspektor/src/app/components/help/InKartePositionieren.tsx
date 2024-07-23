@@ -4,7 +4,6 @@ import { useContext } from 'react';
 import { UIDispatchContext } from 'react-cismap/contexts/UIContextProvider';
 
 const InKartePositionieren = () => {
-  // @ts-ignore
   const { setAppMenuActiveMenuSection } = useContext(UIDispatchContext);
 
   return (

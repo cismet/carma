@@ -10,7 +10,6 @@ import HelpSection from './Menu/HelpSection';
 import FilterUI from './Menu/FilterUI';
 
 const Menu = () => {
-  // @ts-ignore
   const { filteredItems, shownFeatures } = useContext(FeatureCollectionContext);
 
   const getFilterHeader = () => {

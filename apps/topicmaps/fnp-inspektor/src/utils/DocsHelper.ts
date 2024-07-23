@@ -58,7 +58,6 @@ export function getDocsForAEVGazetteerEntry(props: any) {
           aev.url.replace('http://www.wuppertal.de/geoportal/', tileservice) +
             '/{z}/{x}/{y}.png'
         ),
-        // @ts-ignore
         meta: replaceUmlauteAndSpaces(
           aev.url.replace('http://www.wuppertal.de/geoportal/', tileservice) +
             '/meta.json'
@@ -81,7 +80,6 @@ export function getDocsForAEVGazetteerEntry(props: any) {
             url.replace('https://www.wuppertal.de/geoportal/', tileservice) +
               '/{z}/{x}/{y}.png'
           ),
-          // @ts-ignore
           meta: replaceUmlauteAndSpaces(
             url.replace('https://www.wuppertal.de/geoportal/', tileservice) +
               '/meta.json'
@@ -102,7 +100,7 @@ export function getDocsForAEVGazetteerEntry(props: any) {
             url.replace('https://www.wuppertal.de/geoportal/', tileservice) +
               '/{z}/{x}/{y}.png'
           ),
-          // @ts-ignore
+          // TODO fix type here:
           meta: replaceUmlauteAndSpaces(
             url.replace('https://www.wuppertal.de/geoportal/', tileservice) +
               '/meta.json'

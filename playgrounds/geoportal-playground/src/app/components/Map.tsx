@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-// @ts-ignore
 import TopicMapComponent from 'react-cismap/topicmaps/TopicMapComponent';
 import { useSelector } from 'react-redux';
 import { getGazData, paramsToObject } from '../helper/helper';
@@ -13,7 +12,6 @@ import {
 } from '../store/slices/mapping';
 import LayerWrapper from './layers/LayerWrapper';
 import InfoBoxMeasurement from './map-measure/InfoBoxMeasurement';
-// @ts-ignore
 import PaleOverlay from 'react-cismap/PaleOverlay';
 import StyledWMSTileLayer from 'react-cismap/StyledWMSTileLayer';
 import { useSearchParams } from 'react-router-dom';

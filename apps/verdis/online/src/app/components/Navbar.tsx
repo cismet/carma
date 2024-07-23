@@ -40,6 +40,7 @@ import { useRef } from 'react';
 import './navbar.css';
 import { OverlayTriggerType } from 'react-bootstrap/esm/OverlayTrigger';
 import { logout } from '../../store/slices/auth';
+import { UnknownAction } from 'redux';
 
 const VerdisOnlineAppNavbar = () => {
   const dispatch = useDispatch();
@@ -316,8 +317,7 @@ const VerdisOnlineAppNavbar = () => {
                       paddingTop: '15px',
                       paddingBottom: '15px',
                     }}
-                    // @ts-ignore
-                    onClick={() => dispatch(logout())}
+                    onClick={() => dispatch(logout() as unknown as UnknownAction)}
                   >
                     <FontAwesomeIcon icon={faPowerOff} />
                     {menuIsHidden ? '   ' + lblExit : ''}
