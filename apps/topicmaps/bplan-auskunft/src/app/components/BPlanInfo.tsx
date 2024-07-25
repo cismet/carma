@@ -12,7 +12,7 @@ import L from 'leaflet';
 //import type {TopicMapContext} from 'react-cismap';
 import { TopicMapContext } from 'react-cismap/contexts/TopicMapContextProvider';
 import { UIDispatchContext } from 'react-cismap/contexts/UIContextProvider';
-import { InfoBoxText } from '@carma-collab/wuppertal/bplan-auskunft';
+//import { InfoBoxText } from '@carma-collab/wuppertal/bplan-auskunft'; // TODO FIX IMPORT
 
 const BPlanInfo = ({
   pixelwidth,
@@ -82,7 +82,7 @@ const BPlanInfo = ({
         header={tmpVis}
         isCollapsible={false}
         collapsibleDiv={<></>}
-        alwaysVisibleDiv={<InfoBoxText setAppMenuVisible={setAppMenuVisible} />}
+        //alwaysVisibleDiv={<InfoBoxText setAppMenuVisible={setAppMenuVisible} />} TODO FIX IMPORT from collab
       ></ResponsiveInfoBox>
     );
   }

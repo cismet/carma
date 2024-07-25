@@ -1,7 +1,6 @@
 import { Button, Input, message, Form } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faLock, faUser } from "@fortawesome/free-solid-svg-icons";
-import Logo from "/logo.svg";
 import { useDispatch } from "react-redux";
 import useDevSecrets from "../../hooks/useDevSecrets";
 import { useLocation, useNavigate } from "react-router-dom";

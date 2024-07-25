@@ -15,5 +15,3 @@ export const { set } = slice.actions;
 
 //selectors
 export const getUIMessage = (state) => state.uiMessage;
-
-/

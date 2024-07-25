@@ -15,7 +15,7 @@ import { proj4crs25832def } from 'react-cismap/constants/gis';
 import { getGazData } from '../../utils/gazData';
 import GazetteerSearchControl from 'react-cismap/GazetteerSearchControl';
 import { faSearch } from '@fortawesome/free-solid-svg-icons';
-import { Modal } from '@carma-collab/wuppertal/bplan-auskunft';
+// import { Modal } from '@carma-collab/wuppertal/bplan-auskunft'; TODO FIX IMPORT from commons
 import { useSearchParams } from 'react-router-dom';
 import L from 'leaflet';
 import { TopicMapContext } from 'react-cismap/contexts/TopicMapContextProvider';
@@ -89,7 +89,7 @@ const Map = () => {
       ref={refRoutedMap}
       gazetteerSearchControl={true}
       backgroundlayers={'uwBPlan|wupp-plan-live@20'}
-      modalMenu={<Modal visible={undefined} />}
+      //modalMenu={<Modal visible={undefined} />} TODO FIX WITH IMPORT
       locationChangedHandler={(location) => {
         const newParams = { ...paramsToObject(searchParams), ...location };
         setSearchParams(newParams);

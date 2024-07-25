@@ -16,11 +16,9 @@ import {
 import KulturPieChart from './KulturPieChart';
 
 const FilterUI = () => {
-  // @ts-ignore
+  // @ts-expect-error legacy codebase exception
   const { filterState, itemsDictionary } = useContext(FeatureCollectionContext);
-  // @ts-ignore
   const { setFilterState } = useContext(FeatureCollectionDispatchContext);
-  // @ts-ignore
   const { windowSize } = useContext(ResponsiveTopicMapContext);
 
   const width = windowSize?.width || 500;
@@ -156,7 +154,7 @@ const FilterUI = () => {
                                         setFilterValue(
                                           'einrichtung',
                                           einrichtung,
-                                          // @ts-ignore
+                                          // @ts-expect-error legacy codebase exception
                                           e.target.checked
                                         );
                                       }}
@@ -242,7 +240,7 @@ const FilterUI = () => {
                                           setFilterValue(
                                             'veranstaltung',
                                             art,
-                                            // @ts-ignore
+                                            // @ts-expect-error legacy codebase exception
                                             e.target.checked
                                           );
                                         }}

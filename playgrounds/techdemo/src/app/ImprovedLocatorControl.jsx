@@ -2,7 +2,7 @@ import { MapControl } from "react-leaflet";
 import L from "leaflet";
 import "leaflet.locatecontrol/dist/L.Control.Locate.min.css";
 // import "leaflet.locatecontrol";
-import "./L.Control.Locate";
+import "./L.Control.Locate.cjs";
 
 export default class Control extends MapControl {
   createLeafletElement(props) {

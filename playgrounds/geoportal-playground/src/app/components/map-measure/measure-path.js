@@ -294,8 +294,6 @@ L.Control.MeasurePolygon = L.Control.extend({
         this.options.cbSetUpdateStatusHandler(false);
       });
 
-      let plugin = this;
-
       // Add style to polygon
       layer.addTo(this._measureLayers).showMeasurements().enableEdit();
       layer.options.draggable = false;

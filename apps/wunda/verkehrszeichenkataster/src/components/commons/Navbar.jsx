@@ -26,9 +26,10 @@ import {
   storeAllApplications,
   storeSelectedApplications,
 } from "../../store/slices/application";
-import Logo from "/cismet.svg";
 import NavItem from "./NavItem";
 import "./input.css";
+
+const cismetLogoSrc = "/cismet.svg";
 
 const navLinks = () => {
   return [
@@ -115,7 +116,7 @@ const NavBar = ({ width = "100%", height = 104, style, inStory }) => {
             className="flex gap-2 items-center h-full cursor-pointer"
             onClick={() => navigate("/" + `?${urlParams}`)}
           >
-            <img src={Logo} alt="Logo" className="h-10" />
+            <img src={cismetLogoSrc} alt="Logo" className="h-10" />
             <span
               className={`${
                 location.pathname === "/" ? "text-primary" : ""

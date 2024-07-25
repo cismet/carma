@@ -7,7 +7,6 @@ import {
   Switch,
   Tooltip,
 } from "antd";
-import Logo from "/logo.svg";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   fa3,
@@ -46,6 +45,8 @@ import PdfCreator from "../ui/PdfCreator";
 import Settings from "./Settings";
 import SearchBar from "../search/SearchBar";
 import GrundBuch from "../ui/GrundBuch";
+
+const logoSrc = "/logo.svg";
 
 const navLinks = (urlParams) => {
   const showSurfaceDetails = useSelector(getShowSurfaceDetails);
@@ -150,7 +151,7 @@ const NavBar = ({ width = "100%", height = 73, style, inStory }) => {
             className="flex gap-2 items-center h-full cursor-pointer"
             onClick={() => navigate("/" + `?${urlParams}`)}
           >
-            <img src={Logo} alt="Logo" className="h-10" />
+            <img src={logoSrc} alt="Logo" className="h-10" />
             <span
               className={`${
                 location.pathname === "/" ? "text-primary" : ""

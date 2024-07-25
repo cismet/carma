@@ -1,19 +1,15 @@
-// @ts-ignore
 import { RoutedMap, TransitiveReactLeaflet } from 'react-cismap';
 import type { Doc, layer } from '../document-viewer';
 import { useEffect, useRef, useState } from 'react';
-// @ts-ignore
 import CismapLayer from 'react-cismap/CismapLayer';
-// @ts-ignore
 import Raster from 'leaflet-rastercoords';
-// @ts-ignore
 import L from 'leaflet';
 import { useParams, useSearchParams } from 'react-router-dom';
 import 'leaflet/dist/leaflet.css';
 
 const { Rectangle } = TransitiveReactLeaflet;
 
-// @ts-ignore
+// @ts-expect-error legacy codebase exception
 L.RasterCoords = Raster;
 
 interface DocMapsProps {
@@ -70,7 +66,7 @@ const DocMap = ({
       let layerUrl = docs[index - 1].layer;
 
       if (meta) {
-        // @ts-ignore
+        // @ts-expect-error legacy codebase exception
         if (meta.pages > 1) {
           layerUrl = layerUrl.replace('.pdf/', `.pdf-${parseInt(page!) - 1}/`);
         }
@@ -92,7 +88,7 @@ const DocMap = ({
         let layerBounds;
 
         if (leafletMapRef.current) {
-          // @ts-ignore
+          // @ts-expect-error legacy codebase exception
           const rc = new L.RasterCoords(
             leafletMapRef.current.leafletMap.leafletElement,
             dimensions,
@@ -123,7 +119,7 @@ const DocMap = ({
           fallbackPosition,
           fallbackZoom,
         };
-        // @ts-ignore
+        // @ts-expect-error legacy codebase exception
         setLayer(layer);
       } else {
         setLayer(undefined);
@@ -153,7 +149,7 @@ const DocMap = ({
       if (leafletSize.x / leafletSize.y < 1) {
         if (forDimension === WIDTH) {
           let targetDimensions = [dimensions[0], dimensions[1]];
-          // @ts-ignore
+          // @ts-expect-error legacy codebase exception
           const rc = new L.RasterCoords(
             leafletMapRef.current.leafletMap.leafletElement,
             targetDimensions,
@@ -170,7 +166,7 @@ const DocMap = ({
             (dimensions[1] * leafletSize.x) / leafletSize.y,
             dimensions[1],
           ];
-          // @ts-ignore
+          // @ts-expect-error legacy codebase exception
           let rc = new L.RasterCoords(
             leafletMapRef.current.leafletMap.leafletElement,
             targetDimensions,
@@ -188,7 +184,7 @@ const DocMap = ({
             dimensions[0],
             (dimensions[0] * leafletSize.y) / leafletSize.x,
           ];
-          // @ts-ignore
+          // @ts-expect-error legacy codebase exception
           let rc = new L.RasterCoords(
             leafletMapRef.current.leafletMap.leafletElement,
             targetDimensions,
@@ -201,7 +197,7 @@ const DocMap = ({
           ];
         } else if (forDimension === HEIGHT) {
           let targetDimensions = [dimensions[0], dimensions[1]];
-          // @ts-ignore
+          // @ts-expect-error legacy codebase
           let rc = new L.RasterCoords(
             leafletMapRef.current.leafletMap.leafletElement,
             targetDimensions,
@@ -215,7 +211,7 @@ const DocMap = ({
         }
       }
       if (leafletMapRef.current.leafletMap?.leafletElement) {
-        // @ts-ignore
+        // @ts-expect-error legacy codebase
         const rc = new L.RasterCoords(
           leafletMapRef.current.leafletMap.leafletElement,
           dimensions,

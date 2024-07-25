@@ -1,38 +1,33 @@
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from "react";
 import {
   FeatureCollectionContext,
   FeatureCollectionDispatchContext,
-} from 'react-cismap/contexts/FeatureCollectionContextProvider';
-import { TopicMapStylingContext } from 'react-cismap/contexts/TopicMapStylingContextProvider';
-import FeatureCollection from 'react-cismap/FeatureCollection';
-import TopicMapComponent from 'react-cismap/topicmaps/TopicMapComponent';
-import GenericInfoBoxFromFeature from 'react-cismap/topicmaps/GenericInfoBoxFromFeature';
-import { getGazData } from '../../helper/gazData';
+} from "react-cismap/contexts/FeatureCollectionContextProvider";
+import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
+import FeatureCollection from "react-cismap/FeatureCollection";
+import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
+import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
+import { getGazData } from "../../helper/gazData";
 import {
   getAllEinrichtungen,
   getPoiClusterIconCreatorFunction,
-} from '../../helper/styler';
-import Menu from './Menu';
-import Icon from 'react-cismap/commons/Icon';
-import { UIDispatchContext } from 'react-cismap/contexts/UIContextProvider';
+} from "../../helper/styler";
+import Menu from "./Menu";
+import Icon from "react-cismap/commons/Icon";
+import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
 const Map = () => {
   const [gazData, setGazData] = useState([]);
   const {
-    // @ts-ignore
     setSelectedFeatureByPredicate,
-    // @ts-ignore
     setClusteringOptions,
-    // @ts-ignore
     setFilterState,
   } = useContext(FeatureCollectionDispatchContext);
-  // @ts-ignore
   const { markerSymbolSize } = useContext(TopicMapStylingContext);
-  // @ts-ignore
+  // @ts-expect-error legacy codebase exception
   const { clusteringOptions, itemsDictionary } = useContext(
-    FeatureCollectionContext
+    FeatureCollectionContext,
   );
-  // @ts-ignore
   const { setAppMenuActiveMenuSection, setAppMenuVisible } =
     useContext(UIDispatchContext);
 
@@ -51,15 +46,15 @@ const Map = () => {
 
   useEffect(() => {
     const einrichtungen = getAllEinrichtungen().map(
-      (einrichtung) => einrichtung
+      (einrichtung) => einrichtung,
     );
     const veranstaltungen = itemsDictionary?.veranstaltungsarten?.map(
-      (veranstaltung) => veranstaltung
+      (veranstaltung) => veranstaltung,
     );
     setFilterState({
       einrichtung: einrichtungen,
       veranstaltung: veranstaltungen,
-      mode: 'einrichtungen',
+      mode: "einrichtungen",
     });
   }, [itemsDictionary]);
 
@@ -74,7 +69,7 @@ const Map = () => {
         if ((Array.isArray(hits) && hits[0]?.more?.pid) || hits[0]?.more?.kid) {
           const gazId = hits[0]?.more?.pid || hits[0]?.more?.kid;
           setSelectedFeatureByPredicate(
-            (feature) => feature.properties.id === gazId
+            (feature) => feature.properties.id === gazId,
           );
         }
       }}
@@ -83,33 +78,33 @@ const Map = () => {
         <GenericInfoBoxFromFeature
           pixelwidth={350}
           config={{
-            city: 'Wuppertal',
+            city: "Wuppertal",
             navigator: {
               noun: {
-                singular: 'POI',
-                plural: 'POIs',
+                singular: "POI",
+                plural: "POIs",
               },
             },
-            noFeatureTitle: 'Keine POI gefunden!',
+            noFeatureTitle: "Keine POI gefunden!",
             noCurrentFeatureContent: (
               <p>
-                Für mehr POI Ansicht mit <Icon name="minus-square" />{' '}
+                Für mehr POI Ansicht mit <Icon name="minus-square" />{" "}
                 verkleinern. Um nach Themenfeldern zu filtern, das
                 <a
                   onClick={() => {
                     setAppMenuVisible(true);
-                    setAppMenuActiveMenuSection('filter');
+                    setAppMenuActiveMenuSection("filter");
                   }}
                   className="renderAsLink"
                 >
-                  {' '}
+                  {" "}
                   Men&uuml;&nbsp;
                   <Icon
                     name="bars"
                     style={{
-                      color: 'black',
+                      color: "black",
                     }}
-                  />{' '}
+                  />{" "}
                   &ouml;ffnen.
                 </a>
               </p>

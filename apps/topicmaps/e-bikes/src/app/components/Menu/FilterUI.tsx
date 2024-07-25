@@ -85,7 +85,7 @@ const FilterUI = () => {
                   key={'filter.ebike.laden.only'}
                   onClick={(e) => {
                     const newFilterState = { ...filterState };
-                    // @ts-ignore
+                    // @ts-expect-error legacy codebase exception
                     if (e.target.checked) {
                       newFilterState.stationsart = ['Ladestation'];
                     }
@@ -107,7 +107,7 @@ const FilterUI = () => {
                   key={'filter.ebike.renting.only'}
                   onClick={(e) => {
                     const newFilterState = { ...filterState };
-                    // @ts-ignore
+                    // @ts-expect-error legacy codebase exception
                     if (e.target.checked) {
                       newFilterState.stationsart = ['Verleihstation'];
                     }
@@ -128,7 +128,7 @@ const FilterUI = () => {
                   key={'filter.ebike.all'}
                   onClick={(e) => {
                     const newFilterState = { ...filterState };
-                    // @ts-ignore
+                    // @ts-expect-error legacy codebase exception
                     if (e.target.checked) {
                       newFilterState.stationsart = [
                         'Ladestation',
@@ -176,7 +176,7 @@ const FilterUI = () => {
                   key={'filter.emob.online.only'}
                   onClick={(e) => {
                     const newFilterState = { ...filterState };
-                    // @ts-ignore
+                    // @ts-expect-error legacy codebase exception
                     if (e.target.checked) {
                       newFilterState.nur_online = true;
                     }
@@ -196,7 +196,7 @@ const FilterUI = () => {
                   key={'filter.emob.online.all'}
                   onClick={(e) => {
                     const newFilterState = { ...filterState };
-                    // @ts-ignore
+                    // @ts-expect-error legacy codebase exception
                     if (e.target.checked) {
                       newFilterState.nur_online = false;
                     }
@@ -238,7 +238,7 @@ const FilterUI = () => {
                   key={'filter.ebikes.open.24/7'}
                   onClick={(e) => {
                     const newFilterState = { ...filterState };
-                    // @ts-ignore
+                    // @ts-expect-error legacy codebase exception
                     if (e.target.checked) {
                       newFilterState.immer_offen = true;
                     }
@@ -258,7 +258,7 @@ const FilterUI = () => {
                   disabled={!filterState.stationsart?.includes('Ladestation')}
                   onClick={(e) => {
                     const newFilterState = { ...filterState };
-                    // @ts-ignore
+                    // @ts-expect-error legacy codebase exception
                     if (e.target.checked) {
                       newFilterState.immer_offen = false;
                     }
@@ -300,7 +300,7 @@ const FilterUI = () => {
                   key={'filter.emob.green.only'}
                   onClick={(e) => {
                     const newFilterState = { ...filterState };
-                    // @ts-ignore
+                    // @ts-expect-error legacy codebase exception
                     if (e.target.checked) {
                       newFilterState.gruener_strom = true;
                     }
@@ -320,7 +320,7 @@ const FilterUI = () => {
                   key={'filter.emob.green.all'}
                   onClick={(e) => {
                     const newFilterState = { ...filterState };
-                    // @ts-ignore
+                    // @ts-expect-error legacy codebase exception
                     if (e.target.checked) {
                       newFilterState.gruener_strom = false;
                     }
@@ -362,7 +362,7 @@ const FilterUI = () => {
                   key={'filter.ebikes.ladebox_zu.only'}
                   onClick={(e) => {
                     const newFilterState = { ...filterState };
-                    // @ts-ignore
+                    // @ts-expect-error legacy codebase exception
                     if (e.target.checked) {
                       newFilterState.ladebox_zu = true;
                     }
@@ -382,7 +382,7 @@ const FilterUI = () => {
                   key={'filter.ebikes.ladebox_zu.all'}
                   onClick={(e) => {
                     const newFilterState = { ...filterState };
-                    // @ts-ignore
+                    // @ts-expect-error legacy codebase exception
                     if (e.target.checked) {
                       newFilterState.ladebox_zu = false;
                     }

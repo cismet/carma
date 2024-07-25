@@ -1,4 +1,3 @@
-// @ts-ignore
 import { useContext, useEffect, useRef, useState } from 'react';
 import TopicMapComponent from 'react-cismap/topicmaps/TopicMapComponent';
 import {
@@ -43,6 +42,7 @@ import Modal from './help/Modal';
 import { getGazData } from '../../utils/gazData';
 import { TopicMapContext } from 'react-cismap/contexts/TopicMapContextProvider';
 import L from 'leaflet';
+import { UnknownAction } from 'redux';
 const { ScaleControl } = TransitiveReactLeaflet;
 
 const Map = () => {
@@ -61,16 +61,12 @@ const Map = () => {
   const aevFeatures = useSelector(getData);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState<number>(0);
-  // @ts-ignore
   const { routedMapRef } = useContext(TopicMapContext);
 
   useEffect(() => {
-    // @ts-ignore
     document.title = `FNP-Inspektor Wuppertal`;
-    // @ts-ignore
-    dispatch(loadHauptnutzungen());
-    // @ts-ignore
-    dispatch(loadAEVs());
+    dispatch(loadHauptnutzungen() as unknown as UnknownAction);
+    dispatch(loadAEVs() as unknown as UnknownAction);
     getGazData(setGazData);
   }, []);
 
@@ -91,7 +87,6 @@ const Map = () => {
     if (mapMode.mode === 'rechtsplan') {
       info = <AEVInfo />;
     } else if (mapMode.mode === 'arbeitskarte') {
-      // @ts-ignore
       if (features[selectedFeatureIndex].properties.os !== '9999') {
         info = <HNInfo />;
       } else {
@@ -219,7 +214,7 @@ const Map = () => {
   }
 
   const doubleMapClick = (event) => {
-    // @ts-ignore
+    // @ts-expect-error legacy codebase exception
     const pos = proj4(proj4.defs('EPSG:4326'), proj4crs25832def, [
       event.latlng.lng,
       event.latlng.lat,
@@ -227,14 +222,14 @@ const Map = () => {
 
     if (mapMode.mode === 'rechtsplan' && aevVisible) {
       dispatch(
-        // @ts-ignore
+        // @ts-expect-error legacy codebase exception
         searchForAEVs({
           point: { x: pos[0], y: pos[1] },
         })
       );
     } else if (mapMode.mode === 'arbeitskarte') {
       dispatch(
-        // @ts-ignore
+        // @ts-expect-error legacy codebase exception
         searchForHauptnutzungen({
           point: { x: pos[0], y: pos[1] },
         })
@@ -244,7 +239,6 @@ const Map = () => {
 
   const featureClick = (event) => {
     if (event.target.feature.selected) {
-      // @ts-ignore
       const projectedFC = L.Proj.geoJson(event.target.feature);
       const bounds = projectedFC.getBounds();
       const map = routedMapRef?.leafletMap?.leafletElement;
@@ -264,7 +258,7 @@ const Map = () => {
 
   const aevSearchButtonHit = (event) => {
     dispatch(
-      // @ts-ignore
+      // @ts-expect-error legacy codebase exception
       searchForAEVs({
         boundingBox: boundingBox,
       })
@@ -323,13 +317,12 @@ const Map = () => {
         gazetteerHitTrigger={(hits) => {
           if (mapMode.mode === 'rechtsplan') {
             dispatch(
-              // @ts-ignore
+              // @ts-expect-error legacy codebase exception
               searchForAEVs({
                 gazObject: hits,
                 done: (result) => {
                   searchParams.set('aevVisible', 'true');
                   setSearchParams(searchParams);
-                  // @ts-ignore
                   const projectedFC = L.Proj.geoJson(result);
                   const bounds = projectedFC.getBounds();
                   const map = routedMapRef?.leafletMap?.leafletElement;
@@ -342,11 +335,10 @@ const Map = () => {
             );
           } else {
             dispatch(
-              // @ts-ignore
+              // @ts-expect-error legacy codebase exception
               searchForHauptnutzungen({
                 point: { x: hits[0].x, y: hits[0].y },
                 done: (result) => {
-                  // @ts-ignore
                   const projectedFC = L.Proj.geoJson(result);
                   const bounds = projectedFC.getBounds();
                   const map = routedMapRef?.leafletMap?.leafletElement;

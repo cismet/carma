@@ -19,22 +19,15 @@ import SecondaryInfoModal from './menu/SecondaryInfoModal';
 
 const Map = () => {
   const [gazData, setGazData] = useState([]);
-  // @ts-ignore
   const { setClusteringOptions } = useContext(FeatureCollectionDispatchContext);
-  // @ts-ignore
   const { markerSymbolSize } = useContext(TopicMapStylingContext);
-  // @ts-ignore
   const { clusteringOptions, selectedFeature } = useContext(
     FeatureCollectionContext
   );
-  // @ts-ignore
   const { secondaryInfoVisible } = useContext(UIContext);
   const {
-    // @ts-ignore
     setAppMenuActiveMenuSection,
-    // @ts-ignore
     setAppMenuVisible,
-    // @ts-ignore
     setSecondaryInfoVisible,
   } = useContext(UIDispatchContext);
 

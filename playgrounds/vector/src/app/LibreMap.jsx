@@ -1,5 +1,4 @@
 import React, { useRef, useEffect, useState } from 'react';
-// eslint-disable-next-line import/no-webpack-loader-syntax
 import maplibregl from 'maplibre-gl';
 
 import 'maplibre-gl/dist/maplibre-gl.css';

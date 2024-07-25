@@ -10,11 +10,8 @@ import { faMinusCircle, faParking } from '@fortawesome/free-solid-svg-icons';
 import XandRidePieChart from './XandRidePieChart';
 
 const FilterUI = () => {
-  // @ts-ignore
-  const { filterState, itemsDictionary } = useContext(FeatureCollectionContext);
-  // @ts-ignore
+  const { filterState } = useContext(FeatureCollectionContext);
   const { setFilterState } = useContext(FeatureCollectionDispatchContext);
-  // @ts-ignore
   const { windowSize } = useContext(ResponsiveTopicMapContext);
 
   const width = windowSize?.width || 500;
@@ -67,7 +64,7 @@ const FilterUI = () => {
                   key={'filter.prbr.envzone.within'}
                   onClick={(e) => {
                     const newFilterState = { ...filterState };
-                    // @ts-ignore
+                    // @ts-expect-error legacy codebase exception
                     if (e.target.checked) {
                       newFilterState.envZoneWithin = true;
                     } else {
@@ -87,7 +84,7 @@ const FilterUI = () => {
                   key={'filter.prbr.envzone.outside'}
                   onClick={(e) => {
                     const newFilterState = { ...filterState };
-                    // @ts-ignore
+                    // @ts-expect-error legacy codebase exception
                     if (e.target.checked) {
                       newFilterState.envZoneOutside = true;
                     } else {
@@ -129,7 +126,7 @@ const FilterUI = () => {
                   key={'filter.prbr.pandr'}
                   onClick={(e) => {
                     const newFilterState = { ...filterState };
-                    // @ts-ignore
+                    // @ts-expect-error legacy codebase exception
                     if (e.target.checked) {
                       newFilterState.pandr = true;
                     } else {
@@ -149,7 +146,7 @@ const FilterUI = () => {
                   key={'filter.prbr.bandr'}
                   onClick={(e) => {
                     const newFilterState = { ...filterState };
-                    // @ts-ignore
+                    // @ts-expect-error legacy codebase exception
                     if (e.target.checked) {
                       newFilterState.bandr = true;
                     } else {
