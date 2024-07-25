@@ -19,17 +19,13 @@
     },
     "build-storybook": {
       "cache": true,
-      "inputs": [
-        "default",
-        "^production",
-        "{projectRoot}/.storybook/**/*",
-        "{projectRoot}/tsconfig.storybook.json"
-      ]
+      "inputs": ["default", "^production", "{projectRoot}/.storybook/**/*", "{projectRoot}/tsconfig.storybook.json"]
     },
     "@nx/eslint:lint": {
       "cache": false,
       "options": {
-        "eslintConfig": "{workspaceRoot}/eslint.config.cjs"
+        "eslintConfig": "{workspaceRoot}/eslint.config.cjs",
+        "quiet": true
       }
     }
   },

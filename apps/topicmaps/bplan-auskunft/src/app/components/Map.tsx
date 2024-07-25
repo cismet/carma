@@ -1,25 +1,25 @@
-import TopicMapComponent from 'react-cismap/topicmaps/TopicMapComponent';
-import { FeatureCollectionDisplayWithTooltipLabels } from 'react-cismap';
-import BPlanInfo from './BPlanInfo';
-import { bplanFeatureStyler, bplanLabeler } from '../../utils/styler';
-import { useContext, useEffect, useRef, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
+import { FeatureCollectionDisplayWithTooltipLabels } from "react-cismap";
+import BPlanInfo from "./BPlanInfo";
+import { bplanFeatureStyler, bplanLabeler } from "../../utils/styler";
+import { useContext, useEffect, useRef, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import {
   getLoading,
   getPlanFeatureByTitle,
   getPlanFeatures,
   loadBPlaene,
-} from '../../store/slices/bplaene';
-import proj4 from 'proj4';
-import { proj4crs25832def } from 'react-cismap/constants/gis';
-import { getGazData } from '../../utils/gazData';
-import GazetteerSearchControl from 'react-cismap/GazetteerSearchControl';
-import { faSearch } from '@fortawesome/free-solid-svg-icons';
-// import { Modal } from '@carma-collab/wuppertal/bplan-auskunft'; TODO FIX IMPORT from commons
-import { useSearchParams } from 'react-router-dom';
-import L from 'leaflet';
-import { TopicMapContext } from 'react-cismap/contexts/TopicMapContextProvider';
-import { UnknownAction } from 'redux';
+} from "../../store/slices/bplaene";
+import proj4 from "proj4";
+import { proj4crs25832def } from "react-cismap/constants/gis";
+import { getGazData } from "../../utils/gazData";
+import GazetteerSearchControl from "react-cismap/GazetteerSearchControl";
+import { faSearch } from "@fortawesome/free-solid-svg-icons";
+import { Modal } from "@carma-collab/wuppertal/bplan-auskunft";
+import { useSearchParams } from "react-router-dom";
+import L from "leaflet";
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+import { UnknownAction } from "redux";
 
 const Map = () => {
   const dispatch = useDispatch();
@@ -30,12 +30,12 @@ const Map = () => {
   const [gazData, setGazData] = useState([]);
   const [searchParams, setSearchParams] = useSearchParams();
   let refRoutedMap = useRef(null);
-  const zoom = searchParams.get('zoom');
+  const zoom = searchParams.get("zoom");
   const { routedMapRef } = useContext(TopicMapContext);
 
   const doubleMapClick = (event) => {
     const pos = proj4(
-      proj4.defs('EPSG:4326') as unknown as string,
+      proj4.defs("EPSG:4326") as unknown as string,
       proj4crs25832def,
       [event.latlng.lng, event.latlng.lat],
     );
@@ -88,8 +88,8 @@ const Map = () => {
       locatorControl
       ref={refRoutedMap}
       gazetteerSearchControl={true}
-      backgroundlayers={'uwBPlan|wupp-plan-live@20'}
-      //modalMenu={<Modal visible={undefined} />} TODO FIX WITH IMPORT
+      backgroundlayers={"uwBPlan|wupp-plan-live@20"}
+      modalMenu={<Modal visible={undefined} />}
       locationChangedHandler={(location) => {
         const newParams = { ...paramsToObject(searchParams), ...location };
         setSearchParams(newParams);
@@ -113,7 +113,7 @@ const Map = () => {
       gazetteerSearchControlProps={{
         tertiaryAction: bplanSearchButtonHit,
         tertiaryActionIcon: faSearch,
-        tertiaryActionTooltip: 'B-Pläne Suchen',
+        tertiaryActionTooltip: "B-Pläne Suchen",
         teriaryActionDisabled: Number(zoom) < 14,
       }}
       gazetteerSearchPlaceholder="B-Plan-Nr. | Adresse | POI"
@@ -121,7 +121,7 @@ const Map = () => {
         if (
           hits !== undefined &&
           hits.length === 1 &&
-          hits[0].type === 'bplaene'
+          hits[0].type === "bplaene"
         ) {
           const gazObject = hits[0];
 

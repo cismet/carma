@@ -28,7 +28,16 @@ Welcome to CARMA, a monolithic repository (monorepo) powered by Nx, designed to 
    cd carma
    ```
 
-... to be continued
+
+2. npm install
+
+#### adding submodules:
+
+`git submodule update --init --recursive`
+
+#### Updating submodules:
+
+`git submodule update --remote --merge`
 
 ## Development Guidelines
 

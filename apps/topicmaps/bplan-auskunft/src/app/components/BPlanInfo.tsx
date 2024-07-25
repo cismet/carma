@@ -1,18 +1,18 @@
-import { useContext } from 'react';
-import { FeatureCollectionContext } from 'react-cismap/contexts/FeatureCollectionContextProvider';
+import { useContext } from "react";
+import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import ResponsiveInfoBox, {
   MODES,
-} from 'react-cismap/topicmaps/ResponsiveInfoBox';
-import InfoBox from 'react-cismap/topicmaps/InfoBox';
-import { OverlayTrigger, Tooltip } from 'react-bootstrap';
-import Icon from 'react-cismap/commons/Icon';
-import { useNavigate } from 'react-router-dom';
-import Color from 'color';
-import L from 'leaflet';
+} from "react-cismap/topicmaps/ResponsiveInfoBox";
+import InfoBox from "react-cismap/topicmaps/InfoBox";
+import { OverlayTrigger, Tooltip } from "react-bootstrap";
+import Icon from "react-cismap/commons/Icon";
+import { useNavigate } from "react-router-dom";
+import Color from "color";
+import L from "leaflet";
 //import type {TopicMapContext} from 'react-cismap';
-import { TopicMapContext } from 'react-cismap/contexts/TopicMapContextProvider';
-import { UIDispatchContext } from 'react-cismap/contexts/UIContextProvider';
-//import { InfoBoxText } from '@carma-collab/wuppertal/bplan-auskunft'; // TODO FIX IMPORT
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
+import { InfoBoxText } from "@carma-collab/wuppertal/bplan-auskunft";
 
 const BPlanInfo = ({
   pixelwidth,
@@ -54,19 +54,19 @@ const BPlanInfo = ({
 
   if (features.length < 1) {
     let tmpVis = (
-      <table style={{ width: '100%' }}>
+      <table style={{ width: "100%" }}>
         <tbody>
           <tr>
             <td
               style={{
-                textAlign: 'left',
-                verticalAlign: 'top',
-                color: 'black',
-                opacity: '0.9',
-                backgroundColor: 'rgb(245, 245, 245)',
-                paddingLeft: '3px',
-                paddingTop: '0px',
-                paddingBottom: '0px',
+                textAlign: "left",
+                verticalAlign: "top",
+                color: "black",
+                opacity: "0.9",
+                backgroundColor: "rgb(245, 245, 245)",
+                paddingLeft: "3px",
+                paddingTop: "0px",
+                paddingBottom: "0px",
               }}
             >
               Aktuell keine Bebauungspl&auml;ne geladen.
@@ -82,7 +82,7 @@ const BPlanInfo = ({
         header={tmpVis}
         isCollapsible={false}
         collapsibleDiv={<></>}
-        //alwaysVisibleDiv={<InfoBoxText setAppMenuVisible={setAppMenuVisible} />} TODO FIX IMPORT from collab
+        alwaysVisibleDiv={<InfoBoxText setAppMenuVisible={setAppMenuVisible} />}
       ></ResponsiveInfoBox>
     );
   }
@@ -91,13 +91,13 @@ const BPlanInfo = ({
 
   let status = selectedFeature?.properties.status;
 
-  if (status === 'rechtskräftig') {
-    headertext = 'rechtswirksam';
-    headerColor = '#82BB8F'; //'#2AFF00';
-  } else if (status === 'nicht rechtskräftig') {
-    headertext = 'nicht rechtswirksam';
+  if (status === "rechtskräftig") {
+    headertext = "rechtswirksam";
+    headerColor = "#82BB8F"; //'#2AFF00';
+  } else if (status === "nicht rechtskräftig") {
+    headertext = "nicht rechtswirksam";
 
-    headerColor = '#F48286'; //'#FC0000'
+    headerColor = "#F48286"; //'#FC0000'
   } else {
   }
 
@@ -106,19 +106,19 @@ const BPlanInfo = ({
   const planTooltip = <Tooltip id="test">PDF Dokument</Tooltip>;
 
   let llVis = (
-    <table style={{ width: '100%' }}>
+    <table style={{ width: "100%" }}>
       <tbody>
         <tr>
           <td
             style={{
-              textAlign: 'left',
-              verticalAlign: 'top',
+              textAlign: "left",
+              verticalAlign: "top",
               background: headerColor,
-              color: 'black',
-              opacity: '0.9',
-              paddingLeft: '3px',
-              paddingTop: '0px',
-              paddingBottom: '0px',
+              color: "black",
+              opacity: "0.9",
+              paddingLeft: "3px",
+              paddingTop: "0px",
+              paddingBottom: "0px",
             }}
           >
             {headertext}
@@ -130,16 +130,16 @@ const BPlanInfo = ({
 
   let divWhenLarge = (
     <div>
-      <table border={0} style={{ width: '100%' }}>
+      <table border={0} style={{ width: "100%" }}>
         <tbody>
           <tr>
             <td
               style={{
-                textAlign: 'left',
-                verticalAlign: 'top',
-                padding: '5px',
-                maxWidth: '160px',
-                overflowWrap: 'break-word',
+                textAlign: "left",
+                verticalAlign: "top",
+                padding: "5px",
+                maxWidth: "160px",
+                overflowWrap: "break-word",
               }}
             >
               <h4>B-Plan {selectedFeature.properties.nummer}</h4>
@@ -147,14 +147,14 @@ const BPlanInfo = ({
             </td>
             <td
               style={{
-                textAlign: 'center',
-                verticalAlign: 'top',
-                padding: '5px',
-                paddingTop: '1px',
+                textAlign: "center",
+                verticalAlign: "top",
+                padding: "5px",
+                paddingTop: "1px",
               }}
             >
               <a
-                style={{ color: '#333' }}
+                style={{ color: "#333" }}
                 href={
                   window.location.origin +
                   window.location.pathname +
@@ -166,7 +166,7 @@ const BPlanInfo = ({
                   {/* <font size='30'> */}
                   <OverlayTrigger placement="left" overlay={planTooltip}>
                     <Icon
-                      style={{ textDecoration: 'none' }}
+                      style={{ textDecoration: "none" }}
                       name="file-pdf-o"
                     />
                   </OverlayTrigger>
@@ -181,16 +181,16 @@ const BPlanInfo = ({
         </tbody>
       </table>
       <br />
-      <table style={{ width: '100%', color: '#0078A8' }}>
+      <table style={{ width: "100%", color: "#0078A8" }}>
         <tbody>
           <tr>
-            <td style={{ textAlign: 'left', verticalAlign: 'center' }}>
+            <td style={{ textAlign: "left", verticalAlign: "center" }}>
               <a title="vorheriger Treffer" onClick={prev}>
                 &lt;&lt;
               </a>
             </td>
 
-            <td style={{ textAlign: 'center', verticalAlign: 'center' }}>
+            <td style={{ textAlign: "center", verticalAlign: "center" }}>
               <a
                 onClick={() => {
                   const projectedFC = L.Proj.geoJson(features);
@@ -205,7 +205,7 @@ const BPlanInfo = ({
                 alle {features.length} Treffer anzeigen
               </a>
             </td>
-            <td style={{ textAlign: 'right', verticalAlign: 'center' }}>
+            <td style={{ textAlign: "right", verticalAlign: "center" }}>
               <a title="nächster Treffer" onClick={next}>
                 &gt;&gt;
               </a>
@@ -218,30 +218,30 @@ const BPlanInfo = ({
 
   let divWhenCollapsed = (
     <div>
-      <table border={0} style={{ width: '100%' }}>
+      <table border={0} style={{ width: "100%" }}>
         <tbody>
           <tr>
             <td
               style={{
-                textAlign: 'left',
-                verticalAlign: 'top',
-                padding: '5px',
-                maxWidth: '160px',
-                overflowWrap: 'break-word',
+                textAlign: "left",
+                verticalAlign: "top",
+                padding: "5px",
+                maxWidth: "160px",
+                overflowWrap: "break-word",
               }}
             >
               <h4>B-Plan {selectedFeature.properties.nummer}</h4>
             </td>
             <td
               style={{
-                textAlign: 'center',
-                verticalAlign: 'center',
-                padding: '5px',
-                paddingTop: '1px',
+                textAlign: "center",
+                verticalAlign: "center",
+                padding: "5px",
+                paddingTop: "1px",
               }}
             >
               <a
-                style={{ color: '#333' }}
+                style={{ color: "#333" }}
                 href={
                   window.location.origin +
                   window.location.pathname +
@@ -252,7 +252,7 @@ const BPlanInfo = ({
                 <h4 style={{ marginLeft: 5, marginRight: 5 }}>
                   <OverlayTrigger placement="left" overlay={planTooltip}>
                     <Icon
-                      style={{ textDecoration: 'none', fontSize: 26 }}
+                      style={{ textDecoration: "none", fontSize: 26 }}
                       name="file-pdf-o"
                     />
                   </OverlayTrigger>
