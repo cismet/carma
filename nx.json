@@ -22,10 +22,9 @@
       "inputs": ["default", "^production", "{projectRoot}/.storybook/**/*", "{projectRoot}/tsconfig.storybook.json"]
     },
     "@nx/eslint:lint": {
-      "cache": false,
+      "cache": true,
       "options": {
         "eslintConfig": "{workspaceRoot}/eslint.config.cjs",
-        "quiet": true
       }
     }
   },
