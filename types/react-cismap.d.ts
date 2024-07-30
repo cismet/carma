@@ -15,7 +15,7 @@ declare module "react-cismap/contexts/TopicMapContextProvider" {
   }
   export const TopicMapContext: Context<RoutedMapRefContext>;
   export const TopicMapDispatchContext: Context<DispatchContext>;
-  export const TopicMapContextProvider: FC<TopicMapContextProviderProps>;
+  export const TopicMapContextProvider: FC<any>;
   export default TopicMapContextProvider;
 }
 
@@ -54,6 +54,9 @@ declare module "react-cismap/contexts/FeatureCollectionContextProvider" {
   export const FeatureCollectionContextProvider: FC<TopicMapContextProviderProps>;
   export default FeatureCollectionContextProvider;
 }
+
+export const FeatureCollectionDisplayWithTooltipLabels: FC<any>;
+
 
 declare module "react-cismap/contexts/TopicMapStylingContextProvider" {
   import { Context, FC } from "react";

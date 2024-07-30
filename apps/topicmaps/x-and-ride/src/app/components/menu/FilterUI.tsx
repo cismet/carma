@@ -10,9 +10,9 @@ import { faMinusCircle, faParking } from '@fortawesome/free-solid-svg-icons';
 import XandRidePieChart from './XandRidePieChart';
 
 const FilterUI = () => {
-  const { filterState } = useContext(FeatureCollectionContext);
-  const { setFilterState } = useContext(FeatureCollectionDispatchContext);
-  const { windowSize } = useContext(ResponsiveTopicMapContext);
+  const { filterState } = useContext<FeatureCollectionContext>(FeatureCollectionContext);
+  const { setFilterState } = useContext<FeatureCollectionDispatchContext>(FeatureCollectionDispatchContext);
+  const { windowSize } = useContext<ResponsiveTopicMapContext>(ResponsiveTopicMapContext);
 
   const width = windowSize?.width || 500;
 

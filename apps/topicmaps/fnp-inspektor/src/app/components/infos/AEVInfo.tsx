@@ -18,7 +18,7 @@ const AEVInfo = () => {
   const selectedFeatureIndex = useSelector(getSelectedFeatureIndex);
   const currentFeature = features[selectedFeatureIndex];
   const dispatch = useDispatch();
-  const { routedMapRef } = useContext(TopicMapContext);
+  const { routedMapRef } = useContext<TopicMapContext>(TopicMapContext);
 
   const next = () => {
     let potIndex = selectedFeatureIndex + 1;

@@ -6,7 +6,7 @@ import { UIDispatchContext } from 'react-cismap/contexts/UIContextProvider';
 import { useContext } from 'react';
 
 const EmptyHNInfo = () => {
-  const { setAppMenuVisible } = useContext(UIDispatchContext);
+  const { setAppMenuVisible } = useContext<UIDispatchContext>(UIDispatchContext);
   let divWhenLarge = (
     <div>
       <h4>Hinweise</h4>

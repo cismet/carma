@@ -11,7 +11,7 @@ import FilterUI from './menu/FilterUI';
 import Footer from './menu/Footer';
 
 const Menu = () => {
-  const { filteredItems, shownFeatures } = useContext(FeatureCollectionContext);
+  const { filteredItems, shownFeatures } = useContext<FeatureCollectionContext>(FeatureCollectionContext);
 
   const getFilterHeader = () => {
     const count = filteredItems?.length || 0;

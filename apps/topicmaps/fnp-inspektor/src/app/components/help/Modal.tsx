@@ -19,7 +19,7 @@ import DokumenteBetrachten from './DokumenteBetrachten';
 import DokumenteHerunterladen from './DokumenteHerunterladen';
 
 const Modal = () => {
-  const { setAppMenuActiveMenuSection } = useContext(UIDispatchContext);
+  const { setAppMenuActiveMenuSection } = useContext<UIDispatchContext>(UIDispatchContext);
   return (
     <ModalApplicationMenu
       menuIcon={'info'}

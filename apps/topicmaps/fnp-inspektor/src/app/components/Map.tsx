@@ -61,7 +61,7 @@ const Map = () => {
   const aevFeatures = useSelector(getData);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState<number>(0);
-  const { routedMapRef } = useContext(TopicMapContext);
+  const { routedMapRef } = useContext<TopicMapContext>(TopicMapContext);
 
   useEffect(() => {
     document.title = `FNP-Inspektor Wuppertal`;

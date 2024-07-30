@@ -5,7 +5,7 @@ import 'chart.js/auto';
 import { getColorForProperties } from '../../../helper/styler';
 
 const XandRidePieChart = ({ visible = true }) => {
-  const { filteredItems } = useContext(FeatureCollectionContext);
+  const { filteredItems } = useContext<FeatureCollectionContext>(FeatureCollectionContext);
 
   const groupingFunction = (obj) => {
     if (obj.schluessel === 'P') {
