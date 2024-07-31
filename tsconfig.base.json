@@ -25,6 +25,7 @@
       "@nx/react/typings/styled-jsx.d.ts"
     ],
     "paths": {
+      "#/*": ["./*"],
       "@carma-apps/envirometrics": ["libraries/appframeworks/envirometrics/src/index.ts"],
       "@carma-apps/portals": ["libraries/appframeworks/portals/src/index.ts"],
       "@carma-apps/topicmaps": ["libraries/appframeworks/topicmaps/src/index.ts"],
@@ -81,8 +82,7 @@
       "@carma-mapping/leaflet-engine": ["libraries/mapping/engines/leaflet/src/index.ts"],
       "@carma-mapping/map-controls-layout": ["libraries/mapping/carma-map-control-layout/src/index.ts"],
       "@carma-mapping/maplibre-engine": ["libraries/mapping/engines/maplibre/src/index.ts"],
-      "@carma-mapping/utils": ["libraries/mapping/carma-map-utils/src/index.ts"],
-      "#/*": ["./*"]
+      "@carma-mapping/utils": ["libraries/mapping/carma-map-utils/src/index.ts"]
     },
     "skipLibCheck": true
   }

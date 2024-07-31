@@ -58,7 +58,7 @@ const baseConfig = {
     "jsx-a11y/no-static-element-interactions": "warn",
     "react/display-name": "off",
     "react/jsx-key": "warn",
-    "react/jsx-no-undef": ["error", { "allowGlobals": true }],
+    "react/jsx-no-undef": ["error", { allowGlobals: true }],
     "react/jsx-uses-react": "error",
     "react/jsx-uses-vars": "error",
     "react/jsx-no-target-blank": "off", // noopener now set by browsers
@@ -91,12 +91,12 @@ const baseConfig = {
     "import/resolver": {
       ...importPlugin.configs.typescript.settings["import/resolver"],
       typescript: {
-        project: ['./tsconfig.*.json'],
+        project: ["./tsconfig.*.json"],
       },
     },
-    "react": {
+    react: {
       version: "detect",
-    }
+    },
   },
 };
 

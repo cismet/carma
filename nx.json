@@ -26,6 +26,11 @@
       "options": {
         "eslintConfig": "{workspaceRoot}/eslint.config.cjs"
       }
+    },
+    "@nx/vite:build": {
+      "cache": true,
+      "dependsOn": ["^build"],
+      "inputs": ["production", "^production"]
     }
   },
   "namedInputs": {
@@ -47,6 +52,7 @@
   "generators": {
     "@nx/react": {
       "application": {
+        "babel": true,
         "style": "css",
         "linter": "eslint",
         "bundler": "vite"
