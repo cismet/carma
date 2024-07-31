@@ -1,3 +1,3 @@
-export function carmaAppsPortals(): string {
-  return 'carma-apps-portals';
-}
+import { Map } from "./components/Map";
+export { Map };
+export default Map;

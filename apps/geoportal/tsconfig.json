@@ -1,5 +1,6 @@
 {
-  "extends": "../../tsconfig.strict.base.json",
+  "extends": "../../tsconfig.legacy.base.json",
+  "compilerOptions": { "strict": false },
   "references": [
     {
       "path": "./tsconfig.app.json"

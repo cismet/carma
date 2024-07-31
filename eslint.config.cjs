@@ -28,6 +28,7 @@ const baseConfig = {
       ecmaVersion: 2022,
       tsconfigRootDir: __dirname,
       EXPERIMENTAL_useProjectService: true,
+      //allowDefaultProjectForFiles: [        "./*.json"      ], // TODO Limit Scope
       ecmaFeatures: {
         jsx: true,
         modules: true,
@@ -46,7 +47,9 @@ const baseConfig = {
     ...a11y.configs.recommended.rules,
     ...importPlugin.configs.recommended.rules,
     "@typescript-eslint/no-explicit-any": "warn",
-    "@typescript-eslint/no-unused-vars": "warn",
+    "@typescript-eslint/no-unused-vars": ["warn", {
+
+    }],
     "jsx-a11y/anchor-is-valid": "warn",
     "jsx-a11y/alt-text": "warn",
     "jsx-a11y/aria-role": "warn",
