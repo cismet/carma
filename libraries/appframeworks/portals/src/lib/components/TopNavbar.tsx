@@ -18,6 +18,8 @@ import { UIDispatchContext } from 'react-cismap/contexts/UIContextProvider';
 
 import { LayerLib, Item, Layer } from '@carma-mapping/layers';
 import { useDispatch, useSelector } from 'react-redux';
+
+import { getShowLayerButtons, setShowLayerButtons } from '../store/slices/ui';
 import { getThumbnails, setThumbnail } from '../store/slices/layers';
 import {
   appendLayer,
@@ -34,12 +36,11 @@ import {
 } from '../store/slices/mapping';
 import Share from './Share';
 import './switch.css';
-import { getShowLayerButtons, setShowLayerButtons } from '../store/slices/ui';
-import { cn } from '../helper/helper';
+import { utils } from "../..";
+import type { LayerMap } from '../..';
 import Save from './Save';
-import { layerMap } from '../helper/layer';
 
-const TopNavbar = () => {
+const TopNavbar = ({ layerMap }: { layerMap: LayerMap }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { setAppMenuVisible } = useContext<UIDispatchContext>(UIDispatchContext);
   const backgroundLayer = useSelector(getBackgroundLayer);
@@ -240,7 +241,7 @@ const TopNavbar = () => {
         </Tooltip>
         <Tooltip title="Fokus">
           <button
-            className={cn('text-xl', focusMode ? 'text-blue-500' : '')}
+            className={utils.cn('text-xl', focusMode ? 'text-blue-500' : '')}
             onClick={() => {
               dispatch(setFocusMode(!focusMode));
             }}
@@ -252,9 +253,8 @@ const TopNavbar = () => {
           <FontAwesomeIcon icon={faPrint} className="text-xl text-gray-300" />
         </Tooltip>
         <Tooltip
-          title={`Layer Buttons ${
-            showLayerButtons ? 'ausblenden' : 'anzeigen'
-          }`}
+          title={`Layer Buttons ${showLayerButtons ? 'ausblenden' : 'anzeigen'
+            }`}
         >
           <button
             className="text-xl hover:text-gray-600"

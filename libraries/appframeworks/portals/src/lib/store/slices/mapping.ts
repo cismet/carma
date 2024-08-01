@@ -1,7 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from "@reduxjs/toolkit";
 import { RootState } from '..';
-import { layerMap } from '../../helper/layer';
 import { Layer } from '@carma-mapping/layers';
 
 export type BackgroundLayer = Layer & {

@@ -4,14 +4,20 @@ import 'react-bootstrap-typeahead/css/Typeahead.css';
 import 'react-cismap/topicMaps.css';
 import './index.css';
 import TopicMapContextProvider from 'react-cismap/contexts/TopicMapContextProvider';
-import { Map } from "@carma-apps/portals"
-import TopNavbar from './components/TopNavbar';
-import MapMeasurement from './components/map-measure/MapMeasurement';
+import { Map, TopNavbar, MapMeasurement, HomeButton, sliceMapping, sliceUI } from "@carma-apps/portals"
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import LZString from 'lz-string';
 import { useDispatch, useSelector } from 'react-redux';
-import {
+
+import { Layer } from '@carma-mapping/layers';
+import { host } from "./helper/constants";
+import type { Settings } from "@carma-apps/portals";
+import CrossTabCommunicationContextProvider from 'react-cismap/contexts/CrossTabCommunicationContextProvider';
+import { defaultLayerConf } from './config/layerconf';
+
+
+const {
   BackgroundLayer,
   getShowMeasurementButton,
   setBackgroundLayer,
@@ -20,18 +26,13 @@ import {
   setShowHamburgerMenu,
   setShowLocatorButton,
   setShowMeasurementButton,
-} from './store/slices/mapping';
-import {
+} = sliceMapping;
+const {
   getAllowUiChanges,
   setAllowUiChanges,
   setShowLayerButtons,
   setShowLayerHideButtons,
-} from './store/slices/ui';
-import { Layer } from '@carma-mapping/layers';
-import { host } from "./helper/constants";
-import { Settings } from './components/Share';
-import CrossTabCommunicationContextProvider from 'react-cismap/contexts/CrossTabCommunicationContextProvider';
-import HomeButton from './components/HomeButton';
+} = sliceUI;
 
 if (typeof global === 'undefined') {
   window.global = window;
@@ -114,7 +115,7 @@ function App({ published }: { published?: boolean }) {
         {!published && <TopNavbar />}
         <HomeButton />
         {showMeasurementButton && <MapMeasurement />}
-        <Map host={host}/>
+        <Map host={host} defaultLayerConfig={defaultLayerConf} />
       </div>
     </TopicMapContextProvider>
   );

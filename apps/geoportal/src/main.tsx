@@ -1,7 +1,7 @@
 import * as ReactDOM from 'react-dom/client';
 import App from './app/App';
 import { Provider } from 'react-redux';
-import store from './app/store';
+import { store } from '@carma-apps/portals';
 import { RouterProvider, createHashRouter } from 'react-router-dom';
 import { PersistGate } from 'redux-persist/integration/react';
 import { persistStore } from 'redux-persist';

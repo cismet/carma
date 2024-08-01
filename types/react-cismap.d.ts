@@ -3,7 +3,6 @@
 declare module "react-cismap" {
   import * as React from "react";
   import * as L from "leaflet";
-import FeatureCollection from 'react-cismap/FeatureCollection';
 
   export { mappingHelpers as MappingHelpers } from "./tools";
   export { gis as MappingConstants } from "./constants";
@@ -136,6 +135,14 @@ declare module "react-cismap/contexts/UIContextProvider" {
 }
 
 /* TOOLS */
+
+declare module "react-cismap/tools/fetching" {
+  export const md5FetchText: (prefix: string, url: string) => Promise<string>;
+}
+
+declare module "react-cismap/tools/gazetteerHelper" {
+  export const getGazDataForTopicIds: (sources: any, topicIds: string[]) => any;
+}
 
 declare module "react-cismap/tools/uiHelper" {
   const getActionLinksForFeature: (feature: any, options: any) => any;

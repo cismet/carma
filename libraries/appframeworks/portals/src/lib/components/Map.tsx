@@ -10,21 +10,22 @@ import {
   getShowHamburgerMenu,
   getShowLocatorButton,
 } from '../store/slices/mapping';
+import { getMode, getShowLayerButtons } from '../store/slices/ui';
 import LayerWrapper from './layers/LayerWrapper';
 import InfoBoxMeasurement from './map-measure/InfoBoxMeasurement';
 import PaleOverlay from 'react-cismap/PaleOverlay';
 import StyledWMSTileLayer from 'react-cismap/StyledWMSTileLayer';
 import { useSearchParams } from 'react-router-dom';
-import getBackgroundLayers from '../helper/layer';
-import { getMode, getShowLayerButtons } from '../store/slices/ui';
+import getBackgroundLayers from '../utils/layer';
 import CismapLayer from 'react-cismap/CismapLayer';
 
 
 type MapProps = {
   host: string;
+  defaultLayerConfig: any;
 };
 
-export const Map = ({ host }: MapProps) => {
+export const Map = ({ host, defaultLayerConfig }: MapProps) => {
   const [gazData, setGazData] = useState([]);
   const [height, setHeight] = useState(0);
   const [width, setWidth] = useState(0);
@@ -40,8 +41,11 @@ export const Map = ({ host }: MapProps) => {
   const [urlParams, setUrlParams] = useSearchParams();
 
   useEffect(() => {
-    getGazData(setGazData, host);
-  }, []);
+    (async () => {
+      const gazData = await getGazData(host);
+      setGazData(gazData);
+    })()
+  }, [host]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -85,7 +89,7 @@ export const Map = ({ host }: MapProps) => {
           )
         }
       >
-        {getBackgroundLayers({ layerString: backgroundLayer.layers })}
+        {getBackgroundLayers({ layerString: backgroundLayer.layers, defaultLayerConfig })}
         {focusMode && <PaleOverlay />}
         {showLayerButtons && <LayerWrapper />}
         {layers.map((layer, i) => {
