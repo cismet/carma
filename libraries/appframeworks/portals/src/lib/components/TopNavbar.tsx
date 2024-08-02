@@ -16,6 +16,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useContext, useState } from 'react';
 import { UIDispatchContext } from 'react-cismap/contexts/UIContextProvider';
 
+// eslint-disable-next-line nx/enforce-module-boundaries
 import { LayerLib, Item, Layer } from '@carma-mapping/layers';
 import { useDispatch, useSelector } from 'react-redux';
 

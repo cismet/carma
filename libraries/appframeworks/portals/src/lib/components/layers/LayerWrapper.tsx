@@ -29,7 +29,7 @@ import {
   faChevronLeft,
   faChevronRight,
 } from '@fortawesome/free-solid-svg-icons';
-import { cn } from '../../helper/helper';
+import { cn } from '../../utils/helper';
 import './button.css';
 import SecondaryView from './SecondaryView';
 

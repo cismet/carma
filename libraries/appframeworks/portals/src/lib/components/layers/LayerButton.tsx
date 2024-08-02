@@ -7,11 +7,12 @@ import {
   faX,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+// eslint-disable-next-line nx/enforce-module-boundaries
 import { Layer } from '@carma-mapping/layers';
 import { useEffect, useRef } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useDispatch, useSelector } from 'react-redux';
-import { cn } from '../../helper/helper';
+import { cn } from '../../utils/helper';
 import {
   changeVisibility,
   getLayers,

@@ -37,7 +37,7 @@ export interface LibModalProps {
   customCategories?: any[];
 }
 
-const LibModal = ({
+export const LibModal = ({
   open,
   setOpen,
   setAdditionalLayers,

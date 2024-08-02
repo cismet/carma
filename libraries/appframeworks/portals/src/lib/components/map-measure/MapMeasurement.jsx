@@ -43,7 +43,7 @@ import {
 
 import { getMode, toggletModeMeasuremen } from '../../store/slices/ui';
 
-const MapMeasurement = (props) => {
+export const MapMeasurement = (props) => {
   const { routedMapRef } = useContext(TopicMapContext);
 
   const dispatch = useDispatch();

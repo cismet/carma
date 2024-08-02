@@ -1,4 +1,5 @@
 import { configureStore } from '@reduxjs/toolkit';
+import type { EnhancedStore } from '@reduxjs/toolkit';
 import mappingSlice from './slices/mapping';
 import layersSlice from './slices/layers';
 import uiSlice from './slices/ui';
@@ -6,7 +7,6 @@ import measurementsSlice from './slices/measurements';
 import { createLogger } from 'redux-logger';
 import { persistReducer } from 'redux-persist';
 import localForage from 'localforage';
-import { APP_KEY, STORAGE_PREFIX } from '../helper/constants';
 
 console.log('store initializing ....');
 
@@ -50,57 +50,63 @@ if (stateLoggingEnabled === true) {
     });
 }
 
-const uiConfig = {
-  key: '@' + (customAppKey || APP_KEY) + '.' + STORAGE_PREFIX + '.app.config',
-  storage: localForage,
-  whitelist: [
-    'allowUiChanges',
-    'showLayerHideButtons',
-    'showLayerButtons',
-    'showInfo',
-    'showInfoText',
-  ],
+
+
+export const configurePortalStore = (APP_KEY = "geoportal", STORAGE_PREFIX = '1') => {
+
+  const uiConfig = {
+    key: '@' + (customAppKey || APP_KEY) + '.' + STORAGE_PREFIX + '.app.config',
+    storage: localForage,
+    whitelist: [
+      'allowUiChanges',
+      'showLayerHideButtons',
+      'showLayerButtons',
+      'showInfo',
+      'showInfoText',
+    ],
+  };
+  
+  const mappingConfig = {
+    key: '@' + (customAppKey || APP_KEY) + '.' + STORAGE_PREFIX + '.app.mapping',
+    storage: localForage,
+    whitelist: [
+      'layers',
+      'savedLayerConfigs',
+      'selectedMapLayer',
+      'backgroundLayer',
+      'showFullscreenButton',
+      'showLocatorButton',
+      'showMeasurementButton',
+      'showHamburgerMenu',
+    ],
+  };
+  
+  const layersConfig = {
+    key: '@' + APP_KEY + '.' + STORAGE_PREFIX + '.app.layers',
+    storage: localForage,
+    whitelist: ['thumbnails'],
+  };
+  const measurementsConfig = {
+    key: '@' + APP_KEY + '.' + STORAGE_PREFIX + '.app.measurements',
+    storage: localForage,
+    whitelist: ['shapes'],
+  };
+
+  return configureStore({
+    reducer: {
+      mapping: persistReducer(mappingConfig, mappingSlice.reducer),
+      ui: persistReducer(uiConfig, uiSlice.reducer),
+      layers: persistReducer(layersConfig, layersSlice.reducer),
+      measurements: persistReducer(measurementsConfig, measurementsSlice.reducer),
+    },
+    devTools: devToolsEnabled === true && inProduction === false,
+    middleware,
+  });
 };
 
-const mappingConfig = {
-  key: '@' + (customAppKey || APP_KEY) + '.' + STORAGE_PREFIX + '.app.mapping',
-  storage: localForage,
-  whitelist: [
-    'layers',
-    'savedLayerConfigs',
-    'selectedMapLayer',
-    'backgroundLayer',
-    'showFullscreenButton',
-    'showLocatorButton',
-    'showMeasurementButton',
-    'showHamburgerMenu',
-  ],
-};
+export default configurePortalStore;
 
-const layersConfig = {
-  key: '@' + APP_KEY + '.' + STORAGE_PREFIX + '.app.layers',
-  storage: localForage,
-  whitelist: ['thumbnails'],
-};
-const measurementsConfig = {
-  key: '@' + APP_KEY + '.' + STORAGE_PREFIX + '.app.measurements',
-  storage: localForage,
-  whitelist: ['shapes'],
-};
-
-const store = configureStore({
-  reducer: {
-    mapping: persistReducer(mappingConfig, mappingSlice.reducer),
-    ui: persistReducer(uiConfig, uiSlice.reducer),
-    layers: persistReducer(layersConfig, layersSlice.reducer),
-    measurements: persistReducer(measurementsConfig, measurementsSlice.reducer),
-  },
-  devTools: devToolsEnabled === true && inProduction === false,
-  middleware,
-});
-export default store;
-
-export type AppStore = typeof store;
+export type AppStore = EnhancedStore;
 
 export type RootState = ReturnType<AppStore['getState']>;
 

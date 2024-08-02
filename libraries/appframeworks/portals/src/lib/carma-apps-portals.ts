@@ -9,7 +9,7 @@ import * as layer from "./utils/layer";
 export * from "./types";
 
 import TopNavbar from "./components/TopNavbar";
-import MapMeasurement from "./components/map-measure/MapMeasurement";
+import { MapMeasurement } from "./components/map-measure/MapMeasurement";
 import HomeButton from "./components/HomeButton";
 import type { Settings } from "./components/Share";
 

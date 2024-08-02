@@ -8,6 +8,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Slider } from 'antd';
+// eslint-disable-next-line nx/enforce-module-boundaries
 import { Layer } from '@carma-mapping/layers';
 import { useDispatch } from 'react-redux';
 import { changeOpacity, changeVisibility } from '../../store/slices/mapping';

@@ -1,7 +1,8 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
-import { RootState } from '..';
-import { Layer } from '@carma-mapping/layers';
+import { RootState } from "..";
+// eslint-disable-next-line nx/enforce-module-boundaries
+import { Layer } from "@carma-mapping/layers";
 
 export type BackgroundLayer = Layer & {
   layers: string;
@@ -22,8 +23,8 @@ interface MappingState {
   layers: Layer[];
   savedLayerConfigs: SavedLayerConfig[];
   selectedLayerIndex: number;
-  selectedMapLayer: BackgroundLayer;
-  backgroundLayer: BackgroundLayer;
+  selectedMapLayer: BackgroundLayer | null;
+  backgroundLayer: BackgroundLayer | null;
   showLeftScrollButton: boolean;
   showRightScrollButton: boolean;
   showFullscreenButton: boolean;
@@ -37,36 +38,8 @@ const initialState: MappingState = {
   layers: [],
   savedLayerConfigs: [],
   selectedLayerIndex: -2,
-  selectedMapLayer: {
-    title: 'Stadtplan',
-    id: 'stadtplan',
-    opacity: 1.0,
-    description: ``,
-    inhalt: layerMap['stadtplan'].inhalt,
-    eignung: layerMap['stadtplan'].eignung,
-    visible: true,
-    layerType: 'wmts',
-    props: {
-      name: '',
-      url: layerMap['stadtplan'].url,
-    },
-    layers: layerMap['stadtplan'].layers,
-  },
-  backgroundLayer: {
-    title: 'Stadtplan',
-    id: 'karte',
-    opacity: 1.0,
-    description: ``,
-    inhalt: layerMap['stadtplan'].inhalt,
-    eignung: layerMap['stadtplan'].eignung,
-    visible: true,
-    layerType: 'wmts',
-    props: {
-      name: '',
-      url: layerMap['stadtplan'].url,
-    },
-    layers: layerMap['stadtplan'].layers,
-  },
+  selectedMapLayer: null,
+  backgroundLayer: null,
   showLeftScrollButton: false,
   showRightScrollButton: false,
   showFullscreenButton: true,
@@ -77,7 +50,7 @@ const initialState: MappingState = {
 };
 
 const slice = createSlice({
-  name: 'mapping',
+  name: "mapping",
   initialState,
   reducers: {
     setLayers(state, action) {
@@ -119,7 +92,7 @@ const slice = createSlice({
     },
     changeVisibility(
       state,
-      action: PayloadAction<{ id: string; visible: boolean }>
+      action: PayloadAction<{ id: string; visible: boolean }>,
     ) {
       const newLayers = state.layers.map((obj) => {
         if (obj.id === action.payload.id) {

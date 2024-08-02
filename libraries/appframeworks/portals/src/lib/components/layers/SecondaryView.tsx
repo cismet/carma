@@ -11,7 +11,7 @@ import { Slider } from 'antd';
 import { forwardRef, useContext, useEffect, useRef } from 'react';
 import { TopicMapContext } from 'react-cismap/contexts/TopicMapContextProvider';
 import { useDispatch, useSelector } from 'react-redux';
-import { cn } from '../../helper/helper';
+import { cn } from '../../utils/helper';
 import type { SliderSingleProps } from 'antd';
 import {
   changeOpacity,

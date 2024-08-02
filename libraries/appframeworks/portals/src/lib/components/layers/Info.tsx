@@ -1,5 +1,5 @@
 import { Radio, Tabs } from 'antd';
-import { cn, parseDescription } from '../../helper/helper';
+import { cn, parseDescription } from '../../utils/helper';
 import { tabItems } from './items';
 import { useDispatch, useSelector } from 'react-redux';
 import { getActiveTabKey, setActiveTabKey } from '../../store/slices/ui';
@@ -20,12 +20,13 @@ import {
 } from '@dnd-kit/sortable';
 import LayerRow from './LayerRow';
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
-import { layerMap } from '../../helper/layer';
 import './text.css';
+import { LayerMap } from '../../types';
 
 interface InfoProps {
   description: string;
   legend: any;
+  layerMap: LayerMap;
 }
 
 const Info = ({ description, legend }: InfoProps) => {
