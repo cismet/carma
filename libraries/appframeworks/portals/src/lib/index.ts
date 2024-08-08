@@ -6,7 +6,7 @@ import * as sliceMapping from "./store/slices/mapping";
 import * as sliceMeasure from "./store/slices/measurements";
 import * as utils from "./utils/helper";
 import * as layer from "./utils/layer";
-export * from "./types";
+export * from "./types.d";
 
 import TopNavbar from "./components/TopNavbar";
 import { MapMeasurement } from "./components/map-measure/MapMeasurement";

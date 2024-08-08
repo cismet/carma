@@ -2,7 +2,7 @@ import { md5FetchText } from "react-cismap/tools/fetching";
 import { getGazDataForTopicIds } from "react-cismap/tools/gazetteerHelper";
 import clsx from "clsx";
 import { twMerge } from "tailwind-merge";
-import { ENDPOINT } from "../types";
+import { ENDPOINT } from "../types.d";
 
 const buildHostUri = (host: string, endpoint: ENDPOINT, crs: string) => {
   return `${host}/data/${crs}/${endpoint}.json`;

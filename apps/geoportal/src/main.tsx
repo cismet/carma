@@ -1,10 +1,18 @@
 import * as ReactDOM from 'react-dom/client';
 import App from './app/App';
 import { Provider } from 'react-redux';
-import { store } from '@carma-apps/portals';
 import { RouterProvider, createHashRouter } from 'react-router-dom';
 import { PersistGate } from 'redux-persist/integration/react';
 import { persistStore } from 'redux-persist';
+import { configurePortalStore } from '#/libraries/appframeworks/portals/src/lib/store';
+import { layerMap } from './app/config/layermap';
+import { APP_KEY, STORAGE_PREFIX } from './app/helper/constants';
+
+const store = configurePortalStore({
+  APP_KEY,
+  STORAGE_PREFIX,
+  layerMap: layerMap
+});
 
 const persistor = persistStore(store);
 

@@ -284,7 +284,7 @@ const TopNavbar = ({ layerMap }: { layerMap: LayerMap }) => {
 
       <div className="flex items-center gap-6">
         <div className="lg:flex hidden">
-          <Radio.Group
+          {backgroundLayer && <Radio.Group
             value={backgroundLayer.id}
             onChange={(e) => {
               if (e.target.value === 'karte') {
@@ -314,7 +314,7 @@ const TopNavbar = ({ layerMap }: { layerMap: LayerMap }) => {
           >
             <Radio.Button value="karte">Karte</Radio.Button>
             <Radio.Button value="luftbild">Luftbild</Radio.Button>
-          </Radio.Group>
+          </Radio.Group>}
         </div>
 
         <Button

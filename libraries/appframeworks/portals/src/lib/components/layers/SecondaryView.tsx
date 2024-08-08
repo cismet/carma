@@ -12,6 +12,7 @@ import { forwardRef, useContext, useEffect, useRef } from 'react';
 import { TopicMapContext } from 'react-cismap/contexts/TopicMapContextProvider';
 import { useDispatch, useSelector } from 'react-redux';
 import { cn } from '../../utils/helper';
+import { formatUnitRangeToPercent } from '../../utils/formatters';
 import type { SliderSingleProps } from 'antd';
 import {
   changeOpacity,
@@ -33,13 +34,10 @@ import { iconColorMap, iconMap } from './items';
 
 type Ref = HTMLDivElement;
 
-interface SecondaryViewProps {}
+interface SecondaryViewProps { }
 
-export const formatter: NonNullable<
-  SliderSingleProps['tooltip']
->['formatter'] = (value) => `${value * 100}%`;
 
-const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
+const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({ }, ref) => {
   const { routedMapRef } = useContext<TopicMapContext>(TopicMapContext);
   const infoRef = useRef<HTMLDivElement>(null);
   const dispatch = useDispatch();
@@ -54,10 +52,10 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
   const icon = layer.title.includes('Orthofoto')
     ? 'ortho'
     : layer.title === 'Bäume'
-    ? 'bäume'
-    : layer.title.includes('gärten')
-    ? 'gärten'
-    : undefined;
+      ? 'bäume'
+      : layer.title.includes('gärten')
+        ? 'gärten'
+        : undefined;
   const background = selectedLayerIndex === -1;
 
   useEffect(() => {
@@ -141,7 +139,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
               </label>
               <Slider
                 disabled={background}
-                tooltip={{ formatter }}
+                tooltip={{ formatter: (v) => <span>{formatUnitRangeToPercent(v)}</span> }}
                 onFocus={() => {
                   routedMapRef?.leafletMap?.leafletElement.dragging.disable();
                 }}

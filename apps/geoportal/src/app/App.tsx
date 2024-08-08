@@ -15,6 +15,7 @@ import { host } from "./helper/constants";
 import type { Settings } from "@carma-apps/portals";
 import CrossTabCommunicationContextProvider from 'react-cismap/contexts/CrossTabCommunicationContextProvider';
 import { defaultLayerConf } from './config/layerconf';
+import { layerMap } from './config/layermap';
 
 
 const {
@@ -112,7 +113,7 @@ function App({ published }: { published?: boolean }) {
   const content = (
     <TopicMapContextProvider>
       <div className="flex flex-col h-screen w-full">
-        {!published && <TopNavbar />}
+        {!published && <TopNavbar layerMap={layerMap} />}
         <HomeButton />
         {showMeasurementButton && <MapMeasurement />}
         <Map host={host} defaultLayerConfig={defaultLayerConf} />

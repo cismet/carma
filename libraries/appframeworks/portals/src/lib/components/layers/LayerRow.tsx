@@ -13,7 +13,7 @@ import { Layer } from '@carma-mapping/layers';
 import { useDispatch } from 'react-redux';
 import { changeOpacity, changeVisibility } from '../../store/slices/mapping';
 import { iconColorMap, iconMap } from './items';
-import { formatter } from './SecondaryView';
+import { formatUnitRangeToPercent } from '../../utils/formatters';
 
 interface LayerRowProps {
   layer: Layer;
@@ -72,7 +72,7 @@ const LayerRow = ({ layer, id }: LayerRowProps) => {
       <Slider
         min={0}
         max={1}
-        tooltip={{ formatter: formatter }}
+        tooltip={{ formatter: (v) => <span>{formatUnitRangeToPercent(v)}</span> }}
         step={0.1}
         onChange={(value) => {
           dispatch(changeOpacity({ id: layer.id, opacity: value }));
