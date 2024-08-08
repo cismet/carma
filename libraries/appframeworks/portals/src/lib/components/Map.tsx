@@ -89,7 +89,7 @@ export const Map = ({ host, defaultLayerConfig }: MapProps) => {
           )
         }
       >
-        {getBackgroundLayers({ layerString: backgroundLayer.layers, defaultLayerConfig })}
+        {backgroundLayer && getBackgroundLayers({ layerString: backgroundLayer.layers, defaultLayerConfig })}
         {focusMode && <PaleOverlay />}
         {showLayerButtons && <LayerWrapper />}
         {layers.map((layer, i) => {

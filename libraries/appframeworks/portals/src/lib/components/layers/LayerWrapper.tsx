@@ -122,14 +122,14 @@ const LayerWrapper = () => {
               </div>
             )}
             <div className="w-full flex justify-center items-center h-full gap-2">
-              <LayerButton
+              {backgroundLayer ? <LayerButton
                 icon="background"
                 layer={backgroundLayer}
                 index={-1}
                 id={backgroundLayer.id}
                 title=""
                 background
-              />
+              /> : <span>"Kein BackgroundLayer gefunden"</span>}
               <div
                 id="scrollWrapper"
                 className="overflow-x-hidden sm:flex hidden items-center h-full gap-2"
@@ -148,10 +148,10 @@ const LayerWrapper = () => {
                         layer.title.includes('Orthofoto')
                           ? 'ortho'
                           : layer.title === 'Bäume'
-                          ? 'bäume'
-                          : layer.title.includes('gärten')
-                          ? 'gärten'
-                          : undefined
+                            ? 'bäume'
+                            : layer.title.includes('gärten')
+                              ? 'gärten'
+                              : undefined
                       }
                       layer={layer}
                     />
