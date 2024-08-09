@@ -1,7 +1,8 @@
 import { Badge, Tabs } from 'antd';
+import { Item, XMLLayer } from '../helper/types';
 
 interface LayerTabsProps {
-  layers: any[];
+  layers: Item[];
   activeId: string;
   numberOfItems: number;
 }

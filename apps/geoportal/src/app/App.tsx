@@ -3,7 +3,7 @@ import 'leaflet/dist/leaflet.css';
 import 'react-bootstrap-typeahead/css/Typeahead.css';
 import 'react-cismap/topicMaps.css';
 import './index.css';
-import TopicMapContextProvider from 'react-cismap/contexts/TopicMapContextProvider';
+import { TopicMapContextProvider } from 'react-cismap/contexts/TopicMapContextProvider';
 import { Map, TopNavbar, MapMeasurement, HomeButton, sliceMapping, sliceUI } from "@carma-apps/portals"
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -13,7 +13,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Layer } from '@carma-mapping/layers';
 import { host } from "./helper/constants";
 import type { Settings } from "@carma-apps/portals";
-import CrossTabCommunicationContextProvider from 'react-cismap/contexts/CrossTabCommunicationContextProvider';
+import { CrossTabCommunicationContextProvider } from 'react-cismap/contexts/CrossTabCommunicationContextProvider';
 import { defaultLayerConf } from './config/layerconf';
 import { layerMap } from './config/layermap';
 
@@ -82,7 +82,7 @@ function App({ published }: { published?: boolean }) {
       searchParams.delete('data');
       setSearchParams(searchParams);
     }
-  }, [searchParams]);
+  }, [searchParams, published, dispatch, setSearchParams]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -108,7 +108,7 @@ function App({ published }: { published?: boolean }) {
 
       window.removeEventListener('blur', onKeyUp);
     };
-  }, [allowUiChanges]);
+  }, [allowUiChanges, dispatch]);
 
   const content = (
     <TopicMapContextProvider>

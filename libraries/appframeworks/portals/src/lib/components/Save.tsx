@@ -1,4 +1,4 @@
-import { faFileExport, faQuestion } from '@fortawesome/free-solid-svg-icons';
+import { faFileExport } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Button, Input, Tooltip, message } from 'antd';
 import { useState } from 'react';
@@ -83,7 +83,7 @@ const Save = () => {
               type: 'success',
               content: `Konfiguration "${title}" wurde erfolgreich gespeichert.`,
             });
-          } catch (e) {
+          } catch (_e) {
             messageApi.open({
               type: 'error',
               content: 'Es gab einen Fehler beim speichern der Konfiguration',
