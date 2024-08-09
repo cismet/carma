@@ -11,7 +11,7 @@ export default defineConfig({
     port: 4200,
     host: "localhost",
     fs: {
-      allow: ['../../..'],
+      allow: ["../../.."],
     },
   },
 
@@ -29,16 +29,12 @@ export default defineConfig({
 
   build: {
     outDir: "../../dist/apps/geoportal",
-    emptyOutDir: true,
     reportCompressedSize: true,
     commonjsOptions: {
       transformMixedEsModules: true,
     },
   },
 
-  define: {
-    "import.meta.vitest": undefined,
-  },
   test: {
     watch: false,
     globals: true,

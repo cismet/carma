@@ -2,7 +2,9 @@ import { Badge, Tabs } from 'antd';
 import { Item, XMLLayer } from '../helper/types';
 
 interface LayerTabsProps {
-  layers: Item[];
+  // TODO add type for layers
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  layers: any[];
   activeId: string;
   numberOfItems: number;
 }
