@@ -4,7 +4,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 const HomeButton = () => {
-  const { routedMapRef } = useContext<TopicMapContext>(TopicMapContext);
+  const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
   useEffect(() => {
     if (routedMapRef?.leafletMap) {

@@ -43,7 +43,7 @@ import Save from './Save';
 
 const TopNavbar = ({ layerMap }: { layerMap: LayerMap }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { setAppMenuVisible } = useContext<UIDispatchContext>(UIDispatchContext);
+  const { setAppMenuVisible } = useContext<typeof UIDispatchContext>(UIDispatchContext);
   const backgroundLayer = useSelector(getBackgroundLayer);
   const selectedMapLayer = useSelector(getSelectedMapLayer);
   const dispatch = useDispatch();

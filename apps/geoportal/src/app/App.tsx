@@ -16,10 +16,12 @@ import type { Settings } from "@carma-apps/portals";
 import { CrossTabCommunicationContextProvider } from 'react-cismap/contexts/CrossTabCommunicationContextProvider';
 import { defaultLayerConf } from './config/layerconf';
 import { layerMap } from './config/layermap';
+// TODO fix import from lib not via root path
+import type { BackgroundLayer } from '#/libraries/appframeworks/portals/src/lib/store/slices/mapping';
 
 
 const {
-  BackgroundLayer,
+  getBackgroundLayer,
   getShowMeasurementButton,
   setBackgroundLayer,
   setLayers,

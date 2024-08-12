@@ -38,7 +38,7 @@ interface SecondaryViewProps { }
 
 
 const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({ }, ref) => {
-  const { routedMapRef } = useContext<TopicMapContext>(TopicMapContext);
+  const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const infoRef = useRef<HTMLDivElement>(null);
   const dispatch = useDispatch();
   const showInfo = useSelector(getShowInfo);

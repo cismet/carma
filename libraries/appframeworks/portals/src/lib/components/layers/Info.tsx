@@ -25,11 +25,12 @@ import { LayerMap } from '../../types';
 
 interface InfoProps {
   description: string;
+  // TODO types
   legend: any;
-  layerMap: LayerMap;
+  layerMap?: LayerMap;
 }
 
-const Info = ({ description, legend }: InfoProps) => {
+const Info = ({ description, legend, layerMap }: InfoProps) => {
   const dispatch = useDispatch();
   const selectedMapLayer = useSelector(getSelectedMapLayer);
   const activeTabKey = useSelector(getActiveTabKey);

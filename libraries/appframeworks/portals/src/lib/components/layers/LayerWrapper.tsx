@@ -35,7 +35,7 @@ import SecondaryView from './SecondaryView';
 
 const LayerWrapper = () => {
   const dispatch = useDispatch();
-  const { routedMapRef } = useContext<TopicMapContext>(TopicMapContext);
+  const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const layers = useSelector(getLayers);
   const selectedLayerIndex = useSelector(getSelectedLayerIndex);
   const backgroundLayer = useSelector(getBackgroundLayer);
