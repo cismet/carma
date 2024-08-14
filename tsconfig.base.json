@@ -26,7 +26,6 @@
     ],
     "paths": {
       "@carma-apps/envirometrics": ["libraries/appframeworks/envirometrics/src/index.ts"],
-      "@carma-apps/portals": ["libraries/appframeworks/portals/src/index.ts"],
       "@carma-apps/topicmaps": ["libraries/appframeworks/topicmaps/src/index.ts"],
       "@carma-collab/wuppertal/baederkarte": [
         "libraries/collaboration/carma-wuppertal-collab/src/baederkarte/index.ts"
@@ -71,6 +70,7 @@
       "@carma-collab/wuppertal/x-and-ride": ["libraries/collaboration/carma-wuppertal-collab/src/x-and-ride/index.ts"],
       "@carma-commons/debug": ["libraries/commons/debug/src/index.ts"],
       "@carma-commons/document-viewer": ["libraries/commons/document-viewer/src/index.ts"],
+      "@carma-commons/utils": ["libraries/commons/utils/src/index.ts"],
       "@carma-mapping/cesium-engine": ["libraries/mapping/engines/cesium/src/index.ts"],
       "@carma-mapping/cesium-engine/shaders": ["libraries/mapping/engines/cesium/src/lib/shaders.ts"],
       "@carma-mapping/cesium-engine/types": ["libraries/mapping/engines/cesium/src/index.d.ts"],
@@ -81,8 +81,7 @@
       "@carma-mapping/leaflet-engine": ["libraries/mapping/engines/leaflet/src/index.ts"],
       "@carma-mapping/map-controls-layout": ["libraries/mapping/carma-map-control-layout/src/index.ts"],
       "@carma-mapping/maplibre-engine": ["libraries/mapping/engines/maplibre/src/index.ts"],
-      "@carma-mapping/utils": ["libraries/mapping/carma-map-utils/src/index.ts"],
-      "#/*": ["./*"]
+      "@carma-mapping/utils": ["libraries/mapping/carma-map-utils/src/index.ts"]
     },
     "skipLibCheck": true
   }

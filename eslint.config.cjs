@@ -49,7 +49,11 @@ const baseConfig = {
     "@typescript-eslint/no-unused-vars": "warn",
     "jsx-a11y/anchor-is-valid": "warn",
     "jsx-a11y/alt-text": "warn",
-    "jsx-a11y/aria-role": "warn",
+    "jsx-a11y/aria-role": ["warn",
+      {
+        "allowedInvalidRoles": ["sync"], // TODO update react-cismap to use other name for role prop
+      }
+    ],
     "jsx-a11y/click-events-have-key-events": "warn",
     "jsx-a11y/interactive-supports-focus": "warn",
     "jsx-a11y/label-has-associated-control": "warn",
@@ -58,13 +62,14 @@ const baseConfig = {
     "jsx-a11y/no-static-element-interactions": "warn",
     "react/display-name": "off",
     "react/jsx-key": "warn",
-    "react/jsx-no-undef": ["error", { "allowGlobals": true }],
+    "react/jsx-no-undef": ["error", { allowGlobals: true }],
     "react/jsx-uses-react": "error",
     "react/jsx-uses-vars": "error",
     "react/jsx-no-target-blank": "off", // noopener now set by browsers
     "react/no-unescaped-entities": "off", // TODO discuss template format
     "react/prop-types": "warn",
     "react/react-in-jsx-scope": "off", // not needed with jsx since react 17
+    "react-hooks/exhaustive-deps": "warn",
     "react-refresh/only-export-components": [
       "warn",
       { allowConstantExport: true },
@@ -91,12 +96,12 @@ const baseConfig = {
     "import/resolver": {
       ...importPlugin.configs.typescript.settings["import/resolver"],
       typescript: {
-        project: ['./tsconfig.*.json'],
+        project: ["./tsconfig.*.json"],
       },
     },
-    "react": {
+    react: {
       version: "detect",
-    }
+    },
   },
 };
 

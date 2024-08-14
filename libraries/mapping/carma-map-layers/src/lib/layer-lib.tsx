@@ -1,4 +1,4 @@
-import LibModal from '../components/LibModal';
+import {LibModal} from '../components/LibModal';
 import type { LibModalProps } from '../components/LibModal';
 
 /* eslint-disable-next-line */

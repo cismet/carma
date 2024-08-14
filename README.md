@@ -138,8 +138,30 @@ not mixed in like
 import React, { useEffect, ReactNode } from "react";
 ```
 
-## Updating the Monorepo
+### Linting
 
+uses eslint flat config in 
+
+`/eslint.config.cjs`
+
+can be run per project with
+
+`npx nx run [projectname]:lint `
+
+Default ruleset is `tseslint.configs.strictTypeChecked.`
+with some custom react and a11y rules.
+
+desirable should be 0 warnings for added code.
+
+for nx to register changes to the file, one might need to clear the cache with
+
+`npx nx reset`
+
+or run with skip cache option
+
+`npx nx run [projectname]:lint --skipNxCache`
+
+## Updating the Monorepo
 
 ### Updating the Nx CLI
 
