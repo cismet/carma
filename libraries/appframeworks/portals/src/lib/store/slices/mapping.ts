@@ -3,6 +3,9 @@ import type { PayloadAction } from "@reduxjs/toolkit";
 import { RootState } from "..";
 // eslint-disable-next-line nx/enforce-module-boundaries
 import { Layer } from "@carma-mapping/layers";
+// TODO REMOVE defaultLayerMap and provide slice configuration method instead
+import { defaultLayerMap } from "../../utils/defaultLayerMap";
+
 
 export type BackgroundLayer = Layer & {
   layers: string;
@@ -38,8 +41,39 @@ const initialState: MappingState = {
   layers: [],
   savedLayerConfigs: [],
   selectedLayerIndex: -2,
-  selectedMapLayer: null,
-  backgroundLayer: null,
+  //selectedMapLayer: null, 
+  //backgroundLayer: null,
+  // TODO have initialization method for slice with external configuration
+  selectedMapLayer: {
+    title: 'Stadtplan',
+    id: 'stadtplan',
+    opacity: 1.0,
+    description: ``,
+    inhalt: defaultLayerMap['stadtplan'].inhalt,
+    eignung: defaultLayerMap['stadtplan'].eignung,
+    visible: true,
+    layerType: 'wmts',
+    props: {
+      name: '',
+      url: defaultLayerMap['stadtplan'].url,
+    },
+    layers: defaultLayerMap['stadtplan'].layers,
+  },
+  backgroundLayer: {
+    title: 'Stadtplan',
+    id: 'karte',
+    opacity: 1.0,
+    description: ``,
+    inhalt: defaultLayerMap['stadtplan'].inhalt,
+    eignung: defaultLayerMap['stadtplan'].eignung,
+    visible: true,
+    layerType: 'wmts',
+    props: {
+      name: '',
+      url: defaultLayerMap['stadtplan'].url,
+    },
+    layers: defaultLayerMap['stadtplan'].layers,
+  },
   showLeftScrollButton: false,
   showRightScrollButton: false,
   showFullscreenButton: true,
@@ -48,6 +82,8 @@ const initialState: MappingState = {
   showHamburgerMenu: false,
   focusMode: false,
 };
+
+console.log("Mapping slice initialized", initialState);
 
 const slice = createSlice({
   name: "mapping",

@@ -1,4 +1,3 @@
-import { Map } from "./components/Map";
 import store from "./store";
 import * as sliceUI from "./store/slices/ui";
 import * as sliceLayers from "./store/slices/layers";
@@ -9,12 +8,13 @@ import * as layer from "./utils/layer";
 export * from "./types.d";
 
 import TopNavbar from "./components/TopNavbar";
+import { GeoportalMap } from "./components/GeoportalMap";
 import { MapMeasurement } from "./components/map-measure/MapMeasurement";
 import HomeButton from "./components/HomeButton";
 import type { Settings } from "./components/Share";
 
 export {
-  Map,
+  GeoportalMap,
   layer,
   sliceLayers,
   sliceMapping,
@@ -28,5 +28,3 @@ export {
 };
 
 export type { Settings };
-
-export default Map;

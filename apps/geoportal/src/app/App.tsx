@@ -4,7 +4,7 @@ import 'react-bootstrap-typeahead/css/Typeahead.css';
 import 'react-cismap/topicMaps.css';
 import './index.css';
 import { TopicMapContextProvider } from 'react-cismap/contexts/TopicMapContextProvider';
-import { Map, TopNavbar, MapMeasurement, HomeButton, sliceMapping, sliceUI } from "@carma-apps/portals"
+import { GeoportalMap, TopNavbar, MapMeasurement, HomeButton, sliceMapping, sliceUI } from "@carma-apps/portals"
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import LZString from 'lz-string';
@@ -21,7 +21,7 @@ import type { BackgroundLayer } from '#/libraries/appframeworks/portals/src/lib/
 
 
 const {
-  getBackgroundLayer,
+  //getBackgroundLayer,
   getShowMeasurementButton,
   setBackgroundLayer,
   setLayers,
@@ -118,7 +118,7 @@ function App({ published }: { published?: boolean }) {
         {!published && <TopNavbar layerMap={layerMap} />}
         <HomeButton />
         {showMeasurementButton && <MapMeasurement />}
-        <Map host={host} defaultLayerConfig={defaultLayerConf} />
+        <GeoportalMap host={host} defaultLayerConfig={defaultLayerConf} />
       </div>
     </TopicMapContextProvider>
   );

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import TopicMapComponent from 'react-cismap/topicmaps/TopicMapComponent';
 import { useSelector } from 'react-redux';
 import { getGazData, paramsToObject } from '../utils/helper';
@@ -25,7 +25,7 @@ type MapProps = {
   defaultLayerConfig: any;
 };
 
-export const Map = ({ host, defaultLayerConfig }: MapProps) => {
+export const GeoportalMap = ({ host, defaultLayerConfig }: MapProps) => {
   const [gazData, setGazData] = useState([]);
   const [height, setHeight] = useState(0);
   const [width, setWidth] = useState(0);
@@ -39,6 +39,9 @@ export const Map = ({ host, defaultLayerConfig }: MapProps) => {
   const showHamburgerMenu = useSelector(getShowHamburgerMenu);
   const focusMode = useSelector(getFocusMode);
   const [urlParams, setUrlParams] = useSearchParams();
+
+
+  console.log("geoportal map", backgroundLayer);
 
   useEffect(() => {
     (async () => {
@@ -131,4 +134,4 @@ export const Map = ({ host, defaultLayerConfig }: MapProps) => {
   );
 };
 
-export default Map;
+export default GeoportalMap;

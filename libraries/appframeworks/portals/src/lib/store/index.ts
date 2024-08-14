@@ -3,6 +3,7 @@ import type { EnhancedStore } from "@reduxjs/toolkit";
 import mappingSlice from "./slices/mapping";
 import layersSlice from "./slices/layers";
 import uiSlice from "./slices/ui";
+import {defaultLayerMap } from "../utils/defaultLayerMap";
 import measurementsSlice from "./slices/measurements";
 import { createLogger } from "redux-logger";
 import { persistReducer } from "redux-persist";
@@ -60,7 +61,7 @@ interface PortalStoreConfig {
 export const configurePortalStore = ({
   APP_KEY = "geoportal",
   STORAGE_PREFIX = "1",
-  layerMap = {},
+  layerMap = defaultLayerMap,
 }: PortalStoreConfig) => {
   const uiConfig = {
     key: "@" + (customAppKey || APP_KEY) + "." + STORAGE_PREFIX + ".app.config",

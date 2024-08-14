@@ -7,13 +7,13 @@
       "node",
       "vite/client"
     ],
-    "composite": true
   },
   "include": [
-    "src/**/*.ts",
-    "src/**/*.tsx",
-    "src/**/*.js",
-    "src/**/*.jsx"
+    "src/index.ts",
+    "src/lib/**/*.ts",
+    "src/lib/**/*.tsx",
+    "src/lib/**/*.js",
+    "src/lib/**/*.jsx"
   ],
   "exclude": [
     "vite.config.ts",
