@@ -1,0 +1,62 @@
+.m-icons-wrapper.leaflet-control {
+  margin: 0;
+  width: 100%;
+  display: flex;
+  /* background-color: gray; */
+}
+
+.measure_icon_wrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+}
+
+.mesure_icon {
+  /* display: block; */
+  width: 80%;
+  margin: auto;
+  /* height: 100%; */
+  text-align: center;
+}
+
+.m-container {
+  display: flex;
+}
+
+.measure_icon_wrapper__polygon {
+  display: none;
+}
+
+.measure_button_wrapper {
+  width: 30px;
+  height: 100%;
+  background-color: white;
+  display: flex;
+  justify-items: center;
+  align-items: center;
+  cursor: pointer;
+  font-size: 20px;
+}
+
+.add_shape {
+  width: 100%;
+  height: 100%;
+  /* background-color: green; */
+  line-height: 1.3em;
+  text-align: center;
+  cursor: pointer;
+}
+
+.add_shape.draw-active {
+  color: #fdb50f;
+}
+
+.leaflet-bar.leaflet-control.m-container.hide-draw-btn {
+  display: none;
+}
+
+.leaflet-bar.leaflet-control.m-container.draw-custom-button {
+  margin-left: 4px;
+}
