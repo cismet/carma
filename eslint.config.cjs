@@ -28,6 +28,7 @@ const baseConfig = {
       ecmaVersion: 2022,
       tsconfigRootDir: __dirname,
       EXPERIMENTAL_useProjectService: true,
+      //allowDefaultProjectForFiles: [        "./*.json"      ], // TODO Limit Scope
       ecmaFeatures: {
         jsx: true,
         modules: true,
@@ -69,7 +70,11 @@ const baseConfig = {
     "react/no-unescaped-entities": "off", // TODO discuss template format
     "react/prop-types": "warn",
     "react/react-in-jsx-scope": "off", // not needed with jsx since react 17
-    "react-hooks/exhaustive-deps": "warn",
+    "react-hooks/exhaustive-deps": [
+      "warn",
+
+
+    ],
     "react-refresh/only-export-components": [
       "warn",
       { allowConstantExport: true },

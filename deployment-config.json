@@ -133,6 +133,25 @@
       },
       "projectPath": "./dist/playgrounds/fuzzy-search-playground"
     },
+    "geoportal": {
+      "deployment": {
+        "manual": {
+          "pages": {
+            "org": "carma-dev-deployments",
+            "prj": "geoportal"
+          }
+        },
+        "auto": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "geoportal"
+            }
+          }
+        }
+      },
+      "projectPath": "./dist/apps/geoportal"
+    },
     "geoportal-playground": {
       "deployment": {
         "manual": {

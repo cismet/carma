@@ -1,1 +1,1 @@
-export * from './lib/carma-apps-portals';
+export * from "./lib";

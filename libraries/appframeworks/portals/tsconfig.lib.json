@@ -3,8 +3,21 @@
   "compilerOptions": {
     "outDir": "../../../dist/out-tsc",
     "declaration": true,
-    "types": ["node", "vite/client"]
+    "types": [
+      "node",
+      "vite/client"
+    ],
   },
-  "include": ["src/**/*.ts"],
-  "exclude": ["vite.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts"]
+  "include": [
+    "src/index.ts",
+    "src/lib/**/*.ts",
+    "src/lib/**/*.tsx",
+    "src/lib/**/*.js",
+    "src/lib/**/*.jsx"
+  ],
+  "exclude": [
+    "vite.config.ts",
+    "src/**/*.spec.ts",
+    "src/**/*.test.ts"
+  ]
 }

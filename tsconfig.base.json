@@ -16,6 +16,7 @@
   "compilerOptions": {
     "rootDir": ".",
     "baseUrl": ".",
+    //"typeRoots": ["node_modules", "node_modules/@types", "types"],
     "types": [
       "vite/client",
       "node",
@@ -25,6 +26,7 @@
     ],
     "paths": {
       "@carma-apps/envirometrics": ["libraries/appframeworks/envirometrics/src/index.ts"],
+      "@carma-apps/portals": ["libraries/appframeworks/portals/src/index.ts"],
       "@carma-apps/topicmaps": ["libraries/appframeworks/topicmaps/src/index.ts"],
       "@carma-collab/wuppertal/baederkarte": [
         "libraries/collaboration/carma-wuppertal-collab/src/baederkarte/index.ts"
