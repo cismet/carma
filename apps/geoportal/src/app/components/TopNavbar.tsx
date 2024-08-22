@@ -252,9 +252,8 @@ const TopNavbar = () => {
           <FontAwesomeIcon icon={faPrint} className="text-xl text-gray-300" />
         </Tooltip>
         <Tooltip
-          title={`Layer Buttons ${
-            showLayerButtons ? 'ausblenden' : 'anzeigen'
-          }`}
+          title={`Layer Buttons ${showLayerButtons ? 'ausblenden' : 'anzeigen'
+            }`}
         >
           <button
             className="text-xl hover:text-gray-600"
@@ -262,7 +261,7 @@ const TopNavbar = () => {
               dispatch(setShowLayerButtons(!showLayerButtons));
             }}
           >
-            <FontAwesomeIcon icon={showLayerButtons ? faEye : faEyeSlash} />
+            <FontAwesomeIcon fixedWidth={true} icon={showLayerButtons ? faEye : faEyeSlash} />
           </button>
         </Tooltip>
         <Tooltip title="Speichern">
