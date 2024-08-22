@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import Fuse from 'fuse.js';
 import { AutoComplete, Button, Checkbox } from 'antd';
 import { CloseOutlined } from '@ant-design/icons';
-import { builtInGazetteerHitTrigger } from 'react-cismap/tools/gazetteerHelper';
+import { builtInGazetteerHitTrigger } from 'react-cismap';
 import './fuzzy-search.css';
 import IconComp from 'react-cismap/commons/Icon';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
