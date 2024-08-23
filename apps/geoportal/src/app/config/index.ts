@@ -1,8 +1,10 @@
+import type { DefaultLayerConfig, LayerConfig, LayerMap, NamedStyles } from "@carma-apps/portals";
+
 export const host = "https://wupp-topicmaps-data.cismet.de";
 export const APP_KEY = "geoportal";
 export const STORAGE_PREFIX = "1";
 
-export const namedStyles = {
+export const namedStyles : NamedStyles = {
   default: { opacity: 0.6 },
   night: {
     opacity: 0.9,
@@ -15,7 +17,7 @@ export const namedStyles = {
   },
 };
 
-export const defaultLayerConf = {
+export const defaultLayerConfig: DefaultLayerConfig = {
   namedStyles: {
     default: { opacity: 0.6 },
     night: {
@@ -31,7 +33,7 @@ export const defaultLayerConf = {
   defaults: {
     wms: {
       format: "image/png",
-      tiled: "true",
+      tiled: true,
       maxZoom: 22,
       opacity: 0.6,
       version: "1.1.1",
@@ -44,7 +46,7 @@ export const defaultLayerConf = {
       type: "wms",
       url: "https://geodaten.metropoleruhr.de/spw2/service",
       layers: "spw2_light",
-      tiled: "false",
+      tiled: false,
       version: "1.3.0",
     },
     trueOrtho2020: {
@@ -104,7 +106,7 @@ export const defaultLayerConf = {
   },
 };
 
-export const layerMap = {
+export const layerMap : LayerMap = {
   luftbild: {
     title: "Luftbild",
     layers: "rvrGrundriss@100|trueOrtho2022@75|rvrSchriftNT@100",

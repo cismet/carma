@@ -2,7 +2,24 @@ import { md5FetchText } from "react-cismap/tools/fetching";
 import { getGazDataForTopicIds } from "react-cismap/tools/gazetteerHelper";
 import clsx from "clsx";
 import { twMerge } from "tailwind-merge";
-import { ENDPOINT } from "../types.d";
+
+// TODO find place for common endpoint logic in carma monorepo
+export enum ENDPOINT {
+  ADRESSEN = "adressen",
+  AENDERUNGSV = "aenderungsv",
+  BEZIRKE = "bezirke",
+  BPKLIMASTANDORTE = "bpklimastandorte",
+  BPLAENE = "bplaene",
+  EBIKES = "ebikes",
+  EMOB = "emob",
+  GEPS = "geps",
+  GEPS_REVERSE = "geps_reverse",
+  KITAS = "kitas",
+  PRBR = "prbr",
+  NO2 = "no2",
+  QUARTIERE = "quartiere",
+  POIS = "pois",
+}
 
 const buildHostUri = (host: string, endpoint: ENDPOINT, crs: string) => {
   return `${host}/data/${crs}/${endpoint}.json`;

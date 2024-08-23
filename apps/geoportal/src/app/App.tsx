@@ -12,7 +12,6 @@ import { useSearchParams } from "react-router-dom";
 import LZString from "lz-string";
 import { useDispatch, useSelector } from "react-redux";
 import {
-  BackgroundLayer,
   getShowMeasurementButton,
   setBackgroundLayer,
   setLayers,
@@ -28,9 +27,9 @@ import {
   setShowLayerHideButtons,
 } from "./store/slices/ui";
 import { Layer } from "@carma-mapping/layers";
-import { Settings } from "./components/Share";
 import { CrossTabCommunicationContextProvider } from "react-cismap/contexts/CrossTabCommunicationContextProvider";
 import HomeButton from "./components/HomeButton";
+import type { BackgroundLayer, Settings } from "@carma-apps/portals";
 
 if (typeof global === "undefined") {
   window.global = window;

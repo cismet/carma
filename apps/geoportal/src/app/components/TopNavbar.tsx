@@ -25,6 +25,7 @@ import {
   getBackgroundLayer,
   getFocusMode,
   getLayers,
+  getLayerState,
   getSavedLayerConfigs,
   getSelectedMapLayer,
   removeLayer,
@@ -32,12 +33,12 @@ import {
   setFocusMode,
   setLayers,
 } from "../store/slices/mapping";
-import Share from "./Share";
 import "./switch.css";
 import { getShowLayerButtons, setShowLayerButtons } from "../store/slices/ui";
 import { cn } from "../helper/helper";
 import Save from "./Save";
 import { layerMap } from "../config";
+import { Share } from "@carma-apps/portals";
 
 const TopNavbar = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -45,6 +46,7 @@ const TopNavbar = () => {
     useContext<typeof UIDispatchContext>(UIDispatchContext);
   const backgroundLayer = useSelector(getBackgroundLayer);
   const selectedMapLayer = useSelector(getSelectedMapLayer);
+  const layerState = useSelector(getLayerState);
   const dispatch = useDispatch();
   const thumbnails = useSelector(getThumbnails);
   const activeLayers = useSelector(getLayers);
@@ -277,7 +279,11 @@ const TopNavbar = () => {
           </Popover>
         </Tooltip>
         <Tooltip title="Teilen">
-          <Popover trigger="click" placement="bottom" content={<Share />}>
+          <Popover
+            trigger="click"
+            placement="bottom"
+            content={<Share layerState={layerState} />}
+          >
             <button className="hover:text-gray-600 text-xl">
               <FontAwesomeIcon icon={faShareNodes} />
             </button>

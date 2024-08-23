@@ -1,16 +1,17 @@
-import { namedStyles } from '../constants';
 import CismapLayer from 'react-cismap/CismapLayer';
 import objectAssign from 'object-assign';
+import type { DefaultLayerConfig, LayerConfig, NamedStyles } from '../types';
 
 interface backgroundLayersProps {
   layerString: string;
   namedMapStyle?: string;
   config?: any;
-  layerConfig?: any;
-  defaultLayerConfig: any;
+  layerConfig?: LayerConfig;
+  defaultLayerConfig: DefaultLayerConfig;
+  namedStylesConfig: NamedStyles;
 }
 
-export default function getBackgroundLayers({
+export function getBackgroundLayers({
   layerString,
   namedMapStyle = 'default',
   config = {
@@ -18,8 +19,8 @@ export default function getBackgroundLayers({
   },
   layerConfig,
   defaultLayerConfig,
+  namedStylesConfig,
 }: backgroundLayersProps) {
-  let namedStylesConfig = namedStyles;
   const layerArr = (layerString || '').split(config.layerSeparator || '|');
   let namedMapStyleExtension = namedMapStyle;
   if (namedMapStyleExtension === null || namedMapStyleExtension === '') {
@@ -81,7 +82,7 @@ export default function getBackgroundLayers({
             console.error(error);
             console.error(
               'Problems during parsing of the layer options. Skip options. You will get the 100% Layer:' +
-                layOp[0]
+              layOp[0]
             );
             const layerWithNamedStyleExtension =
               layOp[0] + namedMapStyleExtension;
@@ -97,12 +98,25 @@ export default function getBackgroundLayers({
   );
 }
 
-const createLayerFactoryFunction = (key, _conf, defaultConf) => {
+const createLayerFactoryFunction = (
+  key: string,
+  _conf: LayerConfig | undefined,
+  defaultConf: DefaultLayerConfig,
+) => {
+
+  if (_conf === undefined) {
+    console.warn(
+      "No LayerConfig given. Please provide a LayerConfig to get the layer factory function.",
+    );
+    return null;
+  }
+
   let conf = {
     namedStyles: defaultConf.namedStyles,
     defaults: defaultConf.defaults,
     ..._conf,
   };
+
 
   switch ((conf.namedLayers[key] || {}).type) {
     case 'wms':

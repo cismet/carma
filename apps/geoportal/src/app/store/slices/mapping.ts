@@ -2,37 +2,8 @@ import { createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 import { RootState } from "..";
 import { layerMap } from "../../config";
-import { Layer } from "@carma-mapping/layers";
-
-export type BackgroundLayer = Layer & {
-  layers: string;
-  inhalt?: string;
-  eignung?: string;
-};
-
-export type SavedLayerConfig = {
-  title: string;
-  description: string;
-  type: string;
-  id: string;
-  thumbnail?: string;
-  layers: Layer[];
-};
-
-interface MappingState {
-  layers: Layer[];
-  savedLayerConfigs: SavedLayerConfig[];
-  selectedLayerIndex: number;
-  selectedMapLayer: BackgroundLayer;
-  backgroundLayer: BackgroundLayer;
-  showLeftScrollButton: boolean;
-  showRightScrollButton: boolean;
-  showFullscreenButton: boolean;
-  showLocatorButton: boolean;
-  showMeasurementButton: boolean;
-  showHamburgerMenu: boolean;
-  focusMode: boolean;
-}
+import type { Layer } from "@carma-mapping/layers";
+import type { BackgroundLayer, LayerState, MappingState, SavedLayerConfig } from "@carma-apps/portals";
 
 const initialState: MappingState = {
   layers: [],
@@ -225,6 +196,15 @@ export const getSelectedMapLayer = (state: RootState) => {
 
 export const getBackgroundLayer = (state: RootState) => {
   return state.mapping.backgroundLayer;
+};
+
+export const getLayerState = (state: RootState): LayerState => {
+  return {
+    layers: state.mapping.layers,
+    backgroundLayer: state.mapping.backgroundLayer,
+    selectedMapLayer: state.mapping.selectedMapLayer,
+    selectedLayerIndex: state.mapping.selectedLayerIndex,
+  };
 };
 
 export const getShowLeftScrollButton = (state: RootState) => {

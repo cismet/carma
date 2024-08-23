@@ -15,9 +15,10 @@ import InfoBoxMeasurement from "./map-measure/InfoBoxMeasurement";
 import PaleOverlay from "react-cismap/PaleOverlay";
 import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
 import { useSearchParams } from "react-router-dom";
-import getBackgroundLayers from "../helper/layer";
+import { getBackgroundLayers } from "@carma-apps/portals";
 import { getMode, getShowLayerButtons } from "../store/slices/ui";
 import CismapLayer from "react-cismap/CismapLayer";
+import { namedStyles, defaultLayerConfig } from "../config";
 
 const Map = () => {
   const [gazData, setGazData] = useState([]);
@@ -53,6 +54,13 @@ const Map = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+
+  const backgroundLayers = getBackgroundLayers({
+    layerString: backgroundLayer.layers,
+    defaultLayerConfig,
+    namedStylesConfig: namedStyles,
+  })
+
   return (
     <div className="h-full w-full" ref={wrapperRef}>
       <TopicMapComponent
@@ -80,7 +88,7 @@ const Map = () => {
           )
         }
       >
-        {getBackgroundLayers({ layerString: backgroundLayer.layers })}
+        {backgroundLayers}
         {focusMode && <PaleOverlay />}
         {showLayerButtons && <LayerWrapper />}
         {layers.map((layer, i) => {
