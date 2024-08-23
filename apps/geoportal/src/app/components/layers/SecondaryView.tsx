@@ -5,14 +5,14 @@ import {
   faChevronRight,
   faInfo,
   faLayerGroup,
-} from '@fortawesome/free-solid-svg-icons';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { Slider } from 'antd';
-import { forwardRef, useContext, useEffect, useRef } from 'react';
-import { TopicMapContext } from 'react-cismap/contexts/TopicMapContextProvider';
-import { useDispatch, useSelector } from 'react-redux';
-import { cn } from '../../helper/helper';
-import type { SliderSingleProps } from 'antd';
+} from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { Slider } from "antd";
+import { forwardRef, useContext, useEffect, useRef } from "react";
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+import { useDispatch, useSelector } from "react-redux";
+import { cn } from "../../helper/helper";
+import type { SliderSingleProps } from "antd";
 import {
   changeOpacity,
   getBackgroundLayer,
@@ -21,23 +21,23 @@ import {
   setNextSelectedLayerIndex,
   setPreviousSelectedLayerIndex,
   setSelectedLayerIndex,
-} from '../../store/slices/mapping';
+} from "../../store/slices/mapping";
 import {
   getShowInfo,
   getShowInfoText,
   setShowInfo,
   setShowInfoText,
-} from '../../store/slices/ui';
-import Info from './Info';
-import { iconColorMap, iconMap } from './items';
+} from "../../store/slices/ui";
+import Info from "./Info";
+import { iconColorMap, iconMap } from "./items";
 
 type Ref = HTMLDivElement;
 
 interface SecondaryViewProps {}
 
 export const formatter: NonNullable<
-  SliderSingleProps['tooltip']
->['formatter'] = (value) => `${value * 100}%`;
+  SliderSingleProps["tooltip"]
+>["formatter"] = (value) => `${value * 100}%`;
 
 const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
@@ -51,12 +51,12 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
   const backgroundLayer = useSelector(getBackgroundLayer);
   const layer =
     selectedLayerIndex >= 0 ? layers[selectedLayerIndex] : backgroundLayer;
-  const icon = layer.title.includes('Orthofoto')
-    ? 'ortho'
-    : layer.title === 'Bäume'
-    ? 'bäume'
-    : layer.title.includes('gärten')
-    ? 'gärten'
+  const icon = layer.title.includes("Orthofoto")
+    ? "ortho"
+    : layer.title === "Bäume"
+    ? "bäume"
+    : layer.title.includes("gärten")
+    ? "gärten"
     : undefined;
   const background = selectedLayerIndex === -1;
 
@@ -66,9 +66,9 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
         dispatch(setSelectedLayerIndex(-2));
       }
     };
-    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener("mousedown", handleOutsideClick);
     return () => {
-      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener("mousedown", handleOutsideClick);
     };
   }, []);
 
@@ -87,7 +87,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
           }}
           className={cn(
             `bg-white rounded-[10px] 2xl:w-1/2 w-5/6 flex flex-col relative px-10 gap-2 py-2 transition-all duration-300`,
-            showInfo ? 'h-[600px]' : 'h-12'
+            showInfo ? "h-[600px]" : "h-12",
           )}
           onMouseEnter={() => {
             routedMapRef?.leafletMap?.leafletElement.dragging.disable();
@@ -112,10 +112,10 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
           </button>
           <div className="flex items-center h-8 gap-6">
             <div className="w-1/4 min-w-max truncate flex items-center gap-2">
-              {icon === 'ortho' ? (
+              {icon === "ortho" ? (
                 <div style={{ height: 14, width: 14 }}>
                   <img
-                    src={urlPrefix + 'images/ortho.png'}
+                    src={urlPrefix + "images/ortho.png"}
                     alt="Ortho"
                     className="h-full"
                   />
@@ -164,7 +164,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
                 dispatch(setShowInfo(!showInfo));
                 setTimeout(
                   () => dispatch(setShowInfoText(!showInfoText)),
-                  showInfoText ? 0 : 80
+                  showInfoText ? 0 : 80,
                 );
               }}
               className="relative fa-stack mt-1"
@@ -183,7 +183,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
           {showInfoText && (
             <Info
               description={layer.description}
-              legend={layer.layerType === 'wmts' ? layer.props.legend : []}
+              legend={layer.layerType === "wmts" ? layer.props.legend : []}
             />
           )}
         </div>

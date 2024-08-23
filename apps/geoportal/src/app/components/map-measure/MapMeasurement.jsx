@@ -1,19 +1,19 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { TopicMapContext } from 'react-cismap/contexts/TopicMapContextProvider';
-import 'leaflet/dist/leaflet.css';
-import 'leaflet-draw/dist/leaflet.draw.css';
-import L from 'leaflet';
-import 'leaflet-draw';
-import 'leaflet-editable';
-import 'leaflet-measure-path';
-import './measure-path';
-import 'leaflet-measure-path/leaflet-measure-path.css';
-import makeMeasureIcon from './measure.png';
-import makeMeasureActiveIcon from './measure-active.png';
-import polygonIcon from './polygon.png';
-import polygonActiveIcon from './polygon-active.png';
-import './m-style.css';
-import { useSelector, useDispatch } from 'react-redux';
+import React, { useState, useEffect, useContext } from "react";
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+import "leaflet/dist/leaflet.css";
+import "leaflet-draw/dist/leaflet.draw.css";
+import L from "leaflet";
+import "leaflet-draw";
+import "leaflet-editable";
+import "leaflet-measure-path";
+import "./measure-path";
+import "leaflet-measure-path/leaflet-measure-path.css";
+import makeMeasureIcon from "./measure.png";
+import makeMeasureActiveIcon from "./measure-active.png";
+import polygonIcon from "./polygon.png";
+import polygonActiveIcon from "./polygon-active.png";
+import "./m-style.css";
+import { useSelector, useDispatch } from "react-redux";
 import {
   getShapes,
   setShapes,
@@ -39,9 +39,9 @@ import {
   setActiveShapeIfDrawCanseld,
   updateAreaOfDrawingMeasurement,
   deleteVisibleShapeById,
-} from '../../store/slices/measurements';
+} from "../../store/slices/measurements";
 
-import { getMode, toggletModeMeasuremen } from '../../store/slices/ui';
+import { getMode, toggletModeMeasuremen } from "../../store/slices/ui";
 
 const MapMeasurement = (props) => {
   const { routedMapRef } = useContext(TopicMapContext);
@@ -64,14 +64,14 @@ const MapMeasurement = (props) => {
     if (routedMapRef && !measureControl) {
       const mapExample = routedMapRef.leafletMap.leafletElement;
       const customOptions = {
-        position: 'topleft',
+        position: "topleft",
         icon_lineActive: makeMeasureActiveIcon,
         icon_lineInactive: makeMeasureIcon,
         icon_polygonActive: polygonActiveIcon,
         icon_polygonInactive: polygonIcon,
         activeShape,
         mode_btn: `<div id='draw-shape-active' class='measure_button_wrapper'><div class='add_shape'>+</div></div>`,
-        msj_disable_tool: 'Do you want to disable the tool?',
+        msj_disable_tool: "Do you want to disable the tool?",
         shapes: measurementShapes,
         cbSaveShape: saveShapeHandler,
         cbUpdateShape: updateShapeHandler,
@@ -101,7 +101,7 @@ const MapMeasurement = (props) => {
   useEffect(() => {
     if (measureControl && activeShape) {
       const shapeCoordinates = measurementShapes.filter(
-        (s) => s.shapeId === activeShape
+        (s) => s.shapeId === activeShape,
       );
       const map = routedMapRef.leafletMap.leafletElement;
 
@@ -112,7 +112,7 @@ const MapMeasurement = (props) => {
       if (shapeCoordinates[0]?.shapeId && !ifDrawing && !deleteShape) {
         measureControl.changeColorByActivePolyline(
           map,
-          shapeCoordinates[0].shapeId
+          shapeCoordinates[0].shapeId,
         );
       }
       if (showAllMeasurements) {
@@ -129,7 +129,7 @@ const MapMeasurement = (props) => {
         dispatch(setVisibleShapes(cleanArr));
 
         const cleanAllArr = measurementShapes.filter(
-          (m) => m.shapeId !== activeShape
+          (m) => m.shapeId !== activeShape,
         );
         dispatch(setShapes(cleanAllArr));
         dispatch(setDeleteMeasurements(false));
@@ -143,18 +143,18 @@ const MapMeasurement = (props) => {
       measureControl.changeMeasurementMode(mode);
       const map = routedMapRef.leafletMap.leafletElement;
       const shapeCoordinates = measurementShapes.filter(
-        (s) => s.shapeId === activeShape
+        (s) => s.shapeId === activeShape,
       );
       if (shapeCoordinates[0]?.shapeId) {
         measureControl.changeColorByActivePolyline(
           map,
-          shapeCoordinates[0].shapeId
+          shapeCoordinates[0].shapeId,
         );
       }
 
-      if (mode === 'measurement' && visibleShapes.length === 0) {
+      if (mode === "measurement" && visibleShapes.length === 0) {
         const visibleShapesIds = measureControl.getVisibleShapeIdsArr(
-          measureControl._map
+          measureControl._map,
         );
       }
     }
@@ -172,7 +172,7 @@ const MapMeasurement = (props) => {
     if (measureControl) {
       const cleanedVisibleArr = filterArrByIds(
         visiblePolylines,
-        measurementShapes
+        measurementShapes,
       );
       dispatch(setVisibleShapes(cleanedVisibleArr));
 

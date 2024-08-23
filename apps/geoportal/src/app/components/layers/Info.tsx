@@ -1,8 +1,8 @@
-import { Radio, Tabs } from 'antd';
-import { cn, parseDescription } from '../../helper/helper';
-import { tabItems } from './items';
-import { useDispatch, useSelector } from 'react-redux';
-import { getActiveTabKey, setActiveTabKey } from '../../store/slices/ui';
+import { Radio, Tabs } from "antd";
+import { cn, parseDescription } from "../../helper/helper";
+import { tabItems } from "./items";
+import { useDispatch, useSelector } from "react-redux";
+import { getActiveTabKey, setActiveTabKey } from "../../store/slices/ui";
 import {
   getBackgroundLayer,
   getLayers,
@@ -11,17 +11,17 @@ import {
   setBackgroundLayer,
   setLayers,
   setSelectedMapLayer,
-} from '../../store/slices/mapping';
-import { DndContext } from '@dnd-kit/core';
+} from "../../store/slices/mapping";
+import { DndContext } from "@dnd-kit/core";
 import {
   SortableContext,
   arrayMove,
   verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-import LayerRow from './LayerRow';
-import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
-import { layerMap } from '../../helper/layer';
-import './text.css';
+} from "@dnd-kit/sortable";
+import LayerRow from "./LayerRow";
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
+import { layerMap } from "../../config";
+import "./text.css";
 
 interface InfoProps {
   description: string;
@@ -53,10 +53,10 @@ const Info = ({ description, legend }: InfoProps) => {
 
   const handleRadioClick = (radioValue) => {
     if (
-      backgroundLayer.id === 'luftbild' &&
+      backgroundLayer.id === "luftbild" &&
       selectedMapLayer.id === radioValue
     ) {
-      dispatch(setBackgroundLayer({ ...selectedMapLayer, id: 'karte' }));
+      dispatch(setBackgroundLayer({ ...selectedMapLayer, id: "karte" }));
     }
   };
 
@@ -81,24 +81,24 @@ const Info = ({ description, legend }: InfoProps) => {
             <button
               onClick={(e) => {
                 if (
-                  (e.target as HTMLElement).localName !== 'span' &&
-                  (e.target as HTMLElement).localName !== 'input'
+                  (e.target as HTMLElement).localName !== "span" &&
+                  (e.target as HTMLElement).localName !== "input"
                 ) {
                   dispatch(
-                    setBackgroundLayer({ ...selectedMapLayer, id: 'karte' })
+                    setBackgroundLayer({ ...selectedMapLayer, id: "karte" }),
                   );
                 }
               }}
               className={cn(
-                'w-full group border-[1px] rounded-s-md',
-                backgroundLayer.id !== 'luftbild' && 'border-[#1677ff]'
+                "w-full group border-[1px] rounded-s-md",
+                backgroundLayer.id !== "luftbild" && "border-[#1677ff]",
               )}
             >
               <div className="w-full flex flex-col text-[14px]/[30px] items-center justify-center gap-3">
                 <p
                   className={cn(
-                    'mb-0 group-hover:text-[#1677ff]',
-                    backgroundLayer.id !== 'luftbild' && 'text-[#1677ff]'
+                    "mb-0 group-hover:text-[#1677ff]",
+                    backgroundLayer.id !== "luftbild" && "text-[#1677ff]",
                   )}
                 >
                   Karte
@@ -114,33 +114,33 @@ const Info = ({ description, legend }: InfoProps) => {
                         description: layerMap[e.target.value].description,
                         inhalt: layerMap[e.target.value].inhalt,
                         eignung: layerMap[e.target.value].eignung,
-                        layerType: 'wmts',
+                        layerType: "wmts",
                         visible: true,
                         props: {
-                          name: '',
+                          name: "",
                           url: layerMap[e.target.value].url,
                         },
                         layers: layerMap[e.target.value].layers,
-                      })
+                      }),
                     );
 
-                    if (backgroundLayer.id === 'karte') {
+                    if (backgroundLayer.id === "karte") {
                       dispatch(
                         setBackgroundLayer({
-                          id: 'karte',
+                          id: "karte",
                           title: layerMap[e.target.value].title,
                           opacity: 1.0,
                           description: layerMap[e.target.value].description,
                           inhalt: layerMap[e.target.value].inhalt,
                           eignung: layerMap[e.target.value].eignung,
-                          layerType: 'wmts',
+                          layerType: "wmts",
                           visible: true,
                           props: {
-                            name: '',
+                            name: "",
                             url: layerMap[e.target.value].url,
                           },
                           layers: layerMap[e.target.value].layers,
-                        })
+                        }),
                       );
                     }
                   }}
@@ -178,32 +178,32 @@ const Info = ({ description, legend }: InfoProps) => {
               onClick={() => {
                 dispatch(
                   setBackgroundLayer({
-                    id: 'luftbild',
-                    title: layerMap['luftbild'].title,
+                    id: "luftbild",
+                    title: layerMap["luftbild"].title,
                     opacity: 1.0,
-                    description: layerMap['luftbild'].description,
-                    inhalt: layerMap['luftbild'].inhalt,
-                    eignung: layerMap['luftbild'].eignung,
-                    layerType: 'wmts',
+                    description: layerMap["luftbild"].description,
+                    inhalt: layerMap["luftbild"].inhalt,
+                    eignung: layerMap["luftbild"].eignung,
+                    layerType: "wmts",
                     visible: true,
                     props: {
-                      name: '',
-                      url: layerMap['luftbild'].url,
+                      name: "",
+                      url: layerMap["luftbild"].url,
                     },
-                    layers: layerMap['luftbild'].layers,
-                  })
+                    layers: layerMap["luftbild"].layers,
+                  }),
                 );
               }}
               className={cn(
-                'w-full group rounded-e-md border-[1px]',
-                backgroundLayer.id === 'luftbild' && 'border-[#1677ff]'
+                "w-full group rounded-e-md border-[1px]",
+                backgroundLayer.id === "luftbild" && "border-[#1677ff]",
               )}
             >
               <div className="flex text-[14px]/[30px] flex-col items-center h-full justify-start">
                 <p
                   className={cn(
-                    'mb-0 group-hover:text-[#1677ff]',
-                    backgroundLayer.id === 'luftbild' && 'text-[#1677ff]'
+                    "mb-0 group-hover:text-[#1677ff]",
+                    backgroundLayer.id === "luftbild" && "text-[#1677ff]",
                   )}
                 >
                   Luftbild
@@ -220,8 +220,8 @@ const Info = ({ description, legend }: InfoProps) => {
             animated={false}
             items={[
               {
-                key: '1',
-                label: 'Eignung',
+                key: "1",
+                label: "Eignung",
                 children: (
                   <div className="h-full overflow-auto">
                     <div
@@ -234,8 +234,8 @@ const Info = ({ description, legend }: InfoProps) => {
                 ),
               },
               {
-                key: '2',
-                label: 'Inhalt',
+                key: "2",
+                label: "Inhalt",
                 children: (
                   <div className="h-full overflow-auto">
                     <div

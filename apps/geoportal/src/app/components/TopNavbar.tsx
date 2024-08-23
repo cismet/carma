@@ -1,4 +1,4 @@
-import { Button, Popover, Radio, Tooltip, message } from 'antd';
+import { Button, Popover, Radio, Tooltip, message } from "antd";
 import {
   faB,
   faBars,
@@ -11,14 +11,14 @@ import {
   faEyeSlash,
   faF,
   faFileExport,
-} from '@fortawesome/free-solid-svg-icons';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { useContext, useState } from 'react';
-import { UIDispatchContext } from 'react-cismap/contexts/UIContextProvider';
+} from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { useContext, useState } from "react";
+import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
-import { LayerLib, Item, Layer } from '@carma-mapping/layers';
-import { useDispatch, useSelector } from 'react-redux';
-import { getThumbnails, setThumbnail } from '../store/slices/layers';
+import { LayerLib, Item, Layer } from "@carma-mapping/layers";
+import { useDispatch, useSelector } from "react-redux";
+import { getThumbnails, setThumbnail } from "../store/slices/layers";
 import {
   appendLayer,
   deleteSavedLayerConfig,
@@ -31,17 +31,18 @@ import {
   setBackgroundLayer,
   setFocusMode,
   setLayers,
-} from '../store/slices/mapping';
-import Share from './Share';
-import './switch.css';
-import { getShowLayerButtons, setShowLayerButtons } from '../store/slices/ui';
-import { cn } from '../helper/helper';
-import Save from './Save';
-import { layerMap } from '../helper/layer';
+} from "../store/slices/mapping";
+import Share from "./Share";
+import "./switch.css";
+import { getShowLayerButtons, setShowLayerButtons } from "../store/slices/ui";
+import { cn } from "../helper/helper";
+import Save from "./Save";
+import { layerMap } from "../config";
 
 const TopNavbar = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { setAppMenuVisible } = useContext<typeof UIDispatchContext>(UIDispatchContext);
+  const { setAppMenuVisible } =
+    useContext<typeof UIDispatchContext>(UIDispatchContext);
   const backgroundLayer = useSelector(getBackgroundLayer);
   const selectedMapLayer = useSelector(getSelectedMapLayer);
   const dispatch = useDispatch();
@@ -58,14 +59,14 @@ const TopNavbar = () => {
 
     if (keywords) {
       keywords.forEach((keyword) => {
-        if (keyword.startsWith('carmaConf://')) {
+        if (keyword.startsWith("carmaConf://")) {
           const objectString = keyword.slice(12);
-          let colonIndex = objectString.indexOf(':');
-          const property = objectString.split(':')[0];
+          let colonIndex = objectString.indexOf(":");
+          const property = objectString.split(":")[0];
           let value =
             colonIndex !== -1
               ? objectString.substring(colonIndex + 1).trim()
-              : '';
+              : "";
           const object = { [property]: value };
           vectorObject = object;
         }
@@ -78,23 +79,23 @@ const TopNavbar = () => {
   const updateLayers = (
     layer: Item,
     deleteItem: boolean = false,
-    forceWMS: boolean = false
+    forceWMS: boolean = false,
   ) => {
     let newLayer: Layer;
 
-    if (layer.type === 'collection') {
+    if (layer.type === "collection") {
       if (deleteItem) {
         dispatch(deleteSavedLayerConfig(layer.id));
       } else {
         try {
           dispatch(setLayers(layer.layers));
           messageApi.open({
-            type: 'success',
+            type: "success",
             content: `${layer.title} wurde erfolgreich angewandt.`,
           });
         } catch {
           messageApi.open({
-            type: 'error',
+            type: "error",
             content: `Es gab einen Fehler beim anwenden von ${layer.title}`,
           });
         }
@@ -102,13 +103,13 @@ const TopNavbar = () => {
       return;
     }
 
-    if (layer.type === 'layer') {
+    if (layer.type === "layer") {
       const vectorObject = extractVectorStyles(layer.keywords);
       if (vectorObject && !forceWMS) {
         newLayer = {
           title: layer.title,
           id: layer.id,
-          layerType: 'vector',
+          layerType: "vector",
           opacity: 0.7,
           description: layer.description,
           visible: true,
@@ -121,11 +122,11 @@ const TopNavbar = () => {
         };
       } else {
         switch (layer.layerType) {
-          case 'wmts': {
+          case "wmts": {
             newLayer = {
               title: layer.title,
               id: layer.id,
-              layerType: 'wmts',
+              layerType: "wmts",
               opacity: 0.7,
               description: layer.description,
               visible: true,
@@ -140,11 +141,11 @@ const TopNavbar = () => {
             };
             break;
           }
-          case 'vector': {
+          case "vector": {
             newLayer = {
               title: layer.title,
               id: layer.id,
-              layerType: 'vector',
+              layerType: "vector",
               opacity: 0.7,
               description: layer.description,
               visible: true,
@@ -165,12 +166,12 @@ const TopNavbar = () => {
       try {
         dispatch(removeLayer(layer.id));
         messageApi.open({
-          type: 'success',
+          type: "success",
           content: `${layer.title} wurde erfolgreich entfernt.`,
         });
       } catch {
         messageApi.open({
-          type: 'error',
+          type: "error",
           content: `Es gab einen Fehler beim entfernen von ${layer.title}`,
         });
       }
@@ -178,12 +179,12 @@ const TopNavbar = () => {
       try {
         dispatch(appendLayer(newLayer));
         messageApi.open({
-          type: 'success',
+          type: "success",
           content: `${layer.title} wurde erfolgreich hinzugefügt.`,
         });
       } catch {
         messageApi.open({
-          type: 'error',
+          type: "error",
           content: `Es gab einen Fehler beim hinzufügen von ${layer.title}`,
         });
       }
@@ -204,7 +205,7 @@ const TopNavbar = () => {
         activeLayers={activeLayers}
         customCategories={[
           {
-            Title: 'Meine Zusammenstellungen',
+            Title: "Meine Zusammenstellungen",
             layers: savedLayerConfigs,
           },
         ]}
@@ -240,7 +241,7 @@ const TopNavbar = () => {
         </Tooltip>
         <Tooltip title="Fokus">
           <button
-            className={cn('text-xl', focusMode ? 'text-blue-500' : '')}
+            className={cn("text-xl", focusMode ? "text-blue-500" : "")}
             onClick={() => {
               dispatch(setFocusMode(!focusMode));
             }}
@@ -252,8 +253,9 @@ const TopNavbar = () => {
           <FontAwesomeIcon icon={faPrint} className="text-xl text-gray-300" />
         </Tooltip>
         <Tooltip
-          title={`Layer Buttons ${showLayerButtons ? 'ausblenden' : 'anzeigen'
-            }`}
+          title={`Layer Buttons ${
+            showLayerButtons ? "ausblenden" : "anzeigen"
+          }`}
         >
           <button
             className="text-xl hover:text-gray-600"
@@ -261,7 +263,10 @@ const TopNavbar = () => {
               dispatch(setShowLayerButtons(!showLayerButtons));
             }}
           >
-            <FontAwesomeIcon fixedWidth={true} icon={showLayerButtons ? faEye : faEyeSlash} />
+            <FontAwesomeIcon
+              fixedWidth={true}
+              icon={showLayerButtons ? faEye : faEyeSlash}
+            />
           </button>
         </Tooltip>
         <Tooltip title="Speichern">
@@ -285,9 +290,9 @@ const TopNavbar = () => {
           <Radio.Group
             value={backgroundLayer.id}
             onChange={(e) => {
-              if (e.target.value === 'karte') {
+              if (e.target.value === "karte") {
                 dispatch(
-                  setBackgroundLayer({ ...selectedMapLayer, id: 'karte' })
+                  setBackgroundLayer({ ...selectedMapLayer, id: "karte" }),
                 );
               } else {
                 dispatch(
@@ -298,14 +303,14 @@ const TopNavbar = () => {
                     description: layerMap[e.target.value].description,
                     inhalt: layerMap[e.target.value].inhalt,
                     eignung: layerMap[e.target.value].eignung,
-                    layerType: 'wmts',
+                    layerType: "wmts",
                     visible: true,
                     props: {
-                      name: '',
+                      name: "",
                       url: layerMap[e.target.value].url,
                     },
                     layers: layerMap[e.target.value].layers,
-                  })
+                  }),
                 );
               }
             }}

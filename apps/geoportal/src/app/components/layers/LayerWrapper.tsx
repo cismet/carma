@@ -1,4 +1,4 @@
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch, useSelector } from "react-redux";
 import {
   getBackgroundLayer,
   getLayers,
@@ -7,31 +7,31 @@ import {
   getShowRightScrollButton,
   setLayers,
   setSelectedLayerIndex,
-} from '../../store/slices/mapping';
-import LayerButton from './LayerButton';
+} from "../../store/slices/mapping";
+import LayerButton from "./LayerButton";
 import {
   DndContext,
   PointerSensor,
   useDroppable,
   useSensor,
   useSensors,
-} from '@dnd-kit/core';
+} from "@dnd-kit/core";
 import {
   SortableContext,
   horizontalListSortingStrategy,
   arrayMove,
-} from '@dnd-kit/sortable';
-import { restrictToHorizontalAxis } from '@dnd-kit/modifiers';
-import { TopicMapContext } from 'react-cismap/contexts/TopicMapContextProvider';
-import { useContext } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+} from "@dnd-kit/sortable";
+import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+import { useContext } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faChevronLeft,
   faChevronRight,
-} from '@fortawesome/free-solid-svg-icons';
-import { cn } from '../../helper/helper';
-import './button.css';
-import SecondaryView from './SecondaryView';
+} from "@fortawesome/free-solid-svg-icons";
+import { cn } from "../../helper/helper";
+import "./button.css";
+import SecondaryView from "./SecondaryView";
 
 const LayerWrapper = () => {
   const dispatch = useDispatch();
@@ -42,10 +42,10 @@ const LayerWrapper = () => {
   const showLeftScrollButton = useSelector(getShowLeftScrollButton);
   const showRightScrollButton = useSelector(getShowRightScrollButton);
   const { isOver, setNodeRef } = useDroppable({
-    id: 'droppable',
+    id: "droppable",
   });
   const style = {
-    color: isOver ? 'green' : undefined,
+    color: isOver ? "green" : undefined,
   };
 
   const getLayerPos = (id) => layers.findIndex((layer) => layer.id === id);
@@ -66,7 +66,7 @@ const LayerWrapper = () => {
   };
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 2 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 2 } }),
   );
 
   return (
@@ -92,13 +92,13 @@ const LayerWrapper = () => {
             {showLeftScrollButton && (
               <div
                 className={cn(
-                  'absolute left-14 top-0.5 bg-neutral-100 w-fit min-w-max flex items-center gap-2 px-3 rounded-3xl h-8 z-[99999999] button-shadow'
+                  "absolute left-14 top-0.5 bg-neutral-100 w-fit min-w-max flex items-center gap-2 px-3 rounded-3xl h-8 z-[99999999] button-shadow",
                 )}
                 role="button"
                 onClick={() => {
-                  document.getElementById('scrollWrapper').scrollBy({
+                  document.getElementById("scrollWrapper").scrollBy({
                     left: -300,
-                    behavior: 'smooth',
+                    behavior: "smooth",
                   });
                 }}
               >
@@ -108,13 +108,13 @@ const LayerWrapper = () => {
             {showRightScrollButton && (
               <div
                 className={cn(
-                  'absolute -right-7 top-0.5 bg-neutral-100 w-fit min-w-max flex items-center gap-2 px-3 rounded-3xl h-8 z-[99999999] button-shadow'
+                  "absolute -right-7 top-0.5 bg-neutral-100 w-fit min-w-max flex items-center gap-2 px-3 rounded-3xl h-8 z-[99999999] button-shadow",
                 )}
                 role="button"
                 onClick={() => {
-                  document.getElementById('scrollWrapper').scrollBy({
+                  document.getElementById("scrollWrapper").scrollBy({
                     left: 300,
-                    behavior: 'smooth',
+                    behavior: "smooth",
                   });
                 }}
               >
@@ -145,12 +145,12 @@ const LayerWrapper = () => {
                       key={layer.id}
                       index={i}
                       icon={
-                        layer.title.includes('Orthofoto')
-                          ? 'ortho'
-                          : layer.title === 'Bäume'
-                          ? 'bäume'
-                          : layer.title.includes('gärten')
-                          ? 'gärten'
+                        layer.title.includes("Orthofoto")
+                          ? "ortho"
+                          : layer.title === "Bäume"
+                          ? "bäume"
+                          : layer.title.includes("gärten")
+                          ? "gärten"
                           : undefined
                       }
                       layer={layer}

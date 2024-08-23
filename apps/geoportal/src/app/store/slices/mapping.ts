@@ -1,8 +1,8 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
-import { RootState } from '..';
-import { layerMap } from '../../helper/layer';
-import { Layer } from '@carma-mapping/layers';
+import { RootState } from "..";
+import { layerMap } from "../../config";
+import { Layer } from "@carma-mapping/layers";
 
 export type BackgroundLayer = Layer & {
   layers: string;
@@ -39,34 +39,34 @@ const initialState: MappingState = {
   savedLayerConfigs: [],
   selectedLayerIndex: -2,
   selectedMapLayer: {
-    title: 'Stadtplan',
-    id: 'stadtplan',
+    title: "Stadtplan",
+    id: "stadtplan",
     opacity: 1.0,
     description: ``,
-    inhalt: layerMap['stadtplan'].inhalt,
-    eignung: layerMap['stadtplan'].eignung,
+    inhalt: layerMap["stadtplan"].inhalt,
+    eignung: layerMap["stadtplan"].eignung,
     visible: true,
-    layerType: 'wmts',
+    layerType: "wmts",
     props: {
-      name: '',
-      url: layerMap['stadtplan'].url,
+      name: "",
+      url: layerMap["stadtplan"].url,
     },
-    layers: layerMap['stadtplan'].layers,
+    layers: layerMap["stadtplan"].layers,
   },
   backgroundLayer: {
-    title: 'Stadtplan',
-    id: 'karte',
+    title: "Stadtplan",
+    id: "karte",
     opacity: 1.0,
     description: ``,
-    inhalt: layerMap['stadtplan'].inhalt,
-    eignung: layerMap['stadtplan'].eignung,
+    inhalt: layerMap["stadtplan"].inhalt,
+    eignung: layerMap["stadtplan"].eignung,
     visible: true,
-    layerType: 'wmts',
+    layerType: "wmts",
     props: {
-      name: '',
-      url: layerMap['stadtplan'].url,
+      name: "",
+      url: layerMap["stadtplan"].url,
     },
-    layers: layerMap['stadtplan'].layers,
+    layers: layerMap["stadtplan"].layers,
   },
   showLeftScrollButton: false,
   showRightScrollButton: false,
@@ -78,7 +78,7 @@ const initialState: MappingState = {
 };
 
 const slice = createSlice({
-  name: 'mapping',
+  name: "mapping",
   initialState,
   reducers: {
     setLayers(state, action) {
@@ -120,7 +120,7 @@ const slice = createSlice({
     },
     changeVisibility(
       state,
-      action: PayloadAction<{ id: string; visible: boolean }>
+      action: PayloadAction<{ id: string; visible: boolean }>,
     ) {
       const newLayers = state.layers.map((obj) => {
         if (obj.id === action.payload.id) {
