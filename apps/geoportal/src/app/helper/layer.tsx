@@ -1,15 +1,24 @@
 import CismapLayer from 'react-cismap/CismapLayer';
 import objectAssign from 'object-assign';
-import type { DefaultLayerConfig, LayerConfig, NamedStyles } from '../types';
+import type { DefaultLayerConfig, LayerConfig, NamedStyles } from '@carma-apps/portals'
+import { namedStyles, defaultLayerConfig } from "../config"
 
+/*
 interface backgroundLayersProps {
   layerString: string;
   namedMapStyle?: string;
   config?: any;
   layerConfig?: LayerConfig;
-  defaultLayerConfig: DefaultLayerConfig;
-  namedStylesConfig: NamedStyles;
 }
+*/
+
+interface backgroundLayersProps {
+  layerString: string;
+  namedMapStyle?: string;
+  config?: any;
+  layerConfig?: any;
+}
+
 
 export function getBackgroundLayers({
   layerString,
@@ -18,9 +27,8 @@ export function getBackgroundLayers({
     layerSeparator: '|',
   },
   layerConfig,
-  defaultLayerConfig,
-  namedStylesConfig,
 }: backgroundLayersProps) {
+  let namedStylesConfig = namedStyles;
   const layerArr = (layerString || '').split(config.layerSeparator || '|');
   let namedMapStyleExtension = namedMapStyle;
   if (namedMapStyleExtension === null || namedMapStyleExtension === '') {
@@ -49,8 +57,7 @@ export function getBackgroundLayers({
     let mergedOptions = objectAssign({}, namedStyleOptions, options);
     const layerGetter = createLayerFactoryFunction(
       layerAndNamedStyleArray[0],
-      layerConfig,
-      defaultLayerConfig,
+      layerConfig
     );
     if (layerGetter) {
       return layerGetter(mergedOptions);
@@ -98,25 +105,12 @@ export function getBackgroundLayers({
   );
 }
 
-const createLayerFactoryFunction = (
-  key: string,
-  _conf: LayerConfig | undefined,
-  defaultConf: DefaultLayerConfig,
-) => {
-
-  if (_conf === undefined) {
-    console.warn(
-      "No LayerConfig given. Please provide a LayerConfig to get the layer factory function.",
-    );
-    return null;
-  }
-
+const createLayerFactoryFunction = (key, _conf = defaultLayerConfig) => {
   let conf = {
-    namedStyles: defaultConf.namedStyles,
-    defaults: defaultConf.defaults,
+    namedStyles: defaultLayerConfig.namedStyles,
+    defaults: defaultLayerConfig.defaults,
     ..._conf,
   };
-
 
   switch ((conf.namedLayers[key] || {}).type) {
     case 'wms':

@@ -5,6 +5,7 @@ import store from "./app/store";
 import { RouterProvider, createHashRouter } from "react-router-dom";
 import { PersistGate } from "redux-persist/integration/react";
 import { persistStore } from "redux-persist";
+import { suppressReactCismapErrors } from "@carma-commons/utils";
 
 const persistor = persistStore(store);
 
@@ -19,24 +20,7 @@ const router = createHashRouter([
   },
 ]);
 
-const originalWarn = console.warn.bind(console);
-const originalError = console.error.bind(console);
-console.warn = (message, ...args) => {
-  if (
-    message &&
-    !message.includes("ReactDOM.render is no longer supported in React 18")
-  ) {
-    originalWarn(message, ...args);
-  }
-};
-console.error = (message, ...args) => {
-  if (
-    message &&
-    !message.includes("ReactDOM.render is no longer supported in React 18")
-  ) {
-    originalError(message, ...args);
-  }
-};
+suppressReactCismapErrors();
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement,
