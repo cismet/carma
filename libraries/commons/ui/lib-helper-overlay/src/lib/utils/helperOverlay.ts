@@ -61,9 +61,3 @@ export function getElementPosition(
 
   return styleElement;
 }
-
-export type OverlayTourProviderProps = {
-  children: JSX.Element;
-  mode: string;
-  closeOverlay: () => void;
-};

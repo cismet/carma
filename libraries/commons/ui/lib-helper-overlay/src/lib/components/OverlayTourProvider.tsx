@@ -1,9 +1,9 @@
 import React, { useState, createContext } from "react";
-import { OverlayTourProviderProps } from "../utils/helperOverlay";
 import {
   OverlayTourContext as OverlayTourContextSettings,
   OverlayHelperConfig,
   LibHelperOverlay,
+  OverlayTourProviderProps,
 } from "../..";
 
 export const OverlayTourContext = createContext<OverlayTourContextSettings>({
@@ -14,7 +14,7 @@ export const OverlayTourContext = createContext<OverlayTourContextSettings>({
 
 export const OverlayTourProvider = ({
   children,
-  mode = "default",
+  mode = false,
   closeOverlay = () => {
     console.log("close callback");
   },
@@ -32,7 +32,7 @@ export const OverlayTourProvider = ({
   return (
     <OverlayTourContext.Provider value={{ configs, addConfig, removeConfig }}>
       {children}
-      {mode === "tour" && (
+      {mode && (
         <LibHelperOverlay configs={configs} closeOverlay={closeOverlay} />
       )}
     </OverlayTourContext.Provider>
