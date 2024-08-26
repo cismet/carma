@@ -1,6 +1,4 @@
 import React, { useEffect, useState } from "react";
-// import { useDispatch } from "react-redux";
-// import { setMode } from "../store/slices/ui";
 import { OverlayHelperHightlighterProps, HighlightRect } from "..";
 import {
   getContainerPosition,
@@ -12,7 +10,6 @@ export function LibHelperOverlay({
   closeOverlay,
 }: OverlayHelperHightlighterProps) {
   const [hightlightRects, setHightlightRects] = useState<HighlightRect[]>([]);
-  // const dispatch = useDispatch();
   useEffect(() => {
     configs.forEach((currentItem) => {
       const { el, message, containerPos, contentPos } = currentItem;

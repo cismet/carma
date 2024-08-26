@@ -5,16 +5,16 @@ import React, {
   useLayoutEffect,
 } from "react";
 // import OverlayHelperHightlighter from '../components/OverlayHelperHightlighter';
-import { useSelector } from "react-redux";
-import { getMode } from "../store/slices/ui";
+// import { useSelector } from "react-redux";
+// import { getMode } from "../store/slices/ui";
 import { LibHelperOverlay } from "../lib-helper-overlay";
 import {
-  OverlayTourContext,
+  OverlayTourContext as OverlayTourContextSettings,
   OptionsOverlayHelper,
   OverlayHelperConfig,
 } from "../..";
 
-const OverlayTourContext = createContext<OverlayTourContext>({
+const OverlayTourContext = createContext<OverlayTourContextSettings>({
   configs: [],
   addConfig: (arg) => {},
   removeConfig: (arg) => {},
@@ -54,16 +54,17 @@ export default useOverlayHelper;
 type OverlayTourProviderProps = {
   children: JSX.Element;
   mode: string;
-  closeOverlay: ()=> {}
+  closeOverlay: () => void;
 };
 
 export const OverlayTourProvider = ({
   children,
   mode = "default",
-  closeOverlay:
+  closeOverlay = () => {
+    console.log("close callback");
+  },
 }: OverlayTourProviderProps) => {
   const [configs, setConfigs] = useState<OverlayHelperConfig[]>([]);
-  // const mode = useSelector(getMode);
 
   const addConfig = (config) => {
     setConfigs((prevConfigs) => [...prevConfigs, config]);
@@ -76,7 +77,9 @@ export const OverlayTourProvider = ({
   return (
     <OverlayTourContext.Provider value={{ configs, addConfig, removeConfig }}>
       {children}
-      {mode === "tour" && <LibHelperOverlay configs={configs} />}
+      {mode === "tour" && (
+        <LibHelperOverlay configs={configs} closeOverlay={closeOverlay} />
+      )}
     </OverlayTourContext.Provider>
   );
 };

@@ -1,6 +1,8 @@
 import { PositionOverlayHelper } from "../..";
 
-export function getContainerPosition(alignment: PositionOverlayHelper) {
+export function getContainerPosition(
+  alignment: PositionOverlayHelper | undefined,
+) {
   let styleElement: { [key: string]: string } = {};
   switch (alignment) {
     case "center":
@@ -25,7 +27,9 @@ export function getContainerPosition(alignment: PositionOverlayHelper) {
   return styleElement;
 }
 
-export function getElementPosition(alignment: PositionOverlayHelper) {
+export function getElementPosition(
+  alignment: PositionOverlayHelper | undefined,
+) {
   let styleElement: { [key: string]: string | number } = {};
   switch (alignment) {
     case "center":

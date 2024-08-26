@@ -1,6 +1,6 @@
 export type OverlayHelperHightlighterProps = {
   configs: OverlayHelperConfig[];
-  closeOverlay: () => {};
+  closeOverlay: () => void;
 };
 
 export type OverlayTourAction = (arg: OverlayHelperConfig) => void;
@@ -21,8 +21,8 @@ export type PositionOverlayHelper =
 export interface OverlayHelperConfig {
   el: HTMLElement;
   message: string;
-  containerPos: PositionOverlayHelper;
-  contentPos: PositionOverlayHelper;
+  containerPos?: PositionOverlayHelper;
+  contentPos?: PositionOverlayHelper;
 }
 
 export type OptionsOverlayHelper = {
