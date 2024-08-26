@@ -1,9 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { OverlayHelperHightlighterProps, HighlightRect } from "..";
-import {
-  getContainerPosition,
-  getElementPosition,
-} from "./utils/helperOverlay";
+import { getContainerPosition, getElementPosition } from "./utils/helper";
 
 export function LibHelperOverlay({
   configs,
