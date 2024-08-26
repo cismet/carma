@@ -1,5 +1,8 @@
 import * as utils from "./utils/utils";
-import { Share } from "./components/Share";
 export type * from "./types";
 
-export { utils, Share };
+export { utils };
+export { Save } from "./components/Save.tsx";
+export { Share } from "./components/Share.tsx";
+export { extractVectorStyles } from "./utils/carmaConfig";
+

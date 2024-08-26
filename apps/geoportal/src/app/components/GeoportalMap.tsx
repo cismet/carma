@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import { useSelector } from "react-redux";
-import { getGazData, paramsToObject } from "../helper/helper";
+import { getGazData, paramsToObject } from "../helper/helper.ts";
 import {
   getBackgroundLayer,
   getFocusMode,
@@ -9,18 +9,18 @@ import {
   getShowFullscreenButton,
   getShowHamburgerMenu,
   getShowLocatorButton,
-} from "../store/slices/mapping";
-import LayerWrapper from "./layers/LayerWrapper";
-import InfoBoxMeasurement from "./map-measure/InfoBoxMeasurement";
+} from "../store/slices/mapping.ts";
+import LayerWrapper from "./layers/LayerWrapper.tsx";
+import InfoBoxMeasurement from "./map-measure/InfoBoxMeasurement.jsx";
 import PaleOverlay from "react-cismap/PaleOverlay";
 import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
 import { useSearchParams } from "react-router-dom";
 import { getBackgroundLayers } from "../helper/layer.tsx";
-import { getMode, getShowLayerButtons } from "../store/slices/ui";
+import { getMode, getShowLayerButtons } from "../store/slices/ui.ts";
 import CismapLayer from "react-cismap/CismapLayer";
-import { namedStyles, defaultLayerConfig } from "../config";
+import { namedStyles, defaultLayerConfig } from "../config/index.ts";
 
-const Map = () => {
+export const GeoportalMap = () => {
   const [gazData, setGazData] = useState([]);
   const [height, setHeight] = useState(0);
   const [width, setWidth] = useState(0);
@@ -123,4 +123,4 @@ const Map = () => {
   );
 };
 
-export default Map;
+export default GeoportalMap;

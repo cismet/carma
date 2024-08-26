@@ -4,12 +4,10 @@ import { useCopyToClipboard } from "@uidotdev/usehooks";
 import { Button, Checkbox, Radio, message } from "antd";
 import LZString from "lz-string";
 import { useState } from "react";
-//import { useSelector } from "react-redux";
 import { useSearchParams } from "react-router-dom";
-//import { getBackgroundLayer, getLayers } from "../store/slices/mapping";
 import "./popover.css";
 import { generateRandomString } from "@carma-commons/utils";
-import type { LayerState, Settings } from "../../types";
+import type { LayerState, Settings } from "../types";
 
 export type ShareProps = {
   layerState: LayerState

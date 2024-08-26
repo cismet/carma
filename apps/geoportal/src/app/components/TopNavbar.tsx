@@ -18,9 +18,11 @@ import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
 import { LayerLib, Item, Layer } from "@carma-mapping/layers";
 import { useDispatch, useSelector } from "react-redux";
+
 import { getThumbnails, setThumbnail } from "../store/slices/layers";
 import {
   appendLayer,
+  appendSavedLayerConfig,
   deleteSavedLayerConfig,
   getBackgroundLayer,
   getFocusMode,
@@ -36,9 +38,8 @@ import {
 import "./switch.css";
 import { getShowLayerButtons, setShowLayerButtons } from "../store/slices/ui";
 import { cn } from "../helper/helper";
-import Save from "./Save";
 import { layerMap } from "../config";
-import { Share } from "@carma-apps/portals";
+import { Save, Share, extractVectorStyles } from "@carma-apps/portals";
 
 const TopNavbar = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -53,30 +54,8 @@ const TopNavbar = () => {
   const showLayerButtons = useSelector(getShowLayerButtons);
   const focusMode = useSelector(getFocusMode);
   const savedLayerConfigs = useSelector(getSavedLayerConfigs);
-
   const [messageApi, contextHolder] = message.useMessage();
 
-  const extractVectorStyles = (keywords: string[]) => {
-    let vectorObject = null;
-
-    if (keywords) {
-      keywords.forEach((keyword) => {
-        if (keyword.startsWith("carmaConf://")) {
-          const objectString = keyword.slice(12);
-          let colonIndex = objectString.indexOf(":");
-          const property = objectString.split(":")[0];
-          let value =
-            colonIndex !== -1
-              ? objectString.substring(colonIndex + 1).trim()
-              : "";
-          const object = { [property]: value };
-          vectorObject = object;
-        }
-      });
-    }
-
-    return vectorObject;
-  };
 
   const updateLayers = (
     layer: Item,
@@ -255,9 +234,8 @@ const TopNavbar = () => {
           <FontAwesomeIcon icon={faPrint} className="text-xl text-gray-300" />
         </Tooltip>
         <Tooltip
-          title={`Layer Buttons ${
-            showLayerButtons ? "ausblenden" : "anzeigen"
-          }`}
+          title={`Layer Buttons ${showLayerButtons ? "ausblenden" : "anzeigen"
+            }`}
         >
           <button
             className="text-xl hover:text-gray-600"
@@ -272,7 +250,13 @@ const TopNavbar = () => {
           </button>
         </Tooltip>
         <Tooltip title="Speichern">
-          <Popover trigger="click" placement="bottom" content={<Save />}>
+          <Popover
+            trigger="click"
+            placement="bottom"
+            content={
+              <Save layers={activeLayers} storeConfigAction={(config) => dispatch(appendSavedLayerConfig(config))} />
+            }
+          >
             <button className="hover:text-gray-600 text-xl">
               <FontAwesomeIcon icon={faFileExport} />
             </button>

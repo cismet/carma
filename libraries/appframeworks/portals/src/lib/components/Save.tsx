@@ -2,25 +2,52 @@ import { faFileExport } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button, Input, Tooltip, message } from "antd";
 import { useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { appendSavedLayerConfig, getLayers } from "../store/slices/mapping";
 import "./popover.css";
 import { nanoid } from "@reduxjs/toolkit";
 import { faQuestionCircle } from "@fortawesome/free-regular-svg-icons";
+import type { Layer } from "@carma-mapping/layers";
+import type { GeoportalCollection } from "../types";
 
-const Save = () => {
+interface SaveProps {
+  layers: Layer[];
+  storeConfigAction: (config: GeoportalCollection) => void;
+}
+
+export const Save = ({ layers, storeConfigAction }: SaveProps) => {
   const [messageApi, contextHolder] = message.useMessage();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [thumbnail, setThumbnail] = useState("");
-  const dispatch = useDispatch();
-  const layers = useSelector(getLayers);
 
   const resetStates = () => {
     setTitle("");
     setDescription("");
     setThumbnail("");
   };
+
+  const handleOnClick = () => {
+    const config: GeoportalCollection = {
+      title,
+      description,
+      type: "collection",
+      layers,
+      thumbnail,
+      id: nanoid(),
+    };
+    try {
+      storeConfigAction(config);
+      resetStates();
+      messageApi.open({
+        type: "success",
+        content: `Konfiguration "${title}" wurde erfolgreich gespeichert.`,
+      });
+    } catch (e) {
+      messageApi.open({
+        type: "error",
+        content: "Es gab einen Fehler beim speichern der Konfiguration",
+      });
+    }
+  }
 
   return (
     <div className="p-2 flex flex-col gap-3 w-96">
@@ -67,29 +94,7 @@ const Save = () => {
       />
 
       <Button
-        onClick={() => {
-          const config = {
-            title,
-            description,
-            type: "collection",
-            layers,
-            thumbnail,
-            id: nanoid(),
-          };
-          try {
-            dispatch(appendSavedLayerConfig(config));
-            resetStates();
-            messageApi.open({
-              type: "success",
-              content: `Konfiguration "${title}" wurde erfolgreich gespeichert.`,
-            });
-          } catch (e) {
-            messageApi.open({
-              type: "error",
-              content: "Es gab einen Fehler beim speichern der Konfiguration",
-            });
-          }
-        }}
+        onClick={handleOnClick}
       >
         Konfiguration Speichern
       </Button>

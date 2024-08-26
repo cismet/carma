@@ -1,6 +1,17 @@
 import type { Layer } from "@carma-mapping/layers";
 import type { CismapLayerProps } from "types/react-cismap.extended";
 
+export type VectorObject = Record<string, string>;
+
+export type GeoportalCollection = {
+  title: string;
+  description: string;
+  type: "collection",
+  layers: Layer[];
+  thumbnail: any
+  id: string;
+}
+
 export type LayerInfo = {
   title: string;
   layers: string;
