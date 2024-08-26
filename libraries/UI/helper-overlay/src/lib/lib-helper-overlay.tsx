@@ -1,17 +1,11 @@
 import React, { useEffect, useState } from "react";
 // import { useDispatch } from "react-redux";
 // import { setMode } from "../store/slices/ui";
-import { OverlayHelperHightlighterProps, PositionOverlayHelper } from "..";
-
-type Position = { [key: string]: string | number };
-
-interface HighlightRect {
-  rect: DOMRect;
-  message: string;
-  pos: Position;
-  contentPos: any;
-  contPos: Position;
-}
+import { OverlayHelperHightlighterProps, HighlightRect } from "..";
+import {
+  getContainerPosition,
+  getElementPosition,
+} from "./utils/helperOverlay";
 
 export function LibHelperOverlay({
   configs,
@@ -81,62 +75,4 @@ export function LibHelperOverlay({
       })}
     </div>
   );
-}
-
-function getContainerPosition(alignment: PositionOverlayHelper) {
-  let styleElement: { [key: string]: string } = {};
-  switch (alignment) {
-    case "center":
-      styleElement.transform = "translate(0, 0)";
-      break;
-    case "top":
-      styleElement.transform = "translate(0, -100%)";
-      break;
-    case "left":
-      styleElement.transform = "translate(-100%, 0)";
-      break;
-    case "right":
-      styleElement.transform = "translate(100%, 0)";
-      break;
-    case "bottom":
-      styleElement.transform = "translate(0, 100%)";
-      break;
-    default:
-      console.log("yyy element position");
-  }
-
-  return styleElement;
-}
-
-function getElementPosition(alignment: PositionOverlayHelper) {
-  let styleElement: { [key: string]: string | number } = {};
-  switch (alignment) {
-    case "center":
-      styleElement.top = "50%";
-      styleElement.left = "50%";
-      styleElement.transform = "translate(-50%, -50%)";
-      break;
-    case "top":
-      styleElement.top = "0";
-      styleElement.transform = "translate(50%, 0)";
-      break;
-    case "left":
-      styleElement.top = "50%";
-      styleElement.transform = "translate(0, -50%)";
-      styleElement.left = 0;
-      break;
-    case "right":
-      styleElement.top = "50%";
-      styleElement.transform = "translate(0, -50%)";
-      styleElement.right = 0;
-      break;
-    case "bottom":
-      styleElement.bottom = 0;
-      styleElement.transform = "translate(50%, 0)";
-      break;
-    default:
-      console.log("yyy content position");
-  }
-
-  return styleElement;
 }

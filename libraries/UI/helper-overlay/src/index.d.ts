@@ -29,3 +29,13 @@ export type OptionsOverlayHelper = {
   containerPos?: PositionOverlayHelper;
   contentPos?: PositionOverlayHelper;
 };
+
+type Position = { [key: string]: string | number };
+
+export interface HighlightRect {
+  rect: DOMRect;
+  message: string;
+  pos: Position;
+  contentPos: any;
+  contPos: Position;
+}
