@@ -1,15 +1,24 @@
-import { useEffect, useState } from "react";
-import { useDispatch } from "react-redux";
-import { setMode } from "../store/slices/ui";
-import type {
-  OverlayHelperConfig,
-  PositionOverlayHelper,
-} from "./hooks/useOverlayHelper";
+import React, { useEffect, useState } from "react";
+// import { useDispatch } from "react-redux";
+// import { setMode } from "../store/slices/ui";
+import { OverlayHelperHightlighterProps, PositionOverlayHelper } from "..";
 
-type OverlayHelperHightlighterProps = { configs: OverlayHelperConfig[] };
-export function LibHelperOverlay({ configs }): OverlayHelperHightlighterProps {
-  const [hightlightRects, setHightlightRects] = useState([]);
-  const dispatch = useDispatch();
+type Position = { [key: string]: string | number };
+
+interface HighlightRect {
+  rect: DOMRect;
+  message: string;
+  pos: Position;
+  contentPos: any;
+  contPos: Position;
+}
+
+export function LibHelperOverlay({
+  configs,
+  closeOverlay,
+}: OverlayHelperHightlighterProps) {
+  const [hightlightRects, setHightlightRects] = useState<HighlightRect[]>([]);
+  // const dispatch = useDispatch();
   useEffect(() => {
     configs.forEach((currentItem) => {
       const { el, message, containerPos, contentPos } = currentItem;
@@ -40,7 +49,7 @@ export function LibHelperOverlay({ configs }): OverlayHelperHightlighterProps {
         background: "black",
         opacity: 0.8,
       }}
-      onClick={() => dispatch(setMode("default"))}
+      onClick={() => closeOverlay()}
     >
       {hightlightRects.map((config, idx) => {
         const { rect, message, pos, contPos } = config;
@@ -56,14 +65,12 @@ export function LibHelperOverlay({ configs }): OverlayHelperHightlighterProps {
               width: rect.width,
               height: rect.height,
               color: "white",
-              // border: '1px solid yellow',
               ...pos,
             }}
           >
             <span
               style={{
                 position: "absolute",
-                // border: '1px solid red',
                 ...contPos,
               }}
             >
