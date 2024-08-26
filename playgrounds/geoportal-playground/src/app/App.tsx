@@ -33,7 +33,7 @@ import { Layer } from "@carma-mapping/layers";
 import { Settings } from "./components/Share";
 import CrossTabCommunicationContextProvider from "react-cismap/contexts/CrossTabCommunicationContextProvider";
 import HomeButton from "./components/HomeButton";
-import { OverlayTourProvider } from "@carma/helper-overlay";
+import { OverlayTourProvider } from "@carma/libraries/commons/ui/lib-helper-overlay";
 // import { OverlayTourProvider } from './hooks/useOverlayHelper';
 
 if (typeof global === "undefined") {
