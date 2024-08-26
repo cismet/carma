@@ -4,15 +4,13 @@ import React, {
   useContext,
   useLayoutEffect,
 } from "react";
-// import OverlayHelperHightlighter from '../components/OverlayHelperHightlighter';
-// import { useSelector } from "react-redux";
-// import { getMode } from "../store/slices/ui";
 import { LibHelperOverlay } from "../lib-helper-overlay";
 import {
   OverlayTourContext as OverlayTourContextSettings,
   OptionsOverlayHelper,
   OverlayHelperConfig,
 } from "../..";
+import { OverlayTourProviderProps } from "../utils/helperOverlay";
 
 const OverlayTourContext = createContext<OverlayTourContextSettings>({
   configs: [],
@@ -50,12 +48,6 @@ const useOverlayHelper = (
 };
 
 export default useOverlayHelper;
-
-type OverlayTourProviderProps = {
-  children: JSX.Element;
-  mode: string;
-  closeOverlay: () => void;
-};
 
 export const OverlayTourProvider = ({
   children,

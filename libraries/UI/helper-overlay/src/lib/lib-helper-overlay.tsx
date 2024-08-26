@@ -24,9 +24,8 @@ export function LibHelperOverlay({
     });
   }, [configs]);
 
-  const handleMessageClick = (e, message) => {
+  const handleMessageClick = (e) => {
     e.stopPropagation();
-    console.log("yyy click message", message);
   };
 
   return (
@@ -48,7 +47,7 @@ export function LibHelperOverlay({
         return (
           <div
             key={idx}
-            onClick={(e) => handleMessageClick(e, message)}
+            onClick={(e) => handleMessageClick(e)}
             style={{
               position: "absolute",
               top: rect.top,
