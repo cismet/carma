@@ -7,7 +7,7 @@ import type {
 } from "./hooks/useOverlayHelper";
 
 type OverlayHelperHightlighterProps = { configs: OverlayHelperConfig[] };
-export function libHelperOverlay({ configs }): OverlayHelperHightlighterProps {
+export function LibHelperOverlay({ configs }): OverlayHelperHightlighterProps {
   const [hightlightRects, setHightlightRects] = useState([]);
   const dispatch = useDispatch();
   useEffect(() => {
