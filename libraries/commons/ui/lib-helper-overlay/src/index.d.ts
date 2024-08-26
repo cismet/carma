@@ -42,6 +42,6 @@ export interface HighlightRect {
 
 export type OverlayTourProviderProps = {
   children: JSX.Element;
-  mode: boolean;
+  showOverlay: boolean;
   closeOverlay: () => void;
 };

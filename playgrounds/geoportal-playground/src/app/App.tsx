@@ -114,7 +114,7 @@ function App({ published }: { published?: boolean }) {
 
   const content = (
     <OverlayTourProvider
-      mode={mode === "tour" ? true : false}
+      showOverlay={mode === "tour" ? true : false}
       closeOverlay={() => dispatch(setMode("default"))}
     >
       <TopicMapContextProvider>

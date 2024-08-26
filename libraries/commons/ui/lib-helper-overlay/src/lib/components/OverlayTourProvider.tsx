@@ -14,7 +14,7 @@ export const OverlayTourContext = createContext<OverlayTourContextSettings>({
 
 export const OverlayTourProvider = ({
   children,
-  mode = false,
+  showOverlay = false,
   closeOverlay = () => {
     console.log("close callback");
   },
@@ -32,7 +32,7 @@ export const OverlayTourProvider = ({
   return (
     <OverlayTourContext.Provider value={{ configs, addConfig, removeConfig }}>
       {children}
-      {mode && (
+      {showOverlay && (
         <LibHelperOverlay configs={configs} closeOverlay={closeOverlay} />
       )}
     </OverlayTourContext.Provider>
