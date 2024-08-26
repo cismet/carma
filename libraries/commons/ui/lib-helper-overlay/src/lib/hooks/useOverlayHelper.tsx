@@ -1,23 +1,6 @@
-import React, {
-  useState,
-  createContext,
-  useContext,
-  useLayoutEffect,
-} from "react";
-import { LibHelperOverlay } from "../lib-helper-overlay";
-import {
-  OverlayTourContext as OverlayTourContextSettings,
-  OptionsOverlayHelper,
-  OverlayHelperConfig,
-} from "../..";
-import { OverlayTourProviderProps } from "../utils/helperOverlay";
-
-const OverlayTourContext = createContext<OverlayTourContextSettings>({
-  configs: [],
-  addConfig: (arg) => {},
-  removeConfig: (arg) => {},
-});
-
+import React, { useState, useContext, useLayoutEffect } from "react";
+import { OptionsOverlayHelper, OverlayHelperConfig } from "../..";
+import { OverlayTourContext } from "../components/OverlayTourProvider";
 const useOverlayHelper = (
   content: string,
   options: OptionsOverlayHelper = {
@@ -48,30 +31,3 @@ const useOverlayHelper = (
 };
 
 export default useOverlayHelper;
-
-export const OverlayTourProvider = ({
-  children,
-  mode = "default",
-  closeOverlay = () => {
-    console.log("close callback");
-  },
-}: OverlayTourProviderProps) => {
-  const [configs, setConfigs] = useState<OverlayHelperConfig[]>([]);
-
-  const addConfig = (config) => {
-    setConfigs((prevConfigs) => [...prevConfigs, config]);
-  };
-
-  const removeConfig = (config) => {
-    setConfigs((prevConfigs) => prevConfigs.filter((c) => c !== config));
-  };
-
-  return (
-    <OverlayTourContext.Provider value={{ configs, addConfig, removeConfig }}>
-      {children}
-      {mode === "tour" && (
-        <LibHelperOverlay configs={configs} closeOverlay={closeOverlay} />
-      )}
-    </OverlayTourContext.Provider>
-  );
-};
