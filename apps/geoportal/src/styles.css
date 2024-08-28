@@ -2,3 +2,24 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+
+
+
+.cesium-widget-credits {
+  display: none !important;
+}
+
+
+/* TODO: remove not needed debug colors */
+.cesium-viewer {
+  background-color: red;
+}
+
+.cesium-viewer-cesiumWidgetContainer {
+  background-color: blue;
+}
+
+.cesium-widget {
+  background-color: cadetblue;
+}

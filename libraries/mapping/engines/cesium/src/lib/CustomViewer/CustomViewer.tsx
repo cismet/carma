@@ -1,5 +1,6 @@
 import {
   ReactNode,
+  RefObject,
   useCallback,
   useContext,
   useEffect,
@@ -30,7 +31,7 @@ import { encodeScene, replaceHashRoutedHistory, setLeafletView } from './utils';
 import { ResizeableContainer } from './components/ResizeableContainer';
 import { useLocation } from 'react-router-dom';
 import useInitializeViewer from './hooks';
-import TopicMap from './components/TopicMap';
+import { TopicMap } from './components/TopicMap';
 import { TopicMapContext } from 'react-cismap/contexts/TopicMapContextProvider';
 import { useTweakpaneCtx } from '@carma-commons/debug';
 import { resolutionFractions } from '../utils';
@@ -40,8 +41,12 @@ import MiniMap from './components/LeafletMiniMap';
 
 type CustomViewerProps = {
   children?: ReactNode;
+  containerRef?: RefObject<HTMLDivElement>;
   className?: string;
   postInit?: () => void;
+
+  enableLocationHashUpdate?: boolean;
+  enableTopicMap?: boolean;
 
   // Init
   homeOrientation?: HeadingPitchRange;
@@ -91,6 +96,9 @@ function CustomViewer(props: CustomViewerProps) {
       showSkirts: false,
     },
     minimapLayerUrl,
+    containerRef,
+    enableLocationHashUpdate = true,
+    enableTopicMap = true, // internal topicmap instance
   } = props;
 
   const [showFader, setShowFader] = useState(props.showFader ?? false);
@@ -277,7 +285,7 @@ function CustomViewer(props: CustomViewerProps) {
   useInitializeViewer(viewer, home, homeOffset);
 
   useEffect(() => {
-    if (viewer) {
+    if (viewer && enableLocationHashUpdate) {
       console.log(
         'HOOK: update Hash, route or style changed',
         isSecondaryStyle
@@ -288,7 +296,24 @@ function CustomViewer(props: CustomViewerProps) {
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewer, location.pathname, isSecondaryStyle]);
+  }, [viewer, enableLocationHashUpdate, location.pathname, isSecondaryStyle]);
+
+
+  useEffect(() => {
+    if (viewer && containerRef?.current) {
+      const resizeObserver = new ResizeObserver(() => {
+        console.log("HOOK: resize cesium container");
+        viewer.canvas.width = containerRef?.current?.clientWidth ?? 512;
+        viewer.canvas.height = containerRef?.current?.clientHeight ?? 512;
+      });
+      if (containerRef?.current) {
+        resizeObserver.observe(containerRef.current);
+      }
+      return () => {
+        resizeObserver.disconnect();
+      };
+    }
+  }, [viewer, containerRef]);
 
   useEffect(() => {
     if (viewer) {
@@ -372,7 +397,13 @@ function CustomViewer(props: CustomViewerProps) {
       ref={viewerRef}
       className={className}
       // Resium ViewerOtherProps
-      full // equals style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}`
+      //full // equals style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}`
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+      }}
       // Cesium Props
       // see https://cesium.com/learn/cesiumjs/ref-doc/Viewer.html#.ConstructorOptions for defaults
 
@@ -407,9 +438,11 @@ function CustomViewer(props: CustomViewerProps) {
         />
       )}
       {showCrosshair && <Crosshair lineColor="white" />}
-      <ResizeableContainer enableDragging={showFader} start={showFader ? 5 : 0}>
+      {enableTopicMap && <ResizeableContainer enableDragging={showFader} start={showFader ? 5 : 0}>
         <TopicMap forceShow={showFader} />
       </ResizeableContainer>
+      }
+
       {showMiniMap && minimapLayerUrl && (
         <MiniMap
           layerUrl={minimapLayerUrl}

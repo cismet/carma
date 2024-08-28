@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import LZString from "lz-string";
 import { useDispatch, useSelector } from "react-redux";
+
 import {
   getShowMeasurementButton,
   setBackgroundLayer,
@@ -106,6 +107,7 @@ function App({ published }: { published?: boolean }) {
   }, [allowUiChanges]);
 
   const content = (
+
     <TopicMapContextProvider>
       <div className="flex flex-col h-screen w-full">
         {!published && <TopNavbar />}
@@ -114,6 +116,7 @@ function App({ published }: { published?: boolean }) {
       </div>
     </TopicMapContextProvider>
   );
+
 
   return syncToken ? (
     <CrossTabCommunicationContextProvider role="sync" token={syncToken}>

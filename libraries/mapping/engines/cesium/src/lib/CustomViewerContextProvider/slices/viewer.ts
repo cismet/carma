@@ -102,7 +102,7 @@ export const {
 // selectors
 
 const selectViewerIsAnimating = (state: RootState) => state.viewer.isAnimating;
-const selectViewerIsMode2d = (state: RootState) => state.viewer.isMode2d;
+const selectViewerIsMode2d = (state: RootState) => state.viewer?.isMode2d;
 const selectViewerDataSources = (state: RootState) => state.viewer.dataSources;
 
 const selectViewerHome = createSelector(
