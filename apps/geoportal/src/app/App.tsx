@@ -23,6 +23,7 @@ import {
 } from "./store/slices/mapping";
 import {
   getAllowUiChanges,
+  setAllow3d,
   setAllowUiChanges,
   setShowLayerButtons,
   setShowLayerHideButtons,
@@ -49,6 +50,23 @@ function App({ published }: { published?: boolean }) {
   const dispatch = useDispatch();
 
   useEffect(() => {
+
+    // sticky feature flag
+    // remove with allow3d=false once set
+    // TODO: remove if feature flag is removed
+
+    const allow3dValue = searchParams.get('allow3d');
+
+    if (allow3dValue !== null) {
+      if (allow3dValue === '0' || allow3dValue.toLowerCase() === 'false') {
+        dispatch(setAllow3d(false));
+      } else {
+        dispatch(setAllow3d(true));
+      }
+    }
+
+    // END FEATURE FLAG
+
     if (searchParams.get("sync")) {
       setSyncToken(searchParams.get("sync"));
     }

@@ -10,6 +10,7 @@ interface UIState {
   showLayerButtons: boolean;
   showLayerHideButtons: boolean;
   allowUiChanges: boolean;
+  allow3d: boolean;
 }
 
 const initialState: UIState = {
@@ -20,6 +21,7 @@ const initialState: UIState = {
   showLayerButtons: true,
   showLayerHideButtons: false,
   allowUiChanges: true,
+  allow3d: false,
 };
 
 const slice = createSlice({
@@ -47,6 +49,9 @@ const slice = createSlice({
     setAllowUiChanges(state, action: PayloadAction<boolean>) {
       state.allowUiChanges = action.payload;
     },
+    setAllow3d(state, action: PayloadAction<boolean>) {
+      state.allow3d = action.payload;
+    },
   },
 });
 
@@ -60,6 +65,7 @@ export const {
   setShowLayerButtons,
   setShowLayerHideButtons,
   setAllowUiChanges,
+  setAllow3d,
 } = slice.actions;
 
 export const getShowInfo = (state: RootState) => {
@@ -88,6 +94,10 @@ export const getShowLayerHideButtons = (state: RootState) => {
 
 export const getAllowUiChanges = (state: RootState) => {
   return state.ui.allowUiChanges;
+};
+
+export const getAllow3d = (state: RootState) => {
+  return state.ui.allow3d;
 };
 
 export const toggletModeMeasuremen = () => {

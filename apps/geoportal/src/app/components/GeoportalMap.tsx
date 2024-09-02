@@ -23,7 +23,7 @@ import InfoBoxMeasurement from "./map-measure/InfoBoxMeasurement.jsx";
 import PaleOverlay from "react-cismap/PaleOverlay";
 import { useSearchParams } from "react-router-dom";
 import { getBackgroundLayers } from "../helper/layer.tsx";
-import { getMode, getShowLayerButtons, setMode } from "../store/slices/ui.ts";
+import { getAllow3d, getMode, getShowLayerButtons, setMode } from "../store/slices/ui.ts";
 import CismapLayer from "react-cismap/CismapLayer";
 import {
   Control,
@@ -79,6 +79,7 @@ export const GeoportalMap = () => {
   const container3dMapRef = useRef<HTMLDivElement>(null);
   const dispatch = useDispatch();
   const layers = useSelector(getLayers);
+  const allow3d = useSelector(getAllow3d);
   const backgroundLayer = useSelector(getBackgroundLayer);
   const mode = useSelector(getMode);
   const showLayerButtons = useSelector(getShowLayerButtons);
@@ -202,10 +203,9 @@ export const GeoportalMap = () => {
                 }}
               >
                 <img
-                  src={`${urlPrefix}${
-                      mode === "measurement"
-                        ? "measure-active.png"
-                        : "measure.png"
+                  src={`${urlPrefix}${mode === "measurement"
+                      ? "measure-active.png"
+                      : "measure.png"
                     }`
                   }
                   alt="Measure"
@@ -227,14 +227,14 @@ export const GeoportalMap = () => {
           </div>
         )}
       </Control>
-      <Control position="topleft" order={60}>
+      {allow3d && <Control position="topleft" order={60}>
         <ControlButtonStyler
           onClick={toggleMapMode}
           className="font-semibold"
         >
           {getMapModeButtonLabel(mapMode)}
         </ControlButtonStyler>
-      </Control>
+      </Control>}
       <Control position="topcenter" order={10}>
         {showLayerButtons && <LayerWrapper />}
       </Control>
@@ -348,7 +348,7 @@ export const GeoportalMap = () => {
             </TopicMapComponent>
           </div>
 
-          <TweakpaneProvider>
+          {allow3d && <TweakpaneProvider>
             <CustomViewerContextProvider
               viewerState={defaultViewerState}
               providerConfig={{
@@ -380,7 +380,7 @@ export const GeoportalMap = () => {
               </div>
 
             </CustomViewerContextProvider>
-          </TweakpaneProvider>
+          </TweakpaneProvider>}
         </>
       </Main>
     </ControlLayout >
