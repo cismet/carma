@@ -1,3 +1,4 @@
-TODO 
+TODO CONSOLIDATE_CESIUM 
+
 PLACEHOLDER ASSETS
-purge this folder before release
+purge/review this folder before release
