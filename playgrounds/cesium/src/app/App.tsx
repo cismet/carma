@@ -6,7 +6,7 @@ import 'cesium/Build/Cesium/Widgets/widgets.css';
 import Navigation from './components/Navigation';
 import { viewerRoutes, otherRoutes } from './routes';
 import {
-  CustomViewer,
+  CustomViewerPlayground,
   CustomViewerContextProvider,
 } from '@carma-mapping/cesium-engine';
 
@@ -61,7 +61,7 @@ export function App() {
               path="/*"
               element={
                 <TopicMapContextProvider>
-                  <CustomViewer
+                  <CustomViewerPlayground
                     //globe={{cartographicLimitRectangle: extentDegreesToRectangle(WUPPERTAL.extent)}}
                     minimapLayerUrl={
                       METROPOLERUHR_WMTS_SPW2_WEBMERCATOR.layers['spw2_orange']
@@ -69,7 +69,7 @@ export function App() {
                     }
                   >
                     <Routes>{...ViewerRoutes}</Routes>
-                  </CustomViewer>
+                  </CustomViewerPlayground>
                 </TopicMapContextProvider>
               }
             />

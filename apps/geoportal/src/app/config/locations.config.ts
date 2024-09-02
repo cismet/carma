@@ -1,3 +1,5 @@
+// TODO CONSOLIDATE_CESIUM 
+
 export const WUPPERTAL = {
   name: 'Wuppertal',
   position: {

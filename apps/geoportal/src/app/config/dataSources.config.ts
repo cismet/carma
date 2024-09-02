@@ -2,6 +2,8 @@ import { APP_BASE_PATH } from './app.config';
 const GEOJSON_BASE_PATH = `${APP_BASE_PATH}data/geojson/`;
 const TILESET_BASE_PATH = `${APP_BASE_PATH}data/tiles/`;
 
+// TODO CONSOLIDATE_CESIUM 
+
 // DATA SOURCES
 
 // TILESETS

@@ -1,5 +1,5 @@
 export { CustomCesiumWidget } from './lib/CustomCesiumWidget';
-export { CustomViewer } from './lib/CustomViewer';
+export { CustomViewer, CustomViewerPlayground } from './lib/CustomViewer';
 export {
   CustomViewerContextProvider,
   useCustomViewerContext,

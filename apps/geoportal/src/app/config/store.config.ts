@@ -1,3 +1,5 @@
+// TODO CONSOLIDATE_CESIUM 
+
 import { Cartesian3, Color } from 'cesium';
 import { ViewerState } from '@carma-mapping/cesium-engine';
 
