@@ -339,6 +339,7 @@ L.Control.MeasurePolygon = L.Control.extend({
 
       layers.eachLayer((layer) => {
         layer.customHandle = index++;
+
         layer.on("click", (e) => {
           if (e.target.customHandle === 0) {
             this.options.shapeMode = "polygon";
@@ -373,6 +374,16 @@ L.Control.MeasurePolygon = L.Control.extend({
 
         const latLng = layer.getLatLng();
         latlngs.push(latLng);
+        if (index === 1) {
+          L.drawLocal.draw.handlers.polyline.tooltip.end = `
+            <div>Den Endpunkt des Linienzuges erneut anklicken,
+            </div> <div>um die Streckenmessung zu beenden.</div>`;
+        }
+        if (index > 2) {
+          L.drawLocal.draw.handlers.polyline.tooltip.end = `
+            <div>Den Endpunkt des Linienzuges erneut anklicken, um die Streckenmessung zu beenden.</div> 
+            <div>Zum Messen einer Fläche auf den Startpunkt klicken, um das Polygon zu schließen.</div>`;
+        }
       });
 
       const formatPerimeter = this.calculateDistance(latlngs);
