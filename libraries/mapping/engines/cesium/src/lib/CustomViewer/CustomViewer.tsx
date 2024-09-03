@@ -16,8 +16,6 @@ import {
   OrthographicFrustum,
 } from 'cesium';
 import { Viewer as ResiumViewer } from 'resium';
-import Crosshair from './components/Crosshair';
-import SearchWrapper from './components/SearchWrapper';
 
 import {
   useShowSecondaryTileset,
@@ -26,18 +24,14 @@ import {
   useViewerIsMode2d,
 } from '../CustomViewerContextProvider/slices/viewer';
 import { BaseTilesets } from './components/BaseTilesets';
-import ControlsUI from './components/ControlsUI';
 import { encodeScene, replaceHashRoutedHistory, setLeafletView } from './utils';
-import { ResizeableContainer } from './components/ResizeableContainer';
 import { useLocation } from 'react-router-dom';
 import useInitializeViewer from './hooks';
-import { TopicMap } from './components/TopicMap';
 import { TopicMapContext } from 'react-cismap/contexts/TopicMapContextProvider';
 import { useTweakpaneCtx } from '@carma-commons/debug';
 import { resolutionFractions } from '../utils';
 
 import { formatFractions } from '../utils/formatters';
-import MiniMap from './components/LeafletMiniMap';
 
 type CustomViewerProps = {
   children?: ReactNode;
@@ -46,17 +40,15 @@ type CustomViewerProps = {
   postInit?: () => void;
 
   enableLocationHashUpdate?: boolean;
-  enableTopicMap?: boolean;
 
   // Init
   homeOrientation?: HeadingPitchRange;
   // UI
-  showControls?: boolean;
-  showFader?: boolean;
-  showHome?: boolean;
-  showLockCenter?: boolean;
-  showOrbit?: boolean;
-  showCrosshair?: boolean;
+  // TODO replace with external callbacks?
+  //showControls?: boolean;
+  //showHome?: boolean;
+  //showLockCenter?: boolean;
+  //showOrbit?: boolean;
 
   // override resium UI defaults
   infoBox?: boolean;
@@ -85,9 +77,6 @@ function CustomViewer(props: CustomViewerProps) {
   const {
     children,
     className,
-    showControls = true,
-    showHome = true,
-    showOrbit = true,
     selectionIndicator = false,
     globe: globeProps = {
       baseColor: Color.WHITESMOKE,
@@ -95,20 +84,12 @@ function CustomViewer(props: CustomViewerProps) {
       showGroundAtmosphere: false,
       showSkirts: false,
     },
-    minimapLayerUrl,
     containerRef,
     enableLocationHashUpdate = true,
-    enableTopicMap = true, // internal topicmap instance
   } = props;
 
-  const [showFader, setShowFader] = useState(props.showFader ?? false);
-  const [showMiniMap, setShowMiniMap] = useState<boolean>(false);
   const [viewportLimit, setViewportLimit] = useState<number>(4);
   const [viewportLimitDebug, setViewportLimitDebug] = useState<boolean>(false);
-
-  const [showCrosshair, setShowCrosshair] = useState<boolean>(
-    props.showCrosshair ?? true
-  );
 
   const [viewer, setViewer] = useState<Viewer | null>(null);
 
@@ -179,12 +160,6 @@ function CustomViewer(props: CustomViewerProps) {
       title: 'Scene Settings',
     },
     {
-      get showMiniMap() {
-        return showMiniMap;
-      },
-      set showMiniMap(value: boolean) {
-        setShowMiniMap(value);
-      },
       get viewportLimitDebug() {
         return viewportLimitDebug;
       },
@@ -196,18 +171,6 @@ function CustomViewer(props: CustomViewerProps) {
       },
       set viewportLimit(value: number) {
         !Number.isNaN(value) && setViewportLimit(value);
-      },
-      get showCrosshair() {
-        return showCrosshair;
-      },
-      set showCrosshair(value: boolean) {
-        setShowCrosshair(value);
-      },
-      get showFader() {
-        return showFader;
-      },
-      set showFader(value: boolean) {
-        setShowFader(value);
       },
       get resolutionScale() {
         // Find the closest value in the array to the current resolutionScale and return its index
@@ -229,9 +192,6 @@ function CustomViewer(props: CustomViewerProps) {
     },
 
     [
-      { name: 'showFader' },
-      { name: 'showCrosshair' },
-      { name: 'showMiniMap' },
       { name: 'viewportLimit', min: 1.5, max: 10, step: 0.5 },
       { name: 'viewportLimitDebug' },
       {
@@ -350,7 +310,7 @@ function CustomViewer(props: CustomViewerProps) {
         // let TopicMap/leaflet handle the view change in 2d Mode
         !isMode2d && replaceHashRoutedHistory(encodedScene, location.pathname);
 
-        if (isUserAction && (!isMode2d || showFader)) {
+        if (isUserAction && (!isMode2d)) {
           // remove roll from camera orientation
           const rollDeviation =
             Math.abs(CeMath.TWO_PI - viewer.camera.roll) % CeMath.TWO_PI;
@@ -384,7 +344,6 @@ function CustomViewer(props: CustomViewerProps) {
     viewer,
     location.pathname,
     isSecondaryStyle,
-    showFader,
     topicMapContext?.routedMapRef,
     isMode2d,
     isUserAction,
@@ -430,26 +389,6 @@ function CustomViewer(props: CustomViewerProps) {
     >
       <BaseTilesets />
       {children}
-      {showControls && (
-        <ControlsUI
-          showHome={showHome}
-          showOrbit={showOrbit}
-          searchComponent={<SearchWrapper />}
-        />
-      )}
-      {showCrosshair && <Crosshair lineColor="white" />}
-      {enableTopicMap && <ResizeableContainer enableDragging={showFader} start={showFader ? 5 : 0}>
-        <TopicMap forceShow={showFader} />
-      </ResizeableContainer>
-      }
-
-      {showMiniMap && minimapLayerUrl && (
-        <MiniMap
-          layerUrl={minimapLayerUrl}
-          viewportLimitResolutionFactor={viewportLimit}
-          showCesiumPolygon={viewportLimitDebug}
-        />
-      )}
     </ResiumViewer>
   );
 }

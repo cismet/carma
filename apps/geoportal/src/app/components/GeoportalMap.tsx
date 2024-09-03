@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import { useDispatch, useSelector } from "react-redux";
 import { getGazData, paramsToObject } from "../helper/helper.ts";
@@ -369,16 +369,11 @@ export const GeoportalMap = () => {
                   pointerEvents: mapMode === MapMode._3D ? "auto" : "none",
                 }}>
                 <CustomViewer
-                  showControls={false}
-                  showCrosshair={false}
-                  showFader={false}
                   containerRef={container3dMapRef}
                   enableLocationHashUpdate={false}
-                  enableTopicMap={false}
                 >
                 </CustomViewer>
               </div>
-
             </CustomViewerContextProvider>
           </TweakpaneProvider>}
         </>
