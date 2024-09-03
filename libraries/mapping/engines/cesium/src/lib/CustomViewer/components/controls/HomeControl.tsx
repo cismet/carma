@@ -1,21 +1,22 @@
 import { ReactNode, MouseEvent, useEffect, useState } from "react";
-import { useCesium } from "resium";
-import OnMapButton from "./OnMapButton";
 import { BoundingSphere, Cartesian3 } from "cesium";
 import { faHouseUser } from "@fortawesome/free-solid-svg-icons";
 import {
   setIsAnimating,
   useViewerHome,
-} from "../../../CustomViewerContextProvider/slices/viewer";
+} from "../../../CustomViewerContextProvider/slices/cesium";
 import { useDispatch } from "react-redux";
+import { useCesiumCustomViewer } from "../../../CustomViewerContextProvider";
+import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 type HomeProps = {
   children?: ReactNode;
 };
 
-const HomeControl = (props: HomeProps) => {
+export const HomeControl = (props: HomeProps) => {
   const dispatch = useDispatch();
-  const { viewer } = useCesium();
+  const { viewer } = useCesiumCustomViewer();
   const homePosition = useViewerHome();
   const [homePos, setHomePos] = useState<Cartesian3 | null>(null);
 
@@ -29,6 +30,7 @@ const HomeControl = (props: HomeProps) => {
 
   const handleHomeClick = (e: MouseEvent) => {
     e.preventDefault();
+    console.log("homePos click", homePos, viewer);
     if (viewer && homePos) {
       dispatch(setIsAnimating(false));
       const boundingSphere = new BoundingSphere(homePos, 400);
@@ -37,11 +39,12 @@ const HomeControl = (props: HomeProps) => {
   };
 
   return (
-    <OnMapButton
-      icon={faHouseUser}
+    <ControlButtonStyler
       onClick={handleHomeClick}
       title="Startposition"
-    />
+    >
+      <FontAwesomeIcon icon={faHouseUser} />
+    </ControlButtonStyler>
   );
 };
 

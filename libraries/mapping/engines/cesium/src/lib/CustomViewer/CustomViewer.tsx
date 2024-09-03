@@ -4,6 +4,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import {
@@ -14,24 +15,27 @@ import {
   PerspectiveFrustum,
   Rectangle,
   OrthographicFrustum,
+  Cartesian2,
+  Cartesian3,
 } from "cesium";
-import { Viewer as ResiumViewer } from "resium";
+import { Entity, Viewer as ResiumViewer, useCesium } from "resium";
 
 import {
   useShowSecondaryTileset,
   useViewerHome,
   useViewerHomeOffset,
   useViewerIsMode2d,
-} from "../CustomViewerContextProvider/slices/viewer";
+} from "../CustomViewerContextProvider/slices/cesium";
 import { BaseTilesets } from "./components/BaseTilesets";
 import { encodeScene, replaceHashRoutedHistory, setLeafletView } from "./utils";
 import { useLocation } from "react-router-dom";
 import useInitializeViewer from "./hooks";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useTweakpaneCtx } from "@carma-commons/debug";
-import { resolutionFractions } from "../utils";
+import { getDegreesFromCartographic, resolutionFractions } from "../utils";
 
 import { formatFractions } from "../utils/formatters";
+import { useCesiumCustomViewer } from "../CustomViewerContextProvider";
 
 type CustomViewerProps = {
   children?: ReactNode;
@@ -68,6 +72,7 @@ type CustomViewerProps = {
 };
 
 function CustomViewer(props: CustomViewerProps) {
+  const { setViewer } = useCesiumCustomViewer();
   const home = useViewerHome();
   const homeOffset = useViewerHomeOffset();
   const isSecondaryStyle = useShowSecondaryTileset();
@@ -91,16 +96,61 @@ function CustomViewer(props: CustomViewerProps) {
   const [viewportLimit, setViewportLimit] = useState<number>(4);
   const [viewportLimitDebug, setViewportLimitDebug] = useState<boolean>(false);
 
-  const [viewer, setViewer] = useState<Viewer | null>(null);
+  const [viewer, setComponentStateViewer] = useState<Viewer | null>(null);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const topicMapContext: any =
     useContext<typeof TopicMapContext>(TopicMapContext);
 
+  const leaflet =
+    topicMapContext?.routedMapRef?.leafletMap?.leafletElement;
+
   const [isUserAction, setIsUserAction] = useState(false);
   // DEV TWEAKPANE
 
   // Create a callback function to set the FOV
+
+
+  const onMoveEnd = () => {
+    console.log("HOOK: leaflet moveend listener", topicMapContext);
+    const leafletPosition = leaflet.getCenter();
+    console.log("HOOK: leaflet moveend listener", leafletPosition);
+
+    if (viewer && isMode2d) {
+      // TODO replace zoom aware version, this is debug only
+      viewer.scene.camera.flyTo({
+        destination: Cartesian3.fromDegrees(leafletPosition.lng, leafletPosition.lat, 500),
+        orientation: {
+          heading: viewer.camera.heading,
+          pitch: viewer.camera.pitch,
+          roll: 0,
+        },
+        duration: 0,
+        complete: () => {
+          console.log("HOOK: flyTo complete", getDegreesFromCartographic(viewer.scene.camera.positionCartographic), viewer);
+        }
+      });
+    }
+  }
+
+  useEffect(() => {
+    if (topicMapContext) {
+      console.log("HOOK: topicMapContext changed", topicMapContext);
+      const leaflet =
+        topicMapContext?.routedMapRef?.leafletMap?.leafletElement;
+      if (leaflet) {
+        console.log("HOOK: leaflet changed", leaflet);
+      }
+      if (leaflet) {
+        // add moveend listener to leaflet
+        leaflet.on("moveend", onMoveEnd);
+        return () => {
+          leaflet.off("moveend", onMoveEnd);
+        };
+      }
+
+    }
+  }, [topicMapContext]);
 
   useTweakpaneCtx(
     {
@@ -235,9 +285,21 @@ function CustomViewer(props: CustomViewerProps) {
     };
   }, [viewer]);
 
+
+  //const viewerRef = useCesiumCustomViewer();
+
+  /*
+  const viewerCallback = useCallback((node) => {
+    if (node !== null) {
+      setComponentStateViewer(node.cesiumElement);
+      //setViewer && setViewer(node.cesiumElement);
+    }
+  }, [viewerRef]);
+*/
   const viewerRef = useCallback((node) => {
     if (node !== null) {
-      setViewer(node.cesiumElement);
+      setComponentStateViewer(node.cesiumElement);
+      setViewer && setViewer(node.cesiumElement);
     }
   }, []);
 
@@ -263,10 +325,12 @@ function CustomViewer(props: CustomViewerProps) {
     if (viewer && containerRef?.current) {
       const resizeObserver = new ResizeObserver(() => {
         console.log("HOOK: resize cesium container");
-        viewer.canvas.width = containerRef?.current?.clientWidth ?? 512;
-        viewer.canvas.height = containerRef?.current?.clientHeight ?? 512;
-        viewer.canvas.style.width = "100%";
-        viewer.canvas.style.height = "100%";
+        if (containerRef?.current) {
+          viewer.canvas.width = containerRef.current.clientWidth;
+          viewer.canvas.height = containerRef.current.clientHeight;
+          viewer.canvas.style.width = "100%";
+          viewer.canvas.style.height = "100%";
+        }
       });
       if (containerRef?.current) {
         resizeObserver.observe(containerRef.current);
@@ -275,7 +339,7 @@ function CustomViewer(props: CustomViewerProps) {
         resizeObserver.disconnect();
       };
     }
-  }, [viewer, containerRef]);
+  }, [viewer, containerRef, isMode2d]);
 
   useEffect(() => {
     if (viewer) {
@@ -296,6 +360,7 @@ function CustomViewer(props: CustomViewerProps) {
       viewer.imageryLayers.removeAll();
       viewer.scene.screenSpaceCameraController.enableCollisionDetection = true;
     }
+
   }, [viewer]);
 
   useEffect(() => {
@@ -330,8 +395,6 @@ function CustomViewer(props: CustomViewerProps) {
             });
           }
           // preload 2D view
-          const leaflet =
-            topicMapContext?.routedMapRef?.leafletMap?.leafletElement;
           console.log("leaflet", leaflet, topicMapContext?.routedMapRef);
           leaflet && setLeafletView(viewer, leaflet, { animate: false });
         }
@@ -349,6 +412,7 @@ function CustomViewer(props: CustomViewerProps) {
     topicMapContext?.routedMapRef,
     isMode2d,
     isUserAction,
+    enableLocationHashUpdate,
   ]);
 
   console.log("RENDER: CustomViewer");
@@ -358,13 +422,7 @@ function CustomViewer(props: CustomViewerProps) {
       ref={viewerRef}
       className={className}
       // Resium ViewerOtherProps
-      //full // equals style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}`
-      style={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-      }}
+      full // equals style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}`
       // Cesium Props
       // see https://cesium.com/learn/cesiumjs/ref-doc/Viewer.html#.ConstructorOptions for defaults
 
@@ -373,7 +431,7 @@ function CustomViewer(props: CustomViewerProps) {
       useBrowserRecommendedResolution={false} // crisper image, does not ignore devicepixel ratio
       // resolutionScale={window.devicePixelRatio} // would override dpr
       scene3DOnly={true} // No 2D map resources loaded
-      // sceneMode={SceneMode.SCENE3D} // Default but explicit
+      //sceneMode={SceneMode.SCENE3D} // Default but explicit
 
       // hide UI
       animation={false}
@@ -387,8 +445,12 @@ function CustomViewer(props: CustomViewerProps) {
       timeline={false}
       navigationHelpButton={false}
       navigationInstructionsInitiallyVisible={false}
-      skyBox={false}
+      //skyBox={true}
     >
+      <Entity
+        position={Cartesian3.fromDegrees(7.2, 51.271, 250)}
+        point={{ pixelSize: 50, color: Color.RED }}
+      />
       <BaseTilesets />
       {children}
     </ResiumViewer>

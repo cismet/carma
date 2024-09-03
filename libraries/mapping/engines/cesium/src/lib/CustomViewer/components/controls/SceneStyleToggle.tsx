@@ -1,10 +1,10 @@
 import { MouseEvent, ReactNode } from "react";
 import { faCubes, faTreeCity } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import OnMapButton from "./OnMapButton";
-import { useShowPrimaryTileset } from "../../../CustomViewerContextProvider/slices/viewer";
+import { useShowPrimaryTileset } from "../../../CustomViewerContextProvider/slices/cesium";
 import { SceneStyles } from "../../../..";
 import { useSceneStyleToggle } from "../baseTileset.hook";
+import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 
 type SceneStyleToggleProps = {
   children?: ReactNode;
@@ -21,7 +21,7 @@ export const SceneStyleToggle = (props: SceneStyleToggleProps) => {
   };
 
   return (
-    <OnMapButton
+    <ControlButtonStyler
       title={
         isPrimaryStyle
           ? "Wechsel zur vereinfachten Ansicht"
@@ -32,7 +32,7 @@ export const SceneStyleToggle = (props: SceneStyleToggleProps) => {
       <FontAwesomeIcon
         icon={isPrimaryStyle ? faCubes : faTreeCity}
       ></FontAwesomeIcon>
-    </OnMapButton>
+    </ControlButtonStyler>
   );
 };
 

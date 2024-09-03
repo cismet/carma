@@ -1,5 +1,5 @@
 import { Cartesian3, Color } from 'cesium';
-import { ViewerState } from '@carma-mapping/cesium-engine';
+import { CesiumState } from '@carma-mapping/cesium-engine';
 
 import {
   FOOTPRINT_GEOJSON_SOURCES,
@@ -25,7 +25,7 @@ const homeOffset = {
   z: 45000, // elevation
 };
 
-export const defaultViewerState: ViewerState = {
+export const defaultViewerState: CesiumState = {
   isAnimating: false,
   isMode2d: false,
   homeOffset: homeOffset,

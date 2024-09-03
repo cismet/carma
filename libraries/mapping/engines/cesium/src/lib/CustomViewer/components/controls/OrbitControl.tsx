@@ -8,12 +8,12 @@ import { Cartesian3, Color, Matrix4, Transforms, Viewer } from "cesium";
 import {
   toggleIsAnimating,
   useViewerIsAnimating,
-} from "../../../CustomViewerContextProvider/slices/viewer";
+} from "../../../CustomViewerContextProvider/slices/cesium";
 import { useDispatch } from "react-redux";
 import { pickViewerCanvasCenter } from "../../../utils";
 
 // TODO use config/context
-const DEFAULT_ROTATION_SPEED = 0.005;
+const DEFAULT_ROTATION_SPEED = 0.0001;
 
 type SpinningControlProps = {
   showCenterPoint?: boolean;

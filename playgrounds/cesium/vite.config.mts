@@ -8,7 +8,7 @@ import { viteStaticCopy } from 'vite-plugin-static-copy';
 
 How to fix Cesium related issues as of 2024-05-17, cesium@1.117
 
-0. make sure vite.config.mts is makred as module type script with .mts not .ts
+0. make sure vite.config.mts is marked as module type script with .mts not .ts
 
 1. Import the styles in your app
 

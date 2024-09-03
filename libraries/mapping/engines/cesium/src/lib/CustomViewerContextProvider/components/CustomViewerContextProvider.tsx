@@ -1,19 +1,20 @@
-import { createContext, useContext } from "react";
+import { createContext, useCallback, useContext, useState } from "react";
 
-import { ReactNode } from "react";
-import { Provider } from "react-redux";
+import { ReactNode, useRef } from "react";
 
-import { setupStore } from "../store";
 import {
   CesiumTerrainProvider,
   EllipsoidTerrainProvider,
   ImageryLayer,
   WebMapServiceImageryProvider,
   WebMapTileServiceImageryProvider,
+  Viewer,
 } from "cesium";
-import { ModelAsset, ViewerState } from "../../..";
+import { ModelAsset, CesiumState } from "../../..";
 
-type CustomViewerContextType = {
+interface CustomViewerContextType {
+  viewer: Viewer | null;
+  setViewer: null | ((viewer: Viewer | null) => void);
   terrainProvider: Promise<CesiumTerrainProvider> | null;
   //imageryProvider:    | WebMapServiceImageryProvider    | WebMapTileServiceImageryProvider    | null;
   imageryLayer: ImageryLayer | null;
@@ -22,6 +23,8 @@ type CustomViewerContextType = {
 };
 
 export const CustomViewerContext = createContext<CustomViewerContextType>({
+  viewer: null,
+  setViewer: null,
   terrainProvider: null,
   //imageryProvider: null,
   imageryLayer: null,
@@ -30,52 +33,70 @@ export const CustomViewerContext = createContext<CustomViewerContextType>({
 });
 
 export const useCustomViewerContext = () => {
-  return useContext(CustomViewerContext);
+  const context = useContext(CustomViewerContext);
+  if (context === undefined) {
+    throw new Error('useViewer must be used within a CustomViewerProvider');
+  }  
+  return context;
+};
+
+export const useCesiumCustomViewer = () => {
+  const context = useContext(CustomViewerContext);
+  if (context === undefined) {
+    throw new Error('useViewer must be used within a CustomViewerProvider');
+  }
+  return {
+    viewer: context.viewer,
+    setViewer: context.setViewer
+  } as const;
 };
 
 export const CustomViewerContextProvider = ({
   children,
-  viewerState,
   providerConfig,
 }: {
   children: ReactNode;
-  viewerState: ViewerState;
   providerConfig: {
-    models: Record<string, ModelAsset>;
-    terrainProvider: {
+    terrainProvider: { 
       url: string;
     };
     imageryProvider: {
       url: string;
       layers: string;
-      parameters?: {
-        transparent?: boolean;
-        format?: string;
-      };
+      parameters?: Record<string, string | number | boolean>;
     };
-  };
+    models: Record<string, ModelAsset> | null;
+  }
 }) => {
-  const store = setupStore(viewerState);
+
+  const [viewer, setViewerState] = useState<Viewer | null>(null);
+
+  const setViewer = useCallback((newViewer: Viewer | null) => {
+    setViewerState(newViewer);
+    // You can add any additional logic here when the viewer changes
+  }, []);
 
   const imageryProvider = new WebMapServiceImageryProvider(
     providerConfig.imageryProvider,
   );
 
   const values = {
+    viewer,
+    setViewer,
     ellipsoidTerrainProvider: new EllipsoidTerrainProvider(),
     terrainProvider: CesiumTerrainProvider.fromUrl(
-      providerConfig.terrainProvider.url,
+      providerConfig.terrainProvider?.url,
     ),
     imageryLayer: new ImageryLayer(imageryProvider),
     models: providerConfig.models,
   };
 
+  console.log('Cesium CustomViewerContextProvider Initialized', values);
+
   return (
-    <Provider store={store}>
-      <CustomViewerContext.Provider value={values}>
-        {children}
-      </CustomViewerContext.Provider>
-    </Provider>
+    <CustomViewerContext.Provider value={values}>
+      {children}
+    </CustomViewerContext.Provider>
   );
 };
 

@@ -7,7 +7,7 @@ import {
   useShowSecondaryTileset,
   useTilesetOpacity,
   useViewerDataSources,
-} from "../../CustomViewerContextProvider/slices/viewer";
+} from "../../CustomViewerContextProvider/slices/cesium";
 import {
   Cesium3DTileset,
   CustomShader,
@@ -22,6 +22,7 @@ import {
 } from "../../shaders";
 
 import { create3DTileStyle } from "../../utils";
+import { useCesiumCustomViewer } from "../../CustomViewerContextProvider";
 
 const preloadWhenHidden = true;
 let enableDebugWireframe = false;
@@ -44,7 +45,8 @@ const DEFAULT_MESH_SHADER = new CustomShader(
 export const BaseTilesets = () => {
   const tilesets = useViewerDataSources().tilesets;
   const showPrimary = useShowPrimaryTileset();
-  const { viewer } = useCesium();
+  //const { viewer } = useCesium();
+  const { viewer } = useCesiumCustomViewer();
   const showSecondary = useShowSecondaryTileset();
   const [tsA, setTsA] = useState<Cesium3DTileset | null>(null);
   const [tsB, setTsB] = useState<Cesium3DTileset | null>(null);

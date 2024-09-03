@@ -201,6 +201,7 @@ export const setLeafletView = async (
     console.warn("zoom is null, skipping");
     return;
   }
+  const DEFAULT_2D_ZOOM = 14;
   const MAX_2D_ZOOM = 25;
   const MIN_2D_ZOOM = 9;
   if (zoom > MAX_2D_ZOOM) {
@@ -209,6 +210,9 @@ export const setLeafletView = async (
   } else if (zoom < MIN_2D_ZOOM) {
     console.warn("zoom is below min 2d zoom, clamping", MIN_2D_ZOOM, zoom);
     zoom = MIN_2D_ZOOM;
+  } else if (isNaN(zoom)) {
+    console.warn("zoom is NaN", MIN_2D_ZOOM, zoom);
+    zoom = DEFAULT_2D_ZOOM;
   }
   L.setOptions(leafletElement, { zoomSnap }); // TODO fix zoom snapping in TopicMap Component
   const { longitude: lng, latitude: lat } = cameraToCartographicDegrees(

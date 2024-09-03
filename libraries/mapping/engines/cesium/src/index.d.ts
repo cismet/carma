@@ -76,6 +76,16 @@ export type GeoJsonConfig = {
   idProperty?: string;
 };
 
+export type TerrainProviderConfig = {
+  url: string;
+};
+
+export type ImageryProviderConfig = {
+  url: string;
+  layers: string;
+  parameters: { transparent: boolean; format: string };
+};
+
 export type SceneStyleDescription = {
   globe: {
     baseColor: ColorRgbaArray;
@@ -88,7 +98,7 @@ export type SceneStyles = {
   secondary?: Partial<SceneStyleDescription>;
 };
 
-export interface ViewerState {
+export interface CesiumState {
   isAnimating: boolean;
   isMode2d: boolean;
   homePosition: null | PlainCartesian3;
@@ -117,13 +127,13 @@ export interface ViewerState {
       secondary: null | TilesetConfig;
     };
   };
-  terrainProvider: null | {
-    url: string;
-  };
+  terrainProvider: null | TerrainProviderConfig;
+  imageryProvider: null | ImageryProviderConfig;
+  models?: Record<string, ModelAsset>; // TODO should theseassets and providers be in this part of the state?
 }
 
 export type RootState = {
-  viewer: ViewerState;
+  cesium: CesiumState;
 };
 
 export type ColorInput = ColorRgbaArray | Color;

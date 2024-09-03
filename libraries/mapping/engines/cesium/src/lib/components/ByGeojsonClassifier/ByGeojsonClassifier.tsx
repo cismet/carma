@@ -11,7 +11,7 @@ import {
   GeoJsonDataSource,
 } from "cesium";
 
-import { useShowPrimaryTileset } from "../../CustomViewerContextProvider/slices/viewer";
+import { useShowPrimaryTileset } from "../../CustomViewerContextProvider/slices/cesium";
 import { useSelectAndHighlightGeoJsonEntity } from "./hooks";
 import { SELECTABLE_TRANSPARENT_MATERIAL } from "../../utils";
 import { GeoJsonConfig } from "../../..";

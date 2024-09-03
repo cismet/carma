@@ -75,6 +75,15 @@ export function getModelMatrix(config: TilesetConfig, heightOffset = 0) {
   return modelMatrix;
 }
 
+
+export const getDegreesFromCartographic = (cartographic: Cartographic) => {
+  return {
+    longitude: CeMath.toDegrees(cartographic.longitude),
+    latitude: CeMath.toDegrees(cartographic.latitude),
+    height: cartographic.height,
+  };
+};
+
 // use with onReady event of Cesium3DTileset
 export const logTileSetInfoOnReady = (tileset: Cesium3DTileset) => {
   const { center } = tileset.root.boundingSphere;
@@ -236,7 +245,8 @@ export const pickViewerCanvasPositions = (
     if (!defined(scenePosition)) {
       console.warn(
         "No scene position found at the picked position.",
-        position,
+        position[0],
+        position[1],
         windowPosition,
       );
       return result;

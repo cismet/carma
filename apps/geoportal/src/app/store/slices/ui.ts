@@ -2,7 +2,7 @@ import { createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 import { RootState } from "..";
 
-interface UIState {
+export interface UIState {
   showInfo: boolean;
   showInfoText: boolean;
   activeTabKey: string;
@@ -21,7 +21,7 @@ const initialState: UIState = {
   showLayerButtons: true,
   showLayerHideButtons: false,
   allowUiChanges: true,
-  allow3d: false,
+  allow3d: true,
 };
 
 const slice = createSlice({

@@ -1,6 +1,11 @@
 import { createSlice } from "@reduxjs/toolkit";
+import type { RootState } from "..";
 
-const initialState = {
+export type LayersState = {
+  thumbnails: any[];
+}
+
+const initialState: LayersState = {
   thumbnails: [],
 };
 
@@ -24,6 +29,6 @@ export default slice;
 
 export const { setThumbnail } = slice.actions;
 
-export const getThumbnails = (state) => {
+export const getThumbnails = (state : RootState) => {
   return state.layers.thumbnails;
 };

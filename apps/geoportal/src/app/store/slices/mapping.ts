@@ -2,12 +2,11 @@ import { createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 import { RootState } from "..";
 import { layerMap } from "../../config";
-import type { Layer } from "@carma-mapping/layers";
+import type { Layer, SavedLayerConfig } from "@carma-mapping/layers";
 import type {
   BackgroundLayer,
   LayerState,
   MappingState,
-  SavedLayerConfig,
 } from "@carma-apps/portals";
 
 const initialState: MappingState = {

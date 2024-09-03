@@ -180,44 +180,40 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
     >
       <div
         className={`${styles['controls-container']} ${layoutWidth && layoutWidth <= bottomCollapsBrake
-            ? styles['controls-container__mobile']
-            : ''
+          ? styles['controls-container__mobile']
+          : ''
           }`}
         ref={containerRef}
       >
         {mainComponent ? mainComponent : null}
-        {Object.keys(allPositions).map((position) => {
+        {Object.entries(allPositions).map(([position, components]) => {
           if (position.startsWith('bottom')) {
-            return (
-              <>
-                {allPositions[position].map((component, idx) => {
-                  return (
-                    <div
-                      className={`${styles[position]} ${debugMode ? styles['debug-mode'] : ''
-                        } ${component.fullCollapseWidth &&
-                          layoutWidth &&
-                          layoutWidth <= bottomCollapsBrake
-                          ? styles['full-collapse-width']
-                          : ''
-                        } ${layoutWidth && layoutWidth <= bottomCollapsBrake
-                          ? styles[position + '__mobile']
-                          : ''
-                        } ${idx === 0 &&
-                          layoutWidth &&
-                          layoutWidth <= bottomCollapsBrake
-                          ? styles[position + '__first']
-                          : ''
-                        }`}
-                    >
-                      <Control {...component} key={idx} />
-                    </div>
-                  );
-                })}
-              </>
-            );
+            return components.map((component, idx) => (
+              <div
+                key={`${position}_${idx}`}
+                className={`${styles[position]} ${debugMode ? styles['debug-mode'] : ''
+                  } ${component.fullCollapseWidth &&
+                    layoutWidth &&
+                    layoutWidth <= bottomCollapsBrake
+                    ? styles['full-collapse-width']
+                    : ''
+                  } ${layoutWidth && layoutWidth <= bottomCollapsBrake
+                    ? styles[`${position}__mobile`]
+                    : ''
+                  } ${idx === 0 &&
+                    layoutWidth &&
+                    layoutWidth <= bottomCollapsBrake
+                    ? styles[`${position}__first`]
+                    : ''
+                  }`}
+              >
+                <Control {...component} key={`control_${position}_${idx}`} />
+              </div>
+            ));
           } else {
             return (
               <div
+                key={position}
                 className={`${styles[position]} ${debugMode ? styles['debug-mode'] : ''
                   }`}
               >

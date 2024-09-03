@@ -20,12 +20,17 @@ import LayerTabs from "./LayerTabs";
 import LibItem from "./LibItem";
 import "./input.css";
 import "./modal.css";
-import type { Item, Layer } from "../helper/types";
+import type { Item, Layer, SavedLayerConfig } from "../helper/types";
 import { isEqual } from "lodash";
 const { Search } = Input;
 
 // @ts-expect-error tbd
 const parser = new WMSCapabilities();
+
+type LayerCategories = {
+  Title: string;
+  layers: SavedLayerConfig[];
+}
 
 export interface LibModalProps {
   open: boolean;
@@ -34,7 +39,7 @@ export interface LibModalProps {
   setThumbnail: any;
   thumbnails: any;
   activeLayers: any[];
-  customCategories?: any[];
+  customCategories?: LayerCategories[];
 }
 
 export const LibModal = ({
@@ -143,10 +148,11 @@ export const LibModal = ({
     });
   };
 
-  const getNumberOfLayers = (layers: { layers: Layer[] }[]) => {
+  const getNumberOfLayers = (layerCategories: LayerCategories[]) => {
+    //console.log("xxx Layers",layerCategories)
     let numberOfLayers = 0;
-    layers.forEach((category) => {
-      numberOfLayers += category.layers.length;
+    layerCategories?.forEach((category) => {
+      numberOfLayers += category?.layers?.length;
     });
     return numberOfLayers;
   };
@@ -305,7 +311,7 @@ export const LibModal = ({
               <FontAwesomeIcon icon={faX} />
             </Button>
           </div>
-          {layers.length > 0 && (
+          {layers && layers.length > 0 && (
             <>
               <LayerTabs
                 layers={layers}
@@ -390,7 +396,7 @@ export const LibModal = ({
                   )}
                 </div>
               ))}
-            {getNumberOfLayers(layers) === 0 && (
+            {layers && getNumberOfLayers(layers) === 0 && (
               <h1 className="text-2xl font-normal">
                 Keine Ressourcen gefunden
               </h1>

@@ -6,10 +6,11 @@ import { RouterProvider, createHashRouter } from "react-router-dom";
 import { PersistGate } from "redux-persist/integration/react";
 import { persistStore } from "redux-persist";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
+import { CESIUM_BASE_URL } from "./app/config/app.config";
 
 const persistor = persistStore(store);
 
-const router = createHashRouter([
+const createRouter = () => createHashRouter([
   {
     path: "/",
     element: <App />,
@@ -22,13 +23,16 @@ const router = createHashRouter([
 
 suppressReactCismapErrors();
 
+window.CESIUM_BASE_URL = CESIUM_BASE_URL;
+
+
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement,
 );
 root.render(
   <PersistGate loading={null} persistor={persistor}>
     <Provider store={store}>
-      <RouterProvider router={router} />
+      <RouterProvider router={createRouter()} />
     </Provider>
-  </PersistGate>,
+  </PersistGate>
 );

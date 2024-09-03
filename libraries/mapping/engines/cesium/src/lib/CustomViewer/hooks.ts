@@ -10,7 +10,7 @@ import { useDispatch } from "react-redux";
 import {
   setShowPrimaryTileset,
   setShowSecondaryTileset,
-} from "../CustomViewerContextProvider/slices/viewer";
+} from "../CustomViewerContextProvider/slices/cesium";
 import { decodeSceneFromLocation } from "./utils";
 import { setupSecondaryStyle } from "./components/baseTileset.hook";
 import { useLocation } from "react-router-dom";

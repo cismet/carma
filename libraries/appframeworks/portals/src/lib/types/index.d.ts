@@ -106,16 +106,6 @@ export type BackgroundLayer = Layer & {
   inhalt?: string;
   eignung?: string;
 };
-
-export type SavedLayerConfig = {
-  title: string;
-  description: string;
-  type: string;
-  id: string;
-  thumbnail?: string;
-  layers: Layer[];
-};
-
 export interface LayerState {
   layers: Layer[];
   selectedLayerIndex: number;

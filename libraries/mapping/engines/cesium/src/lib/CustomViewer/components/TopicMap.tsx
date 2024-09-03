@@ -7,7 +7,7 @@ import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
 import {
   useShowPrimaryTileset,
   useViewerIsMode2d,
-} from "../../CustomViewerContextProvider/slices/viewer";
+} from "../../CustomViewerContextProvider/slices/cesium";
 import { leafletToCesiumCamera } from "../../utils";
 
 // TODO sync this setting across app

@@ -18,7 +18,7 @@ import 'leaflet/dist/leaflet.css';
 
 import { TweakpaneProvider } from '@carma-commons/debug';
 import { TopicMapContextProvider } from 'react-cismap/contexts/TopicMapContextProvider';
-import WUPPERTAL from './config/locations.config';
+import { WUPPERTAL } from './config/locations.config';
 import defaultViewerState from './config';
 import {
   BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
@@ -33,7 +33,7 @@ const OtherRoutes = routeGenerator(otherRoutes);
 export function App() {
   return (
     <CustomViewerContextProvider
-      viewerState={defaultViewerState}
+      initialViewerState={defaultViewerState}
       providerConfig={{
         terrainProvider: WUPP_TERRAIN_PROVIDER,
         imageryProvider: BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,

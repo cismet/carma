@@ -45,6 +45,15 @@ type Collection = {
   layers: Layer[];
 };
 
+export type SavedLayerConfig = {
+  title: string;
+  description: string;
+  type: string;
+  id: string;
+  thumbnail?: string;
+  layers: Layer[];
+};
+
 export type wmsProps = {
   layerType: "wmts" | "wmts-nt";
   props: XMLLayer;

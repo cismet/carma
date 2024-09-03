@@ -1,9 +1,10 @@
 // TODO CONSOLIDATE_CESIUM 
 
 import { Cartesian3, Color } from 'cesium';
-import { ViewerState } from '@carma-mapping/cesium-engine';
+import { CesiumState } from '@carma-mapping/cesium-engine';
 
 import {
+  BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
   FOOTPRINT_GEOJSON_SOURCES,
   WUPP3D,
   WUPP_LOD2_TILESET,
@@ -11,6 +12,7 @@ import {
 } from './dataSources.config';
 import { WUPPERTAL } from './locations.config';
 import { colorToArray } from '@carma-mapping/cesium-engine/utils';
+import { MODEL_ASSETS } from './assets.config';
 
 // SETUP Store State
 
@@ -27,13 +29,13 @@ const homeOffset = {
   z: 45000, // elevation
 };
 
-export const defaultViewerState: ViewerState = {
+export const defaultCesiumState: CesiumState = {
   isAnimating: false,
-  isMode2d: false,
+  isMode2d: true,
   homeOffset: homeOffset,
   homePosition: { x, y, z },
-  showPrimaryTileset: true,
-  showSecondaryTileset: false,
+  showPrimaryTileset: false,
+  showSecondaryTileset: true,
   styling: {
     tileset: {
       opacity: 1.0,
@@ -54,6 +56,8 @@ export const defaultViewerState: ViewerState = {
     },
   },
   terrainProvider: WUPP_TERRAIN_PROVIDER,
+  imageryProvider: BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
+  models: MODEL_ASSETS,
 };
 
-export default defaultViewerState;
+export default defaultCesiumState;

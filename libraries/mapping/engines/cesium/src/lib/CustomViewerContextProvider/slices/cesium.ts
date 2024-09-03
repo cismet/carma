@@ -2,10 +2,11 @@ import { createSelector, createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 import { Cartesian3, Color } from "cesium";
 import { useSelector } from "react-redux";
-import { ColorInput, RootState, ViewerState } from "../../..";
+import { ColorInput, RootState, CesiumState } from "../../..";
 import { colorToArray, isColorRgbaArray } from "../../utils";
+import localForage from "localforage";
 
-const defaultState: ViewerState = {
+const initialState: CesiumState = {
   isAnimating: false,
   isMode2d: false,
   homeOffset: null,
@@ -32,42 +33,57 @@ const defaultState: ViewerState = {
     },
   },
   terrainProvider: null,
+  imageryProvider: null,
 };
 
-const slice = createSlice({
-  name: "viewer",
-  initialState: defaultState,
+export const getCesiumConfig = ({
+  appKey,
+  storagePrefix = "defaultStorage",
+}: {
+  appKey: string;
+  storagePrefix?: string;
+}) => {
+  return {
+    key: `@${appKey}.${storagePrefix}.app.cesium`,
+    storage: localForage,
+    whitelist: ["isMode2d", "showPrimaryTileset", "showSecondaryTileset"],
+  };
+};
+
+export const sliceCesium = createSlice({
+  name: "cesium",
+  initialState,
   reducers: {
-    setIsAnimating: (state: ViewerState, action: PayloadAction<boolean>) => {
+    setIsAnimating: (state: CesiumState, action: PayloadAction<boolean>) => {
       state.isAnimating = action.payload;
     },
 
-    toggleIsAnimating: (state: ViewerState) => {
+    toggleIsAnimating: (state: CesiumState) => {
       state.isAnimating = !state.isAnimating;
     },
-    setIsMode2d: (state: ViewerState, action: PayloadAction<boolean>) => {
+    setIsMode2d: (state: CesiumState, action: PayloadAction<boolean>) => {
       state.isMode2d = action.payload;
     },
     setShowPrimaryTileset: (
-      state: ViewerState,
+      state: CesiumState,
       action: PayloadAction<boolean>,
     ) => {
       state.showPrimaryTileset = action.payload;
     },
     setShowSecondaryTileset: (
-      state: ViewerState,
+      state: CesiumState,
       action: PayloadAction<boolean>,
     ) => {
       state.showSecondaryTileset = action.payload;
     },
-    setTilesetOpacity: (state: ViewerState, action: PayloadAction<number>) => {
+    setTilesetOpacity: (state: CesiumState, action: PayloadAction<number>) => {
       // console.log(action.payload);
       state.styling.tileset.opacity = action.payload;
     },
     setGlobeBaseColor: (
-      state: ViewerState,
+      state: CesiumState,
       action: PayloadAction<{
-        style: keyof ViewerState["sceneStyles"];
+        style: keyof CesiumState["sceneStyles"];
         color: ColorInput;
       }>,
     ) => {
@@ -81,7 +97,7 @@ const slice = createSlice({
       };
     },
     setHomePosition: (
-      state: ViewerState,
+      state: CesiumState,
       action: PayloadAction<Cartesian3>,
     ) => {
       const { x, y, z } = action.payload;
@@ -97,26 +113,26 @@ export const {
   setShowPrimaryTileset,
   setShowSecondaryTileset,
   setTilesetOpacity,
-} = slice.actions;
+} = sliceCesium.actions;
 
 // selectors
 
-const selectViewerIsAnimating = (state: RootState) => state.viewer.isAnimating;
-const selectViewerIsMode2d = (state: RootState) => state.viewer?.isMode2d;
-const selectViewerDataSources = (state: RootState) => state.viewer.dataSources;
+const selectViewerIsAnimating = ({ cesium }: RootState) => cesium.isAnimating;
+const selectViewerIsMode2d = ({ cesium }: RootState) => cesium.isMode2d;
+const selectViewerDataSources = ({ cesium }: RootState) => cesium.dataSources;
 
 const selectViewerHome = createSelector(
-  (state: RootState) => state.viewer.homePosition,
+  ({ cesium }: RootState) => cesium.homePosition,
   (xyz) => (xyz ? new Cartesian3(xyz.x, xyz.y, xyz.z) : null),
 );
 
 const selectViewerHomeOffset = createSelector(
-  (state: RootState) => state.viewer.homeOffset,
+  ({ cesium }: RootState) => cesium.homeOffset,
   (xyz) => (xyz ? new Cartesian3(xyz.x, xyz.y, xyz.z) : null),
 );
 
 const selectViewerSceneGlobalBaseColor = createSelector(
-  (state: RootState) => state.viewer.sceneStyles.default.globe.baseColor,
+  (state: RootState) => state.cesium.sceneStyles.default.globe.baseColor,
   (baseColor) => new Color(...baseColor),
 );
 
@@ -129,10 +145,10 @@ export const useGlobeBaseColor = () =>
   useSelector(selectViewerSceneGlobalBaseColor);
 
 export const useShowPrimaryTileset = () =>
-  useSelector(({ viewer }: RootState) => viewer.showPrimaryTileset);
+  useSelector(({ cesium }: RootState) => cesium.showPrimaryTileset);
 export const useShowSecondaryTileset = () =>
-  useSelector(({ viewer }: RootState) => viewer.showSecondaryTileset);
+  useSelector(({ cesium }: RootState) => cesium.showSecondaryTileset);
 export const useTilesetOpacity = () =>
-  useSelector(({ viewer }: RootState) => viewer.styling.tileset.opacity);
+  useSelector(({ cesium }: RootState) => cesium.styling.tileset.opacity);
 
-export default slice;
+export default sliceCesium;

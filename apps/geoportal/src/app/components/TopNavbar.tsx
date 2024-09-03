@@ -1,15 +1,10 @@
 import { Button, Popover, Radio, Tooltip, message } from "antd";
 import {
-  faB,
   faBars,
-  faLandmark,
-  faLayerGroup,
   faPrint,
-  faRedo,
   faShareNodes,
   faEye,
   faEyeSlash,
-  faF,
   faFileExport,
   faBookOpenReader,
   faRotateRight,
@@ -44,10 +39,10 @@ import {
   setMode,
   setShowLayerButtons,
 } from "../store/slices/ui";
-import { cn } from "../helper/helper";
 import { layerMap } from "../config";
 import { Save, Share, extractVectorStyles } from "@carma-apps/portals";
 import { useOverlayHelper } from "@carma/libraries/commons/ui/lib-helper-overlay";
+import { useSceneStyleToggle } from "@carma-mapping/cesium-engine";
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 
@@ -356,13 +351,14 @@ const TopNavbar = () => {
 
       <div className="flex items-center gap-6">
         <div className="lg:flex hidden" ref={hintergrundTourRef}>
-          <Radio.Group
+        { backgroundLayer && <Radio.Group
             value={backgroundLayer.id}
             onChange={(e) => {
               if (e.target.value === "karte") {
                 dispatch(
                   setBackgroundLayer({ ...selectedMapLayer, id: "karte" }),
                 );
+                toggleSceneStyle("secondary");
               } else {
                 dispatch(
                   setBackgroundLayer({
@@ -381,12 +377,13 @@ const TopNavbar = () => {
                     layers: layerMap[e.target.value].layers,
                   }),
                 );
+                toggleSceneStyle("primary");
               }
             }}
           >
             <Radio.Button value="karte">Karte</Radio.Button>
             <Radio.Button value="luftbild">Luftbild</Radio.Button>
-          </Radio.Group>
+          </Radio.Group>}
         </div>
 
         <Button

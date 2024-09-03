@@ -1,6 +1,4 @@
 import { MouseEvent, ReactNode, useContext, useState } from "react";
-import { useCesium } from "resium";
-import OnMapButton from "./OnMapButton";
 import {
   Cartesian3,
   Cartographic,
@@ -13,7 +11,7 @@ import { useDispatch } from "react-redux";
 import {
   useViewerIsMode2d,
   setIsMode2d,
-} from "../../../CustomViewerContextProvider/slices/viewer";
+} from "../../../CustomViewerContextProvider/slices/cesium";
 import { setLeafletView } from "../../utils";
 import {
   cesiumCenterPixelSizeToLeafletZoom,
@@ -25,6 +23,8 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { animateInterpolateHeadingPitchRange } from "../../../utils/cesiumAnimations";
 
 import { CameraPositionAndOrientation } from "../../../..";
+import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
+import { useCesiumCustomViewer } from '../../../CustomViewerContextProvider/components/CustomViewerContextProvider';
 
 // TODO sync
 const DEFAULT_MODE_2D_3D_CHANGE_FADE_DURATION = 1000;
@@ -35,9 +35,10 @@ type Props = {
 };
 
 export const MapTypeSwitcher = ({ zoomSnap = 1 }: Props = {}) => {
-  const { viewer } = useCesium();
+  //const { viewer } = useCesium();
   const dispatch = useDispatch();
   const isMode2d = useViewerIsMode2d();
+  const { viewer } = useCesiumCustomViewer();
 
   const [prevCamera3d, setPrevCamera3d] =
     useState<CameraPositionAndOrientation | null>(null);
@@ -185,6 +186,13 @@ export const MapTypeSwitcher = ({ zoomSnap = 1 }: Props = {}) => {
   const handleSwitchMapMode = async (e: MouseEvent) => {
     e.preventDefault();
 
+    console.log(
+      "xxx clicked handleSwitchMapMode",
+      isMode2d,
+      viewer,
+      leaflet,
+    );
+
     if (viewer) {
       setIsTransitioning(true);
 
@@ -222,13 +230,14 @@ export const MapTypeSwitcher = ({ zoomSnap = 1 }: Props = {}) => {
   };
 
   return (
-    <OnMapButton
+    <ControlButtonStyler
       title={isMode2d ? "zur 3D Ansicht wechseln" : "zur 2D Ansicht wechseln"}
+      className="font-semibold"
       onClick={handleSwitchMapMode}
       disabled={isTransitioning}
     >
       {isMode2d ? "3D" : "2D"}
-    </OnMapButton>
+    </ControlButtonStyler>
   );
 };
 

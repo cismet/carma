@@ -13,7 +13,7 @@ import {
   Color,
 } from "cesium";
 import { useCesium } from "resium";
-import { useShowSecondaryTileset } from "./CustomViewerContextProvider/slices/viewer";
+import { useShowSecondaryTileset } from "./CustomViewerContextProvider/slices/cesium";
 
 export type ClickData = {
   id: string | null;

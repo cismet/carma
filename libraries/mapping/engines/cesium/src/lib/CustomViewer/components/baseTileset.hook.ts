@@ -5,9 +5,12 @@ import { CesiumTerrainProvider, Color, Viewer } from "cesium";
 import {
   setShowPrimaryTileset,
   setShowSecondaryTileset,
-} from "../../CustomViewerContextProvider/slices/viewer";
+} from "../../CustomViewerContextProvider/slices/cesium";
 import { SceneStyles } from "../../..";
-import { useCustomViewerContext } from "../../CustomViewerContextProvider/components/CustomViewerContextProvider";
+import {
+  useCesiumCustomViewer,
+  useCustomViewerContext,
+} from "../../CustomViewerContextProvider/components/CustomViewerContextProvider";
 
 // TODO move combined common setup out of here
 
@@ -62,19 +65,19 @@ export const setupSecondaryStyle = (
   })();
 };
 
-export const useSceneStyleToggle = (style?: keyof SceneStyles) => {
+export const useSceneStyleToggle = (
+  initialStyle: keyof SceneStyles = "secondary",
+) => {
   const dispatch = useDispatch();
-  const { viewer } = useCesium();
-
-  // TODO initial style set by parameter
-  const [isPrimaryStyle, setIsPrimaryStyle] = useState(true);
-  console.log("HOOK: useSceneStyleToggle", style);
+  const { viewer } = useCesiumCustomViewer();
+  const [currentStyle, setCurrentStyle] =
+    useState<keyof SceneStyles>(initialStyle);
   const customViewerContext = useCustomViewerContext();
 
   useEffect(() => {
     if (!viewer) return;
 
-    if (isPrimaryStyle) {
+    if (currentStyle === "primary") {
       setupPrimaryStyle(viewer, customViewerContext);
       dispatch(setShowPrimaryTileset(true));
       dispatch(setShowSecondaryTileset(false));
@@ -83,23 +86,15 @@ export const useSceneStyleToggle = (style?: keyof SceneStyles) => {
       dispatch(setShowPrimaryTileset(false));
       dispatch(setShowSecondaryTileset(true));
     }
+  }, [dispatch, viewer, currentStyle, customViewerContext]);
 
-    return () => {
-      if (isPrimaryStyle) {
-        setupSecondaryStyle(viewer, customViewerContext);
-        dispatch(setShowSecondaryTileset(true));
-        dispatch(setShowPrimaryTileset(false));
-      } else {
-        setupPrimaryStyle(viewer, customViewerContext);
-        dispatch(setShowPrimaryTileset(true));
-        dispatch(setShowSecondaryTileset(false));
-      }
-    };
-  }, [dispatch, viewer, isPrimaryStyle]);
-
-  const toggleSceneTyle = () => {
-    setIsPrimaryStyle(!isPrimaryStyle);
+  const toggleSceneStyle = (style?: "primary" | "secondary") => {
+    if (style) {
+      setCurrentStyle(style);
+    } else {
+      setCurrentStyle((prev) => (prev === "primary" ? "secondary" : "primary"));
+    }
   };
 
-  return toggleSceneTyle;
+  return toggleSceneStyle;
 };
