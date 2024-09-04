@@ -163,8 +163,8 @@ export const GeoportalMap = () => {
   });
 
   const gazetteerControlTourRef = useOverlayHelper("Gazetteer Suche", {
-    containerPos: "top",
-    contentPos: "left-bottom",
+    containerPos: "center",
+    contentPos: "center",
   });
 
   const toggleMapMode = useCallback(() => {

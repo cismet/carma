@@ -66,13 +66,19 @@ const TopNavbar = () => {
   const [messageApi, contextHolder] = message.useMessage();
   const baseUrl = window.location.origin + window.location.pathname;
 
-  const menuTourRef = useOverlayHelper("Menüleiste");
+  const menuTourRef = useOverlayHelper("Menüleiste", {
+    containerPos: "center",
+    contentPos: "center",
+  });
 
   const hintergrundTourRef = useOverlayHelper("Hintergrund", {
-    containerPos: "left",
-    contentPos: "right-center",
+    containerPos: "center",
+    contentPos: "center",
   });
-  const modalMenuTourRef = useOverlayHelper("Menü");
+  const modalMenuTourRef = useOverlayHelper("Menü", {
+    containerPos: "center",
+    contentPos: "center",
+  });
 
   const updateLayers = async (
     layer: Item,
