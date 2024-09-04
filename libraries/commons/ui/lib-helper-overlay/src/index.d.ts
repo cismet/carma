@@ -25,11 +25,13 @@ export interface OverlayHelperConfig {
   message: string;
   containerPos?: PositionOverlayHelper;
   contentPos?: PositionOverlayHelper;
+  contentWidth?: string;
 }
 
 export type OptionsOverlayHelper = {
   containerPos?: PositionOverlayHelper;
   contentPos?: PositionOverlayHelper;
+  contentWidth?: string;
 };
 
 type Position = { [key: string]: string | number };
@@ -40,6 +42,7 @@ export interface HighlightRect {
   pos: Position;
   contentPos: any;
   contPos: Position;
+  contentWidth?: string;
 }
 
 export type OverlayTourProviderProps = {

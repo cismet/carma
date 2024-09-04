@@ -11,14 +11,15 @@ export function LibHelperOverlay({
   const [hightlightRects, setHightlightRects] = useState<HighlightRect[]>([]);
   useEffect(() => {
     configs.forEach((currentItem) => {
-      const { el, message, containerPos, contentPos } = currentItem;
+      const { el, message, containerPos, contentPos, contentWidth } =
+        currentItem;
       const rect = el.getBoundingClientRect();
       const pos = getContainerPosition(containerPos);
       const contPos = getElementPosition(contentPos);
 
       setHightlightRects((prev) => [
         ...prev,
-        { rect, message, pos, contentPos, contPos },
+        { rect, message, pos, contentPos, contPos, contentWidth },
       ]);
     });
   }, [configs]);
@@ -41,7 +42,7 @@ export function LibHelperOverlay({
       onClick={() => closeOverlay()}
     >
       {hightlightRects.map((config, idx) => {
-        const { rect, message, pos, contPos } = config;
+        const { rect, message, pos, contPos, contentWidth } = config;
 
         return (
           <div
@@ -60,6 +61,7 @@ export function LibHelperOverlay({
             <span
               style={{
                 position: "absolute",
+                width: contentWidth === "default" ? "auto" : contentWidth,
                 ...contPos,
               }}
             >

@@ -147,7 +147,9 @@ export const GeoportalMap = () => {
     contentPos: "left",
   });
   const navigatorControlTourRef = useOverlayHelper("Meine Position", {
+    containerPos: "right",
     contentPos: "left",
+    contentWidth: "100px",
   });
   const homeControlTourRef = useOverlayHelper("Rathaus", {
     contentPos: "left",

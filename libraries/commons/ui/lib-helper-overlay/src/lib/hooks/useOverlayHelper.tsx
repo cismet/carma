@@ -6,11 +6,12 @@ const useOverlayHelper = (
   options: OptionsOverlayHelper = {
     containerPos: "center",
     contentPos: "center",
+    contentWidth: "default",
   },
 ) => {
   const [ref, setRef] = useState<HTMLElement | null>(null);
   const { addConfig, removeConfig } = useContext(OverlayTourContext);
-  const { containerPos, contentPos } = options;
+  const { containerPos, contentPos, contentWidth } = options;
   useLayoutEffect(() => {
     if (!ref) return;
 
@@ -19,6 +20,7 @@ const useOverlayHelper = (
       message: content,
       containerPos,
       contentPos,
+      contentWidth,
     };
     addConfig(config);
 
