@@ -68,7 +68,10 @@ const TopNavbar = () => {
 
   const menuTourRef = useOverlayHelper("Menüleiste");
 
-  const hintergrundTourRef = useOverlayHelper("Hintergrund");
+  const hintergrundTourRef = useOverlayHelper("Hintergrund", {
+    containerPos: "left",
+    contentPos: "right-center",
+  });
   const modalMenuTourRef = useOverlayHelper("Menü");
 
   const updateLayers = async (

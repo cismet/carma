@@ -18,7 +18,19 @@ export type PositionOverlayHelper =
   | "top"
   | "left"
   | "right"
-  | "bottom";
+  | "bottom"
+  | "left-center"
+  | "left-top"
+  | "left-bottom"
+  | "right-center"
+  | "right-top"
+  | "right-bottom"
+  | "top-center"
+  | "top-right"
+  | "top-left"
+  | "bottom-center"
+  | "bottom-right"
+  | "bottom-left";
 
 export interface OverlayHelperConfig {
   el: HTMLElement;

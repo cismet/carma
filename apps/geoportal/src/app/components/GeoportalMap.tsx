@@ -141,24 +141,31 @@ export const GeoportalMap = () => {
   const urlPrefix = window.location.origin + window.location.pathname;
 
   const zoomControlTourRef = useOverlayHelper("Zoom", {
-    contentPos: "left",
+    containerPos: "center",
+    contentPos: "left-center",
   });
   const fullScreenControlTourRef = useOverlayHelper("Vollbild", {
-    contentPos: "left",
+    containerPos: "center",
+    contentPos: "left-center",
   });
   const navigatorControlTourRef = useOverlayHelper("Meine Position", {
-    containerPos: "right",
-    contentPos: "left",
+    containerPos: "center",
+    contentPos: "left-center",
     contentWidth: "100px",
   });
   const homeControlTourRef = useOverlayHelper("Rathaus", {
-    contentPos: "left",
+    containerPos: "center",
+    contentPos: "left-center",
   });
   const measurementControlTourRef = useOverlayHelper("Messungen", {
-    contentPos: "left",
+    containerPos: "center",
+    contentPos: "left-center",
   });
 
-  const gazetteerControlTourRef = useOverlayHelper("Gazetteer Suche");
+  const gazetteerControlTourRef = useOverlayHelper("Gazetteer Suche", {
+    containerPos: "top",
+    contentPos: "left-bottom",
+  });
 
   const toggleMapMode = useCallback(() => {
     setMapMode((prevMode) =>
