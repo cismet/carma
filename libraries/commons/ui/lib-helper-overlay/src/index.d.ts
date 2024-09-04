@@ -34,23 +34,26 @@ export type PositionOverlayHelper =
 
 export interface OverlayHelperConfig {
   el: HTMLElement;
-  message: string;
+  content: JSX.Element | string;
   containerPos?: PositionOverlayHelper;
   contentPos?: PositionOverlayHelper;
   contentWidth?: string;
 }
 
 export type OptionsOverlayHelper = {
-  containerPos?: PositionOverlayHelper;
-  contentPos?: PositionOverlayHelper;
-  contentWidth?: string;
+  primary: {
+    containerPos?: PositionOverlayHelper;
+    contentPos?: PositionOverlayHelper;
+    contentWidth?: string;
+    content: JSX.Element | string;
+  };
 };
 
 type Position = { [key: string]: string | number };
 
 export interface HighlightRect {
   rect: DOMRect;
-  message: string;
+  content: JSX.Element | string;
   pos: Position;
   contentPos: any;
   contPos: Position;

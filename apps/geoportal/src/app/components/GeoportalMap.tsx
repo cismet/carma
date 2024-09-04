@@ -140,32 +140,50 @@ export const GeoportalMap = () => {
   const [mapMode, setMapMode] = useState<MapMode>(MapMode._2D);
   const urlPrefix = window.location.origin + window.location.pathname;
 
-  const zoomControlTourRef = useOverlayHelper("Zoom", {
-    containerPos: "center",
-    contentPos: "left-center",
+  const zoomControlTourRef = useOverlayHelper({
+    primary: {
+      containerPos: "center",
+      contentPos: "left-center",
+      content: <div>Zoom</div>,
+    },
   });
-  const fullScreenControlTourRef = useOverlayHelper("Vollbild", {
-    containerPos: "center",
-    contentPos: "left-center",
-  });
-  const navigatorControlTourRef = useOverlayHelper("Meine Position", {
-    containerPos: "center",
-    contentPos: "left-center",
-    contentWidth: "100px",
-  });
-  const homeControlTourRef = useOverlayHelper("Rathaus", {
-    containerPos: "center",
-    contentPos: "left-center",
-  });
-  const measurementControlTourRef = useOverlayHelper("Messungen", {
-    containerPos: "center",
-    contentPos: "left-center",
-  });
+  // const fullScreenControlTourRef = useOverlayHelper({
+  //   primary: {
+  //     containerPos: "center",
+  //     contentPos: "left-center",
+  //     content: <div>Vollbild</div>,
+  //   },
+  // });
+  // const navigatorControlTourRef = useOverlayHelper({
+  //   primary: {
+  //     containerPos: "center",
+  //     contentPos: "left-center",
+  //     contentWidth: "100px",
+  //     content: <div> Meine Position</div>,
+  //   },
+  // });
+  // const homeControlTourRef = useOverlayHelper({
+  //   primary: {
+  //     containerPos: "center",
+  //     contentPos: "left-center",
+  //     content: <div>Rathaus</div>,
+  //   },
+  // });
+  // const measurementControlTourRef = useOverlayHelper({
+  //   primary: {
+  //     containerPos: "center",
+  //     contentPos: "left-center",
+  //     content: <div> Messungen</div>,
+  //   },
+  // });
 
-  const gazetteerControlTourRef = useOverlayHelper("Gazetteer Suche", {
-    containerPos: "center",
-    contentPos: "center",
-  });
+  // const gazetteerControlTourRef = useOverlayHelper({
+  //   primary: {
+  //     containerPos: "center",
+  //     contentPos: "center",
+  //     content: <div>Gazetteer Suche</div>,
+  //   },
+  // });
 
   const toggleMapMode = useCallback(() => {
     setMapMode((prevMode) =>
@@ -261,7 +279,7 @@ export const GeoportalMap = () => {
                 document.documentElement.requestFullscreen();
               }
             }}
-            ref={fullScreenControlTourRef}
+            // ref={fullScreenControlTourRef}
           >
             <FontAwesomeIcon
               icon={document.fullscreenElement ? faCompress : faExpand}
@@ -272,7 +290,7 @@ export const GeoportalMap = () => {
       <Control position="topleft" order={30}>
         {showLocatorButton && (
           <ControlButtonStyler
-            ref={navigatorControlTourRef}
+            // ref={navigatorControlTourRef}
             onClick={() => setLocationProps((prev) => prev + 1)}
           >
             <FontAwesomeIcon icon={faLocationArrow} className="text-2xl" />
@@ -282,7 +300,7 @@ export const GeoportalMap = () => {
       </Control>
       <Control position="topleft" order={40}>
         <ControlButtonStyler
-          ref={homeControlTourRef}
+          // ref={homeControlTourRef}
           onClick={() =>
             routedMapRef.leafletMap.leafletElement.flyTo(
               [51.272570027476256, 7.199918031692506],
@@ -303,7 +321,7 @@ export const GeoportalMap = () => {
                     setMode(mode === "measurement" ? "default" : "measurement"),
                   );
                 }}
-                ref={measurementControlTourRef}
+                // ref={measurementControlTourRef}
               >
                 <img
                   src={`${urlPrefix}${
@@ -363,7 +381,10 @@ export const GeoportalMap = () => {
         {showLayerButtons && <LayerWrapper />}
       </Control>
       <Control position="bottomleft" order={10}>
-        <div ref={gazetteerControlTourRef} className="h-full w-full">
+        <div
+          // ref={gazetteerControlTourRef}
+          className="h-full w-full"
+        >
           <LibFuzzySearch
             gazData={gazData}
             mapRef={routedMapRef}

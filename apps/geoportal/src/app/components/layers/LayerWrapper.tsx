@@ -49,9 +49,12 @@ const LayerWrapper = () => {
     color: isOver ? "green" : undefined,
   };
 
-  const layerWrapperTourRef = useOverlayHelper("Layer Buttons", {
-    containerPos: "center",
-    contentPos: "center",
+  const layerWrapperTourRef = useOverlayHelper({
+    primary: {
+      containerPos: "center",
+      contentPos: "center",
+      content: <div>Layer Buttons</div>,
+    },
   });
 
   const getLayerPos = (id) => layers.findIndex((layer) => layer.id === id);
