@@ -2,7 +2,6 @@ import React, { useState, useContext, useLayoutEffect } from "react";
 import { OptionsOverlayHelper, OverlayHelperConfig } from "../..";
 import { OverlayTourContext } from "../components/OverlayTourProvider";
 const useOverlayHelper = (
-  // content: string,
   options: OptionsOverlayHelper = {
     primary: {
       containerPos: "center",
@@ -30,7 +29,7 @@ const useOverlayHelper = (
     return () => {
       removeConfig(config);
     };
-  }, [ref, content]);
+  }, [ref]);
 
   return setRef;
 };
