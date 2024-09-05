@@ -33,6 +33,8 @@ import { cn } from "../../helper/helper";
 import "./button.css";
 import SecondaryView from "./SecondaryView";
 import { useOverlayHelper } from "@carma/libraries/commons/ui/lib-helper-overlay";
+import { geoElements } from "@carma-collab/wuppertal/geoportal";
+import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 
 const LayerWrapper = () => {
   const dispatch = useDispatch();
@@ -49,13 +51,9 @@ const LayerWrapper = () => {
     color: isOver ? "green" : undefined,
   };
 
-  const layerWrapperTourRef = useOverlayHelper({
-    primary: {
-      containerPos: "center",
-      contentPos: "center",
-      content: <div>Layer Buttons</div>,
-    },
-  });
+  const layerWrapperTourRef = useOverlayHelper(
+    getCollabedHelpElementsConfig("LAYERBUTTONS", geoElements),
+  );
 
   const getLayerPos = (id) => layers.findIndex((layer) => layer.id === id);
 

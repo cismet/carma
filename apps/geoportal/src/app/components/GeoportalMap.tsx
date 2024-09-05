@@ -88,6 +88,8 @@ import {
   setSecondaryInfoBoxElements,
   setSelectedFeature,
 } from "../store/slices/features.ts";
+import { geoElements } from "@carma-collab/wuppertal/geoportal";
+import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 
 enum MapMode {
   _2D = "2D",
@@ -140,50 +142,25 @@ export const GeoportalMap = () => {
   const [mapMode, setMapMode] = useState<MapMode>(MapMode._2D);
   const urlPrefix = window.location.origin + window.location.pathname;
 
-  const zoomControlTourRef = useOverlayHelper({
-    primary: {
-      containerPos: "center",
-      contentPos: "left-center",
-      content: <div>Zoom</div>,
-    },
-  });
-  const fullScreenControlTourRef = useOverlayHelper({
-    primary: {
-      containerPos: "center",
-      contentPos: "left-center",
-      content: <div>Vollbild</div>,
-    },
-  });
-  const navigatorControlTourRef = useOverlayHelper({
-    primary: {
-      containerPos: "center",
-      contentPos: "left-center",
-      contentWidth: "100px",
-      content: <div> Meine Position</div>,
-    },
-  });
-  const homeControlTourRef = useOverlayHelper({
-    primary: {
-      containerPos: "center",
-      contentPos: "left-center",
-      content: <div>Rathaus</div>,
-    },
-  });
-  const measurementControlTourRef = useOverlayHelper({
-    primary: {
-      containerPos: "center",
-      contentPos: "left-center",
-      content: <div> Messungen</div>,
-    },
-  });
+  const zoomControlTourRef = useOverlayHelper(
+    getCollabedHelpElementsConfig("ZOOM", geoElements),
+  );
+  const fullScreenControlTourRef = useOverlayHelper(
+    getCollabedHelpElementsConfig("VOLLBILD", geoElements),
+  );
+  const navigatorControlTourRef = useOverlayHelper(
+    getCollabedHelpElementsConfig("MEINE_POSITION", geoElements),
+  );
+  const homeControlTourRef = useOverlayHelper(
+    getCollabedHelpElementsConfig("RATHAUS", geoElements),
+  );
+  const measurementControlTourRef = useOverlayHelper(
+    getCollabedHelpElementsConfig("MESSUNGEN", geoElements),
+  );
 
-  const gazetteerControlTourRef = useOverlayHelper({
-    primary: {
-      containerPos: "center",
-      contentPos: "center",
-      content: <div>Gazetteer Suche</div>,
-    },
-  });
+  const gazetteerControlTourRef = useOverlayHelper(
+    getCollabedHelpElementsConfig("GAZETTEER_SUCHE", geoElements),
+  );
 
   const toggleMapMode = useCallback(() => {
     setMapMode((prevMode) =>
