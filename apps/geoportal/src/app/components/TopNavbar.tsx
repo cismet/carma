@@ -249,7 +249,7 @@ const TopNavbar = () => {
       </div>
 
       <div
-        // ref={menuTourRef}
+        ref={menuTourRef}
         className="flex items-center gap-6 absolute left-1/2 -ml-[140px]"
       >
         <Tooltip title="Aktualisieren">
