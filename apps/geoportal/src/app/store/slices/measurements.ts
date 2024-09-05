@@ -130,12 +130,11 @@ export const getMeasurementMode = (state: RootState) => {
 export const updateTitle = (shapeId, customTitle) => {
   return function (dispatch, getState) {
     const state = getState() as RootState;
-    console.log(state.measurements);
-    const shapeFromVisible = state.measurements?.visibleShapes.filter(
+    const shapeFromVisible = state.measurements.visibleShapes.filter(
       (s) => s.shapeId === shapeId,
     );
 
-    const visible = state.measurements?.visibleShapes.map((m) => {
+    const visible = state.measurements.visibleShapes.map((m) => {
       if (m.shapeId === shapeId) {
         return {
           ...shapeFromVisible[0],
@@ -145,11 +144,11 @@ export const updateTitle = (shapeId, customTitle) => {
       return m;
     });
 
-    const shapeFromAllShapes = state.measurements?.shapes.filter(
+    const shapeFromAllShapes = state.measurements.shapes.filter(
       (s) => s.shapeId === shapeId,
     );
 
-    const allMeasurements = state.measurements?.shapes.map((m) => {
+    const allMeasurements = state.measurements.shapes.map((m) => {
       if (m.shapeId === shapeId) {
         return {
           ...shapeFromAllShapes[0],
@@ -224,12 +223,10 @@ export const updateShapeById = (
 export const setLastVisibleShapeActive = () => {
   return function (dispatch, getState) {
     const state = getState();
-    if (state.measurements) {
-      const allShapes = state.measurements.shapes;
-      const lastShapeId = allShapes[allShapes.length - 1]?.shapeId;
-      if (lastShapeId) {
-        dispatch(setActiveShape(lastShapeId));
-      }
+    const allShapes = state.measurements.shapes;
+    const lastShapeId = allShapes[allShapes.length - 1].shapeId;
+    if (lastShapeId) {
+      dispatch(setActiveShape(lastShapeId));
     }
   };
 };

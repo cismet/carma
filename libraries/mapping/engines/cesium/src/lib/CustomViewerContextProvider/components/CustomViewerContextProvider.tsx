@@ -85,7 +85,7 @@ export const CustomViewerContextProvider = ({
     setViewer,
     ellipsoidTerrainProvider: new EllipsoidTerrainProvider(),
     terrainProvider: CesiumTerrainProvider.fromUrl(
-      providerConfig.terrainProvider?.url,
+      providerConfig.terrainProvider.url,
     ),
     imageryLayer: new ImageryLayer(imageryProvider),
     models: providerConfig.models,

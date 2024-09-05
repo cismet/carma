@@ -447,10 +447,6 @@ function CustomViewer(props: CustomViewerProps) {
       navigationInstructionsInitiallyVisible={false}
       //skyBox={true}
     >
-      <Entity
-        position={Cartesian3.fromDegrees(7.2, 51.271, 250)}
-        point={{ pixelSize: 50, color: Color.RED }}
-      />
       <BaseTilesets />
       {children}
     </ResiumViewer>
