@@ -20,5 +20,4 @@
     "dist/**": true,
     "node_modules/**": true
   },
-  "workbench.activityBar.orientation": "vertical"
 }
