@@ -61,13 +61,19 @@ const TopNavbar = () => {
 
   const [messageApi, contextHolder] = message.useMessage();
   const mode = useSelector(getMode);
-  const menuTourRef = useOverlayHelper("Menüleiste", {
-    containerPos: "center",
-    contentPos: "center",
+  const menuTourRef = useOverlayHelper({
+    primary: {
+      containerPos: "center",
+      contentPos: "center",
+      content: <div>Menüleiste</div>,
+    },
   });
-  const hintergrundTourRef = useOverlayHelper("Hintergrund", {
-    containerPos: "center",
-    contentPos: "center",
+  const hintergrundTourRef = useOverlayHelper({
+    primary: {
+      containerPos: "center",
+      contentPos: "center",
+      content: <div>Hintergrund</div>,
+    },
   });
 
   const extractVectorStyles = (keywords: string[]) => {

@@ -35,9 +35,12 @@ import SecondaryView from "./SecondaryView";
 import { useOverlayHelper } from "@carma/libraries/commons/ui/lib-helper-overlay";
 
 const LayerWrapper = () => {
-  const layerButtonTour = useOverlayHelper("Layer Buttons", {
-    containerPos: "center",
-    contentPos: "center",
+  const layerButtonTour = useOverlayHelper({
+    primary: {
+      containerPos: "center",
+      contentPos: "center",
+      content: <div>Layer Buttons</div>,
+    },
   });
   const dispatch = useDispatch();
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
