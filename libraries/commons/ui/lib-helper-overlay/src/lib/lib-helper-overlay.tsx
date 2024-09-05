@@ -56,7 +56,6 @@ export function LibHelperOverlay({
               height: rect.height,
               color: "white",
               ...pos,
-              // border: "1px solid red",
             }}
           >
             <span
@@ -64,7 +63,6 @@ export function LibHelperOverlay({
                 position: "absolute",
                 width: contentWidth === "default" ? "auto" : contentWidth,
                 ...contPos,
-                // border: "1px solid yellow",
               }}
             >
               {content}
