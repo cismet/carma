@@ -360,6 +360,7 @@ export const GeoportalMap = () => {
           <div
             className={"map-container-2d"}
             style={{
+              zIndex: 100,
               //visibility: isMode2d ? "visible" : "hidden",
               //opacity: isMode2d ? 1 : 0,
               //pointerEvents: isMode2d ? "auto" : "none",
@@ -614,13 +615,13 @@ export const GeoportalMap = () => {
                 className={"map-container-3d"}
                 style={{
                   position: "absolute",
-                  top: 200,
-                  left: 200,
-                  right: 200,
-                  bottom: 200,
-                  zIndex: 1000,
-                  //visibility: !isMode2d ? "visible" : "hidden",
-                  //pointerEvents: !isMode2d ? "auto" : "none",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  zIndex: 401,
+                  visibility: !isMode2d ? "visible" : "hidden",
+                  pointerEvents: !isMode2d ? "auto" : "none",
                 }}
               >
                 <CustomViewer

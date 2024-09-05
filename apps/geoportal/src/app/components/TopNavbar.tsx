@@ -62,6 +62,7 @@ const TopNavbar = () => {
   const mode = useSelector(getMode);
   const [messageApi, contextHolder] = message.useMessage();
   const baseUrl = window.location.origin + window.location.pathname;
+  const toggleSceneStyle = useSceneStyleToggle();
 
   const menuTourRef = useOverlayHelper(
     getCollabedHelpElementsConfig("MENULEISTE", geoElements),
