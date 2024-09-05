@@ -11,7 +11,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import LZString from "lz-string";
 import { useDispatch, useSelector } from "react-redux";
-
+import { backgroundSettings } from "@carma-collab/wuppertal/geoportal";
 import {
   getShowMeasurementButton,
   setBackgroundLayer,
@@ -57,7 +57,7 @@ function App({ published }: { published?: boolean }) {
     // TODO: remove if feature flag is removed
 
     dispatch(setAllow3d(searchParams.has("allow3d")));
-    
+
     // END FEATURE FLAG
 
     if (searchParams.get("sync")) {
@@ -121,8 +121,8 @@ function App({ published }: { published?: boolean }) {
     <OverlayTourProvider
       showOverlay={mode === "tour" ? true : false}
       closeOverlay={() => dispatch(setMode("default"))}
-      transparency={0.8}
-      color="black"
+      transparency={backgroundSettings.transparency}
+      color={backgroundSettings.color}
     >
       <TopicMapContextProvider>
         <div className="flex flex-col h-screen w-full">

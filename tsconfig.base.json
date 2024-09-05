@@ -45,6 +45,9 @@
         "libraries/collaboration/carma-wuppertal-collab/src/fnp-inspektor/index.ts"
       ],
       "@carma-collab/wuppertal/geoportal": ["libraries/collaboration/carma-wuppertal-collab/src/geoportal/index.tsx"],
+      "@carma-collab/wuppertal/helper-overlay": [
+        "libraries/collaboration/carma-wuppertal-collab/src/helper-overlay/index.ts"
+      ],
       "@carma-collab/wuppertal/hitzeinderstadt": [
         "libraries/collaboration/carma-wuppertal-collab/src/hitzeinderstadt/index.tsx"
       ],

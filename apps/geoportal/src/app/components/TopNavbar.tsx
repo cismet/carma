@@ -48,6 +48,8 @@ import { cn } from "../helper/helper";
 import { layerMap } from "../config";
 import { Save, Share, extractVectorStyles } from "@carma-apps/portals";
 import { useOverlayHelper } from "@carma/libraries/commons/ui/lib-helper-overlay";
+import { geoElements } from "@carma-collab/wuppertal/geoportal";
+import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 
 const TopNavbar = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -66,28 +68,16 @@ const TopNavbar = () => {
   const [messageApi, contextHolder] = message.useMessage();
   const baseUrl = window.location.origin + window.location.pathname;
 
-  const menuTourRef = useOverlayHelper({
-    primary: {
-      containerPos: "center",
-      contentPos: "center",
-      content: <div>Menüleiste</div>,
-    },
-  });
+  const menuTourRef = useOverlayHelper(
+    getCollabedHelpElementsConfig("MENULEISTE", geoElements),
+  );
 
-  const hintergrundTourRef = useOverlayHelper({
-    primary: {
-      containerPos: "center",
-      contentPos: "center",
-      content: <div>Hintergrund</div>,
-    },
-  });
-  const modalMenuTourRef = useOverlayHelper({
-    primary: {
-      containerPos: "center",
-      contentPos: "center",
-      content: <div>Menü</div>,
-    },
-  });
+  const hintergrundTourRef = useOverlayHelper(
+    getCollabedHelpElementsConfig("HINTERGRUND", geoElements),
+  );
+  const modalMenuTourRef = useOverlayHelper(
+    getCollabedHelpElementsConfig("MENU", geoElements),
+  );
 
   const updateLayers = async (
     layer: Item,
