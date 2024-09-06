@@ -41,8 +41,23 @@ export interface OverlayHelperConfig {
   secondary?: Secondary;
 }
 
+type SecondaryPlacement =
+  | "top"
+  | "left"
+  | "right"
+  | "bottom"
+  | "topLeft"
+  | "topRight"
+  | "bottomLeft"
+  | "bottomRight"
+  | "leftTop"
+  | "leftBottom"
+  | "rightTop"
+  | "rightBottom";
+
 export type Secondary = {
   content: JSX.Element | string;
+  secondaryPos?: SecondaryPlacement;
 };
 
 export type OptionsOverlayHelper = {
@@ -65,6 +80,7 @@ export interface HighlightRect {
   contPos: Position;
   contentWidth?: string;
   secondary?: JSX.Element | string;
+  secondaryPos?: SecondaryPlacement;
 }
 
 export type OverlayTourProviderProps = {

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { OverlayHelperHightlighterProps, HighlightRect, Secondary } from "..";
+import { OverlayHelperHightlighterProps, HighlightRect } from "..";
 import { getContainerPosition, getElementPosition } from "./utils/helper";
 import { Popover } from "antd";
 
@@ -12,12 +12,14 @@ export function LibHelperOverlay({
   const [hightlightRects, setHightlightRects] = useState<HighlightRect[]>([]);
   useEffect(() => {
     configs.forEach((currentItem) => {
-      let secondary: JSX.Element | string | undefined = undefined;
-      if (currentItem.secondary) {
-        secondary = currentItem.secondary.content;
-      }
-      const { el, content, containerPos, contentPos, contentWidth } =
-        currentItem;
+      const {
+        el,
+        content,
+        containerPos = "center",
+        contentPos = "center",
+        contentWidth,
+        secondary,
+      } = currentItem;
       const rect = el.getBoundingClientRect();
       const pos = getContainerPosition(containerPos);
       const contPos = getElementPosition(contentPos);
@@ -31,7 +33,10 @@ export function LibHelperOverlay({
           contentPos,
           contPos,
           contentWidth,
-          ...(secondary && { secondary }),
+          secondary: secondary?.content,
+          secondaryPos: secondary?.secondaryPos
+            ? secondary?.secondaryPos
+            : "top",
         },
       ]);
     });
@@ -55,11 +60,17 @@ export function LibHelperOverlay({
       onClick={() => closeOverlay()}
     >
       {hightlightRects.map((config, idx) => {
-        let secondary: JSX.Element | string | undefined = undefined;
-        if (config.secondary) {
-          secondary = config.secondary;
-        }
-        const { rect, content, pos, contPos, contentWidth } = config;
+        const {
+          rect,
+          content,
+          pos,
+          contPos,
+          contentWidth,
+          secondary,
+          secondaryPos,
+        } = config;
+
+        console.log("xxx", secondaryPos);
 
         return (
           <div
@@ -83,7 +94,11 @@ export function LibHelperOverlay({
               }}
             >
               {secondary ? (
-                <Popover content={secondary} trigger="click">
+                <Popover
+                  content={secondary}
+                  trigger="click"
+                  placement={secondaryPos}
+                >
                   {content}
                 </Popover>
               ) : (

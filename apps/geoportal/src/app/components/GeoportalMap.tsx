@@ -165,8 +165,6 @@ export const GeoportalMap = () => {
   const gazetteerControlTourRef = useOverlayHelper({
     primary: {
       content: <div>Gazzetteer</div>,
-      containerPos: "right",
-      contentPos: "left-center",
     },
     secondary: {
       content: (
@@ -175,6 +173,7 @@ export const GeoportalMap = () => {
           <img src={FuzzyTempScreen} />
         </div>
       ),
+      secondaryPos: "top",
     },
   });
 
