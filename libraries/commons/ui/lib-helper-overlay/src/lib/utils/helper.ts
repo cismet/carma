@@ -12,10 +12,10 @@ export function getContainerPosition(
       styleElement.transform = "translate(0, -100%)";
       break;
     case "left":
-      styleElement.transform = "translate(-100%, 0)";
+      styleElement.transform = "translate(-102%, 0)";
       break;
     case "right":
-      styleElement.transform = "translate(100%, 0)";
+      styleElement.transform = "translate(102%, 0)";
       break;
     case "bottom":
       styleElement.transform = "translate(0, 100%)";

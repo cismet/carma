@@ -90,6 +90,7 @@ import {
 } from "../store/slices/features.ts";
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
+import FuzzyTempScreen from "../../assets/fuzzy-search-screen.png";
 
 enum MapMode {
   _2D = "2D",
@@ -163,9 +164,18 @@ export const GeoportalMap = () => {
   // );
   const gazetteerControlTourRef = useOverlayHelper({
     primary: {
-      content: <div>GAZETTEER_SUCHE</div>,
+      content: <div>Gazzetteer</div>,
+      containerPos: "right",
+      contentPos: "left-center",
     },
-    secondary: { content: <div>Secondary</div> },
+    secondary: {
+      content: (
+        <div>
+          <h3 className="text-center">Gazzetteer info</h3>
+          <img src={FuzzyTempScreen} />
+        </div>
+      ),
+    },
   });
 
   const toggleMapMode = useCallback(() => {

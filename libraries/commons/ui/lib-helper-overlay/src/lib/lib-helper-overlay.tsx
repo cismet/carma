@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { OverlayHelperHightlighterProps, HighlightRect, Secondary } from "..";
 import { getContainerPosition, getElementPosition } from "./utils/helper";
+import { Popover } from "antd";
 
 export function LibHelperOverlay({
   configs,
@@ -81,8 +82,13 @@ export function LibHelperOverlay({
                 ...contPos,
               }}
             >
-              {content}
-              {secondary && secondary}
+              {secondary ? (
+                <Popover content={secondary} trigger="click">
+                  {content}
+                </Popover>
+              ) : (
+                content
+              )}
             </span>
           </div>
         );
