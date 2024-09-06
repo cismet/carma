@@ -158,9 +158,15 @@ export const GeoportalMap = () => {
     getCollabedHelpElementsConfig("MESSUNGEN", geoElements),
   );
 
-  const gazetteerControlTourRef = useOverlayHelper(
-    getCollabedHelpElementsConfig("GAZETTEER_SUCHE", geoElements),
-  );
+  // const gazetteerControlTourRef = useOverlayHelper(
+  //   getCollabedHelpElementsConfig("GAZETTEER_SUCHE", geoElements),
+  // );
+  const gazetteerControlTourRef = useOverlayHelper({
+    primary: {
+      content: <div>GAZETTEER_SUCHE</div>,
+    },
+    secondary: { content: <div>Secondary</div> },
+  });
 
   const toggleMapMode = useCallback(() => {
     setMapMode((prevMode) =>

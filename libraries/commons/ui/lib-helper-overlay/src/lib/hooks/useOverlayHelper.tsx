@@ -1,5 +1,5 @@
 import React, { useState, useContext, useLayoutEffect } from "react";
-import { OptionsOverlayHelper, OverlayHelperConfig } from "../..";
+import { OptionsOverlayHelper, OverlayHelperConfig, Secondary } from "../..";
 import { OverlayTourContext } from "../components/OverlayTourProvider";
 const useOverlayHelper = (
   options: OptionsOverlayHelper = {
@@ -14,16 +14,27 @@ const useOverlayHelper = (
   const [ref, setRef] = useState<HTMLElement | null>(null);
   const { addConfig, removeConfig } = useContext(OverlayTourContext);
   const { containerPos, contentPos, contentWidth, content } = options.primary;
+  let secondary: Secondary | undefined = undefined;
+
+  if (options.secondary) {
+    secondary = options.secondary;
+  }
+
   useLayoutEffect(() => {
     if (!ref) return;
 
-    const config: OverlayHelperConfig = {
+    let config: OverlayHelperConfig = {
       el: ref,
       content,
       containerPos,
       contentPos,
       contentWidth,
+      ...(secondary && { secondary }),
     };
+
+    // if(secondary){
+    //   config
+    // }
     addConfig(config);
 
     return () => {

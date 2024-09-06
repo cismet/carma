@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { OverlayHelperHightlighterProps, HighlightRect } from "..";
+import { OverlayHelperHightlighterProps, HighlightRect, Secondary } from "..";
 import { getContainerPosition, getElementPosition } from "./utils/helper";
 
 export function LibHelperOverlay({
@@ -11,6 +11,10 @@ export function LibHelperOverlay({
   const [hightlightRects, setHightlightRects] = useState<HighlightRect[]>([]);
   useEffect(() => {
     configs.forEach((currentItem) => {
+      let secondary: JSX.Element | string | undefined = undefined;
+      if (currentItem.secondary) {
+        secondary = currentItem.secondary.content;
+      }
       const { el, content, containerPos, contentPos, contentWidth } =
         currentItem;
       const rect = el.getBoundingClientRect();
@@ -19,7 +23,15 @@ export function LibHelperOverlay({
 
       setHightlightRects((prev) => [
         ...prev,
-        { rect, content, pos, contentPos, contPos, contentWidth },
+        {
+          rect,
+          content,
+          pos,
+          contentPos,
+          contPos,
+          contentWidth,
+          ...(secondary && { secondary }),
+        },
       ]);
     });
   }, [configs]);
@@ -42,6 +54,10 @@ export function LibHelperOverlay({
       onClick={() => closeOverlay()}
     >
       {hightlightRects.map((config, idx) => {
+        let secondary: JSX.Element | string | undefined = undefined;
+        if (config.secondary) {
+          secondary = config.secondary;
+        }
         const { rect, content, pos, contPos, contentWidth } = config;
 
         return (
@@ -66,6 +82,7 @@ export function LibHelperOverlay({
               }}
             >
               {content}
+              {secondary && secondary}
             </span>
           </div>
         );

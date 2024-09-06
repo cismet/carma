@@ -38,7 +38,12 @@ export interface OverlayHelperConfig {
   containerPos?: PositionOverlayHelper;
   contentPos?: PositionOverlayHelper;
   contentWidth?: string;
+  secondary?: Secondary;
 }
+
+export type Secondary = {
+  content: JSX.Element | string;
+};
 
 export type OptionsOverlayHelper = {
   primary: {
@@ -47,6 +52,7 @@ export type OptionsOverlayHelper = {
     contentWidth?: string;
     content: JSX.Element | string;
   };
+  secondary?: Secondary;
 };
 
 type Position = { [key: string]: string | number };
@@ -58,6 +64,7 @@ export interface HighlightRect {
   contentPos: any;
   contPos: Position;
   contentWidth?: string;
+  secondary?: JSX.Element | string;
 }
 
 export type OverlayTourProviderProps = {
