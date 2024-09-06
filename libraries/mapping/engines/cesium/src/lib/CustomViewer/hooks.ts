@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Viewer,
   BoundingSphere,
@@ -8,13 +8,15 @@ import {
 } from "cesium";
 import { useDispatch } from "react-redux";
 import {
+  setIsAnimating,
   setShowPrimaryTileset,
   setShowSecondaryTileset,
+  useViewerHome,
 } from "../CustomViewerContextProvider/slices/cesium";
 import { decodeSceneFromLocation } from "./utils";
 import { setupSecondaryStyle } from "./components/baseTileset.hook";
 import { useLocation } from "react-router-dom";
-import { useCustomViewerContext } from "../CustomViewerContextProvider";
+import { useCesiumCustomViewer } from "../CustomViewerContextProvider";
 
 const useInitializeViewer = (
   viewer: Viewer | null,
@@ -24,7 +26,7 @@ const useInitializeViewer = (
   const [hash, setHash] = useState<string | null>(null); // effectively hook should run only once
   const dispatch = useDispatch();
   const location = useLocation();
-  const viewerContext = useCustomViewerContext();
+  const viewerContext = useCesiumCustomViewer();
 
   useEffect(() => {
     if (viewer && hash === null) {
@@ -45,7 +47,7 @@ const useInitializeViewer = (
 
       if (isSecondaryStyle) {
         console.log("HOOK: set secondary style from hash");
-        setupSecondaryStyle(viewer, viewerContext);
+        setupSecondaryStyle(viewerContext);
         dispatch(setShowPrimaryTileset(false));
         dispatch(setShowSecondaryTileset(true));
       }
@@ -85,6 +87,32 @@ const useInitializeViewer = (
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewer, home, homeOffset, location.pathname, hash]);
+};
+
+export const useHomeControl = () => {
+  const dispatch = useDispatch();
+  const { viewer } = useCesiumCustomViewer();
+  const homePosition = useViewerHome();
+  const [homePos, setHomePos] = useState<Cartesian3 | null>(null);
+
+  useEffect(() => {
+    viewer &&
+      homePosition &&
+      setHomePos(
+        new Cartesian3(homePosition.x, homePosition.y, homePosition.z),
+      );
+  }, [viewer, homePosition]);
+
+  const handleHomeClick = useCallback(() => {
+    console.log("homePos click", homePos, viewer);
+    if (viewer && homePos) {
+      dispatch(setIsAnimating(false));
+      const boundingSphere = new BoundingSphere(homePos, 400);
+      viewer.camera.flyToBoundingSphere(boundingSphere);
+    }
+  }, [viewer, homePos, dispatch]);
+
+  return handleHomeClick;
 };
 
 export default useInitializeViewer;

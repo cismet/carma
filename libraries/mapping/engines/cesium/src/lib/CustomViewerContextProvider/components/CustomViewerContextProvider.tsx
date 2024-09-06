@@ -10,12 +10,12 @@ import {
   WebMapTileServiceImageryProvider,
   Viewer,
 } from "cesium";
-import { ModelAsset, CesiumState } from "../../..";
+import { ModelAsset } from "../../..";
 
-interface CustomViewerContextType {
+export interface CustomViewerContextType {
   viewer: Viewer | null;
   setViewer: null | ((viewer: Viewer | null) => void);
-  terrainProvider: Promise<CesiumTerrainProvider> | null;
+  terrainProvider: Promise<CesiumTerrainProvider> | CesiumTerrainProvider | null;
   //imageryProvider:    | WebMapServiceImageryProvider    | WebMapTileServiceImageryProvider    | null;
   imageryLayer: ImageryLayer | null;
   ellipsoidTerrainProvider: EllipsoidTerrainProvider | null;
@@ -32,7 +32,7 @@ export const CustomViewerContext = createContext<CustomViewerContextType>({
   models: null,
 });
 
-export const useCustomViewerContext = () => {
+export const useCesiumCustomViewer = () => {
   const context = useContext(CustomViewerContext);
   if (context === undefined) {
     throw new Error('useViewer must be used within a CustomViewerProvider');
@@ -40,16 +40,7 @@ export const useCustomViewerContext = () => {
   return context;
 };
 
-export const useCesiumCustomViewer = () => {
-  const context = useContext(CustomViewerContext);
-  if (context === undefined) {
-    throw new Error('useViewer must be used within a CustomViewerProvider');
-  }
-  return {
-    viewer: context.viewer,
-    setViewer: context.setViewer
-  } as const;
-};
+
 
 export const CustomViewerContextProvider = ({
   children,

@@ -1,16 +1,12 @@
 import { SearchGazetteer } from "../../components/SearchGazetteer";
-import { useCesium } from "resium";
-import { useCustomViewerContext } from "../../CustomViewerContextProvider";
 import { FC, useState } from "react";
+import { useCesiumCustomViewer } from "../../CustomViewerContextProvider/components/CustomViewerContextProvider";
 
 interface SearchWrapperProps {
-  viewer?: any; // Replace 'any' with the actual type of the viewer
 }
 
-const SearchWrapper: FC<SearchWrapperProps> = ({ viewer }) => {
-  const resiumCtx = useCesium();
-  const { models } = useCustomViewerContext();
-  const ctx = viewer ?? resiumCtx.viewer;
+const SearchWrapper: FC<SearchWrapperProps> = () => {
+  const { viewer, models } = useCesiumCustomViewer();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [hit, setHit] = useState<any | null>(null);
@@ -21,13 +17,13 @@ const SearchWrapper: FC<SearchWrapperProps> = ({ viewer }) => {
     console.info("handleSetOverlayFeature is still to be implemented", feature);
   };
   return (
-    <SearchGazetteer
+    viewer && <SearchGazetteer
       //gazData={[]}
       gazetteerHit={hit ?? undefined}
       setGazetteerHit={(hit) => {
         console.info("gazatteer on hit not implented", hit);
       }}
-      cesiumRef={ctx}
+      cesiumRef={viewer}
       setOverlayFeature={handleSetOverlayFeature}
       //referenceSystem={null}
       //referenceSystemDefinition={null}

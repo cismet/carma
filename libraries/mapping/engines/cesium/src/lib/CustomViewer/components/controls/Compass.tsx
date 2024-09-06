@@ -14,6 +14,7 @@ import { useCesiumCustomViewer } from "../../../CustomViewerContextProvider";
 
 type CompassProps = {
   children?: ReactNode;
+  disabled?: boolean;
 };
 
 const MIN_TOP_DOWN_DISTANCE = 50;
@@ -78,7 +79,7 @@ export const Compass = (props: CompassProps) => {
   };
 
   return (
-    <ControlButtonStyler title="Einnorden" onClick={handleFlyToCenter}>
+    <ControlButtonStyler title="Einnorden" onClick={handleFlyToCenter} disabled={props.disabled}>
       <FontAwesomeIcon icon={faCompass}></FontAwesomeIcon>
     </ControlButtonStyler>
   );

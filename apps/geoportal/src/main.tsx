@@ -8,6 +8,12 @@ import { persistStore } from "redux-persist";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
 import { CESIUM_BASE_URL } from "./app/config/app.config";
 
+declare global {
+  interface Window {
+    CESIUM_BASE_URL: string;
+  }
+}
+
 const persistor = persistStore(store);
 
 const createRouter = () => createHashRouter([

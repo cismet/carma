@@ -25,6 +25,14 @@ see vitestaticcopy plugin
 3. Adjust CESIUM_BASE_URL in window
 window.CESIUM_BASE_URL = CESIUM_BASE_URL;
 
+add GLOBAL type for window.CESIUM_BASE_URL
+
+declare global {
+  interface Window {
+    CESIUM_BASE_URL: string;
+  }
+}
+
 
 Resources:
 https://community.cesium.com/t/is-there-a-good-way-to-use-cesium-with-vite/27545

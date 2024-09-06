@@ -58,6 +58,7 @@ import {
   SceneStyleToggle,
   Compass,
   HomeControl,
+  useCesiumCustomViewer,
 } from "@carma-mapping/cesium-engine";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import GazetteerHitDisplay from "react-cismap/GazetteerHitDisplay";
@@ -90,6 +91,7 @@ import {
 } from "../store/slices/features.ts";
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
+import { useHomeControl } from "libraries/mapping/engines/cesium/src/lib/CustomViewer/hooks.ts";
 
 export const GeoportalMap = () => {
   const [gazData, setGazData] = useState([]);
@@ -116,6 +118,8 @@ export const GeoportalMap = () => {
   const showHamburgerMenu = useSelector(getShowHamburgerMenu);
   const showMeasurementButton = useSelector(getShowMeasurementButton);
   const focusMode = useSelector(getFocusMode);
+  const { viewer } = useCesiumCustomViewer();
+  const homeControl = useHomeControl();
   const [urlParams, setUrlParams] = useSearchParams();
   const [layoutHeight, setLayoutHeight] = useState(null);
   const {
@@ -213,6 +217,7 @@ export const GeoportalMap = () => {
           <ControlButtonStyler
             onClick={() => {
               routedMapRef.leafletMap.leafletElement.zoomIn();
+              viewer?.scene.camera.zoomIn();
             }}
             className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
           >
@@ -221,6 +226,7 @@ export const GeoportalMap = () => {
           <ControlButtonStyler
             onClick={() => {
               routedMapRef.leafletMap.leafletElement.zoomOut();
+              viewer?.scene.camera.zoomOut();
             }}
             className="!rounded-t-none !border-t-[1px]"
           >
@@ -260,11 +266,13 @@ export const GeoportalMap = () => {
       <Control position="topleft" order={40}>
         <ControlButtonStyler
           ref={homeControlTourRef}
-          onClick={() =>
+          onClick={() => {
             routedMapRef.leafletMap.leafletElement.flyTo(
               [51.272570027476256, 7.199918031692506],
               18,
-            )
+            );
+            homeControl();
+          }
           }
         >
           <FontAwesomeIcon icon={faHouseChimney} className="text-lg" />
@@ -273,8 +281,9 @@ export const GeoportalMap = () => {
       <Control position="topleft" order={50}>
         {showMeasurementButton && (
           <div className="flex items-center gap-4">
-            <Tooltip title="Strecke / Fläche messen" placement="right">
+            <Tooltip title={isMode2d ? "Strecke / Fläche messen" : "zum messen zu 2D-Modus wechseln"} placement="right">
               <ControlButtonStyler
+                disabled={!isMode2d}
                 onClick={() => {
                   dispatch(
                     setMode(mode === "measurement" ? "default" : "measurement"),
@@ -311,11 +320,9 @@ export const GeoportalMap = () => {
           <MapTypeSwitcher />
           {
             //<SceneStyleToggle />
-          }
-          <Compass />
-          {
+            <Compass disabled={isMode2d} />
             // TODO implement cesium home action with generic home control for all mapping engines
-            <HomeControl />
+            //<HomeControl />
           }
         </Control>
       )}

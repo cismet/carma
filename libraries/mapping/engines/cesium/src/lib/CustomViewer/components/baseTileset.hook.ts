@@ -1,30 +1,34 @@
 import { useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
-import { useCesium } from "resium";
-import { CesiumTerrainProvider, Color, Viewer } from "cesium";
+import { CesiumTerrainProvider, Color } from "cesium";
 import {
   setShowPrimaryTileset,
   setShowSecondaryTileset,
 } from "../../CustomViewerContextProvider/slices/cesium";
 import { SceneStyles } from "../../..";
 import {
+  CustomViewerContextType,
   useCesiumCustomViewer,
-  useCustomViewerContext,
 } from "../../CustomViewerContextProvider/components/CustomViewerContextProvider";
 
 // TODO move combined common setup out of here
 
-const setupPrimaryStyle = (
-  viewer: Viewer,
-  { terrainProvider, imageryLayer },
-) => {
+const setupPrimaryStyle = ({
+  viewer,
+  terrainProvider,
+  imageryLayer,
+}: CustomViewerContextType) => {
   (async () => {
+    if (!viewer) return;
     viewer.scene.globe.baseColor = Color.DARKGRAY;
 
     if (viewer.scene.terrainProvider instanceof CesiumTerrainProvider) {
       //viewer.scene.terrainProvider = ellipsoidTerrainProvider;
     } else {
-      viewer.scene.terrainProvider = await terrainProvider;
+      const provider = await terrainProvider;
+      if (provider) {
+        viewer.scene.terrainProvider = provider;
+      }
     }
     // viewer.scene.globe.depthTestAgainstTerrain = false;
 
@@ -37,10 +41,11 @@ const setupPrimaryStyle = (
   })();
 };
 
-export const setupSecondaryStyle = (
-  viewer: Viewer,
-  { terrainProvider, imageryLayer },
-) => {
+export const setupSecondaryStyle = ({
+  viewer,
+  terrainProvider,
+  imageryLayer,
+}) => {
   if (!viewer) return;
   (async () => {
     viewer.scene.globe.baseColor = Color.WHITE;
@@ -72,17 +77,17 @@ export const useSceneStyleToggle = (
   const { viewer } = useCesiumCustomViewer();
   const [currentStyle, setCurrentStyle] =
     useState<keyof SceneStyles>(initialStyle);
-  const customViewerContext = useCustomViewerContext();
+  const customViewerContext = useCesiumCustomViewer();
 
   useEffect(() => {
     if (!viewer) return;
 
     if (currentStyle === "primary") {
-      setupPrimaryStyle(viewer, customViewerContext);
+      setupPrimaryStyle(customViewerContext);
       dispatch(setShowPrimaryTileset(true));
       dispatch(setShowSecondaryTileset(false));
     } else {
-      setupSecondaryStyle(viewer, customViewerContext);
+      setupSecondaryStyle(customViewerContext);
       dispatch(setShowPrimaryTileset(false));
       dispatch(setShowSecondaryTileset(true));
     }

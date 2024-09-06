@@ -33,7 +33,7 @@ const OtherRoutes = routeGenerator(otherRoutes);
 export function App() {
   return (
     <CustomViewerContextProvider
-      initialViewerState={defaultViewerState}
+      //initialViewerState={defaultViewerState}
       providerConfig={{
         terrainProvider: WUPP_TERRAIN_PROVIDER,
         imageryProvider: BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
