@@ -281,9 +281,9 @@ export const GeoportalMap = () => {
       <Control position="topleft" order={50}>
         {showMeasurementButton && (
           <div className="flex items-center gap-4">
-            <Tooltip title={isMode2d ? "Strecke / Fläche messen" : "zum messen zu 2D-Modus wechseln"} placement="right">
+            <Tooltip title={(allow3d && isMode2d) ? "Strecke / Fläche messen" : "zum messen zu 2D-Modus wechseln"} placement="right">
               <ControlButtonStyler
-                disabled={!isMode2d}
+                disabled={allow3d && !isMode2d}
                 onClick={() => {
                   dispatch(
                     setMode(mode === "measurement" ? "default" : "measurement"),

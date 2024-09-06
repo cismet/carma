@@ -23,6 +23,7 @@ import {
 import {
   getAllowUiChanges,
   getMode,
+  setAllow3d,
   setAllowUiChanges,
   setMode,
   setShowLayerButtons,
@@ -57,7 +58,7 @@ function App({ published }: { published?: boolean }) {
   useEffect(() => {
     // TODO: remove if feature flag is removed
 
-    //dispatch(setAllow3d(searchParams.has("allow3d")));
+    dispatch(setAllow3d(searchParams.has("allow3d")));
 
     // END FEATURE FLAG
 
