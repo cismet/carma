@@ -50,6 +50,7 @@ import { Save, Share, extractVectorStyles } from "@carma-apps/portals";
 import { useOverlayHelper } from "@carma/libraries/commons/ui/lib-helper-overlay";
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
+import MenuTempScreenshot from "../../assets/menu-temp-screenshot.png";
 
 const TopNavbar = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -75,9 +76,18 @@ const TopNavbar = () => {
   const hintergrundTourRef = useOverlayHelper(
     getCollabedHelpElementsConfig("HINTERGRUND", geoElements),
   );
-  const modalMenuTourRef = useOverlayHelper(
-    getCollabedHelpElementsConfig("MENU", geoElements),
-  );
+  // const modalMenuTourRef = useOverlayHelper(
+  //   getCollabedHelpElementsConfig("MENU", geoElements),
+  // );
+  const modalMenuTourRef = useOverlayHelper({
+    primary: {
+      content: <div>Menü</div>,
+    },
+    secondary: {
+      content: <img src={MenuTempScreenshot} />,
+      secondaryPos: "bottomLeft",
+    },
+  });
 
   const updateLayers = async (
     layer: Item,

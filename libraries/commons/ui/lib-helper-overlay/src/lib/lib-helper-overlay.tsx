@@ -99,7 +99,7 @@ export function LibHelperOverlay({
                   trigger="click"
                   placement={secondaryPos}
                 >
-                  {content}
+                  <span style={{ cursor: "pointer" }}>{content}</span>
                 </Popover>
               ) : (
                 content
