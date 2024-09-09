@@ -16,11 +16,12 @@ import {
   updateTitle,
 } from "../../store/slices/measurements";
 import { useSelector, useDispatch } from "react-redux";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTrashCan } from "@fortawesome/free-solid-svg-icons";
 import MeasurementTitle from "./MeasurementTitle";
 import Icon from "react-cismap/commons/Icon";
+import { UIContext } from "react-cismap/contexts/UIContextProvider";
 
 const InfoBoxMeasurement = () => {
   const measurementsData = useSelector(getShapes);
@@ -36,6 +37,7 @@ const InfoBoxMeasurement = () => {
   const [stepAfterMoveToShape, setStepAfterMoveToShape] = useState(null);
   const [stepAfterUpdating, setStepAfterUpdating] = useState(false);
   const [stepAfterCreating, setStepAfterCreating] = useState(false);
+  const { collapsedInfoBox } = useContext(UIContext);
 
   useEffect(() => {
     if (moveToShape) {
@@ -186,7 +188,6 @@ const InfoBoxMeasurement = () => {
           header={
             <div className="w-full bg-blue-500 py-0.5 pl-1">Messungen</div>
           }
-          // s
           alwaysVisibleDiv={
             <div className="mt-2 mb-2 w-[96%] flex justify-between items-start gap-4">
               <span style={{ cursor: "pointer" }}>
@@ -208,9 +209,12 @@ const InfoBoxMeasurement = () => {
                   shapeId={visibleShapesData[currentMeasure].shapeId}
                   setUpdateMeasurementStatus={setUpdateMeasurementStatus}
                   updateTitleMeasurementById={updateTitleMeasurementById}
-                  tooltip={`Messungsnummer #${getOrderOfShape(
-                    visibleShapesData[currentMeasure].shapeId,
-                  )}`}
+                  isCollapsed={collapsedInfoBox}
+                  collapsedContent={
+                    visibleShapesData[currentMeasure].shapeType === "polygon"
+                      ? `Fläche: ${visibleShapesData[currentMeasure].area}`
+                      : `Entfernung: ${visibleShapesData[currentMeasure].distance}`
+                  }
                 />
               </span>
               {/* <div>{visibleShapesData[currentMeasure].shapeId}</div> */}

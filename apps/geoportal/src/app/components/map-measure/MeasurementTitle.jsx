@@ -6,7 +6,8 @@ const MeasurementTitle = ({
   order,
   updateTitleMeasurementById,
   setUpdateMeasurementStatus,
-  tooltip,
+  isCollapsed,
+  collapsedContent,
 }) => {
   const [content, setContent] = useState(title.trim());
   const [oldContent, setOldContent] = useState(title);
@@ -15,7 +16,6 @@ const MeasurementTitle = ({
 
   return (
     <div>
-      {/* <Tooltip title={tooltip} placement="topRight"> */}
       <span
         onBlur={(t) => {
           const trimmedContent = t.currentTarget.textContent.trim();
@@ -36,7 +36,7 @@ const MeasurementTitle = ({
         dangerouslySetInnerHTML={{ __html: capitalizeFirstLetter(content) }}
       ></span>
       <span className="ml-1 text-[14px] text-[#979797]">#{order}</span>
-      {/* </Tooltip> */}
+      {isCollapsed && <span>{collapsedContent}</span>}
     </div>
   );
 };
