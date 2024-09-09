@@ -190,7 +190,7 @@ const InfoBoxMeasurement = () => {
           }
           alwaysVisibleDiv={
             <div className="mt-2 mb-2 w-[96%] flex justify-between items-start gap-4">
-              <span style={{ cursor: "pointer" }}>
+              <span style={{ cursor: "pointer", width: "100%" }}>
                 <MeasurementTitle
                   key={
                     visibleShapesData[currentMeasure].shapeId +
