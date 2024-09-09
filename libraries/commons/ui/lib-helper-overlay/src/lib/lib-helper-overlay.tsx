@@ -98,8 +98,15 @@ export function LibHelperOverlay({
                   content={secondary}
                   trigger="click"
                   placement={secondaryPos}
+                  autoAdjustOverflow={false}
                 >
-                  <span style={{ cursor: "pointer" }}>{content}</span>
+                  <span
+                    style={{
+                      cursor: "pointer",
+                    }}
+                  >
+                    {content}
+                  </span>
                 </Popover>
               ) : (
                 content

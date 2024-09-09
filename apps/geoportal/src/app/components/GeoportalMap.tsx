@@ -91,6 +91,7 @@ import {
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 import FuzzyTempScreen from "../../assets/fuzzy-search-screen.png";
+import MeasurementTempScreen from "../../assets/measurement-temp-screenshot.png";
 
 enum MapMode {
   _2D = "2D",
@@ -155,9 +156,25 @@ export const GeoportalMap = () => {
   const homeControlTourRef = useOverlayHelper(
     getCollabedHelpElementsConfig("RATHAUS", geoElements),
   );
-  const measurementControlTourRef = useOverlayHelper(
-    getCollabedHelpElementsConfig("MESSUNGEN", geoElements),
-  );
+  // const measurementControlTourRef = useOverlayHelper(
+  //   getCollabedHelpElementsConfig("MESSUNGEN", geoElements),
+  // );
+
+  const measurementControlTourRef = useOverlayHelper({
+    primary: {
+      content: <div>Messungen</div>,
+      containerPos: "center",
+      contentPos: "left-center",
+    },
+    secondary: {
+      content: (
+        <div className="max-w-2xl">
+          <img src={MeasurementTempScreen} />
+        </div>
+      ),
+      secondaryPos: "right",
+    },
+  });
 
   // const gazetteerControlTourRef = useOverlayHelper(
   //   getCollabedHelpElementsConfig("GAZETTEER_SUCHE", geoElements),
@@ -168,7 +185,7 @@ export const GeoportalMap = () => {
     },
     secondary: {
       content: (
-        <div>
+        <div style={{ width: "280px" }}>
           <h3 className="text-center">Gazzetteer info</h3>
           <img src={FuzzyTempScreen} />
         </div>

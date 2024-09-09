@@ -84,8 +84,12 @@ const TopNavbar = () => {
       content: <div>Menü</div>,
     },
     secondary: {
-      content: <img src={MenuTempScreenshot} />,
-      secondaryPos: "bottomLeft",
+      content: (
+        <div className="max-w-5xl">
+          <img src={MenuTempScreenshot} />
+        </div>
+      ),
+      secondaryPos: "bottomRight",
     },
   });
 
