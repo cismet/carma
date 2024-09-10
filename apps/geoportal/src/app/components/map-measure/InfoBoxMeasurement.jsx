@@ -213,7 +213,7 @@ const InfoBoxMeasurement = () => {
                   collapsedContent={
                     visibleShapesData[currentMeasure].shapeType === "polygon"
                       ? `Fläche: ${visibleShapesData[currentMeasure].area}`
-                      : `Entfernung: ${visibleShapesData[currentMeasure].distance}`
+                      : `Strecke: ${visibleShapesData[currentMeasure].distance}`
                   }
                 />
               </span>
@@ -240,7 +240,9 @@ const InfoBoxMeasurement = () => {
           collapsibleDiv={
             <div>
               <div className="text-[12px] mb-1">
-                Entfernung: {visibleShapesData[currentMeasure].distance}
+                {visibleShapesData[currentMeasure]?.area
+                  ? `Entfernung: ${visibleShapesData[currentMeasure].distance}`
+                  : `Strecke: ${visibleShapesData[currentMeasure].distance}`}
               </div>
               {visibleShapesData[currentMeasure]?.area && (
                 <div className="text-[12px] mb-1">
