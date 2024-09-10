@@ -32,14 +32,12 @@ const MeasurementTitle = ({
         }}
         onFocus={(t) => {}}
         contentEditable
-        className="text-[14px] min-h-[20px] min-w-[10px]"
+        className="text-[14px] min-h-[20px] min-w-[10px] mr-1"
         dangerouslySetInnerHTML={{ __html: capitalizeFirstLetter(content) }}
       ></span>
-      <span className="ml-1 text-[14px] text-[#979797]">#{order}</span>
+      <span className="text-[14px] text-[#979797] mr-2">#{order}</span>
       {isCollapsed && (
-        <div className="text-[12px] mb-1 text-[#808080]">
-          {collapsedContent}
-        </div>
+        <span className="text-[12px] text-[#808080]">{collapsedContent}</span>
       )}
     </div>
   );
