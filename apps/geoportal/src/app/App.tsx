@@ -31,7 +31,7 @@ import {
 } from "./store/slices/ui";
 import { Layer } from "@carma-mapping/layers";
 import { CrossTabCommunicationContextProvider } from "react-cismap/contexts/CrossTabCommunicationContextProvider";
-import HomeButton from "./components/HomeButton";
+import HomeButton from "./components/controls/HomeButton";
 import type { BackgroundLayer, Settings } from "@carma-apps/portals";
 import { OverlayTourProvider } from "@carma/libraries/commons/ui/lib-helper-overlay";
 import {
