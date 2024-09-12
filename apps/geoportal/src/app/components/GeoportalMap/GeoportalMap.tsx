@@ -1,7 +1,7 @@
-import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import { useDispatch, useSelector } from "react-redux";
-import { getGazData, paramsToObject } from "../helper/helper.ts";
+import { getGazData, paramsToObject } from "../../helper/helper.ts";
 import {
   getBackgroundLayer,
   getFocusMode,
@@ -11,24 +11,24 @@ import {
   getShowLocatorButton,
   getShowMeasurementButton,
   setStartDrawing,
-} from "../store/slices/mapping.ts";
+} from "../../store/slices/mapping.ts";
 import {
   getCollabedHelpComponentConfig,
   tooltipText,
 } from "@carma-collab/wuppertal/geoportal";
-import versionData from "../../version.json";
+import versionData from "../../../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
-import LayerWrapper from "./layers/LayerWrapper.tsx";
-import InfoBoxMeasurement from "./map-measure/InfoBoxMeasurement.jsx";
+import LayerWrapper from "../layers/LayerWrapper.tsx";
+import InfoBoxMeasurement from "../map-measure/InfoBoxMeasurement.jsx";
 import PaleOverlay from "react-cismap/PaleOverlay";
 import { useSearchParams } from "react-router-dom";
-import { getBackgroundLayers } from "../helper/layer.tsx";
+import { getBackgroundLayers } from "../../helper/layer.tsx";
 import {
   getAllow3d,
   getMode,
   getShowLayerButtons,
   setMode,
-} from "../store/slices/ui.ts";
+} from "../../store/slices/ui.ts";
 import CismapLayer from "react-cismap/CismapLayer";
 import {
   Control,
@@ -47,16 +47,13 @@ import {
   faMinus,
   faPlus,
 } from "@fortawesome/free-solid-svg-icons";
-import type LocateControl from "leaflet.locatecontrol";
-import "./leaflet.css";
+import "../leaflet.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
 import {
   CustomViewer,
   MapTypeSwitcher,
-  SceneStyleToggle,
   Compass,
-  HomeControl,
   useCesiumCustomViewer,
   setIsMode2d,
   useHomeControl,
@@ -70,26 +67,20 @@ import { ProjSingleGeoJson } from "react-cismap/ProjSingleGeoJson";
 import { TweakpaneProvider } from "@carma-commons/debug";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import { Tooltip } from "antd";
-import { useOverlayHelper } from "@carma/libraries/commons/ui/lib-helper-overlay";
-import FeatureInfoBox from "./feature-info/FeatureInfoBox.tsx";
+import FeatureInfoBox from "../feature-info/FeatureInfoBox.tsx";
 import type { LatLng, Point } from "leaflet";
 import proj4 from "proj4";
 import { proj4crs25832def } from "react-cismap/constants/gis";
-import ExtraMarker from "react-cismap/ExtraMarker";
+import { ExtraMarker } from "react-cismap/ExtraMarker";
 import {
-  createUrl,
   functionToFeature,
   getFeatureForLayer,
-  getLeafNodes,
   objectToFeature,
-} from "./feature-info/featureInfoHelper";
-import { LayerProps } from "@carma-mapping/layers";
+} from "../feature-info/featureInfoHelper.tsx";
 import {
-  addFeature,
   addNothingFoundID,
   clearNothingFoundIDs,
   getFeatures,
-  getInfoText,
   getNothingFoundIDs,
   getPreferredLayerId,
   getSecondaryInfoBoxElements,
@@ -102,12 +93,12 @@ import {
   setSecondaryInfoBoxElements,
   setSelectedFeature,
   setVectorInfo,
-} from "../store/slices/features.ts";
-import store from "../store/index.ts";
-import { geoElements } from "@carma-collab/wuppertal/geoportal";
-import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
-import { faSquare } from "@fortawesome/free-regular-svg-icons";
-import FeatureInfoIcon from "./feature-info/FeatureInfoIcon.tsx";
+} from "../../store/slices/features.ts";
+import store from "../../store/index.ts";
+import FeatureInfoIcon from "../feature-info/FeatureInfoIcon.tsx";
+import LocateControlComponent from "./controls/LocateControlComponent.tsx";
+import { getAtLeastOneLayerIsQueryable, getQueryableLayers, getUrlPrefix } from './utils';
+import { useDispatchSachdatenInfoText, useTourRefCollabLabels } from "./hooks.ts";
 
 // TODO: Make transition style configurable with config and cesium library
 const MAPMODE_TRANSITION_DURATION = 1000;
@@ -119,7 +110,6 @@ export const GeoportalMap = () => {
   const [gazetteerHit, setGazetteerHit] = useState(null);
   const [overlayFeature, setOverlayFeature] = useState(null);
   const [pos, setPos] = useState<[number, number] | null>(null);
-  const infoText = useSelector(getInfoText);
   const [isSameLayerTypes, setIsSameLayerTypes] = useState(true);
   const selectedFeature = useSelector(getSelectedFeature);
   const features = useSelector(getFeatures);
@@ -155,56 +145,10 @@ export const GeoportalMap = () => {
     maskingPolygon,
   } = useContext<typeof TopicMapContext>(TopicMapContext);
   const [locationProps, setLocationProps] = useState(0);
-  const urlPrefix = window.location.origin + window.location.pathname;
-  const queryableLayers = layers.filter(
-    (layer) => layer.queryable === true && layer.useInFeatureInfo === true,
-  );
-  const atLeastOneLayerIsQueryable = queryableLayers.length > 0;
 
-  if (!layers.some((layer) => layer.queryable === true) && layers.length > 0) {
-    dispatch(
-      setInfoText(
-        "Die Sachdatenabfrage ist für die ausgewählten Layer nicht verfügbar.",
-      ),
-    );
-  } else if (
-    !layers.some((layer) => layer.useInFeatureInfo === true) &&
-    layers.length > 0
-  ) {
-    dispatch(
-      setInfoText(
-        "Die Sachdatenabfrage wurde für alle ausgewählten Layer deaktiviert.",
-      ),
-    );
-  } else if (
-    queryableLayers.length > 0 &&
-    (infoText ===
-      "Die Sachdatenabfrage ist für die ausgewählten Layer nicht verfügbar." ||
-      infoText ===
-      "Die Sachdatenabfrage wurde für alle ausgewählten Layer deaktiviert.")
-  ) {
-    dispatch(setInfoText(""));
-  }
+  useDispatchSachdatenInfoText();
 
-  const zoomControlTourRef = useOverlayHelper(
-    getCollabedHelpElementsConfig("ZOOM", geoElements),
-  );
-  const fullScreenControlTourRef = useOverlayHelper(
-    getCollabedHelpElementsConfig("VOLLBILD", geoElements),
-  );
-  const navigatorControlTourRef = useOverlayHelper(
-    getCollabedHelpElementsConfig("MEINE_POSITION", geoElements),
-  );
-  const homeControlTourRef = useOverlayHelper(
-    getCollabedHelpElementsConfig("RATHAUS", geoElements),
-  );
-  const measurementControlTourRef = useOverlayHelper(
-    getCollabedHelpElementsConfig("MESSUNGEN", geoElements),
-  );
-
-  const gazetteerControlTourRef = useOverlayHelper(
-    getCollabedHelpElementsConfig("GAZETTEER_SUCHE", geoElements),
-  );
+  const tourRefLabels = useTourRefCollabLabels();
 
   const version = getApplicationVersion(versionData);
   useEffect(() => {
@@ -283,7 +227,7 @@ export const GeoportalMap = () => {
   return (
     <ControlLayout onHeightResize={setLayoutHeight} ifStorybook={false}>
       <Control position="topleft" order={10}>
-        <div ref={zoomControlTourRef} className="flex flex-col">
+        <div ref={tourRefLabels.zoom} className="flex flex-col">
           <ControlButtonStyler
             onClick={(e) => {
               // TODO Check for side effects of this while animating
@@ -315,7 +259,7 @@ export const GeoportalMap = () => {
                 document.documentElement.requestFullscreen();
               }
             }}
-            ref={fullScreenControlTourRef}
+            ref={tourRefLabels.fullScreen}
           >
             <FontAwesomeIcon
               icon={document.fullscreenElement ? faCompress : faExpand}
@@ -326,7 +270,7 @@ export const GeoportalMap = () => {
       <Control position="topleft" order={30}>
         {showLocatorButton && (
           <ControlButtonStyler
-            ref={navigatorControlTourRef}
+            ref={tourRefLabels.navigator}
             onClick={() => setLocationProps((prev) => prev + 1)}
           >
             <FontAwesomeIcon icon={faLocationArrow} className="text-2xl" />
@@ -336,7 +280,7 @@ export const GeoportalMap = () => {
       </Control>
       <Control position="topleft" order={40}>
         <ControlButtonStyler
-          ref={homeControlTourRef}
+          ref={tourRefLabels.home}
           onClick={() => {
             routedMapRef.leafletMap.leafletElement.flyTo(
               [51.272570027476256, 7.199918031692506],
@@ -376,10 +320,10 @@ export const GeoportalMap = () => {
                     setMode(mode === "measurement" ? "default" : "measurement"),
                   );
                 }}
-                ref={measurementControlTourRef}
+                ref={tourRefLabels.measurement}
               >
                 <img
-                  src={`${urlPrefix}${mode === "measurement"
+                  src={`${getUrlPrefix()}${mode === "measurement"
                     ? "measure-active.png"
                     : "measure.png"
                     }`}
@@ -440,7 +384,7 @@ export const GeoportalMap = () => {
         {showLayerButtons && isMode2d && <LayerWrapper />}
       </Control>
       <Control position="bottomleft" order={10}>
-        <div ref={gazetteerControlTourRef} className="h-full w-full">
+        <div ref={tourRefLabels.gazetteer} className="h-full w-full">
           <LibFuzzySearch
             gazData={gazData}
             mapRef={routedMapRef}
@@ -498,10 +442,11 @@ export const GeoportalMap = () => {
                 target: HTMLElement;
                 type: string;
               }) => {
+                const queryableLayers = getQueryableLayers(layers);
                 if (
                   mode === "featureInfo" &&
-                  layers.length > 0 &&
-                  atLeastOneLayerIsQueryable
+                  getAtLeastOneLayerIsQueryable(layers)
+
                 ) {
                   if (
                     queryableLayers.find(
@@ -520,6 +465,7 @@ export const GeoportalMap = () => {
                     proj4crs25832def,
                     [e.latlng.lng, e.latlng.lat],
                   );
+
 
                   const vectorLayers = queryableLayers.filter(
                     (layer) => layer.layerType === "vector",
@@ -670,6 +616,7 @@ export const GeoportalMap = () => {
                               hits: any[];
                               hit: any;
                             }) => {
+                              const queryableLayers = getQueryableLayers(layers);
                               if (e.hits && layer.queryable) {
                                 const selectedVectorFeature = e.hits[0];
                                 const vectorPos = proj4(
@@ -788,38 +735,3 @@ export const GeoportalMap = () => {
 };
 
 export default GeoportalMap;
-
-const LocateControlComponent = ({ startLocate = 0 }) => {
-  const { routedMapRef } = useContext<typeof TopicMapContext>(
-    TopicMapContext,
-  ) as any;
-  const [locationInstance, setLocationInstance] =
-    useState<LocateControl | null>(null);
-
-  useEffect(() => {
-    if (!locationInstance && routedMapRef) {
-      const mapExample = routedMapRef.leafletMap.leafletElement;
-      const lc = (L.control as LocateControl)
-        .locate({
-          position: "topright",
-          flyTo: true,
-          drawMarker: false,
-          icon: "custom_icon",
-        })
-        .addTo(mapExample);
-      setLocationInstance(lc);
-    }
-
-    // return () => {
-    //   lc.remove();
-    // };
-  }, [routedMapRef]);
-
-  useEffect(() => {
-    if (startLocate && locationInstance) {
-      locationInstance.start();
-    }
-  }, [startLocate]);
-
-  return null;
-};

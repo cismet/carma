@@ -4,7 +4,7 @@ import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "./index.css";
 import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
-import { GeoportalMap } from "./components/GeoportalMap";
+import { GeoportalMap } from "./components/GeoportalMap/GeoportalMap";
 import TopNavbar from "./components/TopNavbar";
 import MapMeasurement from "./components/map-measure/MapMeasurement";
 import { useEffect, useState } from "react";
