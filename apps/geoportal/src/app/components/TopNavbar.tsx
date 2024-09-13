@@ -34,10 +34,11 @@ import {
 } from "../store/slices/mapping";
 import "./switch.css";
 import {
-  getMode,
-  getShowLayerButtons,
-  setMode,
-  setShowLayerButtons,
+  getUIMode,
+  getUIShowLayerButtons,
+  setUIShowLayerButtons,
+  toggleUIModeTour,
+  UIMode,
 } from "../store/slices/ui";
 import { layerMap } from "../config";
 import { Save, Share, extractVectorStyles } from "@carma-apps/portals";
@@ -63,10 +64,10 @@ const TopNavbar = () => {
   const dispatch = useDispatch();
   const thumbnails = useSelector(getThumbnails);
   const activeLayers = useSelector(getLayers);
-  const showLayerButtons = useSelector(getShowLayerButtons);
+  const showLayerButtons = useSelector(getUIShowLayerButtons);
   const focusMode = useSelector(getFocusMode);
   const savedLayerConfigs = useSelector(getSavedLayerConfigs);
-  const mode = useSelector(getMode);
+  const mode = useSelector(getUIMode);
   const [messageApi, contextHolder] = message.useMessage();
   const baseUrl = window.location.origin + window.location.pathname;
   const toggleSceneStyle = useSceneStyleToggle();
@@ -134,8 +135,8 @@ const TopNavbar = () => {
           description: layer.description,
           queryable: isNaN(layer.queryable)
             ? layer.keywords.some((keyword) =>
-                keyword.includes("carmaconf://infoBoxMapping"),
-              )
+              keyword.includes("carmaconf://infoBoxMapping"),
+            )
             : layer.queryable,
           useInFeatureInfo: true,
           visible: true,
@@ -181,8 +182,8 @@ const TopNavbar = () => {
               description: layer.description,
               queryable: isNaN(layer.queryable)
                 ? layer.keywords.some((keyword) =>
-                    keyword.includes("carmaconf://infoBoxMapping"),
-                  )
+                  keyword.includes("carmaconf://infoBoxMapping"),
+                )
                 : layer.queryable,
               useInFeatureInfo: true,
               visible: true,
@@ -281,16 +282,14 @@ const TopNavbar = () => {
             <img
               src={baseUrl + "icons/add-layers.png"}
               alt="Kartenebenen hinzufügen"
-              className={`h-5 mb-0.5 cursor-pointer ${
-                isMode2d ? "" : disabledImageOpacity
-              }`}
+              className={`h-5 mb-0.5 cursor-pointer ${isMode2d ? "" : disabledImageOpacity
+                }`}
             />
           </button>
         </Tooltip>
         <Tooltip
-          title={`Hintergrundkarte ${
-            focusMode ? "zurücksetzen" : "abschwächen"
-          }`}
+          title={`Hintergrundkarte ${focusMode ? "zurücksetzen" : "abschwächen"
+            }`}
         >
           <button
             className="h-[24.5px]"
@@ -305,24 +304,21 @@ const TopNavbar = () => {
                 `${focusMode ? "icons/focus-on.png" : "icons/focus-off.png"}`
               }
               alt="Kartenebenen hinzufügen"
-              className={`h-5 mb-0.5 cursor-pointer ${
-                isMode2d ? "" : disabledImageOpacity
-              }`}
+              className={`h-5 mb-0.5 cursor-pointer ${isMode2d ? "" : disabledImageOpacity
+                }`}
             />
           </button>
         </Tooltip>
         <Tooltip
-          title={`Kartensteuerelemente ${
-            showLayerButtons ? "ausblenden" : "einblenden"
-          }`}
+          title={`Kartensteuerelemente ${showLayerButtons ? "ausblenden" : "einblenden"
+            }`}
         >
           <button
-            className={`text-xl hover:text-gray-600 ${
-              isMode2d ? "" : disabledClass
-            }`}
+            className={`text-xl hover:text-gray-600 ${isMode2d ? "" : disabledClass
+              }`}
             disabled={!isMode2d}
             onClick={() => {
-              dispatch(setShowLayerButtons(!showLayerButtons));
+              dispatch(setUIShowLayerButtons(!showLayerButtons));
             }}
           >
             <FontAwesomeIcon
@@ -345,9 +341,8 @@ const TopNavbar = () => {
             }
           >
             <button
-              className={`hover:text-gray-600 text-xl ${
-                isMode2d ? "" : disabledClass
-              }`}
+              className={`hover:text-gray-600 text-xl ${isMode2d ? "" : disabledClass
+                }`}
             >
               <FontAwesomeIcon icon={faFileExport} />
             </button>
@@ -356,17 +351,11 @@ const TopNavbar = () => {
         <Tooltip title="Drucken">
           <FontAwesomeIcon icon={faPrint} className="text-xl text-gray-300" />
         </Tooltip>
-        <Tooltip title={`Hilfe ${mode === "tour" ? "ausblenden" : "anzeigen"}`}>
+        <Tooltip title={`Hilfe ${mode === UIMode.TOUR ? "ausblenden" : "anzeigen"}`}>
           <Popover trigger="click" placement="bottom">
             <button
               className="hover:text-gray-600 text-xl"
-              onClick={() => {
-                if (mode !== "tour") {
-                  dispatch(setMode("tour"));
-                } else {
-                  dispatch(setMode("default"));
-                }
-              }}
+              onClick={toggleUIModeTour}
             >
               <FontAwesomeIcon icon={faBookOpenReader} />
             </button>

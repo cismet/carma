@@ -2,7 +2,7 @@ import { Radio, Tabs } from "antd";
 import { cn, parseDescription } from "../../helper/helper";
 import { tabItems } from "./items";
 import { useDispatch, useSelector } from "react-redux";
-import { getActiveTabKey, setActiveTabKey } from "../../store/slices/ui";
+import { getUIActiveTabKey, setUIActiveTabKey } from "../../store/slices/ui";
 import {
   getBackgroundLayer,
   getLayers,
@@ -31,7 +31,7 @@ interface InfoProps {
 const Info = ({ description, legend }: InfoProps) => {
   const dispatch = useDispatch();
   const selectedMapLayer = useSelector(getSelectedMapLayer);
-  const activeTabKey = useSelector(getActiveTabKey);
+  const activeTabKey = useSelector(getUIActiveTabKey);
   const parsedDescription = parseDescription(description);
   const layers = useSelector(getLayers);
   const selectedLayerIndex = useSelector(getSelectedLayerIndex);
@@ -271,7 +271,7 @@ const Info = ({ description, legend }: InfoProps) => {
           animated={false}
           items={tabItems(legend)}
           activeKey={activeTabKey}
-          onChange={(key) => dispatch(setActiveTabKey(key))}
+          onChange={(key) => dispatch(setUIActiveTabKey(key))}
         />
       )}
     </>

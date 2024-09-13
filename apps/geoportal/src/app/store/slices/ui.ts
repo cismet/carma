@@ -2,14 +2,21 @@ import { createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 import { RootState } from "..";
 
+export enum UIMode {
+  DEFAULT = "default",
+  FEATURE_INFO = "featureInfo",
+  MEASUREMENT = "measurement",
+  TOUR = "tour",
+}
+
 export interface UIState {
   showInfo: boolean;
   showInfoText: boolean;
   activeTabKey: string;
-  mode: string;
+  mode: UIMode;
   showLayerButtons: boolean;
   showLayerHideButtons: boolean;
-  allowUiChanges: boolean;
+  allowChanges: boolean;
   allow3d: boolean;
 }
 
@@ -17,10 +24,10 @@ const initialState: UIState = {
   showInfo: true,
   showInfoText: true,
   activeTabKey: "1",
-  mode: "default",
+  mode: UIMode.DEFAULT,
   showLayerButtons: true,
   showLayerHideButtons: false,
-  allowUiChanges: true,
+  allowChanges: true,
   allow3d: true,
 };
 
@@ -28,28 +35,28 @@ const slice = createSlice({
   name: "ui",
   initialState,
   reducers: {
-    setShowInfo(state, action) {
+    setUIShowInfo(state, action) {
       state.showInfo = action.payload;
     },
-    setShowInfoText(state, action) {
+    setUIShowInfoText(state, action) {
       state.showInfoText = action.payload;
     },
-    setActiveTabKey(state, action) {
+    setUIActiveTabKey(state, action) {
       state.activeTabKey = action.payload;
     },
-    setMode(state, action) {
+    setUIMode(state, action) {
       state.mode = action.payload;
     },
-    setShowLayerButtons(state, action: PayloadAction<boolean>) {
+    setUIShowLayerButtons(state, action: PayloadAction<boolean>) {
       state.showLayerButtons = action.payload;
     },
-    setShowLayerHideButtons(state, action: PayloadAction<boolean>) {
+    setUIShowLayerHideButtons(state, action: PayloadAction<boolean>) {
       state.showLayerHideButtons = action.payload;
     },
-    setAllowUiChanges(state, action: PayloadAction<boolean>) {
-      state.allowUiChanges = action.payload;
+    setUIAllowUiChanges(state, action: PayloadAction<boolean>) {
+      state.allowChanges = action.payload;
     },
-    setAllow3d(state, action: PayloadAction<boolean>) {
+    setUIAllow3d(state, action: PayloadAction<boolean>) {
       state.allow3d = action.payload;
     },
   },
@@ -58,56 +65,80 @@ const slice = createSlice({
 export default slice;
 
 export const {
-  setShowInfo,
-  setShowInfoText,
-  setActiveTabKey,
-  setMode,
-  setShowLayerButtons,
-  setShowLayerHideButtons,
-  setAllowUiChanges,
-  setAllow3d,
+  setUIShowInfo,
+  setUIShowInfoText,
+  setUIActiveTabKey,
+  setUIMode,
+  setUIShowLayerButtons,
+  setUIShowLayerHideButtons,
+  setUIAllowUiChanges,
+  setUIAllow3d,
 } = slice.actions;
 
-export const getShowInfo = (state: RootState) => {
+export const getUIShowInfo = (state: RootState) => {
   return state.ui.showInfo;
 };
 
-export const getShowInfoText = (state: RootState) => {
+export const getUIShowInfoText = (state: RootState) => {
   return state.ui.showInfoText;
 };
 
-export const getActiveTabKey = (state: RootState) => {
+export const getUIActiveTabKey = (state: RootState) => {
   return state.ui.activeTabKey;
 };
 
-export const getMode = (state: RootState) => {
+export const getUIMode = (state: RootState) => {
   return state.ui.mode;
 };
 
-export const getShowLayerButtons = (state: RootState) => {
+export const getUIShowLayerButtons = (state: RootState) => {
   return state.ui.showLayerButtons;
 };
 
-export const getShowLayerHideButtons = (state: RootState) => {
+export const getUIShowLayerHideButtons = (state: RootState) => {
   return state.ui.showLayerHideButtons;
 };
 
-export const getAllowUiChanges = (state: RootState) => {
-  return state.ui.allowUiChanges;
+export const getUIAllowChanges = (state: RootState) => {
+  return state.ui.allowChanges;
 };
 
-export const getAllow3d = (state: RootState) => {
+export const getUIAllow3d = (state: RootState) => {
   return state.ui.allow3d;
 };
 
-export const toggletModeMeasuremen = () => {
+export const toggleUIModeMeasurement = () => {
   return function (dispatch, getState) {
     const state = getState();
     const mode = state.ui.mode;
-    if (mode === "default") {
-      dispatch(setMode("measurement"));
+    if (mode === UIMode.DEFAULT) {
+      dispatch(setUIMode(UIMode.MEASUREMENT));
     } else {
-      dispatch(setMode("default"));
+      dispatch(setUIMode(UIMode.DEFAULT));
+    }
+  };
+};
+
+export const toggleUIModeFeatureInfo = () => {
+  return function (dispatch, getState) {
+    const state = getState();
+    const mode = state.ui.mode;
+    if (mode === UIMode.DEFAULT) {
+      dispatch(setUIMode(UIMode.FEATURE_INFO));
+    } else {
+      dispatch(setUIMode(UIMode.DEFAULT));
+    }
+  };
+};
+
+export const toggleUIModeTour = () => {
+  return function (dispatch, getState) {
+    const state = getState();
+    const mode = state.ui.mode;
+    if (mode === UIMode.DEFAULT) {
+      dispatch(setUIMode(UIMode.TOUR));
+    } else {
+      dispatch(setUIMode(UIMode.DEFAULT));
     }
   };
 };

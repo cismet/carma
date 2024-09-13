@@ -26,28 +26,28 @@ import {
   setSelectedLayerIndex,
 } from "../../store/slices/mapping";
 import {
-  getShowInfo,
-  getShowInfoText,
-  setShowInfo,
-  setShowInfoText,
+  getUIShowInfo,
+  getUIShowInfoText,
+  setUIShowInfo,
+  setUIShowInfoText,
 } from "../../store/slices/ui";
 import Info from "./Info";
 import { iconColorMap, iconMap } from "./items";
 
 type Ref = HTMLDivElement;
 
-interface SecondaryViewProps {}
+interface SecondaryViewProps { }
 
 export const formatter: NonNullable<
   SliderSingleProps["tooltip"]
 >["formatter"] = (value) => `${value * 100}%`;
 
-const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
+const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({ }, ref) => {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const infoRef = useRef<HTMLDivElement>(null);
   const dispatch = useDispatch();
-  const showInfo = useSelector(getShowInfo);
-  const showInfoText = useSelector(getShowInfoText);
+  const showInfo = useSelector(getUIShowInfo);
+  const showInfoText = useSelector(getUIShowInfoText);
   const urlPrefix = window.location.origin + window.location.pathname;
   const selectedLayerIndex = useSelector(getSelectedLayerIndex);
   const layers = useSelector(getLayers);
@@ -57,10 +57,10 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
   const icon = layer.title.includes("Orthofoto")
     ? "ortho"
     : layer.title === "Bäume"
-    ? "bäume"
-    : layer.title.includes("gärten")
-    ? "gärten"
-    : undefined;
+      ? "bäume"
+      : layer.title.includes("gärten")
+        ? "gärten"
+        : undefined;
   const background = selectedLayerIndex === -1;
 
   useEffect(() => {
@@ -173,9 +173,9 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
             </button>
             <button
               onClick={() => {
-                dispatch(setShowInfo(!showInfo));
+                dispatch(setUIShowInfo(!showInfo));
                 setTimeout(
-                  () => dispatch(setShowInfoText(!showInfoText)),
+                  () => dispatch(setUIShowInfoText(!showInfoText)),
                   showInfoText ? 0 : 80,
                 );
               }}

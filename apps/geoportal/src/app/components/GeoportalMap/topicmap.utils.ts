@@ -29,6 +29,7 @@ import {
   objectToFeature,
 } from "../feature-info/featureInfoHelper";
 import { getAtLeastOneLayerIsQueryable, getQueryableLayers } from "./utils";
+import { UIMode } from "../../store/slices/ui";
 
 interface WMTSLayerProps {
   type: "wmts";
@@ -56,7 +57,7 @@ interface VectorLayerProps {
 
 type Options = {
   dispatch: Dispatch;
-  mode: string;
+  mode: UIMode;
   setPos: (pos: [number, number] | null) => void;
   store: Store;
 };
@@ -79,7 +80,7 @@ export const onClickTopicMap = async (
 ) => {
   const layers = getLayers(store.getState());
   const queryableLayers = getQueryableLayers(layers);
-  if (mode === "featureInfo" && getAtLeastOneLayerIsQueryable(layers)) {
+  if (mode === UIMode.FEATURE_INFO && getAtLeastOneLayerIsQueryable(layers)) {
     if (queryableLayers.find((layer) => layer.layerType === "vector")) {
       setTimeout(() => {}, 100);
     }
@@ -253,7 +254,17 @@ const createCismapLayer = (props: WMTSLayerProps | VectorLayerProps) => {
 
 export const createCismapLayers = (
   layers: Layer[],
-  { focusMode, mode, dispatch, setPos },
+  {
+    focusMode,
+    mode,
+    dispatch,
+    setPos,
+  }: {
+    focusMode: boolean;
+    mode: UIMode;
+    dispatch: Dispatch;
+    setPos: (pos: [number, number] | null) => void;
+  },
 ) =>
   layers.map((layer, i) => {
     if (layer.visible) {
@@ -279,7 +290,8 @@ export const createCismapLayers = (
             pane: `additionalLayers${i}`,
             opacity: layer.opacity || 0.7,
             type: "vector",
-            selectionEnabled: mode === "featureInfo" && layer.useInFeatureInfo,
+            selectionEnabled:
+              mode === UIMode.FEATURE_INFO && layer.useInFeatureInfo,
             onSelectionChanged: (e) =>
               onSelectionChangedVector(e, {
                 layer,

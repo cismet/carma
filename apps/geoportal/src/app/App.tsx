@@ -21,17 +21,17 @@ import {
   setShowMeasurementButton,
 } from "./store/slices/mapping";
 import {
-  getAllowUiChanges,
-  getMode,
-  setAllow3d,
-  setAllowUiChanges,
-  setMode,
-  setShowLayerButtons,
-  setShowLayerHideButtons,
+  getUIAllowChanges,
+  getUIMode,
+  setUIAllow3d,
+  setUIAllowUiChanges,
+  setUIMode,
+  setUIShowLayerButtons,
+  setUIShowLayerHideButtons,
+  UIMode,
 } from "./store/slices/ui";
 import { Layer } from "@carma-mapping/layers";
 import { CrossTabCommunicationContextProvider } from "react-cismap/contexts/CrossTabCommunicationContextProvider";
-import HomeButton from "./components/HomeButton";
 import type { BackgroundLayer, Settings } from "@carma-apps/portals";
 import { OverlayTourProvider } from "@carma/libraries/commons/ui/lib-helper-overlay";
 import {
@@ -56,14 +56,14 @@ type Config = {
 function App({ published }: { published?: boolean }) {
   const [syncToken, setSyncToken] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
-  const allowUiChanges = useSelector(getAllowUiChanges);
+  const allowUiChanges = useSelector(getUIAllowChanges);
   const dispatch = useDispatch();
-  const mode = useSelector(getMode);
+  const mode = useSelector(getUIMode);
 
   useEffect(() => {
     // TODO: remove if feature flag is removed
 
-    dispatch(setAllow3d(searchParams.has("allow3d")));
+    dispatch(setUIAllow3d(searchParams.has("allow3d")));
 
     // END FEATURE FLAG
 
@@ -79,18 +79,18 @@ function App({ published }: { published?: boolean }) {
       dispatch(setLayers(newConfig.layers));
       dispatch(setBackgroundLayer(newConfig.backgroundLayer));
       if (newConfig.settings) {
-        dispatch(setShowLayerButtons(newConfig.settings.showLayerButtons));
+        dispatch(setUIShowLayerButtons(newConfig.settings.showLayerButtons));
         dispatch(setShowFullscreenButton(newConfig.settings.showFullscreen));
         dispatch(setShowLocatorButton(newConfig.settings.showLocator));
         dispatch(setShowMeasurementButton(newConfig.settings.showMeasurement));
         dispatch(setShowHamburgerMenu(newConfig.settings.showHamburgerMenu));
 
         if (newConfig.settings.showLayerHideButtons || published) {
-          dispatch(setAllowUiChanges(false));
-          dispatch(setShowLayerHideButtons(true));
+          dispatch(setUIAllowUiChanges(false));
+          dispatch(setUIShowLayerHideButtons(true));
         } else {
-          dispatch(setAllowUiChanges(true));
-          dispatch(setShowLayerHideButtons(false));
+          dispatch(setUIAllowUiChanges(true));
+          dispatch(setUIShowLayerHideButtons(false));
         }
       }
       searchParams.delete("data");
@@ -101,13 +101,13 @@ function App({ published }: { published?: boolean }) {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.shiftKey) {
-        dispatch(setShowLayerHideButtons(true));
+        dispatch(setUIShowLayerHideButtons(true));
       }
     };
 
     const onKeyUp = (e: KeyboardEvent) => {
       if (allowUiChanges) {
-        dispatch(setShowLayerHideButtons(false));
+        dispatch(setUIShowLayerHideButtons(false));
       }
     };
 
@@ -126,8 +126,8 @@ function App({ published }: { published?: boolean }) {
 
   const content = (
     <OverlayTourProvider
-      showOverlay={mode === "tour" ? true : false}
-      closeOverlay={() => dispatch(setMode("default"))}
+      showOverlay={mode === UIMode.TOUR ? true : false}
+      closeOverlay={() => dispatch(setUIMode(UIMode.DEFAULT))}
       transparency={backgroundSettings.transparency}
       color={backgroundSettings.color}
     >

@@ -1,7 +1,7 @@
 import { useContext, useEffect, useRef, useState } from "react";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import { useDispatch, useSelector } from "react-redux";
-import { getGazData, paramsToObject } from "../../helper/helper.ts";
+import { paramsToObject } from "../../helper/helper.ts";
 import {
   getBackgroundLayer,
   getFocusMode,
@@ -24,10 +24,12 @@ import PaleOverlay from "react-cismap/PaleOverlay";
 import { useSearchParams } from "react-router-dom";
 import { getBackgroundLayers } from "../../helper/layer.tsx";
 import {
-  getAllow3d,
-  getMode,
-  getShowLayerButtons,
-  setMode,
+  getUIAllow3d,
+  getUIMode,
+  getUIShowLayerButtons,
+  toggleUIModeFeatureInfo,
+  toggleUIModeMeasurement,
+  UIMode,
 } from "../../store/slices/ui.ts";
 import {
   Control,
@@ -78,29 +80,30 @@ import {
 import store from "../../store/index.ts";
 import LocateControlComponent from "./controls/LocateControlComponent.tsx";
 import { getUrlPrefix } from './utils';
-import { useDispatchSachdatenInfoText, useTourRefCollabLabels } from "./hooks.ts";
+import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenInfoText.ts";
 import { createCismapLayers, onClickTopicMap } from "./topicmap.utils.ts";
+import { useGazData } from "../../hooks/useGazData.ts";
+import { useWindowSize } from "../../hooks/useWindowSize.ts";
+import { useTourRefCollabLabels } from "../../hooks/useTourRefCollabLabels.ts";
 
 // TODO: Make transition style configurable with config and cesium library
 const MAPMODE_TRANSITION_DURATION = 1000;
 
 export const GeoportalMap = () => {
-  const [gazData, setGazData] = useState([]);
-  const [height, setHeight] = useState(0);
-  const [width, setWidth] = useState(0);
-  const [gazetteerHit, setGazetteerHit] = useState(null);
-  const [overlayFeature, setOverlayFeature] = useState(null);
-  const [pos, setPos] = useState<[number, number] | null>(null);
-  const [isSameLayerTypes, setIsSameLayerTypes] = useState(true);
+  const dispatch = useDispatch();
+  const [urlParams, setUrlParams] = useSearchParams();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const container3dMapRef = useRef<HTMLDivElement>(null);
-  const dispatch = useDispatch();
-  const layers = useSelector(getLayers);
-  const allow3d = useSelector(getAllow3d);
+
+  // State and Selectors
+  const allow3d = useSelector(getUIAllow3d);
   const backgroundLayer = useSelector(getBackgroundLayer);
   const isMode2d = useViewerIsMode2d();
-  const mode = useSelector(getMode);
-  const showLayerButtons = useSelector(getShowLayerButtons);
+  const layers = useSelector(getLayers);
+  const uiMode = useSelector(getUIMode);
+  const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
+  const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
+  const showLayerButtons = useSelector(getUIShowLayerButtons);
   const showFullscreenButton = useSelector(getShowFullscreenButton);
   const showLocatorButton = useSelector(getShowLocatorButton);
   const showHamburgerMenu = useSelector(getShowHamburgerMenu);
@@ -111,50 +114,41 @@ export const GeoportalMap = () => {
   const { handleZoomIn, handleZoomOut } = useZoomControls();
   const toggleSceneStyle = useSceneStyleToggle();
 
-  const [urlParams, setUrlParams] = useSearchParams();
-  const [layoutHeight, setLayoutHeight] = useState(null);
-  const [isMeasurementTooltip, setIsMeasurementTooltip] = useState(false);
   const {
     routedMapRef,
     referenceSystem,
     referenceSystemDefinition,
     maskingPolygon,
   } = useContext<typeof TopicMapContext>(TopicMapContext);
+
+  const [gazetteerHit, setGazetteerHit] = useState(null);
+  const [overlayFeature, setOverlayFeature] = useState(null);
+  const [pos, setPos] = useState<[number, number] | null>(null);
+  const [isSameLayerTypes, setIsSameLayerTypes] = useState(true);
+  const [layoutHeight, setLayoutHeight] = useState(null);
+  const [isMeasurementTooltip, setIsMeasurementTooltip] = useState(false);
   const [locationProps, setLocationProps] = useState(0);
+
+
+  const version = getApplicationVersion(versionData);
+
+  // custom hooks
 
   useDispatchSachdatenInfoText();
 
   const tourRefLabels = useTourRefCollabLabels();
-
-  const version = getApplicationVersion(versionData);
-  useEffect(() => {
-    getGazData(setGazData);
-  }, []);
-
-  useEffect(() => {
-    const handleResize = () => {
-      if (wrapperRef.current) {
-        setHeight(wrapperRef.current.clientHeight);
-        setWidth(wrapperRef.current.clientWidth);
-      }
-    };
-
-    window.addEventListener("resize", handleResize);
-
-    handleResize();
-
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+  const gazData = useGazData();
+  const { width, height } = useWindowSize(wrapperRef);
 
   useEffect(() => {
     if (document.getElementById("routedMap")) {
-      if (mode === "featureInfo") {
+      if (isModeFeatureInfo) {
         document.getElementById("routedMap").style.cursor = "crosshair";
       } else {
         document.getElementById("routedMap").style.cursor = "pointer";
       }
     }
-  }, [mode]);
+  }, [isModeFeatureInfo]);
 
   useEffect(() => {
     let isSame = true;
@@ -279,8 +273,8 @@ export const GeoportalMap = () => {
               }
               open={isMeasurementTooltip}
               defaultOpen={false}
-              onOpenChange={(open) => {
-                if (mode === "measurement") {
+              onOpenChange={() => {
+                if (isModeMeasurement) {
                   setIsMeasurementTooltip(false);
                 } else {
                   setIsMeasurementTooltip(!isMeasurementTooltip);
@@ -292,14 +286,12 @@ export const GeoportalMap = () => {
                 disabled={!isMode2d}
                 onClick={() => {
                   setIsMeasurementTooltip(false);
-                  dispatch(
-                    setMode(mode === "measurement" ? "default" : "measurement"),
-                  );
+                  toggleUIModeMeasurement();
                 }}
                 ref={tourRefLabels.measurement}
               >
                 <img
-                  src={`${getUrlPrefix()}${mode === "measurement"
+                  src={`${getUrlPrefix()}${isModeMeasurement
                     ? "measure-active.png"
                     : "measure.png"
                     }`}
@@ -308,7 +300,7 @@ export const GeoportalMap = () => {
                 />
               </ControlButtonStyler>
             </Tooltip>
-            {mode === "measurement" && (
+            {isModeMeasurement && (
               <Tooltip title="Neue Messung" placement="right">
                 <ControlButtonStyler
                   onClick={() => {
@@ -338,9 +330,7 @@ export const GeoportalMap = () => {
           <ControlButtonStyler
             disabled={!isMode2d}
             onClick={() => {
-              dispatch(
-                setMode(mode === "featureInfo" ? "default" : "featureInfo"),
-              );
+              toggleUIModeFeatureInfo();
               dispatch(setSelectedFeature(null));
               dispatch(setSecondaryInfoBoxElements([]));
               dispatch(setFeatures([]));
@@ -351,7 +341,7 @@ export const GeoportalMap = () => {
           >
             <FontAwesomeIcon
               icon={faInfo}
-              className={mode === "featureInfo" ? "text-[#1677ff]" : ""}
+              className={isModeFeatureInfo ? "text-[#1677ff]" : ""}
             />
           </ControlButtonStyler>
         </Tooltip>
@@ -377,12 +367,7 @@ export const GeoportalMap = () => {
         <>
           <div
             className={"map-container-2d"}
-            style={{
-              zIndex: 100,
-              //visibility: isMode2d ? "visible" : "hidden",
-              //opacity: isMode2d ? 1 : 0,
-              //pointerEvents: isMode2d ? "auto" : "none",
-            }}
+            style={{ zIndex: 100 }}
           >
             <TopicMapComponent
               gazData={gazData}
@@ -409,12 +394,12 @@ export const GeoportalMap = () => {
                 const newParams = { ...paramsToObject(urlParams), ...location };
                 setUrlParams(newParams);
               }}
-              onclick={(e) => onClickTopicMap(e, { dispatch, mode, store, setPos })}
+              onclick={(e) => onClickTopicMap(e, { dispatch, mode: uiMode, store, setPos })}
               gazetteerSearchComponent={<></>}
               infoBox={
-                mode === "measurement" ? (
-                  <InfoBoxMeasurement key={mode} />
-                ) : mode === "featureInfo" ? (
+                isModeMeasurement ? (
+                  <InfoBoxMeasurement key={uiMode} />
+                ) : isModeFeatureInfo ? (
                   <FeatureInfoBox />
                 ) : (
                   <div></div>
@@ -439,9 +424,9 @@ export const GeoportalMap = () => {
               />
               {focusMode && <PaleOverlay />}
               {createCismapLayers(layers, {
-                focusMode, mode, dispatch, setPos
+                focusMode, mode: uiMode, dispatch, setPos
               })}
-              {pos && mode === "featureInfo" && layers.length > 0 && (
+              {pos && isModeFeatureInfo && layers.length > 0 && (
                 <ExtraMarker
                   markerOptions={{ markerColor: "cyan", spin: false }}
                   position={pos}

@@ -24,7 +24,7 @@ import {
   setShowRightScrollButton,
   toggleUseInFeatureInfo,
 } from "../../store/slices/mapping";
-import { getMode, getShowLayerHideButtons } from "../../store/slices/ui";
+import { getUIMode, getUIShowLayerHideButtons, UIMode } from "../../store/slices/ui";
 import { iconColorMap, iconMap } from "./items";
 import "./tabs.css";
 import { useSearchParams } from "react-router-dom";
@@ -57,9 +57,9 @@ const LayerButton = ({
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const [error, setError] = useState(false);
   const selectedLayerIndex = useSelector(getSelectedLayerIndex);
-  const showLayerHideButtons = useSelector(getShowLayerHideButtons);
+  const showLayerHideButtons = useSelector(getUIShowLayerHideButtons);
   const showLeftScrollButton = useSelector(getShowLeftScrollButton);
-  const mode = useSelector(getMode);
+  const mode = useSelector(getUIMode);
   const showSettings = index === selectedLayerIndex;
   const layersLength = useSelector(getLayers).length;
   const urlPrefix = window.location.origin + window.location.pathname;
@@ -146,8 +146,8 @@ const LayerButton = ({
               ? "bg-white"
               : "bg-neutral-200/70"
             : showSettings
-            ? "bg-white"
-            : "bg-neutral-200",
+              ? "bg-white"
+              : "bg-neutral-200",
           zoom >= layer.props.maxZoom && "opacity-50",
           zoom <= layer.props.minZoom && "opacity-50",
         )}
@@ -217,7 +217,7 @@ const LayerButton = ({
             </button>
           </>
         )}
-        {queryable && mode === "featureInfo" && !background && (
+        {queryable && mode === UIMode.FEATURE_INFO && !background && (
           <div
             className="absolute flex items-center top-[32px] left-0 z-[999999999]"
             style={{ width: buttonRef.current?.clientWidth + "px" }}
