@@ -53,7 +53,7 @@ const slice = createSlice({
     setUIShowLayerHideButtons(state, action: PayloadAction<boolean>) {
       state.showLayerHideButtons = action.payload;
     },
-    setUIAllowUiChanges(state, action: PayloadAction<boolean>) {
+    setUIAllowChanges(state, action: PayloadAction<boolean>) {
       state.allowChanges = action.payload;
     },
     setUIAllow3d(state, action: PayloadAction<boolean>) {
@@ -72,14 +72,14 @@ const slice = createSlice({
 export default slice;
 
 export const {
+  setUIActiveTabKey,
+  setUIAllowChanges,
+  setUIAllow3d,
+  setUIMode,
   setUIShowInfo,
   setUIShowInfoText,
-  setUIActiveTabKey,
-  setUIMode,
   setUIShowLayerButtons,
   setUIShowLayerHideButtons,
-  setUIAllowUiChanges,
-  setUIAllow3d,
   toggleUIMode,
 } = slice.actions;
 

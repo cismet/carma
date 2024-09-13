@@ -1,17 +1,28 @@
-import "bootstrap/dist/css/bootstrap.min.css";
-import "leaflet/dist/leaflet.css";
-import "react-bootstrap-typeahead/css/Typeahead.css";
-import "react-cismap/topicMaps.css";
-import "./index.css";
-import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
-import { GeoportalMap } from "./components/GeoportalMap/GeoportalMap";
-import TopNavbar from "./components/TopNavbar";
-import MapMeasurement from "./components/map-measure/MapMeasurement";
-import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import LZString from "lz-string";
-import { useDispatch, useSelector } from "react-redux";
-import { backgroundSettings } from "@carma-collab/wuppertal/geoportal";
+// Built-in Modules
+import { useEffect, useState } from 'react';
+
+// 3rd party Modules
+import LZString from 'lz-string';
+import { ErrorBoundary } from 'react-error-boundary';
+import { useDispatch, useSelector } from 'react-redux';
+import { useSearchParams } from 'react-router-dom';
+
+// 1st party Modules
+import { TopicMapContextProvider } from 'react-cismap/contexts/TopicMapContextProvider';
+
+// Monorepo Packages
+import { backgroundSettings } from '@carma-collab/wuppertal/geoportal';
+import { OverlayTourProvider } from '@carma/libraries/commons/ui/lib-helper-overlay';
+import { CustomViewerContextProvider } from '@carma-mapping/cesium-engine';
+import type { Layer } from '@carma-mapping/layers';
+import type { BackgroundLayer, Settings } from '@carma-apps/portals';
+import { CrossTabCommunicationContextProvider } from 'react-cismap/contexts/CrossTabCommunicationContextProvider';
+
+// Local Modules
+import AppErrorFallback from './components/AppErrorFallback';
+import { GeoportalMap } from './components/GeoportalMap/GeoportalMap';
+import MapMeasurement from './components/map-measure/MapMeasurement';
+import TopNavbar from './components/TopNavbar';
 import {
   setBackgroundLayer,
   setLayers,
@@ -19,29 +30,31 @@ import {
   setShowHamburgerMenu,
   setShowLocatorButton,
   setShowMeasurementButton,
-} from "./store/slices/mapping";
+} from './store/slices/mapping';
 import {
   getUIAllowChanges,
   getUIMode,
   setUIAllow3d,
-  setUIAllowUiChanges,
+  setUIAllowChanges,
   setUIMode,
   setUIShowLayerButtons,
   setUIShowLayerHideButtons,
   UIMode,
-} from "./store/slices/ui";
-import { Layer } from "@carma-mapping/layers";
-import { CrossTabCommunicationContextProvider } from "react-cismap/contexts/CrossTabCommunicationContextProvider";
-import type { BackgroundLayer, Settings } from "@carma-apps/portals";
-import { OverlayTourProvider } from "@carma/libraries/commons/ui/lib-helper-overlay";
+} from './store/slices/ui';
+
+// Config
+import { MODEL_ASSETS } from './config/assets.config';
 import {
   BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
   WUPP_TERRAIN_PROVIDER,
-} from "./config/dataSources.config";
-import { MODEL_ASSETS } from "./config/assets.config";
-import { CustomViewerContextProvider } from "@carma-mapping/cesium-engine";
-import { ErrorBoundary } from "react-error-boundary";
-import AppErrorFallback from "./components/AppErrorFallback";
+} from './config/dataSources.config';
+
+// Side-Effect Imports
+import 'bootstrap/dist/css/bootstrap.min.css';
+import 'leaflet/dist/leaflet.css';
+import 'react-bootstrap-typeahead/css/Typeahead.css';
+import 'react-cismap/topicMaps.css';
+import './index.css';
 
 if (typeof global === "undefined") {
   window.global = window;
@@ -86,10 +99,10 @@ function App({ published }: { published?: boolean }) {
         dispatch(setShowHamburgerMenu(newConfig.settings.showHamburgerMenu));
 
         if (newConfig.settings.showLayerHideButtons || published) {
-          dispatch(setUIAllowUiChanges(false));
+          dispatch(setUIAllowChanges(false));
           dispatch(setUIShowLayerHideButtons(true));
         } else {
-          dispatch(setUIAllowUiChanges(true));
+          dispatch(setUIAllowChanges(true));
           dispatch(setUIShowLayerHideButtons(false));
         }
       }
