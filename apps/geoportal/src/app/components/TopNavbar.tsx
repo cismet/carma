@@ -37,7 +37,7 @@ import {
   getUIMode,
   getUIShowLayerButtons,
   setUIShowLayerButtons,
-  toggleUIModeTour,
+  toggleUIMode,
   UIMode,
 } from "../store/slices/ui";
 import { layerMap } from "../config";
@@ -72,6 +72,10 @@ const TopNavbar = () => {
   const baseUrl = window.location.origin + window.location.pathname;
   const toggleSceneStyle = useSceneStyleToggle();
   const isMode2d = useViewerIsMode2d();
+
+  const handleToggleTour = () => {
+    dispatch(toggleUIMode(UIMode.TOUR));
+  };
 
   const menuTourRef = useOverlayHelper(
     getCollabedHelpElementsConfig("MENULEISTE", geoElements),
@@ -355,7 +359,7 @@ const TopNavbar = () => {
           <Popover trigger="click" placement="bottom">
             <button
               className="hover:text-gray-600 text-xl"
-              onClick={toggleUIModeTour}
+              onClick={handleToggleTour}
             >
               <FontAwesomeIcon icon={faBookOpenReader} />
             </button>

@@ -42,7 +42,7 @@ import {
   deleteVisibleShapeById,
 } from "../../store/slices/measurements";
 
-import { getUIMode, toggleUIModeMeasurement } from "../../store/slices/ui";
+import { getUIMode, toggleUIMode, UIMode } from "../../store/slices/ui";
 import { getStartDrawing, setStartDrawing } from "../../store/slices/mapping";
 
 const MapMeasurement = (props) => {
@@ -61,6 +61,10 @@ const MapMeasurement = (props) => {
   const [measureControl, setMeasureControl] = useState(null);
   const [visiblePolylines, setVisiblePolylines] = useState();
   const [drawingShape, setDrawingLine] = useState(null);
+
+  const toggleMeasurementModeHandler = () => {
+    dispatch(toggleUIMode(UIMode.MEASUREMENT));
+  };
 
   useEffect(() => {
     if (routedMapRef && !measureControl) {
@@ -248,9 +252,9 @@ const MapMeasurement = (props) => {
   const mapMovingEndHandler = (status) => {
     dispatch(setMapMovingEnd(status));
   };
-  const toggleMeasurementModeHandler = (status) => {
-    dispatch(toggleUIModeMeasurement());
-  };
+
+
+
 
   const updateAreaOfDrawingMeasurementHandler = (newArea) => {
     dispatch(updateAreaOfDrawingMeasurement(newArea));

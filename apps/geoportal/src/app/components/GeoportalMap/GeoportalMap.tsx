@@ -27,8 +27,7 @@ import {
   getUIAllow3d,
   getUIMode,
   getUIShowLayerButtons,
-  toggleUIModeFeatureInfo,
-  toggleUIModeMeasurement,
+  toggleUIMode,
   UIMode,
 } from "../../store/slices/ui.ts";
 import {
@@ -139,6 +138,14 @@ export const GeoportalMap = () => {
   const tourRefLabels = useTourRefCollabLabels();
   const gazData = useGazData();
   const { width, height } = useWindowSize(wrapperRef);
+
+  const handleToggleMeasurement = () => {
+    dispatch(toggleUIMode(UIMode.MEASUREMENT));
+  };
+
+  const handleToggleFeatureInfo = () => {
+    dispatch(toggleUIMode(UIMode.FEATURE_INFO));
+  };
 
   useEffect(() => {
     if (document.getElementById("routedMap")) {
@@ -286,7 +293,7 @@ export const GeoportalMap = () => {
                 disabled={!isMode2d}
                 onClick={() => {
                   setIsMeasurementTooltip(false);
-                  toggleUIModeMeasurement();
+                  handleToggleMeasurement();
                 }}
                 ref={tourRefLabels.measurement}
               >
@@ -330,7 +337,7 @@ export const GeoportalMap = () => {
           <ControlButtonStyler
             disabled={!isMode2d}
             onClick={() => {
-              toggleUIModeFeatureInfo();
+              handleToggleFeatureInfo();
               dispatch(setSelectedFeature(null));
               dispatch(setSecondaryInfoBoxElements([]));
               dispatch(setFeatures([]));

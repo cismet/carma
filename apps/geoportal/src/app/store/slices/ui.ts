@@ -59,6 +59,13 @@ const slice = createSlice({
     setUIAllow3d(state, action: PayloadAction<boolean>) {
       state.allow3d = action.payload;
     },
+    toggleUIMode(state, action: PayloadAction<UIMode>) {
+      if (state.mode === action.payload) {
+        state.mode = UIMode.DEFAULT;
+      } else {
+        state.mode = action.payload;
+      }
+    },
   },
 });
 
@@ -73,6 +80,7 @@ export const {
   setUIShowLayerHideButtons,
   setUIAllowUiChanges,
   setUIAllow3d,
+  toggleUIMode,
 } = slice.actions;
 
 export const getUIShowInfo = (state: RootState) => {
@@ -105,40 +113,4 @@ export const getUIAllowChanges = (state: RootState) => {
 
 export const getUIAllow3d = (state: RootState) => {
   return state.ui.allow3d;
-};
-
-export const toggleUIModeMeasurement = () => {
-  return function (dispatch, getState) {
-    const state = getState();
-    const mode = state.ui.mode;
-    if (mode === UIMode.DEFAULT) {
-      dispatch(setUIMode(UIMode.MEASUREMENT));
-    } else {
-      dispatch(setUIMode(UIMode.DEFAULT));
-    }
-  };
-};
-
-export const toggleUIModeFeatureInfo = () => {
-  return function (dispatch, getState) {
-    const state = getState();
-    const mode = state.ui.mode;
-    if (mode === UIMode.DEFAULT) {
-      dispatch(setUIMode(UIMode.FEATURE_INFO));
-    } else {
-      dispatch(setUIMode(UIMode.DEFAULT));
-    }
-  };
-};
-
-export const toggleUIModeTour = () => {
-  return function (dispatch, getState) {
-    const state = getState();
-    const mode = state.ui.mode;
-    if (mode === UIMode.DEFAULT) {
-      dispatch(setUIMode(UIMode.TOUR));
-    } else {
-      dispatch(setUIMode(UIMode.DEFAULT));
-    }
-  };
 };
