@@ -66,10 +66,14 @@
   margin-top: -52% !important;
 }
 
-/* .leaflet-draw-tooltip {
-  display: hidden !important;
+.leaflet-draw-tooltip {
+  cursor: crosshair !important;
 }
 
-#routedMap:hover .leaflet-draw-tooltip {
-  visibility: visible !important;
-} */
+#routedMap .leaflet-draw-tooltip {
+  cursor: crosshair !important;
+}
+
+.leaflet-marker-icon.leaflet-mouse-marker.leaflet-zoom-animated.leaflet-interactive {
+  cursor: crosshair !important;
+}
