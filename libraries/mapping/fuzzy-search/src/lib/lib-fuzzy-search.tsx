@@ -2,11 +2,13 @@ import { useEffect, useState, useRef } from "react";
 import type { IFuseOptions } from "fuse.js";
 import Fuse from "fuse.js";
 import { AutoComplete, Button } from "antd";
-import { builtInGazetteerHitTrigger } from "react-cismap/tools/gazetteerHelper";
-import "./fuzzy-search.css";
-import IconComp from "react-cismap/commons/Icon";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faLocationDot } from "@fortawesome/free-solid-svg-icons";
+
+import { RoutedMap } from "react-cismap";
+import { builtInGazetteerHitTrigger } from "react-cismap/tools/gazetteerHelper";
+import IconComp from "react-cismap/commons/Icon";
+
 import type { BaseSelectRef } from "rc-select";
 import {
   generateOptions,
@@ -16,7 +18,7 @@ import {
   prepareGazData,
   removeStopwords,
   stopwords,
-  builtInGazetteerHitTrigger as carmaGazetteerHitTrigger,
+  carmaGazetteerHitTrigger,
   getDefaultSearchConfig,
 } from "./utils/fuzzySearchHelper";
 import {
@@ -27,6 +29,7 @@ import {
   MapConsumer,
 } from "..";
 import { gazDataPrefix, sourcesConfig } from "./config";
+import "./fuzzy-search.css";
 
 interface FuseWithOption<T> extends Fuse<T> {
   options?: IFuseOptions<T>;
@@ -38,6 +41,7 @@ export function LibFuzzySearch({
   // gazetteerHit,
   // overlayFeature,
   mapRef,
+  cesiumRef,
   setOverlayFeature,
   referenceSystem,
   referenceSystemDefinition,
@@ -65,24 +69,12 @@ export function LibFuzzySearch({
   const autoCompleteRef = useRef<BaseSelectRef | null>(null);
   const dropdownContainerRef = useRef<HTMLDivElement>(null);
 
-  const mapConsumers: MapConsumer[] = [];
-  mapRef && mapConsumers.push(mapRef);
+  let mapConsumers: MapConsumer[] = [];
+  //mapRef && mapConsumers.push(mapRef);
+  cesiumRef && mapConsumers.push(cesiumRef);
 
-  // const internalGazetteerHitTrigger = (hit) => {
-  //   carmaGazetteerHitTrigger(
-  //     hit,
-  //     mapConsumers,
-  //     {
-  //       setGazetteerHit,
-  //     },
-  //     // referenceSystem,
-  //     // referenceSystemDefinition,
-  //     // setGazetteerHit,
-  //     // setOverlayFeature,
-  //     // _gazetteerHitTrigger,
-  //   );
-  // };
-  const internalGazetteerHitTrigger = (hit) => {
+
+  const topicMapGazetteerHitTrigger = (hit) => {
     builtInGazetteerHitTrigger(
       hit,
       mapRef.current
@@ -145,7 +137,9 @@ export function LibFuzzySearch({
 
   const handleOnSelect = (option) => {
     setCleanBtnDisable(false);
-    internalGazetteerHitTrigger([option.sData]);
+    console.log("xxx option", option, mapRef, cesiumRef, mapConsumers);
+    topicMapGazetteerHitTrigger([option.sData]); // TODO remove this after carma gazetteer hit trigger also handles LeafletMaps
+    carmaGazetteerHitTrigger([option.sData], mapConsumers);
     if (option.sData.type === "bezirke" || option.sData.type === "quartiere") {
       setGazetteerHit(null);
     } else {

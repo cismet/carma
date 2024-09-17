@@ -12,7 +12,7 @@ import {
 import { md5FetchText } from "./fetching";
 import L from "leaflet";
 import proj4 from "proj4";
-import { PROJ4_CONVERTERS } from "./geo";
+import { convertBBox2Bounds, PROJ4_CONVERTERS } from "./geo";
 import {
   BoundingSphere,
   Cartesian3,
@@ -37,6 +37,10 @@ import {
   removeGroundPrimitiveById,
 } from "./cesium";
 import { DEFAULT_SRC_PROJ } from "../config";
+import bbox from '@turf/bbox';
+import { feature } from '@turf/helpers';
+import { ModelAsset } from "@carma-mapping/cesium-engine";
+import { RoutedMap } from 'react-cismap';
 
 export const renderTitle = (category: string) => {
   let title = "???";
@@ -478,28 +482,34 @@ export type GazetteerOptions = {
   setGazetteerHit?: (hit: any) => void;
   setOverlayFeature?: (feature: any) => void;
   furtherGazeteerHitTrigger?: (hit: any) => void;
+  referenceSystem?: any;
+  referenceSystemDefinition?: any;
   suppressMarker?: boolean;
   mapActions?: MapActions;
-  // marker3dStyle?: ModelAsset;
+  marker3dStyle?: ModelAsset;
 };
 
 const defaultGazetteerOptions = {
   referenceSystem: undefined,
   referenceSystemDefinition: PROJ4_CONVERTERS.CRS25832,
   suppressMarker: false,
+  //marker3dStyle?: ModelAsset
+
 };
 
-export const builtInGazetteerHitTrigger = (
+export const carmaGazetteerHitTrigger = (
   hit,
   mapConsumers: MapConsumer[],
   {
     setGazetteerHit,
     setOverlayFeature,
     furtherGazeteerHitTrigger,
+    referenceSystem,
+    referenceSystemDefinition,
     suppressMarker,
     mapActions = { leaflet: {}, cesium: {} },
   }: // marker3dStyle,
-  GazetteerOptions = defaultGazetteerOptions,
+    GazetteerOptions = defaultGazetteerOptions,
 ) => {
   if (hit !== undefined && hit.length !== undefined && hit.length > 0) {
     const lAction = (mapActions.leaflet = {
@@ -536,8 +546,8 @@ export const builtInGazetteerHitTrigger = (
     const zoom = hitObject.more.zl ?? DEFAULT_ZOOM_LEVEL;
     const polygon = hasPolygon
       ? hitObject.more.g.coordinates.map((ring) =>
-          getRingInWGS84(ring, refSystemConverter),
-        )
+        getRingInWGS84(ring, refSystemConverter),
+      )
       : null;
     console.log(
       "hitObject",
@@ -615,64 +625,63 @@ export const builtInGazetteerHitTrigger = (
           // marker3dStyle && addMarker(viewer, posHeight, marker3dStyle);
           cAction.lookAt(mapElement.scene, pos, zoom);
         }
-      } else if (mapElement instanceof L.Map) {
-        lAction.panTo(mapElement, pos);
+      } else if (mapElement instanceof RoutedMap) {
+        console.log('xxx mapElement', mapElement, "not implemented");
+        /*
+        lAction.panTo((mapElement as unknown as {leafletMap: {leafletElement: L.Map}}).leafletMap.leafletElement, pos);
+        if (zoom) {
+          // todo  handle zoom with panTo as optional animation
+          mapElement.setZoom(hitObject.more.zl, {
+            animate: false,
+          });
+
+          if (suppressMarker === false) {
+            //show marker
+            setGazetteerHit && setGazetteerHit(hitObject);
+            setOverlayFeature && setOverlayFeature(null);
+          }
+        } else if (hitObject.more.g) {
+          let hitFeature = feature(hitObject.more.g);
+
+          if (!hitFeature.crs) {
+            console.log('xxx no crs therefore context based crs', referenceSystem);
+            const refSys =
+              referenceSystem !== undefined
+                ? referenceSystem.code.split('EPSG:')[1]
+                : '25832';
+            hitFeature.crs = {
+              type: 'name',
+              properties: {
+                name: 'urn:ogc:def:crs:EPSG::' + refSys,
+              },
+            };
+          }
+
+          console.log('xxx no crs therefore context based crs. feature:', hitFeature);
+          var bb = bbox(hitFeature);
+
+          if (suppressMarker === false) {
+            setGazetteerHit && setGazetteerHit(null);
+            setOverlayFeature && setOverlayFeature(hitFeature);
+          }
+
+          mapElement.fitBounds(
+            convertBBox2Bounds(bb, referenceSystemDefinition) as L.LatLngBoundsExpression
+          );
+        }
+
+        setTimeout(() => {
+          if (furtherGazeteerHitTrigger !== undefined) {
+            furtherGazeteerHitTrigger(hit);
+          }
+        }, 200);
+        */
       } else {
         console.warn("Unsupported map type", mapElement);
       }
     });
 
-    // TODO reimplementation of other map actions for leaflet and cesium
-    /*
 
-    if (zoom) {
-      // todo  handle zoom with panTo as optional animation
-      leafletElement.setZoom(hitObject.more.zl, {
-        animate: false,
-      });
-
-      if (suppressMarker === false) {
-        //show marker
-        setGazetteerHit(hitObject);
-        setOverlayFeature(null);
-      }
-    } else if (hitObject.more.g) {
-      var feature = turfHelpers.feature(hitObject.more.g);
-
-      if (!feature.crs) {
-        console.log('xxx no crs therefore context based crs', referenceSystem);
-        const refSys =
-          referenceSystem !== undefined
-            ? referenceSystem.code.split('EPSG:')[1]
-            : '25832';
-        feature.crs = {
-          type: 'name',
-          properties: {
-            name: 'urn:ogc:def:crs:EPSG::' + refSys,
-          },
-        };
-      }
-
-      console.log('xxx no crs therefore context based crs. feature:', feature);
-      var bb = bboxCreator(feature);
-
-      if (suppressMarker === false) {
-        setGazetteerHit(null);
-        setOverlayFeature(feature);
-      }
-
-      leafletElement.fitBounds(
-        convertBBox2Bounds(bb, referenceSystemDefinition)
-      );
-    }
-    
-
-    setTimeout(() => {
-      if (furtherGazeteerHitTrigger !== undefined) {
-        furtherGazeteerHitTrigger(hit);
-      }
-    }, 200);
-    */
   } else {
     console.info("unhandled hit:", hit);
   }

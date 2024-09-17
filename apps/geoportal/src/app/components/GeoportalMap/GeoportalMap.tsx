@@ -341,6 +341,7 @@ export const GeoportalMap = () => {
           <LibFuzzySearch
             gazData={gazData}
             mapRef={routedMapRef}
+            cesiumRef={viewer}
             referenceSystem={referenceSystem}
             referenceSystemDefinition={referenceSystemDefinition}
             gazetteerHit={gazetteerHit}
