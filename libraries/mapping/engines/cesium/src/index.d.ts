@@ -52,6 +52,9 @@ export type ModelAsset = {
   rotation?: boolean | number;
   fixedScale?: boolean;
   anchorOffset?: { x?: number; y?: number; z?: number };
+  modelOffset?: { x: number; y: number; z: number };
+  modelRotation?: { x?: number, y?: number, z?: number}
+  modelPosition?: { latitude: number; longitude: number; height: number };
   hasAnimation?: boolean;
 };
 
