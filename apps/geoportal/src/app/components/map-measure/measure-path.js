@@ -79,6 +79,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     polygonMode: false,
     measurementMode: false,
     startDrawing: false,
+    customTooltip: null,
   },
 
   drawingPolygons: function (map) {
@@ -199,6 +200,8 @@ L.Control.MeasurePolygon = L.Control.extend({
   },
 
   _onPolylineDrag: function (event) {
+    this.options.customTooltip.style.visibility = "hidden";
+
     this.options.cbSetUpdateStatusHandler(true);
     const polyline = event.target;
     const layer = event.layer;
@@ -383,6 +386,7 @@ L.Control.MeasurePolygon = L.Control.extend({
           const latLngArray = coordinates.map((c) => [c.lat, c.lng]);
           latLngArray.push(latLngArray[0]);
           const area = this.calculateArea(latLngArray);
+          this.options.customTooltip.style.visibility = "hidden";
           if (e.target.customHandle === 0 && firsHovering) {
             this.options.cbUpdateAreaOfDrawingMeasurement(area);
             L.drawLocal.draw.handlers.polyline.tooltip.end = `Den Startpunkt anklicken, um das Polygon zu schließen.`;
@@ -466,6 +470,48 @@ L.Control.MeasurePolygon = L.Control.extend({
       this.getVisiblePolylinesIds(allPolyLines);
       this.options.cbMapMovingEndHandler(true);
       this.options.cbSetUpdateStatusHandler(false);
+    });
+
+    map.on("mousemove", (event) => {
+      const target = event.originalEvent.target;
+
+      const mode = this.options.measurementMode;
+      if (!this.options.customTooltip && mode === "measurement") {
+        const popupPane = map._panes.popupPane;
+
+        this.options.customTooltip = L.DomUtil.create(
+          "div",
+          "leaflet-draw-custom-tooltip",
+          popupPane,
+        );
+
+        this.options.customTooltip.innerHTML = `<div>Klicken, um den Startpunkt der Messung zu setzen.</div>`;
+        this.options.customTooltip.style.visibility = "inherit";
+
+        const pos = this._map.latLngToLayerPoint(event.latlng);
+        L.DomUtil.setPosition(this.options.customTooltip, pos);
+      }
+
+      if (this.options.customTooltip && mode === "measurement") {
+        const pos = this._map.latLngToLayerPoint(event.latlng);
+        // const offsetX = 20;
+        const offsetX = 0;
+        // L.DomUtil.setPosition(this.options.customTooltip, pos);
+        L.DomUtil.setPosition(this.options.customTooltip, {
+          x: pos.x + offsetX,
+          y: pos.y,
+        });
+        if (target.classList.contains("leaflet-div-icon")) {
+          this.options.customTooltip.style.visibility = "hidden";
+        }
+        if (target.classList.contains("leaflet-container")) {
+          this.options.customTooltip.style.visibility = "visible";
+        }
+      }
+    });
+
+    map.on("mouseout", (event) => {
+      this.options.customTooltip.style.visibility = "hidden";
     });
 
     return iconsWrapper;
@@ -806,6 +852,10 @@ L.Control.MeasurePolygon = L.Control.extend({
         });
         savedShape.on("mouseout", (e) => {
           this.options.checkonedrawpoligon = false;
+          this.options.customTooltip.style.visibility = "inherit";
+        });
+        savedShape.on("mouseover", (e) => {
+          this.options.customTooltip.style.visibility = "hidden";
         });
         savedShape.on(
           "editable:drag editable:dragstart editable:dragend editable:vertex:drag editable:vertex:deleted",
@@ -845,11 +895,19 @@ L.Control.MeasurePolygon = L.Control.extend({
       // if (this.options.isFirstLoading) {
       //   this.options.isFirstLoading = false;
       // }
+
+      const customTooltip = document.querySelector("#routedMap");
+      customTooltip.style.cursor = "crosshair";
+      console.log("xxx customTooltip", customTooltip);
     } else {
       this._clearMeasurements();
+
+      const customTooltip = document.querySelector("#routedMap");
+      customTooltip.style.cursor = "pointer";
       if (this.options.currenLine) {
         this.options.currenLine.disable();
       }
+      customTooltip.style.cursor = "pointer";
       // const drawBtn = document.getElementById("draw_shape");
       // drawBtn.classList.add("hide-draw-btn");
       this.options.checkonedrawpoligon = false;
