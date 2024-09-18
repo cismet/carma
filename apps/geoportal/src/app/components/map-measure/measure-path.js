@@ -516,7 +516,11 @@ L.Control.MeasurePolygon = L.Control.extend({
           if (target.classList.contains("leaflet-div-icon")) {
             this.options.customTooltip.style.visibility = "hidden";
           }
-          if (target.classList.contains("leaflet-container")) {
+          if (
+            target.classList.contains("leaflet-container") &&
+            !this.options.ifDrawing
+          ) {
+            console.log("xxx ifDrawing", this.options.ifDrawing);
             this.options.customTooltip.style.visibility = "visible";
           }
         }
