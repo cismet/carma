@@ -111,6 +111,9 @@ L.Control.MeasurePolygon = L.Control.extend({
   },
 
   drawingLines: function (map, event) {
+    if (this.options.customTooltip) {
+      this.options.customTooltip.style.visibility = "hidden";
+    }
     this.options.shapeMode = "line";
     this._measureHandler = new L.Draw.Polyline(map, {
       showLength: true,
