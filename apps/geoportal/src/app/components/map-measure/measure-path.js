@@ -230,6 +230,7 @@ L.Control.MeasurePolygon = L.Control.extend({
       newDistance,
       square,
     );
+    this.options.checkonedrawpoligon = false;
   },
 
   _onPolygonClick: function (map, event) {
@@ -859,7 +860,6 @@ L.Control.MeasurePolygon = L.Control.extend({
         });
         savedShape.on("mouseout", (e) => {
           this.options.checkonedrawpoligon = false;
-          // this.options.customTooltip.style.visibility = "inherit";
         });
         savedShape.on("mouseover", (e) => {
           if (this.options.customTooltip) {
