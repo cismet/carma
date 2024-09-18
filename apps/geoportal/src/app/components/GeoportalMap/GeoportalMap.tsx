@@ -85,6 +85,7 @@ import { useGazData } from "../../hooks/useGazData.ts";
 import { useWindowSize } from "../../hooks/useWindowSize.ts";
 import { useTourRefCollabLabels } from "../../hooks/useTourRefCollabLabels.ts";
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
+import { MODEL_ASSETS } from '../../config/assets.config';
 
 // TODO: Make transition style configurable with config and cesium library
 const MAPMODE_TRANSITION_DURATION = 1000;
@@ -443,6 +444,7 @@ export const GeoportalMap = () => {
               >
                 <CustomViewer
                   containerRef={container3dMapRef}
+                  model={MODEL_ASSETS.Schwebebahn}
                 ></CustomViewer>
               </div>
             </TweakpaneProvider>

@@ -74,6 +74,28 @@ export const MODEL_ASSETS: Record<string, ModelAsset> = {
     anchorOffset: { z: 0 },
     hasAnimation: true,
   },
+  Schwebebahn: {
+    uri: `${APP_BASE_PATH}data/glb/schwebebahn_yz_yup_x370500y5679800_halfapplied.glb`,
+    scale: 1,
+    modelOffset: { x: 0, y: 0, z: -198 },
+    modelRotation: {z:-Math.PI / 2.04 },
+    modelPosition: {longitude:7.14423, latitude: 51.25483, height: 200 },
+    hasAnimation: false,
+  },
+  SchwebebahnGeruest: {
+    uri: `${APP_BASE_PATH}data/glb/geruest.glb`,
+    scale: 1,
+    modelOffset: { x: -5679875, y: 370570, z: 0 },
+    modelPosition: {longitude:7.143502, latitude: 51.254823, height: 230 },
+    hasAnimation: false,
+  },
+  SchwebebahnStuetzen: {
+    uri: `${APP_BASE_PATH}data/glb/stuetzen.glb`,
+    scale: 1,
+    modelOffset: { x: -5679800, y: 370450, z: 0 },
+    modelPosition: {longitude:7.143502, latitude: 51.254823, height: 230 },
+    hasAnimation: false,
+  },
 };
 
 export default { MODEL_ASSETS, IMAGE_ASSETS };

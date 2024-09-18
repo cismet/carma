@@ -14,8 +14,15 @@ import {
   PerspectiveFrustum,
   Rectangle,
   OrthographicFrustum,
+  Cartesian3,
+  Transforms,
+  BoundingSphere,
+  Model,
+  Cartographic,
+  Matrix4,
+  Matrix3,
 } from "cesium";
-import { Viewer as ResiumViewer } from "resium";
+import { Entity, Model as ResiumModel, Viewer as ResiumViewer } from "resium";
 
 import {
   useShowSecondaryTileset,
@@ -34,6 +41,7 @@ import { leafletToCesiumCamera, resolutionFractions } from "../utils";
 import { formatFractions } from "../utils/formatters";
 import { useCesiumCustomViewer } from "../CustomViewerContextProvider";
 import type { LeafletEvent } from "leaflet";
+import { ModelAsset } from "../..";
 
 type CustomViewerProps = {
   children?: ReactNode;
@@ -65,6 +73,7 @@ type CustomViewerProps = {
     showGroundAtmosphere?: boolean;
     showSkirts?: boolean;
   };
+  model?: ModelAsset;
   viewerOptions?: {
     resolutionScale?: number;
   };
@@ -99,7 +108,25 @@ function CustomViewer(props: CustomViewerProps) {
     },
     containerRef,
     enableLocationHashUpdate = true,
+    model = null,
   } = props;
+
+  const xyz = model!.modelOffset!
+  const centeredModel = Matrix4.fromTranslation(new Cartesian3(-xyz.x, -xyz.y, xyz.z))
+
+  const rotationMatrix = Matrix3.fromRotationZ(model!.modelRotation!.z as number); // 90 degrees in radians
+  // Create a 4x4 rotation matrix from the 3x3 rotation matrix
+  const rotationZ = Matrix4.fromRotationTranslation(rotationMatrix, Cartesian3.ZERO);
+
+  const rotatedModel = Matrix4.multiply(rotationZ, centeredModel, new Matrix4());
+
+
+  const modelPosDeg = model?.modelPosition!
+  const modelPos = Cartesian3.fromDegrees(modelPosDeg.longitude, modelPosDeg.latitude, modelPosDeg.height)
+
+  const locatedModel = Transforms.eastNorthUpToFixedFrame(modelPos)
+  const modelMatrix = Matrix4.multiply(locatedModel, rotatedModel, new Matrix4());
+  //const modelMatrix = Matrix4.fromTranslation(new Cartesian3(0, 0, 0))
 
   const [viewportLimit, setViewportLimit] = useState<number>(4);
   const [viewportLimitDebug, setViewportLimitDebug] = useState<boolean>(false);
@@ -458,6 +485,20 @@ function CustomViewer(props: CustomViewerProps) {
 
   console.log("RENDER: CustomViewer");
 
+  const handleModelReady = (model: Model) => {
+    console.log("Model ready", model)
+    const boundingSphere: BoundingSphere = model.boundingSphere;
+    // Set the camera to view the model's bounding box
+
+    const cartoSphere = Cartographic.fromCartesian(boundingSphere.center)
+    console.log("model", cartoSphere)
+    if (cartoSphere) {
+      const { latitude, longitude, height } = cartoSphere
+      console.log("Model located at:", boundingSphere.center, modelMatrix, CeMath.toDegrees(latitude), CeMath.toDegrees(longitude), height);
+      viewer && viewer.camera.flyToBoundingSphere(boundingSphere);
+    }
+  };
+
   return (
     <ResiumViewer
       ref={viewerRef}
@@ -491,6 +532,16 @@ function CustomViewer(props: CustomViewerProps) {
       skyBox={false}
     >
       <BaseTilesets />
+      {model && <Entity point={{ pixelSize: 50, color: Color.BLUE }} position={modelPos} >
+
+      </Entity>}
+      {model && <ResiumModel
+        scale={1}
+        modelMatrix={modelMatrix}
+        url={model.uri}
+        onReady={handleModelReady}
+      />}
+
       {children}
     </ResiumViewer>
   );
