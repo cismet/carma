@@ -388,7 +388,7 @@ L.Control.MeasurePolygon = L.Control.extend({
           const latLngArray = coordinates.map((c) => [c.lat, c.lng]);
           latLngArray.push(latLngArray[0]);
           const area = this.calculateArea(latLngArray);
-          this.options.customTooltip.style.visibility = "hidden";
+          // this.options.customTooltip.style.visibility = "hidden";
           if (e.target.customHandle === 0 && firsHovering) {
             this.options.cbUpdateAreaOfDrawingMeasurement(area);
             L.drawLocal.draw.handlers.polyline.tooltip.end = `Den Startpunkt anklicken, um das Polygon zu schließen.`;
@@ -862,7 +862,9 @@ L.Control.MeasurePolygon = L.Control.extend({
           // this.options.customTooltip.style.visibility = "inherit";
         });
         savedShape.on("mouseover", (e) => {
-          this.options.customTooltip.style.visibility = "hidden";
+          if (this.options.customTooltip) {
+            this.options.customTooltip.style.visibility = "hidden";
+          }
         });
         savedShape.on(
           "editable:drag editable:dragstart editable:dragend editable:vertex:drag editable:vertex:deleted",
