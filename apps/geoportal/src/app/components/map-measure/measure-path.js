@@ -81,6 +81,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     startDrawing: false,
     customTooltip: null,
     device: null,
+    clickAfterShapeSelection: false,
   },
 
   drawingPolygons: function (map) {
@@ -307,13 +308,17 @@ L.Control.MeasurePolygon = L.Control.extend({
     this._measureLayers = L.layerGroup().addTo(map);
 
     map.on("click", (event) => {
-      this.options.currenLine;
       const mode = this.options.measurementMode;
       if (!this.options.checkonedrawpoligon && mode === "measurement") {
         this.drawingLines(map, event);
         this.options.checkonedrawpoligon = true;
       } else {
         // this.options.checkonedrawpoligon = false;
+      }
+
+      if (this.options.clickAfterShapeSelection) {
+        this.options.checkonedrawpoligon = false;
+        this.options.clickAfterShapeSelection = false;
       }
     });
 
@@ -481,7 +486,6 @@ L.Control.MeasurePolygon = L.Control.extend({
     map.on("mousemove", (event) => {
       const target = event.originalEvent.target;
       const isDesctop = this.options.device === "Desktop" ? true : false;
-      console.log("xxx mouse over device", this.options.device);
       const mode = this.options.measurementMode;
       if (isDesctop) {
         if (!this.options.customTooltip && mode === "measurement") {
@@ -794,6 +798,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     polygon.on("click", () => {
       this.options.cbSetActiveShape(polygon.customID);
       this.options.cbSetUpdateStatusHandler(false);
+      this.options.checkonedrawpoligon = false;
     });
     polygon.on(
       "editable:drag editable:dragstart editable:dragend editable:vertex:drag editable:vertex:deleted",
@@ -860,6 +865,7 @@ L.Control.MeasurePolygon = L.Control.extend({
           this.options.checkonedrawpoligon = true;
           this.options.cbSetActiveShape(savedShape.customID);
           this.options.cbSetUpdateStatusHandler(false);
+          this.options.clickAfterShapeSelection = true;
         });
         savedShape.on("mouseout", (e) => {
           this.options.checkonedrawpoligon = false;
