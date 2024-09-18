@@ -201,7 +201,6 @@ L.Control.MeasurePolygon = L.Control.extend({
 
   _onPolylineDrag: function (event) {
     this.options.customTooltip.style.visibility = "hidden";
-
     this.options.cbSetUpdateStatusHandler(true);
     const polyline = event.target;
     const layer = event.layer;
@@ -511,7 +510,9 @@ L.Control.MeasurePolygon = L.Control.extend({
     });
 
     map.on("mouseout", (event) => {
-      this.options.customTooltip.style.visibility = "hidden";
+      if (this.options.customTooltip) {
+        this.options.customTooltip.style.visibility = "hidden";
+      }
     });
 
     return iconsWrapper;
@@ -852,7 +853,7 @@ L.Control.MeasurePolygon = L.Control.extend({
         });
         savedShape.on("mouseout", (e) => {
           this.options.checkonedrawpoligon = false;
-          this.options.customTooltip.style.visibility = "inherit";
+          // this.options.customTooltip.style.visibility = "inherit";
         });
         savedShape.on("mouseover", (e) => {
           this.options.customTooltip.style.visibility = "hidden";
@@ -898,7 +899,6 @@ L.Control.MeasurePolygon = L.Control.extend({
 
       const customTooltip = document.querySelector("#routedMap");
       customTooltip.style.cursor = "crosshair";
-      console.log("xxx customTooltip", customTooltip);
     } else {
       this._clearMeasurements();
 
