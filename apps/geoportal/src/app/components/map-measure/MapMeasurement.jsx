@@ -44,6 +44,7 @@ import {
 
 import { getUIMode, toggleUIMode, UIMode } from "../../store/slices/ui";
 import { getStartDrawing, setStartDrawing } from "../../store/slices/mapping";
+import useDeviceDetection from "../../hooks/useDeviceDetection";
 
 const MapMeasurement = (props) => {
   const { routedMapRef } = useContext(TopicMapContext);
@@ -62,6 +63,8 @@ const MapMeasurement = (props) => {
   const [visiblePolylines, setVisiblePolylines] = useState();
   const [drawingShape, setDrawingLine] = useState(null);
 
+  const device = useDeviceDetection();
+
   const toggleMeasurementModeHandler = () => {
     dispatch(toggleUIMode(UIMode.MEASUREMENT));
   };
@@ -78,6 +81,7 @@ const MapMeasurement = (props) => {
         activeShape,
         mode_btn: `<div id='draw-shape-active' class='measure_button_wrapper'><div class='add_shape'>+</div></div>`,
         msj_disable_tool: "Do you want to disable the tool?",
+        device,
         shapes: measurementShapes,
         cbSaveShape: saveShapeHandler,
         cbUpdateShape: updateShapeHandler,
@@ -205,7 +209,6 @@ const MapMeasurement = (props) => {
   }, [drawingShape]);
 
   // useEffect(() => {
-  //   // debugger;
   //   if (startDrawing && measureControl) {
   //     measureControl.drawingLines(routedMapRef.leafletMap.leafletElement);
   //   }

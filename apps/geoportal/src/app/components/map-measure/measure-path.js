@@ -80,6 +80,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     measurementMode: false,
     startDrawing: false,
     customTooltip: null,
+    device: null,
   },
 
   drawingPolygons: function (map) {
@@ -200,7 +201,9 @@ L.Control.MeasurePolygon = L.Control.extend({
   },
 
   _onPolylineDrag: function (event) {
-    this.options.customTooltip.style.visibility = "hidden";
+    if (this.options.customTooltip) {
+      this.options.customTooltip.style.visibility = "hidden";
+    }
     this.options.cbSetUpdateStatusHandler(true);
     const polyline = event.target;
     const layer = event.layer;
@@ -473,38 +476,41 @@ L.Control.MeasurePolygon = L.Control.extend({
 
     map.on("mousemove", (event) => {
       const target = event.originalEvent.target;
-
+      const isDesctop = this.options.device === "Desktop" ? true : false;
+      console.log("xxx mouse over device", this.options.device);
       const mode = this.options.measurementMode;
-      if (!this.options.customTooltip && mode === "measurement") {
-        const popupPane = map._panes.popupPane;
+      if (isDesctop) {
+        if (!this.options.customTooltip && mode === "measurement") {
+          const popupPane = map._panes.popupPane;
 
-        this.options.customTooltip = L.DomUtil.create(
-          "div",
-          "leaflet-draw-custom-tooltip",
-          popupPane,
-        );
+          this.options.customTooltip = L.DomUtil.create(
+            "div",
+            "leaflet-draw-custom-tooltip",
+            popupPane,
+          );
 
-        this.options.customTooltip.innerHTML = `<div>Klicken, um den Startpunkt der Messung zu setzen.</div>`;
-        this.options.customTooltip.style.visibility = "inherit";
+          this.options.customTooltip.innerHTML = `<div>Klicken, um den Startpunkt der Messung zu setzen.</div>`;
+          this.options.customTooltip.style.visibility = "inherit";
 
-        const pos = this._map.latLngToLayerPoint(event.latlng);
-        L.DomUtil.setPosition(this.options.customTooltip, pos);
-      }
-
-      if (this.options.customTooltip && mode === "measurement") {
-        const pos = this._map.latLngToLayerPoint(event.latlng);
-        // const offsetX = 20;
-        const offsetX = 0;
-        // L.DomUtil.setPosition(this.options.customTooltip, pos);
-        L.DomUtil.setPosition(this.options.customTooltip, {
-          x: pos.x + offsetX,
-          y: pos.y,
-        });
-        if (target.classList.contains("leaflet-div-icon")) {
-          this.options.customTooltip.style.visibility = "hidden";
+          const pos = this._map.latLngToLayerPoint(event.latlng);
+          L.DomUtil.setPosition(this.options.customTooltip, pos);
         }
-        if (target.classList.contains("leaflet-container")) {
-          this.options.customTooltip.style.visibility = "visible";
+
+        if (this.options.customTooltip && mode === "measurement") {
+          const pos = this._map.latLngToLayerPoint(event.latlng);
+          // const offsetX = 20;
+          const offsetX = 0;
+          // L.DomUtil.setPosition(this.options.customTooltip, pos);
+          L.DomUtil.setPosition(this.options.customTooltip, {
+            x: pos.x + offsetX,
+            y: pos.y,
+          });
+          if (target.classList.contains("leaflet-div-icon")) {
+            this.options.customTooltip.style.visibility = "hidden";
+          }
+          if (target.classList.contains("leaflet-container")) {
+            this.options.customTooltip.style.visibility = "visible";
+          }
         }
       }
     });
