@@ -7,6 +7,7 @@ import {
   GroundPrimitive,
   PolygonHierarchy,
   Viewer,
+  Model,
 } from 'cesium';
 
 export const distanceFromZoomLevel = (zoom: number) => {
@@ -76,6 +77,18 @@ export const invertedPolygonHierarchy = (
     [LON_MIN, LAT_MIN],
   ]
 ) => polygonHierarchyFromPolygonCoords([outerPolygon, polygon]);
+
+
+export const removeCesiumMarker = (viewer: Viewer, markerModel?: Model | null) => {
+  if (markerModel) {
+    viewer.scene.primitives.remove(markerModel);
+    markerModel = null;
+  } else {
+    console.info("no Marker found to remove")
+  }
+
+  //removePreRenderListener(viewer);
+};
 
 export function removeGroundPrimitiveById(viewer: Viewer, id: string): boolean {
   const groundPrimitives = viewer.scene.groundPrimitives;

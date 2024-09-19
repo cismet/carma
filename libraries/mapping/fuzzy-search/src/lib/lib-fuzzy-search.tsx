@@ -20,7 +20,10 @@ import {
   stopwords,
   carmaGazetteerHitTrigger,
   getDefaultSearchConfig,
+  SELECTED_POLYGON_ID,
+  INVERTED_SELECTED_POLYGON_ID,
 } from "./utils/fuzzySearchHelper";
+import { removeCesiumMarker, removeGroundPrimitiveById } from "./utils/cesium";
 import {
   SearchResultItem,
   SearchGazetteerProps,
@@ -230,6 +233,24 @@ export function LibFuzzySearch({
     }
   }, [dropdownContainerRef, options, fireScrollEvent, value]);
 
+
+  const handleOnClickClean = () => {
+    {
+      setGazetteerHit(null);
+      setValue("");
+      setOptions([]);
+      setSearchResult([]);
+      setOverlayFeature(null);
+      setCleanBtnDisable(true);
+      if (cesiumRef) {
+        removeCesiumMarker(cesiumRef);
+        cesiumRef.entities.removeById(SELECTED_POLYGON_ID);
+        //cesiumRef.entities.removeById(INVERTED_SELECTED_POLYGON_ID);
+        removeGroundPrimitiveById(cesiumRef, INVERTED_SELECTED_POLYGON_ID);
+      }
+    }
+  }
+
   return (
     <div
       style={{
@@ -257,14 +278,7 @@ export function LibFuzzySearch({
             ? "clear-fuzzy-button clear-fuzzy-button__active"
             : "clear-fuzzy-button clear-fuzzy-button__active"
         }
-        onClick={() => {
-          setGazetteerHit(null);
-          setValue("");
-          setOptions([]);
-          setSearchResult([]);
-          setOverlayFeature(null);
-          setCleanBtnDisable(true);
-        }}
+        onClick={handleOnClickClean}
         disabled={cleanBtnDisable}
       />
       {!showCategories ? (
