@@ -10,7 +10,6 @@ import {
   FlatDecodedSceneHash,
   SceneStateDescription,
 } from "../..";
-import { Navigate } from "react-router-dom";
 
 // 5 DEGREES OF FREEDOM CAMERA encoding/decoding
 // lon, lat, height, heading, pitch

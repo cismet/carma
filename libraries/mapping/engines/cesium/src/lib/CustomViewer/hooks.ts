@@ -21,6 +21,7 @@ import {
   useScreenSpaceCameraControllerMaximumZoomDistance,
   useShowSecondaryTileset,
   useViewerHome,
+  useViewerIsMode2d,
   useScreenSpaceCameraControllerEnableCollisionDetection,
 } from "../CustomViewerContextProvider/slices/cesium";
 import { decodeSceneFromLocation } from "./utils";
@@ -40,7 +41,9 @@ const useInitializeViewer = (
   const isSecondaryStyle = useShowSecondaryTileset();
   const minZoom = useScreenSpaceCameraControllerMinimumZoomDistance();
   const maxZoom = useScreenSpaceCameraControllerMaximumZoomDistance();
-  const enableCollisionDetection = useScreenSpaceCameraControllerEnableCollisionDetection();
+  const enableCollisionDetection =
+    useScreenSpaceCameraControllerEnableCollisionDetection();
+  const isMode2d = useViewerIsMode2d();
 
   useEffect(() => {
     if (viewer) {
@@ -78,28 +81,33 @@ const useInitializeViewer = (
 
       // TODO enable 2D Mode if zoom value is present in hash on startup
 
-      if (isSecondaryStyle) {
-        console.log("HOOK: set secondary style from hash");
-        setupSecondaryStyle(viewerContext);
-        dispatch(setShowPrimaryTileset(false));
-        dispatch(setShowSecondaryTileset(true));
-      }
+      if (isMode2d) {
+        console.info(
+          "HOOK: skipping cesium location setup with 2d mode active zoom",
+        );
+      } else {
+        if (isSecondaryStyle) {
+          console.log("HOOK: set secondary style from hash");
+          setupSecondaryStyle(viewerContext);
+          dispatch(setShowPrimaryTileset(false));
+          dispatch(setShowSecondaryTileset(true));
+        }
 
-      if (sceneFromHashParams && longitude && latitude) {
-        console.log("HOOK: init Viewer set camera from hash zoom", height);
-        viewer.camera.setView({
-          destination: Cartesian3.fromRadians(
-            longitude,
-            latitude,
-            height ?? 1000, // restore height if missing
-          ),
-          orientation: {
-            heading: heading ?? 0,
-            pitch: pitch ?? -CeMath.PI_OVER_TWO,
-          },
-        });
+        if (sceneFromHashParams && longitude && latitude) {
+          console.log("HOOK: init Viewer set camera from hash zoom", height);
+          viewer.camera.setView({
+            destination: Cartesian3.fromRadians(
+              longitude,
+              latitude,
+              height ?? 1000, // restore height if missing
+            ),
+            orientation: {
+              heading: heading ?? 0,
+              pitch: pitch ?? -CeMath.PI_OVER_TWO,
+            },
+          });
 
-        /*
+          /*
         (async () => {
           replaceHashRoutedHistory(
             await encodeScene({ viewer, isSecondaryStyle }),
@@ -107,26 +115,27 @@ const useInitializeViewer = (
           );
         })();
         */
-      } else if (leaflet) {
-        const { lat, lng } = leaflet.getCenter();
-        const zoom = leaflet.getZoom();
-        console.log("HOOK: initViewer from leaflet zoom", zoom);
-        leafletToCesiumCamera(viewer, { lat, lng, zoom });
+        } else if (leaflet) {
+          const { lat, lng } = leaflet.getCenter();
+          const zoom = leaflet.getZoom();
+          console.log("HOOK: initViewer from leaflet zoom", zoom);
+          leafletToCesiumCamera(viewer, { lat, lng, zoom });
 
-        // triggers url hash update on moveend
-      } else if (home && homeOffset) {
-        console.log("HOOK: initViewer no hash, using home zoom", home);
-        viewer.camera.lookAt(home, homeOffset);
-        viewer.camera.flyToBoundingSphere(new BoundingSphere(home, 500), {
-          duration: 2,
-        });
-        // triggers url hash update on moveend
-      } else {
-        console.info("HOOK: initViewer no hash, no home, no zoom");
+          // triggers url hash update on moveend
+        } else if (home && homeOffset) {
+          console.log("HOOK: initViewer no hash, using home zoom", home);
+          viewer.camera.lookAt(home, homeOffset);
+          viewer.camera.flyToBoundingSphere(new BoundingSphere(home, 500), {
+            duration: 2,
+          });
+          // triggers url hash update on moveend
+        } else {
+          console.info("HOOK: initViewer no hash, no home, no zoom");
+        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewer, home, homeOffset, location.pathname, hash]);
+  }, [viewer, home, homeOffset, location.pathname, hash, isMode2d]);
 };
 
 export const useHomeControl = () => {

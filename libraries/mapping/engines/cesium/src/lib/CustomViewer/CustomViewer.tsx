@@ -37,7 +37,7 @@ import {
   useViewerHomeOffset,
   useViewerIsMode2d,
 } from "../CustomViewerContextProvider/slices/cesium";
-import { leafletToCesiumCamera, resolutionFractions } from "../utils";
+import { cameraToCartographicDegrees, leafletToCesium, leafletToCesiumCamera, resolutionFractions } from "../utils";
 import { formatFractions } from "../utils/formatters";
 import { useCesiumCustomViewer } from "../CustomViewerContextProvider";
 import { BaseTilesets } from "./components/BaseTilesets";
@@ -465,19 +465,31 @@ function CustomViewer(props: CustomViewerProps) {
   useEffect(() => {
     console.log("HOOK: viewer changed", isSecondaryStyle);
     if (!viewer) return;
+    let lastHeight = 0;
 
     // remove default imagery
 
     const moveEndListener = async () => {
       if (viewer.camera.position) {
-        console.log("LISTENER: moveEndListener", isSecondaryStyle);
+        const camDeg = cameraToCartographicDegrees(viewer.camera)
+        console.log("LISTENER: Cesium moveEndListener", isSecondaryStyle, cameraToCartographicDegrees(viewer.camera));
         const encodedScene = encodeScene(viewer, { isSecondaryStyle });
+        if (isMode2d) {
+          if (Math.abs(lastHeight - camDeg.height) < 10 || camDeg.height > 100000) {
+            // TODO check why this not triggers sync, its called al
+            console.log("LISTENER: Cesium getting position from Leaflet")
+            leafletToCesium(viewer, leaflet);
+            lastHeight = camDeg.height
+          } else {
+            console.log("LISTENER: height is static", lastHeight)
+          }
+        }
 
         // let TopicMap/leaflet handle the view change in 2d Mode
         !isMode2d && enableLocationHashUpdate && replaceHashRoutedHistory(encodedScene, location.pathname);
 
         if (isUserAction && !isMode2d) {
-          // remove roll from camera orientation
+          console.log("HOOK: resetting cesium roll, no zoom")
           const rollDeviation =
             Math.abs(CeMath.TWO_PI - viewer.camera.roll) % CeMath.TWO_PI;
           if (rollDeviation > 0.02) {

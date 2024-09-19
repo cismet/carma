@@ -220,13 +220,10 @@ export const builtInGazetteerHitTrigger = (
       polygon,
     );
 
-    // console.log(mapConsumers, mapActions, pos, zoom);
-
     mapConsumers.forEach(async (mapElement) => {
       console.log("mapElement", mapElement);
       if (mapElement instanceof Viewer) {
         const viewer = mapElement;
-        //console.log('lookAt', mapElement, pos, zoom);
         // add marker entity to map
         removeMarker(viewer);
         viewer.entities.removeById(SELECTED_POLYGON_ID);

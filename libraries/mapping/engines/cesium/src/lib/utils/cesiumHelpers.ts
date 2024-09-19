@@ -22,6 +22,8 @@ import {
   PerspectiveFrustum,
   PerspectiveOffCenterFrustum,
 } from "cesium";
+import type { Map as LeafletMap } from "leaflet";
+
 import {
   ColorRgbaArray,
   LatLngRadians,
@@ -143,10 +145,12 @@ export function create3DTileStyle(
 const TOP_DOWN_DIRECTION = new Cartesian3(0, 0, -1);
 
 export const cameraToCartographicDegrees = (camera: Camera) => {
-  const { latitude, longitude } = camera.positionCartographic.clone();
+  const { latitude, longitude, height } = camera.positionCartographic.clone();
   return {
     latitude: CeMath.toDegrees(latitude),
     longitude: CeMath.toDegrees(longitude),
+    height,
+    heightApprox: height - EARTH_RADIUS,
   };
 };
 
@@ -728,6 +732,12 @@ export const cesiumCenterPixelSizeToLeafletZoom = (
 };
 
 // WEB MAPS TO CESIUM
+
+export const leafletToCesium = (viewer: Viewer, leaflet: LeafletMap) => {
+  const { lat, lng } = leaflet.getCenter();
+  const zoom = leaflet.getZoom();
+  leafletToCesiumCamera(viewer, { lat, lng, zoom });
+};
 
 export const leafletToCesiumCamera = (
   viewer: Viewer,
