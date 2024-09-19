@@ -487,6 +487,9 @@ L.Control.MeasurePolygon = L.Control.extend({
       const target = event.originalEvent.target;
       const isDesctop = this.options.device === "Desktop" ? true : false;
       const mode = this.options.measurementMode;
+      console.log("xxx ifDrawing", this.options.ifDrawing);
+      console.log("xxx target class list", target.classList);
+
       if (isDesctop) {
         if (!this.options.customTooltip && mode === "measurement") {
           const popupPane = map._panes.popupPane;
@@ -517,10 +520,10 @@ L.Control.MeasurePolygon = L.Control.extend({
             this.options.customTooltip.style.visibility = "hidden";
           }
           if (
-            target.classList.contains("leaflet-container") &&
+            (target.classList.contains("leaflet-container") ||
+              target.classList.contains("leaflet-gl-layer")) &&
             !this.options.ifDrawing
           ) {
-            console.log("xxx ifDrawing", this.options.ifDrawing);
             this.options.customTooltip.style.visibility = "visible";
           }
         }
