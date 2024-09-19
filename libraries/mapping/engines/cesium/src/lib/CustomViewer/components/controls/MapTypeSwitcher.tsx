@@ -145,10 +145,11 @@ export const MapTypeSwitcher = ({ zoomSnap = 1 }: Props = {}) => {
       setIsTransitioning(false);
     };
 
-    console.log("duration", distance);
+    console.log("duration zoom", distance);
 
     if (hasGroundPos) {
       // rotate around the groundposition at center
+      console.log("setting prev HPR zoom", groundPos, height)
       setPrevHPR(
         animateInterpolateHeadingPitchRange(
           viewer,
@@ -161,7 +162,7 @@ export const MapTypeSwitcher = ({ zoomSnap = 1 }: Props = {}) => {
         ),
       );
     } else {
-      console.info("rotate around camera position not implemented yet");
+      console.info("rotate around camera position not implemented yet zoom");
       setIsTransitioning(false);
       /*
            // TODO implement this
@@ -187,7 +188,7 @@ export const MapTypeSwitcher = ({ zoomSnap = 1 }: Props = {}) => {
     e.preventDefault();
 
     console.log(
-      "xxx clicked handleSwitchMapMode",
+      "clicked handleSwitchMapMode zoom",
       isMode2d,
       viewer,
       leaflet,
@@ -205,17 +206,16 @@ export const MapTypeSwitcher = ({ zoomSnap = 1 }: Props = {}) => {
           true
         ) {
           console.log(
-            "camera position unchanged, skipping 2d to 3d transition animation",
+            "camera position unchanged, skipping 2d to 3d transition animation zoom",
           );
           setIsTransitioning(false);
           return;
         }
 
-        //console.log('restore 3d camera position');
         const pos = pickViewerCanvasCenter(viewer).scenePosition;
 
-        pos &&
-          prevHPR &&
+        if (pos && prevHPR) {
+          console.log('restore 3d camera position zoom', pos, prevHPR);
           animateInterpolateHeadingPitchRange(viewer, pos, prevHPR, {
             delay: DEFAULT_MODE_2D_3D_CHANGE_FADE_DURATION, // allow the css transition to finish
             duration: prevDuration * 1000,
@@ -223,7 +223,13 @@ export const MapTypeSwitcher = ({ zoomSnap = 1 }: Props = {}) => {
               setIsTransitioning(false);
             },
           });
+        } else {
+          console.log('no change to 3d camera position applied zoom', pos, prevHPR);
+          setIsTransitioning(false);
+          return;
+        }
       } else {
+        console.log("zoom to2D")
         transitionToMode2d(viewer);
       }
     }

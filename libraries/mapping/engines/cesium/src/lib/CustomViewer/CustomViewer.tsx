@@ -8,7 +8,7 @@ import {
 } from "react";
 import { useLocation } from "react-router-dom";
 import { useDispatch } from "react-redux";
-import type { LeafletEvent } from "leaflet";
+import type { LeafletEvent, Map as LeafletMap } from "leaflet";
 
 import {
   Color,
@@ -143,7 +143,7 @@ function CustomViewer(props: CustomViewerProps) {
 
   useEffect(() => {
     if (topicMapContext && isMode2d) {
-      const handleLeafletMoveEnd = (event: LeafletEvent) => {
+      const handleLeafletMoveEnd = (event: LeafletEvent | { target: LeafletMap }) => {
         const center = event.target?.getCenter();
         const zoom = event.target?.getZoom();
 
@@ -153,9 +153,9 @@ function CustomViewer(props: CustomViewerProps) {
           zoom,
         };
 
-        //console.log("handleLeafletMoveEnd xxx", mapLocation);
 
         if (viewer && mapLocation.lat && mapLocation.lng && mapLocation.zoom) {
+          console.log("HOOK: zoom handleLeafletMoveEnd", mapLocation);
           leafletToCesiumCamera(viewer, mapLocation);
         }
       };
@@ -167,6 +167,8 @@ function CustomViewer(props: CustomViewerProps) {
         console.log("HOOK: leaflet changed", leaflet);
       }
       if (leaflet) {
+        console.log("HOOK: [CustomViewer] zoom initial position from leaflet")
+        handleLeafletMoveEnd({ target: leaflet });
         leaflet.on("moveend", handleLeafletMoveEnd);
         return () => {
           leaflet.off("moveend", handleLeafletMoveEnd);

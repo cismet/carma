@@ -75,7 +75,6 @@ export function getModelMatrix(config: TilesetConfig, heightOffset = 0) {
   return modelMatrix;
 }
 
-
 export const getDegreesFromCartographic = (cartographic: Cartographic) => {
   return {
     longitude: CeMath.toDegrees(cartographic.longitude),
@@ -745,22 +744,52 @@ export const leafletToCesiumCamera = (
 
   let currentPixelResolution = getScenePixelSize(viewer).value;
 
+  const viewerDim = Math.min(
+    viewer.canvas.clientWidth,
+    viewer.canvas.clientHeight,
+  );
+  const baseHeight = viewerDim * targetPixelResolution;
+
+  console.log(
+    "zoom L2C",
+    zoom,
+    targetPixelResolution,
+    window.devicePixelRatio,
+    baseHeight,
+  );
+
   if (currentPixelResolution === null) {
-    console.warn("No pixel size found for camera position.");
+    console.warn(
+      "No pixel size found for camera position, using fallback value",
+    );
     return false;
   }
 
   const { camera } = viewer;
 
-  console.log("leafletToCesium", currentPixelResolution, targetPixelResolution);
+  let targetHeight = camera.positionCartographic.height;
+  console.log(
+    "leafletToCesium",
+    currentPixelResolution,
+    targetPixelResolution,
+    targetHeight,
+  );
+
+  console.info("zoom targetheight", baseHeight, targetHeight);
+
+  if (targetHeight > 50000) {
+    console.warn(
+      "zoom request viewer heigt too large applying baseheigt",
+      baseHeight,
+      targetHeight,
+    );
+    targetHeight = baseHeight;
+  }
 
   // move to new position
+  console.log("L2C zoom", targetHeight);
   camera.setView({
-    destination: Cartesian3.fromRadians(
-      lngRad,
-      latRad,
-      camera.positionCartographic.height,
-    ),
+    destination: Cartesian3.fromRadians(lngRad, latRad, targetHeight),
   });
 
   // Get the ground position directly under the camera
@@ -777,19 +806,17 @@ export const leafletToCesiumCamera = (
       console.warn(
         "Maximum height finding iterations reached with no result, restoring last Cesium camera position.",
       );
-      camera.setView({
-        destination: cameraPositionAtStart,
-      });
+      console.log("L2C zoom", targetHeight, cameraPositionAtStart);
+      camera.setView({ destination: cameraPositionAtStart });
       return false;
     }
     const adjustmentFactor = targetPixelResolution / currentPixelResolution;
     cameraHeightAboveGround *= adjustmentFactor;
+    const newCameraHeight = cameraHeightAboveGround + groundHeight;
+
+    console.log("L2C zoom", targetHeight, newCameraHeight);
     camera.setView({
-      destination: Cartesian3.fromRadians(
-        lngRad,
-        latRad,
-        cameraHeightAboveGround + groundHeight,
-      ),
+      destination: Cartesian3.fromRadians(lngRad, latRad, newCameraHeight),
     });
     const newResolution = getScenePixelSize(viewer).value;
     if (newResolution === null) {

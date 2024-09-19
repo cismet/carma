@@ -86,7 +86,7 @@ const useInitializeViewer = (
       }
 
       if (sceneFromHashParams && longitude && latitude) {
-        console.log("HOOK: init Viewer set camera from hash");
+        console.log("HOOK: init Viewer set camera from hash zoom", height);
         viewer.camera.setView({
           destination: Cartesian3.fromRadians(
             longitude,
@@ -108,21 +108,21 @@ const useInitializeViewer = (
         })();
         */
       } else if (leaflet) {
-        console.log("HOOK: initViewer from leaflet");
         const { lat, lng } = leaflet.getCenter();
         const zoom = leaflet.getZoom();
+        console.log("HOOK: initViewer from leaflet zoom", zoom);
         leafletToCesiumCamera(viewer, { lat, lng, zoom });
 
         // triggers url hash update on moveend
       } else if (home && homeOffset) {
-        console.log("HOOK: initViewer no hash, using home");
+        console.log("HOOK: initViewer no hash, using home zoom", home);
         viewer.camera.lookAt(home, homeOffset);
         viewer.camera.flyToBoundingSphere(new BoundingSphere(home, 500), {
           duration: 2,
         });
         // triggers url hash update on moveend
       } else {
-        console.info("HOOK: initViewer no hash, no home");
+        console.info("HOOK: initViewer no hash, no home, no zoom");
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
