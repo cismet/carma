@@ -4,6 +4,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import { useLocation } from "react-router-dom";
@@ -37,7 +38,7 @@ import {
   useViewerHomeOffset,
   useViewerIsMode2d,
 } from "../CustomViewerContextProvider/slices/cesium";
-import { cameraToCartographicDegrees, leafletToCesium, leafletToCesiumCamera, resolutionFractions } from "../utils";
+import { cameraToCartographicDegrees, resolutionFractions } from "../utils";
 import { formatFractions } from "../utils/formatters";
 import { useCesiumCustomViewer } from "../CustomViewerContextProvider";
 import { BaseTilesets } from "./components/BaseTilesets";
@@ -124,6 +125,10 @@ function CustomViewer(props: CustomViewerProps) {
 
 
   const [viewer, setComponentStateViewer] = useState<Viewer | null>(null);
+  const previousViewerRef = useRef<Viewer | null>(null); // track viewer changes
+  const previousIsMode2d = useRef<boolean | null>(null);
+  const previousIsSecondaryStyle = useRef<boolean | null>(null);
+
   const baseResolutionScale = viewerOptions.resolutionScale || DEFAULT_RESOLUTION_SCALE;
   const [adaptiveResolutionScale, setAdaptiveResolutionScale] = useState<number>(baseResolutionScale);
 
@@ -137,46 +142,46 @@ function CustomViewer(props: CustomViewerProps) {
   const [isUserAction, setIsUserAction] = useState(false);
   // DEV TWEAKPANE
 
-  // Create a callback function to set the FOV
 
-  // TODO implement focus check to prevent update loops
-
-  useEffect(() => {
-    if (topicMapContext && isMode2d) {
-      const handleLeafletMoveEnd = (event: LeafletEvent | { target: LeafletMap }) => {
-        const center = event.target?.getCenter();
-        const zoom = event.target?.getZoom();
-
-        const mapLocation = {
-          lat: center.lat,
-          lng: center.lng,
-          zoom,
+  // Not neede anymore
+  /*
+    useEffect(() => {
+      if (topicMapContext && isMode2d) {
+        const handleLeafletMoveEnd = (event: LeafletEvent | { target: LeafletMap }) => {
+          const center = event.target?.getCenter();
+          const zoom = event.target?.getZoom();
+  
+          const mapLocation = {
+            lat: center.lat,
+            lng: center.lng,
+            zoom,
+          };
+  
+  
+          if (viewer && mapLocation.lat && mapLocation.lng && mapLocation.zoom) {
+            console.log("HOOK: zoom handleLeafletMoveEnd", mapLocation);
+            //leafletToCesiumCamera(viewer, mapLocation);
+          }
         };
-
-
-        if (viewer && mapLocation.lat && mapLocation.lng && mapLocation.zoom) {
-          console.log("HOOK: zoom handleLeafletMoveEnd", mapLocation);
-          //leafletToCesiumCamera(viewer, mapLocation);
+  
+        console.log("HOOK: topicMapContext changed", topicMapContext);
+        const leaflet =
+          topicMapContext?.routedMapRef?.leafletMap?.leafletElement;
+        if (leaflet) {
+          console.log("HOOK: leaflet changed", leaflet);
         }
-      };
-
-      console.log("HOOK: topicMapContext changed", topicMapContext);
-      const leaflet =
-        topicMapContext?.routedMapRef?.leafletMap?.leafletElement;
-      if (leaflet) {
-        console.log("HOOK: leaflet changed", leaflet);
+        if (leaflet) {
+          console.log("HOOK: [CustomViewer] zoom initial position from leaflet")
+          handleLeafletMoveEnd({ target: leaflet });
+          leaflet.on("moveend", handleLeafletMoveEnd);
+          return () => {
+            leaflet.off("moveend", handleLeafletMoveEnd);
+          };
+        }
+  
       }
-      if (leaflet) {
-        console.log("HOOK: [CustomViewer] zoom initial position from leaflet")
-        handleLeafletMoveEnd({ target: leaflet });
-        leaflet.on("moveend", handleLeafletMoveEnd);
-        return () => {
-          leaflet.off("moveend", handleLeafletMoveEnd);
-        };
-      }
-
-    }
-  }, [topicMapContext, viewer, isMode2d]);
+    }, [topicMapContext, viewer, isMode2d]);
+    */
 
 
   useTweakpaneCtx(
@@ -407,27 +412,23 @@ function CustomViewer(props: CustomViewerProps) {
   }, [viewer, containerRef, isMode2d]);
 
   useEffect(() => {
-    if (viewer) {
+    if (viewer && viewer.scene.globe) {
       console.log("HOOK: globe setting changed");
       // set the globe props
-      //Object.assign(scene.globe, globeProps);
-      Object.entries(globeProps).forEach(([key, value]) => {
-        if (value !== undefined) {
-          viewer.scene.globe[key] = value;
-        }
-      });
+      if (globeProps.baseColor !== undefined) {
+        viewer.scene.globe.baseColor = globeProps.baseColor;
+      }
+      if (globeProps.cartographicLimitRectangle !== undefined) {
+        viewer.scene.globe.cartographicLimitRectangle = globeProps.cartographicLimitRectangle;
+      }
+      if (globeProps.showGroundAtmosphere !== undefined) {
+        viewer.scene.globe.showGroundAtmosphere = globeProps.showGroundAtmosphere;
+      }
+      if (globeProps.showSkirts !== undefined) {
+        viewer.scene.globe.showSkirts = globeProps.showSkirts;
+      }
     }
-  }, [viewer, globeProps]);
-
-  useEffect(() => {
-    if (viewer) {
-      console.log("HOOK: viewer changed init scene settings");
-      // remove default layers
-      viewer.imageryLayers.removeAll();
-      viewer.scene.screenSpaceCameraController.enableCollisionDetection = true;
-    }
-
-  }, [viewer]);
+  }, [viewer, globeProps.baseColor, globeProps.cartographicLimitRectangle, globeProps.showGroundAtmosphere, globeProps.showSkirts]);
 
   useEffect(() => {
     // render offscreen with ultra low res to reduce memory usage
@@ -462,44 +463,54 @@ function CustomViewer(props: CustomViewerProps) {
     }
   }, [viewer, isMode2d, baseResolutionScale, imageryLayer]);
 
+
   useEffect(() => {
-    if (!viewer) return;
-    console.log("HOOK [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to update hash and reset rolled camera");
-    const moveEndListener = async () => {
-      if (viewer.camera.position) {
-        const camDeg = cameraToCartographicDegrees(viewer.camera)
-        console.log("LISTENER: Cesium moveEndListener encode viewer to hash", isSecondaryStyle, camDeg);
-        const encodedScene = encodeScene(viewer, { isSecondaryStyle });
-
-        // let TopicMap/leaflet handle the view change in 2d Mode
-        !isMode2d && enableLocationHashUpdate && replaceHashRoutedHistory(encodedScene, location.pathname);
-
-        if (isUserAction && !isMode2d) {
-          const rollDeviation =
-            Math.abs(CeMath.TWO_PI - viewer.camera.roll) % CeMath.TWO_PI;
-          if (rollDeviation > 0.02) {
-            console.log("LISTENER HOOK [2D3D|CESIUM|CAMERA]: flyTo reset roll 2D3D", rollDeviation);
-            const duration = Math.min(rollDeviation, 1);
-            viewer.camera.flyTo({
-              destination: viewer.camera.position,
-              orientation: {
-                heading: viewer.camera.heading,
-                pitch: viewer.camera.pitch,
-                roll: 0,
-              },
-              duration,
-            });
-          }
-          // preload 2D view (TODO: disable to reduce request count)
-          // console.log("leaflet", leaflet, topicMapContext?.routedMapRef);
-          // leaflet && setLeafletView(viewer, leaflet, { animate: false });
-        }
+    if (viewer) {
+      if (viewer !== previousViewerRef.current) {
+        console.log("HOOK: viewer changed, remove default layers");
+        // TODO use CesiumWidget to have less Boilerplate
+        viewer.imageryLayers.removeAll();
       }
-    };
-    viewer.camera.moveEnd.addEventListener(moveEndListener);
-    return () => {
-      viewer.camera.moveEnd.removeEventListener(moveEndListener);
-    };
+
+      if (viewer !== previousViewerRef.current || isMode2d !== previousIsMode2d.current || isSecondaryStyle !== previousIsSecondaryStyle.current) {
+        console.log("HOOK [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to update hash and reset rolled camera");
+        const moveEndListener = async () => {
+          if (viewer.camera.position) {
+            const camDeg = cameraToCartographicDegrees(viewer.camera)
+            console.log("LISTENER: Cesium moveEndListener encode viewer to hash", isSecondaryStyle, camDeg);
+            const encodedScene = encodeScene(viewer, { isSecondaryStyle });
+
+            // let TopicMap/leaflet handle the view change in 2d Mode
+            !isMode2d && enableLocationHashUpdate && replaceHashRoutedHistory(encodedScene, location.pathname);
+
+            if (isUserAction && !isMode2d) {
+              const rollDeviation =
+                Math.abs(CeMath.TWO_PI - viewer.camera.roll) % CeMath.TWO_PI;
+              if (rollDeviation > 0.02) {
+                console.log("LISTENER HOOK [2D3D|CESIUM|CAMERA]: flyTo reset roll 2D3D", rollDeviation);
+                const duration = Math.min(rollDeviation, 1);
+                viewer.camera.flyTo({
+                  destination: viewer.camera.position,
+                  orientation: {
+                    heading: viewer.camera.heading,
+                    pitch: viewer.camera.pitch,
+                    roll: 0,
+                  },
+                  duration,
+                });
+              }
+            }
+          }
+        };
+        previousIsMode2d.current = isMode2d;
+        previousIsSecondaryStyle.current = isSecondaryStyle;
+        previousViewerRef.current = viewer;
+        viewer.camera.moveEnd.addEventListener(moveEndListener);
+        return () => {
+          viewer.camera.moveEnd.removeEventListener(moveEndListener);
+        };
+      }
+    }
   }, [
     viewer,
     leaflet,

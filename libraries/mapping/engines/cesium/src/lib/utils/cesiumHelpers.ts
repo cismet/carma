@@ -814,7 +814,7 @@ export const leafletToCesiumCamera = (
       console.warn(
         "Maximum height finding iterations reached with no result, restoring last Cesium camera position.",
       );
-      console.log("L2C [2D3D] iterate", iterations, targetHeight, cameraPositionAtStart);
+      //console.log("L2C [2D3D] iterate", iterations, targetHeight, cameraPositionAtStart);
       camera.setView({ destination: cameraPositionAtStart });
       return false;
     }
@@ -822,7 +822,7 @@ export const leafletToCesiumCamera = (
     cameraHeightAboveGround *= adjustmentFactor;
     const newCameraHeight = cameraHeightAboveGround + groundHeight;
 
-    console.log("L2C [2D3D|CESIUM|CAMERA] setview", iterations, targetHeight, newCameraHeight);
+    // console.log("L2C [2D3D|CESIUM|CAMERA] setview", iterations, targetHeight, newCameraHeight);
     camera.setView({
       destination: Cartesian3.fromRadians(lngRad, latRad, newCameraHeight),
     });

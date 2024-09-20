@@ -15,6 +15,7 @@ import {
  * @param options - Options for the completion of the animation.
  * @param options.duration - The duration of the animation in milliseconds. Defaults to 1000.
  * @param options.onComplete - A callback function to be called when the animation completes.
+ * @param options.useCurrentDistance - use current Distance/Range instead of last views one.
  */
 export function animateInterpolateHeadingPitchRange(
   viewer: Viewer,
@@ -24,11 +25,13 @@ export function animateInterpolateHeadingPitchRange(
     delay = 0,
     duration = 1000,
     onComplete,
+    useCurrentDistance = true,
     easing = EasingFunction.CUBIC_IN_OUT,
   }: {
     duration?: number;
     delay?: number; // ms
     onComplete?: () => void;
+    useCurrentDistance?: boolean;
     easing?: (time: number) => number;
   } = {},
 ) {
@@ -60,7 +63,9 @@ export function animateInterpolateHeadingPitchRange(
     // Interpolate heading and pitch over time
     const currentHeading = CeMath.lerp(initialHeading, heading, easing(t));
     const currentPitch = CeMath.lerp(initialPitch, pitch, easing(t));
-    const currentRange = CeMath.lerp(initialRange, range, easing(t));
+    const currentRange = useCurrentDistance
+      ? initialRange
+      : CeMath.lerp(initialRange, range, easing(t));
 
     const orientation = new HeadingPitchRange(
       currentHeading,
