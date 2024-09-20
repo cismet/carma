@@ -31,6 +31,7 @@ export const CustomViewerContext = createContext<CustomViewerContextType>({
   models: null,
 });
 
+// TODO: rename this
 export const useCesiumCustomViewer = () => {
   const context = useContext(CustomViewerContext);
   if (context === undefined) {

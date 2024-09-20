@@ -23,10 +23,34 @@ import {
   useViewerHome,
   useViewerIsMode2d,
   useScreenSpaceCameraControllerEnableCollisionDetection,
+  useViewerIsAnimating,
 } from "../CustomViewerContextProvider/slices/cesium";
 import { decodeSceneFromLocation } from "./utils";
 import { setupSecondaryStyle } from "./components/baseTileset.hook";
-import { leafletToCesium, leafletToCesiumCamera } from "../utils";
+
+export const useLogCesiumRenderIn2D = () => {
+  const { viewer } = useCesiumCustomViewer();
+  const isMode2d = useViewerIsMode2d();
+  const isAnimating = useViewerIsAnimating();
+
+  useEffect(() => {
+    if (!viewer) return;
+
+    const logRender = () => {
+      if (isMode2d && !isAnimating) {
+        console.info("[CESIUM|2D3D] Cesium got rendered while in 2D mode");
+      }
+    };
+
+    // Subscribe to the postRender event
+    viewer.scene.postRender.addEventListener(logRender);
+
+    // Cleanup the event listener on unmount
+    return () => {
+      viewer.scene.postRender.removeEventListener(logRender);
+    };
+  }, [viewer, isMode2d, isAnimating]);
+};
 
 const useInitializeViewer = (
   viewer: Viewer | null,
@@ -95,7 +119,10 @@ const useInitializeViewer = (
         }
 
         if (sceneFromHashParams && longitude && latitude) {
-          console.log("HOOK [2D3D|CESIUM|CAMERA] init Viewer set camera from hash zoom", height);
+          console.log(
+            "HOOK [2D3D|CESIUM|CAMERA] init Viewer set camera from hash zoom",
+            height,
+          );
           viewer.camera.setView({
             destination: Cartesian3.fromRadians(
               longitude,
@@ -117,7 +144,10 @@ const useInitializeViewer = (
         })();
         */
         } else if (home && homeOffset) {
-          console.log("HOOK: [2D3D|CESIUM|CAMERA] initViewer no hash, using home zoom", home);
+          console.log(
+            "HOOK: [2D3D|CESIUM|CAMERA] initViewer no hash, using home zoom",
+            home,
+          );
           viewer.camera.lookAt(home, homeOffset);
           viewer.camera.flyToBoundingSphere(new BoundingSphere(home, 500), {
             duration: 2,

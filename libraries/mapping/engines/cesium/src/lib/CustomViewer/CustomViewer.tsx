@@ -43,7 +43,7 @@ import { formatFractions } from "../utils/formatters";
 import { useCesiumCustomViewer } from "../CustomViewerContextProvider";
 import { BaseTilesets } from "./components/BaseTilesets";
 import { encodeScene, replaceHashRoutedHistory } from "./utils";
-import useInitializeViewer from "./hooks";
+import useInitializeViewer, { useLogCesiumRenderIn2D } from "./hooks";
 
 
 type CustomViewerProps = {
@@ -323,6 +323,8 @@ function CustomViewer(props: CustomViewerProps) {
       { name: "minZoomDistance", min: 10, max: 1000, step: 10 },
     ],
   );
+
+  useLogCesiumRenderIn2D();
 
   useEffect(() => {
     if (!viewer) return;
