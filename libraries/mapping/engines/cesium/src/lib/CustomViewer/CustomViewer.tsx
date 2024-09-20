@@ -435,9 +435,9 @@ function CustomViewer(props: CustomViewerProps) {
     if (viewer) {
       if (isMode2d) {
         setTimeout(() => {
-          console.log("HOOK: setAdaptiveResolutionScale", OFFSCREEN_RESOLUTION_SCALE);
-          setAdaptiveResolutionScale(OFFSCREEN_RESOLUTION_SCALE);
-          viewer.resolutionScale = OFFSCREEN_RESOLUTION_SCALE;
+          //console.log("HOOK: setAdaptiveResolutionScale", OFFSCREEN_RESOLUTION_SCALE);
+          //setAdaptiveResolutionScale(OFFSCREEN_RESOLUTION_SCALE);
+          //viewer.resolutionScale = OFFSCREEN_RESOLUTION_SCALE;
           for (let i = 0; i < viewer.imageryLayers.length; i++) {
             const layer = viewer.imageryLayers.get(i);
             if (layer) {
@@ -447,8 +447,8 @@ function CustomViewer(props: CustomViewerProps) {
           }
         }, TRANSITION_DELAY);
       } else {
-        console.log("HOOK: setAdaptiveResolutionScale", baseResolutionScale);
-        setAdaptiveResolutionScale(baseResolutionScale);
+        //console.log("HOOK: setAdaptiveResolutionScale", baseResolutionScale);
+        //setAdaptiveResolutionScale(baseResolutionScale);
         viewer.resolutionScale = baseResolutionScale;
         for (let i = 0; i < viewer.imageryLayers.length; i++) {
           const layer = viewer.imageryLayers.get(i);
