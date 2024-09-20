@@ -156,7 +156,7 @@ function CustomViewer(props: CustomViewerProps) {
 
         if (viewer && mapLocation.lat && mapLocation.lng && mapLocation.zoom) {
           console.log("HOOK: zoom handleLeafletMoveEnd", mapLocation);
-          leafletToCesiumCamera(viewer, mapLocation);
+          //leafletToCesiumCamera(viewer, mapLocation);
         }
       };
 
@@ -463,37 +463,22 @@ function CustomViewer(props: CustomViewerProps) {
   }, [viewer, isMode2d, baseResolutionScale, imageryLayer]);
 
   useEffect(() => {
-    console.log("HOOK: viewer changed", isSecondaryStyle);
     if (!viewer) return;
-    let lastHeight = 0;
-
-    // remove default imagery
-
+    console.log("HOOK [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to update hash and reset rolled camera");
     const moveEndListener = async () => {
       if (viewer.camera.position) {
         const camDeg = cameraToCartographicDegrees(viewer.camera)
-        console.log("LISTENER: Cesium moveEndListener", isSecondaryStyle, cameraToCartographicDegrees(viewer.camera));
+        console.log("LISTENER: Cesium moveEndListener encode viewer to hash", isSecondaryStyle, camDeg);
         const encodedScene = encodeScene(viewer, { isSecondaryStyle });
-        if (isMode2d) {
-          if (Math.abs(lastHeight - camDeg.height) < 10 || camDeg.height > 100000) {
-            // TODO check why this not triggers sync, its called al
-            console.log("LISTENER: Cesium getting position from Leaflet")
-            leafletToCesium(viewer, leaflet);
-            lastHeight = camDeg.height
-          } else {
-            console.log("LISTENER: height is static", lastHeight)
-          }
-        }
 
         // let TopicMap/leaflet handle the view change in 2d Mode
         !isMode2d && enableLocationHashUpdate && replaceHashRoutedHistory(encodedScene, location.pathname);
 
         if (isUserAction && !isMode2d) {
-          console.log("HOOK: resetting cesium roll, no zoom")
           const rollDeviation =
             Math.abs(CeMath.TWO_PI - viewer.camera.roll) % CeMath.TWO_PI;
           if (rollDeviation > 0.02) {
-            console.log("LISTENER HOOK: flyTo reset roll", rollDeviation);
+            console.log("LISTENER HOOK [2D3D|CESIUM|CAMERA]: flyTo reset roll 2D3D", rollDeviation);
             const duration = Math.min(rollDeviation, 1);
             viewer.camera.flyTo({
               destination: viewer.camera.position,
@@ -511,7 +496,6 @@ function CustomViewer(props: CustomViewerProps) {
         }
       }
     };
-
     viewer.camera.moveEnd.addEventListener(moveEndListener);
     return () => {
       viewer.camera.moveEnd.removeEventListener(moveEndListener);

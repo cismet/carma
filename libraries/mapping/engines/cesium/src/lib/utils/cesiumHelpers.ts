@@ -31,6 +31,7 @@ import {
   NumericResult,
   TilesetConfig,
 } from "../..";
+import { on } from "events";
 
 export type {
   ColorRgbaArray,
@@ -733,16 +734,25 @@ export const cesiumCenterPixelSizeToLeafletZoom = (
 
 // WEB MAPS TO CESIUM
 
-export const leafletToCesium = (viewer: Viewer, leaflet: LeafletMap) => {
+export const leafletToCesium = (
+  viewer: Viewer,
+  leaflet: LeafletMap,
+  { cause, onComplete }: { cause?: string, onComplete?: Function } = {},
+) => {
   const { lat, lng } = leaflet.getCenter();
   const zoom = leaflet.getZoom();
-  leafletToCesiumCamera(viewer, { lat, lng, zoom });
+  leafletToCesiumCamera(viewer, { lat, lng, zoom }, { cause, onComplete });
 };
 
 export const leafletToCesiumCamera = (
   viewer: Viewer,
   { lat, lng, zoom }: { lat: number; lng: number; zoom: number },
-  { epsilon = 0.02, limit = 5 }: { epsilon?: number; limit?: number } = {},
+  {
+    epsilon = 0.5,
+    limit = 5,
+    cause = "not specified",
+    onComplete,
+  }: { epsilon?: number; limit?: number; cause?: string; onComplete?: Function } = {},
 ) => {
   const lngRad = CeMath.toRadians(lng);
   const latRad = CeMath.toRadians(lat);
@@ -760,44 +770,32 @@ export const leafletToCesiumCamera = (
   );
   const baseHeight = viewerDim * targetPixelResolution;
 
-  console.log(
-    "zoom L2C",
-    zoom,
-    targetPixelResolution,
-    window.devicePixelRatio,
-    baseHeight,
-  );
-
   if (currentPixelResolution === null) {
-    console.warn(
-      "No pixel size found for camera position, using fallback value",
-    );
+    console.warn("No pixel size found for camera position");
     return false;
   }
 
   const { camera } = viewer;
 
   let targetHeight = camera.positionCartographic.height;
-  console.log(
-    "leafletToCesium",
-    currentPixelResolution,
-    targetPixelResolution,
-    targetHeight,
-  );
 
-  console.info("zoom targetheight", baseHeight, targetHeight);
+  console.info("zoom target height", baseHeight, targetHeight);
 
   if (targetHeight > 50000) {
     console.warn(
-      "zoom request viewer heigt too large applying baseheigt",
+      "zoom request viewer height too high, applying base height",
       baseHeight,
       targetHeight,
     );
     targetHeight = baseHeight;
   }
 
-  // move to new position
-  console.log("L2C zoom", targetHeight);
+  console.info(
+    `L2C [2D3D|CESIUM|CAMERA] cause: ${cause} lat: ${lat} lng: ${lng} z: ${zoom} px: ${targetPixelResolution} dpr: ${window.devicePixelRatio} heights:`,
+    baseHeight,
+    targetHeight,
+  );
+
   camera.setView({
     destination: Cartesian3.fromRadians(lngRad, latRad, targetHeight),
   });
@@ -816,7 +814,7 @@ export const leafletToCesiumCamera = (
       console.warn(
         "Maximum height finding iterations reached with no result, restoring last Cesium camera position.",
       );
-      console.log("L2C zoom", targetHeight, cameraPositionAtStart);
+      console.log("L2C [2D3D] iterate", iterations, targetHeight, cameraPositionAtStart);
       camera.setView({ destination: cameraPositionAtStart });
       return false;
     }
@@ -824,7 +822,7 @@ export const leafletToCesiumCamera = (
     cameraHeightAboveGround *= adjustmentFactor;
     const newCameraHeight = cameraHeightAboveGround + groundHeight;
 
-    console.log("L2C zoom", targetHeight, newCameraHeight);
+    console.log("L2C [2D3D|CESIUM|CAMERA] setview", iterations, targetHeight, newCameraHeight);
     camera.setView({
       destination: Cartesian3.fromRadians(lngRad, latRad, newCameraHeight),
     });
@@ -836,5 +834,6 @@ export const leafletToCesiumCamera = (
     iterations++;
   }
   //console.log('zoom iterations', iterations);
+  onComplete && onComplete();
   return true; // Return true if camera position found within max iterations
 };

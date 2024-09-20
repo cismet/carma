@@ -68,6 +68,7 @@ export const Compass = (props: CompassProps) => {
         );
       }
 
+      console.log("HOOK: [2D3D|CESIUM|CAMERA] Compass FlyTo");
       viewer.camera.flyTo({
         destination,
         orientation: {

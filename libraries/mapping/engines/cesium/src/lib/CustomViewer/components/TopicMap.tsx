@@ -51,7 +51,8 @@ export const TopicMap = ({ forceShow = false } = {}) => {
       return;
     }
     if (viewer) {
-      leafletToCesiumCamera(viewer, event);
+      // TODO Not needed with only leaflet visible, reenable for split/transparent view
+      //leafletToCesiumCamera(viewer, event, {cause: "Leaflet location Change"});
     }
   };
 

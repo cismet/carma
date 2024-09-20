@@ -280,6 +280,7 @@ export const builtInGazetteerHitTrigger = (
           viewer.flyTo(polygonEntity);
         } else {
           marker3dStyle && addMarker(viewer, posHeight, marker3dStyle);
+          console.log("GAZETTEER: [2D3D|CESIUM|CAMERA] look at Marker");
           cAction.lookAt(mapElement.scene, pos, zoom);
         }
       } else if (mapElement instanceof L.Map) {

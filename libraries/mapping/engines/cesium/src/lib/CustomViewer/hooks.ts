@@ -26,7 +26,7 @@ import {
 } from "../CustomViewerContextProvider/slices/cesium";
 import { decodeSceneFromLocation } from "./utils";
 import { setupSecondaryStyle } from "./components/baseTileset.hook";
-import { leafletToCesiumCamera } from "../utils";
+import { leafletToCesium, leafletToCesiumCamera } from "../utils";
 
 const useInitializeViewer = (
   viewer: Viewer | null,
@@ -49,6 +49,8 @@ const useInitializeViewer = (
     if (viewer) {
       console.log("HOOK: enable terrain collision detection");
       const scene: Scene = viewer.scene;
+      // TODO: implement request render Mode to improve perf.
+      //scene.requestRenderMode = true;
       const sscc: ScreenSpaceCameraController =
         scene.screenSpaceCameraController;
 
@@ -94,7 +96,7 @@ const useInitializeViewer = (
         }
 
         if (sceneFromHashParams && longitude && latitude) {
-          console.log("HOOK: init Viewer set camera from hash zoom", height);
+          console.log("HOOK [2D3D|CESIUM|CAMERA] init Viewer set camera from hash zoom", height);
           viewer.camera.setView({
             destination: Cartesian3.fromRadians(
               longitude,
@@ -115,15 +117,8 @@ const useInitializeViewer = (
           );
         })();
         */
-        } else if (leaflet) {
-          const { lat, lng } = leaflet.getCenter();
-          const zoom = leaflet.getZoom();
-          console.log("HOOK: initViewer from leaflet zoom", zoom);
-          leafletToCesiumCamera(viewer, { lat, lng, zoom });
-
-          // triggers url hash update on moveend
         } else if (home && homeOffset) {
-          console.log("HOOK: initViewer no hash, using home zoom", home);
+          console.log("HOOK: [2D3D|CESIUM|CAMERA] initViewer no hash, using home zoom", home);
           viewer.camera.lookAt(home, homeOffset);
           viewer.camera.flyToBoundingSphere(new BoundingSphere(home, 500), {
             duration: 2,
@@ -157,6 +152,7 @@ export const useHomeControl = () => {
     if (viewer && homePos) {
       dispatch(setIsAnimating(false));
       const boundingSphere = new BoundingSphere(homePos, 400);
+      console.log("HOOK: [2D3D|CESIUM|CAMERA] homeClick");
       viewer.camera.flyToBoundingSphere(boundingSphere);
     }
   }, [viewer, homePos, dispatch]);
