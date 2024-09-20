@@ -49,8 +49,7 @@ const useInitializeViewer = (
     if (viewer) {
       console.log("HOOK: enable terrain collision detection");
       const scene: Scene = viewer.scene;
-      // TODO: implement request render Mode to improve perf.
-      //scene.requestRenderMode = true;
+      scene.requestRenderMode = true;
       const sscc: ScreenSpaceCameraController =
         scene.screenSpaceCameraController;
 

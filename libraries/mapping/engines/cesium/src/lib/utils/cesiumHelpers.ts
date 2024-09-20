@@ -833,6 +833,7 @@ export const leafletToCesiumCamera = (
     currentPixelResolution = newResolution;
     iterations++;
   }
+  viewer.scene.requestRender();
   //console.log('zoom iterations', iterations);
   onComplete && onComplete();
   return true; // Return true if camera position found within max iterations

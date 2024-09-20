@@ -35,6 +35,7 @@ const setupPrimaryStyle = ({
     if (imageryLayer) {
       imageryLayer.show = false;
     }
+    viewer.scene.requestRender();
   })();
 };
 
@@ -63,6 +64,7 @@ export const setupSecondaryStyle = ({
         viewer.imageryLayers.add(imageryLayer);
       }
     }
+    viewer.scene.requestRender();
     // viewer.scene.globe.show = true;
   })();
 };
