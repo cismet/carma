@@ -55,6 +55,7 @@ import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 
 import versionData from "../../../version.json";
 
+import { MODEL_ASSETS } from "../../config/assets.config.ts";
 import { paramsToObject } from "../../helper/helper.ts";
 import { getBackgroundLayers } from "../../helper/layer.tsx";
 
@@ -93,7 +94,6 @@ import { getUrlPrefix } from "./utils";
 
 import "../leaflet.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
-import { MODEL_ASSETS } from "../../config/assets.config.ts";
 
 // TODO: Make transition style configurable with config and cesium library
 const MAPMODE_TRANSITION_DURATION = 1000;
