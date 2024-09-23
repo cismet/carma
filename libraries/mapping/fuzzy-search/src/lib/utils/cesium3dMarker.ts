@@ -90,7 +90,7 @@ const updateMarker = (viewer: Viewer) => {
           translation = new Cartesian3(
             0,
             0,
-            (model.scale * dist) / (1000 * 0.5),
+            ((model.scale ?? 1) * dist) / (1000 * 0.5),
           ); // offset to scale from bottom
         }
       } else {

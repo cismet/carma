@@ -6,12 +6,12 @@ import "leaflet/dist/leaflet.css";
 import { Color, Entity, PolygonGraphics } from "cesium";
 import camera_png from "./camera.png";
 import { makeLeafletMarkerRotatable } from "./LeafletMiniMap.utils";
-import { polygonHierarchyFromPolygonCoords } from "../../components/SearchGazetteer/tools/cesium";
 import {
   cameraToCartographicDegrees,
   getViewerViewportPolygonRing,
   rectangleToExtentDegrees,
 } from "../../utils";
+import { cesiumUtils } from "@carma-mapping/fuzzy-search";
 
 //TODO sync time externally if needed
 const DEFAULT_MODE_2D_3D_CHANGE_FADE_DURATION = 1000;
@@ -137,7 +137,7 @@ export const LeafletMiniMap = ({
 
           if (showCesiumPolygon) {
             const cesiumPolygon = new PolygonGraphics({
-              hierarchy: polygonHierarchyFromPolygonCoords([
+              hierarchy: cesiumUtils.polygonHierarchyFromPolygonCoords([
                 geom.map((coord) => coord.reverse()),
               ]),
               material: Color.YELLOW.withAlpha(0.45),

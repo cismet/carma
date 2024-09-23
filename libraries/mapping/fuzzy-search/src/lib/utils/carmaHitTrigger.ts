@@ -38,7 +38,6 @@ import { PROJ4_CONVERTERS } from "./geo";
 
 import { DEFAULT_SRC_PROJ } from "../config";
 import { addCesiumMarker, removeCesiumMarker } from "./cesium3dMarker";
-import { MODEL_ASSETS } from "../../../../../../apps/geoportal/src/app/config/assets.config";
 
 const proj4ConverterLookup = {};
 const DEFAULT_ZOOM_LEVEL = 16;
@@ -157,7 +156,9 @@ export type GazetteerOptions = {
   referenceSystemDefinition?: any;
   suppressMarker?: boolean;
   mapActions?: MapActions;
-  marker3dStyle?: ModelAsset;
+  cesiumConfig?: {
+    markerAsset?: ModelAsset;
+  };
 };
 
 const defaultGazetteerOptions = {
@@ -177,7 +178,7 @@ export const carmaHitTrigger = (
     referenceSystemDefinition,
     suppressMarker,
     mapActions = { leaflet: {}, cesium: {} },
-    marker3dStyle = MODEL_ASSETS.Marker,
+    cesiumConfig = {},
   }: GazetteerOptions = defaultGazetteerOptions,
 ) => {
   if (hit !== undefined && hit.length !== undefined && hit.length > 0) {
@@ -289,7 +290,8 @@ export const carmaHitTrigger = (
           //viewer.entities.add(invertedPolygonEntity);
           viewer.flyTo(polygonEntity);
         } else {
-          marker3dStyle && addCesiumMarker(viewer, posHeight, marker3dStyle);
+          cesiumConfig?.markerAsset &&
+            addCesiumMarker(viewer, posHeight, cesiumConfig.markerAsset);
           console.log("GAZETTEER: [2D3D|CESIUM|CAMERA] look at Marker");
           cAction.lookAt(mapElement.scene, pos, zoom);
         }

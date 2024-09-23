@@ -12,7 +12,7 @@ import {
   useViewerHome,
   useViewerIsMode2d,
 } from "../../CustomViewerContextProvider/slices/cesium";
-const ControlsUI = ({ showHome = true, showOrbit = true, searchComponent }) => {
+const ControlsUI = ({ showHome = true, showOrbit = true }) => {
   const home = useViewerHome();
   const isMode2d = useViewerIsMode2d();
 
@@ -48,11 +48,6 @@ const ControlsUI = ({ showHome = true, showOrbit = true, searchComponent }) => {
         <ControlGroup>
           <MapTypeSwitcher />
           <SceneStyleToggle />
-        </ControlGroup>
-      </ControlContainer>
-      <ControlContainer position="bottomleft">
-        <ControlGroup useLeafletElements={false}>
-          {!isMode2d && searchComponent}
         </ControlGroup>
       </ControlContainer>
     </div>

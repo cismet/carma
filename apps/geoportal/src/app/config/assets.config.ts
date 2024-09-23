@@ -1,4 +1,3 @@
-import { generateModelAsset } from "@carma-mapping/cesium-engine/utils";
 import { ModelAsset } from "@carma-mapping/cesium-engine";
 
 import { APP_BASE_PATH } from "./app.config";
@@ -22,14 +21,9 @@ export const MODEL_ASSETS: Record<string, ModelAsset> = {
     rotation: false,
     isCameraFacing: true,
     fixedScale: true,
-    anchorOffset: { z: 1 },
+    anchorOffset: { z: 2 },
   },
-  MarkerGen: generateModelAsset({
-    color: [1.0, 0.5, 0.6, 1.0],
-    scale: 10,
-    rotation: false,
-    anchorOffset: { z: 5 },
-  }),
+
   /*
   MarkerFacing: generateModelAsset({
     color: [0.0, 1.0, 0.0, 1.0],

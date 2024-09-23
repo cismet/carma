@@ -18,7 +18,6 @@ export type SearchGazetteerProps = {
   // }>;
   // mapRef?: mapRefType | L.Map;
   mapRef?: L.Map.leafletMap.leafletElement;
-  cesiumRef?: Viewer;
   //overlayFeature: any;
   setOverlayFeature: (feature: any) => void;
   //crs?: string;
@@ -27,9 +26,12 @@ export type SearchGazetteerProps = {
   stopwords?: string[];
   pixelwidth?: number;
   ifShowCategories?: boolean;
-  marker3dStyle?: ModelAsset;
   placeholder?: string;
   config?: SearchConfig;
+  cesiumConfig?: {
+    viewer?: Viewer;
+    markerAsset?: ModelAsset;
+  }
 };
 
 export type MapConsumer = L.Map | Viewer;

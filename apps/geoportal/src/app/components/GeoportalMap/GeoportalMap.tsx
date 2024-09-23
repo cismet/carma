@@ -93,6 +93,7 @@ import { getUrlPrefix } from "./utils";
 
 import "../leaflet.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
+import { MODEL_ASSETS } from "../../config/assets.config.ts";
 
 // TODO: Make transition style configurable with config and cesium library
 const MAPMODE_TRANSITION_DURATION = 1000;
@@ -359,7 +360,10 @@ export const GeoportalMap = () => {
           <LibFuzzySearch
             gazData={gazData}
             mapRef={routedMapRef}
-            cesiumRef={viewer}
+            cesiumConfig={{
+              viewer,
+              markerAsset: MODEL_ASSETS.Marker
+            }}
             referenceSystem={referenceSystem}
             referenceSystemDefinition={referenceSystemDefinition}
             gazetteerHit={gazetteerHit}

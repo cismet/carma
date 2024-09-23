@@ -10,7 +10,6 @@ import {
 } from "cesium";
 import { Viewer as ResiumViewer } from "resium";
 import Crosshair from "./components/Crosshair";
-import SearchWrapper from "./components/SearchWrapper";
 
 import {
   useShowSecondaryTileset,
@@ -402,7 +401,6 @@ function CustomViewer(props: CustomViewerProps) {
         <ControlsUI
           showHome={showHome}
           showOrbit={showOrbit}
-          searchComponent={<SearchWrapper />}
         />
       )}
       {showCrosshair && <Crosshair lineColor="white" />}

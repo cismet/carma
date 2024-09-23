@@ -12,8 +12,6 @@ export { HomeControl } from './lib/CustomViewer/components/controls/HomeControl'
 export { ByGeojsonClassifier } from "./lib/components/ByGeojsonClassifier";
 export { ByTilesetClassifier } from "./lib/components/ByTilesetClassifier";
 export { MarkerContainer } from "./lib/components/MarkerContainer";
-export { SearchGazetteer } from "./lib/components/SearchGazetteer";
-
 
 // Re-export all the types as workaround
 export * from "./index.d";
