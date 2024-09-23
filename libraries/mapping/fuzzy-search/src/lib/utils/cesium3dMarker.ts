@@ -9,7 +9,8 @@ import {
   Cartographic,
   Math as CeMath,
 } from "cesium";
-import { ModelAsset } from "../types.d";
+
+import type { ModelAsset } from "@carma-mapping/cesium-engine";
 
 let preRenderListener: () => void;
 
@@ -28,7 +29,7 @@ let animatonSpeed = 0.001;
 
 const markerId = "selected3dmarker";
 
-export const addMarker = async (
+export const addCesiumMarker = async (
   viewer: Viewer,
   pos: Cartographic,
   model: ModelAsset,
@@ -89,7 +90,7 @@ const updateMarker = (viewer: Viewer) => {
           translation = new Cartesian3(
             0,
             0,
-            ((model.scale ?? 1) * dist) / (1000 * 0.5),
+            (model.scale * dist) / (1000 * 0.5),
           ); // offset to scale from bottom
         }
       } else {
@@ -141,7 +142,7 @@ const updateMarker = (viewer: Viewer) => {
   }
 };
 
-export const removeMarker = (viewer: Viewer) => {
+export const removeCesiumMarker = (viewer: Viewer) => {
   if (markerModel) {
     viewer.scene.primitives.remove(markerModel);
     markerModel = null;

@@ -1,7 +1,9 @@
-import { APP_BASE_PATH } from './app.config';
-import { ModelAsset } from '@carma-mapping/cesium-engine';
+import { generateModelAsset } from "@carma-mapping/cesium-engine/utils";
+import { ModelAsset } from "@carma-mapping/cesium-engine";
 
-// TODO CONSOLIDATE_CESIUM 
+import { APP_BASE_PATH } from "./app.config";
+
+// TODO CONSOLIDATE_CESIUM
 
 const BEHOERDE_SVG = `${APP_BASE_PATH}data/img/behoerde.svg`;
 export const GLB_SAMPLE = `${APP_BASE_PATH}data/glb/map_pointer.glb`;
@@ -14,44 +16,40 @@ export const IMAGE_ASSETS: Record<string, ModelAsset> = {
 };
 
 export const MODEL_ASSETS: Record<string, ModelAsset> = {
-  Marker: { uri: GLB_SAMPLE, scale: 20, anchorOffset: { z: 2 } },
-  MarkerFacing: {
+  Marker: {
     uri: GLB_SAMPLE,
+    scale: 8,
+    rotation: false,
+    isCameraFacing: true,
+    fixedScale: true,
+    anchorOffset: { z: 1 },
+  },
+  MarkerGen: generateModelAsset({
+    color: [1.0, 0.5, 0.6, 1.0],
+    scale: 10,
+    rotation: false,
+    anchorOffset: { z: 5 },
+  }),
+  /*
+  MarkerFacing: generateModelAsset({
+    color: [0.0, 1.0, 0.0, 1.0],
     scale: 20,
     isCameraFacing: true,
-    anchorOffset: { z: 2 },
-  },
-  MarkerRotating: {
-    uri: GLB_SAMPLE,
+  }),
+  MarkerRotating: generateModelAsset({
+    color: [0.0, 1.0, 0.0, 1.0],
     scale: 20,
-    anchorOffset: { z: 2 },
+    isCameraFacing: true,
     rotation: true,
-  },
-  MarkerRotatingFast: {
-    uri: GLB_SAMPLE,
+  }),
+  MarkerFixed: generateModelAsset({
+    color: [0.0, 1.0, 0.0, 1.0],
     scale: 20,
-    rotation: 2,
-    anchorOffset: { z: 2 },
-  },
-  MarkerRotatingSlow: {
-    uri: GLB_SAMPLE,
-    scale: 20,
-    anchorOffset: { z: 2 },
-    rotation: 0.5,
-  },
-  MarkerRotatingCounter: {
-    uri: GLB_SAMPLE,
-    scale: 20,
-    anchorOffset: { z: 2 },
-    rotation: -1,
-  },
-  MarkerRotatingFixed: {
-    uri: GLB_SAMPLE,
-    scale: 20,
-    anchorOffset: { z: 2 },
+    isCameraFacing: true,
     rotation: true,
     fixedScale: true,
-  },
+  }),
+  */
   MarkerFacingFixed: {
     uri: GLB_SAMPLE,
     scale: 20,
@@ -59,20 +57,12 @@ export const MODEL_ASSETS: Record<string, ModelAsset> = {
     isCameraFacing: true,
     fixedScale: true,
   },
-
   Marker3dFromSvg: {
     uri: FROM_SVG_SAMPLE,
     scale: 80,
     anchorOffset: { z: 0 },
     isCameraFacing: true,
     fixedScale: true,
-  },
-
-  Wind: {
-    uri: `${APP_BASE_PATH}data/glb/game_ready_wind_turbine_animated.glb`,
-    scale: 85,
-    anchorOffset: { z: 0 },
-    hasAnimation: true,
   },
 };
 
