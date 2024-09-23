@@ -7,7 +7,6 @@ import {
   GroundPrimitive,
   PolygonHierarchy,
   Viewer,
-  Model,
 } from "cesium";
 
 export const distanceFromZoomLevel = (zoom: number) => {
@@ -60,6 +59,8 @@ export const polygonHierarchyFromPolygonCoords = (
 };
 
 // WUPPERTAL EXTENT PLUS SOME PADDING
+
+// TODO for lib use make this configurable or find other way to thave inverted polgon spanning globe
 const LAT_PADDING = 8;
 const LON_PADDING = 5;
 const LAT_MIN = 51.16 - LAT_PADDING;
