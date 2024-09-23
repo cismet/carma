@@ -78,20 +78,6 @@ export const invertedPolygonHierarchy = (
   ],
 ) => polygonHierarchyFromPolygonCoords([outerPolygon, polygon]);
 
-export const removeCesiumMarker = (
-  viewer: Viewer,
-  markerModel?: Model | null,
-) => {
-  if (markerModel) {
-    viewer.scene.primitives.remove(markerModel);
-    markerModel = null;
-  } else {
-    console.info("no Marker found to remove");
-  }
-
-  //removePreRenderListener(viewer);
-};
-
 export function getGroundPrimitiveById(
   viewer: Viewer,
   id: string,

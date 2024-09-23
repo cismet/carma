@@ -49,7 +49,7 @@ export type GazDataItem = {
 // see also CesiumMarkerContainer Props
 export type ModelAsset = {
   uri: string;
-  scale: number;
+  scale?: number;
   isCameraFacing?: boolean;
   rotation?: boolean | number;
   fixedScale?: boolean;

@@ -19,7 +19,8 @@ import {
   removeStopwords,
   getDefaultSearchConfig,
 } from "./utils/fuzzySearchHelper";
-import { removeCesiumMarker, removeGroundPrimitiveById } from "./utils/cesium";
+import { removeGroundPrimitiveById } from "./utils/cesium";
+import { removeCesiumMarker } from "./utils/cesium3dMarker";
 
 import {
   SearchResultItem,
@@ -247,7 +248,6 @@ export function LibFuzzySearch({
       if (cesiumRef) {
         removeCesiumMarker(cesiumRef);
         cesiumRef.entities.removeById(SELECTED_POLYGON_ID);
-        //cesiumRef.entities.removeById(INVERTED_SELECTED_POLYGON_ID);
         removeGroundPrimitiveById(cesiumRef, INVERTED_SELECTED_POLYGON_ID);
       }
     }

@@ -47,7 +47,7 @@ export interface Marker3dData extends Omit<MarkerData, "model"> {
 }
 export type ModelAsset = {
   uri: string;
-  scale: number;
+  scale?: number;
   isCameraFacing?: boolean;
   rotation?: boolean | number;
   fixedScale?: boolean;
