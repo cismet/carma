@@ -169,30 +169,30 @@ export const GeoportalMap = () => {
     secondary: {
       content: (
         <div className="max-w-2xl">
-          <img src={MeasurementTempScreen} />
+          <img style={{ height: "400px" }} src={MeasurementTempScreen} />
         </div>
       ),
       secondaryPos: "right",
     },
   });
 
-  // const gazetteerControlTourRef = useOverlayHelper(
-  //   getCollabedHelpElementsConfig("GAZETTEER_SUCHE", geoElements),
-  // );
-  const gazetteerControlTourRef = useOverlayHelper({
-    primary: {
-      content: <div>Gazzetteer</div>,
-    },
-    secondary: {
-      content: (
-        <div style={{ width: "280px" }}>
-          <h3 className="text-center">Gazzetteer info</h3>
-          <img src={FuzzyTempScreen} />
-        </div>
-      ),
-      secondaryPos: "top",
-    },
-  });
+  const gazetteerControlTourRef = useOverlayHelper(
+    getCollabedHelpElementsConfig("GAZETTEER_SUCHE", geoElements),
+  );
+  // const gazetteerControlTourRef = useOverlayHelper({
+  //   primary: {
+  //     content: <div>Gazzetteer</div>,
+  //   },
+  //   secondary: {
+  //     content: (
+  //       <div style={{ width: "500px", margin: "20px" }}>
+  //         <h3 className="text-center">Gazzetteer info</h3>
+  //         <img src={FuzzyTempScreen} />
+  //       </div>
+  //     ),
+  //     secondaryPos: "top",
+  //   },
+  // });
 
   const toggleMapMode = useCallback(() => {
     setMapMode((prevMode) =>
