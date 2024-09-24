@@ -76,22 +76,9 @@ const TopNavbar = () => {
   const hintergrundTourRef = useOverlayHelper(
     getCollabedHelpElementsConfig("HINTERGRUND", geoElements),
   );
-  // const modalMenuTourRef = useOverlayHelper(
-  //   getCollabedHelpElementsConfig("MENU", geoElements),
-  // );
-  const modalMenuTourRef = useOverlayHelper({
-    primary: {
-      content: <div>Menü</div>,
-    },
-    secondary: {
-      content: (
-        <div className="max-w-5xl">
-          <img src={MenuTempScreenshot} />
-        </div>
-      ),
-      secondaryPos: "bottomRight",
-    },
-  });
+  const modalMenuTourRef = useOverlayHelper(
+    getCollabedHelpElementsConfig("MENU", geoElements),
+  );
 
   const updateLayers = async (
     layer: Item,

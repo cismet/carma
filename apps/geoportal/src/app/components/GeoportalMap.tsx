@@ -156,43 +156,13 @@ export const GeoportalMap = () => {
   const homeControlTourRef = useOverlayHelper(
     getCollabedHelpElementsConfig("RATHAUS", geoElements),
   );
-  // const measurementControlTourRef = useOverlayHelper(
-  //   getCollabedHelpElementsConfig("MESSUNGEN", geoElements),
-  // );
-
-  const measurementControlTourRef = useOverlayHelper({
-    primary: {
-      content: <div>Messungen</div>,
-      containerPos: "center",
-      contentPos: "left-center",
-    },
-    secondary: {
-      content: (
-        <div className="max-w-2xl">
-          <img style={{ height: "400px" }} src={MeasurementTempScreen} />
-        </div>
-      ),
-      secondaryPos: "right",
-    },
-  });
+  const measurementControlTourRef = useOverlayHelper(
+    getCollabedHelpElementsConfig("MESSUNGEN", geoElements),
+  );
 
   const gazetteerControlTourRef = useOverlayHelper(
     getCollabedHelpElementsConfig("GAZETTEER_SUCHE", geoElements),
   );
-  // const gazetteerControlTourRef = useOverlayHelper({
-  //   primary: {
-  //     content: <div>Gazzetteer</div>,
-  //   },
-  //   secondary: {
-  //     content: (
-  //       <div style={{ width: "500px", margin: "20px" }}>
-  //         <h3 className="text-center">Gazzetteer info</h3>
-  //         <img src={FuzzyTempScreen} />
-  //       </div>
-  //     ),
-  //     secondaryPos: "top",
-  //   },
-  // });
 
   const toggleMapMode = useCallback(() => {
     setMapMode((prevMode) =>
