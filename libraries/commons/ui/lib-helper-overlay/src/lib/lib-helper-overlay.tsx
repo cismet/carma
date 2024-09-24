@@ -70,8 +70,6 @@ export function LibHelperOverlay({
           secondaryPos,
         } = config;
 
-        console.log("xxx", secondaryPos);
-
         return (
           <div
             key={idx}
@@ -97,8 +95,10 @@ export function LibHelperOverlay({
                 <Popover
                   content={secondary}
                   trigger="click"
+                  arrow={true}
                   placement={secondaryPos}
-                  autoAdjustOverflow={false}
+                  // overlayStyle={{ marginLeft: "10px" }}
+                  autoAdjustOverflow={true}
                 >
                   <span
                     style={{
