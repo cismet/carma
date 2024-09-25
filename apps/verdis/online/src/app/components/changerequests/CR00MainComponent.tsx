@@ -1,7 +1,11 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
 import { useDispatch, useSelector } from "react-redux";
-import { getUiState, showChangeRequests } from "../../../store/slices/ui";
+import {
+  getUiState,
+  showChangeRequests,
+  showSettings,
+} from "../../../store/slices/ui";
 import ModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import Section from "react-cismap/topicmaps/menu/Section";
 import Introduction from "./CR05Introduction";
@@ -21,6 +25,7 @@ import {
   anderungswunscheSimpleTexts,
   AnderungswunscheHint,
 } from "@carma-collab/wuppertal/verdis-online";
+import { divIcon } from "leaflet";
 
 const CR00MainComponent = ({ localErrorMessages = [] }) => {
   const uiState = useSelector(getUiState);
@@ -61,7 +66,24 @@ const CR00MainComponent = ({ localErrorMessages = [] }) => {
     <ModalApplicationMenu
       menuIcon={"edit"}
       menuTitle={anderungswunscheSimpleTexts.andrTitle}
-      menuFooter={<div style={{ width: "900px" }}></div>}
+      menuFooter={
+        <div
+          style={{
+            width: "100%",
+          }}
+        >
+          <Button
+            className="pull-left"
+            id="cmdCloseModalApplicationMenu"
+            variant="success"
+            type="submit"
+            // onClick={() => dispatch(showSettings({ visible: true }))}
+            style={{ margin: 5 }}
+          >
+            Hilfe
+          </Button>
+        </div>
+      }
       menuIntroduction={<Introduction />}
       visible={uiState.changeRequestsMenuVisible}
       setVisible={(value) => dispatch(showChangeRequests({ visible: value }))}
