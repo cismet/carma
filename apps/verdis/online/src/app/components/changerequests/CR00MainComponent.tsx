@@ -69,7 +69,7 @@ const CR00MainComponent = ({ localErrorMessages = [] }) => {
       menuFooter={
         <div
           style={{
-            width: "100%",
+            width: "900px",
           }}
         >
           <Button
