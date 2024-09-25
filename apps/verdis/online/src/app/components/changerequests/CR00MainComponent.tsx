@@ -61,7 +61,7 @@ const CR00MainComponent = ({ localErrorMessages = [] }) => {
     <ModalApplicationMenu
       menuIcon={"edit"}
       menuTitle={anderungswunscheSimpleTexts.andrTitle}
-      // menuFooter={<></>}
+      menuFooter={<div style={{ width: "900px" }}></div>}
       menuIntroduction={<Introduction />}
       visible={uiState.changeRequestsMenuVisible}
       setVisible={(value) => dispatch(showChangeRequests({ visible: value }))}
