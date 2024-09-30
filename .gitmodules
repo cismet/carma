@@ -8,3 +8,6 @@
 	url = https://github.com/cismet-collab/carma-wuppertal-collab.git
 	branch = main
     ignore = all
+[submodule "envirometrics/xanten/rainhazardmap/collab-texts"]
+	path = envirometrics/xanten/rainhazardmap/collab-texts
+	url = https://github.com/cismet-collab/ais-xanten-texts
