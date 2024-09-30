@@ -55,6 +55,20 @@ export type ModelAsset = {
   hasAnimation?: boolean;
 };
 
+export type ParsedModelAsset = {
+  isParsed: true,
+  uri: string;
+  scale: number;
+  isCameraFacing: boolean;
+  rotation: boolean | number;
+  fixedScale: boolean;
+  anchorOffset: { x: number; y: number; z: number };
+  hasAnimation: boolean;
+  model: Model;
+};
+
+
+
 export type EntityData = {
   id: string;
   modelMatrix: Matrix4 | null;
@@ -149,7 +163,7 @@ export interface CesiumState {
   };
   terrainProvider: null | TerrainProviderConfig;
   imageryProvider: null | ImageryProviderConfig;
-  models?: Record<string, ModelAsset>; // TODO should theseassets and providers be in this part of the state?
+  models: null | Record<string, ModelAsset | ParsedModelAsset>;
 }
 
 export type RootState = {

@@ -51,12 +51,12 @@ import {
   useSceneStyleToggle,
   useZoomControls,
   useShowPrimaryTileset,
+  useViewerModels,
 } from "@carma-mapping/cesium-engine";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 
 import versionData from "../../../version.json";
 
-import { MODEL_ASSETS } from "../../config/cesium/assets.config.ts";
 import { paramsToObject } from "../../helper/helper.ts";
 import { getBackgroundLayers } from "../../helper/layer.tsx";
 
@@ -112,6 +112,8 @@ export const GeoportalMap = () => {
   const allow3d = useSelector(getUIAllow3d);
   const backgroundLayer = useSelector(getBackgroundLayer);
   const isMode2d = useViewerIsMode2d();
+  const models = useViewerModels();
+  const markerAsset = models.Marker;
   const layers = useSelector(getLayers);
   const uiMode = useSelector(getUIMode);
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
@@ -320,7 +322,7 @@ export const GeoportalMap = () => {
                   className="w-6"
                 />
               </ControlButtonStyler>
-            </Tooltip>git
+            </Tooltip>
           </div>
         )}
       </Control>
@@ -371,7 +373,7 @@ export const GeoportalMap = () => {
             mapRef={routedMapRef}
             cesiumConfig={{
               viewer,
-              markerAsset: MODEL_ASSETS.Marker,
+              markerAsset,
               isPrimaryStyle: showPrimaryTileset,
               elevationTileset: showPrimaryTileset ? tilesets.primary : tilesets.secondary,
             }}

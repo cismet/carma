@@ -44,9 +44,6 @@ import {
   UIMode,
 } from "./store/slices/ui";
 
-// Config
-import { MODEL_ASSETS } from "./config/cesium/assets.config";
-
 // Side-Effect Imports
 import "bootstrap/dist/css/bootstrap.min.css";
 import "leaflet/dist/leaflet.css";
@@ -148,7 +145,6 @@ function App({ published }: { published?: boolean }) {
           providerConfig={{
             terrainProvider: WUPP_TERRAIN_PROVIDER,
             imageryProvider: BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
-            models: MODEL_ASSETS,
           }}
         >
           <TweakpaneProvider>

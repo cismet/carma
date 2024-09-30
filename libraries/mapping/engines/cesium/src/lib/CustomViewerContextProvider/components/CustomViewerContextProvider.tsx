@@ -54,7 +54,6 @@ export const CustomViewerContextProvider = ({
       layers: string;
       parameters?: Record<string, string | number | boolean>;
     };
-    models: Record<string, ModelAsset> | null;
   }
 }) => {
 

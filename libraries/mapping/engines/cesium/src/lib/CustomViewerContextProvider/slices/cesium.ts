@@ -47,6 +47,7 @@ const initialState: CesiumState = {
   },
   terrainProvider: null,
   imageryProvider: null,
+  models: null,
 };
 
 export const getCesiumConfig = ({
@@ -76,15 +77,15 @@ export const sliceCesium = createSlice({
     },
     clearTransition: (state: CesiumState) => {
       console.log("REDUCER [STATE|CESIUM] transition cleared");
-      state.currentTransition = VIEWER_TRANSITION_STATE.NONE
+      state.currentTransition = VIEWER_TRANSITION_STATE.NONE;
     },
     setTransitionTo2d: (state: CesiumState) => {
       console.log("REDUCER [STATE|CESIUM] transition to 2D");
-      state.currentTransition = VIEWER_TRANSITION_STATE.TO2D
+      state.currentTransition = VIEWER_TRANSITION_STATE.TO2D;
     },
     setTransitionTo3d: (state: CesiumState) => {
       console.log("REDUCER [STATE|CESIUM] transition to 3Dd");
-      state.currentTransition = VIEWER_TRANSITION_STATE.TO3D
+      state.currentTransition = VIEWER_TRANSITION_STATE.TO3D;
     },
     setIsMode2d: (state: CesiumState, action: PayloadAction<boolean>) => {
       state.isMode2d = action.payload;
@@ -117,7 +118,8 @@ export const sliceCesium = createSlice({
       state: CesiumState,
       action: PayloadAction<boolean>,
     ) => {
-      state.sceneSpaceCameraController.enableCollisionDetection = action.payload;
+      state.sceneSpaceCameraController.enableCollisionDetection =
+        action.payload;
     },
     setTilesetOpacity: (state: CesiumState, action: PayloadAction<number>) => {
       // console.log(action.payload);
@@ -161,17 +163,20 @@ export const {
   setTilesetOpacity,
   setScreenSpaceCameraControllerMaximumZoomDistance,
   setScreenSpaceCameraControllerMinimumZoomDistance,
-  setScreenSpaceCameraControllerEnableCollisionDetection
+  setScreenSpaceCameraControllerEnableCollisionDetection,
 } = sliceCesium.actions;
 
 // selectors
 
 const selectViewerIsAnimating = ({ cesium }: RootState) => cesium.isAnimating;
-const selectViewerCurrentTransition = ({ cesium }: RootState) => cesium.currentTransition;
-const selectViewerIsTransitioning = ({ cesium }: RootState) => cesium.currentTransition !== VIEWER_TRANSITION_STATE.NONE;
+const selectViewerCurrentTransition = ({ cesium }: RootState) =>
+  cesium.currentTransition;
+const selectViewerIsTransitioning = ({ cesium }: RootState) =>
+  cesium.currentTransition !== VIEWER_TRANSITION_STATE.NONE;
 
 const selectViewerIsMode2d = ({ cesium }: RootState) => cesium.isMode2d;
 const selectViewerDataSources = ({ cesium }: RootState) => cesium.dataSources;
+const selectViewerModels = ({ cesium }: RootState) => cesium.models;
 
 const selectViewerHome = createSelector(
   ({ cesium }: RootState) => cesium.homePosition,
@@ -200,12 +205,14 @@ const selectScreenSpaceCameraControllerEnableCollisionDetection = ({
   cesium,
 }: RootState) => cesium.sceneSpaceCameraController.enableCollisionDetection;
 
-
 export const useViewerIsAnimating = () => useSelector(selectViewerIsAnimating);
-export const useViewerCurrentTransition = () => useSelector(selectViewerCurrentTransition);
-export const useViewerIsTransitioning = () => useSelector(selectViewerIsTransitioning);
+export const useViewerCurrentTransition = () =>
+  useSelector(selectViewerCurrentTransition);
+export const useViewerIsTransitioning = () =>
+  useSelector(selectViewerIsTransitioning);
 export const useViewerIsMode2d = () => useSelector(selectViewerIsMode2d);
 export const useViewerDataSources = () => useSelector(selectViewerDataSources);
+export const useViewerModels = () => useSelector(selectViewerModels);
 export const useViewerHome = () => useSelector(selectViewerHome);
 export const useViewerHomeOffset = () => useSelector(selectViewerHomeOffset);
 export const useGlobeBaseColor = () =>
