@@ -39,10 +39,11 @@ const DEFAULT_MODE_2D_3D_CHANGE_FADE_DURATION = 1000;
 type Props = {
   zoomSnap?: ZoomIncrements;
   onComplete?: (isTo2D: boolean) => void;
+  forceEnabled?: boolean;
   children?: ReactNode;
 };
 
-export const MapTypeSwitcher = ({ zoomSnap = 0.5, onComplete }: Props) => {
+export const MapTypeSwitcher = ({ zoomSnap = 0.5, onComplete, forceEnabled }: Props) => {
   //const { viewer } = useCesium();
   const dispatch = useDispatch();
   const isMode2d = useViewerIsMode2d();
@@ -246,7 +247,7 @@ export const MapTypeSwitcher = ({ zoomSnap = 0.5, onComplete }: Props) => {
       title={isMode2d ? "zur 3D Ansicht wechseln" : "zur 2D Ansicht wechseln"}
       className="font-semibold"
       onClick={handleSwitchMapMode}
-      disabled={isTransitioning}
+      disabled={isTransitioning && !forceEnabled}
     >
       {isMode2d ? "3D" : "2D"}
     </ControlButtonStyler>

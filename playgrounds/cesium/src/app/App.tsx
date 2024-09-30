@@ -20,8 +20,6 @@ import { TopicMapContextProvider } from 'react-cismap/contexts/TopicMapContextPr
 import { TweakpaneProvider } from '@carma-commons/debug';
 import { BASEMAP_METROPOLRUHR_WMS_GRAUBLAU, METROPOLERUHR_WMTS_SPW2_WEBMERCATOR, WUPP_TERRAIN_PROVIDER } from '@carma-commons/resources';
 
-import { MODEL_ASSETS } from './config/assets.config';
-
 const ViewerRoutes = routeGenerator(viewerRoutes);
 const OtherRoutes = routeGenerator(otherRoutes);
 
@@ -32,7 +30,6 @@ export function App() {
       providerConfig={{
         terrainProvider: WUPP_TERRAIN_PROVIDER,
         imageryProvider: BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
-        models: MODEL_ASSETS,
       }}
     >
       <TweakpaneProvider>

@@ -5,6 +5,7 @@ import { CesiumState } from "@carma-mapping/cesium-engine";
 import { colorToArray } from "@carma-mapping/cesium-engine/utils";
 
 import { FOOTPRINT_GEOJSON_SOURCES } from "./dataSources.config";
+import { MODEL_ASSETS } from "./assets.config";
 
 // SETUP Store State
 
@@ -53,6 +54,7 @@ export const defaultViewerState: CesiumState = {
   },
   terrainProvider: WUPP_TERRAIN_PROVIDER,
   imageryProvider: BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
+  models: MODEL_ASSETS
 };
 
 export default defaultViewerState;

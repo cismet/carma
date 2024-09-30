@@ -46,7 +46,7 @@ const ControlsUI = ({ showHome = true, showOrbit = true }) => {
           </ControlGroup>
         </div>
         <ControlGroup>
-          <MapTypeSwitcher />
+          <MapTypeSwitcher forceEnabled={true}/>
           <SceneStyleToggle />
         </ControlGroup>
       </ControlContainer>
