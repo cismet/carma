@@ -56,7 +56,7 @@ import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 
 import versionData from "../../../version.json";
 
-import { MODEL_ASSETS } from "../../config/assets.config.ts";
+import { MODEL_ASSETS } from "../../config/cesium/assets.config.ts";
 import { paramsToObject } from "../../helper/helper.ts";
 import { getBackgroundLayers } from "../../helper/layer.tsx";
 
@@ -95,7 +95,7 @@ import { createCismapLayers, onClickTopicMap } from "./topicmap.utils.ts";
 import { getUrlPrefix } from "./utils";
 
 import {
-  CESIUM_MAPMODE_TRANSITION_DURATION,
+  CESIUM_CONFIG,
   LEAFLET_CONFIG,
 } from "../../config/app.config";
 
@@ -320,7 +320,7 @@ export const GeoportalMap = () => {
                   className="w-6"
                 />
               </ControlButtonStyler>
-            </Tooltip>
+            </Tooltip>git
           </div>
         )}
       </Control>
@@ -478,7 +478,7 @@ export const GeoportalMap = () => {
                 bottom: 0,
                 zIndex: 401,
                 opacity: isMode2d ? 0 : 1,
-                transition: `opacity ${CESIUM_MAPMODE_TRANSITION_DURATION}ms ease-in-out`,
+                transition: `opacity ${CESIUM_CONFIG.transitions.mapMode.duration}ms ease-in-out`,
                 pointerEvents: isMode2d ? "none" : "auto",
               }}
             >

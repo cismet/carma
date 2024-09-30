@@ -1,30 +1,25 @@
-import React, { ReactNode } from 'react';
+import React from 'react';
 import { HashRouter, Route, Routes } from 'react-router-dom';
 
 // Cesium Styles
 import 'cesium/Build/Cesium/Widgets/widgets.css';
-import Navigation from './components/Navigation';
+import { Navigation } from './components/Navigation';
 import { viewerRoutes, otherRoutes } from './routes';
 import {
   CustomViewerPlayground,
   CustomViewerContextProvider,
 } from '@carma-mapping/cesium-engine';
 
-import { extentDegreesToRectangle } from '@carma-mapping/cesium-engine/utils';
 
 import { routeGenerator } from './utils/routeGenerator';
 
 import 'leaflet/dist/leaflet.css';
 
-import { TweakpaneProvider } from '@carma-commons/debug';
 import { TopicMapContextProvider } from 'react-cismap/contexts/TopicMapContextProvider';
-import { WUPPERTAL } from './config/locations.config';
-import defaultViewerState from './config';
-import {
-  BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
-  METROPOLERUHR_WMTS_SPW2_WEBMERCATOR,
-  WUPP_TERRAIN_PROVIDER,
-} from './config/dataSources.config';
+
+import { TweakpaneProvider } from '@carma-commons/debug';
+import { BASEMAP_METROPOLRUHR_WMS_GRAUBLAU, METROPOLERUHR_WMTS_SPW2_WEBMERCATOR, WUPP_TERRAIN_PROVIDER } from '@carma-commons/resources';
+
 import { MODEL_ASSETS } from './config/assets.config';
 
 const ViewerRoutes = routeGenerator(viewerRoutes);
@@ -62,7 +57,6 @@ export function App() {
               element={
                 <TopicMapContextProvider>
                   <CustomViewerPlayground
-                    //globe={{cartographicLimitRectangle: extentDegreesToRectangle(WUPPERTAL.extent)}}
                     minimapLayerUrl={
                       METROPOLERUHR_WMTS_SPW2_WEBMERCATOR.layers['spw2_orange']
                         .url

@@ -1,22 +1,17 @@
 import { Cartesian3, Color } from "cesium";
+
+import { BASEMAP_METROPOLRUHR_WMS_GRAUBLAU, WUPP_LOD2_TILESET, WUPP_MESH_2024, WUPP_TERRAIN_PROVIDER, WUPPERTAL } from "@carma-commons/resources";
 import { CesiumState } from "@carma-mapping/cesium-engine";
 import { colorToArray } from "@carma-mapping/cesium-engine/utils";
 
-import {
-  BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
-  FOOTPRINT_GEOJSON_SOURCES,
-  WUPP_MESH_2024,
-  WUPP_LOD2_TILESET,
-  WUPP_TERRAIN_PROVIDER,
-} from "./dataSources.config";
-import { WUPPERTAL } from "./locations.config";
+import { FOOTPRINT_GEOJSON_SOURCES } from "./dataSources.config";
 
 // SETUP Store State
 
 const { x, y, z } = Cartesian3.fromDegrees(
-  WUPPERTAL.position.lon,
-  WUPPERTAL.position.lat,
-  WUPPERTAL.ground,
+  WUPPERTAL.position.lngDeg,
+  WUPPERTAL.position.latDeg,
+  WUPPERTAL.height,
 );
 
 // position relative to the home position
@@ -35,7 +30,7 @@ export const defaultViewerState: CesiumState = {
   sceneSpaceCameraController: {
     enableCollisionDetection: true,
     maximumZoomDistance: 50000,
-    minimumZoomDistance: 100
+    minimumZoomDistance: 100,
   },
   styling: {
     tileset: {

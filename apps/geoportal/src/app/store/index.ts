@@ -9,7 +9,7 @@ import { persistReducer } from "redux-persist";
 import localForage from "localforage";
 import { APP_KEY, STORAGE_PREFIX } from "../config";
 import { getCesiumConfig, sliceCesium } from "@carma-mapping/cesium-engine";
-import { defaultCesiumState } from "../config/store.config";
+import { defaultCesiumState } from "../config/cesium/store.config";
 
 console.log("store initializing ....");
 

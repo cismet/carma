@@ -8,7 +8,7 @@ import { suppressReactCismapErrors } from "@carma-commons/utils";
 
 import App from "./app/App";
 import store from "./app/store";
-import { CESIUM_BASE_URL } from "./app/config/app.config";
+import { CESIUM_CONFIG } from "./app/config/app.config";
 
 declare global {
   interface Window {
@@ -20,7 +20,7 @@ const persistor = persistStore(store);
 
 suppressReactCismapErrors();
 
-window.CESIUM_BASE_URL = CESIUM_BASE_URL;
+window.CESIUM_BASE_URL = CESIUM_CONFIG.baseUrl
 
 console.info("RENDER: [GEOPORTAL] ROOT");
 

@@ -13,7 +13,9 @@ import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextPr
 
 // Monorepo Packages
 import { backgroundSettings } from "@carma-collab/wuppertal/geoportal";
+
 import { TweakpaneProvider } from "@carma-commons/debug";
+import { BASEMAP_METROPOLRUHR_WMS_GRAUBLAU, WUPP_TERRAIN_PROVIDER } from "@carma-commons/resources";
 import { OverlayTourProvider } from "@carma/libraries/commons/ui/lib-helper-overlay";
 import { CustomViewerContextProvider } from "@carma-mapping/cesium-engine";
 import type { Layer } from "@carma-mapping/layers";
@@ -43,11 +45,7 @@ import {
 } from "./store/slices/ui";
 
 // Config
-import { MODEL_ASSETS } from "./config/assets.config";
-import {
-  BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
-  WUPP_TERRAIN_PROVIDER,
-} from "./config/dataSources.config";
+import { MODEL_ASSETS } from "./config/cesium/assets.config";
 
 // Side-Effect Imports
 import "bootstrap/dist/css/bootstrap.min.css";

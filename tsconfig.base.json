@@ -83,6 +83,7 @@
       "@carma-collab/wuppertal/x-and-ride": ["libraries/collaboration/carma-wuppertal-collab/src/x-and-ride/index.ts"],
       "@carma-commons/debug": ["libraries/commons/debug/src/index.ts"],
       "@carma-commons/document-viewer": ["libraries/commons/document-viewer/src/index.ts"],
+      "@carma-commons/resources": ["libraries/commons/resources/src/index.ts"],
       "@carma-commons/utils": ["libraries/commons/utils/src/index.ts"],
       "@carma-mapping/cesium-engine": ["libraries/mapping/engines/cesium/src/index.ts"],
       "@carma-mapping/cesium-engine/shaders": ["libraries/mapping/engines/cesium/src/lib/shaders.ts"],
