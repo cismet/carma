@@ -10,7 +10,7 @@ import versionData from "./version.json";
 
 import config from "./config";
 import { getApplicationVersion } from "@carma-commons/utils";
-// import { getCollabedHelpComponentConfig } from "./getCollabedHelpComponentConfig";
+import { getCollabedHelpComponentConfig } from "@carma-pecher-collab/xanten";
 
 function App() {
   const version = getApplicationVersion(versionData);

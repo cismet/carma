@@ -80,6 +80,7 @@
       "@carma-collab/wuppertal/verdis-online": [
         "libraries/collaboration/carma-wuppertal-collab/src/verdis-online/index.ts"
       ],
+      "@carma-pecher-collab/xanten": ["libraries/collaboration/carma-pecher-collab/src/xanten/index.tsx"],
       "@carma-collab/wuppertal/x-and-ride": ["libraries/collaboration/carma-wuppertal-collab/src/x-and-ride/index.ts"],
       "@carma-commons/debug": ["libraries/commons/debug/src/index.ts"],
       "@carma-commons/document-viewer": ["libraries/commons/document-viewer/src/index.ts"],
