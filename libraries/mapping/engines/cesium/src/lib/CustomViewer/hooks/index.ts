@@ -143,15 +143,6 @@ export const useInitializeViewer = (
               pitch: pitch ?? -CeMath.PI_OVER_TWO,
             },
           });
-
-          /*
-        (async () => {
-          replaceHashRoutedHistory(
-            await encodeScene({ viewer, isSecondaryStyle }),
-            location.pathname
-          );
-        })();
-        */
         } else if (home && homeOffset) {
           console.log(
             "HOOK: [2D3D|CESIUM|CAMERA] initViewer no hash, using home zoom",

@@ -774,19 +774,21 @@ export const leafletToCesiumCamera = (
 
   if (targetHeight > 50000) {
     console.warn(
-      "zoom request viewer height too high, applying base height",
+      "Elevation for viewer out of bound moving viewer to default height",
       baseHeight,
       targetHeight,
+      currentPixelResolution,
     );
-    targetHeight = 200 + baseHeight;
+    targetHeight = baseHeight + 200;
   }
+
   if (targetHeight < 200) {
     console.warn("targetHeight too low setting to min height", 200);
     targetHeight = 200;
   }
 
   console.info(
-    `L2C [2D3D|CESIUM|CAMERA] cause: ${cause} lat: ${lat} lng: ${lng} z: ${zoom} px: ${targetPixelResolution} dpr: ${window.devicePixelRatio}, resScale: ${viewer.resolutionScale} heights[base,target]:`,
+    `L2C [2D3D|CESIUM|CAMERA] cause: ${cause} lat: ${lat} lng: ${lng} z: ${zoom} px: ${targetPixelResolution}, current ${currentPixelResolution} dpr: ${window.devicePixelRatio}, resScale: ${viewer.resolutionScale} heights[base,target]:`,
     baseHeight,
     targetHeight,
   );
@@ -800,11 +802,23 @@ export const leafletToCesiumCamera = (
   const cameraPositionAtStart = camera.position.clone();
   let { cameraHeightAboveGround, groundHeight } =
     getCameraHeightAboveGround(viewer);
+  if (groundHeight < 0) {
+    console.warn("ground height negative, applying base height", groundHeight);
+    groundHeight = 300;
+  }
+  if (cameraHeightAboveGround < 0) {
+    console.warn(
+      "camera height negative, applying base height",
+      cameraHeightAboveGround,
+    );
+    cameraHeightAboveGround = 300;
+  }
   const maxIterations = limit;
   let iterations = 0;
 
   // Iterative adjustment to match the target resolution
-  while (Math.abs(currentPixelResolution - targetPixelResolution) > epsilon) {
+  let resDiff = Math.abs(currentPixelResolution - targetPixelResolution);
+  while (resDiff > epsilon) {
     if (iterations >= maxIterations) {
       console.warn(
         "Maximum height finding iterations reached with no result, restoring last Cesium camera position.",
@@ -820,17 +834,30 @@ export const leafletToCesiumCamera = (
     }
     const adjustmentFactor = targetPixelResolution / currentPixelResolution;
     cameraHeightAboveGround *= adjustmentFactor;
-    const newCameraHeight = cameraHeightAboveGround + groundHeight;
+    const newCameraHeight =
+      cameraHeightAboveGround + Math.min(groundHeight, 100);
 
-    console.log("L2C [2D3D|CESIUM|CAMERA] setview", iterations, targetHeight, newCameraHeight);
+    console.log(
+      `L2C [2D3D|CESIUM|CAMERA] setview targetDPR ${targetPixelResolution}, currentDPR${currentPixelResolution}`,
+      iterations,
+      resDiff,
+      targetHeight,
+      newCameraHeight,
+      adjustmentFactor,
+      cameraHeightAboveGround,
+      groundHeight,
+    );
     camera.setView({
       destination: Cartesian3.fromRadians(lngRad, latRad, newCameraHeight),
     });
     const newResolution = getScenePixelSize(viewer).value;
     if (newResolution === null) {
-      return false;
+      console.warn("no new pixelResolution Found, bumping up camera");
+      cameraHeightAboveGround += 100;
+    } else {
+      currentPixelResolution = newResolution;
     }
-    currentPixelResolution = newResolution;
+    resDiff = Math.abs(currentPixelResolution - targetPixelResolution);
     iterations++;
   }
   viewer.scene.requestRender();

@@ -247,8 +247,14 @@ function CustomViewer(props: CustomViewerProps) {
         if (viewer.camera.position && !isMode2d && enableLocationHashUpdate) {
           const camDeg = cameraToCartographicDegrees(viewer.camera)
           console.log("LISTENER: Cesium moveEndListener encode viewer to hash", isSecondaryStyle, camDeg);
-          const encodedScene = encodeScene(viewer, { isSecondaryStyle });
-          replaceHashRoutedHistory(encodedScene, location.pathname);
+          const height = viewer.scene.camera.positionCartographic.height;
+          // TODO: make this check unnessary by limiting valid render positions for camera;
+          if (height < 200 || height > 50000) {
+            console.warn("camera elevation out of bounds, prevent updating to unhandled hash behaviour")
+          } else {
+            const encodedScene = encodeScene(viewer, { isSecondaryStyle });
+            replaceHashRoutedHistory(encodedScene, location.pathname);
+          }
         }
       };
       viewer.camera.moveEnd.addEventListener(moveEndListener);

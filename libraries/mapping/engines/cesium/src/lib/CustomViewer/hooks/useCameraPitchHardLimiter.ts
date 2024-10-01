@@ -27,6 +27,8 @@ const useCameraPitchHardLimiter = (minPitchDeg = DEFAULT_MIN_PITCH) => {
       const { camera, scene } = viewer;
       console.log(
         "HOOK [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to limit camera pitch",
+        minPitchDeg,
+        minPitchRad,
       );
       clearLast();
       const onUpdate = async () => {
@@ -35,7 +37,7 @@ const useCameraPitchHardLimiter = (minPitchDeg = DEFAULT_MIN_PITCH) => {
           console.log(
             "LISTENER HOOK [2D3D|CESIUM|CAMERA]: reset pitch",
             camera.pitch,
-            minPitchRad,
+            -CeMath.toDegrees(camera.pitch)
           );
           if (lastPitch.current !== null && lastPosition.current !== null) {
             const { latitude, longitude } = camera.positionCartographic;
@@ -46,7 +48,7 @@ const useCameraPitchHardLimiter = (minPitchDeg = DEFAULT_MIN_PITCH) => {
               ),
               orientation: {
                 heading: camera.heading,
-                pitch: minPitchRad,
+                pitch: minPitchRad - 0.001, // minimal offset to prevent retriggers on move
                 roll: camera.roll,
               },
             });

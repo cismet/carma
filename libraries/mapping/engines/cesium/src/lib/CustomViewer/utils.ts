@@ -163,7 +163,6 @@ export const replaceHashRoutedHistory = (
   routedPath: string,
 ) => {
   // this is method is used to avoid triggering rerenders from the HashRouter when updating the hash
-  // console.log('replaceHashRoutedHistory sceneHash');
   if (encodedScene.hashParams) {
     const currentHash = window.location.hash.split("?")[1] || "";
     const currentParams = Object.fromEntries(new URLSearchParams(currentHash));

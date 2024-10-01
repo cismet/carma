@@ -223,7 +223,7 @@ export const BaseTilesets = () => {
   useEffect(() => {
     const hideTilesets = () => {
       // render offscreen with ultra low res to reduce memory usage
-      console.log("HOOK: hide tilesets in 2d");
+      console.log("HOOK: hide cesium tilesets in 2d");
       if (tilesets.primary) { tilesets.primary.show = false; }
       if (tilesets.secondary) { tilesets.secondary.show = false; }
     }
@@ -231,6 +231,7 @@ export const BaseTilesets = () => {
       if (isMode2d) {
         setTimeout(() => { hideTilesets(); }, TRANSITION_DELAY);
       } else {
+        console.log("HOOK: show cesium tilesets in 3d");
         if (tilesets.primary) { tilesets.primary.show = showPrimary; }
         if (tilesets.secondary) { tilesets.secondary.show = showSecondary; }
       }

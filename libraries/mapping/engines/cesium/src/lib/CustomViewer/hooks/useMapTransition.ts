@@ -78,17 +78,22 @@ export const useMapTransition = ({
     }
 
     const onCompleteAnimatedTo3d = () => {
+      // TODO make this not nessary to wait for rendered scene to get current distance
+      viewer.scene.render();
+      setTimeout(() => {}, 100); // small delay after render
       const pos = pickViewerCanvasCenter(viewer).scenePosition;
 
       if (pos && prevHPR) {
         console.info(
-          "[CESIUM|2D3D|TO3D] restore 3d camera position zoom",
+          "[CESIUM|2D3D|TO3D] restore 3d camera position zoom with current distance",
           pos,
           prevHPR,
         );
+
         animateInterpolateHeadingPitchRange(viewer, pos, prevHPR, {
           delay: duration, // allow the css transition to finish
-          duration: prevDuration * 1000,
+          // TODO: specify fodeout duration in config
+          duration: prevDuration,
           useCurrentDistance: true,
           onComplete: onComplete3d,
         });
@@ -155,6 +160,7 @@ export const useMapTransition = ({
     let zoomDiff = 0;
 
     const { zoomSnap } = leaflet.options;
+    const { zoomSnap } = leaflet.options;
 
     if (zoomSnap) {
       // Move the cesium camera to the next zoom snap level of leaflet before transitioning
@@ -163,7 +169,7 @@ export const useMapTransition = ({
       const distanceBefore = distance;
 
       if (currentZoom === null) {
-        console.error("could not determine current zoom level");
+        console.warn("could not determine current zoom level for zoomSnap");
       } else {
         // go to the next integer zoom snap level
         // smaller values is further away
@@ -177,27 +183,33 @@ export const useMapTransition = ({
         const { groundHeight } = getCameraHeightAboveGround(viewer);
 
         distance = distance * heightFactor;
-        height = groundHeight + distance;
-
-        console.log(
-          "TRANSITION TO 2D [2D|3D] zoomSnap",
-          zoomSnap,
-          currentZoom,
-          targetZoom,
-          heightFactor,
-          distance,
-          distanceBefore,
-          height,
-          heightBefore,
-          zoomDiff,
+        //height = groundHeight + distance;
+        console.info(
+          `[CESIUM}2D3D|TRANSITION] zoomSnap ${zoomSnap}, target ${targetZoom}, current ${currentZoom}, heightFactor ${heightFactor}, distance ${distance}`,
         );
       }
     } else {
-      console.warn("no zoomSnap applied", leaflet);
+      console.info(
+        `[CESIUM}2D3D|TRANSITION] no zoomSnap applied`,
+        zoomSnap,
+        leaflet,
+      );
     }
 
-    const duration = getTopDownCameraDeviationAngle(viewer) * 2 + zoomDiff * 1;
-    setPrevDuration(duration);
+    const angleDuration = getTopDownCameraDeviationAngle(viewer) * 2000;
+    const zoomDiffDuration = Math.abs(zoomDiff) * 10000;
+    const dynamicDuration = Math.min(
+      Math.max(angleDuration, zoomDiffDuration, duration),
+      10000,
+    );
+    console.info(
+      `[CESIUM}2D3D|TRANSITION] calculated transition duration max of angle ${Math.round(
+        angleDuration,
+      )}ms, ${Math.round(zoomDiffDuration)}, min${duration}`,
+      dynamicDuration,
+    );
+
+    setPrevDuration(dynamicDuration);
 
     const onComplete2d = () => {
       setLeafletView(viewer, leaflet, { animate: false, duration: 0 });
@@ -223,7 +235,7 @@ export const useMapTransition = ({
           groundPos,
           new HeadingPitchRange(0, -Math.PI / 2, distance),
           {
-            duration: duration * 1000,
+            duration: dynamicDuration,
             onComplete: onComplete2d,
           },
         ),

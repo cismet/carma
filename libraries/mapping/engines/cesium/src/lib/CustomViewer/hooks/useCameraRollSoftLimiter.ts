@@ -18,9 +18,7 @@ const useCameraRollSoftLimiter = () => {
         "HOOK [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to reset rolled camera",
       );
       const moveEndListener = async () => {
-        //console.log("HOOK [2D3D|CESIUM]", viewer.camera.pitch, isMode2d);
         if (viewer.camera.position && !isMode2d) {
-          //console.log("HOOK [2D3D|CESIUM]", viewer.camera.pitch);
           const rollDeviation =
             Math.abs(CeMath.TWO_PI - viewer.camera.roll) % CeMath.TWO_PI;
 
