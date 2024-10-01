@@ -84,7 +84,7 @@ export const sliceCesium = createSlice({
       state.currentTransition = VIEWER_TRANSITION_STATE.TO2D;
     },
     setTransitionTo3d: (state: CesiumState) => {
-      console.log("REDUCER [STATE|CESIUM] transition to 3Dd");
+      console.log("REDUCER [STATE|CESIUM] transition to 3D");
       state.currentTransition = VIEWER_TRANSITION_STATE.TO3D;
     },
     setIsMode2d: (state: CesiumState, action: PayloadAction<boolean>) => {

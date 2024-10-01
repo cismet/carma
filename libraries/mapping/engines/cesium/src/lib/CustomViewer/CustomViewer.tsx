@@ -11,13 +11,15 @@ import { useLocation } from "react-router-dom";
 import { useDispatch } from "react-redux";
 
 import {
+  BoundingSphere,
+  Cartesian3,
   Color,
   HeadingPitchRange,
-  Viewer,
   Math as CeMath,
+  OrthographicFrustum,
   PerspectiveFrustum,
   Rectangle,
-  OrthographicFrustum,
+  Viewer,
 } from "cesium";
 import { Viewer as ResiumViewer } from "resium";
 
@@ -26,6 +28,7 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useTweakpaneCtx } from "@carma-commons/debug";
 
 import {
+  setIsAnimating,
   setScreenSpaceCameraControllerEnableCollisionDetection,
   setScreenSpaceCameraControllerMaximumZoomDistance,
   setScreenSpaceCameraControllerMinimumZoomDistance,
@@ -37,7 +40,7 @@ import {
   useViewerHomeOffset,
   useViewerIsMode2d,
 } from "../CustomViewerContextProvider/slices/cesium";
-import { cameraToCartographicDegrees, resolutionFractions } from "../utils";
+import { cameraToCartographicDegrees, pickViewerCanvasCenter, resolutionFractions } from "../utils";
 import { formatFractions } from "../utils/formatters";
 import { useCesiumCustomViewer } from "../CustomViewerContextProvider";
 import { BaseTilesets } from "./components/BaseTilesets";
@@ -80,13 +83,14 @@ type CustomViewerProps = {
   viewerOptions?: {
     resolutionScale?: number;
   };
-
   minimapLayerUrl?: string;
 };
 
 const DEFAULT_RESOLUTION_SCALE = 1;
 export const TRANSITION_DELAY = 1000;
-const CESIUM_CAMERA_MIN_PITCH = CeMath.toRadians(-20); 
+const CESIUM_CAMERA_MIN_PITCH = CeMath.toRadians(-20);
+const CESIUM_CAMERA_MIN_PITCH_RESET_TO = CeMath.toRadians(-30);
+
 
 function CustomViewer(props: CustomViewerProps) {
   const { viewer, setViewer, imageryLayer } = useCesiumCustomViewer();
@@ -476,53 +480,57 @@ function CustomViewer(props: CustomViewerProps) {
     if (viewer) {
       console.log("HOOK [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to reset rolled camera");
       const moveEndListener = async () => {
-        console.log("HOOK [2D3D|CESIUM] xxx", viewer.camera.pitch, isUserAction, isMode2d);
-        if (viewer.camera.position) {
-          if (!isMode2d) {
-            console.log("HOOK [2D3D|CESIUM] xxx", viewer.camera.pitch);
-            const rollDeviation =
-              Math.abs(CeMath.TWO_PI - viewer.camera.roll) % CeMath.TWO_PI;
+        console.log("HOOK [2D3D|CESIUM] xxx", viewer.camera.pitch, isMode2d);
+        if (viewer.camera.position && !isMode2d) {
+          console.log("HOOK [2D3D|CESIUM] xxx", viewer.camera.pitch);
+          const rollDeviation =
+            Math.abs(CeMath.TWO_PI - viewer.camera.roll) % CeMath.TWO_PI;
 
-            if (rollDeviation > 0.02) {
-              console.log("LISTENER HOOK [2D3D|CESIUM|CAMERA]: flyTo reset roll 2D3D", rollDeviation);
-              const duration = Math.min(rollDeviation, 1);
-              viewer.camera.flyTo({
-                destination: viewer.camera.position,
-                orientation: {
-                  heading: viewer.camera.heading,
-                  pitch: viewer.camera.pitch,
-                  roll: 0,
-                },
-                duration,
-              });
-            }
-            const preventLookingUp = collisions && viewer.camera.pitch > CESIUM_CAMERA_MIN_PITCH;
-            if (preventLookingUp) {
-              console.log("LISTENER HOOK [2D3D|CESIUM|CAMERA]: reset pitch", viewer.camera.pitch);
-              // TODO 
-              viewer.camera.flyTo({
-                destination: viewer.camera.position,
-                orientation: {
-                  heading: viewer.camera.heading,
-                  pitch: preventLookingUp ? viewer.camera.pitch - 0.3 : viewer.camera.pitch,
-                },
-                duration : 2
-              });
+          if (rollDeviation > 0.02) {
+            console.log("LISTENER HOOK [2D3D|CESIUM|CAMERA]: flyTo reset roll 2D3D", rollDeviation);
+            const duration = Math.min(rollDeviation, 1);
+            dispatch(setIsAnimating(true));
+            viewer.camera.flyTo({
+              destination: viewer.camera.position,
+              orientation: {
+                heading: viewer.camera.heading,
+                pitch: viewer.camera.pitch,
+                roll: 0,
+              },
+              duration,
+              complete: () => dispatch(setIsAnimating(false))
+            });
+          }
+          const preventLookingUp = collisions && viewer.camera.pitch > CESIUM_CAMERA_MIN_PITCH;
+          if (preventLookingUp && collisions) {
+            console.log("LISTENER HOOK [2D3D|CESIUM|CAMERA]: reset pitch", viewer.camera.pitch);
+            const centerPos = pickViewerCanvasCenter(viewer).scenePosition;
+            if (centerPos) {
+              dispatch(setIsAnimating(true));
+              const distance = Cartesian3.distance(centerPos, viewer.camera.position)
+              viewer.camera.flyToBoundingSphere(
+                new BoundingSphere(centerPos, distance),
+                {
+                  offset: {
+                    heading: viewer.camera.heading,
+                    pitch: CESIUM_CAMERA_MIN_PITCH_RESET_TO,
+                    range: distance,
+                  },
+                  duration: 1.5,
+                  complete: () => dispatch(setIsAnimating(false))
+                }
+              );
             }
           }
-        }
-      };
+        };
+      }
       viewer.camera.moveEnd.addEventListener(moveEndListener);
       return () => {
         viewer.camera.moveEnd.removeEventListener(moveEndListener);
       };
     }
 
-  }, [
-    viewer,
-    collisions,
-    isMode2d,
-  ]);
+  }, [viewer, collisions, isMode2d, dispatch]);
 
 
   useEffect(() => {
