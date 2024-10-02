@@ -12,7 +12,7 @@ export const CESIUM_CONFIG: CesiumConfig = {
     },
   },
   camera: {
-    minPitch: 15
+    minPitch: 20
   },
   baseUrl: `${APP_BASE_PATH}${CESIUM_PATHNAME}`,
   pathName: CESIUM_PATHNAME,

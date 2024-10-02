@@ -34,7 +34,7 @@ import useTransitionTimeout from "./hooks/useTransitionTimeout";
 import useDisableSSCC from "./hooks/useDisableSSCC";
 import useTweakpane from "./hooks/useTweakpane";
 import useCameraRollSoftLimiter from './hooks/useCameraRollSoftLimiter';
-import useCameraPitchHardLimiter from "./hooks/useCameraPitchHardLimiter";
+import useCameraPitchEasingLimiter from "./hooks/useCameraPitchEasingLimiter";
 
 
 type CustomViewerProps = {
@@ -132,7 +132,7 @@ function CustomViewer(props: CustomViewerProps) {
   useTransitionTimeout();
   useDisableSSCC();
   useCameraRollSoftLimiter();
-  useCameraPitchHardLimiter(minPitch);
+  useCameraPitchEasingLimiter(minPitch);
 
   useEffect(() => {
     if (viewer && enableLocationHashUpdate && !isMode2d) {
