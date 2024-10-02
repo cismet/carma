@@ -35,6 +35,7 @@ import useDisableSSCC from "./hooks/useDisableSSCC";
 import useTweakpane from "./hooks/useTweakpane";
 import useCameraRollSoftLimiter from './hooks/useCameraRollSoftLimiter';
 import useCameraPitchEasingLimiter from "./hooks/useCameraPitchEasingLimiter";
+import useCameraPitchSoftLimiter from "./hooks/useCameraPitchSoftLimiter";
 
 
 type CustomViewerProps = {
@@ -61,6 +62,7 @@ type CustomViewerProps = {
   //disableZoomRestrictions?: boolean; // todo
   //minZoom?: number; // todo
   minPitch?: number;
+  minPitchRange?: number;
   globe?: {
     // https://cesium.com/learn/cesiumjs/ref-doc/Globe.html
     baseColor?: Color;
@@ -101,6 +103,7 @@ function CustomViewer(props: CustomViewerProps) {
     containerRef,
     enableLocationHashUpdate = true,
     minPitch,
+    minPitchRange
   } = props;
 
   const previousViewerRef = useRef<Viewer | null>(null); // track viewer changes
@@ -132,7 +135,8 @@ function CustomViewer(props: CustomViewerProps) {
   useTransitionTimeout();
   useDisableSSCC();
   useCameraRollSoftLimiter();
-  useCameraPitchEasingLimiter(minPitch);
+  useCameraPitchSoftLimiter(22, 8);
+  useCameraPitchEasingLimiter(minPitch, { easingRangeDeg: minPitchRange });
 
   useEffect(() => {
     if (viewer && enableLocationHashUpdate && !isMode2d) {

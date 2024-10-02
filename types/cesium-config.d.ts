@@ -6,6 +6,7 @@ export type CesiumConfig = {
   };
   camera: {
     minPitch: number;
+    minPitchRange: number;
   };
   baseUrl: string;
   pathName: string;

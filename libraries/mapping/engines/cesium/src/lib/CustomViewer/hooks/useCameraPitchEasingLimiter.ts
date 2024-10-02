@@ -14,15 +14,13 @@ const DEFAULT_MIN_PITCH = 12;
 type LimiterOptions = {
   easingRangeDeg?: number;
   easing?: (v: number) => number;
-  allowedOverpitchDeg?: number;
 };
 
 const useCameraPitchEasingLimiter = (
   minPitchDeg = DEFAULT_MIN_PITCH,
   {
     easingRangeDeg = 20,
-    easing = EasingFunction.SINUSOIDAL_IN,
-    allowedOverpitchDeg = 3,
+    easing = EasingFunction.CIRCULAR_IN,
   }: LimiterOptions = {},
 ) => {
   const { viewer } = useCesiumCustomViewer();
@@ -34,7 +32,6 @@ const useCameraPitchEasingLimiter = (
   const lastPosition = useRef<Cartographic | null>(null);
   const minPitchRad = CeMath.toRadians(-minPitchDeg);
   const rangeRad = CeMath.toRadians(Math.min(easingRangeDeg, 90 - minPitchDeg)); // Limit wasing range to remainder of right angle
-  const overpitchRad = CeMath.toRadians(allowedOverpitchDeg);
   const minRangePitchRad = CeMath.toRadians(-minPitchDeg) - rangeRad;
 
   const clearLast = () => {
@@ -53,23 +50,19 @@ const useCameraPitchEasingLimiter = (
         const isPitchTooLow = camera.pitch > minPitchRad;
         if (isPitchInRange && lastPitch.current) {
           const pitchDelta = lastPitch.current - camera.pitch;
-          let newPitch = camera.pitch;
           if (pitchDelta) {
             // only apply in both directions for consistent behavior
             // if only applied when pitch down it would results in some ratchet-like behavior - moving the camera up
             const unitIn = Math.abs(camera.pitch - minPitchRad) / rangeRad;
             const unitEased = easing(unitIn);
             const newDelta = pitchDelta * unitEased;
-            newPitch = Math.min(
-              lastPitch.current - newDelta,
-              minPitchRad + overpitchRad,
-            );
+            const newPitch = Math.min(lastPitch.current - newDelta, minPitchRad);
 
             console.log(
               "LISTENER HOOK [2D3D|CESIUM|CAMERA]: apply easing pitch limiter",
               Math.round(unitIn * 100),
               Math.round(unitEased * 100),
-              //pitchDelta,              newDelta,              unitIn,              unitEased,              newPitch,
+              Math.round(CeMath.toDegrees(-newPitch)),
             );
 
             if (lastPitch.current !== null && lastPosition.current !== null) {
@@ -81,7 +74,7 @@ const useCameraPitchEasingLimiter = (
                   new Cartographic(
                     longitude,
                     latitude,
-                    (unitEased) * height + (1-unitEased) * lastHeight,
+                    unitEased * height + (1 - unitEased) * lastHeight,
                   ),
                 ),
                 orientation: {

@@ -10,53 +10,55 @@ import {
 } from "../../CustomViewerContextProvider";
 import { pickViewerCanvasCenter } from "../../utils/cesiumHelpers";
 
-const CESIUM_CAMERA_MIN_PITCH = CeMath.toRadians(-20);
-const CESIUM_CAMERA_MIN_PITCH_RESET_TO = CeMath.toRadians(-30);
-
-const useCameraPitchSoftLimiter = () => {
+const useCameraPitchSoftLimiter = (
+  minPitchDeg = 20,
+  resetPitchOffsetDeg = 5,
+) => {
   const { viewer } = useCesiumCustomViewer();
   const dispatch = useDispatch();
   const isMode2d = useViewerIsMode2d();
   const collisions = useScreenSpaceCameraControllerEnableCollisionDetection();
+  const resetPitchRad = CeMath.toRadians(-(minPitchDeg + resetPitchOffsetDeg));
+  const minPitchRad = CeMath.toRadians(-minPitchDeg);
+
   useEffect(() => {
-    if (viewer) {
+    if (viewer && !isMode2d && collisions) {
       console.log(
         "HOOK [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to correct camera pitch",
       );
       const moveEndListener = async () => {
-        if (viewer.camera.position && !isMode2d && collisions) {
+        console.log(
+          "HOOK [2D3D|CESIUM] Soft Pitch Limiter",
+          viewer.camera.pitch,
+          minPitchRad,
+          resetPitchRad,
+        );
+        const isPitchTooLow = collisions && viewer.camera.pitch > minPitchRad;
+        if (isPitchTooLow) {
           console.log(
-            "HOOK [2D3D|CESIUM] Soft Pitch Limiter",
-            viewer.camera.pitch,
+            "LISTENER HOOK [2D3D|CESIUM|CAMERA]: reset pitch soft",
+            viewer.camera.pitch, resetPitchRad
           );
-          const isPitchTooLow =
-            collisions && viewer.camera.pitch > CESIUM_CAMERA_MIN_PITCH;
-          if (isPitchTooLow) {
-            console.log(
-              "LISTENER HOOK [2D3D|CESIUM|CAMERA]: reset pitch",
-              viewer.camera.pitch,
+          // TODO Get CenterPos Lower from screen if distance is muliple of elevation. prevent pitch around distant point on horizon
+          const centerPos = pickViewerCanvasCenter(viewer).scenePosition;
+          if (centerPos) {
+            dispatch(setIsAnimating(true));
+            const distance = Cartesian3.distance(
+              centerPos,
+              viewer.camera.position,
             );
-            // TODO Get CenterPos Lower from screen if distance is muliple of elevation. prevent pitch around distant point on horizon
-            const centerPos = pickViewerCanvasCenter(viewer).scenePosition;
-            if (centerPos) {
-              dispatch(setIsAnimating(true));
-              const distance = Cartesian3.distance(
-                centerPos,
-                viewer.camera.position,
-              );
-              viewer.camera.flyToBoundingSphere(
-                new BoundingSphere(centerPos, distance),
-                {
-                  offset: {
-                    heading: viewer.camera.heading,
-                    pitch: CESIUM_CAMERA_MIN_PITCH_RESET_TO,
-                    range: distance,
-                  },
-                  duration: 1.5,
-                  complete: () => dispatch(setIsAnimating(false)),
+            viewer.camera.flyToBoundingSphere(
+              new BoundingSphere(centerPos, distance),
+              {
+                offset: {
+                  heading: viewer.camera.heading,
+                  pitch: resetPitchRad,
+                  range: distance,
                 },
-              );
-            }
+                duration: 1.5,
+                complete: () => dispatch(setIsAnimating(false)),
+              },
+            );
           }
         }
       };
