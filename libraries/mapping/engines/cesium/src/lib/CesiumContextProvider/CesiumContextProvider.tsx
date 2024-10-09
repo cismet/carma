@@ -10,6 +10,7 @@ import {
   Viewer,
   Cesium3DTileset,
 } from "cesium";
+import useSceneStateUpdater, { SceneState } from "./hooks/useSceneStateUpdater";
 
 export interface CesiumContextType {
   viewer: Viewer | null;
@@ -59,6 +60,7 @@ export const CesiumContextProvider = ({
 }) => {
 
   const [viewer, setViewer] = useState<Viewer | null>(null);
+  const [sceneState, setSceneState] = useState<SceneState | null>(null);
   const [primaryTileset, setPrimaryTileset] = useState<Cesium3DTileset | null>(null);
   const [secondaryTileset, setSecondaryTileset] = useState<Cesium3DTileset | null>(null);
   const [terrainProvider, setTerrainProvider] = useState<CesiumTerrainProvider | null>(null);
@@ -94,6 +96,8 @@ export const CesiumContextProvider = ({
   const values: CesiumContextType = {
     viewer,
     setViewer,
+    sceneState,
+    setSceneState,
     ellipsoidTerrainProvider: new EllipsoidTerrainProvider(),
     terrainProvider,
     surfaceProvider,
@@ -105,6 +109,8 @@ export const CesiumContextProvider = ({
     setPrimaryTileset,
     setSecondaryTileset,
   };
+
+  useSceneStateUpdater(viewer, setSceneState);
 
   console.log('Cesium CustomViewerContextProvider Initialized', values);
 
