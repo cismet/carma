@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import {
@@ -60,7 +60,7 @@ export const CesiumContextProvider = ({
 }) => {
 
   const [viewer, setViewer] = useState<Viewer | null>(null);
-  const [sceneState, setSceneState] = useState<SceneState | null>(null);
+  const sceneStateRef = useRef<SceneState | null>(null);
   const [primaryTileset, setPrimaryTileset] = useState<Cesium3DTileset | null>(null);
   const [secondaryTileset, setSecondaryTileset] = useState<Cesium3DTileset | null>(null);
   const [terrainProvider, setTerrainProvider] = useState<CesiumTerrainProvider | null>(null);
@@ -96,8 +96,7 @@ export const CesiumContextProvider = ({
   const values: CesiumContextType = {
     viewer,
     setViewer,
-    sceneState,
-    setSceneState,
+    sceneStateRef,
     ellipsoidTerrainProvider: new EllipsoidTerrainProvider(),
     terrainProvider,
     surfaceProvider,
@@ -110,7 +109,7 @@ export const CesiumContextProvider = ({
     setSecondaryTileset,
   };
 
-  useSceneStateUpdater(viewer, setSceneState);
+  useSceneStateUpdater(viewer, sceneStateRef);
 
   console.log('Cesium CustomViewerContextProvider Initialized', values);
 

@@ -76,7 +76,7 @@ export const getPositionWithHeightAsync = async (
   } else {
     // Fall back to using terrain data
     const terrainProvider = scene.globe.terrainProvider;
-    console.log(
+    console.info(
       "[CESIUM|TERRAIN] Using terrain provider",
       terrainProvider,
       "for position",

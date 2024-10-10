@@ -241,7 +241,7 @@ function CustomViewer(props: CustomViewerProps) {
   useEffect(() => {
     // update hash hook
     if (viewer) {
-      console.log("HOOK: [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to update hash");
+      console.info("HOOK: [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to update hash");
       const moveEndListener = async () => {
         // let TopicMap/leaflet handle the view change in 2d Mode
         if (viewer.camera.position && !isMode2d && enableLocationHashUpdate) {

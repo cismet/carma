@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { MutableRefObject, useEffect, useRef } from "react";
 import {
   Viewer,
   Cartographic,
@@ -58,7 +58,7 @@ const sampleBoundingSphere = new BoundingSphere(
 
 const useSceneStateUpdater = (
   viewer: Viewer | null,
-  setSceneState: (state: SceneState) => void,
+  sceneStateRef: MutableRefObject<SceneState | null>,
 ) => {
   const frameIndexRef = useRef<number>(0);
 
@@ -131,6 +131,8 @@ const useSceneStateUpdater = (
 
         const lastUpdateHeight = Date.now();
 
+        // This takes ~100ms vs 5 with the non async version 
+        /* 
         const sampledHeightsMostDetailed = await scene.sampleHeightMostDetailed(
           [cameraState.positionCartographic, centerPositionCartographic],
           sampleHeightSceneObjectsToExclude,
@@ -152,14 +154,20 @@ const useSceneStateUpdater = (
         } else {
           console.log("nulling screen center height most detailed");
         }
+        */
 
-        setSceneState({
+        sceneStateRef.current = {
           ...newState,
           lastUpdate: Date.now(),
           lastUpdateHeight,
           positions,
           camera: cameraState,
-        });
+        };
+        console.info(
+          "update Scene State",
+          sceneStateRef.current.frameIndex,
+          sceneStateRef.current.lastUpdate - sceneStateRef.current.lastUpdateStart
+        );
       } catch (error) {
         console.error("Error updating scene state:", error);
         // TODO handle error
@@ -182,16 +190,15 @@ const useSceneStateUpdater = (
       }
     };
 
-    const postUpdateHandler =
-      scene.postUpdate.addEventListener(updateSceneState);
+    const listener = scene.postUpdate.addEventListener(updateSceneState);
 
     // Initial call
     updateSceneState();
 
     return () => {
-      scene.postUpdate.removeEventListener(postUpdateHandler);
+      scene.postUpdate.removeEventListener(listener);
     };
-  }, [viewer, setSceneState]);
+  }, [viewer, sceneStateRef]);
 };
 
 export default useSceneStateUpdater;
