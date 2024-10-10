@@ -37,6 +37,7 @@ import useCameraRollSoftLimiter from './hooks/useCameraRollSoftLimiter';
 import useCameraPitchEasingLimiter from "./hooks/useCameraPitchEasingLimiter";
 import useCameraPitchSoftLimiter from "./hooks/useCameraPitchSoftLimiter";
 import ElevationControl from "./components/controls/ElevationControl";
+import useSceneStateUpdater from "./hooks/useSceneStateUpdater";
 
 
 type CustomViewerProps = {
@@ -131,6 +132,9 @@ function CustomViewer(props: CustomViewerProps) {
   const location = useLocation();
 
   useInitializeViewer(viewer, home, homeOffset, leaflet);
+
+  useSceneStateUpdater({ cameraPercentageChanged: 0.002 });
+
 
   useLogCesiumRenderIn2D();
   useTransitionTimeout();
