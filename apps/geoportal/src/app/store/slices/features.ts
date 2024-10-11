@@ -1,8 +1,9 @@
-import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { RootState } from "..";
+import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
+import { useSelector } from "react-redux";
+import { isEqual } from "lodash";
 
 import type { FeatureInfo, FeatureInfoState } from "@carma-apps/portals";
-import { isEqual } from "lodash";
+import { RootState } from "..";
 
 const initialState: FeatureInfoState = {
   features: [],
@@ -98,8 +99,6 @@ const slice = createSlice({
   },
 });
 
-export default slice;
-
 export const {
   setFeatures,
   addFeature,
@@ -118,34 +117,30 @@ export const {
   clearVectorInfos,
 } = slice.actions;
 
-export const getFeatures = (state: RootState) => {
-  return state.features.features;
-};
+// Selectors
 
-export const getSelectedFeature = (state: RootState) => {
-  return state.features.selectedFeature;
-};
+const getFeatures = (state: RootState) => state.features.features;
+const getInfoText = (state: RootState) => state.features.infoText;
+const getNothingFoundIDs = (state: RootState) => state.features.nothingFoundIDs;
+const getPreferredLayerId = (state: RootState) =>
+  state.features.preferredLayerId;
+const getSecondaryInfoBoxElements = (state: RootState) =>
+  state.features.secondaryInfoBoxElements;
+const getSelectedFeature = (state: RootState) => state.features.selectedFeature;
+const getVectorInfo = (state: RootState) => state.features.vectorInfo;
+const getVectorInfos = (state: RootState) => state.features.vectorInfos;
 
-export const getSecondaryInfoBoxElements = (state: RootState) => {
-  return state.features.secondaryInfoBoxElements;
-};
+// Hook Selectors with `Features` Prefix
 
-export const getInfoText = (state: RootState) => {
-  return state.features.infoText;
-};
+export const useFeatures = () => useSelector(getFeatures);
+export const useFeaturesInfoText = () => useSelector(getInfoText);
+export const useFeaturesNothingFoundIDs = () => useSelector(getNothingFoundIDs);
+export const useFeaturesPreferredLayerId = () =>
+  useSelector(getPreferredLayerId);
+export const useFeaturesSecondaryInfoBoxElements = () =>
+  useSelector(getSecondaryInfoBoxElements);
+export const useFeaturesSelectedFeature = () => useSelector(getSelectedFeature);
+export const useFeaturesVectorInfo = () => useSelector(getVectorInfo);
+export const useFeaturesVectorInfos = () => useSelector(getVectorInfos);
 
-export const getPreferredLayerId = (state: RootState) => {
-  return state.features.preferredLayerId;
-};
-
-export const getVectorInfo = (state: RootState) => {
-  return state.features.vectorInfo;
-};
-
-export const getNothingFoundIDs = (state: RootState) => {
-  return state.features.nothingFoundIDs;
-};
-
-export const getVectorInfos = (state: RootState) => {
-  return state.features.vectorInfos;
-};
+export default slice;

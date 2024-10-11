@@ -1,13 +1,16 @@
 import { createSlice } from "@reduxjs/toolkit";
+import { shallowEqual, useSelector } from "react-redux";
 import type { PayloadAction } from "@reduxjs/toolkit";
-import { RootState } from "..";
-import { layerMap } from "../../config";
+
 import type { Layer, SavedLayerConfig } from "@carma-mapping/layers";
 import type {
   BackgroundLayer,
   LayerState,
   MappingState,
 } from "@carma-apps/portals";
+
+import { RootState } from "..";
+import { layerMap } from "../../config";
 
 const initialState: MappingState = {
   layers: [],
@@ -197,8 +200,6 @@ const slice = createSlice({
   },
 });
 
-export default slice;
-
 export const {
   setLayers,
   appendLayer,
@@ -226,67 +227,62 @@ export const {
   setClickFromInfoView,
 } = slice.actions;
 
-export const getLayers = (state: RootState) => {
-  return state.mapping.layers;
-};
+// Selectors
+const getBackgroundLayer = (state: RootState) => state.mapping.backgroundLayer;
+const getClickFromInfoView = (state: RootState) => state.mapping.clickFromInfoView;
+const getFocusMode = (state: RootState) => state.mapping.focusMode;
+const getLayerState = (state: RootState): LayerState => ({
+  layers: state.mapping.layers,
+  backgroundLayer: state.mapping.backgroundLayer,
+  selectedMapLayer: state.mapping.selectedMapLayer,
+  selectedLayerIndex: state.mapping.selectedLayerIndex,
+});
 
-export const getSavedLayerConfigs = (state: RootState) => {
-  return state.mapping.savedLayerConfigs;
-};
+const getLayers = (state: RootState) => state.mapping.layers;
+const getSavedLayerConfigs = (state: RootState) =>
+  state.mapping.savedLayerConfigs;
+const getSelectedLayerIndex = (state: RootState) =>
+  state.mapping.selectedLayerIndex;
+const getSelectedMapLayer = (state: RootState) =>
+  state.mapping.selectedMapLayer;
+const getShowFullscreenButton = (state: RootState) =>
+  state.mapping.showFullscreenButton;
+const getShowHamburgerMenu = (state: RootState) =>
+  state.mapping.showHamburgerMenu;
+const getShowLeftScrollButton = (state: RootState) =>
+  state.mapping.showLeftScrollButton;
+const getShowLocatorButton = (state: RootState) =>
+  state.mapping.showLocatorButton;
+const getShowMeasurementButton = (state: RootState) =>
+  state.mapping.showMeasurementButton;
+const getShowRightScrollButton = (state: RootState) =>
+  state.mapping.showRightScrollButton;
+const getStartDrawing = (state: RootState) => state.mapping.startDrawing;
 
-export const getSelectedLayerIndex = (state: RootState) => {
-  return state.mapping.selectedLayerIndex;
-};
+// Hook Exports with Mapping Prefix
+export const useMappingBackgroundLayer = () => useSelector(getBackgroundLayer);
+export const useMappingClickFromInfoView = () => useSelector(getClickFromInfoView);
+export const useMappingFocusMode = () => useSelector(getFocusMode);
+export const useMappingLayerState = () => useSelector(getLayerState, shallowEqual);
+export const useMappingLayers = () => useSelector(getLayers);
+export const useMappingSavedLayerConfigs = () =>
+  useSelector(getSavedLayerConfigs);
+export const useMappingSelectedLayerIndex = () =>
+  useSelector(getSelectedLayerIndex);
+export const useMappingSelectedMapLayer = () =>
+  useSelector(getSelectedMapLayer);
+export const useMappingShowFullscreenButton = () =>
+  useSelector(getShowFullscreenButton);
+export const useMappingShowHamburgerMenu = () =>
+  useSelector(getShowHamburgerMenu);
+export const useMappingShowLeftScrollButton = () =>
+  useSelector(getShowLeftScrollButton);
+export const useMappingShowLocatorButton = () =>
+  useSelector(getShowLocatorButton);
+export const useMappingShowMeasurementButton = () =>
+  useSelector(getShowMeasurementButton);
+export const useMappingShowRightScrollButton = () =>
+  useSelector(getShowRightScrollButton);
+export const useMappingStartDrawing = () => useSelector(getStartDrawing);
 
-export const getSelectedMapLayer = (state: RootState) => {
-  return state.mapping.selectedMapLayer;
-};
-
-export const getBackgroundLayer = (state: RootState) => {
-  return state.mapping.backgroundLayer;
-};
-
-export const getLayerState = (state: RootState): LayerState => {
-  return {
-    layers: state.mapping.layers,
-    backgroundLayer: state.mapping.backgroundLayer,
-    selectedMapLayer: state.mapping.selectedMapLayer,
-    selectedLayerIndex: state.mapping.selectedLayerIndex,
-  };
-};
-
-export const getShowLeftScrollButton = (state: RootState) => {
-  return state.mapping.showLeftScrollButton;
-};
-
-export const getShowRightScrollButton = (state: RootState) => {
-  return state.mapping.showRightScrollButton;
-};
-
-export const getShowFullscreenButton = (state: RootState) => {
-  return state.mapping.showFullscreenButton;
-};
-
-export const getShowLocatorButton = (state: RootState) => {
-  return state.mapping.showLocatorButton;
-};
-
-export const getShowMeasurementButton = (state: RootState) => {
-  return state.mapping.showMeasurementButton;
-};
-
-export const getShowHamburgerMenu = (state: RootState) => {
-  return state.mapping.showHamburgerMenu;
-};
-
-export const getFocusMode = (state: RootState) => {
-  return state.mapping.focusMode;
-};
-
-export const getStartDrawing = (state: RootState) => {
-  return state.mapping.startDrawing;
-};
-
-export const getClickFromInfoView = (state: RootState) => {
-  return state.mapping.clickFromInfoView;
-};
+export default slice;

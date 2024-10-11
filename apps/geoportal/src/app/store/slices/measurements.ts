@@ -1,5 +1,7 @@
 import { createSlice } from "@reduxjs/toolkit";
-import { RootState } from "..";
+import { useSelector } from "react-redux";
+
+import type { RootState } from "..";
 
 export type MeasurementsState = {
   shapes: any[];
@@ -73,7 +75,6 @@ const slice = createSlice({
   },
 });
 
-export default slice;
 
 export const {
   setShapes,
@@ -89,43 +90,6 @@ export const {
   setLastActiveShapeBeforeDrawing,
   setMeasurementMode,
 } = slice.actions;
-
-export const getShapes = (state: RootState) => {
-  return state.measurements.shapes;
-};
-export const getActiveShapes = (state: RootState) => {
-  return state.measurements.activeShape;
-};
-export const getVisibleShapes = (state: RootState) => {
-  return state.measurements.visibleShapes;
-};
-export const getDrawingShape = (state: RootState) => {
-  return state.measurements.drawingShape;
-};
-export const getShowAllMeasurements = (state: RootState) => {
-  return state.measurements.showAllMeasurements;
-};
-export const getDeleteMeasurements = (state: RootState) => {
-  return state.measurements.deleteMeasurements;
-};
-export const getMoveToShape = (state: RootState) => {
-  return state.measurements.moveToShape;
-};
-export const getUpdateShapeToShape = (state: RootState) => {
-  return state.measurements.updateShape;
-};
-export const getMapMovingEnd = (state: RootState) => {
-  return state.measurements.mapMovingEnd;
-};
-export const getUpdateTitleStatus = (state: RootState) => {
-  return state.measurements.updateTitleStatus;
-};
-export const getLastActiveShapeBeforeDrawing = (state: RootState) => {
-  return state.measurements.lastActiveShapeBeforeDrawing;
-};
-export const getMeasurementMode = (state: RootState) => {
-  return state.measurements.measurementMode;
-};
 
 export const updateTitle = (shapeId, customTitle) => {
   return function (dispatch, getState) {
@@ -287,3 +251,35 @@ export const updateAreaOfDrawingMeasurement = (newArea) => {
     dispatch(setVisibleShapes(shape));
   };
 };
+
+// Selectors (Private: Not Exported)
+
+const getActiveShapes = (state: RootState) => state.measurements.activeShape;
+const getDeleteMeasurements = (state: RootState) => state.measurements.deleteMeasurements;
+const getDrawingShape = (state: RootState) => state.measurements.drawingShape;
+const getLastActiveShapeBeforeDrawing = (state: RootState) => state.measurements.lastActiveShapeBeforeDrawing;
+const getMapMovingEnd = (state: RootState) => state.measurements.mapMovingEnd;
+const getMeasurementMode = (state: RootState) => state.measurements.measurementMode;
+const getMoveToShape = (state: RootState) => state.measurements.moveToShape;
+const getShowAllMeasurements = (state: RootState) => state.measurements.showAllMeasurements;
+const getShapes = (state: RootState) => state.measurements.shapes;
+const getUpdateShapeToShape = (state: RootState) => state.measurements.updateShape;
+const getUpdateTitleStatus = (state: RootState) => state.measurements.updateTitleStatus;
+const getVisibleShapes = (state: RootState) => state.measurements.visibleShapes;
+
+// Hook Selectors (Exported with `useMeasurement` Prefix)
+
+export const useMeasurementActiveShapes = () => useSelector(getActiveShapes);
+export const useMeasurementDeleteMeasurements = () => useSelector(getDeleteMeasurements);
+export const useMeasurementDrawingShape = () => useSelector(getDrawingShape);
+export const useMeasurementLastActiveShapeBeforeDrawing = () => useSelector(getLastActiveShapeBeforeDrawing);
+export const useMeasurementMapMovingEnd = () => useSelector(getMapMovingEnd);
+export const useMeasurementMeasurementMode = () => useSelector(getMeasurementMode);
+export const useMeasurementMoveToShape = () => useSelector(getMoveToShape);
+export const useMeasurementShowAllMeasurements = () => useSelector(getShowAllMeasurements);
+export const useMeasurementShapes = () => useSelector(getShapes);
+export const useMeasurementUpdateShapeToShape = () => useSelector(getUpdateShapeToShape);
+export const useMeasurementUpdateTitleStatus = () => useSelector(getUpdateTitleStatus);
+export const useMeasurementVisibleShapes = () => useSelector(getVisibleShapes);
+
+export default slice;

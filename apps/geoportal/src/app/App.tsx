@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 // 3rd party Modules
 import LZString from "lz-string";
 import { ErrorBoundary } from "react-error-boundary";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import { useLocation, useSearchParams } from "react-router-dom";
 
 // 1st party Modules
@@ -35,13 +35,13 @@ import {
   setShowMeasurementButton,
 } from "./store/slices/mapping";
 import {
-  getUIAllowChanges,
-  getUIMode,
   setUIAllowChanges,
   setUIMode,
   setUIShowLayerButtons,
   setUIShowLayerHideButtons,
   UIMode,
+  useUIAllowChanges,
+  useUIMode,
 } from "./store/slices/ui";
 
 // Side-Effect Imports
@@ -64,9 +64,9 @@ type Config = {
 function App({ published }: { published?: boolean }) {
   const [syncToken, setSyncToken] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
-  const allowUiChanges = useSelector(getUIAllowChanges);
+  const allowUiChanges = useUIAllowChanges();
   const dispatch = useDispatch();
-  const mode = useSelector(getUIMode);
+  const mode = useUIMode();
   const location = useLocation();
 
   useEffect(() => {

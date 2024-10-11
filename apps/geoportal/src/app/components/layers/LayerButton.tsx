@@ -1,5 +1,11 @@
+import { useContext, useEffect, useRef, useState } from "react";
+import { useDispatch } from "react-redux";
+import { useSearchParams } from "react-router-dom";
+import { useInView } from "react-intersection-observer";
+
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+
 import {
   faEye,
   faEyeSlash,
@@ -7,36 +13,36 @@ import {
   faX,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import type L from "leaflet";
+
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+
 import { Layer } from "@carma-mapping/layers";
-import { useContext, useEffect, useRef, useState } from "react";
-import { useInView } from "react-intersection-observer";
-import { useDispatch, useSelector } from "react-redux";
+
 import { cn } from "../../helper/helper";
+
+import { updateInfoElementsAfterRemovingFeature } from "../../store/slices/features";
 import {
   changeVisibility,
-  getClickFromInfoView,
-  getLayers,
-  getSelectedLayerIndex,
-  getShowLeftScrollButton,
   removeLayer,
   setClickFromInfoView,
   setSelectedLayerIndex,
   setShowLeftScrollButton,
   setShowRightScrollButton,
   toggleUseInFeatureInfo,
+  useMappingClickFromInfoView,
+  useMappingLayers,
+  useMappingSelectedLayerIndex,
+  useMappingShowLeftScrollButton,
 } from "../../store/slices/mapping";
 import {
-  getUIMode,
-  getUIShowLayerHideButtons,
   UIMode,
+  useUIMode,
+  useUIShowLayerHideButtons,
 } from "../../store/slices/ui";
 import { iconColorMap, iconMap } from "./items";
 import "./tabs.css";
-import { useSearchParams } from "react-router-dom";
-import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
-import type L from "leaflet";
-import { updateInfoElementsAfterRemovingFeature } from "../../store/slices/features";
-// import { faCircle } from '@fortawesome/free-regular-svg-icons';
+
 
 interface LayerButtonProps {
   title: string;
@@ -68,13 +74,14 @@ const LayerButton = ({
   const dispatch = useDispatch();
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const [error, setError] = useState(false);
-  const selectedLayerIndex = useSelector(getSelectedLayerIndex);
-  const showLayerHideButtons = useSelector(getUIShowLayerHideButtons);
-  const showLeftScrollButton = useSelector(getShowLeftScrollButton);
-  const clickFromInfoView = useSelector(getClickFromInfoView);
-  const mode = useSelector(getUIMode);
+  const selectedLayerIndex = useMappingSelectedLayerIndex();
+  const showLayerHideButtons = useUIShowLayerHideButtons();
+  const showLeftScrollButton = useMappingShowLeftScrollButton();
+  const clickFromInfoView = useMappingClickFromInfoView();
+  const mode = useUIMode();
   const showSettings = index === selectedLayerIndex;
-  const layersLength = useSelector(getLayers).length;
+  const layers = useMappingLayers();
+  const layersLength = layers.length;
   const urlPrefix = window.location.origin + window.location.pathname;
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
@@ -161,8 +168,8 @@ const LayerButton = ({
               ? "bg-white"
               : "bg-neutral-200/70"
             : showSettings
-            ? "bg-white"
-            : "bg-neutral-200",
+              ? "bg-white"
+              : "bg-neutral-200",
           zoom >= layer.props.maxZoom && "opacity-50",
           zoom <= layer.props.minZoom && "opacity-50",
         )}

@@ -1,5 +1,8 @@
 import { createSlice } from "@reduxjs/toolkit";
+import { useSelector } from "react-redux";
+
 import type { PayloadAction } from "@reduxjs/toolkit";
+
 import { RootState } from "..";
 
 export enum UIMode {
@@ -69,8 +72,6 @@ const slice = createSlice({
   },
 });
 
-export default slice;
-
 export const {
   setUIActiveTabKey,
   setUIAllowChanges,
@@ -83,34 +84,25 @@ export const {
   toggleUIMode,
 } = slice.actions;
 
-export const getUIShowInfo = (state: RootState) => {
-  return state.ui.showInfo;
-};
+const getUIAllow3d = (state: RootState) => state.ui.allow3d;
+const getUIAllowChanges = (state: RootState) => state.ui.allowChanges;
+const getUIActiveTabKey = (state: RootState) => state.ui.activeTabKey;
+const getUIShowInfo = (state: RootState) => state.ui.showInfo;
+const getUIShowInfoText = (state: RootState) => state.ui.showInfoText;
+const getUIShowLayerButtons = (state: RootState) => state.ui.showLayerButtons;
+const getUIShowLayerHideButtons = (state: RootState) =>
+  state.ui.showLayerHideButtons;
+const getUIMode = (state: RootState) => state.ui.mode;
 
-export const getUIShowInfoText = (state: RootState) => {
-  return state.ui.showInfoText;
-};
+// Hook Selectors (Exported with `useUI` Prefix)
+export const useUIAllow3d = () => useSelector(getUIAllow3d);
+export const useUIAllowChanges = () => useSelector(getUIAllowChanges);
+export const useUIActiveTabKey = () => useSelector(getUIActiveTabKey);
+export const useUIShowInfo = () => useSelector(getUIShowInfo);
+export const useUIShowInfoText = () => useSelector(getUIShowInfoText);
+export const useUIShowLayerButtons = () => useSelector(getUIShowLayerButtons);
+export const useUIShowLayerHideButtons = () =>
+  useSelector(getUIShowLayerHideButtons);
+export const useUIMode = () => useSelector(getUIMode);
 
-export const getUIActiveTabKey = (state: RootState) => {
-  return state.ui.activeTabKey;
-};
-
-export const getUIMode = (state: RootState) => {
-  return state.ui.mode;
-};
-
-export const getUIShowLayerButtons = (state: RootState) => {
-  return state.ui.showLayerButtons;
-};
-
-export const getUIShowLayerHideButtons = (state: RootState) => {
-  return state.ui.showLayerHideButtons;
-};
-
-export const getUIAllowChanges = (state: RootState) => {
-  return state.ui.allowChanges;
-};
-
-export const getUIAllow3d = (state: RootState) => {
-  return state.ui.allow3d;
-};
+export default slice;

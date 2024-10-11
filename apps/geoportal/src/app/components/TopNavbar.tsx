@@ -1,3 +1,4 @@
+import { useDispatch } from "react-redux";
 import { Button, Popover, Radio, Tooltip, message } from "antd";
 import {
   faBars,
@@ -11,77 +12,86 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useContext, useState } from "react";
+
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
 import { LayerLib, Item, Layer } from "@carma-mapping/layers";
-import { useDispatch, useSelector } from "react-redux";
 
-import {
-  addFavorite,
-  getFavorites,
-  getThumbnails,
-  removeFavorite,
-  setThumbnail,
-} from "../store/slices/layers";
-import {
-  appendLayer,
-  appendSavedLayerConfig,
-  deleteSavedLayerConfig,
-  getBackgroundLayer,
-  getFocusMode,
-  getLayers,
-  getLayerState,
-  getSavedLayerConfigs,
-  getSelectedMapLayer,
-  removeLastLayer,
-  removeLayer,
-  setBackgroundLayer,
-  setFocusMode,
-  setLayers,
-  updateLayer,
-} from "../store/slices/mapping";
-import "./switch.css";
-import {
-  getUIMode,
-  getUIShowLayerButtons,
-  setUIShowLayerButtons,
-  toggleUIMode,
-  UIMode,
-} from "../store/slices/ui";
-import { layerMap } from "../config";
-import { Save, Share, extractCarmaConf, utils } from "@carma-apps/portals";
+import { Save, Share, utils } from "@carma-apps/portals";
 import { useOverlayHelper } from "@carma/libraries/commons/ui/lib-helper-overlay";
-import { isNaN } from "lodash";
 import {
   useSceneStyleToggle,
   useViewerIsMode2d,
 } from "@carma-mapping/cesium-engine";
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
+
 import { updateInfoElementsAfterRemovingFeature } from "../store/slices/features";
+import {
+  addFavorite,
+  removeFavorite,
+  setThumbnail,
+  useLayersFavorites,
+  useLayersThumbnails,
+} from "../store/slices/layers";
+import {
+  appendLayer,
+  appendSavedLayerConfig,
+  deleteSavedLayerConfig,
+  removeLastLayer,
+  removeLayer,
+  setBackgroundLayer,
+  setFocusMode,
+  setLayers,
+  updateLayer,
+  useMappingBackgroundLayer,
+  useMappingFocusMode,
+  useMappingLayers,
+  useMappingLayerState,
+  useMappingSavedLayerConfigs,
+  useMappingSelectedMapLayer,
+} from "../store/slices/mapping";
+import {
+  useUIMode,
+  useUIShowLayerButtons,
+  setUIShowLayerButtons,
+  toggleUIMode,
+  UIMode,
+} from "../store/slices/ui";
+import { layerMap } from "../config";
+
+import "./switch.css";
+import { useValueChange } from "@carma-commons/debug";
 
 const disabledClass = "text-gray-300";
 const disabledImageOpacity = "opacity-20";
 
 const TopNavbar = () => {
+  const dispatch = useDispatch();
+
   const [isModalOpen, setIsModalOpen] = useState(false);
+
   const { setAppMenuVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
-  const backgroundLayer = useSelector(getBackgroundLayer);
-  const selectedMapLayer = useSelector(getSelectedMapLayer);
-  const layerState = useSelector(getLayerState);
-  const dispatch = useDispatch();
-  const thumbnails = useSelector(getThumbnails);
-  const favorites = useSelector(getFavorites);
-  const activeLayers = useSelector(getLayers);
-  const showLayerButtons = useSelector(getUIShowLayerButtons);
-  const focusMode = useSelector(getFocusMode);
-  const savedLayerConfigs = useSelector(getSavedLayerConfigs);
-  const mode = useSelector(getUIMode);
+
   const [messageApi, contextHolder] = message.useMessage();
-  const baseUrl = window.location.origin + window.location.pathname;
+
+  const backgroundLayer = useMappingBackgroundLayer();
+  const selectedMapLayer = useMappingSelectedMapLayer();
+  const layerState = useMappingLayerState();
+  const thumbnails = useLayersThumbnails();
+  const favorites = useLayersFavorites();
+  const activeLayers = useMappingLayers();
+  const showLayerButtons = useUIShowLayerButtons();
+  const focusMode = useMappingFocusMode();
+  const savedLayerConfigs = useMappingSavedLayerConfigs();
+  const mode = useUIMode();
   const toggleSceneStyle = useSceneStyleToggle();
+
+
+
   const isMode2d = useViewerIsMode2d();
+  const baseUrl = window.location.origin + window.location.pathname;
 
   const handleToggleTour = () => {
     dispatch(toggleUIMode(UIMode.TOUR));
@@ -95,6 +105,8 @@ const TopNavbar = () => {
   const modalMenuTourRef = useOverlayHelper(
     getCollabedHelpElementsConfig("MENU", geoElements),
   );
+
+  useValueChange(layerState);
 
   const updateLayers = async (
     layer: Item,
@@ -158,6 +170,8 @@ const TopNavbar = () => {
       }
     }
   };
+
+  console.info("RENDER: TopNavbar");
 
   return (
     <div className="h-16 w-full flex items-center relative justify-between py-2 px-[12px]">
@@ -229,16 +243,14 @@ const TopNavbar = () => {
             <img
               src={baseUrl + "icons/add-layers.png"}
               alt="Kartenebenen hinzufügen"
-              className={`h-5 mb-0.5 cursor-pointer ${
-                isMode2d ? "" : disabledImageOpacity
-              }`}
+              className={`h-5 mb-0.5 cursor-pointer ${isMode2d ? "" : disabledImageOpacity
+                }`}
             />
           </button>
         </Tooltip>
         <Tooltip
-          title={`Hintergrundkarte ${
-            focusMode ? "zurücksetzen" : "abschwächen"
-          }`}
+          title={`Hintergrundkarte ${focusMode ? "zurücksetzen" : "abschwächen"
+            }`}
         >
           <button
             className="h-[24.5px]"
@@ -253,21 +265,18 @@ const TopNavbar = () => {
                 `${focusMode ? "icons/focus-on.png" : "icons/focus-off.png"}`
               }
               alt="Kartenebenen hinzufügen"
-              className={`h-5 mb-0.5 cursor-pointer ${
-                isMode2d ? "" : disabledImageOpacity
-              }`}
+              className={`h-5 mb-0.5 cursor-pointer ${isMode2d ? "" : disabledImageOpacity
+                }`}
             />
           </button>
         </Tooltip>
         <Tooltip
-          title={`Kartensteuerelemente ${
-            showLayerButtons ? "ausblenden" : "einblenden"
-          }`}
+          title={`Kartensteuerelemente ${showLayerButtons ? "ausblenden" : "einblenden"
+            }`}
         >
           <button
-            className={`text-xl hover:text-gray-600 ${
-              isMode2d ? "" : disabledClass
-            }`}
+            className={`text-xl hover:text-gray-600 ${isMode2d ? "" : disabledClass
+              }`}
             disabled={!isMode2d}
             onClick={() => {
               dispatch(setUIShowLayerButtons(!showLayerButtons));
@@ -293,9 +302,8 @@ const TopNavbar = () => {
             }
           >
             <button
-              className={`hover:text-gray-600 text-xl ${
-                isMode2d ? "" : disabledClass
-              }`}
+              className={`hover:text-gray-600 text-xl ${isMode2d ? "" : disabledClass
+                }`}
             >
               <FontAwesomeIcon icon={faFileExport} />
             </button>

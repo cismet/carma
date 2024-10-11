@@ -1,15 +1,9 @@
 import { useContext, useEffect, useRef, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import { useSearchParams } from "react-router-dom";
 
 import { Tooltip } from "antd";
-import {
-  getUIAllow3d,
-  getUIMode,
-  getUIShowLayerButtons,
-  toggleUIMode,
-  UIMode,
-} from "../../store/slices/ui.ts";
+
 import {
   Control,
   ControlButtonStyler,
@@ -66,24 +60,33 @@ import { useWindowSize } from "../../hooks/useWindowSize.ts";
 import { useTourRefCollabLabels } from "../../hooks/useTourRefCollabLabels.ts";
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
 
-import store from "../../store/index.ts";
 import {
   setFeatures,
   setPreferredLayerId,
   setSecondaryInfoBoxElements,
   setSelectedFeature,
+  useFeaturesNothingFoundIDs,
+  useFeaturesPreferredLayerId,
+  useFeaturesVectorInfos,
 } from "../../store/slices/features.ts";
 import {
-  getBackgroundLayer,
-  getFocusMode,
-  getLayers,
-  getShowFullscreenButton,
-  getShowHamburgerMenu,
-  getShowLocatorButton,
-  getShowMeasurementButton,
   setStartDrawing,
   setBackgroundLayer,
+  useMappingBackgroundLayer,
+  useMappingLayers,
+  useMappingShowFullscreenButton,
+  useMappingShowLocatorButton,
+  useMappingShowHamburgerMenu,
+  useMappingShowMeasurementButton,
+  useMappingFocusMode,
 } from "../../store/slices/mapping.ts";
+import {
+  toggleUIMode,
+  UIMode,
+  useUIAllow3d,
+  useUIMode,
+  useUIShowLayerButtons,
+} from "../../store/slices/ui.ts";
 
 import FeatureInfoBox from "../feature-info/FeatureInfoBox.tsx";
 import LayerWrapper from "../layers/LayerWrapper.tsx";
@@ -103,29 +106,41 @@ import "../leaflet.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
 export const GeoportalMap = () => {
+  const { viewer, terrainProvider, surfaceProvider } = useCesiumContext();
+
   const dispatch = useDispatch();
   const [urlParams, setUrlParams] = useSearchParams();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const container3dMapRef = useRef<HTMLDivElement>(null);
 
   // State and Selectors
-  const allow3d = useSelector(getUIAllow3d);
-  const backgroundLayer = useSelector(getBackgroundLayer);
   const isMode2d = useViewerIsMode2d();
   const models = useViewerModels();
-  const markerAsset = models[CESIUM_CONFIG.markerKey]; // 
-  const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;
-  const layers = useSelector(getLayers);
-  const uiMode = useSelector(getUIMode);
+
+  //const vectorInfos = useFeaturesVectorInfos();
+  const vectorInfos = [];
+  //const nothingFoundIDs = useFeaturesNothingFoundIDs();
+  const nothingFoundIDs = [];
+  const preferredLayerId = useFeaturesPreferredLayerId();
+
+  const layers = useMappingLayers();
+  const backgroundLayer = useMappingBackgroundLayer();
+  const focusMode = useMappingFocusMode();
+  const showFullscreenButton = useMappingShowFullscreenButton();
+  const showLocatorButton = useMappingShowLocatorButton();
+  const showHamburgerMenu = useMappingShowHamburgerMenu();
+  const showMeasurementButton = useMappingShowMeasurementButton();
+
+  const allow3d = useUIAllow3d();
+  const uiMode = useUIMode();
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
   const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
-  const showLayerButtons = useSelector(getUIShowLayerButtons);
-  const showFullscreenButton = useSelector(getShowFullscreenButton);
-  const showLocatorButton = useSelector(getShowLocatorButton);
-  const showHamburgerMenu = useSelector(getShowHamburgerMenu);
-  const showMeasurementButton = useSelector(getShowMeasurementButton);
-  const focusMode = useSelector(getFocusMode);
-  const { viewer, terrainProvider, surfaceProvider } = useCesiumContext();
+  const showLayerButtons = useUIShowLayerButtons();
+
+
+  const markerAsset = models[CESIUM_CONFIG.markerKey]; // 
+  const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;
+
   const homeControl = useHomeControl();
   const { handleZoomIn, handleZoomOut } = useZoomControls();
   const toggleSceneStyle = useSceneStyleToggle();
@@ -139,7 +154,7 @@ export const GeoportalMap = () => {
   } = useContext<typeof TopicMapContext>(TopicMapContext);
 
   const leaflelEl = routedMapRef?.leafletMap?.leafletElement;
-  const zoom = leaflelEl?.getZoom();
+  const getLeafletZoom = () => leaflelEl ? leaflelEl.getZoom() : null;
 
   const [gazetteerHit, setGazetteerHit] = useState(null);
   const [overlayFeature, setOverlayFeature] = useState(null);
@@ -227,6 +242,14 @@ export const GeoportalMap = () => {
 
   // TODO Move out Controls to own component
 
+  const cismapLayers = createCismapLayers(layers, {
+    focusMode,
+    mode: uiMode,
+    dispatch,
+    setPos,
+    zoom: getLeafletZoom(),
+  });
+
   console.info("RENDER: [GEOPORTAL] MAP");
 
   return (
@@ -238,7 +261,7 @@ export const GeoportalMap = () => {
               // TODO Check for side effects of this while animating
               isMode2d &&
                 leaflelEl.setZoom(
-                  Math.round(leaflelEl.getZoom()) + 1, // get nearest zoom as integer base and then do integer increments.
+                  Math.round(getLeafletZoom()) + 1, // get nearest zoom as integer base and then do integer increments.
                 );
               !isMode2d && handleZoomIn(e);
             }}
@@ -249,7 +272,7 @@ export const GeoportalMap = () => {
           <ControlButtonStyler
             onClick={(e) => {
               isMode2d &&
-                leaflelEl.setZoom(Math.round(leaflelEl.getZoom()) - 1);
+                leaflelEl.setZoom(Math.round(getLeafletZoom()) - 1);
               !isMode2d && handleZoomOut(e);
             }}
             className="!rounded-t-none !border-t-[1px]"
@@ -436,9 +459,12 @@ export const GeoportalMap = () => {
                 onClickTopicMap(e, {
                   dispatch,
                   mode: uiMode,
-                  store,
                   setPos,
-                  zoom,
+                  zoom: getLeafletZoom(),
+                  layers,
+                  vectorInfos,
+                  nothingFoundIDs,
+                  preferredLayerId,
                 })
               }
               gazetteerSearchComponent={<></>}
@@ -463,13 +489,7 @@ export const GeoportalMap = () => {
                 gazetteerHit={gazetteerHit}
               />
               {focusMode && <PaleOverlay />}
-              {createCismapLayers(layers, {
-                focusMode,
-                mode: uiMode,
-                dispatch,
-                setPos,
-                zoom,
-              })}
+              {cismapLayers}
               {pos && isModeFeatureInfo && layers.length > 0 && (
                 <ExtraMarker
                   markerOptions={{ markerColor: "cyan", spin: false }}

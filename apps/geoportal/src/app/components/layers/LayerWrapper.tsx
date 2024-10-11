@@ -1,14 +1,6 @@
-import { useDispatch, useSelector } from "react-redux";
-import {
-  getBackgroundLayer,
-  getLayers,
-  getSelectedLayerIndex,
-  getShowLeftScrollButton,
-  getShowRightScrollButton,
-  setLayers,
-  setSelectedLayerIndex,
-} from "../../store/slices/mapping";
-import LayerButton from "./LayerButton";
+import { useContext } from "react";
+import { useDispatch } from "react-redux";
+
 import {
   DndContext,
   PointerSensor,
@@ -22,28 +14,43 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
-import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
-import { useContext } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faChevronLeft,
   faChevronRight,
 } from "@fortawesome/free-solid-svg-icons";
-import { cn } from "../../helper/helper";
-import "./button.css";
-import SecondaryView from "./SecondaryView";
+
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+
 import { useOverlayHelper } from "@carma/libraries/commons/ui/lib-helper-overlay";
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 
+import {
+  setLayers,
+  setSelectedLayerIndex,
+  useMappingBackgroundLayer,
+  useMappingLayers,
+  useMappingSelectedLayerIndex,
+  useMappingShowLeftScrollButton,
+  useMappingShowRightScrollButton,
+} from "../../store/slices/mapping";
+import { cn } from "../../helper/helper";
+import LayerButton from "./LayerButton";
+import SecondaryView from "./SecondaryView";
+
+import "./button.css";
+
 const LayerWrapper = () => {
   const dispatch = useDispatch();
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
-  const layers = useSelector(getLayers);
-  const selectedLayerIndex = useSelector(getSelectedLayerIndex);
-  const backgroundLayer = useSelector(getBackgroundLayer);
-  const showLeftScrollButton = useSelector(getShowLeftScrollButton);
-  const showRightScrollButton = useSelector(getShowRightScrollButton);
+
+  const layers = useMappingLayers();
+  const selectedLayerIndex = useMappingSelectedLayerIndex();
+  const backgroundLayer = useMappingBackgroundLayer();
+  const showLeftScrollButton = useMappingShowLeftScrollButton();
+  const showRightScrollButton = useMappingShowRightScrollButton();
+
   const { isOver, setNodeRef } = useDroppable({
     id: "droppable",
   });
@@ -158,10 +165,10 @@ const LayerWrapper = () => {
                         layer.title.includes("Orthofoto")
                           ? "ortho"
                           : layer.title === "Bäume"
-                          ? "bäume"
-                          : layer.title.includes("gärten")
-                          ? "gärten"
-                          : undefined
+                            ? "bäume"
+                            : layer.title.includes("gärten")
+                              ? "gärten"
+                              : undefined
                       }
                       layer={layer}
                     />

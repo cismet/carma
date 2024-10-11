@@ -1,44 +1,51 @@
-import ResponsiveInfoBox from "react-cismap/topicmaps/ResponsiveInfoBox";
-import {
-  getShapes,
-  setActiveShape,
-  getActiveShapes,
-  getVisibleShapes,
-  setShowAllMeasurements,
-  getUpdateShapeToShape,
-  setUpdateShape,
-  setDeleteMeasurements,
-  getMoveToShape,
-  setMoveToShape,
-  getDrawingShape,
-  setMapMovingEnd,
-  getMapMovingEnd,
-  updateTitle,
-} from "../../store/slices/measurements";
-import { useSelector, useDispatch } from "react-redux";
 import { useState, useEffect, useContext } from "react";
+import { useDispatch } from "react-redux";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTrashCan } from "@fortawesome/free-solid-svg-icons";
-import MeasurementTitle from "./MeasurementTitle";
+
+import ResponsiveInfoBox from "react-cismap/topicmaps/ResponsiveInfoBox";
 import Icon from "react-cismap/commons/Icon";
 import { UIContext } from "react-cismap/contexts/UIContextProvider";
+
+import {
+  setActiveShape,
+  setShowAllMeasurements,
+  setUpdateShape,
+  setDeleteMeasurements,
+  setMoveToShape,
+  setMapMovingEnd,
+  updateTitle,
+  useMeasurementShapes,
+  useMeasurementVisibleShapes,
+  useMeasurementActiveShapes,
+  useMeasurementMoveToShape,
+  useMeasurementUpdateShapeToShape,
+  useMeasurementDrawingShape,
+  useMeasurementMapMovingEnd,
+} from "../../store/slices/measurements";
+
+import MeasurementTitle from "./MeasurementTitle";
+
 import "../infoBox.css";
 
 const InfoBoxMeasurement = () => {
-  const measurementsData = useSelector(getShapes);
-  const visibleShapesData = useSelector(getVisibleShapes);
-  const activeShape = useSelector(getActiveShapes);
-  const moveToShape = useSelector(getMoveToShape);
-  const updateShape = useSelector(getUpdateShapeToShape);
-  const drawingMode = useSelector(getDrawingShape);
-  const mapMovingEnd = useSelector(getMapMovingEnd);
   const dispatch = useDispatch();
+
+  const { collapsedInfoBox } = useContext(UIContext);
+
+  const measurementsData = useMeasurementShapes();
+  const visibleShapesData = useMeasurementVisibleShapes();
+  const activeShape = useMeasurementActiveShapes();
+  const moveToShape = useMeasurementMoveToShape();
+  const updateShape = useMeasurementUpdateShapeToShape();
+  const drawingMode = useMeasurementDrawingShape();
+  const mapMovingEnd = useMeasurementMapMovingEnd();
+
   const [currentMeasure, setCurrentMeasure] = useState(0);
   const [oldDataLength, setOldDataLength] = useState(measurementsData.length);
   const [stepAfterMoveToShape, setStepAfterMoveToShape] = useState(null);
   const [stepAfterUpdating, setStepAfterUpdating] = useState(false);
   const [stepAfterCreating, setStepAfterCreating] = useState(false);
-  const { collapsedInfoBox } = useContext(UIContext);
 
   useEffect(() => {
     if (moveToShape) {

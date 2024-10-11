@@ -1,6 +1,8 @@
-import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import type { RootState } from "..";
+import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
+import { shallowEqual, useSelector } from "react-redux";
+
 import { Item } from "@carma-mapping/layers";
+import type { RootState } from "..";
 
 export type LayersState = {
   thumbnails: any[];
@@ -51,14 +53,12 @@ const slice = createSlice({
   },
 });
 
-export default slice;
-
 export const { setThumbnail, addFavorite, removeFavorite } = slice.actions;
 
-export const getThumbnails = (state: RootState) => {
-  return state.layers.thumbnails;
-};
+const getThumbnails = (state: RootState): Item[] => state.layers.thumbnails ?? [];
+const getFavorites = (state: RootState): Item[] => state.layers.favorites ?? [];
 
-export const getFavorites = (state: RootState) => {
-  return state.layers.favorites;
-};
+export const useLayersThumbnails = () => useSelector(getThumbnails);
+export const useLayersFavorites = () => useSelector(getFavorites);
+
+export default slice;

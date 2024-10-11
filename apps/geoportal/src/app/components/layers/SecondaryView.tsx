@@ -1,3 +1,7 @@
+import { forwardRef, useContext, useEffect, useRef } from "react";
+import { useDispatch } from "react-redux";
+import { Slider } from "antd";
+import type { SliderSingleProps } from "antd";
 import {
   faArrowDown,
   faArrowUp,
@@ -9,32 +13,29 @@ import {
   faMap,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Slider } from "antd";
-import { forwardRef, useContext, useEffect, useRef } from "react";
+
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
-import { useDispatch, useSelector } from "react-redux";
+
 import { cn } from "../../helper/helper";
-import type { SliderSingleProps } from "antd";
 import {
   changeOpacity,
   changeVisibility,
-  getBackgroundLayer,
-  getLayers,
-  getSelectedLayerIndex,
   setClickFromInfoView,
   setNextSelectedLayerIndex,
   setPreviousSelectedLayerIndex,
   setSelectedLayerIndex,
+  useMappingBackgroundLayer,
+  useMappingLayers,
+  useMappingSelectedLayerIndex,
 } from "../../store/slices/mapping";
 import {
-  getUIShowInfo,
-  getUIShowInfoText,
   setUIShowInfo,
   setUIShowInfoText,
+  useUIShowInfo,
+  useUIShowInfoText,
 } from "../../store/slices/ui";
 import Info from "./Info";
 import { iconColorMap, iconMap } from "./items";
-import store from "../../store";
 
 type Ref = HTMLDivElement;
 
@@ -48,12 +49,12 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const infoRef = useRef<HTMLDivElement>(null);
   const dispatch = useDispatch();
-  const showInfo = useSelector(getUIShowInfo);
-  const showInfoText = useSelector(getUIShowInfoText);
+  const showInfo = useUIShowInfo();
+  const showInfoText = useUIShowInfoText();
   const urlPrefix = window.location.origin + window.location.pathname;
-  const selectedLayerIndex = useSelector(getSelectedLayerIndex);
-  const layers = useSelector(getLayers);
-  const backgroundLayer = useSelector(getBackgroundLayer);
+  const selectedLayerIndex = useMappingSelectedLayerIndex();
+  const layers = useMappingLayers();
+  const backgroundLayer = useMappingBackgroundLayer();
   const layer =
     selectedLayerIndex >= 0 ? layers[selectedLayerIndex] : backgroundLayer;
   const icon = layer.title.includes("Orthofoto")
@@ -76,7 +77,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
         }
       });
       if (infoRef.current && !infoRef.current.contains(event.target as Node)) {
-        const currentLayerIndex = getSelectedLayerIndex(store.getState());
+        const currentLayerIndex = selectedLayerIndex;
 
         dispatch(
           setSelectedLayerIndex(

@@ -1,16 +1,16 @@
 import { useContext, useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
-import { getLayers } from "../store/slices/mapping";
-import { getInfoText, setInfoText } from "../store/slices/features";
+import { useMappingLayers } from "../store/slices/mapping";
+import { setInfoText, useFeaturesInfoText } from "../store/slices/features";
 import { getAtLeastOneLayerIsQueryable } from "../components/GeoportalMap/utils";
 
 export const useDispatchSachdatenInfoText = () => {
   const dispatch = useDispatch();
-  const layers = useSelector(getLayers);
-  const infoText = useSelector(getInfoText);
+  const layers = useMappingLayers();
+  const infoText = useFeaturesInfoText();
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
   const leaflelEl = routedMapRef?.leafletMap?.leafletElement;
