@@ -13,10 +13,6 @@ import {
   addVectorInfo,
   clearNothingFoundIDs,
   clearVectorInfos,
-  getNothingFoundIDs,
-  getPreferredLayerId,
-  getVectorInfo,
-  getVectorInfos,
   removeNothingFoundID,
   setFeatures,
   setInfoText,
@@ -24,7 +20,6 @@ import {
   setSelectedFeature,
   setVectorInfo,
 } from "../../store/slices/features";
-import { getLayers } from "../../store/slices/mapping";
 
 import {
   functionToFeature,
@@ -34,6 +29,7 @@ import {
 import { getAtLeastOneLayerIsQueryable, getQueryableLayers } from "./utils";
 import { UIMode } from "../../store/slices/ui";
 import { FeatureInfoIcon } from "../feature-info/FeatureInfoIcon";
+import { FeatureInfo } from "@carma-apps/portals";
 
 interface WMTSLayerProps {
   type: "wmts";
@@ -64,8 +60,11 @@ type Options = {
   dispatch: Dispatch;
   mode: UIMode;
   setPos: (pos: [number, number] | null) => void;
-  store: Store;
   zoom: number;
+  layers: Layer[];
+  vectorInfos: FeatureInfo[];
+  nothingFoundIDs: string[];
+  preferredLayerId: string;
 };
 
 // TODO: move to portal lib?
@@ -82,9 +81,17 @@ export const onClickTopicMap = async (
     target: HTMLElement;
     type: string;
   },
-  { dispatch, mode, setPos, store, zoom }: Options,
+  {
+    dispatch,
+    mode,
+    setPos,
+    zoom,
+    layers,
+    vectorInfos,
+    nothingFoundIDs,
+    preferredLayerId,
+  }: Options,
 ) => {
-  const layers = getLayers(store.getState());
   const queryableLayers = getQueryableLayers(layers, zoom);
   if (
     mode === UIMode.FEATURE_INFO &&
@@ -94,9 +101,6 @@ export const onClickTopicMap = async (
       setTimeout(() => {}, 100);
     }
 
-    const vectorInfos = getVectorInfos(store.getState());
-    const nothingFoundIDs = getNothingFoundIDs(store.getState());
-    const preferredLayerId = getPreferredLayerId(store.getState());
     dispatch(setSecondaryInfoBoxElements([]));
     dispatch(setFeatures([]));
     const pos = proj4(

@@ -16,6 +16,7 @@ import { useContext, useState } from "react";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
 import { LayerLib, Item, Layer } from "@carma-mapping/layers";
+<<<<<<< HEAD
 import { Save, utils } from "@carma-apps/portals";
 import { useOverlayHelper } from "@carma-commons/ui/lib-helper-overlay";
 import {
@@ -25,6 +26,17 @@ import {
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 
+=======
+
+import { Save, utils } from "@carma-apps/portals";
+import { useOverlayHelper } from "@carma/libraries/commons/ui/lib-helper-overlay";
+import {
+  useSceneStyleToggle,
+  useViewerIsMode2d,
+} from "@carma-mapping/cesium-engine";
+import { geoElements } from "@carma-collab/wuppertal/geoportal";
+import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
+>>>>>>> 60dcedca (fix topnavbar rerender issue with shallow layer equal)
 import { updateInfoElementsAfterRemovingFeature } from "../store/slices/features";
 import {
   addFavorite,
@@ -58,9 +70,15 @@ import {
 } from "../store/slices/ui";
 
 import { layerMap } from "../config";
+<<<<<<< HEAD
 import { ShareContent } from "./ShareContent";
 
 import "./switch.css";
+=======
+
+import "./switch.css";
+import { ShareContent } from "./ShareContent";
+>>>>>>> 60dcedca (fix topnavbar rerender issue with shallow layer equal)
 
 const disabledClass = "text-gray-300";
 const disabledImageOpacity = "opacity-20";

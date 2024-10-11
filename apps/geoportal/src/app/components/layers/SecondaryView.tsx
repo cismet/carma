@@ -19,8 +19,11 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
+<<<<<<< HEAD
 import { SELECTED_LAYER_INDEX } from "@carma-apps/portals";
 
+=======
+>>>>>>> 0961f7dd (fix topnavbar rerender issue with shallow layer equal)
 import { cn } from "../../helper/helper";
 import {
   changeOpacity,
@@ -36,8 +39,8 @@ import {
 } from "../../store/slices/mapping";
 import {
   getUIShowInfo,
-  getUIShowInfoText,
   setUIShowInfo,
+  getUIShowInfoText,
   setUIShowInfoText,
 } from "../../store/slices/ui";
 import Info from "./Info";
@@ -87,7 +90,11 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({ }, ref) => {
         const currentLayerIndex = selectedLayerIndex;
         console.log("handleOutsideClick newLayerIndex", newLayerIndex, currentLayerIndex);
         newLayerIndex === currentLayerIndex ? dispatch(setSelectedLayerIndexNoSelection()) : dispatch(setSelectedLayerIndex(newLayerIndex));
+<<<<<<< HEAD
         if (newLayerIndex !== SELECTED_LAYER_INDEX.NO_SELECTION) {
+=======
+        if (newLayerIndex !== -2) {
+>>>>>>> 0961f7dd (fix topnavbar rerender issue with shallow layer equal)
           dispatch(setClickFromInfoView(true));
         }
       }

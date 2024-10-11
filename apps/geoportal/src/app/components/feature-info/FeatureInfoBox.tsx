@@ -16,7 +16,11 @@ import {
   setSelectedFeature,
   updateSecondaryInfoBoxElements,
   getInfoText,
+<<<<<<< HEAD
   getSecondaryInfoBoxElements,
+=======
+  getFeaturesSecondaryInfoBoxElements,
+>>>>>>> 60dcedca (fix topnavbar rerender issue with shallow layer equal)
   getSelectedFeature,
 } from "../../store/slices/features";
 import { getLayers } from "../../store/slices/mapping";
@@ -34,7 +38,11 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
   const dispatch = useDispatch();
   const selectedFeature = useSelector(getSelectedFeature);
   const secondaryInfoBoxElements = useSelector(
+<<<<<<< HEAD
     getSecondaryInfoBoxElements,
+=======
+    getFeaturesSecondaryInfoBoxElements,
+>>>>>>> 60dcedca (fix topnavbar rerender issue with shallow layer equal)
   );
   const layers = useSelector(getLayers);
   const numOfLayers = layers.length;

@@ -3,13 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useSearchParams } from "react-router-dom";
 
 import { Tooltip } from "antd";
-import {
-  getUIAllow3d,
-  getUIMode,
-  getUIShowLayerButtons,
-  toggleUIMode,
-  UIMode,
-} from "../../store/slices/ui.ts";
+
 import {
   Control,
   ControlButtonStyler,
@@ -29,7 +23,6 @@ import {
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { ExtraMarker } from "react-cismap/ExtraMarker";
-import PaleOverlay from "react-cismap/PaleOverlay";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import GazetteerHitDisplay from "react-cismap/GazetteerHitDisplay";
 import { ProjSingleGeoJson } from "react-cismap/ProjSingleGeoJson";
@@ -66,8 +59,11 @@ import { useWindowSize } from "../../hooks/useWindowSize.ts";
 import { useTourRefCollabLabels } from "../../hooks/useTourRefCollabLabels.ts";
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
 
-import store from "../../store/index.ts";
+import type { AppDispatch } from "../../store/index.ts";
 import {
+  getNothingFoundIDs,
+  getPreferredLayerId,
+  getVectorInfos,
   setFeatures,
   setPreferredLayerId,
   setSecondaryInfoBoxElements,
@@ -75,23 +71,30 @@ import {
 } from "../../store/slices/features.ts";
 import {
   getBackgroundLayer,
-  getFocusMode,
   getLayers,
   getShowFullscreenButton,
-  getShowHamburgerMenu,
   getShowLocatorButton,
+  getShowHamburgerMenu,
   getShowMeasurementButton,
   setStartDrawing,
   setBackgroundLayer,
 } from "../../store/slices/mapping.ts";
+import {
+  getUIAllow3d,
+  getUIMode,
+  getUIShowLayerButtons,
+  toggleUIMode,
+  UIMode,
+} from "../../store/slices/ui.ts";
 
 import FeatureInfoBox from "../feature-info/FeatureInfoBox.tsx";
 import LayerWrapper from "../layers/LayerWrapper.tsx";
 import InfoBoxMeasurement from "../map-measure/InfoBoxMeasurement.jsx";
 
+import CismapLayers from "./components/CismapLayers.tsx";
 import LocateControlComponent from "./controls/LocateControlComponent.tsx";
 
-import { createCismapLayers, onClickTopicMap } from "./topicmap.utils.ts";
+import { onClickTopicMap } from "./topicmap.utils.ts";
 import { getUrlPrefix } from "./utils";
 
 import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
@@ -100,29 +103,37 @@ import "../leaflet.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
 export const GeoportalMap = () => {
-  const dispatch = useDispatch();
+  const dispatch: AppDispatch = useDispatch();
+  const { viewer, terrainProvider, surfaceProvider } = useCesiumContext();
+
   const [urlParams, setUrlParams] = useSearchParams();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const container3dMapRef = useRef<HTMLDivElement>(null);
 
   // State and Selectors
-  const allow3d = useSelector(getUIAllow3d);
-  const backgroundLayer = useSelector(getBackgroundLayer);
   const isMode2d = useViewerIsMode2d();
   const models = useViewerModels();
-  const markerAsset = models[CESIUM_CONFIG.markerKey]; //
-  const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;
+
+  const vectorInfos = useSelector(getVectorInfos);
+  const nothingFoundIDs = useSelector(getNothingFoundIDs);
+  const preferredLayerId = useSelector(getPreferredLayerId);
+
   const layers = useSelector(getLayers);
-  const uiMode = useSelector(getUIMode);
-  const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
-  const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
-  const showLayerButtons = useSelector(getUIShowLayerButtons);
+  const backgroundLayer = useSelector(getBackgroundLayer);
   const showFullscreenButton = useSelector(getShowFullscreenButton);
   const showLocatorButton = useSelector(getShowLocatorButton);
   const showHamburgerMenu = useSelector(getShowHamburgerMenu);
   const showMeasurementButton = useSelector(getShowMeasurementButton);
-  const focusMode = useSelector(getFocusMode);
-  const { viewer, terrainProvider, surfaceProvider } = useCesiumContext();
+
+  const allow3d = useSelector(getUIAllow3d);
+  const uiMode = useSelector(getUIMode);
+  const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
+  const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
+  const showLayerButtons = useSelector(getUIShowLayerButtons);
+
+  const markerAsset = models[CESIUM_CONFIG.markerKey]; //
+  const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;
+
   const homeControl = useHomeControl();
   const { handleZoomIn, handleZoomOut } = useZoomControls();
   const toggleSceneStyle = useSceneStyleToggle();
@@ -135,8 +146,8 @@ export const GeoportalMap = () => {
     maskingPolygon,
   } = useContext<typeof TopicMapContext>(TopicMapContext);
 
-  const leaflelEl = routedMapRef?.leafletMap?.leafletElement;
-  const zoom = leaflelEl?.getZoom();
+  const leafletEl = routedMapRef?.leafletMap?.leafletElement;
+  const getLeafletZoom = () => (leafletEl ? leafletEl.getZoom() : null);
 
   const [gazetteerHit, setGazetteerHit] = useState(null);
   const [overlayFeature, setOverlayFeature] = useState(null);
@@ -221,8 +232,6 @@ export const GeoportalMap = () => {
     return <div></div>;
   };
 
-  // TODO Move out Controls to own component
-
   console.info("RENDER: [GEOPORTAL] MAP");
 
   return (
@@ -233,8 +242,8 @@ export const GeoportalMap = () => {
             onClick={(e) => {
               // TODO Check for side effects of this while animating
               isMode2d &&
-                leaflelEl.setZoom(
-                  Math.round(leaflelEl.getZoom()) + 1, // get nearest zoom as integer base and then do integer increments.
+                leafletEl.setZoom(
+                  Math.round(getLeafletZoom()) + 1, // get nearest zoom as integer base and then do integer increments.
                 );
               !isMode2d && handleZoomIn(e);
             }}
@@ -244,8 +253,7 @@ export const GeoportalMap = () => {
           </ControlButtonStyler>
           <ControlButtonStyler
             onClick={(e) => {
-              isMode2d &&
-                leaflelEl.setZoom(Math.round(leaflelEl.getZoom()) - 1);
+              isMode2d && leafletEl.setZoom(Math.round(getLeafletZoom()) - 1);
               !isMode2d && handleZoomOut(e);
             }}
             className="!rounded-t-none !border-t-[1px]"
@@ -434,9 +442,12 @@ export const GeoportalMap = () => {
                 onClickTopicMap(e, {
                   dispatch,
                   mode: uiMode,
-                  store,
                   setPos,
-                  zoom,
+                  zoom: getLeafletZoom(),
+                  layers,
+                  vectorInfos,
+                  nothingFoundIDs,
+                  preferredLayerId,
                 })
               }
               gazetteerSearchComponent={<></>}
@@ -460,14 +471,7 @@ export const GeoportalMap = () => {
                 key={"gazHit" + JSON.stringify(gazetteerHit)}
                 gazetteerHit={gazetteerHit}
               />
-              {focusMode && <PaleOverlay />}
-              {createCismapLayers(layers, {
-                focusMode,
-                mode: uiMode,
-                dispatch,
-                setPos,
-                zoom,
-              })}
+              <CismapLayers layers={layers} mode={uiMode} setPos={setPos} />
               {pos && isModeFeatureInfo && layers.length > 0 && (
                 <ExtraMarker
                   markerOptions={{ markerColor: "cyan", spin: false }}
