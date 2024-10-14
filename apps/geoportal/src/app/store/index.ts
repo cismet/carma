@@ -12,7 +12,7 @@ import mappingSlice from "./slices/mapping";
 import layersSlice from "./slices/layers";
 import uiSlice from "./slices/ui";
 import measurementsSlice from "./slices/measurements";
-import featuresSlice from "./slices/features";
+import featuresReducer from "./slices/features";
 
 console.info("store initializing ....");
 
@@ -106,7 +106,7 @@ const store = configureStore({
     ui: persistReducer(uiConfig, uiSlice.reducer),
     layers: persistReducer(layersConfig, layersSlice.reducer),
     measurements: persistReducer(measurementsConfig, measurementsSlice.reducer),
-    features: persistReducer(featuresConfig, featuresSlice.reducer),
+    features: persistReducer(featuresConfig, featuresReducer),
     cesium: persistReducer(
       getCesiumConfig({ appKey: APP_KEY, storagePrefix: STORAGE_PREFIX }),
       sliceCesium.reducer,

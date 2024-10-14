@@ -1,5 +1,5 @@
 import { useContext, useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import envelope from "@turf/envelope";
 
@@ -14,9 +14,9 @@ import {
   setPreferredLayerId,
   setSelectedFeature,
   updateSecondaryInfoBoxElements,
-  useFeaturesInfoText,
-  useFeaturesSecondaryInfoBoxElements,
-  useFeaturesSelectedFeature,
+  getFeaturesInfoText,
+  getFeaturesSecondaryInfoBoxElements,
+  getFeaturesSelectedFeature,
 } from "../../store/slices/features";
 import { useMappingLayers } from "../../store/slices/mapping";
 import { getCoordinates } from "../GeoportalMap/topicmap.utils";
@@ -27,11 +27,11 @@ import "../infoBox.css";
 const FeatureInfoBox = () => {
   const [open, setOpen] = useState(false);
   const dispatch = useDispatch();
-  const selectedFeature = useFeaturesSelectedFeature();
-  const secondaryInfoBoxElements = useFeaturesSecondaryInfoBoxElements();
+  const selectedFeature = useSelector(getFeaturesSelectedFeature);
+  const secondaryInfoBoxElements = useSelector(getFeaturesSecondaryInfoBoxElements);
   const layers = useMappingLayers();
   const numOfLayers = layers.length;
-  const infoText = useFeaturesInfoText();
+  const infoText = useSelector(getFeaturesInfoText);
 
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 

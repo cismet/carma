@@ -1,47 +1,33 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import { useSelector } from "react-redux";
 import { isEqual } from "lodash";
 
 import type { FeatureInfo, FeatureInfoState } from "@carma-apps/portals";
-import { RootState } from "..";
+import type { RootState } from "..";
 
 const initialState: FeatureInfoState = {
   features: [],
-  selectedFeature: null,
-  secondaryInfoBoxElements: [],
   infoText: "",
-  preferredLayerId: "",
-  vectorInfo: undefined,
   nothingFoundIDs: [],
+  preferredLayerId: "",
+  secondaryInfoBoxElements: [],
+  selectedFeature: null,
+  vectorInfo: undefined,
   vectorInfos: [],
 };
 
-const slice = createSlice({
+const featuresSlice = createSlice({
   name: "features",
   initialState,
   reducers: {
-    setFeatures(state, action) {
-      state.features = action.payload;
-    },
-    addFeature(state, action) {
+    addFeature(state, action: PayloadAction<FeatureInfo>) {
       state.features.push(action.payload);
     },
-    setSelectedFeature(state, action) {
+    setFeatures(state, action: PayloadAction<FeatureInfo[]>) {
+      state.features = action.payload;
+    },
+
+    setSelectedFeature(state, action: PayloadAction<FeatureInfo | null>) {
       state.selectedFeature = action.payload;
-    },
-    setSecondaryInfoBoxElements(state, action) {
-      state.secondaryInfoBoxElements = action.payload;
-    },
-    updateSecondaryInfoBoxElements(state, action) {
-      const feature = action.payload;
-      const tmp = state.features.map((f) => {
-        if (isEqual(f, feature)) {
-          return null;
-        } else {
-          return f;
-        }
-      });
-      state.secondaryInfoBoxElements = tmp.filter((f) => f !== null);
     },
     updateInfoElementsAfterRemovingFeature(
       state,
@@ -65,19 +51,11 @@ const slice = createSlice({
         );
       }
     },
-    setInfoText(state, action) {
-      state.infoText = action.payload;
-    },
-    setPreferredLayerId(state, action) {
-      state.preferredLayerId = action.payload;
-    },
-    setVectorInfo(state, action) {
-      state.vectorInfo = action.payload;
-    },
-    addNothingFoundID(state, action) {
+
+    addNothingFoundID(state, action: PayloadAction<string>) {
       state.nothingFoundIDs.push(action.payload);
     },
-    removeNothingFoundID(state, action) {
+    removeNothingFoundID(state, action: PayloadAction<string>) {
       state.nothingFoundIDs = state.nothingFoundIDs.filter(
         (id) => id !== action.payload,
       );
@@ -85,62 +63,88 @@ const slice = createSlice({
     clearNothingFoundIDs(state) {
       state.nothingFoundIDs = [];
     },
+
+    setVectorInfo(state, action: PayloadAction<FeatureInfo | undefined>) {
+      state.vectorInfo = action.payload;
+    },
+
     addVectorInfo(state, action: PayloadAction<FeatureInfo>) {
       state.vectorInfos.push(action.payload);
     },
-    removeVectorInfo(state, action) {
+
+    removeVectorInfo(state, action: PayloadAction<string>) {
       state.vectorInfos = state.vectorInfos.filter(
-        (id) => id !== action.payload,
+        (info) => info.id !== action.payload,
       );
     },
     clearVectorInfos(state) {
       state.vectorInfos = [];
     },
+
+    // InfoText
+    setInfoText(state, action: PayloadAction<string>) {
+      state.infoText = action.payload;
+    },
+
+    // PreferredLayerId
+    setPreferredLayerId(state, action: PayloadAction<string>) {
+      state.preferredLayerId = action.payload;
+    },
+
+    // SecondaryInfoBoxElements
+    setSecondaryInfoBoxElements(state, action: PayloadAction<FeatureInfo[]>) {
+      state.secondaryInfoBoxElements = action.payload;
+    },
+    updateSecondaryInfoBoxElements(state, action: PayloadAction<FeatureInfo>) {
+      const feature = action.payload;
+      state.secondaryInfoBoxElements = state.features.filter(
+        (f) => !isEqual(f, feature),
+      );
+    },
   },
 });
 
+// Export actions grouped by related state properties
 export const {
-  setFeatures,
   addFeature,
+  setFeatures,
+
   setSelectedFeature,
-  setSecondaryInfoBoxElements,
-  updateSecondaryInfoBoxElements,
   updateInfoElementsAfterRemovingFeature,
-  setInfoText,
-  setPreferredLayerId,
-  setVectorInfo,
+
   addNothingFoundID,
   removeNothingFoundID,
   clearNothingFoundIDs,
+
+  setVectorInfo,
+
   addVectorInfo,
   removeVectorInfo,
   clearVectorInfos,
-} = slice.actions;
 
-// Selectors
+  setInfoText,
 
-const getFeatures = (state: RootState) => state.features.features;
-const getInfoText = (state: RootState) => state.features.infoText;
-const getNothingFoundIDs = (state: RootState) => state.features.nothingFoundIDs;
-const getPreferredLayerId = (state: RootState) =>
+  setPreferredLayerId,
+
+  setSecondaryInfoBoxElements,
+  updateSecondaryInfoBoxElements,
+} = featuresSlice.actions;
+
+// Selectors with 'getFeatures' prefix, ordered alphabetically
+export const getFeaturesFeatures = (state: RootState) => state.features.features;
+export const getFeaturesSelectedFeature = (state: RootState) =>
+  state.features.selectedFeature;
+export const getFeaturesInfoText = (state: RootState) =>
+  state.features.infoText;
+export const getFeaturesNothingFoundIDs = (state: RootState) =>
+  state.features.nothingFoundIDs;
+export const getFeaturesPreferredLayerId = (state: RootState) =>
   state.features.preferredLayerId;
-const getSecondaryInfoBoxElements = (state: RootState) =>
+export const getFeaturesSecondaryInfoBoxElements = (state: RootState) =>
   state.features.secondaryInfoBoxElements;
-const getSelectedFeature = (state: RootState) => state.features.selectedFeature;
-const getVectorInfo = (state: RootState) => state.features.vectorInfo;
-const getVectorInfos = (state: RootState) => state.features.vectorInfos;
+export const getFeaturesVectorInfo = (state: RootState) =>
+  state.features.vectorInfo;
+export const getFeaturesVectorInfos = (state: RootState) =>
+  state.features.vectorInfos;
 
-// Hook Selectors with `Features` Prefix
-
-export const useFeatures = () => useSelector(getFeatures);
-export const useFeaturesInfoText = () => useSelector(getInfoText);
-export const useFeaturesNothingFoundIDs = () => useSelector(getNothingFoundIDs);
-export const useFeaturesPreferredLayerId = () =>
-  useSelector(getPreferredLayerId);
-export const useFeaturesSecondaryInfoBoxElements = () =>
-  useSelector(getSecondaryInfoBoxElements);
-export const useFeaturesSelectedFeature = () => useSelector(getSelectedFeature);
-export const useFeaturesVectorInfo = () => useSelector(getVectorInfo);
-export const useFeaturesVectorInfos = () => useSelector(getVectorInfos);
-
-export default slice;
+export default featuresSlice.reducer;

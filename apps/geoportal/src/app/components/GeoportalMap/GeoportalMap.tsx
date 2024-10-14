@@ -1,5 +1,5 @@
 import { useContext, useEffect, useRef, useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useSearchParams } from "react-router-dom";
 
 import { Tooltip } from "antd";
@@ -65,9 +65,9 @@ import {
   setPreferredLayerId,
   setSecondaryInfoBoxElements,
   setSelectedFeature,
-  useFeaturesNothingFoundIDs,
-  useFeaturesPreferredLayerId,
-  useFeaturesVectorInfos,
+  getFeaturesNothingFoundIDs,
+  getFeaturesPreferredLayerId,
+  getFeaturesVectorInfos,
 } from "../../store/slices/features.ts";
 import {
   setStartDrawing,
@@ -117,11 +117,9 @@ export const GeoportalMap = () => {
   const isMode2d = useViewerIsMode2d();
   const models = useViewerModels();
 
-  //const vectorInfos = useFeaturesVectorInfos();
-  const vectorInfos = [];
-  //const nothingFoundIDs = useFeaturesNothingFoundIDs();
-  const nothingFoundIDs = [];
-  const preferredLayerId = useFeaturesPreferredLayerId();
+  const vectorInfos = useSelector(getFeaturesVectorInfos);
+  const nothingFoundIDs = useSelector(getFeaturesNothingFoundIDs);
+  const preferredLayerId = useSelector(getFeaturesPreferredLayerId);
 
   const layers = useMappingLayers();
   const backgroundLayer = useMappingBackgroundLayer();

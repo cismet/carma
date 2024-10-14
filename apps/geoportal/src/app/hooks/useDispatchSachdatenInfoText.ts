@@ -1,16 +1,16 @@
 import { useContext, useEffect } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { useMappingLayers } from "../store/slices/mapping";
-import { setInfoText, useFeaturesInfoText } from "../store/slices/features";
+import { setInfoText, getFeaturesInfoText } from "../store/slices/features";
 import { getAtLeastOneLayerIsQueryable } from "../components/GeoportalMap/utils";
 
 export const useDispatchSachdatenInfoText = () => {
   const dispatch = useDispatch();
   const layers = useMappingLayers();
-  const infoText = useFeaturesInfoText();
+  const infoText = useSelector(getFeaturesInfoText);
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
   const leaflelEl = routedMapRef?.leafletMap?.leafletElement;
@@ -44,5 +44,5 @@ export const useDispatchSachdatenInfoText = () => {
     ) {
       dispatch(setInfoText(""));
     }
-  }, [layers, infoText, dispatch]);
+  }, [layers, infoText, zoom, dispatch]);
 };
