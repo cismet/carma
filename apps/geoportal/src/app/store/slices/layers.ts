@@ -54,7 +54,7 @@ const slice = createSlice({
 
 export const { addFavorite, removeFavorite, setThumbnail, } = slice.actions;
 
-export const getLayersFavorites = (state: RootState): Item[] => state.layers.favorites ?? [];
-export const getLayersThumbnails = (state: RootState): Item[] => state.layers.thumbnails ?? [];
+export const getLayersFavorites = (state: RootState): Item[] => state.layers.favorites;
+export const getLayersThumbnails = (state: RootState): Item[] => state.layers.thumbnails;
 
 export default slice.reducer;

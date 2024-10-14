@@ -1,4 +1,4 @@
-import { createSlice } from "@reduxjs/toolkit";
+import { createSelector, createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 
 import type { Layer, SavedLayerConfig } from "@carma-mapping/layers";
@@ -248,12 +248,6 @@ export const {
 export const getMappingBackgroundLayer = (state: RootState) => state.mapping.backgroundLayer;
 export const getMappingClickFromInfoView = (state: RootState) => state.mapping.clickFromInfoView;
 export const getMappingFocusMode = (state: RootState) => state.mapping.focusMode;
-export const getMappingLayerState = (state: RootState): LayerState => ({
-  layers: state.mapping.layers,
-  backgroundLayer: state.mapping.backgroundLayer,
-  selectedMapLayer: state.mapping.selectedMapLayer,
-  selectedLayerIndex: state.mapping.selectedLayerIndex,
-});
 
 export const getMappingLayers = (state: RootState) => state.mapping.layers;
 export const getMappingSavedLayerConfigs = (state: RootState) =>
@@ -275,5 +269,15 @@ export const getMappingShowMeasurementButton = (state: RootState) =>
 export const getMappingShowRightScrollButton = (state: RootState) =>
   state.mapping.showRightScrollButton;
 export const getMappingStartDrawing = (state: RootState) => state.mapping.startDrawing;
+
+export const getMappingLayerState = createSelector(
+  [getMappingLayers, getMappingBackgroundLayer, getMappingSelectedMapLayer, getMappingSelectedLayerIndex],
+  (layers, backgroundLayer, selectedMapLayer, selectedLayerIndex) => ({
+    layers,
+    backgroundLayer,
+    selectedMapLayer,
+    selectedLayerIndex,
+  })
+);
 
 export default slice.reducer;

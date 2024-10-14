@@ -1,4 +1,4 @@
-import { shallowEqual, useDispatch, useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { Button, Popover, Radio, Tooltip, message } from "antd";
 import {
   faBars,
@@ -77,7 +77,7 @@ const TopNavbar = () => {
 
   const backgroundLayer = useSelector(getMappingBackgroundLayer);
   const selectedMapLayer = useSelector(getMappingSelectedMapLayer);
-  const layerState = useSelector(getMappingLayerState, shallowEqual);
+  const layerState = useSelector(getMappingLayerState);
   const thumbnails = useSelector(getLayersThumbnails);
   const favorites = useSelector(getLayersFavorites);
   const activeLayers = useSelector(getMappingLayers);
