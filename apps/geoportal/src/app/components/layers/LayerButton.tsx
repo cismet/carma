@@ -24,16 +24,16 @@ import { cn } from "../../helper/helper";
 import { updateInfoElementsAfterRemovingFeature } from "../../store/slices/features";
 import {
   changeVisibility,
+  getMappingClickFromInfoView,
+  getMappingLayers,
+  getMappingSelectedLayerIndex,
+  getMappingShowLeftScrollButton,
   removeLayer,
   setClickFromInfoView,
   setSelectedLayerIndex,
   setShowLeftScrollButton,
   setShowRightScrollButton,
   toggleUseInFeatureInfo,
-  getMappingClickFromInfoView,
-  getMappingLayers,
-  getMappingSelectedLayerIndex,
-  getMappingShowLeftScrollButton,
 } from "../../store/slices/mapping";
 import {
   UIMode,
@@ -64,6 +64,7 @@ const LayerButton = ({
   const { ref, inView } = useInView({
     threshold: 0.99,
     onChange: (inView) => {
+      console.log("HOOK: [LayerButton] inView", inView);
       if (index === 0) {
         dispatch(setShowLeftScrollButton(!inView));
       } else if (index === layersLength - 1) {
@@ -71,7 +72,7 @@ const LayerButton = ({
       }
     },
   });
-  const dispatch = useDispatch();
+  const dispatch  = useDispatch();
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const [error, setError] = useState(false);
   const selectedLayerIndex = useSelector(getMappingSelectedLayerIndex);

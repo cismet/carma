@@ -61,7 +61,7 @@ const MapMeasurement = (props) => {
   const moveToShape = useSelector(getMeasurementsMoveToShape);
   const uiMode = useSelector(getUIMode);
   const startDrawing = useSelector(getMappingStartDrawing);
-  const [visiblePolylines, setVisiblePolylines] = useState();
+  const [visiblePolylines, setVisiblePolylines] = useState([]);
   const [drawingShape, setDrawingLine] = useState(null);
 
   const device = useDeviceDetection();

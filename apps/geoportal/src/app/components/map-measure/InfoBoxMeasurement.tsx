@@ -188,7 +188,7 @@ const InfoBoxMeasurement = () => {
     setCurrentMeasure(initialCureentMeasure);
   };
 
-  const updateTitleMeasurementById = (shapeId : number, customTitle: string) => {
+  const updateTitleMeasurementById = (shapeId, customTitle) => {
     dispatch(updateTitle(shapeId, customTitle));
   };
 
