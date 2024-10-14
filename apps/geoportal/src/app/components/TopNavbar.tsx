@@ -1,4 +1,4 @@
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { Button, Popover, Radio, Tooltip, message } from "antd";
 import {
   faBars,
@@ -31,8 +31,8 @@ import {
   addFavorite,
   removeFavorite,
   setThumbnail,
-  useLayersFavorites,
-  useLayersThumbnails,
+  getLayersFavorites,
+  getLayersThumbnails,
 } from "../store/slices/layers";
 import {
   appendLayer,
@@ -79,8 +79,8 @@ const TopNavbar = () => {
   const backgroundLayer = useMappingBackgroundLayer();
   const selectedMapLayer = useMappingSelectedMapLayer();
   const layerState = useMappingLayerState();
-  const thumbnails = useLayersThumbnails();
-  const favorites = useLayersFavorites();
+  const thumbnails = useSelector(getLayersThumbnails);
+  const favorites = useSelector(getLayersFavorites);
   const activeLayers = useMappingLayers();
   const showLayerButtons = useUIShowLayerButtons();
   const focusMode = useMappingFocusMode();

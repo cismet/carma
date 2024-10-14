@@ -9,7 +9,7 @@ import { getCesiumConfig, sliceCesium } from "@carma-mapping/cesium-engine";
 import { APP_KEY, STORAGE_PREFIX } from "../config";
 import { defaultCesiumState } from "../config/cesium/store.config";
 import mappingSlice from "./slices/mapping";
-import layersSlice from "./slices/layers";
+import layersReducer from "./slices/layers";
 import uiSlice from "./slices/ui";
 import measurementsSlice from "./slices/measurements";
 import featuresReducer from "./slices/features";
@@ -104,7 +104,7 @@ const store = configureStore({
   reducer: {
     mapping: persistReducer(mappingConfig, mappingSlice.reducer),
     ui: persistReducer(uiConfig, uiSlice.reducer),
-    layers: persistReducer(layersConfig, layersSlice.reducer),
+    layers: persistReducer(layersConfig, layersReducer),
     measurements: persistReducer(measurementsConfig, measurementsSlice.reducer),
     features: persistReducer(featuresConfig, featuresReducer),
     cesium: persistReducer(

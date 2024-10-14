@@ -1,32 +1,22 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import { shallowEqual, useSelector } from "react-redux";
 
 import { Item } from "@carma-mapping/layers";
 import type { RootState } from "..";
 
 export type LayersState = {
-  thumbnails: any[];
   favorites: Item[];
+  thumbnails: any[];
 };
 
 const initialState: LayersState = {
-  thumbnails: [],
   favorites: [],
+  thumbnails: [],
 };
 
 const slice = createSlice({
   name: "layers",
   initialState,
   reducers: {
-    setThumbnail(state, action) {
-      let alreadyExists = state.thumbnails.some(
-        (thumbnail) => thumbnail.name === action.payload.name,
-      );
-      if (!alreadyExists) {
-        state.thumbnails = [...state.thumbnails, action.payload];
-      }
-      return state;
-    },
     addFavorite(state, action: PayloadAction<Item>) {
       const alreadyExists = state.favorites.some(
         (favorite) =>
@@ -50,15 +40,21 @@ const slice = createSlice({
       state.favorites = newFavorites;
       return state;
     },
-  },
+
+  setThumbnail(state, action) {
+    let alreadyExists = state.thumbnails.some(
+      (thumbnail) => thumbnail.name === action.payload.name,
+    );
+    if (!alreadyExists) {
+      state.thumbnails = [...state.thumbnails, action.payload];
+    }
+    return state;
+  }}
 });
 
-export const { setThumbnail, addFavorite, removeFavorite } = slice.actions;
+export const { addFavorite, removeFavorite, setThumbnail, } = slice.actions;
 
-const getThumbnails = (state: RootState): Item[] => state.layers.thumbnails ?? [];
-const getFavorites = (state: RootState): Item[] => state.layers.favorites ?? [];
+export const getLayersFavorites = (state: RootState): Item[] => state.layers.favorites ?? [];
+export const getLayersThumbnails = (state: RootState): Item[] => state.layers.thumbnails ?? [];
 
-export const useLayersThumbnails = () => useSelector(getThumbnails);
-export const useLayersFavorites = () => useSelector(getFavorites);
-
-export default slice;
+export default slice.reducer;
