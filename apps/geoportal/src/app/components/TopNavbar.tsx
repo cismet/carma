@@ -25,31 +25,30 @@ import {
 } from "@carma-mapping/cesium-engine";
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
-
 import { updateInfoElementsAfterRemovingFeature } from "../store/slices/features";
 import {
   addFavorite,
-  removeFavorite,
-  setThumbnail,
   getLayersFavorites,
   getLayersThumbnails,
+  removeFavorite,
+  setThumbnail,
 } from "../store/slices/layers";
 import {
   appendLayer,
   appendSavedLayerConfig,
   deleteSavedLayerConfig,
-  removeLastLayer,
-  removeLayer,
-  setBackgroundLayer,
-  setFocusMode,
-  setLayers,
-  updateLayer,
   getMappingBackgroundLayer,
   getMappingFocusMode,
   getMappingLayers,
   getMappingLayerState,
   getMappingSavedLayerConfigs,
   getMappingSelectedMapLayer,
+  removeLastLayer,
+  removeLayer,
+  setBackgroundLayer,
+  setFocusMode,
+  setLayers,
+  updateLayer,
 } from "../store/slices/mapping";
 import {
   getUIMode,

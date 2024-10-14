@@ -60,18 +60,17 @@ import { useWindowSize } from "../../hooks/useWindowSize.ts";
 import { useTourRefCollabLabels } from "../../hooks/useTourRefCollabLabels.ts";
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
 
+import type { AppDispatch } from "../../store/index.ts";
 import {
+  getFeaturesNothingFoundIDs,
+  getFeaturesPreferredLayerId,
+  getFeaturesVectorInfos,
   setFeatures,
   setPreferredLayerId,
   setSecondaryInfoBoxElements,
   setSelectedFeature,
-  getFeaturesNothingFoundIDs,
-  getFeaturesPreferredLayerId,
-  getFeaturesVectorInfos,
 } from "../../store/slices/features.ts";
 import {
-  setStartDrawing,
-  setBackgroundLayer,
   getMappingBackgroundLayer,
   getMappingLayers,
   getMappingShowFullscreenButton,
@@ -79,13 +78,15 @@ import {
   getMappingShowHamburgerMenu,
   getMappingShowMeasurementButton,
   getMappingFocusMode,
+  setStartDrawing,
+  setBackgroundLayer,
 } from "../../store/slices/mapping.ts";
 import {
-  toggleUIMode,
-  UIMode,
   getUIAllow3d,
   getUIMode,
   getUIShowLayerButtons,
+  toggleUIMode,
+  UIMode,
 } from "../../store/slices/ui.ts";
 
 import FeatureInfoBox from "../feature-info/FeatureInfoBox.tsx";
@@ -106,9 +107,9 @@ import "../leaflet.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
 export const GeoportalMap = () => {
+  const dispatch : AppDispatch = useDispatch();
   const { viewer, terrainProvider, surfaceProvider } = useCesiumContext();
 
-  const dispatch = useDispatch();
   const [urlParams, setUrlParams] = useSearchParams();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const container3dMapRef = useRef<HTMLDivElement>(null);
@@ -134,7 +135,6 @@ export const GeoportalMap = () => {
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
   const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
   const showLayerButtons = useSelector(getUIShowLayerButtons);
-
 
   const markerAsset = models[CESIUM_CONFIG.markerKey]; // 
   const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;

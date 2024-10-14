@@ -26,6 +26,8 @@ import AppErrorFallback from "./components/AppErrorFallback";
 import { GeoportalMap } from "./components/GeoportalMap/GeoportalMap";
 import MapMeasurement from "./components/map-measure/MapMeasurement";
 import TopNavbar from "./components/TopNavbar";
+
+import type { AppDispatch } from "./store";
 import {
   setBackgroundLayer,
   setLayers,
@@ -35,13 +37,13 @@ import {
   setShowMeasurementButton,
 } from "./store/slices/mapping";
 import {
+  getUIAllowChanges,
+  getUIMode,
   setUIAllowChanges,
   setUIMode,
   setUIShowLayerButtons,
   setUIShowLayerHideButtons,
   UIMode,
-  getUIAllowChanges,
-  getUIMode,
 } from "./store/slices/ui";
 
 // Side-Effect Imports
@@ -62,7 +64,7 @@ type Config = {
 };
 
 function App({ published }: { published?: boolean }) {
-  const dispatch = useDispatch();
+  const dispatch : AppDispatch = useDispatch();
  
   const [searchParams, setSearchParams] = useSearchParams();
   const allowUiChanges = useSelector(getUIAllowChanges);
