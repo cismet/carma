@@ -1,5 +1,5 @@
 import { useContext, useEffect, useRef, useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useSearchParams } from "react-router-dom";
 import { useInView } from "react-intersection-observer";
 
@@ -30,15 +30,15 @@ import {
   setShowLeftScrollButton,
   setShowRightScrollButton,
   toggleUseInFeatureInfo,
-  useMappingClickFromInfoView,
-  useMappingLayers,
-  useMappingSelectedLayerIndex,
-  useMappingShowLeftScrollButton,
+  getMappingClickFromInfoView,
+  getMappingLayers,
+  getMappingSelectedLayerIndex,
+  getMappingShowLeftScrollButton,
 } from "../../store/slices/mapping";
 import {
   UIMode,
-  useUIMode,
-  useUIShowLayerHideButtons,
+  getUIMode,
+  getUIShowLayerHideButtons,
 } from "../../store/slices/ui";
 import { iconColorMap, iconMap } from "./items";
 import "./tabs.css";
@@ -74,13 +74,13 @@ const LayerButton = ({
   const dispatch = useDispatch();
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const [error, setError] = useState(false);
-  const selectedLayerIndex = useMappingSelectedLayerIndex();
-  const showLayerHideButtons = useUIShowLayerHideButtons();
-  const showLeftScrollButton = useMappingShowLeftScrollButton();
-  const clickFromInfoView = useMappingClickFromInfoView();
-  const mode = useUIMode();
+  const selectedLayerIndex = useSelector(getMappingSelectedLayerIndex);
+  const showLayerHideButtons = useSelector(getUIShowLayerHideButtons);
+  const showLeftScrollButton = useSelector(getMappingShowLeftScrollButton);
+  const clickFromInfoView = useSelector(getMappingClickFromInfoView);
+  const mode = useSelector(getUIMode);
   const showSettings = index === selectedLayerIndex;
-  const layers = useMappingLayers();
+  const layers = useSelector(getMappingLayers);
   const layersLength = layers.length;
   const urlPrefix = window.location.origin + window.location.pathname;
   const { attributes, listeners, setNodeRef, transform, transition } =

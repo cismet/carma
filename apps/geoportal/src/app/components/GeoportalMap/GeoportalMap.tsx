@@ -72,20 +72,20 @@ import {
 import {
   setStartDrawing,
   setBackgroundLayer,
-  useMappingBackgroundLayer,
-  useMappingLayers,
-  useMappingShowFullscreenButton,
-  useMappingShowLocatorButton,
-  useMappingShowHamburgerMenu,
-  useMappingShowMeasurementButton,
-  useMappingFocusMode,
+  getMappingBackgroundLayer,
+  getMappingLayers,
+  getMappingShowFullscreenButton,
+  getMappingShowLocatorButton,
+  getMappingShowHamburgerMenu,
+  getMappingShowMeasurementButton,
+  getMappingFocusMode,
 } from "../../store/slices/mapping.ts";
 import {
   toggleUIMode,
   UIMode,
-  useUIAllow3d,
-  useUIMode,
-  useUIShowLayerButtons,
+  getUIAllow3d,
+  getUIMode,
+  getUIShowLayerButtons,
 } from "../../store/slices/ui.ts";
 
 import FeatureInfoBox from "../feature-info/FeatureInfoBox.tsx";
@@ -121,19 +121,19 @@ export const GeoportalMap = () => {
   const nothingFoundIDs = useSelector(getFeaturesNothingFoundIDs);
   const preferredLayerId = useSelector(getFeaturesPreferredLayerId);
 
-  const layers = useMappingLayers();
-  const backgroundLayer = useMappingBackgroundLayer();
-  const focusMode = useMappingFocusMode();
-  const showFullscreenButton = useMappingShowFullscreenButton();
-  const showLocatorButton = useMappingShowLocatorButton();
-  const showHamburgerMenu = useMappingShowHamburgerMenu();
-  const showMeasurementButton = useMappingShowMeasurementButton();
+  const layers = useSelector(getMappingLayers);
+  const backgroundLayer = useSelector(getMappingBackgroundLayer);
+  const focusMode = useSelector(getMappingFocusMode);
+  const showFullscreenButton = useSelector(getMappingShowFullscreenButton);
+  const showLocatorButton = useSelector(getMappingShowLocatorButton);
+  const showHamburgerMenu = useSelector(getMappingShowHamburgerMenu);
+  const showMeasurementButton = useSelector(getMappingShowMeasurementButton);
 
-  const allow3d = useUIAllow3d();
-  const uiMode = useUIMode();
+  const allow3d = useSelector(getUIAllow3d);
+  const uiMode = useSelector(getUIMode);
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
   const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
-  const showLayerButtons = useUIShowLayerButtons();
+  const showLayerButtons = useSelector(getUIShowLayerButtons);
 
 
   const markerAsset = models[CESIUM_CONFIG.markerKey]; // 

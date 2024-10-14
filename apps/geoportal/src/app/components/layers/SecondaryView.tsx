@@ -1,5 +1,5 @@
 import { forwardRef, useContext, useEffect, useRef } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { Slider } from "antd";
 import type { SliderSingleProps } from "antd";
 import {
@@ -20,19 +20,20 @@ import { cn } from "../../helper/helper";
 import {
   changeOpacity,
   changeVisibility,
+  getMappingBackgroundLayer,
+  getMappingLayers,
+  getMappingSelectedLayerIndex,
   setClickFromInfoView,
   setNextSelectedLayerIndex,
   setPreviousSelectedLayerIndex,
   setSelectedLayerIndex,
-  useMappingBackgroundLayer,
-  useMappingLayers,
-  useMappingSelectedLayerIndex,
+
 } from "../../store/slices/mapping";
 import {
+  getUIShowInfo,
   setUIShowInfo,
+  getUIShowInfoText,
   setUIShowInfoText,
-  useUIShowInfo,
-  useUIShowInfoText,
 } from "../../store/slices/ui";
 import Info from "./Info";
 import { iconColorMap, iconMap } from "./items";
@@ -49,12 +50,12 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const infoRef = useRef<HTMLDivElement>(null);
   const dispatch = useDispatch();
-  const showInfo = useUIShowInfo();
-  const showInfoText = useUIShowInfoText();
+  const showInfo = useSelector(getUIShowInfo);
+  const showInfoText = useSelector(getUIShowInfoText);
   const urlPrefix = window.location.origin + window.location.pathname;
-  const selectedLayerIndex = useMappingSelectedLayerIndex();
-  const layers = useMappingLayers();
-  const backgroundLayer = useMappingBackgroundLayer();
+  const selectedLayerIndex = useSelector(getMappingSelectedLayerIndex);
+  const layers = useSelector(getMappingLayers);
+  const backgroundLayer = useSelector(getMappingBackgroundLayer);
   const layer =
     selectedLayerIndex >= 0 ? layers[selectedLayerIndex] : backgroundLayer;
   const icon = layer.title.includes("Orthofoto")

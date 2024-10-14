@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { Radio, Tabs } from "antd";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { DndContext } from "@dnd-kit/core";
@@ -10,15 +10,15 @@ import {
 } from "@dnd-kit/sortable";
 
 import { cn, parseDescription } from "../../helper/helper";
-import { setUIActiveTabKey, useUIActiveTabKey } from "../../store/slices/ui";
+import { setUIActiveTabKey, getUIActiveTabKey } from "../../store/slices/ui";
 import {
   setBackgroundLayer,
   setLayers,
   setSelectedMapLayer,
-  useMappingBackgroundLayer,
-  useMappingLayers,
-  useMappingSelectedLayerIndex,
-  useMappingSelectedMapLayer,
+  getMappingBackgroundLayer,
+  getMappingLayers,
+  getMappingSelectedLayerIndex,
+  getMappingSelectedMapLayer,
 } from "../../store/slices/mapping";
 
 import { tabItems } from "./items";
@@ -37,13 +37,13 @@ const parser = new DOMParser();
 const Info = ({ description, legend }: InfoProps) => {
   const dispatch = useDispatch();
   const [metadataText, setMetadataText] = useState("");
-  const selectedMapLayer = useMappingSelectedMapLayer();
-  const activeTabKey = useUIActiveTabKey();
+  const selectedMapLayer = useSelector(getMappingSelectedMapLayer);
+  const activeTabKey = useSelector(getUIActiveTabKey);
   const parsedDescription = parseDescription(description);
-  const layers = useMappingLayers();
-  const selectedLayerIndex = useMappingSelectedLayerIndex();
+  const layers = useSelector(getMappingLayers);
+  const selectedLayerIndex = useSelector(getMappingSelectedLayerIndex);
   const isBaseLayer = selectedLayerIndex === -1;
-  const backgroundLayer = useMappingBackgroundLayer();
+  const backgroundLayer = useSelector(getMappingBackgroundLayer);
   const currentLayer = layers[selectedLayerIndex];
   const metadataUrl =
     // @ts-expect-error fix typing

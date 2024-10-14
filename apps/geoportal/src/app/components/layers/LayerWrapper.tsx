@@ -1,5 +1,5 @@
 import { useContext } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import {
   DndContext,
@@ -29,11 +29,11 @@ import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from 
 import {
   setLayers,
   setSelectedLayerIndex,
-  useMappingBackgroundLayer,
-  useMappingLayers,
-  useMappingSelectedLayerIndex,
-  useMappingShowLeftScrollButton,
-  useMappingShowRightScrollButton,
+  getMappingBackgroundLayer,
+  getMappingLayers,
+  getMappingSelectedLayerIndex,
+  getMappingShowLeftScrollButton,
+  getMappingShowRightScrollButton,
 } from "../../store/slices/mapping";
 import { cn } from "../../helper/helper";
 import LayerButton from "./LayerButton";
@@ -45,11 +45,11 @@ const LayerWrapper = () => {
   const dispatch = useDispatch();
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
-  const layers = useMappingLayers();
-  const selectedLayerIndex = useMappingSelectedLayerIndex();
-  const backgroundLayer = useMappingBackgroundLayer();
-  const showLeftScrollButton = useMappingShowLeftScrollButton();
-  const showRightScrollButton = useMappingShowRightScrollButton();
+  const layers = useSelector(getMappingLayers);
+  const selectedLayerIndex = useSelector(getMappingSelectedLayerIndex);
+  const backgroundLayer = useSelector(getMappingBackgroundLayer);
+  const showLeftScrollButton = useSelector(getMappingShowLeftScrollButton);
+  const showRightScrollButton = useSelector(getMappingShowRightScrollButton);
 
   const { isOver, setNodeRef } = useDroppable({
     id: "droppable",

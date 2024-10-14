@@ -64,7 +64,7 @@ export const getCesiumConfig = ({
   };
 };
 
-export const sliceCesium = createSlice({
+const sliceCesium = createSlice({
   name: "cesium",
   initialState,
   reducers: {
@@ -231,4 +231,6 @@ export const useScreenSpaceCameraControllerMinimumZoomDistance = () =>
 export const useScreenSpaceCameraControllerEnableCollisionDetection = () =>
   useSelector(selectScreenSpaceCameraControllerEnableCollisionDetection);
 
-export default sliceCesium;
+export const cesiumReducer = sliceCesium.reducer;
+
+export default sliceCesium.reducer;

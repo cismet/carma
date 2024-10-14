@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTrashCan } from "@fortawesome/free-solid-svg-icons";
 
@@ -7,21 +7,22 @@ import ResponsiveInfoBox from "react-cismap/topicmaps/ResponsiveInfoBox";
 import Icon from "react-cismap/commons/Icon";
 import { UIContext } from "react-cismap/contexts/UIContextProvider";
 
+import type { AppDispatch } from "../../store";
 import {
   setActiveShape,
-  setShowAllMeasurements,
+  setShowAll,
   setUpdateShape,
-  setDeleteMeasurements,
+  setDeleteAll,
   setMoveToShape,
   setMapMovingEnd,
   updateTitle,
-  useMeasurementShapes,
-  useMeasurementVisibleShapes,
-  useMeasurementActiveShapes,
-  useMeasurementMoveToShape,
-  useMeasurementUpdateShapeToShape,
-  useMeasurementDrawingShape,
-  useMeasurementMapMovingEnd,
+  getMeasurementsShapes,
+  getMeasurementsVisibleShapes,
+  getMeasurementsActiveShapes,
+  getMeasurementsMoveToShape,
+  getMeasurementsUpdateShapeToShape,
+  getMeasurementsDrawingShape,
+  getMeasurementsMapMovingEnd,
 } from "../../store/slices/measurements";
 
 import MeasurementTitle from "./MeasurementTitle";
@@ -29,20 +30,20 @@ import MeasurementTitle from "./MeasurementTitle";
 import "../infoBox.css";
 
 const InfoBoxMeasurement = () => {
-  const dispatch = useDispatch();
+  const dispatch: AppDispatch = useDispatch();
 
-  const { collapsedInfoBox } = useContext(UIContext);
+  const { collapsedInfoBox } = useContext<typeof UIContext>(UIContext);
 
-  const measurementsData = useMeasurementShapes();
-  const visibleShapesData = useMeasurementVisibleShapes();
-  const activeShape = useMeasurementActiveShapes();
-  const moveToShape = useMeasurementMoveToShape();
-  const updateShape = useMeasurementUpdateShapeToShape();
-  const drawingMode = useMeasurementDrawingShape();
-  const mapMovingEnd = useMeasurementMapMovingEnd();
+  const measurementsData = useSelector(getMeasurementsShapes);
+  const visibleShapesData = useSelector(getMeasurementsVisibleShapes);
+  const activeShape = useSelector(getMeasurementsActiveShapes);
+  const moveToShape = useSelector(getMeasurementsMoveToShape);
+  const updateShape = useSelector(getMeasurementsUpdateShapeToShape);
+  const drawingMode = useSelector(getMeasurementsDrawingShape);
+  const mapMovingEnd = useSelector(getMeasurementsMapMovingEnd);
 
   const [currentMeasure, setCurrentMeasure] = useState(0);
-  const [oldDataLength, setOldDataLength] = useState(measurementsData.length);
+  const [oldDataLength, setOldDataLength] = useState<number>(measurementsData.length);
   const [stepAfterMoveToShape, setStepAfterMoveToShape] = useState(null);
   const [stepAfterUpdating, setStepAfterUpdating] = useState(false);
   const [stepAfterCreating, setStepAfterCreating] = useState(false);
@@ -168,7 +169,7 @@ const InfoBoxMeasurement = () => {
   const deleteShapeHandler = (e) => {
     e.stopPropagation();
 
-    dispatch(setDeleteMeasurements(true));
+    dispatch(setDeleteAll(true));
     cleanUpdateMeasurementStatus();
     setLastMeasureActive();
   };
@@ -187,7 +188,7 @@ const InfoBoxMeasurement = () => {
     setCurrentMeasure(initialCureentMeasure);
   };
 
-  const updateTitleMeasurementById = (shapeId, customTitle) => {
+  const updateTitleMeasurementById = (shapeId : number, customTitle: string) => {
     dispatch(updateTitle(shapeId, customTitle));
   };
 
@@ -259,7 +260,7 @@ const InfoBoxMeasurement = () => {
               <div className="flex justify-center items-center w-[96%] mt-2 pt-3">
                 <span
                   className="mx-4 text-[#0078a8] cursor-pointer"
-                  onClick={() => dispatch(setShowAllMeasurements(true))}
+                  onClick={() => dispatch(setShowAll(true))}
                 >
                   {measurementsData.length} Messungen verfügbar
                 </span>
@@ -306,7 +307,7 @@ const InfoBoxMeasurement = () => {
               <div className="flex justify-center items-center w-[96%]">
                 <span
                   className="mx-4 text-[#0078a8] cursor-pointer"
-                  onClick={() => dispatch(setShowAllMeasurements(true))}
+                  onClick={() => dispatch(setShowAll(true))}
                 >
                   {measurementsData.length} Messungen verfügbar
                 </span>

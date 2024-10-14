@@ -18,7 +18,7 @@ import {
   getFeaturesSecondaryInfoBoxElements,
   getFeaturesSelectedFeature,
 } from "../../store/slices/features";
-import { useMappingLayers } from "../../store/slices/mapping";
+import { getMappingLayers } from "../../store/slices/mapping";
 import { getCoordinates } from "../GeoportalMap/topicmap.utils";
 import { truncateString } from "./featureInfoHelper";
 
@@ -29,7 +29,7 @@ const FeatureInfoBox = () => {
   const dispatch = useDispatch();
   const selectedFeature = useSelector(getFeaturesSelectedFeature);
   const secondaryInfoBoxElements = useSelector(getFeaturesSecondaryInfoBoxElements);
-  const layers = useMappingLayers();
+  const layers = useSelector(getMappingLayers);
   const numOfLayers = layers.length;
   const infoText = useSelector(getFeaturesInfoText);
 

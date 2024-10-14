@@ -3,13 +3,13 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
-import { useMappingLayers } from "../store/slices/mapping";
+import { getMappingLayers } from "../store/slices/mapping";
 import { setInfoText, getFeaturesInfoText } from "../store/slices/features";
 import { getAtLeastOneLayerIsQueryable } from "../components/GeoportalMap/utils";
 
 export const useDispatchSachdatenInfoText = () => {
   const dispatch = useDispatch();
-  const layers = useMappingLayers();
+  const layers = useSelector(getMappingLayers);
   const infoText = useSelector(getFeaturesInfoText);
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 

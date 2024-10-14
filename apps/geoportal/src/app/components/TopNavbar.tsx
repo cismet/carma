@@ -1,4 +1,4 @@
-import { useDispatch, useSelector } from "react-redux";
+import { shallowEqual, useDispatch, useSelector } from "react-redux";
 import { Button, Popover, Radio, Tooltip, message } from "antd";
 import {
   faBars,
@@ -44,16 +44,16 @@ import {
   setFocusMode,
   setLayers,
   updateLayer,
-  useMappingBackgroundLayer,
-  useMappingFocusMode,
-  useMappingLayers,
-  useMappingLayerState,
-  useMappingSavedLayerConfigs,
-  useMappingSelectedMapLayer,
+  getMappingBackgroundLayer,
+  getMappingFocusMode,
+  getMappingLayers,
+  getMappingLayerState,
+  getMappingSavedLayerConfigs,
+  getMappingSelectedMapLayer,
 } from "../store/slices/mapping";
 import {
-  useUIMode,
-  useUIShowLayerButtons,
+  getUIMode,
+  getUIShowLayerButtons,
   setUIShowLayerButtons,
   toggleUIMode,
   UIMode,
@@ -76,16 +76,17 @@ const TopNavbar = () => {
 
   const [messageApi, contextHolder] = message.useMessage();
 
-  const backgroundLayer = useMappingBackgroundLayer();
-  const selectedMapLayer = useMappingSelectedMapLayer();
-  const layerState = useMappingLayerState();
+  const backgroundLayer = useSelector(getMappingBackgroundLayer);
+  const selectedMapLayer = useSelector(getMappingSelectedMapLayer);
+  const layerState = useSelector(getMappingLayerState, shallowEqual);
   const thumbnails = useSelector(getLayersThumbnails);
   const favorites = useSelector(getLayersFavorites);
-  const activeLayers = useMappingLayers();
-  const showLayerButtons = useUIShowLayerButtons();
-  const focusMode = useMappingFocusMode();
-  const savedLayerConfigs = useMappingSavedLayerConfigs();
-  const mode = useUIMode();
+  const activeLayers = useSelector(getMappingLayers);
+  const focusMode = useSelector(getMappingFocusMode);
+  const savedLayerConfigs = useSelector(getMappingSavedLayerConfigs); 
+
+  const mode = useSelector(getUIMode);
+  const showLayerButtons = useSelector(getUIShowLayerButtons);
   const toggleSceneStyle = useSceneStyleToggle();
 
 

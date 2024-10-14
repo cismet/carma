@@ -1,19 +1,19 @@
 import React, { useState, useEffect, useContext } from "react";
-import type { UnknownAction } from "redux";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import L from "leaflet";
 import "leaflet-draw";
 import "leaflet-editable";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
+import type { AppDispatch } from "../../store";
 import {
   setShapes,
   setActiveShape,
   setVisibleShapes,
   setDrawingShape,
-  setShowAllMeasurements,
-  setDeleteMeasurements,
+  setShowAll,
+  setDeleteAll,
   setMoveToShape,
   setUpdateShape,
   setMapMovingEnd,
@@ -22,21 +22,23 @@ import {
   updateShapeById,
   setLastVisibleShapeActive,
   setDrawingWithLastActiveShape,
-  setActiveShapeIfDrawCanseld,
-  updateAreaOfDrawingMeasurement,
+  setActiveShapeIfDrawCancelled,
+  updateMeasurementAreaOfDrawing,
   deleteVisibleShapeById,
-  useMeasurementShapes,
-  useMeasurementActiveShapes,
-  useMeasurementDrawingShape,
-  useMeasurementShowAllMeasurements,
-  useMeasurementDeleteMeasurements,
-  useMeasurementVisibleShapes,
-  useMeasurementMoveToShape,
+  getMeasurementsShapes,
+  getMeasurementsActiveShapes,
+  getMeasurementsDrawingShape,
+  getMeasurementsShowAll,
+  getMeasurementsDeleteAll,
+  getMeasurementsVisibleShapes,
+  getMeasurementsMoveToShape,
 } from "../../store/slices/measurements";
 
-import { toggleUIMode, UIMode, useUIMode } from "../../store/slices/ui";
-import { setStartDrawing, useMappingStartDrawing } from "../../store/slices/mapping";
+import { toggleUIMode, UIMode, getUIMode } from "../../store/slices/ui";
+import { setStartDrawing, getMappingStartDrawing } from "../../store/slices/mapping";
 import useDeviceDetection from "../../hooks/useDeviceDetection";
+import useMeasureControl from "./hooks/useMeasureControl";
+
 import { filterArrByIds } from "./utils";
 import "./measure";
 import "./measure-path";
@@ -45,21 +47,20 @@ import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
 import "leaflet-measure-path/leaflet-measure-path.css";
 import "./m-style.css";
-import useMeasureControl from "./hooks/useMeasureControl";
 
 const MapMeasurement = (props) => {
   const { routedMapRef } = useContext(TopicMapContext) as { routedMapRef: { leafletMap: { leafletElement: L.Map } } };
 
-  const dispatch = useDispatch();
-  const measurementShapes = useMeasurementShapes();
-  const activeShape = useMeasurementActiveShapes();
-  const ifDrawing = useMeasurementDrawingShape();
-  const showAllMeasurements = useMeasurementShowAllMeasurements();
-  const deleteShape = useMeasurementDeleteMeasurements();
-  const visibleShapes = useMeasurementVisibleShapes();
-  const moveToShape = useMeasurementMoveToShape();
-  const mode = useUIMode();
-  const startDrawing = useMappingStartDrawing();
+  const dispatch: AppDispatch = useDispatch();
+  const measurementShapes = useSelector(getMeasurementsShapes);
+  const activeShape = useSelector(getMeasurementsActiveShapes);
+  const ifDrawing = useSelector(getMeasurementsDrawingShape);
+  const showAllMeasurements = useSelector(getMeasurementsShowAll);
+  const deleteShape = useSelector(getMeasurementsDeleteAll);
+  const visibleShapes = useSelector(getMeasurementsVisibleShapes);
+  const moveToShape = useSelector(getMeasurementsMoveToShape);
+  const uiMode = useSelector(getUIMode);
+  const startDrawing = useSelector(getMappingStartDrawing);
   const [visiblePolylines, setVisiblePolylines] = useState();
   const [drawingShape, setDrawingLine] = useState(null);
 
@@ -70,23 +71,23 @@ const MapMeasurement = (props) => {
   };
 
   const saveShapeHandler = (layer) => {
-    dispatch(addShape(layer) as unknown as UnknownAction);
+    dispatch(addShape(layer));
   };
   const deleteShapeHandler = (id) => {
-    dispatch(deleteShapeById(id) as unknown as UnknownAction);
+    dispatch(deleteShapeById(id));
   };
   const deleteVisibleShapeByIdHandler = (id) => {
-    dispatch(deleteVisibleShapeById(id) as unknown as UnknownAction);
+    dispatch(deleteVisibleShapeById(id));
   };
   const updateShapeHandler = (id, newCoordinates, newDistance, newSquare) => {
-    dispatch(updateShapeById(id, newCoordinates, newDistance, newSquare) as unknown as UnknownAction);
+    dispatch(updateShapeById(id, newCoordinates, newDistance, newSquare));
   };
 
   const saveLastActiveShapeIdBeforeDrawingHandler = () => {
-    dispatch(setDrawingWithLastActiveShape() as unknown as UnknownAction);
+    dispatch(setDrawingWithLastActiveShape());
   };
   const changeActiveCanceldShapeId = () => {
-    dispatch(setActiveShapeIfDrawCanseld() as unknown as UnknownAction);
+    dispatch(setActiveShapeIfDrawCancelled());
   };
 
   const drawingStatusHandler = (status) => {
@@ -106,7 +107,7 @@ const MapMeasurement = (props) => {
   };
 
   const updateAreaOfDrawingMeasurementHandler = (newArea) => {
-    dispatch(updateAreaOfDrawingMeasurement(newArea) as unknown as UnknownAction);
+    dispatch(updateMeasurementAreaOfDrawing(newArea));
   };
 
   const handlers = {
@@ -131,11 +132,9 @@ const MapMeasurement = (props) => {
     measurementShapes,
     activeShape,
     device,
-    mode,
+    mode: uiMode,
     handlers,
   });
-
-
 
   useEffect(() => {
     if (measureControl && activeShape) {
@@ -157,7 +156,7 @@ const MapMeasurement = (props) => {
       if (showAllMeasurements) {
         const allPolylines = measureControl.getAllPolylines(map);
         measureControl.fitMapToPolylines(map, allPolylines);
-        dispatch(setShowAllMeasurements(false));
+        dispatch(setShowAll(false));
       }
 
       if (deleteShape) {
@@ -171,7 +170,7 @@ const MapMeasurement = (props) => {
           (m) => m.shapeId !== activeShape,
         );
         dispatch(setShapes(cleanAllArr));
-        dispatch(setDeleteMeasurements(false));
+        dispatch(setDeleteAll(false));
         if (measureControl.options.shapes.length === 1) {
           measureControl.options.shapes = [];
         }
@@ -188,7 +187,7 @@ const MapMeasurement = (props) => {
 
     if (measureControl) {
       const map = routedMapRef.leafletMap.leafletElement;
-      measureControl.changeMeasurementMode(mode, map);
+      measureControl.changeMeasurementMode(uiMode, map);
       const shapeCoordinates = measurementShapes.filter(
         (s) => s.shapeId === activeShape,
       );
@@ -199,7 +198,7 @@ const MapMeasurement = (props) => {
         );
       }
 
-      if (mode === "measurement" && visibleShapes.length === 0) {
+      if (uiMode === "measurement" && visibleShapes.length === 0) {
         const visibleShapesIds = measureControl.getVisibleShapeIdsArr(
           measureControl._map,
         );
@@ -212,7 +211,7 @@ const MapMeasurement = (props) => {
     deleteShape,
     ifDrawing,
     moveToShape,
-    mode,
+    uiMode,
   ]);
 
   useEffect(() => {
@@ -225,16 +224,16 @@ const MapMeasurement = (props) => {
 
       measureControl.changeMeasurementsArr(measurementShapes);
     }
-  }, [visiblePolylines, measurementShapes]);
+  }, [visiblePolylines, measurementShapes, measureControl, dispatch]);
 
   useEffect(() => {
     if (drawingShape) {
       const cleanArr = visibleShapes.filter((m) => m.shapeId !== 5555);
       dispatch(setVisibleShapes([...cleanArr, drawingShape]));
     } else {
-      dispatch(setLastVisibleShapeActive() as unknown as UnknownAction);
+      dispatch(setLastVisibleShapeActive());
     }
-  }, [drawingShape]);
+  }, [drawingShape, dispatch]);
 
   // useEffect(() => {
   //   if (startDrawing && measureControl) {

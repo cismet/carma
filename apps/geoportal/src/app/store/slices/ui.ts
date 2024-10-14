@@ -1,5 +1,4 @@
 import { createSlice } from "@reduxjs/toolkit";
-import { useSelector } from "react-redux";
 
 import type { PayloadAction } from "@reduxjs/toolkit";
 
@@ -13,54 +12,36 @@ export enum UIMode {
 }
 
 export interface UIState {
+  mode: UIMode;
+
+  activeTabKey: string;
+  allow3d: boolean;
+  allowChanges: boolean;
   showInfo: boolean;
   showInfoText: boolean;
-  activeTabKey: string;
-  mode: UIMode;
   showLayerButtons: boolean;
   showLayerHideButtons: boolean;
-  allowChanges: boolean;
-  allow3d: boolean;
+
 }
 
 const initialState: UIState = {
+  mode: UIMode.DEFAULT,
+
+  activeTabKey: "1",
+  allow3d: true,
+  allowChanges: true,
   showInfo: true,
   showInfoText: true,
-  activeTabKey: "1",
-  mode: UIMode.DEFAULT,
   showLayerButtons: true,
   showLayerHideButtons: false,
-  allowChanges: true,
-  allow3d: true,
 };
 
 const slice = createSlice({
   name: "ui",
   initialState,
   reducers: {
-    setUIShowInfo(state, action) {
-      state.showInfo = action.payload;
-    },
-    setUIShowInfoText(state, action) {
-      state.showInfoText = action.payload;
-    },
-    setUIActiveTabKey(state, action) {
-      state.activeTabKey = action.payload;
-    },
     setUIMode(state, action) {
       state.mode = action.payload;
-    },
-    setUIShowLayerButtons(state, action: PayloadAction<boolean>) {
-      state.showLayerButtons = action.payload;
-    },
-    setUIShowLayerHideButtons(state, action: PayloadAction<boolean>) {
-      state.showLayerHideButtons = action.payload;
-    },
-    setUIAllowChanges(state, action: PayloadAction<boolean>) {
-      state.allowChanges = action.payload;
-    },
-    setUIAllow3d(state, action: PayloadAction<boolean>) {
-      state.allow3d = action.payload;
     },
     toggleUIMode(state, action: PayloadAction<UIMode>) {
       if (state.mode === action.payload) {
@@ -69,40 +50,54 @@ const slice = createSlice({
         state.mode = action.payload;
       }
     },
+
+    setUIActiveTabKey(state, action) {
+      state.activeTabKey = action.payload;
+    },
+    setUIAllow3d(state, action: PayloadAction<boolean>) {
+      state.allow3d = action.payload;
+    },
+    setUIAllowChanges(state, action: PayloadAction<boolean>) {
+      state.allowChanges = action.payload;
+    },
+
+    setUIShowInfo(state, action) {
+      state.showInfo = action.payload;
+    },
+    setUIShowInfoText(state, action) {
+      state.showInfoText = action.payload;
+    },
+    setUIShowLayerButtons(state, action: PayloadAction<boolean>) {
+      state.showLayerButtons = action.payload;
+    },
+    setUIShowLayerHideButtons(state, action: PayloadAction<boolean>) {
+      state.showLayerHideButtons = action.payload;
+    },
   },
 });
 
 export const {
-  setUIActiveTabKey,
-  setUIAllowChanges,
-  setUIAllow3d,
   setUIMode,
+  toggleUIMode,
+
+  setUIActiveTabKey,
+  setUIAllow3d,
+  setUIAllowChanges,
   setUIShowInfo,
   setUIShowInfoText,
   setUIShowLayerButtons,
   setUIShowLayerHideButtons,
-  toggleUIMode,
 } = slice.actions;
 
-const getUIAllow3d = (state: RootState) => state.ui.allow3d;
-const getUIAllowChanges = (state: RootState) => state.ui.allowChanges;
-const getUIActiveTabKey = (state: RootState) => state.ui.activeTabKey;
-const getUIShowInfo = (state: RootState) => state.ui.showInfo;
-const getUIShowInfoText = (state: RootState) => state.ui.showInfoText;
-const getUIShowLayerButtons = (state: RootState) => state.ui.showLayerButtons;
-const getUIShowLayerHideButtons = (state: RootState) =>
+export const getUIMode = (state: RootState) => state.ui.mode;
+
+export const getUIAllow3d = (state: RootState) => state.ui.allow3d;
+export const getUIAllowChanges = (state: RootState) => state.ui.allowChanges;
+export const getUIActiveTabKey = (state: RootState) => state.ui.activeTabKey;
+export const getUIShowInfo = (state: RootState) => state.ui.showInfo;
+export const getUIShowInfoText = (state: RootState) => state.ui.showInfoText;
+export const getUIShowLayerButtons = (state: RootState) => state.ui.showLayerButtons;
+export const getUIShowLayerHideButtons = (state: RootState) =>
   state.ui.showLayerHideButtons;
-const getUIMode = (state: RootState) => state.ui.mode;
 
-// Hook Selectors (Exported with `useUI` Prefix)
-export const useUIAllow3d = () => useSelector(getUIAllow3d);
-export const useUIAllowChanges = () => useSelector(getUIAllowChanges);
-export const useUIActiveTabKey = () => useSelector(getUIActiveTabKey);
-export const useUIShowInfo = () => useSelector(getUIShowInfo);
-export const useUIShowInfoText = () => useSelector(getUIShowInfoText);
-export const useUIShowLayerButtons = () => useSelector(getUIShowLayerButtons);
-export const useUIShowLayerHideButtons = () =>
-  useSelector(getUIShowLayerHideButtons);
-export const useUIMode = () => useSelector(getUIMode);
-
-export default slice;
+export default slice.reducer;

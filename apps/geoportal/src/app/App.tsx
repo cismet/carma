@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 // 3rd party Modules
 import LZString from "lz-string";
 import { ErrorBoundary } from "react-error-boundary";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useSearchParams } from "react-router-dom";
 
 // 1st party Modules
@@ -40,8 +40,8 @@ import {
   setUIShowLayerButtons,
   setUIShowLayerHideButtons,
   UIMode,
-  useUIAllowChanges,
-  useUIMode,
+  getUIAllowChanges,
+  getUIMode,
 } from "./store/slices/ui";
 
 // Side-Effect Imports
@@ -62,12 +62,15 @@ type Config = {
 };
 
 function App({ published }: { published?: boolean }) {
-  const [syncToken, setSyncToken] = useState(null);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const allowUiChanges = useUIAllowChanges();
   const dispatch = useDispatch();
-  const mode = useUIMode();
+ 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const allowUiChanges = useSelector(getUIAllowChanges);
+  const uiMode = useSelector(getUIMode);
   const location = useLocation();
+  
+  const [syncToken, setSyncToken] = useState(null);
+
 
   useEffect(() => {
     console.log(" [GEOPORTAL|ROUTER] App Route changed to:", location.pathname);
@@ -133,7 +136,7 @@ function App({ published }: { published?: boolean }) {
 
   const content = (
     <OverlayTourProvider
-      showOverlay={mode === UIMode.TOUR ? true : false}
+      showOverlay={uiMode === UIMode.TOUR ? true : false}
       closeOverlay={() => dispatch(setUIMode(UIMode.DEFAULT))}
       transparency={backgroundSettings.transparency}
       color={backgroundSettings.color}
