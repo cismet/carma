@@ -197,7 +197,7 @@ export const GeoportalMap = () => {
     });
 
     setIsSameLayerTypes(isSame);
-  }, [layers]);
+  }, [layers, dispatch]);
 
   useEffect(() => {
     // TODO wrap this with 3d component in own component?
@@ -230,6 +230,19 @@ export const GeoportalMap = () => {
       }
     }
     return <div></div>;
+  };
+
+  const onClickTopicMapHandler = (e) => {
+    onClickTopicMap(e, {
+      dispatch,
+      mode: uiMode,
+      setPos,
+      zoom: getLeafletZoom(),
+      layers,
+      vectorInfos,
+      nothingFoundIDs,
+      preferredLayerId,
+    });
   };
 
   console.info("RENDER: [GEOPORTAL] MAP");
@@ -438,18 +451,7 @@ export const GeoportalMap = () => {
                 const newParams = { ...paramsToObject(urlParams), ...location };
                 setUrlParams(newParams);
               }}
-              onclick={(e) =>
-                onClickTopicMap(e, {
-                  dispatch,
-                  mode: uiMode,
-                  setPos,
-                  zoom: getLeafletZoom(),
-                  layers,
-                  vectorInfos,
-                  nothingFoundIDs,
-                  preferredLayerId,
-                })
-              }
+              onclick={onClickTopicMapHandler}
               gazetteerSearchComponent={<></>}
               infoBox={renderInfoBox()}
               zoomSnap={LEAFLET_CONFIG.zoomSnap}

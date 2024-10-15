@@ -44,5 +44,5 @@ export const useDispatchSachdatenInfoText = () => {
     ) {
       dispatch(setInfoText(""));
     }
-  }, [layers, infoText, dispatch]);
+  }, [layers, infoText, zoom, dispatch]);
 };

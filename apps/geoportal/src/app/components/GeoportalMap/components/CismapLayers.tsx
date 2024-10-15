@@ -33,6 +33,7 @@ const CismapLayers = ({
   });
 
   console.log("CismapLayers updated", layersComponent);
+  // todo handle adding pale overlay outside of react-cismap
   return (
     <>
       {focusMode && <PaleOverlay />}

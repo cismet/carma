@@ -11,11 +11,14 @@ import type { Layer } from "@carma-mapping/layers";
 import {
   addNothingFoundID,
   addVectorInfo,
+  clearFeatures,
   clearNothingFoundIDs,
+  clearSecondaryInfoBoxElements,
+  clearSelectedFeature,
   clearVectorInfos,
   removeNothingFoundID,
   setFeatures,
-  setInfoText,
+  setInfoTextToNothingFound,
   setSecondaryInfoBoxElements,
   setSelectedFeature,
   setVectorInfo,
@@ -92,6 +95,11 @@ export const onClickTopicMap = async (
     preferredLayerId,
   }: Options,
 ) => {
+  console.info("onClickTopicMap layers", ...layers );
+  console.info("onClickTopicMap vector", ...vectorInfos);
+  console.info("onClickTopicMap nFndID", ...nothingFoundIDs);
+  console.info("onClickTopicMap prefId", ...preferredLayerId);
+
   const queryableLayers = getQueryableLayers(layers, zoom);
   if (
     mode === UIMode.FEATURE_INFO &&
@@ -100,9 +108,8 @@ export const onClickTopicMap = async (
     if (queryableLayers.find((layer) => layer.layerType === "vector")) {
       setTimeout(() => {}, 100);
     }
-
-    dispatch(setSecondaryInfoBoxElements([]));
-    dispatch(setFeatures([]));
+    dispatch(clearSecondaryInfoBoxElements());
+    dispatch(clearFeatures());
     const pos = proj4(
       proj4.defs("EPSG:4326") as unknown as string,
       proj4crs25832def,
@@ -162,10 +169,10 @@ export const onClickTopicMap = async (
       dispatch(clearNothingFoundIDs());
 
       if (filteredResult.length === 0) {
-        dispatch(setSelectedFeature(null));
-        dispatch(setSecondaryInfoBoxElements([]));
-        dispatch(setFeatures([]));
-        dispatch(setInfoText("Keine Informationen an dieser Stelle gefunden."));
+        dispatch(clearSelectedFeature());
+        dispatch(clearSecondaryInfoBoxElements());
+        dispatch(clearFeatures());
+        dispatch(setInfoTextToNothingFound());
       } else {
         if (preferredLayerId) {
           const preferredLayerIndex = filteredResult.findIndex(
@@ -215,7 +222,19 @@ const onSelectionChangedVector = (
     hits: any[];
     hit: any;
   },
-  { layer, layers, dispatch, setPos, zoom },
+  {
+    dispatch,
+    layer,
+    layers,
+    setPos,
+    zoom,
+  }: {
+    dispatch: Dispatch;
+    layer: Layer;
+    layers: Layer[];
+    setPos: (pos: number[]) => void;
+    zoom: number;
+  },
 ) => {
   if (checkIfLayerIsFirst(layer, layers)) {
     dispatch(clearVectorInfos());
