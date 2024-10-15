@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import { useSelector } from "react-redux";
-
 import { getUIMode, UIMode } from "../store/slices/ui";
 
 export const useFeatureInfoModeCursorStyle = (

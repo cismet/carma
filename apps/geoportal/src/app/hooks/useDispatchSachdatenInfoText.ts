@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { getLayers } from "../store/slices/mapping";
-import { setInfoText, getInfoText } from "../store/slices/features";
+import { getInfoText, setInfoText } from "../store/slices/features";
 import { getAtLeastOneLayerIsQueryable } from "../components/GeoportalMap/utils";
 
 export const useDispatchSachdatenInfoText = () => {
