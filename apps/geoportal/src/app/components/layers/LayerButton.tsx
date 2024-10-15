@@ -154,11 +154,7 @@ const LayerButton = ({
         ref={setNodeRef}
         onClick={(e) => {
           e.stopPropagation();
-<<<<<<< HEAD
           console.log("onClick LayerButton settings clickFromInfoView", showSettings, clickFromInfoView);
-=======
-          console.log("onClick LayerButton seetings clickFromInfoView", showSettings, clickFromInfoView);
->>>>>>> 0961f7dd (fix topnavbar rerender issue with shallow layer equal)
           if (!clickFromInfoView) {
             showSettings ? dispatch(setSelectedLayerIndexNoSelection()) : dispatch(setSelectedLayerIndex(index));
           } else {
