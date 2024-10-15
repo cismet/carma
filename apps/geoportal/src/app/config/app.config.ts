@@ -22,6 +22,6 @@ export const CESIUM_CONFIG: CesiumConfig = {
 };
 
 export const LEAFLET_CONFIG: LeafletConfig = {
-  zoomSnap: 0.5,
-  zoomDelta: 0.5,
+  zoomSnap: 1.0,
+  zoomDelta: 1.0,
 };

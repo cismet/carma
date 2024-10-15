@@ -6,22 +6,18 @@ import {
 
 } from "../../../CesiumContextProvider/slices/cesium";
 
-
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 
-import type { ZoomIncrements } from "types/leaflet-config";
-import useMapTransition from "../../hooks/useMapTransition";
-
+import { useMapTransition } from "../../hooks/useMapTransition";
 
 type Props = {
-  zoomSnap?: ZoomIncrements;
   duration?: number;
   onComplete?: (isTo2D: boolean) => void;
   forceEnabled?: boolean;
   children?: ReactNode;
 };
 
-export const MapTypeSwitcher = ({ zoomSnap = 0.5, onComplete, forceEnabled, duration }: Props) => {
+export const MapTypeSwitcher = ({ onComplete, forceEnabled, duration }: Props) => {
 
   const isMode2d = useViewerIsMode2d();
   const isTransitioning = useViewerIsTransitioning();

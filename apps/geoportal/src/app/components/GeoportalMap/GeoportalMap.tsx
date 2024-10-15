@@ -49,7 +49,7 @@ import {
   useHomeControl,
   useViewerIsMode2d,
   useSceneStyleToggle,
-  useZoomControls,
+  useZoomControls as useZoomControlsCesium,
   useShowPrimaryTileset,
   useViewerModels,
 } from "@carma-mapping/cesium-engine";
@@ -65,6 +65,7 @@ import { useGazData } from "../../hooks/useGazData.ts";
 import { useWindowSize } from "../../hooks/useWindowSize.ts";
 import { useTourRefCollabLabels } from "../../hooks/useTourRefCollabLabels.ts";
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
+import useLeafletZoomControls from "../../hooks/leaflet/useLeafletZoomControls.ts";
 
 import store from "../../store/index.ts";
 import {
@@ -124,7 +125,8 @@ export const GeoportalMap = () => {
   const focusMode = useSelector(getFocusMode);
   const { viewer, terrainProvider, surfaceProvider } = useCesiumContext();
   const homeControl = useHomeControl();
-  const { handleZoomIn, handleZoomOut } = useZoomControls();
+  const { handleZoomIn: handleZoomInCesium, handleZoomOut: handleZoomOutCesium } = useZoomControlsCesium();
+  const { getLeafletZoom, zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
   const toggleSceneStyle = useSceneStyleToggle();
   const showPrimaryTileset = useShowPrimaryTileset();
 
@@ -134,9 +136,6 @@ export const GeoportalMap = () => {
     referenceSystemDefinition,
     maskingPolygon,
   } = useContext<typeof TopicMapContext>(TopicMapContext);
-
-  const leaflelEl = routedMapRef?.leafletMap?.leafletElement;
-  const zoom = leaflelEl?.getZoom();
 
   const [gazetteerHit, setGazetteerHit] = useState(null);
   const [overlayFeature, setOverlayFeature] = useState(null);
@@ -230,24 +229,13 @@ export const GeoportalMap = () => {
       <Control position="topleft" order={10}>
         <div ref={tourRefLabels.zoom} className="flex flex-col">
           <ControlButtonStyler
-            onClick={(e) => {
-              // TODO Check for side effects of this while animating
-              isMode2d &&
-                leaflelEl.setZoom(
-                  Math.round(leaflelEl.getZoom()) + 1, // get nearest zoom as integer base and then do integer increments.
-                );
-              !isMode2d && handleZoomIn(e);
-            }}
+            onClick={isMode2d ? zoomInLeaflet : handleZoomInCesium}
             className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
           >
             <FontAwesomeIcon icon={faPlus} className="text-base" />
           </ControlButtonStyler>
           <ControlButtonStyler
-            onClick={(e) => {
-              isMode2d &&
-                leaflelEl.setZoom(Math.round(leaflelEl.getZoom()) - 1);
-              !isMode2d && handleZoomOut(e);
-            }}
+            onClick={isMode2d ? zoomOutLeaflet : handleZoomOutCesium}
             className="!rounded-t-none !border-t-[1px]"
           >
             <FontAwesomeIcon icon={faMinus} className="text-base" />
@@ -326,9 +314,8 @@ export const GeoportalMap = () => {
                 ref={tourRefLabels.measurement}
               >
                 <img
-                  src={`${getUrlPrefix()}${
-                    isModeMeasurement ? "measure-active.png" : "measure.png"
-                  }`}
+                  src={`${getUrlPrefix()}${isModeMeasurement ? "measure-active.png" : "measure.png"
+                    }`}
                   alt="Measure"
                   className="w-6"
                 />
@@ -340,7 +327,6 @@ export const GeoportalMap = () => {
       {allow3d && (
         <Control position="topleft" order={60}>
           <MapTypeSwitcher
-            zoomSnap={LEAFLET_CONFIG.zoomSnap}
             duration={CESIUM_CONFIG.transitions.mapMode.duration}
             onComplete={(isTo2d: boolean) => {
               dispatch(
@@ -436,7 +422,7 @@ export const GeoportalMap = () => {
                   mode: uiMode,
                   store,
                   setPos,
-                  zoom,
+                  zoom: getLeafletZoom(),
                 })
               }
               gazetteerSearchComponent={<></>}
@@ -466,7 +452,7 @@ export const GeoportalMap = () => {
                 mode: uiMode,
                 dispatch,
                 setPos,
-                zoom,
+                zoom: getLeafletZoom(),
               })}
               {pos && isModeFeatureInfo && layers.length > 0 && (
                 <ExtraMarker

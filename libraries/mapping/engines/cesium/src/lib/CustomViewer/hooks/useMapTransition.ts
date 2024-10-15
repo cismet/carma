@@ -15,6 +15,7 @@ import {
 } from "../../CesiumContextProvider/slices/cesium";
 import {
   cesiumCenterPixelSizeToLeafletZoom,
+  getCameraHeightAboveGround,
   getTopDownCameraDeviationAngle,
   leafletToCesium,
   pickViewerCanvasCenter,
@@ -109,8 +110,12 @@ export const useMapTransition = ({
   };
 
   const transitionToMode2d = () => {
-    if (!viewer || !leaflet) {
-      console.warn("cesium or leaflet not available");
+    if (!leaflet) {
+      console.warn("leaflet not available no transition possible [zoom]");
+      return null;
+    }
+    if (!viewer) {
+      console.warn("cesium not available no transition possible [zoom]");
       return null;
     }
     dispatch(setTransitionTo2d());
@@ -149,11 +154,13 @@ export const useMapTransition = ({
 
     let zoomDiff = 0;
 
-    const { zoomSnap } = leaflet;
+    const { zoomSnap } = leaflet.options;
 
     if (zoomSnap) {
       // Move the cesium camera to the next zoom snap level of leaflet before transitioning
       const currentZoom = cesiumCenterPixelSizeToLeafletZoom(viewer).value;
+      const heightBefore = height;
+      const distanceBefore = distance;
 
       if (currentZoom === null) {
         console.error("could not determine current zoom level");
@@ -167,11 +174,26 @@ export const useMapTransition = ({
             : Math.ceil(intMultiple) * zoomSnap;
         zoomDiff = currentZoom - targetZoom;
         const heightFactor = Math.pow(2, zoomDiff);
-        //const { groundHeight } = getCameraHeightAboveGround(viewer);
+        const { groundHeight } = getCameraHeightAboveGround(viewer);
 
         distance = distance * heightFactor;
-        //height = groundHeight + distance;
+        height = groundHeight + distance;
+
+        console.log(
+          "TRANSITION TO 2D [2D|3D] zoomSnap",
+          zoomSnap,
+          currentZoom,
+          targetZoom,
+          heightFactor,
+          distance,
+          distanceBefore,
+          height,
+          heightBefore,
+          zoomDiff,
+        );
       }
+    } else {
+      console.warn("no zoomSnap applied", leaflet);
     }
 
     const duration = getTopDownCameraDeviationAngle(viewer) * 2 + zoomDiff * 1;
