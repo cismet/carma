@@ -17,6 +17,7 @@ export interface CesiumContextType {
   setViewer: ((viewer: Viewer | null) => void);
   sceneStateRef: MutableRefObject<SceneState | null>;
   subscribeToSceneState: (callback: (state: SceneState) => void) => () => void;
+  notifySceneStateSubscribers: () => void;
   terrainProvider: CesiumTerrainProvider | null;
   surfaceProvider: CesiumTerrainProvider | null;
   //imageryProvider:    | WebMapServiceImageryProvider    | WebMapTileServiceImageryProvider    | null;
@@ -119,22 +120,13 @@ export const CesiumContextProvider = ({
     }
   }, []);
 
-  useSceneStateUpdater({
-    cameraPercentageChanged: 0.002,
-    viewer,
-    sceneStateRef,
-    surfaceProvider,
-    terrainProvider,
-    onSceneStateUpdate: notifySceneStateSubscribers,
-  });
-
-
 
   const values: CesiumContextType = {
     viewer,
     setViewer,
     sceneStateRef,
     subscribeToSceneState,
+    notifySceneStateSubscribers,
     ellipsoidTerrainProvider: new EllipsoidTerrainProvider(),
     terrainProvider,
     surfaceProvider,

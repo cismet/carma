@@ -1,17 +1,19 @@
-import { MutableRefObject, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import {
-  Viewer,
   Cartographic,
   Cartesian2,
   Cartesian3,
-  Math as CesiumMath,
   Matrix4,
   HeadingPitchRoll,
   BoundingSphere,
   defined,
-  TerrainProvider,
   sampleTerrainMostDetailed,
 } from "cesium";
+import {
+  useCesiumContext,
+  useViewerIsAnimating,
+  useViewerIsTransitioning,
+} from "../../CesiumContextProvider";
 
 enum SampledPositions {
   UnderCamera,
@@ -71,21 +73,22 @@ const sampleBoundingSphere = new BoundingSphere(
 
 type SceneStateUpdaterProps = {
   cameraPercentageChanged?: number;
-  viewer: Viewer | null;
-  sceneStateRef: MutableRefObject<SceneState | null>;
-  terrainProvider: TerrainProvider | null;
-  surfaceProvider: TerrainProvider | null;
-  onSceneStateUpdate: () => void;
 };
 
 const useSceneStateUpdater = ({
   cameraPercentageChanged,
-  viewer,
-  sceneStateRef,
-  terrainProvider,
-  surfaceProvider,
-  onSceneStateUpdate,
 }: SceneStateUpdaterProps) => {
+  const {
+    viewer,
+    sceneStateRef,
+    notifySceneStateSubscribers,
+    terrainProvider,
+    surfaceProvider,
+  } = useCesiumContext();
+
+  const isAnimating = useViewerIsAnimating();
+  const isTransitioning = useViewerIsTransitioning();
+
   const frameIndexRef = useRef<number>(0);
   const isUpdatingRef = useRef<boolean>(false);
 
@@ -94,10 +97,11 @@ const useSceneStateUpdater = ({
   useEffect(() => {
     if (!viewer) return;
     const { scene, camera } = viewer;
+    console.log("HOOK: [CESIUM] sceneState Updater changed", sceneStateRef);
     // TODO dynamically add markers and symbolic objects here, or remove them from scene before transition
     const updateSceneState = async () => {
       const sampleHeightSceneObjectsToExclude = [scene.globe.ellipsoid];
-      if (isUpdatingRef.current) return;
+      if (isUpdatingRef.current || isAnimating || isTransitioning) return;
       isUpdatingRef.current = true;
       try {
         const currentTime = Date.now();
@@ -292,8 +296,7 @@ const useSceneStateUpdater = ({
           positions,
           camera: cameraState,
         };
-
-        onSceneStateUpdate();
+        notifySceneStateSubscribers();
       } catch (error) {
         console.error("updateSceneState: error", error);
       } finally {
@@ -311,8 +314,8 @@ const useSceneStateUpdater = ({
     updateSceneState();
 
     return () => {
-      //scene.postUpdate.removeEventListener(listener);
       camera.changed.removeEventListener(listener);
+      console.info("HOOK: [CESIUM] sceneState Updater removed", sceneStateRef);
       if (
         cameraPercentageChanged &&
         originalCameraPercentageChangedRef.current
@@ -324,10 +327,12 @@ const useSceneStateUpdater = ({
   }, [
     viewer,
     sceneStateRef,
+    notifySceneStateSubscribers,
     cameraPercentageChanged,
     surfaceProvider,
     terrainProvider,
-    onSceneStateUpdate,
+    isAnimating,
+    isTransitioning,
   ]);
 };
 

@@ -125,6 +125,7 @@ function CustomViewer(props: CustomViewerProps) {
   const viewerRef = useCallback((node) => {
     if (node !== null) {
       //setComponentStateViewer(node.cesiumElement);
+      console.log("HOOK: [CESIUM] CustomViewer viewerRef set from ResiumViewer", node.cesiumElement);
       setViewer && setViewer(node.cesiumElement);
     }
   }, []);
@@ -134,7 +135,6 @@ function CustomViewer(props: CustomViewerProps) {
   useInitializeViewer(viewer, home, homeOffset, leaflet);
 
   useSceneStateUpdater({ cameraPercentageChanged: 0.002 });
-
 
   useLogCesiumRenderIn2D();
   useTransitionTimeout();
@@ -273,7 +273,7 @@ function CustomViewer(props: CustomViewerProps) {
 
   return (
     <>
-      <ElevationControl show={false} />
+      <ElevationControl show={true} />
       <ResiumViewer
         ref={viewerRef}
         className={className}
