@@ -1,30 +1,40 @@
-import ResponsiveInfoBox from "react-cismap/topicmaps/ResponsiveInfoBox";
-import {
-  getShapes,
-  setActiveShape,
-  getActiveShapes,
-  getVisibleShapes,
-  setShowAll,
-  getUpdateShapeToShape,
-  setUpdateShape,
-  setDeleteAll,
-  getMoveToShape,
-  setMoveToShape,
-  getDrawingShape,
-  setMapMovingEnd,
-  getMapMovingEnd,
-  updateTitle,
-} from "../../store/slices/measurements";
-import { useSelector, useDispatch } from "react-redux";
 import { useState, useEffect, useContext } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTrashCan } from "@fortawesome/free-solid-svg-icons";
-import MeasurementTitle from "./MeasurementTitle";
+
+import ResponsiveInfoBox from "react-cismap/topicmaps/ResponsiveInfoBox";
 import Icon from "react-cismap/commons/Icon";
 import { UIContext } from "react-cismap/contexts/UIContextProvider";
+
+import type { AppDispatch } from "../../store";
+import {
+  getActiveShapes,
+  getDrawingShape,
+  getMapMovingEnd,
+  getMoveToShape,
+  getShapes,
+  getUpdateShapeToShape,
+  getVisibleShapes,
+  setActiveShape,
+  setDeleteAll,
+  setMapMovingEnd,
+  setMoveToShape,
+  setShowAll,
+  setUpdateShape,
+  updateTitle,
+
+} from "../../store/slices/measurements";
+
+import MeasurementTitle from "./MeasurementTitle";
+
 import "../infoBox.css";
 
 const InfoBoxMeasurement = () => {
+  const dispatch: AppDispatch = useDispatch();
+
+  const { collapsedInfoBox } = useContext<typeof UIContext>(UIContext);
+
   const measurementsData = useSelector(getShapes);
   const visibleShapesData = useSelector(getVisibleShapes);
   const activeShape = useSelector(getActiveShapes);
@@ -32,13 +42,14 @@ const InfoBoxMeasurement = () => {
   const updateShape = useSelector(getUpdateShapeToShape);
   const drawingMode = useSelector(getDrawingShape);
   const mapMovingEnd = useSelector(getMapMovingEnd);
-  const dispatch = useDispatch();
+
   const [currentMeasure, setCurrentMeasure] = useState(0);
-  const [oldDataLength, setOldDataLength] = useState(measurementsData.length);
+  const [oldDataLength, setOldDataLength] = useState<number>(
+    measurementsData.length,
+  );
   const [stepAfterMoveToShape, setStepAfterMoveToShape] = useState(null);
   const [stepAfterUpdating, setStepAfterUpdating] = useState(false);
   const [stepAfterCreating, setStepAfterCreating] = useState(false);
-  const { collapsedInfoBox } = useContext(UIContext);
 
   useEffect(() => {
     if (moveToShape) {
@@ -205,8 +216,8 @@ const InfoBoxMeasurement = () => {
                     visibleShapesData[currentMeasure]?.customTitle
                       ? visibleShapesData[currentMeasure]?.customTitle
                       : addDefaultShapeNameToTitle(
-                          visibleShapesData[currentMeasure],
-                        )
+                        visibleShapesData[currentMeasure],
+                      )
                   }
                   shapeId={visibleShapesData[currentMeasure].shapeId}
                   setUpdateMeasurementStatus={setUpdateMeasurementStatus}
