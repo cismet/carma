@@ -24,6 +24,7 @@ import { OverlayTourProvider } from "@carma-commons/ui/lib-helper-overlay";
 import { CesiumContextProvider } from "@carma-mapping/cesium-engine";
 import type { Layer } from "@carma-mapping/layers";
 import type { BackgroundLayer, Settings } from "@carma-apps/portals";
+import { getUISecondaryWithKey, setSecondaryWithKey } from "./store/slices/ui";
 
 // Local Modules
 import AppErrorFallback from "./components/AppErrorFallback";
@@ -72,7 +73,7 @@ type Config = {
 function App({ published }: { published?: boolean }) {
   const dispatch: AppDispatch = useDispatch();
   const tourMode = useSelector(getUIOverlayTourMode);
-
+  const tourAcitiveSecondaryId = useSelector(getUISecondaryWithKey);
   const [searchParams, setSearchParams] = useSearchParams();
   const allowUiChanges = useSelector(getUIAllowChanges);
   const uiMode = useSelector(getUIMode);
@@ -80,8 +81,15 @@ function App({ published }: { published?: boolean }) {
 
   const [syncToken, setSyncToken] = useState(null);
 
+  const setSecondaryWithKeyHandler = (key: string) => {
+    dispatch(setSecondaryWithKey(key));
+  };
+
   useEffect(() => {
-    console.info(" [GEOPORTAL|ROUTER] App Route changed to:", location.pathname);
+    console.info(
+      " [GEOPORTAL|ROUTER] App Route changed to:",
+      location.pathname,
+    );
   }, [location]);
 
   useEffect(() => {
@@ -148,6 +156,8 @@ function App({ published }: { published?: boolean }) {
       closeOverlay={() => dispatch(toggleShowOverlayTour(false))}
       transparency={backgroundSettings.transparency}
       color={backgroundSettings.color}
+      showSecondaryWithKey={setSecondaryWithKeyHandler}
+      openedSecondaryKey={tourAcitiveSecondaryId}
     >
       <TopicMapContextProvider>
         <CesiumContextProvider

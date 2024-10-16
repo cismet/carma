@@ -8,10 +8,6 @@ export const useOverlayHelper = (options: OptionsOverlayHelper) => {
     options.primary;
   let secondary: Secondary | undefined = undefined;
 
-  // options.primary;
-  // options.primary;
-  console.log("xxx use overlay", options);
-
   if (options.secondary) {
     secondary = options.secondary;
   }

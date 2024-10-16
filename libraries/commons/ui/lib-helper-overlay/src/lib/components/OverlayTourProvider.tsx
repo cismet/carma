@@ -20,6 +20,8 @@ export const OverlayTourProvider = ({
   },
   transparency = 0.8,
   color = "black",
+  showSecondaryWithKey = () => {},
+  openedSecondaryKey,
 }: OverlayTourProviderProps) => {
   const [configs, setConfigs] = useState<OverlayHelperConfig[]>([]);
 
@@ -40,6 +42,8 @@ export const OverlayTourProvider = ({
           closeOverlay={closeOverlay}
           transparency={transparency}
           color={color}
+          showSecondaryWithKey={showSecondaryWithKey}
+          openedSecondaryKey={openedSecondaryKey}
         />
       )}
     </OverlayTourContext.Provider>

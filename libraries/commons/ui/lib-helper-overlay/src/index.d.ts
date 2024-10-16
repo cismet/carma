@@ -3,6 +3,8 @@ export type OverlayHelperHightlighterProps = {
   closeOverlay: () => void;
   transparency?: number;
   color?: string;
+  showSecondaryWithKey: (key: string) => void;
+  openedSecondaryKey: string | null;
 };
 
 export type OverlayTourAction = (arg: OverlayHelperConfig) => void;
@@ -95,6 +97,8 @@ export type OverlayTourProviderProps = {
   closeOverlay: () => void;
   transparency?: number;
   color?: string;
+  showSecondaryWithKey: (key: string) => void;
+  openedSecondaryKey: string | null;
 };
 
 export type GeoElementType = {

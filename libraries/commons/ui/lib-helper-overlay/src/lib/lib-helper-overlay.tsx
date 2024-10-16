@@ -1,18 +1,27 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, cloneElement } from "react";
 import { OverlayHelperHightlighterProps, HighlightRect } from "..";
 import { getContainerPosition, getElementPosition } from "./utils/helper";
 import { Popover } from "antd";
+import { key } from "localforage";
 
 export function LibHelperOverlay({
   configs,
   closeOverlay,
   transparency = 0.8,
   color = "black",
+  showSecondaryWithKey,
+  openedSecondaryKey,
 }: OverlayHelperHightlighterProps) {
   const [hightlightRects, setHightlightRects] = useState<HighlightRect[]>([]);
+  const showSecondaryByIdHelper = (key: string) => {
+    if (openedSecondaryKey) {
+      return openedSecondaryKey === key;
+    } else {
+      return false;
+    }
+  };
   useEffect(() => {
     configs.forEach((currentItem) => {
-      console.log("xxx lib overlay", currentItem);
       const {
         key,
         el,
@@ -48,7 +57,12 @@ export function LibHelperOverlay({
   }, [configs]);
 
   const handleMessageClick = (e) => {
+    console.log("xxx handleMessageClick");
     e.stopPropagation();
+  };
+
+  const handlePrimaryClick = (key: string) => {
+    showSecondaryWithKey(key);
   };
 
   return (
@@ -67,6 +81,7 @@ export function LibHelperOverlay({
       {hightlightRects.map((config, idx) => {
         const {
           rect,
+          key,
           content,
           pos,
           contPos,
@@ -95,6 +110,7 @@ export function LibHelperOverlay({
             }
           >
             <span
+              onClick={() => handlePrimaryClick(key)}
               style={{
                 position: "absolute",
                 width: contentWidth === "default" ? "auto" : contentWidth,
@@ -103,11 +119,18 @@ export function LibHelperOverlay({
             >
               {secondary ? (
                 <Popover
-                  content={secondary}
-                  trigger="click"
+                  content={
+                    secondary && typeof secondary !== "string" ? (
+                      cloneElement(secondary, {
+                        showSecondaryWithKey: showSecondaryWithKey,
+                      })
+                    ) : (
+                      <div>{secondary}</div>
+                    )
+                  }
+                  open={showSecondaryByIdHelper(key)}
                   arrow={true}
                   placement={secondaryPos}
-                  // overlayStyle={{ marginLeft: "10px" }}
                   autoAdjustOverflow={true}
                 >
                   <span

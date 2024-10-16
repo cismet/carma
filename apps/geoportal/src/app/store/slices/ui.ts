@@ -22,7 +22,7 @@ export interface UIState {
   showLayerButtons: boolean;
   showLayerHideButtons: boolean;
   showOverlayTour: boolean;
-  showSecondaryByKey: null | string;
+  showSecondaryWithKey: null | string;
 }
 
 const initialState: UIState = {
@@ -35,7 +35,7 @@ const initialState: UIState = {
   showInfoText: true,
   showLayerButtons: true,
   showLayerHideButtons: false,
-  showSecondaryByKey: null,
+  showSecondaryWithKey: null,
 };
 
 const slice = createSlice({
@@ -78,8 +78,8 @@ const slice = createSlice({
     toggleShowOverlayTour(state, action: PayloadAction<boolean>) {
       state.showOverlayTour = action.payload;
     },
-    setSecondaryId(state, action: PayloadAction<string | null>) {
-      state.showSecondaryByKey = action.payload;
+    setSecondaryWithKey(state, action: PayloadAction<string | null>) {
+      state.showSecondaryWithKey = action.payload;
     },
   },
 });
@@ -96,7 +96,7 @@ export const {
   setUIShowLayerButtons,
   setUIShowLayerHideButtons,
   toggleShowOverlayTour,
-  setSecondaryId,
+  setSecondaryWithKey,
 } = slice.actions;
 
 export const getUIMode = (state: RootState) => state.ui.mode;
@@ -112,7 +112,7 @@ export const getUIShowLayerHideButtons = (state: RootState) =>
   state.ui.showLayerHideButtons;
 export const getUIOverlayTourMode = (state: RootState) =>
   state.ui.showOverlayTour;
-export const getUISecondaryId = (state: RootState) =>
-  state.ui.showSecondaryByKey;
+export const getUISecondaryWithKey = (state: RootState) =>
+  state.ui.showSecondaryWithKey;
 
 export default slice.reducer;
