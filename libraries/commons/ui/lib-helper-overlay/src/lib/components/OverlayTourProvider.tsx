@@ -15,9 +15,7 @@ export const OverlayTourContext = createContext<OverlayTourContextSettings>({
 export const OverlayTourProvider = ({
   children,
   showOverlay = false,
-  closeOverlay = () => {
-    console.log("close callback");
-  },
+  closeOverlay = () => {},
   transparency = 0.8,
   color = "black",
   showSecondaryWithKey = () => {},

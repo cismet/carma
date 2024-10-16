@@ -2,7 +2,6 @@ import React, { useEffect, useState, cloneElement } from "react";
 import { OverlayHelperHightlighterProps, HighlightRect } from "..";
 import { getContainerPosition, getElementPosition } from "./utils/helper";
 import { Popover } from "antd";
-import { key } from "localforage";
 
 export function LibHelperOverlay({
   configs,
@@ -57,12 +56,7 @@ export function LibHelperOverlay({
   }, [configs]);
 
   const handleMessageClick = (e) => {
-    console.log("xxx handleMessageClick");
     e.stopPropagation();
-  };
-
-  const handlePrimaryClick = (key: string) => {
-    showSecondaryWithKey(key);
   };
 
   return (
@@ -110,7 +104,7 @@ export function LibHelperOverlay({
             }
           >
             <span
-              onClick={() => handlePrimaryClick(key)}
+              onClick={() => showSecondaryWithKey(key)}
               style={{
                 position: "absolute",
                 width: contentWidth === "default" ? "auto" : contentWidth,
