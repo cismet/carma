@@ -230,7 +230,7 @@ const MapMeasurement = (props) => {
 
       measureControl.changeMeasurementsArr(measurementShapes);
     }
-  }, [visiblePolylines, measurementShapes, measureControl, dispatch]);
+  }, [visiblePolylines, measurementShapes]);
 
   useEffect(() => {
     if (drawingShape) {
@@ -239,7 +239,7 @@ const MapMeasurement = (props) => {
     } else {
       dispatch(setLastVisibleShapeActive());
     }
-  }, [drawingShape, dispatch]);
+  }, [drawingShape]);
 
   // useEffect(() => {
   //   if (startDrawing && measureControl) {
