@@ -12,7 +12,6 @@ import {
   GroundPrimitive,
   Matrix4,
   Primitive,
-  Scene,
   Viewer,
   Math as CeMath,
   BoundingSphere,
@@ -22,7 +21,6 @@ import {
   PerspectiveFrustum,
   PerspectiveOffCenterFrustum,
 } from "cesium";
-import type { Map as LeafletMap } from "leaflet";
 
 import {
   ColorRgbaArray,
@@ -31,7 +29,6 @@ import {
   NumericResult,
   TilesetConfig,
 } from "../..";
-import { on } from "events";
 
 export type {
   ColorRgbaArray,
@@ -653,7 +650,7 @@ const sampleRingPixelSize = (
   return avg;
 };
 
-const getScenePixelSize = (
+export const getScenePixelSize = (
   viewer: Viewer,
   mode = PICKMODE.CENTER,
   { samples = 10, radius = 0.2 }: { samples?: number; radius?: number } = {}, // radius for unit screen coordinates, should be less than 0.5 with center at 0.5,0.5
@@ -718,123 +715,4 @@ export const cesiumCenterPixelSizeToLeafletZoom = (
   }
 
   return { value: zoom };
-};
-
-// WEB MAPS TO CESIUM
-
-export const leafletToCesium = (
-  viewer: Viewer,
-  leaflet: LeafletMap,
-  { cause, onComplete }: { cause?: string; onComplete?: Function } = {},
-) => {
-  const { lat, lng } = leaflet.getCenter();
-  const zoom = leaflet.getZoom();
-  leafletToCesiumCamera(viewer, { lat, lng, zoom }, { cause, onComplete });
-};
-
-export const leafletToCesiumCamera = (
-  viewer: Viewer,
-  { lat, lng, zoom }: { lat: number; lng: number; zoom: number },
-  {
-    epsilon = 0.5,
-    limit = 5,
-    cause = "not specified",
-    onComplete,
-  }: {
-    epsilon?: number;
-    limit?: number;
-    cause?: string;
-    onComplete?: Function;
-  } = {},
-) => {
-  const lngRad = CeMath.toRadians(lng);
-  const latRad = CeMath.toRadians(lat);
-
-  const targetPixelResolution = getPixelResolutionFromZoomAtLatitude(
-    zoom,
-    latRad,
-  );
-
-  const viewerDim = Math.min(
-    viewer.canvas.clientWidth,
-    viewer.canvas.clientHeight,
-  );
-  const baseHeight = viewerDim * targetPixelResolution;
-
-  let currentPixelResolution = getScenePixelSize(viewer).value;
-
-  if (currentPixelResolution === null) {
-    console.warn("No pixel size found for camera position");
-    return false;
-  }
-
-  const { camera } = viewer;
-
-  let targetHeight = camera.positionCartographic.height;
-
-  if (targetHeight > 50000) {
-    console.warn(
-      "zoom request viewer height too high, applying base height",
-      baseHeight,
-      targetHeight,
-    );
-    targetHeight = 200 + baseHeight;
-  }
-  if (targetHeight < 200) {
-    console.warn("targetHeight too low setting to min height", 200);
-    targetHeight = 200;
-  }
-
-  console.info(
-    `L2C [2D3D|CESIUM|CAMERA] cause: ${cause} lat: ${lat} lng: ${lng} z: ${zoom} px: ${targetPixelResolution} dpr: ${window.devicePixelRatio}, resScale: ${viewer.resolutionScale} heights[base,target]:`,
-    baseHeight,
-    targetHeight,
-  );
-
-  camera.setView({
-    destination: Cartesian3.fromRadians(lngRad, latRad, targetHeight),
-  });
-
-  // Get the ground position directly under the camera
-
-  const cameraPositionAtStart = camera.position.clone();
-  let { cameraHeightAboveGround, groundHeight } =
-    getCameraHeightAboveGround(viewer);
-  const maxIterations = limit;
-  let iterations = 0;
-
-  // Iterative adjustment to match the target resolution
-  while (Math.abs(currentPixelResolution - targetPixelResolution) > epsilon) {
-    if (iterations >= maxIterations) {
-      console.warn(
-        "Maximum height finding iterations reached with no result, restoring last Cesium camera position.",
-      );
-      console.log(
-        "L2C [2D3D] iterate",
-        iterations,
-        targetHeight,
-        cameraPositionAtStart,
-      );
-      camera.setView({ destination: cameraPositionAtStart });
-      return false;
-    }
-    const adjustmentFactor = targetPixelResolution / currentPixelResolution;
-    cameraHeightAboveGround *= adjustmentFactor;
-    const newCameraHeight = cameraHeightAboveGround + groundHeight;
-
-    console.log("L2C [2D3D|CESIUM|CAMERA] setview", iterations, targetHeight, newCameraHeight);
-    camera.setView({
-      destination: Cartesian3.fromRadians(lngRad, latRad, newCameraHeight),
-    });
-    const newResolution = getScenePixelSize(viewer).value;
-    if (newResolution === null) {
-      return false;
-    }
-    currentPixelResolution = newResolution;
-    iterations++;
-  }
-  viewer.scene.requestRender();
-  //console.log('zoom iterations', iterations);
-  onComplete && onComplete();
-  return true; // Return true if camera position found within max iterations
 };

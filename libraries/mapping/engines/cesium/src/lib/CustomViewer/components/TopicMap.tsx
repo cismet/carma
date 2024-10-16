@@ -1,3 +1,5 @@
+// DEPRECATED only used for testing in playground, customviewer should be handle by a common parent managing the the Topicmap View
+
 import { useEffect, useRef } from "react";
 
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
@@ -7,7 +9,6 @@ import {
   useShowPrimaryTileset,
   useViewerIsMode2d,
 } from "../../CesiumContextProvider/slices/cesium";
-import { leafletToCesiumCamera } from "../../utils";
 import { useCesiumContext } from "../../CesiumContextProvider";
 
 // TODO sync this setting across app
@@ -41,21 +42,6 @@ export const TopicMap = ({ forceShow = false } = {}) => {
     }
     return;
   }, []);
-
-  const handleLeafletLocationChange = (event: {
-    lat: number;
-    lng: number;
-    zoom: number;
-  }) => {
-    console.log("handleLeafletLocationChange", event, isFocused.current);
-    if (!isFocused.current) {
-      return;
-    }
-    if (viewer) {
-      // TODO Not needed with only leaflet visible, reenable for split/transparent view
-      //leafletToCesiumCamera(viewer, event, {cause: "Leaflet location Change"});
-    }
-  };
 
   const primaryLayerRef = useRef<any>(null);
   const secondaryLayerRef = useRef<any>(null);
@@ -91,7 +77,7 @@ export const TopicMap = ({ forceShow = false } = {}) => {
         fullScreenControlEnabled={false}
         zoomSnap={0.5} // TODO fix zoom snapping in TopicMap Component
         zoomDelta={0.5}
-        locationChangedHandler={handleLeafletLocationChange}
+        //locationChangedHandler={handleLeafletLocationChange}
         //zoomControls={true}
         //fullScreenControl={false}
       >

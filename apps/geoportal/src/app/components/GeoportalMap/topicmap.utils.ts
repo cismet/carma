@@ -129,7 +129,7 @@ export const onClickTopicMap = async (
     const nothingFoundIDsWithoutInvisibleLayers = [...new Set(nothingFoundIDs)]
       .map((id) => {
         const foundLayer = layers.find((layer) => layer.id === id);
-        if (foundLayer.visible) {
+        if (foundLayer?.visible) {
           return id;
         } else {
           return undefined;
