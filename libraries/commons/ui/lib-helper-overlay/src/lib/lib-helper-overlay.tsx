@@ -14,6 +14,7 @@ export function LibHelperOverlay({
     configs.forEach((currentItem) => {
       console.log("xxx lib overlay", currentItem);
       const {
+        key,
         el,
         content,
         containerPos = "center",
@@ -29,6 +30,7 @@ export function LibHelperOverlay({
       setHightlightRects((prev) => [
         ...prev,
         {
+          key,
           rect: rect ? rect : null,
           content,
           pos,
