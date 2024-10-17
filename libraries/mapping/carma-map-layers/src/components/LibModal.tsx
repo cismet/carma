@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { faX } from "@fortawesome/free-solid-svg-icons";
+import { faStar, faX } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useDebounce } from "@uidotdev/usehooks";
 import { Button, Input, Modal, Spin } from "antd";
@@ -23,6 +23,7 @@ import "./modal.css";
 import type { Item, Layer, SavedLayerConfig } from "../helper/types";
 import { isEqual } from "lodash";
 import { utils } from "@carma-apps/portals";
+import { SimpleText } from "./SidebarItems";
 const { Search } = Input;
 
 // @ts-expect-error tbd
@@ -47,6 +48,14 @@ export interface LibModalProps {
   updateActiveLayer: (layer: Layer) => void;
   removeLastLayer?: () => void;
 }
+
+const sidebarElements = [
+  { icon: faStar, text: "Favoriten" },
+  { icon: faStar, text: "Entdecken" },
+  { icon: faStar, text: "Teilzwillinge" },
+  { icon: faStar, text: "Kartenebenen" },
+  { icon: faStar, text: "Sensoren" },
+];
 
 export const LibModal = ({
   open,
@@ -387,40 +396,49 @@ export const LibModal = ({
               <FontAwesomeIcon icon={faX} />
             </Button>
           </div>
-          {layers && layers.length > 0 && (
-            <>
-              <LayerTabs
-                layers={layers}
-                activeId={inViewCategory}
-                numberOfItems={getNumberOfLayers(layers)}
-              />
-              <hr className="h-px bg-gray-300 border-0 mt-0 mb-2" />
-            </>
-          )}
-        </div>
-        {!showItems && open && (
-          <div className="h-full w-full flex items-center justify-center">
-            <div className="grid xl:grid-cols-5 lg:grid-cols-4 sm:grid-cols-2 w-full gap-8 mb-4 px-6 pt-4">
-              {[...Array(10)].map((_, i) => (
-                <div
-                  key={i}
-                  className="bg-white rounded-lg shadow-sm h-80 w-full flex flex-col gap-2 animate-pulse"
-                >
-                  <div className="h-40 p-2 w-full bg-slate-200 rounded-t-lg"></div>
-                  <div className="h-2 bg-slate-200 rounded mx-8 w-1/3"></div>
-                  <div className="h-20 bg-slate-200 rounded mx-8"></div>
-                  <div className="mx-8 flex items-center gap-2">
-                    <div className="h-2 bg-slate-200 rounded w-full"></div>
-                    <span className="text-slate-200"> · </span>
-                    <div className="h-2 bg-slate-200 rounded w-full"></div>
-                  </div>
-                </div>
-              ))}
-            </div>
+          <div className="flex w-full gap-2">
+            <div className="w-60 h-full"></div>
+            {layers && layers.length > 0 && (
+              <>
+                <LayerTabs
+                  layers={layers}
+                  activeId={inViewCategory}
+                  numberOfItems={getNumberOfLayers(layers)}
+                />
+                <hr className="h-px bg-gray-300 border-0 mt-0 mb-2" />
+              </>
+            )}
           </div>
-        )}
-        <div className="overflow-auto pt-0.5">
-          <div className="px-6">
+        </div>
+        <div className="flex w-full gap-2 h-full overflow-auto pt-0.5 px-6">
+          <div className="w-60 h-60  flex flex-col gap-1">
+            {sidebarElements.map((element) => {
+              return <SimpleText text={element.text} />;
+            })}
+          </div>
+          {!showItems && open && (
+            <div className="h-full w-full flex items-center justify-center">
+              <div className="grid xl:grid-cols-5 lg:grid-cols-4 sm:grid-cols-2 w-full gap-8 mb-4 px-6 pt-4">
+                {[...Array(10)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="bg-white rounded-lg shadow-sm h-80 w-full flex flex-col gap-2 animate-pulse"
+                  >
+                    <div className="h-40 p-2 w-full bg-slate-200 rounded-t-lg"></div>
+                    <div className="h-2 bg-slate-200 rounded mx-8 w-1/3"></div>
+                    <div className="h-20 bg-slate-200 rounded mx-8"></div>
+                    <div className="mx-8 flex items-center gap-2">
+                      <div className="h-2 bg-slate-200 rounded w-full"></div>
+                      <span className="text-slate-200"> · </span>
+                      <div className="h-2 bg-slate-200 rounded w-full"></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div>
             {showItems &&
               layers.map((category, i) => (
                 <div key={category.Title}>
