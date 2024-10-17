@@ -9,8 +9,7 @@ import {
   WUPP_TERRAIN_PROVIDER,
   WUPPERTAL,
 } from "@carma-commons/resources";
-import { CesiumState } from "@carma-mapping/cesium-engine";
-import { colorToArray } from "@carma-mapping/cesium-engine/utils";
+import { CesiumState, colorToArray } from "@carma-mapping/cesium-engine";
 
 import { MODEL_ASSETS } from "./assets.config";
 

@@ -1,5 +1,4 @@
 import React, {
-    createContext,
     useRef,
     useEffect,
     useState,
@@ -8,12 +7,7 @@ import type { ReactNode } from 'react';
 import { Pane } from 'tweakpane';
 import localForage from 'localforage';
 import { hasHashParam, removeHashParam } from '../utils';
-import TweakpaneContext from './TweakpaneContext';
-
-interface TweakpaneContextType {
-    //isEnabled: boolean;
-    paneRef: React.RefObject<Pane | null>;
-}
+import { TweakpaneContext } from './TweakpaneContext';
 
 const eventKeys = ['~', 'F12']; //
 const localForageKey = 'tweakpaneEnabled';

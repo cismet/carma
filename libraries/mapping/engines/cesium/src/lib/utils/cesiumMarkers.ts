@@ -6,7 +6,7 @@ import {
   Viewer,
   Model,
   Cartographic,
-  Math as CeMath,
+  Math as CesiumMath,
   Material,
   Color,
   PolylineCollection,
@@ -235,7 +235,7 @@ const updateMarker = (viewer: Viewer, entityData: EntityData) => {
         const cameraHeading = viewer.camera.heading;
         const rotationQuaternion = Quaternion.fromAxisAngle(
           Cartesian3.UNIT_Z,
-          -cameraHeading - CeMath.PI_OVER_TWO,
+          -cameraHeading - CesiumMath.PI_OVER_TWO,
         );
         const rotationMatrix = Matrix4.fromTranslationQuaternionRotationScale(
           translation,

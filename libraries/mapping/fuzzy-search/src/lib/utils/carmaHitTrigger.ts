@@ -30,7 +30,7 @@ import {
   polygonHierarchyFromPolygonCoords,
   removeCesiumMarker,
   removeGroundPrimitiveById,
-} from "@carma-mapping/cesium-engine/utils";
+} from "@carma-mapping/cesium-engine";
 
 import { PROJ4_CONVERTERS } from "./geo";
 

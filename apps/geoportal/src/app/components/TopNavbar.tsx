@@ -20,7 +20,7 @@ import { Save, utils } from "@carma-apps/portals";
 import { useOverlayHelper } from "@carma-commons/ui/lib-helper-overlay";
 import {
   useSceneStyleToggle,
-  useViewerIsMode2d,
+  selectViewerIsMode2d,
 } from "@carma-mapping/cesium-engine";
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
@@ -89,7 +89,7 @@ const TopNavbar = () => {
   const showLayerButtons = useSelector(getUIShowLayerButtons);
   const toggleSceneStyle = useSceneStyleToggle();
 
-  const isMode2d = useViewerIsMode2d();
+  const isMode2d = useSelector(selectViewerIsMode2d);
   const baseUrl = window.location.origin + window.location.pathname;
   const handleToggleTour = () => {
     dispatch(toggleShowOverlayTour(!tourMode));

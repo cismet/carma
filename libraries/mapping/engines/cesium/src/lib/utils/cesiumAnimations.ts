@@ -2,7 +2,7 @@ import {
   Viewer,
   Cartesian3,
   Matrix4,
-  Math as CeMath,
+  Math as CesiumMath,
   HeadingPitchRange,
   EasingFunction,
 } from "cesium";
@@ -61,11 +61,11 @@ export function animateInterpolateHeadingPitchRange(
     //console.log('animate', duration, elapsed, t, frameIndex);
 
     // Interpolate heading and pitch over time
-    const currentHeading = CeMath.lerp(initialHeading, heading, easing(t));
-    const currentPitch = CeMath.lerp(initialPitch, pitch, easing(t));
+    const currentHeading = CesiumMath.lerp(initialHeading, heading, easing(t));
+    const currentPitch = CesiumMath.lerp(initialPitch, pitch, easing(t));
     const currentRange = useCurrentDistance
       ? initialRange
-      : CeMath.lerp(initialRange, range, easing(t));
+      : CesiumMath.lerp(initialRange, range, easing(t));
 
     const orientation = new HeadingPitchRange(
       currentHeading,

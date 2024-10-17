@@ -13,7 +13,7 @@ import {
   Matrix4,
   Primitive,
   Viewer,
-  Math as CeMath,
+  Math as CesiumMath,
   BoundingSphere,
   Rectangle,
   OrthographicFrustum,
@@ -77,8 +77,8 @@ export function getModelMatrix(config: TilesetConfig, heightOffset = 0) {
 
 export const getDegreesFromCartographic = (cartographic: Cartographic) => {
   return {
-    longitude: CeMath.toDegrees(cartographic.longitude),
-    latitude: CeMath.toDegrees(cartographic.latitude),
+    longitude: CesiumMath.toDegrees(cartographic.longitude),
+    latitude: CesiumMath.toDegrees(cartographic.latitude),
     height: cartographic.height,
   };
 };
@@ -87,8 +87,8 @@ export const getDegreesFromCartographic = (cartographic: Cartographic) => {
 export const logTileSetInfoOnReady = (tileset: Cesium3DTileset) => {
   const { center } = tileset.root.boundingSphere;
   const cartographic = Cartographic.fromCartesian(center);
-  const longitude = CeMath.toDegrees(cartographic.longitude);
-  const latitude = CeMath.toDegrees(cartographic.latitude);
+  const longitude = CesiumMath.toDegrees(cartographic.longitude);
+  const latitude = CesiumMath.toDegrees(cartographic.latitude);
   const height = cartographic.height;
 
   console.log(
@@ -114,8 +114,8 @@ export const colorToArray = (color: Color): ColorRgbaArray => {
 export const getTileSetInfo = (tileset: Cesium3DTileset) => {
   const { center } = tileset.root.boundingSphere;
   const cartographic = Cartographic.fromCartesian(center);
-  const longitude = CeMath.toDegrees(cartographic.longitude);
-  const latitude = CeMath.toDegrees(cartographic.latitude);
+  const longitude = CesiumMath.toDegrees(cartographic.longitude);
+  const latitude = CesiumMath.toDegrees(cartographic.latitude);
   const height = cartographic.height;
   console.log(
     `Longitude: ${longitude}, Latitude: ${latitude}, Height: ${height}, center: ${center}, ${tileset.basePath}}`,
@@ -145,8 +145,8 @@ const TOP_DOWN_DIRECTION = new Cartesian3(0, 0, -1);
 export const cameraToCartographicDegrees = (camera: Camera) => {
   const { latitude, longitude, height } = camera.positionCartographic.clone();
   return {
-    latitude: CeMath.toDegrees(latitude),
-    longitude: CeMath.toDegrees(longitude),
+    latitude: CesiumMath.toDegrees(latitude),
+    longitude: CesiumMath.toDegrees(longitude),
     height,
   };
 };
@@ -401,8 +401,8 @@ export const getViewerViewportPolygonRing = (
     (result) => {
       if (result && result.coordinates) {
         return [
-          CeMath.toDegrees(result.coordinates.latitude),
-          CeMath.toDegrees(result.coordinates.longitude),
+          CesiumMath.toDegrees(result.coordinates.latitude),
+          CesiumMath.toDegrees(result.coordinates.longitude),
         ];
       } else {
         //console.warn('No valid mappingg', result);
@@ -488,7 +488,7 @@ export const extentDegreesToRectangle = (extent: {
 }) => {
   const { west, east, north, south } = extent;
   const wsen = [west, south, east, north];
-  const wsenRad = wsen.map((x) => CeMath.toRadians(x));
+  const wsenRad = wsen.map((x) => CesiumMath.toRadians(x));
   return new Rectangle(...wsenRad);
 };
 
@@ -498,7 +498,7 @@ export const rectangleToExtentDegrees = ({
   east,
   north,
 }: Rectangle) => {
-  const wsen = [west, south, east, north].map((x) => CeMath.toDegrees(x));
+  const wsen = [west, south, east, north].map((x) => CesiumMath.toDegrees(x));
   return {
     west: wsen[0],
     south: wsen[1],
@@ -523,7 +523,7 @@ export const EARTH_RADIUS_KM = EARTH_RADIUS / 1000;
 export const DEFAULT_LEAFLET_TILESIZE = 256;
 
 const WEB_MERCATOR_MAX_LATITUDE = 85.051129;
-export const WEB_MERCATOR_MAX_LATITUDE_RAD = CeMath.toRadians(
+export const WEB_MERCATOR_MAX_LATITUDE_RAD = CesiumMath.toRadians(
   WEB_MERCATOR_MAX_LATITUDE,
 );
 
@@ -600,7 +600,7 @@ export const generateRingFromDegrees = (
   };
 
   for (let i = 0; i < samples; i++) {
-    const angle = (CeMath.TWO_PI * i) / samples;
+    const angle = (CesiumMath.TWO_PI * i) / samples;
     const dx = radiusInMeters * Math.cos(angle);
     const dy = radiusInMeters * Math.sin(angle);
     const point = {
