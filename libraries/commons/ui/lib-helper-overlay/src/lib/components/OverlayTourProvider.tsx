@@ -10,6 +10,8 @@ export const OverlayTourContext = createContext<OverlayTourContextSettings>({
   configs: [],
   addConfig: (arg) => {},
   removeConfig: (arg) => {},
+  showSecondaryWithKey: null,
+  setSecondaryWithKey: (key) => {},
 });
 
 export const OverlayTourProvider = ({
@@ -18,10 +20,11 @@ export const OverlayTourProvider = ({
   closeOverlay = () => {},
   transparency = 0.8,
   color = "black",
-  showSecondaryWithKey = () => {},
-  openedSecondaryKey,
-}: OverlayTourProviderProps) => {
+}: // showSecondaryWithKey = () => {},
+// openedSecondaryKey,
+OverlayTourProviderProps) => {
   const [configs, setConfigs] = useState<OverlayHelperConfig[]>([]);
+  const [secondaryKey, setSecondaryKey] = useState<null | string>(null);
 
   const addConfig = (config) => {
     setConfigs((prevConfigs) => [...prevConfigs, config]);
@@ -31,8 +34,20 @@ export const OverlayTourProvider = ({
     setConfigs((prevConfigs) => prevConfigs.filter((c) => c !== config));
   };
 
+  const setSecondaryKeyHandler = (key: string) => {
+    setSecondaryKey(key);
+  };
+
   return (
-    <OverlayTourContext.Provider value={{ configs, addConfig, removeConfig }}>
+    <OverlayTourContext.Provider
+      value={{
+        configs,
+        addConfig,
+        removeConfig,
+        showSecondaryWithKey: secondaryKey,
+        setSecondaryWithKey: setSecondaryKeyHandler,
+      }}
+    >
       {children}
       {showOverlay && (
         <LibHelperOverlay
@@ -40,8 +55,8 @@ export const OverlayTourProvider = ({
           closeOverlay={closeOverlay}
           transparency={transparency}
           color={color}
-          showSecondaryWithKey={showSecondaryWithKey}
-          openedSecondaryKey={openedSecondaryKey}
+          showSecondaryWithKey={setSecondaryKeyHandler}
+          openedSecondaryKey={secondaryKey}
         />
       )}
     </OverlayTourContext.Provider>

@@ -13,6 +13,8 @@ export type OverlayTourContext = {
   configs: OverlayHelperConfig[];
   addConfig: OverlayTourAction;
   removeConfig: OverlayTourAction;
+  showSecondaryWithKey: null | string;
+  setSecondaryWithKey: (key: string) => void;
 };
 
 export type PositionOverlayHelper =
@@ -97,8 +99,8 @@ export type OverlayTourProviderProps = {
   closeOverlay: () => void;
   transparency?: number;
   color?: string;
-  showSecondaryWithKey: (key: string) => void;
-  openedSecondaryKey: string | null;
+  // showSecondaryWithKey: (key: string) => void;
+  // openedSecondaryKey: string | null;
 };
 
 export type GeoElementType = {

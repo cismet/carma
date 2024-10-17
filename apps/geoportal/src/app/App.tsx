@@ -156,8 +156,8 @@ function App({ published }: { published?: boolean }) {
       closeOverlay={() => dispatch(toggleShowOverlayTour(false))}
       transparency={backgroundSettings.transparency}
       color={backgroundSettings.color}
-      showSecondaryWithKey={setSecondaryWithKeyHandler}
-      openedSecondaryKey={tourAcitiveSecondaryId}
+      // showSecondaryWithKey={setSecondaryWithKeyHandler}
+      // openedSecondaryKey={tourAcitiveSecondaryId}
     >
       <TopicMapContextProvider>
         <CesiumContextProvider
