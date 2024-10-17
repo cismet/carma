@@ -44,14 +44,14 @@ import {
   CustomViewer,
   MapTypeSwitcher,
   Compass,
-  useCesiumContext,
+  selectShowPrimaryTileset,
+  selectViewerIsMode2d,
+  selectViewerModels,
   setIsMode2d,
+  useCesiumContext,
   useHomeControl,
-  useViewerIsMode2d,
   useSceneStyleToggle,
   useZoomControls as useZoomControlsCesium,
-  useShowPrimaryTileset,
-  useViewerModels,
 } from "@carma-mapping/cesium-engine";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 
@@ -122,8 +122,8 @@ export const GeoportalMap = () => {
   // State and Selectors
   const allow3d = useSelector(getUIAllow3d);
   const backgroundLayer = useSelector(getBackgroundLayer);
-  const isMode2d = useViewerIsMode2d();
-  const models = useViewerModels();
+  const isMode2d = useSelector(selectViewerIsMode2d);
+  const models = useSelector(selectViewerModels);
   const markerAsset = models[CESIUM_CONFIG.markerKey]; //
   const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;
   const layers = useSelector(getLayers);
@@ -145,8 +145,7 @@ export const GeoportalMap = () => {
   const { getLeafletZoom, zoomInLeaflet, zoomOutLeaflet } =
     useLeafletZoomControls();
   const toggleSceneStyle = useSceneStyleToggle();
-  const showPrimaryTileset = useShowPrimaryTileset();
-
+  const showPrimaryTileset = useSelector(selectShowPrimaryTileset);
   const infoBoxOverlay = addCssToOverlayHelperItem(
     getCollabedHelpElementsConfig("INFOBOX", geoElements),
     "350px",

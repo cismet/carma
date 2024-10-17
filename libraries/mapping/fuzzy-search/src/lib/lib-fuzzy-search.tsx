@@ -9,8 +9,7 @@ import type { BaseSelectRef } from "rc-select";
 import { builtInGazetteerHitTrigger } from "react-cismap/tools/gazetteerHelper";
 import IconComp from "react-cismap/commons/Icon";
 
-import type { EntityData } from "@carma-mapping/cesium-engine";
-import { removeCesiumMarker, removeGroundPrimitiveById } from "@carma-mapping/cesium-engine/utils";
+import { EntityData, removeCesiumMarker, removeGroundPrimitiveById} from "@carma-mapping/cesium-engine";
 
 import { carmaHitTrigger } from "./utils/carmaHitTrigger";
 import {

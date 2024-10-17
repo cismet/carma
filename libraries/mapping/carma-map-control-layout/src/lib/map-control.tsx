@@ -2,7 +2,6 @@ import React, { ReactNode, useRef, useState, useEffect } from "react";
 import Control, { ControlProps } from "./components/Control";
 import styles from "./map-control.module.css";
 import Main from "./components/Main";
-import { set } from "lodash";
 
 export interface ControlLayoutProps {
   children: ReactNode;

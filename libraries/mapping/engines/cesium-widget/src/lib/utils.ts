@@ -1,4 +1,4 @@
-import { Cartographic, Math as CeMath } from "cesium";
+import { Cartographic, Math as CesiumMath } from "cesium";
 
 import type { LatLngRadians, LatLngRecord } from "types/common-geo";
 
@@ -21,7 +21,7 @@ export const generateRingFromDegrees = (
   };
 
   for (let i = 0; i < samples; i++) {
-    const angle = (CeMath.TWO_PI * i) / samples;
+    const angle = (CesiumMath.TWO_PI * i) / samples;
     const dx = radiusInMeters * Math.cos(angle);
     const dy = radiusInMeters * Math.sin(angle);
     const point = {

@@ -1,4 +1,3 @@
-import { pickFromClampedGeojson } from "../../utils";
 import {
   Color,
   ColorMaterialProperty,
@@ -9,6 +8,9 @@ import {
   Viewer,
 } from "cesium";
 import { useEffect, useRef } from "react";
+
+import { pickFromClampedGeojson } from "../../utils/cesiumHelpers";
+
 const restoreMaterial = (
   entity: Entity,
   originalMaterials: Map<Entity, MaterialProperty>,

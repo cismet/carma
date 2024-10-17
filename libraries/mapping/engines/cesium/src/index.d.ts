@@ -1,7 +1,7 @@
 // TODO consolidate with rest of libs
 
 import { Color, TerrainProvider } from "cesium";
-import { hashcodecs } from "./lib/CustomViewer/utils";
+import { hashcodecs } from "./lib/utils/hashHelpers";
 
 type Translation = {
   x: number;

@@ -16,7 +16,7 @@ import {
   Quaternion,
   Transforms,
   VerticalOrigin,
-  Math as CeMath,
+  Math as CesiumMath,
 } from "cesium";
 import { Marker3dData, MarkerData } from "../..";
 
@@ -156,7 +156,7 @@ export const MarkerContainer: FC<MarkerContainerProps> = ({
                 const cameraHeading = viewer.camera.heading;
                 const rotationQuaternion = Quaternion.fromAxisAngle(
                   Cartesian3.UNIT_Z,
-                  -cameraHeading - CeMath.PI_OVER_TWO,
+                  -cameraHeading - CesiumMath.PI_OVER_TWO,
                 );
                 const rotationMatrix =
                   Matrix4.fromTranslationQuaternionRotationScale(
