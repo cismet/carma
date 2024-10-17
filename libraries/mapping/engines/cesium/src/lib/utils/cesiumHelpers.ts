@@ -822,7 +822,7 @@ export const leafletToCesiumCamera = (
     cameraHeightAboveGround *= adjustmentFactor;
     const newCameraHeight = cameraHeightAboveGround + groundHeight;
 
-    console.log("L2C [2D3D|CESIUM|CAMERA] setview", iterations, targetHeight, newCameraHeight);
+    console.info("L2C [2D3D|CESIUM|CAMERA] setview", iterations, targetHeight, newCameraHeight);
     camera.setView({
       destination: Cartesian3.fromRadians(lngRad, latRad, newCameraHeight),
     });

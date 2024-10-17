@@ -9,16 +9,9 @@ import { useTweakpaneCtx } from "@carma-commons/debug";
 
 import { useCesiumContext } from "../../../CesiumContextProvider";
 import { getPositionWithHeightAsync } from '../../../utils/positions';
+import { SceneState } from "../../hooks/useSceneStateUpdater";
+
 import "./elevation-control.css";
-
-const getNewPosition = (posCarto: Cartographic, newHeight: number): Cartesian3 => {
-    return Cartesian3.fromRadians(
-        posCarto.longitude,
-        posCarto.latitude,
-        newHeight,
-    );
-}
-
 
 interface ElevationControlProps {
     displayHeight: number;
@@ -77,7 +70,8 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
 
     const [maxDisplayHeight, setMaxDisplayHeight] = useState<number>(10000); // Adjust as needed
     const controlRef = useRef<HTMLDivElement>(null);
-    const { viewer } = useCesiumContext();
+    const { viewer, subscribeToSceneState } = useCesiumContext();
+    const [sceneState, setSceneState] = useState<SceneState | null>(null);
     const [alwaysShow, setAlwaysShow] = useState(false);
     const [clamp, setClamp] = useState(useClampedHeight);
     const [eventOption, setEventOption] = useState(updateEvent);
@@ -95,6 +89,15 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
         clamped: null,
     });
 
+    useEffect(() => {
+        const handleSceneStateUpdate = (newState: SceneState) => {
+            setSceneState(newState);
+        };
+        const unsubscribe = subscribeToSceneState(handleSceneStateUpdate);
+        return () => {
+            unsubscribe();
+        };
+    }, [subscribeToSceneState]);
 
     useTweakpaneCtx({ title: "Elevation UI" }, {
         get alwaysShow() {
@@ -253,7 +256,6 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
         maxDisplayHeight,
     ]);
 
-
     console.info("RENDER: [CESIUM] ElevationControl", alwaysShow, show);
 
     const onChangeHandler = (e: ChangeEvent<HTMLInputElement>) => {
@@ -264,9 +266,10 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
             (!viewer.scene.screenSpaceCameraController.enableCollisionDetection || newValue >= (terrainHeight + viewer.scene.screenSpaceCameraController.minimumZoomDistance * 0.5))) {
 
             window.requestAnimationFrame(() => {
-                const newPosition = getNewPosition(viewer.camera.positionCartographic, newValue);
+                const newCameraPosition = viewer.camera.positionCartographic.clone();
+                newCameraPosition.height = newValue;
                 viewer.camera.setView({
-                    destination: newPosition,
+                    destination: Cartographic.toCartesian(newCameraPosition),
                     orientation: {
                         heading: viewer.camera.heading,
                         pitch: viewer.camera.pitch,
@@ -279,195 +282,224 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
         }
     };
 
+    console.log("RENDER: sceneState", sceneState);
+
     return ((alwaysShow || show)) && (
-
-        <div // Backdrop
-            ref={controlRef}
-            style={{
-                position: "absolute",
-                right: "15px",
-                top: "50%",
-                transform: "translateY(-50%)",
-                width: "100px",
-                height: `${displayHeight}px`,
-                border: "1px solid black",
-                backgroundColor: "rgba(255,255,255,0.8)",
-                zIndex: 10,
-                padding: "0",
-                boxSizing: "border-box",
-                pointerEvents: "none",
-            }}
-        >
-            <caption style={{
-                position: "relative",
-                marginTop: "-1.75rem",
-                padding: "0.25rem",
-                lineHeight: "1rem",
-                float: "right",
-                textWrap: "nowrap",
-                color: "black",
-                backgroundColor: "rgba(255,255,255,0.8)",
-            }}>
-                Höhe der Kamera
-            </caption>
-            {viewer?.scene.screenSpaceCameraController.enableCollisionDetection && <div
+        <>
+            {sceneState && <div
+                style={{
+                    backgroundColor: "rgba(255,255,255,0.8)",
+                    position: "absolute",
+                    right: "120px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    width: "300px",
+                    height: `${displayHeight}px`,
+                    zIndex: 10,
+                }}
+            >
+                i: {sceneState.frameIndex}<br />
+                px: {sceneState.pixelSize}<br />
+                pX: {sceneState.pixelSizeComputed?.x}<br />
+                pY: {sceneState.pixelSizeComputed?.y}<br />
+                distance: {sceneState.distances?.toCenter}<br />
+                Camera:<br />
+                camHeight: {sceneState.camera.positionCartographic.height}<br />
+                sampleHeight: {sceneState.positions.underCamera.height.height}<br />
+                sampleHeightMD: {sceneState.positions.underCamera.heightMostDetailed?.height}<br />
+                relHeight: {sceneState.camera.positionCartographic.height - (sceneState.positions.underCamera.heightMostDetailed?.height ?? sceneState.positions.underCamera.height.height)}<br />
+                hMD: {sceneState.positions.underCamera.heightMostDetailed?.height}<br />
+                terrain: {sceneState.positions.underCamera.terrainMostDetailed?.height}<br />
+                surface: {sceneState.positions.underCamera.surfaceMostDetailed?.height}<br />
+            </div>}
+            <div // Backdrop
+                ref={controlRef}
                 style={{
                     position: "absolute",
-                    bottom: `${displayY.camera.min}px`,
-                    left: "0px",
-                    right: "0px",
-                    height: "0px",
-                    borderBottomWidth: "1px",
-                    borderBottomStyle: "dotted",
-                    borderBottomColor: "orange",
-                    transition: "bottom 0.1s",
+                    right: "15px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    width: "100px",
+                    height: `${displayHeight}px`,
+                    border: "1px solid black",
+                    backgroundColor: "rgba(255,255,255,0.8)",
+                    zIndex: 10,
+                    padding: "0",
+                    boxSizing: "border-box",
+                    pointerEvents: "none",
+                }}
+            >
+                <div style={{
+                    position: "relative",
+                    marginTop: "-1.75rem",
+                    padding: "0.25rem",
+                    lineHeight: "1rem",
+                    float: "right",
+                    textWrap: "nowrap",
+                    color: "black",
+                    backgroundColor: "rgba(255,255,255,0.8)",
+                }}>
+                    Höhe der Kamera
+                </div>
+                {viewer?.scene.screenSpaceCameraController.enableCollisionDetection && <div
+                    style={{
+                        position: "absolute",
+                        bottom: `${displayY.camera.min}px`,
+                        left: "0px",
+                        right: "0px",
+                        height: "0px",
+                        borderBottomWidth: "1px",
+                        borderBottomStyle: "dotted",
+                        borderBottomColor: "orange",
+                        transition: "bottom 0.1s",
 
-                }}
-                title={`Minimale Kamera Höhe`}
-            />}
+                    }}
+                    title={`Minimale Kamera Höhe`}
+                />}
 
-            {/* Axis */}
-            <div
-                style={{
-                    position: "absolute",
-                    left: "50%",
-                    top: "0",
-                    bottom: "0",
-                    width: "1px",
-                    backgroundColor: "black",
-                    opacity: "0.5",
-                    transform: "translateX(-50%)",
-                }}
-            />
-            {/* Camera Height input */}
-            <input
-                type="range"
-                min={Math.floor(ellipsoidHeight)}
-                max={Math.floor(maxDisplayHeight)}
-                value={cameraHeight}
-                onChange={onChangeHandler}
-                step={0.2}
-                style={{
-                    pointerEvents: "auto",
-                    height: "100%",
-                    writingMode: "vertical-lr",
-                    direction: "rtl",
-                    verticalAlign: "middle",
-                    cursor: "ns-resize",
-                }}
-                title={`Kamera Höhe`}
-            ></input>
-            <label style={{
-                position: "absolute",
-                bottom: `${displayY.camera.height}px`,
-                fontVariantNumeric: "tabular-nums",
-                left: "0.5rem",
-                height: "1.5rem",
-                overflow: "visible",
-                textWrap: "nowrap",
-                transition: "bottom 0.1s",
-            }} >{cameraHeightFmt}</label>
-            {/* Surface marker */}
-            {clamp && displayY.clamped && displayY.terrain && <div
-                style={{
-                    position: "absolute",
-                    bottom: `${displayY.terrain}px`,
-                    left: "50%",
-                    right: "0",
-                    height: `${displayY.clamped - displayY.terrain}px`,
-                    backgroundColor: "fuchsia",
-                    opacity: 0.4,
-                    transform: "translateX(0%)",
-                    transition: "bottom 0.1s, height 0.1s",
-                }}
-                title={`Normalisierte Gelände Höhe`}
-            />}
-            {/* Terrain marker */}
-            <div
-                style={{
-                    position: "absolute",
-                    bottom: "0",
-                    left: "0",
-                    right: "0",
-                    height: `${displayY.terrain}px`,
-                    backgroundColor: "grey",
-                    opacity: 0.8,
-                    transform: "translateX(0%)",
-                    transition: "height 0.1s",
-
-                }}
-                title={`Terrain Höhe`}
-            />
-            <div style={{
-                position: "absolute",
-                bottom: `${displayY.camera.relativeToTerrain}px`,
-                fontVariantNumeric: "tabular-nums",
-                left: "0",
-                right: "0",
-                textAlign: "center",
-                overflow: "visible",
-                textWrap: "nowrap",
-                transform: "translate(-25%,50%) rotate(-90deg)",
-                transition: "bottom 0.1s",
-            }} >←{cameraRelHeightFmt}→</div>
-            {clamp && <div style={{
-                position: "absolute",
-                bottom: `${displayY.camera.relativeToClamped}px`,
-                fontVariantNumeric: "tabular-nums",
-                left: "0",
-                right: "0",
-                textAlign: "center",
-                overflow: "visible",
-                textWrap: "nowrap",
-                transform: "translate(25%,50%) rotate(-90deg)",
-                transition: "bottom 0.1s",
-            }} >←{cameraRelClampedHeightFmt}→</div>}
-            {/* Terrain Label */}
-            {displayY.terrain && <div style={{
-                position: "absolute",
-                bottom: `${displayY.terrain - 20}px`,
-                color: "black",
-                fontVariantNumeric: "tabular-nums",
-                left: "0.25rem",
-                height: "1.5rem",
-                transition: "bottom 0.1s",
-            }} >{terrainHeightFmt}</div>}
-            {clamp && <div style={{
-                position: "absolute",
-                bottom: `${displayY.terrain}px`,
-                color: "black",
-                fontVariantNumeric: "tabular-nums",
-                right: "0.25rem",
-                height: "1.5rem",
-                transition: "bottom 0.1s",
-            }} >{clampedRelHeightFmt}</div>}
-            <div style={{
-                position: "absolute",
-                bottom: "0",
-                fontVariantNumeric: "tabular-nums",
-                left: "0.25rem",
-                height: "1.5rem",
-                overflow: "visible",
-                textWrap: "nowrap",
-                pointerEvents: "auto",
-                userSelect: "none",
-            }} >{ellipsoidHeight}m <abbr title="Höhe über Ellipsoid">H.ü.E.</abbr></div>
-
-            {/* Cam marker */}
-            <div
-                style={{
+                {/* Axis */}
+                <div
+                    style={{
+                        position: "absolute",
+                        left: "50%",
+                        top: "0",
+                        bottom: "0",
+                        width: "1px",
+                        backgroundColor: "black",
+                        opacity: "0.5",
+                        transform: "translateX(-50%)",
+                    }}
+                />
+                {/* Camera Height input */}
+                <input
+                    type="range"
+                    min={Math.floor(ellipsoidHeight)}
+                    max={Math.floor(maxDisplayHeight)}
+                    value={cameraHeight}
+                    onChange={onChangeHandler}
+                    step={0.2}
+                    style={{
+                        pointerEvents: "auto",
+                        height: "100%",
+                        writingMode: "vertical-lr",
+                        direction: "rtl",
+                        verticalAlign: "middle",
+                        cursor: "ns-resize",
+                    }}
+                    title={`Kamera Höhe`}
+                ></input>
+                <label style={{
                     position: "absolute",
                     bottom: `${displayY.camera.height}px`,
-                    left: "0px",
-                    right: "0px",
-                    borderBottomWidth: "2px",
-                    borderBottomStyle: "solid",
-                    borderBottomColor: "#666",
+                    fontVariantNumeric: "tabular-nums",
+                    left: "0.5rem",
+                    height: "1.5rem",
+                    overflow: "visible",
+                    textWrap: "nowrap",
                     transition: "bottom 0.1s",
-                }}
-                title={`Kamera Höhe`}
-            />
-        </div>
+                }} >{cameraHeightFmt}</label>
+                {/* Surface marker */}
+                {clamp && displayY.clamped && displayY.terrain && <div
+                    style={{
+                        position: "absolute",
+                        bottom: `${displayY.terrain}px`,
+                        left: "50%",
+                        right: "0",
+                        height: `${displayY.clamped - displayY.terrain}px`,
+                        backgroundColor: "fuchsia",
+                        opacity: 0.4,
+                        transform: "translateX(0%)",
+                        transition: "bottom 0.1s, height 0.1s",
+                    }}
+                    title={`Normalisierte Gelände Höhe`}
+                />}
+                {/* Terrain marker */}
+                <div
+                    style={{
+                        position: "absolute",
+                        bottom: "0",
+                        left: "0",
+                        right: "0",
+                        height: `${displayY.terrain}px`,
+                        backgroundColor: "grey",
+                        opacity: 0.8,
+                        transform: "translateX(0%)",
+                        transition: "height 0.1s",
+
+                    }}
+                    title={`Terrain Höhe`}
+                />
+                <div style={{
+                    position: "absolute",
+                    bottom: `${displayY.camera.relativeToTerrain}px`,
+                    fontVariantNumeric: "tabular-nums",
+                    left: "0",
+                    right: "0",
+                    textAlign: "center",
+                    overflow: "visible",
+                    textWrap: "nowrap",
+                    transform: "translate(-25%,50%) rotate(-90deg)",
+                    transition: "bottom 0.1s",
+                }} >←{cameraRelHeightFmt}→</div>
+                {clamp && <div style={{
+                    position: "absolute",
+                    bottom: `${displayY.camera.relativeToClamped}px`,
+                    fontVariantNumeric: "tabular-nums",
+                    left: "0",
+                    right: "0",
+                    textAlign: "center",
+                    overflow: "visible",
+                    textWrap: "nowrap",
+                    transform: "translate(25%,50%) rotate(-90deg)",
+                    transition: "bottom 0.1s",
+                }} >←{cameraRelClampedHeightFmt}→</div>}
+                {/* Terrain Label */}
+                {displayY.terrain && <div style={{
+                    position: "absolute",
+                    bottom: `${displayY.terrain - 20}px`,
+                    color: "black",
+                    fontVariantNumeric: "tabular-nums",
+                    left: "0.25rem",
+                    height: "1.5rem",
+                    transition: "bottom 0.1s",
+                }} >{terrainHeightFmt}</div>}
+                {clamp && <div style={{
+                    position: "absolute",
+                    bottom: `${displayY.terrain}px`,
+                    color: "black",
+                    fontVariantNumeric: "tabular-nums",
+                    right: "0.25rem",
+                    height: "1.5rem",
+                    transition: "bottom 0.1s",
+                }} >{clampedRelHeightFmt}</div>}
+                <div style={{
+                    position: "absolute",
+                    bottom: "0",
+                    fontVariantNumeric: "tabular-nums",
+                    left: "0.25rem",
+                    height: "1.5rem",
+                    overflow: "visible",
+                    textWrap: "nowrap",
+                    pointerEvents: "auto",
+                    userSelect: "none",
+                }} >{ellipsoidHeight}m <abbr title="Höhe über Ellipsoid">H.ü.E.</abbr></div>
+
+                {/* Cam marker */}
+                <div
+                    style={{
+                        position: "absolute",
+                        bottom: `${displayY.camera.height}px`,
+                        left: "0px",
+                        right: "0px",
+                        borderBottomWidth: "2px",
+                        borderBottomStyle: "solid",
+                        borderBottomColor: "#666",
+                        transition: "bottom 0.1s",
+                    }}
+                    title={`Kamera Höhe`}
+                />
+            </div>
+        </>
     );
 }
 

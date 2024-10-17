@@ -1,5 +1,5 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import type { ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import type { MutableRefObject, ReactNode } from "react";
 
 import {
   CesiumTerrainProvider,
@@ -10,10 +10,14 @@ import {
   Viewer,
   Cesium3DTileset,
 } from "cesium";
+import useSceneStateUpdater, { SceneState } from "../CustomViewer/hooks/useSceneStateUpdater";
 
 export interface CesiumContextType {
   viewer: Viewer | null;
   setViewer: ((viewer: Viewer | null) => void);
+  sceneStateRef: MutableRefObject<SceneState | null>;
+  subscribeToSceneState: (callback: (state: SceneState) => void) => () => void;
+  notifySceneStateSubscribers: () => void;
   terrainProvider: CesiumTerrainProvider | null;
   surfaceProvider: CesiumTerrainProvider | null;
   //imageryProvider:    | WebMapServiceImageryProvider    | WebMapTileServiceImageryProvider    | null;
@@ -59,6 +63,8 @@ export const CesiumContextProvider = ({
 }) => {
 
   const [viewer, setViewer] = useState<Viewer | null>(null);
+  const sceneStateRef = useRef<SceneState | null>(null);
+  const sceneStateSubscribersRef = useRef<Set<(state: SceneState) => void>>(new Set());
   const [primaryTileset, setPrimaryTileset] = useState<Cesium3DTileset | null>(null);
   const [secondaryTileset, setSecondaryTileset] = useState<Cesium3DTileset | null>(null);
   const [terrainProvider, setTerrainProvider] = useState<CesiumTerrainProvider | null>(null);
@@ -91,9 +97,36 @@ export const CesiumContextProvider = ({
     })();
   }, [providerConfig.surfaceProvider]);
 
+
+  // 2. Define the subscription function
+  const subscribeToSceneState = useCallback((callback: (state: SceneState) => void) => {
+    sceneStateSubscribersRef.current.add(callback);
+    // If there's an existing state, immediately invoke the callback
+    if (sceneStateRef.current) {
+      callback(sceneStateRef.current);
+    }
+    // Return an unsubscribe function
+    return () => {
+      sceneStateSubscribersRef.current.delete(callback);
+    };
+  }, []);
+
+  const notifySceneStateSubscribers = useCallback(() => {
+    if (sceneStateRef.current) {
+      console.log("Notifying subscribers with:", sceneStateRef.current);
+      sceneStateSubscribersRef.current.forEach(callback => callback(sceneStateRef.current!));
+    } else {
+      console.log("sceneStateRef is null, not notifying subscribers");
+    }
+  }, []);
+
+
   const values: CesiumContextType = {
     viewer,
     setViewer,
+    sceneStateRef,
+    subscribeToSceneState,
+    notifySceneStateSubscribers,
     ellipsoidTerrainProvider: new EllipsoidTerrainProvider(),
     terrainProvider,
     surfaceProvider,

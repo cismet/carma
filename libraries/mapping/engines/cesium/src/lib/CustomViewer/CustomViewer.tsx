@@ -37,6 +37,7 @@ import useCameraRollSoftLimiter from './hooks/useCameraRollSoftLimiter';
 import useCameraPitchEasingLimiter from "./hooks/useCameraPitchEasingLimiter";
 import useCameraPitchSoftLimiter from "./hooks/useCameraPitchSoftLimiter";
 import ElevationControl from "./components/controls/ElevationControl";
+import useSceneStateUpdater from "./hooks/useSceneStateUpdater";
 
 
 type CustomViewerProps = {
@@ -124,6 +125,7 @@ function CustomViewer(props: CustomViewerProps) {
   const viewerRef = useCallback((node) => {
     if (node !== null) {
       //setComponentStateViewer(node.cesiumElement);
+      console.log("HOOK: [CESIUM] CustomViewer viewerRef set from ResiumViewer", node.cesiumElement);
       setViewer && setViewer(node.cesiumElement);
     }
   }, []);
@@ -131,6 +133,8 @@ function CustomViewer(props: CustomViewerProps) {
   const location = useLocation();
 
   useInitializeViewer(viewer, home, homeOffset, leaflet);
+
+  useSceneStateUpdater({ cameraPercentageChanged: 0.002 });
 
   useLogCesiumRenderIn2D();
   useTransitionTimeout();
@@ -241,7 +245,7 @@ function CustomViewer(props: CustomViewerProps) {
   useEffect(() => {
     // update hash hook
     if (viewer) {
-      console.log("HOOK: [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to update hash");
+      console.info("HOOK: [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to update hash");
       const moveEndListener = async () => {
         // let TopicMap/leaflet handle the view change in 2d Mode
         if (viewer.camera.position && !isMode2d && enableLocationHashUpdate) {
@@ -269,7 +273,7 @@ function CustomViewer(props: CustomViewerProps) {
 
   return (
     <>
-      <ElevationControl show={false} />
+      <ElevationControl show={true} />
       <ResiumViewer
         ref={viewerRef}
         className={className}
