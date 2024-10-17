@@ -116,7 +116,7 @@ export function LibHelperOverlay({
                   content={
                     secondary && typeof secondary !== "string" ? (
                       cloneElement(secondary, {
-                        showSecondaryWithKey: showSecondaryWithKey,
+                        setSecondaryWithKey: showSecondaryWithKey,
                       })
                     ) : (
                       <div>{secondary}</div>
