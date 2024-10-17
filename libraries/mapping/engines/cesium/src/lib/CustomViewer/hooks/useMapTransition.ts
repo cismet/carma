@@ -1,11 +1,13 @@
 import { useContext, useState } from "react";
-import { Cartesian3, defined, HeadingPitchRange } from "cesium";
 import { useDispatch } from "react-redux";
+
+import { Cartesian3, defined, HeadingPitchRange } from "cesium";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import type { CameraPositionAndOrientation } from "../../../index";
 
+import { useCesiumContext } from "../../CesiumContextProvider";
 import {
   setIsMode2d,
   setTransitionTo2d,
@@ -17,12 +19,11 @@ import {
   cesiumCenterPixelSizeToLeafletZoom,
   getCameraHeightAboveGround,
   getTopDownCameraDeviationAngle,
-  leafletToCesium,
   pickViewerCanvasCenter,
 } from "../../utils";
-
-import { useCesiumContext } from "../../CesiumContextProvider";
 import { animateInterpolateHeadingPitchRange } from "../../utils/cesiumAnimations";
+import { leafletToCesium } from "../../utils/leafletToCesium";
+
 import { setLeafletView } from "../utils";
 
 type TransitionOptions = {
@@ -103,7 +104,7 @@ export const useMapTransition = ({
       }
     };
 
-    leafletToCesium(viewer, leaflet, {
+    leafletToCesium(leaflet, viewer, {
       cause: "SwitchMapMode to 3d",
       onComplete: () => setTimeout(onCompleteAnimatedTo3d, 100),
     });
