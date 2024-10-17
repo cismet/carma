@@ -160,8 +160,7 @@ export const useMapTransition = ({
     let zoomDiff = 0;
 
     const { zoomSnap } = leaflet.options;
-    const { zoomSnap } = leaflet.options;
-
+ 
     if (zoomSnap) {
       // Move the cesium camera to the next zoom snap level of leaflet before transitioning
       const currentZoom = cesiumCenterPixelSizeToLeafletZoom(viewer).value;
