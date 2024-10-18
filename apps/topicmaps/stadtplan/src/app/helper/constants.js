@@ -28,7 +28,7 @@ export const crossLinkApps = [
     name: "Kita-Finder",
     bsStyle: "success",
     backgroundColor: null,
-    link: "https://wunda-geoportal.cismet.de/#/kitas",
+    link: "https://digital-twin-wuppertal-live.github.io/kita-finder/",
     target: "_kitas",
   },
   {
