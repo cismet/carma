@@ -1,6 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   faBook,
+  faChevronCircleLeft,
+  faChevronCircleRight,
+  faChevronRight,
   faList,
   faMapPin,
   faX,
@@ -28,7 +31,13 @@ import "./modal.css";
 import type { Item, Layer, SavedLayerConfig } from "../helper/types";
 import { isEqual } from "lodash";
 import { utils } from "@carma-apps/portals";
-import { SimpleText, TextWithIcon, TextWithIconVertical } from "./SidebarItems";
+import {
+  SidebarItem,
+  SidebarItemVertical,
+  SimpleText,
+  TextWithIcon,
+  TextWithIconVertical,
+} from "./SidebarItems";
 import { faMap, faStar } from "@fortawesome/free-regular-svg-icons";
 const { Search } = Input;
 
@@ -90,6 +99,7 @@ export const LibModal = ({
   const [tmpCustomCategories, setTmpCustomCategories] = useState<
     any[] | undefined
   >([]);
+  const [expanded, setExpanded] = useState(false);
   const debouncedSearchTerm = useDebounce(searchValue, 300);
 
   // const checkDifferences = (url, configName) => {
@@ -362,24 +372,41 @@ export const LibModal = ({
         }}
       >
         <div
-          className="w-24 h-full flex gap-2 items-center flex-col bg-gray-600"
+          className={`${
+            expanded ? "w-36" : "w-36"
+          } h-full flex justify-between items-center flex-col pb-3 bg-gray-600`}
           style={{ height: "calc(100vh - 188px)" }}
         >
-          <div className="h-24"></div>
-          {sidebarElements.map((element, i) => {
-            return (
-              <div
-                className={`w-full ${
-                  i === 1 && "bg-[#f2f2f2]"
-                } ml-6 rounded-l-md py-3 flex items-center`}
-              >
-                <FontAwesomeIcon
-                  className="w-9 h-9 pl-3 text-gray-400"
+          <div className="flex flex-col w-full items-center gap-2">
+            <div className="h-24"></div>
+            {sidebarElements.map((element, i) => {
+              return (
+                // <SidebarItem
+                //   icon={element.icon}
+                //   text={element.text}
+                //   active={i === 1}
+                //   expanded={expanded}
+                // />
+
+                <SidebarItemVertical
                   icon={element.icon}
+                  text={element.text}
+                  active={i === 1}
                 />
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+          {/* <div
+            className={`w-full flex ${
+              expanded ? "justify-start ml-[52px]" : "justify-center"
+            }`}
+          >
+            <FontAwesomeIcon
+              className="w-8 h-8 text-gray-400"
+              icon={expanded ? faChevronCircleLeft : faChevronCircleRight}
+              onClick={() => setExpanded(!expanded)}
+            />
+          </div> */}
         </div>
 
         <div
@@ -431,7 +458,7 @@ export const LibModal = ({
               </Button>
             </div>
             <div className="flex w-full gap-2">
-              {/* <div className="w-[164px] h-full"></div> */}
+              {/* <div className="w-[256px] h-full"></div> */}
               {layers && layers.length > 0 && (
                 <>
                   <LayerTabs
