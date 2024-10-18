@@ -1,4 +1,4 @@
-import { colorToArray } from './lib/utils/cesiumHelpers';
+import { colorToArray } from "./lib/utils/cesiumHelpers";
 export * from "./lib/slices/cesium";
 
 export {
@@ -30,7 +30,8 @@ export { CUSTOM_SHADERS_DEFINITIONS } from "./lib/shaders";
 
 export {
   colorToArray,
-  pickViewerCanvasCenter } from "./lib/utils/cesiumHelpers";
+  pickViewerCanvasCenter,
+} from "./lib/utils/cesiumHelpers";
 export {
   invertedPolygonHierarchy,
   polygonHierarchyFromPolygonCoords,

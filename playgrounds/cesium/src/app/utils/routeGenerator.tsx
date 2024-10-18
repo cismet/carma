@@ -1,7 +1,7 @@
-import { Route } from 'react-router-dom';
-import { RouteDescriptor } from '../routes';
-import { Fragment, useEffect } from 'react';
-import { APP_DEFAULT_SHORT_TITLE, APP_DEFAULT_TITLE } from '../config';
+import { Route } from "react-router-dom";
+import { RouteDescriptor } from "../routes";
+import { Fragment, useEffect } from "react";
+import { APP_DEFAULT_SHORT_TITLE, APP_DEFAULT_TITLE } from "../config";
 
 const DocumentTitle: React.FC<{ title: string }> = ({ title }) => {
   useEffect(() => {
@@ -39,6 +39,6 @@ export function routeGenerator(routes: RouteDescriptor[]) {
           </>
         }
       />
-    )
+    ),
   );
 }

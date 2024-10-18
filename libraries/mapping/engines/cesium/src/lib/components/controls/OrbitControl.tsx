@@ -1,4 +1,10 @@
-import { type ReactNode, type MouseEvent, useCallback, useEffect, useRef } from "react";
+import {
+  type ReactNode,
+  type MouseEvent,
+  useCallback,
+  useEffect,
+  useRef,
+} from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { Cartesian3, Color, Matrix4, Transforms, Viewer } from "cesium";

@@ -1,10 +1,7 @@
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import {
-  clearTransition,
-  selectViewerIsTransitioning,
-} from "../slices/cesium";
+import { clearTransition, selectViewerIsTransitioning } from "../slices/cesium";
 
 const DEFAULT_TIMEOUT = 4000;
 

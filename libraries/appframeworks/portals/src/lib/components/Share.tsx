@@ -10,11 +10,11 @@ import { generateRandomString } from "@carma-commons/utils";
 import type { LayerState, Settings } from "../types";
 
 export type ShareProps = {
-  layerState: LayerState
+  layerState: LayerState;
 };
 
 export const Share = ({ layerState }: ShareProps) => {
-  const {layers, backgroundLayer} = layerState;
+  const { layers, backgroundLayer } = layerState;
   //const backgroundLayer = useSelector(getBackgroundLayer);
   //const activeLayers = useSelector(getLayers);
   const [searchParams] = useSearchParams();
@@ -38,21 +38,22 @@ export const Share = ({ layerState }: ShareProps) => {
         mode === "publish/"
           ? settings
           : {
-            showLayerButtons: true,
-            showLayerHideButtons: false,
-            showFullscreen: true,
-            showLocator: true,
-            showMeasurement: true,
-            showHamburgerMenu: false,
-          },
+              showLayerButtons: true,
+              showLayerHideButtons: false,
+              showFullscreen: true,
+              showLocator: true,
+              showMeasurement: true,
+              showHamburgerMenu: false,
+            },
     };
     const jsonString = JSON.stringify(newConfig);
     const compressed = LZString.compressToEncodedURIComponent(jsonString);
     try {
       const baseUrl = window.location.origin + window.location.pathname;
       const queryString = new URLSearchParams(searchParams).toString();
-      const url = `${baseUrl}#/${mode}?data=${compressed}&${queryString}${mode === "publish/" ? `&appKey=${generateRandomString(5)}` : ""
-        }`;
+      const url = `${baseUrl}#/${mode}?data=${compressed}&${queryString}${
+        mode === "publish/" ? `&appKey=${generateRandomString(5)}` : ""
+      }`;
       copyToClipboard(url);
       messageApi.open({
         type: "success",
@@ -64,7 +65,7 @@ export const Share = ({ layerState }: ShareProps) => {
         content: `Es gab einen Fehler beim kopieren des Links`,
       });
     }
-  }
+  };
 
   return (
     <div className="p-2 flex flex-col gap-3">
@@ -134,9 +135,7 @@ export const Share = ({ layerState }: ShareProps) => {
         Hamburger Menu
       </Checkbox>
 
-      <Button onClick={handleOnClick} >
-        Link kopieren
-      </Button>
+      <Button onClick={handleOnClick}>Link kopieren</Button>
     </div>
   );
 };

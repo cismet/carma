@@ -6,7 +6,8 @@ import type { RootState } from "..";
 
 // TODO: move to constants/config;
 const EMPTY_INFO_TEXT = "";
-const NOTHING_FOUND_INFO_TEXT = "Keine Informationen an dieser Stelle gefunden."
+const NOTHING_FOUND_INFO_TEXT =
+  "Keine Informationen an dieser Stelle gefunden.";
 
 const initialState: FeatureInfoState = {
   features: [],
@@ -18,8 +19,6 @@ const initialState: FeatureInfoState = {
   vectorInfo: undefined,
   vectorInfos: [],
 };
-
-
 
 const slice = createSlice({
   name: "features",

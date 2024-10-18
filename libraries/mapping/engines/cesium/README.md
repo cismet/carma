@@ -19,20 +19,19 @@ How to fix Cesium related issues as of 2024-05-17, cesium@1.117
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
-2. Copy the assets to the dist folder 
-see vitestaticcopy plugin
+2. Copy the assets to the dist folder
+   see vitestaticcopy plugin
 
 3. Adjust CESIUM_BASE_URL in window
-window.CESIUM_BASE_URL = CESIUM_BASE_URL;
+   window.CESIUM_BASE_URL = CESIUM_BASE_URL;
 
 add GLOBAL type for window.CESIUM_BASE_URL
 
 declare global {
-  interface Window {
-    CESIUM_BASE_URL: string;
-  }
+interface Window {
+CESIUM_BASE_URL: string;
 }
-
+}
 
 Resources:
 https://community.cesium.com/t/is-there-a-good-way-to-use-cesium-with-vite/27545

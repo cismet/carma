@@ -1,17 +1,17 @@
-import { ColorMaterialProperty, Entity, Color } from 'cesium';
-import ColorHash from 'color-hash';
+import { ColorMaterialProperty, Entity, Color } from "cesium";
+import ColorHash from "color-hash";
 
 export const getColorMaterialProperty = (
   entity: Entity,
   alpha: number,
   selectKey?: string | null,
   colorLookup: Record<string, Color> = {},
-  colorHash: ColorHash = new ColorHash()
+  colorHash: ColorHash = new ColorHash(),
 ): ColorMaterialProperty => {
   const str =
     entity.properties && selectKey
       ? entity.properties[selectKey].toString()
-      : 'default';
+      : "default";
   const colorHexKey = colorHash.hex(str).substring(1); // remove # from the beginning
 
   // If the Color doesn't exist yet, create it

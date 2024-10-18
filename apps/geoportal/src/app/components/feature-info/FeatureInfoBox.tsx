@@ -33,9 +33,7 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
   const [open, setOpen] = useState(false);
   const dispatch = useDispatch();
   const selectedFeature = useSelector(getSelectedFeature);
-  const secondaryInfoBoxElements = useSelector(
-    getSecondaryInfoBoxElements,
-  );
+  const secondaryInfoBoxElements = useSelector(getSecondaryInfoBoxElements);
   const layers = useSelector(getLayers);
   const numOfLayers = layers.length;
   const infoText = useSelector(getInfoText);
@@ -147,8 +145,8 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
           infoText
             ? infoText
             : numOfLayers > 0
-              ? "Auf die Karte klicken um Informationen abzurufen"
-              : "Layer hinzufügen um Informationen abrufen zu können"
+            ? "Auf die Karte klicken um Informationen abzurufen"
+            : "Layer hinzufügen um Informationen abrufen zu können"
         }
         header={
           <div

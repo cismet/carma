@@ -1,10 +1,6 @@
 import { useSelector } from "react-redux";
 
-import {
-  selectViewerHome,
-  selectViewerIsMode2d,
-} from "../slices/cesium";
-
+import { selectViewerHome, selectViewerIsMode2d } from "../slices/cesium";
 
 import { Compass } from "./controls/Compass";
 import ControlContainer from "./controls/ControlContainer";

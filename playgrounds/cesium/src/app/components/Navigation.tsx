@@ -1,5 +1,5 @@
-import { Menu } from 'antd';
-import { useNavigate } from 'react-router-dom';
+import { Menu } from "antd";
+import { useNavigate } from "react-router-dom";
 export function Navigation({ routes, ...props }) {
   const navigate = useNavigate();
 
@@ -21,7 +21,7 @@ export function Navigation({ routes, ...props }) {
           label: name,
           icon: null,
           onClick: () => navigate(path),
-        }
+        },
   );
 
   return <Menu {...props} mode="horizontal" items={items} />;

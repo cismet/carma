@@ -7,7 +7,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 
 import { SceneStyles } from "../../..";
-import { selectShowPrimaryTileset } from '../../slices/cesium';
+import { selectShowPrimaryTileset } from "../../slices/cesium";
 import useSceneStyleToggle from "../../hooks/useSceneStyleToggle";
 
 type SceneStyleToggleProps = {

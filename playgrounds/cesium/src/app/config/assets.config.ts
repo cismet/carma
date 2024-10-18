@@ -1,5 +1,5 @@
-import { APP_BASE_PATH } from './app.config';
-import { ModelAsset } from '@carma-mapping/cesium-engine';
+import { APP_BASE_PATH } from "./app.config";
+import { ModelAsset } from "@carma-mapping/cesium-engine";
 
 const BEHOERDE_SVG = `${APP_BASE_PATH}data/img/behoerde.svg`;
 export const GLB_SAMPLE = `${APP_BASE_PATH}data/glb/map_pointer.glb`;
@@ -64,7 +64,7 @@ export const MODEL_ASSETS: Record<string, ModelAsset> = {
     anchorOffset: { z: 0 },
     isCameraFacing: true,
     fixedScale: true,
-  }
+  },
 };
 
 export default { MODEL_ASSETS, IMAGE_ASSETS };

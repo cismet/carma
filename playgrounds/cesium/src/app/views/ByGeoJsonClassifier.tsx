@@ -1,6 +1,9 @@
 import { useSelector } from "react-redux";
 
-import { ByGeojsonClassifier, selectViewerDataSources } from "@carma-mapping/cesium-engine";
+import {
+  ByGeojsonClassifier,
+  selectViewerDataSources,
+} from "@carma-mapping/cesium-engine";
 
 function View() {
   const { footprintGeoJson } = useSelector(selectViewerDataSources);

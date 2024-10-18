@@ -14,7 +14,7 @@ import {
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 
 import { useCesiumContext } from "../../CesiumContextProvider";
-import { selectScreenSpaceCameraControllerMinimumZoomDistance } from '../../slices/cesium';
+import { selectScreenSpaceCameraControllerMinimumZoomDistance } from "../../slices/cesium";
 import { pickViewerCanvasCenter } from "../../utils/cesiumHelpers";
 
 type CompassProps = {
@@ -24,7 +24,9 @@ type CompassProps = {
 
 export const Compass = (props: CompassProps) => {
   const { viewer } = useCesiumContext();
-  const minZoomDistance = useSelector(selectScreenSpaceCameraControllerMinimumZoomDistance);
+  const minZoomDistance = useSelector(
+    selectScreenSpaceCameraControllerMinimumZoomDistance,
+  );
 
   const handleFlyToCenter = (e: MouseEvent) => {
     e.preventDefault();
@@ -84,7 +86,11 @@ export const Compass = (props: CompassProps) => {
   };
 
   return (
-    <ControlButtonStyler title="Einnorden" onClick={handleFlyToCenter} disabled={props.disabled}>
+    <ControlButtonStyler
+      title="Einnorden"
+      onClick={handleFlyToCenter}
+      disabled={props.disabled}
+    >
       <FontAwesomeIcon icon={faCompass}></FontAwesomeIcon>
     </ControlButtonStyler>
   );

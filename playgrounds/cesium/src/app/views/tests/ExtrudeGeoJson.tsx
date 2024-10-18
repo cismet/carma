@@ -1,6 +1,6 @@
-import React from 'react';
+import React from "react";
 
-import { GeoJsonDataSource as ResiumGeoJsonDataSource } from 'resium';
+import { GeoJsonDataSource as ResiumGeoJsonDataSource } from "resium";
 import {
   Color,
   ConstantProperty,
@@ -8,7 +8,7 @@ import {
   GeoJsonDataSource,
   HeightReference,
   PolygonGraphics,
-} from 'cesium';
+} from "cesium";
 
 //const CP_TRUE = new ConstantProperty(true);
 const CP_FALSE = new ConstantProperty(false);
@@ -17,7 +17,7 @@ const EXTRUDED_HEIGHT = new ConstantProperty(50);
 
 const HEIGHT_REF = new ConstantProperty(HeightReference.RELATIVE_TO_GROUND);
 const EXTRUDED_HEIGHT_REF = new ConstantProperty(
-  HeightReference.RELATIVE_TO_GROUND
+  HeightReference.RELATIVE_TO_GROUND,
 );
 
 const extrudePerEnitity = (entity: Entity) => {

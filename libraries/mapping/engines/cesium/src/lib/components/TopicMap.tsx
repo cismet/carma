@@ -67,7 +67,7 @@ export const TopicMap = ({ forceShow = false } = {}) => {
         transition: `opacity ${DEFAULT_MODE_2D_3D_CHANGE_FADE_DURATION}ms ease-in-out`,
         pointerEvents: isMode2d || forceShow ? "auto" : "none",
       }}
-    //className={isMode2d ? 'fade-in' : 'fade-out'}
+      //className={isMode2d ? 'fade-in' : 'fade-out'}
     >
       <TopicMapComponent
         gazData={[]}
@@ -76,9 +76,9 @@ export const TopicMap = ({ forceShow = false } = {}) => {
         fullScreenControlEnabled={false}
         zoomSnap={0.5} // TODO fix zoom snapping in TopicMap Component
         zoomDelta={0.5}
-      //locationChangedHandler={handleLeafletLocationChange}
-      //zoomControls={true}
-      //fullScreenControl={false}
+        //locationChangedHandler={handleLeafletLocationChange}
+        //zoomControls={true}
+        //fullScreenControl={false}
       >
         <StyledWMSTileLayer
           {...{

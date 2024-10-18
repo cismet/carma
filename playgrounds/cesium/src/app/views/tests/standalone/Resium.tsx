@@ -1,4 +1,4 @@
-import { Viewer } from 'resium';
+import { Viewer } from "resium";
 
 function View() {
   return (

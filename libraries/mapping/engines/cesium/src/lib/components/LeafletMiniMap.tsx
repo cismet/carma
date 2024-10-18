@@ -7,7 +7,11 @@ import camera_png from "./camera.png";
 import { makeLeafletMarkerRotatable } from "./LeafletMiniMap.utils";
 
 import { useCesiumContext } from "../CesiumContextProvider";
-import { cameraToCartographicDegrees, getViewerViewportPolygonRing, rectangleToExtentDegrees } from "../utils/cesiumHelpers";
+import {
+  cameraToCartographicDegrees,
+  getViewerViewportPolygonRing,
+  rectangleToExtentDegrees,
+} from "../utils/cesiumHelpers";
 import { polygonHierarchyFromPolygonCoords } from "../utils/cesiumGroundPrimitives";
 
 //TODO sync time externally if needed

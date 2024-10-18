@@ -16,11 +16,17 @@ type Props = {
   children?: ReactNode;
 };
 
-export const MapTypeSwitcher = ({ onComplete, forceEnabled, duration }: Props) => {
-
+export const MapTypeSwitcher = ({
+  onComplete,
+  forceEnabled,
+  duration,
+}: Props) => {
   const isMode2d = useSelector(selectViewerIsMode2d);
   const isTransitioning = useSelector(selectViewerIsTransitioning);
-  const { transitionToMode2d, transitionToMode3d } = useMapTransition({ onComplete, duration });
+  const { transitionToMode2d, transitionToMode3d } = useMapTransition({
+    onComplete,
+    duration,
+  });
 
   const handleSwitchMapMode = async (e: MouseEvent) => {
     e.preventDefault();

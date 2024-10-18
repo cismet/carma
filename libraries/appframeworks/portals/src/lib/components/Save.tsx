@@ -47,7 +47,7 @@ export const Save = ({ layers, storeConfigAction }: SaveProps) => {
         content: "Es gab einen Fehler beim speichern der Konfiguration",
       });
     }
-  }
+  };
 
   return (
     <div className="p-2 flex flex-col gap-3 w-96">
@@ -93,11 +93,7 @@ export const Save = ({ layers, storeConfigAction }: SaveProps) => {
         onChange={(e) => setThumbnail(e.target.value)}
       />
 
-      <Button
-        onClick={handleOnClick}
-      >
-        Konfiguration Speichern
-      </Button>
+      <Button onClick={handleOnClick}>Konfiguration Speichern</Button>
     </div>
   );
 };

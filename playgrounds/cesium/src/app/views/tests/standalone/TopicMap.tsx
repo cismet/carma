@@ -1,9 +1,9 @@
-import TopicMapContextProvider from 'react-cismap/contexts/TopicMapContextProvider';
-import TopicMapComponent from 'react-cismap/topicmaps/TopicMapComponent';
-import StyledWMSTileLayer from 'react-cismap/StyledWMSTileLayer';
-import 'bootstrap/dist/css/bootstrap.min.css';
-import 'react-bootstrap-typeahead/css/Typeahead.css';
-import 'leaflet/dist/leaflet.css';
+import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
+import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
+import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
+import "bootstrap/dist/css/bootstrap.min.css";
+import "react-bootstrap-typeahead/css/Typeahead.css";
+import "leaflet/dist/leaflet.css";
 
 function View() {
   return (
@@ -29,15 +29,15 @@ function View() {
         ></StyledWMSTileLayer> */}
         <StyledWMSTileLayer
           {...{
-            url: 'https://maps.wuppertal.de/karten',
-            layers: 'R102:trueortho2022',
-            type: 'wms',
-            format: 'image/png',
+            url: "https://maps.wuppertal.de/karten",
+            layers: "R102:trueortho2022",
+            type: "wms",
+            format: "image/png",
             tiled: true,
             maxZoom: 22,
             opacity: 1,
-            version: '1.1.1',
-            pane: 'backgroundLayers',
+            version: "1.1.1",
+            pane: "backgroundLayers",
           }}
         ></StyledWMSTileLayer>
       </TopicMapComponent>

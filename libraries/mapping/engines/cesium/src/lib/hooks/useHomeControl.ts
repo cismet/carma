@@ -4,10 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { BoundingSphere, Cartesian3 } from "cesium";
 
 import { useCesiumContext } from "../CesiumContextProvider";
-import {
-  selectViewerHome,
-  setIsAnimating,
-} from "../slices/cesium";
+import { selectViewerHome, setIsAnimating } from "../slices/cesium";
 
 export const useHomeControl = () => {
   const dispatch = useDispatch();

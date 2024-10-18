@@ -1,21 +1,25 @@
-import React from 'react';
-import { HashRouter, Route, Routes } from 'react-router-dom';
+import React from "react";
+import { HashRouter, Route, Routes } from "react-router-dom";
 
-import { TopicMapContextProvider } from 'react-cismap/contexts/TopicMapContextProvider';
+import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
 
 import {
   CustomViewerPlayground,
   CesiumContextProvider,
-} from '@carma-mapping/cesium-engine';
-import { TweakpaneProvider } from '@carma-commons/debug';
-import { BASEMAP_METROPOLRUHR_WMS_GRAUBLAU, METROPOLERUHR_WMTS_SPW2_WEBMERCATOR, WUPP_TERRAIN_PROVIDER } from '@carma-commons/resources';
+} from "@carma-mapping/cesium-engine";
+import { TweakpaneProvider } from "@carma-commons/debug";
+import {
+  BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
+  METROPOLERUHR_WMTS_SPW2_WEBMERCATOR,
+  WUPP_TERRAIN_PROVIDER,
+} from "@carma-commons/resources";
 
-import { Navigation } from './components/Navigation';
-import { viewerRoutes, otherRoutes } from './routes';
-import { routeGenerator } from './utils/routeGenerator';
+import { Navigation } from "./components/Navigation";
+import { viewerRoutes, otherRoutes } from "./routes";
+import { routeGenerator } from "./utils/routeGenerator";
 
-import 'leaflet/dist/leaflet.css';
-import 'cesium/Build/Cesium/Widgets/widgets.css';
+import "leaflet/dist/leaflet.css";
+import "cesium/Build/Cesium/Widgets/widgets.css";
 
 const ViewerRoutes = routeGenerator(viewerRoutes);
 const OtherRoutes = routeGenerator(otherRoutes);
@@ -34,13 +38,13 @@ export function App() {
           <Navigation
             className="leaflet-bar"
             style={{
-              position: 'absolute',
+              position: "absolute",
               top: 8,
-              left: '50%',
-              width: 'auto',
-              display: 'flex',
-              justifyContent: 'center',
-              transform: 'translate(-50%, 0)',
+              left: "50%",
+              width: "auto",
+              display: "flex",
+              justifyContent: "center",
+              transform: "translate(-50%, 0)",
               zIndex: 10,
             }}
             routes={[...viewerRoutes, ...otherRoutes]}
@@ -52,7 +56,7 @@ export function App() {
                 <TopicMapContextProvider>
                   <CustomViewerPlayground
                     minimapLayerUrl={
-                      METROPOLERUHR_WMTS_SPW2_WEBMERCATOR.layers['spw2_orange']
+                      METROPOLERUHR_WMTS_SPW2_WEBMERCATOR.layers["spw2_orange"]
                         .url
                     }
                   >

@@ -1,16 +1,16 @@
-import ClassifyByGeoJson from './views/ByGeoJsonClassifier';
+import ClassifyByGeoJson from "./views/ByGeoJsonClassifier";
 
-import TestExtrudeGeoJson from './views/tests/ExtrudeGeoJson';
-import TestMarkers from './views/tests/Markers';
+import TestExtrudeGeoJson from "./views/tests/ExtrudeGeoJson";
+import TestMarkers from "./views/tests/Markers";
 
-import TestComponentCustomViewer from './views/tests/components/CustomViewer';
-import TestComponentByGeoJsonClassifier from './views/tests/components/ByGeoJsonClassifier';
+import TestComponentCustomViewer from "./views/tests/components/CustomViewer";
+import TestComponentByGeoJsonClassifier from "./views/tests/components/ByGeoJsonClassifier";
 
-import StandaloneResium from './views/tests/standalone/Resium';
-import StandaloneTopicMap from './views/tests/standalone/TopicMap';
-import StandaloneWidget from './views/tests/standalone/Widget';
+import StandaloneResium from "./views/tests/standalone/Resium";
+import StandaloneTopicMap from "./views/tests/standalone/TopicMap";
+import StandaloneWidget from "./views/tests/standalone/Widget";
 
-import { ComponentType } from 'react';
+import { ComponentType } from "react";
 
 export type RouteItem = [string, string, ComponentType];
 
@@ -23,36 +23,36 @@ export type RouteDescriptor = RouteItem | RoutePath;
 // ⚙️ for debug or test views
 
 export const viewerRoutes: RouteDescriptor[] = [
-  ['/', '', ClassifyByGeoJson],
-  ['/geojson-classify', 'Gebäudeauswahl', ClassifyByGeoJson],
-  ['/extrude', 'Extrusion', TestExtrudeGeoJson],
-  ['/poi', 'Marker', TestMarkers],
+  ["/", "", ClassifyByGeoJson],
+  ["/geojson-classify", "Gebäudeauswahl", ClassifyByGeoJson],
+  ["/extrude", "Extrusion", TestExtrudeGeoJson],
+  ["/poi", "Marker", TestMarkers],
   [
-    '/test',
-    '⚙️ Test',
+    "/test",
+    "⚙️ Test",
     [
       [
-        '/geojson',
-        'ComponentTest GeoJSON Overlay',
+        "/geojson",
+        "ComponentTest GeoJSON Overlay",
         TestComponentByGeoJsonClassifier,
       ],
-      ['/viewer', 'ComponentTest Viewer', TestComponentCustomViewer],
+      ["/viewer", "ComponentTest Viewer", TestComponentCustomViewer],
     ],
   ],
 ];
 
 export const otherRoutes: RouteDescriptor[] = [
   [
-    '/testapp',
-    '⚙️ Standalone',
+    "/testapp",
+    "⚙️ Standalone",
     [
-      ['/resium', 'Standalone Test Resium', StandaloneResium],
+      ["/resium", "Standalone Test Resium", StandaloneResium],
       [
-        '/topicMapWithBaseLayer',
-        'Standalone Test TopicMapWithBaseLayer',
+        "/topicMapWithBaseLayer",
+        "Standalone Test TopicMapWithBaseLayer",
         StandaloneTopicMap,
       ],
-      ['/widget', 'Standalone Test Widget', StandaloneWidget],
+      ["/widget", "Standalone Test Widget", StandaloneWidget],
     ],
   ],
 ];

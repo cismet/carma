@@ -9,12 +9,7 @@ import {
 import { useSelector } from "react-redux";
 import { useLocation } from "react-router-dom";
 
-import {
-  Color,
-  HeadingPitchRange,
-  Rectangle,
-  Viewer,
-} from "cesium";
+import { Color, HeadingPitchRange, Rectangle, Viewer } from "cesium";
 import { Viewer as ResiumViewer } from "resium";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
@@ -33,7 +28,7 @@ import ElevationControl from "./components/controls/ElevationControl";
 import useTransitionTimeout from "./hooks/useTransitionTimeout";
 import useDisableSSCC from "./hooks/useDisableSSCC";
 import useTweakpane from "./hooks/useTweakpane";
-import useCameraRollSoftLimiter from './hooks/useCameraRollSoftLimiter';
+import useCameraRollSoftLimiter from "./hooks/useCameraRollSoftLimiter";
 import useCameraPitchEasingLimiter from "./hooks/useCameraPitchEasingLimiter";
 import useCameraPitchSoftLimiter from "./hooks/useCameraPitchSoftLimiter";
 
@@ -89,7 +84,7 @@ export function CustomViewer(props: CustomViewerProps) {
   const home = useSelector(selectViewerHome);
   const homeOffset = useSelector(selectViewerHomeOffset);
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
-  const isMode2d = useSelector(selectViewerIsMode2d)
+  const isMode2d = useSelector(selectViewerIsMode2d);
   //const isAnimating = useViewerIsAnimating();
 
   const {
@@ -108,7 +103,7 @@ export function CustomViewer(props: CustomViewerProps) {
     containerRef,
     enableLocationHashUpdate = true,
     minPitch,
-    minPitchRange
+    minPitchRange,
   } = props;
 
   const previousViewerRef = useRef<Viewer | null>(null); // track viewer changes
@@ -119,11 +114,10 @@ export function CustomViewer(props: CustomViewerProps) {
   const topicMapContext: any =
     useContext<typeof TopicMapContext>(TopicMapContext);
 
-  const leaflet =
-    topicMapContext?.routedMapRef?.leafletMap?.leafletElement;
+  const leaflet = topicMapContext?.routedMapRef?.leafletMap?.leafletElement;
 
   // DEV TWEAKPANE
-  useTweakpane()
+  useTweakpane();
 
   const viewerRef = useCallback((node) => {
     if (node !== null) {
@@ -155,7 +149,13 @@ export function CustomViewer(props: CustomViewerProps) {
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewer, isMode2d, enableLocationHashUpdate, location.pathname, isSecondaryStyle]);
+  }, [
+    viewer,
+    isMode2d,
+    enableLocationHashUpdate,
+    location.pathname,
+    isSecondaryStyle,
+  ]);
 
   useEffect(() => {
     if (viewer && containerRef?.current) {
@@ -185,16 +185,24 @@ export function CustomViewer(props: CustomViewerProps) {
         viewer.scene.globe.baseColor = globeProps.baseColor;
       }
       if (globeProps.cartographicLimitRectangle !== undefined) {
-        viewer.scene.globe.cartographicLimitRectangle = globeProps.cartographicLimitRectangle;
+        viewer.scene.globe.cartographicLimitRectangle =
+          globeProps.cartographicLimitRectangle;
       }
       if (globeProps.showGroundAtmosphere !== undefined) {
-        viewer.scene.globe.showGroundAtmosphere = globeProps.showGroundAtmosphere;
+        viewer.scene.globe.showGroundAtmosphere =
+          globeProps.showGroundAtmosphere;
       }
       if (globeProps.showSkirts !== undefined) {
         viewer.scene.globe.showSkirts = globeProps.showSkirts;
       }
     }
-  }, [viewer, globeProps.baseColor, globeProps.cartographicLimitRectangle, globeProps.showGroundAtmosphere, globeProps.showSkirts]);
+  }, [
+    viewer,
+    globeProps.baseColor,
+    globeProps.cartographicLimitRectangle,
+    globeProps.showGroundAtmosphere,
+    globeProps.showSkirts,
+  ]);
 
   useEffect(() => {
     // hook hide Cesium Layers in 2d
@@ -205,7 +213,7 @@ export function CustomViewer(props: CustomViewerProps) {
             const layer = viewer.imageryLayers.get(i);
             if (layer) {
               layer.show = false; // Hide the layer
-              console.info("HOOK: [CESIUM] hiding cesium imagery layer", i)
+              console.info("HOOK: [CESIUM] hiding cesium imagery layer", i);
             }
           }
         }, TRANSITION_DELAY);
@@ -214,13 +222,12 @@ export function CustomViewer(props: CustomViewerProps) {
           const layer = viewer.imageryLayers.get(i);
           if (layer) {
             layer.show = true; // unHide the layer
-            console.info("HOOK: [CESIUM] howing cesium imagery layer", i)
+            console.info("HOOK: [CESIUM] howing cesium imagery layer", i);
           }
         }
       }
     }
   }, [viewer, isMode2d]);
-
 
   useEffect(() => {
     // init hook
@@ -230,27 +237,33 @@ export function CustomViewer(props: CustomViewerProps) {
         // TODO use CesiumWidget to have less Boilerplate
         viewer.imageryLayers.removeAll();
       }
-      if (viewer !== previousViewerRef.current || isMode2d !== previousIsMode2d.current || isSecondaryStyle !== previousIsSecondaryStyle.current) {
+      if (
+        viewer !== previousViewerRef.current ||
+        isMode2d !== previousIsMode2d.current ||
+        isSecondaryStyle !== previousIsSecondaryStyle.current
+      ) {
         previousIsMode2d.current = isMode2d;
         previousIsSecondaryStyle.current = isSecondaryStyle;
         previousViewerRef.current = viewer;
       }
     }
-  }, [
-    viewer,
-    isSecondaryStyle,
-    isMode2d,
-  ]);
+  }, [viewer, isSecondaryStyle, isMode2d]);
 
   useEffect(() => {
     // update hash hook
     if (viewer) {
-      console.log("HOOK: [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to update hash");
+      console.log(
+        "HOOK: [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to update hash",
+      );
       const moveEndListener = async () => {
         // let TopicMap/leaflet handle the view change in 2d Mode
         if (viewer.camera.position && !isMode2d && enableLocationHashUpdate) {
-          const camDeg = cameraToCartographicDegrees(viewer.camera)
-          console.log("LISTENER: Cesium moveEndListener encode viewer to hash", isSecondaryStyle, camDeg);
+          const camDeg = cameraToCartographicDegrees(viewer.camera);
+          console.log(
+            "LISTENER: Cesium moveEndListener encode viewer to hash",
+            isSecondaryStyle,
+            camDeg,
+          );
           const encodedScene = encodeScene(viewer, { isSecondaryStyle });
           replaceHashRoutedHistory(encodedScene, location.pathname);
         }
@@ -260,7 +273,6 @@ export function CustomViewer(props: CustomViewerProps) {
         viewer.camera.moveEnd.removeEventListener(moveEndListener);
       };
     }
-
   }, [
     viewer,
     location.pathname,

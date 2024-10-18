@@ -2,17 +2,15 @@
 
 // eslint disable
 
-import { useTweakpaneCtx } from '@carma-commons/debug';
-import { Widget } from '@carma-mapping/cesium-widget-engine';
-import { useEffect, useState } from 'react';
-import { Checkbox, Radio, Select } from 'antd';
+import { useTweakpaneCtx } from "@carma-commons/debug";
+import { Widget } from "@carma-mapping/cesium-widget-engine";
+import { useEffect, useState } from "react";
+import { Checkbox, Radio, Select } from "antd";
 
-import { WUPP_MESH_2024 } from '@carma-commons/resources';
-import type { LatLngRecord } from 'types/common-geo';
+import { WUPP_MESH_2024 } from "@carma-commons/resources";
+import type { LatLngRecord } from "types/common-geo";
 
-import {
-  FOOTPRINT_GEOJSON_SOURCES,
-} from '../../../config/dataSources.config';
+import { FOOTPRINT_GEOJSON_SOURCES } from "../../../config/dataSources.config";
 
 const { Option } = Select;
 
@@ -28,7 +26,7 @@ type Poi = {
 
 const POI = {
   TOELLETURM: {
-    label: 'Toelleturm',
+    label: "Toelleturm",
     position: { longitude: 7.201578, latitude: 51.256565, height: 335 + 10 },
     range: 30,
     clipBy: {
@@ -36,7 +34,7 @@ const POI = {
     },
   },
   RATHAUS: {
-    label: 'Rathaus',
+    label: "Rathaus",
     position: { longitude: 7.19993, latitude: 51.27225, height: 170 },
     range: 150,
     clipBy: {
@@ -44,7 +42,7 @@ const POI = {
     },
   },
   KUGELGAS: {
-    label: 'Kugelgasbehälter',
+    label: "Kugelgasbehälter",
     position: { longitude: 7.08586, latitude: 51.24584, height: 190 },
     range: 60,
     clipBy: {
@@ -52,7 +50,7 @@ const POI = {
     },
   },
   STADION: {
-    label: 'Stadion am Zoo',
+    label: "Stadion am Zoo",
     position: { longitude: 7.1049, latitude: 51.23916, height: 140 },
     range: 185,
     clipBy: {
@@ -60,7 +58,7 @@ const POI = {
     },
   },
   HBF: {
-    label: 'Hauptbahnhof',
+    label: "Hauptbahnhof",
     position: { longitude: 7.1485164, latitude: 51.2559275, height: 150 },
     range: 80,
     clipBy: {
@@ -77,7 +75,7 @@ const options = Object.entries(POI).reduce((acc, [key, value]) => {
 type PositionRecord = LatLngRecord & { height: number };
 
 function View() {
-  const [poiKey, setPoiKey] = useState<string>('TOELLETURM');
+  const [poiKey, setPoiKey] = useState<string>("TOELLETURM");
   const [orthographic, setOrthographic] = useState<boolean>(true);
 
   const [poi, setPoi] = useState<Poi | null>(POI[poiKey]);
@@ -87,7 +85,7 @@ function View() {
 
   useTweakpaneCtx(
     {
-      title: 'MiniView CesiumWidget',
+      title: "MiniView CesiumWidget",
     },
     {
       get poi() {
@@ -125,29 +123,29 @@ function View() {
 
     [
       {
-        name: 'poi',
+        name: "poi",
         options,
       },
-      { name: 'clip', type: 'boolean' },
-      { name: 'debug', type: 'boolean' },
-      { name: 'orthographic', type: 'boolean' },
-      { name: 'animate', type: 'boolean' },
-    ]
+      { name: "clip", type: "boolean" },
+      { name: "debug", type: "boolean" },
+      { name: "orthographic", type: "boolean" },
+      { name: "animate", type: "boolean" },
+    ],
   );
 
-  console.log('RENDER Widget Test View', { poi, debug });
+  console.log("RENDER Widget Test View", { poi, debug });
 
   const ViewToggle = () => (
     <div
       style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
       }}
     >
       <Radio.Group
-        value={orthographic ? 'orthographic' : 'perspective'}
-        onChange={(e) => setOrthographic(e.target.value === 'orthographic')}
+        value={orthographic ? "orthographic" : "perspective"}
+        onChange={(e) => setOrthographic(e.target.value === "orthographic")}
       >
         <Radio.Button value="perspective">Perspektivisch</Radio.Button>
         <Radio.Button value="orthographic">Orthografisch</Radio.Button>
@@ -156,14 +154,14 @@ function View() {
       <Checkbox
         checked={animate}
         onChange={(e) => setAnimate(e.target.checked)}
-        style={{ marginLeft: '20px' }}
+        style={{ marginLeft: "20px" }}
       >
         Animation
       </Checkbox>
       <Checkbox
         checked={clip}
         onChange={(e) => setClip(e.target.checked)}
-        style={{ marginLeft: '20px' }}
+        style={{ marginLeft: "20px" }}
       >
         Clipping
       </Checkbox>
@@ -173,9 +171,9 @@ function View() {
   const LocationToggle = () => (
     <div
       style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
       }}
     >
       <Radio.Group
@@ -197,7 +195,7 @@ function View() {
   const GeoJSONDropdown = () => {
     const [features, setFeatures] = useState([]);
     const key = FOOTPRINT_GEOJSON_SOURCES.VORONOI.idProperty;
-    const labelProperty = 'GEB_NAME';
+    const labelProperty = "GEB_NAME";
 
     useEffect(() => {
       fetch(FOOTPRINT_GEOJSON_SOURCES.VORONOI.url)
@@ -211,23 +209,23 @@ function View() {
           //console.log('namedFeatures', namedFeatures);
           const sortedFeatures = namedFeatures.sort((a, b) =>
             a.properties[labelProperty].localeCompare(
-              b.properties[labelProperty]
-            )
+              b.properties[labelProperty],
+            ),
           );
           setFeatures(sortedFeatures);
         });
     }, []);
 
-    console.log('RENDER GeoJSONDropdown', features);
+    console.log("RENDER GeoJSONDropdown", features);
 
     return (
       <Select
         style={{ width: 400 }}
         onSelect={(value) => {
           const feature = features.find(
-            (a: GeoJSON.Feature) => a.properties![key] === value
+            (a: GeoJSON.Feature) => a.properties![key] === value,
           ) as unknown as GeoJSON.Feature;
-          if (feature && feature.geometry.type === 'MultiPolygon') {
+          if (feature && feature.geometry.type === "MultiPolygon") {
             const ring = Object.freeze(feature.geometry.coordinates[0][0]);
             const [longitude, latitude, height] = ring[0];
 
@@ -259,7 +257,7 @@ function View() {
                 clipBy: {
                   //radius: 100,
                   polygon: feature!.geometry!.coordinates[0][0].map(
-                    ([longitude, latitude]) => ({ longitude, latitude })
+                    ([longitude, latitude]) => ({ longitude, latitude }),
                   ),
                 },
               });
@@ -272,8 +270,9 @@ function View() {
               key={feature!.properties![key]}
               value={feature!.properties![key]}
             >
-              {`${feature!.properties![labelProperty]} - ${feature!.properties!['STRNAME']
-                } ${feature!.properties!['HAUSNR']}`}
+              {`${feature!.properties![labelProperty]} - ${
+                feature!.properties!["STRNAME"]
+              } ${feature!.properties!["HAUSNR"]}`}
             </Option>
           ))}
       </Select>
@@ -284,23 +283,23 @@ function View() {
     poi && (
       <div
         style={{
-          paddingTop: '100px',
-          display: 'flex',
-          flexWrap: 'wrap',
-          justifyContent: 'center',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '50px',
+          paddingTop: "100px",
+          display: "flex",
+          flexWrap: "wrap",
+          justifyContent: "center",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: "50px",
         }}
       >
         <div
           style={{
-            display: 'flex',
-            width: '100%',
-            flexDirection: 'row',
-            justifyContent: 'center',
-            gap: '20px',
-            marginBottom: '10px',
+            display: "flex",
+            width: "100%",
+            flexDirection: "row",
+            justifyContent: "center",
+            gap: "20px",
+            marginBottom: "10px",
           }}
         >
           <Widget
@@ -315,7 +314,7 @@ function View() {
             debug={debug}
             animate={animate}
           >
-            {poi.label} {orthographic ? 'orthografisch' : 'perspektive'}
+            {poi.label} {orthographic ? "orthografisch" : "perspektive"}
           </Widget>
         </div>
         <ViewToggle />
@@ -324,12 +323,12 @@ function View() {
         <GeoJSONDropdown />
         <div
           style={{
-            display: 'flex',
-            width: '100%',
-            justifyContent: 'center',
-            justifyItems: 'flex-start',
+            display: "flex",
+            width: "100%",
+            justifyContent: "center",
+            justifyItems: "flex-start",
             flexGrow: 1,
-            marginBottom: '10px',
+            marginBottom: "10px",
           }}
         ></div>
       </div>

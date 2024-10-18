@@ -23,10 +23,7 @@ import {
   selectViewerIsMode2d,
 } from "../slices/cesium";
 
-import {
-  CUSTOM_SHADERS_DEFINITIONS,
-  CustomShaderKeys as k,
-} from "../shaders";
+import { CUSTOM_SHADERS_DEFINITIONS, CustomShaderKeys as k } from "../shaders";
 import { create3DTileStyle } from "../utils/cesiumHelpers";
 
 import { useSecondaryStyleTilesetClickHandler } from "../hooks/useSecondaryStyleTilesetClickHandler";
@@ -59,7 +56,8 @@ const DEFAULT_MESH_SHADER = new CustomShader(
 export const BaseTilesets = () => {
   const tilesetConfigs = useSelector(selectViewerDataSources).tilesets;
   const showPrimary = useSelector(selectShowPrimaryTileset);
-  const { viewer, tilesets, setPrimaryTileset, setSecondaryTileset } = useCesiumContext();
+  const { viewer, tilesets, setPrimaryTileset, setSecondaryTileset } =
+    useCesiumContext();
   const showSecondary = useSelector(selectShowSecondaryTileset);
 
   const [showTileInspector, setShowTileInspector] = useState(false);
@@ -69,15 +67,21 @@ export const BaseTilesets = () => {
   const [customMeshShader, setCustomMeshShader] = useState<
     undefined | CustomShader
   >(DEFAULT_MESH_SHADER);
-  const [maximumScreenSpaceErrorPrimary, setMaximumScreenSpaceErrorPrimary] = useState(
-    tilesetConfigs.primary?.maximumScreenSpaceError ?? defaultMaximumScreenSpaceError
-  );
-  const [maximumScreenSpaceErrorSecondary, setMaximumScreenSpaceErrorSecondary] = useState(
-    tilesetConfigs.secondary?.maximumScreenSpaceError ?? defaultMaximumScreenSpaceError
+  const [maximumScreenSpaceErrorPrimary, setMaximumScreenSpaceErrorPrimary] =
+    useState(
+      tilesetConfigs.primary?.maximumScreenSpaceError ??
+        defaultMaximumScreenSpaceError,
+    );
+  const [
+    maximumScreenSpaceErrorSecondary,
+    setMaximumScreenSpaceErrorSecondary,
+  ] = useState(
+    tilesetConfigs.secondary?.maximumScreenSpaceError ??
+      defaultMaximumScreenSpaceError,
   );
 
   const [primaryTilesetUrl, setPrimaryTilesetUrl] = useState(
-    tilesetConfigs.primary?.url ?? ""
+    tilesetConfigs.primary?.url ?? "",
   );
 
   const tilesetOpacity = useSelector(selectTilesetOpacity);
@@ -131,7 +135,9 @@ export const BaseTilesets = () => {
       },
       set enableDebugWireframe(v: boolean) {
         enableDebugWireframe = v;
-        (Object.entries(tilesets)).map(ts => { if (ts instanceof Cesium3DTileset) ts.debugWireframe = v })
+        Object.entries(tilesets).map((ts) => {
+          if (ts instanceof Cesium3DTileset) ts.debugWireframe = v;
+        });
       },
       get showPrimary() {
         return tilesets.primary?.show ?? false;
@@ -173,7 +179,13 @@ export const BaseTilesets = () => {
 
     [
       { name: "customShaderKey", options: customShaderKeys },
-      { name: "primaryTilesetUrl", options: { default: tilesetConfigs.primary?.url ?? "", ...debugTilesetUrls } },
+      {
+        name: "primaryTilesetUrl",
+        options: {
+          default: tilesetConfigs.primary?.url ?? "",
+          ...debugTilesetUrls,
+        },
+      },
       { name: "enableDebugWireframe" },
       { name: "showPrimary" },
       { name: "showSecondary" },
@@ -228,21 +240,38 @@ export const BaseTilesets = () => {
     const hideTilesets = () => {
       // render offscreen with ultra low res to reduce memory usage
       console.log("HOOK: hide tilesets in 2d");
-      if (tilesets.primary) { tilesets.primary.show = false; }
-      if (tilesets.secondary) { tilesets.secondary.show = false; }
-    }
+      if (tilesets.primary) {
+        tilesets.primary.show = false;
+      }
+      if (tilesets.secondary) {
+        tilesets.secondary.show = false;
+      }
+    };
     if (viewer) {
       if (isMode2d) {
-        setTimeout(() => { hideTilesets(); }, TRANSITION_DELAY);
+        setTimeout(() => {
+          hideTilesets();
+        }, TRANSITION_DELAY);
       } else {
-        if (tilesets.primary) { tilesets.primary.show = showPrimary; }
-        if (tilesets.secondary) { tilesets.secondary.show = showSecondary; }
+        if (tilesets.primary) {
+          tilesets.primary.show = showPrimary;
+        }
+        if (tilesets.secondary) {
+          tilesets.secondary.show = showSecondary;
+        }
       }
     } else {
       console.log("HOOK: no viewer");
       hideTilesets();
     }
-  }, [isMode2d, viewer, showPrimary, showSecondary, tilesets.primary, tilesets.secondary]);
+  }, [
+    isMode2d,
+    viewer,
+    showPrimary,
+    showSecondary,
+    tilesets.primary,
+    tilesets.secondary,
+  ]);
 
   return (
     <>

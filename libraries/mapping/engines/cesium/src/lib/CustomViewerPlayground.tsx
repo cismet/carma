@@ -329,7 +329,8 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
         if (isUserAction && (!isMode2d || showFader)) {
           // remove roll from camera orientation
           const rollDeviation =
-            Math.abs(CesiumMath.TWO_PI - viewer.camera.roll) % CesiumMath.TWO_PI;
+            Math.abs(CesiumMath.TWO_PI - viewer.camera.roll) %
+            CesiumMath.TWO_PI;
           if (rollDeviation > 0.02) {
             console.log("LISTENER HOOK: flyTo reset roll", rollDeviation);
             const duration = Math.min(rollDeviation, 1);
@@ -400,12 +401,7 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
     >
       <BaseTilesets />
       {children}
-      {showControls && (
-        <ControlsUI
-          showHome={showHome}
-          showOrbit={showOrbit}
-        />
-      )}
+      {showControls && <ControlsUI showHome={showHome} showOrbit={showOrbit} />}
       {showCrosshair && <Crosshair lineColor="white" />}
       <ResizeableContainer enableDragging={showFader} start={showFader ? 5 : 0}>
         <TopicMap forceShow={showFader} />

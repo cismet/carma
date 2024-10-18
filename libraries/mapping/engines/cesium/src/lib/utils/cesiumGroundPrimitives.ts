@@ -43,7 +43,6 @@ export const invertedPolygonHierarchy = (
   ],
 ) => polygonHierarchyFromPolygonCoords([outerPolygon, polygon]);
 
-
 export function getGroundPrimitiveById(
   viewer: Viewer,
   id: string,

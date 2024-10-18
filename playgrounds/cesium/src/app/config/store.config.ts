@@ -1,6 +1,12 @@
 import { Cartesian3, Color } from "cesium";
 
-import { BASEMAP_METROPOLRUHR_WMS_GRAUBLAU, WUPP_LOD2_TILESET, WUPP_MESH_2024, WUPP_TERRAIN_PROVIDER, WUPPERTAL } from "@carma-commons/resources";
+import {
+  BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
+  WUPP_LOD2_TILESET,
+  WUPP_MESH_2024,
+  WUPP_TERRAIN_PROVIDER,
+  WUPPERTAL,
+} from "@carma-commons/resources";
 import { CesiumState, colorToArray } from "@carma-mapping/cesium-engine";
 
 import { FOOTPRINT_GEOJSON_SOURCES } from "./dataSources.config";
@@ -53,7 +59,7 @@ export const defaultViewerState: CesiumState = {
   },
   terrainProvider: WUPP_TERRAIN_PROVIDER,
   imageryProvider: BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
-  models: MODEL_ASSETS
+  models: MODEL_ASSETS,
 };
 
 export default defaultViewerState;

@@ -37,7 +37,9 @@ const useCameraPitchEasingLimiter = (
   const lastPitch = useRef<number | null>(null);
   const lastPosition = useRef<Cartographic | null>(null);
   const minPitchRad = CesiumMath.toRadians(-minPitchDeg);
-  const rangeRad = CesiumMath.toRadians(Math.min(easingRangeDeg, 90 - minPitchDeg)); // Limit wasing range to remainder of right angle
+  const rangeRad = CesiumMath.toRadians(
+    Math.min(easingRangeDeg, 90 - minPitchDeg),
+  ); // Limit wasing range to remainder of right angle
   const minRangePitchRad = CesiumMath.toRadians(-minPitchDeg) - rangeRad;
 
   const clearLast = () => {

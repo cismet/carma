@@ -154,7 +154,7 @@ export const GeoportalMap = () => {
 
   useOverlayHelper(infoBoxOverlay);
 
- useTweakpaneCtx(
+  useTweakpaneCtx(
     {
       title: "GeoportalMap",
     },
@@ -166,7 +166,11 @@ export const GeoportalMap = () => {
     },
     [
       { name: "rerenderCount", readonly: true, format: (v) => v.toFixed(0) },
-      { name: "lastRenderInterval", readonly: true, format: (v) => v.toFixed(0) },
+      {
+        name: "lastRenderInterval",
+        readonly: true,
+        format: (v) => v.toFixed(0),
+      },
       { name: "dpr", readonly: true, format: (v) => v.toFixed(1) },
       { name: "resolutionScale", readonly: true, format: (v) => v.toFixed(1) },
     ],
@@ -358,8 +362,9 @@ export const GeoportalMap = () => {
                 ref={tourRefLabels.measurement}
               >
                 <img
-                  src={`${getUrlPrefix()}${isModeMeasurement ? "measure-active.png" : "measure.png"
-                    }`}
+                  src={`${getUrlPrefix()}${
+                    isModeMeasurement ? "measure-active.png" : "measure.png"
+                  }`}
                   alt="Measure"
                   className="w-6"
                 />
