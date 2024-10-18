@@ -26,13 +26,11 @@ export const leafletToCesium = async (
     cause = "not specified",
     surfaceProvider,
     terrainProvider,
-    onComplete,
     fallbackHeight = 150, // min height for local terrain
   }: {
     epsilon?: number;
     limit?: number;
     cause?: string;
-    onComplete?: Function;
     surfaceProvider: TerrainProvider | null;
     terrainProvider: TerrainProvider | null;
     fallbackHeight?: number;
@@ -185,7 +183,4 @@ export const leafletToCesium = async (
     iterations++;
   }
   viewer.scene.requestRender();
-  //console.log('zoom iterations', iterations);
-  onComplete && onComplete();
-  return true; // Return true if camera position found within max iterations
 };

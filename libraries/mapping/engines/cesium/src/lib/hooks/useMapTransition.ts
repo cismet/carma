@@ -40,7 +40,8 @@ export const useMapTransition = ({
   const dispatch = useDispatch();
   const topicMapContext = useContext<typeof TopicMapContext>(TopicMapContext);
 
-  const { viewer, surfaceProvider, terrainProvider } = useCesiumContext();
+  const { viewer, surfaceProvider, terrainProvider, tilesets } =
+    useCesiumContext();
   const leaflet = topicMapContext.routedMapRef?.leafletMap?.leafletElement;
 
   if (duration === undefined) {
@@ -104,12 +105,37 @@ export const useMapTransition = ({
       }
     };
 
+    // get cesium scene cameraready
     await leafletToCesium(leaflet, viewer, {
       cause: "SwitchMapMode to 3d",
-      onComplete: () => setTimeout(onCompleteAnimatedTo3d, 100),
       terrainProvider,
       surfaceProvider,
     });
+
+    const { primary, secondary } = tilesets;
+
+    const onPrimaryTilesLoaded = () => {
+      (e) => {
+        console.log("[CESIUM|2D3D|TO3D] primary tileset ready", e);
+        primary &&
+          primary.initialTilesLoaded.removeEventListener(onPrimaryTilesLoaded);
+      };
+    };
+
+    const onPrimaryAllTilesLoaded = () => {
+      (e) => {
+        console.log("[CESIUM|2D3D|TO3D] primary all tileset ready", e);
+        primary &&
+          primary.allTilesLoaded.removeEventListener(onPrimaryAllTilesLoaded);
+      };
+    };
+
+    if (primary) {
+      primary.initialTilesLoaded.addEventListener(onPrimaryTilesLoaded);
+      primary.allTilesLoaded.addEventListener(onPrimaryAllTilesLoaded);
+    }
+
+    setTimeout(onCompleteAnimatedTo3d, 100);
   };
 
   const transitionToMode2d = () => {
@@ -253,7 +279,6 @@ export const useMapTransition = ({
    */
     }
   };
-
   return { transitionToMode2d, transitionToMode3d };
 };
 
