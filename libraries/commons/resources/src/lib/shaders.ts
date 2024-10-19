@@ -1,17 +1,11 @@
 import { LightingModel } from "cesium";
+import { CustomShaderDefinition } from "types/cesium-config";
 
-export enum CustomShaderKeys {
-  CLAY = "CLAY",
-  UNLIT_ENHANCED_2020 = "UNLIT_ENHANCED_2020",
-  UNLIT_ENHANCED_2024 = "UNLIT_ENHANCED_2024",
-  UNLIT = "UNLIT",
-  UNLIT_FOG = "UNLIT_FOG",
-  UNDEFINED = "UNDEFINED",
-  MONOCHROME = "MONOCHROME",
-}
-
-export const CUSTOM_SHADERS_DEFINITIONS = {
-  [CustomShaderKeys.CLAY]: {
+export const CUSTOM_SHADERS_DEFINITIONS: Record<
+  string,
+  CustomShaderDefinition
+> = {
+  CLAY: {
     lightingModel: LightingModel.PBR,
     fragmentShaderText: `
     void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material)
@@ -21,7 +15,7 @@ export const CUSTOM_SHADERS_DEFINITIONS = {
     }
   `,
   },
-  [CustomShaderKeys.UNLIT_ENHANCED_2020]: {
+  UNLIT_ENHANCED_2020: {
     lightingModel: LightingModel.UNLIT,
     fragmentShaderText: `
     void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material)
@@ -42,7 +36,7 @@ export const CUSTOM_SHADERS_DEFINITIONS = {
     }
     `,
   },
-  [CustomShaderKeys.UNLIT_ENHANCED_2024]: {
+  UNLIT_ENHANCED_2024: {
     lightingModel: LightingModel.UNLIT,
     fragmentShaderText: `
     void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material)
@@ -63,7 +57,7 @@ export const CUSTOM_SHADERS_DEFINITIONS = {
     }
     `,
   },
-  [CustomShaderKeys.UNLIT_FOG]: {
+  UNLIT_FOG: {
     lightingModel: LightingModel.UNLIT,
     fragmentShaderText: `
     void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material)
@@ -96,10 +90,10 @@ export const CUSTOM_SHADERS_DEFINITIONS = {
     }
     `,
   },
-  [CustomShaderKeys.UNLIT]: {
+  UNLIT: {
     lightingModel: LightingModel.UNLIT,
   },
-  [CustomShaderKeys.MONOCHROME]: {
+  MONOCHROME: {
     lightingModel: LightingModel.UNLIT,
     fragmentShaderText: `
     void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material)

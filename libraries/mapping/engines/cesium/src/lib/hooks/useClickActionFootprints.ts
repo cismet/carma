@@ -8,7 +8,7 @@ import {
   Cartesian3,
 } from "cesium";
 
-import { useCesiumContext } from "../CesiumContextProvider";
+import { useCesiumContext } from "../hooks/useCesiumContext";
 
 export type ClickData = {
   id: string | null;

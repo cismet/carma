@@ -13,7 +13,7 @@ import {
 } from "cesium";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 
-import { useCesiumContext } from "../../CesiumContextProvider";
+import { useCesiumContext } from "../../hooks/useCesiumContext";
 import { selectScreenSpaceCameraControllerMinimumZoomDistance } from "../../slices/cesium";
 import { pickViewerCanvasCenter } from "../../utils/cesiumHelpers";
 

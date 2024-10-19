@@ -1,7 +1,7 @@
 import { CesiumTerrainProvider, ClassificationType, Color } from "cesium";
 
 import { getGroundPrimitiveById } from "./cesiumGroundPrimitives";
-import { CesiumContextType } from "../CesiumContextProvider";
+import { CesiumContextType } from "../CesiumContext";
 
 // TODO have configurable setup functions for primary and secondary styles
 // TODO MOVE THE ID into viewer config/state

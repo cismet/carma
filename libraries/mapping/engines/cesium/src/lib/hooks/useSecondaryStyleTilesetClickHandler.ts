@@ -11,16 +11,15 @@ import {
 } from "cesium";
 
 import { selectShowSecondaryTileset } from "../slices/cesium";
-import { useCesiumContext } from "../CesiumContextProvider";
-import type { TilesetConfig } from "../utils/cesiumHelpers";
+import { useCesiumContext } from "../hooks/useCesiumContext";
 
 export const useSecondaryStyleTilesetClickHandler = (
-  config: TilesetConfig | null | undefined,
+  options: { disableSelection: boolean } = { disableSelection: false },
 ) => {
   const { viewer } = useCesiumContext();
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
 
-  const { disableSelection } = config ?? {};
+  const { disableSelection } = options ?? {};
 
   useEffect(() => {
     if (!viewer || !isSecondaryStyle || disableSelection) return;
@@ -59,5 +58,5 @@ export const useSecondaryStyleTilesetClickHandler = (
     return () => {
       handler.destroy();
     };
-  }, [viewer, isSecondaryStyle]);
+  }, [viewer, isSecondaryStyle, disableSelection]);
 };

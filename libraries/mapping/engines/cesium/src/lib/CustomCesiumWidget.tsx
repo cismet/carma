@@ -10,17 +10,14 @@ import {
   Transforms,
   ClippingPolygon,
   ClippingPolygonCollection,
-  CustomShader,
   PerspectiveFrustum,
   HeadingPitchRange,
   OrthographicFrustum,
   ClippingPlaneCollection,
+  CustomShader,
 } from "cesium";
 import { generateRingFromDegrees } from "./utils/cesiumHelpers";
 import { LatLngRadians, LatLngRecord } from "..";
-import { CUSTOM_SHADERS_DEFINITIONS } from "./shaders";
-
-const unlit = new CustomShader(CUSTOM_SHADERS_DEFINITIONS.UNLIT);
 
 const addDebugPrimitives = (widget: CesiumWidget, cartesian: Cartesian3) => {
   const pointCollection = new PointPrimitiveCollection();
@@ -66,6 +63,7 @@ export const CustomCesiumWidget: FC<{
   orthographic?: boolean;
   animate?: boolean;
   children?: ReactNode;
+  shader?: CustomShader;
 }> = ({
   children,
   clip = false,
@@ -78,6 +76,7 @@ export const CustomCesiumWidget: FC<{
   position = { longitude: 7.201578, latitude: 51.256565, height: 335 },
   debug = false,
   animate = false,
+  shader,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [widget, setWidget] = useState<CesiumWidget | null>(null);
@@ -109,7 +108,7 @@ export const CustomCesiumWidget: FC<{
             //preferLeaves: true,
             //preloadWhenHidden: true,
           });
-          newTileset.customShader = unlit;
+          newTileset.customShader = shader;
           setTileset(newTileset);
         })();
       };
@@ -123,7 +122,7 @@ export const CustomCesiumWidget: FC<{
         setTileset(null);
       }
     };
-  }, [tilesetUrl, tileset]);
+  }, [tilesetUrl, tileset, shader]);
 
   useEffect(() => {
     if (tileset && widget) {

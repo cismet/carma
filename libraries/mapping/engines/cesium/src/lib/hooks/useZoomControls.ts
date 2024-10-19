@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 
-import { useCesiumContext } from "../CesiumContextProvider";
+import { useCesiumContext } from "../hooks/useCesiumContext";
 
 const MOVERATE_FACTOR = 0.33;
 

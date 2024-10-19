@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 
 import {
@@ -6,43 +6,23 @@ import {
   EllipsoidTerrainProvider,
   ImageryLayer,
   WebMapServiceImageryProvider,
-  WebMapTileServiceImageryProvider,
   Viewer,
   Cesium3DTileset,
+  CustomShader,
 } from "cesium";
 
-export interface CesiumContextType {
-  viewer: Viewer | null;
-  setViewer: (viewer: Viewer | null) => void;
-  terrainProvider: CesiumTerrainProvider | null;
-  surfaceProvider: CesiumTerrainProvider | null;
-  //imageryProvider:    | WebMapServiceImageryProvider    | WebMapTileServiceImageryProvider    | null;
-  imageryLayer: ImageryLayer | null;
-  ellipsoidTerrainProvider: EllipsoidTerrainProvider | null;
-  tilesets: {
-    primary: Cesium3DTileset | null;
-    secondary: Cesium3DTileset | null;
-  };
-  // TODO add more setters
-  setPrimaryTileset: (tileset: Cesium3DTileset | null) => void;
-  setSecondaryTileset: (tileset: Cesium3DTileset | null) => void;
-}
+import { CustomShaderDefinition } from "types/cesium-config";
 
-export const CesiumContext = createContext<CesiumContextType | null>(null);
+import { TilesetConfig } from "./utils/cesiumHelpers";
+import { CesiumContext, type CesiumContextType } from "./CesiumContext";
 
-export const useCesiumContext = () => {
-  const context = useContext(CesiumContext);
-  if (!context) {
-    throw new Error("useViewer must be used within a CesiumContextProvider");
-  }
-  return context;
-};
-
-export const CesiumContextProvider = ({
-  children,
-  providerConfig,
-}: {
+interface CesiumContextProviderProps {
   children: ReactNode;
+  tilesetConfig: {
+    primary: TilesetConfig;
+    secondary: TilesetConfig;
+    [key: string]: TilesetConfig;
+  };
   providerConfig: {
     surfaceProvider?: {
       url: string;
@@ -56,13 +36,26 @@ export const CesiumContextProvider = ({
       parameters?: Record<string, string | number | boolean>;
     };
   };
-}) => {
+  shaderDefinitions: Record<string, CustomShaderDefinition>;
+}
+
+export const CesiumContextProvider = ({
+  children,
+  providerConfig,
+  shaderDefinitions,
+  tilesetConfig,
+}: CesiumContextProviderProps) => {
   const [viewer, setViewer] = useState<Viewer | null>(null);
-  const [primaryTileset, setPrimaryTileset] = useState<Cesium3DTileset | null>(
+  const [tilesets, setTilesets] = useState<[string, Cesium3DTileset][]>([]);
+  const [tilesetPrimary, setTilesetPrimary] = useState<Cesium3DTileset | null>(
     null,
   );
-  const [secondaryTileset, setSecondaryTileset] =
-    useState<Cesium3DTileset | null>(null);
+  const [tilesetSecondary, setTilesetSecondary] = useState<Cesium3DTileset | null>(
+    null,
+  );
+  const [tilesetPrimaryShader, setTilesetPrimaryShader] = useState<CustomShader | null>(null);
+  const [tilesetSecondaryShader, setTilesetSecondaryShader] = useState<CustomShader | null>(null);
+
   const [terrainProvider, setTerrainProvider] =
     useState<CesiumTerrainProvider | null>(null);
   const [surfaceProvider, setSurfaceProvider] =
@@ -71,6 +64,54 @@ export const CesiumContextProvider = ({
   const imageryProvider = new WebMapServiceImageryProvider(
     providerConfig.imageryProvider,
   );
+
+  // Load tilesets and shaders
+  useEffect(() => {
+    (async () => {
+      const { primary, secondary, ...rest } = tilesetConfig;
+
+      let parsedTilesets: [string, Cesium3DTileset][] = [];
+
+      try {
+        const parsedPrimary = await Cesium3DTileset.fromUrl(primary.url);
+        setTilesetPrimary(parsedPrimary);
+        if (primary.shader) {
+          const shaderPrimary = new CustomShader(primary.shader);
+          setTilesetPrimaryShader(shaderPrimary);
+          parsedPrimary.customShader = shaderPrimary;
+        }
+        parsedTilesets.push(["defaultPrimary", parsedPrimary]);
+      } catch (error) {
+        console.error("Failed to load primary tileset:", error);
+      }
+      try {
+        const parsedSecondary = await Cesium3DTileset.fromUrl(secondary.url);
+        setTilesetSecondary(parsedSecondary);
+        if (secondary.shader && parsedSecondary) {
+          const shaderSecondary = new CustomShader(secondary.shader);
+          setTilesetSecondaryShader(shaderSecondary);
+          parsedSecondary.customShader = shaderSecondary;
+        }
+        parsedTilesets.push(["defaultSecondary", parsedSecondary]);
+      } catch (error) {
+        console.error("Failed to load secondary tileset:", error);
+      }
+
+      try {
+        for (const [key, tileset] of Object.entries(rest)) {
+          const parsedTileset = await Cesium3DTileset.fromUrl(tileset.url);
+          parsedTilesets.push([key, parsedTileset]);
+        }
+
+      } catch (error) {
+        console.warn("Failed to load rest of tilesets:", error);
+      }
+
+      setTilesets(parsedTilesets);
+      console.log("Loaded Tilesets", parsedTilesets);
+    })()
+  }, [tilesetConfig, shaderDefinitions]);
+
 
   useEffect(() => {
     (async () => {
@@ -101,6 +142,7 @@ export const CesiumContextProvider = ({
     })();
   }, [providerConfig.surfaceProvider]);
 
+
   const values: CesiumContextType = {
     viewer,
     setViewer,
@@ -108,15 +150,19 @@ export const CesiumContextProvider = ({
     terrainProvider,
     surfaceProvider,
     imageryLayer: new ImageryLayer(imageryProvider),
-    tilesets: {
-      primary: primaryTileset,
-      secondary: secondaryTileset,
-    },
-    setPrimaryTileset,
-    setSecondaryTileset,
+    tilesets,
+    tilesetPrimary,
+    tilesetSecondary,
+    tilesetPrimaryShader,
+    tilesetSecondaryShader,
+    setTilesetPrimary,
+    setTilesetSecondary,
+    setTilesetPrimaryShader,
+    setTilesetSecondaryShader,
+    shaderDefinitions,
   };
 
-  console.log("Cesium CustomViewerContextProvider Initialized", values);
+  console.log("RENDER:Cesium CustomViewerContextProvider Initialized", values);
 
   return (
     <CesiumContext.Provider value={values}>{children}</CesiumContext.Provider>

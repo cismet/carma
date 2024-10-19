@@ -2,6 +2,7 @@
 
 import { Color, TerrainProvider } from "cesium";
 import { hashcodecs } from "./lib/utils/hashHelpers";
+import { CustomShaderDefinition } from "types/cesium-config";
 
 type Translation = {
   x: number;
@@ -114,6 +115,7 @@ export type TilesetConfig = {
   idProperty?: string;
   maximumScreenSpaceError?: number;
   disableSelection?: boolean;
+  shader?: CustomShaderDefinition;
 };
 
 export type GeoJsonConfig = {
@@ -174,13 +176,7 @@ export interface CesiumState {
   };
   dataSources: {
     footprintGeoJson: null | GeoJsonConfig;
-    tilesets: {
-      primary: null | TilesetConfig;
-      secondary: null | TilesetConfig;
-    };
   };
-  terrainProvider: null | TerrainProviderConfig;
-  imageryProvider: null | ImageryProviderConfig;
   models: null | Record<string, ModelAsset | ParsedModelAsset>;
 }
 

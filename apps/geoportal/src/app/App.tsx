@@ -17,6 +17,10 @@ import {
   BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
   WUPP_TERRAIN_PROVIDER,
   WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
+  WUPP_LOD2_TILESET,
+  WUPP_MESH_2024,
+  WUPP_MESH_2020,
+  CUSTOM_SHADERS_DEFINITIONS,
 } from "@carma-commons/resources";
 import { OverlayTourProvider } from "@carma-commons/ui/lib-helper-overlay";
 import { CesiumContextProvider } from "@carma-mapping/cesium-engine";
@@ -156,6 +160,12 @@ function App({ published }: { published?: boolean }) {
             terrainProvider: WUPP_TERRAIN_PROVIDER,
             imageryProvider: BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
           }}
+          tilesetConfig={{
+            primary: { ...WUPP_MESH_2024, shader: CUSTOM_SHADERS_DEFINITIONS.UNLIT_ENHANCED_2024 },
+            secondary: WUPP_LOD2_TILESET,
+            primary2020: { ...WUPP_MESH_2020, shader: CUSTOM_SHADERS_DEFINITIONS.UNLIT_ENHANCED_2020 },
+          }}
+          shaderDefinitions={CUSTOM_SHADERS_DEFINITIONS}
         >
           <ErrorBoundary FallbackComponent={AppErrorFallback}>
             <div className="flex flex-col w-full " style={{ height: "100dvh" }}>

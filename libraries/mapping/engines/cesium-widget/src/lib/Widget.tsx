@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import type { FC, ReactNode } from "react";
+
 import {
   CesiumWidget,
   Cesium3DTileset,
@@ -16,13 +18,10 @@ import {
   OrthographicFrustum,
   ClippingPlaneCollection,
 } from "cesium";
+
+import type { LatLngRadians, LatLngRecord } from "types/common-geo";
 import { generateRingFromDegrees } from "./utils";
 
-import type { FC, ReactNode } from "react";
-import type { LatLngRadians, LatLngRecord } from "types/common-geo";
-import { CUSTOM_SHADERS_DEFINITIONS } from "@carma-mapping/cesium-engine";
-
-const unlit = new CustomShader(CUSTOM_SHADERS_DEFINITIONS.UNLIT_ENHANCED_2024);
 
 const addDebugPrimitives = (widget: CesiumWidget, cartesian: Cartesian3) => {
   const pointCollection = new PointPrimitiveCollection();
@@ -64,12 +63,14 @@ export const Widget: FC<{
   clipPolygon?: LatLngRecord[];
   clipRadius?: number;
   tilesetUrl: string;
+  shader?: CustomShader;
   debug?: boolean;
   orthographic?: boolean;
   animate?: boolean;
   children?: ReactNode;
 }> = ({
   children,
+  shader,
   clip = false,
   orthographic = false,
   pixelSize = { width: 1024, height: 1024 },
@@ -81,256 +82,256 @@ export const Widget: FC<{
   debug = false,
   animate = false,
 }) => {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const [widget, setWidget] = useState<CesiumWidget | null>(null);
-  const [tileset, setTileset] = useState<Cesium3DTileset | null>(null);
-  const [cartesian, setCartesian] = useState<Cartesian3 | null>(null);
+    const containerRef = useRef<HTMLDivElement | null>(null);
+    const [widget, setWidget] = useState<CesiumWidget | null>(null);
+    const [tileset, setTileset] = useState<Cesium3DTileset | null>(null);
+    const [cartesian, setCartesian] = useState<Cartesian3 | null>(null);
 
-  useEffect(() => {
-    const cartesian3 = Cartesian3.fromDegrees(
-      position.longitude,
-      position.latitude,
-      position.height,
-    );
-    setCartesian(cartesian3);
+    useEffect(() => {
+      const cartesian3 = Cartesian3.fromDegrees(
+        position.longitude,
+        position.latitude,
+        position.height,
+      );
+      setCartesian(cartesian3);
 
-    //console.log('HOOK Position changed, setting cartesian3', cartesian3);
-  }, [position]);
+      //console.log('HOOK Position changed, setting cartesian3', cartesian3);
+    }, [position]);
 
-  useEffect(() => {
-    if (!tileset) {
-      const loadTilesetAsync = () => {
-        (async () => {
-          console.log("Loading tileset:", tilesetUrl);
-          const newTileset = await Cesium3DTileset.fromUrl(tilesetUrl, {
-            //maximumScreenSpaceError: 4,
-            //baseScreenSpaceError: 128,
-            foveatedScreenSpaceError: false,
-            dynamicScreenSpaceError: false,
-            //skipLevels: 1,
-            //preferLeaves: true,
-            //preloadWhenHidden: true,
-          });
-          newTileset.customShader = unlit;
-          setTileset(newTileset);
-        })();
-      };
+    useEffect(() => {
+      if (!tileset) {
+        const loadTilesetAsync = () => {
+          (async () => {
+            console.log("Loading tileset:", tilesetUrl);
+            const newTileset = await Cesium3DTileset.fromUrl(tilesetUrl, {
+              //maximumScreenSpaceError: 4,
+              //baseScreenSpaceError: 128,
+              foveatedScreenSpaceError: false,
+              dynamicScreenSpaceError: false,
+              //skipLevels: 1,
+              //preferLeaves: true,
+              //preloadWhenHidden: true,
+            });
+            newTileset.customShader = shader;
+            setTileset(newTileset);
+          })();
+        };
 
-      loadTilesetAsync();
-    }
-    return () => {
-      if (tileset) {
-        console.log("HOOK: Destroying tileset");
-        tileset.destroy();
-        setTileset(null);
+        loadTilesetAsync();
       }
-    };
-  }, [tilesetUrl, tileset]);
-
-  useEffect(() => {
-    if (tileset && widget) {
-      console.log("HOOK: Tileset added to scene:", tileset);
-      widget.scene.primitives.add(tileset);
       return () => {
-        if (widget) {
-          widget.scene.primitives.remove(tileset);
+        if (tileset) {
+          console.log("HOOK: Destroying tileset");
+          tileset.destroy();
+          setTileset(null);
         }
       };
-    }
-    return;
-  }, [tileset, widget]);
+    }, [tilesetUrl, tileset, shader]);
 
-  useEffect(() => {
-    if (containerRef.current && !widget) {
-      const newWidget = new CesiumWidget(containerRef.current, {
-        scene3DOnly: true,
-        baseLayer: false,
-        skyBox: false,
-        skyAtmosphere: false,
-        globe: false,
-        msaaSamples: 4,
-        useBrowserRecommendedResolution: true,
-        contextOptions: {
-          webgl: {
-            alpha: true,
-            //depth: true,
-            //stencil: true,
-            antialias: true,
-            //preserveDrawingBuffer: true,
+    useEffect(() => {
+      if (tileset && widget) {
+        console.log("HOOK: Tileset added to scene:", tileset);
+        widget.scene.primitives.add(tileset);
+        return () => {
+          if (widget) {
+            widget.scene.primitives.remove(tileset);
+          }
+        };
+      }
+      return;
+    }, [tileset, widget]);
+
+    useEffect(() => {
+      if (containerRef.current && !widget) {
+        const newWidget = new CesiumWidget(containerRef.current, {
+          scene3DOnly: true,
+          baseLayer: false,
+          skyBox: false,
+          skyAtmosphere: false,
+          globe: false,
+          msaaSamples: 4,
+          useBrowserRecommendedResolution: true,
+          contextOptions: {
+            webgl: {
+              alpha: true,
+              //depth: true,
+              //stencil: true,
+              antialias: true,
+              //preserveDrawingBuffer: true,
+            },
           },
-        },
-        //useDefaultRenderLoop: true,
-      });
-
-      newWidget.scene.backgroundColor = Color.TRANSPARENT;
-      const controller = newWidget.scene.screenSpaceCameraController;
-
-      controller.minimumZoomDistance = 15;
-      controller.maximumZoomDistance = 250;
-      controller.enableCollisionDetection = false;
-
-      setWidget(newWidget);
-      //const gl = widget.canvas.getContext('webgl');
-      //gl && gl.clearColor(0.0, 0.0, 0.0, 0.0);
-      //change after setting
-    }
-    return () => {
-      if (widget) {
-        console.log("HOOK: Destroying widget");
-        widget.destroy();
-        setWidget(null);
-      }
-    };
-  }, [widget]);
-
-  useEffect(() => {
-    if (widget && cartesian) {
-      widget.scene.screenSpaceCameraController.inertiaZoom = 0;
-      widget.scene.screenSpaceCameraController.maximumZoomDistance = range * 5;
-      widget.scene.screenSpaceCameraController.minimumZoomDistance = range / 2;
-      const boundingSphere = new BoundingSphere(cartesian, range);
-      widget.camera.viewBoundingSphere(boundingSphere);
-      //widget.camera.frustum.far = Math.round(range * 4);
-      //console.log('HOOK: Camera position updated:', cartesian);
-      if (orthographic) {
-        if (widget.camera.frustum instanceof PerspectiveFrustum) {
-          widget.camera.switchToOrthographicFrustum();
-        }
-
-        // TODO enable proper zoom in orthographic mode
-        // currently mousewheel zoom too far out of bounds
-        widget.scene.screenSpaceCameraController.enableZoom = false;
-      }
-      if (!orthographic) {
-        if (widget.camera.frustum instanceof OrthographicFrustum) {
-          widget.camera.switchToPerspectiveFrustum();
-        }
-        widget.scene.screenSpaceCameraController.enableZoom = true;
-        //widget.camera.frustum.yOffset = 100;
-      }
-    }
-    return;
-  }, [widget, orthographic, cartesian, range]);
-
-  useEffect(() => {
-    if (widget && cartesian && animate) {
-      let animationFrameId: number;
-      let lastTime = Date.now();
-      const boundingSphere = new BoundingSphere(cartesian, range);
-
-      const updateHeading = () => {
-        const now = Date.now();
-        const increment = 0.0005 * (now - lastTime);
-
-        widget.scene.camera.viewBoundingSphere(
-          boundingSphere,
-          new HeadingPitchRange(
-            widget.scene.camera.heading + increment,
-            widget.scene.camera.pitch,
-            0,
-          ),
-        );
-        lastTime = now;
-        animationFrameId = requestAnimationFrame(updateHeading);
-      };
-
-      updateHeading();
-
-      return () => {
-        cancelAnimationFrame(animationFrameId);
-      };
-    }
-    return;
-  }, [widget, cartesian, animate, range]);
-
-  useEffect(() => {
-    // TODO proper update and removal of the clipping PolygonCollection
-    let clippingPolygon: ClippingPolygon | undefined;
-    let clippingPolygonCollection: ClippingPolygonCollection | undefined;
-    if (widget && tileset) {
-      if (clip) {
-        //console.log('Creating clipping polygon:', clipRadius);
-
-        if (clipPolygon && clipPolygon.length > 2) {
-          clippingPolygon = new ClippingPolygon({
-            positions: clipPolygon.map((coord: LatLngRecord) =>
-              Cartesian3.fromDegrees(coord.longitude, coord.latitude),
-            ),
-          });
-          console.info("Clipping polygon created", clippingPolygon);
-        } else if (clipRadius) {
-          console.info("Creating clipping circle:", clipRadius);
-          const ringCoords = generateRingFromDegrees(
-            { longitude: position.longitude, latitude: position.latitude },
-            clipRadius ?? 100,
-          );
-
-          clippingPolygon = new ClippingPolygon({
-            positions: ringCoords.map((coord: LatLngRadians) =>
-              Cartesian3.fromRadians(coord.lngRad, coord.latRad),
-            ),
-          });
-        }
-
-        console.info("Clipping polygon created", clippingPolygon);
-
-        if (clippingPolygon) {
-          clippingPolygonCollection = new ClippingPolygonCollection({
-            polygons: [clippingPolygon],
-            inverse: true,
-            enabled: true,
-          });
-          tileset.clippingPolygons = clippingPolygonCollection;
-        }
-      } else {
-        tileset.clippingPlanes = new ClippingPlaneCollection({
-          enabled: false,
+          //useDefaultRenderLoop: true,
         });
-        tileset.clippingPolygons = new ClippingPolygonCollection({
-          enabled: false,
-        });
-      }
-    }
 
-    return () => {
-      if (tileset && clippingPolygonCollection) {
-        //console.log(          'Removing clipping polygon collection:',          tileset.clippingPolygons        );
-        clippingPolygonCollection.removeAll();
-        //clippingPolygon && tileset.clippingPolygons.remove(clippingPolygon);
-        tileset.clippingPolygons?.removeAll &&
-          tileset.clippingPolygons.removeAll();
-        tileset.clippingPlanes?.removeAll && tileset.clippingPlanes.removeAll();
-        //!clippingPolygonCollection.isDestroyed() && clippingPolygonCollection.destroy();
-      }
-    };
-  }, [clip, clipRadius, clipPolygon, position, tileset, widget]);
+        newWidget.scene.backgroundColor = Color.TRANSPARENT;
+        const controller = newWidget.scene.screenSpaceCameraController;
 
-  useEffect(() => {
-    if (debug && widget && cartesian) {
-      const removeFn = addDebugPrimitives(widget, cartesian);
+        controller.minimumZoomDistance = 15;
+        controller.maximumZoomDistance = 250;
+        controller.enableCollisionDetection = false;
+
+        setWidget(newWidget);
+        //const gl = widget.canvas.getContext('webgl');
+        //gl && gl.clearColor(0.0, 0.0, 0.0, 0.0);
+        //change after setting
+      }
       return () => {
         if (widget) {
-          removeFn();
+          console.log("HOOK: Destroying widget");
+          widget.destroy();
+          setWidget(null);
         }
       };
-    }
-    return;
-  }, [debug, cartesian, widget]);
+    }, [widget]);
 
-  console.log("Render CustomCesiumWidget", position, range);
+    useEffect(() => {
+      if (widget && cartesian) {
+        widget.scene.screenSpaceCameraController.inertiaZoom = 0;
+        widget.scene.screenSpaceCameraController.maximumZoomDistance = range * 5;
+        widget.scene.screenSpaceCameraController.minimumZoomDistance = range / 2;
+        const boundingSphere = new BoundingSphere(cartesian, range);
+        widget.camera.viewBoundingSphere(boundingSphere);
+        //widget.camera.frustum.far = Math.round(range * 4);
+        //console.log('HOOK: Camera position updated:', cartesian);
+        if (orthographic) {
+          if (widget.camera.frustum instanceof PerspectiveFrustum) {
+            widget.camera.switchToOrthographicFrustum();
+          }
 
-  return (
-    <div
-      ref={containerRef}
-      style={{
-        width: `${pixelSize.width}px`,
-        height: `${pixelSize.height}px`,
-        backgroundColor: "transparent",
-      }}
-    >
-      {children}
-    </div>
-  );
-};
+          // TODO enable proper zoom in orthographic mode
+          // currently mousewheel zoom too far out of bounds
+          widget.scene.screenSpaceCameraController.enableZoom = false;
+        }
+        if (!orthographic) {
+          if (widget.camera.frustum instanceof OrthographicFrustum) {
+            widget.camera.switchToPerspectiveFrustum();
+          }
+          widget.scene.screenSpaceCameraController.enableZoom = true;
+          //widget.camera.frustum.yOffset = 100;
+        }
+      }
+      return;
+    }, [widget, orthographic, cartesian, range]);
+
+    useEffect(() => {
+      if (widget && cartesian && animate) {
+        let animationFrameId: number;
+        let lastTime = Date.now();
+        const boundingSphere = new BoundingSphere(cartesian, range);
+
+        const updateHeading = () => {
+          const now = Date.now();
+          const increment = 0.0005 * (now - lastTime);
+
+          widget.scene.camera.viewBoundingSphere(
+            boundingSphere,
+            new HeadingPitchRange(
+              widget.scene.camera.heading + increment,
+              widget.scene.camera.pitch,
+              0,
+            ),
+          );
+          lastTime = now;
+          animationFrameId = requestAnimationFrame(updateHeading);
+        };
+
+        updateHeading();
+
+        return () => {
+          cancelAnimationFrame(animationFrameId);
+        };
+      }
+      return;
+    }, [widget, cartesian, animate, range]);
+
+    useEffect(() => {
+      // TODO proper update and removal of the clipping PolygonCollection
+      let clippingPolygon: ClippingPolygon | undefined;
+      let clippingPolygonCollection: ClippingPolygonCollection | undefined;
+      if (widget && tileset) {
+        if (clip) {
+          //console.log('Creating clipping polygon:', clipRadius);
+
+          if (clipPolygon && clipPolygon.length > 2) {
+            clippingPolygon = new ClippingPolygon({
+              positions: clipPolygon.map((coord: LatLngRecord) =>
+                Cartesian3.fromDegrees(coord.longitude, coord.latitude),
+              ),
+            });
+            console.info("Clipping polygon created", clippingPolygon);
+          } else if (clipRadius) {
+            console.info("Creating clipping circle:", clipRadius);
+            const ringCoords = generateRingFromDegrees(
+              { longitude: position.longitude, latitude: position.latitude },
+              clipRadius ?? 100,
+            );
+
+            clippingPolygon = new ClippingPolygon({
+              positions: ringCoords.map((coord: LatLngRadians) =>
+                Cartesian3.fromRadians(coord.lngRad, coord.latRad),
+              ),
+            });
+          }
+
+          console.info("Clipping polygon created", clippingPolygon);
+
+          if (clippingPolygon) {
+            clippingPolygonCollection = new ClippingPolygonCollection({
+              polygons: [clippingPolygon],
+              inverse: true,
+              enabled: true,
+            });
+            tileset.clippingPolygons = clippingPolygonCollection;
+          }
+        } else {
+          tileset.clippingPlanes = new ClippingPlaneCollection({
+            enabled: false,
+          });
+          tileset.clippingPolygons = new ClippingPolygonCollection({
+            enabled: false,
+          });
+        }
+      }
+
+      return () => {
+        if (tileset && clippingPolygonCollection) {
+          //console.log(          'Removing clipping polygon collection:',          tileset.clippingPolygons        );
+          clippingPolygonCollection.removeAll();
+          //clippingPolygon && tileset.clippingPolygons.remove(clippingPolygon);
+          tileset.clippingPolygons?.removeAll &&
+            tileset.clippingPolygons.removeAll();
+          tileset.clippingPlanes?.removeAll && tileset.clippingPlanes.removeAll();
+          //!clippingPolygonCollection.isDestroyed() && clippingPolygonCollection.destroy();
+        }
+      };
+    }, [clip, clipRadius, clipPolygon, position, tileset, widget]);
+
+    useEffect(() => {
+      if (debug && widget && cartesian) {
+        const removeFn = addDebugPrimitives(widget, cartesian);
+        return () => {
+          if (widget) {
+            removeFn();
+          }
+        };
+      }
+      return;
+    }, [debug, cartesian, widget]);
+
+    console.log("Render CustomCesiumWidget", position, range);
+
+    return (
+      <div
+        ref={containerRef}
+        style={{
+          width: `${pixelSize.width}px`,
+          height: `${pixelSize.height}px`,
+          backgroundColor: "transparent",
+        }}
+      >
+        {children}
+      </div>
+    );
+  };
 
 export default Widget;

@@ -9,6 +9,7 @@
       "executor": "@nx/vite:build",
       "outputs": ["{options.outputPath}"],
       "options": {
+        "buildLibsFromSource": false,
         "outputPath": "dist/libraries/mapping/engines/cesium-widget"
       }
     },

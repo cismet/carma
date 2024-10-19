@@ -7,7 +7,7 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import type { CameraPositionAndOrientation } from "../../index";
 
-import { useCesiumContext } from "../CesiumContextProvider";
+import { useCesiumContext } from "../hooks/useCesiumContext";
 import {
   setIsMode2d,
   setTransitionTo2d,

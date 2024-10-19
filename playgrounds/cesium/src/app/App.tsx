@@ -10,7 +10,10 @@ import {
 import { TweakpaneProvider } from "@carma-commons/debug";
 import {
   BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
+  CUSTOM_SHADERS_DEFINITIONS,
   METROPOLERUHR_WMTS_SPW2_WEBMERCATOR,
+  WUPP_LOD2_TILESET,
+  WUPP_MESH_2024,
   WUPP_TERRAIN_PROVIDER,
 } from "@carma-commons/resources";
 
@@ -32,6 +35,11 @@ export function App() {
         terrainProvider: WUPP_TERRAIN_PROVIDER,
         imageryProvider: BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
       }}
+      tilesetConfig={{
+        primary: WUPP_MESH_2024,
+        secondary: WUPP_LOD2_TILESET,
+      }}
+      shaderDefinitions={CUSTOM_SHADERS_DEFINITIONS}
     >
       <TweakpaneProvider>
         <HashRouter>
