@@ -60,6 +60,8 @@ const LibItem = ({
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
   const [forceWMS, setForceWMS] = useState(false);
   const showInfo = selectedLayerId === layer.id;
+  const canShowInfo =
+    layer.type === "layer" || (layer.type === "link" && layer.description);
   const title = layer.title;
   const description = layer.description;
   const keywords = layer.keywords;
@@ -260,7 +262,7 @@ const LibItem = ({
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         onClick={() => {
-          if (layer.type === "layer") {
+          if (canShowInfo) {
             setSelectedLayerId(showInfo ? null : layer.id);
           }
         }}
@@ -377,7 +379,7 @@ const LibItem = ({
                 <a
                   className="w-36 bg-gray-100 hover:no-underline text-black hover:text-neutral-600 hover:bg-gray-50 rounded-md py-2 flex text-center items-center px-2"
                   href={layer.url}
-                  target="topicMaps"
+                  target="_topicMaps"
                 >
                   <>
                     <FontAwesomeIcon

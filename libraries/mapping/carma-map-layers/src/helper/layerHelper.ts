@@ -218,7 +218,10 @@ export const getLayerStructure = ({
           }
           let tags = foundLayer.tags;
           let keywords = foundLayer.keywords;
-          tags[0] = categoryObject.Title;
+          tags[0] =
+            foundLayer.type === "link"
+              ? foundLayer.tags[0]
+              : categoryObject.Title;
           foundLayer = { ...foundLayer, ...layer, tags, service };
           if (keywords && foundLayer?.keywords) {
             foundLayer.keywords = [...keywords, ...foundLayer.keywords];

@@ -333,14 +333,26 @@ export const topicMapsConfig: Config = {
     {
       id: "wuppTopic_emobi",
       name: "wuppTopic_emobi",
-      title: "Ladestationen E-Autos",
-      description: `Interaktive Kartenanwendung für die E-Auto-Ladestationen in Wuppertal.`,
-      tags: ["Topic Maps", "E-Auto", "Ladestationen"],
+      title: "E-Auto-Ladestationskarte",
+      description: `Die E-Auto-Ladestationskarte Wuppertal ist eine im Auftrag der Stadt Wuppertal von der Firma cismet GmbH, Saarbrücken, betriebene interaktive Internet-Kartenanwendung, die dem Nutzer einen Überblick über die öffentlich zugänglichen Ladestationen für Elektro-Automobile im Wuppertaler Stadtgebiet verschafft.`,
+      tags: [
+        "TopicMap",
+        "E-Auto-Ladestationen",
+        "Verkehr",
+        "Umwelt",
+        "Elektro-Auto",
+        "Elektromobilität",
+        "E-Mobilität",
+        "EmoTal",
+      ],
       type: "link",
       thumbnail:
         "https://www.wuppertal.de/geoportal/emobil/autos/fotos/fertighauswelt.jpg",
 
       url: "https://digital-twin-wuppertal-live.github.io/elektromobilitaet/",
+      keywords: [
+        "carmaConf://opendata:https://offenedaten-wuppertal.de/dataset/ladestationen-e-autos-wuppertal/resource/46973470-98c9-4ba1-9b69-94358b9b22cb",
+      ],
     },
     {
       id: "wuppTopic_kitas",

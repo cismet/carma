@@ -5,6 +5,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCircleMinus,
   faCirclePlus,
+  faExternalLink,
   faImage,
   faMap,
   faStar,
@@ -38,7 +39,7 @@ const InfoCard = ({
 }: InfoCardProps) => {
   const { title, description, tags } = layer;
   // @ts-expect-error fix typing
-  const legends = layer.props.Style[0].LegendURL;
+  const legends = layer?.props?.Style?.[0]?.LegendURL;
   const parsedDescription = parseDescription(description);
   const carmaConf = extractCarmaConf(layer.keywords);
 
@@ -49,31 +50,44 @@ const InfoCard = ({
           <div className="flex w-max overflow-hidden gap-4 items-center">
             <h3 className="mb-0 truncate leading-10">{title}</h3>
             <div className="flex items-center gap-4">
-              <Button
-                onClick={handleAddClick}
-                icon={
-                  <FontAwesomeIcon
-                    icon={isActiveLayer ? faCircleMinus : faCirclePlus}
-                  />
-                }
-              >
-                {isActiveLayer ? "Entfernen" : "Hinzufügen"}
-              </Button>
+              {layer.type === "layer" && (
+                <Button
+                  onClick={handleAddClick}
+                  icon={
+                    <FontAwesomeIcon
+                      icon={isActiveLayer ? faCircleMinus : faCirclePlus}
+                    />
+                  }
+                >
+                  {isActiveLayer ? "Entfernen" : "Hinzufügen"}
+                </Button>
+              )}
+              {layer.type === "link" && (
+                <Button
+                  href={layer.url}
+                  target="_topicMaps"
+                  icon={<FontAwesomeIcon icon={faExternalLink} />}
+                >
+                  Öffnen
+                </Button>
+              )}
               <Button
                 onClick={handleFavoriteClick}
                 icon={<FontAwesomeIcon icon={faStar} />}
               >
                 {isFavorite ? "Favorit entfernen" : "Favorisieren"}
               </Button>
-              <Button
-                onClick={(e) => {
-                  setPreview(true);
-                  handleAddClick(e, true);
-                }}
-                icon={<FontAwesomeIcon icon={faMap} />}
-              >
-                Vorschau
-              </Button>
+              {layer.type === "layer" && (
+                <Button
+                  onClick={(e) => {
+                    setPreview(true);
+                    handleAddClick(e, true);
+                  }}
+                  icon={<FontAwesomeIcon icon={faMap} />}
+                >
+                  Vorschau
+                </Button>
+              )}
             </div>
           </div>
           <button
@@ -88,20 +102,25 @@ const InfoCard = ({
             <div>
               <h5 className="font-semibold text-lg">Inhalt</h5>
               <p className="text-base text-gray-600">
-                {parsedDescription.inhalt}
+                {parsedDescription.inhalt || description}
               </p>
-              {parsedDescription.sichtbarkeit.slice(0, -1) !== "öffentlich" && (
+              {parsedDescription.sichtbarkeit.slice(0, -1) !== "öffentlich" &&
+                parsedDescription.sichtbarkeit.length > 0 && (
+                  <>
+                    <h5 className="font-semibold">Sichtbarkeit</h5>
+                    <p className="text-sm">
+                      {parsedDescription.sichtbarkeit.slice(0, -1)}
+                    </p>
+                  </>
+                )}
+              {parsedDescription.nutzung.length > 0 && (
                 <>
-                  <h5 className="font-semibold">Sichtbarkeit</h5>
-                  <p className="text-sm">
-                    {parsedDescription.sichtbarkeit.slice(0, -1)}
+                  <h5 className="font-semibold">Nutzung</h5>
+                  <p className="text-base text-gray-600">
+                    {parsedDescription.nutzung}
                   </p>
                 </>
               )}
-              <h5 className="font-semibold text-lg">Nutzung</h5>
-              <p className="text-base text-gray-600">
-                {parsedDescription.nutzung}
-              </p>
             </div>
             <p
               style={{ color: "rgba(0,0,0,0.5)", fontSize: "0.875rem" }}
@@ -133,20 +152,24 @@ const InfoCard = ({
               </a>
             )}
           </div>
-          <div className="h-full w-0 border-r border-gray-300 my-0" />
-          <div className="flex flex-col gap-0 w-1/4">
-            <h5 className="font-semibold text-lg">Legende</h5>
-            <div className="h-full overflow-auto">
-              {legends?.map((legend, i) => (
-                <img
-                  key={`legend_${i}`}
-                  src={legend.OnlineResource}
-                  alt="Legende"
-                  className="h-fit"
-                />
-              ))}
-            </div>
-          </div>
+          {legends && (
+            <>
+              <div className="h-full w-0 border-r border-gray-300 my-0" />
+              <div className="flex flex-col gap-0 w-1/4">
+                <h5 className="font-semibold text-lg">Legende</h5>
+                <div className="h-full overflow-auto">
+                  {legends?.map((legend, i) => (
+                    <img
+                      key={`legend_${i}`}
+                      src={legend.OnlineResource}
+                      alt="Legende"
+                      className="h-fit"
+                    />
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
