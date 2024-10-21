@@ -11,9 +11,7 @@ import {
   faRotateRight,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { useContext, useState } from "react";
-
-import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
+import { useState } from "react";
 
 import { LayerLib, Item, Layer } from "@carma-mapping/layers";
 import { Save, utils } from "@carma-apps/portals";
@@ -56,6 +54,7 @@ import {
   getUIShowLayerButtons,
   setUIShowLayerButtons,
   UIMode,
+  getTopicMapAppMenuVisible,
 } from "../store/slices/ui";
 
 import { layerMap } from "../config";
@@ -69,10 +68,9 @@ const disabledImageOpacity = "opacity-20";
 const TopNavbar = () => {
   const dispatch = useDispatch();
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const setAppMenuVisible = useSelector(getTopicMapAppMenuVisible);
 
-  const { setAppMenuVisible } =
-    useContext<typeof UIDispatchContext>(UIDispatchContext);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [messageApi, contextHolder] = message.useMessage();
 
@@ -384,7 +382,7 @@ const TopNavbar = () => {
 
         <Button
           onClick={() => {
-            setAppMenuVisible(true);
+            setAppMenuVisible && setAppMenuVisible(true);
           }}
           ref={modalMenuTourRef}
         >

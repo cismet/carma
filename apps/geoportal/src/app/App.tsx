@@ -1,15 +1,12 @@
 // Built-in Modules
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 // 3rd party Modules
-import LZString from "lz-string";
 import { ErrorBoundary } from "react-error-boundary";
 import { useDispatch, useSelector } from "react-redux";
-import { useLocation, useSearchParams } from "react-router-dom";
 
 // 1st party Modules
 import { CrossTabCommunicationContextProvider } from "react-cismap/contexts/CrossTabCommunicationContextProvider";
-import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
 
 // Monorepo Packages
 import { backgroundSettings } from "@carma-collab/wuppertal/geoportal";
@@ -30,22 +27,13 @@ import MapMeasurement from "./components/map-measure/MapMeasurement";
 import TopNavbar from "./components/TopNavbar";
 
 import type { AppDispatch } from "./store";
-import {
-  setBackgroundLayer,
-  setLayers,
-  setShowFullscreenButton,
-  setShowHamburgerMenu,
-  setShowLocatorButton,
-  setShowMeasurementButton,
-} from "./store/slices/mapping";
+
 import {
   getUIAllowChanges,
-  getUIMode,
   getUIOverlayTourMode,
   toggleShowOverlayTour,
-  setUIAllowChanges,
-  setUIShowLayerButtons,
   setUIShowLayerHideButtons,
+  getSyncToken,
 } from "./store/slices/ui";
 
 // Side-Effect Imports
@@ -59,60 +47,17 @@ if (typeof global === "undefined") {
   window.global = window;
 }
 
-type Config = {
+export type AppConfig = {
   layers: Layer[];
   backgroundLayer: BackgroundLayer;
   settings?: Settings;
 };
 
-function App({ published }: { published?: boolean }) {
+function App() {
   const dispatch: AppDispatch = useDispatch();
   const tourMode = useSelector(getUIOverlayTourMode);
-  const [searchParams, setSearchParams] = useSearchParams();
   const allowUiChanges = useSelector(getUIAllowChanges);
-  const uiMode = useSelector(getUIMode);
-  const location = useLocation();
-
-  const [syncToken, setSyncToken] = useState(null);
-
-  useEffect(() => {
-    console.info(
-      " [GEOPORTAL|ROUTER] App Route changed to:",
-      location.pathname,
-    );
-  }, [location]);
-
-  useEffect(() => {
-    if (searchParams.get("sync")) {
-      setSyncToken(searchParams.get("sync"));
-    }
-
-    if (searchParams.get("data")) {
-      const data = searchParams.get("data");
-      const newConfig: Config = JSON.parse(
-        LZString.decompressFromEncodedURIComponent(data),
-      );
-      dispatch(setLayers(newConfig.layers));
-      dispatch(setBackgroundLayer(newConfig.backgroundLayer));
-      if (newConfig.settings) {
-        dispatch(setUIShowLayerButtons(newConfig.settings.showLayerButtons));
-        dispatch(setShowFullscreenButton(newConfig.settings.showFullscreen));
-        dispatch(setShowLocatorButton(newConfig.settings.showLocator));
-        dispatch(setShowMeasurementButton(newConfig.settings.showMeasurement));
-        dispatch(setShowHamburgerMenu(newConfig.settings.showHamburgerMenu));
-
-        if (newConfig.settings.showLayerHideButtons || published) {
-          dispatch(setUIAllowChanges(false));
-          dispatch(setUIShowLayerHideButtons(true));
-        } else {
-          dispatch(setUIAllowChanges(true));
-          dispatch(setUIShowLayerHideButtons(false));
-        }
-      }
-      searchParams.delete("data");
-      setSearchParams(searchParams);
-    }
-  }, [searchParams]);
+  const syncToken = useSelector(getSyncToken);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -133,12 +78,10 @@ function App({ published }: { published?: boolean }) {
 
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-
       document.removeEventListener("keyup", onKeyUp);
-
       window.removeEventListener("blur", onKeyUp);
     };
-  }, [allowUiChanges]);
+  }, [allowUiChanges, dispatch]);
 
   const content = (
     <OverlayTourProvider
@@ -147,25 +90,23 @@ function App({ published }: { published?: boolean }) {
       transparency={backgroundSettings.transparency}
       color={backgroundSettings.color}
     >
-      <TopicMapContextProvider>
-        <CesiumContextProvider
-          //initialViewerState={defaultCesiumState}
-          // TODO move these to store/slice setup ?
-          providerConfig={{
-            surfaceProvider: WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
-            terrainProvider: WUPP_TERRAIN_PROVIDER,
-            imageryProvider: BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
-          }}
-        >
-          <ErrorBoundary FallbackComponent={AppErrorFallback}>
-            <div className="flex flex-col w-full " style={{ height: "100dvh" }}>
-              {!published && <TopNavbar />}
-              <MapMeasurement />
-              <GeoportalMap />
-            </div>
-          </ErrorBoundary>
-        </CesiumContextProvider>
-      </TopicMapContextProvider>
+      <CesiumContextProvider
+        //initialViewerState={defaultCesiumState}
+        // TODO move these to store/slice setup ?
+        providerConfig={{
+          surfaceProvider: WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
+          terrainProvider: WUPP_TERRAIN_PROVIDER,
+          imageryProvider: BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
+        }}
+      >
+        <ErrorBoundary FallbackComponent={AppErrorFallback}>
+          <div className="flex flex-col w-full " style={{ height: "100dvh" }}>
+            <TopNavbar />
+            <MapMeasurement />
+            <GeoportalMap />
+          </div>
+        </ErrorBoundary>
+      </CesiumContextProvider>
     </OverlayTourProvider>
   );
 

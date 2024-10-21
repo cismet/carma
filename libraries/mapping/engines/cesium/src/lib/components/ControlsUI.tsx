@@ -6,13 +6,13 @@ import { Compass } from "./controls/Compass";
 import ControlContainer from "./controls/ControlContainer";
 import ControlGroup from "./controls/ControlGroup";
 import { HomeControl } from "./controls/HomeControl";
-import MapTypeSwitcher from "./controls/MapTypeSwitcher";
+import { MapTypeSwitcher } from "./controls/MapTypeSwitcher";
 import LockCenterControl from "./controls/LockCenterControl";
 import OrbitControl from "./controls/OrbitControl";
 import { SceneStyleToggle } from "./controls/SceneStyleToggle";
 import ZoomControls from "./controls/ZoomControls";
 
-const ControlsUI = ({ showHome = true, showOrbit = true }) => {
+const ControlsUI = ({ showHome = true, showOrbit = true, leafletElement }) => {
   const home = useSelector(selectViewerHome);
   const isMode2d = useSelector(selectViewerIsMode2d);
 
@@ -46,7 +46,7 @@ const ControlsUI = ({ showHome = true, showOrbit = true }) => {
           </ControlGroup>
         </div>
         <ControlGroup>
-          <MapTypeSwitcher forceEnabled={true} />
+          <MapTypeSwitcher leafletElement={leafletElement} forceEnabled={true} />
           <SceneStyleToggle />
         </ControlGroup>
       </ControlContainer>

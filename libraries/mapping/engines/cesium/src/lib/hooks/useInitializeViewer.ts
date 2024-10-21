@@ -34,7 +34,7 @@ export const useInitializeViewer = (
 ) => {
   const [hash, setHash] = useState<string | null>(null); // effectively hook should run only once
   const dispatch = useDispatch();
-  const location = useLocation();
+  //const location = useLocation();
   const viewerContext = useCesiumContext();
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
   const minZoom = useSelector(
@@ -139,7 +139,7 @@ export const useInitializeViewer = (
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewer, home, homeOffset, location.pathname, hash, isMode2d]);
+  }, [viewer, home, homeOffset, hash, isMode2d]);
 };
 
 export default useInitializeViewer;

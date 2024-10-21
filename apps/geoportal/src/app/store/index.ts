@@ -13,7 +13,7 @@ import layersReducer from "./slices/layers";
 import uiReducer from "./slices/ui";
 import measurementsReducer from "./slices/measurements";
 import featuresReducer from "./slices/features";
-
+import topicMapReducer from "./slices/topicmap";
 console.info("store initializing ....");
 
 const customAppKey = new URLSearchParams(window.location.hash).get("appKey");
@@ -111,6 +111,7 @@ const store = configureStore({
       getCesiumConfig({ appKey: APP_KEY, storagePrefix: STORAGE_PREFIX }),
       cesiumReducer,
     ),
+    topicmap: topicMapReducer,
   },
   preloadedState: {
     cesium: defaultCesiumState,

@@ -1,6 +1,5 @@
-import { useContext, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useSearchParams } from "react-router-dom";
 
 import { Tooltip } from "antd";
 
@@ -20,14 +19,6 @@ import {
   faMinus,
   faPlus,
 } from "@fortawesome/free-solid-svg-icons";
-
-import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
-import { ExtraMarker } from "react-cismap/ExtraMarker";
-import PaleOverlay from "react-cismap/PaleOverlay";
-import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
-import GazetteerHitDisplay from "react-cismap/GazetteerHitDisplay";
-import { ProjSingleGeoJson } from "react-cismap/ProjSingleGeoJson";
-import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 
 import {
   getCollabedHelpComponentConfig,
@@ -57,17 +48,14 @@ import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 
 import versionData from "../../../version.json";
 
-import { paramsToObject } from "../../helper/helper.ts";
-import { getBackgroundLayers } from "../../helper/layer.tsx";
+import { addCssToOverlayHelperItem } from "../../helper/overlayHelper.ts";
 
 import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenInfoText.ts";
 import { useGazData } from "../../hooks/useGazData.ts";
-import { useWindowSize } from "../../hooks/useWindowSize.ts";
 import { useTourRefCollabLabels } from "../../hooks/useTourRefCollabLabels.ts";
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
 import useLeafletZoomControls from "../../hooks/leaflet/useLeafletZoomControls.ts";
 
-import store from "../../store/index.ts";
 import {
   setFeatures,
   setPreferredLayerId,
@@ -76,15 +64,18 @@ import {
 } from "../../store/slices/features.ts";
 import {
   getBackgroundLayer,
-  getFocusMode,
   getLayers,
   getShowFullscreenButton,
-  getShowHamburgerMenu,
   getShowLocatorButton,
   getShowMeasurementButton,
-  setStartDrawing,
   setBackgroundLayer,
 } from "../../store/slices/mapping.ts";
+import {
+  getLeafletElement,
+  getReferenceSystem,
+  getReferenceSystemDefinition,
+} from "../../store/slices/topicmap";
+
 import {
   getUIAllow3d,
   getUIMode,
@@ -93,29 +84,27 @@ import {
   UIMode,
 } from "../../store/slices/ui.ts";
 
-import FeatureInfoBox from "../feature-info/FeatureInfoBox.tsx";
 import LayerWrapper from "../layers/LayerWrapper.tsx";
-import InfoBoxMeasurement from "../map-measure/InfoBoxMeasurement.jsx";
-
 import LocateControlComponent from "./controls/LocateControlComponent.tsx";
 
-import { createCismapLayers, onClickTopicMap } from "./topicmap.utils.ts";
 import { getUrlPrefix } from "./utils";
 
-import { addCssToOverlayHelperItem } from "../../helper/overlayHelper.ts";
 import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 
 import "../leaflet.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
+import { TopicMapWrapper } from "./TopicMapWrapper.tsx";
 
 // TODO remove counter once rerenders are under control
 let rerenderCount: number = 0;
 let lastRenderTimeStamp: number = Date.now();
 let lastRenderInterval: number = 0;
 
+// TODO remove this once rerenders are under control in cesium
+const enableTopicMap = false;
+
 export const GeoportalMap = () => {
   const dispatch = useDispatch();
-  const [urlParams, setUrlParams] = useSearchParams();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const container3dMapRef = useRef<HTMLDivElement>(null);
 
@@ -126,6 +115,11 @@ export const GeoportalMap = () => {
   const models = useSelector(selectViewerModels);
   const markerAsset = models[CESIUM_CONFIG.markerKey]; //
   const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;
+
+  const leafletElement = useSelector(getLeafletElement);
+  const referenceSystem = useSelector(getReferenceSystem);
+  const referenceSystemDefinition = useSelector(getReferenceSystemDefinition);
+
   const layers = useSelector(getLayers);
   const uiMode = useSelector(getUIMode);
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
@@ -133,17 +127,14 @@ export const GeoportalMap = () => {
   const showLayerButtons = useSelector(getUIShowLayerButtons);
   const showFullscreenButton = useSelector(getShowFullscreenButton);
   const showLocatorButton = useSelector(getShowLocatorButton);
-  const showHamburgerMenu = useSelector(getShowHamburgerMenu);
   const showMeasurementButton = useSelector(getShowMeasurementButton);
-  const focusMode = useSelector(getFocusMode);
   const { viewer, terrainProvider, surfaceProvider } = useCesiumContext();
   const homeControl = useHomeControl();
   const {
     handleZoomIn: handleZoomInCesium,
     handleZoomOut: handleZoomOutCesium,
   } = useZoomControlsCesium();
-  const { getLeafletZoom, zoomInLeaflet, zoomOutLeaflet } =
-    useLeafletZoomControls();
+  const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls(leafletElement);
   const toggleSceneStyle = useSceneStyleToggle();
   const showPrimaryTileset = useSelector(selectShowPrimaryTileset);
   const infoBoxOverlay = addCssToOverlayHelperItem(
@@ -175,12 +166,6 @@ export const GeoportalMap = () => {
       { name: "resolutionScale", readonly: true, format: (v) => v.toFixed(1) },
     ],
   );
-  const {
-    routedMapRef,
-    referenceSystem,
-    referenceSystemDefinition,
-    maskingPolygon,
-  } = useContext<typeof TopicMapContext>(TopicMapContext);
 
   const [gazetteerHit, setGazetteerHit] = useState(null);
   const [overlayFeature, setOverlayFeature] = useState(null);
@@ -198,7 +183,6 @@ export const GeoportalMap = () => {
 
   const tourRefLabels = useTourRefCollabLabels();
   const gazData = useGazData();
-  const { width, height } = useWindowSize(wrapperRef);
 
   const handleToggleMeasurement = () => {
     dispatch(toggleUIMode(UIMode.MEASUREMENT));
@@ -252,18 +236,6 @@ export const GeoportalMap = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allow3d]);
-
-  const renderInfoBox = () => {
-    if (isMode2d) {
-      if (isModeMeasurement) {
-        return <InfoBoxMeasurement key={uiMode} />;
-      }
-      if (isModeFeatureInfo) {
-        return <FeatureInfoBox pos={pos} />;
-      }
-    }
-    return <div></div>;
-  };
 
   // TODO Move out Controls to own component
 
@@ -323,10 +295,8 @@ export const GeoportalMap = () => {
         <ControlButtonStyler
           ref={tourRefLabels.home}
           onClick={() => {
-            routedMapRef.leafletMap.leafletElement.flyTo(
-              [51.272570027476256, 7.199918031692506],
-              18,
-            );
+            leafletElement &&
+              leafletElement.flyTo([51.272570027476256, 7.199918031692506], 18);
             homeControl();
           }}
         >
@@ -362,9 +332,8 @@ export const GeoportalMap = () => {
                 ref={tourRefLabels.measurement}
               >
                 <img
-                  src={`${getUrlPrefix()}${
-                    isModeMeasurement ? "measure-active.png" : "measure.png"
-                  }`}
+                  src={`${getUrlPrefix()}${isModeMeasurement ? "measure-active.png" : "measure.png"
+                    }`}
                   alt="Measure"
                   className="w-6"
                 />
@@ -376,6 +345,7 @@ export const GeoportalMap = () => {
       {allow3d && (
         <Control position="topleft" order={60}>
           <MapTypeSwitcher
+            leafletElement={leafletElement}
             duration={CESIUM_CONFIG.transitions.mapMode.duration}
             onComplete={(isTo2d: boolean) => {
               dispatch(
@@ -419,100 +389,43 @@ export const GeoportalMap = () => {
       </Control>
       <Control position="bottomleft" order={10}>
         <div ref={tourRefLabels.gazetteer} className="h-full w-full">
-          <LibFuzzySearch
-            gazData={gazData}
-            mapRef={routedMapRef}
-            cesiumOptions={{
-              viewer,
-              markerAsset,
-              markerAnchorHeight,
-              isPrimaryStyle: showPrimaryTileset,
-              surfaceProvider,
-              terrainProvider,
-            }}
-            referenceSystem={referenceSystem}
-            referenceSystemDefinition={referenceSystemDefinition}
-            gazetteerHit={gazetteerHit}
-            setGazetteerHit={setGazetteerHit}
-            setOverlayFeature={setOverlayFeature}
-            placeholder="Wohin?"
-          />
+          {leafletElement && (
+            <LibFuzzySearch
+              gazData={gazData}
+              leafletElement={leafletElement}
+              cesiumOptions={{
+                viewer,
+                markerAsset,
+                markerAnchorHeight,
+                isPrimaryStyle: showPrimaryTileset,
+                surfaceProvider,
+                terrainProvider,
+              }}
+              referenceSystem={referenceSystem}
+              referenceSystemDefinition={referenceSystemDefinition}
+              gazetteerHit={gazetteerHit}
+              setGazetteerHit={setGazetteerHit}
+              setOverlayFeature={setOverlayFeature}
+              placeholder="Wohin?"
+            />
+          )}
         </div>
       </Control>
       <Main ref={wrapperRef}>
         <>
-          <div className={"map-container-2d"} style={{ zIndex: 400 }}>
-            <TopicMapComponent
-              gazData={gazData}
-              modalMenu={
-                <GenericModalApplicationMenu
-                  {...getCollabedHelpComponentConfig({
-                    versionString: version,
-                  })}
-                />
-              }
-              applicationMenuTooltipString={tooltipText}
-              hamburgerMenu={showHamburgerMenu}
-              locatorControl={false}
-              fullScreenControl={false}
-              zoomControls={false}
-              mapStyle={{ width, height }}
-              leafletMapProps={{ editable: true }}
-              minZoom={5}
-              backgroundlayers="empty"
-              mappingBoundsChanged={(boundingbox) => {
-                // console.log('xxx bbox', createWMSBbox(boundingbox));
-              }}
-              locationChangedHandler={(location) => {
-                const newParams = { ...paramsToObject(urlParams), ...location };
-                setUrlParams(newParams);
-              }}
-              onclick={(e) =>
-                onClickTopicMap(e, {
-                  dispatch,
-                  mode: uiMode,
-                  store,
-                  setPos,
-                  zoom: getLeafletZoom(),
-                })
-              }
-              gazetteerSearchComponent={<></>}
-              infoBox={renderInfoBox()}
-              zoomSnap={LEAFLET_CONFIG.zoomSnap}
-              zoomDelta={LEAFLET_CONFIG.zoomDelta}
-            >
-              {backgroundLayer &&
-                backgroundLayer.visible &&
-                getBackgroundLayers({ layerString: backgroundLayer.layers })}
-              {overlayFeature && (
-                <ProjSingleGeoJson
-                  key={JSON.stringify(overlayFeature)}
-                  geoJson={overlayFeature}
-                  masked={true}
-                  maskingPolygon={maskingPolygon}
-                  mapRef={routedMapRef}
-                />
-              )}
-              <GazetteerHitDisplay
-                key={"gazHit" + JSON.stringify(gazetteerHit)}
-                gazetteerHit={gazetteerHit}
-              />
-              {focusMode && <PaleOverlay />}
-              {createCismapLayers(layers, {
-                focusMode,
-                mode: uiMode,
-                dispatch,
-                setPos,
-                zoom: getLeafletZoom(),
-              })}
-              {pos && isModeFeatureInfo && layers.length > 0 && (
-                <ExtraMarker
-                  markerOptions={{ markerColor: "cyan", spin: false }}
-                  position={pos}
-                />
-              )}
-            </TopicMapComponent>
-          </div>
+          {enableTopicMap && <TopicMapWrapper
+            backgroundLayer={backgroundLayer}
+            gazData={gazData}
+            gazetteerHit={gazetteerHit}
+            layers={layers}
+            leafletConfig={LEAFLET_CONFIG}
+            overlayFeature={overlayFeature}
+            pos={pos}
+            setPos={setPos}
+            tooltipText={tooltipText}
+            version={version}
+            wrapperRef={wrapperRef}
+          />}
           {allow3d && (
             <div
               ref={container3dMapRef}
