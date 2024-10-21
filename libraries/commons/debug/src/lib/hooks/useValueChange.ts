@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 /**
  * A custom hook that compares the previous and current values of a variable
@@ -10,17 +10,34 @@ import { useEffect, useRef } from "react";
 
 export function useValueChange<T>(
   value: T,
-  callback: (prevValue: T | undefined, currentValue: T) => void = (pV, v) => {
-    console.log("monitored value changed", pV, v);
-  },
+  callbackOrString: (
+    prevValue: T | undefined,
+    currentValue: T,
+  ) => void | string,
 ) {
   const previousValueRef = useRef<T | undefined>(undefined);
+  const isFirstRender = useRef(true);
 
+  const logMessage =
+    typeof callbackOrString === "string"
+      ? `${callbackOrString} changed`
+      : "monitored value changed";
+
+  const callback = useMemo(
+    () =>
+      typeof callbackOrString === "function"
+        ? callbackOrString
+        : (pV, v) => {
+            console.log(logMessage, pV, v);
+          },
+    [logMessage, callbackOrString],
+  );
   useEffect(() => {
-    if (previousValueRef.current !== value) {
+    if (!isFirstRender.current && previousValueRef.current !== value) {
       callback(previousValueRef.current, value);
     }
     previousValueRef.current = value;
+    isFirstRender.current = false;
   }, [value, callback]);
 }
 

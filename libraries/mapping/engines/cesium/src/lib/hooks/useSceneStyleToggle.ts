@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
 
 import { SceneStyles } from "../..";
@@ -33,13 +33,18 @@ export const useSceneStyleToggle = (
     }
   }, [dispatch, viewer, currentStyle, context]);
 
-  const toggleSceneStyle = (style?: "primary" | "secondary") => {
-    if (style) {
-      setCurrentStyle(style);
-    } else {
-      setCurrentStyle((prev) => (prev === "primary" ? "secondary" : "primary"));
-    }
-  };
+  const toggleSceneStyle = useCallback(
+    (style?: "primary" | "secondary") => {
+      if (style) {
+        setCurrentStyle(style);
+      } else {
+        setCurrentStyle((prev) =>
+          prev === "primary" ? "secondary" : "primary",
+        );
+      }
+    },
+    [setCurrentStyle],
+  );
 
   return toggleSceneStyle;
 };

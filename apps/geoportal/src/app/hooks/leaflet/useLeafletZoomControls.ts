@@ -1,33 +1,44 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 
-import type { Map as LeafletMap } from "leaflet";
+import { useSelector } from "react-redux";
+import { getLeafletElement } from "../../store/slices/topicmap";
 
-const useLeafletZoomControls = (leafletElement: LeafletMap) => {
+const useLeafletZoomControls = () => {
+  const leafletElement = useSelector(getLeafletElement);
+
   const zoomInLeaflet = useCallback(() => {
-    if (leafletElement) {
-      const currentZoom = leafletElement.getZoom();
-      const newZoom = Math.round(currentZoom) + 1;
-      leafletElement.setZoom(newZoom);
+    if (!leafletElement) {
+      console.warn("No leafletElement found, no zoom level available");
+      return;
     }
+    const currentZoom = leafletElement.getZoom();
+    const newZoom = Math.round(currentZoom) + 1;
+    leafletElement.setZoom(newZoom);
   }, [leafletElement]);
 
   const zoomOutLeaflet = useCallback(() => {
-    if (leafletElement) {
-      const currentZoom = leafletElement.getZoom();
-      const newZoom = Math.round(currentZoom) - 1;
-      leafletElement.setZoom(newZoom);
+    if (!leafletElement) {
+      console.warn("No leafletElement found, no zoom level available");
+      return;
     }
+    const currentZoom = leafletElement.getZoom();
+    const newZoom = Math.round(currentZoom) - 1;
+    leafletElement.setZoom(newZoom);
   }, [leafletElement]);
 
   const getLeafletZoom = useCallback(() => {
-    if (leafletElement) {
-      return leafletElement.getZoom();
+    if (!leafletElement) {
+      console.warn("No leafletElement found, no zoom level available");
+      return;
     }
-    console.warn("No leafletElement found, no zoom level available");
-    return null;
+    return leafletElement.getZoom();
   }, [leafletElement]);
 
-  return { zoomInLeaflet, zoomOutLeaflet, getLeafletZoom };
+  const zoomControls = useMemo(() => {
+    return { zoomInLeaflet, zoomOutLeaflet, getLeafletZoom };
+  }, [zoomInLeaflet, zoomOutLeaflet, getLeafletZoom]);
+
+  return zoomControls;
 };
 
 export default useLeafletZoomControls;

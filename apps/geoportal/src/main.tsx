@@ -1,14 +1,13 @@
 import { createRoot } from "react-dom/client";
 import { Provider } from "react-redux";
 import { RouterProvider, createHashRouter } from "react-router-dom";
-import { persistStore } from "redux-persist";
 import { PersistGate } from "redux-persist/integration/react";
 
 import { TweakpaneProvider } from "@carma-commons/debug";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
 
 import App from "./app/App";
-import store from "./app/store";
+import configuredStore from "./app/store";
 import { CESIUM_CONFIG } from "./app/config/app.config";
 import HashHookComponent from "./app/components/HashHookComponent";
 
@@ -18,7 +17,7 @@ declare global {
   }
 }
 
-const persistor = persistStore(store);
+const { store, persistor } = configuredStore;
 
 suppressReactCismapErrors();
 
@@ -41,12 +40,12 @@ const router = createHashRouter([
 ]);
 
 root.render(
-  <PersistGate loading={null} persistor={persistor}>
-    <Provider store={store}>
+  <Provider store={store}>
+    <PersistGate loading={<div>Lade Status</div>} persistor={persistor}>
       <TweakpaneProvider>
         <RouterProvider router={router} />
         <App />,
       </TweakpaneProvider>
-    </Provider>
-  </PersistGate>,
+    </PersistGate>
+  </Provider>
 );

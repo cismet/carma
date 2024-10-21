@@ -1,7 +1,7 @@
 import { configureStore } from "@reduxjs/toolkit";
 
 import { createLogger } from "redux-logger";
-import { persistReducer } from "redux-persist";
+import { persistReducer, persistStore } from "redux-persist";
 import localForage from "localforage";
 
 import { getCesiumConfig, cesiumReducer } from "@carma-mapping/cesium-engine";
@@ -14,6 +14,7 @@ import uiReducer from "./slices/ui";
 import measurementsReducer from "./slices/measurements";
 import featuresReducer from "./slices/features";
 import topicMapReducer from "./slices/topicmap";
+
 console.info("store initializing ....");
 
 const customAppKey = new URLSearchParams(window.location.hash).get("appKey");
@@ -120,8 +121,10 @@ const store = configureStore({
   middleware,
 });
 
+const persistor = persistStore(store);
+
 export type AppStore = typeof store;
 export type RootState = ReturnType<AppStore["getState"]>;
 export type AppDispatch = AppStore["dispatch"];
 
-export default store;
+export default { store, persistor };
