@@ -19,13 +19,13 @@ export const OverlayTourProvider = ({
   const [secondaryKey, setSecondaryKey] = useState<null | string>(null);
 
   const addConfig = useCallback((config: OverlayHelperConfig) => {
-    console.log("ADD OVERLAYCONFIG", config);
+    console.info("ADD OVERLAYCONFIG", config);
     configsRef.current = [...configsRef.current, config];
     // Manually trigger any side effects or UI updates if necessary
   }, []);
 
   const removeConfig = useCallback((config: OverlayHelperConfig) => {
-    console.log("REMOVE OVERLAYCONFIG", config);
+    console.info("REMOVE OVERLAYCONFIG", config);
     configsRef.current = configsRef.current.filter((c) => c.id !== config.id);
     // Manually trigger any side effects or UI updates if necessary
   }, []);

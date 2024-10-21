@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import {
@@ -13,7 +13,6 @@ import {
 
 export interface CesiumContextType {
   viewer: Viewer | null;
-  isViewerReady: boolean;
   setViewer: (viewer: Viewer | null) => void;
   terrainProvider: CesiumTerrainProvider | null;
   surfaceProvider: CesiumTerrainProvider | null;
@@ -58,15 +57,12 @@ export const CesiumContextProvider = ({
     };
   };
 }) => {
-  const [viewer, setViewer] = useState<Viewer | null>(null);
-  const [isViewerReady, setIsViewerReady] = useState<boolean>(false);
+  const viewerRef = useRef<Viewer | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadingError, setLoadingError] = useState<Error | null>(null);
-  const [primaryTileset, setPrimaryTileset] = useState<Cesium3DTileset | null>(
-    null,
-  );
-  const [secondaryTileset, setSecondaryTileset] =
-    useState<Cesium3DTileset | null>(null);
+  const primaryTilesetRef = useRef<Cesium3DTileset | null>(null);
+  const secondaryTilesetRef = useRef<Cesium3DTileset | null>(null);
+
   const [terrainProvider, setTerrainProvider] =
     useState<CesiumTerrainProvider | null>(null);
   const [surfaceProvider, setSurfaceProvider] =
@@ -75,6 +71,18 @@ export const CesiumContextProvider = ({
   const imageryProvider = new WebMapServiceImageryProvider(
     providerConfig.imageryProvider,
   );
+
+  const setViewer = useCallback((viewer: Viewer | null) => {
+    viewerRef.current = viewer;
+  }, []);
+
+  const setPrimaryTileset = useCallback((tileset: Cesium3DTileset | null) => {
+    primaryTilesetRef.current = tileset;
+  }, []);
+
+  const setSecondaryTileset = useCallback((tileset: Cesium3DTileset | null) => {
+    secondaryTilesetRef.current = tileset;
+  }, []);
 
   // Initialize Terrain Providers
   useEffect(() => {
@@ -98,23 +106,17 @@ export const CesiumContextProvider = ({
     initializeProviders();
   }, [providerConfig.terrainProvider.url, providerConfig.surfaceProvider]);
 
-  useEffect(() => {
-    if (viewer && viewer.scene) {
-      setIsViewerReady(true);
-    }
-  }, [viewer, viewer?.scene]);
 
   const values: CesiumContextType = {
-    viewer,
-    isViewerReady,
+    viewer: viewerRef.current,
     setViewer,
     ellipsoidTerrainProvider: new EllipsoidTerrainProvider(),
     terrainProvider,
     surfaceProvider,
     imageryLayer: new ImageryLayer(imageryProvider),
     tilesets: {
-      primary: primaryTileset,
-      secondary: secondaryTileset,
+      primary: primaryTilesetRef.current,
+      secondary: secondaryTilesetRef.current,
     },
     setPrimaryTileset,
     setSecondaryTileset,
@@ -128,7 +130,7 @@ export const CesiumContextProvider = ({
     return <div>Error loading Cesium providers: {loadingError.message}</div>;
   }
 
-  console.log("CesiumContextProvider Initialized", values);
+  console.log("RENDER: CesiumContextProvider Initialized", values);
 
   return (
     <CesiumContext.Provider value={values}>{children}</CesiumContext.Provider>
