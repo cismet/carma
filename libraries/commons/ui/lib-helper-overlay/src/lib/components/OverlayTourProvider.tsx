@@ -1,4 +1,4 @@
-import { useState, createContext, useCallback } from "react";
+import { useState, createContext, useCallback, useMemo, useRef } from "react";
 import type {
   OverlayTourContextType,
   OverlayHelperConfig,
@@ -15,32 +15,33 @@ export const OverlayTourProvider = ({
   transparency = 0.8,
   color = "black",
 }: OverlayTourProviderProps) => {
-  const [configs, setConfigs] = useState<OverlayHelperConfig[]>([]);
+  const configsRef = useRef<OverlayHelperConfig[]>([]);
   const [secondaryKey, setSecondaryKey] = useState<null | string>(null);
 
   const addConfig = useCallback((config: OverlayHelperConfig) => {
     console.log("ADD OVERLAYCONFIG", config);
-    setConfigs((prevConfigs) => [...prevConfigs, config]);
+    configsRef.current = [...configsRef.current, config];
+    // Manually trigger any side effects or UI updates if necessary
   }, []);
 
   const removeConfig = useCallback((config: OverlayHelperConfig) => {
     console.log("REMOVE OVERLAYCONFIG", config);
-    setConfigs((prevConfigs) => prevConfigs.filter((c) => c !== config));
+    configsRef.current = configsRef.current.filter((c) => c.id !== config.id);
+    // Manually trigger any side effects or UI updates if necessary
   }, []);
 
+  const contextValue = {
+    configs: configsRef.current, // update only on showOverlay
+    addConfig,
+    removeConfig,
+    setSecondaryKey,
+    secondaryKey,
+  };
 
   console.log("RENDER: [OVERLAY TOUR PROVIDER]");
 
   return (
-    <OverlayTourContext.Provider
-      value={{
-        configs,
-        addConfig,
-        removeConfig,
-        setSecondaryKey,
-        secondaryKey,
-      }}
-    >
+    <OverlayTourContext.Provider value={contextValue} >
       {children}
       {showOverlay && (
         <LibHelperOverlay
