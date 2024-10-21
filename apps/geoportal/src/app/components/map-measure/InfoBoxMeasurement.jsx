@@ -219,7 +219,6 @@ const InfoBoxMeasurement = () => {
                   }
                 />
               </span>
-              {/* <div>{visibleShapesData[currentMeasure].shapeId}</div> */}
               <div className="flex justify-between items-center w-[12%] mt-1 gap-2">
                 <Icon
                   name="search-location"
