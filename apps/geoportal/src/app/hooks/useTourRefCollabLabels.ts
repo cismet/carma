@@ -23,6 +23,15 @@ export const useTourRefCollabLabels = () => {
   const gazetteer = useOverlayHelper(
     getCollabedHelpComponentConfig("GAZETTEER_SUCHE", geoElements),
   );
+  const toggle2d3d = useOverlayHelper(
+    getCollabedHelpComponentConfig("2D_3D_TOGGLE", geoElements),
+  );
+  const alignNorth = useOverlayHelper(
+    getCollabedHelpComponentConfig("EINNORDEN", geoElements),
+  );
+  const featureInfo = useOverlayHelper(
+    getCollabedHelpComponentConfig("SACHDATENABFRAGE", geoElements),
+  );
 
   return useMemo(
     () => ({
@@ -32,7 +41,20 @@ export const useTourRefCollabLabels = () => {
       home,
       measurement,
       gazetteer,
+      toggle2d3d,
+      alignNorth,
+      featureInfo,
     }),
-    [zoom, fullScreen, navigator, home, measurement, gazetteer],
+    [
+      zoom,
+      fullScreen,
+      navigator,
+      home,
+      measurement,
+      gazetteer,
+      toggle2d3d,
+      alignNorth,
+      featureInfo,
+    ],
   );
 };

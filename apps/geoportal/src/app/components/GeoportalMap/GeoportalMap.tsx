@@ -382,10 +382,11 @@ export const GeoportalMap = () => {
                 setBackgroundLayer({ ...backgroundLayer, visible: isTo2d }),
               );
             }}
+            ref={tourRefLabels.toggle2d3d}
           />
           {
             //<SceneStyleToggle />
-            <Compass disabled={isMode2d} />
+            <Compass ref={tourRefLabels.alignNorth} disabled={isMode2d} />
             // TODO implement cesium home action with generic home control for all mapping engines
             //<HomeControl />
           }
@@ -404,6 +405,7 @@ export const GeoportalMap = () => {
               dispatch(setPreferredLayerId(""));
             }}
             className="font-semibold"
+            ref={tourRefLabels.featureInfo}
           >
             <FontAwesomeIcon
               icon={faInfo}
