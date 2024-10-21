@@ -12,6 +12,8 @@ export const useHomeControl = () => {
   const homePosition = useSelector(selectViewerHome);
   const [homePos, setHomePos] = useState<Cartesian3 | null>(null);
 
+  console.log("HOOK: [HOME CONTROL]");
+
   useEffect(() => {
     viewer &&
       homePosition &&

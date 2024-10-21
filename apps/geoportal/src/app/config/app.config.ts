@@ -26,10 +26,10 @@ export const LEAFLET_CONFIG: LeafletConfig = {
   zoomDelta: 1.0,
 };
 
-export const COMMON_CONFIG : {
+export const COMMON_CONFIG: {
   homePosition: [number, number];
   homeZoom: number;
 } = {
-  homePosition: [51.272570, 7.19991],
+  homePosition: [51.27257, 7.19991],
   homeZoom: 18,
 };

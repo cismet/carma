@@ -21,22 +21,22 @@ export const OverlayTourProvider = ({
   const addConfig = useCallback((config: OverlayHelperConfig) => {
     console.info("ADD OVERLAYCONFIG", config);
     configsRef.current = [...configsRef.current, config];
-    // Manually trigger any side effects or UI updates if necessary
   }, []);
 
   const removeConfig = useCallback((config: OverlayHelperConfig) => {
     console.info("REMOVE OVERLAYCONFIG", config);
-    configsRef.current = configsRef.current.filter((c) => c.id !== config.id);
-    // Manually trigger any side effects or UI updates if necessary
+    configsRef.current = configsRef.current.filter((c) => c.key !== config.key);
   }, []);
 
-  const contextValue = {
+  const contextValue = useMemo(() => ({
     configs: configsRef.current, // update only on showOverlay
     addConfig,
     removeConfig,
     setSecondaryKey,
     secondaryKey,
-  };
+  }),
+    [configsRef, addConfig, removeConfig, setSecondaryKey, secondaryKey],
+  );
 
   console.log("RENDER: [OVERLAY TOUR PROVIDER]");
 

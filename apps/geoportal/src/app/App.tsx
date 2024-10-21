@@ -1,5 +1,5 @@
 // Built-in Modules
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 
 // 3rd party Modules
 import { ErrorBoundary } from "react-error-boundary";
@@ -22,9 +22,6 @@ import type { BackgroundLayer, Settings } from "@carma-apps/portals";
 
 // Local Modules
 import AppErrorFallback from "./components/AppErrorFallback";
-import { GeoportalMap } from "./components/GeoportalMap/GeoportalMap";
-import MapMeasurement from "./components/map-measure/MapMeasurement";
-import TopNavbar from "./components/TopNavbar";
 
 import type { AppDispatch } from "./store";
 
@@ -42,6 +39,7 @@ import "leaflet/dist/leaflet.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "./index.css";
+import GeoportalLayout from "./components/GeoportalLayout";
 
 if (typeof global === "undefined") {
   window.global = window;
@@ -60,6 +58,7 @@ function App() {
   const syncToken = useSelector(getSyncToken);
 
   useEffect(() => {
+    console.info("HOOK: app add listeners")
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.shiftKey) {
         dispatch(setUIShowLayerHideButtons(true));
@@ -76,11 +75,13 @@ function App() {
     document.addEventListener("keyup", onKeyUp);
     window.addEventListener("blur", onKeyUp);
 
-    return () => {
+    const cleanupListeners = () => {
       document.removeEventListener("keydown", onKeyDown);
       document.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onKeyUp);
-    };
+    }
+
+    return cleanupListeners;
   }, [allowUiChanges, dispatch]);
 
   const content = (
@@ -100,11 +101,7 @@ function App() {
         }}
       >
         <ErrorBoundary FallbackComponent={AppErrorFallback}>
-          <div className="flex flex-col w-full " style={{ height: "100dvh" }}>
-            <TopNavbar />
-            <MapMeasurement />
-            <GeoportalMap />
-          </div>
+          <GeoportalLayout />
         </ErrorBoundary>
       </CesiumContextProvider>
     </OverlayTourProvider>
