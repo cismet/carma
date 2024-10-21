@@ -1,40 +1,28 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
 /**
  * A custom hook that compares the previous and current values of a variable
  * and calls a callback function when the value changes.
  *
  * @param {any} value - The current value to monitor.
- * @param {(prevValue: any, currentValue: any) => void} callback - The function to call when the value changes.
+ * @param {string} label - label for the value.
  */
 
 export function useValueChange<T>(
   value: T,
-  callbackOrString: (
-    prevValue: T | undefined,
-    currentValue: T,
-  ) => void | string,
+  label: string,
 ) {
   const previousValueRef = useRef<T | undefined>(undefined);
-  const isFirstRender = useRef(true);
+  const isFirstRender = useRef<boolean>(true);
 
-  const logMessage =
-    typeof callbackOrString === "string"
-      ? `${callbackOrString} changed`
-      : "monitored value changed";
+  const callback = useCallback((pV: unknown, v: unknown) => {
+    const logMessage = `${label} changed`;
+    console.log(logMessage, pV, v);
+  }, [label]);
 
-  const callback = useMemo(
-    () =>
-      typeof callbackOrString === "function"
-        ? callbackOrString
-        : (pV, v) => {
-            console.log(logMessage, pV, v);
-          },
-    [logMessage, callbackOrString],
-  );
   useEffect(() => {
     if (!isFirstRender.current && previousValueRef.current !== value) {
-      callback(previousValueRef.current, value);
+      callback(previousValueRef.current as unknown as T, value);
     }
     previousValueRef.current = value;
     isFirstRender.current = false;

@@ -8,10 +8,8 @@ import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplic
 
 import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/geoportal";
 
-import store from "../../store";
-import {
-  getShowHamburgerMenu,
-} from "../../store/slices/mapping";
+import configuredStore from "../../store";
+import { getShowHamburgerMenu } from "../../store/slices/mapping";
 import {
   getUIMode,
   setTopicMapAppMenuVisible,
@@ -125,7 +123,6 @@ export const TopicMapInContext = ({
     }
   }, [topicMapContext.maskingPolygon, dispatch]);
 
-
   return (
     <ErrorBoundary FallbackComponent={AppErrorFallback}>
       <TopicMapComponent
@@ -154,7 +151,7 @@ export const TopicMapInContext = ({
           onClickTopicMap(e, {
             dispatch,
             mode: uiMode,
-            store,
+            store: configuredStore.store,
             setPos,
             zoom: e.target.getZoom(),
           })
@@ -175,7 +172,6 @@ export const TopicMapInContext = ({
       </TopicMapComponent>
     </ErrorBoundary>
   );
-
 };
 
 export default TopicMapInContext;

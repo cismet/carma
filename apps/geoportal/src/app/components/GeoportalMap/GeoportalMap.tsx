@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  CSSProperties,
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { Tooltip } from "antd";
@@ -20,10 +28,7 @@ import {
   faPlus,
 } from "@fortawesome/free-solid-svg-icons";
 
-import {
-  geoElements,
-  tooltipText,
-} from "@carma-collab/wuppertal/geoportal";
+import { geoElements, tooltipText } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/helper-overlay";
 
 import { useTweakpaneCtx, useValueChange } from "@carma-commons/debug";
@@ -89,18 +94,17 @@ import { TopicMapWrapper } from "./TopicMapWrapper.tsx";
 
 import { getUrlPrefix } from "./utils";
 
-import { CESIUM_CONFIG, COMMON_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
+import {
+  CESIUM_CONFIG,
+  COMMON_CONFIG,
+  LEAFLET_CONFIG,
+} from "../../config/app.config";
 
 import "../leaflet.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
-// TODO remove counter once rerenders are under control
-let rerenderCount: number = 0;
-let lastRenderTimeStamp: number = Date.now();
-let lastRenderInterval: number = 0;
-
 // TODO remove this once rerenders are under control in cesium
-const enableTopicMap = false;
+const enableTopicMap = true;
 
 export const GeoportalMap = () => {
   const dispatch = useDispatch();
@@ -140,12 +144,11 @@ export const GeoportalMap = () => {
   } = useZoomControlsCesium();
   const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
   const toggleSceneStyle = useSceneStyleToggle();
-
   const infoBoxOverlay = useMemo(() => {
     return addCssToOverlayHelperItem(
       getCollabedHelpComponentConfig("INFOBOX", geoElements),
       "350px",
-      "137px"
+      "137px",
     );
   }, []);
 
@@ -156,18 +159,10 @@ export const GeoportalMap = () => {
       title: "GeoportalMap",
     },
     {
-      rerenderCount,
-      lastRenderInterval,
       dpr: window.devicePixelRatio,
       resolutionScale: viewer ? viewer.resolutionScale : 0,
     },
     [
-      { name: "rerenderCount", readonly: true, format: (v) => v.toFixed(0) },
-      {
-        name: "lastRenderInterval",
-        readonly: true,
-        format: (v) => v.toFixed(0),
-      },
       { name: "dpr", readonly: true, format: (v) => v.toFixed(1) },
       { name: "resolutionScale", readonly: true, format: (v) => v.toFixed(1) },
     ],
@@ -192,6 +187,7 @@ export const GeoportalMap = () => {
   useFeatureInfoModeCursorStyle();
 
   useEffect(() => {
+    console.log("HOOK: same Layer Types");
     let isSame = true;
     let layerType = "";
 
@@ -216,6 +212,7 @@ export const GeoportalMap = () => {
   useEffect(() => {
     // TODO wrap this with 3d component in own component?
     // INTIALIZE Cesium Tileset style from Geoportal/TopicMap background later style
+    console.log("HOOK: setBackgroundLayer");
     if (viewer && backgroundLayer) {
       if (backgroundLayer.id === "luftbild") {
         toggleSceneStyle("primary");
@@ -227,6 +224,7 @@ export const GeoportalMap = () => {
   }, [viewer, backgroundLayer]);
 
   useEffect(() => {
+    console.log("HOOK: setIsMode2d");
     // set 2d mode if allow3d is false or undefined
     if (allow3d === false || allow3d === undefined) {
       dispatch(setIsMode2d(true));
@@ -269,6 +267,9 @@ export const GeoportalMap = () => {
   useValueChange(isMeasurementTooltip, "isMeasurementTooltip");
   useValueChange(locationProps, "locationProps");
   useValueChange(version, "version");
+  useValueChange(tourRefLabels, "tourRefLabels");
+  useValueChange(wrapperRef.current, "wrapperRef.current");
+  useValueChange(container3dMapRef.current, "container3dMapRef.current");
 
   const flyToLeafletHome = useCallback(() => {
     leafletElement &&
@@ -283,10 +284,78 @@ export const GeoportalMap = () => {
     dispatch(toggleUIMode(UIMode.FEATURE_INFO));
   }, [dispatch]);
 
+  const onFeatureInfoClick = useCallback(() => {
+    handleToggleFeatureInfo();
+    dispatch(setSelectedFeature(null));
+    dispatch(setSecondaryInfoBoxElements([]));
+    dispatch(setFeatures([]));
+    setPos(null);
+    dispatch(setPreferredLayerId(""));
+  }, [dispatch, handleToggleFeatureInfo]);
+
+  const onMeasurementClick = useCallback(() => {
+    setIsMeasurementTooltip(false);
+    handleToggleMeasurement();
+  }, [handleToggleMeasurement]);
+
+  const onFullscreenClick = useCallback(() => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      document.documentElement.requestFullscreen();
+    }
+  }, []);
+
+  const onLocatorClick = useCallback(() => {
+    setLocationProps((prev) => prev + 1);
+  }, []);
+
+  const onHomeClick = useCallback(() => {
+    flyToLeafletHome();
+    homeControl();
+  }, [flyToLeafletHome, homeControl]);
+
+  const onMapTypeSwitcherComplete = useCallback(
+    (isTo2d: boolean) => {
+      dispatch(setBackgroundLayer({ ...backgroundLayer, visible: isTo2d }));
+    },
+    [backgroundLayer, dispatch],
+  );
+
+  const cesiumOptions = useMemo(() => {
+    return {
+      viewer,
+      markerAsset,
+      markerAnchorHeight,
+      isPrimaryStyle: showPrimaryTileset,
+      surfaceProvider,
+      terrainProvider,
+    };
+  }, [
+    viewer,
+    markerAsset,
+    markerAnchorHeight,
+    showPrimaryTileset,
+    surfaceProvider,
+    terrainProvider,
+  ]);
+
+  const container3dStyle: CSSProperties = useMemo(
+    () => ({
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      zIndex: 401,
+      opacity: isMode2d ? 0 : 1,
+      transition: `opacity ${CESIUM_CONFIG.transitions.mapMode.duration}ms ease-in-out`,
+      pointerEvents: isMode2d ? "none" : "auto",
+    }),
+    [isMode2d],
+  );
+
   console.info("RENDER: [GEOPORTAL] MAP");
-  rerenderCount++;
-  lastRenderInterval = Date.now() - lastRenderTimeStamp;
-  lastRenderTimeStamp = Date.now();
 
   return (
     <ControlLayout ifStorybook={false}>
@@ -309,13 +378,7 @@ export const GeoportalMap = () => {
       <Control position="topleft" order={20}>
         {showFullscreenButton && (
           <ControlButtonStyler
-            onClick={() => {
-              if (document.fullscreenElement) {
-                document.exitFullscreen();
-              } else {
-                document.documentElement.requestFullscreen();
-              }
-            }}
+            onClick={onFullscreenClick}
             ref={tourRefLabels.fullScreen}
           >
             <FontAwesomeIcon
@@ -328,7 +391,7 @@ export const GeoportalMap = () => {
         {showLocatorButton && (
           <ControlButtonStyler
             ref={tourRefLabels.navigator}
-            onClick={() => setLocationProps((prev) => prev + 1)}
+            onClick={onLocatorClick}
           >
             <FontAwesomeIcon icon={faLocationArrow} className="text-2xl" />
           </ControlButtonStyler>
@@ -336,13 +399,7 @@ export const GeoportalMap = () => {
         <LocateControlComponent startLocate={locationProps} />
       </Control>
       <Control position="topleft" order={40}>
-        <ControlButtonStyler
-          ref={tourRefLabels.home}
-          onClick={() => {
-            flyToLeafletHome();
-            homeControl();
-          }}
-        >
+        <ControlButtonStyler ref={tourRefLabels.home} onClick={onHomeClick}>
           <FontAwesomeIcon icon={faHouseChimney} className="text-lg" />
         </ControlButtonStyler>
       </Control>
@@ -368,10 +425,7 @@ export const GeoportalMap = () => {
             >
               <ControlButtonStyler
                 disabled={!isMode2d}
-                onClick={() => {
-                  setIsMeasurementTooltip(false);
-                  handleToggleMeasurement();
-                }}
+                onClick={onMeasurementClick}
                 ref={tourRefLabels.measurement}
               >
                 <img
@@ -390,11 +444,7 @@ export const GeoportalMap = () => {
           <MapTypeSwitcher
             leafletElement={leafletElement}
             duration={CESIUM_CONFIG.transitions.mapMode.duration}
-            onComplete={(isTo2d: boolean) => {
-              dispatch(
-                setBackgroundLayer({ ...backgroundLayer, visible: isTo2d }),
-              );
-            }}
+            onComplete={onMapTypeSwitcherComplete}
             ref={tourRefLabels.toggle2d3d}
           />
           {
@@ -409,14 +459,7 @@ export const GeoportalMap = () => {
         <Tooltip title="Sachdatenabfrage" placement="right">
           <ControlButtonStyler
             disabled={!isMode2d}
-            onClick={() => {
-              handleToggleFeatureInfo();
-              dispatch(setSelectedFeature(null));
-              dispatch(setSecondaryInfoBoxElements([]));
-              dispatch(setFeatures([]));
-              setPos(null);
-              dispatch(setPreferredLayerId(""));
-            }}
+            onClick={onFeatureInfoClick}
             className="font-semibold"
             ref={tourRefLabels.featureInfo}
           >
@@ -436,14 +479,7 @@ export const GeoportalMap = () => {
             <LibFuzzySearch
               gazData={gazDataRef.current}
               leafletElement={leafletElement}
-              cesiumOptions={{
-                viewer,
-                markerAsset,
-                markerAnchorHeight,
-                isPrimaryStyle: showPrimaryTileset,
-                surfaceProvider,
-                terrainProvider,
-              }}
+              cesiumOptions={cesiumOptions}
               referenceSystem={referenceSystem}
               referenceSystemDefinition={referenceSystemDefinition}
               gazetteerHit={gazetteerHit}
@@ -456,34 +492,26 @@ export const GeoportalMap = () => {
       </Control>
       <Main ref={wrapperRef}>
         <>
-          {enableTopicMap && <TopicMapWrapper
-            backgroundLayer={backgroundLayer}
-            gazData={gazDataRef.current}
-            gazetteerHit={gazetteerHit}
-            layers={layers}
-            leafletConfig={LEAFLET_CONFIG}
-            overlayFeature={overlayFeature}
-            pos={pos}
-            setPos={setPos}
-            tooltipText={tooltipText}
-            version={version}
-            wrapperRef={wrapperRef}
-          />}
+          {enableTopicMap && (
+            <TopicMapWrapper
+              backgroundLayer={backgroundLayer}
+              gazData={gazDataRef.current}
+              gazetteerHit={gazetteerHit}
+              layers={layers}
+              leafletConfig={LEAFLET_CONFIG}
+              overlayFeature={overlayFeature}
+              pos={pos}
+              setPos={setPos}
+              tooltipText={tooltipText}
+              version={version}
+              wrapperRef={wrapperRef}
+            />
+          )}
           {allow3d && (
             <div
               ref={container3dMapRef}
               className={"map-container-3d"}
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                zIndex: 401,
-                opacity: isMode2d ? 0 : 1,
-                transition: `opacity ${CESIUM_CONFIG.transitions.mapMode.duration}ms ease-in-out`,
-                pointerEvents: isMode2d ? "none" : "auto",
-              }}
+              style={container3dStyle}
             >
               <CustomViewer
                 containerRef={container3dMapRef}
@@ -498,4 +526,4 @@ export const GeoportalMap = () => {
   );
 };
 
-export default GeoportalMap;
+export default memo(GeoportalMap);

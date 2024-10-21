@@ -19,6 +19,8 @@ export const useSceneStyleToggle = (
   const context = useCesiumContext();
   const { viewer } = context;
 
+  console.log("HOOK: scene Style Toggle currentStyle", currentStyle);
+
   useEffect(() => {
     if (!viewer) return;
 

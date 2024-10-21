@@ -50,7 +50,7 @@ import polygonIcon from "./polygon.png";
 import polygonActiveIcon from "./polygon-active.png";
 import "./m-style.css";
 
-const MapMeasurement = (props) => {
+const MapMeasurement = () => {
   const dispatch = useDispatch();
   const leafletElement = useSelector(getLeafletElement);
   const measurementShapes = useSelector(getShapes);
@@ -265,6 +265,8 @@ const MapMeasurement = (props) => {
   const updateAreaOfDrawingMeasurementHandler = (newArea) => {
     dispatch(updateAreaOfDrawing(newArea));
   };
+
+  console.log("RENDER: [GEOPORTAL] MAP MEASUREMENT");
 
   return <div></div>;
 };
