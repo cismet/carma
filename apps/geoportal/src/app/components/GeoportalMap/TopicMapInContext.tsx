@@ -33,6 +33,7 @@ import {
   setReferenceSystemDefinition,
 } from "../../store/slices/topicmap.ts";
 import { ErrorBoundary } from "react-error-boundary";
+import AppErrorFallback from "../AppErrorFallback.tsx";
 
 export const TopicMapInContext = ({
   backgroundLayer,
@@ -126,7 +127,7 @@ export const TopicMapInContext = ({
 
 
   return (
-    <ErrorBoundary fallback={<div>Error in TopicMapInContext</div>}>
+    <ErrorBoundary FallbackComponent={AppErrorFallback}>
       <TopicMapComponent
         gazData={gazData}
         modalMenu={
