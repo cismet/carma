@@ -3,7 +3,7 @@ export type OverlayHelperHightlighterProps = {
   closeOverlay: () => void;
   transparency?: number;
   color?: string;
-  showSecondaryWithKey: (key: string) => void;
+  showSecondaryWithKey: (key: string | null) => void;
   openedSecondaryKey: string | null;
 };
 

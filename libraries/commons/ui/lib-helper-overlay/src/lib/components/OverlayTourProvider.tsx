@@ -32,7 +32,7 @@ export const OverlayTourProvider = ({
     setConfigs((prevConfigs) => prevConfigs.filter((c) => c !== config));
   };
 
-  const setSecondaryKeyHandler = (key: string) => {
+  const setSecondaryKeyHandler = (key: string | null) => {
     setSecondaryKey(key);
   };
 

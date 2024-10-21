@@ -70,7 +70,13 @@ export function LibHelperOverlay({
         background: color,
         opacity: transparency,
       }}
-      onClick={() => closeOverlay()}
+      onClick={() => {
+        if (openedSecondaryKey) {
+          showSecondaryWithKey(null);
+        } else {
+          closeOverlay();
+        }
+      }}
     >
       {hightlightRects.map((config, idx) => {
         const {
@@ -104,7 +110,13 @@ export function LibHelperOverlay({
             }
           >
             <span
-              onClick={() => showSecondaryWithKey(key)}
+              onClick={() => {
+                if (openedSecondaryKey === key) {
+                  showSecondaryWithKey(null);
+                } else {
+                  showSecondaryWithKey(key);
+                }
+              }}
               style={{
                 position: "absolute",
                 width: contentWidth === "default" ? "auto" : contentWidth,
