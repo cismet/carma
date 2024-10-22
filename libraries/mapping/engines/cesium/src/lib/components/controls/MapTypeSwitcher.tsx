@@ -1,4 +1,4 @@
-import { type MouseEvent, type ReactNode, forwardRef } from "react";
+import { type MouseEvent, type ReactNode, forwardRef, useCallback } from "react";
 import { useSelector } from "react-redux";
 
 import type { Map as LeafletMap } from "leaflet";
@@ -30,7 +30,7 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
       duration,
     });
 
-    const handleSwitchMapMode = async (e: MouseEvent) => {
+    const handleSwitchMapMode = useCallback(async (e: MouseEvent) => {
       e.preventDefault();
       console.info(
         "CLICKHANDLER: [CESIUM|LEAFLET|2D3D] clicked handleSwitchMapMode zoom",
@@ -41,7 +41,7 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
       } else {
         transitionToMode2d();
       }
-    };
+    }, [transitionToMode2d, transitionToMode3d, isMode2d]);
 
     return (
       <ControlButtonStyler

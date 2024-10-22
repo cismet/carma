@@ -55,6 +55,7 @@ export const useMapTransition = (
   const isTransitioning = useSelector(selectViewerIsTransitioning);
 
   const transitionToMode3d = async () => {
+    console.log("transitionToMode3d", viewer, leafletElement);
     if (!viewer || !leafletElement) {
       console.warn("cesium or leaflet not available");
       return null;
