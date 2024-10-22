@@ -1,5 +1,7 @@
-import { type MouseEvent, type ReactNode, forwardRef } from "react";
+import { type MouseEvent, type ReactNode, forwardRef, useCallback } from "react";
 import { useSelector } from "react-redux";
+
+import type { Map as LeafletMap } from "leaflet";
 
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 
@@ -10,6 +12,7 @@ import {
 } from "../../slices/cesium";
 
 type Props = {
+  leafletElement: LeafletMap | null,
   duration?: number;
   onComplete?: (isTo2D: boolean) => void;
   forceEnabled?: boolean;
@@ -19,15 +22,15 @@ type Props = {
 type Ref = HTMLButtonElement;
 
 export const MapTypeSwitcher = forwardRef<Ref, Props>(
-  ({ onComplete, forceEnabled, duration }, ref) => {
+  ({leafletElement, onComplete, forceEnabled, duration }, ref) => {
     const isMode2d = useSelector(selectViewerIsMode2d);
     const isTransitioning = useSelector(selectViewerIsTransitioning);
-    const { transitionToMode2d, transitionToMode3d } = useMapTransition({
+    const { transitionToMode2d, transitionToMode3d } = useMapTransition(leafletElement, {
       onComplete,
       duration,
     });
 
-    const handleSwitchMapMode = async (e: MouseEvent) => {
+    const handleSwitchMapMode = useCallback(async (e: MouseEvent) => {
       e.preventDefault();
       console.info(
         "CLICKHANDLER: [CESIUM|LEAFLET|2D3D] clicked handleSwitchMapMode zoom",
@@ -38,15 +41,15 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
       } else {
         transitionToMode2d();
       }
-    };
+    }, [transitionToMode2d, transitionToMode3d, isMode2d]);
 
     return (
       <ControlButtonStyler
+        ref={ref}
         title={isMode2d ? "zur 3D Ansicht wechseln" : "zur 2D Ansicht wechseln"}
         className="font-semibold"
+        disabled={leafletElement == null || isTransitioning && !forceEnabled}
         onClick={handleSwitchMapMode}
-        disabled={isTransitioning && !forceEnabled}
-        ref={ref}
       >
         {isMode2d ? "3D" : "2D"}
       </ControlButtonStyler>

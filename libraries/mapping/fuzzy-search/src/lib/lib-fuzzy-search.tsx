@@ -46,7 +46,7 @@ export function LibFuzzySearch({
   setGazetteerHit,
   // gazetteerHit,
   // overlayFeature,
-  mapRef,
+  leafletElement,
   setOverlayFeature,
   referenceSystem,
   referenceSystemDefinition,
@@ -79,15 +79,12 @@ export function LibFuzzySearch({
   const { viewer } = cesiumOptions ?? { viewer: null };
 
   let mapConsumers: MapConsumer[] = [];
-  //mapRef && mapConsumers.push(mapRef);
   viewer && mapConsumers.push(viewer);
 
   const topicMapGazetteerHitTrigger = (hit) => {
     builtInGazetteerHitTrigger(
       hit,
-      mapRef.current
-        ? mapRef.current.leafletMap.leafletElement
-        : mapRef.leafletMap.leafletElement,
+      leafletElement,
       referenceSystem,
       referenceSystemDefinition,
       setGazetteerHit,
@@ -150,7 +147,7 @@ export function LibFuzzySearch({
     console.info(
       "[SEARCH] selected option",
       option,
-      mapRef,
+      leafletElement,
       cesiumOptions,
       mapConsumers,
     );

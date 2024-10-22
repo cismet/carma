@@ -1,20 +1,19 @@
-import { useEffect, useContext, useState } from "react";
+import { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
 
 import type LocateControl from "leaflet.locatecontrol";
 import { control } from "leaflet";
 
-import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+import { getLeafletElement } from "../../../store/slices/topicmap";
 
 const LocateControlComponent = ({ startLocate = 0 }) => {
-  const { routedMapRef } = useContext<typeof TopicMapContext>(
-    TopicMapContext,
-  ) as any;
+  const leafletElement = useSelector(getLeafletElement);
+
   const [locationInstance, setLocationInstance] =
     useState<LocateControl | null>(null);
 
   useEffect(() => {
-    if (!locationInstance && routedMapRef) {
-      const mapExample = routedMapRef.leafletMap.leafletElement;
+    if (!locationInstance && leafletElement) {
       const lc = (control as LocateControl)
         .locate({
           position: "topright",
@@ -27,14 +26,14 @@ const LocateControlComponent = ({ startLocate = 0 }) => {
           flyTo: false,
           drawCircle: true,
         })
-        .addTo(mapExample);
+        .addTo(leafletElement);
       setLocationInstance(lc);
     }
 
     // return () => {
     //   lc.remove();
     // };
-  }, [routedMapRef]);
+  }, [leafletElement]);
 
   useEffect(() => {
     if (startLocate && locationInstance) {

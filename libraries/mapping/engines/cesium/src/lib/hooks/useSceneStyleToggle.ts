@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
 
 import { SceneStyles } from "../..";
@@ -23,23 +23,32 @@ export const useSceneStyleToggle = (
     if (!viewer) return;
 
     if (currentStyle === "primary") {
+      console.debug("HOOK: useSceneStyleToggle currentStyle primary");
       setupPrimaryStyle(context);
       dispatch(setShowPrimaryTileset(true));
       dispatch(setShowSecondaryTileset(false));
     } else {
+      console.debug("HOOK: useSceneStyleToggle currentStyle secondary");
       setupSecondaryStyle(context);
       dispatch(setShowPrimaryTileset(false));
       dispatch(setShowSecondaryTileset(true));
     }
   }, [dispatch, viewer, currentStyle, context]);
 
-  const toggleSceneStyle = (style?: "primary" | "secondary") => {
-    if (style) {
-      setCurrentStyle(style);
-    } else {
-      setCurrentStyle((prev) => (prev === "primary" ? "secondary" : "primary"));
-    }
-  };
+  const toggleSceneStyle = useCallback(
+    (style?: "primary" | "secondary") => {
+      if (style) {
+        console.debug("HOOK: useSceneStyleToggle toggleSceneStyle style", style);
+        setCurrentStyle(style);
+      } else {
+        console.debug("HOOK: useSceneStyleToggle toggleSceneStyle no style");
+        setCurrentStyle((prev) =>
+          prev === "primary" ? "secondary" : "primary",
+        );
+      }
+    },
+    [setCurrentStyle],
+  );
 
   return toggleSceneStyle;
 };

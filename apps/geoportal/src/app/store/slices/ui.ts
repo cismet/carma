@@ -15,31 +15,45 @@ export interface UIState {
   mode: UIMode;
 
   activeTabKey: string;
+  allow2d: boolean;
   allow3d: boolean;
   allowChanges: boolean;
+  published: boolean;
   showInfo: boolean;
   showInfoText: boolean;
   showLayerButtons: boolean;
   showLayerHideButtons: boolean;
   showOverlayTour: boolean;
+  syncToken: string | null;
+  setTopicMapAppMenuVisible: ((visible: boolean) => void) | null;
 }
 
-const initialState: UIState = {
+export const initialState: UIState = {
   mode: UIMode.DEFAULT,
   showOverlayTour: false,
   activeTabKey: "1",
+  allow2d: true,
   allow3d: true,
   allowChanges: true,
+  published: false,
   showInfo: true,
   showInfoText: true,
   showLayerButtons: true,
   showLayerHideButtons: false,
+  syncToken: null,
+  setTopicMapAppMenuVisible: null,
 };
 
 const slice = createSlice({
   name: "ui",
   initialState,
   reducers: {
+    setTopicMapAppMenuVisible(
+      state,
+      action: PayloadAction<(visible: boolean) => void>,
+    ) {
+      state.setTopicMapAppMenuVisible = action.payload;
+    },
     setUIMode(state, action) {
       state.mode = action.payload;
     },
@@ -54,13 +68,18 @@ const slice = createSlice({
     setUIActiveTabKey(state, action) {
       state.activeTabKey = action.payload;
     },
+    setUIAllow2d(state, action: PayloadAction<boolean>) {
+      state.allow2d = action.payload;
+    },
     setUIAllow3d(state, action: PayloadAction<boolean>) {
       state.allow3d = action.payload;
     },
     setUIAllowChanges(state, action: PayloadAction<boolean>) {
       state.allowChanges = action.payload;
     },
-
+    setUIPublished(state, action: PayloadAction<boolean>) {
+      state.published = action.payload;
+    },
     setUIShowInfo(state, action) {
       state.showInfo = action.payload;
     },
@@ -76,16 +95,23 @@ const slice = createSlice({
     toggleShowOverlayTour(state, action: PayloadAction<boolean>) {
       state.showOverlayTour = action.payload;
     },
+    setSyncToken(state, action: PayloadAction<string | null>) {
+      state.syncToken = action.payload;
+    },
   },
 });
 
 export const {
+  setTopicMapAppMenuVisible,
   setUIMode,
+  setSyncToken,
   toggleUIMode,
 
   setUIActiveTabKey,
+  setUIAllow2d,
   setUIAllow3d,
   setUIAllowChanges,
+  setUIPublished,
   setUIShowInfo,
   setUIShowInfoText,
   setUIShowLayerButtons,
@@ -93,10 +119,17 @@ export const {
   toggleShowOverlayTour,
 } = slice.actions;
 
+export const getTopicMapAppMenuVisible = (state: RootState) =>
+  state.ui.setTopicMapAppMenuVisible;
+
+export const getSyncToken = (state: RootState) => state.ui.syncToken;
+
 export const getUIMode = (state: RootState) => state.ui.mode;
 
+export const getUIAllow2d = (state: RootState) => state.ui.allow2d;
 export const getUIAllow3d = (state: RootState) => state.ui.allow3d;
 export const getUIAllowChanges = (state: RootState) => state.ui.allowChanges;
+export const getUIPublished = (state: RootState) => state.ui.published;
 export const getUIActiveTabKey = (state: RootState) => state.ui.activeTabKey;
 export const getUIShowInfo = (state: RootState) => state.ui.showInfo;
 export const getUIShowInfoText = (state: RootState) => state.ui.showInfoText;

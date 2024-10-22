@@ -1,8 +1,7 @@
 /* eslint-disable jsx-a11y/no-static-element-interactions */
 /* eslint-disable jsx-a11y/click-events-have-key-events */
-import { useContext, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useSearchParams } from "react-router-dom";
 import { useInView } from "react-intersection-observer";
 
 import { useSortable } from "@dnd-kit/sortable";
@@ -15,9 +14,6 @@ import {
   faX,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import type L from "leaflet";
-
-import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { Layer } from "@carma-mapping/layers";
 
@@ -38,6 +34,8 @@ import {
   setShowRightScrollButton,
   toggleUseInFeatureInfo,
 } from "../../store/slices/mapping";
+import { getLeafletElement } from "../../store/slices/topicmap";
+
 import {
   UIMode,
   getUIMode,
@@ -66,7 +64,7 @@ const LayerButton = ({
   const { ref, inView } = useInView({
     threshold: 0.99,
     onChange: (inView) => {
-      console.log("HOOK: [LayerButton] inView", inView);
+      console.debug("HOOK: [LayerButton] inView", inView);
       if (index === 0) {
         dispatch(setShowLeftScrollButton(!inView));
       } else if (index === layersLength - 1) {
@@ -75,8 +73,8 @@ const LayerButton = ({
     },
   });
   const dispatch = useDispatch();
-  const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const [error, setError] = useState(false);
+  const leafletElement = useSelector(getLeafletElement);
   const selectedLayerIndex = useSelector(getSelectedLayerIndex);
   const showLayerHideButtons = useSelector(getUIShowLayerHideButtons);
   const showLeftScrollButton = useSelector(getShowLeftScrollButton);
@@ -91,18 +89,20 @@ const LayerButton = ({
       id,
     });
   const buttonRef = useRef<HTMLDivElement>(null);
-  let [searchParams, setSearchParams] = useSearchParams();
-  const showAlternateIcons = searchParams.get("altIcon") !== null;
+  // TODO pass altIcon as a prop or use a context assume routed context
+  //let [searchParams, setSearchParams] = useSearchParams();
+  //const showAlternateIcons = searchParams.get("altIcon") !== null;
+  const showAlternateIcons = null;
   const iconName = showAlternateIcons
     ? layer.other?.alternativeIcon
     : layer.other?.icon;
 
-  const zoom = routedMapRef?.leafletMap?.leafletElement.getZoom();
+  const zoom = leafletElement?.getZoom();
   const queryable =
+    leafletElement &&
     layer?.queryable &&
     zoom < (layer.props.maxZoom ? layer.props.maxZoom : Infinity) &&
     zoom > layer.props.minZoom;
-  const map = routedMapRef?.leafletMap?.leafletElement as L.Map;
 
   useEffect(() => {
     if (!inView && selectedLayerIndex === index) {
@@ -117,24 +117,26 @@ const LayerButton = ({
   }, [layersLength]);
 
   useEffect(() => {
-    map?.eachLayer((leafletLayer) => {
-      if (
-        // @ts-ignore
-        leafletLayer.options?.layers &&
-        layer.other?.name &&
-        // @ts-ignore
-        leafletLayer.options?.layers === layer.other?.name
-      ) {
-        leafletLayer.on("tileerror", () => {
-          setError(true);
-        });
+    if (leafletElement) {
+      leafletElement.eachLayer((leafletLayer) => {
+        if (
+          // @ts-ignore
+          leafletLayer.options?.layers &&
+          layer.other?.name &&
+          // @ts-ignore
+          leafletLayer.options?.layers === layer.other?.name
+        ) {
+          leafletLayer.on("tileerror", () => {
+            setError(true);
+          });
 
-        leafletLayer.on("tileload", () => {
-          setError(false);
-        });
-      }
-    });
-  }, [map]);
+          leafletLayer.on("tileload", () => {
+            setError(false);
+          });
+        }
+      });
+    }
+  }, [leafletElement]);
 
   return (
     <div

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import {
@@ -58,11 +58,11 @@ export const CesiumContextProvider = ({
   };
 }) => {
   const [viewer, setViewer] = useState<Viewer | null>(null);
-  const [primaryTileset, setPrimaryTileset] = useState<Cesium3DTileset | null>(
-    null,
-  );
-  const [secondaryTileset, setSecondaryTileset] =
-    useState<Cesium3DTileset | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadingError, setLoadingError] = useState<Error | null>(null);
+  const primaryTilesetRef = useRef<Cesium3DTileset | null>(null);
+  const secondaryTilesetRef = useRef<Cesium3DTileset | null>(null);
+
   const [terrainProvider, setTerrainProvider] =
     useState<CesiumTerrainProvider | null>(null);
   const [surfaceProvider, setSurfaceProvider] =
@@ -72,34 +72,37 @@ export const CesiumContextProvider = ({
     providerConfig.imageryProvider,
   );
 
-  useEffect(() => {
-    (async () => {
-      try {
-        setTerrainProvider(
-          await CesiumTerrainProvider.fromUrl(
-            providerConfig.terrainProvider.url,
-          ),
-        );
-      } catch (error) {
-        console.error("Failed to load terrain provider:", error);
-      }
-    })();
-  }, [providerConfig.terrainProvider.url]);
 
+  const setPrimaryTileset = useCallback((tileset: Cesium3DTileset | null) => {
+    primaryTilesetRef.current = tileset;
+  }, []);
+
+  const setSecondaryTileset = useCallback((tileset: Cesium3DTileset | null) => {
+    secondaryTilesetRef.current = tileset;
+  }, []);
+
+  // Initialize Terrain Providers
   useEffect(() => {
-    (async () => {
+    const initializeProviders = async () => {
       try {
-        providerConfig.surfaceProvider &&
-          setSurfaceProvider(
-            await CesiumTerrainProvider.fromUrl(
-              providerConfig.surfaceProvider.url,
-            ),
-          );
-      } catch (error) {
-        console.error("Failed to load terrain provider:", error);
+        const terrain = await CesiumTerrainProvider.fromUrl(providerConfig.terrainProvider.url);
+        setTerrainProvider(terrain);
+
+        if (providerConfig.surfaceProvider) {
+          const surface = await CesiumTerrainProvider.fromUrl(providerConfig.surfaceProvider.url);
+          setSurfaceProvider(surface);
+        }
+
+        setIsLoading(false);
+      } catch (err) {
+        console.error("Failed to load terrain providers:", err);
+        setLoadingError(err as Error);
+        setIsLoading(false);
       }
-    })();
-  }, [providerConfig.surfaceProvider]);
+    };
+    initializeProviders();
+  }, [providerConfig.terrainProvider.url, providerConfig.surfaceProvider]);
+
 
   const values: CesiumContextType = {
     viewer,
@@ -109,14 +112,25 @@ export const CesiumContextProvider = ({
     surfaceProvider,
     imageryLayer: new ImageryLayer(imageryProvider),
     tilesets: {
-      primary: primaryTileset,
-      secondary: secondaryTileset,
+      primary: primaryTilesetRef.current,
+      secondary: secondaryTilesetRef.current,
     },
     setPrimaryTileset,
     setSecondaryTileset,
   };
 
-  console.log("Cesium CustomViewerContextProvider Initialized", values);
+
+  /*
+  if (isLoading) {
+    return null;
+  }
+  */
+
+  if (loadingError) {
+    console.error("Error loading Cesium providers:", loadingError);
+    return null;
+  }
+  console.log("RENDER: CesiumContextProvider Initialized", values);
 
   return (
     <CesiumContext.Provider value={values}>{children}</CesiumContext.Provider>

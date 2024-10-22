@@ -39,7 +39,7 @@ const ByTilesetClassifier: FC<ByTilesetClassifier> = ({
   );
 
   useEffect(() => {
-    console.log("HOOK: selectedFeature");
+    console.debug("HOOK: selectedFeature");
     if (selectedFeature === null) {
       // console.log('selectedFeature is null');
     } else {

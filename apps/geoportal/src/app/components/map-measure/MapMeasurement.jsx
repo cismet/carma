@@ -1,19 +1,12 @@
-import React, { useState, useEffect, useContext } from "react";
-import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
-import "leaflet/dist/leaflet.css";
-import "leaflet-draw/dist/leaflet.draw.css";
+import { useState, useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
+
 import L from "leaflet";
 import "leaflet-draw";
 import "leaflet-editable";
-import "./measure";
-import "./measure-path";
-import "leaflet-measure-path/leaflet-measure-path.css";
-import makeMeasureIcon from "./measure.png";
-import makeMeasureActiveIcon from "./measure-active.png";
-import polygonIcon from "./polygon.png";
-import polygonActiveIcon from "./polygon-active.png";
-import "./m-style.css";
-import { useSelector, useDispatch } from "react-redux";
+
+import useDeviceDetection from "../../hooks/useDeviceDetection";
+
 import {
   getShapes,
   setShapes,
@@ -43,12 +36,23 @@ import {
 
 import { getUIMode, toggleUIMode, UIMode } from "../../store/slices/ui";
 import { getStartDrawing, setStartDrawing } from "../../store/slices/mapping";
-import useDeviceDetection from "../../hooks/useDeviceDetection";
+import { getLeafletElement } from "../../store/slices/topicmap";
 
-const MapMeasurement = (props) => {
-  const { routedMapRef } = useContext(TopicMapContext);
+import "./measure";
+import "./measure-path";
 
+import "leaflet/dist/leaflet.css";
+import "leaflet-draw/dist/leaflet.draw.css";
+import "leaflet-measure-path/leaflet-measure-path.css";
+import makeMeasureIcon from "./measure.png";
+import makeMeasureActiveIcon from "./measure-active.png";
+import polygonIcon from "./polygon.png";
+import polygonActiveIcon from "./polygon-active.png";
+import "./m-style.css";
+
+const MapMeasurement = () => {
   const dispatch = useDispatch();
+  const leafletElement = useSelector(getLeafletElement);
   const measurementShapes = useSelector(getShapes);
   const activeShape = useSelector(getActiveShapes);
   const ifDrawing = useSelector(getDrawingShape);
@@ -69,8 +73,8 @@ const MapMeasurement = (props) => {
   };
 
   useEffect(() => {
-    if (routedMapRef && !measureControl) {
-      const mapExample = routedMapRef.leafletMap.leafletElement;
+    if (leafletElement && !measureControl) {
+      const mapExample = leafletElement;
       const customOptions = {
         position: "topright",
         icon_lineActive: makeMeasureActiveIcon,
@@ -106,14 +110,13 @@ const MapMeasurement = (props) => {
 
       setMeasureControl(measurePolygonControl);
     }
-  }, [routedMapRef]);
+  }, [leafletElement]);
 
   useEffect(() => {
-    if (measureControl && activeShape) {
+    if (leafletElement && measureControl && activeShape) {
       const shapeCoordinates = measurementShapes.filter(
         (s) => s.shapeId === activeShape,
       );
-      const map = routedMapRef.leafletMap.leafletElement;
 
       if (ifDrawing) {
         dispatch(setMoveToShape(null));
@@ -121,19 +124,19 @@ const MapMeasurement = (props) => {
 
       if (shapeCoordinates[0]?.shapeId && !ifDrawing && !deleteShape) {
         measureControl.changeColorByActivePolyline(
-          map,
+          leafletElement,
           shapeCoordinates[0].shapeId,
         );
       }
       if (showAllMeasurements) {
-        const allPolylines = measureControl.getAllPolylines(map);
-        measureControl.fitMapToPolylines(map, allPolylines);
+        const allPolylines = measureControl.getAllPolylines(leafletElement);
+        measureControl.fitMapToPolylines(leafletElement, allPolylines);
         dispatch(setShowAll(false));
       }
 
       if (deleteShape) {
         dispatch(setMoveToShape(null));
-        measureControl.removePolylineById(map, activeShape);
+        measureControl.removePolylineById(leafletElement, activeShape);
         const cleanArr = visibleShapes.filter((m) => m.shapeId !== activeShape);
         deleteShapeHandler(activeShape);
         dispatch(setVisibleShapes(cleanArr));
@@ -153,19 +156,21 @@ const MapMeasurement = (props) => {
         measureControl.options.shapes = cleanLocalLefletShapes;
       }
       if (moveToShape && !deleteShape) {
-        measureControl.showActiveShape(map, shapeCoordinates[0]?.coordinates);
+        measureControl.showActiveShape(
+          leafletElement,
+          shapeCoordinates[0]?.coordinates,
+        );
       }
     }
 
-    if (measureControl) {
-      const map = routedMapRef.leafletMap.leafletElement;
-      measureControl.changeMeasurementMode(mode, map);
+    if (measureControl && leafletElement) {
+      measureControl.changeMeasurementMode(mode, leafletElement);
       const shapeCoordinates = measurementShapes.filter(
         (s) => s.shapeId === activeShape,
       );
       if (shapeCoordinates[0]?.shapeId) {
         measureControl.changeColorByActivePolyline(
-          map,
+          leafletElement,
           shapeCoordinates[0].shapeId,
         );
       }
@@ -184,6 +189,7 @@ const MapMeasurement = (props) => {
     ifDrawing,
     moveToShape,
     mode,
+    leafletElement,
   ]);
 
   useEffect(() => {
@@ -259,6 +265,8 @@ const MapMeasurement = (props) => {
   const updateAreaOfDrawingMeasurementHandler = (newArea) => {
     dispatch(updateAreaOfDrawing(newArea));
   };
+
+  console.log("RENDER: [GEOPORTAL] MAP MEASUREMENT");
 
   return <div></div>;
 };

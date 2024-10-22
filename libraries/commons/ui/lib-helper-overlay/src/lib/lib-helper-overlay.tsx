@@ -1,24 +1,29 @@
-import React, { useEffect, useState, cloneElement } from "react";
+import React, { useEffect, useState, cloneElement, useContext, memo } from "react";
 import { OverlayHelperHightlighterProps, HighlightRect } from "..";
 import { getContainerPosition, getElementPosition } from "./utils/helper";
 import { Popover } from "antd";
+import { OverlayTourContext } from "./components/OverlayTourProvider";
 
-export function LibHelperOverlay({
-  configs,
+function LibHelperOverlay({
   closeOverlay,
   transparency = 0.8,
   color = "black",
-  showSecondaryWithKey,
-  openedSecondaryKey,
 }: OverlayHelperHightlighterProps) {
   const [hightlightRects, setHightlightRects] = useState<HighlightRect[]>([]);
+
+  const overlayTourContext = useContext(OverlayTourContext);
+
+
+  const { configs, secondaryKey, setSecondaryKey } = overlayTourContext;
+
   const showSecondaryByIdHelper = (key: string) => {
-    if (openedSecondaryKey) {
-      return openedSecondaryKey === key;
+    if (secondaryKey) {
+      return secondaryKey === key;
     } else {
       return false;
     }
   };
+  
   useEffect(() => {
     configs.forEach((currentItem) => {
       const {
@@ -71,10 +76,10 @@ export function LibHelperOverlay({
         opacity: transparency,
       }}
       onClick={() => {
-        if (openedSecondaryKey) {
-          showSecondaryWithKey(null);
+        if (secondaryKey) {
+          setSecondaryKey(null);
         } else {
-          closeOverlay();
+          closeOverlay && closeOverlay();
         }
       }}
     >
@@ -98,23 +103,23 @@ export function LibHelperOverlay({
             style={
               rect
                 ? {
-                    position: "absolute",
-                    top: rect.top,
-                    left: rect.left,
-                    width: rect.width,
-                    height: rect.height,
-                    color: "white",
-                    ...pos,
-                  }
+                  position: "absolute",
+                  top: rect.top,
+                  left: rect.left,
+                  width: rect.width,
+                  height: rect.height,
+                  color: "white",
+                  ...pos,
+                }
                 : position
             }
           >
             <span
               onClick={() => {
-                if (openedSecondaryKey === key) {
-                  showSecondaryWithKey(null);
+                if (secondaryKey === key) {
+                  setSecondaryKey(null);
                 } else {
-                  showSecondaryWithKey(key);
+                  setSecondaryKey(key);
                 }
               }}
               style={{
@@ -128,7 +133,7 @@ export function LibHelperOverlay({
                   content={
                     secondary && typeof secondary !== "string" ? (
                       cloneElement(secondary, {
-                        setSecondaryWithKey: showSecondaryWithKey,
+                        setSecondaryKey,
                       })
                     ) : (
                       <div>{secondary}</div>
@@ -157,3 +162,5 @@ export function LibHelperOverlay({
     </div>
   );
 }
+
+export default memo(LibHelperOverlay);

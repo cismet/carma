@@ -1,21 +1,23 @@
-import { useContext, useEffect } from "react";
-import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+import { useEffect } from "react";
+import { useSelector } from "react-redux";
+
 import L from "leaflet";
+
+import { getLeafletElement } from "../store/slices/topicmap";
+
 import "leaflet/dist/leaflet.css";
 
 const HomeButton = () => {
-  const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
+  const leafletElement = useSelector(getLeafletElement);
 
   useEffect(() => {
-    if (routedMapRef?.leafletMap) {
-      const map = routedMapRef.leafletMap.leafletElement;
-
+    if (leafletElement) {
       // @ts-expect-error figure out proper type here
       L.Control.Button = L.Control.extend({
         options: {
           position: "topleft",
         },
-        onAdd: function (map) {
+        onAdd: function () {
           const container = L.DomUtil.create(
             "div",
             "leaflet-bar leaflet-control",
@@ -29,7 +31,7 @@ const HomeButton = () => {
           L.DomEvent.disableClickPropagation(button);
           // TODO move home to config and sync with 3d
           L.DomEvent.on(button, "click", () => {
-            map.setView([51.27203462681256, 7.199971675872803], 18, {
+            leafletElement.setView([51.27203462681256, 7.199971675872803], 18, {
               animate: true,
             });
           });
@@ -43,9 +45,9 @@ const HomeButton = () => {
 
       // @ts-expect-error figure out proper type here
       const home = new L.Control.Button();
-      home.addTo(map);
+      home.addTo(leafletElement);
     }
-  }, [routedMapRef]);
+  }, [leafletElement]);
   return <div></div>;
 };
 

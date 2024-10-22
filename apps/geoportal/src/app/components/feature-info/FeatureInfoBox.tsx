@@ -7,7 +7,6 @@ import envelope from "@turf/envelope";
 import InfoBox from "react-cismap/topicmaps/InfoBox";
 import { getActionLinksForFeature } from "react-cismap/tools/uiHelper";
 import InfoBoxHeader from "react-cismap/topicmaps/InfoBoxHeader";
-import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { additionalInfoFactory } from "@carma-collab/wuppertal/geoportal";
 
@@ -20,6 +19,7 @@ import {
   getSelectedFeature,
 } from "../../store/slices/features";
 import { getLayers } from "../../store/slices/mapping";
+import { getLeafletElement } from "../../store/slices/topicmap";
 import { getCoordinates } from "../GeoportalMap/topicmap.utils";
 import { truncateString, updateUrlWithCoordinates } from "./featureInfoHelper";
 
@@ -38,7 +38,7 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
   const numOfLayers = layers.length;
   const infoText = useSelector(getInfoText);
 
-  const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
+  const leafletElement = useSelector(getLeafletElement);
 
   useEffect(() => {
     if (pos && selectedFeature) {
@@ -75,8 +75,8 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
           if (type === "Point") {
             const coordinates = getCoordinates(selectedFeature.geometry);
 
-            if (routedMapRef) {
-              routedMapRef.leafletMap.leafletElement.setView(
+            if (leafletElement) {
+              leafletElement.setView(
                 [coordinates[1], coordinates[0]],
                 selectedFeature.properties.zoom
                   ? selectedFeature.properties.zoom
@@ -86,8 +86,8 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
           } else {
             const bbox = envelope(selectedFeature.geometry).bbox;
 
-            if (routedMapRef) {
-              routedMapRef.leafletMap.leafletElement.fitBounds([
+            if (leafletElement) {
+              leafletElement.fitBounds([
                 [bbox[3], bbox[2]],
                 [bbox[1], bbox[0]],
               ]);
