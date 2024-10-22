@@ -86,6 +86,41 @@ export function paramsToObject(entries: URLSearchParams) {
   return result;
 }
 
+const parseZoom = (
+  vectorStyles: {
+    id: string;
+    maxzoom: number;
+    minzoom: number;
+  }[],
+  sourceZoom: {
+    minzoom: number;
+    maxzoom: number;
+  },
+) => {
+  let maxzoom = sourceZoom.maxzoom;
+  let minzoom = sourceZoom.minzoom;
+
+  if (vectorStyles.length > 0) {
+    const maxzoomVector = vectorStyles.reduce((acc, cur) => {
+      if (cur.maxzoom > acc) {
+        return cur.maxzoom;
+      }
+      return acc;
+    }, 0);
+    const minzoomVector = vectorStyles.reduce((acc, cur) => {
+      if (cur.minzoom > acc) {
+        return cur.minzoom;
+      }
+      return acc;
+    }, 0);
+
+    maxzoom = Math.max(maxzoom, maxzoomVector);
+    minzoom = Math.max(minzoom, minzoomVector);
+  }
+
+  return { maxzoom, minzoom };
+};
+
 export const parseToMapLayer = async (
   layer: Item,
   forceWMS: boolean,
@@ -102,13 +137,25 @@ export const parseToMapLayer = async (
           return response.json();
         })
         .then((result) => {
-          const minZoom =
-            result.sources["poi-source"]?.minzoom ||
-            result.sources["vector-tiles"]?.minzoom ||
-            9;
-          return {
-            minZoom,
-          };
+          const parsedZoom = parseZoom(
+            result.layers.filter(
+              (layer) =>
+                !layer.id.includes("selection") &&
+                !layer.id.toLowerCase().includes("label") &&
+                !layer.id.toLowerCase().includes("beschriftung"),
+            ),
+            {
+              minzoom:
+                result.sources["poi-source"]?.minzoom ||
+                result.sources["vector-tiles"]?.minzoom ||
+                9,
+              maxzoom:
+                result.sources["poi-source"]?.maxzoom ||
+                result.sources["vector-tiles"]?.maxzoom ||
+                24,
+            },
+          );
+          return parsedZoom;
         });
       newLayer = {
         title: layer.title,
@@ -126,7 +173,8 @@ export const parseToMapLayer = async (
         visible: true,
         props: {
           style: carmaConf.vectorStyle,
-          minZoom: zoom?.minZoom,
+          minZoom: zoom?.minzoom,
+          maxZoom: zoom?.maxzoom,
           legend: layer.props.Style[0].LegendURL,
         },
         other: {
