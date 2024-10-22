@@ -1010,6 +1010,7 @@ export const baseConfig = {
         keywords: [
           ":vec:",
           `carmaConf://vectorStyle:${vectorBaseUrl}bplanhintergrund/style.json`,
+          `carmaConf://minZoom:9`,
         ],
       },
       {

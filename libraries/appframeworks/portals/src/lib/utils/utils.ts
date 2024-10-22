@@ -173,7 +173,7 @@ export const parseToMapLayer = async (
         visible: true,
         props: {
           style: carmaConf.vectorStyle,
-          minZoom: zoom?.minzoom,
+          minZoom: Number(carmaConf.minZoom) || zoom?.minzoom,
           maxZoom: zoom?.maxzoom,
           legend: layer.props.Style[0].LegendURL,
         },
