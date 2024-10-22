@@ -5,8 +5,6 @@ import { Cartesian3, defined, HeadingPitchRange } from "cesium";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
-import type { CameraPositionAndOrientation } from "../../index";
-
 import { useCesiumContext } from "../CesiumContextProvider";
 import {
   setIsMode2d,
@@ -47,10 +45,6 @@ export const useMapTransition = ({
     duration = DEFAULT_MODE_2D_3D_CHANGE_FADE_DURATION;
   }
 
-  const [prevCamera3d, setPrevCamera3d] =
-    useState<CameraPositionAndOrientation | null>(null);
-  const [prevCamera2dPosition, setPrevCamera2dPosition] =
-    useState<Cartesian3 | null>(null);
   const [prevHPR, setPrevHPR] = useState<HeadingPitchRange | null>(null);
   const [prevDuration, setPrevDuration] = useState<number>(0);
 
@@ -67,25 +61,16 @@ export const useMapTransition = ({
       dispatch(clearTransition());
       onComplete && onComplete(false);
     };
-    if (
-      prevCamera2dPosition &&
-      Cartesian3.equals(viewer.camera.position, prevCamera2dPosition) !== true
-    ) {
-      console.info(
-        "[CESIUM|LEAFLET|TO3D] camera position unchanged, skipping 2d to 3d transition animation zoom",
-      );
-      onComplete3d();
-      return;
-    }
+    // introduces side effects with gazetteer and home button, always show animation
 
     const onCompleteAnimatedTo3d = () => {
       const pos = pickViewerCanvasCenter(viewer).scenePosition;
 
       if (pos && prevHPR) {
-        console.info(
+        console.debug(
           "[CESIUM|2D3D|TO3D] restore 3d camera position zoom",
           pos,
-          prevHPR,
+          prevHPR
         );
         animateInterpolateHeadingPitchRange(viewer, pos, prevHPR, {
           delay: duration, // allow the css transition to finish
@@ -94,10 +79,10 @@ export const useMapTransition = ({
           onComplete: onComplete3d,
         });
       } else {
-        console.info(
+        console.debug(
           "[CESIUM|2D3D|TO3D] to change to 3d camera position applied zoom",
           pos,
-          prevHPR,
+          prevHPR
         );
         onComplete3d();
         return;
@@ -134,27 +119,10 @@ export const useMapTransition = ({
         height = cartographic.height + distance;
       }
     } else {
-      console.info("scene above horizon, using camera position as reference");
+      console.debug("scene above horizon, using camera position as reference");
     }
 
     // evaluate angles for animation duration
-
-    // don't store camera position if pitch is near nadir
-    if (Math.abs(viewer.camera.pitch + Math.PI / 2) > 0.05) {
-      console.log(
-        "last camera pitch",
-        viewer.camera.pitch,
-        viewer.camera.pitch + Math.PI / 2,
-      );
-      setPrevCamera3d({
-        position: viewer.camera.position.clone(),
-        direction: viewer.camera.direction.clone(),
-        up: viewer.camera.up.clone(),
-      });
-    } else {
-      setPrevCamera3d(null);
-    }
-
     let zoomDiff = 0;
 
     const { zoomSnap } = leaflet.options;
@@ -182,7 +150,7 @@ export const useMapTransition = ({
         distance = distance * heightFactor;
         height = groundHeight + distance;
 
-        console.log(
+        console.debug(
           "TRANSITION TO 2D [2D|3D] zoomSnap",
           zoomSnap,
           currentZoom,
@@ -192,7 +160,7 @@ export const useMapTransition = ({
           distanceBefore,
           height,
           heightBefore,
-          zoomDiff,
+          zoomDiff
         );
       }
     } else {
@@ -204,21 +172,20 @@ export const useMapTransition = ({
 
     const onComplete2d = () => {
       setLeafletView(viewer, leaflet, { animate: false, duration: 0 });
-      setPrevCamera2dPosition(viewer.camera.position.clone());
       // trigger the visual transition
       dispatch(setIsMode2d(true));
       dispatch(clearTransition());
       onComplete && onComplete(true);
     };
 
-    console.log("duration zoom", distance);
+    console.debug("[Animation|2D3D] duration zoom", distance);
 
     if (hasGroundPos) {
       // rotate around the groundposition at center
-      console.info(
+      console.debug(
         "[CESIUM|2D3D|TO2D] setting prev HPR zoom",
         groundPos,
-        height,
+        height
       );
       setPrevHPR(
         animateInterpolateHeadingPitchRange(
@@ -228,11 +195,11 @@ export const useMapTransition = ({
           {
             duration: duration * 1000,
             onComplete: onComplete2d,
-          },
-        ),
+          }
+        )
       );
     } else {
-      console.info("rotate around camera position not implemented yet zoom");
+      console.debug("rotate around camera position not implemented yet zoom");
       dispatch(clearTransition());
       /*
    // TODO implement this

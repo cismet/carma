@@ -51,7 +51,7 @@ export const useInitializeViewer = (
 
   useEffect(() => {
     if (viewer) {
-      console.log("HOOK: enable terrain collision detection");
+      console.debug("HOOK: enable terrain collision detection");
       const scene: Scene = viewer.scene;
       scene.requestRenderMode = true;
       const sscc: ScreenSpaceCameraController =
@@ -73,7 +73,7 @@ export const useInitializeViewer = (
     if (viewer && hash === null) {
       const locationHash = window.location.hash ?? "";
       setHash(locationHash);
-      console.log("HOOK: set initialHash", locationHash);
+      console.debug("HOOK: set initialHash", locationHash);
 
       const hashParams = locationHash.split("?")[1];
       const sceneFromHashParams = decodeSceneFromLocation(hashParams);
@@ -87,19 +87,19 @@ export const useInitializeViewer = (
       // TODO enable 2D Mode if zoom value is present in hash on startup
 
       if (isMode2d) {
-        console.info(
+        console.debug(
           "HOOK: skipping cesium location setup with 2d mode active zoom",
         );
       } else {
         if (isSecondaryStyle) {
-          console.log("HOOK: set secondary style from hash");
+          console.debug("HOOK: set secondary style from hash");
           setupSecondaryStyle(viewerContext);
           dispatch(setShowPrimaryTileset(false));
           dispatch(setShowSecondaryTileset(true));
         }
 
         if (sceneFromHashParams && longitude && latitude) {
-          console.log(
+          console.debug(
             "HOOK [2D3D|CESIUM|CAMERA] init Viewer set camera from hash zoom",
             height,
           );
@@ -124,7 +124,7 @@ export const useInitializeViewer = (
           })();
           */
         } else if (home && homeOffset) {
-          console.log(
+          console.debug(
             "HOOK: [2D3D|CESIUM|CAMERA] initViewer no hash, using home zoom",
             home,
           );
@@ -134,7 +134,7 @@ export const useInitializeViewer = (
           });
           // triggers url hash update on moveend
         } else {
-          console.info("HOOK: initViewer no hash, no home, no zoom");
+          console.debug("HOOK: initViewer no hash, no home, no zoom");
         }
       }
     }
