@@ -57,7 +57,7 @@ export const CesiumContextProvider = ({
     };
   };
 }) => {
-  const viewerRef = useRef<Viewer | null>(null);
+  const [viewer, setViewer] = useState<Viewer | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadingError, setLoadingError] = useState<Error | null>(null);
   const primaryTilesetRef = useRef<Cesium3DTileset | null>(null);
@@ -72,9 +72,6 @@ export const CesiumContextProvider = ({
     providerConfig.imageryProvider,
   );
 
-  const setViewer = useCallback((viewer: Viewer | null) => {
-    viewerRef.current = viewer;
-  }, []);
 
   const setPrimaryTileset = useCallback((tileset: Cesium3DTileset | null) => {
     primaryTilesetRef.current = tileset;
@@ -108,7 +105,7 @@ export const CesiumContextProvider = ({
 
 
   const values: CesiumContextType = {
-    viewer: viewerRef.current,
+    viewer,
     setViewer,
     ellipsoidTerrainProvider: new EllipsoidTerrainProvider(),
     terrainProvider,
