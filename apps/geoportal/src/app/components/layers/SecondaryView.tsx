@@ -21,6 +21,7 @@ import {
   faWindowMinimize,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { SELECTED_LAYER_INDEX } from "@carma-apps/portals";
 
@@ -37,7 +38,6 @@ import {
   setSelectedLayerIndex,
   setSelectedLayerIndexNoSelection,
 } from "../../store/slices/mapping";
-import { getLeafletElement } from "../../store/slices/topicmap";
 import {
   getUIShowInfo,
   getUIShowInfoText,
@@ -57,7 +57,7 @@ export const formatter: NonNullable<
 
 const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
   const [showAlternativeIcon, setShowAlternativeIcon] = useState(false);
-  const leafletElement = useSelector(getLeafletElement);
+  const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const infoRef = useRef<HTMLDivElement>(null);
   const dispatch = useDispatch();
   const showInfo = useSelector(getUIShowInfo);
@@ -160,12 +160,12 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
             showInfo ? "h-[600px]" : "h-12",
           )}
           onMouseEnter={() => {
-            leafletElement.dragging.disable();
-            leafletElement.scrollWheelZoom.disable();
+            routedMapRef?.leafletMap?.leafletElement.dragging.disable();
+            routedMapRef?.leafletMap?.leafletElement.scrollWheelZoom.disable();
           }}
           onMouseLeave={() => {
-            leafletElement.dragging.enable();
-            leafletElement.scrollWheelZoom.enable();
+            routedMapRef?.leafletMap?.leafletElement.dragging.enable();
+            routedMapRef?.leafletMap?.leafletElement.scrollWheelZoom.enable();
           }}
         >
           <button
@@ -212,13 +212,13 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
                 disabled={isBaseLayer}
                 tooltip={{ formatter }}
                 onFocus={() => {
-                  leafletElement.dragging.disable();
+                  routedMapRef?.leafletMap?.leafletElement.dragging.disable();
                 }}
                 onChange={(value) => {
                   dispatch(changeOpacity({ id: layer.id, opacity: value }));
                 }}
                 onChangeComplete={() => {
-                  leafletElement.dragging.enable();
+                  routedMapRef?.leafletMap?.leafletElement.dragging.enable();
                 }}
                 value={layer.opacity}
                 min={0}

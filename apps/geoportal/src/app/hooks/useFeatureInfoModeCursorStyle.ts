@@ -7,7 +7,6 @@ export const useFeatureInfoModeCursorStyle = (
 ) => {
   const uiMode = useSelector(getUIMode);
   const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
-  console.debug("HOOK: isModeFeatureInfo", isModeFeatureInfo);
   useEffect(() => {
     const mapElement = document.getElementById(topicMapElementId);
     if (mapElement) {

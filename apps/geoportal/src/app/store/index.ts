@@ -1,21 +1,18 @@
 import { configureStore } from "@reduxjs/toolkit";
-import { createLogger } from "redux-logger";
-import { persistReducer, persistStore } from "redux-persist";
 
+import { createLogger } from "redux-logger";
+import { persistReducer } from "redux-persist";
 import localForage from "localforage";
 
 import { getCesiumConfig, cesiumReducer } from "@carma-mapping/cesium-engine";
 
-import featuresReducer from "./slices/features";
+import { APP_KEY, STORAGE_PREFIX } from "../config";
+import { defaultCesiumState } from "../config/cesium/store.config";
 import mappingReducer from "./slices/mapping";
 import layersReducer from "./slices/layers";
-import measurementsReducer from "./slices/measurements";
-import topicMapReducer from "./slices/topicmap";
 import uiReducer from "./slices/ui";
-
-import { defaultCesiumState } from "../config/cesium/store.config";
-import { APP_KEY, STORAGE_PREFIX } from "../config";
-import { DEBUG_UI_STATE } from "../config/app.config";
+import measurementsReducer from "./slices/measurements";
+import featuresReducer from "./slices/features";
 
 console.info("store initializing ....");
 
@@ -114,21 +111,16 @@ const store = configureStore({
       getCesiumConfig({ appKey: APP_KEY, storagePrefix: STORAGE_PREFIX }),
       cesiumReducer,
     ),
-    topicmap: topicMapReducer,
   },
   preloadedState: {
-    // needs to be complete state otherwise has untested behavior
     cesium: defaultCesiumState,
-    ui: DEBUG_UI_STATE,
   },
   devTools: devToolsEnabled === true && inProduction === false,
   middleware,
 });
 
-const persistor = persistStore(store);
-
 export type AppStore = typeof store;
 export type RootState = ReturnType<AppStore["getState"]>;
 export type AppDispatch = AppStore["dispatch"];
 
-export default { store, persistor };
+export default store;

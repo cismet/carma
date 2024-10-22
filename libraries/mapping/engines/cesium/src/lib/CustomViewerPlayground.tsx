@@ -12,8 +12,6 @@ import {
 } from "cesium";
 import { Viewer as ResiumViewer } from "resium";
 
-import type { Map as LeafletMap } from "leaflet";
-
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { useTweakpaneCtx } from "@carma-commons/debug";
@@ -101,7 +99,6 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
   const [showMiniMap, setShowMiniMap] = useState<boolean>(false);
   const [viewportLimit, setViewportLimit] = useState<number>(4);
   const [viewportLimitDebug, setViewportLimitDebug] = useState<boolean>(false);
-  const [leafletElement, setLeafletElement] = useState<LeafletMap | null>(null);
 
   const [showCrosshair, setShowCrosshair] = useState<boolean>(
     props.showCrosshair ?? true,
@@ -169,12 +166,6 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
       },
     ],
   );
-
-  useEffect(() => {
-    if (topicMapContext?.routedMapRef?.leafletMap) {
-      setLeafletElement(topicMapContext.routedMapRef.leafletMap.leafletElement);
-    }
-  }, [topicMapContext?.routedMapRef]);
 
   useTweakpaneCtx(
     {
@@ -302,7 +293,7 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
 
   useEffect(() => {
     if (viewer) {
-      console.debug("HOOK: globe setting changed");
+      console.log("HOOK: globe setting changed");
       // set the globe props
       //Object.assign(scene.globe, globeProps);
       Object.entries(globeProps).forEach(([key, value]) => {
@@ -315,14 +306,14 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
 
   useEffect(() => {
     if (viewer) {
-      console.debug("HOOK: viewer changed intit scene settings");
+      console.log("HOOK: viewer changed intit scene settings");
       viewer.imageryLayers.removeAll();
       viewer.scene.screenSpaceCameraController.enableCollisionDetection = true;
     }
   }, [viewer]);
 
   useEffect(() => {
-    console.debug("HOOK: viewer changed", isSecondaryStyle);
+    console.log("HOOK: viewer changed", isSecondaryStyle);
     if (!viewer) return;
 
     // remove default imagery
@@ -354,7 +345,10 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
             });
           }
           // preload 2D view
-          leafletElement && setLeafletView(viewer, leafletElement, { animate: false });
+          const leaflet =
+            topicMapContext?.routedMapRef?.leafletMap?.leafletElement;
+          console.log("leaflet", leaflet, topicMapContext?.routedMapRef);
+          leaflet && setLeafletView(viewer, leaflet, { animate: false });
         }
       }
     };
@@ -368,7 +362,7 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
     location.pathname,
     isSecondaryStyle,
     showFader,
-    leafletElement,
+    topicMapContext?.routedMapRef,
     isMode2d,
     isUserAction,
   ]);
@@ -407,7 +401,7 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
     >
       <BaseTilesets />
       {children}
-      {showControls && leafletElement && <ControlsUI showHome={showHome} showOrbit={showOrbit} leafletElement={leafletElement} />}
+      {showControls && <ControlsUI showHome={showHome} showOrbit={showOrbit} />}
       {showCrosshair && <Crosshair lineColor="white" />}
       <ResizeableContainer enableDragging={showFader} start={showFader ? 5 : 0}>
         <TopicMap forceShow={showFader} />

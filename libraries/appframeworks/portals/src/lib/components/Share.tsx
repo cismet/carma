@@ -4,6 +4,7 @@ import { useCopyToClipboard } from "@uidotdev/usehooks";
 import { Button, Checkbox, Radio, message } from "antd";
 import LZString from "lz-string";
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import "./popover.css";
 import { generateRandomString } from "@carma-commons/utils";
 import type { LayerState, Settings } from "../types";
@@ -16,6 +17,7 @@ export const Share = ({ layerState }: ShareProps) => {
   const { layers, backgroundLayer } = layerState;
   //const backgroundLayer = useSelector(getBackgroundLayer);
   //const activeLayers = useSelector(getLayers);
+  const [searchParams] = useSearchParams();
   const [, copyToClipboard] = useCopyToClipboard();
   const [messageApi, contextHolder] = message.useMessage();
   const [mode, setMode] = useState("");
@@ -48,7 +50,7 @@ export const Share = ({ layerState }: ShareProps) => {
     const compressed = LZString.compressToEncodedURIComponent(jsonString);
     try {
       const baseUrl = window.location.origin + window.location.pathname;
-      const queryString = new URLSearchParams(window.location.search).toString();
+      const queryString = new URLSearchParams(searchParams).toString();
       const url = `${baseUrl}#/${mode}?data=${compressed}&${queryString}${
         mode === "publish/" ? `&appKey=${generateRandomString(5)}` : ""
       }`;

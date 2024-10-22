@@ -1,59 +1,60 @@
-import { useState, createContext, useCallback, useMemo, useRef, memo } from "react";
-import type {
-  OverlayTourContextType,
+import React, { useState, createContext } from "react";
+import {
+  OverlayTourContext as OverlayTourContextSettings,
   OverlayHelperConfig,
+  LibHelperOverlay,
   OverlayTourProviderProps,
 } from "../..";
-import LibHelperOverlay from "../lib-helper-overlay";
 
-export const OverlayTourContext = createContext<OverlayTourContextType>({
+export const OverlayTourContext = createContext<OverlayTourContextSettings>({
   configs: [],
-  addConfig: () => {},
-  removeConfig: () => {},
-  setSecondaryKey: () => {},
-  secondaryKey: null,
+  addConfig: (arg) => {},
+  removeConfig: (arg) => {},
+  showSecondaryWithKey: null,
+  setSecondaryWithKey: (key) => {},
 });
 
 export const OverlayTourProvider = ({
   children,
   showOverlay = false,
-  closeOverlay,
+  closeOverlay = () => {},
   transparency = 0.8,
   color = "black",
 }: OverlayTourProviderProps) => {
-  const [prevConfigs, setConfigs] = useState<OverlayHelperConfig[]>([]);
+  const [configs, setConfigs] = useState<OverlayHelperConfig[]>([]);
   const [secondaryKey, setSecondaryKey] = useState<null | string>(null);
 
-  const addConfig = useCallback((config: OverlayHelperConfig) => {
-    console.debug("ADD OVERLAYCONFIG", config);
+  const addConfig = (config) => {
     setConfigs((prevConfigs) => [...prevConfigs, config]);
-  }, []);
+  };
 
-  const removeConfig = useCallback((config: OverlayHelperConfig) => {
-    console.debug("REMOVE OVERLAYCONFIG", config);
-    setConfigs((prevConfigs) => prevConfigs.filter((c) => c.key !== config.key));
-  }, []);
+  const removeConfig = (config) => {
+    setConfigs((prevConfigs) => prevConfigs.filter((c) => c !== config));
+  };
 
-  const contextValue = useMemo(() => ({
-    configs: prevConfigs,
-    addConfig,
-    removeConfig,
-    setSecondaryKey,
-    secondaryKey,
-  }),
-    [prevConfigs, addConfig, removeConfig, setSecondaryKey, secondaryKey],
-  );
-
-  console.log("RENDER: [OVERLAY TOUR PROVIDER], configs", prevConfigs);
+  const setSecondaryKeyHandler = (key: string | null) => {
+    setSecondaryKey(key);
+  };
 
   return (
-    <OverlayTourContext.Provider value={contextValue} >
+    <OverlayTourContext.Provider
+      value={{
+        configs,
+        addConfig,
+        removeConfig,
+        showSecondaryWithKey: secondaryKey,
+        setSecondaryWithKey: setSecondaryKeyHandler,
+      }}
+    >
       {children}
       {showOverlay && (
         <LibHelperOverlay
+          configs={configs}
           closeOverlay={closeOverlay}
           transparency={transparency}
           color={color}
+          showSecondaryWithKey={setSecondaryKeyHandler}
+          openedSecondaryKey={secondaryKey}
         />
       )}
     </OverlayTourContext.Provider>

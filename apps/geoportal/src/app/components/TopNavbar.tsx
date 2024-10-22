@@ -1,6 +1,5 @@
-import { useCallback, useMemo, useState } from "react";
-import { shallowEqual, useDispatch, useSelector } from "react-redux";
-import { Button, Popover, Radio, type RadioChangeEvent, Tooltip, message } from "antd";
+import { useDispatch, useSelector } from "react-redux";
+import { Button, Popover, Radio, Tooltip, message } from "antd";
 import {
   faBars,
   faPrint,
@@ -12,6 +11,9 @@ import {
   faRotateRight,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { useContext, useState } from "react";
+
+import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
 import { LayerLib, Item, Layer } from "@carma-mapping/layers";
 import { Save, utils } from "@carma-apps/portals";
@@ -54,14 +56,12 @@ import {
   getUIShowLayerButtons,
   setUIShowLayerButtons,
   UIMode,
-  getTopicMapAppMenuVisible,
 } from "../store/slices/ui";
 
 import { layerMap } from "../config";
 import { ShareContent } from "./ShareContent";
 
 import "./switch.css";
-import { useValueChange } from "@carma-commons/debug";
 
 const disabledClass = "text-gray-300";
 const disabledImageOpacity = "opacity-20";
@@ -69,9 +69,10 @@ const disabledImageOpacity = "opacity-20";
 const TopNavbar = () => {
   const dispatch = useDispatch();
 
-  const setAppMenuVisible = useSelector(getTopicMapAppMenuVisible);
-
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const { setAppMenuVisible } =
+    useContext<typeof UIDispatchContext>(UIDispatchContext);
 
   const [messageApi, contextHolder] = message.useMessage();
 
@@ -86,16 +87,13 @@ const TopNavbar = () => {
   const uiMode = useSelector(getUIMode);
   const tourMode = useSelector(getUIOverlayTourMode);
   const showLayerButtons = useSelector(getUIShowLayerButtons);
-
   const toggleSceneStyle = useSceneStyleToggle();
 
   const isMode2d = useSelector(selectViewerIsMode2d);
   const baseUrl = window.location.origin + window.location.pathname;
-
-  const handleToggleTour = useCallback(() => {
+  const handleToggleTour = () => {
     dispatch(toggleShowOverlayTour(!tourMode));
-  }, [tourMode, dispatch]);
-
+  };
   const menuTourRef = useOverlayHelper(
     getCollabedHelpElementsConfig("MENULEISTE", geoElements),
   );
@@ -106,13 +104,12 @@ const TopNavbar = () => {
     getCollabedHelpElementsConfig("MENU", geoElements),
   );
 
-  const updateLayers = useCallback(async (
+  const updateLayers = async (
     layer: Item,
     deleteItem: boolean = false,
     forceWMS: boolean = false,
     previewLayer: boolean = false,
   ) => {
-    console.debug("HOOK: updateLayers Callback");
     let newLayer: Layer;
     const id = layer.id.startsWith("fav_") ? layer.id.slice(4) : layer.id;
 
@@ -168,104 +165,9 @@ const TopNavbar = () => {
         });
       }
     }
-  }, [activeLayers, messageApi, dispatch]);
+  };
 
-
-  const handleSetThumbnail = useCallback((thumbnail: string) => {
-    dispatch(setThumbnail(thumbnail));
-  }, [dispatch]);
-
-  const handleAddFavorite = useCallback((layer: Item) => {
-    dispatch(addFavorite(layer));
-  }, [dispatch]);
-
-  const handleRemoveFavorite = useCallback((layer: Item) => {
-    dispatch(removeFavorite(layer));
-  }, [dispatch]);
-
-  const handleUpdateActiveLayer = useCallback((layer: Layer) => {
-    dispatch(updateLayer(layer));
-  }, [dispatch]);
-
-  const handleRemoveLastLayer = useCallback(() => {
-    dispatch(removeLastLayer());
-  }, [dispatch]);
-
-  const customCategories = useMemo(() => (
-    [
-      {
-        Title: "Meine Zusammenstellungen",
-        layers: savedLayerConfigs,
-      },
-      {
-        Title: "Favoriten",
-        layers: favorites,
-      },
-    ]),
-    [savedLayerConfigs, favorites],
-  );
-
-  const handleRefresh = useCallback(() => {
-    window.location.reload();
-  }, []);
-
-
-  const handleMapStyleChange = useCallback((e: RadioChangeEvent) => {
-    if (e.target.value === "karte") {
-      dispatch(
-        setBackgroundLayer({
-          ...selectedMapLayer,
-          id: "karte",
-          visible: isMode2d,
-        }),
-      );
-      toggleSceneStyle("secondary");
-    } else {
-      dispatch(
-        setBackgroundLayer({
-          id: e.target.value,
-          title: layerMap[e.target.value].title,
-          opacity: 1.0,
-          description: layerMap[e.target.value].description,
-          inhalt: layerMap[e.target.value].inhalt,
-          eignung: layerMap[e.target.value].eignung,
-          layerType: "wmts",
-          visible: isMode2d,
-          props: {
-            name: "",
-            url: layerMap[e.target.value].url,
-          },
-          layers: layerMap[e.target.value].layers,
-        }),
-      );
-      toggleSceneStyle("primary");
-    }
-  }, [dispatch, selectedMapLayer, isMode2d, toggleSceneStyle]);
-
-  const onClickFocusMode = useCallback(() => {
-    dispatch(setFocusMode(!focusMode));
-  }, [focusMode, dispatch]);
-
-
-  /*
-  useValueChange(focusMode, "TOP NAVBAR: focusMode");
-  useValueChange(isMode2d, "TOP NAVBAR: isMode2d");
-  useValueChange(showLayerButtons, "TOP NAVBAR: showLayerButtons");
-  useValueChange(backgroundLayer, "TOP NAVBAR: backgroundLayer");
-  useValueChange(selectedMapLayer, "TOP NAVBAR: selectedMapLayer");
-  useValueChange(thumbnails, "TOP NAVBAR: thumbnails");
-  useValueChange(favorites, "TOP NAVBAR: favorites");
-  useValueChange(activeLayers, "TOP NAVBAR: activeLayers");
-  useValueChange(tourMode, "TOP NAVBAR: tourMode");
-  useValueChange(uiMode, "TOP NAVBAR: uiMode");
-  useValueChange(isModalOpen, "TOP NAVBAR: isModalOpen");
-  useValueChange(handleRefresh, "TOP NAVBAR: handleRefresh");
-  useValueChange(handleMapStyleChange, "TOP NAVBAR: handleMapStyleChange");
-  useValueChange(onClickFocusMode, "TOP NAVBAR: onClickFocusMode");
-  useValueChange(handleToggleTour, "TOP NAVBAR: handleToggleTour");
-  */
-
-  console.log("RENDER: [GEOPORTAL] TOP NAVBAR");
+  console.info("RENDER: TopNavbar");
 
   return (
     <div className="h-16 w-full flex items-center relative justify-between py-2 px-[12px]">
@@ -274,15 +176,34 @@ const TopNavbar = () => {
         open={isModalOpen}
         setOpen={setIsModalOpen}
         setAdditionalLayers={updateLayers}
-        setThumbnail={handleSetThumbnail}
+        setThumbnail={(thumbnail) => {
+          dispatch(setThumbnail(thumbnail));
+        }}
         thumbnails={thumbnails}
         favorites={favorites}
-        addFavorite={handleAddFavorite}
-        removeFavorite={handleRemoveFavorite}
+        addFavorite={(layer) => {
+          dispatch(addFavorite(layer));
+        }}
+        removeFavorite={(layer) => {
+          dispatch(removeFavorite(layer));
+        }}
         activeLayers={activeLayers}
-        customCategories={customCategories}
-        updateActiveLayer={handleUpdateActiveLayer}
-        removeLastLayer={handleRemoveLastLayer}
+        customCategories={[
+          {
+            Title: "Meine Zusammenstellungen",
+            layers: savedLayerConfigs,
+          },
+          {
+            Title: "Favoriten",
+            layers: favorites,
+          },
+        ]}
+        updateActiveLayer={(layer) => {
+          dispatch(updateLayer(layer));
+        }}
+        removeLastLayer={() => {
+          dispatch(removeLastLayer());
+        }}
       />
 
       <div className="flex items-center gap-6">
@@ -299,7 +220,9 @@ const TopNavbar = () => {
       >
         <Tooltip title="Aktualisieren">
           <button
-            onClick={handleRefresh}
+            onClick={() => {
+              window.location.reload();
+            }}
             className="text-xl hover:text-gray-600"
           >
             <FontAwesomeIcon icon={faRotateRight} />
@@ -316,19 +239,23 @@ const TopNavbar = () => {
             <img
               src={baseUrl + "icons/add-layers.png"}
               alt="Kartenebenen hinzufügen"
-              className={`h-5 mb-0.5 cursor-pointer ${isMode2d ? "" : disabledImageOpacity
-                }`}
+              className={`h-5 mb-0.5 cursor-pointer ${
+                isMode2d ? "" : disabledImageOpacity
+              }`}
             />
           </button>
         </Tooltip>
         <Tooltip
-          title={`Hintergrundkarte ${focusMode ? "zurücksetzen" : "abschwächen"
-            }`}
+          title={`Hintergrundkarte ${
+            focusMode ? "zurücksetzen" : "abschwächen"
+          }`}
         >
           <button
             className="h-[24.5px]"
             disabled={!isMode2d}
-            onClick={onClickFocusMode}
+            onClick={() => {
+              dispatch(setFocusMode(!focusMode));
+            }}
           >
             <img
               src={
@@ -336,18 +263,21 @@ const TopNavbar = () => {
                 `${focusMode ? "icons/focus-on.png" : "icons/focus-off.png"}`
               }
               alt="Kartenebenen hinzufügen"
-              className={`h-5 mb-0.5 cursor-pointer ${isMode2d ? "" : disabledImageOpacity
-                }`}
+              className={`h-5 mb-0.5 cursor-pointer ${
+                isMode2d ? "" : disabledImageOpacity
+              }`}
             />
           </button>
         </Tooltip>
         <Tooltip
-          title={`Kartensteuerelemente ${showLayerButtons ? "ausblenden" : "einblenden"
-            }`}
+          title={`Kartensteuerelemente ${
+            showLayerButtons ? "ausblenden" : "einblenden"
+          }`}
         >
           <button
-            className={`text-xl hover:text-gray-600 ${isMode2d ? "" : disabledClass
-              }`}
+            className={`text-xl hover:text-gray-600 ${
+              isMode2d ? "" : disabledClass
+            }`}
             disabled={!isMode2d}
             onClick={() => {
               dispatch(setUIShowLayerButtons(!showLayerButtons));
@@ -373,8 +303,9 @@ const TopNavbar = () => {
             }
           >
             <button
-              className={`hover:text-gray-600 text-xl ${isMode2d ? "" : disabledClass
-                }`}
+              className={`hover:text-gray-600 text-xl ${
+                isMode2d ? "" : disabledClass
+              }`}
             >
               <FontAwesomeIcon icon={faFileExport} />
             </button>
@@ -413,7 +344,37 @@ const TopNavbar = () => {
           {backgroundLayer && (
             <Radio.Group
               value={backgroundLayer.id}
-              onChange={handleMapStyleChange}
+              onChange={(e) => {
+                if (e.target.value === "karte") {
+                  dispatch(
+                    setBackgroundLayer({
+                      ...selectedMapLayer,
+                      id: "karte",
+                      visible: isMode2d,
+                    }),
+                  );
+                  toggleSceneStyle("secondary");
+                } else {
+                  dispatch(
+                    setBackgroundLayer({
+                      id: e.target.value,
+                      title: layerMap[e.target.value].title,
+                      opacity: 1.0,
+                      description: layerMap[e.target.value].description,
+                      inhalt: layerMap[e.target.value].inhalt,
+                      eignung: layerMap[e.target.value].eignung,
+                      layerType: "wmts",
+                      visible: isMode2d,
+                      props: {
+                        name: "",
+                        url: layerMap[e.target.value].url,
+                      },
+                      layers: layerMap[e.target.value].layers,
+                    }),
+                  );
+                  toggleSceneStyle("primary");
+                }
+              }}
             >
               <Radio.Button value="karte">Karte</Radio.Button>
               <Radio.Button value="luftbild">Luftbild</Radio.Button>
@@ -423,7 +384,7 @@ const TopNavbar = () => {
 
         <Button
           onClick={() => {
-            setAppMenuVisible && setAppMenuVisible(true);
+            setAppMenuVisible(true);
           }}
           ref={modalMenuTourRef}
         >

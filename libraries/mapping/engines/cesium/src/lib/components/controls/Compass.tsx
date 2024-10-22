@@ -83,7 +83,7 @@ export const Compass = forwardRef<Ref, CompassProps>(
           );
         }
 
-        console.debug("HOOK: [2D3D|CESIUM|CAMERA] Compass FlyTo");
+        console.log("HOOK: [2D3D|CESIUM|CAMERA] Compass FlyTo");
         viewer.camera.flyTo({
           destination,
           orientation: {

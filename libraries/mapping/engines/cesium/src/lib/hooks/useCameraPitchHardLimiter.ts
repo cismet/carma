@@ -27,14 +27,14 @@ const useCameraPitchHardLimiter = (minPitchDeg = DEFAULT_MIN_PITCH) => {
   useEffect(() => {
     if (viewer && collisions && !isMode2d) {
       const { camera, scene } = viewer;
-      console.debug(
+      console.log(
         "HOOK [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to limit camera pitch",
       );
       clearLast();
       const onUpdate = async () => {
         const isPitchTooLow = camera.pitch > minPitchRad;
         if (isPitchTooLow) {
-          console.debug(
+          console.log(
             "LISTENER HOOK [2D3D|CESIUM|CAMERA]: reset pitch",
             camera.pitch,
             minPitchRad,

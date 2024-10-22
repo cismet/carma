@@ -118,7 +118,7 @@ export const CustomCesiumWidget: FC<{
     }
     return () => {
       if (tileset) {
-        console.debug("HOOK: Destroying tileset");
+        console.log("HOOK: Destroying tileset");
         tileset.destroy();
         setTileset(null);
       }
@@ -127,7 +127,7 @@ export const CustomCesiumWidget: FC<{
 
   useEffect(() => {
     if (tileset && widget) {
-      console.debug("HOOK: Tileset added to scene:", tileset);
+      console.log("HOOK: Tileset added to scene:", tileset);
       widget.scene.primitives.add(tileset);
       return () => {
         if (widget) {
@@ -174,7 +174,7 @@ export const CustomCesiumWidget: FC<{
     }
     return () => {
       if (widget) {
-        console.debug("HOOK: Destroying widget");
+        console.log("HOOK: Destroying widget");
         widget.destroy();
         setWidget(null);
       }

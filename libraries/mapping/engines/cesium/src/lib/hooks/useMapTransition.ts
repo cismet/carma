@@ -1,9 +1,9 @@
 import { useContext, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import type { Map as LeafletMap } from "leaflet";
-
 import { Cartesian3, defined, HeadingPitchRange } from "cesium";
+
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import type { CameraPositionAndOrientation } from "../../index";
 
@@ -33,13 +33,15 @@ type TransitionOptions = {
 
 const DEFAULT_MODE_2D_3D_CHANGE_FADE_DURATION = 1000;
 
-export const useMapTransition = (
-  leafletElement: LeafletMap | null,
-  { onComplete, duration }: TransitionOptions = {},
-) => {
+export const useMapTransition = ({
+  onComplete,
+  duration,
+}: TransitionOptions = {}) => {
   const dispatch = useDispatch();
+  const topicMapContext = useContext<typeof TopicMapContext>(TopicMapContext);
 
   const { viewer, surfaceProvider, terrainProvider } = useCesiumContext();
+  const leaflet = topicMapContext.routedMapRef?.leafletMap?.leafletElement;
 
   if (duration === undefined) {
     duration = DEFAULT_MODE_2D_3D_CHANGE_FADE_DURATION;
@@ -55,8 +57,7 @@ export const useMapTransition = (
   const isTransitioning = useSelector(selectViewerIsTransitioning);
 
   const transitionToMode3d = async () => {
-    console.log("transitionToMode3d", viewer, leafletElement);
-    if (!viewer || !leafletElement) {
+    if (!viewer || !leaflet) {
       console.warn("cesium or leaflet not available");
       return null;
     }
@@ -103,7 +104,7 @@ export const useMapTransition = (
       }
     };
 
-    await leafletToCesium(leafletElement, viewer, {
+    await leafletToCesium(leaflet, viewer, {
       cause: "SwitchMapMode to 3d",
       onComplete: () => setTimeout(onCompleteAnimatedTo3d, 100),
       terrainProvider,
@@ -112,7 +113,7 @@ export const useMapTransition = (
   };
 
   const transitionToMode2d = () => {
-    if (!leafletElement) {
+    if (!leaflet) {
       console.warn("leaflet not available no transition possible [zoom]");
       return null;
     }
@@ -156,7 +157,7 @@ export const useMapTransition = (
 
     let zoomDiff = 0;
 
-    const { zoomSnap } = leafletElement.options;
+    const { zoomSnap } = leaflet.options;
 
     if (zoomSnap) {
       // Move the cesium camera to the next zoom snap level of leaflet before transitioning
@@ -195,14 +196,14 @@ export const useMapTransition = (
         );
       }
     } else {
-      console.warn("no zoomSnap applied", leafletElement);
+      console.warn("no zoomSnap applied", leaflet);
     }
 
     const duration = getTopDownCameraDeviationAngle(viewer) * 2 + zoomDiff * 1;
     setPrevDuration(duration);
 
     const onComplete2d = () => {
-      setLeafletView(viewer, leafletElement, { animate: false, duration: 0 });
+      setLeafletView(viewer, leaflet, { animate: false, duration: 0 });
       setPrevCamera2dPosition(viewer.camera.position.clone());
       // trigger the visual transition
       dispatch(setIsMode2d(true));

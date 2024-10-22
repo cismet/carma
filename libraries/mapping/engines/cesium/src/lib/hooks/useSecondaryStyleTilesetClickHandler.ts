@@ -24,7 +24,7 @@ export const useSecondaryStyleTilesetClickHandler = (
 
   useEffect(() => {
     if (!viewer || !isSecondaryStyle || disableSelection) return;
-    console.debug("HOOK: useGLTFTilesetClickHandler");
+    console.log("HOOK: useGLTFTilesetClickHandler");
 
     let selectedObject; // Store the currently selected feature
     let lastColor;

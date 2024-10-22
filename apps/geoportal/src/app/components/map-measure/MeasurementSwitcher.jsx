@@ -1,35 +1,31 @@
-import { useState, useEffect } from "react";
-import { useSelector, useDispatch } from "react-redux";
-
+import React, { useState, useEffect, useContext } from "react";
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+import "leaflet/dist/leaflet.css";
+import "leaflet-draw/dist/leaflet.draw.css";
 import L from "leaflet";
 import "leaflet-draw";
 import "leaflet-editable";
-
-import { toggleMeasurementMode } from "../../store/slices/measurements";
-import { getMeasurementMode } from "../../store/slices/measurements";
-import { getLeafletElement } from "../../store/slices/topicmap";
-
 import "./measure-path-switcher";
-
 import "leaflet-measure-path/leaflet-measure-path.css";
 import makeMeasureIcon from "./measure.png";
 import makeMeasureActiveIcon from "./measure-active.png";
 import "./m-style.css";
-import "leaflet/dist/leaflet.css";
-import "leaflet-draw/dist/leaflet.draw.css";
+import { useSelector, useDispatch } from "react-redux";
+import { toggleMeasurementMode } from "../../store/slices/measurements";
+import { getMeasurementMode } from "../../store/slices/measurements";
 
 const MeasurementSwitcher = (props) => {
-  const dispatch = useDispatch();
+  const { routedMapRef } = useContext(TopicMapContext);
 
-  // TODO pass leafletElement as prop ?
-  const leafletElement = useSelector(getLeafletElement);
+  const dispatch = useDispatch();
   const measurementMode = useSelector(getMeasurementMode);
 
   const [measureControl, setMeasureControl] = useState(null);
 
   useEffect(() => {
     let measurePolygonControl;
-    if (leafletElement && !measureControl) {
+    if (routedMapRef && !measureControl) {
+      const mapExample = routedMapRef.leafletMap.leafletElement;
       const customOptions = {
         position: "topleft",
         icon_lineActive: makeMeasureActiveIcon,
@@ -38,19 +34,21 @@ const MeasurementSwitcher = (props) => {
       };
 
       measurePolygonControl = L.control.measurePolygon(customOptions);
-      measurePolygonControl.addTo(leafletElement);
+      measurePolygonControl.addTo(mapExample);
       setMeasureControl(measurePolygonControl);
     }
 
     if (!measurementMode && measureControl) {
-      leafletElement.removeControl(measureControl);
+      const mapExample = routedMapRef.leafletMap.leafletElement;
+
+      mapExample.removeControl(measureControl);
     }
 
     // return () => {
     //   measurePolygonControl.remove();
     //   setMeasureControl(null);
     // };
-  }, [leafletElement, measurementMode]);
+  }, [routedMapRef, measurementMode]);
 
   const toggleMeasurementModeHandler = (status) => {
     dispatch(toggleMeasurementMode());

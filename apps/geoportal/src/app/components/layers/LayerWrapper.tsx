@@ -1,6 +1,7 @@
 /* eslint-disable jsx-a11y/no-static-element-interactions */
 /* eslint-disable jsx-a11y/click-events-have-key-events */
 
+import { useContext } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
@@ -22,6 +23,8 @@ import {
   faChevronRight,
 } from "@fortawesome/free-solid-svg-icons";
 
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+
 import { useOverlayHelper } from "@carma-commons/ui/lib-helper-overlay";
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
@@ -38,8 +41,6 @@ import {
   setSelectedLayerIndex,
   setSelectedLayerIndexNoSelection,
 } from "../../store/slices/mapping";
-import { getLeafletElement } from "../../store/slices/topicmap";
-
 import { cn } from "../../helper/helper";
 import LayerButton from "./LayerButton";
 import SecondaryView from "./SecondaryView";
@@ -48,10 +49,10 @@ import "./button.css";
 
 const LayerWrapper = () => {
   const dispatch: AppDispatch = useDispatch();
+  const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
   const layers = useSelector(getLayers);
   const backgroundLayer = useSelector(getBackgroundLayer);
-  const leafletElement = useSelector(getLeafletElement);
 
   const selectedLayerIndex = useSelector(getSelectedLayerIndex);
   const isNoSelectionIndex = useSelector(getSelectedLayerIndexIsNoSelection);
@@ -72,7 +73,7 @@ const LayerWrapper = () => {
   const getLayerPos = (id) => layers.findIndex((layer) => layer.id === id);
 
   const handleDragEnd = (event) => {
-    leafletElement.dragging.enable();
+    routedMapRef?.leafletMap?.leafletElement.dragging.enable();
     const { active, over } = event;
     if (active.id !== over.id) {
       const originalPos = getLayerPos(active.id);
@@ -102,7 +103,9 @@ const LayerWrapper = () => {
       <DndContext
         onDragEnd={handleDragEnd}
         sensors={sensors}
-        onDragStart={() => leafletElement.dragging.disable()}
+        onDragStart={() =>
+          routedMapRef?.leafletMap?.leafletElement.dragging.disable()
+        }
         modifiers={[restrictToHorizontalAxis]}
       >
         <div

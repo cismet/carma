@@ -11,7 +11,7 @@ const useCameraRollSoftLimiter = () => {
   const isMode2d = useSelector(selectViewerIsMode2d);
   useEffect(() => {
     if (viewer) {
-      console.debug(
+      console.log(
         "HOOK [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to reset rolled camera",
       );
       const moveEndListener = async () => {
@@ -23,7 +23,7 @@ const useCameraRollSoftLimiter = () => {
             CesiumMath.TWO_PI;
 
           if (rollDeviation > 0.02) {
-            console.debug(
+            console.log(
               "LISTENER HOOK [2D3D|CESIUM|CAMERA]: flyTo reset roll 2D3D",
               rollDeviation,
             );
