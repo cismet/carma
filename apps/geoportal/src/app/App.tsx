@@ -58,7 +58,7 @@ function App() {
   const syncToken = useSelector(getSyncToken);
 
   useEffect(() => {
-    console.info("HOOK: app add listeners")
+    console.debug("HOOK: app add listeners")
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.shiftKey) {
         dispatch(setUIShowLayerHideButtons(true));

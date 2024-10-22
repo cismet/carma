@@ -31,7 +31,7 @@ export default function HashHookComponent({
   dispatch(setUIPublished(published));
 
   useEffect(() => {
-    console.log("HOOK: App useEffect", published, searchParams);
+    console.debug("HOOK: App useEffect", published, searchParams);
     if (searchParams.get("sync")) {
       dispatch(setSyncToken(searchParams.get("sync")));
     }

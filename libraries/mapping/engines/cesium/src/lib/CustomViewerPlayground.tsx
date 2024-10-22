@@ -302,7 +302,7 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
 
   useEffect(() => {
     if (viewer) {
-      console.log("HOOK: globe setting changed");
+      console.debug("HOOK: globe setting changed");
       // set the globe props
       //Object.assign(scene.globe, globeProps);
       Object.entries(globeProps).forEach(([key, value]) => {
@@ -315,14 +315,14 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
 
   useEffect(() => {
     if (viewer) {
-      console.log("HOOK: viewer changed intit scene settings");
+      console.debug("HOOK: viewer changed intit scene settings");
       viewer.imageryLayers.removeAll();
       viewer.scene.screenSpaceCameraController.enableCollisionDetection = true;
     }
   }, [viewer]);
 
   useEffect(() => {
-    console.log("HOOK: viewer changed", isSecondaryStyle);
+    console.debug("HOOK: viewer changed", isSecondaryStyle);
     if (!viewer) return;
 
     // remove default imagery

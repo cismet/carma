@@ -239,7 +239,7 @@ export const BaseTilesets = () => {
   useEffect(() => {
     const hideTilesets = () => {
       // render offscreen with ultra low res to reduce memory usage
-      console.log("HOOK: hide tilesets in 2d");
+      console.debug("HOOK: hide tilesets in 2d");
       if (tilesets.primary) {
         tilesets.primary.show = false;
       }
@@ -261,7 +261,7 @@ export const BaseTilesets = () => {
         }
       }
     } else {
-      console.log("HOOK: no viewer");
+      console.debug("HOOK: no viewer");
       hideTilesets();
     }
   }, [

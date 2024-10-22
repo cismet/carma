@@ -15,6 +15,7 @@ export interface UIState {
   mode: UIMode;
 
   activeTabKey: string;
+  allow2d: boolean;
   allow3d: boolean;
   allowChanges: boolean;
   published: boolean;
@@ -31,6 +32,7 @@ const initialState: UIState = {
   mode: UIMode.DEFAULT,
   showOverlayTour: false,
   activeTabKey: "1",
+  allow2d: true,
   allow3d: true,
   allowChanges: true,
   published: false,
@@ -65,6 +67,9 @@ const slice = createSlice({
 
     setUIActiveTabKey(state, action) {
       state.activeTabKey = action.payload;
+    },
+    setUIAllow2d(state, action: PayloadAction<boolean>) {
+      state.allow2d = action.payload;
     },
     setUIAllow3d(state, action: PayloadAction<boolean>) {
       state.allow3d = action.payload;
@@ -103,6 +108,7 @@ export const {
   toggleUIMode,
 
   setUIActiveTabKey,
+  setUIAllow2d,
   setUIAllow3d,
   setUIAllowChanges,
   setUIPublished,
@@ -120,6 +126,7 @@ export const getSyncToken = (state: RootState) => state.ui.syncToken;
 
 export const getUIMode = (state: RootState) => state.ui.mode;
 
+export const getUIAllow2d = (state: RootState) => state.ui.allow2d;
 export const getUIAllow3d = (state: RootState) => state.ui.allow3d;
 export const getUIAllowChanges = (state: RootState) => state.ui.allowChanges;
 export const getUIPublished = (state: RootState) => state.ui.published;

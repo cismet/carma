@@ -151,7 +151,7 @@ export function CustomViewer(props: CustomViewerProps) {
   useEffect(() => {
     if (viewer && containerRef?.current) {
       const resizeObserver = new ResizeObserver(() => {
-        console.log("HOOK: resize cesium container");
+        console.debug("HOOK: resize cesium container");
         if (containerRef?.current) {
           viewer.canvas.width = containerRef.current.clientWidth;
           viewer.canvas.height = containerRef.current.clientHeight;
@@ -170,7 +170,7 @@ export function CustomViewer(props: CustomViewerProps) {
 
   useEffect(() => {
     if (viewer && viewer.scene.globe) {
-      console.log("HOOK: globe setting changed");
+      console.debug("HOOK: globe setting changed");
       // set the globe props
       if (globeProps.baseColor !== undefined) {
         viewer.scene.globe.baseColor = globeProps.baseColor;
@@ -204,7 +204,7 @@ export function CustomViewer(props: CustomViewerProps) {
             const layer = viewer.imageryLayers.get(i);
             if (layer) {
               layer.show = false; // Hide the layer
-              console.info("HOOK: [CESIUM] hiding cesium imagery layer", i);
+              console.debug("HOOK: [CESIUM] hiding cesium imagery layer", i);
             }
           }
         }, TRANSITION_DELAY);
@@ -213,7 +213,7 @@ export function CustomViewer(props: CustomViewerProps) {
           const layer = viewer.imageryLayers.get(i);
           if (layer) {
             layer.show = true; // unHide the layer
-            console.info("HOOK: [CESIUM] howing cesium imagery layer", i);
+            console.debug("HOOK: [CESIUM] howing cesium imagery layer", i);
           }
         }
       }
@@ -224,7 +224,7 @@ export function CustomViewer(props: CustomViewerProps) {
     // init hook
     if (viewer) {
       if (viewer !== previousViewerRef.current) {
-        console.log("HOOK: viewer changed, remove default layers");
+        console.debug("HOOK: viewer changed, remove default layers");
         // TODO use CesiumWidget to have less Boilerplate
         viewer.imageryLayers.removeAll();
       }

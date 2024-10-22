@@ -19,7 +19,7 @@ export const OverlayTourProvider = ({
   const [secondaryKey, setSecondaryKey] = useState<null | string>(null);
 
   const addConfig = useCallback((config: OverlayHelperConfig) => {
-    console.info("ADD OVERLAYCONFIG", config);
+    console.debug("ADD OVERLAYCONFIG", config);
     configsRef.current = [...configsRef.current, config];
   }, []);
 

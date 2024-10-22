@@ -12,7 +12,7 @@ export const useHomeControl = () => {
   const homePosition = useSelector(selectViewerHome);
   const [homePos, setHomePos] = useState<Cartesian3 | null>(null);
 
-  console.log("HOOK: [HOME CONTROL]");
+  console.debug("HOOK: [HOME CONTROL]");
 
   useEffect(() => {
     viewer &&
@@ -27,7 +27,7 @@ export const useHomeControl = () => {
     if (viewer && homePos) {
       dispatch(setIsAnimating(false));
       const boundingSphere = new BoundingSphere(homePos, 400);
-      console.log("HOOK: [2D3D|CESIUM|CAMERA] homeClick");
+      console.debug("HOOK: [2D3D|CESIUM|CAMERA] homeClick");
       viewer.camera.flyToBoundingSphere(boundingSphere);
     }
   }, [viewer, homePos, dispatch]);

@@ -5,7 +5,7 @@ import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/helper-o
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
 
 export const useTourRefCollabLabels = () => {
-  console.log("HOOK: tourRefCollabLabels");
+  console.debug("HOOK: tourRefCollabLabels");
   const zoom = useOverlayHelper(
     getCollabedHelpComponentConfig("ZOOM", geoElements),
   );

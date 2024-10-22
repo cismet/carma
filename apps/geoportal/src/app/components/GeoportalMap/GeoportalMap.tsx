@@ -81,6 +81,7 @@ import {
 } from "../../store/slices/topicmap";
 
 import {
+  getUIAllow2d,
   getUIAllow3d,
   getUIMode,
   getUIShowLayerButtons,
@@ -104,7 +105,6 @@ import "../leaflet.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
 // TODO remove this once rerenders are under control in cesium
-const enableTopicMap = true;
 
 export const GeoportalMap = () => {
   const dispatch = useDispatch();
@@ -112,6 +112,7 @@ export const GeoportalMap = () => {
   const container3dMapRef = useRef<HTMLDivElement>(null);
 
   // State and Selectors
+  const allow2d = useSelector(getUIAllow2d);
   const allow3d = useSelector(getUIAllow3d);
   const backgroundLayer = useSelector(getBackgroundLayer);
   const isMode2d = useSelector(selectViewerIsMode2d);
@@ -132,9 +133,6 @@ export const GeoportalMap = () => {
   const showLocatorButton = useSelector(getShowLocatorButton);
   const showMeasurementButton = useSelector(getShowMeasurementButton);
   const showPrimaryTileset = useSelector(selectShowPrimaryTileset);
-
-  // TODO make sure store is fully loaded before rendering outside of component
-  const isStoreUndefined = allow3d === undefined || isMode2d === undefined;
 
   const { viewer, terrainProvider, surfaceProvider } = useCesiumContext();
   const homeControl = useHomeControl();
@@ -187,7 +185,7 @@ export const GeoportalMap = () => {
   useFeatureInfoModeCursorStyle();
 
   useEffect(() => {
-    console.log("HOOK: same Layer Types");
+    console.debug("HOOK: same Layer Types");
     let isSame = true;
     let layerType = "";
 
@@ -212,7 +210,7 @@ export const GeoportalMap = () => {
   useEffect(() => {
     // TODO wrap this with 3d component in own component?
     // INTIALIZE Cesium Tileset style from Geoportal/TopicMap background later style
-    console.log("HOOK: setBackgroundLayer");
+    console.debug("HOOK: setBackgroundLayer");
     if (viewer && backgroundLayer) {
       if (backgroundLayer.id === "luftbild") {
         toggleSceneStyle("primary");
@@ -224,7 +222,7 @@ export const GeoportalMap = () => {
   }, [viewer, backgroundLayer]);
 
   useEffect(() => {
-    console.log("HOOK: setIsMode2d");
+    console.debug("HOOK: setIsMode2d");
     // set 2d mode if allow3d is false or undefined
     if (allow3d === false || allow3d === undefined) {
       dispatch(setIsMode2d(true));
@@ -492,7 +490,7 @@ export const GeoportalMap = () => {
       </Control>
       <Main ref={wrapperRef}>
         <>
-          {enableTopicMap && (
+          {allow2d && (
             <TopicMapWrapper
               backgroundLayer={backgroundLayer}
               gazData={gazDataRef.current}

@@ -80,7 +80,7 @@ export const TopicMapInContext = ({
 
   useEffect(() => {
     if (topicMapContext.routedMapRef) {
-      console.log(
+      console.debug(
         "HOOK: topic map context changed, topicMapContext",
         topicMapContext.routedMapRef,
       );
@@ -97,7 +97,7 @@ export const TopicMapInContext = ({
       topicMapContext.referenceSystem &&
       topicMapContext.referenceSystemDefinition
     ) {
-      console.log(
+      console.debug(
         "HOOK: topic map context reference system changed",
         topicMapContext.referenceSystem,
         topicMapContext.referenceSystemDefinition,
@@ -115,7 +115,7 @@ export const TopicMapInContext = ({
 
   useEffect(() => {
     if (topicMapContext.maskingPolygon) {
-      console.log(
+      console.debug(
         "HOOK: topic map context masking polygon changed",
         topicMapContext.maskingPolygon,
       );

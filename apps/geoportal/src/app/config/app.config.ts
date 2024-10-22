@@ -33,3 +33,8 @@ export const COMMON_CONFIG: {
   homePosition: [51.27257, 7.19991],
   homeZoom: 18,
 };
+
+export const DEBUG_UI_STATE = {
+  allow2d: false,
+  allow3d: false,
+};

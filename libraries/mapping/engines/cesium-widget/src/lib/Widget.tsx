@@ -120,7 +120,7 @@ export const Widget: FC<{
     }
     return () => {
       if (tileset) {
-        console.log("HOOK: Destroying tileset");
+        console.debug("HOOK: Destroying tileset");
         tileset.destroy();
         setTileset(null);
       }
@@ -129,7 +129,7 @@ export const Widget: FC<{
 
   useEffect(() => {
     if (tileset && widget) {
-      console.log("HOOK: Tileset added to scene:", tileset);
+      console.debug("HOOK: Tileset added to scene:", tileset);
       widget.scene.primitives.add(tileset);
       return () => {
         if (widget) {
@@ -176,7 +176,7 @@ export const Widget: FC<{
     }
     return () => {
       if (widget) {
-        console.log("HOOK: Destroying widget");
+        console.debug("HOOK: Destroying widget");
         widget.destroy();
         setWidget(null);
       }
