@@ -3,9 +3,17 @@
     "stadtplan": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "digital-twin-wuppertal-live",
-            "prj": "stadtplan"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "topicmaps-stadtplan-wuppertal"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "digital-twin-wuppertal-live",
+              "prj": "stadtplan"
+            }
           }
         },
         "auto": {
@@ -22,9 +30,17 @@
     "kulturstadtplan": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "digital-twin-wuppertal-live",
-            "prj": "kulturstadtplan"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "topicmaps-kulturstadtplan"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "digital-twin-wuppertal-live",
+              "prj": "kulturstadtplan"
+            }
           }
         },
         "auto": {
@@ -41,9 +57,17 @@
     "x-and-ride": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "digital-twin-wuppertal-live",
-            "prj": "xandride"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "topicmaps-xandride"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "digital-twin-wuppertal-live",
+              "prj": "xandride"
+            }
           }
         },
         "auto": {
@@ -60,9 +84,17 @@
     "bplan-auskunft": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "digital-twin-wuppertal-live",
-            "prj": "bplan-auskunft"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "topicmaps-bplan-auskunft-wuppertal"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "digital-twin-wuppertal-live",
+              "prj": "bplan-auskunft"
+            }
           }
         },
         "auto": {
@@ -79,9 +111,17 @@
     "e-bikes": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "digital-twin-wuppertal-live",
-            "prj": "ebikes"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "topicmaps-e-bikes"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "digital-twin-wuppertal-live",
+              "prj": "ebikes"
+            }
           }
         },
         "auto": {
@@ -98,9 +138,17 @@
     "fnp-inspektor": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "carma-dev-deployments",
-            "prj": "fnp-inspektor-wuppertal"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "fnp-inspektor-wuppertal"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "fnp-inspektor-wuppertal"
+            }
           }
         },
         "auto": {
@@ -117,9 +165,17 @@
     "fuzzy-search-playground": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "carma-dev-playground-deployments",
-            "prj": "fuzzy-search-playground"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "fuzzy-search-playground"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "fuzzy-search-playground"
+            }
           }
         },
         "auto": {
@@ -136,9 +192,17 @@
     "geoportal": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "carma-dev-deployments",
-            "prj": "geoportal"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "geoportal"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "geoportal"
+            }
           }
         },
         "auto": {
@@ -155,9 +219,17 @@
     "geoportal-playground": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "carma-dev-playground-deployments",
-            "prj": "geoportal-playground"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "geoportal-playground"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "geoportal-playground"
+            }
           }
         },
         "auto": {
@@ -174,9 +246,17 @@
     "techdemo": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "carma-dev-playground-deployments",
-            "prj": "techdemo"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "techdemo"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "techdemo"
+            }
           }
         },
         "auto": {
@@ -193,9 +273,17 @@
     "floodingmap-wuppertal": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "digital-twin-wuppertal-live",
-            "prj": "floodingmap"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "floodingmap-wuppertal"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "digital-twin-wuppertal-live",
+              "prj": "floodingmap"
+            }
           }
         },
         "auto": {
@@ -212,9 +300,17 @@
     "rainhazardmap-wuppertal": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "digital-twin-wuppertal-live",
-            "prj": "rainhazardmap"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "rainhazardmap-wuppertal"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "digital-twin-wuppertal-live",
+              "prj": "rainhazardmap"
+            }
           }
         },
         "auto": {
@@ -231,9 +327,17 @@
     "luftmessstationen": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "digital-twin-wuppertal-live",
-            "prj": "luftmessstationen"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "topicmaps-luftmessstationen-wuppertal"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "digital-twin-wuppertal-live",
+              "prj": "luftmessstationen"
+            }
           }
         },
         "auto": {
@@ -250,9 +354,17 @@
     "klimaorte": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "digital-twin-wuppertal-live",
-            "prj": "klimaorte"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "topicmaps-klimaorte-wuppertal"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "digital-twin-wuppertal-live",
+              "prj": "klimaorte"
+            }
           }
         },
         "auto": {
@@ -269,9 +381,17 @@
     "kita-finder": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "digital-twin-wuppertal-live",
-            "prj": "kita-finder"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "topicmaps-kita-finder-wuppertal"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "digital-twin-wuppertal-live",
+              "prj": "kita-finder"
+            }
           }
         },
         "auto": {
@@ -288,9 +408,17 @@
     "ehrenamtskarte": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "digital-twin-wuppertal-live",
-            "prj": "ehrenamtskarte"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "topicmaps-ehrenamtskarte-wuppertal"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "digital-twin-wuppertal-live",
+              "prj": "ehrenamtskarte"
+            }
           }
         },
         "auto": {
@@ -307,9 +435,17 @@
     "e-auto-ladestation": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "digital-twin-wuppertal-live",
-            "prj": "elektromobilitaet"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "topicmaps-e-auto-ladestationen-wuppertal"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "digital-twin-wuppertal-live",
+              "prj": "elektromobilitaet"
+            }
           }
         },
         "auto": {
@@ -326,9 +462,17 @@
     "baederkarte": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "digital-twin-wuppertal-live",
-            "prj": "baederkarte"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "topicmaps-baederkarte-wuppertal"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "digital-twin-wuppertal-live",
+              "prj": "baederkarte"
+            }
           }
         },
         "auto": {
@@ -345,9 +489,17 @@
     "hitzeinderstadt": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "carma-dev-deployments",
-            "prj": "topicmaps-hitzeinderstadt-wuppertal"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "topicmaps-hitzeinderstadt-wuppertal"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "topicmaps-hitzeinderstadt-wuppertal"
+            }
           }
         },
         "auto": {
@@ -364,9 +516,17 @@
     "cesium-playground": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "carma-dev-playground-deployments",
-            "prj": "cesium-playground"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "cesium-playground"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "cesium-playground"
+            }
           }
         },
         "auto": {
@@ -383,9 +543,17 @@
     "vector": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "carma-dev-playground-deployments",
-            "prj": "vector"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "vector"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "vector"
+            }
           }
         },
         "auto": {
@@ -402,8 +570,16 @@
     "rainhazardmap-korschenbroich": {
       "deployment": {
         "manual": {
-          "container": {
-            "image": "cismet/carma-ais-korschenbroich:"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "rainhazardmap-korschenbroich"
+            }
+          },
+          "live": {
+            "container": {
+              "image": "cismet/carma-ais-korschenbroich:"
+            }
           }
         },
         "auto": {
@@ -420,9 +596,17 @@
     "map-control-playground": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "carma-dev-playground-deployments",
-            "prj": "map-control-playground"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "map-control-playground"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "map-control-playground"
+            }
           }
         },
         "auto": {
@@ -439,9 +623,17 @@
     "feature-info-playground": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "carma-dev-playground-deployments",
-            "prj": "feature-info-playground"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "feature-info-playground"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "feature-info-playground"
+            }
           }
         },
         "auto": {
@@ -458,10 +650,19 @@
     "verdis-desktop": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "carma-dev-deployments",
-            "prj": "verdis-desktop",
-            "baseUrl": "/verdis-desktop"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "verdis-desktop",
+              "baseUrl": "/verdis-desktop"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "verdis-desktop",
+              "baseUrl": "/verdis-desktop"
+            }
           }
         },
         "auto": {
@@ -479,9 +680,17 @@
     "lagis-desktop": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "carma-dev-deployments",
-            "prj": "lagis-desktop"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "lagis-desktop"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "lagis-desktop"
+            }
           }
         },
         "auto": {
@@ -498,9 +707,17 @@
     "generic-topicmap": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "carma-dev-deployments",
-            "prj": "generic-topicmap"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "generic-topicmap"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "generic-topicmap"
+            }
           }
         },
         "auto": {
@@ -517,9 +734,17 @@
     "potenzialflaechen-online": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "digital-twin-wuppertal-live",
-            "prj": "potenzialflaechen-online"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "potenzialflaechen-online"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "digital-twin-wuppertal-live",
+              "prj": "potenzialflaechen-online"
+            }
           }
         },
         "auto": {
@@ -536,9 +761,17 @@
     "umweltalarm": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "carma-dev-deployments",
-            "prj": "umweltalarm"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "umweltalarm"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "umweltalarm"
+            }
           }
         },
         "auto": {
@@ -555,9 +788,17 @@
     "rainhazardmap-tholey": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "carma-dev-deployments",
-            "prj": "rainhazardmap-tholey"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "rainhazardmap-tholey"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "rainhazardmap-tholey"
+            }
           }
         },
         "auto": {
@@ -574,9 +815,17 @@
     "rainhazardmap-saarlouis": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "carma-dev-deployments",
-            "prj": "rainhazardmap-saarlouis"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "rainhazardmap-saarlouis"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "rainhazardmap-saarlouis"
+            }
           }
         },
         "auto": {
@@ -593,9 +842,17 @@
     "rainhazardmap-huerth": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "carma-dev-deployments",
-            "prj": "rainhazardmap-huerth"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "rainhazardmap-huerth"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "rainhazardmap-huerth"
+            }
           }
         },
         "auto": {
@@ -612,9 +869,17 @@
     "rainhazardmap-xanten": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "carma-dev-deployments",
-            "prj": "rainhazardmap-xanten"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "rainhazardmap-xanten"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "rainhazardmap-xanten"
+            }
           }
         },
         "auto": {
@@ -631,9 +896,17 @@
     "rainhazardmap-euskirchen": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "carma-dev-deployments",
-            "prj": "rainhazardmap-euskirchen"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "rainhazardmap-euskirchen"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "rainhazardmap-euskirchen"
+            }
           }
         },
         "auto": {
@@ -650,9 +923,17 @@
     "rainhazardmap-haltern": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "carma-dev-deployments",
-            "prj": "rainhazardmap-haltern"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "rainhazardmap-haltern"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "rainhazardmap-haltern"
+            }
           }
         },
         "auto": {
@@ -669,9 +950,17 @@
     "rainhazardmap-olpe": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "carma-dev-deployments",
-            "prj": "rainhazardmap-olpe"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "rainhazardmap-olpe"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "rainhazardmap-olpe"
+            }
           }
         },
         "auto": {
@@ -688,9 +977,17 @@
     "rainhazard-emsdetten": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "carma-dev-deployments",
-            "prj": "rainhazard-emsdetten"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "rainhazard-emsdetten"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "rainhazard-emsdetten"
+            }
           }
         },
         "auto": {
@@ -707,9 +1004,17 @@
     "rainhazard-meschede": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "carma-dev-deployments",
-            "prj": "rainhazard-meschede"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "rainhazard-meschede"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "rainhazard-meschede"
+            }
           }
         },
         "auto": {
@@ -726,9 +1031,17 @@
     "rainhazardmap-paderborn": {
       "deployment": {
         "manual": {
-          "pages": {
-            "org": "carma-dev-deployments",
-            "prj": "rainhazardmap-paderborn"
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "rainhazardmap-paderborn"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "rainhazardmap-paderborn"
+            }
           }
         },
         "auto": {

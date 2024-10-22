@@ -1,7 +1,9 @@
 name: Deployment
 
-run-name: ${{ inputs.project-name || github.event.head_commit.message }}
-
+run-name: >
+  ${{ github.event.head_commit.message }}
+  ${{ inputs['project-name'] }} --
+  ${{ github.event.inputs.target || github.ref_name }}-deployment
 on:
   workflow_dispatch:
     inputs:
@@ -40,23 +42,17 @@ jobs:
       id-token: write
 
     steps:
-      # Step 1: Checkout the repository to access its files
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          submodules: "recursive" # Fetch all submodules recursively
+          submodules: "recursive"
       - name: Update Submodules
         run: git submodule update --remote --recursive
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: "npm"
-      - name: add cismet-dev registry secret to .npmrc
-        shell: bash
-        run: |
-          touch .npmrc
-          echo "${{ secrets.CISMET_DEV_REGISTRY_SECRET_4_DOT_NPMRC }}" >> .npmrc
       - name: Install dependencies
         run: npm install
 
@@ -158,7 +154,7 @@ jobs:
   build:
     needs: determine_projects
     runs-on: ubuntu-latest
-    if: ${{ needs.determine_projects.outputs.is_affected == 'true' && github.event.inputs.project-name == ''  && needs.determine_projects.outputs.project_list != '[]' }}
+    if: ${{ needs.determine_projects.outputs.is_affected == 'true' && github.event.inputs.project-name == '' && needs.determine_projects.outputs.project_list != '[]' }}
 
     permissions:
       contents: write
@@ -166,14 +162,16 @@ jobs:
       id-token: write
     strategy:
       matrix:
-        project: ${{fromJson(needs.determine_projects.outputs.project_list)}}
+        project: ${{ fromJson(needs.determine_projects.outputs.project_list) }}
 
     steps:
+      # The steps for building and deploying the projects
+      # using the same matrix logic for each project...
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          submodules: "recursive" # Fetch all submodules recursively
+          submodules: "recursive"
       - name: Update Submodules
         run: git submodule update --remote --recursive
       - uses: actions/setup-node@v4
@@ -343,7 +341,7 @@ jobs:
         shell: bash
   single_build:
     runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.project-name != '' }}
+    if: ${{ github.event.inputs.project-name != '' && github.event.inputs.project-name != '*' }}
     permissions:
       contents: write
       pages: write
@@ -366,14 +364,23 @@ jobs:
           config=$(cat deployment-config.json) 
           project_name="${{ github.event.inputs.project-name }}"
           target="${{ github.event.inputs.target }}"
-          deploymentManual=$(echo "$config" | jq -r --arg project "$project_name" '.projects[$project].deployment.manual.repo')
-          baseUrl=$(echo "$config" | jq -r --arg project "$project_name" '.projects[$project].deployment.manual.base')
-          orgDeploy=$(echo "$config" | jq -r --arg project "$project_name" '.projects[$project].deployment.manual.pages.org // "null"')
-          prjDeploy=$(echo "$config" | jq -r --arg project "$project_name" '.projects[$project].deployment.manual.pages.prj // "null"')
+
+          # Fetch properties dynamically based on the target (dev or live)
+          deploymentManual=$(echo "$config" | jq -r --arg project "$project_name" --arg target "$target" '.projects[$project].deployment.manual[$target].repo // "null"')
+          baseUrl=$(echo "$config" | jq -r --arg project "$project_name" --arg target "$target" '.projects[$project].deployment.manual[$target].base // "null"')
+          orgDeploy=$(echo "$config" | jq -r --arg project "$project_name" --arg target "$target" '.projects[$project].deployment.manual[$target].pages.org // "null"')
+          prjDeploy=$(echo "$config" | jq -r --arg project "$project_name" --arg target "$target" '.projects[$project].deployment.manual[$target].pages.prj // "null"')
           projectPath=$(echo "$config" | jq -r --arg project "$project_name" '.projects[$project].projectPath')
           srcPath=".${projectPath#./dist}/src"
-          srcMD5="$(echo -n $(find $srcPath -type f -exec md5sum {} \; | sort -k 2 | md5sum | cut -f 1 -d ' ')$(md5sum package.json package-lock.json | md5sum | cut -f 1 -d ' ') | md5sum | cut -f 1 -d ' ')"          srcMD5short="${srcMD5:0:4}"
-          containerImage=$(echo "$config" | jq -r --arg project "$project_name" '.projects[$project].deployment.manual.container.image // "null"')
+
+          # Generate MD5 hash for versioning
+          srcMD5="$(echo -n $(find $srcPath -type f -exec md5sum {} \; | sort -k 2 | md5sum | cut -f 1 -d ' ')$(md5sum package.json package-lock.json | md5sum | cut -f 1 -d ' '))"
+          srcMD5short="${srcMD5:0:4}"
+
+          # Fetch container image from the deployment configuration
+          containerImage=$(echo "$config" | jq -r --arg project "$project_name" --arg target "$target" '.projects[$project].deployment.manual[$target].container.image // "null"')
+
+          # Determine the base URL
           if [ "${baseUrl}" = "null" ]; then
             if [ "${orgDeploy}" = "null" ]; then
               baseUrl="/"
@@ -383,11 +390,15 @@ jobs:
           else
             baseUrl="${baseUrl}"
           fi
+
+          # Determine the deployment project
           if [ "${deploymentManual}" = "null" ]; then
             deployment_project="${orgDeploy}/${prjDeploy}"
           else
             deployment_project="${deploymentManual}"
           fi
+
+          # Set environment variables
           echo "PROJECT_NAME=${project_name}" >> $GITHUB_ENV
           echo "EXTERNAL_REPO=${deployment_project}" >> $GITHUB_ENV
           echo "PROJECT_PATH=${projectPath}" >> $GITHUB_ENV
@@ -403,6 +414,7 @@ jobs:
         shell: bash
       - name: Create the version number
         id: update_version_number
+        if: ${{ github.event.inputs.target != 'dev' }} # Skip version manipulation for dev deployments
         run: |
           if [[ -f "$SRC_PATH/version.json" ]]; then
             if [[ -n "${{ github.event.inputs.version-manipulator }}" ]]; then
@@ -423,7 +435,7 @@ jobs:
         shell: bash
 
       - name: Commit version.json changes
-        if: env.version_changed == 'true'
+        if: env.version_changed == 'true' && github.event.inputs.target != 'dev' # Only commit if version was updated and target is not dev
         run: |
           git config --global user.email "902348742+github-actions[bot]@users.noreply.github.com"
           git config --global user.name "GitHub Actions"
@@ -512,4 +524,230 @@ jobs:
         if: env.CONTAINER_IMAGE != 'null' && env.CONTAINER_IMAGE != ''
         run: |
           INPUT_PLATFORMS="linux/amd64" INPUT_TAGS="${{ env.CONTAINER_IMAGE }}${{ env.SRC_MD5_SHORT }},${{ env.CONTAINER_IMAGE }}latest" npx nx run ${{ github.event.inputs.project-name }}:container
+        shell: bash
+
+  all_projects_build:
+    if: ${{ github.event.inputs.project-name == '*' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    outputs:
+      project_list: ${{ steps.get_all_projects.outputs.project_list }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: "recursive"
+
+      - name: Get all projects from deployment configuration
+        id: get_all_projects
+        run: |
+          config=$(cat deployment-config.json)
+          project_keys=$(echo "$config" | jq -r '.projects | keys | @json')
+          echo "::set-output name=project_list::$project_keys"
+
+  # Once the project list is obtained, it's passed as output from the above steps
+  build_each_project:
+    needs: all_projects_build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        project: ${{ fromJson(needs.all_projects_build.outputs.project_list) }} # Use output from previous job
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: "recursive" # Fetch all submodules recursively
+
+      - name: Update Submodules
+        run: git submodule update --remote --recursive
+
+      - name: add cismet-dev registry secret to .npmrc
+        shell: bash
+        run: |
+          touch .npmrc
+          echo "${{ secrets.CISMET_DEV_REGISTRY_SECRET_4_DOT_NPMRC }}" >> .npmrc
+
+      - name: Get properties from json
+        id: get_props_from_json
+        run: |
+          config=$(cat deployment-config.json) 
+          project_name="${{ matrix.project }}"
+          target="${{ github.event.inputs.target || 'dev' }}"
+
+          # Fetch properties dynamically based on the target (dev or live)
+          deploymentManual=$(echo "$config" | jq -r --arg project "$project_name" --arg target "$target" '.projects[$project].deployment.manual[$target].repo // "null"')
+          baseUrl=$(echo "$config" | jq -r --arg project "$project_name" --arg target "$target" '.projects[$project].deployment.manual[$target].base // "null"')
+          orgDeploy=$(echo "$config" | jq -r --arg project "$project_name" --arg target "$target" '.projects[$project].deployment.manual[$target].pages.org // "null"')
+          prjDeploy=$(echo "$config" | jq -r --arg project "$project_name" --arg target "$target" '.projects[$project].deployment.manual[$target].pages.prj // "null"')
+          projectPath=$(echo "$config" | jq -r --arg project "$project_name" '.projects[$project].projectPath')
+          srcPath=".${projectPath#./dist}/src"
+
+          # Generate MD5 hash for versioning
+          srcMD5="$(echo -n $(find $srcPath -type f -exec md5sum {} \; | sort -k 2 | md5sum | cut -f 1 -d ' ')$(md5sum package.json package-lock.json | md5sum | cut -f 1 -d ' '))"
+          srcMD5short="${srcMD5:0:4}"
+
+          # Fetch container image from the deployment configuration
+          containerImage=$(echo "$config" | jq -r --arg project "$project_name" --arg target "$target" '.projects[$project].deployment.manual[$target].container.image // "null"')
+
+          # Determine the base URL
+          if [ "${baseUrl}" = "null" ]; then
+            if [ "${orgDeploy}" = "null" ]; then
+              baseUrl="/"
+            else
+              baseUrl="https://${orgDeploy}.github.io/${prjDeploy}/"
+            fi
+          else
+            baseUrl="${baseUrl}"
+          fi
+
+          # Determine the deployment project
+          if [ "${deploymentManual}" = "null" ]; then
+            deployment_project="${orgDeploy}/${prjDeploy}"
+          else
+            deployment_project="${deploymentManual}"
+          fi
+
+          # Set environment variables
+          echo "PROJECT_NAME=${project_name}" >> $GITHUB_ENV
+          echo "EXTERNAL_REPO=${deployment_project}" >> $GITHUB_ENV
+          echo "PROJECT_PATH=${projectPath}" >> $GITHUB_ENV
+          echo "BASE_URL=${baseUrl}" >> $GITHUB_ENV
+          echo "ORG_DEPLOY=${orgDeploy}" >> $GITHUB_ENV
+          echo "PRJ_DEPLOY=${prjDeploy}" >> $GITHUB_ENV
+          echo "SRC_MD5=${srcMD5}" >> $GITHUB_ENV
+          echo "SRC_MD5_SHORT=${srcMD5short}" >> $GITHUB_ENV
+          echo "SRC_PATH=${srcPath}" >> $GITHUB_ENV
+          echo "CONTAINER_IMAGE=${containerImage}" >> $GITHUB_ENV
+          echo "TARGET=${target}" >> $GITHUB_ENV
+
+        shell: bash
+
+      - name: Create the version number
+        id: update_version_number
+        if: ${{ github.event.inputs.target != 'dev' }} # Skip version manipulation for dev deployments
+        run: |
+          if [[ -f "$SRC_PATH/version.json" ]]; then
+            if [[ -n "${{ github.event.inputs.version-manipulator }}" ]]; then
+              cp "$SRC_PATH/version.json" /tmp/package.json
+              cd /tmp
+              npm version ${{ github.event.inputs.version-manipulator }} --no-git-tag-version --allow-same-version
+              cd -
+              cp /tmp/package.json "$SRC_PATH/version.json"
+              echo "version_changed=true" >> $GITHUB_ENV
+            else
+              echo "No version-manipulator input provided. Version information will not be updated."
+              echo "version_changed=false" >> $GITHUB_ENV
+            fi
+          else
+            echo "No version.json file found. Version information will not be updated."
+            echo "version_changed=false" >> $GITHUB_ENV
+          fi
+        shell: bash
+
+      - name: Commit version.json changes
+        if: env.version_changed == 'true' && github.event.inputs.target != 'dev' # Only commit if version was updated and target is not dev
+        run: |
+          git config --global user.email "902348742+github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "GitHub Actions"
+
+          git add "$SRC_PATH/version.json"
+          git commit -m "Update version.json based on ${{ github.event.inputs.version-manipulator }}"
+          git push origin dev
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+
+      - name: Create version.json if it doesn't exist
+        run: |
+          if [[ ! -f "$SRC_PATH/version.json" ]]; then
+            echo '{"version": "0.0.0"}' > "$SRC_PATH/version.json"
+          fi
+        shell: bash
+
+      - name: Add further info to version.json
+        run: |
+          jq --arg md5 "$SRC_MD5" --arg triggered "$TARGET" \
+          '. + {md5: $md5, triggered: $triggered}' \
+          "$SRC_PATH/version.json" > /tmp/version.json
+
+          mv /tmp/version.json "$SRC_PATH/version.json"
+        shell: bash
+
+      - name: Debug Outputs
+        run: |
+          echo -----------------------------------
+          echo "-- Project name is: $PROJECT_NAME"
+          echo "ORG_DEPLOY: $ORG_DEPLOY"
+          echo "PROJECT_PATH: $PRJ_DEPLOY"
+          echo "BASE_URL: $BASE_URL"
+          echo "EXTERNAL_REPO: $EXTERNAL_REPO"
+          echo "SRC_PATH: $SRC_PATH"
+          echo "SRC_MD5: $SRC_MD5"
+          echo "CONTAINER_IMAGE: $CONTAINER_IMAGE"
+          echo "TARGET: $TARGET"
+          echo -----------------------------------
+
+      - name: Debug version.json
+        run: |
+          cat $SRC_PATH/version.json
+
+      - name: Set version (deprecated)
+        run: |
+          if [[ -f "$SRC_PATH/version.js" ]]; then
+            sed -i "s/%APPLICATION_VERSION%/$SRC_MD5_SHORT/" $SRC_PATH/version.js
+          else
+            if [[ -f "$SRC_PATH/app/version.js" ]]; then
+              sed -i "s/%APPLICATION_VERSION%/$SRC_MD5_SHORT/" $SRC_PATH/app/version.js
+            else
+              echo "No version.js file found. Version information will not be updated."
+            fi
+          fi
+
+      - name: Set hash (deprecated)
+        run: |
+          if [[ -f "$SRC_PATH/version.js" ]]; then
+            sed -i "s/%APPLICATION_HASH%/$SRC_MD5/" $SRC_PATH/version.js
+          else
+            if [[ -f "$SRC_PATH/app/version.js" ]]; then
+              sed -i "s/%APPLICATION_HASH%/$SRC_MD5/" $SRC_PATH/app/version.js
+            else
+              echo "No version.js file found. Hash information will not be updated."
+            fi
+          fi
+
+      - name: create nx-cloud.env
+        run: |
+          echo "NX_CLOUD_ACCESS_TOKEN=${{ secrets.NX_CLOUD_ACCESS_TOKEN }}" >> nx-cloud.env
+
+      - name: Install Nx
+        run: npm install nx@17.2.8
+
+      - name: Build project
+        run: |
+          npx nx run ${{ matrix.project }}:build --configuration=production --base="${{ env.BASE_URL }}"
+        shell: bash
+
+      - name: Deploy
+        if: env.EXTERNAL_REPO != 'null' && env.EXTERNAL_REPO != '' && env.EXTERNAL_REPO != 'null/null'
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          personal_token: ${{ secrets.CISMET_CI_DEPLOY_PAT }}
+          external_repository: ${{ env.EXTERNAL_REPO }}
+          publish_dir: ${{ env.PROJECT_PATH }}
+
+      - name: Log in to Docker Hub
+        if: env.CONTAINER_IMAGE != 'null' && env.CONTAINER_IMAGE != ''
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+      - name: Build container if container image is set
+        if: env.CONTAINER_IMAGE != 'null' && env.CONTAINER_IMAGE != ''
+        run: |
+          INPUT_PLATFORMS="linux/amd64" INPUT_TAGS="${{ env.CONTAINER_IMAGE }}${{ env.SRC_MD5_SHORT }},${{ env.CONTAINER_IMAGE }}latest" npx nx run ${{ matrix.project }}:container
         shell: bash
