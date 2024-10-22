@@ -23,6 +23,7 @@ import {
   tooltipText,
   searchTextPlaceholder,
 } from "@carma-collab/wuppertal/hitzeinderstadt";
+import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
 const parseSimulationsFromURL = (search) => {
   const params = new URLSearchParams(search);
@@ -46,6 +47,8 @@ const Hitzekarte = () => {
   const version = getApplicationVersion(versionData);
 
   const { history } = useContext(TopicMapContext);
+  const { setAppMenuVisible, setAppMenuActiveMenuSection } =
+    useContext(UIDispatchContext);
 
   const [gazData, setGazData] = useState([]);
   const [selectedSimulations, setSelectedSimulations] = useState(() => {
@@ -187,10 +190,8 @@ const Hitzekarte = () => {
           setFeatureInfoModeActivation={() => {}}
           featureInfoValue={undefined}
           showModalMenu={(section) => {
-            // this.props.uiStateActions.showApplicationMenuAndActivateSection(
-            //   true,
-            //   section,
-            // );
+            setAppMenuVisible(true);
+            setAppMenuActiveMenuSection(section);
           }}
           mapClickListener={() => {}}
           mapRef={undefined}
