@@ -1,7 +1,6 @@
 import type { Layer } from "@carma-mapping/layers";
 import type { CismapLayerProps } from "types/react-cismap.extended";
 import { SELECTED_LAYER_INDEX } from "..";
-import type { Map as LeafletMap } from "leaflet";
 
 export type CarmaConfObject = Record<string, string>;
 
@@ -113,13 +112,6 @@ export interface LayerState {
   selectedLayerIndex: SELECTED_LAYER_INDEX | number;
   selectedMapLayer: BackgroundLayer;
   backgroundLayer: BackgroundLayer;
-}
-
-export interface ForwaredTopicMapContextState {
-  leafletElement: LeafletMap;
-  referenceSystem: unknown;
-  referenceSystemDefinition: unknown;
-  maskingPolygon: unknown;
 }
 
 export interface MappingState extends LayerState {

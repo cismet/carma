@@ -27,11 +27,11 @@ const useCameraPitchSoftLimiter = (
 
   useEffect(() => {
     if (viewer && !isMode2d && collisions) {
-      console.debug(
+      console.log(
         "HOOK [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to correct camera pitch",
       );
       const moveEndListener = async () => {
-        console.debug(
+        console.log(
           "HOOK [2D3D|CESIUM] Soft Pitch Limiter",
           viewer.camera.pitch,
           minPitchRad,
@@ -39,7 +39,7 @@ const useCameraPitchSoftLimiter = (
         );
         const isPitchTooLow = collisions && viewer.camera.pitch > minPitchRad;
         if (isPitchTooLow) {
-          console.debug(
+          console.log(
             "LISTENER HOOK [2D3D|CESIUM|CAMERA]: reset pitch soft",
             viewer.camera.pitch,
             resetPitchRad,

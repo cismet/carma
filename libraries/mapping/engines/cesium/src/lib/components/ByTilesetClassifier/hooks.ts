@@ -27,7 +27,7 @@ export const useClickActionTileset = (
   //const url = useViewerDataSources().tileset.url;
 
   useEffect(() => {
-    console.debug("HOOK: useClickActionTileset");
+    console.log("HOOK: useClickActionTileset");
     if (!viewer?.scene || !viewer?.canvas) return;
     const { canvas, scene } = viewer;
 

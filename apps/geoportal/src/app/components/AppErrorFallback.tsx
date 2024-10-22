@@ -4,7 +4,7 @@ import localforage from "localforage";
 import { Col, Container, Row } from "react-bootstrap";
 import versionData from "../../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
-import configuredStore from "../store";
+import store from "../store";
 import { Button } from "antd";
 
 const AppErrorFallback = ({ error, resetErrorBoundary }) => {
@@ -26,7 +26,7 @@ const AppErrorFallback = ({ error, resetErrorBoundary }) => {
     });
   }, [error]);
 
-  const state = configuredStore.store.getState();
+  const state = store.getState();
   const stateToLog = {
     cesium: state.cesium,
     features: state.features,
