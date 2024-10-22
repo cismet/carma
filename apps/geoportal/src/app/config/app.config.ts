@@ -1,5 +1,6 @@
 import { CesiumConfig } from "types/cesium-config";
 import { LeafletConfig } from "types/leaflet-config";
+import { initialState as uiInitialState, UIState } from "../store/slices/ui";
 
 export const APP_BASE_PATH = import.meta.env.BASE_URL;
 
@@ -34,7 +35,7 @@ export const COMMON_CONFIG: {
   homeZoom: 18,
 };
 
-export const DEBUG_UI_STATE = {
+export const DEBUG_UI_STATE: UIState = Object.assign({}, uiInitialState, {
   allow2d: true,
   allow3d: true,
-};
+});

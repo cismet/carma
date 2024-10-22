@@ -117,6 +117,7 @@ const store = configureStore({
     topicmap: topicMapReducer,
   },
   preloadedState: {
+    // needs to be complete state otherwise has untested behavior
     cesium: defaultCesiumState,
     ui: DEBUG_UI_STATE,
   },

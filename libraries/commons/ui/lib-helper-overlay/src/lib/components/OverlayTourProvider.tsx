@@ -31,7 +31,7 @@ export const OverlayTourProvider = ({
 
   const removeConfig = useCallback((config: OverlayHelperConfig) => {
     console.debug("REMOVE OVERLAYCONFIG", config);
-    setConfigs(prevConfigs.filter((c) => c.key !== config.key));
+    setConfigs((prevConfigs) => prevConfigs.filter((c) => c.key !== config.key));
   }, []);
 
   const contextValue = useMemo(() => ({
@@ -45,8 +45,6 @@ export const OverlayTourProvider = ({
   );
 
   console.log("RENDER: [OVERLAY TOUR PROVIDER], configs", prevConfigs);
-
-  const memoizedChildren = useMemo(() => children, [children]);
 
   return (
     <OverlayTourContext.Provider value={contextValue} >

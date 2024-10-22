@@ -28,7 +28,7 @@ export interface UIState {
   setTopicMapAppMenuVisible: ((visible: boolean) => void) | null;
 }
 
-const initialState: UIState = {
+export const initialState: UIState = {
   mode: UIMode.DEFAULT,
   showOverlayTour: false,
   activeTabKey: "1",
