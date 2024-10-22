@@ -1,4 +1,4 @@
-import { useState, createContext, useCallback, useMemo, useRef } from "react";
+import { useState, createContext, useCallback, useMemo, useRef, memo } from "react";
 import type {
   OverlayTourContextType,
   OverlayHelperConfig,
@@ -6,7 +6,13 @@ import type {
 } from "../..";
 import LibHelperOverlay from "../lib-helper-overlay";
 
-export const OverlayTourContext = createContext<OverlayTourContextType | null>(null);
+export const OverlayTourContext = createContext<OverlayTourContextType>({
+  configs: [],
+  addConfig: () => {},
+  removeConfig: () => {},
+  setSecondaryKey: () => {},
+  secondaryKey: null,
+});
 
 export const OverlayTourProvider = ({
   children,
@@ -15,30 +21,32 @@ export const OverlayTourProvider = ({
   transparency = 0.8,
   color = "black",
 }: OverlayTourProviderProps) => {
-  const configsRef = useRef<OverlayHelperConfig[]>([]);
+  const [prevConfigs, setConfigs] = useState<OverlayHelperConfig[]>([]);
   const [secondaryKey, setSecondaryKey] = useState<null | string>(null);
 
   const addConfig = useCallback((config: OverlayHelperConfig) => {
     console.debug("ADD OVERLAYCONFIG", config);
-    configsRef.current = [...configsRef.current, config];
+    setConfigs((prevConfigs) => [...prevConfigs, config]);
   }, []);
 
   const removeConfig = useCallback((config: OverlayHelperConfig) => {
     console.debug("REMOVE OVERLAYCONFIG", config);
-    configsRef.current = configsRef.current.filter((c) => c.key !== config.key);
+    setConfigs(prevConfigs.filter((c) => c.key !== config.key));
   }, []);
 
   const contextValue = useMemo(() => ({
-    configs: configsRef.current, // update only on showOverlay
+    configs: prevConfigs,
     addConfig,
     removeConfig,
     setSecondaryKey,
     secondaryKey,
   }),
-    [configsRef, addConfig, removeConfig, setSecondaryKey, secondaryKey],
+    [prevConfigs, addConfig, removeConfig, setSecondaryKey, secondaryKey],
   );
 
-  console.log("RENDER: [OVERLAY TOUR PROVIDER]");
+  console.log("RENDER: [OVERLAY TOUR PROVIDER], configs", prevConfigs);
+
+  const memoizedChildren = useMemo(() => children, [children]);
 
   return (
     <OverlayTourContext.Provider value={contextValue} >

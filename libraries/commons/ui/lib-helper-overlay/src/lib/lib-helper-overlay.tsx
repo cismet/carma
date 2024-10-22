@@ -13,9 +13,6 @@ function LibHelperOverlay({
 
   const overlayTourContext = useContext(OverlayTourContext);
 
-  if (overlayTourContext === null) {
-    return null;
-  }
 
   const { configs, secondaryKey, setSecondaryKey } = overlayTourContext;
 
@@ -26,6 +23,7 @@ function LibHelperOverlay({
       return false;
     }
   };
+  
   useEffect(() => {
     configs.forEach((currentItem) => {
       const {
