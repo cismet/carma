@@ -17,10 +17,10 @@ suppressReactCismapErrors();
 
 root.render(
   <StrictMode>
-    <PersistGate loading={null} persistor={persistor}>
-      <Provider store={store}>
+    <Provider store={store}>
+      <PersistGate loading={null} persistor={persistor}>
         <App />
-      </Provider>
-    </PersistGate>
+      </PersistGate>
+    </Provider>
   </StrictMode>,
 );

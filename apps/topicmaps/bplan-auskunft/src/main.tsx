@@ -57,17 +57,17 @@ const root = ReactDOM.createRoot(
 
 root.render(
   <StrictMode>
-    <PersistGate loading={null} persistor={persistor}>
-      <Provider store={store}>
-        <TopicMapContextProvider
-          convertItemToFeature={convertItemToFeature}
-          referenceSystemDefinition={MappingConstants.proj4crs25832def}
-          mapEPSGCode="25832"
-          referenceSystem={MappingConstants.crs25832}
-        >
+    <Provider store={store}>
+      <TopicMapContextProvider
+        convertItemToFeature={convertItemToFeature}
+        referenceSystemDefinition={MappingConstants.proj4crs25832def}
+        mapEPSGCode="25832"
+        referenceSystem={MappingConstants.crs25832}
+      >
+        <PersistGate loading={null} persistor={persistor}>
           <RouterProvider router={router} />
-        </TopicMapContextProvider>
-      </Provider>
-    </PersistGate>
+        </PersistGate>
+      </TopicMapContextProvider>
+    </Provider>
   </StrictMode>
 );

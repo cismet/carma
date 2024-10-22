@@ -167,7 +167,7 @@ const router = createHashRouter([
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <PersistGate loading={null} persistor={persistor}>
+    <Provider store={store}>
       <ConfigProvider
         locale={locale}
         theme={{
@@ -178,19 +178,19 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           },
         }}
       >
-        <Provider store={store}>
-          <TopicMapContextProvider
-            appKey="verdis-desktop.map"
-            backgroundModes={backgroundModes}
-            backgroundConfigurations={backgroundConfigurations}
-            baseLayerConf={baseLayerConf}
-            offlineCacheConfig={offlineConfig}
-            additionalLayerConfiguration={additionalLayerConfiguration}
-          >
+        <TopicMapContextProvider
+          appKey="verdis-desktop.map"
+          backgroundModes={backgroundModes}
+          backgroundConfigurations={backgroundConfigurations}
+          baseLayerConf={baseLayerConf}
+          offlineCacheConfig={offlineConfig}
+          additionalLayerConfiguration={additionalLayerConfiguration}
+        >
+          <PersistGate loading={null} persistor={persistor}>
             <RouterProvider router={router} />
-          </TopicMapContextProvider>
-        </Provider>
+          </PersistGate>
+        </TopicMapContextProvider>
       </ConfigProvider>
-    </PersistGate>
-  </React.StrictMode>
+    </Provider>
+  </React.StrictMode>,
 );

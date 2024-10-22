@@ -28,9 +28,9 @@ console.info("RENDER: [GEOPORTAL] ROOT");
 const root = createRoot(document.getElementById("root") as HTMLElement);
 
 root.render(
-  <PersistGate loading={null} persistor={persistor}>
-    <Provider store={store}>
-      <TweakpaneProvider>
+  <Provider store={store}>
+    <TweakpaneProvider>
+      <PersistGate loading={null} persistor={persistor}>
         <RouterProvider
           router={createHashRouter([
             {
@@ -43,7 +43,7 @@ root.render(
             },
           ])}
         />
-      </TweakpaneProvider>
-    </Provider>
-  </PersistGate>,
+      </PersistGate>
+    </TweakpaneProvider>
+  </Provider>,
 );

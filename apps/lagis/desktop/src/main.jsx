@@ -97,13 +97,13 @@ const persistor = persistStore(store);
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <ConfigProvider locale={locale}>
-      <PersistGate locale={locale} loading={null} persistor={persistor}>
-        <Provider store={store}>
-          <TopicMapContextProvider appKey="lagis-desktop.map">
+      <Provider store={store}>
+        <TopicMapContextProvider appKey="lagis-desktop.map">
+          <PersistGate locale={locale} loading={null} persistor={persistor}>
             <RouterProvider router={router} />
-          </TopicMapContextProvider>
-        </Provider>
-      </PersistGate>
+          </PersistGate>
+        </TopicMapContextProvider>
+      </Provider>
     </ConfigProvider>
-  </React.StrictMode>
+  </React.StrictMode>,
 );
