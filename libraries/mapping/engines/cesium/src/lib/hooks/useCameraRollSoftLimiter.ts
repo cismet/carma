@@ -6,7 +6,8 @@ import { useCesiumContext } from "../CesiumContextProvider";
 import { selectViewerIsMode2d, setIsAnimating } from "../slices/cesium";
 
 const useCameraRollSoftLimiter = () => {
-  const { viewer } = useCesiumContext();
+  const { viewerRef } = useCesiumContext();
+  const viewer = viewerRef.current;
   const dispatch = useDispatch();
   const isMode2d = useSelector(selectViewerIsMode2d);
   useEffect(() => {

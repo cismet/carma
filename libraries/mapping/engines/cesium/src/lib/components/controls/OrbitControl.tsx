@@ -32,7 +32,8 @@ const orbitCenterPointId = "orbitCenterPoint";
 const OrbitControl = ({ showCenterPoint = true }: SpinningControlProps) => {
   const dispatch = useDispatch();
 
-  const { viewer } = useCesiumContext();
+  const {  viewerRef } = useCesiumContext();
+  const viewer = viewerRef.current;
   const orbitPointRef = useRef<Cartesian3 | null>(null);
   const lastRenderTimeRef = useRef<number | null>(null);
   const isAnimating = useSelector(selectViewerIsAnimating);

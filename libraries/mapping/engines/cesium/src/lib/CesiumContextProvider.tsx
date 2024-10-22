@@ -1,5 +1,13 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import type { MutableRefObject, ReactNode } from "react";
 
 import {
   CesiumTerrainProvider,
@@ -12,8 +20,9 @@ import {
 } from "cesium";
 
 export interface CesiumContextType {
-  viewer: Viewer | null;
-  setViewer: (viewer: Viewer | null) => void;
+  viewerRef: MutableRefObject<Viewer | null>;
+  isViewerReady: boolean;
+  setIsViewerReady: (isReady: boolean) => void;
   terrainProvider: CesiumTerrainProvider | null;
   surfaceProvider: CesiumTerrainProvider | null;
   //imageryProvider:    | WebMapServiceImageryProvider    | WebMapTileServiceImageryProvider    | null;
@@ -57,7 +66,8 @@ export const CesiumContextProvider = ({
     };
   };
 }) => {
-  const [viewer, setViewer] = useState<Viewer | null>(null);
+  const viewerRef = useRef<Viewer | null>(null);
+  const [isViewerReady, setIsViewerReady] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadingError, setLoadingError] = useState<Error | null>(null);
   const primaryTilesetRef = useRef<Cesium3DTileset | null>(null);
@@ -68,10 +78,10 @@ export const CesiumContextProvider = ({
   const [surfaceProvider, setSurfaceProvider] =
     useState<CesiumTerrainProvider | null>(null);
 
-  const imageryProvider = new WebMapServiceImageryProvider(
-    providerConfig.imageryProvider,
+  const imageryProvider = useMemo(
+    () => new WebMapServiceImageryProvider(providerConfig.imageryProvider),
+    [providerConfig.imageryProvider],
   );
-
 
   const setPrimaryTileset = useCallback((tileset: Cesium3DTileset | null) => {
     primaryTilesetRef.current = tileset;
@@ -85,11 +95,15 @@ export const CesiumContextProvider = ({
   useEffect(() => {
     const initializeProviders = async () => {
       try {
-        const terrain = await CesiumTerrainProvider.fromUrl(providerConfig.terrainProvider.url);
+        const terrain = await CesiumTerrainProvider.fromUrl(
+          providerConfig.terrainProvider.url,
+        );
         setTerrainProvider(terrain);
 
         if (providerConfig.surfaceProvider) {
-          const surface = await CesiumTerrainProvider.fromUrl(providerConfig.surfaceProvider.url);
+          const surface = await CesiumTerrainProvider.fromUrl(
+            providerConfig.surfaceProvider.url,
+          );
           setSurfaceProvider(surface);
         }
 
@@ -103,21 +117,45 @@ export const CesiumContextProvider = ({
     initializeProviders();
   }, [providerConfig.terrainProvider.url, providerConfig.surfaceProvider]);
 
+  const ellipsoidTerrainProvider = useMemo(
+    () => new EllipsoidTerrainProvider(),
+    [],
+  );
 
-  const values: CesiumContextType = {
-    viewer,
-    setViewer,
-    ellipsoidTerrainProvider: new EllipsoidTerrainProvider(),
-    terrainProvider,
-    surfaceProvider,
-    imageryLayer: new ImageryLayer(imageryProvider),
-    tilesets: {
-      primary: primaryTilesetRef.current,
-      secondary: secondaryTilesetRef.current,
-    },
-    setPrimaryTileset,
-    setSecondaryTileset,
-  };
+  const imageryLayer = useMemo(
+    () => new ImageryLayer(imageryProvider),
+    [imageryProvider],
+  );
+
+  const values: CesiumContextType = useMemo(
+    () => ({
+      viewerRef,
+      isViewerReady,
+      setIsViewerReady,
+      ellipsoidTerrainProvider,
+      terrainProvider,
+      surfaceProvider,
+      imageryLayer,
+      tilesets: {
+        primary: primaryTilesetRef.current,
+        secondary: secondaryTilesetRef.current,
+      },
+      setPrimaryTileset,
+      setSecondaryTileset,
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      viewerRef,
+      ellipsoidTerrainProvider,
+      terrainProvider,
+      surfaceProvider,
+      imageryLayer,
+      primaryTilesetRef,
+      secondaryTilesetRef,
+      setPrimaryTileset,
+      setSecondaryTileset,
+    ],
+  );
 
   if (isLoading) {
     return <div>Loading Cesium providers...</div>;

@@ -38,7 +38,8 @@ export const LeafletMiniMap = ({
   showCesiumPolygon?: boolean;
   viewportLimitResolutionFactor?: number;
 }) => {
-  const { viewer } = useCesiumContext();
+  const { viewerRef } = useCesiumContext();
+  const viewer = viewerRef.current;
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
 

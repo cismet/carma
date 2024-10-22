@@ -12,7 +12,8 @@ type LockCenterControlProps = {
 };
 
 const LockCenterControl = (props: LockCenterControlProps) => {
-  const { viewer } = useCesiumContext();
+  const { viewerRef } = useCesiumContext();
+  const viewer = viewerRef.current;
   const [lockCenter, setLockCenter] = useState(false);
 
   const handleLockCenter = (e: MouseEvent) => {

@@ -11,7 +11,8 @@ import {
 const DEFAULT_MIN_PITCH = 12;
 
 const useCameraPitchHardLimiter = (minPitchDeg = DEFAULT_MIN_PITCH) => {
-  const { viewer } = useCesiumContext();
+  const { viewerRef } = useCesiumContext();
+  const viewer = viewerRef.current;
   const dispatch = useDispatch();
   const isMode2d = useSelector(selectViewerIsMode2d);
   const collisions = useSelector(

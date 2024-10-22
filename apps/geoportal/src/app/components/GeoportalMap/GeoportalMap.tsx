@@ -136,7 +136,8 @@ export const GeoportalMap = () => {
   // TODO make sure store is fully loaded before rendering outside of component
   const isStoreUndefined = allow3d === undefined || isMode2d === undefined;
 
-  const { viewer, terrainProvider, surfaceProvider } = useCesiumContext();
+  const { viewerRef, terrainProvider, surfaceProvider } = useCesiumContext();
+  const viewer = viewerRef.current;
   const homeControl = useHomeControl();
   const {
     handleZoomIn: handleZoomInCesium,

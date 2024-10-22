@@ -1,4 +1,4 @@
-import { useContext, useState } from "react";
+import { useCallback, useContext, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import type { Map as LeafletMap } from "leaflet";
@@ -39,7 +39,8 @@ export const useMapTransition = (
 ) => {
   const dispatch = useDispatch();
 
-  const { viewer, surfaceProvider, terrainProvider } = useCesiumContext();
+  const { viewerRef, surfaceProvider, terrainProvider, isViewerReady } =
+    useCesiumContext();
 
   if (duration === undefined) {
     duration = DEFAULT_MODE_2D_3D_CHANGE_FADE_DURATION;
@@ -54,12 +55,17 @@ export const useMapTransition = (
 
   const isTransitioning = useSelector(selectViewerIsTransitioning);
 
-  const transitionToMode3d = async () => {
-    console.log("transitionToMode3d", viewer, leafletElement);
-    if (!viewer || !leafletElement) {
-      console.warn("cesium or leaflet not available");
+  const transitionToMode3d = useCallback(async () => {
+    console.log("transitionToMode3d", viewerRef.current, leafletElement);
+    if (!leafletElement) {
+      console.warn("leaflet not available");
       return null;
     }
+    if (!viewerRef.current) {
+      console.warn("cesium not available");
+      return null;
+    }
+    const viewer = viewerRef.current;
     dispatch(setTransitionTo3d());
     dispatch(setIsMode2d(false));
     const onComplete3d = () => {
@@ -109,18 +115,30 @@ export const useMapTransition = (
       terrainProvider,
       surfaceProvider,
     });
-  };
+  }, [
+    dispatch,
+    duration,
+    leafletElement,
+    terrainProvider,
+    surfaceProvider,
+    viewerRef,
+    onComplete,
+    prevCamera2dPosition,
+    prevHPR,
+    prevDuration,
+  ]);
 
-  const transitionToMode2d = () => {
+  const transitionToMode2d = useCallback(() => {
     if (!leafletElement) {
       console.warn("leaflet not available no transition possible [zoom]");
       return null;
     }
-    if (!viewer) {
+    if (!viewerRef.current) {
       console.warn("cesium not available no transition possible [zoom]");
       return null;
     }
     dispatch(setTransitionTo2d());
+    const viewer = viewerRef.current;
     const groundPos = pickViewerCanvasCenter(viewer).scenePosition;
     let height = viewer.camera.positionCartographic.height;
     let distance = height;
@@ -251,7 +269,7 @@ export const useMapTransition = (
    );
    */
     }
-  };
+  }, [dispatch, onComplete, leafletElement, viewerRef]);
 
   return { transitionToMode2d, transitionToMode3d };
 };

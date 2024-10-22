@@ -5,7 +5,8 @@ import { useCesiumContext } from "../CesiumContextProvider";
 const MOVERATE_FACTOR = 0.33;
 
 export function useZoomControls(moveRateFactor: number = MOVERATE_FACTOR) {
-  const { viewer } = useCesiumContext();
+  const { viewerRef } = useCesiumContext();
+  const viewer = viewerRef.current;
 
   const handleZoomIn = useCallback(
     (event: React.MouseEvent) => {

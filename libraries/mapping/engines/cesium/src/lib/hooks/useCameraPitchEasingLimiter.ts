@@ -25,7 +25,8 @@ const useCameraPitchEasingLimiter = (
     easing = EasingFunction.CIRCULAR_IN,
   }: LimiterOptions = {},
 ) => {
-  const { viewer } = useCesiumContext();
+  const { viewerRef } = useCesiumContext();
+  const viewer = viewerRef.current;
 
   const isMode2d = useSelector(selectViewerIsMode2d);
   const isAnimating = useSelector(selectViewerIsAnimating);
@@ -69,7 +70,7 @@ const useCameraPitchEasingLimiter = (
               minPitchRad,
             );
 
-            console.info(
+            console.debug(
               "LISTENER HOOK [2D3D|CESIUM|CAMERA]: apply easing pitch limiter",
               Math.round(unitIn * 100),
               Math.round(unitEased * 100),

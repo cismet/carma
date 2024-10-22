@@ -22,7 +22,8 @@ export const useClickActionFootprints = (
   setSelectedEntity: (id: string | null) => void,
 ) => {
   const [clickData, setClickData] = useState<ClickData | null>(null);
-  const { viewer } = useCesiumContext();
+  const { viewerRef } = useCesiumContext();
+  const viewer = viewerRef.current;
 
   useEffect(() => {
     if (!viewer?.scene || !viewer?.canvas) return;

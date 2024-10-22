@@ -1,4 +1,4 @@
-import { ReactNode, useCallback, useContext, useEffect, useState } from "react";
+import { ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { useLocation } from "react-router-dom";
 
@@ -9,8 +9,9 @@ import {
   PerspectiveFrustum,
   Rectangle,
   OrthographicFrustum,
+  Viewer,
 } from "cesium";
-import { Viewer as ResiumViewer } from "resium";
+import { CesiumComponentRef, Viewer as ResiumViewer } from "resium";
 
 import type { Map as LeafletMap } from "leaflet";
 
@@ -74,7 +75,8 @@ type CustomViewerProps = {
 };
 
 export function CustomViewerPlayground(props: CustomViewerProps) {
-  const { viewer, setViewer } = useCesiumContext();
+  const { viewerRef } = useCesiumContext();
+  const viewer = viewerRef.current;
   const home = useSelector(selectViewerHome);
   const homeOffset = useSelector(selectViewerHomeOffset);
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
@@ -102,6 +104,7 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
   const [viewportLimit, setViewportLimit] = useState<number>(4);
   const [viewportLimitDebug, setViewportLimitDebug] = useState<boolean>(false);
   const [leafletElement, setLeafletElement] = useState<LeafletMap | null>(null);
+  const viewerComponentRef = useRef<CesiumComponentRef<Viewer> | null>(null);
 
   const [showCrosshair, setShowCrosshair] = useState<boolean>(
     props.showCrosshair ?? true,
@@ -169,6 +172,8 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
       },
     ],
   );
+
+  // TODO huh, fix style and provider like in CustomViewer.
 
   useEffect(() => {
     if (topicMapContext?.routedMapRef?.leafletMap) {
@@ -276,11 +281,12 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
     };
   }, [viewer]);
 
-  const viewerRef = useCallback((node) => {
-    if (node !== null) {
-      setViewer && setViewer(node.cesiumElement);
+  useEffect(() => {
+    if (viewerRef && viewerComponentRef.current &&viewerComponentRef.current.cesiumElement) {
+      console.log("HOOK: forwarding viewerRef to Context");
+      viewerRef.current = viewerComponentRef.current.cesiumElement;
     }
-  }, []);
+  }, [viewerRef]);
 
   const location = useLocation();
 
@@ -377,7 +383,7 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
 
   return (
     <ResiumViewer
-      ref={viewerRef}
+      ref={viewerComponentRef}
       className={className}
       // Resium ViewerOtherProps
       full // equals style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}`

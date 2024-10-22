@@ -26,7 +26,8 @@ type Ref = HTMLButtonElement;
 
 export const Compass = forwardRef<Ref, CompassProps>(
   ({ children, disabled }, ref) => {
-    const { viewer } = useCesiumContext();
+    const { viewerRef } = useCesiumContext();
+    const viewer = viewerRef.current;
     const minZoomDistance = useSelector(
       selectScreenSpaceCameraControllerMinimumZoomDistance,
     );

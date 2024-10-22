@@ -21,7 +21,8 @@ import {
 } from "../slices/cesium";
 
 const useTweakpane = () => {
-  const { viewer } = useCesiumContext();
+  const { viewerRef } = useCesiumContext();
+  const viewer = viewerRef.current;
 
   const dispatch = useDispatch();
 

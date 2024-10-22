@@ -17,7 +17,8 @@ export const useSceneStyleToggle = (
   const [currentStyle, setCurrentStyle] =
     useState<keyof SceneStyles>(initialStyle);
   const context = useCesiumContext();
-  const { viewer } = context;
+  const { viewerRef } = context;
+  const viewer = viewerRef.current;
 
   console.log("HOOK: scene Style Toggle currentStyle", currentStyle);
 

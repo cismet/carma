@@ -8,12 +8,13 @@ import { CesiumContextType } from "../CesiumContextProvider";
 const INVERTED_SELECTED_POLYGON_ID = "searchgaz-inverted-polygon";
 
 export const setupPrimaryStyle = ({
-  viewer,
+  viewerRef,
   terrainProvider,
   surfaceProvider,
   imageryLayer,
 }: CesiumContextType) => {
   (async () => {
+    const viewer = viewerRef.current;
     if (!viewer) return;
     viewer.scene.globe.baseColor = Color.DARKGRAY;
 
@@ -43,10 +44,11 @@ export const setupPrimaryStyle = ({
 };
 
 export const setupSecondaryStyle = ({
-  viewer,
+  viewerRef,
   terrainProvider,
   imageryLayer,
 }) => {
+  const viewer = viewerRef.current;
   if (!viewer) return;
   (async () => {
     viewer.scene.globe.baseColor = Color.WHITE;

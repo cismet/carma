@@ -8,7 +8,8 @@ import {
 } from "../slices/cesium";
 
 const useDisableSSCC = () => {
-  const { viewer } = useCesiumContext();
+  const { viewerRef } = useCesiumContext();
+  const viewer = viewerRef.current;
   const isAnimating = useSelector(selectViewerIsAnimating);
   const isTransitioning = useSelector(selectViewerIsTransitioning);
   useEffect(() => {

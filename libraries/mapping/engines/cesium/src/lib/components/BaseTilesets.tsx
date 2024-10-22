@@ -56,8 +56,9 @@ const DEFAULT_MESH_SHADER = new CustomShader(
 export const BaseTilesets = () => {
   const tilesetConfigs = useSelector(selectViewerDataSources).tilesets;
   const showPrimary = useSelector(selectShowPrimaryTileset);
-  const { viewer, tilesets, setPrimaryTileset, setSecondaryTileset } =
+  const { viewerRef, tilesets, setPrimaryTileset, setSecondaryTileset } =
     useCesiumContext();
+  const viewer = viewerRef.current;
   const showSecondary = useSelector(selectShowSecondaryTileset);
 
   const [showTileInspector, setShowTileInspector] = useState(false);

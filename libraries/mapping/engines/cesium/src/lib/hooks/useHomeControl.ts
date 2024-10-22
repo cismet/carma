@@ -8,7 +8,8 @@ import { selectViewerHome, setIsAnimating } from "../slices/cesium";
 
 export const useHomeControl = () => {
   const dispatch = useDispatch();
-  const { viewer } = useCesiumContext();
+  const { viewerRef } = useCesiumContext();
+  const viewer = viewerRef.current;
   const homePosition = useSelector(selectViewerHome);
   const [homePos, setHomePos] = useState<Cartesian3 | null>(null);
 

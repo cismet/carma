@@ -9,7 +9,8 @@ import {
 } from "../slices/cesium";
 
 export const useLogCesiumRenderIn2D = () => {
-  const { viewer } = useCesiumContext();
+  const { viewerRef } = useCesiumContext();
+  const viewer = viewerRef.current;
   const isMode2d = useSelector(selectViewerIsMode2d);
   const isAnimatingRef = useRef(useSelector(selectViewerIsAnimating));
   const transitionRef = useRef(useSelector(selectViewerCurrentTransition));
