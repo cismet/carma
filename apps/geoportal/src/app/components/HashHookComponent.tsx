@@ -1,4 +1,4 @@
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useSearchParams } from "react-router-dom";
 import LZString from "lz-string";
 
@@ -16,6 +16,7 @@ import {
   setUIPublished,
   setUIShowLayerButtons,
   setUIShowLayerHideButtons,
+  getUIPublished,
 } from "../store/slices/ui";
 import { useEffect } from "react";
 import { AppConfig } from "../App";
@@ -27,8 +28,15 @@ export default function HashHookComponent({
 }) {
   const dispatch = useDispatch();
   const [searchParams, setSearchParams] = useSearchParams();
+  const uiPublished = useSelector(getUIPublished);
 
-  dispatch(setUIPublished(published));
+
+  useEffect(() => {
+    console.debug("HOOK: HashHookComponent useEffect", published, uiPublished);
+    if (published !== uiPublished) {
+      dispatch(setUIPublished(published));
+    }
+  }, [published, uiPublished, dispatch]);
 
   useEffect(() => {
     console.debug("HOOK: App useEffect", published, searchParams);

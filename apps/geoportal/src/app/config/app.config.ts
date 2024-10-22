@@ -35,6 +35,6 @@ export const COMMON_CONFIG: {
 };
 
 export const DEBUG_UI_STATE = {
-  allow2d: false,
-  allow3d: false,
+  allow2d: true,
+  allow3d: true,
 };

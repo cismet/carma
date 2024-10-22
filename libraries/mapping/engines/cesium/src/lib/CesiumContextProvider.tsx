@@ -119,14 +119,17 @@ export const CesiumContextProvider = ({
     setSecondaryTileset,
   };
 
+
+  /*
   if (isLoading) {
-    return <div>Loading Cesium providers...</div>;
+    return null;
   }
+  */
 
   if (loadingError) {
-    return <div>Error loading Cesium providers: {loadingError.message}</div>;
+    console.error("Error loading Cesium providers:", loadingError);
+    return null;
   }
-
   console.log("RENDER: CesiumContextProvider Initialized", values);
 
   return (

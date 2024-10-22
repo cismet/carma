@@ -41,7 +41,7 @@ const router = createHashRouter([
 
 root.render(
   <Provider store={store}>
-    <PersistGate loading={<div>Lade Status</div>} persistor={persistor}>
+    <PersistGate loading={null} persistor={persistor}>
       <TweakpaneProvider>
         <RouterProvider router={router} />
         <App />,

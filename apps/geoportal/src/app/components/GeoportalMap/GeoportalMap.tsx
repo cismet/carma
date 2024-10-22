@@ -210,11 +210,12 @@ export const GeoportalMap = () => {
   useEffect(() => {
     // TODO wrap this with 3d component in own component?
     // INTIALIZE Cesium Tileset style from Geoportal/TopicMap background later style
-    console.debug("HOOK: setBackgroundLayer");
     if (viewer && backgroundLayer) {
       if (backgroundLayer.id === "luftbild") {
+        console.debug("HOOK: setBackgroundLayer toggle primary");
         toggleSceneStyle("primary");
       } else {
+        console.debug("HOOK: setBackgroundLayer toggle secondary");
         toggleSceneStyle("secondary");
       }
     }
@@ -222,16 +223,17 @@ export const GeoportalMap = () => {
   }, [viewer, backgroundLayer]);
 
   useEffect(() => {
-    console.debug("HOOK: setIsMode2d");
+    console.debug("HOOK: lock setIsMode2d if allow3d is false or undefined");
     // set 2d mode if allow3d is false or undefined
-    if (allow3d === false || allow3d === undefined) {
+    if (!isMode2d && (allow3d === false || allow3d === undefined)) {
       dispatch(setIsMode2d(true));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allow3d]);
+  }, [allow3d, isMode2d, dispatch]);
 
   // TODO Move out Controls to own component
 
+  /*
   useValueChange(allow3d, "allow3d");
   useValueChange(isMode2d, "isMode2d");
   useValueChange(backgroundLayer, "backgroundLayer");
@@ -268,6 +270,7 @@ export const GeoportalMap = () => {
   useValueChange(tourRefLabels, "tourRefLabels");
   useValueChange(wrapperRef.current, "wrapperRef.current");
   useValueChange(container3dMapRef.current, "container3dMapRef.current");
+  */
 
   const flyToLeafletHome = useCallback(() => {
     leafletElement &&

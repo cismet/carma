@@ -1,4 +1,5 @@
-import { useDispatch, useSelector } from "react-redux";
+import { useCallback, useMemo, useState } from "react";
+import { shallowEqual, useDispatch, useSelector } from "react-redux";
 import { Button, Popover, Radio, type RadioChangeEvent, Tooltip, message } from "antd";
 import {
   faBars,
@@ -11,7 +12,6 @@ import {
   faRotateRight,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { useCallback, useMemo, useState } from "react";
 
 import { LayerLib, Item, Layer } from "@carma-mapping/layers";
 import { Save, utils } from "@carma-apps/portals";
@@ -62,7 +62,6 @@ import { ShareContent } from "./ShareContent";
 
 import "./switch.css";
 import { useValueChange } from "@carma-commons/debug";
-import { useCachedNode } from "@dnd-kit/core/dist/hooks/utilities";
 
 const disabledClass = "text-gray-300";
 const disabledImageOpacity = "opacity-20";
@@ -87,13 +86,16 @@ const TopNavbar = () => {
   const uiMode = useSelector(getUIMode);
   const tourMode = useSelector(getUIOverlayTourMode);
   const showLayerButtons = useSelector(getUIShowLayerButtons);
+
   const toggleSceneStyle = useSceneStyleToggle();
 
   const isMode2d = useSelector(selectViewerIsMode2d);
   const baseUrl = window.location.origin + window.location.pathname;
+
   const handleToggleTour = useCallback(() => {
     dispatch(toggleShowOverlayTour(!tourMode));
   }, [tourMode, dispatch]);
+
   const menuTourRef = useOverlayHelper(
     getCollabedHelpElementsConfig("MENULEISTE", geoElements),
   );
@@ -110,6 +112,7 @@ const TopNavbar = () => {
     forceWMS: boolean = false,
     previewLayer: boolean = false,
   ) => {
+    console.debug("HOOK: updateLayers Callback");
     let newLayer: Layer;
     const id = layer.id.startsWith("fav_") ? layer.id.slice(4) : layer.id;
 
@@ -186,8 +189,7 @@ const TopNavbar = () => {
 
   const handleRemoveLastLayer = useCallback(() => {
     dispatch(removeLastLayer());
-  }
-    , [dispatch]);
+  }, [dispatch]);
 
   const customCategories = useMemo(() => (
     [
@@ -239,6 +241,29 @@ const TopNavbar = () => {
       toggleSceneStyle("primary");
     }
   }, [dispatch, selectedMapLayer, isMode2d, toggleSceneStyle]);
+
+  const onClickFocusMode = useCallback(() => {
+    dispatch(setFocusMode(!focusMode));
+  }, [focusMode, dispatch]);
+
+
+  /*
+  useValueChange(focusMode, "TOP NAVBAR: focusMode");
+  useValueChange(isMode2d, "TOP NAVBAR: isMode2d");
+  useValueChange(showLayerButtons, "TOP NAVBAR: showLayerButtons");
+  useValueChange(backgroundLayer, "TOP NAVBAR: backgroundLayer");
+  useValueChange(selectedMapLayer, "TOP NAVBAR: selectedMapLayer");
+  useValueChange(thumbnails, "TOP NAVBAR: thumbnails");
+  useValueChange(favorites, "TOP NAVBAR: favorites");
+  useValueChange(activeLayers, "TOP NAVBAR: activeLayers");
+  useValueChange(tourMode, "TOP NAVBAR: tourMode");
+  useValueChange(uiMode, "TOP NAVBAR: uiMode");
+  useValueChange(isModalOpen, "TOP NAVBAR: isModalOpen");
+  useValueChange(handleRefresh, "TOP NAVBAR: handleRefresh");
+  useValueChange(handleMapStyleChange, "TOP NAVBAR: handleMapStyleChange");
+  useValueChange(onClickFocusMode, "TOP NAVBAR: onClickFocusMode");
+  useValueChange(handleToggleTour, "TOP NAVBAR: handleToggleTour");
+  */
 
   console.log("RENDER: [GEOPORTAL] TOP NAVBAR");
 
@@ -303,9 +328,7 @@ const TopNavbar = () => {
           <button
             className="h-[24.5px]"
             disabled={!isMode2d}
-            onClick={() => {
-              dispatch(setFocusMode(!focusMode));
-            }}
+            onClick={onClickFocusMode}
           >
             <img
               src={

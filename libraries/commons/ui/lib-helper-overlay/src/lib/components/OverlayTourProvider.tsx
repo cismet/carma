@@ -24,7 +24,7 @@ export const OverlayTourProvider = ({
   }, []);
 
   const removeConfig = useCallback((config: OverlayHelperConfig) => {
-    console.info("REMOVE OVERLAYCONFIG", config);
+    console.debug("REMOVE OVERLAYCONFIG", config);
     configsRef.current = configsRef.current.filter((c) => c.key !== config.key);
   }, []);
 
