@@ -23,7 +23,7 @@ export const TopicMapWrapper = ({
       <RouterProvider
         router={createHashRouter([
           {
-            path: "/",
+            path: "*",
             element: (
               <TopicMapContextProvider>
                 <TopicMapInContext

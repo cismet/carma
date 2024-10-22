@@ -44,7 +44,7 @@ root.render(
     <PersistGate loading={null} persistor={persistor}>
       <TweakpaneProvider>
         <RouterProvider router={router} />
-        <App />,
+        <App />
       </TweakpaneProvider>
     </PersistGate>
   </Provider>,
