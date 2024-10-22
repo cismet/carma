@@ -57,7 +57,7 @@ const AppErrorFallback = ({ error, resetErrorBoundary }) => {
         `${error.message}${br}` +
         `----------------------${br}` +
         `${errorStack?.stringifiedStack}${br}` +
-        `----------------------${br}`,
+        `----------------------${br}`
     );
 
   let attachmentText =
@@ -167,7 +167,7 @@ const AppErrorFallback = ({ error, resetErrorBoundary }) => {
               downloadAnchorNode.setAttribute("href", dataStr);
               downloadAnchorNode.setAttribute(
                 "download",
-                "problemReport.geoportal-wuppertal.txt",
+                "problemReport.geoportal-wuppertal.txt"
               );
               window.document.body.appendChild(downloadAnchorNode); // required for firefox
               downloadAnchorNode.click();
@@ -188,7 +188,7 @@ const AppErrorFallback = ({ error, resetErrorBoundary }) => {
               let confirmation = window.confirm(
                 "Mit dieser Aktion werden die gespeicherten Einstellungen wie ausgewählte Layer," +
                   " Messungen, u.ä. gelöscht.\n\n" +
-                  "Sind Sie sicher, dass Sie Ihre Einstellungen zurücksetzen wollen?",
+                  "Sind Sie sicher, dass Sie Ihre Einstellungen zurücksetzen wollen?"
               );
               // console.log("confirmation: " + confirmation);
               if (confirmation) {

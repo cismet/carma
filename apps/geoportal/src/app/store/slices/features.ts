@@ -39,7 +39,7 @@ const slice = createSlice({
     },
     updateInfoElementsAfterRemovingFeature(
       state,
-      action: PayloadAction<string>,
+      action: PayloadAction<string>
     ) {
       const id = action.payload;
       if (state.selectedFeature?.id === id) {
@@ -50,12 +50,12 @@ const slice = createSlice({
           state.selectedFeature = selectedFeature;
           state.secondaryInfoBoxElements =
             state.secondaryInfoBoxElements.filter(
-              (f) => f.id !== selectedFeature.id,
+              (f) => f.id !== selectedFeature.id
             );
         }
       } else {
         state.secondaryInfoBoxElements = state.secondaryInfoBoxElements.filter(
-          (f) => f.id !== id,
+          (f) => f.id !== id
         );
       }
     },
@@ -68,7 +68,7 @@ const slice = createSlice({
     },
     removeNothingFoundID(state, action: PayloadAction<string>) {
       state.nothingFoundIDs = state.nothingFoundIDs.filter(
-        (id) => id !== action.payload,
+        (id) => id !== action.payload
       );
     },
     clearNothingFoundIDs(state) {
@@ -85,7 +85,7 @@ const slice = createSlice({
 
     removeVectorInfo(state, action: PayloadAction<string>) {
       state.vectorInfos = state.vectorInfos.filter(
-        (info) => info.id !== action.payload,
+        (info) => info.id !== action.payload
       );
     },
     clearVectorInfos(state) {
@@ -115,7 +115,7 @@ const slice = createSlice({
     updateSecondaryInfoBoxElements(state, action: PayloadAction<FeatureInfo>) {
       const feature = action.payload;
       state.secondaryInfoBoxElements = state.features.filter(
-        (f) => !isEqual(f, feature),
+        (f) => !isEqual(f, feature)
       );
     },
     clearSecondaryInfoBoxElements(state) {

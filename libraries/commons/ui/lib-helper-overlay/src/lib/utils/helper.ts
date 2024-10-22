@@ -1,7 +1,7 @@
 import { PositionOverlayHelper } from "../..";
 
 export function getContainerPosition(
-  alignment: PositionOverlayHelper | undefined,
+  alignment: PositionOverlayHelper | undefined
 ) {
   let styleElement: { [key: string]: string } = {};
   switch (alignment) {
@@ -28,7 +28,7 @@ export function getContainerPosition(
 }
 
 export function getElementPosition(
-  alignment: PositionOverlayHelper | undefined,
+  alignment: PositionOverlayHelper | undefined
 ) {
   let styleElement: { [key: string]: string | number } = {};
   switch (alignment) {

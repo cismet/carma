@@ -29,10 +29,10 @@ const Map = () => {
     setClusteringOptions,
     setFilterState,
   } = useContext<typeof FeatureCollectionDispatchContext>(
-    FeatureCollectionDispatchContext,
+    FeatureCollectionDispatchContext
   );
   const { markerSymbolSize } = useContext<typeof TopicMapStylingContext>(
-    TopicMapStylingContext,
+    TopicMapStylingContext
   );
   const { clusteringOptions, itemsDictionary } = useContext<
     typeof FeatureCollectionContext
@@ -55,10 +55,10 @@ const Map = () => {
 
   useEffect(() => {
     const einrichtungen = getAllEinrichtungen().map(
-      (einrichtung) => einrichtung,
+      (einrichtung) => einrichtung
     );
     const veranstaltungen = itemsDictionary?.veranstaltungsarten?.map(
-      (veranstaltung) => veranstaltung,
+      (veranstaltung) => veranstaltung
     );
     setFilterState({
       einrichtung: einrichtungen,
@@ -78,7 +78,7 @@ const Map = () => {
         if ((Array.isArray(hits) && hits[0]?.more?.pid) || hits[0]?.more?.kid) {
           const gazId = hits[0]?.more?.pid || hits[0]?.more?.kid;
           setSelectedFeatureByPredicate(
-            (feature) => feature.properties.id === gazId,
+            (feature) => feature.properties.id === gazId
           );
         }
       }}

@@ -1,16 +1,18 @@
-import { useContext } from 'react';
-import { FeatureCollectionContext } from 'react-cismap/contexts/FeatureCollectionContextProvider';
+import { useContext } from "react";
+import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import {
   classifyMainlocationTypeName,
   getColorForProperties,
   getColorFromMainlocationTypeName,
   textConversion,
-} from '../../../helper/styler';
-import { Doughnut } from 'react-chartjs-2';
-import 'chart.js/auto';
+} from "../../../helper/styler";
+import { Doughnut } from "react-chartjs-2";
+import "chart.js/auto";
 
 const KulturPieChart = ({ visible = true }) => {
-  const { filteredItems } = useContext<typeof FeatureCollectionContext>(FeatureCollectionContext);
+  const { filteredItems } = useContext<typeof FeatureCollectionContext>(
+    FeatureCollectionContext
+  );
 
   if (visible && filteredItems) {
     let stats = {};
@@ -53,14 +55,14 @@ const KulturPieChart = ({ visible = true }) => {
     return (
       <td
         style={{
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          alignContent: 'center',
-          justifyContent: 'center',
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          alignContent: "center",
+          justifyContent: "center",
         }}
       >
-        <div style={{ width: '40%' }}>
+        <div style={{ width: "40%" }}>
           <Doughnut
             data={data}
             options={{
@@ -70,12 +72,12 @@ const KulturPieChart = ({ visible = true }) => {
                 },
                 title: {
                   display: true,
-                  text: 'Verteilung',
+                  text: "Verteilung",
                   font: {
-                    weight: 'bold',
+                    weight: "bold",
                     size: 20,
                   },
-                  color: 'black',
+                  color: "black",
                 },
               },
             }}

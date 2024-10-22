@@ -59,7 +59,7 @@ export const CesiumContextProvider = ({
 }) => {
   const [viewer, setViewer] = useState<Viewer | null>(null);
   const [primaryTileset, setPrimaryTileset] = useState<Cesium3DTileset | null>(
-    null,
+    null
   );
   const [secondaryTileset, setSecondaryTileset] =
     useState<Cesium3DTileset | null>(null);
@@ -69,7 +69,7 @@ export const CesiumContextProvider = ({
     useState<CesiumTerrainProvider | null>(null);
 
   const imageryProvider = new WebMapServiceImageryProvider(
-    providerConfig.imageryProvider,
+    providerConfig.imageryProvider
   );
 
   useEffect(() => {
@@ -77,8 +77,8 @@ export const CesiumContextProvider = ({
       try {
         setTerrainProvider(
           await CesiumTerrainProvider.fromUrl(
-            providerConfig.terrainProvider.url,
-          ),
+            providerConfig.terrainProvider.url
+          )
         );
       } catch (error) {
         console.error("Failed to load terrain provider:", error);
@@ -92,8 +92,8 @@ export const CesiumContextProvider = ({
         providerConfig.surfaceProvider &&
           setSurfaceProvider(
             await CesiumTerrainProvider.fromUrl(
-              providerConfig.surfaceProvider.url,
-            ),
+              providerConfig.surfaceProvider.url
+            )
           );
       } catch (error) {
         console.error("Failed to load terrain provider:", error);

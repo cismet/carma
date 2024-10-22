@@ -1,7 +1,7 @@
-import { getDocs } from '../helper/featureHelper';
-import { db } from '../indexeddb/dexiedb';
-import Pako from 'pako';
-import { Buffer } from 'buffer';
+import { getDocs } from "../helper/featureHelper";
+import { db } from "../indexeddb/dexiedb";
+import Pako from "pako";
+import { Buffer } from "buffer";
 
 export async function putZArray(
   zip,
@@ -9,7 +9,7 @@ export async function putZArray(
   progressListener = () => {}
 ) {
   let zippedData = Uint8Array.from(atob(zip), (c) => c.charCodeAt(0));
-  let unpackedString = Pako.inflate(zippedData, { to: 'string' });
+  let unpackedString = Pako.inflate(zippedData, { to: "string" });
   zippedData = undefined;
   // console.log(`logGQL:: Result (putZArray):`, unpackedString);
   const result = JSON.parse(unpackedString);
@@ -30,10 +30,10 @@ export async function putChunkedZArray(
   // window.Buffer = window.Buffer || require("buffer").Buffer;
   // let Buffer = require("buffer").Buffer;
   let zippedData = Uint8Array.from(
-    Buffer.from(zip, 'base64').toString('binary'), //replacement for atob(zip)
+    Buffer.from(zip, "base64").toString("binary"), //replacement for atob(zip)
     (c) => c.charCodeAt(0)
   );
-  let unpackedString = Pako.inflate(zippedData, { to: 'string' });
+  let unpackedString = Pako.inflate(zippedData, { to: "string" });
   zippedData = undefined;
   const results = JSON.parse(unpackedString);
   unpackedString = undefined;
@@ -79,7 +79,7 @@ export async function putArray(inputArray, objectstorename) {
 
     return true;
   } catch (err) {
-    console.log('worker error in putArray', err);
+    console.log("worker error in putArray", err);
   }
 }
 
@@ -91,7 +91,7 @@ export async function deleteDB() {
     db.delete();
     // initialize(db);
   } catch (err) {
-    console.log('worker error in deleteDB', err);
+    console.log("worker error in deleteDB", err);
   }
 }
 
@@ -109,7 +109,7 @@ export async function put(input, objectstorename) {
   try {
     return await await db[objectstorename].put(input);
   } catch (err) {
-    console.log('worker error in add', err);
+    console.log("worker error in add", err);
   }
 }
 
@@ -117,7 +117,7 @@ export async function getCount(objectStore) {
   try {
     return await db[objectStore].count();
   } catch (err) {
-    console.log('worker error', err);
+    console.log("worker error", err);
   }
 }
 
@@ -125,7 +125,7 @@ export async function getAll(objectStore) {
   try {
     return await db[objectStore].toArray();
   } catch (err) {
-    console.log('worker error', err);
+    console.log("worker error", err);
   }
 }
 
@@ -133,7 +133,7 @@ export async function clear(objectStore) {
   try {
     await db[objectStore].clear();
   } catch (err) {
-    console.log('worker error', err);
+    console.log("worker error", err);
   }
 }
 
@@ -141,7 +141,7 @@ export async function get(id, objectStore) {
   try {
     return await db[objectStore].get(id);
   } catch (err) {
-    console.log('worker error in get', err);
+    console.log("worker error in get", err);
   }
 }
 
@@ -164,13 +164,13 @@ const cleanUpObject = (obj) => {
   Object.keys(obj).forEach((key) => {
     if (
       obj[key] &&
-      typeof obj[key] === 'object' &&
+      typeof obj[key] === "object" &&
       Array.isArray(obj[key]) === false
     ) {
       cleanUpObject(obj[key]); // recurse
     } else if (
       obj[key] &&
-      typeof obj[key] === 'object' &&
+      typeof obj[key] === "object" &&
       Array.isArray(obj[key]) === true &&
       obj[key].length === 0
     ) {
@@ -194,7 +194,7 @@ export const getFeaturesForHits = async (points, resultIds, filter) => {
     if (featureObject) {
       if ((filter[hit.tablename] || {}).enabled === true) {
         let addFeature;
-        if (hit.tablename === 'tdta_standort_mast') {
+        if (hit.tablename === "tdta_standort_mast") {
           if (featureObject === undefined) {
             addFeature = false;
           } else {
@@ -207,33 +207,33 @@ export const getFeaturesForHits = async (points, resultIds, filter) => {
         if (addFeature === true) {
           // let d = new Date().getTime();
           const feature = {
-            text: '-',
-            type: 'Feature',
+            text: "-",
+            type: "Feature",
             selected: false,
             featuretype: hit.tablename,
             id: hit.tablename,
             geometry: {
-              type: 'Point',
+              type: "Point",
               coordinates: [hit.x, hit.y],
             },
             crs: {
-              type: 'name',
+              type: "name",
               properties: {
-                name: 'urn:ogc:def:crs:EPSG::25832',
+                name: "urn:ogc:def:crs:EPSG::25832",
               },
             },
             properties: {},
           };
 
           feature.properties = featureObject; //getPropertiesForFeature(feature);
-          feature.id = feature.id + '-' + featureObject.id;
+          feature.id = feature.id + "-" + featureObject.id;
           feature.properties.docs = getDocs(feature);
           featureCollection.push(feature);
         }
       }
     } else {
-      if (hit.tablename !== 'tdta_standort_mast') {
-        console.log('could not find ' + hit.tablename + '.' + hit.oid);
+      if (hit.tablename !== "tdta_standort_mast") {
+        console.log("could not find " + hit.tablename + "." + hit.oid);
       }
     }
   }

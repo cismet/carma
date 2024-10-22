@@ -1,6 +1,4 @@
-export {
-  suppressReactCismapErrors,
-} from "./lib/log-react-cismap-errors";
+export { suppressReactCismapErrors } from "./lib/log-react-cismap-errors";
 
 export { generateRandomString } from "./lib/strings";
 

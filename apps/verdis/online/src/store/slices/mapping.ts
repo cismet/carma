@@ -1,7 +1,7 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
-import { createSlice } from '@reduxjs/toolkit';
-import L from 'leaflet';
+import { createSlice } from "@reduxjs/toolkit";
+import L from "leaflet";
 
 const initialState = {
   featureCollection: [],
@@ -17,25 +17,25 @@ const initialState = {
 
   backgrounds: [
     {
-      layerkey: 'bplan_abkg@30|wupp-plan-live@20',
-      src: '/images/mapPreviewABK.png',
-      title: 'Top. Karte',
+      layerkey: "bplan_abkg@30|wupp-plan-live@20",
+      src: "/images/mapPreviewABK.png",
+      title: "Top. Karte",
     },
     {
-      layerkey: 'rvrGrundriss@100|trueOrtho2022@60|rvrSchriftNT@100',
-      src: '/images/mapPreviewOrtho.png',
-      title: 'Luftbildkarte',
+      layerkey: "rvrGrundriss@100|trueOrtho2022@60|rvrSchriftNT@100",
+      src: "/images/mapPreviewOrtho.png",
+      title: "Luftbildkarte",
     },
     {
-      layerkey: 'wupp-plan-live@40',
-      src: '/images/mapPreviewCitymap.png',
-      title: 'Stadtplan',
+      layerkey: "wupp-plan-live@40",
+      src: "/images/mapPreviewCitymap.png",
+      title: "Stadtplan",
     },
   ],
 };
 
 const slice = createSlice({
-  name: 'mapping',
+  name: "mapping",
   initialState,
   reducers: {
     mapBoundsChanged(state, action) {

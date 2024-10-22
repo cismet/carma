@@ -1,23 +1,23 @@
 /// <reference types='vitest' />
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import { nxViteTsPaths } from "@nx/vite/plugins/nx-tsconfig-paths.plugin";
 
 export default defineConfig({
   root: __dirname,
-  cacheDir: '../../node_modules/.vite/playgrounds/generic-topicmaps',
+  cacheDir: "../../node_modules/.vite/playgrounds/generic-topicmaps",
 
   server: {
     port: 4200,
-    host: 'localhost',
+    host: "localhost",
     fs: {
-      allow: ['../..'],
+      allow: ["../.."],
     },
   },
 
   preview: {
     port: 4300,
-    host: 'localhost',
+    host: "localhost",
   },
 
   plugins: [react(), nxViteTsPaths()],
@@ -28,7 +28,7 @@ export default defineConfig({
   // },
 
   build: {
-    outDir: '../../dist/playgrounds/generic-topicmaps',
+    outDir: "../../dist/playgrounds/generic-topicmaps",
     reportCompressedSize: true,
     commonjsOptions: {
       transformMixedEsModules: true,
@@ -36,6 +36,6 @@ export default defineConfig({
   },
 
   define: {
-    'import.meta.vitest': undefined,
+    "import.meta.vitest": undefined,
   },
 });

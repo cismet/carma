@@ -1,4 +1,4 @@
-import { Badge, Tabs } from 'antd';
+import { Badge, Tabs } from "antd";
 
 interface LayerTabsProps {
   // TODO add type for layers
@@ -28,9 +28,9 @@ const LayerTabs = ({ layers, activeId, numberOfItems }: LayerTabsProps) => {
             disabled: layer.layers.length === 0,
           };
         })}
-        activeKey={numberOfItems > 0 ? activeId : ''}
+        activeKey={numberOfItems > 0 ? activeId : ""}
         onTabClick={(key) => {
-          document.getElementById(key)?.scrollIntoView({ behavior: 'smooth' });
+          document.getElementById(key)?.scrollIntoView({ behavior: "smooth" });
         }}
       />
     </>

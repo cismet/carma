@@ -12,7 +12,7 @@ export function useValueChange<T>(
   value: T,
   callback: (prevValue: T | undefined, currentValue: T) => void = (pV, v) => {
     console.log("monitored value changed", pV, v);
-  },
+  }
 ) {
   const previousValueRef = useRef<T | undefined>(undefined);
 

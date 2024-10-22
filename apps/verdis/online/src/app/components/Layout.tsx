@@ -1,6 +1,6 @@
-import { ReactNode, useEffect } from 'react';
-import { useDispatch } from 'react-redux';
-import { screenResize } from '../../store/slices/ui';
+import { ReactNode, useEffect } from "react";
+import { useDispatch } from "react-redux";
+import { screenResize } from "../../store/slices/ui";
 
 interface LayoutProps {
   children: ReactNode;
@@ -17,10 +17,10 @@ const Layout = ({ children }: LayoutProps) => {
 
     handleResize();
 
-    window.addEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
 
     return () => {
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener("resize", handleResize);
     };
   });
 

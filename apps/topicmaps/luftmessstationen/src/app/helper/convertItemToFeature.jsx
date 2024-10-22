@@ -1,12 +1,12 @@
-import { addSVGToProps } from 'react-cismap/tools/svgHelper';
+import { addSVGToProps } from "react-cismap/tools/svgHelper";
 
-import { useContext } from 'react';
-import { FeatureCollectionContext } from 'react-cismap/contexts/FeatureCollectionContextProvider';
-import { LOOKUP, MONTHS } from './constants';
+import { useContext } from "react";
+import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
+import { LOOKUP, MONTHS } from "./constants";
 
 const hasValues = (item) => {
   const values = item?.werte;
-  return values !== undefined && JSON.stringify(values) !== '{}';
+  return values !== undefined && JSON.stringify(values) !== "{}";
 };
 
 const convertWerteObjectToArray = (jahreswerte) => {
@@ -81,9 +81,9 @@ export const getLastYearMinus1Measurements = (item) => {
 
 const getActivityStatus = (item) => {
   if (item?.bis !== undefined) {
-    return 'abgebaut';
+    return "abgebaut";
   } else {
-    return 'aktiv';
+    return "aktiv";
   }
   //todo inaktiv
 };
@@ -92,7 +92,7 @@ const getActivityStatus = (item) => {
 // auffällig 36-40 (einschließlich) µg/m³ Orange
 // warnend >40 µg/m³ Rot
 export const getStatus = (item) => {
-  if (getActivityStatus(item) === 'aktiv') {
+  if (getActivityStatus(item) === "aktiv") {
     const lym = getLastMeasurement(item)?.value;
     const status = getStatus4Value(lym);
 
@@ -104,15 +104,15 @@ export const getStatus = (item) => {
 
 export const getStatus4Value = (value) => {
   if (value > 0 && value <= 35) {
-    return 'unauffaellig';
+    return "unauffaellig";
   } else if (value > 35 && value <= 40) {
-    return 'auffaellig';
+    return "auffaellig";
   } else if (value > 40) {
-    return 'warnend';
+    return "warnend";
   } else if (value === -9999) {
-    return 'inaktiv';
+    return "inaktiv";
   } else {
-    return 'unknown';
+    return "unknown";
   }
 };
 
@@ -132,20 +132,20 @@ const getAdditionalInfo = (item) => {
 
   const avgYears = last2Years.filter((year) => parseInt(year) >= threshold);
 
-  let ret = '';
+  let ret = "";
   avgYears.sort(function (a, b) {
     return parseInt(b) - parseInt(a);
   });
   if (avgYears.length === 0) {
     ret =
-      'Kein gewichteter Jahresmittelwert aus dem vergangenen Kalenderjahr vorhanden.';
+      "Kein gewichteter Jahresmittelwert aus dem vergangenen Kalenderjahr vorhanden.";
   } else if (avgYears.length === 1) {
-    ret = 'Gewichteter Jahresmittelwert:';
+    ret = "Gewichteter Jahresmittelwert:";
   } else {
-    ret = 'Gewichtete Jahresmittelwerte:';
+    ret = "Gewichtete Jahresmittelwerte:";
   }
   for (const year of avgYears) {
-    ret = ret + '\n' + item?.mittelwerte[year] + ' µg/m³ (' + year + ')';
+    ret = ret + "\n" + item?.mittelwerte[year] + " µg/m³ (" + year + ")";
   }
 
   return ret;
@@ -165,23 +165,23 @@ const getTitle = (item) => {
       if (lm.value !== -9999) {
         return (
           lm.value +
-          ' µg/m³ (' +
+          " µg/m³ (" +
           MONTHS[lm.monthIndex].name +
-          ' ' +
+          " " +
           lm.year +
-          ')'
+          ")"
         );
       } else {
         return (
-          'Für ' +
+          "Für " +
           MONTHS[lm.monthIndex].name +
-          ' ' +
+          " " +
           lm.year +
-          ' liefert diese Messstation keinen Messwert'
+          " liefert diese Messstation keinen Messwert"
         );
       }
     } else {
-      return 'Diese Messstation ist abmontiert';
+      return "Diese Messstation ist abmontiert";
     }
   }
 };
@@ -199,16 +199,16 @@ const convertItemToFeature = async (itemIn) => {
 
   clonedItem.werte = newWerte;
 
-  let item = await addSVGToProps(clonedItem, (i) => 'luft/' + getSignature(i));
+  let item = await addSVGToProps(clonedItem, (i) => "luft/" + getSignature(i));
   item.status = getStatus(item);
 
   const text =
     item?.strasse +
-    ' ' +
-    (item?.hausnummer || '') +
-    (item?.zusatzinfo !== undefined ? ' (' + item?.zusatzinfo + ')' : '');
+    " " +
+    (item?.hausnummer || "") +
+    (item?.zusatzinfo !== undefined ? " (" + item?.zusatzinfo + ")" : "");
 
-  const type = 'Feature';
+  const type = "Feature";
   const selected = false;
   const geometry = item?.geojson;
   item.color = LOOKUP[item.status].color;
@@ -219,7 +219,7 @@ const convertItemToFeature = async (itemIn) => {
     additionalInfo: getAdditionalInfo(item),
     subtitle: (
       <span>
-        {item?.strasse} {item?.hausnummer}{' '}
+        {item?.strasse} {item?.hausnummer}{" "}
         {item?.zusatzinfo && <span>({item?.zusatzinfo})</span>}
       </span>
     ),
@@ -227,7 +227,7 @@ const convertItemToFeature = async (itemIn) => {
   item.info = info;
   if (item?.bild) {
     item.foto =
-      'https://www.wuppertal.de/geoportal/luftmessstationen/fotos/' + item.bild;
+      "https://www.wuppertal.de/geoportal/luftmessstationen/fotos/" + item.bild;
   }
 
   return {
@@ -236,9 +236,9 @@ const convertItemToFeature = async (itemIn) => {
     selected,
     geometry,
     crs: {
-      type: 'name',
+      type: "name",
       properties: {
-        name: 'urn:ogc:def:crs:EPSG::25832',
+        name: "urn:ogc:def:crs:EPSG::25832",
       },
     },
     properties: item,

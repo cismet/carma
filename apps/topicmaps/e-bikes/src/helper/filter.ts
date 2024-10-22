@@ -1,13 +1,13 @@
 const itemFilterFunction = ({ filterState }) => {
   return (item) => {
     let result = false;
-    const all = ['Ladestation', 'Verleihstation'];
+    const all = ["Ladestation", "Verleihstation"];
 
     if (filterState.stationsart) {
       result = (filterState.stationsart || all).includes(item.typ);
     }
 
-    if (result && item.typ === 'Ladestation') {
+    if (result && item.typ === "Ladestation") {
       if (filterState.nur_online) {
         result = item.online;
       } else {

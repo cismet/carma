@@ -19,10 +19,10 @@ interface InfoCardProps {
   isActiveLayer: boolean;
   handleAddClick: (
     e: React.MouseEvent<HTMLElement, MouseEvent>,
-    preview?: boolean,
+    preview?: boolean
   ) => void;
   handleFavoriteClick: (
-    e: React.MouseEvent<HTMLButtonElement, MouseEvent>,
+    e: React.MouseEvent<HTMLButtonElement, MouseEvent>
   ) => void;
   closeInfoCard: () => void;
   setPreview: (preview: boolean) => void;

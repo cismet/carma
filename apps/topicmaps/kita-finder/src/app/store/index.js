@@ -15,7 +15,7 @@ const devToolsEnabled =
   new URLSearchParams(window.location.search).get("devToolsEnabled") === "true";
 console.log("devToolsEnabled:", devToolsEnabled);
 const stateLoggingEnabledFromSearch = new URLSearchParams(
-  window.location.search,
+  window.location.search
 ).get("stateLoggingEnabled");
 
 const inProduction = process.env.NODE_ENV === "production";
@@ -30,7 +30,7 @@ console.log(
   "stateLoggingEnabled:",
   stateLoggingEnabledFromSearch,
   "x",
-  stateLoggingEnabled,
+  stateLoggingEnabled
 );
 const logger = createLogger({
   collapsed: true,

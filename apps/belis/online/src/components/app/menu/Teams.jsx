@@ -1,22 +1,22 @@
-import { useEffect, useState } from 'react';
-import Button from 'react-bootstrap/Button';
-import { useDispatch, useSelector } from 'react-redux';
+import { useEffect, useState } from "react";
+import Button from "react-bootstrap/Button";
+import { useDispatch, useSelector } from "react-redux";
 //import dexieworker from "workerize-loader!../../../core/workers/dexie"; // eslint-disable-line import/no-webpack-loader-syntax
 
 import {
   CONNECTIONMODE,
   getConnectionMode,
-} from '../../../core/store/slices/app';
-import { getJWT } from '../../../core/store/slices/auth';
+} from "../../../core/store/slices/app";
+import { getJWT } from "../../../core/store/slices/auth";
 import {
   config,
   getCacheSettings,
   renewCache,
-} from '../../../core/store/slices/cacheControl';
-import { getWorker } from '../../../core/store/slices/dexie';
-import { loadTaskLists } from '../../../core/store/slices/featureCollection';
-import { getTeam, setTeam } from '../../../core/store/slices/team';
-import CacheItem from '../cache/CacheItem';
+} from "../../../core/store/slices/cacheControl";
+import { getWorker } from "../../../core/store/slices/dexie";
+import { loadTaskLists } from "../../../core/store/slices/featureCollection";
+import { getTeam, setTeam } from "../../../core/store/slices/team";
+import CacheItem from "../cache/CacheItem";
 
 const Teams = () => {
   const dispatch = useDispatch();
@@ -31,15 +31,15 @@ const Teams = () => {
     //async block
     (async () => {
       try {
-        const teams = await dexieW.getAll('team');
+        const teams = await dexieW.getAll("team");
 
         if (teams && teams.length > 0) {
           setTeams(teams);
         } else {
-          dispatch(renewCache('team', jwt));
+          dispatch(renewCache("team", jwt));
         }
       } catch (e) {
-        console.log('Error in fetching teams');
+        console.log("Error in fetching teams");
       }
     })();
   }, []);
@@ -47,12 +47,12 @@ const Teams = () => {
   return (
     <div>
       Bitte wählen Sie das gewünschte Team per Klick auf den Button:
-      <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap' }}>
+      <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap" }}>
         {teams &&
           teams.map((team, index) => {
             if (selectedTeam?.id === team.id) {
               return (
-                <span key={'buttonspan.' + index} style={{ padding: 3 }}>
+                <span key={"buttonspan." + index} style={{ padding: 3 }}>
                   <Button disabled variant="primary" key={team + index}>
                     {team.name}
                   </Button>
@@ -60,23 +60,23 @@ const Teams = () => {
               );
             } else {
               return (
-                <span key={'buttonspan.' + index} style={{ padding: 3 }}>
+                <span key={"buttonspan." + index} style={{ padding: 3 }}>
                   <Button
                     onClick={() => {
                       if (connectionMode === CONNECTIONMODE.FROMCACHE) {
                         (async () => {
                           const oldTeam = selectedTeam;
-                          const oldAAs = await dexieW.getAll('arbeitsauftrag');
-                          console.log('TEAMS: ', oldAAs);
+                          const oldAAs = await dexieW.getAll("arbeitsauftrag");
+                          console.log("TEAMS: ", oldAAs);
                           dispatch(setTeam(team));
                           dispatch(
                             renewCache(
-                              'arbeitsauftrag',
+                              "arbeitsauftrag",
                               jwt,
                               { team: { selectedTeam: team } },
                               () => {
                                 //success
-                                console.log('success');
+                                console.log("success");
                                 dispatch(
                                   loadTaskLists({
                                     team: team,
@@ -86,8 +86,8 @@ const Teams = () => {
                               },
                               () => {
                                 //error
-                                console.log('something went wrong');
-                                dexieW.putArray(oldAAs, 'arbeitsauftrag');
+                                console.log("something went wrong");
+                                dexieW.putArray(oldAAs, "arbeitsauftrag");
                                 dispatch(setTeam(oldTeam));
                               }
                             )
@@ -116,11 +116,11 @@ const Teams = () => {
           herstellen können, kann das Team nicht gewechselt werden.
           <hr />
           <CacheItem
-            key={'CacheItem.Team.arbeitsauftrag'}
-            config={config['arbeitsauftrag']}
-            info={cacheSettings['arbeitsauftrag']}
+            key={"CacheItem.Team.arbeitsauftrag"}
+            config={config["arbeitsauftrag"]}
+            info={cacheSettings["arbeitsauftrag"]}
             renew={() => {
-              dispatch(renewCache('arbeitsauftrag', jwt));
+              dispatch(renewCache("arbeitsauftrag", jwt));
             }}
           />
           <hr />

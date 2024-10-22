@@ -1,10 +1,10 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice } from "@reduxjs/toolkit";
 
 const initialState = {
   syncKassenzeichen: false,
 
-  overviewFeatureTypes: ['flaeche', 'front'],
-  activeBackgroundLayer: 'stadtplan',
+  overviewFeatureTypes: ["flaeche", "front"],
+  activeBackgroundLayer: "stadtplan",
   backgroundLayerOpacities: {},
   activeAdditionalLayers: [],
   additionalLayerOpacities: {},
@@ -13,7 +13,7 @@ const initialState = {
 };
 
 const slice = createSlice({
-  name: 'ui',
+  name: "ui",
   initialState,
   reducers: {
     setSyncKassenzeichen(state, action) {

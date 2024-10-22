@@ -1,7 +1,7 @@
 import type { CarmaConfObject } from "../types";
 
 export const extractCarmaConf = (
-  keywords: string[] | undefined,
+  keywords: string[] | undefined
 ): CarmaConfObject | null => {
   let carmaConf: CarmaConfObject | null = null;
 

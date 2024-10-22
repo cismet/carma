@@ -1,49 +1,49 @@
-import { Button, ConfigProvider, Result } from 'antd';
-import 'antd/dist/reset.css';
-import 'bootstrap/dist/css/bootstrap.min.css';
-import 'react-bootstrap-typeahead/css/Typeahead.css';
+import { Button, ConfigProvider, Result } from "antd";
+import "antd/dist/reset.css";
+import "bootstrap/dist/css/bootstrap.min.css";
+import "react-bootstrap-typeahead/css/Typeahead.css";
 
-import locale from 'antd/locale/de_DE';
-import React, { useEffect, useState } from 'react';
-import ReactDOM from 'react-dom/client';
-import { Provider, useDispatch, useSelector } from 'react-redux';
+import locale from "antd/locale/de_DE";
+import React, { useEffect, useState } from "react";
+import ReactDOM from "react-dom/client";
+import { Provider, useDispatch, useSelector } from "react-redux";
 import {
   Navigate,
   Outlet,
   RouterProvider,
   createHashRouter,
   useLocation,
-} from 'react-router-dom';
-import { PersistGate } from 'redux-persist/integration/react';
-import NavBar from './components/commons/NavBar';
-import './index.css';
-import InfoPage from './pages/Info';
-import LoginPage from './pages/Login';
-import OverviewPage from './pages/Overview';
-import SealedSurfaceOverviewPage from './pages/SealedSurfaces';
-import SealedSurfaceDetailsPage from './pages/SealedSurfacesDetails';
-import SeepagePermitsPage from './pages/SeepagePermits';
-import SeepagePermitsDetailsPage from './pages/SeepagePermitsDetails';
-import StreetCleaningPage from './pages/StreetCleaning';
-import StreetCleaningDetailsPage from './pages/StreetCleaningDetails';
-import store from './store';
-import { checkJWTValidation, getJWT } from './store/slices/auth';
-import TopicMapContextProvider from 'react-cismap/contexts/TopicMapContextProvider';
+} from "react-router-dom";
+import { PersistGate } from "redux-persist/integration/react";
+import NavBar from "./components/commons/NavBar";
+import "./index.css";
+import InfoPage from "./pages/Info";
+import LoginPage from "./pages/Login";
+import OverviewPage from "./pages/Overview";
+import SealedSurfaceOverviewPage from "./pages/SealedSurfaces";
+import SealedSurfaceDetailsPage from "./pages/SealedSurfacesDetails";
+import SeepagePermitsPage from "./pages/SeepagePermits";
+import SeepagePermitsDetailsPage from "./pages/SeepagePermitsDetails";
+import StreetCleaningPage from "./pages/StreetCleaning";
+import StreetCleaningDetailsPage from "./pages/StreetCleaningDetails";
+import store from "./store";
+import { checkJWTValidation, getJWT } from "./store/slices/auth";
+import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import {
   additionalLayerConfiguration,
   backgroundConfigurations,
   backgroundModes,
   extendBaseLayerConf,
   offlineConfig,
-} from './constants/backgrounds';
-import { defaultLayerConf } from 'react-cismap/tools/layerFactory';
-import { getReadOnly, getShowChat } from './store/slices/settings';
-import Chat from './components/commons/Chat';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { persistStore } from 'redux-persist';
-import { loadGazeteerEntries } from './store/slices/gazData';
-import { getVirtualCityPassword } from './store/slices/search';
-import { MapContainer } from 'react-leaflet';
+} from "./constants/backgrounds";
+import { defaultLayerConf } from "react-cismap/tools/layerFactory";
+import { getReadOnly, getShowChat } from "./store/slices/settings";
+import Chat from "./components/commons/Chat";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { persistStore } from "redux-persist";
+import { loadGazeteerEntries } from "./store/slices/gazData";
+import { getVirtualCityPassword } from "./store/slices/search";
+import { MapContainer } from "react-leaflet";
 
 const baseLayerConf = extendBaseLayerConf({ ...defaultLayerConf });
 
@@ -83,12 +83,12 @@ const NavBarWrapper = () => {
     </div>
   );
 };
-const productionMode = process.env.NODE_ENV === 'production';
+const productionMode = process.env.NODE_ENV === "production";
 
 const router = createHashRouter(
   [
     {
-      path: '/',
+      path: "/",
       element: <NavBarWrapper />,
       errorElement: productionMode && (
         <Result
@@ -104,41 +104,41 @@ const router = createHashRouter(
       ),
       children: [
         {
-          path: '/',
+          path: "/",
           element: <OverviewPage />,
         },
         {
-          path: '/versiegelteFlaechen',
+          path: "/versiegelteFlaechen",
           element: <SealedSurfaceOverviewPage />,
         },
         {
-          path: '/versiegelteFlaechen/details',
+          path: "/versiegelteFlaechen/details",
           element: <SealedSurfaceDetailsPage />,
         },
         {
-          path: '/strassenreinigung',
+          path: "/strassenreinigung",
           element: <StreetCleaningPage />,
         },
         {
-          path: '/strassenreinigung/details',
+          path: "/strassenreinigung/details",
           element: <StreetCleaningDetailsPage />,
         },
         {
-          path: '/info',
+          path: "/info",
           element: <InfoPage />,
         },
         {
-          path: '/versickerungsgenehmigungen',
+          path: "/versickerungsgenehmigungen",
           element: <SeepagePermitsPage />,
         },
         {
-          path: '/versickerungsgenehmigungen/details',
+          path: "/versickerungsgenehmigungen/details",
           element: <SeepagePermitsDetailsPage />,
         },
       ],
     },
     {
-      path: '/login',
+      path: "/login",
       element: <LoginPage />,
     },
   ],
@@ -150,7 +150,7 @@ const originalError = console.error.bind(console);
 console.warn = (message, ...args) => {
   if (
     message &&
-    !message.includes('ReactDOM.render is no longer supported in React 18')
+    !message.includes("ReactDOM.render is no longer supported in React 18")
   ) {
     originalWarn(message, ...args);
   }
@@ -158,7 +158,7 @@ console.warn = (message, ...args) => {
 console.error = (message, ...args) => {
   if (
     message &&
-    !message.includes('ReactDOM.render is no longer supported in React 18')
+    !message.includes("ReactDOM.render is no longer supported in React 18")
   ) {
     originalError(message, ...args);
   }
@@ -166,12 +166,12 @@ console.error = (message, ...args) => {
 
 const queryClient = new QueryClient();
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <ConfigProvider
       theme={{
         token: {
-          colorPrimary: '#E67843',
+          colorPrimary: "#E67843",
         },
       }}
       locale={locale}

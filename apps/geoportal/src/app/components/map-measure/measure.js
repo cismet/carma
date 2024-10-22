@@ -26,7 +26,7 @@
       var el = (this._element = L.DomUtil.create(
         "div",
         "leaflet-zoom-animated leaflet-measure-path-measurement",
-        pane,
+        pane
       ));
       var inner = L.DomUtil.create("div", "", el);
       inner.title = this._title;
@@ -47,7 +47,7 @@
     _setPosition: function () {
       L.DomUtil.setPosition(
         this._element,
-        this._map.latLngToLayerPoint(this._latlng),
+        this._map.latLngToLayerPoint(this._latlng)
       );
       this._element.style.transform += " rotate(" + this._rotation + "rad)";
     },
@@ -66,14 +66,14 @@
     measurement,
     title,
     rotation,
-    options,
+    options
   ) {
     return new L.Marker.Measurement(
       latLng,
       measurement,
       title,
       rotation,
-      options,
+      options
     );
   };
 
@@ -243,7 +243,7 @@
             segmentLength: "Segment length",
           },
         },
-        options || {},
+        options || {}
       );
 
       this._measurementLayer = L.layerGroup().addTo(this._map);
@@ -284,7 +284,7 @@
 
         return originalReturnValue;
       },
-      true,
+      true
     ),
 
     setLatLngs: override(
@@ -293,7 +293,7 @@
         this.updateMeasurements();
 
         return originalReturnValue;
-      },
+      }
     ),
 
     spliceLatLngs: override(
@@ -302,7 +302,7 @@
         this.updateMeasurements();
 
         return originalReturnValue;
-      },
+      }
     ),
 
     formatDistance: formatDistance,
@@ -377,7 +377,7 @@
                 formatter(dist),
                 options.lang.segmentLength,
                 this._getRotation(ll1, ll2),
-                options,
+                options
               )
               .addTo(this._measurementLayer);
           }
@@ -391,7 +391,7 @@
               formatter(totalDist),
               options.lang.totalLength,
               0,
-              options,
+              options
             )
             .addTo(this._measurementLayer);
         }
@@ -406,7 +406,7 @@
             formatter(area),
             options.lang.totalArea,
             0,
-            options,
+            options
           )
           .addTo(this._measurementLayer);
       }

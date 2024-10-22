@@ -78,10 +78,10 @@ export const getFilterInfo = (items) => {
 const MyMenu = () => {
   const { setAppMenuActiveMenuSection } = useContext(UIDispatchContext);
   const { filterState, filterMode, filteredItems, shownFeatures } = useContext(
-    FeatureCollectionContext,
+    FeatureCollectionContext
   );
   const { setFilterState, setFilterMode } = useContext(
-    FeatureCollectionDispatchContext,
+    FeatureCollectionDispatchContext
   );
   const { appMode } = useContext(TopicMapContext);
 
@@ -178,21 +178,21 @@ const MyMenu = () => {
           ausgewählten Klimaorten vorbei: Aussichtspunkte{" "}
           {getSymbolSVGGetter(
             featureSamples4Icons.aussichtspunkt?.properties?.svgBadge,
-            featureSamples4Icons.aussichtspunkt?.properties?.svgBadgeDimension,
+            featureSamples4Icons.aussichtspunkt?.properties?.svgBadgeDimension
           )(
             20,
             featureSamples4Icons.aussichtspunkt?.properties.color,
-            "aussichtspunktsample_",
+            "aussichtspunktsample_"
           )}{" "}
           ermöglichen Ihnen den Blick auf weitere Klimaorte aus größerer
           Entfernung zu werfen und Zwischenstopps{" "}
           {getSymbolSVGGetter(
             featureSamples4Icons.zwischenstopp?.properties?.svgBadge,
-            featureSamples4Icons.zwischenstopp?.properties?.svgBadgeDimension,
+            featureSamples4Icons.zwischenstopp?.properties?.svgBadgeDimension
           )(
             20,
             featureSamples4Icons.zwischenstopp?.properties.color,
-            "zwischenstoppsample_",
+            "zwischenstoppsample_"
           )}{" "}
           bieten Ihnen ausgewählte Highlights im Routenverlauf an.
         </p>
@@ -367,7 +367,7 @@ const MyMenu = () => {
               sectionKey="filter"
               sectionTitle={getFilterHeader(
                 filteredItems?.length,
-                shownFeatures?.length,
+                shownFeatures?.length
               )}
               sectionBsStyle={FilterStyle}
               sectionContent={

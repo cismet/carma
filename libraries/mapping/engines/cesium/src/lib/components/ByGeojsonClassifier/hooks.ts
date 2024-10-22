@@ -13,7 +13,7 @@ import { pickFromClampedGeojson } from "../../utils/cesiumHelpers";
 
 const restoreMaterial = (
   entity: Entity,
-  originalMaterials: Map<Entity, MaterialProperty>,
+  originalMaterials: Map<Entity, MaterialProperty>
 ) => {
   const m = originalMaterials.get(entity);
   if (m) {
@@ -29,7 +29,7 @@ export const useSelectAndHighlightGeoJsonEntity = (
     highlightMaterial?: ColorMaterialProperty;
     isPrimaryStyle?: boolean;
     selectedEntityId?: string | null; // TODO restore selection on mount
-  },
+  }
 ) => {
   const handler = useRef<ScreenSpaceEventHandler | null>(null);
   const highlightEntity = useRef<Entity | null>(null);
@@ -82,7 +82,7 @@ export const useSelectAndHighlightGeoJsonEntity = (
         // last picked object is the top one we need for highlighting
         const lastGroundPrimitive = pickFromClampedGeojson(
           viewer,
-          event.position,
+          event.position
         );
         if (lastGroundPrimitive) {
           hasPick = true;

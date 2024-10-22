@@ -2,7 +2,7 @@ import { Cartesian2, Viewer } from "cesium";
 
 export const getCesiumCameraPixelDimensionForDistance = (
   viewer: Viewer,
-  distance: number,
+  distance: number
 ) => {
   const { scene, camera } = viewer;
 
@@ -11,7 +11,7 @@ export const getCesiumCameraPixelDimensionForDistance = (
     scene.drawingBufferHeight,
     distance,
     viewer.resolutionScale,
-    new Cartesian2(),
+    new Cartesian2()
   );
 
   const { x, y } = pixelDimensions;

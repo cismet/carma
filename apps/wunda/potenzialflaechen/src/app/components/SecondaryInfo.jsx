@@ -57,18 +57,18 @@ const InfoPanel = () => {
           <div style={{ fontSize: "115%", padding: "10px", paddingTop: "0px" }}>
             {display(
               "Lagebewertung Verkehr",
-              potenzialflaeche?.lagebewertung_verkehr,
+              potenzialflaeche?.lagebewertung_verkehr
             )}
             {display("ÖPNV Qualität", potenzialflaeche?.oepnv)}
             {display("Nähe zu", potenzialflaeche?.naehe_zu)}
             {display(
               "Siedlungsräumliche Lage",
-              potenzialflaeche?.siedlungsraeumliche_lage,
+              potenzialflaeche?.siedlungsraeumliche_lage
             )}
             {display("Topografie", potenzialflaeche?.topografie)}
             {display("Hangrichtung", potenzialflaeche?.hang)}
           </div>
-        </SecondaryInfoPanelSection>,
+        </SecondaryInfoPanelSection>
       );
     }
     if (
@@ -94,10 +94,10 @@ const InfoPanel = () => {
             {/* bauordnungsrecht_baulast kommt noch dazu*/}
             {display(
               "Bauordnungsrecht (Stand)",
-              potenzialflaeche?.stand_bauordnungsrecht,
+              potenzialflaeche?.stand_bauordnungsrecht
             )}
           </div>
-        </SecondaryInfoPanelSection>,
+        </SecondaryInfoPanelSection>
       );
     }
 
@@ -127,17 +127,17 @@ const InfoPanel = () => {
             {display("Bestand Versiegelung", potenzialflaeche?.versiegelung)}
             {display(
               "Äußere Erschließung",
-              potenzialflaeche?.aeussere_erschliessung,
+              potenzialflaeche?.aeussere_erschliessung
             )}
             {display("Wohnlagen", potenzialflaeche?.wohnlagen)}
             {/* {display("Bodenrichtwerte", potenzialflaeche?.)} */}
             {/* {display("Stadtraumtypen", potenzialflaeche?.)} */}
             {display(
               "Klimainformationen",
-              potenzialflaeche?.klimainformationen,
+              potenzialflaeche?.klimainformationen
             )}
           </div>
-        </SecondaryInfoPanelSection>,
+        </SecondaryInfoPanelSection>
       );
     }
     if (potenzialflaeche?.beschreibung_flaeche) {
@@ -170,7 +170,7 @@ const InfoPanel = () => {
               }
             })}
           </div>
-        </SecondaryInfoPanelSection>,
+        </SecondaryInfoPanelSection>
       );
     }
     if (potenzialflaeche?.notwendige_massnahmen) {
@@ -183,7 +183,7 @@ const InfoPanel = () => {
           <div style={{ fontSize: "115%", padding: "10px", paddingTop: "0px" }}>
             <p>{potenzialflaeche?.notwendige_massnahmen}</p>
           </div>
-        </SecondaryInfoPanelSection>,
+        </SecondaryInfoPanelSection>
       );
     }
     if (
@@ -213,11 +213,11 @@ const InfoPanel = () => {
             {display("Entwicklungsstand", potenzialflaeche?.entwicklungsstand)}
             {display(
               "Restriktionen / Hemnisse",
-              potenzialflaeche?.restriktionen,
+              potenzialflaeche?.restriktionen
             )}
             {display(
               "Empfohlene Art der Wohnnutzung",
-              potenzialflaeche?.empfohlene_nutzungen_wohnen,
+              potenzialflaeche?.empfohlene_nutzungen_wohnen
             )}
             {display(
               "Anzahl mög. Wohneinheiten",
@@ -229,27 +229,27 @@ const InfoPanel = () => {
                   )}{" "}
                   {t}
                 </span>
-              ),
+              )
             )}
 
             {display(
               "Entwicklungsaussichten",
-              potenzialflaeche?.entwicklungsaussichten,
+              potenzialflaeche?.entwicklungsaussichten
             )}
             {display("Verfügbarkeit", potenzialflaeche?.verfuegbarkeit)}
             {display("Verwertbarkeit", potenzialflaeche?.verwertbarkeit)}
             {display(
               "Handlungspriorität (Verwaltung)",
-              potenzialflaeche?.handlungsprioritaet,
+              potenzialflaeche?.handlungsprioritaet
             )}
             {display(
               "Empfohlene Nutzung",
-              potenzialflaeche?.empfohlene_nutzungen,
+              potenzialflaeche?.empfohlene_nutzungen
             )}
             {display("Revitalisierung", potenzialflaeche?.revitalisierung)}
             {display("Handlungsdruck", potenzialflaeche?.handlungsdruck)}
           </div>
-        </SecondaryInfoPanelSection>,
+        </SecondaryInfoPanelSection>
       );
     }
     // if (potenzialflaeche?.interne_hinweise) {
@@ -265,7 +265,7 @@ const InfoPanel = () => {
     // }
 
     const showRawData = new URLSearchParams(window.location.href).get(
-      "showRawData",
+      "showRawData"
     );
     if (showRawData !== null) {
       subSections.push(
@@ -277,7 +277,7 @@ const InfoPanel = () => {
           <div style={{ fontSize: "115%", padding: "10px", paddingTop: "0px" }}>
             <pre>{JSON.stringify(potenzialflaeche, null, 2)}</pre>
           </div>
-        </SecondaryInfoPanelSection>,
+        </SecondaryInfoPanelSection>
       );
     }
     return (
@@ -297,13 +297,13 @@ const InfoPanel = () => {
                 </span>
               ))}
               {display("Stadtbezirk(e)", potenzialflaeche?.stadtbezirke, (sb) =>
-                sb.join(", "),
+                sb.join(", ")
               )}
               {display("Quartier(e)", potenzialflaeche?.quartiere, (q) =>
-                q.join(", "),
+                q.join(", ")
               )}
               {display("Eigentümer", potenzialflaeche?.eigentuemer, (e) =>
-                e.join(", "),
+                e.join(", ")
               )}
             </div>
           </div>

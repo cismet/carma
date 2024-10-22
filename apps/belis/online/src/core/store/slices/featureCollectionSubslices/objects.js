@@ -1,18 +1,18 @@
-import bboxPolygon from '@turf/bbox-polygon';
-import booleanIntersects from '@turf/boolean-intersects';
-import { fetchGraphQL } from '../../../commons/graphql';
+import bboxPolygon from "@turf/bbox-polygon";
+import booleanIntersects from "@turf/boolean-intersects";
+import { fetchGraphQL } from "../../../commons/graphql";
 import {
   cloneFeature,
   compareFeature,
   getDocs,
   integrateIntermediateResults,
-} from '../../../helper/featureHelper';
+} from "../../../helper/featureHelper";
 import {
   convertBoundingBox,
   createQueryGeomFromBB,
-} from '../../../helper/gisHelper';
-import onlineQueryParts, { geomFactories } from '../../../queries/online';
-import { CONNECTIONMODE, getConnectionMode } from '../app';
+} from "../../../helper/gisHelper";
+import onlineQueryParts, { geomFactories } from "../../../queries/online";
+import { CONNECTIONMODE, getConnectionMode } from "../app";
 import {
   getFeatureCollection,
   getFilter,
@@ -23,9 +23,9 @@ import {
   setFeatureCollectionInfoForMode,
   setRequestBasis,
   setSelectedFeature,
-} from '../featureCollection';
-import { HEALTHSTATUS, setHealthState } from '../health';
-import { workerInstance } from '../../../workers/utils';
+} from "../featureCollection";
+import { HEALTHSTATUS, setHealthState } from "../health";
+import { workerInstance } from "../../../workers/utils";
 
 const dexieW = workerInstance;
 
@@ -49,7 +49,7 @@ export const loadObjectsIntoFeatureCollection = ({
 
       if (
         onlineDataForcing ||
-        state.spatialIndex.loading === 'done' ||
+        state.spatialIndex.loading === "done" ||
         connectionMode === CONNECTIONMODE.ONLINE
       ) {
         let resultIds, leitungsFeatures;
@@ -130,12 +130,12 @@ export const loadObjectsIntoFeatureCollection = ({
               // dispatch(setDone(true));
             });
         } else {
-          let queryparts = '';
+          let queryparts = "";
 
           for (const filterKey of Object.keys(filter)) {
             if (filter[filterKey].enabled === true) {
               const qp = onlineQueryParts[filterKey];
-              queryparts += qp + '\n';
+              queryparts += qp + "\n";
             }
           }
           const gqlQuery = `query q($bbPoly: geometry!) {${queryparts}}`;
@@ -144,10 +144,10 @@ export const loadObjectsIntoFeatureCollection = ({
             bbPoly: createQueryGeomFromBB(convertedBoundingBox),
           };
           try {
-            console.time('query returned');
+            console.time("query returned");
             // online query
             const response = await fetchGraphQL(gqlQuery, queryParameter, jwt);
-            console.timeEnd('query returned');
+            console.timeEnd("query returned");
 
             if (response?.ok) {
               const featureCollection = [];
@@ -161,12 +161,12 @@ export const loadObjectsIntoFeatureCollection = ({
               enrichAndSetFeatures(dispatch, state, featureCollection, true);
             } else {
               throw new Error(
-                'Error in fetchGraphQL (' + response.status + ')'
+                "Error in fetchGraphQL (" + response.status + ")"
               );
             }
           } catch (e) {
-            console.log('error was thrown', e);
-            console.log('errorneous query', { gqlQuery, queryParameter, jwt });
+            console.log("error was thrown", e);
+            console.log("errorneous query", { gqlQuery, queryParameter, jwt });
             dispatch(setRequestBasis(undefined));
             dispatch(setHealthState({ jwt, healthState: HEALTHSTATUS.ERROR }));
           }
@@ -189,18 +189,18 @@ export const loadObjectsIntoFeatureCollection = ({
 
 export const createFeatureFromData = (data, type) => {
   const feature = {
-    text: '-',
+    text: "-",
     id: type,
     enriched: true,
-    type: 'Feature',
+    type: "Feature",
     selected: false,
     featuretype: type,
     // geometry: geomfactory(data),
     geometry: geomFactories[type](data),
     crs: {
-      type: 'name',
+      type: "name",
       properties: {
-        name: 'urn:ogc:def:crs:EPSG::25832',
+        name: "urn:ogc:def:crs:EPSG::25832",
       },
     },
     properties: {},
@@ -215,7 +215,7 @@ export const createFeatureFromData = (data, type) => {
 
   feature.properties = data;
 
-  feature.id = feature.id + '-' + data.id;
+  feature.id = feature.id + "-" + data.id;
   feature.properties.docs = getDocs(feature);
   return feature;
 };
@@ -226,7 +226,7 @@ const enrichAndSetFeatures = (
   featureCollectionIn
   // removeFromIntermediateResults
 ) => {
-  console.time('features enirched');
+  console.time("features enirched");
 
   const tasks = [];
 
@@ -256,7 +256,7 @@ const enrichAndSetFeatures = (
 
   Promise.all(tasks).then(
     (enrichedFeatureCollection) => {
-      console.timeEnd('features enirched');
+      console.timeEnd("features enirched");
       const sortedElements = [];
       const typeCount = {};
       let selectionStillInMap = false;
@@ -316,7 +316,7 @@ const enrichAndSetFeatures = (
       dispatch(setDoneForMode({ mode: MODES.OBJECTS, done: true }));
     },
     (error) => {
-      alert('problem' + error);
+      alert("problem" + error);
       //todo: do something
     }
   );

@@ -128,7 +128,7 @@ const Hitzekarte = () => {
               let updatedSelection;
               if (prevSelected.includes(index)) {
                 updatedSelection = prevSelected.filter(
-                  (simIndex) => simIndex !== index,
+                  (simIndex) => simIndex !== index
                 );
               } else {
                 updatedSelection = [...prevSelected, index];
@@ -139,7 +139,7 @@ const Hitzekarte = () => {
               history.push(
                 modifyQueryPart(history.location.search, {
                   simulations: selectedSimulationsParam,
-                }),
+                })
               );
 
               return updatedSelection;
@@ -180,7 +180,7 @@ const Hitzekarte = () => {
             setSelectedBackgroundIndex(index);
 
             history.push(
-              modifyQueryPart(history.location.search, { bg: index }),
+              modifyQueryPart(history.location.search, { bg: index })
             );
           }}
           minified={minifiedInfoBox}
@@ -213,7 +213,7 @@ const Hitzekarte = () => {
         if ((Array.isArray(hits) && hits[0]?.more?.pid) || hits[0]?.more?.kid) {
           const gazId = hits[0]?.more?.pid || hits[0]?.more?.kid;
           setSelectedFeatureByPredicate(
-            (feature) => feature.properties.id === gazId,
+            (feature) => feature.properties.id === gazId
           );
         }
       }}

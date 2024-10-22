@@ -1,7 +1,7 @@
-import React, { ReactNode } from 'react';
-import Control from './Control';
-import styles from '../map-control.module.css';
-import Main from './Main';
+import React, { ReactNode } from "react";
+import Control from "./Control";
+import styles from "../map-control.module.css";
+import Main from "./Main";
 
 interface ControlLayoutProps {
   children: ReactNode;
@@ -54,15 +54,15 @@ const ControlLayoutBasic: React.FC<ControlLayoutProps> = ({ children }) => {
   });
 
   return (
-    <div className={styles['container']}>
-      <div className={styles['main']}>{mainComponent}</div>
-      <div className={styles['controls-container']}>
+    <div className={styles["container"]}>
+      <div className={styles["main"]}>{mainComponent}</div>
+      <div className={styles["controls-container"]}>
         {Object.keys(allPositions).map((position) => {
           return (
             <div className={styles[position]}>
               {allPositions[position].map((component, idx) => {
                 return (
-                  <div className={styles['control-item']}>
+                  <div className={styles["control-item"]}>
                     <Control {...component} key={idx} />
                   </div>
                 );

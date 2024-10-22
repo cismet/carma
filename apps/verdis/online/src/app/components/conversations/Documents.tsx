@@ -1,6 +1,11 @@
-import Document from './Document';
+import Document from "./Document";
 
-export const Documents = ({ docs, setDocs, readOnly = false, embedded = false }) => {
+export const Documents = ({
+  docs,
+  setDocs,
+  readOnly = false,
+  embedded = false,
+}) => {
   let remover;
   if (readOnly === false) {
     remover = (index) => {
@@ -10,19 +15,19 @@ export const Documents = ({ docs, setDocs, readOnly = false, embedded = false })
     };
   }
   let background;
-  let margin = '5px';
+  let margin = "5px";
   if (embedded === true) {
-    background = '#00000000'; //transparent
+    background = "#00000000"; //transparent
     // background = '#fff000'; //transparent
-    margin = '0px';
+    margin = "0px";
   }
 
   return (
     <div style={{ margin }}>
       {(docs || []).map((fileO, index) => {
         return (
-          <span key={'draftDocs.' + index}>
-            {index > 0 ? ' ' : ''}
+          <span key={"draftDocs." + index}>
+            {index > 0 ? " " : ""}
             {readOnly && (
               <Document
                 addComma={index < docs.length - 1}

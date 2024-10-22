@@ -10,7 +10,7 @@ export const tabItems = (
   legend,
   currentLayer: Layer,
   metadataText?: string,
-  pdfUrl?: string,
+  pdfUrl?: string
 ) => {
   return [
     {

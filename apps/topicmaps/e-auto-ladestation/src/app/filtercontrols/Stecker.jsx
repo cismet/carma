@@ -1,6 +1,6 @@
-import { faPlug } from '@fortawesome/free-solid-svg-icons';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { Form } from 'react-bootstrap';
+import { faPlug } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { Form } from "react-bootstrap";
 
 const Stecker = ({ filter, setFilter, steckertypes }) => {
   if (steckertypes) {
@@ -9,14 +9,14 @@ const Stecker = ({ filter, setFilter, steckertypes }) => {
         <Form>
           <div>
             Steckertypen
-            {'  '}
+            {"  "}
             <FontAwesomeIcon
               icon={faPlug}
               size="2x"
               style={{
-                color: 'grey',
-                width: '30px',
-                textAlign: 'center',
+                color: "grey",
+                width: "30px",
+                textAlign: "center",
               }}
             />
           </div>
@@ -26,8 +26,8 @@ const Stecker = ({ filter, setFilter, steckertypes }) => {
                 <div>
                   <Form.Check
                     readOnly={true}
-                    key={'filter.emob.stecker.' + typ}
-                    id={'filter.emob.stecker.' + typ}
+                    key={"filter.emob.stecker." + typ}
+                    id={"filter.emob.stecker." + typ}
                     onClick={(e) => {
                       const newFilterState = { ...filter };
 

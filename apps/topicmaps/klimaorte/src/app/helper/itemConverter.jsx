@@ -1,17 +1,17 @@
-import { addSVGToProps } from 'react-cismap/tools/svgHelper';
-import Color from 'color';
-import { getColorForProperties } from './fromStadtplan';
-import { getWegeartIcon } from './iconFactory';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { addSVGToProps } from "react-cismap/tools/svgHelper";
+import Color from "color";
+import { getColorForProperties } from "./fromStadtplan";
+import { getWegeartIcon } from "./iconFactory";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 const shortenOnLinebreak = (
   text,
   maxLineLength = 320,
-  overflowString = '...'
+  overflowString = "..."
 ) => {
   if (!text) {
     return undefined;
   }
-  const linebreakIndex = text.indexOf('\n');
+  const linebreakIndex = text.indexOf("\n");
   let additionalInfo;
 
   if (linebreakIndex > 0 && linebreakIndex < maxLineLength) {
@@ -25,10 +25,10 @@ const shortenOnLinebreak = (
   return additionalInfo;
 };
 const convertBPKlimaItemsToFeature = async (itemIn, poiColors) => {
-  if (itemIn.typ === 'ort') {
+  if (itemIn.typ === "ort") {
     let item = await addSVGToProps(itemIn, (i) => i.thema.icon);
-    const text = item?.standort?.name || 'Kein Standort';
-    const type = 'Feature';
+    const text = item?.standort?.name || "Kein Standort";
+    const type = "Feature";
     const selected = false;
     const geometry = item?.standort?.geojson;
     // item.svg=DEFAULT_SVG.code;
@@ -53,7 +53,7 @@ const convertBPKlimaItemsToFeature = async (itemIn, poiColors) => {
     item.url = item?.website;
     if (item.bild) {
       item.foto =
-        'https://www.wuppertal.de/geoportal/standort_klima/fotos/' + item.bild;
+        "https://www.wuppertal.de/geoportal/standort_klima/fotos/" + item.bild;
     }
 
     const f = {
@@ -62,52 +62,52 @@ const convertBPKlimaItemsToFeature = async (itemIn, poiColors) => {
       selected,
       geometry,
       crs: {
-        type: 'name',
+        type: "name",
         properties: {
-          name: 'urn:ogc:def:crs:EPSG::25832',
+          name: "urn:ogc:def:crs:EPSG::25832",
         },
       },
       properties: item,
-      featuretype: 'ort',
+      featuretype: "ort",
     };
     return f;
-  } else if (itemIn.typ === 'route') {
+  } else if (itemIn.typ === "route") {
     let item = await addSVGToProps(itemIn, (i) => i.icon);
     //round distanz to 1 digit
     const dist = Math.round(item.distanz * 10) / 10;
 
     const additionalText = `An dieser Route befinden sich ${
-      item?.routenpunkte?.length > 0 ? item?.routenpunkte?.length : 'keine'
-    } ${item?.routenpunkte?.length === 1 ? 'Station' : 'Stationen'}.`;
+      item?.routenpunkte?.length > 0 ? item?.routenpunkte?.length : "keine"
+    } ${item?.routenpunkte?.length === 1 ? "Station" : "Stationen"}.`;
 
-    const additionalInfo = shortenOnLinebreak(item?.beschreibung, 320, '...');
+    const additionalInfo = shortenOnLinebreak(item?.beschreibung, 320, "...");
 
     const info = {
-      header: 'Klimaroute',
+      header: "Klimaroute",
       title: (
         <span>
           {item?.name} <FontAwesomeIcon icon={getWegeartIcon(item?.wegeart)} />
         </span>
       ),
       additionalInfo:
-        (additionalInfo ? additionalInfo + '\n' : '') + ' ' + additionalText,
+        (additionalInfo ? additionalInfo + "\n" : "") + " " + additionalText,
 
       subtitle: (
-        <span style={{ fontSize: '12px', fontWeight: 500, lineHeight: 1.2 }}>
+        <span style={{ fontSize: "12px", fontWeight: 500, lineHeight: 1.2 }}>
           Schwierigkeit: {item?.schwierigkeitsgrad}
           <br />
-          Distanz: {dist} km, Dauer: {item?.dauer}{' '}
-          {item?.dauer === '1:00' ? 'Stunde' : 'Stunden'}
+          Distanz: {dist} km, Dauer: {item?.dauer}{" "}
+          {item?.dauer === "1:00" ? "Stunde" : "Stunden"}
         </span>
       ), // style in span make it look like h6
     };
 
     item.info = info;
-    const text = item?.name || '???';
-    const type = 'Feature';
+    const text = item?.name || "???";
+    const type = "Feature";
     const selected = false;
     const geometry = item?.geojsonPoly;
-    item.color = '#92BE4D';
+    item.color = "#92BE4D";
     const result = [];
 
     const route = {
@@ -116,48 +116,48 @@ const convertBPKlimaItemsToFeature = async (itemIn, poiColors) => {
       selected,
       geometry,
       crs: {
-        type: 'name',
+        type: "name",
         properties: {
-          name: 'urn:ogc:def:crs:EPSG::25832',
+          name: "urn:ogc:def:crs:EPSG::25832",
         },
       },
       properties: item,
-      featuretype: 'route',
+      featuretype: "route",
     };
     result.push(route);
     //check if route contains aussichtspunkte
     if (item.routenpunkte) {
       for (const rp of item.routenpunkte) {
-        if (rp.typ === 'aussichtspunkt') {
+        if (rp.typ === "aussichtspunkt") {
           const rpWithIcon = await addSVGToProps(
             rp,
-            (i) => 'Icon_Aussichtsturm_farbig.svg'
+            (i) => "Icon_Aussichtsturm_farbig.svg"
           );
           const aussichtspunkt = {
-            featuretype: 'aussichtspunkt',
+            featuretype: "aussichtspunkt",
 
             text: rp.name,
-            type: 'Feature',
+            type: "Feature",
             selected: false,
             geometry: rp.geom,
             crs: {
-              type: 'name',
+              type: "name",
               properties: {
-                name: 'urn:ogc:def:crs:EPSG::25832',
+                name: "urn:ogc:def:crs:EPSG::25832",
               },
             },
             properties: {
               ...rpWithIcon,
-              color: '#655756',
+              color: "#655756",
               info: {
-                header: 'Aussichtspunkt auf Klimaroute',
+                header: "Aussichtspunkt auf Klimaroute",
                 title: rp?.name,
                 additionalInfo: (feature) => {
                   //will be called as a function because the needed info is added later on
                   return `Von diesem Aussichtspunkt aus sehen Sie ${
                     feature?.properties?.angebote?.length
                   } Klimaort${
-                    feature?.properties?.angebote?.length === 1 ? '' : 'e'
+                    feature?.properties?.angebote?.length === 1 ? "" : "e"
                   }.`;
                 },
                 subtitle: (
@@ -173,37 +173,37 @@ const convertBPKlimaItemsToFeature = async (itemIn, poiColors) => {
 
           result.push(aussichtspunkt);
           const aussichtsview = {
-            featuretype: 'view',
+            featuretype: "view",
 
-            text: rp.name + ' (Blickfeld)',
-            type: 'Feature',
+            text: rp.name + " (Blickfeld)",
+            type: "Feature",
 
             selected: false,
             preventSelection: true,
             geometry: rp.viewgeom,
             crs: {
-              type: 'name',
+              type: "name",
               properties: {
-                name: 'urn:ogc:def:crs:EPSG::25832',
+                name: "urn:ogc:def:crs:EPSG::25832",
               },
             },
-            properties: { ...rpWithIcon, typ: 'blickfeld' },
+            properties: { ...rpWithIcon, typ: "blickfeld" },
           };
           result.push(aussichtsview);
         }
       }
     }
     return result;
-  } else if (itemIn.typ === 'zwischenstopp') {
+  } else if (itemIn.typ === "zwischenstopp") {
     let item = await addSVGToProps(
       itemIn,
-      (i) => 'Klimaroute_Icon_Zwischenstopp_farbig.svg'
+      (i) => "Klimaroute_Icon_Zwischenstopp_farbig.svg"
     );
     //item.svg = DEFAULT_SVG.code;
-    const type = 'Feature';
+    const type = "Feature";
     const selected = false;
     const geometry = item?.geojson;
-    item.color = '#226c32';
+    item.color = "#226c32";
     item.styleinfo = {};
     item.styleinfo.weight = 2;
     item.styleinfo.darkenFactor = 0.01;
@@ -211,13 +211,13 @@ const convertBPKlimaItemsToFeature = async (itemIn, poiColors) => {
     //set additionalInfo to the first 160 chars of beschreibung and add ...
     // check if there is a linebreak within the first 320 chars
     // if yes, set additional info to the first line
-    let additionalInfo = '';
+    let additionalInfo = "";
 
     additionalInfo = shortenOnLinebreak(item?.beschreibung);
 
     const text = item.name;
     const info = {
-      header: 'Zwischenstopp',
+      header: "Zwischenstopp",
       title: text,
       additionalInfo,
     };
@@ -228,22 +228,22 @@ const convertBPKlimaItemsToFeature = async (itemIn, poiColors) => {
       selected,
       geometry,
       crs: {
-        type: 'name',
+        type: "name",
         properties: {
-          name: 'urn:ogc:def:crs:EPSG::25832',
+          name: "urn:ogc:def:crs:EPSG::25832",
         },
       },
       properties: item,
-      featuretype: 'zwischenstopp',
+      featuretype: "zwischenstopp",
     };
     return f;
-  } else if (itemIn.typ === 'poi') {
+  } else if (itemIn.typ === "poi") {
     let clonedItem = JSON.parse(JSON.stringify(itemIn));
 
     let item = await addSVGToProps(clonedItem, (i) => getSignature(i));
     const headerColor = Color(getColorForProperties(item, poiColors));
     const info = {
-      header: (item?.mainlocationtype?.lebenslagen || []).join(', '),
+      header: (item?.mainlocationtype?.lebenslagen || []).join(", "),
       title: item.name,
       additionalInfo: item.info,
       subtitle: item?.adresse,
@@ -251,7 +251,7 @@ const convertBPKlimaItemsToFeature = async (itemIn, poiColors) => {
     item.info = info;
     item.color = headerColor;
     const id = item.id;
-    const type = 'Feature';
+    const type = "Feature";
     const selected = false;
     const geometry = item.geojson;
     const text = item.name;
@@ -263,16 +263,16 @@ const convertBPKlimaItemsToFeature = async (itemIn, poiColors) => {
       selected,
       geometry,
       crs: {
-        type: 'name',
+        type: "name",
         properties: {
-          name: 'urn:ogc:def:crs:EPSG::25832',
+          name: "urn:ogc:def:crs:EPSG::25832",
         },
       },
       properties: item,
-      featuretype: 'poi',
+      featuretype: "poi",
     };
   } else {
-    console.warn('unknown item type', itemIn);
+    console.warn("unknown item type", itemIn);
   }
 };
 
@@ -284,5 +284,5 @@ const getSignature = (properties) => {
   } else if (properties.mainlocationtype.signatur) {
     return properties.mainlocationtype.signatur;
   }
-  return 'Platz.svg'; //TODO sinnvoller default
+  return "Platz.svg"; //TODO sinnvoller default
 };

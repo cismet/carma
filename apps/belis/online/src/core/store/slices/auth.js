@@ -1,6 +1,10 @@
 import { createSlice } from "@reduxjs/toolkit";
 
-const initialState = { jwt: undefined, login: undefined, loginRequested: false };
+const initialState = {
+  jwt: undefined,
+  login: undefined,
+  loginRequested: false,
+};
 
 const slice = createSlice({
   name: "auth",

@@ -78,7 +78,7 @@ function App({ published }: { published?: boolean }) {
   useEffect(() => {
     console.info(
       " [GEOPORTAL|ROUTER] App Route changed to:",
-      location.pathname,
+      location.pathname
     );
   }, [location]);
 
@@ -90,7 +90,7 @@ function App({ published }: { published?: boolean }) {
     if (searchParams.get("data")) {
       const data = searchParams.get("data");
       const newConfig: Config = JSON.parse(
-        LZString.decompressFromEncodedURIComponent(data),
+        LZString.decompressFromEncodedURIComponent(data)
       );
       dispatch(setLayers(newConfig.layers));
       dispatch(setBackgroundLayer(newConfig.backgroundLayer));

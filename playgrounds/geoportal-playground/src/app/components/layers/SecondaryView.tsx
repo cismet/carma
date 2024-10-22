@@ -90,7 +90,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
           }}
           className={cn(
             `bg-white rounded-[10px] 2xl:w-1/2 w-5/6 flex flex-col relative px-10 gap-2 py-2 transition-all duration-300`,
-            showInfo ? "h-[600px]" : "h-12",
+            showInfo ? "h-[600px]" : "h-12"
           )}
           onMouseEnter={() => {
             routedMapRef?.leafletMap?.leafletElement.dragging.disable();
@@ -182,7 +182,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
                 dispatch(setShowInfo(!showInfo));
                 setTimeout(
                   () => dispatch(setShowInfoText(!showInfoText)),
-                  showInfoText ? 0 : 80,
+                  showInfoText ? 0 : 80
                 );
               }}
               className="relative fa-stack mt-1"

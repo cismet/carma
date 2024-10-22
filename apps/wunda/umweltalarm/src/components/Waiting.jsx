@@ -12,8 +12,8 @@ const Waiting = ({ waiting }) => {
       style={{
         zIndex: 3000000000,
       }}
-      height='200'
-      size='s'
+      height="200"
+      size="s"
       show={waiting !== undefined}
       //   onHide={close}
       keyboard={false}
@@ -24,8 +24,17 @@ const Waiting = ({ waiting }) => {
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        <div style={{ display: "flex", flexDirection: "row", alignItems: "baseline" }}>
-          <ReactLoading type={"cylon"} color={selectedFeature?.properties.color} />{" "}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "baseline",
+          }}
+        >
+          <ReactLoading
+            type={"cylon"}
+            color={selectedFeature?.properties.color}
+          />{" "}
           <div style={{ marginLeft: 20 }}>{waiting?.text}</div>
         </div>
       </Modal.Body>

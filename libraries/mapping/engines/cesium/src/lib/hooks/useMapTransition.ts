@@ -72,7 +72,7 @@ export const useMapTransition = ({
       Cartesian3.equals(viewer.camera.position, prevCamera2dPosition) !== true
     ) {
       console.info(
-        "[CESIUM|LEAFLET|TO3D] camera position unchanged, skipping 2d to 3d transition animation zoom",
+        "[CESIUM|LEAFLET|TO3D] camera position unchanged, skipping 2d to 3d transition animation zoom"
       );
       onComplete3d();
       return;
@@ -85,7 +85,7 @@ export const useMapTransition = ({
         console.info(
           "[CESIUM|2D3D|TO3D] restore 3d camera position zoom",
           pos,
-          prevHPR,
+          prevHPR
         );
         animateInterpolateHeadingPitchRange(viewer, pos, prevHPR, {
           delay: duration, // allow the css transition to finish
@@ -97,7 +97,7 @@ export const useMapTransition = ({
         console.info(
           "[CESIUM|2D3D|TO3D] to change to 3d camera position applied zoom",
           pos,
-          prevHPR,
+          prevHPR
         );
         onComplete3d();
         return;
@@ -144,7 +144,7 @@ export const useMapTransition = ({
       console.log(
         "last camera pitch",
         viewer.camera.pitch,
-        viewer.camera.pitch + Math.PI / 2,
+        viewer.camera.pitch + Math.PI / 2
       );
       setPrevCamera3d({
         position: viewer.camera.position.clone(),
@@ -192,7 +192,7 @@ export const useMapTransition = ({
           distanceBefore,
           height,
           heightBefore,
-          zoomDiff,
+          zoomDiff
         );
       }
     } else {
@@ -218,7 +218,7 @@ export const useMapTransition = ({
       console.info(
         "[CESIUM|2D3D|TO2D] setting prev HPR zoom",
         groundPos,
-        height,
+        height
       );
       setPrevHPR(
         animateInterpolateHeadingPitchRange(
@@ -228,8 +228,8 @@ export const useMapTransition = ({
           {
             duration: duration * 1000,
             onComplete: onComplete2d,
-          },
-        ),
+          }
+        )
       );
     } else {
       console.info("rotate around camera position not implemented yet zoom");

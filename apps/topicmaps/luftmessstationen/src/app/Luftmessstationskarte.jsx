@@ -25,7 +25,7 @@ import {
 function Comp() {
   const [gazData, setGazData] = useState([]);
   const { setSelectedFeatureByPredicate } = useContext(
-    FeatureCollectionDispatchContext,
+    FeatureCollectionDispatchContext
   );
   // const { items, filteredItems, allFeatures } = useContext(FeatureCollectionContext);
 
@@ -65,7 +65,7 @@ function Comp() {
       gazetteerHitTrigger={(hits) => {
         if (Array.isArray(hits) && hits[0]?.more?.mid) {
           setSelectedFeatureByPredicate(
-            (feature) => feature.properties.id === hits[0].more.mid,
+            (feature) => feature.properties.id === hits[0].more.mid
           );
         }
       }}
@@ -80,7 +80,7 @@ function Comp() {
           let mailToHref =
             "mailto:luftreinhaltung@stadt.wuppertal.de?subject=Rückfrage zu Messwerten&body=" +
             encodeURI(
-              `Sehr geehrte Damen und Herren,${br}${br} zu der Luftmessstationskarte `,
+              `Sehr geehrte Damen und Herren,${br}${br} zu der Luftmessstationskarte `
             ) +
             encodeURI(`auf${br}${br}`) +
             `${window.location.href
@@ -93,7 +93,7 @@ function Comp() {
                 `${br}${br}${br}${br}` +
                 `Mit freundlichen Grüßen${br}` +
                 `${br}` +
-                `${br}`,
+                `${br}`
             );
           document.body.appendChild(link);
           link.href = mailToHref;

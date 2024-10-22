@@ -31,8 +31,20 @@ const getIconForLoadingState = (ls) => {
   }
 };
 
-const CacheItem = ({ info, config, renew, refresh = () => {}, refreshAllowed }) => {
-  const { lastUpdate, loadingState, objectCount, updateCount, cachingProgress } = info;
+const CacheItem = ({
+  info,
+  config,
+  renew,
+  refresh = () => {},
+  refreshAllowed,
+}) => {
+  const {
+    lastUpdate,
+    loadingState,
+    objectCount,
+    updateCount,
+    cachingProgress,
+  } = info;
   const { name, key, getName } = config;
   const selectedTeam = useSelector(getTeam);
 
@@ -41,8 +53,8 @@ const CacheItem = ({ info, config, renew, refresh = () => {}, refreshAllowed }) 
       <Button
         disabled={loadingState === "loading" || !refreshAllowed}
         style={{ margin: 3 }}
-        variant='outline-primary'
-        size='sm'
+        variant="outline-primary"
+        size="sm"
         onClick={() => {
           renew();
         }}
@@ -147,7 +159,7 @@ const CacheItem = ({ info, config, renew, refresh = () => {}, refreshAllowed }) 
     cols[3] = (
       <td key={"td[3]." + key} style={{ textAlign: "left", width: "100%" }}>
         <ProgressBar
-          variant='warning'
+          variant="warning"
           now={100}
           label={getName !== undefined ? getName(selectedTeam) : name}
           max={100}
