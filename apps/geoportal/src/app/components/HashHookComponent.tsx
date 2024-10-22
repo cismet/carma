@@ -66,6 +66,7 @@ export default function HashHookComponent({
           dispatch(setUIShowLayerHideButtons(false));
         }
       }
+      console.debug("HOOK: App useEffect, applied newConfig", `\n${JSON.stringify(newConfig.settings, null, 2)}`);
       searchParams.delete("data");
       setSearchParams(searchParams);
     }

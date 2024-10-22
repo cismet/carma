@@ -1,3 +1,5 @@
+import { useSelector } from "react-redux";
+import { getUIPublished } from "../store/slices/ui";
 import GeoportalMap from "./GeoportalMap";
 import MapMeasurement from "./map-measure/MapMeasurement";
 import TopNavbar from "./TopNavbar";
@@ -6,9 +8,10 @@ import TopNavbar from "./TopNavbar";
 
 const GeoportalLayout = () => {
     console.log("RENDER: [GEOPORTAL] LAYOUT");
+    const published = useSelector(getUIPublished);
     return (
         <div className="flex flex-col w-full " style={{ height: "100dvh" }}>
-            {true && <TopNavbar />}
+            {!published && <TopNavbar />}
             {true && <MapMeasurement />}
             {true && <GeoportalMap />}
         </div>
