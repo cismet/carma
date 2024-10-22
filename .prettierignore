@@ -1,5 +1,15 @@
 # Add files here to ignore them from prettier formatting
-/dist
-/coverage
+
 /.nx/cache
 /.nx/workspace-data
+
+
+
+/coverage
+/dist
+
+/libraries/collaboration/carma-pecher-collab/pecher-collab-submodule
+/libraries/collaboration/carma-wuppertal-collab/wuppertal-collab-submodule
+
+**/public/data/**/*.json
+**/public/data/**/*.geojson

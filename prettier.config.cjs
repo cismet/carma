@@ -6,19 +6,5 @@
 // github.com/prettier/prettier/blob/1b7fad52558e16444399d11ff2d89aa8ed895c77/docs/options.md
 
 module.exports = {
-  //arrowParens: "always",
-  //bracketSpacing: 'true',
-  singleQuote: false, // causes less escaping
-  trailingComma: 'all',
-  //semi: true,
-  //tabWidth: 2,
-  //useTabs: false,
-  overrides: [
-    {
-      files: '*.json',
-      options: {
-        printWidth: 120,
-      },
-    },
-  ],
+  //trailingComma: 'all',
 };
