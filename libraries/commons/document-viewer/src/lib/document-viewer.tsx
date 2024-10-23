@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
-import Navbar from './components/Navbar';
-import Sidebar from './components/Sidebar';
-import DocMap from './components/DocMap';
-import { useParams } from 'react-router-dom';
-import 'leaflet/dist/leaflet.css';
+import { useEffect, useRef, useState } from "react";
+import Navbar from "./components/Navbar";
+import Sidebar from "./components/Sidebar";
+import DocMap from "./components/DocMap";
+import { useParams } from "react-router-dom";
+import "leaflet/dist/leaflet.css";
 
 export type layer = {
   [key: string]: {
@@ -21,7 +21,7 @@ export type Doc = {
   group: string;
   file: string;
   meta: // TODO fix type here
-    | string
+  | string
     | {
         [key: string]: {
           x: number;
@@ -52,7 +52,7 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isResizingRef = useRef(false);
 
-  const mapHeight = 'calc(100vh - 49px)';
+  const mapHeight = "calc(100vh - 49px)";
 
   const handleMouseDown = (
     event: React.MouseEvent<HTMLDivElement, MouseEvent>,
@@ -61,8 +61,8 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
     event.stopPropagation();
 
     isResizingRef.current = true;
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
   };
 
   const handleMouseMove = (event: MouseEvent) => {
@@ -85,8 +85,8 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
 
   const handleMouseUp = () => {
     isResizingRef.current = false;
-    document.removeEventListener('mousemove', handleMouseMove);
-    document.removeEventListener('mouseup', handleMouseUp);
+    document.removeEventListener("mousemove", handleMouseMove);
+    document.removeEventListener("mouseup", handleMouseUp);
   };
 
   useEffect(() => {
@@ -96,10 +96,10 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
   }, [mapWrapperRef]);
 
   return (
-    <div style={{ background: '#343a40', height: '100vh' }}>
+    <div style={{ background: "#343a40", height: "100vh" }}>
       <div
         style={{
-          backgroundImage: 'linear-gradient(to bottom, #3c3c3c 0, #222 100%)',
+          backgroundImage: "linear-gradient(to bottom, #3c3c3c 0, #222 100%)",
         }}
       >
         <Navbar
@@ -118,24 +118,24 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
       <div
         style={{
           height: mapHeight,
-          background: 'grey',
-          display: 'flex',
-          flexDirection: 'row',
-          flexWrap: 'nowrap',
-          justifyContent: 'flex-start',
-          alignItems: 'flex-start',
-          alignContent: 'center',
+          background: "grey",
+          display: "flex",
+          flexDirection: "row",
+          flexWrap: "nowrap",
+          justifyContent: "flex-start",
+          alignItems: "flex-start",
+          alignContent: "center",
         }}
       >
         {docs.length > 1 && (
           <div
             id="sidebar"
             style={{
-              background: 'rgb(153, 153, 153)',
+              background: "rgb(153, 153, 153)",
               height: mapHeight,
               // width: sidebarWidth,
-              padding: '5px 1px 5px 5px',
-              overflow: 'scroll',
+              padding: "5px 1px 5px 5px",
+              overflow: "scroll",
             }}
             ref={sidebarRef}
           >
@@ -144,7 +144,9 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
               index={parseInt(file!)}
               // TODO fix type
               // @ts-expect-error type is wrong
-              maxIndex={docs[parseInt(file!) - 1]?.meta.pages as unknown as number}
+              maxIndex={
+                docs[parseInt(file!) - 1]?.meta.pages as unknown as number
+              }
               mode={mode}
               compactView={compactView}
             />
@@ -153,10 +155,10 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
         <div
           id="sidebar-slider"
           style={{
-            background: '#999999',
+            background: "#999999",
             height: mapHeight,
             width: 10,
-            cursor: 'col-resize',
+            cursor: "col-resize",
           }}
           onMouseDown={handleMouseDown}
           // onTouchStart={startResizing}
@@ -166,7 +168,7 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
           id="docviewer"
           style={{
             height: mapHeight,
-            width: '100%',
+            width: "100%",
           }}
           ref={mapWrapperRef}
         >

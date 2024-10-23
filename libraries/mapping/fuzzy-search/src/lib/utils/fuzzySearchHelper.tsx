@@ -1,4 +1,3 @@
-
 import {
   SearchResultItem,
   SearchResult,
@@ -14,10 +13,16 @@ import {
 import { md5FetchText } from "./fetching";
 
 import { stopwords } from "../config/stopwords.de-de";
-import ENDPOINT, { NAMED_CATEGORIES, type NamedCategory } from "../config/endpoints";
-import { isEndpoint } from '../config/index';
+import ENDPOINT, {
+  NAMED_CATEGORIES,
+  type NamedCategory,
+} from "../config/endpoints";
+import { isEndpoint } from "../config/index";
 
-export const renderCategoryTitle = (category: ENDPOINT, namedCategories: Partial<NamedCategory>) => {
+export const renderCategoryTitle = (
+  category: ENDPOINT,
+  namedCategories: Partial<NamedCategory>,
+) => {
   const title = namedCategories[category] || category;
   return <span>{title}</span>;
 };
@@ -109,7 +114,7 @@ export const mapDataToSearchResult = (
       optionItem.label = renderCategoryTitle(item, NAMED_CATEGORIES);
       optionItem.options = splittedCategories[item];
     } else {
-      console.warn(`category ${item} does not match known endpoints`, ENDPOINT)
+      console.warn(`category ${item} does not match known endpoints`, ENDPOINT);
     }
 
     prepareOptions.push(optionItem);
@@ -294,7 +299,6 @@ export const getGazData = async (
 
   setGazData(gazData);
 };
-
 
 export const getDefaultSearchConfig = (config: SearchConfig): SearchConfig => {
   let prepoHandling;

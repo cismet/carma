@@ -29,10 +29,19 @@ const getGazData = async (setGazData) => {
   const prefix = "GazDataForStories";
   const sources = {};
 
-  sources.adressen = await md5FetchText(prefix, dataHost + "/data/adressen.json");
+  sources.adressen = await md5FetchText(
+    prefix,
+    dataHost + "/data/adressen.json",
+  );
   sources.bezirke = await md5FetchText(prefix, dataHost + "/data/bezirke.json");
-  sources.quartiere = await md5FetchText(prefix, dataHost + "/data/quartiere.json");
-  sources.bpklimastandorte = await md5FetchText(prefix, dataHost + "/data/bpklimastandorte.json");
+  sources.quartiere = await md5FetchText(
+    prefix,
+    dataHost + "/data/quartiere.json",
+  );
+  sources.bpklimastandorte = await md5FetchText(
+    prefix,
+    dataHost + "/data/bpklimastandorte.json",
+  );
 
   const gazData = getGazDataForTopicIds(sources, [
     "bpklimastandorte",
@@ -46,11 +55,12 @@ const getGazData = async (setGazData) => {
 
 function KlimaorteMap() {
   const { setSelectedFeatureByPredicate, setFilterState } = useContext(
-    FeatureCollectionDispatchContext
+    FeatureCollectionDispatchContext,
   );
   const lightBoxDispatchContext = useContext(LightBoxDispatchContext);
-  const { selectedFeature, items, shownFeatures, filterState } =
-    useContext(FeatureCollectionContext);
+  const { selectedFeature, items, shownFeatures, filterState } = useContext(
+    FeatureCollectionContext,
+  );
   const { zoomToFeature } = useContext(TopicMapDispatchContext);
   const { history } = useContext(TopicMapContext);
 
@@ -71,11 +81,15 @@ function KlimaorteMap() {
       const foundShow = show != null;
       if (foundShow === true) {
         //check whether the feature is already shown
-        const foundFeature = shownFeatures.find((f) => f.properties.standort.id === parseInt(show));
+        const foundFeature = shownFeatures.find(
+          (f) => f.properties.standort.id === parseInt(show),
+        );
         if (foundFeature !== undefined) {
           setSelectedFeatureByPredicate((feature) => {
             try {
-              return parseInt(feature.properties.standort.id) === parseInt(show);
+              return (
+                parseInt(feature.properties.standort.id) === parseInt(show)
+              );
             } catch (e) {
               return false;
             }
@@ -83,7 +97,9 @@ function KlimaorteMap() {
           history.push(removeQueryPart(search, "show"));
         } else {
           //check whether the feature is in the items list
-          const foundFeature = items.find((i) => i.standort.id === parseInt(show));
+          const foundFeature = items.find(
+            (i) => i.standort.id === parseInt(show),
+          );
           if (foundFeature !== undefined) {
             const { themen } = getFilterInfo(items);
             setFilterState({ ...filterState, themen });
@@ -113,7 +129,9 @@ function KlimaorteMap() {
   let moreDataAvailable = false;
   if (angebot) {
     weitereAngebote = items.filter(
-      (testItem) => testItem?.standort.id === angebot.standort.id && testItem.id !== angebot.id
+      (testItem) =>
+        testItem?.standort.id === angebot.standort.id &&
+        testItem.id !== angebot.id,
     );
     moreDataAvailable =
       weitereAngebote.length > 0 ||
@@ -121,7 +139,9 @@ function KlimaorteMap() {
       selectedFeature?.properties?.kommentar !== undefined;
   }
 
-  const linkProduction = new URLSearchParams(history.location.search).get("linkProduction");
+  const linkProduction = new URLSearchParams(history.location.search).get(
+    "linkProduction",
+  );
   const linkProductionEnabled = linkProduction != null;
 
   let secondaryInfoBoxElements = [
@@ -134,22 +154,26 @@ function KlimaorteMap() {
   if (linkProductionEnabled) {
     secondaryInfoBoxElements.push(
       <a
-        href={window.location.href + "&show=" + selectedFeature?.properties?.standort?.id}
-        target='_blank'
-        rel='noreferrer'
+        href={
+          window.location.href +
+          "&show=" +
+          selectedFeature?.properties?.standort?.id
+        }
+        target="_blank"
+        rel="noreferrer"
       >
         π
-      </a>
+      </a>,
     );
   }
 
   return (
     <TopicMapComponent
-      applicationMenuTooltipString='Filter | Einstellungen | Anleitung'
+      applicationMenuTooltipString="Filter | Einstellungen | Anleitung"
       locatorControl={true}
       modalMenu={<MyMenu />}
       gazData={gazData}
-      gazetteerSearchPlaceholder='Klimaort | Stadtteil | Adresse'
+      gazetteerSearchPlaceholder="Klimaort | Stadtteil | Adresse"
       infoBox={
         <GenericInfoBoxFromFeature
           pixelwidth={400}
@@ -173,7 +197,8 @@ function KlimaorteMap() {
         if (Array.isArray(hits) && hits[0]?.more?.id) {
           setSelectedFeatureByPredicate((feature) => {
             try {
-              const check = parseInt(feature.properties.standort.id) === hits[0].more.id;
+              const check =
+                parseInt(feature.properties.standort.id) === hits[0].more.id;
               if (check === true) {
                 zoomToFeature(feature);
               }
