@@ -497,8 +497,8 @@
           },
           "live": {
             "pages": {
-              "org": "carma-dev-deployments",
-              "prj": "topicmaps-hitzeinderstadt-wuppertal"
+              "org": "digital-twin-wuppertal-live",
+              "prj": "hitzeinderstadt"
             }
           }
         },
