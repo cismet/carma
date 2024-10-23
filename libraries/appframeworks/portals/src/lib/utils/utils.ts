@@ -29,15 +29,15 @@ export const getGazData = async (
     crs?: string;
     prefix?: string;
     endpoints?: ENDPOINT[];
-  } = {}
+  } = {},
 ) => {
   const sources: Record<ENDPOINT, string> = Object.fromEntries(
     await Promise.all(
       endpoints.map(async (endpoint) => [
         endpoint,
         await md5FetchText(prefix, buildHostUri(host, endpoint, crs)),
-      ])
-    )
+      ]),
+    ),
   );
   return getGazDataForTopicIds(sources, endpoints);
 };
@@ -95,7 +95,7 @@ const parseZoom = (
   sourceZoom: {
     minzoom: number;
     maxzoom: number;
-  }
+  },
 ) => {
   let maxzoom = sourceZoom.maxzoom;
   let minzoom = sourceZoom.minzoom;
@@ -124,7 +124,7 @@ const parseZoom = (
 export const parseToMapLayer = async (
   layer: Item,
   forceWMS: boolean,
-  opacity?: number
+  opacity?: number,
 ) => {
   let newLayer: Layer;
   const id = layer.id.startsWith("fav_") ? layer.id.slice(4) : layer.id;
@@ -138,16 +138,11 @@ export const parseToMapLayer = async (
         })
         .then((result) => {
           const parsedZoom = parseZoom(
-            result.layers.filter(
-              (layer) =>
-                !layer.id.includes("selection") &&
-                !layer.id.toLowerCase().includes("label") &&
-                !layer.id.toLowerCase().includes("beschriftung")
-            ),
+            result.layers.filter((layer) => !layer.id.includes("selection")),
             {
               minzoom: 9,
               maxzoom: 24,
-            }
+            },
           );
           return parsedZoom;
         });
@@ -160,7 +155,7 @@ export const parseToMapLayer = async (
         conf: carmaConf,
         queryable: isNaN(layer.queryable)
           ? layer?.keywords?.some((keyword) =>
-              keyword.includes("carmaconf://infoBoxMapping")
+              keyword.includes("carmaconf://infoBoxMapping"),
             )
           : layer.queryable,
         useInFeatureInfo: true,
@@ -211,7 +206,7 @@ export const parseToMapLayer = async (
             conf: carmaConf!,
             queryable: isNaN(layer.queryable)
               ? layer?.keywords?.some((keyword) =>
-                  keyword.includes("carmaconf://infoBoxMapping")
+                  keyword.includes("carmaconf://infoBoxMapping"),
                 )
               : layer.queryable,
             useInFeatureInfo: true,
