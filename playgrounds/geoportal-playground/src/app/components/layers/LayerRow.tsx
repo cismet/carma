@@ -1,18 +1,18 @@
-import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
   faEye,
   faEyeSlash,
   faGripVertical,
   faLayerGroup,
-} from "@fortawesome/free-solid-svg-icons";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Slider } from "antd";
-import { Layer } from "@carma-mapping/layers";
-import { useDispatch } from "react-redux";
-import { changeOpacity, changeVisibility } from "../../store/slices/mapping";
-import { iconColorMap, iconMap } from "./items";
-import { formatter } from "./SecondaryView";
+} from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Slider } from 'antd';
+import { Layer } from '@carma-mapping/layers';
+import { useDispatch } from 'react-redux';
+import { changeOpacity, changeVisibility } from '../../store/slices/mapping';
+import { iconColorMap, iconMap } from './items';
+import { formatter } from './SecondaryView';
 
 interface LayerRowProps {
   layer: Layer;
@@ -22,12 +22,12 @@ interface LayerRowProps {
 const LayerRow = ({ layer, id }: LayerRowProps) => {
   const dispatch = useDispatch();
   const urlPrefix = window.location.origin + window.location.pathname;
-  const icon = layer.title.includes("Orthofoto")
-    ? "ortho"
-    : layer.title === "Bäume"
-    ? "bäume"
-    : layer.title.includes("gärten")
-    ? "gärten"
+  const icon = layer.title.includes('Orthofoto')
+    ? 'ortho'
+    : layer.title === 'Bäume'
+    ? 'bäume'
+    : layer.title.includes('gärten')
+    ? 'gärten'
     : undefined;
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
@@ -50,10 +50,10 @@ const LayerRow = ({ layer, id }: LayerRowProps) => {
         >
           <FontAwesomeIcon icon={faGripVertical} />
         </button>
-        {icon === "ortho" ? (
+        {icon === 'ortho' ? (
           <div style={{ height: 14, width: 14 }}>
             <img
-              src={urlPrefix + "images/ortho.png"}
+              src={urlPrefix + 'images/ortho.png'}
               alt="Ortho"
               className="h-full"
             />

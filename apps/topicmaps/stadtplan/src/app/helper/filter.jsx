@@ -28,7 +28,7 @@ export const createFilterRows = (
   lebenslagen,
   toggleFilter,
   filterState,
-  setFilterState
+  setFilterState,
 ) => {
   let appsMap = new Map();
 
@@ -135,7 +135,7 @@ export const setAllLebenslagenToFilter = (
   kind,
   lebenslagen,
   filterState,
-  setFilterState
+  setFilterState,
 ) => {
   const newFilterState = { ...filterState };
   newFilterState[kind] = lebenslagen;

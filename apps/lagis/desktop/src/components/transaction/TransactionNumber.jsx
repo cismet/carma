@@ -83,7 +83,7 @@ const TransactionNumber = ({
   };
   const deleteRow = () => {
     const updatedArray = transaction.filter(
-      (row) => row.key !== activeRow?.key
+      (row) => row.key !== activeRow?.key,
     );
     setTransaction(updatedArray);
     if (activeRow?.key === transaction[0].key) {
@@ -103,7 +103,7 @@ const TransactionNumber = ({
 
     setActiveRow(copyRow);
     setTransaction(
-      transaction.map((obj) => (obj.key === copyRow.key ? copyRow : obj))
+      transaction.map((obj) => (obj.key === copyRow.key ? copyRow : obj)),
     );
   };
   useEffect(() => {

@@ -1,12 +1,12 @@
-import { addSVGToProps } from "react-cismap/tools/svgHelper";
-import Color from "color";
-import { getColorForProperties } from "./styler";
+import { addSVGToProps } from 'react-cismap/tools/svgHelper';
+import Color from 'color';
+import { getColorForProperties } from './styler';
 
 const getSignature = (properties) => {
-  if (properties.schluessel === "P") {
-    return "pr.svg";
+  if (properties.schluessel === 'P') {
+    return 'pr.svg';
   } else {
-    return "br.svg"; //TODO sinnvoller default
+    return 'br.svg'; //TODO sinnvoller default
   }
 };
 
@@ -16,23 +16,23 @@ const convertItemToFeature = async (itemIn) => {
   let item = await addSVGToProps(
     clonedItem,
     (i) => getSignature(i),
-    "https://wunda-geoportal.cismet.de/svgs/"
+    'https://wunda-geoportal.cismet.de/svgs/'
   );
   const headerColor = Color(getColorForProperties(item));
 
-  let header = "";
+  let header = '';
 
-  if (item.schluessel === "P") {
-    header = "Park + Ride";
+  if (item.schluessel === 'P') {
+    header = 'Park + Ride';
   } else {
-    header = "Bike + Ride";
+    header = 'Bike + Ride';
   }
 
   const info = {
     header: header,
     title: item.name,
     additionalInfo: item.beschreibung,
-    subtitle: "Plätze: " + item.plaetze,
+    subtitle: 'Plätze: ' + item.plaetze,
   };
 
   if (item?.betreiber) {
@@ -58,13 +58,13 @@ const convertItemToFeature = async (itemIn) => {
   }
 
   if (item.foto) {
-    item.foto = "https://www.wuppertal.de/geoportal/prbr/fotos/" + item.foto;
+    item.foto = 'https://www.wuppertal.de/geoportal/prbr/fotos/' + item.foto;
   }
 
   item.color = headerColor;
   item.info = info;
   const id = item.id;
-  const type = "Feature";
+  const type = 'Feature';
   const selected = false;
   const geometry = item.geojson;
   const text = item.name;
@@ -76,9 +76,9 @@ const convertItemToFeature = async (itemIn) => {
     selected,
     geometry,
     crs: {
-      type: "name",
+      type: 'name',
       properties: {
-        name: "urn:ogc:def:crs:EPSG::25832",
+        name: 'urn:ogc:def:crs:EPSG::25832',
       },
     },
     properties: item,

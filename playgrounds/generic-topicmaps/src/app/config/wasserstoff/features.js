@@ -14,8 +14,7 @@ const x = [
       color: "#247CE0",
       info: {
         title: "Shell Tankstelle",
-        subtitle:
-          "Autobahnanbindung A1 (Dreieck Wuppertal Nord) und A46 (Wuppertal Oberbarmen).",
+        subtitle: "Autobahnanbindung A1 (Dreieck Wuppertal Nord) und A46 (Wuppertal Oberbarmen).",
         additionalInfo: "Schmiedestraße 91",
         actions: [
           {
@@ -38,9 +37,9 @@ const x = [
       secondaryInfos: {
         title: "Datenblatt: Wasserstofftankstelle Shell Tankstelle",
         iconName: "gas-pump",
-        image:
-          "https://www.wuppertal.de/geoportal/emobil/autos/fotos/wasserstoff_01.jpg",
-        md: '**Adresse**:\nSchmiedestraße 91\n\n<div style="padding-top:20px;"/>Autobahnanbindung A1 (Dreieck Wuppertal Nord) und A46 (Wuppertal Oberbarmen).\n\n<div style="padding-top:20px;"/>\n\n**Öffnungszeiten: **24 Stunden / 7 Tage',
+        image: "https://www.wuppertal.de/geoportal/emobil/autos/fotos/wasserstoff_01.jpg",
+        md:
+          '**Adresse**:\nSchmiedestraße 91\n\n<div style="padding-top:20px;"/>Autobahnanbindung A1 (Dreieck Wuppertal Nord) und A46 (Wuppertal Oberbarmen).\n\n<div style="padding-top:20px;"/>\n\n**Öffnungszeiten: **24 Stunden / 7 Tage',
         secondarySections: [
           {
             title: "Zapfmöglichkeit verfügbar (online)",
@@ -50,7 +49,8 @@ const x = [
           {
             title: "Bezahlen",
             type: "warning",
-            md: "**Authentifizierung:** Offener Zugang während der Öffnungszeit.\n\n**Ladekosten:** Tagespreis für Wasserstoff.",
+            md:
+              "**Authentifizierung:** Offener Zugang während der Öffnungszeit.\n\n**Ladekosten:** Tagespreis für Wasserstoff.",
           },
           {
             title: "Betreiber",

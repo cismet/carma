@@ -1,3 +1,3 @@
 export function carmaMapEnginesMaplibre(): string {
-  return "carma-map-engines-maplibre";
+  return 'carma-map-engines-maplibre';
 }

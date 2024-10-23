@@ -1,11 +1,11 @@
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch, useSelector } from 'react-redux';
 import {
   getMapping,
   setSelectedBackgroundIndex,
-} from "../../store/slices/mapping";
-import L from "leaflet";
-import "leaflet-easybutton";
-import "leaflet-easybutton/src/easy-button.css";
+} from '../../store/slices/mapping';
+import L from 'leaflet';
+import 'leaflet-easybutton';
+import 'leaflet-easybutton/src/easy-button.css';
 
 interface CyclingBackgroundButtonInterface {
   tooltipPrefix?: string;
@@ -14,7 +14,7 @@ interface CyclingBackgroundButtonInterface {
 }
 
 const CyclingBackgroundButton = ({
-  tooltipPostfix = " als Hintergrund",
+  tooltipPostfix = ' als Hintergrund',
   tooltipPrefix,
   mapRef,
 }: CyclingBackgroundButtonInterface) => {
@@ -37,10 +37,10 @@ const CyclingBackgroundButton = ({
       newI = 0;
     }
     let state = {
-      stateName: "bg-" + i,
+      stateName: 'bg-' + i,
       icon: `<img width="28" height="28" src="${backgrounds[newI].src}"/>`,
       onClick: function (control) {
-        control.state("bg-" + newI);
+        control.state('bg-' + newI);
         dispatch(setSelectedBackgroundIndex({ selectedBackgroundIndex: newI }));
       },
       title: `${tooltipPrefix}${backgrounds[newI].title}${tooltipPostfix}`,
@@ -51,11 +51,11 @@ const CyclingBackgroundButton = ({
   leafletElement = L.easyButton({
     states: buttonStates,
   });
-  leafletElement.button.style.padding = "1px";
-  leafletElement.button.style.lineHeight = "24px";
-  leafletElement.state("bg-" + mapping.selectedBackgroundIndex);
-  console.log("xxx", leafletElement);
-  console.log("xxx", mapRef.current.leafletMap.leafletElement);
+  leafletElement.button.style.padding = '1px';
+  leafletElement.button.style.lineHeight = '24px';
+  leafletElement.state('bg-' + mapping.selectedBackgroundIndex);
+  console.log('xxx', leafletElement);
+  console.log('xxx', mapRef.current.leafletMap.leafletElement);
   return <div></div>;
 };
 

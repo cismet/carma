@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from "react";
-import { MapContainer, TileLayer, useMap } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
+import React, { useState, useEffect, useRef } from 'react';
+import { MapContainer, TileLayer, useMap } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 // import "leaflet-draw/dist/leaflet.draw.css";
-import "leaflet.locatecontrol/dist/L.Control.Locate.css";
-import "leaflet.locatecontrol";
-import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
+import 'leaflet.locatecontrol/dist/L.Control.Locate.css';
+import 'leaflet.locatecontrol';
+import StyledWMSTileLayer from 'react-cismap/StyledWMSTileLayer';
 
 const LocateControl = ({ startLocate }) => {
   const map = useMap();
@@ -13,9 +13,9 @@ const LocateControl = ({ startLocate }) => {
   useEffect(() => {
     const lc = L.control
       .locate({
-        position: "topright",
+        position: 'topright',
         strings: {
-          title: "Show me where I am!",
+          title: 'Show me where I am!',
         },
         flyTo: true,
       })
@@ -41,12 +41,12 @@ const MapExample = ({ startLocate }) => {
   const mapRef = useRef(null);
 
   return (
-    <div style={{ width: "100wh", height: "calc(100vh - 80px)" }}>
+    <div style={{ width: '100wh', height: 'calc(100vh - 80px)' }}>
       <MapContainer
-        key={"leaflet-map-map-example"}
+        key={'leaflet-map-map-example'}
         center={position}
         zoom={20}
-        style={{ height: "calc(100vh - 80px)", width: "100wh" }}
+        style={{ height: 'calc(100vh - 80px)', width: '100wh' }}
         ref={mapRef}
         editable={true}
         zoomControl={false}

@@ -1,11 +1,11 @@
-import { Table } from "antd";
-import CustomCard from "../ui/Card";
-import { useDispatch, useSelector } from "react-redux";
+import { Table } from 'antd';
+import CustomCard from '../ui/Card';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   getFlaechenId,
   getKassenzeichen,
   storeFlaechenId,
-} from "../../store/slices/search";
+} from '../../store/slices/search';
 
 const mockExtractor = (input) => {
   const data = input?.flaechenArray?.map((flaeche) => ({
@@ -28,34 +28,34 @@ const mockExtractor = (input) => {
 
 const columns = [
   {
-    title: "Bezeichnung",
-    dataIndex: "name",
-    key: "name",
+    title: 'Bezeichnung',
+    dataIndex: 'name',
+    key: 'name',
   },
   {
-    title: "Größe m²",
-    dataIndex: "size",
-    key: "size",
+    title: 'Größe m²',
+    dataIndex: 'size',
+    key: 'size',
   },
   {
-    title: "Flächenart",
-    dataIndex: "type",
-    key: "type",
+    title: 'Flächenart',
+    dataIndex: 'type',
+    key: 'type',
   },
   {
-    title: "Anschlussgrad",
-    dataIndex: "connection",
-    key: "connection",
+    title: 'Anschlussgrad',
+    dataIndex: 'connection',
+    key: 'connection',
   },
   {
-    title: "Beschreibung",
-    dataIndex: "description",
-    key: "description",
+    title: 'Beschreibung',
+    dataIndex: 'description',
+    key: 'description',
   },
   {
-    title: "Erfassungdatum",
-    dataIndex: "date",
-    key: "date",
+    title: 'Erfassungdatum',
+    dataIndex: 'date',
+    key: 'date',
   },
 ];
 
@@ -88,7 +88,7 @@ const TableView = ({
           };
         }}
         rowClassName={(record) =>
-          `${record.id === flaechenId && "bg-primary/20"} cursor-pointer`
+          `${record.id === flaechenId && 'bg-primary/20'} cursor-pointer`
         }
       />
     </CustomCard>

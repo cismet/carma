@@ -56,7 +56,7 @@ type CesiumMapActions = {
     pos: Cartographic,
     zoom: number,
     cesiumConfig: { pitchAdjustHeight?: number },
-    options?: { onComplete?: Function; durationFactor?: number }
+    options?: { onComplete?: Function; durationFactor?: number },
   ) => void;
   setZoom: (scene: Scene, zoom: number) => void;
   fitBoundingSphere: (scene: Scene, bounds: BoundingSphere) => void;
@@ -82,7 +82,7 @@ const CesiumMapActions = {
     { longitude, latitude, height }: Cartographic,
     zoom: number,
     cesiumConfig: { pitchAdjustHeight?: number } = {},
-    options: { onComplete?: Function; durationFactor?: number } = {}
+    options: { onComplete?: Function; durationFactor?: number } = {},
   ) => {
     const { scene } = viewer;
     if (scene) {
@@ -99,7 +99,7 @@ const CesiumMapActions = {
       const distanceTargets = Cartesian3.distance(currentCenterPos, center);
       const currentRange = Cartesian3.distance(
         currentCenterPos,
-        scene.camera.position
+        scene.camera.position,
       );
 
       const hpr = getHeadingPitchRangeFromZoom(zoom - 1, scene.camera);
@@ -108,13 +108,13 @@ const CesiumMapActions = {
       duration =
         Math.pow(
           distanceTargets + Math.abs(currentRange - range) / currentRange,
-          1 / 3
+          1 / 3,
         ) * (options.durationFactor ?? 1);
 
       console.info(
         "[CESIUM|SEARCH|CAMERA] move duration",
         duration,
-        distanceTargets
+        distanceTargets,
       );
 
       //TODO optional add responsive duration based on distance of target
@@ -128,7 +128,7 @@ const CesiumMapActions = {
         complete: () => {
           console.info(
             "[CESIUM|ANIMATION] FlytoBoundingSphere Complete",
-            center
+            center,
           );
           options.onComplete && options.onComplete();
         },
@@ -150,13 +150,13 @@ const getPosInWGS84 = ({ x, y }, refSystem: proj4.Converter) => {
 
 const getRingInWGS84 = (
   coords: (string | number)[][],
-  refSystem: proj4.Converter
+  refSystem: proj4.Converter,
 ) =>
   coords
     .map((c) => c.map((v) => (typeof v === "string" ? parseFloat(v) : v)))
     .filter(
       (coords) =>
-        !coords.some((c) => isNaN(c) || c === Infinity || c === -Infinity)
+        !coords.some((c) => isNaN(c) || c === Infinity || c === -Infinity),
     )
     .map((coord) => PROJ4_CONVERTERS.CRS4326.forward(refSystem.inverse(coord)));
 
@@ -164,7 +164,7 @@ const getRingInWGS84 = (
 const getUrlFromSearchParams = () => {
   let url: string | null = null;
   const logGazetteerHit = new URLSearchParams(window.location.href).get(
-    "logGazetteerHits"
+    "logGazetteerHits",
   );
 
   if (logGazetteerHit === "" || logGazetteerHit === "true") {
@@ -206,7 +206,7 @@ export const carmaHitTrigger = (
     cesiumOptions,
     selectedCesiumEntityData,
     setSelectedCesiumEntityData,
-  }: GazetteerOptions = defaultGazetteerOptions
+  }: GazetteerOptions = defaultGazetteerOptions,
 ) => {
   if (hit !== undefined && hit.length !== undefined && hit.length > 0) {
     const lAction = (mapActions.leaflet = {
@@ -243,7 +243,7 @@ export const carmaHitTrigger = (
     const zoom = hitObject.more.zl ?? DEFAULT_ZOOM_LEVEL;
     const polygon = hasPolygon
       ? hitObject.more.g.coordinates.map((ring) =>
-          getRingInWGS84(ring, refSystemConverter)
+          getRingInWGS84(ring, refSystemConverter),
         )
       : null;
     console.log(
@@ -254,7 +254,7 @@ export const carmaHitTrigger = (
       hitObject.crs,
       pos,
       zoom,
-      polygon
+      polygon,
     );
 
     mapConsumers.forEach(async (mapElement) => {
@@ -280,7 +280,7 @@ export const carmaHitTrigger = (
         const [groundPosition] = await sampleTerrainMostDetailed(
           terrainProvider,
           [posCarto],
-          true
+          true,
         );
 
         if (polygon) {
@@ -310,7 +310,7 @@ export const carmaHitTrigger = (
             id: INVERTED_SELECTED_POLYGON_ID,
             attributes: {
               color: ColorGeometryInstanceAttribute.fromColor(
-                Color.GRAY.withAlpha(0.66)
+                Color.GRAY.withAlpha(0.66),
               ),
             },
           });
@@ -344,19 +344,19 @@ export const carmaHitTrigger = (
               anchorHeightOffset,
               anchorPosition,
               groundPosition,
-              viewer.scene.terrainProvider
+              viewer.scene.terrainProvider,
             );
             const model = selectedCesiumEntityData?.model;
             selectedCesiumEntityData &&
               removeCesiumMarker(viewer, selectedCesiumEntityData);
-            scene.requestRender(); // explicit render for requestRenderMode;
+              scene.requestRender(); // explicit render for requestRenderMode;
             if (cesiumOptions.markerAsset) {
               const data = await addCesiumMarker(
                 viewer,
                 anchorPosition,
                 groundPosition,
                 cesiumOptions.markerAsset,
-                model
+                model,
               );
               setSelectedCesiumEntityData && setSelectedCesiumEntityData(data);
             }
@@ -371,7 +371,7 @@ export const carmaHitTrigger = (
             durationFactor: 0.2,
           });
           console.log(
-            "GAZETTEER: [2D3D|CESIUM|CAMERA] look at Marker (Terrain Elevation)"
+            "GAZETTEER: [2D3D|CESIUM|CAMERA] look at Marker (Terrain Elevation)",
           );
         } else {
           console.warn("no ground position found");

@@ -1,14 +1,13 @@
-import type { StorybookConfig } from "@storybook/react-vite";
+import type { StorybookConfig } from '@storybook/react-vite';
 
 const config: StorybookConfig = {
-  stories: ["../src/lib/**/*.stories.@(js|jsx|ts|tsx)"],
-  addons: ["@storybook/addon-essentials", "@storybook/addon-interactions"],
+  stories: ['../src/lib/**/*.stories.@(js|jsx|ts|tsx)'],
+  addons: ['@storybook/addon-essentials', '@storybook/addon-interactions'],
   framework: {
-    name: "@storybook/react-vite",
+    name: '@storybook/react-vite',
     options: {
       builder: {
-        viteConfigPath:
-          "libraries/mapping/carma-map-control-layout/vite.config.ts",
+        viteConfigPath: 'libraries/mapping/carma-map-control-layout/vite.config.ts',
       },
     },
   },

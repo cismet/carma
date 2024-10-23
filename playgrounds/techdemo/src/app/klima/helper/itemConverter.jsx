@@ -23,8 +23,7 @@ const convertBPKlimaItemsToFeature = async (itemIn) => {
   item.info = info;
   item.url = item?.website;
   if (item.bild) {
-    item.foto =
-      "https://www.wuppertal.de/geoportal/standort_klima/fotos/" + item.bild;
+    item.foto = "https://www.wuppertal.de/geoportal/standort_klima/fotos/" + item.bild;
   }
 
   return {

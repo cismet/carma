@@ -22,7 +22,7 @@ const devToolsEnabled =
   new URLSearchParams(window.location.search).get("devToolsEnabled") === "true";
 console.log("devToolsEnabled:", devToolsEnabled);
 const stateLoggingEnabledFromSearch = new URLSearchParams(
-  window.location.search
+  window.location.search,
 ).get("stateLoggingEnabled");
 
 const inProduction = process.env.NODE_ENV === "production";
@@ -37,7 +37,7 @@ console.info(
   "stateLoggingEnabled:",
   stateLoggingEnabledFromSearch,
   "x",
-  stateLoggingEnabled
+  stateLoggingEnabled,
 );
 const logger = createLogger({
   collapsed: true,
@@ -109,7 +109,7 @@ const store = configureStore({
     features: persistReducer(featuresConfig, featuresReducer),
     cesium: persistReducer(
       getCesiumConfig({ appKey: APP_KEY, storagePrefix: STORAGE_PREFIX }),
-      cesiumReducer
+      cesiumReducer,
     ),
   },
   preloadedState: {

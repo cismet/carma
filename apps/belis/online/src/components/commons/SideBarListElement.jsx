@@ -67,12 +67,7 @@ const SideBarListElement = ({ feature, selected }) => {
           {vcard.list.subtitle}
         </span>
         {vcard.list.lowerright && (
-          <span
-            style={{
-              float: "right",
-              background: debugColors ? "blue" : undefined,
-            }}
-          >
+          <span style={{ float: "right", background: debugColors ? "blue" : undefined }}>
             {vcard.list.lowerright}
           </span>
         )}
@@ -127,11 +122,7 @@ const SideBarListElement = ({ feature, selected }) => {
           {vcard.list.subtitle}
         </span>
         <span
-          style={{
-            clear: "right",
-            float: "right",
-            background: debugColors ? "blue" : undefined,
-          }}
+          style={{ clear: "right", float: "right", background: debugColors ? "blue" : undefined }}
         >
           {vcard.list.lowerright}
         </span>
@@ -196,12 +187,7 @@ const SideBarListElement = ({ feature, selected }) => {
         >
           {vcard.list.subtitle}
         </span>
-        <span
-          style={{
-            float: "right",
-            background: debugColors ? "blue" : undefined,
-          }}
-        >
+        <span style={{ float: "right", background: debugColors ? "blue" : undefined }}>
           {vcard.list.lowerright}
         </span>
       </div>

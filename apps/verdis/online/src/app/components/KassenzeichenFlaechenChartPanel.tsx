@@ -57,12 +57,12 @@ const KassenzeichenFlaechenChartPanel = ({ orientation }: PanelProps) => {
       if (sumFA) {
         statsFA.set(
           flaeche.flaecheninfo.flaechenart.art,
-          getCorrectArea(flaeche) * factor + sumFA
+          getCorrectArea(flaeche) * factor + sumFA,
         );
       } else {
         statsFA.set(
           flaeche.flaecheninfo.flaechenart.art,
-          getCorrectArea(flaeche) * factor
+          getCorrectArea(flaeche) * factor,
         );
       }
       total += getCorrectArea(flaeche) * factor;

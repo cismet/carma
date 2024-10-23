@@ -6,31 +6,31 @@ import { geoElements } from "@carma-collab/wuppertal/geoportal";
 
 export const useTourRefCollabLabels = () => {
   const zoom = useOverlayHelper(
-    getCollabedHelpComponentConfig("ZOOM", geoElements)
+    getCollabedHelpComponentConfig("ZOOM", geoElements),
   );
   const fullScreen = useOverlayHelper(
-    getCollabedHelpComponentConfig("VOLLBILD", geoElements)
+    getCollabedHelpComponentConfig("VOLLBILD", geoElements),
   );
   const navigator = useOverlayHelper(
-    getCollabedHelpComponentConfig("MEINE_POSITION", geoElements)
+    getCollabedHelpComponentConfig("MEINE_POSITION", geoElements),
   );
   const home = useOverlayHelper(
-    getCollabedHelpComponentConfig("RATHAUS", geoElements)
+    getCollabedHelpComponentConfig("RATHAUS", geoElements),
   );
   const measurement = useOverlayHelper(
-    getCollabedHelpComponentConfig("MESSUNGEN", geoElements)
+    getCollabedHelpComponentConfig("MESSUNGEN", geoElements),
   );
   const gazetteer = useOverlayHelper(
-    getCollabedHelpComponentConfig("GAZETTEER_SUCHE", geoElements)
+    getCollabedHelpComponentConfig("GAZETTEER_SUCHE", geoElements),
   );
   const toggle2d3d = useOverlayHelper(
-    getCollabedHelpComponentConfig("2D_3D_TOGGLE", geoElements)
+    getCollabedHelpComponentConfig("2D_3D_TOGGLE", geoElements),
   );
   const alignNorth = useOverlayHelper(
-    getCollabedHelpComponentConfig("EINNORDEN", geoElements)
+    getCollabedHelpComponentConfig("EINNORDEN", geoElements),
   );
   const featureInfo = useOverlayHelper(
-    getCollabedHelpComponentConfig("SACHDATENABFRAGE", geoElements)
+    getCollabedHelpComponentConfig("SACHDATENABFRAGE", geoElements),
   );
 
   return useMemo(
@@ -55,6 +55,6 @@ export const useTourRefCollabLabels = () => {
       toggle2d3d,
       alignNorth,
       featureInfo,
-    ]
+    ],
   );
 };

@@ -7,11 +7,11 @@ import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import FeatureCollection from "react-cismap/FeatureCollection";
 import { storiesCategory, parkscheinautomatenfeatures } from "./StoriesConf";
 import Form from "react-bootstrap/Form";
-import Button from "react-bootstrap/Button";
-import ButtonGroup from "react-bootstrap/ButtonGroup";
-import Card from "react-bootstrap/Card";
-import ListGroup from "react-bootstrap/ListGroup";
-import CloseButton from "react-bootstrap/CloseButton";
+import Button from 'react-bootstrap/Button';
+import ButtonGroup from 'react-bootstrap/ButtonGroup';
+import Card from 'react-bootstrap/Card'
+import ListGroup from 'react-bootstrap/ListGroup';
+import CloseButton from 'react-bootstrap/CloseButton'
 // import { render } from "mson-react";
 //import compiler from "mson/lib/compiler";
 
@@ -26,10 +26,7 @@ const mapStyle = {
 
 export const SimpleTopicMapWithDefaultInfoBox = (args) => {
   return (
-    <TopicMapContextProvider
-      items={parkscheinautomatenfeatures}
-      appKey="SimpleTopicMapWithDefaultInfoBox"
-    >
+    <TopicMapContextProvider items={parkscheinautomatenfeatures} appKey="SimpleTopicMapWithDefaultInfoBox">
       <TopicMapComponent
         style={mapStyle}
         infoBox={<GenericInfoBoxFromFeature pixelwidth={400} />}
@@ -39,7 +36,7 @@ export const SimpleTopicMapWithDefaultInfoBox = (args) => {
         {args.NewWindowControl && <NewWindowControl />}
         {args.ContactButton && (
           <ContactButton
-            title="Cooltip ;-)"
+            title='Cooltip ;-)'
             action={() => {
               window.alert("contact button pushed");
             }}
@@ -66,13 +63,15 @@ export const SimpleInfoBox = () => (
 );
 export const SimpleInfoBox2 = () => <h3>Coming Soon</h3>;
 
+
+
 export const MalfunctionDialog = () => {
   return (
-    <Card style={{ width: "30rem" }}>
+    <Card style={{ width: '30rem' }}>
       <Card.Header>
         <CloseButton />
         <Card.Title>Störung melden</Card.Title>
-      </Card.Header>
+        </Card.Header>
       <Form>
         <Form.Group className="mb-3" controlId="formBasicEmail">
           <Form.Label>Bezeichnung</Form.Label>
@@ -99,6 +98,6 @@ export const MalfunctionDialog = () => {
           <ListGroup.Item>Fotos auswählen</ListGroup.Item>
         </ListGroup>
       </Form>
-    </Card>
-  );
+    </Card>      
+  )
 };

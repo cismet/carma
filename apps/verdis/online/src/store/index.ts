@@ -1,33 +1,33 @@
-import { configureStore } from "@reduxjs/toolkit";
-import { createLogger } from "redux-logger";
-import { persistReducer } from "redux-persist";
-import localForage from "localforage";
-import authSlice from "./slices/auth";
-import kassenzeichenReducer from "./slices/kassenzeichen";
-import uiReducer from "./slices/ui";
-import mappingReducer from "./slices/mapping";
+import { configureStore } from '@reduxjs/toolkit';
+import { createLogger } from 'redux-logger';
+import { persistReducer } from 'redux-persist';
+import localForage from 'localforage';
+import authSlice from './slices/auth';
+import kassenzeichenReducer from './slices/kassenzeichen';
+import uiReducer from './slices/ui';
+import mappingReducer from './slices/mapping';
 
-console.log("store initializing ....");
+console.log('store initializing ....');
 
 const devToolsEnabled =
-  new URLSearchParams(window.location.search).get("devToolsEnabled") === "true";
-console.log("devToolsEnabled:", devToolsEnabled);
+  new URLSearchParams(window.location.search).get('devToolsEnabled') === 'true';
+console.log('devToolsEnabled:', devToolsEnabled);
 const stateLoggingEnabledFromSearch = new URLSearchParams(
   window.location.search
-).get("stateLoggingEnabled");
+).get('stateLoggingEnabled');
 
-const inProduction = process.env.NODE_ENV === "production";
+const inProduction = process.env.NODE_ENV === 'production';
 
-console.log("in Production Mode:", inProduction);
+console.log('in Production Mode:', inProduction);
 const stateLoggingEnabled =
   (stateLoggingEnabledFromSearch !== null &&
-    stateLoggingEnabledFromSearch !== "false") ||
+    stateLoggingEnabledFromSearch !== 'false') ||
   !inProduction;
 
 console.log(
-  "stateLoggingEnabled:",
+  'stateLoggingEnabled:',
   stateLoggingEnabledFromSearch,
-  "x",
+  'x',
   stateLoggingEnabled
 );
 const logger = createLogger({
@@ -69,9 +69,9 @@ if (stateLoggingEnabled === true) {
 }
 
 const authConfig = {
-  key: "auth",
+  key: 'auth',
   storage: localForage,
-  whitelist: ["user", "password", "stac"],
+  whitelist: ['user', 'password', 'stac'],
 };
 
 export default configureStore({

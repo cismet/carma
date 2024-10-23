@@ -33,7 +33,7 @@ export function animateInterpolateHeadingPitchRange(
     onComplete?: () => void;
     useCurrentDistance?: boolean;
     easing?: (time: number) => number;
-  } = {}
+  } = {},
 ) {
   const { heading, pitch, range } = hpr;
 
@@ -70,7 +70,7 @@ export function animateInterpolateHeadingPitchRange(
     const orientation = new HeadingPitchRange(
       currentHeading,
       currentPitch,
-      currentRange
+      currentRange,
     );
 
     // Update the camera's orientation

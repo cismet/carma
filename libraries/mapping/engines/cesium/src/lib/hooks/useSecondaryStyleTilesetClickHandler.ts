@@ -15,7 +15,7 @@ import { useCesiumContext } from "../CesiumContextProvider";
 import type { TilesetConfig } from "../utils/cesiumHelpers";
 
 export const useSecondaryStyleTilesetClickHandler = (
-  config: TilesetConfig | null | undefined
+  config: TilesetConfig | null | undefined,
 ) => {
   const { viewer } = useCesiumContext();
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);

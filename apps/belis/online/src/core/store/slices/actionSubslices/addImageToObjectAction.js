@@ -1,7 +1,7 @@
-import { v4 as uuidv4 } from "uuid";
+import { v4 as uuidv4 } from 'uuid';
 
-import { getJWT, getLoginFromJWT } from "../auth";
-import { addIntermediateResult, getDB } from "../offlineActionDb";
+import { getJWT, getLoginFromJWT } from '../auth';
+import { addIntermediateResult, getDB } from '../offlineActionDb';
 
 const addImageToObjectAction = (addImageParameter) => {
   return async (dispatch, getState) => {
@@ -11,13 +11,13 @@ const addImageToObjectAction = (addImageParameter) => {
     const login = getLoginFromJWT(jwt);
     offlineActionDb.actions.insert({
       id: uuidv4(),
-      action: "uploadDocument",
+      action: 'uploadDocument',
       jwt: jwt,
       parameter: JSON.stringify(addImageParameter),
       isCompleted: false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      applicationId: login + "@belis",
+      applicationId: login + '@belis',
     });
 
     const intermediateResult = {
@@ -30,8 +30,8 @@ const addImageToObjectAction = (addImageParameter) => {
         description: addImageParameter.description,
       },
       ts: addImageParameter.ts,
-      action: "uploadDocument",
-      resultType: "image",
+      action: 'uploadDocument',
+      resultType: 'image',
     };
 
     //add parameterInfo to intermediateResults

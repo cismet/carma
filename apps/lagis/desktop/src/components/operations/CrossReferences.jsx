@@ -164,7 +164,7 @@ const CrossReferences = ({
     updatedObject.betrag = updatedObject.betrag.format("DD.MM.YYYY");
     updatedObject.anweisung = updatedObject.anweisung.format("DD.MM.YYYY");
     setKosten(
-      kosten.map((k) => (k.id === updatedObject.id ? updatedObject : k))
+      kosten.map((k) => (k.id === updatedObject.id ? updatedObject : k)),
     );
   };
   const handleEditActiveResolution = (updatedObject) => {
@@ -199,7 +199,7 @@ const CrossReferences = ({
     };
     setActiveRow(copyRow);
     setDataContract(
-      dataContract.map((obj) => (obj.id === copyRow.id ? copyRow : obj))
+      dataContract.map((obj) => (obj.id === copyRow.id ? copyRow : obj)),
     );
   };
 

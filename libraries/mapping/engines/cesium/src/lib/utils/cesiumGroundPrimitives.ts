@@ -7,7 +7,7 @@ import {
 } from "cesium";
 
 export const polygonHierarchyFromPolygonCoords = (
-  polygonCoords: number[][][]
+  polygonCoords: number[][][],
 ) => {
   // [positions, hole1, hole2, ...]
   const [positions, ...holes] = polygonCoords;
@@ -16,8 +16,8 @@ export const polygonHierarchyFromPolygonCoords = (
     Cartesian3.fromDegreesArray(positions.flat()),
     holes.map(
       (hole: number[][]) =>
-        new PolygonHierarchy(Cartesian3.fromDegreesArray(hole.flat()))
-    )
+        new PolygonHierarchy(Cartesian3.fromDegreesArray(hole.flat())),
+    ),
   );
   return hierarchy;
 };
@@ -40,12 +40,12 @@ export const invertedPolygonHierarchy = (
     [LON_MAX, LAT_MAX],
     [LON_MAX, LAT_MIN],
     [LON_MIN, LAT_MIN],
-  ]
+  ],
 ) => polygonHierarchyFromPolygonCoords([outerPolygon, polygon]);
 
 export function getGroundPrimitiveById(
   viewer: Viewer,
-  id: string
+  id: string,
 ): GroundPrimitive | null {
   const groundPrimitives = viewer.scene.groundPrimitives;
 

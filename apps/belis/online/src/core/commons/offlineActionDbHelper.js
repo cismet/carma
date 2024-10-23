@@ -1,24 +1,24 @@
-import { addRxPlugin, createRxDatabase } from "rxdb";
-import { getRxStorageDexie } from "rxdb/plugins/storage-dexie";
-import { replicateGraphQL } from "rxdb/plugins/replication-graphql";
+import { addRxPlugin, createRxDatabase } from 'rxdb';
+import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie';
+import { replicateGraphQL } from 'rxdb/plugins/replication-graphql';
 import {
   OFFLINE_ACTIONS_ENDPOINT_URL,
   OFFLINE_ACTIONS_SYNC_URL,
   DB_VERSION,
-} from "../../constants/belis";
-import { actionSchema } from "./schema";
-import { wrappedValidateAjvStorage } from "rxdb/plugins/validate-ajv";
-import { RxDBUpdatePlugin } from "rxdb/plugins/update";
-import { RxDBQueryBuilderPlugin } from "rxdb/plugins/query-builder";
-import { RxDBLeaderElectionPlugin } from "rxdb/plugins/leader-election";
+} from '../../constants/belis';
+import { actionSchema } from './schema';
+import { wrappedValidateAjvStorage } from 'rxdb/plugins/validate-ajv';
+import { RxDBUpdatePlugin } from 'rxdb/plugins/update';
+import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder';
+import { RxDBLeaderElectionPlugin } from 'rxdb/plugins/leader-election';
 
 addRxPlugin(RxDBUpdatePlugin);
 addRxPlugin(RxDBQueryBuilderPlugin);
 addRxPlugin(RxDBLeaderElectionPlugin);
 
-export const ERR_CODE_INVALID_JWT = "invalid-jwt";
-export const ERR_CODE_NO_CONNECTION = "Failed to fetch";
-const ERR_MSG_INVALID_JWT = "Could not verify JWT";
+export const ERR_CODE_INVALID_JWT = 'invalid-jwt';
+export const ERR_CODE_NO_CONNECTION = 'Failed to fetch';
+const ERR_MSG_INVALID_JWT = 'Could not verify JWT';
 
 const batchSize = 5;
 const batchSizePush = 1;
@@ -26,21 +26,21 @@ const batchSizePush = 1;
 const toTimeString = (dateObject) => {
   return (
     dateObject.getFullYear() +
-    "-" +
+    '-' +
     (dateObject.getMonth() + 1) +
-    "-" +
+    '-' +
     dateObject.getDate() +
-    "T" +
+    'T' +
     dateObject.getHours() +
-    ":" +
+    ':' +
     dateObject.getMinutes() +
-    ":" +
+    ':' +
     dateObject.getSeconds() +
-    "." +
+    '.' +
     dateObject.getMilliseconds() +
-    "+0" +
+    '+0' +
     dateObject.getTimezoneOffset() / -60 +
-    ":00"
+    ':00'
   );
 };
 
@@ -69,7 +69,7 @@ const pushQueryBuilder = (doc) => {
     action: acts,
   };
 
-  const operationName = "InsertAction";
+  const operationName = 'InsertAction';
 
   return {
     query,
@@ -95,7 +95,7 @@ export class GraphQLReplicator {
     return (doc, limitParam) => {
       if (!doc) {
         doc = {
-          id: "",
+          id: '',
           updatedAt: new Date(0).toUTCString(),
         };
       }
@@ -114,7 +114,7 @@ export class GraphQLReplicator {
       }
 
       doc = {
-        id: "",
+        id: '',
         updatedAt: lastUpdate,
       };
 
@@ -199,7 +199,7 @@ export class GraphQLReplicator {
       errorCode = err;
     }
 
-    console.debug("error code:" + errorCode);
+    console.debug('error code:' + errorCode);
 
     if (
       errorCode.indexOf(ERR_MSG_INVALID_JWT) !== -1 ||
@@ -250,7 +250,7 @@ export class GraphQLReplicator {
         batchSizePush,
         queryBuilder: pushQueryBuilder,
         responseModifier: async function (data) {
-          if (JSON.stringify(data).indexOf("errors") !== -1) {
+          if (JSON.stringify(data).indexOf('errors') !== -1) {
             return data;
           }
 
@@ -297,12 +297,12 @@ export class GraphQLReplicator {
         },
       },
       onConnect: (msg) => {
-        console.log("SubscriptionClient.onConnect()");
+        console.log('SubscriptionClient.onConnect()');
       },
       connectionCallback: (err) => {
         if (err) {
-          if (err === "Could not verify JWT: JWSError JWSInvalidSignature") {
-            console.log("cannot verify jwt");
+          if (err === 'Could not verify JWT: JWSError JWSInvalidSignature') {
+            console.log('cannot verify jwt');
             if (errorCallback) {
               errorCallback(ERR_CODE_INVALID_JWT);
             }
@@ -310,7 +310,7 @@ export class GraphQLReplicator {
         }
       },
       live: true,
-      deletedField: "deleted",
+      deletedField: 'deleted',
       retryTime: 6000,
     });
 
@@ -348,7 +348,7 @@ export class GraphQLReplicator {
               }
 
               if (oldData?.parameter?.ImageData) {
-                oldData.parameter.ImageData = "!locallyStripped";
+                oldData.parameter.ImageData = '!locallyStripped';
               }
               return oldData;
             };
@@ -373,7 +373,7 @@ export class GraphQLReplicator {
     }
 
     const refresh = () => {
-      replicationState.emitEvent("RESYNC");
+      replicationState.emitEvent('RESYNC');
     };
 
     this.intervalId = setInterval(refresh, 5000);
@@ -383,31 +383,31 @@ export class GraphQLReplicator {
 }
 
 export const createDb = async (login) => {
-  console.log("createDb(", login);
+  console.log('createDb(', login);
   //convert login to loewercase
-  const loginLowerCase = (login || "").toLowerCase();
-  if (window["db_" + DB_VERSION + "_" + loginLowerCase]) {
-    return window["db_" + DB_VERSION + "_" + loginLowerCase];
-  } else if (window["db_" + DB_VERSION + "_" + loginLowerCase + "___WAIT"]) {
+  const loginLowerCase = (login || '').toLowerCase();
+  if (window['db_' + DB_VERSION + '_' + loginLowerCase]) {
+    return window['db_' + DB_VERSION + '_' + loginLowerCase];
+  } else if (window['db_' + DB_VERSION + '_' + loginLowerCase + '___WAIT']) {
     let attempts = 0;
     do {
       await delay(1000);
       ++attempts;
     } while (
-      window["db_" + DB_VERSION + "_" + loginLowerCase + "___WAIT"] &&
+      window['db_' + DB_VERSION + '_' + loginLowerCase + '___WAIT'] &&
       attempts < 20
     );
 
-    if (window["db_" + DB_VERSION + "_" + loginLowerCase]) {
-      return window["db_" + DB_VERSION + "_" + loginLowerCase];
+    if (window['db_' + DB_VERSION + '_' + loginLowerCase]) {
+      return window['db_' + DB_VERSION + '_' + loginLowerCase];
     }
   }
 
-  window["db_" + DB_VERSION + "_" + loginLowerCase + "___WAIT"] = true;
+  window['db_' + DB_VERSION + '_' + loginLowerCase + '___WAIT'] = true;
 
   try {
     const db = await createRxDatabase({
-      name: "actiondb_" + DB_VERSION + "_" + loginLowerCase,
+      name: 'actiondb_' + DB_VERSION + '_' + loginLowerCase,
       storage: wrappedValidateAjvStorage({
         storage: getRxStorageDexie(),
       }),
@@ -433,14 +433,14 @@ export const createDb = async (login) => {
       }
     } while (!ready && attempts < 3);
 
-    window["db_" + DB_VERSION + "_" + loginLowerCase] = db; // write to window
-    window["db_" + DB_VERSION + "_" + loginLowerCase + "___WAIT"] = undefined;
+    window['db_' + DB_VERSION + '_' + loginLowerCase] = db; // write to window
+    window['db_' + DB_VERSION + '_' + loginLowerCase + '___WAIT'] = undefined;
 
     return db;
   } catch (exception) {
-    console.log("exception while creating db", exception);
+    console.log('exception while creating db', exception);
 
-    window["db_" + DB_VERSION + "_" + loginLowerCase + "___WAIT"] = undefined;
+    window['db_' + DB_VERSION + '_' + loginLowerCase + '___WAIT'] = undefined;
     return null;
   }
 };

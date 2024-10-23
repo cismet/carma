@@ -21,5 +21,5 @@ const store = setupStore(defaultViewerState);
 root.render(
   <Provider store={store}>
     <App />
-  </Provider>
+  </Provider>,
 );

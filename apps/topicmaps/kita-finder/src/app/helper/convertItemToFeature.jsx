@@ -57,7 +57,7 @@ const convertItemToFeature = async (itemIn) => {
       info: `Kindertageseinrichtung mit ${itemIn.plaetze} Plätzen in ${
         constants.TRAEGERTEXT[itemIn.traegertyp]
       }`,
-    })
+    }),
   );
 
   let item = await addSVGToProps(clonedItem, (i) => getSignature(i));

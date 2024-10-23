@@ -10,16 +10,13 @@ const MeinStandort = () => {
           genericHelpTextForMyLocation: {
             addendum: (
               <span>
-                Mit einer Positionierung des Karteninhaltes über "Mein Standort"
-                wird stets eine Verschiebung des Karteninhaltes bewirkt, nach
-                der immer automatisch ein{" "}
+                Mit einer Positionierung des Karteninhaltes über "Mein Standort" wird stets eine
+                Verschiebung des Karteninhaltes bewirkt, nach der immer automatisch ein{" "}
                 <Link
-                  class="renderAsLink"
-                  to={slugify(
-                    "Karteninhalt verschieben und thematischer Durchstich"
-                  )}
+                  class='renderAsLink'
+                  to={slugify("Karteninhalt verschieben und thematischer Durchstich")}
                   containerId={"myMenu"}
-                  activeClass="active"
+                  activeClass='active'
                 >
                   thematischer Durchstich
                 </Link>{" "}

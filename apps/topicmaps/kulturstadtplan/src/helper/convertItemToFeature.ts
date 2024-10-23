@@ -1,6 +1,6 @@
-import { addSVGToProps } from "react-cismap/tools/svgHelper";
-import Color from "color";
-import { getColorForProperties, getHeaderTextForProperties } from "./styler";
+import { addSVGToProps } from 'react-cismap/tools/svgHelper';
+import Color from 'color';
+import { getColorForProperties, getHeaderTextForProperties } from './styler';
 
 const getSignature = (properties) => {
   if (properties.signatur) {
@@ -8,7 +8,7 @@ const getSignature = (properties) => {
   } else if (properties.mainlocationtype.signatur) {
     return properties.mainlocationtype.signatur;
   }
-  return "Platz.svg";
+  return 'Platz.svg';
 };
 
 const convertItemToFeature = async (itemIn) => {
@@ -52,9 +52,9 @@ const convertItemToFeature = async (itemIn) => {
     item.genericLinks = [
       {
         url: item.wup_live_url,
-        tooltip: "Programm anzeigen",
-        target: "wupplive",
-        iconname: "calendar",
+        tooltip: 'Programm anzeigen',
+        target: 'wupplive',
+        iconname: 'calendar',
       },
     ];
   }
@@ -62,7 +62,7 @@ const convertItemToFeature = async (itemIn) => {
   item.color = headerColor;
   item.info = info;
   const id = item.id;
-  const type = "Feature";
+  const type = 'Feature';
   const selected = false;
   const geometry = item.geojson;
   const text = item.name;
@@ -74,9 +74,9 @@ const convertItemToFeature = async (itemIn) => {
     selected,
     geometry,
     crs: {
-      type: "name",
+      type: 'name',
       properties: {
-        name: "urn:ogc:def:crs:EPSG::25832",
+        name: 'urn:ogc:def:crs:EPSG::25832',
       },
     },
     properties: item,

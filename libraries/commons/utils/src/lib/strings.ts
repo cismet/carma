@@ -4,7 +4,7 @@ const DEFAULT_STRING_LENGTH = 5;
 
 export function generateRandomString(
   length: number = DEFAULT_STRING_LENGTH,
-  charSet: string = CHARSET_ALPHANUMERIC_MIXED_CASE
+  charSet: string = CHARSET_ALPHANUMERIC_MIXED_CASE,
 ): string {
   let result = "";
   let charactersLength = charSet.length;

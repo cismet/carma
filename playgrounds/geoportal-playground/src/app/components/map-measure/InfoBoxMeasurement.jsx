@@ -1,4 +1,4 @@
-import ResponsiveInfoBox from "react-cismap/topicmaps/ResponsiveInfoBox";
+import ResponsiveInfoBox from 'react-cismap/topicmaps/ResponsiveInfoBox';
 import {
   getShapes,
   setActiveShape,
@@ -14,13 +14,13 @@ import {
   setMapMovingEnd,
   getMapMovingEnd,
   updateTitle,
-} from "../../store/slices/measurements";
-import { useSelector, useDispatch } from "react-redux";
-import { useState, useEffect } from "react";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faTrashCan } from "@fortawesome/free-solid-svg-icons";
-import MeasurementTitle from "./MeasurementTitle";
-import Icon from "react-cismap/commons/Icon";
+} from '../../store/slices/measurements';
+import { useSelector, useDispatch } from 'react-redux';
+import { useState, useEffect } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTrashCan } from '@fortawesome/free-solid-svg-icons';
+import MeasurementTitle from './MeasurementTitle';
+import Icon from 'react-cismap/commons/Icon';
 
 const InfoBoxMeasurement = () => {
   const measurementsData = useSelector(getShapes);
@@ -189,7 +189,7 @@ const InfoBoxMeasurement = () => {
           // s
           alwaysVisibleDiv={
             <div className="mt-2 mb-2 w-[96%] flex justify-between items-start gap-4">
-              <span style={{ cursor: "pointer" }}>
+              <span style={{ cursor: 'pointer' }}>
                 <MeasurementTitle
                   key={
                     visibleShapesData[currentMeasure].shapeId +
@@ -255,7 +255,7 @@ const InfoBoxMeasurement = () => {
                 <a
                   className="renderAsLink text-[#0078a8]"
                   onClick={decreaseCurrentHandler}
-                  style={{ fontSize: "10.5px" }}
+                  style={{ fontSize: '10.5px' }}
                 >
                   &lt;&lt;
                 </a>
@@ -265,7 +265,7 @@ const InfoBoxMeasurement = () => {
                 <a
                   className="renderAsLink text-[#0078a8]"
                   onClick={increaseCurrentHandler}
-                  style={{ fontSize: "10.5px" }}
+                  style={{ fontSize: '10.5px' }}
                 >
                   &gt;&gt;
                 </a>
@@ -283,8 +283,8 @@ const InfoBoxMeasurement = () => {
             <div className="mt-2 w-[90%] p-2">
               <p className="text-[#212529] font-normal text-xs leading-normal">
                 {measurementsData.length !== 0
-                  ? "Um alle Messungen zu sehen, klicken Sie auf den unten stehenden Link"
-                  : "Aktuell sind keine Messungen vorhanden. Neue Messungen können mit + angelegt werden."}
+                  ? 'Um alle Messungen zu sehen, klicken Sie auf den unten stehenden Link'
+                  : 'Aktuell sind keine Messungen vorhanden. Neue Messungen können mit + angelegt werden.'}
               </p>
             </div>
           }
@@ -311,9 +311,9 @@ const InfoBoxMeasurement = () => {
 export default InfoBoxMeasurement;
 
 function addDefaultShapeNameToTitle(shape) {
-  let newShape = "Linienzug";
+  let newShape = 'Linienzug';
   if (shape.area) {
-    newShape = "Polygon";
+    newShape = 'Polygon';
   }
   return newShape;
 }

@@ -7,7 +7,7 @@ export const APP_DEFAULT_SHORT_TITLE = "3DView";
 // STYLING
 
 export const DEFAULT_SELECTION_HIGHLIGHT_MATERIAL = new ColorMaterialProperty(
-  Color.YELLOW.withAlpha(0.7)
+  Color.YELLOW.withAlpha(0.7),
 );
 
 // ANIMATIONS

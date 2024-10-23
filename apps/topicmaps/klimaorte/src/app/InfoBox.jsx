@@ -15,7 +15,7 @@ const InfoBox = (props) => {
 
   const featureCollectionContext = useContext(FeatureCollectionContext);
   const { setSelectedFeatureByPredicate, fitBoundsForCollection } = useContext(
-    FeatureCollectionDispatchContext
+    FeatureCollectionDispatchContext,
   );
 
   const {
@@ -26,7 +26,7 @@ const InfoBox = (props) => {
     allFeatures,
   } = featureCollectionContext;
   const { responsiveState, gap, windowSize, infoBoxPixelWidth } = useContext(
-    ResponsiveTopicMapContext
+    ResponsiveTopicMapContext,
   );
 
   const overlappingHeaders = [];
@@ -57,7 +57,7 @@ const InfoBox = (props) => {
               onClick={() => {
                 console.log(
                   "setSelectedFeatureByPredicate",
-                  setSelectedFeatureByPredicate
+                  setSelectedFeatureByPredicate,
                 );
 
                 setSelectedFeatureByPredicate(
@@ -73,8 +73,8 @@ const InfoBox = (props) => {
                         allFeatures.filter(
                           (f) =>
                             f.properties.typ === "route" &&
-                            f.properties.id === route.id
-                        )
+                            f.properties.id === route.id,
+                        ),
                       );
                       setTimeout(() => {
                         setSelectedFeatureByPredicate((feature) => {
@@ -85,7 +85,7 @@ const InfoBox = (props) => {
                         });
                       }, 200);
                     }
-                  }
+                  },
                 );
               }}
             >
@@ -93,12 +93,12 @@ const InfoBox = (props) => {
                 headerColor={
                   getColorConsideringSeondarySelection(
                     route,
-                    secondarySelection
+                    secondarySelection,
                   ).string() || "grey"
                 }
                 content={"Klimaroute " + route.name}
               ></InfoBoxHeader>
-            </div>
+            </div>,
           );
         }
         counter++;
@@ -125,7 +125,7 @@ const InfoBox = (props) => {
       let orderCounter = 0;
       const orderIndexOfSelectedFeature = doubleOrder.findIndex(
         (tester) =>
-          currentTarget.typ === tester.typ && currentTarget.id === tester.id
+          currentTarget.typ === tester.typ && currentTarget.id === tester.id,
       );
       let hitIndex;
       //prepare the next id
@@ -167,7 +167,7 @@ const InfoBox = (props) => {
             feature?.properties?.id.toString(),
             doubleOrder[hitIndex].id,
             feature?.properties?.typ === doubleOrder[hitIndex].typ &&
-              feature?.properties?.id.toString() === doubleOrder[hitIndex].id
+              feature?.properties?.id.toString() === doubleOrder[hitIndex].id,
           );
 
           return (
@@ -198,7 +198,7 @@ const InfoBox = (props) => {
           featureCollection.filter(
             (feature) =>
               feature.preventSelection !== true &&
-              feature.properties.typ === "route"
+              feature.properties.typ === "route",
           ).length,
         next: () => {
           select(NEXT, Object.keys(itemsDictionary.routen), () => "route");
@@ -208,7 +208,7 @@ const InfoBox = (props) => {
         },
         fitAll: () => {
           fitBoundsForCollection(
-            allFeatures.filter((f) => f.properties.typ === "route")
+            allFeatures.filter((f) => f.properties.typ === "route"),
           );
         },
       };
@@ -242,8 +242,8 @@ const InfoBox = (props) => {
                 feature.preventSelection !== true &&
                 feature.properties.routen &&
                 feature.properties.routen.filter(
-                  (r) => r.id === secondarySelection.id
-                ).length > 0
+                  (r) => r.id === secondarySelection.id,
+                ).length > 0,
             );
 
             return featuresThatCount.length;
@@ -262,7 +262,7 @@ const InfoBox = (props) => {
                 return obj.typ;
               }
             },
-            (obj) => obj.id
+            (obj) => obj.id,
           );
         },
         previous: () => {
@@ -277,7 +277,7 @@ const InfoBox = (props) => {
               }
             },
 
-            (obj) => obj.id
+            (obj) => obj.id,
           );
         },
         fitAll: () => {
@@ -288,9 +288,9 @@ const InfoBox = (props) => {
                 itemsDictionary.stationenInRouten[
                   secondarySelection.id
                 ].findIndex(
-                  (agb) => agb.id === f.properties.id && agb.typ === "angebot"
-                ) > -1
-            )
+                  (agb) => agb.id === f.properties.id && agb.typ === "angebot",
+                ) > -1,
+            ),
           );
         },
       };

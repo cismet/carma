@@ -236,7 +236,7 @@ const KassenzeichenViewer = () => {
         >
           {getOverlayTextForFlaeche(
             selectedFlaeche.properties,
-            undefined
+            undefined,
             // this.props.uiState.changeRequestsEditMode === true
             //     ? getCRsForFlaeche(this.props.kassenzeichen, {
             //           flaechenbezeichnung: selectedFlaeche.properties.bez

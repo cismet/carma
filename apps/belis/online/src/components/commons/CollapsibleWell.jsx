@@ -10,28 +10,20 @@ const COMP = ({
   alwaysVisibleDiv = <div>alwaysVisibleDiv</div>,
   collapsibleDiv = (
     <div>
-      collapsibleDiv collapsibleDiv collapsibleDiv collapsibleDiv collapsibleDiv
-      collapsibleDiv collapsibleDiv collapsibleDiv collapsibleDiv collapsibleDiv
-      collapsibleDiv collapsibleDiv collapsibleDiv collapsibleDiv collapsibleDiv
-      collapsibleDiv collapsibleDiv collapsibleDiv collapsibleDiv collapsibleDiv{" "}
+      collapsibleDiv collapsibleDiv collapsibleDiv collapsibleDiv collapsibleDiv collapsibleDiv
+      collapsibleDiv collapsibleDiv collapsibleDiv collapsibleDiv collapsibleDiv collapsibleDiv
+      collapsibleDiv collapsibleDiv collapsibleDiv collapsibleDiv collapsibleDiv collapsibleDiv
+      collapsibleDiv collapsibleDiv{" "}
     </div>
   ),
   upButton = (
     <h4 style={{ margin: 2, fontSize: "18px" }}>
-      <Icon
-        title="vollständige info-Box"
-        style={{ color: "#7e7e7e" }}
-        name="chevron-circle-up"
-      />
+      <Icon title='vollständige info-Box' style={{ color: "#7e7e7e" }} name='chevron-circle-up' />
     </h4>
   ),
   downButton = (
     <h4 style={{ margin: 2, fontSize: "18px" }}>
-      <Icon
-        title="kompakte Info-Box"
-        style={{ color: "#7e7e7e" }}
-        name="chevron-circle-down"
-      />
+      <Icon title='kompakte Info-Box' style={{ color: "#7e7e7e" }} name='chevron-circle-down' />
     </h4>
   ),
   collapseButtonAreaStyle = {},
@@ -101,19 +93,15 @@ const COMP = ({
   if (fixedRow) {
     return (
       <Well onClick={onClick} key={keyToUse} bsSize={bsSize} style={style}>
-        <table width="100%" border={debugBorder} style={tableStyle}>
+        <table width='100%' border={debugBorder} style={tableStyle}>
           <tbody>
             <tr>
-              {alwaysVisibleDiv && (
-                <th style={{ verticalAlign: "middle" }}>{alwaysVisibleDiv}</th>
-              )}
-              {!alwaysVisibleDiv && (
-                <th style={{ verticalAlign: "middle", padding: "0px" }}></th>
-              )}
+              {alwaysVisibleDiv && <th style={{ verticalAlign: "middle" }}>{alwaysVisibleDiv}</th>}
+              {!alwaysVisibleDiv && <th style={{ verticalAlign: "middle", padding: "0px" }}></th>}
 
               {isCollapsible && (
                 <th
-                  rowSpan="2"
+                  rowSpan='2'
                   style={{
                     verticalAlign: "middle",
                     textAlign: "center",
@@ -138,15 +126,11 @@ const COMP = ({
   } else {
     return (
       <Well onClick={onClick} key={keyToUse} bsSize={bsSize} style={style}>
-        <table width="100%" border={debugBorder}>
+        <table width='100%' border={debugBorder}>
           <tbody>
             <tr>
-              {alwaysVisibleDiv && (
-                <th style={{ verticalAlign: "middle" }}>{alwaysVisibleDiv}</th>
-              )}
-              {!alwaysVisibleDiv && (
-                <th style={{ verticalAlign: "middle", padding: "0px" }}></th>
-              )}
+              {alwaysVisibleDiv && <th style={{ verticalAlign: "middle" }}>{alwaysVisibleDiv}</th>}
+              {!alwaysVisibleDiv && <th style={{ verticalAlign: "middle", padding: "0px" }}></th>}
               {isCollapsible && (
                 <th
                   style={{
@@ -164,7 +148,7 @@ const COMP = ({
 
             {(!isCollapsible || !collapsed === true) && (
               <tr>
-                <td colSpan="2">{collapsibleDiv}</td>
+                <td colSpan='2'>{collapsibleDiv}</td>
               </tr>
             )}
           </tbody>

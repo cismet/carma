@@ -33,7 +33,7 @@ console.error = (message, ...args) => {
 };
 
 const root = ReactDOM.createRoot(
-  document.getElementById("root") as HTMLElement
+  document.getElementById("root") as HTMLElement,
 );
 
 const RootComponent = () => {
@@ -48,7 +48,7 @@ const RootComponent = () => {
     initialVectorStylesArray = vectorStyles.split(",");
   }
   const [vectorStylesArray, setVectorStylesArray] = useState<string[]>(
-    initialVectorStylesArray
+    initialVectorStylesArray,
   );
 
   useEffect(() => {
@@ -106,7 +106,7 @@ const RootComponent = () => {
             if (typeof fileContent === "string") {
               const processedContent = fileContent.replace(
                 /__SERVER_URL__/g,
-                "https://tiles.cismet.de"
+                "https://tiles.cismet.de",
               );
 
               const jsonData = JSON.parse(processedContent);
@@ -162,5 +162,5 @@ root.render(
     <Router>
       <RootComponent />
     </Router>
-  </StrictMode>
+  </StrictMode>,
 );

@@ -146,7 +146,7 @@ const LayerButton = ({
         "",
         // index === -1 && 'ml-auto',
         // index === layersLength - 1 && 'mr-auto',
-        showLeftScrollButton && index === -1 && "pr-4"
+        showLeftScrollButton && index === -1 && "pr-4",
       )}
       id={`layer-${id}`}
     >
@@ -157,7 +157,7 @@ const LayerButton = ({
           console.log(
             "onClick LayerButton settings clickFromInfoView",
             showSettings,
-            clickFromInfoView
+            clickFromInfoView,
           );
           if (!clickFromInfoView) {
             showSettings
@@ -183,7 +183,7 @@ const LayerButton = ({
             ? "bg-white"
             : "bg-neutral-200",
           zoom >= layer.props.maxZoom && "opacity-50",
-          zoom <= layer.props.minZoom && "opacity-50"
+          zoom <= layer.props.minZoom && "opacity-50",
         )}
       >
         {iconName ? (
@@ -266,7 +266,7 @@ const LayerButton = ({
               className={cn(
                 "h-[5px] z-[999999999] cursor-pointer w-full mx-3 rounded-full",
                 layer.useInFeatureInfo && "bg-[#1677ff]",
-                !layer.useInFeatureInfo && "bg-gray-500"
+                !layer.useInFeatureInfo && "bg-gray-500",
               )}
             />
           </div>

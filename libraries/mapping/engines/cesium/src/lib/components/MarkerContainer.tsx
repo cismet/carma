@@ -39,7 +39,7 @@ export const MarkerContainer: FC<MarkerContainerProps> = ({
   const [entityData, setEntityData] = useState<Marker3dData[] | null>(null);
   const lastFrameTimeRef = useRef<number | null>(null);
   const [animatonSpeed, setAnimationSpeed] = useState<number>(
-    DEFAULT_MARKER3D_ROTATION_SPEED
+    DEFAULT_MARKER3D_ROTATION_SPEED,
   );
 
   useEffect(() => {
@@ -56,7 +56,7 @@ export const MarkerContainer: FC<MarkerContainerProps> = ({
         const offsetZ = offset.z || 0;
         const modelMatrix = Transforms.eastNorthUpToFixedFrame(position);
         const translation = Matrix4.fromTranslation(
-          new Cartesian3(0, 0, offsetZ * scale)
+          new Cartesian3(0, 0, offsetZ * scale),
         );
         Matrix4.multiply(modelMatrix, translation, modelMatrix);
         // Update modelMatrix in entityDataRef
@@ -64,7 +64,7 @@ export const MarkerContainer: FC<MarkerContainerProps> = ({
         (data as Marker3dData).animatedModelMatrix = modelMatrix.clone();
 
         return data as Marker3dData;
-      })
+      }),
     );
   }, [markerData]);
 
@@ -116,8 +116,8 @@ export const MarkerContainer: FC<MarkerContainerProps> = ({
                   new Cartesian3(
                     modelMatrix[12],
                     modelMatrix[13],
-                    modelMatrix[14]
-                  )
+                    modelMatrix[14],
+                  ),
                 );
                 if (dist) {
                   // TODO fix scaling origin
@@ -131,20 +131,22 @@ export const MarkerContainer: FC<MarkerContainerProps> = ({
               if (rotation) {
                 const RotationQuaternion = Quaternion.fromAxisAngle(
                   Cartesian3.UNIT_Z,
-                  (rotation === true ? 1 : rotation) * animatonSpeed * deltaTime
+                  (rotation === true ? 1 : rotation) *
+                    animatonSpeed *
+                    deltaTime,
                 );
 
                 const rotationMatrix =
                   Matrix4.fromTranslationQuaternionRotationScale(
                     new Cartesian3(0, 0, 0),
                     RotationQuaternion,
-                    scale
+                    scale,
                   );
                 const updatedModelMatrix = Matrix4.clone(animatedModelMatrix);
                 Matrix4.multiply(
                   updatedModelMatrix,
                   rotationMatrix,
-                  updatedModelMatrix
+                  updatedModelMatrix,
                 );
                 return {
                   ...entityData[i],
@@ -154,19 +156,19 @@ export const MarkerContainer: FC<MarkerContainerProps> = ({
                 const cameraHeading = viewer.camera.heading;
                 const rotationQuaternion = Quaternion.fromAxisAngle(
                   Cartesian3.UNIT_Z,
-                  -cameraHeading - CesiumMath.PI_OVER_TWO
+                  -cameraHeading - CesiumMath.PI_OVER_TWO,
                 );
                 const rotationMatrix =
                   Matrix4.fromTranslationQuaternionRotationScale(
                     new Cartesian3(0, 0, 0),
                     rotationQuaternion,
-                    scale
+                    scale,
                   );
                 const updatedModelMatrix = Matrix4.clone(modelMatrix);
                 Matrix4.multiply(
                   updatedModelMatrix,
                   rotationMatrix,
-                  updatedModelMatrix
+                  updatedModelMatrix,
                 );
                 return {
                   ...entityData[i],
@@ -175,7 +177,7 @@ export const MarkerContainer: FC<MarkerContainerProps> = ({
               }
             }
             return entityData[i];
-          }
+          },
         );
 
         setEntityData(updatedEntityData);

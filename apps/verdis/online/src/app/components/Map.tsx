@@ -6,26 +6,26 @@ import {
   FeatureCollectionDisplay,
   NewMarkerControl,
   NewPolyControl,
-} from "react-cismap";
-import { useDispatch, useSelector } from "react-redux";
-import { useSearchParams } from "react-router-dom";
+} from 'react-cismap';
+import { useDispatch, useSelector } from 'react-redux';
+import { useSearchParams } from 'react-router-dom';
 import {
   fitFeatureBounds,
   getMapping,
   mapBoundsChanged,
   setAutoFit,
   setSelectedFeatureIndexWithSelector,
-} from "../../store/slices/mapping";
-import "react-cismap/topicMaps.css";
-import "leaflet/dist/leaflet.css";
-import { getHeight, getUiState } from "../../store/slices/ui";
+} from '../../store/slices/mapping';
+import 'react-cismap/topicMaps.css';
+import 'leaflet/dist/leaflet.css';
+import { getHeight, getUiState } from '../../store/slices/ui';
 import {
   createFlaechenStyler,
   getMarkerStyleFromFeatureConsideringSelection,
-} from "../../utils/kassenzeichenMappingTools";
-import { getKassenzeichen } from "../../store/slices/kassenzeichen";
-import CyclingBackgroundButton from "./CyclingBackgroundButton";
-import { ReactNode, useRef } from "react";
+} from '../../utils/kassenzeichenMappingTools';
+import { getKassenzeichen } from '../../store/slices/kassenzeichen';
+import CyclingBackgroundButton from './CyclingBackgroundButton';
+import { ReactNode, useRef } from 'react';
 
 interface MapProps {
   children?: ReactNode;
@@ -52,9 +52,9 @@ const Map = ({ children }: MapProps) => {
 
   const isFlaecheSelected = (flaeche) => {
     return (
-      mapping.featureCollection !== "undefined" &&
+      mapping.featureCollection !== 'undefined' &&
       mapping.featureCollection.length > 0 &&
-      mapping.selectedIndex !== "undefined" &&
+      mapping.selectedIndex !== 'undefined' &&
       mapping.featureCollection.length > mapping.selectedIndex &&
       mapping.featureCollection[mapping.selectedIndex] &&
       mapping.featureCollection[mapping.selectedIndex]?.properties.id ===
@@ -65,7 +65,7 @@ const Map = ({ children }: MapProps) => {
   const featureClick = (event, feature) => {
     if (isFlaecheSelected(feature.properties)) {
       dispatch(
-        fitFeatureBounds(mapping.featureCollection[mapping.selectedIndex], "")
+        fitFeatureBounds(mapping.featureCollection[mapping.selectedIndex], '')
       );
     } else {
       dispatch(
@@ -78,7 +78,7 @@ const Map = ({ children }: MapProps) => {
 
   const mapStyle = {
     height: height - 55,
-    cursor: "grab",
+    cursor: 'grab',
   };
 
   return (
@@ -87,7 +87,7 @@ const Map = ({ children }: MapProps) => {
       // onFeatureCreation={this.onFeatureCreation}
       // onFeatureChangeAfterEditing={this.onFeatureChange}
       snappingEnabled={true}
-      key={"leafletRoutedMap0 + "}
+      key={'leafletRoutedMap0 + '}
       referenceSystem={MappingConstants.crs25832}
       referenceSystemDefinition={MappingConstants.proj4crs25832def}
       ref={refRoutedMap}
@@ -120,16 +120,16 @@ const Map = ({ children }: MapProps) => {
     >
       <FeatureCollectionDisplay
         key={
-          "fc" +
+          'fc' +
           JSON.stringify(mapping.featureCollection) +
-          "+" +
+          '+' +
           mapping.selectedIndex +
-          "+editEnabled:"
+          '+editEnabled:'
           // this.props.uiState.changeRequestsEditMode
         }
         featureCollection={mapping.featureCollection.filter(
           (feature) =>
-            annotationEditable || feature.properties.type !== "annotation"
+            annotationEditable || feature.properties.type !== 'annotation'
         )}
         boundingBox={mapping.boundingBox}
         clusteringEnabled={false}
@@ -137,18 +137,18 @@ const Map = ({ children }: MapProps) => {
         // hoverer={this.props.hoverer}
         featureClickHandler={featureClick}
         // mapRef={this.leafletRoutedMap}
-        showMarkerCollection={urlParams.get("zoom") >= 15}
+        showMarkerCollection={urlParams.get('zoom') >= 15}
         markerStyle={getMarkerStyleFromFeatureConsideringSelection}
         snappingGuides={true}
       />
       <CyclingBackgroundButton
-        key={"CyclingBackgroundButton."}
+        key={'CyclingBackgroundButton.'}
         mapRef={refRoutedMap}
       />
       {annotationEditable && (
         <NewPolyControl
           key={
-            "NewPolyControl + update when CyclingBackgroundButton."
+            'NewPolyControl + update when CyclingBackgroundButton.'
             // this.state.featuresInEditmode +
             // this.props.mapping.selectedBackgroundIndex
           }
@@ -161,7 +161,7 @@ const Map = ({ children }: MapProps) => {
       {annotationEditable && (
         <NewMarkerControl
           key={
-            "NewMarkerControl+ update when CyclingBackgroundButton."
+            'NewMarkerControl+ update when CyclingBackgroundButton.'
             // this.state.featuresInEditmode +
             // this.props.mapping.selectedBackgroundIndex
           }

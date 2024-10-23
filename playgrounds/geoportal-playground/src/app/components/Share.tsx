@@ -1,13 +1,13 @@
-import { faShareNodes } from "@fortawesome/free-solid-svg-icons";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { useCopyToClipboard } from "@uidotdev/usehooks";
-import { Button, Checkbox, Radio, message } from "antd";
-import LZString from "lz-string";
-import { useState } from "react";
-import { useSelector } from "react-redux";
-import { useSearchParams } from "react-router-dom";
-import { getBackgroundLayer, getLayers } from "../store/slices/mapping";
-import "./popover.css";
+import { faShareNodes } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { useCopyToClipboard } from '@uidotdev/usehooks';
+import { Button, Checkbox, Radio, message } from 'antd';
+import LZString from 'lz-string';
+import { useState } from 'react';
+import { useSelector } from 'react-redux';
+import { useSearchParams } from 'react-router-dom';
+import { getBackgroundLayer, getLayers } from '../store/slices/mapping';
+import './popover.css';
 
 export type Settings = {
   showLayerButtons: boolean;
@@ -20,8 +20,8 @@ export type Settings = {
 
 function generateRandomString(length) {
   let characters =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let result = "";
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
   let charactersLength = characters.length;
   for (let i = 0; i < length; i++) {
     result += characters.charAt(Math.floor(Math.random() * charactersLength));
@@ -35,8 +35,8 @@ const Share = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [copiedText, copyToClipboard] = useCopyToClipboard();
   const [messageApi, contextHolder] = message.useMessage();
-  const [mode, setMode] = useState("");
-  const [customAppKey, setCustomAppKey] = useState("");
+  const [mode, setMode] = useState('');
+  const [customAppKey, setCustomAppKey] = useState('');
   const [settings, setSettings] = useState<Settings>({
     showLayerButtons: true,
     showLayerHideButtons: true,
@@ -55,8 +55,8 @@ const Share = () => {
       </div>
       <Radio.Group value={mode} onChange={(e) => setMode(e.target.value)}>
         <div className="flex items-center gap-1">
-          <Radio value={""}>Geoportal Konfiguration</Radio>
-          <Radio value={"publish/"}>Map Publishing</Radio>
+          <Radio value={''}>Geoportal Konfiguration</Radio>
+          <Radio value={'publish/'}>Map Publishing</Radio>
         </div>
       </Radio.Group>
       <hr className="my-0" />
@@ -68,7 +68,7 @@ const Share = () => {
           onChange={(e) =>
             setSettings({ ...settings, showLayerButtons: e.target.checked })
           }
-          disabled={mode === ""}
+          disabled={mode === ''}
         >
           Layer Buttons anzeigen
         </Checkbox>
@@ -80,7 +80,7 @@ const Share = () => {
           onChange={(e) =>
             setSettings({ ...settings, showFullscreen: e.target.checked })
           }
-          disabled={mode === ""}
+          disabled={mode === ''}
         >
           Fullscreen
         </Checkbox>
@@ -89,7 +89,7 @@ const Share = () => {
           onChange={(e) =>
             setSettings({ ...settings, showLocator: e.target.checked })
           }
-          disabled={mode === ""}
+          disabled={mode === ''}
         >
           Navigator
         </Checkbox>
@@ -98,7 +98,7 @@ const Share = () => {
           onChange={(e) =>
             setSettings({ ...settings, showMeasurement: e.target.checked })
           }
-          disabled={mode === ""}
+          disabled={mode === ''}
         >
           Messung
         </Checkbox>
@@ -109,7 +109,7 @@ const Share = () => {
         onChange={(e) =>
           setSettings({ ...settings, showHamburgerMenu: e.target.checked })
         }
-        disabled={mode === ""}
+        disabled={mode === ''}
       >
         Hamburger Menu
       </Checkbox>
@@ -120,7 +120,7 @@ const Share = () => {
             backgroundLayer: backgroundLayer,
             layers: activeLayers,
             settings:
-              mode === "publish/"
+              mode === 'publish/'
                 ? settings
                 : {
                     showLayerButtons: true,
@@ -137,16 +137,16 @@ const Share = () => {
             const baseUrl = window.location.origin + window.location.pathname;
             const queryString = new URLSearchParams(searchParams).toString();
             const url = `${baseUrl}#/${mode}?data=${compressed}&${queryString}${
-              mode === "publish/" ? `&appKey=${generateRandomString(5)}` : ""
+              mode === 'publish/' ? `&appKey=${generateRandomString(5)}` : ''
             }`;
             copyToClipboard(url);
             messageApi.open({
-              type: "success",
+              type: 'success',
               content: `Link wurde in die Zwischenablage kopiert.`,
             });
           } catch {
             messageApi.open({
-              type: "error",
+              type: 'error',
               content: `Es gab einen Fehler beim kopieren des Links`,
             });
           }

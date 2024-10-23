@@ -23,7 +23,7 @@ const LockCenterControl = (props: LockCenterControlProps) => {
       viewer && lockPosition(viewer);
     } else {
       unlockPosition(
-        viewer as Viewer & { debugPrimitive?: DebugModelMatrixPrimitive }
+        viewer as Viewer & { debugPrimitive?: DebugModelMatrixPrimitive },
       );
       setLockCenter(false);
     }

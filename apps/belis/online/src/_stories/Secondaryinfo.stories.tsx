@@ -23,8 +23,8 @@ export const Simple = () => {
         }}
       >
         <Button
-          size="lg"
-          variant="outline-primary"
+          size='lg'
+          variant='outline-primary'
           onClick={() => {
             setVisible(true);
           }}
@@ -41,7 +41,7 @@ export const Simple = () => {
         imageUrl={"https://cismet.de/images/projects/wunda_l.png"}
         setVisibleState={setVisible}
         title={"cismet GmbH"}
-        titleIconName="info"
+        titleIconName='info'
         mainSection={
           <div style={{ fontSize: "115%", padding: "10px", paddingTop: "0px" }}>
             <div>
@@ -55,18 +55,17 @@ export const Simple = () => {
               <b>Detailinformation:</b>
             </div>
             <div>
-              Als ausgebildete Informatiker mit langjähriger Berufserfahrung
-              verfügt unser Personal ausnahmelos über das notwendige Know-How
-              zum Entwurf und der Umsetzung von Informationssystemen.{" "}
+              Als ausgebildete Informatiker mit langjähriger Berufserfahrung verfügt unser Personal
+              ausnahmelos über das notwendige Know-How zum Entwurf und der Umsetzung von
+              Informationssystemen.{" "}
             </div>
             <br />
             <div>
               <b>Bemerkung:</b>
             </div>
             <div>
-              Hierzu gehören ein grundlegendes und theoretisch fundiertes
-              Verständnis der Bereiche Datenbankentwurf, Softwareentwurf und
-              Programmierung.
+              Hierzu gehören ein grundlegendes und theoretisch fundiertes Verständnis der Bereiche
+              Datenbankentwurf, Softwareentwurf und Programmierung.
             </div>
             <br />
             <div>
@@ -80,72 +79,68 @@ export const Simple = () => {
         }
         subSections={[
           <GenericSecondaryInfoPanelSection
-            header="Entwicklung"
-            bsStyle="primary"
+            header='Entwicklung'
+            bsStyle='primary'
             content={
               <div>
-                Ein wichtiges Standbein ist die Auftragssoftwareentwicklung im
-                Bereich von maßgeschneiderten, hochintegrierten Lösungen unter
-                Verwendung von Open Source GIS-Software.
+                Ein wichtiges Standbein ist die Auftragssoftwareentwicklung im Bereich von
+                maßgeschneiderten, hochintegrierten Lösungen unter Verwendung von Open Source
+                GIS-Software.
               </div>
             }
           />,
           <GenericSecondaryInfoPanelSection
-            header="Forschung"
-            bsStyle="success"
+            header='Forschung'
+            bsStyle='success'
             content={
               <div>
-                Schwerpunkt unserer Forschungsaktivitäten in zahlreichen
-                EU-Projekten sind Integrationskonzepte & Architekturen,
-                insbesondere im Bereich Geodatenintegration, die für den Aufbau
-                von Geodateninfrastrukturen unerlässlich sind.
+                Schwerpunkt unserer Forschungsaktivitäten in zahlreichen EU-Projekten sind
+                Integrationskonzepte & Architekturen, insbesondere im Bereich Geodatenintegration,
+                die für den Aufbau von Geodateninfrastrukturen unerlässlich sind.
               </div>
             }
           />,
           <GenericSecondaryInfoPanelSection
-            header="cids Toolkit"
-            bsStyle="info"
+            header='cids Toolkit'
+            bsStyle='info'
             content={
               <div>
-                Verwendung und Vermarktung der eigenen Geo- & Daten-
-                Integrationsplattform cids/cismap als Werkzeug zum nachhaltigen
-                Informationsinfrastrukturaufbau in Behörden und Unternehmen
-                garantiert höchstmögliche Nachhaltigkeit.
+                Verwendung und Vermarktung der eigenen Geo- & Daten- Integrationsplattform
+                cids/cismap als Werkzeug zum nachhaltigen Informationsinfrastrukturaufbau in
+                Behörden und Unternehmen garantiert höchstmögliche Nachhaltigkeit.
               </div>
             }
           />,
           <GenericSecondaryInfoPanelSection
-            header="Beratung"
-            bsStyle="warning"
+            header='Beratung'
+            bsStyle='warning'
             content={
               <div>
-                Wir sind seit langer Zeit im Umfeld von Architekturen großer und
-                komplexer Softwaresysteme, Anwendung von Referenzmodellen,
-                Serviceinfrastrukturen, GIS-integration international tätig.
+                Wir sind seit langer Zeit im Umfeld von Architekturen großer und komplexer
+                Softwaresysteme, Anwendung von Referenzmodellen, Serviceinfrastrukturen,
+                GIS-integration international tätig.
               </div>
             }
           />,
           <GenericSecondaryInfoPanelSection
-            header="Starke Partner"
-            bsStyle="danger"
+            header='Starke Partner'
+            bsStyle='danger'
             content={
               <div>
-                Durch unsere nationale und internationale, thematisch weit
-                gestreute Projekte verfügen wir über ein weit reichendes
-                Partner-Netzwerk mit renomierten Unternehmen, Behörden,
-                Universitäten und Forschungseinrichtungen.
+                Durch unsere nationale und internationale, thematisch weit gestreute Projekte
+                verfügen wir über ein weit reichendes Partner-Netzwerk mit renomierten Unternehmen,
+                Behörden, Universitäten und Forschungseinrichtungen.
               </div>
             }
           />,
           <GenericSecondaryInfoPanelSection
-            header="Veröffentlichungen"
-            bsStyle="default"
+            header='Veröffentlichungen'
+            bsStyle='default'
             content={
               <div>
-                Durch regelmäßige Publikationen in den Bereichen
-                Entscheidungsunterstützende Systeme, Geoinfrastrukturen und
-                Architekturen verteilter komplexer Informationssystem auf
-                Tagungen und in Journals verbinden wir Theorie und Praxis.
+                Durch regelmäßige Publikationen in den Bereichen Entscheidungsunterstützende
+                Systeme, Geoinfrastrukturen und Architekturen verteilter komplexer
+                Informationssystem auf Tagungen und in Journals verbinden wir Theorie und Praxis.
               </div>
             }
           />,

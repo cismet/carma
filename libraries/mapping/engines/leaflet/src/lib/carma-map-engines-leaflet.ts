@@ -1,3 +1,3 @@
 export function carmaMapEnginesLeaflet(): string {
-  return "carma-map-engines-leaflet";
+  return 'carma-map-engines-leaflet';
 }

@@ -122,7 +122,7 @@ const slice = createSlice({
 
     changeVisibility(
       state,
-      action: PayloadAction<{ id: string; visible: boolean }>
+      action: PayloadAction<{ id: string; visible: boolean }>,
     ) {
       if (action.payload.id === state.backgroundLayer.id) {
         state.backgroundLayer.visible = action.payload.visible;
@@ -296,7 +296,7 @@ export const getLayerState = createSelector(
     backgroundLayer,
     selectedMapLayer,
     selectedLayerIndex,
-  })
+  }),
 );
 
 export default slice.reducer;

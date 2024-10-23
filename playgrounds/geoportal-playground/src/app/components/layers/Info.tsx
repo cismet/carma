@@ -85,20 +85,20 @@ const Info = ({ description, legend }: InfoProps) => {
                   (e.target as HTMLElement).localName !== "input"
                 ) {
                   dispatch(
-                    setBackgroundLayer({ ...selectedMapLayer, id: "karte" })
+                    setBackgroundLayer({ ...selectedMapLayer, id: "karte" }),
                   );
                 }
               }}
               className={cn(
                 "w-full group border-[1px] rounded-s-md",
-                backgroundLayer.id !== "luftbild" && "border-[#1677ff]"
+                backgroundLayer.id !== "luftbild" && "border-[#1677ff]",
               )}
             >
               <div className="w-full flex flex-col text-[14px]/[30px] items-center justify-center gap-3">
                 <p
                   className={cn(
                     "mb-0 group-hover:text-[#1677ff]",
-                    backgroundLayer.id !== "luftbild" && "text-[#1677ff]"
+                    backgroundLayer.id !== "luftbild" && "text-[#1677ff]",
                   )}
                 >
                   Karte
@@ -121,7 +121,7 @@ const Info = ({ description, legend }: InfoProps) => {
                           url: layerMap[e.target.value].url,
                         },
                         layers: layerMap[e.target.value].layers,
-                      })
+                      }),
                     );
 
                     if (backgroundLayer.id === "karte") {
@@ -140,7 +140,7 @@ const Info = ({ description, legend }: InfoProps) => {
                             url: layerMap[e.target.value].url,
                           },
                           layers: layerMap[e.target.value].layers,
-                        })
+                        }),
                       );
                     }
                   }}
@@ -191,19 +191,19 @@ const Info = ({ description, legend }: InfoProps) => {
                       url: layerMap["luftbild"].url,
                     },
                     layers: layerMap["luftbild"].layers,
-                  })
+                  }),
                 );
               }}
               className={cn(
                 "w-full group rounded-e-md border-[1px]",
-                backgroundLayer.id === "luftbild" && "border-[#1677ff]"
+                backgroundLayer.id === "luftbild" && "border-[#1677ff]",
               )}
             >
               <div className="flex text-[14px]/[30px] flex-col items-center h-full justify-start">
                 <p
                   className={cn(
                     "mb-0 group-hover:text-[#1677ff]",
-                    backgroundLayer.id === "luftbild" && "text-[#1677ff]"
+                    backgroundLayer.id === "luftbild" && "text-[#1677ff]",
                   )}
                 >
                   Luftbild

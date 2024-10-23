@@ -39,6 +39,6 @@ export function routeGenerator(routes: RouteDescriptor[]) {
           </>
         }
       />
-    )
+    ),
   );
 }

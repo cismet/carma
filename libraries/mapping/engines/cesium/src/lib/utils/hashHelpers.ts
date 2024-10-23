@@ -57,8 +57,8 @@ export const hashcodecs = {
     encode: (value: number) =>
       parseFloat(
         Math.min(Math.max(MINZOOM, value), MAXZOOM).toFixed(
-          FRACTIONAL_ZOOM_DIGITS
-        )
+          FRACTIONAL_ZOOM_DIGITS,
+        ),
       ),
   },
   isAnimating: {
@@ -75,13 +75,13 @@ export const hashcodecs = {
 
 export function encodeScene(
   viewer: Viewer,
-  appState: AppState = {}
+  appState: AppState = {},
 ): EncodedSceneParams {
   const { camera } = viewer;
   const { x, y, z } = camera.position;
 
   const { longitude, latitude, height } = Cartographic.fromCartesian(
-    new Cartesian3(x, y, z)
+    new Cartesian3(x, y, z),
   );
 
   const heading = camera.heading;
@@ -130,7 +130,7 @@ export function encodeScene(
 }
 
 export function decodeSceneFromLocation(
-  location: string
+  location: string,
 ): SceneStateDescription {
   const params = new URLSearchParams(location);
   const decoded = Object.keys(hashcodecs).reduce((acc, key) => {
@@ -155,7 +155,7 @@ export function decodeSceneFromLocation(
 
 export const replaceHashRoutedHistory = (
   encodedScene: EncodedSceneParams,
-  routedPath: string
+  routedPath: string,
 ) => {
   // this is method is used to avoid triggering rerenders from the HashRouter when updating the hash
   // console.log('replaceHashRoutedHistory sceneHash');

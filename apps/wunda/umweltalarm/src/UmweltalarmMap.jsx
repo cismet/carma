@@ -36,15 +36,15 @@ const getData = async (setGazData) => {
   //  sources.stoerfallbetrieb = await md5ActionFetchDAQ4Dexie(prefix, 'url', 'xxx', 'daqStoerfallBetriebeKlasse1');
   sources.adressen = await md5FetchText(
     prefix,
-    host + "/data/3857/adressen.json"
+    host + "/data/3857/adressen.json",
   );
   sources.bezirke = await md5FetchText(
     prefix,
-    host + "/data/3857/bezirke.json"
+    host + "/data/3857/bezirke.json",
   );
   sources.quartiere = await md5FetchText(
     prefix,
-    host + "/data/3857/quartiere.json"
+    host + "/data/3857/quartiere.json",
   );
   sources.pois = await md5FetchText(prefix, host + "/data/3857/pois.json");
   sources.kitas = await md5FetchText(prefix, host + "/data/3857/kitas.json");
@@ -146,7 +146,7 @@ const convertToFeature = (_item) => {
 const style = (feature) => {
   let color = new Color(feature?.properties?.color || "#ff0000");
   let linecolor = new Color(feature?.properties?.color || "#ff0000").darken(
-    0.5
+    0.5,
   );
 
   return {

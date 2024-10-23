@@ -1,11 +1,11 @@
-import Color from "color";
-import ColorHash from "color-hash";
-import createSVGPie from "create-svg-pie";
-import L from "leaflet";
-import queryString from "query-string";
-import createElement from "svg-create-element";
+import Color from 'color';
+import ColorHash from 'color-hash';
+import createSVGPie from 'create-svg-pie';
+import L from 'leaflet';
+import queryString from 'query-string';
+import createElement from 'svg-create-element';
 
-import { POI_COLORS, constants } from "./constants";
+import { POI_COLORS, constants } from './constants';
 
 const fallbackSVG = `
     <svg xmlns="http://www.w3.org/2000/svg" width="311.668" height="311.668">
@@ -18,7 +18,7 @@ export const getColorForProperties = (feature) => {
   let colorHash = new ColorHash({ saturation: 0.3 });
   let { kenntnisse, globalbereiche, zielgruppen } = feature.properties;
   return colorHash.hex(
-    "" + JSON.stringify({ kenntnisse, globalbereiche, zielgruppen })
+    '' + JSON.stringify({ kenntnisse, globalbereiche, zielgruppen })
   );
 };
 
@@ -46,25 +46,25 @@ export const ehrenAmtClusterIconCreator = (cluster) => {
   }
   const pie = createSVGPie(values, r, colors);
 
-  let background = createElement("svg", {
+  let background = createElement('svg', {
     width: 40,
     height: 40,
-    viewBox: "0 0 40 40",
+    viewBox: '0 0 40 40',
   });
 
   //Kleiner Kreis in der Mitte
   // (blau wenn selektion)
-  let innerCircleColor = "#ffffff";
+  let innerCircleColor = '#ffffff';
   if (containsSelection) {
-    innerCircleColor = "rgb(67, 149, 254)";
+    innerCircleColor = 'rgb(67, 149, 254)';
   }
   pie.appendChild(
-    createElement("circle", {
+    createElement('circle', {
       cx: r,
       cy: r,
       r: 8,
-      "stroke-width": 0,
-      opacity: "0.5",
+      'stroke-width': 0,
+      opacity: '0.5',
       fill: innerCircleColor,
     })
   );
@@ -72,50 +72,50 @@ export const ehrenAmtClusterIconCreator = (cluster) => {
   background.appendChild(pie);
 
   background.appendChild(
-    createElement("circle", {
+    createElement('circle', {
       cx: 20,
       cy: 20,
       r: r,
-      "stroke-width": 2,
-      stroke: "#000000",
-      opacity: "0.5",
-      fill: "none",
+      'stroke-width': 2,
+      stroke: '#000000',
+      opacity: '0.5',
+      fill: 'none',
     })
   );
 
   if (inCart) {
     background
       .appendChild(
-        createElement("text", {
-          x: "50%",
-          y: "50%",
-          "text-anchor": "middle",
-          "font-family": "FontAwesome",
-          fill: "#fff",
-          "font-size": "26",
-          dy: ".4em",
-          opacity: "0.5",
+        createElement('text', {
+          x: '50%',
+          y: '50%',
+          'text-anchor': 'middle',
+          'font-family': 'FontAwesome',
+          fill: '#fff',
+          'font-size': '26',
+          dy: '.4em',
+          opacity: '0.5',
         })
       )
-      .appendChild(document.createTextNode("\uf005"));
+      .appendChild(document.createTextNode('\uf005'));
   }
 
   background
     .appendChild(
-      createElement("text", {
-        x: "50%",
-        y: "50%",
-        "text-anchor": "middle",
-        dy: ".3em",
+      createElement('text', {
+        x: '50%',
+        y: '50%',
+        'text-anchor': 'middle',
+        dy: '.3em',
       })
     )
     .appendChild(document.createTextNode(childCount));
 
-  pie.setAttribute("x", 4);
-  pie.setAttribute("y", 4);
+  pie.setAttribute('x', 4);
+  pie.setAttribute('y', 4);
 
   var divIcon = L.divIcon({
-    className: "leaflet-data-marker",
+    className: 'leaflet-data-marker',
     html:
       background.outerHTML || new XMLSerializer().serializeToString(background), //IE11 Compatibility
     iconAnchor: [20, 20],

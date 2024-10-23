@@ -24,26 +24,11 @@ export const loadGazeteerEntries = () => {
     const prefix = appKey + "." + storagePostfix;
     const sources = {};
 
-    sources.adressen = await md5FetchText(
-      prefix,
-      gazetteerHost + "/data/3857/adressen.json"
-    );
-    sources.bezirke = await md5FetchText(
-      prefix,
-      gazetteerHost + "/data/3857/bezirke.json"
-    );
-    sources.quartiere = await md5FetchText(
-      prefix,
-      gazetteerHost + "/data/3857/quartiere.json"
-    );
-    sources.pois = await md5FetchText(
-      prefix,
-      gazetteerHost + "/data/3857/pois.json"
-    );
-    sources.kitas = await md5FetchText(
-      prefix,
-      gazetteerHost + "/data/3857/kitas.json"
-    );
+    sources.adressen = await md5FetchText(prefix, gazetteerHost + "/data/3857/adressen.json");
+    sources.bezirke = await md5FetchText(prefix, gazetteerHost + "/data/3857/bezirke.json");
+    sources.quartiere = await md5FetchText(prefix, gazetteerHost + "/data/3857/quartiere.json");
+    sources.pois = await md5FetchText(prefix, gazetteerHost + "/data/3857/pois.json");
+    sources.kitas = await md5FetchText(prefix, gazetteerHost + "/data/3857/kitas.json");
 
     const gazData = getGazDataForTopicIds(sources, topics);
     dispatch(setGazdata(gazData));

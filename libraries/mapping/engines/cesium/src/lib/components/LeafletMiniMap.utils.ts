@@ -18,7 +18,7 @@ interface RotatableMarker extends Omit<Marker, "on"> {
 }
 
 export const makeLeafletMarkerRotatable = (
-  MarkerClass: typeof Marker
+  MarkerClass: typeof Marker,
 ): void => {
   const proto_initIcon = (MarkerClass.prototype as any)._initIcon;
   const proto_setPos = (MarkerClass.prototype as any)._setPos;

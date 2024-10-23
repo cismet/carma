@@ -1,3 +1,3 @@
 export function carmaMapUtils(): string {
-  return "carma-map-utils";
+  return 'carma-map-utils';
 }

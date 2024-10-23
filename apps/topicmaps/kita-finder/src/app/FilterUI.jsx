@@ -95,7 +95,7 @@ const FilterUI = () => {
                                 kitasConstants.FEATURE_RENDERING_BY_TRAEGERTYP
                               }
                               traegertyp={kitasConstants.TRAEGERTYP.indexOf(
-                                item.c
+                                item.c,
                               )}
                             />
                           </>

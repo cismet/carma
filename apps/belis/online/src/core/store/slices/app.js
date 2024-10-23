@@ -27,8 +27,7 @@ const slice = createSlice({
 export default slice;
 
 //actions
-export const { setConnectionMode, showDialog, setArtificialError } =
-  slice.actions;
+export const { setConnectionMode, showDialog, setArtificialError } = slice.actions;
 
 //selectors
 export const getConnectionMode = (state) => state.app.connectionMode;

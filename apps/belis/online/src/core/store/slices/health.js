@@ -41,10 +41,7 @@ const slice = createSlice({
           state.healthState = healthState;
           break;
         default:
-          console.log(
-            "unknown healthState. this should not happen. payload:",
-            action.payload
-          );
+          console.log("unknown healthState. this should not happen. payload:", action.payload);
           state.healthState = HEALTHSTATUS.UNKNOWN;
       }
       return state;
@@ -64,9 +61,7 @@ export const getHealthStateObject = (state) => {
 export const doHealthCheck = (jwt) => {
   return async (dispatch, getState) => {
     if (!navigator.onLine) {
-      dispatch(
-        slice.actions.setHealthState({ jwt, healthState: HEALTHSTATUS.OFFLINE })
-      );
+      dispatch(slice.actions.setHealthState({ jwt, healthState: HEALTHSTATUS.OFFLINE }));
       return;
     } else {
       try {
@@ -104,28 +99,14 @@ export const doHealthCheck = (jwt) => {
           true //forceSkipLogging
         );
         if (result.ok) {
-          dispatch(
-            slice.actions.setHealthState({ jwt, healthState: HEALTHSTATUS.OK })
-          );
+          dispatch(slice.actions.setHealthState({ jwt, healthState: HEALTHSTATUS.OK }));
         } else if (result.status === 401) {
-          dispatch(
-            slice.actions.setHealthState({
-              jwt,
-              healthState: HEALTHSTATUS.UNAUTHORIZED,
-            })
-          );
+          dispatch(slice.actions.setHealthState({ jwt, healthState: HEALTHSTATUS.UNAUTHORIZED }));
         } else {
-          dispatch(
-            slice.actions.setHealthState({
-              jwt,
-              healthState: HEALTHSTATUS.ERROR,
-            })
-          );
+          dispatch(slice.actions.setHealthState({ jwt, healthState: HEALTHSTATUS.ERROR }));
         }
       } catch (e) {
-        dispatch(
-          slice.actions.setHealthState({ jwt, healthState: HEALTHSTATUS.ERROR })
-        );
+        dispatch(slice.actions.setHealthState({ jwt, healthState: HEALTHSTATUS.ERROR }));
       }
     }
   };

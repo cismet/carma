@@ -1,3 +1,4 @@
+
 import {
   SearchResultItem,
   SearchResult,
@@ -13,16 +14,10 @@ import {
 import { md5FetchText } from "./fetching";
 
 import { stopwords } from "../config/stopwords.de-de";
-import ENDPOINT, {
-  NAMED_CATEGORIES,
-  type NamedCategory,
-} from "../config/endpoints";
-import { isEndpoint } from "../config/index";
+import ENDPOINT, { NAMED_CATEGORIES, type NamedCategory } from "../config/endpoints";
+import { isEndpoint } from '../config/index';
 
-export const renderCategoryTitle = (
-  category: ENDPOINT,
-  namedCategories: Partial<NamedCategory>
-) => {
+export const renderCategoryTitle = (category: ENDPOINT, namedCategories: Partial<NamedCategory>) => {
   const title = namedCategories[category] || category;
   return <span>{title}</span>;
 };
@@ -42,7 +37,7 @@ export const renderItem = (address: SearchResultItem) => {
 export function buildAddressWithIconUI(
   addresObj: SearchResultItem,
   showScore = false,
-  score?: number
+  score?: number,
 ) {
   let icon;
   if (addresObj.glyph === "pie-chart") {
@@ -73,13 +68,13 @@ export function buildAddressWithIconUI(
 }
 export const generateOptions = (
   results: SearchResult<SearchResultItem>[],
-  showScore = false
+  showScore = false,
 ) => {
   return results.map((result, idx) => {
     const streetLabel = buildAddressWithIconUI(
       result.item,
       showScore,
-      result.score
+      result.score,
     );
     return {
       key: result.item.sorter,
@@ -90,7 +85,7 @@ export const generateOptions = (
   });
 };
 export const mapDataToSearchResult = (
-  data: SearchResult<SearchResultItem>[]
+  data: SearchResult<SearchResultItem>[],
 ) => {
   const splittedCategories: { [key: string]: Option[] } = {};
 
@@ -114,7 +109,7 @@ export const mapDataToSearchResult = (
       optionItem.label = renderCategoryTitle(item, NAMED_CATEGORIES);
       optionItem.options = splittedCategories[item];
     } else {
-      console.warn(`category ${item} does not match known endpoints`, ENDPOINT);
+      console.warn(`category ${item} does not match known endpoints`, ENDPOINT)
     }
 
     prepareOptions.push(optionItem);
@@ -144,7 +139,7 @@ export function prepareGazData(data, prepoHandling) {
     const stringWithoutStopWords = removeStopwords(
       searchData,
       stopwords,
-      prepoHandling
+      prepoHandling,
     );
     const address = {
       ...item,
@@ -195,7 +190,7 @@ const dummyItem = {
 };
 
 export const getGazDataFromSources = (
-  sources: SourceWithPayload[]
+  sources: SourceWithPayload[],
 ): GazDataItem[] => {
   let sorter = 0;
   const gazData: GazDataItem[] = [];
@@ -274,7 +269,7 @@ export const getGazDataFromSources = (
         }
 
         gazData.push(g);
-      }
+      },
     );
   });
 
@@ -284,21 +279,22 @@ export const getGazDataFromSources = (
 export const getGazData = async (
   sourcesConfig: SourceConfig[],
   prefix: string,
-  setGazData: (gazData: GazDataItem[]) => void
+  setGazData: (gazData: GazDataItem[]) => void,
 ) => {
   await Promise.all(
     sourcesConfig.map(async (config) => {
       (config as SourceWithPayload).payload = await md5FetchText(
         prefix,
-        config.url
+        config.url,
       );
-    })
+    }),
   );
 
   const gazData = getGazDataFromSources(sourcesConfig as SourceWithPayload[]);
 
   setGazData(gazData);
 };
+
 
 export const getDefaultSearchConfig = (config: SearchConfig): SearchConfig => {
   let prepoHandling;

@@ -1,7 +1,7 @@
-import { useState, createContext, useContext, useLayoutEffect } from "react";
-import OverlayHelperHightlighter from "../components/OverlayHelperHightlighter";
-import { useSelector } from "react-redux";
-import { getMode } from "../store/slices/ui";
+import { useState, createContext, useContext, useLayoutEffect } from 'react';
+import OverlayHelperHightlighter from '../components/OverlayHelperHightlighter';
+import { useSelector } from 'react-redux';
+import { getMode } from '../store/slices/ui';
 
 type OverlayTourAction = (arg: OverlayHelperConfig) => void;
 
@@ -18,11 +18,11 @@ const OverlayTourContext = createContext<OverlayTourContext>({
 });
 
 export type PositionOverlayHelper =
-  | "center"
-  | "top"
-  | "left"
-  | "right"
-  | "bottom";
+  | 'center'
+  | 'top'
+  | 'left'
+  | 'right'
+  | 'bottom';
 
 export interface OverlayHelperConfig {
   el: HTMLElement;
@@ -39,9 +39,9 @@ export type OptionsOverlayHelper = {
 const useOverlayHelper = (
   content: string,
   options: OptionsOverlayHelper = {
-    containerPos: "center",
-    contentPos: "center",
-  }
+    containerPos: 'center',
+    contentPos: 'center',
+  },
 ) => {
   const [ref, setRef] = useState<HTMLElement | null>(null);
   const { addConfig, removeConfig } = useContext(OverlayTourContext);
@@ -82,7 +82,7 @@ export const OverlayTourProvider = ({ children }) => {
   return (
     <OverlayTourContext.Provider value={{ configs, addConfig, removeConfig }}>
       {children}
-      {mode === "tour" && <OverlayHelperHightlighter configs={configs} />}
+      {mode === 'tour' && <OverlayHelperHightlighter configs={configs} />}
     </OverlayTourContext.Provider>
   );
 };
