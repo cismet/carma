@@ -78,7 +78,7 @@ function App({ published }: { published?: boolean }) {
   useEffect(() => {
     console.info(
       " [GEOPORTAL|ROUTER] App Route changed to:",
-      location.pathname,
+      location.pathname
     );
   }, [location]);
 
@@ -90,7 +90,7 @@ function App({ published }: { published?: boolean }) {
     if (searchParams.get("data")) {
       const data = searchParams.get("data");
       const newConfig: Config = JSON.parse(
-        LZString.decompressFromEncodedURIComponent(data),
+        LZString.decompressFromEncodedURIComponent(data)
       );
       dispatch(setLayers(newConfig.layers));
       dispatch(setBackgroundLayer(newConfig.backgroundLayer));
@@ -141,13 +141,13 @@ function App({ published }: { published?: boolean }) {
   }, [allowUiChanges]);
 
   const content = (
-    <OverlayTourProvider
-      showOverlay={tourMode}
-      closeOverlay={() => dispatch(toggleShowOverlayTour(false))}
-      transparency={backgroundSettings.transparency}
-      color={backgroundSettings.color}
-    >
-      <TopicMapContextProvider>
+    <TopicMapContextProvider>
+      <OverlayTourProvider
+        showOverlay={tourMode}
+        closeOverlay={() => dispatch(toggleShowOverlayTour(false))}
+        transparency={backgroundSettings.transparency}
+        color={backgroundSettings.color}
+      >
         <CesiumContextProvider
           //initialViewerState={defaultCesiumState}
           // TODO move these to store/slice setup ?
@@ -165,8 +165,8 @@ function App({ published }: { published?: boolean }) {
             </div>
           </ErrorBoundary>
         </CesiumContextProvider>
-      </TopicMapContextProvider>
-    </OverlayTourProvider>
+      </OverlayTourProvider>
+    </TopicMapContextProvider>
   );
 
   console.info("RENDER: [GEOPORTAL] APP");
