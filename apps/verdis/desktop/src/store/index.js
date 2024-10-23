@@ -1,37 +1,37 @@
-import { configureStore } from "@reduxjs/toolkit";
-import authSlice from "./slices/auth";
-import searchSlice from "./slices/search";
-import settingsSlice from "./slices/settings";
-import mappingSlice from "./slices/mapping";
-import gazDataSlice from "./slices/gazData";
-import uiSlice from "./slices/ui";
-import { createLogger } from "redux-logger";
-import { persistReducer } from "redux-persist";
-import { APP_KEY, STORAGE_PREFIX } from "../constants/verdis";
-import localForage from "localforage";
+import { configureStore } from '@reduxjs/toolkit';
+import authSlice from './slices/auth';
+import searchSlice from './slices/search';
+import settingsSlice from './slices/settings';
+import mappingSlice from './slices/mapping';
+import gazDataSlice from './slices/gazData';
+import uiSlice from './slices/ui';
+import { createLogger } from 'redux-logger';
+import { persistReducer } from 'redux-persist';
+import { APP_KEY, STORAGE_PREFIX } from '../constants/verdis';
+import localForage from 'localforage';
 
-console.log("store initializing ....");
+console.log('store initializing ....');
 
 const devToolsEnabled =
-  new URLSearchParams(window.location.search).get("devToolsEnabled") === "true";
-console.log("devToolsEnabled:", devToolsEnabled);
+  new URLSearchParams(window.location.search).get('devToolsEnabled') === 'true';
+console.log('devToolsEnabled:', devToolsEnabled);
 const stateLoggingEnabledFromSearch = new URLSearchParams(
-  window.location.search,
-).get("stateLoggingEnabled");
+  window.location.search
+).get('stateLoggingEnabled');
 
-const inProduction = process.env.NODE_ENV === "production";
+const inProduction = process.env.NODE_ENV === 'production';
 
-console.log("in Production Mode:", inProduction);
+console.log('in Production Mode:', inProduction);
 const stateLoggingEnabled =
   (stateLoggingEnabledFromSearch !== null &&
-    stateLoggingEnabledFromSearch !== "false") ||
+    stateLoggingEnabledFromSearch !== 'false') ||
   !inProduction;
 
 console.log(
-  "stateLoggingEnabled:",
+  'stateLoggingEnabled:',
   stateLoggingEnabledFromSearch,
-  "x",
-  stateLoggingEnabled,
+  'x',
+  stateLoggingEnabled
 );
 const logger = createLogger({
   collapsed: true,
@@ -72,38 +72,38 @@ if (stateLoggingEnabled === true) {
 }
 
 const authConfig = {
-  key: "@" + APP_KEY + "." + STORAGE_PREFIX + ".app.auth",
+  key: '@' + APP_KEY + '.' + STORAGE_PREFIX + '.app.auth',
   storage: localForage,
-  whitelist: ["jwt", "login"],
+  whitelist: ['jwt', 'login'],
 };
 
 const searchConfig = {
-  key: "@" + APP_KEY + "." + STORAGE_PREFIX + ".app.search",
+  key: '@' + APP_KEY + '.' + STORAGE_PREFIX + '.app.search',
   storage: localForage,
-  whitelist: ["previousSearches"],
+  whitelist: ['previousSearches'],
 };
 
 const uiConfig = {
-  key: "@" + APP_KEY + "." + STORAGE_PREFIX + ".app.config",
+  key: '@' + APP_KEY + '.' + STORAGE_PREFIX + '.app.config',
   storage: localForage,
   whitelist: [
-    "overviewFeatureTypes",
-    "syncKassenzeichen",
-    "activeBackgroundLayer",
-    "backgroundLayerOpacities",
-    "activeAdditionalLayers",
-    "additionalLayerOpacities",
+    'overviewFeatureTypes',
+    'syncKassenzeichen',
+    'activeBackgroundLayer',
+    'backgroundLayerOpacities',
+    'activeAdditionalLayers',
+    'additionalLayerOpacities',
   ],
 };
 
 const mappingConfig = {
-  key: "@" + APP_KEY + "." + STORAGE_PREFIX + ".app.mapping",
+  key: '@' + APP_KEY + '.' + STORAGE_PREFIX + '.app.mapping',
   storage: localForage,
-  whitelist: ["lockMap", "lockMapOnlyInKassenzeichen"],
+  whitelist: ['lockMap', 'lockMapOnlyInKassenzeichen'],
 };
 
 const settingsConfig = {
-  key: "@" + APP_KEY + "." + STORAGE_PREFIX + ".app.settings",
+  key: '@' + APP_KEY + '.' + STORAGE_PREFIX + '.app.settings',
   storage: localForage,
   whitelist: [],
 };

@@ -25,8 +25,6 @@ export const getModeUrl = (targetMode) => {
   if (targetMode === appModes.ORTE) {
     return window.location.origin + window.location.pathname + "#/orte" + query;
   } else if (targetMode === appModes.ROUTEN) {
-    return (
-      window.location.origin + window.location.pathname + "#/routen" + query
-    );
+    return window.location.origin + window.location.pathname + "#/routen" + query;
   }
 };

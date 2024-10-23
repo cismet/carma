@@ -23,7 +23,7 @@ const File = ({ attachment, i }) => {
               deleteTimelineObject({
                 timelineIndex: i,
                 applicationId: applicationId,
-              }),
+              })
             );
           }}
         >
@@ -48,7 +48,7 @@ const File = ({ attachment, i }) => {
                     timelineIndex: i,
                     updatedName: e.target.value,
                     applicationId: applicationId,
-                  }),
+                  })
                 );
               }}
               value={attachment.name}

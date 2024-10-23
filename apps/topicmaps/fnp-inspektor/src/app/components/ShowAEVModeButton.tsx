@@ -1,18 +1,18 @@
-import { faToggleOff, faToggleOn } from "@fortawesome/free-solid-svg-icons";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Button } from "react-bootstrap";
-import "./button.css";
-import { useSearchParams } from "react-router-dom";
+import { faToggleOff, faToggleOn } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Button } from 'react-bootstrap';
+import './button.css';
+import { useSearchParams } from 'react-router-dom';
 
 const ShowAEVModeButton = () => {
   let [searchParams, setSearchParams] = useSearchParams();
-  let aevVisible = searchParams.get("aevVisible") !== null;
+  let aevVisible = searchParams.get('aevVisible') !== null;
   const setAevVisible = (visible) => {
     if (visible && !aevVisible) {
-      searchParams.set("aevVisible", "true");
+      searchParams.set('aevVisible', 'true');
       setSearchParams(searchParams);
     } else if (!visible && aevVisible) {
-      searchParams.delete("aevVisible");
+      searchParams.delete('aevVisible');
       setSearchParams(searchParams);
     }
   };
@@ -21,9 +21,9 @@ const ShowAEVModeButton = () => {
       key="featureInfoModeButton"
       style={{
         marginBottom: 5,
-        textAlign: "right",
-        pointerEvents: "auto",
-        position: "absolute",
+        textAlign: 'right',
+        pointerEvents: 'auto',
+        position: 'absolute',
         right: 10,
         bottom: 170,
         zIndex: 99999,
@@ -38,9 +38,9 @@ const ShowAEVModeButton = () => {
           setAevVisible(!aevVisible);
         }}
         style={{
-          width: "247px",
-          fontSize: "1.2em",
-          verticalAlign: "middle",
+          width: '247px',
+          fontSize: '1.2em',
+          verticalAlign: 'middle',
         }}
       >
         <table>
@@ -52,11 +52,11 @@ const ShowAEVModeButton = () => {
                   icon={aevVisible === true ? faToggleOn : faToggleOff}
                 />
               </td>
-              <td style={{ paddingLeft: "5px" }}>
+              <td style={{ paddingLeft: '5px' }}>
                 <span>
                   {aevVisible === true
-                    ? "Änderungsverfahren verbergen"
-                    : "Änderungsverfahren anzeigen"}
+                    ? 'Änderungsverfahren verbergen'
+                    : 'Änderungsverfahren anzeigen'}
                 </span>
               </td>
             </tr>

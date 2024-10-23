@@ -1,9 +1,10 @@
 /// <reference types='vitest' />
 import { defineConfig } from "vite";
 import dts from "vite-plugin-dts";
-import react from "@vitejs/plugin-react";
+import react from '@vitejs/plugin-react'
 import * as path from "path";
 import { nxViteTsPaths } from "@nx/vite/plugins/nx-tsconfig-paths.plugin";
+
 
 export default defineConfig({
   root: __dirname,
@@ -39,7 +40,7 @@ export default defineConfig({
   build: {
     outDir: "../../../dist/apps/topicmaps/bplan-auskunft",
     reportCompressedSize: true,
-    commonjsOptions: {},
+    commonjsOptions: {   },
     rollupOptions: {
       logLevel: "info",
       // preserveSymlinks: true,

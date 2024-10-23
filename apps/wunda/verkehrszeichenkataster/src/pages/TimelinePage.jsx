@@ -135,7 +135,7 @@ const TimelinePage = () => {
                         ? "Geschlossen"
                         : "Offen",
                     applicationId: id,
-                  }),
+                  })
                 )
               }
             >

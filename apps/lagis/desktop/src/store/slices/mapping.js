@@ -37,7 +37,7 @@ const slice = createSlice({
     setGeneralGeometrySelected(state, action) {
       const { id } = action.payload;
       const selectedObject = state.generalGeometryCollection.find(
-        (item) => item.properties.id === id,
+        (item) => item.properties.id === id
       );
 
       if (selectedObject.selected) {
@@ -59,7 +59,7 @@ const slice = createSlice({
     setFlaechenSelected(state, action) {
       const { id } = action.payload;
       const selectedObject = state.flaechenCollection.find(
-        (item) => item.properties.id === `flaeche.${id}`,
+        (item) => item.properties.id === `flaeche.${id}`
       );
 
       if (selectedObject.selected) {
@@ -90,7 +90,7 @@ const slice = createSlice({
     setFrontenSelected(state, action) {
       const { id } = action.payload;
       const selectedObject = state.frontenCollection.find(
-        (item) => item.properties.id === id,
+        (item) => item.properties.id === id
       );
 
       if (selectedObject.selected) {

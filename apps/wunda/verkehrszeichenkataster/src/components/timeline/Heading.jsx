@@ -51,7 +51,7 @@ const Heading = () => {
           timeline={anordnung?.timeline}
           title={anordnung.timelineTitle}
         />
-      ),
+      )
     );
   }, [anordnung]);
 
@@ -74,7 +74,7 @@ const Heading = () => {
                     updateTimelineTitle({
                       updatedTitle: title,
                       applicationId: id,
-                    }),
+                    })
                   );
                   setEditTitle(false);
                 }}

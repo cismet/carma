@@ -19,7 +19,7 @@ const Request = ({ attachment, i, isInternalRequest }) => {
         itemValue: value,
         property: property,
         applicationId: id,
-      }),
+      })
     );
   };
 

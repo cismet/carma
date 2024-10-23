@@ -7,10 +7,7 @@ import { FeatureCollectionDispatchContext } from "react-cismap/contexts/FeatureC
 import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
 import FeatureCollection from "react-cismap/FeatureCollection";
 import { md5ActionFetchDAQ } from "react-cismap/tools/fetching";
-import {
-  createFlatbushIndex,
-  findInFlatbush,
-} from "react-cismap/tools/gisHelper";
+import { createFlatbushIndex, findInFlatbush } from "react-cismap/tools/gisHelper";
 import { apiUrl, dataDaqKey } from "../App";
 import { appKey } from "../PotenzialflaechenOnlineMap";
 import convertItemToFeature from "../utils/convertItemToSimpleFeature";
@@ -18,9 +15,7 @@ dayjs.extend(customParseFormat);
 
 const FC = ({ jwt, setJWT, setLoginInfo }) => {
   const { zoomToFeature } = useContext(TopicMapDispatchContext);
-  const { setItems, setMetaInformation } = useContext(
-    FeatureCollectionDispatchContext,
-  );
+  const { setItems, setMetaInformation } = useContext(FeatureCollectionDispatchContext);
 
   useEffect(() => {
     if (jwt !== undefined) {
@@ -42,14 +37,9 @@ const FC = ({ jwt, setJWT, setLoginInfo }) => {
 
             let i = 0;
             for (const feature of features) {
-              const hits = findInFlatbush(
-                polyIndex,
-                feature,
-                features,
-                (hit) => {
-                  return hit.id !== feature.id;
-                },
-              );
+              const hits = findInFlatbush(polyIndex, feature, features, (hit) => {
+                return hit.id !== feature.id;
+              });
               const overlapping = [];
               if (hits.length > 0) {
                 const featureArea = area(feature);
@@ -70,10 +60,7 @@ const FC = ({ jwt, setJWT, setLoginInfo }) => {
                   }
 
                   if (intersectionRatio > 0.1) {
-                    overlapping.push({
-                      id: hit.properties.id,
-                      kampagne: hit.properties.kampagne,
-                    });
+                    overlapping.push({ id: hit.properties.id, kampagne: hit.properties.kampagne });
                   } else {
                     // console.log("no hit for ", hit.text);
                   }
@@ -92,17 +79,14 @@ const FC = ({ jwt, setJWT, setLoginInfo }) => {
           (problem) => {
             if (problem.status === 401) {
               setJWT(undefined);
-              setLoginInfo({
-                color: "#F9D423",
-                text: "Bitte melden Sie sich erneut an.",
-              });
+              setLoginInfo({ color: "#F9D423", text: "Bitte melden Sie sich erneut an." });
               setTimeout(() => {
                 setLoginInfo();
               }, 2500);
             }
             setItems([]);
             setMetaInformation();
-          },
+          }
         )
         .catch((e) => {
           console.log("xxx error ", e);

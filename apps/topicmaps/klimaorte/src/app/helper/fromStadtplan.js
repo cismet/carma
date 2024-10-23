@@ -16,13 +16,13 @@ export const getColorForProperties = (properties, poiColors) => {
           return a.localeCompare(b);
         })
         .join(", "),
-      poiColors,
+      poiColors
     );
   }
 };
 export const getColorFromLebenslagenCombination = (
   combination,
-  poiColors = POI_COLORS,
+  poiColors = POI_COLORS
 ) => {
   // let qColorRules;
   let colorCandidate;

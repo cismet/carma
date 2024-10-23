@@ -21,7 +21,7 @@ const HistoryPage = ({ width = "100%", height = "1000", inStory = false }) => {
   const historyHalten = useSelector(getHistorieHalten);
   const historieHaltenRootText = useSelector(getHistorieHaltenRootText);
   const [historieHaltenCheckbox, setHistorieHalten] = useState(
-    historyHalten ? true : false,
+    historyHalten ? true : false
   );
   const [firstDarstellung, setFirstDarstellung] = useState("Vollständig");
   const [numberBegrenzteTiefe, setNumberBegrenzteTiefe] = useState(1);
@@ -116,7 +116,7 @@ const HistoryPage = ({ width = "100%", height = "1000", inStory = false }) => {
                 numberBegrenzteTiefe,
                 historieHaltenRootText,
                 historieHaltenCheckbox,
-                historyHalten,
+                historyHalten
               );
             } else {
               return undefined;

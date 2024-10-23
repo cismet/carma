@@ -5,13 +5,13 @@ export const getFlaechenFeatureCollection = (kassenzeichen) => {
   // Map through the flaechenArray to create the features
   const features = flaechenArray.map((flaeche) => {
     return {
-      type: "Feature",
-      featureType: "flaeche",
+      type: 'Feature',
+      featureType: 'flaeche',
       id: flaeche.flaecheObject.id,
       geometry: flaeche.flaecheObject.flaecheninfoObject.geom.geo_field,
       crs: flaeche.flaecheObject.flaecheninfoObject.geom.geo_field.crs,
       properties: {
-        id: "flaeche." + flaeche.flaecheObject.id,
+        id: 'flaeche.' + flaeche.flaecheObject.id,
         kassenzeichen: kassenzeichen.kassenzeichennummer8,
         bez: flaeche.flaecheObject.flaechenbezeichnung,
         bezeichnung: flaeche.flaecheObject.flaechenbezeichnung,
@@ -39,9 +39,9 @@ export const getFrontenFeatureCollection = (kassenzeichen) => {
   const features = frontenArray.map((front) => {
     const frontObject = front.frontObject;
     return {
-      type: "Feature",
-      featureType: "front",
-      id: "front." + frontObject.frontinfoObject.id,
+      type: 'Feature',
+      featureType: 'front',
+      id: 'front.' + frontObject.frontinfoObject.id,
       geometry: frontObject.frontinfoObject.geom.geo_field,
       crs: frontObject.frontinfoObject.geom.geo_field.crs,
       properties: {
@@ -70,9 +70,9 @@ export const getGeneralGeomfeatureCollection = (kassenzeichen) => {
   const features = generalGeomArray.map((geom) => {
     const geomObject = geom.kassenzeichen_geometrieObject;
     return {
-      type: "Feature",
-      featureType: "general",
-      id: "general." + geom.id,
+      type: 'Feature',
+      featureType: 'general',
+      id: 'general.' + geom.id,
       geometry: geomObject.geom.geo_field,
       crs: geomObject.geom.geo_field.crs,
       properties: {
@@ -100,9 +100,9 @@ export const getVersickerungsGenFeatureCollection = (kassenzeichen) => {
       befErl.befreiungerlaubnis_geometrieArrayRelationShip.map(
         (befrErlaubnisGeom) => {
           return {
-            type: "Feature",
-            featureType: "befreiung",
-            id: "befreiung." + befrErlaubnisGeom.id,
+            type: 'Feature',
+            featureType: 'befreiung',
+            id: 'befreiung.' + befrErlaubnisGeom.id,
             geometry: befrErlaubnisGeom.geom.geo_field,
             crs: befrErlaubnisGeom.geom.geo_field.crs,
             properties: {
@@ -125,7 +125,7 @@ export const getVersickerungsGenFeatureCollection = (kassenzeichen) => {
               gutachten_vorhanden: befrErlaubnisGeom.gutachten_vorhanden,
             },
           };
-        },
+        }
       );
     features.push(...subfeatures);
   });

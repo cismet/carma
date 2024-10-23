@@ -1,37 +1,29 @@
-import React, { useContext } from "react";
-import { Button, Form } from "react-bootstrap";
+import React, { useContext } from 'react';
+import { Button, Form } from 'react-bootstrap';
 
 import {
   FeatureCollectionContext,
   FeatureCollectionDispatchContext,
-} from "react-cismap/contexts/FeatureCollectionContextProvider";
-import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
-import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
+} from 'react-cismap/contexts/FeatureCollectionContextProvider';
+import { ResponsiveTopicMapContext } from 'react-cismap/contexts/ResponsiveTopicMapContextProvider';
+import { TopicMapStylingContext } from 'react-cismap/contexts/TopicMapStylingContextProvider';
 
-import "url-search-params-polyfill";
-import EBikesPieChart from "./EBikesPieChart";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import 'url-search-params-polyfill';
+import EBikesPieChart from './EBikesPieChart';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faBicycle,
   faChargingStation,
   faClock,
   faLeaf,
   faToggleOn,
-} from "@fortawesome/free-solid-svg-icons";
+} from '@fortawesome/free-solid-svg-icons';
 
 const FilterUI = () => {
-  const { filterState } = useContext<typeof FeatureCollectionContext>(
-    FeatureCollectionContext,
-  );
-  const { setFilterState } = useContext<
-    typeof FeatureCollectionDispatchContext
-  >(FeatureCollectionDispatchContext);
-  const { windowSize } = useContext<typeof ResponsiveTopicMapContext>(
-    ResponsiveTopicMapContext,
-  );
-  const { additionalStylingInfo } = useContext<typeof TopicMapStylingContext>(
-    TopicMapStylingContext,
-  );
+  const { filterState } = useContext<typeof FeatureCollectionContext>(FeatureCollectionContext);
+  const { setFilterState } = useContext<typeof FeatureCollectionDispatchContext>(FeatureCollectionDispatchContext);
+  const { windowSize } = useContext<typeof ResponsiveTopicMapContext>(ResponsiveTopicMapContext);
+  const { additionalStylingInfo } = useContext<typeof TopicMapStylingContext>(TopicMapStylingContext);
 
   const width = windowSize?.width || 500;
 
@@ -55,34 +47,34 @@ const FilterUI = () => {
       <table border={0} width="100%">
         <tbody>
           <tr>
-            <td valign="middle" style={{ width: "330px" }}>
+            <td valign="middle" style={{ width: '330px' }}>
               <Form>
                 <label
                   style={{
-                    display: "inline-block",
-                    maxWidth: "100%",
-                    marginBottom: "5px",
+                    display: 'inline-block',
+                    maxWidth: '100%',
+                    marginBottom: '5px',
                     fontWeight: 700,
                   }}
                 >
                   Typ
-                  {"  "}
+                  {'  '}
                   <FontAwesomeIcon
                     icon={faBicycle}
                     size="2x"
                     style={{
-                      color: "grey",
-                      width: "30px",
-                      textAlign: "center",
+                      color: 'grey',
+                      width: '30px',
+                      textAlign: 'center',
                     }}
-                  />{" "}
+                  />{' '}
                   <FontAwesomeIcon
                     icon={faChargingStation}
                     size="2x"
                     style={{
-                      color: "grey",
-                      width: "30px",
-                      textAlign: "center",
+                      color: 'grey',
+                      width: '30px',
+                      textAlign: 'center',
                     }}
                   />
                 </label>
@@ -90,19 +82,19 @@ const FilterUI = () => {
                 <Form.Check
                   type="radio"
                   readOnly={true}
-                  key={"filter.ebike.laden.only"}
+                  key={'filter.ebike.laden.only'}
                   onClick={(e) => {
                     const newFilterState = { ...filterState };
                     // @ts-expect-error legacy codebase exception
                     if (e.target.checked) {
-                      newFilterState.stationsart = ["Ladestation"];
+                      newFilterState.stationsart = ['Ladestation'];
                     }
 
                     setFilterState(newFilterState);
                   }}
                   checked={
-                    filterState.stationsart?.includes("Ladestation") &&
-                    !filterState.stationsart?.includes("Verleihstation")
+                    filterState.stationsart?.includes('Ladestation') &&
+                    !filterState.stationsart?.includes('Verleihstation')
                   }
                   inline
                   label="nur Ladestationen"
@@ -112,19 +104,19 @@ const FilterUI = () => {
                 <Form.Check
                   type="radio"
                   readOnly={true}
-                  key={"filter.ebike.renting.only"}
+                  key={'filter.ebike.renting.only'}
                   onClick={(e) => {
                     const newFilterState = { ...filterState };
                     // @ts-expect-error legacy codebase exception
                     if (e.target.checked) {
-                      newFilterState.stationsart = ["Verleihstation"];
+                      newFilterState.stationsart = ['Verleihstation'];
                     }
 
                     setFilterState(newFilterState);
                   }}
                   checked={
-                    filterState.stationsart?.includes("Verleihstation") &&
-                    !filterState.stationsart?.includes("Ladestation")
+                    filterState.stationsart?.includes('Verleihstation') &&
+                    !filterState.stationsart?.includes('Ladestation')
                   }
                   inline
                   label="nur Verleihstationen"
@@ -133,22 +125,22 @@ const FilterUI = () => {
                 <Form.Check
                   type="radio"
                   readOnly={true}
-                  key={"filter.ebike.all"}
+                  key={'filter.ebike.all'}
                   onClick={(e) => {
                     const newFilterState = { ...filterState };
                     // @ts-expect-error legacy codebase exception
                     if (e.target.checked) {
                       newFilterState.stationsart = [
-                        "Ladestation",
-                        "Verleihstation",
+                        'Ladestation',
+                        'Verleihstation',
                       ];
                     }
 
                     setFilterState(newFilterState);
                   }}
                   checked={
-                    filterState.stationsart?.includes("Ladestation") &&
-                    filterState.stationsart?.includes("Verleihstation")
+                    filterState.stationsart?.includes('Ladestation') &&
+                    filterState.stationsart?.includes('Verleihstation')
                   }
                   inline
                   label="alle Stationen"
@@ -158,21 +150,21 @@ const FilterUI = () => {
               <Form>
                 <label
                   style={{
-                    display: "inline-block",
-                    maxWidth: "100%",
-                    marginBottom: "5px",
+                    display: 'inline-block',
+                    maxWidth: '100%',
+                    marginBottom: '5px',
                     fontWeight: 700,
                   }}
                 >
                   Ladestation - Verfügbarkeit
-                  {"  "}
+                  {'  '}
                   <FontAwesomeIcon
                     icon={faToggleOn}
                     size="2x"
                     style={{
-                      color: "grey",
-                      width: "30px",
-                      textAlign: "center",
+                      color: 'grey',
+                      width: '30px',
+                      textAlign: 'center',
                     }}
                   />
                 </label>
@@ -180,8 +172,8 @@ const FilterUI = () => {
                 <Form.Check
                   type="radio"
                   readOnly={true}
-                  disabled={!filterState.stationsart?.includes("Ladestation")}
-                  key={"filter.emob.online.only"}
+                  disabled={!filterState.stationsart?.includes('Ladestation')}
+                  key={'filter.emob.online.only'}
                   onClick={(e) => {
                     const newFilterState = { ...filterState };
                     // @ts-expect-error legacy codebase exception
@@ -200,8 +192,8 @@ const FilterUI = () => {
                 <Form.Check
                   type="radio"
                   readOnly={true}
-                  disabled={!filterState.stationsart?.includes("Ladestation")}
-                  key={"filter.emob.online.all"}
+                  disabled={!filterState.stationsart?.includes('Ladestation')}
+                  key={'filter.emob.online.all'}
                   onClick={(e) => {
                     const newFilterState = { ...filterState };
                     // @ts-expect-error legacy codebase exception
@@ -221,9 +213,9 @@ const FilterUI = () => {
                 <br />
                 <label
                   style={{
-                    display: "inline-block",
-                    maxWidth: "100%",
-                    marginBottom: "5px",
+                    display: 'inline-block',
+                    maxWidth: '100%',
+                    marginBottom: '5px',
                     fontWeight: 700,
                   }}
                 >
@@ -232,9 +224,9 @@ const FilterUI = () => {
                     icon={faClock}
                     size="2x"
                     style={{
-                      color: "grey",
-                      width: "30px",
-                      textAlign: "center",
+                      color: 'grey',
+                      width: '30px',
+                      textAlign: 'center',
                     }}
                   />
                 </label>
@@ -242,8 +234,8 @@ const FilterUI = () => {
                 <Form.Check
                   type="radio"
                   readOnly={true}
-                  disabled={!filterState.stationsart?.includes("Ladestation")}
-                  key={"filter.ebikes.open.24/7"}
+                  disabled={!filterState.stationsart?.includes('Ladestation')}
+                  key={'filter.ebikes.open.24/7'}
                   onClick={(e) => {
                     const newFilterState = { ...filterState };
                     // @ts-expect-error legacy codebase exception
@@ -262,8 +254,8 @@ const FilterUI = () => {
                 <Form.Check
                   type="radio"
                   readOnly={true}
-                  key={"filter.ebikes.open.*"}
-                  disabled={!filterState.stationsart?.includes("Ladestation")}
+                  key={'filter.ebikes.open.*'}
+                  disabled={!filterState.stationsart?.includes('Ladestation')}
                   onClick={(e) => {
                     const newFilterState = { ...filterState };
                     // @ts-expect-error legacy codebase exception
@@ -283,20 +275,20 @@ const FilterUI = () => {
                 <br />
                 <label
                   style={{
-                    display: "inline-block",
-                    maxWidth: "100%",
-                    marginBottom: "5px",
+                    display: 'inline-block',
+                    maxWidth: '100%',
+                    marginBottom: '5px',
                     fontWeight: 700,
                   }}
                 >
-                  Ladestation - Ökostrom{" "}
+                  Ladestation - Ökostrom{' '}
                   <FontAwesomeIcon
                     icon={faLeaf}
                     size="2x"
                     style={{
-                      color: "grey",
-                      width: "30px",
-                      textAlign: "center",
+                      color: 'grey',
+                      width: '30px',
+                      textAlign: 'center',
                     }}
                   />
                 </label>
@@ -304,8 +296,8 @@ const FilterUI = () => {
                 <Form.Check
                   type="radio"
                   readOnly={true}
-                  disabled={!filterState.stationsart?.includes("Ladestation")}
-                  key={"filter.emob.green.only"}
+                  disabled={!filterState.stationsart?.includes('Ladestation')}
+                  key={'filter.emob.green.only'}
                   onClick={(e) => {
                     const newFilterState = { ...filterState };
                     // @ts-expect-error legacy codebase exception
@@ -324,8 +316,8 @@ const FilterUI = () => {
                 <Form.Check
                   type="radio"
                   readOnly={true}
-                  disabled={!filterState.stationsart?.includes("Ladestation")}
-                  key={"filter.emob.green.all"}
+                  disabled={!filterState.stationsart?.includes('Ladestation')}
+                  key={'filter.emob.green.all'}
                   onClick={(e) => {
                     const newFilterState = { ...filterState };
                     // @ts-expect-error legacy codebase exception
@@ -345,20 +337,20 @@ const FilterUI = () => {
                 <br />
                 <label
                   style={{
-                    display: "inline-block",
-                    maxWidth: "100%",
-                    marginBottom: "5px",
+                    display: 'inline-block',
+                    maxWidth: '100%',
+                    marginBottom: '5px',
                     fontWeight: 700,
                   }}
                 >
-                  Ladestation - Ladebox vorhanden{" "}
+                  Ladestation - Ladebox vorhanden{' '}
                   <FontAwesomeIcon
                     icon={faToggleOn}
                     size="2x"
                     style={{
-                      color: "grey",
-                      width: "30px",
-                      textAlign: "center",
+                      color: 'grey',
+                      width: '30px',
+                      textAlign: 'center',
                     }}
                   />
                 </label>
@@ -366,8 +358,8 @@ const FilterUI = () => {
                 <Form.Check
                   type="radio"
                   readOnly={true}
-                  disabled={!filterState.stationsart?.includes("Ladestation")}
-                  key={"filter.ebikes.ladebox_zu.only"}
+                  disabled={!filterState.stationsart?.includes('Ladestation')}
+                  key={'filter.ebikes.ladebox_zu.only'}
                   onClick={(e) => {
                     const newFilterState = { ...filterState };
                     // @ts-expect-error legacy codebase exception
@@ -386,8 +378,8 @@ const FilterUI = () => {
                 <Form.Check
                   type="radio"
                   readOnly={true}
-                  disabled={!filterState.stationsart?.includes("Ladestation")}
-                  key={"filter.ebikes.ladebox_zu.all"}
+                  disabled={!filterState.stationsart?.includes('Ladestation')}
+                  key={'filter.ebikes.ladebox_zu.all'}
                   onClick={(e) => {
                     const newFilterState = { ...filterState };
                     // @ts-expect-error legacy codebase exception
@@ -409,7 +401,7 @@ const FilterUI = () => {
                 <Button
                   onClick={() => {
                     setFilterState({
-                      stationsart: ["Ladestation", "Verleihstation"],
+                      stationsart: ['Ladestation', 'Verleihstation'],
                       nur_online: false,
                       immer_offen: false,
                       gruener_strom: false,

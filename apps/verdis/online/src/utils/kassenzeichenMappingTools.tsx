@@ -1,31 +1,31 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
-import { getGeoJsonFeatureFromCidsObject } from "./cidsTools";
-import L from "leaflet";
-import proj4 from "proj4";
-import ColorHash from "color-hash";
-import { get } from "lodash";
-import getArea from "@turf/area";
-import { reproject } from "reproject";
+import { getGeoJsonFeatureFromCidsObject } from './cidsTools';
+import L from 'leaflet';
+import proj4 from 'proj4';
+import ColorHash from 'color-hash';
+import { get } from 'lodash';
+import getArea from '@turf/area';
+import { reproject } from 'reproject';
 
-import { getMergedFlaeche, getCRsForFeature } from "./kassenzeichenHelper";
-import area from "@turf/area";
+import { getMergedFlaeche, getCRsForFeature } from './kassenzeichenHelper';
+import area from '@turf/area';
 export const projectionData = {
-  "25832": {
-    def: "+proj=utm +zone=32 +ellps=GRS80 +units=m +no_defs",
+  '25832': {
+    def: '+proj=utm +zone=32 +ellps=GRS80 +units=m +no_defs',
     geojson: {
-      type: "name",
+      type: 'name',
       properties: {
-        name: "urn:ogc:def:crs:EPSG::25832",
+        name: 'urn:ogc:def:crs:EPSG::25832',
       },
     },
   },
-  "4326": {
-    def: "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs",
+  '4326': {
+    def: '+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs',
     geojson: {
-      type: "name",
+      type: 'name',
       properties: {
-        name: "urn:ogc:def:crs:EPSG::4326",
+        name: 'urn:ogc:def:crs:EPSG::4326',
       },
     },
   },
@@ -35,13 +35,13 @@ export const getWGS84GeoJSON = (geoJSON) => {
   try {
     const reprojectedGeoJSON = reproject(
       geoJSON,
-      projectionData["25832"].def,
-      proj4.WGS84,
+      projectionData['25832'].def,
+      proj4.WGS84
     );
 
     return reprojectedGeoJSON;
   } catch (e) {
-    console.log("excepotion reproject", e);
+    console.log('excepotion reproject', e);
     return undefined;
   }
 };
@@ -68,8 +68,8 @@ export const getFlaecheFeaturePropertiesFromCidsFlaeche = (flaeche) => {
 export const getFlaechenFeatureCollection = (kassenzeichen) => {
   const geojson = getGeoJsonFeatureFromCidsObject(
     kassenzeichen.flaechen,
-    "flaecheninfo.geometrie",
-    getFlaecheFeaturePropertiesFromCidsFlaeche,
+    'flaecheninfo.geometrie',
+    getFlaecheFeaturePropertiesFromCidsFlaeche
   );
   return geojson;
 };
@@ -86,15 +86,15 @@ export const getAnnotationFeatureCollection = (aenderungsanfrage) => {
     const keys = Object.keys(aenderungsanfrage.geometrien);
     for (const key of keys) {
       const feature = JSON.parse(
-        JSON.stringify(aenderungsanfrage.geometrien[key]),
+        JSON.stringify(aenderungsanfrage.geometrien[key])
       );
-      feature.properties.type = "annotation";
+      feature.properties.type = 'annotation';
       feature.crs = {
-        type: "name",
-        properties: { name: "urn:ogc:def:crs:EPSG::25832" },
+        type: 'name',
+        properties: { name: 'urn:ogc:def:crs:EPSG::25832' },
       };
       // feature.properties.id = feature.properties.id;
-      if (feature.geometry.type === "Polygon") {
+      if (feature.geometry.type === 'Polygon') {
         if (area(feature) > 0) {
           geojson.push(feature);
         }
@@ -112,22 +112,22 @@ export const getAnnotationFeatureCollection = (aenderungsanfrage) => {
 export const getFrontenFeatureCollection = (kassenzeichen) => {
   return getGeoJsonFeatureFromCidsObject(
     kassenzeichen.fronten,
-    "frontinfo.geometrie",
+    'frontinfo.geometrie',
     (front) => {
       return {
         id: front.id,
-        key: get(front, "frontinfo.lage_sr.sr_klasse.key", ""),
-        laenge: get(front, "frontinfo.laenge_korrektur", 0),
-        strasse: get(front, "frontinfo.strasse.name", "-"),
+        key: get(front, 'frontinfo.lage_sr.sr_klasse.key', ''),
+        laenge: get(front, 'frontinfo.laenge_korrektur', 0),
+        strasse: get(front, 'frontinfo.strasse.name', '-'),
       };
-    },
+    }
   );
 };
 
 export const getKassenzeichenInfoFeatureCollection = (kassenzeichen) => {
   return getGeoJsonFeatureFromCidsObject(
     kassenzeichen.kassenzeichen_geometrien,
-    "geometrie",
+    'geometrie',
     (kasz_geom) => {
       return {
         id: kasz_geom.id,
@@ -135,43 +135,43 @@ export const getKassenzeichenInfoFeatureCollection = (kassenzeichen) => {
         istfrei: kasz_geom.istfrei,
         geomstring: kasz_geom.geometrie.geo_field,
       };
-    },
+    }
   );
 };
 
 export const getColorFromFlaechenArt = (art_abk) => {
-  let color = "#ff0000";
+  let color = '#ff0000';
   switch (art_abk) {
-    case "DF":
-    case "Dachfläche":
-      color = "#a24c29";
+    case 'DF':
+    case 'Dachfläche':
+      color = '#a24c29';
       break;
-    case "GDF":
-    case "Gründach":
-      color = "#6a7a17";
+    case 'GDF':
+    case 'Gründach':
+      color = '#6a7a17';
       break;
-    case "VF":
-    case "versiegelte Fläche":
-      color = "#788180";
+    case 'VF':
+    case 'versiegelte Fläche':
+      color = '#788180';
       break;
-    case "VFS":
-    case "städtische Straßenfläche":
-      color = "#8a8684";
+    case 'VFS':
+    case 'städtische Straßenfläche':
+      color = '#8a8684';
       break;
-    case "LVS":
-    case "leicht versiegelte Straßenfläche":
-      color = "#7e5b47";
+    case 'LVS':
+    case 'leicht versiegelte Straßenfläche':
+      color = '#7e5b47';
       break;
-    case "LVF":
-    case "leicht versiegelte Fläche":
-      color = "#9f9b6c";
+    case 'LVF':
+    case 'leicht versiegelte Fläche':
+      color = '#9f9b6c';
       break;
-    case "VV":
-    case "vorläufige Veranlagung":
-      color = "#ff0000";
+    case 'VV':
+    case 'vorläufige Veranlagung':
+      color = '#ff0000';
       break;
     default:
-      color = "#ff0000";
+      color = '#ff0000';
   }
   return color;
 };
@@ -179,49 +179,49 @@ export const getColorFromFlaechenArt = (art_abk) => {
 export const getColorFromFrontKey = (key) => {
   if (key) {
     switch (key) {
-      case "C1":
-      case "C2":
-        return "#4ecdc4";
+      case 'C1':
+      case 'C2':
+        return '#4ecdc4';
       default:
-        return "#F38630"; //orange
+        return '#F38630'; //orange
     }
   } else {
-    return "#0D6759"; //green
+    return '#0D6759'; //green
   }
 };
 
 export const getColorForFront = (frontDesc) => {
   let colorHash = new ColorHash({ saturation: 0.3 });
-  return colorHash.hex("" + frontDesc + "1234567890");
+  return colorHash.hex('' + frontDesc + '1234567890');
 };
 
 export const getColorForKassenzeichenGeometry = (geo_field) => {
   let colorHash = new ColorHash({ saturation: 0.4 });
-  return colorHash.hex("" + geo_field);
+  return colorHash.hex('' + geo_field);
 };
 
 export const createFlaechenStyler = (changeRequestsEditMode, kassenzeichen) => {
   return (feature) => {
-    if (feature.properties.type === "annotation") {
+    if (feature.properties.type === 'annotation') {
       // const currentColor = '#ffff00';
 
       let opacity,
         lineColor,
-        fillColor = "#B90504",
+        fillColor = '#B90504',
         markerColor,
         weight = 2,
         fillOpacity;
 
       if (feature.selected === true) {
         opacity = 0.9;
-        lineColor = "#0C7D9D";
+        lineColor = '#0C7D9D';
         fillOpacity = 0.8;
-        markerColor = "blue";
+        markerColor = 'blue';
       } else {
         opacity = 1;
         fillOpacity = 0.6;
-        lineColor = "#990100";
-        markerColor = "red";
+        lineColor = '#990100';
+        markerColor = 'red';
       }
 
       return {
@@ -231,15 +231,15 @@ export const createFlaechenStyler = (changeRequestsEditMode, kassenzeichen) => {
         opacity,
         fillColor,
         fillOpacity,
-        className: "annotation-" + feature.id,
+        className: 'annotation-' + feature.id,
         defaultMarker: true,
 
         customMarker: L.ExtraMarkers.icon({
-          icon: feature.inEditMode === true ? "fa-square" : undefined,
+          icon: feature.inEditMode === true ? 'fa-square' : undefined,
           markerColor,
-          shape: "circle",
-          prefix: "fa",
-          number: "X",
+          shape: 'circle',
+          prefix: 'fa',
+          number: 'X',
         }),
       };
     } else {
@@ -252,12 +252,12 @@ export const createFlaechenStyler = (changeRequestsEditMode, kassenzeichen) => {
         color = getColorFromFlaechenArt(mergedFlaeche.art_abk);
       }
       let opacity = 0.6;
-      let linecolor = "#000000";
+      let linecolor = '#000000';
       let weight = 1;
 
       if (feature.selected === true) {
         opacity = 0.9;
-        linecolor = "#0C7D9D";
+        linecolor = '#0C7D9D';
         weight = 2;
       }
       const style = {
@@ -266,7 +266,7 @@ export const createFlaechenStyler = (changeRequestsEditMode, kassenzeichen) => {
         opacity: 1.0,
         fillColor: color,
         fillOpacity: opacity,
-        className: "verdis-flaeche-" + feature.properties.bez,
+        className: 'verdis-flaeche-' + feature.properties.bez,
       };
       return style;
     }
@@ -276,12 +276,12 @@ export const createFlaechenStyler = (changeRequestsEditMode, kassenzeichen) => {
 export const kassenzeichenGeometrienStyle = (feature) => {
   let color = getColorForKassenzeichenGeometry(feature.properties.geomstring);
   let opacity = 0.6;
-  let linecolor = "#000000";
+  let linecolor = '#000000';
   let weight = 1;
 
   if (feature.selected === true) {
     opacity = 0.9;
-    linecolor = "#0C7D9D";
+    linecolor = '#0C7D9D';
     weight = 2;
   }
 
@@ -303,7 +303,7 @@ export const frontenStyle = (feature) => {
 
   if (feature.selected === true) {
     opacity = 0.9;
-    linecolor = "#0C7D9D";
+    linecolor = '#0C7D9D';
     weight = 10;
   }
 
@@ -326,7 +326,7 @@ export const flaechenLabeler = (feature) => {
 
 const getStyleFromFeatureConsideringSelection = (feature) => {
   let base = {
-    color: "blue",
+    color: 'blue',
     //   "textShadow": "1px 1px 0px  #000000,-1px 1px 0px  #000000, 1px -1px 0px  #000000, -1px -1px 0px  #000000, 2px 2px 15px #000000",
   };
   if (feature.selected) {
@@ -334,11 +334,11 @@ const getStyleFromFeatureConsideringSelection = (feature) => {
     const borderDef = `${radius}px ${radius}px ${radius}px ${radius}px`;
     return {
       ...base,
-      background: "rgba(67, 149, 254, 0.8)",
+      background: 'rgba(67, 149, 254, 0.8)',
       WebkitBorderRadius: borderDef,
       MozBorderRadius: borderDef,
       borderRadius: borderDef,
-      padding: "5px",
+      padding: '5px',
       defaultMarker: true,
     };
   } else {
@@ -348,16 +348,16 @@ const getStyleFromFeatureConsideringSelection = (feature) => {
 
 export const getMarkerStyleFromFeatureConsideringSelection = (feature) => {
   let opacity = 0.6;
-  let linecolor = "#000000";
+  let linecolor = '#000000';
   let weight = 1;
 
   if (feature.selected === true) {
     opacity = 0.9;
-    linecolor = "#0C7D9D";
+    linecolor = '#0C7D9D';
     weight = 2;
   }
   let text, yTextPos;
-  if (feature.properties.type === "annotation") {
+  if (feature.properties.type === 'annotation') {
     text = feature.properties.name;
   } else {
     text = feature.properties.bez;
@@ -372,8 +372,8 @@ export const getMarkerStyleFromFeatureConsideringSelection = (feature) => {
   // 	yTextPos = 10;
   // }
   yTextPos = 15;
-  if (feature.properties.type === "annotation") {
-    if (feature.geometry.type === "Point") {
+  if (feature.properties.type === 'annotation') {
+    if (feature.geometry.type === 'Point') {
       yTextPos = 20;
     }
   }
@@ -385,7 +385,7 @@ export const getMarkerStyleFromFeatureConsideringSelection = (feature) => {
     opacity: 1.0,
     fillOpacity: opacity,
     svgSize: 30,
-    className: "verdis-flaeche-marker-" + feature.properties.bez,
+    className: 'verdis-flaeche-marker-' + feature.properties.bez,
     svg: `<svg interactive="false" height="30" width="30" skipstyle="background-color:green;" >
         <style>
             .flaeche { font: bold 16px sans-serif; }

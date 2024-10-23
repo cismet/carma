@@ -236,7 +236,7 @@ const DesignerWrapper = ({
         };
 
         compsWithTextDescription[section.sectionTitle].push(
-          iconWithDescriptionObj,
+          iconWithDescriptionObj
         );
       });
     });
@@ -288,7 +288,7 @@ const DesignerWrapper = ({
                 };
 
                 compsWithTextDescription[section.sectionTitle].push(
-                  iconWithDescriptionObj,
+                  iconWithDescriptionObj
                 );
               }
             } else {
@@ -306,7 +306,7 @@ const DesignerWrapper = ({
                 children: iconWithDescriptionView(group.iconsArr),
               };
               compsWithTextDescription[section.sectionTitle].push(
-                iconWithDescriptionObj,
+                iconWithDescriptionObj
               );
             }
           });
@@ -329,14 +329,14 @@ const DesignerWrapper = ({
             };
 
             compsWithTextDescription[section.sectionTitle].push(
-              iconWithDescriptionObj,
+              iconWithDescriptionObj
             );
           });
         }
       });
 
       const dataFiltered = Object.keys(compsOnlyIcons).filter(
-        (sectionName) => compsOnlyIcons[sectionName].length > 0,
+        (sectionName) => compsOnlyIcons[sectionName].length > 0
       );
 
       setFilteredData(dataFiltered);

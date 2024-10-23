@@ -11,10 +11,10 @@ const itemFilterFunction = ({ filterState }) => {
 
     if (result === true) {
       result = false;
-      if (item.schluessel === "P" && filterState.pandr === true) {
+      if (item.schluessel === 'P' && filterState.pandr === true) {
         result = true;
       }
-      if (item.schluessel === "B" && filterState.bandr === true) {
+      if (item.schluessel === 'B' && filterState.bandr === true) {
         result = true;
       }
     }

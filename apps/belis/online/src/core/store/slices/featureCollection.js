@@ -1,35 +1,35 @@
-import { createSlice } from "@reduxjs/toolkit";
+import { createSlice } from '@reduxjs/toolkit';
 
-import { integrateIntermediateResults } from "../../helper/featureHelper";
-import { convertBounds2BBox } from "../../helper/gisHelper";
-import { zoomToFeature } from "../../helper/mapHelper";
-import { loadObjectsIntoFeatureCollection } from "./featureCollectionSubslices/objects";
-import { loadTaskListsIntoFeatureCollection } from "./featureCollectionSubslices/tasklists";
-import { getMapRef } from "./map";
-import { getIntermediateResults } from "./offlineActionDb";
+import { integrateIntermediateResults } from '../../helper/featureHelper';
+import { convertBounds2BBox } from '../../helper/gisHelper';
+import { zoomToFeature } from '../../helper/mapHelper';
+import { loadObjectsIntoFeatureCollection } from './featureCollectionSubslices/objects';
+import { loadTaskListsIntoFeatureCollection } from './featureCollectionSubslices/tasklists';
+import { getMapRef } from './map';
+import { getIntermediateResults } from './offlineActionDb';
 import {
   isSearchModeActive,
   isSearchModeWished,
   setActive as setSearchModeActive,
   setWished as setSearchModeWished,
-} from "./search";
-import { getZoom } from "./zoom";
+} from './search';
+import { getZoom } from './zoom';
 
 const focusedSearchMinimumZoomThreshhold = 18;
 const searchMinimumZoomThreshhold = 19;
 export const MODES = {
-  OBJECTS: "OBJECTS",
-  TASKLISTS: "TASKLISTS",
-  PROTOCOLS: "PROTOCOLS",
+  OBJECTS: 'OBJECTS',
+  TASKLISTS: 'TASKLISTS',
+  PROTOCOLS: 'PROTOCOLS',
 };
 
 export const initialFilter = {
-  tdta_leuchten: { title: "Leuchten", enabled: true },
-  tdta_standort_mast: { title: "Masten (ohne Leuchten)", enabled: true },
-  mauerlasche: { title: "Mauerlaschen", enabled: true },
-  leitung: { title: "Leitungen", enabled: true },
-  schaltstelle: { title: "Schaltstellen", enabled: true },
-  abzweigdose: { title: "Abzweigdosen", enabled: true },
+  tdta_leuchten: { title: 'Leuchten', enabled: true },
+  tdta_standort_mast: { title: 'Masten (ohne Leuchten)', enabled: true },
+  mauerlasche: { title: 'Mauerlaschen', enabled: true },
+  leitung: { title: 'Leitungen', enabled: true },
+  schaltstelle: { title: 'Schaltstellen', enabled: true },
+  abzweigdose: { title: 'Abzweigdosen', enabled: true },
 };
 const initialInFocusMode = false;
 
@@ -42,7 +42,7 @@ const initForModes = (initionalizationValue) => {
 };
 
 const featureCollectionSlice = createSlice({
-  name: "featureCollection",
+  name: 'featureCollection',
   initialState: {
     features: initForModes([]),
     featuresMap: initForModes({}),
@@ -62,7 +62,7 @@ const featureCollectionSlice = createSlice({
   reducers: {
     setFeatureCollectionForMode: (state, action) => {
       const { mode, features } = action.payload;
-      console.time("setFeatureCollection");
+      console.time('setFeatureCollection');
 
       state.features[mode] = features;
       let index = 0;
@@ -73,7 +73,7 @@ const featureCollectionSlice = createSlice({
         }
         state.featuresMap[mode] = fm;
       }
-      console.timeEnd("setFeatureCollection");
+      console.timeEnd('setFeatureCollection');
     },
     setFeatureCollectionInfoForMode: (state, action) => {
       const { mode, info } = action.payload;
@@ -119,7 +119,7 @@ const featureCollectionSlice = createSlice({
 
     setSelectedFeatureForMode: (state, action) => {
       const { selectedFeature, mode, selectedFeatureIndex } = action.payload;
-      console.time("setSelectedFeature");
+      console.time('setSelectedFeature');
       const fc = state.features[mode]; //JSON.parse(JSON.stringify(state.features));
 
       if (state.selectedFeature[mode]) {
@@ -145,7 +145,7 @@ const featureCollectionSlice = createSlice({
       if (state.selectedFeature[mode]) {
         state.selectedFeature[mode].selected = true;
       }
-      console.timeEnd("setSelectedFeature");
+      console.timeEnd('setSelectedFeature');
     },
 
     setRequestBasis: (state, action) => {
@@ -246,13 +246,13 @@ export const forceRefresh = () => {
   return async (dispatch, getState) => {
     const state = getState();
     dispatch(
-      setFeatureCollectionForMode({ mode: MODES.OBJECTS, features: [] }),
+      setFeatureCollectionForMode({ mode: MODES.OBJECTS, features: [] })
     );
     dispatch(
-      setFeatureCollectionForMode({ mode: MODES.TASKLISTS, features: [] }),
+      setFeatureCollectionForMode({ mode: MODES.TASKLISTS, features: [] })
     );
     dispatch(
-      setFeatureCollectionForMode({ mode: MODES.PROTOCOLS, features: [] }),
+      setFeatureCollectionForMode({ mode: MODES.PROTOCOLS, features: [] })
     );
     dispatch(setSelectedFeature(null));
     const onlineDataForcing = false;
@@ -265,7 +265,7 @@ export const forceRefresh = () => {
           jwt: state.auth.jwt,
           force: true,
           onlineDataForcing,
-        }),
+        })
       );
     }
     if (state.team.selectedTeam) {
@@ -273,7 +273,7 @@ export const forceRefresh = () => {
         loadTaskLists({
           team: state.team.selectedTeam,
           jwt: state.auth.jwt,
-        }),
+        })
       );
     }
   };
@@ -322,9 +322,9 @@ export const loadObjects = ({
       const _filterstate = overridingFilterState || _filterState;
       const reqBasis =
         JSON.stringify(boundingBox) +
-        "." +
+        '.' +
         JSON.stringify(_filterstate) +
-        "." +
+        '.' +
         inFocusMode;
 
       if (reqBasis !== requestBasis || force) {
@@ -352,7 +352,7 @@ export const loadObjects = ({
             boundingBox: xbb,
             jwt: jwt,
             onlineDataForcing,
-          }),
+          })
         );
       }
     }
@@ -373,7 +373,7 @@ export const loadTaskLists = ({ onlineDataForcing, team, done = () => {} }) => {
         team: team || state.team.selectedTeam,
         jwt,
         done,
-      }),
+      })
     );
   };
 };
@@ -384,7 +384,7 @@ export const reSetSelecteFeatureFromCollection = (_featureCollection) => {
     const featureCollection = _featureCollection || getFeatureCollection(state);
     const oldSelectedFeature = getSelectedFeature(state);
     const selectedFeature = featureCollection.find(
-      (f) => f.id === oldSelectedFeature.id,
+      (f) => f.id === oldSelectedFeature.id
     );
     const mode = state.featureCollection.mode;
     dispatch(setSelectedFeatureForMode({ selectedFeature, mode }));
@@ -392,17 +392,17 @@ export const reSetSelecteFeatureFromCollection = (_featureCollection) => {
 };
 
 export const integrateIntermediateResultsIntofeatureCollection = (
-  intermediateResults,
+  intermediateResults
 ) => {
   return async (dispatch, getState) => {
     const state = getState();
     // need to create a new featurecollection because the retrieved collection is immutable
-    console.time("integrateIntermediateResultsIntofeatureCollection.clone.FC");
+    console.time('integrateIntermediateResultsIntofeatureCollection.clone.FC');
     const featureCollection = JSON.parse(
-      JSON.stringify(getFeatureCollection(state)),
+      JSON.stringify(getFeatureCollection(state))
     );
     console.timeEnd(
-      "integrateIntermediateResultsIntofeatureCollection.clone.FC",
+      'integrateIntermediateResultsIntofeatureCollection.clone.FC'
     );
 
     const _intermediateResults =
@@ -429,7 +429,7 @@ const _isSearchForbidden = (overrides = {}, state) => {
   let _zoom = overrides.zoom || getZoom(state);
   let inFocusMode = isInFocusMode(state);
   if (_zoom === -1) {
-    _zoom = new URLSearchParams(window.location.search).get("zoom");
+    _zoom = new URLSearchParams(window.location.search).get('zoom');
   }
   let ifm; //= overrides.inFocusMode || inFocusMode;
   if (overrides.inFocusMode !== undefined) {

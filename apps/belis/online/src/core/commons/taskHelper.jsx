@@ -1,9 +1,9 @@
-import { blue, gold, green, grey, red } from "@ant-design/colors";
+import { blue, gold, green, grey, red } from '@ant-design/colors';
 import {
   faCheckCircle,
   faHdd,
   faQuestionCircle,
-} from "@fortawesome/free-regular-svg-icons";
+} from '@fortawesome/free-regular-svg-icons';
 import {
   faCamera,
   faExclamation,
@@ -11,12 +11,12 @@ import {
   faServer,
   faSpinner,
   faUserSlash,
-} from "@fortawesome/free-solid-svg-icons";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+} from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
-import { ADD_INCIDENT_MODES } from "../../components/app/dialogs/AddIncident";
-import { type2Caption } from "../helper/featureHelper";
-import { protocolActionInfos } from "../helper/actionInfos";
+import { ADD_INCIDENT_MODES } from '../../components/app/dialogs/AddIncident';
+import { type2Caption } from '../helper/featureHelper';
+import { protocolActionInfos } from '../helper/actionInfos';
 
 const convertActionameToActionKey = (actionname) => {
   for (const key of Object.keys(protocolActionInfos)) {
@@ -28,9 +28,9 @@ const convertActionameToActionKey = (actionname) => {
 
 const getTitleForAction = (action) => {
   switch (action) {
-    case "uploadDocument":
+    case 'uploadDocument':
       return <FontAwesomeIcon icon={faCamera} title="Foto hinzufügen" />;
-    case "addIncident":
+    case 'addIncident':
       return (
         <FontAwesomeIcon icon={faExclamationTriangle} title="Störung melden" />
       );
@@ -96,12 +96,12 @@ const getStatusIcon = (status) => {
         />
       );
     default:
-      console.log("Unknown status: " + status);
+      console.log('Unknown status: ' + status);
       return (
         <FontAwesomeIcon
           style={{ color: grey[6] }}
           icon={faQuestionCircle}
-          title={"unbekannter Status:" + status}
+          title={'unbekannter Status:' + status}
         />
       );
   }
@@ -109,23 +109,23 @@ const getStatusIcon = (status) => {
 
 export const createDescriptionForTask = (type, parameters) => {
   switch (type) {
-    case "uploadDocument":
+    case 'uploadDocument':
       return parameters.description;
-    case "addIncident": {
+    case 'addIncident': {
       switch (parameters.aktion) {
         case ADD_INCIDENT_MODES.VERANLASSUNG:
-          return "Störung (nur Veranlassung): " + parameters.bezeichnung;
+          return 'Störung (nur Veranlassung): ' + parameters.bezeichnung;
         case ADD_INCIDENT_MODES.EINZELAUFTRAG:
-          return "Störung (Einzelauftrag): " + parameters.bezeichnung;
+          return 'Störung (Einzelauftrag): ' + parameters.bezeichnung;
         case ADD_INCIDENT_MODES.ADD2ARBEITSAUFTRAG:
           return (
-            "Störung (+ A" +
-            (parameters.arbeitsauftragNummer || "rbeitsauftrag") +
-            "): " +
+            'Störung (+ A' +
+            (parameters.arbeitsauftragNummer || 'rbeitsauftrag') +
+            '): ' +
             parameters.bezeichnung
           );
         default:
-          return "Störung ohne Aktion (Fehler)";
+          return 'Störung ohne Aktion (Fehler)';
       }
     }
     default: {
@@ -136,7 +136,7 @@ export const createDescriptionForTask = (type, parameters) => {
         if (actionKey) {
           return protocolActionInfos[actionKey]?.title;
         } else {
-          return "tbd";
+          return 'tbd';
         }
       }
     }
@@ -161,7 +161,7 @@ export const getTaskForAction = (resultObject) => {
     const { id, createdAt, updatedAt, action, parameter, status } =
       resultObject;
 
-    let parameters = { objekt_typ: "???", object_name: "" };
+    let parameters = { objekt_typ: '???', object_name: '' };
     try {
       if (parameter) {
         parameters = JSON.parse(parameter);
@@ -179,8 +179,8 @@ export const getTaskForAction = (resultObject) => {
       statustext: getStatusIcon(status),
       fachobjekt:
         type2Caption(parameters.objekt_typ) +
-        " " +
-        (parameters.object_name ? parameters.object_name : ""),
+        ' ' +
+        (parameters.object_name ? parameters.object_name : ''),
       beschreibung: createDescriptionForTask(action, parameters),
       status: getStatusIcon(status),
       statusCode: status,

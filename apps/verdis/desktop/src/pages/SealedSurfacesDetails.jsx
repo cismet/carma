@@ -1,61 +1,61 @@
-import React, { useEffect } from "react";
-import Map from "../components/commons/Map";
-import Details from "../components/sealedSurfaces/Details";
-import Chat from "../components/commons/Chat";
-import { areasDetailsExtractor, mappingExtractor } from "../tools/extractors";
-import TableCard from "../components/ui/TableCard";
-import { useDispatch, useSelector } from "react-redux";
+import React, { useEffect } from 'react';
+import Map from '../components/commons/Map';
+import Details from '../components/sealedSurfaces/Details';
+import Chat from '../components/commons/Chat';
+import { areasDetailsExtractor, mappingExtractor } from '../tools/extractors';
+import TableCard from '../components/ui/TableCard';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   getFlaechenId,
   getKassenzeichen,
   searchForKassenzeichenWithPoint,
   storeFlaeche,
   storeFlaechenId,
-} from "../store/slices/search";
-import { compare, formatDate } from "../tools/helper";
-import SubNav from "../components/sealedSurfaces/SubNav";
+} from '../store/slices/search';
+import { compare, formatDate } from '../tools/helper';
+import SubNav from '../components/sealedSurfaces/SubNav';
 import {
   getBefreiungErlaubnisCollection,
   getFlaechenCollection,
   getFrontenCollection,
   getGeneralGeometryCollection,
   setFlaechenSelected,
-} from "../store/slices/mapping";
-import { setShowSurfaceDetails } from "../store/slices/settings";
-import FeatureMapLayer from "../components/commons/FeatureMapLayer";
-import { useFitBoundsIfUnlocked } from "../hooks/useFitBoundsIfUnlocked";
-import { useSearchParams } from "react-router-dom";
-import { convertLatLngToXY } from "../tools/mappingTools";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faUserGroup } from "@fortawesome/free-solid-svg-icons";
+} from '../store/slices/mapping';
+import { setShowSurfaceDetails } from '../store/slices/settings';
+import FeatureMapLayer from '../components/commons/FeatureMapLayer';
+import { useFitBoundsIfUnlocked } from '../hooks/useFitBoundsIfUnlocked';
+import { useSearchParams } from 'react-router-dom';
+import { convertLatLngToXY } from '../tools/mappingTools';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faUserGroup } from '@fortawesome/free-solid-svg-icons';
 
 const Page = ({
-  width = "100%",
-  height = "100vh",
+  width = '100%',
+  height = '100vh',
   inStory = false,
   showChat = false,
 }) => {
   let storyStyle = {};
   if (inStory) {
     storyStyle = {
-      borderStyle: "dotted",
-      borderWidth: "1px solid",
-      padding: "10px",
+      borderStyle: 'dotted',
+      borderWidth: '1px solid',
+      padding: '10px',
     };
   }
   const dispatch = useDispatch();
   const [urlParams, setUrlParams] = useSearchParams();
   const flaechenId = useSelector(getFlaechenId);
 
-  const cardStyleTable = { width: "50%", height: "100%", minHeight: 0 };
-  const cardStyleDetails = { width: "100%", height: "50%", minHeight: 0 };
+  const cardStyleTable = { width: '50%', height: '100%', minHeight: 0 };
+  const cardStyleDetails = { width: '100%', height: '50%', minHeight: 0 };
 
   const kassenzeichen = useSelector(getKassenzeichen);
   const flaechenArray = useSelector(getFlaechenCollection);
   const frontenArray = useSelector(getFrontenCollection);
   const generalGeomArray = useSelector(getGeneralGeometryCollection);
   const befreiungErlaubnisseArray = useSelector(
-    getBefreiungErlaubnisCollection,
+    getBefreiungErlaubnisCollection
   );
   useEffect(() => {
     dispatch(setShowSurfaceDetails(true));
@@ -76,9 +76,9 @@ const Page = ({
             title="Flächen"
             columns={[
               {
-                title: "",
-                dataIndex: "crossReference",
-                key: "crossReference",
+                title: '',
+                dataIndex: 'crossReference',
+                key: 'crossReference',
                 render: (crossReference) => (
                   <div className="flex gap-2 items-center">
                     {crossReference && <FontAwesomeIcon icon={faUserGroup} />}
@@ -86,41 +86,41 @@ const Page = ({
                 ),
               },
               {
-                title: "Bezeichnung",
-                dataIndex: "name",
-                key: "name",
+                title: 'Bezeichnung',
+                dataIndex: 'name',
+                key: 'name',
                 sorter: (a, b) => compare(a.name, b.name),
-                defaultSortOrder: "ascend",
+                defaultSortOrder: 'ascend',
               },
               {
-                title: "Größe m²",
-                dataIndex: "groesseKorrektor",
-                key: "groesseKorrektor",
+                title: 'Größe m²',
+                dataIndex: 'groesseKorrektor',
+                key: 'groesseKorrektor',
                 sorter: (a, b) =>
                   compare(a.groesseKorrektor, b.groesseKorrektor),
               },
               {
-                title: "Flächenart",
-                dataIndex: "type",
-                key: "type",
+                title: 'Flächenart',
+                dataIndex: 'type',
+                key: 'type',
                 sorter: (a, b) => compare(a.type, b.type),
               },
               {
-                title: "Anschlussgrad",
-                dataIndex: "anschlussgrad",
-                key: "anschlussgrad",
+                title: 'Anschlussgrad',
+                dataIndex: 'anschlussgrad',
+                key: 'anschlussgrad',
                 sorter: (a, b) => compare(a.anschlussgrad, b.anschlussgrad),
               },
               {
-                title: "Beschreibung",
-                dataIndex: "beschreibung",
-                key: "beschreibung",
+                title: 'Beschreibung',
+                dataIndex: 'beschreibung',
+                key: 'beschreibung',
                 sorter: (a, b) => compare(a.beschreibung, b.beschreibung),
               },
               {
-                title: "Erfassungdatum",
-                dataIndex: "datumErfassung",
-                key: "datumErfassung",
+                title: 'Erfassungdatum',
+                dataIndex: 'datumErfassung',
+                key: 'datumErfassung',
                 sorter: (a, b) => compare(a.datumErfassung, b.datumErfassung),
                 render: (date) => <>{formatDate(date)}</>,
               },
@@ -143,15 +143,15 @@ const Page = ({
             <Map
               shownIn="sealedSurfaces.details"
               key="sealedSurfacesDetails.map"
-              width={"100%"}
-              height={"50%"}
+              width={'100%'}
+              height={'50%'}
               dataIn={{
                 kassenzeichen,
                 flaechenArray,
                 frontenArray,
                 generalGeomArray,
                 befreiungErlaubnisseArray,
-                shownFeatureTypes: ["flaeche"],
+                shownFeatureTypes: ['flaeche'],
                 ondblclick: (event) => {
                   const xy = convertLatLngToXY(event.latlng);
                   dispatch(
@@ -159,14 +159,14 @@ const Page = ({
                       xy[0],
                       xy[1],
                       urlParams,
-                      setUrlParams,
-                    ),
+                      setUrlParams
+                    )
                   );
                 },
               }}
               extractor={mappingExtractor}
             >
-              <FeatureMapLayer featureTypes={["flaeche"]} />
+              <FeatureMapLayer featureTypes={['flaeche']} />
             </Map>
           </div>
         </div>
@@ -174,9 +174,9 @@ const Page = ({
       {showChat && (
         <Chat
           style={{
-            position: "absolute",
-            bottom: "10px",
-            right: "10px",
+            position: 'absolute',
+            bottom: '10px',
+            right: '10px',
             zIndex: 99999,
           }}
           height={height * 0.45}
