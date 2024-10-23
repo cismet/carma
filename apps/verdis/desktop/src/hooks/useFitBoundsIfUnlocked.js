@@ -1,10 +1,10 @@
-import { useEffect } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
 import {
   fitBounds,
   getLockMap,
   getLockMapOnlyInKassenzeichen,
-} from "../store/slices/mapping";
+} from '../store/slices/mapping';
 
 export function useFitBoundsIfUnlocked() {
   const dispatch = useDispatch();

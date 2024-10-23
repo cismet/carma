@@ -4,10 +4,7 @@ export const getSecondaryInfo = (feature) => {
   switch (feature.featuretype) {
     case "tdta_leuchten":
       {
-        description.leuchte = {
-          label: "Leuchte",
-          descriptions: getDescriptions(feature),
-        };
+        description.leuchte = { label: "Leuchte", descriptions: getDescriptions(feature) };
         description.mast = {
           label: "Mast",
           descriptions: getDescriptions({

@@ -1,4 +1,4 @@
-import { createSlice } from "@reduxjs/toolkit";
+import { createSlice } from '@reduxjs/toolkit';
 
 const initialState = {
   readOnly: false,
@@ -9,7 +9,7 @@ const initialState = {
 };
 
 const slice = createSlice({
-  name: "settings",
+  name: 'settings',
   initialState,
   reducers: {
     setReadOnly(state, action) {

@@ -31,7 +31,7 @@ const CR00MainComponent = ({ localErrorMessages = [] }) => {
   const draftHint = anderungswunscheSimpleTexts.draftHint;
 
   const { crDraftCounter } = getNumberOfPendingChanges(
-    kassenzeichen.aenderungsanfrage
+    kassenzeichen.aenderungsanfrage,
   );
 
   const crMessages =

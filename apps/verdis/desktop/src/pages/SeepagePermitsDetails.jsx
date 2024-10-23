@@ -1,52 +1,52 @@
-import React, { useEffect } from "react";
-import Map from "../components/commons/Map";
-import { Checkbox } from "antd";
-import Chat from "../components/commons/Chat";
-import Details from "../components/seepagePermits/Details";
-import { exemptionExtractor, mappingExtractor } from "../tools/extractors";
-import TableCard from "../components/ui/TableCard";
-import { compare, formatDate } from "../tools/helper";
-import SubNav from "../components/seepagePermits/SubNav";
-import { useDispatch, useSelector } from "react-redux";
+import React, { useEffect } from 'react';
+import Map from '../components/commons/Map';
+import { Checkbox } from 'antd';
+import Chat from '../components/commons/Chat';
+import Details from '../components/seepagePermits/Details';
+import { exemptionExtractor, mappingExtractor } from '../tools/extractors';
+import TableCard from '../components/ui/TableCard';
+import { compare, formatDate } from '../tools/helper';
+import SubNav from '../components/seepagePermits/SubNav';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   getKassenzeichen,
   getSeepageId,
   searchForKassenzeichenWithPoint,
   storeSeepage,
   storeSeepageId,
-} from "../store/slices/search";
+} from '../store/slices/search';
 import {
   getBefreiungErlaubnisCollection,
   getFlaechenCollection,
   getFrontenCollection,
   getGeneralGeometryCollection,
-} from "../store/slices/mapping";
-import { setShowSeepageDetails } from "../store/slices/settings";
-import FeatureMapLayer from "../components/commons/FeatureMapLayer";
-import { useFitBoundsIfUnlocked } from "../hooks/useFitBoundsIfUnlocked";
-import { useSearchParams } from "react-router-dom";
-import { convertLatLngToXY } from "../tools/mappingTools";
+} from '../store/slices/mapping';
+import { setShowSeepageDetails } from '../store/slices/settings';
+import FeatureMapLayer from '../components/commons/FeatureMapLayer';
+import { useFitBoundsIfUnlocked } from '../hooks/useFitBoundsIfUnlocked';
+import { useSearchParams } from 'react-router-dom';
+import { convertLatLngToXY } from '../tools/mappingTools';
 
 const Page = ({
-  width = "100%",
-  height = "100%",
+  width = '100%',
+  height = '100%',
   inStory = false,
   showChat = false,
 }) => {
   let storyStyle = {};
   if (inStory) {
     storyStyle = {
-      borderStyle: "dotted",
-      borderWidth: "1px solid",
-      padding: "10px",
+      borderStyle: 'dotted',
+      borderWidth: '1px solid',
+      padding: '10px',
     };
   }
   const dispatch = useDispatch();
   const [urlParams, setUrlParams] = useSearchParams();
   const seepageId = useSelector(getSeepageId);
 
-  const cardStylePermits = { width: "100%", height: "50%", minHeight: 0 };
-  const cardStyleDetails = { width: "100%", height: "100%", minHeight: 0 };
+  const cardStylePermits = { width: '100%', height: '50%', minHeight: 0 };
+  const cardStyleDetails = { width: '100%', height: '100%', minHeight: 0 };
 
   const kassenzeichen = useSelector(getKassenzeichen);
   const flaechenArray = useSelector(getFlaechenCollection);
@@ -75,47 +75,47 @@ const Page = ({
             title="Befreiung/Erlaubnis"
             columns={[
               {
-                title: "Aktenzeichen",
-                dataIndex: "name",
-                key: "name",
+                title: 'Aktenzeichen',
+                dataIndex: 'name',
+                key: 'name',
                 sorter: (a, b) => compare(a.name, b.name),
               },
               {
-                title: "Antrag vom",
-                dataIndex: "seepageFrom",
-                key: "seepageFrom",
+                title: 'Antrag vom',
+                dataIndex: 'seepageFrom',
+                key: 'seepageFrom',
                 sorter: (a, b) => compare(a.seepageFrom, b.seepageFrom),
                 render: (date) => <>{formatDate(date)}</>,
               },
               {
-                title: "gültig bis",
-                dataIndex: "seepageUntil",
-                key: "seepageUntil",
+                title: 'gültig bis',
+                dataIndex: 'seepageUntil',
+                key: 'seepageUntil',
                 sorter: (a, b) => compare(a.seepageUntil, b.seepageUntil),
                 render: (date) => <>{formatDate(date)}</>,
               },
               {
-                title: "Nutzung",
-                dataIndex: "useCase",
-                key: "useCase",
+                title: 'Nutzung',
+                dataIndex: 'useCase',
+                key: 'useCase',
                 sorter: (a, b) => compare(a.useCase, b.useCase),
               },
               {
-                title: "Typ",
-                dataIndex: "type",
-                key: "type",
+                title: 'Typ',
+                dataIndex: 'type',
+                key: 'type',
                 sorter: (a, b) => compare(a.type, b.type),
               },
               {
-                title: "Q[l/s]",
-                dataIndex: "seepage",
-                key: "seepage",
+                title: 'Q[l/s]',
+                dataIndex: 'seepage',
+                key: 'seepage',
                 sorter: (a, b) => compare(a.seepage, b.seepage),
               },
               {
-                title: "G-Verh",
-                dataIndex: "gVerh",
-                key: "gVerh",
+                title: 'G-Verh',
+                dataIndex: 'gVerh',
+                key: 'gVerh',
                 sorter: (a, b) => compare(a.gVerh, b.gVerh),
                 render: (gVerth) => (
                   <Checkbox checked={gVerth} className="flex justify-center" />
@@ -132,16 +132,16 @@ const Page = ({
           <div className="flex gap-2 h-[50%]">
             <Map
               shownIn="seepagePermits.details"
-              key={"seepagePermitsDetails.map"}
-              width={"100%"}
-              height={"100%"}
+              key={'seepagePermitsDetails.map'}
+              width={'100%'}
+              height={'100%'}
               dataIn={{
                 kassenzeichen,
                 flaechenArray,
                 frontenArray,
                 generalGeomArray,
                 befreiungErlaubnisseArray,
-                shownFeatureTypes: ["befreiung"],
+                shownFeatureTypes: ['befreiung'],
                 ondblclick: (event) => {
                   const xy = convertLatLngToXY(event.latlng);
                   dispatch(
@@ -156,7 +156,7 @@ const Page = ({
               }}
               extractor={mappingExtractor}
             >
-              <FeatureMapLayer featureTypes={["general"]} />
+              <FeatureMapLayer featureTypes={['general']} />
             </Map>
             <Details
               width={cardStyleDetails.width}
@@ -169,9 +169,9 @@ const Page = ({
       {showChat && (
         <Chat
           style={{
-            position: "absolute",
-            bottom: "10px",
-            right: "10px",
+            position: 'absolute',
+            bottom: '10px',
+            right: '10px',
             zIndex: 99999,
           }}
           height={height * 0.45}

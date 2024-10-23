@@ -23,8 +23,8 @@ export const useDispatchSachdatenInfoText = () => {
     ) {
       dispatch(
         setInfoText(
-          "Die Sachdatenabfrage ist für die ausgewählten Layer nicht verfügbar."
-        )
+          "Die Sachdatenabfrage ist für die ausgewählten Layer nicht verfügbar.",
+        ),
       );
     } else if (
       !layers.some((layer) => layer.useInFeatureInfo === true) &&
@@ -32,8 +32,8 @@ export const useDispatchSachdatenInfoText = () => {
     ) {
       dispatch(
         setInfoText(
-          "Die Sachdatenabfrage wurde für alle ausgewählten Layer deaktiviert."
-        )
+          "Die Sachdatenabfrage wurde für alle ausgewählten Layer deaktiviert.",
+        ),
       );
     } else if (
       getAtLeastOneLayerIsQueryable(layers, zoom) &&

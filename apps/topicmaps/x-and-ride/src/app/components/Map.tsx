@@ -27,7 +27,7 @@ const Map = () => {
     typeof FeatureCollectionDispatchContext
   >(FeatureCollectionDispatchContext);
   const { markerSymbolSize } = useContext<typeof TopicMapStylingContext>(
-    TopicMapStylingContext
+    TopicMapStylingContext,
   );
   const { clusteringOptions, selectedFeature } = useContext<
     typeof FeatureCollectionContext

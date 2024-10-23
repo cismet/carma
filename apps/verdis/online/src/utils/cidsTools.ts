@@ -1,6 +1,6 @@
-import parse from "wellknown";
-import check from "check-types";
-import { GEOM_FIELD } from "../constants/cids";
+import parse from 'wellknown';
+import check from 'check-types';
+import { GEOM_FIELD } from '../constants/cids';
 
 export function getGeoJsonFeatureFromCidsObject(
   input,
@@ -25,7 +25,7 @@ export function getGeoJsonFeatureFromCidsObject(
     );
   } else {
     throw new Error(
-      "getGeoJsonFromCidsObject has to be called either with an cidsObject or an Array of cidsObjects"
+      'getGeoJsonFromCidsObject has to be called either with an cidsObject or an Array of cidsObjects'
     );
   }
 }
@@ -36,7 +36,7 @@ export function getGeoJsonFeatureFromCidsGeom(geom, properties) {
   let crs = gj_geometry.crs;
   delete gj_geometry.crs;
   return {
-    type: "Feature",
+    type: 'Feature',
     id: properties.id || JSON.stringify(properties), //better hash this value
     geometry: gj_geometry,
     crs: crs,
@@ -45,7 +45,7 @@ export function getGeoJsonFeatureFromCidsGeom(geom, properties) {
 }
 
 function deepAccessUsingString(obj, key) {
-  return key.split(".").reduce((nestedObject, key) => {
+  return key.split('.').reduce((nestedObject, key) => {
     if (nestedObject && key in nestedObject) {
       return nestedObject[key];
     }

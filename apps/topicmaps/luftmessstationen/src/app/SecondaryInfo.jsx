@@ -125,7 +125,7 @@ const InfoPanel = () => {
         if (entry.value !== -9999) {
           last12ChartData.push([key, entry.value]);
           last12Colors.push(
-            new Color(LOOKUP[getStatus4Value(entry.value)].color).fade(0.5)
+            new Color(LOOKUP[getStatus4Value(entry.value)].color).fade(0.5),
           );
         } else {
           last12ChartData.push([key, null]);
@@ -136,7 +136,7 @@ const InfoPanel = () => {
       for (const year of Object.keys(avgs)) {
         avgsChartData.push([year, avgs[year]]);
         avgsColors.push(
-          new Color(LOOKUP[getStatus4Value(avgs[year])].color).fade(0.5)
+          new Color(LOOKUP[getStatus4Value(avgs[year])].color).fade(0.5),
         );
       }
 
@@ -198,7 +198,7 @@ const InfoPanel = () => {
               ]}
             />
           </div>
-        </SecondaryInfoPanelSection>
+        </SecondaryInfoPanelSection>,
       );
     }
     if (Object.keys(avgsChartData).length > 0) {
@@ -226,7 +226,7 @@ const InfoPanel = () => {
             />
             {/* <pre>{JSON.stringify(avgs, null, 2)}</pre> */}
           </div>
-        </SecondaryInfoPanelSection>
+        </SecondaryInfoPanelSection>,
       );
     }
     let opendataLink = (
@@ -296,7 +296,7 @@ const InfoPanel = () => {
               Damit besitzt sie eine Zuverlässigkeit von{" "}
               {(
                 Math.round(
-                  (valueCounter / (valueCounter + outageCounter)) * 1000
+                  (valueCounter / (valueCounter + outageCounter)) * 1000,
                 ) / 10
               ).toLocaleString()}
               %.
@@ -334,7 +334,7 @@ const InfoPanel = () => {
               Damit besitzt sie eine Zuverlässigkeit von{" "}
               {(
                 Math.round(
-                  (valueCounter / (valueCounter + outageCounter)) * 1000
+                  (valueCounter / (valueCounter + outageCounter)) * 1000,
                 ) / 10
               ).toLocaleString()}
               %.
@@ -394,7 +394,7 @@ const InfoPanel = () => {
               Damit besitzt sie eine Zuverlässigkeit von{" "}
               {(
                 Math.round(
-                  (valueCounter / (valueCounter + outageCounter)) * 1000
+                  (valueCounter / (valueCounter + outageCounter)) * 1000,
                 ) / 10
               ).toLocaleString()}
               %.

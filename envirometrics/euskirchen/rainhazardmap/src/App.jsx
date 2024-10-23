@@ -56,7 +56,7 @@ function App() {
     setGazData,
     adressUrl,
     kommunenUrl,
-    ortslagenUrl
+    ortslagenUrl,
   ) => {
     const prefix = "GazDataForStarkregengefahrenkarteByCismet";
     const adressen = await md5FetchJSON(prefix + "addr", adressUrl);
@@ -89,7 +89,7 @@ function App() {
         ...ortslagen,
         ...adressen,
         ...kommunenWithPrefix,
-      ] || []
+      ] || [],
     );
   };
 
@@ -98,7 +98,7 @@ function App() {
       setGazData,
       urlPrefix + "/data/adressen_euskirchen.json",
       urlPrefix + "/data/kommunen.json",
-      urlPrefix + "/data/ortslagen.json"
+      urlPrefix + "/data/ortslagen.json",
     );
     getHinweisData(setHinweisData, urlPrefix + "/data/overlay.json");
   }, []);

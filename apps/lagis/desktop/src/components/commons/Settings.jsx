@@ -137,7 +137,7 @@ const Settings = () => {
                 }}
               />
             );
-          }
+          },
         )}
 
         <h4>{drawerTextsHelper.hintergrundTitle}</h4>
@@ -163,7 +163,7 @@ const Settings = () => {
                     }}
                   />
                 );
-              }
+              },
             )}
           </div>
         </Radio.Group>

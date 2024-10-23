@@ -22,7 +22,7 @@ const createOrUpdateStemline = (
   viewer: Viewer,
   entityData: EntityData,
   [pos, groundPos]: Cartographic[],
-  options: Partial<PolylineConfig> = {}
+  options: Partial<PolylineConfig> = {},
 ) => {
   const topHeight = pos.height - (options.gap ?? 0);
   const baseHeight = groundPos.height + (options.gap ?? 10);
@@ -74,7 +74,7 @@ const createOrUpdateStemline = (
     console.info(
       "[CESIUM|SCENE|POLYLINE] adding Stemline",
       posTop.height,
-      posBase.height
+      posBase.height,
     );
     const stemlineCollection = new PolylineCollection();
     stemlineCollection.add(polylineTop);
@@ -93,7 +93,7 @@ export const addCesiumMarker = async (
     model?: Model;
     id?: string;
     stemline?: PolylineConfig; // override the modelConfig stemline
-  } = {}
+  } = {},
 ) => {
   console.info("[CESIUM|SCENE] addMarker", pos, modelConfig);
 
@@ -110,14 +110,14 @@ export const addCesiumMarker = async (
   const posCartesian = Cartesian3.fromRadians(
     pos.longitude,
     pos.latitude,
-    pos.height
+    pos.height,
   );
   const scale = modelConfig?.scale || 1;
   const offset = modelConfig?.anchorOffset || { x: 0, y: 0, z: 0 };
   const offsetZ = offset.z || 0;
   const modelMatrix = Transforms.eastNorthUpToFixedFrame(posCartesian);
   const translation = Matrix4.fromTranslation(
-    new Cartesian3(0, 0, offsetZ * scale)
+    new Cartesian3(0, 0, offsetZ * scale),
   );
   Matrix4.multiply(modelMatrix, translation, modelMatrix);
 
@@ -136,7 +136,7 @@ export const addCesiumMarker = async (
   } else {
     console.info(
       "[CESIUM|MARKER|MODEL] creating marker model from file",
-      modelConfig.uri
+      modelConfig.uri,
     );
     markerModel = await Model.fromGltfAsync({
       id,
@@ -166,7 +166,7 @@ export const addCesiumMarker = async (
   entityData.cleanup = () => {
     console.info(
       "[CESIUM|SCENE|MARKER|LISTENER] cleaning up preUpdate Listener for",
-      entityData.id
+      entityData.id,
     );
     viewer.scene.preUpdate.removeEventListener(onPreUpdate);
   };
@@ -198,14 +198,14 @@ const updateMarker = (viewer: Viewer, entityData: EntityData) => {
       if (fixedScale) {
         const dist = Cartesian3.distance(
           viewer.camera.position,
-          new Cartesian3(modelMatrix[12], modelMatrix[13], modelMatrix[14])
+          new Cartesian3(modelMatrix[12], modelMatrix[13], modelMatrix[14]),
         );
         if (dist) {
           scale = new Cartesian3(dist / 1000, dist / 1000, dist / 1000);
           translation = new Cartesian3(
             0,
             0,
-            ((modelConfig.scale ?? 1) * dist) / (1000 * 0.5)
+            ((modelConfig.scale ?? 1) * dist) / (1000 * 0.5),
           ); // offset to scale from bottom
         }
       } else {
@@ -215,19 +215,19 @@ const updateMarker = (viewer: Viewer, entityData: EntityData) => {
       if (rotation && animationSpeed) {
         const RotationQuaternion = Quaternion.fromAxisAngle(
           Cartesian3.UNIT_Z,
-          (rotation === true ? 1 : rotation) * animationSpeed * deltaTime
+          (rotation === true ? 1 : rotation) * animationSpeed * deltaTime,
         );
 
         const rotationMatrix = Matrix4.fromTranslationQuaternionRotationScale(
           translation,
           RotationQuaternion,
-          scale
+          scale,
         );
         const updatedModelMatrix = Matrix4.clone(animatedModelMatrix);
         Matrix4.multiply(
           updatedModelMatrix,
           rotationMatrix,
-          updatedModelMatrix
+          updatedModelMatrix,
         );
         entityData.animatedModelMatrix = updatedModelMatrix;
         entityData.model.modelMatrix = updatedModelMatrix;
@@ -235,18 +235,18 @@ const updateMarker = (viewer: Viewer, entityData: EntityData) => {
         const cameraHeading = viewer.camera.heading;
         const rotationQuaternion = Quaternion.fromAxisAngle(
           Cartesian3.UNIT_Z,
-          -cameraHeading - CesiumMath.PI_OVER_TWO
+          -cameraHeading - CesiumMath.PI_OVER_TWO,
         );
         const rotationMatrix = Matrix4.fromTranslationQuaternionRotationScale(
           translation,
           rotationQuaternion,
-          scale
+          scale,
         );
         const updatedModelMatrix = Matrix4.clone(modelMatrix);
         Matrix4.multiply(
           updatedModelMatrix,
           rotationMatrix,
-          updatedModelMatrix
+          updatedModelMatrix,
         );
         entityData.animatedModelMatrix = updatedModelMatrix;
         if (entityData.model) {
@@ -260,12 +260,12 @@ const updateMarker = (viewer: Viewer, entityData: EntityData) => {
 
 export const removeCesiumMarker = (
   viewer: Viewer,
-  data: EntityData | null | undefined
+  data: EntityData | null | undefined,
 ) => {
   console.info(
     "[CESIUM|MARKER] removing marker primitive from scene",
     data?.model,
-    data
+    data,
   );
   if (data) {
     // remove listeners before removing the primitives

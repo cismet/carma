@@ -11,7 +11,7 @@ import { setupPrimaryStyle, setupSecondaryStyle } from "../utils/sceneStyles";
 import { useCesiumContext } from "../CesiumContextProvider";
 
 export const useSceneStyleToggle = (
-  initialStyle: keyof SceneStyles = "secondary"
+  initialStyle: keyof SceneStyles = "secondary",
 ) => {
   const dispatch = useDispatch();
   const [currentStyle, setCurrentStyle] =

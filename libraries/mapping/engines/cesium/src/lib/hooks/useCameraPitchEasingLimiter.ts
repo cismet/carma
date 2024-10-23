@@ -23,7 +23,7 @@ const useCameraPitchEasingLimiter = (
   {
     easingRangeDeg = 20,
     easing = EasingFunction.CIRCULAR_IN,
-  }: LimiterOptions = {}
+  }: LimiterOptions = {},
 ) => {
   const { viewer } = useCesiumContext();
 
@@ -31,14 +31,14 @@ const useCameraPitchEasingLimiter = (
   const isAnimating = useSelector(selectViewerIsAnimating);
   const isTransitioning = useSelector(selectViewerIsTransitioning);
   const collisions = useSelector(
-    selectScreenSpaceCameraControllerEnableCollisionDetection
+    selectScreenSpaceCameraControllerEnableCollisionDetection,
   );
 
   const lastPitch = useRef<number | null>(null);
   const lastPosition = useRef<Cartographic | null>(null);
   const minPitchRad = CesiumMath.toRadians(-minPitchDeg);
   const rangeRad = CesiumMath.toRadians(
-    Math.min(easingRangeDeg, 90 - minPitchDeg)
+    Math.min(easingRangeDeg, 90 - minPitchDeg),
   ); // Limit wasing range to remainder of right angle
   const minRangePitchRad = CesiumMath.toRadians(-minPitchDeg) - rangeRad;
 
@@ -66,14 +66,14 @@ const useCameraPitchEasingLimiter = (
             const newDelta = pitchDelta * unitEased;
             const newPitch = Math.min(
               lastPitch.current - newDelta,
-              minPitchRad
+              minPitchRad,
             );
 
             console.info(
               "LISTENER HOOK [2D3D|CESIUM|CAMERA]: apply easing pitch limiter",
               Math.round(unitIn * 100),
               Math.round(unitEased * 100),
-              Math.round(CesiumMath.toDegrees(-newPitch))
+              Math.round(CesiumMath.toDegrees(-newPitch)),
             );
 
             if (lastPitch.current !== null && lastPosition.current !== null) {
@@ -85,8 +85,8 @@ const useCameraPitchEasingLimiter = (
                   new Cartographic(
                     longitude,
                     latitude,
-                    unitEased * height + (1 - unitEased) * lastHeight
-                  )
+                    unitEased * height + (1 - unitEased) * lastHeight,
+                  ),
                 ),
                 orientation: {
                   heading: camera.heading,

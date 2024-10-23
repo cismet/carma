@@ -13,7 +13,7 @@ const getWGS84GeoJSON = (geoJSON) => {
     const reprojectedGeoJSON = reproject(
       geoJSON,
       projectionData["25832"].def,
-      proj4.WGS84
+      proj4.WGS84,
     );
 
     return reprojectedGeoJSON;
@@ -61,7 +61,7 @@ const createFeatureArray = (data) => {
 
     coordinates = concat(
       coordinates,
-      flatten(landparcel.geom.geo_field.coordinates)
+      flatten(landparcel.geom.geo_field.coordinates),
     );
     feature.geometry.coordinates = coordinates;
     result.push(feature);

@@ -142,7 +142,7 @@ const router = createHashRouter(
       element: <LoginPage />,
     },
   ],
-  {}
+  {},
 );
 
 const originalWarn = console.warn.bind(console);
@@ -193,5 +193,5 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         </QueryClientProvider>
       </Provider>
     </ConfigProvider>
-  </React.StrictMode>
+  </React.StrictMode>,
 );

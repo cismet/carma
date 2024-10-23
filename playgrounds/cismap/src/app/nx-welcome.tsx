@@ -741,8 +741,8 @@ export function NxWelcome({ title }: { title: string }) {
                   target="_blank"
                   rel="noreferrer"
                 >
-                  {" "}
-                  What is Nx Cloud?{" "}
+                  {' '}
+                  What is Nx Cloud?{' '}
                 </a>
               </div>
               <a

@@ -2,19 +2,19 @@ import {
   faCheck,
   faDownload,
   faTrash,
-} from "@fortawesome/free-solid-svg-icons";
-import { FontAwesomeIcon as Icon } from "@fortawesome/react-fontawesome";
-import { useWindowSize } from "@react-hook/window-size";
-import React, { useContext, useEffect } from "react";
-import Button from "react-bootstrap/Button";
-import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
-import { useDispatch, useSelector } from "react-redux";
+} from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon as Icon } from '@fortawesome/react-fontawesome';
+import { useWindowSize } from '@react-hook/window-size';
+import React, { useContext, useEffect } from 'react';
+import Button from 'react-bootstrap/Button';
+import { UIDispatchContext } from 'react-cismap/contexts/UIContextProvider';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   CONNECTIONMODE,
   setConnectionMode,
-} from "../../../core/store/slices/app";
+} from '../../../core/store/slices/app';
 
-import { getJWT, getLoginFromJWT } from "../../../core/store/slices/auth";
+import { getJWT, getLoginFromJWT } from '../../../core/store/slices/auth';
 import {
   config,
   deleteCacheDB,
@@ -23,14 +23,14 @@ import {
   isCacheFullUsable,
   renewCache,
   setCacheUser,
-} from "../../../core/store/slices/cacheControl";
-import { forceRefresh } from "../../../core/store/slices/featureCollection";
+} from '../../../core/store/slices/cacheControl';
+import { forceRefresh } from '../../../core/store/slices/featureCollection';
 import {
   getHealthState,
   HEALTHSTATUS,
-} from "../../../core/store/slices/health";
-import { getTeam } from "../../../core/store/slices/team";
-import CacheItem from "../cache/CacheItem";
+} from '../../../core/store/slices/health';
+import { getTeam } from '../../../core/store/slices/team';
+import CacheItem from '../cache/CacheItem';
 
 const CacheSettings = () => {
   const dispatch = useDispatch();
@@ -82,7 +82,7 @@ const CacheSettings = () => {
             let index = 0;
             for (const setting of [...primarySettings]) {
               setTimeout(() => {
-                console.log("yyy renewCache", setting.key);
+                console.log('yyy renewCache', setting.key);
 
                 dispatch(renewCache(setting.key, jwt));
               }, 100 + 1000 * index++);
@@ -107,7 +107,7 @@ const CacheSettings = () => {
             variant="outline-primary"
             size="sm"
             onClick={() => {
-              setAppMenuActiveMenuSection("teams");
+              setAppMenuActiveMenuSection('teams');
             }}
           >
             <Icon icon={faCheck} /> Vor dem Füllen des Cache bitte ein Team
@@ -138,7 +138,7 @@ const CacheSettings = () => {
       <table
         border={0}
         style={{
-          width: "100%",
+          width: '100%',
           padding: 3,
         }}
       >
@@ -147,10 +147,10 @@ const CacheSettings = () => {
             <td />
             <td
               style={{
-                textAlign: "right",
-                paddingLeft: "25px",
-                paddingRight: "15px",
-                whiteSpace: "nowrap",
+                textAlign: 'right',
+                paddingLeft: '25px',
+                paddingRight: '15px',
+                whiteSpace: 'nowrap',
               }}
             >
               # Objekte
@@ -159,9 +159,9 @@ const CacheSettings = () => {
             <td
               style={{
                 width: 120,
-                paddingLeft: "25px",
-                paddingRight: "25px",
-                whiteSpace: "nowrap",
+                paddingLeft: '25px',
+                paddingRight: '25px',
+                whiteSpace: 'nowrap',
               }}
             >
               letzte Aktualisierung
@@ -171,7 +171,7 @@ const CacheSettings = () => {
             return (
               <CacheItem
                 refreshAllowed={healthState === HEALTHSTATUS.OK}
-                key={"CacheItem." + index}
+                key={'CacheItem.' + index}
                 config={config[key]}
                 info={cacheSettings[key] || {}}
                 renew={() => {

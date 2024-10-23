@@ -1,14 +1,14 @@
-import { StrictMode } from "react";
-import * as ReactDOM from "react-dom/client";
-import reportWebVitals from "./app/reportWebVitals";
-import * as serviceWorkerRegistration from "./app/serviceWorkerRegistration";
+import { StrictMode } from 'react';
+import * as ReactDOM from 'react-dom/client';
+import reportWebVitals from './app/reportWebVitals';
+import * as serviceWorkerRegistration from './app/serviceWorkerRegistration';
 
-import App from "./app/App.jsx";
+import App from './app/App.jsx';
 
 const root = ReactDOM.createRoot(
-  document.getElementById("root") as HTMLElement
+  document.getElementById('root') as HTMLElement
 );
-if (typeof global === "undefined") {
+if (typeof global === 'undefined') {
   window.global = window;
 }
 root.render(

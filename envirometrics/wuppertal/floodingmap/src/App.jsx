@@ -33,31 +33,31 @@ function App() {
 
     sources.geps = await md5FetchText(
       prefix,
-      "https://wunda-geoportal.cismet.de/data/3857/geps.json"
+      "https://wunda-geoportal.cismet.de/data/3857/geps.json",
     );
     sources.geps_reverse = await md5FetchText(
       prefix,
-      "https://wunda-geoportal.cismet.de/data/3857/geps_reverse.json"
+      "https://wunda-geoportal.cismet.de/data/3857/geps_reverse.json",
     );
     sources.adressen = await md5FetchText(
       prefix,
-      "https://wunda-geoportal.cismet.de/data/3857/adressen.json"
+      "https://wunda-geoportal.cismet.de/data/3857/adressen.json",
     );
     sources.bezirke = await md5FetchText(
       prefix,
-      "https://wunda-geoportal.cismet.de/data/3857/bezirke.json"
+      "https://wunda-geoportal.cismet.de/data/3857/bezirke.json",
     );
     sources.quartiere = await md5FetchText(
       prefix,
-      "https://wunda-geoportal.cismet.de/data/3857/quartiere.json"
+      "https://wunda-geoportal.cismet.de/data/3857/quartiere.json",
     );
     sources.pois = await md5FetchText(
       prefix,
-      "https://wunda-geoportal.cismet.de/data/3857/pois.json"
+      "https://wunda-geoportal.cismet.de/data/3857/pois.json",
     );
     sources.kitas = await md5FetchText(
       prefix,
-      "https://wunda-geoportal.cismet.de/data/3857/kitas.json"
+      "https://wunda-geoportal.cismet.de/data/3857/kitas.json",
     );
 
     const gazData = getGazDataForTopicIds(sources, [

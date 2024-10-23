@@ -92,7 +92,7 @@ const iconPadding = {
 
 const LocateControlComponent = ({ startLocate = 0 }) => {
   const { routedMapRef } = useContext<typeof TopicMapContext>(
-    TopicMapContext
+    TopicMapContext,
   ) as any;
   const [locationInstance, setLocationInstance] =
     useState<LocateControl | null>(null);
@@ -131,7 +131,7 @@ const LocateControlComponent = ({ startLocate = 0 }) => {
 export const ReplaceLocatorFromLeaflet = () => {
   const [locationProps, setLocationProps] = useState(0);
   const [containerHeight, setContainerHeight] = useState<CSSProperties | null>(
-    null
+    null,
   );
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -183,7 +183,7 @@ export const ReplaceLocatorFromLeaflet = () => {
 export const ExcalidrawExample = () => {
   const [locationProps, setLocationProps] = useState(0);
   const [containerHeight, setContainerHeight] = useState<CSSProperties | null>(
-    null
+    null,
   );
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -286,7 +286,7 @@ export const ResponsiveControlWithTwoColumns = () => {
 
 export const ResponsiveCollapsWithTwoColumnsOnBottom = () => {
   const [containerWidth, setContainerWidth] = useState<CSSProperties | null>(
-    null
+    null,
   );
   const containerRef = useRef<HTMLDivElement>(null);
   const [layoutHeight, setLayoutHeight] = useState<unknown | null>(null);
@@ -372,10 +372,10 @@ export const ResponsiveCollapsWithTwoColumnsOnBottom = () => {
 
 export const ResponsiveThreeColumnsOnTop = () => {
   const [containerWidth, setContainerWidth] = useState<CSSProperties | null>(
-    null
+    null,
   );
   const [resonsiveCollapse, setResonsiveCollapse] = useState<unknown | null>(
-    null
+    null,
   );
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -448,10 +448,10 @@ export const ResponsiveThreeColumnsOnTop = () => {
 
 export const ResponsiveAllPosition = () => {
   const [containerWidth, setContainerWidth] = useState<CSSProperties | null>(
-    null
+    null,
   );
   const [resonsiveCollapse, setResonsiveCollapse] = useState<unknown | null>(
-    null
+    null,
   );
   const containerRef = useRef<HTMLDivElement>(null);
   const [layoutHeight, setLayoutHeight] = useState<number | null>(null);
@@ -561,10 +561,10 @@ export const ResponsiveAllPosition = () => {
 
 export const ResponsiveDebugMode = () => {
   const [containerWidth, setContainerWidth] = useState<CSSProperties | null>(
-    null
+    null,
   );
   const [resonsiveCollapse, setResonsiveCollapse] = useState<unknown | null>(
-    null
+    null,
   );
   const containerRef = useRef<HTMLDivElement>(null);
   const [layoutHeight, setLayoutHeight] = useState<number | null>(null);
@@ -684,10 +684,10 @@ export const ResponsiveDebugMode = () => {
 
 export const CalculateResponsiveBrake = () => {
   const [containerWidth, setContainerWidth] = useState<CSSProperties | null>(
-    null
+    null,
   );
   const [resonsiveCollapse, setResonsiveCollapse] = useState<unknown | null>(
-    null
+    null,
   );
   const containerRef = useRef<HTMLDivElement>(null);
   const [layoutHeight, setLayoutHeight] = useState<number | null>(null);

@@ -17,6 +17,7 @@ export const getClusterIconCreatorFunction = ({
   colorizer = getColorForProperties,
   featureRenderingOption,
 }) => {
+
   //return a function because the functionCall of the iconCreateFunction cannot be manipulated
   return (cluster) => {
     // const colorizer = getColorForProperties;
@@ -33,7 +34,7 @@ export const getClusterIconCreatorFunction = ({
     for (let marker of childMarkers) {
       values.push(1);
       colors.push(
-        Color(colorizer(marker.feature.properties, featureRenderingOption))
+        Color(colorizer(marker.feature.properties, featureRenderingOption)),
       );
       if (marker.feature.selected === true) {
         containsSelection = true;
@@ -67,7 +68,7 @@ export const getClusterIconCreatorFunction = ({
         "stroke-width": 0,
         opacity: "0.5",
         fill: innerCircleColor,
-      })
+      }),
     );
 
     background.appendChild(pie);
@@ -82,7 +83,7 @@ export const getClusterIconCreatorFunction = ({
         stroke: "#000000",
         opacity: "0.5",
         fill: "none",
-      })
+      }),
     );
 
     if (inCart) {
@@ -97,7 +98,7 @@ export const getClusterIconCreatorFunction = ({
             "font-size": "26",
             dy: ".4em",
             opacity: "0.5",
-          })
+          }),
         )
         .appendChild(document.createTextNode("\uf005"));
     }
@@ -109,7 +110,7 @@ export const getClusterIconCreatorFunction = ({
           y: "50%",
           "text-anchor": "middle",
           dy: ".3em",
-        })
+        }),
       )
       .appendChild(document.createTextNode(childCount));
 
@@ -173,7 +174,7 @@ export const getFeatureStyler = (
   colorizer = getColorForProperties,
   appMode,
   secondarySelection,
-  additionalStylingInfo
+  additionalStylingInfo,
 ) => {
   const featureRenderingOption = additionalStylingInfo.featureRenderingOption;
 
@@ -189,9 +190,8 @@ export const getFeatureStyler = (
     let selectionBox = canvasSize - 6;
     let badge = feature.properties.svgBadge || fallbackSVG; //|| `<image x="${(svgSize - 20) / 2}" y="${(svgSize - 20) / 2}" width="20" height="20" xlink:href="/pois/signaturen/`+getSignatur(feature.properties)+`" />`;
 
-    let svg = `<svg id="badgefor_${
-      feature.id
-    }" height="${canvasSize}" width="${canvasSize}"> 
+    let svg = `<svg id="badgefor_${feature.id
+      }" height="${canvasSize}" width="${canvasSize}"> 
                     <style>
                     /* <![CDATA[ */
                         #badgefor_${feature.id} .bg-fill  {
@@ -208,11 +208,9 @@ export const getFeatureStyler = (
                         }
                     /* ]]> */
                     </style>
-                <svg x="${svgSize / 12}" y="${svgSize / 12}"  width="${
-      svgSize - (2 * svgSize) / 12
-    }" height="${svgSize - (2 * svgSize) / 12}" viewBox="0 0 ${
-      feature.properties.svgBadgeDimension.width
-    } ${feature.properties.svgBadgeDimension.height}">       
+                <svg x="${svgSize / 12}" y="${svgSize / 12}"  width="${svgSize - (2 * svgSize) / 12
+      }" height="${svgSize - (2 * svgSize) / 12}" viewBox="0 0 ${feature.properties.svgBadgeDimension.width
+      } ${feature.properties.svgBadgeDimension.height}">       
                     ${badge}
                 </svg>
                 </svg>  `;
@@ -224,8 +222,7 @@ export const getFeatureStyler = (
       let innerBadgeOffset = (selectionBox - badgeDimension) / 2;
 
       svg =
-        `<svg id="badgefor_${
-          feature.id
+        `<svg id="badgefor_${feature.id
         }" height="${canvasSize}" width="${canvasSize}">
                     <style>
                     /* <![CDATA[ */
@@ -244,8 +241,7 @@ export const getFeatureStyler = (
                     /* ]]> */
                     </style>
                 <rect x="${selectionOffset}" y="${selectionOffset}" rx="8" ry="8" width="${selectionBox}" height="${selectionBox}" fill="rgba(67, 149, 254, 0.8)" stroke-width="0"/>
-                <svg x="${selectionOffset + innerBadgeOffset}" y="${
-          selectionOffset + innerBadgeOffset
+                <svg x="${selectionOffset + innerBadgeOffset}" y="${selectionOffset + innerBadgeOffset
         }" width="${badgeDimension}" height="${badgeDimension}" viewBox="0 0 ` +
         feature.properties.svgBadgeDimension.width +
         ` ` +

@@ -3,13 +3,13 @@ import {
   faGlobe,
   faMap,
   faSquare,
-} from "@fortawesome/free-solid-svg-icons";
+} from '@fortawesome/free-solid-svg-icons';
 
 export const tabItems = (legend) => {
   return [
     {
-      label: "Legende",
-      key: "1",
+      label: 'Legende',
+      key: '1',
       children: (
         <div className="h-full overflow-auto">
           {legend?.map((legend, i) => (
@@ -24,8 +24,8 @@ export const tabItems = (legend) => {
       ),
     },
     {
-      label: "Hintergrund",
-      key: "2",
+      label: 'Hintergrund',
+      key: '2',
       children: (
         <p>
           Die Datenmodellierung lehnt sich an die ISO19112 an und beinhaltet u.
@@ -50,8 +50,8 @@ export const tabItems = (legend) => {
       ),
     },
     {
-      label: "Technische Informationen",
-      key: "3",
+      label: 'Technische Informationen',
+      key: '3',
       children: (
         <div className="flex flex-col gap-2">
           <a
@@ -80,7 +80,7 @@ export const iconMap = {
 };
 
 export const iconColorMap = {
-  bäume: "green",
-  gärten: "purple",
-  ortho: "black",
+  bäume: 'green',
+  gärten: 'purple',
+  ortho: 'black',
 };

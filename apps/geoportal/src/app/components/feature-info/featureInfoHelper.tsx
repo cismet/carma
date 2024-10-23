@@ -96,7 +96,7 @@ export const getFeatureForLayer = async (layer, pos, coordinates) => {
       : props.url.replace("http", "https"),
     pos,
     minimalBoxSize,
-    props.name
+    props.name,
   );
 
   const imgUrl =
@@ -170,7 +170,7 @@ export const updateUrlWithCoordinates = (objectsArray, coordinates) => {
   const updatedCoords = proj4(
     proj4.defs("EPSG:4326") as unknown as string,
     proj4crs25832def,
-    [coordinates[1], coordinates[0]]
+    [coordinates[1], coordinates[0]],
   );
 
   const [x, y] = updatedCoords;

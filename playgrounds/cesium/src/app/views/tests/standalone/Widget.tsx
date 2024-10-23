@@ -130,7 +130,7 @@ function View() {
       { name: "debug", type: "boolean" },
       { name: "orthographic", type: "boolean" },
       { name: "animate", type: "boolean" },
-    ]
+    ],
   );
 
   console.log("RENDER Widget Test View", { poi, debug });
@@ -209,8 +209,8 @@ function View() {
           //console.log('namedFeatures', namedFeatures);
           const sortedFeatures = namedFeatures.sort((a, b) =>
             a.properties[labelProperty].localeCompare(
-              b.properties[labelProperty]
-            )
+              b.properties[labelProperty],
+            ),
           );
           setFeatures(sortedFeatures);
         });
@@ -223,7 +223,7 @@ function View() {
         style={{ width: 400 }}
         onSelect={(value) => {
           const feature = features.find(
-            (a: GeoJSON.Feature) => a.properties![key] === value
+            (a: GeoJSON.Feature) => a.properties![key] === value,
           ) as unknown as GeoJSON.Feature;
           if (feature && feature.geometry.type === "MultiPolygon") {
             const ring = Object.freeze(feature.geometry.coordinates[0][0]);
@@ -257,7 +257,7 @@ function View() {
                 clipBy: {
                   //radius: 100,
                   polygon: feature!.geometry!.coordinates[0][0].map(
-                    ([longitude, latitude]) => ({ longitude, latitude })
+                    ([longitude, latitude]) => ({ longitude, latitude }),
                   ),
                 },
               });

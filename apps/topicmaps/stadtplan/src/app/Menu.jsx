@@ -108,7 +108,7 @@ const Menu = () => {
     itemsDictionary,
   } = useContext(FeatureCollectionContext);
   const { setFilterState, setFilterMode } = useContext(
-    FeatureCollectionDispatchContext
+    FeatureCollectionDispatchContext,
   );
 
   const { items } = useContext(FeatureCollectionContext);

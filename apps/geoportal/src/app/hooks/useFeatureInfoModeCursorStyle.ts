@@ -3,7 +3,7 @@ import { useSelector } from "react-redux";
 import { getUIMode, UIMode } from "../store/slices/ui";
 
 export const useFeatureInfoModeCursorStyle = (
-  topicMapElementId: string = "routedMap"
+  topicMapElementId: string = "routedMap",
 ) => {
   const uiMode = useSelector(getUIMode);
   const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;

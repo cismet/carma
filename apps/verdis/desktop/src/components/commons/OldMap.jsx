@@ -1,28 +1,28 @@
-import "react-cismap/topicMaps.css";
-import "leaflet/dist/leaflet.css";
+import 'react-cismap/topicMaps.css';
+import 'leaflet/dist/leaflet.css';
 
-import { Card, Tooltip } from "antd";
-import PropTypes from "prop-types";
-import { useContext, useEffect, useRef, useState } from "react";
-import { flaechen } from "../../stories/_data/rathausKassenzeichenfeatureCollection";
-import { MappingConstants, RoutedMap } from "react-cismap";
+import { Card, Tooltip } from 'antd';
+import PropTypes from 'prop-types';
+import { useContext, useEffect, useRef, useState } from 'react';
+import { flaechen } from '../../stories/_data/rathausKassenzeichenfeatureCollection';
+import { MappingConstants, RoutedMap } from 'react-cismap';
 import {
   TopicMapStylingContext,
   TopicMapStylingDispatchContext,
-} from "react-cismap/contexts/TopicMapStylingContextProvider";
-import GazetteerSearchControl from "react-cismap/GazetteerSearchControl";
-import GazetteerHitDisplay from "react-cismap/GazetteerHitDisplay";
-import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
+} from 'react-cismap/contexts/TopicMapStylingContextProvider';
+import GazetteerSearchControl from 'react-cismap/GazetteerSearchControl';
+import GazetteerHitDisplay from 'react-cismap/GazetteerHitDisplay';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import {
   convertLatLngToXY,
   createQueryGeomFromBB,
-} from "../../tools/mappingTools";
+} from '../../tools/mappingTools';
 import {
   getIsLoadingGeofields,
   getIsLoadingKassenzeichenWithPoint,
   searchForGeoFields,
   searchForKassenzeichenWithPoint,
-} from "../../store/slices/search";
+} from '../../store/slices/search';
 import {
   getLockMap,
   //   getLockScale,
@@ -35,30 +35,30 @@ import {
   setShowBackground,
   setShowCurrentFeatureCollection,
   setToolbarProperties,
-} from "../../store/slices/mapping";
-import { useDispatch, useSelector } from "react-redux";
-import { ScaleControl } from "react-leaflet";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+} from '../../store/slices/mapping';
+import { useDispatch, useSelector } from 'react-redux';
+import { ScaleControl } from 'react-leaflet';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faF,
   faLock,
   faLockOpen,
   faPlane,
   faImage as solidImage,
-} from "@fortawesome/free-solid-svg-icons";
-import { faImage as regularImage } from "@fortawesome/free-regular-svg-icons";
-import getLayers from "react-cismap/tools/layerFactory";
-import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
-import { getArea25832 } from "../../tools/kassenzeichenMappingTools";
-import Overlay from "./Overlay";
+} from '@fortawesome/free-solid-svg-icons';
+import { faImage as regularImage } from '@fortawesome/free-regular-svg-icons';
+import getLayers from 'react-cismap/tools/layerFactory';
+import StyledWMSTileLayer from 'react-cismap/StyledWMSTileLayer';
+import { getArea25832 } from '../../tools/kassenzeichenMappingTools';
+import Overlay from './Overlay';
 
-import { getGazData } from "../../store/slices/gazData";
-import Toolbar from "./Toolbar";
-import LandParcelChooser from "./LandParcelChooser";
-import Dot from "./Dot";
-import { LoadingOutlined } from "@ant-design/icons";
-import FeatureCollection from "./FeatureCollection";
-import { getAdditionalLayerOpacities } from "../../store/slices/settings";
+import { getGazData } from '../../store/slices/gazData';
+import Toolbar from './Toolbar';
+import LandParcelChooser from './LandParcelChooser';
+import Dot from './Dot';
+import { LoadingOutlined } from '@ant-design/icons';
+import FeatureCollection from './FeatureCollection';
+import { getAdditionalLayerOpacities } from '../../store/slices/settings';
 const mockExtractor = (input) => {
   return {
     homeCenter: [51.27225612927373, 7.199918031692506],
@@ -80,7 +80,7 @@ const Map = ({
   const [urlParams, setUrlParams] = useSearchParams();
   const [fallback, setFallback] = useState({});
   const [showVirtualCityOverlay, setShowVirtualCityOverlay] = useState(false);
-  const [infoText, setInfoText] = useState("");
+  const [infoText, setInfoText] = useState('');
   const showCurrentFeatureCollection = useSelector(
     getShowCurrentFeatureCollection
   );
@@ -97,7 +97,7 @@ const Map = ({
   const [overlayFeature, setOverlayFeature] = useState(null);
   const [gazetteerHit, setGazetteerHit] = useState(null);
   const gazetteerHitTrigger = () => {
-    console.log("gazetteerHitTrigger");
+    console.log('gazetteerHitTrigger');
   };
   const searchControlWidth = 500;
   const gazetteerSearchPlaceholder = undefined;
@@ -141,7 +141,7 @@ const Map = ({
     backgroundsFromMode = backgroundConfigurations[selectedBackground].layerkey;
   } catch (e) {}
 
-  const _backgroundLayers = backgroundsFromMode || "rvrGrau@40";
+  const _backgroundLayers = backgroundsFromMode || 'rvrGrau@40';
 
   useEffect(() => {
     setMapWidth(cardRef?.current?.offsetWidth);
@@ -152,9 +152,9 @@ const Map = ({
       setMapHeight(cardRef?.current?.offsetHeight);
     };
 
-    window.addEventListener("resize", setSize);
+    window.addEventListener('resize', setSize);
 
-    return () => window.removeEventListener("resize", setSize);
+    return () => window.removeEventListener('resize', setSize);
   }, []);
 
   let refRoutedMap = useRef(null);
@@ -162,8 +162,8 @@ const Map = ({
   const mapStyle = {
     width: mapWidth - 2.5 * padding,
     height: mapHeight - 2 * padding - headHeight - toolBarHeight,
-    cursor: "pointer",
-    clear: "both",
+    cursor: 'pointer',
+    clear: 'both',
     zIndex: 1,
   };
 
@@ -172,7 +172,7 @@ const Map = ({
     metric: true,
     imperial: false,
     updateWhenIdle: false,
-    position: "topleft",
+    position: 'topleft',
   };
 
   useEffect(() => {
@@ -210,7 +210,7 @@ const Map = ({
             <FontAwesomeIcon
               icon={lockMap ? faLock : faLockOpen}
               onClick={() => dispatch(setLockMap(!lockMap))}
-              className={`h-6 cursor-pointer ${lockMap && "pr-[5.5px]"}`}
+              className={`h-6 cursor-pointer ${lockMap && 'pr-[5.5px]'}`}
             />
           </Tooltip>
           <Tooltip title="Schrägluftbild Overlay an/aus">
@@ -260,14 +260,14 @@ const Map = ({
         height: height,
       }}
       bodyStyle={{ padding }}
-      headStyle={{ backgroundColor: "white" }}
+      headStyle={{ backgroundColor: 'white' }}
       type="inner"
       ref={cardRef}
     >
       <RoutedMap
         editable={false}
         style={mapStyle}
-        key={"leafletRoutedMap"}
+        key={'leafletRoutedMap'}
         backgroundlayers={showBackground ? _backgroundLayers : null}
         urlSearchParams={urlSearchParams}
         layers=""
@@ -300,17 +300,17 @@ const Map = ({
             const area = getArea25832(bbPoly);
             const maxAreaForSearch = 130000;
             if (area < maxAreaForSearch && area !== 0) {
-              setInfoText("");
+              setInfoText('');
               dispatch(searchForGeoFields(bbPoly));
             } else {
               setInfoText(
-                "Zur Anzeige aller Flächen und Fronten, bitte eine größere Zoomstufe wählen"
+                'Zur Anzeige aller Flächen und Fronten, bitte eine größere Zoomstufe wählen'
               );
               dispatch(setToolbarProperties({}));
               dispatch(setFeatureCollection(undefined));
             }
           } catch (e) {
-            console.log("error in boundingBoxChangedHandler", e);
+            console.log('error in boundingBoxChangedHandler', e);
           }
         }}
         ondblclick={(event) => {
@@ -341,7 +341,7 @@ const Map = ({
           />
         )} */}
         <GazetteerHitDisplay
-          key={"gazHit" + JSON.stringify(gazetteerHit)}
+          key={'gazHit' + JSON.stringify(gazetteerHit)}
           gazetteerHit={gazetteerHit}
         />
         {showLandParcelChooser ? (

@@ -1,4 +1,4 @@
-import { createSlice } from "@reduxjs/toolkit";
+import { createSlice } from '@reduxjs/toolkit';
 
 const initialState = {
   featureCollection: [],
@@ -6,7 +6,7 @@ const initialState = {
 };
 
 const slice = createSlice({
-  name: "mapping",
+  name: 'mapping',
   initialState,
   reducers: {
     setFeatureCollection(state, action) {
@@ -16,7 +16,7 @@ const slice = createSlice({
     setSelectedFeatureIndex(state, action) {
       state.selectedFeatureIndex = action.payload;
       const features = state.featureCollection;
-      features.forEach((feature: { selected: boolean }, i) => {
+      features.forEach((feature: {selected: boolean}, i) => {
         if (i === action.payload) {
           feature.selected = true;
         } else {

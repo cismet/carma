@@ -101,7 +101,7 @@ export const LeafletMiniMap = ({
           opacity: 1,
           fillColor: "white",
           fillOpacity: 0.2,
-        }
+        },
       );
 
       const lMap = mapInstanceRef.current;

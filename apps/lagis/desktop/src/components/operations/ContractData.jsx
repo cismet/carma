@@ -24,7 +24,7 @@ const ContractData = ({ dataIn, extractor, activeDataId }) => {
     };
     setActiveRow(copyRow);
     setContracts(
-      contracts.map((obj) => (obj.id === copyRow.id ? copyRow : obj))
+      contracts.map((obj) => (obj.id === copyRow.id ? copyRow : obj)),
     );
   };
   useEffect(() => {

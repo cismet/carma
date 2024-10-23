@@ -2,13 +2,10 @@ import { Button, Table, Typography } from "antd";
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { FontAwesomeIcon as Icon } from "@fortawesome/react-fontawesome";
-import { faRedo } from "@fortawesome/free-solid-svg-icons";
 import {
-  downloadTasks,
-  getTasks,
-  resyncDb,
-  setSyncPoint,
-} from "../../../core/store/slices/offlineActionDb";
+  faRedo,
+} from "@fortawesome/free-solid-svg-icons";
+import { downloadTasks, getTasks, resyncDb, setSyncPoint } from "../../../core/store/slices/offlineActionDb";
 
 const Tasks = () => {
   const dispatch = useDispatch();
@@ -47,9 +44,7 @@ const Tasks = () => {
       key: "aktion",
       align: "center",
       render: (x) => (
-        <Typography.Text style={{ fontSize: iconSize, color: "grey" }}>
-          {x}
-        </Typography.Text>
+        <Typography.Text style={{ fontSize: iconSize, color: "grey" }}>{x}</Typography.Text>
       ),
     },
 
@@ -57,15 +52,7 @@ const Tasks = () => {
       title: "Datum",
       dataIndex: "datum",
       key: "datum",
-      render: (date) => (
-        <div
-          onClick={(e) => {
-            dispatch(setSyncPoint(new Date(new Date(date).getTime() - 100)));
-          }}
-        >
-          {new Date(date).toLocaleString()}{" "}
-        </div>
-      ),
+      render: (date) => <div onClick={(e) => {dispatch(setSyncPoint(new Date(new Date(date).getTime() - 100)));}}>{new Date(date).toLocaleString()} </div>,
     },
     { title: "Fachobjekt", dataIndex: "fachobjekt", key: "fachobjekt" },
     { title: "Beschreibung", dataIndex: "beschreibung", key: "beschreibung" },
@@ -74,9 +61,7 @@ const Tasks = () => {
       dataIndex: "status",
       key: "status",
       align: "center",
-      render: (x, record) => (
-        <Typography.Text style={{ fontSize: iconSize }}>{x}</Typography.Text>
-      ),
+      render: (x, record) => <Typography.Text style={{ fontSize: iconSize }}>{x}</Typography.Text>,
     },
   ];
 
@@ -91,24 +76,18 @@ const Tasks = () => {
         Sync Mechanismus neu starten
       </Button>
       {showAll && (
-        <Button
-          style={{ float: "right", marginBottom: 10 }}
-          onClick={() => setShowAll(!showAll)}
-        >
+        <Button style={{ float: "right", marginBottom: 10 }} onClick={() => setShowAll(!showAll)}>
           Nur Fehler und letzte Aktionen anzeigen
         </Button>
       )}
       {!showAll && (
-        <Button
-          style={{ float: "right", marginBottom: 10 }}
-          onClick={() => setShowAll(!showAll)}
-        >
+        <Button style={{ float: "right", marginBottom: 10 }} onClick={() => setShowAll(!showAll)}>
           Alle Aktionen anzeigen
         </Button>
       )}
       <Table
         locale={{ emptyText: "-" }}
-        rowKey="id"
+        rowKey='id'
         key={"table." + showAll}
         dataSource={shownTasks}
         columns={columns}
@@ -116,7 +95,7 @@ const Tasks = () => {
       <p>
         Mit diesem{" "}
         <a
-          className="renderAsLink"
+          className='renderAsLink'
           onClick={() => {
             dispatch(downloadTasks());
           }}

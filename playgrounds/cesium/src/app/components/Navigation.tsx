@@ -21,7 +21,7 @@ export function Navigation({ routes, ...props }) {
           label: name,
           icon: null,
           onClick: () => navigate(path),
-        }
+        },
   );
 
   return <Menu {...props} mode="horizontal" items={items} />;

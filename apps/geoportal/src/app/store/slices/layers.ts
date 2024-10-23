@@ -21,7 +21,7 @@ const slice = createSlice({
       const alreadyExists = state.favorites.some(
         (favorite) =>
           favorite.id === `fav_${action.payload.id}` ||
-          favorite.id === action.payload.id
+          favorite.id === action.payload.id,
       );
       if (!alreadyExists) {
         state.favorites = [
@@ -35,7 +35,7 @@ const slice = createSlice({
       const newFavorites = state.favorites.filter(
         (favorite) =>
           favorite.id !== `fav_${action.payload.id}` &&
-          favorite.id !== action.payload.id
+          favorite.id !== action.payload.id,
       );
       state.favorites = newFavorites;
       return state;
@@ -43,7 +43,7 @@ const slice = createSlice({
 
     setThumbnail(state, action) {
       let alreadyExists = state.thumbnails.some(
-        (thumbnail) => thumbnail.name === action.payload.name
+        (thumbnail) => thumbnail.name === action.payload.name,
       );
       if (!alreadyExists) {
         state.thumbnails = [...state.thumbnails, action.payload];

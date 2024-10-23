@@ -1,4 +1,4 @@
-import Msg from "./InternalMessage";
+import Msg from './InternalMessage';
 const DateTimeMessage = ({ msg }) => {
   return (
     <Msg

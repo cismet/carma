@@ -17,7 +17,7 @@ const EXTRUDED_HEIGHT = new ConstantProperty(50);
 
 const HEIGHT_REF = new ConstantProperty(HeightReference.RELATIVE_TO_GROUND);
 const EXTRUDED_HEIGHT_REF = new ConstantProperty(
-  HeightReference.RELATIVE_TO_GROUND
+  HeightReference.RELATIVE_TO_GROUND,
 );
 
 const extrudePerEnitity = (entity: Entity) => {

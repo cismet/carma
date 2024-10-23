@@ -10,13 +10,13 @@ export const getQueryableLayers = (layers: Layer[], zoom: number) => {
       layer.visible &&
       layer.useInFeatureInfo &&
       zoom < (layer.props.maxZoom ? layer.props.maxZoom : Infinity) &&
-      zoom > layer.props.minZoom
+      zoom > layer.props.minZoom,
   );
 };
 
 export const getAtLeastOneLayerIsQueryable = (
   layers: Layer[],
-  zoom: number
+  zoom: number,
 ): boolean => {
   return getQueryableLayers(layers, zoom).length > 0;
 };

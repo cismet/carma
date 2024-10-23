@@ -95,7 +95,7 @@ const Streetfronts = ({
 
     setActiveRow(copyRow);
     setStreetfronts(
-      streetfronts?.map((obj) => (obj.id === copyRow.id ? copyRow : obj))
+      streetfronts?.map((obj) => (obj.id === copyRow.id ? copyRow : obj)),
     );
   };
   useEffect(() => {

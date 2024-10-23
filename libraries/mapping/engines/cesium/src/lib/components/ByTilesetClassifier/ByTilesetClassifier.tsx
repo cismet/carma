@@ -35,7 +35,7 @@ const ByTilesetClassifier: FC<ByTilesetClassifier> = ({
   const clickData = useClickActionTileset(
     viewer,
     tileset.url,
-    setSelectedFeature
+    setSelectedFeature,
   );
 
   useEffect(() => {

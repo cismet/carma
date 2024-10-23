@@ -45,8 +45,8 @@ const Comp = ({
       style={{
         zIndex: 20000001,
       }}
-      height="100%"
-      size="xl"
+      height='100%'
+      size='xl'
       show={_visible}
       onHide={close}
       keyboard={false}
@@ -57,11 +57,11 @@ const Comp = ({
           {titleIconName !== undefined && <Icon name={titleIconName} />} {title}
         </Modal.Title>
       </Modal.Header>
-      <Modal.Body style={modalBodyStyle} id="myMenu">
+      <Modal.Body style={modalBodyStyle} id='myMenu'>
         <div style={{ width: "100%", minHeight: undefined }}>
           {imageUrl !== undefined && (
             <img
-              alt="Bild"
+              alt='Bild'
               style={
                 imageStyle || {
                   paddingLeft: 10,
@@ -71,7 +71,7 @@ const Comp = ({
                 }
               }
               src={imageUrl}
-              width="250"
+              width='250'
             />
           )}
           {mainSection}
@@ -97,9 +97,9 @@ const Comp = ({
               </td>
               <td>
                 <Button
-                  id="cmdCloseModalApplicationMenu"
-                  bsStyle="primary"
-                  type="submit"
+                  id='cmdCloseModalApplicationMenu'
+                  bsStyle='primary'
+                  type='submit'
                   onClick={close}
                 >
                   Ok

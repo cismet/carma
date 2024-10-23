@@ -1,17 +1,18 @@
-import { Doc, DocumentViewer } from "@carma-commons/document-viewer";
-import "bootstrap/dist/css/bootstrap.min.css";
-import "leaflet/dist/leaflet.css";
-import { useEffect, useState } from "react";
-import { useDispatch } from "react-redux";
-import "react-bootstrap-typeahead/css/Typeahead.css";
-import "react-cismap/topicMaps.css";
+import { Doc, DocumentViewer } from '@carma-commons/document-viewer';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import 'leaflet/dist/leaflet.css';
+import { useEffect, useState } from 'react';
+import { useDispatch } from 'react-redux';
+import 'react-bootstrap-typeahead/css/Typeahead.css';
+import 'react-cismap/topicMaps.css';
 import {
   getPlanFeatureByGazObject,
   loadBPlaene,
-} from "../store/slices/bplaene";
-import { useParams } from "react-router-dom";
-import { getDocsForBPlaeneGazetteerEntry } from "../utils/DocsHelper";
-import type { UnknownAction } from "redux";
+} from '../store/slices/bplaene';
+import { useParams } from 'react-router-dom';
+import { getDocsForBPlaeneGazetteerEntry } from '../utils/DocsHelper';
+import type { UnknownAction } from 'redux';
+
 
 export function App() {
   const dispatch = useDispatch();
@@ -22,7 +23,7 @@ export function App() {
     const extra = await fetch(url)
       .then((response) => {
         if (!response.ok) {
-          throw new Error("Network response was not ok");
+          throw new Error('Network response was not ok');
         }
         return response.json();
       })
@@ -57,13 +58,11 @@ export function App() {
       let tmpDocs;
       tmpDocs = getDocsForBPlaeneGazetteerEntry({
         gazHit: {
-          type: "bplaene",
+          type: 'bplaene',
           more: { v: docPackageId },
         },
         getPlanFeatureByGazObject: (aevs, done) =>
-          dispatch(
-            getPlanFeatureByGazObject(aevs, done) as unknown as UnknownAction
-          ),
+          dispatch(getPlanFeatureByGazObject(aevs, done) as unknown as UnknownAction),
       });
 
       if (tmpDocs) {

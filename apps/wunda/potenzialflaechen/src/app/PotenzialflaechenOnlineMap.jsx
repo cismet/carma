@@ -45,7 +45,7 @@ export const appKey = "Potenzialflaechen.Online.Wuppertal";
 
 function PotenzialflaechenOnlineMap({ gazData, jwt, setJWT, setLoginInfo }) {
   const { setSelectedFeatureByPredicate, setFilterState } = useContext(
-    FeatureCollectionDispatchContext
+    FeatureCollectionDispatchContext,
   );
   const { zoomToFeature } = useContext(TopicMapDispatchContext);
   const { history } = useContext(TopicMapContext);

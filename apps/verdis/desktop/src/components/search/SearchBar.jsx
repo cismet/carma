@@ -2,9 +2,9 @@ import {
   ClockCircleOutlined,
   LoadingOutlined,
   SearchOutlined,
-} from "@ant-design/icons";
-import { AutoComplete, Input } from "antd";
-import { useDispatch, useSelector } from "react-redux";
+} from '@ant-design/icons';
+import { AutoComplete, Input } from 'antd';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   getErrorMessage,
   getIsLoading,
@@ -12,15 +12,15 @@ import {
   getPreviousSearches,
   getflurstuecke,
   searchForKassenzeichen,
-} from "../../store/slices/search";
-import { useState } from "react";
-import { useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
-import { isEqual } from "lodash";
+} from '../../store/slices/search';
+import { useState } from 'react';
+import { useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { isEqual } from 'lodash';
 
 const SearchBar = () => {
   const dispatch = useDispatch();
-  const [inputValue, setInpuValue] = useState("");
+  const [inputValue, setInpuValue] = useState('');
 
   const [urlParams, setUrlParams] = useSearchParams();
   const prevSearches = useSelector(getPreviousSearches);
@@ -28,7 +28,7 @@ const SearchBar = () => {
   const kassenzeichen = useSelector(getKassenzeichen);
   const errorMessage = useSelector(getErrorMessage);
   const kassenzeichenNummer = kassenzeichen?.kassenzeichennummer8;
-  const urlKassenzeichen = urlParams.get("kassenzeichen");
+  const urlKassenzeichen = urlParams.get('kassenzeichen');
   useEffect(() => {
     // if (isLoading) {
     //   return;
@@ -91,7 +91,7 @@ const SearchBar = () => {
               searchForKassenzeichen(inputValue, urlParams, setUrlParams)
             )
           }
-          status={errorMessage && "error"}
+          status={errorMessage && 'error'}
           name="kassenzeichen"
         />
       </AutoComplete>

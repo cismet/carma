@@ -100,7 +100,7 @@ export const updateTitle = (shapeId, customTitle) => {
   return function (dispatch, getState) {
     const state = getState() as RootState;
     const shapeFromVisible = state.measurements.visibleShapes.filter(
-      (s) => s.shapeId === shapeId
+      (s) => s.shapeId === shapeId,
     );
 
     const visible = state.measurements.visibleShapes.map((m) => {
@@ -114,7 +114,7 @@ export const updateTitle = (shapeId, customTitle) => {
     });
 
     const shapeFromAllShapes = state.measurements.shapes.filter(
-      (s) => s.shapeId === shapeId
+      (s) => s.shapeId === shapeId,
     );
 
     const allMeasurements = state.measurements.shapes.map((m) => {
@@ -155,7 +155,7 @@ export const deleteVisibleShapeById = (shapeId) => {
     const state = getState();
     const allVisibleShapes = state.measurements.visibleShapes;
     const cleaerShapesArr = allVisibleShapes.filter(
-      (s) => s.shapeId !== shapeId
+      (s) => s.shapeId !== shapeId,
     );
 
     dispatch(setVisibleShapes(cleaerShapesArr));
@@ -166,7 +166,7 @@ export const updateShapeById = (
   shapeId,
   newCoordinates,
   newDistance,
-  newSquare = null
+  newSquare = null,
 ) => {
   return function (dispatch, getState) {
     const state = getState();

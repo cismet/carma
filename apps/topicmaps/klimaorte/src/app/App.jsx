@@ -23,7 +23,7 @@ const getPOIColors = async (setPoiColors) => {
   md5FetchJSON("poi_colors", dataHost + "/data/poi.farben.json").then(
     (data) => {
       setPoiColors(data);
-    }
+    },
   );
 };
 
@@ -90,7 +90,7 @@ function App() {
       clusteringOptions={{
         iconCreateFunction: getClusterIconCreatorFunction(
           30,
-          (props) => props.color
+          (props) => props.color,
         ),
         disableClusteringAtZoom: 20,
       }}
