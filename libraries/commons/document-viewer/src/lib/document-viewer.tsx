@@ -143,8 +143,10 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
               docs={docs}
               index={parseInt(file!)}
               // TODO fix type
-              // @ts-expect-error type is wrong
-              maxIndex={docs[parseInt(file!) - 1]?.meta.pages as unknown as number}
+              maxIndex={
+                // @ts-expect-error type is wrong
+                docs[parseInt(file!) - 1]?.meta.pages as unknown as number
+              }
               mode={mode}
               compactView={compactView}
             />
