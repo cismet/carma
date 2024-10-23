@@ -6,7 +6,7 @@ export const getColorMaterialProperty = (
   alpha: number,
   selectKey?: string | null,
   colorLookup: Record<string, Color> = {},
-  colorHash: ColorHash = new ColorHash()
+  colorHash: ColorHash = new ColorHash(),
 ): ColorMaterialProperty => {
   const str =
     entity.properties && selectKey

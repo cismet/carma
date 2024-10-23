@@ -1,15 +1,15 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
-import Documents from "./Documents";
-import Message from "./InternalMessage";
-import SystemMessage from "./SystemMessage";
-import InternalMessage from "./InternalMessage";
+import Documents from './Documents';
+import Message from './InternalMessage';
+import SystemMessage from './SystemMessage';
+import InternalMessage from './InternalMessage';
 
 const CRConversation = ({
   messages = [],
   userMap = {
-    verdis: { name: "VerDIS-Online", color: "#006D71" },
-    SteinbacherD102: { name: "Dirk Steinbacher", color: "#006D71" },
+    verdis: { name: 'VerDIS-Online', color: '#006D71' },
+    SteinbacherD102: { name: 'Dirk Steinbacher', color: '#006D71' },
     citizen: {},
     system: {},
   },
@@ -21,11 +21,11 @@ const CRConversation = ({
 
   const sMsgsWithWelcomeMessage: any = [];
   sMsgsWithWelcomeMessage.push({
-    typ: "CLERK",
+    typ: 'CLERK',
     timestamp: 0,
-    name: "verdis",
+    name: 'verdis',
     nachricht:
-      "Sehr geehrte*r Nutzer*in, hier haben Sie die Möglichkeit Änderungen an Ihren Flächen zu begründen und allgemeine Anmerkungen sowie Belege hinzuzufügen.",
+      'Sehr geehrte*r Nutzer*in, hier haben Sie die Möglichkeit Änderungen an Ihren Flächen zu begründen und allgemeine Anmerkungen sowie Belege hinzuzufügen.',
   });
   sMsgsWithWelcomeMessage.push(...sMsgs);
 
@@ -33,7 +33,7 @@ const CRConversation = ({
     <div>
       {sMsgsWithWelcomeMessage.map((msg, index) => {
         switch (msg.typ) {
-          case "CLERK": {
+          case 'CLERK': {
             if (msg.draft === true) {
               return undefined;
             }
@@ -47,23 +47,23 @@ const CRConversation = ({
 
             return (
               <Message
-                key={"CLERK.Message." + index}
+                key={'CLERK.Message.' + index}
                 msg={msg.nachricht}
                 from={sender}
               />
             );
           }
-          case "CITIZEN": {
-            let background = "#FDC65399";
+          case 'CITIZEN': {
+            let background = '#FDC65399';
 
             if (msg.draft === true) {
-              background = "#FDC65333";
+              background = '#FDC65333';
             }
             return (
-              <div key={"CITIZEN.div." + index}>
-                {msg.nachricht !== undefined && msg.nachricht.trim() !== "" && (
+              <div key={'CITIZEN.div.' + index}>
+                {msg.nachricht !== undefined && msg.nachricht.trim() !== '' && (
                   <Message
-                    key={"CITIZEN.Message." + index}
+                    key={'CITIZEN.Message.' + index}
                     msg={msg.nachricht}
                     background={background}
                     alignment="right"
@@ -74,7 +74,7 @@ const CRConversation = ({
                   msg.anhang.length !== undefined &&
                   msg.anhang.length > 0 && (
                     <Message
-                      key={"Attachment.Message"}
+                      key={'Attachment.Message'}
                       msg={
                         <div>
                           <Documents
@@ -89,31 +89,31 @@ const CRConversation = ({
                       alignment="right"
                       margin={-1}
                       padding={5}
-                      width={"fit-content"}
+                      width={'fit-content'}
                     />
                   )}
               </div>
             );
           }
 
-          case "SYSTEM":
+          case 'SYSTEM':
             if (
               hideSystemMessages === false &&
               systemmessage(msg.nachrichtenParameter) !== undefined
             ) {
               return (
                 <SystemMessage
-                  key={"SYSTEM.SystemMessage." + index}
+                  key={'SYSTEM.SystemMessage.' + index}
                   msg={systemmessage(msg.nachrichtenParameter)}
                 />
               );
             } else {
               return undefined;
             }
-          case "LOCALERROR": {
+          case 'LOCALERROR': {
             return (
               <InternalMessage
-                key={"SYSTEM.LOCALERROR." + index}
+                key={'SYSTEM.LOCALERROR.' + index}
                 msg={msg.nachricht}
                 alignment="center"
                 background="#fcf0f0"
@@ -128,7 +128,7 @@ const CRConversation = ({
           default:
             break;
         }
-        return <div key={"FALLBACK.pure." + index}>{msg.nachricht}</div>;
+        return <div key={'FALLBACK.pure.' + index}>{msg.nachricht}</div>;
       })}
     </div>
   );
@@ -137,30 +137,30 @@ const CRConversation = ({
 const systemmessage = (sysMsgConf) => {
   if (sysMsgConf.type !== undefined) {
     switch (sysMsgConf.type) {
-      case "CHANGED":
+      case 'CHANGED':
         return `Ihr Sachbearbeiter hat die Fläche ${sysMsgConf.flaeche} geändert.`;
-      case "REJECTED":
+      case 'REJECTED':
         return `Ihr Sachbearbeiter hat Änderungen an der Fläche ${sysMsgConf.flaeche} abgelehnt.`;
-      case "NOTIFY":
+      case 'NOTIFY':
         return undefined;
-      case "STATUS": {
+      case 'STATUS': {
         switch (sysMsgConf.status) {
-          case "NONE":
-          case "FINISHED":
-            return "Ihr Sachbearbeiter hat die Bearbeitung abgeschlossen.";
-          case "PROCESSING":
-            return "Ihr Sachbearbeiter hat die Bearbeitung aufgenommen.";
-          case "PENDING":
+          case 'NONE':
+          case 'FINISHED':
+            return 'Ihr Sachbearbeiter hat die Bearbeitung abgeschlossen.';
+          case 'PROCESSING':
+            return 'Ihr Sachbearbeiter hat die Bearbeitung aufgenommen.';
+          case 'PENDING':
             return undefined;
           default:
-            return "unbekannter Status" + sysMsgConf.status;
+            return 'unbekannter Status' + sysMsgConf.status;
         }
       }
-      case "SEEN":
+      case 'SEEN':
         return undefined;
 
       default: {
-        return "Fehlerhafte Systemnachricht:" + JSON.stringify(sysMsgConf);
+        return 'Fehlerhafte Systemnachricht:' + JSON.stringify(sysMsgConf);
       }
     }
   }

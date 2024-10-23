@@ -63,7 +63,7 @@ export const SELECTABLE_TRANSPARENT_3DTILESTYLE = create3DTileStyle({
   show: true,
 });
 export const SELECTABLE_TRANSPARENT_MATERIAL = new ColorMaterialProperty(
-  Color.BLACK.withAlpha(1 / 255)
+  Color.BLACK.withAlpha(1 / 255),
 );
 
 export function getModelMatrix(config: TilesetConfig, heightOffset = 0) {
@@ -92,12 +92,12 @@ export const logTileSetInfoOnReady = (tileset: Cesium3DTileset) => {
   const height = cartographic.height;
 
   console.log(
-    `Longitude: ${longitude}, Latitude: ${latitude}, Height: ${height}, center: ${center}, ${tileset.basePath}}`
+    `Longitude: ${longitude}, Latitude: ${latitude}, Height: ${height}, center: ${center}, ${tileset.basePath}}`,
   );
 };
 
 export const isColorRgbaArray = (
-  color: ColorRgbaArray | Color | undefined
+  color: ColorRgbaArray | Color | undefined,
 ): color is ColorRgbaArray => {
   return (
     Array.isArray(color) &&
@@ -118,12 +118,12 @@ export const getTileSetInfo = (tileset: Cesium3DTileset) => {
   const latitude = CesiumMath.toDegrees(cartographic.latitude);
   const height = cartographic.height;
   console.log(
-    `Longitude: ${longitude}, Latitude: ${latitude}, Height: ${height}, center: ${center}, ${tileset.basePath}}`
+    `Longitude: ${longitude}, Latitude: ${latitude}, Height: ${height}, center: ${center}, ${tileset.basePath}}`,
   );
 };
 
 export function create3DTileStyle(
-  styleDescription: Record<string, unknown | string>
+  styleDescription: Record<string, unknown | string>,
 ): Cesium3DTileStyle | undefined {
   try {
     return new Cesium3DTileStyle(styleDescription);
@@ -131,7 +131,7 @@ export function create3DTileStyle(
     console.warn(
       "Error in Tileset Style Creation from: ",
       styleDescription,
-      error
+      error,
     );
 
     return undefined;
@@ -156,7 +156,7 @@ export const getTopDownCameraDeviationAngle = (viewer: Viewer) => {
 
   const internalAngle = Cartesian3.angleBetween(
     currentDirection,
-    TOP_DOWN_DIRECTION
+    TOP_DOWN_DIRECTION,
   );
   return Math.abs(internalAngle);
 };
@@ -189,7 +189,7 @@ export const getCameraHeightAboveGround = (viewer: Viewer) => {
 const getWindowPositions = (viewer: Viewer, [x, y] = [0.5, 0.5]) => {
   return new Cartesian2(
     (viewer.canvas.clientWidth - 1) * x + 0.5, // needs pixel to sample so shift into pixel centers
-    (viewer.canvas.clientHeight - 1) * y + 0.5
+    (viewer.canvas.clientHeight - 1) * y + 0.5,
   );
 };
 
@@ -220,7 +220,7 @@ export const pickViewerCanvasPositions = (
     getCoordinates = false,
     depthTestAgainstTerrain = true,
     pickTranslucentDepth = true,
-  }: PickOptions = {}
+  }: PickOptions = {},
 ): PickResult[] => {
   // store previous settings
   const prev = {
@@ -247,7 +247,7 @@ export const pickViewerCanvasPositions = (
         "No scene position found at the picked position.",
         position[0],
         position[1],
-        windowPosition
+        windowPosition,
       );
       return result;
     }
@@ -258,7 +258,7 @@ export const pickViewerCanvasPositions = (
       const pixelSize = viewer.camera.getPixelSize(
         new BoundingSphere(scenePosition, 1),
         viewer.scene.drawingBufferWidth,
-        viewer.scene.drawingBufferHeight
+        viewer.scene.drawingBufferHeight,
       );
       result.pixelSize = pixelSize;
     }
@@ -302,7 +302,7 @@ export const createOffCenterFrustum = (
     bottom?: number;
     aspectRatio?: number;
     fov?: number;
-  } = {}
+  } = {},
 ) => {
   const src = sourceFrustum.clone();
 
@@ -356,7 +356,7 @@ const findTopPick = (viewer: Viewer, xPos = 0, targetPixelSize: number) => {
 
 export const getViewerViewportPolygonRing = (
   viewer: Viewer,
-  { resolutionRange = 4 }: { resolutionRange?: number } = {}
+  { resolutionRange = 4 }: { resolutionRange?: number } = {},
 ): [number, number][] | null => {
   const bottom = pickViewerCanvasPositions(
     viewer,
@@ -370,7 +370,7 @@ export const getViewerViewportPolygonRing = (
     {
       getPixelSize: true,
       getCoordinates: true,
-    }
+    },
   );
   if (!bottom || bottom.length < 2) {
     //console.warn('No bottom pixel position found', bottom);
@@ -408,7 +408,7 @@ export const getViewerViewportPolygonRing = (
         //console.warn('No valid mappingg', result);
         return null;
       }
-    }
+    },
   );
   return geom.filter((point) => point !== null) as [number, number][];
 };
@@ -416,7 +416,7 @@ export const getViewerViewportPolygonRing = (
 // helper shorthand
 export const pickViewerCanvasCenter = (
   viewer: Viewer,
-  options?: PickOptions
+  options?: PickOptions,
 ): PickResult =>
   pickViewerCanvasPositions(viewer, [CENTER_POSITION], options)[0];
 
@@ -425,7 +425,7 @@ const GEOJSON_DRILL_LIMIT = 10;
 // get last ground primitive from picked objects
 // needed since default picker fails with ground primitives created from GeoJson
 function getLastGroundPrimitive(
-  pickedObjects: { primitive: unknown; id?: unknown }[]
+  pickedObjects: { primitive: unknown; id?: unknown }[],
 ): Entity | null {
   let lastGroundPrimitive: Entity | null = null;
 
@@ -445,7 +445,7 @@ function getLastGroundPrimitive(
 export function pickFromClampedGeojson(
   viewer: Viewer,
   position: Cartesian2,
-  limit: number = GEOJSON_DRILL_LIMIT
+  limit: number = GEOJSON_DRILL_LIMIT,
 ): Entity | null {
   const pickedObjects = viewer.scene.drillPick(position, limit);
   console.log("SCENE DRILL PICK:", pickedObjects);
@@ -524,18 +524,18 @@ export const DEFAULT_LEAFLET_TILESIZE = 256;
 
 const WEB_MERCATOR_MAX_LATITUDE = 85.051129;
 export const WEB_MERCATOR_MAX_LATITUDE_RAD = CesiumMath.toRadians(
-  WEB_MERCATOR_MAX_LATITUDE
+  WEB_MERCATOR_MAX_LATITUDE,
 );
 
 export const getMercatorScaleFactorAtLatitude = (latitude: number): number => {
   if (latitude > WEB_MERCATOR_MAX_LATITUDE_RAD) {
     console.warn(
-      "latitude is greater than max web mercator latitude, clamping applied"
+      "latitude is greater than max web mercator latitude, clamping applied",
     );
     latitude = WEB_MERCATOR_MAX_LATITUDE_RAD;
   } else if (latitude < -WEB_MERCATOR_MAX_LATITUDE_RAD) {
     console.warn(
-      "latitude is smaller than min web mercator latitude, clamping applied"
+      "latitude is smaller than min web mercator latitude, clamping applied",
     );
     latitude = -WEB_MERCATOR_MAX_LATITUDE_RAD;
   }
@@ -545,11 +545,11 @@ export const getMercatorScaleFactorAtLatitude = (latitude: number): number => {
 export const getZoomFromPixelResolutionAtLatitude = (
   meterResolution: number,
   latitude: number = 0,
-  { tileSize = DEFAULT_LEAFLET_TILESIZE }: { tileSize?: number } = {}
+  { tileSize = DEFAULT_LEAFLET_TILESIZE }: { tileSize?: number } = {},
 ) => {
   const scaleFactor = getMercatorScaleFactorAtLatitude(latitude);
   const zoom = Math.log2(
-    EARTH_CIRCUMFERENCE / (scaleFactor * meterResolution * tileSize)
+    EARTH_CIRCUMFERENCE / (scaleFactor * meterResolution * tileSize),
   );
   console.log("zoom", zoom, scaleFactor, meterResolution, latitude);
   return zoom;
@@ -558,7 +558,7 @@ export const getZoomFromPixelResolutionAtLatitude = (
 export const getPixelResolutionFromZoomAtLatitude = (
   zoom: number,
   latitude: number = 0,
-  { tileSize = DEFAULT_LEAFLET_TILESIZE }: { tileSize?: number } = {}
+  { tileSize = DEFAULT_LEAFLET_TILESIZE }: { tileSize?: number } = {},
 ) => {
   const scale = getMercatorScaleFactorAtLatitude(latitude);
   return EARTH_CIRCUMFERENCE / (scale * Math.pow(2, zoom) * tileSize);
@@ -586,11 +586,11 @@ const generatePositionsForRing = (n = 8, radius = 0.1, center = [0.5, 0.5]) => {
 export const generateRingFromDegrees = (
   centerDeg: LatLngRecord,
   radiusInMeters: number,
-  samples: number = 24
+  samples: number = 24,
 ): LatLngRadians[] => {
   const center = Cartographic.fromDegrees(
     centerDeg.longitude,
-    centerDeg.latitude
+    centerDeg.latitude,
   );
   const points: LatLngRadians[] = [];
 
@@ -617,7 +617,7 @@ export const generateRingFromDegrees = (
 const sampleRingPixelSize = (
   viewer: Viewer,
   samples: number,
-  radius: number
+  radius: number,
 ) => {
   const positionCoords = generatePositionsForRing(samples, radius);
   const positions = pickViewerCanvasPositions(viewer, positionCoords);
@@ -627,18 +627,18 @@ const sampleRingPixelSize = (
       viewer.camera.getPixelSize(
         new BoundingSphere(scenePosition, 1),
         viewer.scene.drawingBufferWidth,
-        viewer.scene.drawingBufferHeight
-      )
+        viewer.scene.drawingBufferHeight,
+      ),
   );
   const validPixelSizes = pixelSizes.filter(
     (pixelSize): pixelSize is number =>
       typeof pixelSize === "number" &&
       pixelSize !== 0 &&
       pixelSize !== Infinity &&
-      !isNaN(pixelSize)
+      !isNaN(pixelSize),
   );
   const sortedPixelSizes = validPixelSizes.sort(
-    (a: number, b: number) => a - b
+    (a: number, b: number) => a - b,
   );
   // Drop the extremes
   const drop = Math.floor(sortedPixelSizes.length / 4);
@@ -653,7 +653,7 @@ const sampleRingPixelSize = (
 export const getScenePixelSize = (
   viewer: Viewer,
   mode = PICKMODE.CENTER,
-  { samples = 10, radius = 0.2 }: { samples?: number; radius?: number } = {} // radius for unit screen coordinates, should be less than 0.5 with center at 0.5,0.5
+  { samples = 10, radius = 0.2 }: { samples?: number; radius?: number } = {}, // radius for unit screen coordinates, should be less than 0.5 with center at 0.5,0.5
 ): NumericResult => {
   const { camera, scene } = viewer;
 
@@ -662,7 +662,7 @@ export const getScenePixelSize = (
     console.warn(
       "radius is greater than 0.5, clamping applied",
       radius,
-      samples
+      samples,
     );
     radius = 0.5;
   }
@@ -697,7 +697,7 @@ export const getScenePixelSize = (
 };
 
 export const cesiumCenterPixelSizeToLeafletZoom = (
-  viewer: Viewer
+  viewer: Viewer,
 ): NumericResult => {
   const pixelSize = getScenePixelSize(viewer, PICKMODE.RING);
   if (pixelSize.value === null) {
@@ -706,7 +706,7 @@ export const cesiumCenterPixelSizeToLeafletZoom = (
   }
   const zoom = getZoomFromPixelResolutionAtLatitude(
     pixelSize.value,
-    viewer.camera.positionCartographic.latitude
+    viewer.camera.positionCartographic.latitude,
   );
 
   if (zoom === Infinity) {

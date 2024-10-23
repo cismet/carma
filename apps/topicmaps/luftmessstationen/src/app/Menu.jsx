@@ -29,10 +29,10 @@ import { getApplicationVersion } from "@carma-commons/utils";
 const MyMenu = () => {
   const { setAppMenuActiveMenuSection } = useContext(UIDispatchContext);
   const { filterState, filterMode, filteredItems, shownFeatures } = useContext(
-    FeatureCollectionContext
+    FeatureCollectionContext,
   );
   const { setFilterState, setFilterMode } = useContext(
-    FeatureCollectionDispatchContext
+    FeatureCollectionDispatchContext,
   );
 
   const { items } = useContext(FeatureCollectionContext);
@@ -451,7 +451,7 @@ NO₂-Messwerte von ca. vier Wochen.
             sectionKey="filter"
             sectionTitle={getFilterHeader(
               filteredItems?.length,
-              shownFeatures?.length
+              shownFeatures?.length,
             )}
             sectionBsStyle={FilterStyle}
             sectionContent={

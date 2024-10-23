@@ -15,16 +15,18 @@ import { extractCarmaConfig } from "@carma-commons/utils";
 import { parseDescription } from "../helper/layerHelper";
 import { Item } from "../helper/types";
 
+
+
 interface InfoCardProps {
   layer: Item;
   isFavorite: boolean;
   isActiveLayer: boolean;
   handleAddClick: (
     e: React.MouseEvent<HTMLElement, MouseEvent>,
-    preview?: boolean
+    preview?: boolean,
   ) => void;
   handleFavoriteClick: (
-    e: React.MouseEvent<HTMLButtonElement, MouseEvent>
+    e: React.MouseEvent<HTMLButtonElement, MouseEvent>,
   ) => void;
   closeInfoCard: () => void;
   setPreview: (preview: boolean) => void;

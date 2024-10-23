@@ -12,16 +12,16 @@ import {
 describe("cesiumHelpers", () => {
   test("getMercatorScaleFactorAtLatitude", () => {
     const maxScale = getMercatorScaleFactorAtLatitude(
-      WEB_MERCATOR_MAX_LATITUDE_RAD
+      WEB_MERCATOR_MAX_LATITUDE_RAD,
     );
 
     expect(getMercatorScaleFactorAtLatitude(0)).toBeCloseTo(1);
     expect(getMercatorScaleFactorAtLatitude(Math.PI / 4)).toBeCloseTo(
-      Math.SQRT2
+      Math.SQRT2,
     );
     expect(getMercatorScaleFactorAtLatitude(Math.PI / 3)).toBeCloseTo(2);
     expect(getMercatorScaleFactorAtLatitude(-Math.PI / 4)).toBeCloseTo(
-      Math.SQRT2
+      Math.SQRT2,
     );
     expect(getMercatorScaleFactorAtLatitude(Math.PI / 2)).toBe(maxScale);
   });
@@ -31,7 +31,7 @@ describe("cesiumHelpers", () => {
     const latitude = 0;
     const expectedZoom = getZoomFromPixelResolutionAtLatitude(
       meterResolution,
-      latitude
+      latitude,
     );
     expect(expectedZoom).toBeCloseTo(0);
   });
@@ -41,7 +41,7 @@ describe("cesiumHelpers", () => {
     const latitude = Math.PI / 3; // at 60 deg
     const expectedZoom = getZoomFromPixelResolutionAtLatitude(
       meterResolution,
-      latitude
+      latitude,
     );
     expect(expectedZoom).toBeCloseTo(-1);
   });
@@ -52,7 +52,7 @@ describe("cesiumHelpers", () => {
     const latitude = Math.PI / 3; // at 60 deg
     const expectedZoom = getZoomFromPixelResolutionAtLatitude(
       meterResolution,
-      latitude
+      latitude,
     );
     expect(expectedZoom).toBeCloseTo(0);
   });
@@ -62,10 +62,10 @@ describe("cesiumHelpers", () => {
     const latitude = 0;
     const expectedResolution = getPixelResolutionFromZoomAtLatitude(
       zoom,
-      latitude
+      latitude,
     );
     expect(expectedResolution).toBeCloseTo(
-      EARTH_CIRCUMFERENCE / DEFAULT_LEAFLET_TILESIZE
+      EARTH_CIRCUMFERENCE / DEFAULT_LEAFLET_TILESIZE,
     );
   });
 
@@ -75,7 +75,7 @@ describe("cesiumHelpers", () => {
     const resolution = getPixelResolutionFromZoomAtLatitude(zoom, latitude);
     const roundTripZoom = getZoomFromPixelResolutionAtLatitude(
       resolution,
-      latitude
+      latitude,
     );
     expect(roundTripZoom).toBeCloseTo(zoom);
   });
@@ -85,11 +85,11 @@ describe("cesiumHelpers", () => {
     const latitude = 0;
     const zoom = getZoomFromPixelResolutionAtLatitude(
       meterResolution,
-      latitude
+      latitude,
     );
     const roundTripResolution = getPixelResolutionFromZoomAtLatitude(
       zoom,
-      latitude
+      latitude,
     );
     expect(roundTripResolution).toBeCloseTo(meterResolution);
   });
@@ -99,11 +99,11 @@ describe("cesiumHelpers", () => {
     const latitude = Math.PI / 3;
     const zoom = getZoomFromPixelResolutionAtLatitude(
       meterResolution,
-      latitude
+      latitude,
     );
     const roundTripResolution = getPixelResolutionFromZoomAtLatitude(
       zoom,
-      latitude
+      latitude,
     );
     expect(roundTripResolution).toBeCloseTo(meterResolution);
   });
@@ -113,11 +113,11 @@ describe("cesiumHelpers", () => {
     const latitude = Math.PI / 2 - 0.01; // out of mercator bounds
     const zoom = getZoomFromPixelResolutionAtLatitude(
       meterResolution,
-      latitude
+      latitude,
     );
     const roundTripResolution = getPixelResolutionFromZoomAtLatitude(
       zoom,
-      latitude
+      latitude,
     );
     expect(roundTripResolution).toBeCloseTo(meterResolution);
   });

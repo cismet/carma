@@ -25,18 +25,9 @@ const host = "https://wupp-topicmaps-data.cismet.de";
 const getGazData = async (setGazData) => {
   const prefix = "GazDataForStories";
   const sources = {};
-  sources.adressen = await md5FetchText(
-    prefix,
-    host + "/data/3857/adressen.json"
-  );
-  sources.bezirke = await md5FetchText(
-    prefix,
-    host + "/data/3857/bezirke.json"
-  );
-  sources.quartiere = await md5FetchText(
-    prefix,
-    host + "/data/3857/quartiere.json"
-  );
+  sources.adressen = await md5FetchText(prefix, host + "/data/3857/adressen.json");
+  sources.bezirke = await md5FetchText(prefix, host + "/data/3857/bezirke.json");
+  sources.quartiere = await md5FetchText(prefix, host + "/data/3857/quartiere.json");
   sources.pois = await md5FetchText(prefix, host + "/data/3857/pois.json");
   sources.kitas = await md5FetchText(prefix, host + "/data/3857/kitas.json");
 
@@ -130,22 +121,16 @@ function App() {
   }, []);
   return (
     <TopicMapContextProvider
-      appKey="CoronaPraeventionskarteWuppertal.TopicMap"
-      featureItemsURL={
-        "https://wupp-topicmaps-data.cismet.de/data/poi.data.json"
-      }
+      appKey='CoronaPraeventionskarteWuppertal.TopicMap'
+      featureItemsURL={"https://wupp-topicmaps-data.cismet.de/data/poi.data.json"}
       getFeatureStyler={getGTMFeatureStyler}
       featureTooltipFunction={(feature) => feature?.text}
       convertItemToFeature={convertPOIItemsToFeature}
       clusteringOptions={{
-        iconCreateFunction: getClusterIconCreatorFunction(
-          30,
-          (props) => props.color
-        ),
+        iconCreateFunction: getClusterIconCreatorFunction(30, (props) => props.color),
       }}
       itemFilterFunction={() => {
-        return (item) =>
-          item?.mainlocationtype?.name?.toLowerCase().includes("corona");
+        return (item) => item?.mainlocationtype?.name?.toLowerCase().includes("corona");
         // item?.name?.toLowerCase().includes("test");
       }}
       clusteringEnabled={true}
@@ -163,8 +148,8 @@ function App() {
         homeCenter={[51.251236352367464, 7.162581102842314]}
         locatorControl={true}
         gazData={gazData}
-        applicationMenuTooltipString="Einstelllungen | Statistik | Anleitung"
-        gazetteerSearchPlaceholder="Stadtteil | Adresse | POI"
+        applicationMenuTooltipString='Einstelllungen | Statistik | Anleitung'
+        gazetteerSearchPlaceholder='Stadtteil | Adresse | POI'
         infoBox={
           <GenericInfoBoxFromFeature
             pixelwidth={400}
@@ -179,9 +164,9 @@ function App() {
               noCurrentFeatureTitle: "Keine Zentren gefunden",
               noCurrentFeatureContent: (
                 <span>
-                  Die Stadt Wuppertal veröffentlicht aktuell keine
-                  Corona-Präventionsorte. Bitte informieren Sie sich{" "}
-                  <a href="https://www.wuppertal.de/microsite/geoportal/topicmaps/topicmaps.php">
+                  Die Stadt Wuppertal veröffentlicht aktuell keine Corona-Präventionsorte. Bitte
+                  informieren Sie sich{" "}
+                  <a href='https://www.wuppertal.de/microsite/geoportal/topicmaps/topicmaps.php'>
                     hier
                   </a>{" "}
                   über unser TopicMap-Angebot.

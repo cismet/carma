@@ -50,7 +50,7 @@ const InfoPanel = () => {
     const weitereAngebote = items.filter(
       (testItem) =>
         testItem?.standort.id === angebot.standort.id &&
-        testItem.id !== angebot.id
+        testItem.id !== angebot.id,
     );
     //data structure for "weitere Angebote"
     // gruppenwechsel for thema
@@ -170,7 +170,7 @@ const InfoPanel = () => {
             </table>
           </div>
           {/* <pre>{JSON.stringify(addOffers, null, 2)}</pre> */}
-        </SecondaryInfoPanelSection>
+        </SecondaryInfoPanelSection>,
       );
     }
 

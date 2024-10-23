@@ -1,6 +1,6 @@
-import { faLeaf } from "@fortawesome/free-solid-svg-icons";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Form } from "react-bootstrap";
+import { faLeaf } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Form } from 'react-bootstrap';
 
 const GruenerStrom = ({ filter, setFilter }) => {
   return (
@@ -8,14 +8,14 @@ const GruenerStrom = ({ filter, setFilter }) => {
       <Form>
         <div>
           Ökostrom
-          {"  "}
+          {'  '}
           <FontAwesomeIcon
             icon={faLeaf}
             size="2x"
             style={{
-              color: "grey",
-              width: "30px",
-              textAlign: "center",
+              color: 'grey',
+              width: '30px',
+              textAlign: 'center',
             }}
           />
         </div>
@@ -24,7 +24,7 @@ const GruenerStrom = ({ filter, setFilter }) => {
             <Form.Check
               type="radio"
               readOnly={true}
-              id={"filter.emob.green.only"}
+              id={'filter.emob.green.only'}
               onClick={(e) => {
                 const newFilterState = { ...filter };
                 newFilterState.nur_gruener_strom = e.target.checked;
@@ -38,7 +38,7 @@ const GruenerStrom = ({ filter, setFilter }) => {
             <Form.Check
               type="radio"
               readOnly={true}
-              id={"filter.emob.green.all"}
+              id={'filter.emob.green.all'}
               onClick={(e) => {
                 const newFilterState = { ...filter };
                 newFilterState.nur_gruener_strom = !e.target.checked;

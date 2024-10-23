@@ -1,48 +1,48 @@
 //kjdfh
 
-import { configureStore } from "@reduxjs/toolkit";
-import localForage from "localforage";
-import { createLogger } from "redux-logger";
-import { persistReducer } from "redux-persist";
+import { configureStore } from '@reduxjs/toolkit';
+import localForage from 'localforage';
+import { createLogger } from 'redux-logger';
+import { persistReducer } from 'redux-persist';
 
-import { appKey, storagePostfix } from "../../Keys";
-import appStateSlice from "./slices/app";
-import authSlice from "./slices/auth";
-import backgroundSlice from "./slices/background";
-import cacheControlSlice from "./slices/cacheControl";
-import dexieSlice from "./slices/dexie";
-import featureCollectionSlice from "./slices/featureCollection";
-import gazetteerDataSlice from "./slices/gazetteerData";
-import keytablesSlice from "./slices/keytables";
-import mapSlice from "./slices/map";
-import mapInfoSlice from "./slices/mapInfo";
-import offlineActionDb from "./slices/offlineActionDb";
-import paleModeSlice from "./slices/paleMode";
-import searchSlice from "./slices/search";
-import spatialIndexSlice from "./slices/spatialIndex";
-import teamSlice from "./slices/team";
-import zoomSlice from "./slices/zoom";
-import healthSlice from "./slices/health";
+import { appKey, storagePostfix } from '../../Keys';
+import appStateSlice from './slices/app';
+import authSlice from './slices/auth';
+import backgroundSlice from './slices/background';
+import cacheControlSlice from './slices/cacheControl';
+import dexieSlice from './slices/dexie';
+import featureCollectionSlice from './slices/featureCollection';
+import gazetteerDataSlice from './slices/gazetteerData';
+import keytablesSlice from './slices/keytables';
+import mapSlice from './slices/map';
+import mapInfoSlice from './slices/mapInfo';
+import offlineActionDb from './slices/offlineActionDb';
+import paleModeSlice from './slices/paleMode';
+import searchSlice from './slices/search';
+import spatialIndexSlice from './slices/spatialIndex';
+import teamSlice from './slices/team';
+import zoomSlice from './slices/zoom';
+import healthSlice from './slices/health';
 
-console.log("store initializing ....");
+console.log('store initializing ....');
 const devToolsEnabled =
-  new URLSearchParams(window.location.search).get("devToolsEnabled") === "true";
-console.log("devToolsEnabled:", devToolsEnabled);
+  new URLSearchParams(window.location.search).get('devToolsEnabled') === 'true';
+console.log('devToolsEnabled:', devToolsEnabled);
 const stateLoggingEnabledFromSearch = new URLSearchParams(
   window.location.search
-).get("stateLoggingEnabled");
+).get('stateLoggingEnabled');
 
-const inProduction = process.env.NODE_ENV === "production";
-console.log("in Production Mode:", inProduction);
+const inProduction = process.env.NODE_ENV === 'production';
+console.log('in Production Mode:', inProduction);
 const stateLoggingEnabled =
   (stateLoggingEnabledFromSearch !== null &&
-    stateLoggingEnabledFromSearch !== "false") ||
+    stateLoggingEnabledFromSearch !== 'false') ||
   !inProduction;
 
 console.log(
-  "stateLoggingEnabled:",
+  'stateLoggingEnabled:',
   stateLoggingEnabledFromSearch,
-  "x",
+  'x',
   stateLoggingEnabled
 );
 const logger = createLogger({
@@ -89,65 +89,65 @@ if (stateLoggingEnabled === true) {
 }
 
 const appStateConfig = {
-  key: "@" + appKey + "." + storagePostfix + ".app.state",
+  key: '@' + appKey + '.' + storagePostfix + '.app.state',
   storage: localForage,
-  whitelist: ["connectionMode"],
+  whitelist: ['connectionMode'],
 };
 const authConfig = {
-  key: "@" + appKey + "." + storagePostfix + ".app.auth",
+  key: '@' + appKey + '.' + storagePostfix + '.app.auth',
   storage: localForage,
-  whitelist: ["jwt", "login"],
+  whitelist: ['jwt', 'login'],
 };
 
 const featureCollectionConfig = {
-  key: "@" + appKey + "." + storagePostfix + ".app.featureCollection",
+  key: '@' + appKey + '.' + storagePostfix + '.app.featureCollection',
   storage: localForage,
-  whitelist: ["filter", "inFocusMode"],
+  whitelist: ['filter', 'inFocusMode'],
 };
 
 const searchConfig = {
-  key: "@" + appKey + "." + storagePostfix + ".app.search",
+  key: '@' + appKey + '.' + storagePostfix + '.app.search',
   storage: localForage,
-  whitelist: ["active", "wished"],
+  whitelist: ['active', 'wished'],
 };
 
 const backgroundConfig = {
-  key: "@" + appKey + "." + storagePostfix + ".app.background",
+  key: '@' + appKey + '.' + storagePostfix + '.app.background',
   storage: localForage,
-  whitelist: ["layer"],
+  whitelist: ['layer'],
 };
 
 const offlineActionDbConfig = {
-  key: "@" + appKey + "." + storagePostfix + ".app.offlineActionDb",
+  key: '@' + appKey + '.' + storagePostfix + '.app.offlineActionDb',
   storage: localForage,
-  whitelist: ["intermediateResults"],
+  whitelist: ['intermediateResults'],
 };
 
 const paleModeConfig = {
-  key: "@" + appKey + "." + storagePostfix + ".app.paleMode",
+  key: '@' + appKey + '.' + storagePostfix + '.app.paleMode',
   storage: localForage,
-  whitelist: ["mode"],
+  whitelist: ['mode'],
 };
 
 const cacheControlConfig = {
-  key: "@" + appKey + "." + storagePostfix + ".app.cacheControl.v2",
+  key: '@' + appKey + '.' + storagePostfix + '.app.cacheControl.v2',
   storage: localForage,
 };
 
 const teamConfig = {
-  key: "@" + appKey + "." + storagePostfix + ".app.team",
+  key: '@' + appKey + '.' + storagePostfix + '.app.team',
   storage: localForage,
-  whitelist: ["selectedTeam"],
+  whitelist: ['selectedTeam'],
 };
 
 const keyTablesConfig = {
-  key: "@" + appKey + "." + storagePostfix + ".keytables",
+  key: '@' + appKey + '.' + storagePostfix + '.keytables',
   storage: localForage,
   whitelist: [
-    "teams",
-    "leuchtmittel",
-    "rundsteuerempfaenger",
-    "tkey_leuchtentyp",
+    'teams',
+    'leuchtmittel',
+    'rundsteuerempfaenger',
+    'tkey_leuchtentyp',
   ],
 };
 const store = configureStore({

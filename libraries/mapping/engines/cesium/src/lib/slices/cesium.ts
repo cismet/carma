@@ -93,31 +93,31 @@ const sliceCesium = createSlice({
 
     setShowPrimaryTileset: (
       state: CesiumState,
-      action: PayloadAction<boolean>
+      action: PayloadAction<boolean>,
     ) => {
       state.showPrimaryTileset = action.payload;
     },
     setShowSecondaryTileset: (
       state: CesiumState,
-      action: PayloadAction<boolean>
+      action: PayloadAction<boolean>,
     ) => {
       state.showSecondaryTileset = action.payload;
     },
     setScreenSpaceCameraControllerMaximumZoomDistance: (
       state: CesiumState,
-      action: PayloadAction<number>
+      action: PayloadAction<number>,
     ) => {
       state.sceneSpaceCameraController.maximumZoomDistance = action.payload;
     },
     setScreenSpaceCameraControllerMinimumZoomDistance: (
       state: CesiumState,
-      action: PayloadAction<number>
+      action: PayloadAction<number>,
     ) => {
       state.sceneSpaceCameraController.minimumZoomDistance = action.payload;
     },
     setScreenSpaceCameraControllerEnableCollisionDetection: (
       state: CesiumState,
-      action: PayloadAction<boolean>
+      action: PayloadAction<boolean>,
     ) => {
       state.sceneSpaceCameraController.enableCollisionDetection =
         action.payload;
@@ -131,7 +131,7 @@ const sliceCesium = createSlice({
       action: PayloadAction<{
         style: keyof CesiumState["sceneStyles"];
         color: ColorInput;
-      }>
+      }>,
     ) => {
       const { style, color } = action.payload;
 
@@ -144,7 +144,7 @@ const sliceCesium = createSlice({
     },
     setHomePosition: (
       state: CesiumState,
-      action: PayloadAction<Cartesian3>
+      action: PayloadAction<Cartesian3>,
     ) => {
       const { x, y, z } = action.payload;
       state.homePosition = { x, y, z };
@@ -190,16 +190,16 @@ export const selectViewerModels = ({ cesium }: RootState) => cesium.models;
 
 export const selectViewerHome = createSelector(
   ({ cesium }: RootState) => cesium.homePosition,
-  (xyz) => (xyz ? new Cartesian3(xyz.x, xyz.y, xyz.z) : null)
+  (xyz) => (xyz ? new Cartesian3(xyz.x, xyz.y, xyz.z) : null),
 );
 export const selectViewerHomeOffset = createSelector(
   ({ cesium }: RootState) => cesium.homeOffset,
-  (xyz) => (xyz ? new Cartesian3(xyz.x, xyz.y, xyz.z) : null)
+  (xyz) => (xyz ? new Cartesian3(xyz.x, xyz.y, xyz.z) : null),
 );
 
 export const selectViewerSceneGlobalBaseColor = createSelector(
   (state: RootState) => state.cesium.sceneStyles.default.globe.baseColor,
-  (baseColor) => new Color(...baseColor)
+  (baseColor) => new Color(...baseColor),
 );
 
 export const selectScreenSpaceCameraControllerMinimumZoomDistance = ({

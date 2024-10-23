@@ -49,7 +49,7 @@ const Menu = () => {
 
   const steckertypes = useMemo(
     () => itemsDictionary?.steckerverbindungen || [],
-    [itemsDictionary]
+    [itemsDictionary],
   );
 
   return (
@@ -74,7 +74,7 @@ const Menu = () => {
             sectionKey="filter"
             sectionTitle={getFilterHeader(
               filteredItems?.length,
-              shownFeatures?.length
+              shownFeatures?.length,
             )}
             sectionBsStyle={FilterStyle}
             sectionContent={

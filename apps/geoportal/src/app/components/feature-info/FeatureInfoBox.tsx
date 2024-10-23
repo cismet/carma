@@ -44,7 +44,7 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
     if (pos && selectedFeature) {
       const updatedLinks = updateUrlWithCoordinates(
         selectedFeature.properties.genericLinks,
-        pos
+        pos,
       );
 
       const updatedFeature = {
@@ -80,7 +80,7 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
                 [coordinates[1], coordinates[0]],
                 selectedFeature.properties.zoom
                   ? selectedFeature.properties.zoom
-                  : 20
+                  : 20,
               );
             }
           } else {

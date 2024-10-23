@@ -1,27 +1,27 @@
-import { useWindowSize } from "@react-hook/window-size";
-import localforage from "localforage";
-import { useEffect, useRef, useState } from "react";
-import { Button, Form, Modal } from "react-bootstrap";
-import IconComp from "react-cismap/commons/Icon";
-import { useDispatch, useSelector } from "react-redux";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useWindowSize } from '@react-hook/window-size';
+import localforage from 'localforage';
+import { useEffect, useRef, useState } from 'react';
+import { Button, Form, Modal } from 'react-bootstrap';
+import IconComp from 'react-cismap/commons/Icon';
+import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate, useLocation } from 'react-router-dom';
 
-import { DOMAIN, REST_SERVICE } from "../../constants/belis";
-import { CONNECTIONMODE, setConnectionMode } from "../../core/store/slices/app";
+import { DOMAIN, REST_SERVICE } from '../../constants/belis';
+import { CONNECTIONMODE, setConnectionMode } from '../../core/store/slices/app';
 import {
   getLogin,
   setLoginRequested,
   storeJWT,
   storeLogin,
-} from "../../core/store/slices/auth";
-import { isCacheFullUsable } from "../../core/store/slices/cacheControl";
-import { forceRefresh } from "../../core/store/slices/featureCollection";
-import { HEALTHSTATUS, setHealthState } from "../../core/store/slices/health";
+} from '../../core/store/slices/auth';
+import { isCacheFullUsable } from '../../core/store/slices/cacheControl';
+import { forceRefresh } from '../../core/store/slices/featureCollection';
+import { HEALTHSTATUS, setHealthState } from '../../core/store/slices/health';
 
 const LoginForm = ({
   setJWT = (jwt) => {
     console.log(
-      "you need to set the attribute setJWT in the <Login> component",
+      'you need to set the attribute setJWT in the <Login> component',
       jwt
     );
   },
@@ -41,20 +41,20 @@ const LoginForm = ({
 
   const _height = windowHeight || 800 - 180;
   const modalBodyStyle = {
-    overflowY: "auto",
-    overflowX: "hidden",
+    overflowY: 'auto',
+    overflowX: 'hidden',
     maxHeight: _height,
   };
 
-  const productionMode = process.env.NODE_ENV === "production";
+  const productionMode = process.env.NODE_ENV === 'production';
 
   useEffect(() => {
     (async () => {
       try {
         if (!productionMode) {
-          const result = await fetch("devSecrets.json");
+          const result = await fetch('devSecrets.json');
           const cheats = await result.json();
-          console.log("devSecrets.json found");
+          console.log('devSecrets.json found');
           if (cheats.cheatingUser) {
             setUser(cheats.cheatingUser);
           }
@@ -63,13 +63,13 @@ const LoginForm = ({
           }
         }
       } catch (e) {
-        console.log("no devSecrets.json found");
+        console.log('no devSecrets.json found');
       }
     })();
   }, [productionMode]);
 
   const [user, _setUser] = useState(storedLogin);
-  const [pw, setPw] = useState("");
+  const [pw, setPw] = useState('');
 
   window.localforage = localforage;
   const setUser = (user) => {
@@ -80,11 +80,11 @@ const LoginForm = ({
 
   /*eslint no-useless-concat: "off"*/
   const login = () => {
-    fetch(REST_SERVICE + "/users", {
-      method: "GET",
+    fetch(REST_SERVICE + '/users', {
+      method: 'GET',
       headers: {
-        Authorization: "Basic " + btoa(user + "@" + DOMAIN + ":" + pw),
-        "Content-Type": "application/json",
+        Authorization: 'Basic ' + btoa(user + '@' + DOMAIN + ':' + pw),
+        'Content-Type': 'application/json',
       },
     })
       .then(function (response) {
@@ -92,8 +92,8 @@ const LoginForm = ({
           response.json().then(function (responseWithJWT) {
             const jwt = responseWithJWT.jwt;
             setLoginInfo({
-              color: "#79BD9A",
-              text: "Anmeldung erfolgreich. Daten werden geladen.",
+              color: '#79BD9A',
+              text: 'Anmeldung erfolgreich. Daten werden geladen.',
             });
             setTimeout(() => {
               dispatch(storeJWT(jwt));
@@ -108,8 +108,8 @@ const LoginForm = ({
           });
         } else {
           setLoginInfo({
-            color: "#FF8048",
-            text: "Bei der Anmeldung ist ein Fehler aufgetreten. ",
+            color: '#FF8048',
+            text: 'Bei der Anmeldung ist ein Fehler aufgetreten. ',
           });
           setTimeout(() => {
             setLoginInfo();
@@ -118,8 +118,8 @@ const LoginForm = ({
       })
       .catch(function (err) {
         setLoginInfo({
-          color: "#FF3030",
-          text: "Bei der Anmeldung ist ein Fehler aufgetreten.",
+          color: '#FF3030',
+          text: 'Bei der Anmeldung ist ein Fehler aufgetreten.',
         });
         setTimeout(() => {
           setLoginInfo();
@@ -142,7 +142,7 @@ const LoginForm = ({
         <Modal.Title>
           <div>
             <div>
-              <IconComp name={"user"} /> Anmeldung
+              <IconComp name={'user'} /> Anmeldung
             </div>
           </div>
         </Modal.Title>
@@ -162,7 +162,7 @@ const LoginForm = ({
                 setUser(e.target.value);
               }}
               onKeyPress={(event) => {
-                if (event.key === "Enter") {
+                if (event.key === 'Enter') {
                   // login();
                   if (pwFieldRef.current) {
                     pwFieldRef.current.focus();
@@ -187,7 +187,7 @@ const LoginForm = ({
               type="password"
               placeholder="Password"
               onKeyPress={(event) => {
-                if (event.key === "Enter") {
+                if (event.key === 'Enter') {
                   login();
                 }
               }}
@@ -195,18 +195,18 @@ const LoginForm = ({
           </Form.Group>
           <div
             style={{
-              width: "100%",
-              display: "flex",
-              alignItems: "baseline",
-              flexDirection: "row",
-              justifyContent: "space-between",
+              width: '100%',
+              display: 'flex',
+              alignItems: 'baseline',
+              flexDirection: 'row',
+              justifyContent: 'space-between',
             }}
           >
             {loginInfo?.text && (
               <div
                 style={{
                   margin: 10,
-                  color: loginInfo?.color || "black",
+                  color: loginInfo?.color || 'black',
                   maxWidth: 200,
                 }}
               >
@@ -219,8 +219,8 @@ const LoginForm = ({
                 <Button
                   onClick={(e) => {
                     setLoginInfo({
-                      color: "#79BD9A",
-                      text: "Alte Daten werden aus dem Cache übernommen. Es werden keine Bilder angezeigt.",
+                      color: '#79BD9A',
+                      text: 'Alte Daten werden aus dem Cache übernommen. Es werden keine Bilder angezeigt.',
                     }); //set tmp. login info in the login dialogue
                     setTimeout(() => {
                       dispatch(setConnectionMode(CONNECTIONMODE.FROMCACHE));
@@ -238,11 +238,11 @@ const LoginForm = ({
                 <Button
                   onClick={(e) => {
                     setLoginInfo({
-                      color: "#79BD9A",
-                      text: "Sie werden zur Anmeldeseite weitergeleitet.",
+                      color: '#79BD9A',
+                      text: 'Sie werden zur Anmeldeseite weitergeleitet.',
                     }); //set tmp. login info in the login dialogue
                     setTimeout(() => {
-                      navigate("/" + browserlocation.search);
+                      navigate('/' + browserlocation.search);
                     }, 500);
                   }}
                   style={{ margin: 5, marginTop: 30 }}

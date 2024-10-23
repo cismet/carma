@@ -22,7 +22,7 @@ export const useLogCesiumRenderIn2D = () => {
           "[CESIUM|2D3D] Cesium got rendered while in 2D mode",
           isAnimatingRef.current,
           transitionRef.current,
-          isMode2d
+          isMode2d,
         );
       }
     };

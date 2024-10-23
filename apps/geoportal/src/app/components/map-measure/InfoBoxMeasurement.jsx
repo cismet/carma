@@ -90,7 +90,7 @@ const InfoBoxMeasurement = () => {
     setCurrentMeasure(positionInArr);
 
     let checkIfActiveShapeIsVisible = visibleShapesData.some(
-      (m) => m.shapeId === activeShape
+      (m) => m.shapeId === activeShape,
     );
 
     const checkOldAndNewMeasurementLength =
@@ -199,13 +199,13 @@ const InfoBoxMeasurement = () => {
                     visibleShapesData[currentMeasure]?.area
                   }
                   order={getOrderOfShape(
-                    visibleShapesData[currentMeasure].shapeId
+                    visibleShapesData[currentMeasure].shapeId,
                   )}
                   title={
                     visibleShapesData[currentMeasure]?.customTitle
                       ? visibleShapesData[currentMeasure]?.customTitle
                       : addDefaultShapeNameToTitle(
-                          visibleShapesData[currentMeasure]
+                          visibleShapesData[currentMeasure],
                         )
                   }
                   shapeId={visibleShapesData[currentMeasure].shapeId}
@@ -224,7 +224,7 @@ const InfoBoxMeasurement = () => {
                   name="search-location"
                   onClick={() => {
                     dispatch(
-                      setMoveToShape(visibleShapesData[currentMeasure].shapeId)
+                      setMoveToShape(visibleShapesData[currentMeasure].shapeId),
                     );
                     cleanUpdateMeasurementStatus();
                   }}

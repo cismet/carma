@@ -51,11 +51,11 @@ const Menu = ({ previewFeatureCollectionProps }) => {
     itemsDictionary,
   } = useContext(FeatureCollectionContext);
   const { setFilterState, setFilterMode } = useContext(
-    FeatureCollectionDispatchContext
+    FeatureCollectionDispatchContext,
   );
 
   const { setAdditionalStylingInfo } = useContext(
-    TopicMapStylingDispatchContext
+    TopicMapStylingDispatchContext,
   );
 
   const { items } = useContext(FeatureCollectionContext);
@@ -82,7 +82,7 @@ const Menu = ({ previewFeatureCollectionProps }) => {
       previewFeatureCollectionDisplayProps.style =
         previewFeatureCollectionProps.styler(
           markerSymbolSize,
-          getColorForProperties
+          getColorForProperties,
         );
     }
   }
@@ -124,7 +124,7 @@ const Menu = ({ previewFeatureCollectionProps }) => {
             sectionKey="filter"
             sectionTitle={getFilterHeader(
               filteredItems?.length,
-              shownFeatures?.length
+              shownFeatures?.length,
             )}
             sectionBsStyle={FilterStyle}
             sectionContent={<FilterUI />}
@@ -160,8 +160,8 @@ const Menu = ({ previewFeatureCollectionProps }) => {
                     });
                     dispatch(
                       setFeatureRenderingOption(
-                        kitasConstants.FEATURE_RENDERING_BY_TRAEGERTYP
-                      )
+                        kitasConstants.FEATURE_RENDERING_BY_TRAEGERTYP,
+                      ),
                     );
                   }}
                   checked={
@@ -185,8 +185,8 @@ const Menu = ({ previewFeatureCollectionProps }) => {
 
                     dispatch(
                       setFeatureRenderingOption(
-                        kitasConstants.FEATURE_RENDERING_BY_PROFIL
-                      )
+                        kitasConstants.FEATURE_RENDERING_BY_PROFIL,
+                      ),
                     );
                   }}
                   checked={

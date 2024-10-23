@@ -39,16 +39,16 @@ const getGazData = async (setGazData) => {
 
   sources.adressen = await md5FetchText(
     prefix,
-    dataHost + "/data/adressen.json"
+    dataHost + "/data/adressen.json",
   );
   sources.bezirke = await md5FetchText(prefix, dataHost + "/data/bezirke.json");
   sources.quartiere = await md5FetchText(
     prefix,
-    dataHost + "/data/quartiere.json"
+    dataHost + "/data/quartiere.json",
   );
   sources.bpklimastandorte = await md5FetchText(
     prefix,
-    dataHost + "/data/bpklimastandorte.json"
+    dataHost + "/data/bpklimastandorte.json",
   );
 
   const gazData = getGazDataForTopicIds(sources, [
@@ -63,7 +63,7 @@ const getGazData = async (setGazData) => {
 
 function KlimaorteMap() {
   const { setSelectedFeatureByPredicate } = useContext(
-    FeatureCollectionDispatchContext
+    FeatureCollectionDispatchContext,
   );
   const lightBoxDispatchContext = useContext(LightBoxDispatchContext);
   const {
@@ -190,7 +190,7 @@ function KlimaorteMap() {
           (testItem) =>
             testItem.typ === "ort" &&
             testItem?.standort.id === angebot?.standort?.id &&
-            testItem.id !== angebot.id
+            testItem.id !== angebot.id,
         );
         moreDataAvailable =
           weitereAngebote.length > 0 ||
@@ -207,7 +207,7 @@ function KlimaorteMap() {
   }
 
   const linkProduction = new URLSearchParams(history.location.search).get(
-    "linkProduction"
+    "linkProduction",
   );
   const linkProductionEnabled = linkProduction != null;
 
@@ -230,7 +230,7 @@ function KlimaorteMap() {
         rel="noreferrer"
       >
         π
-      </a>
+      </a>,
     );
   }
   // console.log("appMOde", appMode);
@@ -244,7 +244,7 @@ function KlimaorteMap() {
   } else {
     iconCreateFunction = getClusterIconCreatorFunction(
       30,
-      (props) => props.color
+      (props) => props.color,
     );
   }
 

@@ -86,7 +86,7 @@ export const onClickTopicMap = async (
     target: HTMLElement;
     type: string;
   },
-  { dispatch, mode, setPos, store, zoom }: Options
+  { dispatch, mode, setPos, store, zoom }: Options,
 ) => {
   const layers = getLayers(store.getState());
   const queryableLayers = getQueryableLayers(layers, zoom);
@@ -106,11 +106,11 @@ export const onClickTopicMap = async (
     const pos = proj4(
       proj4.defs("EPSG:4326") as unknown as string,
       proj4crs25832def,
-      [e.latlng.lng, e.latlng.lat]
+      [e.latlng.lng, e.latlng.lat],
     );
 
     const vectorLayers = queryableLayers.filter(
-      (layer) => layer.layerType === "vector"
+      (layer) => layer.layerType === "vector",
     );
 
     if (vectorLayers.length === nothingFoundIDs.length) {
@@ -152,7 +152,7 @@ export const onClickTopicMap = async (
       const result = await Promise.all(
         queryableLayers.map(async (testLayer) => {
           const vectorInfoIndex = vectorInfos.findIndex(
-            (vi) => vi.id === testLayer.id
+            (vi) => vi.id === testLayer.id,
           );
           const results = vectorInfos.filter((vi) => vi.id === testLayer.id);
           if (testLayer.layerType === "vector" && results.length === 0) {
@@ -169,7 +169,7 @@ export const onClickTopicMap = async (
           if (feature) {
             return feature;
           }
-        })
+        }),
       );
 
       const filteredResult = result
@@ -188,22 +188,22 @@ export const onClickTopicMap = async (
       } else {
         if (preferredLayerId) {
           const preferredLayerIndex = filteredResult.findIndex(
-            (feature) => feature.id === preferredLayerId
+            (feature) => feature.id === preferredLayerId,
           );
 
           if (preferredLayerIndex !== -1) {
             filteredResult.splice(
               0,
               0,
-              ...filteredResult.splice(preferredLayerIndex, 1)
+              ...filteredResult.splice(preferredLayerIndex, 1),
             );
           }
         }
         dispatch(setSelectedFeature(filteredResult[0]));
         dispatch(
           setSecondaryInfoBoxElements(
-            filteredResult.slice(1, filteredResult.length)
-          )
+            filteredResult.slice(1, filteredResult.length),
+          ),
         );
         dispatch(setFeatures(filteredResult));
         dispatch(clearVectorInfos());
@@ -214,7 +214,7 @@ export const onClickTopicMap = async (
 
 const checkIfLayerIsFirst = (layer: Layer, layers: Layer[]) => {
   const firstVectorLayerIndex = layers.findIndex(
-    (l) => l.layerType === "vector"
+    (l) => l.layerType === "vector",
   );
   return layers.findIndex((l) => l.id === layer.id) === firstVectorLayerIndex;
 };
@@ -235,7 +235,7 @@ const onSelectionChangedVector = (
     hits: any[];
     hit: any;
   },
-  { layer, layers, dispatch, setPos, zoom }
+  { layer, layers, dispatch, setPos, zoom },
 ) => {
   if (e.hits && layer.queryable) {
     const selectedVectorFeature = e.hits[0];
@@ -245,7 +245,7 @@ const onSelectionChangedVector = (
     const vectorPos = proj4(
       proj4.defs("EPSG:4326") as unknown as string,
       proj4crs25832def,
-      coordinates
+      coordinates,
     );
 
     const minimalBoxSize = 1;
@@ -335,7 +335,7 @@ export const createCismapLayers = (
     dispatch: Dispatch;
     setPos: (pos: [number, number] | null) => void;
     zoom: number;
-  }
+  },
 ) =>
   layers.map((layer, i) => {
     if (layer.visible) {

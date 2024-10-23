@@ -39,7 +39,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
             style={{ color: "grey", width: "26px", textAlign: "center" }}
             size="2x"
           />
-        </a>
+        </a>,
       );
     }
     if (ladestation?.betreiber?.email || ladestation.email) {
@@ -57,7 +57,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
             style={{ color: "grey", width: "26px", textAlign: "center" }}
             size="2x"
           />
-        </a>
+        </a>,
       );
     }
     if (ladestation?.betreiber?.web) {
@@ -72,7 +72,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
             style={{ color: "grey", width: "26px", textAlign: "center" }}
             size="2x"
           />
-        </a>
+        </a>,
       );
     }
   } else {
@@ -84,7 +84,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
             style={{ color: "grey", width: "26px", textAlign: "center" }}
             size="2x"
           />
-        </a>
+        </a>,
       );
     }
 
@@ -100,7 +100,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
             style={{ color: "grey", width: "26px", textAlign: "center" }}
             size="2x"
           />
-        </a>
+        </a>,
       );
     }
 
@@ -116,7 +116,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
             style={{ color: "grey", width: "26px", textAlign: "center" }}
             size="2x"
           />
-        </a>
+        </a>,
       );
     }
   }

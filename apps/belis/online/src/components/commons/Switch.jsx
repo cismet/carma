@@ -19,7 +19,7 @@ const Comp = (props) => {
             change();
             e.stopPropagation();
           }}
-          className="text-primary"
+          className='text-primary'
           style={{ verticalAlign: "middle", marginRight: 5 }}
         >
           {props.preLabel}

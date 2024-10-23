@@ -1,4 +1,4 @@
-import { LOOKUP } from "./constants";
+import { LOOKUP } from './constants';
 const factory = ({ featureCollectionContext }) => {
   const getThemaById = (id) => {
     const result = featureCollectionContext?.items?.find(
@@ -7,11 +7,11 @@ const factory = ({ featureCollectionContext }) => {
     return result?.thema?.name;
   };
   console.log(
-    "featureCollectionContext?.filterState?",
+    'featureCollectionContext?.filterState?',
     featureCollectionContext?.filterState
   );
   const stationsArten = [...featureCollectionContext?.filterState?.stations];
-  let filterDescription = "?";
+  let filterDescription = '?';
   if (stationsArten.length === 5) {
     filterDescription = undefined;
   } else if (featureCollectionContext?.filteredItems?.length === 0) {
@@ -20,27 +20,27 @@ const factory = ({ featureCollectionContext }) => {
     stationsArten.sort();
 
     stationsArten.sort((a, b) => {
-      if (a < b || a === "inaktiv") {
+      if (a < b || a === 'inaktiv') {
         return -1;
       }
-      if (a > b || b === "inaktiv") {
+      if (a > b || b === 'inaktiv') {
         return 1;
       }
       // a muss gleich b sein
       return 0;
     });
-    console.log("yyy stationsArten", stationsArten);
+    console.log('yyy stationsArten', stationsArten);
 
     if (
-      stationsArten.includes("unauffaellig") &&
-      stationsArten.includes("auffaellig") &&
-      stationsArten.includes("warnend") &&
-      stationsArten.includes("inaktiv")
+      stationsArten.includes('unauffaellig') &&
+      stationsArten.includes('auffaellig') &&
+      stationsArten.includes('warnend') &&
+      stationsArten.includes('inaktiv')
     ) {
-      filterDescription = "nur aktive Messstationen";
+      filterDescription = 'nur aktive Messstationen';
     } else if (
       stationsArten.length === 1 &&
-      !stationsArten.includes("inaktiv")
+      !stationsArten.includes('inaktiv')
     ) {
       filterDescription = `nur ${
         LOOKUP[stationsArten[0]].filterTitle
@@ -57,7 +57,7 @@ const factory = ({ featureCollectionContext }) => {
 
       filterDescription = `nur ${parts
         .slice(0, parts.length - 1)
-        .join(", ")} und ${parts[parts.length - 1]} Messstationen`;
+        .join(', ')} und ${parts[parts.length - 1]} Messstationen`;
     }
   }
 

@@ -12,37 +12,37 @@ import { pickViewerCanvasCenter } from "../utils/cesiumHelpers";
 
 const useCameraPitchSoftLimiter = (
   minPitchDeg = 20,
-  resetPitchOffsetDeg = 5
+  resetPitchOffsetDeg = 5,
 ) => {
   const { viewer } = useCesiumContext();
   const dispatch = useDispatch();
   const isMode2d = useSelector(selectViewerIsMode2d);
   const collisions = useSelector(
-    selectScreenSpaceCameraControllerEnableCollisionDetection
+    selectScreenSpaceCameraControllerEnableCollisionDetection,
   );
   const resetPitchRad = CesiumMath.toRadians(
-    -(minPitchDeg + resetPitchOffsetDeg)
+    -(minPitchDeg + resetPitchOffsetDeg),
   );
   const minPitchRad = CesiumMath.toRadians(-minPitchDeg);
 
   useEffect(() => {
     if (viewer && !isMode2d && collisions) {
       console.log(
-        "HOOK [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to correct camera pitch"
+        "HOOK [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to correct camera pitch",
       );
       const moveEndListener = async () => {
         console.log(
           "HOOK [2D3D|CESIUM] Soft Pitch Limiter",
           viewer.camera.pitch,
           minPitchRad,
-          resetPitchRad
+          resetPitchRad,
         );
         const isPitchTooLow = collisions && viewer.camera.pitch > minPitchRad;
         if (isPitchTooLow) {
           console.log(
             "LISTENER HOOK [2D3D|CESIUM|CAMERA]: reset pitch soft",
             viewer.camera.pitch,
-            resetPitchRad
+            resetPitchRad,
           );
           // TODO Get CenterPos Lower from screen if distance is muliple of elevation. prevent pitch around distant point on horizon
           const centerPos = pickViewerCanvasCenter(viewer).scenePosition;
@@ -50,7 +50,7 @@ const useCameraPitchSoftLimiter = (
             dispatch(setIsAnimating(true));
             const distance = Cartesian3.distance(
               centerPos,
-              viewer.camera.position
+              viewer.camera.position,
             );
             viewer.camera.flyToBoundingSphere(
               new BoundingSphere(centerPos, distance),
@@ -62,7 +62,7 @@ const useCameraPitchSoftLimiter = (
                 },
                 duration: 1.5,
                 complete: () => dispatch(setIsAnimating(false)),
-              }
+              },
             );
           }
         }

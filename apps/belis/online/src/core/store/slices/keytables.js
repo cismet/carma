@@ -44,8 +44,7 @@ export const {
 //selectors
 export const getTeamsKT = (state) => state.keytables.teams;
 export const getLeuchtmittelKT = (state) => state.keytables.leuchtmittel;
-export const getRundsteuerempfaengerKT = (state) =>
-  state.keytables.rundsteuerempfaenger;
+export const getRundsteuerempfaengerKT = (state) => state.keytables.rundsteuerempfaenger;
 export const getLeuchtentypenKT = (state) => state.keytables.tkey_leuchtentyp;
 
 export const fillTeamsFromDexie = () => {

@@ -32,7 +32,7 @@ export const setupPrimaryStyle = ({
 
     const invertedSelection = getGroundPrimitiveById(
       viewer,
-      INVERTED_SELECTED_POLYGON_ID
+      INVERTED_SELECTED_POLYGON_ID,
     );
     if (invertedSelection) {
       invertedSelection.classificationType = ClassificationType.CESIUM_3D_TILE;
@@ -73,7 +73,7 @@ export const setupSecondaryStyle = ({
 
     const invertedSelection = getGroundPrimitiveById(
       viewer,
-      INVERTED_SELECTED_POLYGON_ID
+      INVERTED_SELECTED_POLYGON_ID,
     );
     if (invertedSelection) {
       invertedSelection.classificationType = ClassificationType.BOTH;

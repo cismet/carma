@@ -1,28 +1,28 @@
-import { useNavigate } from "react-router-dom";
-import CustomCard from "../ui/Card";
-import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from 'react-router-dom';
+import CustomCard from '../ui/Card';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   getCrossReferences,
   getIsLoadingCrossReferences,
   getKassenzeichen,
   setIsLoading,
-} from "../../store/slices/search";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faSpinner } from "@fortawesome/free-solid-svg-icons";
+} from '../../store/slices/search';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faSpinner } from '@fortawesome/free-solid-svg-icons';
 
 const mockExtractor = (input) => {
   return [
     {
       kassenzeichen: 68119510,
-      bez: "1",
+      bez: '1',
     },
     {
       kassenzeichen: 60055167,
-      bez: "A",
+      bez: 'A',
     },
     {
       kassenzeichen: 62803044,
-      bez: "3",
+      bez: '3',
     },
   ];
 };

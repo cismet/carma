@@ -1,12 +1,12 @@
-import { addSVGToProps } from "react-cismap/tools/svgHelper";
-import Color from "color";
-import { getColorForProperties } from "./styler";
+import { addSVGToProps } from 'react-cismap/tools/svgHelper';
+import Color from 'color';
+import { getColorForProperties } from './styler';
 
 const getSignature = (properties) => {
   if (properties.signatur) {
     return properties.signatur;
   } else {
-    return "Icon_Freibad_farbig.svg";
+    return 'Icon_Freibad_farbig.svg';
   }
 };
 
@@ -26,7 +26,7 @@ const convertItemToFeature = async (itemIn, poiColors) => {
 
   item.color = headerColor;
   const id = item.id;
-  const type = "Feature";
+  const type = 'Feature';
   const selected = false;
   const geometry = item.geojson;
   const text = item.name;
@@ -38,9 +38,9 @@ const convertItemToFeature = async (itemIn, poiColors) => {
     selected,
     geometry,
     crs: {
-      type: "name",
+      type: 'name',
       properties: {
-        name: "urn:ogc:def:crs:EPSG::25832",
+        name: 'urn:ogc:def:crs:EPSG::25832',
       },
     },
     properties: item,

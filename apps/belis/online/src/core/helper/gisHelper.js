@@ -35,10 +35,7 @@ export function convertBoundingBox(
 ) {
   if (bbox) {
     const [left, top] = proj4(refDefIn, refDefOut, [bbox.left, bbox.top]);
-    const [right, bottom] = proj4(refDefIn, refDefOut, [
-      bbox.right,
-      bbox.bottom,
-    ]);
+    const [right, bottom] = proj4(refDefIn, refDefOut, [bbox.right, bbox.bottom]);
     return { left, top, right, bottom };
   }
 }

@@ -56,8 +56,7 @@ const leuchteMitAllenAttributen = {
         dms_url: {
           description: "test",
           url: {
-            object_name:
-              "upload.from.ios.for.tdta_leuchten.33539-1613466436887.jpg",
+            object_name: "upload.from.ios.for.tdta_leuchten.33539-1613466436887.jpg",
             url_base: {
               path: "/belis/",
               prot_prefix: "http://",
@@ -229,18 +228,8 @@ const leuchteMitAllenAttributen = {
 
 export const LeuchtenInfoBreitGross = () => {
   return (
-    <div
-      style={{
-        margin: 50,
-        backgroundColor: "#aaaaaa",
-        width: "1112px",
-        height: "834px",
-      }}
-    >
-      <InfoPanelComponent
-        selectedFeature={leuchteMitAllenAttributen}
-        dispatch={() => {}}
-      />
+    <div style={{ margin: 50, backgroundColor: "#aaaaaa", width: "1112px", height: "834px" }}>
+      <InfoPanelComponent selectedFeature={leuchteMitAllenAttributen} dispatch={() => {}} />
       sss
     </div>
   );

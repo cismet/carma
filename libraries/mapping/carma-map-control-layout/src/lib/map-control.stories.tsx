@@ -1,7 +1,7 @@
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from '@storybook/react';
 // import { MapControl } from './map-control';
-import Control from "./components/Control";
-import Main from "./components/Main";
+import Control from './components/Control';
+import Main from './components/Main';
 import {
   HomeOutlined,
   LoadingOutlined,
@@ -14,15 +14,15 @@ import {
   ExclamationCircleOutlined,
   MenuOutlined,
   FilterOutlined,
-} from "@ant-design/icons";
-import { Excalidraw } from "@excalidraw/excalidraw";
-import MapExample from "./components/MapExample.jsx";
-import { useState } from "react";
-import ControlLayout from "./map-control";
+} from '@ant-design/icons';
+import { Excalidraw } from '@excalidraw/excalidraw';
+import MapExample from './components/MapExample.jsx';
+import { useState } from 'react';
+import ControlLayout from './map-control';
 
 const meta: Meta<typeof ControlLayout> = {
   component: ControlLayout,
-  title: "MapControl",
+  title: 'MapControl',
 };
 export default meta;
 type Story = StoryObj<typeof ControlLayout>;
@@ -67,7 +67,7 @@ export const SimleExample = () => {
         <LoadingOutlined />
       </Control>
       <Main>
-        <div style={{ height: "100%", width: "100%" }}>
+        <div style={{ height: '100%', width: '100%' }}>
           <Excalidraw />
         </div>
       </Main>
@@ -83,7 +83,7 @@ export const LeafletExample = () => {
         <FilterOutlined onClick={() => setFireLocation(!fireLocation)} />
       </Control>
       <Main>
-        <div style={{ height: "100%", width: "100%" }}>
+        <div style={{ height: '100%', width: '100%' }}>
           <MapExample startLocate={fireLocation} />
         </div>
       </Main>

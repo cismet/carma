@@ -1,8 +1,4 @@
-import {
-  faBullseye,
-  faGlassMartini,
-  faGripLinesVertical,
-} from "@fortawesome/free-solid-svg-icons";
+import { faBullseye, faGlassMartini, faGripLinesVertical } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Timeline } from "antd";
 import IconLink from "react-cismap/commons/IconLink";
@@ -64,9 +60,7 @@ export const sortAndFilterEvents = (events) => {
 export const convertToProperUpperLowerCase = (string) => {
   let result = string;
   if (result) {
-    result = convertStringArrayToProperUpperLowerCase(result.split(" ")).join(
-      " "
-    );
+    result = convertStringArrayToProperUpperLowerCase(result.split(" ")).join(" ");
     // result = convertStringArrayToProperUpperLowerCase(result.split("-")).join("-");
     return result;
   }
@@ -116,14 +110,7 @@ export const getSquaredThumbnails = ({
     let url = addDotThumbnail(getWebDavUrl(jwt, doc));
     let index = docs.indexOf(doc);
     thumbnails.push(
-      <div
-        style={{
-          width: "75px",
-          height: "75px",
-          overflow: "hidden",
-          margin: "3px",
-        }}
-      >
+      <div style={{ width: "75px", height: "75px", overflow: "hidden", margin: "3px" }}>
         <img
           onClick={() => {
             if (openLightBox) {
@@ -131,16 +118,14 @@ export const getSquaredThumbnails = ({
               setVisible(true);
             }
           }}
-          alt=""
+          alt=''
           style={{ width: "100%", height: "100%", objectFit: "cover" }}
           src={url}
         />
       </div>
     );
   }
-  return (
-    <div style={{ display: "flex", flexDirection: "row" }}>{thumbnails}</div>
-  );
+  return <div style={{ display: "flex", flexDirection: "row" }}>{thumbnails}</div>;
 };
 
 export const collectEvents = (item, eventPath) => {};
@@ -160,12 +145,7 @@ export const getTimelineForActions = ({ actions }) => {
             dot = <FontAwesomeIcon icon={faGripLinesVertical} />;
             color = "black";
           } else if (action[2] === "L") {
-            dot = (
-              <FontAwesomeIcon
-                className="fa-rotate-180"
-                icon={faGlassMartini}
-              />
-            );
+            dot = <FontAwesomeIcon className='fa-rotate-180' icon={faGlassMartini} />;
             color = "blue";
           }
 
@@ -220,21 +200,12 @@ export const getTimelineForEvents = ({ events, includeToday = true }) => {
             dot = <FontAwesomeIcon icon={faGripLinesVertical} />;
             color = "black";
           } else if (event[2] === "L") {
-            dot = (
-              <FontAwesomeIcon
-                className="fa-rotate-180"
-                icon={faGlassMartini}
-              />
-            );
+            dot = <FontAwesomeIcon className='fa-rotate-180' icon={faGlassMartini} />;
             color = "blue";
           }
 
           return (
-            <Timeline.Item
-              color={color}
-              dot={dot}
-              label={getDate(event[1].replace(" ", "T"))}
-            >
+            <Timeline.Item color={color} dot={dot} label={getDate(event[1].replace(" ", "T"))}>
               {event[0]}
             </Timeline.Item>
           );

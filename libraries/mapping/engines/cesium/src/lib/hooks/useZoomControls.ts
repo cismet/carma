@@ -16,12 +16,12 @@ export function useZoomControls(moveRateFactor: number = MOVERATE_FACTOR) {
       const ellipsoid = scene.globe.ellipsoid;
 
       const cameraHeight = ellipsoid.cartesianToCartographic(
-        camera.position
+        camera.position,
       ).height;
       const moveRate = cameraHeight * moveRateFactor;
       camera.moveForward(moveRate);
     },
-    [viewer, moveRateFactor]
+    [viewer, moveRateFactor],
   );
 
   const handleZoomOut = useCallback(
@@ -33,12 +33,12 @@ export function useZoomControls(moveRateFactor: number = MOVERATE_FACTOR) {
       const ellipsoid = scene.globe.ellipsoid;
 
       const cameraHeight = ellipsoid.cartesianToCartographic(
-        camera.position
+        camera.position,
       ).height;
       const moveRate = cameraHeight * moveRateFactor;
       camera.moveBackward(moveRate);
     },
-    [viewer, moveRateFactor]
+    [viewer, moveRateFactor],
   );
 
   return { handleZoomIn, handleZoomOut };

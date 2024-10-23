@@ -141,11 +141,11 @@ export function CustomViewer(props: CustomViewerProps) {
     if (viewer && enableLocationHashUpdate && !isMode2d) {
       console.log(
         "HOOK: update Hash, route or style changed",
-        isSecondaryStyle
+        isSecondaryStyle,
       );
       replaceHashRoutedHistory(
         encodeScene(viewer, { isSecondaryStyle }),
-        location.pathname
+        location.pathname,
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -253,7 +253,7 @@ export function CustomViewer(props: CustomViewerProps) {
     // update hash hook
     if (viewer) {
       console.log(
-        "HOOK: [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to update hash"
+        "HOOK: [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to update hash",
       );
       const moveEndListener = async () => {
         // let TopicMap/leaflet handle the view change in 2d Mode
@@ -262,7 +262,7 @@ export function CustomViewer(props: CustomViewerProps) {
           console.log(
             "LISTENER: Cesium moveEndListener encode viewer to hash",
             isSecondaryStyle,
-            camDeg
+            camDeg,
           );
           const encodedScene = encodeScene(viewer, { isSecondaryStyle });
           replaceHashRoutedHistory(encodedScene, location.pathname);

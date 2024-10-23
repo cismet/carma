@@ -1,6 +1,6 @@
-import * as L from "@types/leaflet";
+import * as L from '@types/leaflet';
 
-declare module "leaflet" {
+declare module 'leaflet' {
   function setOptions(any, options: any): void;
   const divIcon: (options: any) => L.DivIcon;
   namespace Proj {
@@ -12,7 +12,7 @@ declare module "leaflet" {
       element: any,
       event: string,
       callback: any,
-      context?: any
+      context?: any,
     ): void;
   }
   namespace CRS {

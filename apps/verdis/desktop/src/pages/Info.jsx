@@ -1,46 +1,46 @@
-import React from "react";
-import Map from "../components/commons/Map";
-import InfoTable from "../components/info/InfoTable";
-import Chat from "../components/commons/Chat";
-import InfoBar from "../components/commons/InfoBar";
-import { useDispatch, useSelector } from "react-redux";
+import React from 'react';
+import Map from '../components/commons/Map';
+import InfoTable from '../components/info/InfoTable';
+import Chat from '../components/commons/Chat';
+import InfoBar from '../components/commons/InfoBar';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   getAlkisLandparcel,
   getKassenzeichen,
   searchForKassenzeichenWithPoint,
-} from "../store/slices/search";
+} from '../store/slices/search';
 
 import {
   alkisLandparcelExtractor,
   geometryExtractor,
   mappingExtractor,
-} from "../tools/extractors";
+} from '../tools/extractors';
 import {
   getBefreiungErlaubnisCollection,
   getFlaechenCollection,
   getFrontenCollection,
   getGeneralGeometryCollection,
-} from "../store/slices/mapping";
-import FeatureMapLayer from "../components/commons/FeatureMapLayer";
-import { convertLatLngToXY } from "../tools/mappingTools";
-import { useSearchParams } from "react-router-dom";
+} from '../store/slices/mapping';
+import FeatureMapLayer from '../components/commons/FeatureMapLayer';
+import { convertLatLngToXY } from '../tools/mappingTools';
+import { useSearchParams } from 'react-router-dom';
 
 const Page = ({
-  width = "100%",
-  height = "100%",
+  width = '100%',
+  height = '100%',
   inStory = false,
   showChat = false,
 }) => {
   let storyStyle = {};
   if (inStory) {
     storyStyle = {
-      borderStyle: "dotted",
-      borderWidth: "1px solid",
-      padding: "10px",
+      borderStyle: 'dotted',
+      borderWidth: '1px solid',
+      padding: '10px',
     };
   }
 
-  const cardStyle = { width: "100%", height: "100%", minHeight: 0 };
+  const cardStyle = { width: '100%', height: '100%', minHeight: 0 };
   const kassenzeichen = useSelector(getKassenzeichen);
   const alkisLandparcel = useSelector(getAlkisLandparcel);
   const flaechenArray = useSelector(getFlaechenCollection);
@@ -89,7 +89,7 @@ const Page = ({
               frontenArray,
               generalGeomArray,
               befreiungErlaubnisseArray,
-              shownFeatureTypes: ["general"],
+              shownFeatureTypes: ['general'],
               ondblclick: (event) => {
                 const xy = convertLatLngToXY(event.latlng);
                 dispatch(
@@ -104,16 +104,16 @@ const Page = ({
             }}
             extractor={mappingExtractor}
           >
-            <FeatureMapLayer featureTypes={["general"]} />
+            <FeatureMapLayer featureTypes={['general']} />
           </Map>
         </div>
       </div>
       {showChat && (
         <Chat
           style={{
-            position: "absolute",
-            bottom: "10px",
-            right: "10px",
+            position: 'absolute',
+            bottom: '10px',
+            right: '10px',
             zIndex: 99999,
           }}
           height={height * 0.45}

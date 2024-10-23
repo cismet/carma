@@ -1,32 +1,32 @@
-import { useWindowSize } from "@react-hook/window-size";
-import useComponentSize from "@rehooks/component-size";
-import useOnlineStatus from "@rehooks/online-status";
-import React, { useContext, useEffect, useRef, useState } from "react";
-import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
-import PhotoLightBox from "react-cismap/topicmaps/PhotoLightbox";
-import { useDispatch, useSelector } from "react-redux";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useWindowSize } from '@react-hook/window-size';
+import useComponentSize from '@rehooks/component-size';
+import useOnlineStatus from '@rehooks/online-status';
+import React, { useContext, useEffect, useRef, useState } from 'react';
+import { UIDispatchContext } from 'react-cismap/contexts/UIContextProvider';
+import PhotoLightBox from 'react-cismap/topicmaps/PhotoLightbox';
+import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate, useLocation } from 'react-router-dom';
 
-import LoginForm from "../components/app/LoginForm";
-import MapBlocker from "../components/app/MapBlocker";
-import Menu from "../components/app/menu/Menu";
-import { DB_VERSION } from "../constants/belis";
+import LoginForm from '../components/app/LoginForm';
+import MapBlocker from '../components/app/MapBlocker';
+import Menu from '../components/app/menu/Menu';
+import { DB_VERSION } from '../constants/belis';
 import {
   CONNECTIONMODE,
   getConnectionMode,
   getDialog,
-} from "../core/store/slices/app";
+} from '../core/store/slices/app';
 import {
   getJWT,
   getLoginFromJWT,
   isLoginRequested,
-} from "../core/store/slices/auth";
-import { storeJWT } from "../core/store/slices/auth";
+} from '../core/store/slices/auth';
+import { storeJWT } from '../core/store/slices/auth';
 import {
   renewCache,
   resetCacheInfoIfOneIsStillInLoadingState,
-} from "../core/store/slices/cacheControl";
-import { getWorker } from "../core/store/slices/dexie";
+} from '../core/store/slices/cacheControl';
+import { getWorker } from '../core/store/slices/dexie';
 import {
   getFeatureCollectionMode,
   getSelectedFeature,
@@ -34,29 +34,29 @@ import {
   loadTaskLists,
   MODES,
   setDone,
-} from "../core/store/slices/featureCollection";
-import { tasklistPostSelection } from "../core/store/slices/featureCollectionSubslices/tasklists";
+} from '../core/store/slices/featureCollection';
+import { tasklistPostSelection } from '../core/store/slices/featureCollectionSubslices/tasklists';
 import {
   doHealthCheck,
   getHealthState,
   HEALTHSTATUS,
-} from "../core/store/slices/health";
+} from '../core/store/slices/health';
 import {
   fillLeuchtentypenFromDexie,
   fillLeuchtmittelFromDexie,
   fillRundsteuerempfaengerFromDexie,
   fillTeamsFromDexie,
-} from "../core/store/slices/keytables";
+} from '../core/store/slices/keytables';
 import {
   initialize,
   reInitialize,
   resyncDb,
-} from "../core/store/slices/offlineActionDb";
-import { getTeam } from "../core/store/slices/team";
-import BelisMap from "./BelisMap";
-import BottomNavbar from "./BottomNavbar";
-import SideBar from "./SideBar";
-import TopNavbar from "./TopNavbar";
+} from '../core/store/slices/offlineActionDb';
+import { getTeam } from '../core/store/slices/team';
+import BelisMap from './BelisMap';
+import BottomNavbar from './BottomNavbar';
+import SideBar from './SideBar';
+import TopNavbar from './TopNavbar';
 
 //---
 
@@ -84,8 +84,8 @@ const View = () => {
   const mapStyle = {
     height: windowHeight - (sizeU.height || 58) - (sizeL.height || 48),
     width: windowWidth - (sizeSide.width || 300),
-    cursor: "pointer",
-    clear: "both",
+    cursor: 'pointer',
+    clear: 'both',
   };
   //
   //local state
@@ -113,9 +113,9 @@ const View = () => {
           e.preventDefault();
         }
       };
-      appRef.addEventListener("touchmove", blockingHandler);
+      appRef.addEventListener('touchmove', blockingHandler);
       return () => {
-        appRef.removeEventListener("touchmove", blockingHandler);
+        appRef.removeEventListener('touchmove', blockingHandler);
       };
     }
   }, [refApp]);
@@ -140,10 +140,10 @@ const View = () => {
         try {
           dispatch(resetCacheInfoIfOneIsStillInLoadingState());
           //Teams
-          const teams = await dexieW.getAll("team");
+          const teams = await dexieW.getAll('team');
           if (!teams || teams.length === 0) {
             dispatch(
-              renewCache("team", jwt, undefined, () => {
+              renewCache('team', jwt, undefined, () => {
                 dispatch(fillTeamsFromDexie());
               })
             );
@@ -152,10 +152,10 @@ const View = () => {
           }
 
           //tkey_leuchtentyp
-          const tkey_leuchtentyp = await dexieW.getAll("tkey_leuchtentyp");
+          const tkey_leuchtentyp = await dexieW.getAll('tkey_leuchtentyp');
           if (!tkey_leuchtentyp || tkey_leuchtentyp.length === 0) {
             dispatch(
-              renewCache("tkey_leuchtentyp", jwt, undefined, () => {
+              renewCache('tkey_leuchtentyp', jwt, undefined, () => {
                 dispatch(fillLeuchtentypenFromDexie());
               })
             );
@@ -164,11 +164,11 @@ const View = () => {
           }
           //rundsteuerempfaenger
           const rundsteuerempfaenger = await dexieW.getAll(
-            "rundsteuerempfaenger"
+            'rundsteuerempfaenger'
           );
           if (!rundsteuerempfaenger || rundsteuerempfaenger.length === 0) {
             dispatch(
-              renewCache("rundsteuerempfaenger", jwt, undefined, () => {
+              renewCache('rundsteuerempfaenger', jwt, undefined, () => {
                 dispatch(fillRundsteuerempfaengerFromDexie());
               })
             );
@@ -177,10 +177,10 @@ const View = () => {
           }
 
           //leuchtmittel
-          const leuchtmittel = await dexieW.getAll("leuchtmittel");
+          const leuchtmittel = await dexieW.getAll('leuchtmittel');
           if (!leuchtmittel || leuchtmittel.length === 0) {
             dispatch(
-              renewCache("leuchtmittel", jwt, undefined, () => {
+              renewCache('leuchtmittel', jwt, undefined, () => {
                 dispatch(fillLeuchtmittelFromDexie());
               })
             );
@@ -188,7 +188,7 @@ const View = () => {
             dispatch(fillLeuchtmittelFromDexie());
           }
         } catch (e) {
-          console.log("Error in fetching needed data from dexie", e);
+          console.log('Error in fetching needed data from dexie', e);
         }
       }
     })();
@@ -232,7 +232,7 @@ const View = () => {
   if (showLogin) {
     loginForm = (
       <LoginForm
-        key={"login."}
+        key={'login.'}
         setJWT={(jwt) => {
           dispatch(storeJWT(jwt));
         }}
@@ -245,20 +245,20 @@ const View = () => {
   }
 
   useEffect(() => {
-    if (browserlocation.search === "") {
+    if (browserlocation.search === '') {
       navigate(
         browserlocation.pathname +
-          "?lat=51.27185783523219&lng=7.200121618952836&zoom=19"
+          '?lat=51.27185783523219&lng=7.200121618952836&zoom=19'
       );
     }
   }, [browserlocation]);
 
   useEffect(() => {
     const login = getLoginFromJWT(jwt);
-    const loginLowerCase = (login || "").toLowerCase();
+    const loginLowerCase = (login || '').toLowerCase();
 
     if (storedJWT) {
-      if (window["db_" + DB_VERSION + "_" + loginLowerCase]) {
+      if (window['db_' + DB_VERSION + '_' + loginLowerCase]) {
         dispatch(reInitialize(storedJWT));
       } else {
         dispatch(initialize(storedJWT));

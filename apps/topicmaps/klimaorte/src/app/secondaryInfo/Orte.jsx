@@ -21,7 +21,7 @@ const InfoPanel = () => {
     (testItem) =>
       testItem.typ === "ort" &&
       testItem?.standort.id === item.standort?.id &&
-      testItem.id !== item.id
+      testItem.id !== item.id,
   );
   //data structure for "weitere Angebote"
   // gruppenwechsel for thema
@@ -141,7 +141,7 @@ const InfoPanel = () => {
           </table>
         </div>
         {/* <pre>{JSON.stringify(addOffers, null, 2)}</pre> */}
-      </SecondaryInfoPanelSection>
+      </SecondaryInfoPanelSection>,
     );
   }
 

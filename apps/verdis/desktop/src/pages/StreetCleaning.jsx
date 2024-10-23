@@ -1,55 +1,55 @@
-import React from "react";
-import Map from "../components/commons/Map";
-import Chat from "../components/commons/Chat";
-import LegalNotice from "../components/streetCleaning/LegalNotice";
-import Summary from "../components/overview/Summary";
+import React from 'react';
+import Map from '../components/commons/Map';
+import Chat from '../components/commons/Chat';
+import LegalNotice from '../components/streetCleaning/LegalNotice';
+import Summary from '../components/overview/Summary';
 import {
   frontsExtractor,
   mappingExtractor,
   summaryExtractor,
-} from "../tools/extractors";
-import TableCard from "../components/ui/TableCard";
-import { compare } from "../tools/helper";
-import SubNav from "../components/streetCleaning/SubNav";
-import { useDispatch, useSelector } from "react-redux";
+} from '../tools/extractors';
+import TableCard from '../components/ui/TableCard';
+import { compare } from '../tools/helper';
+import SubNav from '../components/streetCleaning/SubNav';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   getBefreiungErlaubnisCollection,
   getFlaechenCollection,
   getFrontenCollection,
   getGeneralGeometryCollection,
   setFrontenSelected,
-} from "../store/slices/mapping";
+} from '../store/slices/mapping';
 import {
   getFrontenId,
   getKassenzeichen,
   searchForKassenzeichenWithPoint,
   storeFront,
   storeFrontenId,
-} from "../store/slices/search";
-import FeatureMapLayer from "../components/commons/FeatureMapLayer";
-import { useFitBoundsIfUnlocked } from "../hooks/useFitBoundsIfUnlocked";
-import { useSearchParams } from "react-router-dom";
-import { convertLatLngToXY } from "../tools/mappingTools";
+} from '../store/slices/search';
+import FeatureMapLayer from '../components/commons/FeatureMapLayer';
+import { useFitBoundsIfUnlocked } from '../hooks/useFitBoundsIfUnlocked';
+import { useSearchParams } from 'react-router-dom';
+import { convertLatLngToXY } from '../tools/mappingTools';
 
 const Page = ({
-  width = "100%",
-  height = "100%",
+  width = '100%',
+  height = '100%',
   inStory = false,
   showChat = false,
 }) => {
   let storyStyle = {};
   if (inStory) {
     storyStyle = {
-      borderStyle: "dotted",
-      borderWidth: "1px solid",
-      padding: "10px",
+      borderStyle: 'dotted',
+      borderWidth: '1px solid',
+      padding: '10px',
     };
   }
-  const cardStyleFronts = { width: "100%", height: "100%", minHeight: 0 };
-  const cardStyleLegal = { width: "100%", height: "100%", minHeight: 0 };
+  const cardStyleFronts = { width: '100%', height: '100%', minHeight: 0 };
+  const cardStyleLegal = { width: '100%', height: '100%', minHeight: 0 };
   const cardStyleSummary = {
-    width: "100%",
-    height: "100%",
+    width: '100%',
+    height: '100%',
     minHeight: 0,
   };
   const dispatch = useDispatch();
@@ -81,22 +81,22 @@ const Page = ({
               title="Fronten"
               columns={[
                 {
-                  title: "Nummer",
-                  dataIndex: "nummer",
-                  key: "nummer",
+                  title: 'Nummer',
+                  dataIndex: 'nummer',
+                  key: 'nummer',
                   sorter: (a, b) => compare(a.nummer, b.nummer),
-                  defaultSortOrder: "ascend",
+                  defaultSortOrder: 'ascend',
                 },
                 {
-                  title: "Länge in m",
-                  dataIndex: "laengeGrafik",
-                  key: "laengeGrafik",
+                  title: 'Länge in m',
+                  dataIndex: 'laengeGrafik',
+                  key: 'laengeGrafik',
                   sorter: (a, b) => compare(a.laengeGrafik, b.laengeGrafik),
                 },
                 {
-                  title: "Klasse",
-                  dataIndex: "klasse",
-                  key: "klasse",
+                  title: 'Klasse',
+                  dataIndex: 'klasse',
+                  key: 'klasse',
                   sorter: (a, b) => compare(a.klasse, b.klasse),
                 },
               ]}
@@ -125,15 +125,15 @@ const Page = ({
           <Map
             shownIn="streetCleaning"
             key="streetCleaning.map"
-            width={"80%"}
-            height={"100%"}
+            width={'80%'}
+            height={'100%'}
             dataIn={{
               kassenzeichen,
               flaechenArray,
               frontenArray,
               generalGeomArray,
               befreiungErlaubnisseArray,
-              shownFeatureTypes: ["front"],
+              shownFeatureTypes: ['front'],
               ondblclick: (event) => {
                 const xy = convertLatLngToXY(event.latlng);
                 dispatch(
@@ -148,16 +148,16 @@ const Page = ({
             }}
             extractor={mappingExtractor}
           >
-            <FeatureMapLayer featureTypes={["front"]} />
+            <FeatureMapLayer featureTypes={['front']} />
           </Map>
         </div>
       </div>
       {showChat && (
         <Chat
           style={{
-            position: "absolute",
-            bottom: "10px",
-            right: "10px",
+            position: 'absolute',
+            bottom: '10px',
+            right: '10px',
             zIndex: 99999,
           }}
           height={height * 0.45}

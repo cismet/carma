@@ -39,7 +39,7 @@ const Map = () => {
     const pos = proj4(
       proj4.defs("EPSG:4326") as unknown as string,
       proj4crs25832def,
-      [event.latlng.lng, event.latlng.lat]
+      [event.latlng.lng, event.latlng.lat],
     );
 
     dispatch(
@@ -50,7 +50,7 @@ const Map = () => {
           setFeatures(hits);
           setSelectedIndex(0);
         },
-      }) as unknown as UnknownAction
+      }) as unknown as UnknownAction,
     );
   };
 
@@ -63,7 +63,7 @@ const Map = () => {
           setFeatures(hits);
           setSelectedIndex(0);
         },
-      }) as unknown as UnknownAction
+      }) as unknown as UnknownAction,
     );
   };
 
@@ -141,7 +141,7 @@ const Map = () => {
                 return;
               }
               map.fitBounds(bounds);
-            }) as unknown as UnknownAction
+            }) as unknown as UnknownAction,
           );
         }
       }}
