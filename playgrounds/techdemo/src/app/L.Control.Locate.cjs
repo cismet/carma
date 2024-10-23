@@ -5,6 +5,7 @@ This file is part of the leaflet locate control. It is licensed under the MIT li
 You can find the project at: https://github.com/domoritz/leaflet-locatecontrol
 */
 
+
 (function (factory, window) {
   // see https://github.com/Leaflet/Leaflet/blob/master/PLUGIN-GUIDE.md#module-loaders
   // for details on how to structure a leaflet plugin.
@@ -36,10 +37,8 @@ You can find the project at: https://github.com/domoritz/leaflet-locatecontrol
     });
   };
 
-  const addClasses = (el, names) =>
-    LDomUtilApplyClassesMethod("addClass", el, names);
-  const removeClasses = (el, names) =>
-    LDomUtilApplyClassesMethod("removeClass", el, names);
+  const addClasses = (el, names) => LDomUtilApplyClassesMethod("addClass", el, names);
+  const removeClasses = (el, names) => LDomUtilApplyClassesMethod("removeClass", el, names);
 
   /**
    * Compatible with L.Circle but a true marker instead of a path
@@ -296,26 +295,14 @@ You can find the project at: https://github.com/domoritz/leaflet-locatecontrol
        * This function should return an object with HtmlElement for the button (link property) and the icon (icon property).
        */
       createButtonCallback(container, options) {
-        const link = L.DomUtil.create(
-          "a",
-          "leaflet-bar-part leaflet-bar-part-single",
-          container,
-        );
+        const link = L.DomUtil.create("a", "leaflet-bar-part leaflet-bar-part-single", container);
         link.title = options.strings.title;
         link.role = "button";
         link.href = "#";
-        const icon = L.DomUtil.create(
-          options.iconElementTag,
-          options.icon,
-          link,
-        );
+        const icon = L.DomUtil.create(options.iconElementTag, options.icon, link);
 
         if (options.strings.text !== undefined) {
-          const text = L.DomUtil.create(
-            options.textElementTag,
-            "leaflet-locate-text",
-            link,
-          );
+          const text = L.DomUtil.create(options.textElementTag, "leaflet-locate-text", link);
           text.textContent = options.strings.text;
           link.classList.add("leaflet-locate-text-active");
           link.parentNode.style.display = "flex";
@@ -341,7 +328,7 @@ You can find the project at: https://github.com/domoritz/leaflet-locatecontrol
             navigator.geolocation.getCurrentPosition(onSuccess, onError, {
               enableHighAccuracy: true,
               timeout: 1000,
-            }),
+            })
           );
         } catch (e) {
           console.log("e e e", e);
@@ -364,8 +351,7 @@ You can find the project at: https://github.com/domoritz/leaflet-locatecontrol
         metersUnit: "meters",
         feetUnit: "feet",
         popup: "You are within {distance} {unit} from this point",
-        outsideMapBoundsMsg:
-          "You seem located outside the boundaries of the map",
+        outsideMapBoundsMsg: "You seem located outside the boundaries of the map",
       },
       /** The default options passed to leaflets locate method. */
       locateOptions: {
@@ -390,17 +376,17 @@ You can find the project at: https://github.com/domoritz/leaflet-locatecontrol
       this.options.followMarkerStyle = L.extend(
         {},
         this.options.markerStyle,
-        this.options.followMarkerStyle,
+        this.options.followMarkerStyle
       );
       this.options.followCircleStyle = L.extend(
         {},
         this.options.circleStyle,
-        this.options.followCircleStyle,
+        this.options.followCircleStyle
       );
       this.options.followCompassStyle = L.extend(
         {},
         this.options.compassStyle,
-        this.options.followCompassStyle,
+        this.options.followCompassStyle
       );
     },
 
@@ -410,7 +396,7 @@ You can find the project at: https://github.com/domoritz/leaflet-locatecontrol
     onAdd(map) {
       const container = L.DomUtil.create(
         "div",
-        "leaflet-control-locate leaflet-bar leaflet-control",
+        "leaflet-control-locate leaflet-bar leaflet-control"
       );
       this._container = container;
       this._map = map;
@@ -420,10 +406,7 @@ You can find the project at: https://github.com/domoritz/leaflet-locatecontrol
       this._compassHeading = null;
       this._prevBounds = null;
 
-      const linkAndIcon = this.options.createButtonCallback(
-        container,
-        this.options,
-      );
+      const linkAndIcon = this.options.createButtonCallback(container, this.options);
       this._link = linkAndIcon.link;
       this._icon = linkAndIcon.icon;
 
@@ -439,7 +422,7 @@ You can find the project at: https://github.com/domoritz/leaflet-locatecontrol
             this._onClick();
           }
         },
-        this,
+        this
       ).on(this._link, "dblclick", L.DomEvent.stopPropagation);
 
       this._resetVariables();
@@ -466,9 +449,7 @@ You can find the project at: https://github.com/domoritz/leaflet-locatecontrol
         const behaviors = this.options.clickBehavior;
         let behavior = behaviors.outOfView;
         if (this._map.getBounds().contains(this._event.latlng)) {
-          behavior = wasFollowing
-            ? behaviors.inView
-            : behaviors.inViewNotFollowing;
+          behavior = wasFollowing ? behaviors.inView : behaviors.inViewNotFollowing;
         }
 
         // Allow inheriting from another behavior
@@ -483,9 +464,7 @@ You can find the project at: https://github.com/domoritz/leaflet-locatecontrol
           case "stop":
             this.stop();
             if (this.options.returnToPrevBounds) {
-              const f = this.options.flyTo
-                ? this._map.flyToBounds
-                : this._map.fitBounds;
+              const f = this.options.flyTo ? this._map.flyToBounds : this._map.fitBounds;
               f.bind(this._map)(this._prevBounds);
             }
             break;
@@ -574,16 +553,14 @@ You can find the project at: https://github.com/domoritz/leaflet-locatecontrol
                 window,
                 oriAbs ? "deviceorientationabsolute" : "deviceorientation",
                 _this._onDeviceOrientation,
-                _this,
+                _this
               );
             };
             if (
               DeviceOrientationEvent &&
               typeof DeviceOrientationEvent.requestPermission === "function"
             ) {
-              DeviceOrientationEvent.requestPermission().then(function (
-                permissionState,
-              ) {
+              DeviceOrientationEvent.requestPermission().then(function (permissionState) {
                 if (permissionState === "granted") {
                   deviceorientation();
                 }
@@ -619,19 +596,9 @@ You can find the project at: https://github.com/domoritz/leaflet-locatecontrol
       if (this.options.showCompass) {
         this._compassHeading = null;
         if ("ondeviceorientationabsolute" in window) {
-          L.DomEvent.off(
-            window,
-            "deviceorientationabsolute",
-            this._onDeviceOrientation,
-            this,
-          );
+          L.DomEvent.off(window, "deviceorientationabsolute", this._onDeviceOrientation, this);
         } else if ("ondeviceorientation" in window) {
-          L.DomEvent.off(
-            window,
-            "deviceorientation",
-            this._onDeviceOrientation,
-            this,
-          );
+          L.DomEvent.off(window, "deviceorientation", this._onDeviceOrientation, this);
         }
       }
     },
@@ -649,22 +616,18 @@ You can find the project at: https://github.com/domoritz/leaflet-locatecontrol
           var f = this.options.flyTo ? this._map.flyTo : this._map.setView;
           f.bind(this._map)(
             [this._event.latitude, this._event.longitude],
-            this.options.initialZoomLevel,
+            this.options.initialZoomLevel
           );
         } else if (this.options.keepCurrentZoomLevel) {
           var f = this.options.flyTo ? this._map.flyTo : this._map.panTo;
           f.bind(this._map)([this._event.latitude, this._event.longitude]);
         } else {
-          var f = this.options.flyTo
-            ? this._map.flyToBounds
-            : this._map.fitBounds;
+          var f = this.options.flyTo ? this._map.flyToBounds : this._map.fitBounds;
           // Ignore zoom events while setting the viewport as these would stop following
           this._ignoreEvent = true;
           f.bind(this._map)(this.options.getLocationBounds(this._event), {
             padding: this.options.circlePadding,
-            maxZoom:
-              this.options.initialZoomLevel ||
-              this.options.locateOptions.maxZoom,
+            maxZoom: this.options.initialZoomLevel || this.options.locateOptions.maxZoom,
           });
           L.Util.requestAnimFrame(function () {
             // Wait until after the next animFrame because the flyTo can be async
@@ -689,11 +652,9 @@ You can find the project at: https://github.com/domoritz/leaflet-locatecontrol
           ? this.options.followCompassStyle
           : this.options.compassStyle;
         if (!this._compass) {
-          this._compass = new this.options.compassClass(
-            latlng,
-            this._compassHeading,
-            cStyle,
-          ).addTo(this._layer);
+          this._compass = new this.options.compassClass(latlng, this._compassHeading, cStyle).addTo(
+            this._layer
+          );
         } else {
           this._compass.setLatLng(latlng);
           this._compass.setHeading(this._compassHeading);
@@ -704,10 +665,7 @@ You can find the project at: https://github.com/domoritz/leaflet-locatecontrol
         }
         //
       }
-      if (
-        this._compass &&
-        (!this.options.showCompass || this._compassHeading === null)
-      ) {
+      if (this._compass && (!this.options.showCompass || this._compassHeading === null)) {
         this._compass.removeFrom(this._layer);
         this._compass = null;
       }
@@ -755,9 +713,7 @@ You can find the project at: https://github.com/domoritz/leaflet-locatecontrol
           ? this.options.followMarkerStyle
           : this.options.markerStyle;
         if (!this._marker) {
-          this._marker = new this.options.markerClass(latlng, mStyle).addTo(
-            this._layer,
-          );
+          this._marker = new this.options.markerClass(latlng, mStyle).addTo(this._layer);
         } else {
           this._marker.setLatLng(latlng);
           // If the markerClass can be updated with setStyle, update it.
@@ -941,10 +897,7 @@ You can find the project at: https://github.com/domoritz/leaflet-locatecontrol
 
       if (this._event && !this._ignoreEvent) {
         // If we have zoomed in and out and ended up sideways treat it as a pan
-        if (
-          this._marker &&
-          !this._map.getBounds().pad(-0.3).contains(this._marker.getLatLng())
-        ) {
+        if (this._marker && !this._map.getBounds().pad(-0.3).contains(this._marker.getLatLng())) {
           this._userPanned = true;
           this._updateContainerStyle();
           this._drawMarker();
@@ -977,8 +930,7 @@ You can find the project at: https://github.com/domoritz/leaflet-locatecontrol
         return false;
       }
       return (
-        this._map.options.maxBounds &&
-        !this._map.options.maxBounds.contains(this._event.latlng)
+        this._map.options.maxBounds && !this._map.options.maxBounds.contains(this._event.latlng)
       );
     },
 

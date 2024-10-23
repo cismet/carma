@@ -1,11 +1,11 @@
-import { useRef } from "react";
-import Icon from "react-cismap/commons/Icon";
-import type { Doc } from "../document-viewer";
-import { useNavigate, useParams } from "react-router-dom";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faFile } from "@fortawesome/free-regular-svg-icons";
-import { ProgressBar } from "react-bootstrap";
-import "bootstrap/dist/css/bootstrap.min.css";
+import { useRef } from 'react';
+import Icon from 'react-cismap/commons/Icon';
+import type { Doc } from '../document-viewer';
+import { useNavigate, useParams } from 'react-router-dom';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faFile } from '@fortawesome/free-regular-svg-icons';
+import { ProgressBar } from 'react-bootstrap';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 interface SidebarProps {
   docs: Doc[];
@@ -29,13 +29,13 @@ const Sidebar = ({
   const SIDEBAR_FILENAME_SHORTENER = {
     bplaene: (original: string) => {
       const ret = original
-        .replace(/.pdf$/, "")
-        .replace(/^BPL_n?a?\d*V?-?(A|B|C)*\d*_(0_)*/, "")
-        .replace(/Info_BPlan-Zusatzdokumente_WUP.*/, "Info Dateinamen");
+        .replace(/.pdf$/, '')
+        .replace(/^BPL_n?a?\d*V?-?(A|B|C)*\d*_(0_)*/, '')
+        .replace(/Info_BPlan-Zusatzdokumente_WUP.*/, 'Info Dateinamen');
       return ret;
     },
     aenderungsv: (original: string) => {
-      return original.replace(/.pdf$/, "").replace(/^FNP_n*\d*_\d*(And)*_/, "");
+      return original.replace(/.pdf$/, '').replace(/^FNP_n*\d*_\d*(And)*_/, '');
     },
   };
 
@@ -54,32 +54,32 @@ const Sidebar = ({
               key={`sidebarItem.${i}`}
               style={{
                 background: `${
-                  index - 1 === i ? "rgb(119, 119, 119)" : "#f5f5f5"
+                  index - 1 === i ? 'rgb(119, 119, 119)' : '#f5f5f5'
                 }`,
-                height: "100%",
+                height: '100%',
                 padding: 6,
-                marginBottom: "8px",
-                cursor: "pointer",
-                color: "#333",
+                marginBottom: '8px',
+                cursor: 'pointer',
+                color: '#333',
               }}
               onClick={() => navigate(`/docs/${docPackageId}/${i + 1}/1`)}
             >
               <div
                 style={{
-                  flexDirection: "column",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  display: "flex",
-                  gap: "6px",
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  display: 'flex',
+                  gap: '6px',
                 }}
               >
-                {doc.group === "Zusatzdokumente" ? (
+                {doc.group === 'Zusatzdokumente' ? (
                   <FontAwesomeIcon
                     icon={faFile}
-                    size={compactView ? "3x" : "1x"}
+                    size={compactView ? '3x' : '1x'}
                   />
                 ) : (
-                  <Icon name="file-pdf-o" size={compactView ? "3x" : "1x"} />
+                  <Icon name="file-pdf-o" size={compactView ? '3x' : '1x'} />
                 )}
 
                 <p
@@ -87,10 +87,10 @@ const Sidebar = ({
                     marginTop: 2,
                     marginBottom: 5,
                     fontSize: 11,
-                    wordWrap: "break-word",
-                    textWrap: "pretty",
-                    overflowWrap: "break-word",
-                    textAlign: "center",
+                    wordWrap: 'break-word',
+                    textWrap: 'pretty',
+                    overflowWrap: 'break-word',
+                    textAlign: 'center',
                   }}
                 >
                   <span>{doc.title || filenameShortener(doc.file)}</span>
@@ -99,8 +99,8 @@ const Sidebar = ({
                   <>
                     <ProgressBar
                       style={{
-                        height: "5px",
-                        width: "100%",
+                        height: '5px',
+                        width: '100%',
                         marginTop: 0,
                         marginBottom: 0,
                       }}

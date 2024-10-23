@@ -1,18 +1,18 @@
-import React, { useContext } from "react";
-import Icon from "react-cismap/commons/Icon";
-import CustomizationContextProvider from "react-cismap/contexts/CustomizationContextProvider";
-import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
-import ConfigurableDocBlocks from "react-cismap/topicmaps/ConfigurableDocBlocks";
-import GenericHelpTextForMyLocation from "react-cismap/topicmaps/docBlocks/GenericHelpTextForMyLocation";
-import DefaultSettingsPanel from "react-cismap/topicmaps/menu/DefaultSettingsPanel";
-import ModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
-import Section from "react-cismap/topicmaps/menu/Section";
-import LicenseLuftbildkarte from "react-cismap/topicmaps/wuppertal/LicenseLuftbildkarte";
-import LicenseStadtplanTagNacht from "react-cismap/topicmaps/wuppertal/LicenseStadtplanTagNacht";
-import { Link } from "react-scroll";
-import MenuFooter from "./MenuFooter";
-import { getBadSVG } from "./helper/helper";
-import { getColorForProperties } from "./helper/styler";
+import React, { useContext } from 'react';
+import Icon from 'react-cismap/commons/Icon';
+import CustomizationContextProvider from 'react-cismap/contexts/CustomizationContextProvider';
+import { UIDispatchContext } from 'react-cismap/contexts/UIContextProvider';
+import ConfigurableDocBlocks from 'react-cismap/topicmaps/ConfigurableDocBlocks';
+import GenericHelpTextForMyLocation from 'react-cismap/topicmaps/docBlocks/GenericHelpTextForMyLocation';
+import DefaultSettingsPanel from 'react-cismap/topicmaps/menu/DefaultSettingsPanel';
+import ModalApplicationMenu from 'react-cismap/topicmaps/menu/ModalApplicationMenu';
+import Section from 'react-cismap/topicmaps/menu/Section';
+import LicenseLuftbildkarte from 'react-cismap/topicmaps/wuppertal/LicenseLuftbildkarte';
+import LicenseStadtplanTagNacht from 'react-cismap/topicmaps/wuppertal/LicenseStadtplanTagNacht';
+import { Link } from 'react-scroll';
+import MenuFooter from './MenuFooter';
+import { getBadSVG } from './helper/helper';
+import { getColorForProperties } from './helper/styler';
 
 const Menu = () => {
   const { setAppMenuActiveMenuSection } = useContext(UIDispatchContext);
@@ -20,73 +20,73 @@ const Menu = () => {
   const helpSVGSize = 18;
   const hallenBadSVG = getBadSVG(
     helpSVGSize,
-    "#565B5E",
-    "Hallenbad",
-    "helpTextSVG0",
+    '#565B5E',
+    'Hallenbad',
+    'helpTextSVG0'
   );
   const freibadBadSVG = getBadSVG(
     helpSVGSize,
-    "#565B5E",
-    "Freibad",
-    "helpTextSVG1",
+    '#565B5E',
+    'Freibad',
+    'helpTextSVG1'
   );
 
   const staedtischesFreibadSVG = getBadSVG(
     helpSVGSize,
-    "#1A4860",
-    "Freibad",
-    "helpTextSVG2",
+    '#1A4860',
+    'Freibad',
+    'helpTextSVG2'
   );
   const oeffentlichesVereinsbadSVG = getBadSVG(
     helpSVGSize,
     getColorForProperties({
-      more: { zugang: "öffentlich", betreiber: "Verein" },
-      mainlocationtype: { lebenslagen: ["Freizeit", "Sport"] },
+      more: { zugang: 'öffentlich', betreiber: 'Verein' },
+      mainlocationtype: { lebenslagen: ['Freizeit', 'Sport'] },
     }),
-    "Freibad",
-    "helpTextSVG3",
+    'Freibad',
+    'helpTextSVG3'
   );
   const nichtOeffentlichesVereinsbadSVG = getBadSVG(
     helpSVGSize,
     getColorForProperties({
-      more: { zugang: "nicht öffentlich", betreiber: "Verein" },
-      mainlocationtype: { lebenslagen: ["Freizeit", "Sport"] },
+      more: { zugang: 'nicht öffentlich', betreiber: 'Verein' },
+      mainlocationtype: { lebenslagen: ['Freizeit', 'Sport'] },
     }),
-    "Freibad",
-    "helpTextSVG4",
+    'Freibad',
+    'helpTextSVG4'
   );
 
   return (
     <CustomizationContextProvider customizations={{}}>
       <ModalApplicationMenu
-        menuIcon={"bars"}
-        menuTitle={"Einstellungen und Kompaktanleitung"}
+        menuIcon={'bars'}
+        menuTitle={'Einstellungen und Kompaktanleitung'}
         menuFooter={<MenuFooter />}
         menuIntroduction={
           <span>
-            Über{" "}
+            Über{' '}
             <Link
               className="useAClassNameToRenderProperLink"
               to="filter"
               containerId="myMenu"
               smooth={true}
               delay={100}
-              onClick={() => setAppMenuActiveMenuSection("settings")}
+              onClick={() => setAppMenuActiveMenuSection('settings')}
             >
               Einstellungen
-            </Link>{" "}
+            </Link>{' '}
             können Sie die Darstellung der Hintergrundfkarte und der Bäder an
-            Ihre Vorlieben anpassen. Wählen Sie{" "}
+            Ihre Vorlieben anpassen. Wählen Sie{' '}
             <Link
               className="useAClassNameToRenderProperLink"
               to="settings"
               containerId="myMenu"
               smooth={true}
               delay={100}
-              onClick={() => setAppMenuActiveMenuSection("help")}
+              onClick={() => setAppMenuActiveMenuSection('help')}
             >
               Kompaktanleitung
-            </Link>{" "}
+            </Link>{' '}
             für detailliertere Bedienungsinformationen.
           </span>
         }
@@ -101,13 +101,13 @@ const Menu = () => {
               <ConfigurableDocBlocks
                 configs={[
                   {
-                    type: "FAQS",
+                    type: 'FAQS',
                     configs: [
                       {
-                        title: "Datengrundlage",
-                        bsStyle: "warning",
+                        title: 'Datengrundlage',
+                        bsStyle: 'warning',
                         contentBlockConf: {
-                          type: "REACTCOMP",
+                          type: 'REACTCOMP',
                           content: (
                             <div>
                               <p>
@@ -123,20 +123,20 @@ const Menu = () => {
                               </ul>
 
                               <p>
-                                Zusätzlich nutzt die Bäderkarte den Datensatz{" "}
+                                Zusätzlich nutzt die Bäderkarte den Datensatz{' '}
                                 <a
                                   target="_legal"
                                   href="https://offenedaten-wuppertal.de/dataset/interessante-orte-poi-wuppertal"
                                 >
                                   POI Wuppertal
-                                </a>{" "}
-                                des{" "}
+                                </a>{' '}
+                                des{' '}
                                 <a
                                   target="_legal"
                                   href="https://www.wuppertal.de/rathaus-buergerservice/karten_vermessung/index.php"
                                 >
                                   Ressorts Vermessung, Katasteramt und Geodaten
-                                </a>{" "}
+                                </a>{' '}
                                 aus dem Open-Data-Angebot der Stadt Wuppertal,
                                 der auch die Wuppertaler Schwimmbäder umfasst.
                               </p>
@@ -145,13 +145,13 @@ const Menu = () => {
                         },
                       },
                       {
-                        title: "Bäder auswählen und abfragen",
-                        bsStyle: "secondary",
+                        title: 'Bäder auswählen und abfragen',
+                        bsStyle: 'secondary',
                         contentBlockConf: {
-                          type: "REACTCOMP",
+                          type: 'REACTCOMP',
                           content: (
                             <div>
-                              {" "}
+                              {' '}
                               <p>
                                 Bewegen Sie den Mauszeiger im Kartenfenster auf
                                 eines der Schwimmbad-Symbole, um sich den Namen
@@ -165,13 +165,13 @@ const Menu = () => {
                                 gesetzt, das zweite Antippen blendet den Namen
                                 ein.) Außerdem werden Ihnen in der Info-Box
                                 weiterführende (Kommunikations-) Links zu diesem
-                                Schwimmbad angezeigt:{" "}
-                                <Icon name="external-link-square" /> Internet,{" "}
-                                <span style={{ whiteSpace: "nowrap" }}>
+                                Schwimmbad angezeigt:{' '}
+                                <Icon name="external-link-square" /> Internet,{' '}
+                                <span style={{ whiteSpace: 'nowrap' }}>
                                   <Icon name="envelope-square" /> E-Mail
-                                </span>{" "}
+                                </span>{' '}
                                 und <Icon name="phone" /> Telefon. Durch
-                                Anklicken des Kalender-Symbols{" "}
+                                Anklicken des Kalender-Symbols{' '}
                                 <Icon name="calendar" /> gelangen Sie bei
                                 einigen städtischen Bädern zum
                                 Aqua-Aktiv-Kursprogramm des Sport- und
@@ -182,7 +182,7 @@ const Menu = () => {
                                 Wenn Sie noch kein Schwimmbad im aktuellen
                                 Kartenausschnitt selektiert haben, wird der
                                 Fokus automatisch auf das nördlichste Bad
-                                gesetzt. Mit den Funktionen <a>&lt;&lt;</a>{" "}
+                                gesetzt. Mit den Funktionen <a>&lt;&lt;</a>{' '}
                                 vorheriger Treffer und <a>&gt;&gt;</a> nächster
                                 Treffer können Sie ausgehend von dem Schwimmbad,
                                 auf dem gerade der Fokus liegt, in nördlicher
@@ -190,14 +190,14 @@ const Menu = () => {
                                 Kartenfenster angezeigten Bäder durchmustern.
                               </p>
                               <p>
-                                Mit der Schaltfläche{" "}
+                                Mit der Schaltfläche{' '}
                                 <Icon name="chevron-circle-down" /> im
                                 dunkelgrau abgesetzten rechten Rand der Info-Box
                                 lässt sich diese so verkleinern, dass nur noch
                                 die thematische Zuordnung und der Name des
                                 Schwimmbades sowie die Link-Symbole angezeigt
                                 werden - nützlich für Endgeräte mit kleinem
-                                Display. Mit der Schaltfläche{" "}
+                                Display. Mit der Schaltfläche{' '}
                                 <Icon name="chevron-circle-up" /> an derselben
                                 Stelle können Sie die Info-Box dann wieder
                                 vollständig einblenden.
@@ -219,23 +219,23 @@ const Menu = () => {
                         },
                       },
                       {
-                        title: "Kartendarstellung der Bäder",
-                        bsStyle: "secondary",
+                        title: 'Kartendarstellung der Bäder',
+                        bsStyle: 'secondary',
                         contentBlockConf: {
-                          type: "REACTCOMP",
+                          type: 'REACTCOMP',
                           content: (
                             <div>
-                              {" "}
+                              {' '}
                               <p>
                                 Zur Darstellung der Schwimmbäder in der Karte
-                                werden unterschiedliche Symbole für Hallenbäder{" "}
-                                {hallenBadSVG} und Freibäder {freibadBadSVG}{" "}
+                                werden unterschiedliche Symbole für Hallenbäder{' '}
+                                {hallenBadSVG} und Freibäder {freibadBadSVG}{' '}
                                 verwendet. Dabei werden 3 unterschiedliche
-                                Hintergrundfarben verwendet:{" "}
+                                Hintergrundfarben verwendet:{' '}
                                 {staedtischesFreibadSVG} steht für städtische
-                                Bäder, die alle öffentlich zugänglich sind.{" "}
+                                Bäder, die alle öffentlich zugänglich sind.{' '}
                                 {oeffentlichesVereinsbadSVG} kennzeichnet
-                                öffentlich zugängliche Bäder in Vereinsregie und{" "}
+                                öffentlich zugängliche Bäder in Vereinsregie und{' '}
                                 {nichtOeffentlichesVereinsbadSVG} wird für nicht
                                 öffentlich zugängliche Vereinsbäder eingesetzt.
                                 Diese Farben werden in der Titelzeile der
@@ -249,13 +249,13 @@ const Menu = () => {
                         },
                       },
                       {
-                        title: "In Karte positionieren",
-                        bsStyle: "secondary",
+                        title: 'In Karte positionieren',
+                        bsStyle: 'secondary',
                         contentBlockConf: {
-                          type: "REACTCOMP",
+                          type: 'REACTCOMP',
                           content: (
                             <div>
-                              {" "}
+                              {' '}
                               <p>
                                 Um die Schwimmbäder in einem bestimmten Bereich
                                 des Stadtgebietes zu erkunden, geben Sie den
@@ -267,15 +267,15 @@ const Menu = () => {
                                 angeboten. (Wenn Sie weitere Zeichen eingeben,
                                 wird der Inhalt der Auswahlliste angepasst.)
                                 Durch das vorangestellte Symbol erkennen Sie, ob
-                                es sich dabei um einen <Icon name="circle" />{" "}
-                                Stadtbezirk, ein <Icon name="pie-chart" />{" "}
+                                es sich dabei um einen <Icon name="circle" />{' '}
+                                Stadtbezirk, ein <Icon name="pie-chart" />{' '}
                                 Quartier, eine <Icon name="home" /> Adresse,
                                 eine <Icon name="road" /> Straße ohne
-                                zugeordnete Hausnummern, einen{" "}
-                                <Icon name="tag" /> POI, die{" "}
+                                zugeordnete Hausnummern, einen{' '}
+                                <Icon name="tag" /> POI, die{' '}
                                 <Icon name="tags" /> alternative Bezeichnung
-                                eines POI, eine <Icon name="child" />{" "}
-                                Kindertageseinrichtung oder eine{" "}
+                                eines POI, eine <Icon name="child" />{' '}
+                                Kindertageseinrichtung oder eine{' '}
                                 <Icon name="graduation-cap" /> Schule handelt.
                               </p>
                               <p>
@@ -284,11 +284,11 @@ const Menu = () => {
                                 zentriert. Bei Suchbegriffen mit Punktgeometrie
                                 (Adresse, Straße, POI) wird außerdem ein großer
                                 Maßstab (Zoomstufe 14) eingestellt und ein
-                                Marker{" "}
+                                Marker{' '}
                                 <img
                                   alt="Cluster"
                                   src="images/AdressMarker.jpg"
-                                />{" "}
+                                />{' '}
                                 auf der Zielposition platziert. Bei
                                 Suchbegriffen mit Flächengeometrie (Stadtbezirk,
                                 Quartier) wird der Maßstab so eingestellt, dass
@@ -297,7 +297,7 @@ const Menu = () => {
                                 Fläche abgedunkelt (Spotlight-Effekt).
                               </p>
                               <p>
-                                Durch Anklicken des Werkzeugs{" "}
+                                Durch Anklicken des Werkzeugs{' '}
                                 <Icon name="times" /> links neben dem
                                 Eingabefeld können Sie die Suche zurücksetzen
                                 (Entfernung von Marker bzw. Abdunklung, Löschen
@@ -318,10 +318,10 @@ const Menu = () => {
                         },
                       },
                       {
-                        title: "Mein Standort",
-                        bsStyle: "secondary",
+                        title: 'Mein Standort',
+                        bsStyle: 'secondary',
                         contentBlockConf: {
-                          type: "REACTCOMP",
+                          type: 'REACTCOMP',
                           content: (
                             <div>
                               <GenericHelpTextForMyLocation />
@@ -330,15 +330,15 @@ const Menu = () => {
                         },
                       },
                       {
-                        title: "Einstellungen",
-                        bsStyle: "success",
+                        title: 'Einstellungen',
+                        bsStyle: 'success',
                         contentBlockConf: {
-                          type: "REACTCOMP",
+                          type: 'REACTCOMP',
                           content: (
                             <div>
                               <p>
                                 Unter "<strong>Einstellungen</strong>" können
-                                Sie im Anwendungsmenü <Icon name="bars" />{" "}
+                                Sie im Anwendungsmenü <Icon name="bars" />{' '}
                                 festlegen, wie die POI und die Hintergrundkarte
                                 angezeigt werden sollen. Zu den POI können Sie
                                 auswählen, ob Ihre unter "
@@ -383,7 +383,7 @@ const Menu = () => {
                                 Verfügung, die die Anschaulichkeit des
                                 Luftbildes mit der Eindeutigkeit des Stadtplans
                                 (Kartenschrift, durchscheinende Linien)
-                                verbindet.{" "}
+                                verbindet.{' '}
                               </p>
                               <p>
                                 Im Vorschaubild sehen Sie direkt die
@@ -394,10 +394,10 @@ const Menu = () => {
                         },
                       },
                       {
-                        title: "Personalisierung",
-                        bsStyle: "success",
+                        title: 'Personalisierung',
+                        bsStyle: 'success',
                         contentBlockConf: {
-                          type: "REACTCOMP",
+                          type: 'REACTCOMP',
                           content: (
                             <p>
                               Ihre Themenauswahl und Einstellungen bleiben auch
@@ -424,5 +424,5 @@ const Menu = () => {
 };
 export default Menu;
 const NW = (props) => {
-  return <span style={{ whiteSpace: "nowrap" }}>{props.children}</span>;
+  return <span style={{ whiteSpace: 'nowrap' }}>{props.children}</span>;
 };

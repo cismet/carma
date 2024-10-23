@@ -1,11 +1,11 @@
 const x = {
   crs: {
-    type: "name",
+    type: 'name',
     properties: {
-      name: "urn:ogc:def:crs:EPSG::25832",
+      name: 'urn:ogc:def:crs:EPSG::25832',
     },
   },
-  type: "Feature",
+  type: 'Feature',
   selected: false,
 };
 export default x;

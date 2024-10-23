@@ -1,17 +1,17 @@
-import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
   faEye,
   faEyeSlash,
   faLayerGroup,
   faX,
-} from "@fortawesome/free-solid-svg-icons";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Layer } from "@carma-mapping/layers";
-import { useEffect, useRef } from "react";
-import { useInView } from "react-intersection-observer";
-import { useDispatch, useSelector } from "react-redux";
-import { cn } from "../../helper/helper";
+} from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Layer } from '@carma-mapping/layers';
+import { useEffect, useRef } from 'react';
+import { useInView } from 'react-intersection-observer';
+import { useDispatch, useSelector } from 'react-redux';
+import { cn } from '../../helper/helper';
 import {
   changeVisibility,
   getLayers,
@@ -21,11 +21,11 @@ import {
   setSelectedLayerIndex,
   setShowLeftScrollButton,
   setShowRightScrollButton,
-} from "../../store/slices/mapping";
-import { getShowLayerHideButtons } from "../../store/slices/ui";
-import { iconColorMap, iconMap } from "./items";
-import "./tabs.css";
-import { useSearchParams } from "react-router-dom";
+} from '../../store/slices/mapping';
+import { getShowLayerHideButtons } from '../../store/slices/ui';
+import { iconColorMap, iconMap } from './items';
+import './tabs.css';
+import { useSearchParams } from 'react-router-dom';
 // import { faCircle } from '@fortawesome/free-regular-svg-icons';
 
 interface LayerButtonProps {
@@ -61,7 +61,7 @@ const LayerButton = ({
     });
   const buttonRef = useRef<HTMLDivElement>(null);
   let [searchParams, setSearchParams] = useSearchParams();
-  const showAlternateIcons = searchParams.get("altIcon") !== null;
+  const showAlternateIcons = searchParams.get('altIcon') !== null;
   const iconName = showAlternateIcons
     ? layer.other?.alternativeIcon
     : layer.other?.icon;
@@ -93,10 +93,10 @@ const LayerButton = ({
         ref(el);
       }}
       className={cn(
-        "",
+        '',
         // index === -1 && 'ml-auto',
         // index === layersLength - 1 && 'mr-auto',
-        showLeftScrollButton && index === -1 && "pr-4",
+        showLeftScrollButton && index === -1 && 'pr-4'
       )}
       id={`layer-${id}`}
     >
@@ -110,14 +110,14 @@ const LayerButton = ({
         {...listeners}
         {...attributes}
         className={cn(
-          "w-fit min-w-max flex items-center gap-2 px-3 rounded-[10px] h-8 z-[99999999] button-shadow",
+          'w-fit min-w-max flex items-center gap-2 px-3 rounded-[10px] h-8 z-[99999999] button-shadow',
           selectedLayerIndex === -2
             ? layer.visible
-              ? "bg-white"
-              : "bg-neutral-200/70"
+              ? 'bg-white'
+              : 'bg-neutral-200/70'
             : showSettings
-            ? "bg-white"
-            : "bg-neutral-200",
+            ? 'bg-white'
+            : 'bg-neutral-200'
         )}
       >
         {iconName ? (
@@ -128,10 +128,10 @@ const LayerButton = ({
               className="h-full"
             />
           </div>
-        ) : icon === "ortho" ? (
+        ) : icon === 'ortho' ? (
           <div style={{ height: 14, width: 14 }}>
             <img
-              src={urlPrefix + "images/ortho.png"}
+              src={urlPrefix + 'images/ortho.png'}
               alt="Ortho"
               className="h-full"
             />

@@ -1,25 +1,25 @@
-import { faFileExport, faQuestion } from "@fortawesome/free-solid-svg-icons";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Button, Input, Tooltip, message } from "antd";
-import { useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { appendSavedLayerConfig, getLayers } from "../store/slices/mapping";
-import "./popover.css";
-import { nanoid } from "@reduxjs/toolkit";
-import { faQuestionCircle } from "@fortawesome/free-regular-svg-icons";
+import { faFileExport, faQuestion } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Button, Input, Tooltip, message } from 'antd';
+import { useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { appendSavedLayerConfig, getLayers } from '../store/slices/mapping';
+import './popover.css';
+import { nanoid } from '@reduxjs/toolkit';
+import { faQuestionCircle } from '@fortawesome/free-regular-svg-icons';
 
 const Save = () => {
   const [messageApi, contextHolder] = message.useMessage();
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [thumbnail, setThumbnail] = useState("");
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [thumbnail, setThumbnail] = useState('');
   const dispatch = useDispatch();
   const layers = useSelector(getLayers);
 
   const resetStates = () => {
-    setTitle("");
-    setDescription("");
-    setThumbnail("");
+    setTitle('');
+    setDescription('');
+    setThumbnail('');
   };
 
   return (
@@ -54,7 +54,7 @@ const Save = () => {
           placement="bottom"
           title="Das Vorschaubild wird automatisch generiert wenn keine URL angegeben wird."
           arrow={false}
-          trigger={["hover", "click"]}
+          trigger={['hover', 'click']}
         >
           <FontAwesomeIcon icon={faQuestionCircle} className="text-sm" />
         </Tooltip>
@@ -71,7 +71,7 @@ const Save = () => {
           const config = {
             title,
             description,
-            type: "collection",
+            type: 'collection',
             layers,
             thumbnail,
             id: nanoid(),
@@ -80,13 +80,13 @@ const Save = () => {
             dispatch(appendSavedLayerConfig(config));
             resetStates();
             messageApi.open({
-              type: "success",
+              type: 'success',
               content: `Konfiguration "${title}" wurde erfolgreich gespeichert.`,
             });
           } catch (e) {
             messageApi.open({
-              type: "error",
-              content: "Es gab einen Fehler beim speichern der Konfiguration",
+              type: 'error',
+              content: 'Es gab einen Fehler beim speichern der Konfiguration',
             });
           }
         }}

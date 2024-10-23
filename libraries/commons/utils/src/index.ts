@@ -1,4 +1,6 @@
-export { suppressReactCismapErrors } from "./lib/log-react-cismap-errors";
+export {
+  suppressReactCismapErrors,
+} from "./lib/log-react-cismap-errors";
 
 export { type CarmaConfig, extractCarmaConfig } from "./lib/carmaConfig";
 

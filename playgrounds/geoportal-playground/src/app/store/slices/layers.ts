@@ -1,16 +1,16 @@
-import { createSlice } from "@reduxjs/toolkit";
+import { createSlice } from '@reduxjs/toolkit';
 
 const initialState = {
   thumbnails: [],
 };
 
 const slice = createSlice({
-  name: "layers",
+  name: 'layers',
   initialState,
   reducers: {
     setThumbnail(state, action) {
       let alreadyExists = state.thumbnails.some(
-        (thumbnail) => thumbnail.name === action.payload.name,
+        (thumbnail) => thumbnail.name === action.payload.name
       );
       if (!alreadyExists) {
         state.thumbnails = [...state.thumbnails, action.payload];
