@@ -143,7 +143,7 @@ function App({ published }: { published?: boolean }) {
   const content = (
     <TopicMapContextProvider>
       <OverlayTourProvider
-        showOverlay={tourMode}
+        show={tourMode}
         closeOverlay={() => dispatch(toggleShowOverlayTour(false))}
         transparency={backgroundSettings.transparency}
         color={backgroundSettings.color}

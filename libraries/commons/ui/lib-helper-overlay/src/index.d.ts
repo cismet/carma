@@ -4,6 +4,7 @@ export type OverlayHelperHightlighterProps = {
   transparency?: number;
   color?: string;
   showSecondaryWithKey: (key: string | null) => void;
+  showOverlay: (show: boolean) => void;
   openedSecondaryKey: string | null;
 };
 
@@ -15,6 +16,7 @@ export type OverlayTourContext = {
   removeConfig: OverlayTourAction;
   showSecondaryWithKey: null | string;
   setSecondaryWithKey: (key: string) => void;
+  showOverlay: (show: boolean) => void;
 };
 
 export type PositionOverlayHelper =
@@ -95,7 +97,7 @@ export interface HighlightRect {
 
 export type OverlayTourProviderProps = {
   children: JSX.Element;
-  showOverlay: boolean;
+  show: boolean;
   closeOverlay: () => void;
   transparency?: number;
   color?: string;

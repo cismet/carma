@@ -10,6 +10,7 @@ export function LibHelperOverlay({
   color = "black",
   showSecondaryWithKey,
   openedSecondaryKey,
+  showOverlay,
 }: OverlayHelperHightlighterProps) {
   const [hightlightRects, setHightlightRects] = useState<HighlightRect[]>([]);
   const showSecondaryByIdHelper = (key: string) => {
@@ -129,6 +130,7 @@ export function LibHelperOverlay({
                     secondary && typeof secondary !== "string" ? (
                       cloneElement(secondary, {
                         setSecondaryWithKey: showSecondaryWithKey,
+                        showOverlay: showOverlay,
                       })
                     ) : (
                       <div>{secondary}</div>
