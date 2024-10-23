@@ -11,7 +11,7 @@ import {
 } from "cesium";
 
 import { selectShowSecondaryTileset } from "../slices/cesium";
-import { useCesiumContext } from "../CesiumContextProvider";
+import { useCesiumContext } from "./useCesiumContext";
 import type { TilesetConfig } from "../utils/cesiumHelpers";
 
 export const useSecondaryStyleTilesetClickHandler = (

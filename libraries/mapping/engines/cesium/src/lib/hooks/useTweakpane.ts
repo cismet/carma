@@ -10,7 +10,7 @@ import { useTweakpaneCtx } from "@carma-commons/debug";
 import { formatFractions } from "../utils/formatters";
 import { resolutionFractions } from "../utils/cesiumHelpers";
 
-import { useCesiumContext } from "../CesiumContextProvider";
+import { useCesiumContext } from "./useCesiumContext";
 import {
   setScreenSpaceCameraControllerEnableCollisionDetection,
   setScreenSpaceCameraControllerMaximumZoomDistance,

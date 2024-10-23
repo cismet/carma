@@ -5,7 +5,7 @@ import { Cartesian3, defined, HeadingPitchRange } from "cesium";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
-import { useCesiumContext } from "../CesiumContextProvider";
+import { useCesiumContext } from "./useCesiumContext";
 import {
   setIsMode2d,
   setTransitionTo2d,

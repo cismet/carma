@@ -6,7 +6,7 @@ import { Color, Entity, PolygonGraphics } from "cesium";
 import camera_png from "./camera.png";
 import { makeLeafletMarkerRotatable } from "./LeafletMiniMap.utils";
 
-import { useCesiumContext } from "../CesiumContextProvider";
+import { useCesiumContext } from "../hooks/useCesiumContext";
 import {
   cameraToCartographicDegrees,
   getViewerViewportPolygonRing,

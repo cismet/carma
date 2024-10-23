@@ -16,7 +16,7 @@ import {
   toggleIsAnimating,
   selectViewerIsAnimating,
 } from "../../slices/cesium";
-import { useCesiumContext } from "../../CesiumContextProvider";
+import { useCesiumContext } from "../../hooks/useCesiumContext";
 import { pickViewerCanvasCenter } from "../../utils/cesiumHelpers";
 
 // TODO use config/context

@@ -1,11 +1,8 @@
 import { colorToArray } from "./lib/utils/cesiumHelpers";
 export * from "./lib/slices/cesium";
 
-export {
-  type CesiumContextType,
-  CesiumContextProvider,
-  useCesiumContext,
-} from "./lib/CesiumContextProvider";
+export { CesiumContextProvider } from "./lib/CesiumContextProvider";
+export { type CesiumContextType } from "./lib/CesiumContext";
 
 export { CustomCesiumWidget } from "./lib/CustomCesiumWidget";
 export { CustomViewer } from "./lib/CustomViewer";
@@ -20,6 +17,7 @@ export { MarkerContainer } from "./lib/components/MarkerContainer";
 export { MapTypeSwitcher } from "./lib/components/controls/MapTypeSwitcher";
 export { SceneStyleToggle } from "./lib/components/controls/SceneStyleToggle";
 
+export { useCesiumContext } from "./lib/hooks/useCesiumContext";
 export { useHomeControl } from "./lib/hooks/useHomeControl";
 export { useSceneStyleToggle } from "./lib/hooks/useSceneStyleToggle";
 export { useZoomControls } from "./lib/hooks/useZoomControls";

@@ -13,7 +13,7 @@ import {
 } from "cesium";
 import type { Map as LeafletMap } from "leaflet";
 
-import { useCesiumContext } from "../CesiumContextProvider";
+import { useCesiumContext } from "./useCesiumContext";
 import {
   selectScreenSpaceCameraControllerMaximumZoomDistance,
   selectScreenSpaceCameraControllerMinimumZoomDistance,

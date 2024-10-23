@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { BoundingSphere, Cartesian3 } from "cesium";
 
-import { useCesiumContext } from "../CesiumContextProvider";
+import { useCesiumContext } from "./useCesiumContext";
 import { selectViewerHome, setIsAnimating } from "../slices/cesium";
 
 export const useHomeControl = () => {

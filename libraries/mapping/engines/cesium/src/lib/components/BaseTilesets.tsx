@@ -12,7 +12,7 @@ import {
 
 import { useTweakpaneCtx } from "@carma-commons/debug";
 
-import { useCesiumContext } from "../CesiumContextProvider";
+import { useCesiumContext } from "../hooks/useCesiumContext";
 import {
   setShowPrimaryTileset,
   setShowSecondaryTileset,

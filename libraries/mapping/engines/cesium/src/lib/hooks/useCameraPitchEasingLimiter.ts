@@ -3,7 +3,7 @@ import { useSelector } from "react-redux";
 
 import { Math as CesiumMath, Cartographic, EasingFunction } from "cesium";
 
-import { useCesiumContext } from "../CesiumContextProvider";
+import { useCesiumContext } from "./useCesiumContext";
 import {
   selectScreenSpaceCameraControllerEnableCollisionDetection,
   selectViewerIsAnimating,

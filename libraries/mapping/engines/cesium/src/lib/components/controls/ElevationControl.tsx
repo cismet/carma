@@ -4,7 +4,7 @@ import { Cartesian3, Cartographic } from "cesium";
 
 import { useTweakpaneCtx } from "@carma-commons/debug";
 
-import { useCesiumContext } from "../../CesiumContextProvider";
+import { useCesiumContext } from "../../hooks/useCesiumContext";
 import { getPositionWithHeightAsync } from "../../utils/positions";
 import "./elevation-control.css";
 

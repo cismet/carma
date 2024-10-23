@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 
 import {
@@ -6,37 +6,11 @@ import {
   EllipsoidTerrainProvider,
   ImageryLayer,
   WebMapServiceImageryProvider,
-  WebMapTileServiceImageryProvider,
   Viewer,
   Cesium3DTileset,
 } from "cesium";
 
-export interface CesiumContextType {
-  viewer: Viewer | null;
-  setViewer: (viewer: Viewer | null) => void;
-  terrainProvider: CesiumTerrainProvider | null;
-  surfaceProvider: CesiumTerrainProvider | null;
-  //imageryProvider:    | WebMapServiceImageryProvider    | WebMapTileServiceImageryProvider    | null;
-  imageryLayer: ImageryLayer | null;
-  ellipsoidTerrainProvider: EllipsoidTerrainProvider | null;
-  tilesets: {
-    primary: Cesium3DTileset | null;
-    secondary: Cesium3DTileset | null;
-  };
-  // TODO add more setters
-  setPrimaryTileset: (tileset: Cesium3DTileset | null) => void;
-  setSecondaryTileset: (tileset: Cesium3DTileset | null) => void;
-}
-
-export const CesiumContext = createContext<CesiumContextType | null>(null);
-
-export const useCesiumContext = () => {
-  const context = useContext(CesiumContext);
-  if (!context) {
-    throw new Error("useViewer must be used within a CesiumContextProvider");
-  }
-  return context;
-};
+import { CesiumContext, type CesiumContextType } from "./CesiumContext";
 
 export const CesiumContextProvider = ({
   children,

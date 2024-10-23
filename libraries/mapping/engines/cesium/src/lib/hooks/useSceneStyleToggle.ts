@@ -8,7 +8,7 @@ import {
 } from "../slices/cesium";
 import { setupPrimaryStyle, setupSecondaryStyle } from "../utils/sceneStyles";
 
-import { useCesiumContext } from "../CesiumContextProvider";
+import { useCesiumContext } from "./useCesiumContext";
 
 export const useSceneStyleToggle = (
   initialStyle: keyof SceneStyles = "secondary"

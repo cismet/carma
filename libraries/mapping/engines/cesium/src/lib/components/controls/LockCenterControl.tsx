@@ -5,7 +5,7 @@ import { DebugModelMatrixPrimitive, Viewer } from "cesium";
 
 import { lockPosition, unlockPosition } from "./lockCenterControl.utils";
 import OnMapButton from "./OnMapButton";
-import { useCesiumContext } from "../../CesiumContextProvider";
+import { useCesiumContext } from "../../hooks/useCesiumContext";
 
 type LockCenterControlProps = {
   children?: ReactNode;

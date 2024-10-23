@@ -16,7 +16,7 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { useTweakpaneCtx } from "@carma-commons/debug";
 
-import { useCesiumContext } from "./CesiumContextProvider";
+import { useCesiumContext } from "./hooks/useCesiumContext";
 import {
   selectShowSecondaryTileset,
   selectViewerHome,
