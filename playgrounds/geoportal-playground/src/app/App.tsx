@@ -62,7 +62,7 @@ function App({ published }: { published?: boolean }) {
     if (searchParams.get("data")) {
       const data = searchParams.get("data");
       const newConfig: Config = JSON.parse(
-        LZString.decompressFromEncodedURIComponent(data),
+        LZString.decompressFromEncodedURIComponent(data)
       );
       dispatch(setLayers(newConfig.layers));
       dispatch(setBackgroundLayer(newConfig.backgroundLayer));
@@ -114,7 +114,7 @@ function App({ published }: { published?: boolean }) {
 
   const content = (
     <OverlayTourProvider
-      showOverlay={mode === "tour" ? true : false}
+      show={mode === "tour" ? true : false}
       closeOverlay={() => dispatch(setMode("default"))}
       transparency={0.8}
       color="black"
