@@ -14,13 +14,13 @@
 // ***********************************************************
 
 // Import commands.js using ES2015 syntax:
-import "./commands";
+import './commands';
 
 beforeEach(() => {
-  Cypress.on("uncaught:exception", (err, runnable) => {
+  Cypress.on('uncaught:exception', (err, runnable) => {
     if (
       err.message.includes(
-        "Cannot read properties of undefined (reading 'gemarkung')",
+        "Cannot read properties of undefined (reading 'gemarkung')"
       )
     ) {
       return false;

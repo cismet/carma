@@ -1,24 +1,24 @@
 /// <reference types='vitest' />
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import { nxViteTsPaths } from "@nx/vite/plugins/nx-tsconfig-paths.plugin";
-import path from "path";
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
+import path from 'path';
 
 export default defineConfig({
   root: __dirname,
-  cacheDir: "../../../node_modules/.vite/envirometrics/wuppertal/rainhazardmap",
+  cacheDir: '../../../node_modules/.vite/envirometrics/wuppertal/rainhazardmap',
 
   server: {
     port: 4200,
-    host: "localhost",
+    host: 'localhost',
     fs: {
-      allow: ["../../.."],
+      allow: ['../../..'],
     },
   },
 
   preview: {
     port: 4300,
-    host: "localhost",
+    host: 'localhost',
   },
 
   plugins: [react(), nxViteTsPaths()],
@@ -29,7 +29,7 @@ export default defineConfig({
   // },
 
   build: {
-    outDir: "../../../dist/envirometrics/wuppertal/rainhazardmap",
+    outDir: '../../../dist/envirometrics/wuppertal/rainhazardmap',
     reportCompressedSize: true,
     commonjsOptions: {
       transformMixedEsModules: true,
@@ -39,16 +39,16 @@ export default defineConfig({
   test: {
     globals: true,
     cache: {
-      dir: "../../../node_modules/.vitest",
+      dir: '../../../node_modules/.vitest',
     },
-    environment: "jsdom",
-    include: ["src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
+    environment: 'jsdom',
+    include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
 
-    reporters: ["default"],
+    reporters: ['default'],
     coverage: {
       reportsDirectory:
-        "../../../coverage/envirometrics/wuppertal/rainhazardmap",
-      provider: "v8",
+        '../../../coverage/envirometrics/wuppertal/rainhazardmap',
+      provider: 'v8',
     },
   },
 });
