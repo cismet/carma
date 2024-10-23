@@ -4,9 +4,9 @@ import { twMerge } from "tailwind-merge";
 import { md5FetchText } from "react-cismap/tools/fetching";
 import { getGazDataForTopicIds } from "react-cismap/tools/gazetteerHelper";
 
+import { extractCarmaConfig } from "@carma-commons/utils";
 import { ENDPOINT } from "@carma-mapping/fuzzy-search";
 import { Item, Layer } from "@carma-mapping/layers";
-import { extractCarmaConf } from "./carmaConfig";
 import { isNaN } from "lodash";
 
 const buildHostUri = (host: string, endpoint: ENDPOINT, crs: string) => {
@@ -129,7 +129,7 @@ export const parseToMapLayer = async (
   let newLayer: Layer;
   const id = layer.id.startsWith("fav_") ? layer.id.slice(4) : layer.id;
 
-  const carmaConf = extractCarmaConf(layer.keywords);
+  const carmaConf = extractCarmaConfig(layer.keywords);
   if (layer.type === "layer") {
     if (carmaConf?.vectorStyle && !forceWMS) {
       const zoom = await fetch(carmaConf.vectorStyle)

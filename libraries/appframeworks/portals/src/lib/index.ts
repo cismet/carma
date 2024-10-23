@@ -9,4 +9,3 @@ export enum SELECTED_LAYER_INDEX {
 export { utils };
 export { Save } from "./components/Save.tsx";
 export { Share } from "./components/Share.tsx";
-export { extractCarmaConf } from "./utils/carmaConfig";

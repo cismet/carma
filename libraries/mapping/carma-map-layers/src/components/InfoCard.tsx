@@ -1,6 +1,4 @@
 import { Button } from "antd";
-import { parseDescription } from "../helper/layerHelper";
-import { Item } from "../helper/types";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCircleMinus,
@@ -11,7 +9,13 @@ import {
   faStar,
   faX,
 } from "@fortawesome/free-solid-svg-icons";
-import { extractCarmaConf } from "@carma-apps/portals";
+
+import { extractCarmaConfig } from "@carma-commons/utils";
+
+import { parseDescription } from "../helper/layerHelper";
+import { Item } from "../helper/types";
+
+
 
 interface InfoCardProps {
   layer: Item;
@@ -41,7 +45,7 @@ const InfoCard = ({
   // @ts-expect-error fix typing
   const legends = layer?.props?.Style?.[0]?.LegendURL;
   const parsedDescription = parseDescription(description);
-  const carmaConf = extractCarmaConf(layer.keywords);
+  const carmaConf = extractCarmaConfig(layer.keywords);
 
   return (
     <div className="w-full h-[400px] p-6 shadow-sm hover:!shadow-lg rounded-lg bg-blue-50 col-span-full">

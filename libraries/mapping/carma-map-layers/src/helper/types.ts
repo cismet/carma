@@ -1,4 +1,4 @@
-import { CarmaConfObject } from "@carma-apps/portals";
+import type { CarmaConfig } from "@carma-commons/utils";
 
 export type LayerConfig = {
   name: string;
@@ -27,7 +27,7 @@ export type Layer = {
   visible: boolean;
   queryable?: boolean;
   useInFeatureInfo?: boolean;
-  conf?: CarmaConfObject;
+  conf?: CarmaConfig;
   icon?: string;
   other?: Item;
 } & (
