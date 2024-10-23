@@ -5,6 +5,12 @@
     "declaration": true,
     "types": ["node", "vite/client"]
   },
-  "include": ["src/index.ts", "src/lib/**/*.ts", "src/lib/**/*.tsx", "src/lib/**/*.js", "src/lib/**/*.jsx"],
+  "include": [
+    "src/index.ts",
+    "src/lib/**/*.ts",
+    "src/lib/**/*.tsx",
+    "src/lib/**/*.js",
+    "src/lib/**/*.jsx"
+  ],
   "exclude": ["vite.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts"]
 }

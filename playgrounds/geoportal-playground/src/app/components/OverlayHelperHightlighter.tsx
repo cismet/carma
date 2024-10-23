@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
-import { useDispatch } from 'react-redux';
-import { setMode } from '../store/slices/ui';
+import { useEffect, useState } from "react";
+import { useDispatch } from "react-redux";
+import { setMode } from "../store/slices/ui";
 import type {
   OverlayHelperConfig,
   PositionOverlayHelper,
-} from '../hooks/useOverlayHelper';
+} from "../hooks/useOverlayHelper";
 
 type OverlayHelperHightlighterProps = { configs: OverlayHelperConfig[] };
 
@@ -29,21 +29,21 @@ const OverlayHelperHightlighter = ({
 
   const handleMessageClick = (e, message) => {
     e.stopPropagation();
-    console.log('yyy click message', message);
+    console.log("yyy click message", message);
   };
 
   return (
     <div
       style={{
-        position: 'fixed',
+        position: "fixed",
         top: 0,
         zIndex: 1000,
-        width: '100vw',
-        height: '100vh',
-        background: 'black',
+        width: "100vw",
+        height: "100vh",
+        background: "black",
         opacity: 0.8,
       }}
-      onClick={() => dispatch(setMode('default'))}
+      onClick={() => dispatch(setMode("default"))}
     >
       {hightlightRects.map((config, idx) => {
         const { rect, message, pos, contPos } = config;
@@ -53,19 +53,19 @@ const OverlayHelperHightlighter = ({
             key={idx}
             onClick={(e) => handleMessageClick(e, message)}
             style={{
-              position: 'absolute',
+              position: "absolute",
               top: rect.top,
               left: rect.left,
               width: rect.width,
               height: rect.height,
-              color: 'white',
+              color: "white",
               // border: '1px solid yellow',
               ...pos,
             }}
           >
             <span
               style={{
-                position: 'absolute',
+                position: "absolute",
                 // border: '1px solid red',
                 ...contPos,
               }}
@@ -84,23 +84,23 @@ export default OverlayHelperHightlighter;
 function getContainerPosition(alignment: PositionOverlayHelper) {
   let styleElement: { [key: string]: string } = {};
   switch (alignment) {
-    case 'center':
-      styleElement.transform = 'translate(0, 0)';
+    case "center":
+      styleElement.transform = "translate(0, 0)";
       break;
-    case 'top':
-      styleElement.transform = 'translate(0, -100%)';
+    case "top":
+      styleElement.transform = "translate(0, -100%)";
       break;
-    case 'left':
-      styleElement.transform = 'translate(-100%, 0)';
+    case "left":
+      styleElement.transform = "translate(-100%, 0)";
       break;
-    case 'right':
-      styleElement.transform = 'translate(100%, 0)';
+    case "right":
+      styleElement.transform = "translate(100%, 0)";
       break;
-    case 'bottom':
-      styleElement.transform = 'translate(0, 100%)';
+    case "bottom":
+      styleElement.transform = "translate(0, 100%)";
       break;
     default:
-      console.log('yyy element position');
+      console.log("yyy element position");
   }
 
   return styleElement;
@@ -109,31 +109,31 @@ function getContainerPosition(alignment: PositionOverlayHelper) {
 function getElementPosition(alignment: PositionOverlayHelper) {
   let styleElement: { [key: string]: string | number } = {};
   switch (alignment) {
-    case 'center':
-      styleElement.top = '50%';
-      styleElement.left = '50%';
-      styleElement.transform = 'translate(-50%, -50%)';
+    case "center":
+      styleElement.top = "50%";
+      styleElement.left = "50%";
+      styleElement.transform = "translate(-50%, -50%)";
       break;
-    case 'top':
-      styleElement.top = '0';
-      styleElement.transform = 'translate(50%, 0)';
+    case "top":
+      styleElement.top = "0";
+      styleElement.transform = "translate(50%, 0)";
       break;
-    case 'left':
-      styleElement.top = '50%';
-      styleElement.transform = 'translate(0, -50%)';
+    case "left":
+      styleElement.top = "50%";
+      styleElement.transform = "translate(0, -50%)";
       styleElement.left = 0;
       break;
-    case 'right':
-      styleElement.top = '50%';
-      styleElement.transform = 'translate(0, -50%)';
+    case "right":
+      styleElement.top = "50%";
+      styleElement.transform = "translate(0, -50%)";
       styleElement.right = 0;
       break;
-    case 'bottom':
+    case "bottom":
       styleElement.bottom = 0;
-      styleElement.transform = 'translate(50%, 0)';
+      styleElement.transform = "translate(50%, 0)";
       break;
     default:
-      console.log('yyy content position');
+      console.log("yyy content position");
   }
 
   return styleElement;

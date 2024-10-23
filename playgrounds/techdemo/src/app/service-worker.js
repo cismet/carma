@@ -55,14 +55,15 @@ registerRoute(
 
     return true;
   },
-  createHandlerBoundToURL(process.env.PUBLIC_URL + "/index.html")
+  createHandlerBoundToURL(process.env.PUBLIC_URL + "/index.html"),
 );
 
 // An example runtime caching route for requests that aren't handled by the
 // precache, in this case same-origin .png requests like those from in public/
 registerRoute(
   // Add in any other file extensions or routing criteria as needed.
-  ({ url }) => url.origin === self.location.origin && url.pathname.endsWith(".png"), // Customize this strategy as needed, e.g., by changing to CacheFirst.
+  ({ url }) =>
+    url.origin === self.location.origin && url.pathname.endsWith(".png"), // Customize this strategy as needed, e.g., by changing to CacheFirst.
   new StaleWhileRevalidate({
     cacheName: "images",
     plugins: [
@@ -70,7 +71,7 @@ registerRoute(
       // least-recently used images are removed.
       new ExpirationPlugin({ maxEntries: 50 }),
     ],
-  })
+  }),
 );
 
 // This allows the web app to trigger skipWaiting via
@@ -122,13 +123,20 @@ const cachedFetch = async (req) => {
             return new Response();
           } else {
             const path = decodeURIComponent(
-              config[type].cachePath + req.url.replace(config[type].origin, "")
+              config[type].cachePath + req.url.replace(config[type].origin, ""),
             );
-            if (CONSOLEDEBUG) console.log("offlineVTSW:: detected a " + type + " request.");
+            if (CONSOLEDEBUG)
+              console.log("offlineVTSW:: detected a " + type + " request.");
             const hit = await db[OBJECTSTORE].get(path);
             if (hit) {
               if (CONSOLEDEBUG)
-                console.log("offlineVTSW:: found a " + type + " cache entry for " + path + ".");
+                console.log(
+                  "offlineVTSW:: found a " +
+                    type +
+                    " cache entry for " +
+                    path +
+                    ".",
+                );
               return new Response(hit.value);
             } else {
               if (CONSOLEDEBUG)
@@ -139,7 +147,7 @@ const cachedFetch = async (req) => {
                     path +
                     " (" +
                     req.url +
-                    ")."
+                    ").",
                 );
               //return await fetch(req);
               return new Response();
@@ -149,7 +157,8 @@ const cachedFetch = async (req) => {
       }
       return await fetch(req);
     } else {
-      if (CONSOLEDEBUG) console.log("(online) offlineVTSW:: no intercept " + req.url);
+      if (CONSOLEDEBUG)
+        console.log("(online) offlineVTSW:: no intercept " + req.url);
       return await fetch(req);
     }
   } catch (e) {

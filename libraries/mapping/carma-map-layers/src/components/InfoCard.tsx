@@ -15,8 +15,6 @@ import { extractCarmaConfig } from "@carma-commons/utils";
 import { parseDescription } from "../helper/layerHelper";
 import { Item } from "../helper/types";
 
-
-
 interface InfoCardProps {
   layer: Item;
   isFavorite: boolean;

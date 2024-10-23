@@ -70,7 +70,7 @@ export const useMapTransition = ({
         console.debug(
           "[CESIUM|2D3D|TO3D] restore 3d camera position zoom",
           pos,
-          prevHPR
+          prevHPR,
         );
         animateInterpolateHeadingPitchRange(viewer, pos, prevHPR, {
           delay: duration, // allow the css transition to finish
@@ -82,7 +82,7 @@ export const useMapTransition = ({
         console.debug(
           "[CESIUM|2D3D|TO3D] to change to 3d camera position applied zoom",
           pos,
-          prevHPR
+          prevHPR,
         );
         onComplete3d();
         return;
@@ -160,7 +160,7 @@ export const useMapTransition = ({
           distanceBefore,
           height,
           heightBefore,
-          zoomDiff
+          zoomDiff,
         );
       }
     } else {
@@ -185,7 +185,7 @@ export const useMapTransition = ({
       console.debug(
         "[CESIUM|2D3D|TO2D] setting prev HPR zoom",
         groundPos,
-        height
+        height,
       );
       setPrevHPR(
         animateInterpolateHeadingPitchRange(
@@ -195,8 +195,8 @@ export const useMapTransition = ({
           {
             duration: duration * 1000,
             onComplete: onComplete2d,
-          }
-        )
+          },
+        ),
       );
     } else {
       console.debug("rotate around camera position not implemented yet zoom");

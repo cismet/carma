@@ -1,15 +1,14 @@
-import React, {
-  createContext,
-} from 'react';
+import React, { createContext } from "react";
 
-import { type Pane } from 'tweakpane';
+import { type Pane } from "tweakpane";
 
 interface TweakpaneContextType {
   //isEnabled: boolean;
   paneRef: React.RefObject<Pane | null>;
 }
 
-
-export const TweakpaneContext = createContext<TweakpaneContextType | null>(null);
+export const TweakpaneContext = createContext<TweakpaneContextType | null>(
+  null,
+);
 
 export default TweakpaneContext;

@@ -104,13 +104,12 @@ const Map = () => {
         </ControlButtonStyler>
       </Control>
       <Control position="topcenter">
-      <div
-
-        className={
-          'w-fit min-w-max flex items-center gap-2 px-3 rounded-[10px] h-8 z-[99999999] button-shadow bg-white'
-      }
-      >
-        <FontAwesomeIcon icon={faMap} />
+        <div
+          className={
+            "w-fit min-w-max flex items-center gap-2 px-3 rounded-[10px] h-8 z-[99999999] button-shadow bg-white"
+          }
+        >
+          <FontAwesomeIcon icon={faMap} />
         </div>
       </Control>
       <Control position="bottomleft" order={10} fullCollapseWidth={true}>

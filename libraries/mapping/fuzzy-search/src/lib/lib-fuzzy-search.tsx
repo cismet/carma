@@ -9,7 +9,11 @@ import type { BaseSelectRef } from "rc-select";
 import { builtInGazetteerHitTrigger } from "react-cismap/tools/gazetteerHelper";
 import IconComp from "react-cismap/commons/Icon";
 
-import { EntityData, removeCesiumMarker, removeGroundPrimitiveById} from "@carma-mapping/cesium-engine";
+import {
+  EntityData,
+  removeCesiumMarker,
+  removeGroundPrimitiveById,
+} from "@carma-mapping/cesium-engine";
 
 import { carmaHitTrigger } from "./utils/carmaHitTrigger";
 import {
@@ -21,7 +25,6 @@ import {
   removeStopwords,
   getDefaultSearchConfig,
 } from "./utils/fuzzySearchHelper";
-
 
 import {
   SearchResultItem,
@@ -103,7 +106,8 @@ export function LibFuzzySearch({
   const [cleanBtnDisable, setCleanBtnDisable] = useState(true);
   const [fireScrollEvent, setFireScrollEvent] = useState(null);
   //const [cesiumMarkerModel, setCesiumMarkerModel] = useState<Model | null>(null); // TODO reuse parsed Model
-  const [selectedCesiumEntityData, setSelectedCesiumEntityData] = useState<EntityData | null>(null);
+  const [selectedCesiumEntityData, setSelectedCesiumEntityData] =
+    useState<EntityData | null>(null);
 
   const handleSearchAutoComplete = (value) => {
     if (allGazeteerData.length > 0 && fuseInstance) {
@@ -157,7 +161,8 @@ export function LibFuzzySearch({
     topicMapGazetteerHitTrigger([option.sData]); // TODO remove this after carma gazetteer hit trigger also handles LeafletMaps
     carmaHitTrigger([option.sData], mapConsumers, {
       cesiumOptions,
-      selectedCesiumEntityData, setSelectedCesiumEntityData
+      selectedCesiumEntityData,
+      setSelectedCesiumEntityData,
     });
     if (option.sData.type === "bezirke" || option.sData.type === "quartiere") {
       setGazetteerHit(null);
@@ -258,7 +263,8 @@ export function LibFuzzySearch({
       setOverlayFeature(null);
       setCleanBtnDisable(true);
       if (cesiumOptions) {
-        selectedCesiumEntityData && removeCesiumMarker(cesiumOptions.viewer, selectedCesiumEntityData)
+        selectedCesiumEntityData &&
+          removeCesiumMarker(cesiumOptions.viewer, selectedCesiumEntityData);
         setSelectedCesiumEntityData(null);
         cesiumOptions.viewer.entities.removeById(SELECTED_POLYGON_ID);
         removeGroundPrimitiveById(

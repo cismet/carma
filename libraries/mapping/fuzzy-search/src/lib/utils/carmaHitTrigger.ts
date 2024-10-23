@@ -349,7 +349,7 @@ export const carmaHitTrigger = (
             const model = selectedCesiumEntityData?.model;
             selectedCesiumEntityData &&
               removeCesiumMarker(viewer, selectedCesiumEntityData);
-              scene.requestRender(); // explicit render for requestRenderMode;
+            scene.requestRender(); // explicit render for requestRenderMode;
             if (cesiumOptions.markerAsset) {
               const data = await addCesiumMarker(
                 viewer,

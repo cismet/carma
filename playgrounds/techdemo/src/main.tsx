@@ -1,16 +1,16 @@
-import { StrictMode } from 'react';
-import * as ReactDOM from 'react-dom/client';
-import { HashRouter as Router, Routes, Route } from 'react-router-dom';
+import { StrictMode } from "react";
+import * as ReactDOM from "react-dom/client";
+import { HashRouter as Router, Routes, Route } from "react-router-dom";
 
-import * as serviceWorkerRegistration from './app/serviceWorkerRegistration';
-import App from './app/App';
-import Landing from './app/Landing';
-import LibreMap from './app/LibreMap';
-import Klima from './app/klima/App';
-import SensorMap from './app/SensorMap';
+import * as serviceWorkerRegistration from "./app/serviceWorkerRegistration";
+import App from "./app/App";
+import Landing from "./app/Landing";
+import LibreMap from "./app/LibreMap";
+import Klima from "./app/klima/App";
+import SensorMap from "./app/SensorMap";
 // xx
 const root = ReactDOM.createRoot(
-  document.getElementById('root') as HTMLElement
+  document.getElementById("root") as HTMLElement,
 );
 root.render(
   <StrictMode>
@@ -28,7 +28,7 @@ root.render(
         </Routes>
       </div>
     </Router>
-  </StrictMode>
+  </StrictMode>,
 );
 
 // If you want your app to work offline and load faster, you can change
