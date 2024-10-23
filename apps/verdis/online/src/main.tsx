@@ -35,18 +35,18 @@ const router = createHashRouter(
 
 root.render(
   <StrictMode>
-    <PersistGate loading={null} persistor={persistor}>
+    <Provider store={store}>
       <TopicMapContextProvider
         referenceSystemDefinition={MappingConstants.proj4crs25832def}
         mapEPSGCode="25832"
         referenceSystem={MappingConstants.crs25832}
       >
-        <Provider store={store}>
+        <PersistGate loading={null} persistor={persistor}>
           <Layout>
             <RouterProvider router={router} />
           </Layout>
-        </Provider>
+        </PersistGate>
       </TopicMapContextProvider>
-    </PersistGate>
+    </Provider>
   </StrictMode>
 );

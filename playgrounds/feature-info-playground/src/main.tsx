@@ -37,15 +37,15 @@ const root = ReactDOM.createRoot(
 );
 root.render(
   <StrictMode>
-    <PersistGate loading={null} persistor={persistor}>
-      <Provider store={store}>
-        <TopicMapContextProvider
-          referenceSystem={MappingConstants.crs3857}
-          referenceSystemDefinition={MappingConstants.proj4crs3857def}
-        >
+    <Provider store={store}>
+      <TopicMapContextProvider
+        referenceSystem={MappingConstants.crs3857}
+        referenceSystemDefinition={MappingConstants.proj4crs3857def}
+      >
+        <PersistGate loading={null} persistor={persistor}>
           <App />
-        </TopicMapContextProvider>
-      </Provider>
-    </PersistGate>
+        </PersistGate>
+      </TopicMapContextProvider>
+    </Provider>
   </StrictMode>,
 );
