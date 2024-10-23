@@ -1,9 +1,17 @@
 name: Deployment
 
 run-name: >
+  ${{ (contains(github.event.head_commit.message, 'skip-deploy')||contains(github.event.head_commit.message, 'no-deploy')) && '💤💤💤 ' ||''}}
+  ${{ github.event_name == 'workflow_dispatch' && '👨🏽‍💼 ' || github.event_name == 'repository_dispatch' && '🤖 ' || github.event_name == 'push' && '👨‍💻 ' }}
+  by ${{ github.actor }} 
+  ${{ github.event_name == 'repository_dispatch' && '(' || ''}}${{ github.event.client_payload.actor }}${{ github.event_name == 'repository_dispatch' && ')' || ''}} 
+  :
   ${{ github.event.head_commit.message }}
-  ${{ inputs['project-name'] }} --
-  ${{ github.event.inputs.target || github.ref_name }}-deployment
+  ${{ github.event.inputs['project-name'] || github.event.client_payload['project-name'] }} 
+  ${{ (github.event.inputs['project-name'] || github.event.client_payload['project-name']) && '- 🔢' || '' }}  
+  ${{ github.event.inputs['version-manipulator'] || github.event.client_payload['version-manipulator'] }}  
+    -
+  ${{ github.event.inputs.target || github.event.client_payload.target || github.ref_name }}-deployment
 on:
   workflow_dispatch:
     inputs:
@@ -26,10 +34,12 @@ on:
   push:
     branches:
       - dev
+  repository_dispatch:
+    types: [trigger-workflow]
 
 jobs:
   determine_projects:
-    if: "github.event.inputs.project-name == '' && !contains(github.event.head_commit.message, 'skip-deploy') && !contains(github.event.head_commit.message, 'no-deploy')"
+    if: "(github.event.inputs['project-name'] || github.event.client_payload['project-name']) == '' && !contains(github.event.head_commit.message, 'skip-deploy') && !contains(github.event.head_commit.message, 'no-deploy')"
     runs-on: ubuntu-latest
     outputs:
       project_list: ${{ steps.set_up_matrix.outputs.project_list }}
@@ -154,7 +164,7 @@ jobs:
   build:
     needs: determine_projects
     runs-on: ubuntu-latest
-    if: ${{ needs.determine_projects.outputs.is_affected == 'true' && github.event.inputs.project-name == '' && needs.determine_projects.outputs.project_list != '[]' }}
+    if: ${{ needs.determine_projects.outputs.is_affected == 'true' && (github.event.inputs['project-name'] || github.event.client_payload['project-name']) == '' && needs.determine_projects.outputs.project_list != '[]' }}
 
     permissions:
       contents: write
@@ -341,7 +351,7 @@ jobs:
         shell: bash
   single_build:
     runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.project-name != '' && github.event.inputs.project-name != '*' }}
+    if: ${{ (github.event.inputs['project-name'] || github.event.client_payload['project-name']) != '' && (github.event.inputs['project-name'] || github.event.client_payload['project-name']) != '*' }}
     permissions:
       contents: write
       pages: write
@@ -362,8 +372,8 @@ jobs:
         id: get_props_from_json
         run: |
           config=$(cat deployment-config.json) 
-          project_name="${{ github.event.inputs.project-name }}"
-          target="${{ github.event.inputs.target }}"
+          project_name="${{ github.event.inputs['project-name'] || github.event.client_payload['project-name'] }}"
+          target="${{ github.event.inputs.target || github.event.client_payload.target }}"
 
           # Fetch properties dynamically based on the target (dev or live)
           deploymentManual=$(echo "$config" | jq -r --arg project "$project_name" --arg target "$target" '.projects[$project].deployment.manual[$target].repo // "null"')
@@ -414,13 +424,13 @@ jobs:
         shell: bash
       - name: Create the version number
         id: update_version_number
-        if: ${{ github.event.inputs.target != 'dev' }} # Skip version manipulation for dev deployments
+        if: ${{ (github.event.inputs.target || github.event.client_payload.target) != 'dev' }} # Skip version manipulation for dev deployments
         run: |
           if [[ -f "$SRC_PATH/version.json" ]]; then
-            if [[ -n "${{ github.event.inputs.version-manipulator }}" ]]; then
+            if [[ -n "${{ (github.event.inputs['version-manipulator'] || github.event.client_payload['version-manipulator']) }}" ]]; then
               cp "$SRC_PATH/version.json" /tmp/package.json
               cd /tmp
-              npm version ${{ github.event.inputs.version-manipulator }} --no-git-tag-version --allow-same-version
+              npm version ${{ github.event.inputs['version-manipulator'] || github.event.client_payload['version-manipulator'] }} --no-git-tag-version --allow-same-version
               cd -
               cp /tmp/package.json "$SRC_PATH/version.json"
               echo "version_changed=true" >> $GITHUB_ENV
@@ -435,13 +445,13 @@ jobs:
         shell: bash
 
       - name: Commit version.json changes
-        if: env.version_changed == 'true' && github.event.inputs.target != 'dev' # Only commit if version was updated and target is not dev
+        if: env.version_changed == 'true' && (github.event.inputs.target || github.event.client_payload.target) != 'dev' # Only commit if version was updated and target is not dev
         run: |
           git config --global user.email "902348742+github-actions[bot]@users.noreply.github.com"
           git config --global user.name "GitHub Actions"
 
           git add "$SRC_PATH/version.json"
-          git commit -m "Update version.json based on ${{ github.event.inputs.version-manipulator }}"
+          git commit -m "Update version.json based on ${{ github.event.inputs['version-manipulator'] || github.event.client_payload['version-manipulator'] }}"
           git push origin dev
         env:
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -505,7 +515,7 @@ jobs:
         run: npm install nx@17.2.8
       - name: Build project
         run: |
-          npx nx run ${{ github.event.inputs.project-name }}:build --configuration=production --base="${{ env.BASE_URL }}"
+          npx nx run ${{ github.event.inputs['project-name'] || github.event.client_payload['project-name'] }}:build --configuration=production --base="${{ env.BASE_URL }}"
         shell: bash
       - name: Deploy
         if: env.EXTERNAL_REPO != 'null' && env.EXTERNAL_REPO != '' && env.EXTERNAL_REPO != 'null/null'
@@ -523,11 +533,11 @@ jobs:
       - name: Build container if container image is set
         if: env.CONTAINER_IMAGE != 'null' && env.CONTAINER_IMAGE != ''
         run: |
-          INPUT_PLATFORMS="linux/amd64" INPUT_TAGS="${{ env.CONTAINER_IMAGE }}${{ env.SRC_MD5_SHORT }},${{ env.CONTAINER_IMAGE }}latest" npx nx run ${{ github.event.inputs.project-name }}:container
+          INPUT_PLATFORMS="linux/amd64" INPUT_TAGS="${{ env.CONTAINER_IMAGE }}${{ env.SRC_MD5_SHORT }},${{ env.CONTAINER_IMAGE }}latest" npx nx run ${{ github.event.inputs['project-name'] || github.event.client_payload['project-name'] }}:container
         shell: bash
 
   all_projects_build:
-    if: ${{ github.event.inputs.project-name == '*' }}
+    if: ${{ (github.event.inputs['project-name'] || github.event.client_payload['project-name']) == '*' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -576,7 +586,7 @@ jobs:
         run: |
           config=$(cat deployment-config.json) 
           project_name="${{ matrix.project }}"
-          target="${{ github.event.inputs.target || 'dev' }}"
+          target="${{ github.event.inputs.target || github.event.client_payload.target || 'dev' }}"
 
           # Fetch properties dynamically based on the target (dev or live)
           deploymentManual=$(echo "$config" | jq -r --arg project "$project_name" --arg target "$target" '.projects[$project].deployment.manual[$target].repo // "null"')
@@ -628,13 +638,13 @@ jobs:
 
       - name: Create the version number
         id: update_version_number
-        if: ${{ github.event.inputs.target != 'dev' }} # Skip version manipulation for dev deployments
+        if: ${{ (github.event.inputs.target || github.event.client_payload.target) != 'dev' }} # Skip version manipulation for dev deployments
         run: |
           if [[ -f "$SRC_PATH/version.json" ]]; then
-            if [[ -n "${{ github.event.inputs.version-manipulator }}" ]]; then
+            if [[ -n "${{ (github.event.inputs['version-manipulator'] || github.event.client_payload['version-manipulator']) }}" ]]; then
               cp "$SRC_PATH/version.json" /tmp/package.json
               cd /tmp
-              npm version ${{ github.event.inputs.version-manipulator }} --no-git-tag-version --allow-same-version
+              npm version ${{ github.event.inputs['version-manipulator'] || github.event.client_payload['version-manipulator'] }} --no-git-tag-version --allow-same-version
               cd -
               cp /tmp/package.json "$SRC_PATH/version.json"
               echo "version_changed=true" >> $GITHUB_ENV
@@ -649,13 +659,13 @@ jobs:
         shell: bash
 
       - name: Commit version.json changes
-        if: env.version_changed == 'true' && github.event.inputs.target != 'dev' # Only commit if version was updated and target is not dev
+        if: env.version_changed == 'true' && (github.event.inputs.target || github.event.client_payload.target) != 'dev' # Only commit if version was updated and target is not dev
         run: |
           git config --global user.email "902348742+github-actions[bot]@users.noreply.github.com"
           git config --global user.name "GitHub Actions"
 
           git add "$SRC_PATH/version.json"
-          git commit -m "Update version.json based on ${{ github.event.inputs.version-manipulator }}"
+          git commit -m "Update version.json based on ${{ github.event.inputs['version-manipulator'] || github.event.client_payload['version-manipulator'] }}"
           git push origin dev
         env:
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
