@@ -1,6 +1,6 @@
-import * as L from '@types/leaflet';
+import * as L from "@types/leaflet";
 
-declare module 'leaflet' {
+declare module "leaflet" {
   function setOptions(any, options: any): void;
   const divIcon: (options: any) => L.DivIcon;
   namespace Proj {
