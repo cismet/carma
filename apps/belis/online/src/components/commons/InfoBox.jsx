@@ -6,8 +6,13 @@ import Button from "react-bootstrap/Button";
 import Icon from "react-cismap/commons/Icon";
 import IconLink from "react-cismap/commons/IconLink";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
-import { UIContext, UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
-import ResponsiveInfoBox, { MODES } from "react-cismap/topicmaps/ResponsiveInfoBox";
+import {
+  UIContext,
+  UIDispatchContext,
+} from "react-cismap/contexts/UIContextProvider";
+import ResponsiveInfoBox, {
+  MODES,
+} from "react-cismap/topicmaps/ResponsiveInfoBox";
 import { useDispatch, useSelector } from "react-redux";
 
 import { getWebDavUrl } from "../../constants/belis";
@@ -42,12 +47,17 @@ const InfoBox = ({ refRoutedMap }) => {
   const { setCollapsedInfoBox } = useContext(UIDispatchContext);
   const { collapsedInfoBox } = useContext(UIContext);
   const mode = useSelector(getFeatureCollectionMode);
-  const { setAll: setPhotoLightBoxData, setVisible, setCaptions } = useContext(
-    LightBoxDispatchContext
-  );
+  const {
+    setAll: setPhotoLightBoxData,
+    setVisible,
+    setCaptions,
+  } = useContext(LightBoxDispatchContext);
 
   const selectedArbeitsauftrag = useSelector(
-    (state) => state.featureCollection.selectedFeature[FEATURECOLLECTION_MODES.TASKLISTS]
+    (state) =>
+      state.featureCollection.selectedFeature[
+        FEATURECOLLECTION_MODES.TASKLISTS
+      ],
   );
   let header = <span>Feature title</span>;
   const minified = collapsedInfoBox;
@@ -93,7 +103,7 @@ const InfoBox = ({ refRoutedMap }) => {
           if (doc?.doc && doc?.doc.endsWith(".pdf")) {
             openPDFLink = (
               <span style={{ marginLeft: 30 }}>
-                <a href={getWebDavUrl(jwt, doc)} target='_pdf'>
+                <a href={getWebDavUrl(jwt, doc)} target="_pdf">
                   PDF extern öffnen
                 </a>
               </span>
@@ -111,7 +121,7 @@ const InfoBox = ({ refRoutedMap }) => {
               {doc.caption}
               {doc.intermediate === true && "*"} {openPDFLink}
             </div>
-          )
+          ),
         );
       }
     }
@@ -211,8 +221,11 @@ const InfoBox = ({ refRoutedMap }) => {
       <table style={{ width: "100%", marginBottom: 0 }}>
         <tbody>
           <tr>
-            <td title='vorheriger Treffer' style={{ textAlign: "left", verticalAlign: "center" }}>
-              <a className='renderAsProperLink' onClick={_previous}>
+            <td
+              title="vorheriger Treffer"
+              style={{ textAlign: "left", verticalAlign: "center" }}
+            >
+              <a className="renderAsProperLink" onClick={_previous}>
                 &lt;&lt;
               </a>
             </td>
@@ -220,8 +233,11 @@ const InfoBox = ({ refRoutedMap }) => {
               {currentlyShownCountLabel}
             </td>
 
-            <td title='nächster Treffer' style={{ textAlign: "right", verticalAlign: "center" }}>
-              <a className='renderAsProperLink' onClick={_next}>
+            <td
+              title="nächster Treffer"
+              style={{ textAlign: "right", verticalAlign: "center" }}
+            >
+              <a className="renderAsProperLink" onClick={_next}>
                 &gt;&gt;
               </a>
             </td>
@@ -271,16 +287,22 @@ const InfoBox = ({ refRoutedMap }) => {
                         };
                       });
 
-                      const menu = <Menu style={{ opacity: 0.8 }} items={items} />;
+                      const menu = (
+                        <Menu style={{ opacity: 0.8 }} items={items} />
+                      );
                       return (
-                        <Dropdown overlay={menu} placement='topRight' trigger={["click"]}>
+                        <Dropdown
+                          overlay={menu}
+                          placement="topRight"
+                          trigger={["click"]}
+                        >
                           <span style={{ paddingLeft: index > 0 ? 3 : 0 }}>
                             <IconLink
                               key={`iconlink` + index}
                               tooltip={li.tooltip}
                               onClick={li.onClick}
                               iconname={li.iconname || li.iconspan}
-                              href='#'
+                              href="#"
                             />
                           </span>
                         </Dropdown>
@@ -294,7 +316,7 @@ const InfoBox = ({ refRoutedMap }) => {
                               tooltip={li.tooltip}
                               onClick={li.onClick}
                               iconname={li.iconname || li.iconspan}
-                              href='#'
+                              href="#"
                             />
                           )}
                           {li.iconspan && (
@@ -338,7 +360,9 @@ const InfoBox = ({ refRoutedMap }) => {
                             )} */}
                             {additionalInfo &&
                               (!additionalInfo.toString().startsWith ||
-                                !additionalInfo.toString().startsWith("<html>")) &&
+                                !additionalInfo
+                                  .toString()
+                                  .startsWith("<html>")) &&
                               additionalInfo
                                 .toString()
                                 .split("\n")
@@ -354,9 +378,11 @@ const InfoBox = ({ refRoutedMap }) => {
                           {/* {subtitle && subtitle.startsWith && subtitle.startsWith("<html>") && (
                           <div> {parseHtml(subtitle.match(/<html>(.*?)<\/html>/)[1])}</div>
                         )} */}
-                          {subtitle && (!subtitle.startsWith || !subtitle.startsWith("<html>")) && (
-                            <p>{subtitle}</p>
-                          )}
+                          {subtitle &&
+                            (!subtitle.startsWith ||
+                              !subtitle.startsWith("<html>")) && (
+                              <p>{subtitle}</p>
+                            )}
                         </td>
                       </tr>
                     </tbody>
@@ -373,7 +399,9 @@ const InfoBox = ({ refRoutedMap }) => {
     divWhenLarge = divWhenCollapsed;
   } else {
     divWhenCollapsed = noCurrentFeatureTitle;
-    collapsibleDiv = <div style={{ paddingRight: 2 }}>{noCurrentFeatureContent}</div>;
+    collapsibleDiv = (
+      <div style={{ paddingRight: 2 }}>{noCurrentFeatureContent}</div>
+    );
   }
 
   return (
@@ -429,19 +457,20 @@ const InfoBox = ({ refRoutedMap }) => {
                     <Dropdown
                       key={"dropdown." + index}
                       overlay={menu}
-                      placement='topRight'
+                      placement="topRight"
                       trigger={["click"]}
                     >
                       <Button
                         style={{
                           opacity: 0.7,
                           marginLeft: index === 0 ? 0 : 5,
-                          marginRight: index === actionLinkInfos.length - 1 ? 0 : 5,
+                          marginRight:
+                            index === actionLinkInfos.length - 1 ? 0 : 5,
                           width: "100%",
                         }}
                         key={"actionbutton." + index}
-                        size='lg'
-                        variant='light'
+                        size="lg"
+                        variant="light"
                         title={li.tooltip}
                       >
                         <h2>
@@ -457,12 +486,13 @@ const InfoBox = ({ refRoutedMap }) => {
                       style={{
                         opacity: 0.7,
                         marginLeft: index === 0 ? 0 : 5,
-                        marginRight: index === actionLinkInfos.length - 1 ? 0 : 5,
+                        marginRight:
+                          index === actionLinkInfos.length - 1 ? 0 : 5,
                         width: "100%",
                       }}
                       key={"actionbutton." + index}
-                      size='lg'
-                      variant='light'
+                      size="lg"
+                      variant="light"
                       onClick={li.onClick}
                       title={li.tooltip}
                     >
@@ -498,13 +528,15 @@ const InfoBox = ({ refRoutedMap }) => {
                 />
               )}
               <img
-                alt='Preview'
-                width='150'
+                alt="Preview"
+                width="150"
                 style={{ paddingBottom: "5px", opacity: 0.9, display: "block" }}
                 onClick={() => {
                   setLightBoxVisible(true);
                 }}
-                src={addDotThumbnail(getWebDavUrl(jwt, selectedFeature.properties.docs[0]))}
+                src={addDotThumbnail(
+                  getWebDavUrl(jwt, selectedFeature.properties.docs[0]),
+                )}
               />
             </div>
           ) : (

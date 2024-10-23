@@ -1,11 +1,11 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice } from "@reduxjs/toolkit";
 import {
   INFO_DOC_DATEINAMEN_NAME,
   INFO_DOC_DATEINAMEN_URL,
-} from '../../constants/bplaene';
-import booleanDisjoint from '@turf/boolean-disjoint';
-import bboxPolygon from '@turf/bbox-polygon';
-import center from '@turf/center';
+} from "../../constants/bplaene";
+import booleanDisjoint from "@turf/boolean-disjoint";
+import bboxPolygon from "@turf/bbox-polygon";
+import center from "@turf/center";
 
 const initialState = {
   data: undefined,
@@ -13,7 +13,7 @@ const initialState = {
 };
 
 const slice = createSlice({
-  name: 'bplaene',
+  name: "bplaene",
   initialState,
   reducers: {
     setData(state, action) {
@@ -32,10 +32,10 @@ export default slice;
 export const loadBPlaene = (finishedHandler = () => {}) => {
   return async (dispatch) => {
     dispatch(setLoading(true));
-    fetch('https://wunda-geoportal.cismet.de/data/bplaene.data.json')
+    fetch("https://wunda-geoportal.cismet.de/data/bplaene.data.json")
       .then((response) => {
         if (!response.ok) {
-          throw new Error('Network response was not ok');
+          throw new Error("Network response was not ok");
         }
         return response.json();
       })
@@ -53,8 +53,8 @@ export const loadBPlaene = (finishedHandler = () => {}) => {
       })
       .catch((error) => {
         console.error(
-          'There was a problem with the fetch operation:',
-          error.message
+          "There was a problem with the fetch operation:",
+          error.message,
         );
         dispatch(setLoading(false));
       });
@@ -66,8 +66,8 @@ function convertBPlanToFeature(bplan, index) {
     return undefined;
   }
   const id = index;
-  const type = 'Feature';
-  const featuretype = 'B-Plan';
+  const type = "Feature";
+  const featuretype = "B-Plan";
 
   const selected = false;
   const geometry = bplan.geojson;
@@ -92,9 +92,9 @@ function convertBPlanToFeature(bplan, index) {
     selected,
     geometry,
     crs: {
-      type: 'name',
+      type: "name",
       properties: {
-        name: 'urn:ogc:def:crs:EPSG::25832',
+        name: "urn:ogc:def:crs:EPSG::25832",
       },
     },
     properties: bplan,
@@ -105,7 +105,7 @@ export function getPlanFeatureByGazObject(
   gazObjects,
   done = (result) => {
     console.log(result);
-  }
+  },
 ) {
   return function (dispatch, getState) {
     const state = getState();
@@ -127,12 +127,12 @@ export function getPlanFeatureByTitle(title: string, done: (hit: any) => void) {
   return function (dispatch) {
     let status: string | undefined = undefined;
     let nr = title;
-    if (title.includes('(nicht rechtskräftig)')) {
-      status = 'nicht rechtskräftig';
-      nr = title.split(' (nicht rechtskräftig)')[0];
-    } else if (title.includes('(rechtskräftig)')) {
-      status = 'rechtskräftig';
-      nr = title.split(' (rechtskräftig)')[0];
+    if (title.includes("(nicht rechtskräftig)")) {
+      status = "nicht rechtskräftig";
+      nr = title.split(" (nicht rechtskräftig)")[0];
+    } else if (title.includes("(rechtskräftig)")) {
+      status = "rechtskräftig";
+      nr = title.split(" (rechtskräftig)")[0];
     }
 
     dispatch(getPlanFeature(nr, status, done));
@@ -206,7 +206,7 @@ export function getPlanFeatures({
         let tmpFeature = { ...feature };
         tmpFeature.searchDistance = distance(
           getXYFromPointFeature(center(bboxPoly)),
-          getXYFromPointFeature(center(feature))
+          getXYFromPointFeature(center(feature)),
         );
         finalResults.push(tmpFeature);
       }

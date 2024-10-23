@@ -93,7 +93,9 @@ const InfoBox = ({
       {secondaryInfoBoxElements.map((element, index) => (
         <Control
           key={"secondaryInfoBoxElements." + index + "." + responsiveState}
-          position={responsiveState === "normal" ? "bottomright" : "bottomright"}
+          position={
+            responsiveState === "normal" ? "bottomright" : "bottomright"
+          }
         >
           <div style={{ opacity: 0.9 }}>{element}</div>
         </Control>

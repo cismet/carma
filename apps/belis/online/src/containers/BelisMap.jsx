@@ -1,20 +1,20 @@
-import React, { useContext, useEffect, useRef, useState } from 'react';
-import { MappingConstants, RoutedMap } from 'react-cismap';
-import { TopicMapStylingContext } from 'react-cismap/contexts/TopicMapStylingContextProvider';
-import GazetteerHitDisplay from 'react-cismap/GazetteerHitDisplay';
-import ProjSingleGeoJson from 'react-cismap/ProjSingleGeoJson';
-import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, { useContext, useEffect, useRef, useState } from "react";
+import { MappingConstants, RoutedMap } from "react-cismap";
+import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
+import GazetteerHitDisplay from "react-cismap/GazetteerHitDisplay";
+import ProjSingleGeoJson from "react-cismap/ProjSingleGeoJson";
+import { useDispatch, useSelector } from "react-redux";
+import { useNavigate, useLocation } from "react-router-dom";
 
-import BelisFeatureCollection from '../components/app/FeatureCollection';
-import FocusRectangle from '../components/app/FocusRectangle';
-import InfoBox from '../components/commons/InfoBox';
-import InfoPanel from '../components/commons/secondaryinfo/SecondaryInfo';
-import PaleOverlay from '../components/leaflet/PaleOverlay';
-import { modifyQueryPart } from '../core/commons/routingHelper';
-import { convertBounds2BBox } from '../core/helper/gisHelper';
-import { CONNECTIONMODE, getConnectionMode } from '../core/store/slices/app';
-import { getBackground } from '../core/store/slices/background';
+import BelisFeatureCollection from "../components/app/FeatureCollection";
+import FocusRectangle from "../components/app/FocusRectangle";
+import InfoBox from "../components/commons/InfoBox";
+import InfoPanel from "../components/commons/secondaryinfo/SecondaryInfo";
+import PaleOverlay from "../components/leaflet/PaleOverlay";
+import { modifyQueryPart } from "../core/commons/routingHelper";
+import { convertBounds2BBox } from "../core/helper/gisHelper";
+import { CONNECTIONMODE, getConnectionMode } from "../core/store/slices/app";
+import { getBackground } from "../core/store/slices/background";
 import {
   getFeatureCollection,
   getFeatureCollectionMode,
@@ -26,12 +26,12 @@ import {
   loadObjects,
   MODES,
   setSelectedFeature,
-} from '../core/store/slices/featureCollection';
-import { setMapRef } from '../core/store/slices/map';
-import { setBounds } from '../core/store/slices/mapInfo';
-import { isPaleModeActive } from '../core/store/slices/paleMode';
-import { getLoadingState, initIndex } from '../core/store/slices/spatialIndex';
-import { getZoom, setZoom } from '../core/store/slices/zoom';
+} from "../core/store/slices/featureCollection";
+import { setMapRef } from "../core/store/slices/map";
+import { setBounds } from "../core/store/slices/mapInfo";
+import { isPaleModeActive } from "../core/store/slices/paleMode";
+import { getLoadingState, initIndex } from "../core/store/slices/spatialIndex";
+import { getZoom, setZoom } from "../core/store/slices/zoom";
 
 //---
 
@@ -45,7 +45,7 @@ const BelisMap = ({ refRoutedMap, width, height, jwt }) => {
     useState(false);
 
   const { selectedBackground, backgroundConfigurations } = useContext(
-    TopicMapStylingContext
+    TopicMapStylingContext,
   );
 
   const timeoutHandlerRef = useRef(null);
@@ -54,22 +54,22 @@ const BelisMap = ({ refRoutedMap, width, height, jwt }) => {
     if (mapRef) {
       dispatch(setMapRef(mapRef));
       if (mapRef.attributionControl) {
-        mapRef.attributionControl.setPrefix('');
+        mapRef.attributionControl.setPrefix("");
       }
-      mapRef.on('movestart', () => {
+      mapRef.on("movestart", () => {
         setBlockLoading(true);
       });
-      mapRef.on('moveend', () => {
+      mapRef.on("moveend", () => {
         setBlockLoading(true);
         window.clearTimeout(timeoutHandlerRef.current);
         timeoutHandlerRef.current = window.setTimeout(() => {
           setBlockLoading(false);
         }, blockingTime);
       });
-      mapRef.on('zoomstart', () => {
+      mapRef.on("zoomstart", () => {
         setBlockLoading(true);
       });
-      mapRef.on('zoomend', () => {
+      mapRef.on("zoomend", () => {
         setBlockLoading(true);
         window.clearTimeout(timeoutHandlerRef.current);
         timeoutHandlerRef.current = window.setTimeout(() => {
@@ -106,9 +106,9 @@ const BelisMap = ({ refRoutedMap, width, height, jwt }) => {
   const mapStyle = {
     height,
     width,
-    cursor: 'pointer',
-    clear: 'both',
-    display: 'flex',
+    cursor: "pointer",
+    clear: "both",
+    display: "flex",
   };
   const featureCollection = useSelector(getFeatureCollection);
   const inFocusMode = useSelector(isInFocusMode);
@@ -136,7 +136,7 @@ const BelisMap = ({ refRoutedMap, width, height, jwt }) => {
     backgroundsFromMode = backgroundConfigurations[selectedBackground].layerkey;
   } catch (e) {}
 
-  const _backgroundLayers = backgroundsFromMode || 'rvrGrau@40';
+  const _backgroundLayers = backgroundsFromMode || "rvrGrau@40";
 
   //we have 2 backgrounds, one redux background state (important for persistence)
   // useEffect(() => {
@@ -170,7 +170,7 @@ const BelisMap = ({ refRoutedMap, width, height, jwt }) => {
       if (mapBounds && mapSize) {
         const boundingBox = convertBounds2BBox(mapBounds);
 
-        const z = urlSearchParams.get('zoom');
+        const z = urlSearchParams.get("zoom");
         if (zoom !== z) {
           dispatch(setZoom(z));
         }
@@ -182,7 +182,7 @@ const BelisMap = ({ refRoutedMap, width, height, jwt }) => {
               zoom: z,
               jwt: jwt,
               force: true,
-            })
+            }),
           ); //here force=true because of problem when initially loading after switching to cache mode
         } else {
           // console.log("xxx no map for you (mapBounds && mapSize)", mapBounds, mapSize);
@@ -219,7 +219,7 @@ const BelisMap = ({ refRoutedMap, width, height, jwt }) => {
           dispatch(
             initIndex(() => {
               setIndexInitialized(true);
-            })
+            }),
           );
         }
       } else {
@@ -233,17 +233,17 @@ const BelisMap = ({ refRoutedMap, width, height, jwt }) => {
 
   //Symbolcolors from nightmode
   let symbolColor;
-  if (background === 'nightplan') {
-    symbolColor = '#ffffff';
+  if (background === "nightplan") {
+    symbolColor = "#ffffff";
   } else {
-    symbolColor = '#000000';
+    symbolColor = "#000000";
   }
 
   return (
     <RoutedMap
       editable={false}
       style={mapStyle}
-      key={'leafletRoutedMap'}
+      key={"leafletRoutedMap"}
       referenceSystem={MappingConstants.crs3857}
       referenceSystemDefinition={MappingConstants.proj4crs3857def}
       ref={refRoutedMap}
@@ -252,14 +252,14 @@ const BelisMap = ({ refRoutedMap, width, height, jwt }) => {
       onclick={(e) => {}}
       ondblclick={(e) => {
         try {
-          const classesString = e.originalEvent.path[0].getAttribute('class');
+          const classesString = e.originalEvent.path[0].getAttribute("class");
 
           if (classesString) {
-            const classes = classesString.split(' ');
+            const classes = classesString.split(" ");
 
             if (
-              classes.includes('leaflet-gl-layer') ||
-              classes.includes('leaflet-container')
+              classes.includes("leaflet-gl-layer") ||
+              classes.includes("leaflet-container")
             ) {
               dispatch(setSelectedFeature(null));
             } else {
@@ -267,7 +267,7 @@ const BelisMap = ({ refRoutedMap, width, height, jwt }) => {
             }
           }
         } catch (e) {
-          console.log('error in dbl click', e);
+          console.log("error in dbl click", e);
         }
       }}
       autoFitProcessedHandler={() =>
@@ -289,7 +289,7 @@ const BelisMap = ({ refRoutedMap, width, height, jwt }) => {
       locationChangedHandler={(location) => {
         navigate(
           browserlocation.pathname +
-            modifyQueryPart(browserlocation.search, location)
+            modifyQueryPart(browserlocation.search, location),
         );
       }}
       boundingBoxChangedHandler={(boundingBox) => {
@@ -326,7 +326,7 @@ const BelisMap = ({ refRoutedMap, width, height, jwt }) => {
       )}
       {gazetteerHit && (
         <GazetteerHitDisplay
-          key={'gazHit' + JSON.stringify(gazetteerHit)}
+          key={"gazHit" + JSON.stringify(gazetteerHit)}
           gazetteerHit={gazetteerHit}
         />
       )}

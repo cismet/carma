@@ -1,22 +1,22 @@
-import { createSlice } from '@reduxjs/toolkit';
-import { DOMAIN, SERVICE, STAC_SERVICE } from '../../constants/cids';
-import { logout, setLoginInProgress, setStac } from './auth';
+import { createSlice } from "@reduxjs/toolkit";
+import { DOMAIN, SERVICE, STAC_SERVICE } from "../../constants/cids";
+import { logout, setLoginInProgress, setStac } from "./auth";
 import {
   getAnnotationFeatureCollection,
   getFlaechenFeatureCollection,
-} from '../../utils/kassenzeichenMappingTools';
+} from "../../utils/kassenzeichenMappingTools";
 import {
   fitAll,
   setFeatureCollection,
   setSelectedFeatureIndex,
-} from './mapping';
+} from "./mapping";
 
 const initialState = {
   id: -1,
 };
 
 const slice = createSlice({
-  name: 'kassenzeichen',
+  name: "kassenzeichen",
   initialState,
   reducers: {
     setKassenzeichen(state, action) {
@@ -47,25 +47,25 @@ export const searchByKassenzeichenId = (kassenzeichenId, fitBounds) => {
     let pass = state.auth.password;
     fetch(
       SERVICE +
-        '/' +
+        "/" +
         DOMAIN +
-        '.KASSENZEICHEN/' +
+        ".KASSENZEICHEN/" +
         kassenzeichenId +
-        '?role=all&omitNullValues=true&deduplicate=false',
+        "?role=all&omitNullValues=true&deduplicate=false",
       {
-        method: 'GET',
+        method: "GET",
         headers: {
-          Authorization: 'Basic ' + btoa(username + '@' + DOMAIN + ':' + pass),
-          'Content-Type': 'application/json',
+          Authorization: "Basic " + btoa(username + "@" + DOMAIN + ":" + pass),
+          "Content-Type": "application/json",
         },
-      }
+      },
     )
       .then(function (response) {
         if (response.status >= 200 && response.status < 300) {
           response.json().then(function (kassenzeichenData) {
             // dispatch(UiStateActions.showWaiting(false));
             dispatch(
-              setKassenzeichen({ kassenzeichenObject: kassenzeichenData })
+              setKassenzeichen({ kassenzeichenObject: kassenzeichenData }),
             );
             // dispatch(
             //     RoutingActions.push(
@@ -146,20 +146,20 @@ export const getKassenzeichenbySTAC = (stac, callback) => {
     };
     let fd = new FormData();
     fd.append(
-      'taskparams',
+      "taskparams",
       new Blob([JSON.stringify(taskParameters)], {
-        type: 'application/json',
-      })
+        type: "application/json",
+      }),
     );
     dispatch(logout());
-    dispatch(setLoginInProgress({ loginInProgressTextInfo: 'Anmelden ...' }));
+    dispatch(setLoginInProgress({ loginInProgressTextInfo: "Anmelden ..." }));
     const url =
       STAC_SERVICE +
-      '/actions/' +
+      "/actions/" +
       DOMAIN +
-      '.getMyKassenzeichen/tasks?role=all&resultingInstanceType=result';
+      ".getMyKassenzeichen/tasks?role=all&resultingInstanceType=result";
     fetch(url, {
-      method: 'post',
+      method: "post",
       body: fd,
     })
       .then(function (response) {
@@ -169,25 +169,25 @@ export const getKassenzeichenbySTAC = (stac, callback) => {
 
             if (kassenzeichenData.nothing) {
               dispatch(logout());
-              if (typeof callback === 'function') {
+              if (typeof callback === "function") {
                 callback(false);
               }
             } else {
               dispatch(
-                setKassenzeichen({ kassenzeichenObject: kassenzeichenData })
+                setKassenzeichen({ kassenzeichenObject: kassenzeichenData }),
               );
               const flaechenFC =
                 getFlaechenFeatureCollection(kassenzeichenData);
               const annoFC = getAnnotationFeatureCollection(
-                kassenzeichenData.aenderungsanfrage
+                kassenzeichenData.aenderungsanfrage,
               );
 
               dispatch(setFeatureCollection([...flaechenFC, ...annoFC]));
 
               dispatch(
                 setFeatureCollection(
-                  getFlaechenFeatureCollection(kassenzeichenData)
-                )
+                  getFlaechenFeatureCollection(kassenzeichenData),
+                ),
               );
               dispatch(setSelectedFeatureIndex(null));
               dispatch(fitAll());
@@ -202,7 +202,7 @@ export const getKassenzeichenbySTAC = (stac, callback) => {
               //     )
               // );
 
-              if (typeof callback === 'function') {
+              if (typeof callback === "function") {
                 callback(true);
               }
             }
@@ -210,7 +210,7 @@ export const getKassenzeichenbySTAC = (stac, callback) => {
         } else {
           //Errorhandling
           dispatch(logout());
-          if (typeof callback === 'function') {
+          if (typeof callback === "function") {
             callback(false);
           }
           // dispatch(UiStateActions.showError("Bei der Suche nach dem Kassenzeichen " + kassenzeichen + " ist ein Fehler aufgetreten. ( ErrorCode: " + response.status + ")"));
@@ -220,9 +220,9 @@ export const getKassenzeichenbySTAC = (stac, callback) => {
       .catch(function (err) {
         // dispatch(UiStateActions.showError("Bei der Suche nach dem Kassenzeichen " + kassenzeichen + " ist ein Fehler aufgetreten. (" + err + ")"));
         // dispatch(UiStateActions.setKassenzeichenSearchInProgress(false));
-        console.log('Error in action' + err);
+        console.log("Error in action" + err);
         dispatch(logout());
-        if (typeof callback === 'function') {
+        if (typeof callback === "function") {
           callback(false);
         }
       });
@@ -259,14 +259,14 @@ export function getNumberOfPendingChanges(cr) {
               crCounter++;
             }
           }
-        }
+        },
       );
     }
     if (cr.nachrichten !== undefined && cr.nachrichten !== null) {
       const changerequestMessagesArray = cr.nachrichten;
       (changerequestMessagesArray || []).forEach((msg) => {
         if (msg.draft === true) {
-          if (msg.nachricht !== undefined && msg.nachricht.trim() !== '') {
+          if (msg.nachricht !== undefined && msg.nachricht.trim() !== "") {
             crDraftCounter++;
           }
           if (msg.anhang !== undefined && msg.anhang.length > 0) {

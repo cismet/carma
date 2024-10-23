@@ -1,15 +1,15 @@
-import { createSlice } from '@reduxjs/toolkit';
-import bboxPolygon from '@turf/bbox-polygon';
-import booleanDisjoint from '@turf/boolean-disjoint';
-import { getAEVByNr, getAEVsByNrs } from './aenderungsverfahren';
-import { setFeatureCollection, setSelectedFeatureIndex } from './mapping';
+import { createSlice } from "@reduxjs/toolkit";
+import bboxPolygon from "@turf/bbox-polygon";
+import booleanDisjoint from "@turf/boolean-disjoint";
+import { getAEVByNr, getAEVsByNrs } from "./aenderungsverfahren";
+import { setFeatureCollection, setSelectedFeatureIndex } from "./mapping";
 
 const initialState = {
   data: undefined,
 };
 
 const slice = createSlice({
-  name: 'hauptnutzungen',
+  name: "hauptnutzungen",
   initialState,
   reducers: {
     setData(state, action) {
@@ -21,10 +21,10 @@ const slice = createSlice({
 
 export const loadHauptnutzungen = () => {
   return async (dispatch: any) => {
-    fetch('https://wunda-geoportal.cismet.de/data/hauptnutzungen.data.json')
+    fetch("https://wunda-geoportal.cismet.de/data/hauptnutzungen.data.json")
       .then((response) => {
         if (!response.ok) {
-          throw new Error('Network response was not ok');
+          throw new Error("Network response was not ok");
         }
         return response.json();
       })
@@ -40,8 +40,8 @@ export const loadHauptnutzungen = () => {
       })
       .catch((error) => {
         console.error(
-          'There was a problem with the fetch operation:',
-          error.message
+          "There was a problem with the fetch operation:",
+          error.message,
         );
       });
   };
@@ -52,8 +52,8 @@ function convertHauptnutzungToFeature(hn, index) {
     return undefined;
   }
   const id = hn.id;
-  const type = 'Feature';
-  const featuretype = 'Hauptnutzung';
+  const type = "Feature";
+  const featuretype = "Hauptnutzung";
   const selected = false;
   const geometry = hn.geojson;
 
@@ -68,9 +68,9 @@ function convertHauptnutzungToFeature(hn, index) {
     selected,
     geometry,
     crs: {
-      type: 'name',
+      type: "name",
       properties: {
-        name: 'urn:ogc:def:crs:EPSG::25832',
+        name: "urn:ogc:def:crs:EPSG::25832",
       },
     },
     properties: hn,
@@ -129,7 +129,7 @@ export function searchForHauptnutzungen({
                 out.properties.siehe_auch_aev = results;
                 dispatch(setFeatureCollection([out]));
                 dispatch(setSelectedFeatureIndex(0));
-              })
+              }),
             );
           } else {
             dispatch(
@@ -139,7 +139,7 @@ export function searchForHauptnutzungen({
                 out.properties.fnp_aender = results;
                 dispatch(setFeatureCollection([out]));
                 dispatch(setSelectedFeatureIndex(0));
-              })
+              }),
             );
           }
           break;

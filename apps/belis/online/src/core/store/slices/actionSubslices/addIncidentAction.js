@@ -1,14 +1,14 @@
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4 } from "uuid";
 
-import { ADD_INCIDENT_MODES } from '../../../../components/app/dialogs/AddIncident';
-import { getJWT, getLoginFromJWT } from '../auth';
+import { ADD_INCIDENT_MODES } from "../../../../components/app/dialogs/AddIncident";
+import { getJWT, getLoginFromJWT } from "../auth";
 import {
   loadTaskLists,
   MODES,
   setFeatureCollectionForMode,
   setMode,
-} from '../featureCollection';
-import { addIntermediateResult, getDB } from '../offlineActionDb';
+} from "../featureCollection";
+import { addIntermediateResult, getDB } from "../offlineActionDb";
 
 const addIncidentAction = (params) => {
   return async (dispatch, getState) => {
@@ -19,46 +19,46 @@ const addIncidentAction = (params) => {
 
     const offlineAction = {
       id: uuidv4(),
-      action: 'addIncident',
+      action: "addIncident",
       jwt: jwt,
       parameter: JSON.stringify(params),
       isCompleted: false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      applicationId: login + '@belis',
+      applicationId: login + "@belis",
     };
 
     offlineActionDb.actions.insert(offlineAction);
 
     console.log(
-      'added object to offline db to addIncident',
+      "added object to offline db to addIncident",
       params,
-      offlineAction
+      offlineAction,
     );
     let intermediateResult;
     if (params.aktion === ADD_INCIDENT_MODES.VERANLASSUNG) {
       //nothing to do, because we don't show Veranlassung in the mobile application
     } else if (params.aktion === ADD_INCIDENT_MODES.EINZELAUFTRAG) {
       intermediateResult = {
-        object_type: 'arbeitsauftrag',
-        object_id: '*',
+        object_type: "arbeitsauftrag",
+        object_id: "*",
         data: {
           ...params,
         },
         ts: params.ts,
-        action: 'uploadDocument',
-        resultType: 'object',
+        action: "uploadDocument",
+        resultType: "object",
       };
     } else if (params.aktion === ADD_INCIDENT_MODES.ADD2ARBEITSAUFTRAG) {
       intermediateResult = {
-        object_type: 'arbeitsauftrag',
+        object_type: "arbeitsauftrag",
         object_id: params.arbeitsauftrag,
         data: {
           ...params,
         },
         ts: params.ts,
-        action: 'uploadDocument',
-        resultType: 'object',
+        action: "uploadDocument",
+        resultType: "object",
       };
     }
 
@@ -75,7 +75,7 @@ const addIncidentAction = (params) => {
               dispatch(setFeatureCollectionForMode(MODES.PROTOCOLS));
             }, 400);
           },
-        })
+        }),
       );
     }
   };

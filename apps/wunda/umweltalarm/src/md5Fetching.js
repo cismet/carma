@@ -25,7 +25,7 @@ export const md5ActionFetchDAQ4Dexie = async (
   apiUrl,
   jwt,
   daqKey,
-  db
+  db,
 ) => {
   const allObjects = await db.table("daq_meta").get({ name: daqKey });
   let md5InCache = null;
@@ -48,7 +48,7 @@ export const md5ActionFetchDAQ4Dexie = async (
     "taskparams",
     new Blob([JSON.stringify(taskParameters)], {
       type: "application/json",
-    })
+    }),
   );
 
   if (jwt === CACHE_JWT) {
@@ -72,7 +72,7 @@ export const md5ActionFetchDAQ4Dexie = async (
           // Accept: "application/json",
         },
         body: fd,
-      }
+      },
     );
 
     if (response.status >= 200 && response.status < 300) {
@@ -192,7 +192,7 @@ export const indexAnsprechpartner = async (content, table, db) => {
 export const indexAnsprechpartnerZustaendigkeit = async (
   content,
   table,
-  db
+  db,
 ) => {
   const tableObject = db.table("zustaendigkeit");
   await tableObject.clear();

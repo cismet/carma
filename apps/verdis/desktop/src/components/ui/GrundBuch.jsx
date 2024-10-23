@@ -29,7 +29,7 @@ const GrundBuch = () => {
   const error = useSelector(getBuchungsblattError);
   const isLoadingBuchungsblatt = useSelector(getIsLoadingBuchungsblatt);
   const isLoadingKassenzeichen = useSelector(
-    getIsLoadingKassenzeichenForBuchungsblatt
+    getIsLoadingKassenzeichenForBuchungsblatt,
   );
 
   const {
@@ -67,7 +67,7 @@ const GrundBuch = () => {
     const secondNumber = getSecondNumber(data.secondNumber).trim();
 
     setGrundBuchNumber(
-      data.firstNumber.trim() + "-" + data.secondNumber.trim()
+      data.firstNumber.trim() + "-" + data.secondNumber.trim(),
     );
     dispatch(getBuchungsblatt(firstNumber + "-" + secondNumber));
   };
@@ -101,8 +101,8 @@ const GrundBuch = () => {
                   searchForKassenzeichen(
                     selectedKassenzeichen.toString(),
                     urlParams,
-                    setUrlParams
-                  )
+                    setUrlParams,
+                  ),
                 );
               }}
               disabled={!selectedKassenzeichen}

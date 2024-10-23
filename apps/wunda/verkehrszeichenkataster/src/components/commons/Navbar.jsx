@@ -91,12 +91,12 @@ const NavBar = ({ width = "100%", height = 104, style, inStory }) => {
 
   useEffect(() => {
     setSelectedApplicationsWidth(
-      selectedApplicationsOuterRef.current.offsetWidth
+      selectedApplicationsOuterRef.current.offsetWidth,
     );
 
     const getWidth = () => {
       setSelectedApplicationsWidth(
-        selectedApplicationsOuterRef.current.offsetWidth
+        selectedApplicationsOuterRef.current.offsetWidth,
       );
     };
 
@@ -209,7 +209,7 @@ const NavBar = ({ width = "100%", height = 104, style, inStory }) => {
                       },
                     ],
                   },
-                ])
+                ]),
               );
               dispatch(
                 storeSelectedApplications([
@@ -227,7 +227,7 @@ const NavBar = ({ width = "100%", height = 104, style, inStory }) => {
                       },
                     ],
                   },
-                ])
+                ]),
               );
               navigate({ pathname: getApplicationPath(id) });
             }}
@@ -256,7 +256,7 @@ const NavBar = ({ width = "100%", height = 104, style, inStory }) => {
                       },
                     ],
                   },
-                ])
+                ]),
               );
               dispatch(
                 storeSelectedApplications([
@@ -274,7 +274,7 @@ const NavBar = ({ width = "100%", height = 104, style, inStory }) => {
                       },
                     ],
                   },
-                ])
+                ]),
               );
               navigate({ pathname: getApplicationPath(id) });
             }}

@@ -1,4 +1,4 @@
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch, useSelector } from "react-redux";
 
 import {
   getSyncKassenzeichen,
@@ -11,12 +11,12 @@ import {
   setActiveAdditionaLayers,
   setAdditionalLayerOpacities,
   getAdditionalLayerOpacities,
-} from '../../store/slices/ui';
+} from "../../store/slices/ui";
 
-import { Checkbox, Radio, Slider, Switch } from 'antd';
+import { Checkbox, Radio, Slider, Switch } from "antd";
 
-import { configuration as additionalLayerConfigurations } from './AdditionalLayers';
-import { configuration as backgroundLayerConfigurations } from './BackgroundLayers';
+import { configuration as additionalLayerConfigurations } from "./AdditionalLayers";
+import { configuration as backgroundLayerConfigurations } from "./BackgroundLayers";
 const SettingsRow = ({ onClick, title, children }) => {
   return (
     <div
@@ -35,16 +35,16 @@ const AdditionalLayerRow = ({
   active,
   opacity = 1,
   activeChanged = (layerkey) => {
-    console.log(' activeChanged', layerkey);
+    console.log(" activeChanged", layerkey);
   },
 
   opacityChanged = (key, opacity) => {
-    console.log(' opacityChanged', key, opacity);
+    console.log(" opacityChanged", key, opacity);
   },
 }) => {
   return (
     <div
-      key={'div.' + layerkey}
+      key={"div." + layerkey}
       className="flex items-center gap-2 hover:bg-zinc-100 p-1"
     >
       <Checkbox
@@ -142,7 +142,7 @@ const Settings = () => {
                 }}
               />
             );
-          }
+          },
         )}
 
         <h4>Hintergrund</h4>
@@ -168,7 +168,7 @@ const Settings = () => {
                     }}
                   />
                 );
-              }
+              },
             )}
           </div>
         </Radio.Group>

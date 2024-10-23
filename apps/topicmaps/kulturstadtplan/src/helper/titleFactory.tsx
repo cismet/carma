@@ -1,80 +1,80 @@
-import { getAllEinrichtungen, textConversion } from './styler';
+import { getAllEinrichtungen, textConversion } from "./styler";
 
 const factory = ({ featureCollectionContext }) => {
   const { filterState, itemsDictionary } = featureCollectionContext;
   let maxFilterCount;
   let einrichtungsEinschub;
-  let themenstadtplanDesc = '';
+  let themenstadtplanDesc = "";
   const filterMode = filterState.mode;
   const veranstaltungen = itemsDictionary?.veranstaltungsarten?.map(
-    (veranstaltung) => veranstaltung
+    (veranstaltung) => veranstaltung,
   );
 
-  if (filterMode === 'einrichtungen') {
+  if (filterMode === "einrichtungen") {
     maxFilterCount = getAllEinrichtungen().length;
-    einrichtungsEinschub = '';
+    einrichtungsEinschub = "";
 
-    if (filterState['einrichtung'] && filterState['einrichtung'].length === 1) {
+    if (filterState["einrichtung"] && filterState["einrichtung"].length === 1) {
       themenstadtplanDesc =
-        'alle ' + einrichtungsEinschub + filterState['einrichtung'][0];
+        "alle " + einrichtungsEinschub + filterState["einrichtung"][0];
     } else if (
-      filterState['einrichtung'] &&
-      filterState['einrichtung'].length > 0 &&
-      filterState['einrichtung'].length < 3
+      filterState["einrichtung"] &&
+      filterState["einrichtung"].length > 0 &&
+      filterState["einrichtung"].length < 3
     ) {
       themenstadtplanDesc =
-        'alle ' +
+        "alle " +
         einrichtungsEinschub +
-        filterState['einrichtung'][0] +
-        ' und ' +
-        filterState['einrichtung'][1];
-      if (themenstadtplanDesc.split(' und ').length - 1 > 1) {
-        themenstadtplanDesc = themenstadtplanDesc.replace(' und ', ', ');
+        filterState["einrichtung"][0] +
+        " und " +
+        filterState["einrichtung"][1];
+      if (themenstadtplanDesc.split(" und ").length - 1 > 1) {
+        themenstadtplanDesc = themenstadtplanDesc.replace(" und ", ", ");
       }
     } else if (
-      filterState['einrichtung'].length > 0 &&
-      filterState['einrichtung'].length < maxFilterCount
+      filterState["einrichtung"].length > 0 &&
+      filterState["einrichtung"].length < maxFilterCount
     ) {
       themenstadtplanDesc =
-        filterState['einrichtung'].length +
-        ' ' +
-        textConversion('einrichtungen');
+        filterState["einrichtung"].length +
+        " " +
+        textConversion("einrichtungen");
     }
   } else {
-    einrichtungsEinschub = 'Orte für ';
+    einrichtungsEinschub = "Orte für ";
     maxFilterCount = veranstaltungen.length;
     if (
-      filterState['veranstaltung'] &&
-      filterState['veranstaltung'].length === 1
+      filterState["veranstaltung"] &&
+      filterState["veranstaltung"].length === 1
     ) {
       themenstadtplanDesc =
-        'alle ' + einrichtungsEinschub + filterState['veranstaltung'][0];
+        "alle " + einrichtungsEinschub + filterState["veranstaltung"][0];
     } else if (
-      filterState['veranstaltung'] &&
-      filterState['veranstaltung'].length > 0 &&
-      filterState['veranstaltung'].length < 3
+      filterState["veranstaltung"] &&
+      filterState["veranstaltung"].length > 0 &&
+      filterState["veranstaltung"].length < 3
     ) {
       themenstadtplanDesc =
-        'alle ' +
+        "alle " +
         einrichtungsEinschub +
-        filterState['veranstaltung'][0] +
-        ' und ' +
-        filterState['veranstaltung'][1];
-      if (themenstadtplanDesc.split(' und ').length - 1 > 1) {
-        themenstadtplanDesc = themenstadtplanDesc.replace(' und ', ', ');
+        filterState["veranstaltung"][0] +
+        " und " +
+        filterState["veranstaltung"][1];
+      if (themenstadtplanDesc.split(" und ").length - 1 > 1) {
+        themenstadtplanDesc = themenstadtplanDesc.replace(" und ", ", ");
       }
     } else if (
-      filterState['veranstaltung'].length > 0 &&
-      filterState['veranstaltung'].length < maxFilterCount
+      filterState["veranstaltung"].length > 0 &&
+      filterState["veranstaltung"].length < maxFilterCount
     ) {
       themenstadtplanDesc =
-        filterState['veranstaltung'].length +
-        ' ' +
-        textConversion('veranstaltungen');
+        filterState["veranstaltung"].length +
+        " " +
+        textConversion("veranstaltungen");
     }
   }
 
-  if (themenstadtplanDesc === '') {
+  if (themenstadtplanDesc === "") {
     return null;
   }
 

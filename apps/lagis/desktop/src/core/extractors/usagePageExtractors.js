@@ -29,23 +29,23 @@ export function usageBlockExtractor(dataIn) {
             data.fläche = u.flaeche;
             data.preis = formatPrice(
               u.quadratmeterpreis,
-              data.anlageklasse === "keine" ? false : true
+              data.anlageklasse === "keine" ? false : true,
             );
             (data.gesamtpreis = formatPrice(
               u.quadratmeterpreis * u.flaeche -
                 calculateStilleReserve(
                   buchungArray,
                   currentIdxInBuchungArray,
-                  u.quadratmeterpreis * u.flaeche
+                  u.quadratmeterpreis * u.flaeche,
                 ),
-              data.anlageklasse === "keine" ? false : true
+              data.anlageklasse === "keine" ? false : true,
             )),
               (data.stille = formatPrice(
                 calculateStilleReserve(
                   buchungArray,
                   currentIdxInBuchungArray,
-                  u.quadratmeterpreis * u.flaeche
-                )
+                  u.quadratmeterpreis * u.flaeche,
+                ),
               ));
             data.buchwert = u.ist_buchwert;
             data.bemerkung = u.bemerkung ? u.bemerkung : "";
@@ -110,12 +110,12 @@ export function NFKOverwieExtractor(dataIn) {
               calculateStilleReserve(
                 buchungArray,
                 currentIdxInBuchungArray,
-                u.quadratmeterpreis * u.flaeche
+                u.quadratmeterpreis * u.flaeche,
               )),
               (data.stille = calculateStilleReserve(
                 buchungArray,
                 currentIdxInBuchungArray,
-                u.quadratmeterpreis * u.flaeche
+                u.quadratmeterpreis * u.flaeche,
               ));
           });
           ifAnlageklasseAdded(currentUsage, data);
@@ -141,7 +141,7 @@ export function NFKOverwieExtractor(dataIn) {
 
 function ifAnlageklasseAdded(currentUsage, currentData) {
   const ifAnlageklasseAdded = currentUsage.find(
-    (a) => a.anlageklasse === currentData.anlageklasse
+    (a) => a.anlageklasse === currentData.anlageklasse,
   );
   if (ifAnlageklasseAdded === undefined) {
     return currentUsage.push(currentData);

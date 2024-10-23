@@ -90,7 +90,7 @@ const Graph = ({
   const data = extractor(dataIn);
   const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
     data ? data.initialNodesData : [],
-    data ? data.initialEdgesData : []
+    data ? data.initialEdgesData : [],
   );
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutedNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(layoutedEdges);
@@ -115,10 +115,10 @@ const Graph = ({
       setEdges((eds) =>
         addEdge(
           { ...params, type: ConnectionLineType.SmoothStep, animated: false },
-          eds
-        )
+          eds,
+        ),
       ),
-    []
+    [],
   );
   const onLayout = useCallback(
     (direction) => {
@@ -128,7 +128,7 @@ const Graph = ({
       setNodes([...layoutedNodes]);
       setEdges([...layoutedEdges]);
     },
-    [nodes, edges]
+    [nodes, edges],
   );
 
   const proOptions = { hideAttribution: true };
@@ -149,7 +149,7 @@ const Graph = ({
   useEffect(() => {
     const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
       data ? data.initialNodesData : [],
-      data ? data.initialEdgesData : []
+      data ? data.initialEdgesData : [],
     );
     handleUpdateNodes(layoutedNodes, layoutedEdges);
   }, [

@@ -115,7 +115,7 @@ export const removeLeadingZeros = (numberStr, flur = false) => {
 export function getOfficesWithColorAndSquare(
   officesArray,
   dataIn,
-  ifHistory = false
+  ifHistory = false,
 ) {
   const nameGeomColorData = [];
   const alkisArea = dataIn.alkisLandparcel?.area;
@@ -153,7 +153,7 @@ export function getOfficesWithColorAndSquare(
 }
 export function geHistoricalArraytOfficesWithColorAndSquare(
   historicalArray,
-  dataIn
+  dataIn,
 ) {
   const result = [];
   historicalArray.forEach((h) => {

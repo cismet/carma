@@ -6,12 +6,12 @@ export async function fetchGraphQL(
   variables,
   jwt,
   forceSkipLogging = false,
-  apiPrefix = ""
+  apiPrefix = "",
 ) {
   //check if there is a query param with the name logGQL
 
   const logGQLFromSearch = new URLSearchParams(window.location.search).get(
-    "logGQL"
+    "logGQL",
   );
   const logGQLEnabled =
     logGQLFromSearch !== null && logGQLFromSearch !== "false";
@@ -37,7 +37,7 @@ export async function fetchGraphQL(
         method: "POST",
         headers: myHeaders,
         body,
-      }
+      },
     );
     if (response.status >= 200 && response.status < 300) {
       const resultjson = await response.json();

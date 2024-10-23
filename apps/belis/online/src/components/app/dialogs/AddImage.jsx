@@ -43,7 +43,7 @@ const AddImageDialog = ({
           IMAGEUPLOAD_QUALITY,
           (shrinked) => {
             setImageData(shrinked);
-          }
+          },
         );
       });
     }

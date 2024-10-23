@@ -66,7 +66,7 @@ export const getPoiClusterIconCreatorFunction = ({
         "stroke-width": 0,
         opacity: "0.5",
         fill: innerCircleColor,
-      })
+      }),
     );
 
     // //Debug Rectangle -should be commnented out
@@ -94,7 +94,7 @@ export const getPoiClusterIconCreatorFunction = ({
         stroke: "#000000",
         opacity: "0.5",
         fill: "none",
-      })
+      }),
     );
 
     if (inCart) {
@@ -109,7 +109,7 @@ export const getPoiClusterIconCreatorFunction = ({
             "font-size": "26",
             dy: ".4em",
             opacity: "0.5",
-          })
+          }),
         )
         .appendChild(document.createTextNode("\uf005"));
     }
@@ -121,7 +121,7 @@ export const getPoiClusterIconCreatorFunction = ({
           y: "50%",
           "text-anchor": "middle",
           dy: ".3em",
-        })
+        }),
       )
       .appendChild(document.createTextNode(childCount));
 
@@ -142,7 +142,7 @@ export const getPoiClusterIconCreatorFunction = ({
 
 export const getColorFromLebenslagenCombination = (
   combination,
-  poiColors = POI_COLORS
+  poiColors = POI_COLORS,
 ) => {
   let qColorRules;
   let colorCandidate;
@@ -194,7 +194,7 @@ export const getColorForProperties = (properties, poiColors) => {
           return a.localeCompare(b);
         })
         .join(", "),
-      poiColors
+      poiColors,
     );
   }
 };
@@ -204,7 +204,7 @@ export const getFeatureStyler = (
   colorizer = getColorForProperties,
   appMode,
   secondarySelection,
-  additionalStylingInfo
+  additionalStylingInfo,
 ) => {
   const poiColors = additionalStylingInfo?.poiColors || POI_COLORS;
 

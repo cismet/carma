@@ -78,8 +78,8 @@ const PdfCreator = () => {
                   format,
                   scale,
                   orientation,
-                  drainEffectiveness
-                )
+                  drainEffectiveness,
+                ),
               )
             }
             type="primary"

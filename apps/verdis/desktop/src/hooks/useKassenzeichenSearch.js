@@ -1,28 +1,28 @@
-import { useQuery } from '@tanstack/react-query';
-import { ENDPOINT, query } from '../constants/verdis';
-import { useDispatch, useSelector } from 'react-redux';
-import { getJWT } from '../store/slices/auth';
-import request from 'graphql-request';
-import { useSearchParams } from 'react-router-dom';
-import { getSyncKassenzeichen } from '../store/slices/ui';
+import { useQuery } from "@tanstack/react-query";
+import { ENDPOINT, query } from "../constants/verdis";
+import { useDispatch, useSelector } from "react-redux";
+import { getJWT } from "../store/slices/auth";
+import request from "graphql-request";
+import { useSearchParams } from "react-router-dom";
+import { getSyncKassenzeichen } from "../store/slices/ui";
 import {
   addSearch,
   resetStates,
   storeAenderungsAnfrage,
   storeKassenzeichen,
-} from '../store/slices/search';
+} from "../store/slices/search";
 import {
   setBefreiungErlaubnisCollection,
   setFlaechenCollection,
   setFrontenCollection,
   setGeneralGeometryCollection,
-} from '../store/slices/mapping';
+} from "../store/slices/mapping";
 import {
   getFlaechenFeatureCollection,
   getFrontenFeatureCollection,
   getGeneralGeomfeatureCollection,
   getVersickerungsGenFeatureCollection,
-} from '../tools/featureFactories';
+} from "../tools/featureFactories";
 
 export const useKassenzeichenSearch = (kassenzeichen) => {
   const dispatch = useDispatch();
@@ -37,7 +37,7 @@ export const useKassenzeichenSearch = (kassenzeichen) => {
         const trimmedQuery = kassenzeichen.trim();
         dispatch(storeKassenzeichen(data.kassenzeichen[0]));
         dispatch(storeAenderungsAnfrage(data.aenderungsanfrage));
-        if (urlParams.get('kassenzeichen') !== trimmedQuery) {
+        if (urlParams.get("kassenzeichen") !== trimmedQuery) {
           setUrlParams({ kassenzeichen: trimmedQuery });
         }
         dispatch(addSearch(trimmedQuery));
@@ -45,8 +45,8 @@ export const useKassenzeichenSearch = (kassenzeichen) => {
 
         if (syncKassenzeichen) {
           fetch(
-            'http://localhost:18000/gotoKassenzeichen?kassenzeichen=' +
-              trimmedQuery
+            "http://localhost:18000/gotoKassenzeichen?kassenzeichen=" +
+              trimmedQuery,
           ).catch((error) => {
             //  i expect an error here
           });
@@ -56,29 +56,29 @@ export const useKassenzeichenSearch = (kassenzeichen) => {
 
         dispatch(
           setFlaechenCollection(
-            getFlaechenFeatureCollection(data.kassenzeichen[0])
-          )
+            getFlaechenFeatureCollection(data.kassenzeichen[0]),
+          ),
         );
         dispatch(
           setFrontenCollection(
-            getFrontenFeatureCollection(data.kassenzeichen[0])
-          )
+            getFrontenFeatureCollection(data.kassenzeichen[0]),
+          ),
         );
 
         dispatch(
           setGeneralGeometryCollection(
-            getGeneralGeomfeatureCollection(data.kassenzeichen[0])
-          )
+            getGeneralGeomfeatureCollection(data.kassenzeichen[0]),
+          ),
         );
 
         dispatch(
           setBefreiungErlaubnisCollection(
-            getVersickerungsGenFeatureCollection(data.kassenzeichen[0])
-          )
+            getVersickerungsGenFeatureCollection(data.kassenzeichen[0]),
+          ),
         );
       }
     },
-    queryKey: ['kassenzeichen', kassenzeichen],
+    queryKey: ["kassenzeichen", kassenzeichen],
     queryFn: async () =>
       request(
         ENDPOINT,
@@ -86,7 +86,7 @@ export const useKassenzeichenSearch = (kassenzeichen) => {
         { kassenzeichen: kassenzeichen },
         {
           Authorization: `Bearer ${jwt}`,
-        }
+        },
       ),
     enabled: !!kassenzeichen && !isNaN(+kassenzeichen),
     refetchOnWindowFocus: false,

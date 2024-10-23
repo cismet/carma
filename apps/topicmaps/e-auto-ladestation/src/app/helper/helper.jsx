@@ -1,6 +1,6 @@
-import { md5FetchJSON } from 'react-cismap/tools/fetching';
+import { md5FetchJSON } from "react-cismap/tools/fetching";
 // import { ladestationSVG } from '@carma-collab/wuppertal/e-auto-ladestation';
-import { host } from './constants';
+import { host } from "./constants";
 
 const fallbackSVG = `
     <svg xmlns="http://www.w3.org/2000/svg" width="311.668" height="311.668">
@@ -28,35 +28,35 @@ viewBox="0 0 524.197 523.652"
 
 export const getConnectorImageUrl = (type) => {
   switch (type) {
-    case 'Schuko':
-      return '/images/emob/Schuko_plug.png';
-    case 'Typ 2':
-      return '/images/emob/Type_2_mennekes.png';
-    case 'CHAdeMO':
-      return '/images/emob/Chademo_type4.png';
-    case 'CCS':
-      return '/images/emob/Type1-ccs.png';
-    case 'Tesla Supercharger':
-      return '/images/emob/Type_2_mennekes.png';
-    case 'Drehstrom':
-      return '/images/emob/cce3.png';
+    case "Schuko":
+      return "/images/emob/Schuko_plug.png";
+    case "Typ 2":
+      return "/images/emob/Type_2_mennekes.png";
+    case "CHAdeMO":
+      return "/images/emob/Chademo_type4.png";
+    case "CCS":
+      return "/images/emob/Type1-ccs.png";
+    case "Tesla Supercharger":
+      return "/images/emob/Type_2_mennekes.png";
+    case "Drehstrom":
+      return "/images/emob/cce3.png";
     default:
       return undefined;
   }
 };
 
 export const getPOIColors = async (setPoiColors) => {
-  md5FetchJSON('poi_colors', host + '/data/poi.farben.json').then((data) => {
+  md5FetchJSON("poi_colors", host + "/data/poi.farben.json").then((data) => {
     setPoiColors(data);
   });
 };
 
 export const getSymbolSVG = (
   svgSize = 30,
-  bg = '#FF0000',
-  kind = '-',
-  svgStyleRelatedId = 'default',
-  svgCodeInput = ladestationSVG
+  bg = "#FF0000",
+  kind = "-",
+  svgStyleRelatedId = "default",
+  svgCodeInput = ladestationSVG,
 ) => {
   let bdim = {
     width: 20,
@@ -91,7 +91,7 @@ export const getSymbolSVG = (
 
   return (
     <span
-      style={{ width: 'fit-content' }}
+      style={{ width: "fit-content" }}
       dangerouslySetInnerHTML={{ __html: svgCode }}
     />
   );

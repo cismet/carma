@@ -1,21 +1,21 @@
-import React from 'react';
-import { useContext, useEffect, useState } from 'react';
+import React from "react";
+import { useContext, useEffect, useState } from "react";
 import {
   FeatureCollectionContext,
   FeatureCollectionDispatchContext,
-} from 'react-cismap/contexts/FeatureCollectionContextProvider';
-import { TopicMapStylingContext } from 'react-cismap/contexts/TopicMapStylingContextProvider';
-import FeatureCollection from 'react-cismap/FeatureCollection';
-import TopicMapComponent from 'react-cismap/topicmaps/TopicMapComponent';
-import { getGazData } from './helper/helper';
-import Menu from './Menu';
-import { getPoiClusterIconCreatorFunction } from './helper/styler';
-import GenericInfoBoxFromFeature from 'react-cismap/topicmaps/GenericInfoBoxFromFeature';
+} from "react-cismap/contexts/FeatureCollectionContextProvider";
+import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
+import FeatureCollection from "react-cismap/FeatureCollection";
+import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
+import { getGazData } from "./helper/helper";
+import Menu from "./Menu";
+import { getPoiClusterIconCreatorFunction } from "./helper/styler";
+import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
 
 const Baederkarte = () => {
   const [gazData, setGazData] = useState([]);
   const { setSelectedFeatureByPredicate, setClusteringOptions } = useContext(
-    FeatureCollectionDispatchContext
+    FeatureCollectionDispatchContext,
   );
   const { markerSymbolSize } = useContext(TopicMapStylingContext);
   const { clusteringOptions } = useContext(FeatureCollectionContext);
@@ -42,7 +42,7 @@ const Baederkarte = () => {
         if ((Array.isArray(hits) && hits[0]?.more?.pid) || hits[0]?.more?.kid) {
           const gazId = hits[0]?.more?.pid || hits[0]?.more?.kid;
           setSelectedFeatureByPredicate(
-            (feature) => feature.properties.id === gazId
+            (feature) => feature.properties.id === gazId,
           );
         }
       }}
@@ -52,14 +52,14 @@ const Baederkarte = () => {
           pixelwidth={350}
           config={{
             displaySecondaryInfoAction: false,
-            city: 'Wuppertal',
+            city: "Wuppertal",
             navigator: {
               noun: {
-                singular: 'Bad',
-                plural: 'Bäder',
+                singular: "Bad",
+                plural: "Bäder",
               },
             },
-            noCurrentFeatureTitle: 'Keine Bäder gefunden',
+            noCurrentFeatureTitle: "Keine Bäder gefunden",
             noCurrentFeatureContent: (
               <span>
                 Für mehr Bäder Ansicht mit verkleinern oder mit dem

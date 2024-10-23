@@ -13,7 +13,7 @@ import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopic
 
 export default function Verlauf({ revertedOrder }) {
   const { selectedFeature, allFeatures, itemsDictionary } = useContext(
-    FeatureCollectionContext
+    FeatureCollectionContext,
   );
 
   const { windowSize } = useContext(ResponsiveTopicMapContext);
@@ -45,16 +45,16 @@ export default function Verlauf({ revertedOrder }) {
       const angebote = itemsDictionary.angeboteInStandorte[routenpunkt.id];
       for (const angebotId of angebote || []) {
         const feature4Punkt = allFeatures.find(
-          (f) => f.properties.id === angebotId && f.featuretype === "ort"
+          (f) => f.properties.id === angebotId && f.featuretype === "ort",
         );
 
         dot.push(
           <span key={"dot." + routenpunkt.id + "." + angebotId}>
             {getSymbolSVGGetter(
               feature4Punkt?.properties?.svgBadge,
-              feature4Punkt?.properties?.svgBadgeDimension
+              feature4Punkt?.properties?.svgBadgeDimension,
             )(24, feature4Punkt?.properties.color, "angebot_" + angebotId)}
-          </span>
+          </span>,
         );
       }
     } else {
@@ -62,18 +62,18 @@ export default function Verlauf({ revertedOrder }) {
       const feature4Punkt = allFeatures.find(
         (f) =>
           f.properties.id === routenpunkt.id &&
-          f.featuretype === routenpunkt.typ
+          f.featuretype === routenpunkt.typ,
       );
 
       dot = [
         <span key={"dot." + routenpunkt.id}>
           {getSymbolSVGGetter(
             feature4Punkt?.properties?.svgBadge,
-            feature4Punkt?.properties?.svgBadgeDimension
+            feature4Punkt?.properties?.svgBadgeDimension,
           )(
             24,
             feature4Punkt?.properties.color,
-            "badgefor_" + routenpunkt.typ + "_" + routenpunkt.id
+            "badgefor_" + routenpunkt.typ + "_" + routenpunkt.id,
           )}
         </span>,
       ];

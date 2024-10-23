@@ -24,7 +24,12 @@ const getLayout4Abzweigdose = ({
             openLightBox,
           })}
         {showActions &&
-          getAddImageButton(dispatch, feature.properties, "abzweigdose", feature.geometry)}
+          getAddImageButton(
+            dispatch,
+            feature.properties,
+            "abzweigdose",
+            feature.geometry,
+          )}
       </div>
     ),
     subSections: [],

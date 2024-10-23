@@ -30,7 +30,7 @@ BreadcrumbBlock.propTypes = {
     PropTypes.shape({
       title: PropTypes.string.isRequired,
       href: PropTypes.string.isRequired,
-    })
+    }),
   ),
 };
 

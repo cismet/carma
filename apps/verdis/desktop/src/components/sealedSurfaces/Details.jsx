@@ -1,22 +1,22 @@
-import { Input, Select } from 'antd';
-import CustomCard from '../ui/Card';
-import { useDispatch, useSelector } from 'react-redux';
+import { Input, Select } from "antd";
+import CustomCard from "../ui/Card";
+import { useDispatch, useSelector } from "react-redux";
 import {
   getCrossReferencesPerArea,
   getFlaechenId,
   getKassenzeichen,
   setIsLoading,
-} from '../../store/slices/search';
-import TextArea from 'antd/es/input/TextArea';
-import { formatDate } from '../../tools/helper';
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+} from "../../store/slices/search";
+import TextArea from "antd/es/input/TextArea";
+import { formatDate } from "../../tools/helper";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export const DetailsRow = ({ title, value, width, customInput }) => {
   return (
-    <div className={'flex justify-between gap-2'}>
+    <div className={"flex justify-between gap-2"}>
       <div className="text-sm font-medium w-1/2">{title}:</div>
-      <div className={`${width > 365 ? 'w-full' : 'w-1/2'}`}>
+      <div className={`${width > 365 ? "w-full" : "w-1/2"}`}>
         {customInput ? customInput : <Input value={value} size="small" />}
       </div>
     </div>
@@ -117,7 +117,7 @@ const Details = ({
                       onClick={() => {
                         dispatch(setIsLoading(true));
                         navigate(
-                          `/versiegelteFlaechen?kassenzeichen=${row.kassenzeichennummer8}&bez=${flaeche?.name}`
+                          `/versiegelteFlaechen?kassenzeichen=${row.kassenzeichennummer8}&bez=${flaeche?.name}`,
                         );
                       }}
                       typeof="button"

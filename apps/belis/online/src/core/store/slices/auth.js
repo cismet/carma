@@ -1,6 +1,10 @@
 import { createSlice } from "@reduxjs/toolkit";
 
-const initialState = { jwt: undefined, login: undefined, loginRequested: false };
+const initialState = {
+  jwt: undefined,
+  login: undefined,
+  loginRequested: false,
+};
 
 const slice = createSlice({
   name: "auth",
@@ -45,7 +49,7 @@ export const getLoginFromJWT = (jwt) => {
         .map(function (c) {
           return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
         })
-        .join("")
+        .join(""),
     );
 
     return JSON.parse(jsonPayload).sub;

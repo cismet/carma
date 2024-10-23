@@ -43,7 +43,7 @@ const Text = ({ attachment, id }) => {
               deleteTimelineObject({
                 timelineIndex: id,
                 applicationId: applicationId,
-              })
+              }),
             );
           }}
         >
@@ -86,7 +86,7 @@ const Text = ({ attachment, id }) => {
                     timelineIndex: id,
                     updatedName: e.target.value,
                     applicationId: applicationId,
-                  })
+                  }),
                 );
               }}
               value={attachment.name}
@@ -125,7 +125,7 @@ const Text = ({ attachment, id }) => {
                       itemValue: text,
                       property: "text",
                       applicationId: applicationId,
-                    })
+                    }),
                   );
                   setIsEdit(false);
                 }}

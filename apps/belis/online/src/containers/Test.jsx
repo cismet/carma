@@ -1,5 +1,5 @@
-import { Select } from 'antd';
-import React from 'react';
+import { Select } from "antd";
+import React from "react";
 
 // import "antd/dist/antd.min.css";
 const { Option } = Select;
@@ -8,9 +8,9 @@ const Test = () => {
   const select = (
     <Select
       defaultValue="lucy"
-      style={{ width: '100%' }}
+      style={{ width: "100%" }}
       onChange={(x) => {
-        console.log('change', x);
+        console.log("change", x);
       }}
     >
       <Option value="jack">Jack</Option>

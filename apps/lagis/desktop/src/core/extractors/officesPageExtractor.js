@@ -53,7 +53,7 @@ export function additionalRollExtractor(dataIn) {
           agency: `${r.verwaltende_dienststelle.ressort.abkuerzung}.${r.verwaltende_dienststelle.abkuerzung_abteilung}`,
           rolle: `${r.zusatz_rolle_art.name}`,
           color: getColorFromCode(
-            r.verwaltende_dienststelle.farbeArrayRelationShip[0].rgb_farbwert
+            r.verwaltende_dienststelle.farbeArrayRelationShip[0].rgb_farbwert,
           ),
         };
       });
@@ -75,7 +75,7 @@ export function officesPageExtractor(dataIn) {
     const history = officesData.slice(0, officesData.length - 1);
     const historyData = geHistoricalArraytOfficesWithColorAndSquare(
       history,
-      dataIn
+      dataIn,
     );
     const nameGeomColorData = getOfficesWithColorAndSquare(lastOffice, dataIn);
     const agencyTableFields = nameGeomColorData.map((a) => ({

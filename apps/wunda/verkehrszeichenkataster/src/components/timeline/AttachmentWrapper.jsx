@@ -37,7 +37,7 @@ export const AttachmentRow = ({
                   timelineIndex: index,
                   updatedName: e.target.value,
                   applicationId: id,
-                })
+                }),
               );
             }}
           />
@@ -62,7 +62,7 @@ const AttachmentWrapper = ({ children, index }) => {
           className="text-lg p-2 hover:bg-zinc-100 cursor-pointer rounded-lg"
           onClick={() => {
             dispatch(
-              deleteTimelineObject({ timelineIndex: index, applicationId: id })
+              deleteTimelineObject({ timelineIndex: index, applicationId: id }),
             );
           }}
         />

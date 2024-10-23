@@ -61,7 +61,7 @@ export const getBoundsForFeatureCollection = (featureCollection) => {
   // Return Leaflet LatLngBounds
   return L.latLngBounds(
     L.latLng(southWest4326[1], southWest4326[0]), // southwest corner
-    L.latLng(northEast4326[1], northEast4326[0]) // northeast corner
+    L.latLng(northEast4326[1], northEast4326[0]), // northeast corner
   );
 };
 
@@ -90,7 +90,7 @@ export const getWGS84GeoJSON = (geoJSON) => {
     const reprojectedGeoJSON = reproject(
       geoJSON,
       projectionData["25832"].def,
-      proj4.WGS84
+      proj4.WGS84,
     );
 
     return reprojectedGeoJSON;
@@ -112,7 +112,7 @@ export const get25832GeoJSON = (geoJSON) => {
     const reprojectedGeoJSON = reproject(
       geoJSON,
       proj4.WGS84,
-      projectionData["25832"].def
+      projectionData["25832"].def,
     );
 
     return reprojectedGeoJSON;

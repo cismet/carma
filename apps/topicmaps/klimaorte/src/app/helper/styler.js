@@ -7,7 +7,7 @@ const getKlimaOrtkarteStyler = (
   svgSize = 24,
   colorizer = (props) => props.color,
   appMode = appModes.ORTE,
-  secondarySelection
+  secondarySelection,
 ) => {
   const styler = (feature) => {
     let returningStyle;
@@ -27,7 +27,7 @@ const getKlimaOrtkarteStyler = (
       let color = getColorConsideringSeondarySelection(
         feature.properties,
         secondarySelection,
-        feature.geometry
+        feature.geometry,
       );
       let radius = svgSize / 2; //needed for the Tooltip Positioning
 
@@ -105,7 +105,7 @@ const lightGrey = new Color("#D8D8D8");
 export const getColorConsideringSeondarySelection = (
   props,
   secondarySelection,
-  geom
+  geom,
 ) => {
   let color = new Color("red");
   if (props.typ === "route") {

@@ -66,7 +66,7 @@ const FallbackComponent = ({ error, resetErrorBoundary }) => {
         `${error.message}${br}` +
         `----------------------${br}` +
         `${errorStack?.stringifiedStack}${br}` +
-        `----------------------${br}`
+        `----------------------${br}`,
     );
 
   let attachmentText =
@@ -207,7 +207,7 @@ const FallbackComponent = ({ error, resetErrorBoundary }) => {
               downloadAnchorNode.setAttribute("href", dataStr);
               downloadAnchorNode.setAttribute(
                 "download",
-                "problemReport.belis-online.txt"
+                "problemReport.belis-online.txt",
               );
               window.document.body.appendChild(downloadAnchorNode); // required for firefox
               downloadAnchorNode.click();
@@ -236,7 +236,7 @@ const FallbackComponent = ({ error, resetErrorBoundary }) => {
               let confirmation = window.confirm(
                 "Mit dieser Aktion werden die gespeicherten Einstellungen wie Anmeldetoken, Modus " +
                   " ausgewähltes Team, Hintergrund, u.ä. gelöscht.\n\n" +
-                  "Sind Sie sicher, dass Sie Ihre Einstellungen zurücksetzen wollen?"
+                  "Sind Sie sicher, dass Sie Ihre Einstellungen zurücksetzen wollen?",
               );
               // console.log("confirmation: " + confirmation);
               if (confirmation) {
@@ -253,7 +253,7 @@ const FallbackComponent = ({ error, resetErrorBoundary }) => {
               let confirmation = window.confirm(
                 "Mit dieser Aktion werden die im Cache gespeicherten " +
                   "Fachdaten gelöscht und der Modus der Applikation auf Live-Daten gesetzt.\n\n" +
-                  "Sind Sie sicher, dass Sie die gespeicherten Fachdaten löschen wollen?"
+                  "Sind Sie sicher, dass Sie die gespeicherten Fachdaten löschen wollen?",
               );
               if (confirmation) {
                 console.log("deleting cache");
@@ -272,7 +272,7 @@ const FallbackComponent = ({ error, resetErrorBoundary }) => {
                 "Mit dieser Aktion werden die in der Taskliste gespeicherten Aktion" +
                   " gelöscht. Bitte speichern Sie ggf. vorher die Aktionen über den grünen Button *Taskliste speichern* \n\n" +
                   "(Schon auf dem Server gespeicherte Aktionen erscheinen, bei vorhandener Internetverbindung, wieder in Ihrem Browser)\n\n" +
-                  "Sind Sie sicher, dass Sie die gespeicherten Aktionen löschen wollen?"
+                  "Sind Sie sicher, dass Sie die gespeicherten Aktionen löschen wollen?",
               );
               if (confirmation) {
                 console.log("deleting action tables");

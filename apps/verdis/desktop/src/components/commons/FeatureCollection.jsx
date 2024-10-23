@@ -125,7 +125,7 @@ const FeatureCollection = ({
                 dispatch(
                   setGeneralGeometrySelected({
                     id: feature.properties.id,
-                  })
+                  }),
                 );
                 break;
               }

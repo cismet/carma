@@ -14,10 +14,26 @@ import {
 
 export const getEventsForStandort = (item) => {
   const events = [
-    ["elektrische Prüfung" + ivAsterisk(item?.elek_pruefung_iv), item?.elek_pruefung, "M"],
-    ["Inbetriebnahme" + ivAsterisk(item?.inbetriebnahme_mast_iv), item?.inbetriebnahme_mast, "M"],
-    ["letzte Änderung" + ivAsterisk(item?.letzte_aenderung_iv), item?.letzte_aenderung, "M"],
-    ["Mastanstrich" + ivAsterisk(item?.mastanstrich_iv), item?.mastanstrich, "M"],
+    [
+      "elektrische Prüfung" + ivAsterisk(item?.elek_pruefung_iv),
+      item?.elek_pruefung,
+      "M",
+    ],
+    [
+      "Inbetriebnahme" + ivAsterisk(item?.inbetriebnahme_mast_iv),
+      item?.inbetriebnahme_mast,
+      "M",
+    ],
+    [
+      "letzte Änderung" + ivAsterisk(item?.letzte_aenderung_iv),
+      item?.letzte_aenderung,
+      "M",
+    ],
+    [
+      "Mastanstrich" + ivAsterisk(item?.mastanstrich_iv),
+      item?.mastanstrich,
+      "M",
+    ],
     ["Mastschutz" + ivAsterisk(item?.mastschutz_iv), item?.mastschutz, "M"],
     [
       "Nächste Prüfung" + ivAsterisk(item?.naechstes_pruefdatum_iv),
@@ -72,7 +88,7 @@ const getLayout4Standort = ({
               setIndex(0);
             }
           }}
-          alt='Bild'
+          alt="Bild"
           style={{
             paddingLeft: 10,
             paddingRight: 10,
@@ -97,7 +113,8 @@ const getLayout4Standort = ({
       {getStrasse(item?.fk_strassenschluessel, item?.haus_nr)}
       {item?.plz && (
         <div>
-          {item?.plz} Wuppertal {item?.stadtbezirk && " (" + item?.stadtbezirk?.bezirk + ")"}
+          {item?.plz} Wuppertal{" "}
+          {item?.stadtbezirk && " (" + item?.stadtbezirk?.bezirk + ")"}
         </div>
       )}
       {item?.standortangabe && <div>{item?.standortangabe}</div>}
@@ -116,9 +133,11 @@ const getLayout4Standort = ({
   subSections.push(
     <SecondaryInfoPanelSection
       key={"mast" + item?.fk_standort?.id}
-      bsStyle='warning'
+      bsStyle="warning"
       header={"Mast"}
-      extra={showActions && (dispatch, item, "tdta_standort_mast", feature.geometry)}
+      extra={
+        showActions && (dispatch, item, "tdta_standort_mast", feature.geometry)
+      }
     >
       <Row>
         <Col span={12}>
@@ -133,7 +152,7 @@ const getLayout4Standort = ({
         </Col>
         <Col span={12}>{getTimelineForEvents({ events })}</Col>
       </Row>
-    </SecondaryInfoPanelSection>
+    </SecondaryInfoPanelSection>,
   );
 
   return { title, mainSection, subSections };
@@ -149,51 +168,78 @@ export const getStandortDetails = ({
   openLightBox = true,
 }) => {
   const standortItems = [
-    <Descriptions.Item optionalPredicate={() => true} label='Mastart'>
-      {standortItem?.fk_mastart ? standortItem?.fk_mastart.mastart : "Mast ohne Mastart"}
+    <Descriptions.Item optionalPredicate={() => true} label="Mastart">
+      {standortItem?.fk_mastart
+        ? standortItem?.fk_mastart.mastart
+        : "Mast ohne Mastart"}
     </Descriptions.Item>,
-    <Descriptions.Item label='Anstrichfarbe'>{standortItem?.anstrichfarbe}</Descriptions.Item>,
-
-    <Descriptions.Item label='Masttyp'>{standortItem?.fk_masttyp?.masttyp}</Descriptions.Item>,
-    <Descriptions.Item label='Kennziffer'>
-      {standortItem?.fk_kennziffer?.beschreibung} ({standortItem?.fk_kennziffer?.kennziffer})
+    <Descriptions.Item label="Anstrichfarbe">
+      {standortItem?.anstrichfarbe}
     </Descriptions.Item>,
 
-    <Descriptions.Item label='Klassifizierung'>
+    <Descriptions.Item label="Masttyp">
+      {standortItem?.fk_masttyp?.masttyp}
+    </Descriptions.Item>,
+    <Descriptions.Item label="Kennziffer">
+      {standortItem?.fk_kennziffer?.beschreibung} (
+      {standortItem?.fk_kennziffer?.kennziffer})
+    </Descriptions.Item>,
+
+    <Descriptions.Item label="Klassifizierung">
       {standortItem?.fk_klassifizierung?.klassifizierung}
     </Descriptions.Item>,
-    <Descriptions.Item label='Anlagengruppe'>
+    <Descriptions.Item label="Anlagengruppe">
       {standortItem?.anlagengruppeObject?.bezeichnung}
     </Descriptions.Item>,
-    <Descriptions.Item label='Bemerkungen' span={24}>
+    <Descriptions.Item label="Bemerkungen" span={24}>
       {standortItem?.bemerkungen}
     </Descriptions.Item>,
-    <Descriptions.Item label='Anbauten'>{standortItem?.anbauten}</Descriptions.Item>,
+    <Descriptions.Item label="Anbauten">
+      {standortItem?.anbauten}
+    </Descriptions.Item>,
 
-    <Descriptions.Item label='Verfahren'>{standortItem?.verfahren}</Descriptions.Item>,
-    <Descriptions.Item label='Monteur'>{standortItem?.monteur}</Descriptions.Item>,
-    <Descriptions.Item label='Montagefirma'>{standortItem?.montagefirma}</Descriptions.Item>,
-    <Descriptions.Item label='Gründung'>{standortItem?.gruendung}</Descriptions.Item>,
+    <Descriptions.Item label="Verfahren">
+      {standortItem?.verfahren}
+    </Descriptions.Item>,
+    <Descriptions.Item label="Monteur">
+      {standortItem?.monteur}
+    </Descriptions.Item>,
+    <Descriptions.Item label="Montagefirma">
+      {standortItem?.montagefirma}
+    </Descriptions.Item>,
+    <Descriptions.Item label="Gründung">
+      {standortItem?.gruendung}
+    </Descriptions.Item>,
 
-    <Descriptions.Item label='Erdung' optionalPredicate={() => standortItem?.erdung === true}>
+    <Descriptions.Item
+      label="Erdung"
+      optionalPredicate={() => standortItem?.erdung === true}
+    >
       {standortItem?.erdung === true ? "Ok" : ""}
     </Descriptions.Item>,
-    <Descriptions.Item label='Verrechnungseinheit'>
+    <Descriptions.Item label="Verrechnungseinheit">
       {standortItem?.verrechnungseinheit === true ? "Ja" : "Nein"}
     </Descriptions.Item>,
-    <Descriptions.Item label='Unterhaltspflicht'>
+    <Descriptions.Item label="Unterhaltspflicht">
       {standortItem?.unterhaltspflicht_mast?.unterhalt_mast}
     </Descriptions.Item>,
   ];
 
   return (
     <>
-      <Descriptions column={columns} layout='horizontal' bordered>
+      <Descriptions column={columns} layout="horizontal" bordered>
         {clearOptionalDescriptionItems(standortItems)}
         {/* {standortItems} */}
       </Descriptions>
       {docs.length > 1 &&
-        getSquaredThumbnails({ docs, type: "Standort", jwt, setIndex, setVisible, openLightBox })}
+        getSquaredThumbnails({
+          docs,
+          type: "Standort",
+          jwt,
+          setIndex,
+          setVisible,
+          openLightBox,
+        })}
     </>
   );
 };

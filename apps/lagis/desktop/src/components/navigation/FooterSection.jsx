@@ -1,15 +1,15 @@
-import React from 'react';
+import React from "react";
 // import packageJson from "../../../package.json";
-const packageJson = { version: '?.?.?' };
+const packageJson = { version: "?.?.?" };
 
 const FooterSection = () => {
   return (
     <div
       className="flex justify-beetween"
-      style={{ color: '#8F8F8F', lineHeight: 1 }}
+      style={{ color: "#8F8F8F", lineHeight: 1 }}
     >
       <div className="">
-        <span style={{ textDecoration: '#underline' }}>
+        <span style={{ textDecoration: "#underline" }}>
           LagIS-Desktop v:{packageJson.version}
         </span>
       </div>

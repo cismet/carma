@@ -1,17 +1,17 @@
-import { Doc } from '@carma-commons/document-viewer';
+import { Doc } from "@carma-commons/document-viewer";
 
-const tileservice = 'https://resources.cismet.de/tiles/';
+const tileservice = "https://resources.cismet.de/tiles/";
 
 function replaceUmlauteAndSpaces(str: string) {
   const umlautMap = {
-    Ü: 'UE',
-    Ä: 'AE',
-    Ö: 'OE',
-    ü: 'ue',
-    ä: 'ae',
-    ö: 'oe',
-    ß: 'ss',
-    ' ': '_',
+    Ü: "UE",
+    Ä: "AE",
+    Ö: "OE",
+    ü: "ue",
+    ä: "ae",
+    ö: "oe",
+    ß: "ss",
+    " ": "_",
   } as {
     [key: string]: string;
   };
@@ -21,18 +21,18 @@ function replaceUmlauteAndSpaces(str: string) {
       return big.charAt(0) + big.charAt(1) + a.slice(1);
     })
     .replace(
-      new RegExp('[' + Object.keys(umlautMap).join('|') + ']', 'g'),
-      (a: any) => umlautMap[a]
+      new RegExp("[" + Object.keys(umlautMap).join("|") + "]", "g"),
+      (a: any) => umlautMap[a],
     );
   return ret;
 }
 
 function repairUrl(url) {
   return url
-    .replace('http://', 'https://')
+    .replace("http://", "https://")
     .replace(
-      'https://www.wuppertal.de/geoportal/',
-      'https://wunda-geoportal-docs.cismet.de/'
+      "https://www.wuppertal.de/geoportal/",
+      "https://wunda-geoportal-docs.cismet.de/",
     );
 }
 
@@ -52,69 +52,69 @@ export function getDocsForBPlaeneGazetteerEntry(props: any) {
     }
 
     if (bplan) {
-      let title = 'B-Plan ' + bplan?.nummer;
+      let title = "B-Plan " + bplan?.nummer;
 
       for (const doc of bplan.plaene_rk) {
         docs.push({
-          group: 'rechtskraeftig',
+          group: "rechtskraeftig",
           file: doc.file,
           url: doc.url,
           docTitle: title,
 
           layer: replaceUmlauteAndSpaces(
             repairUrl(doc.url).replace(
-              'https://wunda-geoportal-docs.cismet.de/',
-              tileservice
-            ) + '/{z}/{x}/{y}.png'
+              "https://wunda-geoportal-docs.cismet.de/",
+              tileservice,
+            ) + "/{z}/{x}/{y}.png",
           ),
           meta: replaceUmlauteAndSpaces(
             repairUrl(doc.url).replace(
-              'https://wunda-geoportal-docs.cismet.de/',
-              tileservice
-            ) + '/meta.json'
+              "https://wunda-geoportal-docs.cismet.de/",
+              tileservice,
+            ) + "/meta.json",
           ),
         });
       }
 
       for (const doc of bplan.plaene_nrk) {
         docs.push({
-          group: 'nicht_rechtskraeftig',
+          group: "nicht_rechtskraeftig",
           file: doc.file,
           url: repairUrl(doc.url),
           docTitle: title,
 
           layer: replaceUmlauteAndSpaces(
             repairUrl(doc.url).replace(
-              'https://wunda-geoportal-docs.cismet.de/',
-              tileservice
-            ) + '/{z}/{x}/{y}.png'
+              "https://wunda-geoportal-docs.cismet.de/",
+              tileservice,
+            ) + "/{z}/{x}/{y}.png",
           ),
           meta: replaceUmlauteAndSpaces(
             repairUrl(doc.url).replace(
-              'https://wunda-geoportal-docs.cismet.de/',
-              tileservice
-            ) + '/meta.json'
+              "https://wunda-geoportal-docs.cismet.de/",
+              tileservice,
+            ) + "/meta.json",
           ),
         });
       }
       for (const doc of bplan.docs) {
         docs.push({
-          group: 'Zusatzdokumente',
+          group: "Zusatzdokumente",
           file: doc.file,
           url: repairUrl(doc.url),
           hideInDocViewer: doc.hideInDocViewer,
           layer: replaceUmlauteAndSpaces(
             repairUrl(doc.url).replace(
-              'https://wunda-geoportal-docs.cismet.de/',
-              tileservice
-            ) + '/{z}/{x}/{y}.png'
+              "https://wunda-geoportal-docs.cismet.de/",
+              tileservice,
+            ) + "/{z}/{x}/{y}.png",
           ),
 
           meta: replaceUmlauteAndSpaces(
             repairUrl(doc.url).replace(
-              'https://wunda-geoportal-docs.cismet.de/',
-              tileservice
-            ) + '/meta.json'
+              "https://wunda-geoportal-docs.cismet.de/",
+              tileservice,
+            ) + "/meta.json",
           ),
         });
       }

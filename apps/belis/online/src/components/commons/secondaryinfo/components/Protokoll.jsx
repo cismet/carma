@@ -53,17 +53,19 @@ const getLayout4Protokoll = ({
   const subSections = [];
 
   const statusItems = [
-    <Descriptions.Item key='desc_monteuer' label='Monteur'>
+    <Descriptions.Item key="desc_monteuer" label="Monteur">
       {item?.monteur}
     </Descriptions.Item>,
 
-    <Descriptions.Item key='desc_datum' label={"Datum"}>
-      {item?.datum ? getDate(item?.datum) + ivAsterisk(item?.datum_iv) : undefined}
+    <Descriptions.Item key="desc_datum" label={"Datum"}>
+      {item?.datum
+        ? getDate(item?.datum) + ivAsterisk(item?.datum_iv)
+        : undefined}
     </Descriptions.Item>,
-    <Descriptions.Item key='desc_bem' label='Bemerkung' span={3}>
+    <Descriptions.Item key="desc_bem" label="Bemerkung" span={3}>
       {item?.bemerkung}
     </Descriptions.Item>,
-    <Descriptions.Item key='desc_mat' label='Material' span={3}>
+    <Descriptions.Item key="desc_mat" label="Material" span={3}>
       {item?.material}
     </Descriptions.Item>,
   ];
@@ -71,7 +73,13 @@ const getLayout4Protokoll = ({
   const mainSection = (
     <div style={mainSectionStyle}>
       {showActions && (
-        <div style={{ borderBottom: "solid", paddingBottom: 10, borderColor: "lightgrey" }}>
+        <div
+          style={{
+            borderBottom: "solid",
+            paddingBottom: 10,
+            borderColor: "lightgrey",
+          }}
+        >
           <Button
             onClick={() => {
               dispatch(setMode(MODES.TASKLISTS));
@@ -132,10 +140,15 @@ const getLayout4Protokoll = ({
           <span style={{ color: "grey" }}>
             {item?.arbeitsprotokollstatus?.bezeichnung || "kein Status"}
           </span>{" "}
-          {vcard.list.upperright} {item?.arbeitsprotokollstatusIntermediate === true ? "*" : ""}
+          {vcard.list.upperright}{" "}
+          {item?.arbeitsprotokollstatusIntermediate === true ? "*" : ""}
         </h3>
       </div>
-      <Descriptions column={{ xs: 1, sm: 1, md: 2, lg: 2, xxl: 2 }} layout='horizontal' bordered>
+      <Descriptions
+        column={{ xs: 1, sm: 1, md: 2, lg: 2, xxl: 2 }}
+        layout="horizontal"
+        bordered
+      >
         {clearOptionalDescriptionItems(statusItems)}
       </Descriptions>
     </div>
@@ -144,38 +157,50 @@ const getLayout4Protokoll = ({
     subSections.push(
       <SecondaryInfoPanelSection
         key={"Aktionen.for." + item.id}
-        bsStyle='warning'
+        bsStyle="warning"
         header={"Aktionen"}
       >
         {getTimelineForActions({ actions: item?.arbeitsprotokollaktionArray })}
-      </SecondaryInfoPanelSection>
+      </SecondaryInfoPanelSection>,
     );
   }
 
   const veranlassungsItems = [
-    <Descriptions.Item label='Nummer'>{item?.veranlassungsnummer}</Descriptions.Item>,
+    <Descriptions.Item label="Nummer">
+      {item?.veranlassungsnummer}
+    </Descriptions.Item>,
 
-    <Descriptions.Item label='Grund (Art)'>
+    <Descriptions.Item label="Grund (Art)">
       {item?.veranlassung?.veranlassungsart?.bezeichnung}
     </Descriptions.Item>,
     <Descriptions.Item label={"Bezeichnung"} span={24}>
       {item.veranlassung?.bezeichnung}
     </Descriptions.Item>,
-    <Descriptions.Item label='Beschreibung' span={3}>
+    <Descriptions.Item label="Beschreibung" span={3}>
       {item?.veranlassung?.beschreibung}
     </Descriptions.Item>,
-    <Descriptions.Item label='angelegt von'>{item?.veranlassung?.username}</Descriptions.Item>,
-    <Descriptions.Item label='angelegt am'>{getDate(item?.veranlassung?.datum)}</Descriptions.Item>,
-    <Descriptions.Item label='Bemerkungen'>{item?.veranlassung?.bemerkungen}</Descriptions.Item>,
+    <Descriptions.Item label="angelegt von">
+      {item?.veranlassung?.username}
+    </Descriptions.Item>,
+    <Descriptions.Item label="angelegt am">
+      {getDate(item?.veranlassung?.datum)}
+    </Descriptions.Item>,
+    <Descriptions.Item label="Bemerkungen">
+      {item?.veranlassung?.bemerkungen}
+    </Descriptions.Item>,
   ];
 
   subSections.push(
     <SecondaryInfoPanelSection
       key={"Veranlassung.for." + item.id}
-      bsStyle='info'
+      bsStyle="info"
       header={"Veranlassung " + item?.veranlassungsnummer}
     >
-      <Descriptions column={{ xs: 1, sm: 1, md: 2, lg: 2, xxl: 2 }} layout='horizontal' bordered>
+      <Descriptions
+        column={{ xs: 1, sm: 1, md: 2, lg: 2, xxl: 2 }}
+        layout="horizontal"
+        bordered
+      >
         {/* {clearOptionalDescriptionItems(veranlassungsItems)} */}
         {veranlassungsItems}
       </Descriptions>
@@ -187,7 +212,7 @@ const getLayout4Protokoll = ({
         setVisible,
         openLightBox,
       })}
-    </SecondaryInfoPanelSection>
+    </SecondaryInfoPanelSection>,
   );
 
   let fachobjektTyp;
@@ -257,12 +282,12 @@ const getLayout4Protokoll = ({
   subSections.push(
     <SecondaryInfoPanelSection
       key={"fachobjekt.for." + item.id}
-      bsStyle='danger'
+      bsStyle="danger"
       header={fachobjektTyp + ": " + fachobjektTitle}
       collapsedOnStart={true}
     >
       {fachobjektContent}
-    </SecondaryInfoPanelSection>
+    </SecondaryInfoPanelSection>,
   );
   return { title, mainSection, subSections };
 };
