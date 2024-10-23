@@ -3,7 +3,6 @@ name: Deployment
 run-name: >
   ${{ (contains(github.event.head_commit.message, 'skip-deploy')||contains(github.event.head_commit.message, 'no-deploy')) && '💤💤💤 ' ||''}}
   ${{ github.event_name == 'workflow_dispatch' && '👨🏽‍💼 ' || github.event_name == 'repository_dispatch' && '🤖 ' || github.event_name == 'push' && '👨‍💻 ' }}
-  by ${{ github.actor }} 
   ${{ github.event_name == 'repository_dispatch' && '(' || ''}}${{ github.event.client_payload.actor }}${{ github.event_name == 'repository_dispatch' && ')' || ''}} 
   :
   ${{ github.event.head_commit.message }}
