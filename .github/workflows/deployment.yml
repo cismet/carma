@@ -7,7 +7,7 @@ run-name: >
   :
   ${{ github.event.head_commit.message }}
   ${{ github.event.inputs['project-name'] || github.event.client_payload['project-name'] }} 
-  ${{ (github.event.inputs['project-name'] || github.event.client_payload['project-name']) && '- 🔢' || '' }}  
+  ${{ (github.event.inputs['version-manipulator'] || github.event.client_payload['version-manipulator']) && '- 🔢' || '' }}  
   ${{ github.event.inputs['version-manipulator'] || github.event.client_payload['version-manipulator'] }}  
     -
   ${{ github.event.inputs.target || github.event.client_payload.target || github.ref_name }}-deployment
