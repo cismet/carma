@@ -15,7 +15,7 @@ const useCameraPitchHardLimiter = (minPitchDeg = DEFAULT_MIN_PITCH) => {
   const dispatch = useDispatch();
   const isMode2d = useSelector(selectViewerIsMode2d);
   const collisions = useSelector(
-    selectScreenSpaceCameraControllerEnableCollisionDetection,
+    selectScreenSpaceCameraControllerEnableCollisionDetection
   );
   const lastPitch = useRef<number | null>(null);
   const lastPosition = useRef<Cartographic | null>(null);
@@ -28,7 +28,7 @@ const useCameraPitchHardLimiter = (minPitchDeg = DEFAULT_MIN_PITCH) => {
     if (viewer && collisions && !isMode2d) {
       const { camera, scene } = viewer;
       console.log(
-        "HOOK [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to limit camera pitch",
+        "HOOK [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to limit camera pitch"
       );
       clearLast();
       const onUpdate = async () => {
@@ -37,14 +37,14 @@ const useCameraPitchHardLimiter = (minPitchDeg = DEFAULT_MIN_PITCH) => {
           console.log(
             "LISTENER HOOK [2D3D|CESIUM|CAMERA]: reset pitch",
             camera.pitch,
-            minPitchRad,
+            minPitchRad
           );
           if (lastPitch.current !== null && lastPosition.current !== null) {
             const { latitude, longitude } = camera.positionCartographic;
             const lastHeight = lastPosition.current.height;
             camera.setView({
               destination: Cartographic.toCartesian(
-                new Cartographic(longitude, latitude, lastHeight),
+                new Cartographic(longitude, latitude, lastHeight)
               ),
               orientation: {
                 heading: camera.heading,

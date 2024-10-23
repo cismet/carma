@@ -30,7 +30,7 @@ interface ByGeoJsonClassifier {
 const HIGHLIGHT_COLOR = Color.YELLOW;
 
 const HIGHLIGHT_MATERIAL = new ColorMaterialProperty(
-  HIGHLIGHT_COLOR.withAlpha(0.6),
+  HIGHLIGHT_COLOR.withAlpha(0.6)
 );
 
 const ByGeoJsonClassifier: FC<ByGeoJsonClassifier> = ({

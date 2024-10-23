@@ -1,13 +1,13 @@
-import { addSVGToProps } from 'react-cismap/tools/svgHelper';
-import Color from 'color';
-import { getColorForProperties } from './styler';
+import { addSVGToProps } from "react-cismap/tools/svgHelper";
+import Color from "color";
+import { getColorForProperties } from "./styler";
 
 const getSignature = (properties) => {
-  if (properties.typ === 'Verleihstation') {
-    return 'pikto_e-bike_verleih.svg';
+  if (properties.typ === "Verleihstation") {
+    return "pikto_e-bike_verleih.svg";
   } else {
     // return 'pikto_e-bike_verleih.svg';
-    return 'pikto_e-bike_laden.svg';
+    return "pikto_e-bike_laden.svg";
   }
 };
 
@@ -17,25 +17,25 @@ const convertItemToFeature = async (itemIn) => {
   let ebike = await addSVGToProps(
     clonedItem,
     (i) => getSignature(i),
-    'https://wunda-geoportal.cismet.de/svgs/'
+    "https://wunda-geoportal.cismet.de/svgs/"
   );
   const headerColor = Color(getColorForProperties(ebike));
 
-  let onlineStatus = '';
+  let onlineStatus = "";
 
   if (ebike.online) {
-    onlineStatus = `(${ebike.online ? 'online' : 'offline'})`;
+    onlineStatus = `(${ebike.online ? "online" : "offline"})`;
   }
 
   const header = `${ebike.typ} ${
-    ebike.typ === 'Ladestation' ? 'für' : 'von'
-  } E-Fahrräder${ebike.typ === 'Ladestation' ? '' : 'n'} ${onlineStatus}`;
+    ebike.typ === "Ladestation" ? "für" : "von"
+  } E-Fahrräder${ebike.typ === "Ladestation" ? "" : "n"} ${onlineStatus}`;
 
   const info = {
     header: header,
     title: ebike.standort,
     additionalInfo: ebike.zusatzinfo,
-    subtitle: ebike.strasse + ' ' + ebike.hausnummer,
+    subtitle: ebike.strasse + " " + ebike.hausnummer,
   };
 
   if (ebike?.betreiber) {
@@ -63,10 +63,10 @@ const convertItemToFeature = async (itemIn) => {
   ebike.color = headerColor;
   ebike.info = info;
   const id = ebike.id;
-  const type = 'Feature';
+  const type = "Feature";
   const selected = false;
   const geometry = ebike.geojson;
-  const text = ebike.typ === 'Ladestation' ? ebike.standort : ebike.standort;
+  const text = ebike.typ === "Ladestation" ? ebike.standort : ebike.standort;
 
   return {
     id,
@@ -75,9 +75,9 @@ const convertItemToFeature = async (itemIn) => {
     selected,
     geometry,
     crs: {
-      type: 'name',
+      type: "name",
       properties: {
-        name: 'urn:ogc:def:crs:EPSG::25832',
+        name: "urn:ogc:def:crs:EPSG::25832",
       },
     },
     properties: ebike,

@@ -1,4 +1,4 @@
-import { predicateBy } from 'react-cismap/tools/stringHelper';
+import { predicateBy } from "react-cismap/tools/stringHelper";
 
 const createItemsDictionary = (items) => {
   const lebenslagenSet = new Set();
@@ -9,9 +9,9 @@ const createItemsDictionary = (items) => {
 
     let type = {
       id: -99,
-      name: 'Kita',
-      signatur: 'child.svg',
-      lebenslagen: ['Kinderbetreuung'],
+      name: "Kita",
+      signatur: "child.svg",
+      lebenslagen: ["Kinderbetreuung"],
     };
     for (let ll of type?.lebenslagen) {
       lebenslagenSet.add(ll);
@@ -22,7 +22,7 @@ const createItemsDictionary = (items) => {
     }
   }
 
-  const poiTypes = Array.from(poitypesArr).sort(predicateBy('name'));
+  const poiTypes = Array.from(poitypesArr).sort(predicateBy("name"));
   const lebenslagen = Array.from(lebenslagenSet).sort();
 
   return { poiTypes, lebenslagen };

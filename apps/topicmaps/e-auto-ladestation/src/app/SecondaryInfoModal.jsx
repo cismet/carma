@@ -32,7 +32,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
           style={{ color: "grey", width: "26px", textAlign: "center" }}
           size="2x"
         />
-      </a>,
+      </a>
     );
   }
   if (ladestation?.betreiber?.email) {
@@ -43,7 +43,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
           style={{ color: "grey", width: "26px", textAlign: "center" }}
           size="2x"
         />
-      </a>,
+      </a>
     );
   }
   if (ladestation?.betreiber?.homepage) {
@@ -54,7 +54,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
           style={{ color: "grey", width: "26px", textAlign: "center" }}
           size="2x"
         />
-      </a>,
+      </a>
     );
   }
 
@@ -102,7 +102,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
               {v.strom && !v.spannung ? ` (${v.strom}A)` : ``}
               {!v.strom && v.spannung ? ` (${v.spannung}V)` : ``}
             </td>
-          </tr>,
+          </tr>
         );
       }
     });

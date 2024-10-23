@@ -14,7 +14,7 @@ export const getHeadingPitchRangeFromZoom = (
   {
     heading = 0,
     pitch = Math.PI / 2,
-  }: { heading?: number; pitch?: number } = {}, // prior
+  }: { heading?: number; pitch?: number } = {} // prior
 ) => {
   const range = distanceFromZoomLevel(zoom);
   return new HeadingPitchRange(heading, pitch, range);
@@ -23,7 +23,7 @@ export const getHeadingPitchRangeFromZoom = (
 export const getPositionWithHeightAsync = async (
   scene: Scene,
   position: Cartographic,
-  useClampedHeight: boolean = false,
+  useClampedHeight: boolean = false
 ) => {
   // Convert the Cartographic position to Cartesian3 coordinates
   const cartesianPosition = Cartographic.toCartesian(position);
@@ -34,7 +34,7 @@ export const getPositionWithHeightAsync = async (
     // Attempt to clamp the position to the tileset's height
     try {
       const clampedPosition = await scene.clampToHeight(
-        cartesianPosition,
+        cartesianPosition
         //[tileset],
       );
 
@@ -46,24 +46,24 @@ export const getPositionWithHeightAsync = async (
         updatedPosition = new Cartographic(
           position.longitude,
           position.latitude,
-          clampedCartographic.height,
+          clampedCartographic.height
         );
 
         console.info(
           "[CESIUM|TILESET] Clamped position found for position",
           position,
-          updatedPosition,
+          updatedPosition
         );
       } else {
         console.warn(
           "[CESIUM|TILESET] No clamped position found for position",
-          position,
+          position
         );
       }
     } catch (error) {
       console.error(
         "[CESIUM|TILESET] Error clamping to tileset height:",
-        error,
+        error
       );
     }
   } else {
@@ -80,13 +80,13 @@ export const getPositionWithHeightAsync = async (
       "[CESIUM|TERRAIN] Using terrain provider",
       terrainProvider,
       "for position",
-      position,
+      position
     );
 
     try {
       const updatedPositions = await sampleTerrainMostDetailed(
         terrainProvider,
-        [position],
+        [position]
       );
       const cartoPos = updatedPositions[0];
 
@@ -94,14 +94,14 @@ export const getPositionWithHeightAsync = async (
         console.info(
           "[CESIUM|TERRAIN] Sampled terrain for position",
           position,
-          cartoPos,
+          cartoPos
         );
         return cartoPos;
       } else {
         console.warn(
           "[CESIUM|TERRAIN] Could not get elevation for position",
           position,
-          cartoPos,
+          cartoPos
         );
         return position;
       }

@@ -18,7 +18,7 @@ const useTransitionTimeout = (timeOut = DEFAULT_TIMEOUT) => {
       timeoutId = setTimeout(() => {
         if (isTransitioning) {
           console.warn(
-            "HOOK [CESIUM|2D3D|TIMEOUT] transition timed out, clearing state",
+            "HOOK [CESIUM|2D3D|TIMEOUT] transition timed out, clearing state"
           );
           dispatch(clearTransition());
         }

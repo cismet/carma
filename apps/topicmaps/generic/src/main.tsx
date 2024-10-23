@@ -29,7 +29,7 @@ console.error = (message, ...args) => {
   }
 };
 const root = ReactDOM.createRoot(
-  document.getElementById("root") as HTMLElement,
+  document.getElementById("root") as HTMLElement
 );
 if (typeof global === "undefined") {
   window.global = window;
@@ -51,5 +51,5 @@ root.render(
         <Route path="/:name?" element={<AppWrapper />}></Route>
       </Routes>
     </Router>
-  </StrictMode>,
+  </StrictMode>
 );

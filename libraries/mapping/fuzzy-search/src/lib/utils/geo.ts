@@ -1,8 +1,8 @@
-import proj4 from 'proj4';
+import proj4 from "proj4";
 
 export const PROJ4_CONVERTERS = {
-  CRS25832: proj4('+proj=utm +zone=32 +ellps=GRS80 +units=m +no_defs'),
-  CRS4326: proj4('EPSG:4326'),
+  CRS25832: proj4("+proj=utm +zone=32 +ellps=GRS80 +units=m +no_defs"),
+  CRS4326: proj4("EPSG:4326"),
 };
 
 export const isProj4Converter = (
@@ -14,9 +14,9 @@ export const isProj4Converter = (
     | string
 ): obj is proj4.Converter => {
   return (
-    typeof obj !== 'string' &&
-    typeof obj.forward === 'function' &&
-    typeof obj.inverse === 'function'
+    typeof obj !== "string" &&
+    typeof obj.forward === "function" &&
+    typeof obj.inverse === "function"
   );
 };
 

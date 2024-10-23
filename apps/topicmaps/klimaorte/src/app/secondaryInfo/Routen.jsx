@@ -30,14 +30,14 @@ const InfoPanel = () => {
     <ElevationChart
       key={"ElevationChart" + item.id + "." + windowSize.width}
       revertedOrder={revertedOrder}
-    />,
+    />
   );
 
   subsections.push(
     <Verlauf
       key={"VerlaufElement" + item.id + "." + windowSize.width}
       revertedOrder={revertedOrder}
-    />,
+    />
   );
   if (!productionMode) {
     subsections.push(
@@ -48,7 +48,7 @@ const InfoPanel = () => {
         collapsedOnStart={true}
       >
         <pre>{JSON.stringify(item, null, 2)}</pre>
-      </SecondaryInfoPanelSection>,
+      </SecondaryInfoPanelSection>
     );
   }
   let text;

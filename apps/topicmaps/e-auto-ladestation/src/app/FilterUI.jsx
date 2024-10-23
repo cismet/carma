@@ -1,14 +1,14 @@
-import { Button } from 'react-bootstrap';
-import GruenerStromFC from './filtercontrols/GruenerStrom';
-import OeffnungszeitenFC from './filtercontrols/Oeffnungszeiten';
-import OnlineFC from './filtercontrols/Online';
-import SchnellladerFC from './filtercontrols/Schnelllader';
-import SteckerFC from './filtercontrols/Stecker';
-import PieChart from './PieChart';
-import { ResponsiveTopicMapContext } from 'react-cismap/contexts/ResponsiveTopicMapContextProvider';
+import { Button } from "react-bootstrap";
+import GruenerStromFC from "./filtercontrols/GruenerStrom";
+import OeffnungszeitenFC from "./filtercontrols/Oeffnungszeiten";
+import OnlineFC from "./filtercontrols/Online";
+import SchnellladerFC from "./filtercontrols/Schnelllader";
+import SteckerFC from "./filtercontrols/Stecker";
+import PieChart from "./PieChart";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
-import 'url-search-params-polyfill';
-import { useContext } from 'react';
+import "url-search-params-polyfill";
+import { useContext } from "react";
 
 const FilterUI = ({
   filter,
@@ -38,7 +38,7 @@ const FilterUI = ({
       <table border={0} width="100%">
         <tbody>
           <tr>
-            <td valign="center" style={{ width: '330px' }}>
+            <td valign="center" style={{ width: "330px" }}>
               <OnlineFC filter={filter} setFilter={setFilter} />
               <OeffnungszeitenFC filter={filter} setFilter={setFilter} />
               <SteckerFC
@@ -55,7 +55,7 @@ const FilterUI = ({
                   onClick={() => {
                     setFilter({
                       nur_online: false,
-                      oeffnungszeiten: '*',
+                      oeffnungszeiten: "*",
                       stecker: undefined,
                       nur_gruener_strom: false,
                       nur_schnelllader: false,

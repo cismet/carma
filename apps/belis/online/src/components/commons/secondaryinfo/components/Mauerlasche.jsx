@@ -55,7 +55,7 @@ const getLayout4Mauerlasche = ({
               setIndex(0);
             }
           }}
-          alt='Bild'
+          alt="Bild"
           style={{
             paddingLeft: 10,
             paddingRight: 10,
@@ -78,7 +78,8 @@ const getLayout4Mauerlasche = ({
       {getStrasse(item?.fk_strassenschluessel, item?.haus_nr)}
       {item?.plz && (
         <div>
-          {item?.plz} Wuppertal {item?.stadtbezirk && " (" + item?.stadtbezirk?.bezirk + ")"}
+          {item?.plz} Wuppertal{" "}
+          {item?.stadtbezirk && " (" + item?.stadtbezirk?.bezirk + ")"}
         </div>
       )}
       {item?.zusaetzliche_standortbezeichnung && (

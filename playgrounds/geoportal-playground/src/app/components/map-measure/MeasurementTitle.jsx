@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 
 const MeasurementTitle = ({
   title,
@@ -44,6 +44,6 @@ const MeasurementTitle = ({
 export default MeasurementTitle;
 
 function capitalizeFirstLetter(text) {
-  if (!text) return '';
+  if (!text) return "";
   return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
 }

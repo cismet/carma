@@ -34,7 +34,7 @@ async function getConfig(slugName, configType, server, path) {
   } catch (ex) {
     console.debug(
       "no config found at ",
-      server + path + slugName + "/" + configType + ".json",
+      server + path + slugName + "/" + configType + ".json"
     );
   }
 }
@@ -49,7 +49,7 @@ async function getMarkdown(slugName, configType, server, path) {
   } catch (ex) {
     console.debug(
       "no markdown found at ",
-      server + path + slugName + "/" + configType + ".md",
+      server + path + slugName + "/" + configType + ".md"
     );
   }
 }
@@ -63,28 +63,28 @@ export const getGazData = async (
     "bezirke",
     "quartiere",
     "adressen",
-  ],
+  ]
 ) => {
   const prefix = "GazDataForStories";
   const sources = {};
 
   sources.adressen = await md5FetchText(
     prefix,
-    host + "/data/3857/adressen.json",
+    host + "/data/3857/adressen.json"
   );
   sources.bezirke = await md5FetchText(
     prefix,
-    host + "/data/3857/bezirke.json",
+    host + "/data/3857/bezirke.json"
   );
   sources.quartiere = await md5FetchText(
     prefix,
-    host + "/data/3857/quartiere.json",
+    host + "/data/3857/quartiere.json"
   );
   sources.pois = await md5FetchText(prefix, host + "/data/3857/pois.json");
   sources.kitas = await md5FetchText(prefix, host + "/data/3857/kitas.json");
   sources.bpklimastandorte = await md5FetchText(
     prefix,
-    host + "/data/3857/bpklimastandorte.json",
+    host + "/data/3857/bpklimastandorte.json"
   );
 
   const gazData = getGazDataForTopicIds(sources, topics);
@@ -96,7 +96,7 @@ const downloadText = (text, filename) => {
   var element = document.createElement("a");
   element.setAttribute(
     "href",
-    "data:text/plain;charset=utf-8," + encodeURIComponent(text),
+    "data:text/plain;charset=utf-8," + encodeURIComponent(text)
   );
   element.setAttribute("download", filename);
 
@@ -128,37 +128,37 @@ function App({
         slugName,
         "featureDefaultProperties",
         server,
-        path,
+        path
       );
       const featureDefaults = await getConfig(
         slugName,
         "featureDefaults",
         server,
-        path,
+        path
       );
       const helpTextBlocks = await getConfig(
         slugName,
         "helpTextBlocks",
         server,
-        path,
+        path
       );
       const simpleHelpMd = await await getMarkdown(
         slugName,
         "simpleHelp",
         server,
-        path,
+        path
       );
       const simpleHelp = await await getConfig(
         slugName,
         "simpleHelp",
         server,
-        path,
+        path
       );
       const infoBoxConfig = await getConfig(
         slugName,
         "infoBoxConfig",
         server,
-        path,
+        path
       );
       const features = await getConfig(slugName, "features", server, path);
 
@@ -168,12 +168,12 @@ function App({
         const simpleHelpObject = { type: "MARKDOWN", content: simpleHelpMd };
         config.helpTextblocks = getSimpleHelpForGenericTM(
           document.title,
-          simpleHelpObject,
+          simpleHelpObject
         );
       } else {
         config.helpTextblocks = getSimpleHelpForGenericTM(
           document.title,
-          simpleHelp,
+          simpleHelp
         );
       }
       if (features !== undefined) {
@@ -217,7 +217,7 @@ function App({
         clusteringOptions={{
           iconCreateFunction: getClusterIconCreatorFunction(
             30,
-            (props) => props.color,
+            (props) => props.color
           ),
           ...config.tm.clusterOptions,
         }}
@@ -252,24 +252,24 @@ function App({
                 onClick={() => {
                   downloadText(
                     JSON.stringify(configFromFile, null, 2),
-                    "config.json",
+                    "config.json"
                   );
                   downloadText(
                     JSON.stringify(featureDefaultProperties, null, 2),
-                    "featureDefaultProperties.json",
+                    "featureDefaultProperties.json"
                   );
                   downloadText(
                     JSON.stringify(featureDefaults, null, 2),
-                    "featureDefaults.json",
+                    "featureDefaults.json"
                   );
                   downloadText(
                     JSON.stringify(features, null, 2),
-                    "features.json",
+                    "features.json"
                   );
                   // downloadText(JSON.stringify(infoBoxConfig, null, 2), "infoBoxConfig.json");
                   downloadText(
                     JSON.stringify(simpleHelp, null, 2),
-                    "simpleHelp.json",
+                    "simpleHelp.json"
                   );
                 }}
               >

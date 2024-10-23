@@ -6,8 +6,8 @@ import {
   faFileImage,
   faFilePdf,
   faFileWord,
-} from '@fortawesome/free-solid-svg-icons';
-import IconForAttribute from '../IconForAttribute';
+} from "@fortawesome/free-solid-svg-icons";
+import IconForAttribute from "../IconForAttribute";
 
 const iconAttributeMap = {
   default: faFile,
@@ -33,7 +33,7 @@ interface DocIconProps {
 
 const DocIcon = ({ fileEnding }: DocIconProps) => {
   if (iconAttributeMap[fileEnding] === undefined) {
-    fileEnding = 'default';
+    fileEnding = "default";
   }
   return (
     <IconForAttribute iconAttributeMap={iconAttributeMap} value={fileEnding} />

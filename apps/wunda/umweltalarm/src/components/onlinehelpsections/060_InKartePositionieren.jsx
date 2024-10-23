@@ -11,13 +11,16 @@ const InKartePositionieren = () => {
             addendum: (
               <span>
                 {" "}
-                Mit den hier beschriebenen Positionierungen werden stets Verschiebungen des
-                Karteninhaltes bewirkt, nach denen jeweils automatisch ein{" "}
+                Mit den hier beschriebenen Positionierungen werden stets
+                Verschiebungen des Karteninhaltes bewirkt, nach denen jeweils
+                automatisch ein{" "}
                 <Link
-                  class='renderAsLink'
-                  to={slugify("Karteninhalt verschieben und thematischer Durchstich")}
+                  class="renderAsLink"
+                  to={slugify(
+                    "Karteninhalt verschieben und thematischer Durchstich"
+                  )}
                   containerId={"myMenu"}
-                  activeClass='active'
+                  activeClass="active"
                 >
                   thematischer Durchstich
                 </Link>{" "}

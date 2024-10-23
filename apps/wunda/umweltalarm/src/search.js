@@ -214,7 +214,10 @@ export const searchForFeatures = async (db, daqKeys, geom) => {
     hits = hits.filter((value, index, arr) => {
       if (value.typ === "StoerfallBetriebeKlasse2") {
         for (let elA1 of hits) {
-          if (elA1.typ === "StoerfallBetriebeKlasse1" && elA1.betrieb === value.betrieb) {
+          if (
+            elA1.typ === "StoerfallBetriebeKlasse1" &&
+            elA1.betrieb === value.betrieb
+          ) {
             return false;
           }
         }
@@ -241,15 +244,28 @@ const compareDist = (a, b) => {
 
 export const getDistance = (geom, geojson) => {
   const geomCenter = turfCenter(geom);
-  const geomCenterCoords = [geomCenter.geometry.coordinates[0], geomCenter.geometry.coordinates[1]];
-  const transformedGeom = proj4(proj4.defs("EPSG:3857"), proj4.defs("EPSG:4326"), geomCenterCoords);
+  const geomCenterCoords = [
+    geomCenter.geometry.coordinates[0],
+    geomCenter.geometry.coordinates[1],
+  ];
+  const transformedGeom = proj4(
+    proj4.defs("EPSG:3857"),
+    proj4.defs("EPSG:4326"),
+    geomCenterCoords
+  );
   const brunnenCenter = turfCenter(geojson);
   const brunnenCoords = [
     brunnenCenter.geometry.coordinates[0],
     brunnenCenter.geometry.coordinates[1],
   ];
-  const transformedBrunnen = proj4(proj4.defs("EPSG:3857"), proj4.defs("EPSG:4326"), brunnenCoords);
-  const dist = turfDistance(transformedGeom, transformedBrunnen, { unit: "kilometers" });
+  const transformedBrunnen = proj4(
+    proj4.defs("EPSG:3857"),
+    proj4.defs("EPSG:4326"),
+    brunnenCoords
+  );
+  const dist = turfDistance(transformedGeom, transformedBrunnen, {
+    unit: "kilometers",
+  });
   //the calculated distance must be multiplied by 1.6, caused by the used longitudes/latitudes
   const distanceInMeters = dist * 1000 * 1.6;
 
@@ -267,7 +283,11 @@ export const addAnsprechpartner = async (
   let found = false;
 
   for (const key of keys) {
-    if (key !== "geojson" && dataObject[key] !== undefined && dataObject[key] !== null) {
+    if (
+      key !== "geojson" &&
+      dataObject[key] !== undefined &&
+      dataObject[key] !== null
+    ) {
       const anprechreferenz = await ansprechpartnerZustaendigkeit.get({
         tabelle: table,
         referenz: dataObject[key],
@@ -275,7 +295,9 @@ export const addAnsprechpartner = async (
       });
 
       if (anprechreferenz) {
-        const anspr = await ansprechpartner.get({ id: "" + anprechreferenz.data.ansprechpartner });
+        const anspr = await ansprechpartner.get({
+          id: "" + anprechreferenz.data.ansprechpartner,
+        });
 
         if (anspr) {
           removeNullValues(anspr.data);
@@ -295,7 +317,9 @@ export const addAnsprechpartner = async (
     });
 
     if (anprechreferenz) {
-      const anspr = await ansprechpartner.get({ id: "" + anprechreferenz.data.ansprechpartner });
+      const anspr = await ansprechpartner.get({
+        id: "" + anprechreferenz.data.ansprechpartner,
+      });
 
       if (anspr) {
         removeNullValues(anspr.data);

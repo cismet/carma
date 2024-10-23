@@ -62,7 +62,7 @@ const Menu = () => {
             sectionKey="filter"
             sectionTitle={getFilterHeader(
               filteredItems?.length,
-              shownFeatures?.length,
+              shownFeatures?.length
             )}
             sectionBsStyle={FilterStyle}
             sectionContent={<FilterUI />}

@@ -95,20 +95,20 @@ const TopNavbar = () => {
     dispatch(toggleShowOverlayTour(!tourMode));
   };
   const menuTourRef = useOverlayHelper(
-    getCollabedHelpElementsConfig("MENULEISTE", geoElements),
+    getCollabedHelpElementsConfig("MENULEISTE", geoElements)
   );
   const hintergrundTourRef = useOverlayHelper(
-    getCollabedHelpElementsConfig("HINTERGRUND", geoElements),
+    getCollabedHelpElementsConfig("HINTERGRUND", geoElements)
   );
   const modalMenuTourRef = useOverlayHelper(
-    getCollabedHelpElementsConfig("MENU", geoElements),
+    getCollabedHelpElementsConfig("MENU", geoElements)
   );
 
   const updateLayers = async (
     layer: Item,
     deleteItem: boolean = false,
     forceWMS: boolean = false,
-    previewLayer: boolean = false,
+    previewLayer: boolean = false
   ) => {
     let newLayer: Layer;
     const id = layer.id.startsWith("fav_") ? layer.id.slice(4) : layer.id;
@@ -351,7 +351,7 @@ const TopNavbar = () => {
                       ...selectedMapLayer,
                       id: "karte",
                       visible: isMode2d,
-                    }),
+                    })
                   );
                   toggleSceneStyle("secondary");
                 } else {
@@ -370,7 +370,7 @@ const TopNavbar = () => {
                         url: layerMap[e.target.value].url,
                       },
                       layers: layerMap[e.target.value].layers,
-                    }),
+                    })
                   );
                   toggleSceneStyle("primary");
                 }

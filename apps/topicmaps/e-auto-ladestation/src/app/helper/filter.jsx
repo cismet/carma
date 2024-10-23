@@ -1,6 +1,6 @@
-import React from 'react';
+import React from "react";
 
-import MultiToggleButton from '../MultiToggleButton';
+import MultiToggleButton from "../MultiToggleButton";
 
 const itemFilterFunction = ({ filterState }) => {
   return (item) => {
@@ -11,8 +11,8 @@ const itemFilterFunction = ({ filterState }) => {
     }
 
     if (filterState.oeffnungszeiten) {
-      if (filterState.oeffnungszeiten === '24') {
-        if (item.oeffnungszeiten !== '24 Stunden / 7 Tage') {
+      if (filterState.oeffnungszeiten === "24") {
+        if (item.oeffnungszeiten !== "24 Stunden / 7 Tage") {
           result = false;
         }
       }
@@ -43,51 +43,51 @@ export const createFilterRows = (section, filterState, setFilterState) => {
   let rows = [];
 
   for (let item of section) {
-    let buttonValue = 'two';
+    let buttonValue = "two";
 
     if (filterState?.positiv?.indexOf(item) !== -1) {
-      buttonValue = 'one';
+      buttonValue = "one";
     } else if (filterState?.negativ?.indexOf(item) !== -1) {
-      buttonValue = 'three';
+      buttonValue = "three";
     }
 
     let cb = (
-      <tr key={'tr.for.mtbutton.' + section + '.' + item}>
+      <tr key={"tr.for.mtbutton." + section + "." + item}>
         <td
-          key={'td1.for.mtbutton.' + section + '.' + item}
+          key={"td1.for.mtbutton." + section + "." + item}
           style={{
-            textAlign: 'left',
-            verticalAlign: 'top',
-            padding: '5px',
+            textAlign: "left",
+            verticalAlign: "top",
+            padding: "5px",
           }}
         >
           {item}
         </td>
         <td
-          key={'td2.for.mtbutton.' + section + '.' + item}
+          key={"td2.for.mtbutton." + section + "." + item}
           style={{
-            textAlign: 'left',
-            verticalAlign: 'top',
-            padding: '5px',
+            textAlign: "left",
+            verticalAlign: "top",
+            padding: "5px",
           }}
         >
           <MultiToggleButton
             style={{
-              flex: '50%',
+              flex: "50%",
             }}
-            key={'mtbutton.lebenslagen.' + item}
+            key={"mtbutton.lebenslagen." + item}
             value={buttonValue}
             valueChanged={(selectedValue) => {
-              if (selectedValue === 'one') {
-                toggleFilter('positiv', item, filterState, setFilterState);
-              } else if (selectedValue === 'three') {
-                toggleFilter('negativ', item, filterState, setFilterState);
+              if (selectedValue === "one") {
+                toggleFilter("positiv", item, filterState, setFilterState);
+              } else if (selectedValue === "three") {
+                toggleFilter("negativ", item, filterState, setFilterState);
               } else {
                 //deselect existing selection
-                if (buttonValue === 'one') {
-                  toggleFilter('positiv', item, setFilterState);
-                } else if (buttonValue === 'three') {
-                  toggleFilter('negativ', item, filterState, setFilterState);
+                if (buttonValue === "one") {
+                  toggleFilter("positiv", item, setFilterState);
+                } else if (buttonValue === "three") {
+                  toggleFilter("negativ", item, filterState, setFilterState);
                 }
               }
             }}
@@ -108,17 +108,17 @@ export const toggleFilter = (kind, filter, filterState, setFilterState) => {
     filterGroupSet.delete(filter);
   } else {
     filterGroupSet.add(filter);
-    if (kind === 'positiv') {
+    if (kind === "positiv") {
       if (newFilterState.negativ.indexOf(filter) !== -1) {
-        let otherFilterGroupSet = new Set(newFilterState['negativ']);
+        let otherFilterGroupSet = new Set(newFilterState["negativ"]);
         otherFilterGroupSet.delete(filter);
-        newFilterState['negativ'] = Array.from(otherFilterGroupSet);
+        newFilterState["negativ"] = Array.from(otherFilterGroupSet);
       }
     } else {
       if (newFilterState.positiv.indexOf(filter) !== -1) {
-        let otherFilterGroupSet = new Set(newFilterState['positiv']);
+        let otherFilterGroupSet = new Set(newFilterState["positiv"]);
         otherFilterGroupSet.delete(filter);
-        newFilterState['positiv'] = Array.from(otherFilterGroupSet);
+        newFilterState["positiv"] = Array.from(otherFilterGroupSet);
       }
     }
   }

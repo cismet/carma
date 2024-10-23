@@ -1,75 +1,75 @@
 // Create a class for the plugin
 L.Control.MeasurePolygon = L.Control.extend({
   options: {
-    position: 'topright',
-    icon_lineActive: 'https://img.icons8.com/?size=48&id=98497&format=png',
-    icon_lineInactive: 'https://img.icons8.com/?size=48&id=98463&format=png',
-    icon_polygonActive: 'https://img.icons8.com/?size=48&id=98497&format=png',
-    icon_polygonInactive: 'https://img.icons8.com/?size=48&id=98463&format=png',
+    position: "topright",
+    icon_lineActive: "https://img.icons8.com/?size=48&id=98497&format=png",
+    icon_lineInactive: "https://img.icons8.com/?size=48&id=98463&format=png",
+    icon_polygonActive: "https://img.icons8.com/?size=48&id=98497&format=png",
+    icon_polygonInactive: "https://img.icons8.com/?size=48&id=98463&format=png",
     html_template: `<p><strong><span style="text-decoration: underline;">Results</span></strong></p>
 <p><strong>Area: </strong><br>_p_area</p>
 <p><strong>Perimeter : </strong><br>_p_perimetro</p>`,
     height: 130,
     width: 150,
-    mode_btn: '',
-    color_polygon: 'black',
-    fillColor_polygon: 'yellow',
-    weight_polygon: '2',
+    mode_btn: "",
+    color_polygon: "black",
+    fillColor_polygon: "yellow",
+    weight_polygon: "2",
     checkonedrawpoligon: false,
     changeModeButtonActive: false,
-    msj_disable_tool: 'Möchten Sie das Tool deaktivieren?',
+    msj_disable_tool: "Möchten Sie das Tool deaktivieren?",
     shapes: [],
     activeShape: null,
-    shapeMode: 'line',
+    shapeMode: "line",
     measurementOrder: 0,
     moveToShape: false,
     cb: function () {
-      console.log('Callback function executed!');
+      console.log("Callback function executed!");
     },
     cbSaveShape: function () {
-      console.log('Callback function executed!');
+      console.log("Callback function executed!");
     },
     cdDeleteShape: function () {
-      console.log('Callback function executed!');
+      console.log("Callback function executed!");
     },
     cbUpdateShape: function () {
-      console.log('Callback function executed!');
+      console.log("Callback function executed!");
     },
     cbVisiblePolylinesChange: function () {
-      console.log('Callback function executed!');
+      console.log("Callback function executed!");
     },
     cbSetDrawingStatus: function () {
-      console.log('Callback function executed!');
+      console.log("Callback function executed!");
     },
     cbSetDrawingShape: function () {
-      console.log('Callback function executed!');
+      console.log("Callback function executed!");
     },
     cbSetActiveShape: function () {
-      console.log('Callback function executed!');
+      console.log("Callback function executed!");
     },
     cbSetUpdateStatusHandler: function () {
-      console.log('Callback function executed!');
+      console.log("Callback function executed!");
     },
     cbMapMovingEndHandler: function () {
-      console.log('Callback function executed!');
+      console.log("Callback function executed!");
     },
     cbSaveLastActiveShapeIdBeforeDrawingHandler: function () {
-      console.log('Callback function executed!');
+      console.log("Callback function executed!");
     },
     cbChangeActiveCanceldShapeId: function () {
-      console.log('Callback function executed!');
+      console.log("Callback function executed!");
     },
     cbToggleMeasurementMode: function () {
-      console.log('Callback function executed!');
+      console.log("Callback function executed!");
     },
     cbGetMeasurementModeHandler: function () {
-      console.log('Callback function executed!');
+      console.log("Callback function executed!");
     },
     cbDeleteVisibleShapeById: function () {
-      console.log('Callback function executed!');
+      console.log("Callback function executed!");
     },
     cbUpdateAreaOfDrawingMeasurement: function () {
-      console.log('Callback function executed!');
+      console.log("Callback function executed!");
     },
     visiblePolylines: [],
     localShapeStore: [],
@@ -81,11 +81,11 @@ L.Control.MeasurePolygon = L.Control.extend({
   },
 
   drawingPolygons: function (map) {
-    this.options.shapeMode = 'polygon';
+    this.options.shapeMode = "polygon";
     this._measureHandler = new L.Draw.Polygon(map, {
       showArea: true,
       shapeOptions: {
-        color: 'blue',
+        color: "blue",
         fillColor: null,
         fillOpacity: 0.2,
         stroke: true,
@@ -93,27 +93,27 @@ L.Control.MeasurePolygon = L.Control.extend({
     });
 
     L.drawLocal.draw.handlers.polygon.tooltip.start =
-      'Klicken Sie um die Messung zu starten';
+      "Klicken Sie um die Messung zu starten";
     L.drawLocal.draw.handlers.polygon.tooltip.cont =
-      'Klicken Sie, um mit dem Zeichnen der Form fortzufahren';
+      "Klicken Sie, um mit dem Zeichnen der Form fortzufahren";
     L.drawLocal.draw.handlers.polygon.tooltip.end = `Zum Beenden auf den letzten angelegt Punkt klicken.
       Zum Messen einer Fläche auf den ersten angeleten.
       Punkt klicken und die Fläche so schließen`;
 
     this._toggleMeasure(
-      'img_plg_measure_polygon',
-      'icon_polygonActive',
-      'icon_polygonInactive'
+      "img_plg_measure_polygon",
+      "icon_polygonActive",
+      "icon_polygonInactive"
     );
   },
 
   drawingLines: function (map) {
-    this.options.shapeMode = 'line';
+    this.options.shapeMode = "line";
     this._measureHandler = new L.Draw.Polyline(map, {
       showLength: true,
       shapeOptions: {
         weight: 3,
-        color: '#267bdcd4',
+        color: "#267bdcd4",
         opacity: 1,
       },
     });
@@ -128,15 +128,15 @@ L.Control.MeasurePolygon = L.Control.extend({
 `;
 
     L.drawLocal.draw.handlers.polyline.tooltip.start =
-      'Klicken Sie um die Messung zu starten';
+      "Klicken Sie um die Messung zu starten";
     L.drawLocal.draw.handlers.polyline.tooltip.cont =
-      'Klicken Sie, um mit dem Zeichnen der Linie fortzufahren';
+      "Klicken Sie, um mit dem Zeichnen der Linie fortzufahren";
     L.drawLocal.draw.handlers.polyline.tooltip.end = tooltipContent;
 
     this._toggleMeasure(
-      'img_plg_lines',
-      'icon_lineActive',
-      'icon_lineInactive'
+      "img_plg_lines",
+      "icon_lineActive",
+      "icon_lineInactive"
     );
   },
 
@@ -145,18 +145,18 @@ L.Control.MeasurePolygon = L.Control.extend({
     const latlngsJSON = layer.toGeoJSON();
     const shapeId = layer._leaflet_id;
     layer.customID = shapeId;
-    layer.on('click', () => {
+    layer.on("click", () => {
       this.options.cbSetActiveShape(layer.customID);
       this.options.cbSetUpdateStatusHandler(false);
     });
 
-    if (this.options.shapeMode === 'polygon') {
+    if (this.options.shapeMode === "polygon") {
       const polygon = this.replaceLineToPolygon(map, layer);
       this.options.cbSaveShape(polygon);
       this.getVisibleShapeIdsArr(map);
     } else {
       const prepeareCoordinates =
-        this.options.shapeMode === 'line'
+        this.options.shapeMode === "line"
           ? latlngsJSON.geometry.coordinates
           : latlngsJSON.geometry.coordinates[0];
       const reversedCoordinates = prepeareCoordinates.map((item) => {
@@ -166,7 +166,7 @@ L.Control.MeasurePolygon = L.Control.extend({
       const preparePolygon = {
         coordinates: reversedCoordinates,
         options: {
-          color: 'blue',
+          color: "blue",
           fillColor: null,
           opacity: 0.5,
           weigt: 4,
@@ -188,7 +188,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     const layer = event.layer;
     this.options.cbSetActiveShape(layer.customID);
     const latlngsJSON = layer.toGeoJSON();
-    const isLine = layer.toGeoJSON().geometry.type === 'LineString';
+    const isLine = layer.toGeoJSON().geometry.type === "LineString";
     const prepeareCoordinates = isLine
       ? latlngsJSON.geometry.coordinates
       : latlngsJSON.geometry.coordinates[0];
@@ -228,37 +228,37 @@ L.Control.MeasurePolygon = L.Control.extend({
 
   onAdd: function (map) {
     const linesContainer = L.DomUtil.create(
-      'div',
-      'leaflet-bar leaflet-control m-container'
+      "div",
+      "leaflet-bar leaflet-control m-container"
     );
 
     const modeBtn = L.DomUtil.create(
-      'div',
-      'leaflet-bar leaflet-control m-container hide-draw-btn draw-custom-button',
+      "div",
+      "leaflet-bar leaflet-control m-container hide-draw-btn draw-custom-button",
       linesContainer
     );
 
-    modeBtn.id = 'draw_shape';
-    modeBtn.title = 'Flächen- und Umfangsmessungen';
+    modeBtn.id = "draw_shape";
+    modeBtn.title = "Flächen- und Umfangsmessungen";
 
     modeBtn.innerHTML = this.options.mode_btn;
 
-    const lineIcon = L.DomUtil.create('a', '', linesContainer);
+    const lineIcon = L.DomUtil.create("a", "", linesContainer);
     lineIcon.innerHTML = `
     <div class="measure_icon_wrapper">
       <img id="img_plg_lines" class='mesure_icon' src="${this.options.icon_lineInactive}" alt="Ruler Icon">
     </div>
   `;
-    lineIcon.href = '#';
-    lineIcon.title = 'Messmodus';
+    lineIcon.href = "#";
+    lineIcon.title = "Messmodus";
 
-    const iconsWrapper = L.DomUtil.create('div', 'm-icons-wrapper');
+    const iconsWrapper = L.DomUtil.create("div", "m-icons-wrapper");
     iconsWrapper.appendChild(linesContainer);
 
     iconsWrapper.appendChild(modeBtn);
     L.DomEvent.on(
       modeBtn,
-      'click',
+      "click",
       (event) => {
         event.preventDefault(); // Prevent default action (e.g., redirection)
         this.drawingLines(map);
@@ -268,7 +268,7 @@ L.Control.MeasurePolygon = L.Control.extend({
 
     L.DomEvent.on(
       lineIcon,
-      'click',
+      "click",
       (event) => {
         event.preventDefault(); // Prevent default action (e.g., redirection)
         this.toggleMeasurementMode();
@@ -280,7 +280,7 @@ L.Control.MeasurePolygon = L.Control.extend({
 
     this._measureLayers = L.layerGroup().addTo(map);
 
-    map.on('draw:created', (event) => {
+    map.on("draw:created", (event) => {
       this.options.checkonedrawpoligon = false;
       this.options.ifDrawing = false;
 
@@ -288,9 +288,9 @@ L.Control.MeasurePolygon = L.Control.extend({
       this.options.cbSetDrawingShape(null);
 
       const layer = event.layer;
-      layer.on('dblclick', this._onPolygonClick.bind(this, map));
+      layer.on("dblclick", this._onPolygonClick.bind(this, map));
 
-      layer.on('editable:vertex:dragend', () => {
+      layer.on("editable:vertex:dragend", () => {
         this.options.cbSetUpdateStatusHandler(false);
       });
 
@@ -303,7 +303,7 @@ L.Control.MeasurePolygon = L.Control.extend({
       this.saveShapeHandler(layer, distance, null, map);
 
       layer.on(
-        'editable:drag editable:vertex:drag editable:vertex:deleted editable:dragstart editable:dragend',
+        "editable:drag editable:vertex:drag editable:vertex:deleted editable:dragstart editable:dragend",
         this._onPolylineDrag.bind(this)
       );
 
@@ -312,7 +312,7 @@ L.Control.MeasurePolygon = L.Control.extend({
       this._measureHandler.disable();
     });
 
-    map.on('draw:drawstart', (event) => {
+    map.on("draw:drawstart", (event) => {
       this.options.cbSaveLastActiveShapeIdBeforeDrawingHandler();
       this.options.measurementOrder = this.options.measurementOrder + 1;
       const shapesObj = {
@@ -320,12 +320,12 @@ L.Control.MeasurePolygon = L.Control.extend({
         distance: 0,
         shapeId: 5555,
         number: this.options.measurementOrder,
-        shapeType: 'line',
+        shapeType: "line",
       };
-      this.changeColorByActivePolyline(map, 'ddfsc1231');
+      this.changeColorByActivePolyline(map, "ddfsc1231");
     });
 
-    map.on('draw:drawvertex', (event) => {
+    map.on("draw:drawvertex", (event) => {
       const layers = event.layers;
       const latlngs = [];
       let index = 0;
@@ -333,13 +333,13 @@ L.Control.MeasurePolygon = L.Control.extend({
 
       layers.eachLayer((layer) => {
         layer.customHandle = index++;
-        layer.on('click', (e) => {
+        layer.on("click", (e) => {
           if (e.target.customHandle === 0) {
-            this.options.shapeMode = 'polygon';
+            this.options.shapeMode = "polygon";
             this.options.currenLine.completeShape();
           }
         });
-        layer.on('mouseover', (e) => {
+        layer.on("mouseover", (e) => {
           const coordinates = this._measureHandler._poly._latlngs;
           const latLngArray = coordinates.map((c) => [c.lat, c.lng]);
           latLngArray.push(latLngArray[0]);
@@ -351,7 +351,7 @@ L.Control.MeasurePolygon = L.Control.extend({
           firsHovering = true;
         });
 
-        layer.on('mouseout', (e) => {
+        layer.on("mouseout", (e) => {
           if (e.target.customHandle === 0) {
             const tooltipContent = `
             <div>
@@ -378,7 +378,7 @@ L.Control.MeasurePolygon = L.Control.extend({
           distance,
           shapeId: 5555,
           number: this.options.measurementOrder,
-          shapeType: 'line',
+          shapeType: "line",
         };
 
         this.options.ifDrawing = true;
@@ -390,20 +390,20 @@ L.Control.MeasurePolygon = L.Control.extend({
           coordinates: [latlngs],
           distance,
           shapeId: 5555,
-          shapeType: 'line',
+          shapeType: "line",
           number: this.options.measurementOrder,
         };
         this.options.cbSetDrawingShape(shapesObj);
       }
     });
 
-    map.on('draw:canceled', () => {
+    map.on("draw:canceled", () => {
       this.options.checkonedrawpoligon = true;
 
       this._toggleMeasure(
-        'img_plg_lines',
-        'icon_lineActive',
-        'icon_lineInactive'
+        "img_plg_lines",
+        "icon_lineActive",
+        "icon_lineInactive"
       );
 
       this.options.cbDeleteVisibleShapeById(5555);
@@ -411,7 +411,7 @@ L.Control.MeasurePolygon = L.Control.extend({
       this.options.cbChangeActiveCanceldShapeId();
     });
 
-    map.on('moveend', () => {
+    map.on("moveend", () => {
       const allPolyLines = this.getVisiblePolylines(map);
       this.getVisiblePolylinesIds(allPolyLines);
       this.options.cbMapMovingEndHandler(true);
@@ -432,7 +432,7 @@ L.Control.MeasurePolygon = L.Control.extend({
 
   _UpdateDistance: function (layer) {
     let totalDistance = 0;
-    const isLine = layer.toGeoJSON().geometry.type === 'LineString';
+    const isLine = layer.toGeoJSON().geometry.type === "LineString";
     const latlngs = isLine ? layer.getLatLngs() : layer.getLatLngs()[0];
 
     if (!isLine) {
@@ -542,7 +542,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     return formatPerimeter(perimeter);
   },
 
-  _toggleMeasure: function (btnId = '', activeIcon = '', inactiveIcon = '') {
+  _toggleMeasure: function (btnId = "", activeIcon = "", inactiveIcon = "") {
     if (this.options.checkonedrawpoligon) {
       this.options.checkonedrawpoligon = false;
     } else {
@@ -559,9 +559,9 @@ L.Control.MeasurePolygon = L.Control.extend({
       const polyline = layer;
       if (layer instanceof L.Polyline) {
         if (layer.customID === customID) {
-          polyline._path.classList.remove('custom-polyline');
+          polyline._path.classList.remove("custom-polyline");
         } else {
-          polyline._path.classList.add('custom-polyline');
+          polyline._path.classList.add("custom-polyline");
         }
       }
     });
@@ -573,12 +573,12 @@ L.Control.MeasurePolygon = L.Control.extend({
     map.eachLayer(function (layer) {
       if (layer instanceof L.Polyline) {
         lastPolyline = layer;
-        layer._path.classList.add('custom-polyline');
+        layer._path.classList.add("custom-polyline");
       }
     });
 
     if (lastPolyline) {
-      lastPolyline._path.classList.remove('custom-polyline');
+      lastPolyline._path.classList.remove("custom-polyline");
     }
   },
 
@@ -660,8 +660,8 @@ L.Control.MeasurePolygon = L.Control.extend({
     prepeareCoordinates.push(prepeareCoordinates[0]);
 
     const options = {
-      color: '#3388ff',
-      fillColor: '#3388ff',
+      color: "#3388ff",
+      fillColor: "#3388ff",
       opacity: 1,
       weigt: 3,
     };
@@ -680,20 +680,20 @@ L.Control.MeasurePolygon = L.Control.extend({
     const polygon = L.polygon(prepeareCoordinates, options);
 
     polygon.customID = layer.customID;
-    polygon.customShape = 'polygon';
+    polygon.customShape = "polygon";
 
     polygon.addTo(this._measureLayers).showMeasurements().enableEdit();
-    polygon.on('dblclick', this._onPolygonClick.bind(this, map));
-    polygon.on('click', () => {
+    polygon.on("dblclick", this._onPolygonClick.bind(this, map));
+    polygon.on("click", () => {
       this.options.cbSetActiveShape(polygon.customID);
       this.options.cbSetUpdateStatusHandler(false);
     });
     polygon.on(
-      'editable:drag editable:dragstart editable:dragend editable:vertex:drag editable:vertex:deleted',
+      "editable:drag editable:dragstart editable:dragend editable:vertex:drag editable:vertex:deleted",
       this._onPolylineDrag.bind(this)
     );
 
-    polygon.on('editable:vertex:dragend', () => {
+    polygon.on("editable:vertex:dragend", () => {
       this.options.cbSetUpdateStatusHandler(false);
     });
 
@@ -702,9 +702,9 @@ L.Control.MeasurePolygon = L.Control.extend({
     this.options.checkonedrawpoligon = true;
 
     this._toggleMeasure(
-      'img_plg_lines',
-      'icon_lineActive',
-      'icon_lineInactive'
+      "img_plg_lines",
+      "icon_lineActive",
+      "icon_lineInactive"
     );
 
     // this.options.checkonedrawpoligon = false;
@@ -736,30 +736,30 @@ L.Control.MeasurePolygon = L.Control.extend({
     if (this.options.shapes.length !== 0) {
       this.options.shapes.forEach((shape) => {
         const { coordinates, options, shapeId, shapeType } = shape;
-        const shapeName = shapeType === 'line' ? 'polyline' : 'polygon';
+        const shapeName = shapeType === "line" ? "polyline" : "polygon";
 
         const savedShape = L[shapeName](coordinates, {
           showLength: true,
-          className: 'custom-polyline',
+          className: "custom-polyline",
           shapeOptions: {
             weight: 4,
-            color: '#267bdcd4',
+            color: "#267bdcd4",
             opacity: 1,
           },
         });
         savedShape.customID = shapeId;
         savedShape.addTo(this._measureLayers).showMeasurements().enableEdit();
-        savedShape.on('dblclick', this._onPolygonClick.bind(this, map));
-        savedShape.on('click', () => {
+        savedShape.on("dblclick", this._onPolygonClick.bind(this, map));
+        savedShape.on("click", () => {
           this.options.cbSetActiveShape(savedShape.customID);
           this.options.cbSetUpdateStatusHandler(false);
         });
         savedShape.on(
-          'editable:drag editable:dragstart editable:dragend editable:vertex:drag editable:vertex:deleted',
+          "editable:drag editable:dragstart editable:dragend editable:vertex:drag editable:vertex:deleted",
           this._onPolylineDrag.bind(this)
         );
 
-        savedShape.on('editable:vertex:dragend', () => {
+        savedShape.on("editable:vertex:dragend", () => {
           this.options.cbSetUpdateStatusHandler(false);
         });
       });
@@ -768,11 +768,11 @@ L.Control.MeasurePolygon = L.Control.extend({
 
   _toggleMeasurementBtn: function () {
     if (this.options.changeModeButtonActive) {
-      document.getElementById('img_plg_lines').src =
+      document.getElementById("img_plg_lines").src =
         this.options.icon_lineInactive;
       this.options.changeModeButtonActive = false;
     } else {
-      document.getElementById('img_plg_lines').src =
+      document.getElementById("img_plg_lines").src =
         this.options.icon_lineActive;
       this.options.changeModeButtonActive = true;
     }
@@ -799,24 +799,24 @@ L.Control.MeasurePolygon = L.Control.extend({
   toggleMeasurementMode: function (ifChangeMode = true) {
     // this.cancelDrawing();
     const mode = this.options.measurementMode;
-    if (mode === 'measurement') {
+    if (mode === "measurement") {
       this._clearMeasurements();
       // const drawBtn = document.getElementById('draw_shape');
       // drawBtn.classList.add('hide-draw-btn');
       this.loadMeasurements();
-      const drawBtn = document.getElementById('draw_shape');
-      drawBtn.classList.remove('hide-draw-btn');
+      const drawBtn = document.getElementById("draw_shape");
+      drawBtn.classList.remove("hide-draw-btn");
 
-      document.getElementById('img_plg_lines').src =
+      document.getElementById("img_plg_lines").src =
         this.options.icon_lineActive;
     } else {
       this._clearMeasurements();
       // const drawBtn = document.getElementById('draw_shape');
       // drawBtn.classList.add('hide-draw-btn');
-      const drawBtn = document.getElementById('draw_shape');
-      drawBtn.classList.add('hide-draw-btn');
+      const drawBtn = document.getElementById("draw_shape");
+      drawBtn.classList.add("hide-draw-btn");
 
-      document.getElementById('img_plg_lines').src =
+      document.getElementById("img_plg_lines").src =
         this.options.icon_lineInactive;
     }
     // this._toggleMeasurementBtn();

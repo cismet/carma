@@ -45,5 +45,5 @@ root.render(
         />
       </PersistGate>
     </TweakpaneProvider>
-  </Provider>,
+  </Provider>
 );

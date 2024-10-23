@@ -64,7 +64,7 @@ const EMobiKarte = () => {
         if ((Array.isArray(hits) && hits[0]?.more?.pid) || hits[0]?.more?.id) {
           const gazId = hits[0]?.more?.pid || hits[0]?.more?.id;
           setSelectedFeatureByPredicate(
-            (feature) => feature.properties.id === gazId,
+            (feature) => feature.properties.id === gazId
           );
         }
       }}

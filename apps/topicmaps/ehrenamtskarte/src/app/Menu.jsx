@@ -53,17 +53,17 @@ const Menu = ({ bookmarks, setBookmarks }) => {
 
   const globalbereiche = useMemo(
     () => itemsDictionary?.globalbereiche || [],
-    [itemsDictionary],
+    [itemsDictionary]
   );
 
   const kenntnisse = useMemo(
     () => itemsDictionary?.kenntnisse || [],
-    [itemsDictionary],
+    [itemsDictionary]
   );
 
   const zielgruppen = useMemo(
     () => itemsDictionary?.zielgruppen || [],
-    [itemsDictionary],
+    [itemsDictionary]
   );
 
   // const getFilterHeader = () => {
@@ -103,7 +103,7 @@ const Menu = ({ bookmarks, setBookmarks }) => {
             sectionKey="filter"
             sectionTitle={getFilterHeader(
               filteredItems?.length,
-              shownFeatures?.length,
+              shownFeatures?.length
             )}
             sectionBsStyle={FilterStyle}
             sectionContent={<FilterUI />}
@@ -169,7 +169,7 @@ const Menu = ({ bookmarks, setBookmarks }) => {
                         <ul>
                           {bookmarks.map((value) => {
                             const feature = allFeatures.find(
-                              (obj) => obj.properties.id === value,
+                              (obj) => obj.properties.id === value
                             );
                             const text = feature.text;
                             const id = feature.properties.id;
@@ -211,9 +211,8 @@ const Menu = ({ bookmarks, setBookmarks }) => {
                                       onClick={() => {
                                         setBookmarks((prev) =>
                                           prev.filter(
-                                            (id) =>
-                                              id !== feature.properties.id,
-                                          ),
+                                            (id) => id !== feature.properties.id
+                                          )
                                         );
                                       }}
                                       style={{
@@ -277,7 +276,7 @@ const Menu = ({ bookmarks, setBookmarks }) => {
                                 eventKey="1"
                                 onClick={() => {
                                   navigator.clipboard.writeText(
-                                    window.location.href,
+                                    window.location.href
                                   );
                                 }}
                               >

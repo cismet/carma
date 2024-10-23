@@ -16,7 +16,7 @@ export const useHomeControl = () => {
     viewer &&
       homePosition &&
       setHomePos(
-        new Cartesian3(homePosition.x, homePosition.y, homePosition.z),
+        new Cartesian3(homePosition.x, homePosition.y, homePosition.z)
       );
   }, [viewer, homePosition]);
 

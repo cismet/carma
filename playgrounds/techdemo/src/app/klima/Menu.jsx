@@ -32,7 +32,11 @@ export const getFilterInfo = (items) => {
     }
     if (!themen.includes(item.thema.id)) {
       themen.push(item.thema.id);
-      themenValues.push({ key: item.thema.id, title: item.thema.name, color: item.thema.farbe });
+      themenValues.push({
+        key: item.thema.id,
+        title: item.thema.name,
+        color: item.thema.farbe,
+      });
     }
   }
 
@@ -54,9 +58,12 @@ export const getFilterInfo = (items) => {
 
 const MyMenu = () => {
   const { setAppMenuActiveMenuSection } = useContext(UIDispatchContext);
-  const { filterState, filterMode, filteredItems, shownFeatures } =
-    useContext(FeatureCollectionContext);
-  const { setFilterState, setFilterMode } = useContext(FeatureCollectionDispatchContext);
+  const { filterState, filterMode, filteredItems, shownFeatures } = useContext(
+    FeatureCollectionContext
+  );
+  const { setFilterState, setFilterMode } = useContext(
+    FeatureCollectionDispatchContext
+  );
 
   const { items } = useContext(FeatureCollectionContext);
 
@@ -137,29 +144,35 @@ const MyMenu = () => {
       content: (
         <div>
           <p>
-            Im Bereich &quot;<strong>Meine Klimaorte</strong>&quot; können Sie im Anwendungsmenü{" "}
-            <Icon name='bars' /> die in der Karte angezeigten Klimaorte so ausdünnen, dass nur die
-            für Sie interessanten Orte übrig bleiben. Dabei umfasst die Filterung die Angebote an
-            den Klimastandorten, wobei sich ein Angebot aus einem Thema und einer Kategorie ergibt.
-            Standardmäßig sind die Einstellungen hier so gesetzt, dass alle verfügbaren Klimaorte
-            angezeigt werden.
+            Im Bereich &quot;<strong>Meine Klimaorte</strong>&quot; können Sie
+            im Anwendungsmenü <Icon name="bars" /> die in der Karte angezeigten
+            Klimaorte so ausdünnen, dass nur die für Sie interessanten Orte
+            übrig bleiben. Dabei umfasst die Filterung die Angebote an den
+            Klimastandorten, wobei sich ein Angebot aus einem Thema und einer
+            Kategorie ergibt. Standardmäßig sind die Einstellungen hier so
+            gesetzt, dass alle verfügbaren Klimaorte angezeigt werden.
           </p>
           <p>
-            Ihnen stehen somit zwei Filterkriterien zur Verfügung: "Themen" und "Kategorien".
-            Innerhalb dieser Kriterien können sie in einer alphabetisch sortieren Menge an
-            Schlagworten (Tags) bestimmte Begriffe per Mausklick selektieren bzw. deselektieren; die
-            Auswahl aller bzw. keines der Schlagworte erfolgt über die Schaltfläche{" "}
-            <a className='renderAsLink'>alle</a> bzw. <a className='renderAsLink'>keine</a>.
+            Ihnen stehen somit zwei Filterkriterien zur Verfügung: "Themen" und
+            "Kategorien". Innerhalb dieser Kriterien können sie in einer
+            alphabetisch sortieren Menge an Schlagworten (Tags) bestimmte
+            Begriffe per Mausklick selektieren bzw. deselektieren; die Auswahl
+            aller bzw. keines der Schlagworte erfolgt über die Schaltfläche{" "}
+            <a className="renderAsLink">alle</a> bzw.{" "}
+            <a className="renderAsLink">keine</a>.
           </p>
           <p>
-            Ihre Einstellungen werden direkt in der blauen Titelzeile des Bereichs "
-            <strong>Meine Klimaorte</strong>" und in dem Donut-Diagramm, das Sie rechts neben oder
-            unter den Filteroptionen finden, ausgewertet. Die Titelzeile zeigt die Gesamtanzahl der
-            Klimaorte, die den von Ihnen gesetzten Filterbedingungen entsprechen. Das Donut-Diagramm
-            zeigt zusätzlich die Verteilung der Klimaorte entsprechend der Filterkriterien "Themen"
-            oder "Kategorien". Bewegen Sie dazu den Mauszeiger auf eines der farbigen Segmente des
-            Diagramms. Die Farben des Donut-Diagramms entsprechen den farbigen Hintergründen der
-            Schlagworte aus dem Filterkriterium "Themen".
+            Ihre Einstellungen werden direkt in der blauen Titelzeile des
+            Bereichs "<strong>Meine Klimaorte</strong>" und in dem
+            Donut-Diagramm, das Sie rechts neben oder unter den Filteroptionen
+            finden, ausgewertet. Die Titelzeile zeigt die Gesamtanzahl der
+            Klimaorte, die den von Ihnen gesetzten Filterbedingungen
+            entsprechen. Das Donut-Diagramm zeigt zusätzlich die Verteilung der
+            Klimaorte entsprechend der Filterkriterien "Themen" oder
+            "Kategorien". Bewegen Sie dazu den Mauszeiger auf eines der farbigen
+            Segmente des Diagramms. Die Farben des Donut-Diagramms entsprechen
+            den farbigen Hintergründen der Schlagworte aus dem Filterkriterium
+            "Themen".
           </p>
         </div>
       ),
@@ -172,58 +185,60 @@ const MyMenu = () => {
         inKartePositionieren: {
           listWithSymbols: (
             <p>
-              Durch das in der Auswahlliste vorangestellte Symbol erkennen Sie, ob es sich bei einem
-              Treffer um einen{" "}
+              Durch das in der Auswahlliste vorangestellte Symbol erkennen Sie,
+              ob es sich bei einem Treffer um einen{" "}
               <NW>
-                <Icon name='circle' /> Stadtbezirk
+                <Icon name="circle" /> Stadtbezirk
               </NW>
               , ein{" "}
               <NW>
-                <Icon name='pie-chart' /> Quartier
+                <Icon name="pie-chart" /> Quartier
               </NW>
               , eine{" "}
               <NW>
-                <Icon name='home' /> Adresse
+                <Icon name="home" /> Adresse
               </NW>
               , eine{" "}
               <NW>
-                <Icon name='road' /> Straße ohne Hausnummern
+                <Icon name="road" /> Straße ohne Hausnummern
               </NW>
               , eine{" "}
               <NW>
-                <Icon name='child' /> Kindertageseinrichtung
+                <Icon name="child" /> Kindertageseinrichtung
               </NW>
               , eine{" "}
               <NW>
-                <Icon name='graduation-cap' /> Schule
+                <Icon name="graduation-cap" /> Schule
               </NW>{" "}
               oder einen{" "}
               <NW>
-                <Icon name='sun' /> Klimaort
+                <Icon name="sun" /> Klimaort
               </NW>{" "}
               handelt.
             </p>
           ),
         },
         fachobjekteAuswaehlen: {
-          furtherExplanationOfClickableContent: " (Signaturen oder dunkelblaue Fahrradtrassen)",
+          furtherExplanationOfClickableContent:
+            " (Signaturen oder dunkelblaue Fahrradtrassen)",
         },
         hintergrund: {
           additionalDatasources: (
             <div>
               <ul>
                 <li>
-                  <strong>Fernwärme</strong>: Kartendienst (WMS) der Stadt Wuppertal in
-                  Zusammenarbeit mit der{" "}
+                  <strong>Fernwärme</strong>: Kartendienst (WMS) der Stadt
+                  Wuppertal in Zusammenarbeit mit der{" "}
                   <a
-                    target='_wsw'
-                    href='https://www.wsw-online.de/wsw-energie-wasser/privatkunden/produkte/fernwaerme/talwaerme-wuppertal/'
+                    target="_wsw"
+                    href="https://www.wsw-online.de/wsw-energie-wasser/privatkunden/produkte/fernwaerme/talwaerme-wuppertal/"
                   >
                     WSW GmbH
                   </a>
-                  . Datengrundlage: Fernwärmeleitungen der Wuppertaler Stadtwerke GmbH (Stand
-                  02.2021) mit einer Puffergröße von 10 m. ©{" "}
-                  <a target='_wsw' href='https://www.wsw-online.de/impressum/'>
+                  . Datengrundlage: Fernwärmeleitungen der Wuppertaler
+                  Stadtwerke GmbH (Stand 02.2021) mit einer Puffergröße von 10
+                  m. ©{" "}
+                  <a target="_wsw" href="https://www.wsw-online.de/impressum/">
                     Wuppertaler Stadtwerke GmbH
                   </a>
                   .
@@ -232,19 +247,20 @@ const MyMenu = () => {
               <div>
                 Zusätzlich stellt die Klimaortkarte Wuppertal die Daten der{" "}
                 <a
-                  target='_opendata'
-                  href='https://offenedaten-wuppertal.de/dataset/klimaorte-wuppertal'
+                  target="_opendata"
+                  href="https://offenedaten-wuppertal.de/dataset/klimaorte-wuppertal"
                 >
                   Klimaorte
                 </a>{" "}
                 und eine Auswahl der{" "}
                 <a
-                  target='_opendata'
-                  href='https://offenedaten-wuppertal.de/dataset/radrouten-wuppertal'
+                  target="_opendata"
+                  href="https://offenedaten-wuppertal.de/dataset/radrouten-wuppertal"
                 >
                   Radrouten
                 </a>{" "}
-                (mit 1,5 Meter Puffer) aus dem Open-Data-Angebot der Stadt Wuppertal dar.
+                (mit 1,5 Meter Puffer) aus dem Open-Data-Angebot der Stadt
+                Wuppertal dar.
               </div>
             </div>
           ),
@@ -259,33 +275,33 @@ const MyMenu = () => {
           <span>
             Benutzen Sie die Auswahlmöglichkeiten unter{" "}
             <Link
-              className='useAClassNameToRenderProperLink'
-              to='filter'
-              containerId='myMenu'
+              className="useAClassNameToRenderProperLink"
+              to="filter"
+              containerId="myMenu"
               smooth={true}
               delay={100}
               onClick={() => setAppMenuActiveMenuSection("filter")}
             >
               Meine Klimaorte
             </Link>
-            , um die in der Karte angezeigten vorbildlichen Klimaorte auf die für Sie relevanten
-            Themen zu beschränken. Über{" "}
+            , um die in der Karte angezeigten vorbildlichen Klimaorte auf die
+            für Sie relevanten Themen zu beschränken. Über{" "}
             <Link
-              className='useAClassNameToRenderProperLink'
-              to='settings'
-              containerId='myMenu'
+              className="useAClassNameToRenderProperLink"
+              to="settings"
+              containerId="myMenu"
               smooth={true}
               delay={100}
               onClick={() => setAppMenuActiveMenuSection("settings")}
             >
               Einstellungen
             </Link>{" "}
-            können Sie die Darstellung der Hintergrundkarte und der klimarelevanten Themen an Ihre
-            Interesse anpassen. Wählen Sie die{" "}
+            können Sie die Darstellung der Hintergrundkarte und der
+            klimarelevanten Themen an Ihre Interesse anpassen. Wählen Sie die{" "}
             <Link
-              className='useAClassNameToRenderProperLink'
-              to='help'
-              containerId='myMenu'
+              className="useAClassNameToRenderProperLink"
+              to="help"
+              containerId="myMenu"
               smooth={true}
               delay={100}
               onClick={() => setAppMenuActiveMenuSection("help")}
@@ -297,19 +313,23 @@ const MyMenu = () => {
         }
         menuSections={[
           <Section
-            key='filter'
-            sectionKey='filter'
+            key="filter"
+            sectionKey="filter"
             sectionTitle={getFilterHeader()}
-            sectionBsStyle='primary'
-            sectionContent={<FilterPanel filterConfiguration={filterConfiguration} />}
+            sectionBsStyle="primary"
+            sectionContent={
+              <FilterPanel filterConfiguration={filterConfiguration} />
+            }
           />,
-          <DefaultSettingsPanel key='settings' />,
+          <DefaultSettingsPanel key="settings" />,
           <Section
-            key='help'
-            sectionKey='help'
-            sectionTitle='Kompaktanleitung'
-            sectionBsStyle='default'
-            sectionContent={<ConfigurableDocBlocks configs={configurableDocBlocks} />}
+            key="help"
+            sectionKey="help"
+            sectionTitle="Kompaktanleitung"
+            sectionBsStyle="default"
+            sectionContent={
+              <ConfigurableDocBlocks configs={configurableDocBlocks} />
+            }
           />,
         ]}
       />

@@ -1,10 +1,10 @@
-import React, { useRef, useEffect, useState } from 'react';
-import maplibregl from 'maplibre-gl';
+import React, { useRef, useEffect, useState } from "react";
+import maplibregl from "maplibre-gl";
 
-import 'maplibre-gl/dist/maplibre-gl.css';
-import './mapLibre.css';
-import { Button } from 'react-bootstrap';
-import { Map } from 'maplibre-gl';
+import "maplibre-gl/dist/maplibre-gl.css";
+import "./mapLibre.css";
+import { Button } from "react-bootstrap";
+import { Map } from "maplibre-gl";
 
 export default function LibreMap({ opacity = 0.1, vectorStyles = [] }) {
   const mapContainer = useRef(null);
@@ -24,21 +24,21 @@ export default function LibreMap({ opacity = 0.1, vectorStyles = [] }) {
     version: 8,
     sources: {
       rvr_wms: {
-        type: 'raster',
+        type: "raster",
         tiles: [
-          'https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
+          "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
         ],
         tileSize: 256,
       },
     },
     layers: [
       {
-        id: 'wms-test-layer',
-        type: 'raster',
+        id: "wms-test-layer",
+        type: "raster",
         opacity: 0.25,
 
-        source: 'rvr_wms',
-        paint: { 'raster-opacity': 0.7 },
+        source: "rvr_wms",
+        paint: { "raster-opacity": 0.7 },
       },
     ],
   };
@@ -54,7 +54,7 @@ export default function LibreMap({ opacity = 0.1, vectorStyles = [] }) {
       maxZoom: 22,
     });
 
-    map.current.on('load', function () {
+    map.current.on("load", function () {
       // for (const vectorStyle of vectorStyles) {
       //   // Fetch and add additional layers from external style JSON
       //   const additionalStyleUrl = vectorStyle;
@@ -94,7 +94,7 @@ export default function LibreMap({ opacity = 0.1, vectorStyles = [] }) {
       //     });
       // }
       // console.log('map.current', map.current);
-      map.current.addControl(new maplibregl.NavigationControl(), 'top-left');
+      map.current.addControl(new maplibregl.NavigationControl(), "top-left");
     });
   });
   useEffect(() => {
@@ -102,7 +102,7 @@ export default function LibreMap({ opacity = 0.1, vectorStyles = [] }) {
 
     const addVectorStyles = async () => {
       const style = backgroundStyle;
-      console.log('xxx internalStyle', JSON.stringify(style, null, 2));
+      console.log("xxx internalStyle", JSON.stringify(style, null, 2));
 
       for (const vectorStyle of vectorStyles) {
         const response = await fetch(vectorStyle);

@@ -11,22 +11,22 @@ const host = "https://wupp-topicmaps-data.cismet.de";
 
 export const getGazData = async (
   setGazData,
-  topics = ["pois", "kitas", "bezirke", "quartiere", "adressen"],
+  topics = ["pois", "kitas", "bezirke", "quartiere", "adressen"]
 ) => {
   const prefix = "GazDataForStories";
   const sources: any = {};
 
   sources.adressen = await md5FetchText(
     prefix,
-    host + "/data/3857/adressen.json",
+    host + "/data/3857/adressen.json"
   );
   sources.bezirke = await md5FetchText(
     prefix,
-    host + "/data/3857/bezirke.json",
+    host + "/data/3857/bezirke.json"
   );
   sources.quartiere = await md5FetchText(
     prefix,
-    host + "/data/3857/quartiere.json",
+    host + "/data/3857/quartiere.json"
   );
   sources.pois = await md5FetchText(prefix, host + "/data/3857/pois.json");
   sources.kitas = await md5FetchText(prefix, host + "/data/3857/kitas.json");

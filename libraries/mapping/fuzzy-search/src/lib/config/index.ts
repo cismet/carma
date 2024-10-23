@@ -16,7 +16,7 @@ const createConfig = (endpoint: ENDPOINT, crs = DEFAULT_PROJ) => ({
 });
 
 export const sourcesConfig = DEFAULT_GAZ_SOURCES.map((endpoint) =>
-  createConfig(endpoint),
+  createConfig(endpoint)
 );
 
 export const isEndpoint = (value: string): value is ENDPOINT => {

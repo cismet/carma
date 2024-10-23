@@ -1,16 +1,16 @@
-import React from 'react';
-import { useContext, useEffect, useState } from 'react';
+import React from "react";
+import { useContext, useEffect, useState } from "react";
 import {
   FeatureCollectionContext,
   FeatureCollectionDispatchContext,
-} from 'react-cismap/contexts/FeatureCollectionContextProvider';
-import { TopicMapStylingContext } from 'react-cismap/contexts/TopicMapStylingContextProvider';
-import FeatureCollection from 'react-cismap/FeatureCollection';
-import TopicMapComponent from 'react-cismap/topicmaps/TopicMapComponent';
-import { getGazData } from './helper/helper';
-import Menu from './Menu';
-import { getPoiClusterIconCreatorFunction } from './helper/styler';
-import GenericInfoBoxFromFeature from 'react-cismap/topicmaps/GenericInfoBoxFromFeature';
+} from "react-cismap/contexts/FeatureCollectionContextProvider";
+import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
+import FeatureCollection from "react-cismap/FeatureCollection";
+import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
+import { getGazData } from "./helper/helper";
+import Menu from "./Menu";
+import { getPoiClusterIconCreatorFunction } from "./helper/styler";
+import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
 
 const Baederkarte = () => {
   const [gazData, setGazData] = useState([]);
@@ -52,14 +52,14 @@ const Baederkarte = () => {
           pixelwidth={350}
           config={{
             displaySecondaryInfoAction: false,
-            city: 'Wuppertal',
+            city: "Wuppertal",
             navigator: {
               noun: {
-                singular: 'Bad',
-                plural: 'Bäder',
+                singular: "Bad",
+                plural: "Bäder",
               },
             },
-            noCurrentFeatureTitle: 'Keine Bäder gefunden',
+            noCurrentFeatureTitle: "Keine Bäder gefunden",
             noCurrentFeatureContent: (
               <span>
                 Für mehr Bäder Ansicht mit verkleinern oder mit dem
