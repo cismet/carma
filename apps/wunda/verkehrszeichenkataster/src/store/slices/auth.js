@@ -102,7 +102,7 @@ export const getLoginFromJWT = (jwt) => {
         .map(function (c) {
           return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
         })
-        .join(""),
+        .join("")
     );
 
     return JSON.parse(jsonPayload).sub;
@@ -132,7 +132,7 @@ export const checkJWTValidation = () => {
       .catch((error) => {
         console.error(
           "There was a problem with the fetch operation:",
-          error.message,
+          error.message
         );
       });
   };

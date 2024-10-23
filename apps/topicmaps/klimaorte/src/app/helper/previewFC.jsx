@@ -14,12 +14,7 @@ const fc = [
       website:
         "https://www.wsw-online.de/wsw-energie-wasser/privatkunden/energiesparen/energieberatung/",
       kategorien: ["Energieberatung"],
-      thema: {
-        id: 5,
-        name: "Beratung",
-        icon: "Klima_Icon_Beratung_farbig.svg",
-        farbe: "#538DD5",
-      },
+      thema: { id: 5, name: "Beratung", icon: "Klima_Icon_Beratung_farbig.svg", farbe: "#538DD5" },
       standort: {
         name: "WSW KundenCenter Elberfeld ",
         beschreibung: "City Elberfeld",
@@ -51,14 +46,7 @@ const fc = [
               "Wall",
               " ",
               "31",
-              {
-                type: "br",
-                key: null,
-                ref: null,
-                props: {},
-                _owner: null,
-                _store: {},
-              },
+              { type: "br", key: null, ref: null, props: {}, _owner: null, _store: {} },
               "42103",
               " ",
               "Wuppertal",
@@ -87,12 +75,7 @@ const fc = [
       bild: "wsw_beratung_wall.jpg",
       website: "https://www.wsw-online.de/wsw-mobil/mehr-service/service/",
       kategorien: ["Mobilitätsberatung"],
-      thema: {
-        id: 5,
-        name: "Beratung",
-        icon: "Klima_Icon_Beratung_farbig.svg",
-        farbe: "#538DD5",
-      },
+      thema: { id: 5, name: "Beratung", icon: "Klima_Icon_Beratung_farbig.svg", farbe: "#538DD5" },
       standort: {
         name: "WSW MobiCenter Elberfeld",
         beschreibung: "City Elberfeld",
@@ -123,14 +106,7 @@ const fc = [
               "Wall",
               " ",
               "31",
-              {
-                type: "br",
-                key: null,
-                ref: null,
-                props: {},
-                _owner: null,
-                _store: {},
-              },
+              { type: "br", key: null, ref: null, props: {}, _owner: null, _store: {} },
               "42103",
               " ",
               "Wuppertal",
@@ -160,12 +136,7 @@ const fc = [
       bild: "verbraucherzentrale_nrw.jpg",
       website: "https://www.verbraucherzentrale.nrw/beratungsstellen/wuppertal",
       kategorien: ["Energieberatung", "Umweltberatung"],
-      thema: {
-        id: 5,
-        name: "Beratung",
-        icon: "Klima_Icon_Beratung_farbig.svg",
-        farbe: "#538DD5",
-      },
+      thema: { id: 5, name: "Beratung", icon: "Klima_Icon_Beratung_farbig.svg", farbe: "#538DD5" },
       standort: {
         name: "Verbraucherzentrale.NRW",
         beschreibung: "City Elberfeld",
@@ -197,14 +168,7 @@ const fc = [
               "Schloßbleiche",
               " ",
               "20",
-              {
-                type: "br",
-                key: null,
-                ref: null,
-                props: {},
-                _owner: null,
-                _store: {},
-              },
+              { type: "br", key: null, ref: null, props: {}, _owner: null, _store: {} },
               "42103",
               " ",
               "Wuppertal",
@@ -225,15 +189,11 @@ const fc = [
     index: 3,
     text: "Sparkasse Wuppertal - Hauptstelle Islandufer",
     type: "Feature",
-    geometry: {
-      type: "Point",
-      coordinates: [370548.2926367188, 5679857.019741211],
-    },
+    geometry: { type: "Point", coordinates: [370548.2926367188, 5679857.019741211] },
     crs: { type: "name", properties: { name: "urn:ogc:def:crs:EPSG::25832" } },
     properties: {
       typ: "ort",
-      beschreibung:
-        "Dieses Gebäude bezieht Wuppertaler Fernwärme (WSW Talwärme).",
+      beschreibung: "Dieses Gebäude bezieht Wuppertaler Fernwärme (WSW Talwärme).",
       bild: "sparkasse_islandufer.jpg",
       website:
         "https://www.sparkasse-wuppertal.de/de/home/toolbar/filialen/stadtsparkasse-wuppertal-filiale-islandufer-105233.html",
@@ -254,10 +214,7 @@ const fc = [
         strasse: "Islandufer",
         hausnummer: "15",
         erreichbarkeit: "Radwanderweg: Nordbahntrasse",
-        geojson: {
-          type: "Point",
-          coordinates: [370548.2926367188, 5679857.019741211],
-        },
+        geojson: { type: "Point", coordinates: [370548.2926367188, 5679857.019741211] },
         id: 95,
       },
       id: 113,
@@ -269,8 +226,7 @@ const fc = [
       info: {
         header: "Gebäude Fernwärme",
         title: "Sparkasse Wuppertal - Hauptstelle Islandufer",
-        additionalInfo:
-          "Dieses Gebäude bezieht Wuppertaler Fernwärme (WSW Talwärme).",
+        additionalInfo: "Dieses Gebäude bezieht Wuppertaler Fernwärme (WSW Talwärme).",
         subtitle: {
           type: "span",
           key: null,
@@ -280,14 +236,7 @@ const fc = [
               "Islandufer",
               " ",
               "15",
-              {
-                type: "br",
-                key: null,
-                ref: null,
-                props: {},
-                _owner: null,
-                _store: {},
-              },
+              { type: "br", key: null, ref: null, props: {}, _owner: null, _store: {} },
               "42103",
               " ",
               "Wuppertal",
@@ -312,19 +261,13 @@ const fc = [
     crs: { type: "name", properties: { name: "urn:ogc:def:crs:EPSG::25832" } },
     properties: {
       typ: "ort",
-      beschreibung:
-        "Die IHK ist Ansprechpartner zu Fragen des betrieblichen Umweltschutzes.",
+      beschreibung: "Die IHK ist Ansprechpartner zu Fragen des betrieblichen Umweltschutzes.",
       bild: "bergische_ihk.jpg",
       website: "https://www.bergische.ihk.de/innovation-und-umwelt",
       bemerkung:
         "Ansprechpartner bei der Umsetzung neuer Ideen sowohl bei Forschung und Entwicklung als auch bei der Einführung neuer Organisationsmodelle und Managementsysteme.",
       kategorien: ["Energieberatung"],
-      thema: {
-        id: 5,
-        name: "Beratung",
-        icon: "Klima_Icon_Beratung_farbig.svg",
-        farbe: "#538DD5",
-      },
+      thema: { id: 5, name: "Beratung", icon: "Klima_Icon_Beratung_farbig.svg", farbe: "#538DD5" },
       standort: {
         name: "Bergische IHK ",
         beschreibung: "am Heinrich-Kamp-Platz",
@@ -345,8 +288,7 @@ const fc = [
       info: {
         header: "Beratung",
         title: "Bergische IHK ",
-        additionalInfo:
-          "Die IHK ist Ansprechpartner zu Fragen des betrieblichen Umweltschutzes.",
+        additionalInfo: "Die IHK ist Ansprechpartner zu Fragen des betrieblichen Umweltschutzes.",
         subtitle: {
           type: "span",
           key: null,
@@ -356,14 +298,7 @@ const fc = [
               "Heinrich-Kamp-Platz",
               " ",
               "2",
-              {
-                type: "br",
-                key: null,
-                ref: null,
-                props: {},
-                _owner: null,
-                _store: {},
-              },
+              { type: "br", key: null, ref: null, props: {}, _owner: null, _store: {} },
               "42103",
               " ",
               "Wuppertal",

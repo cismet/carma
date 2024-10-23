@@ -1,16 +1,16 @@
-import Map from "../components/commons/Map";
-import ChangeRequests from "../components/sealedSurfaces/ChangeRequests";
-import Sums from "../components/sealedSurfaces/Sums";
-import Chat from "../components/commons/Chat";
+import Map from '../components/commons/Map';
+import ChangeRequests from '../components/sealedSurfaces/ChangeRequests';
+import Sums from '../components/sealedSurfaces/Sums';
+import Chat from '../components/commons/Chat';
 import {
   areasDetailsExtractor,
   mappingExtractor,
   sumsExtractor,
-} from "../tools/extractors";
-import TableCard from "../components/ui/TableCard";
-import { compare } from "../tools/helper";
-import SubNav from "../components/sealedSurfaces/SubNav";
-import { useDispatch, useSelector } from "react-redux";
+} from '../tools/extractors';
+import TableCard from '../components/ui/TableCard';
+import { compare } from '../tools/helper';
+import SubNav from '../components/sealedSurfaces/SubNav';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   getFlaeche,
   getFlaechenId,
@@ -18,7 +18,7 @@ import {
   searchForKassenzeichenWithPoint,
   storeFlaeche,
   storeFlaechenId,
-} from "../store/slices/search";
+} from '../store/slices/search';
 import {
   fitBounds,
   getBefreiungErlaubnisCollection,
@@ -28,18 +28,18 @@ import {
   getLockMap,
   getLockMapOnlyInKassenzeichen,
   setFlaechenSelected,
-} from "../store/slices/mapping";
-import FeatureMapLayer from "../components/commons/FeatureMapLayer";
-import { useEffect } from "react";
-import { useFitBoundsIfUnlocked } from "../hooks/useFitBoundsIfUnlocked";
-import { useSearchParams } from "react-router-dom";
-import { convertLatLngToXY } from "../tools/mappingTools";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faUserGroup } from "@fortawesome/free-solid-svg-icons";
+} from '../store/slices/mapping';
+import FeatureMapLayer from '../components/commons/FeatureMapLayer';
+import { useEffect } from 'react';
+import { useFitBoundsIfUnlocked } from '../hooks/useFitBoundsIfUnlocked';
+import { useSearchParams } from 'react-router-dom';
+import { convertLatLngToXY } from '../tools/mappingTools';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faUserGroup } from '@fortawesome/free-solid-svg-icons';
 
 const Page = ({
-  width = "100%",
-  height = "100%",
+  width = '100%',
+  height = '100%',
   inStory = false,
   showChat = false,
 }) => {
@@ -48,7 +48,7 @@ const Page = ({
   const frontenArray = useSelector(getFrontenCollection);
   const generalGeomArray = useSelector(getGeneralGeometryCollection);
   const befreiungErlaubnisseArray = useSelector(
-    getBefreiungErlaubnisCollection,
+    getBefreiungErlaubnisCollection
   );
 
   const dispatch = useDispatch();
@@ -59,17 +59,17 @@ const Page = ({
   let storyStyle = {};
   if (inStory) {
     storyStyle = {
-      borderStyle: "dotted",
-      borderWidth: "1px solid",
-      padding: "10px",
+      borderStyle: 'dotted',
+      borderWidth: '1px solid',
+      padding: '10px',
     };
   }
 
-  const cardStyleArea = { width: "100%", height: "50%", minHeight: 0 };
-  const cardStyleSum = { width: "100%", height: "50%", minHeight: 0 };
+  const cardStyleArea = { width: '100%', height: '50%', minHeight: 0 };
+  const cardStyleSum = { width: '100%', height: '50%', minHeight: 0 };
   const cardStyleChangeReq = {
-    width: "100%",
-    height: "20%",
+    width: '100%',
+    height: '20%',
     minHeight: 0,
   };
   useFitBoundsIfUnlocked();
@@ -89,9 +89,9 @@ const Page = ({
               title="Flächen"
               columns={[
                 {
-                  title: "",
-                  dataIndex: "crossReference",
-                  key: "crossReference",
+                  title: '',
+                  dataIndex: 'crossReference',
+                  key: 'crossReference',
                   render: (crossReference) => (
                     <div className="flex gap-2 items-center w-0">
                       {crossReference && <FontAwesomeIcon icon={faUserGroup} />}
@@ -99,22 +99,22 @@ const Page = ({
                   ),
                 },
                 {
-                  title: "Bez.",
-                  dataIndex: "name",
-                  key: "name",
+                  title: 'Bez.',
+                  dataIndex: 'name',
+                  key: 'name',
                   sorter: (a, b) => compare(a.name, b.name),
-                  defaultSortOrder: "ascend",
+                  defaultSortOrder: 'ascend',
                 },
                 {
-                  title: "Typ",
-                  dataIndex: "type",
-                  key: "type",
+                  title: 'Typ',
+                  dataIndex: 'type',
+                  key: 'type',
                   sorter: (a, b) => compare(a.type, b.type),
                 },
                 {
-                  title: "Größe",
-                  dataIndex: "groesseKorrektor",
-                  key: "groesseKorrektor",
+                  title: 'Größe',
+                  dataIndex: 'groesseKorrektor',
+                  key: 'groesseKorrektor',
                   sorter: (a, b) =>
                     compare(a.groesseKorrektor, b.groesseKorrektor),
                   render: (area) => <div>{area} m²</div>,
@@ -145,15 +145,15 @@ const Page = ({
           <Map
             shownIn="sealedSurfaces"
             key="sealedSurfaces.map"
-            width={"80%"}
-            height={"100%"}
+            width={'80%'}
+            height={'100%'}
             dataIn={{
               kassenzeichen,
               flaechenArray,
               frontenArray,
               generalGeomArray,
               befreiungErlaubnisseArray,
-              shownFeatureTypes: ["flaeche"],
+              shownFeatureTypes: ['flaeche'],
               ondblclick: (event) => {
                 const xy = convertLatLngToXY(event.latlng);
                 dispatch(
@@ -161,23 +161,23 @@ const Page = ({
                     xy[0],
                     xy[1],
                     urlParams,
-                    setUrlParams,
-                  ),
+                    setUrlParams
+                  )
                 );
               },
             }}
             extractor={mappingExtractor}
           >
-            <FeatureMapLayer featureTypes={["flaeche"]} />
+            <FeatureMapLayer featureTypes={['flaeche']} />
           </Map>
         </div>
       </div>
       {showChat && (
         <Chat
           style={{
-            position: "absolute",
-            bottom: "10px",
-            right: "10px",
+            position: 'absolute',
+            bottom: '10px',
+            right: '10px',
             zIndex: 99999,
           }}
           height={height * 0.45}

@@ -20,10 +20,7 @@ const AggregatedCacheItem = ({ controls, renew }) => {
       if (lastUpdate === undefined || control.lastUpdate < lastUpdate) {
         lastUpdate = control.lastUpdate;
       }
-      if (
-        control.loadingState === "loading" ||
-        control.loadingState === "caching"
-      ) {
+      if (control.loadingState === "loading" || control.loadingState === "caching") {
         loadingState = "progress";
       }
       if (control.loadingState === "problem") {
@@ -60,13 +57,7 @@ const AggregatedCacheItem = ({ controls, renew }) => {
       return (
         <tr>
           {buttons}
-          <td
-            style={{
-              textAlign: "right",
-              paddingLeft: "25px",
-              paddingRight: "15px",
-            }}
-          >
+          <td style={{ textAlign: "right", paddingLeft: "25px", paddingRight: "15px" }}>
             {controls.length}
           </td>
           <td style={{ textAlign: "left", width: "100%", paddingRight: 5 }}>
@@ -75,19 +66,13 @@ const AggregatedCacheItem = ({ controls, renew }) => {
               onClick={() => {
                 setExpanded(true);
               }}
-              href="#"
+              href='#'
             >
               Details
             </a>
             )
           </td>
-          <td
-            style={{
-              textAlign: "left",
-              whiteSpace: "nowrap",
-              paddingLeft: "25px",
-            }}
-          >
+          <td style={{ textAlign: "left", whiteSpace: "nowrap", paddingLeft: "25px" }}>
             <Icon icon={faCalendarAlt} /> {getUpdateString(lastUpdate)}
           </td>
         </tr>
@@ -96,13 +81,7 @@ const AggregatedCacheItem = ({ controls, renew }) => {
       return (
         <tr>
           {buttons}
-          <td
-            style={{
-              textAlign: "right",
-              paddingLeft: "25px",
-              paddingRight: "15px",
-            }}
-          >
+          <td style={{ textAlign: "right", paddingLeft: "25px", paddingRight: "15px" }}>
             {controls.length}
           </td>
           <td style={{ textAlign: "left", width: "100%" }}>
@@ -117,13 +96,7 @@ const AggregatedCacheItem = ({ controls, renew }) => {
               style={{ cursor: "pointer" }}
             />
           </td>
-          <td
-            style={{
-              textAlign: "left",
-              whiteSpace: "nowrap",
-              paddingLeft: "25px",
-            }}
-          >
+          <td style={{ textAlign: "left", whiteSpace: "nowrap", paddingLeft: "25px" }}>
             <Icon spin icon={faSpinner} /> ... schreiben
           </td>
         </tr>
@@ -132,13 +105,7 @@ const AggregatedCacheItem = ({ controls, renew }) => {
       return (
         <tr>
           {buttons}
-          <td
-            style={{
-              textAlign: "right",
-              paddingLeft: "25px",
-              paddingRight: "15px",
-            }}
-          >
+          <td style={{ textAlign: "right", paddingLeft: "25px", paddingRight: "15px" }}>
             {controls.length}
           </td>
           <td style={{ textAlign: "left", width: "100%" }}>
@@ -152,13 +119,7 @@ const AggregatedCacheItem = ({ controls, renew }) => {
               style={{ cursor: "pointer" }}
             />
           </td>
-          <td
-            style={{
-              textAlign: "left",
-              whiteSpace: "nowrap",
-              paddingLeft: "25px",
-            }}
-          >
+          <td style={{ textAlign: "left", whiteSpace: "nowrap", paddingLeft: "25px" }}>
             <Icon icon={faCheckCircle} /> alles geschrieben
           </td>
         </tr>
@@ -167,13 +128,7 @@ const AggregatedCacheItem = ({ controls, renew }) => {
       return (
         <tr>
           {buttons}
-          <td
-            style={{
-              textAlign: "right",
-              paddingLeft: "25px",
-              paddingRight: "15px",
-            }}
-          >
+          <td style={{ textAlign: "right", paddingLeft: "25px", paddingRight: "15px" }}>
             {controls.length}
           </td>
           <td style={{ textAlign: "left", width: "100%" }}>
@@ -188,13 +143,7 @@ const AggregatedCacheItem = ({ controls, renew }) => {
               style={{ cursor: "pointer" }}
             />
           </td>
-          <td
-            style={{
-              textAlign: "left",
-              whiteSpace: "nowrap",
-              paddingLeft: "25px",
-            }}
-          >
+          <td style={{ textAlign: "left", whiteSpace: "nowrap", paddingLeft: "25px" }}>
             <Icon icon={faExclamationCircle} /> Probleme
           </td>
         </tr>
@@ -216,7 +165,7 @@ const AggregatedCacheItem = ({ controls, renew }) => {
             onClick={() => {
               setExpanded(false);
             }}
-            href="#"
+            href='#'
           >
             sonstige Tabellen verbergen
           </a>
@@ -231,7 +180,7 @@ const AggregatedCacheItem = ({ controls, renew }) => {
           renew={() => {
             renew(control.key);
           }}
-        />,
+        />
       );
     }
     return comps;

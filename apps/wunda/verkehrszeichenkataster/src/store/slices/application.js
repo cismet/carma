@@ -52,7 +52,7 @@ const slice = createSlice({
             };
           }
           return item;
-        },
+        }
       );
 
       return {
@@ -104,7 +104,7 @@ const slice = createSlice({
             };
           }
           return item;
-        },
+        }
       );
 
       return {
@@ -155,7 +155,7 @@ const slice = createSlice({
             };
           }
           return item;
-        },
+        }
       );
 
       return {
@@ -186,7 +186,7 @@ const slice = createSlice({
             };
           }
           return item;
-        },
+        }
       );
 
       return {
@@ -217,7 +217,7 @@ const slice = createSlice({
             };
           }
           return item;
-        },
+        }
       );
 
       return {
@@ -232,7 +232,7 @@ const slice = createSlice({
       const updatedApplications = state.allApplications.map((item) => {
         if (item.id.toString() === applicationId) {
           const updatedTimeline = item.timeline.filter(
-            (value, index) => index !== timelineIndex,
+            (value, index) => index !== timelineIndex
           );
 
           return {
@@ -247,7 +247,7 @@ const slice = createSlice({
         (item) => {
           if (item.id.toString() === applicationId) {
             const updatedTimeline = item.timeline.filter(
-              (value, index) => index !== timelineIndex,
+              (value, index) => index !== timelineIndex
             );
 
             return {
@@ -256,7 +256,7 @@ const slice = createSlice({
             };
           }
           return item;
-        },
+        }
       );
 
       return {

@@ -43,7 +43,7 @@ const TagList = ({ changeTimeline }) => {
                   deleteTimelineObject({
                     timelineIndex: index,
                     applicationId: id,
-                  }),
+                  })
                 );
               }
             }
@@ -67,14 +67,14 @@ const TagList = ({ changeTimeline }) => {
               });
             } else {
               const index = timeline.findIndex(
-                (obj) => obj.name === "Sachverhalt",
+                (obj) => obj.name === "Sachverhalt"
               );
               if (index >= 0) {
                 dispatch(
                   deleteTimelineObject({
                     timelineIndex: index,
                     applicationId: id,
-                  }),
+                  })
                 );
               }
             }
@@ -98,14 +98,14 @@ const TagList = ({ changeTimeline }) => {
               });
             } else {
               const index = timeline.findIndex(
-                (obj) => obj.name === "Erforderliche Maßnahmen",
+                (obj) => obj.name === "Erforderliche Maßnahmen"
               );
               if (index >= 0) {
                 dispatch(
                   deleteTimelineObject({
                     timelineIndex: index,
                     applicationId: id,
-                  }),
+                  })
                 );
               }
             }
@@ -129,14 +129,14 @@ const TagList = ({ changeTimeline }) => {
               });
             } else {
               const index = timeline.findIndex(
-                (obj) => obj.name === "Widerrufsvorbehalt",
+                (obj) => obj.name === "Widerrufsvorbehalt"
               );
               if (index >= 0) {
                 dispatch(
                   deleteTimelineObject({
                     timelineIndex: index,
                     applicationId: id,
-                  }),
+                  })
                 );
               }
             }
@@ -160,14 +160,14 @@ const TagList = ({ changeTimeline }) => {
               });
             } else {
               const index = timeline.findIndex(
-                (obj) => obj.name === "Mit freundlichen Grüßen",
+                (obj) => obj.name === "Mit freundlichen Grüßen"
               );
               if (index >= 0) {
                 dispatch(
                   deleteTimelineObject({
                     timelineIndex: index,
                     applicationId: id,
-                  }),
+                  })
                 );
               }
             }

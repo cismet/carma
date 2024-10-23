@@ -1,9 +1,9 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useState } from 'react';
 import {
   FeatureCollectionContext,
   FeatureCollectionDispatchContext,
-} from "react-cismap/contexts/FeatureCollectionContextProvider";
-import { createFilterRows } from "./helper/filter";
+} from 'react-cismap/contexts/FeatureCollectionContextProvider';
+import { createFilterRows } from './helper/filter';
 
 const FilterRowUI = ({ items }) => {
   const [filterRows, setFilterRows] = useState();

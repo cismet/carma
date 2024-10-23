@@ -96,7 +96,7 @@ const getLayout4Arbeitsauftrag = ({
                   setSelectedFeatureForMode({
                     mode: MODES.PROTOCOLS,
                     selectedFeatureIndex: pf.index,
-                  }),
+                  })
                 );
                 dispatch(setMode(MODES.PROTOCOLS));
                 e.stopPropagation();
@@ -111,7 +111,7 @@ const getLayout4Arbeitsauftrag = ({
         collapsedOnStart={true}
       >
         <div>{layoutResult.subSections}</div>
-      </SecondaryInfoPanelSection>,
+      </SecondaryInfoPanelSection>
     );
   }
 

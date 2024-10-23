@@ -35,7 +35,7 @@ export const getFlurstuckeByContractAndMipa = async (
   searchValue,
   dispatch,
   jwt,
-  navigate,
+  navigate
 ) => {
   if (searchValue === "") {
     dispatch(storeContractFlurstucke(undefined));
@@ -50,7 +50,7 @@ export const getFlurstuckeByContractAndMipa = async (
     searchValue,
     dispatch,
     jwt,
-    navigate,
+    navigate
   );
   dispatch(storeLoading(false));
 };
@@ -59,7 +59,7 @@ const getFlurstuckeByFileNumberHandle = async (
   searchValue,
   dispatch,
   jwt,
-  navigate,
+  navigate
 ) => {
   const aktz = `%${searchValue}%`;
   const result = await fetchGraphQL(
@@ -67,7 +67,7 @@ const getFlurstuckeByFileNumberHandle = async (
     {
       aktz,
     },
-    jwt,
+    jwt
   );
   if (result.status === 401) {
     return navigate("/login");
@@ -82,7 +82,7 @@ const getFlurstuckelByMipaFileNumberHandle = async (
   searchValue,
   dispatch,
   jwt,
-  navigate,
+  navigate
 ) => {
   const aktz = `%${searchValue}%`;
   const result = await fetchGraphQL(
@@ -90,7 +90,7 @@ const getFlurstuckelByMipaFileNumberHandle = async (
     {
       aktz,
     },
-    jwt,
+    jwt
   );
   if (result.status === 401) {
     return navigate("/login");
@@ -120,12 +120,12 @@ export const getFstckForPoint = (x, y, done) => {
       const result = await fetchGraphQLFromWuNDa(
         queries.getFstckForPoint,
         { x, y },
-        jwt,
+        jwt
       );
       const geom = result?.data?.flurstueck[0].geom.geo_field;
       const payload = {
         ...getGemarkunFlurFstckFromAlkisId(
-          result?.data?.flurstueck[0].alkis_id,
+          result?.data?.flurstueck[0].alkis_id
         ),
         flurstueckChoosen: done,
         akis_id: result?.data?.flurstueck[0].alkis_id,

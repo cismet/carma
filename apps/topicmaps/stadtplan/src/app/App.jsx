@@ -1,26 +1,26 @@
-import React from "react";
-import { useEffect } from "react";
-import { useState } from "react";
-import { MappingConstants } from "react-cismap";
-import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
+import React from 'react';
+import { useEffect } from 'react';
+import { useState } from 'react';
+import { MappingConstants } from 'react-cismap';
+import TopicMapContextProvider from 'react-cismap/contexts/TopicMapContextProvider';
 
-import { getConvertItemToFeatureWithPOIColors } from "./helper/convertItemToFeature";
-import createItemsDictionary from "./helper/createItemsDistionary";
-import itemFilterFunction from "./helper/filter";
-import { getPOIColors } from "./helper/helper";
+import { getConvertItemToFeatureWithPOIColors } from './helper/convertItemToFeature';
+import createItemsDictionary from './helper/createItemsDistionary';
+import itemFilterFunction from './helper/filter';
+import { getPOIColors } from './helper/helper';
 import {
   getFeatureStyler,
   getPoiClusterIconCreatorFunction,
-} from "./helper/styler";
-import titleFactory from "./helper/titleFactory";
-import Stadtplankarte from "./Stadtplankarte";
-import "./index.css";
-import "./App.css";
-import "bootstrap/dist/css/bootstrap.min.css";
-import "leaflet/dist/leaflet.css";
-import "react-bootstrap-typeahead/css/Typeahead.css";
-import "react-cismap/topicMaps.css";
-if (typeof global === "undefined") {
+} from './helper/styler';
+import titleFactory from './helper/titleFactory';
+import Stadtplankarte from './Stadtplankarte';
+import './index.css';
+import './App.css';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import 'leaflet/dist/leaflet.css';
+import 'react-bootstrap-typeahead/css/Typeahead.css';
+import 'react-cismap/topicMaps.css';
+if (typeof global === 'undefined') {
   window.global = window;
 }
 
@@ -29,14 +29,14 @@ function App() {
 
   useEffect(() => {
     getPOIColors(setPoiColors);
-    document.title = "Online-Stadtplan Wuppertal";
+    document.title = 'Online-Stadtplan Wuppertal';
   }, []);
   if (poiColors) {
     return (
       <TopicMapContextProvider
         appKey="OnlineStadtplanWuppertal2022"
         featureItemsURL={
-          "https://wupp-topicmaps-data.cismet.de/data/poi.data.json"
+          'https://wupp-topicmaps-data.cismet.de/data/poi.data.json'
         }
         createFeatureItemsDictionary={createItemsDictionary}
         getFeatureStyler={getFeatureStyler}

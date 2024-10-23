@@ -1,24 +1,18 @@
-import { useContext } from "react";
-import { Form, Button } from "react-bootstrap";
+import { useContext } from 'react';
+import { Form, Button } from 'react-bootstrap';
 import {
   FeatureCollectionContext,
   FeatureCollectionDispatchContext,
-} from "react-cismap/contexts/FeatureCollectionContextProvider";
-import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faMinusCircle, faParking } from "@fortawesome/free-solid-svg-icons";
-import XandRidePieChart from "./XandRidePieChart";
+} from 'react-cismap/contexts/FeatureCollectionContextProvider';
+import { ResponsiveTopicMapContext } from 'react-cismap/contexts/ResponsiveTopicMapContextProvider';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faMinusCircle, faParking } from '@fortawesome/free-solid-svg-icons';
+import XandRidePieChart from './XandRidePieChart';
 
 const FilterUI = () => {
-  const { filterState } = useContext<typeof FeatureCollectionContext>(
-    FeatureCollectionContext,
-  );
-  const { setFilterState } = useContext<
-    typeof FeatureCollectionDispatchContext
-  >(FeatureCollectionDispatchContext);
-  const { windowSize } = useContext<typeof ResponsiveTopicMapContext>(
-    ResponsiveTopicMapContext,
-  );
+  const { filterState } = useContext<typeof FeatureCollectionContext>(FeatureCollectionContext);
+  const { setFilterState } = useContext<typeof FeatureCollectionDispatchContext>(FeatureCollectionDispatchContext);
+  const { windowSize } = useContext<typeof ResponsiveTopicMapContext>(ResponsiveTopicMapContext);
 
   const width = windowSize?.width || 500;
 
@@ -42,32 +36,32 @@ const FilterUI = () => {
       <table border={0} width="100%">
         <tbody>
           <tr>
-            <td style={{ width: "330px", verticalAlign: "center" }}>
+            <td style={{ width: '330px', verticalAlign: 'center' }}>
               <Form>
                 <label
                   style={{
-                    display: "inline-block",
-                    maxWidth: "100%",
-                    marginBottom: "5px",
+                    display: 'inline-block',
+                    maxWidth: '100%',
+                    marginBottom: '5px',
                     fontWeight: 700,
                   }}
                 >
                   Umweltzonen
-                  {"  "}
+                  {'  '}
                   <FontAwesomeIcon
                     icon={faMinusCircle}
                     size="2x"
                     style={{
-                      color: "grey",
-                      width: "30px",
-                      textAlign: "center",
+                      color: 'grey',
+                      width: '30px',
+                      textAlign: 'center',
                     }}
-                  />{" "}
+                  />{' '}
                 </label>
                 <br />
                 <Form.Check
                   readOnly={true}
-                  key={"filter.prbr.envzone.within"}
+                  key={'filter.prbr.envzone.within'}
                   onClick={(e) => {
                     const newFilterState = { ...filterState };
                     // @ts-expect-error legacy codebase exception
@@ -87,7 +81,7 @@ const FilterUI = () => {
                 <br />
                 <Form.Check
                   readOnly={true}
-                  key={"filter.prbr.envzone.outside"}
+                  key={'filter.prbr.envzone.outside'}
                   onClick={(e) => {
                     const newFilterState = { ...filterState };
                     // @ts-expect-error legacy codebase exception
@@ -108,28 +102,28 @@ const FilterUI = () => {
               <Form>
                 <label
                   style={{
-                    display: "inline-block",
-                    maxWidth: "100%",
-                    marginBottom: "5px",
+                    display: 'inline-block',
+                    maxWidth: '100%',
+                    marginBottom: '5px',
                     fontWeight: 700,
                   }}
                 >
                   Art der Anlage
-                  {"  "}
+                  {'  '}
                   <FontAwesomeIcon
                     icon={faParking}
                     size="2x"
                     style={{
-                      color: "grey",
-                      width: "30px",
-                      textAlign: "center",
+                      color: 'grey',
+                      width: '30px',
+                      textAlign: 'center',
                     }}
-                  />{" "}
+                  />{' '}
                 </label>
                 <br />
                 <Form.Check
                   readOnly={true}
-                  key={"filter.prbr.pandr"}
+                  key={'filter.prbr.pandr'}
                   onClick={(e) => {
                     const newFilterState = { ...filterState };
                     // @ts-expect-error legacy codebase exception
@@ -149,7 +143,7 @@ const FilterUI = () => {
                 <br />
                 <Form.Check
                   readOnly={true}
-                  key={"filter.prbr.bandr"}
+                  key={'filter.prbr.bandr'}
                   onClick={(e) => {
                     const newFilterState = { ...filterState };
                     // @ts-expect-error legacy codebase exception

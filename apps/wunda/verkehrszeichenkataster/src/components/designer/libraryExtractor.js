@@ -17,7 +17,7 @@ export const libraryExtractor = (data) => {
       }
 
       const targetSection = sections.find(
-        (section) => section.sectionTitle === icon.section,
+        (section) => section.sectionTitle === icon.section
       );
 
       if (
@@ -31,7 +31,7 @@ export const libraryExtractor = (data) => {
       }
 
       const targetGroup = targetSection.groups.find(
-        (group) => group.groupTitle === icon.group,
+        (group) => group.groupTitle === icon.group
       );
 
       targetGroup.iconsArr.push({

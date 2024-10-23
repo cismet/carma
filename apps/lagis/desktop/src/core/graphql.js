@@ -6,7 +6,7 @@ export async function fetchGraphQLFromWuNDa(
   variables,
   jwt,
   forceSkipLogging = false,
-  apiPrefix = "",
+  apiPrefix = ""
 ) {
   return await fetchGraphQLFromService(
     query,
@@ -14,7 +14,7 @@ export async function fetchGraphQLFromWuNDa(
     jwt,
     forceSkipLogging,
     apiPrefix,
-    "WUNDA_BLAU",
+    "WUNDA_BLAU"
   );
 }
 
@@ -23,7 +23,7 @@ export async function fetchGraphQLFromLagIS(
   variables,
   jwt,
   forceSkipLogging = false,
-  apiPrefix = "",
+  apiPrefix = ""
 ) {
   return await fetchGraphQLFromService(
     query,
@@ -31,7 +31,7 @@ export async function fetchGraphQLFromLagIS(
     jwt,
     forceSkipLogging,
     apiPrefix,
-    "LAGIS",
+    "LAGIS"
   );
 }
 
@@ -41,12 +41,12 @@ export async function fetchGraphQLFromService(
   jwt,
   forceSkipLogging = false,
   apiPrefix = "",
-  domain,
+  domain
 ) {
   //check if there is a query param with the name logGQL
 
   const logGQLFromSearch = new URLSearchParams(window.location.search).get(
-    "logGQL",
+    "logGQL"
   );
   const logGQLEnabled =
     logGQLFromSearch !== null && logGQLFromSearch !== "false";
@@ -72,7 +72,7 @@ export async function fetchGraphQLFromService(
         method: "POST",
         headers: myHeaders,
         body,
-      },
+      }
     );
     if (response.status >= 200 && response.status < 300) {
       const resultjson = await response.json();
@@ -107,7 +107,7 @@ export async function fetchGraphQL(
   variables,
   jwt,
   forceSkipLogging = false,
-  apiPrefix = "",
+  apiPrefix = ""
 ) {
   return await fetchGraphQLFromLagIS(
     query,
@@ -115,6 +115,6 @@ export async function fetchGraphQL(
     jwt,
     forceSkipLogging,
     apiPrefix,
-    "LAGIS",
+    "LAGIS"
   );
 }

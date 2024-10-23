@@ -87,9 +87,9 @@ const Comp = (props) => {
               ...headerStyle,
             },
           },
-          props.header,
-        ),
-      ),
+          props.header
+        )
+      )
     ),
     /*#__PURE__*/ React.createElement(
       Accordion.Collapse,
@@ -103,9 +103,9 @@ const Comp = (props) => {
             padding: 15,
           },
         },
-        props.children,
-      ),
-    ),
+        props.children
+      )
+    )
   );
 };
 

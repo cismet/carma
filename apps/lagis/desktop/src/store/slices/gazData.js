@@ -26,15 +26,15 @@ export const loadGazeteerEntries = () => {
 
     sources.adressen = await md5FetchText(
       prefix,
-      gazetteerHost + "/data/3857/adressen.json",
+      gazetteerHost + "/data/3857/adressen.json"
     );
     sources.pois = await md5FetchText(
       prefix,
-      gazetteerHost + "/data/3857/pois.json",
+      gazetteerHost + "/data/3857/pois.json"
     );
     sources.kitas = await md5FetchText(
       prefix,
-      gazetteerHost + "/data/3857/kitas.json",
+      gazetteerHost + "/data/3857/kitas.json"
     );
 
     const gazData = getGazDataForTopicIds(sources, topics);

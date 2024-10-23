@@ -14,7 +14,7 @@ export function dmsPageExtractor(dataIn) {
         const modifiedPath = pathParts.join("/");
         const finalPath = `${server}${modifiedPath}${fileName.replace(
           /\s/g,
-          "%20",
+          "%20"
         )}`;
         return {
           id: d.id,

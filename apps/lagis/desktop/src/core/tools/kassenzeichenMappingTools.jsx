@@ -36,7 +36,7 @@ export const getWGS84GeoJSON = (geoJSON) => {
     const reprojectedGeoJSON = reproject(
       geoJSON,
       projectionData["25832"].def,
-      proj4.WGS84,
+      proj4.WGS84
     );
 
     return reprojectedGeoJSON;
@@ -79,7 +79,7 @@ export const getAnnotationFeatureCollection = (aenderungsanfrage) => {
     const keys = Object.keys(aenderungsanfrage.geometrien);
     for (const key of keys) {
       const feature = JSON.parse(
-        JSON.stringify(aenderungsanfrage.geometrien[key]),
+        JSON.stringify(aenderungsanfrage.geometrien[key])
       );
       feature.properties.type = "annotation";
       feature.crs = {
@@ -113,7 +113,7 @@ export const getFrontenFeatureCollection = (kassenzeichen) => {
         laenge: get(front, "frontinfo.laenge_korrektur", 0),
         strasse: get(front, "frontinfo.strasse.name", "-"),
       };
-    },
+    }
   );
 };
 
@@ -128,7 +128,7 @@ export const getKassenzeichenInfoFeatureCollection = (kassenzeichen) => {
         istfrei: kasz_geom.istfrei,
         geomstring: kasz_geom.geometrie.geo_field,
       };
-    },
+    }
   );
 };
 

@@ -1,26 +1,26 @@
-import React from "react";
-import IconComp from "react-cismap/commons/Icon";
-import { md5FetchJSON, md5FetchText } from "react-cismap/tools/fetching";
-import { getGazDataForTopicIds } from "react-cismap/tools/gazetteerHelper";
+import React from 'react';
+import IconComp from 'react-cismap/commons/Icon';
+import { md5FetchJSON, md5FetchText } from 'react-cismap/tools/fetching';
+import { getGazDataForTopicIds } from 'react-cismap/tools/gazetteerHelper';
 
-import { host } from "./constants";
+import { host } from './constants';
 
 export const getGazData = async (setGazData) => {
-  const prefix = "GazData";
+  const prefix = 'GazData';
   const sources = {};
 
-  sources.adressen = await md5FetchText(prefix, host + "/data/adressen.json");
-  sources.bezirke = await md5FetchText(prefix, host + "/data/bezirke.json");
-  sources.quartiere = await md5FetchText(prefix, host + "/data/quartiere.json");
-  sources.pois = await md5FetchText(prefix, host + "/data/pois.json");
-  sources.kitas = await md5FetchText(prefix, host + "/data/kitas.json");
+  sources.adressen = await md5FetchText(prefix, host + '/data/adressen.json');
+  sources.bezirke = await md5FetchText(prefix, host + '/data/bezirke.json');
+  sources.quartiere = await md5FetchText(prefix, host + '/data/quartiere.json');
+  sources.pois = await md5FetchText(prefix, host + '/data/pois.json');
+  sources.kitas = await md5FetchText(prefix, host + '/data/kitas.json');
 
   const gazData = getGazDataForTopicIds(sources, [
-    "pois",
-    "kitas",
-    "bezirke",
-    "quartiere",
-    "adressen",
+    'pois',
+    'kitas',
+    'bezirke',
+    'quartiere',
+    'adressen',
   ]);
 
   setGazData(gazData);
@@ -43,16 +43,16 @@ const freiBadSVG = `
 
 export const getBadSVG = (
   svgSize = 30,
-  bg = "#FF0000",
-  kind = "Freibad",
-  svgStyleRelatedId = "default",
+  bg = '#FF0000',
+  kind = 'Freibad',
+  svgStyleRelatedId = 'default'
 ) => {
   let bdim = {
     width: 20,
     height: 20,
   };
   let badSVG;
-  if (kind === "Freibad") {
+  if (kind === 'Freibad') {
     badSVG = freiBadSVG;
   } else {
     badSVG = hallenbadSVG;
@@ -85,7 +85,7 @@ export const getBadSVG = (
 
   return (
     <span
-      style={{ width: "fit-content" }}
+      style={{ width: 'fit-content' }}
       dangerouslySetInnerHTML={{ __html: svg }}
     />
   );
@@ -93,25 +93,25 @@ export const getBadSVG = (
 
 export const getConnectorImageUrl = (type) => {
   switch (type) {
-    case "Schuko":
-      return "/images/emob/Schuko_plug.png";
-    case "Typ 2":
-      return "/images/emob/Type_2_mennekes.png";
-    case "CHAdeMO":
-      return "/images/emob/Chademo_type4.png";
-    case "CCS":
-      return "/images/emob/Type1-ccs.png";
-    case "Tesla Supercharger":
-      return "/images/emob/Type_2_mennekes.png";
-    case "Drehstrom":
-      return "/images/emob/cce3.png";
+    case 'Schuko':
+      return '/images/emob/Schuko_plug.png';
+    case 'Typ 2':
+      return '/images/emob/Type_2_mennekes.png';
+    case 'CHAdeMO':
+      return '/images/emob/Chademo_type4.png';
+    case 'CCS':
+      return '/images/emob/Type1-ccs.png';
+    case 'Tesla Supercharger':
+      return '/images/emob/Type_2_mennekes.png';
+    case 'Drehstrom':
+      return '/images/emob/cce3.png';
     default:
       return undefined;
   }
 };
 
 export const getPOIColors = async (setPoiColors) => {
-  md5FetchJSON("poi_colors", host + "/data/poi.farben.json").then((data) => {
+  md5FetchJSON('poi_colors', host + '/data/poi.farben.json').then((data) => {
     setPoiColors(data);
   });
 };

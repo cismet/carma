@@ -39,7 +39,7 @@ export function officesExtractor(dataIn) {
     const history = officesData.slice(0, officesData.length - 1);
     const historyData = geHistoricalArraytOfficesWithColorAndSquare(
       history,
-      dataIn,
+      dataIn
     );
     const nameGeomColorData = getOfficesWithColorAndSquare(lastOffice, dataIn);
 

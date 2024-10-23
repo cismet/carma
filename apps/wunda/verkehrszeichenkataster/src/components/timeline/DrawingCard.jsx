@@ -35,7 +35,7 @@ const DrawingCard = ({ attachment, id }) => {
               deleteTimelineObject({
                 timelineIndex: id,
                 applicationId: applicationId,
-              }),
+              })
             );
           }}
         >
@@ -60,7 +60,7 @@ const DrawingCard = ({ attachment, id }) => {
                     timelineIndex: id,
                     updatedName: e.target.value,
                     applicationId: applicationId,
-                  }),
+                  })
                 );
               }}
               value={attachment.name}

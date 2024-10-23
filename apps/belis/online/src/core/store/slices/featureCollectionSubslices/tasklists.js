@@ -1,27 +1,27 @@
-import buffer from "@turf/buffer";
-import convex from "@turf/convex";
-import * as turfHelpers from "@turf/helpers";
-import { projectionData } from "react-cismap/constants/gis";
-import reproject from "reproject";
+import buffer from '@turf/buffer';
+import convex from '@turf/convex';
+import * as turfHelpers from '@turf/helpers';
+import { projectionData } from 'react-cismap/constants/gis';
+import reproject from 'reproject';
 // import dexieworker from 'workerize-loader!../../../workers/dexie'; // eslint-disable-line import/no-webpack-loader-syntax
 
-import { fetchGraphQL } from "../../../commons/graphql";
+import { fetchGraphQL } from '../../../commons/graphql';
 import {
   getNewIntermediateResults,
   integrateIntermediateResults,
-} from "../../../helper/featureHelper";
-import queries from "../../../queries/online";
-import { CONNECTIONMODE, getConnectionMode } from "../app";
-import { getJWT } from "../auth";
+} from '../../../helper/featureHelper';
+import queries from '../../../queries/online';
+import { CONNECTIONMODE, getConnectionMode } from '../app';
+import { getJWT } from '../auth';
 import {
   MODES,
   setDoneForMode,
   setFeatureCollectionForMode,
   setFeatureCollectionInfoForMode,
   setSelectedFeatureForMode,
-} from "../featureCollection";
-import { loadProtocollsIntoFeatureCollection } from "./protocols";
-import { workerInstance } from "../../../workers/utils";
+} from '../featureCollection';
+import { loadProtocollsIntoFeatureCollection } from './protocols';
+import { workerInstance } from '../../../workers/utils';
 
 const dexieW = workerInstance;
 
@@ -45,19 +45,19 @@ export const loadTaskListsIntoFeatureCollection = ({
           const gqlQuery = `query q($teamId: Int) {${queries.arbeitsauftraege_by_team_only_protocolgeoms}}`;
 
           const queryParameter = { teamId: team.id };
-          console.time("tasklist query returned");
+          console.time('tasklist query returned');
           const response = await fetchGraphQL(gqlQuery, queryParameter, jwt);
-          console.timeEnd("tasklist query returned");
+          console.timeEnd('tasklist query returned');
           if (response?.ok) {
             const results = response.data.arbeitsauftrag;
 
             features = createArbeitsauftragFeaturesForResults(results);
           } else {
-            throw new Error("Error in fetchGraphQL (" + response.status + ")");
+            throw new Error('Error in fetchGraphQL (' + response.status + ')');
           }
         } else {
           //offlineUse
-          const results = await dexieW.getAll("arbeitsauftrag");
+          const results = await dexieW.getAll('arbeitsauftrag');
           features = createArbeitsauftragFeaturesForResults(results, true);
         }
 
@@ -68,13 +68,13 @@ export const loadTaskListsIntoFeatureCollection = ({
           featureClones.push(f);
           integrateIntermediateResults(
             f,
-            state.offlineActionDb.intermediateResults,
+            state.offlineActionDb.intermediateResults
           );
         }
         const newResults = getNewIntermediateResults(
           state.offlineActionDb.intermediateResults,
-          "arbeitsauftrag",
-          team.id,
+          'arbeitsauftrag',
+          team.id
         );
         for (const newResult of newResults) {
           const f = createSingleArbeitsauftragFeatureForItem(newResult, true);
@@ -90,22 +90,22 @@ export const loadTaskListsIntoFeatureCollection = ({
         features = featureClones;
 
         dispatch(
-          setFeatureCollectionForMode({ mode: MODES.PROTOCOLS, features: [] }),
+          setFeatureCollectionForMode({ mode: MODES.PROTOCOLS, features: [] })
         );
         dispatch(
           setSelectedFeatureForMode({
             mode: MODES.PROTOCOLS,
             feature: undefined,
-          }),
+          })
         );
         dispatch(
-          setFeatureCollectionForMode({ mode: MODES.TASKLISTS, features }),
+          setFeatureCollectionForMode({ mode: MODES.TASKLISTS, features })
         );
         dispatch(
           setFeatureCollectionInfoForMode({
             mode: MODES.TASKLISTS,
             info: { typeCount: 1 },
-          }),
+          })
         );
 
         if (features.length === 1) {
@@ -113,14 +113,14 @@ export const loadTaskListsIntoFeatureCollection = ({
             setSelectedFeatureForMode({
               mode: MODES.TASKLISTS,
               selectedFeature: features[0],
-            }),
+            })
           );
           dispatch(tasklistPostSelection(features[0], storedJWT));
         }
         dispatch(setDoneForMode({ mode: MODES.TASKLISTS, done: true }));
         done();
       } catch (e) {
-        console.error("xxx error ", e);
+        console.error('xxx error ', e);
         dispatch(setDoneForMode({ mode: MODES.TASKLISTS, done: true }));
         done();
       }
@@ -131,17 +131,17 @@ export const loadTaskListsIntoFeatureCollection = ({
 export const createSingleArbeitsauftragFeatureForItem = (item, enriched) => {
   const arbeitsauftrag = item;
   const feature = {
-    text: "-",
-    id: "arbeitsauftrag." + arbeitsauftrag.id,
+    text: '-',
+    id: 'arbeitsauftrag.' + arbeitsauftrag.id,
     enriched,
-    type: "Feature",
+    type: 'Feature',
     selected: false,
-    featuretype: "arbeitsauftrag",
+    featuretype: 'arbeitsauftrag',
     geometry: geometryFactory(arbeitsauftrag),
     crs: {
-      type: "name",
+      type: 'name',
       properties: {
-        name: "urn:ogc:def:crs:EPSG::25832",
+        name: 'urn:ogc:def:crs:EPSG::25832',
       },
     },
     properties: arbeitsauftrag,
@@ -151,19 +151,19 @@ export const createSingleArbeitsauftragFeatureForItem = (item, enriched) => {
 
 export const createArbeitsauftragFeaturesForResults = (
   results,
-  enriched = false,
+  enriched = false
 ) => {
   const features = [];
   for (const arbeitsauftrag of results) {
     const feature = createSingleArbeitsauftragFeatureForItem(
       arbeitsauftrag,
-      enriched,
+      enriched
     );
     features.push(feature);
   }
 
   const sortedFeatures = features.sort((a, b) =>
-    a.properties.nummer.localeCompare(b.properties.nummer),
+    a.properties.nummer.localeCompare(b.properties.nummer)
   );
   //add index to features
   let index = 0;
@@ -182,12 +182,12 @@ const geometryFactory = (arbeitsauftrag) => {
     }
     if (prot?.tdta_leuchten?.fk_standort?.geom?.geo_field) {
       geoms.push(
-        createGeomOnlyFeature(prot.tdta_leuchten.fk_standort.geom?.geo_field),
+        createGeomOnlyFeature(prot.tdta_leuchten.fk_standort.geom?.geo_field)
       );
     }
     if (prot?.tdta_standort_mast?.geom?.geo_field) {
       geoms.push(
-        createGeomOnlyFeature(prot.tdta_standort_mast.geom?.geo_field),
+        createGeomOnlyFeature(prot.tdta_standort_mast.geom?.geo_field)
       );
     }
     if (prot?.schaltstelle?.geom?.geo_field) {
@@ -208,14 +208,14 @@ const geometryFactory = (arbeitsauftrag) => {
     const convexFeature = convex(turfCollection);
     return convexFeature.geometry;
   } catch (e) {
-    console.error("xxx error in " + arbeitsauftrag.id, e);
+    console.error('xxx error in ' + arbeitsauftrag.id, e);
     return undefined;
   }
 };
 
 const createGeomOnlyFeature = (geom) => {
   const feature = {
-    type: "Feature",
+    type: 'Feature',
     geometry: geom,
     // crs: {
     //   type: "name",
@@ -227,14 +227,14 @@ const createGeomOnlyFeature = (geom) => {
   };
   const wgs84Feature = reproject.reproject(
     feature,
-    projectionData["25832"].def,
-    projectionData["4326"].def,
+    projectionData['25832'].def,
+    projectionData['4326'].def
   );
-  const bufferedWGS84 = buffer(wgs84Feature, 25, { units: "meters" });
+  const bufferedWGS84 = buffer(wgs84Feature, 25, { units: 'meters' });
   const returnFeature = reproject.reproject(
     bufferedWGS84,
-    projectionData["4326"].def,
-    projectionData["25832"].def,
+    projectionData['4326'].def,
+    projectionData['25832'].def
   );
   return returnFeature;
 };
@@ -245,7 +245,7 @@ export const tasklistPostSelection = (selectedFeature, jwt) => {
       loadProtocollsIntoFeatureCollection({
         tasklistFeature: selectedFeature,
         jwt,
-      }),
+      })
     );
   };
 };

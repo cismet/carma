@@ -1,6 +1,6 @@
-import { faSuperpowers } from "@fortawesome/free-brands-svg-icons";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Form } from "react-bootstrap";
+import { faSuperpowers } from '@fortawesome/free-brands-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Form } from 'react-bootstrap';
 
 const Schnelllader = ({ filter, setFilter }) => {
   return (
@@ -8,14 +8,14 @@ const Schnelllader = ({ filter, setFilter }) => {
       <Form>
         <div>
           Schnelllader
-          {"  "}
+          {'  '}
           <FontAwesomeIcon
             icon={faSuperpowers}
             size="2x"
             style={{
-              color: "grey",
-              width: "30px",
-              textAlign: "center",
+              color: 'grey',
+              width: '30px',
+              textAlign: 'center',
             }}
           />
         </div>
@@ -24,7 +24,7 @@ const Schnelllader = ({ filter, setFilter }) => {
             <Form.Check
               type="radio"
               readOnly={true}
-              id={"filter.prbr.bandr"}
+              id={'filter.prbr.bandr'}
               onClick={(e) => {
                 const newFilterState = { ...filter };
                 newFilterState.nur_schnelllader = e.target.checked;
@@ -38,7 +38,7 @@ const Schnelllader = ({ filter, setFilter }) => {
             <Form.Check
               type="radio"
               readOnly={true}
-              id={"filter.prbr.pandr"}
+              id={'filter.prbr.pandr'}
               onClick={(e) => {
                 const newFilterState = { ...filter };
                 newFilterState.nur_schnelllader = !e.target.checked;

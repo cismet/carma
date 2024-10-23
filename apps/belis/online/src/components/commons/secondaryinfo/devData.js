@@ -57,8 +57,7 @@ export const leuchteMitAllenAttributen = {
       dms_url: {
         description: "test",
         url: {
-          object_name:
-            "upload.from.ios.for.tdta_leuchten.33539-1613466436887.jpg",
+          object_name: "upload.from.ios.for.tdta_leuchten.33539-1613466436887.jpg",
           url_base: {
             path: "/belis/",
             prot_prefix: "http://",

@@ -22,7 +22,7 @@ const RightsForm = ({ fields }) => {
       },
       () => {
         setSubmittable(false);
-      },
+      }
     );
   }, [values]);
   return (

@@ -38,7 +38,7 @@ const Login = () => {
               username: values.username,
               password: values.password,
               navigate: () => navigate(from + search, { replace: true }),
-            }),
+            })
           );
         }}
       >

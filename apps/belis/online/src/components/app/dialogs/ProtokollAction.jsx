@@ -34,7 +34,7 @@ const SetStatusDialog = ({
   title = "",
 }) => {
   const selectedFeaturesForAllModes = useSelector(
-    getSelectedFeaturesForAllModes,
+    getSelectedFeaturesForAllModes
   );
   const arbeitsauftrag =
     selectedFeaturesForAllModes[MODES.TASKLISTS].properties;
@@ -212,7 +212,7 @@ const SetStatusDialog = ({
                 ")",
             };
             Object.keys(parameter).forEach((key) =>
-              parameter[key] === undefined ? delete parameter[key] : {},
+              parameter[key] === undefined ? delete parameter[key] : {}
             );
             form.resetFields();
 
@@ -253,7 +253,7 @@ const SetStatusDialog = ({
                 style={{ width: "100%" }}
                 filterOption={(input, option) => {
                   const testChilds = option.children.map((child) =>
-                    child.toLowerCase().trim(),
+                    child.toLowerCase().trim()
                   );
                   return (
                     testChilds.join(" ").search(input.toLowerCase().trim()) >= 0
@@ -314,7 +314,7 @@ const SetStatusDialog = ({
                 style={{ width: "100%" }}
                 filterOption={(input, option) => {
                   const testChilds = option.children.map((child) =>
-                    child.toLowerCase().trim(),
+                    child.toLowerCase().trim()
                   );
                   return (
                     testChilds.join(" ").search(input.toLowerCase().trim()) >= 0
@@ -357,7 +357,7 @@ const SetStatusDialog = ({
                 style={{ width: "100%" }}
                 filterOption={(input, option) => {
                   const testChilds = option.children.map((child) =>
-                    child.toLowerCase().trim(),
+                    child.toLowerCase().trim()
                   );
                   return (
                     testChilds.join(" ").search(input.toLowerCase().trim()) >= 0

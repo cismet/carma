@@ -35,7 +35,7 @@ const useUrlSyncGemarkunFlurFlurstueckHook = () => {
     if (selectedFlurstueckLabel) {
       newSearchParams.set(
         "fstck",
-        replaceSlashWithDash(removeLeadingZeros(selectedFlurstueckLabel)),
+        replaceSlashWithDash(removeLeadingZeros(selectedFlurstueckLabel))
       );
     } else {
       newSearchParams.delete("fstck");

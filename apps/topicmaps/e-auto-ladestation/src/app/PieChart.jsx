@@ -1,17 +1,17 @@
-import { useContext } from "react";
-import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
-import { Doughnut } from "react-chartjs-2";
-import "chart.js/auto";
-import { getColorForProperties } from "./helper/styler";
+import { useContext } from 'react';
+import { FeatureCollectionContext } from 'react-cismap/contexts/FeatureCollectionContextProvider';
+import { Doughnut } from 'react-chartjs-2';
+import 'chart.js/auto';
+import { getColorForProperties } from './helper/styler';
 
 const ChartComp = ({ visible = true }) => {
   const { filteredItems } = useContext(FeatureCollectionContext);
 
   const groupingFunction = (obj) => {
     if (obj.online === true) {
-      return "online";
+      return 'online';
     } else {
-      return "offline";
+      return 'offline';
     }
   };
 
@@ -20,8 +20,8 @@ const ChartComp = ({ visible = true }) => {
     let colormodel = {};
     let piechartData = [];
     let piechartColor = [];
-    stats["P+R"] = 0;
-    stats["B+R"] = 0;
+    stats['P+R'] = 0;
+    stats['B+R'] = 0;
     for (let obj of filteredItems) {
       let group = groupingFunction(obj);
       if (stats[group] === undefined) {
@@ -58,14 +58,14 @@ const ChartComp = ({ visible = true }) => {
     return (
       <td
         style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          alignContent: "center",
-          justifyContent: "center",
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          alignContent: 'center',
+          justifyContent: 'center',
         }}
       >
-        <div style={{ width: "40%" }}>
+        <div style={{ width: '40%' }}>
           <Doughnut
             data={data}
             options={{
@@ -75,12 +75,12 @@ const ChartComp = ({ visible = true }) => {
                 },
                 title: {
                   display: true,
-                  text: "Verteilung",
+                  text: 'Verteilung',
                   font: {
-                    weight: "bold",
+                    weight: 'bold',
                     size: 20,
                   },
-                  color: "black",
+                  color: 'black',
                 },
               },
             }}

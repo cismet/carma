@@ -7,32 +7,32 @@ import {
   faSearch,
   faSpinner,
   faVial,
-} from "@fortawesome/free-solid-svg-icons";
-import { FontAwesomeIcon as Icon } from "@fortawesome/react-fontawesome";
-import { useWindowSize } from "@react-hook/window-size";
-import { Switch } from "antd";
-import React, { useEffect, useState } from "react";
-import Button from "react-bootstrap/Button";
-import Nav from "react-bootstrap/Nav";
-import Navbar from "react-bootstrap/Navbar";
-import { MappingConstants } from "react-cismap";
-import GazetteerSearchComponent from "react-cismap/GazetteerSearchComponent";
-import { useDispatch, useSelector } from "react-redux";
-import { useNavigate, useLocation } from "react-router-dom";
-import Filter from "../components/app/dialogs/Filter";
+} from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon as Icon } from '@fortawesome/react-fontawesome';
+import { useWindowSize } from '@react-hook/window-size';
+import { Switch } from 'antd';
+import React, { useEffect, useState } from 'react';
+import Button from 'react-bootstrap/Button';
+import Nav from 'react-bootstrap/Nav';
+import Navbar from 'react-bootstrap/Navbar';
+import { MappingConstants } from 'react-cismap';
+import GazetteerSearchComponent from 'react-cismap/GazetteerSearchComponent';
+import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate, useLocation } from 'react-router-dom';
+import Filter from '../components/app/dialogs/Filter';
 
-import { getNonce } from "../core/helper/featureHelper";
+import { getNonce } from '../core/helper/featureHelper';
 import {
   CONNECTIONMODE,
   getArtificialError,
   getConnectionMode,
   showDialog,
-} from "../core/store/slices/app";
-import { getBackground } from "../core/store/slices/background";
+} from '../core/store/slices/app';
+import { getBackground } from '../core/store/slices/background';
 import {
   renewCache,
   resetCacheInfoForAllKeys,
-} from "../core/store/slices/cacheControl";
+} from '../core/store/slices/cacheControl';
 import {
   isDone as featureCollectionIsDone,
   forceRefresh,
@@ -48,19 +48,19 @@ import {
   setMode,
   setOverlayFeature,
   setDoneForMode,
-} from "../core/store/slices/featureCollection";
+} from '../core/store/slices/featureCollection';
 import {
   getGazData,
   loadGazeteerEntries,
-} from "../core/store/slices/gazetteerData";
-import { fitBoundsForCollection } from "../core/store/slices/map";
-import { getIntermediateResults } from "../core/store/slices/offlineActionDb";
+} from '../core/store/slices/gazetteerData';
+import { fitBoundsForCollection } from '../core/store/slices/map';
+import { getIntermediateResults } from '../core/store/slices/offlineActionDb';
 import {
   isSearchModeActive,
   setActive as setSearchModeActive,
   setWished as setSearchModeWish,
-} from "../core/store/slices/search";
-import { getTeam } from "../core/store/slices/team";
+} from '../core/store/slices/search';
+import { getTeam } from '../core/store/slices/team';
 
 //---------
 
@@ -85,7 +85,7 @@ const TopNavbar = ({
   const searchForbidden = useSelector(isSearchForbidden);
   const intermediateResult = useSelector(getIntermediateResults);
   const selectedArbeitsauftrag = useSelector(
-    (state) => state.featureCollection.selectedFeature[MODES.TASKLISTS],
+    (state) => state.featureCollection.selectedFeature[MODES.TASKLISTS]
   );
   const browserlocation = useLocation();
 
@@ -99,30 +99,30 @@ const TopNavbar = ({
   const [loadTaskListsInProgress, setLoadTaskListsInProgress] = useState(false);
   let fontSize, narrow;
   const isInStandaloneMode = () =>
-    window.matchMedia("(display-mode: standalone)").matches ||
+    window.matchMedia('(display-mode: standalone)').matches ||
     window.navigator.standalone ||
-    document.referrer.includes("android-app://");
+    document.referrer.includes('android-app://');
 
   if (windowWidth <= 1200) {
-    fontSize = "0.8rem";
+    fontSize = '0.8rem';
     narrow = true;
   } else {
-    fontSize = "1rem";
+    fontSize = '1rem';
     narrow = false;
   }
 
   const artificialError = useSelector(getArtificialError);
   if (artificialError) {
-    throw new Error("artificialError");
+    throw new Error('artificialError');
   }
 
   return (
     <div style={{ fontSize }}>
       <Navbar
         ref={innerRef}
-        bg={background === "nightplan" ? "dark" : "light"}
+        bg={background === 'nightplan' ? 'dark' : 'light'}
         expand="lg"
-        key={"navbar." + fcIsDone}
+        key={'navbar.' + fcIsDone}
       >
         <Nav className="mr-auto">
           <Nav.Link
@@ -134,13 +134,13 @@ const TopNavbar = ({
                   jwt: jwt,
                   force: true,
                   manualRequest: true,
-                }),
+                })
               );
             }}
             // style={{ cursor: "not-allowed!important" }} works not (should be conditionally done when search forbidden). don't know why
           >
             <Icon
-              className={searchForbidden ? "text" : "text-primary"}
+              className={searchForbidden ? 'text' : 'text-primary'}
               icon={faSearch}
             />
           </Nav.Link>
@@ -158,7 +158,7 @@ const TopNavbar = ({
                     loadObjects({
                       boundingBox: refRoutedMap.current.getBoundingBox(),
                       jwt: jwt,
-                    }),
+                    })
                   );
                 } else {
                   dispatch(setSearchModeWish(false));
@@ -204,11 +204,11 @@ const TopNavbar = ({
         </Nav>
 
         <Nav
-          style={{ cursor: "pointer" }}
+          style={{ cursor: 'pointer' }}
           onClick={() => {
-            if (selectedTeam.name === "-") {
+            if (selectedTeam.name === '-') {
               // open the menu with activated team selection
-              setAppMenuActiveMenuSection("teams");
+              setAppMenuActiveMenuSection('teams');
               setAppMenuVisible(true);
             } else {
               //switch to tasklist mode
@@ -219,11 +219,11 @@ const TopNavbar = ({
         >
           {selectedArbeitsauftrag
             ? selectedArbeitsauftrag.properties.nummer
-            : "Kein Arbeitsauftrag ausgewählt"}{" "}
+            : 'Kein Arbeitsauftrag ausgewählt'}{' '}
           ({selectedTeam.name})
         </Nav>
 
-        {process.env.NODE_ENV !== "production" && (
+        {process.env.NODE_ENV !== 'production' && (
           <Nav.Link
             onClick={() => {
               //localforage.clear();
@@ -235,8 +235,8 @@ const TopNavbar = ({
               // );
               // dispatch(setArtificialError(true));
 
-              console.log("xxx intermediateResult ", intermediateResult);
-              console.log("xxx nonce", getNonce());
+              console.log('xxx intermediateResult ', intermediateResult);
+              console.log('xxx nonce', getNonce());
               dispatch(resetCacheInfoForAllKeys());
             }}
           >
@@ -246,8 +246,8 @@ const TopNavbar = ({
         <Nav.Link
           title={
             connectionMode === CONNECTIONMODE.FROMCACHE
-              ? "Arbeitsaufträge neu in den Cache laden"
-              : "Arbeitsaufträge neu laden"
+              ? 'Arbeitsaufträge neu in den Cache laden'
+              : 'Arbeitsaufträge neu laden'
           }
           onClick={() => {
             const success = () => {
@@ -263,7 +263,7 @@ const TopNavbar = ({
                     //aleady handled by loadTaskLists
                     // dispatch(setDoneForMode({ mode: MODES.TASKLISTS, done: true }));
                   },
-                }),
+                })
               );
             };
             const error = () => {
@@ -276,7 +276,7 @@ const TopNavbar = ({
               dispatch(setDoneForMode({ mode: MODES.TASKLISTS, done: false }));
 
               dispatch(
-                renewCache("arbeitsauftrag", jwt, undefined, success, error),
+                renewCache('arbeitsauftrag', jwt, undefined, success, error)
               );
             } else {
               dispatch(
@@ -289,7 +289,7 @@ const TopNavbar = ({
                       setLoadTaskListsInProgress(false);
                     }, 400);
                   },
-                }),
+                })
               );
             }
           }}
@@ -297,7 +297,7 @@ const TopNavbar = ({
           {loadTaskListsInProgress && (
             <span className="fa-layers fa-fw">
               <Icon
-                style={{ color: "grey", opacity: 0.34 }}
+                style={{ color: 'grey', opacity: 0.34 }}
                 icon={faBookOpen}
               />
               <Icon icon={faSpinner} spin />
@@ -306,7 +306,7 @@ const TopNavbar = ({
           {!loadTaskListsInProgress && <Icon icon={faBookOpen} />}
         </Nav.Link>
         <span
-          className={narrow ? "reducedSizeInputComponnet" : undefined}
+          className={narrow ? 'reducedSizeInputComponnet' : undefined}
           style={{ marginRight: 10 }}
         >
           <GazetteerSearchComponent
@@ -331,21 +331,21 @@ const TopNavbar = ({
         </span>
 
         <Nav.Link
-          style={{ marginLeft: 10, marginRight: 10, color: "#377CF6" }}
-          size={narrow ? "sm" : ""}
+          style={{ marginLeft: 10, marginRight: 10, color: '#377CF6' }}
+          size={narrow ? 'sm' : ''}
           id="navitem_logout"
           eventKey={3}
           onClick={() => {
             // dispatch(storeLogin(undefined));
             // dispatch(storeJWT(undefined));
-            navigate("/" + browserlocation.search);
+            navigate('/' + browserlocation.search);
           }}
         >
           <Icon icon={faPowerOff} />
         </Nav.Link>
 
         <Button
-          size={narrow ? "sm" : ""}
+          size={narrow ? 'sm' : ''}
           onClick={() => {
             setAppMenuVisible(true);
           }}

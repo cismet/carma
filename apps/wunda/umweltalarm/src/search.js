@@ -62,7 +62,7 @@ export const searchForFeatures = async (db, daqKeys, geom) => {
             geomBounds[0][1],
             geomBounds[0][0],
             geomBounds[1][1],
-            geomBounds[1][0],
+            geomBounds[1][0]
           );
 
           if (indizes != null) {
@@ -81,7 +81,7 @@ export const searchForFeatures = async (db, daqKeys, geom) => {
                       key,
                       obj,
                       ansprechpartner,
-                      ansprechpartnerZustaendigkeit,
+                      ansprechpartnerZustaendigkeit
                     );
                     obj["abstand"] = Math.round(distanceInMeters);
 
@@ -103,7 +103,7 @@ export const searchForFeatures = async (db, daqKeys, geom) => {
                       key,
                       obj,
                       ansprechpartner,
-                      ansprechpartnerZustaendigkeit,
+                      ansprechpartnerZustaendigkeit
                     );
                     obj["abstand"] = Math.round(distanceInMeters);
 
@@ -131,7 +131,7 @@ export const searchForFeatures = async (db, daqKeys, geom) => {
                           key,
                           obj,
                           ansprechpartner,
-                          ansprechpartnerZustaendigkeit,
+                          ansprechpartnerZustaendigkeit
                         );
 
                         if (obj.ansprechpartner !== undefined) {
@@ -158,7 +158,7 @@ export const searchForFeatures = async (db, daqKeys, geom) => {
                         key,
                         obj,
                         ansprechpartner,
-                        ansprechpartnerZustaendigkeit,
+                        ansprechpartnerZustaendigkeit
                       );
                       if (geom !== null && geom.geometry.type !== "Point") {
                         const centerGeom = turfCenter(geom);
@@ -178,7 +178,7 @@ export const searchForFeatures = async (db, daqKeys, geom) => {
                       key,
                       obj,
                       ansprechpartner,
-                      ansprechpartnerZustaendigkeit,
+                      ansprechpartnerZustaendigkeit
                     );
 
                     hits.push(obj);
@@ -214,10 +214,7 @@ export const searchForFeatures = async (db, daqKeys, geom) => {
     hits = hits.filter((value, index, arr) => {
       if (value.typ === "StoerfallBetriebeKlasse2") {
         for (let elA1 of hits) {
-          if (
-            elA1.typ === "StoerfallBetriebeKlasse1" &&
-            elA1.betrieb === value.betrieb
-          ) {
+          if (elA1.typ === "StoerfallBetriebeKlasse1" && elA1.betrieb === value.betrieb) {
             return false;
           }
         }
@@ -244,28 +241,15 @@ const compareDist = (a, b) => {
 
 export const getDistance = (geom, geojson) => {
   const geomCenter = turfCenter(geom);
-  const geomCenterCoords = [
-    geomCenter.geometry.coordinates[0],
-    geomCenter.geometry.coordinates[1],
-  ];
-  const transformedGeom = proj4(
-    proj4.defs("EPSG:3857"),
-    proj4.defs("EPSG:4326"),
-    geomCenterCoords,
-  );
+  const geomCenterCoords = [geomCenter.geometry.coordinates[0], geomCenter.geometry.coordinates[1]];
+  const transformedGeom = proj4(proj4.defs("EPSG:3857"), proj4.defs("EPSG:4326"), geomCenterCoords);
   const brunnenCenter = turfCenter(geojson);
   const brunnenCoords = [
     brunnenCenter.geometry.coordinates[0],
     brunnenCenter.geometry.coordinates[1],
   ];
-  const transformedBrunnen = proj4(
-    proj4.defs("EPSG:3857"),
-    proj4.defs("EPSG:4326"),
-    brunnenCoords,
-  );
-  const dist = turfDistance(transformedGeom, transformedBrunnen, {
-    unit: "kilometers",
-  });
+  const transformedBrunnen = proj4(proj4.defs("EPSG:3857"), proj4.defs("EPSG:4326"), brunnenCoords);
+  const dist = turfDistance(transformedGeom, transformedBrunnen, { unit: "kilometers" });
   //the calculated distance must be multiplied by 1.6, caused by the used longitudes/latitudes
   const distanceInMeters = dist * 1000 * 1.6;
 
@@ -276,18 +260,14 @@ export const addAnsprechpartner = async (
   daqKey,
   dataObject,
   ansprechpartner,
-  ansprechpartnerZustaendigkeit,
+  ansprechpartnerZustaendigkeit
 ) => {
   const table = daqTableMapping[daqKey];
   const keys = Object.keys(dataObject);
   let found = false;
 
   for (const key of keys) {
-    if (
-      key !== "geojson" &&
-      dataObject[key] !== undefined &&
-      dataObject[key] !== null
-    ) {
+    if (key !== "geojson" && dataObject[key] !== undefined && dataObject[key] !== null) {
       const anprechreferenz = await ansprechpartnerZustaendigkeit.get({
         tabelle: table,
         referenz: dataObject[key],
@@ -295,9 +275,7 @@ export const addAnsprechpartner = async (
       });
 
       if (anprechreferenz) {
-        const anspr = await ansprechpartner.get({
-          id: "" + anprechreferenz.data.ansprechpartner,
-        });
+        const anspr = await ansprechpartner.get({ id: "" + anprechreferenz.data.ansprechpartner });
 
         if (anspr) {
           removeNullValues(anspr.data);
@@ -317,9 +295,7 @@ export const addAnsprechpartner = async (
     });
 
     if (anprechreferenz) {
-      const anspr = await ansprechpartner.get({
-        id: "" + anprechreferenz.data.ansprechpartner,
-      });
+      const anspr = await ansprechpartner.get({ id: "" + anprechreferenz.data.ansprechpartner });
 
       if (anspr) {
         removeNullValues(anspr.data);

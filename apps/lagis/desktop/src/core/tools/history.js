@@ -6,7 +6,7 @@ export const generateGraphObj = (
   begrenzteTiefe,
   historieHaltenRootText,
   historyHalten,
-  historyHaltenArr,
+  historyHaltenArr
 ) => {
   if (histObj === undefined) {
     return { initialNodesData: [], initialEdgesData: [] };
@@ -113,7 +113,7 @@ export const generateGraphObj = (
   }
 
   const addStyleToRootNode = initialNodes.find((n) =>
-    historyHalten ? n.data?.label === historieHaltenRootText : n.data?.root,
+    historyHalten ? n.data?.label === historieHaltenRootText : n.data?.root
   );
 
   if (addStyleToRootNode) {
