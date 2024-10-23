@@ -1,1 +1,1 @@
-export * from "./lib/document-viewer";
+export * from './lib/document-viewer';

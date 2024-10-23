@@ -1,14 +1,14 @@
 const x = {
   pixelwidth: 300,
-  header: "Wasserstofftankstelle",
+  header: 'Wasserstofftankstelle',
   navigator: {
     noun: {
-      singular: "Wasserstofftankstelle",
-      plural: "Wasserstofftankstellen",
+      singular: 'Wasserstofftankstelle',
+      plural: 'Wasserstofftankstellen',
     },
   },
-  noCurrentFeatureTitle: "Keine Wasserstofftankstelle gefunden",
+  noCurrentFeatureTitle: 'Keine Wasserstofftankstelle gefunden',
   noCurrentFeatureContent:
-    "Zurück zur einzigen Wasserstofftankstelle in Wuppertal mit dem untenstehenden Link.",
+    'Zurück zur einzigen Wasserstofftankstelle in Wuppertal mit dem untenstehenden Link.',
 };
 export default x;

@@ -49,10 +49,7 @@ function App() {
       getFeatureStyler={getGTMFeatureStyler}
       featureItemsURL={host + "/data/parkscheinautomatenfeatures.json"}
       clusteringOptions={{
-        iconCreateFunction: getClusterIconCreatorFunction(
-          30,
-          (props) => props.color,
-        ),
+        iconCreateFunction: getClusterIconCreatorFunction(30, (props) => props.color),
       }}
     >
       <TopicMapComponent

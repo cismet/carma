@@ -1,34 +1,34 @@
-import { md5FetchText } from "react-cismap/tools/fetching";
-import { getGazDataForTopicIds } from "react-cismap/tools/gazetteerHelper";
-import { host } from "./constants";
-import clsx from "clsx";
-import { twMerge } from "tailwind-merge";
+import { md5FetchText } from 'react-cismap/tools/fetching';
+import { getGazDataForTopicIds } from 'react-cismap/tools/gazetteerHelper';
+import { host } from './constants';
+import clsx from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
 export const getGazData = async (setGazData) => {
-  const prefix = "GazData";
+  const prefix = 'GazData';
   const sources: any = {};
 
   sources.adressen = await md5FetchText(
     prefix,
-    host + "/data/3857/adressen.json",
+    host + '/data/3857/adressen.json'
   );
   sources.bezirke = await md5FetchText(
     prefix,
-    host + "/data/3857/bezirke.json",
+    host + '/data/3857/bezirke.json'
   );
   sources.quartiere = await md5FetchText(
     prefix,
-    host + "/data/3857/quartiere.json",
+    host + '/data/3857/quartiere.json'
   );
-  sources.pois = await md5FetchText(prefix, host + "/data/3857/pois.json");
-  sources.kitas = await md5FetchText(prefix, host + "/data/3857/kitas.json");
+  sources.pois = await md5FetchText(prefix, host + '/data/3857/pois.json');
+  sources.kitas = await md5FetchText(prefix, host + '/data/3857/kitas.json');
 
   const gazData = getGazDataForTopicIds(sources, [
-    "pois",
-    "kitas",
-    "bezirke",
-    "quartiere",
-    "adressen",
+    'pois',
+    'kitas',
+    'bezirke',
+    'quartiere',
+    'adressen',
   ]);
 
   setGazData(gazData);
@@ -39,8 +39,8 @@ export function cn(...inputs) {
 }
 
 export const parseDescription = (description: string) => {
-  const result = { inhalt: "", sichtbarkeit: "", nutzung: "" };
-  const keywords = ["Inhalt:", "Sichtbarkeit:", "Nutzung:"];
+  const result = { inhalt: '', sichtbarkeit: '', nutzung: '' };
+  const keywords = ['Inhalt:', 'Sichtbarkeit:', 'Nutzung:'];
 
   if (!description) {
     return result;
@@ -59,12 +59,12 @@ export const parseDescription = (description: string) => {
       }
       return input.slice(startIndex, endIndex).trim();
     }
-    return "";
+    return '';
   }
 
-  result.inhalt = extractTextAfterKeyword(description, "Inhalt:");
-  result.sichtbarkeit = extractTextAfterKeyword(description, "Sichtbarkeit:");
-  result.nutzung = extractTextAfterKeyword(description, "Nutzung:");
+  result.inhalt = extractTextAfterKeyword(description, 'Inhalt:');
+  result.sichtbarkeit = extractTextAfterKeyword(description, 'Sichtbarkeit:');
+  result.nutzung = extractTextAfterKeyword(description, 'Nutzung:');
 
   return result;
 };

@@ -1,21 +1,21 @@
 /// <reference types='vitest' />
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import dts from "vite-plugin-dts";
-import * as path from "path";
-import { nxViteTsPaths } from "@nx/vite/plugins/nx-tsconfig-paths.plugin";
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import dts from 'vite-plugin-dts';
+import * as path from 'path';
+import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 
 export default defineConfig({
   root: __dirname,
   cacheDir:
-    "../../../node_modules/.vite/libraries/mapping/carma-map-control-layout",
+    '../../../node_modules/.vite/libraries/mapping/carma-map-control-layout',
 
   plugins: [
     react(),
     nxViteTsPaths(),
     dts({
-      entryRoot: "src",
-      tsconfigPath: path.join(__dirname, "tsconfig.lib.json"),
+      entryRoot: 'src',
+      tsconfigPath: path.join(__dirname, 'tsconfig.lib.json'),
     }),
   ],
 
@@ -27,26 +27,26 @@ export default defineConfig({
   // Configuration for building your library.
   // See: https://vitejs.dev/guide/build.html#library-mode
   build: {
-    outDir: "../../../dist/libraries/mapping/carma-map-control-layout",
+    outDir: '../../../dist/libraries/mapping/carma-map-control-layout',
     reportCompressedSize: true,
     commonjsOptions: {
       transformMixedEsModules: true,
     },
     lib: {
       // Could also be a dictionary or array of multiple entry points.
-      entry: "src/index.ts",
-      name: "map-control",
-      fileName: "index",
+      entry: 'src/index.ts',
+      name: 'map-control',
+      fileName: 'index',
       // Change this to the formats you want to support.
       // Don't forget to update your package.json as well.
-      formats: ["es", "cjs"],
+      formats: ['es', 'cjs'],
     },
     rollupOptions: {
       // External packages that should not be bundled into your library.
-      external: ["react", "react-dom", "react/jsx-runtime"],
+      external: ['react', 'react-dom', 'react/jsx-runtime'],
     },
   },
   define: {
-    "process.env.IS_PREACT": JSON.stringify("true"),
+    'process.env.IS_PREACT': JSON.stringify('true'),
   },
 });

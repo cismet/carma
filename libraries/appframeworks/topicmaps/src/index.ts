@@ -1,1 +1,1 @@
-export * from "./lib/carma-apps-topicmaps";
+export * from './lib/carma-apps-topicmaps';

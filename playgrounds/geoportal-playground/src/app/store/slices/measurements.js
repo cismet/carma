@@ -1,4 +1,4 @@
-import { createSlice } from "@reduxjs/toolkit";
+import { createSlice } from '@reduxjs/toolkit';
 
 const initialState = {
   shapes: [],
@@ -12,11 +12,11 @@ const initialState = {
   updateShape: false,
   mapMovingEnd: false,
   updateTitleStatus: false,
-  measurementMode: "default",
+  measurementMode: 'default',
 };
 
 const slice = createSlice({
-  name: "measurements",
+  name: 'measurements',
   initialState,
   reducers: {
     setVisibleShapes(state, action) {
@@ -116,7 +116,7 @@ export const updateTitle = (shapeId, customTitle) => {
   return function (dispatch, getState) {
     const state = getState();
     const shapeFromVisible = state.measurements.visibleShapes.filter(
-      (s) => s.shapeId === shapeId,
+      (s) => s.shapeId === shapeId
     );
 
     const visible = state.measurements.visibleShapes.map((m) => {
@@ -130,7 +130,7 @@ export const updateTitle = (shapeId, customTitle) => {
     });
 
     const shapeFromAllShapes = state.measurements.shapes.filter(
-      (s) => s.shapeId === shapeId,
+      (s) => s.shapeId === shapeId
     );
 
     const allMeasurements = state.measurements.shapes.map((m) => {
@@ -171,7 +171,7 @@ export const deleteVisibleShapeById = (shapeId) => {
     const state = getState();
     const allVisibleShapes = state.measurements.visibleShapes;
     const cleaerShapesArr = allVisibleShapes.filter(
-      (s) => s.shapeId !== shapeId,
+      (s) => s.shapeId !== shapeId
     );
 
     dispatch(setVisibleShapes(cleaerShapesArr));
@@ -182,7 +182,7 @@ export const updateShapeById = (
   shapeId,
   newCoordinates,
   newDistance,
-  newSquare = null,
+  newSquare = null
 ) => {
   return function (dispatch, getState) {
     const state = getState();
@@ -250,10 +250,10 @@ export const toggleMeasurementMode = () => {
   return function (dispatch, getState) {
     const state = getState();
     const mode = state.measurements.measurementMode;
-    if (mode === "default") {
-      dispatch(setMeasurementMode("measurement"));
+    if (mode === 'default') {
+      dispatch(setMeasurementMode('measurement'));
     } else {
-      dispatch(setMeasurementMode("default"));
+      dispatch(setMeasurementMode('default'));
     }
   };
 };

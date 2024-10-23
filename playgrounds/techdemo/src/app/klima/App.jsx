@@ -19,19 +19,16 @@ export const dataHost = "https://wupp-topicmaps-data.cismet.de";
 function App() {
   return (
     <TopicMapContextProvider
-      appKey="BestPracticeKlimaschutzWuppertal.TopicMap"
+      appKey='BestPracticeKlimaschutzWuppertal.TopicMap'
       featureTooltipFunction={(feature) => feature?.text}
       featureItemsURL={dataHost + "/data/bpklima.data.json"}
       referenceSystemDefinition={MappingConstants.proj4crs25832def}
-      mapEPSGCode="25832"
+      mapEPSGCode='25832'
       referenceSystem={MappingConstants.crs25832}
       getFeatureStyler={getGTMFeatureStyler}
       convertItemToFeature={convertBPKlimaItemsToFeature}
       clusteringOptions={{
-        iconCreateFunction: getClusterIconCreatorFunction(
-          30,
-          (props) => props.color,
-        ),
+        iconCreateFunction: getClusterIconCreatorFunction(30, (props) => props.color),
       }}
       clusteringEnabled={true}
       itemFilterFunction={itemFilterFunction}
@@ -57,11 +54,11 @@ function App() {
           layer: (
             <StyledWMSTileLayer
               key={"fernwaermewsw"}
-              url="https://maps.wuppertal.de/deegree/wms"
-              layers="fernwaermewsw "
-              format="image/png"
-              tiled="true"
-              transparent="true"
+              url='https://maps.wuppertal.de/deegree/wms'
+              layers='fernwaermewsw '
+              format='image/png'
+              tiled='true'
+              transparent='true'
               maxZoom={19}
               opacity={0.7}
             />

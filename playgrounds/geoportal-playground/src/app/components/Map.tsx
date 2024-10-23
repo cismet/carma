@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
-import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
-import { useSelector } from "react-redux";
-import { getGazData, paramsToObject } from "../helper/helper";
+import { useEffect, useRef, useState } from 'react';
+import TopicMapComponent from 'react-cismap/topicmaps/TopicMapComponent';
+import { useSelector } from 'react-redux';
+import { getGazData, paramsToObject } from '../helper/helper';
 import {
   getBackgroundLayer,
   getFocusMode,
@@ -9,16 +9,16 @@ import {
   getShowFullscreenButton,
   getShowHamburgerMenu,
   getShowLocatorButton,
-} from "../store/slices/mapping";
-import LayerWrapper from "./layers/LayerWrapper";
-import InfoBoxMeasurement from "./map-measure/InfoBoxMeasurement";
-import PaleOverlay from "react-cismap/PaleOverlay";
-import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
-import { useSearchParams } from "react-router-dom";
-import getBackgroundLayers from "../helper/layer";
-import { getMode, getShowLayerButtons } from "../store/slices/ui";
-import CismapLayer from "react-cismap/CismapLayer";
-import GazetteerSearchComponent from "react-cismap/GazetteerSearchComponent";
+} from '../store/slices/mapping';
+import LayerWrapper from './layers/LayerWrapper';
+import InfoBoxMeasurement from './map-measure/InfoBoxMeasurement';
+import PaleOverlay from 'react-cismap/PaleOverlay';
+import StyledWMSTileLayer from 'react-cismap/StyledWMSTileLayer';
+import { useSearchParams } from 'react-router-dom';
+import getBackgroundLayers from '../helper/layer';
+import { getMode, getShowLayerButtons } from '../store/slices/ui';
+import CismapLayer from 'react-cismap/CismapLayer';
+import GazetteerSearchComponent from 'react-cismap/GazetteerSearchComponent';
 
 const Map = () => {
   const [gazData, setGazData] = useState([]);
@@ -47,11 +47,11 @@ const Map = () => {
       }
     };
 
-    window.addEventListener("resize", handleResize);
+    window.addEventListener('resize', handleResize);
 
     handleResize();
 
-    return () => window.removeEventListener("resize", handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   return (
@@ -74,21 +74,20 @@ const Map = () => {
         }}
         gazetteerSearchPlaceholder="Stadtteil | Adresse | POI"
         infoBox={
-          mode === "measurement" ? (
+          mode === 'measurement' ? (
             <InfoBoxMeasurement key={mode} />
           ) : (
             <div></div>
           )
         }
       >
-        {backgroundLayer.visible &&
-          getBackgroundLayers({ layerString: backgroundLayer.layers })}
+        {backgroundLayer.visible && getBackgroundLayers({ layerString: backgroundLayer.layers })}
         {focusMode && <PaleOverlay />}
         {showLayerButtons && <LayerWrapper />}
         {layers.map((layer, i) => {
           if (layer.visible) {
             switch (layer.layerType) {
-              case "wmts":
+              case 'wmts':
                 return (
                   <CismapLayer
                     key={`${focusMode}_${i}_${layer.id}`}
@@ -100,10 +99,10 @@ const Map = () => {
                     transparent="true"
                     pane="additionalLayers1"
                     opacity={layer.opacity.toFixed(1) || 0.7}
-                    type={"wmts"}
+                    type={'wmts'}
                   />
                 );
-              case "vector":
+              case 'vector':
                 return (
                   <CismapLayer
                     key={`${focusMode}_${i}_${layer.id}_${layer.opacity}`}
