@@ -1,6 +1,6 @@
-import { Form } from 'react-bootstrap';
-import { faToggleOn } from '@fortawesome/free-solid-svg-icons';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Form } from "react-bootstrap";
+import { faToggleOn } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 const Online = ({ filter, setFilter }) => {
   return (
@@ -8,14 +8,14 @@ const Online = ({ filter, setFilter }) => {
       <Form>
         <div>
           Verfügbarkeit
-          {'  '}
+          {"  "}
           <FontAwesomeIcon
             icon={faToggleOn}
             size="2x"
             style={{
-              color: 'grey',
-              width: '30px',
-              textAlign: 'center',
+              color: "grey",
+              width: "30px",
+              textAlign: "center",
             }}
           />
         </div>
@@ -24,7 +24,7 @@ const Online = ({ filter, setFilter }) => {
             <Form.Check
               type="radio"
               readOnly={true}
-              id={'filter.emob.online.only'}
+              id={"filter.emob.online.only"}
               label="nur verfügbare Ladestationen (online)"
               onClick={(e) => {
                 const newFilterState = { ...filter };
@@ -38,7 +38,7 @@ const Online = ({ filter, setFilter }) => {
             <Form.Check
               type="radio"
               readOnly={true}
-              id={'filter.emob.online.all'}
+              id={"filter.emob.online.all"}
               label="alle Ladestationen"
               onClick={(e) => {
                 const newFilterState = { ...filter };

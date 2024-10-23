@@ -31,11 +31,14 @@ export const bufferBBox = (bbox, bufferinMeter) => {
 export function convertBoundingBox(
   bbox,
   refDefIn = MappingConstants.proj4crs3857def,
-  refDefOut = MappingConstants.proj4crs25832def
+  refDefOut = MappingConstants.proj4crs25832def,
 ) {
   if (bbox) {
     const [left, top] = proj4(refDefIn, refDefOut, [bbox.left, bbox.top]);
-    const [right, bottom] = proj4(refDefIn, refDefOut, [bbox.right, bbox.bottom]);
+    const [right, bottom] = proj4(refDefIn, refDefOut, [
+      bbox.right,
+      bbox.bottom,
+    ]);
     return { left, top, right, bottom };
   }
 }

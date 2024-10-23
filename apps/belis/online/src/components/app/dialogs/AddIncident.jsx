@@ -86,7 +86,7 @@ const AddIncidentDialog = ({
                 };
               });
             }, 100);
-          }
+          },
         );
       });
     } else if (info.file.status === "removed") {

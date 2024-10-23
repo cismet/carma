@@ -1,14 +1,14 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice } from "@reduxjs/toolkit";
 // import dexieworker from "workerize-loader!../../workers/dexie"; // eslint-disable-line import/no-webpack-loader-syntax
 
-import { fetchGraphQL } from '../../commons/graphql';
-import cacheQueries from '../../queries/cache';
-import { CONNECTIONMODE, setConnectionMode } from './app';
-import { getLoginFromJWT } from './auth';
-import { clearIntermediateResults } from './offlineActionDb';
-import { initIndex } from './spatialIndex';
-import { workerInstance } from '../../workers/utils';
-import * as Comlink from 'comlink';
+import { fetchGraphQL } from "../../commons/graphql";
+import cacheQueries from "../../queries/cache";
+import { CONNECTIONMODE, setConnectionMode } from "./app";
+import { getLoginFromJWT } from "./auth";
+import { clearIntermediateResults } from "./offlineActionDb";
+import { initIndex } from "./spatialIndex";
+import { workerInstance } from "../../workers/utils";
+import * as Comlink from "comlink";
 
 const dexieW = workerInstance;
 
@@ -21,74 +21,74 @@ const keys = [];
 // });
 keys.push({
   primary: true,
-  name: 'Leuchten',
-  queryKey: 'tdta_leuchten',
+  name: "Leuchten",
+  queryKey: "tdta_leuchten",
   parameterFactory: () => ({}),
 });
 keys.push({
   primary: true,
-  name: 'Leuchtentypen',
-  queryKey: 'tkey_leuchtentyp',
+  name: "Leuchtentypen",
+  queryKey: "tkey_leuchtentyp",
   parameterFactory: () => ({}),
 });
 keys.push({
   primary: true,
-  name: 'Leuchtmitteltypen',
-  queryKey: 'leuchtmittel',
+  name: "Leuchtmitteltypen",
+  queryKey: "leuchtmittel",
   parameterFactory: () => ({}),
 });
 keys.push({
   primary: true,
-  name: 'Rundsteuerempfänger',
-  queryKey: 'rundsteuerempfaenger',
+  name: "Rundsteuerempfänger",
+  queryKey: "rundsteuerempfaenger",
   parameterFactory: () => ({}),
 });
 keys.push({
   primary: true,
-  name: 'Masten (ohne Leuchten)',
-  queryKey: 'tdta_standort_mast',
+  name: "Masten (ohne Leuchten)",
+  queryKey: "tdta_standort_mast",
   parameterFactory: () => ({}),
 });
 keys.push({
   primary: true,
-  name: 'Punktindex',
-  queryKey: 'raw_point_index',
+  name: "Punktindex",
+  queryKey: "raw_point_index",
   parameterFactory: () => ({}),
 });
 keys.push({
   primary: true,
-  name: 'Leitungen',
-  queryKey: 'leitung',
+  name: "Leitungen",
+  queryKey: "leitung",
   parameterFactory: () => ({}),
 });
 keys.push({
   primary: true,
-  name: 'Mauerlaschen',
-  queryKey: 'mauerlasche',
+  name: "Mauerlaschen",
+  queryKey: "mauerlasche",
   parameterFactory: () => ({}),
 });
 keys.push({
   primary: true,
-  name: 'Schaltstellen',
-  queryKey: 'schaltstelle',
+  name: "Schaltstellen",
+  queryKey: "schaltstelle",
   parameterFactory: () => ({}),
 });
 keys.push({
   primary: true,
-  name: 'Abzweigdosen',
-  queryKey: 'abzweigdose',
+  name: "Abzweigdosen",
+  queryKey: "abzweigdose",
   parameterFactory: () => ({}),
 });
 keys.push({
   primary: true,
-  name: 'Teams',
-  queryKey: 'team',
+  name: "Teams",
+  queryKey: "team",
   parameterFactory: () => ({}),
 });
 keys.push({
   primary: true,
-  getName: (selectedTeam) => 'Arbeitsaufträge (' + selectedTeam.name + ')',
-  queryKey: 'arbeitsauftrag',
+  getName: (selectedTeam) => "Arbeitsaufträge (" + selectedTeam.name + ")",
+  queryKey: "arbeitsauftrag",
   parameterFactory: (state) => ({ teamId: state.team.selectedTeam.id }),
 });
 
@@ -110,7 +110,7 @@ const initializeForKey = (key) => {
     configx[key.queryKey] = key;
     return ret;
   } else {
-    console.trace('why is key undefined', key);
+    console.trace("why is key undefined", key);
   }
 };
 
@@ -121,7 +121,7 @@ for (const key of keys) {
   configx[key.queryKey] = key;
 }
 
-console.log('config0', configx);
+console.log("config0", configx);
 
 export const config = configx;
 const initialState = {
@@ -130,18 +130,18 @@ const initialState = {
 };
 
 const cacheSlice = createSlice({
-  name: 'cacheControl',
+  name: "cacheControl",
   initialState: initialState,
   reducers: {
     setLoadingState(state, action) {
       if (!state.types[action.payload.key]) {
         state.types[action.payload.key] = initializeForKey(
-          configx[action.payload.key]
+          configx[action.payload.key],
         );
       }
       if (
         state.types[action.payload.key].resetTimer !== undefined &&
-        action.payload.loadingState === 'loading'
+        action.payload.loadingState === "loading"
       ) {
         clearTimeout(state.types[action.payload.key].resetTimer);
         state.types[action.payload.key].resetTimer = undefined;
@@ -157,7 +157,7 @@ const cacheSlice = createSlice({
     setLastUpdate(state, action) {
       if (!state.types[action.payload.key]) {
         state.types[action.payload.key] = initializeForKey(
-          configx[action.payload.key]
+          configx[action.payload.key],
         );
       }
       state.types[action.payload.key].lastUpdate = action.payload.lastUpdate;
@@ -167,7 +167,7 @@ const cacheSlice = createSlice({
     setObjectCount(state, action) {
       if (!state.types[action.payload.key]) {
         state.types[action.payload.key] = initializeForKey(
-          configx[action.payload.key]
+          configx[action.payload.key],
         );
       }
       state.types[action.payload.key].objectCount = action.payload.objectCount;
@@ -176,7 +176,7 @@ const cacheSlice = createSlice({
     setUpdateCount(state, action) {
       if (!state.types[action.payload.key]) {
         state.types[action.payload.key] = initializeForKey(
-          configx[action.payload.key]
+          configx[action.payload.key],
         );
       }
       state.types[action.payload.key].updateCount = action.payload.updateCount;
@@ -185,7 +185,7 @@ const cacheSlice = createSlice({
     setCachingProgress(state, action) {
       if (!state.types[action.payload.key]) {
         state.types[action.payload.key] = initializeForKey(
-          configx[action.payload.key]
+          configx[action.payload.key],
         );
       }
       state.types[action.payload.key].cachingProgress =
@@ -237,11 +237,11 @@ export const isCacheFullUsable = (state) => {
       key &&
       (state.cacheControl.types[key].objectCount === undefined ||
         (state.cacheControl.types[key].objectCount === 0 &&
-          key !== 'arbeitsauftrag') ||
+          key !== "arbeitsauftrag") ||
         state.cacheControl.types[key].lastUpdate === undefined ||
         state.cacheControl.types[key].lastUpdate === -1 ||
-        state.cacheControl.types[key].loadingState === 'loading' ||
-        state.cacheControl.types[key].loadingState === 'caching')
+        state.cacheControl.types[key].loadingState === "loading" ||
+        state.cacheControl.types[key].loadingState === "caching")
     ) {
       return false;
     }
@@ -260,12 +260,12 @@ export const isSecondaryCacheUsable = (state) => {
 
 const getPrimaryInfoKeys = (state) => {
   return Object.keys(state.cacheControl.types).filter(
-    (key) => state.cacheControl.types[key].primary === true
+    (key) => state.cacheControl.types[key].primary === true,
   );
 };
 const getSecondaryInfoKeys = (state) => {
   return Object.keys(state.cacheControl.types).filter(
-    (key) => state.cacheControl.types[key].primary !== true
+    (key) => state.cacheControl.types[key].primary !== true,
   );
 };
 const getAllInfoKeys = (state) => {
@@ -291,7 +291,7 @@ export const getCacheUpdatingProgress = (state) => {
   const keys = getPrimaryInfoKeys(state);
   for (const key of keys) {
     const loadingState = state.cacheControl.types[key].loadingState;
-    if (loadingState === 'cached' || loadingState === undefined) {
+    if (loadingState === "cached" || loadingState === undefined) {
       progressCounter++;
     } else {
       // console.log("loadingState " + key, loadingState);
@@ -319,7 +319,7 @@ export const resetCacheInfoIfOneIsStillInLoadingState = () => {
     const state = getState();
     for (const key of getAllInfoKeys(state)) {
       const loadingState = state.cacheControl.types[key].loadingState;
-      if (loadingState === 'loading' || loadingState === 'caching') {
+      if (loadingState === "loading" || loadingState === "caching") {
         dispatch(resetCacheInfoForAllKeys());
         dispatch(setConnectionMode(CONNECTIONMODE.ONLINE));
         break;
@@ -383,7 +383,7 @@ export const renewAllCaches = (jwt) => {
       if (key) {
         dispatch(renewCache(key, jwt));
       } else {
-        console.log('why key is undefined');
+        console.log("why key is undefined");
       }
     }
     dispatch(setCacheUser(getLoginFromJWT(jwt)));
@@ -395,11 +395,11 @@ export const renewCache = (
   jwt,
   overridingStateForParameterFactory,
   successHook = () => {},
-  errorHook = () => {}
+  errorHook = () => {},
 ) => {
   if (key === undefined || jwt === undefined) {
     console.error(
-      'renewCache: either key or jwt is undefined. This must be an error.'
+      "renewCache: either key or jwt is undefined. This must be an error.",
     );
   }
   return async (dispatch, getState) => {
@@ -408,7 +408,7 @@ export const renewCache = (
 
     const itemKey = key;
 
-    dispatch(setLoadingState({ key, loadingState: 'loading' }));
+    dispatch(setLoadingState({ key, loadingState: "loading" }));
     dispatch(setCachingProgress({ key, cachingProgress: 0 }));
     dispatch(setUpdateCount({ key, updateCount: 0 }));
 
@@ -419,7 +419,7 @@ export const renewCache = (
         message.data.target !== undefined &&
         message.data.objectstorename === itemKey
       ) {
-        dispatch(setLoadingState({ key, loadingState: 'caching' }));
+        dispatch(setLoadingState({ key, loadingState: "caching" }));
         dispatch(setObjectCount({ key, objectCount: message.data.target }));
         dispatch(setUpdateCount({ key, updateCount: message.data.target }));
         setCachingProgress({ key, cachingProgress: 0 });
@@ -428,7 +428,7 @@ export const renewCache = (
         message.data.objectstorename === itemKey
       ) {
         dispatch(
-          setCachingProgress({ key, cachingProgress: message.data.progress })
+          setCachingProgress({ key, cachingProgress: message.data.progress }),
         );
       }
     };
@@ -443,7 +443,7 @@ export const renewCache = (
       config[itemKey].parameterFactory(stateForParameterFactory),
       jwt,
       undefined,
-      'z2' // z2 bedeutet die daten kommen chunked
+      "z2", // z2 bedeutet die daten kommen chunked
     )
       .then((result) => {
         //dataKey and itemKey are the same !!!
@@ -456,24 +456,24 @@ export const renewCache = (
             let countElements = 0;
             for (const chunk of result.dataz[itemKey]) {
               countElements = await tmpdexieW.putChunkedZArray(
-                result.dataz[itemKey + '_length'],
+                result.dataz[itemKey + "_length"],
                 countElements,
                 chunk,
                 itemKey,
-                proxiedProgressListener
+                proxiedProgressListener,
               );
             }
 
             //reset loadingState in 1 minute
             const resetTimer = setTimeout(() => {
               dispatch(
-                setLoadingState({ key, resetTimer, loadingState: undefined })
+                setLoadingState({ key, resetTimer, loadingState: undefined }),
               );
             }, 30000);
 
             //set loading state done
             dispatch(
-              setLoadingState({ key, resetTimer, loadingState: 'cached' })
+              setLoadingState({ key, resetTimer, loadingState: "cached" }),
             );
             dispatch(setLastUpdate({ key, lastUpdate: new Date().getTime() }));
 
@@ -483,7 +483,7 @@ export const renewCache = (
             //removeEVent Listener to free memory
             // tmpdexieW.removeEventListener('message', proxiedProgressListener);
 
-            if (itemKey === 'raw_point_index') {
+            if (itemKey === "raw_point_index") {
               //todo: the initIndex function should be called, after the cache was completely refreshed
               //to use the new data for the geometry search
               dispatch(initIndex(() => {}));
@@ -492,15 +492,15 @@ export const renewCache = (
             successHook();
           })();
         } else {
-          throw new Error('Error in fetchGraphQL (' + result.status + ')');
+          throw new Error("Error in fetchGraphQL (" + result.status + ")");
         }
       })
       .catch(function (error) {
-        console.log('error in fetch ', error);
-        dispatch(setLoadingState({ key, loadingState: 'problem' }));
+        console.log("error in fetch ", error);
+        dispatch(setLoadingState({ key, loadingState: "problem" }));
         const resetTimer = setTimeout(() => {
           dispatch(
-            setLoadingState({ key, resetTimer, loadingState: undefined })
+            setLoadingState({ key, resetTimer, loadingState: undefined }),
           );
         }, 30000);
         errorHook(error);

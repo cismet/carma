@@ -23,7 +23,9 @@ const InfoPanel = () => {
   const dispatch = useDispatch();
   const selectedFeature = useSelector(getSelectedFeature);
   // const selectedFeature = leuchteMitAllenAttributen;
-  return <InfoPanelComponent selectedFeature={selectedFeature} dispatch={dispatch} />;
+  return (
+    <InfoPanelComponent selectedFeature={selectedFeature} dispatch={dispatch} />
+  );
 };
 
 export const InfoPanelComponent = ({ selectedFeature, dispatch }) => {
@@ -49,7 +51,9 @@ export const InfoPanelComponent = ({ selectedFeature, dispatch }) => {
     delete hit.geometry;
     delete hit.properties.feature;
   } catch (e) {}
-  const showRawDataFromUrl = new URLSearchParams(window.location.href).get("showRawData");
+  const showRawDataFromUrl = new URLSearchParams(window.location.href).get(
+    "showRawData",
+  );
 
   if (hit) {
     const display = (desc, value, valFunc) => {
@@ -59,7 +63,11 @@ export const InfoPanelComponent = ({ selectedFeature, dispatch }) => {
             <b>{desc}:</b> {value}
           </div>
         );
-      } else if (value && valFunc === undefined && Array.isArray(value) === true) {
+      } else if (
+        value &&
+        valFunc === undefined &&
+        Array.isArray(value) === true
+      ) {
         return (
           <div>
             <b>{desc}:</b> {value.join(", ")}
@@ -163,7 +171,11 @@ export const InfoPanelComponent = ({ selectedFeature, dispatch }) => {
         console.log("unbekannter featuretype: " + hit.featuretype);
     }
 
-    if (showRawData || showRawDataFromUrl === "" || process.env.NODE_ENV !== "production") {
+    if (
+      showRawData ||
+      showRawDataFromUrl === "" ||
+      process.env.NODE_ENV !== "production"
+    ) {
       //remove the geometries
       const hitForRawDisplay = JSON.parse(JSON.stringify(hit.properties));
 
@@ -196,16 +208,18 @@ export const InfoPanelComponent = ({ selectedFeature, dispatch }) => {
 
       subSections.push(
         <SecondaryInfoPanelSection
-          key='standort'
-          bsStyle='light'
+          key="standort"
+          bsStyle="light"
           header={rawDataDesc}
           collapsedOnStart={true}
         >
           <div style={{ fontSize: "115%", padding: "10px", paddingTop: "0px" }}>
-            <pre key='hitObject'>{JSON.stringify(hitForRawDisplay, null, 2)}</pre>
+            <pre key="hitObject">
+              {JSON.stringify(hitForRawDisplay, null, 2)}
+            </pre>
             {/* <pre key='hits'>{JSON.stringify(hitsForRawDisplay, null, 2)}</pre> */}
           </div>
-        </SecondaryInfoPanelSection>
+        </SecondaryInfoPanelSection>,
       );
     }
 
@@ -215,10 +229,12 @@ export const InfoPanelComponent = ({ selectedFeature, dispatch }) => {
         setVisibleState={(state) => {
           dispatch(setSecondaryInfoVisible(state));
         }}
-        titleIconName='info-circle'
+        titleIconName="info-circle"
         title={title}
         mainSection={
-          <div style={{ fontSize: "115%", padding: "10px", paddingTop: "0px" }}>{mainSection}</div>
+          <div style={{ fontSize: "115%", padding: "10px", paddingTop: "0px" }}>
+            {mainSection}
+          </div>
         }
         subSections={subSections}
         footer={footer}

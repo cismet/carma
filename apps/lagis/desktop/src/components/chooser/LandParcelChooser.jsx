@@ -58,7 +58,7 @@ const LandParcelChooser = ({
   const flurRef = useRef();
   const flurstueckRef = useRef();
   const landparcelInternaDataStructure = useSelector(
-    getLandparcelInternaDataStructure
+    getLandparcelInternaDataStructure,
   );
 
   useEffect(() => {
@@ -142,7 +142,7 @@ const LandParcelChooser = ({
         fstck,
         flurstueckChoosen,
         updateFromUrl: true,
-      })
+      }),
     );
   };
 
@@ -180,7 +180,7 @@ const LandParcelChooser = ({
         ),
         value: key,
       };
-    }
+    },
   );
 
   // Check if selectedFlurstueckLabel is not in the options and add it
@@ -188,7 +188,7 @@ const LandParcelChooser = ({
   if (
     selectedFlurstueckLabel &&
     !flurstueckOptions.some(
-      (option) => option.value === selectedFlurstueckLabel
+      (option) => option.value === selectedFlurstueckLabel,
     )
   ) {
     flurstueckOptions.push({

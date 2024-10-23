@@ -140,7 +140,7 @@ const Overview = ({ width = "100%", height = "100%", inStory = false }) => {
                     setTimeout(() => {
                       dispatch(setMapLoading(false));
                     }, 100);
-                  })
+                  }),
                 );
               },
             }}

@@ -49,7 +49,7 @@ export const login = (
   navigate,
   info,
   devSecretUser,
-  devSecretPassword
+  devSecretPassword,
 ) => {
   // dispatch(authStart());
 
@@ -124,7 +124,7 @@ export const getLoginFromJWT = (jwt) => {
         .map(function (c) {
           return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
         })
-        .join("")
+        .join(""),
     );
 
     return JSON.parse(jsonPayload).sub;

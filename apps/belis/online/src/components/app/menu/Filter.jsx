@@ -46,7 +46,7 @@ const Filter = ({ refRoutedMap }) => {
                         overridingFilterState: _fs,
                         force: true,
                         jwt: jwt,
-                      })
+                      }),
                     );
                   }, 50);
                 }}

@@ -1,5 +1,5 @@
-import { createSlice } from '@reduxjs/toolkit';
-import { getBoundsForFeatureArray } from '../../tools/mappingTools';
+import { createSlice } from "@reduxjs/toolkit";
+import { getBoundsForFeatureArray } from "../../tools/mappingTools";
 
 const initialState = {
   flaechenCollection: undefined,
@@ -18,7 +18,7 @@ const initialState = {
 };
 
 const slice = createSlice({
-  name: 'mapping',
+  name: "mapping",
   initialState,
   reducers: {
     setCollections(state, action) {
@@ -45,7 +45,7 @@ const slice = createSlice({
     setGeneralGeometrySelected(state, action) {
       const { id } = action.payload;
       const selectedObject = state.generalGeometryCollection.find(
-        (item) => item.properties.id === id
+        (item) => item.properties.id === id,
       );
 
       if (selectedObject.selected) {
@@ -67,7 +67,7 @@ const slice = createSlice({
     setFlaechenSelected(state, action) {
       const { id } = action.payload;
       const selectedObject = state.flaechenCollection.find(
-        (item) => item.properties.id === `flaeche.${id}`
+        (item) => item.properties.id === `flaeche.${id}`,
       );
 
       if (selectedObject.selected) {
@@ -98,7 +98,7 @@ const slice = createSlice({
     setFrontenSelected(state, action) {
       const { id } = action.payload;
       const selectedObject = state.frontenCollection.find(
-        (item) => item.properties.id === id
+        (item) => item.properties.id === id,
       );
 
       if (selectedObject.selected) {

@@ -29,7 +29,7 @@ const derive = (props) => {
           const secondaryRoutenId = secondarySelection.id;
           if (
             selectedFeature.properties.routen.filter(
-              (r) => r.id === secondaryRoutenId
+              (r) => r.id === secondaryRoutenId,
             ).length === 1
           ) {
             newSecondarySelection = secondarySelection;

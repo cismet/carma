@@ -1,12 +1,12 @@
-import { constants as kitasConstants } from './constants';
+import { constants as kitasConstants } from "./constants";
 
 export const traegertypMap = [
-  { text: 'städtisch', c: kitasConstants.TRAEGERTYP_STAEDTISCH },
-  { text: 'evangelisch', c: kitasConstants.TRAEGERTYP_EVANGELISCH },
-  { text: 'katholisch', c: kitasConstants.TRAEGERTYP_KATHOLISCH },
-  { text: 'Elterninitiative', c: kitasConstants.TRAEGERTYP_ELTERNINITIATIVE },
-  { text: 'Betrieb', c: kitasConstants.TRAEGERTYP_BETRIEBSKITA },
-  { text: 'andere freie Träger', c: kitasConstants.TRAEGERTYP_ANDERE },
+  { text: "städtisch", c: kitasConstants.TRAEGERTYP_STAEDTISCH },
+  { text: "evangelisch", c: kitasConstants.TRAEGERTYP_EVANGELISCH },
+  { text: "katholisch", c: kitasConstants.TRAEGERTYP_KATHOLISCH },
+  { text: "Elterninitiative", c: kitasConstants.TRAEGERTYP_ELTERNINITIATIVE },
+  { text: "Betrieb", c: kitasConstants.TRAEGERTYP_BETRIEBSKITA },
+  { text: "andere freie Träger", c: kitasConstants.TRAEGERTYP_ANDERE },
 ];
 
 const itemFilterFunction = ({ filterState }) => {
@@ -35,17 +35,17 @@ const itemFilterFunction = ({ filterState }) => {
     });
 
     if (filterState.alter) {
-      if (filterState.alter === 'unter2') {
+      if (filterState.alter === "unter2") {
         if (item.alter === 0) {
         } else {
           result = false;
         }
-      } else if (filterState.alter === 'ab2') {
+      } else if (filterState.alter === "ab2") {
         if (item.alter === 0 || item.alter === 1) {
         } else {
           result = false;
         }
-      } else if (filterState.alter === 'ab3') {
+      } else if (filterState.alter === "ab3") {
         if (item.alter < 3) {
         } else {
           result = false;
@@ -83,17 +83,17 @@ export const toggleFilter = (kind, filter, filterState, setFilterState) => {
     filterGroupSet.delete(filter);
   } else {
     filterGroupSet.add(filter);
-    if (kind === 'positiv') {
+    if (kind === "positiv") {
       if (newFilterState.negativ.indexOf(filter) !== -1) {
-        let otherFilterGroupSet = new Set(newFilterState['negativ']);
+        let otherFilterGroupSet = new Set(newFilterState["negativ"]);
         otherFilterGroupSet.delete(filter);
-        newFilterState['negativ'] = Array.from(otherFilterGroupSet);
+        newFilterState["negativ"] = Array.from(otherFilterGroupSet);
       }
     } else {
       if (newFilterState.positiv.indexOf(filter) !== -1) {
-        let otherFilterGroupSet = new Set(newFilterState['positiv']);
+        let otherFilterGroupSet = new Set(newFilterState["positiv"]);
         otherFilterGroupSet.delete(filter);
-        newFilterState['positiv'] = Array.from(otherFilterGroupSet);
+        newFilterState["positiv"] = Array.from(otherFilterGroupSet);
       }
     }
   }

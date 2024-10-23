@@ -39,9 +39,18 @@ const getGazData = async (setStaticGazData) => {
   const prefix = "GazDataForStories";
   const sources = {};
 
-  sources.adressen = await md5FetchText(prefix, host + "/data/3857/adressen.json");
-  sources.bezirke = await md5FetchText(prefix, host + "/data/3857/bezirke.json");
-  sources.quartiere = await md5FetchText(prefix, host + "/data/3857/quartiere.json");
+  sources.adressen = await md5FetchText(
+    prefix,
+    host + "/data/3857/adressen.json",
+  );
+  sources.bezirke = await md5FetchText(
+    prefix,
+    host + "/data/3857/bezirke.json",
+  );
+  sources.quartiere = await md5FetchText(
+    prefix,
+    host + "/data/3857/quartiere.json",
+  );
   sources.pois = await md5FetchText(prefix, host + "/data/3857/pois.json");
   sources.kitas = await md5FetchText(prefix, host + "/data/3857/kitas.json");
 
@@ -83,7 +92,9 @@ function App() {
 
   useEffect(() => {
     (async () => {
-      const jwtInCache = await localforage.getItem("@" + appKey + "." + "auth" + "." + "jwt");
+      const jwtInCache = await localforage.getItem(
+        "@" + appKey + "." + "auth" + "." + "jwt",
+      );
       if (jwtInCache) {
         setJWT(jwtInCache);
       } else {
@@ -102,13 +113,16 @@ function App() {
           (problem) => {
             if (problem.status === 401) {
               setJWT(undefined);
-              setLoginInfo({ color: "#F9D423", text: "Bitte melden Sie sich erneut an." });
+              setLoginInfo({
+                color: "#F9D423",
+                text: "Bitte melden Sie sich erneut an.",
+              });
               setTimeout(() => {
                 setLoginInfo();
               }, 2500);
             }
             setDynGazData([]);
-          }
+          },
         )
         .catch((e) => {
           console.log("xxx error ", e);
@@ -185,16 +199,22 @@ function App() {
       offlineCacheConfig={offlineConfig}
       backgroundModes={backgroundModes}
       referenceSystem={MappingConstants.crs3857}
-      mapEPSGCode='3857'
+      mapEPSGCode="3857"
       referenceSystemDefinition={MappingConstants.proj4crs3857def}
-      maskingPolygon='POLYGON((668010.063156992 6750719.23021889,928912.612468322 6757273.20343972,930494.610325512 6577553.43685138,675236.835570551 6571367.64964125,668010.063156992 6750719.23021889))'
+      maskingPolygon="POLYGON((668010.063156992 6750719.23021889,928912.612468322 6757273.20343972,930494.610325512 6577553.43685138,675236.835570551 6571367.64964125,668010.063156992 6750719.23021889))"
       getColorFromProperties={(item) => item.kampagne.color}
       itemFilterFunction={itemFilterFunction}
       classKeyFunction={(item) => item?.kampagne?.bezeichnung}
       convertItemToFeature={(_item) => {
         const f = convertItemToSimpleFeature(_item);
         f.properties.genericLinks = [
-          SteckbriefActionFactory({ setWaiting, item: f.properties, jwt, setJWT, setLoginInfo }),
+          SteckbriefActionFactory({
+            setWaiting,
+            item: f.properties,
+            jwt,
+            setJWT,
+            setLoginInfo,
+          }),
         ];
         return f;
       }}
@@ -235,7 +255,10 @@ function App() {
         <Title
           logout={() => {
             setJWT(undefined);
-            setLoginInfo({ color: "#69D2E7", text: "Sie wurden erfolgreich abgemeldet." });
+            setLoginInfo({
+              color: "#69D2E7",
+              text: "Sie wurden erfolgreich abgemeldet.",
+            });
             setTimeout(() => {
               setLoginInfo();
             }, 2500);

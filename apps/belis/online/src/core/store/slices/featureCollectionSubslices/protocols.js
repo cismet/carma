@@ -59,29 +59,29 @@ export const loadProtocollsIntoFeatureCollection = ({
             if (response?.ok) {
               const aaFeatures = createArbeitsauftragFeaturesForResults(
                 response.data.arbeitsauftrag,
-                true
+                true,
               );
               const newAAReplacement = aaFeatures[0];
               dispatch(
                 updateFeatureForMode({
                   mode: MODES.TASKLISTS,
                   feature: newAAReplacement,
-                })
+                }),
               );
               const result = response.data.arbeitsauftrag[0];
               features = getFeaturesForProtokollArray(
-                result.ar_protokolleArray
+                result.ar_protokolleArray,
               );
             } else {
               throw new Error(
-                "Error in fetchGraphQL (" + response.status + ")"
+                "Error in fetchGraphQL (" + response.status + ")",
               );
             }
           } else {
             //not enriched (thats the case when loading offline or after the second time online)
 
             features = getFeaturesForProtokollArray(
-              tasklistFeature.properties.ar_protokolleArray
+              tasklistFeature.properties.ar_protokolleArray,
             );
           }
 
@@ -93,28 +93,31 @@ export const loadProtocollsIntoFeatureCollection = ({
 
             integrateIntermediateResults(
               f,
-              state.offlineActionDb.intermediateResults
+              state.offlineActionDb.intermediateResults,
             );
           }
           features = featureClones;
           dispatch(
-            setFeatureCollectionForMode({ mode: MODES.PROTOCOLS, features })
+            setFeatureCollectionForMode({ mode: MODES.PROTOCOLS, features }),
           );
           dispatch(
-            setOriginForMode({ mode: MODES.PROTOCOLS, origin: tasklistFeature })
+            setOriginForMode({
+              mode: MODES.PROTOCOLS,
+              origin: tasklistFeature,
+            }),
           );
           dispatch(
             setFeatureCollectionInfoForMode({
               mode: MODES.PROTOCOLS,
               info: { typeCount: features.length },
-            })
+            }),
           );
           if (features.length === 1) {
             dispatch(
               setSelectedFeatureForMode({
                 mode: MODES.PROTOCOLS,
                 selectedFeature: features[0],
-              })
+              }),
             );
           }
           dispatch(setDoneForMode({ mode: MODES.PROTOCOLS, done: true }));
@@ -138,7 +141,7 @@ export const getFeaturesForProtokollArray = (protokollArray) => {
   }
 
   const sortedFeatures = features.sort(
-    (a, b) => a.properties.protokollnummer - b.properties.protokollnummer
+    (a, b) => a.properties.protokollnummer - b.properties.protokollnummer,
   );
   //add index to features
   let index = 0;

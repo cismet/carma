@@ -10,11 +10,11 @@ import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopic
 const InfoBox = (props) => {
   const featureCollectionContext = useContext(FeatureCollectionContext);
   const { setSelectedFeatureByPredicate } = useContext(
-    FeatureCollectionDispatchContext
+    FeatureCollectionDispatchContext,
   );
   const { selectedFeature, filterState } = featureCollectionContext;
   const { responsiveState, gap, windowSize, infoBoxPixelWidth } = useContext(
-    ResponsiveTopicMapContext
+    ResponsiveTopicMapContext,
   );
   const overlappingHeaders = [];
   let counter = 1;
@@ -49,7 +49,7 @@ const InfoBox = (props) => {
               headerColor={overlap.kampagne.color}
               content={overlap.kampagne.bezeichnung}
             ></InfoBoxHeader>
-          </div>
+          </div>,
         );
       }
       counter++;

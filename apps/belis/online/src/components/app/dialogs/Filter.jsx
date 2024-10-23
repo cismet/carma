@@ -63,7 +63,7 @@ const Filter = ({ filterStateFromRedux, refRoutedMap }) => {
                         overridingFilterState: _fs,
                         force: true,
                         jwt: jwt,
-                      })
+                      }),
                     );
                   }, 50);
                 }}

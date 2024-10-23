@@ -317,7 +317,7 @@ const BottomNavbar = ({
                     boundingBox: refRoutedMap.current.getBoundingBox(),
                     inFocusMode: switched,
                     jwt: jwt,
-                  })
+                  }),
                 );
               }, 300);
             }}

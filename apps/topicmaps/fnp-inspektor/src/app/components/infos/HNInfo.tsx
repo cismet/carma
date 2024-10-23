@@ -1,17 +1,17 @@
 import ResponsiveInfoBox, {
   MODES,
-} from 'react-cismap/topicmaps/ResponsiveInfoBox';
-import { useSelector } from 'react-redux';
+} from "react-cismap/topicmaps/ResponsiveInfoBox";
+import { useSelector } from "react-redux";
 import {
   getFeatureCollection,
   getSelectedFeatureIndex,
-} from '../../../store/slices/mapping';
-import Color from 'color';
+} from "../../../store/slices/mapping";
+import Color from "color";
 import {
   getColorForHauptnutzung,
   getLinkFromAEV,
   validFNPIcons,
-} from '../../../utils/FnpHelper';
+} from "../../../utils/FnpHelper";
 
 const HNInfo = () => {
   let paddingTop = 9;
@@ -21,13 +21,13 @@ const HNInfo = () => {
   const selectedFeature = features[selectedFeatureIndex];
 
   let name = selectedFeature.text;
-  const datetimeParts = (selectedFeature.properties.rechtswirksam || '').split(
-    ' '
+  const datetimeParts = (selectedFeature.properties.rechtswirksam || "").split(
+    " ",
   );
-  const dateParts = datetimeParts[0].split('-');
-  const date = dateParts[2] + '.' + dateParts[1] + '.' + dateParts[0];
+  const dateParts = datetimeParts[0].split("-");
+  const date = dateParts[2] + "." + dateParts[1] + "." + dateParts[0];
 
-  const nameParts = name.split('-');
+  const nameParts = name.split("-");
   let infoText;
   let oberbegriff;
 
@@ -39,10 +39,10 @@ const HNInfo = () => {
     infoText = nameParts[1];
   } else {
     //>2
-    oberbegriff = nameParts[0] + ' - ' + nameParts[1];
+    oberbegriff = nameParts[0] + " - " + nameParts[1];
     nameParts.shift(); //erstes Element Weg
     nameParts.shift(); //zweites Element Weg
-    infoText = nameParts.join('-');
+    infoText = nameParts.join("-");
   }
 
   const headerText = oberbegriff;
@@ -56,35 +56,35 @@ const HNInfo = () => {
   if (selectedFeature.properties.area > 0) {
     infoText = (
       <div>
-        <span>{infoText + ' '}</span>
-        <span style={{ whiteSpace: 'nowrap' }}>
-          {'(' +
-            (selectedFeature.properties.area + '').replace('.', ',') +
-            ' ha)'}
+        <span>{infoText + " "}</span>
+        <span style={{ whiteSpace: "nowrap" }}>
+          {"(" +
+            (selectedFeature.properties.area + "").replace(".", ",") +
+            " ha)"}
         </span>
       </div>
     );
   } else if (selectedFeature.properties.area === 0) {
     infoText = (
       <div>
-        <span>{infoText + ' '}</span>
-        <span style={{ whiteSpace: 'nowrap' }}>({'<'} 0,1 ha)</span>
+        <span>{infoText + " "}</span>
+        <span style={{ whiteSpace: "nowrap" }}>({"<"} 0,1 ha)</span>
       </div>
     );
   }
 
   let icon;
-  if (validFNPIcons.indexOf(os + '.svg') !== -1) {
+  if (validFNPIcons.indexOf(os + ".svg") !== -1) {
     icon = (
       <img
         alt=""
         style={{
-          borderColor: 'black',
+          borderColor: "black",
           padding: 4,
-          float: 'right',
-          maxWidth: '80px',
+          float: "right",
+          maxWidth: "80px",
         }}
-        src={'/images/fnp/' + os + '.svg'}
+        src={"/images/fnp/" + os + ".svg"}
       />
     );
   }
@@ -100,7 +100,7 @@ const HNInfo = () => {
   let divWhenLarge = (
     <div style={{ padding: 9 }}>
       {icon}
-      <h4 style={{ wordWrap: 'break-word' }}>{infoText}</h4>
+      <h4 style={{ wordWrap: "break-word" }}>{infoText}</h4>
       <p>
         <b>rechtswirksam seit: </b>
         {date}
@@ -111,7 +111,7 @@ const HNInfo = () => {
       </p>
       {sieheAuchLinks !== undefined && (
         <p>
-          <b>s. auch:</b>{' '}
+          <b>s. auch:</b>{" "}
           {sieheAuchLinks.length > 1 &&
             sieheAuchLinks.map((comp, index) => {
               if (index < sieheAuchLinks.length - 1) {
@@ -128,10 +128,10 @@ const HNInfo = () => {
       )}
       {selectedFeature.properties.bplan_nr !== undefined && (
         <p>
-          <b>Anlass: </b>{' '}
+          <b>Anlass: </b>{" "}
           <b>
             <a
-              href={'/#/docs/bplaene/' + selectedFeature.properties.bplan_nr}
+              href={"/#/docs/bplaene/" + selectedFeature.properties.bplan_nr}
               target="_bplaene"
             >
               B-Plan {selectedFeature.properties.bplan_nr}
@@ -146,7 +146,7 @@ const HNInfo = () => {
     <div style={{ paddingLeft: 9, paddingRight: 9 }}>
       {icon}
       <div style={{ paddingTop, paddingBottom: paddingTop }}>
-        <h4 style={{ verticalAlign: 'middle', margin }}>{infoText}</h4>
+        <h4 style={{ verticalAlign: "middle", margin }}>{infoText}</h4>
       </div>
     </div>
   );
@@ -154,19 +154,19 @@ const HNInfo = () => {
   let headerBackgroundColor = Color(getColorForHauptnutzung(selectedFeature));
 
   let llVis = (
-    <table style={{ width: '100%' }}>
+    <table style={{ width: "100%" }}>
       <tbody>
         <tr>
           <td
             style={{
-              textAlign: 'left',
-              verticalAlign: 'top',
+              textAlign: "left",
+              verticalAlign: "top",
               background: headerBackgroundColor,
-              color: 'black',
-              opacity: '0.9',
-              paddingLeft: '3px',
-              paddingTop: '0px',
-              paddingBottom: '0px',
+              color: "black",
+              opacity: "0.9",
+              paddingLeft: "3px",
+              paddingTop: "0px",
+              paddingBottom: "0px",
             }}
           >
             {headerText}

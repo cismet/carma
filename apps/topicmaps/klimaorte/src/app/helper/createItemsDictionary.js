@@ -191,7 +191,7 @@ const createItemsDictionary = (items) => {
                 angeboteInStandorte[standortId],
               angeboteInStandorte,
               standortId,
-            }
+            },
           );
         }
 

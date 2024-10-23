@@ -17,7 +17,7 @@ const SetStatusDialog = ({
   input = {},
 }) => {
   const selectedFeaturesForAllModes = useSelector(
-    getSelectedFeaturesForAllModes
+    getSelectedFeaturesForAllModes,
   );
   const arbeitsauftrag =
     selectedFeaturesForAllModes[MODES.TASKLISTS].properties;

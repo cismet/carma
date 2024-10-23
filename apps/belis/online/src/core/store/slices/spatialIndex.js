@@ -64,7 +64,7 @@ export const initIndex =
     const pointIndex = new kdbush(
       pointItems,
       (p) => coordinatesResolver(p)[0],
-      (p) => coordinatesResolver(p)[1]
+      (p) => coordinatesResolver(p)[1],
     );
 
     console.log(
@@ -72,7 +72,7 @@ export const initIndex =
         pointItems.length +
         " Objekten in " +
         (new Date().getTime() - current) +
-        " ms angelegt."
+        " ms angelegt.",
     );
 
     const currentL = new Date().getTime();
@@ -123,7 +123,7 @@ export const initIndex =
           features.length +
           " Objekten in " +
           (new Date().getTime() - currentL) +
-          " ms angelegt."
+          " ms angelegt.",
       );
     } else {
       lineIndex = new Flatbush(1);

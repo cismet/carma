@@ -1,19 +1,21 @@
-import { useContext } from 'react';
-import { FeatureCollectionContext } from 'react-cismap/contexts/FeatureCollectionContextProvider';
-import { getColorForProperties } from '../../../helper/styler';
-import { Doughnut } from 'react-chartjs-2';
-import 'chart.js/auto';
+import { useContext } from "react";
+import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
+import { getColorForProperties } from "../../../helper/styler";
+import { Doughnut } from "react-chartjs-2";
+import "chart.js/auto";
 
 const EBikesPieChart = ({ visible = true }) => {
-  const { filteredItems } = useContext<typeof FeatureCollectionContext>(FeatureCollectionContext);
+  const { filteredItems } = useContext<typeof FeatureCollectionContext>(
+    FeatureCollectionContext,
+  );
 
   const groupingFunction = (obj) => {
     let groupString = obj.typ;
-    if (groupString === 'Ladestation') {
+    if (groupString === "Ladestation") {
       if (obj.online === true) {
-        groupString = groupString + ' (online)';
+        groupString = groupString + " (online)";
       } else {
-        groupString = groupString + ' (offline)';
+        groupString = groupString + " (offline)";
       }
     }
     return groupString;
@@ -60,14 +62,14 @@ const EBikesPieChart = ({ visible = true }) => {
     return (
       <td
         style={{
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          alignContent: 'center',
-          justifyContent: 'center',
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          alignContent: "center",
+          justifyContent: "center",
         }}
       >
-        <div style={{ width: '40%' }}>
+        <div style={{ width: "40%" }}>
           <Doughnut
             data={data}
             options={{
@@ -77,12 +79,12 @@ const EBikesPieChart = ({ visible = true }) => {
                 },
                 title: {
                   display: true,
-                  text: 'Verteilung',
+                  text: "Verteilung",
                   font: {
-                    weight: 'bold',
+                    weight: "bold",
                     size: 20,
                   },
-                  color: 'black',
+                  color: "black",
                 },
               },
             }}

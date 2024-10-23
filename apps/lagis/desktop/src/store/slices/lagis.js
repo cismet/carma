@@ -87,7 +87,7 @@ export const fetchFlurstueck = (schluessel_id, alkis_id, navigate) => {
           schluessel_id,
           alkis_id,
         },
-        jwt
+        jwt,
       );
 
       if (result.status === 401) {
@@ -129,7 +129,7 @@ export const getGeomFromWuNDa = async (alkis_id, jwt, navigate) => {
     {
       alkis_id,
     },
-    jwt
+    jwt,
   );
   if (result.status === 401) {
     return navigate("/login");
@@ -144,7 +144,7 @@ export const fetchHistory = async (sid, jwt, dispatch, navigate) => {
       {
         schluessel_id: sid,
       },
-      jwt
+      jwt,
     );
     if (result.status === 401) {
       return navigate("/login");
@@ -161,7 +161,7 @@ const fetchRebe = async (geo, jwt, dispatch, navigate) => {
     {
       geo,
     },
-    jwt
+    jwt,
   );
   if (result.status === 401) {
     return navigate("/login");
@@ -174,7 +174,7 @@ const fetchMipa = async (geo, jwt, dispatch, navigate) => {
     {
       geo,
     },
-    jwt
+    jwt,
   );
   if (result.status === 401) {
     return navigate("/login");
@@ -189,7 +189,7 @@ export const fetchContractById = async (vertag_id, jwt, landparcel) => {
     {
       vertag_id,
     },
-    jwt
+    jwt,
   );
   if (result.data?.flurstueck) {
     const currentLandparcel =
@@ -393,7 +393,7 @@ export const switchToLandparcel = ({
     if (_gem && flur && fstck) {
       const fullGemarkung = getGemarkungByName(
         _gem,
-        landparcelInternaDataStructure
+        landparcelInternaDataStructure,
       );
       dispatch(storeSelectedGemarkung(fullGemarkung));
       const fullFlur = fullGemarkung.flure[padWithZeros(flur, 3)];
@@ -428,7 +428,7 @@ export const switchToLandparcel = ({
     } else if (_gem && flur) {
       const fullGemarkung = getGemarkungByName(
         _gem,
-        landparcelInternaDataStructure
+        landparcelInternaDataStructure,
       );
       dispatch(storeSelectedGemarkung(fullGemarkung));
       const fullFlur = fullGemarkung.flure[padWithZeros(flur, 3)];
@@ -443,7 +443,7 @@ export const switchToLandparcel = ({
       if (_gem || selectedGemarkung) {
         const fullGemarkung = getGemarkungByName(
           _gem,
-          landparcelInternaDataStructure
+          landparcelInternaDataStructure,
         );
         dispatch(storeSelectedGemarkung(fullGemarkung));
         dispatch(storeSelectedFlur());

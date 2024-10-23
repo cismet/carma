@@ -63,7 +63,7 @@ function App() {
     (async () => {
       // eslint-disable-next-line
       const jwtInCache = await localforage.getItem(
-        "@" + appKey + "." + "auth" + "." + "jwt"
+        "@" + appKey + "." + "auth" + "." + "jwt",
       );
       if (jwtInCache) {
         setJWT(jwtInCache);
@@ -84,7 +84,7 @@ function App() {
         tasks.push(md5ActionFetchDAQ4Dexie(appKey, apiUrl, jwt, daqKey, db));
       }
       tasks.push(
-        md5ActionFetchDAQ4Dexie(appKey, apiUrl, jwt, "ansprechpartner", db)
+        md5ActionFetchDAQ4Dexie(appKey, apiUrl, jwt, "ansprechpartner", db),
       );
       tasks.push(
         md5ActionFetchDAQ4Dexie(
@@ -92,8 +92,8 @@ function App() {
           apiUrl,
           jwt,
           "ansprechpartnerZustaendigkeit",
-          db
-        )
+          db,
+        ),
       );
 
       Promise.all(tasks).then(
@@ -113,7 +113,7 @@ function App() {
               indexAnsprechpartnerZustaendigkeit(
                 result.data,
                 "ansprechpartnerZustaendigkeit",
-                db
+                db,
               );
             }
           }
@@ -128,7 +128,7 @@ function App() {
           setTimeout(() => {
             setLoginInfo();
           }, 2500);
-        }
+        },
       );
     } else {
       setLoggedOut(true);

@@ -1,7 +1,7 @@
 export default function klimaortTitleFactory({ featureCollectionContext }) {
   const getThemaById = (id) => {
     const result = featureCollectionContext?.items?.find(
-      (item) => item?.thema?.id === id
+      (item) => item?.thema?.id === id,
     );
     return result?.thema?.name;
   };

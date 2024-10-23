@@ -306,7 +306,7 @@ export const getDocs = (feature) => {
     addDokumenteArrayOfDmsUrls(
       docs,
       feature?.properties?.veranlassung?.ar_dokumenteArray,
-      "Veranlassung"
+      "Veranlassung",
     );
 
     //add intermediate docs of veranlassung
@@ -327,19 +327,19 @@ export const getDocs = (feature) => {
       addDokumenteArrayOfDmsUrls(
         docs,
         item?.fk_standort?.dokumenteArray,
-        "Standort"
+        "Standort",
       );
       addDmsUrl(docs, item?.fk_leuchttyp?.dms_url, "Leuchtentyp");
       addDokumenteArrayOfDmsUrls(
         docs,
         item?.fk_leuchttyp?.dokumenteArray,
-        "Leuchtentyp"
+        "Leuchtentyp",
       );
       addDmsUrl(docs, item?.fk_standort?.tkey_masttyp?.dms_url, "Masttyp");
       addDokumenteArrayOfDmsUrls(
         docs,
         item?.fk_standort?.tkey_masttyp?.dokumenteArray,
-        "Masttyp"
+        "Masttyp",
       );
       return docs;
     case "Leitung":
@@ -354,7 +354,7 @@ export const getDocs = (feature) => {
       addDmsUrl(
         docs,
         item?.rundsteuerempfaenger?.dms_url,
-        "Rundsteuerempfänger"
+        "Rundsteuerempfänger",
       );
       return docs;
     case "abzweigdose":
@@ -366,7 +366,7 @@ export const getDocs = (feature) => {
       addDokumenteArrayOfDmsUrls(
         docs,
         item?.tkey_masttyp?.dokumenteArray,
-        "Masttyp"
+        "Masttyp",
       );
       return docs;
     case "arbeitsprotokoll":
@@ -435,7 +435,7 @@ const integrateIntermediateResultsIntoObjects = (
   intermediateResults,
   item,
   type,
-  id
+  id,
 ) => {
   // console.log("integrateIntermediateResultsIntoObjects " + type, id);
 
@@ -473,7 +473,7 @@ const addObject2ProtokollObject = (type, protokollObject, object) => {
 export const getNewIntermediateResults = (
   intermediateResults,
   type,
-  teamId
+  teamId,
 ) => {
   const newResults = [];
   switch (type) {
@@ -546,7 +546,7 @@ export const getNewIntermediateResults = (
             addObject2ProtokollObject(
               newTasklistIR.objekt_typ,
               newTasklist.ar_protokolleArray[0].arbeitsprotokoll,
-              newTasklistIR.objektFeature.properties
+              newTasklistIR.objektFeature.properties,
             );
 
             newResults.push(newTasklist);
@@ -571,7 +571,7 @@ export const integrateIntermediateResults = (feature, intermediateResults) => {
   docs = getIntermediateResultsImages(
     item,
     intermediateResults,
-    feature.featuretype.toLowerCase()
+    feature.featuretype.toLowerCase(),
   );
 
   switch (feature.featuretype) {
@@ -582,7 +582,7 @@ export const integrateIntermediateResults = (feature, intermediateResults) => {
         ...getIntermediateResultsImages(
           item?.fk_standort,
           intermediateResults,
-          "tdta_standort_mast"
+          "tdta_standort_mast",
         ),
       ];
       docs = [
@@ -590,7 +590,7 @@ export const integrateIntermediateResults = (feature, intermediateResults) => {
         ...getIntermediateResultsImages(
           item?.fk_leuchttyp,
           intermediateResults,
-          "tkey_leuchtentyp"
+          "tkey_leuchtentyp",
         ),
       ];
       docs = [
@@ -598,20 +598,20 @@ export const integrateIntermediateResults = (feature, intermediateResults) => {
         ...getIntermediateResultsImages(
           item?.fk_standort?.tkey_masttyp,
           intermediateResults,
-          "tkey_masttyp"
+          "tkey_masttyp",
         ),
       ];
       integrateIntermediateResultsIntoObjects(
         intermediateResults,
         item,
         "tdta_leuchten",
-        item.id
+        item.id,
       );
       integrateIntermediateResultsIntoObjects(
         intermediateResults,
         item.fk_standort,
         "tdta_standort_mast",
-        item.fk_standort.id
+        item.fk_standort.id,
       );
 
       break;
@@ -621,7 +621,7 @@ export const integrateIntermediateResults = (feature, intermediateResults) => {
         intermediateResults,
         item,
         "leitung",
-        item.id
+        item.id,
       );
       break;
     case "mauerlasche":
@@ -629,7 +629,7 @@ export const integrateIntermediateResults = (feature, intermediateResults) => {
         intermediateResults,
         item,
         "mauerlasche",
-        item.id
+        item.id,
       );
 
       break;
@@ -638,14 +638,14 @@ export const integrateIntermediateResults = (feature, intermediateResults) => {
         getIntermediateResultsImages(
           item?.rundsteuerempfaenger,
           intermediateResults,
-          "Rundsteuerempfänger"
-        )
+          "Rundsteuerempfänger",
+        ),
       );
       integrateIntermediateResultsIntoObjects(
         intermediateResults,
         item,
         "schaltstelle",
-        item.id
+        item.id,
       );
 
       break;
@@ -655,7 +655,7 @@ export const integrateIntermediateResults = (feature, intermediateResults) => {
         intermediateResults,
         item,
         "abzweigdose",
-        item.id
+        item.id,
       );
 
       break;
@@ -664,14 +664,14 @@ export const integrateIntermediateResults = (feature, intermediateResults) => {
         getIntermediateResultsImages(
           item?.tkey_masttyp,
           intermediateResults,
-          "tkey_masttyp"
-        )
+          "tkey_masttyp",
+        ),
       );
       integrateIntermediateResultsIntoObjects(
         intermediateResults,
         item,
         "tdta_standort_mast",
-        item.id
+        item.id,
       );
 
       break;
@@ -691,7 +691,7 @@ export const integrateIntermediateResults = (feature, intermediateResults) => {
             for (const protIR of irs?.object) {
               console.log(
                 "xxx found a candidate to incorportae intermediate changes",
-                protIR
+                protIR,
               );
               //check if arbeitsprotokoll already exists (ccnonce check)
               const found = item.ar_protokolleArray.find((p) => {
@@ -744,7 +744,7 @@ export const integrateIntermediateResults = (feature, intermediateResults) => {
                 addObject2ProtokollObject(
                   protIR.objekt_typ,
                   newArbeitsprotokoll.arbeitsprotokoll,
-                  protIR.objektFeature.properties
+                  protIR.objektFeature.properties,
                 );
 
                 item.ar_protokolleArray.push(newArbeitsprotokoll);
@@ -779,7 +779,7 @@ export const integrateIntermediateResults = (feature, intermediateResults) => {
                   intermediateResults,
                   item.tdta_leuchten,
                   "tdta_leuchten",
-                  item.tdta_leuchten.id
+                  item.tdta_leuchten.id,
                 );
 
                 break;
@@ -789,13 +789,13 @@ export const integrateIntermediateResults = (feature, intermediateResults) => {
                   intermediateResults,
                   item.tdta_leuchten,
                   "tdta_leuchten",
-                  item.tdta_leuchten.id
+                  item.tdta_leuchten.id,
                 );
                 integrateIntermediateResultsIntoObjects(
                   intermediateResults,
                   item.tdta_leuchten.fk_standort,
                   "tdta_standort_mast",
-                  item.tdta_leuchten.fk_standort.id
+                  item.tdta_leuchten.fk_standort.id,
                 );
 
                 break;
@@ -808,7 +808,7 @@ export const integrateIntermediateResults = (feature, intermediateResults) => {
                   intermediateResults,
                   item.tdta_leuchten,
                   "tdta_leuchten",
-                  item.tdta_leuchten.id
+                  item.tdta_leuchten.id,
                 );
                 break;
               case "protokollStandortAnstricharbeiten":
@@ -823,14 +823,14 @@ export const integrateIntermediateResults = (feature, intermediateResults) => {
                     intermediateResults,
                     item.tdta_standort_mast,
                     "tdta_standort_mast",
-                    item.tdta_standort_mast.id
+                    item.tdta_standort_mast.id,
                   );
                 } else if (item.tdta_leuchten.fk_standort) {
                   integrateIntermediateResultsIntoObjects(
                     intermediateResults,
                     item.tdta_leuchten.fk_standort,
                     "tdta_standort_mast",
-                    item.tdta_leuchten.fk_standort.id
+                    item.tdta_leuchten.fk_standort.id,
                   );
                 }
                 break;
@@ -841,7 +841,7 @@ export const integrateIntermediateResults = (feature, intermediateResults) => {
                   intermediateResults,
                   item.mauerlasche,
                   "mauerlasche",
-                  item.mauerlasche.id
+                  item.mauerlasche.id,
                 );
                 break;
               case "protokollSchaltstelleRevision":
@@ -850,7 +850,7 @@ export const integrateIntermediateResults = (feature, intermediateResults) => {
                   intermediateResults,
                   item.schaltstelle,
                   "schaltstelle",
-                  item.schaltstelle.id
+                  item.schaltstelle.id,
                 );
                 break;
               case "protokollFortfuehrungsantrag":
@@ -910,7 +910,7 @@ const setStatusAndAktionsArrayStuff = (ir, item) => {
   // probably check whether the ts from the inetrmediate action is newer than the retrieved ts
 
   item.arbeitsprotokollaktionArray = JSON.parse(
-    JSON.stringify(item.arbeitsprotokollaktionArray || [])
+    JSON.stringify(item.arbeitsprotokollaktionArray || []),
   );
   for (const protAktion of ir.protokollAktionArray || []) {
     //check if the action is already in the array
@@ -921,7 +921,7 @@ const setStatusAndAktionsArrayStuff = (ir, item) => {
         a.aenderung === protAktion.aenderung &&
         // a.alt === protAktion.alt &&
         // a.neu === protAktion.neu &&
-        a.ccnonce === protAktion.ccnonce
+        a.ccnonce === protAktion.ccnonce,
     );
 
     if (!found) {
@@ -1005,13 +1005,13 @@ export const compareFeature = (a, b) => {
             } else {
               return compareValue(
                 a.kennziffer?.kennziffer,
-                b.kennziffer?.kennziffer
+                b.kennziffer?.kennziffer,
               );
             }
           } else {
             return compareValue(
               a.fk_strassenschluessel?.strasse,
-              b.fk_strassenschluessel?.strasse
+              b.fk_strassenschluessel?.strasse,
             );
           }
 
@@ -1020,7 +1020,7 @@ export const compareFeature = (a, b) => {
           try {
             return compareValue(
               a.geometry.coordinates[0][1],
-              b.geometry.coordinates[0][1]
+              b.geometry.coordinates[0][1],
             );
           } catch (e) {
             console.log("error during compare", e);
@@ -1054,7 +1054,7 @@ export const compareFeature = (a, b) => {
           } else {
             return compareValue(
               a.fk_strassenschluessel?.strasse,
-              b.fk_strassenschluessel?.strasse
+              b.fk_strassenschluessel?.strasse,
             );
           }
 
@@ -1072,7 +1072,7 @@ export const compareFeature = (a, b) => {
           } else {
             return compareValue(
               a.fk_strassenschluessel?.strasse,
-              b.fk_strassenschluessel?.strasse
+              b.fk_strassenschluessel?.strasse,
             );
           }
 

@@ -1,6 +1,12 @@
 import { CACHE_JWT } from "react-cismap/tools/fetching";
 
-const SteckbriefActionFactory = ({ setWaiting, item, jwt, setJWT, setLoginInfo }) => {
+const SteckbriefActionFactory = ({
+  setWaiting,
+  item,
+  jwt,
+  setJWT,
+  setLoginInfo,
+}) => {
   return {
     action: () => {
       if (jwt && jwt !== CACHE_JWT) {
@@ -20,7 +26,7 @@ const SteckbriefActionFactory = ({ setWaiting, item, jwt, setJWT, setLoginInfo }
           "taskparams",
           new Blob([JSON.stringify(taskParameters)], {
             type: "application/json",
-          })
+          }),
         );
         fetch(
           // "https://potenzialflaechen-online-api.cismet.de/users",
@@ -36,7 +42,7 @@ const SteckbriefActionFactory = ({ setWaiting, item, jwt, setJWT, setLoginInfo }
               // Accept: "application/json",
             },
             body: fd,
-          }
+          },
         )
           .then(function (response) {
             if (response.status >= 200 && response.status < 300) {
@@ -53,7 +59,9 @@ const SteckbriefActionFactory = ({ setWaiting, item, jwt, setJWT, setLoginInfo }
                   try {
                     fetch(pdfUrl).then((response) => {
                       response.blob().then((blob) => {
-                        const newBlob = new Blob([blob], { type: "application/pdf" });
+                        const newBlob = new Blob([blob], {
+                          type: "application/pdf",
+                        });
                         const url = window.URL.createObjectURL(newBlob);
                         var link = document.createElement("a");
                         link.href = url;
@@ -108,7 +116,9 @@ const SteckbriefActionFactory = ({ setWaiting, item, jwt, setJWT, setLoginInfo }
       }
     },
     iconname: "file-pdf",
-    tooltip: "Steckbrief erzeugen" + (jwt === CACHE_JWT ? " (Im Offline Modus nicht möglich)" : ""),
+    tooltip:
+      "Steckbrief erzeugen" +
+      (jwt === CACHE_JWT ? " (Im Offline Modus nicht möglich)" : ""),
   };
 };
 

@@ -1,34 +1,34 @@
-import { configureStore } from '@reduxjs/toolkit';
-import aevSlice from './slices/aenderungsverfahren';
-import hauptnutzungenSlice from './slices/hauptnutzungen';
-import mappingSlice from './slices/mapping';
-import { createLogger } from 'redux-logger';
-import { persistReducer } from 'redux-persist';
-import { APP_KEY, STORAGE_PREFIX } from '../constants/fnp';
-import localForage from 'localforage';
+import { configureStore } from "@reduxjs/toolkit";
+import aevSlice from "./slices/aenderungsverfahren";
+import hauptnutzungenSlice from "./slices/hauptnutzungen";
+import mappingSlice from "./slices/mapping";
+import { createLogger } from "redux-logger";
+import { persistReducer } from "redux-persist";
+import { APP_KEY, STORAGE_PREFIX } from "../constants/fnp";
+import localForage from "localforage";
 
-console.log('store initializing ....');
+console.log("store initializing ....");
 
 const devToolsEnabled =
-  new URLSearchParams(window.location.search).get('devToolsEnabled') === 'true';
-console.log('devToolsEnabled:', devToolsEnabled);
+  new URLSearchParams(window.location.search).get("devToolsEnabled") === "true";
+console.log("devToolsEnabled:", devToolsEnabled);
 const stateLoggingEnabledFromSearch = new URLSearchParams(
-  window.location.search
-).get('stateLoggingEnabled');
+  window.location.search,
+).get("stateLoggingEnabled");
 
-const inProduction = process.env.NODE_ENV === 'production';
+const inProduction = process.env.NODE_ENV === "production";
 
-console.log('in Production Mode:', inProduction);
+console.log("in Production Mode:", inProduction);
 const stateLoggingEnabled =
   (stateLoggingEnabledFromSearch !== null &&
-    stateLoggingEnabledFromSearch !== 'false') ||
+    stateLoggingEnabledFromSearch !== "false") ||
   !inProduction;
 
 console.log(
-  'stateLoggingEnabled:',
+  "stateLoggingEnabled:",
   stateLoggingEnabledFromSearch,
-  'x',
-  stateLoggingEnabled
+  "x",
+  stateLoggingEnabled,
 );
 const logger = createLogger({
   collapsed: true,
@@ -48,19 +48,19 @@ if (stateLoggingEnabled === true) {
 }
 
 const aevConfig = {
-  key: '@' + APP_KEY + '.' + STORAGE_PREFIX + '.app.aev',
+  key: "@" + APP_KEY + "." + STORAGE_PREFIX + ".app.aev",
   storage: localForage,
-  whitelist: ['data'],
+  whitelist: ["data"],
 };
 
 const hauptnutzungenConfig = {
-  key: '@' + APP_KEY + '.' + STORAGE_PREFIX + '.app.hauptnutzungen',
+  key: "@" + APP_KEY + "." + STORAGE_PREFIX + ".app.hauptnutzungen",
   storage: localForage,
-  whitelist: ['data'],
+  whitelist: ["data"],
 };
 
 const mappingConfig = {
-  key: '@' + APP_KEY + '.' + STORAGE_PREFIX + '.app.mapping',
+  key: "@" + APP_KEY + "." + STORAGE_PREFIX + ".app.mapping",
   storage: localForage,
   whitelist: [],
 };
@@ -70,7 +70,7 @@ export default configureStore({
     aev: persistReducer(aevConfig, aevSlice.reducer),
     hauptnutzungen: persistReducer(
       hauptnutzungenConfig,
-      hauptnutzungenSlice.reducer
+      hauptnutzungenSlice.reducer,
     ),
     mapping: persistReducer(mappingConfig, mappingSlice.reducer),
   },

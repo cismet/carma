@@ -19,7 +19,7 @@ const Row = ({ title, id }) => {
   const dispatch = useDispatch();
   const geometries = useSelector(getGeneralGeometryCollection);
   const currentGeometry = geometries.find(
-    (geometry) => geometry.properties.id === id
+    (geometry) => geometry.properties.id === id,
   );
 
   return (

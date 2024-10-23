@@ -1,21 +1,21 @@
-import dayjs from 'dayjs';
+import dayjs from "dayjs";
 import {
   createStyler,
   getMarkerStyleFromFeatureConsideringSelection,
-} from './mappingTools';
+} from "./mappingTools";
 
 export const generalExtractor = (kassenzeichen, aenderungsAnfrage) => {
-  const dateFormat = 'DD.MM.YYYY';
+  const dateFormat = "DD.MM.YYYY";
   const bemerkungsObject = kassenzeichen?.bemerkung;
   let formattedBemerkungen;
   if (bemerkungsObject) {
     try {
       const bemerkungen = JSON.parse(bemerkungsObject).bemerkungen.map(
-        (bemerkung) => bemerkung.bemerkung
+        (bemerkung) => bemerkung.bemerkung,
       );
-      formattedBemerkungen = bemerkungen.join('\n');
+      formattedBemerkungen = bemerkungen.join("\n");
     } catch (error) {
-      console.log('error', error);
+      console.log("error", error);
 
       formattedBemerkungen = bemerkungsObject;
     }
@@ -24,7 +24,7 @@ export const generalExtractor = (kassenzeichen, aenderungsAnfrage) => {
     date: kassenzeichen?.datum_erfassung
       ? dayjs(
           dayjs(kassenzeichen?.datum_erfassung).format(dateFormat),
-          dateFormat
+          dateFormat,
         )
       : null,
     bemerkung: formattedBemerkungen,
@@ -39,31 +39,31 @@ export const statisticsExtractor = (kassenzeichen, aenderungsAnfrage) => {
   return [
     {
       value: kassenzeichen?.flaechenArray?.length,
-      title: 'Flächen',
+      title: "Flächen",
     },
     {
       value: kassenzeichen?.frontenArray?.length,
-      title: 'Fronten',
+      title: "Fronten",
     },
     {
       value:
         kassenzeichen?.kanalanschlussObject?.befreiungenunderlaubnisseArray
           ?.length,
-      title: 'Versickerungsgenehmigungen',
+      title: "Versickerungsgenehmigungen",
     },
     {
       value: kassenzeichen?.kassenzeichen_geometrienArray?.length,
-      title: 'Geometrien',
+      title: "Geometrien",
     },
     {
       value: aenderungsAnfrage?.length,
-      title: 'Änderungsanfragen',
+      title: "Änderungsanfragen",
     },
   ];
 };
 
 const extractNumber = (typeKey) => {
-  return parseInt(typeKey.split('-')[0]);
+  return parseInt(typeKey.split("-")[0]);
 };
 
 export const sumsExtractor = (kassenzeichen) => {
@@ -83,22 +83,22 @@ export const sumsExtractor = (kassenzeichen) => {
 
   data?.forEach((obj) => {
     const { type, connection, size } = obj;
-    let typeKey = '';
+    let typeKey = "";
 
-    if (type === 'VF') {
-      if (connection === 'vers.') {
-        typeKey = '999-Rest';
+    if (type === "VF") {
+      if (connection === "vers.") {
+        typeKey = "999-Rest";
       } else {
-        typeKey = '720-VF';
+        typeKey = "720-VF";
       }
     }
 
-    if (type === 'DF') {
-      typeKey = '710-DF';
+    if (type === "DF") {
+      typeKey = "710-DF";
     }
 
     if (!typeKey) {
-      typeKey = '999-Rest';
+      typeKey = "999-Rest";
     }
 
     if (!typeSizeMap.has(typeKey)) {
@@ -124,11 +124,11 @@ export const sumsExtractor = (kassenzeichen) => {
 
   return [
     {
-      title: 'Veranlagung',
+      title: "Veranlagung",
       items: types,
     },
     {
-      title: 'Anschlussgrad',
+      title: "Anschlussgrad",
       items: connections,
     },
   ];
@@ -139,7 +139,7 @@ export const summaryExtractor = (kassenzeichen) => {
     key:
       front?.frontObject?.frontinfoObject?.lage_sr_satzung?.strassenreinigung
         ?.key +
-      '-' +
+      "-" +
       front?.frontObject?.frontinfoObject?.lage_sr_satzung?.strassenreinigung
         ?.schluessel,
     streetNumber:
@@ -170,7 +170,7 @@ export const summaryExtractor = (kassenzeichen) => {
 
 export const areasDetailsExtractor = (
   kassenzeichen,
-  crossReferencesPerArea
+  crossReferencesPerArea,
 ) => {
   const data = kassenzeichen?.flaechenArray?.map((row) => {
     const flaeche = row?.flaecheObject;
@@ -209,13 +209,13 @@ export const sewerConnectionExtractor = (kassenzeichen) => {
   const getSelectValue = (angeschlossen) => {
     switch (angeschlossen) {
       case 0:
-        return 'ja';
+        return "ja";
       case 1:
-        return 'nein';
+        return "nein";
       case 2:
-        return 'unklar';
+        return "unklar";
       default:
-        return '';
+        return "";
     }
   };
 
@@ -256,20 +256,20 @@ export const fileNumberExtractor = (kassenzeichen) => {
       (befreiungErlaubnis) => ({
         title:
           befreiungErlaubnis?.befreiungerlaubnisObject?.aktenzeichen +
-          ' (' +
+          " (" +
           befreiungErlaubnis?.befreiungerlaubnisObject
             ?.befreiungerlaubnis_nutzung?.name +
-          ')',
+          ")",
         data: befreiungErlaubnis?.befreiungerlaubnisObject?.befreiungerlaubnis_geometrieArrayRelationShip?.map(
           (relationship) => ({
             title:
               relationship?.befreiungerlaubnis_geometrie_typ_versickerung
                 ?.name ||
               relationship?.befreiungerlaubnis_geometrie_typ_einleitung?.name,
-            value: relationship?.durchfluss + ' l/s',
-          })
+            value: relationship?.durchfluss + " l/s",
+          }),
         ),
-      })
+      }),
     );
 
   return data;
@@ -282,10 +282,10 @@ export const exemptionExtractor = (kassenzeichen) => {
         key: i,
         name:
           befreiungErlaubnis?.befreiungerlaubnisObject?.aktenzeichen +
-          ' (' +
+          " (" +
           befreiungErlaubnis?.befreiungerlaubnisObject
             ?.befreiungerlaubnis_nutzung?.name +
-          ')',
+          ")",
         aktenzeichen:
           befreiungErlaubnis?.befreiungerlaubnisObject?.aktenzeichen,
         seepageFrom: befreiungErlaubnis?.befreiungerlaubnisObject?.antrag_vom,
@@ -314,7 +314,7 @@ export const exemptionExtractor = (kassenzeichen) => {
           befreiungErlaubnis?.befreiungerlaubnisObject
             ?.befreiungerlaubnis_geometrieArrayRelationShip[0]?.gewaessername,
         id: befreiungErlaubnis?.id,
-      })
+      }),
     );
 
   return data;
@@ -372,7 +372,7 @@ export const mappingExtractor = ({
   shownFeatureTypes,
   ondblclick,
 }) => {
-  if (kassenzeichen !== undefined && JSON.stringify(kassenzeichen) !== '{}') {
+  if (kassenzeichen !== undefined && JSON.stringify(kassenzeichen) !== "{}") {
     const featureArray = [];
     const allFeatures = [
       ...(flaechenArray || []),
@@ -380,19 +380,19 @@ export const mappingExtractor = ({
       ...(generalGeomArray || []),
       ...(befreiungErlaubnisseArray || []),
     ];
-    if (shownFeatureTypes.includes('front')) {
+    if (shownFeatureTypes.includes("front")) {
       //add frontenArray to featureArray
       featureArray.push(...(frontenArray || []));
     }
-    if (shownFeatureTypes.includes('general')) {
+    if (shownFeatureTypes.includes("general")) {
       //add generalGeomArray to featureArray
       featureArray.push(...(generalGeomArray || []));
     }
-    if (shownFeatureTypes.includes('flaeche')) {
+    if (shownFeatureTypes.includes("flaeche")) {
       //add flaechenArray to featureArray
       featureArray.push(...(flaechenArray || []));
     }
-    if (shownFeatureTypes.includes('befreiung')) {
+    if (shownFeatureTypes.includes("befreiung")) {
       //add flaechenArray to featureArray
       featureArray.push(...(befreiungErlaubnisseArray || []));
     }

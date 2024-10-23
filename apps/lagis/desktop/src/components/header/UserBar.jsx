@@ -37,7 +37,7 @@ const UserBar = () => {
       const zaehler = fstckArr[0];
       const nenner = fstckArr[1];
       fetch(
-        `http://localhost:19000/loadFlurstueck?gemarkung=${gemarkung}&flur=${flur}&zaehler=${zaehler}&nenner=${nenner}`
+        `http://localhost:19000/loadFlurstueck?gemarkung=${gemarkung}&flur=${flur}&zaehler=${zaehler}&nenner=${nenner}`,
       ).catch((error) => {
         //  i expect an error here
       });

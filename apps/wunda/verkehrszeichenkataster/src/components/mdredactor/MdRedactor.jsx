@@ -47,7 +47,7 @@ const ViewMode = (props) => {
 
   useEffect(() => {
     const toolbarLeft = props.config.menuRef.current.querySelector(
-      ".navigation-nav.left"
+      ".navigation-nav.left",
     );
     if (isPreviewActive) {
       toolbarLeft.classList.add("hide-tools");

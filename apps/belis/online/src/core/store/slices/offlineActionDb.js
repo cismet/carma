@@ -1,20 +1,20 @@
-import { createSlice } from '@reduxjs/toolkit';
-import slugify from 'slugify';
+import { createSlice } from "@reduxjs/toolkit";
+import slugify from "slugify";
 
-import * as offlineDatabase from '../../commons/offlineActionDbHelper';
-import { getTaskForAction } from '../../commons/taskHelper';
-import actions from './actionSubslices';
-import { getJWT, getLoginFromJWT } from './auth';
+import * as offlineDatabase from "../../commons/offlineActionDbHelper";
+import { getTaskForAction } from "../../commons/taskHelper";
+import actions from "./actionSubslices";
+import { getJWT, getLoginFromJWT } from "./auth";
 import {
   integrateIntermediateResultsIntofeatureCollection,
   setDone,
-} from './featureCollection';
-import { DB_VERSION } from '../../../constants/belis';
+} from "./featureCollection";
+import { DB_VERSION } from "../../../constants/belis";
 
 const initialState = { tasks: [], rawTasks: [], intermediateResults: {} };
 
 const slice = createSlice({
-  name: 'offlineActionDb',
+  name: "offlineActionDb",
   initialState,
   reducers: {
     storeDB(state, action) {
@@ -73,16 +73,16 @@ export const initialize = (storedJWT) => {
           let rep = new offlineDatabase.GraphQLReplicator(d);
 
           const errorCallback = (error) => {
-            console.log('error occured', error);
+            console.log("error occured", error);
           };
           const changeCallback = (action) => {
             // console.log("change occured", action);
           };
           const login = getLoginFromJWT(jwt);
           rep.restart(
-            { userId: login + '@belis', idToken: jwt },
+            { userId: login + "@belis", idToken: jwt },
             errorCallback,
-            changeCallback
+            changeCallback,
           );
 
           dispatch(storeRep(rep));
@@ -92,9 +92,9 @@ export const initialize = (storedJWT) => {
 
           const query = d.actions
             .find()
-            .where('applicationId')
-            .eq(login + '@belis')
-            .sort({ createdAt: 'desc' });
+            .where("applicationId")
+            .eq(login + "@belis")
+            .sort({ createdAt: "desc" });
 
           query.$.subscribe((results) => {
             const tasks = [];
@@ -106,16 +106,16 @@ export const initialize = (storedJWT) => {
             dispatch(slice.actions.setRawTasks(results));
           });
         } else {
-          console.error('offline database not available', jwt);
+          console.error("offline database not available", jwt);
 
-          throw new Error('offline database not available', jwt);
+          throw new Error("offline database not available", jwt);
         }
       })
       .catch((e) => {
-        console.error('offline database not available', e);
-        console.log('HIER IST WAS SCHIEF GELAUFEN');
+        console.error("offline database not available", e);
+        console.log("HIER IST WAS SCHIEF GELAUFEN");
 
-        throw new Error('offline database not available', e);
+        throw new Error("offline database not available", e);
       });
   };
 };
@@ -126,8 +126,8 @@ export const reInitialize = (storedJWT) => {
     const jwt = storedJWT ? storedJWT : getJWT(state);
     const oldRep = getRep(state);
     const login = getLoginFromJWT(jwt);
-    const loginLowerCase = (login || '').toLowerCase();
-    const d = window['db_' + DB_VERSION + '_' + loginLowerCase];
+    const loginLowerCase = (login || "").toLowerCase();
+    const d = window["db_" + DB_VERSION + "_" + loginLowerCase];
 
     if (oldRep) {
       oldRep.dispose();
@@ -136,23 +136,23 @@ export const reInitialize = (storedJWT) => {
     let rep = new offlineDatabase.GraphQLReplicator(d);
 
     const errorCallback = (error) => {
-      console.log('error occured', error);
+      console.log("error occured", error);
     };
     const changeCallback = (action) => {
-      console.log('change occured', action);
+      console.log("change occured", action);
     };
     rep.restart(
-      { userId: login + '@belis', idToken: jwt },
+      { userId: login + "@belis", idToken: jwt },
       errorCallback,
-      changeCallback
+      changeCallback,
     );
     dispatch(storeRep(rep));
     dispatch(storeDB(d));
     const query = d.actions
       .find()
-      .where('applicationId')
-      .eq(login + '@belis')
-      .sort({ createdAt: 'desc' });
+      .where("applicationId")
+      .eq(login + "@belis")
+      .sort({ createdAt: "desc" });
     query.$.subscribe((results) => {
       const tasks = [];
       for (const result of results) {
@@ -175,7 +175,7 @@ export const truncateActionTables = () => {
       db.actions.remove();
 
       db.destroy().then((res) => {
-        window['dbInit'] = undefined;
+        window["dbInit"] = undefined;
         dispatch(initialize());
         dispatch(setDone(true));
       });
@@ -192,17 +192,17 @@ export const resyncDb = (currentJwt) => {
       const jwt = currentJwt ? currentJwt : getJWT(getState());
 
       const errorCallback = (error) => {
-        console.log('error occured', error);
+        console.log("error occured", error);
       };
       const changeCallback = (action) => {
-        console.log('change occured', action);
+        console.log("change occured", action);
       };
 
       const login = getLoginFromJWT(jwt);
       rep.restart(
-        { userId: login + '@belis', idToken: jwt },
+        { userId: login + "@belis", idToken: jwt },
         errorCallback,
-        changeCallback
+        changeCallback,
       );
     }
   };
@@ -223,15 +223,15 @@ export const setSyncPoint = (time) => {
 
 export const clearIntermediateResults = (object_type) => {
   return async (dispatch, getState) => {
-    if (object_type === 'arbeitsauftrag') {
-      dispatch(clearIntermediateResults('arbeitsprotokoll'));
+    if (object_type === "arbeitsauftrag") {
+      dispatch(clearIntermediateResults("arbeitsprotokoll"));
     }
     const stateIntermediateResults = getIntermediateResults(getState()) || {};
     let intermediateResultsCopy;
     if (stateIntermediateResults[object_type]) {
       if (!intermediateResultsCopy) {
         intermediateResultsCopy = JSON.parse(
-          JSON.stringify(stateIntermediateResults)
+          JSON.stringify(stateIntermediateResults),
         );
       }
       delete intermediateResultsCopy[object_type];
@@ -256,7 +256,7 @@ export const addIntermediateResult = (intermediateResult) => {
     //      ts: the timestamp of the image
     const stateIntermediateResults = getIntermediateResults(getState()) || {};
     const intermediateResults = JSON.parse(
-      JSON.stringify(stateIntermediateResults)
+      JSON.stringify(stateIntermediateResults),
     );
 
     if (!intermediateResults[intermediateResult.object_type]) {
@@ -286,17 +286,17 @@ export const addIntermediateResult = (intermediateResult) => {
 
     dispatch(storeIntermediateResults(intermediateResults));
     dispatch(
-      integrateIntermediateResultsIntofeatureCollection(intermediateResults)
+      integrateIntermediateResultsIntofeatureCollection(intermediateResults),
     );
   };
 };
 function downloadObjectAsJson(exportObj, exportName) {
   var dataStr =
-    'data:text/json;charset=utf-8,' +
+    "data:text/json;charset=utf-8," +
     encodeURIComponent(JSON.stringify(exportObj));
-  var downloadAnchorNode = document.createElement('a');
-  downloadAnchorNode.setAttribute('href', dataStr);
-  downloadAnchorNode.setAttribute('download', exportName + '.json');
+  var downloadAnchorNode = document.createElement("a");
+  downloadAnchorNode.setAttribute("href", dataStr);
+  downloadAnchorNode.setAttribute("download", exportName + ".json");
   document.body.appendChild(downloadAnchorNode); // required for firefox
   downloadAnchorNode.click();
   downloadAnchorNode.remove();
@@ -306,11 +306,11 @@ export const downloadTasks = () => {
   return async (dispatch, getState) => {
     const state = getState();
     const rawTasks = getRawTasks(state);
-    console.log('will export' + rawTasks?.length + ' tasks');
+    console.log("will export" + rawTasks?.length + " tasks");
 
     downloadObjectAsJson(
       rawTasks,
-      'tasks' + slugify(new Date().toLocaleString())
+      "tasks" + slugify(new Date().toLocaleString()),
     );
   };
 };

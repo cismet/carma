@@ -517,44 +517,44 @@ const getSubActionInfoForProtocolAction = ({ selectedFeature, dispatch }) => {
       break;
     case "tdta_leuchten":
       subs.push(
-        getSubInfoForKey("leuchtenerneuerung", dispatch, selectedFeature)
+        getSubInfoForKey("leuchtenerneuerung", dispatch, selectedFeature),
       );
       subs.push(
-        getSubInfoForKey("leuchtmittelwechselEP", dispatch, selectedFeature)
+        getSubInfoForKey("leuchtmittelwechselEP", dispatch, selectedFeature),
       );
       subs.push(
-        getSubInfoForKey("leuchtmittelwechsel", dispatch, selectedFeature)
+        getSubInfoForKey("leuchtmittelwechsel", dispatch, selectedFeature),
       );
       subs.push(
         getSubInfoForKey(
           "rundsteuerempfaengerwechsel",
           dispatch,
-          selectedFeature
-        )
+          selectedFeature,
+        ),
       );
       subs.push(getSubInfoForKey("sonderturnus", dispatch, selectedFeature));
       subs.push(
-        getSubInfoForKey("vorschaltgeraetewechsel", dispatch, selectedFeature)
+        getSubInfoForKey("vorschaltgeraetewechsel", dispatch, selectedFeature),
       );
       break;
     case "tdta_standort_mast":
       subs.push(
-        getSubInfoForKey("anstricharbeiten", dispatch, selectedFeature)
+        getSubInfoForKey("anstricharbeiten", dispatch, selectedFeature),
       );
       subs.push(getSubInfoForKey("ep", dispatch, selectedFeature));
       subs.push(getSubInfoForKey("masterneuerung", dispatch, selectedFeature));
       subs.push(
-        getSubInfoForKey("standortrevision", dispatch, selectedFeature)
+        getSubInfoForKey("standortrevision", dispatch, selectedFeature),
       );
       subs.push(
-        getSubInfoForKey("standsicherheitspruefung", dispatch, selectedFeature)
+        getSubInfoForKey("standsicherheitspruefung", dispatch, selectedFeature),
       );
       break;
     case "leitung":
       break;
     case "schaltstelle":
       subs.push(
-        getSubInfoForKey("schaltstellerevision", dispatch, selectedFeature)
+        getSubInfoForKey("schaltstellerevision", dispatch, selectedFeature),
       );
       break;
     case "abzweigdose":
