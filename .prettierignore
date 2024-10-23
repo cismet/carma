@@ -7,14 +7,21 @@
 
 *.md
 
-postgcss.config.ts
+eslint.config.ts
+eslint.config.cjs
+jest.config.ts
+jest.config.cjs
+jest.preset.ts
+postcss.config.ts
+postcss.config.cjs
 tailwind.config.ts
+tailwind.config.cjs
 tsconfig.json
 tsconfig.*.json
 vite.config.ts
 
-
-
+package.json
+package-lock.json
 
 /coverage
 /dist
