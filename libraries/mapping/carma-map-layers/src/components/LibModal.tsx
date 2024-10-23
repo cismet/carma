@@ -184,7 +184,7 @@ export const LibModal = ({
     for (let key in services) {
       if (services[key].url) {
         fetch(
-          `${services[key].url}?service=WMS&request=GetCapabilities&version=1.1.1`,
+          `${services[key].url}?service=WMS&request=GetCapabilities&version=1.1.1`
         )
           .then((response) => {
             return response.text();
@@ -203,18 +203,18 @@ export const LibModal = ({
                   if (category.layers.length > 0) {
                     activeLayers.forEach(async (activeLayer) => {
                       const foundLayer = category.layers.find(
-                        (layer) => layer.id === activeLayer.id,
+                        (layer) => layer.id === activeLayer.id
                       );
                       if (foundLayer) {
                         const updatedLayer = await utils.parseToMapLayer(
                           foundLayer,
                           false,
-                          activeLayer.opacity,
+                          activeLayer.opacity
                         );
 
                         const shouldUpdate = !isEqual(
                           activeLayer,
-                          updatedLayer,
+                          updatedLayer
                         );
 
                         updateActiveLayer(updatedLayer);
@@ -439,7 +439,7 @@ export const LibModal = ({
                         } else {
                           const updatedCategoriesInView =
                             allCategoriesInView.filter(
-                              (item) => item !== entry.target.id,
+                              (item) => item !== entry.target.id
                             );
                           setAllCategoriesInView(updatedCategoriesInView);
                           if (inViewCategory === entry.target.id && i > 0) {

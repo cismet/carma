@@ -28,7 +28,7 @@ export const Compass = forwardRef<Ref, CompassProps>(
   ({ children, disabled }, ref) => {
     const { viewer } = useCesiumContext();
     const minZoomDistance = useSelector(
-      selectScreenSpaceCameraControllerMinimumZoomDistance,
+      selectScreenSpaceCameraControllerMinimumZoomDistance
     );
 
     const handleFlyToCenter = (e: MouseEvent) => {
@@ -37,7 +37,7 @@ export const Compass = forwardRef<Ref, CompassProps>(
       if (viewer) {
         const windowPosition = new Cartesian2(
           viewer.canvas.clientWidth / 2,
-          viewer.canvas.clientHeight / 2,
+          viewer.canvas.clientHeight / 2
         );
         const horizonTest = viewer.camera.pickEllipsoid(windowPosition);
         let destination = viewer.camera.position;
@@ -48,13 +48,13 @@ export const Compass = forwardRef<Ref, CompassProps>(
             viewer,
             {
               getCoordinates: true,
-            },
+            }
           );
           console.log("pick compass", coordinates, scenePosition);
           if (scenePosition && coordinates) {
             const distance = Cartesian3.distance(
               scenePosition,
-              viewer.camera.position,
+              viewer.camera.position
             );
             const cartographic = coordinates;
             const longitude = CesiumMath.toDegrees(cartographic.longitude);
@@ -62,24 +62,24 @@ export const Compass = forwardRef<Ref, CompassProps>(
             destination = Cartesian3.fromDegrees(
               longitude,
               latitude,
-              cartographic.height + Math.max(distance, minZoomDistance),
+              cartographic.height + Math.max(distance, minZoomDistance)
             );
           }
         } else {
           console.info(
-            "scene above horizon, using camera position as reference",
+            "scene above horizon, using camera position as reference"
           );
           // use camera position if horizon is not visible
           // bump up the camera a bit if too close too ground
           const cartographic = Cartographic.fromCartesian(
-            viewer.camera.position,
+            viewer.camera.position
           );
           const longitude = CesiumMath.toDegrees(cartographic.longitude);
           const latitude = CesiumMath.toDegrees(cartographic.latitude);
           destination = Cartesian3.fromDegrees(
             longitude,
             latitude,
-            cartographic.height + minZoomDistance,
+            cartographic.height + minZoomDistance
           );
         }
 
@@ -105,7 +105,7 @@ export const Compass = forwardRef<Ref, CompassProps>(
         <FontAwesomeIcon icon={faCompass}></FontAwesomeIcon>
       </ControlButtonStyler>
     );
-  },
+  }
 );
 
 export default Compass;

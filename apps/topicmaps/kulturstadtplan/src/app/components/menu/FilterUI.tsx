@@ -16,9 +16,15 @@ import {
 import KulturPieChart from "./KulturPieChart";
 
 const FilterUI = () => {
-  const { filterState, itemsDictionary } = useContext<typeof FeatureCollectionContext>(FeatureCollectionContext);
-  const { setFilterState } = useContext<typeof FeatureCollectionDispatchContext>(FeatureCollectionDispatchContext);
-  const { windowSize } = useContext<typeof ResponsiveTopicMapContext>(ResponsiveTopicMapContext);
+  const { filterState, itemsDictionary } = useContext<
+    typeof FeatureCollectionContext
+  >(FeatureCollectionContext);
+  const { setFilterState } = useContext<
+    typeof FeatureCollectionDispatchContext
+  >(FeatureCollectionDispatchContext);
+  const { windowSize } = useContext<typeof ResponsiveTopicMapContext>(
+    ResponsiveTopicMapContext
+  );
 
   const width = windowSize?.width || 500;
 
@@ -63,10 +69,10 @@ const FilterUI = () => {
   const setAllFilter = (kind) => {
     const newFilterState = JSON.parse(JSON.stringify(filterState));
     const einrichtungen = getAllEinrichtungen().map(
-      (einrichtung) => einrichtung,
+      (einrichtung) => einrichtung
     );
     const veranstaltungen = itemsDictionary?.veranstaltungsarten?.map(
-      (veranstaltung) => veranstaltung,
+      (veranstaltung) => veranstaltung
     );
     if (kind === "veranstaltung") {
       newFilterState[kind] = veranstaltungen;
@@ -160,12 +166,12 @@ const FilterUI = () => {
                                           "einrichtung",
                                           einrichtung,
                                           // @ts-expect-error legacy codebase exception
-                                          e.target.checked,
+                                          e.target.checked
                                         );
                                       }}
                                       checked={
                                         filterState["einrichtung"]?.indexOf(
-                                          einrichtung,
+                                          einrichtung
                                         ) !== -1
                                       }
                                       inline
@@ -176,7 +182,7 @@ const FilterUI = () => {
                                             style={{
                                               color:
                                                 getColorFromMainlocationTypeName(
-                                                  einrichtung,
+                                                  einrichtung
                                                 ),
                                               width: "30px",
                                               textAlign: "center",
@@ -252,12 +258,12 @@ const FilterUI = () => {
                                             "veranstaltung",
                                             art,
                                             // @ts-expect-error legacy codebase exception
-                                            e.target.checked,
+                                            e.target.checked
                                           );
                                         }}
                                         checked={
                                           filterState["veranstaltung"]?.indexOf(
-                                            art,
+                                            art
                                           ) !== -1
                                         }
                                         inline
@@ -265,7 +271,7 @@ const FilterUI = () => {
                                       />
                                     </div>
                                   );
-                                },
+                                }
                               )}
                             </Tab>
                           </Tabs>

@@ -73,7 +73,7 @@ const VerdisOnlineLanding = () => {
                 setLoginAlertVisible(true);
               }, 1000);
             }
-          }) as unknown as UnknownAction,
+          }) as unknown as UnknownAction
         );
       }
     }

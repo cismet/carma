@@ -4,7 +4,7 @@ export const addCssToOverlayHelperItem = (
   item: OptionsOverlayHelper,
   width: string,
   height: string,
-  color = "white",
+  color = "white"
 ) => {
   if (item.primary.position) {
     item.primary.position = {

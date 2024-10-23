@@ -28,13 +28,13 @@ ReactChartkick.addAdapter(Chart);
 
 const FilterUI = ({ apps = crossLinkApps }) => {
   const { itemsDictionary, filteredItems, filterState } = useContext(
-    FeatureCollectionContext,
+    FeatureCollectionContext
   );
   const { setFilterState } = useContext(FeatureCollectionDispatchContext);
   const filteredPOIs = filteredItems || [];
   const lebenslagen = useMemo(
     () => itemsDictionary?.lebenslagen || [],
-    [itemsDictionary],
+    [itemsDictionary]
   );
   const { windowSize } = useContext(ResponsiveTopicMapContext);
   const [filterRows, setFilterRows] = useState();
@@ -47,8 +47,8 @@ const FilterUI = ({ apps = crossLinkApps }) => {
         lebenslagen,
         toggleFilter,
         filterState,
-        setFilterState,
-      ),
+        setFilterState
+      )
     );
   }, [apps, lebenslagen, setFilterState, filterState]);
 
@@ -141,7 +141,7 @@ const FilterUI = ({ apps = crossLinkApps }) => {
             >
               {app.name}
             </Badge>
-          </a>,
+          </a>
         );
       }
     }
@@ -185,7 +185,7 @@ const FilterUI = ({ apps = crossLinkApps }) => {
               "positiv",
               lebenslagen,
               clearFilter("negativ", filterState, setFilterState),
-              setFilterState,
+              setFilterState
             );
           }}
         >

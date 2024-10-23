@@ -1,9 +1,9 @@
-import configFromFile from './config';
-import featureDefaultProperties from './featureDefaultProperties';
-import featureDefaults from './featureDefaults';
-import features from './features';
-import infoBoxConfig from './infoBoxConfig';
-import simpleHelp from './simpleHelp';
+import configFromFile from "./config";
+import featureDefaultProperties from "./featureDefaultProperties";
+import featureDefaults from "./featureDefaults";
+import features from "./features";
+import infoBoxConfig from "./infoBoxConfig";
+import simpleHelp from "./simpleHelp";
 
 export {
   configFromFile,

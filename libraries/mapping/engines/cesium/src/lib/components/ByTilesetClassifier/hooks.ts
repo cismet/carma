@@ -21,7 +21,7 @@ export const useClickActionTileset = (
   viewer: Viewer | undefined,
   url: string,
   setSelectedFeature: (feature: Cesium3DTileFeature | null) => void,
-  drillPickLimit = 5,
+  drillPickLimit = 5
 ) => {
   const [clickData, setClickData] = useState<ClickTilesetData | null>(null);
   //const url = useViewerDataSources().tileset.url;

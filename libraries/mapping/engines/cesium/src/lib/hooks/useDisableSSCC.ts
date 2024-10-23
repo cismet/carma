@@ -17,7 +17,7 @@ const useDisableSSCC = () => {
     if (!isEnabled) {
       console.info(
         "HOOK [CESIUM|SCENE|SSCC] map interaction disabled during animations and transitions",
-        isEnabled,
+        isEnabled
       );
     }
     viewer.scene.screenSpaceCameraController.enableRotate = isEnabled;

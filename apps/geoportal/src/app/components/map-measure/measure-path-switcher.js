@@ -15,7 +15,7 @@ L.Control.MeasurePolygon = L.Control.extend({
   onAdd: function (map) {
     const linesContainer = L.DomUtil.create(
       "div",
-      "leaflet-bar leaflet-control m-container",
+      "leaflet-bar leaflet-control m-container"
     );
 
     const lineIcon = L.DomUtil.create("a", "", linesContainer);
@@ -37,7 +37,7 @@ L.Control.MeasurePolygon = L.Control.extend({
         event.preventDefault(); // Prevent default action (e.g., redirection)
         this.toggleMeasurementMode();
       },
-      this,
+      this
     );
 
     return iconsWrapper;

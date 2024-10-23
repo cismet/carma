@@ -73,7 +73,7 @@ const SidebarMenu = ({ parametersForLink }) => {
         {menuNamesHelper.ubersicht}
       </NavLink>,
       "/",
-      <DashboardOutlined />,
+      <DashboardOutlined />
     ),
     getItem(
       offices.length > 0 ||
@@ -100,7 +100,7 @@ const SidebarMenu = ({ parametersForLink }) => {
               ? null
               : defaultLinksColor,
         }}
-      />,
+      />
     ),
     getItem(
       mipa && mipa.length > 0 ? (
@@ -115,7 +115,7 @@ const SidebarMenu = ({ parametersForLink }) => {
         style={{
           color: mipa && mipa.length > 0 ? null : defaultLinksColor,
         }}
-      />,
+      />
     ),
     getItem(
       rebe && rebe.length > 0 ? (
@@ -130,7 +130,7 @@ const SidebarMenu = ({ parametersForLink }) => {
         style={{
           color: rebe && rebe.length > 0 ? null : defaultLinksColor,
         }}
-      />,
+      />
     ),
     getItem(
       usage && usage > 0 ? (
@@ -147,7 +147,7 @@ const SidebarMenu = ({ parametersForLink }) => {
         style={{
           color: usage && usage > 0 ? null : defaultLinksColor,
         }}
-      />,
+      />
     ),
     getItem(
       contracts && contracts.length > 0 ? (
@@ -164,7 +164,7 @@ const SidebarMenu = ({ parametersForLink }) => {
         style={{
           color: contracts && contracts.length > 0 ? null : defaultLinksColor,
         }}
-      />,
+      />
     ),
     getItem(
       history !== undefined ? (
@@ -181,7 +181,7 @@ const SidebarMenu = ({ parametersForLink }) => {
         style={{
           color: history === undefined && defaultLinksColor,
         }}
-      />,
+      />
     ),
     getItem(
       transaction && transaction.length > 0 ? (
@@ -199,7 +199,7 @@ const SidebarMenu = ({ parametersForLink }) => {
           color:
             transaction && transaction.length > 0 ? null : defaultLinksColor,
         }}
-      />,
+      />
     ),
     getItem(
       dms && dms.length > 0 ? (
@@ -214,7 +214,7 @@ const SidebarMenu = ({ parametersForLink }) => {
         style={{
           color: dms && dms.length > 0 ? null : defaultLinksColor,
         }}
-      />,
+      />
     ),
   ];
   useEffect(() => {

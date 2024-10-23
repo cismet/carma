@@ -1,5 +1,5 @@
-import { createSlice } from '@reduxjs/toolkit';
-import { getBoundsForFeatureArray } from '../../tools/mappingTools';
+import { createSlice } from "@reduxjs/toolkit";
+import { getBoundsForFeatureArray } from "../../tools/mappingTools";
 
 const initialState = {
   flaechenCollection: undefined,
@@ -18,7 +18,7 @@ const initialState = {
 };
 
 const slice = createSlice({
-  name: 'mapping',
+  name: "mapping",
   initialState,
   reducers: {
     setCollections(state, action) {

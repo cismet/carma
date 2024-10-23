@@ -231,14 +231,14 @@ const Map = () => {
         // @ts-expect-error legacy codebase exception
         searchForAEVs({
           point: { x: pos[0], y: pos[1] },
-        }),
+        })
       );
     } else if (mapMode.mode === "arbeitskarte") {
       dispatch(
         // @ts-expect-error legacy codebase exception
         searchForHauptnutzungen({
           point: { x: pos[0], y: pos[1] },
-        }),
+        })
       );
     }
   };
@@ -254,7 +254,7 @@ const Map = () => {
       map.fitBounds(bounds);
     } else {
       const index = features.findIndex(
-        (element) => element.id === event.target.feature.id,
+        (element) => element.id === event.target.feature.id
       );
       if (index !== -1) {
         dispatch(setSelectedFeatureIndex(index));
@@ -267,7 +267,7 @@ const Map = () => {
       // @ts-expect-error legacy codebase exception
       searchForAEVs({
         boundingBox: boundingBox,
-      }),
+      })
     );
   };
 
@@ -337,7 +337,7 @@ const Map = () => {
                   }
                   map.fitBounds(bounds);
                 },
-              }),
+              })
             );
           } else {
             dispatch(
@@ -353,7 +353,7 @@ const Map = () => {
                   }
                   map.fitBounds(bounds);
                 },
-              }),
+              })
             );
           }
         }}

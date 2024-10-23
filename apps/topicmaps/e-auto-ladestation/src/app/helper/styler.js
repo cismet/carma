@@ -72,7 +72,7 @@ export const getPoiClusterIconCreatorFunction = ({
         "stroke-width": 0,
         opacity: "0.5",
         fill: innerCircleColor,
-      }),
+      })
     );
 
     background.appendChild(pie);
@@ -87,7 +87,7 @@ export const getPoiClusterIconCreatorFunction = ({
         stroke: "#000000",
         opacity: "0.5",
         fill: "none",
-      }),
+      })
     );
 
     if (inCart) {
@@ -102,7 +102,7 @@ export const getPoiClusterIconCreatorFunction = ({
             "font-size": "26",
             dy: ".4em",
             opacity: "0.5",
-          }),
+          })
         )
         .appendChild(document.createTextNode("\uf005"));
     }
@@ -114,7 +114,7 @@ export const getPoiClusterIconCreatorFunction = ({
           y: "50%",
           "text-anchor": "middle",
           dy: ".3em",
-        }),
+        })
       )
       .appendChild(document.createTextNode(childCount));
 
@@ -138,7 +138,7 @@ export const getFeatureStyler = (
   colorizer = getColorForProperties,
   appMode,
   secondarySelection,
-  additionalStylingInfo,
+  additionalStylingInfo
 ) => {
   const poiColors = additionalStylingInfo?.poiColors || POI_COLORS;
 

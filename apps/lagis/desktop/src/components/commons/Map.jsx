@@ -1,25 +1,25 @@
-import 'react-cismap/topicMaps.css';
-import 'leaflet/dist/leaflet.css';
-import { Card, Tooltip } from 'antd';
-import PropTypes from 'prop-types';
-import { useContext, useEffect, useRef, useState } from 'react';
+import "react-cismap/topicMaps.css";
+import "leaflet/dist/leaflet.css";
+import { Card, Tooltip } from "antd";
+import PropTypes from "prop-types";
+import { useContext, useEffect, useRef, useState } from "react";
 import {
   FeatureCollectionDisplay,
   MappingConstants,
   RoutedMap,
   TransitiveReactLeaflet,
-} from 'react-cismap';
+} from "react-cismap";
 import {
   TopicMapStylingContext,
   TopicMapStylingDispatchContext,
-} from 'react-cismap/contexts/TopicMapStylingContextProvider';
-import GazetteerSearchControl from 'react-cismap/GazetteerSearchControl';
-import GazetteerHitDisplay from 'react-cismap/GazetteerHitDisplay';
-import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+} from "react-cismap/contexts/TopicMapStylingContextProvider";
+import GazetteerSearchControl from "react-cismap/GazetteerSearchControl";
+import GazetteerHitDisplay from "react-cismap/GazetteerHitDisplay";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import {
   getBoundsForFeatureArray,
   getCenterAndZoomForBounds,
-} from '../../core/tools/mappingTools';
+} from "../../core/tools/mappingTools";
 import {
   getShowBackground,
   getShowCurrentFeatureCollection,
@@ -33,16 +33,16 @@ import {
   setShowBackground,
   setShowCurrentFeatureCollection,
   setShowInspectMode,
-} from '../../store/slices/mapping';
-import { useDispatch, useSelector } from 'react-redux';
-import { FileImageOutlined, FileImageFilled } from '@ant-design/icons';
-import getLayers from 'react-cismap/tools/layerFactory';
-import { getArea25832 } from '../../core/tools/kassenzeichenMappingTools';
-import StyledWMSTileLayer from 'react-cismap/StyledWMSTileLayer';
-import { getGazData } from '../../store/slices/gazData';
-import { Background } from 'reactflow';
-import BackgroundLayers from './BackgroundLayers';
-import AdditionalLayers from './AdditionalLayers';
+} from "../../store/slices/mapping";
+import { useDispatch, useSelector } from "react-redux";
+import { FileImageOutlined, FileImageFilled } from "@ant-design/icons";
+import getLayers from "react-cismap/tools/layerFactory";
+import { getArea25832 } from "../../core/tools/kassenzeichenMappingTools";
+import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
+import { getGazData } from "../../store/slices/gazData";
+import { Background } from "reactflow";
+import BackgroundLayers from "./BackgroundLayers";
+import AdditionalLayers from "./AdditionalLayers";
 import {
   getActiveAdditionalLayers,
   getActiveBackgroundLayer,
@@ -50,13 +50,13 @@ import {
   getBackgroundLayerOpacities,
   isMapLoading,
   setHoveredLandparcel,
-} from '../../store/slices/ui';
-import proj4 from 'proj4';
-import { proj4crs25832def, proj4crs3857def } from 'react-cismap/constants/gis';
-import { getJWT } from '../../store/slices/auth';
-import HoveredLandparcelInfo from './HoveredLandparcelInfo';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBinoculars } from '@fortawesome/free-solid-svg-icons';
+} from "../../store/slices/ui";
+import proj4 from "proj4";
+import { proj4crs25832def, proj4crs3857def } from "react-cismap/constants/gis";
+import { getJWT } from "../../store/slices/auth";
+import HoveredLandparcelInfo from "./HoveredLandparcelInfo";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faBinoculars } from "@fortawesome/free-solid-svg-icons";
 
 const { ScaleControl } = TransitiveReactLeaflet;
 
@@ -78,7 +78,7 @@ function landparcelToString(props) {
   const formattedZaehler = parseInt(fstck_zaehler, 10);
 
   // Format fstck_nenner, if it exists and is not null
-  const formattedNenner = fstck_nenner ? `/${parseInt(fstck_nenner, 10)}` : '';
+  const formattedNenner = fstck_nenner ? `/${parseInt(fstck_nenner, 10)}` : "";
 
   return `${gemarkung} ${formattedFlur} ${formattedZaehler}${formattedNenner}`;
 }
@@ -111,7 +111,7 @@ const Map = ({
 
   const gazetteerHitTrigger = (hits) => {
     //somehow the map gets not moved to the right position on the first try, so this is an ugly winning to get it right
-    const pos = proj4(proj4crs3857def, proj4.defs('EPSG:4326'), [
+    const pos = proj4(proj4crs3857def, proj4.defs("EPSG:4326"), [
       hits[0].x,
       hits[0].y,
     ]);
@@ -176,7 +176,7 @@ const Map = ({
     backgroundsFromMode = backgroundConfigurations[selectedBackground].layerkey;
   } catch (e) {}
 
-  const _backgroundLayers = backgroundsFromMode || 'rvrGrau@40';
+  const _backgroundLayers = backgroundsFromMode || "rvrGrau@40";
   const opacities = useSelector(getAdditionalLayerOpacities);
   const handleSetShowBackground = () => {
     dispatch(setShowBackground(!showBackground));
@@ -218,8 +218,8 @@ const Map = ({
   const mapStyle = {
     width: mapWidth - 2 * padding,
     height: mapHeight - 2 * padding - headHeight,
-    cursor: isMapLoadingValue ? 'wait' : 'pointer',
-    clear: 'both',
+    cursor: isMapLoadingValue ? "wait" : "pointer",
+    clear: "both",
   };
 
   const defaults = {
@@ -227,7 +227,7 @@ const Map = ({
     metric: true,
     imperial: false,
     updateWhenIdle: false,
-    position: 'topright',
+    position: "topright",
   };
 
   useEffect(() => {
@@ -268,18 +268,18 @@ const Map = ({
           {page && (
             <div
               className="relative flex items-center"
-              style={{ height: '24px' }}
+              style={{ height: "24px" }}
             >
               <Tooltip title="Untersuchungsmodus">
                 <FontAwesomeIcon
                   icon={faBinoculars}
-                  style={{ fontSize: '19px' }}
+                  style={{ fontSize: "19px" }}
                   onClick={handleSetShowInspectMode}
                 />
               </Tooltip>
               <div
                 className={`w-3 h-3 rounded-full bg-[#4ABC96] ${
-                  showInspectMode ? 'absolute' : 'hidden'
+                  showInspectMode ? "absolute" : "hidden"
                 } bottom-0 -right-1 cursor-pointer`}
                 onClick={handleSetShowInspectMode}
               />
@@ -295,7 +295,7 @@ const Map = ({
             </Tooltip>
             <div
               className={`w-3 h-3 rounded-full bg-[#4ABC96] ${
-                showBackground ? 'absolute' : 'hidden'
+                showBackground ? "absolute" : "hidden"
               } bottom-0 -right-1 cursor-pointer`}
               onClick={handleSetShowBackground}
             />
@@ -309,7 +309,7 @@ const Map = ({
             </Tooltip>
             <div
               className={`w-3 h-3 rounded-full bg-[#4ABC96] ${
-                showCurrentFeatureCollection ? 'absolute' : 'hidden'
+                showCurrentFeatureCollection ? "absolute" : "hidden"
               } bottom-0 -right-1 cursor-pointer`}
               onClick={handleShowCurrentFeatureCollection}
             />
@@ -317,11 +317,11 @@ const Map = ({
         </div>
       }
       style={{
-        width: '100%',
-        height: '100%',
+        width: "100%",
+        height: "100%",
       }}
       bodyStyle={{ padding }}
-      headStyle={{ backgroundColor: 'white' }}
+      headStyle={{ backgroundColor: "white" }}
       type="inner"
       className="overflow-hidden shadow-md"
       ref={cardRef}
@@ -329,7 +329,7 @@ const Map = ({
       <RoutedMap
         editable={false}
         style={mapStyle}
-        key={'leafletRoutedMap'}
+        key={"leafletRoutedMap"}
         // backgroundlayers={showBackground ? _backgroundLayers : null}
         backgroundlayers={null}
         urlSearchParams={urlSearchParams}
@@ -368,7 +368,7 @@ const Map = ({
           />
         )}
         <GazetteerHitDisplay
-          key={'gazHit' + JSON.stringify(gazetteerHit)}
+          key={"gazHit" + JSON.stringify(gazetteerHit)}
           gazetteerHit={gazetteerHit}
         />
         <GazetteerSearchControl
@@ -400,27 +400,27 @@ const Map = ({
                     const bb = getBoundsForFeatureArray([feature]);
                     const { center, zoom } = getCenterAndZoomForBounds(map, bb);
                     setUrlParams((prev) => {
-                      prev.set('zoom', zoom);
-                      prev.set('lat', center.lat);
-                      prev.set('lng', center.lng);
+                      prev.set("zoom", zoom);
+                      prev.set("lat", center.lat);
+                      prev.set("lng", center.lng);
                       return prev;
                     });
                   } else {
                     switch (feature.featureType) {
-                      case 'flaeche': {
+                      case "flaeche": {
                         dispatch(storeFlaechenId(feature.id));
                         dispatch(setFlaechenSelected({ id: feature.id }));
 
                         break;
                       }
-                      case 'front': {
+                      case "front": {
                         dispatch(storeFrontenId(feature.properties.id));
                         dispatch(
                           setFrontenSelected({ id: feature.properties.id })
                         );
                         break;
                       }
-                      case 'general': {
+                      case "general": {
                         dispatch(
                           setGeneralGeometrySelected({
                             id: feature.properties.id,
@@ -430,7 +430,7 @@ const Map = ({
                       }
                       default: {
                         console.log(
-                          'no featureClickHandler set',
+                          "no featureClickHandler set",
                           e.target.feature
                         );
                         onClickHandler(e.target.feature);
@@ -456,8 +456,8 @@ const Map = ({
               opacities={additionalLayerOpacities}
               onGraphqlLayerStatus={(status) => {
                 dispatch(setGraphqlLayerStatus(status));
-                if (status === 'NOT_ALLOWED') {
-                  dispatch(setHoveredLandparcel(''));
+                if (status === "NOT_ALLOWED") {
+                  dispatch(setHoveredLandparcel(""));
                 }
               }}
               onHoverUpdate={(feature) => {

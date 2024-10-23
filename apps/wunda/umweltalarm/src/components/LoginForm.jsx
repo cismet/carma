@@ -15,7 +15,10 @@ dayjs.extend(customParseFormat);
 
 const LoginForm = ({
   setJWT = (jwt) => {
-    console.log("you need to set the attribute setJWT in the <Login> component", jwt);
+    console.log(
+      "you need to set the attribute setJWT in the <Login> component",
+      jwt
+    );
   },
   loginInfo,
   setLoginInfo = () => {},
@@ -48,10 +51,14 @@ const LoginForm = ({
   useEffect(() => {
     (async () => {
       // eslint-disable-next-line
-      const userInCache = await localforage.getItem("@" + appKey + "." + "auth" + "." + "user");
+      const userInCache = await localforage.getItem(
+        "@" + appKey + "." + "auth" + "." + "user"
+      );
       const dataValueInCache = await offlineDataAvailable(db, daqKeys);
 
-      setCacheDataAvailable(dataValueInCache !== null && dataValueInCache !== undefined);
+      setCacheDataAvailable(
+        dataValueInCache !== null && dataValueInCache !== undefined
+      );
       if (dataValueInCache !== null && dataValueInCache !== undefined) {
         const time = dayjs(dataValueInCache, "YYYY-MM-DD hh:mm:ss").toDate();
         setMetaInformation({ time });
@@ -100,7 +107,10 @@ const LoginForm = ({
         }
       })
       .catch(function (err) {
-        setLoginInfo({ color: "#FF3030", text: "Bei der Anmeldung ist ein Fehler aufgetreten." });
+        setLoginInfo({
+          color: "#FF3030",
+          text: "Bei der Anmeldung ist ein Fehler aufgetreten.",
+        });
         setTimeout(() => {
           setLoginInfo();
         }, 2500);
@@ -112,8 +122,8 @@ const LoginForm = ({
       style={{
         zIndex: 3000000000,
       }}
-      height='100%'
-      size='l'
+      height="100%"
+      size="l"
       show={true}
       //   onHide={close}
       keyboard={false}
@@ -127,9 +137,13 @@ const LoginForm = ({
           </div>
         </Modal.Title>
       </Modal.Header>
-      <Modal.Body style={modalBodyStyle} id='potenzialflaechen-online' key='login'>
+      <Modal.Body
+        style={modalBodyStyle}
+        id="potenzialflaechen-online"
+        key="login"
+      >
         <Form>
-          <Form.Group controlId='potenzialflaechen-online-login'>
+          <Form.Group controlId="potenzialflaechen-online-login">
             <Form.Label>WuNDa Benutzername</Form.Label>
             <Form.Control
               value={user}
@@ -145,14 +159,14 @@ const LoginForm = ({
                   }
                 }
               }}
-              placeholder='Login hier eingeben'
+              placeholder="Login hier eingeben"
             />
             {/* <Form.Text className='text-muted'>
               We'll never share your email with anyone else.
             </Form.Text> */}
           </Form.Group>
 
-          <Form.Group controlId='potenzialflaechen-online-pass'>
+          <Form.Group controlId="potenzialflaechen-online-pass">
             <Form.Label>Passwort</Form.Label>
             <Form.Control
               ref={pwFieldRef}
@@ -160,8 +174,8 @@ const LoginForm = ({
               onChange={(e) => {
                 setPw(e.target.value);
               }}
-              type='password'
-              placeholder='Password'
+              type="password"
+              placeholder="Password"
               onKeyPress={(event) => {
                 if (event.key === "Enter") {
                   login();
@@ -179,7 +193,13 @@ const LoginForm = ({
             }}
           >
             {loginInfo?.text && (
-              <div style={{ margin: 10, color: loginInfo?.color || "black", maxWidth: 200 }}>
+              <div
+                style={{
+                  margin: 10,
+                  color: loginInfo?.color || "black",
+                  maxWidth: 200,
+                }}
+              >
                 <b>{loginInfo?.text}</b>
               </div>
             )}
@@ -199,7 +219,7 @@ const LoginForm = ({
                     }, 500);
                   }}
                   style={{ margin: 5, marginTop: 30 }}
-                  variant='secondary'
+                  variant="secondary"
                 >
                   Offline arbeiten
                 </Button>
@@ -209,7 +229,7 @@ const LoginForm = ({
                   login();
                 }}
                 style={{ margin: 5, marginTop: 30 }}
-                variant='primary'
+                variant="primary"
               >
                 Anmeldung
               </Button>

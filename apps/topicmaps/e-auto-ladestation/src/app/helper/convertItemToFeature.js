@@ -1,9 +1,9 @@
-import { addSVGToProps } from 'react-cismap/tools/svgHelper';
-import Color from 'color';
-import { getColorForProperties } from './styler';
+import { addSVGToProps } from "react-cismap/tools/svgHelper";
+import Color from "color";
+import { getColorForProperties } from "./styler";
 
 const getSignature = (properties) => {
-  return 'pikto_e-mobil.svg';
+  return "pikto_e-mobil.svg";
 };
 
 const convertItemToFeature = async (itemIn, poiColors) => {
@@ -12,20 +12,20 @@ const convertItemToFeature = async (itemIn, poiColors) => {
   let item = await addSVGToProps(
     clonedItem,
     (i) => getSignature(i),
-    'https://wunda-geoportal.cismet.de/svgs/'
+    "https://wunda-geoportal.cismet.de/svgs/"
   );
   const headerColor = Color(getColorForProperties(item));
 
   const info = {
-    header: `Ladestation für E-Autos (${item.online ? 'online' : 'offline'})`,
+    header: `Ladestation für E-Autos (${item.online ? "online" : "offline"})`,
     title: itemIn.name,
     additionalInfo: itemIn.detailbeschreibung,
-    subtitle: itemIn.strasse + ' ' + itemIn.hausnummer,
+    subtitle: itemIn.strasse + " " + itemIn.hausnummer,
   };
   item.info = info;
   if (item.foto) {
     item.foto =
-      'https://www.wuppertal.de/geoportal/emobil/autos/fotos/' + item.foto;
+      "https://www.wuppertal.de/geoportal/emobil/autos/fotos/" + item.foto;
   }
 
   if (item.betreiber.email) {
@@ -42,7 +42,7 @@ const convertItemToFeature = async (itemIn, poiColors) => {
 
   item.color = headerColor;
   const id = item.id;
-  const type = 'Feature';
+  const type = "Feature";
   const selected = false;
   const geometry = item.geojson;
   const text = item.name;
@@ -54,9 +54,9 @@ const convertItemToFeature = async (itemIn, poiColors) => {
     selected,
     geometry,
     crs: {
-      type: 'name',
+      type: "name",
       properties: {
-        name: 'urn:ogc:def:crs:EPSG::25832',
+        name: "urn:ogc:def:crs:EPSG::25832",
       },
     },
     properties: item,

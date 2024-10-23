@@ -1,15 +1,15 @@
-import Msg from './InternalMessage';
+import Msg from "./InternalMessage";
 
 const SystemMessage = ({ msg }) => {
   return (
     <Msg
-      from={''}
+      from={""}
       msg={msg}
       alignment="center"
       background="#eee"
       color="#666"
-      margin={'5px'}
-      padding={'5px'}
+      margin={"5px"}
+      padding={"5px"}
       fontSize={0.9}
       width="40%"
     />

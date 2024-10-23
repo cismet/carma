@@ -103,7 +103,7 @@ const TopNavbar = () => {
   const updateLayers = (
     layer: Item,
     deleteItem: boolean = false,
-    forceWMS: boolean = false,
+    forceWMS: boolean = false
   ) => {
     let newLayer: Layer;
 
@@ -333,7 +333,7 @@ const TopNavbar = () => {
             onChange={(e) => {
               if (e.target.value === "karte") {
                 dispatch(
-                  setBackgroundLayer({ ...selectedMapLayer, id: "karte" }),
+                  setBackgroundLayer({ ...selectedMapLayer, id: "karte" })
                 );
               } else {
                 dispatch(
@@ -351,7 +351,7 @@ const TopNavbar = () => {
                       url: layerMap[e.target.value].url,
                     },
                     layers: layerMap[e.target.value].layers,
-                  }),
+                  })
                 );
               }
             }}

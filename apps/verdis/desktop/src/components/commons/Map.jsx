@@ -1,30 +1,30 @@
-import 'react-cismap/topicMaps.css';
-import 'leaflet/dist/leaflet.css';
-import { Card, Tooltip } from 'antd';
-import PropTypes from 'prop-types';
-import { useContext, useEffect, useRef, useState } from 'react';
+import "react-cismap/topicMaps.css";
+import "leaflet/dist/leaflet.css";
+import { Card, Tooltip } from "antd";
+import PropTypes from "prop-types";
+import { useContext, useEffect, useRef, useState } from "react";
 import {
   FeatureCollectionDisplay,
   MappingConstants,
   RoutedMap,
   TransitiveReactLeaflet,
-} from 'react-cismap';
+} from "react-cismap";
 import {
   TopicMapStylingContext,
   TopicMapStylingDispatchContext,
-} from 'react-cismap/contexts/TopicMapStylingContextProvider';
-import GazetteerSearchControl from 'react-cismap/GazetteerSearchControl';
-import GazetteerHitDisplay from 'react-cismap/GazetteerHitDisplay';
-import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+} from "react-cismap/contexts/TopicMapStylingContextProvider";
+import GazetteerSearchControl from "react-cismap/GazetteerSearchControl";
+import GazetteerHitDisplay from "react-cismap/GazetteerHitDisplay";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import {
   getBoundsForFeatureArray,
   getCenterAndZoomForBounds,
   createQueryGeomFromBB,
-} from '../../tools/mappingTools';
-import Dot from './Dot';
-import { faImage as regularImage } from '@fortawesome/free-regular-svg-icons';
-import Overlay from './Overlay';
-import LandParcelChooser from './LandParcelChooser';
+} from "../../tools/mappingTools";
+import Dot from "./Dot";
+import { faImage as regularImage } from "@fortawesome/free-regular-svg-icons";
+import Overlay from "./Overlay";
+import LandParcelChooser from "./LandParcelChooser";
 
 import {
   getIsLoading,
@@ -34,7 +34,7 @@ import {
   searchForKassenzeichenWithPoint,
   storeFlaechenId,
   storeFrontenId,
-} from '../../store/slices/search';
+} from "../../store/slices/search";
 import {
   getLockMap,
   getShowBackground,
@@ -49,8 +49,8 @@ import {
   setGraphqlStatus,
   setLockMap,
   getFitBoundsCounter,
-} from '../../store/slices/mapping';
-import { getArea25832 } from '../../tools/kassenzeichenMappingTools';
+} from "../../store/slices/mapping";
+import { getArea25832 } from "../../tools/kassenzeichenMappingTools";
 import {
   faExpandArrowsAlt,
   faF,
@@ -58,13 +58,13 @@ import {
   faLockOpen,
   faPlane,
   faImage as solidImage,
-} from '@fortawesome/free-solid-svg-icons';
-import { useDispatch, useSelector } from 'react-redux';
-import { FileImageOutlined, FileImageFilled } from '@ant-design/icons';
+} from "@fortawesome/free-solid-svg-icons";
+import { useDispatch, useSelector } from "react-redux";
+import { FileImageOutlined, FileImageFilled } from "@ant-design/icons";
 
-import { getGazData } from '../../store/slices/gazData';
-import BackgroundLayers from './BackgroundLayers';
-import AdditionalLayers from './AdditionalLayers';
+import { getGazData } from "../../store/slices/gazData";
+import BackgroundLayers from "./BackgroundLayers";
+import AdditionalLayers from "./AdditionalLayers";
 import {
   getActiveAdditionalLayers,
   getActiveBackgroundLayer,
@@ -73,12 +73,12 @@ import {
   getHoveredObject,
   isMapLoading,
   setHoveredObject,
-} from '../../store/slices/ui';
-import proj4 from 'proj4';
-import { proj4crs3857def } from 'react-cismap/constants/gis';
-import { getJWT } from '../../store/slices/auth';
-import Toolbar from './Toolbar';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+} from "../../store/slices/ui";
+import proj4 from "proj4";
+import { proj4crs3857def } from "react-cismap/constants/gis";
+import { getJWT } from "../../store/slices/auth";
+import Toolbar from "./Toolbar";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 const { ScaleControl } = TransitiveReactLeaflet;
 
@@ -104,7 +104,7 @@ const Map = ({
   const [urlParams, setUrlParams] = useSearchParams();
   // const [fallback, setFallback] = useState({});
   const [showVirtualCityOverlay, setShowVirtualCityOverlay] = useState(false);
-  const [infoText, setInfoText] = useState('');
+  const [infoText, setInfoText] = useState("");
   const showCurrentFeatureCollection = useSelector(
     getShowCurrentFeatureCollection
   );
@@ -121,7 +121,7 @@ const Map = ({
 
   const gazetteerHitTrigger = (hits) => {
     //somehow the map gets not moved to the right position on the first try, so this is an ugly winning to get it right
-    const pos = proj4(proj4crs3857def, proj4.defs('EPSG:4326'), [
+    const pos = proj4(proj4crs3857def, proj4.defs("EPSG:4326"), [
       hits[0].x,
       hits[0].y,
     ]);
@@ -191,7 +191,7 @@ const Map = ({
     backgroundsFromMode = backgroundConfigurations[selectedBackground].layerkey;
   } catch (e) {}
 
-  const _backgroundLayers = backgroundsFromMode || 'rvrGrau@40';
+  const _backgroundLayers = backgroundsFromMode || "rvrGrau@40";
   const opacities = useSelector(getAdditionalLayerOpacities);
   const handleSetShowBackground = () => {
     dispatch(setShowBackground(!showBackground));
@@ -230,8 +230,8 @@ const Map = ({
   const mapStyle = {
     width: mapWidth - 2 * padding,
     height: mapHeight - 2 * padding - headHeight - statusBarHeight,
-    cursor: isMapLoadingValue ? 'wait' : 'pointer',
-    clear: 'both',
+    cursor: isMapLoadingValue ? "wait" : "pointer",
+    clear: "both",
   };
 
   const defaults = {
@@ -239,7 +239,7 @@ const Map = ({
     metric: true,
     imperial: false,
     updateWhenIdle: false,
-    position: 'topright',
+    position: "topright",
   };
 
   useEffect(() => {
@@ -256,7 +256,7 @@ const Map = ({
   function fitMapBounds() {
     const map = refRoutedMap?.current?.leafletMap?.leafletElement;
     if (map == undefined) {
-      console.log('xxx map is undefined');
+      console.log("xxx map is undefined");
       return;
     } else {
     }
@@ -325,7 +325,7 @@ const Map = ({
             >
               <FontAwesomeIcon
                 icon={lockMapOnlyInKassenzeichen ? faLock : faLockOpen}
-                className={`h-6 ${lockMapOnlyInKassenzeichen && 'pr-[5.5px]'}`}
+                className={`h-6 ${lockMapOnlyInKassenzeichen && "pr-[5.5px]"}`}
               />
               <span className="absolute -bottom-[10px] right-0 text-primary font-bold text-lg">
                 K
@@ -336,7 +336,7 @@ const Map = ({
             <FontAwesomeIcon
               icon={lockMap ? faLock : faLockOpen}
               onClick={() => dispatch(setLockMap(!lockMap))}
-              className={`h-6 cursor-pointer ${lockMap && 'pr-[5.5px]'}`}
+              className={`h-6 cursor-pointer ${lockMap && "pr-[5.5px]"}`}
             />
           </Tooltip>
           <Tooltip title="Schrägluftbild Overlay an/aus">
@@ -382,11 +382,11 @@ const Map = ({
         </div>
       }
       style={{
-        width: '100%',
-        height: '100%',
+        width: "100%",
+        height: "100%",
       }}
       bodyStyle={{ padding }}
-      headStyle={{ backgroundColor: 'white' }}
+      headStyle={{ backgroundColor: "white" }}
       type="inner"
       className="overflow-hidden shadow-md"
       ref={cardRef}
@@ -394,7 +394,7 @@ const Map = ({
       <RoutedMap
         editable={false}
         style={mapStyle}
-        key={'leafletRoutedMap'}
+        key={"leafletRoutedMap"}
         // backgroundlayers={showBackground ? _backgroundLayers : null}
         backgroundlayers={null}
         urlSearchParams={urlSearchParams}
@@ -467,7 +467,7 @@ const Map = ({
           />
         )} */}
         <GazetteerHitDisplay
-          key={'gazHit' + JSON.stringify(gazetteerHit)}
+          key={"gazHit" + JSON.stringify(gazetteerHit)}
           gazetteerHit={gazetteerHit}
         />
         {showLandParcelChooser ? (
@@ -515,7 +515,7 @@ const Map = ({
                 dispatch(setGraphqlStatus(status));
               }}
               openKassenzeichen={(kassenzeichen) => {
-                console.log('open kassenzeichen', kassenzeichen);
+                console.log("open kassenzeichen", kassenzeichen);
               }}
             />
           </>
@@ -554,20 +554,20 @@ const Map = ({
                     }
                   } else {
                     switch (feature.featureType) {
-                      case 'flaeche': {
+                      case "flaeche": {
                         dispatch(storeFlaechenId(feature.id));
                         dispatch(setFlaechenSelected({ id: feature.id }));
 
                         break;
                       }
-                      case 'front': {
+                      case "front": {
                         dispatch(storeFrontenId(feature.properties.id));
                         dispatch(
                           setFrontenSelected({ id: feature.properties.id })
                         );
                         break;
                       }
-                      case 'general': {
+                      case "general": {
                         dispatch(
                           setGeneralGeometrySelected({
                             id: feature.properties.id,
@@ -577,7 +577,7 @@ const Map = ({
                       }
                       default: {
                         console.log(
-                          'no featureClickHandler set',
+                          "no featureClickHandler set",
                           e.target.feature
                         );
                       }

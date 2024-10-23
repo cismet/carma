@@ -149,7 +149,7 @@ export const GeoportalMap = () => {
   const infoBoxOverlay = addCssToOverlayHelperItem(
     getCollabedHelpElementsConfig("INFOBOX", geoElements),
     "350px",
-    "137px",
+    "137px"
   );
 
   useOverlayHelper(infoBoxOverlay);
@@ -173,7 +173,7 @@ export const GeoportalMap = () => {
       },
       { name: "dpr", readonly: true, format: (v) => v.toFixed(1) },
       { name: "resolutionScale", readonly: true, format: (v) => v.toFixed(1) },
-    ],
+    ]
   );
   const {
     routedMapRef,
@@ -325,7 +325,7 @@ export const GeoportalMap = () => {
           onClick={() => {
             routedMapRef.leafletMap.leafletElement.flyTo(
               [51.272570027476256, 7.199918031692506],
-              18,
+              18
             );
             homeControl();
           }}
@@ -379,7 +379,7 @@ export const GeoportalMap = () => {
             duration={CESIUM_CONFIG.transitions.mapMode.duration}
             onComplete={(isTo2d: boolean) => {
               dispatch(
-                setBackgroundLayer({ ...backgroundLayer, visible: isTo2d }),
+                setBackgroundLayer({ ...backgroundLayer, visible: isTo2d })
               );
             }}
             ref={tourRefLabels.toggle2d3d}

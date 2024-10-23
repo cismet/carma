@@ -50,12 +50,19 @@ const Comp = ({
 }) => {
   const colors = getColor(bsStyle);
   return (
-    <Collapse style={{ marginBottom: 6 }} defaultActiveKey={collapsedOnStart === false ? "X" : "Y"}>
+    <Collapse
+      style={{ marginBottom: 6 }}
+      defaultActiveKey={collapsedOnStart === false ? "X" : "Y"}
+    >
       <Panel
         style={{ backgroundColor: colors.backgroundColor }}
         showArrow={false}
-        header={<span style={{ color: colors.color, fontSize: "16px" }}>{header}</span>}
-        key='X'
+        header={
+          <span style={{ color: colors.color, fontSize: "16px" }}>
+            {header}
+          </span>
+        }
+        key="X"
         extra={extra}
       >
         {content || children}

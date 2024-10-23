@@ -1,11 +1,11 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice } from "@reduxjs/toolkit";
 
 const slice = createSlice({
-	name: 'uiMessage',
-	initialState: undefined,
-	reducers: {
-		set: (state, action) => action.payload
-	}
+  name: "uiMessage",
+  initialState: undefined,
+  reducers: {
+    set: (state, action) => action.payload,
+  },
 });
 
 export default slice;

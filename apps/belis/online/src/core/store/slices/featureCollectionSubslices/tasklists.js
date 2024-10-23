@@ -1,27 +1,27 @@
-import buffer from '@turf/buffer';
-import convex from '@turf/convex';
-import * as turfHelpers from '@turf/helpers';
-import { projectionData } from 'react-cismap/constants/gis';
-import reproject from 'reproject';
+import buffer from "@turf/buffer";
+import convex from "@turf/convex";
+import * as turfHelpers from "@turf/helpers";
+import { projectionData } from "react-cismap/constants/gis";
+import reproject from "reproject";
 // import dexieworker from 'workerize-loader!../../../workers/dexie'; // eslint-disable-line import/no-webpack-loader-syntax
 
-import { fetchGraphQL } from '../../../commons/graphql';
+import { fetchGraphQL } from "../../../commons/graphql";
 import {
   getNewIntermediateResults,
   integrateIntermediateResults,
-} from '../../../helper/featureHelper';
-import queries from '../../../queries/online';
-import { CONNECTIONMODE, getConnectionMode } from '../app';
-import { getJWT } from '../auth';
+} from "../../../helper/featureHelper";
+import queries from "../../../queries/online";
+import { CONNECTIONMODE, getConnectionMode } from "../app";
+import { getJWT } from "../auth";
 import {
   MODES,
   setDoneForMode,
   setFeatureCollectionForMode,
   setFeatureCollectionInfoForMode,
   setSelectedFeatureForMode,
-} from '../featureCollection';
-import { loadProtocollsIntoFeatureCollection } from './protocols';
-import { workerInstance } from '../../../workers/utils';
+} from "../featureCollection";
+import { loadProtocollsIntoFeatureCollection } from "./protocols";
+import { workerInstance } from "../../../workers/utils";
 
 const dexieW = workerInstance;
 
@@ -45,19 +45,19 @@ export const loadTaskListsIntoFeatureCollection = ({
           const gqlQuery = `query q($teamId: Int) {${queries.arbeitsauftraege_by_team_only_protocolgeoms}}`;
 
           const queryParameter = { teamId: team.id };
-          console.time('tasklist query returned');
+          console.time("tasklist query returned");
           const response = await fetchGraphQL(gqlQuery, queryParameter, jwt);
-          console.timeEnd('tasklist query returned');
+          console.timeEnd("tasklist query returned");
           if (response?.ok) {
             const results = response.data.arbeitsauftrag;
 
             features = createArbeitsauftragFeaturesForResults(results);
           } else {
-            throw new Error('Error in fetchGraphQL (' + response.status + ')');
+            throw new Error("Error in fetchGraphQL (" + response.status + ")");
           }
         } else {
           //offlineUse
-          const results = await dexieW.getAll('arbeitsauftrag');
+          const results = await dexieW.getAll("arbeitsauftrag");
           features = createArbeitsauftragFeaturesForResults(results, true);
         }
 
@@ -73,7 +73,7 @@ export const loadTaskListsIntoFeatureCollection = ({
         }
         const newResults = getNewIntermediateResults(
           state.offlineActionDb.intermediateResults,
-          'arbeitsauftrag',
+          "arbeitsauftrag",
           team.id
         );
         for (const newResult of newResults) {
@@ -120,7 +120,7 @@ export const loadTaskListsIntoFeatureCollection = ({
         dispatch(setDoneForMode({ mode: MODES.TASKLISTS, done: true }));
         done();
       } catch (e) {
-        console.error('xxx error ', e);
+        console.error("xxx error ", e);
         dispatch(setDoneForMode({ mode: MODES.TASKLISTS, done: true }));
         done();
       }
@@ -131,17 +131,17 @@ export const loadTaskListsIntoFeatureCollection = ({
 export const createSingleArbeitsauftragFeatureForItem = (item, enriched) => {
   const arbeitsauftrag = item;
   const feature = {
-    text: '-',
-    id: 'arbeitsauftrag.' + arbeitsauftrag.id,
+    text: "-",
+    id: "arbeitsauftrag." + arbeitsauftrag.id,
     enriched,
-    type: 'Feature',
+    type: "Feature",
     selected: false,
-    featuretype: 'arbeitsauftrag',
+    featuretype: "arbeitsauftrag",
     geometry: geometryFactory(arbeitsauftrag),
     crs: {
-      type: 'name',
+      type: "name",
       properties: {
-        name: 'urn:ogc:def:crs:EPSG::25832',
+        name: "urn:ogc:def:crs:EPSG::25832",
       },
     },
     properties: arbeitsauftrag,
@@ -208,14 +208,14 @@ const geometryFactory = (arbeitsauftrag) => {
     const convexFeature = convex(turfCollection);
     return convexFeature.geometry;
   } catch (e) {
-    console.error('xxx error in ' + arbeitsauftrag.id, e);
+    console.error("xxx error in " + arbeitsauftrag.id, e);
     return undefined;
   }
 };
 
 const createGeomOnlyFeature = (geom) => {
   const feature = {
-    type: 'Feature',
+    type: "Feature",
     geometry: geom,
     // crs: {
     //   type: "name",
@@ -227,14 +227,14 @@ const createGeomOnlyFeature = (geom) => {
   };
   const wgs84Feature = reproject.reproject(
     feature,
-    projectionData['25832'].def,
-    projectionData['4326'].def
+    projectionData["25832"].def,
+    projectionData["4326"].def
   );
-  const bufferedWGS84 = buffer(wgs84Feature, 25, { units: 'meters' });
+  const bufferedWGS84 = buffer(wgs84Feature, 25, { units: "meters" });
   const returnFeature = reproject.reproject(
     bufferedWGS84,
-    projectionData['4326'].def,
-    projectionData['25832'].def
+    projectionData["4326"].def,
+    projectionData["25832"].def
   );
   return returnFeature;
 };

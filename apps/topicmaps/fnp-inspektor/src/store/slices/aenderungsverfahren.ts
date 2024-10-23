@@ -1,14 +1,14 @@
-import { createSlice } from '@reduxjs/toolkit';
-import bboxPolygon from '@turf/bbox-polygon';
-import booleanDisjoint from '@turf/boolean-disjoint';
-import { setFeatureCollection, setSelectedFeatureIndex } from './mapping';
+import { createSlice } from "@reduxjs/toolkit";
+import bboxPolygon from "@turf/bbox-polygon";
+import booleanDisjoint from "@turf/boolean-disjoint";
+import { setFeatureCollection, setSelectedFeatureIndex } from "./mapping";
 
 const initialState = {
   data: undefined,
 };
 
 const slice = createSlice({
-  name: 'aev',
+  name: "aev",
   initialState,
   reducers: {
     setData(state, action) {
@@ -22,10 +22,10 @@ export default slice;
 
 export const loadAEVs = () => {
   return async (dispatch: any) => {
-    fetch('https://wunda-geoportal.cismet.de/data/aenderungsv.data.json')
+    fetch("https://wunda-geoportal.cismet.de/data/aenderungsv.data.json")
       .then((response) => {
         if (!response.ok) {
-          throw new Error('Network response was not ok');
+          throw new Error("Network response was not ok");
         }
         return response.json();
       })
@@ -41,7 +41,7 @@ export const loadAEVs = () => {
       })
       .catch((error) => {
         console.error(
-          'There was a problem with the fetch operation:',
+          "There was a problem with the fetch operation:",
           error.message
         );
       });
@@ -116,7 +116,7 @@ export function searchForAEVs({
     } else if (
       gazObject !== undefined &&
       gazObject[0] !== undefined &&
-      gazObject[0].type === 'aenderungsv'
+      gazObject[0].type === "aenderungsv"
     ) {
       if (state.aev.data.length === 0) {
         loadAEVs();
@@ -131,12 +131,12 @@ export function searchForAEVs({
     } else if (
       gazObject !== undefined &&
       gazObject[0] !== undefined &&
-      gazObject[0].type === 'bplaene'
+      gazObject[0].type === "bplaene"
     ) {
       let hit = state.aev.data.find((elem, index) => {
         let bplanArr = [];
         if (elem.properties.bplan_nr !== undefined) {
-          bplanArr = elem.properties.bplan_nr.split('+');
+          bplanArr = elem.properties.bplan_nr.split("+");
         }
         let found = false;
         bplanArr.forEach((nr) => {
@@ -186,8 +186,8 @@ function convertAEVToFeature(aev, index) {
     return undefined;
   }
   const id = aev.id;
-  const type = 'Feature';
-  const featuretype = 'Änderungsverfahren';
+  const type = "Feature";
+  const featuretype = "Änderungsverfahren";
 
   const selected = false;
   const geometry = aev.geojson;
@@ -203,9 +203,9 @@ function convertAEVToFeature(aev, index) {
     selected,
     geometry,
     crs: {
-      type: 'name',
+      type: "name",
       properties: {
-        name: 'urn:ogc:def:crs:EPSG::25832',
+        name: "urn:ogc:def:crs:EPSG::25832",
       },
     },
     properties: aev,

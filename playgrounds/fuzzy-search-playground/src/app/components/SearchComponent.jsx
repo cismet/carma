@@ -83,7 +83,7 @@ const generateOptions = (results, showScore = false) => {
     const streetLabel = buildAddressWithIconUI(
       result.item,
       showScore,
-      result.score,
+      result.score
     );
     return {
       key: result.item.sorter,
@@ -189,7 +189,7 @@ function SearchComponent({
       referenceSystemDefinition,
       setGazetteerHit,
       setOverlayFeature,
-      _gazetteerHitTrigger,
+      _gazetteerHitTrigger
     );
   };
   const [fuseInstance, setFuseInstance] = useState(null);
@@ -256,7 +256,7 @@ function SearchComponent({
         resultWithRoundScore = limitSearchResult(
           resultWithRoundScore,
           defaultLimit,
-          defaultCut,
+          defaultCut
         );
       }
 
@@ -318,21 +318,21 @@ function SearchComponent({
   useEffect(() => {
     if (dropdownContainerRef.current) {
       const allItems = dropdownContainerRef.current.querySelectorAll(
-        ".ant-select-item-option-content",
+        ".ant-select-item-option-content"
       );
 
       const holderInner = dropdownContainerRef.current.querySelector(
-        ".rc-virtual-list-holder-inner",
+        ".rc-virtual-list-holder-inner"
       );
       const listHolder = dropdownContainerRef.current.querySelector(
-        ".rc-virtual-list-holder > div:first-child",
+        ".rc-virtual-list-holder > div:first-child"
       );
 
       const antdDrapdownSelect = dropdownContainerRef.current.querySelector(
-        ".rc-virtual-list-holder",
+        ".rc-virtual-list-holder"
       );
       const inputWidth = document.querySelector(
-        ".ant-select-selection-search-input",
+        ".ant-select-selection-search-input"
       ).scrollWidth;
 
       holderInner.style.width = inputWidth + 10 + "px";
@@ -473,7 +473,7 @@ function prepareGazData(data, prepoHandling) {
     const stringWithoutStopWords = removeStopwords(
       searchData,
       stopwords,
-      prepoHandling,
+      prepoHandling
     );
     const address = {
       ...item,

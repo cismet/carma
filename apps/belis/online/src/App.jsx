@@ -90,7 +90,7 @@ if (!baseLayerConf.namedLayers.dark_matter_pale) {
   };
 }
 console.log(
-  "......................................................................",
+  "......................................................................"
 );
 console.log("... BelIS Version: ", getBelisVersion());
 console.log("... BelIS Hash: ", getBelisHash());
@@ -106,13 +106,13 @@ if (
 ) {
   console.log("... console.log|warn|error|info|time|timeEnd disabled");
   console.log(
-    "... reenable by setting the queryParam consoleLog=true in the url",
+    "... reenable by setting the queryParam consoleLog=true in the url"
   );
   console.log(
-    "... or removing the queryParam consoleLog=false in development mode",
+    "... or removing the queryParam consoleLog=false in development mode"
   );
   console.log(
-    "......................................................................",
+    "......................................................................"
   );
   console.log = function () {};
   console.warn = function () {};
@@ -122,7 +122,7 @@ if (
   console.timeEnd = function () {};
 } else {
   console.log(
-    "......................................................................",
+    "......................................................................"
   );
 }
 
