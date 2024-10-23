@@ -14,10 +14,10 @@
 // ***********************************************************
 
 // Import commands.js using ES2015 syntax:
-import "./commands";
+import './commands';
 beforeEach(() => {
-  Cypress.on("uncaught:exception", (err, runnable) => {
-    if (err.message.includes("Loading chunk vendor failed")) {
+  Cypress.on('uncaught:exception', (err, runnable) => {
+    if (err.message.includes('Loading chunk vendor failed')) {
       return false;
     }
     return true;

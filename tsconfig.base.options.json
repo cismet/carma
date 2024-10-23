@@ -16,7 +16,7 @@
     //"module": "CommonJS",
     "module": "preserve",
     // ^ also implies:
-    // moduleresolution: bundler
+    // moduleresolution: bundler  
     // "esModuleInterop": true,
     // "resolveJsonModule": true,
 

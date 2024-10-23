@@ -6,5 +6,5 @@
 // github.com/prettier/prettier/blob/1b7fad52558e16444399d11ff2d89aa8ed895c77/docs/options.md
 
 module.exports = {
-  trailingComma: "all", // matching default for prettier 3.0.0
+  trailingComma: 'all', // matching default for prettier 3.0.0
 };
