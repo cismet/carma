@@ -1,34 +1,53 @@
-# Add files here to ignore them from prettier formatting
-
 # nx and nx boilerplate stuff
 
 /.nx/cache
 /.nx/workspace-data
 
-*.md
+nx.json
+project.json
 
-eslint.config.ts
-eslint.config.cjs
-jest.config.ts
-jest.config.cjs
-jest.preset.ts
-postcss.config.ts
-postcss.config.cjs
-tailwind.config.ts
-tailwind.config.cjs
-tsconfig.json
-tsconfig.*.json
-vite.config.ts
+# package
 
 package.json
 package-lock.json
 
+*.md
+
 /coverage
 /dist
 
+# configs from boilerplate
+cypress.config.ts
+
+eslint.config.cjs
+eslint.config.ts
+
+jest.config.cjs
+jest.config.ts
+
+jest.preset.cjs
+jest.preset.ts
+
+postcss.config.cjs
+postcss.config.ts
+
+tailwind.config.cjs
+tailwind.config.ts
+
+tsconfig.json
+tsconfig.*.json
+
+vite.config.cjs
+vite.config.mts
+vite.config.ts
+
+
+# data, submodules, workers
+
+manifest.json
+
 /libraries/collaboration/carma-pecher-collab/pecher-collab-submodule
 /libraries/collaboration/carma-wuppertal-collab/wuppertal-collab-submodule
-
 
 **/public/data/**/*.json
 **/public/data/**/*.geojson
