@@ -7,7 +7,7 @@ export const extractCarmaConf = (
 
   if (keywords) {
     keywords.forEach((keyword) => {
-      if (keyword.startsWith("carmaConf://")) {
+      if (keyword.toLowerCase().startsWith("carmaconf://")) {
         const objectString = keyword.slice(12);
         let colonIndex = objectString.indexOf(":");
         const property = objectString.split(":")[0];
