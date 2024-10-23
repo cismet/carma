@@ -37,7 +37,7 @@ export function getBackgroundLayers({
           namedStyleOptions = objectAssign(
             {},
             namedStyleOptions,
-            namedStylesConfig[element],
+            namedStylesConfig[element]
           );
         }
       }
@@ -45,7 +45,7 @@ export function getBackgroundLayers({
     let mergedOptions = objectAssign({}, namedStyleOptions, options);
     const layerGetter = createLayerFactoryFunction(
       layerAndNamedStyleArray[0],
-      layerConfig,
+      layerConfig
     );
     if (layerGetter) {
       return layerGetter(mergedOptions);
@@ -77,7 +77,7 @@ export function getBackgroundLayers({
             console.error(error);
             console.error(
               "Problems during parsing of the layer options. Skip options. You will get the 100% Layer:" +
-                layOp[0],
+                layOp[0]
             );
             const layerWithNamedStyleExtension =
               layOp[0] + namedMapStyleExtension;

@@ -38,7 +38,7 @@ const Map = ({ layer, selectedFeature }: MapProps) => {
   const layerMode = useSelector(getLayerMode);
   const dispatch = useDispatch();
   const { zoomToFeature } = useContext<typeof TopicMapDispatchContext>(
-    TopicMapDispatchContext,
+    TopicMapDispatchContext
   );
 
   useEffect(() => {
@@ -120,7 +120,7 @@ const Map = ({ layer, selectedFeature }: MapProps) => {
             const pos = proj4(
               proj4.defs("EPSG:4326") as unknown as string,
               proj4crs25832def,
-              [e.latlng.lng, e.latlng.lat],
+              [e.latlng.lng, e.latlng.lat]
             );
 
             setPos([e.latlng.lat, e.latlng.lng]);
@@ -159,16 +159,14 @@ const Map = ({ layer, selectedFeature }: MapProps) => {
                     xmlDoc.getElementsByTagName("gml:featureMember")[0];
                   dispatch(
                     setGMLOutput(
-                      content?.outerHTML
-                        ? content.outerHTML
-                        : "Nichts gefunden",
-                    ),
+                      content?.outerHTML ? content.outerHTML : "Nichts gefunden"
+                    )
                   );
 
                   dispatch(
                     setJSONOutput(
-                      content?.outerHTML ? getLeafNodes(content) : "",
-                    ),
+                      content?.outerHTML ? getLeafNodes(content) : ""
+                    )
                   );
                 });
 

@@ -52,7 +52,7 @@ export const TopicMap = ({ forceShow = false } = {}) => {
     }
     if (secondaryLayerRef.current && secondaryLayerRef.current.leafletElement) {
       secondaryLayerRef.current.leafletElement.setOpacity(
-        isPrimaryStyle ? 0 : 1,
+        isPrimaryStyle ? 0 : 1
       );
     }
   }, [isPrimaryStyle]);

@@ -18,12 +18,12 @@ const HomeButton = () => {
         onAdd: function (map) {
           const container = L.DomUtil.create(
             "div",
-            "leaflet-bar leaflet-control",
+            "leaflet-bar leaflet-control"
           );
           const button = L.DomUtil.create(
             "a",
             "leaflet-control-button",
-            container,
+            container
           );
           button.innerHTML = '<i class="fas fa-home fa-lg"></i>';
           L.DomEvent.disableClickPropagation(button);

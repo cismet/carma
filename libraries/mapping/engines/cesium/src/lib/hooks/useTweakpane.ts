@@ -26,13 +26,13 @@ const useTweakpane = () => {
   const dispatch = useDispatch();
 
   const minZoomDistance = useSelector(
-    selectScreenSpaceCameraControllerMinimumZoomDistance,
+    selectScreenSpaceCameraControllerMinimumZoomDistance
   );
   const maxZoomDistance = useSelector(
-    selectScreenSpaceCameraControllerMaximumZoomDistance,
+    selectScreenSpaceCameraControllerMaximumZoomDistance
   );
   const collisions = useSelector(
-    selectScreenSpaceCameraControllerEnableCollisionDetection,
+    selectScreenSpaceCameraControllerEnableCollisionDetection
   );
 
   const setMaxZoomDistance = (v: number) =>
@@ -93,7 +93,7 @@ const useTweakpane = () => {
         label: "Orthographic",
         type: "boolean",
       },
-    ],
+    ]
   );
 
   useTweakpaneCtx(
@@ -105,7 +105,7 @@ const useTweakpane = () => {
         // Find the closest value in the array to the current resolutionScale and return its index
         const currentValue = viewer ? viewer.resolutionScale : 1;
         const closestIndex = resolutionFractions.findIndex(
-          (value) => value === currentValue,
+          (value) => value === currentValue
         );
         return closestIndex !== -1
           ? closestIndex
@@ -128,7 +128,7 @@ const useTweakpane = () => {
         step: 1, // Step by index
         format: (v: number) => formatFractions(resolutionFractions[v]),
       },
-    ],
+    ]
   );
 
   useTweakpaneCtx(
@@ -165,7 +165,7 @@ const useTweakpane = () => {
       { name: "collisions" },
       { name: "maxZoomDistance", min: 1000, max: 1000000, step: 1000 },
       { name: "minZoomDistance", min: 10, max: 1000, step: 10 },
-    ],
+    ]
   );
 };
 

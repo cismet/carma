@@ -101,7 +101,7 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
   const [viewportLimitDebug, setViewportLimitDebug] = useState<boolean>(false);
 
   const [showCrosshair, setShowCrosshair] = useState<boolean>(
-    props.showCrosshair ?? true,
+    props.showCrosshair ?? true
   );
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -164,7 +164,7 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
         label: "Orthographic",
         type: "boolean",
       },
-    ],
+    ]
   );
 
   useTweakpaneCtx(
@@ -206,7 +206,7 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
         // Find the closest value in the array to the current resolutionScale and return its index
         const currentValue = viewer ? viewer.resolutionScale : 1;
         const closestIndex = resolutionFractions.findIndex(
-          (value) => value === currentValue,
+          (value) => value === currentValue
         );
         return closestIndex !== -1
           ? closestIndex
@@ -234,7 +234,7 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
         step: 1, // Step by index
         format: (v: number) => formatFractions(resolutionFractions[v]),
       },
-    ],
+    ]
   );
   useEffect(() => {
     if (!viewer) return;
@@ -281,11 +281,11 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
     if (viewer) {
       console.log(
         "HOOK: update Hash, route or style changed",
-        isSecondaryStyle,
+        isSecondaryStyle
       );
       replaceHashRoutedHistory(
         encodeScene(viewer, { isSecondaryStyle }),
-        location.pathname,
+        location.pathname
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

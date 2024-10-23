@@ -52,7 +52,7 @@ const LibItem = ({
   const isFavorite = favorites
     ? favorites.some(
         (favorite) =>
-          favorite.id === `fav_${layer.id}` || favorite.id === layer.id,
+          favorite.id === `fav_${layer.id}` || favorite.id === layer.id
       )
     : false;
   const [thumbUrl, setThumbUrl] = useState("");
@@ -72,20 +72,20 @@ const LibItem = ({
   const box = layer.pictureBoundingBox || [];
 
   const thumbnail = thumbnails?.find(
-    (element: { name: string }) => element?.name === name + "_" + service?.name,
+    (element: { name: string }) => element?.name === name + "_" + service?.name
   );
 
   const url = `${
     service?.url
   }?service=WMS&request=GetMap&layers=${encodeURIComponent(
-    name,
+    name
   )}&styles=&format=image%2Fpng&transparent=true&version=1.1.1&tiled=true&type=wms&cssFilter=undefined&width=512&height=341&srs=EPSG%3A3857&bbox=800903.8186576363,6669199.149176236,802126.8111101991,6670013.681258901`;
   let bboxUrl = "";
   if (layer.pictureBoundingBox) {
     bboxUrl = `${
       service?.url
     }?service=WMS&request=GetMap&layers=${encodeURIComponent(
-      name,
+      name
     )}&styles=&format=image%2Fpng&transparent=true&version=1.1.1&tiled=true&type=wms&cssFilter=undefined&width=512&height=341&srs=EPSG%3A3857&bbox=${
       box[0]
     },${box[1]},${box[2]},${box[3]}`;
@@ -101,7 +101,7 @@ const LibItem = ({
 
   const handleLayerClick = (
     e: React.MouseEvent<HTMLElement, MouseEvent>,
-    preview: boolean = false,
+    preview: boolean = false
   ) => {
     e.stopPropagation();
     setAdditionalLayers(layer, false, forceWMS, preview);
@@ -113,7 +113,7 @@ const LibItem = ({
       activeLayers.find(
         (activeLayer) =>
           activeLayer.id ===
-          (layer.id.startsWith("fav_") ? layer.id.slice(4) : layer.id),
+          (layer.id.startsWith("fav_") ? layer.id.slice(4) : layer.id)
       )
     ) {
       setActive = true;
@@ -124,7 +124,7 @@ const LibItem = ({
   useEffect(() => {
     const getImgUrl = async (
       response: Response,
-      onFinish?: (imgUrl: string) => void,
+      onFinish?: (imgUrl: string) => void
     ) => {
       const blob = await response.blob();
       const imgUrl = URL.createObjectURL(blob);
@@ -155,7 +155,7 @@ const LibItem = ({
           const thumbnail = thumbnails.find(
             (element: { name: string }) =>
               element?.name ===
-              layer?.other?.name + "_" + layer?.other?.service?.name,
+              layer?.other?.name + "_" + layer?.other?.service?.name
           );
           let props = layer.props as LayerProps;
 
@@ -166,9 +166,9 @@ const LibItem = ({
 
           return `${props.url.slice(
             0,
-            -1,
+            -1
           )}?service=WMS&request=GetMap&layers=${encodeURIComponent(
-            props.name,
+            props.name
           )}&styles=&format=image%2Fpng&transparent=true&version=1.1.1&tiled=true&type=wms&cssFilter=undefined&width=512&height=341&srs=EPSG%3A3857&bbox=800903.8186576363,6669199.149176236,802126.8111101991,6670013.681258901`;
         });
       } else {
@@ -176,7 +176,7 @@ const LibItem = ({
           const thumbnail = thumbnails.find(
             (element: { name: string }) =>
               element?.name ===
-              layer?.other?.name + "_" + layer?.other?.service?.name,
+              layer?.other?.name + "_" + layer?.other?.service?.name
           );
           let props = layer.props as LayerProps;
 
@@ -187,9 +187,9 @@ const LibItem = ({
 
           return `${props.url.slice(
             0,
-            -1,
+            -1
           )}?service=WMS&request=GetMap&layers=${encodeURIComponent(
-            props.name,
+            props.name
           )}&styles=&format=image%2Fpng&transparent=true&version=1.1.1&tiled=true&type=wms&cssFilter=undefined&width=512&height=341&srs=EPSG%3A3857&bbox=800903.8186576363,6669199.149176236,802126.8111101991,6670013.681258901`;
         });
       }

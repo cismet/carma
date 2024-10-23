@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 const factory = ({ featureCollectionContext }) => {
   const { itemsDictionary, filteredItems, filterState } =
     featureCollectionContext;
@@ -6,19 +6,19 @@ const factory = ({ featureCollectionContext }) => {
   if (filterState) {
     let filterDescriptions = [];
     if (filterState?.nur_online === true) {
-      filterDescriptions.push('verfügbar');
+      filterDescriptions.push("verfügbar");
     }
-    if (filterState?.oeffnungszeiten === '24') {
-      filterDescriptions.push('24/7');
+    if (filterState?.oeffnungszeiten === "24") {
+      filterDescriptions.push("24/7");
     }
     if (filterState?.stecker?.length < 6) {
-      filterDescriptions.push('passender Stecker');
+      filterDescriptions.push("passender Stecker");
     }
     if (filterState?.nur_gruener_strom === true) {
-      filterDescriptions.push('Ökostrom');
+      filterDescriptions.push("Ökostrom");
     }
     if (filterState?.nur_schnelllader === true) {
-      filterDescriptions.push('Schnelllader');
+      filterDescriptions.push("Schnelllader");
     }
 
     if (filterDescriptions.length === 0) {
@@ -27,7 +27,7 @@ const factory = ({ featureCollectionContext }) => {
 
     return (
       <div>
-        <b>Meine Ladestationen:</b> {filterDescriptions.join(' | ')}
+        <b>Meine Ladestationen:</b> {filterDescriptions.join(" | ")}
       </div>
     );
   }

@@ -88,7 +88,7 @@ export const CustomCesiumWidget: FC<{
     const cartesian3 = Cartesian3.fromDegrees(
       position.longitude,
       position.latitude,
-      position.height,
+      position.height
     );
     setCartesian(cartesian3);
 
@@ -225,8 +225,8 @@ export const CustomCesiumWidget: FC<{
           new HeadingPitchRange(
             widget.scene.camera.heading + increment,
             widget.scene.camera.pitch,
-            0,
-          ),
+            0
+          )
         );
         lastTime = now;
         animationFrameId = requestAnimationFrame(updateHeading);
@@ -252,7 +252,7 @@ export const CustomCesiumWidget: FC<{
         if (clipPolygon && clipPolygon.length > 2) {
           clippingPolygon = new ClippingPolygon({
             positions: clipPolygon.map((coord: LatLngRecord) =>
-              Cartesian3.fromDegrees(coord.longitude, coord.latitude),
+              Cartesian3.fromDegrees(coord.longitude, coord.latitude)
             ),
           });
           console.info("Clipping polygon created", clippingPolygon);
@@ -260,12 +260,12 @@ export const CustomCesiumWidget: FC<{
           console.info("Creating clipping circle:", clipRadius);
           const ringCoords = generateRingFromDegrees(
             { longitude: position.longitude, latitude: position.latitude },
-            clipRadius ?? 100,
+            clipRadius ?? 100
           );
 
           clippingPolygon = new ClippingPolygon({
             positions: ringCoords.map((coord: LatLngRadians) =>
-              Cartesian3.fromRadians(coord.lngRad, coord.latRad),
+              Cartesian3.fromRadians(coord.lngRad, coord.latRad)
             ),
           });
         }

@@ -1,16 +1,16 @@
-import { Button, Form, Input, Popover } from 'antd';
-import React, { useEffect } from 'react';
+import { Button, Form, Input, Popover } from "antd";
+import React, { useEffect } from "react";
 
 // import "antd/dist/antd.min.css";
-import { useWindowSize } from '@react-hook/window-size';
-import { useDispatch, useSelector } from 'react-redux';
+import { useWindowSize } from "@react-hook/window-size";
+import { useDispatch, useSelector } from "react-redux";
 
 import {
   getJWT,
   setLoginRequested,
   storeJWT,
   storeLogin,
-} from '../core/store/slices/auth';
+} from "../core/store/slices/auth";
 import {
   DB_VERSION,
   DOMAIN,
@@ -18,28 +18,28 @@ import {
   OFFLINE_ACTIONS_SYNC_URL,
   PLAYGROUND,
   REST_SERVICE,
-} from '../constants/belis';
-import { forceRefresh } from '../core/store/slices/featureCollection';
-import VersionFooter from '../components/commons/secondaryinfo/VersionFooter';
-import localforage from 'localforage';
-import { CONNECTIONMODE, setConnectionMode } from '../core/store/slices/app';
+} from "../constants/belis";
+import { forceRefresh } from "../core/store/slices/featureCollection";
+import VersionFooter from "../components/commons/secondaryinfo/VersionFooter";
+import localforage from "localforage";
+import { CONNECTIONMODE, setConnectionMode } from "../core/store/slices/app";
 import {
   deleteCacheDB,
   isCacheFullUsable,
-} from '../core/store/slices/cacheControl';
+} from "../core/store/slices/cacheControl";
 import {
   downloadTasks,
   truncateActionTables,
-} from '../core/store/slices/offlineActionDb';
+} from "../core/store/slices/offlineActionDb";
 import {
   doHealthCheck,
   getHealthState,
   HEALTHSTATUS,
   setHealthState,
-} from '../core/store/slices/health';
-import { useLocation, useNavigate } from 'react-router-dom';
+} from "../core/store/slices/health";
+import { useLocation, useNavigate } from "react-router-dom";
 
-export const background = 'belis_background_iStock-139701369_blurred.jpg';
+export const background = "belis_background_iStock-139701369_blurred.jpg";
 
 const Login = () => {
   const windowSize = useWindowSize();
@@ -54,7 +54,7 @@ const Login = () => {
 
   const jwt = useSelector(getJWT);
 
-  const productionMode = process.env.NODE_ENV === 'production';
+  const productionMode = process.env.NODE_ENV === "production";
   const windowHeight = windowSize[1];
   useEffect(() => {
     //enable a timer that checks the conection health every 1 seconds and stops it if the page unloads
@@ -74,9 +74,9 @@ const Login = () => {
     (async () => {
       try {
         if (!productionMode) {
-          const result = await fetch('devSecrets.json');
+          const result = await fetch("devSecrets.json");
           const cheats = await result.json();
-          console.log('devSecrets.json found');
+          console.log("devSecrets.json found");
 
           let values = {};
           if (cheats.cheatingUser) {
@@ -96,7 +96,7 @@ const Login = () => {
           form.setFieldsValue({ username: lastSuccesfulUser });
         }
       } catch (e) {
-        console.log('no devSecrets.json found');
+        console.log("no devSecrets.json found");
       }
     })();
   }, [productionMode]);
@@ -108,11 +108,11 @@ const Login = () => {
   };
   /*eslint no-useless-concat: "off"*/
   const login = (user, pw) => {
-    fetch(REST_SERVICE + '/users', {
-      method: 'GET',
+    fetch(REST_SERVICE + "/users", {
+      method: "GET",
       headers: {
-        Authorization: 'Basic ' + btoa(user + '@' + DOMAIN + ':' + pw),
-        'Content-Type': 'application/json',
+        Authorization: "Basic " + btoa(user + "@" + DOMAIN + ":" + pw),
+        "Content-Type": "application/json",
       },
     })
       .then(function (response) {
@@ -120,11 +120,11 @@ const Login = () => {
           response.json().then(function (responseWithJWT) {
             const jwt = responseWithJWT.jwt;
             setLoginInfo({
-              color: '#038643',
-              text: 'Anmeldung erfolgreich. Daten werden geladen.',
+              color: "#038643",
+              text: "Anmeldung erfolgreich. Daten werden geladen.",
             });
             setTimeout(() => {
-              navigate('/app' + browserlocation.search);
+              navigate("/app" + browserlocation.search);
               dispatch(storeJWT(jwt));
               dispatch(storeLogin(user));
               dispatch(setHealthState({ jwt, healthState: HEALTHSTATUS.OK }));
@@ -134,8 +134,8 @@ const Login = () => {
           });
         } else {
           setLoginInfo({
-            color: '#703014',
-            text: 'Bei der Anmeldung ist ein Fehler aufgetreten.',
+            color: "#703014",
+            text: "Bei der Anmeldung ist ein Fehler aufgetreten.",
           });
           setTimeout(() => {
             setLoginInfo();
@@ -144,8 +144,8 @@ const Login = () => {
       })
       .catch(function (err) {
         setLoginInfo({
-          color: '#703014',
-          text: 'Bei der Anmeldung ist ein Fehler aufgetreten.',
+          color: "#703014",
+          text: "Bei der Anmeldung ist ein Fehler aufgetreten.",
         });
         setTimeout(() => {
           setLoginInfo();
@@ -154,7 +154,7 @@ const Login = () => {
   };
 
   const onFinishFailed = (errorInfo) => {
-    console.log('Failed:', errorInfo);
+    console.log("Failed:", errorInfo);
   };
 
   return (
@@ -162,21 +162,21 @@ const Login = () => {
       style={{
         // background: "#dddddd",
         height: windowHeight,
-        width: '100%',
+        width: "100%",
         background: "url('/images/" + background + "')",
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
       }}
     >
       <div
         style={{
           width: loginPanelWidth,
           height: loginPanelHeight,
-          background: '#ffffff22',
+          background: "#ffffff22",
 
           borderRadius: 25,
         }}
@@ -184,7 +184,7 @@ const Login = () => {
         <h1
           style={{
             padding: 25,
-            color: 'black',
+            color: "black",
             opacity: 0.5,
             paddingBottom: 4,
           }}
@@ -194,11 +194,11 @@ const Login = () => {
         <div
           style={{
             minHeight: 21,
-            color: loginInfo?.color || 'black',
+            color: loginInfo?.color || "black",
             marginRight: 10,
           }}
         >
-          {loginInfo?.text || ''}
+          {loginInfo?.text || ""}
         </div>
         <Form
           form={form}
@@ -209,11 +209,11 @@ const Login = () => {
           onFinishFailed={onFinishFailed}
           autoComplete="off"
           style={{
-            justifyContent: 'left',
-            width: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'left',
+            justifyContent: "left",
+            width: "100%",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "left",
             padding: 20,
           }}
         >
@@ -223,7 +223,7 @@ const Login = () => {
             rules={[
               {
                 required: true,
-                message: 'Bitte geben Sie Ihren Benutzernamen an',
+                message: "Bitte geben Sie Ihren Benutzernamen an",
               },
             ]}
           >
@@ -234,13 +234,13 @@ const Login = () => {
             label="Passwort"
             name="password"
             rules={[
-              { required: true, message: 'Bitte geben Sie ein Passwort an.' },
+              { required: true, message: "Bitte geben Sie ein Passwort an." },
             ]}
           >
             <Input.Password />
           </Form.Item>
-          <div style={{ width: '100%' }}>
-            <Form.Item style={{ float: 'right' }}>
+          <div style={{ width: "100%" }}>
+            <Form.Item style={{ float: "right" }}>
               {isCacheFullyUsable === true && (
                 <Button
                   style={{ marginRight: 15 }}
@@ -248,7 +248,7 @@ const Login = () => {
                   onClick={() => {
                     dispatch(setConnectionMode(CONNECTIONMODE.FROMCACHE));
                     dispatch(setLoginRequested(false));
-                    navigate('/app' + browserlocation.search);
+                    navigate("/app" + browserlocation.search);
                   }}
                 >
                   Offline arbeiten
@@ -261,13 +261,13 @@ const Login = () => {
           </div>
         </Form>
       </div>
-      <div style={{ position: 'absolute', bottom: 20, left: 30 }}>
+      <div style={{ position: "absolute", bottom: 20, left: 30 }}>
         <Popover
           placement="rightBottom"
           title={<b>Systemmenü</b>}
           content={
-            <div style={{ textAlign: 'left' }}>
-              <i>Systeminfos:</i>{' '}
+            <div style={{ textAlign: "left" }}>
+              <i>Systeminfos:</i>{" "}
               {PLAYGROUND === true && (
                 <span>(Sie befinden sich in einem Playground)</span>
               )}
@@ -275,7 +275,7 @@ const Login = () => {
               API_URL: {REST_SERVICE} <br></br>
               DOMAIN: {DOMAIN} <br></br>
               OFFLINE_ACTIONS_SYNC_URL: {OFFLINE_ACTIONS_SYNC_URL} <br></br>
-              OFFLINE_ACTIONS_ENDPOINT_URL: {OFFLINE_ACTIONS_ENDPOINT_URL}{' '}
+              OFFLINE_ACTIONS_ENDPOINT_URL: {OFFLINE_ACTIONS_ENDPOINT_URL}{" "}
               <br></br>
               OFFLINE_ACTION_DB: {DB_VERSION} <br></br>
               <br></br>
@@ -285,9 +285,9 @@ const Login = () => {
                 style={{ marginTop: 10 }}
                 onClick={() => {
                   let confirmation = window.confirm(
-                    'Mit dieser Aktion werden die gespeicherten Einstellungen wie Anmeldetoken, Modus ' +
-                      ' ausgewähltes Team, Hintergrund, u.ä. gelöscht.\n\n' +
-                      'Sind Sie sicher, dass Sie Ihre Einstellungen zurücksetzen wollen?'
+                    "Mit dieser Aktion werden die gespeicherten Einstellungen wie Anmeldetoken, Modus " +
+                      " ausgewähltes Team, Hintergrund, u.ä. gelöscht.\n\n" +
+                      "Sind Sie sicher, dass Sie Ihre Einstellungen zurücksetzen wollen?"
                   );
                   if (confirmation) {
                     localforage.clear();
@@ -301,12 +301,12 @@ const Login = () => {
                 style={{ marginTop: 10 }}
                 onClick={() => {
                   let confirmation = window.confirm(
-                    'Mit dieser Aktion werden die im Cache gespeicherten ' +
-                      'Fachdaten gelöscht und der Modus der Applikation auf Live-Daten gesetzt.\n\n' +
-                      'Sind Sie sicher, dass Sie die gespeicherten Fachdaten löschen wollen?'
+                    "Mit dieser Aktion werden die im Cache gespeicherten " +
+                      "Fachdaten gelöscht und der Modus der Applikation auf Live-Daten gesetzt.\n\n" +
+                      "Sind Sie sicher, dass Sie die gespeicherten Fachdaten löschen wollen?"
                   );
                   if (confirmation) {
-                    console.log('deleting cache');
+                    console.log("deleting cache");
                     dispatch(setConnectionMode(CONNECTIONMODE.LIVE));
                     dispatch(deleteCacheDB());
 
@@ -323,9 +323,9 @@ const Login = () => {
                 style={{ marginTop: 10 }}
                 onClick={() => {
                   let confirmation = window.confirm(
-                    'Mit dieser Aktion werden die in der Taskliste gespeicherten Aktion' +
-                      ' abgespeichert. (u.U. eine sehr große Datei)\n\n' +
-                      'Wollen Sie die Datei jetzt speichern?'
+                    "Mit dieser Aktion werden die in der Taskliste gespeicherten Aktion" +
+                      " abgespeichert. (u.U. eine sehr große Datei)\n\n" +
+                      "Wollen Sie die Datei jetzt speichern?"
                   );
                   if (confirmation) {
                     dispatch(downloadTasks());
@@ -339,13 +339,13 @@ const Login = () => {
                 style={{ marginTop: 10 }}
                 onClick={() => {
                   let confirmation = window.confirm(
-                    'Mit dieser Aktion werden die in der Taskliste gespeicherten Aktion' +
-                      ' gelöscht. Bitte speichern Sie ggf. vorher die Aktionen über den Button *Taskliste speichern* \n\n' +
-                      '(Schon auf dem Server gespeicherte Aktionen erscheinen, bei vorhandener Internetverbindung, wieder in Ihrem Browser)\n\n' +
-                      'Sind Sie sicher, dass Sie die gespeicherten Aktionen löschen wollen?'
+                    "Mit dieser Aktion werden die in der Taskliste gespeicherten Aktion" +
+                      " gelöscht. Bitte speichern Sie ggf. vorher die Aktionen über den Button *Taskliste speichern* \n\n" +
+                      "(Schon auf dem Server gespeicherte Aktionen erscheinen, bei vorhandener Internetverbindung, wieder in Ihrem Browser)\n\n" +
+                      "Sind Sie sicher, dass Sie die gespeicherten Aktionen löschen wollen?"
                   );
                   if (confirmation) {
-                    console.log('deleting action tables');
+                    console.log("deleting action tables");
                     dispatch(truncateActionTables());
                   }
                 }}
@@ -356,39 +356,39 @@ const Login = () => {
           }
           trigger="click"
         >
-          <b style={{ cursor: 'pointer' }}>...</b>
+          <b style={{ cursor: "pointer" }}>...</b>
         </Popover>
       </div>
-      <div style={{ position: 'absolute', top: 20, left: 30, opacity: 0.7 }}>
-        <h1 style={{ color: 'white' }}>
+      <div style={{ position: "absolute", top: 20, left: 30, opacity: 0.7 }}>
+        <h1 style={{ color: "white" }}>
           <img alt="" width={180} src="/images/wuppertal-white.svg" />
         </h1>
       </div>
       <div
         style={{
-          position: 'absolute',
+          position: "absolute",
           top: 20,
           right: 20,
-          textAlign: 'right',
+          textAlign: "right",
           opacity: 0.7,
         }}
       >
-        <h5 style={{ color: 'white' }}>Stadt Wuppertal</h5>
-        <h5 style={{ color: 'white' }}>Straßen und Verkehr</h5>
-        <h5 style={{ color: 'white' }}>104.25 Öffentliche Beleuchtung</h5>
+        <h5 style={{ color: "white" }}>Stadt Wuppertal</h5>
+        <h5 style={{ color: "white" }}>Straßen und Verkehr</h5>
+        <h5 style={{ color: "white" }}>104.25 Öffentliche Beleuchtung</h5>
       </div>
       <div
         style={{
-          position: 'absolute',
+          position: "absolute",
           bottom: 20,
           right: 30,
           opacity: 0.5,
           width: 300,
-          textAlign: 'right',
-          color: 'white',
+          textAlign: "right",
+          color: "white",
         }}
       >
-        <VersionFooter linkStyling={{ color: 'grey' }} />
+        <VersionFooter linkStyling={{ color: "grey" }} />
       </div>
     </div>
   );

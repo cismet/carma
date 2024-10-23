@@ -13,8 +13,15 @@ type Ref = HTMLButtonElement;
 
 const ControlButtonStyler = forwardRef<Ref, ControlButtonStylerProps>(
   (
-    { children, width = "34px", height = "34px", fontSize = "18px", disabled, ...props },
-    ref,
+    {
+      children,
+      width = "34px",
+      height = "34px",
+      fontSize = "18px",
+      disabled,
+      ...props
+    },
+    ref
   ) => {
     const iconPadding = {
       backgroundColor: "#fff",
@@ -34,12 +41,10 @@ const ControlButtonStyler = forwardRef<Ref, ControlButtonStylerProps>(
     } as CSSProperties;
     return (
       <button {...props} disabled={disabled} style={iconPadding} ref={ref}>
-        <div style={{ opacity: disabled ? 0.5 : 1 }}>
-          {children}
-        </div>
+        <div style={{ opacity: disabled ? 0.5 : 1 }}>{children}</div>
       </button>
     );
-  },
+  }
 );
 
 export default ControlButtonStyler;

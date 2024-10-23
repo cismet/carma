@@ -83,7 +83,7 @@ const getAnsprechpartnerLinks = (ansprechpartner) => {
           href={"tel:" + ansprechpartner.tel}
           iconname="phone"
         />
-      </span>,
+      </span>
     );
   }
   if (ansprechpartner.email) {
@@ -96,7 +96,7 @@ const getAnsprechpartnerLinks = (ansprechpartner) => {
           iconname="envelope-square"
           target="_blank"
         />
-      </span>,
+      </span>
     );
   }
   if (ansprechpartner.url) {
@@ -109,7 +109,7 @@ const getAnsprechpartnerLinks = (ansprechpartner) => {
           target="_blank"
           iconname="external-link-square"
         />
-      </span>,
+      </span>
     );
   }
   return links;
@@ -298,7 +298,7 @@ const InfoPanel = ({ hits }) => {
               <div>
                 {hitObject.strassenmeisterei[0].ansprechpartner &&
                   getAnsprechpartner(
-                    hitObject.strassenmeisterei[0].ansprechpartner,
+                    hitObject.strassenmeisterei[0].ansprechpartner
                   )}
               </div>
             )}
@@ -326,10 +326,10 @@ const InfoPanel = ({ hits }) => {
                       {getDienststellen(
                         hitObject.stadtFlurstuecke[0].dienststellen,
                         Array.isArray(
-                          hitObject.stadtFlurstuecke[0].ansprechpartner,
+                          hitObject.stadtFlurstuecke[0].ansprechpartner
                         )
                           ? hitObject.stadtFlurstuecke[0].ansprechpartner[0]
-                          : hitObject.stadtFlurstuecke[0].ansprechpartner,
+                          : hitObject.stadtFlurstuecke[0].ansprechpartner
                       )}
                       {/* {value.dienststellen.replace('#', ', ')} */}
                     </div>
@@ -337,10 +337,10 @@ const InfoPanel = ({ hits }) => {
                     {hitObject.stadtFlurstuecke[0].ansprechpartner &&
                       getAnsprechpartner(
                         Array.isArray(
-                          hitObject.stadtFlurstuecke[0].ansprechpartner,
+                          hitObject.stadtFlurstuecke[0].ansprechpartner
                         )
                           ? hitObject.stadtFlurstuecke[0].ansprechpartner[0]
-                          : hitObject.stadtFlurstuecke[0].ansprechpartner,
+                          : hitObject.stadtFlurstuecke[0].ansprechpartner
                       )}
                   </div>
                 </div>
@@ -366,7 +366,7 @@ const InfoPanel = ({ hits }) => {
                         value.dienststellen,
                         Array.isArray(value.ansprechpartner)
                           ? value.ansprechpartner[0]
-                          : value.ansprechpartner,
+                          : value.ansprechpartner
                       )}
                       {/* {value.dienststellen.replace('#', ', ')} */}
                     </div>
@@ -375,12 +375,12 @@ const InfoPanel = ({ hits }) => {
                       getAnsprechpartner(
                         Array.isArray(value.ansprechpartner)
                           ? value.ansprechpartner[0]
-                          : value.ansprechpartner,
+                          : value.ansprechpartner
                       )}
                   </div>
                 );
               })}
-          </SecondaryInfoPanelSection>,
+          </SecondaryInfoPanelSection>
         );
       }
 
@@ -577,7 +577,7 @@ const InfoPanel = ({ hits }) => {
                   </div>
                 );
               })}
-          </SecondaryInfoPanelSection>,
+          </SecondaryInfoPanelSection>
         );
       }
 
@@ -609,7 +609,7 @@ const InfoPanel = ({ hits }) => {
               </pre>
               {/* <pre key='hits'>{JSON.stringify(hitsForRawDisplay, null, 2)}</pre> */}
             </div>
-          </SecondaryInfoPanelSection>,
+          </SecondaryInfoPanelSection>
         );
       }
     }
@@ -635,7 +635,7 @@ const InfoPanel = ({ hits }) => {
                 </span>
               ))}
               {display("Stadtbezirk(e)", hits?.stadtbezirke, (sb) =>
-                sb.join(", "),
+                sb.join(", ")
               )}
               {display("Quartier(e)", hits?.quartiere, (q) => q.join(", "))}
               {display("Eigentümer", hits?.eigentuemer, (e) => e.join(", "))}

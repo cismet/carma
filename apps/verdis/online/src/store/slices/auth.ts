@@ -1,10 +1,10 @@
-import { createSlice } from '@reduxjs/toolkit';
-import { DOMAIN, SERVICE } from '../../constants/cids';
+import { createSlice } from "@reduxjs/toolkit";
+import { DOMAIN, SERVICE } from "../../constants/cids";
 
 export const types = {
-  SET_LOGIN_INFORMATION: 'AUTH/SET_LOGIN_INFORMATION',
-  SET_LOGIN_IN_PROGRESS: 'AUTH/SET_LOGIN_IN_PROGRESS',
-  SET_STAC: 'AUTH/SET_STAC',
+  SET_LOGIN_INFORMATION: "AUTH/SET_LOGIN_INFORMATION",
+  SET_LOGIN_IN_PROGRESS: "AUTH/SET_LOGIN_IN_PROGRESS",
+  SET_STAC: "AUTH/SET_STAC",
 };
 
 const initialState = {
@@ -12,12 +12,12 @@ const initialState = {
   password: null,
   succesfullLogin: false,
   loginInProgress: false,
-  loginInProgressTextInfo: 'XLaden der Daten ...',
+  loginInProgressTextInfo: "XLaden der Daten ...",
   stac: null,
 };
 
 const slice = createSlice({
-  name: 'auth',
+  name: "auth",
   initialState,
   reducers: {
     setLoginInformation(state, action) {
@@ -63,16 +63,16 @@ export const getStac = (state) => {
 };
 
 export const login = (user, password, succesfulHandler) => {
-  if (typeof succesfulHandler === 'undefined') {
+  if (typeof succesfulHandler === "undefined") {
     succesfulHandler = () => {};
   }
   return function (dispatch) {
     dispatch(setLoginInProgress({}));
-    fetch(SERVICE + '/classes?domain=local&limit=1&offset=0&role=all', {
-      method: 'GET',
+    fetch(SERVICE + "/classes?domain=local&limit=1&offset=0&role=all", {
+      method: "GET",
       headers: {
-        Authorization: 'Basic ' + btoa(user + '@' + DOMAIN + ':' + password),
-        'Content-Type': 'application/json',
+        Authorization: "Basic " + btoa(user + "@" + DOMAIN + ":" + password),
+        "Content-Type": "application/json",
       },
     })
       .then(function (response) {

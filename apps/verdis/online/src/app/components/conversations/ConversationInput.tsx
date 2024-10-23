@@ -5,14 +5,14 @@ import {
   faArrowCircleRight,
   faPaperclip,
 } from "@fortawesome/free-solid-svg-icons";
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChangeEvent, KeyboardEvent } from "react";
 import TextareaAutosize from "react-textarea-autosize";
 import { Documents } from "./Documents";
 import { FormGroup, InputGroup } from "react-bootstrap";
 import { useDropzone } from "react-dropzone";
 import { split } from "lodash";
-import slugify from "@sindresorhus/slugify"
+import slugify from "@sindresorhus/slugify";
 import iconv from "iconv-lite";
 
 type MessageAttachment = {
@@ -24,9 +24,9 @@ type MessageAttachment = {
 };
 
 const ConversationInput = ({
-  setDraft = (a, b) => { },
+  setDraft = (a, b) => {},
   maxRows = 4,
-  scrollToInput = () => { },
+  scrollToInput = () => {},
   subText = (
     <div>
       Mit <FontAwesomeIcon icon={faArrowUp} /> können Sie Ihre letzte, noch
@@ -37,8 +37,8 @@ const ConversationInput = ({
   removeLastUserMessage = () => {
     console.log("remove last user message");
   },
-  uploadCRDoc = (a, b) => { },
-  addLocalErrorMessage = (m) => { },
+  uploadCRDoc = (a, b) => {},
+  addLocalErrorMessage = (m) => {},
 }) => {
   const textarea = useRef<HTMLTextAreaElement | null>(null);
   const [position, setPosition] = useState(0);
@@ -48,16 +48,17 @@ const ConversationInput = ({
   const [errorChars, setErrorChars] = useState("");
 
   const onDrop = useCallback(
-    acceptedFiles => {
-      (acceptedFiles || []).forEach(file => {
+    (acceptedFiles) => {
+      (acceptedFiles || []).forEach((file) => {
         file.nonce =
-          btoa(unescape(encodeURIComponent(JSON.stringify(file)))) + new Date().getTime();
+          btoa(unescape(encodeURIComponent(JSON.stringify(file)))) +
+          new Date().getTime();
         addAttachment({
           name: slugify(file.name),
           nonce: file.nonce,
-          inProgress: true
+          inProgress: true,
         });
-        return uploadCRDoc(file, returnedFOString => {
+        return uploadCRDoc(file, (returnedFOString) => {
           if (returnedFOString) {
             try {
               const returnedFO = JSON.parse(returnedFOString);
@@ -76,7 +77,7 @@ const ConversationInput = ({
                     " geantwortet. (" +
                     returnedFO.message +
                     "). Bitte versuchen Sie es später noch einmal. Sollte der Fehler weiter bestehen bleiben, bitten wir Sie Ihren Ansprechpartner in der Stadtverwaltung per Mail zu kontaktieren.",
-                  draft: true
+                  draft: true,
                 });
                 removeAttachment(file);
               }
@@ -87,7 +88,7 @@ const ConversationInput = ({
                   "Beim Hochladen der Datei ist ein unerwarteter Fehler passiert: (" +
                   err +
                   ")",
-                draft: true
+                draft: true,
               });
               removeAttachment(file);
             }
@@ -115,26 +116,26 @@ const ConversationInput = ({
     }, 500);
   }, [scrollToInput]);
 
-  const addAttachment = fileO => {
-    setMsgAttachments(msga => {
+  const addAttachment = (fileO) => {
+    setMsgAttachments((msga) => {
       const newMsgAttachments = JSON.parse(JSON.stringify(msga));
       newMsgAttachments.push(fileO);
       return newMsgAttachments;
     });
   };
 
-  const removeAttachment = file0 => {
-    setMsgAttachments(msga => {
+  const removeAttachment = (file0) => {
+    setMsgAttachments((msga) => {
       const newMsgAttachments = JSON.parse(JSON.stringify(msga));
-      const without = (newMsgAttachments || []).filter(fo => {
+      const without = (newMsgAttachments || []).filter((fo) => {
         return fo.nonce !== file0.nonce;
       });
       return without;
     });
   };
 
-  const updateAttachment = fileO => {
-    setMsgAttachments(msga => {
+  const updateAttachment = (fileO) => {
+    setMsgAttachments((msga) => {
       const newMsgAttachments = JSON.parse(JSON.stringify(msga));
       (newMsgAttachments || []).forEach((fo, index) => {
         if (fo.nonce === fileO.nonce) {
@@ -146,8 +147,6 @@ const ConversationInput = ({
       return newMsgAttachments;
     });
   };
-
-
 
   const send = (draft, event) => {
     setMsgTextValue("");
@@ -188,8 +187,8 @@ const ConversationInput = ({
         outline: "none",
       }}
       {...getRootProps()}
-      onClick={() => { }}
-      onKeyDown={() => { }}
+      onClick={() => {}}
+      onKeyDown={() => {}}
     >
       <Documents
         //style={{ paddingTop: "30px", padding: "5px", margin: "30px" }}
@@ -247,12 +246,14 @@ const ConversationInput = ({
 
           <TextareaAutosize
             ref={textarea}
-            style={{
-              resize: "none",
-              minHeight: "34px",
-              textAlign: "right",
-              backgroundColor: inputBackgroundColor,
-            } as any}
+            style={
+              {
+                resize: "none",
+                minHeight: "34px",
+                textAlign: "right",
+                backgroundColor: inputBackgroundColor,
+              } as any
+            }
             className="basicSelectionColor form-control"
             value={msgTextValue}
             maxRows={12}
@@ -293,10 +294,12 @@ const ConversationInput = ({
                   setMsgTextValue(
                     e.currentTarget.value.substring(
                       0,
-                      textarea.current.selectionStart,
+                      textarea.current.selectionStart
                     ) +
-                    "\n" +
-                    e.currentTarget.value.substring(textarea.current.selectionStart),
+                      "\n" +
+                      e.currentTarget.value.substring(
+                        textarea.current.selectionStart
+                      )
                   );
                   setPosition(textarea.current.selectionStart + 1);
                 } else if (e.currentTarget.value === "" && e.keyCode === 38) {
@@ -307,7 +310,7 @@ const ConversationInput = ({
                     setMsgAttachments(lastUserMessage.anhang);
                     setTimeout(() => {
                       setPosition(
-                        (lastUserMessage.nachricht || []).length + 100,
+                        (lastUserMessage.nachricht || []).length + 100
                       );
                     }, 10);
                   }

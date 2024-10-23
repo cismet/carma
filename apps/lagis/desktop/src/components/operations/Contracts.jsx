@@ -75,7 +75,7 @@ const Contracts = ({
     };
     setActiveRow(copyRow);
     setContracts(
-      contracts.map((obj) => (obj.id === copyRow.id ? copyRow : obj)),
+      contracts.map((obj) => (obj.id === copyRow.id ? copyRow : obj))
     );
   };
   const isStory = false;

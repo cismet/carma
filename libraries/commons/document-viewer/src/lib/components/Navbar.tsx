@@ -4,11 +4,11 @@ import {
   NavItem,
   Tooltip,
   OverlayTrigger,
-} from 'react-bootstrap';
-import Icon from 'react-cismap/commons/Icon';
-import { useNavigate, useParams } from 'react-router-dom';
-import type { Doc } from '../document-viewer';
-import './navItem.css';
+} from "react-bootstrap";
+import Icon from "react-cismap/commons/Icon";
+import { useNavigate, useParams } from "react-router-dom";
+import type { Doc } from "../document-viewer";
+import "./navItem.css";
 
 interface NavProps {
   title?: string;
@@ -35,20 +35,20 @@ const Navbar = ({
   const navigate = useNavigate();
 
   const ZIP_FILE_NAME_MAPPING = {
-    bplaene: 'BPLAN_Plaene_und_Zusatzdokumente',
-    aenderungsv: 'FNP_Aenderungsverfahren_und_Zusatzdokumente',
-    static: '',
+    bplaene: "BPLAN_Plaene_und_Zusatzdokumente",
+    aenderungsv: "FNP_Aenderungsverfahren_und_Zusatzdokumente",
+    static: "",
   };
 
-  const DRPROCESSOR = 'https://doc-processor.cismet.de';
+  const DRPROCESSOR = "https://doc-processor.cismet.de";
 
   const downloadSingleFile = (downloadOptions: any) => {
     try {
-      let link = document.createElement('a');
+      let link = document.createElement("a");
       document.body.appendChild(link);
-      link.setAttribute('type', 'hidden');
+      link.setAttribute("type", "hidden");
       link.href = downloadOptions.url;
-      link.target = '_blank';
+      link.target = "_blank";
       link.click();
     } catch (err) {
       window.alert(err);
@@ -56,10 +56,10 @@ const Navbar = ({
   };
 
   const prepareDownloadMultipleFiles = (mergeConf: any) => {
-    fetch(DRPROCESSOR + '/api/zip/and/wait/for/status', {
-      method: 'post',
+    fetch(DRPROCESSOR + "/api/zip/and/wait/for/status", {
+      method: "post",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(mergeConf),
     })
@@ -68,7 +68,7 @@ const Navbar = ({
           return response.json();
         } else {
           console.log(
-            'Error:' + response.status + ' -> ' + response.statusText,
+            "Error:" + response.status + " -> " + response.statusText
           );
         }
       })
@@ -78,12 +78,12 @@ const Navbar = ({
       .then((result) => {
         if (result && !result.error) {
           downloadSingleFile({
-            file: mergeConf.name + '.zip',
+            file: mergeConf.name + ".zip",
             url:
               DRPROCESSOR +
-              '/api/download/zip/' +
+              "/api/download/zip/" +
               result.id +
-              '/' +
+              "/" +
               mergeConf.name,
           });
         }
@@ -92,15 +92,15 @@ const Navbar = ({
 
   const downloadEverything = (docs: Doc[]) => {
     let encoding: any = null;
-    if (navigator.appVersion.indexOf('Win') !== -1) {
-      encoding = 'CP850';
+    if (navigator.appVersion.indexOf("Win") !== -1) {
+      encoding = "CP850";
     }
 
-    let zipnamePrefix = ZIP_FILE_NAME_MAPPING['aenderungsv'];
+    let zipnamePrefix = ZIP_FILE_NAME_MAPPING["aenderungsv"];
     if (zipnamePrefix === undefined) {
-      zipnamePrefix = 'Archiv.';
-    } else if (zipnamePrefix !== '') {
-      zipnamePrefix = zipnamePrefix + '.';
+      zipnamePrefix = "Archiv.";
+    } else if (zipnamePrefix !== "") {
+      zipnamePrefix = zipnamePrefix + ".";
     }
 
     let downloadConf: {
@@ -125,43 +125,43 @@ const Navbar = ({
     <BootstrapNavbar
       style={{
         marginBottom: 0,
-        width: '46%',
-        marginLeft: 'auto',
-        marginRight: 'auto',
-        color: 'grey',
+        width: "46%",
+        marginLeft: "auto",
+        marginRight: "auto",
+        color: "grey",
       }}
       expand="lg"
     >
       <BootstrapNavbar.Brand>
-        <a style={{ color: 'grey', marginRight: '10px' }}>{title}</a>
+        <a style={{ color: "grey", marginRight: "10px" }}>{title}</a>
       </BootstrapNavbar.Brand>
       <BootstrapNavbar.Collapse>
-        <Nav style={{ marginRight: '20px' }}>
+        <Nav style={{ marginRight: "20px" }}>
           <NavItem>
             <OverlayTrigger
-              key={'bottom'}
+              key={"bottom"}
               placement="bottom"
               overlay={<Tooltip id="">vorherige Seite</Tooltip>}
             >
               <button
                 style={{
-                  background: 'none',
-                  border: 'none',
+                  background: "none",
+                  border: "none",
                   padding: 0,
-                  outline: 'inherit',
-                  marginRight: '24px',
+                  outline: "inherit",
+                  marginRight: "24px",
                 }}
                 className="navItem"
                 onClick={() => {
                   if (page && file)
                     if (parseInt(page) > 1) {
                       navigate(
-                        `/docs/${docPackageId}/${file}/${parseInt(page) - 1}`,
+                        `/docs/${docPackageId}/${file}/${parseInt(page) - 1}`
                       );
                     } else {
                       if (parseInt(file) > 1) {
                         navigate(
-                          `/docs/${docPackageId}/${parseInt(file) - 1}/1`,
+                          `/docs/${docPackageId}/${parseInt(file) - 1}/1`
                         );
                       } else {
                         navigate(`/docs/${docPackageId}/${docs.length}/1`);
@@ -178,29 +178,29 @@ const Navbar = ({
           </NavItem>
           <NavItem>
             <OverlayTrigger
-              key={'bottom'}
+              key={"bottom"}
               placement="bottom"
               overlay={<Tooltip id="">nächste Seite</Tooltip>}
             >
               <button
                 style={{
-                  background: 'none',
-                  border: 'none',
+                  background: "none",
+                  border: "none",
                   padding: 0,
-                  outline: 'inherit',
-                  marginLeft: '20px',
+                  outline: "inherit",
+                  marginLeft: "20px",
                 }}
                 className="navItem"
                 onClick={() => {
                   if (page && file)
                     if (parseInt(page) < maxIndex) {
                       navigate(
-                        `/docs/${docPackageId}/${file}/${parseInt(page) + 1}`,
+                        `/docs/${docPackageId}/${file}/${parseInt(page) + 1}`
                       );
                     } else {
                       if (parseInt(file) < docs.length) {
                         navigate(
-                          `/docs/${docPackageId}/${parseInt(file) + 1}/1`,
+                          `/docs/${docPackageId}/${parseInt(file) + 1}/1`
                         );
                       } else {
                         navigate(`/docs/${docPackageId}/1/1`);
@@ -219,17 +219,17 @@ const Navbar = ({
         <Nav className="mr-auto">
           <NavItem>
             <OverlayTrigger
-              key={'bottom'}
+              key={"bottom"}
               placement="bottom"
               overlay={<Tooltip id="">an Fensterbreite anpassen</Tooltip>}
             >
               <button
                 style={{
-                  background: 'none',
-                  border: 'none',
+                  background: "none",
+                  border: "none",
                   padding: 0,
-                  outline: 'inherit',
-                  marginRight: '20px',
+                  outline: "inherit",
+                  marginRight: "20px",
                 }}
                 className="navItem"
                 onClick={() => {
@@ -246,16 +246,16 @@ const Navbar = ({
           </NavItem>
           <NavItem>
             <OverlayTrigger
-              key={'bottom'}
+              key={"bottom"}
               placement="bottom"
               overlay={<Tooltip id="">an Fensterhöhe anpassen</Tooltip>}
             >
               <button
                 style={{
-                  background: 'none',
-                  border: 'none',
+                  background: "none",
+                  border: "none",
                   padding: 0,
-                  outline: 'inherit',
+                  outline: "inherit",
                 }}
                 className="navItem"
                 onClick={() => {
@@ -273,7 +273,7 @@ const Navbar = ({
         </Nav>
         <Nav
           style={{
-            display: 'flex',
+            display: "flex",
             gap: 20,
           }}
         >
@@ -285,11 +285,11 @@ const Navbar = ({
           <NavItem>
             <button
               style={{
-                background: 'none',
-                border: 'none',
+                background: "none",
+                border: "none",
                 padding: 0,
-                cursor: docs.length < 2 ? 'auto' : 'pointer',
-                outline: 'inherit',
+                cursor: docs.length < 2 ? "auto" : "pointer",
+                outline: "inherit",
               }}
               className="navItem"
               disabled={docs.length < 2}
@@ -303,11 +303,11 @@ const Navbar = ({
           <NavItem>
             <button
               style={{
-                background: 'none',
-                border: 'none',
+                background: "none",
+                border: "none",
                 padding: 0,
 
-                outline: 'inherit',
+                outline: "inherit",
               }}
               className="navItem"
               disabled={true}

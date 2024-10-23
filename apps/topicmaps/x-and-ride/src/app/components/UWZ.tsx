@@ -1,10 +1,10 @@
 export default [
   {
-    type: 'Feature',
+    type: "Feature",
     id: 1,
     properties: {},
     geometry: {
-      type: 'Polygon',
+      type: "Polygon",
       coordinates: [
         [
           [366747.128729786607437, 5678233.382666619494557],
@@ -66,18 +66,18 @@ export default [
       ],
     },
     crs: {
-      type: 'name',
+      type: "name",
       properties: {
-        name: 'urn:ogc:def:crs:EPSG::25832',
+        name: "urn:ogc:def:crs:EPSG::25832",
       },
     },
   },
   {
-    type: 'Feature',
+    type: "Feature",
     id: 2,
     properties: {},
     geometry: {
-      type: 'Polygon',
+      type: "Polygon",
       coordinates: [
         [
           [372654.775271910708398, 5683014.238344241864979],
@@ -459,9 +459,9 @@ export default [
       ],
     },
     crs: {
-      type: 'name',
+      type: "name",
       properties: {
-        name: 'urn:ogc:def:crs:EPSG::25832',
+        name: "urn:ogc:def:crs:EPSG::25832",
       },
     },
   },

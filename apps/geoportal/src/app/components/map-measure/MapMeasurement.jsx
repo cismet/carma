@@ -111,7 +111,7 @@ const MapMeasurement = (props) => {
   useEffect(() => {
     if (measureControl && activeShape) {
       const shapeCoordinates = measurementShapes.filter(
-        (s) => s.shapeId === activeShape,
+        (s) => s.shapeId === activeShape
       );
       const map = routedMapRef.leafletMap.leafletElement;
 
@@ -122,7 +122,7 @@ const MapMeasurement = (props) => {
       if (shapeCoordinates[0]?.shapeId && !ifDrawing && !deleteShape) {
         measureControl.changeColorByActivePolyline(
           map,
-          shapeCoordinates[0].shapeId,
+          shapeCoordinates[0].shapeId
         );
       }
       if (showAllMeasurements) {
@@ -139,7 +139,7 @@ const MapMeasurement = (props) => {
         dispatch(setVisibleShapes(cleanArr));
 
         const cleanAllArr = measurementShapes.filter(
-          (m) => m.shapeId !== activeShape,
+          (m) => m.shapeId !== activeShape
         );
         dispatch(setShapes(cleanAllArr));
         dispatch(setDeleteAll(false));
@@ -147,7 +147,7 @@ const MapMeasurement = (props) => {
           measureControl.options.shapes = [];
         }
         const cleanLocalLefletShapes = measureControl.options.shapes.filter(
-          (m) => m.shapeId !== activeShape,
+          (m) => m.shapeId !== activeShape
         );
 
         measureControl.options.shapes = cleanLocalLefletShapes;
@@ -161,18 +161,18 @@ const MapMeasurement = (props) => {
       const map = routedMapRef.leafletMap.leafletElement;
       measureControl.changeMeasurementMode(mode, map);
       const shapeCoordinates = measurementShapes.filter(
-        (s) => s.shapeId === activeShape,
+        (s) => s.shapeId === activeShape
       );
       if (shapeCoordinates[0]?.shapeId) {
         measureControl.changeColorByActivePolyline(
           map,
-          shapeCoordinates[0].shapeId,
+          shapeCoordinates[0].shapeId
         );
       }
 
       if (mode === "measurement" && visibleShapes.length === 0) {
         const visibleShapesIds = measureControl.getVisibleShapeIdsArr(
-          measureControl._map,
+          measureControl._map
         );
       }
     }
@@ -190,7 +190,7 @@ const MapMeasurement = (props) => {
     if (measureControl) {
       const cleanedVisibleArr = filterArrByIds(
         visiblePolylines,
-        measurementShapes,
+        measurementShapes
       );
       dispatch(setVisibleShapes(cleanedVisibleArr));
 

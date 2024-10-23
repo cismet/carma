@@ -107,7 +107,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     this._toggleMeasure(
       "img_plg_measure_polygon",
       "icon_polygonActive",
-      "icon_polygonInactive",
+      "icon_polygonInactive"
     );
   },
 
@@ -154,7 +154,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     this._toggleMeasure(
       "img_plg_lines",
       "icon_lineActive",
-      "icon_lineInactive",
+      "icon_lineInactive"
     );
   },
 
@@ -232,7 +232,7 @@ L.Control.MeasurePolygon = L.Control.extend({
       shapeId,
       reversedCoordinates,
       newDistance,
-      square,
+      square
     );
     this.options.checkonedrawpoligon = false;
   },
@@ -255,7 +255,7 @@ L.Control.MeasurePolygon = L.Control.extend({
   onAdd: function (map) {
     const linesContainer = L.DomUtil.create(
       "div",
-      "leaflet-bar leaflet-control dont-show m-container",
+      "leaflet-bar leaflet-control dont-show m-container"
     );
 
     // const modeBtn = L.DomUtil.create(
@@ -288,7 +288,7 @@ L.Control.MeasurePolygon = L.Control.extend({
         event.preventDefault(); // Prevent default action (e.g., redirection)
         this.toggleMeasurementMode();
       },
-      this,
+      this
     );
 
     this._map = map;
@@ -334,7 +334,7 @@ L.Control.MeasurePolygon = L.Control.extend({
 
       layer.on(
         "editable:drag editable:vertex:drag editable:vertex:deleted editable:dragstart editable:dragend",
-        this._onPolylineDrag.bind(this),
+        this._onPolylineDrag.bind(this)
       );
 
       this.options.checkonedrawpoligon = false;
@@ -456,7 +456,7 @@ L.Control.MeasurePolygon = L.Control.extend({
       this._toggleMeasure(
         "img_plg_lines",
         "icon_lineActive",
-        "icon_lineInactive",
+        "icon_lineInactive"
       );
 
       this.options.cbDeleteVisibleShapeById(5555);
@@ -483,7 +483,7 @@ L.Control.MeasurePolygon = L.Control.extend({
           this.options.customTooltip = L.DomUtil.create(
             "div",
             "leaflet-draw-custom-tooltip",
-            popupPane,
+            popupPane
           );
 
           this.options.customTooltip.innerHTML = `<div>Klicken, um den Startpunkt der Messung zu setzen.</div>`;
@@ -797,7 +797,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     });
     polygon.on(
       "editable:drag editable:dragstart editable:dragend editable:vertex:drag editable:vertex:deleted",
-      this._onPolylineDrag.bind(this),
+      this._onPolylineDrag.bind(this)
     );
 
     polygon.on("editable:vertex:dragend", () => {
@@ -811,7 +811,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     this._toggleMeasure(
       "img_plg_lines",
       "icon_lineActive",
-      "icon_lineInactive",
+      "icon_lineInactive"
     );
 
     // this.options.checkonedrawpoligon = false;
@@ -872,7 +872,7 @@ L.Control.MeasurePolygon = L.Control.extend({
         });
         savedShape.on(
           "editable:drag editable:dragstart editable:dragend editable:vertex:drag editable:vertex:deleted",
-          this._onPolylineDrag.bind(this),
+          this._onPolylineDrag.bind(this)
         );
 
         savedShape.on("editable:vertex:dragend", () => {

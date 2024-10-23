@@ -105,5 +105,5 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         </TopicMapContextProvider>
       </Provider>
     </ConfigProvider>
-  </React.StrictMode>,
+  </React.StrictMode>
 );

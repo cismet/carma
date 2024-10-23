@@ -35,18 +35,18 @@ export default function LibreMap({
             map.current.setPaintProperty(
               layer.id,
               `icon-opacity`,
-              iconOpacity || opacity || 1,
+              iconOpacity || opacity || 1
             );
             map.current.setPaintProperty(
               layer.id,
               `text-opacity`,
-              textOpacity || opacity || 1,
+              textOpacity || opacity || 1
             );
           } else {
             map.current.setPaintProperty(
               layer.id,
               `${layer.type}-opacity`,
-              opacity || 1,
+              opacity || 1
             );
           }
         }
@@ -68,7 +68,7 @@ export default function LibreMap({
               "https://maps.wuppertal.de/karten?service=WMS&request=GetMap&layers=R102:trueortho2022&styles=&format=image%2Fpng&transparent=false&version=1.1.1&tiled=true&type=wms&cssFilter=undefined&width=256&height=256&srs=EPSG%3A3857&bbox={bbox-epsg-3857}",
             ],
             tileSize: 256,
-          },
+          }
         );
 
         map.current.addSource("terrainSource", {
@@ -142,7 +142,7 @@ export default function LibreMap({
         source: "terrainSource",
         exaggeration: 1,
       }),
-      "top-left",
+      "top-left"
     );
   });
 

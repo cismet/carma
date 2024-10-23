@@ -23,20 +23,20 @@ const Menu = () => {
     helpSVGSize,
     "#565B5E",
     "Hallenbad",
-    "helpTextSVG0",
+    "helpTextSVG0"
   );
   const freibadBadSVG = getBadSVG(
     helpSVGSize,
     "#565B5E",
     "Freibad",
-    "helpTextSVG1",
+    "helpTextSVG1"
   );
 
   const staedtischesFreibadSVG = getBadSVG(
     helpSVGSize,
     "#1A4860",
     "Freibad",
-    "helpTextSVG2",
+    "helpTextSVG2"
   );
   const oeffentlichesVereinsbadSVG = getBadSVG(
     helpSVGSize,
@@ -45,7 +45,7 @@ const Menu = () => {
       mainlocationtype: { lebenslagen: ["Freizeit", "Sport"] },
     }),
     "Freibad",
-    "helpTextSVG3",
+    "helpTextSVG3"
   );
   const nichtOeffentlichesVereinsbadSVG = getBadSVG(
     helpSVGSize,
@@ -54,7 +54,7 @@ const Menu = () => {
       mainlocationtype: { lebenslagen: ["Freizeit", "Sport"] },
     }),
     "Freibad",
-    "helpTextSVG4",
+    "helpTextSVG4"
   );
 
   return (

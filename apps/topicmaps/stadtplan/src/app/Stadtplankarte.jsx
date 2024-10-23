@@ -24,12 +24,12 @@ import {
 const Stadtplankarte = ({ poiColors }) => {
   const [gazData, setGazData] = useState([]);
   const { setSelectedFeatureByPredicate, setClusteringOptions } = useContext(
-    FeatureCollectionDispatchContext,
+    FeatureCollectionDispatchContext
   );
   const lightBoxContext = useContext(LightBoxContext);
   const { markerSymbolSize } = useContext(TopicMapStylingContext);
   const { clusteringOptions, selectedFeature } = useContext(
-    FeatureCollectionContext,
+    FeatureCollectionContext
   );
   useEffect(() => {
     getGazData(setGazData);
@@ -57,7 +57,7 @@ const Stadtplankarte = ({ poiColors }) => {
         if ((Array.isArray(hits) && hits[0]?.more?.pid) || hits[0]?.more?.kid) {
           const gazId = hits[0]?.more?.pid || hits[0]?.more?.kid;
           setSelectedFeatureByPredicate(
-            (feature) => feature.properties.id === gazId,
+            (feature) => feature.properties.id === gazId
           );
         }
       }}

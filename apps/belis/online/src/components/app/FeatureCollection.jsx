@@ -4,7 +4,10 @@ import { FeatureCollectionDisplay } from "react-cismap";
 import { useDispatch, useSelector } from "react-redux";
 
 import { getBackground } from "../../core/store/slices/background";
-import { getSelectedFeature, setSelectedFeature } from "../../core/store/slices/featureCollection";
+import {
+  getSelectedFeature,
+  setSelectedFeature,
+} from "../../core/store/slices/featureCollection";
 
 import "@fortawesome/fontawesome-free/js/all.js";
 import "leaflet-extra-markers/dist/css/leaflet.extra-markers.min.css";
@@ -59,16 +62,23 @@ const BelisFeatureCollection = ({ featureCollection, fgColor = "#000000" }) => {
         }}
         clusteringEnabled={false}
         style={(feature) => {
-          const derivedFeatureType = feature.fachobjekttype || feature.featuretype;
+          const derivedFeatureType =
+            feature.fachobjekttype || feature.featuretype;
           let customMarker;
           let color = colors[derivedFeatureType] || fgColor;
           if (feature.featuretype === "arbeitsprotokoll") {
             if (feature.properties.arbeitsprotokollstatus) {
-              if (feature.properties.arbeitsprotokollstatus.schluessel === "0") {
+              if (
+                feature.properties.arbeitsprotokollstatus.schluessel === "0"
+              ) {
                 color = "#fdad00";
-              } else if (feature.properties.arbeitsprotokollstatus.schluessel === "1") {
+              } else if (
+                feature.properties.arbeitsprotokollstatus.schluessel === "1"
+              ) {
                 color = "#a7ca27";
-              } else if (feature.properties.arbeitsprotokollstatus.schluessel === "2") {
+              } else if (
+                feature.properties.arbeitsprotokollstatus.schluessel === "2"
+              ) {
                 color = "#f74545";
               }
             }

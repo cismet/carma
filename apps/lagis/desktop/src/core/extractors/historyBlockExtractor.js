@@ -35,10 +35,10 @@ export function informationenBlockExtractor(dataIn) {
       informationenObject.letzterStadtbesitz = "Keine Angabe";
     } else {
       const letzterStadtbesitzDate = dayjs(
-        informationenData.datum_letzter_stadtbesitz,
+        informationenData.datum_letzter_stadtbesitz
       ).toDate();
       const formattedLetzterStadtbesitz = dayjs(letzterStadtbesitzDate).format(
-        "DD.MM.YYYY",
+        "DD.MM.YYYY"
       );
 
       informationenObject.letzterStadtbesitz =
