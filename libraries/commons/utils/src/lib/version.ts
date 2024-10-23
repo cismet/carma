@@ -11,7 +11,7 @@ export const getApplicationVersion = (versionData: VersionData): string => {
   } else if (versionData.triggered && versionData.md5) {
     return `${versionData.triggered} v${v}++ (#${versionData.md5.substring(
       0,
-      4,
+      4
     )})`;
   } else {
     return `v${v}++ (dev-hot-reload)`;

@@ -1,11 +1,11 @@
-import { useMemo } from 'react';
-import { useContext } from 'react';
-import Select from 'react-select';
+import { useMemo } from "react";
+import { useContext } from "react";
+import Select from "react-select";
 import {
   FeatureCollectionContext,
   FeatureCollectionDispatchContext,
-} from 'react-cismap/contexts/FeatureCollectionContextProvider';
-import './accordion.css';
+} from "react-cismap/contexts/FeatureCollectionContextProvider";
+import "./accordion.css";
 
 const FilterUI = () => {
   const { itemsDictionary, filterState } = useContext(FeatureCollectionContext);
@@ -32,7 +32,7 @@ const FilterUI = () => {
         }}
         options={[
           {
-            label: 'Zielgruppe',
+            label: "Zielgruppe",
             options: zielgruppen.map((zielgruppe) => {
               return {
                 value: zielgruppe,
@@ -68,7 +68,7 @@ const FilterUI = () => {
         }}
         options={[
           {
-            label: 'Zielgruppe',
+            label: "Zielgruppe",
             options: zielgruppen.map((zielgruppe) => {
               return {
                 value: zielgruppe,

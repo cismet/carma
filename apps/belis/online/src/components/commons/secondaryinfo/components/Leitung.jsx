@@ -16,14 +16,18 @@ const getLayout4Leitung = ({
       ? Math.round(calcLength(feature.geometry) * 100) / 100 + "m"
       : "?m";
   const mainSection = (
-    <Descriptions column={{ xs: 1, sm: 1, md: 1, lg: 1, xxl: 1 }} layout='horizontal' bordered>
-      <Descriptions.Item label='Typ'>
+    <Descriptions
+      column={{ xs: 1, sm: 1, md: 1, lg: 1, xxl: 1 }}
+      layout="horizontal"
+      bordered
+    >
+      <Descriptions.Item label="Typ">
         {feature.properties?.fk_leitungstyp?.bezeichnung || " "}
       </Descriptions.Item>
-      <Descriptions.Item label='Material'>
+      <Descriptions.Item label="Material">
         {feature.properties?.fk_material?.bezeichnung || " "}
       </Descriptions.Item>
-      <Descriptions.Item label='Querschnitt'>
+      <Descriptions.Item label="Querschnitt">
         {feature.properties?.fk_querschnitt?.groesse || " "}
       </Descriptions.Item>
     </Descriptions>

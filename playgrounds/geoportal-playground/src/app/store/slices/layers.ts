@@ -1,11 +1,11 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice } from "@reduxjs/toolkit";
 
 const initialState = {
   thumbnails: [],
 };
 
 const slice = createSlice({
-  name: 'layers',
+  name: "layers",
   initialState,
   reducers: {
     setThumbnail(state, action) {

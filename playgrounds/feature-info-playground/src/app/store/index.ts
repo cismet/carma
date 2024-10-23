@@ -1,19 +1,19 @@
-import { configureStore } from '@reduxjs/toolkit';
+import { configureStore } from "@reduxjs/toolkit";
 import type {
   ActionCreatorInvariantMiddlewareOptions,
   ImmutableStateInvariantMiddlewareOptions,
   Middleware,
   SerializableStateInvariantMiddlewareOptions,
-} from '@reduxjs/toolkit';
+} from "@reduxjs/toolkit";
 
-import mappingSlice from './slices/mapping';
+import mappingSlice from "./slices/mapping";
 
-import { createLogger } from 'redux-logger';
-import { persistReducer } from 'redux-persist';
-import localForage from 'localforage';
-import { APP_KEY, STORAGE_PREFIX } from '../helper/constants';
+import { createLogger } from "redux-logger";
+import { persistReducer } from "redux-persist";
+import localForage from "localforage";
+import { APP_KEY, STORAGE_PREFIX } from "../helper/constants";
 
-console.log('store initializing ....');
+console.log("store initializing ....");
 
 interface ThunkOptions<E = any> {
   extraArgument: E;
@@ -26,28 +26,28 @@ interface GetDefaultMiddlewareOptions {
   actionCreatorCheck?: boolean | ActionCreatorInvariantMiddlewareOptions;
 }
 
-const customAppKey = new URLSearchParams(window.location.hash).get('appKey');
+const customAppKey = new URLSearchParams(window.location.hash).get("appKey");
 
 const devToolsEnabled =
-  new URLSearchParams(window.location.search).get('devToolsEnabled') === 'true';
-console.log('devToolsEnabled:', devToolsEnabled);
+  new URLSearchParams(window.location.search).get("devToolsEnabled") === "true";
+console.log("devToolsEnabled:", devToolsEnabled);
 const stateLoggingEnabledFromSearch = new URLSearchParams(
-  window.location.search,
-).get('stateLoggingEnabled');
+  window.location.search
+).get("stateLoggingEnabled");
 
-const inProduction = process.env.NODE_ENV === 'production';
+const inProduction = process.env.NODE_ENV === "production";
 
-console.log('in Production Mode:', inProduction);
+console.log("in Production Mode:", inProduction);
 const stateLoggingEnabled =
   (stateLoggingEnabledFromSearch !== null &&
-    stateLoggingEnabledFromSearch !== 'false') ||
+    stateLoggingEnabledFromSearch !== "false") ||
   !inProduction;
 
 console.log(
-  'stateLoggingEnabled:',
+  "stateLoggingEnabled:",
   stateLoggingEnabledFromSearch,
-  'x',
-  stateLoggingEnabled,
+  "x",
+  stateLoggingEnabled
 );
 const logger = createLogger({
   collapsed: true,
@@ -56,18 +56,14 @@ const logger = createLogger({
 let middleware;
 if (stateLoggingEnabled === true) {
   middleware = (
-    getDefaultMiddleware: (
-      options: GetDefaultMiddlewareOptions,
-    ) => Middleware[],
+    getDefaultMiddleware: (options: GetDefaultMiddlewareOptions) => Middleware[]
   ) =>
     getDefaultMiddleware({
       serializableCheck: false,
     }).concat(logger);
 } else {
   middleware = (
-    getDefaultMiddleware: (
-      options: GetDefaultMiddlewareOptions,
-    ) => Middleware[],
+    getDefaultMiddleware: (options: GetDefaultMiddlewareOptions) => Middleware[]
   ) =>
     getDefaultMiddleware({
       serializableCheck: false,
@@ -75,9 +71,9 @@ if (stateLoggingEnabled === true) {
 }
 
 const mappingConfig = {
-  key: '@' + APP_KEY + '.' + STORAGE_PREFIX + '.app.mapping',
+  key: "@" + APP_KEY + "." + STORAGE_PREFIX + ".app.mapping",
   storage: localForage,
-  whitelist: ['layers'],
+  whitelist: ["layers"],
 };
 
 const store = configureStore({
@@ -91,6 +87,6 @@ export default store;
 
 export type AppStore = typeof store;
 
-export type RootState = ReturnType<AppStore['getState']>;
+export type RootState = ReturnType<AppStore["getState"]>;
 
-export type AppDispatch = AppStore['dispatch'];
+export type AppDispatch = AppStore["dispatch"];

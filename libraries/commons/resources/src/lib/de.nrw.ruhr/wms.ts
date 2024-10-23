@@ -45,6 +45,6 @@ export const METROPOLERUHR_WMTS_SPW2_WEBMERCATOR = {
       };
       return acc;
     },
-    {},
+    {}
   ),
 };

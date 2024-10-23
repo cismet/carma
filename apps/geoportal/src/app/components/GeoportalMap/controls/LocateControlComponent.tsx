@@ -7,7 +7,7 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 const LocateControlComponent = ({ startLocate = 0 }) => {
   const { routedMapRef } = useContext<typeof TopicMapContext>(
-    TopicMapContext,
+    TopicMapContext
   ) as any;
   const [locationInstance, setLocationInstance] =
     useState<LocateControl | null>(null);

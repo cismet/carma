@@ -35,7 +35,8 @@ export const getFeatureInfoRequest = (mapEvent, state, setX) => {
   }
   if (state.displayMode === starkregenConstants.SHOW_HEIGHTS) {
     const minimalBoxSize = 0.0001;
-    const selectedSimulation = config.simulations[state.selectedSimulation].layer;
+    const selectedSimulation =
+      config.simulations[state.selectedSimulation].layer;
     const getFetureInfoRequestUrl =
       config.modelWMS +
       `&request=GetFeatureInfo&` +
@@ -66,7 +67,10 @@ export const getFeatureInfoRequest = (mapEvent, state, setX) => {
       .then((data) => {
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(data, "text/xml");
-        const value = parseFloat(xmlDoc.getElementsByTagName(valueKey)[0].textContent, 10);
+        const value = parseFloat(
+          xmlDoc.getElementsByTagName(valueKey)[0].textContent,
+          10
+        );
 
         setX.setCurrentFeatureInfoSelectedSimulation(state.selectedSimulation);
         setX.setCurrentFeatureInfoValue(value);
@@ -77,7 +81,8 @@ export const getFeatureInfoRequest = (mapEvent, state, setX) => {
       });
   } else {
     const minimalBoxSize = 0.0001;
-    const selectedSimulation = config.simulations[state.selectedSimulation].velocityLayer;
+    const selectedSimulation =
+      config.simulations[state.selectedSimulation].velocityLayer;
 
     const getFetureInfoRequestUrl =
       config.modelWMS +
@@ -111,7 +116,10 @@ export const getFeatureInfoRequest = (mapEvent, state, setX) => {
       .then((data) => {
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(data, "text/xml");
-        const value = parseFloat(xmlDoc.getElementsByTagName(valueKey)[0].textContent, 10);
+        const value = parseFloat(
+          xmlDoc.getElementsByTagName(valueKey)[0].textContent,
+          10
+        );
         setX.setCurrentFeatureInfoSelectedSimulation(state.selectedSimulation);
         setX.setCurrentFeatureInfoValue(value);
         setX.setCurrentFeatureInfoPosition(pos);
@@ -133,8 +141,14 @@ export const checkUrlAndSetStateAccordingly = (state, setX, history) => {
   }
 
   //selected model
-  const urlModelIndex = queryString.parse(history.location.search).selectedSimulation;
-  if (urlModelIndex !== undefined && urlModelIndex !== null && urlModelIndex !== "") {
+  const urlModelIndex = queryString.parse(
+    history.location.search
+  ).selectedSimulation;
+  if (
+    urlModelIndex !== undefined &&
+    urlModelIndex !== null &&
+    urlModelIndex !== ""
+  ) {
     let selectedSimulationFromUrl = parseInt(urlModelIndex, 10);
     if (selectedSimulationFromUrl !== state.selectedSimulation) {
       setX.setSelectedSimulation(selectedSimulationFromUrl);
@@ -158,7 +172,13 @@ export const setSimulationStateInUrl = (index, history) => {
   );
 };
 
-export const setAnimationEnabled = (enabled, currentZoom, state, history, setX) => {
+export const setAnimationEnabled = (
+  enabled,
+  currentZoom,
+  state,
+  history,
+  setX
+) => {
   if (currentZoom < config.minAnimationZoom) {
     history.push(
       history.location.pathname +
@@ -193,7 +213,13 @@ export const setBackgroundIndex = (index, history, setX) => {
   setX.setBackgroundIndex(index);
 };
 
-export const setFeatureInfoModeActivation = (activated, setX, currentZoom, state, history) => {
+export const setFeatureInfoModeActivation = (
+  activated,
+  setX,
+  currentZoom,
+  state,
+  history
+) => {
   if (!activated) {
     setX.setCurrentFeatureInfoValue(undefined);
     setX.setCurrentFeatureInfoPosition(undefined);
@@ -210,14 +236,26 @@ export const setFeatureInfoModeActivation = (activated, setX, currentZoom, state
   setX.setFeatureInfoModeActivated(activated);
 };
 
-export const createGetFeatureInfoControls = (state, setX, currentZoom, history, showModalMenu) => {
+export const createGetFeatureInfoControls = (
+  state,
+  setX,
+  currentZoom,
+  history,
+  showModalMenu
+) => {
   if (state) {
     if (state.featureInfoModeActivated === true) {
       if (state.displayMode === starkregenConstants.SHOW_HEIGHTS) {
         return [
           <FeatureInfoModeBoxForHeights
             setFeatureInfoModeActivation={(activated) =>
-              setFeatureInfoModeActivation(activated, setX, currentZoom, state, history)
+              setFeatureInfoModeActivation(
+                activated,
+                setX,
+                currentZoom,
+                state,
+                history
+              )
             }
             featureInfoValue={state.currentFeatureInfoValue}
             showModalMenu={showModalMenu}
@@ -228,7 +266,13 @@ export const createGetFeatureInfoControls = (state, setX, currentZoom, history, 
         return [
           <FeatureInfoModeBoxForVelocityAndDirection
             setFeatureInfoModeActivation={(activated) =>
-              setFeatureInfoModeActivation(activated, setX, currentZoom, state, history)
+              setFeatureInfoModeActivation(
+                activated,
+                setX,
+                currentZoom,
+                state,
+                history
+              )
             }
             featureInfoValue={state.currentFeatureInfoValue}
             showModalMenu={showModalMenu}
@@ -240,7 +284,13 @@ export const createGetFeatureInfoControls = (state, setX, currentZoom, history, 
       return [
         <FeatureInfoModeButton
           setFeatureInfoModeActivation={(activated) =>
-            setFeatureInfoModeActivation(activated, setX, currentZoom, state, history)
+            setFeatureInfoModeActivation(
+              activated,
+              setX,
+              currentZoom,
+              state,
+              history
+            )
           }
           title={
             state.displayMode === starkregenConstants.SHOW_HEIGHTS

@@ -1,13 +1,13 @@
 const factory = ({ featureCollectionContext }) => {
   const { filterState } = featureCollectionContext;
-  let filterDescription = '';
+  let filterDescription = "";
 
   if (filterState.bandr === true && filterState.pandr === true) {
-    filterDescription = 'alle Anlagen';
+    filterDescription = "alle Anlagen";
   } else if (filterState.bandr === true) {
-    filterDescription = 'nur B+R Anlagen';
+    filterDescription = "nur B+R Anlagen";
   } else if (filterState.pandr === true) {
-    filterDescription = 'nur P+R Anlagen';
+    filterDescription = "nur P+R Anlagen";
   }
 
   if (
@@ -15,13 +15,13 @@ const factory = ({ featureCollectionContext }) => {
     filterState.envZoneOutside === false
   ) {
     if (filterState.envZoneWithin === true) {
-      filterDescription += ' innerhalb einer Umweltzone';
+      filterDescription += " innerhalb einer Umweltzone";
     } else if (filterState.envZoneOutside === true) {
-      filterDescription += ' außerhalb einer Umweltzone';
+      filterDescription += " außerhalb einer Umweltzone";
     }
   }
 
-  if (filterDescription === '') {
+  if (filterDescription === "") {
     return null;
   }
 

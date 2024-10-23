@@ -63,7 +63,7 @@ const Ehrenamtkarte = ({ bookmarks, setBookmarks }) => {
         if ((Array.isArray(hits) && hits[0]?.more?.pid) || hits[0]?.more?.kid) {
           const gazId = hits[0]?.more?.pid || hits[0]?.more?.kid;
           setSelectedFeatureByPredicate(
-            (feature) => feature.properties.id === gazId,
+            (feature) => feature.properties.id === gazId
           );
         }
       }}
@@ -132,7 +132,7 @@ const Ehrenamtkarte = ({ bookmarks, setBookmarks }) => {
                                   onClick={() => {
                                     if (bookmarks.includes(selectedId)) {
                                       setBookmarks((prev) =>
-                                        prev.filter((id) => id !== selectedId),
+                                        prev.filter((id) => id !== selectedId)
                                       );
                                     } else {
                                       setBookmarks((prev) => [

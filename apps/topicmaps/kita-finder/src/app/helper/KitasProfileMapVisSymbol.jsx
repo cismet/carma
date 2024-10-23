@@ -13,7 +13,7 @@ const KitasProfileMapVisSymbol = ({ inklusion, visible = true }) => {
         style={{
           color: getColorForProperties(
             { plaetze_fuer_behinderte: inklusion },
-            renderingOption,
+            renderingOption
           ),
           width: "30px",
           textAlign: "center",

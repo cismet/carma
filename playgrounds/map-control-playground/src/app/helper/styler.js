@@ -1,9 +1,9 @@
-import Color from 'color';
-import ColorHash from 'color-hash';
-import createSVGPie from 'create-svg-pie';
-import L from 'leaflet';
-import queryString from 'query-string';
-import createElement from 'svg-create-element';
+import Color from "color";
+import ColorHash from "color-hash";
+import createSVGPie from "create-svg-pie";
+import L from "leaflet";
+import queryString from "query-string";
+import createElement from "svg-create-element";
 
 const fallbackSVG = `
     <svg xmlns="http://www.w3.org/2000/svg" width="311.668" height="311.668">
@@ -14,14 +14,14 @@ const fallbackSVG = `
 
 export const getColorForProperties = (properties) => {
   if (
-    properties.more.zugang === 'öffentlich' &&
-    properties.more.betreiber === 'Verein'
+    properties.more.zugang === "öffentlich" &&
+    properties.more.betreiber === "Verein"
   ) {
-    return '#107FC9';
-  } else if (properties.more.zugang === 'nicht öffentlich') {
-    return '#4AC1D1';
+    return "#107FC9";
+  } else if (properties.more.zugang === "nicht öffentlich") {
+    return "#4AC1D1";
   } else {
-    return '#194761';
+    return "#194761";
   }
 };
 
@@ -53,7 +53,7 @@ export const getPoiClusterIconCreatorFunction = ({
 
     let canvasSize = (svgSize / 3.0) * 5.0;
 
-    let background = createElement('svg', {
+    let background = createElement("svg", {
       width: canvasSize,
       height: canvasSize,
       viewBox: `0 0 ${canvasSize} ${canvasSize}`,
@@ -61,19 +61,19 @@ export const getPoiClusterIconCreatorFunction = ({
 
     //Kleiner Kreis in der Mitte
     // (blau wenn selektion)
-    let innerCircleColor = '#ffffff';
+    let innerCircleColor = "#ffffff";
     if (containsSelection) {
-      innerCircleColor = 'rgb(67, 149, 254)';
+      innerCircleColor = "rgb(67, 149, 254)";
     }
 
     //inner circle
     pie.appendChild(
-      createElement('circle', {
+      createElement("circle", {
         cx: r,
         cy: r,
         r: svgSize / 3.0,
-        'stroke-width': 0,
-        opacity: '0.5',
+        "stroke-width": 0,
+        opacity: "0.5",
         fill: innerCircleColor,
       })
     );
@@ -82,50 +82,50 @@ export const getPoiClusterIconCreatorFunction = ({
 
     // Umrandung
     background.appendChild(
-      createElement('circle', {
+      createElement("circle", {
         cx: canvasSize / 2.0,
         cy: canvasSize / 2.0,
         r: r,
-        'stroke-width': 2,
-        stroke: '#000000',
-        opacity: '0.5',
-        fill: 'none',
+        "stroke-width": 2,
+        stroke: "#000000",
+        opacity: "0.5",
+        fill: "none",
       })
     );
 
     if (inCart) {
       background
         .appendChild(
-          createElement('text', {
-            x: '50%',
-            y: '50%',
-            'text-anchor': 'middle',
-            'font-family': 'FontAwesome',
-            fill: '#fff',
-            'font-size': '26',
-            dy: '.4em',
-            opacity: '0.5',
+          createElement("text", {
+            x: "50%",
+            y: "50%",
+            "text-anchor": "middle",
+            "font-family": "FontAwesome",
+            fill: "#fff",
+            "font-size": "26",
+            dy: ".4em",
+            opacity: "0.5",
           })
         )
-        .appendChild(document.createTextNode('\uf005'));
+        .appendChild(document.createTextNode("\uf005"));
     }
 
     background
       .appendChild(
-        createElement('text', {
-          x: '50%',
-          y: '50%',
-          'text-anchor': 'middle',
-          dy: '.3em',
+        createElement("text", {
+          x: "50%",
+          y: "50%",
+          "text-anchor": "middle",
+          dy: ".3em",
         })
       )
       .appendChild(document.createTextNode(childCount));
 
-    pie.setAttribute('x', (canvasSize - r * 2) / 2.0);
-    pie.setAttribute('y', (canvasSize - r * 2) / 2.0);
+    pie.setAttribute("x", (canvasSize - r * 2) / 2.0);
+    pie.setAttribute("y", (canvasSize - r * 2) / 2.0);
 
     var divIcon = L.divIcon({
-      className: 'leaflet-data-marker',
+      className: "leaflet-data-marker",
       html:
         background.outerHTML ||
         new XMLSerializer().serializeToString(background), //IE11 Compatibility

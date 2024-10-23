@@ -10,12 +10,12 @@ import "./elevation-control.css";
 
 const getNewPosition = (
   posCarto: Cartographic,
-  newHeight: number,
+  newHeight: number
 ): Cartesian3 => {
   return Cartesian3.fromRadians(
     posCarto.longitude,
     posCarto.latitude,
-    newHeight,
+    newHeight
   );
 };
 
@@ -63,7 +63,7 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
   } = { ...defaultOptions, ...options };
 
   const [ellipsoidHeight, setEllipsoidHeight] = useState<number>(
-    localMinEllipsoidalHeight,
+    localMinEllipsoidalHeight
   );
   const [terrainHeight, setTerrainHeight] = useState<number>(0);
   const [clampedHeight, setClampedHeight] = useState<number>(0);
@@ -114,7 +114,7 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
         return eventOption;
       },
       set eventOption(
-        value: "cameraChanged" | "scenePreRender" | "scenePreUpdate",
+        value: "cameraChanged" | "scenePreRender" | "scenePreUpdate"
       ) {
         setEventOption(value);
       },
@@ -140,7 +140,7 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
           scenePreUpdate: "scenePreUpdate",
         },
       },
-    ],
+    ]
   );
 
   useEffect(() => {
@@ -154,11 +154,11 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
         getPositionWithHeightAsync(
           viewer.scene,
           cameraPositionCartographic,
-          false,
+          false
         ).then((position) => {
           setTerrainHeight(position.height);
           setCameraRelHeightFmt(
-            `${(currentCameraHeight - position.height).toFixed(0)}m`,
+            `${(currentCameraHeight - position.height).toFixed(0)}m`
           );
           setTerrainHeightFmt(`${position.height.toFixed(0)}m`);
           setCameraHeight(currentCameraHeight);
@@ -168,7 +168,7 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
           const maxHeight = Math.max(
             currentCameraHeight,
             position.height,
-            initialMaxElevation,
+            initialMaxElevation
           );
           setMaxDisplayHeight(Math.min(maxHeight * 1.1, 50000));
 
@@ -176,14 +176,14 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
             getPositionWithHeightAsync(
               viewer.scene,
               cameraPositionCartographic,
-              true,
+              true
             ).then((clampedPosition) => {
               setClampedHeight(clampedPosition.height);
               setCameraRelClampedHeightFmt(
-                `${(currentCameraHeight - clampedPosition.height).toFixed(0)}m`,
+                `${(currentCameraHeight - clampedPosition.height).toFixed(0)}m`
               );
               setClampedRelHeightFmt(
-                `${(clampedPosition.height - position.height).toFixed(1)}m`,
+                `${(clampedPosition.height - position.height).toFixed(1)}m`
               );
               isUpdating.current = false;
             });
@@ -301,7 +301,7 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
       window.requestAnimationFrame(() => {
         const newPosition = getNewPosition(
           viewer.camera.positionCartographic,
-          newValue,
+          newValue
         );
         viewer.camera.setView({
           destination: newPosition,

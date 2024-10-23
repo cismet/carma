@@ -31,7 +31,7 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
       e.preventDefault();
       console.info(
         "CLICKHANDLER: [CESIUM|LEAFLET|2D3D] clicked handleSwitchMapMode zoom",
-        isMode2d,
+        isMode2d
       );
       if (isMode2d) {
         await transitionToMode3d();
@@ -51,7 +51,7 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
         {isMode2d ? "3D" : "2D"}
       </ControlButtonStyler>
     );
-  },
+  }
 );
 
 export default MapTypeSwitcher;

@@ -22,7 +22,7 @@ export const lockPosition = async (viewer: Viewer) => {
   viewer.scene.camera.lookAt(
     center,
     // new Cesium.HeadingPitchRange(0, -Math.PI / 4, cameraHeight)
-    new HeadingPitchRange(camera.heading, camera.pitch, cameraHeight),
+    new HeadingPitchRange(camera.heading, camera.pitch, cameraHeight)
   );
 
   /*
@@ -36,7 +36,7 @@ export const lockPosition = async (viewer: Viewer) => {
 };
 
 export const unlockPosition = async (
-  viewer: Viewer & { debugPrimitive?: DebugModelMatrixPrimitive },
+  viewer: Viewer & { debugPrimitive?: DebugModelMatrixPrimitive }
 ) => {
   viewer.scene.camera.lookAtTransform(Matrix4.IDENTITY);
   if (viewer.debugPrimitive) {
@@ -52,10 +52,10 @@ export const getAll = async (viewer: Viewer) => {
 
   const windowPosition = new Cartesian2(
     viewer.container.clientWidth / 2,
-    viewer.container.clientHeight / 2,
+    viewer.container.clientHeight / 2
   );
   const cameraHeight = ellipsoid.cartesianToCartographic(
-    camera.positionWC,
+    camera.positionWC
   ).height;
 
   // Get the position on the mesh

@@ -11,7 +11,7 @@ import store from "./app/store/index.js";
 const persistor = persistStore(store);
 
 const root = ReactDOM.createRoot(
-  document.getElementById("root") as HTMLElement,
+  document.getElementById("root") as HTMLElement
 );
 suppressReactCismapErrors();
 
@@ -22,5 +22,5 @@ root.render(
         <App />
       </PersistGate>
     </Provider>
-  </StrictMode>,
+  </StrictMode>
 );

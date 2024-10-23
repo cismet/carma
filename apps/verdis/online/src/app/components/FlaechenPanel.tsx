@@ -1,12 +1,12 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
-import { useDispatch, useSelector } from 'react-redux';
-import { colorChanged } from '../../utils/kassenzeichenHelper';
+import { useDispatch, useSelector } from "react-redux";
+import { colorChanged } from "../../utils/kassenzeichenHelper";
 import {
   fitFeatureBounds,
   getMapping,
   setSelectedFeatureIndexWithSelector,
-} from '../../store/slices/mapping';
+} from "../../store/slices/mapping";
 
 interface FlaechenPanelProps {
   flaeche: any;
@@ -14,25 +14,25 @@ interface FlaechenPanelProps {
 }
 
 const FlaechenPanel = ({ flaeche, selected }: FlaechenPanelProps) => {
-  let background = '';
+  let background = "";
   let groesse,
-    groesseColor = 'black',
+    groesseColor = "black",
     anteil,
     anschlussgrad,
-    anschlussgradColor = 'black',
+    anschlussgradColor = "black",
     flaechenart,
-    flaechenartColor = 'black',
+    flaechenartColor = "black",
     editButtonColor;
-  let borderStyle = '';
-  let borderColor = '';
+  let borderStyle = "";
+  let borderColor = "";
   const mapping = useSelector(getMapping);
   const dispatch = useDispatch();
 
   const isFlaecheSelected = (flaeche) => {
     return (
-      mapping.featureCollection !== 'undefined' &&
+      mapping.featureCollection !== "undefined" &&
       mapping.featureCollection.length > 0 &&
-      mapping.selectedIndex !== 'undefined' &&
+      mapping.selectedIndex !== "undefined" &&
       mapping.featureCollection.length > mapping.selectedIndex &&
       mapping.featureCollection[mapping.selectedIndex] &&
       mapping.featureCollection[mapping.selectedIndex]?.properties.id ===
@@ -47,7 +47,7 @@ const FlaechenPanel = ({ flaeche, selected }: FlaechenPanelProps) => {
 
     if (isFlaecheSelected(feature.properties)) {
       dispatch(
-        fitFeatureBounds(mapping.featureCollection[mapping.selectedIndex], '')
+        fitFeatureBounds(mapping.featureCollection[mapping.selectedIndex], "")
       );
     } else {
       dispatch(
@@ -59,16 +59,16 @@ const FlaechenPanel = ({ flaeche, selected }: FlaechenPanelProps) => {
   };
 
   if (selected) {
-    borderStyle = 'solid';
+    borderStyle = "solid";
     borderColor = colorChanged;
   } else {
-    borderStyle = 'solid';
-    borderColor = '#ffffff00';
+    borderStyle = "solid";
+    borderColor = "#ffffff00";
   }
   let styleOverride = {
-    marginBottom: '5px',
-    width: '100%',
-    height: '100%',
+    marginBottom: "5px",
+    width: "100%",
+    height: "100%",
     background: background,
     borderStyle: borderStyle,
     borderColor: borderColor,
@@ -103,22 +103,22 @@ const FlaechenPanel = ({ flaeche, selected }: FlaechenPanelProps) => {
         style={{
           ...styleOverride,
           minHeight: 20,
-          backgroundColor: '#f5f5f5',
-          border: '1px solid #e3e3e3',
+          backgroundColor: "#f5f5f5",
+          border: "1px solid #e3e3e3",
           padding: 9,
           borderRadius: 3,
-          height: 'auto',
+          height: "auto",
         }}
       >
-        <table style={{ width: '100%' }}>
+        <table style={{ width: "100%" }}>
           <tbody>
             <tr>
               <td>
                 <b style={{ color: flaechenartColor }}>
-                  {flaechenart + ' ' + flaeche.flaechenbezeichnung}
+                  {flaechenart + " " + flaeche.flaechenbezeichnung}
                 </b>
               </td>
-              <td style={{ textAlign: 'right' }}>{beschreibung}</td>
+              <td style={{ textAlign: "right" }}>{beschreibung}</td>
 
               {/* {this.props.editmode === true && (
                             <td
@@ -140,7 +140,7 @@ const FlaechenPanel = ({ flaeche, selected }: FlaechenPanelProps) => {
             </tr>
             <tr>
               <td>{area}</td>
-              <td style={{ textAlign: 'right', color: anschlussgradColor }}>
+              <td style={{ textAlign: "right", color: anschlussgradColor }}>
                 {anschlussgrad}
               </td>
             </tr>

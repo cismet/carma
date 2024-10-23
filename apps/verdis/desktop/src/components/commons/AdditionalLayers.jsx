@@ -1,20 +1,20 @@
-import { MappingConstants } from 'react-cismap';
-import CismapLayer from 'react-cismap/CismapLayer';
-import { REST_SERVICE_WUNDA } from '../../constants/verdis';
-import { concat, flatten } from 'lodash';
-import { reproject } from 'reproject';
-import { projectionData } from 'react-cismap/constants/gis';
-import proj4 from 'proj4';
-import getArea from '@turf/area';
-import { useDispatch } from 'react-redux';
-import { searchForKassenzeichen } from '../../store/slices/search';
-import { useSearchParams } from 'react-router-dom';
+import { MappingConstants } from "react-cismap";
+import CismapLayer from "react-cismap/CismapLayer";
+import { REST_SERVICE_WUNDA } from "../../constants/verdis";
+import { concat, flatten } from "lodash";
+import { reproject } from "reproject";
+import { projectionData } from "react-cismap/constants/gis";
+import proj4 from "proj4";
+import getArea from "@turf/area";
+import { useDispatch } from "react-redux";
+import { searchForKassenzeichen } from "../../store/slices/search";
+import { useSearchParams } from "react-router-dom";
 
 const getWGS84GeoJSON = (geoJSON) => {
   try {
     const reprojectedGeoJSON = reproject(
       geoJSON,
-      projectionData['25832'].def,
+      projectionData["25832"].def,
       proj4.WGS84
     );
 
@@ -41,7 +41,7 @@ const omniAwareFeatureClickHandler = ({
     if (e.originalEvent.detail === 2) {
       const kassenzeichen = e.sourceTarget.feature.properties.kassenzeichen;
       console.log(
-        'doubleclick',
+        "doubleclick",
         kassenzeichen,
 
         dispatch
@@ -59,11 +59,11 @@ const createKassenzeichenFlaechenFeatureArray = (data) => {
       const flaeche = f.flaecheObject;
       try {
         const feature = {
-          type: 'Feature',
-          featureType: 'flaeche',
+          type: "Feature",
+          featureType: "flaeche",
           id:
             kassenzeichen.kassenzeichennummer8 +
-            '_' +
+            "_" +
             flaeche.flaechenbezeichnung,
           hovered: false,
           weight: 0.5,
@@ -74,15 +74,15 @@ const createKassenzeichenFlaechenFeatureArray = (data) => {
             anschlussgrad: flaeche.flaecheninfoObject.anschlussgradObject.grad,
           },
           crs: {
-            type: 'name',
+            type: "name",
             properties: {
-              name: 'urn:ogc:def:crs:EPSG::25832',
+              name: "urn:ogc:def:crs:EPSG::25832",
             },
           },
         };
         result.push(feature);
       } catch (e) {
-        console.log('xxx error', e);
+        console.log("xxx error", e);
       }
     });
   });
@@ -95,8 +95,8 @@ const createKassenzeichenInfoFlaechenFeatureArray = (data) => {
       const infoflaeche = f.kassenzeichen_geometrieObject;
       try {
         const feature = {
-          type: 'Feature',
-          featureType: 'infoflaeche',
+          type: "Feature",
+          featureType: "infoflaeche",
           id: kassenzeichen.kassenzeichennummer8,
           hovered: false,
           weight: 0.5,
@@ -106,15 +106,15 @@ const createKassenzeichenInfoFlaechenFeatureArray = (data) => {
             bezeichnung: infoflaeche.name,
           },
           crs: {
-            type: 'name',
+            type: "name",
             properties: {
-              name: 'urn:ogc:def:crs:EPSG::25832',
+              name: "urn:ogc:def:crs:EPSG::25832",
             },
           },
         };
         result.push(feature);
       } catch (e) {
-        console.log('xxx error', e);
+        console.log("xxx error", e);
       }
     });
   });
@@ -127,9 +127,9 @@ const createKassenzeichenFrontenFeatureArray = (data) => {
       const front = f.frontObject;
       try {
         const feature = {
-          type: 'Feature',
-          featureType: 'front',
-          id: kassenzeichen.kassenzeichennummer8 + '_' + front.nummer,
+          type: "Feature",
+          featureType: "front",
+          id: kassenzeichen.kassenzeichennummer8 + "_" + front.nummer,
           hovered: false,
           weight: 0.5,
           geometry: front.frontinfoObject.geom.geo_field,
@@ -138,15 +138,15 @@ const createKassenzeichenFrontenFeatureArray = (data) => {
             bezeichnung: front.nummer,
           },
           crs: {
-            type: 'name',
+            type: "name",
             properties: {
-              name: 'urn:ogc:def:crs:EPSG::25832',
+              name: "urn:ogc:def:crs:EPSG::25832",
             },
           },
         };
         result.push(feature);
       } catch (e) {
-        console.log('xxx error', e);
+        console.log("xxx error", e);
       }
     });
   });
@@ -155,120 +155,120 @@ const createKassenzeichenFrontenFeatureArray = (data) => {
 export const configuration = {
   bplan: {
     initialActive: false,
-    title: 'BPläne',
+    title: "BPläne",
     conf: {
-      type: 'wmts',
-      url: 'http://s10221.wuppertal-intra.de/bebauungsplanung/services',
-      layers: 'bverfahren-r',
-      version: '1.1.1',
+      type: "wmts",
+      url: "http://s10221.wuppertal-intra.de/bebauungsplanung/services",
+      layers: "bverfahren-r",
+      version: "1.1.1",
       tileSize: 256,
       transparent: true,
-      format: 'image/png',
+      format: "image/png",
     },
   },
   baulastnachweis: {
     initialActive: false,
-    title: 'Baulastnachweise',
+    title: "Baulastnachweise",
     conf: {
-      type: 'wmts',
-      url: 'http://s10221.wuppertal-intra.de:8056/baulasten/services',
-      layers: 'baul',
-      version: '1.1.1',
+      type: "wmts",
+      url: "http://s10221.wuppertal-intra.de:8056/baulasten/services",
+      layers: "baul",
+      version: "1.1.1",
       tileSize: 256,
       transparent: true,
-      format: 'image/png',
-      pane: 'additionalLayers1',
+      format: "image/png",
+      pane: "additionalLayers1",
     },
   },
   hausnummern: {
     initialActive: false,
-    title: 'Hausnummern',
+    title: "Hausnummern",
     conf: {
-      type: 'wmts',
-      url: 'http://s10221.wuppertal-intra.de:7098/alkis/services',
-      layers: 'hausnr,hausnrne,hausnrplm,hausnrplo',
-      version: '1.1.1',
+      type: "wmts",
+      url: "http://s10221.wuppertal-intra.de:7098/alkis/services",
+      layers: "hausnr,hausnrne,hausnrplm,hausnrplo",
+      version: "1.1.1",
       tileSize: 256,
       transparent: true,
-      format: 'image/png',
+      format: "image/png",
     },
   },
   stadtFstck: {
     initialActive: false,
-    title: 'Städt. Flurstücke',
+    title: "Städt. Flurstücke",
     conf: {
-      type: 'wmts',
-      url: 'http://s10221.wuppertal-intra.de:7098/stadt-flurstuecke/services',
-      layers: 'stadt_flurst',
-      version: '1.1.1',
+      type: "wmts",
+      url: "http://s10221.wuppertal-intra.de:7098/stadt-flurstuecke/services",
+      layers: "stadt_flurst",
+      version: "1.1.1",
       tileSize: 256,
       transparent: true,
-      format: 'image/png',
-      pane: 'additionalLayers1',
+      format: "image/png",
+      pane: "additionalLayers1",
     },
   },
   eswReinigungsklassen: {
     initialActive: false,
-    title: 'Reinigungsklassen',
+    title: "Reinigungsklassen",
     conf: {
-      type: 'wmts',
-      url: 'http://s10221.wuppertal-intra.de:8099/esw/services',
-      layers: 'esw',
-      version: '1.1.1',
+      type: "wmts",
+      url: "http://s10221.wuppertal-intra.de:8099/esw/services",
+      layers: "esw",
+      version: "1.1.1",
       tileSize: 256,
       transparent: true,
-      format: 'image/png',
+      format: "image/png",
     },
   },
   hohenlinien: {
     initialActive: false,
-    title: '1m Höhenlinien',
+    title: "1m Höhenlinien",
     conf: {
-      type: 'wmts',
-      url: 'http://s10221.wuppertal-intra.de:7098/hoehen/services',
-      layers: 'hoehenu',
-      styles: 'sepia',
-      version: '1.1.1',
+      type: "wmts",
+      url: "http://s10221.wuppertal-intra.de:7098/hoehen/services",
+      layers: "hoehenu",
+      styles: "sepia",
+      version: "1.1.1",
       tileSize: 256,
       transparent: true,
-      format: 'image/png',
+      format: "image/png",
     },
   },
   expresskarte: {
     initialActive: false,
-    title: 'Expresskarte (s/w)',
+    title: "Expresskarte (s/w)",
     conf: {
-      type: 'wmts',
-      url: 'http://s10221.wuppertal-intra.de:7098/alkis/services',
-      layers: 'expsw',
-      version: '1.1.1',
+      type: "wmts",
+      url: "http://s10221.wuppertal-intra.de:7098/alkis/services",
+      layers: "expsw",
+      version: "1.1.1",
       tileSize: 256,
       transparent: true,
-      format: 'image/png',
+      format: "image/png",
     },
   },
   expresskarteGelb: {
     initialActive: false,
-    title: 'Expresskarte (gelb)',
+    title: "Expresskarte (gelb)",
     conf: {
-      type: 'wmts',
-      url: 'http://s10221.wuppertal-intra.de:7098/alkis/services',
-      layers: 'expg',
-      version: '1.1.1',
+      type: "wmts",
+      url: "http://s10221.wuppertal-intra.de:7098/alkis/services",
+      layers: "expg",
+      version: "1.1.1",
       tileSize: 256,
       transparent: true,
-      format: 'image/png',
+      format: "image/png",
     },
   },
   kanal: {
     initialActive: false,
-    title: 'Kanäle',
+    title: "Kanäle",
     conf: {
-      type: 'vector',
-      style: 'https://omt.map-hosting.de/styles/kanal/style.json',
-      pane: 'additionalLayers1',
+      type: "vector",
+      style: "https://omt.map-hosting.de/styles/kanal/style.json",
+      pane: "additionalLayers1",
       offlineAvailable: false,
-      offlineDataStoreKey: 'kanal',
+      offlineDataStoreKey: "kanal",
     },
   },
   // kanaldaten: {
@@ -288,8 +288,8 @@ export const configuration = {
   versiegelteFlaechen: {
     virtual: true,
     conf: {
-      type: 'graphql',
-      pane: 'additionalLayers2',
+      type: "graphql",
+      pane: "additionalLayers2",
       referenceSystemDefinition: MappingConstants.proj4crs3857def,
       query: `
       query geoFields($bbPoly: geometry) {
@@ -312,7 +312,7 @@ export const configuration = {
           }
         }
       }`,
-      endpoint: REST_SERVICE_WUNDA + '/graphql/VERDIS_GRUNDIS/execute',
+      endpoint: REST_SERVICE_WUNDA + "/graphql/VERDIS_GRUNDIS/execute",
       fetchAllowed: (bbPoly) => {
         const area = getArea25832(bbPoly);
         const maxAreaForSearch = 130000;
@@ -320,14 +320,14 @@ export const configuration = {
         return area < maxAreaForSearch && area !== 0;
       },
       style: {
-        pane: 'additionalLayers2', //you can set a pane here
-        color: '#66666666',
-        fillColor: '#28282866',
+        pane: "additionalLayers2", //you can set a pane here
+        color: "#66666666",
+        fillColor: "#28282866",
         weight: 0.5,
       },
       hoveredStyle: {
-        color: '#66666666',
-        fillColor: '#66666666',
+        color: "#66666666",
+        fillColor: "#66666666",
         weight: 1,
       },
       omniAwareFeatureClickHandler,
@@ -348,8 +348,8 @@ export const configuration = {
   infoFlaechen: {
     virtual: true,
     conf: {
-      type: 'graphql',
-      pane: 'additionalLayers2',
+      type: "graphql",
+      pane: "additionalLayers2",
       referenceSystemDefinition: MappingConstants.proj4crs3857def,
       query: `
       query geoFields($bbPoly: geometry) {
@@ -365,7 +365,7 @@ export const configuration = {
           }
         }
       }`,
-      endpoint: REST_SERVICE_WUNDA + '/graphql/VERDIS_GRUNDIS/execute',
+      endpoint: REST_SERVICE_WUNDA + "/graphql/VERDIS_GRUNDIS/execute",
       fetchAllowed: (bbPoly) => {
         const area = getArea25832(bbPoly);
         const maxAreaForSearch = 150000;
@@ -373,14 +373,14 @@ export const configuration = {
         return area < maxAreaForSearch && area !== 0;
       },
       style: {
-        pane: 'additionalLayers2', //you can set a pane here
-        color: '#66666666',
-        fillColor: '#28282866',
+        pane: "additionalLayers2", //you can set a pane here
+        color: "#66666666",
+        fillColor: "#28282866",
         weight: 0.5,
       },
       hoveredStyle: {
-        color: '#66666666',
-        fillColor: '#66666666',
+        color: "#66666666",
+        fillColor: "#66666666",
         weight: 1,
       },
       omniAwareFeatureClickHandler,
@@ -401,8 +401,8 @@ export const configuration = {
   strassenReinigung: {
     virtual: true,
     conf: {
-      type: 'graphql',
-      pane: 'additionalLayers2',
+      type: "graphql",
+      pane: "additionalLayers2",
       referenceSystemDefinition: MappingConstants.proj4crs3857def,
       query: `
       query geoFields($bbPoly: geometry) {
@@ -420,7 +420,7 @@ export const configuration = {
           }
         }
       }`,
-      endpoint: REST_SERVICE_WUNDA + '/graphql/VERDIS_GRUNDIS/execute',
+      endpoint: REST_SERVICE_WUNDA + "/graphql/VERDIS_GRUNDIS/execute",
       fetchAllowed: (bbPoly) => {
         const area = getArea25832(bbPoly);
         const maxAreaForSearch = 130000;
@@ -428,12 +428,12 @@ export const configuration = {
         return area < maxAreaForSearch && area !== 0;
       },
       style: {
-        pane: 'additionalLayers2', //you can set a pane here
-        color: '#66666666',
+        pane: "additionalLayers2", //you can set a pane here
+        color: "#66666666",
         weight: 15,
       },
       hoveredStyle: {
-        color: '#66666688',
+        color: "#66666688",
 
         weight: 15,
       },
@@ -456,23 +456,23 @@ export const configuration = {
   },
   verdisLayer: {
     initialActive: true,
-    title: 'VerdIS Geometrien',
+    title: "VerdIS Geometrien",
     dependentConf: {
-      default: 'versiegelteFlaechen',
-      overview: 'versiegelteFlaechen',
-      sealedSurfaces: 'versiegelteFlaechen',
-      'sealedSurfaces.details': 'versiegelteFlaechen',
-      streetCleaning: 'strassenReinigung',
-      'streetCleaning.details': 'strassenReinigung',
-      info: 'infoFlaechen',
-      seepagePermits: 'versiegelteFlaechen',
-      'seepagePermits.details': 'versiegelteFlaechen',
+      default: "versiegelteFlaechen",
+      overview: "versiegelteFlaechen",
+      sealedSurfaces: "versiegelteFlaechen",
+      "sealedSurfaces.details": "versiegelteFlaechen",
+      streetCleaning: "strassenReinigung",
+      "streetCleaning.details": "strassenReinigung",
+      info: "infoFlaechen",
+      seepagePermits: "versiegelteFlaechen",
+      "seepagePermits.details": "versiegelteFlaechen",
     },
   },
 };
 
 export default function AdditionalLayers({
-  shownIn = 'default',
+  shownIn = "default",
   activeLayers = [],
   opacities = {},
   mapRef,
@@ -496,7 +496,7 @@ export default function AdditionalLayers({
           }
           let moreProps = {};
 
-          if (conf.type === 'graphql') {
+          if (conf.type === "graphql") {
             moreProps.jwt = jwt;
             moreProps.mapRef = mapRef;
             moreProps.onMouseOut = () => {
@@ -519,7 +519,7 @@ export default function AdditionalLayers({
 
           return (
             <CismapLayer
-              key={'Cismapayer.' + index}
+              key={"Cismapayer." + index}
               //   if a key is set in the config it will overwrite the simple key above
               {...{
                 ...conf,

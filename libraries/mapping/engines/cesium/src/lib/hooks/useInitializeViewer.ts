@@ -30,7 +30,7 @@ export const useInitializeViewer = (
   viewer: Viewer | null,
   home: Cartesian3 | null,
   homeOffset: Cartesian3 | null,
-  leaflet?: LeafletMap | null,
+  leaflet?: LeafletMap | null
 ) => {
   const [hash, setHash] = useState<string | null>(null); // effectively hook should run only once
   const dispatch = useDispatch();
@@ -38,13 +38,13 @@ export const useInitializeViewer = (
   const viewerContext = useCesiumContext();
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
   const minZoom = useSelector(
-    selectScreenSpaceCameraControllerMinimumZoomDistance,
+    selectScreenSpaceCameraControllerMinimumZoomDistance
   );
   const maxZoom = useSelector(
-    selectScreenSpaceCameraControllerMaximumZoomDistance,
+    selectScreenSpaceCameraControllerMaximumZoomDistance
   );
   const enableCollisionDetection = useSelector(
-    selectScreenSpaceCameraControllerEnableCollisionDetection,
+    selectScreenSpaceCameraControllerEnableCollisionDetection
   );
 
   const isMode2d = useSelector(selectViewerIsMode2d);
@@ -88,7 +88,7 @@ export const useInitializeViewer = (
 
       if (isMode2d) {
         console.debug(
-          "HOOK: skipping cesium location setup with 2d mode active zoom",
+          "HOOK: skipping cesium location setup with 2d mode active zoom"
         );
       } else {
         if (isSecondaryStyle) {
@@ -101,13 +101,13 @@ export const useInitializeViewer = (
         if (sceneFromHashParams && longitude && latitude) {
           console.debug(
             "HOOK [2D3D|CESIUM|CAMERA] init Viewer set camera from hash zoom",
-            height,
+            height
           );
           viewer.camera.setView({
             destination: Cartesian3.fromRadians(
               longitude,
               latitude,
-              height ?? 1000, // restore height if missing
+              height ?? 1000 // restore height if missing
             ),
             orientation: {
               heading: heading ?? 0,
@@ -126,7 +126,7 @@ export const useInitializeViewer = (
         } else if (home && homeOffset) {
           console.debug(
             "HOOK: [2D3D|CESIUM|CAMERA] initViewer no hash, using home zoom",
-            home,
+            home
           );
           viewer.camera.lookAt(home, homeOffset);
           viewer.camera.flyToBoundingSphere(new BoundingSphere(home, 500), {

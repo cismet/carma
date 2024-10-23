@@ -1,11 +1,16 @@
 const factory = ({ featureCollectionContext }) => {
   const getThemaById = (id) => {
-    const result = featureCollectionContext?.items?.find((item) => item?.thema?.id === id);
+    const result = featureCollectionContext?.items?.find(
+      (item) => item?.thema?.id === id
+    );
     return result?.thema?.name;
   };
 
   let themenstadtplanDesc = "?";
-  if (featureCollectionContext?.filteredItems?.length === featureCollectionContext?.items?.length) {
+  if (
+    featureCollectionContext?.filteredItems?.length ===
+    featureCollectionContext?.items?.length
+  ) {
     themenstadtplanDesc = undefined;
   } else if (featureCollectionContext?.filterMode === "themen") {
     if (featureCollectionContext?.filterState?.themen?.length <= 2) {
@@ -15,7 +20,8 @@ const factory = ({ featureCollectionContext }) => {
         themen.push(getThemaById(id));
       }
 
-      themenstadtplanDesc = "nach Themen gefiltert (nur " + themen.join(", ") + ")";
+      themenstadtplanDesc =
+        "nach Themen gefiltert (nur " + themen.join(", ") + ")";
     } else {
       themenstadtplanDesc =
         "nach Themen gefiltert (" +
@@ -39,7 +45,8 @@ const factory = ({ featureCollectionContext }) => {
   if (featureCollectionContext?.filteredItems?.length === 0) {
     return (
       <div>
-        <b>Keine Klimaorte gefunden!</b> Bitte überprüfen Sie Ihre Filtereinstellungen.
+        <b>Keine Klimaorte gefunden!</b> Bitte überprüfen Sie Ihre
+        Filtereinstellungen.
       </div>
     );
   }

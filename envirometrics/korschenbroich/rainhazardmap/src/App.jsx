@@ -100,7 +100,7 @@ function App() {
                     description:
                       "Schachtdeckelhöhe [m ü. NHN]: " +
                       parseFloat(
-                        selectedFeature.properties.OKSchachtd,
+                        selectedFeature.properties.OKSchachtd
                       ).toLocaleString("de-DE", {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,

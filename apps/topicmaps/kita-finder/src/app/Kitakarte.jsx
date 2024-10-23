@@ -25,7 +25,7 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 const KitaKarte = () => {
   const [gazData, setGazData] = useState([]);
   const { setSelectedFeatureByPredicate, setClusteringOptions } = useContext(
-    FeatureCollectionDispatchContext,
+    FeatureCollectionDispatchContext
   );
   const { routedMapRef } = useContext(TopicMapContext);
   const { clusteringOptions } = useContext(FeatureCollectionContext);
@@ -62,7 +62,7 @@ const KitaKarte = () => {
       colorizer = getColorForProperties,
       appMode,
       secondarySelection,
-      _additionalStylingInfoWillBeOverridden,
+      _additionalStylingInfoWillBeOverridden
     ) =>
       getFeatureStyler(
         svgSize,
@@ -71,7 +71,7 @@ const KitaKarte = () => {
         secondarySelection,
         {
           featureRenderingOption: additionalStylingInfo.featureRenderingOption,
-        },
+        }
       ),
   };
 
@@ -87,7 +87,7 @@ const KitaKarte = () => {
         if ((Array.isArray(hits) && hits[0]?.more?.pid) || hits[0]?.more?.kid) {
           const gazId = hits[0]?.more?.pid || hits[0]?.more?.kid;
           setSelectedFeatureByPredicate(
-            (feature) => feature.properties.id === gazId,
+            (feature) => feature.properties.id === gazId
           );
         }
       }}
@@ -98,7 +98,7 @@ const KitaKarte = () => {
           headerColorizer={(feature, featureRenderingOption) => {
             return getColorForProperties(
               feature?.properties,
-              featureRenderingOption,
+              featureRenderingOption
             );
           }}
           config={{

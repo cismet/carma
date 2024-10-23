@@ -1,25 +1,25 @@
 export function getPolygonfromBBox(bbox) {
   return (
-    'POLYGON((' +
+    "POLYGON((" +
     bbox.left +
-    ' ' +
+    " " +
     bbox.top +
-    ',' +
+    "," +
     bbox.right +
-    ' ' +
+    " " +
     bbox.top +
-    ',' +
+    "," +
     bbox.right +
-    ' ' +
+    " " +
     bbox.bottom +
-    ',' +
+    "," +
     bbox.left +
-    ' ' +
+    " " +
     bbox.bottom +
-    ',' +
+    "," +
     bbox.left +
-    ' ' +
+    " " +
     bbox.top +
-    '))'
+    "))"
   );
 }

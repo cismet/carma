@@ -19,7 +19,7 @@ export type ClickData = {
 
 export const useClickActionFootprints = (
   idProperty: string,
-  setSelectedEntity: (id: string | null) => void,
+  setSelectedEntity: (id: string | null) => void
 ) => {
   const [clickData, setClickData] = useState<ClickData | null>(null);
   const { viewer } = useCesiumContext();

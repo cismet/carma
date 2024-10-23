@@ -50,7 +50,7 @@ const debugTilesetUrls = {
 
 const DEFAULT_MESH_SHADER_KEY = k.UNLIT_ENHANCED_2024;
 const DEFAULT_MESH_SHADER = new CustomShader(
-  CUSTOM_SHADERS_DEFINITIONS[DEFAULT_MESH_SHADER_KEY],
+  CUSTOM_SHADERS_DEFINITIONS[DEFAULT_MESH_SHADER_KEY]
 );
 
 export const BaseTilesets = () => {
@@ -62,7 +62,7 @@ export const BaseTilesets = () => {
 
   const [showTileInspector, setShowTileInspector] = useState(false);
   const [customShaderKey, setCustomShaderKey] = useState(
-    DEFAULT_MESH_SHADER_KEY,
+    DEFAULT_MESH_SHADER_KEY
   );
   const [customMeshShader, setCustomMeshShader] = useState<
     undefined | CustomShader
@@ -70,18 +70,18 @@ export const BaseTilesets = () => {
   const [maximumScreenSpaceErrorPrimary, setMaximumScreenSpaceErrorPrimary] =
     useState(
       tilesetConfigs.primary?.maximumScreenSpaceError ??
-        defaultMaximumScreenSpaceError,
+        defaultMaximumScreenSpaceError
     );
   const [
     maximumScreenSpaceErrorSecondary,
     setMaximumScreenSpaceErrorSecondary,
   ] = useState(
     tilesetConfigs.secondary?.maximumScreenSpaceError ??
-      defaultMaximumScreenSpaceError,
+      defaultMaximumScreenSpaceError
   );
 
   const [primaryTilesetUrl, setPrimaryTilesetUrl] = useState(
-    tilesetConfigs.primary?.url ?? "",
+    tilesetConfigs.primary?.url ?? ""
   );
 
   const tilesetOpacity = useSelector(selectTilesetOpacity);
@@ -191,7 +191,7 @@ export const BaseTilesets = () => {
       { name: "showSecondary" },
       { name: "maximumScreenSpaceErrorPrimary", min: 1, max: 16, step: 1 },
       { name: "maximumScreenSpaceErrorSecondary", min: 1, max: 16, step: 1 },
-    ],
+    ]
   );
 
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice } from "@reduxjs/toolkit";
 
 const initialState = {
   shapes: [],
@@ -12,11 +12,11 @@ const initialState = {
   updateShape: false,
   mapMovingEnd: false,
   updateTitleStatus: false,
-  measurementMode: 'default',
+  measurementMode: "default",
 };
 
 const slice = createSlice({
-  name: 'measurements',
+  name: "measurements",
   initialState,
   reducers: {
     setVisibleShapes(state, action) {
@@ -250,10 +250,10 @@ export const toggleMeasurementMode = () => {
   return function (dispatch, getState) {
     const state = getState();
     const mode = state.measurements.measurementMode;
-    if (mode === 'default') {
-      dispatch(setMeasurementMode('measurement'));
+    if (mode === "default") {
+      dispatch(setMeasurementMode("measurement"));
     } else {
-      dispatch(setMeasurementMode('default'));
+      dispatch(setMeasurementMode("default"));
     }
   };
 };

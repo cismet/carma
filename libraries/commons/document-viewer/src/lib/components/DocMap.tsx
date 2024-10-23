@@ -1,11 +1,11 @@
-import { RoutedMap, TransitiveReactLeaflet } from 'react-cismap';
-import type { Doc, layer } from '../document-viewer';
-import { useEffect, useRef, useState } from 'react';
-import CismapLayer from 'react-cismap/CismapLayer';
-import Raster from 'leaflet-rastercoords';
-import L from 'leaflet';
-import { useParams, useSearchParams } from 'react-router-dom';
-import 'leaflet/dist/leaflet.css';
+import { RoutedMap, TransitiveReactLeaflet } from "react-cismap";
+import type { Doc, layer } from "../document-viewer";
+import { useEffect, useRef, useState } from "react";
+import CismapLayer from "react-cismap/CismapLayer";
+import Raster from "leaflet-rastercoords";
+import L from "leaflet";
+import { useParams, useSearchParams } from "react-router-dom";
+import "leaflet/dist/leaflet.css";
 
 const { Rectangle } = TransitiveReactLeaflet;
 
@@ -49,8 +49,8 @@ const DocMap = ({
   const leafletMapRef = useRef<any>(null);
   const [urlParams, setUrlParams] = useSearchParams();
 
-  const WIDTH = 'WIDTH';
-  const HEIGHT = 'HEIGHT';
+  const WIDTH = "WIDTH";
+  const HEIGHT = "HEIGHT";
 
   const getPureArrayBounds4LatLngBounds = (llBounds: any) => {
     return [
@@ -68,20 +68,20 @@ const DocMap = ({
       if (meta) {
         // @ts-expect-error legacy codebase exception
         if (meta.pages > 1) {
-          layerUrl = layerUrl.replace('.pdf/', `.pdf-${parseInt(page!) - 1}/`);
+          layerUrl = layerUrl.replace(".pdf/", `.pdf-${parseInt(page!) - 1}/`);
         }
 
         const pageNumber = parseInt(page!);
 
         const dimensions = [
-          meta['layer' + `${pageNumber - 1}`].x,
-          meta['layer' + `${pageNumber - 1}`].y,
+          meta["layer" + `${pageNumber - 1}`].x,
+          meta["layer" + `${pageNumber - 1}`].y,
         ];
 
-        const maxZoom = meta['layer' + `${pageNumber - 1}`].maxZoom;
+        const maxZoom = meta["layer" + `${pageNumber - 1}`].maxZoom;
 
         const zoomLevel = Math.ceil(
-          Math.log(Math.max(dimensions[0], dimensions[1]) / 256) / Math.log(2),
+          Math.log(Math.max(dimensions[0], dimensions[1]) / 256) / Math.log(2)
         );
         // const meta = {};
 
@@ -91,7 +91,7 @@ const DocMap = ({
           // @ts-expect-error legacy codebase exception
           const rc = new L.RasterCoords(
             leafletMapRef.current.leafletMap.leafletElement,
-            dimensions,
+            dimensions
           );
           layerBounds = [
             [
@@ -137,8 +137,8 @@ const DocMap = ({
 
     try {
       dimensions = [
-        meta['layer' + `${pageNumber - 1}`].x,
-        meta['layer' + `${pageNumber - 1}`].y,
+        meta["layer" + `${pageNumber - 1}`].x,
+        meta["layer" + `${pageNumber - 1}`].y,
       ];
     } catch (e) {
       dimensions = [2000, 2000];
@@ -152,7 +152,7 @@ const DocMap = ({
           // @ts-expect-error legacy codebase exception
           const rc = new L.RasterCoords(
             leafletMapRef.current.leafletMap.leafletElement,
-            targetDimensions,
+            targetDimensions
           );
 
           return [
@@ -169,7 +169,7 @@ const DocMap = ({
           // @ts-expect-error legacy codebase exception
           let rc = new L.RasterCoords(
             leafletMapRef.current.leafletMap.leafletElement,
-            targetDimensions,
+            targetDimensions
           );
           return [
             [
@@ -187,7 +187,7 @@ const DocMap = ({
           // @ts-expect-error legacy codebase exception
           let rc = new L.RasterCoords(
             leafletMapRef.current.leafletMap.leafletElement,
-            targetDimensions,
+            targetDimensions
           );
           return [
             [
@@ -200,7 +200,7 @@ const DocMap = ({
           // @ts-expect-error legacy codebase
           let rc = new L.RasterCoords(
             leafletMapRef.current.leafletMap.leafletElement,
-            targetDimensions,
+            targetDimensions
           );
           return [
             [
@@ -214,7 +214,7 @@ const DocMap = ({
         // @ts-expect-error legacy codebase
         const rc = new L.RasterCoords(
           leafletMapRef.current.leafletMap.leafletElement,
-          dimensions,
+          dimensions
         );
         const layerBounds = [
           [rc.unproject([0, 0]), rc.unproject([dimensions[0], dimensions[1]])],
@@ -273,7 +273,7 @@ const DocMap = ({
 
   return (
     <RoutedMap
-      style={{ height: height, width: '100%', backgroundColor: 'white' }}
+      style={{ height: height, width: "100%", backgroundColor: "white" }}
       backgroundLayers="no"
       minZoom={1}
       maxZoom={6}
@@ -284,7 +284,7 @@ const DocMap = ({
       referenceSystem={L.CRS.Simple}
       fullScreenControlEnabled={true}
       ref={leafletMapRef}
-      key={'leafletRoutedMap.' + index + layer?.layerUrl + '_' + width}
+      key={"leafletRoutedMap." + index + layer?.layerUrl + "_" + width}
       locationChangedHandler={(location) => {
         const newParams = { ...paramsToObject(urlParams), ...location };
         setUrlParams(newParams);
@@ -295,7 +295,7 @@ const DocMap = ({
           <Rectangle bounds={layer.bounds} color="#D8D8D8D8" />
           <CismapLayer
             {...{
-              type: 'tiles',
+              type: "tiles",
               url: layer.layerUrl,
               bounds: layer.layerBounds,
               minNativeZoom: 1,
@@ -303,9 +303,9 @@ const DocMap = ({
               noWrap: true,
               maxNativeZoom: layer.maxZoom || 4,
               key:
-                'tileLayer.' +
+                "tileLayer." +
                 JSON.stringify(layer.layerBounds) +
-                '.' +
+                "." +
                 layer.maxZoom,
             }}
           />
@@ -315,8 +315,8 @@ const DocMap = ({
         <div className="leaflet-control">
           <p
             style={{
-              backgroundColor: '#D8D8D8D8',
-              padding: '5px',
+              backgroundColor: "#D8D8D8D8",
+              padding: "5px",
             }}
           >
             {docs[index - 1].file}

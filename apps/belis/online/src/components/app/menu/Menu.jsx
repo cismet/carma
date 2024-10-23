@@ -29,44 +29,45 @@ const MyMenu = ({ refRoutedMap }) => {
         <span>
           Benutzen Sie die Auswahlmöglichkeiten im Bereich{" "}
           <Link
-            className='useAClassNameToRenderProperLink'
-            to='filter'
-            containerId='myMenu'
+            className="useAClassNameToRenderProperLink"
+            to="filter"
+            containerId="myMenu"
             smooth={true}
             delay={100}
             onClick={() => setAppMenuActiveMenuSection("filter")}
           >
             Lokale Daten
           </Link>{" "}
-          um den Cache der offline verfügbaren Daten zu aktualisieren oder den Fortschritt des
-          Aktualisierungsprozesses zu überwachen. Über{" "}
+          um den Cache der offline verfügbaren Daten zu aktualisieren oder den
+          Fortschritt des Aktualisierungsprozesses zu überwachen. Über{" "}
           <Link
-            className='useAClassNameToRenderProperLink'
-            to='filter'
-            containerId='myMenu'
+            className="useAClassNameToRenderProperLink"
+            to="filter"
+            containerId="myMenu"
             smooth={true}
             delay={100}
             onClick={() => setAppMenuActiveMenuSection("filter")}
           >
             Filter
           </Link>
-          , können Sie die in der Karte angezeigten BelIS Objekte auf die für Sie relevanten Typen
-          beschränken. Über{" "}
+          , können Sie die in der Karte angezeigten BelIS Objekte auf die für
+          Sie relevanten Typen beschränken. Über{" "}
           <Link
-            className='useAClassNameToRenderProperLink'
-            to='settings'
-            containerId='myMenu'
+            className="useAClassNameToRenderProperLink"
+            to="settings"
+            containerId="myMenu"
             smooth={true}
             delay={100}
             onClick={() => setAppMenuActiveMenuSection("settings")}
           >
             Einstellungen
           </Link>{" "}
-          können Sie die Darstellung der Hintergrundkarte anpassen. Wählen Sie die{" "}
+          können Sie die Darstellung der Hintergrundkarte anpassen. Wählen Sie
+          die{" "}
           <Link
-            className='useAClassNameToRenderProperLink'
-            to='help'
-            containerId='myMenu'
+            className="useAClassNameToRenderProperLink"
+            to="help"
+            containerId="myMenu"
             smooth={true}
             delay={100}
             onClick={() => setAppMenuActiveMenuSection("help")}
@@ -78,39 +79,39 @@ const MyMenu = ({ refRoutedMap }) => {
       }
       menuSections={[
         <Section
-          key='cache'
-          sectionKey='cache'
+          key="cache"
+          sectionKey="cache"
           sectionTitle={"Lokale Daten"}
-          sectionBsStyle='success'
+          sectionBsStyle="success"
           sectionContent={<CacheSettings />}
         />,
         <Section
-          key='tasks'
-          sectionKey='tasks'
+          key="tasks"
+          sectionKey="tasks"
           sectionTitle={"Tasks"}
-          sectionBsStyle='success'
+          sectionBsStyle="success"
           sectionContent={<Tasks />}
         />,
         <Section
-          key='teams'
-          sectionKey='teams'
+          key="teams"
+          sectionKey="teams"
           sectionTitle={"Teams"}
-          sectionBsStyle='warning'
+          sectionBsStyle="warning"
           sectionContent={<Teams />}
         />,
         <Section
-          key='filter'
-          sectionKey='filter'
+          key="filter"
+          sectionKey="filter"
           sectionTitle={"Filter"}
-          sectionBsStyle='info'
+          sectionBsStyle="info"
           sectionContent={<Filter refRoutedMap={refRoutedMap} />}
         />,
         <DefaultSettingsPanel
-          key='settings'
+          key="settings"
           skipFilterTitleSettings={true}
           skipClusteringSettings={true}
           skipSymbolsizeSetting={true}
-          sectionBsStyle='default'
+          sectionBsStyle="default"
         />,
         // <Section
         //   key='settings'
@@ -121,12 +122,14 @@ const MyMenu = ({ refRoutedMap }) => {
         // ></Section>,
 
         <Section
-          key='help'
-          sectionKey='help'
-          sectionTitle='Kompaktanleitung'
-          sectionBsStyle='default'
+          key="help"
+          sectionKey="help"
+          sectionTitle="Kompaktanleitung"
+          sectionBsStyle="default"
           sectionContent={
-            <ConfigurableDocBlocks configs={getSimpleHelpForTM("Belis-Online 3.0", simpleHelp)} />
+            <ConfigurableDocBlocks
+              configs={getSimpleHelpForTM("Belis-Online 3.0", simpleHelp)}
+            />
           }
         />,
       ]}

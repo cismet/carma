@@ -50,7 +50,7 @@ const navLinks = (urlParams) => {
       href: constructQueryString(
         showSurfaceDetails
           ? "/versiegelteFlaechen/details"
-          : "/versiegelteFlaechen",
+          : "/versiegelteFlaechen"
       ),
       icon: (
         <Tooltip title="Versiegelte Flächen" placement="bottom">
@@ -62,7 +62,7 @@ const navLinks = (urlParams) => {
       title: "Straßenreinigung",
       hrefWithoutQuery: "/strassenreinigung",
       href: constructQueryString(
-        showFrontDetails ? "/strassenreinigung/details" : "/strassenreinigung",
+        showFrontDetails ? "/strassenreinigung/details" : "/strassenreinigung"
       ),
       icon: (
         <Tooltip title="Straßenreinigung" placement="bottom">
@@ -86,7 +86,7 @@ const navLinks = (urlParams) => {
       href: constructQueryString(
         showSeepageDetails
           ? "/versickerungsgenehmigungen/details"
-          : "/versickerungsgenehmigungen",
+          : "/versickerungsgenehmigungen"
       ),
       icon: (
         <Tooltip title="Versickerungsgenehmigungen" placement="bottom">

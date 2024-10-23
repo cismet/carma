@@ -62,7 +62,7 @@ function App({ published }: { published?: boolean }) {
     if (searchParams.get("data")) {
       const data = searchParams.get("data");
       const newConfig: Config = JSON.parse(
-        LZString.decompressFromEncodedURIComponent(data),
+        LZString.decompressFromEncodedURIComponent(data)
       );
       dispatch(setLayers(newConfig.layers));
       dispatch(setBackgroundLayer(newConfig.backgroundLayer));

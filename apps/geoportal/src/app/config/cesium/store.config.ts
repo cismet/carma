@@ -20,7 +20,7 @@ import { FOOTPRINT_GEOJSON_SOURCES } from "./dataSources.config";
 const { x, y, z } = Cartesian3.fromDegrees(
   WUPPERTAL.position.lngDeg,
   WUPPERTAL.position.latDeg,
-  WUPPERTAL.height,
+  WUPPERTAL.height
 );
 
 // position relative to the home position

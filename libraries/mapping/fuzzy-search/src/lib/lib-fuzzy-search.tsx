@@ -9,7 +9,11 @@ import type { BaseSelectRef } from "rc-select";
 import { builtInGazetteerHitTrigger } from "react-cismap/tools/gazetteerHelper";
 import IconComp from "react-cismap/commons/Icon";
 
-import { EntityData, removeCesiumMarker, removeGroundPrimitiveById} from "@carma-mapping/cesium-engine";
+import {
+  EntityData,
+  removeCesiumMarker,
+  removeGroundPrimitiveById,
+} from "@carma-mapping/cesium-engine";
 
 import { carmaHitTrigger } from "./utils/carmaHitTrigger";
 import {
@@ -21,7 +25,6 @@ import {
   removeStopwords,
   getDefaultSearchConfig,
 } from "./utils/fuzzySearchHelper";
-
 
 import {
   SearchResultItem,
@@ -91,7 +94,7 @@ export function LibFuzzySearch({
       referenceSystem,
       referenceSystemDefinition,
       setGazetteerHit,
-      setOverlayFeature,
+      setOverlayFeature
       // _gazetteerHitTrigger,
     );
   };
@@ -103,7 +106,8 @@ export function LibFuzzySearch({
   const [cleanBtnDisable, setCleanBtnDisable] = useState(true);
   const [fireScrollEvent, setFireScrollEvent] = useState(null);
   //const [cesiumMarkerModel, setCesiumMarkerModel] = useState<Model | null>(null); // TODO reuse parsed Model
-  const [selectedCesiumEntityData, setSelectedCesiumEntityData] = useState<EntityData | null>(null);
+  const [selectedCesiumEntityData, setSelectedCesiumEntityData] =
+    useState<EntityData | null>(null);
 
   const handleSearchAutoComplete = (value) => {
     if (allGazeteerData.length > 0 && fuseInstance) {
@@ -125,7 +129,7 @@ export function LibFuzzySearch({
         resultWithRoundScore = limitSearchResult(
           resultWithRoundScore,
           limit,
-          cut,
+          cut
         );
       }
 
@@ -152,12 +156,13 @@ export function LibFuzzySearch({
       option,
       mapRef,
       cesiumOptions,
-      mapConsumers,
+      mapConsumers
     );
     topicMapGazetteerHitTrigger([option.sData]); // TODO remove this after carma gazetteer hit trigger also handles LeafletMaps
     carmaHitTrigger([option.sData], mapConsumers, {
       cesiumOptions,
-      selectedCesiumEntityData, setSelectedCesiumEntityData
+      selectedCesiumEntityData,
+      setSelectedCesiumEntityData,
     });
     if (option.sData.type === "bezirke" || option.sData.type === "quartiere") {
       setGazetteerHit(null);
@@ -198,21 +203,21 @@ export function LibFuzzySearch({
   useEffect(() => {
     if (dropdownContainerRef.current) {
       const allItems = dropdownContainerRef.current.querySelectorAll(
-        ".ant-select-item-option-content",
+        ".ant-select-item-option-content"
       );
 
       const holderInner = dropdownContainerRef.current.querySelector(
-        ".rc-virtual-list-holder-inner",
+        ".rc-virtual-list-holder-inner"
       );
       const listHolder = dropdownContainerRef.current.querySelector(
-        ".rc-virtual-list-holder > div:first-child",
+        ".rc-virtual-list-holder > div:first-child"
       );
 
       const antdDrapdownSelect = dropdownContainerRef.current.querySelector(
-        ".rc-virtual-list-holder",
+        ".rc-virtual-list-holder"
       );
       const inputElement = document.querySelector(
-        ".ant-select-selection-search-input",
+        ".ant-select-selection-search-input"
       );
 
       if (
@@ -258,12 +263,13 @@ export function LibFuzzySearch({
       setOverlayFeature(null);
       setCleanBtnDisable(true);
       if (cesiumOptions) {
-        selectedCesiumEntityData && removeCesiumMarker(cesiumOptions.viewer, selectedCesiumEntityData)
+        selectedCesiumEntityData &&
+          removeCesiumMarker(cesiumOptions.viewer, selectedCesiumEntityData);
         setSelectedCesiumEntityData(null);
         cesiumOptions.viewer.entities.removeById(SELECTED_POLYGON_ID);
         removeGroundPrimitiveById(
           cesiumOptions.viewer,
-          INVERTED_SELECTED_POLYGON_ID,
+          INVERTED_SELECTED_POLYGON_ID
         );
         cesiumOptions.viewer.scene.requestRender(); // explicit render for requestRenderMode;
       }

@@ -38,7 +38,7 @@ export const flattenLayer = (
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   layer: any,
   parentTitles: string[] = [],
-  url: string,
+  url: string
 ) => {
   const layerTitle = layer.Title as string;
   const layerTags = [...parentTitles, layerTitle];
@@ -125,7 +125,7 @@ export const getAllLeafLayers = (capabilities: WMSCapabilitiesJSON) => {
 
 export const findDifferences = (array1: XMLLayer[], array2: Item[]) => {
   const missingInConfig = array1.filter(
-    (layer1) => !array2.some((layer2) => layer2.name === layer1.Name),
+    (layer1) => !array2.some((layer2) => layer2.name === layer1.Name)
   );
 
   return {
@@ -204,7 +204,7 @@ export const getLayerStructure = ({
           const wmsLayer = findLayerAndAddTags(
             wms.Capability.Layer,
             layer.name,
-            [],
+            []
           );
           foundLayer = wmsLayerToGenericItem(wmsLayer, serviceName);
         } else {
@@ -264,14 +264,14 @@ export const getLayerStructure = ({
       const missingInConfig = findDifferences(
         // @ts-ignore
         getAllLeafLayers(wms),
-        categoryConfig.layers,
+        categoryConfig.layers
       );
 
       for (const layer of missingInConfig.missingInConfig) {
         const wmsLayer = findLayerAndAddTags(
           wms.Capability.Layer,
           layer.Name,
-          [],
+          []
         );
         let foundLayer = wmsLayerToGenericItem(wmsLayer, serviceName);
         if (foundLayer) {
@@ -352,7 +352,7 @@ export const mergeStructures = (structure1: any, structure2: any) => {
 export const findLayerAndAddTags = (
   layer: any,
   name: string,
-  tagsToAdd: string[],
+  tagsToAdd: string[]
 ) => {
   if (layer.Name === name) {
     if (!layer.Tags) {

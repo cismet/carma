@@ -1,19 +1,18 @@
-import { Doc, DocumentViewer } from '@carma-commons/document-viewer';
-import 'bootstrap/dist/css/bootstrap.min.css';
-import 'leaflet/dist/leaflet.css';
-import { useEffect, useState } from 'react';
-import { useDispatch } from 'react-redux';
-import 'react-bootstrap-typeahead/css/Typeahead.css';
-import 'react-cismap/topicMaps.css';
+import { Doc, DocumentViewer } from "@carma-commons/document-viewer";
+import "bootstrap/dist/css/bootstrap.min.css";
+import "leaflet/dist/leaflet.css";
+import { useEffect, useState } from "react";
+import { useDispatch } from "react-redux";
+import "react-bootstrap-typeahead/css/Typeahead.css";
+import "react-cismap/topicMaps.css";
 import {
   getAEVFeatureByGazObject,
   loadAEVs,
   searchForAEVs,
-} from '../store/slices/aenderungsverfahren';
-import { useParams } from 'react-router-dom';
-import { getDocsForAEVGazetteerEntry } from '../utils/DocsHelper';
-import type { UnknownAction } from 'redux';
-
+} from "../store/slices/aenderungsverfahren";
+import { useParams } from "react-router-dom";
+import { getDocsForAEVGazetteerEntry } from "../utils/DocsHelper";
+import type { UnknownAction } from "redux";
 
 export function App() {
   const dispatch = useDispatch();
@@ -24,7 +23,7 @@ export function App() {
     const extra = await fetch(url)
       .then((response) => {
         if (!response.ok) {
-          throw new Error('Network response was not ok');
+          throw new Error("Network response was not ok");
         }
         return response.json();
       })
@@ -58,9 +57,11 @@ export function App() {
     if (docPackageId) {
       let tmpDocs;
       tmpDocs = getDocsForAEVGazetteerEntry({
-        gazHit: { type: 'aenderungsv', more: { v: docPackageId } },
+        gazHit: { type: "aenderungsv", more: { v: docPackageId } },
         searchForAEVs: (aevs, done) =>
-          dispatch(getAEVFeatureByGazObject(aevs, done) as unknown as UnknownAction),
+          dispatch(
+            getAEVFeatureByGazObject(aevs, done) as unknown as UnknownAction
+          ),
       });
 
       if (tmpDocs) {

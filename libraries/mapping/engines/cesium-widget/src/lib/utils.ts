@@ -7,11 +7,11 @@ export const EARTH_RADIUS = 6371008.7714;
 export const generateRingFromDegrees = (
   centerDeg: LatLngRecord,
   radiusInMeters: number,
-  samples: number = 24,
+  samples: number = 24
 ): LatLngRadians[] => {
   const center = Cartographic.fromDegrees(
     centerDeg.longitude,
-    centerDeg.latitude,
+    centerDeg.latitude
   );
   const points: LatLngRadians[] = [];
 
