@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useLocation } from "react-router-dom";
 
@@ -13,7 +13,6 @@ import {
 } from "cesium";
 import type { Map as LeafletMap } from "leaflet";
 
-import { useCesiumContext } from "./useCesiumContext";
 import {
   selectScreenSpaceCameraControllerMaximumZoomDistance,
   selectScreenSpaceCameraControllerMinimumZoomDistance,
@@ -26,16 +25,29 @@ import {
 import { decodeSceneFromLocation } from "../utils/hashHelpers";
 import { setupSecondaryStyle } from "../utils/sceneStyles";
 
-export const useInitializeViewer = (
-  viewer: Viewer | null,
-  home: Cartesian3 | null,
-  homeOffset: Cartesian3 | null,
-  leaflet?: LeafletMap | null
-) => {
+import { useCesiumContext } from "./useCesiumContext";
+import { useCesiumViewer } from "./useCesiumViewer";
+
+export const useInitializeViewer = ({
+  containerRef,
+  home,
+  homeOffset,
+  leaflet,
+}: {
+  containerRef?: React.RefObject<HTMLDivElement>;
+  home: Cartesian3 | null;
+  homeOffset: Cartesian3 | null;
+  leaflet?: LeafletMap | null;
+}) => {
   const [hash, setHash] = useState<string | null>(null); // effectively hook should run only once
+
+  const previousIsMode2d = useRef<boolean | null>(null);
+  const previousIsSecondaryStyle = useRef<boolean | null>(null);
+
   const dispatch = useDispatch();
   const location = useLocation();
-  const viewerContext = useCesiumContext();
+  const ctx = useCesiumContext();
+  const viewer = useCesiumViewer();
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
   const minZoom = useSelector(
     selectScreenSpaceCameraControllerMinimumZoomDistance
@@ -48,6 +60,8 @@ export const useInitializeViewer = (
   );
 
   const isMode2d = useSelector(selectViewerIsMode2d);
+
+  console.debug("HOOK: useInitializeViewer");
 
   useEffect(() => {
     if (viewer) {
@@ -93,7 +107,7 @@ export const useInitializeViewer = (
       } else {
         if (isSecondaryStyle) {
           console.debug("HOOK: set secondary style from hash");
-          setupSecondaryStyle(viewerContext);
+          setupSecondaryStyle(ctx);
           dispatch(setShowPrimaryTileset(false));
           dispatch(setShowSecondaryTileset(true));
         }
@@ -140,6 +154,39 @@ export const useInitializeViewer = (
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewer, home, homeOffset, location.pathname, hash, isMode2d]);
+
+  useEffect(() => {
+    if (viewer && containerRef?.current) {
+      const resizeObserver = new ResizeObserver(() => {
+        console.debug("HOOK: resize cesium container");
+        if (viewer && containerRef?.current) {
+          viewer.canvas.width = containerRef.current.clientWidth;
+          viewer.canvas.height = containerRef.current.clientHeight;
+          viewer.canvas.style.width = "100%";
+          viewer.canvas.style.height = "100%";
+        }
+      });
+      if (containerRef?.current) {
+        resizeObserver.observe(containerRef.current);
+      }
+      return () => {
+        resizeObserver.disconnect();
+      };
+    }
+  }, [viewer, containerRef, isMode2d]);
+
+  useEffect(() => {
+    // init hook
+    if (viewer) {
+      if (
+        isMode2d !== previousIsMode2d.current ||
+        isSecondaryStyle !== previousIsSecondaryStyle.current
+      ) {
+        previousIsMode2d.current = isMode2d;
+        previousIsSecondaryStyle.current = isSecondaryStyle;
+      }
+    }
+  }, [viewer, isSecondaryStyle, isMode2d]);
 };
 
 export default useInitializeViewer;

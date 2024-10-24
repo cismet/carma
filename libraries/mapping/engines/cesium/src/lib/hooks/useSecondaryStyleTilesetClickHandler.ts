@@ -11,13 +11,13 @@ import {
 } from "cesium";
 
 import { selectShowSecondaryTileset } from "../slices/cesium";
-import { useCesiumContext } from "./useCesiumContext";
+import { useCesiumViewer } from "./useCesiumViewer";
 import type { TilesetConfig } from "../utils/cesiumHelpers";
 
 export const useSecondaryStyleTilesetClickHandler = (
   config: TilesetConfig | null | undefined
 ) => {
-  const { viewer } = useCesiumContext();
+  const viewer = useCesiumViewer();
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
 
   const { disableSelection } = config ?? {};

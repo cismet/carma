@@ -38,7 +38,10 @@ export const useMapTransition = ({
   const dispatch = useDispatch();
   const topicMapContext = useContext<typeof TopicMapContext>(TopicMapContext);
 
-  const { viewer, surfaceProvider, terrainProvider } = useCesiumContext();
+  const { viewerRef, surfaceProviderRef, terrainProviderRef } = useCesiumContext();
+  const viewer = viewerRef.current;
+  const surfaceProvider = surfaceProviderRef.current;
+  const terrainProvider = terrainProviderRef.current;
   const leaflet = topicMapContext.routedMapRef?.leafletMap?.leafletElement;
 
   if (duration === undefined) {
@@ -55,6 +58,11 @@ export const useMapTransition = ({
       console.warn("cesium or leaflet not available");
       return null;
     }
+
+
+    // cancel any ongoing flight
+    viewer.camera.cancelFlight();
+
     dispatch(setTransitionTo3d());
     dispatch(setIsMode2d(false));
     const onComplete3d = () => {

@@ -1,14 +1,14 @@
 import { useEffect } from "react";
 import { useSelector } from "react-redux";
 
-import { useCesiumContext } from "./useCesiumContext";
+import { useCesiumViewer } from "./useCesiumViewer";
 import {
   selectViewerIsAnimating,
   selectViewerIsTransitioning,
 } from "../slices/cesium";
 
 const useDisableSSCC = () => {
-  const { viewer } = useCesiumContext();
+  const viewer = useCesiumViewer();
   const isAnimating = useSelector(selectViewerIsAnimating);
   const isTransitioning = useSelector(selectViewerIsTransitioning);
   useEffect(() => {

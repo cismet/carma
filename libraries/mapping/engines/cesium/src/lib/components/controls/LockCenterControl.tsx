@@ -3,16 +3,16 @@ import { faLock, faLockOpen } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { DebugModelMatrixPrimitive, Viewer } from "cesium";
 
+import { useCesiumViewer } from '../../hooks/useCesiumViewer';
 import { lockPosition, unlockPosition } from "./lockCenterControl.utils";
 import OnMapButton from "./OnMapButton";
-import { useCesiumContext } from "../../hooks/useCesiumContext";
 
 type LockCenterControlProps = {
   children?: ReactNode;
 };
 
 const LockCenterControl = (props: LockCenterControlProps) => {
-  const { viewer } = useCesiumContext();
+  const viewer = useCesiumViewer();
   const [lockCenter, setLockCenter] = useState(false);
 
   const handleLockCenter = (e: MouseEvent) => {

@@ -16,8 +16,8 @@ import {
   toggleIsAnimating,
   selectViewerIsAnimating,
 } from "../../slices/cesium";
-import { useCesiumContext } from "../../hooks/useCesiumContext";
 import { pickViewerCanvasCenter } from "../../utils/cesiumHelpers";
+import { useCesiumViewer } from '../../hooks/useCesiumViewer';
 
 // TODO use config/context
 const DEFAULT_ROTATION_SPEED = 0.0001;
@@ -32,7 +32,7 @@ const orbitCenterPointId = "orbitCenterPoint";
 const OrbitControl = ({ showCenterPoint = true }: SpinningControlProps) => {
   const dispatch = useDispatch();
 
-  const { viewer } = useCesiumContext();
+  const viewer = useCesiumViewer();
   const orbitPointRef = useRef<Cartesian3 | null>(null);
   const lastRenderTimeRef = useRef<number | null>(null);
   const isAnimating = useSelector(selectViewerIsAnimating);

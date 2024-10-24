@@ -8,12 +8,17 @@ import { getGroundPrimitiveById } from "./cesiumGroundPrimitives";
 const INVERTED_SELECTED_POLYGON_ID = "searchgaz-inverted-polygon";
 
 export const setupPrimaryStyle = ({
-  viewer,
-  terrainProvider,
-  surfaceProvider,
-  imageryLayer,
+  viewerRef,
+  terrainProviderRef,
+  surfaceProviderRef,
+  imageryLayerRef,
 }: CesiumContextType) => {
   (async () => {
+    const viewer = viewerRef.current;
+    const terrainProvider = terrainProviderRef.current;
+    const surfaceProvider = surfaceProviderRef.current;
+    const imageryLayer = imageryLayerRef.current;
+
     if (!viewer) return;
     viewer.scene.globe.baseColor = Color.DARKGRAY;
 
@@ -43,10 +48,14 @@ export const setupPrimaryStyle = ({
 };
 
 export const setupSecondaryStyle = ({
-  viewer,
-  terrainProvider,
-  imageryLayer,
-}) => {
+  viewerRef,
+  terrainProviderRef,
+  imageryLayerRef,
+}: CesiumContextType) => {
+  const viewer = viewerRef.current;
+  const terrainProvider = terrainProviderRef.current;
+  const imageryLayer = imageryLayerRef.current;
+
   if (!viewer) return;
   (async () => {
     viewer.scene.globe.baseColor = Color.WHITE;
@@ -62,8 +71,8 @@ export const setupSecondaryStyle = ({
     // viewer.scene.globe.depthTestAgainstTerrain = true;
     // viewer.scene.globe.show = false;
 
-    if (imageryLayer.ready) {
-      imageryLayer.show = true;
+    if (imageryLayer && imageryLayer.ready) {
+       imageryLayer.show = true;
       // console.log('Secondary Style Setup: add imagery layer');
       if (viewer.imageryLayers.length === 0) {
         console.log("Secondary Style Setup: add imagery layer");

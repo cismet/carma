@@ -136,7 +136,10 @@ export const GeoportalMap = () => {
   const showHamburgerMenu = useSelector(getShowHamburgerMenu);
   const showMeasurementButton = useSelector(getShowMeasurementButton);
   const focusMode = useSelector(getFocusMode);
-  const { viewer, terrainProvider, surfaceProvider } = useCesiumContext();
+  const { viewerRef, terrainProviderRef, surfaceProviderRef } = useCesiumContext();
+  const viewer = viewerRef.current;
+  const terrainProvider = terrainProviderRef.current;
+  const surfaceProvider = surfaceProviderRef.current;
   const homeControl = useHomeControl();
   const {
     handleZoomIn: handleZoomInCesium,

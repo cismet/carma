@@ -3,22 +3,21 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { BoundingSphere, Cartesian3 } from "cesium";
 
-import { useCesiumContext } from "./useCesiumContext";
+import { useCesiumViewer } from "./useCesiumViewer";
 import { selectViewerHome, setIsAnimating } from "../slices/cesium";
 
 export const useHomeControl = () => {
   const dispatch = useDispatch();
-  const { viewer } = useCesiumContext();
+  const viewer = useCesiumViewer();
   const homePosition = useSelector(selectViewerHome);
   const [homePos, setHomePos] = useState<Cartesian3 | null>(null);
 
   useEffect(() => {
-    viewer &&
-      homePosition &&
+    homePosition &&
       setHomePos(
         new Cartesian3(homePosition.x, homePosition.y, homePosition.z)
       );
-  }, [viewer, homePosition]);
+  }, [homePosition]);
 
   const handleHomeClick = useCallback(() => {
     console.log("homePos click", homePos, viewer);
