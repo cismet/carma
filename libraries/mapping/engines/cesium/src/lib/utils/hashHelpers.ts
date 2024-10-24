@@ -71,6 +71,12 @@ export const hashcodecs = {
     decode: (value: string) => value === "true" || value === "1",
     encode: (value: boolean) => (value ? "1" : null),
   },
+  isMode2d: {
+    // isMode2d is the inverse of is3d
+    key: "is3d",
+    decode: (value: string) => !(value === "true" || value === "1"),
+    encode: (value: boolean) => (!value ? "1" : null),
+  },
 };
 
 export function encodeScene(
@@ -87,9 +93,7 @@ export function encodeScene(
   const heading = camera.heading;
   const pitch = camera.pitch;
 
-  const isAnimating = appState.isAnimating;
-  const isSecondaryStyle = appState.isSecondaryStyle;
-  const zoom = appState.zoom;
+  const { isAnimating, isSecondaryStyle, zoom, isMode2d} = appState
   // set param order here
   const hashParams = [
     longitude,
@@ -100,6 +104,7 @@ export function encodeScene(
     zoom,
     isAnimating,
     isSecondaryStyle,
+    isMode2d,
   ].reduce((acc, value, index) => {
     const codec = hashcodecs[Object.keys(hashcodecs)[index]];
     if (value !== undefined && value !== null) {

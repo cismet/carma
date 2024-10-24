@@ -8,7 +8,8 @@ import {
 } from "../slices/cesium";
 import { setupPrimaryStyle, setupSecondaryStyle } from "../utils/sceneStyles";
 
-import { useCesiumContext } from "./useCesiumContext";
+import { useCesiumViewer } from "./useCesiumViewer";
+import { useCesiumContext } from './useCesiumContext';
 
 export const useSceneStyleToggle = (
   initialStyle: keyof SceneStyles = "secondary"
@@ -16,22 +17,22 @@ export const useSceneStyleToggle = (
   const dispatch = useDispatch();
   const [currentStyle, setCurrentStyle] =
     useState<keyof SceneStyles>(initialStyle);
-  const context = useCesiumContext();
-  const { viewer } = context;
+  const ctx = useCesiumContext();
+  const viewer = useCesiumViewer();
 
   useEffect(() => {
     if (!viewer) return;
 
     if (currentStyle === "primary") {
-      setupPrimaryStyle(context);
+      setupPrimaryStyle(ctx);
       dispatch(setShowPrimaryTileset(true));
       dispatch(setShowSecondaryTileset(false));
     } else {
-      setupSecondaryStyle(context);
+      setupSecondaryStyle(ctx);
       dispatch(setShowPrimaryTileset(false));
       dispatch(setShowSecondaryTileset(true));
     }
-  }, [dispatch, viewer, currentStyle, context]);
+  }, [dispatch, viewer, currentStyle, ctx]);
 
   const toggleSceneStyle = (style?: "primary" | "secondary") => {
     if (style) {

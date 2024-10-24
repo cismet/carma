@@ -38,7 +38,10 @@ export const useMapTransition = ({
   const dispatch = useDispatch();
   const topicMapContext = useContext<typeof TopicMapContext>(TopicMapContext);
 
-  const { viewer, surfaceProvider, terrainProvider } = useCesiumContext();
+  const { viewerRef, surfaceProviderRef, terrainProviderRef } = useCesiumContext();
+  const viewer = viewerRef.current;
+  const surfaceProvider = surfaceProviderRef.current;
+  const terrainProvider = terrainProviderRef.current;
   const leaflet = topicMapContext.routedMapRef?.leafletMap?.leafletElement;
 
   if (duration === undefined) {

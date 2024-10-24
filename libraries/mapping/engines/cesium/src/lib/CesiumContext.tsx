@@ -1,4 +1,4 @@
-import { createContext } from "react";
+import { createContext, MutableRefObject } from "react";
 
 import {
     CesiumTerrainProvider,
@@ -9,20 +9,15 @@ import {
 } from "cesium";
 
 export interface CesiumContextType {
-    viewer: Viewer | null;
-    setViewer: (viewer: Viewer | null) => void;
-    terrainProvider: CesiumTerrainProvider | null;
-    surfaceProvider: CesiumTerrainProvider | null;
-    //imageryProvider:    | WebMapServiceImageryProvider    | WebMapTileServiceImageryProvider    | null;
-    imageryLayer: ImageryLayer | null;
-    ellipsoidTerrainProvider: EllipsoidTerrainProvider | null;
-    tilesets: {
-        primary: Cesium3DTileset | null;
-        secondary: Cesium3DTileset | null;
-    };
-    // TODO add more setters
-    setPrimaryTileset: (tileset: Cesium3DTileset | null) => void;
-    setSecondaryTileset: (tileset: Cesium3DTileset | null) => void;
+    viewerRef: MutableRefObject<Viewer | null>;
+    terrainProviderRef: MutableRefObject<CesiumTerrainProvider | null>;
+    surfaceProviderRef: MutableRefObject<CesiumTerrainProvider | null>;
+    imageryLayerRef: MutableRefObject<ImageryLayer | null>;
+    ellipsoidTerrainProviderRef: MutableRefObject<EllipsoidTerrainProvider | null>;
+    tilesetsRefs: {
+        primaryRef: MutableRefObject<Cesium3DTileset | null>;
+        secondaryRef: MutableRefObject<Cesium3DTileset | null>;
+    }
 }
 
 export const CesiumContext = createContext<CesiumContextType | null>(null);

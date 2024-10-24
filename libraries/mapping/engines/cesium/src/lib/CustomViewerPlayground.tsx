@@ -38,6 +38,8 @@ import { useInitializeViewer } from "./hooks/useInitializeViewer";
 import { encodeScene, replaceHashRoutedHistory } from "./utils/hashHelpers";
 import { resolutionFractions } from "./utils/cesiumHelpers";
 import { setLeafletView } from "./utils/leafletHelpers";
+import { useCesiumViewer } from "./hooks/useCesiumViewer";
+import useDisableSSCC from "./hooks/useDisableSSCC";
 
 type CustomViewerProps = {
   children?: ReactNode;
@@ -72,7 +74,8 @@ type CustomViewerProps = {
 };
 
 export function CustomViewerPlayground(props: CustomViewerProps) {
-  const { viewer, setViewer } = useCesiumContext();
+  const {viewerRef} = useCesiumContext();
+  let viewer = useCesiumViewer();
   const home = useSelector(selectViewerHome);
   const homeOffset = useSelector(selectViewerHomeOffset);
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
@@ -237,7 +240,8 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
     ]
   );
   useEffect(() => {
-    if (!viewer) return;
+    if (!viewerRef.current) return;
+    const viewer = viewerRef.current;
 
     const canvas = viewer.canvas;
 
@@ -265,19 +269,15 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
       canvas.removeEventListener("mousedown", handleMouseDown);
       canvas.removeEventListener("mousemove", handleMouseDown);
     };
-  }, [viewer]);
-
-  const viewerRef = useCallback((node) => {
-    if (node !== null) {
-      setViewer && setViewer(node.cesiumElement);
-    }
-  }, []);
+  }, [viewerRef]);
 
   const location = useLocation();
 
-  useInitializeViewer(viewer, home, homeOffset);
+  useInitializeViewer({home, homeOffset});
 
   useEffect(() => {
+    if (!viewerRef.current) return;
+    const viewer = viewerRef.current;
     if (viewer) {
       console.log(
         "HOOK: update Hash, route or style changed",
@@ -289,37 +289,33 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewer, location.pathname, isSecondaryStyle]);
+  }, [viewerRef, location.pathname, isSecondaryStyle]);
 
   useEffect(() => {
+    if (!viewerRef.current) return;
+    const viewer = viewerRef.current;
     if (viewer) {
       console.log("HOOK: globe setting changed");
       // set the globe props
       //Object.assign(scene.globe, globeProps);
       Object.entries(globeProps).forEach(([key, value]) => {
-        if (value !== undefined) {
+        if (viewer && value !== undefined) {
           viewer.scene.globe[key] = value;
         }
       });
     }
-  }, [viewer, globeProps]);
+  }, [viewerRef, globeProps]);
 
-  useEffect(() => {
-    if (viewer) {
-      console.log("HOOK: viewer changed intit scene settings");
-      viewer.imageryLayers.removeAll();
-      viewer.scene.screenSpaceCameraController.enableCollisionDetection = true;
-    }
-  }, [viewer]);
+
+  useDisableSSCC();
 
   useEffect(() => {
     console.log("HOOK: viewer changed", isSecondaryStyle);
-    if (!viewer) return;
-
-    // remove default imagery
+    if (!viewerRef.current) return;
+    const viewer = viewerRef.current;
 
     const moveEndListener = async () => {
-      if (viewer.camera.position) {
+      if (viewer?.camera.position) {
         console.log("LISTENER: moveEndListener", isSecondaryStyle);
         const encodedScene = encodeScene(viewer, { isSecondaryStyle });
 
@@ -355,10 +351,10 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
 
     viewer.camera.moveEnd.addEventListener(moveEndListener);
     return () => {
-      viewer.camera.moveEnd.removeEventListener(moveEndListener);
+      viewer?.camera.moveEnd.removeEventListener(moveEndListener);
     };
   }, [
-    viewer,
+    viewerRef,
     location.pathname,
     isSecondaryStyle,
     showFader,
@@ -371,7 +367,11 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
 
   return (
     <ResiumViewer
-      ref={viewerRef}
+      ref={(node) => {
+        if (node !== null) {
+          viewerRef.current = node.cesiumElement ?? null;
+        }
+      }}
       className={className}
       // Resium ViewerOtherProps
       full // equals style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}`
@@ -386,6 +386,7 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
       // sceneMode={SceneMode.SCENE3D} // Default but explicit
 
       // hide UI
+      baseLayer={false}
       animation={false}
       baseLayerPicker={false}
       fullscreenButton={false}

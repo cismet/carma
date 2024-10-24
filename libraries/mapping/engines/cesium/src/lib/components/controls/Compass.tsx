@@ -13,7 +13,7 @@ import {
 } from "cesium";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 
-import { useCesiumContext } from "../../hooks/useCesiumContext";
+import { useCesiumViewer } from "../../hooks/useCesiumViewer";
 import { selectScreenSpaceCameraControllerMinimumZoomDistance } from "../../slices/cesium";
 import { pickViewerCanvasCenter } from "../../utils/cesiumHelpers";
 
@@ -26,7 +26,7 @@ type Ref = HTMLButtonElement;
 
 export const Compass = forwardRef<Ref, CompassProps>(
   ({ children, disabled }, ref) => {
-    const { viewer } = useCesiumContext();
+    const viewer = useCesiumViewer();
     const minZoomDistance = useSelector(
       selectScreenSpaceCameraControllerMinimumZoomDistance
     );

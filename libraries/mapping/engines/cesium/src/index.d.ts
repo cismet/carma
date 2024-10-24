@@ -219,6 +219,7 @@ export type SceneStateDescription = {
 
 export type AppState = {
   isAnimating?: boolean;
+  isMode2d?: boolean;
   isSecondaryStyle?: boolean;
   zoom?: number;
 };
