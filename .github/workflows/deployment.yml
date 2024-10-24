@@ -58,6 +58,14 @@ jobs:
           submodules: "recursive"
       - name: Update Submodules
         run: git submodule update --remote --recursive
+      - name: Print Collaboration Version numbers
+        run: |
+          echo "-------------------------------"
+          echo "All Collaboration Submodules:"
+          echo
+          find libraries -type f -name "package.json" -path "*/*-submodule/package.json" \
+          -exec sh -c 'dir=$(dirname "$1"); echo "$(basename "$dir"): $(grep -m1 \"version\" "$1" | sed -E "s/[[:space:]]*\"version\":[[:space:]]*\"([^\"]+)\",/\\1/")"' _ {} \;
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -183,6 +191,14 @@ jobs:
           submodules: "recursive"
       - name: Update Submodules
         run: git submodule update --remote --recursive
+      - name: Print Collaboration Version numbers
+        run: |
+          echo "-------------------------------"
+          echo "All Collaboration Submodules:"
+          echo
+          find libraries -type f -name "package.json" -path "*/*-submodule/package.json" \
+          -exec sh -c 'dir=$(dirname "$1"); echo "$(basename "$dir"): $(grep -m1 \"version\" "$1" | sed -E "s/[[:space:]]*\"version\":[[:space:]]*\"([^\"]+)\",/\\1/")"' _ {} \;
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -362,6 +378,13 @@ jobs:
           submodules: "recursive" # Fetch all submodules recursively
       - name: Update Submodules
         run: git submodule update --remote --recursive
+      - name: Print Collaboration Version numbers
+        run: |
+          echo "-------------------------------"
+          echo "All Collaboration Submodules:"
+          echo
+          find libraries -type f -name "package.json" -path "*/*-submodule/package.json" \
+          -exec sh -c 'dir=$(dirname "$1"); echo "$(basename "$dir"): $(grep -m1 \"version\" "$1" | sed -E "s/[[:space:]]*\"version\":[[:space:]]*\"([^\"]+)\",/\\1/")"' _ {} \;
       - name: add cismet-dev registry secret to .npmrc
         shell: bash
         run: |
@@ -573,7 +596,13 @@ jobs:
 
       - name: Update Submodules
         run: git submodule update --remote --recursive
-
+      - name: Print Collaboration Version numbers
+        run: |
+          echo "-------------------------------"
+          echo "All Collaboration Submodules:"
+          echo
+          find libraries -type f -name "package.json" -path "*/*-submodule/package.json" \
+          -exec sh -c 'dir=$(dirname "$1"); echo "$(basename "$dir"): $(grep -m1 \"version\" "$1" | sed -E "s/[[:space:]]*\"version\":[[:space:]]*\"([^\"]+)\",/\\1/")"' _ {} \;
       - name: add cismet-dev registry secret to .npmrc
         shell: bash
         run: |
