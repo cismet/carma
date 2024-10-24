@@ -479,7 +479,7 @@ export const GeoportalMap = () => {
               minZoom={5}
               backgroundlayers="empty"
               mappingBoundsChanged={(boundingbox) => {
-                // console.log('xxx bbox', createWMSBbox(boundingbox));
+                // console.debug('xxx bbox', createWMSBbox(boundingbox));
               }}
               locationChangedHandler={(location) => {
                 const newParams = { ...paramsToObject(urlParams), ...location };

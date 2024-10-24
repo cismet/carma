@@ -23,15 +23,14 @@ import {
 import { BaseTilesets } from "./components/BaseTilesets";
 import ElevationControl from "./components/controls/ElevationControl";
 
-
 import useCameraRollSoftLimiter from "./hooks/useCameraRollSoftLimiter";
 import useCameraPitchEasingLimiter from "./hooks/useCameraPitchEasingLimiter";
 import useCameraPitchSoftLimiter from "./hooks/useCameraPitchSoftLimiter";
 import useDisableSSCC from "./hooks/useDisableSSCC";
 import { useCesiumViewer } from "./hooks/useCesiumViewer";
-import { useCesiumContext } from './hooks/useCesiumContext';
+import { useCesiumContext } from "./hooks/useCesiumContext";
 import { useCesiumGlobe } from "./hooks/useCesiumGlobe";
-import { useCesiumHashUpdater } from './hooks/useCesiumHashUpdater';
+import { useCesiumHashUpdater } from "./hooks/useCesiumHashUpdater";
 import { useCesiumWhenHidden } from "./hooks/useCesiumWhenHidden";
 import { useInitializeViewer } from "./hooks/useInitializeViewer";
 import { useLogCesiumRenderIn2D } from "./hooks/useLogCesiumRenderIn2D";
@@ -44,7 +43,7 @@ export type GlobeOptions = {
   cartographicLimitRectangle?: Rectangle;
   showGroundAtmosphere?: boolean;
   showSkirts?: boolean;
-}
+};
 
 export type CustomViewerProps = {
   children?: ReactNode;
@@ -107,8 +106,6 @@ export function CustomViewer(props: CustomViewerProps) {
     minPitchRange,
   } = props;
 
-
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const topicMapContext: any =
     useContext<typeof TopicMapContext>(TopicMapContext);
@@ -132,7 +129,7 @@ export function CustomViewer(props: CustomViewerProps) {
   useCesiumWhenHidden({ delay: TRANSITION_DELAY });
   useCesiumHashUpdater({ enableLocationHashUpdate });
 
-  console.info("RENDER: [CESIUM] CustomViewer");
+  console.debug("RENDER: [CESIUM] CustomViewer");
 
   return (
     <>
@@ -173,7 +170,6 @@ export function CustomViewer(props: CustomViewerProps) {
         navigationHelpButton={false}
         navigationInstructionsInitiallyVisible={false}
         skyBox={false}
-
       >
         <BaseTilesets />
         {children}

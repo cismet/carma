@@ -11,7 +11,6 @@ import { TilesetConfig } from "@carma-commons/resources";
 
 import { useClickActionTileset } from "./hooks";
 
-
 interface ByTilesetClassifier {
   debug?: boolean;
   target?: string;
@@ -41,9 +40,9 @@ const ByTilesetClassifier: FC<ByTilesetClassifier> = ({
   );
 
   useEffect(() => {
-    console.log("HOOK: selectedFeature");
+    console.debug("HOOK: selectedFeature");
     if (selectedFeature === null) {
-      // console.log('selectedFeature is null');
+      // console.debug('selectedFeature is null');
     } else {
       selectedFeature.color = HIGHLIGHT_COLOR.withAlpha(selectionTransparency);
     }

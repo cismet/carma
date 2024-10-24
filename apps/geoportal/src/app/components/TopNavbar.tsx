@@ -60,7 +60,7 @@ const TopNavbar = () => {
     getCollabedHelpElementsConfig("MENU", geoElements)
   );
 
-  console.info("RENDER: TopNavbar");
+  console.debug("RENDER: TopNavbar");
 
   return (
     <div className="h-16 w-full flex items-center gap-6 relative justify-between py-2 px-[12px]">

@@ -58,7 +58,7 @@ export function animateInterpolateHeadingPitchRange(
   const animate = (time: number) => {
     const elapsed = time - startTime;
     const t = Math.min(elapsed / duration, 1); // normalize to [0, 1]
-    //console.log('animate', duration, elapsed, t, frameIndex);
+    //console.debug('animate', duration, elapsed, t, frameIndex);
 
     // Interpolate heading and pitch over time
     const currentHeading = CesiumMath.lerp(initialHeading, heading, easing(t));

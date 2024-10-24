@@ -25,7 +25,7 @@ export const useSecondaryStyleTilesetClickHandler = (
 
   useEffect(() => {
     if (!viewer || !isSecondaryStyle || disableSelection) return;
-    console.log("HOOK: useGLTFTilesetClickHandler");
+    console.debug("HOOK: useGLTFTilesetClickHandler");
 
     let selectedObject; // Store the currently selected feature
     let lastColor;
@@ -41,13 +41,12 @@ export const useSecondaryStyleTilesetClickHandler = (
       }
 
       const pickedObject = viewer.scene.pick(movement.position);
-      console.log("SCENE PICK: secondary", pickedObject);
+      console.debug("SCENE PICK: secondary", pickedObject);
       if (!pickedObject) return;
 
       if (pickedObject.primitive instanceof Cesium3DTileset) {
-        // console.log('Cesium3DTileset', pickedObject);
         const { _batchId, _content } = pickedObject;
-        console.log("Cesium3DTileFeature", _batchId);
+        console.debug("Cesium3DTileFeature", _batchId);
         const feature = _content.getFeature(_batchId);
         if (feature instanceof Cesium3DTileFeature) {
           lastColor = feature.color;

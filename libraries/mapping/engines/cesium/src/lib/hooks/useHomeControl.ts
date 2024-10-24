@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { BoundingSphere, Cartesian3 } from "cesium";
 
 import { useCesiumViewer } from "./useCesiumViewer";
-import { selectViewerHome, setIsAnimating } from "../slices/cesium";
+import { selectViewerHome, clearIsAnimating } from "../slices/cesium";
 
 export const useHomeControl = () => {
   const dispatch = useDispatch();
@@ -20,11 +20,11 @@ export const useHomeControl = () => {
   }, [homePosition]);
 
   const handleHomeClick = useCallback(() => {
-    console.log("homePos click", homePos, viewer);
+    console.debug("homePos click", homePos, viewer);
     if (viewer && homePos) {
-      dispatch(setIsAnimating(false));
+      dispatch(clearIsAnimating());
       const boundingSphere = new BoundingSphere(homePos, 400);
-      console.log("HOOK: [2D3D|CESIUM|CAMERA] homeClick");
+      console.debug("HOOK: [2D3D|CESIUM|CAMERA] homeClick");
       viewer.camera.flyToBoundingSphere(boundingSphere);
     }
   }, [viewer, homePos, dispatch]);

@@ -41,7 +41,6 @@ export const useClickActionFootprints = (
         const selectedFeatureId =
           pickedFeature.id.properties[idProperty].getValue();
         setSelectedEntity(selectedFeatureId);
-        // console.log('clickAction', selectedFeatureId);
         setClickData({
           id: selectedFeatureId,
           entityId: pickedFeature.id.id,

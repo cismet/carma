@@ -11,7 +11,10 @@ export enum CustomShaderKeys {
   MONOCHROME = "MONOCHROME",
 }
 
-export const CUSTOM_SHADERS_DEFINITIONS: Record<CustomShaderKeys, CesiumCustomChaderOptions> = {
+export const CUSTOM_SHADERS_DEFINITIONS: Record<
+  CustomShaderKeys,
+  CesiumCustomChaderOptions
+> = {
   [CustomShaderKeys.UNDEFINED]: {},
   [CustomShaderKeys.CLAY]: {
     lightingModel: LightingModel.PBR,

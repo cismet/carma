@@ -74,7 +74,7 @@ type CustomViewerProps = {
 };
 
 export function CustomViewerPlayground(props: CustomViewerProps) {
-  const {viewerRef} = useCesiumContext();
+  const { viewerRef } = useCesiumContext();
   let viewer = useCesiumViewer();
   const home = useSelector(selectViewerHome);
   const homeOffset = useSelector(selectViewerHomeOffset);
@@ -273,13 +273,13 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
 
   const location = useLocation();
 
-  useInitializeViewer({home, homeOffset});
+  useInitializeViewer({ home, homeOffset });
 
   useEffect(() => {
     if (!viewerRef.current) return;
     const viewer = viewerRef.current;
     if (viewer) {
-      console.log(
+      console.debug(
         "HOOK: update Hash, route or style changed",
         isSecondaryStyle
       );
@@ -295,7 +295,7 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
     if (!viewerRef.current) return;
     const viewer = viewerRef.current;
     if (viewer) {
-      console.log("HOOK: globe setting changed");
+      console.debug("HOOK: globe setting changed");
       // set the globe props
       //Object.assign(scene.globe, globeProps);
       Object.entries(globeProps).forEach(([key, value]) => {
@@ -306,17 +306,16 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
     }
   }, [viewerRef, globeProps]);
 
-
   useDisableSSCC();
 
   useEffect(() => {
-    console.log("HOOK: viewer changed", isSecondaryStyle);
+    console.debug("HOOK: viewer changed", isSecondaryStyle);
     if (!viewerRef.current) return;
     const viewer = viewerRef.current;
 
     const moveEndListener = async () => {
       if (viewer?.camera.position) {
-        console.log("LISTENER: moveEndListener", isSecondaryStyle);
+        console.debug("LISTENER: moveEndListener", isSecondaryStyle);
         const encodedScene = encodeScene(viewer, { isSecondaryStyle });
 
         // let TopicMap/leaflet handle the view change in 2d Mode
@@ -328,7 +327,7 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
             Math.abs(CesiumMath.TWO_PI - viewer.camera.roll) %
             CesiumMath.TWO_PI;
           if (rollDeviation > 0.02) {
-            console.log("LISTENER HOOK: flyTo reset roll", rollDeviation);
+            console.debug("LISTENER HOOK: flyTo reset roll", rollDeviation);
             const duration = Math.min(rollDeviation, 1);
             viewer.camera.flyTo({
               destination: viewer.camera.position,
@@ -343,7 +342,7 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
           // preload 2D view
           const leaflet =
             topicMapContext?.routedMapRef?.leafletMap?.leafletElement;
-          console.log("leaflet", leaflet, topicMapContext?.routedMapRef);
+          console.debug("leaflet", leaflet, topicMapContext?.routedMapRef);
           leaflet && setLeafletView(viewer, leaflet, { animate: false });
         }
       }
@@ -363,7 +362,7 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
     isUserAction,
   ]);
 
-  console.log("RENDER: CustomViewer");
+  console.debug("RENDER: CustomViewer");
 
   return (
     <ResiumViewer

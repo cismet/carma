@@ -27,7 +27,7 @@ const useTransitionTimeout = (timeOut = DEFAULT_TIMEOUT) => {
 
     return () => {
       if (timeoutId) {
-        //console.info("HOOK [CESIUM|2D3D|TIMEOUT] timed out hook cleared");
+        console.debug("HOOK [CESIUM|2D3D|TIMEOUT] timed out hook cleared");
         clearTimeout(timeoutId);
       }
     };

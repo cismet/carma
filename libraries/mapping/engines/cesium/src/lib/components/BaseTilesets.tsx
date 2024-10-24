@@ -50,7 +50,6 @@ const DEFAULT_MESH_SHADER = new CustomShader(
   CUSTOM_SHADERS_DEFINITIONS[DEFAULT_MESH_SHADER_KEY]
 );
 
-
 const DEFAULT_MESH_OPTIONS: Cesium3DTileset.ConstructorOptions = {
   maximumScreenSpaceError: 8,
   dynamicScreenSpaceError: false,
@@ -67,17 +66,25 @@ const DEFAULT_LOD2_OPTIONS: Cesium3DTileset.ConstructorOptions = {
 };
 
 const loadLOD2Tileset = async (tileset: TilesetConfig) => {
-  const lod2 = await Cesium3DTileset.fromUrl(tileset.url, { ...tileset.constructorOptions, ...DEFAULT_LOD2_OPTIONS });
+  const lod2 = await Cesium3DTileset.fromUrl(tileset.url, {
+    ...tileset.constructorOptions,
+    ...DEFAULT_LOD2_OPTIONS,
+  });
   return lod2;
-}
+};
 
 const loadMeshTileset = async (tileset: TilesetConfig) => {
   // TODO get shader from tileset config
-  const shader = new CustomShader(CUSTOM_SHADERS_DEFINITIONS[DEFAULT_MESH_SHADER_KEY]);
-  const mesh = await Cesium3DTileset.fromUrl(tileset.url, { ...tileset.constructorOptions, ...DEFAULT_MESH_OPTIONS });
+  const shader = new CustomShader(
+    CUSTOM_SHADERS_DEFINITIONS[DEFAULT_MESH_SHADER_KEY]
+  );
+  const mesh = await Cesium3DTileset.fromUrl(tileset.url, {
+    ...tileset.constructorOptions,
+    ...DEFAULT_MESH_OPTIONS,
+  });
   mesh.customShader = shader;
   return mesh;
-}
+};
 
 const loadTileset = async (tileset: TilesetConfig) => {
   if (tileset.type === TilesetType.LOD2) {
@@ -87,7 +94,7 @@ const loadTileset = async (tileset: TilesetConfig) => {
   } else {
     throw new Error(`Unknown tileset type: ${tileset.type}`);
   }
-}
+};
 
 export const BaseTilesets = () => {
   const tilesetConfigs = useSelector(selectViewerDataSources).tilesets;
@@ -106,7 +113,6 @@ export const BaseTilesets = () => {
   const [customMeshShader, setCustomMeshShader] = useState<
     undefined | CustomShader
   >(DEFAULT_MESH_SHADER);
-
 
   const [primaryTilesetUrl, setPrimaryTilesetUrl] = useState(
     tilesetConfigs.primary?.url ?? ""
@@ -213,7 +219,6 @@ export const BaseTilesets = () => {
     }
   }, [showSecondary, tilesetSecondary]);
 
-
   useEffect(() => {
     console.debug("HOOK BaseTilesets: showPrimary", showPrimary);
     if (tilesetPrimary) {
@@ -291,26 +296,35 @@ export const BaseTilesets = () => {
   useEffect(() => {
     if (viewer && tilesetConfigs.secondary) {
       const fetchSecondary = async () => {
-        tilesetsRefs.secondaryRef.current = await loadTileset(tilesetConfigs.secondary!);
+        tilesetsRefs.secondaryRef.current = await loadTileset(
+          tilesetConfigs.secondary!
+        );
         viewer.scene.primitives.add(tilesetsRefs.secondaryRef.current);
-      }
+      };
       fetchSecondary().catch(console.error);
-
-    } return () => {
+    }
+    return () => {
       if (viewer && tilesetsRefs.secondaryRef.current) {
         viewer.scene.primitives.remove(tilesetsRefs.secondaryRef.current);
         tilesetsRefs.secondaryRef.current.destroy();
         tilesetsRefs.secondaryRef.current = null;
       }
-    }
-  }, [viewer, tilesetConfigs, tilesetsRefs.secondaryRef, tilesetConfigs.secondary]);
+    };
+  }, [
+    viewer,
+    tilesetConfigs,
+    tilesetsRefs.secondaryRef,
+    tilesetConfigs.secondary,
+  ]);
 
   useEffect(() => {
     if (viewer && tilesetConfigs.primary) {
       const fetchPrimary = async () => {
-        tilesetsRefs.primaryRef.current = await loadTileset(tilesetConfigs.primary!);
+        tilesetsRefs.primaryRef.current = await loadTileset(
+          tilesetConfigs.primary!
+        );
         viewer.scene.primitives.add(tilesetsRefs.primaryRef.current);
-      }
+      };
       fetchPrimary().catch(console.error);
     }
 
@@ -320,9 +334,8 @@ export const BaseTilesets = () => {
         tilesetsRefs.primaryRef.current.destroy();
         tilesetsRefs.primaryRef.current = null;
       }
-    }
+    };
   }, [viewer, tilesetConfigs, tilesetsRefs.primaryRef]);
-
 
   return null;
 };

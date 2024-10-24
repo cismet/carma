@@ -76,7 +76,7 @@ function App({ published }: { published?: boolean }) {
   const [syncToken, setSyncToken] = useState(null);
 
   useEffect(() => {
-    console.info(
+    console.debug(
       " [GEOPORTAL|ROUTER] App Route changed to:",
       location.pathname
     );
@@ -169,7 +169,7 @@ function App({ published }: { published?: boolean }) {
     </TopicMapContextProvider>
   );
 
-  console.info("RENDER: [GEOPORTAL] APP");
+  console.debug("RENDER: [GEOPORTAL] APP");
 
   return syncToken ? (
     <CrossTabCommunicationContextProvider role="sync" token={syncToken}>

@@ -29,12 +29,7 @@ import type {
   NumericResult,
 } from "../..";
 import { TilesetConfig } from "@carma-commons/resources";
-export type {
-  ColorRgbaArray,
-  LatLngRadians,
-  LatLngRecord,
-  NumericResult,
-};
+export type { ColorRgbaArray, LatLngRadians, LatLngRecord, NumericResult };
 
 // Constants
 
@@ -89,7 +84,7 @@ export const logTileSetInfoOnReady = (tileset: Cesium3DTileset) => {
   const latitude = CesiumMath.toDegrees(cartographic.latitude);
   const height = cartographic.height;
 
-  console.log(
+  console.debug(
     `Longitude: ${longitude}, Latitude: ${latitude}, Height: ${height}, center: ${center}, ${tileset.basePath}}`
   );
 };
@@ -115,7 +110,7 @@ export const getTileSetInfo = (tileset: Cesium3DTileset) => {
   const longitude = CesiumMath.toDegrees(cartographic.longitude);
   const latitude = CesiumMath.toDegrees(cartographic.latitude);
   const height = cartographic.height;
-  console.log(
+  console.debug(
     `Longitude: ${longitude}, Latitude: ${latitude}, Height: ${height}, center: ${center}, ${tileset.basePath}}`
   );
 };
@@ -371,7 +366,7 @@ export const getViewerViewportPolygonRing = (
     }
   );
   if (!bottom || bottom.length < 2) {
-    //console.warn('No bottom pixel position found', bottom);
+    console.warn("No bottom pixel position found", bottom);
     return null;
   }
   const targetPixelSize =
@@ -387,10 +382,10 @@ export const getViewerViewportPolygonRing = (
   const top = bottom.map((pos) => {
     const result = findTopPick(viewer, pos.position[0], targetPixelSize);
     if (result) {
-      //console.info('Top pixel position found', pos.position[0], result);
+      console.debug("Top pixel position found", pos.position[0], result);
       return result;
     } else {
-      //console.warn('No valid top pixel position found');
+      console.warn("No valid top pixel position found");
       return null;
     }
   });
@@ -403,7 +398,7 @@ export const getViewerViewportPolygonRing = (
           CesiumMath.toDegrees(result.coordinates.longitude),
         ];
       } else {
-        //console.warn('No valid mappingg', result);
+        console.warn("No valid mapping", result);
         return null;
       }
     }
@@ -446,7 +441,7 @@ export function pickFromClampedGeojson(
   limit: number = GEOJSON_DRILL_LIMIT
 ): Entity | null {
   const pickedObjects = viewer.scene.drillPick(position, limit);
-  console.log("SCENE DRILL PICK:", pickedObjects);
+  console.debug("SCENE DRILL PICK:", pickedObjects);
   return getLastGroundPrimitive(pickedObjects);
 }
 
@@ -549,7 +544,7 @@ export const getZoomFromPixelResolutionAtLatitude = (
   const zoom = Math.log2(
     EARTH_CIRCUMFERENCE / (scaleFactor * meterResolution * tileSize)
   );
-  console.log("zoom", zoom, scaleFactor, meterResolution, latitude);
+  console.debug("zoom", zoom, scaleFactor, meterResolution, latitude);
   return zoom;
 };
 
@@ -644,7 +639,7 @@ const sampleRingPixelSize = (
   // Calculate the average of the middle values
   const sum = trimmedPixelSizes.reduce((a, b) => a + b, 0);
   const avg = sum / trimmedPixelSizes.length;
-  //console.log('pixel sizes', sortedPixelSizes, trimmedPixelSizes, avg);
+  console.debug("pixel sizes", sortedPixelSizes, trimmedPixelSizes, avg);
   return avg;
 };
 

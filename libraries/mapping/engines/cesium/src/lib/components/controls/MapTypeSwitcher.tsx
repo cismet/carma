@@ -29,7 +29,7 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
 
     const handleSwitchMapMode = async (e: MouseEvent) => {
       e.preventDefault();
-      console.info(
+      console.debug(
         "CLICKHANDLER: [CESIUM|LEAFLET|2D3D] clicked handleSwitchMapMode zoom",
         isMode2d
       );

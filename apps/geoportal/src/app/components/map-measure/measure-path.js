@@ -24,52 +24,52 @@ L.Control.MeasurePolygon = L.Control.extend({
     measurementOrder: 0,
     moveToShape: false,
     cb: function () {
-      console.log("Callback function executed!");
+      console.debug("Callback function executed!");
     },
     cbSaveShape: function () {
-      console.log("Callback function executed!");
+      console.debug("Callback function executed!");
     },
     cdDeleteShape: function () {
-      console.log("Callback function executed!");
+      console.debug("Callback function executed!");
     },
     cbUpdateShape: function () {
-      console.log("Callback function executed!");
+      console.debug("Callback function executed!");
     },
     cbVisiblePolylinesChange: function () {
-      console.log("Callback function executed!");
+      console.debug("Callback function executed!");
     },
     cbSetDrawingStatus: function () {
-      console.log("Callback function executed!");
+      console.debug("Callback function executed!");
     },
     cbSetDrawingShape: function () {
-      console.log("Callback function executed!");
+      console.debug("Callback function executed!");
     },
     cbSetActiveShape: function () {
-      console.log("Callback function executed!");
+      console.debug("Callback function executed!");
     },
     cbSetUpdateStatusHandler: function () {
-      console.log("Callback function executed!");
+      console.debug("Callback function executed!");
     },
     cbMapMovingEndHandler: function () {
-      console.log("Callback function executed!");
+      console.debug("Callback function executed!");
     },
     cbSaveLastActiveShapeIdBeforeDrawingHandler: function () {
-      console.log("Callback function executed!");
+      console.debug("Callback function executed!");
     },
     cbChangeActiveCanceldShapeId: function () {
-      console.log("Callback function executed!");
+      console.debug("Callback function executed!");
     },
     cbToggleMeasurementMode: function () {
-      console.log("Callback function executed!");
+      console.debug("Callback function executed!");
     },
     cbGetMeasurementModeHandler: function () {
-      console.log("Callback function executed!");
+      console.debug("Callback function executed!");
     },
     cbDeleteVisibleShapeById: function () {
-      console.log("Callback function executed!");
+      console.debug("Callback function executed!");
     },
     cbUpdateAreaOfDrawingMeasurement: function () {
-      console.log("Callback function executed!");
+      console.debug("Callback function executed!");
     },
     visiblePolylines: [],
     localShapeStore: [],

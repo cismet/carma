@@ -9,7 +9,7 @@ import {
 import { setupPrimaryStyle, setupSecondaryStyle } from "../utils/sceneStyles";
 
 import { useCesiumViewer } from "./useCesiumViewer";
-import { useCesiumContext } from './useCesiumContext';
+import { useCesiumContext } from "./useCesiumContext";
 
 export const useSceneStyleToggle = (
   initialStyle: keyof SceneStyles = "secondary"

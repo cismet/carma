@@ -47,7 +47,7 @@ export const TopicMap = ({ forceShow = false } = {}) => {
 
   useEffect(() => {
     if (primaryLayerRef.current && primaryLayerRef.current.leafletElement) {
-      console.log("tileLayerRef1.current", primaryLayerRef.current);
+      console.debug("tileLayerRef1.current", primaryLayerRef.current);
       primaryLayerRef.current.leafletElement.setOpacity(isPrimaryStyle ? 1 : 0);
     }
     if (secondaryLayerRef.current && secondaryLayerRef.current.leafletElement) {
@@ -57,7 +57,7 @@ export const TopicMap = ({ forceShow = false } = {}) => {
     }
   }, [isPrimaryStyle]);
 
-  console.log("RENDER: TopicMap isMode2d", isMode2d);
+  console.debug("RENDER: TopicMap isMode2d", isMode2d);
 
   return (
     <div

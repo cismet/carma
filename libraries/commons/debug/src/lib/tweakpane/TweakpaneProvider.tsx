@@ -88,7 +88,7 @@ export const TweakpaneProvider: React.FC<{
 
   const { top, left, right } = position ?? {};
 
-  console.log("RENDER: [DEBUG] TweakpaneProvider", isEnabled);
+  console.debug("RENDER: [DEBUG] TweakpaneProvider", isEnabled);
 
   return (
     <TweakpaneContext.Provider value={{ paneRef }}>

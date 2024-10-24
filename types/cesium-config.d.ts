@@ -13,4 +13,3 @@ export type CesiumConfig = {
   baseUrl: string;
   pathName: string;
 };
-

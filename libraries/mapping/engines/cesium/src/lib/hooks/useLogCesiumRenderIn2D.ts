@@ -18,7 +18,7 @@ export const useLogCesiumRenderIn2D = () => {
     if (!viewer) return;
     const logRender = () => {
       if (isMode2d) {
-        console.info(
+        console.debug(
           "[CESIUM|2D3D] Cesium got rendered while in 2D mode",
           isAnimatingRef.current,
           transitionRef.current,
@@ -28,13 +28,13 @@ export const useLogCesiumRenderIn2D = () => {
     };
 
     // Subscribe to the postRender event
-    console.info("HOOK [CESIUM|SCENE] add postrender listener");
+    console.debug("HOOK [CESIUM|SCENE] add postrender listener");
     viewer.scene.postRender.addEventListener(logRender);
 
     // Cleanup the event listener on unmount
     return () => {
       viewer.scene.postRender.removeEventListener(logRender);
-      console.info("HOOK [CESIUM|SCENE] add postrender removed");
+      console.debug("HOOK [CESIUM|SCENE] add postrender removed");
     };
   }, [viewer, isMode2d]);
 };

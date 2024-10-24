@@ -63,8 +63,6 @@ export const getAll = async (viewer: Viewer) => {
 
   const height = ellipsoid.cartesianToCartographic(center).height;
 
-  //console.log('height', height);
-
   // Convert the position to cartographic coordinates to get the height
   const cartographicPosition = Cartographic.fromCartesian(center);
 

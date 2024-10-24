@@ -49,7 +49,7 @@ export const getPositionWithHeightAsync = async (
           clampedCartographic.height
         );
 
-        console.info(
+        console.debug(
           "[CESIUM|TILESET] Clamped position found for position",
           position,
           updatedPosition
@@ -67,7 +67,7 @@ export const getPositionWithHeightAsync = async (
       );
     }
   } else {
-    console.info("[CESIUM|TILESET] No Tileset provided, using terrain");
+    console.debug("[CESIUM|TILESET] No Tileset provided, using terrain");
   }
 
   if (updatedPosition) {
@@ -76,7 +76,7 @@ export const getPositionWithHeightAsync = async (
   } else {
     // Fall back to using terrain data
     const terrainProvider = scene.globe.terrainProvider;
-    console.log(
+    console.debug(
       "[CESIUM|TERRAIN] Using terrain provider",
       terrainProvider,
       "for position",
@@ -91,7 +91,7 @@ export const getPositionWithHeightAsync = async (
       const cartoPos = updatedPositions[0];
 
       if (cartoPos instanceof Cartographic) {
-        console.info(
+        console.debug(
           "[CESIUM|TERRAIN] Sampled terrain for position",
           position,
           cartoPos

@@ -27,7 +27,7 @@ export const useClickActionTileset = (
   //const url = useViewerDataSources().tileset.url;
 
   useEffect(() => {
-    console.log("HOOK: useClickActionTileset");
+    console.debug("HOOK: useClickActionTileset");
     if (!viewer?.scene || !viewer?.canvas) return;
     const { canvas, scene } = viewer;
 
@@ -45,7 +45,7 @@ export const useClickActionTileset = (
           pickedObjects[i] instanceof Cesium3DTileFeature &&
           pickedObjects[i].tileset._url === url
         ) {
-          // console.log('url', pickedObjects[i].tileset._url);
+          // console.debug('url', pickedObjects[i].tileset._url);
           feature = pickedObjects[i];
           break;
         }
@@ -64,7 +64,7 @@ export const useClickActionTileset = (
           }, {});
 
           setSelectedFeature(feature);
-          // console.log('clickAction', feature, properties);
+          // console.debug('clickAction', feature, properties);
 
           setClickData({
             feature,

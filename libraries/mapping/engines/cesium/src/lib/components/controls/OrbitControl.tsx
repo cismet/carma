@@ -17,7 +17,7 @@ import {
   selectViewerIsAnimating,
 } from "../../slices/cesium";
 import { pickViewerCanvasCenter } from "../../utils/cesiumHelpers";
-import { useCesiumViewer } from '../../hooks/useCesiumViewer';
+import { useCesiumViewer } from "../../hooks/useCesiumViewer";
 
 // TODO use config/context
 const DEFAULT_ROTATION_SPEED = 0.0001;
@@ -38,7 +38,7 @@ const OrbitControl = ({ showCenterPoint = true }: SpinningControlProps) => {
   const isAnimating = useSelector(selectViewerIsAnimating);
 
   const orbitListener = useCallback(() => {
-    console.log("CALLBACK: orbiting");
+    console.debug("CALLBACK: orbiting");
     const point = orbitPointRef.current;
     if (!viewer || !point) return;
 
@@ -49,7 +49,6 @@ const OrbitControl = ({ showCenterPoint = true }: SpinningControlProps) => {
     lastRenderTimeRef.current = currentTime;
 
     const rotationDelta = DEFAULT_ROTATION_SPEED * deltaTime;
-    //console.log('rotationDelta', rotationDelta);
 
     viewer.camera.lookAtTransform(transform);
     viewer.camera.constrainedAxis = Cartesian3.UNIT_Z;
@@ -63,7 +62,6 @@ const OrbitControl = ({ showCenterPoint = true }: SpinningControlProps) => {
       const position = pickViewerCanvasCenter(viewer).scenePosition;
       orbitPointRef.current = position;
       lastRenderTimeRef.current = null;
-      // console.log('orbitPoint', orbitPointRef.current);
       viewer.clock.onTick.addEventListener(orbitListener);
 
       //showCenterPoint && viewer.entities.removeById(orbitCenterPointId);
@@ -93,11 +91,10 @@ const OrbitControl = ({ showCenterPoint = true }: SpinningControlProps) => {
 
   useEffect(() => {
     if (!isAnimating && viewer) {
-      console.log("stop orbiting by state", orbitPointRef.current);
+      console.debug("stop orbiting by state", orbitPointRef.current);
       viewer.clock.onTick.removeEventListener(orbitListener);
       viewer.camera.constrainedAxis = undefined;
       showCenterPoint && viewer.entities.removeById(orbitCenterPointId);
-      //setIsAnimating(false);
     }
   }, [isAnimating, viewer, orbitListener, showCenterPoint]);
 

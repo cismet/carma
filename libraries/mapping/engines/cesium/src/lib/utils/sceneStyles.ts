@@ -59,8 +59,6 @@ export const setupSecondaryStyle = ({
   if (!viewer) return;
   (async () => {
     viewer.scene.globe.baseColor = Color.WHITE;
-
-    // console.log('setupSecondaryStyle', viewer.scene.terrainProvider);
     if (
       !(viewer.scene.terrainProvider instanceof CesiumTerrainProvider) &&
       terrainProvider
@@ -72,10 +70,9 @@ export const setupSecondaryStyle = ({
     // viewer.scene.globe.show = false;
 
     if (imageryLayer && imageryLayer.ready) {
-       imageryLayer.show = true;
-      // console.log('Secondary Style Setup: add imagery layer');
+      imageryLayer.show = true;
       if (viewer.imageryLayers.length === 0) {
-        console.log("Secondary Style Setup: add imagery layer");
+        console.debug("Secondary Style Setup: add imagery layer");
         viewer.imageryLayers.add(imageryLayer);
       }
     }

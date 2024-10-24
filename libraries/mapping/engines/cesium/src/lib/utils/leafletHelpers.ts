@@ -49,6 +49,6 @@ export const setLeafletView = async (
   const { longitude: lng, latitude: lat } = cameraToCartographicDegrees(
     viewer.camera
   );
-  console.log("[2D3D|LEAFLET] setView", { lng, lat, zoom });
+  console.debug("[2D3D|LEAFLET] setView", { lng, lat, zoom });
   leafletElement.setView({ lng, lat }, zoom, { duration, animate });
 };

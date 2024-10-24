@@ -42,7 +42,7 @@ export const Compass = forwardRef<Ref, CompassProps>(
         const horizonTest = viewer.camera.pickEllipsoid(windowPosition);
         let destination = viewer.camera.position;
         if (defined(horizonTest)) {
-          console.log("scene center below horizon");
+          console.info("scene center below horizon");
           //const pos = getCanvasCenter(viewer);
           const { scenePosition, coordinates } = pickViewerCanvasCenter(
             viewer,
@@ -50,7 +50,7 @@ export const Compass = forwardRef<Ref, CompassProps>(
               getCoordinates: true,
             }
           );
-          console.log("pick compass", coordinates, scenePosition);
+          console.debug("pick compass", coordinates, scenePosition);
           if (scenePosition && coordinates) {
             const distance = Cartesian3.distance(
               scenePosition,
@@ -83,7 +83,7 @@ export const Compass = forwardRef<Ref, CompassProps>(
           );
         }
 
-        console.log("HOOK: [2D3D|CESIUM|CAMERA] Compass FlyTo");
+        console.debug("HOOK: [2D3D|CESIUM|CAMERA] Compass FlyTo");
         viewer.camera.flyTo({
           destination,
           orientation: {

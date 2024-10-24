@@ -4,7 +4,7 @@ import { Cartesian3, Cartographic } from "cesium";
 
 import { useTweakpaneCtx } from "@carma-commons/debug";
 
-import { useCesiumViewer } from '../../hooks/useCesiumViewer';
+import { useCesiumViewer } from "../../hooks/useCesiumViewer";
 import { getPositionWithHeightAsync } from "../../utils/positions";
 import "./elevation-control.css";
 
@@ -285,7 +285,7 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
     maxDisplayHeight,
   ]);
 
-  console.info("RENDER: [CESIUM] ElevationControl", alwaysShow, show);
+  console.debug("RENDER: [CESIUM] ElevationControl", alwaysShow, show);
 
   const onChangeHandler = (e: ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();

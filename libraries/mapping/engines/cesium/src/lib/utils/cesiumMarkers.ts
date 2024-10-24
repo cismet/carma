@@ -71,7 +71,7 @@ const createOrUpdateStemline = (
       width,
       material,
     };
-    console.info(
+    console.debug(
       "[CESIUM|SCENE|POLYLINE] adding Stemline",
       posTop.height,
       posBase.height
@@ -95,7 +95,7 @@ export const addCesiumMarker = async (
     stemline?: PolylineConfig; // override the modelConfig stemline
   } = {}
 ) => {
-  console.info("[CESIUM|SCENE] addMarker", pos, modelConfig);
+  console.debug("[CESIUM|SCENE] addMarker", pos, modelConfig);
 
   const { id, model } = Object.assign({ ...defaultOptions, ...options });
 
@@ -128,13 +128,13 @@ export const addCesiumMarker = async (
   let markerModel: Model;
 
   if (model) {
-    console.info("[CESIUM|MARKER|MODEL] Reusing existing marker Model");
+    console.debug("[CESIUM|MARKER|MODEL] Reusing existing marker Model");
     // reuuse existing model;
     markerModel = model;
     model.modelMatrix = modelMatrix;
     model.scale = modelConfig.scale ?? 1;
   } else {
-    console.info(
+    console.debug(
       "[CESIUM|MARKER|MODEL] creating marker model from file",
       modelConfig.uri
     );
@@ -164,7 +164,7 @@ export const addCesiumMarker = async (
 
   entityData.onPreUpdate = onPreUpdate;
   entityData.cleanup = () => {
-    console.info(
+    console.debug(
       "[CESIUM|SCENE|MARKER|LISTENER] cleaning up preUpdate Listener for",
       entityData.id
     );
@@ -262,7 +262,7 @@ export const removeCesiumMarker = (
   viewer: Viewer,
   data: EntityData | null | undefined
 ) => {
-  console.info(
+  console.debug(
     "[CESIUM|MARKER] removing marker primitive from scene",
     data?.model,
     data

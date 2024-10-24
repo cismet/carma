@@ -204,7 +204,7 @@ export const LeafletMiniMap = ({
     viewportLimitResolutionFactor,
   ]);
 
-  console.log("RENDER: MiniMap");
+  console.debug("RENDER: MiniMap");
 
   return (
     <div

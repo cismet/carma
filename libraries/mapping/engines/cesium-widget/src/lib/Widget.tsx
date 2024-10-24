@@ -94,14 +94,14 @@ export const Widget: FC<{
     );
     setCartesian(cartesian3);
 
-    //console.log('HOOK Position changed, setting cartesian3', cartesian3);
+    console.debug("HOOK: Position changed, setting cartesian3", cartesian3);
   }, [position]);
 
   useEffect(() => {
     if (!tileset) {
       const loadTilesetAsync = () => {
         (async () => {
-          console.log("Loading tileset:", tilesetUrl);
+          console.debug("Loading tileset:", tilesetUrl);
           const newTileset = await Cesium3DTileset.fromUrl(tilesetUrl, {
             //maximumScreenSpaceError: 4,
             //baseScreenSpaceError: 128,
@@ -120,7 +120,7 @@ export const Widget: FC<{
     }
     return () => {
       if (tileset) {
-        console.log("HOOK: Destroying tileset");
+        console.debug("HOOK: Destroying tileset");
         tileset.destroy();
         setTileset(null);
       }
@@ -129,7 +129,7 @@ export const Widget: FC<{
 
   useEffect(() => {
     if (tileset && widget) {
-      console.log("HOOK: Tileset added to scene:", tileset);
+      console.debug("HOOK: Tileset added to scene:", tileset);
       widget.scene.primitives.add(tileset);
       return () => {
         if (widget) {
@@ -176,7 +176,7 @@ export const Widget: FC<{
     }
     return () => {
       if (widget) {
-        console.log("HOOK: Destroying widget");
+        console.debug("HOOK: Destroying widget");
         widget.destroy();
         setWidget(null);
       }
@@ -191,7 +191,7 @@ export const Widget: FC<{
       const boundingSphere = new BoundingSphere(cartesian, range);
       widget.camera.viewBoundingSphere(boundingSphere);
       //widget.camera.frustum.far = Math.round(range * 4);
-      //console.log('HOOK: Camera position updated:', cartesian);
+      console.debug("HOOK: Camera position updated:", cartesian);
       if (orthographic) {
         if (widget.camera.frustum instanceof PerspectiveFrustum) {
           widget.camera.switchToOrthographicFrustum();
@@ -249,7 +249,7 @@ export const Widget: FC<{
     let clippingPolygonCollection: ClippingPolygonCollection | undefined;
     if (widget && tileset) {
       if (clip) {
-        //console.log('Creating clipping polygon:', clipRadius);
+        console.debug("Creating clipping polygon:", clipRadius);
 
         if (clipPolygon && clipPolygon.length > 2) {
           clippingPolygon = new ClippingPolygon({
@@ -257,9 +257,9 @@ export const Widget: FC<{
               Cartesian3.fromDegrees(coord.longitude, coord.latitude)
             ),
           });
-          console.info("Clipping polygon created", clippingPolygon);
+          console.debug("Clipping polygon created", clippingPolygon);
         } else if (clipRadius) {
-          console.info("Creating clipping circle:", clipRadius);
+          console.debug("Creating clipping circle:", clipRadius);
           const ringCoords = generateRingFromDegrees(
             { longitude: position.longitude, latitude: position.latitude },
             clipRadius ?? 100
@@ -272,7 +272,7 @@ export const Widget: FC<{
           });
         }
 
-        console.info("Clipping polygon created", clippingPolygon);
+        console.debug("Clipping polygon created", clippingPolygon);
 
         if (clippingPolygon) {
           clippingPolygonCollection = new ClippingPolygonCollection({
@@ -294,7 +294,10 @@ export const Widget: FC<{
 
     return () => {
       if (tileset && clippingPolygonCollection) {
-        //console.log(          'Removing clipping polygon collection:',          tileset.clippingPolygons        );
+        console.debug(
+          "Removing clipping polygon collection:",
+          tileset.clippingPolygons
+        );
         clippingPolygonCollection.removeAll();
         //clippingPolygon && tileset.clippingPolygons.remove(clippingPolygon);
         tileset.clippingPolygons?.removeAll &&
@@ -317,7 +320,7 @@ export const Widget: FC<{
     return;
   }, [debug, cartesian, widget]);
 
-  console.log("Render CustomCesiumWidget", position, range);
+  console.debug("Render: CustomCesiumWidget", position, range);
 
   return (
     <div

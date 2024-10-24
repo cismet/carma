@@ -80,7 +80,7 @@ const LayerWrapper = () => {
       const newPos = getLayerPos(over.id);
       const newLayers = arrayMove(layers, originalPos, newPos);
       dispatch(setLayers(newLayers));
-      console.log(
+      console.debug(
         "handleDragEnd newPos",
         newPos,
         selectedLayerIndex,
@@ -96,7 +96,7 @@ const LayerWrapper = () => {
     useSensor(PointerSensor, { activationConstraint: { distance: 2 } })
   );
 
-  console.log("RENDER: LayerWrapper selectedLayerIndex", selectedLayerIndex);
+  console.debug("RENDER: LayerWrapper selectedLayerIndex", selectedLayerIndex);
 
   return (
     <>
@@ -114,7 +114,7 @@ const LayerWrapper = () => {
           id="buttonWrapper"
           className="w-full h-9 z-[999]"
           onClick={() => {
-            console.log("onClick buttonWrapper");
+            console.debug("onClick buttonWrapper");
             dispatch(setSelectedLayerIndexNoSelection());
           }}
         >

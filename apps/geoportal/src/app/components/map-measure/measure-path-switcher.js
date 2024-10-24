@@ -8,7 +8,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     width: 150,
     checkonedrawpoligon: false,
     cbToggleMeasurementMode: function () {
-      console.log("Callback function executed!");
+      console.debug("[Measure] ToggleMeasurementMode");
     },
   },
 

@@ -104,12 +104,12 @@ export const leafletToCesium = async (
     const [surfaceSample] = await sampleTerrainMostDetailed(surfaceProvider, [
       cameraGroundPosition,
     ]);
-    console.log("surfaceSample", surfaceSample, cameraGroundPosition);
+    console.debug("surfaceSample", surfaceSample, cameraGroundPosition);
   } else if (terrainProvider) {
     const [terrainSample] = await sampleTerrainMostDetailed(terrainProvider, [
       Cartographic.fromRadians(lngRad, latRad),
     ]);
-    console.log("terrainSample", terrainSample, cameraGroundPosition);
+    console.debug("terrainSample", terrainSample, cameraGroundPosition);
   } else {
     console.info(
       "no surface or terrain provider available, using fallback height"
@@ -121,19 +121,19 @@ export const leafletToCesium = async (
 
   const destination = Cartographic.toCartesian(cameraDestinationCartographic);
 
-  console.info(
+  console.debug(
     `L2C [2D3D|CESIUM|CAMERA] cause: ${cause} lat: ${lat} lng: ${lng} z: ${zoom}`
   );
-  console.log("L2C [2D3D|CESIUM|CAMERA] destination", destination);
-  console.log(
+  console.debug("L2C [2D3D|CESIUM|CAMERA] destination", destination);
+  console.debug(
     "L2C [2D3D|CESIUM|CAMERA] cameraDestinationCartographic",
     cameraDestinationCartographic.height
   );
-  console.log(
+  console.debug(
     "L2C [2D3D|CESIUM|CAMERA] cameraGroundPosition",
     cameraGroundPosition.height
   );
-  console.log("L2C [2D3D|CESIUM|CAMERA] computedDistance", computedDistance);
+  console.debug("L2C [2D3D|CESIUM|CAMERA] computedDistance", computedDistance);
 
   window.requestAnimationFrame(() => {
     camera.setView({ destination });
@@ -151,7 +151,7 @@ export const leafletToCesium = async (
       console.warn(
         "Maximum height finding iterations reached with no result, restoring last Cesium camera position."
       );
-      console.log("L2C [2D3D] iterate", iterations, cameraPositionAtStart);
+      console.debug("L2C [2D3D] iterate", iterations, cameraPositionAtStart);
       camera.setView({ destination: cameraPositionAtStart });
       return false;
     }
@@ -168,7 +168,7 @@ export const leafletToCesium = async (
       updatedCameraDestinationCartographic
     );
 
-    console.log(
+    console.debug(
       "L2C [2D3D|CESIUM|CAMERA] setview",
       iterations,
       newCameraHeight,
@@ -185,7 +185,6 @@ export const leafletToCesium = async (
     iterations++;
   }
   viewer.scene.requestRender();
-  //console.log('zoom iterations', iterations);
   onComplete && onComplete();
   return true; // Return true if camera position found within max iterations
 };

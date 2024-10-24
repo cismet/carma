@@ -97,7 +97,7 @@ export const CesiumContextProvider = ({
     []
   );
 
-  console.log("CesiumContextProvider Initialized", contextValue);
+  console.debug("CesiumContextProvider Initialized", contextValue);
 
   return (
     <CesiumContext.Provider value={contextValue}>

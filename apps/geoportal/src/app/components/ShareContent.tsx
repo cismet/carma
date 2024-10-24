@@ -4,7 +4,7 @@ import { useSelector } from "react-redux";
 
 export const ShareContent = () => {
   const layerState = useSelector(getLayerState);
-  console.info("RENDER: ShareContent");
+  console.debug("RENDER: ShareContent");
   return <Share layerState={layerState} />;
 };
 

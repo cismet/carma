@@ -67,8 +67,11 @@ const sliceCesium = createSlice({
   name: "cesium",
   initialState,
   reducers: {
-    setIsAnimating: (state: CesiumState, action: PayloadAction<boolean>) => {
-      state.isAnimating = action.payload;
+    setIsAnimating: (state: CesiumState) => {
+      state.isAnimating = true;
+    },
+    clearIsAnimating: (state: CesiumState) => {
+      state.isAnimating = false;
     },
     toggleIsAnimating: (state: CesiumState) => {
       state.isAnimating = !state.isAnimating;
@@ -79,15 +82,15 @@ const sliceCesium = createSlice({
     },
 
     setTransitionTo2d: (state: CesiumState) => {
-      console.log("REDUCER [STATE|CESIUM] transition to 2D");
+      console.debug("REDUCER [STATE|CESIUM] transition to 2D");
       state.currentTransition = VIEWER_TRANSITION_STATE.TO2D;
     },
     setTransitionTo3d: (state: CesiumState) => {
-      console.log("REDUCER [STATE|CESIUM] transition to 3D");
+      console.debug("REDUCER [STATE|CESIUM] transition to 3D");
       state.currentTransition = VIEWER_TRANSITION_STATE.TO3D;
     },
     clearTransition: (state: CesiumState) => {
-      console.log("REDUCER [STATE|CESIUM] transition cleared");
+      console.debug("REDUCER [STATE|CESIUM] transition cleared");
       state.currentTransition = VIEWER_TRANSITION_STATE.NONE;
     },
 
@@ -123,7 +126,6 @@ const sliceCesium = createSlice({
         action.payload;
     },
     setTilesetOpacity: (state: CesiumState, action: PayloadAction<number>) => {
-      // console.log(action.payload);
       state.styling.tileset.opacity = action.payload;
     },
     setGlobeBaseColor: (
@@ -157,6 +159,7 @@ export const {
   setHomePosition,
 
   setIsAnimating,
+  clearIsAnimating,
   toggleIsAnimating,
 
   setTransitionTo2d,

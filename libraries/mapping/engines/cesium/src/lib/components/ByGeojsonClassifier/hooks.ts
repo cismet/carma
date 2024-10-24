@@ -45,28 +45,28 @@ export const useSelectAndHighlightGeoJsonEntity = (
     let originalMaterials;
     if (viewer) {
       originalMaterials = new Map<Entity, MaterialProperty>();
-      console.log("HOOK ByGeoJsonClassifier add ScreenSpaceEventHandler");
+      console.debug("HOOK ByGeoJsonClassifier add ScreenSpaceEventHandler");
       handler.current = new ScreenSpaceEventHandler(viewer.scene.canvas);
 
       const perEntityAction = (entity: Entity) => {
-        // console.log('GroundPrimitive', entity);
+        // console.debug('GroundPrimitive', entity);
         if (!entity.polygon) {
           return;
         }
         if (highlightMaterial) {
           if (highlightEntity.current === null) {
-            //console.log('highlight first');
+            //console.debug('highlight first');
             originalMaterials.set(entity, entity.polygon.material);
             entity.polygon.material = highlightMaterial;
             highlightEntity.current = entity;
           } else {
             if (highlightEntity.current.id === entity.id) {
-              //console.log('highlight off');
+              //console.debug('highlight off');
               //entity.polygon.material = originialMaterials.get(entity);
               restoreMaterial(entity, originalMaterials);
               highlightEntity.current = null;
             } else {
-              //console.log('highlight next');
+              //console.debug('highlight next');
               restoreMaterial(highlightEntity.current, originalMaterials);
               originalMaterials.set(entity, entity.polygon.material);
               entity.polygon.material = highlightMaterial;
@@ -90,7 +90,7 @@ export const useSelectAndHighlightGeoJsonEntity = (
         }
 
         if (!hasPick && highlightEntity.current) {
-          // console.log('highlight off (no Target)');
+          // console.debug('highlight off (no Target)');
           restoreMaterial(highlightEntity.current, originalMaterials);
         }
       }, ScreenSpaceEventType.LEFT_CLICK);

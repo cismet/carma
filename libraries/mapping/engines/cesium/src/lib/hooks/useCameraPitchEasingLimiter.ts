@@ -3,7 +3,7 @@ import { useSelector } from "react-redux";
 
 import { Math as CesiumMath, Cartographic, EasingFunction } from "cesium";
 
-import { useCesiumViewer } from './useCesiumViewer';
+import { useCesiumViewer } from "./useCesiumViewer";
 import {
   selectScreenSpaceCameraControllerEnableCollisionDetection,
   selectViewerIsAnimating,
@@ -25,7 +25,6 @@ const useCameraPitchEasingLimiter = (
     easing = EasingFunction.CIRCULAR_IN,
   }: LimiterOptions = {}
 ) => {
-
   const viewer = useCesiumViewer();
 
   const isMode2d = useSelector(selectViewerIsMode2d);
@@ -51,7 +50,7 @@ const useCameraPitchEasingLimiter = (
   useEffect(() => {
     if (viewer && !isMode2d && collisions && !isTransitioning && !isAnimating) {
       const { camera, scene } = viewer;
-      console.info("HOOK [CESIUM|CAMERA] EASING Pitch Limiter added");
+      console.debug("HOOK [CESIUM|CAMERA] EASING Pitch Limiter added");
       clearLast();
       const onUpdate = async () => {
         const isPitchInRange = camera.pitch > minRangePitchRad;
@@ -70,7 +69,7 @@ const useCameraPitchEasingLimiter = (
               minPitchRad
             );
 
-            console.info(
+            console.debug(
               "LISTENER HOOK [2D3D|CESIUM|CAMERA]: apply easing pitch limiter",
               Math.round(unitIn * 100),
               Math.round(unitEased * 100),
@@ -103,7 +102,7 @@ const useCameraPitchEasingLimiter = (
       };
       scene.preUpdate.addEventListener(onUpdate);
       return () => {
-        console.info("HOOK [CESIUM|CAMERA] Easing Pitch Limiter removed");
+        console.debug("HOOK [CESIUM|CAMERA] Easing Pitch Limiter removed");
         scene.preUpdate.removeEventListener(onUpdate);
       };
     }

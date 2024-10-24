@@ -3,7 +3,7 @@ import { faLock, faLockOpen } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { DebugModelMatrixPrimitive, Viewer } from "cesium";
 
-import { useCesiumViewer } from '../../hooks/useCesiumViewer';
+import { useCesiumViewer } from "../../hooks/useCesiumViewer";
 import { lockPosition, unlockPosition } from "./lockCenterControl.utils";
 import OnMapButton from "./OnMapButton";
 
@@ -17,7 +17,7 @@ const LockCenterControl = (props: LockCenterControlProps) => {
 
   const handleLockCenter = (e: MouseEvent) => {
     e.preventDefault();
-    console.log("TODO: lockCenter functionality not implemented");
+    console.info("TODO: lockCenter functionality not implemented");
     if (lockCenter === false) {
       setLockCenter(true);
       viewer && lockPosition(viewer);

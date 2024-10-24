@@ -106,7 +106,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
       }
       if (infoRef.current && !infoRef.current.contains(event.target as Node)) {
         const currentLayerIndex = selectedLayerIndex;
-        console.log(
+        console.debug(
           "handleOutsideClick newLayerIndex",
           newLayerIndex,
           currentLayerIndex

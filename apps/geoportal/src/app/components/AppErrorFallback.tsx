@@ -190,7 +190,7 @@ const AppErrorFallback = ({ error, resetErrorBoundary }) => {
                   " Messungen, u.ä. gelöscht.\n\n" +
                   "Sind Sie sicher, dass Sie Ihre Einstellungen zurücksetzen wollen?"
               );
-              // console.log("confirmation: " + confirmation);
+              // console.debug("confirmation: " + confirmation);
               if (confirmation) {
                 console.info("resetting settings");
                 localforage.clear();

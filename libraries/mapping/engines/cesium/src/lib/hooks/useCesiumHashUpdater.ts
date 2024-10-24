@@ -26,7 +26,7 @@ export const useCesiumHashUpdater = ({
 
   useEffect(() => {
     if (viewer && enableLocationHashUpdate && !isMode2d) {
-      console.log(
+      console.debug(
         "HOOK: update Hash, route or style changed",
         isSecondaryStyle
       );
@@ -59,7 +59,7 @@ export const useCesiumHashUpdater = ({
           enableLocationHashUpdate
         ) {
           const camDeg = cameraToCartographicDegrees(viewer.camera);
-          console.log(
+          console.debug(
             "LISTENER: Cesium moveEndListener encode viewer to hash",
             isSecondaryStyle,
             camDeg

@@ -7,7 +7,7 @@ const noCacheInit = {
   headers: noCacheHeaders,
 };
 export const md5FetchJSON = async (prefix, uri) => {
-  console.info("uri to fetch", uri);
+  console.debug("uri to fetch", uri);
 
   try {
     const md5 = await (await fetch(uri + ".md5", noCacheInit)).text();
@@ -18,7 +18,7 @@ export const md5FetchJSON = async (prefix, uri) => {
       );
 
       if (md5InCache !== null && md5InCache === md5) {
-        console.info("cache hit: " + uri);
+        console.debug("cache hit: " + uri);
         const jsonStringInCache = (await localforage.getItem(
           "@" + prefix + ".." + uri
         )) as string;
@@ -55,7 +55,7 @@ export const md5FetchJSON = async (prefix, uri) => {
   }
 };
 export const cachedJSON = async (prefix, uri) => {
-  console.log("uri to fetch from cache", uri);
+  console.debug("uri to fetch from cache", uri);
 
   try {
     const jsonStringInCache = (await localforage.getItem(
@@ -78,7 +78,7 @@ export const fetchJSON = async (uri) => {
     resolve(data);
   });
 }; // export const cachedBase64Image = async (prefix,uri) => {
-// 	console.log('uri to fetch from cache', uri);
+// 	console.debug('uri to fetch from cache', uri);
 // 	let md5 = await (await fetch(uri + '.md5', noCacheInit)).text();
 // 	try {
 // 		const jsonStringInCache = await localforage.getItem('@'+prefix+'.image.' + uri);
@@ -95,7 +95,7 @@ export const fetchJSON = async (uri) => {
 // };
 
 export const md5FetchText = async (prefix: string, uri: string) => {
-  console.log("uri to fetch", uri);
+  console.debug("uri to fetch", uri);
 
   try {
     const md5 = await (await fetch(uri + ".md5", noCacheInit)).text();
@@ -106,7 +106,7 @@ export const md5FetchText = async (prefix: string, uri: string) => {
       );
 
       if (md5InCache !== null && md5InCache === md5) {
-        console.log("cache hit");
+        console.debug("cache hit", prefix, uri);
         const textStringInCache = await localforage.getItem(
           "@" + prefix + ".." + uri
         );
@@ -209,7 +209,7 @@ export const md5ActionFetchDAQ = async (prefix, apiUrl, jwt, daqKey) => {
             await localforage.setItem(md5Key, result.md5);
             await localforage.setItem(timeKey, time);
           } else if (status === 304) {
-            console.log("DAQ cache hit for " + daqKey); //go for result.time after the new version of the action is live
+            console.debug("DAQ cache hit for " + daqKey); //go for result.time after the new version of the action is live
 
             time = (await localforage.getItem(timeKey)) ?? "";
             data = JSON.parse((await localforage.getItem(dataKey)) ?? "");

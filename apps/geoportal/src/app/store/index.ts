@@ -20,7 +20,7 @@ const customAppKey = new URLSearchParams(window.location.hash).get("appKey");
 
 const devToolsEnabled =
   new URLSearchParams(window.location.search).get("devToolsEnabled") === "true";
-console.log("devToolsEnabled:", devToolsEnabled);
+console.debug("devToolsEnabled:", devToolsEnabled);
 const stateLoggingEnabledFromSearch = new URLSearchParams(
   window.location.search
 ).get("stateLoggingEnabled");

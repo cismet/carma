@@ -6,4 +6,3 @@ export const TILESET_BASEMAP_DE: TilesetConfig = {
   type: TilesetType.LOD2,
   contentTypes: [ContentType.BUILDINGS, ContentType.BRIDGES],
 };
-

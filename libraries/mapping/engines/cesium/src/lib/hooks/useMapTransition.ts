@@ -38,7 +38,8 @@ export const useMapTransition = ({
   const dispatch = useDispatch();
   const topicMapContext = useContext<typeof TopicMapContext>(TopicMapContext);
 
-  const { viewerRef, surfaceProviderRef, terrainProviderRef } = useCesiumContext();
+  const { viewerRef, surfaceProviderRef, terrainProviderRef } =
+    useCesiumContext();
   const viewer = viewerRef.current;
   const surfaceProvider = surfaceProviderRef.current;
   const terrainProvider = terrainProviderRef.current;
@@ -58,7 +59,6 @@ export const useMapTransition = ({
       console.warn("cesium or leaflet not available");
       return null;
     }
-
 
     // cancel any ongoing flight
     viewer.camera.cancelFlight();
@@ -172,7 +172,7 @@ export const useMapTransition = ({
         );
       }
     } else {
-      console.warn("no zoomSnap applied", leaflet);
+      console.info("no zoomSnap applied", leaflet);
     }
 
     const duration = getTopDownCameraDeviationAngle(viewer) * 2 + zoomDiff * 1;
@@ -207,7 +207,7 @@ export const useMapTransition = ({
         )
       );
     } else {
-      console.debug("rotate around camera position not implemented yet zoom");
+      console.info("rotate around camera position not implemented yet zoom");
       dispatch(clearTransition());
       /*
    // TODO implement this

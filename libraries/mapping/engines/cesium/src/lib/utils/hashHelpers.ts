@@ -93,7 +93,7 @@ export function encodeScene(
   const heading = camera.heading;
   const pitch = camera.pitch;
 
-  const { isAnimating, isSecondaryStyle, zoom, isMode2d} = appState
+  const { isAnimating, isSecondaryStyle, zoom, isMode2d } = appState;
   // set param order here
   const hashParams = [
     longitude,
@@ -115,7 +115,7 @@ export function encodeScene(
     }
     return acc;
   }, {});
-  //console.log('hashparams', hashparams);
+  //console.debug('hashparams', hashparams);
   //const hash = new URLSearchParams(hashParams).toString();
   return {
     hashParams,
@@ -163,7 +163,6 @@ export const replaceHashRoutedHistory = (
   routedPath: string
 ) => {
   // this is method is used to avoid triggering rerenders from the HashRouter when updating the hash
-  // console.log('replaceHashRoutedHistory sceneHash');
   if (encodedScene.hashParams) {
     const currentHash = window.location.hash.split("?")[1] || "";
     const currentParams = Object.fromEntries(new URLSearchParams(currentHash));

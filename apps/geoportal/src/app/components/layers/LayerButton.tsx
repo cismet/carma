@@ -66,7 +66,7 @@ const LayerButton = ({
   const { ref, inView } = useInView({
     threshold: 0.99,
     onChange: (inView) => {
-      console.log("HOOK: [LayerButton] inView", inView);
+      console.debug("HOOK: [LayerButton] inView", inView);
       if (index === 0) {
         dispatch(setShowLeftScrollButton(!inView));
       } else if (index === layersLength - 1) {
@@ -154,7 +154,7 @@ const LayerButton = ({
         ref={setNodeRef}
         onClick={(e) => {
           e.stopPropagation();
-          console.log(
+          console.debug(
             "onClick LayerButton settings clickFromInfoView",
             showSettings,
             clickFromInfoView
