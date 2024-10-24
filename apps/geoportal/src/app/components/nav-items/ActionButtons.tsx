@@ -1,19 +1,17 @@
-import { useDispatch, useSelector } from "react-redux";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Popover, Tooltip } from "antd";
 import {
-  faBars,
-  faPrint,
-  faShareNodes,
   faEye,
   faEyeSlash,
   faFileExport,
-  faBookOpenReader,
+  faPrint,
   faRotateRight,
+  faShareNodes,
 } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { Popover, Tooltip } from "antd";
+import { useDispatch, useSelector } from "react-redux";
 
+import { Save } from "@carma-apps/portals";
 import { selectViewerIsMode2d } from "@carma-mapping/cesium-engine";
-import { useState } from "react";
 import {
   appendSavedLayerConfig,
   getFocusMode,
@@ -22,9 +20,9 @@ import {
 } from "../../store/slices/mapping";
 import {
   getUIShowLayerButtons,
+  setShowResourceModal,
   setUIShowLayerButtons,
 } from "../../store/slices/ui";
-import { Save } from "@carma-apps/portals";
 import ShareContent from "../ShareContent";
 
 const disabledClass = "text-gray-300";
@@ -32,8 +30,6 @@ const disabledImageOpacity = "opacity-20";
 
 const ActionButtons = () => {
   const dispatch = useDispatch();
-
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const isMode2d = useSelector(selectViewerIsMode2d);
   const focusMode = useSelector(getFocusMode);
@@ -58,7 +54,7 @@ const ActionButtons = () => {
         <button
           disabled={!isMode2d}
           onClick={() => {
-            setIsModalOpen(true);
+            dispatch(setShowResourceModal(true));
           }}
           className="h-[24.5px]"
         >

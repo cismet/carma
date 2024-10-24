@@ -21,6 +21,10 @@ import {
   removeFavorite,
   setThumbnail,
 } from "../../store/slices/layers";
+import {
+  getUIShowResourceModal,
+  setShowResourceModal,
+} from "../../store/slices/ui";
 
 const ResourceModal = () => {
   const dispatch = useDispatch();
@@ -29,6 +33,7 @@ const ResourceModal = () => {
   const thumbnails = useSelector(getThumbnails);
   const favorites = useSelector(getFavorites);
   const savedLayerConfigs = useSelector(getSavedLayerConfigs);
+  const showResourceModal = useSelector(getUIShowResourceModal);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
@@ -100,8 +105,8 @@ const ResourceModal = () => {
     <>
       {contextHolder}
       <LayerLib
-        open={isModalOpen}
-        setOpen={setIsModalOpen}
+        open={showResourceModal}
+        setOpen={(show) => dispatch(setShowResourceModal(show))}
         setAdditionalLayers={updateLayers}
         setThumbnail={(thumbnail) => {
           dispatch(setThumbnail(thumbnail));
