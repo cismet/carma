@@ -10,6 +10,7 @@ import {
   faBookOpenReader,
   faRotateRight,
 } from "@fortawesome/free-solid-svg-icons";
+import { faCircleQuestion } from "@fortawesome/free-regular-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useContext, useState } from "react";
 
@@ -322,7 +323,7 @@ const TopNavbar = () => {
               className="hover:text-gray-600 text-xl"
               onClick={handleToggleTour}
             >
-              <FontAwesomeIcon icon={faBookOpenReader} />
+              <FontAwesomeIcon icon={faCircleQuestion} />
             </button>
           </Popover>
         </Tooltip>
