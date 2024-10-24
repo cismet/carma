@@ -89,6 +89,7 @@ import {
   getUIAllow3d,
   getUIMode,
   getUIShowLayerButtons,
+  toggleShowOverlayTour,
   toggleUIMode,
   UIMode,
 } from "../../store/slices/ui.ts";
@@ -107,6 +108,8 @@ import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 
 import "../leaflet.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
+import { OverlayTourContext } from "libraries/commons/ui/lib-helper-overlay/src/lib/components/OverlayTourProvider.tsx";
+import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
 // TODO remove counter once rerenders are under control
 let rerenderCount: number = 0;
@@ -136,7 +139,8 @@ export const GeoportalMap = () => {
   const showHamburgerMenu = useSelector(getShowHamburgerMenu);
   const showMeasurementButton = useSelector(getShowMeasurementButton);
   const focusMode = useSelector(getFocusMode);
-  const { viewerRef, terrainProviderRef, surfaceProviderRef } = useCesiumContext();
+  const { viewerRef, terrainProviderRef, surfaceProviderRef } =
+    useCesiumContext();
   const viewer = viewerRef.current;
   const terrainProvider = terrainProviderRef.current;
   const surfaceProvider = surfaceProviderRef.current;
@@ -184,6 +188,9 @@ export const GeoportalMap = () => {
     referenceSystemDefinition,
     maskingPolygon,
   } = useContext<typeof TopicMapContext>(TopicMapContext);
+  const { setAppMenuVisible } =
+    useContext<typeof UIDispatchContext>(UIDispatchContext);
+  const { setSecondaryWithKey } = useContext(OverlayTourContext);
 
   const [gazetteerHit, setGazetteerHit] = useState(null);
   const [overlayFeature, setOverlayFeature] = useState(null);
@@ -266,6 +273,12 @@ export const GeoportalMap = () => {
       }
     }
     return <div></div>;
+  };
+
+  const showOverlayFromOutside = (key: string) => {
+    setAppMenuVisible(false);
+    setSecondaryWithKey(key);
+    dispatch(toggleShowOverlayTour(true));
   };
 
   // TODO Move out Controls to own component
@@ -451,6 +464,7 @@ export const GeoportalMap = () => {
                 <GenericModalApplicationMenu
                   {...getCollabedHelpComponentConfig({
                     versionString: version,
+                    showOverlayFromOutside: showOverlayFromOutside,
                   })}
                 />
               }
