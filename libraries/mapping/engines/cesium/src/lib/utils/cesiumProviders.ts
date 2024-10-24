@@ -1,9 +1,9 @@
+import type { ImageryProviderConfig } from "../..";
 import {
   CesiumTerrainProvider,
   ImageryLayer,
   WebMapServiceImageryProvider,
 } from "cesium";
-import { ImageryProviderConfig } from "../..";
 
 export interface ProviderConfig {
   surfaceProvider?: {
@@ -18,30 +18,34 @@ export interface ProviderConfig {
 export const loadCesiumTerrainProvider = async (
   ref: React.MutableRefObject<CesiumTerrainProvider | null>,
   url: string,
-  isMounted: boolean
+  signal: AbortSignal
 ) => {
   try {
     const provider = await CesiumTerrainProvider.fromUrl(url);
-    if (isMounted) {
+    if (!signal.aborted) {
       ref.current = provider;
     }
   } catch (error) {
-    console.error("Failed to load terrain provider", url, error);
+    if (!signal.aborted) {
+      console.error("Failed to load terrain provider", url, error);
+    }
   }
 };
 
 export const loadCesiumImageryLayer = async (
   ref: React.MutableRefObject<ImageryLayer | null>,
   config: ImageryProviderConfig,
-  isMounted: boolean
+  signal: AbortSignal
 ) => {
   try {
     const imageryProvider = new WebMapServiceImageryProvider(config);
     const newImageryLayer = new ImageryLayer(imageryProvider);
-    if (isMounted) {
+    if (!signal.aborted) {
       ref.current = newImageryLayer;
     }
   } catch (error) {
-    console.error("Failed to load imagery provider:", error);
+    if (!signal.aborted) {
+      console.error("Failed to load imagery provider:", error);
+    }
   }
 };

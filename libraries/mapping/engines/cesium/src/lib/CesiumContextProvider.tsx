@@ -35,40 +35,49 @@ export const CesiumContextProvider = ({
 
   // Asynchronous initialization of providers and imageryLayer
   useEffect(() => {
+    const abortController = new AbortController();
+    const { signal } = abortController;
+
     // ImageryLayer initialization
-    let isMounted = true;
     loadCesiumImageryLayer(
       imageryLayerRef,
       providerConfig.imageryProvider,
-      isMounted
+      signal
     );
+
     return () => {
-      isMounted = false;
+      abortController.abort();
     };
   }, [providerConfig.imageryProvider]);
 
   useEffect(() => {
-    let isMounted = true;
+    const abortController = new AbortController();
+    const { signal } = abortController;
+
     loadCesiumTerrainProvider(
       terrainProviderRef,
       providerConfig.terrainProvider.url,
-      isMounted
+      signal
     );
+
     return () => {
-      isMounted = false;
+      abortController.abort();
     };
   }, [providerConfig.terrainProvider.url]);
 
   useEffect(() => {
     if (providerConfig.surfaceProvider) {
-      let isMounted = true;
+      const abortController = new AbortController();
+      const { signal } = abortController;
+
       loadCesiumTerrainProvider(
         surfaceProviderRef,
         providerConfig.surfaceProvider.url,
-        isMounted
+        signal
       );
+
       return () => {
-        isMounted = false;
+        abortController.abort();
       };
     }
   }, [providerConfig.surfaceProvider]);
