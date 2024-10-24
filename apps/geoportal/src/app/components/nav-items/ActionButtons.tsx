@@ -39,7 +39,7 @@ const ActionButtons = () => {
   const baseUrl = window.location.origin + window.location.pathname;
 
   return (
-    <div className="flex items-center gap-6 lg:ml-[190px]">
+    <div className="flex items-center gap-6 lg:ml-[86px] xl:ml-[190px]">
       <Tooltip title="Aktualisieren">
         <button
           onClick={() => {
