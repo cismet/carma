@@ -464,7 +464,6 @@ export const GeoportalMap = () => {
                 <GenericModalApplicationMenu
                   {...getCollabedHelpComponentConfig({
                     versionString: version,
-                    // @ts-expect-error TODO fix this type in react-cismap
                     showOverlayFromOutside: showOverlayFromOutside,
                   })}
                 />
