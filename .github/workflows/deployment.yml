@@ -349,7 +349,7 @@ jobs:
         run: npm install nx@19.5.4
       - name: Build project
         run: |
-          npx nx run ${{ matrix.project }}:build --configuration=production --base="${{ env.BASE_URL }}"--verbose --output-style=stream
+          npx nx run ${{ matrix.project }}:build --configuration=production --base="${{ env.BASE_URL }}" --verbose --output-style=stream
         shell: bash
       - name: Deploy using GH Pages action
         if: env.EXTERNAL_REPO != 'null' && env.EXTERNAL_REPO != '' && env.EXTERNAL_REPO != 'null/null'
