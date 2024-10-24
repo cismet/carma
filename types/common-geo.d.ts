@@ -12,3 +12,9 @@ export type LatLngRadians = {
   latRad: number;
   lngRad: number;
 };
+
+export type PlainCartesian3 = {
+  x: number;
+  y: number;
+  z: number;
+};

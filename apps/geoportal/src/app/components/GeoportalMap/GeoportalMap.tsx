@@ -283,7 +283,7 @@ export const GeoportalMap = () => {
 
   // TODO Move out Controls to own component
 
-  console.info("RENDER: [GEOPORTAL] MAP");
+  console.debug("RENDER: [GEOPORTAL] MAP");
   rerenderCount++;
   lastRenderInterval = Date.now() - lastRenderTimeStamp;
   lastRenderTimeStamp = Date.now();
@@ -464,6 +464,7 @@ export const GeoportalMap = () => {
                 <GenericModalApplicationMenu
                   {...getCollabedHelpComponentConfig({
                     versionString: version,
+                    // @ts-expect-error TODO fix this type in react-cismap
                     showOverlayFromOutside: showOverlayFromOutside,
                   })}
                 />

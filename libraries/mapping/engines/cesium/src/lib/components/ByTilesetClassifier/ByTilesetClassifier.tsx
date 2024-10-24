@@ -6,9 +6,11 @@ import {
   ClassificationType,
   Color,
 } from "cesium";
+
+import { TilesetConfig } from "@carma-commons/resources";
+
 import { useClickActionTileset } from "./hooks";
 
-import { TilesetConfig } from "../../..";
 
 interface ByTilesetClassifier {
   debug?: boolean;

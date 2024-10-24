@@ -22,20 +22,18 @@ import {
   PerspectiveOffCenterFrustum,
 } from "cesium";
 
-import {
+import type {
   ColorRgbaArray,
   LatLngRadians,
   LatLngRecord,
   NumericResult,
-  TilesetConfig,
 } from "../..";
-
+import { TilesetConfig } from "@carma-commons/resources";
 export type {
   ColorRgbaArray,
   LatLngRadians,
   LatLngRecord,
   NumericResult,
-  TilesetConfig,
 };
 
 // Constants

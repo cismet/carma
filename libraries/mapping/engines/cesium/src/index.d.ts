@@ -1,13 +1,9 @@
 // TODO consolidate with rest of libs
 
 import { Color, TerrainProvider } from "cesium";
-import { hashcodecs } from "./lib/utils/hashHelpers";
 
-type Translation = {
-  x: number;
-  y: number;
-  z: number;
-};
+import { hashcodecs } from "./lib/utils/hashHelpers";
+import { PlainCartesian3 } from "types/common-geo";
 
 export type LatLngRecord = {
   latitude: number;
@@ -99,21 +95,6 @@ export type CesiumOptions = {
   pitchAdjustHeight?: number;
   terrainProvider: TerrainProvider;
   surfaceProvider: TerrainProvider | null;
-};
-
-type PlainCartesian3 = {
-  x: number;
-  y: number;
-  z: number;
-};
-
-export type TilesetConfig = {
-  url: string;
-  name?: string;
-  translation?: PlainCartesian3;
-  idProperty?: string;
-  maximumScreenSpaceError?: number;
-  disableSelection?: boolean;
 };
 
 export type GeoJsonConfig = {

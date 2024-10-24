@@ -10,9 +10,10 @@ import {
   Color,
 } from "cesium";
 
+import { TilesetConfig } from "@carma-commons/resources";
+
 import { selectShowSecondaryTileset } from "../slices/cesium";
 import { useCesiumViewer } from "./useCesiumViewer";
-import type { TilesetConfig } from "../utils/cesiumHelpers";
 
 export const useSecondaryStyleTilesetClickHandler = (
   config: TilesetConfig | null | undefined
