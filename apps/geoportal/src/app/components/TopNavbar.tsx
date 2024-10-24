@@ -66,22 +66,23 @@ const TopNavbar = () => {
     <div className="h-16 w-full flex items-center gap-6 relative justify-between py-2 px-[12px]">
       <ResourceModal />
 
-      <p className="mb-0 font-semibold text-lg w-1/4">
-        DigiTal Zwilling / Geoportal
-      </p>
+      <p className="mb-0 font-semibold text-lg">DigiTal Zwilling / Geoportal</p>
 
       <ActionButtons />
-      <Tooltip
-        title={`Hilfe ${uiMode === UIMode.TOUR ? "ausblenden" : "anzeigen"}`}
-      >
-        <button
-          className="hover:text-gray-600 text-xl"
-          onClick={handleToggleTour}
-        >
-          <FontAwesomeIcon icon={faCircleQuestion} />
-        </button>
-      </Tooltip>
       <div className="flex items-center gap-6">
+        <Tooltip
+          title={`Hilfe ${uiMode === UIMode.TOUR ? "ausblenden" : "anzeigen"}`}
+        >
+          <button
+            className="hover:text-gray-600 text-xl lg:mr-11 xl:mr-40"
+            onClick={handleToggleTour}
+          >
+            <FontAwesomeIcon
+              className="h-[24px] pt-1"
+              icon={faCircleQuestion}
+            />
+          </button>
+        </Tooltip>
         <div className="lg:flex hidden" ref={hintergrundTourRef}>
           {backgroundLayer && (
             <Radio.Group
