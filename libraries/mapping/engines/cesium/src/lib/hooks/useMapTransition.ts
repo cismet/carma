@@ -58,6 +58,11 @@ export const useMapTransition = ({
       console.warn("cesium or leaflet not available");
       return null;
     }
+
+
+    // cancel any ongoing flight
+    viewer.camera.cancelFlight();
+
     dispatch(setTransitionTo3d());
     dispatch(setIsMode2d(false));
     const onComplete3d = () => {
