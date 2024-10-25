@@ -96,7 +96,7 @@ const buildChildHiegthWithBottomShift = (childNodes, className, gap) => {
 
 const ControlLayout: React.FC<ControlLayoutProps> = ({
   children,
-  onResponsiveCollapse = () => console.log(),
+  onResponsiveCollapse = (e) => console.debug("HOOK: [MAPCONTROL] ControlLayout onResponsiveCollapse", e),
   debugMode = false,
   onHeightResize = (set: number | null) => set,
   ifStorybook = true,
@@ -146,7 +146,7 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
         screenSizeWatcher !== "mobile"
       ) {
         setScreenSizeWatcher("mobile");
-        console.info("HOOK [MAPCONTROL] callback mobile");
+        console.debug("HOOK: [MAPCONTROL] callback mobile");
         onResponsiveCollapse("mobile");
       } else if (
         containerWidth &&
@@ -154,7 +154,7 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
         screenSizeWatcher !== "screen"
       ) {
         setScreenSizeWatcher("screen");
-        console.info("HOOK [MAPCONTROL] callback screen");
+        console.debug("HOOK: [MAPCONTROL] callback screen");
         onResponsiveCollapse("screen");
       }
 

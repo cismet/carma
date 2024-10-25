@@ -26,7 +26,7 @@ export const md5FetchJSON = async (prefix, uri) => {
           resolve(JSON.parse(jsonStringInCache));
         });
       } else {
-        console.info("cache miss" + uri);
+        console.debug("cache miss" + uri);
         const data = await (await fetch(uri)).json();
         await localforage.setItem(
           "@" + prefix + ".." + uri,
@@ -38,7 +38,7 @@ export const md5FetchJSON = async (prefix, uri) => {
         });
       }
     } catch (e) {
-      console.log("cache lookup error", e);
+      console.warn("cache lookup error", e);
       const data = await (await fetch(uri)).json();
       return new Promise((resolve, reject) => {
         resolve(data);
@@ -114,7 +114,7 @@ export const md5FetchText = async (prefix: string, uri: string) => {
           resolve(textStringInCache);
         });
       } else {
-        console.log("cache miss");
+        console.debug("cache miss");
         const data = await (await fetch(uri)).text();
         await localforage.setItem("@" + prefix + ".." + uri, data);
         await localforage.setItem("@" + prefix + ".." + uri + ".md5", md5);
@@ -123,14 +123,14 @@ export const md5FetchText = async (prefix: string, uri: string) => {
         });
       }
     } catch (e) {
-      console.log("cache lookup error", e);
+      console.warn("cache lookup error", e);
       const data = await (await fetch(uri)).text();
       return new Promise((resolve, reject) => {
         resolve(data);
       });
     }
   } catch (e) {
-    console.log("md5 lookup error. try to server cache directly");
+    console.warn("md5 lookup error. try to server cache directly");
     const textStringInCache = await localforage.getItem(
       "@" + prefix + ".." + uri
     );
@@ -197,10 +197,10 @@ export const md5ActionFetchDAQ = async (prefix, apiUrl, jwt, daqKey) => {
           let data: unknown, time: string;
 
           if (status === 200 || status === 298 || status === 299) {
-            console.log("DAQ cache miss for " + daqKey);
+            console.debug("DAQ cache miss for " + daqKey);
 
             if (status !== 200) {
-              console.log("server side DAQ view problem.  status " + status);
+              console.debug("server side DAQ view problem.  status " + status);
             }
 
             data = JSON.parse(result.content);
