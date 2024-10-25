@@ -18,6 +18,9 @@ export type LayerProps = {
   }[];
 };
 
+// TODO: fix typing and verify
+type OtherLayerProps = Partial<LayerProps & Item & { props: XMLLayer }>;
+
 export type Layer = {
   title: string;
   // url: string;
@@ -29,7 +32,7 @@ export type Layer = {
   useInFeatureInfo?: boolean;
   conf?: CarmaConfig;
   icon?: string;
-  other?: Item;
+  other?: OtherLayerProps;
 } & (
   | {
       layerType: "wmts" | "wmts-nt";
@@ -76,6 +79,11 @@ export type vectorProps = {
   };
 };
 
+type Service = {
+  name: string;
+  url: string;
+};
+
 type tmpLayer = {
   type: "layer";
 } & layerProps;
@@ -98,7 +106,7 @@ export type Item = {
   keywords?: string[];
   icon?: string;
   alternativeIcon?: string;
-  service?: { name: string; url: string };
+  service?: Service;
   name: string;
   queryable?: boolean;
   useInFeatureInfo?: boolean;
@@ -121,6 +129,8 @@ export type XMLLayer = {
   EX_GeographicBoundingBox?: any;
   LatLonBoundingBox: number[];
   MaxScaleDenominator?: any;
+  // TODO verify this type
+  MetadataURL?: any;
   MinScaleDenominator?: any;
   Name: string;
   SRS: string[];

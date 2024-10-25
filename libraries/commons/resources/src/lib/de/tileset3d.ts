@@ -1,4 +1,4 @@
-import { ContentType, TilesetConfig, TilesetType } from "../tilesets";
+import { ContentType, type TilesetConfig, TilesetType } from "../tilesets";
 
 export const TILESET_BASEMAP_DE: TilesetConfig = {
   url: "https://web3d.basemap.de/cesium/buildings-fly/root.json",

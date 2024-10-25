@@ -53,9 +53,8 @@ const Info = ({ description, legend }: InfoProps) => {
   const isBaseLayer = selectedLayerIndex === -1;
   const backgroundLayer = useSelector(getBackgroundLayer);
   const currentLayer = layers[selectedLayerIndex];
-  const metadataUrl =
-    // @ts-expect-error fix typing
-    currentLayer?.other?.props?.MetadataURL?.[0]?.OnlineResource;
+  debugger;
+  const metadataUrl = currentLayer?.other?.props?.MetadataURL?.[0]?.OnlineResource;
 
   const getLayerPos = (id) => layers.findIndex((layer) => layer.id === id);
 
