@@ -10,7 +10,7 @@ export type OverlayHelperHightlighterProps = {
 
 export type OverlayTourAction = (arg: OverlayHelperConfig) => void;
 
-export type OverlayTourContext = {
+export interface OverlayTourContextType {
   configs: OverlayHelperConfig[];
   addConfig: OverlayTourAction;
   removeConfig: OverlayTourAction;

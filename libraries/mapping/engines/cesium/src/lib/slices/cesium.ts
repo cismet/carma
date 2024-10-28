@@ -39,13 +39,8 @@ const initialState: CesiumState = {
   },
   dataSources: {
     footprintGeoJson: null,
-    tilesets: {
-      primary: null,
-      secondary: null,
-    },
+
   },
-  terrainProvider: null,
-  imageryProvider: null,
   models: null,
 };
 

@@ -1,4 +1,11 @@
-import { CesiumConfig } from "types/cesium-config";
+import {
+  BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
+  WUPP_LOD2_TILESET,
+  WUPP_MESH_2024,
+  WUPP_TERRAIN_PROVIDER,
+  WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
+} from "@carma-commons/resources";
+import { CesiumConfig } from "@carma-mapping/cesium-engine";
 import { LeafletConfig } from "types/leaflet-config";
 
 export const APP_BASE_PATH = import.meta.env.BASE_URL;
@@ -19,6 +26,15 @@ export const CESIUM_CONFIG: CesiumConfig = {
   markerAnchorHeight: 10,
   baseUrl: `${APP_BASE_PATH}${CESIUM_PATHNAME}`,
   pathName: CESIUM_PATHNAME,
+  providerConfig: {
+    terrainProvider: WUPP_TERRAIN_PROVIDER,
+    surfaceProvider: WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
+    imageryProvider: BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
+  },
+  tilesetConfigs: {
+    primary: WUPP_MESH_2024,
+    secondary: WUPP_LOD2_TILESET,
+  },
 };
 
 export const LEAFLET_CONFIG: LeafletConfig = {

@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useSearchParams } from "react-router-dom";
 
@@ -28,6 +28,7 @@ import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import GazetteerHitDisplay from "react-cismap/GazetteerHitDisplay";
 import { ProjSingleGeoJson } from "react-cismap/ProjSingleGeoJson";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
+import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
 import {
   getCollabedHelpComponentConfig,
@@ -38,7 +39,7 @@ import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from 
 
 import { useTweakpaneCtx } from "@carma-commons/debug";
 import { getApplicationVersion } from "@carma-commons/utils";
-import { useOverlayHelper } from "@carma-commons/ui/lib-helper-overlay";
+import { OverlayTourContext, useOverlayHelper } from "@carma-commons/ui/lib-helper-overlay";
 
 import {
   CustomViewer,
@@ -59,6 +60,7 @@ import versionData from "../../../version.json";
 
 import { paramsToObject } from "../../helper/helper.ts";
 import { getBackgroundLayers } from "../../helper/layer.tsx";
+import { addCssToOverlayHelperItem } from "../../helper/overlayHelper.ts";
 
 import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenInfoText.ts";
 import { useGazData } from "../../hooks/useGazData.ts";
@@ -103,21 +105,17 @@ import LocateControlComponent from "./controls/LocateControlComponent.tsx";
 import { createCismapLayers, onClickTopicMap } from "./topicmap.utils.ts";
 import { getUrlPrefix } from "./utils";
 
-import { addCssToOverlayHelperItem } from "../../helper/overlayHelper.ts";
 import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 
 import "../leaflet.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
-import { OverlayTourContext } from "libraries/commons/ui/lib-helper-overlay/src/lib/components/OverlayTourProvider.tsx";
-import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
-
-// TODO remove counter once rerenders are under control
-let rerenderCount: number = 0;
-let lastRenderTimeStamp: number = Date.now();
-let lastRenderInterval: number = 0;
 
 export const GeoportalMap = () => {
   const dispatch = useDispatch();
+
+  const rerenderCountRef = useRef(0);
+  const lastRenderTimeStampRef = useRef(Date.now());
+  const lastRenderIntervalRef = useRef(0);
   const [urlParams, setUrlParams] = useSearchParams();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const container3dMapRef = useRef<HTMLDivElement>(null);
@@ -162,26 +160,33 @@ export const GeoportalMap = () => {
   useOverlayHelper(infoBoxOverlay);
 
   useTweakpaneCtx(
-    {
+    useMemo(() => ({
       title: "GeoportalMap",
-    },
-    {
-      rerenderCount,
-      lastRenderInterval,
+    }), []),
+    useMemo(() => ({
+      get renderCount() {
+        return rerenderCountRef.current;
+      },
+      get renderInterval() {
+        return lastRenderIntervalRef.current;
+      },
       dpr: window.devicePixelRatio,
       resolutionScale: viewer ? viewer.resolutionScale : 0,
-    },
-    [
-      { name: "rerenderCount", readonly: true, format: (v) => v.toFixed(0) },
+    }), [rerenderCountRef, lastRenderIntervalRef, viewer]),
+    useMemo(() => [
+      { name: "renderCount", readonly: true, format: (v) => v.toFixed(0) },
       {
-        name: "lastRenderInterval",
+        name: "renderInterval",
         readonly: true,
         format: (v) => v.toFixed(0),
       },
       { name: "dpr", readonly: true, format: (v) => v.toFixed(1) },
       { name: "resolutionScale", readonly: true, format: (v) => v.toFixed(1) },
-    ]
+    ],
+      []
+    )
   );
+  
   const {
     routedMapRef,
     referenceSystem,
@@ -284,9 +289,9 @@ export const GeoportalMap = () => {
   // TODO Move out Controls to own component
 
   console.debug("RENDER: [GEOPORTAL] MAP");
-  rerenderCount++;
-  lastRenderInterval = Date.now() - lastRenderTimeStamp;
-  lastRenderTimeStamp = Date.now();
+  rerenderCountRef.current++;
+  lastRenderIntervalRef.current = Date.now() - lastRenderTimeStampRef.current;
+  lastRenderTimeStampRef.current = Date.now();
 
   return (
     <ControlLayout onHeightResize={setLayoutHeight} ifStorybook={false}>
@@ -378,9 +383,8 @@ export const GeoportalMap = () => {
                 ref={tourRefLabels.measurement}
               >
                 <img
-                  src={`${getUrlPrefix()}${
-                    isModeMeasurement ? "measure-active.png" : "measure.png"
-                  }`}
+                  src={`${getUrlPrefix()}${isModeMeasurement ? "measure-active.png" : "measure.png"
+                    }`}
                   alt="Measure"
                   className="w-6"
                 />

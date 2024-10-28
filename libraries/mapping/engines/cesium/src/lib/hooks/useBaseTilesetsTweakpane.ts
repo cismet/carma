@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react";
 import { viewerCesium3DTilesInspectorMixin } from "cesium";
 
-import { useCesiumContext } from "../../../hooks/useCesiumContext";
-import { useCesiumViewer } from "../../../hooks/useCesiumViewer";
+import { useCesiumContext } from "./useCesiumContext";
+import { useCesiumViewer } from "./useCesiumViewer";
 
 import { useTilesetsTweakpane } from "./useTilesetTweakpane";
 import { useTweakpaneCtx } from "@carma-commons/debug";

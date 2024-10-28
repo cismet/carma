@@ -1,11 +1,12 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, useMemo } from "react";
 import type { ReactNode } from "react";
 import { Pane } from "tweakpane";
 import localForage from "localforage";
 import { hasHashParam, removeHashParam } from "../utils";
 import { TweakpaneContext } from "./TweakpaneContext";
 
-const eventKeys = ["~", "F12"]; //
+const eventKeys = ["~", "F12"];
+const DEFAULT_DEBUG_PARAM = "dev";
 const localForageKey = "tweakpaneEnabled";
 
 export const TweakpaneProvider: React.FC<{
@@ -16,16 +17,11 @@ export const TweakpaneProvider: React.FC<{
     left?: number;
     right?: number;
   };
-}> = ({ children, hashparam = "dev", position = { top: 64, left: 64 } }) => {
-  const [isEnabled, setIsEnabled] = useState(false);
+}> = ({ children, hashparam = DEFAULT_DEBUG_PARAM, position = { top: 64, left: 64 } }) => {
+  const [hidden, setHidden] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const paneRef = useRef<Pane | null>(null);
 
-  const disableTweakpane = () => {
-    setIsEnabled(false);
-    localForage.removeItem(localForageKey);
-    removeHashParam(hashparam);
-  };
 
   useEffect(() => {
     const checkHashAndStoredState = async () => {
@@ -33,12 +29,12 @@ export const TweakpaneProvider: React.FC<{
       if (isEnabledFromHash) {
         // If 'dev' is in the URL, enable debug view immediately
         console.log("Dev mode enabled from hash");
-        setIsEnabled(true);
+        setHidden(true);
         await localForage.setItem(localForageKey, true);
       } else {
         // If 'dev' is not in the URL, check localForage
         const storedIsEnabled = await localForage.getItem(localForageKey);
-        setIsEnabled(storedIsEnabled === true);
+        setHidden(storedIsEnabled === true);
       }
     };
 
@@ -47,7 +43,7 @@ export const TweakpaneProvider: React.FC<{
     const toggleTweakpane = (event: KeyboardEvent) => {
       if (eventKeys.includes(event.key)) {
         // dev state should not be persited in URL when sharing
-        setIsEnabled((prevState) => {
+        setHidden((prevState) => {
           const newState = !prevState;
           localForage.setItem(localForageKey, newState);
           newState === false && removeHashParam(hashparam);
@@ -62,6 +58,12 @@ export const TweakpaneProvider: React.FC<{
   }, [hashparam]);
 
   useEffect(() => {
+    const disableTweakpane = () => {
+      setHidden(false);
+      localForage.removeItem(localForageKey);
+      removeHashParam(hashparam);
+    };
+
     if (!paneRef.current && containerRef.current) {
       const pane = new Pane({
         title: "Developer Options",
@@ -84,27 +86,33 @@ export const TweakpaneProvider: React.FC<{
         paneRef.current = null;
       }
     };
-  }, [containerRef]);
+  }, [containerRef, hashparam]);
 
   const { top, left, right } = position ?? {};
 
-  console.debug("RENDER: [DEBUG] TweakpaneProvider", isEnabled);
+  console.debug("RENDER: [DEBUG] TweakpaneProvider", hidden);
+
+  // prevent re-rendering of children on change of isEnabled
+  const memoizedChildren = useMemo(() => {
+    return children;
+  }, [children]);
 
   return (
     <TweakpaneContext.Provider value={{ paneRef }}>
       <div
         ref={containerRef}
         id="tweakpane-container"
+        hidden={hidden}
         style={{
           position: "absolute",
-          display: isEnabled ? "block" : "none",
           top,
           left,
           right,
           zIndex: 10000,
         }}
-      />
-      {children}
+      >
+      </div>
+      {memoizedChildren}
     </TweakpaneContext.Provider>
   );
 };

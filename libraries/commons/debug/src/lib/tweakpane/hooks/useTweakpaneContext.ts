@@ -1,6 +1,7 @@
-import { useContext, useRef, useEffect } from "react";
+import { useContext, useRef, useEffect, useCallback } from "react";
 import { FolderApi, Pane, type FolderParams } from "tweakpane";
 import { TweakpaneContext } from "../TweakpaneContext";
+import { i } from "vitest/dist/reporters-yx5ZTtEV.js";
 
 interface Input {
   label?: string;
@@ -14,24 +15,26 @@ export const useTweakpaneCtx = (
   inputs: Input[] = []
 ) => {
   const context = useContext(TweakpaneContext);
-  const folderRef = useRef<FolderApi | null>(null);
-  const paneRef = useRef<Pane | null>(null);
 
   if (!context) {
     throw new Error("useTweakpane must be used within a TweakpaneProvider");
   }
 
-  const pane = context.paneRef.current;
+  const { paneRef } = context;
+
+  const folderRef = useRef<FolderApi | null>(null);
 
   useEffect(() => {
-    if (!pane) return;
+    if (!paneRef.current) return;
+    const isHidden = paneRef.current.element.parentElement?.hidden === true;
+    if (isHidden) return;
     if (folderParams) {
       if (folderRef.current) {
         folderRef.current.hidden = false;
         console.debug("HOOK: [TWEAKPANE|DEBUG] using existing folder");
       } else {
         console.debug("HOOK: [TWEAKPANE|DEBUG] adding new folder to pane");
-        folderRef.current = pane.addFolder(folderParams);
+        folderRef.current = paneRef.current.addFolder(folderParams);
       }
       inputs.forEach((input) => {
         folderRef.current &&
@@ -49,33 +52,34 @@ export const useTweakpaneCtx = (
         }
       };
     } else {
-      console.info("Folder params not provided, using root folder");
-      paneRef.current = pane;
+      console.debug(
+        "[TWEAKPANE|DEBUG] Folder params not provided, using root folder"
+      );
       inputs.forEach((input) => {
         paneRef.current &&
           paneRef.current.addBinding(params, input.name, input);
       });
-      return () => {
-        paneRef.current = null;
-      };
     }
-  }, [folderParams, params, inputs, pane]);
+  }, [folderParams, params, inputs, paneRef]);
 
-  const folderCallback = (fn: (folder: FolderApi) => void) => {
+  const folderCallback = useCallback((fn: (folder: FolderApi) => void) => {
     if (folderRef.current) {
       fn(folderRef.current);
     } else {
       console.warn("Folder not initialized yet");
     }
-  };
+  }, []);
 
-  const paneCallback = (fn: (pane: Pane) => void) => {
-    if (paneRef.current) {
-      fn(paneRef.current);
-    } else {
-      console.warn("Pane not initialized yet");
-    }
-  };
+  const paneCallback = useCallback(
+    (fn: (pane: Pane) => void) => {
+      if (paneRef.current) {
+        fn(paneRef.current);
+      } else {
+        console.warn("Pane not initialized yet");
+      }
+    },
+    [paneRef]
+  );
 
   return { folderRef, folderCallback, paneRef, paneCallback };
 };

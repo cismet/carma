@@ -11,6 +11,8 @@ import { TweakpaneProvider } from "@carma-commons/debug";
 import {
   BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
   METROPOLERUHR_WMTS_SPW2_WEBMERCATOR,
+  WUPP_LOD2_TILESET,
+  WUPP_MESH_2024,
   WUPP_TERRAIN_PROVIDER,
 } from "@carma-commons/resources";
 
@@ -31,6 +33,10 @@ export function App() {
       providerConfig={{
         terrainProvider: WUPP_TERRAIN_PROVIDER,
         imageryProvider: BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
+      }}
+      tilesetConfigs={{
+        primary: WUPP_MESH_2024,
+        secondary: WUPP_LOD2_TILESET,
       }}
     >
       <TweakpaneProvider>

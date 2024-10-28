@@ -10,18 +10,14 @@ import {
   Color,
 } from "cesium";
 
-import { TilesetConfig } from "@carma-commons/resources";
-
 import { selectShowSecondaryTileset } from "../slices/cesium";
 import { useCesiumViewer } from "./useCesiumViewer";
 
 export const useSecondaryStyleTilesetClickHandler = (
-  config: TilesetConfig | null | undefined
+  disableSelection = true
 ) => {
   const viewer = useCesiumViewer();
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
-
-  const { disableSelection } = config ?? {};
 
   useEffect(() => {
     if (!viewer || !isSecondaryStyle || disableSelection) return;

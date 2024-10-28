@@ -1,9 +1,11 @@
 // TODO consolidate with rest of libs
 
 import { Color, TerrainProvider } from "cesium";
+import { PlainCartesian3 } from "types/common-geo";
 
 import { hashcodecs } from "./lib/utils/hashHelpers";
-import { PlainCartesian3 } from "types/common-geo";
+import { ProviderConfig } from "./lib/utils/cesiumProviders";
+import { TilesetConfigs } from "./lib/utils/cesiumTilesetProviders";
 
 export type LatLngRecord = {
   latitude: number;
@@ -125,6 +127,23 @@ export type SceneStyles = {
   secondary?: Partial<SceneStyleDescription>;
 };
 
+export type CesiumConfig = {
+  transitions: {
+    mapMode: {
+      duration: number;
+    };
+  };
+  camera: {
+    minPitch: number;
+    minPitchRange: number;
+  };
+  markerKey?: string;
+  markerAnchorHeight?: number;
+  baseUrl: string;
+  pathName: string;
+  tilesetConfigs: TilesetConfigs;
+  providerConfig: ProviderConfig;
+};
 export interface CesiumState {
   isAnimating?: boolean;
   currentTransition?: VIEWER_TRANSITION_STATE;
@@ -134,13 +153,6 @@ export interface CesiumState {
   showPrimaryTileset: boolean; // tileset is the base 3D model equivalent to a basemap
   showSecondaryTileset: boolean; // tileset is the base 3D model equivalent to a basemap
 
-  /*
-    quality: {
-      msaaSamples: number;
-      useBrowserRecommendedResolution: boolean;
-  
-    }
-    */
   sceneSpaceCameraController: {
     enableCollisionDetection: boolean;
     minimumZoomDistance: number; // default is 1.0
@@ -155,13 +167,7 @@ export interface CesiumState {
   };
   dataSources: {
     footprintGeoJson: null | GeoJsonConfig;
-    tilesets: {
-      primary: null | TilesetConfig;
-      secondary: null | TilesetConfig;
-    };
   };
-  terrainProvider: null | TerrainProviderConfig;
-  imageryProvider: null | ImageryProviderConfig;
   models: null | Record<string, ModelAsset | ParsedModelAsset>;
 }
 

@@ -6,8 +6,8 @@ import { useTweakpaneCtx } from "@carma-commons/debug";
 import {
   CUSTOM_SHADERS_DEFINITIONS,
   CustomShaderKeys as k,
-} from "../../../shaders";
-import { useCesiumViewer } from "../../../hooks/useCesiumViewer";
+} from "../shaders";
+import { useCesiumViewer } from "./useCesiumViewer";
 
 const customShaderKeys = {
   clay: k.CLAY,
