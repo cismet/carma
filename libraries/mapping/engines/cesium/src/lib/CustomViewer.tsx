@@ -20,7 +20,7 @@ import {
   selectShowSecondaryTileset,
 } from "./slices/cesium";
 
-import { BaseTilesets } from "./components/BaseTilesets";
+import { BaseTilesets } from "./components/BaseTilesets/BaseTilesets";
 import ElevationControl from "./components/controls/ElevationControl";
 
 import useCameraRollSoftLimiter from "./hooks/useCameraRollSoftLimiter";

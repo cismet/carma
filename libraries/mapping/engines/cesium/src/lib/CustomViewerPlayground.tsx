@@ -26,7 +26,7 @@ import {
 
 import { formatFractions } from "./utils/formatters";
 
-import { BaseTilesets } from "./components/BaseTilesets";
+import { BaseTilesets } from "./components/BaseTilesets/BaseTilesets";
 import ControlsUI from "./components/ControlsUI";
 import Crosshair from "./components/Crosshair";
 import MiniMap from "./components/LeafletMiniMap";
