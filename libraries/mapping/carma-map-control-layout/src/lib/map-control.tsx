@@ -96,7 +96,8 @@ const buildChildHiegthWithBottomShift = (childNodes, className, gap) => {
 
 const ControlLayout: React.FC<ControlLayoutProps> = ({
   children,
-  onResponsiveCollapse = (e) => console.debug("HOOK: [MAPCONTROL] ControlLayout onResponsiveCollapse", e),
+  onResponsiveCollapse = (e) =>
+    console.debug("HOOK: [MAPCONTROL] ControlLayout onResponsiveCollapse", e),
   debugMode = false,
   onHeightResize = (set: number | null) => set,
   ifStorybook = true,

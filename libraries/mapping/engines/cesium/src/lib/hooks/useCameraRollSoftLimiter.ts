@@ -2,7 +2,11 @@ import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Math as CesiumMath } from "cesium";
 
-import { clearIsAnimating, selectViewerIsMode2d, setIsAnimating } from "../slices/cesium";
+import {
+  clearIsAnimating,
+  selectViewerIsMode2d,
+  setIsAnimating,
+} from "../slices/cesium";
 import { useCesiumViewer } from "./useCesiumViewer";
 
 const useCameraRollSoftLimiter = () => {

@@ -1,9 +1,6 @@
 import { useEffect } from "react";
 import { useSelector } from "react-redux";
-import {
-  Cesium3DTileset,
-  CustomShader,
-} from "cesium";
+import { Cesium3DTileset, CustomShader } from "cesium";
 
 import { TilesetConfig, TilesetType } from "@carma-commons/resources";
 

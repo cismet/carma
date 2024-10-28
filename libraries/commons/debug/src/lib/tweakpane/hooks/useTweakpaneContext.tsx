@@ -8,7 +8,6 @@ interface Input {
   [key: string]: unknown;
 }
 
-
 export const useTweakpaneCtx = (
   folderParams?: FolderParams,
   params: { [key: string]: unknown } = {},
@@ -67,7 +66,6 @@ export const useTweakpaneCtx = (
       fn(folderRef.current);
     } else {
       console.warn("Folder not initialized yet");
-
     }
   };
 

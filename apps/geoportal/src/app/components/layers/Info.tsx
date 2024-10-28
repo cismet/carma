@@ -54,7 +54,8 @@ const Info = ({ description, legend }: InfoProps) => {
   const backgroundLayer = useSelector(getBackgroundLayer);
   const currentLayer = layers[selectedLayerIndex];
   // TODO: verify this type on Layer is correct and if some fallback URL is available
-  const metadataUrl = currentLayer?.other?.props?.MetadataURL?.[0]?.OnlineResource;
+  const metadataUrl =
+    currentLayer?.other?.props?.MetadataURL?.[0]?.OnlineResource;
 
   const getLayerPos = (id) => layers.findIndex((layer) => layer.id === id);
 

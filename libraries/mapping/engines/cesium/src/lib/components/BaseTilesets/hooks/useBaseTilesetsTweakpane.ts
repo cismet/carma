@@ -22,11 +22,7 @@ export const useBaseTilesetsTweakpane = () => {
   const { paneCallback } = useTweakpaneCtx();
 
   useEffect(() => {
-    if (
-      paneCallback &&
-      viewer &&
-      !buttonRef.current
-    ) {
+    if (paneCallback && viewer && !buttonRef.current) {
       paneCallback((pane) => {
         buttonRef.current = pane.addButton({
           title: "Add Tile Inspector Mixin",
