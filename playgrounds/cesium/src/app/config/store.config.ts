@@ -52,13 +52,7 @@ export const defaultViewerState: CesiumState = {
   },
   dataSources: {
     footprintGeoJson: FOOTPRINT_GEOJSON_SOURCES.VORONOI,
-    tilesets: {
-      primary: WUPP_MESH_2024,
-      secondary: WUPP_LOD2_TILESET,
-    },
   },
-  terrainProvider: WUPP_TERRAIN_PROVIDER,
-  imageryProvider: BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
   models: MODEL_ASSETS,
 };
 

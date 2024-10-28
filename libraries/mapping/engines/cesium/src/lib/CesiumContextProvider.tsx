@@ -15,13 +15,16 @@ import {
   loadCesiumTerrainProvider,
   ProviderConfig,
 } from "./utils/cesiumProviders";
+import { loadTileset, TilesetConfigs } from "./utils/cesiumTilesetProviders";
 
 export const CesiumContextProvider = ({
   children,
   providerConfig,
+  tilesetConfigs,
 }: {
   children: ReactNode;
   providerConfig: ProviderConfig;
+  tilesetConfigs: TilesetConfigs;
 }) => {
   // Use refs for Cesium instances to prevent re-renders
   const viewerRef = useRef<Viewer | null>(null);
@@ -81,6 +84,58 @@ export const CesiumContextProvider = ({
       };
     }
   }, [providerConfig.surfaceProvider]);
+
+  // Load Primary Tileset
+  useEffect(() => {
+    if (tilesetConfigs.primary) {
+      const fetchPrimary = async () => {
+        console.debug(
+          "[CESIUM|DEBUG] Loading primary tileset",
+          tilesetConfigs.primary
+        );
+        primaryTilesetRef.current = await loadTileset(tilesetConfigs.primary);
+        console.debug(
+          "[CESIUM|DEBUG] Loaded primary tileset",
+          primaryTilesetRef.current
+        );
+      };
+      fetchPrimary().catch(console.error);
+    }
+
+    return () => {
+      if (primaryTilesetRef.current) {
+        primaryTilesetRef.current.destroy();
+        primaryTilesetRef.current = null;
+      }
+    };
+  }, [tilesetConfigs.primary]);
+
+  // Load Secondary Tileset
+  useEffect(() => {
+    if (tilesetConfigs.secondary) {
+      const fetchSecondary = async () => {
+        console.debug(
+          "[CESIUM|DEBUG] Loading secondary tileset",
+          tilesetConfigs.secondary
+        );
+        secondaryTilesetRef.current = await loadTileset(
+          tilesetConfigs.secondary!
+        );
+        console.debug(
+          "[CESIUM|DEBUG] Loaded secondary tileset",
+          secondaryTilesetRef.current
+        );
+      };
+      fetchSecondary().catch(console.error);
+    }
+
+    return () => {
+      if (secondaryTilesetRef.current) {
+        secondaryTilesetRef.current.destroy();
+        secondaryTilesetRef.current = null;
+      }
+    };
+  }, [tilesetConfigs.secondary]);
 
   const contextValue = useMemo<CesiumContextType>(
     () => ({

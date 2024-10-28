@@ -1,4 +1,4 @@
-import { ReactNode, useCallback, useContext, useEffect, useState } from "react";
+import { ReactNode, useContext, useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { useLocation } from "react-router-dom";
 
@@ -16,7 +16,6 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { useTweakpaneCtx } from "@carma-commons/debug";
 
-import { useCesiumContext } from "./hooks/useCesiumContext";
 import {
   selectShowSecondaryTileset,
   selectViewerHome,
@@ -24,22 +23,22 @@ import {
   selectViewerIsMode2d,
 } from "./slices/cesium";
 
-import { formatFractions } from "./utils/formatters";
-
-import { BaseTilesets } from "./components/BaseTilesets/BaseTilesets";
 import ControlsUI from "./components/ControlsUI";
 import Crosshair from "./components/Crosshair";
 import MiniMap from "./components/LeafletMiniMap";
 import { ResizeableContainer } from "./components/ResizeableContainer";
 import { TopicMap } from "./components/TopicMap";
 
-import { useInitializeViewer } from "./hooks/useInitializeViewer";
-
-import { encodeScene, replaceHashRoutedHistory } from "./utils/hashHelpers";
-import { resolutionFractions } from "./utils/cesiumHelpers";
-import { setLeafletView } from "./utils/leafletHelpers";
+import { useCesiumContext } from "./hooks/useCesiumContext";
 import { useCesiumViewer } from "./hooks/useCesiumViewer";
 import useDisableSSCC from "./hooks/useDisableSSCC";
+import { useInitializeViewer } from "./hooks/useInitializeViewer";
+import { useTilesets } from "./hooks/useTilesets";
+
+import { resolutionFractions } from "./utils/cesiumHelpers";
+import { formatFractions } from "./utils/formatters";
+import { encodeScene, replaceHashRoutedHistory } from "./utils/hashHelpers";
+import { setLeafletView } from "./utils/leafletHelpers";
 
 type CustomViewerProps = {
   children?: ReactNode;
@@ -308,6 +307,8 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
 
   useDisableSSCC();
 
+  useTilesets();
+
   useEffect(() => {
     console.debug("HOOK: viewer changed", isSecondaryStyle);
     if (!viewerRef.current) return;
@@ -399,7 +400,6 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
       navigationInstructionsInitiallyVisible={false}
       skyBox={false}
     >
-      <BaseTilesets />
       {children}
       {showControls && <ControlsUI showHome={showHome} showOrbit={showOrbit} />}
       {showCrosshair && <Crosshair lineColor="white" />}

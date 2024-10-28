@@ -1,11 +1,4 @@
-import {
-  memo,
-  type ReactNode,
-  type RefObject,
-  useContext,
-  useEffect,
-  useRef,
-} from "react";
+import { memo, type ReactNode, type RefObject, useContext } from "react";
 import { useSelector } from "react-redux";
 
 import { Color, HeadingPitchRange, Rectangle } from "cesium";
@@ -13,21 +6,14 @@ import { Viewer as ResiumViewer } from "resium";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
-import {
-  selectViewerHome,
-  selectViewerHomeOffset,
-  selectViewerIsMode2d,
-  selectShowSecondaryTileset,
-} from "./slices/cesium";
+import { selectViewerHome, selectViewerHomeOffset } from "./slices/cesium";
 
-import { BaseTilesets } from "./components/BaseTilesets/BaseTilesets";
 import ElevationControl from "./components/controls/ElevationControl";
 
 import useCameraRollSoftLimiter from "./hooks/useCameraRollSoftLimiter";
 import useCameraPitchEasingLimiter from "./hooks/useCameraPitchEasingLimiter";
 import useCameraPitchSoftLimiter from "./hooks/useCameraPitchSoftLimiter";
 import useDisableSSCC from "./hooks/useDisableSSCC";
-import { useCesiumViewer } from "./hooks/useCesiumViewer";
 import { useCesiumContext } from "./hooks/useCesiumContext";
 import { useCesiumGlobe } from "./hooks/useCesiumGlobe";
 import { useCesiumHashUpdater } from "./hooks/useCesiumHashUpdater";
@@ -36,6 +22,7 @@ import { useInitializeViewer } from "./hooks/useInitializeViewer";
 import { useLogCesiumRenderIn2D } from "./hooks/useLogCesiumRenderIn2D";
 import useTransitionTimeout from "./hooks/useTransitionTimeout";
 import useTweakpane from "./hooks/useTweakpane";
+import { useTilesets } from "./hooks/useTilesets";
 
 export type GlobeOptions = {
   // https://cesium.com/learn/cesiumjs/ref-doc/Globe.html
@@ -112,7 +99,6 @@ export function CustomViewer(props: CustomViewerProps) {
 
   const leaflet = topicMapContext?.routedMapRef?.leafletMap?.leafletElement;
 
-  // DEV TWEAKPANE
   useTweakpane();
 
   useInitializeViewer({ home, homeOffset, leaflet, containerRef });
@@ -128,6 +114,8 @@ export function CustomViewer(props: CustomViewerProps) {
 
   useCesiumWhenHidden({ delay: TRANSITION_DELAY });
   useCesiumHashUpdater({ enableLocationHashUpdate });
+
+  useTilesets();
 
   console.debug("RENDER: [CESIUM] CustomViewer");
 
@@ -171,7 +159,6 @@ export function CustomViewer(props: CustomViewerProps) {
         navigationInstructionsInitiallyVisible={false}
         skyBox={false}
       >
-        <BaseTilesets />
         {children}
       </ResiumViewer>
     </>

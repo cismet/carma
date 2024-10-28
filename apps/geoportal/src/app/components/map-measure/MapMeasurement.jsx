@@ -260,6 +260,8 @@ const MapMeasurement = (props) => {
     dispatch(updateAreaOfDrawing(newArea));
   };
 
+  console.debug("RENDER: [MAPMEASUREMENT] MapMeasurement");
+
   return <div></div>;
 };
 

@@ -15,6 +15,8 @@ import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextPr
 import { backgroundSettings } from "@carma-collab/wuppertal/geoportal";
 import {
   BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
+  WUPP_LOD2_TILESET,
+  WUPP_MESH_2024,
   WUPP_TERRAIN_PROVIDER,
   WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
 } from "@carma-commons/resources";
@@ -54,6 +56,7 @@ import "leaflet/dist/leaflet.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "./index.css";
+import { CESIUM_CONFIG } from "./config/app.config";
 
 if (typeof global === "undefined") {
   window.global = window;
@@ -133,9 +136,7 @@ function App({ published }: { published?: boolean }) {
 
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-
       document.removeEventListener("keyup", onKeyUp);
-
       window.removeEventListener("blur", onKeyUp);
     };
   }, [allowUiChanges]);
@@ -151,11 +152,8 @@ function App({ published }: { published?: boolean }) {
         <CesiumContextProvider
           //initialViewerState={defaultCesiumState}
           // TODO move these to store/slice setup ?
-          providerConfig={{
-            surfaceProvider: WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
-            terrainProvider: WUPP_TERRAIN_PROVIDER,
-            imageryProvider: BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
-          }}
+          providerConfig={CESIUM_CONFIG.providerConfig}
+          tilesetConfigs={CESIUM_CONFIG.tilesetConfigs}
         >
           <ErrorBoundary FallbackComponent={AppErrorFallback}>
             <div className="flex flex-col w-full " style={{ height: "100dvh" }}>

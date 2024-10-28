@@ -10,14 +10,14 @@ export type OverlayHelperHightlighterProps = {
 
 export type OverlayTourAction = (arg: OverlayHelperConfig) => void;
 
-export type OverlayTourContext = {
+export interface OverlayTourContextType {
   configs: OverlayHelperConfig[];
   addConfig: OverlayTourAction;
   removeConfig: OverlayTourAction;
   showSecondaryWithKey: null | string;
   setSecondaryWithKey: (key: string) => void;
   showOverlay: (show: boolean) => void;
-};
+}
 
 export type PositionOverlayHelper =
   | "center"

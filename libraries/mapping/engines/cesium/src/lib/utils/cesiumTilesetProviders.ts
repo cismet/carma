@@ -1,0 +1,56 @@
+import { Cesium3DTileset, CustomShader } from "cesium";
+
+import { TilesetConfig, TilesetType } from "@carma-commons/resources";
+
+import { CUSTOM_SHADERS_DEFINITIONS, CustomShaderKeys } from "../shaders";
+
+export type TilesetConfigs = {
+  primary: TilesetConfig;
+  secondary: TilesetConfig;
+};
+
+const DEFAULT_MESH_OPTIONS: Cesium3DTileset.ConstructorOptions = {
+  maximumScreenSpaceError: 8,
+  dynamicScreenSpaceError: false,
+  foveatedScreenSpaceError: true,
+  foveatedConeSize: 0.2,
+  preloadWhenHidden: false,
+};
+
+const DEFAULT_LOD2_OPTIONS: Cesium3DTileset.ConstructorOptions = {
+  maximumScreenSpaceError: 1,
+  dynamicScreenSpaceError: false,
+  foveatedScreenSpaceError: true,
+  preloadWhenHidden: true,
+};
+
+const loadLOD2Tileset = async (tileset: TilesetConfig) => {
+  const lod2 = await Cesium3DTileset.fromUrl(tileset.url, {
+    ...tileset.constructorOptions,
+    ...DEFAULT_LOD2_OPTIONS,
+  });
+  return lod2;
+};
+
+const loadMeshTileset = async (tileset: TilesetConfig) => {
+  // TODO get shader from tileset config
+  const shader = new CustomShader(
+    CUSTOM_SHADERS_DEFINITIONS[CustomShaderKeys.UNLIT_ENHANCED_2024]
+  );
+  const mesh = await Cesium3DTileset.fromUrl(tileset.url, {
+    ...tileset.constructorOptions,
+    ...DEFAULT_MESH_OPTIONS,
+  });
+  mesh.customShader = shader;
+  return mesh;
+};
+
+export const loadTileset = async (tileset: TilesetConfig) => {
+  if (tileset.type === TilesetType.LOD2) {
+    return await loadLOD2Tileset(tileset);
+  } else if (tileset.type === TilesetType.MESH) {
+    return await loadMeshTileset(tileset);
+  } else {
+    throw new Error(`Unknown tileset type: ${tileset.type}`);
+  }
+};

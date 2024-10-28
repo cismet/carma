@@ -1,9 +1,10 @@
-import type { ImageryProviderConfig } from "../..";
 import {
   CesiumTerrainProvider,
   ImageryLayer,
   WebMapServiceImageryProvider,
 } from "cesium";
+
+import type { ImageryProviderConfig } from "../..";
 
 export interface ProviderConfig {
   surfaceProvider?: {
