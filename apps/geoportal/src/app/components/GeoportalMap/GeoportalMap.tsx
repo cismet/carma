@@ -39,7 +39,10 @@ import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from 
 
 import { useTweakpaneCtx } from "@carma-commons/debug";
 import { getApplicationVersion } from "@carma-commons/utils";
-import { OverlayTourContext, useOverlayHelper } from "@carma-commons/ui/lib-helper-overlay";
+import {
+  OverlayTourContext,
+  useOverlayHelper,
+} from "@carma-commons/ui/lib-helper-overlay";
 
 import {
   CustomViewer,
@@ -160,33 +163,44 @@ export const GeoportalMap = () => {
   useOverlayHelper(infoBoxOverlay);
 
   useTweakpaneCtx(
-    useMemo(() => ({
-      title: "GeoportalMap",
-    }), []),
-    useMemo(() => ({
-      get renderCount() {
-        return rerenderCountRef.current;
-      },
-      get renderInterval() {
-        return lastRenderIntervalRef.current;
-      },
-      dpr: window.devicePixelRatio,
-      resolutionScale: viewer ? viewer.resolutionScale : 0,
-    }), [rerenderCountRef, lastRenderIntervalRef, viewer]),
-    useMemo(() => [
-      { name: "renderCount", readonly: true, format: (v) => v.toFixed(0) },
-      {
-        name: "renderInterval",
-        readonly: true,
-        format: (v) => v.toFixed(0),
-      },
-      { name: "dpr", readonly: true, format: (v) => v.toFixed(1) },
-      { name: "resolutionScale", readonly: true, format: (v) => v.toFixed(1) },
-    ],
+    useMemo(
+      () => ({
+        title: "GeoportalMap",
+      }),
+      []
+    ),
+    useMemo(
+      () => ({
+        get renderCount() {
+          return rerenderCountRef.current;
+        },
+        get renderInterval() {
+          return lastRenderIntervalRef.current;
+        },
+        dpr: window.devicePixelRatio,
+        resolutionScale: viewer ? viewer.resolutionScale : 0,
+      }),
+      [rerenderCountRef, lastRenderIntervalRef, viewer]
+    ),
+    useMemo(
+      () => [
+        { name: "renderCount", readonly: true, format: (v) => v.toFixed(0) },
+        {
+          name: "renderInterval",
+          readonly: true,
+          format: (v) => v.toFixed(0),
+        },
+        { name: "dpr", readonly: true, format: (v) => v.toFixed(1) },
+        {
+          name: "resolutionScale",
+          readonly: true,
+          format: (v) => v.toFixed(1),
+        },
+      ],
       []
     )
   );
-  
+
   const {
     routedMapRef,
     referenceSystem,
@@ -383,8 +397,9 @@ export const GeoportalMap = () => {
                 ref={tourRefLabels.measurement}
               >
                 <img
-                  src={`${getUrlPrefix()}${isModeMeasurement ? "measure-active.png" : "measure.png"
-                    }`}
+                  src={`${getUrlPrefix()}${
+                    isModeMeasurement ? "measure-active.png" : "measure.png"
+                  }`}
                   alt="Measure"
                   className="w-6"
                 />

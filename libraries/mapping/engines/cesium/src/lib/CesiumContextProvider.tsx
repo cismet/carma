@@ -85,14 +85,19 @@ export const CesiumContextProvider = ({
     }
   }, [providerConfig.surfaceProvider]);
 
-
   // Load Primary Tileset
   useEffect(() => {
     if (tilesetConfigs.primary) {
       const fetchPrimary = async () => {
-        console.debug("[CESIUM|DEBUG] Loading primary tileset", tilesetConfigs.primary);
+        console.debug(
+          "[CESIUM|DEBUG] Loading primary tileset",
+          tilesetConfigs.primary
+        );
         primaryTilesetRef.current = await loadTileset(tilesetConfigs.primary);
-        console.debug("[CESIUM|DEBUG] Loaded primary tileset", primaryTilesetRef.current);
+        console.debug(
+          "[CESIUM|DEBUG] Loaded primary tileset",
+          primaryTilesetRef.current
+        );
       };
       fetchPrimary().catch(console.error);
     }
@@ -109,9 +114,17 @@ export const CesiumContextProvider = ({
   useEffect(() => {
     if (tilesetConfigs.secondary) {
       const fetchSecondary = async () => {
-        console.debug("[CESIUM|DEBUG] Loading secondary tileset", tilesetConfigs.secondary);
-        secondaryTilesetRef.current = await loadTileset(tilesetConfigs.secondary!);
-        console.debug("[CESIUM|DEBUG] Loaded secondary tileset", secondaryTilesetRef.current);
+        console.debug(
+          "[CESIUM|DEBUG] Loading secondary tileset",
+          tilesetConfigs.secondary
+        );
+        secondaryTilesetRef.current = await loadTileset(
+          tilesetConfigs.secondary!
+        );
+        console.debug(
+          "[CESIUM|DEBUG] Loaded secondary tileset",
+          secondaryTilesetRef.current
+        );
       };
       fetchSecondary().catch(console.error);
     }

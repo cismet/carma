@@ -17,7 +17,7 @@ export interface OverlayTourContextType {
   showSecondaryWithKey: null | string;
   setSecondaryWithKey: (key: string) => void;
   showOverlay: (show: boolean) => void;
-};
+}
 
 export type PositionOverlayHelper =
   | "center"

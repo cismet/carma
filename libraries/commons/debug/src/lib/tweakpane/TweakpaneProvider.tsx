@@ -17,11 +17,14 @@ export const TweakpaneProvider: React.FC<{
     left?: number;
     right?: number;
   };
-}> = ({ children, hashparam = DEFAULT_DEBUG_PARAM, position = { top: 64, left: 64 } }) => {
+}> = ({
+  children,
+  hashparam = DEFAULT_DEBUG_PARAM,
+  position = { top: 64, left: 64 },
+}) => {
   const [hidden, setHidden] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const paneRef = useRef<Pane | null>(null);
-
 
   useEffect(() => {
     const checkHashAndStoredState = async () => {
@@ -110,8 +113,7 @@ export const TweakpaneProvider: React.FC<{
           right,
           zIndex: 10000,
         }}
-      >
-      </div>
+      ></div>
       {memoizedChildren}
     </TweakpaneContext.Provider>
   );

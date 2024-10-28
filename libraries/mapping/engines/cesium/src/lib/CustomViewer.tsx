@@ -1,9 +1,4 @@
-import {
-  memo,
-  type ReactNode,
-  type RefObject,
-  useContext,
-} from "react";
+import { memo, type ReactNode, type RefObject, useContext } from "react";
 import { useSelector } from "react-redux";
 
 import { Color, HeadingPitchRange, Rectangle } from "cesium";
@@ -11,10 +6,7 @@ import { Viewer as ResiumViewer } from "resium";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
-import {
-  selectViewerHome,
-  selectViewerHomeOffset,
-} from "./slices/cesium";
+import { selectViewerHome, selectViewerHomeOffset } from "./slices/cesium";
 
 import ElevationControl from "./components/controls/ElevationControl";
 

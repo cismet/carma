@@ -8,17 +8,17 @@ import {
 
 export const OverlayTourContext = createContext<OverlayTourContextType>({
   configs: [],
-  addConfig: (arg) => { },
-  removeConfig: (arg) => { },
+  addConfig: (arg) => {},
+  removeConfig: (arg) => {},
   showSecondaryWithKey: null,
-  setSecondaryWithKey: (key) => { },
-  showOverlay: (show) => { },
+  setSecondaryWithKey: (key) => {},
+  showOverlay: (show) => {},
 });
 
 export const OverlayTourProvider = ({
   children,
   show = false,
-  closeOverlay = () => { },
+  closeOverlay = () => {},
   transparency = 0.8,
   color = "black",
 }: OverlayTourProviderProps) => {
