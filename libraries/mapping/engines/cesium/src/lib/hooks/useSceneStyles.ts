@@ -38,7 +38,7 @@ export const useSceneStyles = (initialStyle?: keyof SceneStyles) => {
     } else {
       throw new Error(`Unknown style: ${currentSceneStyle}`);
     }
-  }, [dispatch, viewer, currentSceneStyle, primaryStyle, secondaryStyle]);
+  }, [dispatch, viewer, currentSceneStyle, primaryStyle, secondaryStyle, ctx]);
 
   useEffect(() => {
     if (currentSceneStyle === undefined && initialStyle) {

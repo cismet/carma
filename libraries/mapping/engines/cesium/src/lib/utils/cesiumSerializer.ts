@@ -28,10 +28,10 @@ export const toColorRgbaArray = (color: Color): ColorRgbaArray => {
 };
 
 export const fromColorRgbaArray = (
-  color: ColorRgbaArray | unknown
+  color: unknown
 ): Color | null => {
   if (!isColorRgbaArray(color)) {
-    console.warn("Invalid color array", color);
+    console.debug("Invalid color array", color);
     return null;
   }
   const [red, green, blue, alpha] = color;

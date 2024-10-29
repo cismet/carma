@@ -28,15 +28,15 @@ export const useTilesets = () => {
 
   useEffect(() => {
     if (viewer && tilesetPrimary) {
-      console.debug("[CESIUM|DEBUG] Adding primary tileset to viewer");
       viewer.scene.primitives.add(tilesetPrimary);
+      console.debug("[CESIUM|DEBUG] Adding primary tileset to viewer", viewer.scene.primitives.length);
     }
   }, [tilesetPrimary, viewer]);
 
   useEffect(() => {
     if (viewer && tilesetSecondary) {
-      console.debug("[CESIUM|DEBUG] Adding secondary tileset to viewer");
       viewer.scene.primitives.add(tilesetSecondary);
+      console.debug("[CESIUM|DEBUG] Adding secondary tileset to viewer", viewer.scene.primitives.length);
     }
   }, [tilesetSecondary, viewer]);
 
