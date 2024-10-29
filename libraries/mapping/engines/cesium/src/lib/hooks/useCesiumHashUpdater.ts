@@ -18,7 +18,9 @@ export const useCesiumHashUpdater = (enableLocationHashUpdate: boolean) => {
   const isMode2d = useSelector(selectViewerIsMode2d);
   // todo move requested location updates to an external hook/state
   // todo handle style change explicitly not via tileset
-  const location = useLocation();
+  const { pathname } = useLocation();
+
+  console.debug("HOOKINIT [CESIUM|HASH] useCesiumHashUpdater");
 
   useEffect(() => {
     if (viewer && enableLocationHashUpdate && !isMode2d) {
@@ -28,17 +30,11 @@ export const useCesiumHashUpdater = (enableLocationHashUpdate: boolean) => {
       );
       replaceHashRoutedHistory(
         encodeScene(viewer, { isSecondaryStyle, isMode2d }),
-        location.pathname
+        pathname
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    viewer,
-    isMode2d,
-    enableLocationHashUpdate,
-    location.pathname,
-    isSecondaryStyle,
-  ]);
+  }, [viewer, isMode2d, pathname, isSecondaryStyle]);
 
   useEffect(() => {
     // update hash hook
@@ -64,7 +60,7 @@ export const useCesiumHashUpdater = (enableLocationHashUpdate: boolean) => {
             isSecondaryStyle,
             isMode2d,
           });
-          replaceHashRoutedHistory(encodedScene, location.pathname);
+          replaceHashRoutedHistory(encodedScene, pathname);
         }
       };
       viewer.camera.moveEnd.addEventListener(moveEndListener);
@@ -72,11 +68,5 @@ export const useCesiumHashUpdater = (enableLocationHashUpdate: boolean) => {
         viewer && viewer.camera.moveEnd.removeEventListener(moveEndListener);
       };
     }
-  }, [
-    viewer,
-    isSecondaryStyle,
-    isMode2d,
-    location.pathname,
-    enableLocationHashUpdate,
-  ]);
+  }, [viewer, isSecondaryStyle, isMode2d, pathname]);
 };

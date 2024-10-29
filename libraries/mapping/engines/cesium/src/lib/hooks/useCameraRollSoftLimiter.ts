@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Math as CesiumMath } from "cesium";
 
@@ -13,6 +13,12 @@ const useCameraRollSoftLimiter = () => {
   const viewer = useCesiumViewer();
   const dispatch = useDispatch();
   const isMode2d = useSelector(selectViewerIsMode2d);
+
+  const onComplete = useCallback(
+    () => dispatch(clearIsAnimating()),
+    [dispatch]
+  );
+
   useEffect(() => {
     if (viewer) {
       console.debug(
@@ -39,7 +45,7 @@ const useCameraRollSoftLimiter = () => {
                 roll: 0,
               },
               duration,
-              complete: () => dispatch(clearIsAnimating()),
+              complete: onComplete,
             });
           }
         }
@@ -49,7 +55,7 @@ const useCameraRollSoftLimiter = () => {
         viewer.camera.moveEnd.removeEventListener(moveEndListener);
       };
     }
-  }, [viewer, isMode2d, dispatch]);
+  }, [viewer, isMode2d]);
 };
 
 export default useCameraRollSoftLimiter;

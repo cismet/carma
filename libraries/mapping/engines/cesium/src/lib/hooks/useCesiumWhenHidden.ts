@@ -27,6 +27,7 @@ const showLayers = (viewer: Viewer) => {
 export const useCesiumWhenHidden = (delay = 0) => {
   const viewer = useCesiumViewer();
   const isMode2d = useSelector(selectViewerIsMode2d);
+  console.debug("HOOKINIT: [CESIUM] useCesiumWhenHidden");
   useEffect(() => {
     console.debug("HOOK: [CESIUM] useCesiumWhenHidden", viewer, isMode2d);
     if (viewer) {
@@ -48,7 +49,7 @@ export const useCesiumWhenHidden = (delay = 0) => {
         showLayers(viewer);
       }
     }
-  }, [viewer, isMode2d, delay]);
+  }, [viewer, isMode2d]);
 };
 
 export default useCesiumWhenHidden;

@@ -72,6 +72,8 @@ export const TRANSITION_DELAY = 1000;
 const CESIUM_TARGET_FRAME_RATE = 120;
 
 export function CustomViewer(props: CustomViewerProps) {
+  console.debug("RENDER: [CESIUM] CustomViewer");
+
   const { viewerRef } = useCesiumContext();
   const home = useSelector(selectViewerHome);
   const homeOffset = useSelector(selectViewerHomeOffset);
@@ -146,7 +148,7 @@ export function CustomViewer(props: CustomViewerProps) {
   );
 
   useEffect(() => {
-    console.debug("RENDER: [CESIUM] CustomViewer useEffect");
+    console.debug("HOOK: [CESIUM] init CustomViewer");
     if (containerRef?.current) {
       try {
         viewerRef.current = new Viewer(containerRef.current, options);
@@ -168,13 +170,12 @@ export function CustomViewer(props: CustomViewerProps) {
     }
     return () => {
       if (viewerRef.current) {
+        console.info("RENDER: [CESIUM] CustomViewer cleanup destroy viewer");
         viewerRef.current.destroy();
         viewerRef.current = null;
       }
     };
-  }, []);
-
-  console.debug("RENDER: [CESIUM] CustomViewer");
+  }, [options]);
 
   return (
     <>

@@ -40,6 +40,7 @@ import { useCesiumContext } from "./hooks/useCesiumContext";
 import { useCesiumViewer } from "./hooks/useCesiumViewer";
 import useDisableSSCC from "./hooks/useDisableSSCC";
 import { useInitializeViewer } from "./hooks/useInitializeViewer";
+import useSceneStyles from "./hooks/useSceneStyles";
 import { useTilesets } from "./hooks/useTilesets";
 
 import { resolutionFractions } from "./utils/cesiumHelpers";
@@ -264,6 +265,8 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
 
     const canvas = viewer.canvas;
 
+    viewer.scene.requestRenderMode = true;
+
     // Ensure the canvas can receive focus
     canvas.setAttribute("tabindex", "0");
 
@@ -326,6 +329,8 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
   }, [viewerRef, globeProps]);
 
   useDisableSSCC();
+
+  useSceneStyles();
 
   useTilesets();
 

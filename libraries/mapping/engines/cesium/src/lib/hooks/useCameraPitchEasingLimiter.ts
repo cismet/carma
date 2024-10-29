@@ -22,27 +22,39 @@ const useCameraPitchEasingLimiter = (
 
   const isMode2d = useSelector(selectViewerIsMode2d);
   const isAnimating = useSelector(selectViewerIsAnimating);
+
   const isTransitioning = useSelector(selectViewerIsTransitioning);
   const collisions = useSelector(
     selectScreenSpaceCameraControllerEnableCollisionDetection
   );
+  console.debug("HOOKINIT [CESIUM|CAMERA] useCameraPitchEasingLimiter");
 
+  const isAnimatingRef = useRef(isAnimating);
+  const isTransitioningRef = useRef(isTransitioning);
   const lastPitch = useRef<number | null>(null);
   const lastPosition = useRef<Cartographic | null>(null);
-  const minPitchRad = CesiumMath.toRadians(-minPitchDeg);
-  const rangeRad = CesiumMath.toRadians(
-    Math.min(easingRangeDeg, 90 - minPitchDeg)
-  ); // Limit wasing range to remainder of right angle
-  const minRangePitchRad = CesiumMath.toRadians(-minPitchDeg) - rangeRad;
 
   useEffect(() => {
-    if (viewer && !isMode2d && collisions && !isTransitioning && !isAnimating) {
+    if (viewer && !isMode2d && collisions) {
       const { camera, scene } = viewer;
       console.debug("HOOK [CESIUM|CAMERA] EASING Pitch Limiter added");
       lastPitch.current = null;
       lastPosition.current = null;
 
       const onUpdate = async () => {
+        if (isTransitioningRef.current || isAnimatingRef.current) {
+          console.debug(
+            "HOOK [CESIUM|CAMERA] EASING Pitch Limiter skipped while transitioning or animating"
+          );
+          return;
+        }
+
+        const minPitchRad = CesiumMath.toRadians(-minPitchDeg);
+        const rangeRad = CesiumMath.toRadians(
+          Math.min(easingRangeDeg, 90 - minPitchDeg)
+        ); // Limit wasing range to remainder of right angle
+        const minRangePitchRad = CesiumMath.toRadians(-minPitchDeg) - rangeRad;
+
         const isPitchInRange = camera.pitch > minRangePitchRad;
 
         //const isPitchTooLow = camera.pitch > minPitchRad;
@@ -96,7 +108,7 @@ const useCameraPitchEasingLimiter = (
         scene.preUpdate.removeEventListener(onUpdate);
       };
     }
-  }, [viewer, minPitchRad, collisions, isTransitioning, isAnimating, isMode2d]);
+  }, [viewer, collisions, isMode2d]);
 };
 
 export default useCameraPitchEasingLimiter;

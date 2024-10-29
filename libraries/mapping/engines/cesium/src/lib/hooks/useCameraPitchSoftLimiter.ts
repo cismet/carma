@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { BoundingSphere, Cartesian3, Math as CesiumMath } from "cesium";
 
@@ -21,13 +21,10 @@ const useCameraPitchSoftLimiter = (
   const collisions = useSelector(
     selectScreenSpaceCameraControllerEnableCollisionDetection
   );
-  const resetPitchRad = useMemo(
-    () => CesiumMath.toRadians(-(minPitchDeg + resetPitchOffsetDeg)),
-    [minPitchDeg, resetPitchOffsetDeg]
-  );
-  const minPitchRad = useMemo(
-    () => CesiumMath.toRadians(-minPitchDeg),
-    [minPitchDeg]
+
+  const onComplete = useCallback(
+    () => dispatch(clearIsAnimating()),
+    [dispatch]
   );
 
   useEffect(() => {
@@ -35,6 +32,12 @@ const useCameraPitchSoftLimiter = (
       console.debug(
         "HOOK [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to correct camera pitch"
       );
+
+      const resetPitchRad = CesiumMath.toRadians(
+        -(minPitchDeg + resetPitchOffsetDeg)
+      );
+      const minPitchRad = CesiumMath.toRadians(-minPitchDeg);
+
       const moveEndListener = async () => {
         console.debug(
           "HOOK [2D3D|CESIUM] Soft Pitch Limiter",
@@ -66,7 +69,7 @@ const useCameraPitchSoftLimiter = (
                   range: distance,
                 },
                 duration: 1.5,
-                complete: () => dispatch(clearIsAnimating()),
+                complete: onComplete,
               }
             );
           }
@@ -77,7 +80,7 @@ const useCameraPitchSoftLimiter = (
         viewer.camera.moveEnd.removeEventListener(moveEndListener);
       };
     }
-  }, [viewer, collisions, isMode2d, dispatch]);
+  }, [viewer, collisions, isMode2d]);
 };
 
 export default useCameraPitchSoftLimiter;

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import { Math as CesiumMath, Cartographic } from "cesium";
 
 import { useCesiumViewer } from "./useCesiumViewer";
@@ -12,26 +12,23 @@ const DEFAULT_MIN_PITCH = 12;
 
 const useCameraPitchHardLimiter = (minPitchDeg = DEFAULT_MIN_PITCH) => {
   const viewer = useCesiumViewer();
-  const dispatch = useDispatch();
   const isMode2d = useSelector(selectViewerIsMode2d);
   const collisions = useSelector(
     selectScreenSpaceCameraControllerEnableCollisionDetection
   );
   const lastPitch = useRef<number | null>(null);
   const lastPosition = useRef<Cartographic | null>(null);
-  const minPitchRad = CesiumMath.toRadians(-minPitchDeg);
-  const clearLast = () => {
-    lastPitch.current = null;
-    lastPosition.current = null;
-  };
+
   useEffect(() => {
     if (viewer && collisions && !isMode2d) {
       const { camera, scene } = viewer;
       console.debug(
         "HOOK [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to limit camera pitch"
       );
-      clearLast();
+      lastPitch.current = null;
+      lastPosition.current = null;
       const onUpdate = async () => {
+        const minPitchRad = CesiumMath.toRadians(-minPitchDeg);
         const isPitchTooLow = camera.pitch > minPitchRad;
         if (isPitchTooLow) {
           console.debug(
@@ -62,7 +59,7 @@ const useCameraPitchHardLimiter = (minPitchDeg = DEFAULT_MIN_PITCH) => {
         scene.preUpdate.removeEventListener(onUpdate);
       };
     }
-  }, [viewer, minPitchRad, collisions, isMode2d, dispatch]);
+  }, [viewer, minPitchDeg, collisions, isMode2d]);
 };
 
 export default useCameraPitchHardLimiter;
