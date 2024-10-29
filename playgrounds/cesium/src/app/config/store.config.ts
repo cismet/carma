@@ -1,13 +1,9 @@
-import { Cartesian3, Color } from "cesium";
+import { Cartesian3 } from "cesium";
 
 import {
-  BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
-  WUPP_LOD2_TILESET,
-  WUPP_MESH_2024,
-  WUPP_TERRAIN_PROVIDER,
   WUPPERTAL,
 } from "@carma-commons/resources";
-import { CesiumState, colorToArray } from "@carma-mapping/cesium-engine";
+import { CesiumState } from "@carma-mapping/cesium-engine";
 
 import { FOOTPRINT_GEOJSON_SOURCES } from "./dataSources.config";
 import { MODEL_ASSETS } from "./assets.config";

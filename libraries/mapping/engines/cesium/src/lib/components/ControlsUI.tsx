@@ -14,7 +14,8 @@ import ZoomControls from "./controls/ZoomControls";
 
 const ControlsUI = ({ showHome = true, showOrbit = true }) => {
   const home = useSelector(selectViewerHome);
-  const isMode2d = useSelector(selectViewerIsMode2d);
+ 
+ const isMode2d = useSelector(selectViewerIsMode2d);
 
   return (
     <div className={"leaflet-control-container"}>

@@ -1,5 +1,4 @@
 import {
-  memo,
   type ReactNode,
   type RefObject,
   useContext,
@@ -11,7 +10,7 @@ import { Color, Viewer, HeadingPitchRange, Rectangle, SceneMode } from "cesium";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
-import { selectViewerHome, selectViewerHomeOffset } from "./slices/cesium";
+import { selectViewerHomeOffset, selectViewerHome } from "./slices/cesium";
 
 import ElevationControl from "./components/controls/ElevationControl";
 
@@ -28,6 +27,7 @@ import { useLogCesiumRenderIn2D } from "./hooks/useLogCesiumRenderIn2D";
 import useTransitionTimeout from "./hooks/useTransitionTimeout";
 import useTweakpane from "./hooks/useTweakpane";
 import { useTilesets } from "./hooks/useTilesets";
+import { fromPlainCartesian3 } from "./utils/cesiumSerializer";
 
 export type GlobeOptions = {
   // https://cesium.com/learn/cesiumjs/ref-doc/Globe.html
@@ -76,8 +76,7 @@ export function CustomViewer(props: CustomViewerProps) {
   const { viewerRef } = useCesiumContext();
   const home = useSelector(selectViewerHome);
   const homeOffset = useSelector(selectViewerHomeOffset);
-  //const isAnimating = useViewerIsAnimating();
-
+  
   const {
     children,
     selectionIndicator = false,
@@ -150,6 +149,8 @@ export function CustomViewer(props: CustomViewerProps) {
       };
       try {
         viewerRef.current = new Viewer(containerRef.current, options);
+        /*
+        // make cesium added containers transparent
         const container = viewerRef.current.container;
         const cesiumViewer = container.children[0] as HTMLElement;
         const cesiumViewerCesiumWidgetContainer = cesiumViewer
@@ -159,6 +160,7 @@ export function CustomViewer(props: CustomViewerProps) {
         cesiumViewer.style.backgroundColor = "transparent";
         cesiumViewerCesiumWidgetContainer.style.backgroundColor = "transparent";
         cesiumWidget.style.backgroundColor = "transparent";
+        */
       } catch (error) {
         console.error("Error initializing viewer:", error);
       }

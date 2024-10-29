@@ -3,6 +3,7 @@ import { CesiumTerrainProvider, ClassificationType, Color } from "cesium";
 import type { CesiumContextType } from "../CesiumContext";
 import { getGroundPrimitiveById } from "./cesiumGroundPrimitives";
 import { SceneStyle } from "../..";
+import { fromColorRgbaArray } from "./cesiumSerializer";
 
 // TODO have configurable setup functions for primary and secondary styles
 // TODO MOVE THE ID into viewer config/state
@@ -15,26 +16,27 @@ export const setupPrimaryStyle = (
     surfaceProviderRef,
     imageryLayerRef,
   }: CesiumContextType,
-  primaryStyle?: Partial<SceneStyle>
+  style?: Partial<SceneStyle>
 ) => {
   (async () => {
     const viewer = viewerRef.current;
+
+    if (!viewer) return;
+
     const terrainProvider = terrainProviderRef.current;
     const surfaceProvider = surfaceProviderRef.current;
     const imageryLayer = imageryLayerRef.current;
 
-    if (!viewer) return;
     viewer.scene.globe.baseColor =
-      primaryStyle?.globe?.baseColor ?? Color.LIGHTGREY;
+      fromColorRgbaArray(style?.globe?.baseColor) ?? Color.LIGHTGREY;
     viewer.scene.backgroundColor =
-      primaryStyle?.backgroundColor ?? new Color(0, 0, 0, 0);
-    if (viewer.scene.terrainProvider instanceof CesiumTerrainProvider) {
-      //viewer.scene.terrainProvider = ellipsoidTerrainProvider;
-    } else {
-      if (surfaceProvider) {
-        viewer.scene.terrainProvider = surfaceProvider;
-      }
+      fromColorRgbaArray(style?.backgroundColor) ??
+      new Color(0, 0, 0, 0);
+
+    if (surfaceProvider) {
+      viewer.scene.terrainProvider = surfaceProvider;
     }
+
     // viewer.scene.globe.depthTestAgainstTerrain = false;
 
     if (imageryLayer) {
@@ -55,7 +57,7 @@ export const setupPrimaryStyle = (
 
 export const setupSecondaryStyle = (
   { viewerRef, terrainProviderRef, imageryLayerRef }: CesiumContextType,
-  secondaryStyle?: Partial<SceneStyle>
+  style?: Partial<SceneStyle>
 ) => {
   const viewer = viewerRef.current;
   const terrainProvider = terrainProviderRef.current;
@@ -64,9 +66,10 @@ export const setupSecondaryStyle = (
   if (!viewer) return;
   (async () => {
     viewer.scene.globe.baseColor =
-      secondaryStyle?.globe?.baseColor ?? Color.WHITE;
+      fromColorRgbaArray(style?.globe?.baseColor) ?? Color.WHITE;
     viewer.scene.backgroundColor =
-      secondaryStyle?.backgroundColor ?? new Color(0, 0, 0, 0);
+      fromColorRgbaArray(style?.backgroundColor) ?? new Color(0, 0, 0, 0);
+
     if (
       !(viewer.scene.terrainProvider instanceof CesiumTerrainProvider) &&
       terrainProvider

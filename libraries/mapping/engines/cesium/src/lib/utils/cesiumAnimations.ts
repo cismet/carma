@@ -10,11 +10,15 @@ import {
 /**
  * Rotates and tilts the Cesium camera around the center of the screen.
  * @param viewer - The Cesium viewer instance.
- * @param destionation - The position to look at.
+ * @param destination - The position to look at.
  * @param hpr - the target heading, pitch, and range of the camera.
  * @param options - Options for the completion of the animation.
  * @param options.duration - The duration of the animation in milliseconds. Defaults to 1000.
+ * @param options.cancelable - If true, the animation can be canceled by user interaction. Defaults to true.
+ * @param options.easing - The easing function to use for the animation. Defaults to EasingFunction.CUBIC_IN_OUT.
+ * @param options.onCancel - A callback function to be called when the animation is canceled.
  * @param options.onComplete - A callback function to be called when the animation completes.
+ * @param options.setPrevious - A callback function to be called with the initial heading, pitch, and range of the camera.
  * @param options.useCurrentDistance - use current Distance/Range instead of last views one.
  */
 export function animateInterpolateHeadingPitchRange(
@@ -83,7 +87,6 @@ export function animateInterpolateHeadingPitchRange(
       cancelAnimationFrame(animationFrameId);
       animationFrameId = null;
       isCanceled = true;
-      // Unsubscribe from the event
       viewer.canvas.removeEventListener("pointerdown", onUserInteraction);
       viewer.camera.lookAtTransform(Matrix4.IDENTITY);
       onCancel?.();
@@ -120,7 +123,7 @@ export function animateInterpolateHeadingPitchRange(
     } else {
       // Animation complete, reset the transformation matrix
       viewer.camera.lookAtTransform(Matrix4.IDENTITY);
-      viewer.camera.moveStart.removeEventListener(onUserInteraction);
+      viewer.canvas.removeEventListener("pointerdown", onUserInteraction);
       onComplete?.();
     }
   };

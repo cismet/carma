@@ -36,6 +36,7 @@ import { useInitializeViewer } from "./hooks/useInitializeViewer";
 import { useTilesets } from "./hooks/useTilesets";
 
 import { resolutionFractions } from "./utils/cesiumHelpers";
+
 import { formatFractions } from "./utils/formatters";
 import { encodeScene, replaceHashRoutedHistory } from "./utils/hashHelpers";
 import { setLeafletView } from "./utils/leafletHelpers";
@@ -75,8 +76,10 @@ type CustomViewerProps = {
 export function CustomViewerPlayground(props: CustomViewerProps) {
   const { viewerRef } = useCesiumContext();
   let viewer = useCesiumViewer();
+
   const home = useSelector(selectViewerHome);
   const homeOffset = useSelector(selectViewerHomeOffset);
+  
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
   const isMode2d = useSelector(selectViewerIsMode2d);
   //const isAnimating = useViewerIsAnimating();
