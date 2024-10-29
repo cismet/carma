@@ -60,14 +60,6 @@ export function animateInterpolateHeadingPitchRange(
       range: initialRange,
     });
 
-  const headingDifference = initialHeading - heading;
-  // Check if adding 2π (or 360 degrees) makes the path shorter
-  if (Math.abs(headingDifference) > Math.PI) {
-    if (headingDifference > 0) {
-      initialHeading -= 2 * Math.PI;
-    }
-  }
-
   // Animation control variables
   let animationFrameId: number | null = null;
   let isCanceled = false;
@@ -95,13 +87,19 @@ export function animateInterpolateHeadingPitchRange(
 
   viewer.canvas.addEventListener("pointerdown", onUserInteraction);
 
+  const interpolateAngle = (start: number, end: number, t: number): number => {
+    const delta = CesiumMath.negativePiToPi(end - start);
+    return start + delta * t;
+  };
+
   const animate = (time: number) => {
+    if (isCanceled) return;
     const elapsed = time - startTime;
     const t = Math.min(elapsed / duration, 1); // normalize to [0, 1]
     //console.debug('animate', duration, elapsed, t, frameIndex);
 
     // Interpolate heading and pitch over time
-    const currentHeading = CesiumMath.lerp(initialHeading, heading, easing(t));
+    const currentHeading = interpolateAngle(initialHeading, heading, easing(t));
     const currentPitch = CesiumMath.lerp(initialPitch, pitch, easing(t));
     const currentRange = useCurrentDistance
       ? initialRange
