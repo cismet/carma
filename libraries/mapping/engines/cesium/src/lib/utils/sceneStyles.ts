@@ -16,31 +16,35 @@ import { MutableRefObject } from "react";
 const INVERTED_SELECTED_POLYGON_ID = "searchgaz-inverted-polygon";
 
 const waitAndSetTerrainProvider = (
-  viewer: Viewer,
+  viewerRef: MutableRefObject<Viewer | null>,
   terrainProviderRef: MutableRefObject<CesiumTerrainProvider | null>,
   label?: string
 ) => {
-  if (terrainProviderRef.current) {
-    viewer.terrainProvider = terrainProviderRef.current;
-    console.debug(
-      "[STYLES|TERRAIN|CESIUM] terrainProvider already ready",
-      label
-    );
+  let isTerrainProviderSet = false;
+  const startTime = performance.now();
+
+  const checkTerrainProvider = () => {
+    if (isTerrainProviderSet) return;
+
+    if (terrainProviderRef.current && viewerRef.current) {
+      console.debug(
+        "[STYLES|TERRAIN|CESIUM] terrain Provider ready after",
+        performance.now() - startTime,
+        "ms",
+        label
+      );
+      viewerRef.current.terrainProvider = terrainProviderRef.current;
+      isTerrainProviderSet = true;
+      if (!viewerRef.current || viewerRef.current.isDestroyed()) return;
+      requestAnimationFrame(checkTerrainProvider);
+    }
+  };
+
+  if (terrainProviderRef.current && viewerRef.current) {
+    viewerRef.current.terrainProvider = terrainProviderRef.current;
+    console.debug("[STYLES|TERRAIN|CESIUM] terrainProvider already set");
+    return;
   } else {
-    const startTime = performance.now();
-    const checkTerrainProvider = () => {
-      if (terrainProviderRef.current) {
-        console.debug(
-          "[STYLES|TERRAIN|CESIUM] terrainProvider ready after",
-          performance.now() - startTime,
-          "ms",
-          label
-        );
-        viewer.terrainProvider = terrainProviderRef.current;
-      } else {
-        requestAnimationFrame(checkTerrainProvider);
-      }
-    };
     checkTerrainProvider();
   }
 };
@@ -64,7 +68,8 @@ export const setupPrimaryStyle = (
     viewer.scene.backgroundColor =
       fromColorRgbaArray(style?.backgroundColor) ?? new Color(0, 0, 0, 0);
 
-    waitAndSetTerrainProvider(viewerRef.current, surfaceProviderRef, "primary");
+    console.debug("[STYLES|TERRAIN|CESIUM] setup primary style");
+    waitAndSetTerrainProvider(viewerRef, surfaceProviderRef, "primary");
 
     if (imageryLayer) {
       imageryLayer.show = false;
@@ -104,7 +109,7 @@ export const setupSecondaryStyle = (
       }
     }
 
-    waitAndSetTerrainProvider(viewer, terrainProviderRef, "secondary");
+    waitAndSetTerrainProvider(viewerRef, terrainProviderRef, "secondary");
 
     const invertedSelection = getGroundPrimitiveById(
       viewer,
