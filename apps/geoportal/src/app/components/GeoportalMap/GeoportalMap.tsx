@@ -54,8 +54,8 @@ import {
   setIsMode2d,
   useCesiumContext,
   useHomeControl,
-  useSceneStyleToggle,
   useZoomControls as useZoomControlsCesium,
+  setCurrentSceneStyle,
 } from "@carma-mapping/cesium-engine";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 
@@ -150,7 +150,6 @@ export const GeoportalMap = () => {
   } = useZoomControlsCesium();
   const { getLeafletZoom, zoomInLeaflet, zoomOutLeaflet } =
     useLeafletZoomControls();
-  const toggleSceneStyle = useSceneStyleToggle();
   const showPrimaryTileset = useSelector(selectShowPrimaryTileset);
   const infoBoxOverlay = addCssToOverlayHelperItem(
     getCollabedHelpElementsConfig("INFOBOX", geoElements),
@@ -264,9 +263,9 @@ export const GeoportalMap = () => {
     // INTIALIZE Cesium Tileset style from Geoportal/TopicMap background later style
     if (viewer && backgroundLayer) {
       if (backgroundLayer.id === "luftbild") {
-        toggleSceneStyle("primary");
+        dispatch(setCurrentSceneStyle("primary"));
       } else {
-        toggleSceneStyle("secondary");
+        dispatch(setCurrentSceneStyle("secondary"));
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

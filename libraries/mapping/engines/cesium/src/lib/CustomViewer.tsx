@@ -22,7 +22,7 @@ import { useLogCesiumRenderIn2D } from "./hooks/useLogCesiumRenderIn2D";
 import useTransitionTimeout from "./hooks/useTransitionTimeout";
 import useTweakpane from "./hooks/useTweakpane";
 import { useTilesets } from "./hooks/useTilesets";
-import { fromPlainCartesian3 } from "./utils/cesiumSerializer";
+import useSceneStyles from "./hooks/useSceneStyles";
 
 export type GlobeOptions = {
   // https://cesium.com/learn/cesiumjs/ref-doc/Globe.html
@@ -100,6 +100,8 @@ export function CustomViewer(props: CustomViewerProps) {
 
   useInitializeViewer({ home, homeOffset, leaflet, containerRef });
   useCesiumGlobe({ globeOptions: globeOptions });
+
+  useSceneStyles();
 
   useLogCesiumRenderIn2D();
 

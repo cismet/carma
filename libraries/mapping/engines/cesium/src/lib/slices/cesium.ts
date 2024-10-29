@@ -5,7 +5,7 @@ import type { PayloadAction } from "@reduxjs/toolkit";
 
 import { PlainCartesian3 } from "types/common-geo";
 
-import { type RootState, type CesiumState } from "../..";
+import { type RootState, type CesiumState, SceneStyles } from "../..";
 import { fromPlainCartesian3 } from "../utils/cesiumSerializer";
 
 export enum VIEWER_TRANSITION_STATE {
@@ -95,6 +95,19 @@ const sliceCesium = createSlice({
     ) => {
       state.showSecondaryTileset = action.payload;
     },
+
+    setCurrentSceneStyle: (
+      state: CesiumState,
+      action: PayloadAction<keyof SceneStyles>
+    ) => {
+      state.currentSceneStyle = action.payload;
+    },
+    toggleCurrentSceneStyle: (state: CesiumState) => {
+      const currentStyle = state.currentSceneStyle;
+      const newStyle = currentStyle === "primary" ? "secondary" : "primary";
+      state.currentSceneStyle = newStyle;
+    },
+
     setScreenSpaceCameraControllerMaximumZoomDistance: (
       state: CesiumState,
       action: PayloadAction<number>
@@ -146,6 +159,9 @@ export const {
   setTransitionTo3d,
   clearTransition,
 
+  setCurrentSceneStyle,
+  toggleCurrentSceneStyle,
+
   setShowPrimaryTileset,
   setShowSecondaryTileset,
 
@@ -192,6 +208,8 @@ export const selectSceneStylePrimary = ({ cesium }: RootState) =>
   cesium?.sceneStyles?.primary;
 export const selectSceneStyleSecondary = ({ cesium }: RootState) =>
   cesium?.sceneStyles?.secondary;
+export const selectCurrentSceneStyle = ({ cesium }: RootState) =>
+  cesium.currentSceneStyle;
 
 export const selectScreenSpaceCameraControllerMinimumZoomDistance = ({
   cesium,

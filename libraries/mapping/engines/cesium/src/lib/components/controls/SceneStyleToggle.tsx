@@ -1,5 +1,5 @@
 import { MouseEvent, ReactNode } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import { faCubes, faTreeCity } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -7,8 +7,10 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 
 import { SceneStyles } from "../../..";
-import { selectShowPrimaryTileset } from "../../slices/cesium";
-import useSceneStyleToggle from "../../hooks/useSceneStyleToggle";
+import {
+  selectCurrentSceneStyle,
+  toggleCurrentSceneStyle,
+} from "../../slices/cesium";
 
 type SceneStyleToggleProps = {
   children?: ReactNode;
@@ -16,12 +18,12 @@ type SceneStyleToggleProps = {
 };
 
 export const SceneStyleToggle = (props: SceneStyleToggleProps) => {
-  const { initialStyle } = props;
-  const toggleSceneStyle = useSceneStyleToggle(initialStyle);
-  const isPrimaryStyle = useSelector(selectShowPrimaryTileset) === true;
+  const dispatch = useDispatch();
+  const currentSceneStyle = useSelector(selectCurrentSceneStyle);
+  const isPrimaryStyle = currentSceneStyle === "primary";
   const handleToggle = (e: MouseEvent) => {
     e.preventDefault();
-    toggleSceneStyle();
+    dispatch(toggleCurrentSceneStyle());
   };
 
   return (

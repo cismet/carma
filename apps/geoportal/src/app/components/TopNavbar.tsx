@@ -10,7 +10,7 @@ import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 import { useOverlayHelper } from "@carma-commons/ui/lib-helper-overlay";
-import { useSceneStyleToggle } from "@carma-mapping/cesium-engine";
+import { setCurrentSceneStyle } from "@carma-mapping/cesium-engine";
 
 import {
   getBackgroundLayer,
@@ -41,7 +41,6 @@ const TopNavbar = () => {
 
   const uiMode = useSelector(getUIMode);
   const tourMode = useSelector(getUIOverlayTourMode);
-  const toggleSceneStyle = useSceneStyleToggle();
 
   const handleToggleTour = () => {
     dispatch(toggleShowOverlayTour(!tourMode));
@@ -92,7 +91,7 @@ const TopNavbar = () => {
                       visible: true,
                     })
                   );
-                  toggleSceneStyle("secondary");
+                  dispatch(setCurrentSceneStyle("secondary"));
                 } else {
                   dispatch(
                     setBackgroundLayer({
@@ -111,7 +110,7 @@ const TopNavbar = () => {
                       layers: layerMap[e.target.value].layers,
                     })
                   );
-                  toggleSceneStyle("primary");
+                  dispatch(setCurrentSceneStyle("primary"));
                 }
               }}
             >

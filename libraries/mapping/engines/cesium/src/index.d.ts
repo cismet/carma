@@ -147,6 +147,7 @@ export type CesiumConfig = {
 export interface CesiumState {
   isAnimating?: boolean;
   currentTransition?: VIEWER_TRANSITION_STATE;
+  currentSceneStyle?: keyof SceneStyles;
   isMode2d: boolean;
   homePosition: null | PlainCartesian3;
   homeOffset: null | PlainCartesian3;
