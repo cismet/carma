@@ -62,7 +62,7 @@ export const TweakpaneProvider: React.FC<{
 
   useEffect(() => {
     const disableTweakpane = () => {
-      setHidden(false);
+      setHidden(true);
       localForage.removeItem(localForageKey);
       removeHashParam(hashparam);
     };
