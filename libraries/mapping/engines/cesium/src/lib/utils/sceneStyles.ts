@@ -23,7 +23,6 @@ export const setupPrimaryStyle = (
 
     if (!viewer) return;
 
-    const terrainProvider = terrainProviderRef.current;
     const surfaceProvider = surfaceProviderRef.current;
     const imageryLayer = imageryLayerRef.current;
 
@@ -35,8 +34,6 @@ export const setupPrimaryStyle = (
     if (surfaceProvider) {
       viewer.scene.terrainProvider = surfaceProvider;
     }
-
-    // viewer.scene.globe.depthTestAgainstTerrain = false;
 
     if (imageryLayer) {
       imageryLayer.show = false;
@@ -69,15 +66,9 @@ export const setupSecondaryStyle = (
     viewer.scene.backgroundColor =
       fromColorRgbaArray(style?.backgroundColor) ?? new Color(0, 0, 0, 0);
 
-    if (
-      !(viewer.scene.terrainProvider instanceof CesiumTerrainProvider) &&
-      terrainProvider
-    ) {
+    if (terrainProvider) {
       viewer.scene.terrainProvider = terrainProvider;
     }
-    // DEPTH TEST is quite slow, only use if really necessary
-    // viewer.scene.globe.depthTestAgainstTerrain = true;
-    // viewer.scene.globe.show = false;
 
     if (imageryLayer && imageryLayer.ready) {
       imageryLayer.show = true;
@@ -86,7 +77,6 @@ export const setupSecondaryStyle = (
         viewer.imageryLayers.add(imageryLayer);
       }
     }
-
     const invertedSelection = getGroundPrimitiveById(
       viewer,
       INVERTED_SELECTED_POLYGON_ID
@@ -94,8 +84,6 @@ export const setupSecondaryStyle = (
     if (invertedSelection) {
       invertedSelection.classificationType = ClassificationType.BOTH;
     }
-
     viewer.scene.requestRender();
-    // viewer.scene.globe.show = true;
   })();
 };
