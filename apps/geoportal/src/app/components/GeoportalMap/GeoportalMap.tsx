@@ -161,40 +161,36 @@ export const GeoportalMap = () => {
 
   useTweakpaneCtx(
     useMemo(
-      () => ({
-        title: "GeoportalMap",
-      }),
-      []
-    ),
-    useMemo(
-      () => ({
-        get renderCount() {
-          return rerenderCountRef.current;
-        },
-        get renderInterval() {
-          return lastRenderIntervalRef.current;
-        },
-        dpr: window.devicePixelRatio,
-        resolutionScale: viewer ? viewer.resolutionScale : 0,
-      }),
-      [rerenderCountRef, lastRenderIntervalRef, viewer]
-    ),
-    useMemo(
-      () => [
-        { name: "renderCount", readonly: true, format: (v) => v.toFixed(0) },
+      () => (
         {
-          name: "renderInterval",
-          readonly: true,
-          format: (v) => v.toFixed(0),
-        },
-        { name: "dpr", readonly: true, format: (v) => v.toFixed(1) },
-        {
-          name: "resolutionScale",
-          readonly: true,
-          format: (v) => v.toFixed(1),
-        },
-      ],
-      []
+          folder: {
+            title: "GeoportalMap",
+          },
+          params: {
+            get renderCount() {
+              return rerenderCountRef.current;
+            },
+            get renderInterval() {
+              return lastRenderIntervalRef.current;
+            },
+            dpr: window.devicePixelRatio,
+            resolutionScale: viewer ? viewer.resolutionScale : 0,
+          },
+          inputs: [
+            { name: "renderCount", readonly: true, format: (v) => v.toFixed(0) },
+            {
+              name: "renderInterval",
+              readonly: true,
+              format: (v) => v.toFixed(0),
+            },
+            { name: "dpr", readonly: true, format: (v) => v.toFixed(1) },
+            {
+              name: "resolutionScale",
+              readonly: true,
+              format: (v) => v.toFixed(1),
+            },
+          ]
+        }), [viewer, rerenderCountRef]
     )
   );
 
@@ -394,9 +390,8 @@ export const GeoportalMap = () => {
                 ref={tourRefLabels.measurement}
               >
                 <img
-                  src={`${getUrlPrefix()}${
-                    isModeMeasurement ? "measure-active.png" : "measure.png"
-                  }`}
+                  src={`${getUrlPrefix()}${isModeMeasurement ? "measure-active.png" : "measure.png"
+                    }`}
                   alt="Measure"
                   className="w-6"
                 />

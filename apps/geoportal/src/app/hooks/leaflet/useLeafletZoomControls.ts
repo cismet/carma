@@ -35,7 +35,7 @@ const useLeafletZoomControls = () => {
     if (leafletElement) {
       return leafletElement.getZoom();
     }
-    console.warn("No leafletElement found, no zoom level available");
+    console.debug("No leafletElement found, no zoom level available");
     return null;
   }, [leafletElement]);
 

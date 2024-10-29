@@ -39,14 +39,12 @@ export const useInitializeViewer = ({
   homeOffset: Cartesian3 | null;
   leaflet?: LeafletMap | null;
 }) => {
-  const [hash, setHash] = useState<string | null>(null); // effectively hook should run only once
+  const hashRef = useRef<string | null>(null); // effectively hook should run only once
 
   const previousIsMode2d = useRef<boolean | null>(null);
   const previousIsSecondaryStyle = useRef<boolean | null>(null);
 
-  const dispatch = useDispatch();
-  const location = useLocation();
-  const ctx = useCesiumContext();
+  //const location = useLocation();
   const viewer = useCesiumViewer();
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
   const minZoom = useSelector(
@@ -83,9 +81,9 @@ export const useInitializeViewer = ({
   }, [viewer, isSecondaryStyle, maxZoom, minZoom, enableCollisionDetection]);
 
   useEffect(() => {
-    if (viewer && hash === null) {
+    if (viewer && hashRef.current === null) {
       const locationHash = window.location.hash ?? "";
-      setHash(locationHash);
+      hashRef.current = locationHash;
       console.debug("HOOK: set initialHash", locationHash);
 
       const hashParams = locationHash.split("?")[1];
@@ -153,7 +151,7 @@ export const useInitializeViewer = ({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewer, home, homeOffset, location.pathname, hash, isMode2d]);
+  }, [viewer, home, homeOffset, location.pathname, isMode2d]);
 
   useEffect(() => {
     if (viewer && containerRef?.current) {

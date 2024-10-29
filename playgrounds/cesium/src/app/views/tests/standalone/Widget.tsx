@@ -1,11 +1,9 @@
-//import 'bootstrap/dist/css/bootstrap.min.css';
-
-// eslint disable
+import { useEffect, useMemo, useState } from "react";
+import { Checkbox, Radio, Select } from "antd";
 
 import { useTweakpaneCtx } from "@carma-commons/debug";
 import { Widget } from "@carma-mapping/cesium-widget-engine";
-import { useEffect, useState } from "react";
-import { Checkbox, Radio, Select } from "antd";
+
 
 import { WUPP_MESH_2024 } from "@carma-commons/resources";
 import type { LatLngRecord } from "types/common-geo";
@@ -84,53 +82,57 @@ function View() {
   const [clip, setClip] = useState<boolean>(false);
 
   useTweakpaneCtx(
-    {
-      title: "MiniView CesiumWidget",
-    },
-    {
-      get poi() {
-        return poiKey;
-      },
-      set poi(v) {
-        setPoiKey(v);
-        setPoi(POI[v]);
-      },
-      get clip() {
-        return debug;
-      },
-      set clip(value: boolean) {
-        setClip(value);
-      },
-      get debug() {
-        return debug;
-      },
-      set debug(value: boolean) {
-        setDebug(value);
-      },
-      get orthographic() {
-        return orthographic;
-      },
-      set orthographic(value: boolean) {
-        setOrthographic(value);
-      },
-      get animate() {
-        return animate;
-      },
-      set animate(value: boolean) {
-        setAnimate(value);
-      },
-    },
-
-    [
-      {
-        name: "poi",
-        options,
-      },
-      { name: "clip", type: "boolean" },
-      { name: "debug", type: "boolean" },
-      { name: "orthographic", type: "boolean" },
-      { name: "animate", type: "boolean" },
-    ]
+    useMemo(
+      () => ({
+        folder: {
+          title: "MiniView CesiumWidget",
+        },
+        params: {
+          get poi() {
+            return poiKey;
+          },
+          set poi(v) {
+            setPoiKey(v);
+            setPoi(POI[v]);
+          },
+          get clip() {
+            return debug;
+          },
+          set clip(value: boolean) {
+            setClip(value);
+          },
+          get debug() {
+            return debug;
+          },
+          set debug(value: boolean) {
+            setDebug(value);
+          },
+          get orthographic() {
+            return orthographic;
+          },
+          set orthographic(value: boolean) {
+            setOrthographic(value);
+          },
+          get animate() {
+            return animate;
+          },
+          set animate(value: boolean) {
+            setAnimate(value);
+          },
+        },
+        inputs: [
+          {
+            name: "poi",
+            options,
+          },
+          { name: "clip", type: "boolean" },
+          { name: "debug", type: "boolean" },
+          { name: "orthographic", type: "boolean" },
+          { name: "animate", type: "boolean" },
+        ],
+      }),
+      []
+    )
   );
 
   console.log("RENDER Widget Test View", { poi, debug });
@@ -270,9 +272,8 @@ function View() {
               key={feature!.properties![key]}
               value={feature!.properties![key]}
             >
-              {`${feature!.properties![labelProperty]} - ${
-                feature!.properties!["STRNAME"]
-              } ${feature!.properties!["HAUSNR"]}`}
+              {`${feature!.properties![labelProperty]} - ${feature!.properties!["STRNAME"]
+                } ${feature!.properties!["HAUSNR"]}`}
             </Option>
           ))}
       </Select>

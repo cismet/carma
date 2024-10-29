@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, ChangeEvent } from "react";
+import { useState, useEffect, useRef, ChangeEvent, useMemo } from "react";
 import { debounce } from "lodash";
 import { Cartesian3, Cartographic } from "cesium";
 
@@ -96,51 +96,56 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
   });
 
   useTweakpaneCtx(
-    { title: "Elevation UI" },
-    {
-      get alwaysShow() {
-        return alwaysShow;
-      },
-      set alwaysShow(value: boolean) {
-        setAlwaysShow(value);
-      },
-      get clamp() {
-        return clamp;
-      },
-      set clamp(value: boolean) {
-        setClamp(value);
-      },
-      get eventOption() {
-        return eventOption;
-      },
-      set eventOption(
-        value: "cameraChanged" | "scenePreRender" | "scenePreUpdate"
-      ) {
-        setEventOption(value);
-      },
-    },
-    [
-      {
-        name: "alwaysShow",
-        label: "Always Show",
-        type: "boolean",
-      },
-      {
-        name: "clamp",
-        label: "Clamp Tileset Height",
-        type: "boolean",
-      },
-      {
-        name: "eventOption",
-        label: "Update Event",
-        type: "select",
-        options: {
-          cameraChanged: "cameraChanged",
-          scenePreRender: "scenePreRender",
-          scenePreUpdate: "scenePreUpdate",
+    useMemo(
+      () => ({
+        folder: { title: "Elevation UI" },
+        params: {
+          get alwaysShow() {
+            return alwaysShow;
+          },
+          set alwaysShow(value: boolean) {
+            setAlwaysShow(value);
+          },
+          get clamp() {
+            return clamp;
+          },
+          set clamp(value: boolean) {
+            setClamp(value);
+          },
+          get eventOption() {
+            return eventOption;
+          },
+          set eventOption(
+            value: "cameraChanged" | "scenePreRender" | "scenePreUpdate"
+          ) {
+            setEventOption(value);
+          },
         },
-      },
-    ]
+        inputs: [
+          {
+            name: "alwaysShow",
+            label: "Always Show",
+            type: "boolean",
+          },
+          {
+            name: "clamp",
+            label: "Clamp Tileset Height",
+            type: "boolean",
+          },
+          {
+            name: "eventOption",
+            label: "Update Event",
+            type: "select",
+            options: {
+              cameraChanged: "cameraChanged",
+              scenePreRender: "scenePreRender",
+              scenePreUpdate: "scenePreUpdate",
+            },
+          },
+        ],
+      }),
+      []
+    )
   );
 
   useEffect(() => {
@@ -259,7 +264,7 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
         : cameraRelHeightDisplayPosition;
       const cameraMinElevationDisplayPosition =
         (viewer?.scene.screenSpaceCameraController.minimumZoomDistance ?? 0) *
-          factor +
+        factor +
         (clamp ? clampedHeightDisplayPosition : terrainHeightDisplayPosition);
 
       setDisplayY({
@@ -295,8 +300,8 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
       Math.abs(cameraHeight - newValue) > 0.05 &&
       (!viewer.scene.screenSpaceCameraController.enableCollisionDetection ||
         newValue >=
-          terrainHeight +
-            viewer.scene.screenSpaceCameraController.minimumZoomDistance * 0.5)
+        terrainHeight +
+        viewer.scene.screenSpaceCameraController.minimumZoomDistance * 0.5)
     ) {
       window.requestAnimationFrame(() => {
         const newPosition = getNewPosition(

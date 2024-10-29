@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Cesium3DTileset, CustomShader } from "cesium";
 
 import { useTweakpaneCtx } from "@carma-commons/debug";
@@ -30,54 +30,58 @@ export const useTilesetsTweakpane = (
   const [enableDebugWireframe, setEnableDebugWireframe] = useState(false);
 
   return useTweakpaneCtx(
-    {
-      title: `Tileset ${name}`,
-    },
-    {
-      get customShaderKey() {
-        return customShaderKey;
-      },
-      set customShaderKey(v) {
-        setCustomShaderKey(v);
-        if (tileset) {
-          const def = CUSTOM_SHADERS_DEFINITIONS[customShaderKeys[v]];
-          if (def === k.UNDEFINED) {
-            tileset.customShader = undefined;
-            viewer && viewer.scene.requestRender();
-          } else {
-            const shader = new CustomShader(CUSTOM_SHADERS_DEFINITIONS[v]);
-            tileset.customShader = shader;
-            viewer && viewer.scene.requestRender();
-          }
-        }
-      },
-      get enableDebugWireframe() {
-        return enableDebugWireframe;
-      },
-      set enableDebugWireframe(v: boolean) {
-        if (v !== enableDebugWireframe && tileset) {
-          setEnableDebugWireframe(v);
-          tileset.debugWireframe = v;
-        }
-      },
-      get show() {
-        if (tileset) {
-          return tileset.show;
-        } else {
-          return false;
-        }
-      },
-      set show(v: boolean) {
-        if (tileset && v !== tileset.show) {
-          tileset.show = v;
-        }
-      },
-    },
-
-    [
-      { name: "customShaderKey", options: customShaderKeys },
-      { name: "enableDebugWireframe" },
-      { name: "show", type: "boolean" },
-    ]
+    useMemo(
+      () => ({
+        folder: { title: `Tileset ${name}` },
+        params: {
+          get customShaderKey() {
+            return customShaderKey;
+          },
+          set customShaderKey(v) {
+            setCustomShaderKey(v);
+            if (tileset) {
+              const def = CUSTOM_SHADERS_DEFINITIONS[customShaderKeys[v]];
+              if (def === k.UNDEFINED) {
+                tileset.customShader = undefined;
+                viewer && viewer.scene.requestRender();
+              } else {
+                const shader = new CustomShader(CUSTOM_SHADERS_DEFINITIONS[v]);
+                tileset.customShader = shader;
+                viewer && viewer.scene.requestRender();
+              }
+            }
+          },
+          get enableDebugWireframe() {
+            return enableDebugWireframe;
+          },
+          set enableDebugWireframe(v: boolean) {
+            if (v !== enableDebugWireframe && tileset) {
+              setEnableDebugWireframe(v);
+              tileset.debugWireframe = v;
+              viewer && viewer.scene.requestRender();
+            }
+          },
+          get show() {
+            if (tileset) {
+              return tileset.show;
+            } else {
+              return false;
+            }
+          },
+          set show(v: boolean) {
+            if (tileset && v !== tileset.show) {
+              tileset.show = v;
+              viewer && viewer.scene.requestRender();
+            }
+          },
+        },
+        inputs: [
+          { name: "customShaderKey", options: customShaderKeys },
+          { name: "enableDebugWireframe" },
+          { name: "show", type: "boolean" },
+        ],
+      }),
+      [viewer, name, customShaderKey, enableDebugWireframe, tileset, viewer]
+    )
   );
 };

@@ -1,7 +1,6 @@
 import { useContext, useRef, useEffect, useCallback } from "react";
 import { FolderApi, Pane, type FolderParams } from "tweakpane";
 import { TweakpaneContext } from "../TweakpaneContext";
-import { i } from "vitest/dist/reporters-yx5ZTtEV.js";
 
 interface Input {
   label?: string;
@@ -9,11 +8,15 @@ interface Input {
   [key: string]: unknown;
 }
 
-export const useTweakpaneCtx = (
-  folderParams?: FolderParams,
-  params: { [key: string]: unknown } = {},
-  inputs: Input[] = []
-) => {
+export const useTweakpaneCtx = ({
+  folder,
+  params = {},
+  inputs = [],
+}: {
+  folder?: FolderParams;
+  params?: { [key: string]: unknown };
+  inputs?: Input[];
+} = {}) => {
   const context = useContext(TweakpaneContext);
 
   if (!context) {
@@ -28,13 +31,13 @@ export const useTweakpaneCtx = (
     if (!paneRef.current) return;
     const isHidden = paneRef.current.element.parentElement?.hidden === true;
     if (isHidden) return;
-    if (folderParams) {
+    if (folder) {
       if (folderRef.current) {
         folderRef.current.hidden = false;
         console.debug("HOOK: [TWEAKPANE|DEBUG] using existing folder");
       } else {
         console.debug("HOOK: [TWEAKPANE|DEBUG] adding new folder to pane");
-        folderRef.current = paneRef.current.addFolder(folderParams);
+        folderRef.current = paneRef.current.addFolder(folder);
       }
       inputs.forEach((input) => {
         folderRef.current &&
@@ -60,7 +63,7 @@ export const useTweakpaneCtx = (
           paneRef.current.addBinding(params, input.name, input);
       });
     }
-  }, [folderParams, params, inputs, paneRef]);
+  }, [folder, params, inputs, paneRef]);
 
   const folderCallback = useCallback((fn: (folder: FolderApi) => void) => {
     if (folderRef.current) {
