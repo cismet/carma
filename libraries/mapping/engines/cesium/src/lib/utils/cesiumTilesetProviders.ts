@@ -1,4 +1,4 @@
-import { Cesium3DTileset, CustomShader } from "cesium";
+import { Cesium3DTileset, CustomShader, ShadowMode } from "cesium";
 
 import { TilesetConfig, TilesetType } from "@carma-commons/resources";
 
@@ -15,13 +15,18 @@ const DEFAULT_MESH_OPTIONS: Cesium3DTileset.ConstructorOptions = {
   foveatedScreenSpaceError: true,
   foveatedConeSize: 0.2,
   preloadWhenHidden: false,
+  shadows: ShadowMode.DISABLED,
+  skipLevelOfDetail: true,
+  skipScreenSpaceErrorFactor: 4,
+  enableCollision: false,
 };
 
 const DEFAULT_LOD2_OPTIONS: Cesium3DTileset.ConstructorOptions = {
-  maximumScreenSpaceError: 1,
+  maximumScreenSpaceError: 4,
   dynamicScreenSpaceError: false,
   foveatedScreenSpaceError: true,
   preloadWhenHidden: true,
+  enableCollision: false,
 };
 
 const loadLOD2Tileset = async (tileset: TilesetConfig) => {
