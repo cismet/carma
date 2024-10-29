@@ -10,14 +10,19 @@ export type TilesetConfigs = {
 };
 
 const DEFAULT_MESH_OPTIONS: Cesium3DTileset.ConstructorOptions = {
-  maximumScreenSpaceError: 8,
-  dynamicScreenSpaceError: false,
+  baseScreenSpaceError: 64,
+  maximumScreenSpaceError: 6,
+  dynamicScreenSpaceError: false, // only needed for low angle views
   foveatedScreenSpaceError: true,
   foveatedConeSize: 0.2,
+  foveatedMinimumScreenSpaceErrorRelaxation: 2,
   preloadWhenHidden: false,
   shadows: ShadowMode.DISABLED,
   skipLevelOfDetail: true,
   skipScreenSpaceErrorFactor: 4,
+  loadSiblings: true, // with SkipLevelOfDetail
+  //immediatelyLoadDesiredLevelOfDetail: true,
+  
   enableCollision: false,
 };
 
@@ -25,7 +30,7 @@ const DEFAULT_LOD2_OPTIONS: Cesium3DTileset.ConstructorOptions = {
   maximumScreenSpaceError: 4,
   dynamicScreenSpaceError: false,
   foveatedScreenSpaceError: true,
-  preloadWhenHidden: true,
+  preloadWhenHidden: false, // only set this to true sometime after initial load
   enableCollision: false,
 };
 

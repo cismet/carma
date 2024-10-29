@@ -44,6 +44,9 @@ export const useTilesets = () => {
     console.debug("HOOK BaseTilesets: showSecondary", showSecondary);
     if (tilesetSecondary) {
       tilesetSecondary.show = showSecondary;
+      console.debug("[CESIUM|DEBUG] show secondary tileset, setting preloadWhenHidden to true");
+      // after initial load, set this to true to enable fast switching to small LOD2 tilesets
+      tilesetSecondary.preloadWhenHidden = true;
     }
   }, [showSecondary, tilesetSecondary]);
 

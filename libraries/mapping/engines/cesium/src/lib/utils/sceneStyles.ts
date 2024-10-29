@@ -2,6 +2,7 @@ import {
   CesiumTerrainProvider,
   ClassificationType,
   Color,
+  EllipsoidTerrainProvider,
   Viewer,
 } from "cesium";
 
@@ -17,7 +18,9 @@ const INVERTED_SELECTED_POLYGON_ID = "searchgaz-inverted-polygon";
 
 const waitAndSetTerrainProvider = (
   viewerRef: MutableRefObject<Viewer | null>,
-  terrainProviderRef: MutableRefObject<CesiumTerrainProvider | null>,
+  terrainProviderRef: MutableRefObject<
+    CesiumTerrainProvider | EllipsoidTerrainProvider | null
+  >,
   { label, onReady }: { label?: string; onReady?: () => void }
 ) => {
   let isTerrainProviderSet = false;
@@ -33,7 +36,7 @@ const waitAndSetTerrainProvider = (
         "ms",
         label
       );
-      viewerRef.current.terrainProvider = terrainProviderRef.current;
+      viewerRef.current.scene.terrainProvider = terrainProviderRef.current;
       isTerrainProviderSet = true;
       onReady?.();
     }
@@ -42,7 +45,7 @@ const waitAndSetTerrainProvider = (
   };
 
   if (terrainProviderRef.current && viewerRef.current) {
-    viewerRef.current.terrainProvider = terrainProviderRef.current;
+    viewerRef.current.scene.terrainProvider = terrainProviderRef.current;
     isTerrainProviderSet = true;
     onReady?.();
     console.debug("[STYLES|TERRAIN|CESIUM] terrainProvider already set");
@@ -57,6 +60,7 @@ export const setupPrimaryStyle = (
     viewerRef,
     terrainProviderRef,
     surfaceProviderRef,
+    ellipsoidTerrainProviderRef,
     imageryLayerRef,
   }: CesiumContextType,
   style?: Partial<SceneStyle>
@@ -72,12 +76,12 @@ export const setupPrimaryStyle = (
       fromColorRgbaArray(style?.backgroundColor) ?? new Color(0, 0, 0, 0);
 
     console.debug("[STYLES|TERRAIN|CESIUM] setup primary style");
-    waitAndSetTerrainProvider(viewerRef, surfaceProviderRef, {
-      label: "primary",
-    });
 
+    // disables terrain and suspends loading of imagery layer
+    // viewer.scene.terrainProvider = undefined!;
     if (imageryLayer) {
       imageryLayer.show = false;
+      //viewer.imageryLayers.remove(imageryLayer, false);
     }
 
     const invertedSelection = getGroundPrimitiveById(
@@ -111,7 +115,10 @@ export const setupSecondaryStyle = (
         imageryLayer.show = true;
         if (viewer.imageryLayers.length === 0) {
           viewer.imageryLayers.add(imageryLayer);
-          console.debug("Secondary Style Setup: add imagery layer", viewer.imageryLayers.length);
+          console.debug(
+            "Secondary Style Setup: add imagery layer",
+            viewer.imageryLayers.length
+          );
         }
       }
     };

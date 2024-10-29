@@ -104,13 +104,14 @@ export const useInitializeViewer = ({
           "HOOK: skipping cesium location setup with 2d mode active zoom"
         );
       } else {
+        /*
         if (isSecondaryStyle) {
           console.debug("HOOK: set secondary style from hash");
           setupSecondaryStyle(ctx);
           dispatch(setShowPrimaryTileset(false));
           dispatch(setShowSecondaryTileset(true));
         }
-
+        */
         if (sceneFromHashParams && longitude && latitude) {
           console.debug(
             "HOOK [2D3D|CESIUM|CAMERA] init Viewer set camera from hash zoom",
