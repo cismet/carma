@@ -79,7 +79,7 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
 
   const home = useSelector(selectViewerHome);
   const homeOffset = useSelector(selectViewerHomeOffset);
-  
+
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
   const isMode2d = useSelector(selectViewerIsMode2d);
   //const isAnimating = useViewerIsAnimating();

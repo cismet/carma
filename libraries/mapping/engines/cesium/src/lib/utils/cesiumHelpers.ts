@@ -89,7 +89,6 @@ export const logTileSetInfoOnReady = (tileset: Cesium3DTileset) => {
   );
 };
 
-
 export const getTileSetInfo = (tileset: Cesium3DTileset) => {
   const { center } = tileset.root.boundingSphere;
   const cartographic = Cartographic.fromCartesian(center);

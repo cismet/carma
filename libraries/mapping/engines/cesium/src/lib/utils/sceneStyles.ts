@@ -30,8 +30,7 @@ export const setupPrimaryStyle = (
     viewer.scene.globe.baseColor =
       fromColorRgbaArray(style?.globe?.baseColor) ?? Color.LIGHTGREY;
     viewer.scene.backgroundColor =
-      fromColorRgbaArray(style?.backgroundColor) ??
-      new Color(0, 0, 0, 0);
+      fromColorRgbaArray(style?.backgroundColor) ?? new Color(0, 0, 0, 0);
 
     if (surfaceProvider) {
       viewer.scene.terrainProvider = surfaceProvider;

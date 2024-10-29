@@ -1,9 +1,4 @@
-import {
-  type ReactNode,
-  type RefObject,
-  useContext,
-  useEffect,
-} from "react";
+import { type ReactNode, type RefObject, useContext, useEffect } from "react";
 import { useSelector } from "react-redux";
 
 import { Color, Viewer, HeadingPitchRange, Rectangle, SceneMode } from "cesium";
@@ -76,7 +71,7 @@ export function CustomViewer(props: CustomViewerProps) {
   const { viewerRef } = useCesiumContext();
   const home = useSelector(selectViewerHome);
   const homeOffset = useSelector(selectViewerHomeOffset);
-  
+
   const {
     children,
     selectionIndicator = false,
