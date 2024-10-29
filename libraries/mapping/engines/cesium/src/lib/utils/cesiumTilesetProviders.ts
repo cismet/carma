@@ -10,20 +10,27 @@ export type TilesetConfigs = {
 };
 
 const DEFAULT_MESH_OPTIONS: Cesium3DTileset.ConstructorOptions = {
-  baseScreenSpaceError: 64,
-  maximumScreenSpaceError: 6,
-  dynamicScreenSpaceError: false, // only needed for low angle views
-  foveatedScreenSpaceError: true,
-  foveatedConeSize: 0.2,
-  foveatedMinimumScreenSpaceErrorRelaxation: 2,
   preloadWhenHidden: false,
   shadows: ShadowMode.DISABLED,
-  skipLevelOfDetail: true,
-  skipScreenSpaceErrorFactor: 4,
-  loadSiblings: true, // with SkipLevelOfDetail
-  //immediatelyLoadDesiredLevelOfDetail: true,
-
   enableCollision: false,
+
+  maximumScreenSpaceError: 6, // target 100% quality
+  // TODO expose this via UI 2 is like 3x the data of 6
+  // HQ 4 or higher
+  // LQ 16 or worse
+  
+  //dynamicScreenSpaceError: true, // only needed for low angle views
+  
+  // not sure if this is even doing anything
+  foveatedScreenSpaceError: true,
+  foveatedConeSize: 0.25,
+  foveatedMinimumScreenSpaceErrorRelaxation: 32,
+  
+  skipLevelOfDetail: true,
+  skipScreenSpaceErrorFactor: 128,
+  baseScreenSpaceError: 4096, // minimum quality to load before skipping
+  //loadSiblings: true, // with SkipLevelOfDetail not useful for intial load speed
+  //immediatelyLoadDesiredLevelOfDetail: true,
 };
 
 const DEFAULT_LOD2_OPTIONS: Cesium3DTileset.ConstructorOptions = {

@@ -4,18 +4,12 @@ export const WUPP_MESH_2020: TilesetConfig = {
   url: "https://wupp-3d-data.cismet.de/mesh/tileset.json",
   key: "wupp-mesh-2020",
   type: TilesetType.MESH,
-  constructorOptions: {
-    maximumScreenSpaceError: 8,
-  },
 };
 
 export const WUPP_MESH_2024: TilesetConfig = {
   url: "https://wupp-3d-data.cismet.de/mesh2024/tileset.json",
   key: "wupp-mesh-2024",
   type: TilesetType.MESH,
-  constructorOptions: {
-    maximumScreenSpaceError: 6,
-  },
 };
 
 export const WUPP_LOD2_TILESET: TilesetConfig = {
