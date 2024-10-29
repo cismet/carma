@@ -87,8 +87,6 @@ import {
   getShowHamburgerMenu,
   getShowLocatorButton,
   getShowMeasurementButton,
-  setStartDrawing,
-  setBackgroundLayer,
 } from "../../store/slices/mapping.ts";
 import {
   getUIAllow3d,
@@ -413,9 +411,7 @@ export const GeoportalMap = () => {
           <MapTypeSwitcher
             duration={CESIUM_CONFIG.transitions.mapMode.duration}
             onComplete={(isTo2d: boolean) => {
-              dispatch(
-                setBackgroundLayer({ ...backgroundLayer, visible: isTo2d })
-              );
+              //dispatch(setBackgroundLayer({ ...backgroundLayer, visible: isTo2d }));
             }}
             ref={tourRefLabels.toggle2d3d}
           />

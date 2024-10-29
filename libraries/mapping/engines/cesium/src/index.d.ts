@@ -115,16 +115,16 @@ export type ImageryProviderConfig = {
   parameters: { transparent: boolean; format: string };
 };
 
-export type SceneStyleDescription = {
+export type SceneStyle = {
+  backgroundColor: Color;
   globe: {
-    baseColor: ColorRgbaArray;
+    baseColor: Color;
   };
 };
 
 export type SceneStyles = {
-  default: SceneStyleDescription;
-  primary?: Partial<SceneStyleDescription>;
-  secondary?: Partial<SceneStyleDescription>;
+  primary?: Partial<SceneStyle>;
+  secondary?: Partial<SceneStyle>;
 };
 
 export type CesiumConfig = {
@@ -148,8 +148,8 @@ export interface CesiumState {
   isAnimating?: boolean;
   currentTransition?: VIEWER_TRANSITION_STATE;
   isMode2d: boolean;
-  homePosition: null | PlainCartesian3;
-  homeOffset: null | PlainCartesian3;
+  homePosition: null | Cartesian3;
+  homeOffset: null | Cartesian3;
   showPrimaryTileset: boolean; // tileset is the base 3D model equivalent to a basemap
   showSecondaryTileset: boolean; // tileset is the base 3D model equivalent to a basemap
 
@@ -158,7 +158,7 @@ export interface CesiumState {
     minimumZoomDistance: number; // default is 1.0
     maximumZoomDistance: number; // default is Infinity
   };
-  sceneStyles: SceneStyles;
+  sceneStyles?: SceneStyles;
   // TODO move to per tileset styling
   styling: {
     tileset: {

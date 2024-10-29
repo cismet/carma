@@ -25,16 +25,22 @@ export function animateInterpolateHeadingPitchRange(
     delay = 0,
     duration = 1000,
     onComplete,
+    onCancel,
+    cancelable = true,
     useCurrentDistance = true,
     easing = EasingFunction.CUBIC_IN_OUT,
+    setPrevious,
   }: {
+    setPrevious?: (hpr: HeadingPitchRange) => void;
     duration?: number;
     delay?: number; // ms
     onComplete?: () => void;
+    cancelable?: boolean;
+    onCancel?: () => void;
     useCurrentDistance?: boolean;
     easing?: (time: number) => number;
   } = {}
-) {
+): () => void {
   const { heading, pitch, range } = hpr;
 
   // get HPR from camera in relation to LookAt in order to interpolate to target HPR
@@ -42,6 +48,13 @@ export function animateInterpolateHeadingPitchRange(
   let initialHeading = viewer.camera.heading;
   const initialPitch = viewer.camera.pitch;
   const initialRange = Cartesian3.distance(viewer.camera.position, destination);
+
+  setPrevious &&
+    setPrevious({
+      heading: initialHeading,
+      pitch: initialPitch,
+      range: initialRange,
+    });
 
   const headingDifference = initialHeading - heading;
   // Check if adding 2π (or 360 degrees) makes the path shorter
@@ -51,9 +64,33 @@ export function animateInterpolateHeadingPitchRange(
     }
   }
 
+  // Animation control variables
+  let animationFrameId: number | null = null;
+  let isCanceled = false;
+
   // Animation start time
   const startTime = performance.now() + delay; // delay the animation for other animations to finish
-  let frameIndex = 0;
+
+  const onUserInteraction = () => {
+    if (cancelable) {
+      console.info("Animation canceled due to user interaction.");
+      cancelAnimation();
+    }
+  };
+
+  const cancelAnimation = () => {
+    if (animationFrameId !== null) {
+      cancelAnimationFrame(animationFrameId);
+      animationFrameId = null;
+      isCanceled = true;
+      // Unsubscribe from the event
+      viewer.canvas.removeEventListener("pointerdown", onUserInteraction);
+      viewer.camera.lookAtTransform(Matrix4.IDENTITY);
+      onCancel?.();
+    }
+  };
+
+  viewer.canvas.addEventListener("pointerdown", onUserInteraction);
 
   const animate = (time: number) => {
     const elapsed = time - startTime;
@@ -79,16 +116,16 @@ export function animateInterpolateHeadingPitchRange(
     viewer.scene.render();
 
     if (t < 1) {
-      requestAnimationFrame(animate);
+      animationFrameId = requestAnimationFrame(animate);
     } else {
       // Animation complete, reset the transformation matrix
       viewer.camera.lookAtTransform(Matrix4.IDENTITY);
+      viewer.camera.moveStart.removeEventListener(onUserInteraction);
       onComplete?.();
     }
-    frameIndex++;
   };
 
-  requestAnimationFrame(animate);
+  animationFrameId = requestAnimationFrame(animate);
 
-  return new HeadingPitchRange(initialHeading, initialPitch, initialRange);
+  return cancelAnimation;
 }

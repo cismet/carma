@@ -1,10 +1,9 @@
 import { Cartesian3, Color } from "cesium";
 import localForage from "localforage";
-import { createSelector, createSlice } from "@reduxjs/toolkit";
+import { createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 
-import { type ColorInput, type RootState, type CesiumState } from "../..";
-import { colorToArray, isColorRgbaArray } from "../utils/cesiumHelpers";
+import { type RootState, type CesiumState } from "../..";
 
 export enum VIEWER_TRANSITION_STATE {
   NONE,
@@ -29,13 +28,6 @@ const initialState: CesiumState = {
     enableCollisionDetection: false,
     minimumZoomDistance: 1,
     maximumZoomDistance: Infinity,
-  },
-  sceneStyles: {
-    default: {
-      globe: {
-        baseColor: colorToArray(Color.TEAL),
-      },
-    },
   },
   dataSources: {
     footprintGeoJson: null,
@@ -122,22 +114,6 @@ const sliceCesium = createSlice({
     setTilesetOpacity: (state: CesiumState, action: PayloadAction<number>) => {
       state.styling.tileset.opacity = action.payload;
     },
-    setGlobeBaseColor: (
-      state: CesiumState,
-      action: PayloadAction<{
-        style: keyof CesiumState["sceneStyles"];
-        color: ColorInput;
-      }>
-    ) => {
-      const { style, color } = action.payload;
-
-      const baseColor = isColorRgbaArray(color) ? color : colorToArray(color);
-
-      state.sceneStyles[style] = {
-        ...state.sceneStyles[style],
-        globe: { baseColor },
-      };
-    },
     setHomePosition: (
       state: CesiumState,
       action: PayloadAction<Cartesian3>
@@ -163,7 +139,6 @@ export const {
   setShowPrimaryTileset,
   setShowSecondaryTileset,
 
-  setGlobeBaseColor,
   setTilesetOpacity,
 
   setScreenSpaceCameraControllerMaximumZoomDistance,
@@ -178,26 +153,22 @@ export const selectViewerIsAnimating = ({ cesium }: RootState) =>
 export const selectViewerCurrentTransition = ({ cesium }: RootState) =>
   cesium.currentTransition;
 export const selectViewerIsTransitioning = ({ cesium }: RootState) =>
+  cesium.currentTransition !== undefined &&
   cesium.currentTransition !== VIEWER_TRANSITION_STATE.NONE;
 
 export const selectViewerIsMode2d = ({ cesium }: RootState) => cesium.isMode2d;
 export const selectViewerDataSources = ({ cesium }: RootState) =>
   cesium.dataSources;
 export const selectViewerModels = ({ cesium }: RootState) => cesium.models;
+export const selectViewerHome = ({ cesium }: RootState) => cesium.homePosition;
+export const selectViewerHomeOffset = ({ cesium }: RootState) =>
+  cesium.homeOffset;
 
-export const selectViewerHome = createSelector(
-  ({ cesium }: RootState) => cesium.homePosition,
-  (xyz) => (xyz ? new Cartesian3(xyz.x, xyz.y, xyz.z) : null)
-);
-export const selectViewerHomeOffset = createSelector(
-  ({ cesium }: RootState) => cesium.homeOffset,
-  (xyz) => (xyz ? new Cartesian3(xyz.x, xyz.y, xyz.z) : null)
-);
-
-export const selectViewerSceneGlobalBaseColor = createSelector(
-  (state: RootState) => state.cesium.sceneStyles.default.globe.baseColor,
-  (baseColor) => new Color(...baseColor)
-);
+export const selectSceneStyles = ({ cesium }: RootState) => cesium.sceneStyles;
+export const selectSceneStylePrimary = ({ cesium }: RootState) =>
+  cesium?.sceneStyles?.primary;
+export const selectSceneStyleSecondary = ({ cesium }: RootState) =>
+  cesium?.sceneStyles?.secondary;
 
 export const selectScreenSpaceCameraControllerMinimumZoomDistance = ({
   cesium,

@@ -1,20 +1,32 @@
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import { clearTransition, selectViewerIsTransitioning } from "../slices/cesium";
+import {
+  clearTransition,
+  selectViewerCurrentTransition,
+  selectViewerIsTransitioning,
+} from "../slices/cesium";
+import { useCesiumViewer } from "./useCesiumViewer";
 
 const DEFAULT_TIMEOUT = 4000;
 
 const useTransitionTimeout = (timeOut = DEFAULT_TIMEOUT) => {
   const isTransitioning = useSelector(selectViewerIsTransitioning);
+  const currentTransition = useSelector(selectViewerCurrentTransition);
+  const viewer = useCesiumViewer();
   const dispatch = useDispatch();
 
   useEffect(() => {
     // reset isTransitioning after 2 seconds
     let timeoutId: NodeJS.Timeout | null = null;
 
-    if (isTransitioning) {
-      console.info("HOOK [CESIUM|2D3D] transition timeout added", timeOut);
+    if (viewer && isTransitioning) {
+      console.info(
+        "HOOK [CESIUM|2D3D] transition timeout added",
+        timeOut,
+        isTransitioning,
+        currentTransition
+      );
       timeoutId = setTimeout(() => {
         if (isTransitioning) {
           console.warn(
@@ -27,11 +39,13 @@ const useTransitionTimeout = (timeOut = DEFAULT_TIMEOUT) => {
 
     return () => {
       if (timeoutId) {
-        console.debug("HOOK [CESIUM|2D3D|TIMEOUT] timed out hook cleared");
+        console.debug(
+          "HOOK [CESIUM|2D3D|TIMEOUT] timeout cleared on transition end"
+        );
         clearTimeout(timeoutId);
       }
     };
-  }, [isTransitioning, dispatch, timeOut]);
+  }, [viewer, isTransitioning, currentTransition, dispatch, timeOut]);
 };
 
 export default useTransitionTimeout;

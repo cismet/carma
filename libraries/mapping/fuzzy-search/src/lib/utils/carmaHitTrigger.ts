@@ -42,6 +42,7 @@ const proj4ConverterLookup = {};
 const DEFAULT_ZOOM_LEVEL = 16;
 const DEFAULT_CESIUM_MARKER_ANCHOR_HEIGHT = 10; // in METERS
 const DEFAULT_CESIUM_PITCH_ADJUST_HEIGHT = 1500; // meters
+const MAX_FLYTO_DURATION = 10000; // milliseconds
 
 type Coord = { lat: number; lon: number };
 // type MapType = 'leaflet' | 'cesium';
@@ -105,6 +106,7 @@ const CesiumMapActions = {
       const hpr = getHeadingPitchRangeFromZoom(zoom - 1, scene.camera);
       const range = distanceFromZoomLevel(zoom - 2);
 
+      // TODO ADD TEST FOR DURATION FACTOR
       duration =
         Math.pow(
           distanceTargets + Math.abs(currentRange - range) / currentRange,
@@ -116,6 +118,15 @@ const CesiumMapActions = {
         duration,
         distanceTargets
       );
+
+      if (duration > MAX_FLYTO_DURATION) {
+        console.info(
+          "[CESIUM|ANIMATION] FlytoBoundingSphere duration too long, clamped to",
+          duration,
+          MAX_FLYTO_DURATION
+        );
+        duration = MAX_FLYTO_DURATION;
+      }
 
       //TODO optional add responsive duration based on distance of target
 

@@ -2,13 +2,7 @@
 
 import { Cartesian3, Color } from "cesium";
 
-import {
-  BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
-  WUPP_LOD2_TILESET,
-  WUPP_MESH_2024,
-  WUPP_TERRAIN_PROVIDER,
-  WUPPERTAL,
-} from "@carma-commons/resources";
+import { WUPPERTAL } from "@carma-commons/resources";
 import { CesiumState, colorToArray } from "@carma-mapping/cesium-engine";
 
 import { MODEL_ASSETS } from "./assets.config";
@@ -17,7 +11,7 @@ import { FOOTPRINT_GEOJSON_SOURCES } from "./dataSources.config";
 
 // SETUP Store State
 
-const { x, y, z } = Cartesian3.fromDegrees(
+const homePosition = Cartesian3.fromDegrees(
   WUPPERTAL.position.lngDeg,
   WUPPERTAL.position.latDeg,
   WUPPERTAL.height
@@ -33,7 +27,7 @@ const homeOffset = {
 export const defaultCesiumState: CesiumState = {
   isMode2d: true,
   homeOffset: homeOffset,
-  homePosition: { x, y, z },
+  homePosition,
   showPrimaryTileset: false,
   showSecondaryTileset: true,
   styling: {
@@ -47,9 +41,16 @@ export const defaultCesiumState: CesiumState = {
     minimumZoomDistance: 100,
   },
   sceneStyles: {
-    default: {
+    primary: {
+      backgroundColor: Color.GRAY,
       globe: {
-        baseColor: colorToArray(Color.TEAL),
+        baseColor: new Color(0, 0, 0, 0.01),
+      },
+    },
+    secondary: {
+      backgroundColor: Color.WHITE,
+      globe: {
+        baseColor: Color.WHITE,
       },
     },
   },

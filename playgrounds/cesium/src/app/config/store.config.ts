@@ -43,13 +43,6 @@ export const defaultViewerState: CesiumState = {
       opacity: 1.0,
     },
   },
-  sceneStyles: {
-    default: {
-      globe: {
-        baseColor: colorToArray(Color.TEAL),
-      },
-    },
-  },
   dataSources: {
     footprintGeoJson: FOOTPRINT_GEOJSON_SOURCES.VORONOI,
   },

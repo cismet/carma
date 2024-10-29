@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import { SceneStyles } from "../..";
 import {
+  selectSceneStylePrimary,
+  selectSceneStyleSecondary,
   setShowPrimaryTileset,
   setShowSecondaryTileset,
 } from "../slices/cesium";
@@ -19,20 +21,21 @@ export const useSceneStyleToggle = (
     useState<keyof SceneStyles>(initialStyle);
   const ctx = useCesiumContext();
   const viewer = useCesiumViewer();
+  const primaryStyle = useSelector(selectSceneStylePrimary);
+  const secondaryStyle = useSelector(selectSceneStyleSecondary);
 
   useEffect(() => {
     if (!viewer) return;
-
     if (currentStyle === "primary") {
-      setupPrimaryStyle(ctx);
+      setupPrimaryStyle(ctx, primaryStyle);
       dispatch(setShowPrimaryTileset(true));
       dispatch(setShowSecondaryTileset(false));
     } else {
-      setupSecondaryStyle(ctx);
+      setupSecondaryStyle(ctx, secondaryStyle);
       dispatch(setShowPrimaryTileset(false));
       dispatch(setShowSecondaryTileset(true));
     }
-  }, [dispatch, viewer, currentStyle, ctx]);
+  }, [dispatch, viewer, currentStyle, ctx, primaryStyle, secondaryStyle]);
 
   const toggleSceneStyle = (style?: "primary" | "secondary") => {
     if (style) {
