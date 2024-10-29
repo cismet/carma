@@ -22,7 +22,7 @@ export const TweakpaneProvider: React.FC<{
   hashparam = DEFAULT_DEBUG_PARAM,
   position = { top: 64, left: 64 },
 }) => {
-  const [hidden, setHidden] = useState(false);
+  const [hidden, setHidden] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
   const paneRef = useRef<Pane | null>(null);
 
