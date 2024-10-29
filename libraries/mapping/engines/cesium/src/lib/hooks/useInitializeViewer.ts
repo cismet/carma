@@ -9,7 +9,6 @@ import {
   PerspectiveFrustum,
   Scene,
   ScreenSpaceCameraController,
-  Viewer,
 } from "cesium";
 import type { Map as LeafletMap } from "leaflet";
 
@@ -19,26 +18,16 @@ import {
   selectScreenSpaceCameraControllerEnableCollisionDetection,
   selectShowSecondaryTileset,
   selectViewerIsMode2d,
-  setShowPrimaryTileset,
-  setShowSecondaryTileset,
 } from "../slices/cesium";
 import { decodeSceneFromLocation } from "../utils/hashHelpers";
-import { setupSecondaryStyle } from "../utils/sceneStyles";
 
-import { useCesiumContext } from "./useCesiumContext";
 import { useCesiumViewer } from "./useCesiumViewer";
 
-export const useInitializeViewer = ({
-  containerRef,
-  home,
-  homeOffset,
-  leaflet,
-}: {
-  containerRef?: React.RefObject<HTMLDivElement>;
-  home: Cartesian3 | null;
-  homeOffset: Cartesian3 | null;
-  leaflet?: LeafletMap | null;
-}) => {
+export const useInitializeViewer = (
+  containerRef: React.RefObject<HTMLDivElement> | undefined,
+  home: Cartesian3 | null,
+  homeOffset: Cartesian3 | null
+) => {
   const hashRef = useRef<string | null>(null); // effectively hook should run only once
 
   const previousIsMode2d = useRef<boolean | null>(null);
@@ -62,8 +51,8 @@ export const useInitializeViewer = ({
   console.debug("HOOK: useInitializeViewer");
 
   useEffect(() => {
+    console.debug("HOOK: useInitializeViewer useEffect terrain");
     if (viewer) {
-      console.debug("HOOK: enable terrain collision detection");
       const scene: Scene = viewer.scene;
       const sscc: ScreenSpaceCameraController =
         scene.screenSpaceCameraController;
@@ -81,6 +70,7 @@ export const useInitializeViewer = ({
   }, [viewer, isSecondaryStyle, maxZoom, minZoom, enableCollisionDetection]);
 
   useEffect(() => {
+    console.debug("HOOK: useInitializeViewer useEffect hash");
     if (viewer && hashRef.current === null) {
       const locationHash = window.location.hash ?? "";
       hashRef.current = locationHash;
@@ -154,6 +144,7 @@ export const useInitializeViewer = ({
   }, [viewer, home, homeOffset, location.pathname, isMode2d]);
 
   useEffect(() => {
+    console.debug("HOOK: useInitializeViewer useEffect resize");
     if (viewer && containerRef?.current) {
       const resizeObserver = new ResizeObserver(() => {
         console.debug("HOOK: resize cesium container");
@@ -175,6 +166,7 @@ export const useInitializeViewer = ({
 
   useEffect(() => {
     // init hook
+    console.debug("HOOK: useInitializeViewer useEffect");
     if (viewer) {
       if (
         isMode2d !== previousIsMode2d.current ||

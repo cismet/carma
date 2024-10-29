@@ -12,11 +12,7 @@ import {
 
 import { useCesiumViewer } from "./useCesiumViewer";
 
-export const useCesiumHashUpdater = ({
-  enableLocationHashUpdate,
-}: {
-  enableLocationHashUpdate: boolean;
-}) => {
+export const useCesiumHashUpdater = (enableLocationHashUpdate: boolean) => {
   const viewer = useCesiumViewer();
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
   const isMode2d = useSelector(selectViewerIsMode2d);

@@ -24,10 +24,11 @@ const showLayers = (viewer: Viewer) => {
   }
 };
 
-export const useCesiumWhenHidden = ({ delay = 0 }: { delay: number }) => {
+export const useCesiumWhenHidden = (delay = 0) => {
   const viewer = useCesiumViewer();
   const isMode2d = useSelector(selectViewerIsMode2d);
   useEffect(() => {
+    console.debug("HOOK: [CESIUM] useCesiumWhenHidden", viewer, isMode2d);
     if (viewer) {
       if (isMode2d) {
         if (delay > 0) {

@@ -13,17 +13,10 @@ import {
 
 const DEFAULT_MIN_PITCH = 12;
 
-type LimiterOptions = {
-  easingRangeDeg?: number;
-  easing?: (v: number) => number;
-};
-
 const useCameraPitchEasingLimiter = (
   minPitchDeg = DEFAULT_MIN_PITCH,
-  {
-    easingRangeDeg = 20,
-    easing = EasingFunction.CIRCULAR_IN,
-  }: LimiterOptions = {}
+  easingRangeDeg = 20,
+  easing = EasingFunction.CIRCULAR_IN
 ) => {
   const viewer = useCesiumViewer();
 
@@ -42,16 +35,13 @@ const useCameraPitchEasingLimiter = (
   ); // Limit wasing range to remainder of right angle
   const minRangePitchRad = CesiumMath.toRadians(-minPitchDeg) - rangeRad;
 
-  const clearLast = () => {
-    lastPitch.current = null;
-    lastPosition.current = null;
-  };
-
   useEffect(() => {
     if (viewer && !isMode2d && collisions && !isTransitioning && !isAnimating) {
       const { camera, scene } = viewer;
       console.debug("HOOK [CESIUM|CAMERA] EASING Pitch Limiter added");
-      clearLast();
+      lastPitch.current = null;
+      lastPosition.current = null;
+
       const onUpdate = async () => {
         const isPitchInRange = camera.pitch > minRangePitchRad;
 

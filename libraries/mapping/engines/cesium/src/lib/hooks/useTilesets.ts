@@ -29,14 +29,20 @@ export const useTilesets = () => {
   useEffect(() => {
     if (viewer && tilesetPrimary) {
       viewer.scene.primitives.add(tilesetPrimary);
-      console.debug("[CESIUM|DEBUG] Adding primary tileset to viewer", viewer.scene.primitives.length);
+      console.debug(
+        "[CESIUM|DEBUG] Adding primary tileset to viewer",
+        viewer.scene.primitives.length
+      );
     }
   }, [tilesetPrimary, viewer]);
 
   useEffect(() => {
     if (viewer && tilesetSecondary) {
       viewer.scene.primitives.add(tilesetSecondary);
-      console.debug("[CESIUM|DEBUG] Adding secondary tileset to viewer", viewer.scene.primitives.length);
+      console.debug(
+        "[CESIUM|DEBUG] Adding secondary tileset to viewer",
+        viewer.scene.primitives.length
+      );
     }
   }, [tilesetSecondary, viewer]);
 
@@ -44,7 +50,9 @@ export const useTilesets = () => {
     console.debug("HOOK BaseTilesets: showSecondary", showSecondary);
     if (tilesetSecondary) {
       tilesetSecondary.show = showSecondary;
-      console.debug("[CESIUM|DEBUG] show secondary tileset, setting preloadWhenHidden to true");
+      console.debug(
+        "[CESIUM|DEBUG] show secondary tileset, setting preloadWhenHidden to true"
+      );
       // after initial load, set this to true to enable fast switching to small LOD2 tilesets
       tilesetSecondary.preloadWhenHidden = true;
     }

@@ -77,11 +77,14 @@ export const setupPrimaryStyle = (
 
     console.debug("[STYLES|TERRAIN|CESIUM] setup primary style");
 
-    // disables terrain and suspends loading of imagery layer
-    // viewer.scene.terrainProvider = undefined!;
+    // use terrain provider not the surface provider to prevent camera jitter on move
+    waitAndSetTerrainProvider(viewerRef, terrainProviderRef, {
+      label: "secondary",
+      //onReady: addImageryLayer,
+    });
+
     if (imageryLayer) {
       imageryLayer.show = false;
-      //viewer.imageryLayers.remove(imageryLayer, false);
     }
 
     const invertedSelection = getGroundPrimitiveById(

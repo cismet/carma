@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { BoundingSphere, Cartesian3, Math as CesiumMath } from "cesium";
 
@@ -21,10 +21,14 @@ const useCameraPitchSoftLimiter = (
   const collisions = useSelector(
     selectScreenSpaceCameraControllerEnableCollisionDetection
   );
-  const resetPitchRad = CesiumMath.toRadians(
-    -(minPitchDeg + resetPitchOffsetDeg)
+  const resetPitchRad = useMemo(
+    () => CesiumMath.toRadians(-(minPitchDeg + resetPitchOffsetDeg)),
+    [minPitchDeg, resetPitchOffsetDeg]
   );
-  const minPitchRad = CesiumMath.toRadians(-minPitchDeg);
+  const minPitchRad = useMemo(
+    () => CesiumMath.toRadians(-minPitchDeg),
+    [minPitchDeg]
+  );
 
   useEffect(() => {
     if (viewer && !isMode2d && collisions) {

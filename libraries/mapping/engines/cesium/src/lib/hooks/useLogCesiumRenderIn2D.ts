@@ -1,18 +1,12 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useSelector } from "react-redux";
 
 import { useCesiumViewer } from "./useCesiumViewer";
-import {
-  selectViewerCurrentTransition,
-  selectViewerIsAnimating,
-  selectViewerIsMode2d,
-} from "../slices/cesium";
+import { selectViewerIsMode2d } from "../slices/cesium";
 
 export const useLogCesiumRenderIn2D = () => {
   const viewer = useCesiumViewer();
   const isMode2d = useSelector(selectViewerIsMode2d);
-  const isAnimatingRef = useRef(useSelector(selectViewerIsAnimating));
-  const transitionRef = useRef(useSelector(selectViewerCurrentTransition));
 
   useEffect(() => {
     if (!viewer) return;
@@ -20,8 +14,6 @@ export const useLogCesiumRenderIn2D = () => {
       if (isMode2d) {
         console.debug(
           "[CESIUM|2D3D] Cesium got rendered while in 2D mode",
-          isAnimatingRef.current,
-          transitionRef.current,
           isMode2d
         );
       }

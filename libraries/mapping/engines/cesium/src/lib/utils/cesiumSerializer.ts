@@ -27,9 +27,7 @@ export const toColorRgbaArray = (color: Color): ColorRgbaArray => {
   return [red, green, blue, alpha];
 };
 
-export const fromColorRgbaArray = (
-  color: unknown
-): Color | null => {
+export const fromColorRgbaArray = (color: unknown): Color | null => {
   if (!isColorRgbaArray(color)) {
     console.debug("Invalid color array", color);
     return null;

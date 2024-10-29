@@ -1,4 +1,11 @@
-import { ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useSelector } from "react-redux";
 import { useLocation } from "react-router-dom";
 
@@ -126,7 +133,9 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
         },
         params: {
           get fov() {
-            return (viewer?.scene.camera.frustum as PerspectiveFrustum)?.fov || 1.0;
+            return (
+              (viewer?.scene.camera.frustum as PerspectiveFrustum)?.fov || 1.0
+            );
           },
 
           set fov(value: number) {
@@ -245,7 +254,9 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
             format: (v: number) => formatFractions(resolutionFractions[v]),
           },
         ],
-      }), [])
+      }),
+      []
+    )
   );
   useEffect(() => {
     if (!viewerRef.current) return;
@@ -281,7 +292,7 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
 
   const location = useLocation();
 
-  useInitializeViewer({ home, homeOffset });
+  useInitializeViewer(undefined, home, homeOffset);
 
   useEffect(() => {
     if (!viewerRef.current) return;

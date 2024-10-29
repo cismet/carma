@@ -61,11 +61,6 @@ export const hashcodecs = {
         )
       ),
   },
-  isAnimating: {
-    key: "anim",
-    decode: (value: string) => value === "true" || value === "1",
-    encode: (value: boolean) => (value ? "1" : null),
-  },
   isSecondaryStyle: {
     key: "m",
     decode: (value: string) => value === "true" || value === "1",
@@ -93,7 +88,7 @@ export function encodeScene(
   const heading = camera.heading;
   const pitch = camera.pitch;
 
-  const { isAnimating, isSecondaryStyle, zoom, isMode2d } = appState;
+  const { isSecondaryStyle, zoom, isMode2d } = appState;
   // set param order here
   const hashParams = [
     longitude,
@@ -102,7 +97,6 @@ export function encodeScene(
     heading,
     pitch,
     zoom,
-    isAnimating,
     isSecondaryStyle,
     isMode2d,
   ].reduce((acc, value, index) => {
@@ -128,7 +122,6 @@ export function encodeScene(
         pitch,
       },
       zoom,
-      isAnimating,
       isSecondaryStyle,
     },
   };

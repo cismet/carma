@@ -1,9 +1,13 @@
-import { type ReactNode, type RefObject, useContext, useEffect } from "react";
+import {
+  type ReactNode,
+  type RefObject,
+  useContext,
+  useEffect,
+  useMemo,
+} from "react";
 import { useSelector } from "react-redux";
 
 import { Color, Viewer, HeadingPitchRange, Rectangle, SceneMode } from "cesium";
-
-import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { selectViewerHomeOffset, selectViewerHome } from "./slices/cesium";
 
@@ -90,16 +94,10 @@ export function CustomViewer(props: CustomViewerProps) {
     minPitchRange,
   } = props;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const topicMapContext: any =
-    useContext<typeof TopicMapContext>(TopicMapContext);
-
-  const leaflet = topicMapContext?.routedMapRef?.leafletMap?.leafletElement;
-
   useTweakpane();
 
-  useInitializeViewer({ home, homeOffset, leaflet, containerRef });
-  useCesiumGlobe({ globeOptions: globeOptions });
+  useInitializeViewer(containerRef, home, homeOffset);
+  useCesiumGlobe(globeOptions);
 
   useSceneStyles();
 
@@ -109,41 +107,47 @@ export function CustomViewer(props: CustomViewerProps) {
   useDisableSSCC();
   useCameraRollSoftLimiter();
   useCameraPitchSoftLimiter(22, 8);
-  useCameraPitchEasingLimiter(minPitch, { easingRangeDeg: minPitchRange });
+  useCameraPitchEasingLimiter(minPitch, minPitchRange);
 
-  useCesiumWhenHidden({ delay: TRANSITION_DELAY });
-  useCesiumHashUpdater({ enableLocationHashUpdate });
+  useCesiumWhenHidden(TRANSITION_DELAY);
+  useCesiumHashUpdater(enableLocationHashUpdate);
 
   useTilesets();
 
-  useEffect(() => {
-    if (containerRef?.current) {
-      const options: Viewer.ConstructorOptions = {
-        //full // equals style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
-        // Quality and performance
-        msaaSamples: 4,
-        requestRenderMode: true,
-        scene3DOnly: true,
-        sceneMode: SceneMode.SCENE3D,
-        selectionIndicator: selectionIndicator,
-        targetFrameRate: CESIUM_TARGET_FRAME_RATE,
-        useBrowserRecommendedResolution: true,
-        contextOptions: { webgl: { alpha: true } },
+  const options: Viewer.ConstructorOptions = useMemo(
+    () => ({
+      //full // equals style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+      // Quality and performance
+      msaaSamples: 4,
+      requestRenderMode: true,
+      scene3DOnly: true,
+      sceneMode: SceneMode.SCENE3D,
+      selectionIndicator: selectionIndicator,
+      targetFrameRate: CESIUM_TARGET_FRAME_RATE,
+      useBrowserRecommendedResolution: true,
+      contextOptions: { webgl: { alpha: true } },
+      resolutionScale: viewerOptions.resolutionScale,
 
-        // Hide UI components
-        animation: false,
-        baseLayer: false,
-        baseLayerPicker: false,
-        fullscreenButton: false,
-        geocoder: false,
-        homeButton: false,
-        infoBox: false,
-        navigationHelpButton: false,
-        navigationInstructionsInitiallyVisible: false,
-        sceneModePicker: false,
-        skyBox: false,
-        timeline: false,
-      };
+      // Hide UI components
+      animation: false,
+      baseLayer: false,
+      baseLayerPicker: false,
+      fullscreenButton: false,
+      geocoder: false,
+      homeButton: false,
+      infoBox: false,
+      navigationHelpButton: false,
+      navigationInstructionsInitiallyVisible: false,
+      sceneModePicker: false,
+      skyBox: false,
+      timeline: false,
+    }),
+    [selectionIndicator, viewerOptions.resolutionScale]
+  );
+
+  useEffect(() => {
+    console.debug("RENDER: [CESIUM] CustomViewer useEffect");
+    if (containerRef?.current) {
       try {
         viewerRef.current = new Viewer(containerRef.current, options);
         /*

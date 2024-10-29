@@ -22,7 +22,7 @@ const DEFAULT_MESH_OPTIONS: Cesium3DTileset.ConstructorOptions = {
   skipScreenSpaceErrorFactor: 4,
   loadSiblings: true, // with SkipLevelOfDetail
   //immediatelyLoadDesiredLevelOfDetail: true,
-  
+
   enableCollision: false,
 };
 

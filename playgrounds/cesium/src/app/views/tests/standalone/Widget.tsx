@@ -4,7 +4,6 @@ import { Checkbox, Radio, Select } from "antd";
 import { useTweakpaneCtx } from "@carma-commons/debug";
 import { Widget } from "@carma-mapping/cesium-widget-engine";
 
-
 import { WUPP_MESH_2024 } from "@carma-commons/resources";
 import type { LatLngRecord } from "types/common-geo";
 
@@ -272,8 +271,9 @@ function View() {
               key={feature!.properties![key]}
               value={feature!.properties![key]}
             >
-              {`${feature!.properties![labelProperty]} - ${feature!.properties!["STRNAME"]
-                } ${feature!.properties!["HAUSNR"]}`}
+              {`${feature!.properties![labelProperty]} - ${
+                feature!.properties!["STRNAME"]
+              } ${feature!.properties!["HAUSNR"]}`}
             </Option>
           ))}
       </Select>

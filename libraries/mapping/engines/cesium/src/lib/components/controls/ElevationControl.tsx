@@ -264,7 +264,7 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
         : cameraRelHeightDisplayPosition;
       const cameraMinElevationDisplayPosition =
         (viewer?.scene.screenSpaceCameraController.minimumZoomDistance ?? 0) *
-        factor +
+          factor +
         (clamp ? clampedHeightDisplayPosition : terrainHeightDisplayPosition);
 
       setDisplayY({
@@ -300,8 +300,8 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
       Math.abs(cameraHeight - newValue) > 0.05 &&
       (!viewer.scene.screenSpaceCameraController.enableCollisionDetection ||
         newValue >=
-        terrainHeight +
-        viewer.scene.screenSpaceCameraController.minimumZoomDistance * 0.5)
+          terrainHeight +
+            viewer.scene.screenSpaceCameraController.minimumZoomDistance * 0.5)
     ) {
       window.requestAnimationFrame(() => {
         const newPosition = getNewPosition(
