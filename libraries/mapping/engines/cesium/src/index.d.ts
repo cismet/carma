@@ -1,11 +1,12 @@
-// TODO consolidate with rest of libs
 
-import { Color, TerrainProvider } from "cesium";
+import { TerrainProvider } from "cesium";
 import { PlainCartesian3 } from "types/common-geo";
 
 import { hashcodecs } from "./lib/utils/hashHelpers";
 import { ProviderConfig } from "./lib/utils/cesiumProviders";
 import { TilesetConfigs } from "./lib/utils/cesiumTilesetProviders";
+
+// TODO consolidate with rest of libs
 
 export type LatLngRecord = {
   latitude: number;
@@ -115,16 +116,16 @@ export type ImageryProviderConfig = {
   parameters: { transparent: boolean; format: string };
 };
 
-export type SceneStyleDescription = {
+export type SceneStyle = {
+  backgroundColor: ColorRgbaArray;
   globe: {
     baseColor: ColorRgbaArray;
   };
 };
 
 export type SceneStyles = {
-  default: SceneStyleDescription;
-  primary?: Partial<SceneStyleDescription>;
-  secondary?: Partial<SceneStyleDescription>;
+  primary?: Partial<SceneStyle>;
+  secondary?: Partial<SceneStyle>;
 };
 
 export type CesiumConfig = {
@@ -158,7 +159,7 @@ export interface CesiumState {
     minimumZoomDistance: number; // default is 1.0
     maximumZoomDistance: number; // default is Infinity
   };
-  sceneStyles: SceneStyles;
+  sceneStyles?: SceneStyles;
   // TODO move to per tileset styling
   styling: {
     tileset: {
@@ -174,8 +175,6 @@ export interface CesiumState {
 export type RootState = {
   cesium: CesiumState;
 };
-
-export type ColorInput = ColorRgbaArray | Color;
 
 // from Hash
 

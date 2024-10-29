@@ -89,20 +89,6 @@ export const logTileSetInfoOnReady = (tileset: Cesium3DTileset) => {
   );
 };
 
-export const isColorRgbaArray = (
-  color: ColorRgbaArray | Color | undefined
-): color is ColorRgbaArray => {
-  return (
-    Array.isArray(color) &&
-    color.length === 4 &&
-    color.every((x) => typeof x === "number")
-  );
-};
-
-export const colorToArray = (color: Color): ColorRgbaArray => {
-  const { red, green, blue, alpha } = color;
-  return [red, green, blue, alpha];
-};
 
 export const getTileSetInfo = (tileset: Cesium3DTileset) => {
   const { center } = tileset.root.boundingSphere;

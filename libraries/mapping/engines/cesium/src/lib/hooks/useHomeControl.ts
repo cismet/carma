@@ -10,13 +10,11 @@ export const useHomeControl = () => {
   const dispatch = useDispatch();
   const viewer = useCesiumViewer();
   const homePosition = useSelector(selectViewerHome);
+
   const [homePos, setHomePos] = useState<Cartesian3 | null>(null);
 
   useEffect(() => {
-    homePosition &&
-      setHomePos(
-        new Cartesian3(homePosition.x, homePosition.y, homePosition.z)
-      );
+    homePosition && setHomePos(homePosition);
   }, [homePosition]);
 
   const handleHomeClick = useCallback(() => {

@@ -10,11 +10,15 @@ import {
 /**
  * Rotates and tilts the Cesium camera around the center of the screen.
  * @param viewer - The Cesium viewer instance.
- * @param destionation - The position to look at.
+ * @param destination - The position to look at.
  * @param hpr - the target heading, pitch, and range of the camera.
  * @param options - Options for the completion of the animation.
  * @param options.duration - The duration of the animation in milliseconds. Defaults to 1000.
+ * @param options.cancelable - If true, the animation can be canceled by user interaction. Defaults to true.
+ * @param options.easing - The easing function to use for the animation. Defaults to EasingFunction.CUBIC_IN_OUT.
+ * @param options.onCancel - A callback function to be called when the animation is canceled.
  * @param options.onComplete - A callback function to be called when the animation completes.
+ * @param options.setPrevious - A callback function to be called with the initial heading, pitch, and range of the camera.
  * @param options.useCurrentDistance - use current Distance/Range instead of last views one.
  */
 export function animateInterpolateHeadingPitchRange(
@@ -25,16 +29,22 @@ export function animateInterpolateHeadingPitchRange(
     delay = 0,
     duration = 1000,
     onComplete,
+    onCancel,
+    cancelable = true,
     useCurrentDistance = true,
     easing = EasingFunction.CUBIC_IN_OUT,
+    setPrevious,
   }: {
+    setPrevious?: (hpr: HeadingPitchRange) => void;
     duration?: number;
     delay?: number; // ms
     onComplete?: () => void;
+    cancelable?: boolean;
+    onCancel?: () => void;
     useCurrentDistance?: boolean;
     easing?: (time: number) => number;
   } = {}
-) {
+): () => void {
   const { heading, pitch, range } = hpr;
 
   // get HPR from camera in relation to LookAt in order to interpolate to target HPR
@@ -43,25 +53,53 @@ export function animateInterpolateHeadingPitchRange(
   const initialPitch = viewer.camera.pitch;
   const initialRange = Cartesian3.distance(viewer.camera.position, destination);
 
-  const headingDifference = initialHeading - heading;
-  // Check if adding 2π (or 360 degrees) makes the path shorter
-  if (Math.abs(headingDifference) > Math.PI) {
-    if (headingDifference > 0) {
-      initialHeading -= 2 * Math.PI;
-    }
-  }
+  setPrevious &&
+    setPrevious({
+      heading: initialHeading,
+      pitch: initialPitch,
+      range: initialRange,
+    });
+
+  // Animation control variables
+  let animationFrameId: number | null = null;
+  let isCanceled = false;
 
   // Animation start time
   const startTime = performance.now() + delay; // delay the animation for other animations to finish
-  let frameIndex = 0;
+
+  const onUserInteraction = () => {
+    if (cancelable) {
+      console.info("Animation canceled due to user interaction.");
+      cancelAnimation();
+    }
+  };
+
+  const cancelAnimation = () => {
+    if (animationFrameId !== null) {
+      cancelAnimationFrame(animationFrameId);
+      animationFrameId = null;
+      isCanceled = true;
+      viewer.canvas.removeEventListener("pointerdown", onUserInteraction);
+      viewer.camera.lookAtTransform(Matrix4.IDENTITY);
+      onCancel?.();
+    }
+  };
+
+  viewer.canvas.addEventListener("pointerdown", onUserInteraction);
+
+  const interpolateAngle = (start: number, end: number, t: number): number => {
+    const delta = CesiumMath.negativePiToPi(end - start);
+    return start + delta * t;
+  };
 
   const animate = (time: number) => {
+    if (isCanceled) return;
     const elapsed = time - startTime;
     const t = Math.min(elapsed / duration, 1); // normalize to [0, 1]
     //console.debug('animate', duration, elapsed, t, frameIndex);
 
     // Interpolate heading and pitch over time
-    const currentHeading = CesiumMath.lerp(initialHeading, heading, easing(t));
+    const currentHeading = interpolateAngle(initialHeading, heading, easing(t));
     const currentPitch = CesiumMath.lerp(initialPitch, pitch, easing(t));
     const currentRange = useCurrentDistance
       ? initialRange
@@ -79,16 +117,16 @@ export function animateInterpolateHeadingPitchRange(
     viewer.scene.render();
 
     if (t < 1) {
-      requestAnimationFrame(animate);
+      animationFrameId = requestAnimationFrame(animate);
     } else {
       // Animation complete, reset the transformation matrix
       viewer.camera.lookAtTransform(Matrix4.IDENTITY);
+      viewer.canvas.removeEventListener("pointerdown", onUserInteraction);
       onComplete?.();
     }
-    frameIndex++;
   };
 
-  requestAnimationFrame(animate);
+  animationFrameId = requestAnimationFrame(animate);
 
-  return new HeadingPitchRange(initialHeading, initialPitch, initialRange);
+  return cancelAnimation;
 }

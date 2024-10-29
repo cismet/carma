@@ -2,33 +2,41 @@ import { CesiumTerrainProvider, ClassificationType, Color } from "cesium";
 
 import type { CesiumContextType } from "../CesiumContext";
 import { getGroundPrimitiveById } from "./cesiumGroundPrimitives";
+import { SceneStyle } from "../..";
+import { fromColorRgbaArray } from "./cesiumSerializer";
 
 // TODO have configurable setup functions for primary and secondary styles
 // TODO MOVE THE ID into viewer config/state
 const INVERTED_SELECTED_POLYGON_ID = "searchgaz-inverted-polygon";
 
-export const setupPrimaryStyle = ({
-  viewerRef,
-  terrainProviderRef,
-  surfaceProviderRef,
-  imageryLayerRef,
-}: CesiumContextType) => {
+export const setupPrimaryStyle = (
+  {
+    viewerRef,
+    terrainProviderRef,
+    surfaceProviderRef,
+    imageryLayerRef,
+  }: CesiumContextType,
+  style?: Partial<SceneStyle>
+) => {
   (async () => {
     const viewer = viewerRef.current;
+
+    if (!viewer) return;
+
     const terrainProvider = terrainProviderRef.current;
     const surfaceProvider = surfaceProviderRef.current;
     const imageryLayer = imageryLayerRef.current;
 
-    if (!viewer) return;
-    viewer.scene.globe.baseColor = Color.DARKGRAY;
+    viewer.scene.globe.baseColor =
+      fromColorRgbaArray(style?.globe?.baseColor) ?? Color.LIGHTGREY;
+    viewer.scene.backgroundColor =
+      fromColorRgbaArray(style?.backgroundColor) ??
+      new Color(0, 0, 0, 0);
 
-    if (viewer.scene.terrainProvider instanceof CesiumTerrainProvider) {
-      //viewer.scene.terrainProvider = ellipsoidTerrainProvider;
-    } else {
-      if (surfaceProvider) {
-        viewer.scene.terrainProvider = surfaceProvider;
-      }
+    if (surfaceProvider) {
+      viewer.scene.terrainProvider = surfaceProvider;
     }
+
     // viewer.scene.globe.depthTestAgainstTerrain = false;
 
     if (imageryLayer) {
@@ -47,18 +55,21 @@ export const setupPrimaryStyle = ({
   })();
 };
 
-export const setupSecondaryStyle = ({
-  viewerRef,
-  terrainProviderRef,
-  imageryLayerRef,
-}: CesiumContextType) => {
+export const setupSecondaryStyle = (
+  { viewerRef, terrainProviderRef, imageryLayerRef }: CesiumContextType,
+  style?: Partial<SceneStyle>
+) => {
   const viewer = viewerRef.current;
   const terrainProvider = terrainProviderRef.current;
   const imageryLayer = imageryLayerRef.current;
 
   if (!viewer) return;
   (async () => {
-    viewer.scene.globe.baseColor = Color.WHITE;
+    viewer.scene.globe.baseColor =
+      fromColorRgbaArray(style?.globe?.baseColor) ?? Color.WHITE;
+    viewer.scene.backgroundColor =
+      fromColorRgbaArray(style?.backgroundColor) ?? new Color(0, 0, 0, 0);
+
     if (
       !(viewer.scene.terrainProvider instanceof CesiumTerrainProvider) &&
       terrainProvider

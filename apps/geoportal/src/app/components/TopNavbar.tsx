@@ -10,10 +10,7 @@ import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 import { useOverlayHelper } from "@carma-commons/ui/lib-helper-overlay";
-import {
-  selectViewerIsMode2d,
-  useSceneStyleToggle,
-} from "@carma-mapping/cesium-engine";
+import { useSceneStyleToggle } from "@carma-mapping/cesium-engine";
 
 import {
   getBackgroundLayer,
@@ -46,7 +43,6 @@ const TopNavbar = () => {
   const tourMode = useSelector(getUIOverlayTourMode);
   const toggleSceneStyle = useSceneStyleToggle();
 
-  const isMode2d = useSelector(selectViewerIsMode2d);
   const handleToggleTour = () => {
     dispatch(toggleShowOverlayTour(!tourMode));
   };
@@ -93,7 +89,7 @@ const TopNavbar = () => {
                     setBackgroundLayer({
                       ...selectedMapLayer,
                       id: "karte",
-                      visible: isMode2d,
+                      visible: true,
                     })
                   );
                   toggleSceneStyle("secondary");
@@ -107,7 +103,7 @@ const TopNavbar = () => {
                       inhalt: layerMap[e.target.value].inhalt,
                       eignung: layerMap[e.target.value].eignung,
                       layerType: "wmts",
-                      visible: isMode2d,
+                      visible: true,
                       props: {
                         name: "",
                         url: layerMap[e.target.value].url,

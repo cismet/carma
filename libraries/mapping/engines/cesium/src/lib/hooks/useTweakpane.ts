@@ -115,7 +115,8 @@ const useTweakpane = () => {
         // Use the index to set the resolutionScale from the array
         if (viewer && index >= 0 && index < resolutionFractions.length) {
           const value = resolutionFractions[index];
-          viewer.resolutionScale = value;
+          console.debug("HOOK: [TWEAKPANE] resolutionScale", index, value);
+          viewer.resolutionScale = value ?? 1;
         }
       },
     },

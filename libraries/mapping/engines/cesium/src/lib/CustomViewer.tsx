@@ -1,12 +1,16 @@
-import { memo, type ReactNode, type RefObject, useContext } from "react";
+import {
+  type ReactNode,
+  type RefObject,
+  useContext,
+  useEffect,
+} from "react";
 import { useSelector } from "react-redux";
 
-import { Color, HeadingPitchRange, Rectangle } from "cesium";
-import { Viewer as ResiumViewer } from "resium";
+import { Color, Viewer, HeadingPitchRange, Rectangle, SceneMode } from "cesium";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
-import { selectViewerHome, selectViewerHomeOffset } from "./slices/cesium";
+import { selectViewerHomeOffset, selectViewerHome } from "./slices/cesium";
 
 import ElevationControl from "./components/controls/ElevationControl";
 
@@ -23,6 +27,7 @@ import { useLogCesiumRenderIn2D } from "./hooks/useLogCesiumRenderIn2D";
 import useTransitionTimeout from "./hooks/useTransitionTimeout";
 import useTweakpane from "./hooks/useTweakpane";
 import { useTilesets } from "./hooks/useTilesets";
+import { fromPlainCartesian3 } from "./utils/cesiumSerializer";
 
 export type GlobeOptions = {
   // https://cesium.com/learn/cesiumjs/ref-doc/Globe.html
@@ -35,7 +40,6 @@ export type GlobeOptions = {
 export type CustomViewerProps = {
   children?: ReactNode;
   containerRef?: RefObject<HTMLDivElement>;
-  className?: string;
   postInit?: () => void;
 
   enableLocationHashUpdate?: boolean;
@@ -72,14 +76,12 @@ export function CustomViewer(props: CustomViewerProps) {
   const { viewerRef } = useCesiumContext();
   const home = useSelector(selectViewerHome);
   const homeOffset = useSelector(selectViewerHomeOffset);
-  //const isAnimating = useViewerIsAnimating();
-
+  
   const {
     children,
-    className,
     selectionIndicator = false,
     globeOptions = {
-      baseColor: Color.WHITESMOKE,
+      baseColor: Color.TRANSPARENT,
       cartographicLimitRectangle: undefined,
       showGroundAtmosphere: false,
       showSkirts: false,
@@ -117,52 +119,68 @@ export function CustomViewer(props: CustomViewerProps) {
 
   useTilesets();
 
+  useEffect(() => {
+    if (containerRef?.current) {
+      const options: Viewer.ConstructorOptions = {
+        //full // equals style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+        // Quality and performance
+        msaaSamples: 4,
+        requestRenderMode: true,
+        scene3DOnly: true,
+        sceneMode: SceneMode.SCENE3D,
+        selectionIndicator: selectionIndicator,
+        targetFrameRate: CESIUM_TARGET_FRAME_RATE,
+        useBrowserRecommendedResolution: true,
+        contextOptions: { webgl: { alpha: true } },
+
+        // Hide UI components
+        animation: false,
+        baseLayer: false,
+        baseLayerPicker: false,
+        fullscreenButton: false,
+        geocoder: false,
+        homeButton: false,
+        infoBox: false,
+        navigationHelpButton: false,
+        navigationInstructionsInitiallyVisible: false,
+        sceneModePicker: false,
+        skyBox: false,
+        timeline: false,
+      };
+      try {
+        viewerRef.current = new Viewer(containerRef.current, options);
+        /*
+        // make cesium added containers transparent
+        const container = viewerRef.current.container;
+        const cesiumViewer = container.children[0] as HTMLElement;
+        const cesiumViewerCesiumWidgetContainer = cesiumViewer
+          .children[0] as HTMLElement;
+        const cesiumWidget = cesiumViewerCesiumWidgetContainer
+          .children[0] as HTMLElement;
+        cesiumViewer.style.backgroundColor = "transparent";
+        cesiumViewerCesiumWidgetContainer.style.backgroundColor = "transparent";
+        cesiumWidget.style.backgroundColor = "transparent";
+        */
+      } catch (error) {
+        console.error("Error initializing viewer:", error);
+      }
+    }
+    return () => {
+      if (viewerRef.current) {
+        viewerRef.current.destroy();
+        viewerRef.current = null;
+      }
+    };
+  }, []);
+
   console.debug("RENDER: [CESIUM] CustomViewer");
 
   return (
     <>
       <ElevationControl show={false} />
-      <ResiumViewer
-        ref={(node) => {
-          if (node !== null) {
-            viewerRef.current = node.cesiumElement ?? null;
-            //viewer = node.cesiumElement ?? null;
-          }
-        }}
-        className={className}
-        // Resium ViewerOtherProps
-        full // equals style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}`
-        // Cesium Props
-        // see https://cesium.com/learn/cesiumjs/ref-doc/Viewer.html#.ConstructorOptions for defaults
-
-        // quality and performance
-        msaaSamples={4}
-        //useBrowserRecommendedResolution={true} // false allows crisper image, does not ignore devicepixel ratio
-        //resolutionScale={window.devicePixelRatio} // would override dpr
-        scene3DOnly={true} // No 2D map resources loaded
-        //sceneMode={SceneMode.SCENE3D} // Default but explicit
-
-        // hide UI
-        animation={false}
-        //resolutionScale={adaptiveResolutionScale}
-        baseLayer={false}
-        baseLayerPicker={false}
-        fullscreenButton={false}
-        geocoder={false}
-        targetFrameRate={CESIUM_TARGET_FRAME_RATE}
-        homeButton={false}
-        infoBox={false}
-        sceneModePicker={false}
-        selectionIndicator={selectionIndicator}
-        timeline={false}
-        navigationHelpButton={false}
-        navigationInstructionsInitiallyVisible={false}
-        skyBox={false}
-      >
-        {children}
-      </ResiumViewer>
+      {children}
     </>
   );
 }
 
-export default memo(CustomViewer);
+export default CustomViewer;

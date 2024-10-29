@@ -1,4 +1,3 @@
-import { colorToArray } from "./lib/utils/cesiumHelpers";
 export * from "./lib/slices/cesium";
 
 export { CesiumContextProvider } from "./lib/CesiumContextProvider";
@@ -27,9 +26,10 @@ export { CUSTOM_SHADERS_DEFINITIONS } from "./lib/shaders";
 // TODO: all the utils used elsewhere with no cesium dedependency should be moved to common helper utils lib
 
 export {
-  colorToArray,
   pickViewerCanvasCenter,
 } from "./lib/utils/cesiumHelpers";
+export { fromColorRgbaArray, toColorRgbaArray } from "./lib/utils/cesiumSerializer";
+
 export {
   invertedPolygonHierarchy,
   polygonHierarchyFromPolygonCoords,

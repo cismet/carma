@@ -85,6 +85,7 @@ export const useMapTransition = ({
           duration: prevDuration * 1000,
           useCurrentDistance: true,
           onComplete: onComplete3d,
+          onCancel: onComplete3d,
         });
       } else {
         console.debug(
@@ -195,37 +196,21 @@ export const useMapTransition = ({
         groundPos,
         height
       );
-      setPrevHPR(
-        animateInterpolateHeadingPitchRange(
-          viewer,
-          groundPos,
-          new HeadingPitchRange(0, -Math.PI / 2, distance),
-          {
-            duration: duration * 1000,
-            onComplete: onComplete2d,
-          }
-        )
+
+      animateInterpolateHeadingPitchRange(
+        viewer,
+        groundPos,
+        new HeadingPitchRange(0, -Math.PI / 2, distance),
+        {
+          setPrevious: setPrevHPR,
+          duration: duration * 1000,
+          onComplete: onComplete2d,
+          cancelable: false,
+        }
       );
     } else {
       console.info("rotate around camera position not implemented yet zoom");
       dispatch(clearTransition());
-      /*
-   // TODO implement this
-   // rotate around the camera position
-   animateInterpolateHeadingPitchRange(
-     viewer,
-     viewer.camera.position,
-     new HeadingPitchRange(
-       0,
-       -Math.PI / 2,
-       height - viewer.camera.positionCartographic.height
-     ),
-     {
-       duration: duration * 1000,
-       onComplete,
-     }
-   );
-   */
     }
   };
 
