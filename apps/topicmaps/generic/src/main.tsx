@@ -41,6 +41,9 @@ function AppWrapper() {
   if (name === undefined) {
     name = "Wasserstoff-Tankstellenkarte_Wuppertal";
   }
+  //set the window title to the name param but replace the underscores with spaces
+  document.title = name.split("_").join(" ");
+
   return <App name={name} />;
 }
 

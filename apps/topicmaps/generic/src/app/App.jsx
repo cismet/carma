@@ -5,7 +5,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "leaflet/dist/leaflet.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
-import { md5FetchText, fetchJSON } from "react-cismap/tools/fetching";
+import { md5FetchText } from "react-cismap/tools/fetching";
 import { getGazDataForTopicIds } from "react-cismap/tools/gazetteerHelper";
 
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
@@ -20,7 +20,8 @@ import getGTMFeatureStyler, {
 } from "react-cismap/topicmaps/generic/GTMStyler";
 import DefaultAppMenu from "react-cismap/topicmaps/menu/DefaultAppMenu";
 import slugify from "slugify";
-
+import SecondaryInfoModal from "./SecondaryInfoModal";
+import Map from "./Map";
 const host = "https://wupp-topicmaps-data.cismet.de";
 
 async function getConfig(slugName, configType, server, path) {
@@ -89,34 +90,17 @@ export const getGazData = async (
 
   const gazData = getGazDataForTopicIds(sources, topics);
 
-  setGazData(gazData);
+  setGazData([...gazData]);
 };
-
-const downloadText = (text, filename) => {
-  var element = document.createElement("a");
-  element.setAttribute(
-    "href",
-    "data:text/plain;charset=utf-8," + encodeURIComponent(text)
-  );
-  element.setAttribute("download", filename);
-
-  element.style.display = "none";
-  document.body.appendChild(element);
-
-  element.click();
-
-  document.body.removeChild(element);
-};
-
 function App({
   name,
-  configPath = "/dev/",
-  configServer = "https://raw.githubusercontent.com/cismet/wupp-generic-topic-map-config", //"https://raw.githubusercontent.com/cismet/wupp-generic-topic-map-config",
+  configPath = "/", //"/dev/",
+  configServer = "http://localhost:3000", //"https://raw.githubusercontent.com/cismet/wupp-generic-topic-map-config", //"https://raw.githubusercontent.com/cismet/wupp-generic-topic-map-config",
 }) {
   const [initialized, setInitialized] = useState(false);
   const [config, setConfig] = useState({});
-
   const [gazData, setGazData] = useState([]);
+
   useEffect(() => {
     (async () => {
       const path = configPath;
@@ -222,66 +206,10 @@ function App({
           ...config.tm.clusterOptions,
         }}
       >
-        <TopicMapComponent
-          {...config.tm}
-          gazData={gazData}
-          infoBox={<GenericInfoBoxFromFeature config={config.info} />}
-          modalMenu={
-            <DefaultAppMenu
-              simpleHelp={config.helpTextblocks}
-              previewMapPosition={config?.tm?.previewMapPosition}
-              previewFeatureCollectionCount={
-                config?.tm?.previewFeatureCollectionCount
-              }
-              introductionMarkdown={`Über **Einstellungen** können Sie die Darstellung der
-              Hintergrundkarte und ${
-                config?.tm?.applicationMenuIntroductionTerm || " der Objekte"
-              } an Ihre 
-              Vorlieben anpassen. Wählen Sie **Kompaktanleitung** 
-              für detailliertere Bedienungsinformationen.`}
-              menuIcon={config?.tm?.applicationMenuIconname}
-            ></DefaultAppMenu>
-          }
-        >
-          <FeatureCollection />
-          <div className="leaflet-top leaflet-right" style={{ paddingTop: 46 }}>
-            <div className="leaflet-control">
-              <a
-                style={{ margin: 5 }}
-                className="styleaslink"
-                onClick={() => {
-                  downloadText(
-                    JSON.stringify(configFromFile, null, 2),
-                    "config.json"
-                  );
-                  downloadText(
-                    JSON.stringify(featureDefaultProperties, null, 2),
-                    "featureDefaultProperties.json"
-                  );
-                  downloadText(
-                    JSON.stringify(featureDefaults, null, 2),
-                    "featureDefaults.json"
-                  );
-                  downloadText(
-                    JSON.stringify(features, null, 2),
-                    "features.json"
-                  );
-                  // downloadText(JSON.stringify(infoBoxConfig, null, 2), "infoBoxConfig.json");
-                  downloadText(
-                    JSON.stringify(simpleHelp, null, 2),
-                    "simpleHelp.json"
-                  );
-                }}
-              >
-                <Icon name="cog" />
-                <Icon name="download" />
-              </a>
-            </div>
-          </div>
-        </TopicMapComponent>
+        <Map config={config} gazData={gazData} />
       </TopicMapContextProvider>
     );
-  } else return <div>not initialized</div>;
+  }
 }
 
 export default App;
