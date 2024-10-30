@@ -46,8 +46,8 @@ vite.config.ts
 
 manifest.json
 
-/libraries/collaboration/carma-pecher-collab/pecher-collab-submodule
-/libraries/collaboration/carma-wuppertal-collab/wuppertal-collab-submodule
+/libraries/collaboration/carma-pecher-collab
+/libraries/collaboration/carma-wuppertal-collab
 
 **/public/data/**/*.json
 **/public/data/**/*.geojson
