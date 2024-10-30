@@ -16,6 +16,8 @@ import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 import { MenuFooter } from "@carma-collab/wuppertal/commons";
 import { getApplicationVersion } from "@carma-commons/utils";
 import versionData from "../version.json";
+import { GenericDigitalTwinReferenceSection } from "@carma-collab/wuppertal/commons";
+
 const host = "https://wupp-topicmaps-data.cismet.de";
 const downloadText = (text, filename) => {
   var element = document.createElement("a");
@@ -72,6 +74,9 @@ const Map = ({ config, gazData = [] }) => {
                 />
               )
             }
+            sections={{
+              _10_twin: <GenericDigitalTwinReferenceSection />,
+            }}
           ></DefaultAppMenu>
         }
       >
