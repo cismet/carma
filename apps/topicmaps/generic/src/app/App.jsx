@@ -7,7 +7,7 @@ import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import { md5FetchText } from "react-cismap/tools/fetching";
 import { getGazDataForTopicIds } from "react-cismap/tools/gazetteerHelper";
-
+import { pointOnFeature } from "@turf/point-on-feature";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import { getClusterIconCreatorFunction } from "react-cismap/tools/uiHelper";
 import { getSimpleHelpForGenericTM } from "react-cismap/tools/genericTopicMapHelper";
@@ -50,7 +50,6 @@ async function getMarkdown(slugName, configType, server, path) {
 }
 
 export const getGazData = async (
-  setGazData,
   topics = [
     "bpklimastandorte",
     "pois",
@@ -84,7 +83,7 @@ export const getGazData = async (
 
   const gazData = getGazDataForTopicIds(sources, topics);
 
-  setGazData([...gazData]);
+  return gazData;
 };
 function App({
   name,
@@ -177,7 +176,34 @@ function App({
       config.tm.gazetteerSearchPlaceholder =
         config.tm.gazetteerSearchBoxPlaceholdertext;
       config.info.city = config.city;
-      getGazData(setGazData, config.tm.gazetteerTopicsList);
+      const gazData = await getGazData(config.tm.gazetteerTopicsList);
+      console.log("gazData", gazData);
+      const featureGazData = [];
+
+      if (config?.tm?.addGazetteerElementsPerFeature === true) {
+        for (const f of config.features) {
+          const pof = pointOnFeature(f);
+          const x = pof.geometry.coordinates[0];
+          const y = pof.geometry.coordinates[1];
+          console.log("pof", { x, y });
+
+          const gazEntry = {
+            sorter: 0,
+            string: f.text,
+            glyph: "star",
+            x,
+            y,
+            more: {
+              zl: 18,
+              pid: f.id,
+            },
+            type: "genericFeature",
+          };
+          featureGazData.push(gazEntry);
+        }
+      }
+      setGazData([...featureGazData, ...gazData]);
+
       setConfig(config);
 
       setInitialized(true);
