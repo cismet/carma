@@ -23,8 +23,13 @@ import slugify from "slugify";
 import SecondaryInfoModal from "./SecondaryInfoModal";
 import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
 const host = "https://wupp-topicmaps-data.cismet.de";
-import { UIContext } from "react-cismap/contexts/UIContextProvider";
-1;
+import {
+  UIContext,
+  UIDispatchContext,
+} from "react-cismap/contexts/UIContextProvider";
+import { MenuFooter } from "@carma-collab/wuppertal/commons";
+import { getApplicationVersion } from "@carma-commons/utils";
+import versionData from "../version.json";
 const downloadText = (text, filename) => {
   var element = document.createElement("a");
   element.setAttribute(
@@ -42,11 +47,21 @@ const downloadText = (text, filename) => {
 };
 const Map = ({ config, gazData = [] }) => {
   const { selectedFeature } = useContext(FeatureCollectionContext);
+
+  const { setAppMenuActiveMenuSection } = useContext(UIDispatchContext);
   //   console.log("gazData", gazData);
 
   return (
     <>
-      <SecondaryInfoModal feature={selectedFeature} />
+      <SecondaryInfoModal
+        feature={selectedFeature}
+        footer={
+          <MenuFooter
+            version={getApplicationVersion(versionData)}
+            setAppMenuActiveMenuSection={setAppMenuActiveMenuSection}
+          />
+        }
+      />
       <TopicMapComponent
         {...config.tm}
         gazData={gazData}
@@ -54,7 +69,7 @@ const Map = ({ config, gazData = [] }) => {
         modalMenu={
           <DefaultAppMenu
             menuTitle={config?.tm?.applicationMenuTitle}
-            simpleHelp={config.helpTextblocks}
+            simpleHelp={config?.helpTextblocks}
             previewMapPosition={config?.tm?.previewMapPosition}
             previewFeatureCollectionCount={
               config?.tm?.previewFeatureCollectionCount
@@ -63,6 +78,14 @@ const Map = ({ config, gazData = [] }) => {
               config?.tm?.applicationMenuIntroductionMarkdown
             }
             menuIcon={config?.tm?.applicationMenuIconname}
+            menuFooter={
+              config?.tm?.applicationMenuFooter || (
+                <MenuFooter
+                  version={getApplicationVersion(versionData)}
+                  setAppMenuActiveMenuSection={setAppMenuActiveMenuSection}
+                />
+              )
+            }
           ></DefaultAppMenu>
         }
       >

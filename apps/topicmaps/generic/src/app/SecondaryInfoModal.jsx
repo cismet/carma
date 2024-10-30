@@ -8,7 +8,12 @@ import { Button, Modal, Accordion, Card, Table } from "react-bootstrap";
 import GenericSecondaryInfo from "react-cismap/topicmaps/SecondaryInfo";
 import GenericSecondaryInfoPanelSection from "react-cismap/topicmaps/SecondaryInfoPanelSection";
 
-const SecondaryInfoModal = ({ feature, setSecondaryInfoVisible, visible }) => {
+const SecondaryInfoModal = ({
+  feature,
+  setSecondaryInfoVisible,
+  visible,
+  footer,
+}) => {
   if (feature) {
     const close = () => {
       setSecondaryInfoVisible(false);
@@ -59,6 +64,7 @@ const SecondaryInfoModal = ({ feature, setSecondaryInfoVisible, visible }) => {
             }
           />
         ))}
+        footer={footer}
       />
     );
   }
