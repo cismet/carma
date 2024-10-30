@@ -87,8 +87,10 @@ export const getGazData = async (
 };
 function App({
   name,
-  configPath = "/", //"/dev/",
-  configServer = "http://localhost:3000", //"https://raw.githubusercontent.com/cismet/wupp-generic-topic-map-config", //"https://raw.githubusercontent.com/cismet/wupp-generic-topic-map-config",
+  // configPath = "/", //"/dev/",
+  // configServer = "http://localhost:3000", //
+  configPath = "/dev/",
+  configServer = "https://raw.githubusercontent.com/cismet/wupp-generic-topic-map-config", //"https://raw.githubusercontent.com/cismet/wupp-generic-topic-map-config",
 }) {
   const [initialized, setInitialized] = useState(false);
   const [config, setConfig] = useState({});
@@ -177,7 +179,6 @@ function App({
         config.tm.gazetteerSearchBoxPlaceholdertext;
       config.info.city = config.city;
       const gazData = await getGazData(config.tm.gazetteerTopicsList);
-      console.log("gazData", gazData);
       const featureGazData = [];
 
       if (config?.tm?.addGazetteerElementsPerFeature === true) {
@@ -185,7 +186,6 @@ function App({
           const pof = pointOnFeature(f);
           const x = pof.geometry.coordinates[0];
           const y = pof.geometry.coordinates[1];
-          console.log("pof", { x, y });
 
           const gazEntry = {
             sorter: 0,
