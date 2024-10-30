@@ -27,6 +27,7 @@ import useTransitionTimeout from "./hooks/useTransitionTimeout";
 import useTweakpane from "./hooks/useTweakpane";
 import { useTilesets } from "./hooks/useTilesets";
 import useSceneStyles from "./hooks/useSceneStyles";
+import { EncodedSceneParams } from "..";
 
 export type GlobeOptions = {
   // https://cesium.com/learn/cesiumjs/ref-doc/Globe.html
@@ -39,7 +40,6 @@ export type GlobeOptions = {
 export type CustomViewerProps = {
   children?: ReactNode;
   containerRef?: RefObject<HTMLDivElement>;
-  postInit?: () => void;
 
   enableLocationHashUpdate?: boolean;
 
@@ -65,6 +65,10 @@ export type CustomViewerProps = {
     resolutionScale?: number;
   };
   minimapLayerUrl?: string;
+
+  // callbacks
+  onSceneChange?: (encodedScene: EncodedSceneParams) => void;
+  postInit?: () => void;
 };
 
 const DEFAULT_RESOLUTION_SCALE = 1;
@@ -91,9 +95,9 @@ export function CustomViewer(props: CustomViewerProps) {
       resolutionScale: DEFAULT_RESOLUTION_SCALE,
     },
     containerRef,
-    enableLocationHashUpdate = true,
     minPitch,
     minPitchRange,
+    onSceneChange,
   } = props;
 
   useTweakpane();
@@ -112,7 +116,7 @@ export function CustomViewer(props: CustomViewerProps) {
   useCameraPitchEasingLimiter(minPitch, minPitchRange);
 
   useCesiumWhenHidden(TRANSITION_DELAY);
-  useCesiumHashUpdater(enableLocationHashUpdate);
+  useCesiumHashUpdater(onSceneChange);
 
   useTilesets();
 

@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { useLocation } from "react-router-dom";
+import { useEffect, useRef } from "react";
+import { useSelector } from "react-redux";
 
 import {
   BoundingSphere,
@@ -10,7 +9,6 @@ import {
   Scene,
   ScreenSpaceCameraController,
 } from "cesium";
-import type { Map as LeafletMap } from "leaflet";
 
 import {
   selectScreenSpaceCameraControllerMaximumZoomDistance,
@@ -78,7 +76,7 @@ export const useInitializeViewer = (
 
       const hashParams = locationHash.split("?")[1];
       const sceneFromHashParams = decodeSceneFromLocation(hashParams);
-      const { camera, isSecondaryStyle } = sceneFromHashParams;
+      const { camera } = sceneFromHashParams;
       const { latitude, longitude, height, heading, pitch } = camera;
 
       if (viewer.camera.frustum instanceof PerspectiveFrustum) {
@@ -92,14 +90,6 @@ export const useInitializeViewer = (
           "HOOK: skipping cesium location setup with 2d mode active zoom"
         );
       } else {
-        /*
-        if (isSecondaryStyle) {
-          console.debug("HOOK: set secondary style from hash");
-          setupSecondaryStyle(ctx);
-          dispatch(setShowPrimaryTileset(false));
-          dispatch(setShowSecondaryTileset(true));
-        }
-        */
         if (sceneFromHashParams && longitude && latitude) {
           console.debug(
             "HOOK [2D3D|CESIUM|CAMERA] init Viewer set camera from hash zoom",
@@ -116,15 +106,6 @@ export const useInitializeViewer = (
               pitch: pitch ?? -CesiumMath.PI_OVER_TWO,
             },
           });
-
-          /*
-          (async () => {
-            replaceHashRoutedHistory(
-              await encodeScene({ viewer, isSecondaryStyle }),
-              location.pathname
-            );
-          })();
-          */
         } else if (home && homeOffset) {
           console.debug(
             "HOOK: [2D3D|CESIUM|CAMERA] initViewer no hash, using home zoom",

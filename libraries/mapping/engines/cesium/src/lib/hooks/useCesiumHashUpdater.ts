@@ -1,9 +1,8 @@
 import { useEffect } from "react";
 import { useSelector } from "react-redux";
-import { useLocation } from "react-router-dom";
 
 import { cameraToCartographicDegrees } from "../utils/cesiumHelpers";
-import { encodeScene, replaceHashRoutedHistory } from "../utils/hashHelpers";
+import { encodeScene } from "../utils/hashHelpers";
 
 import {
   selectShowSecondaryTileset,
@@ -11,30 +10,36 @@ import {
 } from "../slices/cesium";
 
 import { useCesiumViewer } from "./useCesiumViewer";
+import { EncodedSceneParams } from "../..";
 
-export const useCesiumHashUpdater = (enableLocationHashUpdate: boolean) => {
+export const useCesiumHashUpdater = (
+  onSceneChange?: (p: EncodedSceneParams) => void
+) => {
   const viewer = useCesiumViewer();
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
   const isMode2d = useSelector(selectViewerIsMode2d);
   // todo move requested location updates to an external hook/state
   // todo handle style change explicitly not via tileset
-  const { pathname } = useLocation();
 
   console.debug("HOOKINIT [CESIUM|HASH] useCesiumHashUpdater");
 
   useEffect(() => {
-    if (viewer && enableLocationHashUpdate && !isMode2d) {
+    if (viewer && !isMode2d) {
       console.debug(
         "HOOK: update Hash, route or style changed",
         isSecondaryStyle
       );
-      replaceHashRoutedHistory(
-        encodeScene(viewer, { isSecondaryStyle, isMode2d }),
-        pathname
-      );
+
+      const encodedScene = encodeScene(viewer, { isSecondaryStyle, isMode2d });
+
+      if (onSceneChange) {
+        onSceneChange(encodedScene);
+      } else {
+        console.info("HOOK: [NOOP]no onSceneChange callback");
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewer, isMode2d, pathname, isSecondaryStyle]);
+  }, [viewer, isMode2d, isSecondaryStyle]);
 
   useEffect(() => {
     // update hash hook
@@ -44,12 +49,7 @@ export const useCesiumHashUpdater = (enableLocationHashUpdate: boolean) => {
       );
       const moveEndListener = async () => {
         // let TopicMap/leaflet handle the view change in 2d Mode
-        if (
-          viewer &&
-          viewer.camera.position &&
-          !isMode2d &&
-          enableLocationHashUpdate
-        ) {
+        if (viewer && viewer.camera.position && !isMode2d) {
           const camDeg = cameraToCartographicDegrees(viewer.camera);
           console.debug(
             "LISTENER: Cesium moveEndListener encode viewer to hash",
@@ -60,7 +60,11 @@ export const useCesiumHashUpdater = (enableLocationHashUpdate: boolean) => {
             isSecondaryStyle,
             isMode2d,
           });
-          replaceHashRoutedHistory(encodedScene, pathname);
+          if (onSceneChange) {
+            onSceneChange(encodedScene);
+          } else {
+            console.info("HOOK: [NOOP] no onSceneChange callback");
+          }
         }
       };
       viewer.camera.moveEnd.addEventListener(moveEndListener);
@@ -68,5 +72,5 @@ export const useCesiumHashUpdater = (enableLocationHashUpdate: boolean) => {
         viewer && viewer.camera.moveEnd.removeEventListener(moveEndListener);
       };
     }
-  }, [viewer, isSecondaryStyle, isMode2d, pathname]);
+  }, [viewer, isSecondaryStyle, isMode2d]);
 };

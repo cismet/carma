@@ -18,14 +18,14 @@ const DEFAULT_MESH_OPTIONS: Cesium3DTileset.ConstructorOptions = {
   // TODO expose this via UI 2 is like 3x the data of 6
   // HQ 4 or higher
   // LQ 16 or worse
-  
+
   //dynamicScreenSpaceError: true, // only needed for low angle views
-  
+
   // not sure if this is even doing anything
   foveatedScreenSpaceError: true,
   foveatedConeSize: 0.25,
   foveatedMinimumScreenSpaceErrorRelaxation: 32,
-  
+
   skipLevelOfDetail: true,
   skipScreenSpaceErrorFactor: 128,
   baseScreenSpaceError: 4096, // minimum quality to load before skipping

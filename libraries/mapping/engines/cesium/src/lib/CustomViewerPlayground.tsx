@@ -40,14 +40,15 @@ import { useCesiumContext } from "./hooks/useCesiumContext";
 import { useCesiumViewer } from "./hooks/useCesiumViewer";
 import useDisableSSCC from "./hooks/useDisableSSCC";
 import { useInitializeViewer } from "./hooks/useInitializeViewer";
-import useSceneStyles from "./hooks/useSceneStyles";
+import { useSceneStyles } from "./hooks/useSceneStyles";
 import { useTilesets } from "./hooks/useTilesets";
 
 import { resolutionFractions } from "./utils/cesiumHelpers";
 
 import { formatFractions } from "./utils/formatters";
-import { encodeScene, replaceHashRoutedHistory } from "./utils/hashHelpers";
+import { encodeScene } from "./utils/hashHelpers";
 import { setLeafletView } from "./utils/leafletHelpers";
+import { EncodedSceneParams } from "..";
 
 type CustomViewerProps = {
   children?: ReactNode;
@@ -79,6 +80,7 @@ type CustomViewerProps = {
   };
 
   minimapLayerUrl?: string;
+  onSceneChange?: (encodedScene: EncodedSceneParams) => void;
 };
 
 export function CustomViewerPlayground(props: CustomViewerProps) {
@@ -106,6 +108,7 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
       showSkirts: false,
     },
     minimapLayerUrl,
+    onSceneChange,
   } = props;
 
   const [showFader, setShowFader] = useState(props.showFader ?? false);
@@ -305,10 +308,7 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
         "HOOK: update Hash, route or style changed",
         isSecondaryStyle
       );
-      replaceHashRoutedHistory(
-        encodeScene(viewer, { isSecondaryStyle }),
-        location.pathname
-      );
+      onSceneChange && onSceneChange(encodeScene(viewer, { isSecondaryStyle }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewerRef, location.pathname, isSecondaryStyle]);
@@ -345,7 +345,7 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
         const encodedScene = encodeScene(viewer, { isSecondaryStyle });
 
         // let TopicMap/leaflet handle the view change in 2d Mode
-        !isMode2d && replaceHashRoutedHistory(encodedScene, location.pathname);
+        !isMode2d && onSceneChange && onSceneChange(encodedScene);
 
         if (isUserAction && (!isMode2d || showFader)) {
           // remove roll from camera orientation
@@ -386,6 +386,7 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
     topicMapContext?.routedMapRef,
     isMode2d,
     isUserAction,
+    onSceneChange,
   ]);
 
   console.debug("RENDER: CustomViewer");

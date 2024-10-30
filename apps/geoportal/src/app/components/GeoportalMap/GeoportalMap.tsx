@@ -1,6 +1,6 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useSearchParams } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 
 import { Tooltip } from "antd";
 
@@ -110,9 +110,12 @@ import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 
 import "../leaflet.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
+import { replaceHashRoutedHistory } from "@carma-apps/portals";
 
 export const GeoportalMap = () => {
   const dispatch = useDispatch();
+
+  const location = useLocation();
 
   const rerenderCountRef = useRef(0);
   const lastRenderTimeStampRef = useRef(Date.now());
@@ -560,6 +563,13 @@ export const GeoportalMap = () => {
                 containerRef={container3dMapRef}
                 minPitch={CESIUM_CONFIG.camera.minPitch}
                 minPitchRange={CESIUM_CONFIG.camera.minPitchRange}
+                onSceneChange={(e) => {
+                  console.debug(
+                    "[GEOPORTALMAP|HASH|SCENE|CESIUM]cesium scene changed",
+                    e
+                  );
+                  replaceHashRoutedHistory(e, location.pathname);
+                }}
               ></CustomViewer>
             </div>
           )}
