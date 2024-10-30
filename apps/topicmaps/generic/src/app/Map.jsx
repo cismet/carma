@@ -49,7 +49,7 @@ const Map = ({ config, gazData = [] }) => {
   const { selectedFeature } = useContext(FeatureCollectionContext);
 
   const { setAppMenuActiveMenuSection } = useContext(UIDispatchContext);
-  //   console.log("gazData", gazData);
+  console.log("config?.helpTextblocks", config?.helpTextblocks);
 
   return (
     <>
@@ -69,7 +69,7 @@ const Map = ({ config, gazData = [] }) => {
         modalMenu={
           <DefaultAppMenu
             menuTitle={config?.tm?.applicationMenuTitle}
-            simpleHelp={config?.helpTextblocks}
+            simpleHelp={config?.simpleHelpObject}
             previewMapPosition={config?.tm?.previewMapPosition}
             previewFeatureCollectionCount={
               config?.tm?.previewFeatureCollectionCount

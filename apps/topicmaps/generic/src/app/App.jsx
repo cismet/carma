@@ -149,10 +149,10 @@ function App({
       if (helpTextBlocks !== undefined) {
         config.helpTextblocks = helpTextBlocks;
       } else if (simpleHelpMd !== undefined) {
-        const simpleHelpObject = { type: "MARKDOWN", content: simpleHelpMd };
+        config.simpleHelpObject = { type: "MARKDOWN", content: simpleHelpMd };
         config.helpTextblocks = getSimpleHelpForGenericTM(
           document.title,
-          simpleHelpObject
+          config.simpleHelpObject
         );
       } else {
         config.helpTextblocks = getSimpleHelpForGenericTM(
