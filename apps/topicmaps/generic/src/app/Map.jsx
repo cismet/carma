@@ -36,7 +36,6 @@ const Map = ({ config, gazData = [] }) => {
   const { selectedFeature } = useContext(FeatureCollectionContext);
 
   const { setAppMenuActiveMenuSection } = useContext(UIDispatchContext);
-  console.log("config?.helpTextblocks", config?.helpTextblocks);
 
   return (
     <>
