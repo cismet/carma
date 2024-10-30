@@ -10,17 +10,11 @@ import { getGazDataForTopicIds } from "react-cismap/tools/gazetteerHelper";
 
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import { getClusterIconCreatorFunction } from "react-cismap/tools/uiHelper";
-import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
-import FeatureCollection from "react-cismap/FeatureCollection";
-import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
-import Icon from "react-cismap/commons/Icon";
 import { getSimpleHelpForGenericTM } from "react-cismap/tools/genericTopicMapHelper";
 import getGTMFeatureStyler, {
   getColorFromProperties,
 } from "react-cismap/topicmaps/generic/GTMStyler";
-import DefaultAppMenu from "react-cismap/topicmaps/menu/DefaultAppMenu";
 import slugify from "slugify";
-import SecondaryInfoModal from "./SecondaryInfoModal";
 import Map from "./Map";
 const host = "https://wupp-topicmaps-data.cismet.de";
 

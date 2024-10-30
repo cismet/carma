@@ -1,35 +1,22 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext } from "react";
 
 import "./App.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "leaflet/dist/leaflet.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
-import { md5FetchText } from "react-cismap/tools/fetching";
-import { getGazDataForTopicIds } from "react-cismap/tools/gazetteerHelper";
 
-import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
-import { getClusterIconCreatorFunction } from "react-cismap/tools/uiHelper";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import FeatureCollection from "react-cismap/FeatureCollection";
 import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
-import Icon from "react-cismap/commons/Icon";
-import { getSimpleHelpForGenericTM } from "react-cismap/tools/genericTopicMapHelper";
-import getGTMFeatureStyler, {
-  getColorFromProperties,
-} from "react-cismap/topicmaps/generic/GTMStyler";
 import DefaultAppMenu from "react-cismap/topicmaps/menu/DefaultAppMenu";
-import slugify from "slugify";
 import SecondaryInfoModal from "./SecondaryInfoModal";
 import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
-const host = "https://wupp-topicmaps-data.cismet.de";
-import {
-  UIContext,
-  UIDispatchContext,
-} from "react-cismap/contexts/UIContextProvider";
+import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 import { MenuFooter } from "@carma-collab/wuppertal/commons";
 import { getApplicationVersion } from "@carma-commons/utils";
 import versionData from "../version.json";
+const host = "https://wupp-topicmaps-data.cismet.de";
 const downloadText = (text, filename) => {
   var element = document.createElement("a");
   element.setAttribute(

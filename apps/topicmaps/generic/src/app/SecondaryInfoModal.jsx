@@ -1,10 +1,5 @@
-import { SecondaryInfoFooter } from "@carma-collab/wuppertal/e-auto-ladestation";
-import versionData from "../version.json";
-import { getApplicationVersion } from "@carma-commons/utils";
 import { getActionLinksForFeature } from "react-cismap/tools/uiHelper";
-import Icon from "@ant-design/icons";
 import Markdown from "./Markdown";
-import { Button, Modal, Accordion, Card, Table } from "react-bootstrap";
 import GenericSecondaryInfo from "react-cismap/topicmaps/SecondaryInfo";
 import GenericSecondaryInfoPanelSection from "react-cismap/topicmaps/SecondaryInfoPanelSection";
 
