@@ -75,7 +75,7 @@ const Map = ({ config, gazData = [] }) => {
               )
             }
             sections={{
-              _10_twin: <GenericDigitalTwinReferenceSection />,
+              xx_last_twin: <GenericDigitalTwinReferenceSection />,
             }}
           ></DefaultAppMenu>
         }
