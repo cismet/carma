@@ -2633,6 +2633,10 @@ export const baseConfig = {
       },
       {
         name: "wg_unbek",
+        keywords: [
+          ":vec:",
+          `carmaConf://vectorStyle:${vectorBaseUrl}wohngebaeude/unbekannt.style.json`,
+        ],
       },
       {
         name: "nwg_2020",
@@ -2706,6 +2710,10 @@ export const baseConfig = {
       },
       {
         name: "nwg_unbek",
+        keywords: [
+          ":vec:",
+          `carmaConf://vectorStyle:${vectorBaseUrl}nicht_wohngebaeude/unbekannt.style.json`,
+        ],
       },
     ],
   },
