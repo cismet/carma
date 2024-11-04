@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Cesium3DTileset, CustomShader } from "cesium";
+import { Cesium3DTileset, ClassificationType, Color, CustomShader } from "cesium";
 
 import { useTweakpaneCtx } from "@carma-commons/debug";
 
@@ -81,7 +81,7 @@ export const useTilesetsTweakpane = (
           { name: "show", type: "boolean" },
         ],
       }),
-      [viewer, name, customShaderKey, enableDebugWireframe, tileset, viewer]
+      [viewer, name, customShaderKey, enableDebugWireframe, tileset]
     )
   );
 };

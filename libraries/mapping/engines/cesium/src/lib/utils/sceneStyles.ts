@@ -3,6 +3,8 @@ import {
   ClassificationType,
   Color,
   EllipsoidTerrainProvider,
+  NearFarScalar,
+  Rectangle,
   Viewer,
 } from "cesium";
 
@@ -18,40 +20,40 @@ const INVERTED_SELECTED_POLYGON_ID = "searchgaz-inverted-polygon";
 
 const waitAndSetTerrainProvider = (
   viewerRef: MutableRefObject<Viewer | null>,
-  terrainProviderRef: MutableRefObject<
+  providerRef: MutableRefObject<
     CesiumTerrainProvider | EllipsoidTerrainProvider | null
   >,
   { label, onReady }: { label?: string; onReady?: () => void }
 ) => {
-  let isTerrainProviderSet = false;
+  let isProviderSet = false;
   const startTime = performance.now();
 
-  const checkTerrainProvider = () => {
-    if (isTerrainProviderSet) return;
+  const checkProvider = () => {
+    if (isProviderSet) return;
 
-    if (terrainProviderRef.current && viewerRef.current) {
+    if (providerRef.current && viewerRef.current) {
       console.debug(
         "[STYLES|TERRAIN|CESIUM] terrainProvider ready after",
         performance.now() - startTime,
         "ms",
         label
       );
-      viewerRef.current.scene.terrainProvider = terrainProviderRef.current;
-      isTerrainProviderSet = true;
+      viewerRef.current.scene.terrainProvider = providerRef.current;
+      isProviderSet = true;
       onReady?.();
     }
     if (!viewerRef.current || viewerRef.current.isDestroyed()) return;
-    requestAnimationFrame(checkTerrainProvider);
+    requestAnimationFrame(checkProvider);
   };
 
-  if (terrainProviderRef.current && viewerRef.current) {
-    viewerRef.current.scene.terrainProvider = terrainProviderRef.current;
-    isTerrainProviderSet = true;
+  if (providerRef.current && viewerRef.current) {
+    viewerRef.current.scene.terrainProvider = providerRef.current;
+    isProviderSet = true;
     onReady?.();
     console.debug("[STYLES|TERRAIN|CESIUM] terrainProvider already set");
     return;
   } else {
-    checkTerrainProvider();
+    checkProvider();
   }
 };
 
@@ -61,46 +63,64 @@ export const setupPrimaryStyle = (
     terrainProviderRef,
     surfaceProviderRef,
     ellipsoidTerrainProviderRef,
+    hq500ProviderRef,
     imageryLayerRef,
   }: CesiumContextType,
-  style?: Partial<SceneStyle>
+  style?: Partial<SceneStyle>,
+  hq500Visible: boolean = false
 ) => {
   (async () => {
     if (!viewerRef.current) return;
     const viewer = viewerRef.current;
     const imageryLayer = imageryLayerRef.current;
 
-    viewer.scene.globe.baseColor =
-      fromColorRgbaArray(style?.globe?.baseColor) ?? Color.LIGHTGREY;
+    if (hq500Visible) {
+      console.debug("[STYLES|TERRAIN|CESIUM] setup primary style with HQ500", hq500ProviderRef.current);
+    } else {
+      //viewer.scene.globe.baseColor = fromColorRgbaArray(style?.globe?.baseColor) ?? Color.LIGHTGREY;
+    }
+    console.debug("[STYLES|TERRAIN|CESIUM] setup primary style");
+
     viewer.scene.backgroundColor =
       fromColorRgbaArray(style?.backgroundColor) ?? new Color(0, 0, 0, 0);
 
-    console.debug("[STYLES|TERRAIN|CESIUM] setup primary style");
+    const onReady = () => {
+      if (imageryLayer && imageryLayer.ready) {
+        imageryLayer.show = true;
+        if (viewer.imageryLayers.length === 0) {
+          viewer.imageryLayers.add(imageryLayer);
+          console.debug(
+            "Primary Style Setup: add imagery layer",
+            viewer.imageryLayers.length
+          );
+        }
+      }
+      viewer.scene.globe.baseColor = new Color(0.39, 0.77, 0.89, 1);
+      // viewer.scene.globe.baseColor = new Color(0.9, 0.2, 0.3, 0.9);
+    };
+    waitAndSetTerrainProvider(
+      viewerRef,
+      //terrainProviderRef,
+      hq500ProviderRef,
+    {
+     label: "primary",
+     onReady
+   });
 
-    // use terrain provider not the surface provider to prevent camera jitter on move
-    waitAndSetTerrainProvider(viewerRef, terrainProviderRef, {
-      label: "secondary",
-      //onReady: addImageryLayer,
-    });
-
-    if (imageryLayer) {
-      imageryLayer.show = false;
-    }
-
+  
     const invertedSelection = getGroundPrimitiveById(
       viewer,
       INVERTED_SELECTED_POLYGON_ID
     );
     if (invertedSelection) {
       invertedSelection.classificationType = ClassificationType.CESIUM_3D_TILE;
-    }
-
+    } 
     viewer.scene.requestRender();
   })();
 };
 
 export const setupSecondaryStyle = (
-  { viewerRef, terrainProviderRef, imageryLayerRef }: CesiumContextType,
+  { viewerRef, terrainProviderRef, hq500ProviderRef, imageryLayerRef }: CesiumContextType,
   style?: Partial<SceneStyle>
 ) => {
   const imageryLayer = imageryLayerRef.current;
@@ -108,8 +128,10 @@ export const setupSecondaryStyle = (
   if (!viewerRef.current) return;
   const viewer = viewerRef.current;
   (async () => {
-    viewer.scene.globe.baseColor =
-      fromColorRgbaArray(style?.globe?.baseColor) ?? Color.WHITE;
+    //viewer.scene.globe.baseColor =   fromColorRgbaArray(style?.globe?.baseColor) ?? Color.WHITE;
+    //viewer.scene.globe.baseColor = new Color(0.39, 0.77, 0.89, 0.7);
+    viewer.scene.globe.baseColor = new Color(0.14, 0.05, 0.5, 1.0);
+
     viewer.scene.backgroundColor =
       fromColorRgbaArray(style?.backgroundColor) ?? new Color(0, 0, 0, 0);
 
@@ -126,7 +148,11 @@ export const setupSecondaryStyle = (
       }
     };
 
-    waitAndSetTerrainProvider(viewerRef, terrainProviderRef, {
+    waitAndSetTerrainProvider(
+       viewerRef,
+       terrainProviderRef,
+       //hq500ProviderRef,
+     {
       label: "secondary",
       onReady: addImageryLayer,
     });

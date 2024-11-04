@@ -7,13 +7,16 @@ import {
 import type { ImageryProviderConfig } from "../..";
 
 export interface ProviderConfig {
-  surfaceProvider?: {
-    url: string;
-  };
   terrainProvider: {
     url: string;
   };
   imageryProvider: ImageryProviderConfig;
+  surfaceProvider?: {
+    url: string;
+  };
+  hq500Provider?: {
+    url: string;
+  };
 }
 
 export const loadCesiumTerrainProvider = async (

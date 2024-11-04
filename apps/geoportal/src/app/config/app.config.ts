@@ -4,6 +4,7 @@ import {
   WUPP_MESH_2024,
   WUPP_TERRAIN_PROVIDER,
   WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
+  WUPP_TERRAIN_PROVIDER_HQ500_CM,
 } from "@carma-commons/resources";
 import { CesiumConfig } from "@carma-mapping/cesium-engine";
 import { LeafletConfig } from "types/leaflet-config";
@@ -29,6 +30,7 @@ export const CESIUM_CONFIG: CesiumConfig = {
   providerConfig: {
     terrainProvider: WUPP_TERRAIN_PROVIDER,
     surfaceProvider: WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
+    hq500Provider: WUPP_TERRAIN_PROVIDER_HQ500_CM,
     imageryProvider: BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
   },
   tilesetConfigs: {
@@ -36,7 +38,6 @@ export const CESIUM_CONFIG: CesiumConfig = {
     secondary: WUPP_LOD2_TILESET,
   },
 };
-
 export const LEAFLET_CONFIG: LeafletConfig = {
   zoomSnap: 1.0,
   zoomDelta: 1.0,

@@ -13,13 +13,6 @@ import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextPr
 
 // Monorepo Packages
 import { backgroundSettings } from "@carma-collab/wuppertal/geoportal";
-import {
-  BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
-  WUPP_LOD2_TILESET,
-  WUPP_MESH_2024,
-  WUPP_TERRAIN_PROVIDER,
-  WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
-} from "@carma-commons/resources";
 import { OverlayTourProvider } from "@carma-commons/ui/lib-helper-overlay";
 import { CesiumContextProvider } from "@carma-mapping/cesium-engine";
 import type { Layer } from "@carma-mapping/layers";

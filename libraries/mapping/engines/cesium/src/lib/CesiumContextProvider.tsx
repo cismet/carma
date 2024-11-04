@@ -32,6 +32,7 @@ export const CesiumContextProvider = ({
   const terrainProviderRef = useRef<CesiumTerrainProvider | null>(null);
   const surfaceProviderRef = useRef<CesiumTerrainProvider | null>(null);
   const imageryLayerRef = useRef<ImageryLayer | null>(null);
+  const hq500ProviderRef = useRef<CesiumTerrainProvider | null >(null);
 
   const primaryTilesetRef = useRef<Cesium3DTileset | null>(null);
   const secondaryTilesetRef = useRef<Cesium3DTileset | null>(null);
@@ -85,6 +86,23 @@ export const CesiumContextProvider = ({
     }
   }, [providerConfig.surfaceProvider]);
 
+  useEffect(() => {
+    if (providerConfig.hq500Provider) {
+      const abortController = new AbortController();
+      const { signal } = abortController;
+
+      loadCesiumTerrainProvider(
+        hq500ProviderRef,
+        providerConfig.hq500Provider.url,
+        signal
+      );
+
+      return () => {
+        abortController.abort();
+      };
+    }
+  }, [providerConfig.hq500Provider]);
+
   // Load Primary Tileset
   useEffect(() => {
     if (tilesetConfigs.primary) {
@@ -137,12 +155,14 @@ export const CesiumContextProvider = ({
     };
   }, [tilesetConfigs.secondary]);
 
+
   const contextValue = useMemo<CesiumContextType>(
     () => ({
       viewerRef,
       ellipsoidTerrainProviderRef,
       terrainProviderRef,
       surfaceProviderRef,
+      hq500ProviderRef,
       imageryLayerRef,
       tilesetsRefs: {
         primaryRef: primaryTilesetRef,

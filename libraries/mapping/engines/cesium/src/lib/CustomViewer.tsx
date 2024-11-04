@@ -86,7 +86,7 @@ export function CustomViewer(props: CustomViewerProps) {
     children,
     selectionIndicator = false,
     globeOptions = {
-      baseColor: Color.TRANSPARENT,
+      //baseColor: Color.TRANSPARENT,
       cartographicLimitRectangle: undefined,
       showGroundAtmosphere: false,
       showSkirts: false,
@@ -102,12 +102,12 @@ export function CustomViewer(props: CustomViewerProps) {
 
   useTweakpane();
 
-  useInitializeViewer(containerRef, home, homeOffset);
-  useCesiumGlobe(globeOptions);
+  //useInitializeViewer(containerRef, home, homeOffset);
+  //useCesiumGlobe(globeOptions);
 
   useSceneStyles();
 
-  useLogCesiumRenderIn2D();
+  //useLogCesiumRenderIn2D();
 
   useTransitionTimeout();
   useDisableSSCC();
@@ -131,7 +131,7 @@ export function CustomViewer(props: CustomViewerProps) {
       selectionIndicator: selectionIndicator,
       targetFrameRate: CESIUM_TARGET_FRAME_RATE,
       useBrowserRecommendedResolution: true,
-      contextOptions: { webgl: { alpha: true } },
+      //contextOptions: { webgl: { alpha: true } },
       resolutionScale: viewerOptions.resolutionScale,
 
       // Hide UI components

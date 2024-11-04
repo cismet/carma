@@ -12,6 +12,7 @@ export interface CesiumContextType {
   viewerRef: MutableRefObject<Viewer | null>;
   terrainProviderRef: MutableRefObject<CesiumTerrainProvider | null>;
   surfaceProviderRef: MutableRefObject<CesiumTerrainProvider | null>;
+  hq500ProviderRef: MutableRefObject<CesiumTerrainProvider | null>;
   imageryLayerRef: MutableRefObject<ImageryLayer | null>;
   ellipsoidTerrainProviderRef: MutableRefObject<EllipsoidTerrainProvider | null>;
   tilesetsRefs: {
