@@ -47,6 +47,7 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
         onClick={handleSwitchMapMode}
         disabled={isTransitioning && !forceEnabled}
         ref={ref}
+        dataTestId={isMode2d ? "3d-control" : "2d-control"}
       >
         {isMode2d ? "3D" : "2D"}
       </ControlButtonStyler>

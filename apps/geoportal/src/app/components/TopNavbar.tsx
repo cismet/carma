@@ -71,6 +71,7 @@ const TopNavbar = () => {
           <button
             className="hover:text-gray-600 text-xl lg:mr-11 xl:mr-40"
             onClick={handleToggleTour}
+            data-test-id="helper-overlay-btn"
           >
             <FontAwesomeIcon
               className="h-[24px] pt-1"
@@ -125,6 +126,7 @@ const TopNavbar = () => {
             setAppMenuVisible(true);
           }}
           ref={modalMenuTourRef}
+          data-test-id="modal-menu-btn"
         >
           <FontAwesomeIcon icon={faBars} />
         </Button>

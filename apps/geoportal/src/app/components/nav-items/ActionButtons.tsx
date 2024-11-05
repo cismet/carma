@@ -46,6 +46,7 @@ const ActionButtons = () => {
             window.location.reload();
           }}
           className="text-xl hover:text-gray-600"
+          data-test-id="reload-btn"
         >
           <FontAwesomeIcon icon={faRotateRight} />
         </button>
@@ -57,6 +58,7 @@ const ActionButtons = () => {
             dispatch(setShowResourceModal(true));
           }}
           className="h-[24.5px]"
+          data-test-id="kartenebenen-hinzufügen-btn"
         >
           <img
             src={baseUrl + "icons/add-layers.png"}
@@ -76,6 +78,7 @@ const ActionButtons = () => {
           onClick={() => {
             dispatch(setFocusMode(!focusMode));
           }}
+          data-test-id="hintergrundkarte-btn"
         >
           <img
             src={
@@ -102,6 +105,7 @@ const ActionButtons = () => {
           onClick={() => {
             dispatch(setUIShowLayerButtons(!showLayerButtons));
           }}
+          data-test-id="kartensteuerelemente-btn"
         >
           <FontAwesomeIcon
             fixedWidth={true}
@@ -126,6 +130,7 @@ const ActionButtons = () => {
             className={`hover:text-gray-600 text-xl ${
               isMode2d ? "" : disabledClass
             }`}
+            data-test-id="speichern-btn"
           >
             <FontAwesomeIcon icon={faFileExport} />
           </button>
@@ -136,7 +141,10 @@ const ActionButtons = () => {
       </Tooltip>
       <Tooltip title="Teilen">
         <Popover trigger="click" placement="bottom" content={<ShareContent />}>
-          <button className="hover:text-gray-600 text-xl">
+          <button
+            className="hover:text-gray-600 text-xl"
+            data-test-id="teilen-btn"
+          >
             <FontAwesomeIcon icon={faShareNodes} />
           </button>
         </Popover>

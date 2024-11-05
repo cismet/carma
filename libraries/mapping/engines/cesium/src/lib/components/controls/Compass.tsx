@@ -101,6 +101,7 @@ export const Compass = forwardRef<Ref, CompassProps>(
         onClick={handleFlyToCenter}
         disabled={disabled}
         ref={ref}
+        dataTestId="compass-control"
       >
         <FontAwesomeIcon icon={faCompass}></FontAwesomeIcon>
       </ControlButtonStyler>
