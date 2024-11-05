@@ -12,9 +12,17 @@ import {
 import { pickViewerCanvasCenter } from "../utils/cesiumHelpers";
 
 const useCameraPitchSoftLimiter = (
-  minPitchDeg = 22,
-  resetPitchOffsetDeg = 8
+  options: {
+    minPitchDeg?: number;
+    resetPitchOffsetDeg?: number;
+    pitchLimiter?: boolean;
+  } = {}
 ) => {
+  const pitchLimiter =
+    options.pitchLimiter === undefined ? true : options.pitchLimiter;
+  const minPitchDeg = options.minPitchDeg || 22;
+  const resetPitchOffsetDeg = options.resetPitchOffsetDeg || 8;
+
   const viewer = useCesiumViewer();
   const dispatch = useDispatch();
   const isMode2d = useSelector(selectViewerIsMode2d);
@@ -28,7 +36,7 @@ const useCameraPitchSoftLimiter = (
   );
 
   useEffect(() => {
-    if (viewer && !isMode2d && collisions) {
+    if (viewer && !isMode2d && collisions && pitchLimiter) {
       console.debug(
         "HOOK [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to correct camera pitch"
       );
@@ -80,7 +88,16 @@ const useCameraPitchSoftLimiter = (
         viewer.camera.moveEnd.removeEventListener(moveEndListener);
       };
     }
-  }, [viewer, collisions, isMode2d]);
+  }, [
+    viewer,
+    collisions,
+    isMode2d,
+    pitchLimiter,
+    onComplete,
+    dispatch,
+    minPitchDeg,
+    resetPitchOffsetDeg,
+  ]);
 };
 
 export default useCameraPitchSoftLimiter;

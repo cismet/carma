@@ -9,6 +9,7 @@ import TestComponentByGeoJsonClassifier from "./views/tests/components/ByGeoJson
 import StandaloneResium from "./views/tests/standalone/Resium";
 import StandaloneTopicMap from "./views/tests/standalone/TopicMap";
 import StandaloneWidget from "./views/tests/standalone/Widget";
+import { HQ500 } from "./views/tests/standalone/HQ500";
 
 import { ComponentType } from "react";
 
@@ -53,6 +54,7 @@ export const otherRoutes: RouteDescriptor[] = [
         StandaloneTopicMap,
       ],
       ["/widget", "Standalone Test Widget", StandaloneWidget],
+      ["/hq500", "Standalone Hq 500 Demo", HQ500],
     ],
   ],
 ];

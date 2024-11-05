@@ -29,6 +29,7 @@ export type GlobeOptions = {
 export type CustomViewerProps = {
   containerRef: RefObject<HTMLDivElement>;
   cameraOptions?: {
+    pitchLimiter?: boolean;
     minPitch?: number;
     minPitchRange?: number;
   };
@@ -99,12 +100,9 @@ export function CustomViewer(props: CustomViewerProps) {
 
   // camera enhancements
   useDisableSSCC();
-  useCameraRollSoftLimiter();
-  useCameraPitchSoftLimiter();
-  useCameraPitchEasingLimiter(
-    cameraOptions?.minPitch,
-    cameraOptions?.minPitchRange
-  );
+  useCameraRollSoftLimiter(cameraOptions);
+  useCameraPitchSoftLimiter(cameraOptions);
+  useCameraPitchEasingLimiter(cameraOptions);
 
   useCesiumWhenHidden(TRANSITION_DELAY);
 
