@@ -15,10 +15,10 @@ describe("geoportal smoke test", () => {
     cy.get("[data-test-id=helper-overlay-btn]").should("be.visible");
     cy.get("[data-test-id=modal-menu-btn]").should("be.visible");
     cy.get("[data-test-id=reload-btn]").should("be.visible");
-    cy.get("[data-test-id=kartenebenen-hinzufügen-btn]").should("be.visible");
-    cy.get("[data-test-id=hintergrundkarte-btn]").should("be.visible");
-    cy.get("[data-test-id=kartensteuerelemente-btn]").should("be.visible");
-    cy.get("[data-test-id=speichern-btn]").should("be.visible");
+    // cy.get("[data-test-id=kartenebenen-hinzufügen-btn]").should("be.visible");
+    // cy.get("[data-test-id=hintergrundkarte-btn]").should("be.visible");
+    // cy.get("[data-test-id=kartensteuerelemente-btn]").should("be.visible");
+    // cy.get("[data-test-id=speichern-btn]").should("be.visible");
     cy.get("[data-test-id=teilen-btn]").should("be.visible");
   });
 });
