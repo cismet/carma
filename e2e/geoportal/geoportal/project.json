@@ -1,0 +1,26 @@
+{
+  "name": "e2e-geoportal",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "e2e/geoportal/geoportal/src",
+  "projectType": "application",
+  "tags": [],
+  "implicitDependencies": ["geoportal"],
+  "targets": {
+    "e2e": {
+      "executor": "@nx/cypress:cypress",
+      "options": {
+        "cypressConfig": "e2e/geoportal/geoportal/cypress.config.ts",
+        "devServerTarget": "geoportal:serve:development",
+        "testingType": "e2e"
+      },
+      "configurations": {
+        "production": {
+          "devServerTarget": "geoportal:serve:production"
+        }
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  }
+}
