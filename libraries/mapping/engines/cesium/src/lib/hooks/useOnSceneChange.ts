@@ -12,14 +12,15 @@ import {
 import { useCesiumViewer } from "./useCesiumViewer";
 import { EncodedSceneParams } from "../..";
 
-export const useCesiumHashUpdater = (
+export const useOnSceneChange = (
   onSceneChange?: (p: EncodedSceneParams) => void
 ) => {
   const viewer = useCesiumViewer();
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
   const isMode2d = useSelector(selectViewerIsMode2d);
-  // todo move requested location updates to an external hook/state
-  // todo handle style change explicitly not via tileset
+
+  // todo handle style change explicitly not via tileset, is secondarystyle
+  // todo consider declaring changed part of state in the callback, not full state only
 
   console.debug("HOOKINIT [CESIUM|HASH] useCesiumHashUpdater");
 
@@ -35,7 +36,7 @@ export const useCesiumHashUpdater = (
       if (onSceneChange) {
         onSceneChange(encodedScene);
       } else {
-        console.info("HOOK: [NOOP]no onSceneChange callback");
+        console.info("HOOK: [NOOP] no onSceneChange callback");
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -72,5 +73,7 @@ export const useCesiumHashUpdater = (
         viewer && viewer.camera.moveEnd.removeEventListener(moveEndListener);
       };
     }
-  }, [viewer, isSecondaryStyle, isMode2d]);
+  }, [viewer, isSecondaryStyle, isMode2d, onSceneChange]);
 };
+
+export default useOnSceneChange;

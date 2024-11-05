@@ -561,8 +561,7 @@ export const GeoportalMap = () => {
             >
               <CustomViewer
                 containerRef={container3dMapRef}
-                minPitch={CESIUM_CONFIG.camera.minPitch}
-                minPitchRange={CESIUM_CONFIG.camera.minPitchRange}
+                cameraOptions={CESIUM_CONFIG.camera}
                 onSceneChange={(e) => {
                   console.debug(
                     "[GEOPORTALMAP|HASH|SCENE|CESIUM]cesium scene changed",

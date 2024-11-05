@@ -12,8 +12,8 @@ import {
 import { pickViewerCanvasCenter } from "../utils/cesiumHelpers";
 
 const useCameraPitchSoftLimiter = (
-  minPitchDeg = 20,
-  resetPitchOffsetDeg = 5
+  minPitchDeg = 22,
+  resetPitchOffsetDeg = 8
 ) => {
   const viewer = useCesiumViewer();
   const dispatch = useDispatch();

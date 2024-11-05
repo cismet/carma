@@ -87,9 +87,6 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
   const { viewerRef } = useCesiumContext();
   let viewer = useCesiumViewer();
 
-  const home = useSelector(selectViewerHome);
-  const homeOffset = useSelector(selectViewerHomeOffset);
-
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
   const isMode2d = useSelector(selectViewerIsMode2d);
   //const isAnimating = useViewerIsAnimating();
@@ -276,10 +273,10 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
     // Event handlers
     const handleFocus = () => setIsUserAction(true);
     const handleBlur = () => setIsUserAction(false);
-    const handleMouseDown = useCallback(() => {
+    const handleMouseDown = () => {
       canvas.focus();
       setIsUserAction(true);
-    }, [canvas]);
+    };
 
     // Add event listeners
     canvas.addEventListener("focus", handleFocus);
@@ -298,7 +295,7 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
 
   const location = useLocation();
 
-  useInitializeViewer(undefined, home, homeOffset);
+  useInitializeViewer();
 
   useEffect(() => {
     if (!viewerRef.current) return;

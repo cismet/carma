@@ -71,12 +71,14 @@ const useCameraPitchEasingLimiter = (
               minPitchRad
             );
 
+            /*
             console.debug(
               "LISTENER HOOK [2D3D|CESIUM|CAMERA]: apply easing pitch limiter",
               Math.round(unitIn * 100),
               Math.round(unitEased * 100),
               Math.round(CesiumMath.toDegrees(-newPitch))
             );
+            */
 
             if (lastPitch.current !== null && lastPosition.current !== null) {
               const { latitude, longitude, height } =

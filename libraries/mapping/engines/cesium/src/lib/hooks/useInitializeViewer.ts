@@ -8,6 +8,7 @@ import {
   PerspectiveFrustum,
   Scene,
   ScreenSpaceCameraController,
+  Viewer,
 } from "cesium";
 
 import {
@@ -16,23 +17,28 @@ import {
   selectScreenSpaceCameraControllerEnableCollisionDetection,
   selectShowSecondaryTileset,
   selectViewerIsMode2d,
+  selectViewerHome,
+  selectViewerHomeOffset,
 } from "../slices/cesium";
 import { decodeSceneFromLocation } from "../utils/hashHelpers";
 
-import { useCesiumViewer } from "./useCesiumViewer";
+import { useCesiumContext } from "./useCesiumContext";
 
 export const useInitializeViewer = (
-  containerRef: React.RefObject<HTMLDivElement> | undefined,
-  home: Cartesian3 | null,
-  homeOffset: Cartesian3 | null
+  containerRef?: React.RefObject<HTMLDivElement>,
+  options?: Viewer.ConstructorOptions
 ) => {
+  const { viewerRef } = useCesiumContext();
+  const home = useSelector(selectViewerHome);
+  const homeOffset = useSelector(selectViewerHomeOffset);
+
+  // todo move initialization from hash to consuming component
   const hashRef = useRef<string | null>(null); // effectively hook should run only once
 
   const previousIsMode2d = useRef<boolean | null>(null);
   const previousIsSecondaryStyle = useRef<boolean | null>(null);
 
   //const location = useLocation();
-  const viewer = useCesiumViewer();
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
   const minZoom = useSelector(
     selectScreenSpaceCameraControllerMinimumZoomDistance
@@ -49,9 +55,39 @@ export const useInitializeViewer = (
   console.debug("HOOK: useInitializeViewer");
 
   useEffect(() => {
+    console.debug("HOOK: [CESIUM] init CustomViewer");
+    if (containerRef?.current) {
+      try {
+        viewerRef.current = new Viewer(containerRef.current, options);
+        /*
+        // make cesium added containers transparent
+        const container = viewerRef.current.container;
+        const cesiumViewer = container.children[0] as HTMLElement;
+        const cesiumViewerCesiumWidgetContainer = cesiumViewer
+          .children[0] as HTMLElement;
+        const cesiumWidget = cesiumViewerCesiumWidgetContainer
+          .children[0] as HTMLElement;
+        cesiumViewer.style.backgroundColor = "transparent";
+        cesiumViewerCesiumWidgetContainer.style.backgroundColor = "transparent";
+        cesiumWidget.style.backgroundColor = "transparent";
+        */
+      } catch (error) {
+        console.error("Error initializing viewer:", error);
+      }
+    }
+    return () => {
+      if (viewerRef.current) {
+        console.info("RENDER: [CESIUM] CustomViewer cleanup destroy viewer");
+        viewerRef.current.destroy();
+        viewerRef.current = null;
+      }
+    };
+  }, [options, containerRef, viewerRef]);
+
+  useEffect(() => {
     console.debug("HOOK: useInitializeViewer useEffect terrain");
-    if (viewer) {
-      const scene: Scene = viewer.scene;
+    if (viewerRef.current) {
+      const scene: Scene = viewerRef.current.scene;
       const sscc: ScreenSpaceCameraController =
         scene.screenSpaceCameraController;
 
@@ -65,11 +101,12 @@ export const useInitializeViewer = (
       sscc.minimumZoomDistance = minZoom ?? 1;
       sscc.maximumZoomDistance = maxZoom ?? Infinity;
     }
-  }, [viewer, isSecondaryStyle, maxZoom, minZoom, enableCollisionDetection]);
+  }, [viewerRef, isSecondaryStyle, maxZoom, minZoom, enableCollisionDetection]);
 
   useEffect(() => {
     console.debug("HOOK: useInitializeViewer useEffect hash");
-    if (viewer && hashRef.current === null) {
+    if (viewerRef.current && hashRef.current === null) {
+      const viewer = viewerRef.current;
       const locationHash = window.location.hash ?? "";
       hashRef.current = locationHash;
       console.debug("HOOK: set initialHash", locationHash);
@@ -122,11 +159,12 @@ export const useInitializeViewer = (
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewer, home, homeOffset, location.pathname, isMode2d]);
+  }, [viewerRef, home, homeOffset, location.pathname, isMode2d]);
 
   useEffect(() => {
     console.debug("HOOK: useInitializeViewer useEffect resize");
-    if (viewer && containerRef?.current) {
+    if (viewerRef.current && containerRef?.current) {
+      const viewer = viewerRef.current;
       const resizeObserver = new ResizeObserver(() => {
         console.debug("HOOK: resize cesium container");
         if (viewer && containerRef?.current) {
@@ -143,12 +181,12 @@ export const useInitializeViewer = (
         resizeObserver.disconnect();
       };
     }
-  }, [viewer, containerRef, isMode2d]);
+  }, [viewerRef, containerRef, isMode2d]);
 
   useEffect(() => {
     // init hook
     console.debug("HOOK: useInitializeViewer useEffect");
-    if (viewer) {
+    if (viewerRef.current) {
       if (
         isMode2d !== previousIsMode2d.current ||
         isSecondaryStyle !== previousIsSecondaryStyle.current
@@ -157,7 +195,7 @@ export const useInitializeViewer = (
         previousIsSecondaryStyle.current = isSecondaryStyle;
       }
     }
-  }, [viewer, isSecondaryStyle, isMode2d]);
+  }, [viewerRef, isSecondaryStyle, isMode2d]);
 };
 
 export default useInitializeViewer;
