@@ -310,12 +310,14 @@ export const GeoportalMap = () => {
           <ControlButtonStyler
             onClick={isMode2d ? zoomInLeaflet : handleZoomInCesium}
             className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
+            dataTestId="zoom-in-control"
           >
             <FontAwesomeIcon icon={faPlus} className="text-base" />
           </ControlButtonStyler>
           <ControlButtonStyler
             onClick={isMode2d ? zoomOutLeaflet : handleZoomOutCesium}
             className="!rounded-t-none !border-t-[1px]"
+            dataTestId="zoom-out-control"
           >
             <FontAwesomeIcon icon={faMinus} className="text-base" />
           </ControlButtonStyler>
@@ -332,6 +334,7 @@ export const GeoportalMap = () => {
               }
             }}
             ref={tourRefLabels.fullScreen}
+            dataTestId="full-screen-control"
           >
             <FontAwesomeIcon
               icon={document.fullscreenElement ? faCompress : faExpand}
@@ -344,6 +347,7 @@ export const GeoportalMap = () => {
           <ControlButtonStyler
             ref={tourRefLabels.navigator}
             onClick={() => setLocationProps((prev) => prev + 1)}
+            dataTestId="location-control"
           >
             <FontAwesomeIcon icon={faLocationArrow} className="text-2xl" />
           </ControlButtonStyler>
@@ -360,6 +364,7 @@ export const GeoportalMap = () => {
             );
             homeControl();
           }}
+          dataTestId="home-control"
         >
           <FontAwesomeIcon icon={faHouseChimney} className="text-lg" />
         </ControlButtonStyler>
@@ -391,6 +396,7 @@ export const GeoportalMap = () => {
                   handleToggleMeasurement();
                 }}
                 ref={tourRefLabels.measurement}
+                dataTestId="measurement-control"
               >
                 <img
                   src={`${getUrlPrefix()}${
@@ -435,6 +441,7 @@ export const GeoportalMap = () => {
             }}
             className="font-semibold"
             ref={tourRefLabels.featureInfo}
+            dataTestId="feature-info-control"
           >
             <FontAwesomeIcon
               icon={faInfo}
@@ -447,7 +454,11 @@ export const GeoportalMap = () => {
         {showLayerButtons && isMode2d && <LayerWrapper />}
       </Control>
       <Control position="bottomleft" order={10}>
-        <div ref={tourRefLabels.gazetteer} className="h-full w-full">
+        <div
+          ref={tourRefLabels.gazetteer}
+          data-test-id="fuzzy-search"
+          className="h-full w-full"
+        >
           <LibFuzzySearch
             gazData={gazData}
             mapRef={routedMapRef}

@@ -7,6 +7,7 @@ interface ControlButtonStylerProps
   height?: string;
   fontSize?: string;
   disabled?: boolean;
+  dataTestId?: string;
 }
 
 type Ref = HTMLButtonElement;
@@ -19,6 +20,7 @@ const ControlButtonStyler = forwardRef<Ref, ControlButtonStylerProps>(
       height = "34px",
       fontSize = "18px",
       disabled,
+      dataTestId = "",
       ...props
     },
     ref
@@ -40,7 +42,13 @@ const ControlButtonStyler = forwardRef<Ref, ControlButtonStylerProps>(
       // fontWeight: 700,
     } as CSSProperties;
     return (
-      <button {...props} disabled={disabled} style={iconPadding} ref={ref}>
+      <button
+        data-test-id={dataTestId}
+        {...props}
+        disabled={disabled}
+        style={iconPadding}
+        ref={ref}
+      >
         <div style={{ opacity: disabled ? 0.5 : 1 }}>{children}</div>
       </button>
     );
