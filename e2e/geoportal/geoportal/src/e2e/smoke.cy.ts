@@ -20,5 +20,6 @@ describe("geoportal smoke test", () => {
     // cy.get("[data-test-id=kartensteuerelemente-btn]").should("be.visible");
     // cy.get("[data-test-id=speichern-btn]").should("be.visible");
     cy.get("[data-test-id=teilen-btn]").should("be.visible");
+    cy.get("[data-test-id=fuzzy-search]").should("be.visible");
   });
 });
