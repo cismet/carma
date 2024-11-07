@@ -30,6 +30,7 @@ import { ProjSingleGeoJson } from "react-cismap/ProjSingleGeoJson";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
+import { replaceHashRoutedHistory } from "@carma-apps/portals";
 import {
   getCollabedHelpComponentConfig,
   geoElements,
@@ -38,7 +39,7 @@ import {
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 
 import { useTweakpaneCtx } from "@carma-commons/debug";
-import { getApplicationVersion } from "@carma-commons/utils";
+import { detectWebGLContext, getApplicationVersion } from "@carma-commons/utils";
 import {
   OverlayTourContext,
   useOverlayHelper,
@@ -110,7 +111,13 @@ import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 
 import "../leaflet.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
-import { replaceHashRoutedHistory } from "@carma-apps/portals";
+
+
+// detect GPU support, disables 3d mode if not supported
+let hasGPU = false;
+const setHasGPU = (flag: boolean) => hasGPU = flag;
+const testGPU = () => detectWebGLContext(setHasGPU);
+window.addEventListener("load", testGPU, false);
 
 export const GeoportalMap = () => {
   const dispatch = useDispatch();
@@ -125,9 +132,9 @@ export const GeoportalMap = () => {
   const container3dMapRef = useRef<HTMLDivElement>(null);
 
   // State and Selectors
-  const allow3d = useSelector(getUIAllow3d);
+  const allow3d = useSelector(getUIAllow3d) && hasGPU;
   const backgroundLayer = useSelector(getBackgroundLayer);
-  const isMode2d = useSelector(selectViewerIsMode2d);
+  const isMode2d = useSelector(selectViewerIsMode2d) || !allow3d;
   const models = useSelector(selectViewerModels);
   const markerAsset = models[CESIUM_CONFIG.markerKey]; //
   const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;
@@ -399,9 +406,8 @@ export const GeoportalMap = () => {
                 dataTestId="measurement-control"
               >
                 <img
-                  src={`${getUrlPrefix()}${
-                    isModeMeasurement ? "measure-active.png" : "measure.png"
-                  }`}
+                  src={`${getUrlPrefix()}${isModeMeasurement ? "measure-active.png" : "measure.png"
+                    }`}
                   alt="Measure"
                   className="w-6"
                 />
