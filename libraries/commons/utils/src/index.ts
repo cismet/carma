@@ -5,3 +5,5 @@ export { type CarmaConfig, extractCarmaConfig } from "./lib/carmaConfig";
 export { generateRandomString } from "./lib/strings";
 
 export { getApplicationVersion } from "./lib/version";
+
+export { detectWebGLContext } from "./lib/webgl";
