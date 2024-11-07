@@ -32,17 +32,16 @@ describe("Fuzzy search should show search results and move map to the selected i
         },
       ],
     }).as("data");
+    cy.intercept("GET", "*").as("allRequests");
+    cy.intercept("POST", "*").as("allRequests");
     cy.visit("/");
   });
 
   it("Fuzzy search shows search results and display the selected item on the map", () => {
+    cy.wait("@allRequests");
+
     cy.get(".ant-select-item.ant-select-item-option").should("not.exist");
     cy.get(".leaflet-marker-icon").should("not.exist");
-
-    // const getFirst = ($el) =>
-    //   $el.find(".ant-select-item.ant-select-item-option");
-
-    const getFirst = ($el) => $el.find(".ant-select-item");
 
     cy.location("hash").then((hash) => {
       const queryString = hash.slice(2);
@@ -58,20 +57,22 @@ describe("Fuzzy search should show search results and move map to the selected i
     cy.get("[data-test-id=fuzzy-search]")
       .should("be.visible")
       .find("input")
-      .type("Achenbachstr")
-      // .pipe(getFirst)
-      .should("contain", "Achenbachstr");
+      .type("Achenbachstr");
 
-    cy.get(".ant-select-item.ant-select-item-option").should("exist");
-
-    cy.get(".ant-select-item.ant-select-item-option").first().click();
+    cy.waitUntil(
+      () =>
+        cy
+          .get(".ant-select-item.ant-select-item-option")
+          .should("have.length.greaterThan", 0),
+      { timeout: 12000, interval: 600 }
+    ).then(() => {
+      cy.get(".ant-select-item.ant-select-item-option").first().click();
+    });
 
     cy.get(".leaflet-marker-icon").should("be.visible");
 
     cy.get(".fuzzy-search-container > .ant-btn").should("be.visible");
     cy.get(".fuzzy-search-container > .ant-btn").click();
-
-    // cy.get(".leaflet-marker-icon").should("not.exist");
 
     cy.location("hash").then((hash) => {
       const queryString = hash.slice(2);
