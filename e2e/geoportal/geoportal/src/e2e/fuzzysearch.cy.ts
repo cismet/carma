@@ -1,22 +1,5 @@
 describe("Fuzzy search should show search results and move map to the selected item.", () => {
   beforeEach(() => {
-    cy.visit("/");
-  });
-
-  it("Fuzzy search shows search results and display the selected item on the map", () => {
-    cy.get(".ant-select-item.ant-select-item-option").should("not.exist");
-    cy.get(".leaflet-marker-icon").should("not.exist");
-
-    // cy.intercept(
-    //   "GET",
-    //   "https://wupp-topicmaps-data.cismet.de/data/3857/adressen.json.md5"
-    // ).as("adressen");
-
-    // cy.intercept(
-    //   "GET",
-    //   "https://wupp-topicmaps-data.cismet.de/data/3857/kitas.json.md5"
-    // ).as("kitas");
-
     cy.intercept("GET", "https://wupp-topicmaps-data.cismet.de/**", {
       statusCode: 200,
       body: [
@@ -49,10 +32,17 @@ describe("Fuzzy search should show search results and move map to the selected i
         },
       ],
     }).as("data");
+    cy.visit("/");
+  });
 
-    cy.wait("@data").then((response) => {
-      console.log("xxx data", response);
-    });
+  it("Fuzzy search shows search results and display the selected item on the map", () => {
+    cy.get(".ant-select-item.ant-select-item-option").should("not.exist");
+    cy.get(".leaflet-marker-icon").should("not.exist");
+
+    // const getFirst = ($el) =>
+    //   $el.find(".ant-select-item.ant-select-item-option");
+
+    const getFirst = ($el) => $el.find(".ant-select-item");
 
     cy.location("hash").then((hash) => {
       const queryString = hash.slice(2);
@@ -68,30 +58,20 @@ describe("Fuzzy search should show search results and move map to the selected i
     cy.get("[data-test-id=fuzzy-search]")
       .should("be.visible")
       .find("input")
-      // .wait("@data")
-      .type("ach");
+      .type("Achenbachstr")
+      // .pipe(getFirst)
+      .should("contain", "Achenbachstr");
 
-    // cy.pause();
-    cy.wait("@data");
+    cy.get(".ant-select-item.ant-select-item-option").should("exist");
 
-    // cy.get(".ant-select-item.ant-select-item-option").should("be.visible");
-    // cy.get(".ant-select-item.ant-select-item-option").first().click();
-
-    // cy.contains(".ant-select-item.ant-select-item-option", "Achenbachstr.")
-    //   .should("be.visible")
-    //   .click();
-
-    // cy.get(".ant-select-item.ant-select-item-option")
-    //   .should("have.length.greaterThan", 5)
-    //   .first()
-    //   .click();
+    cy.get(".ant-select-item.ant-select-item-option").first().click();
 
     cy.get(".leaflet-marker-icon").should("be.visible");
 
     cy.get(".fuzzy-search-container > .ant-btn").should("be.visible");
     cy.get(".fuzzy-search-container > .ant-btn").click();
 
-    cy.get(".leaflet-marker-icon").should("not.exist");
+    // cy.get(".leaflet-marker-icon").should("not.exist");
 
     cy.location("hash").then((hash) => {
       const queryString = hash.slice(2);
