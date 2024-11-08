@@ -3,6 +3,20 @@ import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
 import MapLibreLayer from "react-cismap/vector/MapLibreLayer";
 
 export const configuration = {
+  trueOrtho2024: {
+    title: "True Orthofoto 2024",
+    conf: {
+      type: "wms",
+      url: "http://s10221:7098/orthofotos/services",
+      layers: "WTO2024",
+      version: "1.1.1",
+      tileSize: 256,
+      transparent: true,
+      pane: "backgroundLayers",
+      maxZoom: 26,
+      format: "image/png",
+    },
+  },
   trueOrtho2022: {
     title: "True Orthofoto 2022",
     conf: {
