@@ -32,26 +32,37 @@ describe("Fuzzy search should show search results and move map to the selected i
         },
       ],
     }).as("data");
+
     cy.intercept(
       "GET",
-      "https://geodaten.metropoleruhr.de/spw2/service?transparent=true&format=image%2Fpng&service=WMS&version=1.1.1&request=GetMap&styles=&layers=spw2_graublau&bbox=0%2C-90%2C180%2C90&width=256&height=256&srs=EPSG%3A4326"
+      "https://geodaten.metropoleruhr.de/spw2/service?transparent=true&format=image%2Fpng&service=WMS&version=1.1.1&request=GetMap&styles=&layers=spw2_graublau&bbox=0%2C-90%2C180%2C90&width=256&height=256&srs=EPSG%3A4326",
+      {
+        statusCode: 200,
+        body: "stubbed response data",
+      }
     ).as("geodaten");
     cy.intercept(
       "GET",
-      "https://cesium-wupp-terrain.cismet.de/terrain2020/0/1/0.terrain?v=1.1.0"
+      "https://cesium-wupp-terrain.cismet.de/terrain2020/0/1/0.terrain?v=1.1.0",
+      {
+        statusCode: 200,
+        body: "stubbed response data",
+      }
     ).as("terrain");
     cy.intercept(
       "GET",
-      "https://maps.wuppertal.de/gebiet?service=WMS&request=GetCapabilities&version=1.1.1"
+      "https://maps.wuppertal.de/gebiet?service=WMS&request=GetCapabilities&version=1.1.1",
+      {
+        statusCode: 200,
+        body: "stubbed response data",
+      }
     ).as("maps");
-    // cy.intercept("GET", "*").as("allRequests");
-    // cy.intercept("POST", "*").as("allRequests");
+
     cy.visit("/");
   });
 
   it("Fuzzy search shows search results and display the selected item on the map", () => {
-    cy.wait(["@data", "@maps"]);
-    // cy.wait(["@data", "@geodaten", "@terrain", "@maps"]);
+    cy.wait(["@data"]);
 
     cy.get(".ant-select-item.ant-select-item-option").should("not.exist");
     cy.get(".leaflet-marker-icon").should("not.exist");
@@ -66,11 +77,11 @@ describe("Fuzzy search should show search results and move map to the selected i
       cy.wrap(lat).as("lat");
       cy.wrap(lng).as("lng");
     });
-
+    //Achenbachstr
     cy.get("[data-test-id=fuzzy-search]")
       .should("be.visible")
       .find("input")
-      .type("ac");
+      .type("Achenbachtreppe");
 
     cy.get(".ant-select-dropdown").should("exist");
     cy.get(".ant-select-item.ant-select-item-option").should("exist");
