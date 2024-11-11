@@ -51,6 +51,9 @@ const TopNavbar = () => {
   const modalMenuTourRef = useOverlayHelper(
     getCollabedHelpElementsConfig("MENU", geoElements)
   );
+  const helpOverlayTourRef = useOverlayHelper(
+    getCollabedHelpElementsConfig("HILFE_OVERLAY", geoElements)
+  );
 
   console.debug("RENDER: TopNavbar");
 
@@ -69,6 +72,7 @@ const TopNavbar = () => {
             className="hover:text-gray-600 text-xl lg:mr-11 xl:mr-40"
             onClick={handleToggleTour}
             data-test-id="helper-overlay-btn"
+            ref={helpOverlayTourRef}
           >
             <FontAwesomeIcon
               className="h-[24px] pt-1"
