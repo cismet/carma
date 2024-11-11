@@ -1941,6 +1941,10 @@ export const baseConfig = {
       },
       {
         name: "poi_weihnacht",
+        keywords: [
+          ":vec:",
+          `carmaConf://vectorStyle:${vectorBaseUrl}poi/weihnachtsmarkte.style.json`,
+        ],
       },
       {
         name: "poi_wupperufer",
