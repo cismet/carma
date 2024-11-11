@@ -591,6 +591,10 @@ export const poiCategoryWithKeywords = {
     },
     {
       name: "poi_ksp",
+      keywords: [
+        ":vec:",
+        `carmaConf://vectorStyle:${vectorBaseUrl}kinderspielplatz/style.json`,
+      ],
     },
     {
       name: "poi_kita",
@@ -1239,6 +1243,10 @@ export const baseConfig = {
       },
       {
         name: "Frischluftschneisen",
+        keywords: [
+          ":vec:",
+          `carmaConf://vectorStyle:${vectorBaseUrl}luftleitbahnen/style.json`,
+        ],
       },
       {
         name: "Freiflaechen",
@@ -1246,14 +1254,26 @@ export const baseConfig = {
           790989.4779520752, 6664143.201786021, 800673.0939729535,
           6670157.840449209,
         ],
+        keywords: [
+          ":vec:",
+          `carmaConf://vectorStyle:${vectorBaseUrl}freiflaechen/style.json`,
+        ],
         icon: "Viereck_freiflaechen",
         alternativeIcon: "Viereck_freiflaechen",
       },
       {
         name: "umweltzonen",
+        keywords: [
+          ":vec:",
+          `carmaConf://vectorStyle:${vectorBaseUrl}umweltzonen/umweltzone.style.json`,
+        ],
       },
       {
         name: "uwz",
+        keywords: [
+          ":vec:",
+          `carmaConf://vectorStyle:${vectorBaseUrl}umweltzonen/topicmap.style.json`,
+        ],
       },
       {
         name: "no2",
@@ -1264,9 +1284,17 @@ export const baseConfig = {
       },
       {
         name: "lugi2000",
+        keywords: [
+          ":vec:",
+          `carmaConf://vectorStyle:${vectorBaseUrl}luftguete_2000/style.json`,
+        ],
       },
       {
         name: "lugi1987",
+        keywords: [
+          ":vec:",
+          `carmaConf://vectorStyle:${vectorBaseUrl}luftguete_1987/style.json`,
+        ],
       },
       {
         name: "solar_year",
@@ -1423,6 +1451,10 @@ export const baseConfig = {
         pictureBoundingBox: [
           790989.4779520752, 6664143.201786021, 800673.0939729535,
           6670157.840449209,
+        ],
+        keywords: [
+          ":vec:",
+          `carmaConf://vectorStyle:${vectorBaseUrl}kompensationsflaechen/style.json`,
         ],
       },
       {
@@ -1938,12 +1970,20 @@ export const baseConfig = {
       },
       {
         name: "bverfahren-r",
+        keywords: [
+          ":vec:",
+          `carmaConf://vectorStyle:${vectorBaseUrl}bplanverfahren_rechtsverbindlich/style.json`,
+        ],
       },
       {
         name: "bverfahren-n",
         pictureBoundingBox: [
           790327.8199259817, 6664050.044157797, 794168.7805973117,
           6666976.149146838,
+        ],
+        keywords: [
+          ":vec:",
+          `carmaConf://vectorStyle:${vectorBaseUrl}bplanverfahren_im_verfahren/style.json`,
         ],
       },
       {
@@ -2423,6 +2463,10 @@ export const baseConfig = {
       },
       {
         name: "zone30",
+        keywords: [
+          ":vec:",
+          `carmaConf://vectorStyle:${vectorBaseUrl}tempo_30/style.json`,
+        ],
       },
       {
         name: "sch30",
@@ -2492,6 +2536,10 @@ export const baseConfig = {
       },
       {
         name: "psa",
+        keywords: [
+          ":vec:",
+          `carmaConf://vectorStyle:${vectorBaseUrl}parkscheinautomat/pr.style.json`,
+        ],
       },
       {
         name: "treppen",
@@ -2558,6 +2606,13 @@ export const baseConfig = {
     layers: [
       {
         name: "wohnlage2024",
+      },
+      {
+        name: "wohnlagen2024",
+        keywords: [
+          ":vec:",
+          `carmaConf://vectorStyle:${vectorBaseUrl}wohnlagen2024/style.json`,
+        ],
       },
       {
         name: "borisplus",
