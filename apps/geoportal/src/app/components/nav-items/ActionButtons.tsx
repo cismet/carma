@@ -10,6 +10,9 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Popover, Tooltip } from "antd";
 import { useDispatch, useSelector } from "react-redux";
 
+import { geoElements } from "@carma-collab/wuppertal/geoportal";
+import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
+import { useOverlayHelper } from "@carma-commons/ui/lib-helper-overlay";
 import { Save } from "@carma-apps/portals";
 import { selectViewerIsMode2d } from "@carma-mapping/cesium-engine";
 import {
@@ -38,8 +41,15 @@ const ActionButtons = () => {
 
   const baseUrl = window.location.origin + window.location.pathname;
 
+  const menuTourRef = useOverlayHelper(
+    getCollabedHelpElementsConfig("MENULEISTE", geoElements)
+  );
+
   return (
-    <div className="flex items-center gap-6 lg:ml-[86px] xl:ml-[190px]">
+    <div
+      ref={menuTourRef}
+      className="flex items-center gap-6 lg:ml-[86px] xl:ml-[190px]"
+    >
       <Tooltip title="Aktualisieren">
         <button
           onClick={() => {

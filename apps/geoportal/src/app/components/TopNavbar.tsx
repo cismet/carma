@@ -45,9 +45,6 @@ const TopNavbar = () => {
   const handleToggleTour = () => {
     dispatch(toggleShowOverlayTour(!tourMode));
   };
-  const menuTourRef = useOverlayHelper(
-    getCollabedHelpElementsConfig("MENULEISTE", geoElements)
-  );
   const hintergrundTourRef = useOverlayHelper(
     getCollabedHelpElementsConfig("HINTERGRUND", geoElements)
   );
