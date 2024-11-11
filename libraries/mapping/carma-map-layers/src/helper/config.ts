@@ -1089,6 +1089,10 @@ export const baseConfig = {
           790989.4779520752, 6664143.201786021, 800673.0939729535,
           6670157.840449209,
         ],
+        keywords: [
+          ":vec:",
+          `carmaConf://vectorStyle:${vectorBaseUrl}kleingaerten/style.json`,
+        ],
       },
       {
         name: "boden:radon",
