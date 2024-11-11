@@ -8,6 +8,7 @@ describe("Fuzzy search should show search results and move map to the selected i
     cy.get(`[name=${sectionName}]`).find("button").should("exist");
     cy.get(`[name=${sectionName}]`).find("button").click({ force: true });
     cy.get(".collapse.show").should("exist");
+    cy.get(".collapse.show").find("*").invoke("text").should("not.be.empty");
     cy.get(`[name=${sectionName}]`).find("button").click({ force: true });
     cy.get(".collapse.show").should("not.exist");
   };
