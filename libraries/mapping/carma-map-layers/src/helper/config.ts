@@ -1639,6 +1639,10 @@ export const baseConfig = {
       },
       {
         name: "poi_ksp",
+        keywords: [
+          ":vec:",
+          `carmaConf://vectorStyle:${vectorBaseUrl}kinderspielplatz/style.json`,
+        ],
       },
       {
         name: "poi_kita",
