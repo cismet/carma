@@ -22,6 +22,8 @@ describe("Fuzzy search should show search results and move map to the selected i
     cy.get(".accordion").should("have.length.greaterThan", 3);
 
     toggleAccordion("datengrundlage");
+    toggleAccordion("positionieren");
+    toggleAccordion("standort");
     toggleAccordion("zwilling");
 
     cy.get(".modal-footer").should("be.visible");
