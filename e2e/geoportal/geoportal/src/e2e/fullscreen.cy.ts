@@ -4,33 +4,35 @@ describe("Full screen", () => {
   });
 
   it("Full screen open app on in full page", () => {
-    // cy.get("#routedMap").should("be.visible");
-    // cy.get("[data-test-id=full-screen-control]").should("be.visible");
+    cy.get("#routedMap").should("be.visible");
+    cy.get("[data-test-id=full-screen-control]").should("be.visible");
 
-    // cy.wait(1000);
-    // cy.get("#routedMap").then(($container) => {
-    //   const initialWidth = $container.width();
-    //   const initialHeight = $container.height();
+    cy.wait(1000);
+    cy.get("#routedMap").then(($container) => {
+      const initialWidth = $container.width();
+      const initialHeight = $container.height();
 
-    //   cy.wrap(initialWidth).as("initialWidth");
-    //   cy.wrap(initialHeight).as("initialHeight");
+      cy.wrap(initialWidth).as("initialWidth");
+      cy.wrap(initialHeight).as("initialHeight");
+    });
 
-    //   console.log("xxx initial sizes", initialWidth, initialHeight);
-    // });
+    cy.get("[data-test-id=full-screen-control]").realClick();
 
-    // cy.get("[data-test-id=full-screen-control]").click();
-    cy.get("[data-test-id=full-screen-control]").click();
+    cy.wait(1000);
 
-    // cy.get("#routedMap").then(($container) => {
-    //   const fullWidth = $container.width();
-    //   const fullHeight = $container.height();
+    cy.get("#routedMap").then(($container) => {
+      const fullWidth = $container.width();
+      const fullHeight = $container.height();
 
-    //   // cy.wrap(fullWidth).as("fullWidth");
-    //   // cy.wrap(fullWidth).as("initialHeight");
+      cy.get("@initialWidth").then((initialWidth) => {
+        cy.wrap(fullWidth).should("not.eq", initialWidth);
+      });
 
-    //   cy.get("@initialWidth").then((initialWidth) => {
-    //     console.log("xxx full page sizes", initialWidth, fullWidth);
-    //   });
-    // });
+      cy.get("@initialHeight").then((initialHeight) => {
+        cy.wrap(fullHeight).should("not.eq", initialHeight);
+      });
+    });
+
+    cy.get("[data-test-id=full-screen-control]").realClick();
   });
 });
