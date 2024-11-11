@@ -18,10 +18,8 @@ import {
   setBackgroundLayer,
 } from "../store/slices/mapping";
 import {
-  getUIMode,
   getUIOverlayTourMode,
   toggleShowOverlayTour,
-  UIMode,
 } from "../store/slices/ui";
 import ActionButtons from "./nav-items/ActionButtons";
 
@@ -39,7 +37,6 @@ const TopNavbar = () => {
   const backgroundLayer = useSelector(getBackgroundLayer);
   const selectedMapLayer = useSelector(getSelectedMapLayer);
 
-  const uiMode = useSelector(getUIMode);
   const tourMode = useSelector(getUIOverlayTourMode);
 
   const handleToggleTour = () => {
@@ -65,9 +62,7 @@ const TopNavbar = () => {
 
       <ActionButtons />
       <div className="flex items-center gap-6">
-        <Tooltip
-          title={`Hilfe ${uiMode === UIMode.TOUR ? "ausblenden" : "anzeigen"}`}
-        >
+        <Tooltip title="Hilfefolie überlagern">
           <button
             className="hover:text-gray-600 text-xl lg:mr-11 xl:mr-40"
             onClick={handleToggleTour}
