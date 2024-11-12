@@ -11,6 +11,7 @@ describe("Geoportal measurements", () => {
     cy.get("#routedMap").click(300, 300);
     cy.get("#routedMap").click(403, 300);
     cy.get("#routedMap").click(403, 300);
+    cy.contains("Linienzug").should("be.visible");
     cy.get('[title="Total length"]').should("be.visible");
     cy.get('[title="Total length"]')
       .should("be.visible")
@@ -29,8 +30,16 @@ describe("Geoportal measurements", () => {
         });
       });
     cy.get(".leaflet-bottom.leaflet-right").should("be.visible");
-    cy.contains("Linienzug").should("be.visible");
-    cy.get(".fa-trash-can").click();
-    cy.contains("Aktuell sind keine Messungen").should("be.visible");
+    cy.get("#routedMap").click(300, 200);
+    cy.get("#routedMap").click(400, 200);
+    cy.get("#routedMap").click(400, 100);
+    cy.get("#routedMap").click(300, 100);
+    cy.get("#routedMap").click(300, 200);
+    cy.contains("Linienzug").should("not.exist");
+    cy.contains("Polygon").should("be.visible");
+    cy.contains("Fläche").should("be.visible");
+
+    // cy.get(".fa-trash-can").click();
+    // cy.contains("Aktuell sind keine Messungen").should("be.visible");
   });
 });
