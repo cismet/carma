@@ -62,12 +62,11 @@ import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 
 import versionData from "../../../version.json";
 
-import { paramsToObject } from "../../helper/helper.ts";
+import { getGazData, paramsToObject } from "../../helper/helper.ts";
 import { getBackgroundLayers } from "../../helper/layer.tsx";
 import { addCssToOverlayHelperItem } from "../../helper/overlayHelper.ts";
 
 import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenInfoText.ts";
-import { useGazData } from "../../hooks/useGazData.ts";
 import { useWindowSize } from "../../hooks/useWindowSize.ts";
 import { useTourRefCollabLabels } from "../../hooks/useTourRefCollabLabels.ts";
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
@@ -150,9 +149,6 @@ export const GeoportalMap = () => {
   const focusMode = useSelector(getFocusMode);
   const { viewerRef, terrainProviderRef, surfaceProviderRef } =
     useCesiumContext();
-  const viewer = viewerRef.current;
-  const terrainProvider = terrainProviderRef.current;
-  const surfaceProvider = surfaceProviderRef.current;
   const homeControl = useHomeControl();
   const {
     handleZoomIn: handleZoomInCesium,
@@ -183,7 +179,7 @@ export const GeoportalMap = () => {
             return lastRenderIntervalRef.current;
           },
           dpr: window.devicePixelRatio,
-          resolutionScale: viewer ? viewer.resolutionScale : 0,
+          resolutionScale: viewerRef.current ? viewerRef.current.resolutionScale : 0,
         },
         inputs: [
           { name: "renderCount", readonly: true, format: (v) => v.toFixed(0) },
@@ -200,7 +196,7 @@ export const GeoportalMap = () => {
           },
         ],
       }),
-      [viewer, rerenderCountRef]
+      [viewerRef, rerenderCountRef]
     )
   );
 
@@ -229,7 +225,8 @@ export const GeoportalMap = () => {
   useDispatchSachdatenInfoText();
 
   const tourRefLabels = useTourRefCollabLabels();
-  const gazData = useGazData();
+  const gazData  = getGazData();
+
   const { width, height } = useWindowSize(wrapperRef);
 
   const handleToggleMeasurement = () => {
@@ -262,12 +259,12 @@ export const GeoportalMap = () => {
     });
 
     setIsSameLayerTypes(isSame);
-  }, [layers]);
+  }, [layers, dispatch]);
 
   useEffect(() => {
     // TODO wrap this with 3d component in own component?
     // INTIALIZE Cesium Tileset style from Geoportal/TopicMap background later style
-    if (viewer && backgroundLayer) {
+    if (viewerRef.current && backgroundLayer) {
       if (backgroundLayer.id === "luftbild") {
         dispatch(setCurrentSceneStyle("primary"));
       } else {
@@ -275,7 +272,7 @@ export const GeoportalMap = () => {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewer, backgroundLayer]);
+  }, [backgroundLayer]);
 
   useEffect(() => {
     // set 2d mode if allow3d is false or undefined
@@ -469,12 +466,11 @@ export const GeoportalMap = () => {
             gazData={gazData}
             mapRef={routedMapRef}
             cesiumOptions={{
-              viewer,
               markerAsset,
               markerAnchorHeight,
               isPrimaryStyle: showPrimaryTileset,
-              surfaceProvider,
-              terrainProvider,
+              surfaceProviderRef,
+              terrainProviderRef,
             }}
             referenceSystem={referenceSystem}
             referenceSystemDefinition={referenceSystemDefinition}

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, RefObject } from "react";
 import type { IFuseOptions } from "fuse.js";
 import Fuse from "fuse.js";
 import { AutoComplete, Button } from "antd";
@@ -11,6 +11,7 @@ import IconComp from "react-cismap/commons/Icon";
 
 import {
   EntityData,
+  ModelAsset,
   removeCesiumMarker,
   removeGroundPrimitiveById,
 } from "@carma-mapping/cesium-engine";
@@ -18,7 +19,6 @@ import {
 import { carmaHitTrigger } from "./utils/carmaHitTrigger";
 import {
   generateOptions,
-  getGazData,
   limitSearchResult,
   mapDataToSearchResult,
   prepareGazData,
@@ -35,14 +35,26 @@ import {
   SELECTED_POLYGON_ID,
   INVERTED_SELECTED_POLYGON_ID,
 } from "..";
-import { gazDataPrefix, sourcesConfig } from "./config";
 import { stopwords as stopwordsDe } from "./config/stopwords.de-de";
 
 import "./fuzzy-search.css";
+import { TerrainProvider, Viewer } from "cesium";
 
 interface FuseWithOption<T> extends Fuse<T> {
   options?: IFuseOptions<T>;
 }
+
+// as used for marker creation and fuzzy search
+export type CesiumOptions = {
+  viewerRef: RefObject<Viewer>;
+  markerAsset: ModelAsset;
+  isPrimaryStyle: boolean;
+  markerAnchorHeight?: number;
+  pitchAdjustHeight?: number;
+  terrainProviderRef?: RefObject<TerrainProvider>;
+  surfaceProviderRef?: RefObject<TerrainProvider>;
+};
+
 
 export function LibFuzzySearch({
   gazData,
@@ -68,22 +80,18 @@ export function LibFuzzySearch({
   cesiumOptions,
 }: SearchGazetteerProps) {
   const [options, setOptions] = useState<Option[]>([]);
-  const [showCategories, setSfStandardSearch] = useState(standardSearch);
+  const [showCategories, setShowCategories] = useState(standardSearch);
   const { prepoHandling, ifShowScore, limit, cut, distance, threshold } =
     getDefaultSearchConfig(config);
-  const _gazetteerHitTrigger = undefined;
   const inputStyle = {
     width: "calc(100% - 32px)",
     borderTopLeftRadius: 0,
   };
   const autoCompleteRef = useRef<BaseSelectRef | null>(null);
   const dropdownContainerRef = useRef<HTMLDivElement>(null);
-
-  const { viewer } = cesiumOptions ?? { viewer: null };
-
   let mapConsumers: MapConsumer[] = [];
   //mapRef && mapConsumers.push(mapRef);
-  viewer && mapConsumers.push(viewer);
+  cesiumOptions.viewerRef && mapConsumers.push(cesiumOptions.viewerRef);
 
   const topicMapGazetteerHitTrigger = (hit) => {
     builtInGazetteerHitTrigger(
@@ -102,6 +110,7 @@ export function LibFuzzySearch({
     useState<FuseWithOption<SearchResultItem> | null>(null);
   const [searchResult, setSearchResult] = useState<GruppedOptions[]>([]);
   const [allGazeteerData, setAllGazeteerData] = useState([]);
+  const hasGazData = allGazeteerData.length > 0;
   const [value, setValue] = useState("");
   const [cleanBtnDisable, setCleanBtnDisable] = useState(true);
   const [fireScrollEvent, setFireScrollEvent] = useState(null);
@@ -110,7 +119,7 @@ export function LibFuzzySearch({
     useState<EntityData | null>(null);
 
   const handleSearchAutoComplete = (value) => {
-    if (allGazeteerData.length > 0 && fuseInstance) {
+    if (fuseInstance) {
       const removeStopWords = removeStopwords(value, stopwords, prepoHandling);
       const result = fuseInstance.search(removeStopWords);
 
@@ -172,20 +181,22 @@ export function LibFuzzySearch({
   };
 
   useEffect(() => {
-    if (gazData.leafletElement > 0) {
-      const allModifiedData = prepareGazData(gazData, prepoHandling);
-      setAllGazeteerData(allModifiedData);
+    if (gazData) {
+      console.debug("HOOK: gazData provided");
+      if (gazData.length > 0) { 
+        const allModifiedData = prepareGazData(gazData, prepoHandling);
+        setAllGazeteerData(allModifiedData);
+      } else {
+        console.debug("HOOK: gazData empty");
+        setAllGazeteerData([]);
+      }
     } else {
-      const setDataCallback = (data) => {
-        setAllGazeteerData(prepareGazData(data, prepoHandling));
-      };
-      Array.isArray(sourcesConfig) &&
-        getGazData(sourcesConfig, gazDataPrefix, setDataCallback);
+      console.debug("HOOK: gazData not available");
     }
   }, [gazData, prepoHandling]);
 
   useEffect(() => {
-    if (!fuseInstance && allGazeteerData.length > 0) {
+    if (!fuseInstance ) {
       const fuseAddressesOptions = {
         distance,
         threshold,
@@ -198,7 +209,7 @@ export function LibFuzzySearch({
 
       setFuseInstance(fuse);
     }
-  }, [allGazeteerData, fuseInstance]);
+  }, [fuseInstance, allGazeteerData, distance, threshold]);
 
   useEffect(() => {
     if (dropdownContainerRef.current) {
@@ -320,10 +331,11 @@ export function LibFuzzySearch({
           }}
           onSelect={(value, option) => handleOnSelect(option)}
           defaultActiveFirstOption={true}
-          dropdownRender={(item) => {
+          dropdownRender={
+            (item) => {
             return (
               <div className="fuzzy-dropdownwrapper" ref={dropdownContainerRef}>
-                {item}
+                {allGazeteerData.length === 0 ? "empty" : item}
               </div>
             );
           }}

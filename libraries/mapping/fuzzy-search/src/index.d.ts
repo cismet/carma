@@ -1,23 +1,17 @@
 import L from "leaflet";
 import type { RefObject } from "react";
 import { Viewer } from "cesium";
-import { CesiumOptions } from "@carma-mapping/cesium-engine";
 
 type mapRefType = RefObject<{
   current: { leafletMap: { leafletElement: L.Map } };
 }>;
 
 export type SearchGazetteerProps = {
-  gazData?: any;
+  gazData: null | GazDataItem[];
   setGazetteerHit: (hit: any) => void;
   gazetteerHit: any;
-  // mapRef?: RefObject<{
-  //   leafletMap?: {
-  //     leafletElement: L.Map;
-  //   };
-  // }>;
-  // mapRef?: mapRefType | L.Map;
   mapRef?: L.Map.leafletMap.leafletElement;
+  cesiumOptions?: CesiumOptions;
   //overlayFeature: any;
   setOverlayFeature: (feature: any) => void;
   //crs?: string;
@@ -28,7 +22,6 @@ export type SearchGazetteerProps = {
   ifShowCategories?: boolean;
   placeholder?: string;
   config?: SearchConfig;
-  cesiumOptions?: CesiumOptions;
 };
 
 export type MapConsumer = L.Map | Viewer;

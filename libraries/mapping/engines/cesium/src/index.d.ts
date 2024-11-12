@@ -88,17 +88,6 @@ export type EntityData = {
   cleanup?: Function;
 };
 
-// as used for marker creation and fuzzy search
-export type CesiumOptions = {
-  viewer: Viewer;
-  markerAsset: ModelAsset;
-  isPrimaryStyle: boolean;
-  markerAnchorHeight?: number;
-  pitchAdjustHeight?: number;
-  terrainProvider: TerrainProvider;
-  surfaceProvider: TerrainProvider | null;
-};
-
 export type GeoJsonConfig = {
   url: string;
   name?: string;

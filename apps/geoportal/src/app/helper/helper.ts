@@ -4,7 +4,7 @@ import { host } from "../config";
 import clsx from "clsx";
 import { twMerge } from "tailwind-merge";
 
-export const getGazData = async (setGazData) => {
+export const getGazData = async () => {
   const prefix = "GazData";
   const sources: any = {};
 
@@ -31,7 +31,7 @@ export const getGazData = async (setGazData) => {
     "adressen",
   ]);
 
-  setGazData(gazData);
+  return gazData;
 };
 
 export function cn(...inputs) {
