@@ -4,8 +4,15 @@ import { OverlayTourContext } from "../components/OverlayTourProvider";
 export const useOverlayHelper = (options: OptionsOverlayHelper) => {
   const [ref, setRef] = useState<HTMLElement | null>(null);
   const { addConfig, removeConfig } = useContext(OverlayTourContext);
+
+  if (!options || options.primary === undefined) {
+    console.info("No options provided to useOverlayHelper, helper not ready");
+    return;
+  }
+
   const { containerPos, contentPos, contentWidth, content, position, key } =
     options.primary;
+
   let secondary: Secondary | undefined = undefined;
 
   if (options.secondary) {

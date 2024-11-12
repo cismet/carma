@@ -1,4 +1,4 @@
-import {  useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useLocation } from "react-router-dom";
 
 import { CesiumTerrainProvider, Color, Terrain, TerrainProvider } from "cesium";

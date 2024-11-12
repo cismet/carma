@@ -90,13 +90,12 @@ export type EntityData = {
 
 // as used for marker creation and fuzzy search
 export type CesiumOptions = {
-  viewer: Viewer;
   markerAsset: ModelAsset;
   isPrimaryStyle: boolean;
   markerAnchorHeight?: number;
   pitchAdjustHeight?: number;
-  terrainProvider: TerrainProvider;
-  surfaceProvider: TerrainProvider | null;
+  terrainProviderRef: MutableRefObject<TerrainProvider | null>;
+  surfaceProviderRef: MutableRefObject<TerrainProvider | null>;
 };
 
 export type GeoJsonConfig = {

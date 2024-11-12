@@ -1,3 +1,4 @@
+import { RefObject } from "react";
 import {
   BoundingSphere,
   Cartesian3,
@@ -30,13 +31,14 @@ import {
   polygonHierarchyFromPolygonCoords,
   removeCesiumMarker,
   removeGroundPrimitiveById,
+  type CesiumOptions,
+  type EntityData,
 } from "@carma-mapping/cesium-engine";
 
 import { PROJ4_CONVERTERS } from "./geo";
 
 import { DEFAULT_SRC_PROJ } from "../config";
 import { INVERTED_SELECTED_POLYGON_ID, SELECTED_POLYGON_ID } from "../../index";
-import { CesiumOptions, EntityData } from "@carma-mapping/cesium-engine";
 
 const proj4ConverterLookup = {};
 const DEFAULT_ZOOM_LEVEL = 16;
@@ -205,7 +207,7 @@ const defaultGazetteerOptions = {
 
 export const carmaHitTrigger = (
   hit,
-  mapConsumers: MapConsumer[],
+  mapConsumerRefs: RefObject<MapConsumer>[],
   {
     setGazetteerHit,
     setOverlayFeature,
@@ -268,11 +270,13 @@ export const carmaHitTrigger = (
       polygon
     );
 
-    mapConsumers.forEach(async (mapElement) => {
+    mapConsumerRefs.forEach(async (mapElementRef) => {
+      const mapElement = mapElementRef.current;
       console.log("mapElement", mapElement);
       if (mapElement instanceof Viewer && cesiumOptions) {
         const viewer = mapElement;
         const { scene } = viewer;
+        console.debug("applying hit trigger to cesium", viewer);
 
         // cleanup previous selection
         // todo only remove polygons, try to update existing entities for marker and polylines
@@ -286,7 +290,15 @@ export const carmaHitTrigger = (
         const posCarto = Cartographic.fromDegrees(pos.lon, pos.lat, 0);
 
         const terrainProvider =
-          cesiumOptions.surfaceProvider ?? cesiumOptions.terrainProvider;
+          cesiumOptions.surfaceProviderRef.current ??
+          cesiumOptions.terrainProviderRef.current;
+
+        if (!terrainProvider) {
+          console.debug(
+            "no terrain provider found, cant place marker without elevation"
+          );
+          return;
+        }
 
         const [groundPosition] = await sampleTerrainMostDetailed(
           terrainProvider,

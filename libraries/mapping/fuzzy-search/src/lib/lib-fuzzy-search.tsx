@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, RefObject } from "react";
 import type { IFuseOptions } from "fuse.js";
 import Fuse from "fuse.js";
 import { AutoComplete, Button } from "antd";
@@ -39,10 +39,25 @@ import { gazDataPrefix, sourcesConfig } from "./config";
 import { stopwords as stopwordsDe } from "./config/stopwords.de-de";
 
 import "./fuzzy-search.css";
+import { Viewer } from "cesium";
 
 interface FuseWithOption<T> extends Fuse<T> {
   options?: IFuseOptions<T>;
 }
+
+const cleanUpCesium = (
+  viewer: Viewer,
+  selectedCesiumEntityData: EntityData | null,
+  setSelectedCesiumEntityData: (data: EntityData | null) => void
+) => {
+  if (selectedCesiumEntityData) {
+    removeCesiumMarker(viewer, selectedCesiumEntityData);
+    setSelectedCesiumEntityData(null);
+  }
+  viewer.entities.removeById(SELECTED_POLYGON_ID);
+  removeGroundPrimitiveById(viewer, INVERTED_SELECTED_POLYGON_ID);
+  viewer.scene.requestRender(); // explicit render for requestRenderMode;
+};
 
 export function LibFuzzySearch({
   gazData,
@@ -50,6 +65,7 @@ export function LibFuzzySearch({
   // gazetteerHit,
   // overlayFeature,
   mapRef,
+  cesiumViewerRef,
   setOverlayFeature,
   referenceSystem,
   referenceSystemDefinition,
@@ -79,18 +95,15 @@ export function LibFuzzySearch({
   const autoCompleteRef = useRef<BaseSelectRef | null>(null);
   const dropdownContainerRef = useRef<HTMLDivElement>(null);
 
-  const { viewer } = cesiumOptions ?? { viewer: null };
+  const leafletElement = mapRef?.leafletMap?.leafletElement;
 
-  let mapConsumers: MapConsumer[] = [];
+  let mapConsumerRefs: RefObject<MapConsumer>[] = [];
   //mapRef && mapConsumers.push(mapRef);
-  viewer && mapConsumers.push(viewer);
-
+  cesiumViewerRef && mapConsumerRefs.push(cesiumViewerRef);
   const topicMapGazetteerHitTrigger = (hit) => {
     builtInGazetteerHitTrigger(
       hit,
-      mapRef.current
-        ? mapRef.current.leafletMap.leafletElement
-        : mapRef.leafletMap.leafletElement,
+      leafletElement,
       referenceSystem,
       referenceSystemDefinition,
       setGazetteerHit,
@@ -98,6 +111,7 @@ export function LibFuzzySearch({
       // _gazetteerHitTrigger,
     );
   };
+
   const [fuseInstance, setFuseInstance] =
     useState<FuseWithOption<SearchResultItem> | null>(null);
   const [searchResult, setSearchResult] = useState<GruppedOptions[]>([]);
@@ -155,11 +169,12 @@ export function LibFuzzySearch({
       "[SEARCH] selected option",
       option,
       mapRef,
+      cesiumViewerRef,
       cesiumOptions,
-      mapConsumers
+      mapConsumerRefs
     );
     topicMapGazetteerHitTrigger([option.sData]); // TODO remove this after carma gazetteer hit trigger also handles LeafletMaps
-    carmaHitTrigger([option.sData], mapConsumers, {
+    carmaHitTrigger([option.sData], mapConsumerRefs, {
       cesiumOptions,
       selectedCesiumEntityData,
       setSelectedCesiumEntityData,
@@ -262,17 +277,13 @@ export function LibFuzzySearch({
       setSearchResult([]);
       setOverlayFeature(null);
       setCleanBtnDisable(true);
-      if (cesiumOptions) {
-        selectedCesiumEntityData &&
-          removeCesiumMarker(cesiumOptions.viewer, selectedCesiumEntityData);
-        setSelectedCesiumEntityData(null);
-        cesiumOptions.viewer.entities.removeById(SELECTED_POLYGON_ID);
-        removeGroundPrimitiveById(
-          cesiumOptions.viewer,
-          INVERTED_SELECTED_POLYGON_ID
+      cesiumViewerRef &&
+        cesiumViewerRef.current &&
+        cleanUpCesium(
+          cesiumViewerRef.current,
+          selectedCesiumEntityData,
+          setSelectedCesiumEntityData
         );
-        cesiumOptions.viewer.scene.requestRender(); // explicit render for requestRenderMode;
-      }
     }
   };
 

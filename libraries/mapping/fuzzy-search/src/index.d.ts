@@ -1,5 +1,5 @@
 import L from "leaflet";
-import type { RefObject } from "react";
+import type { MutableRefObject, RefObject } from "react";
 import { Viewer } from "cesium";
 import { CesiumOptions } from "@carma-mapping/cesium-engine";
 
@@ -11,13 +11,8 @@ export type SearchGazetteerProps = {
   gazData?: any;
   setGazetteerHit: (hit: any) => void;
   gazetteerHit: any;
-  // mapRef?: RefObject<{
-  //   leafletMap?: {
-  //     leafletElement: L.Map;
-  //   };
-  // }>;
-  // mapRef?: mapRefType | L.Map;
   mapRef?: L.Map.leafletMap.leafletElement;
+  cesiumViewerRef?: MutableRefObject<Viewer | null>;
   //overlayFeature: any;
   setOverlayFeature: (feature: any) => void;
   //crs?: string;
