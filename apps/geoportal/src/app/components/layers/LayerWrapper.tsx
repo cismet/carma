@@ -25,10 +25,6 @@ import {
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
-import { useOverlayHelper } from "@carma-commons/ui/lib-helper-overlay";
-import { geoElements } from "@carma-collab/wuppertal/geoportal";
-import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
-
 import { AppDispatch } from "../../store";
 import {
   getBackgroundLayer,
@@ -65,10 +61,6 @@ const LayerWrapper = () => {
   const style = {
     color: isOver ? "green" : undefined,
   };
-
-  const layerWrapperTourRef = useOverlayHelper(
-    getCollabedHelpElementsConfig("LAYERBUTTONS", geoElements)
-  );
 
   const getLayerPos = (id) => layers.findIndex((layer) => layer.id === id);
 
@@ -151,10 +143,7 @@ const LayerWrapper = () => {
                 <FontAwesomeIcon icon={faChevronRight} />
               </div>
             )}
-            <div
-              ref={layerWrapperTourRef}
-              className="w-full flex justify-center items-center h-full gap-2"
-            >
+            <div className="w-full flex justify-center items-center h-full gap-2">
               <LayerButton
                 icon="background"
                 layer={backgroundLayer}

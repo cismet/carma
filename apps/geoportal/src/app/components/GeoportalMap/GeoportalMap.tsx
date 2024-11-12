@@ -39,7 +39,10 @@ import {
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 
 import { useTweakpaneCtx } from "@carma-commons/debug";
-import { detectWebGLContext, getApplicationVersion } from "@carma-commons/utils";
+import {
+  detectWebGLContext,
+  getApplicationVersion,
+} from "@carma-commons/utils";
 import {
   OverlayTourContext,
   useOverlayHelper,
@@ -112,10 +115,9 @@ import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 import "../leaflet.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
-
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;
-const setHasGPU = (flag: boolean) => hasGPU = flag;
+const setHasGPU = (flag: boolean) => (hasGPU = flag);
 const testGPU = () => detectWebGLContext(setHasGPU);
 window.addEventListener("load", testGPU, false);
 
@@ -167,7 +169,14 @@ export const GeoportalMap = () => {
     "137px"
   );
 
+  const layerButtonsOverlay = addCssToOverlayHelperItem(
+    getCollabedHelpElementsConfig("LAYERBUTTONS", geoElements),
+    "146px",
+    "21px"
+  );
+
   useOverlayHelper(infoBoxOverlay);
+  useOverlayHelper(layerButtonsOverlay);
 
   useTweakpaneCtx(
     useMemo(
@@ -406,8 +415,9 @@ export const GeoportalMap = () => {
                 dataTestId="measurement-control"
               >
                 <img
-                  src={`${getUrlPrefix()}${isModeMeasurement ? "measure-active.png" : "measure.png"
-                    }`}
+                  src={`${getUrlPrefix()}${
+                    isModeMeasurement ? "measure-active.png" : "measure.png"
+                  }`}
                   alt="Measure"
                   className="w-6"
                 />
