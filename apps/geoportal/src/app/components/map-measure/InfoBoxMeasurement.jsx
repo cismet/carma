@@ -229,11 +229,13 @@ const InfoBoxMeasurement = () => {
                     cleanUpdateMeasurementStatus();
                   }}
                   className="cursor-pointer text-[16px] text-[#808080]"
+                  data-test-id="zoom-measurement-btn"
                 />
                 <FontAwesomeIcon
                   onClick={deleteShapeHandler}
                   className="cursor-pointer text-base text-[#808080]"
                   icon={faTrashCan}
+                  data-test-id="delete-measurement-btn"
                 />
               </div>
             </div>
@@ -260,6 +262,7 @@ const InfoBoxMeasurement = () => {
                 <a
                   className="renderAsLink text-[#0078a8]"
                   onClick={decreaseCurrentHandler}
+                  data-test-id="switch-measurement-left"
                   style={{ fontSize: "10.5px" }}
                 >
                   &lt;&lt;
@@ -270,6 +273,7 @@ const InfoBoxMeasurement = () => {
                 <a
                   className="renderAsLink text-[#0078a8]"
                   onClick={increaseCurrentHandler}
+                  data-test-id="switch-measurement-right"
                   style={{ fontSize: "10.5px" }}
                 >
                   &gt;&gt;
@@ -285,7 +289,10 @@ const InfoBoxMeasurement = () => {
           pixelwidth={350}
           isCollapsible={false}
           alwaysVisibleDiv={
-            <div className="mt-2 w-[90%] p-2">
+            <div
+              className="mt-2 w-[90%] p-2"
+              data-test-id="empty-measurement-info"
+            >
               <p className="text-[#212529] font-normal text-xs leading-normal">
                 {measurementsData.length !== 0
                   ? "Um alle Messungen zu sehen, klicken Sie auf den unten stehenden Link"
