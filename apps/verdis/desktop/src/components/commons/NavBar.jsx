@@ -197,7 +197,7 @@ const NavBar = ({ width = "100%", height = 73, style, inStory }) => {
             onClick={() => logout()}
           />
         </Tooltip>
-        <Tooltip title="Einstellungen" placement="bottom">
+        <Tooltip title="Einstellungen" placement="left">
           <Avatar
             size="large"
             icon={<FontAwesomeIcon icon={faUser} />}
