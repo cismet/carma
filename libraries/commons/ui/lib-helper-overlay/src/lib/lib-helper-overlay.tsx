@@ -62,6 +62,7 @@ export function LibHelperOverlay({
 
   return (
     <div
+      data-test-id="overlay-helper-bg"
       style={{
         position: "fixed",
         top: 0,
@@ -145,6 +146,7 @@ export function LibHelperOverlay({
                     style={{
                       cursor: "pointer",
                     }}
+                    data-test-id="overlay-helper-primary"
                   >
                     {content}
                   </span>
