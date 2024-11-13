@@ -58,7 +58,7 @@ export const configuration = {
   },
   // ortho2024: {},
   ortho2022: {
-    title: "True Orthofoto 2022",
+    title: "Orthofoto 2022",
     conf: {
       type: "wms",
       url: "http://s10221:7098/orthofotos/services",
