@@ -216,13 +216,18 @@ export const GeoportalMap = () => {
   );
 
   const {
+    topicMapCtx,
+  } = useCarmaMapContext();
+
+  const {
     routedMapRef: routedMap,
-    realRoutedMapRef: routedMapRef,
+    //realRoutedMapRef: routedMapRef,
     referenceSystem,
     referenceSystemDefinition,
     maskingPolygon,
     setShowTourOverlay,
-  } = useCarmaMapContext();
+  } = topicMapCtx;
+
   const { setAppMenuVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
   const { setSecondaryWithKey } = useContext(OverlayTourContext);

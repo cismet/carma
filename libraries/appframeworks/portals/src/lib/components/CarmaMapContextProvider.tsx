@@ -1,5 +1,5 @@
 import { OverlayTourProvider } from "@carma-commons/ui/lib-helper-overlay";
-import { CesiumContextProvider } from "@carma-mapping/cesium-engine";
+import { CesiumContextProvider, useCesiumContext } from "@carma-mapping/cesium-engine";
 import { createContext, useContext, useMemo, useState } from "react";
 import {
   TopicMapContext,
@@ -20,20 +20,25 @@ export const useCarmaMapContext = () => {
   const context = useContext(CarmaMapContext);
   // forward other contexts here if needed
   const topicMapContext = useContext<typeof TopicMapContext>(TopicMapContext);
+  const cesiumContext = useCesiumContext();
   if (!context) {
     throw new Error(
       "useCarmaMapContext must be used within a CarmaMapProvider"
     );
   }
-  return useMemo(
+
+  const combinedContext = useMemo(
     () => ({
-      ...topicMapContext,
+      topicMapCtx: topicMapContext,
+      cesiumCtx: cesiumContext,
       ...context,
       //routedMapRef: topicMapContext.realRoutedMapRef,
       //realRoutedMapRef: undefined,
     }),
-    [context, topicMapContext]
+    [context, topicMapContext, cesiumContext]
   );
+
+  return combinedContext;
 };
 
 export const CarmaMapContextProvider = ({
@@ -50,11 +55,15 @@ export const CarmaMapContextProvider = ({
     setShowTourOverlay,
   };
 
+  const closeOverlay = () => {
+    setShowTourOverlay(false);
+  };
+
   return (
     <TopicMapContextProvider>
       <OverlayTourProvider
         show={showTourOverlay}
-        closeOverlay={() => setShowTourOverlay(false)}
+        closeOverlay={closeOverlay}
         transparency={transparency}
         color={color}
       >
