@@ -375,6 +375,8 @@ export const createCismapLayers = (
       if (selectedVectorFeature.setSelection) {
         selectedVectorFeature.setSelection(true);
       }
+    } else {
+      dispatch(setSelectedFeature(null));
     }
   }, [globalHits]);
 
