@@ -23,8 +23,21 @@ import InfoBox from "react-cismap/topicmaps/InfoBox";
 import { getActionLinksForFeature } from "react-cismap/tools/uiHelper";
 import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { Button } from "antd";
+import { defaultLayerConf } from "react-cismap/tools/layerFactory";
 
 const host = "https://wupp-topicmaps-data.cismet.de";
+
+const baseLayerConf = { ...defaultLayerConf };
+
+if (!baseLayerConf.namedLayers.amtlichRVR) {
+  baseLayerConf.namedLayers.amtlichRVR = {
+    type: "tiles",
+    maxNativeZoom: 20,
+    maxZoom: 22,
+    url: "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
+    pane: "backgroundLayers",
+  };
+}
 
 const getGazData = async (setGazData) => {
   const prefix = "GazDataForStories";
@@ -76,6 +89,11 @@ function App({ vectorStyles = [] }) {
       src: "/images/rain-hazard-map-bg/citymap.png",
       title: "Stadtplan",
     },
+    stadtplanTiled: {
+      layerkey: "amtlichRVR",
+      src: "/images/rain-hazard-map-bg/citymap.png",
+      title: "Karte (wie im Geoportal)",
+    },
     lbk: {
       layerkey: "trueOrtho2020@75|OMT_Klokantech_basic@50",
       src: "/images/rain-hazard-map-bg/ortho.png",
@@ -100,6 +118,16 @@ function App({ vectorStyles = [] }) {
   };
   const backgroundModes = [
     {
+      title: "Stadtplan (RVR, tiled, wie im Geoportal)",
+      mode: "default",
+      layerKey: "stadtplanTiled",
+    },
+    {
+      title: "Stadtplan (RVR, zum Vergleich)",
+      mode: "default",
+      layerKey: "stadtplan",
+    },
+    {
       title: "Vektorbasierter Layer (Basemap.de)",
       mode: "default",
       layerKey: "basemap",
@@ -109,17 +137,14 @@ function App({ vectorStyles = [] }) {
       mode: "default",
       layerKey: "vector2",
     },
-    {
-      title: "Stadtplan (RVR, zum Vergleich)",
-      mode: "default",
-      layerKey: "stadtplan",
-    },
+
     { title: "Luftbildkarte", mode: "default", layerKey: "lbk" },
   ];
   console.log("vectorStyles", vectorStyles);
 
   const content = (
     <TopicMapContextProvider
+      baseLayerConf={baseLayerConf}
       appKey="VectorPlaygroundWuppertal.TopicMap"
       backgroundConfigurations={backgroundConfigurations}
       backgroundModes={backgroundModes}
