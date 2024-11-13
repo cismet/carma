@@ -146,7 +146,11 @@ export function LibHelperOverlay({
                     style={{
                       cursor: "pointer",
                     }}
-                    data-test-id="overlay-helper-primary"
+                    data-test-id={
+                      secondary
+                        ? "primary-with-secondary"
+                        : "overlay-helper-primary"
+                    }
                   >
                     {content}
                   </span>
