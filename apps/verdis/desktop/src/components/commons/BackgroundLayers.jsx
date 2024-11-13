@@ -31,7 +31,7 @@ export const configuration = {
     },
   },
   trueOrtho2021: {
-    title: "True Orthofoto 2021 (Land)",
+    title: "True Orthofoto Land aktuell",
     conf: {
       type: "wms",
       url: "http://s10221.wuppertal-intra.de:7098/orthofotos/services",
@@ -44,7 +44,7 @@ export const configuration = {
     },
   },
   ortho2020: {
-    title: "Orthofoto 2020",
+    title: "True Orthofoto 2020",
     conf: {
       type: "wms",
       url: "http://s102w284.stadt.wuppertal-intra.de:6080/arcgis/services/PRODUKTION/AGS_ORTHOPHOTO_WUP20_D/MapServer/WMSServer",
@@ -56,81 +56,19 @@ export const configuration = {
       format: "image/png",
     },
   },
-  ortho2018: {
-    title: "Orthofoto 2018",
+  // ortho2024: {},
+  ortho2022: {
+    title: "True Orthofoto 2022",
     conf: {
       type: "wms",
-      url: "http://s102w284.stadt.wuppertal-intra.de:6080/arcgis/services/PRODUKTION/AGS_ORTHOPHOTO_WUP/MapServer/WMSServer",
-      layers: "13",
+      url: "http://s10221:7098/orthofotos/services",
+      layers: "WO2022",
+      version: "1.1.1",
       tileSize: 256,
       transparent: true,
       pane: "backgroundLayers",
       maxZoom: 26,
       format: "image/png",
-    },
-  },
-  ortho2016: {
-    title: "Orthofoto 2016",
-    conf: {
-      type: "wms",
-      url: "http://s102w284.stadt.wuppertal-intra.de:6080/arcgis/services/PRODUKTION/AGS_ORTHOPHOTO_WUP/MapServer/WMSServer",
-      layers: "9",
-      tileSize: 256,
-      transparent: true,
-      pane: "backgroundLayers",
-      maxZoom: 26,
-      format: "image/png",
-    },
-  },
-
-  lbk: {
-    title: "Luftbildkarte",
-    conf: [
-      {
-        type: "wmts",
-        url: "https://geodaten.metropoleruhr.de/spw2/service",
-        layers: "spw2_light_grundriss",
-        version: "1.3.0",
-        pane: "backgroundvectorLayers",
-        transparent: true,
-        format: "image/png",
-        maxZoom: 26,
-
-        tiled: false,
-      },
-      {
-        type: "wms",
-        url: "https://maps.wuppertal.de/deegree/wms",
-        layers: "R102:trueortho2022",
-        tileSize: 256,
-        transparent: true,
-        pane: "backgroundLayers",
-        maxZoom: 26,
-        opacityFunction: (opacity) => opacity * 0.75,
-        format: "image/png",
-      },
-      {
-        type: "wmts",
-        url: "https://geodaten.metropoleruhr.de/dop/dop_overlay?language=ger",
-        layers: "dop_overlay",
-        version: "1.3.0",
-        tiled: false,
-        format: "image/png",
-        transparent: true,
-        maxZoom: 26,
-        pane: "additionalLayers0",
-      },
-    ],
-  },
-
-  stadtplan: {
-    title: "Stadtplan (bunt)",
-    conf: {
-      type: "vector",
-      style: "https://omt.map-hosting.de/styles/osm-bright-grey/style.json",
-      //   offlineAvailable: true,
-      //   offlineDataStoreKey: "wuppBasemap",
-      pane: "backgroundvectorLayers",
     },
   },
 };
