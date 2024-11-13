@@ -29,8 +29,8 @@ export const useCarmaMapContext = () => {
     () => ({
       ...topicMapContext,
       ...context,
-      routedMapRef: topicMapContext.realRoutedMapRef,
-      realRoutedMapRef: undefined,
+      //routedMapRef: topicMapContext.realRoutedMapRef,
+      //realRoutedMapRef: undefined,
     }),
     [context, topicMapContext]
   );

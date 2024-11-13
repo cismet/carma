@@ -21,7 +21,6 @@ import {
   faPlus,
 } from "@fortawesome/free-solid-svg-icons";
 
-import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { ExtraMarker } from "react-cismap/ExtraMarker";
 import PaleOverlay from "react-cismap/PaleOverlay";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
@@ -216,14 +215,14 @@ export const GeoportalMap = () => {
     )
   );
 
-  const { setShowTourOverlay } = useCarmaMapContext();
-
   const {
-    routedMapRef,
+    routedMapRef: routedMap,
+    realRoutedMapRef: routedMapRef,
     referenceSystem,
     referenceSystemDefinition,
     maskingPolygon,
-  } = useContext<typeof TopicMapContext>(TopicMapContext);
+    setShowTourOverlay,
+  } = useCarmaMapContext();
   const { setAppMenuVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
   const { setSecondaryWithKey } = useContext(OverlayTourContext);
@@ -379,7 +378,7 @@ export const GeoportalMap = () => {
         <ControlButtonStyler
           ref={tourRefLabels.home}
           onClick={() => {
-            routedMapRef.leafletMap.leafletElement.flyTo(
+            routedMap.leafletMap.leafletElement.flyTo(
               [51.272570027476256, 7.199918031692506],
               18
             );
@@ -482,7 +481,7 @@ export const GeoportalMap = () => {
         >
           <LibFuzzySearch
             gazData={gazData}
-            mapRef={routedMapRef}
+            mapRef={routedMap}
             cesiumViewerRef={viewerRef}
             cesiumOptions={{
               markerAsset,
@@ -552,7 +551,7 @@ export const GeoportalMap = () => {
                   geoJson={overlayFeature}
                   masked={true}
                   maskingPolygon={maskingPolygon}
-                  mapRef={routedMapRef}
+                  mapRef={routedMap}
                 />
               )}
               <GazetteerHitDisplay
