@@ -30,7 +30,10 @@ import { ProjSingleGeoJson } from "react-cismap/ProjSingleGeoJson";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
-import { replaceHashRoutedHistory } from "@carma-apps/portals";
+import {
+  replaceHashRoutedHistory,
+  useCarmaMapContext,
+} from "@carma-apps/portals";
 import {
   getCollabedHelpComponentConfig,
   geoElements,
@@ -97,7 +100,6 @@ import {
   getUIAllow3d,
   getUIMode,
   getUIShowLayerButtons,
-  toggleShowOverlayTour,
   toggleUIMode,
   UIMode,
 } from "../../store/slices/ui.ts";
@@ -214,6 +216,8 @@ export const GeoportalMap = () => {
     )
   );
 
+  const { setShowTourOverlay } = useCarmaMapContext();
+
   const {
     routedMapRef,
     referenceSystem,
@@ -310,7 +314,7 @@ export const GeoportalMap = () => {
   const showOverlayFromOutside = (key: string) => {
     setAppMenuVisible(false);
     setSecondaryWithKey(key);
-    dispatch(toggleShowOverlayTour(true));
+    setShowTourOverlay(true);
   };
 
   // TODO Move out Controls to own component

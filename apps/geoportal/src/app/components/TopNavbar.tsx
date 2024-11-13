@@ -17,19 +17,18 @@ import {
   getSelectedMapLayer,
   setBackgroundLayer,
 } from "../store/slices/mapping";
-import {
-  getUIOverlayTourMode,
-  toggleShowOverlayTour,
-} from "../store/slices/ui";
 import ActionButtons from "./nav-items/ActionButtons";
 
 import { layerMap } from "../config";
 
 import ResourceModal from "./nav-items/ResourceModal";
 import "./switch.css";
+import { useCarmaMapContext } from "@carma-apps/portals";
 
 const TopNavbar = () => {
   const dispatch = useDispatch();
+
+  const { setShowTourOverlay } = useCarmaMapContext();
 
   const { setAppMenuVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
@@ -37,11 +36,6 @@ const TopNavbar = () => {
   const backgroundLayer = useSelector(getBackgroundLayer);
   const selectedMapLayer = useSelector(getSelectedMapLayer);
 
-  const tourMode = useSelector(getUIOverlayTourMode);
-
-  const handleToggleTour = () => {
-    dispatch(toggleShowOverlayTour(!tourMode));
-  };
   const hintergrundTourRef = useOverlayHelper(
     getCollabedHelpElementsConfig("HINTERGRUND", geoElements)
   );
@@ -65,7 +59,7 @@ const TopNavbar = () => {
         <Tooltip title="Hilfefolie überlagern">
           <button
             className="hover:text-gray-600 text-xl lg:mr-11 xl:mr-40"
-            onClick={handleToggleTour}
+            onClick={() => setShowTourOverlay(true)}
             data-test-id="helper-overlay-btn"
             ref={helpOverlayTourRef}
           >

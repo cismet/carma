@@ -14,7 +14,11 @@ import { CrossTabCommunicationContextProvider } from "react-cismap/contexts/Cros
 import { backgroundSettings } from "@carma-collab/wuppertal/geoportal";
 
 import type { Layer } from "@carma-mapping/layers";
-import { CarmaMapContextProvider, type BackgroundLayer, type Settings } from "@carma-apps/portals";
+import {
+  CarmaMapContextProvider,
+  type BackgroundLayer,
+  type Settings,
+} from "@carma-apps/portals";
 
 // Local Modules
 import AppErrorFallback from "./components/AppErrorFallback";
@@ -134,7 +138,7 @@ function App({ published }: { published?: boolean }) {
     <CarmaMapContextProvider
       cesiumOptions={CESIUM_CONFIG}
       overlayOptions={{
-        background: backgroundSettings
+        background: backgroundSettings,
       }}
     >
       <ErrorBoundary FallbackComponent={AppErrorFallback}>

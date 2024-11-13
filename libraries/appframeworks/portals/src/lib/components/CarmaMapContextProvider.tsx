@@ -27,9 +27,10 @@ export const useCarmaMapContext = () => {
   }
   return useMemo(
     () => ({
+      ...topicMapContext,
       ...context,
       routedMapRef: topicMapContext.realRoutedMapRef,
-      topicMapContext,
+      realRoutedMapRef: undefined,
     }),
     [context, topicMapContext]
   );
