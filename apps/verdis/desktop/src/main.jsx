@@ -44,6 +44,7 @@ import { persistStore } from "redux-persist";
 import { loadGazeteerEntries } from "./store/slices/gazData";
 import { getVirtualCityPassword } from "./store/slices/search";
 import { MapContainer } from "react-leaflet";
+import { suppressReactCismapErrors } from "@carma-commons/utils";
 
 const baseLayerConf = extendBaseLayerConf({ ...defaultLayerConf });
 
@@ -145,24 +146,7 @@ const router = createHashRouter(
   {}
 );
 
-const originalWarn = console.warn.bind(console);
-const originalError = console.error.bind(console);
-console.warn = (message, ...args) => {
-  if (
-    message &&
-    !message.includes("ReactDOM.render is no longer supported in React 18")
-  ) {
-    originalWarn(message, ...args);
-  }
-};
-console.error = (message, ...args) => {
-  if (
-    message &&
-    !message.includes("ReactDOM.render is no longer supported in React 18")
-  ) {
-    originalError(message, ...args);
-  }
-};
+suppressReactCismapErrors();
 
 const queryClient = new QueryClient();
 
