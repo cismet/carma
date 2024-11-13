@@ -78,6 +78,7 @@ import useLeafletZoomControls from "../../hooks/leaflet/useLeafletZoomControls.t
 
 import store from "../../store/index.ts";
 import {
+  getSelectedFeature,
   setFeatures,
   setPreferredLayerId,
   setSecondaryInfoBoxElements,
@@ -150,6 +151,7 @@ export const GeoportalMap = () => {
   const showHamburgerMenu = useSelector(getShowHamburgerMenu);
   const showMeasurementButton = useSelector(getShowMeasurementButton);
   const focusMode = useSelector(getFocusMode);
+  const selectedFeature = useSelector(getSelectedFeature);
   const { viewerRef, terrainProviderRef, surfaceProviderRef } =
     useCesiumContext();
   const homeControl = useHomeControl();
@@ -298,7 +300,7 @@ export const GeoportalMap = () => {
       if (isModeMeasurement) {
         return <InfoBoxMeasurement key={uiMode} />;
       }
-      if (isModeFeatureInfo) {
+      if (isModeFeatureInfo || selectedFeature) {
         return <FeatureInfoBox pos={pos} />;
       }
     }
