@@ -1,4 +1,10 @@
-import { createElement, CSSProperties } from "react";
+import {
+  createElement,
+  CSSProperties,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import type { Dispatch, Store } from "@reduxjs/toolkit";
 import type { LatLng, Point } from "leaflet";
 import proj4 from "proj4";
@@ -58,6 +64,7 @@ interface VectorLayerProps {
   pane: string;
   opacity: number | string;
   selectionEnabled?: boolean;
+  manualSelectionManagement?: boolean;
   maxSelectionCount?: number;
   onSelectionChanged?: (e: { hits: any[]; hit: any }) => void;
 }
@@ -336,8 +343,42 @@ export const createCismapLayers = (
     setPos: (pos: [number, number] | null) => void;
     zoom: number;
   }
-) =>
-  layers.map((layer, i) => {
+) => {
+  const [globalHits, setGlobalHits] = useState({});
+  const selectionHandler = (e, layer) => {
+    setGlobalHits((old) => {
+      return { ...old, [layer.id]: e.hits };
+    });
+  };
+  const modeRef = useRef(mode);
+
+  function getLastDefinedObject(o) {
+    const keys = Object.keys(o);
+    for (let i = keys.length - 1; i >= 0; i--) {
+      const value = o[keys[i]];
+      if (value !== undefined) {
+        return value;
+      }
+    }
+    return undefined;
+  }
+
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
+
+  useEffect(() => {
+    const lastObject = getLastDefinedObject(globalHits);
+
+    if (lastObject) {
+      const selectedVectorFeature = lastObject[0];
+      if (selectedVectorFeature.setSelection) {
+        selectedVectorFeature.setSelection(true);
+      }
+    }
+  }, [globalHits]);
+
+  return layers.map((layer, i) => {
     if (layer.visible) {
       switch (layer.layerType) {
         case "wmts":
@@ -361,17 +402,104 @@ export const createCismapLayers = (
             pane: `additionalLayers${i + 1}`,
             opacity: layer.opacity || 0.7,
             type: "vector",
-            selectionEnabled:
-              mode === UIMode.FEATURE_INFO && layer.useInFeatureInfo,
-            onSelectionChanged: (e) =>
-              onSelectionChangedVector(e, {
-                layer,
-                layers,
-                dispatch,
-                setPos,
-                zoom,
-              }),
+            selectionEnabled: true,
+            manualSelectionManagement: true,
+            onSelectionChanged: (e) => {
+              if (modeRef.current !== UIMode.FEATURE_INFO) {
+                selectionHandler(e, layer);
+                if (e.hits && layer.queryable) {
+                  const selectedVectorFeature = e.hits[0];
+
+                  if (selectedVectorFeature.setSelection) {
+                    selectedVectorFeature.setSelection(false);
+                  }
+
+                  if (selectedVectorFeature.geometry.type !== "Point") {
+                    return;
+                  }
+
+                  const coordinates =
+                    selectedVectorFeature.geometry.coordinates;
+                  const vectorPos = proj4(
+                    proj4.defs("EPSG:4326") as unknown as string,
+                    proj4crs25832def,
+                    coordinates
+                  );
+
+                  const minimalBoxSize = 1;
+                  const featureInfoBaseUrl = layer.other.service.url;
+                  const layerName = layer.other.name;
+
+                  const imgUrl =
+                    featureInfoBaseUrl +
+                    `?&VERSION=1.1.1&REQUEST=GetFeatureInfo&BBOX=` +
+                    `${vectorPos[0] - minimalBoxSize},` +
+                    `${vectorPos[1] - minimalBoxSize},` +
+                    `${vectorPos[0] + minimalBoxSize},` +
+                    `${vectorPos[1] + minimalBoxSize}` +
+                    `&WIDTH=10&HEIGHT=10&SRS=EPSG:25832&FORMAT=image/png&TRANSPARENT=TRUE&BGCOLOR=0xF0F0F0&EXCEPTIONS=application/vnd.ogc.se_xml&FEATURE_COUNT=99&LAYERS=${layerName}&STYLES=default&QUERY_LAYERS=${layerName}&INFO_FORMAT=text/html&X=5&Y=5`;
+
+                  const properties = selectedVectorFeature.properties;
+                  let result = "";
+                  let featureInfoZoom = 20;
+                  layer.other.keywords.forEach((keyword) => {
+                    const extracted = keyword.split(
+                      "carmaconf://infoBoxMapping:"
+                    )[1];
+                    const zoom = keyword.split(
+                      "carmaConf://featureInfoZoom:"
+                    )[1];
+
+                    if (extracted) {
+                      result += extracted + "\n";
+                    }
+
+                    if (zoom) {
+                      featureInfoZoom = parseInt(zoom);
+                    }
+                  });
+
+                  if (result) {
+                    const featureProperties = result.includes("function")
+                      ? functionToFeature(properties, result)
+                      : objectToFeature(properties, result);
+                    const genericLinks =
+                      featureProperties.properties.genericLinks || [];
+
+                    const feature = {
+                      properties: {
+                        ...featureProperties.properties,
+                        genericLinks: genericLinks.concat([
+                          {
+                            url: imgUrl,
+                            tooltip: "Alte Sachdatenabfrage",
+                            icon: createElement(FeatureInfoIcon),
+                            target: "_legacyGetFeatureInfoHtml",
+                          },
+                        ]),
+                        zoom: featureInfoZoom,
+                      },
+                      geometry: selectedVectorFeature.geometry,
+                      id: layer.id,
+                      showMarker:
+                        selectedVectorFeature.geometry.type === "Polygon",
+                    };
+
+                    dispatch(setSelectedFeature(feature));
+                  }
+                }
+              } else {
+                onSelectionChangedVector(e, {
+                  layer,
+                  layers,
+                  dispatch,
+                  setPos,
+                  zoom,
+                });
+              }
+            },
           });
       }
     }
   });
+};
