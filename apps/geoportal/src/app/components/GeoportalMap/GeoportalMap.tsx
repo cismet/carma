@@ -215,9 +215,7 @@ export const GeoportalMap = () => {
     )
   );
 
-  const {
-    topicMapCtx,
-  } = useCarmaMapContext();
+  const { topicMapCtx } = useCarmaMapContext();
 
   const {
     routedMapRef: routedMap,
