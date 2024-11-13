@@ -1,6 +1,8 @@
 import CismapLayer from "react-cismap/CismapLayer";
 import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
 import MapLibreLayer from "react-cismap/vector/MapLibreLayer";
+import { useDispatch } from "react-redux";
+import { setActiveBackgroundLayer } from "../../store/slices/ui";
 
 export const configuration = {
   trueOrtho2024: {
@@ -73,17 +75,30 @@ export const configuration = {
   },
 };
 
+function getFirstKey(o) {
+  const keys = Object.keys(o);
+  return keys.length > 0 ? keys[0] : undefined;
+}
+
 export default function BackgroundLayers({
   activeBackgroundLayer,
   opacities = {},
 }) {
+  const dispatch = useDispatch();
   //get the current configuration
-  const currentConf = configuration[activeBackgroundLayer];
+  let currentConf = configuration[activeBackgroundLayer];
+
+  if (!currentConf || !activeBackgroundLayer) {
+    const lastKey = getFirstKey(configuration);
+    currentConf = configuration[lastKey];
+    dispatch(setActiveBackgroundLayer(lastKey));
+  }
+
   //   if it is an array of configurations, render them all
-  if (Array.isArray(currentConf.conf)) {
+  if (Array.isArray(currentConf?.conf)) {
     return (
       <>
-        {currentConf.conf.map((conf, index) => {
+        {currentConf?.conf.map((conf, index) => {
           let opacity = opacities[activeBackgroundLayer] || 1;
           if (conf.opacityFunction) {
             opacity = conf.opacityFunction(opacity);
@@ -107,7 +122,7 @@ export default function BackgroundLayers({
       <CismapLayer
         key={"CismapLayer." + activeBackgroundLayer + "." + opacity}
         {...{
-          ...currentConf.conf,
+          ...currentConf?.conf,
           opacity,
         }}
       ></CismapLayer>

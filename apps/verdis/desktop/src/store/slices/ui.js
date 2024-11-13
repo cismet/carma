@@ -4,7 +4,7 @@ const initialState = {
   syncKassenzeichen: false,
 
   overviewFeatureTypes: ["flaeche", "front"],
-  activeBackgroundLayer: "stadtplan",
+  activeBackgroundLayer: undefined,
   backgroundLayerOpacities: {},
   activeAdditionalLayers: [],
   additionalLayerOpacities: {},
