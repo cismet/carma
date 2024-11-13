@@ -61,7 +61,7 @@ const ActionButtons = () => {
           <FontAwesomeIcon icon={faRotateRight} />
         </button>
       </Tooltip>
-      <Tooltip title="Kartenebenen hinzufügen">
+      <Tooltip title="Karteninhalte hinzufügen">
         <button
           disabled={!isMode2d}
           onClick={() => {
