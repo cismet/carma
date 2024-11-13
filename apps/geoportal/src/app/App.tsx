@@ -9,21 +9,12 @@ import { useLocation, useSearchParams } from "react-router-dom";
 
 // 1st party Modules
 import { CrossTabCommunicationContextProvider } from "react-cismap/contexts/CrossTabCommunicationContextProvider";
-import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
 
 // Monorepo Packages
 import { backgroundSettings } from "@carma-collab/wuppertal/geoportal";
-import {
-  BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
-  WUPP_LOD2_TILESET,
-  WUPP_MESH_2024,
-  WUPP_TERRAIN_PROVIDER,
-  WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
-} from "@carma-commons/resources";
-import { OverlayTourProvider } from "@carma-commons/ui/lib-helper-overlay";
-import { CesiumContextProvider } from "@carma-mapping/cesium-engine";
+
 import type { Layer } from "@carma-mapping/layers";
-import type { BackgroundLayer, Settings } from "@carma-apps/portals";
+import { CarmaMapContextProvider, type BackgroundLayer, type Settings } from "@carma-apps/portals";
 
 // Local Modules
 import AppErrorFallback from "./components/AppErrorFallback";
@@ -43,12 +34,12 @@ import {
 import {
   getUIAllowChanges,
   getUIMode,
-  getUIOverlayTourMode,
-  toggleShowOverlayTour,
   setUIAllowChanges,
   setUIShowLayerButtons,
   setUIShowLayerHideButtons,
 } from "./store/slices/ui";
+
+import { CESIUM_CONFIG } from "./config/app.config";
 
 // Side-Effect Imports
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -56,7 +47,6 @@ import "leaflet/dist/leaflet.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "./index.css";
-import { CESIUM_CONFIG } from "./config/app.config";
 
 if (typeof global === "undefined") {
   window.global = window;
@@ -70,7 +60,6 @@ type Config = {
 
 function App({ published }: { published?: boolean }) {
   const dispatch: AppDispatch = useDispatch();
-  const tourMode = useSelector(getUIOverlayTourMode);
   const [searchParams, setSearchParams] = useSearchParams();
   const allowUiChanges = useSelector(getUIAllowChanges);
   const uiMode = useSelector(getUIMode);
@@ -142,29 +131,20 @@ function App({ published }: { published?: boolean }) {
   }, [allowUiChanges]);
 
   const content = (
-    <TopicMapContextProvider>
-      <OverlayTourProvider
-        show={tourMode}
-        closeOverlay={() => dispatch(toggleShowOverlayTour(false))}
-        transparency={backgroundSettings.transparency}
-        color={backgroundSettings.color}
-      >
-        <CesiumContextProvider
-          //initialViewerState={defaultCesiumState}
-          // TODO move these to store/slice setup ?
-          providerConfig={CESIUM_CONFIG.providerConfig}
-          tilesetConfigs={CESIUM_CONFIG.tilesetConfigs}
-        >
-          <ErrorBoundary FallbackComponent={AppErrorFallback}>
-            <div className="flex flex-col w-full " style={{ height: "100dvh" }}>
-              {!published && <TopNavbar />}
-              <MapMeasurement />
-              <GeoportalMap />
-            </div>
-          </ErrorBoundary>
-        </CesiumContextProvider>
-      </OverlayTourProvider>
-    </TopicMapContextProvider>
+    <CarmaMapContextProvider
+      cesiumOptions={CESIUM_CONFIG}
+      overlayOptions={{
+        background: backgroundSettings
+      }}
+    >
+      <ErrorBoundary FallbackComponent={AppErrorFallback}>
+        <div className="flex flex-col w-full " style={{ height: "100dvh" }}>
+          {!published && <TopNavbar />}
+          <MapMeasurement />
+          <GeoportalMap />
+        </div>
+      </ErrorBoundary>
+    </CarmaMapContextProvider>
   );
 
   console.debug("RENDER: [GEOPORTAL] APP");

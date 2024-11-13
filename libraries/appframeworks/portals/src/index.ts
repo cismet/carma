@@ -10,3 +10,4 @@ export { utils };
 export { replaceHashRoutedHistory } from "./lib/utils/routing";
 export { Save } from "./lib/components/Save.tsx";
 export { Share } from "./lib/components/Share.tsx";
+export { CarmaMapContextProvider } from "./lib/components/CarmaMapContextProvider.tsx";
