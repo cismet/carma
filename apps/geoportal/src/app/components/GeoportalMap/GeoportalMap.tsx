@@ -514,7 +514,7 @@ export const GeoportalMap = () => {
               zoomControls={false}
               mapStyle={{ width, height }}
               leafletMapProps={{ editable: true }}
-              minZoom={5}
+              minZoom={10}
               backgroundlayers="empty"
               mappingBoundsChanged={(boundingbox) => {
                 // console.debug('xxx bbox', createWMSBbox(boundingbox));
