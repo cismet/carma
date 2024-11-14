@@ -137,7 +137,7 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
             : "#0078a8"
         }
         title={
-          selectedFeature?.properties?.title.includes("undefined")
+          selectedFeature?.properties?.title?.includes("undefined")
             ? undefined
             : selectedFeature?.properties?.title
         }
