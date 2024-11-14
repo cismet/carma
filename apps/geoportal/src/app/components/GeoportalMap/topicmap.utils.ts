@@ -242,14 +242,20 @@ const onSelectionChangedVector = (
     hits: any[];
     hit: any;
   },
-  { layer, layers, dispatch, setPos, zoom }
+  { layer, layers, dispatch, setPos, zoom, selectionHandler }
 ) => {
+  if (!e.hits) {
+    selectionHandler(e, layer);
+  }
+
   if (e.hits && layer.queryable) {
     const selectedVectorFeature = e.hits[0];
 
     if (selectedVectorFeature.setSelection) {
       selectedVectorFeature.setSelection(true);
     }
+
+    selectionHandler(e, layer);
 
     const coordinates = getCoordinates(selectedVectorFeature.geometry);
 
@@ -373,6 +379,7 @@ export const createCismapLayers = (
         const hits = globalHits[key];
         if (hits) {
           hits[0].setSelection(false);
+          globalHits[key] = undefined;
         }
       });
     }
@@ -514,6 +521,7 @@ export const createCismapLayers = (
                   dispatch,
                   setPos,
                   zoom,
+                  selectionHandler,
                 });
               }
             },
