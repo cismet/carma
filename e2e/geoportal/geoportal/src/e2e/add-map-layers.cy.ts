@@ -1,3 +1,5 @@
+import { includes } from "lodash";
+
 describe("Geoportal add map layers", () => {
   beforeEach(() => {
     cy.visit("/");
@@ -24,7 +26,7 @@ describe("Geoportal add map layers", () => {
     cy.get(".Favoriten").should("not.exist");
 
     cy.get("[data-test-id=card-layer-prev]")
-      .contains("Expresskarte (Strichkarte gelb)")
+      .contains("SPW2 Orange")
       .should("exist")
       .parents('[data-test-id="card-layer-prev"]')
       .as("flayer-gelp");
@@ -46,8 +48,18 @@ describe("Geoportal add map layers", () => {
 
     cy.get("#Favoriten").should("not.exist");
 
-    // cy.get("@first-prev-layer")
-    //   .find("[data-test-id=remove-layer-favorite]")
-    //   .should("be.visible ");
+    cy.get("@flayer-gelp")
+      .find("[data-test-id=apply-layer-to-map]")
+      .should("exist")
+      .click();
+    cy.wait(5000);
+    cy.get("img.leaflet-tile.leaflet-tile-loaded").each(($img) => {
+      const src = $img.attr("src");
+      if (src && src.includes("spw2_orange")) {
+        console.log("xxx src", src);
+      } else {
+        console.log("xxx src not found");
+      }
+    });
   });
 });
