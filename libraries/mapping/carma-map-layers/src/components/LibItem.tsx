@@ -324,6 +324,7 @@ const LibItem = ({
                     removeFavorite(layer);
                   }
                 }}
+                data-test-id="remove-layer-favorite"
               />
             ) : (
               <FontAwesomeIcon
@@ -335,6 +336,7 @@ const LibItem = ({
                     addFavorite(layer);
                   }
                 }}
+                data-test-id="add-layer-favorite"
               />
             )
           ) : null}
@@ -367,6 +369,7 @@ const LibItem = ({
             <button
               onClick={handleLayerClick}
               className="absolute left-1 top-1 z-50"
+              data-test-id="apply-layer-to-map"
             >
               <FontAwesomeIcon
                 icon={isActiveLayer ? faMinus : faPlus}
