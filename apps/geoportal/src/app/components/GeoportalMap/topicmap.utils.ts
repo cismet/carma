@@ -364,6 +364,14 @@ export const createCismapLayers = (
   }
 
   useEffect(() => {
+    if (modeRef.current !== mode) {
+      Object.keys(globalHits).forEach((key) => {
+        const hits = globalHits[key];
+        if (hits) {
+          hits[0].setSelection(false);
+        }
+      });
+    }
     modeRef.current = mode;
   }, [mode]);
 
