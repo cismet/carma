@@ -419,7 +419,7 @@ export const createCismapLayers = (
             selectionEnabled: true,
             manualSelectionManagement: true,
             onSelectionChanged: (e) => {
-              if (modeRef.current !== UIMode.FEATURE_INFO) {
+              if (modeRef.current === UIMode.DEFAULT) {
                 if (!e.hits) {
                   selectionHandler(e, layer);
                 }
