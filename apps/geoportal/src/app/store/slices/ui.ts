@@ -8,12 +8,10 @@ export enum UIMode {
   DEFAULT = "default",
   FEATURE_INFO = "featureInfo",
   MEASUREMENT = "measurement",
-  TOUR = "tour",
 }
 
 export interface UIState {
   mode: UIMode;
-
   activeTabKey: string;
   allow3d: boolean;
   allowChanges: boolean;
@@ -21,13 +19,11 @@ export interface UIState {
   showInfoText: boolean;
   showLayerButtons: boolean;
   showLayerHideButtons: boolean;
-  showOverlayTour: boolean;
   showResourceModal: boolean;
 }
 
 const initialState: UIState = {
   mode: UIMode.DEFAULT,
-  showOverlayTour: false,
   activeTabKey: "1",
   allow3d: true,
   allowChanges: true,
@@ -75,9 +71,6 @@ const slice = createSlice({
     setUIShowLayerHideButtons(state, action: PayloadAction<boolean>) {
       state.showLayerHideButtons = action.payload;
     },
-    toggleShowOverlayTour(state, action: PayloadAction<boolean>) {
-      state.showOverlayTour = action.payload;
-    },
     setShowResourceModal(state, action: PayloadAction<boolean>) {
       state.showResourceModal = action.payload;
     },
@@ -95,7 +88,6 @@ export const {
   setUIShowInfoText,
   setUIShowLayerButtons,
   setUIShowLayerHideButtons,
-  toggleShowOverlayTour,
   setShowResourceModal,
 } = slice.actions;
 
@@ -110,8 +102,6 @@ export const getUIShowLayerButtons = (state: RootState) =>
   state.ui.showLayerButtons;
 export const getUIShowLayerHideButtons = (state: RootState) =>
   state.ui.showLayerHideButtons;
-export const getUIOverlayTourMode = (state: RootState) =>
-  state.ui.showOverlayTour;
 export const getUIShowResourceModal = (state: RootState) =>
   state.ui.showResourceModal;
 

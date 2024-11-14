@@ -21,7 +21,6 @@ import {
   faPlus,
 } from "@fortawesome/free-solid-svg-icons";
 
-import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { ExtraMarker } from "react-cismap/ExtraMarker";
 import PaleOverlay from "react-cismap/PaleOverlay";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
@@ -30,7 +29,10 @@ import { ProjSingleGeoJson } from "react-cismap/ProjSingleGeoJson";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
-import { replaceHashRoutedHistory } from "@carma-apps/portals";
+import {
+  replaceHashRoutedHistory,
+  useCarmaMapContext,
+} from "@carma-apps/portals";
 import {
   getCollabedHelpComponentConfig,
   geoElements,
@@ -97,7 +99,6 @@ import {
   getUIAllow3d,
   getUIMode,
   getUIShowLayerButtons,
-  toggleShowOverlayTour,
   toggleUIMode,
   UIMode,
 } from "../../store/slices/ui.ts";
@@ -214,12 +215,17 @@ export const GeoportalMap = () => {
     )
   );
 
+  const { topicMapCtx } = useCarmaMapContext();
+
   const {
-    routedMapRef,
+    routedMapRef: routedMap,
+    //realRoutedMapRef: routedMapRef,
     referenceSystem,
     referenceSystemDefinition,
     maskingPolygon,
-  } = useContext<typeof TopicMapContext>(TopicMapContext);
+    setShowTourOverlay,
+  } = topicMapCtx;
+
   const { setAppMenuVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
   const { setSecondaryWithKey } = useContext(OverlayTourContext);
@@ -310,7 +316,7 @@ export const GeoportalMap = () => {
   const showOverlayFromOutside = (key: string) => {
     setAppMenuVisible(false);
     setSecondaryWithKey(key);
-    dispatch(toggleShowOverlayTour(true));
+    setShowTourOverlay(true);
   };
 
   // TODO Move out Controls to own component
@@ -375,7 +381,7 @@ export const GeoportalMap = () => {
         <ControlButtonStyler
           ref={tourRefLabels.home}
           onClick={() => {
-            routedMapRef.leafletMap.leafletElement.flyTo(
+            routedMap.leafletMap.leafletElement.flyTo(
               [51.272570027476256, 7.199918031692506],
               18
             );
@@ -478,7 +484,7 @@ export const GeoportalMap = () => {
         >
           <LibFuzzySearch
             gazData={gazData}
-            mapRef={routedMapRef}
+            mapRef={routedMap}
             cesiumViewerRef={viewerRef}
             cesiumOptions={{
               markerAsset,
@@ -548,7 +554,7 @@ export const GeoportalMap = () => {
                   geoJson={overlayFeature}
                   masked={true}
                   maskingPolygon={maskingPolygon}
-                  mapRef={routedMapRef}
+                  mapRef={routedMap}
                 />
               )}
               <GazetteerHitDisplay
