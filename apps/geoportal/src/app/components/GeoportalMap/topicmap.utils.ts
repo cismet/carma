@@ -420,7 +420,10 @@ export const createCismapLayers = (
             manualSelectionManagement: true,
             onSelectionChanged: (e) => {
               if (modeRef.current !== UIMode.FEATURE_INFO) {
-                selectionHandler(e, layer);
+                if (!e.hits) {
+                  selectionHandler(e, layer);
+                }
+
                 if (e.hits && layer.queryable) {
                   const selectedVectorFeature = e.hits[0];
 
@@ -431,6 +434,8 @@ export const createCismapLayers = (
                   if (selectedVectorFeature.geometry.type !== "Point") {
                     return;
                   }
+
+                  selectionHandler(e, layer);
 
                   const coordinates =
                     selectedVectorFeature.geometry.coordinates;
