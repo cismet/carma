@@ -247,6 +247,10 @@ const onSelectionChangedVector = (
   if (e.hits && layer.queryable) {
     const selectedVectorFeature = e.hits[0];
 
+    if (selectedVectorFeature.setSelection) {
+      selectedVectorFeature.setSelection(true);
+    }
+
     const coordinates = getCoordinates(selectedVectorFeature.geometry);
 
     const vectorPos = proj4(
