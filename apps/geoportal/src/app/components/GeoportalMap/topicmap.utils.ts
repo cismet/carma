@@ -237,6 +237,107 @@ export const getCoordinates = (geometry) => {
   }
 };
 
+const createVectorFeature = (coordinates, layer, selectedVectorFeature) => {
+  let feature = undefined;
+  const vectorPos = proj4(
+    proj4.defs("EPSG:4326") as unknown as string,
+    proj4crs25832def,
+    coordinates
+  );
+
+  const minimalBoxSize = 1;
+  const featureInfoBaseUrl = layer.other.service.url;
+  const layerName = layer.other.name;
+
+  const imgUrl =
+    featureInfoBaseUrl +
+    `?&VERSION=1.1.1&REQUEST=GetFeatureInfo&BBOX=` +
+    `${vectorPos[0] - minimalBoxSize},` +
+    `${vectorPos[1] - minimalBoxSize},` +
+    `${vectorPos[0] + minimalBoxSize},` +
+    `${vectorPos[1] + minimalBoxSize}` +
+    `&WIDTH=10&HEIGHT=10&SRS=EPSG:25832&FORMAT=image/png&TRANSPARENT=TRUE&BGCOLOR=0xF0F0F0&EXCEPTIONS=application/vnd.ogc.se_xml&FEATURE_COUNT=99&LAYERS=${layerName}&STYLES=default&QUERY_LAYERS=${layerName}&INFO_FORMAT=text/html&X=5&Y=5`;
+
+  const properties = selectedVectorFeature.properties;
+  let result = "";
+  let featureInfoZoom = 20;
+  layer.other.keywords.forEach((keyword) => {
+    const extracted = keyword.split("carmaconf://infoBoxMapping:")[1];
+    const zoom = keyword.split("carmaConf://featureInfoZoom:")[1];
+
+    if (extracted) {
+      result += extracted + "\n";
+    }
+
+    if (zoom) {
+      featureInfoZoom = parseInt(zoom);
+    }
+
+    if (result) {
+      const featureProperties = result.includes("function")
+        ? functionToFeature(properties, result)
+        : objectToFeature(properties, result);
+      const genericLinks = featureProperties.properties.genericLinks || [];
+
+      feature = {
+        properties: {
+          ...featureProperties.properties,
+          genericLinks: genericLinks.concat([
+            {
+              url: imgUrl,
+              tooltip: "Alte Sachdatenabfrage",
+              icon: createElement(FeatureInfoIcon),
+              target: "_legacyGetFeatureInfoHtml",
+            },
+          ]),
+          zoom: featureInfoZoom,
+        },
+        geometry: selectedVectorFeature.geometry,
+        id: layer.id,
+        showMarker: selectedVectorFeature.geometry.type === "Polygon",
+      };
+    }
+  });
+  return feature;
+};
+
+const implicitVectorSelection = (
+  e: {
+    hits: any[];
+    hit: any;
+  },
+  { layer, dispatch, selectionHandler }
+) => {
+  if (!e.hits) {
+    selectionHandler(e, layer);
+  }
+
+  if (e.hits && layer.queryable) {
+    const selectedVectorFeature = e.hits[0];
+
+    if (selectedVectorFeature.setSelection) {
+      selectedVectorFeature.setSelection(false);
+    }
+
+    if (selectedVectorFeature.geometry.type !== "Point") {
+      return;
+    }
+
+    selectionHandler(e, layer);
+
+    const coordinates = selectedVectorFeature.geometry.coordinates;
+    const feature = createVectorFeature(
+      coordinates,
+      layer,
+      selectedVectorFeature
+    );
+
+    if (feature) {
+      dispatch(setSelectedFeature(feature));
+    }
+  }
+};
+
 const onSelectionChangedVector = (
   e: {
     hits: any[];
@@ -259,65 +360,13 @@ const onSelectionChangedVector = (
 
     const coordinates = getCoordinates(selectedVectorFeature.geometry);
 
-    const vectorPos = proj4(
-      proj4.defs("EPSG:4326") as unknown as string,
-      proj4crs25832def,
-      coordinates
+    const feature = createVectorFeature(
+      coordinates,
+      layer,
+      selectedVectorFeature
     );
 
-    const minimalBoxSize = 1;
-    const featureInfoBaseUrl = layer.other.service.url;
-    const layerName = layer.other.name;
-
-    const imgUrl =
-      featureInfoBaseUrl +
-      `?&VERSION=1.1.1&REQUEST=GetFeatureInfo&BBOX=` +
-      `${vectorPos[0] - minimalBoxSize},` +
-      `${vectorPos[1] - minimalBoxSize},` +
-      `${vectorPos[0] + minimalBoxSize},` +
-      `${vectorPos[1] + minimalBoxSize}` +
-      `&WIDTH=10&HEIGHT=10&SRS=EPSG:25832&FORMAT=image/png&TRANSPARENT=TRUE&BGCOLOR=0xF0F0F0&EXCEPTIONS=application/vnd.ogc.se_xml&FEATURE_COUNT=99&LAYERS=${layerName}&STYLES=default&QUERY_LAYERS=${layerName}&INFO_FORMAT=text/html&X=5&Y=5`;
-
-    const properties = selectedVectorFeature.properties;
-    let result = "";
-    let featureInfoZoom = 20;
-    layer.other.keywords.forEach((keyword) => {
-      const extracted = keyword.split("carmaconf://infoBoxMapping:")[1];
-      const zoom = keyword.split("carmaConf://featureInfoZoom:")[1];
-
-      if (extracted) {
-        result += extracted + "\n";
-      }
-
-      if (zoom) {
-        featureInfoZoom = parseInt(zoom);
-      }
-    });
-
-    if (result) {
-      const featureProperties = result.includes("function")
-        ? functionToFeature(properties, result)
-        : objectToFeature(properties, result);
-      const genericLinks = featureProperties.properties.genericLinks || [];
-
-      const feature = {
-        properties: {
-          ...featureProperties.properties,
-          genericLinks: genericLinks.concat([
-            {
-              url: imgUrl,
-              tooltip: "Alte Sachdatenabfrage",
-              icon: createElement(FeatureInfoIcon),
-              target: "_legacyGetFeatureInfoHtml",
-            },
-          ]),
-          zoom: featureInfoZoom,
-        },
-        geometry: selectedVectorFeature.geometry,
-        id: layer.id,
-        showMarker: selectedVectorFeature.geometry.type === "Polygon",
-      };
-
+    if (feature) {
       dispatch(addVectorInfo(feature));
       dispatch(removeNothingFoundID(layer.id));
 
@@ -427,93 +476,11 @@ export const createCismapLayers = (
             manualSelectionManagement: true,
             onSelectionChanged: (e) => {
               if (modeRef.current === UIMode.DEFAULT) {
-                if (!e.hits) {
-                  selectionHandler(e, layer);
-                }
-
-                if (e.hits && layer.queryable) {
-                  const selectedVectorFeature = e.hits[0];
-
-                  if (selectedVectorFeature.setSelection) {
-                    selectedVectorFeature.setSelection(false);
-                  }
-
-                  if (selectedVectorFeature.geometry.type !== "Point") {
-                    return;
-                  }
-
-                  selectionHandler(e, layer);
-
-                  const coordinates =
-                    selectedVectorFeature.geometry.coordinates;
-                  const vectorPos = proj4(
-                    proj4.defs("EPSG:4326") as unknown as string,
-                    proj4crs25832def,
-                    coordinates
-                  );
-
-                  const minimalBoxSize = 1;
-                  const featureInfoBaseUrl = layer.other.service.url;
-                  const layerName = layer.other.name;
-
-                  const imgUrl =
-                    featureInfoBaseUrl +
-                    `?&VERSION=1.1.1&REQUEST=GetFeatureInfo&BBOX=` +
-                    `${vectorPos[0] - minimalBoxSize},` +
-                    `${vectorPos[1] - minimalBoxSize},` +
-                    `${vectorPos[0] + minimalBoxSize},` +
-                    `${vectorPos[1] + minimalBoxSize}` +
-                    `&WIDTH=10&HEIGHT=10&SRS=EPSG:25832&FORMAT=image/png&TRANSPARENT=TRUE&BGCOLOR=0xF0F0F0&EXCEPTIONS=application/vnd.ogc.se_xml&FEATURE_COUNT=99&LAYERS=${layerName}&STYLES=default&QUERY_LAYERS=${layerName}&INFO_FORMAT=text/html&X=5&Y=5`;
-
-                  const properties = selectedVectorFeature.properties;
-                  let result = "";
-                  let featureInfoZoom = 20;
-                  layer.other.keywords.forEach((keyword) => {
-                    const extracted = keyword.split(
-                      "carmaconf://infoBoxMapping:"
-                    )[1];
-                    const zoom = keyword.split(
-                      "carmaConf://featureInfoZoom:"
-                    )[1];
-
-                    if (extracted) {
-                      result += extracted + "\n";
-                    }
-
-                    if (zoom) {
-                      featureInfoZoom = parseInt(zoom);
-                    }
-                  });
-
-                  if (result) {
-                    const featureProperties = result.includes("function")
-                      ? functionToFeature(properties, result)
-                      : objectToFeature(properties, result);
-                    const genericLinks =
-                      featureProperties.properties.genericLinks || [];
-
-                    const feature = {
-                      properties: {
-                        ...featureProperties.properties,
-                        genericLinks: genericLinks.concat([
-                          {
-                            url: imgUrl,
-                            tooltip: "Alte Sachdatenabfrage",
-                            icon: createElement(FeatureInfoIcon),
-                            target: "_legacyGetFeatureInfoHtml",
-                          },
-                        ]),
-                        zoom: featureInfoZoom,
-                      },
-                      geometry: selectedVectorFeature.geometry,
-                      id: layer.id,
-                      showMarker:
-                        selectedVectorFeature.geometry.type === "Polygon",
-                    };
-
-                    dispatch(setSelectedFeature(feature));
-                  }
-                }
+                implicitVectorSelection(e, {
+                  layer,
+                  dispatch,
+                  selectionHandler,
+                });
               } else if (modeRef.current === UIMode.FEATURE_INFO) {
                 onSelectionChangedVector(e, {
                   layer,
