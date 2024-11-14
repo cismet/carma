@@ -406,7 +406,6 @@ export const LibModal = ({
                 <div
                   key={i}
                   className="bg-white rounded-lg shadow-sm h-80 w-full flex flex-col gap-2 animate-pulse"
-                  data-test-id="card-layer-prev"
                 >
                   <div className="h-40 p-2 w-full bg-slate-200 rounded-t-lg"></div>
                   <div className="h-2 bg-slate-200 rounded mx-8 w-1/3"></div>

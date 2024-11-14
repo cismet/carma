@@ -266,6 +266,7 @@ const LibItem = ({
             setSelectedLayerId(showInfo ? null : layer.id);
           }
         }}
+        data-test-id="card-layer-prev"
       >
         <div className="relative overflow-hidden bg-white isolate rounded-md flex justify-center items-center w-full aspect-[1.7777/1]">
           {isLoading && (
