@@ -230,6 +230,8 @@ export const getCoordinates = (geometry) => {
   switch (geometry.type) {
     case "Polygon":
       return geometry.coordinates[0][0];
+    case "MultiPolygon":
+      return geometry.coordinates[0][0][0];
     case "LineString":
       return geometry.coordinates[1];
     default:
@@ -294,7 +296,9 @@ const createVectorFeature = (coordinates, layer, selectedVectorFeature) => {
         },
         geometry: selectedVectorFeature.geometry,
         id: layer.id,
-        showMarker: selectedVectorFeature.geometry.type === "Polygon",
+        showMarker:
+          selectedVectorFeature.geometry.type === "Polygon" ||
+          selectedVectorFeature.geometry.type === "MultiPolygon",
       };
     }
   });
