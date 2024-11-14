@@ -514,7 +514,7 @@ export const createCismapLayers = (
                     dispatch(setSelectedFeature(feature));
                   }
                 }
-              } else {
+              } else if (modeRef.current === UIMode.FEATURE_INFO) {
                 onSelectionChangedVector(e, {
                   layer,
                   layers,
