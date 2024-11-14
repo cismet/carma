@@ -1,9 +1,17 @@
 import { OverlayTourProvider } from "@carma-commons/ui/lib-helper-overlay";
 import {
   CesiumContextProvider,
+  CesiumContextType,
   useCesiumContext,
 } from "@carma-mapping/cesium-engine";
-import { createContext, useContext, useMemo, useState } from "react";
+import {
+  createContext,
+  Dispatch,
+  SetStateAction,
+  useContext,
+  useMemo,
+  useState,
+} from "react";
 import {
   TopicMapContext,
   TopicMapContextProvider,
@@ -15,30 +23,36 @@ type CarmaMapProviderProps = {
   cesiumOptions: { providerConfig: any; tilesetConfigs: any };
 };
 
-const CarmaMapContext = createContext({
-  setShowTourOverlay: (show: boolean) => {},
-});
+type CarmaMapContextType = {
+  topicMapCtx?: typeof TopicMapContext;
+  cesiumCtx?: CesiumContextType;
+  setShowTourOverlay: Dispatch<SetStateAction<boolean>>;
+};
+
+const CarmaMapContext = createContext<CarmaMapContextType | null>(null);
 
 export const useCarmaMapContext = () => {
   const context = useContext(CarmaMapContext);
-  // forward other contexts here if needed
-  const topicMapContext = useContext<typeof TopicMapContext>(TopicMapContext);
-  const cesiumContext = useCesiumContext();
+
   if (!context) {
     throw new Error(
       "useCarmaMapContext must be used within a CarmaMapProvider"
     );
   }
+  const { setShowTourOverlay } = context;
+  // forward other contexts here if needed
+  const topicMapContext = useContext<typeof TopicMapContext>(TopicMapContext);
+  const cesiumContext = useCesiumContext();
 
   const combinedContext = useMemo(
     () => ({
+      setShowTourOverlay,
       topicMapCtx: topicMapContext,
       cesiumCtx: cesiumContext,
-      ...context,
       //routedMapRef: topicMapContext.realRoutedMapRef,
       //realRoutedMapRef: undefined,
     }),
-    [context, topicMapContext, cesiumContext]
+    [setShowTourOverlay, topicMapContext, cesiumContext]
   );
 
   return combinedContext;
