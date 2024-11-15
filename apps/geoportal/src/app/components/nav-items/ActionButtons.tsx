@@ -27,6 +27,7 @@ import {
   setUIShowLayerButtons,
 } from "../../store/slices/ui";
 import ShareContent from "../ShareContent";
+import Print from "../map-print/Print";
 
 const disabledClass = "text-gray-300";
 const disabledImageOpacity = "opacity-20";
@@ -147,7 +148,9 @@ const ActionButtons = () => {
         </Popover>
       </Tooltip>
       <Tooltip title="Drucken">
-        <FontAwesomeIcon icon={faPrint} className="text-xl text-gray-300" />
+        <Popover trigger="click" placement="bottom" content={<Print />}>
+          <FontAwesomeIcon icon={faPrint} className="text-xl text-gray-600" />
+        </Popover>
       </Tooltip>
       <Tooltip title="Teilen">
         <Popover trigger="click" placement="bottom" content={<ShareContent />}>
