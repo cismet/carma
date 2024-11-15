@@ -224,7 +224,9 @@ export const getLayerStructure = ({
               : categoryObject.Title;
           foundLayer = { ...foundLayer, ...layer, tags, service };
           if (keywords && foundLayer?.keywords) {
-            foundLayer.keywords = [...keywords, ...foundLayer.keywords];
+            foundLayer.keywords = Array.from(
+              new Set([...keywords, ...foundLayer.keywords])
+            );
           }
 
           let infoBoxMapping = "";
