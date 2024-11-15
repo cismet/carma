@@ -384,6 +384,7 @@ export const LibModal = ({
                 setPreview(false);
                 setSelectedLayerId(null);
               }}
+              data-test-id="add-layer-to-map-close-btn"
             >
               <FontAwesomeIcon icon={faX} />
             </Button>
