@@ -5,12 +5,12 @@ describe("Geoportal add map layers", () => {
     //   "**/karten?&service=WMS&request=GetMap&layers=spw2_orange*"
     // ).as("wmsRequest");
     cy.visit("/");
-    // cy.waitForNetworkIdlePrepare({
-    //   method: "GET",
-    //   pattern:
-    //     "https://maps.wuppertal.de/karten?&service=WMS&request=GetMap&layers=spw2_orange*",
-    //   alias: "wmsRequest",
-    // });
+    cy.waitForNetworkIdlePrepare({
+      method: "GET",
+      pattern:
+        "https://maps.wuppertal.de/karten?&service=WMS&request=GetMap&layers=spw2_orange*",
+      alias: "wmsRequest",
+    });
   });
 
   const checkTilesForLayer = (expectedLayer: string) => {
@@ -76,12 +76,13 @@ describe("Geoportal add map layers", () => {
       .click();
 
     // cy.wait("@wmsRequest");
-    cy.wait(6000);
+    // cy.wait(6000);
 
-    // cy.waitForNetworkIdle("@wmsRequest", 5000);
+    cy.waitForNetworkIdle("@wmsRequest", 8000);
     // Cypress._.times(20, () => {
     //   cy.waitForNetworkIdle("@wmsRequest", 5000);
     // });
+    checkTilesForLayer("spw2_orange");
 
     cy.get(".ant-modal-content")
       .find("input")
@@ -102,6 +103,9 @@ describe("Geoportal add map layers", () => {
     cy.get(".leaflet-layer").find("div").should("exist");
     cy.get(".leaflet-layer").find("div").find("img").should("exist");
 
-    checkTilesForLayer("spw2_orange");
+    cy.get("@flayer-gelp")
+      .find("[data-test-id=apply-layer-to-map]")
+      .should("exist")
+      .click();
   });
 });
