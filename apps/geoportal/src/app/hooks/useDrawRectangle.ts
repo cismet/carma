@@ -1,11 +1,14 @@
 import { useContext, useEffect } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useSelector } from "react-redux";
+import { getOrientation } from "../store/slices/print";
+import { getUIMode } from "../store/slices/ui";
 
 export const useDrawRectangle = () => {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const map = routedMapRef?.leafletMap?.leafletElement;
-  const orientation = useSelector();
+  const mode = useSelector(getUIMode);
+  const orientation = useSelector(getOrientation);
 
   const removeRectangle = (map) => {
     map.eachLayer((layer) => {
@@ -18,11 +21,8 @@ export const useDrawRectangle = () => {
   const addRectangle = (map) => {
     removeRectangle(map);
 
-    // const pixelWidth = 350;
-    // const pixelHeight = 495;
-
-    const pixelWidth = 495;
-    const pixelHeight = 350;
+    const pixelWidth = orientation === "landscape" ? 495 : 350;
+    const pixelHeight = orientation === "landscape" ? 350 : 495;
 
     const mapCenter = map.getCenter();
     const centerPoint = map.latLngToLayerPoint(mapCenter);
@@ -62,5 +62,5 @@ export const useDrawRectangle = () => {
         removeRectangle(map);
       };
     }
-  }, [map]);
+  }, [map, mode, orientation]);
 };

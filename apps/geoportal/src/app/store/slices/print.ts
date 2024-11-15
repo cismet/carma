@@ -6,7 +6,7 @@ export type PrintState = {
 };
 
 const initialState: PrintState = {
-  orientation: "landscape",
+  orientation: "portret",
 };
 
 const slice = createSlice({
