@@ -1,9 +1,11 @@
 import { useContext, useEffect } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+import { useSelector } from "react-redux";
 
 export const useDrawRectangle = () => {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const map = routedMapRef?.leafletMap?.leafletElement;
+  const orientation = useSelector();
 
   const removeRectangle = (map) => {
     map.eachLayer((layer) => {

@@ -1,5 +1,5 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-
+import { RootState } from "..";
 type PrintOrientation = "landscape" | "portret";
 export type PrintState = {
   orientation: PrintOrientation;
@@ -20,5 +20,6 @@ const slice = createSlice({
 });
 
 export const { changeOrientation } = slice.actions;
+export const getOrientation = (state: RootState) => state.print.orientation;
 
 export default slice.reducer;
