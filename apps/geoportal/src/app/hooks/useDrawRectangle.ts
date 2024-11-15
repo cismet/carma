@@ -16,8 +16,11 @@ export const useDrawRectangle = () => {
   const addRectangle = (map) => {
     removeRectangle(map);
 
-    const pixelWidth = 350;
-    const pixelHeight = 495;
+    // const pixelWidth = 350;
+    // const pixelHeight = 495;
+
+    const pixelWidth = 495;
+    const pixelHeight = 350;
 
     const mapCenter = map.getCenter();
     const centerPoint = map.latLngToLayerPoint(mapCenter);
@@ -41,12 +44,21 @@ export const useDrawRectangle = () => {
   useEffect(() => {
     if (map) {
       addRectangle(map);
-      map.on("zoom", () => {
-        addRectangle(map);
-      });
-      map.on("move", () => {
-        addRectangle(map);
-      });
+
+      const handleZoom = () => addRectangle(map);
+      const handleMove = () => addRectangle(map);
+
+      map.on("zoom", handleZoom);
+      map.on("move", handleMove);
+
+      return () => {
+        console.log("xxx print unmounted, cleaning up...");
+
+        map.off("zoom", handleZoom);
+        map.off("move", handleMove);
+
+        removeRectangle(map);
+      };
     }
   }, [map]);
 };
