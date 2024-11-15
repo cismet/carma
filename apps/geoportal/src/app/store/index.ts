@@ -13,6 +13,7 @@ import layersReducer from "./slices/layers";
 import uiReducer from "./slices/ui";
 import measurementsReducer from "./slices/measurements";
 import featuresReducer from "./slices/features";
+import printReducer from "./slices/print";
 
 console.info("store initializing ....");
 
@@ -111,6 +112,7 @@ const store = configureStore({
       getCesiumConfig({ appKey: APP_KEY, storagePrefix: STORAGE_PREFIX }),
       cesiumReducer
     ),
+    print: printReducer,
   },
   preloadedState: {
     cesium: defaultCesiumState,
