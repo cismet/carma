@@ -1,9 +1,14 @@
 describe("Geoportal add map layers", () => {
   beforeEach(() => {
-    cy.intercept(
-      "GET",
-      "**/karten?&service=WMS&request=GetMap&layers=spw2_orange*"
-    ).as("wmsRequest");
+    // cy.intercept(
+    //   "GET",
+    //   "**/karten?&service=WMS&request=GetMap&layers=spw2_orange*"
+    // ).as("wmsRequest");
+    cy.waitForNetworkIdlePrepare({
+      method: "GET",
+      pattern: "**/karten?&service=WMS&request=GetMap&layers=spw2_orange*",
+      alias: "calls",
+    });
     cy.visit("/");
   });
 
@@ -49,8 +54,8 @@ describe("Geoportal add map layers", () => {
       .should("exist")
       .click();
 
-    cy.wait("@wmsRequest");
-
+    // cy.wait("@wmsRequest");
+    cy.waitForNetworkIdle("@wmsRequest", 1000);
     cy.get(".ant-modal-content")
       .find("input")
       .should("be.visible")
