@@ -4,13 +4,34 @@ describe("Geoportal add map layers", () => {
     //   "GET",
     //   "**/karten?&service=WMS&request=GetMap&layers=spw2_orange*"
     // ).as("wmsRequest");
-    cy.waitForNetworkIdlePrepare({
-      method: "GET",
-      pattern: "**/karten?&service=WMS&request=GetMap&layers=spw2_orange*",
-      alias: "calls",
-    });
     cy.visit("/");
+    // cy.waitForNetworkIdlePrepare({
+    //   method: "GET",
+    //   pattern:
+    //     "https://maps.wuppertal.de/karten?&service=WMS&request=GetMap&layers=spw2_orange*",
+    //   alias: "wmsRequest",
+    // });
   });
+
+  const checkTilesForLayer = (expectedLayer: string) => {
+    cy.get("img.leaflet-tile.leaflet-tile-loaded")
+      .should("have.length.greaterThan", 0)
+      .then(($tiles) => {
+        const found = Array.from($tiles).some(($img) => {
+          const src = $img.getAttribute("src");
+
+          if (src && src.includes(expectedLayer)) {
+            console.log("xxx layer was found", src);
+          } else {
+            console.log("xxx layer was not found");
+          }
+          return src && src.includes(expectedLayer);
+        });
+
+        expect(found, `Tiles with layer "${expectedLayer}" should be added`).to
+          .be.true;
+      });
+  };
 
   it("Search shows only related layer, layers are added to map and to the favorite section", () => {
     cy.get("[data-test-id=kartenebenen-hinzufügen-btn]").should("be.visible");
@@ -55,7 +76,13 @@ describe("Geoportal add map layers", () => {
       .click();
 
     // cy.wait("@wmsRequest");
-    cy.waitForNetworkIdle("@wmsRequest", 1000);
+    cy.wait(6000);
+
+    // cy.waitForNetworkIdle("@wmsRequest", 5000);
+    // Cypress._.times(20, () => {
+    //   cy.waitForNetworkIdle("@wmsRequest", 5000);
+    // });
+
     cy.get(".ant-modal-content")
       .find("input")
       .should("be.visible")
@@ -72,19 +99,9 @@ describe("Geoportal add map layers", () => {
       20
     );
 
-    // cy.get("[data-test-id=add-layer-to-map-close-btn]").should("be.visible");
-    // cy.get("[data-test-id=add-layer-to-map-close-btn]").click();
+    cy.get(".leaflet-layer").find("div").should("exist");
+    cy.get(".leaflet-layer").find("div").find("img").should("exist");
 
-    cy.get("img.leaflet-tile.leaflet-tile-loaded").each(($img, k) => {
-      const src = $img.attr("src");
-      let ifSpw2Orange = false;
-
-      if (src && src.includes("spw2_orange")) {
-        console.log("xxx src", k);
-        ifSpw2Orange = true;
-      } else {
-        console.log("xxx src not found");
-      }
-    });
+    checkTilesForLayer("spw2_orange");
   });
 });
