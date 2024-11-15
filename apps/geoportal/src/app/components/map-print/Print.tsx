@@ -4,9 +4,11 @@ import { Button, Radio } from "antd";
 import { useState } from "react";
 // import "./popover.css";
 import type { RadioChangeEvent } from "antd";
+import { useDrawRectangle } from "../../hooks/useDrawRectangle";
 
 const Print = () => {
   const [orientation, setOrientation] = useState("hochkant");
+  const rectangle = useDrawRectangle();
   const onChange = (e: RadioChangeEvent) => {
     console.log("xxx radio checked", e.target.value);
     setOrientation(e.target.value);
