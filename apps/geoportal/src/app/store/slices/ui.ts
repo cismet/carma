@@ -8,6 +8,7 @@ export enum UIMode {
   DEFAULT = "default",
   FEATURE_INFO = "featureInfo",
   MEASUREMENT = "measurement",
+  PRINT = "print",
 }
 
 export interface UIState {
