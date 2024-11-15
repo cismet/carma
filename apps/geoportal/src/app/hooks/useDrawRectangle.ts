@@ -44,7 +44,7 @@ export const useDrawRectangle = () => {
   };
 
   useEffect(() => {
-    if (map) {
+    if (map && mode === "print") {
       addRectangle(map);
 
       const handleZoom = () => addRectangle(map);
@@ -54,13 +54,15 @@ export const useDrawRectangle = () => {
       map.on("move", handleMove);
 
       return () => {
-        console.log("xxx print unmounted, cleaning up...");
-
         map.off("zoom", handleZoom);
         map.off("move", handleMove);
 
         removeRectangle(map);
       };
+    }
+
+    if (map && mode !== "print") {
+      removeRectangle(map);
     }
   }, [map, mode, orientation]);
 };

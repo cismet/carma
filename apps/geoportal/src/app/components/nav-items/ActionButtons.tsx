@@ -24,6 +24,7 @@ import {
 import {
   getUIShowLayerButtons,
   setShowResourceModal,
+  setUIMode,
   setUIShowLayerButtons,
 } from "../../store/slices/ui";
 import ShareContent from "../ShareContent";
@@ -148,9 +149,11 @@ const ActionButtons = () => {
         </Popover>
       </Tooltip>
       <Tooltip title="Drucken">
-        <Popover trigger="click" placement="bottom" content={<Print />}>
-          <FontAwesomeIcon icon={faPrint} className="text-xl text-gray-600" />
-        </Popover>
+        <button onClick={() => dispatch(setUIMode("print"))}>
+          <Popover trigger="click" placement="bottom" content={<Print />}>
+            <FontAwesomeIcon icon={faPrint} className="text-xl text-gray-600" />
+          </Popover>
+        </button>
       </Tooltip>
       <Tooltip title="Teilen">
         <Popover trigger="click" placement="bottom" content={<ShareContent />}>

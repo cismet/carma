@@ -1,12 +1,12 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { RootState } from "..";
-type PrintOrientation = "landscape" | "portret";
+type PrintOrientation = "landscape" | "portrait";
 export type PrintState = {
   orientation: PrintOrientation;
 };
 
 const initialState: PrintState = {
-  orientation: "portret",
+  orientation: "portrait",
 };
 
 const slice = createSlice({
