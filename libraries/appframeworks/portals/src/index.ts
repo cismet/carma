@@ -1,4 +1,5 @@
 import * as utils from "./lib/utils/utils";
+import { useGazData } from "./lib/components/GazDataProvider";
 export type * from "./lib/types";
 
 export enum SELECTED_LAYER_INDEX {
@@ -14,3 +15,5 @@ export {
   CarmaMapContextProvider,
   useCarmaMapContext,
 } from "./lib/components/CarmaMapContextProvider.tsx";
+
+export { useGazData } from "./lib/components/GazDataProvider";

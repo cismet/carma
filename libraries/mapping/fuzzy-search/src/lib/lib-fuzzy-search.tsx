@@ -18,7 +18,6 @@ import {
 import { carmaHitTrigger } from "./utils/carmaHitTrigger";
 import {
   generateOptions,
-  getGazData,
   limitSearchResult,
   mapDataToSearchResult,
   prepareGazData,
@@ -187,15 +186,9 @@ export function LibFuzzySearch({
   };
 
   useEffect(() => {
-    if (gazData.leafletElement > 0) {
+    if (gazData) {
       const allModifiedData = prepareGazData(gazData, prepoHandling);
       setAllGazeteerData(allModifiedData);
-    } else {
-      const setDataCallback = (data) => {
-        setAllGazeteerData(prepareGazData(data, prepoHandling));
-      };
-      Array.isArray(sourcesConfig) &&
-        getGazData(sourcesConfig, gazDataPrefix, setDataCallback);
     }
   }, [gazData, prepoHandling]);
 

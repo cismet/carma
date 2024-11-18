@@ -58,51 +58,6 @@ export interface GruppedOptions {
   options?: Option[];
 }
 
-export type SourceConfig = {
-  topic: ENDPOINT;
-  url: string;
-  crs: string;
-};
-
-export type SourceWithPayload = SourceConfig & {
-  payload?: unknown;
-};
-
-export type PayloadItem = {
-  s?: string;
-  g?: string;
-  x?: number;
-  y?: number;
-  m?: { id?: string };
-  n?: string;
-  nr?: string | number;
-  z?: string;
-};
-
-export type GazDataItem = {
-  sorter: number;
-  string: string;
-  glyph: string;
-  glyphPrefix?: string;
-  overlay?: string;
-  x: number;
-  y: number;
-  more?: { zl?; id? };
-  type: string;
-  crs: string;
-};
-
-export type PayloadItemType = {
-  s?: string;
-  g?: string;
-  x?: number;
-  y?: number;
-  m?: { id?: string };
-  n?: string;
-  nr?: string | number;
-  z?: string;
-};
-
 export type SearchConfig = {
   prepoHandling?: boolean;
   ifShowScore?: boolean;
