@@ -174,7 +174,7 @@ const LayerButton = ({
         {...listeners}
         {...attributes}
         className={cn(
-          "w-fit min-w-max relative flex items-center gap-2 px-3 rounded-[10px] h-8 z-[9999999] button-shadow",
+          "w-fit min-w-max relative flex items-center gap-1 pl-3 rounded-[10px] h-8 z-[9999999] button-shadow",
           selectedLayerIndex === -2
             ? layer.visible
               ? "bg-white"
@@ -183,7 +183,8 @@ const LayerButton = ({
             ? "bg-white"
             : "bg-neutral-200",
           zoom >= layer.props.maxZoom && "opacity-50",
-          zoom <= layer.props.minZoom && "opacity-50"
+          zoom <= layer.props.minZoom && "opacity-50",
+          background ? "pr-3" : "pr-2"
         )}
       >
         {iconName ? (
@@ -222,10 +223,10 @@ const LayerButton = ({
 
         {!background && (
           <>
-            <span className="text-base">{title}</span>
+            <span className="text-base ml-1">{title}</span>
             <button
               id={`removeLayerButton-${id}`}
-              className="hover:text-gray-500 text-gray-600 flex items-center justify-center"
+              className="hover:text-gray-500 text-gray-600 px-1.5 flex items-center justify-center"
               onClick={(e) => {
                 e.stopPropagation();
                 if (showLayerHideButtons) {
