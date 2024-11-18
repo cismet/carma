@@ -20,7 +20,6 @@ export const useDrawRectangle = () => {
 
   const addRectangle = (map) => {
     removeRectangle(map);
-
     const pixelWidth = orientation === "landscape" ? 495 : 350;
     const pixelHeight = orientation === "landscape" ? 350 : 495;
 
@@ -40,7 +39,46 @@ export const useDrawRectangle = () => {
     L.rectangle(rectangleBounds, {
       color: "black",
       weight: 1,
+      className: "print-rectangle",
     }).addTo(map);
+
+    addButtonAboveRectangle(map);
+  };
+
+  const addButtonAboveRectangle = (map) => {
+    const rec = document.querySelector(".print-rectangle");
+    const recCoords = rec.getBoundingClientRect();
+
+    if (document.querySelector(".rectangle-button")) return;
+
+    const buttonContainer = L.DomUtil.create(
+      "div",
+      "rectangle-button-container"
+    );
+    buttonContainer.style.position = "absolute";
+    buttonContainer.style.top = recCoords.top - 58 + "px";
+    buttonContainer.style.left = recCoords.right + 10 + "px";
+    buttonContainer.style.zIndex = 1000;
+
+    const button = L.DomUtil.create(
+      "button",
+      "rectangle-button",
+      buttonContainer
+    );
+    button.innerHTML = "Print";
+    button.style.padding = "5px 10px";
+    button.style.backgroundColor = "#fff";
+    button.style.color = "black";
+    button.style.border = "1px solid gray";
+    button.style.borderRadius = "4px";
+    button.style.cursor = "pointer";
+
+    L.DomEvent.on(button, "click", () => {
+      alert("Button clicked!");
+    });
+
+    //<div id="myMap">
+    map.getContainer().appendChild(buttonContainer);
   };
 
   useEffect(() => {
