@@ -7,8 +7,9 @@ import type { RadioChangeEvent } from "antd";
 import { useDrawRectangle } from "../../hooks/useDrawRectangle";
 import { getOrientation, changeOrientation } from "../../store/slices/print";
 import { useSelector, useDispatch } from "react-redux";
+import { setUIMode } from "../../store/slices/ui";
 
-const Print = () => {
+const Print = ({ setShowPrintPopup }) => {
   const dispatch = useDispatch();
   const currentOrient = useSelector(getOrientation);
   const [orientation, setOrientation] = useState(currentOrient);
@@ -47,7 +48,14 @@ const Print = () => {
           <Radio value={"300"}>300</Radio>
         </div>
       </Radio.Group>
-      <Button>Starten</Button>
+      <Button
+        onClick={() => {
+          dispatch(setUIMode("print"));
+          setShowPrintPopup(false);
+        }}
+      >
+        Starten
+      </Button>
     </div>
   );
 };
