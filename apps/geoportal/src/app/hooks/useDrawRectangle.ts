@@ -18,8 +18,19 @@ export const useDrawRectangle = () => {
     });
   };
 
+  const removePrintButton = () => {
+    const printBtn = document.querySelector(".rectangle-button");
+    console.log("xxx printBtn", printBtn);
+
+    if (printBtn) {
+      console.log("xxx printBtn", printBtn);
+      printBtn.remove();
+    }
+  };
+
   const addRectangle = (map) => {
     removeRectangle(map);
+    removePrintButton();
     const pixelWidth = orientation === "landscape" ? 495 : 350;
     const pixelHeight = orientation === "landscape" ? 350 : 495;
 
@@ -47,38 +58,35 @@ export const useDrawRectangle = () => {
 
   const addButtonAboveRectangle = (map) => {
     const rec = document.querySelector(".print-rectangle");
+    if (!rec) return;
+
     const recCoords = rec.getBoundingClientRect();
 
     if (document.querySelector(".rectangle-button")) return;
 
-    const buttonContainer = L.DomUtil.create(
-      "div",
-      "rectangle-button-container"
-    );
-    buttonContainer.style.position = "absolute";
-    buttonContainer.style.top = recCoords.top - 58 + "px";
-    buttonContainer.style.left = recCoords.right + 10 + "px";
-    buttonContainer.style.zIndex = 1000;
-
-    const button = L.DomUtil.create(
-      "button",
-      "rectangle-button",
-      buttonContainer
-    );
+    const button = L.DomUtil.create("button", "rectangle-button");
     button.innerHTML = "Print";
+    button.style.position = "absolute";
     button.style.padding = "5px 10px";
     button.style.backgroundColor = "#fff";
     button.style.color = "black";
     button.style.border = "1px solid gray";
     button.style.borderRadius = "4px";
     button.style.cursor = "pointer";
+    button.style.zIndex = 1000;
+
+    const mapContainer = map.getContainer();
+    const mapRect = mapContainer.getBoundingClientRect();
+
+    button.style.top = recCoords.top - mapRect.top - 40 + "px";
+    button.style.left =
+      recCoords.left - mapRect.left + recCoords.width / 2 - 30 + "px";
 
     L.DomEvent.on(button, "click", () => {
       alert("Button clicked!");
     });
 
-    //<div id="myMap">
-    map.getContainer().appendChild(buttonContainer);
+    map.getContainer().appendChild(button);
   };
 
   useEffect(() => {
