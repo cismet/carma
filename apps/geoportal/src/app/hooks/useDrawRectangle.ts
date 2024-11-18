@@ -20,7 +20,6 @@ export const useDrawRectangle = () => {
 
   const removePrintButton = () => {
     const printBtn = document.querySelector(".rectangle-button");
-    console.log("xxx printBtn", printBtn);
 
     if (printBtn) {
       console.log("xxx printBtn", printBtn);
@@ -47,22 +46,21 @@ export const useDrawRectangle = () => {
     const topLeftLatLng = map.layerPointToLatLng(topLeftPoint);
     const bottomRightLatLng = map.layerPointToLatLng(bottomRightPoint);
     const rectangleBounds = [topLeftLatLng, bottomRightLatLng];
-    L.rectangle(rectangleBounds, {
+    const rectangle = L.rectangle(rectangleBounds, {
       color: "black",
       weight: 1,
       className: "print-rectangle",
     }).addTo(map);
 
-    addButtonAboveRectangle(map);
+    addButtonAboveRectangle(map, rectangle, pixelWidth, pixelHeight);
   };
 
-  const addButtonAboveRectangle = (map) => {
-    const rec = document.querySelector(".print-rectangle");
-    if (!rec) return;
+  const addButtonAboveRectangle = (map, rectangle, recWidth, recHeight) => {
+    removePrintButton();
 
-    const recCoords = rec.getBoundingClientRect();
-
-    if (document.querySelector(".rectangle-button")) return;
+    const recBounds = rectangle.getBounds();
+    const centerLatLng = recBounds.getCenter();
+    const centerPoint = map.latLngToContainerPoint(centerLatLng);
 
     const button = L.DomUtil.create("button", "rectangle-button");
     button.innerHTML = "Print";
@@ -74,13 +72,8 @@ export const useDrawRectangle = () => {
     button.style.borderRadius = "4px";
     button.style.cursor = "pointer";
     button.style.zIndex = 1000;
-
-    const mapContainer = map.getContainer();
-    const mapRect = mapContainer.getBoundingClientRect();
-
-    button.style.top = recCoords.top - mapRect.top - 40 + "px";
-    button.style.left =
-      recCoords.left - mapRect.left + recCoords.width / 2 - 30 + "px";
+    button.style.top = `${centerPoint.y + recHeight / 2 + 2}px`;
+    button.style.left = `${centerPoint.x + recWidth / 2 - 44}px`;
 
     L.DomEvent.on(button, "click", () => {
       alert("Button clicked!");
@@ -109,6 +102,7 @@ export const useDrawRectangle = () => {
 
     if (map && mode !== "print") {
       removeRectangle(map);
+      removePrintButton();
     }
   }, [map, mode, orientation]);
 };
