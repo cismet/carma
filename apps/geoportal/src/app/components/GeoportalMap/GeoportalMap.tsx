@@ -391,7 +391,7 @@ export const GeoportalMap = () => {
           <FontAwesomeIcon icon={faHouseChimney} className="text-lg" />
         </ControlButtonStyler>
       </Control>
-      <Control position="topleft" order={50}>
+      <Control position="topleft" order={60}>
         {showMeasurementButton && (
           <div className="flex items-center gap-4">
             <Tooltip
@@ -433,7 +433,7 @@ export const GeoportalMap = () => {
         )}
       </Control>
       {allow3d && (
-        <Control position="topleft" order={60}>
+        <Control position="topleft" order={70}>
           <MapTypeSwitcher
             duration={CESIUM_CONFIG.transitions.mapMode.duration}
             onComplete={(isTo2d: boolean) => {
@@ -449,7 +449,7 @@ export const GeoportalMap = () => {
           }
         </Control>
       )}
-      <Control position="topleft" order={60}>
+      <Control position="topleft" order={50}>
         <Tooltip title="Sachdatenabfrage" placement="right">
           <ControlButtonStyler
             disabled={!isMode2d}
