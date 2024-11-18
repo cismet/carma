@@ -215,7 +215,7 @@ export const GeoportalMap = () => {
     )
   );
 
-  const { topicMapCtx } = useCarmaMapContext();
+  const { topicMapCtx, setShowTourOverlay } = useCarmaMapContext();
 
   const {
     routedMapRef: routedMap,
@@ -223,7 +223,6 @@ export const GeoportalMap = () => {
     referenceSystem,
     referenceSystemDefinition,
     maskingPolygon,
-    setShowTourOverlay,
   } = topicMapCtx;
 
   const { setAppMenuVisible } =
