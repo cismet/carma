@@ -32,9 +32,9 @@ export const useDrawRectangle = () => {
     removePrintButton();
     const pixelWidth = orientation === "landscape" ? 495 : 350;
     const pixelHeight = orientation === "landscape" ? 350 : 495;
-
     const mapCenter = map.getCenter();
-    const centerPoint = map.latLngToLayerPoint(mapCenter);
+    // const centerPoint = map.latLngToLayerPoint(mapCenter);
+    const centerPoint = map.latLngToContainerPoint(mapCenter);
     const topLeftPoint = L.point(
       centerPoint.x - pixelWidth / 2,
       centerPoint.y - pixelHeight / 2
@@ -43,8 +43,10 @@ export const useDrawRectangle = () => {
       centerPoint.x + pixelWidth / 2,
       centerPoint.y + pixelHeight / 2
     );
-    const topLeftLatLng = map.layerPointToLatLng(topLeftPoint);
-    const bottomRightLatLng = map.layerPointToLatLng(bottomRightPoint);
+    // const topLeftLatLng = map.layerPointToLatLng(topLeftPoint);
+    const topLeftLatLng = map.containerPointToLatLng(topLeftPoint);
+    // const bottomRightLatLng = map.layerPointToLatLng(bottomRightPoint);
+    const bottomRightLatLng = map.containerPointToLatLng(bottomRightPoint);
     const rectangleBounds = [topLeftLatLng, bottomRightLatLng];
     const rectangle = L.rectangle(rectangleBounds, {
       color: "black",
@@ -57,7 +59,6 @@ export const useDrawRectangle = () => {
 
   const addButtonAboveRectangle = (map, rectangle, recWidth, recHeight) => {
     removePrintButton();
-
     const recBounds = rectangle.getBounds();
     const centerLatLng = recBounds.getCenter();
     const centerPoint = map.latLngToContainerPoint(centerLatLng);
