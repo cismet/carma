@@ -2405,101 +2405,129 @@ export const baseConfig = {
     layers: [
       {
         name: "einstr",
+        icon: "mobi/Einbahnstrassen",
       },
       {
         name: "zone30",
         keywords: [":vec:"],
+        icon: "mobi/Tempo_30_Zonen",
       },
       {
         name: "sch30",
         keywords: [":vec:"],
+        icon: "mobi/Beschilderung_d_Tempo_30_Zonen",
       },
       {
         name: "vbel2020",
         keywords: [":vec:"],
+        icon: "mobi/2020_Kfz-Verkehrsbelastung",
       },
       {
         name: "vbel2013",
         keywords: [":vec:"],
+        icon: "mobi/2013_Kfz-Verkehrsbelastung",
       },
       {
         name: "emobil_auto",
+        icon: "mobi/Ladestation_f_Elektroautos",
       },
       {
         name: "carsharing",
         keywords: [":vec:"],
+        icon: "mobi/Carsharing",
       },
       {
         name: "bewohnerbereiche",
         keywords: [":vec:"],
+        icon: "mobi/Bewohnerparkbereich",
       },
       {
         name: "bewohnerzonen",
         keywords: [":vec:"],
+        icon: "mobi/Bewohnerparkzonen",
       },
       {
         name: "cityparkflaechen",
         keywords: [":vec:"],
+        icon: "mobi/City-Parkflächen",
       },
       {
         name: "cityzonen",
         keywords: [":vec:"],
+        icon: "mobi/City-Parkzonen",
       },
       {
         name: "pranlagen",
         keywords: [":vec:"],
+        icon: "mobi/P+R-Anlagen",
       },
       {
         name: "psa",
         keywords: [":vec:"],
+        icon: "mobi/Parkscheinautomaten",
       },
       {
         name: "treppen",
         keywords: [":vec:"],
+        icon: "mobi/Treppen",
       },
       {
         name: "branlagen",
         keywords: [":vec:"],
+        icon: "mobi/B+R-Anlagen",
       },
       {
         name: "rad-ein",
+        icon: "mobi/Einbahnstrassen_Radfahrverkehrsnetz",
       },
       {
         name: "emobil_bike",
+        icon: "mobi/Ladestation_f_Elektro-Fahrräder",
       },
       {
         name: "emobil_verleih",
+        icon: "mobi/Verleih_f_Elektro-Fahrräder",
       },
       {
         name: "rad-bel",
+        icon: "mobi/Beleuchtete_Strecken",
       },
       {
         name: "rad-stg",
+        icon: "mobi/Steile_Streckenabschnitte",
       },
       {
         name: "rad-ast",
+        icon: "mobi/Radabstellanlagen",
       },
       {
         name: "rad-sper",
+        icon: "mobi/Einschränkungen_u_Sperrungen",
       },
       {
         name: "rad-zun",
+        icon: "mobi/Zugang_z_Bahntrassenradwegen",
       },
       {
         name: "rad-bau",
+        icon: "mobi/Markante_Bauwerke",
       },
       {
         name: "rad-wst",
+        icon: "mobi/Radwegetyp_n_STVO-",
       },
       {
         name: "rad-w",
+        icon: "mobi/Kommunale_Radwanderwege",
       },
       {
         name: "rad-nrw",
+        icon: "mobi/NRW-Radwanderwege",
       },
       {
         name: "reitwege",
         keywords: [":vec:"],
+        icon: "mobi/Reitwege",
       },
     ],
   },
