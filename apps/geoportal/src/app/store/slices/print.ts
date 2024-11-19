@@ -30,7 +30,7 @@ const slice = createSlice({
   },
 });
 
-export const { changeOrientation } = slice.actions;
+export const { changeOrientation, changeDPI, changeScale } = slice.actions;
 export const getOrientation = (state: RootState) => state.print.orientation;
 export const getDPI = (state: RootState) => state.print.dpi;
 export const getScale = (state: RootState) => state.print.scale;

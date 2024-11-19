@@ -4,7 +4,7 @@ import { useSelector } from "react-redux";
 import { getOrientation } from "../store/slices/print";
 import { getUIMode } from "../store/slices/ui";
 
-export const useDrawRectangle = () => {
+export const useDrawRectangle = (printCb) => {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const map = routedMapRef?.leafletMap?.leafletElement;
   const mode = useSelector(getUIMode);
@@ -70,7 +70,7 @@ export const useDrawRectangle = () => {
     button.style.left = `${centerPoint.x + recWidth / 2 - 44}px`;
 
     L.DomEvent.on(button, "click", () => {
-      alert("Button clicked!");
+      printCb();
     });
 
     map.getContainer().appendChild(button);
