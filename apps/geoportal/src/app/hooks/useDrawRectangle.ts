@@ -1,4 +1,4 @@
-import { useContext, useEffect } from "react";
+import { useContext, useEffect, useState } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useSelector } from "react-redux";
 import { getOrientation } from "../store/slices/print";
@@ -9,6 +9,7 @@ export const useDrawRectangle = (printCb) => {
   const map = routedMapRef?.leafletMap?.leafletElement;
   const mode = useSelector(getUIMode);
   const orientation = useSelector(getOrientation);
+  const [lastOrientation, setlastOrientation] = useState(orientation);
 
   const removeRectangle = () => {
     const printBtn = document.querySelector(".rectangle-wrapper ");
@@ -54,16 +55,25 @@ export const useDrawRectangle = (printCb) => {
 
   useEffect(() => {
     if (map && mode === "print") {
-      addRectangle(map);
-    }
+      const handleResize = () => {
+        console.log("xxx window resized");
+        removeRectangle();
+        addRectangle(map);
+      };
 
-    if (map && mode !== "print") {
+      addRectangle(map);
+      window.addEventListener("resize", handleResize);
+
+      return () => {
+        window.removeEventListener("resize", handleResize);
+        removeRectangle();
+      };
+    } else if (map && mode === "print" && lastOrientation === orientation) {
+      removeRectangle();
+      addRectangle(map);
+      setlastOrientation(orientation);
+    } else if (map && mode !== "print") {
       removeRectangle();
     }
-  }, [map, mode]);
-
-  useEffect(() => {
-    removeRectangle();
-    addRectangle(map);
-  }, [orientation]);
+  }, [map, mode, orientation]);
 };
