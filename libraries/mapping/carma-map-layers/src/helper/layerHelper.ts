@@ -85,7 +85,7 @@ export const extractVectorStyles = (keywords: string[]) => {
       const property = objectString.split(":")[0];
       let value =
         colonIndex !== -1 ? objectString.substring(colonIndex + 1).trim() : "";
-      const object = { [property]: value };
+      const object = { ...vectorObject, [property]: value };
       vectorObject = object;
     }
   });
