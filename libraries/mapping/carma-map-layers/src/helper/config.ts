@@ -2285,62 +2285,117 @@ export const baseConfig = {
     layers: [
       {
         name: "R102:fluruebersicht",
+        icon: "gebiet/Flur-_u_Gemarkungsübersicht",
       },
       {
         name: "kst_landtagswahlkreise",
         keywords: [":vec:"],
+        icon: "gebiet/Landtagswahlkreise",
       },
       {
         name: "kst_knoten",
         keywords: [":vec:"],
+        icon: "gebiet/Knoten",
       },
       {
         name: "kst_segment",
         keywords: [":vec:"],
+        icon: "gebiet/Segmente",
       },
       {
         name: "kst_segmenttypen",
         keywords: [":vec:"],
+        icon: "gebiet/Segmenttypen",
       },
       {
         name: "kst_segment_hnr",
         keywords: [":vec:"],
+        icon: "gebiet/Segmente_m_Hausnummer",
       },
       {
         name: "kst_segment_steigung",
         keywords: [":vec:"],
+        icon: "gebiet/Segmente_m_Steigung",
       },
       {
         name: "kst_baubloecke",
         keywords: [":vec:"],
+        icon: "gebiet/Baublöcke",
       },
       {
         name: "kst_quartiere",
         keywords: [":vec:"],
+        icon: "gebiet/Quartiere",
       },
       {
         name: "kst_stadtbezirk",
         keywords: [":vec:"],
+        icon: "gebiet/Stadtbezirk",
       },
       {
         name: "kst_stadtgebiet",
         keywords: [":vec:"],
+        icon: "gebiet/Stadtgebiet",
       },
       {
         name: "kst_statistische_bezirke",
         keywords: [":vec:"],
+        icon: "gebiet/Statistische_Bezirke",
       },
       {
         name: "kst_stimmbezirke",
         keywords: [":vec:"],
+        icon: "gebiet/Stimmbezirke",
       },
       {
         name: "kst_kommunalwahlbezirke",
         keywords: [":vec:"],
+        icon: "gebiet/Kommunalwahlbezirke",
       },
       {
         name: "kst_bundestagswahlkreise",
         keywords: [":vec:"],
+        icon: "gebiet/Bundestagswahlkreise",
+      },
+      {
+        name: "gitter_kreuze",
+        icon: "gebiet/Gitterkreuze_ETRS89_50x50m",
+      },
+      {
+        name: "gitter_gk_500",
+        icon: "gebiet/Gitter_GK2_500x250m",
+      },
+      {
+        name: "gitter_500",
+        icon: "gebiet/Gitter_ETRS89_500x250m",
+      },
+      {
+        name: "gitter_gk_1000",
+        icon: "gebiet/Gitter_GK2_1x1km",
+      },
+      {
+        name: "gitter_1000",
+        icon: "gebiet/Gitter_ETRS89_1x1km",
+      },
+      {
+        name: "gitter_bezirke",
+        icon: "gebiet/Nummerierungsbezirke_ETRS89_1x1km",
+      },
+      {
+        name: "gitter_gk_2000",
+        icon: "gebiet/Gitter_GK2_2x2km",
+      },
+      {
+        name: "gitter_2000",
+        icon: "gebiet/Gitter_ETRS89_2x2km",
+      },
+      {
+        name: "hoehenu",
+        icon: "gebiet/1m-Höhenlinien",
+      },
+      {
+        name: "hoehenv",
+        icon: "gebiet/1m-Höhenlinien",
       },
     ],
   },
