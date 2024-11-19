@@ -23,7 +23,6 @@ import {
 
 import { ExtraMarker } from "react-cismap/ExtraMarker";
 import PaleOverlay from "react-cismap/PaleOverlay";
-import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import GazetteerHitDisplay from "react-cismap/GazetteerHitDisplay";
 import { ProjSingleGeoJson } from "react-cismap/ProjSingleGeoJson";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
@@ -41,17 +40,13 @@ import {
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 
 import { useTweakpaneCtx } from "@carma-commons/debug";
-import {
-  detectWebGLContext,
-  getApplicationVersion,
-} from "@carma-commons/utils";
+import { getApplicationVersion } from "@carma-commons/utils";
 import {
   OverlayTourContext,
   useOverlayHelper,
 } from "@carma-commons/ui/lib-helper-overlay";
 
 import {
-  CustomViewer,
   MapTypeSwitcher,
   Compass,
   selectShowPrimaryTileset,
@@ -113,15 +108,10 @@ import { createCismapLayers, onClickTopicMap } from "./topicmap.utils.ts";
 import { getUrlPrefix } from "./utils";
 
 import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
+import { CarmaMap } from "./CarmaMap.tsx";
 
 import "../leaflet.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
-
-// detect GPU support, disables 3d mode if not supported
-let hasGPU = false;
-const setHasGPU = (flag: boolean) => (hasGPU = flag);
-const testGPU = () => detectWebGLContext(setHasGPU);
-window.addEventListener("load", testGPU, false);
 
 export const GeoportalMap = () => {
   const dispatch = useDispatch();
@@ -133,10 +123,9 @@ export const GeoportalMap = () => {
   const lastRenderIntervalRef = useRef(0);
   const [urlParams, setUrlParams] = useSearchParams();
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const container3dMapRef = useRef<HTMLDivElement>(null);
 
   // State and Selectors
-  const allow3d = useSelector(getUIAllow3d) && hasGPU;
+  const allow3d = useSelector(getUIAllow3d);
   const backgroundLayer = useSelector(getBackgroundLayer);
   const isMode2d = useSelector(selectViewerIsMode2d) || !allow3d;
   const models = useSelector(selectViewerModels);
@@ -502,110 +491,89 @@ export const GeoportalMap = () => {
         </div>
       </Control>
       <Main ref={wrapperRef}>
-        <>
-          <div className={"map-container-2d"} style={{ zIndex: 400 }}>
-            <TopicMapComponent
-              gazData={gazData}
-              modalMenu={
-                <GenericModalApplicationMenu
-                  {...getCollabedHelpComponentConfig({
-                    versionString: version,
-                    showOverlayFromOutside: showOverlayFromOutside,
-                  })}
-                />
-              }
-              applicationMenuTooltipString={tooltipText}
-              hamburgerMenu={showHamburgerMenu}
-              locatorControl={false}
-              fullScreenControl={false}
-              zoomControls={false}
-              mapStyle={{ width, height }}
-              leafletMapProps={{ editable: true }}
-              minZoom={10}
-              backgroundlayers="empty"
-              mappingBoundsChanged={(boundingbox) => {
-                // console.debug('xxx bbox', createWMSBbox(boundingbox));
-              }}
-              locationChangedHandler={(location) => {
-                const newParams = { ...paramsToObject(urlParams), ...location };
-                setUrlParams(newParams);
-              }}
-              onclick={(e) =>
-                onClickTopicMap(e, {
-                  dispatch,
-                  mode: uiMode,
-                  store,
-                  setPos,
-                  zoom: getLeafletZoom(),
-                })
-              }
-              gazetteerSearchComponent={<></>}
-              infoBox={renderInfoBox()}
-              zoomSnap={LEAFLET_CONFIG.zoomSnap}
-              zoomDelta={LEAFLET_CONFIG.zoomDelta}
-            >
-              {backgroundLayer &&
-                backgroundLayer.visible &&
-                getBackgroundLayers({ layerString: backgroundLayer.layers })}
-              {overlayFeature && (
-                <ProjSingleGeoJson
-                  key={JSON.stringify(overlayFeature)}
-                  geoJson={overlayFeature}
-                  masked={true}
-                  maskingPolygon={maskingPolygon}
-                  mapRef={routedMap}
-                />
-              )}
-              <GazetteerHitDisplay
-                key={"gazHit" + JSON.stringify(gazetteerHit)}
-                gazetteerHit={gazetteerHit}
+        <CarmaMap
+          gazData={gazData}
+          modalMenu={useMemo(
+            () => (
+              <GenericModalApplicationMenu
+                {...getCollabedHelpComponentConfig({
+                  versionString: version,
+                  showOverlayFromOutside: showOverlayFromOutside,
+                })}
               />
-              {focusMode && <PaleOverlay />}
-              {createCismapLayers(layers, {
-                focusMode,
-                mode: uiMode,
-                dispatch,
-                setPos,
-                zoom: getLeafletZoom(),
-              })}
-              {pos && isModeFeatureInfo && layers.length > 0 && (
-                <ExtraMarker
-                  markerOptions={{ markerColor: "cyan", spin: false }}
-                  position={pos}
-                />
-              )}
-            </TopicMapComponent>
-          </div>
-          {allow3d && (
-            <div
-              ref={container3dMapRef}
-              className={"map-container-3d"}
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                zIndex: 401,
-                opacity: isMode2d ? 0 : 1,
-                transition: `opacity ${CESIUM_CONFIG.transitions.mapMode.duration}ms ease-in-out`,
-                pointerEvents: isMode2d ? "none" : "auto",
-              }}
-            >
-              <CustomViewer
-                containerRef={container3dMapRef}
-                cameraOptions={CESIUM_CONFIG.camera}
-                onSceneChange={(e) => {
-                  console.debug(
-                    "[GEOPORTALMAP|HASH|SCENE|CESIUM]cesium scene changed",
-                    e
-                  );
-                  replaceHashRoutedHistory(e, location.pathname);
-                }}
-              ></CustomViewer>
-            </div>
+            ),
+            [version, showOverlayFromOutside]
           )}
-        </>
+          applicationMenuTooltipString={tooltipText}
+          hamburgerMenu={showHamburgerMenu}
+          locatorControl={false}
+          fullScreenControl={false}
+          zoomControls={false}
+          mapStyle={{ width, height }}
+          leafletMapProps={{ editable: true }}
+          minZoom={10}
+          backgroundlayers="empty"
+          mappingBoundsChanged={(boundingbox) => {
+            // console.debug('xxx bbox', createWMSBbox(boundingbox));
+          }}
+          locationChangedHandler={(location) => {
+            const newParams = { ...paramsToObject(urlParams), ...location };
+            setUrlParams(newParams);
+          }}
+          onclick={(e) =>
+            onClickTopicMap(e, {
+              dispatch,
+              mode: uiMode,
+              store,
+              setPos,
+              zoom: getLeafletZoom(),
+            })
+          }
+          //gazetteerSearchComponent={<></>}
+          infoBox={renderInfoBox()}
+          zoomSnap={LEAFLET_CONFIG.zoomSnap}
+          zoomDelta={LEAFLET_CONFIG.zoomDelta}
+          // CESIUM SPECIFIC
+          cesiumOptions={CESIUM_CONFIG}
+          onSceneChange={(e) => {
+            console.debug(
+              "[GEOPORTALMAP|HASH|SCENE|CESIUM]cesium scene changed",
+              e
+            );
+            replaceHashRoutedHistory(e, location.pathname);
+          }}
+        >
+          {backgroundLayer &&
+            backgroundLayer.visible &&
+            getBackgroundLayers({ layerString: backgroundLayer.layers })}
+          {overlayFeature && (
+            <ProjSingleGeoJson
+              key={JSON.stringify(overlayFeature)}
+              geoJson={overlayFeature}
+              masked={true}
+              maskingPolygon={maskingPolygon}
+              mapRef={routedMap}
+            />
+          )}
+          <GazetteerHitDisplay
+            key={"gazHit" + JSON.stringify(gazetteerHit)}
+            gazetteerHit={gazetteerHit}
+          />
+          {focusMode && <PaleOverlay />}
+          {createCismapLayers(layers, {
+            focusMode,
+            mode: uiMode,
+            dispatch,
+            setPos,
+            zoom: getLeafletZoom(),
+          })}
+          {pos && isModeFeatureInfo && layers.length > 0 && (
+            <ExtraMarker
+              markerOptions={{ markerColor: "cyan", spin: false }}
+              position={pos}
+            />
+          )}
+        </CarmaMap>
       </Main>
     </ControlLayout>
   );
