@@ -888,21 +888,27 @@ export const baseConfig = {
     layers: [
       {
         name: "alf",
+        icon: "basis/Flurkarte_farbig_ABK",
       },
       {
         name: "algw",
+        icon: "basis/Flurkarte_Graustufen_ABK",
       },
       {
         name: "alkomf",
+        icon: "basis/Stadtgrundkarte_farbig_ABK",
       },
       {
         name: "alkomgw",
+        icon: "basis/Stadtgrundkarte_Graustufen_ABK",
       },
       {
         name: "albsf",
+        icon: "basis/Schätzungskarte_farbig_ABK",
       },
       {
         name: "albsgw",
+        icon: "basis/Schätzungskarte_Graustufen_ABK",
       },
       {
         name: "expsw",
@@ -910,6 +916,7 @@ export const baseConfig = {
           784874.5156892611, 6655868.893474152, 821182.1041247197,
           6679927.448126909,
         ],
+        icon: "basis/Expresskarte_Strichkarte_schwarz",
       },
       {
         name: "expg",
@@ -917,30 +924,39 @@ export const baseConfig = {
           784874.5156892611, 6655868.893474152, 821182.1041247197,
           6679927.448126909,
         ],
+        icon: "basis/Expresskarte_Strichkarte_gelb",
       },
       {
         name: "abkf",
+        icon: "basis/Amtliche_Basiskarte_farbig",
       },
       {
         name: "abkg",
+        icon: "basis/Amtliche_Basiskarte_Graustufen_ABK",
       },
       {
         name: "abkt",
+        icon: "basis/Amtliche_Basiskarte_Graustufen_transparent",
       },
       {
         name: "spw2_orange",
+        icon: "basis/SPW_Orange",
       },
       {
         name: "spw2_light",
+        icon: "basis/SPW_Light",
       },
       {
         name: "spw2_graublau",
+        icon: "basis/SPW_Graublau",
       },
       {
         name: "oepnv_rvr",
+        icon: "basis/SPW_Light_OEPNV",
       },
       {
         name: "hillshade",
+        icon: "basis/Reliefschummerung",
       },
       {
         name: "R102:UEK125",
@@ -948,17 +964,21 @@ export const baseConfig = {
           784874.5156892611, 6655868.893474152, 821182.1041247197,
           6679927.448126909,
         ],
+        icon: "basis/Übersichtskarte_RS-SG-W",
       },
       {
         name: "R102:STADTRSW",
+        icon: "basis/Stadtplan_RS-SG-W",
       },
       {
         name: "R102:stadtgrundkarte_hausnr",
         keywords: [":vec:"],
+        icon: "basis/Stadtgrundkarte_Hausnummern",
       },
       {
         name: "urban",
         keywords: [":vec:"],
+        icon: "basis/Urban_Atlas",
       },
       {
         name: "wuppertal:1827",
@@ -966,6 +986,7 @@ export const baseConfig = {
           784874.5156892611, 6655868.893474152, 821182.1041247197,
           6679927.448126909,
         ],
+        icon: "basis/W-1827",
       },
       {
         name: "wuppertal:1929",
@@ -973,6 +994,7 @@ export const baseConfig = {
           784874.5156892611, 6655868.893474152, 821182.1041247197,
           6679927.448126909,
         ],
+        icon: "basis/W-1929",
       },
       {
         name: "wuppertal:1979",
@@ -980,6 +1002,7 @@ export const baseConfig = {
           784874.5156892611, 6655868.893474152, 821182.1041247197,
           6679927.448126909,
         ],
+        icon: "basis/W-1979",
       },
       {
         name: "wuppertal:2004",
@@ -987,80 +1010,104 @@ export const baseConfig = {
           784874.5156892611, 6655868.893474152, 821182.1041247197,
           6679927.448126909,
         ],
+        icon: "basis/W-2004",
       },
       {
         name: "R102:DGK:schwarz",
+        icon: "basis/DKG_Grundriss_Schwarz-Weiss_transparent_12-2013",
       },
       {
         name: "R102:DGK:gelb",
+        icon: "basis/DKG_Grundriss_Gelb-Weiss_transparent_12-2013",
       },
       {
         name: "R102:DGK:grau",
+        icon: "basis/DKG_Grundriss_Graustufen_transparent_12-2013",
       },
       {
         name: "R102:DGK:grau_nt",
+        icon: "basis/DKG_Grundriss_Graustufen_12-2013",
       },
       {
         name: "bplanreihe",
+        icon: "basis/BPlanreihe",
       },
       {
         name: "bplanhintergrund",
         keywords: [":vec:", `carmaConf://minZoom:9`],
+        icon: "basis/BPlanhintergrund",
       },
       {
         name: "R102:trueortho2022",
+        icon: "basis/Tru_Orthofoto_2018-2022",
       },
       {
         name: "R102:trueortho2020",
+        icon: "basis/Tru_Orthofoto_2018-2022",
       },
       {
         name: "R102:trueortho2018",
+        icon: "basis/Tru_Orthofoto_2018-2022",
       },
-
       {
         name: "R102:luftbild2022",
+        icon: "basis/Orthofoto_2002-2022",
       },
       {
         name: "R102:luftbild2020",
+        icon: "basis/Orthofoto_2002-2022",
       },
       {
         name: "R102:luftbild2018",
+        icon: "basis/Orthofoto_2002-2022",
       },
       {
         name: "R102:luftbild2016",
+        icon: "basis/Orthofoto_2002-2022",
       },
       {
         name: "R102:luftbild2014",
+        icon: "basis/Orthofoto_2002-2022",
       },
       {
         name: "R102:luftbild2012",
+        icon: "basis/Orthofoto_2002-2022",
       },
       {
         name: "R102:luftbild2010",
+        icon: "basis/Orthofoto_2002-2022",
       },
       {
         name: "R102:luftbild2007",
+        icon: "basis/Orthofoto_2002-2022",
       },
       {
         name: "R102:luftbild2005",
+        icon: "basis/Orthofoto_2002-2022",
       },
       {
         name: "R102:luftbild2002",
+        icon: "basis/Orthofoto_2002-2022",
       },
       {
         name: "R102:luftbild1997",
+        icon: "basis/Orthofoto_1986-1997",
       },
       {
         name: "R102:luftbild1991",
+        icon: "basis/Orthofoto_1986-1997",
       },
       {
         name: "R102:luftbild1985",
+        icon: "basis/Orthofoto_1986-1997",
       },
       {
         name: "R102:luftbild1979",
+        icon: "basis/Orthofoto_1979",
       },
       {
         name: "R102:luftbild1928",
+        icon: "basis/Orthofoto_1928",
       },
     ],
   },
