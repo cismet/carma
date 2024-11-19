@@ -53,7 +53,7 @@ export const DEFAULT_GAZ_SOURCES: ENDPOINT[] = [
 
 export const DEFAULT_HOST = "https://wupp-topicmaps-data.cismet.de";
 export const DEFAULT_PROJ = "3857";
-export const DEFAULT_SRC_PROJ = "25832";
+export const DEFAULT_NRW_PROJ = "25832";
 
 export const createGazEndpointUri = (
   endpoint: ENDPOINT,

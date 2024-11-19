@@ -22,7 +22,7 @@ import proj4 from "proj4";
 
 import { RoutedMap } from "react-cismap";
 
-import { DEFAULT_SRC_PROJ } from "@carma-commons/resources";
+import { DEFAULT_PROJ } from "@carma-commons/resources";
 
 import {
   addCesiumMarker,
@@ -226,8 +226,8 @@ export const carmaHitTrigger = (
     // TODO extend hitobject with parsed and derived data
     const hitObject = Object.assign({}, hit[0]); //Change the Zoomlevel of the map
 
-    const crs = hitObject.crs ?? DEFAULT_SRC_PROJ;
-    console.log("xxx crs", hitObject);
+    const crs = hitObject.crs ?? DEFAULT_PROJ;
+    console.info("carmaHitTrigger crs", crs, hitObject);
 
     let refSystemConverter = proj4ConverterLookup[crs];
     if (!refSystemConverter && crs !== undefined) {
@@ -247,15 +247,16 @@ export const carmaHitTrigger = (
           getRingInWGS84(ring, refSystemConverter)
         )
       : null;
-    console.log(
-      "hitObject",
-      hitObject,
-      hitObject.more.zl,
+    console.info(
+      "hitObject crs",
       crs,
+      refSystemConverter,
+      hitObject.more.zl,
       hitObject.crs,
       pos,
       zoom,
-      polygon
+      polygon,
+      hitObject
     );
 
     mapConsumerRefs.forEach(async (mapElementRef) => {
@@ -348,7 +349,7 @@ export const carmaHitTrigger = (
             const anchorPosition = groundPosition.clone();
             anchorPosition.height = anchorPosition.height + anchorHeightOffset;
 
-            console.log(
+            console.debug(
               "GAZETTEER: [2D3D|CESIUM|CAMERA] adding marker at Marker (Surface/Terrain Elevation)",
               anchorPosition.height,
               groundPosition.height,
@@ -381,14 +382,14 @@ export const carmaHitTrigger = (
             //onComplete: delayedMarker,
             durationFactor: 0.2,
           });
-          console.log(
+          console.debug(
             "GAZETTEER: [2D3D|CESIUM|CAMERA] look at Marker (Terrain Elevation)"
           );
         } else {
           console.warn("no ground position found");
         }
       } else if (mapElement instanceof RoutedMap) {
-        console.log("xxx mapElement", mapElement, "not implemented");
+        console.info("xxx mapElement", mapElement, "not implemented");
         /*
           lAction.panTo((mapElement as unknown as {leafletMap: {leafletElement: L.Map}}).leafletMap.leafletElement, pos);
           if (zoom) {

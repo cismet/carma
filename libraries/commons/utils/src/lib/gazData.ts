@@ -58,6 +58,8 @@ export const getGazDataFromSources = (
       return;
     }
 
+    console.debug("gazdata payload crs", crs, topic, url);
+
     const items = JSON.parse(payload);
     items.forEach(
       ({

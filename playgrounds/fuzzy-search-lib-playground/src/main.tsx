@@ -1,16 +1,26 @@
 import { StrictMode } from "react";
 import * as ReactDOM from "react-dom/client";
+
+import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
+
+import { GazDataProvider } from "@carma-apps/portals";
+
+import { App } from "./app/App";
+
 import "./styles.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "leaflet/dist/leaflet.css";
-import App from "./app/App";
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement
 );
 root.render(
   <StrictMode>
-    <App />
+    <GazDataProvider>
+      <TopicMapContextProvider>
+        <App />
+      </TopicMapContextProvider>
+    </GazDataProvider>
   </StrictMode>
 );
