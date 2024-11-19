@@ -28,3 +28,14 @@ html {
 .cesium-widget {
   background-color: cadetblue;
 }
+
+.rectangle-button {
+  position: absolute;
+  background-color: #123c6a;
+  color: white;
+  opacity: 0.9;
+  border: 1p solid #267bdcd4;
+  border-radius: 2px;
+  padding: 5px 10px;
+  cursor: pointer;
+}

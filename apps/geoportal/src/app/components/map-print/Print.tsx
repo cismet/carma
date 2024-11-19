@@ -1,4 +1,4 @@
-import { faPrint } from "@fortawesome/free-solid-svg-icons";
+import { faPrint, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button, Radio, Input } from "antd";
 import { useState } from "react";
@@ -29,6 +29,11 @@ const Print = ({ setShowPrintPopup }) => {
       <div className="flex items-center gap-2">
         <FontAwesomeIcon icon={faPrint} className="text-xl" />
         <h4 className="mb-0">Drucken</h4>
+        <FontAwesomeIcon
+          icon={faXmark}
+          className="text-xl ml-auto cursor-pointer"
+          onClick={() => dispatch(setUIMode("default"))}
+        />
       </div>
       <h5 className="mb-0">Vorlage</h5>
       <Radio.Group onChange={onChange} value={orientation}>
