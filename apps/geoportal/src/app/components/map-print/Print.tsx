@@ -45,7 +45,10 @@ const Print = ({ setShowPrintPopup }) => {
         <FontAwesomeIcon
           icon={faXmark}
           className="text-xl ml-auto cursor-pointer"
-          onClick={() => dispatch(setUIMode("default"))}
+          onClick={() => {
+            dispatch(setUIMode("default"));
+            setShowPrintPopup(false);
+          }}
         />
       </div>
       <h5 className="mb-0">Vorlage</h5>
