@@ -1514,6 +1514,7 @@ export const baseConfig = {
       {
         name: "poi",
         keywords: [":vec:"],
+        icon: "poi/alle_interessanten_Orte",
       },
       {
         name: "poi_awg",
@@ -1522,6 +1523,7 @@ export const baseConfig = {
           6666207.001549717,
         ],
         keywords: [":vec:"],
+        icon: "poi/AWG",
       },
       {
         name: "poi_bahnhoefe",
@@ -1530,33 +1532,37 @@ export const baseConfig = {
           6666965.400189739,
         ],
         keywords: [":vec:"],
+        icon: "poi/Bahnhöfe",
       },
       {
         name: "poi_behoerden",
         keywords: [":vec:"],
+        icon: "poi/Behörden",
       },
       {
         name: "poi_bezirkssozialdienste",
         keywords: [":vec:"],
+        icon: "poi/Bezirkssozialdienste",
       },
       {
         name: "poi_bibliotheken",
         keywords: [":vec:"],
+        icon: "poi/Bibliotheken",
       },
       {
         name: "poi_bildungseinrichtungen",
         keywords: [":vec:"],
-      },
-      {
-        name: "poi_haltestellen",
+        icon: "poi/Bildungseinrichtungen",
       },
       {
         name: "poi_clubs",
         keywords: [":vec:"],
+        icon: "poi/Clubs",
       },
       {
         name: "poi_dienstleistungsangebote",
         keywords: [":vec:"],
+        icon: "poi/Dienstleistungsangebot",
       },
       {
         name: "poi_feuerwehr",
@@ -1565,6 +1571,7 @@ export const baseConfig = {
           6669100.262503172,
         ],
         keywords: [":vec:"],
+        icon: "poi/Feuerwehrstandorte",
       },
       {
         name: "poi_filmtheater",
@@ -1573,6 +1580,7 @@ export const baseConfig = {
           6667533.900587609,
         ],
         keywords: [":vec:"],
+        icon: "poi/Filmtheater",
       },
       {
         name: "poi_freizeitsportangebote",
@@ -1581,6 +1589,7 @@ export const baseConfig = {
           6671151.521816919,
         ],
         keywords: [":vec:"],
+        icon: "poi/Freizeitsportangebote",
       },
       {
         name: "poi_friedhofsverband",
@@ -1589,6 +1598,7 @@ export const baseConfig = {
           6669684.289172413,
         ],
         keywords: [":vec:"],
+        icon: "poi/Friedhofsverband",
       },
       {
         name: "poi_friedhoefe",
@@ -1597,18 +1607,17 @@ export const baseConfig = {
           6669527.234965856,
         ],
         keywords: [":vec:"],
-        icon: "Kreis_dunkelgruen",
-        alternativeIcon: "Icon_Friedhof",
+        icon: "poi/Friedhöfe",
       },
       {
         name: "poi_friedhoefe_ehem",
         keywords: [":vec:"],
-        icon: "Kreis_dunkelgruen",
-        alternativeIcon: "Icon_Friedhof",
+        icon: "poi/Friedhöfe__ehem_Friedhöfe",
       },
       {
         name: "poi_gebaeude",
         keywords: [":vec:"],
+        icon: "poi/Gebaeude_u_Bauwerke",
       },
       {
         name: "poi_gruenanlagen",
@@ -1617,20 +1626,22 @@ export const baseConfig = {
           6669527.234965856,
         ],
         keywords: [":vec:"],
-        icon: "Viereck_gruen",
-        alternativeIcon: "Icon_Gruenanlagen_und_Waelder",
+        icon: "poi/Grünanlagen_u_Wälder",
       },
       {
         name: "poi_jugend",
         keywords: [":vec:"],
+        icon: "poi/Jugend-_u_Kindertreffs",
       },
       {
         name: "poi_ksp",
         keywords: [":vec:"],
+        icon: "poi/Kinderspielplätze_2022",
       },
       {
         name: "poi_kita",
         keywords: [":vec:"],
+        icon: "poi/Kindertagesstätten",
       },
       {
         name: "poi_kita_beh",
@@ -1639,10 +1650,12 @@ export const baseConfig = {
           6669527.234965856,
         ],
         keywords: [":vec:"],
+        icon: "poi/Einrichtungen_m_Schwerpkunkt_Inklusion",
       },
       {
         name: "poi_kirchen",
         keywords: [":vec:"],
+        icon: "poi/Kirchen",
       },
       {
         name: "poi_krankenhaeuser",
@@ -1651,6 +1664,7 @@ export const baseConfig = {
           6669527.234965856,
         ],
         keywords: [":vec:"],
+        icon: "poi/Krankenhäuser",
       },
       {
         name: "poi_medien",
@@ -1659,6 +1673,7 @@ export const baseConfig = {
           6670157.840449209,
         ],
         keywords: [":vec:"],
+        icon: "poi/Medien",
       },
       {
         name: "poi_moscheen",
@@ -1667,10 +1682,12 @@ export const baseConfig = {
           6670157.840449209,
         ],
         keywords: [":vec:"],
+        icon: "poi/Moscheen",
       },
       {
         name: "poi_museen",
         keywords: [":vec:"],
+        icon: "poi/Museen_u_Galerien",
       },
       {
         name: "poi_opunkte",
@@ -1679,18 +1696,22 @@ export const baseConfig = {
           6669527.234965856,
         ],
         keywords: [":vec:"],
+        icon: "poi/Orientierungspunkte_u_-begriffe",
       },
       {
         name: "poi_polizeidienststellen",
         keywords: [":vec:"],
+        icon: "poi/Polizeidienststellen",
       },
       {
         name: "poi_reisebus",
         keywords: [":vec:"],
+        icon: "poi/Informationen_f_Reisebusse",
       },
       {
         name: "poi_schulen",
         keywords: [":vec:"],
+        icon: "poi/Schulen",
       },
       {
         name: "poi_schulen_grund",
@@ -1699,6 +1720,7 @@ export const baseConfig = {
           6670157.840449209,
         ],
         keywords: [":vec:"],
+        icon: "poi/Grundschulen",
       },
       {
         name: "poi_schulen_gym",
@@ -1707,6 +1729,7 @@ export const baseConfig = {
           6670157.840449209,
         ],
         keywords: [":vec:"],
+        icon: "poi/Gymnasien",
       },
       {
         name: "poi_schulen_real",
@@ -1715,6 +1738,7 @@ export const baseConfig = {
           6670157.840449209,
         ],
         keywords: [":vec:"],
+        icon: "poi/Realschulen",
       },
       {
         name: "poi_schulen_haupt",
@@ -1723,6 +1747,7 @@ export const baseConfig = {
           6670157.840449209,
         ],
         keywords: [":vec:"],
+        icon: "poi/Hauptschulen",
       },
       {
         name: "poi_schulen_gesamt",
@@ -1731,6 +1756,7 @@ export const baseConfig = {
           6670157.840449209,
         ],
         keywords: [":vec:"],
+        icon: "poi/Gesamtschulen",
       },
       {
         name: "poi_schulen_forder",
@@ -1739,6 +1765,7 @@ export const baseConfig = {
           6670157.840449209,
         ],
         keywords: [":vec:"],
+        icon: "poi/Förderschulen",
       },
       {
         name: "poi_schulen_andere",
@@ -1747,6 +1774,7 @@ export const baseConfig = {
           6670157.840449209,
         ],
         keywords: [":vec:"],
+        icon: "poi/andere_Schulformen",
       },
       {
         name: "poi_schulen_beruf",
@@ -1755,6 +1783,7 @@ export const baseConfig = {
           6670157.840449209,
         ],
         keywords: [":vec:"],
+        icon: "poi/Berufsbildende_Schulen",
       },
       {
         name: "poi_schwebebahnhaltestellen",
@@ -1763,6 +1792,7 @@ export const baseConfig = {
           6670157.840449209,
         ],
         keywords: [":vec:"],
+        icon: "poi/Schwebebahnhaltestellen",
       },
       {
         name: "poi_schwimmbaeder",
@@ -1771,14 +1801,17 @@ export const baseConfig = {
           6670157.840449209,
         ],
         keywords: [":vec:"],
+        icon: "poi/Schwimmbäder",
       },
       {
         name: "poi_sehenswuerdigkeiten",
         keywords: [":vec:"],
+        icon: "poi/Sehenswuerdigkeiten",
       },
       {
         name: "poi_soziale",
         keywords: [":vec:"],
+        icon: "poi/Sozialeeinrichtungen",
       },
       {
         name: "poi_sporthallen",
@@ -1787,10 +1820,12 @@ export const baseConfig = {
           6670157.840449209,
         ],
         keywords: [":vec:"],
+        icon: "poi/Sporthallen_u_-plätze",
       },
       {
         name: "poi_stadtverwaltung",
         keywords: [":vec:"],
+        icon: "poi/Stadtverwaltung",
       },
       {
         name: "poi_stauseen",
@@ -1799,12 +1834,12 @@ export const baseConfig = {
           6660409.730685716,
         ],
         keywords: [":vec:"],
-        icon: "Kreis_gruen",
-        alternativeIcon: "Icon_Stausee",
+        icon: "poi/Stauseen-u_Talsperren",
       },
       {
         name: "poi_synagogen",
         keywords: [":vec:"],
+        icon: "poi/Synagogen",
       },
       {
         name: "poi_theater",
@@ -1813,14 +1848,17 @@ export const baseConfig = {
           6670157.840449209,
         ],
         keywords: [":vec:"],
+        icon: "poi/Theater",
       },
       {
         name: "poi_trinkwasser",
         keywords: [":vec:"],
+        icon: "poi/Trinkwasserbrunnen",
       },
       {
         name: "poi_veranstaltungsorte",
         keywords: [":vec:"],
+        icon: "poi/Veranstaltungsorte",
       },
       {
         name: "poi_wege",
@@ -1829,10 +1867,12 @@ export const baseConfig = {
           6670157.840449209,
         ],
         keywords: [":vec:"],
+        icon: "poi/Wege_u_Plätze",
       },
       {
         name: "poi_weihnacht",
         keywords: [":vec:"],
+        icon: "poi/Weihnachtsmärkte",
       },
       {
         name: "poi_wupperufer",
@@ -1841,8 +1881,7 @@ export const baseConfig = {
           6670157.840449209,
         ],
         keywords: [":vec:"],
-        icon: "Kreis_gruen",
-        alternativeIcon: "Icon_Lebensader_Wupper",
+        icon: "poi/Wupperufer- Lebensader_Wupper",
       },
     ],
   },
