@@ -190,7 +190,7 @@ const LayerButton = ({
         {iconName ? (
           <div style={{ height: 14, width: 14 }}>
             <img
-              src={urlPrefix + `icons/${iconName}.svg`}
+              src={urlPrefix + `icons/${iconName}.png`}
               alt="icon"
               className="h-full"
             />
