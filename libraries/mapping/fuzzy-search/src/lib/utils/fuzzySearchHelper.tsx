@@ -1,23 +1,19 @@
 import {
+  ENDPOINT,
+  isEndpoint,
+  NAMED_CATEGORIES,
+  NamedCategory,
+} from "@carma-commons/resources";
+
+import {
   SearchResultItem,
   SearchResult,
   Option,
   GruppedOptions,
-  SourceConfig,
-  GazDataItem,
-  SourceWithPayload,
-  PayloadItem,
   SearchConfig,
 } from "../..";
 
-import { md5FetchText } from "./fetching";
-
 import { stopwords } from "../config/stopwords.de-de";
-import ENDPOINT, {
-  NAMED_CATEGORIES,
-  type NamedCategory,
-} from "../config/endpoints";
-import { isEndpoint } from "../config/index";
 
 export const renderCategoryTitle = (
   category: ENDPOINT,
@@ -183,122 +179,6 @@ export function limitSearchResult(searchRes, limit, cut = 0.4) {
 
   return limitedresults;
 }
-
-const dummyItem = {
-  s: undefined,
-  g: undefined,
-  x: undefined,
-  y: undefined,
-  m: undefined,
-  n: undefined,
-  nr: undefined,
-};
-
-export const getGazDataFromSources = (
-  sources: SourceWithPayload[]
-): GazDataItem[] => {
-  let sorter = 0;
-  const gazData: GazDataItem[] = [];
-
-  sources.forEach((source) => {
-    const { topic, payload, crs, url } = source;
-    if (typeof payload !== "string") {
-      console.warn("payload is not a string", topic, url, payload);
-      return;
-    }
-
-    const items = JSON.parse(payload);
-    items.forEach(
-      ({
-        s: string = "",
-        g: glyph = "",
-        x,
-        y,
-        m: more = {},
-        n = "",
-        nr,
-        z,
-      }: PayloadItem = dummyItem) => {
-        if (x === undefined || y === undefined) {
-          console.info("missing coordinates", topic, url, payload);
-          return;
-        }
-
-        const g: GazDataItem = {
-          sorter: sorter++,
-          crs,
-          string,
-          glyph,
-          x,
-          y,
-          more,
-          type: topic,
-        };
-
-        switch (topic) {
-          case "aenderungsv":
-            g.overlay = "F";
-            break;
-          case "adressen":
-            if (nr !== "" && nr !== 0) {
-              g.string += " " + nr;
-            }
-            if (z !== "") {
-              g.string += " " + z;
-            }
-            break;
-          case "bplaene":
-            g.overlay = "B";
-            break;
-          case "ebikes":
-            g.string = n;
-            g.glyph = more.id?.startsWith("V") ? "bicycle" : "charging-station";
-            break;
-          case "emob":
-            g.string = n;
-            break;
-          case "geps":
-            g.glyph = "code-fork";
-            break;
-          case "geps_reverse":
-            g.glyph = "code-fork";
-            break;
-          case "no2":
-            g.glyphPrefix = "fab ";
-            break;
-          case "prbr":
-            g.string = n;
-            break;
-          default:
-            break;
-        }
-
-        gazData.push(g);
-      }
-    );
-  });
-
-  return gazData;
-};
-
-export const getGazData = async (
-  sourcesConfig: SourceConfig[],
-  prefix: string,
-  setGazData: (gazData: GazDataItem[]) => void
-) => {
-  await Promise.all(
-    sourcesConfig.map(async (config) => {
-      (config as SourceWithPayload).payload = await md5FetchText(
-        prefix,
-        config.url
-      );
-    })
-  );
-
-  const gazData = getGazDataFromSources(sourcesConfig as SourceWithPayload[]);
-
-  setGazData(gazData);
-};
 
 export const getDefaultSearchConfig = (config: SearchConfig): SearchConfig => {
   let prepoHandling;

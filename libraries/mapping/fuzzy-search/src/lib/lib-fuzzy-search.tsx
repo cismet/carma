@@ -18,7 +18,6 @@ import {
 import { carmaHitTrigger } from "./utils/carmaHitTrigger";
 import {
   generateOptions,
-  getGazData,
   limitSearchResult,
   mapDataToSearchResult,
   prepareGazData,
@@ -35,7 +34,6 @@ import {
   SELECTED_POLYGON_ID,
   INVERTED_SELECTED_POLYGON_ID,
 } from "..";
-import { gazDataPrefix, sourcesConfig } from "./config";
 import { stopwords as stopwordsDe } from "./config/stopwords.de-de";
 
 import "./fuzzy-search.css";
@@ -187,15 +185,9 @@ export function LibFuzzySearch({
   };
 
   useEffect(() => {
-    if (gazData.leafletElement > 0) {
+    if (gazData) {
       const allModifiedData = prepareGazData(gazData, prepoHandling);
       setAllGazeteerData(allModifiedData);
-    } else {
-      const setDataCallback = (data) => {
-        setAllGazeteerData(prepareGazData(data, prepoHandling));
-      };
-      Array.isArray(sourcesConfig) &&
-        getGazData(sourcesConfig, gazDataPrefix, setDataCallback);
     }
   }, [gazData, prepoHandling]);
 

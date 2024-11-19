@@ -1,3 +1,5 @@
+export * from "./lib/endpoints";
+
 export * from "./lib/tilesets";
 
 export * from "./lib/de/tileset3d.ts";

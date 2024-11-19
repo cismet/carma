@@ -14,3 +14,4 @@ export {
   CarmaMapContextProvider,
   useCarmaMapContext,
 } from "./lib/components/CarmaMapContextProvider.tsx";
+export { GazDataProvider, useGazData } from "./lib/components/GazDataProvider";

@@ -17,6 +17,8 @@ import {
   TopicMapContextProvider,
 } from "react-cismap/contexts/TopicMapContextProvider";
 
+import { GazDataProvider } from "./GazDataProvider";
+
 type CarmaMapProviderProps = {
   children: React.ReactNode;
   overlayOptions: { background: { transparency: number; color: string } };
@@ -77,25 +79,27 @@ export const CarmaMapContextProvider = ({
   };
 
   return (
-    <TopicMapContextProvider>
-      <OverlayTourProvider
-        show={showTourOverlay}
-        closeOverlay={closeOverlay}
-        transparency={transparency}
-        color={color}
-      >
-        <CesiumContextProvider
-          //initialViewerState={defaultCesiumState}
-          // TODO move these to store/slice setup ?
-          providerConfig={cesiumOptions.providerConfig}
-          tilesetConfigs={cesiumOptions.tilesetConfigs}
+    <GazDataProvider>
+      <TopicMapContextProvider>
+        <OverlayTourProvider
+          show={showTourOverlay}
+          closeOverlay={closeOverlay}
+          transparency={transparency}
+          color={color}
         >
-          <CarmaMapContext.Provider value={value}>
-            {children}
-          </CarmaMapContext.Provider>
-        </CesiumContextProvider>
-      </OverlayTourProvider>
-    </TopicMapContextProvider>
+          <CesiumContextProvider
+            //initialViewerState={defaultCesiumState}
+            // TODO move these to store/slice setup ?
+            providerConfig={cesiumOptions.providerConfig}
+            tilesetConfigs={cesiumOptions.tilesetConfigs}
+          >
+            <CarmaMapContext.Provider value={value}>
+              {children}
+            </CarmaMapContext.Provider>
+          </CesiumContextProvider>
+        </OverlayTourProvider>
+      </TopicMapContextProvider>
+    </GazDataProvider>
   );
 };
 
