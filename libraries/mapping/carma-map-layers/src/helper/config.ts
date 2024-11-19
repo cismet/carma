@@ -1117,8 +1117,7 @@ export const baseConfig = {
     layers: [
       {
         name: "baeume",
-        icon: "Viereck_baumgruen",
-        alternativeIcon: "Viereck_baumgruen",
+        icon: "umwelt/Bäume",
         keywords: [":vec:"],
       },
       {
@@ -1128,6 +1127,7 @@ export const baseConfig = {
           6670157.840449209,
         ],
         keywords: [":vec:"],
+        icon: "umwelt/kleingärten",
       },
       {
         name: "boden:radon",
@@ -1136,6 +1136,7 @@ export const baseConfig = {
           6670157.840449209,
         ],
         keywords: [":vec:"],
+        icon: "umwelt/Radon_Potenzialkarte",
       },
       {
         name: "uschwemm_ermittelt",
@@ -1143,6 +1144,7 @@ export const baseConfig = {
           790989.4779520752, 6664143.201786021, 800673.0939729535,
           6670157.840449209,
         ],
+        icon: "umwelt/ermittelte_Überschwemmungsgebiete",
       },
       {
         name: "uschwemm_vor",
@@ -1150,6 +1152,7 @@ export const baseConfig = {
           808524.6099721214, 6664293.687185457, 813466.7415821848,
           6667301.006517054,
         ],
+        icon: "umwelt/vorläufige_gesicherte_Überschwemmungsgebiete",
       },
       {
         name: "uschwemm_fest",
@@ -1157,6 +1160,7 @@ export const baseConfig = {
           790989.4779520752, 6664143.201786021, 800673.0939729535,
           6670157.840449209,
         ],
+        icon: "umwelt/festgesetzte_Überschwemmungsgebiete",
       },
       {
         name: "gefahr_niedrig",
@@ -1164,6 +1168,7 @@ export const baseConfig = {
           790989.4779520752, 6664143.201786021, 800673.0939729535,
           6670157.840449209,
         ],
+        icon: "umwelt/Wahrscheinlichkeiten_Überschwemmungsgrenzen",
       },
       {
         name: "gefahr_mittel",
@@ -1171,6 +1176,7 @@ export const baseConfig = {
           790989.4779520752, 6664143.201786021, 800673.0939729535,
           6670157.840449209,
         ],
+        icon: "umwelt/Wahrscheinlichkeiten_Überschwemmungsgrenzen",
       },
       {
         name: "gefahr_hoch",
@@ -1178,6 +1184,7 @@ export const baseConfig = {
           790989.4779520752, 6664143.201786021, 800673.0939729535,
           6670157.840449209,
         ],
+        icon: "umwelt/Wahrscheinlichkeiten_Überschwemmungsgrenzen",
       },
       {
         name: "risiko_niedrig",
@@ -1185,6 +1192,7 @@ export const baseConfig = {
           790989.4779520752, 6664143.201786021, 800673.0939729535,
           6670157.840449209,
         ],
+        icon: "umwelt/Wahrscheinlichkeiten_Überschwemmungsgrenzen",
       },
       {
         name: "risiko_mittel",
@@ -1192,6 +1200,7 @@ export const baseConfig = {
           790989.4779520752, 6664143.201786021, 800673.0939729535,
           6670157.840449209,
         ],
+        icon: "umwelt/Wahrscheinlichkeiten_Überschwemmungsgrenzen",
       },
       {
         name: "risiko_hoch",
@@ -1199,70 +1208,91 @@ export const baseConfig = {
           790989.4779520752, 6664143.201786021, 800673.0939729535,
           6670157.840449209,
         ],
+        icon: "umwelt/Wahrscheinlichkeiten_Überschwemmungsgrenzen",
       },
       {
         name: "R102:50md",
+        icon: "umwelt/Starkregen-SRI-6-max-Wassertiefe",
       },
       {
         name: "R102:50d",
+        icon: "umwelt/Starkregen_Fliessrichtung",
       },
       {
         name: "R102:50v",
+        icon: "umwelt/Starkregen_SRI_6-7_Fließgeschwindigkeit",
       },
       {
         name: "R102:100md",
+        icon: "umwelt/Starkregen_SRI_6-7_max_Wassertiefe",
       },
       {
         name: "R102:100d",
+        icon: "umwelt/Starkregen_Fliessrichtung",
       },
       {
         name: "R102:100v",
+        icon: "umwelt/Starkregen_SRI_6-7_Fließgeschwindigkeit",
       },
       {
         name: "R102:90md",
+        icon: "umwelt/Starkregen_SRI_10_max_Wassertiefe",
       },
       {
         name: "R102:90d",
+        icon: "umwelt/Starkregen_Fliessrichtung",
       },
       {
         name: "R102:90v",
+        icon: "umwelt/Starkregen_SRI_10_Fließgeschwindigkeit",
       },
       {
         name: "R102:SRmd",
+        icon: "umwelt/Regen_v_29052018_Wassertiefe",
       },
       {
         name: "R102:SRd",
+        icon: "umwelt/Starkregen_Fliessrichtung",
       },
       {
         name: "R102:SRv",
+        icon: "umwelt/Regen_v_29052018_Fliessgeschwindigkeit",
       },
       {
         name: "Klimafunktion",
+        icon: "umwelt/Klimafunktionskarte",
       },
       {
         name: "Planhinweise",
+        icon: "umwelt/Planhinweiskarte_Klima",
       },
       {
         name: "Nachtsituation",
+        icon: "umwelt/Wärmebild_Nachtsituation",
       },
       {
         name: "Tagsituation",
+        icon: "umwelt/Wärmebild_Tagessituation",
       },
       {
         name: "Hitze-Ist",
         keywords: [":vec:"],
+        icon: "umwelt/Hitzeinseln_Ist-Zustand",
       },
       {
         name: "Hitze-Stark-Ist",
         keywords: [":vec:"],
+        icon: "umwelt/Starke_Hitzebelastung",
       },
       {
         name: "Hitze-2050",
         keywords: [":vec:"],
+        icon: "umwelt/Ausweitung_Hitzebelastung_Zukunftsszenario_2050",
       },
       {
         name: "Frischluftschneisen",
         keywords: [":vec:"],
+        icon: "umwelt/Luftleitbahnen",
       },
       {
         name: "Freiflaechen",
@@ -1271,31 +1301,36 @@ export const baseConfig = {
           6670157.840449209,
         ],
         keywords: [":vec:"],
-        icon: "Viereck_freiflaechen",
-        alternativeIcon: "Viereck_freiflaechen",
+        icon: "umwelt/Freiflächen",
       },
       {
         name: "umweltzonen",
         keywords: [":vec:"],
+        icon: "umwelt/Umweltzonen",
       },
       {
         name: "uwz",
         keywords: [":vec:"],
+        icon: "umwelt/Umweltzonen_TM",
       },
       {
         name: "no2",
         keywords: [":vec:"],
+        icon: "umwelt/Luftmessstationen_Passivsammler",
       },
       {
         name: "lugi2000",
         keywords: [":vec:"],
+        icon: "umwelt/Luftgüte_2000",
       },
       {
         name: "lugi1987",
         keywords: [":vec:"],
+        icon: "umwelt/Luftgüte_1987",
       },
       {
         name: "solar_year",
+        icon: "umwelt/Jahres-Solarpotenzial",
       },
       {
         name: "solar_zy_photo",
@@ -1312,13 +1347,16 @@ export const baseConfig = {
           6670157.840449209,
         ],
         keywords: [":vec:"],
+        icon: "umwelt/Solarpotenzial_Dächer-Strom_Wärme",
       },
       {
         name: "solar_umring",
         keywords: [":vec:"],
+        icon: "umwelt/Dachflächenumringung",
       },
       {
         name: "solar_karte",
+        icon: "umwelt/Hintergrundkarte_Solar",
       },
       {
         name: "laerm2016:STR_RAST_DEN",
@@ -1326,6 +1364,7 @@ export const baseConfig = {
           784621.3180330665, 6660622.321170634, 794304.9340539448,
           6666636.959833823,
         ],
+        icon: "umwelt/2016_Str-verkehrslärm_LDEN",
       },
       {
         name: "laerm2016:STR_RAST_NGT",
@@ -1336,6 +1375,7 @@ export const baseConfig = {
         keywords: [
           'carmaconf://infoBoxMapping:function createInfoBoxInfo(p) { const value = p.value === "-9999" ? "Kein Wert verfügbar!" : Math.round(p.value * 10) / 10 + " Dezibel (A)"; const info = { title: "Berechneter Dauerschallpegel: " + value, header: "Straßenverkehrslärm", }; return info; }',
         ],
+        icon: "umwelt/2016_Str-verkehrslärm_LNight",
       },
       {
         name: "laerm2016:SCS_RAST_DEN",
@@ -1343,6 +1383,7 @@ export const baseConfig = {
           793306.4753719696, 6664907.572068873, 802990.091392848,
           6670922.2107320605,
         ],
+        icon: "umwelt/2016_Schienenverkehrslärm_Schwebebahn_LDEN",
       },
       {
         name: "laerm2016:SCS_RAST_NGT",
@@ -1350,6 +1391,7 @@ export const baseConfig = {
           793306.4753719696, 6664907.572068873, 802990.091392848,
           6670922.2107320605,
         ],
+        icon: "umwelt/2016_Schienenverkehrslärm_Schwebebahn_LNight",
       },
       {
         name: "laerm2016:LDEN_BAHN",
@@ -1357,6 +1399,7 @@ export const baseConfig = {
           793306.4753719696, 6664907.572068873, 802990.091392848,
           6670922.2107320605,
         ],
+        icon: "umwelt/2016_Schienenverkehrslärm_Bundeseisenbahn_LDEN",
       },
       {
         name: "laerm2016:LNIGHT_BAHN",
@@ -1364,6 +1407,7 @@ export const baseConfig = {
           793306.4753719696, 6664907.572068873, 802990.091392848,
           6670922.2107320605,
         ],
+        icon: "umwelt/2016_Schienenverkehrslärm_Bundeseisenbahn_LNight",
       },
       {
         name: "laerm2016:IND_RAST_DEN",
@@ -1371,6 +1415,7 @@ export const baseConfig = {
           788913.734902706, 6663818.344415807, 793755.542913145,
           6666825.663747405,
         ],
+        icon: "umwelt/2016_Gewerbelärm_LDEN",
       },
       {
         name: "laerm2016:IND_RAST_NGT",
@@ -1378,6 +1423,7 @@ export const baseConfig = {
           788913.734902706, 6663818.344415807, 793755.542913145,
           6666825.663747405,
         ],
+        icon: "umwelt/2016_Gewerbelärm_LNight",
       },
       {
         name: "laerm2022:STR_RAST_DEN",
@@ -1392,6 +1438,7 @@ export const baseConfig = {
           784621.3180330665, 6660622.321170634, 794304.9340539448,
           6666636.959833823,
         ],
+        icon: "umwelt/2022_Str-verkehrslärm_LNight",
       },
       {
         name: "laerm2022:SCS_RAST_DEN",
@@ -1399,6 +1446,7 @@ export const baseConfig = {
           793306.4753719696, 6664907.572068873, 802990.091392848,
           6670922.2107320605,
         ],
+        icon: "umwelt/2022_Schienenverkehrslärm_Schwebebahn_LDEN",
       },
       {
         name: "laerm2022:SCS_RAST_NGT",
@@ -1406,6 +1454,7 @@ export const baseConfig = {
           793306.4753719696, 6664907.572068873, 802990.091392848,
           6670922.2107320605,
         ],
+        icon: "umwelt/2022_Schienenverkehrslärm_Schwebebahn_LNight",
       },
       {
         name: "laerm:LDEN_BAHN_4",
@@ -1413,6 +1462,7 @@ export const baseConfig = {
           793306.4753719696, 6664907.572068873, 802990.091392848,
           6670922.2107320605,
         ],
+        icon: "umwelt/2022_Schienenverkehrslärm_Bundeseisenbahn_LDEN",
       },
       {
         name: "laerm:LNIGHT_BAHN_4",
@@ -1420,6 +1470,7 @@ export const baseConfig = {
           793306.4753719696, 6664907.572068873, 802990.091392848,
           6670922.2107320605,
         ],
+        icon: "umwelt/2022_Schienenverkehrslärm_Bundeseisenbahn_LNight",
       },
       {
         name: "laerm2022:IND_RAST_DEN",
@@ -1427,6 +1478,7 @@ export const baseConfig = {
           788913.734902706, 6663818.344415807, 793755.542913145,
           6666825.663747405,
         ],
+        icon: "umwelt/2022_Gewerbelärm_LDEN",
       },
       {
         name: "laerm2022:IND_RAST_NGT",
@@ -1434,6 +1486,7 @@ export const baseConfig = {
           788913.734902706, 6663818.344415807, 793755.542913145,
           6666825.663747405,
         ],
+        icon: "umwelt/2022_Gewerbelärm_LNight",
       },
       {
         name: "stadt:kompensationoe",
@@ -1442,6 +1495,7 @@ export const baseConfig = {
           6670157.840449209,
         ],
         keywords: [":vec:"],
+        icon: "umwelt/Veröffentlichte_Kompensationsflächen",
       },
       {
         name: "naturdenkmale",
@@ -1449,6 +1503,7 @@ export const baseConfig = {
           790989.4779520752, 6664143.201786021, 800673.0939729535,
           6670157.840449209,
         ],
+        icon: "umwelt/Naturdenkmale",
       },
     ],
   },
