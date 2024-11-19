@@ -2537,104 +2537,130 @@ export const baseConfig = {
     layers: [
       {
         name: "wohnlage2024",
+        icon: "immo/Wohnlagenkarte_2024",
       },
       {
         name: "wohnlagen2024",
         keywords: [":vec:"],
+        icon: "immo/Wohnlagen_2024",
       },
       {
         name: "borisplus",
+        icon: "immo/Bodenrichtwerte",
       },
       {
         name: "borisimmo",
+        icon: "immo/Immobilienwerte",
       },
       {
         name: "wg_2020",
         keywords: [":vec:"],
+        icon: "immo/Baujahre_ab_2020",
       },
       {
         name: "wg_2010",
         keywords: [":vec:"],
+        icon: "immo/Baujahre_2010-2019",
       },
       {
         name: "wg_2000",
         keywords: [":vec:"],
+        icon: "immo/Baujahre_2000-2009",
       },
       {
         name: "wg_1990",
         keywords: [":vec:"],
+        icon: "immo/Baujahre_1990-1999",
       },
       {
         name: "wg_1980",
         keywords: [":vec:"],
+        icon: "immo/Baujahre_1980-1989",
       },
       {
         name: "wg_1970",
         keywords: [":vec:"],
+        icon: "immo/Baujahre_1970-1979",
       },
       {
         name: "wg_1960",
         keywords: [":vec:"],
+        icon: "immo/Baujahre_1960-1969",
       },
       {
         name: "wg_1949",
         keywords: [":vec:"],
+        icon: "immo/Baujahre_1949-1959",
       },
       {
         name: "wg_1919",
         keywords: [":vec:"],
+        icon: "immo/Baujahre_1919-1948",
       },
       {
         name: "wg",
         keywords: [":vec:"],
+        icon: "immo/Baujahre_bis_1918",
       },
       {
         name: "wg_unbek",
         keywords: [":vec:"],
+        icon: "immo/Baujahre_unbekannt",
       },
       {
         name: "nwg_2020",
         keywords: [":vec:"],
+        icon: "immo/Baujahre_ab_2020",
       },
       {
         name: "nwg_2010",
         keywords: [":vec:"],
+        icon: "immo/Baujahre_2010-2019",
       },
       {
         name: "nwg_2000",
         keywords: [":vec:"],
+        icon: "immo/Baujahre_2000-2009",
       },
       {
         name: "nwg_1990",
         keywords: [":vec:"],
+        icon: "immo/Baujahre_1990-1999",
       },
       {
         name: "nwg_1980",
         keywords: [":vec:"],
+        icon: "immo/Baujahre_1980-1989",
       },
       {
         name: "nwg_1970",
         keywords: [":vec:"],
+        icon: "immo/Baujahre_1970-1979",
       },
       {
         name: "nwg_1960",
         keywords: [":vec:"],
+        icon: "immo/Baujahre_1960-1969",
       },
       {
         name: "nwg_1949",
         keywords: [":vec:"],
+        icon: "immo/Baujahre_1949-1959",
       },
       {
         name: "nwg_1919",
         keywords: [":vec:"],
+        icon: "immo/Baujahre_1919-1948",
       },
       {
         name: "nwg",
         keywords: [":vec:"],
+        icon: "immo/Baujahre_bis_1918",
       },
       {
         name: "nwg_unbek",
         keywords: [":vec:"],
+        icon: "immo/Baujahre_unbekannt",
       },
     ],
   },
