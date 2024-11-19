@@ -65,13 +65,6 @@ export const useDrawRectangle = () => {
 
     const button = L.DomUtil.create("button", "rectangle-button");
     button.innerHTML = "Print";
-    button.style.position = "absolute";
-    button.style.padding = "5px 10px";
-    button.style.backgroundColor = "#fff";
-    button.style.color = "black";
-    button.style.border = "1px solid gray";
-    button.style.borderRadius = "4px";
-    button.style.cursor = "pointer";
     button.style.zIndex = 1000;
     button.style.top = `${centerPoint.y + recHeight / 2 + 2}px`;
     button.style.left = `${centerPoint.x + recWidth / 2 - 44}px`;
