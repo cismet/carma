@@ -160,7 +160,7 @@ const ActionButtons = () => {
           <FontAwesomeIcon
             onClick={() => setShowPrintPopup(true)}
             icon={faPrint}
-            className="text-xl text-gray-600"
+            className="text-xl text-gray-600 hover:text-gray-300 cursor-pointer"
           />
         </Popover>
       </Tooltip>
