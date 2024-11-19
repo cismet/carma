@@ -22,6 +22,8 @@ import proj4 from "proj4";
 
 import { RoutedMap } from "react-cismap";
 
+import { DEFAULT_SRC_PROJ } from "@carma-commons/resources";
+
 import {
   addCesiumMarker,
   distanceFromZoomLevel,
@@ -37,7 +39,6 @@ import {
 
 import { PROJ4_CONVERTERS } from "./geo";
 
-import { DEFAULT_SRC_PROJ } from "../config";
 import { INVERTED_SELECTED_POLYGON_ID, SELECTED_POLYGON_ID } from "../../index";
 
 const proj4ConverterLookup = {};
@@ -172,19 +173,6 @@ const getRingInWGS84 = (
         !coords.some((c) => isNaN(c) || c === Infinity || c === -Infinity)
     )
     .map((coord) => PROJ4_CONVERTERS.CRS4326.forward(refSystem.inverse(coord)));
-
-// TODO should be handeld by app state not here
-const getUrlFromSearchParams = () => {
-  let url: string | null = null;
-  const logGazetteerHit = new URLSearchParams(window.location.href).get(
-    "logGazetteerHits"
-  );
-
-  if (logGazetteerHit === "" || logGazetteerHit === "true") {
-    url = window.location.href.split("?")[0]; // console.log(url + '?gazHit=' + window.btoa(JSON.stringify(hit[0])));
-  }
-  return url;
-};
 
 export type GazetteerOptions = {
   setGazetteerHit?: (hit: any) => void;

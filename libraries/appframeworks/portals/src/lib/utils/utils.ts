@@ -1,46 +1,9 @@
 import clsx from "clsx";
 import { twMerge } from "tailwind-merge";
 
-import { md5FetchText } from "react-cismap/tools/fetching";
-import { getGazDataForTopicIds } from "react-cismap/tools/gazetteerHelper";
-
 import { extractCarmaConfig } from "@carma-commons/utils";
-import { ENDPOINT } from "@carma-mapping/fuzzy-search";
 import { Item, Layer } from "@carma-mapping/layers";
 import { isNaN } from "lodash";
-
-const buildHostUri = (host: string, endpoint: ENDPOINT, crs: string) => {
-  return `${host}/data/${crs}/${endpoint}.json`;
-};
-
-export const getGazData = async (
-  host: string,
-  {
-    crs = "3857",
-    prefix = "GazData",
-    endpoints = [
-      ENDPOINT.ADRESSEN,
-      ENDPOINT.BEZIRKE,
-      ENDPOINT.QUARTIERE,
-      ENDPOINT.POIS,
-      ENDPOINT.KITAS,
-    ],
-  }: {
-    crs?: string;
-    prefix?: string;
-    endpoints?: ENDPOINT[];
-  } = {}
-) => {
-  const sources: Record<ENDPOINT, string> = Object.fromEntries(
-    await Promise.all(
-      endpoints.map(async (endpoint) => [
-        endpoint,
-        await md5FetchText(prefix, buildHostUri(host, endpoint, crs)),
-      ])
-    )
-  );
-  return getGazDataForTopicIds(sources, endpoints);
-};
 
 export function cn(...inputs: string[]) {
   return twMerge(clsx(inputs));

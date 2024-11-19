@@ -1,4 +1,11 @@
 import {
+  ENDPOINT,
+  isEndpoint,
+  NAMED_CATEGORIES,
+  NamedCategory,
+} from "@carma-commons/resources";
+
+import {
   SearchResultItem,
   SearchResult,
   Option,
@@ -7,12 +14,6 @@ import {
 } from "../..";
 
 import { stopwords } from "../config/stopwords.de-de";
-import {
-  ENDPOINT,
-  NAMED_CATEGORIES,
-  type NamedCategory,
-} from "../config/endpoints";
-import { isEndpoint } from "../config/index";
 
 export const renderCategoryTitle = (
   category: ENDPOINT,

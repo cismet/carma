@@ -1,3 +1,4 @@
+import { ENDPOINT } from "@carma-commons/resources";
 import { md5FetchText } from "./fetching";
 
 export type SourceConfig = {
@@ -15,10 +16,10 @@ type PayloadItem = {
   g?: string;
   x?: number;
   y?: number;
+  z?: string; // to do checke type of Z
   m?: { id?: string };
   n?: string;
   nr?: string | number;
-  z?: string;
 };
 
 export type GazDataItem = {
@@ -29,7 +30,7 @@ export type GazDataItem = {
   overlay?: string;
   x: number;
   y: number;
-  more?: { zl?; id? };
+  more?: { zl?: number; id?: string | number };
   type: string;
   crs: string;
 };

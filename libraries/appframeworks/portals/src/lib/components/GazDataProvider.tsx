@@ -1,10 +1,14 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
-import { SearchResultItem } from "@carma-mapping/fuzzy-search";
-import { type GazDataItem } from "@carma-commons/utils";
+import {
+  type GazDataItem,
+  type SourceConfig,
+  getGazData,
+} from "@carma-commons/utils";
+import { defaultSourcesConfig, gazDataPrefix } from "@carma-commons/resources";
 
 interface GazDataContextType {
-  gazData: SearchResultItem[];
+  gazData: GazDataItem[];
   isLoading: boolean;
   error: Error | null;
 }
@@ -13,12 +17,14 @@ const GazDataContext = createContext<GazDataContextType | undefined>(undefined);
 
 interface GazDataProviderProps {
   children: React.ReactNode;
-  getGazData: () => Promise<SearchResultItem[]>;
+  sourcesConfig?: SourceConfig[];
+  prefix?: string;
 }
 
 export function GazDataProvider({
   children,
-  getGazData,
+  sourcesConfig = defaultSourcesConfig,
+  prefix = gazDataPrefix,
 }: GazDataProviderProps) {
   const [gazData, setGazData] = useState<GazDataItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -28,7 +34,7 @@ export function GazDataProvider({
     const loadGazData = async () => {
       try {
         setIsLoading(true);
-        await getGazData(setGazData);
+        await getGazData(sourcesConfig, prefix, setGazData);
       } catch (err) {
         setError(
           err instanceof Error
@@ -41,7 +47,7 @@ export function GazDataProvider({
     };
 
     loadGazData();
-  }, []);
+  }, [sourcesConfig, prefix]);
 
   return (
     <GazDataContext.Provider value={{ gazData, isLoading, error }}>

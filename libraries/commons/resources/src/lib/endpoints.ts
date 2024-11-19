@@ -1,3 +1,8 @@
+type EndpointOptions = {
+  crs: string;
+  host: string;
+};
+
 export enum ENDPOINT {
   ADRESSEN = "adressen",
   AENDERUNGSV = "aenderungsv",
@@ -45,5 +50,32 @@ export const DEFAULT_GAZ_SOURCES: ENDPOINT[] = [
   ENDPOINT.POIS,
   ENDPOINT.KITAS,
 ];
+
+export const DEFAULT_HOST = "https://wupp-topicmaps-data.cismet.de";
+export const DEFAULT_PROJ = "3857";
+export const DEFAULT_SRC_PROJ = "25832";
+
+export const createGazEndpointUri = (
+  endpoint: ENDPOINT,
+  { crs, host }: EndpointOptions
+) => {
+  return `${host}/data/${crs}/${endpoint}.json`;
+};
+
+export const gazDataPrefix = "GazDataForStories";
+
+export const createConfig = (endpoint: ENDPOINT, options: EndpointOptions) => ({
+  topic: endpoint,
+  url: createGazEndpointUri(endpoint, options),
+  crs: options.crs,
+});
+
+export const defaultSourcesConfig = DEFAULT_GAZ_SOURCES.map((endpoint) => {
+  return createConfig(endpoint, { crs: DEFAULT_PROJ, host: DEFAULT_HOST });
+});
+
+export const isEndpoint = (value: string): value is ENDPOINT => {
+  return Object.values(ENDPOINT).includes(value as ENDPOINT);
+};
 
 export default ENDPOINT;

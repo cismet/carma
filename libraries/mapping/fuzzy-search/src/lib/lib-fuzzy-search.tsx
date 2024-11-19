@@ -34,7 +34,6 @@ import {
   SELECTED_POLYGON_ID,
   INVERTED_SELECTED_POLYGON_ID,
 } from "..";
-import { gazDataPrefix, sourcesConfig } from "./config";
 import { stopwords as stopwordsDe } from "./config/stopwords.de-de";
 
 import "./fuzzy-search.css";
