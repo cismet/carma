@@ -1896,10 +1896,12 @@ export const baseConfig = {
           6668977.84382506,
         ],
         keywords: [":vec:"],
+        icon: "planung/Baunachweis",
       },
       {
         name: "bverfahren-r",
         keywords: [":vec:"],
+        icon: "planung/BPlan_Verfahren_rechtsverbindlich",
       },
       {
         name: "bverfahren-n",
@@ -1908,6 +1910,7 @@ export const baseConfig = {
           6666976.149146838,
         ],
         keywords: [":vec:"],
+        icon: "planung/BPlan_Verfahren_im_Verfahren",
       },
       {
         name: "innenr",
@@ -1916,15 +1919,19 @@ export const baseConfig = {
           6660846.854941222,
         ],
         keywords: [":vec:"],
+        icon: "planung/BPlan_Innenraumsatzung",
       },
       {
         name: "r102:fnp",
+        icon: "planung/FNP_2005_xplanung",
       },
       {
         name: "r102:fnp_clip",
+        icon: "planung/FNP_2005_xplanung",
       },
       {
-        name: "r102:fnp_haupt_fl",
+        name: "r102_fnp_haupt_fl",
+        icon: "planung/FNP_aktualisierte_FNP-Arbeitskarte",
       },
       {
         name: "r102:fnp_ngF",
@@ -1932,6 +1939,7 @@ export const baseConfig = {
           795100.3568795373, 6660908.960026704, 797389.8847423919,
           6662372.012521227,
         ],
+        icon: "planung/FNP_aktuelle_Übernahme_nicht_genehmigte_Flächen",
       },
       {
         name: "Fnpaenderungsverfahren",
@@ -1940,6 +1948,7 @@ export const baseConfig = {
           6661680.496280962,
         ],
         keywords: [":vec:"],
+        icon: "planung/FNP_Änderungsverfahren_alle",
       },
       {
         name: "Fnpaenderungsverfahren-r",
@@ -1948,6 +1957,7 @@ export const baseConfig = {
           6661680.496280962,
         ],
         keywords: [":vec:"],
+        icon: "planung/FNP_Änderungsverfahren_rechtsverbindlich",
       },
       {
         name: "Fnpaenderungsverfahren-n",
@@ -1956,6 +1966,7 @@ export const baseConfig = {
           6661680.496280962,
         ],
         keywords: [":vec:"],
+        icon: "planung/FNP_Änderungsverfahren_im_Verfahren",
       },
       {
         name: "Fnpaenderungsverfahren-a",
@@ -1963,6 +1974,7 @@ export const baseConfig = {
           793980.0766837327, 6660217.443786437, 796269.6045465872,
           6661680.496280962,
         ],
+        icon: "planung/FNP_Änderungsverfahren_aufgehoben",
       },
       {
         name: "landschaft:lundsschutz",
@@ -1970,6 +1982,7 @@ export const baseConfig = {
           793980.0766837327, 6660217.443786437, 796269.6045465872,
           6661680.496280962,
         ],
+        icon: "planung/Landschaft-Naturschutz",
       },
       {
         name: "lplan:festsetzung",
@@ -1977,6 +1990,7 @@ export const baseConfig = {
           790674.1752103989, 6660065.764058432, 795253.2309361077,
           6662991.869047475,
         ],
+        icon: "planung/Festsetzungstext",
       },
       {
         name: "lpnord:festsetzung",
@@ -1984,6 +1998,7 @@ export const baseConfig = {
           786460.5840261785, 6664637.653812743, 788750.111889033,
           6666100.706307263,
         ],
+        icon: "planung/LPlan_Nord_Festsetzungskarte",
       },
       {
         name: "lpnord:entwicklung",
@@ -1991,6 +2006,7 @@ export const baseConfig = {
           786460.5840261785, 6664637.653812743, 788750.111889033,
           6666100.706307263,
         ],
+        icon: "planung/LPlan_Nord_Entwicklungskarte",
       },
       {
         name: "lpost:festsetzung",
@@ -1998,6 +2014,7 @@ export const baseConfig = {
           799296.0331352534, 6665023.421939869, 801585.5609981079,
           6666486.474434387,
         ],
+        icon: "planung/LPlan_Ost_Festsetzungskarte",
       },
       {
         name: "lpost:entwicklung",
@@ -2005,6 +2022,7 @@ export const baseConfig = {
           799296.0331352534, 6665023.421939869, 801585.5609981079,
           6666486.474434387,
         ],
+        icon: "planung/LPlan_Ost_Entwicklungskarte",
       },
       {
         name: "lpgelpe:festsetzung",
@@ -2012,6 +2030,7 @@ export const baseConfig = {
           798245.0239963323, 6661616.002538341, 799389.7879277592,
           6662347.528785604,
         ],
+        icon: "planung/LPlan_Gelpe_Festsetzungskarte",
       },
       {
         name: "lpgelpe:entwicklung",
@@ -2019,6 +2038,7 @@ export const baseConfig = {
           798245.0239963323, 6661616.002538341, 799389.7879277592,
           6662347.528785604,
         ],
+        icon: "planung/LPlan_Gelpe_Entwicklungskarte",
       },
       {
         name: "lpwest:festsetzung",
@@ -2026,6 +2046,7 @@ export const baseConfig = {
           792702.14511709, 6659814.95505937, 794991.6729799444,
           6661278.007553893,
         ],
+        icon: "planung/LPlan_West_Festsetzungskarte",
       },
       {
         name: "lpwest:entwicklung",
@@ -2033,75 +2054,99 @@ export const baseConfig = {
           792702.14511709, 6659814.95505937, 794991.6729799444,
           6661278.007553893,
         ],
+        icon: "planung/LPlan_West_Entwicklungskarte",
       },
       {
         name: "baudenkmale",
+        icon: "planung/Baudenkmäler",
       },
       {
         name: "bodendenkmale",
+        icon: "planung/Bodendenkmäler",
       },
       {
         name: "denkmalbr",
+        icon: "planung/rechtsverb_Denkmalbereichsatzungen",
       },
       {
         name: "denkmalbn",
+        icon: "planung/nicht_rechtsverb_Denkmalbereichsatzungen",
       },
       {
         name: "stadtbhstr",
+        icon: "planung/Bundes-Hauptverkehrsstrassen",
       },
       {
         name: "talachse",
+        icon: "planung/Talachse",
       },
       {
         name: "teilraeume",
+        icon: "planung/Bedeutsame_Teileäume",
       },
       {
         name: "gruen",
+        icon: "planung/Flächen_Grünanlagen",
       },
       {
         name: "gestalt",
+        icon: "planung/rechtsverb_Erhaltungs-_u_Gestaltungssatzungen",
       },
       {
         name: "gestaltn",
+        icon: "planung/nicht_rechtsverb_Erhaltungs-_u_Gestaltungssatzungen",
       },
       {
         name: "innenbandstadt",
+        icon: "planung/InnenBandStadt_Wuppertal",
       },
       {
         name: "srt1",
+        icon: "planung/Hochverdichtete_Kernlagen",
       },
       {
         name: "srt21",
+        icon: "planung/Innerstädtische_Baublöcke-Innenhofbebauung",
       },
       {
         name: "srt22",
+        icon: "planung/Innerstädtische_Baublöcke-grüne_Innenhofbebauung",
       },
       {
         name: "srt31",
+        icon: "planung/Gemengelagen_Schwerpkt_Wohnen",
       },
       {
         name: "srt32",
+        icon: "planung/Gemengelagen_Schwerpkt_Gewerbe",
       },
       {
         name: "srt4",
+        icon: "planung/Hochhaussiedlungen_Clusterstrukturen-Moderne",
       },
       {
         name: "srt5",
+        icon: "planung/Geschosswohnungsbau_Zeilenbauweise",
       },
       {
         name: "srt6",
+        icon: "planung/Historischer_Siedlungsbau",
       },
       {
         name: "srt7",
+        icon: "planung/Dörflich_u_kleinteilige_Strukturen",
       },
       {
         name: "srt81",
+        icon: "planung/Innenstadtnahe_Villenviertel",
       },
       {
         name: "srt82",
+        icon: "planung/Verdichtete_Einfamilienhausgebiete",
       },
       {
         name: "srt83",
+        icon: "planung/Aufgelockerte_Einfamilienhausgebiete",
       },
     ],
   },
