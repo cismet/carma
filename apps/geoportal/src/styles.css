@@ -29,8 +29,14 @@ html {
   background-color: cadetblue;
 }
 
+.rectangle-wrapper {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
 .rectangle-button {
-  position: absolute;
+  /* position: absolute; */
   background-color: #123c6a;
   color: white;
   opacity: 0.9;
@@ -38,4 +44,18 @@ html {
   border-radius: 2px;
   padding: 5px 10px;
   cursor: pointer;
+  margin-left: auto;
+  margin-left: auto;
+  text-align: center;
+}
+
+.rectangle-prev {
+  /* position: absolute; */
+  background-color: #123c6a;
+
+  opacity: 0.4;
+  /* top: 50%;
+  left: 50%;
+  transform: translateX(-50%);
+  transform: translateY(-50%); */
 }

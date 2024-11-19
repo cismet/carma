@@ -10,93 +10,60 @@ export const useDrawRectangle = (printCb) => {
   const mode = useSelector(getUIMode);
   const orientation = useSelector(getOrientation);
 
-  const removeRectangle = (map) => {
-    map.eachLayer((layer) => {
-      if (layer instanceof L.Rectangle) {
-        map.removeLayer(layer);
-      }
-    });
-  };
-
-  const removePrintButton = () => {
-    const printBtn = document.querySelector(".rectangle-button");
+  const removeRectangle = () => {
+    const printBtn = document.querySelector(".rectangle-wrapper ");
 
     if (printBtn) {
-      console.log("xxx printBtn", printBtn);
       printBtn.remove();
     }
   };
 
   const addRectangle = (map) => {
-    removeRectangle(map);
-    removePrintButton();
     const pixelWidth = orientation === "landscape" ? 495 : 350;
     const pixelHeight = orientation === "landscape" ? 350 : 495;
-    const mapCenter = map.getCenter();
-    // const centerPoint = map.latLngToLayerPoint(mapCenter);
-    const centerPoint = map.latLngToContainerPoint(mapCenter);
-    const topLeftPoint = L.point(
-      centerPoint.x - pixelWidth / 2,
-      centerPoint.y - pixelHeight / 2
-    );
-    const bottomRightPoint = L.point(
-      centerPoint.x + pixelWidth / 2,
-      centerPoint.y + pixelHeight / 2
-    );
-    // const topLeftLatLng = map.layerPointToLatLng(topLeftPoint);
-    const topLeftLatLng = map.containerPointToLatLng(topLeftPoint);
-    // const bottomRightLatLng = map.layerPointToLatLng(bottomRightPoint);
-    const bottomRightLatLng = map.containerPointToLatLng(bottomRightPoint);
-    const rectangleBounds = [topLeftLatLng, bottomRightLatLng];
-    const rectangle = L.rectangle(rectangleBounds, {
-      color: "black",
-      weight: 1,
-      className: "print-rectangle",
-    }).addTo(map);
+    const mapContainer = map.getContainer();
+    const mapWidth = mapContainer.offsetWidth;
+    const mapHeight = mapContainer.offsetHeight;
 
-    addButtonAboveRectangle(map, rectangle, pixelWidth, pixelHeight);
-  };
+    const left = (mapWidth - pixelWidth) / 2;
+    const top = (mapHeight - pixelHeight) / 2;
 
-  const addButtonAboveRectangle = (map, rectangle, recWidth, recHeight) => {
-    removePrintButton();
-    const recBounds = rectangle.getBounds();
-    const centerLatLng = recBounds.getCenter();
-    const centerPoint = map.latLngToContainerPoint(centerLatLng);
+    const wrapper = L.DomUtil.create("div", "rectangle-wrapper");
+    wrapper.style.position = "absolute";
+    wrapper.style.top = `${top}px`;
+    wrapper.style.left = `${left}px`;
+    wrapper.style.zIndex = 999;
+
+    const rect = L.DomUtil.create("div", "rectangle-prev");
+    rect.style.width = pixelWidth + "px";
+    rect.style.height = pixelHeight + "px";
+    rect.style.opacity = 0.4;
 
     const button = L.DomUtil.create("button", "rectangle-button");
     button.innerHTML = "Print";
-    button.style.zIndex = 1000;
-    button.style.top = `${centerPoint.y + recHeight / 2 + 2}px`;
-    button.style.left = `${centerPoint.x + recWidth / 2 - 44}px`;
 
     L.DomEvent.on(button, "click", () => {
       printCb();
     });
 
-    map.getContainer().appendChild(button);
+    wrapper.appendChild(rect);
+    wrapper.appendChild(button);
+
+    mapContainer.appendChild(wrapper);
   };
 
   useEffect(() => {
     if (map && mode === "print") {
       addRectangle(map);
-
-      const handleZoom = () => addRectangle(map);
-      const handleMove = () => addRectangle(map);
-
-      map.on("zoom", handleZoom);
-      map.on("move", handleMove);
-
-      return () => {
-        map.off("zoom", handleZoom);
-        map.off("move", handleMove);
-
-        removeRectangle(map);
-      };
     }
 
     if (map && mode !== "print") {
-      removeRectangle(map);
-      removePrintButton();
+      removeRectangle();
     }
-  }, [map, mode, orientation]);
+  }, [map, mode]);
+
+  useEffect(() => {
+    removeRectangle();
+    addRectangle(map);
+  }, [orientation]);
 };
