@@ -2157,62 +2157,77 @@ export const baseConfig = {
       {
         name: "apotheken",
         keywords: [":vec:"],
+        icon: "infra/Apotheken",
       },
       {
         name: "breitband_hk",
         keywords: [":vec:"],
+        icon: "infra/Breitbandausbau_Hauskoordinaten_FTTB",
       },
       {
         name: "container",
         keywords: [":vec:"],
+        icon: "infra/Containerstandorte",
       },
       {
         name: "zvb",
         keywords: [":vec:"],
+        icon: "infra/Zentrale_Versorgungsbereiche",
       },
       {
         name: "zvb-erw",
         keywords: [":vec:"],
+        icon: "infra/Erweiterungsbereiche",
       },
       {
         name: "fernwaermewsw",
         keywords: [":vec:"],
+        icon: "infra/Fernwärmenetz_WSW",
       },
       {
         name: "fernsued",
         keywords: [":vec:"],
+        icon: "infra/Geltungsbereich",
       },
       {
         name: "belis_Masten",
         keywords: [":vec:"],
+        icon: "infra/Leuchten",
       },
       {
         name: "eplusbest",
         keywords: [":vec:"],
+        icon: "infra/Bestehende_Telefonica_Anlagen",
       },
       {
         name: "o2best",
         keywords: [":vec:"],
+        icon: "infra/Bestehende_O2_Anlagen",
       },
       {
         name: "tmobilebest",
         keywords: [":vec:"],
+        icon: "infra/Bestehende_Telekom_Anlagen",
       },
       {
         name: "vodafonebest",
         keywords: [":vec:"],
+        icon: "infra/Bestehende_Vodafone_Anlagen",
       },
       {
         name: "belis_Leitungen",
         keywords: [":vec:"],
+        icon: "infra/Leitungen",
       },
       {
         name: "fernsuedl",
         keywords: [":vec:"],
+        icon: "infra/Betriebsfertige_Leitungen",
       },
       {
         name: "belis_Masten_mit_e",
         keywords: [":vec:"],
+        icon: "infra/Masten_m_Anschluss",
       },
       {
         name: "schaechte",
@@ -2220,6 +2235,7 @@ export const baseConfig = {
           801365.804541788, 6668672.095711919, 801671.5526549286,
           6668977.84382506,
         ],
+        icon: "infra/Schächte",
       },
       {
         name: "sc_txt",
@@ -2227,6 +2243,7 @@ export const baseConfig = {
           801365.804541788, 6668672.095711919, 801671.5526549286,
           6668977.84382506,
         ],
+        icon: "infra/Schachttexte",
       },
       {
         name: "haltungen",
@@ -2234,6 +2251,7 @@ export const baseConfig = {
           801365.804541788, 6668672.095711919, 801671.5526549286,
           6668977.84382506,
         ],
+        icon: "infra/Haltungen",
       },
       {
         name: "ha_txt",
@@ -2241,6 +2259,7 @@ export const baseConfig = {
           801365.804541788, 6668672.095711919, 801671.5526549286,
           6668977.84382506,
         ],
+        icon: "infra/Haltungstexte",
       },
       {
         name: "sflaechen",
@@ -2248,6 +2267,7 @@ export const baseConfig = {
           801365.804541788, 6668672.095711919, 801671.5526549286,
           6668977.84382506,
         ],
+        icon: "infra/Entwässerungsflächen",
       },
       {
         name: "fl_txt",
@@ -2255,6 +2275,7 @@ export const baseConfig = {
           801365.804541788, 6668672.095711919, 801671.5526549286,
           6668977.84382506,
         ],
+        icon: "infra/Flächentexte",
       },
     ],
   },
