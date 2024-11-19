@@ -38,7 +38,6 @@ export const useDrawRectangle = (printCb) => {
     const rect = L.DomUtil.create("div", "rectangle-prev");
     rect.style.width = pixelWidth + "px";
     rect.style.height = pixelHeight + "px";
-    rect.style.opacity = 0.4;
 
     const button = L.DomUtil.create("button", "rectangle-button");
     button.innerHTML = "Print";
@@ -56,7 +55,6 @@ export const useDrawRectangle = (printCb) => {
   useEffect(() => {
     if (map && mode === "print") {
       const handleResize = () => {
-        console.log("xxx window resized");
         removeRectangle();
         addRectangle(map);
       };

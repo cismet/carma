@@ -36,26 +36,20 @@ html {
 }
 
 .rectangle-button {
-  /* position: absolute; */
   background-color: #123c6a;
   color: white;
   opacity: 0.9;
-  border: 1p solid #267bdcd4;
-  border-radius: 2px;
+  border-radius: 4px;
   padding: 5px 10px;
   cursor: pointer;
   margin-left: auto;
   margin-left: auto;
   text-align: center;
+  margin-top: 2px;
 }
 
 .rectangle-prev {
-  /* position: absolute; */
   background-color: #123c6a;
-
-  opacity: 0.4;
-  /* top: 50%;
-  left: 50%;
-  transform: translateX(-50%);
-  transform: translateY(-50%); */
+  border-radius: 4px;
+  opacity: 0.5;
 }
