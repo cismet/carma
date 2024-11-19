@@ -1,13 +1,14 @@
-import { faPrint, faShareNodes } from "@fortawesome/free-solid-svg-icons";
+import { faPrint } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button, Radio, Input } from "antd";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 // import "./popover.css";
 import type { RadioChangeEvent } from "antd";
 import { useDrawRectangle } from "../../hooks/useDrawRectangle";
 import { getOrientation, changeOrientation } from "../../store/slices/print";
 import { useSelector, useDispatch } from "react-redux";
 import { setUIMode } from "../../store/slices/ui";
+import { useOutsideClick } from "../../hooks/useOutsideClick";
 
 const Print = ({ setShowPrintPopup }) => {
   const dispatch = useDispatch();
@@ -16,6 +17,7 @@ const Print = ({ setShowPrintPopup }) => {
   const [scale, setScale] = useState("4000");
   const [dpi, setDpi] = useState("100");
   useDrawRectangle();
+  const printPopupRef = useOutsideClick(() => setShowPrintPopup(false));
 
   const onChange = (e: RadioChangeEvent) => {
     setOrientation(e.target.value);
@@ -23,7 +25,7 @@ const Print = ({ setShowPrintPopup }) => {
   };
 
   return (
-    <div className="p-2 flex flex-col gap-3">
+    <div className="p-2 flex flex-col gap-3" ref={printPopupRef}>
       <div className="flex items-center gap-2">
         <FontAwesomeIcon icon={faPrint} className="text-xl" />
         <h4 className="mb-0">Drucken</h4>
