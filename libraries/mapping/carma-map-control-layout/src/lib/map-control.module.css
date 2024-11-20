@@ -40,7 +40,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  z-index: 500;
+  z-index: 400;
   margin: 10px;
 }
 
@@ -49,10 +49,9 @@
   top: 0;
   left: 0;
   display: flex;
-  background-color: ;
   flex-direction: column;
   gap: 10px;
-  z-index: 500;
+  z-index: 400;
   margin: 10px;
   border: "1px solid red";
 }
@@ -64,10 +63,9 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  z-index: 500;
+  z-index: 1001;
   margin: 10px;
   font-size: 14px;
-  z-index: 499;
 }
 
 .topcenter > :first-child {
@@ -78,7 +76,7 @@
   position: absolute;
   bottom: 0;
   left: 0;
-  z-index: 500;
+  z-index: 400;
   margin: 10px 10px 5px 10px;
 }
 
@@ -89,7 +87,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  z-index: 500;
+  z-index: 400;
   margin: 10px 10px 5px 10px;
 }
 
@@ -108,7 +106,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  z-index: 500;
+  z-index: 400;
   margin: 10px;
 }
 
