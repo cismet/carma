@@ -6,6 +6,7 @@ import { getUIMode } from "../store/slices/ui";
 import { createRoot } from "react-dom/client";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faXmark } from "@fortawesome/free-solid-svg-icons";
+import proj4 from "proj4";
 
 export const useDrawRectangle = (printCb, printOffCb) => {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
@@ -46,6 +47,20 @@ export const useDrawRectangle = (printCb, printOffCb) => {
     button.innerHTML = "Print";
 
     L.DomEvent.on(button, "click", () => {
+      // const mapCenter = map.getCenter();
+      const { lat, lng } = map.getCenter();
+
+      const tranformProj = proj4("EPSG:4326", "EPSG:3857", [lng, lat]);
+      console.log("xxx mapCenter", tranformProj);
+
+      const zoomLevel = map.getZoom();
+      console.log("xxx zoomLevel", zoomLevel);
+
+      const scale = map.options.crs.scale(zoomLevel);
+
+      // const scale = map.getZoomScale(zoomLevel);
+      // const scale = map.getScaleZoom(zoomLevel);
+      console.log("xxx scale", scale);
       printCb();
     });
 
