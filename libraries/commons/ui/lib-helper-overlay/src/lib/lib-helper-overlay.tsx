@@ -66,7 +66,7 @@ export function LibHelperOverlay({
       style={{
         position: "fixed",
         top: 0,
-        zIndex: 1000,
+        zIndex: 1002,
         width: "100vw",
         height: "100vh",
         background: color,
