@@ -3,8 +3,11 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useSelector } from "react-redux";
 import { getOrientation } from "../store/slices/print";
 import { getUIMode } from "../store/slices/ui";
+import { createRoot } from "react-dom/client";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faXmark } from "@fortawesome/free-solid-svg-icons";
 
-export const useDrawRectangle = (printCb) => {
+export const useDrawRectangle = (printCb, printOffCb) => {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const map = routedMapRef?.leafletMap?.leafletElement;
   const mode = useSelector(getUIMode);
@@ -46,10 +49,27 @@ export const useDrawRectangle = (printCb) => {
       printCb();
     });
 
+    const closeButtonContainer = L.DomUtil.create(
+      "div",
+      "rectangle-close",
+      wrapper
+    );
+
     wrapper.appendChild(rect);
     wrapper.appendChild(button);
 
     mapContainer.appendChild(wrapper);
+
+    const root = createRoot(closeButtonContainer);
+    root.render(
+      <FontAwesomeIcon
+        icon={faXmark}
+        className="text-2xl cursor-pointer"
+        onClick={() => printOffCb()}
+      />
+    );
+
+    // root.render(<AddTestFunc />);
   };
 
   useEffect(() => {

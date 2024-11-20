@@ -45,11 +45,15 @@ html {
   margin-left: auto;
   margin-left: auto;
   text-align: center;
-  margin-top: 2px;
+  margin-top: 4px;
 }
 
 .rectangle-prev {
   background-color: #123c6a;
   border-radius: 4px;
   opacity: 0.4;
+}
+
+.rectangle-close {
+  margin-left: auto;
 }
