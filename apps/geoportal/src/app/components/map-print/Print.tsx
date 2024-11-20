@@ -16,6 +16,7 @@ import {
 import { useSelector, useDispatch } from "react-redux";
 import { setUIMode } from "../../store/slices/ui";
 import { useOutsideClick } from "../../hooks/useOutsideClick";
+import { printMap } from "../../helper/print";
 
 const Print = ({ setShowPrintPopup }) => {
   const dispatch = useDispatch();
@@ -25,14 +26,12 @@ const Print = ({ setShowPrintPopup }) => {
   const [orientation, setOrientation] = useState(currentOrient);
   const [scale, setScale] = useState(currentScale);
   const [dpi, setDpi] = useState(currentDPI);
-  useDrawRectangle(
-    () => {
-      console.log("xxx orientation", currentOrient);
-      console.log("xxx dpi", currentDPI);
-      console.log("xxx scale", scale);
-    },
-    () => dispatch(setUIMode("default"))
-  );
+  const printInConsoleSettings = () => {
+    console.log("xxx orientation", currentOrient);
+    console.log("xxx dpi", currentDPI);
+    console.log("xxx scale", scale);
+  };
+  useDrawRectangle(printMap, () => dispatch(setUIMode("default")));
   const printPopupRef = useOutsideClick(() => setShowPrintPopup(false));
 
   const onChange = (e: RadioChangeEvent) => {
