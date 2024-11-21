@@ -60,7 +60,9 @@ export const useDrawRectangle = (printCb, printOffCb) => {
       // const scale1 = map.getZoomScale(zoomLevel);
       const scale2 = map.getScaleZoom(zoomLevel);
       console.log("xxx scale", scale);
-      const testScale = getScaleInKm(zoomLevel);
+      // const testScale = getScaleInKm(zoomLevel);
+      const testScale = getScaleInKmExperiment(zoomLevel);
+
       console.log("xxx test scale", testScale);
       printCb(tranformProj, testScale);
     });
@@ -89,7 +91,8 @@ export const useDrawRectangle = (printCb, printOffCb) => {
   };
 
   const getScaleInKm = (zoom) => {
-    const dpi = 100;
+    const dpi = 96;
+    // const dpi = 88;
     const metersPerInch = 0.0254;
     const earthCircumference = 40075016.6856;
     const tileSize = 256;
@@ -99,6 +102,19 @@ export const useDrawRectangle = (printCb, printOffCb) => {
     const scale = resolution * dpi * (1 / metersPerInch);
 
     return Math.round(scale);
+  };
+
+  const getScaleInKmExperiment = (zoom) => {
+    const dpi = 94;
+    const metersPerInch = 0.0254;
+    const earthCircumference = 40075016.6856;
+    const tileSize = 256;
+
+    const resolution = earthCircumference / (tileSize * Math.pow(2, zoom + 1));
+
+    const scale = (resolution * dpi) / metersPerInch;
+
+    return scale;
   };
 
   useEffect(() => {
