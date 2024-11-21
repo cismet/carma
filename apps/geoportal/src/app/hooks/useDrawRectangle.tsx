@@ -60,8 +60,9 @@ export const useDrawRectangle = (printCb, printOffCb) => {
       // const scale1 = map.getZoomScale(zoomLevel);
       const scale2 = map.getScaleZoom(zoomLevel);
       console.log("xxx scale", scale);
-      console.log("xxx scales", scale, scale2);
-      printCb(tranformProj, scale);
+      const testScale = getScaleInKm(zoomLevel);
+      console.log("xxx test scale", testScale);
+      printCb(tranformProj, testScale);
     });
 
     const closeButtonContainer = L.DomUtil.create(
@@ -85,6 +86,19 @@ export const useDrawRectangle = (printCb, printOffCb) => {
     );
 
     // root.render(<AddTestFunc />);
+  };
+
+  const getScaleInKm = (zoom) => {
+    const dpi = 100;
+    const metersPerInch = 0.0254;
+    const earthCircumference = 40075016.6856;
+    const tileSize = 256;
+
+    const resolution = earthCircumference / (tileSize * Math.pow(2, zoom));
+
+    const scale = resolution * dpi * (1 / metersPerInch);
+
+    return Math.round(scale);
   };
 
   useEffect(() => {

@@ -6,8 +6,6 @@ export const printMap = async (center, scale) => {
     attributes: {
       keywordsAtt: ["map", "example", "metadata"],
       map: {
-        // center: [801491.21, 6669650.55],
-        // center: [797314.6420426735, 6669130.71788163],
         center,
         rotation: 0,
         longitudeFirst: true,
@@ -47,8 +45,6 @@ export const printMap = async (center, scale) => {
             version: "1.3.0",
           },
         ],
-        // scale: 4000,
-        // scale: 262144,
         scale,
         projection: "EPSG:3857",
         dpi: 100,
