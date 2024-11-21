@@ -7,12 +7,12 @@ import {
   selectViewerIsMode2d,
   setIsAnimating,
 } from "../slices/cesium";
-import { useCesiumViewer } from "./useCesiumViewer";
+import { useCesiumContext } from "./useCesiumContext";
 
 const useCameraRollSoftLimiter = ({
   pitchLimiter = true,
 }: { pitchLimiter?: boolean } = {}) => {
-  const viewer = useCesiumViewer();
+  const { viewerRef } = useCesiumContext();
   const dispatch = useDispatch();
   const isMode2d = useSelector(selectViewerIsMode2d);
 
@@ -22,6 +22,7 @@ const useCameraRollSoftLimiter = ({
   );
 
   useEffect(() => {
+    const viewer = viewerRef.current;
     if (viewer && pitchLimiter) {
       console.debug(
         "HOOK [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to reset rolled camera"
@@ -57,7 +58,7 @@ const useCameraRollSoftLimiter = ({
         viewer.camera.moveEnd.removeEventListener(moveEndListener);
       };
     }
-  }, [viewer, isMode2d, pitchLimiter, onComplete, dispatch]);
+  }, [viewerRef, isMode2d, pitchLimiter, onComplete, dispatch]);
 };
 
 export default useCameraRollSoftLimiter;

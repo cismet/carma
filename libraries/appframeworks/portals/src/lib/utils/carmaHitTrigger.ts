@@ -36,10 +36,7 @@ import {
   type CesiumOptions,
   type EntityData,
 } from "@carma-mapping/cesium-engine";
-
-import { PROJ4_CONVERTERS } from "./geo";
-
-import { INVERTED_SELECTED_POLYGON_ID, SELECTED_POLYGON_ID } from "../../index";
+import { PROJ4_CONVERTERS } from "@carma-commons/utils";
 
 const proj4ConverterLookup = {};
 const DEFAULT_ZOOM_LEVEL = 16;
@@ -185,6 +182,8 @@ export type GazetteerOptions = {
   cesiumOptions?: CesiumOptions;
   selectedCesiumEntityData?: null | EntityData;
   setSelectedCesiumEntityData?: Function;
+  selectedPolygonId: string;
+  invertedSelectedPolygonId: string;
 };
 
 const defaultGazetteerOptions = {
@@ -196,34 +195,29 @@ const defaultGazetteerOptions = {
 export const carmaHitTrigger = (
   hit,
   mapConsumerRefs: RefObject<MapConsumer>[],
-  {
-    setGazetteerHit,
-    setOverlayFeature,
-    furtherGazeteerHitTrigger,
-    referenceSystem,
-    referenceSystemDefinition,
-    suppressMarker,
-    mapActions = { leaflet: {}, cesium: {} },
-    cesiumOptions,
-    selectedCesiumEntityData,
-    setSelectedCesiumEntityData,
-  }: GazetteerOptions = defaultGazetteerOptions
+  options: GazetteerOptions
 ) => {
   if (hit !== undefined && hit.length !== undefined && hit.length > 0) {
-    const lAction = (mapActions.leaflet = {
-      ...LeafletMapActions,
-      ...mapActions.leaflet,
-    } as LeafletMapActions);
+    const {
+      setGazetteerHit,
+      setOverlayFeature,
+      furtherGazeteerHitTrigger,
+      referenceSystem,
+      referenceSystemDefinition,
+      suppressMarker,
+      mapActions = { leaflet: {}, cesium: {} },
+      cesiumOptions,
+      selectedCesiumEntityData,
+      setSelectedCesiumEntityData,
+      selectedPolygonId,
+      invertedSelectedPolygonId,
+    } = { ...options, ...defaultGazetteerOptions };
 
     const cAction = (mapActions.cesium = {
       ...CesiumMapActions,
       ...mapActions.cesium,
     } as CesiumMapActions);
 
-    // TODO location evaluation should be handled by app state and forwarded not in this component
-    // const url = getUrlFromSearchParams();
-
-    // TODO extend hitobject with parsed and derived data
     const hitObject = Object.assign({}, hit[0]); //Change the Zoomlevel of the map
 
     const crs = hitObject.crs ?? DEFAULT_PROJ;
@@ -271,9 +265,9 @@ export const carmaHitTrigger = (
         // todo only remove polygons, try to update existing entities for marker and polylines
         selectedCesiumEntityData &&
           removeCesiumMarker(viewer, selectedCesiumEntityData);
-        viewer.entities.removeById(SELECTED_POLYGON_ID);
+        viewer.entities.removeById(selectedPolygonId);
         //viewer.entities.removeById(INVERTED_SELECTED_POLYGON_ID);
-        removeGroundPrimitiveById(viewer, INVERTED_SELECTED_POLYGON_ID);
+        removeGroundPrimitiveById(viewer, invertedSelectedPolygonId);
         scene.requestRender(); // explicit render for requestRenderMode;
 
         const posCarto = Cartographic.fromDegrees(pos.lon, pos.lat, 0);
@@ -297,7 +291,7 @@ export const carmaHitTrigger = (
 
         if (polygon) {
           const polygonEntity = new Entity({
-            id: SELECTED_POLYGON_ID,
+            id: selectedPolygonId,
             polygon: {
               hierarchy: polygonHierarchyFromPolygonCoords(polygon),
               material: Color.WHITE.withAlpha(0.01),
@@ -319,7 +313,7 @@ export const carmaHitTrigger = (
 
           const invertedGeometryInstance = new GeometryInstance({
             geometry: invertedPolygonGeometry,
-            id: INVERTED_SELECTED_POLYGON_ID,
+            id: invertedSelectedPolygonId,
             attributes: {
               color: ColorGeometryInstanceAttribute.fromColor(
                 Color.GRAY.withAlpha(0.66)
@@ -337,7 +331,6 @@ export const carmaHitTrigger = (
           });
 
           scene.groundPrimitives.add(invertedGroundPrimitive);
-
           viewer.entities.add(polygonEntity);
           //viewer.entities.add(invertedPolygonEntity);
           viewer.flyTo(polygonEntity);
@@ -348,7 +341,6 @@ export const carmaHitTrigger = (
               DEFAULT_CESIUM_MARKER_ANCHOR_HEIGHT;
             const anchorPosition = groundPosition.clone();
             anchorPosition.height = anchorPosition.height + anchorHeightOffset;
-
             console.debug(
               "GAZETTEER: [2D3D|CESIUM|CAMERA] adding marker at Marker (Surface/Terrain Elevation)",
               anchorPosition.height,
@@ -373,11 +365,9 @@ export const carmaHitTrigger = (
               setSelectedCesiumEntityData && setSelectedCesiumEntityData(data);
             }
           };
-
           if (cesiumOptions.markerAsset) {
             updateMarkerPosition();
           }
-
           cAction.lookAt(viewer, groundPosition, zoom, cesiumOptions, {
             //onComplete: delayedMarker,
             durationFactor: 0.2,
@@ -390,55 +380,6 @@ export const carmaHitTrigger = (
         }
       } else if (mapElement instanceof RoutedMap) {
         console.info("xxx mapElement", mapElement, "not implemented");
-        /*
-          lAction.panTo((mapElement as unknown as {leafletMap: {leafletElement: L.Map}}).leafletMap.leafletElement, pos);
-          if (zoom) {
-            // todo  handle zoom with panTo as optional animation
-            mapElement.setZoom(hitObject.more.zl, {
-              animate: false,
-            });
-  
-            if (suppressMarker === false) {
-              //show marker
-              setGazetteerHit && setGazetteerHit(hitObject);
-              setOverlayFeature && setOverlayFeature(null);
-            }
-          } else if (hitObject.more.g) {
-            let hitFeature = feature(hitObject.more.g);
-  
-            if (!hitFeature.crs) {
-              console.log('xxx no crs therefore context based crs', referenceSystem);
-              const refSys =
-                referenceSystem !== undefined
-                  ? referenceSystem.code.split('EPSG:')[1]
-                  : '25832';
-              hitFeature.crs = {
-                type: 'name',
-                properties: {
-                  name: 'urn:ogc:def:crs:EPSG::' + refSys,
-                },
-              };
-            }
-  
-            console.log('xxx no crs therefore context based crs. feature:', hitFeature);
-            var bb = bbox(hitFeature);
-  
-            if (suppressMarker === false) {
-              setGazetteerHit && setGazetteerHit(null);
-              setOverlayFeature && setOverlayFeature(hitFeature);
-            }
-  
-            mapElement.fitBounds(
-              convertBBox2Bounds(bb, referenceSystemDefinition) as L.LatLngBoundsExpression
-            );
-          }
-  
-          setTimeout(() => {
-            if (furtherGazeteerHitTrigger !== undefined) {
-              furtherGazeteerHitTrigger(hit);
-            }
-          }, 200);
-          */
       } else {
         console.warn("Unsupported map type", mapElement);
       }

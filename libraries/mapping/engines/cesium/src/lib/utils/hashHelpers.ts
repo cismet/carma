@@ -1,4 +1,4 @@
-import { Cartesian3, Cartographic, Viewer, Math as CesiumMath } from "cesium";
+import { Cartesian3, Cartographic, Viewer, Math as CesiumMath, Scene } from "cesium";
 import {
   AppState,
   EncodedSceneParams,
@@ -75,10 +75,10 @@ export const hashcodecs = {
 };
 
 export function encodeScene(
-  viewer: Viewer,
+  scene: Scene,
   appState: AppState = {}
 ): EncodedSceneParams {
-  const { camera } = viewer;
+  const { camera } = scene;
   const { x, y, z } = camera.position;
 
   const { longitude, latitude, height } = Cartographic.fromCartesian(

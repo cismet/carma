@@ -32,6 +32,9 @@ import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 import {
   replaceHashRoutedHistory,
   useCarmaMapContext,
+  useSelection,
+  useSelectionCesium,
+  useSelectionTopicMap,
 } from "@carma-apps/portals";
 import {
   getCollabedHelpComponentConfig,
@@ -258,6 +261,18 @@ export const GeoportalMap = () => {
 
   useFeatureInfoModeCursorStyle();
 
+  const { selection, setSelection, overlayFeature, setOverlayFeature } = useSelection();
+  useSelectionTopicMap();
+  useSelectionCesium(!isMode2d, useMemo(() => ({
+    markerAsset,
+    markerAnchorHeight,
+    isPrimaryStyle: showPrimaryTileset,
+    surfaceProviderRef,
+      terrainProviderRef,
+    }),
+    [markerAsset, markerAnchorHeight, showPrimaryTileset, surfaceProviderRef, terrainProviderRef]
+  ));
+
   useEffect(() => {
     let isSame = true;
     let layerType = "";
@@ -300,6 +315,7 @@ export const GeoportalMap = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allow3d]);
+
 
   const renderInfoBox = () => {
     if (isMode2d) {
@@ -422,9 +438,8 @@ export const GeoportalMap = () => {
                 dataTestId="measurement-control"
               >
                 <img
-                  src={`${getUrlPrefix()}${
-                    isModeMeasurement ? "measure-active.png" : "measure.png"
-                  }`}
+                  src={`${getUrlPrefix()}${isModeMeasurement ? "measure-active.png" : "measure.png"
+                    }`}
                   alt="Measure"
                   className="w-6"
                 />
@@ -487,19 +502,10 @@ export const GeoportalMap = () => {
         >
           <LibFuzzySearch
             gazData={gazData}
-            mapRef={routedMap}
-            cesiumViewerRef={viewerRef}
-            cesiumOptions={{
-              markerAsset,
-              markerAnchorHeight,
-              isPrimaryStyle: showPrimaryTileset,
-              surfaceProviderRef,
-              terrainProviderRef,
-            }}
             referenceSystem={referenceSystem}
             referenceSystemDefinition={referenceSystemDefinition}
-            gazetteerHit={gazetteerHit}
-            setGazetteerHit={setGazetteerHit}
+            gazetteerHit={selection}
+            setGazetteerHit={setSelection}
             setOverlayFeature={setOverlayFeature}
             placeholder="Wohin?"
           />
@@ -569,7 +575,7 @@ export const GeoportalMap = () => {
               {backgroundLayer &&
                 backgroundLayer.visible &&
                 getBackgroundLayers({ layerString: backgroundLayer.layers })}
-              {overlayFeature && (
+              {overlayFeature && routedMap && (
                 <ProjSingleGeoJson
                   key={JSON.stringify(overlayFeature)}
                   geoJson={overlayFeature}
@@ -579,8 +585,8 @@ export const GeoportalMap = () => {
                 />
               )}
               <GazetteerHitDisplay
-                key={"gazHit" + JSON.stringify(gazetteerHit)}
-                gazetteerHit={gazetteerHit}
+                key={"gazHit" + JSON.stringify(selection)}
+                gazetteerHit={selection}
               />
               {focusMode && <PaleOverlay />}
               {createCismapLayers(layers, {
@@ -600,7 +606,7 @@ export const GeoportalMap = () => {
                 left: 0,
                 right: 0,
                 bottom: 0,
-                zIndex: 401,
+                zIndex: 400,
                 opacity: isMode2d ? 0 : 1,
                 transition: `opacity ${CESIUM_CONFIG.transitions.mapMode.duration}ms ease-in-out`,
                 pointerEvents: isMode2d ? "none" : "auto",

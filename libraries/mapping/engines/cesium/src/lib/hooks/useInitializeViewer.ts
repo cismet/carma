@@ -78,8 +78,8 @@ export const useInitializeViewer = (
     return () => {
       if (viewerRef.current) {
         console.info("RENDER: [CESIUM] CustomViewer cleanup destroy viewer");
-        viewerRef.current.destroy();
-        viewerRef.current = null;
+        //viewerRef.current.destroy();
+        //viewerRef.current = null;
       }
     };
   }, [options, containerRef, viewerRef]);

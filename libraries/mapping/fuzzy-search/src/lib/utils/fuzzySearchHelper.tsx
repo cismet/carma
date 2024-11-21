@@ -9,7 +9,7 @@ import {
   SearchResultItem,
   SearchResult,
   Option,
-  GruppedOptions,
+  GroupedOptions,
   SearchConfig,
 } from "../..";
 
@@ -101,10 +101,10 @@ export const mapDataToSearchResult = (
     }
   });
 
-  const prepareOptions: GruppedOptions[] = [];
+  const prepareOptions: GroupedOptions[] = [];
 
   Object.keys(splittedCategories).forEach((item: string) => {
-    let optionItem: GruppedOptions = {};
+    let optionItem: GroupedOptions = {};
 
     if (!optionItem.hasOwnProperty(item) && isEndpoint(item)) {
       optionItem.label = renderCategoryTitle(item, NAMED_CATEGORIES);
