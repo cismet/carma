@@ -47,7 +47,6 @@ export const useDrawRectangle = (printCb, printOffCb) => {
     button.innerHTML = "Print";
 
     L.DomEvent.on(button, "click", () => {
-      // const mapCenter = map.getCenter();
       const { lat, lng } = map.getCenter();
 
       const tranformProj = proj4("EPSG:4326", "EPSG:3857", [lng, lat]);
@@ -58,10 +57,11 @@ export const useDrawRectangle = (printCb, printOffCb) => {
 
       const scale = map.options.crs.scale(zoomLevel);
 
-      // const scale = map.getZoomScale(zoomLevel);
-      // const scale = map.getScaleZoom(zoomLevel);
+      // const scale1 = map.getZoomScale(zoomLevel);
+      const scale2 = map.getScaleZoom(zoomLevel);
       console.log("xxx scale", scale);
-      printCb();
+      console.log("xxx scales", scale, scale2);
+      printCb(tranformProj, scale);
     });
 
     const closeButtonContainer = L.DomUtil.create(

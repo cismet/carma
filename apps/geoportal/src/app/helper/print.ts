@@ -1,4 +1,4 @@
-export const printMap = async () => {
+export const printMap = async (center, scale) => {
   const url = "https://mapfish.cismet.de/print/A4_Landscape/buildreport.pdf";
 
   const data = {
@@ -7,16 +7,34 @@ export const printMap = async () => {
       keywordsAtt: ["map", "example", "metadata"],
       map: {
         // center: [801491.21, 6669650.55],
-        center: [797314.6420426735, 6669130.71788163],
+        // center: [797314.6420426735, 6669130.71788163],
+        center,
         rotation: 0,
         longitudeFirst: true,
         layers: [
-          {
-            baseURL: "https://tgl.cismet.de/styles/poi-style/256",
-            type: "OSM",
-            imageExtension: "png",
-            tileMatrixSet: "zxy",
-          },
+          //   {
+          //     baseURL: "https://tgl.cismet.de/styles/poi-style/256",
+          //     type: "OSM",
+          //     imageExtension: "png",
+          //     tileMatrixSet: "zxy",
+          //   },
+          //   {
+          //     baseURL: "https://tiles.cismet.de/poi",
+          //     type: "OSM",
+          //     imageExtension: "png",
+          //     tileMatrixSet: "zxy",
+          //   },
+          //   {
+          //     imageFormat: "image/png",
+          //     baseURL: "https://maps.wuppertal.de/karten/",
+          //     customParams: {
+          //       EXCEPTIONS: "INIMAGE",
+          //       TRANSPARENT: "true",
+          //     },
+          //     layers: ["spw2_orange"],
+          //     type: "WMS",
+          //     version: "1.3.0",
+          //   },
           {
             imageFormat: "image/png",
             baseURL: "https://geodaten.metropoleruhr.de/spw2/service",
@@ -30,9 +48,10 @@ export const printMap = async () => {
           },
         ],
         // scale: 4000,
-        scale: 262144,
+        // scale: 262144,
+        scale,
         projection: "EPSG:3857",
-        dpi: 300,
+        dpi: 100,
       },
     },
   };
