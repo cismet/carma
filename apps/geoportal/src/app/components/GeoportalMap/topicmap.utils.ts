@@ -213,6 +213,18 @@ export const onClickTopicMap = async (
         dispatch(clearVectorInfos());
       }
     }
+  } else {
+    dispatch(
+      setSelectedFeature({
+        properties: {
+          header: "Position",
+          headerColor: "#0078a8",
+          title: `${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`,
+          subtitle: "(Geogr. Breite und Länge in Dezimalgrad, ETRS89)",
+        },
+        id: "information",
+      })
+    );
   }
 };
 
