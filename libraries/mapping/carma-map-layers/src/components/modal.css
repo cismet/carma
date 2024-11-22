@@ -12,3 +12,11 @@
 .ant-modal-body {
   height: 100%;
 }
+
+.ant-modal-mask {
+  z-index: 1002 !important;
+}
+
+.ant-modal-wrap {
+  z-index: 1002 !important;
+}
