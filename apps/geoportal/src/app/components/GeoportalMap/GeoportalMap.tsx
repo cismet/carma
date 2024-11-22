@@ -306,7 +306,7 @@ export const GeoportalMap = () => {
       if (isModeMeasurement) {
         return <InfoBoxMeasurement key={uiMode} />;
       }
-      if (isModeFeatureInfo || selectedFeature) {
+      if (selectedFeature) {
         return <FeatureInfoBox pos={pos} />;
       }
     }
