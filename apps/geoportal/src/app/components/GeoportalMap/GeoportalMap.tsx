@@ -22,7 +22,6 @@ import {
   faPlus,
 } from "@fortawesome/free-solid-svg-icons";
 
-import { ExtraMarker } from "react-cismap/ExtraMarker";
 import PaleOverlay from "react-cismap/PaleOverlay";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import GazetteerHitDisplay from "react-cismap/GazetteerHitDisplay";
