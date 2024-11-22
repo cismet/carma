@@ -1,6 +1,7 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useSearchParams } from "react-router-dom";
+import L from "leaflet";
 
 import { Tooltip } from "antd";
 
@@ -324,6 +325,7 @@ export const GeoportalMap = () => {
   rerenderCountRef.current++;
   lastRenderIntervalRef.current = Date.now() - lastRenderTimeStampRef.current;
   lastRenderTimeStampRef.current = Date.now();
+  const [marker, setMarker] = useState(undefined);
 
   return (
     <ControlLayout onHeightResize={setLayoutHeight} ifStorybook={false}>
@@ -460,6 +462,9 @@ export const GeoportalMap = () => {
               dispatch(setFeatures([]));
               setPos(null);
               dispatch(setPreferredLayerId(""));
+              if (marker !== undefined) {
+                routedMap.leafletMap.leafletElement.removeLayer(marker);
+              }
             }}
             className="font-semibold"
             ref={tourRefLabels.featureInfo}
@@ -530,15 +535,31 @@ export const GeoportalMap = () => {
                 const newParams = { ...paramsToObject(urlParams), ...location };
                 setUrlParams(newParams);
               }}
-              onclick={(e) =>
+              onclick={(e) => {
+                const map = routedMap.leafletMap.leafletElement;
+                if (uiMode === UIMode.FEATURE_INFO) {
+                  if (marker !== undefined) {
+                    map.removeLayer(marker);
+                  }
+
+                  setMarker(
+                    L.marker([e.latlng.lat, e.latlng.lng], {
+                      icon: L.icon({
+                        iconUrl: "crosshair.svg",
+                        iconSize: [30, 30],
+                      }),
+                    }).addTo(map)
+                  );
+                }
                 onClickTopicMap(e, {
                   dispatch,
                   mode: uiMode,
                   store,
                   setPos,
                   zoom: getLeafletZoom(),
-                })
-              }
+                  map: routedMap.leafletMap.leafletElement,
+                });
+              }}
               gazetteerSearchComponent={<></>}
               infoBox={renderInfoBox()}
               zoomSnap={LEAFLET_CONFIG.zoomSnap}
@@ -568,12 +589,6 @@ export const GeoportalMap = () => {
                 setPos,
                 zoom: getLeafletZoom(),
               })}
-              {pos && isModeFeatureInfo && layers.length > 0 && (
-                <ExtraMarker
-                  markerOptions={{ markerColor: "cyan", spin: false }}
-                  position={pos}
-                />
-              )}
             </TopicMapComponent>
           </div>
           {allow3d && (
