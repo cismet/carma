@@ -7,7 +7,7 @@ import type { RootState } from "..";
 // TODO: move to constants/config;
 const EMPTY_INFO_TEXT = "";
 const NOTHING_FOUND_INFO_TEXT =
-  "Keine Informationen an dieser Stelle gefunden.";
+  "Auf die Karte klicken um die Sachdatenabfrage zu starten.";
 
 const initialState: FeatureInfoState = {
   features: [],
