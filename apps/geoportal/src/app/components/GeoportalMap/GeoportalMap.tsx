@@ -536,6 +536,8 @@ export const GeoportalMap = () => {
               }}
               onclick={(e) => {
                 const map = routedMap.leafletMap.leafletElement;
+                const baseUrl =
+                  window.location.origin + window.location.pathname;
                 if (uiMode === UIMode.FEATURE_INFO) {
                   if (marker !== undefined) {
                     map.removeLayer(marker);
@@ -544,7 +546,7 @@ export const GeoportalMap = () => {
                   setMarker(
                     L.marker([e.latlng.lat, e.latlng.lng], {
                       icon: L.icon({
-                        iconUrl: "crosshair.svg",
+                        iconUrl: baseUrl + "crosshair.svg",
                         iconSize: [30, 30],
                       }),
                     }).addTo(map)
