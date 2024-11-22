@@ -39,13 +39,19 @@ export const getPrintLayers = (bgLayer, layers) => {
   const allLayers = [...layers, bgLayer];
   const layerPrint = [];
   allLayers.forEach((layer) => {
-    const { name, baseURL } = buildUrlWitName(
-      layer.props.url,
-      layer.props.name
-    );
-
     if (layer.layerType === "wmts") {
+      const { name, baseURL } = buildUrlWitName(
+        layer.props?.url,
+        layer.props.name
+      );
+
       layerPrint.push(buildWMSPrint(baseURL, name));
+    }
+
+    if (layer.layerType === "vector") {
+      layerPrint.unshift(
+        buildOMSPrint("https://tgl.cismet.de/styles/poi-style/256")
+      );
     }
   });
 
@@ -85,6 +91,17 @@ const buildWMSPrint = (baseURL, name) => {
   };
 
   return wms;
+};
+
+const buildOMSPrint = (baseURL) => {
+  const oms = {
+    baseURL: baseURL,
+    type: "OSM",
+    imageExtension: "png",
+    tileMatrixSet: "zxy",
+  };
+
+  return oms;
 };
 
 const getOrientationTemplateParams = (orientation = "portrait") => {

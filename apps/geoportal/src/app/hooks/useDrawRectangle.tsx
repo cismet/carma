@@ -63,6 +63,8 @@ export const useDrawRectangle = (printCb, printOffCb) => {
       const testScale = getScaleInKmExperiment(zoomLevel);
 
       const layesPrint = getPrintLayers(bgLayer, layers);
+      console.log("xxx layerPrint", layesPrint);
+
       printCb(tranformProj, testScale, layesPrint, orientation);
     });
 
