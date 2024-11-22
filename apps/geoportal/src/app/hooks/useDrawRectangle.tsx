@@ -1,7 +1,13 @@
 import { useContext, useEffect, useState } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
-import { useSelector } from "react-redux";
-import { getOrientation, getDPI, getPrintName } from "../store/slices/print";
+import { useSelector, useDispatch } from "react-redux";
+import {
+  getOrientation,
+  getDPI,
+  getPrintName,
+  getIsLoading,
+  changeIsLoading,
+} from "../store/slices/print";
 import { getUIMode } from "../store/slices/ui";
 import { createRoot } from "react-dom/client";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -12,15 +18,20 @@ import { getPrintLayers } from "../helper/print";
 
 export const useDrawRectangle = (printCb, printOffCb) => {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
+  const dispatch = useDispatch();
   const map = routedMapRef?.leafletMap?.leafletElement;
   const mode = useSelector(getUIMode);
   const orientation = useSelector(getOrientation);
   const dpi = useSelector(getDPI);
   const printName = useSelector(getPrintName);
-
   const [lastOrientation, setlastOrientation] = useState(orientation);
   const bgLayer = useSelector(getBackgroundLayer);
   const layers = useSelector(getLayers);
+  const loading = useSelector(getIsLoading);
+
+  const handleIsLoading = (status) => {
+    dispatch(changeIsLoading(status));
+  };
 
   const removeRectangle = () => {
     const printBtn = document.querySelector(".rectangle-wrapper ");
@@ -68,7 +79,15 @@ export const useDrawRectangle = (printCb, printOffCb) => {
       console.log("xxx layerPrint", layers);
       const layesPrint = getPrintLayers(bgLayer, layers);
 
-      printCb(tranformProj, testScale, layesPrint, orientation, dpi, printName);
+      printCb(
+        tranformProj,
+        testScale,
+        layesPrint,
+        orientation,
+        dpi,
+        printName,
+        handleIsLoading
+      );
     });
 
     const closeButtonContainer = L.DomUtil.create(
@@ -142,5 +161,9 @@ export const useDrawRectangle = (printCb, printOffCb) => {
     } else if (map && mode !== "print") {
       removeRectangle();
     }
-  }, [map, mode, orientation, layers, dpi, printName]);
+  }, [map, mode, orientation, layers, dpi, printName, loading]);
+
+  useEffect(() => {
+    console.log("xxx isloading", loading);
+  }, [loading]);
 };

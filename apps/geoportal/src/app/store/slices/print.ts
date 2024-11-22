@@ -6,12 +6,14 @@ export type PrintState = {
   orientation: PrintOrientation;
   dpi: DPI;
   name: string;
+  isLoading: boolean;
 };
 
 const initialState: PrintState = {
   orientation: "portrait",
   dpi: "100",
   name: "map",
+  isLoading: false,
 };
 
 const slice = createSlice({
@@ -27,12 +29,21 @@ const slice = createSlice({
     changePrintName(state, action: PayloadAction<string>) {
       state.name = action.payload;
     },
+    changeIsLoading(state, action: PayloadAction<boolean>) {
+      state.isLoading = action.payload;
+    },
   },
 });
 
-export const { changeOrientation, changeDPI, changePrintName } = slice.actions;
+export const {
+  changeOrientation,
+  changeDPI,
+  changePrintName,
+  changeIsLoading,
+} = slice.actions;
 export const getOrientation = (state: RootState) => state.print.orientation;
 export const getDPI = (state: RootState) => state.print.dpi;
 export const getPrintName = (state: RootState) => state.print.name;
+export const getIsLoading = (state: RootState) => state.print.isLoading;
 
 export default slice.reducer;

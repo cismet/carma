@@ -4,7 +4,8 @@ export const printMap = async (
   layers,
   orientation,
   dpi,
-  name
+  name,
+  handleIsLoading
 ) => {
   const { url, title } = getOrientationTemplateParams(orientation);
   const data = {
@@ -22,7 +23,7 @@ export const printMap = async (
       },
     },
   };
-
+  handleIsLoading(true);
   try {
     const response = await fetch(url, {
       method: "POST",
@@ -37,8 +38,10 @@ export const printMap = async (
     a.click();
 
     URL.revokeObjectURL(urlBlob);
+    handleIsLoading(false);
   } catch (error) {
     console.log("xxx res", error);
+    handleIsLoading(false);
   }
 };
 
