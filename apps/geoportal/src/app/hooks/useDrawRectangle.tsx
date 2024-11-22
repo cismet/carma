@@ -62,8 +62,8 @@ export const useDrawRectangle = (printCb, printOffCb) => {
       const scale2 = map.getScaleZoom(zoomLevel);
       const testScale = getScaleInKmExperiment(zoomLevel);
 
+      console.log("xxx layerPrint", layers);
       const layesPrint = getPrintLayers(bgLayer, layers);
-      console.log("xxx layerPrint", layesPrint);
 
       printCb(tranformProj, testScale, layesPrint, orientation);
     });
@@ -139,5 +139,5 @@ export const useDrawRectangle = (printCb, printOffCb) => {
     } else if (map && mode !== "print") {
       removeRectangle();
     }
-  }, [map, mode, orientation]);
+  }, [map, mode, orientation, layers]);
 };
