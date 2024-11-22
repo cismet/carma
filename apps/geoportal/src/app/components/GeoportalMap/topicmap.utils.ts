@@ -124,15 +124,6 @@ export const onClickTopicMap = async (
       dispatch(setVectorInfo(undefined));
     }
 
-    const topLayer = queryableLayers[queryableLayers.length - 1];
-
-    const vectorInfos = queryableLayers
-      .map((layer) => {
-        const vectorInfo = allVectorInfos.find((vi) => vi.id === layer.id);
-        return vectorInfo;
-      })
-      .filter((vi) => vi !== undefined);
-
     const nothingFoundIDsWithoutInvisibleLayers = [...new Set(nothingFoundIDs)]
       .map((id) => {
         const foundLayer = layers.find((layer) => layer.id === id);
@@ -147,10 +138,7 @@ export const onClickTopicMap = async (
     if (queryableLayers && pos[0] && pos[1]) {
       const result = await Promise.all(
         queryableLayers.map(async (testLayer) => {
-          const vectorInfoIndex = vectorInfos.findIndex(
-            (vi) => vi.id === testLayer.id
-          );
-          const results = vectorInfos.filter((vi) => vi.id === testLayer.id);
+          const results = allVectorInfos.filter((vi) => vi.id === testLayer.id);
           if (testLayer.layerType === "vector" && results.length === 0) {
             return undefined;
           } else if (testLayer.layerType === "vector" && results.length > 0) {
@@ -336,7 +324,7 @@ const onSelectionChangedVector = (
     hits: any[];
     hit: any;
   },
-  { layer, layers, dispatch, setPos, zoom, selectionHandler }
+  { layer, layers, dispatch, zoom, selectionHandler }
 ) => {
   if (!e.hits) {
     selectionHandler(e, layer);
@@ -347,26 +335,16 @@ const onSelectionChangedVector = (
       (hit, index) => e.hits.findIndex((h) => h.id === hit.id) === index
     );
 
-    const selectedVectorFeature = e.hits[0];
+    uniqueHits.forEach((vector, i) => {
+      const coordinates = getCoordinates(vector.geometry);
 
-    const coordinates = getCoordinates(selectedVectorFeature.geometry);
+      const feature = createVectorFeature(coordinates, layer, vector);
 
-    const feature = createVectorFeature(
-      coordinates,
-      layer,
-      selectedVectorFeature
-    );
-
-    if (feature) {
-      dispatch(addVectorInfo(feature));
-      dispatch(removeNothingFoundID(layer.id));
-
-      const queryableLayers = getQueryableLayers(layers, zoom);
-
-      if (layer.id === queryableLayers[queryableLayers.length - 1]?.id) {
-        setPos(null);
+      if (feature) {
+        dispatch(addVectorInfo(feature));
+        dispatch(removeNothingFoundID(layer.id));
       }
-    }
+    });
   } else {
     if (layer.queryable) {
       dispatch(addNothingFoundID(layer.id));
@@ -381,16 +359,12 @@ const createCismapLayer = (props: WMTSLayerProps | VectorLayerProps) => {
 export const createCismapLayers = (
   layers: Layer[],
   {
-    focusMode,
     mode,
     dispatch,
-    setPos,
     zoom,
   }: {
-    focusMode: boolean;
     mode: UIMode;
     dispatch: Dispatch;
-    setPos: (pos: [number, number] | null) => void;
     zoom: number;
   }
 ) => {
@@ -427,15 +401,17 @@ export const createCismapLayers = (
   }, [mode]);
 
   useEffect(() => {
-    const lastObject = getLastDefinedObject(globalHits);
+    if (modeRef.current === UIMode.DEFAULT) {
+      const lastObject = getLastDefinedObject(globalHits);
 
-    if (lastObject && modeRef.current === UIMode.DEFAULT) {
-      const selectedVectorFeature = lastObject[0];
-      if (selectedVectorFeature.setSelection) {
-        selectedVectorFeature.setSelection(true);
+      if (lastObject) {
+        const selectedVectorFeature = lastObject[0];
+        if (selectedVectorFeature.setSelection) {
+          selectedVectorFeature.setSelection(true);
+        }
+      } else {
+        dispatch(setSelectedFeature(null));
       }
-    } else {
-      dispatch(setSelectedFeature(null));
     }
   }, [globalHits]);
 
@@ -478,7 +454,6 @@ export const createCismapLayers = (
                   layer,
                   layers,
                   dispatch,
-                  setPos,
                   zoom,
                   selectionHandler,
                 });

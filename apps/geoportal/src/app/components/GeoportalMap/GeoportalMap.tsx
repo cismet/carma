@@ -230,6 +230,7 @@ export const GeoportalMap = () => {
   const { setSecondaryWithKey } = useContext(OverlayTourContext);
 
   const [gazetteerHit, setGazetteerHit] = useState(null);
+  const [marker, setMarker] = useState(undefined);
   const [overlayFeature, setOverlayFeature] = useState(null);
   const [pos, setPos] = useState<[number, number] | null>(null);
   const [isSameLayerTypes, setIsSameLayerTypes] = useState(true);
@@ -324,7 +325,6 @@ export const GeoportalMap = () => {
   rerenderCountRef.current++;
   lastRenderIntervalRef.current = Date.now() - lastRenderTimeStampRef.current;
   lastRenderTimeStampRef.current = Date.now();
-  const [marker, setMarker] = useState(undefined);
 
   return (
     <ControlLayout onHeightResize={setLayoutHeight} ifStorybook={false}>
@@ -549,6 +549,8 @@ export const GeoportalMap = () => {
                       }),
                     }).addTo(map)
                   );
+
+                  setPos([e.latlng.lat, e.latlng.lng]);
                 }
                 onClickTopicMap(e, {
                   dispatch,
@@ -580,10 +582,8 @@ export const GeoportalMap = () => {
               />
               {focusMode && <PaleOverlay />}
               {createCismapLayers(layers, {
-                focusMode,
                 mode: uiMode,
                 dispatch,
-                setPos,
                 zoom: getLeafletZoom(),
               })}
             </TopicMapComponent>
