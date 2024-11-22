@@ -2,7 +2,6 @@ import { faPrint, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button, Radio, Input } from "antd";
 import { useState } from "react";
-// import "./popover.css";
 import type { RadioChangeEvent } from "antd";
 import { useDrawRectangle } from "../../hooks/useDrawRectangle";
 import {
@@ -24,13 +23,9 @@ const Print = ({ setShowPrintPopup }) => {
   const currentDPI = useSelector(getDPI);
   const currentName = useSelector(getPrintName);
   const [orientation, setOrientation] = useState(currentOrient);
-  const [scale, setScale] = useState(currentName);
+  const [name, setSName] = useState(currentName);
   const [dpi, setDpi] = useState(currentDPI);
-  const printInConsoleSettings = () => {
-    console.log("xxx orientation", currentOrient);
-    console.log("xxx dpi", currentDPI);
-    console.log("xxx scale", scale);
-  };
+
   useDrawRectangle(printMap, () => dispatch(setUIMode("default")));
   const printPopupRef = useOutsideClick(() => setShowPrintPopup(false));
 
@@ -49,7 +44,7 @@ const Print = ({ setShowPrintPopup }) => {
       <Input
         placeholder={currentName}
         onChange={(e) => {
-          setScale(e.target.value);
+          setSName(e.target.value);
           dispatch(changePrintName(e.target.value));
         }}
       />

@@ -1,7 +1,7 @@
 import { useContext, useEffect, useState } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useSelector } from "react-redux";
-import { getOrientation } from "../store/slices/print";
+import { getOrientation, getDPI, getPrintName } from "../store/slices/print";
 import { getUIMode } from "../store/slices/ui";
 import { createRoot } from "react-dom/client";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -15,6 +15,9 @@ export const useDrawRectangle = (printCb, printOffCb) => {
   const map = routedMapRef?.leafletMap?.leafletElement;
   const mode = useSelector(getUIMode);
   const orientation = useSelector(getOrientation);
+  const dpi = useSelector(getDPI);
+  const printName = useSelector(getPrintName);
+
   const [lastOrientation, setlastOrientation] = useState(orientation);
   const bgLayer = useSelector(getBackgroundLayer);
   const layers = useSelector(getLayers);
@@ -65,7 +68,7 @@ export const useDrawRectangle = (printCb, printOffCb) => {
       console.log("xxx layerPrint", layers);
       const layesPrint = getPrintLayers(bgLayer, layers);
 
-      printCb(tranformProj, testScale, layesPrint, orientation);
+      printCb(tranformProj, testScale, layesPrint, orientation, dpi, printName);
     });
 
     const closeButtonContainer = L.DomUtil.create(
@@ -139,5 +142,5 @@ export const useDrawRectangle = (printCb, printOffCb) => {
     } else if (map && mode !== "print") {
       removeRectangle();
     }
-  }, [map, mode, orientation, layers]);
+  }, [map, mode, orientation, layers, dpi, printName]);
 };

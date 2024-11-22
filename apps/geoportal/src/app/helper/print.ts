@@ -1,5 +1,13 @@
-export const printMap = async (center, scale, layers, orientation) => {
+export const printMap = async (
+  center,
+  scale,
+  layers,
+  orientation,
+  dpi,
+  name
+) => {
   const { url, title } = getOrientationTemplateParams(orientation);
+  console.log("xxx dpi", dpi);
   const data = {
     layout: title,
     attributes: {
@@ -9,9 +17,9 @@ export const printMap = async (center, scale, layers, orientation) => {
         rotation: 0,
         longitudeFirst: true,
         layers,
-        scale: 4000,
+        scale,
         projection: "EPSG:3857",
-        dpi: 100,
+        dpi,
       },
     },
   };
@@ -26,7 +34,7 @@ export const printMap = async (center, scale, layers, orientation) => {
 
     const a = document.createElement("a");
     a.href = urlBlob;
-    a.download = "debug.pdf";
+    a.download = name;
     a.click();
 
     URL.revokeObjectURL(urlBlob);
