@@ -343,6 +343,10 @@ const onSelectionChangedVector = (
   }
 
   if (e.hits && layer.queryable) {
+    const uniqueHits = e.hits.filter(
+      (hit, index) => e.hits.findIndex((h) => h.id === hit.id) === index
+    );
+
     const selectedVectorFeature = e.hits[0];
 
     const coordinates = getCoordinates(selectedVectorFeature.geometry);
@@ -461,7 +465,7 @@ export const createCismapLayers = (
             type: "vector",
             selectionEnabled: true,
             manualSelectionManagement: true,
-            maxSelectionCount: modeRef.current === UIMode.FEATURE_INFO ? 10 : 1,
+            maxSelectionCount: 10,
             onSelectionChanged: (e) => {
               if (modeRef.current === UIMode.DEFAULT) {
                 implicitVectorSelection(e, {
