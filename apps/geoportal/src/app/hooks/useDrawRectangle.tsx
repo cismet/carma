@@ -31,8 +31,8 @@ export const useDrawRectangle = (printCb, printOffCb) => {
   };
 
   const addRectangle = (map) => {
-    const pixelWidth = orientation === "landscape" ? 495 : 350;
-    const pixelHeight = orientation === "landscape" ? 350 : 495;
+    const pixelWidth = orientation === "landscape" ? 742 : 525;
+    const pixelHeight = orientation === "landscape" ? 525 : 742;
     const mapContainer = map.getContainer();
     const mapWidth = mapContainer.offsetWidth;
     const mapHeight = mapContainer.offsetHeight;

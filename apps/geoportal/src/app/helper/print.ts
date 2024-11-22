@@ -7,7 +7,6 @@ export const printMap = async (
   name
 ) => {
   const { url, title } = getOrientationTemplateParams(orientation);
-  console.log("xxx dpi", dpi);
   const data = {
     layout: title,
     attributes: {
