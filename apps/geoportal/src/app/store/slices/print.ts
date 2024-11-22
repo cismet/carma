@@ -5,13 +5,13 @@ type DPI = "100" | "200" | "300";
 export type PrintState = {
   orientation: PrintOrientation;
   dpi: DPI;
-  scale: string;
+  name: string;
 };
 
 const initialState: PrintState = {
   orientation: "portrait",
   dpi: "100",
-  scale: "4000",
+  name: "map",
 };
 
 const slice = createSlice({
@@ -24,15 +24,15 @@ const slice = createSlice({
     changeDPI(state, action: PayloadAction<DPI>) {
       state.dpi = action.payload;
     },
-    changeScale(state, action: PayloadAction<string>) {
-      state.scale = action.payload;
+    changePrintName(state, action: PayloadAction<string>) {
+      state.name = action.payload;
     },
   },
 });
 
-export const { changeOrientation, changeDPI, changeScale } = slice.actions;
+export const { changeOrientation, changeDPI, changePrintName } = slice.actions;
 export const getOrientation = (state: RootState) => state.print.orientation;
 export const getDPI = (state: RootState) => state.print.dpi;
-export const getScale = (state: RootState) => state.print.scale;
+export const getPrintName = (state: RootState) => state.print.name;
 
 export default slice.reducer;

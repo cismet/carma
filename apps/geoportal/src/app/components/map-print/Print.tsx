@@ -10,8 +10,8 @@ import {
   changeOrientation,
   getDPI,
   changeDPI,
-  getScale,
-  changeScale,
+  getPrintName,
+  changePrintName,
 } from "../../store/slices/print";
 import { useSelector, useDispatch } from "react-redux";
 import { setUIMode } from "../../store/slices/ui";
@@ -22,9 +22,9 @@ const Print = ({ setShowPrintPopup }) => {
   const dispatch = useDispatch();
   const currentOrient = useSelector(getOrientation);
   const currentDPI = useSelector(getDPI);
-  const currentScale = useSelector(getScale);
+  const currentName = useSelector(getPrintName);
   const [orientation, setOrientation] = useState(currentOrient);
-  const [scale, setScale] = useState(currentScale);
+  const [scale, setScale] = useState(currentName);
   const [dpi, setDpi] = useState(currentDPI);
   const printInConsoleSettings = () => {
     console.log("xxx orientation", currentOrient);
@@ -45,6 +45,16 @@ const Print = ({ setShowPrintPopup }) => {
         <FontAwesomeIcon icon={faPrint} className="text-xl" />
         <h4 className="mb-0">Drucken</h4>
       </div>
+      <h5 className="mb-0">Name</h5>
+      <Input
+        placeholder={currentName}
+        onChange={(e) => {
+          setScale(e.target.value);
+          dispatch(changePrintName(e.target.value));
+        }}
+      />
+      <hr className="my-0" />
+
       <h5 className="mb-0">Vorlage</h5>
       <Radio.Group onChange={onChange} value={orientation}>
         <div className="flex items-center gap-1">
@@ -52,16 +62,7 @@ const Print = ({ setShowPrintPopup }) => {
           <Radio value={"landscape"}>Querkant</Radio>
         </div>
       </Radio.Group>
-      <hr className="my-0" />
 
-      <h5 className="mb-0">Maßstab</h5>
-      <Input
-        placeholder="4000"
-        onChange={(e) => {
-          setScale(e.target.value);
-          dispatch(changeScale(e.target.value));
-        }}
-      />
       <hr className="my-0" />
       <h5 className="mb-0">DPI</h5>
       <Radio.Group

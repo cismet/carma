@@ -9,7 +9,7 @@ export const printMap = async (center, scale, layers, orientation) => {
         rotation: 0,
         longitudeFirst: true,
         layers,
-        scale,
+        scale: 4000,
         projection: "EPSG:3857",
         dpi: 100,
       },
