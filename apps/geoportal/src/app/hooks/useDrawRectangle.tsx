@@ -7,6 +7,8 @@ import { createRoot } from "react-dom/client";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faXmark } from "@fortawesome/free-solid-svg-icons";
 import proj4 from "proj4";
+import { getBackgroundLayer, getLayers } from "../store/slices/mapping";
+import { getPrintLayers } from "../helper/print";
 
 export const useDrawRectangle = (printCb, printOffCb) => {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
@@ -14,6 +16,8 @@ export const useDrawRectangle = (printCb, printOffCb) => {
   const mode = useSelector(getUIMode);
   const orientation = useSelector(getOrientation);
   const [lastOrientation, setlastOrientation] = useState(orientation);
+  const bgLayer = useSelector(getBackgroundLayer);
+  const layers = useSelector(getLayers);
 
   const removeRectangle = () => {
     const printBtn = document.querySelector(".rectangle-wrapper ");
@@ -50,21 +54,16 @@ export const useDrawRectangle = (printCb, printOffCb) => {
       const { lat, lng } = map.getCenter();
 
       const tranformProj = proj4("EPSG:4326", "EPSG:3857", [lng, lat]);
-      console.log("xxx mapCenter", tranformProj);
 
       const zoomLevel = map.getZoom();
-      console.log("xxx zoomLevel", zoomLevel);
 
       const scale = map.options.crs.scale(zoomLevel);
 
-      // const scale1 = map.getZoomScale(zoomLevel);
       const scale2 = map.getScaleZoom(zoomLevel);
-      console.log("xxx scale", scale);
-      // const testScale = getScaleInKm(zoomLevel);
       const testScale = getScaleInKmExperiment(zoomLevel);
 
-      console.log("xxx test scale", testScale);
-      printCb(tranformProj, testScale);
+      const layesPrint = getPrintLayers(bgLayer, layers);
+      printCb(tranformProj, testScale, layesPrint, orientation);
     });
 
     const closeButtonContainer = L.DomUtil.create(

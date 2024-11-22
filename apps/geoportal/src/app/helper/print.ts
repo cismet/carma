@@ -1,50 +1,14 @@
-export const printMap = async (center, scale) => {
-  const url = "https://mapfish.cismet.de/print/A4_Landscape/buildreport.pdf";
-
+export const printMap = async (center, scale, layers, orientation) => {
+  const { url, title } = getOrientationTemplateParams(orientation);
   const data = {
-    layout: "A4 landscape",
+    layout: title,
     attributes: {
       keywordsAtt: ["map", "example", "metadata"],
       map: {
         center,
         rotation: 0,
         longitudeFirst: true,
-        layers: [
-          //   {
-          //     baseURL: "https://tgl.cismet.de/styles/poi-style/256",
-          //     type: "OSM",
-          //     imageExtension: "png",
-          //     tileMatrixSet: "zxy",
-          //   },
-          //   {
-          //     baseURL: "https://tiles.cismet.de/poi",
-          //     type: "OSM",
-          //     imageExtension: "png",
-          //     tileMatrixSet: "zxy",
-          //   },
-          //   {
-          //     imageFormat: "image/png",
-          //     baseURL: "https://maps.wuppertal.de/karten/",
-          //     customParams: {
-          //       EXCEPTIONS: "INIMAGE",
-          //       TRANSPARENT: "true",
-          //     },
-          //     layers: ["spw2_orange"],
-          //     type: "WMS",
-          //     version: "1.3.0",
-          //   },
-          {
-            imageFormat: "image/png",
-            baseURL: "https://geodaten.metropoleruhr.de/spw2/service",
-            customParams: {
-              EXCEPTIONS: "INIMAGE",
-              TRANSPARENT: "true",
-            },
-            layers: ["spw2_light"],
-            type: "WMS",
-            version: "1.3.0",
-          },
-        ],
+        layers,
         scale,
         projection: "EPSG:3857",
         dpi: 100,
@@ -69,4 +33,72 @@ export const printMap = async (center, scale) => {
   } catch (error) {
     console.log("xxx res", error);
   }
+};
+
+export const getPrintLayers = (bgLayer, layers) => {
+  const allLayers = [...layers, bgLayer];
+  const layerPrint = [];
+  allLayers.forEach((layer) => {
+    const { name, baseURL } = buildUrlWitName(
+      layer.props.url,
+      layer.props.name
+    );
+
+    if (layer.layerType === "wmts") {
+      layerPrint.push(buildWMSPrint(baseURL, name));
+    }
+  });
+
+  return layerPrint;
+};
+
+const buildUrlWitName = (layerUrl, name) => {
+  const url = layerUrl.split("?");
+  if (name === "") {
+    const name = url[1]
+      .split("&")
+      .filter((item) => item.startsWith("LAYER"))[0]
+      .split("=")[1];
+
+    return {
+      name,
+      baseURL: url[0],
+    };
+  }
+  return {
+    name,
+    baseURL: url[0],
+  };
+};
+
+const buildWMSPrint = (baseURL, name) => {
+  const wms = {
+    imageFormat: "image/png",
+    baseURL: baseURL,
+    customParams: {
+      EXCEPTIONS: "INIMAGE",
+      TRANSPARENT: "true",
+    },
+    layers: [name],
+    type: "WMS",
+    version: "1.3.0",
+  };
+
+  return wms;
+};
+
+const getOrientationTemplateParams = (orientation = "portrait") => {
+  const landscape =
+    "https://mapfish.cismet.de/print/A4_Landscape/buildreport.pdf";
+  const portrait =
+    "https://mapfish.cismet.de/print/A4_Portrait/buildreport.pdf";
+  console.log(
+    "xxx orintation",
+    orientation === "portrait" ? portrait : landscape
+  );
+
+  return {
+    url: orientation === "portrait" ? portrait : landscape,
+    title: orientation === "portrait" ? "A4 portrait" : "A4 landscape",
+  };
 };
