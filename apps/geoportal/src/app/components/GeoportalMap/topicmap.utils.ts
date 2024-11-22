@@ -169,7 +169,31 @@ export const onClickTopicMap = async (
         dispatch(clearFeatures());
         dispatch(setInfoTextToNothingFound());
         dispatch(clearVectorInfos());
+        dispatch(
+          setSelectedFeature({
+            properties: {
+              header: "Informationen",
+              headerColor: "#0078a8",
+              subtitle: "(Geogr. Breite und Länge in Dezimalgrad, ETRS89)",
+              title: `Position: ${e.latlng.lat.toFixed(
+                5
+              )}, ${e.latlng.lng.toFixed(5)}`,
+            },
+            id: "information",
+          })
+        );
       } else {
+        filteredResult.push({
+          properties: {
+            header: "Informationen",
+            headerColor: "#0078a8",
+            subtitle: "(Geogr. Breite und Länge in Dezimalgrad, ETRS89)",
+            title: `Position: ${e.latlng.lat.toFixed(
+              5
+            )}, ${e.latlng.lng.toFixed(5)}`,
+          },
+          id: "information",
+        });
         if (preferredLayerId) {
           const preferredLayerIndex = filteredResult.findIndex(
             (feature) => feature.id === preferredLayerId

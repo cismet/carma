@@ -41,7 +41,7 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
   useEffect(() => {
-    if (pos && selectedFeature) {
+    if (pos && selectedFeature && selectedFeature.id !== "information") {
       const updatedLinks = updateUrlWithCoordinates(
         selectedFeature.properties.genericLinks,
         pos
@@ -62,7 +62,7 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
   }, [pos, selectedFeature]);
 
   let links = [];
-  if (selectedFeature) {
+  if (selectedFeature && selectedFeature.id !== "information") {
     links = getActionLinksForFeature(selectedFeature, {
       displaySecondaryInfoAction: !!selectedFeature?.properties?.modal,
       setVisibleStateOfSecondaryInfo: () => {
