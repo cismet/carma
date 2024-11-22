@@ -8,6 +8,7 @@ import {
 import type { Dispatch, Store } from "@reduxjs/toolkit";
 import type { LatLng, Point } from "leaflet";
 import proj4 from "proj4";
+import L from "leaflet";
 
 import CismapLayer from "react-cismap/CismapLayer";
 import { proj4crs25832def } from "react-cismap/constants/gis";
@@ -72,7 +73,6 @@ interface VectorLayerProps {
 type Options = {
   dispatch: Dispatch;
   mode: UIMode;
-  setPos: (pos: [number, number] | null) => void;
   store: Store;
   zoom: number;
 };
@@ -93,7 +93,7 @@ export const onClickTopicMap = async (
     target: HTMLElement;
     type: string;
   },
-  { dispatch, mode, setPos, store, zoom }: Options
+  { dispatch, mode, store, zoom }: Options
 ) => {
   const layers = getLayers(store.getState());
   const queryableLayers = getQueryableLayers(layers, zoom);
@@ -143,17 +143,6 @@ export const onClickTopicMap = async (
         }
       })
       .filter((id) => id !== undefined);
-
-    if (
-      topLayer.layerType !== "vector" ||
-      vectorInfos[vectorInfos.length - 1]?.showMarker ||
-      vectorInfos.length === 0 ||
-      vectorLayers.length === nothingFoundIDsWithoutInvisibleLayers.length
-    ) {
-      setPos([e.latlng.lat, e.latlng.lng]);
-    } else {
-      setPos(null);
-    }
 
     if (queryableLayers && pos[0] && pos[1]) {
       const result = await Promise.all(

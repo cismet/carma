@@ -554,9 +554,7 @@ export const GeoportalMap = () => {
                   dispatch,
                   mode: uiMode,
                   store,
-                  setPos,
                   zoom: getLeafletZoom(),
-                  map: routedMap.leafletMap.leafletElement,
                 });
               }}
               gazetteerSearchComponent={<></>}
