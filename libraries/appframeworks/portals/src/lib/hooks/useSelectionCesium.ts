@@ -15,7 +15,7 @@ import { carmaHitTrigger } from "../utils/carmaHitTrigger";
 export const SELECTED_POLYGON_ID = "searchgaz-highlight-polygon";
 export const INVERTED_SELECTED_POLYGON_ID = "searchgaz-inverted-polygon";
 
-const NEW_SELECTION_TIMEOUT = 500;
+const NEW_SELECTION_TIMEOUT = 100;
 
 const cleanUpCesium = (
   viewerRef: MutableRefObject<Viewer | null>,
@@ -41,7 +41,7 @@ export const useSelectionCesium = (
   const { viewerRef } = useCesiumContext();
   const { selection } = useSelection();
   const lastSelectionKey = useRef<number | null>(null);
-
+  const lastSelectionTimestamp = useRef<number | null>(null);
   const [selectedCesiumEntityData, setSelectedCesiumEntityData] =
     useState<EntityData | null>(null);
 
@@ -53,11 +53,15 @@ export const useSelectionCesium = (
     }
 
     if (selection) {
-      if (lastSelectionKey.current === selection.sorter) {
+      if (
+        lastSelectionKey.current === selection.sorter &&
+        lastSelectionTimestamp.current === selection.selectionTimestamp
+      ) {
         console.debug("HOOK: useSelectionTopicMap - same selection, skipping");
         return;
       }
       lastSelectionKey.current = selection.sorter;
+      lastSelectionTimestamp.current = selection.selectionTimestamp;
 
       const isNewSelection =
         selection?.selectionTimestamp &&

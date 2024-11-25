@@ -23,13 +23,12 @@ const SelectionContext = createContext<SelectionContextType | undefined>(
 );
 
 export const areSelectionsEqual = (
-  a: SearchResultItem | SelectionItem | null,
-  b: SearchResultItem | SelectionItem | null
+  a: SelectionItem | null,
+  b: SelectionItem | null
 ): boolean => {
   if (a === b) return true;
   if (!a || !b) return false;
-  console.debug("TEST: areSelectionsEqual", a, b);
-  return a.sorter === b.sorter;
+  return a.sorter === b.sorter && a.selectionTimestamp === b.selectionTimestamp;
 };
 
 interface SelectionProviderProps {

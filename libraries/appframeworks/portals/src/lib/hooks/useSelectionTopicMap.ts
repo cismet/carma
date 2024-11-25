@@ -5,11 +5,12 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { useSelection } from "../components/SelectionProvider";
 
-const NEW_SELECTION_TIMEOUT = 500;
+const NEW_SELECTION_TIMEOUT = 100;
 
 export const useSelectionTopicMap = () => {
   const { selection, setSelection, setOverlayFeature } = useSelection();
   const lastSelectionKey = useRef<number | null>(null);
+  const lastSelectionTimestamp = useRef<number | null>(null);
 
   const topicMapCtx = useContext<typeof TopicMapContext>(TopicMapContext);
 
@@ -31,11 +32,15 @@ export const useSelectionTopicMap = () => {
 
   useEffect(() => {
     if (selection) {
-      if (lastSelectionKey.current === selection.sorter) {
+      if (
+        lastSelectionKey.current === selection.sorter &&
+        lastSelectionTimestamp.current === selection.selectionTimestamp
+      ) {
         console.debug("HOOK: useSelectionTopicMap - same selection, skipping");
         return;
       }
       lastSelectionKey.current = selection.sorter;
+      lastSelectionTimestamp.current = selection.selectionTimestamp;
       const isNewSelection =
         selection?.selectionTimestamp &&
         Date.now() - selection.selectionTimestamp < NEW_SELECTION_TIMEOUT;
