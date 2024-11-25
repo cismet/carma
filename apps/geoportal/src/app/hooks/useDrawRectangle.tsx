@@ -7,6 +7,7 @@ import {
   getPrintName,
   getIsLoading,
   changeIsLoading,
+  getScale,
 } from "../store/slices/print";
 import { getUIMode } from "../store/slices/ui";
 import { createRoot } from "react-dom/client";
@@ -29,6 +30,7 @@ export const useDrawRectangle = (printCb, printOffCb) => {
   const bgLayer = useSelector(getBackgroundLayer);
   const layers = useSelector(getLayers);
   const loading = useSelector(getIsLoading);
+  const scale = useSelector(getScale);
 
   const handleIsLoading = (status) => {
     dispatch(changeIsLoading(status));
@@ -41,7 +43,7 @@ export const useDrawRectangle = (printCb, printOffCb) => {
 
     const zoomLevel = map.getZoom();
 
-    const scale = map.options.crs.scale(zoomLevel);
+    // const scale = map.options.crs.scale(zoomLevel);
 
     const scale2 = map.getScaleZoom(zoomLevel);
     const testScale = getScaleInKmExperiment(zoomLevel);
@@ -50,7 +52,7 @@ export const useDrawRectangle = (printCb, printOffCb) => {
 
     printCb(
       tranformProj,
-      testScale,
+      scale,
       layesPrint,
       orientation,
       dpi,
@@ -166,5 +168,5 @@ export const useDrawRectangle = (printCb, printOffCb) => {
     } else if (map && mode !== "print") {
       removeRectangle();
     }
-  }, [map, mode, orientation, layers, dpi, printName, loading]);
+  }, [map, mode, orientation, layers, dpi, printName, loading, scale]);
 };

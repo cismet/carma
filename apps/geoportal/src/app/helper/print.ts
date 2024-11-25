@@ -7,7 +7,7 @@ export const printMap = async (
   name,
   handleIsLoading
 ) => {
-  console.log("xxx layers", layers);
+  console.log("xxx scale", scale);
   const { url, title } = getOrientationTemplateParams(orientation);
   const data = {
     layout: title,
@@ -18,7 +18,7 @@ export const printMap = async (
         rotation: 0,
         longitudeFirst: true,
         layers,
-        scale: 2500,
+        scale,
         projection: "EPSG:3857",
         dpi,
       },
@@ -176,5 +176,9 @@ export const scaleOptions = [
   {
     value: "250000",
     label: "1 : 250 000",
+  },
+  {
+    value: "500000",
+    label: "1 : 500 000",
   },
 ];
