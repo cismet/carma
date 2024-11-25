@@ -51,6 +51,11 @@ html {
   margin-top: 4px;
 }
 
+.rectangle-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .rectangle-prev {
   background-color: #123c6a;
   border-radius: 4px;

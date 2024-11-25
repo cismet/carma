@@ -7,11 +7,20 @@ const PrintButton = ({ hadlerStartPrint, loading }) => {
   }, [loading]);
   return (
     <div>
-      {loading && (
-        <Spin indicator={<LoadingOutlined spin />} className="mr-2" />
-      )}
-      <button className="rectangle-button ml-auto" onClick={hadlerStartPrint}>
-        Print
+      <button
+        className="rectangle-button ml-auto"
+        onClick={hadlerStartPrint}
+        disabled={loading}
+      >
+        {loading ? (
+          <Spin
+            indicator={<LoadingOutlined spin />}
+            className="mr-2 "
+            size="small"
+          />
+        ) : (
+          "Print"
+        )}
       </button>
     </div>
   );
