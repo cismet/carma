@@ -213,7 +213,10 @@ export const onClickTopicMap = async (
         dispatch(clearVectorInfos());
       }
     }
-  } else {
+  } else if (
+    mode === UIMode.FEATURE_INFO &&
+    !getAtLeastOneLayerIsQueryable(layers, zoom)
+  ) {
     dispatch(
       setSelectedFeature({
         properties: {
