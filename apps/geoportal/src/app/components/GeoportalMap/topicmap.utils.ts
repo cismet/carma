@@ -345,9 +345,9 @@ const implicitVectorSelection = (
           header: "Information",
           headerColor: "#0078a8",
           title: "Zu diesem Objekt sind keine weiteren Sachdaten verfügbar.",
-          additionalInfo: `Position: ${coordinates[0].toFixed(
+          additionalInfo: `Position: ${coordinates[1].toFixed(
             5
-          )}, ${coordinates[1].toFixed(5)}`,
+          )}, ${coordinates[0].toFixed(5)}`,
           subtitle: "(Geogr. Breite und Länge in Dezimalgrad, ETRS89)",
         },
         id: "information",
