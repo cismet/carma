@@ -38,9 +38,9 @@ const Print = ({ setShowPrintPopup }) => {
     <div className="p-2 flex flex-col gap-3" ref={printPopupRef}>
       <div className="flex items-center gap-2">
         <FontAwesomeIcon icon={faPrint} className="text-xl" />
-        <h4 className="mb-0">Drucken</h4>
+        <h4 className="mb-0">Print</h4>
       </div>
-      <h5 className="mb-0">Name</h5>
+      <h5 className="mb-0">Dateiname</h5>
       <Input
         placeholder={currentName}
         onChange={(e) => {
