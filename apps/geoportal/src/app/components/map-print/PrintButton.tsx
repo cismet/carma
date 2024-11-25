@@ -1,10 +1,6 @@
-import { useEffect } from "react";
 import { LoadingOutlined } from "@ant-design/icons";
 import { Spin } from "antd";
 const PrintButton = ({ hadlerStartPrint, loading }) => {
-  useEffect(() => {
-    console.log("xxx isloading comp", loading);
-  }, [loading]);
   return (
     <div>
       <button

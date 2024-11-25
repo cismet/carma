@@ -46,7 +46,6 @@ export const useDrawRectangle = (printCb, printOffCb) => {
     const scale2 = map.getScaleZoom(zoomLevel);
     const testScale = getScaleInKmExperiment(zoomLevel);
 
-    console.log("xxx layerPrint", layers);
     const layesPrint = getPrintLayers(bgLayer, layers);
 
     printCb(
@@ -77,8 +76,6 @@ export const useDrawRectangle = (printCb, printOffCb) => {
 
     const left = (mapWidth - pixelWidth) / 2;
     const top = (mapHeight - pixelHeight) / 2;
-
-    console.log("xxx pixel widths", pixelWidth * 0.9, pixelHeight * 0);
 
     const wrapper = L.DomUtil.create("div", "rectangle-wrapper");
     wrapper.style.position = "absolute";

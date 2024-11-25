@@ -119,10 +119,6 @@ const getOrientationTemplateParams = (orientation = "portrait") => {
     "https://mapfish.cismet.de/print/A4_Landscape/buildreport.pdf";
   const portrait =
     "https://mapfish.cismet.de/print/A4_Portrait/buildreport.pdf";
-  console.log(
-    "xxx orintation",
-    orientation === "portrait" ? portrait : landscape
-  );
 
   return {
     url: orientation === "portrait" ? portrait : landscape,
