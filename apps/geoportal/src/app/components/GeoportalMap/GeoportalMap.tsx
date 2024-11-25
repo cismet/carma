@@ -232,9 +232,7 @@ export const GeoportalMap = () => {
     useContext<typeof UIDispatchContext>(UIDispatchContext);
   const { setSecondaryWithKey } = useContext(OverlayTourContext);
 
-  const [gazetteerHit, setGazetteerHit] = useState(null);
   const [marker, setMarker] = useState(undefined);
-  const [overlayFeature, setOverlayFeature] = useState(null);
   const [pos, setPos] = useState<[number, number] | null>(null);
   const [isSameLayerTypes, setIsSameLayerTypes] = useState(true);
   const [layoutHeight, setLayoutHeight] = useState(null);
