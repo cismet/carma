@@ -305,7 +305,8 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
         "HOOK: update Hash, route or style changed",
         isSecondaryStyle
       );
-      onSceneChange && onSceneChange(encodeScene(viewer, { isSecondaryStyle }));
+      onSceneChange &&
+        onSceneChange(encodeScene(viewer.scene, { isSecondaryStyle }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewerRef, location.pathname, isSecondaryStyle]);
@@ -339,7 +340,7 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
     const moveEndListener = async () => {
       if (viewer?.camera.position) {
         console.debug("LISTENER: moveEndListener", isSecondaryStyle);
-        const encodedScene = encodeScene(viewer, { isSecondaryStyle });
+        const encodedScene = encodeScene(viewer.scene, { isSecondaryStyle });
 
         // let TopicMap/leaflet handle the view change in 2d Mode
         !isMode2d && onSceneChange && onSceneChange(encodedScene);

@@ -55,6 +55,12 @@ export const DEFAULT_HOST = "https://wupp-topicmaps-data.cismet.de";
 export const DEFAULT_PROJ = "3857";
 export const DEFAULT_NRW_PROJ = "25832";
 
+const AREA_ENDPOINTS = [ENDPOINT.BEZIRKE, ENDPOINT.QUARTIERE];
+
+export const isAreaType = (endpoint: ENDPOINT) => {
+  return AREA_ENDPOINTS.includes(endpoint);
+};
+
 export const createGazEndpointUri = (
   endpoint: ENDPOINT,
   { crs, host }: EndpointOptions

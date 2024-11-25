@@ -9,13 +9,13 @@ import {
   selectViewerIsMode2d,
 } from "../slices/cesium";
 
-import { useCesiumViewer } from "./useCesiumViewer";
 import { EncodedSceneParams } from "../..";
+import { useCesiumContext } from "./useCesiumContext";
 
 export const useOnSceneChange = (
   onSceneChange?: (p: EncodedSceneParams) => void
 ) => {
-  const viewer = useCesiumViewer();
+  const { viewerRef } = useCesiumContext();
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
   const isMode2d = useSelector(selectViewerIsMode2d);
 
@@ -25,13 +25,17 @@ export const useOnSceneChange = (
   console.debug("HOOKINIT [CESIUM|HASH] useCesiumHashUpdater");
 
   useEffect(() => {
-    if (viewer && !isMode2d) {
+    const viewer = viewerRef.current;
+    if (viewer && viewer.scene && !isMode2d) {
       console.debug(
         "HOOK: update Hash, route or style changed",
         isSecondaryStyle
       );
 
-      const encodedScene = encodeScene(viewer, { isSecondaryStyle, isMode2d });
+      const encodedScene = encodeScene(viewer.scene, {
+        isSecondaryStyle,
+        isMode2d,
+      });
 
       if (onSceneChange) {
         onSceneChange(encodedScene);
@@ -40,27 +44,30 @@ export const useOnSceneChange = (
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewer, isMode2d, isSecondaryStyle]);
+  }, [viewerRef, isMode2d, isSecondaryStyle]);
 
   useEffect(() => {
     // update hash hook
-    if (viewer) {
+    const viewer = viewerRef.current;
+    if (viewer && viewer.scene) {
       console.debug(
         "HOOK: [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to update hash"
       );
       const moveEndListener = async () => {
         // let TopicMap/leaflet handle the view change in 2d Mode
-        if (viewer && viewer.camera.position && !isMode2d) {
+        if (viewer.scene && viewer.camera.position && !isMode2d) {
           const camDeg = cameraToCartographicDegrees(viewer.camera);
           console.debug(
             "LISTENER: Cesium moveEndListener encode viewer to hash",
             isSecondaryStyle,
             camDeg
           );
-          const encodedScene = encodeScene(viewer, {
-            isSecondaryStyle,
-            isMode2d,
-          });
+          const encodedScene =
+            viewer.scene &&
+            encodeScene(viewer.scene, {
+              isSecondaryStyle,
+              isMode2d,
+            });
           if (onSceneChange) {
             onSceneChange(encodedScene);
           } else {
@@ -68,12 +75,14 @@ export const useOnSceneChange = (
           }
         }
       };
-      viewer.camera.moveEnd.addEventListener(moveEndListener);
+      viewer.scene.camera.moveEnd.addEventListener(moveEndListener);
       return () => {
-        viewer && viewer.camera.moveEnd.removeEventListener(moveEndListener);
+        viewer &&
+          viewer.scene &&
+          viewer.scene.camera.moveEnd.removeEventListener(moveEndListener);
       };
     }
-  }, [viewer, isSecondaryStyle, isMode2d, onSceneChange]);
+  }, [viewerRef, isSecondaryStyle, isMode2d, onSceneChange]);
 };
 
 export default useOnSceneChange;

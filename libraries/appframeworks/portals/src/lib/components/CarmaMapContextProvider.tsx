@@ -18,6 +18,7 @@ import {
 } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { GazDataProvider } from "./GazDataProvider";
+import { SelectionProvider } from "./SelectionProvider";
 
 type CarmaMapProviderProps = {
   children: React.ReactNode;
@@ -26,8 +27,6 @@ type CarmaMapProviderProps = {
 };
 
 type CarmaMapContextType = {
-  topicMapCtx?: typeof TopicMapContext;
-  cesiumCtx?: CesiumContextType;
   setShowTourOverlay: Dispatch<SetStateAction<boolean>>;
 };
 
@@ -41,23 +40,7 @@ export const useCarmaMapContext = () => {
       "useCarmaMapContext must be used within a CarmaMapProvider"
     );
   }
-  const { setShowTourOverlay } = context;
-  // forward other contexts here if needed
-  const topicMapContext = useContext<typeof TopicMapContext>(TopicMapContext);
-  const cesiumContext = useCesiumContext();
-
-  const combinedContext = useMemo(
-    () => ({
-      setShowTourOverlay,
-      topicMapCtx: topicMapContext,
-      cesiumCtx: cesiumContext,
-      //routedMapRef: topicMapContext.realRoutedMapRef,
-      //realRoutedMapRef: undefined,
-    }),
-    [setShowTourOverlay, topicMapContext, cesiumContext]
-  );
-
-  return combinedContext;
+  return context;
 };
 
 export const CarmaMapContextProvider = ({
@@ -80,25 +63,27 @@ export const CarmaMapContextProvider = ({
 
   return (
     <GazDataProvider>
-      <TopicMapContextProvider>
-        <OverlayTourProvider
-          show={showTourOverlay}
-          closeOverlay={closeOverlay}
-          transparency={transparency}
-          color={color}
-        >
-          <CesiumContextProvider
-            //initialViewerState={defaultCesiumState}
-            // TODO move these to store/slice setup ?
-            providerConfig={cesiumOptions.providerConfig}
-            tilesetConfigs={cesiumOptions.tilesetConfigs}
+      <SelectionProvider>
+        <TopicMapContextProvider>
+          <OverlayTourProvider
+            show={showTourOverlay}
+            closeOverlay={closeOverlay}
+            transparency={transparency}
+            color={color}
           >
-            <CarmaMapContext.Provider value={value}>
-              {children}
-            </CarmaMapContext.Provider>
-          </CesiumContextProvider>
-        </OverlayTourProvider>
-      </TopicMapContextProvider>
+            <CesiumContextProvider
+              //initialViewerState={defaultCesiumState}
+              // TODO move these to store/slice setup ?
+              providerConfig={cesiumOptions.providerConfig}
+              tilesetConfigs={cesiumOptions.tilesetConfigs}
+            >
+              <CarmaMapContext.Provider value={value}>
+                {children}
+              </CarmaMapContext.Provider>
+            </CesiumContextProvider>
+          </OverlayTourProvider>
+        </TopicMapContextProvider>
+      </SelectionProvider>
     </GazDataProvider>
   );
 };

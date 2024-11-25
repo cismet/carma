@@ -1,32 +1,16 @@
-import L from "leaflet";
-import type { MutableRefObject, RefObject } from "react";
-import { Viewer } from "cesium";
-import { CesiumOptions } from "@carma-mapping/cesium-engine";
-
-type mapRefType = RefObject<{
-  current: { leafletMap: { leafletElement: L.Map } };
-}>;
+import { GazDataItem } from "@carma-commons/utils";
 
 export type SearchGazetteerProps = {
-  gazData?: any;
-  setGazetteerHit: (hit: any) => void;
-  gazetteerHit: any;
-  mapRef?: L.Map.leafletMap.leafletElement;
-  cesiumViewerRef?: MutableRefObject<Viewer | null>;
-  //overlayFeature: any;
-  setOverlayFeature: (feature: any) => void;
-  //crs?: string;
-  referenceSystem: any;
-  referenceSystemDefinition: any;
+  gazData?: GazDataItem[];
+  onSelection: (hit: SearchResultItem | null) => void;
+  //referenceSystem: undefined;
+  //referenceSystemDefinition: undefined;
   stopwords?: string[];
   pixelwidth?: number;
   ifShowCategories?: boolean;
   placeholder?: string;
   config?: SearchConfig;
-  cesiumOptions?: CesiumOptions;
 };
-
-export type MapConsumer = L.Map | Viewer;
 interface MoreData {
   zl: number;
   pid: number;
@@ -53,7 +37,7 @@ export interface Option {
   sData: SearchResultItem;
   options?: Option[];
 }
-export interface GruppedOptions {
+export interface GroupedOptions {
   label?: JSX.Element;
   options?: Option[];
 }
@@ -63,6 +47,6 @@ export type SearchConfig = {
   ifShowScore?: boolean;
   limit?: number;
   cut?: number;
-  distance?: number;
+  distance?: number; // in CRS units
   threshold?: number;
 };

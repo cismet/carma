@@ -24,14 +24,18 @@ import {
 
 import PaleOverlay from "react-cismap/PaleOverlay";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
-import GazetteerHitDisplay from "react-cismap/GazetteerHitDisplay";
-import { ProjSingleGeoJson } from "react-cismap/ProjSingleGeoJson";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
 import {
   replaceHashRoutedHistory,
+  SelectionMetaData,
+  TopicMapSelectionContent,
   useCarmaMapContext,
+  useSelection,
+  useSelectionCesium,
+  useSelectionTopicMap,
 } from "@carma-apps/portals";
 import {
   getCollabedHelpComponentConfig,
@@ -63,7 +67,7 @@ import {
   useZoomControls as useZoomControlsCesium,
   setCurrentSceneStyle,
 } from "@carma-mapping/cesium-engine";
-import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
+import { LibFuzzySearch, SearchResultItem } from "@carma-mapping/fuzzy-search";
 
 import versionData from "../../../version.json";
 
@@ -116,6 +120,7 @@ import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 
 import "../leaflet.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
+import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;
@@ -215,23 +220,15 @@ export const GeoportalMap = () => {
     )
   );
 
-  const { topicMapCtx, setShowTourOverlay } = useCarmaMapContext();
-
-  const {
-    routedMapRef: routedMap,
-    //realRoutedMapRef: routedMapRef,
-    referenceSystem,
-    referenceSystemDefinition,
-    maskingPolygon,
-  } = topicMapCtx;
+  const { setShowTourOverlay } = useCarmaMapContext();
+  const { routedMapRef: routedMap } =
+    useContext<typeof TopicMapContext>(TopicMapContext);
 
   const { setAppMenuVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
   const { setSecondaryWithKey } = useContext(OverlayTourContext);
 
-  const [gazetteerHit, setGazetteerHit] = useState(null);
   const [marker, setMarker] = useState(undefined);
-  const [overlayFeature, setOverlayFeature] = useState(null);
   const [pos, setPos] = useState<[number, number] | null>(null);
   const [isSameLayerTypes, setIsSameLayerTypes] = useState(true);
   const [layoutHeight, setLayoutHeight] = useState(null);
@@ -257,6 +254,43 @@ export const GeoportalMap = () => {
   };
 
   useFeatureInfoModeCursorStyle();
+
+  const { setSelection } = useSelection();
+
+  useSelectionTopicMap();
+  useSelectionCesium(
+    !isMode2d,
+    useMemo(
+      () => ({
+        markerAsset,
+        markerAnchorHeight,
+        isPrimaryStyle: showPrimaryTileset,
+        surfaceProviderRef,
+        terrainProviderRef,
+      }),
+      [
+        markerAsset,
+        markerAnchorHeight,
+        showPrimaryTileset,
+        surfaceProviderRef,
+        terrainProviderRef,
+      ]
+    )
+  );
+
+  const onGazetteerSelection = (selection: SearchResultItem) => {
+    if (!selection) {
+      console.debug("onGazetteerSelection", selection);
+      setSelection(null);
+      return;
+    }
+    const selectionMetaData: SelectionMetaData = {
+      selectedFrom: "gazetteer",
+      selectionTimestamp: Date.now(),
+      isAreaSelection: isAreaType(selection.type as ENDPOINT),
+    };
+    setSelection(Object.assign({}, selection, selectionMetaData));
+  };
 
   useEffect(() => {
     let isSame = true;
@@ -321,7 +355,7 @@ export const GeoportalMap = () => {
 
   // TODO Move out Controls to own component
 
-  console.debug("RENDER: [GEOPORTAL] MAP");
+  console.debug("RENDER: [GEOPORTAL] MAP", isMode2d);
   rerenderCountRef.current++;
   lastRenderIntervalRef.current = Date.now() - lastRenderTimeStampRef.current;
   lastRenderTimeStampRef.current = Date.now();
@@ -487,20 +521,9 @@ export const GeoportalMap = () => {
         >
           <LibFuzzySearch
             gazData={gazData}
-            mapRef={routedMap}
-            cesiumViewerRef={viewerRef}
-            cesiumOptions={{
-              markerAsset,
-              markerAnchorHeight,
-              isPrimaryStyle: showPrimaryTileset,
-              surfaceProviderRef,
-              terrainProviderRef,
-            }}
-            referenceSystem={referenceSystem}
-            referenceSystemDefinition={referenceSystemDefinition}
-            gazetteerHit={gazetteerHit}
-            setGazetteerHit={setGazetteerHit}
-            setOverlayFeature={setOverlayFeature}
+            //referenceSystem={referenceSystem}
+            //referenceSystemDefinition={referenceSystemDefinition}
+            onSelection={onGazetteerSelection}
             placeholder="Wohin?"
           />
         </div>
@@ -566,22 +589,11 @@ export const GeoportalMap = () => {
               zoomSnap={LEAFLET_CONFIG.zoomSnap}
               zoomDelta={LEAFLET_CONFIG.zoomDelta}
             >
+              <TopicMapSelectionContent />
               {backgroundLayer &&
                 backgroundLayer.visible &&
                 getBackgroundLayers({ layerString: backgroundLayer.layers })}
-              {overlayFeature && (
-                <ProjSingleGeoJson
-                  key={JSON.stringify(overlayFeature)}
-                  geoJson={overlayFeature}
-                  masked={true}
-                  maskingPolygon={maskingPolygon}
-                  mapRef={routedMap}
-                />
-              )}
-              <GazetteerHitDisplay
-                key={"gazHit" + JSON.stringify(gazetteerHit)}
-                gazetteerHit={gazetteerHit}
-              />
+
               {focusMode && <PaleOverlay />}
               {createCismapLayers(layers, {
                 mode: uiMode,
@@ -600,7 +612,7 @@ export const GeoportalMap = () => {
                 left: 0,
                 right: 0,
                 bottom: 0,
-                zIndex: 401,
+                zIndex: 400,
                 opacity: isMode2d ? 0 : 1,
                 transition: `opacity ${CESIUM_CONFIG.transitions.mapMode.duration}ms ease-in-out`,
                 pointerEvents: isMode2d ? "none" : "auto",

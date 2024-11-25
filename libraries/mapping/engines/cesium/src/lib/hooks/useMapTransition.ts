@@ -1,5 +1,5 @@
 import { useContext, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 
 import { Cartesian3, defined, HeadingPitchRange } from "cesium";
 
@@ -11,7 +11,6 @@ import {
   setTransitionTo2d,
   setTransitionTo3d,
   clearTransition,
-  selectViewerIsTransitioning,
 } from "../slices/cesium";
 
 import { animateInterpolateHeadingPitchRange } from "../utils/cesiumAnimations";
@@ -37,13 +36,10 @@ export const useMapTransition = ({
 }: TransitionOptions = {}) => {
   const dispatch = useDispatch();
   const topicMapContext = useContext<typeof TopicMapContext>(TopicMapContext);
+  const { realRoutedMapRef: routedMapRef } = topicMapContext;
 
   const { viewerRef, surfaceProviderRef, terrainProviderRef } =
     useCesiumContext();
-  const viewer = viewerRef.current;
-  const surfaceProvider = surfaceProviderRef.current;
-  const terrainProvider = terrainProviderRef.current;
-  const leaflet = topicMapContext.routedMapRef?.leafletMap?.leafletElement;
 
   if (duration === undefined) {
     duration = DEFAULT_MODE_2D_3D_CHANGE_FADE_DURATION;
@@ -52,13 +48,17 @@ export const useMapTransition = ({
   const [prevHPR, setPrevHPR] = useState<HeadingPitchRange | null>(null);
   const [prevDuration, setPrevDuration] = useState<number>(0);
 
-  const isTransitioning = useSelector(selectViewerIsTransitioning);
-
   const transitionToMode3d = async () => {
-    if (!viewer || !leaflet) {
+    if (
+      !viewerRef.current ||
+      !routedMapRef.current?.leafletMap?.leafletElement
+    ) {
       console.warn("cesium or leaflet not available");
       return null;
     }
+
+    const viewer = viewerRef.current;
+    const leaflet = routedMapRef.current?.leafletMap?.leafletElement;
 
     // cancel any ongoing flight
     viewer.camera.cancelFlight();
@@ -101,20 +101,24 @@ export const useMapTransition = ({
     await leafletToCesium(leaflet, viewer, {
       cause: "SwitchMapMode to 3d",
       onComplete: () => setTimeout(onCompleteAnimatedTo3d, 100),
-      terrainProvider,
-      surfaceProvider,
+      terrainProviderRef,
+      surfaceProviderRef,
     });
   };
 
   const transitionToMode2d = () => {
-    if (!leaflet) {
+    if (!routedMapRef.current?.leafletMap?.leafletElement) {
       console.warn("leaflet not available no transition possible [zoom]");
       return null;
     }
-    if (!viewer) {
+    if (!viewerRef.current) {
       console.warn("cesium not available no transition possible [zoom]");
       return null;
     }
+
+    const viewer = viewerRef.current;
+    const leaflet = routedMapRef.current?.leafletMap?.leafletElement;
+
     dispatch(setTransitionTo2d());
     const groundPos = pickViewerCanvasCenter(viewer).scenePosition;
     let height = viewer.camera.positionCartographic.height;
@@ -213,7 +217,6 @@ export const useMapTransition = ({
       dispatch(clearTransition());
     }
   };
-
   return { transitionToMode2d, transitionToMode3d };
 };
 

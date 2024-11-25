@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, RefObject } from "react";
+import { useEffect, useState, useRef } from "react";
 import type { IFuseOptions } from "fuse.js";
 import Fuse from "fuse.js";
 import { AutoComplete, Button } from "antd";
@@ -6,16 +6,8 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faLocationDot } from "@fortawesome/free-solid-svg-icons";
 import type { BaseSelectRef } from "rc-select";
 
-import { builtInGazetteerHitTrigger } from "react-cismap/tools/gazetteerHelper";
 import IconComp from "react-cismap/commons/Icon";
 
-import {
-  EntityData,
-  removeCesiumMarker,
-  removeGroundPrimitiveById,
-} from "@carma-mapping/cesium-engine";
-
-import { carmaHitTrigger } from "./utils/carmaHitTrigger";
 import {
   generateOptions,
   limitSearchResult,
@@ -29,44 +21,21 @@ import {
   SearchResultItem,
   SearchGazetteerProps,
   Option,
-  GruppedOptions,
-  MapConsumer,
-  SELECTED_POLYGON_ID,
-  INVERTED_SELECTED_POLYGON_ID,
+  GroupedOptions,
 } from "..";
 import { stopwords as stopwordsDe } from "./config/stopwords.de-de";
 
 import "./fuzzy-search.css";
-import { Viewer } from "cesium";
 
 interface FuseWithOption<T> extends Fuse<T> {
   options?: IFuseOptions<T>;
 }
 
-const cleanUpCesium = (
-  viewer: Viewer,
-  selectedCesiumEntityData: EntityData | null,
-  setSelectedCesiumEntityData: (data: EntityData | null) => void
-) => {
-  if (selectedCesiumEntityData) {
-    removeCesiumMarker(viewer, selectedCesiumEntityData);
-    setSelectedCesiumEntityData(null);
-  }
-  viewer.entities.removeById(SELECTED_POLYGON_ID);
-  removeGroundPrimitiveById(viewer, INVERTED_SELECTED_POLYGON_ID);
-  viewer.scene.requestRender(); // explicit render for requestRenderMode;
-};
-
 export function LibFuzzySearch({
   gazData,
-  setGazetteerHit,
-  // gazetteerHit,
-  // overlayFeature,
-  mapRef,
-  cesiumViewerRef,
-  setOverlayFeature,
-  referenceSystem,
-  referenceSystemDefinition,
+  onSelection,
+  //referenceSystem,
+  //referenceSystemDefinition,
   stopwords = stopwordsDe,
   pixelwidth = 300,
   ifShowCategories: standardSearch = false,
@@ -79,13 +48,12 @@ export function LibFuzzySearch({
     distance: 100,
     threshold: 0.5,
   },
-  cesiumOptions,
 }: SearchGazetteerProps) {
   const [options, setOptions] = useState<Option[]>([]);
-  const [showCategories, setSfStandardSearch] = useState(standardSearch);
+  const [showCategories, setShowCategories] = useState(standardSearch);
   const { prepoHandling, ifShowScore, limit, cut, distance, threshold } =
     getDefaultSearchConfig(config);
-  const _gazetteerHitTrigger = undefined;
+
   const inputStyle = {
     width: "calc(100% - 32px)",
     borderTopLeftRadius: 0,
@@ -93,33 +61,13 @@ export function LibFuzzySearch({
   const autoCompleteRef = useRef<BaseSelectRef | null>(null);
   const dropdownContainerRef = useRef<HTMLDivElement>(null);
 
-  const leafletElement = mapRef?.leafletMap?.leafletElement;
-
-  let mapConsumerRefs: RefObject<MapConsumer>[] = [];
-  //mapRef && mapConsumers.push(mapRef);
-  cesiumViewerRef && mapConsumerRefs.push(cesiumViewerRef);
-  const topicMapGazetteerHitTrigger = (hit) => {
-    builtInGazetteerHitTrigger(
-      hit,
-      leafletElement,
-      referenceSystem,
-      referenceSystemDefinition,
-      setGazetteerHit,
-      setOverlayFeature
-      // _gazetteerHitTrigger,
-    );
-  };
-
   const [fuseInstance, setFuseInstance] =
     useState<FuseWithOption<SearchResultItem> | null>(null);
-  const [searchResult, setSearchResult] = useState<GruppedOptions[]>([]);
+  const [searchResult, setSearchResult] = useState<GroupedOptions[]>([]);
   const [allGazeteerData, setAllGazeteerData] = useState([]);
   const [value, setValue] = useState("");
   const [cleanBtnDisable, setCleanBtnDisable] = useState(true);
   const [fireScrollEvent, setFireScrollEvent] = useState(null);
-  //const [cesiumMarkerModel, setCesiumMarkerModel] = useState<Model | null>(null); // TODO reuse parsed Model
-  const [selectedCesiumEntityData, setSelectedCesiumEntityData] =
-    useState<EntityData | null>(null);
 
   const handleSearchAutoComplete = (value) => {
     if (allGazeteerData.length > 0 && fuseInstance) {
@@ -163,25 +111,8 @@ export function LibFuzzySearch({
 
   const handleOnSelect = (option) => {
     setCleanBtnDisable(false);
-    console.info(
-      "[SEARCH] selected option",
-      option,
-      mapRef,
-      cesiumViewerRef,
-      cesiumOptions,
-      mapConsumerRefs
-    );
-    topicMapGazetteerHitTrigger([option.sData]); // TODO remove this after carma gazetteer hit trigger also handles LeafletMaps
-    carmaHitTrigger([option.sData], mapConsumerRefs, {
-      cesiumOptions,
-      selectedCesiumEntityData,
-      setSelectedCesiumEntityData,
-    });
-    if (option.sData.type === "bezirke" || option.sData.type === "quartiere") {
-      setGazetteerHit(null);
-    } else {
-      setGazetteerHit(option.sData);
-    }
+    console.info("[SEARCH] selected option", option);
+    onSelection(option.sData);
   };
 
   useEffect(() => {
@@ -261,21 +192,13 @@ export function LibFuzzySearch({
     }
   }, [dropdownContainerRef, options, fireScrollEvent, value]);
 
-  const handleOnClickClean = () => {
+  const handleOnClickClear = () => {
     {
-      setGazetteerHit(null);
       setValue("");
       setOptions([]);
       setSearchResult([]);
-      setOverlayFeature(null);
       setCleanBtnDisable(true);
-      cesiumViewerRef &&
-        cesiumViewerRef.current &&
-        cleanUpCesium(
-          cesiumViewerRef.current,
-          selectedCesiumEntityData,
-          setSelectedCesiumEntityData
-        );
+      onSelection(null);
     }
   };
 
@@ -306,7 +229,7 @@ export function LibFuzzySearch({
             ? "clear-fuzzy-button clear-fuzzy-button__active"
             : "clear-fuzzy-button clear-fuzzy-button__active"
         }
-        onClick={handleOnClickClean}
+        onClick={handleOnClickClear}
         disabled={cleanBtnDisable}
       />
       {!showCategories ? (
