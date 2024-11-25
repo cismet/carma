@@ -15,7 +15,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faXmark } from "@fortawesome/free-solid-svg-icons";
 import proj4 from "proj4";
 import { getBackgroundLayer, getLayers } from "../store/slices/mapping";
-import { getPrintLayers } from "../helper/print";
+import { getPrintLayers, prevRectCalc } from "../helper/print";
 import PrintButton from "../components/map-print/PrintButton";
 
 export const useDrawRectangle = (printCb, printOffCb) => {
@@ -70,14 +70,26 @@ export const useDrawRectangle = (printCb, printOffCb) => {
   };
 
   const addRectangle = (map) => {
-    const pixelWidth = orientation === "landscape" ? 674 : 476;
-    const pixelHeight = orientation === "landscape" ? 476 : 674;
+    // const pixelWidth = orientation === "landscape" ? 674 : 476;
+    // const pixelHeight = orientation === "landscape" ? 476 : 674;
+    // const pixelWidth = 674;
+    // const pixelHeight = 476;
+    const { pixelWidth, pixelHeight } = prevRectCalc(
+      map.getZoom(),
+      scale,
+      674,
+      476
+    );
     const mapContainer = map.getContainer();
     const mapWidth = mapContainer.offsetWidth;
     const mapHeight = mapContainer.offsetHeight;
 
     const left = (mapWidth - pixelWidth) / 2;
     const top = (mapHeight - pixelHeight) / 2;
+
+    const zoom = map.getZoom();
+
+    console.log("xxx zoom", zoom);
 
     const wrapper = L.DomUtil.create("div", "rectangle-wrapper");
     wrapper.style.position = "absolute";
@@ -156,6 +168,7 @@ export const useDrawRectangle = (printCb, printOffCb) => {
 
       addRectangle(map);
       window.addEventListener("resize", handleResize);
+      map.on("zoom", handleResize);
 
       return () => {
         window.removeEventListener("resize", handleResize);

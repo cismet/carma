@@ -136,49 +136,97 @@ export const scaleOptions = [
   {
     value: "250",
     label: "1 : 250",
+    zoom: "22",
   },
   {
     value: "500",
     label: "1 : 500",
+    zoom: "21",
   },
   {
     value: "1000",
     label: "1 : 1000",
+    zoom: "20",
   },
   {
     value: "2500",
     label: "1 : 2500",
+    zoom: "19",
   },
   {
     value: "5000",
     label: "1 : 5000",
+    zoom: "18",
   },
   {
     value: "10000",
     label: "1 : 10 000",
+    zoom: "17",
   },
   {
     value: "20000",
     label: "1 : 20 000",
+    zoom: "16",
   },
   {
     value: "40000",
     label: "1 : 40 000",
+    zoom: "15",
   },
   {
     value: "60000",
     label: "1 : 60 000",
+    zoom: "14",
   },
   {
     value: "100000",
     label: "1 : 100 000",
+    zoom: "13",
   },
   {
     value: "250000",
     label: "1 : 250 000",
+    zoom: "12",
   },
   {
     value: "500000",
     label: "1 : 500 000",
+    zoom: "11",
+  },
+  {
+    value: "1000000",
+    label: "1 : 1 000 000",
+    zoom: "10",
   },
 ];
+
+export const prevRectCalc = (currentZoom, scale, rWidth, rHeight) => {
+  const scaleItem = scaleOptions.find((s) => s.value === scale);
+  const targetZoom = Number(scaleItem.zoom);
+  let newWidth;
+  let newHeight;
+
+  if (currentZoom === targetZoom) {
+    newWidth = rWidth;
+    newHeight = rHeight;
+  }
+
+  if (currentZoom < targetZoom) {
+    const levelSteps = targetZoom - currentZoom;
+    newWidth = rWidth / levelSteps;
+    newHeight = rHeight / levelSteps;
+  }
+
+  if (currentZoom > targetZoom) {
+    const levelSteps = targetZoom - currentZoom;
+    newWidth = rWidth * levelSteps;
+    newHeight = rHeight * levelSteps;
+  }
+
+  console.log("xxx pixelWidth", {
+    pixelWidth: newWidth,
+    pixelHeight: newHeight,
+  });
+
+  return { pixelWidth: newWidth, pixelHeight: newHeight };
+};
