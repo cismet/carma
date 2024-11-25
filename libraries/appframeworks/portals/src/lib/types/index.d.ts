@@ -135,6 +135,7 @@ export type FeatureInfo = {
     headerColor: string;
     title: string;
     subtitle: string;
+    additionalInfo?: string;
     email?: string;
     tel?: string;
     url?: string;

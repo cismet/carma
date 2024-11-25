@@ -8,7 +8,6 @@ import {
 import type { Dispatch, Store } from "@reduxjs/toolkit";
 import type { LatLng, Point } from "leaflet";
 import proj4 from "proj4";
-import L from "leaflet";
 
 import CismapLayer from "react-cismap/CismapLayer";
 import { proj4crs25832def } from "react-cismap/constants/gis";
@@ -324,8 +323,36 @@ const implicitVectorSelection = (
   },
   { layer, dispatch, selectionHandler }
 ) => {
+  selectionHandler(e, layer);
   if (!e.hits) {
-    selectionHandler(e, layer);
+  }
+
+  if (e.hits && !layer.queryable) {
+    const selectedVectorFeature = e.hits[0];
+
+    if (selectedVectorFeature.setSelection) {
+      selectedVectorFeature.setSelection(false);
+    }
+
+    if (selectedVectorFeature.geometry.type !== "Point") {
+      return;
+    }
+
+    const coordinates = selectedVectorFeature.geometry.coordinates;
+    dispatch(
+      setSelectedFeature({
+        properties: {
+          header: "Information",
+          headerColor: "#0078a8",
+          title: "Zu diesem Objekt sind keine weiteren Sachdaten verfügbar.",
+          additionalInfo: `Position: ${coordinates[0].toFixed(
+            5
+          )}, ${coordinates[1].toFixed(5)}`,
+          subtitle: "(Geogr. Breite und Länge in Dezimalgrad, ETRS89)",
+        },
+        id: "information",
+      })
+    );
   }
 
   if (e.hits && layer.queryable) {
