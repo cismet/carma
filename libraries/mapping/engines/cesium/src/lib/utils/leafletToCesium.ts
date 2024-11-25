@@ -1,10 +1,10 @@
 // WEB MAPS TO CESIUM
+import { MutableRefObject } from "react";
 import {
-  Cartesian3,
   Cartographic,
   Math as CesiumMath,
+  type CesiumTerrainProvider,
   sampleTerrainMostDetailed,
-  TerrainProvider,
   Viewer,
 } from "cesium";
 import type { Map as LeafletMap } from "leaflet";
@@ -24,8 +24,8 @@ export const leafletToCesium = async (
     epsilon = 0.5,
     limit = 5,
     cause = "not specified",
-    surfaceProvider,
-    terrainProvider,
+    surfaceProviderRef,
+    terrainProviderRef,
     onComplete,
     fallbackHeight = 150, // min height for local terrain
   }: {
@@ -33,8 +33,8 @@ export const leafletToCesium = async (
     limit?: number;
     cause?: string;
     onComplete?: Function;
-    surfaceProvider: TerrainProvider | null;
-    terrainProvider: TerrainProvider | null;
+    surfaceProviderRef: MutableRefObject<CesiumTerrainProvider | null>;
+    terrainProviderRef: MutableRefObject<CesiumTerrainProvider | null>;
     fallbackHeight?: number;
   }
 ) => {
@@ -47,8 +47,11 @@ export const leafletToCesium = async (
     return false;
   }
 
-  const { lat, lng } = leaflet.getCenter();
+  const center = leaflet.getCenter();
+  const { lat, lng } = center;
   const zoom = leaflet.getZoom();
+  // cancel any ongoing animation
+  leaflet.setView(center, zoom, { animate: false });
 
   if (!isLeafletZoomValid(zoom)) {
     console.warn("No zoom level available for transition");
@@ -100,15 +103,17 @@ export const leafletToCesium = async (
     fallbackHeight
   );
 
-  if (surfaceProvider) {
-    const [surfaceSample] = await sampleTerrainMostDetailed(surfaceProvider, [
-      cameraGroundPosition,
-    ]);
+  if (surfaceProviderRef?.current) {
+    const [surfaceSample] = await sampleTerrainMostDetailed(
+      surfaceProviderRef.current,
+      [cameraGroundPosition]
+    );
     console.debug("surfaceSample", surfaceSample, cameraGroundPosition);
-  } else if (terrainProvider) {
-    const [terrainSample] = await sampleTerrainMostDetailed(terrainProvider, [
-      Cartographic.fromRadians(lngRad, latRad),
-    ]);
+  } else if (terrainProviderRef?.current) {
+    const [terrainSample] = await sampleTerrainMostDetailed(
+      terrainProviderRef.current,
+      [Cartographic.fromRadians(lngRad, latRad)]
+    );
     console.debug("terrainSample", terrainSample, cameraGroundPosition);
   } else {
     console.info(
