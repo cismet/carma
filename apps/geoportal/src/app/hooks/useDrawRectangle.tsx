@@ -15,6 +15,7 @@ import { faXmark } from "@fortawesome/free-solid-svg-icons";
 import proj4 from "proj4";
 import { getBackgroundLayer, getLayers } from "../store/slices/mapping";
 import { getPrintLayers } from "../helper/print";
+import PrintButton from "../components/map-print/PrintButton";
 
 export const useDrawRectangle = (printCb, printOffCb) => {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
@@ -33,6 +34,32 @@ export const useDrawRectangle = (printCb, printOffCb) => {
     dispatch(changeIsLoading(status));
   };
 
+  const hadlerStartPrint = (map) => {
+    const { lat, lng } = map.getCenter();
+
+    const tranformProj = proj4("EPSG:4326", "EPSG:3857", [lng, lat]);
+
+    const zoomLevel = map.getZoom();
+
+    const scale = map.options.crs.scale(zoomLevel);
+
+    const scale2 = map.getScaleZoom(zoomLevel);
+    const testScale = getScaleInKmExperiment(zoomLevel);
+
+    console.log("xxx layerPrint", layers);
+    const layesPrint = getPrintLayers(bgLayer, layers);
+
+    printCb(
+      tranformProj,
+      testScale,
+      layesPrint,
+      orientation,
+      dpi,
+      printName,
+      handleIsLoading
+    );
+  };
+
   const removeRectangle = () => {
     const printBtn = document.querySelector(".rectangle-wrapper ");
 
@@ -42,14 +69,16 @@ export const useDrawRectangle = (printCb, printOffCb) => {
   };
 
   const addRectangle = (map) => {
-    const pixelWidth = orientation === "landscape" ? 742 : 525;
-    const pixelHeight = orientation === "landscape" ? 525 : 742;
+    const pixelWidth = orientation === "landscape" ? 674 : 476;
+    const pixelHeight = orientation === "landscape" ? 476 : 674;
     const mapContainer = map.getContainer();
     const mapWidth = mapContainer.offsetWidth;
     const mapHeight = mapContainer.offsetHeight;
 
     const left = (mapWidth - pixelWidth) / 2;
     const top = (mapHeight - pixelHeight) / 2;
+
+    console.log("xxx pixel widths", pixelWidth * 0.9, pixelHeight * 0);
 
     const wrapper = L.DomUtil.create("div", "rectangle-wrapper");
     wrapper.style.position = "absolute";
@@ -61,34 +90,7 @@ export const useDrawRectangle = (printCb, printOffCb) => {
     rect.style.width = pixelWidth + "px";
     rect.style.height = pixelHeight + "px";
 
-    const button = L.DomUtil.create("button", "rectangle-button");
-    button.innerHTML = "Print";
-
-    L.DomEvent.on(button, "click", () => {
-      const { lat, lng } = map.getCenter();
-
-      const tranformProj = proj4("EPSG:4326", "EPSG:3857", [lng, lat]);
-
-      const zoomLevel = map.getZoom();
-
-      const scale = map.options.crs.scale(zoomLevel);
-
-      const scale2 = map.getScaleZoom(zoomLevel);
-      const testScale = getScaleInKmExperiment(zoomLevel);
-
-      console.log("xxx layerPrint", layers);
-      const layesPrint = getPrintLayers(bgLayer, layers);
-
-      printCb(
-        tranformProj,
-        testScale,
-        layesPrint,
-        orientation,
-        dpi,
-        printName,
-        handleIsLoading
-      );
-    });
+    const btnWrapper = L.DomUtil.create("button", "print-button-wrapper");
 
     const closeButtonContainer = L.DomUtil.create(
       "div",
@@ -97,7 +99,7 @@ export const useDrawRectangle = (printCb, printOffCb) => {
     );
 
     wrapper.appendChild(rect);
-    wrapper.appendChild(button);
+    wrapper.appendChild(btnWrapper);
 
     mapContainer.appendChild(wrapper);
 
@@ -110,7 +112,13 @@ export const useDrawRectangle = (printCb, printOffCb) => {
       />
     );
 
-    // root.render(<AddTestFunc />);
+    const wrapperRoot = createRoot(btnWrapper);
+    wrapperRoot.render(
+      <PrintButton
+        hadlerStartPrint={() => hadlerStartPrint(map)}
+        loading={loading}
+      />
+    );
   };
 
   const getScaleInKm = (zoom) => {
@@ -162,8 +170,4 @@ export const useDrawRectangle = (printCb, printOffCb) => {
       removeRectangle();
     }
   }, [map, mode, orientation, layers, dpi, printName, loading]);
-
-  useEffect(() => {
-    console.log("xxx isloading", loading);
-  }, [loading]);
 };

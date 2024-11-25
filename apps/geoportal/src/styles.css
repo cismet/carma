@@ -35,6 +35,9 @@ html {
   flex-direction: column;
 }
 
+.print-button-wrapper {
+  margin-left: auto;
+}
 .rectangle-button {
   background-color: #123c6a;
   color: white;
