@@ -2,10 +2,18 @@ import { useEffect, useRef } from "react";
 
 export const useOutsideClick = (callback: () => void) => {
   const ref = useRef<HTMLDivElement>(null);
+  console.log("xxx click outside");
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent | TouchEvent) => {
-      if (ref.current && !ref.current.contains(event.target as Node)) {
+      const ifSelectClicked = (event.target as HTMLElement).classList.contains(
+        "ant-select-item-option-content"
+      );
+      if (
+        ref.current &&
+        !ref.current.contains(event.target as Node) &&
+        !ifSelectClicked
+      ) {
         callback();
       }
     };

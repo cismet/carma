@@ -1,6 +1,6 @@
 import { faPrint, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Button, Radio, Input } from "antd";
+import { Button, Radio, Input, Select } from "antd";
 import { useState } from "react";
 import type { RadioChangeEvent } from "antd";
 import { useDrawRectangle } from "../../hooks/useDrawRectangle";
@@ -15,7 +15,7 @@ import {
 import { useSelector, useDispatch } from "react-redux";
 import { setUIMode } from "../../store/slices/ui";
 import { useOutsideClick } from "../../hooks/useOutsideClick";
-import { printMap } from "../../helper/print";
+import { printMap, scaleOptions } from "../../helper/print";
 
 const Print = ({ setShowPrintPopup }) => {
   const dispatch = useDispatch();
@@ -32,6 +32,14 @@ const Print = ({ setShowPrintPopup }) => {
   const onChange = (e: RadioChangeEvent) => {
     setOrientation(e.target.value);
     dispatch(changeOrientation(e.target.value));
+  };
+
+  const onScaleSearch = (value: string) => {
+    console.log(`selected ${value}`);
+  };
+
+  const onScaleChange = (value: string) => {
+    console.log(`selected ${value}`);
   };
 
   return (
@@ -57,6 +65,18 @@ const Print = ({ setShowPrintPopup }) => {
           <Radio value={"landscape"}>Querkant</Radio>
         </div>
       </Radio.Group>
+      <hr className="my-0" />
+      <Select
+        showSearch
+        placeholder="Wählen einen Maßstab"
+        optionFilterProp="label"
+        onChange={onScaleChange}
+        onSearch={onScaleSearch}
+        options={scaleOptions}
+        onMouseDown={(event) => {
+          event.stopPropagation();
+        }}
+      />
 
       <hr className="my-0" />
       <h5 className="mb-0">DPI</h5>

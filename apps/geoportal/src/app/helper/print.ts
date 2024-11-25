@@ -18,7 +18,7 @@ export const printMap = async (
         rotation: 0,
         longitudeFirst: true,
         layers,
-        scale,
+        scale: 2500,
         projection: "EPSG:3857",
         dpi,
       },
@@ -131,3 +131,50 @@ const getOrientationTemplateParams = (orientation = "portrait") => {
     title: orientation === "portrait" ? "A4 portrait" : "A4 landscape",
   };
 };
+
+export const scaleOptions = [
+  {
+    value: "250",
+    label: "1 : 250",
+  },
+  {
+    value: "500",
+    label: "1 : 500",
+  },
+  {
+    value: "1000",
+    label: "1 : 1000",
+  },
+  {
+    value: "2500",
+    label: "1 : 2500",
+  },
+  {
+    value: "5000",
+    label: "1 : 5000",
+  },
+  {
+    value: "10000",
+    label: "1 : 10 000",
+  },
+  {
+    value: "20000",
+    label: "1 : 20 000",
+  },
+  {
+    value: "40000",
+    label: "1 : 40 000",
+  },
+  {
+    value: "60000",
+    label: "1 : 60 000",
+  },
+  {
+    value: "100000",
+    label: "1 : 100 000",
+  },
+  {
+    value: "250000",
+    label: "1 : 250 000",
+  },
+];
