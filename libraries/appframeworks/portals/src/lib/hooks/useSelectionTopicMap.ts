@@ -1,19 +1,15 @@
-import { useContext, useEffect } from "react";
+import { useContext, useEffect, useRef } from "react";
 
 import { builtInGazetteerHitTrigger } from "react-cismap/tools/gazetteerHelper";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { useSelection } from "../components/SelectionProvider";
 
-export const useSelectionTopicMap = (enable: boolean) => {
-  const {
-    selection,
-    setSelection,
-    overlayFeature,
-    setOverlayFeature,
-    isNewSelection,
-    setIsNewSelection,
-  } = useSelection();
+const NEW_SELECTION_TIMEOUT = 500;
+
+export const useSelectionTopicMap = () => {
+  const { selection, setSelection, setOverlayFeature } = useSelection();
+  const lastSelectionKey = useRef<number | null>(null);
 
   const topicMapCtx = useContext<typeof TopicMapContext>(TopicMapContext);
 
@@ -26,31 +22,41 @@ export const useSelectionTopicMap = (enable: boolean) => {
   console.debug("topicMapCtx", topicMapCtx);
 
   useEffect(() => {
-    console.debug("HOOK: clear overlay on empty selection", selection);
-    if (isNewSelection && selection === null) {
+    if (selection === null) {
+      console.debug("HOOK: clear overlay on empty selection", selection);
       setOverlayFeature(null);
+      lastSelectionKey.current = null;
     }
-  }, [isNewSelection, selection, setOverlayFeature]);
+  }, [selection, setOverlayFeature]);
 
   useEffect(() => {
-    console.debug("HOOK: useSelectionTopicMap selection LEAFLET", selection);
-    if (selection && isNewSelection && enable) {
-      const { leafletElement } = routedMapRef.current?.leafletMap;
-      builtInGazetteerHitTrigger(
-        [selection],
-        leafletElement,
-        referenceSystem,
-        referenceSystemDefinition,
-        setSelection,
-        setOverlayFeature
-      );
-      setIsNewSelection(false);
+    if (selection) {
+      if (lastSelectionKey.current === selection.sorter) {
+        console.debug("HOOK: useSelectionTopicMap - same selection, skipping");
+        return;
+      }
+      lastSelectionKey.current = selection.sorter;
+      const isNewSelection =
+        selection?.selectionTimestamp &&
+        Date.now() - selection.selectionTimestamp < NEW_SELECTION_TIMEOUT;
+      if (selection && isNewSelection) {
+        console.debug(
+          "HOOK: useSelectionTopicMap selection LEAFLET",
+          selection
+        );
+        const { leafletElement } = routedMapRef.current?.leafletMap;
+        // TODO replace builtin react-cismap trigger, handle topicMap map move and polygon generation for overlayFeature with CarmaMap
+        builtInGazetteerHitTrigger(
+          [selection],
+          leafletElement,
+          referenceSystem,
+          referenceSystemDefinition,
+          () => {}, //  handleSetSelection with CarmaMap directly
+          setOverlayFeature
+        );
+      }
     }
-    return () => console.info("unmounting useSelectionTopicMap");
   }, [
-    isNewSelection,
-    setIsNewSelection,
-    enable,
     selection,
     routedMapRef,
     referenceSystem,

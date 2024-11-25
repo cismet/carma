@@ -24,14 +24,14 @@ import {
 
 import PaleOverlay from "react-cismap/PaleOverlay";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
-import GazetteerHitDisplay from "react-cismap/GazetteerHitDisplay";
-import { ProjSingleGeoJson } from "react-cismap/ProjSingleGeoJson";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
 import {
   replaceHashRoutedHistory,
+  SelectionMetaData,
+  TopicMapSelectionContent,
   useCarmaMapContext,
   useSelection,
   useSelectionCesium,
@@ -120,6 +120,7 @@ import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 
 import "../leaflet.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
+import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;
@@ -220,13 +221,8 @@ export const GeoportalMap = () => {
   );
 
   const { setShowTourOverlay } = useCarmaMapContext();
-  const {
-    routedMapRef: routedMap,
-    realRoutedMapRef: routeMapRef,
-    referenceSystem,
-    referenceSystemDefinition,
-    maskingPolygon,
-  } = useContext<typeof TopicMapContext>(TopicMapContext);
+  const { routedMapRef: routedMap } =
+    useContext<typeof TopicMapContext>(TopicMapContext);
 
   const { setAppMenuVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
@@ -259,10 +255,9 @@ export const GeoportalMap = () => {
 
   useFeatureInfoModeCursorStyle();
 
-  const { selection, setSelection, setIsNewSelection, overlayFeature } =
-    useSelection();
+  const { setSelection } = useSelection();
 
-  useSelectionTopicMap(isMode2d);
+  useSelectionTopicMap();
   useSelectionCesium(
     !isMode2d,
     useMemo(
@@ -284,8 +279,17 @@ export const GeoportalMap = () => {
   );
 
   const onGazetteerSelection = (selection: SearchResultItem) => {
-    setSelection(selection);
-    setIsNewSelection(true);
+    if (!selection) {
+      console.debug("onGazetteerSelection", selection);
+      setSelection(null);
+      return;
+    }
+    const selectionMetaData: SelectionMetaData = {
+      selectedFrom: "gazetteer",
+      selectionTimestamp: Date.now(),
+      isAreaSelection: isAreaType(selection.type as ENDPOINT),
+    };
+    setSelection(Object.assign({}, selection, selectionMetaData));
   };
 
   useEffect(() => {
@@ -351,7 +355,7 @@ export const GeoportalMap = () => {
 
   // TODO Move out Controls to own component
 
-  console.debug("RENDER: [GEOPORTAL] MAP");
+  console.debug("RENDER: [GEOPORTAL] MAP", isMode2d);
   rerenderCountRef.current++;
   lastRenderIntervalRef.current = Date.now() - lastRenderTimeStampRef.current;
   lastRenderTimeStampRef.current = Date.now();
@@ -585,25 +589,11 @@ export const GeoportalMap = () => {
               zoomSnap={LEAFLET_CONFIG.zoomSnap}
               zoomDelta={LEAFLET_CONFIG.zoomDelta}
             >
+              <TopicMapSelectionContent />
               {backgroundLayer &&
                 backgroundLayer.visible &&
                 getBackgroundLayers({ layerString: backgroundLayer.layers })}
-              {overlayFeature && routedMap && (
-                <ProjSingleGeoJson
-                  key={JSON.stringify(overlayFeature)}
-                  geoJson={overlayFeature}
-                  masked={true}
-                  maskingPolygon={maskingPolygon}
-                  mapRef={routedMap}
-                />
-              )}
-              !overlayFeature &&{" "}
-              {
-                <GazetteerHitDisplay
-                  key={"gazHit" + JSON.stringify(selection)}
-                  gazetteerHit={selection}
-                />
-              }
+
               {focusMode && <PaleOverlay />}
               {createCismapLayers(layers, {
                 mode: uiMode,

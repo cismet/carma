@@ -188,7 +188,7 @@ export type GazetteerOptions = {
 };
 
 const defaultGazetteerOptions = {
-  flyTo: true,
+  doFlyTo: true,
   referenceSystem: undefined,
   referenceSystemDefinition: PROJ4_CONVERTERS.CRS25832,
   suppressMarker: false,
@@ -201,7 +201,7 @@ export const carmaHitTrigger = (
 ) => {
   if (hit !== undefined && hit.length !== undefined && hit.length > 0) {
     const {
-      flyTo,
+      doFlyTo,
       setGazetteerHit,
       setOverlayFeature,
       furtherGazeteerHitTrigger,
@@ -336,7 +336,7 @@ export const carmaHitTrigger = (
           scene.groundPrimitives.add(invertedGroundPrimitive);
           viewer.entities.add(polygonEntity);
           //viewer.entities.add(invertedPolygonEntity);
-          flyTo && viewer.flyTo(polygonEntity);
+          doFlyTo && viewer.flyTo(polygonEntity);
         } else if (defined(groundPosition)) {
           const updateMarkerPosition = async () => {
             const anchorHeightOffset =
@@ -371,7 +371,7 @@ export const carmaHitTrigger = (
           if (cesiumOptions.markerAsset) {
             updateMarkerPosition();
           }
-          flyTo &&
+          doFlyTo &&
             cAction.lookAt(viewer, groundPosition, zoom, cesiumOptions, {
               //onComplete: delayedMarker,
               durationFactor: 0.2,
