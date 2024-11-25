@@ -11,6 +11,8 @@ import {
   changeDPI,
   getPrintName,
   changePrintName,
+  getScale,
+  changeScale,
 } from "../../store/slices/print";
 import { useSelector, useDispatch } from "react-redux";
 import { setUIMode } from "../../store/slices/ui";
@@ -22,6 +24,7 @@ const Print = ({ setShowPrintPopup }) => {
   const currentOrient = useSelector(getOrientation);
   const currentDPI = useSelector(getDPI);
   const currentName = useSelector(getPrintName);
+  const currentScale = useSelector(getScale);
   const [orientation, setOrientation] = useState(currentOrient);
   const [name, setSName] = useState(currentName);
   const [dpi, setDpi] = useState(currentDPI);
@@ -34,12 +37,8 @@ const Print = ({ setShowPrintPopup }) => {
     dispatch(changeOrientation(e.target.value));
   };
 
-  const onScaleSearch = (value: string) => {
-    console.log(`selected ${value}`);
-  };
-
   const onScaleChange = (value: string) => {
-    console.log(`selected ${value}`);
+    dispatch(changeScale(value));
   };
 
   return (
@@ -71,11 +70,8 @@ const Print = ({ setShowPrintPopup }) => {
         placeholder="Wählen einen Maßstab"
         optionFilterProp="label"
         onChange={onScaleChange}
-        onSearch={onScaleSearch}
         options={scaleOptions}
-        onMouseDown={(event) => {
-          event.stopPropagation();
-        }}
+        defaultValue={currentScale}
       />
 
       <hr className="my-0" />
