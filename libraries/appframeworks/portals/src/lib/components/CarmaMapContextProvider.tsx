@@ -27,8 +27,6 @@ type CarmaMapProviderProps = {
 };
 
 type CarmaMapContextType = {
-  topicMapCtx?: typeof TopicMapContext;
-  cesiumCtx?: CesiumContextType;
   setShowTourOverlay: Dispatch<SetStateAction<boolean>>;
 };
 
@@ -42,23 +40,7 @@ export const useCarmaMapContext = () => {
       "useCarmaMapContext must be used within a CarmaMapProvider"
     );
   }
-  const { setShowTourOverlay } = context;
-  // forward other contexts here if needed
-  const topicMapContext = useContext<typeof TopicMapContext>(TopicMapContext);
-  const cesiumContext = useCesiumContext();
-
-  const combinedContext = useMemo(
-    () => ({
-      setShowTourOverlay,
-      topicMapCtx: topicMapContext,
-      cesiumCtx: cesiumContext,
-      //routedMapRef: topicMapContext.realRoutedMapRef,
-      //realRoutedMapRef: undefined,
-    }),
-    [setShowTourOverlay, topicMapContext, cesiumContext]
-  );
-
-  return combinedContext;
+  return context;
 };
 
 export const CarmaMapContextProvider = ({

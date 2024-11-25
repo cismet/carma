@@ -1,10 +1,10 @@
+import { GazDataItem } from "@carma-commons/utils";
+
 export type SearchGazetteerProps = {
-  gazData?: any;
-  setGazetteerHit: (hit: any) => void;
-  gazetteerHit: any;
-  setOverlayFeature: (feature: any) => void;
-  referenceSystem: any;
-  referenceSystemDefinition: any;
+  gazData?: GazDataItem[];
+  onSelection: (hit: SearchResultItem | null) => void;
+  //referenceSystem: undefined;
+  //referenceSystemDefinition: undefined;
   stopwords?: string[];
   pixelwidth?: number;
   ifShowCategories?: boolean;
@@ -47,6 +47,6 @@ export type SearchConfig = {
   ifShowScore?: boolean;
   limit?: number;
   cut?: number;
-  distance?: number;
+  distance?: number; // in CRS units
   threshold?: number;
 };

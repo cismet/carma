@@ -2,6 +2,7 @@ import { useCallback, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { BoundingSphere, Cartesian3, Math as CesiumMath } from "cesium";
 
+import { useCesiumViewer } from "./useCesiumViewer";
 import {
   selectScreenSpaceCameraControllerEnableCollisionDetection,
   selectViewerIsMode2d,
@@ -9,7 +10,6 @@ import {
   clearIsAnimating,
 } from "../slices/cesium";
 import { pickViewerCanvasCenter } from "../utils/cesiumHelpers";
-import { useCesiumContext } from "./useCesiumContext";
 
 const useCameraPitchSoftLimiter = (
   options: {
@@ -23,8 +23,7 @@ const useCameraPitchSoftLimiter = (
   const minPitchDeg = options.minPitchDeg || 22;
   const resetPitchOffsetDeg = options.resetPitchOffsetDeg || 8;
 
-  const { viewerRef } = useCesiumContext();
-
+  const viewer = useCesiumViewer();
   const dispatch = useDispatch();
   const isMode2d = useSelector(selectViewerIsMode2d);
   const collisions = useSelector(
@@ -37,7 +36,6 @@ const useCameraPitchSoftLimiter = (
   );
 
   useEffect(() => {
-    const viewer = viewerRef.current;
     if (viewer && !isMode2d && collisions && pitchLimiter) {
       console.debug(
         "HOOK [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to correct camera pitch"
@@ -91,7 +89,7 @@ const useCameraPitchSoftLimiter = (
       };
     }
   }, [
-    viewerRef,
+    viewer,
     collisions,
     isMode2d,
     pitchLimiter,

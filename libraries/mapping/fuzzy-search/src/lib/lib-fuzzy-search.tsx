@@ -33,10 +33,9 @@ interface FuseWithOption<T> extends Fuse<T> {
 
 export function LibFuzzySearch({
   gazData,
-  setGazetteerHit,
-  setOverlayFeature,
-  referenceSystem,
-  referenceSystemDefinition,
+  onSelection,
+  //referenceSystem,
+  //referenceSystemDefinition,
   stopwords = stopwordsDe,
   pixelwidth = 300,
   ifShowCategories: standardSearch = false,
@@ -113,8 +112,7 @@ export function LibFuzzySearch({
   const handleOnSelect = (option) => {
     setCleanBtnDisable(false);
     console.info("[SEARCH] selected option", option);
-
-    setGazetteerHit(option.sData);
+    onSelection(option.sData);
   };
 
   useEffect(() => {
@@ -194,14 +192,13 @@ export function LibFuzzySearch({
     }
   }, [dropdownContainerRef, options, fireScrollEvent, value]);
 
-  const handleOnClickClean = () => {
+  const handleOnClickClear = () => {
     {
-      setGazetteerHit(null);
       setValue("");
       setOptions([]);
       setSearchResult([]);
-      setOverlayFeature(null);
       setCleanBtnDisable(true);
+      onSelection(null);
     }
   };
 
@@ -232,7 +229,7 @@ export function LibFuzzySearch({
             ? "clear-fuzzy-button clear-fuzzy-button__active"
             : "clear-fuzzy-button clear-fuzzy-button__active"
         }
-        onClick={handleOnClickClean}
+        onClick={handleOnClickClear}
         disabled={cleanBtnDisable}
       />
       {!showCategories ? (

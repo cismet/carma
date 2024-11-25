@@ -2,30 +2,34 @@ import { Option, SearchResultItem } from "@carma-mapping/fuzzy-search";
 import { Feature } from "geojson";
 import { createContext, useContext, useState } from "react";
 
-
 interface SelectionContextType {
   selection: SearchResultItem | null;
   setSelection: (selection: SearchResultItem | null) => void;
+  isNewSelection: boolean;
+  setIsNewSelection: (isNewSelection: boolean) => void;
   overlayFeature: Feature | null;
   setOverlayFeature: (feature: Feature | null) => void;
 }
 
-const SelectionContext = createContext<SelectionContextType | undefined>(undefined);
+const SelectionContext = createContext<SelectionContextType | undefined>(
+  undefined
+);
 
 interface SelectionProviderProps {
   children: React.ReactNode;
 }
 
-export function SelectionProvider({
-  children,
-}: SelectionProviderProps) {
+export function SelectionProvider({ children }: SelectionProviderProps) {
   //const [gazetteerHit, setGazetteerHit] = useState(null);
-  const [selection, setSelection] = useState<SearchResultItem|null>(null);
-  const [overlayFeature, setOverlayFeature] = useState<Feature|null>(null);
+  const [selection, setSelection] = useState<SearchResultItem | null>(null);
+  const [isNewSelection, setIsNewSelection] = useState<boolean>(false);
+  const [overlayFeature, setOverlayFeature] = useState<Feature | null>(null);
 
   const value = {
     selection,
     setSelection,
+    isNewSelection,
+    setIsNewSelection,
     overlayFeature,
     setOverlayFeature,
   };

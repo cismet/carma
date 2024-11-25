@@ -17,7 +17,9 @@ export {
 
 export { GazDataProvider, useGazData } from "./lib/components/GazDataProvider";
 
-export { SelectionProvider, useSelection } from "./lib/components/SelectionProvider";
+export {
+  SelectionProvider,
+  useSelection,
+} from "./lib/components/SelectionProvider";
 export { useSelectionTopicMap } from "./lib/hooks/useSelectionTopicMap";
 export { useSelectionCesium } from "./lib/hooks/useSelectionCesium";
-

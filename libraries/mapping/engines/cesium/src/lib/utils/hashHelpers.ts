@@ -1,4 +1,10 @@
-import { Cartesian3, Cartographic, Viewer, Math as CesiumMath, Scene } from "cesium";
+import {
+  Cartesian3,
+  Cartographic,
+  Viewer,
+  Math as CesiumMath,
+  Scene,
+} from "cesium";
 import {
   AppState,
   EncodedSceneParams,

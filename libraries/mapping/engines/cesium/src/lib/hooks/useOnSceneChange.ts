@@ -32,7 +32,10 @@ export const useOnSceneChange = (
         isSecondaryStyle
       );
 
-      const encodedScene = encodeScene(viewer.scene, { isSecondaryStyle, isMode2d });
+      const encodedScene = encodeScene(viewer.scene, {
+        isSecondaryStyle,
+        isMode2d,
+      });
 
       if (onSceneChange) {
         onSceneChange(encodedScene);
@@ -59,10 +62,12 @@ export const useOnSceneChange = (
             isSecondaryStyle,
             camDeg
           );
-          const encodedScene = viewer.scene && encodeScene(viewer.scene, {
-            isSecondaryStyle,
-            isMode2d,
-          });
+          const encodedScene =
+            viewer.scene &&
+            encodeScene(viewer.scene, {
+              isSecondaryStyle,
+              isMode2d,
+            });
           if (onSceneChange) {
             onSceneChange(encodedScene);
           } else {
@@ -72,7 +77,9 @@ export const useOnSceneChange = (
       };
       viewer.scene.camera.moveEnd.addEventListener(moveEndListener);
       return () => {
-        viewer && viewer.scene && viewer.scene.camera.moveEnd.removeEventListener(moveEndListener);
+        viewer &&
+          viewer.scene &&
+          viewer.scene.camera.moveEnd.removeEventListener(moveEndListener);
       };
     }
   }, [viewerRef, isSecondaryStyle, isMode2d, onSceneChange]);

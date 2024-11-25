@@ -1,57 +1,56 @@
-import { MutableRefObject, useEffect, useState } from "react";
+import { useContext, useEffect } from "react";
 
 import { builtInGazetteerHitTrigger } from "react-cismap/tools/gazetteerHelper";
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { useSelection } from "../components/SelectionProvider";
-import { useCarmaMapContext } from "../components/CarmaMapContextProvider";
 
-export const useSelectionTopicMap = () => {
-  const { selection, setSelection, overlayFeature, setOverlayFeature } =
-    useSelection();
-
-  const { topicMapCtx } = useCarmaMapContext();
+export const useSelectionTopicMap = (enable: boolean) => {
   const {
-    routedMapRef: routedMap,
+    selection,
+    setSelection,
+    overlayFeature,
+    setOverlayFeature,
+    isNewSelection,
+    setIsNewSelection,
+  } = useSelection();
+
+  const topicMapCtx = useContext<typeof TopicMapContext>(TopicMapContext);
+
+  const {
+    //routedMapRef: routedMap,
     realRoutedMapRef: routedMapRef,
     referenceSystem,
     referenceSystemDefinition,
   } = topicMapCtx;
+  console.debug("topicMapCtx", topicMapCtx);
 
   useEffect(() => {
-    if (!routedMapRef.current || !selection) return;
-    //const routedMap = routedMapRef.current;
-
-    console.debug(
-      "HOOK: useSelectionTopicMap selection",
-      selection,
-      routedMapRef
-    );
-    if (selection.type === "bezirke" || selection.type === "quartiere") {
-      console.debug("selection is area");
-      //setOverlayFeature(selection);
-      /*
-      routedMap && builtInGazetteerHitTrigger(
-        [selection],
-        routedMapRef,
-        referenceSystem,
-        referenceSystemDefinition,
-        setSelection,
-        setOverlayFeature
-      );
-      */
-    } else {
-      builtInGazetteerHitTrigger(
-        selection,
-        routedMapRef,
-        referenceSystem,
-        referenceSystemDefinition,
-        setSelection,
-        setOverlayFeature
-      );
+    console.debug("HOOK: clear overlay on empty selection", selection);
+    if (isNewSelection && selection === null) {
+      setOverlayFeature(null);
     }
+  }, [isNewSelection, selection, setOverlayFeature]);
 
+  useEffect(() => {
+    console.debug("HOOK: useSelectionTopicMap selection LEAFLET", selection);
+    if (selection && isNewSelection && enable) {
+      const { leafletElement } = routedMapRef.current?.leafletMap;
+      builtInGazetteerHitTrigger(
+        [selection],
+        leafletElement,
+        referenceSystem,
+        referenceSystemDefinition,
+        setSelection,
+        setOverlayFeature
+      );
+      setIsNewSelection(false);
+    }
     return () => console.info("unmounting useSelectionTopicMap");
   }, [
+    isNewSelection,
+    setIsNewSelection,
+    enable,
     selection,
     routedMapRef,
     referenceSystem,

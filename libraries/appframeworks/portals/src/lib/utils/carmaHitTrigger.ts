@@ -172,6 +172,7 @@ const getRingInWGS84 = (
     .map((coord) => PROJ4_CONVERTERS.CRS4326.forward(refSystem.inverse(coord)));
 
 export type GazetteerOptions = {
+  flyTo?: boolean;
   setGazetteerHit?: (hit: any) => void;
   setOverlayFeature?: (feature: any) => void;
   furtherGazeteerHitTrigger?: (hit: any) => void;
@@ -187,6 +188,7 @@ export type GazetteerOptions = {
 };
 
 const defaultGazetteerOptions = {
+  flyTo: true,
   referenceSystem: undefined,
   referenceSystemDefinition: PROJ4_CONVERTERS.CRS25832,
   suppressMarker: false,
@@ -199,6 +201,7 @@ export const carmaHitTrigger = (
 ) => {
   if (hit !== undefined && hit.length !== undefined && hit.length > 0) {
     const {
+      flyTo,
       setGazetteerHit,
       setOverlayFeature,
       furtherGazeteerHitTrigger,
@@ -333,7 +336,7 @@ export const carmaHitTrigger = (
           scene.groundPrimitives.add(invertedGroundPrimitive);
           viewer.entities.add(polygonEntity);
           //viewer.entities.add(invertedPolygonEntity);
-          viewer.flyTo(polygonEntity);
+          flyTo && viewer.flyTo(polygonEntity);
         } else if (defined(groundPosition)) {
           const updateMarkerPosition = async () => {
             const anchorHeightOffset =
@@ -368,10 +371,11 @@ export const carmaHitTrigger = (
           if (cesiumOptions.markerAsset) {
             updateMarkerPosition();
           }
-          cAction.lookAt(viewer, groundPosition, zoom, cesiumOptions, {
-            //onComplete: delayedMarker,
-            durationFactor: 0.2,
-          });
+          flyTo &&
+            cAction.lookAt(viewer, groundPosition, zoom, cesiumOptions, {
+              //onComplete: delayedMarker,
+              durationFactor: 0.2,
+            });
           console.debug(
             "GAZETTEER: [2D3D|CESIUM|CAMERA] look at Marker (Terrain Elevation)"
           );

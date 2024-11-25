@@ -27,6 +27,7 @@ import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import GazetteerHitDisplay from "react-cismap/GazetteerHitDisplay";
 import { ProjSingleGeoJson } from "react-cismap/ProjSingleGeoJson";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
 import {
@@ -66,7 +67,7 @@ import {
   useZoomControls as useZoomControlsCesium,
   setCurrentSceneStyle,
 } from "@carma-mapping/cesium-engine";
-import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
+import { LibFuzzySearch, SearchResultItem } from "@carma-mapping/fuzzy-search";
 
 import versionData from "../../../version.json";
 
@@ -218,15 +219,14 @@ export const GeoportalMap = () => {
     )
   );
 
-  const { topicMapCtx, setShowTourOverlay } = useCarmaMapContext();
-
+  const { setShowTourOverlay } = useCarmaMapContext();
   const {
     routedMapRef: routedMap,
-    //realRoutedMapRef: routedMapRef,
+    realRoutedMapRef: routeMapRef,
     referenceSystem,
     referenceSystemDefinition,
     maskingPolygon,
-  } = topicMapCtx;
+  } = useContext<typeof TopicMapContext>(TopicMapContext);
 
   const { setAppMenuVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
@@ -261,17 +261,34 @@ export const GeoportalMap = () => {
 
   useFeatureInfoModeCursorStyle();
 
-  const { selection, setSelection, overlayFeature, setOverlayFeature } = useSelection();
-  useSelectionTopicMap();
-  useSelectionCesium(!isMode2d, useMemo(() => ({
-    markerAsset,
-    markerAnchorHeight,
-    isPrimaryStyle: showPrimaryTileset,
-    surfaceProviderRef,
-      terrainProviderRef,
-    }),
-    [markerAsset, markerAnchorHeight, showPrimaryTileset, surfaceProviderRef, terrainProviderRef]
-  ));
+  const { selection, setSelection, setIsNewSelection, overlayFeature } =
+    useSelection();
+
+  useSelectionTopicMap(isMode2d);
+  useSelectionCesium(
+    !isMode2d,
+    useMemo(
+      () => ({
+        markerAsset,
+        markerAnchorHeight,
+        isPrimaryStyle: showPrimaryTileset,
+        surfaceProviderRef,
+        terrainProviderRef,
+      }),
+      [
+        markerAsset,
+        markerAnchorHeight,
+        showPrimaryTileset,
+        surfaceProviderRef,
+        terrainProviderRef,
+      ]
+    )
+  );
+
+  const onGazetteerSelection = (selection: SearchResultItem) => {
+    setSelection(selection);
+    setIsNewSelection(true);
+  };
 
   useEffect(() => {
     let isSame = true;
@@ -315,7 +332,6 @@ export const GeoportalMap = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allow3d]);
-
 
   const renderInfoBox = () => {
     if (isMode2d) {
@@ -438,8 +454,9 @@ export const GeoportalMap = () => {
                 dataTestId="measurement-control"
               >
                 <img
-                  src={`${getUrlPrefix()}${isModeMeasurement ? "measure-active.png" : "measure.png"
-                    }`}
+                  src={`${getUrlPrefix()}${
+                    isModeMeasurement ? "measure-active.png" : "measure.png"
+                  }`}
                   alt="Measure"
                   className="w-6"
                 />
@@ -502,11 +519,9 @@ export const GeoportalMap = () => {
         >
           <LibFuzzySearch
             gazData={gazData}
-            referenceSystem={referenceSystem}
-            referenceSystemDefinition={referenceSystemDefinition}
-            gazetteerHit={selection}
-            setGazetteerHit={setSelection}
-            setOverlayFeature={setOverlayFeature}
+            //referenceSystem={referenceSystem}
+            //referenceSystemDefinition={referenceSystemDefinition}
+            onSelection={onGazetteerSelection}
             placeholder="Wohin?"
           />
         </div>
@@ -584,10 +599,13 @@ export const GeoportalMap = () => {
                   mapRef={routedMap}
                 />
               )}
-              <GazetteerHitDisplay
-                key={"gazHit" + JSON.stringify(selection)}
-                gazetteerHit={selection}
-              />
+              !overlayFeature &&{" "}
+              {
+                <GazetteerHitDisplay
+                  key={"gazHit" + JSON.stringify(selection)}
+                  gazetteerHit={selection}
+                />
+              }
               {focusMode && <PaleOverlay />}
               {createCismapLayers(layers, {
                 mode: uiMode,

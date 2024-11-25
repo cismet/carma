@@ -305,7 +305,8 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
         "HOOK: update Hash, route or style changed",
         isSecondaryStyle
       );
-      onSceneChange && onSceneChange(encodeScene(viewer.scene, { isSecondaryStyle }));
+      onSceneChange &&
+        onSceneChange(encodeScene(viewer.scene, { isSecondaryStyle }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewerRef, location.pathname, isSecondaryStyle]);
