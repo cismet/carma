@@ -63,9 +63,10 @@ export const useSelectionCesium = (
       lastSelectionKey.current = selection.sorter;
       lastSelectionTimestamp.current = selection.selectionTimestamp;
 
-      const isNewSelection =
+      const isNewSelection = Boolean(
         selection?.selectionTimestamp &&
-        Date.now() - selection.selectionTimestamp < NEW_SELECTION_TIMEOUT;
+          Date.now() - selection.selectionTimestamp < NEW_SELECTION_TIMEOUT
+      );
 
       console.debug("HOOK: useSelectionCesium", selection, isActive);
 

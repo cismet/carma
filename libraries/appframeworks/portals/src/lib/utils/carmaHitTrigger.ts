@@ -42,7 +42,7 @@ const proj4ConverterLookup = {};
 const DEFAULT_ZOOM_LEVEL = 16;
 const DEFAULT_CESIUM_MARKER_ANCHOR_HEIGHT = 10; // in METERS
 const DEFAULT_CESIUM_PITCH_ADJUST_HEIGHT = 1500; // meters
-const MAX_FLYTO_DURATION = 10000; // milliseconds
+const MAX_FLYTO_DURATION = 10; // seconds
 
 type Coord = { lat: number; lon: number };
 // type MapType = 'leaflet' | 'cesium';
@@ -168,17 +168,13 @@ const getRingInWGS84 = (
     .map((coord) => PROJ4_CONVERTERS.CRS4326.forward(refSystem.inverse(coord)));
 
 export type GazetteerOptions = {
-  flyTo?: boolean;
+  doFlyTo: boolean;
   mapActions?: MapActions;
   mapOptions: CesiumOptions;
   selectedCesiumEntityData?: null | EntityData;
   setSelectedCesiumEntityData?: Function;
   selectedPolygonId: string;
   invertedSelectedPolygonId: string;
-};
-
-const defaultGazetteerOptions = {
-  doFlyTo: true,
 };
 
 export const carmaHitTrigger = async (
@@ -236,7 +232,7 @@ export const carmaHitTrigger = async (
         setSelectedCesiumEntityData,
         selectedPolygonId,
         invertedSelectedPolygonId,
-      } = { ...options, ...defaultGazetteerOptions };
+      } = options;
 
       const cAction = {
         ...CesiumMapActions,
