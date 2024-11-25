@@ -7,6 +7,7 @@ export const printMap = async (
   name,
   handleIsLoading
 ) => {
+  console.log("xxx layers", layers);
   const { url, title } = getOrientationTemplateParams(orientation);
   const data = {
     layout: title,
@@ -54,8 +55,12 @@ export const getPrintLayers = (bgLayer, layers) => {
         layer.props?.url,
         layer.props.name
       );
-
-      layerPrint.push(buildWMSPrint(baseURL, name));
+      const layerCat = layer.other?.tags[0] ? layer.other.tags[0] : "Basic";
+      if (layerCat === "Basic") {
+        layerPrint.push(buildWMSPrint(baseURL, name, layer.opacity));
+      } else {
+        layerPrint.unshift(buildWMSPrint(baseURL, name, layer.opacity));
+      }
     }
 
     if (layer.layerType === "vector") {
@@ -87,7 +92,7 @@ const buildUrlWitName = (layerUrl, name) => {
   };
 };
 
-const buildWMSPrint = (baseURL, name) => {
+const buildWMSPrint = (baseURL, name, opacity = 1) => {
   const wms = {
     imageFormat: "image/png",
     baseURL: baseURL,
@@ -97,7 +102,8 @@ const buildWMSPrint = (baseURL, name) => {
     },
     layers: [name],
     type: "WMS",
-    version: "1.3.0",
+    opacity,
+    // version: "1.3.0",
   };
 
   return wms;
