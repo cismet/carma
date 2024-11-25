@@ -48,7 +48,7 @@ export const useSelectionCesium = (
   // Ref to store the previous selection
 
   useEffect(() => {
-    if (!isActive) {
+    if (!isActive || !viewerRef) {
       return;
     }
 
@@ -66,7 +66,7 @@ export const useSelectionCesium = (
       console.debug("HOOK: useSelectionCesium", selection, isActive);
 
       const options = {
-        cesiumOptions,
+        mapOptions: cesiumOptions,
         doFlyTo: isNewSelection,
         selectedCesiumEntityData,
         setSelectedCesiumEntityData,
@@ -74,7 +74,7 @@ export const useSelectionCesium = (
         invertedSelectedPolygonId: INVERTED_SELECTED_POLYGON_ID,
       };
 
-      carmaHitTrigger([selection], [viewerRef], options);
+      carmaHitTrigger([selection], viewerRef, options);
     } else {
       lastSelectionKey.current = null;
       cleanUpCesium(

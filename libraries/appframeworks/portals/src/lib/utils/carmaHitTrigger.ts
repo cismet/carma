@@ -1,4 +1,4 @@
-import { RefObject } from "react";
+import { MutableRefObject, RefObject } from "react";
 import {
   BoundingSphere,
   Cartesian3,
@@ -62,12 +62,8 @@ type CesiumMapActions = {
   setZoom: (scene: Scene, zoom: number) => void;
   fitBoundingSphere: (scene: Scene, bounds: BoundingSphere) => void;
 };
-type MapActions = {
-  leaflet: Partial<LeafletMapActions>;
-  cesium: Partial<CesiumMapActions>;
-};
 
-export type MapConsumer = L.Map | Viewer;
+type MapActions = Partial<LeafletMapActions> | Partial<CesiumMapActions>;
 
 const LeafletMapActions = {
   panTo: (map: L.Map, { lat, lon }: Coord) =>
@@ -173,14 +169,8 @@ const getRingInWGS84 = (
 
 export type GazetteerOptions = {
   flyTo?: boolean;
-  setGazetteerHit?: (hit: any) => void;
-  setOverlayFeature?: (feature: any) => void;
-  furtherGazeteerHitTrigger?: (hit: any) => void;
-  referenceSystem?: any;
-  referenceSystemDefinition?: any;
-  suppressMarker?: boolean;
   mapActions?: MapActions;
-  cesiumOptions?: CesiumOptions;
+  mapOptions: CesiumOptions;
   selectedCesiumEntityData?: null | EntityData;
   setSelectedCesiumEntityData?: Function;
   selectedPolygonId: string;
@@ -189,38 +179,14 @@ export type GazetteerOptions = {
 
 const defaultGazetteerOptions = {
   doFlyTo: true,
-  referenceSystem: undefined,
-  referenceSystemDefinition: PROJ4_CONVERTERS.CRS25832,
-  suppressMarker: false,
 };
 
-export const carmaHitTrigger = (
+export const carmaHitTrigger = async (
   hit,
-  mapConsumerRefs: RefObject<MapConsumer>[],
+  mapRef: MutableRefObject<Viewer | null> | MutableRefObject<L.Map | null>,
   options: GazetteerOptions
 ) => {
   if (hit !== undefined && hit.length !== undefined && hit.length > 0) {
-    const {
-      doFlyTo,
-      setGazetteerHit,
-      setOverlayFeature,
-      furtherGazeteerHitTrigger,
-      referenceSystem,
-      referenceSystemDefinition,
-      suppressMarker,
-      mapActions = { leaflet: {}, cesium: {} },
-      cesiumOptions,
-      selectedCesiumEntityData,
-      setSelectedCesiumEntityData,
-      selectedPolygonId,
-      invertedSelectedPolygonId,
-    } = { ...options, ...defaultGazetteerOptions };
-
-    const cAction = (mapActions.cesium = {
-      ...CesiumMapActions,
-      ...mapActions.cesium,
-    } as CesiumMapActions);
-
     const hitObject = Object.assign({}, hit[0]); //Change the Zoomlevel of the map
 
     const crs = hitObject.crs ?? DEFAULT_PROJ;
@@ -256,138 +222,157 @@ export const carmaHitTrigger = (
       hitObject
     );
 
-    mapConsumerRefs.forEach(async (mapElementRef) => {
-      const mapElement = mapElementRef.current;
-      console.log("mapElement", mapElement);
-      if (mapElement instanceof Viewer && cesiumOptions) {
-        const viewer = mapElement;
-        const { scene } = viewer;
-        console.debug("applying hit trigger to cesium", viewer);
+    const mapElement = mapRef.current;
+    console.log("mapElement", mapElement);
+    if (mapElement instanceof Viewer && options) {
+      const viewer = mapElement;
+      const { scene } = viewer;
 
-        // cleanup previous selection
-        // todo only remove polygons, try to update existing entities for marker and polylines
-        selectedCesiumEntityData &&
-          removeCesiumMarker(viewer, selectedCesiumEntityData);
-        viewer.entities.removeById(selectedPolygonId);
-        //viewer.entities.removeById(INVERTED_SELECTED_POLYGON_ID);
-        removeGroundPrimitiveById(viewer, invertedSelectedPolygonId);
-        scene.requestRender(); // explicit render for requestRenderMode;
+      const {
+        doFlyTo,
+        mapActions,
+        mapOptions,
+        selectedCesiumEntityData,
+        setSelectedCesiumEntityData,
+        selectedPolygonId,
+        invertedSelectedPolygonId,
+      } = { ...options, ...defaultGazetteerOptions };
 
-        const posCarto = Cartographic.fromDegrees(pos.lon, pos.lat, 0);
+      const cAction = {
+        ...CesiumMapActions,
+        ...mapActions,
+      } as CesiumMapActions;
 
-        const terrainProvider =
-          cesiumOptions.surfaceProviderRef.current ??
-          cesiumOptions.terrainProviderRef.current;
+      const {
+        surfaceProviderRef,
+        terrainProviderRef,
+        isPrimaryStyle,
+        markerAsset,
+        markerAnchorHeight,
+      } = mapOptions;
+      console.debug("applying hit trigger to cesium", viewer);
 
-        if (!terrainProvider) {
-          console.debug(
-            "no terrain provider found, cant place marker without elevation"
-          );
-          return;
-        }
+      // cleanup previous selection
+      // todo only remove polygons, try to update existing entities for marker and polylines
+      selectedCesiumEntityData &&
+        removeCesiumMarker(viewer, selectedCesiumEntityData);
+      viewer.entities.removeById(selectedPolygonId);
+      //viewer.entities.removeById(INVERTED_SELECTED_POLYGON_ID);
+      removeGroundPrimitiveById(viewer, invertedSelectedPolygonId);
+      scene.requestRender(); // explicit render for requestRenderMode;
 
-        const [groundPosition] = await sampleTerrainMostDetailed(
-          terrainProvider,
-          [posCarto],
-          true
+      const posCarto = Cartographic.fromDegrees(pos.lon, pos.lat, 0);
+
+      const terrainProvider =
+        surfaceProviderRef.current ?? terrainProviderRef.current;
+
+      if (!terrainProvider) {
+        console.debug(
+          "no terrain provider found, cant place marker without elevation"
         );
+        return;
+      }
 
-        if (polygon) {
-          const polygonEntity = new Entity({
-            id: selectedPolygonId,
-            polygon: {
-              hierarchy: polygonHierarchyFromPolygonCoords(polygon),
-              material: Color.WHITE.withAlpha(0.01),
-              outline: false,
-              closeBottom: false,
-              closeTop: false,
-              // needs some Geometry for proper fly to and centering in correct elevation
-              extrudedHeight: 1, // falls jemand die Absicht hat eine Mauer zu errichten, kann dies hier getan werden.
-              extrudedHeightReference: HeightReference.RELATIVE_TO_GROUND,
-              height: 0, // height reference needs top compensate for some terrain variation minus the mount point of the polygon to ground
-              heightReference: HeightReference.RELATIVE_TO_GROUND,
-            },
-          });
-          // For the inverted polygon
-          const invertedPolygonGeometry = new PolygonGeometry({
-            polygonHierarchy: invertedPolygonHierarchy(polygon),
-            //height: 0,
-          });
+      const [groundPosition] = await sampleTerrainMostDetailed(
+        terrainProvider,
+        [posCarto],
+        true
+      );
 
-          const invertedGeometryInstance = new GeometryInstance({
-            geometry: invertedPolygonGeometry,
-            id: invertedSelectedPolygonId,
-            attributes: {
-              color: ColorGeometryInstanceAttribute.fromColor(
-                Color.GRAY.withAlpha(0.66)
-              ),
-            },
-          });
+      if (polygon) {
+        const polygonEntity = new Entity({
+          id: selectedPolygonId,
+          polygon: {
+            hierarchy: polygonHierarchyFromPolygonCoords(polygon),
+            material: Color.WHITE.withAlpha(0.01),
+            outline: false,
+            closeBottom: false,
+            closeTop: false,
+            // needs some Geometry for proper fly to and centering in correct elevation
+            extrudedHeight: 1, // falls jemand die Absicht hat eine Mauer zu errichten, kann dies hier getan werden.
+            extrudedHeightReference: HeightReference.RELATIVE_TO_GROUND,
+            height: 0, // height reference needs top compensate for some terrain variation minus the mount point of the polygon to ground
+            heightReference: HeightReference.RELATIVE_TO_GROUND,
+          },
+        });
+        // For the inverted polygon
+        const invertedPolygonGeometry = new PolygonGeometry({
+          polygonHierarchy: invertedPolygonHierarchy(polygon),
+          //height: 0,
+        });
 
-          const invertedGroundPrimitive = new GroundPrimitive({
-            geometryInstances: invertedGeometryInstance,
-            allowPicking: false,
-            releaseGeometryInstances: false, // needed to get ID
-            classificationType: cesiumOptions.isPrimaryStyle
-              ? ClassificationType.CESIUM_3D_TILE
-              : ClassificationType.BOTH,
-          });
+        const invertedGeometryInstance = new GeometryInstance({
+          geometry: invertedPolygonGeometry,
+          id: invertedSelectedPolygonId,
+          attributes: {
+            color: ColorGeometryInstanceAttribute.fromColor(
+              Color.GRAY.withAlpha(0.66)
+            ),
+          },
+        });
 
-          scene.groundPrimitives.add(invertedGroundPrimitive);
-          viewer.entities.add(polygonEntity);
-          //viewer.entities.add(invertedPolygonEntity);
-          doFlyTo && viewer.flyTo(polygonEntity);
-        } else if (defined(groundPosition)) {
-          const updateMarkerPosition = async () => {
-            const anchorHeightOffset =
-              cesiumOptions.markerAnchorHeight ??
-              DEFAULT_CESIUM_MARKER_ANCHOR_HEIGHT;
-            const anchorPosition = groundPosition.clone();
-            anchorPosition.height = anchorPosition.height + anchorHeightOffset;
-            console.debug(
-              "GAZETTEER: [2D3D|CESIUM|CAMERA] adding marker at Marker (Surface/Terrain Elevation)",
-              anchorPosition.height,
-              groundPosition.height,
-              anchorHeightOffset,
+        const invertedGroundPrimitive = new GroundPrimitive({
+          geometryInstances: invertedGeometryInstance,
+          allowPicking: false,
+          releaseGeometryInstances: false, // needed to get ID
+          classificationType: isPrimaryStyle
+            ? ClassificationType.CESIUM_3D_TILE
+            : ClassificationType.BOTH,
+        });
+
+        scene.groundPrimitives.add(invertedGroundPrimitive);
+        viewer.entities.add(polygonEntity);
+        //viewer.entities.add(invertedPolygonEntity);
+        doFlyTo && viewer.flyTo(polygonEntity);
+      } else if (defined(groundPosition)) {
+        const updateMarkerPosition = async () => {
+          const anchorHeightOffset =
+            markerAnchorHeight ?? DEFAULT_CESIUM_MARKER_ANCHOR_HEIGHT;
+          const anchorPosition = groundPosition.clone();
+          anchorPosition.height = anchorPosition.height + anchorHeightOffset;
+          console.debug(
+            "GAZETTEER: [2D3D|CESIUM|CAMERA] adding marker at Marker (Surface/Terrain Elevation)",
+            anchorPosition.height,
+            groundPosition.height,
+            anchorHeightOffset,
+            anchorPosition,
+            groundPosition,
+            viewer.scene.terrainProvider
+          );
+          const model = selectedCesiumEntityData?.model;
+          selectedCesiumEntityData &&
+            removeCesiumMarker(viewer, selectedCesiumEntityData);
+          scene.requestRender(); // explicit render for requestRenderMode;
+          if (markerAsset) {
+            const data = await addCesiumMarker(
+              viewer,
               anchorPosition,
               groundPosition,
-              viewer.scene.terrainProvider
+              markerAsset,
+              model
             );
-            const model = selectedCesiumEntityData?.model;
-            selectedCesiumEntityData &&
-              removeCesiumMarker(viewer, selectedCesiumEntityData);
-            scene.requestRender(); // explicit render for requestRenderMode;
-            if (cesiumOptions.markerAsset) {
-              const data = await addCesiumMarker(
-                viewer,
-                anchorPosition,
-                groundPosition,
-                cesiumOptions.markerAsset,
-                model
-              );
-              setSelectedCesiumEntityData && setSelectedCesiumEntityData(data);
-            }
-          };
-          if (cesiumOptions.markerAsset) {
-            updateMarkerPosition();
+            setSelectedCesiumEntityData && setSelectedCesiumEntityData(data);
           }
-          doFlyTo &&
-            cAction.lookAt(viewer, groundPosition, zoom, cesiumOptions, {
-              //onComplete: delayedMarker,
-              durationFactor: 0.2,
-            });
-          console.debug(
-            "GAZETTEER: [2D3D|CESIUM|CAMERA] look at Marker (Terrain Elevation)"
-          );
-        } else {
-          console.warn("no ground position found");
+        };
+        if (markerAsset) {
+          updateMarkerPosition();
         }
-      } else if (mapElement instanceof RoutedMap) {
-        console.info("xxx mapElement", mapElement, "not implemented");
+        doFlyTo &&
+          cAction.lookAt(viewer, groundPosition, zoom, mapOptions, {
+            //onComplete: delayedMarker,
+            durationFactor: 0.2,
+          });
+        console.debug(
+          "GAZETTEER: [2D3D|CESIUM|CAMERA] look at Marker (Terrain Elevation)"
+        );
       } else {
-        console.warn("Unsupported map type", mapElement);
+        console.warn("no ground position found");
       }
-    });
+    } else if (mapElement instanceof RoutedMap) {
+      console.info("xxx mapElement", mapElement, "not implemented");
+    } else {
+      console.warn("Unsupported map type", mapElement);
+    }
   } else {
     console.info("unhandled hit:", hit);
   }
