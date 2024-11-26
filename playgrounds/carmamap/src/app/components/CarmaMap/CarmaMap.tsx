@@ -56,6 +56,7 @@ import {
   useHomeControl,
   useZoomControls as useZoomControlsCesium,
   setCurrentSceneStyle,
+  SceneStyleToggle,
 } from "@carma-mapping/cesium-engine";
 import { LibFuzzySearch, SearchResultItem } from "@carma-mapping/fuzzy-search";
 
@@ -75,6 +76,7 @@ import {
   getShowFullscreenButton,
   getShowHamburgerMenu,
   getShowLocatorButton,
+  setBackgroundLayer,
 } from "../../store/slices/mapping.ts";
 import { getUIAllow3d, getUIMode, UIMode } from "../../store/slices/ui.ts";
 
@@ -177,8 +179,6 @@ export const CarmaMap = () => {
   };
 
   useEffect(() => {
-    // TODO wrap this with 3d component in own component?
-    // INTIALIZE Cesium Tileset style from Geoportal/TopicMap background later style
     if (viewerRef.current && backgroundLayer) {
       if (backgroundLayer.id === "luftbild") {
         dispatch(setCurrentSceneStyle("primary"));
@@ -270,12 +270,8 @@ export const CarmaMap = () => {
               //dispatch(setBackgroundLayer({ ...backgroundLayer, visible: isTo2d }));
             }}
           />
-          {
-            //<SceneStyleToggle />
-            <Compass disabled={isMode2d} />
-            // TODO implement cesium home action with generic home control for all mapping engines
-            //<HomeControl />
-          }
+          <SceneStyleToggle />
+          <Compass disabled={isMode2d} />
         </Control>
       )}
       <Control position="bottomleft" order={10}>
