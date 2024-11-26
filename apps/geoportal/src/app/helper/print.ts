@@ -237,3 +237,35 @@ export const prevRectCalc = (currentZoom, scale, rWidth, rHeight) => {
 
   return { pixelWidth: newWidth, pixelHeight: newHeight };
 };
+
+export const transformDivToCoord = (map) => {
+  const overlayDiv = document.getElementById("overlayDiv");
+  const overlayRect = overlayDiv.getBoundingClientRect();
+
+  const mapContainer = document.getElementById("routedMap");
+  const mapRect = mapContainer.getBoundingClientRect();
+
+  const topLeft = L.point(
+    overlayRect.left - mapRect.left,
+    overlayRect.top - mapRect.top
+  );
+  const bottomRight = L.point(
+    overlayRect.right - mapRect.left,
+    overlayRect.bottom - mapRect.top
+  );
+
+  const topLeftLatLng = map.containerPointToLatLng(topLeft);
+  const bottomRightLatLng = map.containerPointToLatLng(bottomRight);
+
+  const topLeftProjected = map.options.crs.project(topLeftLatLng);
+  const bottomRightProjected = map.options.crs.project(bottomRightLatLng);
+
+  const extent = [
+    topLeftProjected.x, // minX
+    bottomRightProjected.y, // minY
+    bottomRightProjected.x, // maxX
+    topLeftProjected.y, // maxY
+  ];
+
+  return extent;
+};
