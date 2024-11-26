@@ -73,6 +73,7 @@ import {
   getBackgroundLayer,
   getFocusMode,
   getLayers,
+  getSelectedMapLayer,
   getShowFullscreenButton,
   getShowHamburgerMenu,
   getShowLocatorButton,
@@ -88,6 +89,7 @@ import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config.ts";
 
 import "../leaflet.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
+import { layerMap } from "../../config/index.ts";
 
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;
@@ -107,6 +109,8 @@ export const CarmaMap = () => {
   // State and Selectors
   const allow3d = useSelector(getUIAllow3d) && hasGPU;
   const backgroundLayer = useSelector(getBackgroundLayer);
+  const selectedMapLayer = useSelector(getSelectedMapLayer);
+
   const isMode2d = useSelector(selectViewerIsMode2d) || !allow3d;
   const models = useSelector(selectViewerModels);
   const markerAsset = models[CESIUM_CONFIG.markerKey]; //
@@ -199,6 +203,38 @@ export const CarmaMap = () => {
 
   console.debug("RENDER: [CARMAMAP] MAP", isMode2d);
 
+  const toggleTopicMapBackgroundLayer = (isToPrimary: boolean) => {
+    if (isToPrimary) {
+      dispatch(
+        setBackgroundLayer({
+          ...selectedMapLayer,
+          id: "karte",
+          visible: true,
+        })
+      );
+    } else {
+      const id = "luftbild";
+      const layer = layerMap[id];
+      dispatch(
+        setBackgroundLayer({
+          id,
+          title: layer.title,
+          opacity: 1.0,
+          description: layer.description,
+          inhalt: layer.inhalt,
+          eignung: layer.eignung,
+          layerType: "wmts",
+          visible: true,
+          props: {
+            name: "",
+            url: layer.url,
+          },
+          layers: layer.layers,
+        })
+      );
+    }
+  };
+
   return (
     <ControlLayout ifStorybook={false}>
       <Control position="topleft" order={10}>
@@ -270,7 +306,7 @@ export const CarmaMap = () => {
               //dispatch(setBackgroundLayer({ ...backgroundLayer, visible: isTo2d }));
             }}
           />
-          <SceneStyleToggle />
+          <SceneStyleToggle onToggle={toggleTopicMapBackgroundLayer} />
           <Compass disabled={isMode2d} />
         </Control>
       )}

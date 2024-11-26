@@ -15,15 +15,18 @@ import {
 type SceneStyleToggleProps = {
   children?: ReactNode;
   initialStyle?: keyof SceneStyles;
+  onToggle?: (isToPrimary: boolean) => void;
 };
 
 export const SceneStyleToggle = (props: SceneStyleToggleProps) => {
   const dispatch = useDispatch();
   const currentSceneStyle = useSelector(selectCurrentSceneStyle);
   const isPrimaryStyle = currentSceneStyle === "primary";
+  const { onToggle } = props;
   const handleToggle = (e: MouseEvent) => {
     e.preventDefault();
     dispatch(toggleCurrentSceneStyle());
+    onToggle && onToggle(isPrimaryStyle);
   };
 
   return (
