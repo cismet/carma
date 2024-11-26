@@ -1,0 +1,7 @@
+.dont-show {
+  display: none !important;
+}
+
+.leaflet-control-locate {
+  visibility: hidden !important;
+}
