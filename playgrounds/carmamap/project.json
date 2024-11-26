@@ -1,5 +1,5 @@
 {
-  "name": "carmamap",
+  "name": "carmamap-playground",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "playgrounds/carmamap/src",
   "projectType": "application",
@@ -25,16 +25,16 @@
       "executor": "@nx/vite:dev-server",
       "defaultConfiguration": "development",
       "options": {
-        "buildTarget": "carmamap:build",
+        "buildTarget": "carmamap-playground:build",
         "host": "0.0.0.0"
       },
       "configurations": {
         "development": {
-          "buildTarget": "carmamap:build:development",
+          "buildTarget": "carmamap-playground:build:development",
           "hmr": true
         },
         "production": {
-          "buildTarget": "carmamap:build:production",
+          "buildTarget": "carmamap-playground:build:production",
           "hmr": false
         }
       }
@@ -43,14 +43,14 @@
       "executor": "@nx/vite:preview-server",
       "defaultConfiguration": "development",
       "options": {
-        "buildTarget": "carmamap:build"
+        "buildTarget": "carmamap-playground:build"
       },
       "configurations": {
         "development": {
-          "buildTarget": "carmamap:build:development"
+          "buildTarget": "carmamap-playground:build:development"
         },
         "production": {
-          "buildTarget": "carmamap:build:production"
+          "buildTarget": "carmamap-playground:build:production"
         }
       }
     },
