@@ -1,4 +1,10 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  ReactNode,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 
 import {
   type GazDataItem,
@@ -15,10 +21,13 @@ interface GazDataContextType {
 
 const GazDataContext = createContext<GazDataContextType | undefined>(undefined);
 
-interface GazDataProviderProps {
-  children: React.ReactNode;
+export type GazDataOptions = {
   sourcesConfig?: SourceConfig[];
   prefix?: string;
+};
+
+interface GazDataProviderProps extends GazDataOptions {
+  children: ReactNode;
 }
 
 export function GazDataProvider({

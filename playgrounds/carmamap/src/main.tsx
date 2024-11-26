@@ -32,13 +32,13 @@ const router = createHashRouter([
     path: "/",
     element: <App />,
   },
-])
+]);
 
 root.render(
   <Provider store={store}>
     <TweakpaneProvider>
       <PersistGate loading={null} persistor={persistor}>
-        <RouterProvider router={router}/>
+        <RouterProvider router={router} />
       </PersistGate>
     </TweakpaneProvider>
   </Provider>

@@ -87,8 +87,6 @@ const layersConfig = {
   whitelist: ["thumbnails", "favorites"],
 };
 
-
-
 const store = configureStore({
   reducer: {
     mapping: persistReducer(mappingConfig, mappingReducer),

@@ -76,11 +76,7 @@ import {
   getShowHamburgerMenu,
   getShowLocatorButton,
 } from "../../store/slices/mapping.ts";
-import {
-  getUIAllow3d,
-  getUIMode,
-  UIMode,
-} from "../../store/slices/ui.ts";
+import { getUIAllow3d, getUIMode, UIMode } from "../../store/slices/ui.ts";
 
 import LocateControlComponent from "./controls/LocateControlComponent.tsx";
 
@@ -180,7 +176,6 @@ export const CarmaMap = () => {
     setSelection(Object.assign({}, selection, selectionMetaData));
   };
 
-
   useEffect(() => {
     // TODO wrap this with 3d component in own component?
     // INTIALIZE Cesium Tileset style from Geoportal/TopicMap background later style
@@ -201,7 +196,6 @@ export const CarmaMap = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allow3d]);
-
 
   console.debug("RENDER: [CARMAMAP] MAP", isMode2d);
 
@@ -285,10 +279,7 @@ export const CarmaMap = () => {
         </Control>
       )}
       <Control position="bottomleft" order={10}>
-        <div
-          data-test-id="fuzzy-search"
-          className="h-full w-full"
-        >
+        <div data-test-id="fuzzy-search" className="h-full w-full">
           <LibFuzzySearch
             gazData={gazData}
             //referenceSystem={referenceSystem}
@@ -306,7 +297,7 @@ export const CarmaMap = () => {
               modalMenu={
                 <GenericModalApplicationMenu
                   {...getCollabedHelpComponentConfig({
-                    versionString: version
+                    versionString: version,
                   })}
                 />
               }

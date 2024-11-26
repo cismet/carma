@@ -33,6 +33,7 @@ import {
   SelectionMetaData,
   TopicMapSelectionContent,
   useCarmaMapContext,
+  useGazData,
   useSelection,
   useSelectionCesium,
   useSelectionTopicMap,
@@ -76,7 +77,6 @@ import { getBackgroundLayers } from "../../helper/layer.tsx";
 import { addCssToOverlayHelperItem } from "../../helper/overlayHelper.ts";
 
 import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenInfoText.ts";
-import { useGazData } from "../../hooks/useGazData.ts";
 import { useWindowSize } from "../../hooks/useWindowSize.ts";
 import { useTourRefCollabLabels } from "../../hooks/useTourRefCollabLabels.ts";
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
@@ -242,7 +242,7 @@ export const GeoportalMap = () => {
   useDispatchSachdatenInfoText();
 
   const tourRefLabels = useTourRefCollabLabels();
-  const gazData = useGazData();
+  const { gazData } = useGazData();
   const { width, height } = useWindowSize(wrapperRef);
 
   const handleToggleMeasurement = () => {

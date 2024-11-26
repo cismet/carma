@@ -1,29 +1,22 @@
 import { OverlayTourProvider } from "@carma-commons/ui/lib-helper-overlay";
-import {
-  CesiumContextProvider,
-  CesiumContextType,
-  useCesiumContext,
-} from "@carma-mapping/cesium-engine";
+import { CesiumContextProvider } from "@carma-mapping/cesium-engine";
 import {
   createContext,
   Dispatch,
   SetStateAction,
   useContext,
-  useMemo,
   useState,
 } from "react";
-import {
-  TopicMapContext,
-  TopicMapContextProvider,
-} from "react-cismap/contexts/TopicMapContextProvider";
+import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
 
-import { GazDataProvider } from "./GazDataProvider";
+import { GazDataOptions, GazDataProvider } from "./GazDataProvider";
 import { SelectionProvider } from "./SelectionProvider";
 
 type CarmaMapProviderProps = {
   children: React.ReactNode;
   overlayOptions: { background: { transparency: number; color: string } };
   cesiumOptions: { providerConfig: any; tilesetConfigs: any };
+  gazDataOptions?: GazDataOptions;
 };
 
 type CarmaMapContextType = {
@@ -47,9 +40,11 @@ export const CarmaMapContextProvider = ({
   children,
   overlayOptions,
   cesiumOptions,
+  gazDataOptions = {},
 }: CarmaMapProviderProps) => {
   const { background } = overlayOptions;
   const { transparency, color } = background;
+  const { sourcesConfig, prefix } = gazDataOptions;
 
   const [showTourOverlay, setShowTourOverlay] = useState(false);
 
@@ -62,7 +57,7 @@ export const CarmaMapContextProvider = ({
   };
 
   return (
-    <GazDataProvider>
+    <GazDataProvider sourcesConfig={sourcesConfig} prefix={prefix}>
       <SelectionProvider>
         <TopicMapContextProvider>
           <OverlayTourProvider
