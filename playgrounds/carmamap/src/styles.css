@@ -1,0 +1,30 @@
+/* You can add global styles to this file, and also import other style files */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  /* mobile viewport bug fix */
+  min-height: -webkit-fill-available;
+}
+
+html {
+  height: -webkit-fill-available;
+}
+
+.cesium-widget-credits {
+  display: none !important;
+}
+
+/* TODO: remove not needed debug colors */
+.cesium-viewer {
+  background-color: red;
+}
+
+.cesium-viewer-cesiumWidgetContainer {
+  background-color: blue;
+}
+
+.cesium-widget {
+  background-color: cadetblue;
+}

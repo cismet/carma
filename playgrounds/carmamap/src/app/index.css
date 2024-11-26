@@ -1,0 +1,35 @@
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
+    monospace;
+}
+
+.leaflet-marker-icon.leaflet-div-icon {
+  width: 8px !important;
+  height: 8px !important;
+  margin-left: -4px !important;
+  margin-top: -4px !important;
+  background-color: rgba(255, 255, 255, 0.512);
+  border: 0.75px solid black;
+  border-radius: 50%;
+}
+
+path.leaflet-interactive {
+  stroke: #267bdcd4;
+}
+
+path.custom-polyline.leaflet-interactive {
+  stroke: gray;
+}
+
+.overlay-helper-ul-class {
+  list-style: disc;
+}

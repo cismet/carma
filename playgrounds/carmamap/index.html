@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <script>
+      // prevents cesium bundle from causing uncaught errors when bundled.
+      // TODO Replace with a proper lazy loading of cesium
+      if (typeof TransformStream === "undefined") {
+        console.warn(
+          "Die TransformStream API wird von diesem Browser nicht unterstützt. Bitte benutzen sie einen unterstützten Browser."
+        );
+        class DummyTransformStream {
+          constructor() {
+            this.readable = null;
+            this.writable = null;
+            this.isDummy = true;
+          }
+        }
+        window.TransformStream = DummyTransformStream;
+      }
+    </script>
+    <meta charset="utf-8" />
+    <title>DigiTal Zwilling / CarmaMap</title>
+    <base href="/" />
+
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+    />
+
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
