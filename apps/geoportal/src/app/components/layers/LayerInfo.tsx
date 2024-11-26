@@ -37,15 +37,16 @@ const LayerInfo = ({ description, legend }: LayerInfoProps) => {
 
   useEffect(() => {
     if (metadataUrl) {
+      const urlWithoutWhitespace = metadataUrl.replaceAll(" ", "");
       setPdfUrl(
         `https://geoportal-nrw-content-type-pdf-proxy.cismet.de/geoportal-smartfinder-iso-1.2/resources/content/document/${getIdFromUrl(
-          metadataUrl
+          urlWithoutWhitespace
         )}?filename=Metadatensatz.${currentLayer.title.replaceAll(
           " ",
           "_"
         )}.Wuppertal.pdf`
       );
-      fetch(metadataUrl)
+      fetch(urlWithoutWhitespace)
         .then((response) => {
           return response.text();
         })
@@ -61,32 +62,47 @@ const LayerInfo = ({ description, legend }: LayerInfoProps) => {
   }, [metadataUrl]);
 
   return (
-    <>
-      {parsedDescription && (
-        <div>
-          <h5 className="font-semibold">Inhalt</h5>
-          <p className="text-sm">{parsedDescription.inhalt}</p>
-          {parsedDescription.sichtbarkeit.slice(0, -1) !== "öffentlich" && (
-            <>
-              <h5 className="font-semibold">Sichtbarkeit</h5>
-              <p className="text-sm">
-                {parsedDescription.sichtbarkeit.slice(0, -1)}
-              </p>
-            </>
-          )}
-          <h5 className="font-semibold">Nutzung</h5>
-          <p className="text-sm">{parsedDescription.nutzung}</p>
-        </div>
-      )}
-      <hr className="h-px my-0 bg-gray-300 border-0 w-full" />
+    <div className="flex gap-2 w-full">
+      <div className="h-full flex flex-col gap-2 w-2/3">
+        {parsedDescription && (
+          <div>
+            <h5 className="font-semibold">Inhalt</h5>
+            <p className="text-sm">{parsedDescription.inhalt}</p>
+            {parsedDescription.sichtbarkeit.slice(0, -1) !== "öffentlich" && (
+              <>
+                <h5 className="font-semibold">Sichtbarkeit</h5>
+                <p className="text-sm">
+                  {parsedDescription.sichtbarkeit.slice(0, -1)}
+                </p>
+              </>
+            )}
+            <h5 className="font-semibold">Nutzung</h5>
+            <p className="text-sm">{parsedDescription.nutzung}</p>
+          </div>
+        )}
+        <hr className="h-px my-0 bg-gray-300 border-0 w-full" />
 
-      <Tabs
-        animated={false}
-        items={tabItems(legend, currentLayer, metadataText, pdfUrl)}
-        activeKey={activeTabKey}
-        onChange={(key) => dispatch(setUIActiveTabKey(key))}
-      />
-    </>
+        <Tabs
+          animated={false}
+          items={tabItems(currentLayer, metadataText, pdfUrl)}
+          activeKey={activeTabKey}
+          onChange={(key) => dispatch(setUIActiveTabKey(key))}
+        />
+      </div>
+      <div className="w-1/3">
+        <h5>Legende</h5>
+        <div className="h-full overflow-auto">
+          {legend?.map((legend, i) => (
+            <img
+              key={`legend_${i}`}
+              src={legend.OnlineResource}
+              alt="Legende"
+              className="aspect-auto object-contain"
+            />
+          ))}
+        </div>
+      </div>
+    </div>
   );
 };
 
