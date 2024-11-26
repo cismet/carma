@@ -14,12 +14,11 @@ const HomeButton = ({
   home = { position: [51.272034, 7.19997], zoom: 18 },
 }: HomeButtonProps) => {
   const ctx = useContext(TopicMapContext) as typeof TopicMapContext;
+  const { realRoutedMapRef: routedMapRef } = ctx;
 
   useEffect(() => {
-    if (ctx && ctx.routedMapRef.leafletMap) {
-      const leafletMap = ctx.routedMapRef.leafletMap
-        .leafletElement as LeafletMap;
-
+    if (routedMapRef?.current?.leafletMap?.leafletElement) {
+      const leafletElement = routedMapRef.current.leafletMap.leafletElement;
       // Create custom control instance
       const homeControl = new Control({ position: "topleft" });
 
@@ -45,13 +44,13 @@ const HomeButton = ({
       };
 
       console.debug("HOOK: adding home button to leaflet map");
-      homeControl.addTo(leafletMap);
+      homeControl.addTo(leafletElement);
       return () => {
         console.debug("HOOK: removing home button");
         homeControl.remove();
       };
     }
-  }, [ctx, home]);
+  }, [routedMapRef, home]);
 
   return null;
 };
