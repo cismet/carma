@@ -28,6 +28,8 @@ const LayerInfo = ({ description, legend }: LayerInfoProps) => {
   const parsedDescription = parseDescription(description);
   const metadataUrl =
     currentLayer?.other?.props?.MetadataURL?.[0]?.OnlineResource;
+  // @ts-ignore
+  const layerType = currentLayer?.props?.style ? "Vektorlayer" : "Rasterlayer";
 
   const getIdFromUrl = (url: string) => {
     const urlObj = new URL(url);
@@ -62,46 +64,50 @@ const LayerInfo = ({ description, legend }: LayerInfoProps) => {
   }, [metadataUrl]);
 
   return (
-    <div className="flex gap-2 w-full h-[calc(100%-40px)]">
-      <div className="h-full flex flex-col gap-2 w-2/3">
-        {parsedDescription && (
-          <div>
-            <h5 className="font-semibold">Inhalt</h5>
-            <p className="text-sm">{parsedDescription.inhalt}</p>
-            {parsedDescription.sichtbarkeit.slice(0, -1) !== "öffentlich" && (
-              <>
-                <h5 className="font-semibold">Sichtbarkeit</h5>
-                <p className="text-sm">
-                  {parsedDescription.sichtbarkeit.slice(0, -1)}
-                </p>
-              </>
-            )}
-            <h5 className="font-semibold">Nutzung</h5>
-            <p className="text-sm">{parsedDescription.nutzung}</p>
-          </div>
-        )}
-        <hr className="h-px my-0 bg-gray-300 border-0 w-full" />
+    <div className="flex flex-col gap-1 overflow-y-hidden h-full">
+      <div className="flex gap-2 w-full h-[94%]">
+        <div className="h-full flex flex-col gap-2 w-2/3">
+          {parsedDescription && (
+            <div>
+              <h5 className="font-semibold">Inhalt</h5>
+              <p className="text-sm">{parsedDescription.inhalt}</p>
+              {parsedDescription.sichtbarkeit.slice(0, -1) !== "öffentlich" && (
+                <>
+                  <h5 className="font-semibold">Sichtbarkeit</h5>
+                  <p className="text-sm">
+                    {parsedDescription.sichtbarkeit.slice(0, -1)}
+                  </p>
+                </>
+              )}
+              <h5 className="font-semibold">Nutzung</h5>
+              <p className="text-sm">{parsedDescription.nutzung}</p>
+            </div>
+          )}
+          <hr className="h-px my-0 bg-gray-300 border-0 w-full" />
 
-        <Tabs
-          animated={false}
-          items={tabItems(currentLayer, metadataText, pdfUrl)}
-          activeKey={activeTabKey}
-          onChange={(key) => dispatch(setUIActiveTabKey(key))}
-        />
-      </div>
-      <div className="w-1/3 h-[calc(100%-18px)]">
-        <h5>Legende</h5>
-        <div className="h-full overflow-auto">
-          {legend?.map((legend, i) => (
-            <img
-              key={`legend_${i}`}
-              src={legend.OnlineResource}
-              alt="Legende"
-              className="aspect-auto h-auto object-contain overflow-clip"
-            />
-          ))}
+          <Tabs
+            animated={false}
+            items={tabItems(currentLayer, metadataText, pdfUrl)}
+            activeKey={activeTabKey}
+            onChange={(key) => dispatch(setUIActiveTabKey(key))}
+          />
+        </div>
+        <div className="w-1/3 h-[calc(100%-26px)]">
+          <h5>Legende</h5>
+          <div className="h-full overflow-auto">
+            {legend?.map((legend, i) => (
+              <img
+                key={`legend_${i}`}
+                src={legend.OnlineResource}
+                alt="Legende"
+                className="aspect-auto h-auto object-contain overflow-clip"
+              />
+            ))}
+          </div>
         </div>
       </div>
+      <hr className="h-px my-0 bg-gray-300 border-0 w-full absolute bottom-9 left-0" />
+      <p className="my-0 pt-2.5 text-gray-400 text-base">{layerType}</p>
     </div>
   );
 };
