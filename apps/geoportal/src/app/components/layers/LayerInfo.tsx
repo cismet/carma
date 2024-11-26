@@ -62,7 +62,7 @@ const LayerInfo = ({ description, legend }: LayerInfoProps) => {
   }, [metadataUrl]);
 
   return (
-    <div className="flex gap-2 w-full">
+    <div className="flex gap-2 w-full h-[calc(100%-40px)]">
       <div className="h-full flex flex-col gap-2 w-2/3">
         {parsedDescription && (
           <div>
@@ -89,7 +89,7 @@ const LayerInfo = ({ description, legend }: LayerInfoProps) => {
           onChange={(key) => dispatch(setUIActiveTabKey(key))}
         />
       </div>
-      <div className="w-1/3">
+      <div className="w-1/3 h-[calc(100%-18px)]">
         <h5>Legende</h5>
         <div className="h-full overflow-auto">
           {legend?.map((legend, i) => (
@@ -97,7 +97,7 @@ const LayerInfo = ({ description, legend }: LayerInfoProps) => {
               key={`legend_${i}`}
               src={legend.OnlineResource}
               alt="Legende"
-              className="aspect-auto object-contain"
+              className="aspect-auto h-auto object-contain overflow-clip"
             />
           ))}
         </div>
