@@ -56,7 +56,6 @@ export const formatter: NonNullable<
 >["formatter"] = (value) => `${value * 100}%`;
 
 const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
-  const [showAlternativeIcon, setShowAlternativeIcon] = useState(false);
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const infoRef = useRef<HTMLDivElement>(null);
   const dispatch = useDispatch();
@@ -120,25 +119,9 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
       }
     };
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Control") {
-        setShowAlternativeIcon(true);
-      }
-    };
-
-    const handleKeyUp = (event: KeyboardEvent) => {
-      if (event.key === "Control") {
-        setShowAlternativeIcon(false);
-      }
-    };
-
     document.addEventListener("mousedown", handleOutsideClick);
-    document.addEventListener("keydown", handleKeyDown);
-    document.addEventListener("keyup", handleKeyUp);
     return () => {
       document.removeEventListener("mousedown", handleOutsideClick);
-      document.removeEventListener("keydown", handleKeyDown);
-      document.removeEventListener("keyup", handleKeyUp);
     };
   }, [dispatch, selectedLayerIndex]);
 
@@ -251,21 +234,9 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
               className="relative fa-stack"
             >
               {showInfo ? (
-                showAlternativeIcon ? (
-                  <FontAwesomeIcon
-                    className="text-base pr-[5px] text-gray-700"
-                    icon={faChevronCircleUp}
-                  />
-                ) : (
-                  <FontAwesomeIcon
-                    className="text-base pr-[5px]"
-                    icon={faChevronUp}
-                  />
-                )
-              ) : showAlternativeIcon ? (
                 <FontAwesomeIcon
-                  className="text-base pr-[5px] text-gray-700"
-                  icon={faChevronCircleDown}
+                  className="text-base pr-[5px]"
+                  icon={faChevronUp}
                 />
               ) : (
                 <FontAwesomeIcon
