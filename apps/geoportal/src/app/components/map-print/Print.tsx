@@ -65,6 +65,7 @@ const Print = ({ setShowPrintPopup }) => {
         </div>
       </Radio.Group>
       <hr className="my-0" />
+      <h5 className="mb-0">Druckmaßstab</h5>
       <Select
         showSearch
         placeholder="Wählen einen Maßstab"

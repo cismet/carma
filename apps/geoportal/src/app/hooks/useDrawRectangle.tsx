@@ -70,15 +70,15 @@ export const useDrawRectangle = (printCb, printOffCb) => {
   };
 
   const addRectangle = (map) => {
-    // const pixelWidth = orientation === "landscape" ? 674 : 476;
-    // const pixelHeight = orientation === "landscape" ? 476 : 674;
+    const defaultlWidth = orientation === "landscape" ? 674 : 476;
+    const defaultHeight = orientation === "landscape" ? 476 : 674;
     // const pixelWidth = 674;
     // const pixelHeight = 476;
     const { pixelWidth, pixelHeight } = prevRectCalc(
       map.getZoom(),
       scale,
-      674,
-      476
+      defaultlWidth,
+      defaultHeight
     );
     const mapContainer = map.getContainer();
     const mapWidth = mapContainer.offsetWidth;
@@ -88,8 +88,6 @@ export const useDrawRectangle = (printCb, printOffCb) => {
     const top = (mapHeight - pixelHeight) / 2;
 
     const zoom = map.getZoom();
-
-    console.log("xxx zoom", zoom);
 
     const wrapper = L.DomUtil.create("div", "rectangle-wrapper");
     wrapper.style.position = "absolute";

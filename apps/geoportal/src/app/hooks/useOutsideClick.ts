@@ -2,7 +2,6 @@ import { useEffect, useRef } from "react";
 
 export const useOutsideClick = (callback: () => void) => {
   const ref = useRef<HTMLDivElement>(null);
-  console.log("xxx click outside");
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent | TouchEvent) => {

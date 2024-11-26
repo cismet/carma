@@ -206,10 +206,17 @@ export const prevRectCalc = (currentZoom, scale, rWidth, rHeight) => {
   let newWidth;
   let newHeight;
 
+  const maxZoom = 10;
+  const minZoom = 22;
+
   if (currentZoom === targetZoom) {
     newWidth = rWidth;
     newHeight = rHeight;
   }
+
+  // if(currentZoom === targetZoom && targetZoom !== maxZoom){
+  //   if()
+  // }
 
   if (currentZoom < targetZoom) {
     const levelSteps = targetZoom - currentZoom;
@@ -218,7 +225,7 @@ export const prevRectCalc = (currentZoom, scale, rWidth, rHeight) => {
   }
 
   if (currentZoom > targetZoom) {
-    const levelSteps = targetZoom - currentZoom;
+    const levelSteps = currentZoom - targetZoom;
     newWidth = rWidth * levelSteps;
     newHeight = rHeight * levelSteps;
   }
