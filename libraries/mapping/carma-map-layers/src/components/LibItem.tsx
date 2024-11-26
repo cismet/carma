@@ -1,5 +1,7 @@
 import { faStar as regularFaStar } from "@fortawesome/free-regular-svg-icons";
 import {
+  faChevronDown,
+  faChevronUp,
   faCircleInfo,
   faCircleMinus,
   faCirclePlus,
@@ -448,14 +450,22 @@ const LibItem = ({
             >
               {title}
             </h3>
-            {keywords &&
-              extractVectorStyles(keywords)?.vectorStyle &&
-              !forceWMS && (
-                <FontAwesomeIcon
-                  icon={faRocket}
-                  className="text-xl pt-1 cursor-pointer text-gray-700 z-50"
-                />
-              )}
+            <div className="flex flex-col gap-2">
+              <FontAwesomeIcon
+                icon={
+                  selectedLayerId === layer.id ? faChevronUp : faChevronDown
+                }
+                className="text-xl pt-1 cursor-pointer text-gray-700 z-50"
+              />
+              {keywords &&
+                extractVectorStyles(keywords)?.vectorStyle &&
+                !forceWMS && (
+                  <FontAwesomeIcon
+                    icon={faRocket}
+                    className="text-xl pt-1 cursor-pointer text-gray-700 z-50"
+                  />
+                )}
+            </div>
           </div>
         </div>
         <Modal
