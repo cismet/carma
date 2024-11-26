@@ -1,4 +1,11 @@
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ReactNode,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useSearchParams } from "react-router-dom";
 import L from "leaflet";
@@ -86,10 +93,10 @@ import LocateControlComponent from "./controls/LocateControlComponent.tsx";
 import { createCismapLayers, onClickTopicMap } from "./topicmap.utils.ts";
 
 import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config.ts";
+import { layerMap } from "../../config/index.ts";
 
 import "../leaflet.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
-import { layerMap } from "../../config/index.ts";
 
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;
@@ -97,7 +104,11 @@ const setHasGPU = (flag: boolean) => (hasGPU = flag);
 const testGPU = () => detectWebGLContext(setHasGPU);
 window.addEventListener("load", testGPU, false);
 
-export const CarmaMap = () => {
+type CarmaMapProps = {
+  children: ReactNode;
+};
+
+export const CarmaMap = ({ children }: CarmaMapProps) => {
   const dispatch = useDispatch();
 
   const location = useLocation();
@@ -378,6 +389,7 @@ export const CarmaMap = () => {
               zoomDelta={LEAFLET_CONFIG.zoomDelta}
             >
               <TopicMapSelectionContent />
+              {children}
               {backgroundLayer &&
                 backgroundLayer.visible &&
                 getBackgroundLayers({ layerString: backgroundLayer.layers })}
