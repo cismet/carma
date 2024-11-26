@@ -105,7 +105,7 @@ const testGPU = () => detectWebGLContext(setHasGPU);
 window.addEventListener("load", testGPU, false);
 
 type CarmaMapProps = {
-  children: ReactNode;
+  children?: ReactNode;
 };
 
 export const CarmaMap = ({ children }: CarmaMapProps) => {
