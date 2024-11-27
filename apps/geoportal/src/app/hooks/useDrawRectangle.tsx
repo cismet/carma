@@ -18,6 +18,7 @@ import { getBackgroundLayer, getLayers } from "../store/slices/mapping";
 import {
   calculateBBox,
   drawRectangleFromBbox,
+  getPrintLayers,
   deleteRectangleById as removeRectangle,
 } from "../helper/print";
 import PrintButton from "../components/map-print/PrintButton";
@@ -40,12 +41,29 @@ export const useDrawRectangle = (printCb, printOffCb) => {
     dispatch(changeIsLoading(status));
   };
 
+  const handleStartPrint = (map) => {
+    const { lat, lng } = map.getCenter();
+    const tranformProj = proj4("EPSG:4326", "EPSG:3857", [lng, lat]);
+    const layesPrint = getPrintLayers(bgLayer, layers);
+    printCb(
+      tranformProj,
+      scale,
+      layesPrint,
+      orientation,
+      Number(dpi),
+      printName,
+      handleIsLoading
+    );
+  };
+
   const addRectangle = (map) => {
     removeRectangle(map);
 
     const centerLatLng = map.getCenter();
-    const defaultlWidth = orientation === "landscape" ? 674 : 476;
-    const defaultHeight = orientation === "landscape" ? 476 : 674;
+    // const defaultlWidth = orientation === "landscape" ? 842 : 595;
+    // const defaultHeight = orientation === "landscape" ? 595 : 842;
+    const defaultlWidth = orientation === "landscape" ? 555 : 802;
+    const defaultHeight = orientation === "landscape" ? 802 : 555;
 
     const projectedCenter = map.options.crs.project(centerLatLng);
     const centerX = projectedCenter.x;
@@ -61,33 +79,23 @@ export const useDrawRectangle = (printCb, printOffCb) => {
     );
 
     drawRectangleFromBbox(map, bbox);
-
-    // removeRectangle();
-    // printCb(
-    //   tranformProj,
-    //   scale,
-    //   layesPrint,
-    //   orientation,
-    //   Number(dpi),
-    //   printName,
-    //   handleIsLoading
-    // );
   };
 
   useEffect(() => {
     if (map && mode === "print") {
-      const handleResize = () => {
-        // removeRectangle();
-        addRectangle(map);
+      const handleDbClick = () => {
+        console.log("xxx db click");
+        handleStartPrint(map);
       };
       addRectangle(map);
       // window.addEventListener("resize", handleResize);
-      // map.on("zoom", handleResize);
+      map.on("dblclick", handleDbClick);
 
-      // return () => {
-      //   window.removeEventListener("resize", handleResize);
-      //   removeRectangle();
-      // };
+      return () => {
+        // window.removeEventListener("resize", handleResize);
+        map.off("dblclick", handleDbClick);
+        removeRectangle(map);
+      };
     } else if (map && mode === "print" && lastOrientation === orientation) {
       addRectangle(map);
       setlastOrientation(orientation);
