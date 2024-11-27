@@ -222,3 +222,30 @@ export const prevRectCalc = (currentZoom, scale, rWidth, rHeight) => {
 
   return { pixelWidth: newWidth, pixelHeight: newHeight };
 };
+
+export const calculateBBox = (
+  centerX,
+  centerY,
+  pixelWidth,
+  pixelHeight,
+  dpi,
+  scale
+) => {
+  // Convert DPI and scale to meters per pixel
+  const metersPerPixel = (0.0254 / dpi) * scale;
+  // Calculate the half dimensions in real-world units
+  const halfWidth = (pixelWidth * metersPerPixel) / 2;
+  const halfHeight = (pixelHeight * metersPerPixel) / 2;
+  // Calculate the bounding box
+  const minX = centerX - halfWidth;
+  const maxX = centerX + halfWidth;
+  const minY = centerY - halfHeight;
+  const maxY = centerY + halfHeight;
+  // Return the result as a JSON object
+  return {
+    minX: minX,
+    minY: minY,
+    maxX: maxX,
+    maxY: maxY,
+  };
+};
