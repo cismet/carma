@@ -29,7 +29,7 @@ const Print = ({ setShowPrintPopup }) => {
   const [name, setSName] = useState(currentName);
   const [dpi, setDpi] = useState(currentDPI);
 
-  useDrawRectangle(printMap, () => dispatch(setUIMode("default")));
+  // useDrawRectangle(printMap, () => dispatch(setUIMode("default")));
   const printPopupRef = useOutsideClick(() => setShowPrintPopup(false));
 
   const onChange = (e: RadioChangeEvent) => {

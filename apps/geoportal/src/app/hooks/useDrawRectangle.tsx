@@ -62,8 +62,8 @@ export const useDrawRectangle = (printCb, printOffCb) => {
     const centerLatLng = map.getCenter();
     // const defaultlWidth = orientation === "landscape" ? 842 : 595;
     // const defaultHeight = orientation === "landscape" ? 595 : 842;
-    const defaultlWidth = orientation === "landscape" ? 555 : 802;
-    const defaultHeight = orientation === "landscape" ? 802 : 555;
+    const defaultlWidth = orientation === "landscape" ? 802 : 555;
+    const defaultHeight = orientation === "landscape" ? 555 : 802;
 
     const projectedCenter = map.options.crs.project(centerLatLng);
     const centerX = projectedCenter.x;
