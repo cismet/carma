@@ -250,7 +250,7 @@ export const calculateBBox = (
   };
 };
 
-export const drawRectangleFromBbbox = (map, bbox) => {
+export const drawRectangleFromBbox = (map, bbox) => {
   const corner1 = map.options.crs.unproject(L.point(bbox.minX, bbox.minY)); // Bottom-left
   const corner2 = map.options.crs.unproject(L.point(bbox.minX, bbox.maxY)); // Top-left
   const corner3 = map.options.crs.unproject(L.point(bbox.maxX, bbox.maxY)); // Top-right
@@ -269,4 +269,14 @@ export const drawRectangleFromBbbox = (map, bbox) => {
       weight: 1,
     }
   ).addTo(map);
+
+  polygon.prevPrintId = "print-rect-id";
+};
+
+export const deleteRectangleById = (map) => {
+  map.eachLayer((layer) => {
+    if (layer instanceof L.Polygon && layer.prevPrintId === "print-rect-id") {
+      map.removeLayer(layer);
+    }
+  });
 };

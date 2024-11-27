@@ -17,9 +17,8 @@ import proj4 from "proj4";
 import { getBackgroundLayer, getLayers } from "../store/slices/mapping";
 import {
   calculateBBox,
-  drawRectangleFromBbbox,
-  getPrintLayers,
-  prevRectCalc,
+  drawRectangleFromBbox,
+  deleteRectangleById as removeRectangle,
 } from "../helper/print";
 import PrintButton from "../components/map-print/PrintButton";
 
@@ -41,9 +40,10 @@ export const useDrawRectangle = (printCb, printOffCb) => {
     dispatch(changeIsLoading(status));
   };
 
-  const hadlerStartPrint = (map) => {
-    const centerLatLng = map.getCenter();
+  const addRectangle = (map) => {
+    removeRectangle(map);
 
+    const centerLatLng = map.getCenter();
     const defaultlWidth = orientation === "landscape" ? 674 : 476;
     const defaultHeight = orientation === "landscape" ? 476 : 674;
 
@@ -60,9 +60,9 @@ export const useDrawRectangle = (printCb, printOffCb) => {
       scale
     );
 
-    drawRectangleFromBbbox(map, bbox);
+    drawRectangleFromBbox(map, bbox);
 
-    removeRectangle();
+    // removeRectangle();
     // printCb(
     //   tranformProj,
     //   scale,
@@ -74,122 +74,25 @@ export const useDrawRectangle = (printCb, printOffCb) => {
     // );
   };
 
-  const removeRectangle = () => {
-    const printBtn = document.querySelector(".rectangle-wrapper ");
-
-    if (printBtn) {
-      printBtn.remove();
-    }
-  };
-
-  const addRectangle = (map) => {
-    const defaultlWidth = orientation === "landscape" ? 674 : 476;
-    const defaultHeight = orientation === "landscape" ? 476 : 674;
-    const { pixelWidth, pixelHeight } = prevRectCalc(
-      map.getZoom(),
-      scale,
-      defaultlWidth,
-      defaultHeight
-    );
-    const mapContainer = map.getContainer();
-    const mapWidth = mapContainer.offsetWidth;
-    const mapHeight = mapContainer.offsetHeight;
-
-    const left = (mapWidth - pixelWidth) / 2;
-    const top = (mapHeight - pixelHeight) / 2;
-
-    const zoom = map.getZoom();
-
-    const wrapper = L.DomUtil.create("div", "rectangle-wrapper");
-    wrapper.style.position = "absolute";
-    wrapper.style.top = `${top}px`;
-    wrapper.style.left = `${left}px`;
-    wrapper.style.zIndex = 999;
-
-    const rect = L.DomUtil.create("div", "rectangle-prev");
-    rect.style.width = pixelWidth + "px";
-    rect.style.height = pixelHeight + "px";
-    rect.id = "overlayDiv";
-
-    const btnWrapper = L.DomUtil.create("button", "print-button-wrapper");
-
-    const closeButtonContainer = L.DomUtil.create(
-      "div",
-      "rectangle-close",
-      wrapper
-    );
-
-    wrapper.appendChild(rect);
-    wrapper.appendChild(btnWrapper);
-
-    mapContainer.appendChild(wrapper);
-
-    const root = createRoot(closeButtonContainer);
-    root.render(
-      <FontAwesomeIcon
-        icon={faXmark}
-        className="text-2xl cursor-pointer"
-        onClick={() => printOffCb()}
-      />
-    );
-
-    const wrapperRoot = createRoot(btnWrapper);
-    wrapperRoot.render(
-      <PrintButton
-        hadlerStartPrint={() => hadlerStartPrint(map)}
-        loading={loading}
-      />
-    );
-  };
-
-  const getScaleInKm = (zoom) => {
-    const dpi = 96;
-    // const dpi = 88;
-    const metersPerInch = 0.0254;
-    const earthCircumference = 40075016.6856;
-    const tileSize = 256;
-
-    const resolution = earthCircumference / (tileSize * Math.pow(2, zoom));
-
-    const scale = resolution * dpi * (1 / metersPerInch);
-
-    return Math.round(scale);
-  };
-
-  const getScaleInKmExperiment = (zoom) => {
-    const dpi = 94;
-    const metersPerInch = 0.0254;
-    const earthCircumference = 40075016.6856;
-    const tileSize = 256;
-
-    const resolution = earthCircumference / (tileSize * Math.pow(2, zoom + 1));
-
-    const scale = (resolution * dpi) / metersPerInch;
-
-    return scale;
-  };
-
   useEffect(() => {
     if (map && mode === "print") {
       const handleResize = () => {
-        removeRectangle();
+        // removeRectangle();
         addRectangle(map);
       };
-
       addRectangle(map);
-      window.addEventListener("resize", handleResize);
-      map.on("zoom", handleResize);
+      // window.addEventListener("resize", handleResize);
+      // map.on("zoom", handleResize);
 
-      return () => {
-        window.removeEventListener("resize", handleResize);
-        removeRectangle();
-      };
+      // return () => {
+      //   window.removeEventListener("resize", handleResize);
+      //   removeRectangle();
+      // };
     } else if (map && mode === "print" && lastOrientation === orientation) {
-      removeRectangle();
       addRectangle(map);
       setlastOrientation(orientation);
     } else if (map && mode !== "print") {
-      removeRectangle();
+      removeRectangle(map);
     }
   }, [map, mode, orientation, layers, dpi, printName, loading, scale]);
 };
