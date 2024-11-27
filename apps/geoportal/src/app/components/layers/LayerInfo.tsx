@@ -29,7 +29,9 @@ const LayerInfo = ({ description, legend }: LayerInfoProps) => {
   const metadataUrl =
     currentLayer?.other?.props?.MetadataURL?.[0]?.OnlineResource;
   // @ts-ignore
-  const layerType = currentLayer?.props?.style ? "Vektorlayer" : "Rasterlayer";
+  const layerType = currentLayer?.props?.style
+    ? "Vektorlayer (Mapbox-konformer Vector-Tiles-Service)"
+    : "Rasterlayer (OGC WMS 1.1.1)";
 
   const getIdFromUrl = (url: string) => {
     const urlObj = new URL(url);
@@ -107,7 +109,9 @@ const LayerInfo = ({ description, legend }: LayerInfoProps) => {
         </div>
       </div>
       <hr className="h-px my-0 bg-gray-300 border-0 w-full absolute bottom-9 left-0" />
-      <p className="my-0 pt-2.5 text-gray-400 text-base">{layerType}</p>
+      <p className="my-0 pt-2.5 text-gray-400 text-base">
+        {layerType} | keine Anzeige im aktuellen Maßstab
+      </p>
     </div>
   );
 };
