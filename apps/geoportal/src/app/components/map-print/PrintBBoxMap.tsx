@@ -4,10 +4,19 @@ import proj4 from "proj4";
 import bbox from "@turf/bbox";
 import { convertBBox2Bounds, proj4crs3857def } from "../../helper/gisHelper";
 // import { ProjGeoJson } from "react-cismap";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { getUIMode } from "../../store/slices/ui";
-import { getScale } from "../../store/slices/print";
+import {
+  changeIsLoading,
+  getDPI,
+  getIsLoading,
+  getOrientation,
+  getPrintName,
+  getScale,
+} from "../../store/slices/print";
 import ProjGeoJson from "react-cismap/ProjGeoJson";
+import { getBackgroundLayer, getLayers } from "../../store/slices/mapping";
+import { getPrintLayers, printMap } from "../../helper/print";
 
 const PrintBBoxMap = () => {
   function calculateBBox(
@@ -54,21 +63,43 @@ const PrintBBoxMap = () => {
       ],
     };
   }
-  //   const { setBoundingBox, setLocation, setRoutedMapRef } = useContext(
-  //     TopicMapDispatchContext
-  //   );
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
+  const dispatch = useDispatch();
   const mode = useSelector(getUIMode);
   const scale = useSelector(getScale);
+  const orientation = useSelector(getOrientation);
+  const dpi = useSelector(getDPI);
+  const printName = useSelector(getPrintName);
+  const bgLayer = useSelector(getBackgroundLayer);
+  const layers = useSelector(getLayers);
+  const loading = useSelector(getIsLoading);
 
   const [feature, setFeature] = useState();
   const featureref = useRef(feature);
   useEffect(() => {
-    console.log("xxx featureref", feature);
     featureref.current = feature;
   }, [feature]);
 
-  const clickHandlerForScale = (scale) => {
+  const handleIsLoading = (status) => {
+    dispatch(changeIsLoading(status));
+  };
+
+  const handleStartPrint = (map) => {
+    const { lat, lng } = map.getCenter();
+    const tranformProj = proj4("EPSG:4326", "EPSG:3857", [lng, lat]);
+    const layesPrint = getPrintLayers(bgLayer, layers);
+    printMap(
+      tranformProj,
+      scale,
+      layesPrint,
+      orientation,
+      Number(dpi),
+      printName,
+      handleIsLoading
+    );
+  };
+
+  const clickHandlerForScale = (scale, orientation) => {
     if (routedMapRef) {
       setFeature(undefined);
       const map = routedMapRef.leafletMap.leafletElement;
@@ -78,9 +109,11 @@ const PrintBBoxMap = () => {
         latLngCenter.lat,
       ]);
 
-      console.log("xxx", { pointCenter, latLngCenter, map });
+      const width = orientation === "landscape" ? 802 : 555;
+      const height = orientation === "landscape" ? 555 : 802;
+
       const f = createFeatureFromBBox(
-        calculateBBox(pointCenter[0], pointCenter[1], 555, 802, 72, scale)
+        calculateBBox(pointCenter[0], pointCenter[1], width, height, 72, scale)
       );
 
       console.log("xxx f", f);
@@ -107,10 +140,21 @@ const PrintBBoxMap = () => {
   };
 
   useEffect(() => {
-    if (mode === "print") {
-      clickHandlerForScale(scale);
+    if (routedMapRef && mode === "print") {
+      const map = routedMapRef.leafletMap.leafletElement;
+      clickHandlerForScale(scale, orientation);
+
+      const handleDbClick = () => {
+        console.log("xxx db click");
+        handleStartPrint(map);
+      };
+      map.on("dblclick", handleDbClick);
+
+      return () => {
+        map.off("dblclick", handleDbClick);
+      };
     }
-  }, [mode, scale]);
+  }, [routedMapRef, mode, scale, orientation, dpi, printName]);
 
   return (
     <>
