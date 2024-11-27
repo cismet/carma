@@ -15,13 +15,8 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faXmark } from "@fortawesome/free-solid-svg-icons";
 import proj4 from "proj4";
 import { getBackgroundLayer, getLayers } from "../store/slices/mapping";
-import {
-  getPrintLayers,
-  prevRectCalc,
-  transformDivToCoord,
-} from "../helper/print";
+import { getPrintLayers, prevRectCalc } from "../helper/print";
 import PrintButton from "../components/map-print/PrintButton";
-import clsx from "clsx";
 
 export const useDrawRectangle = (printCb, printOffCb) => {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
@@ -42,28 +37,22 @@ export const useDrawRectangle = (printCb, printOffCb) => {
   };
 
   const hadlerStartPrint = (map) => {
-    const extent = transformDivToCoord(map);
     const { lat, lng } = map.getCenter();
     const tranformProj = proj4("EPSG:4326", "EPSG:3857", [lng, lat]);
 
     const zoomLevel = map.getZoom();
 
-    // const scale = map.options.crs.scale(zoomLevel);
-
-    const scale2 = map.getScaleZoom(zoomLevel);
-    const testScale = getScaleInKmExperiment(zoomLevel);
-
     const layesPrint = getPrintLayers(bgLayer, layers);
 
-    // printCb(
-    //   tranformProj,
-    //   scale,
-    //   layesPrint,
-    //   orientation,
-    //   Number(dpi),
-    //   printName,
-    //   handleIsLoading
-    // );
+    printCb(
+      tranformProj,
+      scale,
+      layesPrint,
+      orientation,
+      Number(dpi),
+      printName,
+      handleIsLoading
+    );
   };
 
   const removeRectangle = () => {

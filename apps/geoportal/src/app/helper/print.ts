@@ -188,16 +188,6 @@ export const scaleOptions = [
     label: "1 : 250 000",
     zoom: "12",
   },
-  {
-    value: "500000",
-    label: "1 : 500 000",
-    zoom: "11",
-  },
-  {
-    value: "1000000",
-    label: "1 : 1 000 000",
-    zoom: "10",
-  },
 ];
 
 export const prevRectCalc = (currentZoom, scale, rWidth, rHeight) => {
@@ -230,42 +220,5 @@ export const prevRectCalc = (currentZoom, scale, rWidth, rHeight) => {
     newHeight = rHeight * levelSteps;
   }
 
-  console.log("xxx pixelWidth", {
-    pixelWidth: newWidth,
-    pixelHeight: newHeight,
-  });
-
   return { pixelWidth: newWidth, pixelHeight: newHeight };
-};
-
-export const transformDivToCoord = (map) => {
-  const overlayDiv = document.getElementById("overlayDiv");
-  const overlayRect = overlayDiv.getBoundingClientRect();
-
-  const mapContainer = document.getElementById("routedMap");
-  const mapRect = mapContainer.getBoundingClientRect();
-
-  const topLeft = L.point(
-    overlayRect.left - mapRect.left,
-    overlayRect.top - mapRect.top
-  );
-  const bottomRight = L.point(
-    overlayRect.right - mapRect.left,
-    overlayRect.bottom - mapRect.top
-  );
-
-  const topLeftLatLng = map.containerPointToLatLng(topLeft);
-  const bottomRightLatLng = map.containerPointToLatLng(bottomRight);
-
-  const topLeftProjected = map.options.crs.project(topLeftLatLng);
-  const bottomRightProjected = map.options.crs.project(bottomRightLatLng);
-
-  const extent = [
-    topLeftProjected.x, // minX
-    bottomRightProjected.y, // minY
-    bottomRightProjected.x, // maxX
-    topLeftProjected.y, // maxY
-  ];
-
-  return extent;
 };
