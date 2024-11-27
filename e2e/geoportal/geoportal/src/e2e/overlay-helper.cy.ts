@@ -1,7 +1,7 @@
-describe("geoportal smoke test", () => {
+describe("Geoportal overlay", () => {
   beforeEach(() => cy.visit("/"));
 
-  it("Map loads with key controls and buttons", () => {
+  it("Overlay helper is visible and opens all secondary popups", () => {
     cy.get("[data-test-id=helper-overlay-btn]").should("be.visible");
     cy.get("[data-test-id=helper-overlay-btn]").click();
     cy.get("[data-test-id=overlay-helper-bg]").should("be.visible");
