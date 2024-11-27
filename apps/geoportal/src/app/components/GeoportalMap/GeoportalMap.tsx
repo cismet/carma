@@ -2,6 +2,7 @@ import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useSearchParams } from "react-router-dom";
 import L from "leaflet";
+import { isMobile } from "react-device-detect";
 
 import { Tooltip } from "antd";
 
@@ -400,7 +401,7 @@ export const GeoportalMap = () => {
         )}
       </Control>
       <Control position="topleft" order={30}>
-        {showLocatorButton && (
+        {showLocatorButton && isMobile && (
           <ControlButtonStyler
             ref={tourRefLabels.navigator}
             onClick={() => setLocationProps((prev) => prev + 1)}
