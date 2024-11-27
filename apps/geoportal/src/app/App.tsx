@@ -51,7 +51,6 @@ import "leaflet/dist/leaflet.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "./index.css";
-import PrintBBoxMap from "./components/map-print/PrintBBoxMap";
 
 if (typeof global === "undefined") {
   window.global = window;
@@ -147,7 +146,6 @@ function App({ published }: { published?: boolean }) {
           {!published && <TopNavbar />}
           <MapMeasurement />
           <GeoportalMap />
-          <PrintBBoxMap />
         </div>
       </ErrorBoundary>
     </CarmaMapContextProvider>
