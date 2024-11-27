@@ -7,8 +7,9 @@ import {
   useState,
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useLocation, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import L from "leaflet";
+import { Cartographic, Math as CesiumMath } from "cesium";
 
 import {
   Control,
@@ -21,12 +22,10 @@ import {
   faCompress,
   faExpand,
   faHouseChimney,
-  faLocationArrow,
   faMinus,
   faPlus,
 } from "@fortawesome/free-solid-svg-icons";
 
-import PaleOverlay from "react-cismap/PaleOverlay";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
@@ -64,6 +63,7 @@ import {
   useZoomControls as useZoomControlsCesium,
   setCurrentSceneStyle,
   SceneStyleToggle,
+  selectViewerHome,
 } from "@carma-mapping/cesium-engine";
 import { LibFuzzySearch, SearchResultItem } from "@carma-mapping/fuzzy-search";
 
@@ -78,17 +78,17 @@ import useLeafletZoomControls from "../../hooks/leaflet/useLeafletZoomControls.t
 import store from "../../store/index.ts";
 import {
   getBackgroundLayer,
-  getFocusMode,
   getLayers,
   getSelectedMapLayer,
   getShowFullscreenButton,
-  getShowHamburgerMenu,
-  getShowLocatorButton,
   setBackgroundLayer,
 } from "../../store/slices/mapping.ts";
-import { getUIAllow3d, getUIMode, UIMode } from "../../store/slices/ui.ts";
-
-import LocateControlComponent from "./controls/LocateControlComponent.tsx";
+import {
+  getUIAllow3d,
+  getUIMode,
+  setUIAllow3d,
+  UIMode,
+} from "../../store/slices/ui.ts";
 
 import { createCismapLayers, onClickTopicMap } from "./topicmap.utils.ts";
 
@@ -104,6 +104,19 @@ const setHasGPU = (flag: boolean) => (hasGPU = flag);
 const testGPU = () => detectWebGLContext(setHasGPU);
 window.addEventListener("load", testGPU, false);
 
+enum PARAMS {
+  ONLY_2D = "2donly",
+}
+
+enum MANAGED_BACKGROUND_LAYERS {
+  TOPO = "karte",
+  ORTHO = "luftbild",
+}
+
+enum LAYER_TYPES {
+  WMTS = "wmts",
+}
+
 type CarmaMapProps = {
   children?: ReactNode;
 };
@@ -111,27 +124,35 @@ type CarmaMapProps = {
 export const CarmaMap = ({ children }: CarmaMapProps) => {
   const dispatch = useDispatch();
 
-  const location = useLocation();
-
-  const [urlParams, setUrlParams] = useSearchParams();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const container3dMapRef = useRef<HTMLDivElement>(null);
 
+  // url param handling
+  const [urlParams, setUrlParams] = useSearchParams();
+
+  const topicMapLocationChangedHandler = (location: Location) => {
+    (location) => {
+      const newParams = { ...paramsToObject(urlParams), ...location };
+      setUrlParams(newParams);
+    };
+  };
+
+  const is2dOnlyParamSet = urlParams.get(PARAMS.ONLY_2D) !== null;
+
   // State and Selectors
-  const allow3d = useSelector(getUIAllow3d) && hasGPU;
+  const allow3d = useSelector(getUIAllow3d);
+
+  const isMode2d = useSelector(selectViewerIsMode2d);
+
   const backgroundLayer = useSelector(getBackgroundLayer);
   const selectedMapLayer = useSelector(getSelectedMapLayer);
 
-  const isMode2d = useSelector(selectViewerIsMode2d) || !allow3d;
   const models = useSelector(selectViewerModels);
   const markerAsset = models[CESIUM_CONFIG.markerKey]; //
   const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;
   const layers = useSelector(getLayers);
   const uiMode = useSelector(getUIMode);
   const showFullscreenButton = useSelector(getShowFullscreenButton);
-  const showLocatorButton = useSelector(getShowLocatorButton);
-  const showHamburgerMenu = useSelector(getShowHamburgerMenu);
-  const focusMode = useSelector(getFocusMode);
   const { viewerRef, terrainProviderRef, surfaceProviderRef } =
     useCesiumContext();
   const homeControl = useHomeControl();
@@ -147,7 +168,6 @@ export const CarmaMap = ({ children }: CarmaMapProps) => {
     useContext<typeof TopicMapContext>(TopicMapContext);
 
   const [marker, setMarker] = useState(undefined);
-  const [locationProps, setLocationProps] = useState(0);
 
   const version = getApplicationVersion(versionData);
 
@@ -195,7 +215,7 @@ export const CarmaMap = ({ children }: CarmaMapProps) => {
 
   useEffect(() => {
     if (viewerRef.current && backgroundLayer) {
-      if (backgroundLayer.id === "luftbild") {
+      if (backgroundLayer.id === MANAGED_BACKGROUND_LAYERS.ORTHO) {
         dispatch(setCurrentSceneStyle("primary"));
       } else {
         dispatch(setCurrentSceneStyle("secondary"));
@@ -205,26 +225,56 @@ export const CarmaMap = ({ children }: CarmaMapProps) => {
   }, [backgroundLayer]);
 
   useEffect(() => {
+    if (is2dOnlyParamSet || !hasGPU) {
+      console.debug(
+        "disabling 3d mode, because of url param or gpu",
+        is2dOnlyParamSet,
+        !hasGPU
+      );
+      dispatch(setUIAllow3d(false));
+    }
+  }, [is2dOnlyParamSet, dispatch]);
+
+  useEffect(() => {
     // set 2d mode if allow3d is false or undefined
-    if (allow3d === false || allow3d === undefined) {
+    if (!isMode2d && (allow3d === false || allow3d === undefined)) {
+      console.debug("seting mode to 2d, because of allow3d", allow3d);
       dispatch(setIsMode2d(true));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allow3d]);
+  }, [isMode2d, allow3d, dispatch]);
 
   console.debug("RENDER: [CARMAMAP] MAP", isMode2d);
+
+  const homePosition = useSelector(selectViewerHome);
+
+  const topicMapHomeClick = () => {
+    if (homePosition && routedMap?.leafletMap?.leafletElement) {
+      const { latitude, longitude } = Cartographic.fromCartesian(homePosition);
+      const center = [
+        CesiumMath.toDegrees(latitude),
+        CesiumMath.toDegrees(longitude),
+      ];
+      console.debug("topicMapHomeClick", center, homePosition);
+      routedMap.leafletMap.leafletElement.flyTo(center, 17);
+    }
+  };
+
+  const onHomeClick = () => {
+    homeControl();
+    topicMapHomeClick();
+  };
 
   const toggleTopicMapBackgroundLayer = (isToPrimary: boolean) => {
     if (isToPrimary) {
       dispatch(
         setBackgroundLayer({
           ...selectedMapLayer,
-          id: "karte",
+          id: MANAGED_BACKGROUND_LAYERS.TOPO,
           visible: true,
         })
       );
     } else {
-      const id = "luftbild";
+      const id = MANAGED_BACKGROUND_LAYERS.ORTHO;
       const layer = layerMap[id];
       dispatch(
         setBackgroundLayer({
@@ -234,7 +284,7 @@ export const CarmaMap = ({ children }: CarmaMapProps) => {
           description: layer.description,
           inhalt: layer.inhalt,
           eignung: layer.eignung,
-          layerType: "wmts",
+          layerType: LAYER_TYPES.WMTS,
           visible: true,
           props: {
             name: "",
@@ -284,28 +334,8 @@ export const CarmaMap = ({ children }: CarmaMapProps) => {
           </ControlButtonStyler>
         )}
       </Control>
-      <Control position="topleft" order={30}>
-        {showLocatorButton && (
-          <ControlButtonStyler
-            onClick={() => setLocationProps((prev) => prev + 1)}
-            dataTestId="location-control"
-          >
-            <FontAwesomeIcon icon={faLocationArrow} className="text-2xl" />
-          </ControlButtonStyler>
-        )}
-        <LocateControlComponent startLocate={locationProps} />
-      </Control>
       <Control position="topleft" order={40}>
-        <ControlButtonStyler
-          onClick={() => {
-            routedMap.leafletMap.leafletElement.flyTo(
-              [51.272570027476256, 7.199918031692506],
-              18
-            );
-            homeControl();
-          }}
-          dataTestId="home-control"
-        >
+        <ControlButtonStyler onClick={onHomeClick} dataTestId="home-control">
           <FontAwesomeIcon icon={faHouseChimney} className="text-lg" />
         </ControlButtonStyler>
       </Control>
@@ -345,7 +375,7 @@ export const CarmaMap = ({ children }: CarmaMapProps) => {
                 />
               }
               applicationMenuTooltipString={tooltipText}
-              hamburgerMenu={showHamburgerMenu}
+              hamburgerMenu={false}
               locatorControl={false}
               fullScreenControl={false}
               zoomControls={false}
@@ -356,10 +386,7 @@ export const CarmaMap = ({ children }: CarmaMapProps) => {
               mappingBoundsChanged={(boundingbox) => {
                 // console.debug('xxx bbox', createWMSBbox(boundingbox));
               }}
-              locationChangedHandler={(location) => {
-                const newParams = { ...paramsToObject(urlParams), ...location };
-                setUrlParams(newParams);
-              }}
+              locationChangedHandler={topicMapLocationChangedHandler}
               onclick={(e) => {
                 const map = routedMap.leafletMap.leafletElement;
                 const baseUrl =
@@ -394,7 +421,6 @@ export const CarmaMap = ({ children }: CarmaMapProps) => {
                 backgroundLayer.visible &&
                 getBackgroundLayers({ layerString: backgroundLayer.layers })}
 
-              {focusMode && <PaleOverlay />}
               {createCismapLayers(layers, {
                 mode: uiMode,
                 dispatch,
