@@ -1,5 +1,6 @@
 import {
   ReactNode,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -106,11 +107,17 @@ window.addEventListener("load", testGPU, false);
 
 enum PARAMS {
   ONLY_2D = "2donly",
+  BASEMAP_STYLE = "bg",
 }
 
 enum MANAGED_BACKGROUND_LAYERS {
   TOPO = "karte",
   ORTHO = "luftbild",
+}
+
+enum BASEMAP_STYLE_KEYS {
+  PRIMARY = "1",
+  SECONDARY = "2",
 }
 
 enum LAYER_TYPES {
@@ -119,9 +126,13 @@ enum LAYER_TYPES {
 
 type CarmaMapProps = {
   children?: ReactNode;
+  showBaseMapStyleToggle?: boolean;
 };
 
-export const CarmaMap = ({ children }: CarmaMapProps) => {
+export const CarmaMap = ({
+  children,
+  showBaseMapStyleToggle = false,
+}: CarmaMapProps) => {
   const dispatch = useDispatch();
 
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -138,6 +149,7 @@ export const CarmaMap = ({ children }: CarmaMapProps) => {
   };
 
   const is2dOnlyParamSet = urlParams.get(PARAMS.ONLY_2D) !== null;
+  const baseMapStyle = urlParams.get(PARAMS.BASEMAP_STYLE);
 
   // State and Selectors
   const allow3d = useSelector(getUIAllow3d);
@@ -264,37 +276,50 @@ export const CarmaMap = ({ children }: CarmaMapProps) => {
     topicMapHomeClick();
   };
 
-  const toggleTopicMapBackgroundLayer = (isToPrimary: boolean) => {
-    if (isToPrimary) {
-      dispatch(
-        setBackgroundLayer({
-          ...selectedMapLayer,
-          id: MANAGED_BACKGROUND_LAYERS.TOPO,
-          visible: true,
-        })
-      );
-    } else {
-      const id = MANAGED_BACKGROUND_LAYERS.ORTHO;
-      const layer = layerMap[id];
-      dispatch(
-        setBackgroundLayer({
-          id,
-          title: layer.title,
-          opacity: 1.0,
-          description: layer.description,
-          inhalt: layer.inhalt,
-          eignung: layer.eignung,
-          layerType: LAYER_TYPES.WMTS,
-          visible: true,
-          props: {
-            name: "",
-            url: layer.url,
-          },
-          layers: layer.layers,
-        })
-      );
+  const toggleTopicMapBackgroundLayer = useCallback(
+    (isToPrimary: boolean) => {
+      if (isToPrimary) {
+        dispatch(
+          setBackgroundLayer({
+            ...selectedMapLayer,
+            id: MANAGED_BACKGROUND_LAYERS.TOPO,
+            visible: true,
+          })
+        );
+      } else {
+        const id = MANAGED_BACKGROUND_LAYERS.ORTHO;
+        const layer = layerMap[id];
+        dispatch(
+          setBackgroundLayer({
+            id,
+            title: layer.title,
+            opacity: 1.0,
+            description: layer.description,
+            inhalt: layer.inhalt,
+            eignung: layer.eignung,
+            layerType: LAYER_TYPES.WMTS,
+            visible: true,
+            props: {
+              name: "",
+              url: layer.url,
+            },
+            layers: layer.layers,
+          })
+        );
+      }
+    },
+    [dispatch, selectedMapLayer]
+  );
+
+  useEffect(() => {
+    if (baseMapStyle === BASEMAP_STYLE_KEYS.PRIMARY) {
+      toggleTopicMapBackgroundLayer(true);
+      dispatch(setCurrentSceneStyle("primary"));
+    } else if (baseMapStyle === BASEMAP_STYLE_KEYS.SECONDARY) {
+      toggleTopicMapBackgroundLayer(false);
+      dispatch(setCurrentSceneStyle("secondary"));
     }
-  };
+  }, [baseMapStyle, dispatch, toggleTopicMapBackgroundLayer]);
 
   return (
     <ControlLayout ifStorybook={false}>
@@ -338,6 +363,9 @@ export const CarmaMap = ({ children }: CarmaMapProps) => {
         <ControlButtonStyler onClick={onHomeClick} dataTestId="home-control">
           <FontAwesomeIcon icon={faHouseChimney} className="text-lg" />
         </ControlButtonStyler>
+        {showBaseMapStyleToggle && (
+          <SceneStyleToggle onToggle={toggleTopicMapBackgroundLayer} />
+        )}
       </Control>
       {allow3d && (
         <Control position="topleft" order={70}>
@@ -347,7 +375,6 @@ export const CarmaMap = ({ children }: CarmaMapProps) => {
               //dispatch(setBackgroundLayer({ ...backgroundLayer, visible: isTo2d }));
             }}
           />
-          <SceneStyleToggle onToggle={toggleTopicMapBackgroundLayer} />
           <Compass disabled={isMode2d} />
         </Control>
       )}
