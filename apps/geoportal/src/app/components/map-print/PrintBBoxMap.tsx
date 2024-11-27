@@ -1,8 +1,5 @@
 import { useContext, useEffect, useRef, useState } from "react";
-import {
-  TopicMapContext,
-  TopicMapDispatchContext,
-} from "react-cismap/contexts/TopicMapContextProvider";
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import proj4 from "proj4";
 import bbox from "@turf/bbox";
 import { convertBBox2Bounds, proj4crs3857def } from "../../helper/gisHelper";
