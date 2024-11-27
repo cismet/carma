@@ -15,7 +15,12 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faXmark } from "@fortawesome/free-solid-svg-icons";
 import proj4 from "proj4";
 import { getBackgroundLayer, getLayers } from "../store/slices/mapping";
-import { getPrintLayers, prevRectCalc } from "../helper/print";
+import {
+  calculateBBox,
+  drawRectangleFromBbbox,
+  getPrintLayers,
+  prevRectCalc,
+} from "../helper/print";
 import PrintButton from "../components/map-print/PrintButton";
 
 export const useDrawRectangle = (printCb, printOffCb) => {
@@ -37,22 +42,36 @@ export const useDrawRectangle = (printCb, printOffCb) => {
   };
 
   const hadlerStartPrint = (map) => {
-    const { lat, lng } = map.getCenter();
-    const tranformProj = proj4("EPSG:4326", "EPSG:3857", [lng, lat]);
+    const centerLatLng = map.getCenter();
 
-    const zoomLevel = map.getZoom();
+    const defaultlWidth = orientation === "landscape" ? 674 : 476;
+    const defaultHeight = orientation === "landscape" ? 476 : 674;
 
-    const layesPrint = getPrintLayers(bgLayer, layers);
+    const projectedCenter = map.options.crs.project(centerLatLng);
+    const centerX = projectedCenter.x;
+    const centerY = projectedCenter.y;
 
-    printCb(
-      tranformProj,
-      scale,
-      layesPrint,
-      orientation,
-      Number(dpi),
-      printName,
-      handleIsLoading
+    const bbox = calculateBBox(
+      centerX,
+      centerY,
+      defaultlWidth,
+      defaultHeight,
+      72,
+      scale
     );
+
+    drawRectangleFromBbbox(map, bbox);
+
+    removeRectangle();
+    // printCb(
+    //   tranformProj,
+    //   scale,
+    //   layesPrint,
+    //   orientation,
+    //   Number(dpi),
+    //   printName,
+    //   handleIsLoading
+    // );
   };
 
   const removeRectangle = () => {
@@ -66,8 +85,6 @@ export const useDrawRectangle = (printCb, printOffCb) => {
   const addRectangle = (map) => {
     const defaultlWidth = orientation === "landscape" ? 674 : 476;
     const defaultHeight = orientation === "landscape" ? 476 : 674;
-    // const pixelWidth = 674;
-    // const pixelHeight = 476;
     const { pixelWidth, pixelHeight } = prevRectCalc(
       map.getZoom(),
       scale,

@@ -249,3 +249,24 @@ export const calculateBBox = (
     maxY: maxY,
   };
 };
+
+export const drawRectangleFromBbbox = (map, bbox) => {
+  const corner1 = map.options.crs.unproject(L.point(bbox.minX, bbox.minY)); // Bottom-left
+  const corner2 = map.options.crs.unproject(L.point(bbox.minX, bbox.maxY)); // Top-left
+  const corner3 = map.options.crs.unproject(L.point(bbox.maxX, bbox.maxY)); // Top-right
+  const corner4 = map.options.crs.unproject(L.point(bbox.maxX, bbox.minY)); // Bottom-right
+
+  const polygon = L.polygon(
+    [
+      [corner1.lat, corner1.lng],
+      [corner2.lat, corner2.lng],
+      [corner3.lat, corner3.lng],
+      [corner4.lat, corner4.lng],
+      [corner1.lat, corner1.lng],
+    ],
+    {
+      color: "black",
+      weight: 1,
+    }
+  ).addTo(map);
+};
