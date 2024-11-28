@@ -149,7 +149,7 @@ export const getFeatureForLayer = async (layer, pos, coordinates) => {
           genericLinks: genericLinks.concat([
             {
               url: imgUrl,
-              tooltip: "Alte Sachdatenabfrage",
+              tooltip: "Vollständige Sachdatenabfrage",
               icon: <FeatureInfoIcon />,
               target: "_legacyGetFeatureInfoHtml",
             },
@@ -182,7 +182,7 @@ export const updateUrlWithCoordinates = (objectsArray, coordinates) => {
   },${y + minimalBoxSize}`;
 
   return objectsArray.map((obj) => {
-    if (obj.tooltip === "Alte Sachdatenabfrage" && obj.url) {
+    if (obj.tooltip === "Vollständige Sachdatenabfrage" && obj.url) {
       return {
         ...obj,
         url: obj.url.replace(/(BBOX=)[^&]+/, `$1${newBBOX}`),

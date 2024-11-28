@@ -298,7 +298,7 @@ const createVectorFeature = (coordinates, layer, selectedVectorFeature) => {
           genericLinks: genericLinks.concat([
             {
               url: imgUrl,
-              tooltip: "Alte Sachdatenabfrage",
+              tooltip: "Vollständige Sachdatenabfrage",
               icon: createElement(FeatureInfoIcon),
               target: "_legacyGetFeatureInfoHtml",
             },
