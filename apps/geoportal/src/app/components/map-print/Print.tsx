@@ -45,17 +45,17 @@ const Print = ({ setShowPrintPopup }) => {
     <div className="p-2 flex flex-col gap-3" ref={printPopupRef}>
       <div className="flex items-center gap-2">
         <FontAwesomeIcon icon={faPrint} className="text-xl" />
-        <h4 className="mb-0">Print</h4>
+        <h4 className="mb-0">Druck</h4>
       </div>
-      <h5 className="mb-0">Dateiname</h5>
+      {/* <h5 className="mb-0">Dateiname</h5>
       <Input
         placeholder={currentName}
         onChange={(e) => {
           setSName(e.target.value);
           dispatch(changePrintName(e.target.value));
         }}
-      />
-      <hr className="my-0" />
+      /> */}
+      {/* <hr className="my-0" /> */}
 
       <h5 className="mb-0">Vorlage</h5>
       <Radio.Group onChange={onChange} value={orientation}>
@@ -85,6 +85,7 @@ const Print = ({ setShowPrintPopup }) => {
         value={dpi}
       >
         <div className="flex items-center gap-1">
+          <Radio value={"72"}>72</Radio>
           <Radio value={"100"}>100</Radio>
           <Radio value={"200"}>200</Radio>
           <Radio value={"300"}>300</Radio>

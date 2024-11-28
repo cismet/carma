@@ -1,7 +1,7 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { RootState } from "..";
 type PrintOrientation = "landscape" | "portrait";
-type DPI = "100" | "200" | "300";
+type DPI = "72" | "100" | "200" | "300";
 export type PrintState = {
   orientation: PrintOrientation;
   dpi: DPI;
@@ -12,8 +12,8 @@ export type PrintState = {
 
 const initialState: PrintState = {
   orientation: "portrait",
-  dpi: "100",
-  name: "map",
+  dpi: "72",
+  name: "print_geoportal",
   isLoading: false,
   scale: "250",
 };

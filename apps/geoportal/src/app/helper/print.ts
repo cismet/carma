@@ -67,11 +67,11 @@ export const getPrintLayers = (bgLayer, layers) => {
       }
     }
 
-    if (layer.layerType === "vector") {
-      layerPrint.unshift(
-        buildOMSPrint("https://tgl.cismet.de/styles/poi-style/256")
-      );
-    }
+    // if (layer.layerType === "vector") {
+    //   layerPrint.unshift(
+    //     buildOMSPrint("https://tgl.cismet.de/styles/poi-style/256")
+    //   );
+    // }
   });
 
   return layerPrint;
@@ -178,16 +178,8 @@ export const scaleOptions = [
     label: "1 : 100 000",
   },
   {
-    value: "250000",
-    label: "1 : 250 000",
-  },
-  // {
-  //   value: "600000",
-  //   label: "1 : 600 000",
-  // },
-  {
-    value: "450000",
-    label: "1 : 450 000",
+    value: "125000",
+    label: "1 : 125 000",
   },
 ];
 
