@@ -16,8 +16,7 @@ import { faXmark } from "@fortawesome/free-solid-svg-icons";
 import proj4 from "proj4";
 import { getBackgroundLayer, getLayers } from "../store/slices/mapping";
 import {
-  calculateBBox,
-  drawRectangleFromBbox,
+  drawRectanglePrev,
   getPrintLayers,
   deleteRectangleById as removeRectangle,
 } from "../helper/print";
@@ -56,29 +55,9 @@ export const useDrawRectangle = (printCb, printOffCb) => {
     );
   };
 
-  const addRectangle = (map) => {
+  const addRectangle = (map, routedMapRef, scale, orientation) => {
     removeRectangle(map);
-
-    const centerLatLng = map.getCenter();
-    // const defaultlWidth = orientation === "landscape" ? 842 : 595;
-    // const defaultHeight = orientation === "landscape" ? 595 : 842;
-    const defaultlWidth = orientation === "landscape" ? 802 : 555;
-    const defaultHeight = orientation === "landscape" ? 555 : 802;
-
-    const projectedCenter = map.options.crs.project(centerLatLng);
-    const centerX = projectedCenter.x;
-    const centerY = projectedCenter.y;
-
-    const bbox = calculateBBox(
-      centerX,
-      centerY,
-      defaultlWidth,
-      defaultHeight,
-      72,
-      scale
-    );
-
-    drawRectangleFromBbox(map, bbox);
+    drawRectanglePrev(routedMapRef, scale, orientation);
   };
 
   useEffect(() => {
@@ -87,7 +66,7 @@ export const useDrawRectangle = (printCb, printOffCb) => {
         console.log("xxx db click");
         handleStartPrint(map);
       };
-      addRectangle(map);
+      addRectangle(map, routedMapRef, scale, orientation);
       // window.addEventListener("resize", handleResize);
       map.on("dblclick", handleDbClick);
 
@@ -97,7 +76,7 @@ export const useDrawRectangle = (printCb, printOffCb) => {
         removeRectangle(map);
       };
     } else if (map && mode === "print" && lastOrientation === orientation) {
-      addRectangle(map);
+      addRectangle(map, routedMapRef, scale, orientation);
       setlastOrientation(orientation);
     } else if (map && mode !== "print") {
       removeRectangle(map);

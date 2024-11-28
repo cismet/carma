@@ -1,4 +1,7 @@
 import "leaflet-path-drag";
+import proj4 from "proj4";
+import bbox from "@turf/bbox";
+import { convertBBox2Bounds, proj4crs3857def } from "./gisHelper";
 
 export const printMap = async (
   center,
@@ -183,8 +186,8 @@ export const scaleOptions = [
   //   label: "1 : 600 000",
   // },
   {
-    value: "400000",
-    label: "1 : 400 000",
+    value: "450000",
+    label: "1 : 450 000",
   },
 ];
 
@@ -221,24 +224,20 @@ export const prevRectCalc = (currentZoom, scale, rWidth, rHeight) => {
   return { pixelWidth: newWidth, pixelHeight: newHeight };
 };
 
-export const calculateBBox = (
-  centerX,
-  centerY,
-  pixelWidth,
-  pixelHeight,
-  dpi,
-  scale
-) => {
+function calculateBBox(centerX, centerY, pixelWidth, pixelHeight, dpi, scale) {
   // Convert DPI and scale to meters per pixel
   const metersPerPixel = (0.0254 / dpi) * scale;
+
   // Calculate the half dimensions in real-world units
   const halfWidth = (pixelWidth * metersPerPixel) / 2;
   const halfHeight = (pixelHeight * metersPerPixel) / 2;
+
   // Calculate the bounding box
   const minX = centerX - halfWidth;
   const maxX = centerX + halfWidth;
   const minY = centerY - halfHeight;
   const maxY = centerY + halfHeight;
+
   // Return the result as a JSON object
   return {
     minX: minX,
@@ -246,6 +245,83 @@ export const calculateBBox = (
     maxX: maxX,
     maxY: maxY,
   };
+}
+
+function createFeatureFromBBox(bbox) {
+  return {
+    type: "Polygon",
+    crs: { type: "name", properties: { name: "EPSG:3857" } },
+    coordinates: [
+      [
+        [bbox.minX, bbox.minY], // Bottom-left
+        [bbox.maxX, bbox.minY], // Bottom-right
+        [bbox.maxX, bbox.maxY], // Top-right
+        [bbox.minX, bbox.maxY], // Top-left
+        [bbox.minX, bbox.minY], // Close the polygon
+      ],
+    ],
+  };
+}
+
+export const drawRectanglePrev = (routedMapRef, scale, orientation) => {
+  if (routedMapRef) {
+    const map = routedMapRef.leafletMap.leafletElement;
+    const latLngCenter = map.getCenter();
+    const pointCenter = proj4("EPSG:4326", "EPSG:3857", [
+      latLngCenter.lng,
+      latLngCenter.lat,
+    ]);
+
+    const width = orientation === "landscape" ? 802 : 555;
+    const height = orientation === "landscape" ? 555 : 802;
+
+    const f = createFeatureFromBBox(
+      calculateBBox(pointCenter[0], pointCenter[1], width, height, 72, scale)
+    );
+
+    const bb = bbox(f);
+    const bounds = convertBBox2Bounds(bb, proj4crs3857def);
+    const ul = proj4("EPSG:3857", "EPSG:4326", [bb[0], bb[1]]);
+    const lr = proj4("EPSG:3857", "EPSG:4326", [bb[2], bb[3]]);
+
+    const divUL = map.latLngToContainerPoint([ul[1], ul[0]]);
+    const divLR = map.latLngToContainerPoint([lr[1], lr[0]]);
+
+    // map.fitBounds(bounds);
+
+    drawRectFromWithBounds(map, bounds);
+
+    console.log("xxx bbox", {
+      bb,
+      bounds,
+      ul,
+      lr,
+      divUL,
+      divLR,
+    });
+  }
+};
+
+const drawRectFromWithBounds = (map, bounds) => {
+  const sw = bounds[0]; // Southwest
+  const ne = bounds[1]; // Northeast
+  const nw = [ne[0], sw[1]]; // Northwest
+  const se = [sw[0], ne[1]]; // Southeast
+  map.fitBounds(bounds);
+  const rectangleCoordinates = [sw, nw, ne, se, sw];
+
+  const polygon = L.polygon(rectangleCoordinates, {
+    color: "black",
+    weight: 1,
+    draggable: true,
+  }).addTo(map);
+
+  polygon.on("dragend", () => {
+    const newBounds = polygon.getBounds();
+    map.fitBounds(newBounds);
+  });
+
+  polygon.prevPrintId = "print-rect-id";
 };
 
 export const drawRectangleFromBbox = (map, bbox) => {
@@ -271,6 +347,13 @@ export const drawRectangleFromBbox = (map, bbox) => {
 
   const bound = polygon.getBounds();
   map.fitBounds(bound);
+
+  polygon.on("dragend", () => {
+    const newBounds = polygon.getBounds();
+    map.fitBounds(newBounds);
+  });
+
+  polygon.prevPrintId = "print-rect-id";
 
   polygon.on("dragend", () => {
     const newBounds = polygon.getBounds();

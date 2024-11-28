@@ -117,7 +117,6 @@ const PrintBBoxMap = () => {
         calculateBBox(pointCenter[0], pointCenter[1], width, height, 72, scale)
       );
 
-      console.log("xxx f", f);
       setFeature(f);
       const bb = bbox(f);
       const bounds = convertBBox2Bounds(bb, proj4crs3857def);
@@ -129,14 +128,14 @@ const PrintBBoxMap = () => {
 
       map.fitBounds(bounds);
 
-      console.log("xxx bbox", {
-        bb,
-        bounds,
-        ul,
-        lr,
-        divUL,
-        divLR,
-      });
+      //   console.log("xxx bbox", {
+      //     bb,
+      //     bounds,
+      //     ul,
+      //     lr,
+      //     divUL,
+      //     divLR,
+      //   });
     }
   };
 
@@ -146,7 +145,6 @@ const PrintBBoxMap = () => {
       clickHandlerForScale(scale, orientation);
 
       const handleDbClick = () => {
-        console.log("xxx db click");
         handleStartPrint(map);
       };
       map.on("dblclick", handleDbClick);
@@ -157,24 +155,21 @@ const PrintBBoxMap = () => {
     }
   }, [routedMapRef, mode, scale, orientation, dpi, printName]);
 
-  useEffect(() => {
-    console.log("xxx feature", feature);
-  }, [feature]);
-
   return (
     <>
       {feature && mode === "print" && (
-        <ProjGeoJson
-          key={JSON.stringify(feature)}
-          editable={false}
-          style={(feature) => {
-            return { radius: 10 };
-          }}
-          featureCollection={[feature]}
-          editModeStatusChanged={(feature) => {
-            console.log("xxx feature", feature);
-          }}
-        />
+        // <ProjGeoJson
+        //   key={JSON.stringify(feature)}
+        //   editable={false}
+        //   style={(feature) => {
+        //     return { radius: 10 };
+        //   }}
+        //   featureCollection={[feature]}
+        //   editModeStatusChanged={(feature) => {
+        //     console.log("xxx feature", feature);
+        //   }}
+        // />
+        <div></div>
       )}
     </>
   );
