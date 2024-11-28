@@ -558,7 +558,9 @@ export const GeoportalMap = () => {
                 const newParams = { ...paramsToObject(urlParams), ...location };
                 setUrlParams(newParams);
                 if (
-                  location.zoom.toString() !== urlParams.get("zoom").toString()
+                  location.zoom.toString() !==
+                    urlParams.get("zoom").toString() &&
+                  isModeFeatureInfo
                 ) {
                   setTimeout(() => {
                     const map = routedMap.leafletMap.leafletElement;
