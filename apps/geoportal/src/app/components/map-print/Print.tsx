@@ -60,7 +60,7 @@ const Print = ({ setShowPrintPopup }) => {
       <Radio.Group onChange={onChange} value={orientation}>
         <div className="flex items-center gap-1">
           <Radio value={"portrait"}>Hochkant</Radio>
-          <Radio value={"landscape"}>Querkant</Radio>
+          <Radio value={"landscape"}>Querformat</Radio>
         </div>
       </Radio.Group>
       <hr className="my-0" />
