@@ -4,18 +4,25 @@ import { tabItems } from "./items";
 import { useDispatch, useSelector } from "react-redux";
 import { getUIActiveTabKey, setUIActiveTabKey } from "../../store/slices/ui";
 import { getLayers, getSelectedLayerIndex } from "../../store/slices/mapping";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import "./text.css";
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 interface LayerInfoProps {
   description: string;
   legend: any;
+  zoomLevels: {
+    maxZoom: number;
+    minZoom: number;
+  };
 }
 
 const parser = new DOMParser();
 
-const LayerInfo = ({ description, legend }: LayerInfoProps) => {
+const LayerInfo = ({ description, legend, zoomLevels }: LayerInfoProps) => {
   const dispatch = useDispatch();
+  const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
+  const zoom = routedMapRef?.leafletMap?.leafletElement.getZoom();
 
   const [metadataText, setMetadataText] = useState("");
   const [pdfUrl, setPdfUrl] = useState("");
@@ -110,7 +117,9 @@ const LayerInfo = ({ description, legend }: LayerInfoProps) => {
       </div>
       <hr className="h-px my-0 bg-gray-300 border-0 w-full absolute bottom-9 left-0" />
       <p className="my-0 pt-2.5 text-gray-400 text-base">
-        {layerType} | keine Anzeige im aktuellen Maßstab
+        {layerType}{" "}
+        {(zoom >= zoomLevels.maxZoom || zoom <= zoomLevels.minZoom) &&
+          "| keine Anzeige im aktuellen Maßstab"}
       </p>
     </div>
   );

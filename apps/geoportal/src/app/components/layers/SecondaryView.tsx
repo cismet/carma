@@ -255,6 +255,10 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
               <LayerInfo
                 description={layer.description}
                 legend={layer.props.legend ? layer.props.legend : []}
+                zoomLevels={{
+                  maxZoom: layer.props.maxZoom,
+                  minZoom: layer.props.minZoom,
+                }}
               />
             ))}
         </div>
