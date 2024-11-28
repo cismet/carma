@@ -255,7 +255,12 @@ function createFeatureFromBBox(bbox) {
   };
 }
 
-export const drawRectanglePrev = (routedMapRef, scale, orientation) => {
+export const drawRectanglePrev = (
+  routedMapRef,
+  scale,
+  orientation,
+  handleStartPrint
+) => {
   if (routedMapRef) {
     const map = routedMapRef.leafletMap.leafletElement;
     const latLngCenter = map.getCenter();
@@ -279,11 +284,11 @@ export const drawRectanglePrev = (routedMapRef, scale, orientation) => {
     const divUL = map.latLngToContainerPoint([ul[1], ul[0]]);
     const divLR = map.latLngToContainerPoint([lr[1], lr[0]]);
 
-    drawRectFromWithBounds(map, bounds);
+    drawRectFromWithBounds(map, bounds, handleStartPrint);
   }
 };
 
-const drawRectFromWithBounds = (map, bounds) => {
+const drawRectFromWithBounds = (map, bounds, handleStartPrint) => {
   const sw = bounds[0]; // Southwest
   const ne = bounds[1]; // Northeast
   const nw = [ne[0], sw[1]]; // Northwest
@@ -300,6 +305,10 @@ const drawRectFromWithBounds = (map, bounds) => {
   polygon.on("dragend", () => {
     const newBounds = polygon.getBounds();
     map.fitBounds(newBounds);
+  });
+
+  polygon.on("dblclick", () => {
+    handleStartPrint(map);
   });
 
   polygon.prevPrintId = "print-rect-id";

@@ -9,8 +9,7 @@ import {
   changeOrientation,
   getDPI,
   changeDPI,
-  getPrintName,
-  changePrintName,
+  // getPrintName,
   getScale,
   changeScale,
 } from "../../store/slices/print";
@@ -23,10 +22,10 @@ const Print = ({ setShowPrintPopup }) => {
   const dispatch = useDispatch();
   const currentOrient = useSelector(getOrientation);
   const currentDPI = useSelector(getDPI);
-  const currentName = useSelector(getPrintName);
+  // const currentName = useSelector(getPrintName);
   const currentScale = useSelector(getScale);
   const [orientation, setOrientation] = useState(currentOrient);
-  const [name, setSName] = useState(currentName);
+  // const [name, setSName] = useState(currentName);
   const [dpi, setDpi] = useState(currentDPI);
 
   useDrawRectangle(printMap, () => dispatch(setUIMode("default")));
@@ -45,7 +44,7 @@ const Print = ({ setShowPrintPopup }) => {
     <div className="p-2 flex flex-col gap-3" ref={printPopupRef}>
       <div className="flex items-center gap-2">
         <FontAwesomeIcon icon={faPrint} className="text-xl" />
-        <h4 className="mb-0">Druck</h4>
+        <h4 className="mb-0">Drucken</h4>
       </div>
       {/* <h5 className="mb-0">Dateiname</h5>
       <Input
@@ -97,7 +96,7 @@ const Print = ({ setShowPrintPopup }) => {
           setShowPrintPopup(false);
         }}
       >
-        Starten
+        Vorschau
       </Button>
     </div>
   );

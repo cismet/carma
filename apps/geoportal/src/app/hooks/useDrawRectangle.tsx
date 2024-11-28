@@ -9,10 +9,10 @@ import {
   changeIsLoading,
   getScale,
 } from "../store/slices/print";
-import { getUIMode } from "../store/slices/ui";
-import { createRoot } from "react-dom/client";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faXmark } from "@fortawesome/free-solid-svg-icons";
+import { getUIMode, setUIMode } from "../store/slices/ui";
+// import { createRoot } from "react-dom/client";
+// import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+// import { faXmark } from "@fortawesome/free-solid-svg-icons";
 import proj4 from "proj4";
 import { getBackgroundLayer, getLayers } from "../store/slices/mapping";
 import {
@@ -20,7 +20,7 @@ import {
   getPrintLayers,
   deleteRectangleById as removeRectangle,
 } from "../helper/print";
-import PrintButton from "../components/map-print/PrintButton";
+// import PrintButton from "../components/map-print/PrintButton";
 
 export const useDrawRectangle = (printCb, printOffCb) => {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
@@ -57,22 +57,30 @@ export const useDrawRectangle = (printCb, printOffCb) => {
 
   const addRectangle = (map, routedMapRef, scale, orientation) => {
     removeRectangle(map);
-    drawRectanglePrev(routedMapRef, scale, orientation);
+    drawRectanglePrev(routedMapRef, scale, orientation, handleStartPrint);
   };
 
   useEffect(() => {
     if (map && mode === "print") {
-      const handleDbClick = () => {
-        console.log("xxx db click");
-        handleStartPrint(map);
+      const handleClick = (e) => {
+        if (
+          !e.originalEvent.target?.classList.contains("leaflet-path-draggable")
+        ) {
+          dispatch(setUIMode("default"));
+        }
       };
       addRectangle(map, routedMapRef, scale, orientation);
-      // window.addEventListener("resize", handleResize);
-      map.on("dblclick", handleDbClick);
+
+      const handleEscKeyPress = (event) => {
+        if (event.key === "Escape") {
+          dispatch(setUIMode("default"));
+        }
+      };
+      window.addEventListener("keydown", handleEscKeyPress);
+      map.on("click", handleClick);
 
       return () => {
-        // window.removeEventListener("resize", handleResize);
-        map.off("dblclick", handleDbClick);
+        map.off("dblclick", handleClick);
         removeRectangle(map);
       };
     } else if (map && mode === "print" && lastOrientation === orientation) {
