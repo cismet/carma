@@ -158,18 +158,17 @@ const PrintBBoxMap = () => {
   return (
     <>
       {feature && mode === "print" && (
-        // <ProjGeoJson
-        //   key={JSON.stringify(feature)}
-        //   editable={false}
-        //   style={(feature) => {
-        //     return { radius: 10 };
-        //   }}
-        //   featureCollection={[feature]}
-        //   editModeStatusChanged={(feature) => {
-        //     console.log("xxx feature", feature);
-        //   }}
-        // />
-        <div></div>
+        <ProjGeoJson
+          key={JSON.stringify(feature)}
+          editable={false}
+          style={(feature) => {
+            return { radius: 10 };
+          }}
+          featureCollection={[feature]}
+          editModeStatusChanged={(feature) => {
+            console.log("xxx feature", feature);
+          }}
+        />
       )}
     </>
   );

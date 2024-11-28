@@ -287,18 +287,7 @@ export const drawRectanglePrev = (routedMapRef, scale, orientation) => {
     const divUL = map.latLngToContainerPoint([ul[1], ul[0]]);
     const divLR = map.latLngToContainerPoint([lr[1], lr[0]]);
 
-    // map.fitBounds(bounds);
-
     drawRectFromWithBounds(map, bounds);
-
-    console.log("xxx bbox", {
-      bb,
-      bounds,
-      ul,
-      lr,
-      divUL,
-      divLR,
-    });
   }
 };
 
@@ -315,45 +304,6 @@ const drawRectFromWithBounds = (map, bounds) => {
     weight: 1,
     draggable: true,
   }).addTo(map);
-
-  polygon.on("dragend", () => {
-    const newBounds = polygon.getBounds();
-    map.fitBounds(newBounds);
-  });
-
-  polygon.prevPrintId = "print-rect-id";
-};
-
-export const drawRectangleFromBbox = (map, bbox) => {
-  const corner1 = map.options.crs.unproject(L.point(bbox.minX, bbox.minY)); // Bottom-left
-  const corner2 = map.options.crs.unproject(L.point(bbox.minX, bbox.maxY)); // Top-left
-  const corner3 = map.options.crs.unproject(L.point(bbox.maxX, bbox.maxY)); // Top-right
-  const corner4 = map.options.crs.unproject(L.point(bbox.maxX, bbox.minY)); // Bottom-right
-
-  const polygon = L.polygon(
-    [
-      [corner1.lat, corner1.lng],
-      [corner2.lat, corner2.lng],
-      [corner3.lat, corner3.lng],
-      [corner4.lat, corner4.lng],
-      [corner1.lat, corner1.lng],
-    ],
-    {
-      color: "black",
-      weight: 1,
-      draggable: true,
-    }
-  ).addTo(map);
-
-  const bound = polygon.getBounds();
-  map.fitBounds(bound);
-
-  polygon.on("dragend", () => {
-    const newBounds = polygon.getBounds();
-    map.fitBounds(newBounds);
-  });
-
-  polygon.prevPrintId = "print-rect-id";
 
   polygon.on("dragend", () => {
     const newBounds = polygon.getBounds();

@@ -576,7 +576,7 @@ export const GeoportalMap = () => {
                   position={pos}
                 />
               )}
-              <PrintBBoxMap />
+              {/* <PrintBBoxMap /> */}
             </TopicMapComponent>
           </div>
           {allow3d && (
