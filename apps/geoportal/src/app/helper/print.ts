@@ -2,6 +2,16 @@ import "leaflet-path-drag";
 import proj4 from "proj4";
 import bbox from "@turf/bbox";
 import { convertBBox2Bounds, proj4crs3857def } from "./gisHelper";
+import * as L from "leaflet";
+
+interface DraggablePolygonOptions extends L.PolylineOptions {
+  draggable?: boolean;
+  prevPrintId?: string;
+}
+
+interface CustomPolygon extends L.Polygon {
+  prevPrintId?: string;
+}
 
 export const printMap = async (
   center,
@@ -183,38 +193,34 @@ export const scaleOptions = [
   },
 ];
 
-export const prevRectCalc = (currentZoom, scale, rWidth, rHeight) => {
-  const scaleItem = scaleOptions.find((s) => s.value === scale);
-  const targetZoom = Number(scaleItem.zoom);
-  let newWidth;
-  let newHeight;
+// export const prevRectCalc = (currentZoom, scale, rWidth, rHeight) => {
+//   const scaleItem = scaleOptions.find((s) => s.value === scale);
+//   const targetZoom = Number(scaleItem.zoom);
+//   let newWidth;
+//   let newHeight;
 
-  const maxZoom = 10;
-  const minZoom = 22;
+//   const maxZoom = 10;
+//   const minZoom = 22;
 
-  if (currentZoom === targetZoom) {
-    newWidth = rWidth;
-    newHeight = rHeight;
-  }
+//   if (currentZoom === targetZoom) {
+//     newWidth = rWidth;
+//     newHeight = rHeight;
+//   }
 
-  // if(currentZoom === targetZoom && targetZoom !== maxZoom){
-  //   if()
-  // }
+//   if (currentZoom < targetZoom) {
+//     const levelSteps = targetZoom - currentZoom;
+//     newWidth = rWidth / levelSteps;
+//     newHeight = rHeight / levelSteps;
+//   }
 
-  if (currentZoom < targetZoom) {
-    const levelSteps = targetZoom - currentZoom;
-    newWidth = rWidth / levelSteps;
-    newHeight = rHeight / levelSteps;
-  }
+//   if (currentZoom > targetZoom) {
+//     const levelSteps = currentZoom - targetZoom;
+//     newWidth = rWidth * levelSteps;
+//     newHeight = rHeight * levelSteps;
+//   }
 
-  if (currentZoom > targetZoom) {
-    const levelSteps = currentZoom - targetZoom;
-    newWidth = rWidth * levelSteps;
-    newHeight = rHeight * levelSteps;
-  }
-
-  return { pixelWidth: newWidth, pixelHeight: newHeight };
-};
+//   return { pixelWidth: newWidth, pixelHeight: newHeight };
+// };
 
 function calculateBBox(centerX, centerY, pixelWidth, pixelHeight, dpi, scale) {
   // Convert DPI and scale to meters per pixel
@@ -300,7 +306,9 @@ const drawRectFromWithBounds = (map, bounds, handleStartPrint) => {
     color: "black",
     weight: 1,
     draggable: true,
-  }).addTo(map);
+  } as DraggablePolygonOptions) as CustomPolygon;
+
+  polygon.addTo(map);
 
   polygon.on("dragend", () => {
     const newBounds = polygon.getBounds();
@@ -329,7 +337,10 @@ const drawRectFromWithBounds = (map, bounds, handleStartPrint) => {
 
 export const deleteRectangleById = (map) => {
   map.eachLayer((layer) => {
-    if (layer instanceof L.Polygon && layer.prevPrintId === "print-rect-id") {
+    if (
+      layer instanceof L.Polygon &&
+      (layer as CustomPolygon).prevPrintId === "print-rect-id"
+    ) {
       map.removeLayer(layer);
     }
   });
