@@ -134,6 +134,8 @@ export const GeoportalMap = () => {
 
   const location = useLocation();
 
+  const [numOfLayers, setNumOfLayers] = useState(0);
+
   const rerenderCountRef = useRef(0);
   const lastRenderTimeStampRef = useRef(Date.now());
   const lastRenderIntervalRef = useRef(0);
@@ -354,12 +356,31 @@ export const GeoportalMap = () => {
     setShowTourOverlay(true);
   };
 
+  const updateFeatureInfo = () => {
+    setTimeout(() => {
+      const map = routedMap.leafletMap.leafletElement;
+      const latlngPoint = L.latLng(pos);
+      map.fireEvent("click", {
+        latlng: latlngPoint,
+        layerPoint: map.latLngToLayerPoint(latlngPoint),
+        containerPoint: map.latLngToContainerPoint(latlngPoint),
+      });
+    }, 150);
+  };
+
   // TODO Move out Controls to own component
 
   console.debug("RENDER: [GEOPORTAL] MAP", isMode2d);
   rerenderCountRef.current++;
   lastRenderIntervalRef.current = Date.now() - lastRenderTimeStampRef.current;
   lastRenderTimeStampRef.current = Date.now();
+
+  useEffect(() => {
+    if (isModeFeatureInfo && pos && layers.length > numOfLayers) {
+      updateFeatureInfo();
+    }
+    setNumOfLayers(layers.length);
+  }, [layers]);
 
   return (
     <ControlLayout onHeightResize={setLayoutHeight} ifStorybook={false}>
@@ -562,15 +583,7 @@ export const GeoportalMap = () => {
                     urlParams.get("zoom").toString() &&
                   isModeFeatureInfo
                 ) {
-                  setTimeout(() => {
-                    const map = routedMap.leafletMap.leafletElement;
-                    const latlngPoint = L.latLng(pos);
-                    map.fireEvent("click", {
-                      latlng: latlngPoint,
-                      layerPoint: map.latLngToLayerPoint(latlngPoint),
-                      containerPoint: map.latLngToContainerPoint(latlngPoint),
-                    });
-                  }, 150);
+                  updateFeatureInfo();
                 }
               }}
               onclick={(e) => {
