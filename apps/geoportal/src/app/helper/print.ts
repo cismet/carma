@@ -304,12 +304,12 @@ const drawRectFromWithBounds = (map, bounds, handleStartPrint) => {
 
   polygon.on("dragend", () => {
     const newBounds = polygon.getBounds();
-    polygon.bindTooltip("Doppelklicken zum Drucken", {
-      permanent: true,
-      direction: "center",
-      offset: 0,
-      opacity: "0.9",
-    });
+    //   polygon.bindTooltip("Doppelklicken zum Drucken", {
+    //     permanent: true,
+    //     direction: "center",
+    //     offset: 0,
+    //     opacity: "0.9",
+    //   });
     map.fitBounds(newBounds);
   });
 
