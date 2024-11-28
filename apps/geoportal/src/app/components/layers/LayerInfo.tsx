@@ -49,14 +49,6 @@ const LayerInfo = ({ description, legend, zoomLevels }: LayerInfoProps) => {
   useEffect(() => {
     if (metadataUrl) {
       const urlWithoutWhitespace = metadataUrl.replaceAll(" ", "");
-      setPdfUrl(
-        `https://geoportal-nrw-content-type-pdf-proxy.cismet.de/geoportal-smartfinder-iso-1.2/resources/content/document/${getIdFromUrl(
-          urlWithoutWhitespace
-        )}?filename=Metadatensatz.${currentLayer.title.replaceAll(
-          " ",
-          "_"
-        )}.Wuppertal.pdf`
-      );
       fetch(urlWithoutWhitespace)
         .then((response) => {
           return response.text();
@@ -65,6 +57,18 @@ const LayerInfo = ({ description, legend, zoomLevels }: LayerInfoProps) => {
           const result = parser.parseFromString(text, "text/xml");
           const abstract = result.getElementsByTagName("gmd:abstract")[0];
           setMetadataText(abstract.textContent);
+          setPdfUrl(
+            `https://geoportal-nrw-content-type-pdf-proxy.cismet.de/geoportal-smartfinder-iso-1.2/resources/content/document/${getIdFromUrl(
+              urlWithoutWhitespace
+            )}?filename=Metadatensatz.${currentLayer.title.replaceAll(
+              " ",
+              "_"
+            )}.Wuppertal.pdf`
+          );
+        })
+        .catch(() => {
+          setMetadataText("keine Verknüpfung zum Metadatenkatalog vorhanden");
+          setPdfUrl("");
         });
     } else {
       setMetadataText("keine Verknüpfung zum Metadatenkatalog vorhanden");
