@@ -557,6 +557,19 @@ export const GeoportalMap = () => {
               locationChangedHandler={(location) => {
                 const newParams = { ...paramsToObject(urlParams), ...location };
                 setUrlParams(newParams);
+                if (
+                  location.zoom.toString() !== urlParams.get("zoom").toString()
+                ) {
+                  setTimeout(() => {
+                    const map = routedMap.leafletMap.leafletElement;
+                    const latlngPoint = L.latLng(pos);
+                    map.fireEvent("click", {
+                      latlng: latlngPoint,
+                      layerPoint: map.latLngToLayerPoint(latlngPoint),
+                      containerPoint: map.latLngToContainerPoint(latlngPoint),
+                    });
+                  }, 150);
+                }
               }}
               onclick={(e) => {
                 const map = routedMap.leafletMap.leafletElement;
