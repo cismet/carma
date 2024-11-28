@@ -17,6 +17,7 @@ import {
 import ProjGeoJson from "react-cismap/ProjGeoJson";
 import { getBackgroundLayer, getLayers } from "../../store/slices/mapping";
 import { getPrintLayers, printMap } from "../../helper/print";
+import "leaflet-path-drag";
 
 const PrintBBoxMap = () => {
   function calculateBBox(
@@ -156,12 +157,16 @@ const PrintBBoxMap = () => {
     }
   }, [routedMapRef, mode, scale, orientation, dpi, printName]);
 
+  useEffect(() => {
+    console.log("xxx feature", feature);
+  }, [feature]);
+
   return (
     <>
       {feature && mode === "print" && (
         <ProjGeoJson
           key={JSON.stringify(feature)}
-          editable={true}
+          editable={false}
           style={(feature) => {
             return { radius: 10 };
           }}
