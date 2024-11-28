@@ -106,7 +106,7 @@ const LayerInfo = ({ description, legend, zoomLevels }: LayerInfoProps) => {
           />
         </div>
         <div className="w-1/3 h-[calc(100%-26px)]">
-          <h5>Legende</h5>
+          <h5 className="pl-1.5">Legende</h5>
           <div className="h-full overflow-auto">
             {legend?.map((legend, i) => (
               <img
