@@ -178,8 +178,8 @@ export const scaleOptions = [
     label: "1 : 100 000",
   },
   {
-    value: "125000",
-    label: "1 : 125 000",
+    value: "150000",
+    label: "1 : 150 000",
   },
 ];
 
@@ -304,6 +304,12 @@ const drawRectFromWithBounds = (map, bounds, handleStartPrint) => {
 
   polygon.on("dragend", () => {
     const newBounds = polygon.getBounds();
+    polygon.bindTooltip("Doppelklicken zum Drucken", {
+      permanent: true,
+      direction: "center",
+      offset: 0,
+      opacity: "0.9",
+    });
     map.fitBounds(newBounds);
   });
 
@@ -312,6 +318,13 @@ const drawRectFromWithBounds = (map, bounds, handleStartPrint) => {
   });
 
   polygon.prevPrintId = "print-rect-id";
+
+  // polygon.bindTooltip("Doppelklicken zum Drucken", {
+  //   permanent: true,
+  //   direction: "center",
+  //   offset: 0,
+  //   opacity: "0.9",
+  // });
 };
 
 export const deleteRectangleById = (map) => {

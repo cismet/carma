@@ -13,7 +13,7 @@ export type PrintState = {
 const initialState: PrintState = {
   orientation: "portrait",
   dpi: "72",
-  name: "druck_geoportal",
+  name: "Druck_Geoportal",
   isLoading: false,
   scale: "250",
 };
