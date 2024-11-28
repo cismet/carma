@@ -28,3 +28,40 @@ html {
 .cesium-widget {
   background-color: cadetblue;
 }
+
+.rectangle-wrapper {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+.print-button-wrapper {
+  margin-left: auto;
+}
+.rectangle-button {
+  background-color: #123c6a;
+  color: white;
+  opacity: 0.9;
+  border-radius: 4px;
+  padding: 5px 10px;
+  cursor: pointer;
+  margin-left: auto;
+  margin-left: auto;
+  text-align: center;
+  margin-top: 4px;
+}
+
+.rectangle-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.rectangle-prev {
+  background-color: #123c6a;
+  border-radius: 4px;
+  opacity: 0.4;
+}
+
+.rectangle-close {
+  margin-left: auto;
+}
