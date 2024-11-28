@@ -7,31 +7,14 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 
 export const tabItems = (
-  legend,
   currentLayer: Layer,
   metadataText?: string,
   pdfUrl?: string
 ) => {
   return [
     {
-      label: "Legende",
-      key: "1",
-      children: (
-        <div className="h-full overflow-auto">
-          {legend?.map((legend, i) => (
-            <img
-              key={`legend_${i}`}
-              src={legend.OnlineResource}
-              alt="Legende"
-              className="h-full"
-            />
-          ))}
-        </div>
-      ),
-    },
-    {
       label: "Datenquelle",
-      key: "2",
+      key: "1",
       children: (
         <>
           <p>{metadataText}</p>
@@ -45,7 +28,7 @@ export const tabItems = (
     },
     {
       label: "Links",
-      key: "3",
+      key: "2",
       children: (
         <div className="flex flex-col gap-2">
           {currentLayer?.other?.service?.url && (

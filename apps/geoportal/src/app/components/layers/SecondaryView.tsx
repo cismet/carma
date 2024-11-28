@@ -44,8 +44,9 @@ import {
   setUIShowInfo,
   setUIShowInfoText,
 } from "../../store/slices/ui";
-import Info from "./Info";
 import { iconColorMap, iconMap } from "./items";
+import LayerInfo from "./LayerInfo";
+import BaseLayerInfo from "./BaseLayerInfo";
 
 type Ref = HTMLDivElement;
 
@@ -247,12 +248,19 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
             </button>
           </div>
 
-          {showInfoText && (
-            <Info
-              description={layer.description}
-              legend={layer.props.legend ? layer.props.legend : []}
-            />
-          )}
+          {showInfoText &&
+            (isBaseLayer ? (
+              <BaseLayerInfo />
+            ) : (
+              <LayerInfo
+                description={layer.description}
+                legend={layer.props.legend ? layer.props.legend : []}
+                zoomLevels={{
+                  maxZoom: layer.props.maxZoom,
+                  minZoom: layer.props.minZoom,
+                }}
+              />
+            ))}
         </div>
       </div>
     </div>
