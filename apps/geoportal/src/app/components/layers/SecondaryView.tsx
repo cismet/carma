@@ -68,6 +68,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
   const backgroundLayer = useSelector(getBackgroundLayer);
   const layer =
     selectedLayerIndex >= 0 ? layers[selectedLayerIndex] : backgroundLayer;
+  const iconName = layer?.other?.icon;
   const icon = layer.title.includes("Orthofoto")
     ? "ortho"
     : layer.title === "Bäume"
@@ -166,10 +167,10 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
           </button>
           <div className="flex items-center w-full h-8 gap-6">
             <div className="w-1/4 flex items-center gap-2">
-              {icon === "ortho" ? (
+              {iconName ? (
                 <div style={{ height: 14, width: 14 }}>
                   <img
-                    src={urlPrefix + "images/ortho.png"}
+                    src={urlPrefix + `icons/${iconName}.png`}
                     alt="Ortho"
                     className="h-full"
                   />
