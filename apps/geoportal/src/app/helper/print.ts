@@ -1,3 +1,5 @@
+import "leaflet-path-drag";
+
 export const printMap = async (
   center,
   scale,
@@ -263,8 +265,17 @@ export const drawRectangleFromBbox = (map, bbox) => {
     {
       color: "black",
       weight: 1,
+      draggable: true,
     }
   ).addTo(map);
+
+  const bound = polygon.getBounds();
+  map.fitBounds(bound);
+
+  polygon.on("dragend", () => {
+    const newBounds = polygon.getBounds();
+    map.fitBounds(newBounds);
+  });
 
   polygon.prevPrintId = "print-rect-id";
 };
