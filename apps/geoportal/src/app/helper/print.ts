@@ -20,7 +20,8 @@ export const printMap = async (
   orientation,
   dpi,
   name,
-  handleIsLoading
+  handleIsLoading,
+  handleIsError
 ) => {
   const { url, title } = getOrientationTemplateParams(orientation);
   const data = {
@@ -38,12 +39,18 @@ export const printMap = async (
       },
     },
   };
+  handleIsError(false);
   handleIsLoading(true);
   try {
     const response = await fetch(url, {
       method: "POST",
       body: JSON.stringify(data),
     });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+
     const blob = await response.blob();
     const urlBlob = URL.createObjectURL(blob);
 
@@ -57,6 +64,7 @@ export const printMap = async (
   } catch (error) {
     console.log("xxx res", error);
     handleIsLoading(false);
+    handleIsError(true);
   }
 };
 

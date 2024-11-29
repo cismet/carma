@@ -8,6 +8,7 @@ export type PrintState = {
   name: string;
   isLoading: boolean;
   scale: string;
+  printError: boolean;
 };
 
 const initialState: PrintState = {
@@ -16,6 +17,7 @@ const initialState: PrintState = {
   name: "Druck_Geoportal",
   isLoading: false,
   scale: "250",
+  printError: false,
 };
 
 const slice = createSlice({
@@ -37,6 +39,9 @@ const slice = createSlice({
     changeScale(state, action: PayloadAction<string>) {
       state.scale = action.payload;
     },
+    changePrintError(state, action: PayloadAction<boolean>) {
+      state.printError = action.payload;
+    },
   },
 });
 
@@ -46,11 +51,13 @@ export const {
   changePrintName,
   changeIsLoading,
   changeScale,
+  changePrintError,
 } = slice.actions;
 export const getOrientation = (state: RootState) => state.print.orientation;
 export const getDPI = (state: RootState) => state.print.dpi;
 export const getPrintName = (state: RootState) => state.print.name;
 export const getIsLoading = (state: RootState) => state.print.isLoading;
 export const getScale = (state: RootState) => state.print.scale;
+export const getPrintError = (state: RootState) => state.print.printError;
 
 export default slice.reducer;

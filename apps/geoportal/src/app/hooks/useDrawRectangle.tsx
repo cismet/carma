@@ -7,6 +7,7 @@ import {
   getPrintName,
   getIsLoading,
   changeIsLoading,
+  changePrintError,
   getScale,
 } from "../store/slices/print";
 import { getUIMode, setUIMode } from "../store/slices/ui";
@@ -40,6 +41,10 @@ export const useDrawRectangle = (printCb, printOffCb) => {
     dispatch(changeIsLoading(status));
   };
 
+  const handleIsError = (status) => {
+    dispatch(changePrintError(status));
+  };
+
   const handleStartPrint = (map) => {
     const { lat, lng } = map.getCenter();
     const tranformProj = proj4("EPSG:4326", "EPSG:3857", [lng, lat]);
@@ -51,7 +56,8 @@ export const useDrawRectangle = (printCb, printOffCb) => {
       orientation,
       Number(dpi),
       printName,
-      handleIsLoading
+      handleIsLoading,
+      handleIsError
     );
   };
 

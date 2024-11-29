@@ -1,4 +1,5 @@
 import {
+  faExclamation,
   faEye,
   faEyeSlash,
   faFileExport,
@@ -29,6 +30,9 @@ import {
 import ShareContent from "../ShareContent";
 import Print from "../map-print/Print";
 import { useState } from "react";
+import { LoadingOutlined } from "@ant-design/icons";
+import { Spin } from "antd";
+import { getIsLoading, getPrintError } from "../../store/slices/print";
 
 const disabledClass = "text-gray-300";
 const disabledImageOpacity = "opacity-20";
@@ -48,6 +52,8 @@ const ActionButtons = () => {
   );
 
   const [showPrintPopup, setShowPrintPopup] = useState(false);
+  const loading = useSelector(getIsLoading);
+  const printError = useSelector(getPrintError);
 
   return (
     <div
@@ -157,11 +163,27 @@ const ActionButtons = () => {
           content={<Print setShowPrintPopup={setShowPrintPopup} />}
           open={showPrintPopup}
         >
-          <FontAwesomeIcon
-            onClick={() => setShowPrintPopup(true)}
-            icon={faPrint}
-            className="text-xl hover:text-gray-600 cursor-pointer"
-          />
+          {!printError ? (
+            loading ? (
+              <Spin
+                indicator={<LoadingOutlined spin />}
+                size="small"
+                style={{ fontSize: "14px" }}
+              />
+            ) : (
+              <FontAwesomeIcon
+                onClick={() => setShowPrintPopup(true)}
+                icon={faPrint}
+                className="text-xl hover:text-gray-600 cursor-pointer"
+              />
+            )
+          ) : (
+            <FontAwesomeIcon
+              onClick={() => setShowPrintPopup(true)}
+              icon={faExclamation}
+              className="text-xl text-red-600 cursor-pointer"
+            />
+          )}
         </Popover>
       </Tooltip>
       <Tooltip title="Teilen">
