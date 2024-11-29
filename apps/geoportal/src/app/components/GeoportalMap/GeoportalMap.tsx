@@ -230,6 +230,7 @@ export const GeoportalMap = () => {
   const { setSecondaryWithKey } = useContext(OverlayTourContext);
 
   const [marker, setMarker] = useState(undefined);
+  const [markerAccent, setMarkerAccent] = useState(undefined);
   const [pos, setPos] = useState<[number, number] | null>(null);
   const [isSameLayerTypes, setIsSameLayerTypes] = useState(true);
   const [layoutHeight, setLayoutHeight] = useState(null);
@@ -499,6 +500,9 @@ export const GeoportalMap = () => {
               if (marker !== undefined) {
                 routedMap.leafletMap.leafletElement.removeLayer(marker);
               }
+              if (markerAccent !== undefined) {
+                routedMap.leafletMap.leafletElement.removeLayer(markerAccent);
+              }
             }}
             className="font-semibold"
             ref={tourRefLabels.featureInfo}
@@ -562,19 +566,122 @@ export const GeoportalMap = () => {
                 const map = routedMap.leafletMap.leafletElement;
                 const baseUrl =
                   window.location.origin + window.location.pathname;
+
                 if (uiMode === UIMode.FEATURE_INFO) {
                   if (marker !== undefined) {
                     map.removeLayer(marker);
                   }
-
-                  setMarker(
+                  if (markerAccent !== undefined) {
+                    map.removeLayer(markerAccent);
+                  }
+                  map.getPane("backgroundlayerTooltips").style[
+                    "mix-blend-mode"
+                  ] = "difference";
+                  setMarkerAccent(
                     L.marker([e.latlng.lat, e.latlng.lng], {
                       icon: L.icon({
-                        iconUrl: baseUrl + "crosshair.svg",
+                        iconUrl: baseUrl + "weapon-sniper.svg",
                         iconSize: [30, 30],
                       }),
                     }).addTo(map)
                   );
+
+                  setMarker(
+                    L.marker([e.latlng.lat, e.latlng.lng], {
+                      pane: "backgroundlayerTooltips",
+                      icon: L.divIcon({
+                        className: "custom-marker", // Optional class for external styles
+                        html: `
+                          <div style="
+                            position: relative;
+                            width: 30px;
+                            height: 30px;
+                            border-radius: 50%;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            background-color: black;
+                           opacity: 1;
+
+                            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+                          ">
+                            <div style="
+                              position: absolute;
+                              width: 30px;
+                              height: 30px;
+                              border: 2px solid white;
+                              border-radius: 50%;
+
+                            "></div>
+                              <div style="
+                              position: absolute;
+                              width: 20px;
+                              height: 20px;
+                              border: 2px solid white;
+                              border-radius: 50%;
+
+                            "></div>
+                            <div style="
+                              position: absolute;
+                              width: 2px;
+                              height: 110%;
+                              background-color: white;
+
+                            "></div>
+                            <div style="
+                              position: absolute;
+                              height: 2px;
+                              width: 110%;
+                              isolation: isolate;
+                              background-color: white;
+                              zindex: 2;
+
+                            "></div>
+                             <div style="
+                              position: absolute;
+                              width: 4px;
+                              height: 4px;
+                              background-color: white;
+
+                              border-radius: 50%;
+
+                            ">
+                          </div>
+                        `,
+                        iconSize: [30, 30],
+                      }),
+                    }).addTo(map)
+                  );
+                  // setMarkerAccent(
+                  //   L.marker([e.latlng.lat, e.latlng.lng], {
+                  //     icon: L.divIcon({
+                  //       className: "custom-marker", // Optional class for external styles
+                  //       html: `
+                  //         <div style="
+                  //           position: relative;
+                  //           width: 35px;
+                  //           height: 35px;
+                  //           border-radius: 50%;
+                  //           display: flex;
+                  //           align-items: center;
+                  //           justify-content: center;
+
+                  //           box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+                  //         ">
+                  //           <div style="
+                  //             position: absolute;
+                  //             width: 35px;
+                  //             height: 35px;
+                  //             border: 2px solid white;
+                  //             border-radius: 50%;
+
+                  //           ">
+                  //         </div>
+                  //       `,
+                  //       iconSize: [35, 35],
+                  //     }),
+                  //   }).addTo(map)
+                  // );
 
                   setPos([e.latlng.lat, e.latlng.lng]);
                 }
@@ -632,6 +739,7 @@ export const GeoportalMap = () => {
               ></CustomViewer>
             </div>
           )}
+          <CssXorLine />
         </>
       </Main>
     </ControlLayout>
@@ -639,3 +747,21 @@ export const GeoportalMap = () => {
 };
 
 export default GeoportalMap;
+const CssXorLine = () => {
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: "50%",
+        left: "50%",
+        width: "200px",
+        height: "10px",
+        backgroundColor: "white", // Base color of the line
+        mixBlendMode: "difference", // Blend mode to achieve XOR-like contrast
+        transform: "translate(-50%, -50%)", // Center the line
+        zIndex: 999999999,
+        pointerEvents: "none", // Ensure it doesn’t block interactions
+      }}
+    ></div>
+  );
+};
