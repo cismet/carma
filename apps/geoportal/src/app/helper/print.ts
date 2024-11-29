@@ -132,7 +132,7 @@ const buildWMSPrint = (baseURL, name, opacity = 1) => {
     layers: [name],
     type: "WMS",
     opacity,
-    // version: "1.3.0",
+    failOnError: true,
   };
 
   return wms;

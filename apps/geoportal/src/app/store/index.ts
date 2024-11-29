@@ -101,6 +101,12 @@ const featuresConfig = {
   whitelist: [],
 };
 
+const printConfig = {
+  key: "@" + APP_KEY + "." + STORAGE_PREFIX + ".app.print",
+  storage: localForage,
+  whitelist: ["orientation", "dpi", "scale"],
+};
+
 const store = configureStore({
   reducer: {
     mapping: persistReducer(mappingConfig, mappingReducer),
@@ -112,7 +118,7 @@ const store = configureStore({
       getCesiumConfig({ appKey: APP_KEY, storagePrefix: STORAGE_PREFIX }),
       cesiumReducer
     ),
-    print: printReducer,
+    print: persistReducer(printConfig, printReducer),
   },
   preloadedState: {
     cesium: defaultCesiumState,
