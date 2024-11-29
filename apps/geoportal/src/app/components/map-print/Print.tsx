@@ -59,15 +59,15 @@ const Print = ({ setShowPrintPopup }) => {
       /> */}
       {/* <hr className="my-0" /> */}
 
-      <h5 className="mb-0">Vorlage</h5>
+      <h5 className="mb-0">Format</h5>
       <Radio.Group onChange={onChange} value={orientation}>
         <div className="flex items-center gap-1">
-          <Radio value={"portrait"}>Hochkant</Radio>
-          <Radio value={"landscape"}>Querformat</Radio>
+          <Radio value={"portrait"}>Hoch</Radio>
+          <Radio value={"landscape"}>Quer</Radio>
         </div>
       </Radio.Group>
       <hr className="my-0" />
-      <h5 className="mb-0">Druckmaßstab</h5>
+      <h5 className="mb-0">Maßstab</h5>
       <Select
         showSearch
         placeholder="Wählen einen Maßstab"
@@ -78,7 +78,7 @@ const Print = ({ setShowPrintPopup }) => {
       />
 
       <hr className="my-0" />
-      <h5 className="mb-0">DPI</h5>
+      <h5 className="mb-0">Auflösung [DPI]</h5>
       <Radio.Group
         onChange={(e) => {
           setDpi(e.target.value);
