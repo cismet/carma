@@ -53,11 +53,13 @@ export const printMap = async (
 
     const blob = await response.blob();
     const urlBlob = URL.createObjectURL(blob);
+    const newTab = window.open(); // Open a new tab
+    newTab.location = urlBlob; // Set the URL of the new tab to the Blob URL
 
-    const a = document.createElement("a");
-    a.href = urlBlob;
-    a.download = name;
-    a.click();
+    // const a = document.createElement("a");
+    // a.href = urlBlob;
+    // a.download = name;
+    // a.click();
 
     URL.revokeObjectURL(urlBlob);
     handleIsLoading(false);
@@ -342,12 +344,19 @@ const drawRectFromWithBounds = (map, bounds, handleStartPrint) => {
 
   polygon.prevPrintId = "print-rect-id";
 
-  // polygon.bindTooltip("Doppelklicken zum Drucken", {
-  //   permanent: true,
-  //   direction: "center",
-  //   offset: 0,
-  //   opacity: "0.9",
-  // });
+  const polygonCenter = polygon.getBounds().getCenter();
+
+  // const marker = L.marker([polygonCenter.lat, polygonCenter.lng], {
+  //   icon: L.divIcon({
+  //     className: "custom-marker",
+  //     html: `
+  //       <div style="position: relative;">
+  //         <h1>Hallo</h1>
+  //       </div>
+  //     `,
+  //     iconSize: [30, 30],
+  //   }),
+  // }).addTo(map);
 };
 
 export const deleteRectangleById = (map) => {
