@@ -9,6 +9,7 @@ export type PrintState = {
   isLoading: boolean;
   scale: string;
   printError: null | string;
+  redrawPreview: boolean;
 };
 
 const initialState: PrintState = {
@@ -18,6 +19,7 @@ const initialState: PrintState = {
   isLoading: false,
   scale: "250",
   printError: null,
+  redrawPreview: true,
 };
 
 const slice = createSlice({
@@ -42,6 +44,9 @@ const slice = createSlice({
     changePrintError(state, action: PayloadAction<string>) {
       state.printError = action.payload;
     },
+    changeRedrawPreview(state, action: PayloadAction<boolean>) {
+      state.redrawPreview = action.payload;
+    },
   },
 });
 
@@ -52,6 +57,7 @@ export const {
   changeIsLoading,
   changeScale,
   changePrintError,
+  changeRedrawPreview,
 } = slice.actions;
 export const getOrientation = (state: RootState) => state.print.orientation;
 export const getDPI = (state: RootState) => state.print.dpi;
@@ -59,5 +65,6 @@ export const getPrintName = (state: RootState) => state.print.name;
 export const getIsLoading = (state: RootState) => state.print.isLoading;
 export const getScale = (state: RootState) => state.print.scale;
 export const getPrintError = (state: RootState) => state.print.printError;
+export const getRedrawPreview = (state: RootState) => state.print.redrawPreview;
 
 export default slice.reducer;

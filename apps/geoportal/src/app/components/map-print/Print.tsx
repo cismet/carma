@@ -12,6 +12,8 @@ import {
   // getPrintName,
   getScale,
   changeScale,
+  getRedrawPreview,
+  changeRedrawPreview,
 } from "../../store/slices/print";
 import { useSelector, useDispatch } from "react-redux";
 import { setUIMode } from "../../store/slices/ui";
@@ -24,6 +26,7 @@ const Print = ({ setShowPrintPopup }) => {
   const currentDPI = useSelector(getDPI);
   // const currentName = useSelector(getPrintName);
   const currentScale = useSelector(getScale);
+  const redrawPrev = useSelector(getRedrawPreview);
   const [orientation, setOrientation] = useState(currentOrient);
   // const [name, setSName] = useState(currentName);
   const [dpi, setDpi] = useState(currentDPI);
@@ -93,6 +96,7 @@ const Print = ({ setShowPrintPopup }) => {
       <Button
         onClick={() => {
           dispatch(setUIMode("print"));
+          dispatch(changeRedrawPreview(!redrawPrev));
           setShowPrintPopup(false);
         }}
       >
