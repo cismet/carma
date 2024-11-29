@@ -164,19 +164,11 @@ const ActionButtons = () => {
           open={showPrintPopup}
         >
           {!printError ? (
-            loading ? (
-              <Spin
-                indicator={<LoadingOutlined spin />}
-                size="small"
-                style={{ fontSize: "14px" }}
-              />
-            ) : (
-              <FontAwesomeIcon
-                onClick={() => setShowPrintPopup(true)}
-                icon={faPrint}
-                className="text-xl hover:text-gray-600 cursor-pointer"
-              />
-            )
+            <FontAwesomeIcon
+              onClick={() => setShowPrintPopup(true)}
+              icon={faPrint}
+              className="text-xl hover:text-gray-600 cursor-pointer"
+            />
           ) : (
             <FontAwesomeIcon
               onClick={() => setShowPrintPopup(true)}
