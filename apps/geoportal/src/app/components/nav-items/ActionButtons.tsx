@@ -30,8 +30,6 @@ import {
 import ShareContent from "../ShareContent";
 import Print from "../map-print/Print";
 import { useState } from "react";
-import { LoadingOutlined } from "@ant-design/icons";
-import { Spin } from "antd";
 import { getIsLoading, getPrintError } from "../../store/slices/print";
 
 const disabledClass = "text-gray-300";
