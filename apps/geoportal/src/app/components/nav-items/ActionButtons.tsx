@@ -29,8 +29,12 @@ import {
 } from "../../store/slices/ui";
 import ShareContent from "../ShareContent";
 import Print from "../map-print/Print";
-import { useState } from "react";
-import { getIsLoading, getPrintError } from "../../store/slices/print";
+import { useEffect, useState } from "react";
+import {
+  changePrintError,
+  getIsLoading,
+  getPrintError,
+} from "../../store/slices/print";
 
 const disabledClass = "text-gray-300";
 const disabledImageOpacity = "opacity-20";
@@ -52,6 +56,16 @@ const ActionButtons = () => {
   const [showPrintPopup, setShowPrintPopup] = useState(false);
   const loading = useSelector(getIsLoading);
   const printError = useSelector(getPrintError);
+
+  useEffect(() => {
+    if (printError) {
+      const timer = setTimeout(() => {
+        dispatch(changePrintError(null));
+      }, 5000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [printError]);
 
   return (
     <div
@@ -154,7 +168,7 @@ const ActionButtons = () => {
           </button>
         </Popover>
       </Tooltip>
-      <Tooltip title="Drucken">
+      <Tooltip title={printError ? printError : "Drucken"}>
         <Popover
           trigger="click"
           placement="bottom"

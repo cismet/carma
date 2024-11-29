@@ -25,7 +25,8 @@ export const printMap = async (
 ) => {
   const { url, title } = getOrientationTemplateParams(orientation);
   const data = {
-    layout: title,
+    // layout: title,
+    layout: "A",
     attributes: {
       keywordsAtt: ["map", "example", "metadata"],
       map: {
@@ -39,7 +40,6 @@ export const printMap = async (
       },
     },
   };
-  handleIsError(false);
   handleIsLoading(true);
   try {
     const response = await fetch(url, {
@@ -48,7 +48,8 @@ export const printMap = async (
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
+      const responseBody = await response.text();
+      throw new Error(responseBody);
     }
 
     const blob = await response.blob();
@@ -62,9 +63,9 @@ export const printMap = async (
     URL.revokeObjectURL(urlBlob);
     handleIsLoading(false);
   } catch (error) {
-    console.log("xxx res", error);
+    console.log("xxx print error message", error?.message);
     handleIsLoading(false);
-    handleIsError(true);
+    handleIsError(error?.message || "An unexpected error occurred");
   }
 };
 
