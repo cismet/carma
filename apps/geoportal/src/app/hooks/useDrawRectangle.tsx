@@ -95,5 +95,19 @@ export const useDrawRectangle = (printCb, printOffCb) => {
     } else if (map && mode !== "print") {
       removeRectangle(map);
     }
-  }, [map, mode, orientation, layers, dpi, printName, loading, scale]);
+  }, [map, mode, orientation, layers, dpi, printName, scale]);
+
+  useEffect(() => {
+    const pathElement = document.querySelector(
+      "path.leaflet-path-draggable.leaflet-interactive"
+    ) as SVGPathElement | null;
+
+    if (pathElement) {
+      if (loading) {
+        pathElement.style.cursor = "wait";
+      } else {
+        pathElement.style.cursor = "default";
+      }
+    }
+  }, [loading]);
 };
