@@ -25,8 +25,7 @@ export const printMap = async (
 ) => {
   const { url, title } = getOrientationTemplateParams(orientation);
   const data = {
-    // layout: title,
-    layout: "A",
+    layout: title,
     attributes: {
       keywordsAtt: ["map", "example", "metadata"],
       map: {
@@ -66,9 +65,16 @@ export const printMap = async (
     console.log("xxx print error message", error?.message);
     handleIsLoading(false);
     handleIsError(error?.message || "An unexpected error occurred");
+  } finally {
+    const printPreview = document.querySelector(
+      "path.leaflet-path-draggable.leaflet-interactive"
+    ) as SVGPathElement | null;
+
+    if (printPreview) {
+      printPreview.style.cursor = "default";
+    }
   }
 };
-
 export const getPrintLayers = (bgLayer, layers) => {
   const allLayers = [...layers, bgLayer];
   const layerPrint = [];
