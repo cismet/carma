@@ -595,60 +595,51 @@ export const GeoportalMap = () => {
                             
                            opacity: 1;
 
-                            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+                           
                           ">
-                            <div style="
-                              position: absolute;
-                              width: 42px;
-                              height: 42px;
-                              border: 2px solid black;
-                              border-radius: 50%;
-
-                            "></div>
+                       
                          
                             <div style="
                               position: absolute;
-                              width: 30px;
-                              height: 30px;
+                              width: 20px;
+                              height: 20px;
                               border: 2px solid black;
                               border-radius: 50%;
 
                             "></div>
-                            <div style="
-                              position: absolute;
-                              width: 4px;
-                              height: 2px;
-                              background-color: black;
-                              right: -10px;
-
-                            "></div>
-                            <div style="
-                              position: absolute;
-                              width: 4px;
-                              height: 2px;
-                              background-color: black;
-                              left: -10px;
-
-                            "></div>
-                            <div style="
-                              position: absolute;
-                              width: 2px;
-                              height: 4px;
-                              background-color: black;
-                              top: -10px;
-
-                            "></div>
-                            <div style="
-                              position: absolute;
-                              width: 2px;
-                              height: 4px;
-                              background-color: black;
-                              bottom: -10px;
-
-                            "></div>
-                      
-                
                           
+                            <div style="
+                              position: absolute;
+                              width: 2000px;
+                              height: 1px;
+                              background-color: black;
+                              right: 24px;
+                              opacity: 0.5;
+                            "></div>
+                            <div style="
+                              position: absolute;
+                              width: 2000px;
+                              height: 1px;
+                              background-color: black;
+                              left: 24px;
+                              opacity: 0.5;
+                            "></div>
+                            <div style="
+                              position: absolute;
+                              width: 1px;
+                              height: 2000px;
+                              background-color: black;
+                              top: 24px;
+                              opacity: 0.5;
+                            "></div>
+                            <div style="
+                              position: absolute;
+                              width: 1px;
+                              height: 2000px;
+                              background-color: black;
+                              bottom: 24px;
+                              opacity: 0.5;
+                            "></div>                    
                           </div>
                         `,
                         iconSize: [30, 30],
@@ -683,7 +674,7 @@ export const GeoportalMap = () => {
                               position: absolute;
                               width: 6px;
                               height: 6px;
-                              background-color: red;
+                              background-color: green;
 
                               border-radius: 50%;
 
@@ -694,61 +685,6 @@ export const GeoportalMap = () => {
                       }),
                     }).addTo(map)
                   );
-
-                  //   <div style="
-                  //   position: absolute;
-                  //   width: 20px;
-                  //   height: 20px;
-                  //   border: 2px solid white;
-                  //   border-radius: 50%;
-
-                  // "></div>
-                  // <div style="
-                  //   position: absolute;
-                  //   width: 2px;
-                  //   height: 110%;
-                  //   background-color: white;
-
-                  // "></div>
-                  // <div style="
-                  //   position: absolute;
-                  //   height: 2px;
-                  //   width: 110%;
-                  //   isolation: isolate;
-                  //   background-color: white;
-                  //   zindex: 2;
-
-                  // "></div>
-                  // setMarkerAccent(
-                  //   L.marker([e.latlng.lat, e.latlng.lng], {
-                  //     icon: L.divIcon({
-                  //       className: "custom-marker", // Optional class for external styles
-                  //       html: `
-                  //         <div style="
-                  //           position: relative;
-                  //           width: 35px;
-                  //           height: 35px;
-                  //           border-radius: 50%;
-                  //           display: flex;
-                  //           align-items: center;
-                  //           justify-content: center;
-
-                  //           box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-                  //         ">
-                  //           <div style="
-                  //             position: absolute;
-                  //             width: 35px;
-                  //             height: 35px;
-                  //             border: 2px solid white;
-                  //             border-radius: 50%;
-
-                  //           ">
-                  //         </div>
-                  //       `,
-                  //       iconSize: [35, 35],
-                  //     }),
-                  //   }).addTo(map)
-                  // );
 
                   setPos([e.latlng.lat, e.latlng.lng]);
                 }
