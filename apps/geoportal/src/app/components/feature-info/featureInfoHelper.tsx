@@ -141,6 +141,11 @@ export const getFeatureForLayer = async (layer, pos, coordinates) => {
       const feature = result.includes("function")
         ? functionToFeature(output, result)
         : objectToFeature(output, result);
+
+      if (!feature) {
+        return undefined;
+      }
+
       const genericLinks = feature.properties.genericLinks || [];
 
       return {
