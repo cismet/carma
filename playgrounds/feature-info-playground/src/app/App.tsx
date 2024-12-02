@@ -149,6 +149,11 @@ function createInfoBoxInfo(p) {
       let codeFunction = eval("(" + code + ")");
       const tmpInfo = codeFunction(output);
 
+      if (!tmpInfo) {
+        setSelectedFeature(null);
+        return;
+      }
+
       const properties = {
         ...tmpInfo,
       };

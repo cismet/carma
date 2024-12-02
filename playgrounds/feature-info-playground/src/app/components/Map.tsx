@@ -95,7 +95,7 @@ const Map = ({ layer, selectedFeature }: MapProps) => {
               pixelwidth={350}
               currentFeature={selectedFeature}
               hideNavigator={true}
-              header="kjshd"
+              header="Header"
               headerColor="#ff0000"
               {...selectedFeature?.properties}
               noCurrentFeatureTitle="nix da"
