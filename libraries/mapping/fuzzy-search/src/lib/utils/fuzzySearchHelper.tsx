@@ -90,39 +90,39 @@ export const generateOptions = (
     };
   });
 };
-export const mapDataToSearchResult = (
-  data: SearchResult<SearchResultItem>[]
-) => {
-  const splittedCategories: { [key: string]: Option[] } = {};
+// export const mapDataToSearchResult = (
+//   data: SearchResult<SearchResultItem>[]
+// ) => {
+//   const splittedCategories: { [key: string]: Option[] } = {};
 
-  data.forEach((item) => {
-    const address = item.item;
-    const catName = address.type;
+//   data.forEach((item) => {
+//     const address = item.item;
+//     const catName = address.type;
 
-    if (splittedCategories.hasOwnProperty(catName)) {
-      splittedCategories[catName].push(renderItem(address));
-    } else {
-      splittedCategories[catName] = [renderItem(address)];
-    }
-  });
+//     if (splittedCategories.hasOwnProperty(catName)) {
+//       splittedCategories[catName].push(renderItem(address));
+//     } else {
+//       splittedCategories[catName] = [renderItem(address)];
+//     }
+//   });
 
-  const prepareOptions: GroupedOptions[] = [];
+//   const prepareOptions: GroupedOptions[] = [];
 
-  Object.keys(splittedCategories).forEach((item: string) => {
-    let optionItem: GroupedOptions = {};
+//   Object.keys(splittedCategories).forEach((item: string) => {
+//     let optionItem: GroupedOptions = {};
 
-    if (!optionItem.hasOwnProperty(item) && isEndpoint(item)) {
-      optionItem.label = renderCategoryTitle(item, NAMED_CATEGORIES);
-      optionItem.options = splittedCategories[item];
-    } else {
-      console.warn(`category ${item} does not match known endpoints`, ENDPOINT);
-    }
+//     if (!optionItem.hasOwnProperty(item) && isEndpoint(item)) {
+//       optionItem.label = renderCategoryTitle(item, NAMED_CATEGORIES);
+//       optionItem.options = splittedCategories[item];
+//     } else {
+//       console.warn(`category ${item} does not match known endpoints`, ENDPOINT);
+//     }
 
-    prepareOptions.push(optionItem);
-  });
+//     prepareOptions.push(optionItem);
+//   });
 
-  return prepareOptions;
-};
+//   return prepareOptions;
+// };
 
 export function removeStopwords(text, stopwords, prepoHandling) {
   if (prepoHandling) {
@@ -255,8 +255,6 @@ export const mapDataWithCategory = (
     }
   });
 
-  console.log("xxx splittedCategories", splittedCategories);
-
   const prepareOptions: GroupedOptions[] = [];
 
   Object.keys(splittedCategories).forEach((item: string) => {
@@ -271,8 +269,6 @@ export const mapDataWithCategory = (
 
     prepareOptions.push(optionItem);
   });
-
-  console.log("xxx grouped fuzzy", prepareOptions);
 
   return prepareOptions;
 };
