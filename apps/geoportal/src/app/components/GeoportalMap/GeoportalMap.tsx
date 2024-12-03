@@ -668,7 +668,7 @@ export const GeoportalMap = () => {
                               width: 20000px;
                               height: 1px;
                               background-color: black;
-                              right: 24px;
+                              right: 18px;
                               opacity: 0.5;
                             "></div>
                             <div style="
@@ -676,7 +676,7 @@ export const GeoportalMap = () => {
                               width: 20000px;
                               height: 1px;
                               background-color: black;
-                              left: 24px;
+                              left: 18px;
                               opacity: 0.5;
                             "></div>
                             <div style="
@@ -684,7 +684,7 @@ export const GeoportalMap = () => {
                               width: 1px;
                               height: 20000px;
                               background-color: black;
-                              top: 24px;
+                              top: 18px;
                               opacity: 0.5;
                             "></div>
                             <div style="
@@ -692,7 +692,7 @@ export const GeoportalMap = () => {
                               width: 1px;
                               height: 20000px;
                               background-color: black;
-                              bottom: 24px;
+                              bottom: 18px;
                               opacity: 0.5;
                             "></div>                    
                           </div>
@@ -716,10 +716,8 @@ export const GeoportalMap = () => {
                             display: flex;
                             align-items: center;
                             justify-content: center;
-                            background-color: black;
-                           opacity: 1;
-
-                            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+                   
+                     
                           ">
 
                           
