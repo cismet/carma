@@ -610,7 +610,7 @@ export const GeoportalMap = () => {
                           
                             <div style="
                               position: absolute;
-                              width: 2000px;
+                              width: 20000px;
                               height: 1px;
                               background-color: black;
                               right: 24px;
@@ -618,7 +618,7 @@ export const GeoportalMap = () => {
                             "></div>
                             <div style="
                               position: absolute;
-                              width: 2000px;
+                              width: 20000px;
                               height: 1px;
                               background-color: black;
                               left: 24px;
@@ -627,7 +627,7 @@ export const GeoportalMap = () => {
                             <div style="
                               position: absolute;
                               width: 1px;
-                              height: 2000px;
+                              height: 20000px;
                               background-color: black;
                               top: 24px;
                               opacity: 0.5;
@@ -635,7 +635,7 @@ export const GeoportalMap = () => {
                             <div style="
                               position: absolute;
                               width: 1px;
-                              height: 2000px;
+                              height: 20000px;
                               background-color: black;
                               bottom: 24px;
                               opacity: 0.5;
