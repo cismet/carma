@@ -39,7 +39,7 @@ export function LibFuzzySearch({
   //referenceSystemDefinition,
   stopwords = stopwordsDe,
   pixelwidth = 300,
-  ifShowCategories: standardSearch = false,
+  ifShowCategories: standardSearch = true,
   placeholder = "Wohin?",
   config = {
     prepoHandling: false,
@@ -94,7 +94,7 @@ export function LibFuzzySearch({
         );
       }
 
-      if (!showCategories) {
+      if (showCategories) {
         const dataWithCategory = mapDataWithCategory(
           resultWithRoundScore,
           ifShowScore === undefined ? false : ifShowScore
@@ -102,8 +102,7 @@ export function LibFuzzySearch({
         // setOptions(generateOptions(resultWithRoundScore, ifShowScore));
         setSearchResult(dataWithCategory);
       } else {
-        const groupedResults = mapDataToSearchResult(result);
-        setSearchResult(groupedResults);
+        setOptions(generateOptions(resultWithRoundScore, ifShowScore));
       }
     }
   };
@@ -238,7 +237,7 @@ export function LibFuzzySearch({
         onClick={handleOnClickClear}
         disabled={cleanBtnDisable}
       />
-      {!showCategories ? (
+      {showCategories ? (
         <AutoComplete
           ref={autoCompleteRef}
           // options={options}
@@ -263,20 +262,27 @@ export function LibFuzzySearch({
         />
       ) : (
         <AutoComplete
-          popupClassName="certain-category-search-dropdown"
-          popupMatchSelectWidth={500}
+          ref={autoCompleteRef}
+          options={options}
+          // options={searchResult}
+          style={inputStyle}
+          onSearch={(value) => handleSearchAutoComplete(value)}
+          onChange={(value) => setValue(value)}
+          placeholder={placeholder}
+          value={value}
           dropdownAlign={{
             offset: [0, 4],
           }}
-          style={inputStyle}
-          onSearch={(value) => handleSearchAutoComplete(value)}
-          placeholder={placeholder}
-          placement="bottomLeft"
-          options={searchResult}
           onSelect={(value, option) => handleOnSelect(option)}
-          value={value}
-          onChange={(value) => setValue(value)}
-        ></AutoComplete>
+          defaultActiveFirstOption={true}
+          dropdownRender={(item) => {
+            return (
+              <div className="fuzzy-dropdownwrapper" ref={dropdownContainerRef}>
+                {item}
+              </div>
+            );
+          }}
+        />
       )}
     </div>
   );
