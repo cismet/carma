@@ -11,6 +11,7 @@ import {
   Option,
   GroupedOptions,
   SearchConfig,
+  SearchResultItemWithScore,
 } from "../..";
 
 import { stopwords } from "../config/stopwords.de-de";
@@ -227,4 +228,44 @@ export const getDefaultSearchConfig = (config: SearchConfig): SearchConfig => {
     distance,
     threshold,
   };
+};
+
+export const mapDataWithCategory = (data: SearchResult<SearchResultItem>[]) => {
+  const splittedCategories: { [key: string]: Option[] } = {};
+
+  data.forEach((item) => {
+    const address = item.item;
+    const catName = String(item.score);
+
+    if (splittedCategories.hasOwnProperty(catName)) {
+      splittedCategories[catName].push(renderItem(address));
+    } else {
+      splittedCategories[catName] = [renderItem(address)];
+    }
+  });
+
+  console.log("xxx splittedCategories", splittedCategories);
+
+  const prepareOptions: GroupedOptions[] = [];
+
+  Object.keys(splittedCategories).forEach((item: string) => {
+    let optionItem: GroupedOptions = {};
+
+    if (!optionItem.hasOwnProperty(item)) {
+      optionItem.label = renderCategoryTitleWithscore(item);
+      optionItem.options = splittedCategories[item];
+    } else {
+      console.warn(`category ${item} does not match known endpoints`, ENDPOINT);
+    }
+
+    prepareOptions.push(optionItem);
+  });
+
+  console.log("xxx grouped fuzzy", prepareOptions);
+
+  return prepareOptions;
+};
+
+export const renderCategoryTitleWithscore = (title: string) => {
+  return <span>{title}</span>;
 };

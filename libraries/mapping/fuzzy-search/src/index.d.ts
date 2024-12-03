@@ -25,6 +25,12 @@ export interface SearchResultItem {
   type: string;
   xSearchData: string;
 }
+
+export interface SearchResultItemWithScore {
+  item: SearchResultItem;
+  refIndex: Number;
+  score: string;
+}
 export interface SearchResult<T> {
   item: T;
   refIndex: number;

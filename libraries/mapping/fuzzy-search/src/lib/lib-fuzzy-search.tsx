@@ -15,6 +15,7 @@ import {
   prepareGazData,
   removeStopwords,
   getDefaultSearchConfig,
+  mapDataWithCategory,
 } from "./utils/fuzzySearchHelper";
 
 import {
@@ -94,7 +95,9 @@ export function LibFuzzySearch({
       }
 
       if (!showCategories) {
-        setOptions(generateOptions(resultWithRoundScore, ifShowScore));
+        const dataWithCategory = mapDataWithCategory(resultWithRoundScore);
+        // setOptions(generateOptions(resultWithRoundScore, ifShowScore));
+        setSearchResult(dataWithCategory);
       } else {
         const groupedResults = mapDataToSearchResult(result);
         setSearchResult(groupedResults);
@@ -235,7 +238,8 @@ export function LibFuzzySearch({
       {!showCategories ? (
         <AutoComplete
           ref={autoCompleteRef}
-          options={options}
+          // options={options}
+          options={searchResult}
           style={inputStyle}
           onSearch={(value) => handleSearchAutoComplete(value)}
           onChange={(value) => setValue(value)}
