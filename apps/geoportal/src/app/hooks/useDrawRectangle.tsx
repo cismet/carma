@@ -90,11 +90,11 @@ export const useDrawRectangle = (printCb, printOffCb) => {
       const zoomendHandler = () => {
         console.log("xxx zoom end");
 
-        // const { northWest, northEast, southWest } = getPolygonPoints(map);
+        const { northWest, northEast, southWest } = getPolygonPoints(map);
 
-        // if (northWest && northEast && southWest) {
-        //   setPrevSizes(northWest, northEast, southWest);
-        // }
+        if (northWest && northEast && southWest) {
+          setPrevSizes(northWest, northEast, southWest);
+        }
       };
       window.addEventListener("keydown", handleEscKeyPress);
       map.on("click", handleClick);

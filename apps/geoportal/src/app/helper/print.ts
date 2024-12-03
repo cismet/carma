@@ -393,7 +393,7 @@ export const createTooltipWrapper = () => {
     const previewDiv = document.createElement("div");
     previewDiv.id = "preview";
     previewDiv.style.position = "absolute";
-    previewDiv.style.zIndex = "10000";
+    previewDiv.style.zIndex = "1000";
     previewDiv.style.left = "0";
     previewDiv.style.top = "0";
     previewDiv.style.height = "0";
