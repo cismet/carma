@@ -574,7 +574,7 @@ export const GeoportalMap = () => {
             //referenceSystemDefinition={referenceSystemDefinition}
             onSelection={onGazetteerSelection}
             placeholder="Wohin?"
-            config={{ ifShowScore: true }}
+            // config={{ ifShowScore: true }}
           />
         </div>
       </Control>
