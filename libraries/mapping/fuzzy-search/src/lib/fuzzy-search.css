@@ -89,3 +89,8 @@
 .ant-btn-icon {
   margin-right: 0% !important;
 }
+
+.ant-select-item.ant-select-item-group {
+  min-height: 0px !important;
+  padding-bottom: 0 !important;
+}

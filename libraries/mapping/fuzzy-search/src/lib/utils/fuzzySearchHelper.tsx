@@ -275,7 +275,6 @@ export const mapDataWithCategory = (
 
 export const renderCategoryTitleWithScore = (title: string) => {
   let category = "";
-  const titleStile = { fontSize: "18px" };
 
   switch (title) {
     case "0":
@@ -296,6 +295,13 @@ export const renderCategoryTitleWithScore = (title: string) => {
     default:
       category = "Treffer";
   }
-  // return <span style={titleStile}>{category}</span>;
-  return <span>{category}</span>;
+  return (
+    <span
+      style={{
+        paddingBottom: "-100px",
+      }}
+    >
+      {category}
+    </span>
+  );
 };

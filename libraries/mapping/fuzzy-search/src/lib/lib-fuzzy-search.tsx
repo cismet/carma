@@ -240,7 +240,7 @@ export function LibFuzzySearch({
       {showCategories ? (
         <AutoComplete
           ref={autoCompleteRef}
-          // options={options}
+          open={true}
           options={searchResult}
           style={inputStyle}
           onSearch={(value) => handleSearchAutoComplete(value)}
