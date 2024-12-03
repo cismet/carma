@@ -18,9 +18,12 @@ import { getUIMode, setUIMode } from "../store/slices/ui";
 import proj4 from "proj4";
 import { getBackgroundLayer, getLayers } from "../store/slices/mapping";
 import {
+  createTooltipWrapper,
   drawRectanglePrev,
+  getPolygonPoints,
   getPrintLayers,
   deleteRectangleById as removeRectangle,
+  setPrevSizes,
 } from "../helper/print";
 // import PrintButton from "../components/map-print/PrintButton";
 
@@ -84,11 +87,23 @@ export const useDrawRectangle = (printCb, printOffCb) => {
           dispatch(setUIMode("default"));
         }
       };
+      const zoomendHandler = () => {
+        console.log("xxx zoom end");
+
+        // const { northWest, northEast, southWest } = getPolygonPoints(map);
+
+        // if (northWest && northEast && southWest) {
+        //   setPrevSizes(northWest, northEast, southWest);
+        // }
+      };
       window.addEventListener("keydown", handleEscKeyPress);
       map.on("click", handleClick);
+      map.on("zoomend", zoomendHandler);
 
       return () => {
+        map.off("click", handleClick);
         map.off("dblclick", handleClick);
+        map.off("zoomend", zoomendHandler);
         removeRectangle(map);
       };
     } else if (map && mode === "print" && lastOrientation === orientation) {

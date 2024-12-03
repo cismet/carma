@@ -319,6 +319,15 @@ const drawRectFromWithBounds = (map, bounds, handleStartPrint) => {
   map.fitBounds(bounds);
   const rectangleCoordinates = [sw, nw, ne, se, sw];
 
+  console.log("xxx rectangleCoordinates", rectangleCoordinates);
+  console.log(
+    "xxx nw",
+    map.latLngToLayerPoint({
+      lat: nw[0],
+      lng: nw[1],
+    })
+  );
+
   const polygon = L.polygon(rectangleCoordinates, {
     color: "black",
     weight: 1,
@@ -326,25 +335,32 @@ const drawRectFromWithBounds = (map, bounds, handleStartPrint) => {
   } as DraggablePolygonOptions) as CustomPolygon;
 
   polygon.addTo(map);
+  polygon.prevPrintId = "print-rect-id";
+
+  createTooltipWrapper();
+
+  const { northWest, northEast, southWest } = getPolygonPoints(map);
+
+  if (northWest && northEast && southWest) {
+    setPrevSizes(northWest, northEast, southWest);
+  }
 
   polygon.on("dragend", () => {
-    const newBounds = polygon.getBounds();
+    // const newBounds = polygon.getBounds();
     //   polygon.bindTooltip("Doppelklicken zum Drucken", {
     //     permanent: true,
     //     direction: "center",
     //     offset: 0,
     //     opacity: "0.9",
     //   });
-    map.fitBounds(newBounds);
+    // map.fitBounds(newBounds);
   });
 
   polygon.on("dblclick", () => {
     handleStartPrint(map);
   });
 
-  polygon.prevPrintId = "print-rect-id";
-
-  const polygonCenter = polygon.getBounds().getCenter();
+  // const polygonCenter = polygon.getBounds().getCenter();
 
   // const marker = L.marker([polygonCenter.lat, polygonCenter.lng], {
   //   icon: L.divIcon({
@@ -368,4 +384,82 @@ export const deleteRectangleById = (map) => {
       map.removeLayer(layer);
     }
   });
+};
+
+export const createTooltipWrapper = () => {
+  const routedMap = document.getElementById("routedMap");
+
+  if (routedMap) {
+    const previewDiv = document.createElement("div");
+    previewDiv.id = "preview";
+    previewDiv.style.position = "absolute";
+    previewDiv.style.zIndex = "10000";
+    previewDiv.style.left = "0";
+    previewDiv.style.top = "0";
+    previewDiv.style.height = "0";
+    previewDiv.style.background = "blue";
+    previewDiv.style.opacity = "0.6";
+    previewDiv.style.color = "white";
+    previewDiv.textContent = "Tooltip text";
+    routedMap.appendChild(previewDiv);
+  }
+};
+
+export const setPrevSizes = (northWest, northEast, southWest) => {
+  const prev = document.getElementById("preview");
+  prev.style.top = northWest.y + "px";
+  prev.style.left = northWest.x + "px";
+  prev.style.width = northEast.x - northWest.x + "px";
+  prev.style.height = southWest.y - northWest.y + "px";
+};
+
+const getPolygonByLeafletId = (map) => {
+  let polygon;
+
+  map.eachLayer(function (layer) {
+    if (
+      layer instanceof L.Polygon &&
+      (layer as CustomPolygon).prevPrintId === "print-rect-id"
+    ) {
+      polygon = layer;
+    }
+  });
+  return polygon;
+};
+export const getPolygonPoints = (map) => {
+  const polygon = getPolygonByLeafletId(map);
+
+  console.log("xxx polygonCenter", polygonCenter);
+  if (polygon) {
+    const bounds = polygon.getBounds();
+    const { _northEast, _southWest } = bounds;
+    const northEast = map.latLngToLayerPoint(_northEast);
+    const southWest = map.latLngToLayerPoint(_southWest);
+    const northWest = {
+      x: southWest.x,
+      y: northEast.y,
+    };
+    const southEast = {
+      x: northEast.x,
+      y: southWest.y,
+    };
+
+    const points = {
+      northEast,
+      southWest,
+      northWest,
+      southEast,
+    };
+
+    console.log("xxx points", points);
+
+    return points;
+  } else {
+    return {
+      northEast: undefined,
+      southWest: undefined,
+      northWest: undefined,
+      southEast: undefined,
+    };
+  }
 };
