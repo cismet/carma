@@ -405,9 +405,9 @@ export const createTooltipWrapper = () => {
     previewDiv.style.left = "0";
     previewDiv.style.top = "0";
     previewDiv.style.height = "0";
-    previewDiv.style.background = "blue";
-    previewDiv.style.opacity = "0.6";
-    previewDiv.style.color = "white";
+    // previewDiv.style.background = "transporent";
+    previewDiv.style.opacity = "1";
+    previewDiv.style.fontSize = "24px";
     previewDiv.textContent = "Tooltip text";
     routedMap.appendChild(previewDiv);
   }
