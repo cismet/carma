@@ -354,6 +354,11 @@ const drawRectFromWithBounds = (map, bounds, handleStartPrint) => {
   }
 
   polygon.on("dragend", () => {
+    const { northWest, northEast, southWest } = getPolygonPoints(map);
+
+    if (northWest && northEast && southWest) {
+      setPrevSizes(northWest, northEast, southWest);
+    }
     // const newBounds = polygon.getBounds();
     //   polygon.bindTooltip("Doppelklicken zum Drucken", {
     //     permanent: true,
@@ -406,6 +411,7 @@ export const createTooltipWrapper = () => {
     previewDiv.style.top = "0";
     previewDiv.style.height = "0";
     // previewDiv.style.background = "transporent";
+    previewDiv.style.pointerEvents = "none";
     previewDiv.style.opacity = "1";
     previewDiv.style.fontSize = "24px";
     previewDiv.textContent = "Tooltip text";
