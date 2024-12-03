@@ -8,6 +8,7 @@ import {
   selectViewerIsMode2d,
   selectViewerIsTransitioning,
 } from "../../slices/cesium";
+import { Tooltip } from "antd";
 
 type Props = {
   duration?: number;
@@ -41,16 +42,20 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
     };
 
     return (
-      <ControlButtonStyler
-        title={isMode2d ? "zur 3D Ansicht wechseln" : "zur 2D Ansicht wechseln"}
-        className="font-semibold"
-        onClick={handleSwitchMapMode}
-        disabled={isTransitioning && !forceEnabled}
-        ref={ref}
-        dataTestId={isMode2d ? "3d-control" : "2d-control"}
+      <Tooltip
+        title={isMode2d ? "Zur 3D-Ansicht wechseln" : "Zur 2D-Ansicht wechseln"}
+        placement="right"
       >
-        {isMode2d ? "3D" : "2D"}
-      </ControlButtonStyler>
+        <ControlButtonStyler
+          className="font-semibold"
+          onClick={handleSwitchMapMode}
+          disabled={isTransitioning && !forceEnabled}
+          ref={ref}
+          dataTestId={isMode2d ? "3d-control" : "2d-control"}
+        >
+          {isMode2d ? "3D" : "2D"}
+        </ControlButtonStyler>
+      </Tooltip>
     );
   }
 );

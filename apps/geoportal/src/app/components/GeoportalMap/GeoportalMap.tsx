@@ -386,67 +386,84 @@ export const GeoportalMap = () => {
     <ControlLayout onHeightResize={setLayoutHeight} ifStorybook={false}>
       <Control position="topleft" order={10}>
         <div ref={tourRefLabels.zoom} className="flex flex-col">
-          <ControlButtonStyler
-            onClick={isMode2d ? zoomInLeaflet : handleZoomInCesium}
-            className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
-            dataTestId="zoom-in-control"
-          >
-            <FontAwesomeIcon icon={faPlus} className="text-base" />
-          </ControlButtonStyler>
-          <ControlButtonStyler
-            onClick={isMode2d ? zoomOutLeaflet : handleZoomOutCesium}
-            className="!rounded-t-none !border-t-[1px]"
-            dataTestId="zoom-out-control"
-          >
-            <FontAwesomeIcon icon={faMinus} className="text-base" />
-          </ControlButtonStyler>
+          <Tooltip title="Maßstab vergrößern (Zoom in)" placement="right">
+            <ControlButtonStyler
+              onClick={isMode2d ? zoomInLeaflet : handleZoomInCesium}
+              className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
+              dataTestId="zoom-in-control"
+            >
+              <FontAwesomeIcon icon={faPlus} className="text-base" />
+            </ControlButtonStyler>
+          </Tooltip>
+          <Tooltip title="Maßstab verkleinern (Zoom out)" placement="right">
+            <ControlButtonStyler
+              onClick={isMode2d ? zoomOutLeaflet : handleZoomOutCesium}
+              className="!rounded-t-none !border-t-[1px]"
+              dataTestId="zoom-out-control"
+            >
+              <FontAwesomeIcon icon={faMinus} className="text-base" />
+            </ControlButtonStyler>
+          </Tooltip>
         </div>
       </Control>
       <Control position="topleft" order={20}>
         {showFullscreenButton && (
-          <ControlButtonStyler
-            onClick={() => {
-              if (document.fullscreenElement) {
-                document.exitFullscreen();
-              } else {
-                document.documentElement.requestFullscreen();
-              }
-            }}
-            ref={tourRefLabels.fullScreen}
-            dataTestId="full-screen-control"
+          <Tooltip
+            title={
+              document.fullscreenElement
+                ? "Vollbildmodus ausschalten"
+                : "Vollbildmodus einschalten"
+            }
+            placement="right"
           >
-            <FontAwesomeIcon
-              icon={document.fullscreenElement ? faCompress : faExpand}
-            />
-          </ControlButtonStyler>
+            <ControlButtonStyler
+              onClick={() => {
+                if (document.fullscreenElement) {
+                  document.exitFullscreen();
+                } else {
+                  document.documentElement.requestFullscreen();
+                }
+              }}
+              ref={tourRefLabels.fullScreen}
+              dataTestId="full-screen-control"
+            >
+              <FontAwesomeIcon
+                icon={document.fullscreenElement ? faCompress : faExpand}
+              />
+            </ControlButtonStyler>
+          </Tooltip>
         )}
       </Control>
       <Control position="topleft" order={30}>
         {showLocatorButton && isMobile && (
-          <ControlButtonStyler
-            ref={tourRefLabels.navigator}
-            onClick={() => setLocationProps((prev) => prev + 1)}
-            dataTestId="location-control"
-          >
-            <FontAwesomeIcon icon={faLocationArrow} className="text-2xl" />
-          </ControlButtonStyler>
+          <Tooltip title="Modus Standortanzeige einschalten" placement="right">
+            <ControlButtonStyler
+              ref={tourRefLabels.navigator}
+              onClick={() => setLocationProps((prev) => prev + 1)}
+              dataTestId="location-control"
+            >
+              <FontAwesomeIcon icon={faLocationArrow} className="text-2xl" />
+            </ControlButtonStyler>
+          </Tooltip>
         )}
         <LocateControlComponent startLocate={locationProps} />
       </Control>
       <Control position="topleft" order={40}>
-        <ControlButtonStyler
-          ref={tourRefLabels.home}
-          onClick={() => {
-            routedMap.leafletMap.leafletElement.flyTo(
-              [51.272570027476256, 7.199918031692506],
-              18
-            );
-            homeControl();
-          }}
-          dataTestId="home-control"
-        >
-          <FontAwesomeIcon icon={faHouseChimney} className="text-lg" />
-        </ControlButtonStyler>
+        <Tooltip title="Auf Ausgangspunkt positionieren" placement="right">
+          <ControlButtonStyler
+            ref={tourRefLabels.home}
+            onClick={() => {
+              routedMap.leafletMap.leafletElement.flyTo(
+                [51.272570027476256, 7.199918031692506],
+                18
+              );
+              homeControl();
+            }}
+            dataTestId="home-control"
+          >
+            <FontAwesomeIcon icon={faHouseChimney} className="text-lg" />
+          </ControlButtonStyler>
+        </Tooltip>
       </Control>
       <Control position="topleft" order={60}>
         {showMeasurementButton && (
@@ -455,9 +472,11 @@ export const GeoportalMap = () => {
               title={
                 !isMode2d
                   ? "zum Messen zu 2D-Modus wechseln"
-                  : "Strecke / Fläche messen"
+                  : isModeMeasurement
+                  ? "Messungsmodus ausschalten"
+                  : "Messungsmodus einschalten"
               }
-              open={isMeasurementTooltip}
+              // open={isMeasurementTooltip}
               defaultOpen={false}
               onOpenChange={() => {
                 if (isModeMeasurement) {
@@ -498,6 +517,7 @@ export const GeoportalMap = () => {
             }}
             ref={tourRefLabels.toggle2d3d}
           />
+
           {
             //<SceneStyleToggle />
             <Compass ref={tourRefLabels.alignNorth} disabled={isMode2d} />
@@ -507,7 +527,14 @@ export const GeoportalMap = () => {
         </Control>
       )}
       <Control position="topleft" order={50}>
-        <Tooltip title="Sachdatenabfrage" placement="right">
+        <Tooltip
+          title={
+            isModeFeatureInfo
+              ? "Modus Multi-Sachdatenabfrage ausschalten"
+              : "Modus Multi-Sachdatenabfrage einschalten"
+          }
+          placement="right"
+        >
           <ControlButtonStyler
             disabled={!isMode2d}
             onClick={() => {

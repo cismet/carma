@@ -16,6 +16,7 @@ import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { useCesiumViewer } from "../../hooks/useCesiumViewer";
 import { selectScreenSpaceCameraControllerMinimumZoomDistance } from "../../slices/cesium";
 import { pickViewerCanvasCenter } from "../../utils/cesiumHelpers";
+import { Tooltip } from "antd";
 
 type CompassProps = {
   children?: ReactNode;
@@ -96,15 +97,16 @@ export const Compass = forwardRef<Ref, CompassProps>(
     };
 
     return (
-      <ControlButtonStyler
-        title="Einnorden"
-        onClick={handleFlyToCenter}
-        disabled={disabled}
-        ref={ref}
-        dataTestId="compass-control"
-      >
-        <FontAwesomeIcon icon={faCompass}></FontAwesomeIcon>
-      </ControlButtonStyler>
+      <Tooltip title="Nach Norden ausrichten" placement="right">
+        <ControlButtonStyler
+          onClick={handleFlyToCenter}
+          disabled={disabled}
+          ref={ref}
+          dataTestId="compass-control"
+        >
+          <FontAwesomeIcon icon={faCompass}></FontAwesomeIcon>
+        </ControlButtonStyler>
+      </Tooltip>
     );
   }
 );
