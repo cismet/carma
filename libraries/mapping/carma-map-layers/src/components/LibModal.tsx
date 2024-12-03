@@ -91,6 +91,7 @@ export const LibModal = ({
   const [tmpCustomCategories, setTmpCustomCategories] = useState<
     any[] | undefined
   >([]);
+  const [selectedNavItemIndex, setSelectedNavItemIndex] = useState(0);
   const debouncedSearchTerm = useDebounce(searchValue, 300);
 
   const urlParams = new URLSearchParams(window.location.hash);
@@ -378,7 +379,10 @@ export const LibModal = ({
                   <SidebarItem
                     icon={element.icon}
                     text={element.text}
-                    active={i === 1}
+                    active={i === selectedNavItemIndex}
+                    onClick={() => {
+                      setSelectedNavItemIndex(i);
+                    }}
                   />
                 );
               })}
