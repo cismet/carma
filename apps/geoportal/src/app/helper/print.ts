@@ -331,61 +331,37 @@ const drawRectFromWithBounds = (map, bounds, handleStartPrint) => {
   const polygon = L.polygon(rectangleCoordinates, {
     color: "black",
     weight: 1,
-    // opacity: 0,
     draggable: true,
   } as DraggablePolygonOptions) as CustomPolygon;
-
-  // const polygon = L.polygon(rectangleCoordinates, {
-  //   color: "transparent",
-  //   weight: 0,
-  //   opacity: 0,
-  //   draggable: true,
-  // } as DraggablePolygonOptions) as CustomPolygon;
 
   polygon.addTo(map);
   polygon.prevPrintId = "print-rect-id";
 
-  createTooltipWrapper();
+  const prevDiv = document.getElementById("preview");
 
-  const { northWest, northEast, southWest } = getPolygonPoints(map);
-
-  if (northWest && northEast && southWest) {
-    setPrevSizes(northWest, northEast, southWest);
-  }
-
-  polygon.on("dragend", () => {
+  if (!prevDiv) {
+    createTooltipWrapper();
     const { northWest, northEast, southWest } = getPolygonPoints(map);
 
     if (northWest && northEast && southWest) {
       setPrevSizes(northWest, northEast, southWest);
     }
-    // const newBounds = polygon.getBounds();
-    //   polygon.bindTooltip("Doppelklicken zum Drucken", {
-    //     permanent: true,
-    //     direction: "center",
-    //     offset: 0,
-    //     opacity: "0.9",
-    //   });
-    // map.fitBounds(newBounds);
+  } else {
+    const { northWest, northEast, southWest } = getPolygonPoints(map);
+
+    if (northWest && northEast && southWest) {
+      setPrevSizes(northWest, northEast, southWest);
+    }
+  }
+
+  polygon.on("dragend", () => {
+    const newBounds = polygon.getBounds();
+    map.fitBounds(newBounds);
   });
 
   polygon.on("dblclick", () => {
     handleStartPrint(map);
   });
-
-  // const polygonCenter = polygon.getBounds().getCenter();
-
-  // const marker = L.marker([polygonCenter.lat, polygonCenter.lng], {
-  //   icon: L.divIcon({
-  //     className: "custom-marker",
-  //     html: `
-  //       <div style="position: relative;">
-  //         <h1>Hallo</h1>
-  //       </div>
-  //     `,
-  //     iconSize: [30, 30],
-  //   }),
-  // }).addTo(map);
 };
 
 export const deleteRectangleById = (map) => {
@@ -444,7 +420,6 @@ export const getPolygonPoints = (map) => {
   const polygon = getPolygonByLeafletId(map);
   if (polygon) {
     const bounds = polygon.getBounds();
-    map.fitBounds(bounds);
 
     const { _northEast, _southWest } = bounds;
     // const northEast = map.latLngToLayerPoint(_northEast);
