@@ -232,6 +232,7 @@ export const GeoportalMap = () => {
   const { setSecondaryWithKey } = useContext(OverlayTourContext);
 
   const [marker, setMarker] = useState(undefined);
+  const [markerAccent, setMarkerAccent] = useState(undefined);
   const [pos, setPos] = useState<[number, number] | null>(null);
   const [isSameLayerTypes, setIsSameLayerTypes] = useState(true);
   const [layoutHeight, setLayoutHeight] = useState(null);
@@ -547,6 +548,9 @@ export const GeoportalMap = () => {
               if (marker !== undefined) {
                 routedMap.leafletMap.leafletElement.removeLayer(marker);
               }
+              if (markerAccent !== undefined) {
+                routedMap.leafletMap.leafletElement.removeLayer(markerAccent);
+              }
             }}
             className="font-semibold"
             ref={tourRefLabels.featureInfo}
@@ -617,15 +621,121 @@ export const GeoportalMap = () => {
                 const map = routedMap.leafletMap.leafletElement;
                 const baseUrl =
                   window.location.origin + window.location.pathname;
+
                 if (uiMode === UIMode.FEATURE_INFO) {
                   if (marker !== undefined) {
                     map.removeLayer(marker);
                   }
+                  if (markerAccent !== undefined) {
+                    map.removeLayer(markerAccent);
+                  }
+
+                  map.getPane(
+                    "markerPaneWithBlendModeDifference"
+                  ).style.zIndex = 601;
+                  setMarkerAccent(
+                    L.marker([e.latlng.lat, e.latlng.lng], {
+                      // pane: "backgroundlayerTooltips",
+                      icon: L.divIcon({
+                        className: "custom-marker", // Optional class for external styles
+                        html: `
+                          <div style="
+                            position: relative;
+                            width: 30px;
+                            height: 30px;
+                            border-radius: 50%;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            
+                           opacity: 1;
+
+                           
+                          ">
+                       
+                         
+                            <div style="
+                              position: absolute;
+                              width: 20px;
+                              height: 20px;
+                              border: 2px solid black;
+                              border-radius: 50%;
+
+                            "></div>
+                          
+                            <div style="
+                              position: absolute;
+                              width: 20000px;
+                              height: 1px;
+                              background-color: black;
+                              right: 24px;
+                              opacity: 0.5;
+                            "></div>
+                            <div style="
+                              position: absolute;
+                              width: 20000px;
+                              height: 1px;
+                              background-color: black;
+                              left: 24px;
+                              opacity: 0.5;
+                            "></div>
+                            <div style="
+                              position: absolute;
+                              width: 1px;
+                              height: 20000px;
+                              background-color: black;
+                              top: 24px;
+                              opacity: 0.5;
+                            "></div>
+                            <div style="
+                              position: absolute;
+                              width: 1px;
+                              height: 20000px;
+                              background-color: black;
+                              bottom: 24px;
+                              opacity: 0.5;
+                            "></div>                    
+                          </div>
+                        `,
+                        iconSize: [30, 30],
+                      }),
+                    }).addTo(map)
+                  );
 
                   setMarker(
                     L.marker([e.latlng.lat, e.latlng.lng], {
-                      icon: L.icon({
-                        iconUrl: baseUrl + "crosshair.svg",
+                      pane: "markerPaneWithBlendModeDifference",
+                      icon: L.divIcon({
+                        className: "custom-marker", // Optional class for external styles
+                        html: `
+                          <div style="
+                            position: relative;
+                            width: 30px;
+                            height: 30px;
+                            border-radius: 50%;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            background-color: black;
+                           opacity: 1;
+
+                            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+                          ">
+
+                          
+                        
+                           
+                             <div style="
+                              position: absolute;
+                              width: 6px;
+                              height: 6px;
+                              background-color: green;
+
+                              border-radius: 50%;
+
+                            ">
+                          </div>
+                        `,
                         iconSize: [30, 30],
                       }),
                     }).addTo(map)
@@ -687,6 +797,7 @@ export const GeoportalMap = () => {
               ></CustomViewer>
             </div>
           )}
+          {/* <CssXorLine /> */}
         </>
       </Main>
     </ControlLayout>
@@ -694,3 +805,21 @@ export const GeoportalMap = () => {
 };
 
 export default GeoportalMap;
+const CssXorLine = () => {
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: "50%",
+        left: "50%",
+        width: "200px",
+        height: "10px",
+        backgroundColor: "white", // Base color of the line
+        mixBlendMode: "difference", // Blend mode to achieve XOR-like contrast
+        transform: "translate(-50%, -50%)", // Center the line
+        zIndex: 999999999,
+        pointerEvents: "none", // Ensure it doesn’t block interactions
+      }}
+    ></div>
+  );
+};
