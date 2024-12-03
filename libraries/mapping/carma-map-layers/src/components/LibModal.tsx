@@ -4,6 +4,7 @@ import {
   faList,
   faMap,
   faMapPin,
+  faSearch,
   faStar,
   faX,
 } from "@fortawesome/free-solid-svg-icons";
@@ -62,6 +63,7 @@ const sidebarElements = [
   { icon: faBook, text: "Teilzwillinge" },
   { icon: faMap, text: "Kartenebenen" },
   { icon: faMapPin, text: "Sensoren" },
+  { icon: faSearch, text: "Suchergebnisse" },
 ];
 
 export const LibModal = ({
@@ -369,7 +371,7 @@ export const LibModal = ({
           }}
         >
           <div
-            className={`w-36 h-full flex justify-between items-center flex-col pb-3 bg-gray-600`}
+            className={`w-40 h-full flex justify-between items-center flex-col pb-3 bg-gray-600`}
             style={{ height: "calc(100vh - 188px)" }}
           >
             <div className="flex flex-col w-full items-center gap-2">
@@ -427,7 +429,12 @@ export const LibModal = ({
                 {layers && layers.length > 0 && (
                   <>
                     <LayerTabs
-                      layers={layers}
+                      layers={layers.filter(
+                        (layer) =>
+                          layer.Title !== "Favoriten" &&
+                          layer.Title !== "Topic Maps" &&
+                          layer.Title !== "Meine Zusammenstellungen"
+                      )}
                       activeId={inViewCategory}
                       numberOfItems={getNumberOfLayers(layers)}
                     />
