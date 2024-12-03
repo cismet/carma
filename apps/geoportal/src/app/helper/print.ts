@@ -322,7 +322,7 @@ const drawRectFromWithBounds = (map, bounds, handleStartPrint) => {
   console.log("xxx rectangleCoordinates", rectangleCoordinates);
   console.log(
     "xxx nw",
-    map.latLngToLayerPoint({
+    map.latLngToContainerPoint({
       lat: nw[0],
       lng: nw[1],
     })
@@ -428,13 +428,15 @@ const getPolygonByLeafletId = (map) => {
 };
 export const getPolygonPoints = (map) => {
   const polygon = getPolygonByLeafletId(map);
-
-  console.log("xxx polygonCenter", polygonCenter);
   if (polygon) {
     const bounds = polygon.getBounds();
+    map.fitBounds(bounds);
+
     const { _northEast, _southWest } = bounds;
-    const northEast = map.latLngToLayerPoint(_northEast);
-    const southWest = map.latLngToLayerPoint(_southWest);
+    // const northEast = map.latLngToLayerPoint(_northEast);
+    // const southWest = map.latLngToLayerPoint(_southWest);
+    const northEast = map.latLngToContainerPoint(_northEast);
+    const southWest = map.latLngToContainerPoint(_southWest);
     const northWest = {
       x: southWest.x,
       y: northEast.y,
