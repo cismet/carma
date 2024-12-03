@@ -26,8 +26,12 @@ export const renderCategoryTitle = (
 
 export const joinNumberLetter = (name: string) =>
   name.replace(/(\d+)\s([a-zA-Z])/g, "$1$2");
-export const renderItem = (address: SearchResultItem) => {
-  const addressLabel = buildAddressWithIconUI(address, false);
+export const renderItem = (
+  address: SearchResultItem,
+  showScore = false,
+  score
+) => {
+  const addressLabel = buildAddressWithIconUI(address, showScore, score);
   return {
     key: address.sorter,
     value: address.string,
@@ -230,7 +234,10 @@ export const getDefaultSearchConfig = (config: SearchConfig): SearchConfig => {
   };
 };
 
-export const mapDataWithCategory = (data: SearchResult<SearchResultItem>[]) => {
+export const mapDataWithCategory = (
+  data: SearchResult<SearchResultItem>[],
+  showScore: boolean
+) => {
   const splittedCategories: { [key: string]: Option[] } = {};
 
   data.forEach((item) => {
@@ -238,9 +245,13 @@ export const mapDataWithCategory = (data: SearchResult<SearchResultItem>[]) => {
     const catName = String(item.score);
 
     if (splittedCategories.hasOwnProperty(catName)) {
-      splittedCategories[catName].push(renderItem(address));
+      splittedCategories[catName].push(
+        renderItem(address, showScore, item.score)
+      );
     } else {
-      splittedCategories[catName] = [renderItem(address)];
+      splittedCategories[catName] = [
+        renderItem(address, showScore, item.score),
+      ];
     }
   });
 
@@ -267,5 +278,26 @@ export const mapDataWithCategory = (data: SearchResult<SearchResultItem>[]) => {
 };
 
 export const renderCategoryTitleWithscore = (title: string) => {
-  return <span>{title}</span>;
+  let category = "";
+
+  switch (title) {
+    case "0":
+      category = "Perfekte Treffer";
+      break;
+    case "0.1":
+      category = "Sehr gute Treffer";
+      break;
+    case "0.2":
+      category = "Gute Treffer";
+      break;
+    case "0.3":
+      category = "Befriedigende Treffer";
+      break;
+    case "0.4":
+      category = "Ausreichende Treffer";
+      break;
+    default:
+      category = "Treffer";
+  }
+  return <span>{category}</span>;
 };

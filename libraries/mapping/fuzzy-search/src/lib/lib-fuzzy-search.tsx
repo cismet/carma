@@ -95,7 +95,10 @@ export function LibFuzzySearch({
       }
 
       if (!showCategories) {
-        const dataWithCategory = mapDataWithCategory(resultWithRoundScore);
+        const dataWithCategory = mapDataWithCategory(
+          resultWithRoundScore,
+          ifShowScore === undefined ? false : ifShowScore
+        );
         // setOptions(generateOptions(resultWithRoundScore, ifShowScore));
         setSearchResult(dataWithCategory);
       } else {
