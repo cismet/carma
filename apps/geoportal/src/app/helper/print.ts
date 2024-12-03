@@ -331,8 +331,16 @@ const drawRectFromWithBounds = (map, bounds, handleStartPrint) => {
   const polygon = L.polygon(rectangleCoordinates, {
     color: "black",
     weight: 1,
+    // opacity: 0,
     draggable: true,
   } as DraggablePolygonOptions) as CustomPolygon;
+
+  // const polygon = L.polygon(rectangleCoordinates, {
+  //   color: "transparent",
+  //   weight: 0,
+  //   opacity: 0,
+  //   draggable: true,
+  // } as DraggablePolygonOptions) as CustomPolygon;
 
   polygon.addTo(map);
   polygon.prevPrintId = "print-rect-id";
