@@ -261,7 +261,7 @@ export const mapDataWithCategory = (
     let optionItem: GroupedOptions = {};
 
     if (!optionItem.hasOwnProperty(item)) {
-      optionItem.label = renderCategoryTitleWithscore(item);
+      optionItem.label = renderCategoryTitleWithScore(item);
       optionItem.options = splittedCategories[item];
     } else {
       console.warn(`category ${item} does not match known endpoints`, ENDPOINT);
@@ -273,8 +273,9 @@ export const mapDataWithCategory = (
   return prepareOptions;
 };
 
-export const renderCategoryTitleWithscore = (title: string) => {
+export const renderCategoryTitleWithScore = (title: string) => {
   let category = "";
+  const titleStile = { fontSize: "18px" };
 
   switch (title) {
     case "0":
@@ -295,5 +296,6 @@ export const renderCategoryTitleWithscore = (title: string) => {
     default:
       category = "Treffer";
   }
+  // return <span style={titleStile}>{category}</span>;
   return <span>{category}</span>;
 };
