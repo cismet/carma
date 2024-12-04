@@ -320,7 +320,7 @@ export const NewLibModal = ({
           className={`w-40 h-full flex justify-between items-center flex-col pb-3 bg-gray-600`}
           style={{ height: "calc(100vh - 188px)" }}
         >
-          <div className="flex flex-col w-full items-center gap-2">
+          <div className="flex flex-col w-full items-center gap-2 overflow-y-auto overflow-x-hidden">
             <div className="h-24"></div>
             {sidebarElements.map((element, i) => {
               return (
