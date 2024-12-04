@@ -358,7 +358,7 @@ export const setPrevSizes = (northWest, northEast, southWest) => {
     textTwo.id = "preview-tooltip-text";
     textTwo.className = "preview-tooltip-text";
 
-    textTwo.textContent = "Druck starten mit Doppelklick";
+    textTwo.textContent = "Finger Druck starten mit Doppelklick";
     previewDiv.appendChild(textTwo);
 
     const textThree = document.createElement("div");
