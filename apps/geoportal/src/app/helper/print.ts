@@ -210,35 +210,6 @@ export const scaleOptions = [
   },
 ];
 
-// export const prevRectCalc = (currentZoom, scale, rWidth, rHeight) => {
-//   const scaleItem = scaleOptions.find((s) => s.value === scale);
-//   const targetZoom = Number(scaleItem.zoom);
-//   let newWidth;
-//   let newHeight;
-
-//   const maxZoom = 10;
-//   const minZoom = 22;
-
-//   if (currentZoom === targetZoom) {
-//     newWidth = rWidth;
-//     newHeight = rHeight;
-//   }
-
-//   if (currentZoom < targetZoom) {
-//     const levelSteps = targetZoom - currentZoom;
-//     newWidth = rWidth / levelSteps;
-//     newHeight = rHeight / levelSteps;
-//   }
-
-//   if (currentZoom > targetZoom) {
-//     const levelSteps = currentZoom - targetZoom;
-//     newWidth = rWidth * levelSteps;
-//     newHeight = rHeight * levelSteps;
-//   }
-
-//   return { pixelWidth: newWidth, pixelHeight: newHeight };
-// };
-
 function calculateBBox(centerX, centerY, pixelWidth, pixelHeight, dpi, scale) {
   // Convert DPI and scale to meters per pixel
   const metersPerPixel = (0.0254 / dpi) * scale;
@@ -355,7 +326,9 @@ export const deleteRectangleById = (map) => {
 
 export const setPrevSizes = (northWest, northEast, southWest) => {
   removePreviewWrapper();
-
+  const tooltipText = `Verschieben durch Ziehen mit Maus bzw. Finger
+Druck starten mit Doppelklick
+Abbruch mit <esc>`;
   const routedMap = document.getElementById("routedMap");
   if (routedMap) {
     const previewDiv = document.createElement("div");
@@ -369,7 +342,18 @@ export const setPrevSizes = (northWest, northEast, southWest) => {
     previewDiv.style.pointerEvents = "none";
     previewDiv.style.opacity = "1";
     previewDiv.style.fontSize = "24px";
-    previewDiv.textContent = "Tooltip text";
+    previewDiv.style.display = "flex";
+    previewDiv.style.flexDirection = "column";
+    previewDiv.style.justifyContent = "flex-end";
+    previewDiv.style.alignItems = "center";
+    previewDiv.style.textAlign = "center";
+
+    const textNode = document.createElement("div");
+    textNode.id = "preview-tooltip-text";
+
+    textNode.textContent = tooltipText;
+    previewDiv.appendChild(textNode);
+
     routedMap.appendChild(previewDiv);
   }
 };
@@ -432,8 +416,10 @@ export const addPreviewWrapper = (map) => {
 
 export const removePreviewWrapper = () => {
   const wrapper = document.getElementById("preview");
+  const text = document.getElementById("preview-tooltip-text");
 
-  if (wrapper) {
+  if (wrapper && text) {
     wrapper.remove();
+    text.remove();
   }
 };
