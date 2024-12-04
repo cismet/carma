@@ -3,6 +3,8 @@ import proj4 from "proj4";
 import bbox from "@turf/bbox";
 import { convertBBox2Bounds, proj4crs3857def } from "./gisHelper";
 import * as L from "leaflet";
+import { createRoot } from "react-dom/client";
+import PrintButton from "../components/map-print/PrintButton";
 
 interface DraggablePolygonOptions extends L.PolylineOptions {
   draggable?: boolean;
@@ -350,7 +352,6 @@ export const setPrevSizes = (northWest, northEast, southWest) => {
 
     const textOne = document.createElement("div");
     textOne.id = "preview-tooltip-text";
-
     textOne.textContent = "Verschieben durch Ziehen mit Maus bzw.";
     previewDiv.appendChild(textOne);
 
@@ -367,7 +368,14 @@ export const setPrevSizes = (northWest, northEast, southWest) => {
     textThree.textContent = "Abbruch mit <esc>";
     previewDiv.appendChild(textThree);
 
+    const btn = document.createElement("div");
+    btn.id = "btn-wrapper-print";
+    previewDiv.appendChild(btn);
+
     routedMap.appendChild(previewDiv);
+
+    const root = createRoot(btn as HTMLElement);
+    root.render(<PrintButton />);
   }
 };
 
@@ -436,26 +444,6 @@ export const removePreviewWrapper = () => {
     text.remove();
   }
 };
-
-// export const calcuPrintFontSize = (width) => {
-//   if (width >= 154 && width <= 308) {
-//     return "16px";
-//   }
-
-//   if (width >= 103 && width < 154) {
-//     return "10px";
-//   }
-
-//   if (width >= 61 && width < 103) {
-//     return "7px";
-//   }
-
-//   if (width <= 60) {
-//     return "0px";
-//   }
-
-//   return "24px";
-// };
 
 export const getFontSize = (width) => {
   switch (true) {
