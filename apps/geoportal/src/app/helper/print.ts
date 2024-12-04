@@ -293,6 +293,7 @@ const drawRectFromWithBounds = (map, bounds, handleStartPrint) => {
   const polygon = L.polygon(rectangleCoordinates, {
     color: "black",
     weight: 1,
+    // fillOpacity: 0.3,
     draggable: true,
   } as DraggablePolygonOptions) as CustomPolygon;
 
@@ -345,6 +346,7 @@ export const setPrevSizes = (northWest, northEast, southWest) => {
     previewDiv.style.justifyContent = "flex-end";
     previewDiv.style.alignItems = "center";
     previewDiv.style.textAlign = "center";
+    previewDiv.style.padding = "2px";
 
     const textOne = document.createElement("div");
     textOne.id = "preview-tooltip-text";
