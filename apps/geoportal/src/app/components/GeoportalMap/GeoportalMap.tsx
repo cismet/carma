@@ -748,7 +748,7 @@ export const GeoportalMap = () => {
                   zoom: getLeafletZoom(),
                 });
               }}
-              gazetteerSearchComponent={<></>}
+              gazetteerSearchControl={false}
               infoBox={renderInfoBox()}
               zoomSnap={LEAFLET_CONFIG.zoomSnap}
               zoomDelta={LEAFLET_CONFIG.zoomDelta}
