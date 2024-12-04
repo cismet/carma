@@ -333,6 +333,7 @@ export const LibModal = ({
   useEffect(() => {
     const handleDrop = (event: DragEvent) => {
       event.preventDefault();
+      setOpen(true);
       const url = event.dataTransfer?.getData("URL");
 
       if (url) {
