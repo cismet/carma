@@ -19,7 +19,7 @@ export function LayerLib({
   removeLastLayer,
 }: LibModalProps) {
   const urlParams = new URLSearchParams(window.location.hash);
-  const showNewStyleParam = urlParams.get("alternativeModalStyle");
+  const showNewStyleParam = urlParams.get("featurePreview");
   if (showNewStyleParam !== null) {
     return (
       <NewLibModal
