@@ -419,7 +419,7 @@ export const NewLibModal = ({
                         : selectedNavItemIndex === 2
                         ? partialTwins
                         : selectedNavItemIndex === 3
-                        ? layers.filter((layer) => layer.Title !== "Topic Maps")
+                        ? layers.filter((layer) => layer.Title !== "TopicMaps")
                         : undefined
                     }
                     activeId={inViewCategory}

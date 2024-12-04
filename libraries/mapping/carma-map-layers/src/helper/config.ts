@@ -270,7 +270,7 @@ export const serviceConfig: Record<string, LayerConfig> = {
 };
 
 export const topicMapsConfig: Config = {
-  Title: "Topic Maps",
+  Title: "TopicMaps",
   serviceName: "wuppTopicMaps",
   layers: [
     {
@@ -278,7 +278,7 @@ export const topicMapsConfig: Config = {
       name: "wuppTopic_stadtplan",
       title: "Online Stadtplan",
       description: `Interaktiver personalisierbarer Themenstadtplan für Wuppertal.`,
-      tags: ["Topic Maps", "Stadtplan"],
+      tags: ["TopicMaps", "Stadtplan"],
       type: "link",
       thumbnail:
         "https://images.unsplash.com/photo-1618901882511-e7adb73a1ee0?q=80&w=2664&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
@@ -290,7 +290,7 @@ export const topicMapsConfig: Config = {
       name: "wuppTopic_kultur",
       title: "Kulturstadtplan",
       description: `Interaktiver personalisierbarer Kulturstadtplan für Wuppertal.`,
-      tags: ["Topic Maps", "Stadtplan", "Kultur"],
+      tags: ["TopicMaps", "Stadtplan", "Kultur"],
       type: "link",
       thumbnail:
         "https://www.wuppertal.de/geoportal/signaturen/Fotos_POI/Fotostrecke_Schwebo/Schwebodrom_Aussenansicht.jpg",
@@ -301,7 +301,7 @@ export const topicMapsConfig: Config = {
       name: "wuppTopic_baeder",
       title: "Bäderkarte",
       description: `Interaktive Kartenanwendung für die Schwimmbäder in Wuppertal.`,
-      tags: ["Topic Maps", "Bäder"],
+      tags: ["TopicMaps", "Bäder"],
       type: "link",
       thumbnail:
         "https://images.unsplash.com/photo-1558617320-e695f0d420de?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
@@ -312,7 +312,7 @@ export const topicMapsConfig: Config = {
       name: "wuppTopic_ebike",
       title: "Ladestationen E-Bikes",
       description: `Interaktive Kartenanwendung zu den Lade- und Verleihstationen für E-Fahrräder in Wuppertal.`,
-      tags: ["Topic Maps", "E-Bikes", "Ladestationen"],
+      tags: ["TopicMaps", "E-Bikes", "Ladestationen"],
       type: "link",
       thumbnail:
         "https://www.wuppertal.de/geoportal/emobil/raeder/fotos/akku_bauhaus_lichtscheid.jpg",
@@ -324,7 +324,7 @@ export const topicMapsConfig: Config = {
       name: "wuppTopic_ehrenamt",
       title: "Ehrenamtskarte",
       description: `Interaktive Kartenanwendung der Vermittlungsagentur "Zentrum für gute Taten e. V." für die erste Recherche nach Ehrenamtsstellen in Wuppertal .`,
-      tags: ["Topic Maps", "Ehrenamt"],
+      tags: ["TopicMaps", "Ehrenamt"],
       type: "link",
       thumbnail:
         "https://plus.unsplash.com/premium_photo-1663099733543-4c503251e501?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
@@ -359,7 +359,7 @@ export const topicMapsConfig: Config = {
       name: "wuppTopic_kitas",
       title: "Kita-Finder",
       description: `Interaktive Kartenanwendung für die Recherche nach Kindertageseinrichtungen (Kitas) in Wuppertal - Spezialisierung des Online-Stadtplans Wuppertal mit spezifischen Filter- und Darstellungsoptionen.`,
-      tags: ["Topic Maps", "Kitas"],
+      tags: ["TopicMaps", "Kitas"],
       type: "link",
       thumbnail:
         "https://images.unsplash.com/photo-1567746455504-cb3213f8f5b8?q=80&w=2670&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
@@ -371,7 +371,7 @@ export const topicMapsConfig: Config = {
       name: "wuppTopic_xandride",
       title: "Park & Ride",
       description: `Interaktive Kartenanwendung zu den Park & Ride Standorten in Wuppertal.`,
-      tags: ["Topic Maps", "Park & Ride"],
+      tags: ["TopicMaps", "Park & Ride"],
       type: "link",
       thumbnail:
         "https://www.wuppertal.de/geoportal/prbr/fotos/foto_bahnhof_barmen.jpg",
@@ -382,7 +382,7 @@ export const topicMapsConfig: Config = {
       name: "wuppTopic_wasserstoff",
       title: "Wasserstofftankstellen",
       description: `Interaktive Kartenanwendung zu den Wasserstofftankstellen in Wuppertal.`,
-      tags: ["Topic Maps", "Tankstellen", "Wasserstoff"],
+      tags: ["TopicMaps", "Tankstellen", "Wasserstoff"],
       type: "link",
       thumbnail:
         "https://www.wuppertal.de/geoportal/emobil/autos/fotos/wasserstoff_01.jpg",
@@ -393,7 +393,7 @@ export const topicMapsConfig: Config = {
       name: "wuppTopic_luftmessstationen",
       title: "Luftmessstationen",
       description: `Interaktive Kartenanwendung zu den Luftmessstationen in Wuppertal.`,
-      tags: ["Topic Maps", "Luftmessstationen"],
+      tags: ["TopicMaps", "Luftmessstationen"],
       type: "link",
       thumbnail:
         "https://www.wuppertal.de/geoportal/luftmessstationen/fotos/MP31",
@@ -404,7 +404,7 @@ export const topicMapsConfig: Config = {
       name: "wuppTopic_klimaorte",
       title: "Klimaortkarte",
       description: `Interaktive Kartenanwendung für die Publikation von Best-Practice-Beispielen zum Klimaschutz in Wuppertal .`,
-      tags: ["Topic Maps", "Klimaorte"],
+      tags: ["TopicMaps", "Klimaorte"],
       type: "link",
       thumbnail:
         "https://images.unsplash.com/photo-1548337138-e87d889cc369?q=80&w=2096&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
