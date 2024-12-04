@@ -327,26 +327,16 @@ const drawRectFromWithBounds = (map, bounds, handleStartPrint) => {
 
   polygon.addTo(map);
   polygon.prevPrintId = "print-rect-id";
+  addPreviewWrapper(map);
 
-  const prevDiv = document.getElementById("preview");
-  console.log("xxx create pol");
-  if (!prevDiv) {
-    createTooltipWrapper();
-    addPreviewWrapper(map);
-  } else {
-    addPreviewWrapper(map);
-  }
   polygon.on("dragstart", () => {
     console.log("xxx dragstart");
-    // removePreviewWrapper();
+    removePreviewWrapper();
   });
   polygon.on("dragend", () => {
     console.log("xxx dragend");
     const newBounds = polygon.getBounds();
     map.fitBounds(newBounds);
-
-    // createTooltipWrapper();
-    // addPreviewWrapper(map);
   });
 
   polygon.on("dblclick", () => {
@@ -386,11 +376,24 @@ export const createTooltipWrapper = () => {
 
 export const setPrevSizes = (northWest, northEast, southWest) => {
   console.log("xxx setPrevSizes points");
-  const prev = document.getElementById("preview");
-  prev.style.top = northWest.y + "px";
-  prev.style.left = northWest.x + "px";
-  prev.style.width = northEast.x - northWest.x + "px";
-  prev.style.height = southWest.y - northWest.y + "px";
+  removePreviewWrapper();
+
+  const routedMap = document.getElementById("routedMap");
+  if (routedMap) {
+    const previewDiv = document.createElement("div");
+    previewDiv.id = "preview";
+    previewDiv.style.position = "absolute";
+    previewDiv.style.zIndex = "1000";
+    previewDiv.style.top = northWest.y + "px";
+    previewDiv.style.left = northWest.x + "px";
+    previewDiv.style.width = northEast.x - northWest.x + "px";
+    previewDiv.style.height = southWest.y - northWest.y + "px";
+    previewDiv.style.pointerEvents = "none";
+    previewDiv.style.opacity = "1";
+    previewDiv.style.fontSize = "24px";
+    previewDiv.textContent = "Tooltip text";
+    routedMap.appendChild(previewDiv);
+  }
 };
 
 const getPolygonByLeafletId = (map) => {
@@ -445,7 +448,6 @@ export const getPolygonPoints = (map) => {
 };
 
 export const addPreviewWrapper = (map) => {
-  // createTooltipWrapper();
   const { northWest, northEast, southWest } = getPolygonPoints(map);
 
   if (northWest && northEast && southWest) {

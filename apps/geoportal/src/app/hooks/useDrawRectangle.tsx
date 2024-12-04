@@ -89,14 +89,15 @@ export const useDrawRectangle = (printCb, printOffCb) => {
           dispatch(setUIMode("default"));
         }
       };
-      const zoomendHandler = () => {
-        console.log("xxx zoom end");
-        createTooltipWrapper();
-        addPreviewWrapper(map);
-      };
       const zoomstartdHandler = () => {
         console.log("xxx zoom start");
-        removePreviewWrapper();
+        // removePreviewWrapper();
+      };
+
+      const zoomendHandler = () => {
+        console.log("xxx zoom end");
+        // createTooltipWrapper();
+        addPreviewWrapper(map);
       };
 
       const movestartHandler = () => {
@@ -106,7 +107,7 @@ export const useDrawRectangle = (printCb, printOffCb) => {
 
       const moveendtHandler = () => {
         console.log("xxx move end");
-        createTooltipWrapper();
+        // createTooltipWrapper();
 
         addPreviewWrapper(map);
       };
