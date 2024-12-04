@@ -3,12 +3,16 @@ import { Badge, Tabs } from "antd";
 interface LayerTabsProps {
   // TODO add type for layers
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  layers: any[];
+  layers?: any[];
   activeId: string;
   numberOfItems: number;
 }
 
 const LayerTabs = ({ layers, activeId, numberOfItems }: LayerTabsProps) => {
+  if (!layers) {
+    return null;
+  }
+
   return (
     <>
       <Tabs
