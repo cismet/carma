@@ -319,15 +319,6 @@ const drawRectFromWithBounds = (map, bounds, handleStartPrint) => {
   map.fitBounds(bounds);
   const rectangleCoordinates = [sw, nw, ne, se, sw];
 
-  console.log("xxx rectangleCoordinates", rectangleCoordinates);
-  console.log(
-    "xxx nw",
-    map.latLngToContainerPoint({
-      lat: nw[0],
-      lng: nw[1],
-    })
-  );
-
   const polygon = L.polygon(rectangleCoordinates, {
     color: "black",
     weight: 1,
@@ -338,23 +329,16 @@ const drawRectFromWithBounds = (map, bounds, handleStartPrint) => {
   polygon.prevPrintId = "print-rect-id";
 
   const prevDiv = document.getElementById("preview");
-
+  console.log("xxx create pol");
   if (!prevDiv) {
     createTooltipWrapper();
-    const { northWest, northEast, southWest } = getPolygonPoints(map);
-
-    if (northWest && northEast && southWest) {
-      setPrevSizes(northWest, northEast, southWest);
-    }
+    addPreviewWrapper(map);
   } else {
-    const { northWest, northEast, southWest } = getPolygonPoints(map);
-
-    if (northWest && northEast && southWest) {
-      setPrevSizes(northWest, northEast, southWest);
-    }
+    addPreviewWrapper(map);
   }
 
   polygon.on("dragend", () => {
+    console.log("xxx dragend");
     const newBounds = polygon.getBounds();
     map.fitBounds(newBounds);
   });
@@ -386,7 +370,6 @@ export const createTooltipWrapper = () => {
     previewDiv.style.left = "0";
     previewDiv.style.top = "0";
     previewDiv.style.height = "0";
-    // previewDiv.style.background = "transporent";
     previewDiv.style.pointerEvents = "none";
     previewDiv.style.opacity = "1";
     previewDiv.style.fontSize = "24px";
@@ -442,8 +425,6 @@ export const getPolygonPoints = (map) => {
       southEast,
     };
 
-    console.log("xxx points", points);
-
     return points;
   } else {
     return {
@@ -452,5 +433,22 @@ export const getPolygonPoints = (map) => {
       northWest: undefined,
       southEast: undefined,
     };
+  }
+};
+
+export const addPreviewWrapper = (map) => {
+  // createTooltipWrapper();
+  const { northWest, northEast, southWest } = getPolygonPoints(map);
+
+  if (northWest && northEast && southWest) {
+    setPrevSizes(northWest, northEast, southWest);
+  }
+};
+
+export const removePreviewWrapper = () => {
+  const wrapper = document.getElementById("preview");
+
+  if (wrapper) {
+    wrapper.remove();
   }
 };
