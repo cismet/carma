@@ -326,9 +326,6 @@ export const deleteRectangleById = (map) => {
 
 export const setPrevSizes = (northWest, northEast, southWest) => {
   removePreviewWrapper();
-  const tooltipText = `Verschieben durch Ziehen mit Maus bzw. Finger
-Druck starten mit Doppelklick
-Abbruch mit <esc>`;
   const routedMap = document.getElementById("routedMap");
   if (routedMap) {
     const previewDiv = document.createElement("div");
@@ -341,7 +338,8 @@ Abbruch mit <esc>`;
     previewDiv.style.height = southWest.y - northWest.y + "px";
     previewDiv.style.pointerEvents = "none";
     previewDiv.style.opacity = "1";
-    previewDiv.style.fontSize = "24px";
+    // previewDiv.style.fontSize = "24px";
+    previewDiv.style.fontSize = calcuPrintFontSize(northEast.x - northWest.x);
     previewDiv.style.display = "flex";
     previewDiv.style.flexDirection = "column";
     previewDiv.style.justifyContent = "flex-end";
@@ -356,6 +354,7 @@ Abbruch mit <esc>`;
 
     const textTwo = document.createElement("div");
     textTwo.id = "preview-tooltip-text";
+    textTwo.className = "preview-tooltip-text";
 
     textTwo.textContent = "Druck starten mit Doppelklick";
     previewDiv.appendChild(textTwo);
@@ -435,3 +434,41 @@ export const removePreviewWrapper = () => {
     text.remove();
   }
 };
+
+const calcuPrintFontSize = (width) => {
+  if (width >= 154 && width <= 308) {
+    return "16px";
+  }
+
+  if (width >= 103 && width < 154) {
+    return "10px";
+  }
+
+  if (width >= 61 && width < 103) {
+    return "7px";
+  }
+
+  if (width <= 60) {
+    return "0px";
+  }
+
+  return "24px";
+};
+
+// const adjustTextSize = () => {
+//   debugger;
+//   for (const element of document.getElementsByClassName(
+//     "preview-tooltip-text"
+//   )) {
+//     var size = parseInt(
+//       getComputedStyle(element).getPropertyValue("font-size")
+//     );
+//     const parent_width = parseInt(
+//       getComputedStyle(element.parentElement).getPropertyValue("width")
+//     );
+//     while (element.offsetWidth > parent_width) {
+//       element.style.fontSize = size + "px";
+//       size -= 1;
+//     }
+//   }
+// };
