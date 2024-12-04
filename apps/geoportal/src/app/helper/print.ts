@@ -437,7 +437,7 @@ export const removePreviewWrapper = () => {
   }
 };
 
-const calcuPrintFontSize = (width) => {
+export const calcuPrintFontSize = (width) => {
   if (width >= 154 && width <= 308) {
     return "16px";
   }
