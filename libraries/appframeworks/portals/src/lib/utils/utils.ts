@@ -148,7 +148,7 @@ export const parseToMapLayer = async (
             useInFeatureInfo: true,
             props: {
               url: layer.props.url,
-              legend: layer.props.Style[0].LegendURL,
+              legend: layer.props.Style?.[0].LegendURL,
               name: layer.props.Name,
               maxZoom: layer.maxZoom,
               minZoom: layer.minZoom,
