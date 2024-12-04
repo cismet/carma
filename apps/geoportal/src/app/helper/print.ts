@@ -338,15 +338,15 @@ const drawRectFromWithBounds = (map, bounds, handleStartPrint) => {
   }
   polygon.on("dragstart", () => {
     console.log("xxx dragstart");
-    removePreviewWrapper();
+    // removePreviewWrapper();
   });
   polygon.on("dragend", () => {
     console.log("xxx dragend");
     const newBounds = polygon.getBounds();
     map.fitBounds(newBounds);
 
-    createTooltipWrapper();
-    addPreviewWrapper(map);
+    // createTooltipWrapper();
+    // addPreviewWrapper(map);
   });
 
   polygon.on("dblclick", () => {
@@ -385,7 +385,6 @@ export const createTooltipWrapper = () => {
 };
 
 export const setPrevSizes = (northWest, northEast, southWest) => {
-  debugger;
   console.log("xxx setPrevSizes points");
   const prev = document.getElementById("preview");
   prev.style.top = northWest.y + "px";
