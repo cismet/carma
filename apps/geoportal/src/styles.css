@@ -65,3 +65,8 @@ html {
 .rectangle-close {
   margin-left: auto;
 }
+
+/* #preview-tooltip-text {
+  font-size: min(3px + 1vw);
+  max-width: 100%;
+} */
