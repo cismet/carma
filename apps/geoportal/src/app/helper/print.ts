@@ -348,11 +348,23 @@ Abbruch mit <esc>`;
     previewDiv.style.alignItems = "center";
     previewDiv.style.textAlign = "center";
 
-    const textNode = document.createElement("div");
-    textNode.id = "preview-tooltip-text";
+    const textOne = document.createElement("div");
+    textOne.id = "preview-tooltip-text";
 
-    textNode.textContent = tooltipText;
-    previewDiv.appendChild(textNode);
+    textOne.textContent = "Verschieben durch Ziehen mit Maus bzw.";
+    previewDiv.appendChild(textOne);
+
+    const textTwo = document.createElement("div");
+    textTwo.id = "preview-tooltip-text";
+
+    textTwo.textContent = "Druck starten mit Doppelklick";
+    previewDiv.appendChild(textTwo);
+
+    const textThree = document.createElement("div");
+    textThree.id = "preview-tooltip-text";
+
+    textThree.textContent = "Abbruch mit <esc>";
+    previewDiv.appendChild(textThree);
 
     routedMap.appendChild(previewDiv);
   }
