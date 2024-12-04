@@ -18,6 +18,7 @@ import { getUIMode, setUIMode } from "../store/slices/ui";
 import proj4 from "proj4";
 import { getBackgroundLayer, getLayers } from "../store/slices/mapping";
 import {
+  addPreviewWrapper,
   createTooltipWrapper,
   drawRectanglePrev,
   getPolygonPoints,
@@ -89,12 +90,7 @@ export const useDrawRectangle = (printCb, printOffCb) => {
       };
       const zoomendHandler = () => {
         console.log("xxx zoom end");
-
-        const { northWest, northEast, southWest } = getPolygonPoints(map);
-
-        if (northWest && northEast && southWest) {
-          setPrevSizes(northWest, northEast, southWest);
-        }
+        addPreviewWrapper(map);
       };
       window.addEventListener("keydown", handleEscKeyPress);
       map.on("click", handleClick);
