@@ -21,6 +21,7 @@ import { InfoOutlined } from "@ant-design/icons";
 import type { Item, Layer, LayerProps } from "../helper/types";
 import { extractVectorStyles, parseDescription } from "../helper/layerHelper";
 import InfoCard from "./InfoCard";
+import tmpThumbnail from "./tmpService.jpg";
 
 interface LayerItemProps {
   setAdditionalLayers: any;
@@ -34,6 +35,7 @@ interface LayerItemProps {
   selectedLayerId: string | null;
   setSelectedLayerId: (id: string | null) => void;
   setPreview: (preview: boolean) => void;
+  showWithoutThumbnail?: boolean;
 }
 
 const LibItem = ({
@@ -48,6 +50,7 @@ const LibItem = ({
   selectedLayerId,
   setSelectedLayerId,
   setPreview,
+  showWithoutThumbnail,
 }: LayerItemProps) => {
   const [hovered, setHovered] = useState(false);
   const [isActiveLayer, setIsActiveLayer] = useState(false);
@@ -115,7 +118,7 @@ const LibItem = ({
       activeLayers.find(
         (activeLayer) =>
           activeLayer.id ===
-          (layer.id.startsWith("fav_") ? layer.id.slice(4) : layer.id)
+          (layer?.id?.startsWith("fav_") ? layer.id.slice(4) : layer.id)
       )
     ) {
       setActive = true;
@@ -271,15 +274,28 @@ const LibItem = ({
         data-test-id="card-layer-prev"
       >
         <div className="relative overflow-hidden bg-white isolate rounded-md flex justify-center items-center w-full aspect-[1.7777/1]">
-          {isLoading && (
+          {isLoading && !showWithoutThumbnail && (
             <div style={{ position: "absolute", left: "50%" }}>
               <Spin />
             </div>
           )}
 
-          {(thumbUrl && layer.type !== "collection") || layer.thumbnail ? (
+          {showWithoutThumbnail || layer.id.includes("custom") ? (
             <img
-              src={layer.thumbnail ? layer.thumbnail : thumbUrl}
+              src={tmpThumbnail}
+              alt={title}
+              loading="lazy"
+              style={{ objectPosition: "50% 35%" }}
+              className={`object-cover relative h-full overflow-clip w-[calc(130%+7.2px)] ${
+                hovered && "scale-110"
+              } transition-all duration-200`}
+              onLoad={(e) => {
+                setIsLoading(false);
+              }}
+            />
+          ) : layer.type !== "collection" || layer.thumbnail ? (
+            <img
+              src={layer.thumbnail}
               alt={title}
               loading="lazy"
               className={`object-cover relative h-full overflow-clip w-[calc(130%+7.2px)] ${

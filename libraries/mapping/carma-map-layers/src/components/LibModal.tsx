@@ -23,6 +23,7 @@ import {
   getAllLeafLayers,
   getLayerStructure,
   mergeStructures,
+  wmsLayerToGenericItem,
 } from "../helper/layerHelper";
 import LayerTabs from "./LayerTabs";
 import LibItem from "./LibItem";
@@ -93,6 +94,7 @@ export const LibModal = ({
   const [tmpCustomCategories, setTmpCustomCategories] = useState<
     any[] | undefined
   >([]);
+  const [testCategory, setTestCategory] = useState<any[]>([]);
   const [selectedNavItemIndex, setSelectedNavItemIndex] = useState(0);
   const debouncedSearchTerm = useDebounce(searchValue, 300);
 
@@ -176,18 +178,16 @@ export const LibModal = ({
       data.Capability.Request.GetMap.DCPType[0].HTTP.Get.OnlineResource;
     flattenedLayers.push(flattenLayer(rootLayer, [], getUrl));
 
-    setLayers((prev) => {
-      const newLayers = [...prev, flattenedLayers[0]];
-      newLayers.sort((a, b) => b.layers.length - a.layers.length);
-
-      return newLayers;
+    const tmpLayer = flattenedLayers[0].layers.map((layer) => {
+      return wmsLayerToGenericItem(layer, "custom");
     });
-    setAllLayers((prev) => {
-      const newLayers = [...prev, flattenedLayers[0]];
-      newLayers.sort((a, b) => b.layers.length - a.layers.length);
 
-      return newLayers;
-    });
+    return [
+      {
+        Title: "Eigene Daten",
+        layers: tmpLayer,
+      },
+    ];
   };
 
   const getNumberOfLayers = (layerCategories: LayerCategories[]) => {
@@ -330,6 +330,44 @@ export const LibModal = ({
     return () => clearTimeout(timer);
   }, [open]);
 
+  useEffect(() => {
+    const handleDrop = (event: DragEvent) => {
+      event.preventDefault();
+      const url = event.dataTransfer?.getData("URL");
+
+      if (url) {
+        fetch(url)
+          .then((response) => {
+            // console.log("xxx response", response);
+            return response.text();
+          })
+          .then((text) => {
+            const result = parser.toJSON(text);
+            console.log("xxx", result);
+            const test = getDataFromJson(result);
+            if (test) {
+              setTestCategory(test);
+            }
+          })
+          .catch((error) => {
+            console.log("xxx error", error);
+          });
+      }
+    };
+
+    const handleDragOver = (event: DragEvent) => {
+      event.preventDefault();
+    };
+
+    window.addEventListener("drop", handleDrop);
+    window.addEventListener("dragover", handleDragOver);
+
+    return () => {
+      window.removeEventListener("drop", handleDrop);
+      window.removeEventListener("dragover", handleDragOver);
+    };
+  }, []);
+
   return (
     <Modal
       open={open}
@@ -411,7 +449,11 @@ export const LibModal = ({
           {layers && layers.length > 0 && (
             <>
               <LayerTabs
-                layers={layers}
+                layers={
+                  testCategory.length > 0
+                    ? [...testCategory, ...layers]
+                    : layers
+                }
                 activeId={inViewCategory}
                 numberOfItems={getNumberOfLayers(layers)}
               />
@@ -442,6 +484,65 @@ export const LibModal = ({
         )}
         <div className="overflow-auto pt-0.5">
           <div className="px-6">
+            {testCategory.length > 0 &&
+              showItems &&
+              testCategory.map((category, i) => (
+                <div key={category.Title}>
+                  {category.layers.length > 0 && (
+                    <InView
+                      rootMargin="20px 0px 20px 0px"
+                      as="div"
+                      onChange={(inView, entry) => {
+                        if (inView) {
+                          setInViewCategory(entry.target.id);
+
+                          setAllCategoriesInView((prev) => {
+                            return [...prev, entry.target.id];
+                          });
+                        } else {
+                          const updatedCategoriesInView =
+                            allCategoriesInView.filter(
+                              (item) => item !== entry.target.id
+                            );
+                          setAllCategoriesInView(updatedCategoriesInView);
+                          if (inViewCategory === entry.target.id && i > 0) {
+                            for (let j = i - 1; j >= 0; j--) {
+                              if (layers[j].layers.length > 0) {
+                                setInViewCategory(layers[j].Title);
+                              }
+                            }
+                          }
+                        }
+                      }}
+                      id={category?.Title}
+                      key={category?.Title}
+                    >
+                      <p className="mb-4 text-2xl font-semibold">
+                        {category?.Title}
+                      </p>
+                      <div className="grid xl:grid-cols-7 grid-flow-dense lg:grid-cols-5 sm:grid-cols-4 gap-8 mb-4">
+                        {category?.layers?.map((layer: any, i: number) => (
+                          <LibItem
+                            setAdditionalLayers={setAdditionalLayers}
+                            layer={layer}
+                            thumbnails={thumbnails}
+                            setThumbnail={setThumbnail}
+                            activeLayers={activeLayers}
+                            favorites={favorites}
+                            addFavorite={addFavorite}
+                            removeFavorite={removeFavorite}
+                            selectedLayerId={selectedLayerId}
+                            setSelectedLayerId={setSelectedLayerId}
+                            setPreview={setPreview}
+                            key={`${category.Title}_layer_${i}_${layer.id}`}
+                            showWithoutThumbnail
+                          />
+                        ))}
+                      </div>
+                    </InView>
+                  )}
+                </div>
+              ))}
             {showItems &&
               layers.map((category, i) => (
                 <div key={category.Title}>

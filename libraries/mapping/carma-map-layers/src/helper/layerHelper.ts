@@ -145,7 +145,7 @@ const scaleHintToZoom = (scaleHint: number) => {
   return Math.round(zoom);
 };
 
-const wmsLayerToGenericItem = (layer: XMLLayer, serviceName: string) => {
+export const wmsLayerToGenericItem = (layer: XMLLayer, serviceName: string) => {
   if (layer) {
     let item: Item = {
       title: layer.Title,
