@@ -80,6 +80,7 @@ export const useDrawRectangle = (printCb, printOffCb) => {
           !e.originalEvent.target?.classList.contains("leaflet-path-draggable")
         ) {
           dispatch(setUIMode("default"));
+          removePreviewWrapper();
         }
       };
       addRectangle(map, routedMapRef, scale, orientation);
@@ -87,33 +88,23 @@ export const useDrawRectangle = (printCb, printOffCb) => {
       const handleEscKeyPress = (event) => {
         if (event.key === "Escape") {
           dispatch(setUIMode("default"));
+          removePreviewWrapper();
         }
-      };
-      const zoomstartdHandler = () => {
-        console.log("xxx zoom start");
-        // removePreviewWrapper();
       };
 
       const zoomendHandler = () => {
-        console.log("xxx zoom end");
-        // createTooltipWrapper();
         addPreviewWrapper(map);
       };
 
       const movestartHandler = () => {
-        console.log("xxx move start");
         removePreviewWrapper();
       };
 
       const moveendtHandler = () => {
-        console.log("xxx move end");
-        // createTooltipWrapper();
-
         addPreviewWrapper(map);
       };
       window.addEventListener("keydown", handleEscKeyPress);
       map.on("click", handleClick);
-      map.on("zoomstart", zoomstartdHandler);
       map.on("zoomend", zoomendHandler);
       map.on("movestart", movestartHandler);
       map.on("moveend", moveendtHandler);
@@ -122,7 +113,6 @@ export const useDrawRectangle = (printCb, printOffCb) => {
         map.off("click", handleClick);
         map.off("dblclick", handleClick);
         map.off("zoomend", zoomendHandler);
-        map.off("zoomstart", zoomstartdHandler);
         map.off("movestart", movestartHandler);
         map.off("moveend", moveendtHandler);
 

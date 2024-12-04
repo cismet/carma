@@ -330,11 +330,9 @@ const drawRectFromWithBounds = (map, bounds, handleStartPrint) => {
   addPreviewWrapper(map);
 
   polygon.on("dragstart", () => {
-    console.log("xxx dragstart");
     removePreviewWrapper();
   });
   polygon.on("dragend", () => {
-    console.log("xxx dragend");
     const newBounds = polygon.getBounds();
     map.fitBounds(newBounds);
   });
@@ -355,27 +353,7 @@ export const deleteRectangleById = (map) => {
   });
 };
 
-export const createTooltipWrapper = () => {
-  const routedMap = document.getElementById("routedMap");
-  console.log("xxx create wrapper");
-  if (routedMap) {
-    const previewDiv = document.createElement("div");
-    previewDiv.id = "preview";
-    previewDiv.style.position = "absolute";
-    previewDiv.style.zIndex = "1000";
-    previewDiv.style.left = "0";
-    previewDiv.style.top = "0";
-    previewDiv.style.height = "0";
-    previewDiv.style.pointerEvents = "none";
-    previewDiv.style.opacity = "1";
-    previewDiv.style.fontSize = "24px";
-    previewDiv.textContent = "Tooltip text";
-    routedMap.appendChild(previewDiv);
-  }
-};
-
 export const setPrevSizes = (northWest, northEast, southWest) => {
-  console.log("xxx setPrevSizes points");
   removePreviewWrapper();
 
   const routedMap = document.getElementById("routedMap");
@@ -410,14 +388,11 @@ const getPolygonByLeafletId = (map) => {
   return polygon;
 };
 export const getPolygonPoints = (map) => {
-  console.log("xxx get polygon points");
   const polygon = getPolygonByLeafletId(map);
   if (polygon) {
     const bounds = polygon.getBounds();
 
     const { _northEast, _southWest } = bounds;
-    // const northEast = map.latLngToLayerPoint(_northEast);
-    // const southWest = map.latLngToLayerPoint(_southWest);
     const northEast = map.latLngToContainerPoint(_northEast);
     const southWest = map.latLngToContainerPoint(_southWest);
     const northWest = {
