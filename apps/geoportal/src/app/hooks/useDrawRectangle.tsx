@@ -23,6 +23,7 @@ import {
   drawRectanglePrev,
   getPolygonPoints,
   getPrintLayers,
+  removePreviewWrapper,
   deleteRectangleById as removeRectangle,
   setPrevSizes,
 } from "../helper/print";
@@ -90,16 +91,24 @@ export const useDrawRectangle = (printCb, printOffCb) => {
       };
       const zoomendHandler = () => {
         console.log("xxx zoom end");
+        createTooltipWrapper();
         addPreviewWrapper(map);
+      };
+      const zoomstartdHandler = () => {
+        console.log("xxx zoom start");
+        removePreviewWrapper();
       };
       window.addEventListener("keydown", handleEscKeyPress);
       map.on("click", handleClick);
+      map.on("zoomstart", zoomstartdHandler);
       map.on("zoomend", zoomendHandler);
 
       return () => {
         map.off("click", handleClick);
         map.off("dblclick", handleClick);
         map.off("zoomend", zoomendHandler);
+        map.off("zoomstart", zoomstartdHandler);
+
         removeRectangle(map);
       };
     } else if (map && mode === "print" && lastOrientation === orientation) {

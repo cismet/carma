@@ -361,7 +361,7 @@ export const deleteRectangleById = (map) => {
 
 export const createTooltipWrapper = () => {
   const routedMap = document.getElementById("routedMap");
-
+  console.log("xxx create wrapper");
   if (routedMap) {
     const previewDiv = document.createElement("div");
     previewDiv.id = "preview";
@@ -379,6 +379,7 @@ export const createTooltipWrapper = () => {
 };
 
 export const setPrevSizes = (northWest, northEast, southWest) => {
+  console.log("xxx get polygon points");
   const prev = document.getElementById("preview");
   prev.style.top = northWest.y + "px";
   prev.style.left = northWest.x + "px";
@@ -400,6 +401,7 @@ const getPolygonByLeafletId = (map) => {
   return polygon;
 };
 export const getPolygonPoints = (map) => {
+  console.log("xxx get polygon points");
   const polygon = getPolygonByLeafletId(map);
   if (polygon) {
     const bounds = polygon.getBounds();
