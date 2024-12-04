@@ -66,7 +66,8 @@ html {
   margin-left: auto;
 }
 
-/* #preview-tooltip-text {
-  font-size: min(3px + 1vw);
-  max-width: 100%;
-} */
+#preview-tooltip-text {
+  /* font-size: min(3px + 1vw);
+  max-width: 100%; */
+  text-shadow: 0px 0px 20px #fff, 0px 0px 20px #fff;
+}
