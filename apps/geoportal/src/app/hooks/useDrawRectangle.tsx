@@ -98,16 +98,32 @@ export const useDrawRectangle = (printCb, printOffCb) => {
         console.log("xxx zoom start");
         removePreviewWrapper();
       };
+
+      const movestartHandler = () => {
+        console.log("xxx move start");
+        removePreviewWrapper();
+      };
+
+      const moveendtHandler = () => {
+        console.log("xxx move end");
+        createTooltipWrapper();
+
+        addPreviewWrapper(map);
+      };
       window.addEventListener("keydown", handleEscKeyPress);
       map.on("click", handleClick);
       map.on("zoomstart", zoomstartdHandler);
       map.on("zoomend", zoomendHandler);
+      map.on("movestart", movestartHandler);
+      map.on("moveend", moveendtHandler);
 
       return () => {
         map.off("click", handleClick);
         map.off("dblclick", handleClick);
         map.off("zoomend", zoomendHandler);
         map.off("zoomstart", zoomstartdHandler);
+        map.off("movestart", movestartHandler);
+        map.off("moveend", moveendtHandler);
 
         removeRectangle(map);
       };
