@@ -340,7 +340,7 @@ export const setPrevSizes = (northWest, northEast, southWest) => {
     previewDiv.style.pointerEvents = "none";
     previewDiv.style.opacity = "1";
     // previewDiv.style.fontSize = "24px";
-    previewDiv.style.fontSize = calcuPrintFontSize(northEast.x - northWest.x);
+    previewDiv.style.fontSize = getFontSize(northEast.x - northWest.x);
     previewDiv.style.display = "flex";
     previewDiv.style.flexDirection = "column";
     previewDiv.style.justifyContent = "flex-end";
@@ -437,40 +437,41 @@ export const removePreviewWrapper = () => {
   }
 };
 
-export const calcuPrintFontSize = (width) => {
-  if (width >= 154 && width <= 308) {
-    return "16px";
-  }
-
-  if (width >= 103 && width < 154) {
-    return "10px";
-  }
-
-  if (width >= 61 && width < 103) {
-    return "7px";
-  }
-
-  if (width <= 60) {
-    return "0px";
-  }
-
-  return "24px";
-};
-
-// const adjustTextSize = () => {
-//   debugger;
-//   for (const element of document.getElementsByClassName(
-//     "preview-tooltip-text"
-//   )) {
-//     var size = parseInt(
-//       getComputedStyle(element).getPropertyValue("font-size")
-//     );
-//     const parent_width = parseInt(
-//       getComputedStyle(element.parentElement).getPropertyValue("width")
-//     );
-//     while (element.offsetWidth > parent_width) {
-//       element.style.fontSize = size + "px";
-//       size -= 1;
-//     }
+// export const calcuPrintFontSize = (width) => {
+//   if (width >= 154 && width <= 308) {
+//     return "16px";
 //   }
+
+//   if (width >= 103 && width < 154) {
+//     return "10px";
+//   }
+
+//   if (width >= 61 && width < 103) {
+//     return "7px";
+//   }
+
+//   if (width <= 60) {
+//     return "0px";
+//   }
+
+//   return "24px";
 // };
+
+export const getFontSize = (width) => {
+  switch (true) {
+    case width >= 154 && width <= 308:
+      return "16px";
+
+    case width >= 103 && width < 154:
+      return "10px";
+
+    case width >= 61 && width < 103:
+      return "7px";
+
+    case width <= 60:
+      return "0px";
+
+    default:
+      return "24px";
+  }
+};
