@@ -82,6 +82,7 @@ export const NewLibModal = ({
 }: LibModalProps) => {
   const [preview, setPreview] = useState(false);
   const [layers, setLayers] = useState<any[]>([]);
+  const [partialTwins, setPartialTwins] = useState<any[]>([]);
   const [allLayers, setAllLayers] = useState<any[]>([]);
   const services = serviceConfig;
   const [inViewCategory, setInViewCategory] = useState("");
@@ -90,33 +91,13 @@ export const NewLibModal = ({
   const [isSearching, setIsSearching] = useState(false);
   const [showItems, setShowItems] = useState(false);
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
-  const [tmpCustomCategories, setTmpCustomCategories] = useState<
-    any[] | undefined
-  >([]);
   const [selectedNavItemIndex, setSelectedNavItemIndex] = useState(0);
   const debouncedSearchTerm = useDebounce(searchValue, 300);
-
-  // const checkDifferences = (url, configName) => {
-  //   fetch(`${url}?service=WMS&request=GetCapabilities&version=1.1.1`)
-  //     .then((response) => {
-  //       return response.text();
-  //     })
-  //     .then((text) => {
-  //       const result = parser.toJSON(text);
-  //       console.log('xxx result', getAllLeafLayers(result));
-  //       console.log('xxx configName', config[configName]);
-  //       console.log(
-  //         'xxx findDifferences',
-  //         findDifferences(getAllLeafLayers(result), config[configName].layers)
-  //       );
-  //     });
-  // };
 
   const search = (value: string) => {
     setIsSearching(true);
     if (value) {
       const results = fuse.search(value);
-      // have to use allLayers.map to create a deep copy so the allLayers state wont change here
       const resultsWithCategories = allLayers.map((item) => {
         return {
           ...item,
@@ -245,11 +226,7 @@ export const NewLibModal = ({
 
                 newLayers = mergedLayer;
                 let tmp: Layer[] = [];
-                if (customCategories) {
-                  tmp = [...customCategories, ...newLayers];
-                } else {
-                  tmp = newLayers;
-                }
+                tmp = newLayers;
 
                 setAllLayers(tmp);
               } else {
@@ -263,16 +240,9 @@ export const NewLibModal = ({
             config,
             serviceName: services[key].name,
           });
-          const mergedLayer = mergeStructures(tmpLayer, newLayers);
-          newLayers = mergedLayer;
-          let tmp: Layer[] = [];
-          if (customCategories) {
-            tmp = [...customCategories, ...newLayers];
-          } else {
-            tmp = newLayers;
-          }
-          setLayers(tmp);
-          setAllLayers(tmp);
+          setPartialTwins(
+            tmpLayer.filter((category) => category.layers.length > 0)
+          );
         } else {
           const tmpLayer = getLayerStructure({
             config,
@@ -281,11 +251,8 @@ export const NewLibModal = ({
           const mergedLayer = mergeStructures(tmpLayer, newLayers);
           newLayers = mergedLayer;
           let tmp: Layer[] = [];
-          if (customCategories) {
-            tmp = [...customCategories, ...newLayers];
-          } else {
-            tmp = newLayers;
-          }
+
+          tmp = newLayers;
           setLayers(tmp);
           setAllLayers(tmp);
         }
@@ -304,23 +271,6 @@ export const NewLibModal = ({
       search(debouncedSearchTerm);
     }
   }, [allLayers]);
-
-  useEffect(() => {
-    if (!isEqual(customCategories, tmpCustomCategories)) {
-      setTmpCustomCategories(customCategories);
-
-      let updatedLayers = allLayers.map((category) => {
-        const title = category.Title;
-        customCategories?.forEach((customCategory) => {
-          if (customCategory.Title === title) {
-            category.layers = customCategory.layers;
-          }
-        });
-        return category;
-      });
-      setAllLayers(updatedLayers);
-    }
-  }, [customCategories]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -425,12 +375,13 @@ export const NewLibModal = ({
               {layers && layers.length > 0 && (
                 <>
                   <LayerTabs
-                    layers={layers.filter(
-                      (layer) =>
-                        layer.Title !== "Favoriten" &&
-                        layer.Title !== "Topic Maps" &&
-                        layer.Title !== "Meine Zusammenstellungen"
-                    )}
+                    layers={
+                      selectedNavItemIndex === 0
+                        ? customCategories
+                        : selectedNavItemIndex === 2
+                        ? partialTwins
+                        : layers.filter((layer) => layer.Title !== "Topic Maps")
+                    }
                     activeId={inViewCategory}
                     numberOfItems={getNumberOfLayers(layers)}
                   />
@@ -463,63 +414,176 @@ export const NewLibModal = ({
             )}
 
             <div>
-              {showItems &&
-                layers.map((category, i) => (
-                  <div key={category.Title}>
-                    {category.layers.length > 0 && (
-                      <InView
-                        rootMargin="20px 0px 20px 0px"
-                        as="div"
-                        onChange={(inView, entry) => {
-                          if (inView) {
-                            setInViewCategory(entry.target.id);
+              {showItems && selectedNavItemIndex === 0
+                ? customCategories?.map((category, i) => (
+                    <div key={category.Title}>
+                      {category.layers.length > 0 && (
+                        <InView
+                          rootMargin="20px 0px 20px 0px"
+                          as="div"
+                          onChange={(inView, entry) => {
+                            if (inView) {
+                              setInViewCategory(entry.target.id);
 
-                            setAllCategoriesInView((prev) => {
-                              return [...prev, entry.target.id];
-                            });
-                          } else {
-                            const updatedCategoriesInView =
-                              allCategoriesInView.filter(
-                                (item) => item !== entry.target.id
-                              );
-                            setAllCategoriesInView(updatedCategoriesInView);
-                            if (inViewCategory === entry.target.id && i > 0) {
-                              for (let j = i - 1; j >= 0; j--) {
-                                if (layers[j].layers.length > 0) {
-                                  setInViewCategory(layers[j].Title);
+                              setAllCategoriesInView((prev) => {
+                                return [...prev, entry.target.id];
+                              });
+                            } else {
+                              const updatedCategoriesInView =
+                                allCategoriesInView.filter(
+                                  (item) => item !== entry.target.id
+                                );
+                              setAllCategoriesInView(updatedCategoriesInView);
+                              if (inViewCategory === entry.target.id && i > 0) {
+                                for (let j = i - 1; j >= 0; j--) {
+                                  if (layers[j].layers.length > 0) {
+                                    setInViewCategory(layers[j].Title);
+                                  }
                                 }
                               }
                             }
-                          }
-                        }}
-                        id={category?.Title}
-                        key={category?.Title}
-                      >
-                        <p className="mb-4 text-2xl font-semibold">
-                          {category?.Title}
-                        </p>
-                        <div className="grid xl:grid-cols-7 grid-flow-dense lg:grid-cols-5 sm:grid-cols-4 gap-8 mb-4">
-                          {category?.layers?.map((layer: any, i: number) => (
-                            <LibItem
-                              setAdditionalLayers={setAdditionalLayers}
-                              layer={layer}
-                              thumbnails={thumbnails}
-                              setThumbnail={setThumbnail}
-                              activeLayers={activeLayers}
-                              favorites={favorites}
-                              addFavorite={addFavorite}
-                              removeFavorite={removeFavorite}
-                              selectedLayerId={selectedLayerId}
-                              setSelectedLayerId={setSelectedLayerId}
-                              setPreview={setPreview}
-                              key={`${category.Title}_layer_${i}_${layer.id}`}
-                            />
-                          ))}
-                        </div>
-                      </InView>
-                    )}
-                  </div>
-                ))}
+                          }}
+                          id={category?.Title}
+                          key={category?.Title}
+                        >
+                          <p className="mb-4 text-2xl font-semibold">
+                            {category?.Title}
+                          </p>
+                          <div className="grid xl:grid-cols-7 grid-flow-dense lg:grid-cols-5 sm:grid-cols-4 gap-8 mb-4">
+                            {category?.layers?.map((layer: any, i: number) => (
+                              <LibItem
+                                setAdditionalLayers={setAdditionalLayers}
+                                layer={layer}
+                                thumbnails={thumbnails}
+                                setThumbnail={setThumbnail}
+                                activeLayers={activeLayers}
+                                favorites={favorites}
+                                addFavorite={addFavorite}
+                                removeFavorite={removeFavorite}
+                                selectedLayerId={selectedLayerId}
+                                setSelectedLayerId={setSelectedLayerId}
+                                setPreview={setPreview}
+                                key={`${category.Title}_layer_${i}_${layer.id}`}
+                              />
+                            ))}
+                          </div>
+                        </InView>
+                      )}
+                    </div>
+                  ))
+                : selectedNavItemIndex === 2
+                ? partialTwins?.map((category, i) => (
+                    <div key={category.Title}>
+                      {category.layers.length > 0 && (
+                        <InView
+                          rootMargin="20px 0px 20px 0px"
+                          as="div"
+                          onChange={(inView, entry) => {
+                            if (inView) {
+                              setInViewCategory(entry.target.id);
+
+                              setAllCategoriesInView((prev) => {
+                                return [...prev, entry.target.id];
+                              });
+                            } else {
+                              const updatedCategoriesInView =
+                                allCategoriesInView.filter(
+                                  (item) => item !== entry.target.id
+                                );
+                              setAllCategoriesInView(updatedCategoriesInView);
+                              if (inViewCategory === entry.target.id && i > 0) {
+                                for (let j = i - 1; j >= 0; j--) {
+                                  if (layers[j].layers.length > 0) {
+                                    setInViewCategory(layers[j].Title);
+                                  }
+                                }
+                              }
+                            }
+                          }}
+                          id={category?.Title}
+                          key={category?.Title}
+                        >
+                          <p className="mb-4 text-2xl font-semibold">
+                            {category?.Title}
+                          </p>
+                          <div className="grid xl:grid-cols-7 grid-flow-dense lg:grid-cols-5 sm:grid-cols-4 gap-8 mb-4">
+                            {category?.layers?.map((layer: any, i: number) => (
+                              <LibItem
+                                setAdditionalLayers={setAdditionalLayers}
+                                layer={layer}
+                                thumbnails={thumbnails}
+                                setThumbnail={setThumbnail}
+                                activeLayers={activeLayers}
+                                favorites={favorites}
+                                addFavorite={addFavorite}
+                                removeFavorite={removeFavorite}
+                                selectedLayerId={selectedLayerId}
+                                setSelectedLayerId={setSelectedLayerId}
+                                setPreview={setPreview}
+                                key={`${category.Title}_layer_${i}_${layer.id}`}
+                              />
+                            ))}
+                          </div>
+                        </InView>
+                      )}
+                    </div>
+                  ))
+                : layers.map((category, i) => (
+                    <div key={category.Title}>
+                      {category.layers.length > 0 && (
+                        <InView
+                          rootMargin="20px 0px 20px 0px"
+                          as="div"
+                          onChange={(inView, entry) => {
+                            if (inView) {
+                              setInViewCategory(entry.target.id);
+
+                              setAllCategoriesInView((prev) => {
+                                return [...prev, entry.target.id];
+                              });
+                            } else {
+                              const updatedCategoriesInView =
+                                allCategoriesInView.filter(
+                                  (item) => item !== entry.target.id
+                                );
+                              setAllCategoriesInView(updatedCategoriesInView);
+                              if (inViewCategory === entry.target.id && i > 0) {
+                                for (let j = i - 1; j >= 0; j--) {
+                                  if (layers[j].layers.length > 0) {
+                                    setInViewCategory(layers[j].Title);
+                                  }
+                                }
+                              }
+                            }
+                          }}
+                          id={category?.Title}
+                          key={category?.Title}
+                        >
+                          <p className="mb-4 text-2xl font-semibold">
+                            {category?.Title}
+                          </p>
+                          <div className="grid xl:grid-cols-7 grid-flow-dense lg:grid-cols-5 sm:grid-cols-4 gap-8 mb-4">
+                            {category?.layers?.map((layer: any, i: number) => (
+                              <LibItem
+                                setAdditionalLayers={setAdditionalLayers}
+                                layer={layer}
+                                thumbnails={thumbnails}
+                                setThumbnail={setThumbnail}
+                                activeLayers={activeLayers}
+                                favorites={favorites}
+                                addFavorite={addFavorite}
+                                removeFavorite={removeFavorite}
+                                selectedLayerId={selectedLayerId}
+                                setSelectedLayerId={setSelectedLayerId}
+                                setPreview={setPreview}
+                                key={`${category.Title}_layer_${i}_${layer.id}`}
+                              />
+                            ))}
+                          </div>
+                        </InView>
+                      )}
+                    </div>
+                  ))}
               {layers && getNumberOfLayers(layers) === 0 && (
                 <h1 className="text-2xl font-normal">
                   Keine Ressourcen gefunden
