@@ -380,7 +380,9 @@ export const NewLibModal = ({
                         ? customCategories
                         : selectedNavItemIndex === 2
                         ? partialTwins
-                        : layers.filter((layer) => layer.Title !== "Topic Maps")
+                        : selectedNavItemIndex === 3
+                        ? layers.filter((layer) => layer.Title !== "Topic Maps")
+                        : undefined
                     }
                     activeId={inViewCategory}
                     numberOfItems={getNumberOfLayers(layers)}
@@ -528,7 +530,8 @@ export const NewLibModal = ({
                       )}
                     </div>
                   ))
-                : layers.map((category, i) => (
+                : selectedNavItemIndex === 3
+                ? layers.map((category, i) => (
                     <div key={category.Title}>
                       {category.layers.length > 0 && (
                         <InView
@@ -583,12 +586,22 @@ export const NewLibModal = ({
                         </InView>
                       )}
                     </div>
-                  ))}
-              {layers && getNumberOfLayers(layers) === 0 && (
-                <h1 className="text-2xl font-normal">
-                  Keine Ressourcen gefunden
-                </h1>
-              )}
+                  ))
+                : null}
+              {layers &&
+                getNumberOfLayers(layers) === 0 &&
+                selectedNavItemIndex === 3 && (
+                  <h1 className="text-2xl font-normal">
+                    Keine Ressourcen gefunden
+                  </h1>
+                )}
+              {selectedNavItemIndex !== 2 &&
+                selectedNavItemIndex !== 3 &&
+                selectedNavItemIndex !== 0 && (
+                  <h1 className="text-2xl font-normal">
+                    Kategorie noch nicht implementiert
+                  </h1>
+                )}
             </div>
           </div>
         </div>
