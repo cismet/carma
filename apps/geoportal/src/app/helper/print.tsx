@@ -346,7 +346,7 @@ export const setPrevSizes = (
   removePreviewWrapper();
   const previewDiv = document.getElementById("preview");
   if (!previewDiv) {
-    createPreviewWrapper(
+    createPreviewWrapperItems(
       northWest,
       northEast,
       southWest,
@@ -406,7 +406,7 @@ export const getPolygonPoints = (map) => {
   }
 };
 
-const createPreviewWrapper = (
+const createPreviewWrapperItems = (
   northWest,
   northEast,
   southWest,
