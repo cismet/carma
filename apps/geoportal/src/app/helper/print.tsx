@@ -354,17 +354,20 @@ export const setPrevSizes = (
 
     const textOne = document.createElement("div");
     textOne.id = "preview-tooltip-text";
-    textOne.textContent = "Verschieben durch Ziehen mit Maus bzw.";
+    textOne.className = "print-tooltip-text";
+    textOne.textContent = "Verschieben durch Ziehen mit Maus bzw. Finger";
     previewDiv.appendChild(textOne);
 
     const textTwo = document.createElement("div");
     textTwo.id = "preview-tooltip-text";
-    textTwo.className = "preview-tooltip-text";
+    textTwo.className = "print-tooltip-text";
 
-    textTwo.textContent = "Finger Druck starten mit Doppelklick";
-    previewDiv.appendChild(textTwo);
+    // textTwo.textContent = "Finger Druck starten mit Doppelklick";
+    // textTwo.className = "print-tooltip-text";
+    // previewDiv.appendChild(textTwo);
 
     const textThree = document.createElement("div");
+    textThree.className = "print-tooltip-text";
     textThree.id = "preview-tooltip-text";
 
     textThree.textContent = "Abbruch mit <esc>";
