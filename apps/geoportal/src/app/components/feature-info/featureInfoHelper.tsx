@@ -63,6 +63,10 @@ export const functionToFeature = (output: any, code: string) => {
   let codeFunction = eval("(" + code + ")");
   const tmpInfo = codeFunction(output);
 
+  if (!tmpInfo) {
+    return undefined;
+  }
+
   const properties = {
     ...tmpInfo,
     wmsProps: output,
