@@ -30,16 +30,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 const PrintButton = ({ hadlerStartPrint }) => {
   return (
     <>
-      <button
-        className="rectangle-button"
-        onClick={hadlerStartPrint}
-        style={
-          {
-            // background: "rgba(0, 0, 0, 0.9)",
-            // cursor: "pointer",
-          }
-        }
-      >
+      <button className="rectangle-button" onClick={hadlerStartPrint}>
         {/* <FontAwesomeIcon icon={faPrint} className="text-xl cursor-pointer" /> */}
         Drucken
       </button>

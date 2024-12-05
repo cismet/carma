@@ -70,7 +70,13 @@ export const useDrawRectangle = (printCb, printOffCb) => {
 
   const addRectangle = (map, routedMapRef, scale, orientation) => {
     removeRectangle(map);
-    drawRectanglePrev(routedMapRef, scale, orientation, handleStartPrint);
+    drawRectanglePrev(
+      routedMapRef,
+      scale,
+      orientation,
+      handleStartPrint,
+      loading
+    );
   };
 
   useEffect(() => {
