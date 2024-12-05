@@ -95,7 +95,7 @@ export const useDrawRectangle = (printCb, printOffCb) => {
         removePreviewWrapper();
       };
       const zoomendHandler = () => {
-        addPreviewWrapper(map);
+        addPreviewWrapper(map, handleStartPrint);
       };
 
       const movestartHandler = () => {
@@ -103,17 +103,17 @@ export const useDrawRectangle = (printCb, printOffCb) => {
       };
 
       const moveendtHandler = () => {
-        addPreviewWrapper(map);
+        addPreviewWrapper(map, handleStartPrint);
       };
       window.addEventListener("keydown", handleEscKeyPress);
-      map.on("click", handleClick);
+      // map.on("click", handleClick);
       map.on("zoomestart", zoomstartHandler);
       map.on("zoomend", zoomendHandler);
       map.on("movestart", movestartHandler);
       map.on("moveend", moveendtHandler);
 
       return () => {
-        map.off("click", handleClick);
+        // map.off("click", handleClick);
         map.off("dblclick", handleClick);
         map.off("zoomend", zoomendHandler);
         map.off("zoomestart", zoomstartHandler);

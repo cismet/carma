@@ -301,7 +301,7 @@ const drawRectFromWithBounds = (map, bounds, handleStartPrint) => {
 
   polygon.addTo(map);
   polygon.prevPrintId = "print-rect-id";
-  addPreviewWrapper(map);
+  addPreviewWrapper(map, handleStartPrint);
 
   polygon.on("dragstart", () => {
     removePreviewWrapper();
@@ -327,9 +327,18 @@ export const deleteRectangleById = (map) => {
   });
 };
 
-export const setPrevSizes = (northWest, northEast, southWest) => {
+export const setPrevSizes = (
+  northWest,
+  northEast,
+  southWest,
+  map,
+  hadlerStartPrint
+) => {
   removePreviewWrapper();
   const routedMap = document.getElementById("routedMap");
+  const printHandler = (map) => {
+    hadlerStartPrint(map);
+  };
   if (routedMap) {
     const previewDiv = document.createElement("div");
     previewDiv.id = "preview";
@@ -341,14 +350,7 @@ export const setPrevSizes = (northWest, northEast, southWest) => {
     previewDiv.style.height = southWest.y - northWest.y + "px";
     previewDiv.style.pointerEvents = "none";
     previewDiv.style.opacity = "1";
-    // previewDiv.style.fontSize = "24px";
     previewDiv.style.fontSize = getFontSize(northEast.x - northWest.x);
-    previewDiv.style.display = "flex";
-    previewDiv.style.flexDirection = "column";
-    previewDiv.style.justifyContent = "flex-end";
-    previewDiv.style.alignItems = "center";
-    previewDiv.style.textAlign = "center";
-    previewDiv.style.padding = "2px";
 
     const textOne = document.createElement("div");
     textOne.id = "preview-tooltip-text";
@@ -370,12 +372,12 @@ export const setPrevSizes = (northWest, northEast, southWest) => {
 
     const btn = document.createElement("div");
     btn.id = "btn-wrapper-print";
+    btn.style.pointerEvents = "auto";
     previewDiv.appendChild(btn);
 
     routedMap.appendChild(previewDiv);
-
     const root = createRoot(btn as HTMLElement);
-    root.render(<PrintButton />);
+    root.render(<PrintButton hadlerStartPrint={() => hadlerStartPrint(map)} />);
   }
 };
 
@@ -427,11 +429,11 @@ export const getPolygonPoints = (map) => {
   }
 };
 
-export const addPreviewWrapper = (map) => {
+export const addPreviewWrapper = (map, handleStartPrint) => {
   const { northWest, northEast, southWest } = getPolygonPoints(map);
 
   if (northWest && northEast && southWest) {
-    setPrevSizes(northWest, northEast, southWest);
+    setPrevSizes(northWest, northEast, southWest, map, handleStartPrint);
   }
 };
 

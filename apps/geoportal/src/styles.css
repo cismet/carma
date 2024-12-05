@@ -35,15 +35,38 @@ html {
   flex-direction: column;
 }
 
+#preview {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 2px;
+  text-align: center;
+}
+
 .print-button-wrapper {
   margin-left: auto;
 }
 .rectangle-button {
-  background-color: #123c6a;
+  background-color: #212529;
   color: white;
-  opacity: 0.9;
+  opacity: 1;
   border-radius: 4px;
-  padding: 5px 10px;
+  padding: 4px 15px;
+  cursor: pointer;
+  margin-left: auto;
+  margin-left: auto;
+  text-align: center;
+  margin-top: 4px;
+  transition: background-color 0.3s ease, opacity 0.3s ease;
+}
+
+.rectangle-button:hover {
+  background-color: #2b3136;
+  color: white;
+  opacity: 1;
+  border-radius: 4px;
+  padding: 4px 15px;
   cursor: pointer;
   margin-left: auto;
   margin-left: auto;
