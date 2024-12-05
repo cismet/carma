@@ -24,15 +24,28 @@
 
 import { faPrint } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { useEffect } from "react";
+import { LoadingOutlined } from "@ant-design/icons";
+import { Spin } from "antd";
 
-// export default PrintButton;
-
-const PrintButton = ({ hadlerStartPrint }) => {
+const PrintButton = ({ hadlerStartPrint, loading }) => {
+  useEffect(() => {
+    console.log("xxx print loading", loading);
+  }, [loading]);
   return (
     <>
       <button className="rectangle-button" onClick={hadlerStartPrint}>
         {/* <FontAwesomeIcon icon={faPrint} className="text-xl cursor-pointer" /> */}
-        Drucken
+
+        {loading ? (
+          <Spin
+            indicator={<LoadingOutlined spin />}
+            className="mr-2 "
+            size="small"
+          />
+        ) : (
+          "Drucken"
+        )}
       </button>
     </>
   );
