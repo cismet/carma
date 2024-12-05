@@ -1373,9 +1373,6 @@ export const baseConfig = {
           784621.3180330665, 6660622.321170634, 794304.9340539448,
           6666636.959833823,
         ],
-        keywords: [
-          'carmaconf://infoBoxMapping:function createInfoBoxInfo(p) { const value = p.value === "-9999" ? "Kein Wert verfügbar!" : Math.round(p.value * 10) / 10 + " Dezibel (A)"; const info = { title: "Berechneter Dauerschallpegel: " + value, header: "Straßenverkehrslärm", }; return info; }',
-        ],
         icon: "umwelt/2016_Str-verkehrslärm_LNight",
       },
       {
