@@ -28,13 +28,23 @@ import { useEffect } from "react";
 import { LoadingOutlined } from "@ant-design/icons";
 import { Spin } from "antd";
 
-const PrintButton = ({ hadlerStartPrint, loading }) => {
+const PrintButton = ({
+  hadlerStartPrint,
+  loading,
+  width = "72px",
+  height = "34px",
+  fontSize = "14px",
+}) => {
   useEffect(() => {
     console.log("xxx print loading", loading);
-  }, [loading]);
+  }, [width, height]);
   return (
     <>
-      <button className="rectangle-button" onClick={hadlerStartPrint}>
+      <button
+        className="rectangle-button"
+        onClick={hadlerStartPrint}
+        style={{ fontSize, width, height }}
+      >
         {/* <FontAwesomeIcon icon={faPrint} className="text-xl cursor-pointer" /> */}
 
         {loading ? (
