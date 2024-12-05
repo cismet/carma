@@ -10,7 +10,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useDebounce } from "@uidotdev/usehooks";
-import { Button, Input, Modal, Spin } from "antd";
+import { Alert, Button, Input, Modal, Spin } from "antd";
 import Fuse from "fuse.js";
 import { useEffect, useState } from "react";
 import { InView } from "react-intersection-observer";
@@ -96,6 +96,7 @@ export const LibModal = ({
   >([]);
   const [testCategory, setTestCategory] = useState<any[]>([]);
   const [selectedNavItemIndex, setSelectedNavItemIndex] = useState(0);
+  const [error, setError] = useState("");
   const debouncedSearchTerm = useDebounce(searchValue, 300);
 
   // const checkDifferences = (url, configName) => {
@@ -336,6 +337,23 @@ export const LibModal = ({
       setOpen(true);
       const url = event.dataTransfer?.getData("URL");
 
+      const file = event?.dataTransfer?.files[0];
+
+      if (file) {
+        file
+          .text()
+          .then((text) => {
+            const result = parser.toJSON(text);
+            const test = getDataFromJson(result);
+            if (test) {
+              setTestCategory(test);
+            }
+          })
+          .catch((error) => {
+            setError(error.message);
+          });
+      }
+
       if (url) {
         fetch(url, { referrerPolicy: "no-referrer" })
           .then((response) => {
@@ -349,7 +367,7 @@ export const LibModal = ({
             }
           })
           .catch((error) => {
-            console.log("xxx error", error);
+            setError(error.message);
           });
       }
     };
@@ -433,6 +451,16 @@ export const LibModal = ({
                 search(value);
               }}
             />
+            {error && (
+              <Alert
+                message={error}
+                type="error"
+                closable
+                onClose={() => {
+                  setError("");
+                }}
+              />
+            )}
             <Button
               type="text"
               onClick={() => {
