@@ -68,7 +68,7 @@ export const useDrawRectangle = (printCb, printOffCb) => {
     );
   };
 
-  const addRectangle = (map, routedMapRef, scale, orientation) => {
+  const addRectangle = (map, routedMapRef, scale, orientation, loading) => {
     removeRectangle(map);
     drawRectanglePrev(
       routedMapRef,
@@ -89,7 +89,7 @@ export const useDrawRectangle = (printCb, printOffCb) => {
           removePreviewWrapper();
         }
       };
-      addRectangle(map, routedMapRef, scale, orientation);
+      addRectangle(map, routedMapRef, scale, orientation, loading);
 
       const handleEscKeyPress = (event) => {
         if (event.key === "Escape") {
@@ -101,7 +101,7 @@ export const useDrawRectangle = (printCb, printOffCb) => {
         removePreviewWrapper();
       };
       const zoomendHandler = () => {
-        addPreviewWrapper(map, handleStartPrint);
+        addPreviewWrapper(map, handleStartPrint, loading);
       };
 
       const movestartHandler = () => {
@@ -109,7 +109,7 @@ export const useDrawRectangle = (printCb, printOffCb) => {
       };
 
       const moveendtHandler = () => {
-        addPreviewWrapper(map, handleStartPrint);
+        addPreviewWrapper(map, handleStartPrint, loading);
       };
       window.addEventListener("keydown", handleEscKeyPress);
       // map.on("click", handleClick);
@@ -129,12 +129,22 @@ export const useDrawRectangle = (printCb, printOffCb) => {
         removeRectangle(map);
       };
     } else if (map && mode === "print" && lastOrientation === orientation) {
-      addRectangle(map, routedMapRef, scale, orientation);
+      addRectangle(map, routedMapRef, scale, orientation, loading);
       setlastOrientation(orientation);
     } else if (map && mode !== "print") {
       removeRectangle(map);
     }
-  }, [map, mode, orientation, layers, dpi, printName, scale, redrawPrev]);
+  }, [
+    map,
+    mode,
+    orientation,
+    layers,
+    dpi,
+    printName,
+    scale,
+    redrawPrev,
+    loading,
+  ]);
 
   useEffect(() => {
     const pathElement = document.querySelector(

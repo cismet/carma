@@ -255,8 +255,10 @@ export const drawRectanglePrev = (
   routedMapRef,
   scale,
   orientation,
-  handleStartPrint
+  handleStartPrint,
+  loading
 ) => {
+  console.log("xxx loading", loading);
   if (routedMapRef) {
     const map = routedMapRef.leafletMap.leafletElement;
     const latLngCenter = map.getCenter();
@@ -280,11 +282,11 @@ export const drawRectanglePrev = (
     const divUL = map.latLngToContainerPoint([ul[1], ul[0]]);
     const divLR = map.latLngToContainerPoint([lr[1], lr[0]]);
 
-    drawRectFromWithBounds(map, bounds, handleStartPrint);
+    drawRectFromWithBounds(map, bounds, handleStartPrint, loading);
   }
 };
 
-const drawRectFromWithBounds = (map, bounds, handleStartPrint) => {
+const drawRectFromWithBounds = (map, bounds, handleStartPrint, loading) => {
   const sw = bounds[0]; // Southwest
   const ne = bounds[1]; // Northeast
   const nw = [ne[0], sw[1]]; // Northwest
@@ -301,7 +303,7 @@ const drawRectFromWithBounds = (map, bounds, handleStartPrint) => {
 
   polygon.addTo(map);
   polygon.prevPrintId = "print-rect-id";
-  addPreviewWrapper(map, handleStartPrint);
+  addPreviewWrapper(map, handleStartPrint, loading);
 
   polygon.on("dragstart", () => {
     removePreviewWrapper();
@@ -332,7 +334,8 @@ export const setPrevSizes = (
   northEast,
   southWest,
   map,
-  hadlerStartPrint
+  hadlerStartPrint,
+  loading
 ) => {
   removePreviewWrapper();
   const routedMap = document.getElementById("routedMap");
@@ -380,7 +383,12 @@ export const setPrevSizes = (
 
     routedMap.appendChild(previewDiv);
     const root = createRoot(btn as HTMLElement);
-    root.render(<PrintButton hadlerStartPrint={() => hadlerStartPrint(map)} />);
+    root.render(
+      <PrintButton
+        hadlerStartPrint={() => hadlerStartPrint(map)}
+        loading={loading}
+      />
+    );
   }
 };
 
@@ -432,11 +440,18 @@ export const getPolygonPoints = (map) => {
   }
 };
 
-export const addPreviewWrapper = (map, handleStartPrint) => {
+export const addPreviewWrapper = (map, handleStartPrint, loading) => {
   const { northWest, northEast, southWest } = getPolygonPoints(map);
 
   if (northWest && northEast && southWest) {
-    setPrevSizes(northWest, northEast, southWest, map, handleStartPrint);
+    setPrevSizes(
+      northWest,
+      northEast,
+      southWest,
+      map,
+      handleStartPrint,
+      loading
+    );
   }
 };
 
