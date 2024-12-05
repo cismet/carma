@@ -339,9 +339,6 @@ export const setPrevSizes = (
 ) => {
   removePreviewWrapper();
   const routedMap = document.getElementById("routedMap");
-  const printHandler = (map) => {
-    hadlerStartPrint(map);
-  };
   if (routedMap) {
     const previewDiv = document.createElement("div");
     previewDiv.id = "preview";
@@ -382,6 +379,7 @@ export const setPrevSizes = (
     previewDiv.appendChild(btn);
 
     routedMap.appendChild(previewDiv);
+
     const root = createRoot(btn as HTMLElement);
     root.render(
       <PrintButton
