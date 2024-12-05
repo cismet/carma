@@ -337,14 +337,12 @@ export const LibModal = ({
       const url = event.dataTransfer?.getData("URL");
 
       if (url) {
-        fetch(url)
+        fetch(url, { referrerPolicy: "no-referrer" })
           .then((response) => {
-            // console.log("xxx response", response);
             return response.text();
           })
           .then((text) => {
             const result = parser.toJSON(text);
-            console.log("xxx", result);
             const test = getDataFromJson(result);
             if (test) {
               setTestCategory(test);
