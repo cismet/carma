@@ -534,7 +534,7 @@ export const getPrintBtnSizesPortrait = (width) => {
         height: "23px",
       };
 
-    case width >= 82 && width <= 164:
+    case width >= 81 && width <= 164:
       return {
         fontSize: "8px",
         width: "40px",
