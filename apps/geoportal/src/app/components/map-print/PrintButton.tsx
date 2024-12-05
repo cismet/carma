@@ -1,30 +1,3 @@
-// import { LoadingOutlined } from "@ant-design/icons";
-// import { Spin } from "antd";
-// const PrintButton = ({ hadlerStartPrint, loading }) => {
-//   return (
-//     <div>
-//       <button
-//         className="rectangle-button ml-auto"
-//         onClick={hadlerStartPrint}
-//         disabled={loading}
-//       >
-//         {loading ? (
-//           <Spin
-//             indicator={<LoadingOutlined spin />}
-//             className="mr-2 "
-//             size="small"
-//           />
-//         ) : (
-//           "Print"
-//         )}
-//       </button>
-//     </div>
-//   );
-// };
-
-import { faPrint } from "@fortawesome/free-solid-svg-icons";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { useEffect } from "react";
 import { LoadingOutlined } from "@ant-design/icons";
 import { Spin } from "antd";
 
@@ -35,15 +8,19 @@ const PrintButton = ({
   height = "34px",
   fontSize = "14px",
 }) => {
-  useEffect(() => {
-    console.log("xxx print loading", loading);
-  }, [width, height]);
+  // useEffect(() => {
+  // }, [width, height]);
   return (
     <>
       <button
         className="rectangle-button"
         onClick={hadlerStartPrint}
-        style={{ fontSize, width, height }}
+        style={{
+          fontSize,
+          width,
+          height,
+          opacity: width !== "0px" ? "1" : "0",
+        }}
       >
         {/* <FontAwesomeIcon icon={faPrint} className="text-xl cursor-pointer" /> */}
 

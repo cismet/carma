@@ -282,11 +282,17 @@ export const drawRectanglePrev = (
     const divUL = map.latLngToContainerPoint([ul[1], ul[0]]);
     const divLR = map.latLngToContainerPoint([lr[1], lr[0]]);
 
-    drawRectFromWithBounds(map, bounds, handleStartPrint, loading);
+    drawRectFromWithBounds(map, bounds, handleStartPrint, loading, orientation);
   }
 };
 
-const drawRectFromWithBounds = (map, bounds, handleStartPrint, loading) => {
+const drawRectFromWithBounds = (
+  map,
+  bounds,
+  handleStartPrint,
+  loading,
+  orientation
+) => {
   const sw = bounds[0]; // Southwest
   const ne = bounds[1]; // Northeast
   const nw = [ne[0], sw[1]]; // Northwest
@@ -303,7 +309,7 @@ const drawRectFromWithBounds = (map, bounds, handleStartPrint, loading) => {
 
   polygon.addTo(map);
   polygon.prevPrintId = "print-rect-id";
-  addPreviewWrapper(map, handleStartPrint, loading);
+  addPreviewWrapper(map, handleStartPrint, loading, orientation);
 
   polygon.on("dragstart", () => {
     removePreviewWrapper();
@@ -335,22 +341,28 @@ export const setPrevSizes = (
   southWest,
   map,
   hadlerStartPrint,
-  loading
+  loading,
+  orientation
 ) => {
   removePreviewWrapper();
+  console.log("xxx orientation", orientation);
   const routedMap = document.getElementById("routedMap");
   if (routedMap) {
+    const wrapWidth = northEast.x - northWest.x;
     const previewDiv = document.createElement("div");
     previewDiv.id = "preview";
     previewDiv.style.position = "absolute";
     previewDiv.style.zIndex = "1000";
     previewDiv.style.top = northWest.y + "px";
     previewDiv.style.left = northWest.x + "px";
-    previewDiv.style.width = northEast.x - northWest.x + "px";
+    previewDiv.style.width = wrapWidth + "px";
     previewDiv.style.height = southWest.y - northWest.y + "px";
     previewDiv.style.pointerEvents = "none";
     previewDiv.style.opacity = "1";
-    previewDiv.style.fontSize = getFontSize(northEast.x - northWest.x);
+    previewDiv.style.fontSize =
+      orientation === "portrait"
+        ? getFontSizeForPortrait(wrapWidth)
+        : getFontSizeForLandscape(wrapWidth);
 
     const textOne = document.createElement("div");
     textOne.id = "preview-tooltip-text";
@@ -380,11 +392,23 @@ export const setPrevSizes = (
 
     routedMap.appendChild(previewDiv);
 
+    const { width, height, fontSize } = getPrintBtnSizes(
+      northEast.x - northWest.x
+    );
+    console.log(
+      "xxx btn sizes width, height, fontSize",
+      width,
+      height,
+      fontSize
+    );
     const root = createRoot(btn as HTMLElement);
     root.render(
       <PrintButton
         hadlerStartPrint={() => hadlerStartPrint(map)}
         loading={loading}
+        width={width}
+        height={height}
+        fontSize={fontSize}
       />
     );
   }
@@ -438,7 +462,12 @@ export const getPolygonPoints = (map) => {
   }
 };
 
-export const addPreviewWrapper = (map, handleStartPrint, loading) => {
+export const addPreviewWrapper = (
+  map,
+  handleStartPrint,
+  loading,
+  orientation
+) => {
   const { northWest, northEast, southWest } = getPolygonPoints(map);
 
   if (northWest && northEast && southWest) {
@@ -448,7 +477,8 @@ export const addPreviewWrapper = (map, handleStartPrint, loading) => {
       southWest,
       map,
       handleStartPrint,
-      loading
+      loading,
+      orientation
     );
   }
 };
@@ -463,21 +493,66 @@ export const removePreviewWrapper = () => {
   }
 };
 
-export const getFontSize = (width) => {
+export const getFontSizeForPortrait = (width) => {
   switch (true) {
-    case width >= 154 && width <= 308:
+    case width >= 154 && width <= 278:
       return "16px";
 
     case width >= 103 && width < 154:
       return "10px";
 
-    case width >= 61 && width < 103:
+    case width >= 80 && width < 103:
       return "7px";
+
+    case width < 80:
+      return "0px";
+
+    default:
+      return "24px";
+  }
+};
+
+export const getFontSizeForLandscape = (width) => {
+  switch (true) {
+    case width >= 118 && width < 236:
+      return "7px";
+
+    case width >= 236 && width < 474:
+      return "16px";
+
+    case width >= 474:
+      return "24px";
 
     case width <= 60:
       return "0px";
 
     default:
-      return "24px";
+      return "0px";
+  }
+};
+
+export const getPrintBtnSizes = (width) => {
+  console.log("xxx width print wrapper", width);
+  switch (true) {
+    case width >= 102 && width <= 204:
+      return {
+        fontSize: "11px",
+        width: "52px",
+        height: "23px",
+      };
+
+    case width < 100:
+      return {
+        fontSize: "0px",
+        width: "0px",
+        height: "0px",
+      };
+
+    default:
+      return {
+        fontSize: "14px",
+        width: "72px",
+        height: "34px",
+      };
   }
 };

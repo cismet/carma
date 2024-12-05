@@ -19,13 +19,10 @@ import proj4 from "proj4";
 import { getBackgroundLayer, getLayers } from "../store/slices/mapping";
 import {
   addPreviewWrapper,
-  createTooltipWrapper,
   drawRectanglePrev,
-  getPolygonPoints,
   getPrintLayers,
   removePreviewWrapper,
   deleteRectangleById as removeRectangle,
-  setPrevSizes,
 } from "../helper/print";
 // import PrintButton from "../components/map-print/PrintButton";
 
@@ -101,7 +98,7 @@ export const useDrawRectangle = (printCb, printOffCb) => {
         removePreviewWrapper();
       };
       const zoomendHandler = () => {
-        addPreviewWrapper(map, handleStartPrint, loading);
+        addPreviewWrapper(map, handleStartPrint, loading, orientation);
       };
 
       const movestartHandler = () => {
@@ -109,17 +106,17 @@ export const useDrawRectangle = (printCb, printOffCb) => {
       };
 
       const moveendtHandler = () => {
-        addPreviewWrapper(map, handleStartPrint, loading);
+        addPreviewWrapper(map, handleStartPrint, loading, orientation);
       };
       window.addEventListener("keydown", handleEscKeyPress);
-      map.on("click", handleClick);
+      // map.on("click", handleClick);
       map.on("zoomestart", zoomstartHandler);
       map.on("zoomend", zoomendHandler);
       map.on("movestart", movestartHandler);
       map.on("moveend", moveendtHandler);
 
       return () => {
-        map.off("click", handleClick);
+        // map.off("click", handleClick);
         map.off("dblclick", handleClick);
         map.off("zoomend", zoomendHandler);
         map.off("zoomestart", zoomstartHandler);
