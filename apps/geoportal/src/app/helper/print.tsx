@@ -318,9 +318,9 @@ const drawRectFromWithBounds = (
     map.fitBounds(newBounds);
   });
 
-  polygon.on("dblclick", () => {
-    handleStartPrint(map);
-  });
+  // polygon.on("dblclick", () => {
+  //   handleStartPrint(map);
+  // });
 };
 
 export const deleteRectangleById = (map) => {
