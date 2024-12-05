@@ -341,66 +341,19 @@ export const setPrevSizes = (
   map,
   hadlerStartPrint,
   loading,
-  orientation,
-  eventName = "none"
+  orientation
 ) => {
   removePreviewWrapper();
-  const routedMap = document.getElementById("routedMap");
   const previewDiv = document.getElementById("preview");
   if (!previewDiv) {
-    const wrapWidth = northEast.x - northWest.x;
-    const previewDiv = document.createElement("div");
-    previewDiv.id = "preview";
-    previewDiv.style.top = northWest.y + "px";
-    previewDiv.style.left = northWest.x + "px";
-    previewDiv.style.width = wrapWidth + "px";
-    previewDiv.style.height = southWest.y - northWest.y + "px";
-    previewDiv.style.pointerEvents = "none";
-    previewDiv.style.fontSize =
-      orientation === "portrait"
-        ? getFontSizeForPortrait(wrapWidth)
-        : getFontSizeForLandscape(wrapWidth);
-
-    const textOne = document.createElement("div");
-    textOne.id = "preview-tooltip-text";
-    textOne.className = "print-tooltip-text";
-    textOne.textContent = "Verschieben durch Ziehen mit Maus bzw. Finger";
-    previewDiv.appendChild(textOne);
-
-    const textTwo = document.createElement("div");
-    textTwo.id = "preview-tooltip-text";
-    textTwo.className = "print-tooltip-text";
-    // textTwo.className = "print-tooltip-text";
-    // previewDiv.appendChild(textTwo);
-
-    const textThree = document.createElement("div");
-    textThree.className = "print-tooltip-text";
-    textThree.id = "preview-tooltip-text";
-
-    textThree.textContent = "Abbruch mit <esc>";
-    previewDiv.appendChild(textThree);
-
-    const btn = document.createElement("div");
-    btn.id = "btn-wrapper-print";
-    btn.style.pointerEvents = "auto";
-    previewDiv.appendChild(btn);
-
-    routedMap.appendChild(previewDiv);
-
-    const { width, height, fontSize } =
-      orientation === "portrait"
-        ? getPrintBtnSizesPortrait(wrapWidth)
-        : getPrintBtnSizesLandscape(wrapWidth);
-
-    const root = createRoot(btn as HTMLElement);
-    root.render(
-      <PrintButton
-        hadlerStartPrint={() => hadlerStartPrint(map)}
-        loading={loading}
-        width={width}
-        height={height}
-        fontSize={fontSize}
-      />
+    createPreviewWrapper(
+      northWest,
+      northEast,
+      southWest,
+      map,
+      hadlerStartPrint,
+      loading,
+      orientation
     );
   }
 };
@@ -453,15 +406,76 @@ export const getPolygonPoints = (map) => {
   }
 };
 
+const createPreviewWrapper = (
+  northWest,
+  northEast,
+  southWest,
+  map,
+  hadlerStartPrint,
+  loading,
+  orientation
+) => {
+  const routedMap = document.getElementById("routedMap");
+
+  const wrapWidth = northEast.x - northWest.x;
+  const previewDiv = document.createElement("div");
+  previewDiv.id = "preview";
+  previewDiv.style.top = northWest.y + "px";
+  previewDiv.style.left = northWest.x + "px";
+  previewDiv.style.width = wrapWidth + "px";
+  previewDiv.style.height = southWest.y - northWest.y + "px";
+  previewDiv.style.fontSize =
+    orientation === "portrait"
+      ? getFontSizeForPortrait(wrapWidth)
+      : getFontSizeForLandscape(wrapWidth);
+
+  const textOne = document.createElement("div");
+  textOne.id = "preview-tooltip-text";
+  textOne.className = "print-tooltip-text";
+  textOne.textContent = "Verschieben durch Ziehen mit Maus bzw. Finger";
+  previewDiv.appendChild(textOne);
+
+  const textTwo = document.createElement("div");
+  textTwo.id = "preview-tooltip-text";
+  textTwo.className = "print-tooltip-text";
+
+  const textThree = document.createElement("div");
+  textThree.className = "print-tooltip-text";
+  textThree.id = "preview-tooltip-text";
+
+  textThree.textContent = "Abbruch mit <esc>";
+  previewDiv.appendChild(textThree);
+
+  const btn = document.createElement("div");
+  btn.id = "btn-wrapper-print";
+  btn.style.pointerEvents = "auto";
+  previewDiv.appendChild(btn);
+
+  routedMap.appendChild(previewDiv);
+
+  const { width, height, fontSize } =
+    orientation === "portrait"
+      ? getPrintBtnSizesPortrait(wrapWidth)
+      : getPrintBtnSizesLandscape(wrapWidth);
+
+  const root = createRoot(btn as HTMLElement);
+  root.render(
+    <PrintButton
+      hadlerStartPrint={() => hadlerStartPrint(map)}
+      loading={loading}
+      width={width}
+      height={height}
+      fontSize={fontSize}
+    />
+  );
+};
+
 export const addPreviewWrapper = (
   map,
   handleStartPrint,
   loading,
-  orientation,
-  eventName = "none"
+  orientation
 ) => {
-  console.log("xxx add prev", eventName);
-
   const { northWest, northEast, southWest } = getPolygonPoints(map);
 
   if (northWest && northEast && southWest) {
@@ -472,8 +486,7 @@ export const addPreviewWrapper = (
       map,
       handleStartPrint,
       loading,
-      orientation,
-      eventName
+      orientation
     );
   }
 };
@@ -566,13 +579,6 @@ export const getPrintBtnSizesLandscape = (width) => {
         width: "52px",
         height: "23px",
       };
-
-    // case width >= 111 && width <= 164:
-    //   return {
-    //     fontSize: "8px",
-    //     width: "40px",
-    //     height: "23px",
-    //   };
 
     case width < 112:
       return {
