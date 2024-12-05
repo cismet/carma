@@ -258,7 +258,6 @@ export const drawRectanglePrev = (
   handleStartPrint,
   loading
 ) => {
-  console.log("xxx loading", loading);
   if (routedMapRef) {
     const map = routedMapRef.leafletMap.leafletElement;
     const latLngCenter = map.getCenter();
@@ -345,7 +344,6 @@ export const setPrevSizes = (
   orientation
 ) => {
   removePreviewWrapper();
-  console.log("xxx orientation", orientation);
   const routedMap = document.getElementById("routedMap");
   if (routedMap) {
     const wrapWidth = northEast.x - northWest.x;
@@ -392,15 +390,11 @@ export const setPrevSizes = (
 
     routedMap.appendChild(previewDiv);
 
-    const { width, height, fontSize } = getPrintBtnSizes(
-      northEast.x - northWest.x
-    );
-    console.log(
-      "xxx btn sizes width, height, fontSize",
-      width,
-      height,
-      fontSize
-    );
+    const { width, height, fontSize } =
+      orientation === "portrait"
+        ? getPrintBtnSizesPortrait(wrapWidth)
+        : getPrintBtnSizesLandscape(wrapWidth);
+
     const root = createRoot(btn as HTMLElement);
     root.render(
       <PrintButton
@@ -531,8 +525,7 @@ export const getFontSizeForLandscape = (width) => {
   }
 };
 
-export const getPrintBtnSizes = (width) => {
-  console.log("xxx width print wrapper", width);
+export const getPrintBtnSizesPortrait = (width) => {
   switch (true) {
     case width >= 102 && width <= 204:
       return {
@@ -541,7 +534,46 @@ export const getPrintBtnSizes = (width) => {
         height: "23px",
       };
 
-    case width < 100:
+    case width >= 82 && width <= 164:
+      return {
+        fontSize: "8px",
+        width: "40px",
+        height: "23px",
+      };
+
+    case width < 80:
+      return {
+        fontSize: "0px",
+        width: "0px",
+        height: "0px",
+      };
+
+    default:
+      return {
+        fontSize: "14px",
+        width: "72px",
+        height: "34px",
+      };
+  }
+};
+
+export const getPrintBtnSizesLandscape = (width) => {
+  switch (true) {
+    case width >= 112 && width <= 222:
+      return {
+        fontSize: "11px",
+        width: "52px",
+        height: "23px",
+      };
+
+    // case width >= 111 && width <= 164:
+    //   return {
+    //     fontSize: "8px",
+    //     width: "40px",
+    //     height: "23px",
+    //   };
+
+    case width < 112:
       return {
         fontSize: "0px",
         width: "0px",
