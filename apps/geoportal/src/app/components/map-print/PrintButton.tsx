@@ -22,12 +22,26 @@
 //   );
 // };
 
+import { faPrint } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+
 // export default PrintButton;
 
-const PrintButton = () => {
+const PrintButton = ({ hadlerStartPrint }) => {
   return (
     <div>
-      <button className="rectangle-button ml-auto">Print</button>
+      <button
+        className="rectangle-button ml-auto bg-black bg-opacity-90"
+        onClick={hadlerStartPrint}
+        style={
+          {
+            // background: "rgba(0, 0, 0, 0.9)",
+            // cursor: "pointer",
+          }
+        }
+      >
+        <FontAwesomeIcon icon={faPrint} className="text-xl cursor-pointer" />
+      </button>
     </div>
   );
 };
