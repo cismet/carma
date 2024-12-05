@@ -7,7 +7,6 @@ import { RootState } from "..";
 export enum UIMode {
   DEFAULT = "default",
   FEATURE_INFO = "featureInfo",
-  MEASUREMENT = "measurement",
 }
 
 export interface UIState {
@@ -17,8 +16,6 @@ export interface UIState {
   allowChanges: boolean;
   showInfo: boolean;
   showInfoText: boolean;
-  showLayerButtons: boolean;
-  showLayerHideButtons: boolean;
   showResourceModal: boolean;
 }
 
@@ -29,8 +26,6 @@ const initialState: UIState = {
   allowChanges: true,
   showInfo: true,
   showInfoText: true,
-  showLayerButtons: true,
-  showLayerHideButtons: false,
   showResourceModal: false,
 };
 
@@ -65,12 +60,6 @@ const slice = createSlice({
     setUIShowInfoText(state, action) {
       state.showInfoText = action.payload;
     },
-    setUIShowLayerButtons(state, action: PayloadAction<boolean>) {
-      state.showLayerButtons = action.payload;
-    },
-    setUIShowLayerHideButtons(state, action: PayloadAction<boolean>) {
-      state.showLayerHideButtons = action.payload;
-    },
     setShowResourceModal(state, action: PayloadAction<boolean>) {
       state.showResourceModal = action.payload;
     },
@@ -86,8 +75,6 @@ export const {
   setUIAllowChanges,
   setUIShowInfo,
   setUIShowInfoText,
-  setUIShowLayerButtons,
-  setUIShowLayerHideButtons,
   setShowResourceModal,
 } = slice.actions;
 
@@ -98,10 +85,6 @@ export const getUIAllowChanges = (state: RootState) => state.ui.allowChanges;
 export const getUIActiveTabKey = (state: RootState) => state.ui.activeTabKey;
 export const getUIShowInfo = (state: RootState) => state.ui.showInfo;
 export const getUIShowInfoText = (state: RootState) => state.ui.showInfoText;
-export const getUIShowLayerButtons = (state: RootState) =>
-  state.ui.showLayerButtons;
-export const getUIShowLayerHideButtons = (state: RootState) =>
-  state.ui.showLayerHideButtons;
 export const getUIShowResourceModal = (state: RootState) =>
   state.ui.showResourceModal;
 

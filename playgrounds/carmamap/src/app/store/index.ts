@@ -59,8 +59,6 @@ const uiConfig = {
   storage: localForage,
   whitelist: [
     "allowUiChanges",
-    "showLayerHideButtons",
-    "showLayerButtons",
     "showInfo",
     "showInfoText",
   ],
@@ -71,12 +69,10 @@ const mappingConfig = {
   storage: localForage,
   whitelist: [
     "layers",
-    "savedLayerConfigs",
     "selectedMapLayer",
     "backgroundLayer",
     "showFullscreenButton",
     "showLocatorButton",
-    "showMeasurementButton",
     "showHamburgerMenu",
   ],
 };

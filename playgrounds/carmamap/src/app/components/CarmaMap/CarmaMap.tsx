@@ -91,7 +91,9 @@ import {
   UIMode,
 } from "../../store/slices/ui.ts";
 
-import { createCismapLayers, onClickTopicMap } from "./topicmap.utils.ts";
+import { onClickTopicMap } from "./topicmap.utils.ts";
+import { createCismapLayers } from "./layer.utils.ts";
+
 
 import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config.ts";
 import { layerMap } from "../../config/index.ts";

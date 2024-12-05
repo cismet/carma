@@ -12,7 +12,7 @@ import {
 import { RootState } from "..";
 import { layerMap } from "../../config";
 
-const initialState: MappingState = {
+const initialState: Partial<MappingState> = {
   layers: [],
   savedLayerConfigs: [],
   selectedLayerIndex: SELECTED_LAYER_INDEX.NO_SELECTION,
@@ -54,7 +54,6 @@ const initialState: MappingState = {
   showFullscreenButton: true,
   showHamburgerMenu: false,
   showLocatorButton: true,
-  showMeasurementButton: true,
 
   focusMode: false,
 
@@ -203,9 +202,6 @@ const slice = createSlice({
     setShowLocatorButton(state, action: PayloadAction<boolean>) {
       state.showLocatorButton = action.payload;
     },
-    setShowMeasurementButton(state, action: PayloadAction<boolean>) {
-      state.showMeasurementButton = action.payload;
-    },
 
     setFocusMode(state, action: PayloadAction<boolean>) {
       state.focusMode = action.payload;
@@ -243,7 +239,6 @@ export const {
   setShowRightScrollButton,
   setShowFullscreenButton,
   setShowLocatorButton,
-  setShowMeasurementButton,
   setShowHamburgerMenu,
 
   setFocusMode,
@@ -279,15 +274,8 @@ export const getShowFullscreenButton = (state: RootState) =>
   state.mapping.showFullscreenButton;
 export const getShowHamburgerMenu = (state: RootState) =>
   state.mapping.showHamburgerMenu;
-export const getShowLeftScrollButton = (state: RootState) =>
-  state.mapping.showLeftScrollButton;
 export const getShowLocatorButton = (state: RootState) =>
   state.mapping.showLocatorButton;
-export const getShowMeasurementButton = (state: RootState) =>
-  state.mapping.showMeasurementButton;
-export const getShowRightScrollButton = (state: RootState) =>
-  state.mapping.showRightScrollButton;
-export const getStartDrawing = (state: RootState) => state.mapping.startDrawing;
 
 export const getLayerState = createSelector(
   [getLayers, getBackgroundLayer, getSelectedMapLayer, getSelectedLayerIndex],

@@ -31,13 +31,10 @@ import {
   setShowFullscreenButton,
   setShowHamburgerMenu,
   setShowLocatorButton,
-  setShowMeasurementButton,
 } from "./store/slices/mapping";
 import {
   getUIAllowChanges,
   setUIAllowChanges,
-  setUIShowLayerButtons,
-  setUIShowLayerHideButtons,
 } from "./store/slices/ui";
 
 import { CESIUM_CONFIG } from "./config/app.config";
@@ -79,48 +76,20 @@ function App({ published }: { published?: boolean }) {
       dispatch(setLayers(newConfig.layers));
       dispatch(setBackgroundLayer(newConfig.backgroundLayer));
       if (newConfig.settings) {
-        dispatch(setUIShowLayerButtons(newConfig.settings.showLayerButtons));
         dispatch(setShowFullscreenButton(newConfig.settings.showFullscreen));
         dispatch(setShowLocatorButton(newConfig.settings.showLocator));
-        dispatch(setShowMeasurementButton(newConfig.settings.showMeasurement));
         dispatch(setShowHamburgerMenu(newConfig.settings.showHamburgerMenu));
 
         if (newConfig.settings.showLayerHideButtons || published) {
           dispatch(setUIAllowChanges(false));
-          dispatch(setUIShowLayerHideButtons(true));
         } else {
           dispatch(setUIAllowChanges(true));
-          dispatch(setUIShowLayerHideButtons(false));
         }
       }
       searchParams.delete("data");
       setSearchParams(searchParams);
     }
   }, [searchParams]);
-
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.shiftKey) {
-        dispatch(setUIShowLayerHideButtons(true));
-      }
-    };
-
-    const onKeyUp = (e: KeyboardEvent) => {
-      if (allowUiChanges) {
-        dispatch(setUIShowLayerHideButtons(false));
-      }
-    };
-
-    document.addEventListener("keydown", onKeyDown);
-    document.addEventListener("keyup", onKeyUp);
-    window.addEventListener("blur", onKeyUp);
-
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-      document.removeEventListener("keyup", onKeyUp);
-      window.removeEventListener("blur", onKeyUp);
-    };
-  }, [allowUiChanges]);
 
   const content = (
     <CarmaMapContextProvider
