@@ -46,7 +46,7 @@ html {
 }
 
 .print-tooltip-text {
-  margin-top: 0.7rem;
+  margin-bottom: 1%;
 }
 
 .print-button-wrapper {
@@ -63,7 +63,6 @@ html {
   /* width: 72px;
   height: 34px; */
   padding: 2px;
-  width: 30;
   /* font-size: 14px; */
   cursor: pointer;
   margin-left: auto;
