@@ -112,14 +112,14 @@ export const useDrawRectangle = (printCb, printOffCb) => {
         addPreviewWrapper(map, handleStartPrint, loading);
       };
       window.addEventListener("keydown", handleEscKeyPress);
-      // map.on("click", handleClick);
+      map.on("click", handleClick);
       map.on("zoomestart", zoomstartHandler);
       map.on("zoomend", zoomendHandler);
       map.on("movestart", movestartHandler);
       map.on("moveend", moveendtHandler);
 
       return () => {
-        // map.off("click", handleClick);
+        map.off("click", handleClick);
         map.off("dblclick", handleClick);
         map.off("zoomend", zoomendHandler);
         map.off("zoomestart", zoomstartHandler);

@@ -40,7 +40,7 @@ const PrintButton = ({ hadlerStartPrint, loading }) => {
         {loading ? (
           <Spin
             indicator={<LoadingOutlined spin />}
-            className="mr-2 "
+            className="mr-2 text-white"
             size="small"
           />
         ) : (
