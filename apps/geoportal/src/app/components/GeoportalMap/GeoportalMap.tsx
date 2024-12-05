@@ -715,9 +715,7 @@ export const GeoportalMap = () => {
                             border-radius: 50%;
                             display: flex;
                             align-items: center;
-                            justify-content: center;
-                   
-                     
+                            justify-content: center;      
                           ">
 
                           
@@ -727,7 +725,7 @@ export const GeoportalMap = () => {
                               position: absolute;
                               width: 6px;
                               height: 6px;
-                              background-color: green;
+                              background-color: yellow;
 
                               border-radius: 50%;
 
