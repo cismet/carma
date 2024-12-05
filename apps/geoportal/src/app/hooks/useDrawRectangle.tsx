@@ -79,7 +79,6 @@ export const useDrawRectangle = (printCb, printOffCb) => {
   useEffect(() => {
     if (map && mode === "print") {
       const handleClick = (e) => {
-        console.log("xxx e.originalEvent.target", e.originalEvent.target);
         const ifPolygon = e.originalEvent.target?.classList.contains(
           "leaflet-path-draggable"
         );
@@ -101,9 +100,9 @@ export const useDrawRectangle = (printCb, printOffCb) => {
       // const zoomstartHandler = () => {
       //   removePreviewWrapper();
       // };
-      // const zoomendHandler = () => {
-      //   addPreviewWrapper(map, handleStartPrint, loading, orientation);
-      // };
+      const zoomendHandler = () => {
+        addPreviewWrapper(map, handleStartPrint, loading, orientation, "zoom");
+      };
 
       const movestartHandler = () => {
         removePreviewWrapper();
@@ -115,7 +114,7 @@ export const useDrawRectangle = (printCb, printOffCb) => {
       window.addEventListener("keydown", handleEscKeyPress);
       map.on("click", handleClick);
       // map.on("zoomestart", zoomstartHandler);
-      // map.on("zoomend", zoomendHandler);
+      map.on("zoom", zoomendHandler);
       map.on("movestart", movestartHandler);
       map.on("moveend", moveendtHandler);
 

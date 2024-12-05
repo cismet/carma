@@ -341,22 +341,21 @@ export const setPrevSizes = (
   map,
   hadlerStartPrint,
   loading,
-  orientation
+  orientation,
+  eventName = "none"
 ) => {
   removePreviewWrapper();
   const routedMap = document.getElementById("routedMap");
-  if (routedMap) {
+  const previewDiv = document.getElementById("preview");
+  if (!previewDiv) {
     const wrapWidth = northEast.x - northWest.x;
     const previewDiv = document.createElement("div");
     previewDiv.id = "preview";
-    previewDiv.style.position = "absolute";
-    previewDiv.style.zIndex = "1000";
     previewDiv.style.top = northWest.y + "px";
     previewDiv.style.left = northWest.x + "px";
     previewDiv.style.width = wrapWidth + "px";
     previewDiv.style.height = southWest.y - northWest.y + "px";
     previewDiv.style.pointerEvents = "none";
-    previewDiv.style.opacity = "1";
     previewDiv.style.fontSize =
       orientation === "portrait"
         ? getFontSizeForPortrait(wrapWidth)
@@ -371,8 +370,6 @@ export const setPrevSizes = (
     const textTwo = document.createElement("div");
     textTwo.id = "preview-tooltip-text";
     textTwo.className = "print-tooltip-text";
-
-    // textTwo.textContent = "Finger Druck starten mit Doppelklick";
     // textTwo.className = "print-tooltip-text";
     // previewDiv.appendChild(textTwo);
 
@@ -460,8 +457,11 @@ export const addPreviewWrapper = (
   map,
   handleStartPrint,
   loading,
-  orientation
+  orientation,
+  eventName = "none"
 ) => {
+  console.log("xxx add prev", eventName);
+
   const { northWest, northEast, southWest } = getPolygonPoints(map);
 
   if (northWest && northEast && southWest) {
@@ -472,7 +472,8 @@ export const addPreviewWrapper = (
       map,
       handleStartPrint,
       loading,
-      orientation
+      orientation,
+      eventName
     );
   }
 };
