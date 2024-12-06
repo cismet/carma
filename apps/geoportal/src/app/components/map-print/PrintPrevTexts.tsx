@@ -12,11 +12,12 @@ const PrintPrevTexts = ({ scale, dpi, format, hide = false }) => {
             display: "flex",
             flexDirection: "column",
             justifyContent: "center",
-            gap: "2rem",
+            margin: "20% auto",
+            gap: "1rem",
           }}
         >
           <div className="print-tooltip-text">Format: {format}</div>
-          <div className="print-tooltip-text">1:{scale}</div>
+          <div className="print-tooltip-text">Maßstab: 1:{scale}</div>
           <div className="print-tooltip-text">Auflösung:{dpi}</div>
         </div>
       )}
