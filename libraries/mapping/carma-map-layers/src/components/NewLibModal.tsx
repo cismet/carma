@@ -91,6 +91,7 @@ export const NewLibModal = ({
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
   const [selectedNavItemIndex, setSelectedNavItemIndex] = useState(0);
   const [testCategory, setTestCategory] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
   const debouncedSearchTerm = useDebounce(searchValue, 300);
 
   const search = (value: string) => {
@@ -128,14 +129,22 @@ export const NewLibModal = ({
         category.layers = newLayers;
       });
 
-      setLayers(resultsWithCategories);
+      // setLayers(resultsWithCategories);
+
+      setSearchResults(resultsWithCategories);
     } else {
       setLayers(allLayers);
     }
     setIsSearching(false);
   };
 
-  const flattenedLayers = allLayers.flatMap((obj) => obj.layers);
+  const flattenedLayers = [
+    ...customCategories?.flatMap((obj) => obj.layers),
+    ...allLayers.flatMap((obj) => obj.layers),
+    ...partialTwins.flatMap((obj) => obj.layers),
+  ];
+
+  console.log("xxx", flattenedLayers);
   const fuse = new Fuse(flattenedLayers, {
     keys: [
       { name: "title", weight: 2 },
@@ -672,6 +681,61 @@ export const NewLibModal = ({
                       )}
                     </div>
                   ))
+                : selectedNavItemIndex === 5
+                ? searchResults.map((category, i) => (
+                    <div key={category.Title}>
+                      {category.layers.length > 0 && (
+                        <InView
+                          rootMargin="20px 0px 20px 0px"
+                          as="div"
+                          onChange={(inView, entry) => {
+                            if (inView) {
+                              setInViewCategory(entry.target.id);
+
+                              setAllCategoriesInView((prev) => {
+                                return [...prev, entry.target.id];
+                              });
+                            } else {
+                              const updatedCategoriesInView =
+                                allCategoriesInView.filter(
+                                  (item) => item !== entry.target.id
+                                );
+                              setAllCategoriesInView(updatedCategoriesInView);
+                              if (inViewCategory === entry.target.id && i > 0) {
+                                for (let j = i - 1; j >= 0; j--) {
+                                  if (layers[j].layers.length > 0) {
+                                    setInViewCategory(layers[j].Title);
+                                  }
+                                }
+                              }
+                            }
+                          }}
+                          id={category?.Title}
+                          key={category?.Title}
+                        >
+                          <p className="mb-4 text-2xl font-semibold">
+                            {category?.Title}
+                          </p>
+                          <div className="grid xl:grid-cols-7 grid-flow-dense lg:grid-cols-5 sm:grid-cols-4 gap-8 mb-4">
+                            {category?.layers?.map((layer: any, i: number) => (
+                              <LayerItem
+                                setAdditionalLayers={setAdditionalLayers}
+                                layer={layer}
+                                activeLayers={activeLayers}
+                                favorites={favorites}
+                                addFavorite={addFavorite}
+                                removeFavorite={removeFavorite}
+                                selectedLayerId={selectedLayerId}
+                                setSelectedLayerId={setSelectedLayerId}
+                                setPreview={setPreview}
+                                key={`${category.Title}_layer_${i}_${layer.id}`}
+                              />
+                            ))}
+                          </div>
+                        </InView>
+                      )}
+                    </div>
+                  ))
                 : null}
               {layers &&
                 getNumberOfLayers(layers) === 0 &&
@@ -682,7 +746,8 @@ export const NewLibModal = ({
                 )}
               {selectedNavItemIndex !== 2 &&
                 selectedNavItemIndex !== 3 &&
-                selectedNavItemIndex !== 0 && (
+                selectedNavItemIndex !== 0 &&
+                selectedNavItemIndex !== 5 && (
                   <h1 className="text-2xl font-normal">
                     Kategorie noch nicht implementiert
                   </h1>
