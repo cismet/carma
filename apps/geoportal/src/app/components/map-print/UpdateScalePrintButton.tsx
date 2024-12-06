@@ -14,7 +14,6 @@ const UpdateScalePrintButton = ({
           className="text-xl cursor-pointer"
           style={{
             fontSize,
-            marginLeft: "auto",
           }}
           onClick={updateScaleHandler}
         />
