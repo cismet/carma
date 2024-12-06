@@ -8,6 +8,7 @@ import PrintButton from "../components/map-print/PrintButton";
 import PrintPrevTexts from "../components/map-print/PrintPrevTexts";
 import ClosePrintButton from "../components/map-print/ClosePrintButton";
 import UpdateScalePrintButton from "../components/map-print/UpdateScalePrintButton";
+import { constant } from "lodash";
 let reactRoot = null;
 interface DraggablePolygonOptions extends L.PolylineOptions {
   draggable?: boolean;
@@ -478,25 +479,31 @@ const createPreviewWrapperItems = (
     orientation === "portrait"
       ? getPrintBtnSizesPortrait(wrapWidth)
       : getPrintBtnSizesLandscape(wrapWidth);
-
+  const isSmallMode =
+    orientation === "portrait"
+      ? getSmallSizePortrait(wrapWidth)
+      : getSmallSizeLandscape(wrapWidth);
   reactRoot = createRoot(btn as HTMLElement);
   reactRoot.render(
     <>
       <ClosePrintButton
         closePrintMode={() => console.log("xxx close")}
         hide={hideContent}
+        smallMode={isSmallMode}
       />
       <PrintPrevTexts
         scale={scale}
         dpi={dpi}
         format={orientation}
         hide={hideContent}
+        smallMode={isSmallMode}
       />
       <div className="flex items-center justify-end gap-4">
         <UpdateScalePrintButton
           // fontSize={fontSize}
           hide={hideContent}
           updateScaleHandler={console.log("xxx close")}
+          smallMode={isSmallMode}
         />
         <PrintButton
           hadlerStartPrint={() => hadlerStartPrint(map)}
@@ -505,6 +512,7 @@ const createPreviewWrapperItems = (
           height={height}
           fontSize={fontSize}
           hide={hideContent}
+          smallMode={isSmallMode}
         />
       </div>
     </>
@@ -589,6 +597,7 @@ export const getFontSizeForLandscape = (width) => {
 };
 
 export const getPrintBtnSizesPortrait = (width) => {
+  console.log("xxx portarit width", width);
   switch (true) {
     case width >= 102 && width <= 204:
       return {
@@ -643,4 +652,12 @@ export const getPrintBtnSizesLandscape = (width) => {
         height: "34px",
       };
   }
+};
+
+const getSmallSizePortrait = (wrapWidth) => {
+  return wrapWidth <= 153 ? true : false;
+};
+
+const getSmallSizeLandscape = (wrapWidth) => {
+  return wrapWidth <= 278 ? true : false;
 };

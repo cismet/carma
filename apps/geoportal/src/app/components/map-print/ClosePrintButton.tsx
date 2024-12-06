@@ -5,10 +5,11 @@ const ClosePrintButton = ({
   closePrintMode,
   fontSize = "24px",
   hide = false,
+  smallMode = false,
 }) => {
   return (
     <>
-      {!hide && (
+      {!hide && !smallMode && (
         <FontAwesomeIcon
           icon={faTimes}
           className="text-xl cursor-pointer"

@@ -5,6 +5,7 @@ const UpdateScalePrintButton = ({
   updateScaleHandler,
   fontSize = "24px",
   hide = false,
+  smallMode = false,
 }) => {
   return (
     <>
