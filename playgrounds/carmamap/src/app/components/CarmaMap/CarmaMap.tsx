@@ -589,7 +589,7 @@ export const CarmaMap = ({
                     "[GEOPORTALMAP|HASH|SCENE|CESIUM]cesium scene changed",
                     e
                   );
-                  replaceHashRoutedHistory(e, location.pathname);
+                  replaceHashRoutedHistory(e,"/");
                 }}
               ></CustomViewer>
             </div>
