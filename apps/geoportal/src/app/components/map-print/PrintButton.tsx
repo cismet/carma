@@ -8,12 +8,13 @@ const PrintButton = ({
   height = "34px",
   fontSize = "14px",
   hide = false,
+  smallMode = false,
 }) => {
   // useEffect(() => {
   // }, [width, height]);
   return (
     <>
-      {!hide && (
+      {!hide && !smallMode && (
         <button
           className="rectangle-button"
           onClick={hadlerStartPrint}

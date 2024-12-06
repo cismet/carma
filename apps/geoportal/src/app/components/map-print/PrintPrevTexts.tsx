@@ -1,9 +1,15 @@
 import { divIcon } from "leaflet";
 
-const PrintPrevTexts = ({ scale, dpi, format, hide = false }) => {
+const PrintPrevTexts = ({
+  scale,
+  dpi,
+  format,
+  hide = false,
+  smallMode = false,
+}) => {
   return (
     <>
-      {!hide && (
+      {!hide && !smallMode && (
         <div
           id="preview-tooltip-text"
           className="print-tooltip-text"
@@ -12,7 +18,7 @@ const PrintPrevTexts = ({ scale, dpi, format, hide = false }) => {
             display: "flex",
             flexDirection: "column",
             justifyContent: "center",
-            margin: "20% auto",
+            margin: "auto",
             gap: "1rem",
           }}
         >
