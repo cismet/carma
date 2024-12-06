@@ -5,7 +5,8 @@ import { convertBBox2Bounds, proj4crs3857def } from "./gisHelper";
 import * as L from "leaflet";
 import { createRoot } from "react-dom/client";
 import PrintButton from "../components/map-print/PrintButton";
-import PrintPrevTexts from "../components/PrintPrevTexts";
+import PrintPrevTexts from "../components/map-print/PrintPrevTexts";
+import ClosePrintButton from "../components/map-print/ClosePrintButton";
 let reactRoot = null;
 interface DraggablePolygonOptions extends L.PolylineOptions {
   draggable?: boolean;
@@ -480,18 +481,19 @@ const createPreviewWrapperItems = (
   reactRoot = createRoot(btn as HTMLElement);
   reactRoot.render(
     <>
+      <ClosePrintButton closePrintMode={() => console.log("xxx close")} />
+      <PrintPrevTexts
+        scale={scale}
+        dpi={dpi}
+        format={orientation}
+        hide={hideContent}
+      />
       <PrintButton
         hadlerStartPrint={() => hadlerStartPrint(map)}
         loading={loading}
         width={width}
         height={height}
         fontSize={fontSize}
-        hide={hideContent}
-      />
-      <PrintPrevTexts
-        scale={scale}
-        dpi={dpi}
-        format={orientation}
         hide={hideContent}
       />
     </>
