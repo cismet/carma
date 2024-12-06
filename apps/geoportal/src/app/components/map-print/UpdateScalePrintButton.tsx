@@ -15,6 +15,7 @@ const UpdateScalePrintButton = ({
           className="cursor-pointer"
           style={{
             fontSize,
+            marginTop: "4px",
           }}
           onClick={updateScaleHandler}
         />
