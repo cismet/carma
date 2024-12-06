@@ -6,7 +6,7 @@ import * as L from "leaflet";
 import { createRoot } from "react-dom/client";
 import PrintButton from "../components/map-print/PrintButton";
 import PrintPrevTexts from "../components/PrintPrevTexts";
-
+let reactRoot = null;
 interface DraggablePolygonOptions extends L.PolylineOptions {
   draggable?: boolean;
   prevPrintId?: string;
@@ -355,7 +355,8 @@ export const setPrevSizes = (
   loading,
   orientation,
   scale,
-  dpi
+  dpi,
+  hideContent
 ) => {
   removePreviewWrapper();
   // const previewDiv = document.getElementById("preview");
@@ -368,7 +369,8 @@ export const setPrevSizes = (
     loading,
     orientation,
     scale,
-    dpi
+    dpi,
+    hideContent
   );
 };
 
@@ -429,7 +431,8 @@ const createPreviewWrapperItems = (
   loading,
   orientation,
   scale,
-  dpi
+  dpi,
+  hideContent
 ) => {
   const routedMap = document.getElementById("routedMap");
 
@@ -474,8 +477,8 @@ const createPreviewWrapperItems = (
       ? getPrintBtnSizesPortrait(wrapWidth)
       : getPrintBtnSizesLandscape(wrapWidth);
 
-  const root = createRoot(btn as HTMLElement);
-  root.render(
+  reactRoot = createRoot(btn as HTMLElement);
+  reactRoot.render(
     <>
       <PrintButton
         hadlerStartPrint={() => hadlerStartPrint(map)}
@@ -483,8 +486,14 @@ const createPreviewWrapperItems = (
         width={width}
         height={height}
         fontSize={fontSize}
+        hide={hideContent}
       />
-      <PrintPrevTexts scale={scale} dpi={dpi} format={orientation} />
+      <PrintPrevTexts
+        scale={scale}
+        dpi={dpi}
+        format={orientation}
+        hide={hideContent}
+      />
     </>
   );
 };
@@ -495,7 +504,8 @@ export const addPreviewWrapper = (
   loading,
   orientation,
   scale,
-  dpi
+  dpi,
+  hideContent = false
 ) => {
   const { northWest, northEast, southWest } = getPolygonPoints(map);
   console.log("xxx scale dpi", scale, dpi);
@@ -509,18 +519,21 @@ export const addPreviewWrapper = (
       loading,
       orientation,
       scale,
-      dpi
+      dpi,
+      hideContent
     );
   }
 };
 
 export const removePreviewWrapper = () => {
   const wrapper = document.getElementById("preview");
-  const text = document.getElementById("preview-tooltip-text");
+  if (reactRoot) {
+    reactRoot.unmount();
+    reactRoot = null;
+  }
 
-  if (wrapper && text) {
+  if (wrapper) {
     wrapper.remove();
-    text.remove();
   }
 };
 

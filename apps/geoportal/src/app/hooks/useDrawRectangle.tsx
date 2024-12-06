@@ -111,6 +111,15 @@ export const useDrawRectangle = (printCb, printOffCb) => {
 
       const movestartHandler = () => {
         removePreviewWrapper();
+        addPreviewWrapper(
+          map,
+          handleStartPrint,
+          loading,
+          orientation,
+          scale,
+          dpi,
+          true
+        );
       };
 
       const moveendtHandler = () => {
@@ -120,7 +129,8 @@ export const useDrawRectangle = (printCb, printOffCb) => {
           loading,
           orientation,
           scale,
-          dpi
+          dpi,
+          false
         );
       };
       window.addEventListener("keydown", handleEscKeyPress);
