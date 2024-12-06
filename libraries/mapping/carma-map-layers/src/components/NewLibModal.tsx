@@ -30,6 +30,7 @@ import LibItem from "./LibItem";
 import { SidebarItem } from "./SidebarItems";
 import "./input.css";
 import "./modal.css";
+import ItemGrid from "./ItemGrid";
 const { Search } = Input;
 
 // @ts-expect-error tbd
@@ -56,12 +57,12 @@ export interface LibModalProps {
 }
 
 const sidebarElements = [
-  { icon: faStar, text: "Favoriten" },
-  { icon: faList, text: "Entdecken" },
-  { icon: faBook, text: "Teilzwillinge" },
-  { icon: faMap, text: "Kartenebenen" },
-  { icon: faMapPin, text: "Sensoren" },
-  { icon: faSearch, text: "Suchergebnisse" },
+  { icon: faStar, text: "Favoriten", id: "favorites" },
+  { icon: faList, text: "Entdecken", id: "discover" },
+  { icon: faBook, text: "Teilzwillinge", id: "partialTwins" },
+  { icon: faMap, text: "Kartenebenen", id: "mapLayers" },
+  { icon: faMapPin, text: "Sensoren", id: "sensors" },
+  { icon: faSearch, text: "Suchergebnisse", id: "searchResults" },
 ];
 
 export const NewLibModal = ({
@@ -93,6 +94,15 @@ export const NewLibModal = ({
   const [testCategory, setTestCategory] = useState<any[]>([]);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const debouncedSearchTerm = useDebounce(searchValue, 300);
+
+  const layerMapping = {
+    favorites: customCategories,
+    discover: [],
+    partialTwins: partialTwins,
+    mapLayers: layers,
+    sensors: [],
+    searchResults: searchResults,
+  };
 
   const search = (value: string) => {
     setIsSearching(true);
@@ -454,6 +464,21 @@ export const NewLibModal = ({
             )}
 
             <div>
+              {showItems && (
+                <ItemGrid
+                  categories={
+                    layerMapping[sidebarElements[selectedNavItemIndex].id]
+                  }
+                  setAdditionalLayers={setAdditionalLayers}
+                  activeLayers={activeLayers}
+                  favorites={favorites}
+                  addFavorite={addFavorite}
+                  removeFavorite={removeFavorite}
+                  selectedLayerId={selectedLayerId}
+                  setSelectedLayerId={setSelectedLayerId}
+                  setPreview={setPreview}
+                />
+              )}
               {selectedNavItemIndex === 3 &&
                 showItems &&
                 testCategory.length > 0 &&
@@ -512,231 +537,7 @@ export const NewLibModal = ({
                     )}
                   </div>
                 ))}
-              {showItems && selectedNavItemIndex === 0
-                ? customCategories?.map((category, i) => (
-                    <div key={category.Title}>
-                      {category.layers.length > 0 && (
-                        <InView
-                          rootMargin="20px 0px 20px 0px"
-                          as="div"
-                          onChange={(inView, entry) => {
-                            if (inView) {
-                              setInViewCategory(entry.target.id);
 
-                              setAllCategoriesInView((prev) => {
-                                return [...prev, entry.target.id];
-                              });
-                            } else {
-                              const updatedCategoriesInView =
-                                allCategoriesInView.filter(
-                                  (item) => item !== entry.target.id
-                                );
-                              setAllCategoriesInView(updatedCategoriesInView);
-                              if (inViewCategory === entry.target.id && i > 0) {
-                                for (let j = i - 1; j >= 0; j--) {
-                                  if (layers[j].layers.length > 0) {
-                                    setInViewCategory(layers[j].Title);
-                                  }
-                                }
-                              }
-                            }
-                          }}
-                          id={category?.Title}
-                          key={category?.Title}
-                        >
-                          <p className="mb-4 text-2xl font-semibold">
-                            {category?.Title}
-                          </p>
-                          <div className="grid xl:grid-cols-7 grid-flow-dense lg:grid-cols-5 sm:grid-cols-4 gap-8 mb-4">
-                            {category?.layers?.map((layer: any, i: number) => (
-                              <LayerItem
-                                setAdditionalLayers={setAdditionalLayers}
-                                layer={layer}
-                                activeLayers={activeLayers}
-                                favorites={favorites}
-                                addFavorite={addFavorite}
-                                removeFavorite={removeFavorite}
-                                selectedLayerId={selectedLayerId}
-                                setSelectedLayerId={setSelectedLayerId}
-                                setPreview={setPreview}
-                                key={`${category.Title}_layer_${i}_${layer.id}`}
-                              />
-                            ))}
-                          </div>
-                        </InView>
-                      )}
-                    </div>
-                  ))
-                : selectedNavItemIndex === 2
-                ? partialTwins?.map((category, i) => (
-                    <div key={category.Title}>
-                      {category.layers.length > 0 && (
-                        <InView
-                          rootMargin="20px 0px 20px 0px"
-                          as="div"
-                          onChange={(inView, entry) => {
-                            if (inView) {
-                              setInViewCategory(entry.target.id);
-
-                              setAllCategoriesInView((prev) => {
-                                return [...prev, entry.target.id];
-                              });
-                            } else {
-                              const updatedCategoriesInView =
-                                allCategoriesInView.filter(
-                                  (item) => item !== entry.target.id
-                                );
-                              setAllCategoriesInView(updatedCategoriesInView);
-                              if (inViewCategory === entry.target.id && i > 0) {
-                                for (let j = i - 1; j >= 0; j--) {
-                                  if (layers[j].layers.length > 0) {
-                                    setInViewCategory(layers[j].Title);
-                                  }
-                                }
-                              }
-                            }
-                          }}
-                          id={category?.Title}
-                          key={category?.Title}
-                        >
-                          <p className="mb-4 text-2xl font-semibold">
-                            {category?.Title}
-                          </p>
-                          <div className="grid xl:grid-cols-7 grid-flow-dense lg:grid-cols-5 sm:grid-cols-4 gap-8 mb-4">
-                            {category?.layers?.map((layer: any, i: number) => (
-                              <LibItem
-                                setAdditionalLayers={setAdditionalLayers}
-                                layer={layer}
-                                thumbnails={thumbnails}
-                                setThumbnail={setThumbnail}
-                                activeLayers={activeLayers}
-                                favorites={favorites}
-                                addFavorite={addFavorite}
-                                removeFavorite={removeFavorite}
-                                selectedLayerId={selectedLayerId}
-                                setSelectedLayerId={setSelectedLayerId}
-                                setPreview={setPreview}
-                                key={`${category.Title}_layer_${i}_${layer.id}`}
-                              />
-                            ))}
-                          </div>
-                        </InView>
-                      )}
-                    </div>
-                  ))
-                : selectedNavItemIndex === 3
-                ? layers.map((category, i) => (
-                    <div key={category.Title}>
-                      {category.layers.length > 0 && (
-                        <InView
-                          rootMargin="20px 0px 20px 0px"
-                          as="div"
-                          onChange={(inView, entry) => {
-                            if (inView) {
-                              setInViewCategory(entry.target.id);
-
-                              setAllCategoriesInView((prev) => {
-                                return [...prev, entry.target.id];
-                              });
-                            } else {
-                              const updatedCategoriesInView =
-                                allCategoriesInView.filter(
-                                  (item) => item !== entry.target.id
-                                );
-                              setAllCategoriesInView(updatedCategoriesInView);
-                              if (inViewCategory === entry.target.id && i > 0) {
-                                for (let j = i - 1; j >= 0; j--) {
-                                  if (layers[j].layers.length > 0) {
-                                    setInViewCategory(layers[j].Title);
-                                  }
-                                }
-                              }
-                            }
-                          }}
-                          id={category?.Title}
-                          key={category?.Title}
-                        >
-                          <p className="mb-4 text-2xl font-semibold">
-                            {category?.Title}
-                          </p>
-                          <div className="grid xl:grid-cols-7 grid-flow-dense lg:grid-cols-5 sm:grid-cols-4 gap-8 mb-4">
-                            {category?.layers?.map((layer: any, i: number) => (
-                              <LibItem
-                                setAdditionalLayers={setAdditionalLayers}
-                                layer={layer}
-                                thumbnails={thumbnails}
-                                setThumbnail={setThumbnail}
-                                activeLayers={activeLayers}
-                                favorites={favorites}
-                                addFavorite={addFavorite}
-                                removeFavorite={removeFavorite}
-                                selectedLayerId={selectedLayerId}
-                                setSelectedLayerId={setSelectedLayerId}
-                                setPreview={setPreview}
-                                key={`${category.Title}_layer_${i}_${layer.id}`}
-                              />
-                            ))}
-                          </div>
-                        </InView>
-                      )}
-                    </div>
-                  ))
-                : selectedNavItemIndex === 5
-                ? searchResults.map((category, i) => (
-                    <div key={category.Title}>
-                      {category.layers.length > 0 && (
-                        <InView
-                          rootMargin="20px 0px 20px 0px"
-                          as="div"
-                          onChange={(inView, entry) => {
-                            if (inView) {
-                              setInViewCategory(entry.target.id);
-
-                              setAllCategoriesInView((prev) => {
-                                return [...prev, entry.target.id];
-                              });
-                            } else {
-                              const updatedCategoriesInView =
-                                allCategoriesInView.filter(
-                                  (item) => item !== entry.target.id
-                                );
-                              setAllCategoriesInView(updatedCategoriesInView);
-                              if (inViewCategory === entry.target.id && i > 0) {
-                                for (let j = i - 1; j >= 0; j--) {
-                                  if (layers[j].layers.length > 0) {
-                                    setInViewCategory(layers[j].Title);
-                                  }
-                                }
-                              }
-                            }
-                          }}
-                          id={category?.Title}
-                          key={category?.Title}
-                        >
-                          <p className="mb-4 text-2xl font-semibold">
-                            {category?.Title}
-                          </p>
-                          <div className="grid xl:grid-cols-7 grid-flow-dense lg:grid-cols-5 sm:grid-cols-4 gap-8 mb-4">
-                            {category?.layers?.map((layer: any, i: number) => (
-                              <LayerItem
-                                setAdditionalLayers={setAdditionalLayers}
-                                layer={layer}
-                                activeLayers={activeLayers}
-                                favorites={favorites}
-                                addFavorite={addFavorite}
-                                removeFavorite={removeFavorite}
-                                selectedLayerId={selectedLayerId}
-                                setSelectedLayerId={setSelectedLayerId}
-                                setPreview={setPreview}
-                                key={`${category.Title}_layer_${i}_${layer.id}`}
-                              />
-                            ))}
-                          </div>
-                        </InView>
-                      )}
-                    </div>
-                  ))
-                : null}
               {layers &&
                 getNumberOfLayers(layers) === 0 &&
                 selectedNavItemIndex === 3 && (
