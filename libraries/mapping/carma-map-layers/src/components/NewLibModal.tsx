@@ -33,6 +33,7 @@ import type { Item, Layer, SavedLayerConfig } from "../helper/types";
 import { isEqual } from "lodash";
 import { utils } from "@carma-apps/portals";
 import { SidebarItem } from "./SidebarItems";
+import LayerItem from "./LayerItem";
 const { Search } = Input;
 
 // @ts-expect-error tbd
@@ -493,11 +494,9 @@ export const NewLibModal = ({
                         </p>
                         <div className="grid xl:grid-cols-7 grid-flow-dense lg:grid-cols-5 sm:grid-cols-4 gap-8 mb-4">
                           {category?.layers?.map((layer: any, i: number) => (
-                            <LibItem
+                            <LayerItem
                               setAdditionalLayers={setAdditionalLayers}
                               layer={layer}
-                              thumbnails={thumbnails}
-                              setThumbnail={setThumbnail}
                               activeLayers={activeLayers}
                               favorites={favorites}
                               addFavorite={addFavorite}
@@ -551,11 +550,9 @@ export const NewLibModal = ({
                           </p>
                           <div className="grid xl:grid-cols-7 grid-flow-dense lg:grid-cols-5 sm:grid-cols-4 gap-8 mb-4">
                             {category?.layers?.map((layer: any, i: number) => (
-                              <LibItem
+                              <LayerItem
                                 setAdditionalLayers={setAdditionalLayers}
                                 layer={layer}
-                                thumbnails={thumbnails}
-                                setThumbnail={setThumbnail}
                                 activeLayers={activeLayers}
                                 favorites={favorites}
                                 addFavorite={addFavorite}
