@@ -30,7 +30,7 @@ const PrintButton = ({
           {loading ? (
             <Spin
               indicator={<LoadingOutlined spin />}
-              className="mr-2 text-white"
+              className="text-white"
               size="small"
             />
           ) : (

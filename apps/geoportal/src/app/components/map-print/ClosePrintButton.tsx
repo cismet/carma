@@ -3,7 +3,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 const ClosePrintButton = ({
   closePrintMode,
-  fontSize = "28px",
+  fontSize = "24px",
   hide = false,
 }) => {
   return (

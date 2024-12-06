@@ -469,7 +469,7 @@ const createPreviewWrapperItems = (
 
   const btn = document.createElement("div");
   btn.id = "btn-wrapper-print";
-  btn.style.pointerEvents = "auto";
+  // btn.style.pointerEvents = "auto";
   previewDiv.appendChild(btn);
 
   routedMap.appendChild(previewDiv);
@@ -492,19 +492,21 @@ const createPreviewWrapperItems = (
         format={orientation}
         hide={hideContent}
       />
-      <PrintButton
-        hadlerStartPrint={() => hadlerStartPrint(map)}
-        loading={loading}
-        width={width}
-        height={height}
-        fontSize={fontSize}
-        hide={hideContent}
-      />
-      <UpdateScalePrintButton
-        // fontSize={fontSize}
-        hide={hideContent}
-        updateScaleHandler={console.log("xxx close")}
-      />
+      <div className="flex items-center justify-end gap-4">
+        <UpdateScalePrintButton
+          // fontSize={fontSize}
+          hide={hideContent}
+          updateScaleHandler={console.log("xxx close")}
+        />
+        <PrintButton
+          hadlerStartPrint={() => hadlerStartPrint(map)}
+          loading={loading}
+          width={width}
+          height={height}
+          fontSize={fontSize}
+          hide={hideContent}
+        />
+      </div>
     </>
   );
 };
