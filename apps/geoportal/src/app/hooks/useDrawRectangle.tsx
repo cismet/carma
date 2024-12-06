@@ -139,18 +139,4 @@ export const useDrawRectangle = (printCb, printOffCb) => {
     redrawPrev,
     loading,
   ]);
-
-  useEffect(() => {
-    const pathElement = document.querySelector(
-      "path.leaflet-path-draggable.leaflet-interactive"
-    ) as SVGPathElement | null;
-
-    if (pathElement) {
-      if (loading) {
-        pathElement.style.cursor = "wait";
-      } else {
-        pathElement.style.cursor = "default";
-      }
-    }
-  }, [loading]);
 };
