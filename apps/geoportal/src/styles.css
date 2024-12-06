@@ -88,7 +88,7 @@ html {
 }
 
 .rectangle-button:disabled {
-  opacity: 0.5;
+  background-color: #cecece;
   cursor: not-allowed;
 }
 

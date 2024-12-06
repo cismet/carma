@@ -15,6 +15,7 @@ const PrintButton = ({
       <button
         className="rectangle-button"
         onClick={hadlerStartPrint}
+        disabled={loading}
         style={{
           fontSize,
           width,
