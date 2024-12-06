@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { utils } from "@carma-apps/portals";
 import {
   faBook,
   faList,
@@ -10,30 +11,25 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useDebounce } from "@uidotdev/usehooks";
-import { Button, Input, Modal, Spin } from "antd";
+import { Button, Input, Modal } from "antd";
 import Fuse from "fuse.js";
 import { useEffect, useState } from "react";
 import { InView } from "react-intersection-observer";
 import WMSCapabilities from "wms-capabilities";
 import { baseConfig as config, serviceConfig } from "../helper/config";
 import {
-  findDifferences,
-  findLayerAndAddTags,
   flattenLayer,
-  getAllLeafLayers,
   getLayerStructure,
   mergeStructures,
   wmsLayerToGenericItem,
 } from "../helper/layerHelper";
+import type { Item, Layer, SavedLayerConfig } from "../helper/types";
+import LayerItem from "./LayerItem";
 import LayerTabs from "./LayerTabs";
 import LibItem from "./LibItem";
+import { SidebarItem } from "./SidebarItems";
 import "./input.css";
 import "./modal.css";
-import type { Item, Layer, SavedLayerConfig } from "../helper/types";
-import { isEqual } from "lodash";
-import { utils } from "@carma-apps/portals";
-import { SidebarItem } from "./SidebarItems";
-import LayerItem from "./LayerItem";
 const { Search } = Input;
 
 // @ts-expect-error tbd
@@ -213,11 +209,6 @@ export const NewLibModal = ({
                           activeLayer.opacity
                         );
 
-                        const shouldUpdate = !isEqual(
-                          activeLayer,
-                          updatedLayer
-                        );
-
                         updateActiveLayer(updatedLayer);
                       }
                     });
@@ -289,7 +280,6 @@ export const NewLibModal = ({
       if (url) {
         fetch(url)
           .then((response) => {
-            // console.log("xxx response", response);
             return response.text();
           })
           .then((text) => {
