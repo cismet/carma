@@ -72,7 +72,8 @@ export const useDrawRectangle = (printCb, printOffCb) => {
       scale,
       orientation,
       handleStartPrint,
-      loading
+      loading,
+      dpi
     );
   };
 
@@ -98,7 +99,14 @@ export const useDrawRectangle = (printCb, printOffCb) => {
         }
       };
       const zoomendHandler = () => {
-        addPreviewWrapper(map, handleStartPrint, loading, orientation);
+        addPreviewWrapper(
+          map,
+          handleStartPrint,
+          loading,
+          orientation,
+          scale,
+          dpi
+        );
       };
 
       const movestartHandler = () => {
@@ -106,7 +114,14 @@ export const useDrawRectangle = (printCb, printOffCb) => {
       };
 
       const moveendtHandler = () => {
-        addPreviewWrapper(map, handleStartPrint, loading, orientation);
+        addPreviewWrapper(
+          map,
+          handleStartPrint,
+          loading,
+          orientation,
+          scale,
+          dpi
+        );
       };
       window.addEventListener("keydown", handleEscKeyPress);
       map.on("click", handleClick);
