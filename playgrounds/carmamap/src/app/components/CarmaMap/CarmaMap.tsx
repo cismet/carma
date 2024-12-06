@@ -168,7 +168,7 @@ export const CarmaMap = ({
   // url param handling
   const [urlParams, setUrlParams] = useSearchParams();
   const [hqKey, setHqKey] = useState<undefined | "HQ10" | "HQ100" | "HQ500">(
-    undefined
+    "HQ500"
   );
 
   const topicMapLocationChangedHandler = (location: Location) => {
@@ -285,32 +285,6 @@ export const CarmaMap = ({
     }
   }, [isMode2d, allow3d, dispatch]);
 
-  useEffect(() => {
-    if (!isMode2d && viewerRef.current) {
-      const viewer = viewerRef.current;
-      setCurrentSceneStyle("primary");
-      console.debug("force hide default imagery layer hgk");
-      if (tilesetsRefs.primaryRef.current) {
-        tilesetsRefs.primaryRef.current.show = true;
-      }
-      if (tilesetsRefs.secondaryRef.current) {
-        tilesetsRefs.secondaryRef.current.show = false;
-      }
-      viewer.scene.backgroundColor = Color.DIMGREY;
-      viewer.scene.globe.baseColor = new Color(0.3, 0.2, 0.8, 0.7);
-      viewer.scene.globe.show = true;
-      viewer.scene.globe.translucency.enabled = true;
-      viewer.scene.globe.translucency.frontFaceAlpha = 1.0;
-      viewer.scene.globe.translucency.backFaceAlpha = 1.0;
-      if (viewer.imageryLayers.length > 0) {
-        console.debug("hide default imagery layer hgk");
-        const imageryLayer = viewer.imageryLayers.get(0);
-        imageryLayer.show = false;
-      }
-      viewerRef.current.scene.requestRender();
-    }
-  }, [isMode2d, viewerRef, tilesetsRefs]);
-
   console.debug("RENDER: [CARMAMAP] MAP", isMode2d);
 
   const homePosition = useSelector(selectViewerHome);
@@ -392,46 +366,66 @@ export const CarmaMap = ({
           HGK_KEYS
         );
         setHqKey(key);
-
-        (async () => {
-          if (!hgkTerrainProviders[key]) {
-            const url = HGK_TERRAIN_PROVIDER_URLS[key];
-
-            try {
-              hgkTerrainProviders[key] = await CesiumTerrainProvider.fromUrl(
-                url
-              );
-            } catch (e) {
-              console.error(
-                "failed to create terrain provider for",
-                key,
-                url,
-                e
-              );
-            }
-          }
-          const provider = hgkTerrainProviders[key];
-          terrainProviderRef.current = provider;
-          if (viewerRef.current && provider) {
-            setTimeout(() => {
-              // overwrite default terrain provider
-              console.debug("set HGK terrain provider for", key, provider);
-              const viewer = viewerRef.current;
-              viewer.scene.terrainProvider = provider;
-              viewer.scene.requestRender();
-            }, 200);
-          }
-        })();
       }
     }
-  }, [urlParams, terrainProviderRef, viewerRef]);
+  }, [urlParams]);
 
-  console.debug("CARMAMAP render hgk", {
-    hqKey,
-    isMode2d,
-    allow3d,
-    homePosition,
-  });
+  useEffect(() => {
+    if (hqKey) {
+      (async () => {
+        if (!hgkTerrainProviders[hqKey]) {
+          const url = HGK_TERRAIN_PROVIDER_URLS[hqKey];
+          try {
+            hgkTerrainProviders[hqKey] = await CesiumTerrainProvider.fromUrl(
+              url
+            );
+          } catch (e) {
+            console.error(
+              "failed to create terrain provider for",
+              hqKey,
+              url,
+              e
+            );
+          }
+        }
+        const provider = hgkTerrainProviders[hqKey];
+        terrainProviderRef.current = provider;
+        if (viewerRef.current && provider) {
+          setTimeout(() => {
+            // overwrite default terrain provider
+            console.debug("set HGK terrain provider for", hqKey, provider);
+            const viewer = viewerRef.current;
+            viewer.scene.terrainProvider = provider;
+            viewer.scene.requestRender();
+          }, 500);
+        }
+      })();
+    }
+  }, [hqKey, terrainProviderRef, viewerRef]);
+
+  useEffect(() => {
+    if (!isMode2d && viewerRef.current) {
+      setTimeout(() => {
+        const viewer = viewerRef.current;
+        setCurrentSceneStyle("primary");
+        console.debug("force hide default imagery layer hgk");
+        viewer.scene.backgroundColor = Color.DIMGREY;
+        viewer.scene.globe.baseColor = new Color(0.3, 0.2, 0.8, 0.7);
+        viewer.scene.globe.show = true;
+        viewer.scene.globe.translucency.enabled = true;
+        viewer.scene.globe.translucency.frontFaceAlpha = 1.0;
+        viewer.scene.globe.translucency.backFaceAlpha = 1.0;
+        if (viewer.imageryLayers.length > 0) {
+          console.debug("hide default imagery layer hgk");
+          const imageryLayer = viewer.imageryLayers.get(0);
+          imageryLayer.show = false;
+        }
+        viewer.scene.requestRender();
+      }, 300);
+    }
+  }, [isMode2d, viewerRef, tilesetsRefs]);
+
+  console.debug("CARMAMAP render hgk", hqKey);
 
   return (
     <ControlLayout ifStorybook={false}>
@@ -589,7 +583,7 @@ export const CarmaMap = ({
                     "[GEOPORTALMAP|HASH|SCENE|CESIUM]cesium scene changed",
                     e
                   );
-                  replaceHashRoutedHistory(e,"/");
+                  replaceHashRoutedHistory(e, "/");
                 }}
               ></CustomViewer>
             </div>
