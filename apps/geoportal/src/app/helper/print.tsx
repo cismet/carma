@@ -7,6 +7,7 @@ import { createRoot } from "react-dom/client";
 import PrintButton from "../components/map-print/PrintButton";
 import PrintPrevTexts from "../components/map-print/PrintPrevTexts";
 import ClosePrintButton from "../components/map-print/ClosePrintButton";
+import UpdateScalePrintButton from "../components/map-print/UpdateScalePrintButton";
 let reactRoot = null;
 interface DraggablePolygonOptions extends L.PolylineOptions {
   draggable?: boolean;
@@ -481,7 +482,10 @@ const createPreviewWrapperItems = (
   reactRoot = createRoot(btn as HTMLElement);
   reactRoot.render(
     <>
-      <ClosePrintButton closePrintMode={() => console.log("xxx close")} />
+      <ClosePrintButton
+        closePrintMode={() => console.log("xxx close")}
+        hide={hideContent}
+      />
       <PrintPrevTexts
         scale={scale}
         dpi={dpi}
@@ -495,6 +499,11 @@ const createPreviewWrapperItems = (
         height={height}
         fontSize={fontSize}
         hide={hideContent}
+      />
+      <UpdateScalePrintButton
+        // fontSize={fontSize}
+        hide={hideContent}
+        updateScaleHandler={console.log("xxx close")}
       />
     </>
   );
