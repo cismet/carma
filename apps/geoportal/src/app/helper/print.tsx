@@ -5,6 +5,7 @@ import { convertBBox2Bounds, proj4crs3857def } from "./gisHelper";
 import * as L from "leaflet";
 import { createRoot } from "react-dom/client";
 import PrintButton from "../components/map-print/PrintButton";
+import PrintPrevTexts from "../components/PrintPrevTexts";
 
 interface DraggablePolygonOptions extends L.PolylineOptions {
   draggable?: boolean;
@@ -256,7 +257,8 @@ export const drawRectanglePrev = (
   scale,
   orientation,
   handleStartPrint,
-  loading
+  loading,
+  dpi
 ) => {
   if (routedMapRef) {
     const map = routedMapRef.leafletMap.leafletElement;
@@ -281,7 +283,15 @@ export const drawRectanglePrev = (
     const divUL = map.latLngToContainerPoint([ul[1], ul[0]]);
     const divLR = map.latLngToContainerPoint([lr[1], lr[0]]);
 
-    drawRectFromWithBounds(map, bounds, handleStartPrint, loading, orientation);
+    drawRectFromWithBounds(
+      map,
+      bounds,
+      handleStartPrint,
+      loading,
+      orientation,
+      scale,
+      dpi
+    );
   }
 };
 
@@ -290,7 +300,9 @@ const drawRectFromWithBounds = (
   bounds,
   handleStartPrint,
   loading,
-  orientation
+  orientation,
+  scale,
+  dpi
 ) => {
   const sw = bounds[0]; // Southwest
   const ne = bounds[1]; // Northeast
@@ -308,7 +320,7 @@ const drawRectFromWithBounds = (
 
   polygon.addTo(map);
   polygon.prevPrintId = "print-rect-id";
-  addPreviewWrapper(map, handleStartPrint, loading, orientation);
+  addPreviewWrapper(map, handleStartPrint, loading, orientation, scale, dpi);
 
   polygon.on("dragstart", () => {
     removePreviewWrapper();
@@ -341,21 +353,23 @@ export const setPrevSizes = (
   map,
   hadlerStartPrint,
   loading,
-  orientation
+  orientation,
+  scale,
+  dpi
 ) => {
   removePreviewWrapper();
-  const previewDiv = document.getElementById("preview");
-  if (!previewDiv) {
-    createPreviewWrapperItems(
-      northWest,
-      northEast,
-      southWest,
-      map,
-      hadlerStartPrint,
-      loading,
-      orientation
-    );
-  }
+  // const previewDiv = document.getElementById("preview");
+  createPreviewWrapperItems(
+    northWest,
+    northEast,
+    southWest,
+    map,
+    hadlerStartPrint,
+    loading,
+    orientation,
+    scale,
+    dpi
+  );
 };
 
 const getPolygonByLeafletId = (map) => {
@@ -413,7 +427,9 @@ const createPreviewWrapperItems = (
   map,
   hadlerStartPrint,
   loading,
-  orientation
+  orientation,
+  scale,
+  dpi
 ) => {
   const routedMap = document.getElementById("routedMap");
 
@@ -429,22 +445,22 @@ const createPreviewWrapperItems = (
       ? getFontSizeForPortrait(wrapWidth)
       : getFontSizeForLandscape(wrapWidth);
 
-  const textOne = document.createElement("div");
-  textOne.id = "preview-tooltip-text";
-  textOne.className = "print-tooltip-text";
-  textOne.textContent = "Verschieben durch Ziehen mit Maus bzw. Finger";
-  previewDiv.appendChild(textOne);
+  // const textOne = document.createElement("div");
+  // textOne.id = "preview-tooltip-text";
+  // textOne.className = "print-tooltip-text";
+  // textOne.textContent = "Verschieben durch Ziehen mit Maus bzw. Finger";
+  // previewDiv.appendChild(textOne);
 
-  const textTwo = document.createElement("div");
-  textTwo.id = "preview-tooltip-text";
-  textTwo.className = "print-tooltip-text";
+  // const textTwo = document.createElement("div");
+  // textTwo.id = "preview-tooltip-text";
+  // textTwo.className = "print-tooltip-text";
 
-  const textThree = document.createElement("div");
-  textThree.className = "print-tooltip-text";
-  textThree.id = "preview-tooltip-text";
+  // const textThree = document.createElement("div");
+  // textThree.className = "print-tooltip-text";
+  // textThree.id = "preview-tooltip-text";
 
-  textThree.textContent = "Abbruch mit <esc>";
-  previewDiv.appendChild(textThree);
+  // textThree.textContent = "Abbruch mit <esc>";
+  // previewDiv.appendChild(textThree);
 
   const btn = document.createElement("div");
   btn.id = "btn-wrapper-print";
@@ -460,13 +476,16 @@ const createPreviewWrapperItems = (
 
   const root = createRoot(btn as HTMLElement);
   root.render(
-    <PrintButton
-      hadlerStartPrint={() => hadlerStartPrint(map)}
-      loading={loading}
-      width={width}
-      height={height}
-      fontSize={fontSize}
-    />
+    <>
+      <PrintButton
+        hadlerStartPrint={() => hadlerStartPrint(map)}
+        loading={loading}
+        width={width}
+        height={height}
+        fontSize={fontSize}
+      />
+      <PrintPrevTexts scale={scale} dpi={dpi} format={orientation} />
+    </>
   );
 };
 
@@ -474,10 +493,12 @@ export const addPreviewWrapper = (
   map,
   handleStartPrint,
   loading,
-  orientation
+  orientation,
+  scale,
+  dpi
 ) => {
   const { northWest, northEast, southWest } = getPolygonPoints(map);
-
+  console.log("xxx scale dpi", scale, dpi);
   if (northWest && northEast && southWest) {
     setPrevSizes(
       northWest,
@@ -486,7 +507,9 @@ export const addPreviewWrapper = (
       map,
       handleStartPrint,
       loading,
-      orientation
+      orientation,
+      scale,
+      dpi
     );
   }
 };
