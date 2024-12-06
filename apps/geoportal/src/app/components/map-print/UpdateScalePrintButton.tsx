@@ -11,7 +11,7 @@ const UpdateScalePrintButton = ({
       {!hide && (
         <FontAwesomeIcon
           icon={faRotateRight}
-          className="text-xl cursor-pointer"
+          className="cursor-pointer"
           style={{
             fontSize,
           }}

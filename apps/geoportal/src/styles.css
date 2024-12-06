@@ -52,6 +52,7 @@ html {
 
 .print-tooltip-text {
   margin-bottom: 1%;
+  text-shadow: 0px 0px 20px #fff, 0px 0px 20px #fff;
   pointer-events: none;
 }
 
@@ -102,7 +103,6 @@ html {
 }
 
 #preview-tooltip-text {
-  text-shadow: 0px 0px 20px #fff, 0px 0px 20px #fff;
   margin: auto;
   pointer-events: none;
 }
