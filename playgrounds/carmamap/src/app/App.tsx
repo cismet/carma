@@ -32,10 +32,7 @@ import {
   setShowHamburgerMenu,
   setShowLocatorButton,
 } from "./store/slices/mapping";
-import {
-  getUIAllowChanges,
-  setUIAllowChanges,
-} from "./store/slices/ui";
+import { getUIAllowChanges, setUIAllowChanges } from "./store/slices/ui";
 
 import { CESIUM_CONFIG } from "./config/app.config";
 

@@ -24,4 +24,3 @@ export const onClickTopicMap = async (
 ) => {
   console.log("onClickTopicMap", e);
 };
-

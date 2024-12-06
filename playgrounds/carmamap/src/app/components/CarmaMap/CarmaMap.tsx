@@ -10,7 +10,13 @@ import {
 import { useDispatch, useSelector } from "react-redux";
 import { useSearchParams } from "react-router-dom";
 import L from "leaflet";
-import { Cartographic, Math as CesiumMath } from "cesium";
+import {
+  Cartographic,
+  Math as CesiumMath,
+  CesiumTerrainProvider,
+  Color,
+  Terrain,
+} from "cesium";
 
 import {
   Control,
@@ -94,18 +100,20 @@ import {
 import { onClickTopicMap } from "./topicmap.utils.ts";
 import { createCismapLayers } from "./layer.utils.ts";
 
-
 import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config.ts";
 import { layerMap } from "../../config/index.ts";
 
 import "../leaflet.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
+import { HGKWMSTLayer } from "../HGKWMSTLayer.tsx";
 
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;
 const setHasGPU = (flag: boolean) => (hasGPU = flag);
 const testGPU = () => detectWebGLContext(setHasGPU);
 window.addEventListener("load", testGPU, false);
+
+const SIMULATION_KEY = "selectedSimulation";
 
 enum PARAMS {
   ONLY_2D = "2donly",
@@ -126,6 +134,23 @@ enum LAYER_TYPES {
   WMTS = "wmts",
 }
 
+// playground custom HGK keys
+
+const HGK_KEYS = Object.freeze({
+  0: "HQ10-50",
+  1: "HQ100",
+  2: "HQ500",
+});
+
+const HGK_TERRAIN_PROVIDER_URLS = {
+  "HQ10-50": "https://cesium-wupp-terrain.cismet.de/HQ10-50/",
+  HQ100: "https://cesium-wupp-terrain.cismet.de/HQ100/",
+  HQ500: "https://cesium-wupp-terrain.cismet.de/HQ500cm/",
+};
+
+// reuse terrain provider instances
+const hgkTerrainProviders = {};
+
 type CarmaMapProps = {
   children?: ReactNode;
   showBaseMapStyleToggle?: boolean;
@@ -142,6 +167,9 @@ export const CarmaMap = ({
 
   // url param handling
   const [urlParams, setUrlParams] = useSearchParams();
+  const [hqKey, setHqKey] = useState<undefined | "HQ10" | "HQ100" | "HQ500">(
+    undefined
+  );
 
   const topicMapLocationChangedHandler = (location: Location) => {
     (location) => {
@@ -167,7 +195,7 @@ export const CarmaMap = ({
   const layers = useSelector(getLayers);
   const uiMode = useSelector(getUIMode);
   const showFullscreenButton = useSelector(getShowFullscreenButton);
-  const { viewerRef, terrainProviderRef, surfaceProviderRef } =
+  const { viewerRef, terrainProviderRef, surfaceProviderRef, tilesetsRefs } =
     useCesiumContext();
   const homeControl = useHomeControl();
   const {
@@ -257,6 +285,32 @@ export const CarmaMap = ({
     }
   }, [isMode2d, allow3d, dispatch]);
 
+  useEffect(() => {
+    if (!isMode2d && viewerRef.current) {
+      const viewer = viewerRef.current;
+      setCurrentSceneStyle("primary");
+      console.debug("force hide default imagery layer hgk");
+      if (tilesetsRefs.primaryRef.current) {
+        tilesetsRefs.primaryRef.current.show = true;
+      }
+      if (tilesetsRefs.secondaryRef.current) {
+        tilesetsRefs.secondaryRef.current.show = false;
+      }
+      viewer.scene.backgroundColor = Color.DIMGREY;
+      viewer.scene.globe.baseColor = new Color(0.3, 0.2, 0.8, 0.7);
+      viewer.scene.globe.show = true;
+      viewer.scene.globe.translucency.enabled = true;
+      viewer.scene.globe.translucency.frontFaceAlpha = 1.0;
+      viewer.scene.globe.translucency.backFaceAlpha = 1.0;
+      if (viewer.imageryLayers.length > 0) {
+        console.debug("hide default imagery layer hgk");
+        const imageryLayer = viewer.imageryLayers.get(0);
+        imageryLayer.show = false;
+      }
+      viewerRef.current.scene.requestRender();
+    }
+  }, [isMode2d, viewerRef, tilesetsRefs]);
+
   console.debug("RENDER: [CARMAMAP] MAP", isMode2d);
 
   const homePosition = useSelector(selectViewerHome);
@@ -319,9 +373,65 @@ export const CarmaMap = ({
       dispatch(setCurrentSceneStyle("primary"));
     } else if (baseMapStyle === BASEMAP_STYLE_KEYS.SECONDARY) {
       toggleTopicMapBackgroundLayer(false);
-      dispatch(setCurrentSceneStyle("secondary"));
+      //dispatch(setCurrentSceneStyle("secondary"));
+      // disable secondary style for HGK
+      dispatch(setCurrentSceneStyle("primary"));
     }
   }, [baseMapStyle, dispatch, toggleTopicMapBackgroundLayer]);
+
+  // CUSTOM CODE for simulation
+  useEffect(() => {
+    if (urlParams.get(SIMULATION_KEY)) {
+      const selectedSimulation = parseInt(urlParams.get(SIMULATION_KEY));
+      const key = HGK_KEYS[selectedSimulation];
+      if (key !== undefined) {
+        console.debug(
+          "selectedSimulation HGK",
+          selectedSimulation,
+          key,
+          HGK_KEYS
+        );
+        setHqKey(key);
+
+        (async () => {
+          if (!hgkTerrainProviders[key]) {
+            const url = HGK_TERRAIN_PROVIDER_URLS[key];
+
+            try {
+              hgkTerrainProviders[key] = await CesiumTerrainProvider.fromUrl(
+                url
+              );
+            } catch (e) {
+              console.error(
+                "failed to create terrain provider for",
+                key,
+                url,
+                e
+              );
+            }
+          }
+          const provider = hgkTerrainProviders[key];
+          terrainProviderRef.current = provider;
+          if (viewerRef.current && provider) {
+            setTimeout(() => {
+              // overwrite default terrain provider
+              console.debug("set HGK terrain provider for", key, provider);
+              const viewer = viewerRef.current;
+              viewer.scene.terrainProvider = provider;
+              viewer.scene.requestRender();
+            }, 200);
+          }
+        })();
+      }
+    }
+  }, [urlParams, terrainProviderRef, viewerRef]);
+
+  console.debug("CARMAMAP render hgk", {
+    hqKey,
+    isMode2d,
+    allow3d,
+    homePosition,
+  });
 
   return (
     <ControlLayout ifStorybook={false}>
@@ -373,9 +483,6 @@ export const CarmaMap = ({
         <Control position="topleft" order={70}>
           <MapTypeSwitcher
             duration={CESIUM_CONFIG.transitions.mapMode.duration}
-            onComplete={(isTo2d: boolean) => {
-              //dispatch(setBackgroundLayer({ ...backgroundLayer, visible: isTo2d }));
-            }}
           />
           <Compass disabled={isMode2d} />
         </Control>
@@ -455,6 +562,7 @@ export const CarmaMap = ({
                 dispatch,
                 zoom: getLeafletZoom(),
               })}
+              {hqKey && <HGKWMSTLayer hqKey={hqKey} />}
             </TopicMapComponent>
           </div>
           {allow3d && (
