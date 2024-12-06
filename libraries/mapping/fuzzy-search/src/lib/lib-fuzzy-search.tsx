@@ -244,7 +244,12 @@ export function LibFuzzySearch({
           options={searchResult}
           style={inputStyle}
           onSearch={(value) => handleSearchAutoComplete(value)}
-          onChange={(value) => setValue(value)}
+          onChange={(value) => {
+            if (autoCompleteRef?.current) {
+              autoCompleteRef.current.scrollTo(0);
+            }
+            setValue(value);
+          }}
           placeholder={placeholder}
           value={value}
           dropdownAlign={{
@@ -267,7 +272,12 @@ export function LibFuzzySearch({
           // options={searchResult}
           style={inputStyle}
           onSearch={(value) => handleSearchAutoComplete(value)}
-          onChange={(value) => setValue(value)}
+          onChange={(value) => {
+            if (autoCompleteRef?.current) {
+              autoCompleteRef.current.scrollTo(0);
+            }
+            setValue(value);
+          }}
           placeholder={placeholder}
           value={value}
           dropdownAlign={{
