@@ -508,9 +508,9 @@ const createPreviewWrapperItems = (
         <PrintButton
           hadlerStartPrint={() => hadlerStartPrint(map)}
           loading={loading}
-          width={width}
-          height={height}
-          fontSize={fontSize}
+          // width={width}
+          // height={height}
+          // fontSize={fontSize}
           hide={hideContent}
           smallMode={isSmallMode}
         />
@@ -655,7 +655,7 @@ export const getPrintBtnSizesLandscape = (width) => {
 };
 
 const getSmallSizePortrait = (wrapWidth) => {
-  return wrapWidth <= 153 ? true : false;
+  return wrapWidth <= 154 ? true : false;
 };
 
 const getSmallSizeLandscape = (wrapWidth) => {
