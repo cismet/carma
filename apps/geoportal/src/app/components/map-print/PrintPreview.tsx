@@ -40,13 +40,7 @@ const PrintPreview = () => {
 
   useEffect(() => {
     if (map && mode === "print") {
-      //   const map = routedMapRef?.leafletMap?.leafletElement;
-
       const rectangleCoordinates = getPreviewBounds(map, scale, orientation);
-
-      // map.fitBounds(bounds);
-      //   const rectangleCoordinates = [sw, nw, ne, se, sw];
-
       const polygon = L.polygon(rectangleCoordinates, {
         color: "black",
         weight: 1,
