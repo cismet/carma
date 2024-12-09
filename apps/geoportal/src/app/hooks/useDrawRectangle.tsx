@@ -116,15 +116,17 @@ export const useDrawRectangle = (printCb, printOffCb) => {
           removePreviewWrapper();
         }
       };
-      addRectangle(
-        map,
-        routedMapRef,
-        scale,
-        orientation,
-        loading,
-        handleClosePrint,
-        handleRedraw
-      );
+      if (!loading) {
+        addRectangle(
+          map,
+          routedMapRef,
+          scale,
+          orientation,
+          loading,
+          handleClosePrint,
+          handleRedraw
+        );
+      }
 
       const handleEscKeyPress = (event) => {
         if (event.key === "Escape") {
@@ -184,18 +186,20 @@ export const useDrawRectangle = (printCb, printOffCb) => {
         map.off("movestart", movestartHandler);
         map.off("moveend", moveendtHandler);
 
-        removeRectangle(map);
+        // removeRectangle(map);
       };
     } else if (map && mode === "print" && lastOrientation === orientation) {
-      addRectangle(
-        map,
-        routedMapRef,
-        scale,
-        orientation,
-        loading,
-        handleClosePrint,
-        handleRedraw
-      );
+      if (!loading) {
+        addRectangle(
+          map,
+          routedMapRef,
+          scale,
+          orientation,
+          loading,
+          handleClosePrint,
+          handleRedraw
+        );
+      }
       setlastOrientation(orientation);
     } else if (map && mode !== "print") {
       removeRectangle(map);
