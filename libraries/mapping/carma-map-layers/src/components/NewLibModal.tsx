@@ -51,7 +51,7 @@ export interface LibModalProps {
   addFavorite: (layer: Item) => void;
   removeFavorite: (layer: Item) => void;
   activeLayers: any[];
-  customCategories?: LayerCategories[];
+  customCategories: LayerCategories[];
   updateActiveLayer: (layer: Layer) => void;
   removeLastLayer?: () => void;
 }
@@ -93,6 +93,12 @@ export const NewLibModal = ({
   const [selectedNavItemIndex, setSelectedNavItemIndex] = useState(0);
   const [testCategory, setTestCategory] = useState<any[]>([]);
   const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [tmpAllCategories, setTmpAllCategories] = useState<
+    {
+      id: string;
+      categories: LayerCategories[];
+    }[]
+  >([]);
   const debouncedSearchTerm = useDebounce(searchValue, 300);
 
   const layerMapping = {
@@ -146,13 +152,9 @@ export const NewLibModal = ({
     setIsSearching(false);
   };
 
-  const flattenedLayers = [
-    ...customCategories?.flatMap((obj) => obj.layers),
-    ...allLayers.flatMap((obj) => obj.layers),
-    ...partialTwins.flatMap((obj) => obj.layers),
-  ];
-
-  console.log("xxx", flattenedLayers);
+  const flattenedLayers = tmpAllCategories.flatMap((obj) =>
+    obj.categories.flatMap((obj) => obj.layers)
+  );
   const fuse = new Fuse(flattenedLayers, {
     keys: [
       { name: "title", weight: 2 },
@@ -195,6 +197,17 @@ export const NewLibModal = ({
 
   useEffect(() => {
     let newLayers: any[] = [];
+    if (customCategories) {
+      setTmpAllCategories((prev) => {
+        if (prev.find((item) => item.id === "favorites")) {
+          prev.splice(
+            prev.findIndex((item) => item.id === "favorites"),
+            1
+          );
+        }
+        return [...prev, { id: "favorites", categories: customCategories }];
+      });
+    }
     for (let key in services) {
       if (services[key].url) {
         fetch(
@@ -252,6 +265,23 @@ export const NewLibModal = ({
           setPartialTwins(
             tmpLayer.filter((category) => category.layers.length > 0)
           );
+          setTmpAllCategories((prev) => {
+            if (prev.find((item) => item.id === "partialTwins")) {
+              prev.splice(
+                prev.findIndex((item) => item.id === "partialTwins"),
+                1
+              );
+            }
+            return [
+              ...prev,
+              {
+                id: "partialTwins",
+                categories: tmpLayer.filter(
+                  (category) => category.layers.length > 0
+                ),
+              },
+            ];
+          });
         } else {
           const tmpLayer = getLayerStructure({
             config,
@@ -276,6 +306,22 @@ export const NewLibModal = ({
   useEffect(() => {
     if (!searchValue) {
       setLayers(allLayers);
+
+      setTmpAllCategories((prev) => {
+        if (prev.find((item) => item.id === "mapLayers")) {
+          prev.splice(
+            prev.findIndex((item) => item.id === "mapLayers"),
+            1
+          );
+        }
+        return [
+          ...prev,
+          {
+            id: "mapLayers",
+            categories: allLayers,
+          },
+        ];
+      });
     } else {
       search(debouncedSearchTerm);
     }
