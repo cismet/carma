@@ -202,12 +202,13 @@ const PrintPreview = () => {
             <div className="flex items-center justify-end gap-4">
               <PrintButton
                 handlerStartPrint={() => console.log("xxx print btn")}
-                loading={loading}
+                // loading={loading}
                 // width={width}
                 // height={height}
                 // fontSize={fontSize}
                 hide={isHideContent}
                 smallMode={previewSizes.isSmallMode}
+                map={map}
               />
             </div>
           </div>
