@@ -261,7 +261,8 @@ export const drawRectanglePrev = (
   orientation,
   handleStartPrint,
   loading,
-  dpi
+  dpi,
+  handleClosePrint
 ) => {
   if (routedMapRef) {
     const map = routedMapRef.leafletMap.leafletElement;
@@ -293,7 +294,8 @@ export const drawRectanglePrev = (
       loading,
       orientation,
       scale,
-      dpi
+      dpi,
+      handleClosePrint
     );
   }
 };
@@ -305,7 +307,8 @@ const drawRectFromWithBounds = (
   loading,
   orientation,
   scale,
-  dpi
+  dpi,
+  handleClosePrint
 ) => {
   const sw = bounds[0]; // Southwest
   const ne = bounds[1]; // Northeast
@@ -323,7 +326,16 @@ const drawRectFromWithBounds = (
 
   polygon.addTo(map);
   polygon.prevPrintId = "print-rect-id";
-  addPreviewWrapper(map, handleStartPrint, loading, orientation, scale, dpi);
+  addPreviewWrapper(
+    map,
+    handleStartPrint,
+    loading,
+    orientation,
+    scale,
+    dpi,
+    false,
+    handleClosePrint
+  );
 
   polygon.on("dragstart", () => {
     removePreviewWrapper();
@@ -359,7 +371,8 @@ export const setPrevSizes = (
   orientation,
   scale,
   dpi,
-  hideContent
+  hideContent,
+  handleClosePrint
 ) => {
   removePreviewWrapper();
   // const previewDiv = document.getElementById("preview");
@@ -373,7 +386,8 @@ export const setPrevSizes = (
     orientation,
     scale,
     dpi,
-    hideContent
+    hideContent,
+    handleClosePrint
   );
 };
 
@@ -435,7 +449,8 @@ const createPreviewWrapperItems = (
   orientation,
   scale,
   dpi,
-  hideContent
+  hideContent,
+  handleClosePrint
 ) => {
   const routedMap = document.getElementById("routedMap");
 
@@ -487,7 +502,7 @@ const createPreviewWrapperItems = (
   reactRoot.render(
     <>
       <ClosePrintButton
-        closePrintMode={() => console.log("xxx close")}
+        closePrintMode={handleClosePrint}
         hide={hideContent}
         smallMode={isSmallMode}
       />
@@ -526,7 +541,8 @@ export const addPreviewWrapper = (
   orientation,
   scale,
   dpi,
-  hideContent = false
+  hideContent = false,
+  handleClosePrint
 ) => {
   const { northWest, northEast, southWest } = getPolygonPoints(map);
   if (northWest && northEast && southWest) {
@@ -540,7 +556,8 @@ export const addPreviewWrapper = (
       orientation,
       scale,
       dpi,
-      hideContent
+      hideContent,
+      handleClosePrint
     );
   }
 };

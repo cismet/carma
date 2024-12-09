@@ -7,6 +7,7 @@ const ClosePrintButton = ({
   hide = false,
   smallMode = false,
 }) => {
+  console.log("xxx print close", closePrintMode);
   return (
     <>
       {!hide && !smallMode && (
@@ -16,6 +17,7 @@ const ClosePrintButton = ({
           style={{
             fontSize,
             marginLeft: "auto",
+            pointerEvents: "auto",
           }}
           onClick={closePrintMode}
         />
