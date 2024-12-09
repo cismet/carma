@@ -529,7 +529,6 @@ export const addPreviewWrapper = (
   hideContent = false
 ) => {
   const { northWest, northEast, southWest } = getPolygonPoints(map);
-  console.log("xxx scale dpi", scale, dpi);
   if (northWest && northEast && southWest) {
     setPrevSizes(
       northWest,
@@ -597,7 +596,6 @@ export const getFontSizeForLandscape = (width) => {
 };
 
 export const getPrintBtnSizesPortrait = (width) => {
-  console.log("xxx portarit width", width);
   switch (true) {
     case width >= 102 && width <= 204:
       return {
