@@ -1,5 +1,5 @@
 import { useDispatch, useSelector } from "react-redux";
-import { getUIMode } from "../../store/slices/ui";
+import { getUIMode, setUIMode } from "../../store/slices/ui";
 import * as L from "leaflet";
 import { useContext, useEffect, useState } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
@@ -109,6 +109,24 @@ const PrintPreview = () => {
         setIsHideContent(false);
       };
 
+      const onMapClick = (e) => {
+        const ifPolygon = e.originalEvent.target?.classList.contains(
+          "leaflet-path-draggable"
+        );
+        const ifPrintButton =
+          e.originalEvent.target?.classList.contains("rectangle-button");
+        if (!ifPolygon && !ifPrintButton) {
+          dispatch(setUIMode("default"));
+          deleteRectangleById(map);
+        }
+      };
+      const onEscKeyPress = (event) => {
+        if (event.key === "Escape") {
+          dispatch(setUIMode("default"));
+          deleteRectangleById(map);
+        }
+      };
+
       polygon.on("dragstart", () => {
         setIsHideContent(true);
       });
@@ -118,6 +136,8 @@ const PrintPreview = () => {
         setIsHideContent(false);
       });
 
+      map.on("click", onMapClick);
+
       map.on("zoomstart", onZoomStart);
 
       map.on("zoomend", onZoomEnd);
@@ -126,13 +146,19 @@ const PrintPreview = () => {
 
       map.on("moveend", onMoveEnd);
 
+      window.addEventListener("keydown", onEscKeyPress);
+
       return () => {
         polygon.off();
+        map.off("click", onMapClick);
         map.off("zoomstart", onZoomStart);
         map.off("zoomend", onZoomEnd);
         map.off("movestart", onMoveStart);
         map.off("moveend", onMoveEnd);
+        window.removeEventListener("keydown", onEscKeyPress);
       };
+    } else if (map && mode !== "print") {
+      deleteRectangleById(map);
     }
   }, [
     map,
@@ -162,7 +188,7 @@ const PrintPreview = () => {
         >
           <div id="btn-wrapper-print">
             <ClosePrintButton
-              closePrintMode={console.log("xxx print btn")}
+              closePrintMode={() => console.log("xxx close btn")}
               hide={isHideContent}
               smallMode={previewSizes.isSmallMode}
             />
@@ -175,7 +201,7 @@ const PrintPreview = () => {
             />
             <div className="flex items-center justify-end gap-4">
               <PrintButton
-                handlerStartPrint={console.log("xxx print btn")}
+                handlerStartPrint={() => console.log("xxx print btn")}
                 loading={loading}
                 // width={width}
                 // height={height}
