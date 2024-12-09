@@ -2150,7 +2150,7 @@ export const baseConfig = {
     ],
   },
   Infra: {
-    Title: "Infra",
+    Title: "Infrastruktur",
     serviceName: "wuppInfra",
     layers: [
       {
@@ -2279,7 +2279,7 @@ export const baseConfig = {
     ],
   },
   Gebiet: {
-    Title: "Gebiet",
+    Title: "Gebiete",
     serviceName: "wuppGebiet",
     layers: [
       {
@@ -2399,7 +2399,7 @@ export const baseConfig = {
     ],
   },
   Verkehr: {
-    Title: "Mobilität",
+    Title: "Verkehr",
     serviceName: "wuppVerkehr",
     layers: [
       {
@@ -2531,7 +2531,7 @@ export const baseConfig = {
     ],
   },
   Immo: {
-    Title: "Immo",
+    Title: "Immobilien",
     serviceName: "wuppImmo",
     layers: [
       {
