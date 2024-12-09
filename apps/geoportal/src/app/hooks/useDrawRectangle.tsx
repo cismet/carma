@@ -37,6 +37,7 @@ export const useDrawRectangle = (printCb, printOffCb) => {
   const dpi = useSelector(getDPI);
   const printName = useSelector(getPrintName);
   const [lastOrientation, setlastOrientation] = useState(orientation);
+  const [stepAfterPrinting, setStepAfterPrinting] = useState(false);
   const bgLayer = useSelector(getBackgroundLayer);
   const layers = useSelector(getLayers);
   const loading = useSelector(getIsLoading);
@@ -68,6 +69,7 @@ export const useDrawRectangle = (printCb, printOffCb) => {
     const { lat, lng } = center;
     const tranformProj = proj4("EPSG:4326", "EPSG:3857", [lng, lat]);
     const layesPrint = getPrintLayers(bgLayer, layers);
+    setStepAfterPrinting(true);
     printCb(
       tranformProj,
       scale,
@@ -116,7 +118,10 @@ export const useDrawRectangle = (printCb, printOffCb) => {
           removePreviewWrapper();
         }
       };
-      if (!loading) {
+      if (stepAfterPrinting) {
+        setStepAfterPrinting(false);
+      }
+      if (!loading && !stepAfterPrinting) {
         addRectangle(
           map,
           routedMapRef,
@@ -135,6 +140,7 @@ export const useDrawRectangle = (printCb, printOffCb) => {
         }
       };
       const zoomendHandler = () => {
+        // setStepAfterPrinting(false);
         addPreviewWrapper(
           map,
           handleStartPrint,
@@ -149,6 +155,7 @@ export const useDrawRectangle = (printCb, printOffCb) => {
 
       const movestartHandler = () => {
         removePreviewWrapper();
+        // setStepAfterPrinting(false);
         addPreviewWrapper(
           map,
           handleStartPrint,
@@ -189,7 +196,7 @@ export const useDrawRectangle = (printCb, printOffCb) => {
         // removeRectangle(map);
       };
     } else if (map && mode === "print" && lastOrientation === orientation) {
-      if (!loading) {
+      if (!loading && !stepAfterPrinting) {
         addRectangle(
           map,
           routedMapRef,
@@ -214,5 +221,6 @@ export const useDrawRectangle = (printCb, printOffCb) => {
     scale,
     redrawPrev,
     loading,
+    stepAfterPrinting,
   ]);
 };
