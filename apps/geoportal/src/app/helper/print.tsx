@@ -597,7 +597,7 @@ export const setPrevSizes = (
   northEast,
   southWest,
   map,
-  hadlerStartPrint,
+  handlerStartPrint,
   loading,
   orientation,
   scale,
@@ -613,7 +613,7 @@ export const setPrevSizes = (
     northEast,
     southWest,
     map,
-    hadlerStartPrint,
+    handlerStartPrint,
     loading,
     orientation,
     scale,
@@ -677,7 +677,7 @@ const createPreviewWrapperItems = (
   northEast,
   southWest,
   map,
-  hadlerStartPrint,
+  handlerStartPrint,
   loading,
   orientation,
   scale,
@@ -755,7 +755,7 @@ const createPreviewWrapperItems = (
           smallMode={isSmallMode}
         /> */}
         <PrintButton
-          hadlerStartPrint={() => hadlerStartPrint(map)}
+          handlerStartPrint={() => handlerStartPrint(map)}
           loading={loading}
           // width={width}
           // height={height}

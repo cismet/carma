@@ -2,7 +2,7 @@ import { LoadingOutlined } from "@ant-design/icons";
 import { Spin } from "antd";
 
 const PrintButton = ({
-  hadlerStartPrint,
+  handlerStartPrint,
   loading,
   width = "72px",
   height = "34px",
@@ -17,7 +17,7 @@ const PrintButton = ({
       {!hide && !smallMode && (
         <button
           className="rectangle-button"
-          onClick={hadlerStartPrint}
+          onClick={handlerStartPrint}
           disabled={loading}
           style={{
             fontSize,
