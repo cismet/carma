@@ -122,6 +122,7 @@ import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 import "../leaflet.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
+import PrintPreview from "../map-print/PrintPreview.tsx";
 
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;
@@ -762,6 +763,7 @@ export const GeoportalMap = () => {
                 dispatch,
                 zoom: getLeafletZoom(),
               })}
+              <PrintPreview />
             </TopicMapComponent>
           </div>
           {allow3d && (
