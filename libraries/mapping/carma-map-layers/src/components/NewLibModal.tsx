@@ -139,11 +139,9 @@ export const NewLibModal = ({
         category.layers = newLayers;
       });
 
-      // setLayers(resultsWithCategories);
-
       setSearchResults(resultsWithCategories);
     } else {
-      setLayers(allLayers);
+      setSearchResults([]);
     }
     setIsSearching(false);
   };
