@@ -394,9 +394,9 @@ const drawRectFromWithBounds = (
     map.fitBounds(newBounds);
   });
 
-  // polygon.on("dblclick", () => {
-  //   handleStartPrint(map);
-  // });
+  polygon.on("dblclick", () => {
+    handleStartPrint(map);
+  });
 };
 
 export const deleteRectangleById = (map) => {
@@ -566,12 +566,12 @@ const createPreviewWrapperItems = (
         smallMode={isSmallMode}
       />
       <div className="flex items-center justify-end gap-4">
-        <UpdateScalePrintButton
+        {/* <UpdateScalePrintButton
           // fontSize={fontSize}
           hide={hideContent}
           updateScaleHandler={() => console.log("xxx update")}
           smallMode={isSmallMode}
-        />
+        /> */}
         <PrintButton
           hadlerStartPrint={() => hadlerStartPrint(map)}
           loading={loading}
