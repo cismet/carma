@@ -45,6 +45,11 @@ export const useDrawRectangle = (printCb, printOffCb) => {
     dispatch(changeIsLoading(status));
   };
 
+  const handleClosePrint = () => {
+    dispatch(setUIMode("default"));
+    removePreviewWrapper();
+  };
+
   const handleIsError = (status) => {
     dispatch(changePrintError(status));
   };
@@ -65,7 +70,14 @@ export const useDrawRectangle = (printCb, printOffCb) => {
     );
   };
 
-  const addRectangle = (map, routedMapRef, scale, orientation, loading) => {
+  const addRectangle = (
+    map,
+    routedMapRef,
+    scale,
+    orientation,
+    loading,
+    handleClosePrint
+  ) => {
     removeRectangle(map);
     drawRectanglePrev(
       routedMapRef,
@@ -73,13 +85,15 @@ export const useDrawRectangle = (printCb, printOffCb) => {
       orientation,
       handleStartPrint,
       loading,
-      dpi
+      dpi,
+      handleClosePrint
     );
   };
 
   useEffect(() => {
     if (map && mode === "print") {
       const handleClick = (e) => {
+        console.log("xxx click handler", e.originalEvent.target);
         const ifPolygon = e.originalEvent.target?.classList.contains(
           "leaflet-path-draggable"
         );
@@ -90,7 +104,14 @@ export const useDrawRectangle = (printCb, printOffCb) => {
           removePreviewWrapper();
         }
       };
-      addRectangle(map, routedMapRef, scale, orientation, loading);
+      addRectangle(
+        map,
+        routedMapRef,
+        scale,
+        orientation,
+        loading,
+        handleClosePrint
+      );
 
       const handleEscKeyPress = (event) => {
         if (event.key === "Escape") {
@@ -148,7 +169,14 @@ export const useDrawRectangle = (printCb, printOffCb) => {
         removeRectangle(map);
       };
     } else if (map && mode === "print" && lastOrientation === orientation) {
-      addRectangle(map, routedMapRef, scale, orientation, loading);
+      addRectangle(
+        map,
+        routedMapRef,
+        scale,
+        orientation,
+        loading,
+        handleClosePrint
+      );
       setlastOrientation(orientation);
     } else if (map && mode !== "print") {
       removeRectangle(map);
