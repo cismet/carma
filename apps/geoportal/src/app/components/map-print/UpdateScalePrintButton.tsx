@@ -8,9 +8,12 @@ const UpdateScalePrintButton = ({
   hide = false,
   smallMode = false,
 }) => {
+  console.log("xxx print update", updateScaleHandler);
+
   const normalStyle: CSSProperties = {
     fontSize,
     marginTop: "4px",
+    pointerEvents: "auto",
   };
 
   const smallStyle: CSSProperties = {
@@ -20,6 +23,7 @@ const UpdateScalePrintButton = ({
     fontSize: "300%",
     // fontSize: "14px ",
     transform: "translate(-50%, -50%)",
+    pointerEvents: "auto",
   };
 
   return (

@@ -22,7 +22,9 @@ const PrintPrevTexts = ({
             gap: "1rem",
           }}
         >
-          <div className="print-tooltip-text">Format: {format}</div>
+          <div className="print-tooltip-text">
+            Format: {format === "portrait" ? "Hoch" : "Quer"}
+          </div>
           <div className="print-tooltip-text">Maßstab: 1:{scale}</div>
           <div className="print-tooltip-text">Auflösung:{dpi}</div>
         </div>

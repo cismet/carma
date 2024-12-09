@@ -262,7 +262,8 @@ export const drawRectanglePrev = (
   handleStartPrint,
   loading,
   dpi,
-  handleClosePrint
+  handleClosePrint,
+  handleRedraw
 ) => {
   if (routedMapRef) {
     const map = routedMapRef.leafletMap.leafletElement;
@@ -295,7 +296,8 @@ export const drawRectanglePrev = (
       orientation,
       scale,
       dpi,
-      handleClosePrint
+      handleClosePrint,
+      handleRedraw
     );
   }
 };
@@ -308,7 +310,8 @@ const drawRectFromWithBounds = (
   orientation,
   scale,
   dpi,
-  handleClosePrint
+  handleClosePrint,
+  handleRedraw
 ) => {
   const sw = bounds[0]; // Southwest
   const ne = bounds[1]; // Northeast
@@ -334,7 +337,8 @@ const drawRectFromWithBounds = (
     scale,
     dpi,
     false,
-    handleClosePrint
+    handleClosePrint,
+    handleRedraw
   );
 
   polygon.on("dragstart", () => {
@@ -372,7 +376,8 @@ export const setPrevSizes = (
   scale,
   dpi,
   hideContent,
-  handleClosePrint
+  handleClosePrint,
+  handleRedraw
 ) => {
   removePreviewWrapper();
   // const previewDiv = document.getElementById("preview");
@@ -387,7 +392,8 @@ export const setPrevSizes = (
     scale,
     dpi,
     hideContent,
-    handleClosePrint
+    handleClosePrint,
+    handleRedraw
   );
 };
 
@@ -450,7 +456,8 @@ const createPreviewWrapperItems = (
   scale,
   dpi,
   hideContent,
-  handleClosePrint
+  handleClosePrint,
+  handleRedraw
 ) => {
   const routedMap = document.getElementById("routedMap");
 
@@ -517,7 +524,7 @@ const createPreviewWrapperItems = (
         <UpdateScalePrintButton
           // fontSize={fontSize}
           hide={hideContent}
-          updateScaleHandler={console.log("xxx close")}
+          updateScaleHandler={handleRedraw}
           smallMode={isSmallMode}
         />
         <PrintButton
@@ -542,7 +549,8 @@ export const addPreviewWrapper = (
   scale,
   dpi,
   hideContent = false,
-  handleClosePrint
+  handleClosePrint,
+  handleRedraw
 ) => {
   const { northWest, northEast, southWest } = getPolygonPoints(map);
   if (northWest && northEast && southWest) {
@@ -557,7 +565,8 @@ export const addPreviewWrapper = (
       scale,
       dpi,
       hideContent,
-      handleClosePrint
+      handleClosePrint,
+      handleRedraw
     );
   }
 };
