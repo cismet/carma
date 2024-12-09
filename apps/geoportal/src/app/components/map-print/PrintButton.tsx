@@ -23,7 +23,7 @@ const PrintButton = ({
             fontSize,
             width,
             height,
-            opacity: width !== "0px" ? "1" : "0",
+            // opacity: width !== "0px" ? "1" : "0",
           }}
         >
           {/* <FontAwesomeIcon icon={faPrint} className="text-xl cursor-pointer" /> */}
