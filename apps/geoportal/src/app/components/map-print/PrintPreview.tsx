@@ -16,6 +16,7 @@ import {
   deleteRectangleById,
   getFontSizeForLandscape,
   getFontSizeForPortrait,
+  getPolygonByLeafletId,
   getPolygonPoints,
   getPreviewBounds,
 } from "../../helper/print";
@@ -56,19 +57,22 @@ const PrintPreview = () => {
   const redrawPrev = useSelector(getRedrawPreview);
 
   const changePreviewSizes = (map, orientation) => {
-    const { northWest, northEast, southWest } = getPolygonPoints(map);
-    const wrapWidth = northEast.x - northWest.x;
+    const polygon = getPolygonByLeafletId(map);
+    if (polygon) {
+      const { northWest, northEast, southWest } = getPolygonPoints(map);
+      const wrapWidth = northEast.x - northWest.x;
 
-    setRreviewSizes({
-      top: northWest.y + "px",
-      left: northWest.x + "px",
-      width: wrapWidth + "px",
-      height: southWest.y - northWest.y + "px",
-      fontSize:
-        orientation === "portrait"
-          ? getFontSizeForPortrait(wrapWidth)
-          : getFontSizeForLandscape(wrapWidth),
-    });
+      setRreviewSizes({
+        top: northWest.y + "px",
+        left: northWest.x + "px",
+        width: wrapWidth + "px",
+        height: southWest.y - northWest.y + "px",
+        fontSize:
+          orientation === "portrait"
+            ? getFontSizeForPortrait(wrapWidth)
+            : getFontSizeForLandscape(wrapWidth),
+      });
+    }
   };
 
   useEffect(() => {
