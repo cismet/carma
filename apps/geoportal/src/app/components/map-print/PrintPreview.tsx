@@ -18,6 +18,9 @@ import {
   getPolygonPoints,
   getPreviewBounds,
 } from "../../helper/print";
+import ClosePrintButton from "./ClosePrintButton";
+import PrintPrevTexts from "./PrintPrevTexts";
+import PrintButton from "./PrintButton";
 
 interface DraggablePolygonOptions extends L.PolylineOptions {
   draggable?: boolean;
@@ -37,6 +40,7 @@ const PrintPreview = () => {
   const printName = useSelector(getPrintName);
   const [lastOrientation, setlastOrientation] = useState(orientation);
   const [stepAfterPrinting, setStepAfterPrinting] = useState(false);
+  const [isHideContent, setIsHideContent] = useState(false);
   const [previewSizes, setRreviewSizes] = useState({
     top: "0px",
     left: "0px",
@@ -119,10 +123,34 @@ const PrintPreview = () => {
             top: previewSizes.top,
             left: previewSizes.left,
             fontSize: previewSizes.fontSize,
-            background: "black",
-            opacity: "0.4",
+            // background: "black",
+            // opacity: "0.4",
           }}
-        ></div>
+        >
+          <ClosePrintButton
+            closePrintMode={console.log("xxx print btn")}
+            hide={isHideContent}
+            // smallMode={isSmallMode}
+          />
+          <PrintPrevTexts
+            scale={scale}
+            dpi={dpi}
+            format={orientation}
+            hide={isHideContent}
+            // smallMode={isSmallMode}
+          />
+          <div className="flex items-center justify-end gap-4">
+            <PrintButton
+              handlerStartPrint={console.log("xxx print btn")}
+              loading={loading}
+              // width={width}
+              // height={height}
+              // fontSize={fontSize}
+              hide={isHideContent}
+              //   smallMode={isSmallMode}
+            />
+          </div>
+        </div>
       )}
     </>
   );
