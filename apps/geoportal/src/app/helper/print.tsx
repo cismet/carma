@@ -624,7 +624,7 @@ export const setPrevSizes = (
   );
 };
 
-const getPolygonByLeafletId = (map) => {
+export const getPolygonByLeafletId = (map) => {
   let polygon;
 
   map.eachLayer(function (layer) {
