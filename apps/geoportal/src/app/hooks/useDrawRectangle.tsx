@@ -10,6 +10,7 @@ import {
   changePrintError,
   getScale,
   getRedrawPreview,
+  changeRedrawPreview,
 } from "../store/slices/print";
 import { getUIMode, setUIMode } from "../store/slices/ui";
 // import { createRoot } from "react-dom/client";
@@ -50,6 +51,11 @@ export const useDrawRectangle = (printCb, printOffCb) => {
     removePreviewWrapper();
   };
 
+  const handleRedraw = (redrawPrev) => {
+    dispatch(changeRedrawPreview(!redrawPrev));
+    removePreviewWrapper();
+  };
+
   const handleIsError = (status) => {
     dispatch(changePrintError(status));
   };
@@ -76,7 +82,8 @@ export const useDrawRectangle = (printCb, printOffCb) => {
     scale,
     orientation,
     loading,
-    handleClosePrint
+    handleClosePrint,
+    handleRedraw
   ) => {
     removeRectangle(map);
     drawRectanglePrev(
@@ -86,7 +93,9 @@ export const useDrawRectangle = (printCb, printOffCb) => {
       handleStartPrint,
       loading,
       dpi,
-      handleClosePrint
+      handleClosePrint,
+      handleRedraw
+      // redrawPrev
     );
   };
 
@@ -110,7 +119,8 @@ export const useDrawRectangle = (printCb, printOffCb) => {
         scale,
         orientation,
         loading,
-        handleClosePrint
+        handleClosePrint,
+        handleRedraw
       );
 
       const handleEscKeyPress = (event) => {
@@ -175,7 +185,8 @@ export const useDrawRectangle = (printCb, printOffCb) => {
         scale,
         orientation,
         loading,
-        handleClosePrint
+        handleClosePrint,
+        handleRedraw
       );
       setlastOrientation(orientation);
     } else if (map && mode !== "print") {

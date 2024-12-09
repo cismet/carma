@@ -7,7 +7,6 @@ const ClosePrintButton = ({
   hide = false,
   smallMode = false,
 }) => {
-  console.log("xxx print close", closePrintMode);
   return (
     <>
       {!hide && !smallMode && (
