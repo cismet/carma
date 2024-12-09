@@ -12,7 +12,12 @@ import {
   getScale,
 } from "../../store/slices/print";
 import { getBackgroundLayer, getLayers } from "../../store/slices/mapping";
-import { getPreviewBounds } from "../../helper/print";
+import {
+  getFontSizeForLandscape,
+  getFontSizeForPortrait,
+  getPolygonPoints,
+  getPreviewBounds,
+} from "../../helper/print";
 
 interface DraggablePolygonOptions extends L.PolylineOptions {
   draggable?: boolean;
@@ -32,6 +37,13 @@ const PrintPreview = () => {
   const printName = useSelector(getPrintName);
   const [lastOrientation, setlastOrientation] = useState(orientation);
   const [stepAfterPrinting, setStepAfterPrinting] = useState(false);
+  const [previewSizes, setRreviewSizes] = useState({
+    top: "0px",
+    left: "0px",
+    width: "0px",
+    height: "0px",
+    fontSize: "0px",
+  });
   const bgLayer = useSelector(getBackgroundLayer);
   const layers = useSelector(getLayers);
   const loading = useSelector(getIsLoading);
@@ -50,6 +62,19 @@ const PrintPreview = () => {
 
       polygon.addTo(map);
       polygon.prevPrintId = "print-rect-id";
+      const { northWest, northEast, southWest } = getPolygonPoints(map);
+      const wrapWidth = northEast.x - northWest.x;
+
+      setRreviewSizes({
+        top: northWest.y + "px",
+        left: northWest.x + "px",
+        width: wrapWidth + "px",
+        height: southWest.y - northWest.y + "px",
+        fontSize:
+          orientation === "portrait"
+            ? getFontSizeForPortrait(wrapWidth)
+            : getFontSizeForLandscape(wrapWidth),
+      });
 
       polygon.on("dragstart", () => {
         // removePreviewWrapper();
@@ -77,7 +102,15 @@ const PrintPreview = () => {
       {mode === "print" && (
         <div
           id="preview"
-          style={{ width: "200px", height: "20px", background: "black" }}
+          style={{
+            width: previewSizes.width,
+            height: previewSizes.height,
+            top: previewSizes.top,
+            left: previewSizes.left,
+            fontSize: previewSizes.fontSize,
+            background: "black",
+            opacity: "0.4",
+          }}
         ></div>
       )}
     </>
