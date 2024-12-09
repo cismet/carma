@@ -89,6 +89,17 @@ const PrintPreview = () => {
       polygon.prevPrintId = "print-rect-id";
       changePreviewSizes(map, orientation);
 
+      const onZoomStart = () => setIsHideContent(true);
+      const onZoomEnd = () => {
+        changePreviewSizes(map, orientation);
+        setIsHideContent(false);
+      };
+      const onMoveStart = () => setIsHideContent(true);
+      const onMoveEnd = () => {
+        changePreviewSizes(map, orientation);
+        setIsHideContent(false);
+      };
+
       polygon.on("dragstart", () => {
         setIsHideContent(true);
       });
@@ -98,18 +109,21 @@ const PrintPreview = () => {
         setIsHideContent(false);
       });
 
-      map.on("zoomstart", () => {
-        setIsHideContent(true);
-      });
+      map.on("zoomstart", onZoomStart);
 
-      map.on("zoomend", () => {
-        changePreviewSizes(map, orientation);
-        setIsHideContent(false);
-      });
+      map.on("zoomend", onZoomEnd);
 
-      map.on("moveend", () => {
-        changePreviewSizes(map, orientation);
-      });
+      map.on("movestart", onMoveStart);
+
+      map.on("moveend", onMoveEnd);
+
+      return () => {
+        polygon.off();
+        map.off("zoomstart", onZoomStart);
+        map.off("zoomend", onZoomEnd);
+        map.off("movestart", onMoveStart);
+        map.off("moveend", onMoveEnd);
+      };
     }
   }, [
     map,
