@@ -1,6 +1,7 @@
-import { getFontSize } from "../../helper/print";
+import { CSSProperties } from "react";
+// import { getFontSize } from "../../helper/print";
 const TooltipWrapper = ({ northWest, northEast, southWest }) => {
-  const previewStyles = {
+  const previewStyles: CSSProperties = {
     position: "absolute",
     zIndex: 1000,
     top: `${northWest.y}px`,
@@ -9,7 +10,7 @@ const TooltipWrapper = ({ northWest, northEast, southWest }) => {
     height: `${southWest.y - northWest.y}px`,
     pointerEvents: "none",
     opacity: 1,
-    fontSize: getFontSize(northEast.x - northWest.x),
+    // fontSize: getFontSize(northEast.x - northWest.x),
     display: "flex",
     flexDirection: "column",
     justifyContent: "flex-end",
