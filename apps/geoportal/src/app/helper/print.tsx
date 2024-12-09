@@ -912,3 +912,88 @@ const getSmallSizePortrait = (wrapWidth) => {
 const getSmallSizeLandscape = (wrapWidth) => {
   return wrapWidth <= 278 ? true : false;
 };
+
+// const getPreviewBounds = (
+//   map,
+//   bounds,
+//   // orientation,
+//   // scale,
+//   // dpi,
+// ) => {
+//   const sw = bounds[0]; // Southwest
+//   const ne = bounds[1]; // Northeast
+//   const nw = [ne[0], sw[1]]; // Northwest
+//   const se = [sw[0], ne[1]]; // Southeast
+//   map.fitBounds(bounds);
+//   const rectangleCoordinates = [sw, nw, ne, se, sw];
+
+// return rectangleCoordinates
+
+// const polygon = L.polygon(rectangleCoordinates, {
+//   color: "black",
+//   weight: 1,
+//   // fillOpacity: 0.3,
+//   draggable: true,
+// } as DraggablePolygonOptions) as CustomPolygon;
+
+// polygon.addTo(map);
+// polygon.prevPrintId = "print-rect-id";
+// addPreviewWrapper(
+//   map,
+//   handleStartPrint,
+//   loading,
+//   orientation,
+//   scale,
+//   dpi,
+//   false,
+//   handleClosePrint
+//   // handleRedraw
+// );
+
+// polygon.on("dragstart", () => {
+//   removePreviewWrapper();
+// });
+// polygon.on("dragend", () => {
+//   const newBounds = polygon.getBounds();
+//   map.fitBounds(newBounds);
+// });
+
+// polygon.on("dblclick", () => {
+//   handleStartPrint(map);
+// });
+// };
+
+export const getPreviewBounds = (
+  map,
+  scale,
+  orientation
+  // dpi,
+) => {
+  if (map) {
+    // const map = routedMapRef.leafletMap.leafletElement;
+    const latLngCenter = map.getCenter();
+    const pointCenter = proj4("EPSG:4326", "EPSG:3857", [
+      latLngCenter.lng,
+      latLngCenter.lat,
+    ]);
+
+    const width = orientation === "landscape" ? 802 : 555;
+    const height = orientation === "landscape" ? 555 : 802;
+
+    const f = createFeatureFromBBox(
+      calculateBBox(pointCenter[0], pointCenter[1], width, height, 72, scale)
+    );
+
+    const bb = bbox(f);
+    const bounds = convertBBox2Bounds(bb, proj4crs3857def);
+
+    const sw = bounds[0]; // Southwest
+    const ne = bounds[1]; // Northeast
+    const nw = [ne[0], sw[1]]; // Northwest
+    const se = [sw[0], ne[1]]; // Southeast
+    map.fitBounds(bounds);
+    const rectangleCoordinates = [sw, nw, ne, se, sw];
+
+    return rectangleCoordinates;
+  }
+};
