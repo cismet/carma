@@ -21,6 +21,7 @@ import { getBackgroundLayer, getLayers } from "../store/slices/mapping";
 import {
   addPreviewWrapper,
   drawRectanglePrev,
+  getPolygonByLeafletId,
   getPrintLayers,
   removePreviewWrapper,
   deleteRectangleById as removeRectangle,
@@ -61,7 +62,10 @@ export const useDrawRectangle = (printCb, printOffCb) => {
   };
 
   const handleStartPrint = (map) => {
-    const { lat, lng } = map.getCenter();
+    const prevPolygon = getPolygonByLeafletId(map);
+    const bounds = prevPolygon.getBounds();
+    const center = bounds.getCenter();
+    const { lat, lng } = center;
     const tranformProj = proj4("EPSG:4326", "EPSG:3857", [lng, lat]);
     const layesPrint = getPrintLayers(bgLayer, layers);
     printCb(
@@ -102,7 +106,6 @@ export const useDrawRectangle = (printCb, printOffCb) => {
   useEffect(() => {
     if (map && mode === "print") {
       const handleClick = (e) => {
-        console.log("xxx click handler", e.originalEvent.target);
         const ifPolygon = e.originalEvent.target?.classList.contains(
           "leaflet-path-draggable"
         );
