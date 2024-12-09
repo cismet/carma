@@ -13,6 +13,7 @@ import {
 } from "../../store/slices/print";
 import { getBackgroundLayer, getLayers } from "../../store/slices/mapping";
 import {
+  deleteRectangleById,
   getFontSizeForLandscape,
   getFontSizeForPortrait,
   getPolygonPoints,
@@ -72,6 +73,7 @@ const PrintPreview = () => {
 
   useEffect(() => {
     if (map && mode === "print") {
+      deleteRectangleById(map);
       const rectangleCoordinates = getPreviewBounds(map, scale, orientation);
       const polygon = L.polygon(rectangleCoordinates, {
         color: "black",
@@ -84,15 +86,21 @@ const PrintPreview = () => {
       changePreviewSizes(map, orientation);
 
       polygon.on("dragstart", () => {
-        // removePreviewWrapper();
+        setIsHideContent(true);
       });
       polygon.on("dragend", () => {
         const newBounds = polygon.getBounds();
         map.fitBounds(newBounds);
+        setIsHideContent(false);
+      });
+
+      map.on("zoomstart", () => {
+        setIsHideContent(true);
       });
 
       map.on("zoomend", () => {
         changePreviewSizes(map, orientation);
+        setIsHideContent(false);
       });
 
       map.on("moveend", () => {
@@ -123,32 +131,32 @@ const PrintPreview = () => {
             top: previewSizes.top,
             left: previewSizes.left,
             fontSize: previewSizes.fontSize,
-            // background: "black",
-            // opacity: "0.4",
           }}
         >
-          <ClosePrintButton
-            closePrintMode={console.log("xxx print btn")}
-            hide={isHideContent}
-            // smallMode={isSmallMode}
-          />
-          <PrintPrevTexts
-            scale={scale}
-            dpi={dpi}
-            format={orientation}
-            hide={isHideContent}
-            // smallMode={isSmallMode}
-          />
-          <div className="flex items-center justify-end gap-4">
-            <PrintButton
-              handlerStartPrint={console.log("xxx print btn")}
-              loading={loading}
-              // width={width}
-              // height={height}
-              // fontSize={fontSize}
+          <div id="btn-wrapper-print">
+            <ClosePrintButton
+              closePrintMode={console.log("xxx print btn")}
               hide={isHideContent}
-              //   smallMode={isSmallMode}
+              // smallMode={isSmallMode}
             />
+            <PrintPrevTexts
+              scale={scale}
+              dpi={dpi}
+              format={orientation}
+              hide={isHideContent}
+              // smallMode={isSmallMode}
+            />
+            <div className="flex items-center justify-end gap-4">
+              <PrintButton
+                handlerStartPrint={console.log("xxx print btn")}
+                loading={loading}
+                // width={width}
+                // height={height}
+                // fontSize={fontSize}
+                hide={isHideContent}
+                //   smallMode={isSmallMode}
+              />
+            </div>
           </div>
         </div>
       )}
