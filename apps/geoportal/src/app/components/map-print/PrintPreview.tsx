@@ -50,31 +50,34 @@ const PrintPreview = () => {
   const scale = useSelector(getScale);
   const redrawPrev = useSelector(getRedrawPreview);
 
+  const changePreviewSizes = (map, orientation) => {
+    const { northWest, northEast, southWest } = getPolygonPoints(map);
+    const wrapWidth = northEast.x - northWest.x;
+
+    setRreviewSizes({
+      top: northWest.y + "px",
+      left: northWest.x + "px",
+      width: wrapWidth + "px",
+      height: southWest.y - northWest.y + "px",
+      fontSize:
+        orientation === "portrait"
+          ? getFontSizeForPortrait(wrapWidth)
+          : getFontSizeForLandscape(wrapWidth),
+    });
+  };
+
   useEffect(() => {
     if (map && mode === "print") {
       const rectangleCoordinates = getPreviewBounds(map, scale, orientation);
       const polygon = L.polygon(rectangleCoordinates, {
         color: "black",
         weight: 1,
-        // fillOpacity: 0.3,
         draggable: true,
       } as DraggablePolygonOptions) as CustomPolygon;
 
       polygon.addTo(map);
       polygon.prevPrintId = "print-rect-id";
-      const { northWest, northEast, southWest } = getPolygonPoints(map);
-      const wrapWidth = northEast.x - northWest.x;
-
-      setRreviewSizes({
-        top: northWest.y + "px",
-        left: northWest.x + "px",
-        width: wrapWidth + "px",
-        height: southWest.y - northWest.y + "px",
-        fontSize:
-          orientation === "portrait"
-            ? getFontSizeForPortrait(wrapWidth)
-            : getFontSizeForLandscape(wrapWidth),
-      });
+      changePreviewSizes(map, orientation);
 
       polygon.on("dragstart", () => {
         // removePreviewWrapper();
@@ -82,6 +85,14 @@ const PrintPreview = () => {
       polygon.on("dragend", () => {
         const newBounds = polygon.getBounds();
         map.fitBounds(newBounds);
+      });
+
+      map.on("zoomend", () => {
+        changePreviewSizes(map, orientation);
+      });
+
+      map.on("moveend", () => {
+        changePreviewSizes(map, orientation);
       });
     }
   }, [
