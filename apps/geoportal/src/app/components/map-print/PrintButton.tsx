@@ -23,6 +23,7 @@ const PrintButton = ({
             fontSize,
             width,
             height,
+            pointerEvents: "auto",
             // opacity: width !== "0px" ? "1" : "0",
           }}
         >

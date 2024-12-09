@@ -78,8 +78,8 @@ html {
   opacity: 1;
   border-radius: 4px;
   cursor: pointer;
-  margin-left: auto;
-  margin-left: auto;
+  /* margin-left: auto;
+  margin-left: auto; */
   text-align: center;
   margin-top: 4px;
 }
@@ -99,7 +99,7 @@ html {
   /* position: absolute;
   top: 0;
   right: 0; */
-  pointer-events: none;
+  /* pointer-events: none; */
 }
 
 #preview-tooltip-text {
