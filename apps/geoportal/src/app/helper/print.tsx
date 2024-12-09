@@ -905,11 +905,11 @@ export const getPrintBtnSizesLandscape = (width) => {
   }
 };
 
-const getSmallSizePortrait = (wrapWidth) => {
+export const getSmallSizePortrait = (wrapWidth) => {
   return wrapWidth <= 154 ? true : false;
 };
 
-const getSmallSizeLandscape = (wrapWidth) => {
+export const getSmallSizeLandscape = (wrapWidth) => {
   return wrapWidth <= 278 ? true : false;
 };
 

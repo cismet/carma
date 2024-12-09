@@ -19,6 +19,8 @@ import {
   getPolygonByLeafletId,
   getPolygonPoints,
   getPreviewBounds,
+  getSmallSizeLandscape,
+  getSmallSizePortrait,
 } from "../../helper/print";
 import ClosePrintButton from "./ClosePrintButton";
 import PrintPrevTexts from "./PrintPrevTexts";
@@ -49,6 +51,7 @@ const PrintPreview = () => {
     width: "0px",
     height: "0px",
     fontSize: "0px",
+    isSmallMode: false,
   });
   const bgLayer = useSelector(getBackgroundLayer);
   const layers = useSelector(getLayers);
@@ -62,6 +65,11 @@ const PrintPreview = () => {
       const { northWest, northEast, southWest } = getPolygonPoints(map);
       const wrapWidth = northEast.x - northWest.x;
 
+      const isSmallMode =
+        orientation === "portrait"
+          ? getSmallSizePortrait(wrapWidth)
+          : getSmallSizeLandscape(wrapWidth);
+
       setRreviewSizes({
         top: northWest.y + "px",
         left: northWest.x + "px",
@@ -71,6 +79,7 @@ const PrintPreview = () => {
           orientation === "portrait"
             ? getFontSizeForPortrait(wrapWidth)
             : getFontSizeForLandscape(wrapWidth),
+        isSmallMode: isSmallMode,
       });
     }
   };
@@ -155,14 +164,14 @@ const PrintPreview = () => {
             <ClosePrintButton
               closePrintMode={console.log("xxx print btn")}
               hide={isHideContent}
-              // smallMode={isSmallMode}
+              smallMode={previewSizes.isSmallMode}
             />
             <PrintPrevTexts
               scale={scale}
               dpi={dpi}
               format={orientation}
               hide={isHideContent}
-              // smallMode={isSmallMode}
+              smallMode={previewSizes.isSmallMode}
             />
             <div className="flex items-center justify-end gap-4">
               <PrintButton
@@ -172,7 +181,7 @@ const PrintPreview = () => {
                 // height={height}
                 // fontSize={fontSize}
                 hide={isHideContent}
-                //   smallMode={isSmallMode}
+                smallMode={previewSizes.isSmallMode}
               />
             </div>
           </div>
