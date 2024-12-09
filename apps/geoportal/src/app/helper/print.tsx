@@ -18,6 +18,31 @@ interface DraggablePolygonOptions extends L.PolylineOptions {
 interface CustomPolygon extends L.Polygon {
   prevPrintId?: string;
 }
+function getStyleName(vectorStyle) {
+  if (!vectorStyle) {
+    throw new Error("vectorStyle is undefined or null.");
+  }
+
+  // Extract the parts of the path
+  const parts = vectorStyle.replace("https://", "").split("/");
+
+  // Get the folder name and the file name without the extension
+  const folderName = parts[parts.length - 2];
+  const fileName = parts[parts.length - 1].split(".").slice(0, -1).join(".");
+
+  // Determine style key
+  let styleKey;
+  if (fileName === "style") {
+    styleKey = `${folderName}-style`;
+  } else {
+    styleKey = `${folderName}-${fileName}`;
+  }
+
+  // Replace non-JSON-friendly characters
+  styleKey = styleKey.replace(/[^a-zA-Z0-9-]/g, "-");
+
+  return styleKey;
+}
 
 export const printMap = async (
   center,
@@ -100,11 +125,18 @@ export const getPrintLayers = (bgLayer, layers) => {
       }
     }
 
-    // if (layer.layerType === "vector") {
-    //   layerPrint.unshift(
-    //     buildOMSPrint("https://tgl.cismet.de/styles/poi-style/256")
-    //   );
-    // }
+    if (layer.layerType === "vector") {
+      // take the vector style and create a proper style name for the tgl4üromt service
+      // use the folder name and add the style name like for /poi/style.json use poi-style
+      // and for /poi/bildungseinrichtungen.style.json use poi-bildungseinrichtungen-style
+
+      const vectorStyle = layer.props.style;
+
+      const styleName = getStyleName(vectorStyle);
+
+      console.log("xxx print layer", vectorStyle, ">>", styleName);
+      layerPrint.unshift(buildVecorStylePrint(styleName, layer.opacity, 1, 1));
+    }
   });
 
   return layerPrint;
@@ -127,6 +159,19 @@ const buildUrlWitName = (layerUrl, name) => {
     name,
     baseURL: url[0],
   };
+};
+
+const buildVecorStylePrint = (
+  vectorLayerName,
+  opacity = 1,
+  scalefactor = 1,
+  sizefactor = 1
+) => {
+  return buildWMSPrint(
+    `https://tsgl4printing-wms.cismet.de/tgl-wms/${scalefactor}x/${sizefactor}/`,
+    vectorLayerName,
+    opacity
+  );
 };
 
 const buildWMSPrint = (baseURL, name, opacity = 1) => {
