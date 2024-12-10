@@ -4,6 +4,7 @@ import * as L from "leaflet";
 import { useContext, useEffect, useState } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import {
+  changeIfMapPrinted,
   getDPI,
   getIfMapPrinted,
   getIsLoading,
@@ -42,7 +43,7 @@ const PrintPreview = () => {
   const map = routedMapRef?.leafletMap?.leafletElement;
   const orientation = useSelector(getOrientation);
   const dpi = useSelector(getDPI);
-  const ffMapPrinted = useSelector(getIfMapPrinted);
+  const ifMapPrinted = useSelector(getIfMapPrinted);
   const [lastOrientation, setlastOrientation] = useState(orientation);
   const [stepAfterPrinting, setStepAfterPrinting] = useState(false);
   const [isHideContent, setIsHideContent] = useState(false);
@@ -90,7 +91,7 @@ const PrintPreview = () => {
   };
 
   useEffect(() => {
-    if (map && mode === "print") {
+    if (map && mode === "print" && !loading) {
       deleteRectangleById(map);
       const rectangleCoordinates = getPreviewBounds(map, scale, orientation);
       const polygon = L.polygon(rectangleCoordinates, {
@@ -164,6 +165,8 @@ const PrintPreview = () => {
       };
     } else if (map && mode !== "print") {
       deleteRectangleById(map);
+    } else if (ifMapPrinted) {
+      dispatch(changeIfMapPrinted(false));
     }
   }, [
     map,
@@ -171,7 +174,7 @@ const PrintPreview = () => {
     orientation,
     layers,
     dpi,
-    ffMapPrinted,
+    ifMapPrinted,
     scale,
     redrawPrev,
     loading,

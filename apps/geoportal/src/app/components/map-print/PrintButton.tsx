@@ -48,6 +48,8 @@ const PrintButton = ({
 
   const startPint = () => {
     if (map) {
+      dispatch(changeIfMapPrinted(true));
+
       const prevPolygon = getPolygonByLeafletId(map);
       const bounds = prevPolygon.getBounds();
       const center = bounds.getCenter();
@@ -64,8 +66,6 @@ const PrintButton = ({
         handleIsLoading,
         handleIsError
       );
-
-      dispatch(changeIfMapPrinted(true));
     }
   };
   return (
