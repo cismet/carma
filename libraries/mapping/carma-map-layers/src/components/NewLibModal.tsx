@@ -136,7 +136,9 @@ export const NewLibModal = ({
 
       setShownCategories(testCategories);
     } else {
-      // setShownCategories(tmpAllCategories);
+      if (tmpAllCategories.length > 0) {
+        setShownCategories(tmpAllCategories);
+      }
     }
     setIsSearching(false);
   };
@@ -144,7 +146,6 @@ export const NewLibModal = ({
   const flattenedLayers = tmpAllCategories.flatMap((obj) =>
     obj.categories.flatMap((obj) => obj.layers)
   );
-  console.log("xxx", tmpAllCategories);
   const fuse = new Fuse(flattenedLayers, {
     keys: [
       { name: "title", weight: 2 },
