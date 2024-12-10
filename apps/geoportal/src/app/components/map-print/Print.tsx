@@ -46,8 +46,20 @@ const Print = ({ setShowPrintPopup }) => {
     dispatch(changeIfMapPrinted(false));
   };
 
+  const handleKeyPress = (event) => {
+    if (event.key === "Enter") {
+      dispatch(setUIMode("print"));
+      dispatch(changeRedrawPreview(!redrawPrev));
+      setShowPrintPopup(false);
+    }
+  };
+
   return (
-    <div className="p-2 flex flex-col gap-3" ref={printPopupRef}>
+    <div
+      className="p-2 flex flex-col gap-3"
+      ref={printPopupRef}
+      onKeyDown={handleKeyPress}
+    >
       <div className="flex items-center gap-2">
         <FontAwesomeIcon icon={faPrint} className="text-xl" />
         <h4 className="mb-0">Drucken</h4>
