@@ -70,9 +70,13 @@ const LayerRow = ({ layer, id, isBackgroundLayer, index }: LayerRowProps) => {
           />
         )}
         <p
-          className="mb-0 text-lg truncate hover:underline cursor-pointer"
+          className={`mb-0 text-lg truncate ${
+            index !== -1 && "hover:underline cursor-pointer"
+          }`}
           onClick={() => {
-            dispatch(setSelectedLayerIndex(index));
+            if (index !== -1) {
+              dispatch(setSelectedLayerIndex(index));
+            }
           }}
         >
           {layer.title}
