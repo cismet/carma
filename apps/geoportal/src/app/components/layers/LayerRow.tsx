@@ -24,13 +24,7 @@ interface LayerRowProps {
 const LayerRow = ({ layer, id, isBackgroundLayer }: LayerRowProps) => {
   const dispatch = useDispatch();
   const urlPrefix = window.location.origin + window.location.pathname;
-  const icon = layer.title.includes("Orthofoto")
-    ? "ortho"
-    : layer.title === "Bäume"
-    ? "bäume"
-    : layer.title.includes("gärten")
-    ? "gärten"
-    : undefined;
+  const icon = layer?.other?.icon;
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
       id,
@@ -54,10 +48,10 @@ const LayerRow = ({ layer, id, isBackgroundLayer }: LayerRowProps) => {
         >
           <FontAwesomeIcon icon={faGripVertical} />
         </button>
-        {icon === "ortho" ? (
+        {icon ? (
           <div style={{ height: 14, width: 14 }}>
             <img
-              src={urlPrefix + "images/ortho.png"}
+              src={urlPrefix + `icons/${icon}.png`}
               alt="Ortho"
               className="h-full"
             />
