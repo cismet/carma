@@ -53,7 +53,7 @@ export interface LibModalProps {
   addFavorite: (layer: Item) => void;
   removeFavorite: (layer: Item) => void;
   activeLayers: any[];
-  customCategories?: LayerCategories[];
+  customCategories: LayerCategories[];
   updateActiveLayer: (layer: Layer) => void;
   removeLastLayer?: () => void;
 }
