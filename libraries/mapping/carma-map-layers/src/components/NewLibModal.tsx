@@ -81,7 +81,6 @@ export const NewLibModal = ({
 }: LibModalProps) => {
   const [preview, setPreview] = useState(false);
   const [layers, setLayers] = useState<any[]>([]);
-  const [partialTwins, setPartialTwins] = useState<any[]>([]);
   const [allLayers, setAllLayers] = useState<any[]>([]);
   const services = serviceConfig;
   const [inViewCategory, setInViewCategory] = useState("");
@@ -263,9 +262,6 @@ export const NewLibModal = ({
             config,
             serviceName: services[key].name,
           });
-          setPartialTwins(
-            tmpLayer.filter((category) => category.layers.length > 0)
-          );
           setShownCategories((prev) => {
             if (prev.find((item) => item.id === "partialTwins")) {
               prev.splice(
@@ -514,15 +510,9 @@ export const NewLibModal = ({
               {layers && layers.length > 0 && (
                 <>
                   <LayerTabs
-                    layers={
-                      selectedNavItemIndex === 0
-                        ? customCategories
-                        : selectedNavItemIndex === 2
-                        ? partialTwins
-                        : selectedNavItemIndex === 3
-                        ? layers.filter((layer) => layer.Title !== "TopicMaps")
-                        : undefined
-                    }
+                    layers={layers.filter(
+                      (layer) => layer.Title !== "TopicMaps"
+                    )}
                     activeId={inViewCategory}
                     numberOfItems={getNumberOfLayers(layers)}
                   />
