@@ -56,8 +56,20 @@ const BaseLayerInfo = () => {
     }
   };
 
+  const getBackgroundDescription = () => {
+    if (backgroundLayer.description) {
+      return backgroundLayer.description;
+    } else {
+      if (backgroundLayer.id === "karte") {
+        return layerMap[selectedMapLayer.id].description;
+      } else {
+        return layerMap[backgroundLayer.id].description;
+      }
+    }
+  };
+
   return (
-    <>
+    <div className="flex flex-col gap-1 overflow-y-hidden h-full">
       <div className="flex flex-col gap-2 pb-4">
         <div className="w-full flex last:rounded-s-md first:rounded-s-md">
           <button
@@ -259,7 +271,11 @@ const BaseLayerInfo = () => {
           </div>
         </DndContext>
       </div>
-    </>
+      <hr className="h-px my-0 bg-gray-300 border-0 w-full absolute bottom-9 left-0" />
+      <p className="my-0 pt-2.5 text-gray-400 text-base">
+        Aktuell: {getBackgroundDescription()}
+      </p>
+    </div>
   );
 };
 
