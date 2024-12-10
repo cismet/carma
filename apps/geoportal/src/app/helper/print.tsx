@@ -756,12 +756,13 @@ const createPreviewWrapperItems = (
         /> */}
         <PrintButton
           handlerStartPrint={() => handlerStartPrint(map)}
-          loading={loading}
+          // loading={loading}
           // width={width}
           // height={height}
           // fontSize={fontSize}
           hide={hideContent}
           smallMode={isSmallMode}
+          map={{}}
         />
       </div>
     </>

@@ -5,6 +5,7 @@ import { useContext, useEffect, useState } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import {
   getDPI,
+  getIfMapPrinted,
   getIsLoading,
   getOrientation,
   getPrintName,
@@ -41,7 +42,7 @@ const PrintPreview = () => {
   const map = routedMapRef?.leafletMap?.leafletElement;
   const orientation = useSelector(getOrientation);
   const dpi = useSelector(getDPI);
-  const printName = useSelector(getPrintName);
+  const ffMapPrinted = useSelector(getIfMapPrinted);
   const [lastOrientation, setlastOrientation] = useState(orientation);
   const [stepAfterPrinting, setStepAfterPrinting] = useState(false);
   const [isHideContent, setIsHideContent] = useState(false);
@@ -82,6 +83,10 @@ const PrintPreview = () => {
         isSmallMode: isSmallMode,
       });
     }
+  };
+
+  const handleDoubleClick = (e) => {
+    console.log("xxx db clcik", e);
   };
 
   useEffect(() => {
@@ -166,7 +171,7 @@ const PrintPreview = () => {
     orientation,
     layers,
     dpi,
-    printName,
+    ffMapPrinted,
     scale,
     redrawPrev,
     loading,

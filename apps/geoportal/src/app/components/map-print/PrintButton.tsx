@@ -5,6 +5,7 @@ import {
   changeIsLoading,
   changePrintError,
   getDPI,
+  changeIfMapPrinted,
   getIsLoading,
   getOrientation,
   getPrintName,
@@ -63,6 +64,8 @@ const PrintButton = ({
         handleIsLoading,
         handleIsError
       );
+
+      dispatch(changeIfMapPrinted(true));
     }
   };
   return (
