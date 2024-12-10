@@ -39,6 +39,7 @@ const parser = new WMSCapabilities();
 type LayerCategories = {
   Title: string;
   layers: SavedLayerConfig[];
+  id?: string;
 };
 
 export interface LibModalProps {
@@ -104,6 +105,8 @@ export const NewLibModal = ({
     }[]
   >([]);
   const debouncedSearchTerm = useDebounce(searchValue, 300);
+
+  console.log("xxx", customCategories);
 
   const search = (value: string) => {
     setIsSearching(true);
@@ -187,27 +190,6 @@ export const NewLibModal = ({
 
   useEffect(() => {
     let newLayers: any[] = [];
-    if (customCategories) {
-      setShownCategories((prev) => {
-        if (prev.find((item) => item.id === "favorites")) {
-          prev.splice(
-            prev.findIndex((item) => item.id === "favorites"),
-            1
-          );
-        }
-        return [...prev, { id: "favorites", categories: customCategories }];
-      });
-
-      setTmpAllCategories((prev) => {
-        if (prev.find((item) => item.id === "favorites")) {
-          prev.splice(
-            prev.findIndex((item) => item.id === "favorites"),
-            1
-          );
-        }
-        return [...prev, { id: "favorites", categories: customCategories }];
-      });
-    }
     for (let key in services) {
       if (services[key].url) {
         fetch(
@@ -224,6 +206,7 @@ export const NewLibModal = ({
                   config,
                   wms: result,
                   serviceName: services[key].name,
+                  skipTopicMaps: true,
                 });
 
                 tmpLayer.forEach((category) => {
@@ -301,6 +284,7 @@ export const NewLibModal = ({
           const tmpLayer = getLayerStructure({
             config,
             serviceName: services[key].name,
+            skipTopicMaps: true,
           });
           const mergedLayer = mergeStructures(tmpLayer, newLayers);
           newLayers = mergedLayer;
@@ -313,6 +297,32 @@ export const NewLibModal = ({
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (customCategories) {
+      if (!searchValue) {
+        setShownCategories((prev) => {
+          if (prev.find((item) => item.id === "favorites")) {
+            prev.splice(
+              prev.findIndex((item) => item.id === "favorites"),
+              1
+            );
+          }
+          return [...prev, { id: "favorites", categories: customCategories }];
+        });
+      }
+
+      setTmpAllCategories((prev) => {
+        if (prev.find((item) => item.id === "favorites")) {
+          prev.splice(
+            prev.findIndex((item) => item.id === "favorites"),
+            1
+          );
+        }
+        return [...prev, { id: "favorites", categories: customCategories }];
+      });
+    }
+  }, [customCategories]);
 
   useEffect(() => {
     search(debouncedSearchTerm);
@@ -411,6 +421,7 @@ export const NewLibModal = ({
         return null;
       }
     }
+
     return categories.filter((category) => category.id === shownId)?.[0]
       ?.categories;
   };
@@ -466,6 +477,7 @@ export const NewLibModal = ({
                   onClick={() => {
                     setSelectedNavItemIndex(i);
                   }}
+                  disabled={element.id === "searchResults" && !searchValue}
                 />
               );
             })}
@@ -510,8 +522,9 @@ export const NewLibModal = ({
               {layers && layers.length > 0 && (
                 <>
                   <LayerTabs
-                    layers={layers.filter(
-                      (layer) => layer.Title !== "TopicMaps"
+                    layers={categoriesToShownLayers(
+                      shownCategories,
+                      sidebarElements[selectedNavItemIndex].id
                     )}
                     activeId={inViewCategory}
                     numberOfItems={getNumberOfLayers(layers)}

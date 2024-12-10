@@ -173,10 +173,12 @@ export const getLayerStructure = ({
   config,
   wms,
   serviceName,
+  skipTopicMaps,
 }: {
   config: any;
   wms?: WMSCapabilitiesJSON;
   serviceName: string;
+  skipTopicMaps?: boolean;
 }) => {
   const structure: {
     Title: string;
@@ -184,6 +186,9 @@ export const getLayerStructure = ({
   }[] = [];
   const services = serviceConfig;
   for (let category in config) {
+    if (category === "TopicMaps" && skipTopicMaps) {
+      continue;
+    }
     const categoryConfig = config[category];
     const layers: Item[] = [];
     let categoryObject = {
