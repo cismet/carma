@@ -114,7 +114,7 @@ export const printMap = async (
 
 export const getPrintLayers = (bgLayer, layers) => {
   const layerPrint = [];
-  const bgLayers = convertLayerStringToLayers(bgLayer.layers);
+  const bgLayers = convertLayerStringToLayers(bgLayer.layers, bgLayer.visible);
   console.log("xxx bglayers", bgLayers);
   const allLayers = [...bgLayers, ...layers];
 

@@ -165,14 +165,17 @@ export const layerMap: LayerMap = {
   },
 };
 
-export const convertLayerStringToLayers = (layerString: string): any => {
+export const convertLayerStringToLayers = (
+  layerString: string,
+  visible: boolean
+): any => {
   const layers = layerString.split("|");
   return layers.map((layer) => {
     const [layerConfigName, opacity] = layer.split("@");
     const config = defaultLayerConfig.namedLayers[layerConfigName];
     return {
       ...config,
-      visible: true,
+      visible,
       layerType: config.type,
       opacity: (Number(opacity) || 1) / 100,
     };
