@@ -13,6 +13,7 @@ import {
 } from "../../store/slices/print";
 import { getBackgroundLayer, getLayers } from "../../store/slices/mapping";
 import {
+  getCenterPrintPreview,
   getPolygonByLeafletId,
   getPrintLayers,
   printMap,
@@ -49,15 +50,10 @@ const PrintButton = ({
   const startPint = () => {
     if (map) {
       dispatch(changeIfMapPrinted(true));
-
-      const prevPolygon = getPolygonByLeafletId(map);
-      const bounds = prevPolygon.getBounds();
-      const center = bounds.getCenter();
-      const { lat, lng } = center;
-      const tranformProj = proj4("EPSG:4326", "EPSG:3857", [lng, lat]);
+      const polygonCenter = getCenterPrintPreview(map);
       const layesPrint = getPrintLayers(bgLayer, layers);
       printMap(
-        tranformProj,
+        polygonCenter,
         scale,
         layesPrint,
         orientation,
