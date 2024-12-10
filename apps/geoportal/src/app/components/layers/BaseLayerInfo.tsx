@@ -242,13 +242,19 @@ const BaseLayerInfo = () => {
               strategy={verticalListSortingStrategy}
             >
               {reversedLayers.map((layer, i) => (
-                <LayerRow key={`layer.${i}`} layer={layer} id={layer.id} />
+                <LayerRow
+                  key={`layer.${i}`}
+                  layer={layer}
+                  id={layer.id}
+                  index={reversedLayers.length - 1 - i}
+                />
               ))}
             </SortableContext>
             <LayerRow
               isBackgroundLayer
               layer={backgroundLayer}
               id={backgroundLayer.id}
+              index={-1}
             />
           </div>
         </DndContext>

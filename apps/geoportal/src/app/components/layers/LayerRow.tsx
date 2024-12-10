@@ -11,7 +11,11 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Slider } from "antd";
 import { Layer } from "@carma-mapping/layers";
 import { useDispatch } from "react-redux";
-import { changeOpacity, changeVisibility } from "../../store/slices/mapping";
+import {
+  changeOpacity,
+  changeVisibility,
+  setSelectedLayerIndex,
+} from "../../store/slices/mapping";
 import { iconColorMap, iconMap } from "./items";
 import { formatter } from "./SecondaryView";
 
@@ -19,9 +23,10 @@ interface LayerRowProps {
   layer: Layer;
   id: string;
   isBackgroundLayer?: boolean;
+  index: number;
 }
 
-const LayerRow = ({ layer, id, isBackgroundLayer }: LayerRowProps) => {
+const LayerRow = ({ layer, id, isBackgroundLayer, index }: LayerRowProps) => {
   const dispatch = useDispatch();
   const urlPrefix = window.location.origin + window.location.pathname;
   const icon = layer?.other?.icon;
@@ -64,7 +69,14 @@ const LayerRow = ({ layer, id, isBackgroundLayer }: LayerRowProps) => {
             id="icon"
           />
         )}
-        <p className="mb-0 text-lg truncate">{layer.title}</p>
+        <p
+          className="mb-0 text-lg truncate hover:underline cursor-pointer"
+          onClick={() => {
+            dispatch(setSelectedLayerIndex(index));
+          }}
+        >
+          {layer.title}
+        </p>
       </div>
       <Slider
         min={0}
