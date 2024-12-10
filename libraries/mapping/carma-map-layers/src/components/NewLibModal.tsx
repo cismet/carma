@@ -478,6 +478,7 @@ export const NewLibModal = ({
                     setSelectedNavItemIndex(i);
                   }}
                   disabled={element.id === "searchResults" && !searchValue}
+                  key={element.id}
                 />
               );
             })}
