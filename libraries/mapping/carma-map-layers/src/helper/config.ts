@@ -226,43 +226,43 @@ export const config = {
 export const serviceConfig: Record<string, LayerConfig> = {
   wuppKarten: {
     url: "https://maps.wuppertal.de/karten",
-    name: "karten",
+    name: "wuppKarten",
   },
   wuppUmwelt: {
     url: "https://maps.wuppertal.de/umwelt",
-    name: "umwelt",
+    name: "wuppUmwelt",
   },
   wuppInfra: {
     url: "https://maps.wuppertal.de/infra",
-    name: "infra",
+    name: "wuppInfra",
   },
   wuppPOI: {
     url: "https://maps.wuppertal.de/poi",
-    name: "poi",
+    name: "wuppPOI",
   },
   wuppPlanung: {
     url: "https://maps.wuppertal.de/planung",
-    name: "planung",
+    name: "wuppPlanung",
   },
   wuppInspire: {
     url: "https://maps.wuppertal.de/inspire",
-    name: "inspire",
+    name: "wuppInspire",
   },
   wuppImmo: {
     url: "https://maps.wuppertal.de/immo",
-    name: "immo",
+    name: "wuppImmo",
   },
   wuppVerkehr: {
     url: "https://maps.wuppertal.de/verkehr",
-    name: "verkehr",
+    name: "wuppVerkehr",
   },
   wuppGebiet: {
     url: "https://maps.wuppertal.de/gebiet",
-    name: "gebiet",
+    name: "wuppGebiet",
   },
   wuppTopicMaps: {
     type: "topicmaps",
-    name: "topicmaps",
+    name: "wuppTopicMaps",
   },
   wuppVector: {
     name: "wuppVector",
@@ -274,8 +274,8 @@ export const topicMapsConfig: Config = {
   serviceName: "wuppTopicMaps",
   layers: [
     {
-      id: "wuppTopic_stadtplan",
-      name: "wuppTopic_stadtplan",
+      id: "wuppTopicMaps_stadtplan",
+      name: "wuppTopicMaps_stadtplan",
       title: "Online Stadtplan",
       description: `Interaktiver personalisierbarer Themenstadtplan für Wuppertal.`,
       tags: ["TopicMaps", "Stadtplan"],
@@ -284,10 +284,11 @@ export const topicMapsConfig: Config = {
         "https://images.unsplash.com/photo-1618901882511-e7adb73a1ee0?q=80&w=2664&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
 
       url: "https://topicmaps-wuppertal.github.io/stadtplan/#/",
+      serviceName: "wuppTopicMaps",
     },
     {
-      id: "wuppTopic_kultur",
-      name: "wuppTopic_kultur",
+      id: "wuppTopicMaps_kultur",
+      name: "wuppTopicMaps_kultur",
       title: "Kulturstadtplan",
       description: `Interaktiver personalisierbarer Kulturstadtplan für Wuppertal.`,
       tags: ["TopicMaps", "Stadtplan", "Kultur"],
@@ -295,10 +296,11 @@ export const topicMapsConfig: Config = {
       thumbnail:
         "https://www.wuppertal.de/geoportal/signaturen/Fotos_POI/Fotostrecke_Schwebo/Schwebodrom_Aussenansicht.jpg",
       url: "https://digital-twin-wuppertal-live.github.io/kulturstadtplan/",
+      serviceName: "wuppTopicMaps",
     },
     {
-      id: "wuppTopic_baeder",
-      name: "wuppTopic_baeder",
+      id: "wuppTopicMaps_baeder",
+      name: "wuppTopicMaps_baeder",
       title: "Bäderkarte",
       description: `Interaktive Kartenanwendung für die Schwimmbäder in Wuppertal.`,
       tags: ["TopicMaps", "Bäder"],
@@ -306,10 +308,11 @@ export const topicMapsConfig: Config = {
       thumbnail:
         "https://images.unsplash.com/photo-1558617320-e695f0d420de?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
       url: "https://digital-twin-wuppertal-live.github.io/baederkarte/",
+      serviceName: "wuppTopicMaps",
     },
     {
-      id: "wuppTopic_ebike",
-      name: "wuppTopic_ebike",
+      id: "wuppTopicMaps_ebike",
+      name: "wuppTopicMaps_ebike",
       title: "Ladestationen E-Bikes",
       description: `Interaktive Kartenanwendung zu den Lade- und Verleihstationen für E-Fahrräder in Wuppertal.`,
       tags: ["TopicMaps", "E-Bikes", "Ladestationen"],
@@ -318,10 +321,11 @@ export const topicMapsConfig: Config = {
         "https://www.wuppertal.de/geoportal/emobil/raeder/fotos/akku_bauhaus_lichtscheid.jpg",
 
       url: "https://digital-twin-wuppertal-live.github.io/ebikes/",
+      serviceName: "wuppTopicMaps",
     },
     {
-      id: "wuppTopic_ehrenamt",
-      name: "wuppTopic_ehrenamt",
+      id: "wuppTopicMaps_ehrenamt",
+      name: "wuppTopicMaps_ehrenamt",
       title: "Ehrenamtskarte",
       description: `Interaktive Kartenanwendung der Vermittlungsagentur "Zentrum für gute Taten e. V." für die erste Recherche nach Ehrenamtsstellen in Wuppertal .`,
       tags: ["TopicMaps", "Ehrenamt"],
@@ -329,10 +333,11 @@ export const topicMapsConfig: Config = {
       thumbnail:
         "https://plus.unsplash.com/premium_photo-1663099733543-4c503251e501?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
       url: "https://wunda-geoportal.cismet.de/#/ehrenamt",
+      serviceName: "wuppTopicMaps",
     },
     {
-      id: "wuppTopic_emobi",
-      name: "wuppTopic_emobi",
+      id: "wuppTopicMaps_emobi",
+      name: "wuppTopicMaps_emobi",
       title: "E-Auto-Ladestationskarte",
       description: `Die E-Auto-Ladestationskarte Wuppertal ist eine im Auftrag der Stadt Wuppertal von der Firma cismet GmbH, Saarbrücken, betriebene interaktive Internet-Kartenanwendung, die dem Nutzer einen Überblick über die öffentlich zugänglichen Ladestationen für Elektro-Automobile im Wuppertaler Stadtgebiet verschafft.`,
       tags: [
@@ -353,10 +358,11 @@ export const topicMapsConfig: Config = {
       keywords: [
         "carmaConf://opendata:https://offenedaten-wuppertal.de/dataset/ladestationen-e-autos-wuppertal/resource/46973470-98c9-4ba1-9b69-94358b9b22cb",
       ],
+      serviceName: "wuppTopicMaps",
     },
     {
-      id: "wuppTopic_kitas",
-      name: "wuppTopic_kitas",
+      id: "wuppTopicMaps_kitas",
+      name: "wuppTopicMaps_kitas",
       title: "Kita-Finder",
       description: `Interaktive Kartenanwendung für die Recherche nach Kindertageseinrichtungen (Kitas) in Wuppertal - Spezialisierung des Online-Stadtplans Wuppertal mit spezifischen Filter- und Darstellungsoptionen.`,
       tags: ["TopicMaps", "Kitas"],
@@ -365,10 +371,11 @@ export const topicMapsConfig: Config = {
         "https://images.unsplash.com/photo-1567746455504-cb3213f8f5b8?q=80&w=2670&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
 
       url: "https://wunda-geoportal.cismet.de/#/kitas",
+      serviceName: "wuppTopicMaps",
     },
     {
-      id: "wuppTopic_xandride",
-      name: "wuppTopic_xandride",
+      id: "wuppTopicMaps_xandride",
+      name: "wuppTopicMaps_xandride",
       title: "Park & Ride",
       description: `Interaktive Kartenanwendung zu den Park & Ride Standorten in Wuppertal.`,
       tags: ["TopicMaps", "Park & Ride"],
@@ -376,10 +383,11 @@ export const topicMapsConfig: Config = {
       thumbnail:
         "https://www.wuppertal.de/geoportal/prbr/fotos/foto_bahnhof_barmen.jpg",
       url: "https://digital-twin-wuppertal-live.github.io/xandride/",
+      serviceName: "wuppTopicMaps",
     },
     {
-      id: "wuppTopic_wasserstoff",
-      name: "wuppTopic_wasserstoff",
+      id: "wuppTopicMaps_wasserstoff",
+      name: "wuppTopicMaps_wasserstoff",
       title: "Wasserstofftankstellen",
       description: `Interaktive Kartenanwendung zu den Wasserstofftankstellen in Wuppertal.`,
       tags: ["TopicMaps", "Tankstellen", "Wasserstoff"],
@@ -387,10 +395,11 @@ export const topicMapsConfig: Config = {
       thumbnail:
         "https://www.wuppertal.de/geoportal/emobil/autos/fotos/wasserstoff_01.jpg",
       url: "https://wunda-geoportal.cismet.de/#/meine/Wasserstoff-Tankstellenkarte_Wuppertal",
+      serviceName: "wuppTopicMaps",
     },
     {
-      id: "wuppTopic_luftmessstationen",
-      name: "wuppTopic_luftmessstationen",
+      id: "wuppTopicMaps_luftmessstationen",
+      name: "wuppTopicMaps_luftmessstationen",
       title: "Luftmessstationen",
       description: `Interaktive Kartenanwendung zu den Luftmessstationen in Wuppertal.`,
       tags: ["TopicMaps", "Luftmessstationen"],
@@ -398,10 +407,11 @@ export const topicMapsConfig: Config = {
       thumbnail:
         "https://www.wuppertal.de/geoportal/luftmessstationen/fotos/MP31",
       url: "https://digital-twin-wuppertal-live.github.io/luftmessstationen/",
+      serviceName: "wuppTopicMaps",
     },
     {
-      id: "wuppTopic_klimaorte",
-      name: "wuppTopic_klimaorte",
+      id: "wuppTopicMaps_klimaorte",
+      name: "wuppTopicMaps_klimaorte",
       title: "Klimaortkarte",
       description: `Interaktive Kartenanwendung für die Publikation von Best-Practice-Beispielen zum Klimaschutz in Wuppertal .`,
       tags: ["TopicMaps", "Klimaorte"],
@@ -409,6 +419,7 @@ export const topicMapsConfig: Config = {
       thumbnail:
         "https://images.unsplash.com/photo-1548337138-e87d889cc369?q=80&w=2096&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
       url: "https://topicmaps-wuppertal.github.io/klimaorte/#/",
+      serviceName: "wuppTopicMaps",
     },
   ],
 };

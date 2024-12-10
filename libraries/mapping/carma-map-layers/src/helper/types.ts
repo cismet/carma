@@ -114,6 +114,7 @@ export type Item = {
   maxZoom?: number;
   minZoom?: number;
   id: string;
+  serviceName: string;
 } & (tmpLayer | Link | Feature | Collection);
 
 export type XMLLayer = {

@@ -27,6 +27,11 @@ const ItemGrid = ({
   setSelectedLayerId,
   setPreview,
 }: ItemGridProps) => {
+  console.log("xxx", categories);
+
+  if (!categories || categories.length === 0) {
+    return null;
+  }
   return (
     <>
       {categories.map((category, i) => (

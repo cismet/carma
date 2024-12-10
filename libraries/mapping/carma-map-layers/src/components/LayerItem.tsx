@@ -63,10 +63,6 @@ const LayerItem = ({
   const description = layer.description;
   const keywords = layer.keywords;
 
-  if (layer.type === "collection") {
-    console.log("xxx", layer);
-  }
-
   const regex = /Inhalt:(.*?)Sichtbarkeit:/s;
 
   const match = description?.match(regex);

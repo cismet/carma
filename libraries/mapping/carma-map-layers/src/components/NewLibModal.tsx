@@ -99,6 +99,12 @@ export const NewLibModal = ({
       categories: LayerCategories[];
     }[]
   >([]);
+  const [shownCategories, setShownCategories] = useState<
+    {
+      id: string;
+      categories: LayerCategories[];
+    }[]
+  >([]);
   const debouncedSearchTerm = useDebounce(searchValue, 300);
 
   const layerMapping = {
@@ -114,40 +120,31 @@ export const NewLibModal = ({
     setIsSearching(true);
     if (value) {
       const results = fuse.search(value);
-      const resultsWithCategories = allLayers.map((item) => {
-        return {
-          ...item,
-        };
-      });
 
-      resultsWithCategories.map((category) => {
-        const newLayers: any[] = [];
+      const testCategories = tmpAllCategories.map((category) => {
+        category.categories.map((tmp) => {
+          const newLayers: any[] = [];
+          results.forEach((result) => {
+            const resultItem = result.item;
 
-        results.forEach((result) => {
-          if (
-            category.Title === "Favoriten" &&
-            result.item?.id.startsWith("fav_")
-          ) {
-            newLayers.push({
-              ...result.item,
-            });
-          }
-          if (
-            category.Title === result.item?.tags?.[0] &&
-            !result.item?.id.startsWith("fav_")
-          ) {
-            newLayers.push({
-              ...result.item,
-            });
-          }
+            if (tmp.id === resultItem.serviceName && tmp.id) {
+              newLayers.push({
+                ...resultItem,
+              });
+            }
+          });
+
+          tmp.layers = newLayers;
+
+          return tmp;
         });
 
-        category.layers = newLayers;
+        return category;
       });
 
-      setSearchResults(resultsWithCategories);
+      setShownCategories(testCategories);
     } else {
-      setSearchResults([]);
+      setShownCategories(tmpAllCategories);
     }
     setIsSearching(false);
   };
@@ -206,6 +203,22 @@ export const NewLibModal = ({
           );
         }
         return [...prev, { id: "favorites", categories: customCategories }];
+      });
+
+      setShownCategories((prev) => {
+        if (prev.find((item) => item.id === "favorites")) {
+          prev.splice(
+            prev.findIndex((item) => item.id === "favorites"),
+            1
+          );
+        }
+        return [
+          ...prev,
+          {
+            id: "mapLayers",
+            categories: allLayers,
+          },
+        ];
       });
     }
     for (let key in services) {
@@ -282,6 +295,22 @@ export const NewLibModal = ({
               },
             ];
           });
+
+          setShownCategories((prev) => {
+            if (prev.find((item) => item.id === "partialTwins")) {
+              prev.splice(
+                prev.findIndex((item) => item.id === "partialTwins"),
+                1
+              );
+            }
+            return [
+              ...prev,
+              {
+                id: "mapLayers",
+                categories: allLayers,
+              },
+            ];
+          });
         } else {
           const tmpLayer = getLayerStructure({
             config,
@@ -308,6 +337,22 @@ export const NewLibModal = ({
       setLayers(allLayers);
 
       setTmpAllCategories((prev) => {
+        if (prev.find((item) => item.id === "mapLayers")) {
+          prev.splice(
+            prev.findIndex((item) => item.id === "mapLayers"),
+            1
+          );
+        }
+        return [
+          ...prev,
+          {
+            id: "mapLayers",
+            categories: allLayers,
+          },
+        ];
+      });
+
+      setShownCategories((prev) => {
         if (prev.find((item) => item.id === "mapLayers")) {
           prev.splice(
             prev.findIndex((item) => item.id === "mapLayers"),
@@ -371,6 +416,18 @@ export const NewLibModal = ({
       window.removeEventListener("dragover", handleDragOver);
     };
   }, []);
+
+  const categoriesToShownLayers = (categories, shownId) => {
+    if (shownId === "searchResults") {
+      if (searchValue) {
+        return categories.map((category) => category.categories).flat();
+      } else {
+        return null;
+      }
+    }
+    return categories.filter((category) => category.id === shownId)?.[0]
+      ?.categories;
+  };
 
   return (
     <Modal
@@ -510,9 +567,10 @@ export const NewLibModal = ({
             <div>
               {showItems && (
                 <ItemGrid
-                  categories={
-                    layerMapping[sidebarElements[selectedNavItemIndex].id]
-                  }
+                  categories={categoriesToShownLayers(
+                    shownCategories,
+                    sidebarElements[selectedNavItemIndex].id
+                  )}
                   setAdditionalLayers={setAdditionalLayers}
                   activeLayers={activeLayers}
                   favorites={favorites}

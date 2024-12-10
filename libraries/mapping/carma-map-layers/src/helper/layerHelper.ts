@@ -160,6 +160,7 @@ export const wmsLayerToGenericItem = (layer: XMLLayer, serviceName: string) => {
       maxZoom: scaleHintToZoom(layer?.ScaleHint?.min),
       minZoom: scaleHintToZoom(layer?.ScaleHint?.max),
       props: { ...layer },
+      serviceName: serviceName,
     };
 
     return item;
@@ -187,6 +188,7 @@ export const getLayerStructure = ({
     const layers: Item[] = [];
     let categoryObject = {
       Title: categoryConfig.Title || category,
+      id: categoryConfig.serviceName,
       layers,
     };
 
@@ -335,14 +337,14 @@ export const mergeStructures = (structure1: any, structure2: any) => {
 
   structure1.forEach((obj: any) => {
     if (!mergedObj[obj.Title]) {
-      mergedObj[obj.Title] = { Title: obj.Title, layers: [] };
+      mergedObj[obj.Title] = { Title: obj.Title, layers: [], id: obj.id };
     }
     mergedObj[obj.Title].layers.push(...obj.layers);
   });
 
   structure2.forEach((obj: any) => {
     if (!mergedObj[obj.Title]) {
-      mergedObj[obj.Title] = { Title: obj.Title, layers: [] };
+      mergedObj[obj.Title] = { Title: obj.Title, layers: [], id: obj.id };
     }
     mergedObj[obj.Title].layers.push(...obj.layers);
   });
