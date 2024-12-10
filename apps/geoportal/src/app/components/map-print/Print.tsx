@@ -51,6 +51,7 @@ const Print = ({ setShowPrintPopup }) => {
       dispatch(setUIMode("print"));
       dispatch(changeRedrawPreview(!redrawPrev));
       setShowPrintPopup(false);
+      dispatch(changeIfMapPrinted(false));
     }
   };
 
@@ -113,6 +114,7 @@ const Print = ({ setShowPrintPopup }) => {
           dispatch(setUIMode("print"));
           dispatch(changeRedrawPreview(!redrawPrev));
           setShowPrintPopup(false);
+          dispatch(changeIfMapPrinted(false));
         }}
       >
         Vorschau

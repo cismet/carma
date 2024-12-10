@@ -92,7 +92,7 @@ const PrintPreview = () => {
   };
 
   useEffect(() => {
-    if (map && mode === "print" && !loading) {
+    if (map && mode === "print") {
       !ifMapPrinted && deleteRectangleById(map);
       const rectangleCoordinates = getPreviewBounds(
         map,
@@ -100,15 +100,26 @@ const PrintPreview = () => {
         orientation,
         ifMapPrinted
       );
-      const polygon = L.polygon(rectangleCoordinates, {
-        color: "black",
-        weight: 1,
-        draggable: true,
-      } as DraggablePolygonOptions) as CustomPolygon;
+      if (rectangleCoordinates) {
+        const polygon = L.polygon(rectangleCoordinates, {
+          color: "black",
+          weight: 1,
+          draggable: !loading ? true : false,
+        } as DraggablePolygonOptions) as CustomPolygon;
 
-      polygon.addTo(map);
-      polygon.prevPrintId = "print-rect-id";
-      changePreviewSizes(map, orientation);
+        polygon.addTo(map);
+        polygon.prevPrintId = "print-rect-id";
+        changePreviewSizes(map, orientation);
+
+        polygon.on("dragstart", () => {
+          setIsHideContent(true);
+        });
+        polygon.on("dragend", () => {
+          const newBounds = polygon.getBounds();
+          map.fitBounds(newBounds);
+          setIsHideContent(false);
+        });
+      }
 
       const onZoomStart = () => setIsHideContent(true);
       const onZoomEnd = () => {
@@ -139,15 +150,6 @@ const PrintPreview = () => {
         }
       };
 
-      polygon.on("dragstart", () => {
-        setIsHideContent(true);
-      });
-      polygon.on("dragend", () => {
-        const newBounds = polygon.getBounds();
-        map.fitBounds(newBounds);
-        setIsHideContent(false);
-      });
-
       map.on("click", onMapClick);
 
       map.on("zoomstart", onZoomStart);
@@ -163,7 +165,7 @@ const PrintPreview = () => {
       //   setlastOrientation(orientation);
 
       return () => {
-        polygon.off();
+        // polygon.off();
         map.off("click", onMapClick);
         map.off("zoomstart", onZoomStart);
         map.off("zoomend", onZoomEnd);

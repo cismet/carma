@@ -998,10 +998,15 @@ export const getPreviewBounds = (
       return rectangleCoordinates;
     } else {
       const polygon = getPolygonByLeafletId(map);
-      const coordinates = polygon.getLatLngs();
-      const flatCoordinates = coordinates.flat();
-      deleteRectangleById(map);
-      return flatCoordinates;
+      if (polygon) {
+        const coordinates = polygon.getLatLngs();
+        const flatCoordinates = coordinates.flat();
+        deleteRectangleById(map);
+        return flatCoordinates;
+      } else {
+        return undefined;
+      }
     }
   }
+  return undefined;
 };
