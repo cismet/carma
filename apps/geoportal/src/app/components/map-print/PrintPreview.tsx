@@ -158,7 +158,6 @@ const PrintPreview = () => {
       };
 
       const onMapClick = (e) => {
-        console.log("xxx", e.originalEvent.target);
         const ifPolygon = e.originalEvent.target?.classList.contains(
           "leaflet-path-draggable"
         );
