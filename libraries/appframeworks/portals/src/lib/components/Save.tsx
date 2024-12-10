@@ -33,6 +33,7 @@ export const Save = ({ layers, storeConfigAction }: SaveProps) => {
       layers,
       thumbnail,
       id: nanoid(),
+      serviceName: "collections",
     };
     try {
       storeConfigAction(config);

@@ -245,6 +245,7 @@ export const NewLibModal = ({
             config,
             serviceName: services[key].name,
           });
+          // @ts-expect-error
           setShownCategories((prev) => {
             if (prev.find((item) => item.id === "partialTwins")) {
               prev.splice(
@@ -263,6 +264,7 @@ export const NewLibModal = ({
             ];
           });
 
+          // @ts-expect-error
           setTmpAllCategories((prev) => {
             if (prev.find((item) => item.id === "partialTwins")) {
               prev.splice(

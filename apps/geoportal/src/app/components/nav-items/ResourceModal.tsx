@@ -123,11 +123,25 @@ const ResourceModal = () => {
         customCategories={[
           {
             Title: "Meine Zusammenstellungen",
-            layers: savedLayerConfigs,
+            layers: savedLayerConfigs.map((layer) => {
+              return {
+                ...layer,
+                serviceName: "collections",
+              };
+            }),
+            // @ts-expect-error
+            id: "collections",
           },
           {
             Title: "Favoriten",
-            layers: favorites,
+            // @ts-expect-error
+            layers: favorites.map((favorite) => {
+              return {
+                ...favorite,
+                serviceName: "favoriteLayers",
+              };
+            }),
+            id: "favoriteLayers",
           },
         ]}
         updateActiveLayer={(layer) => {

@@ -230,6 +230,7 @@ const TopNavbar = () => {
         customCategories={[
           {
             Title: "Meine Zusammenstellungen",
+            // @ts-expect-error
             layers: savedLayerConfigs,
           },
         ]}
