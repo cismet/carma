@@ -75,7 +75,7 @@ const Print = ({ setShowPrintPopup }) => {
       /> */}
       {/* <hr className="my-0" /> */}
 
-      <h5 className="mb-0">Format</h5>
+      <h5 className="mb-0">Format DIN A4</h5>
       <Radio.Group onChange={onChange} value={orientation}>
         <div className="flex items-center gap-1">
           <Radio value={"portrait"}>hoch</Radio>

@@ -72,7 +72,6 @@ export const printMap = async (
     },
   };
   handleIsLoading(true);
-  console.log("xxx printBody", JSON.stringify(data, null, 2));
 
   try {
     const response = await fetch(url, {
@@ -115,12 +114,9 @@ export const printMap = async (
 export const getPrintLayers = (bgLayer, layers) => {
   const layerPrint = [];
   const bgLayers = convertLayerStringToLayers(bgLayer.layers, bgLayer.visible);
-  console.log("xxx bglayers", bgLayers);
   const allLayers = [...bgLayers, ...layers];
 
   allLayers.forEach((layer) => {
-    console.log("xxx layer", layer);
-
     if (layer.visible) {
       switch (layer.layerType) {
         case "wms":
@@ -139,7 +135,6 @@ export const getPrintLayers = (bgLayer, layers) => {
           const vectorStyle = layer.style || layer.props.style;
           const styleName = getStyleName(vectorStyle);
 
-          console.log("xxx print layer", vectorStyle, ">>", styleName);
           layerPrint.unshift(
             buildVecorStylePrint(styleName, layer.opacity, 2, 1)
           );
@@ -149,7 +144,6 @@ export const getPrintLayers = (bgLayer, layers) => {
       }
     }
   });
-  console.log("xxx layerPrint", layerPrint);
 
   return layerPrint;
 };
@@ -1009,4 +1003,14 @@ export const getPreviewBounds = (
     }
   }
   return undefined;
+};
+
+export const getCenterPrintPreview = (map) => {
+  const prevPolygon = getPolygonByLeafletId(map);
+  const bounds = prevPolygon.getBounds();
+  const center = bounds.getCenter();
+  const { lat, lng } = center;
+  const polygonCenter = proj4("EPSG:4326", "EPSG:3857", [lng, lat]);
+
+  return polygonCenter;
 };

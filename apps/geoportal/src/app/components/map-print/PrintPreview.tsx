@@ -5,6 +5,8 @@ import { useContext, useEffect, useState } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import {
   changeIfMapPrinted,
+  changeIsLoading,
+  changePrintError,
   getDPI,
   getIfMapPrinted,
   getIsLoading,
@@ -16,13 +18,16 @@ import {
 import { getBackgroundLayer, getLayers } from "../../store/slices/mapping";
 import {
   deleteRectangleById,
+  getCenterPrintPreview,
   getFontSizeForLandscape,
   getFontSizeForPortrait,
   getPolygonByLeafletId,
   getPolygonPoints,
   getPreviewBounds,
+  getPrintLayers,
   getSmallSizeLandscape,
   getSmallSizePortrait,
+  printMap,
 } from "../../helper/print";
 import ClosePrintButton from "./ClosePrintButton";
 import PrintPrevTexts from "./PrintPrevTexts";
@@ -45,6 +50,7 @@ const PrintPreview = () => {
   const orientation = useSelector(getOrientation);
   const dpi = useSelector(getDPI);
   const ifMapPrinted = useSelector(getIfMapPrinted);
+  const printName = useSelector(getPrintName);
   const [lastOrientation, setlastOrientation] = useState(orientation);
   const [stepAfterPrinting, setStepAfterPrinting] = useState(false);
   const [isHideContent, setIsHideContent] = useState(false);
@@ -87,8 +93,12 @@ const PrintPreview = () => {
     }
   };
 
-  const handleDoubleClick = (e) => {
-    console.log("xxx db clcik", e);
+  const handleIsLoading = (status) => {
+    dispatch(changeIsLoading(status));
+  };
+
+  const handleIsError = (status) => {
+    dispatch(changePrintError(status));
   };
 
   useEffect(() => {
@@ -118,6 +128,21 @@ const PrintPreview = () => {
           const newBounds = polygon.getBounds();
           map.fitBounds(newBounds);
           setIsHideContent(false);
+        });
+
+        polygon.on("dblclick", () => {
+          const polygonCenter = getCenterPrintPreview(map);
+          const layesPrint = getPrintLayers(bgLayer, layers);
+          printMap(
+            polygonCenter,
+            scale,
+            layesPrint,
+            orientation,
+            Number(dpi),
+            printName,
+            handleIsLoading,
+            handleIsError
+          );
         });
       }
 
