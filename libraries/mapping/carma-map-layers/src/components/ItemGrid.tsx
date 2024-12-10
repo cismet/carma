@@ -33,7 +33,7 @@ const ItemGrid = ({
   return (
     <>
       {categories.map((category, i) => (
-        <div key={category.Title}>
+        <div key={category.Title} id={category.Title}>
           {category.layers.length > 0 && (
             <>
               <p className="mb-4 text-2xl font-semibold">{category?.Title}</p>
