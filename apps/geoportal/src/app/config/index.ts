@@ -164,3 +164,18 @@ export const layerMap: LayerMap = {
     url: "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
   },
 };
+
+export const convertLayerStringToLayers = (layerString: string): any => {
+  const layers = layerString.split("|");
+  return layers.map((layer) => {
+    const [layerConfigName, opacity] = layer.split("@");
+    const config = defaultLayerConfig.namedLayers[layerConfigName];
+    return {
+      ...config,
+      layerType: config.type,
+      opacity: (Number(opacity) || 1) / 100,
+    };
+  });
+};
+
+("https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}");
