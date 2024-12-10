@@ -9,6 +9,7 @@ import PrintPrevTexts from "../components/map-print/PrintPrevTexts";
 import ClosePrintButton from "../components/map-print/ClosePrintButton";
 import UpdateScalePrintButton from "../components/map-print/UpdateScalePrintButton";
 import { constant } from "lodash";
+import { convertLayerStringToLayers } from "../config";
 let reactRoot = null;
 interface DraggablePolygonOptions extends L.PolylineOptions {
   draggable?: boolean;
@@ -71,6 +72,8 @@ export const printMap = async (
     },
   };
   handleIsLoading(true);
+  console.log("xxx printBody", JSON.stringify(data, null, 2));
+
   try {
     const response = await fetch(url, {
       method: "POST",
@@ -108,36 +111,42 @@ export const printMap = async (
     }
   }
 };
+
 export const getPrintLayers = (bgLayer, layers) => {
-  const allLayers = [...layers, bgLayer];
   const layerPrint = [];
+  const bgLayers = convertLayerStringToLayers(bgLayer.layers);
+  console.log("xxx bglayers", bgLayers);
+  const allLayers = [...bgLayers, ...layers];
+
   allLayers.forEach((layer) => {
-    if (layer.layerType === "wmts") {
-      const { name, baseURL } = buildUrlWitName(
-        layer.props?.url,
-        layer.props.name
-      );
-      const layerCat = layer.other?.tags[0] ? layer.other.tags[0] : "Basic";
-      if (layerCat === "Basic") {
-        layerPrint.push(buildWMSPrint(baseURL, name, layer.opacity));
-      } else {
-        layerPrint.unshift(buildWMSPrint(baseURL, name, layer.opacity));
-      }
-    }
+    console.log("xxx layer", layer);
 
-    if (layer.layerType === "vector") {
-      // take the vector style and create a proper style name for the tgl4üromt service
-      // use the folder name and add the style name like for /poi/style.json use poi-style
-      // and for /poi/bildungseinrichtungen.style.json use poi-bildungseinrichtungen-style
+    switch (layer.layerType) {
+      case "wms":
+      case "wmts":
+      case "wmts-nt":
+        const url = layer.url || layer.props.url;
+        const layers = layer.layers || layer.props.name;
+        layerPrint.unshift(buildWMSPrint(url, layers, layer.opacity));
+        break;
 
-      const vectorStyle = layer.props.style;
+      case "vector":
+        // take the vector style and create a proper style name for the tgl4üromt service
+        // use the folder name and add the style name like for /poi/style.json use poi-style
+        // and for /poi/bildungseinrichtungen.style.json use poi-bildungseinrichtungen-style
+        const vectorStyle = layer.style || layer.props.style;
+        const styleName = getStyleName(vectorStyle);
 
-      const styleName = getStyleName(vectorStyle);
-
-      console.log("xxx print layer", vectorStyle, ">>", styleName);
-      layerPrint.unshift(buildVecorStylePrint(styleName, layer.opacity, 1, 1));
+        console.log("xxx print layer", vectorStyle, ">>", styleName);
+        layerPrint.unshift(
+          buildVecorStylePrint(styleName, layer.opacity, 2, 1)
+        );
+        break;
+      case "tiles":
+        layerPrint.unshift(buildTilesPrint(layer.url));
     }
   });
+  console.log("xxx layerPrint", layerPrint);
 
   return layerPrint;
 };
@@ -200,6 +209,176 @@ const buildOMSPrint = (baseURL) => {
   };
 
   return oms;
+};
+
+const buildTilesPrint = (url) => {
+  //replace the {z} {x} {y} with {TileMatrix} {TileCol} {TileRow} and put it to baseUrl
+  // 3 replacements needed
+
+  let baseURL = url.replace("{z}", "{TileMatrix}");
+  baseURL = baseURL.replace("{x}", "{TileCol}");
+  baseURL = baseURL.replace("{y}", "{TileRow}");
+
+  const tiles = {
+    baseURL,
+
+    type: "WMTS",
+    layer: "spw2_light",
+    style: "default",
+    imageFormat: "image/png",
+    matrixSet: "webmercator_hq",
+    matrices: [
+      {
+        identifier: "00",
+        scaleDenominator: 279541132.0143588,
+        tileSize: [512, 512],
+        topLeftCorner: [-20037508.342789244, 20037508.342789244],
+        matrixSize: [1, 1],
+      },
+      {
+        identifier: "01",
+        scaleDenominator: 139770566.0071794,
+        tileSize: [512, 512],
+        topLeftCorner: [-20037508.342789244, 20037508.342789244],
+        matrixSize: [2, 2],
+      },
+      {
+        identifier: "02",
+        scaleDenominator: 69885283.0035897,
+        tileSize: [512, 512],
+        topLeftCorner: [-20037508.342789244, 20037508.342789244],
+        matrixSize: [4, 4],
+      },
+      {
+        identifier: "03",
+        scaleDenominator: 34942641.50179485,
+        tileSize: [512, 512],
+        topLeftCorner: [-20037508.342789244, 20037508.342789244],
+        matrixSize: [8, 8],
+      },
+      {
+        identifier: "04",
+        scaleDenominator: 17471320.750897426,
+        tileSize: [512, 512],
+        topLeftCorner: [-20037508.342789244, 20037508.342789244],
+        matrixSize: [16, 16],
+      },
+      {
+        identifier: "05",
+        scaleDenominator: 8735660.375448713,
+        tileSize: [512, 512],
+        topLeftCorner: [-20037508.342789244, 20037508.342789244],
+        matrixSize: [32, 32],
+      },
+      {
+        identifier: "06",
+        scaleDenominator: 4367830.187724357,
+        tileSize: [512, 512],
+        topLeftCorner: [-20037508.342789244, 20037508.342789244],
+        matrixSize: [64, 64],
+      },
+      {
+        identifier: "07",
+        scaleDenominator: 2183915.0938621783,
+        tileSize: [512, 512],
+        topLeftCorner: [-20037508.342789244, 20037508.342789244],
+        matrixSize: [128, 128],
+      },
+      {
+        identifier: "08",
+        scaleDenominator: 1091957.5469310891,
+        tileSize: [512, 512],
+        topLeftCorner: [-20037508.342789244, 20037508.342789244],
+        matrixSize: [256, 256],
+      },
+      {
+        identifier: "09",
+        scaleDenominator: 545978.7734655446,
+        tileSize: [512, 512],
+        topLeftCorner: [-20037508.342789244, 20037508.342789244],
+        matrixSize: [512, 512],
+      },
+      {
+        identifier: "10",
+        scaleDenominator: 272989.3867327723,
+        tileSize: [512, 512],
+        topLeftCorner: [-20037508.342789244, 20037508.342789244],
+        matrixSize: [1024, 1024],
+      },
+      {
+        identifier: "11",
+        scaleDenominator: 136494.69336638614,
+        tileSize: [512, 512],
+        topLeftCorner: [-20037508.342789244, 20037508.342789244],
+        matrixSize: [2048, 2048],
+      },
+      {
+        identifier: "12",
+        scaleDenominator: 68247.34668319307,
+        tileSize: [512, 512],
+        topLeftCorner: [-20037508.342789244, 20037508.342789244],
+        matrixSize: [4096, 4096],
+      },
+      {
+        identifier: "13",
+        scaleDenominator: 34123.673341596535,
+        tileSize: [512, 512],
+        topLeftCorner: [-20037508.342789244, 20037508.342789244],
+        matrixSize: [8192, 8192],
+      },
+      {
+        identifier: "14",
+        scaleDenominator: 17061.836670798268,
+        tileSize: [512, 512],
+        topLeftCorner: [-20037508.342789244, 20037508.342789244],
+        matrixSize: [16384, 16384],
+      },
+      {
+        identifier: "15",
+        scaleDenominator: 8530.918335399134,
+        tileSize: [512, 512],
+        topLeftCorner: [-20037508.342789244, 20037508.342789244],
+        matrixSize: [32768, 32768],
+      },
+      {
+        identifier: "16",
+        scaleDenominator: 4265.459167699567,
+        tileSize: [512, 512],
+        topLeftCorner: [-20037508.342789244, 20037508.342789244],
+        matrixSize: [65536, 65536],
+      },
+      {
+        identifier: "17",
+        scaleDenominator: 2132.7295838497835,
+        tileSize: [512, 512],
+        topLeftCorner: [-20037508.342789244, 20037508.342789244],
+        matrixSize: [131072, 131072],
+      },
+      {
+        identifier: "18",
+        scaleDenominator: 1066.3647919248917,
+        tileSize: [512, 512],
+        topLeftCorner: [-20037508.342789244, 20037508.342789244],
+        matrixSize: [262144, 262144],
+      },
+      {
+        identifier: "19",
+        scaleDenominator: 533.1823959624459,
+        tileSize: [512, 512],
+        topLeftCorner: [-20037508.342789244, 20037508.342789244],
+        matrixSize: [524288, 524288],
+      },
+      {
+        identifier: "20",
+        scaleDenominator: 266.59119798122293,
+        tileSize: [512, 512],
+        topLeftCorner: [-20037508.342789244, 20037508.342789244],
+        matrixSize: [1048576, 1048576],
+      },
+    ],
+  };
+
+  return tiles;
 };
 
 const getOrientationTemplateParams = (orientation = "portrait") => {
