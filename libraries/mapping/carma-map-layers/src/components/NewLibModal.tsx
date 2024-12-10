@@ -92,7 +92,6 @@ export const NewLibModal = ({
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
   const [selectedNavItemIndex, setSelectedNavItemIndex] = useState(0);
   const [testCategory, setTestCategory] = useState<any[]>([]);
-  const [searchResults, setSearchResults] = useState<any[]>([]);
   const [tmpAllCategories, setTmpAllCategories] = useState<
     {
       id: string;
@@ -107,21 +106,14 @@ export const NewLibModal = ({
   >([]);
   const debouncedSearchTerm = useDebounce(searchValue, 300);
 
-  const layerMapping = {
-    favorites: customCategories,
-    discover: [],
-    partialTwins: partialTwins,
-    mapLayers: layers,
-    sensors: [],
-    searchResults: searchResults,
-  };
-
   const search = (value: string) => {
     setIsSearching(true);
     if (value) {
       const results = fuse.search(value);
 
-      const testCategories = tmpAllCategories.map((category) => {
+      const testTmp = JSON.parse(JSON.stringify(tmpAllCategories));
+
+      const testCategories = testTmp.map((category) => {
         category.categories.map((tmp) => {
           const newLayers: any[] = [];
           results.forEach((result) => {
@@ -144,7 +136,7 @@ export const NewLibModal = ({
 
       setShownCategories(testCategories);
     } else {
-      setShownCategories(tmpAllCategories);
+      // setShownCategories(tmpAllCategories);
     }
     setIsSearching(false);
   };
@@ -152,6 +144,7 @@ export const NewLibModal = ({
   const flattenedLayers = tmpAllCategories.flatMap((obj) =>
     obj.categories.flatMap((obj) => obj.layers)
   );
+  console.log("xxx", tmpAllCategories);
   const fuse = new Fuse(flattenedLayers, {
     keys: [
       { name: "title", weight: 2 },
@@ -195,7 +188,7 @@ export const NewLibModal = ({
   useEffect(() => {
     let newLayers: any[] = [];
     if (customCategories) {
-      setTmpAllCategories((prev) => {
+      setShownCategories((prev) => {
         if (prev.find((item) => item.id === "favorites")) {
           prev.splice(
             prev.findIndex((item) => item.id === "favorites"),
@@ -205,20 +198,14 @@ export const NewLibModal = ({
         return [...prev, { id: "favorites", categories: customCategories }];
       });
 
-      setShownCategories((prev) => {
+      setTmpAllCategories((prev) => {
         if (prev.find((item) => item.id === "favorites")) {
           prev.splice(
             prev.findIndex((item) => item.id === "favorites"),
             1
           );
         }
-        return [
-          ...prev,
-          {
-            id: "mapLayers",
-            categories: allLayers,
-          },
-        ];
+        return [...prev, { id: "favorites", categories: customCategories }];
       });
     }
     for (let key in services) {
@@ -278,7 +265,7 @@ export const NewLibModal = ({
           setPartialTwins(
             tmpLayer.filter((category) => category.layers.length > 0)
           );
-          setTmpAllCategories((prev) => {
+          setShownCategories((prev) => {
             if (prev.find((item) => item.id === "partialTwins")) {
               prev.splice(
                 prev.findIndex((item) => item.id === "partialTwins"),
@@ -296,7 +283,7 @@ export const NewLibModal = ({
             ];
           });
 
-          setShownCategories((prev) => {
+          setTmpAllCategories((prev) => {
             if (prev.find((item) => item.id === "partialTwins")) {
               prev.splice(
                 prev.findIndex((item) => item.id === "partialTwins"),
@@ -306,8 +293,10 @@ export const NewLibModal = ({
             return [
               ...prev,
               {
-                id: "mapLayers",
-                categories: allLayers,
+                id: "partialTwins",
+                categories: tmpLayer.filter(
+                  (category) => category.layers.length > 0
+                ),
               },
             ];
           });
