@@ -226,7 +226,7 @@ const buildTilesPrint = (url) => {
     baseURL,
 
     type: "WMTS",
-    layer: "spw2_light",
+    layer: "--can-be-ignored-since-it-is-already-in-the-baseURL--",
     style: "default",
     imageFormat: "image/png",
     matrixSet: "webmercator_hq",
