@@ -14,6 +14,7 @@ import {
   changeScale,
   getRedrawPreview,
   changeRedrawPreview,
+  changeIfMapPrinted,
 } from "../../store/slices/print";
 import { useSelector, useDispatch } from "react-redux";
 import { setUIMode } from "../../store/slices/ui";
@@ -37,10 +38,12 @@ const Print = ({ setShowPrintPopup }) => {
   const onChange = (e: RadioChangeEvent) => {
     setOrientation(e.target.value);
     dispatch(changeOrientation(e.target.value));
+    dispatch(changeIfMapPrinted(false));
   };
 
   const onScaleChange = (value: string) => {
     dispatch(changeScale(value));
+    dispatch(changeIfMapPrinted(false));
   };
 
   return (

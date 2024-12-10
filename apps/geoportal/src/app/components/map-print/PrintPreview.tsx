@@ -159,6 +159,8 @@ const PrintPreview = () => {
 
       window.addEventListener("keydown", onEscKeyPress);
 
+      //   setlastOrientation(orientation);
+
       return () => {
         polygon.off();
         map.off("click", onMapClick);
@@ -170,6 +172,9 @@ const PrintPreview = () => {
       };
     } else if (map && mode !== "print") {
       deleteRectangleById(map);
+    } else if (map && mode === "print" && lastOrientation !== orientation) {
+      //   dispatch(changeIfMapPrinted(false));
+      //   setlastOrientation(orientation);
     } else if (ifMapPrinted) {
       //   dispatch(changeIfMapPrinted(false));
     }
@@ -183,6 +188,7 @@ const PrintPreview = () => {
     scale,
     redrawPrev,
     loading,
+    lastOrientation,
     stepAfterPrinting,
   ]);
 
