@@ -1,5 +1,5 @@
 import { LoadingOutlined } from "@ant-design/icons";
-import { Spin } from "antd";
+import { Button, Spin } from "antd";
 import { useDispatch, useSelector } from "react-redux";
 import {
   changeIsLoading,
@@ -14,22 +14,11 @@ import {
 import { getBackgroundLayer, getLayers } from "../../store/slices/mapping";
 import {
   getCenterPrintPreview,
-  getPolygonByLeafletId,
   getPrintLayers,
   printMap,
 } from "../../helper/print";
-import proj4 from "proj4";
 
-const PrintButton = ({
-  handlerStartPrint,
-  // loading,
-  width = "72px",
-  height = "34px",
-  fontSize = "14px",
-  hide = false,
-  smallMode = false,
-  map,
-}) => {
+const PrintButton = ({ hide = false, smallMode = false, map }) => {
   const dispatch = useDispatch();
   const orientation = useSelector(getOrientation);
   const dpi = useSelector(getDPI);
@@ -67,30 +56,29 @@ const PrintButton = ({
   return (
     <>
       {!hide && !smallMode && (
-        <button
-          className="rectangle-button"
-          onClick={startPint}
-          disabled={loading}
-          style={{
-            fontSize,
-            width,
-            height,
-            pointerEvents: "auto",
-            // opacity: width !== "0px" ? "1" : "0",
-          }}
-        >
-          {/* <FontAwesomeIcon icon={faPrint} className="text-xl cursor-pointer" /> */}
+        // <button
+        //   className="rectangle-button"
+        //   onClick={startPint}
+        //   disabled={loading}
+        //   style={{
+        //     fontSize,
+        //     width,
+        //     height,
+        //     pointerEvents: "auto",
+        //     // opacity: width !== "0px" ? "1" : "0",
+        //   }}
+        // >
+        //   {/* <FontAwesomeIcon icon={faPrint} className="text-xl cursor-pointer" /> */}
 
-          {loading ? (
-            <Spin
-              indicator={<LoadingOutlined spin />}
-              className="text-white"
-              size="small"
-            />
-          ) : (
-            "Drucken"
-          )}
-        </button>
+        <Button
+          type="primary"
+          // className="rectangle-button"
+          loading={loading}
+          onClick={startPint}
+          style={{ pointerEvents: "auto" }}
+        >
+          Drucken
+        </Button>
       )}
     </>
   );

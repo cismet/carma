@@ -158,11 +158,12 @@ const PrintPreview = () => {
       };
 
       const onMapClick = (e) => {
+        console.log("xxx", e.originalEvent.target);
         const ifPolygon = e.originalEvent.target?.classList.contains(
           "leaflet-path-draggable"
         );
         const ifPrintButton =
-          e.originalEvent.target?.classList.contains("rectangle-button");
+          e.originalEvent.target?.innerText?.includes("Drucken");
         if (!ifPolygon && !ifPrintButton) {
           dispatch(setUIMode("default"));
           deleteRectangleById(map);
@@ -248,11 +249,6 @@ const PrintPreview = () => {
             />
             <div className="flex items-center justify-end gap-4">
               <PrintButton
-                handlerStartPrint={() => console.log("xxx print btn")}
-                // loading={loading}
-                // width={width}
-                // height={height}
-                // fontSize={fontSize}
                 hide={isHideContent}
                 smallMode={previewSizes.isSmallMode}
                 map={map}
