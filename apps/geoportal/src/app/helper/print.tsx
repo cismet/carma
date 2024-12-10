@@ -967,34 +967,41 @@ export const getSmallSizeLandscape = (wrapWidth) => {
 export const getPreviewBounds = (
   map,
   scale,
-  orientation
-  // dpi,
+  orientation,
+  ifPrinted = false
 ) => {
   if (map) {
-    // const map = routedMapRef.leafletMap.leafletElement;
-    const latLngCenter = map.getCenter();
-    const pointCenter = proj4("EPSG:4326", "EPSG:3857", [
-      latLngCenter.lng,
-      latLngCenter.lat,
-    ]);
+    if (!ifPrinted) {
+      const latLngCenter = map.getCenter();
+      const pointCenter = proj4("EPSG:4326", "EPSG:3857", [
+        latLngCenter.lng,
+        latLngCenter.lat,
+      ]);
 
-    const width = orientation === "landscape" ? 802 : 555;
-    const height = orientation === "landscape" ? 555 : 802;
+      const width = orientation === "landscape" ? 802 : 555;
+      const height = orientation === "landscape" ? 555 : 802;
 
-    const f = createFeatureFromBBox(
-      calculateBBox(pointCenter[0], pointCenter[1], width, height, 72, scale)
-    );
+      const f = createFeatureFromBBox(
+        calculateBBox(pointCenter[0], pointCenter[1], width, height, 72, scale)
+      );
 
-    const bb = bbox(f);
-    const bounds = convertBBox2Bounds(bb, proj4crs3857def);
+      const bb = bbox(f);
+      const bounds = convertBBox2Bounds(bb, proj4crs3857def);
 
-    const sw = bounds[0]; // Southwest
-    const ne = bounds[1]; // Northeast
-    const nw = [ne[0], sw[1]]; // Northwest
-    const se = [sw[0], ne[1]]; // Southeast
-    map.fitBounds(bounds);
-    const rectangleCoordinates = [sw, nw, ne, se, sw];
+      const sw = bounds[0]; // Southwest
+      const ne = bounds[1]; // Northeast
+      const nw = [ne[0], sw[1]]; // Northwest
+      const se = [sw[0], ne[1]]; // Southeast
+      map.fitBounds(bounds);
+      const rectangleCoordinates = [sw, nw, ne, se, sw];
 
-    return rectangleCoordinates;
+      return rectangleCoordinates;
+    } else {
+      const polygon = getPolygonByLeafletId(map);
+      const coordinates = polygon.getLatLngs();
+      const flatCoordinates = coordinates.flat();
+      deleteRectangleById(map);
+      return flatCoordinates;
+    }
   }
 };

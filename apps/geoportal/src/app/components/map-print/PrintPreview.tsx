@@ -92,8 +92,13 @@ const PrintPreview = () => {
 
   useEffect(() => {
     if (map && mode === "print" && !loading) {
-      deleteRectangleById(map);
-      const rectangleCoordinates = getPreviewBounds(map, scale, orientation);
+      !ifMapPrinted && deleteRectangleById(map);
+      const rectangleCoordinates = getPreviewBounds(
+        map,
+        scale,
+        orientation,
+        ifMapPrinted
+      );
       const polygon = L.polygon(rectangleCoordinates, {
         color: "black",
         weight: 1,
@@ -166,7 +171,7 @@ const PrintPreview = () => {
     } else if (map && mode !== "print") {
       deleteRectangleById(map);
     } else if (ifMapPrinted) {
-      dispatch(changeIfMapPrinted(false));
+      //   dispatch(changeIfMapPrinted(false));
     }
   }, [
     map,
