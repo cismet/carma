@@ -106,8 +106,6 @@ export const NewLibModal = ({
   >([]);
   const debouncedSearchTerm = useDebounce(searchValue, 300);
 
-  console.log("xxx", customCategories);
-
   const search = (value: string) => {
     setIsSearching(true);
     if (value) {
