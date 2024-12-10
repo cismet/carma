@@ -27,6 +27,7 @@ import {
 import ClosePrintButton from "./ClosePrintButton";
 import PrintPrevTexts from "./PrintPrevTexts";
 import PrintButton from "./PrintButton";
+import "./print.css";
 
 interface DraggablePolygonOptions extends L.PolylineOptions {
   draggable?: boolean;
