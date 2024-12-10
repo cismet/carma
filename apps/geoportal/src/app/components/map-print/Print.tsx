@@ -65,8 +65,8 @@ const Print = ({ setShowPrintPopup }) => {
       <h5 className="mb-0">Format</h5>
       <Radio.Group onChange={onChange} value={orientation}>
         <div className="flex items-center gap-1">
-          <Radio value={"portrait"}>Hoch</Radio>
-          <Radio value={"landscape"}>Quer</Radio>
+          <Radio value={"portrait"}>hoch</Radio>
+          <Radio value={"landscape"}>quer</Radio>
         </div>
       </Radio.Group>
       <hr className="my-0" />
@@ -81,7 +81,7 @@ const Print = ({ setShowPrintPopup }) => {
       />
 
       <hr className="my-0" />
-      <h5 className="mb-0">Auflösung [DPI]</h5>
+      <h5 className="mb-0">Auflösung [dpi]</h5>
       <Radio.Group
         onChange={(e) => {
           setDpi(e.target.value);

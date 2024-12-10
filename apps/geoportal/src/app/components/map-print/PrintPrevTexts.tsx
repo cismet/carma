@@ -23,10 +23,10 @@ const PrintPrevTexts = ({
           }}
         >
           <div className="print-tooltip-text">
-            Format: {format === "portrait" ? "Hoch" : "Quer"}
+            Format: {format === "portrait" ? "hoch" : "quer"}
           </div>
           <div className="print-tooltip-text">Maßstab: 1:{scale}</div>
-          <div className="print-tooltip-text">Auflösung: {dpi}</div>
+          <div className="print-tooltip-text">Auflösung: {dpi} dpi</div>
         </div>
       )}
     </>
