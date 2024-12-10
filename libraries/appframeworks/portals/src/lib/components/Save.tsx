@@ -58,29 +58,23 @@ export const Save = ({ layers, storeConfigAction }: SaveProps) => {
         <h4 className="mb-0">Speichern</h4>
       </div>
       <hr className="my-0" />
-      <label className="-mb-2 font-medium" htmlFor="title">
-        Name:
-      </label>
+      <h5 className="mb-0">Name</h5>
       <Input
         id="title"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
       />
-      <label className="-mb-2 font-medium" htmlFor="description">
-        Beschreibung:
-      </label>
+      <h5 className="mb-0">Beschreibung</h5>
       <Input.TextArea
         id="description"
         value={description}
         onChange={(e) => setDescription(e.target.value)}
       />
       <div className="flex gap-1 -mb-2 font-medium items-center">
-        <label className="mb-0 font-medium" htmlFor="thumbnail">
-          Vorschaubild
-        </label>
+        <h5 className="mb-0">Vorschaubild</h5>
         <Tooltip
           placement="bottom"
-          title="Das Vorschaubild wird automatisch generiert wenn keine URL angegeben wird."
+          title="Das Vorschaubild wird automatisch generiert, wenn keine URL angegeben wird."
           arrow={false}
           trigger={["hover", "click"]}
         >
@@ -90,11 +84,11 @@ export const Save = ({ layers, storeConfigAction }: SaveProps) => {
       <Input
         id="thumbnail"
         value={thumbnail}
-        placeholder="Vorschau URL"
+        placeholder="Adresse (URL)"
         onChange={(e) => setThumbnail(e.target.value)}
       />
 
-      <Button onClick={handleOnClick}>Konfiguration Speichern</Button>
+      <Button onClick={handleOnClick}>Konfiguration speichern</Button>
     </div>
   );
 };
