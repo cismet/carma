@@ -121,29 +121,32 @@ export const getPrintLayers = (bgLayer, layers) => {
   allLayers.forEach((layer) => {
     console.log("xxx layer", layer);
 
-    switch (layer.layerType) {
-      case "wms":
-      case "wmts":
-      case "wmts-nt":
-        const url = layer.url || layer.props.url;
-        const layers = layer.layers || layer.props.name;
-        layerPrint.unshift(buildWMSPrint(url, layers, layer.opacity));
-        break;
+    if (layer.visible) {
+      switch (layer.layerType) {
+        case "wms":
+        case "wmts":
+        case "wmts-nt":
+          const url = layer.url || layer.props.url;
+          const layers = layer.layers || layer.props.name;
 
-      case "vector":
-        // take the vector style and create a proper style name for the tgl4üromt service
-        // use the folder name and add the style name like for /poi/style.json use poi-style
-        // and for /poi/bildungseinrichtungen.style.json use poi-bildungseinrichtungen-style
-        const vectorStyle = layer.style || layer.props.style;
-        const styleName = getStyleName(vectorStyle);
+          layerPrint.unshift(buildWMSPrint(url, layers, layer.opacity));
+          break;
 
-        console.log("xxx print layer", vectorStyle, ">>", styleName);
-        layerPrint.unshift(
-          buildVecorStylePrint(styleName, layer.opacity, 2, 1)
-        );
-        break;
-      case "tiles":
-        layerPrint.unshift(buildTilesPrint(layer.url));
+        case "vector":
+          // take the vector style and create a proper style name for the tgl4üromt service
+          // use the folder name and add the style name like for /poi/style.json use poi-style
+          // and for /poi/bildungseinrichtungen.style.json use poi-bildungseinrichtungen-style
+          const vectorStyle = layer.style || layer.props.style;
+          const styleName = getStyleName(vectorStyle);
+
+          console.log("xxx print layer", vectorStyle, ">>", styleName);
+          layerPrint.unshift(
+            buildVecorStylePrint(styleName, layer.opacity, 2, 1)
+          );
+          break;
+        case "tiles":
+          layerPrint.unshift(buildTilesPrint(layer.url));
+      }
     }
   });
   console.log("xxx layerPrint", layerPrint);
