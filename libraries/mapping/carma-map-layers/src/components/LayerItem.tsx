@@ -323,7 +323,7 @@ const LayerItem = ({
         <div className="flex flex-col gap-2 p-4">
           <div className="w-full flex gap-2">
             <h3
-              className="text-lg w-full mb-0 line-clamp-2"
+              className="text-base w-full mb-0 line-clamp-2"
               style={{ height: "3.5rem" }}
             >
               {title}
