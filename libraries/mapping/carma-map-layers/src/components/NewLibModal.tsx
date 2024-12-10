@@ -477,7 +477,6 @@ export const NewLibModal = ({
                   onClick={() => {
                     setSelectedNavItemIndex(i);
                   }}
-                  disabled={element.id === "searchResults" && !searchValue}
                   key={element.id}
                 />
               );
