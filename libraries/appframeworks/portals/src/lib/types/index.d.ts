@@ -11,6 +11,7 @@ export type GeoportalCollection = {
   layers: Layer[];
   thumbnail: any;
   id: string;
+  serviceName: string;
 };
 
 export type LayerInfo = {

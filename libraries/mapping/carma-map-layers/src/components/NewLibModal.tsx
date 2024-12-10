@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { utils } from "@carma-apps/portals";
 import {
   faBook,
   faList,
@@ -10,29 +11,26 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useDebounce } from "@uidotdev/usehooks";
-import { Button, Input, Modal, Spin } from "antd";
+import { Button, Input, Modal } from "antd";
 import Fuse from "fuse.js";
 import { useEffect, useState } from "react";
 import { InView } from "react-intersection-observer";
 import WMSCapabilities from "wms-capabilities";
 import { baseConfig as config, serviceConfig } from "../helper/config";
 import {
-  findDifferences,
-  findLayerAndAddTags,
   flattenLayer,
-  getAllLeafLayers,
   getLayerStructure,
   mergeStructures,
   wmsLayerToGenericItem,
 } from "../helper/layerHelper";
+import type { Item, Layer, SavedLayerConfig } from "../helper/types";
+import LayerItem from "./LayerItem";
 import LayerTabs from "./LayerTabs";
 import LibItem from "./LibItem";
+import { SidebarItem } from "./SidebarItems";
 import "./input.css";
 import "./modal.css";
-import type { Item, Layer, SavedLayerConfig } from "../helper/types";
-import { isEqual } from "lodash";
-import { utils } from "@carma-apps/portals";
-import { SidebarItem } from "./SidebarItems";
+import ItemGrid from "./ItemGrid";
 const { Search } = Input;
 
 // @ts-expect-error tbd
@@ -41,6 +39,7 @@ const parser = new WMSCapabilities();
 type LayerCategories = {
   Title: string;
   layers: SavedLayerConfig[];
+  id?: string;
 };
 
 export interface LibModalProps {
@@ -53,18 +52,18 @@ export interface LibModalProps {
   addFavorite: (layer: Item) => void;
   removeFavorite: (layer: Item) => void;
   activeLayers: any[];
-  customCategories?: LayerCategories[];
+  customCategories: LayerCategories[];
   updateActiveLayer: (layer: Layer) => void;
   removeLastLayer?: () => void;
 }
 
 const sidebarElements = [
-  { icon: faStar, text: "Favoriten" },
-  { icon: faList, text: "Entdecken" },
-  { icon: faBook, text: "Teilzwillinge" },
-  { icon: faMap, text: "Kartenebenen" },
-  { icon: faMapPin, text: "Sensoren" },
-  { icon: faSearch, text: "Suchergebnisse" },
+  { icon: faStar, text: "Favoriten", id: "favorites" },
+  { icon: faList, text: "Entdecken", id: "discover" },
+  { icon: faBook, text: "Teilzwillinge", id: "partialTwins" },
+  { icon: faMap, text: "Kartenebenen", id: "mapLayers" },
+  { icon: faMapPin, text: "Sensoren", id: "sensors" },
+  { icon: faSearch, text: "Suchergebnisse", id: "searchResults" },
 ];
 
 export const NewLibModal = ({
@@ -83,7 +82,6 @@ export const NewLibModal = ({
 }: LibModalProps) => {
   const [preview, setPreview] = useState(false);
   const [layers, setLayers] = useState<any[]>([]);
-  const [partialTwins, setPartialTwins] = useState<any[]>([]);
   const [allLayers, setAllLayers] = useState<any[]>([]);
   const services = serviceConfig;
   const [inViewCategory, setInViewCategory] = useState("");
@@ -94,51 +92,60 @@ export const NewLibModal = ({
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
   const [selectedNavItemIndex, setSelectedNavItemIndex] = useState(0);
   const [testCategory, setTestCategory] = useState<any[]>([]);
+  const [tmpAllCategories, setTmpAllCategories] = useState<
+    {
+      id: string;
+      categories: LayerCategories[];
+    }[]
+  >([]);
+  const [shownCategories, setShownCategories] = useState<
+    {
+      id: string;
+      categories: LayerCategories[];
+    }[]
+  >([]);
   const debouncedSearchTerm = useDebounce(searchValue, 300);
 
   const search = (value: string) => {
     setIsSearching(true);
     if (value) {
       const results = fuse.search(value);
-      const resultsWithCategories = allLayers.map((item) => {
-        return {
-          ...item,
-        };
-      });
 
-      resultsWithCategories.map((category) => {
-        const newLayers: any[] = [];
+      const testTmp = JSON.parse(JSON.stringify(tmpAllCategories));
 
-        results.forEach((result) => {
-          if (
-            category.Title === "Favoriten" &&
-            result.item?.id.startsWith("fav_")
-          ) {
-            newLayers.push({
-              ...result.item,
-            });
-          }
-          if (
-            category.Title === result.item?.tags?.[0] &&
-            !result.item?.id.startsWith("fav_")
-          ) {
-            newLayers.push({
-              ...result.item,
-            });
-          }
+      const testCategories = testTmp.map((category) => {
+        category.categories.map((tmp) => {
+          const newLayers: any[] = [];
+          results.forEach((result) => {
+            const resultItem = result.item;
+
+            if (tmp.id === resultItem.serviceName && tmp.id) {
+              newLayers.push({
+                ...resultItem,
+              });
+            }
+          });
+
+          tmp.layers = newLayers;
+
+          return tmp;
         });
 
-        category.layers = newLayers;
+        return category;
       });
 
-      setLayers(resultsWithCategories);
+      setShownCategories(testCategories);
     } else {
-      setLayers(allLayers);
+      if (tmpAllCategories.length > 0) {
+        setShownCategories(tmpAllCategories);
+      }
     }
     setIsSearching(false);
   };
 
-  const flattenedLayers = allLayers.flatMap((obj) => obj.layers);
+  const flattenedLayers = tmpAllCategories.flatMap((obj) =>
+    obj.categories.flatMap((obj) => obj.layers)
+  );
   const fuse = new Fuse(flattenedLayers, {
     keys: [
       { name: "title", weight: 2 },
@@ -197,6 +204,7 @@ export const NewLibModal = ({
                   config,
                   wms: result,
                   serviceName: services[key].name,
+                  skipTopicMaps: true,
                 });
 
                 tmpLayer.forEach((category) => {
@@ -210,11 +218,6 @@ export const NewLibModal = ({
                           foundLayer,
                           false,
                           activeLayer.opacity
-                        );
-
-                        const shouldUpdate = !isEqual(
-                          activeLayer,
-                          updatedLayer
                         );
 
                         updateActiveLayer(updatedLayer);
@@ -240,13 +243,48 @@ export const NewLibModal = ({
             config,
             serviceName: services[key].name,
           });
-          setPartialTwins(
-            tmpLayer.filter((category) => category.layers.length > 0)
-          );
+          // @ts-expect-error
+          setShownCategories((prev) => {
+            if (prev.find((item) => item.id === "partialTwins")) {
+              prev.splice(
+                prev.findIndex((item) => item.id === "partialTwins"),
+                1
+              );
+            }
+            return [
+              ...prev,
+              {
+                id: "partialTwins",
+                categories: tmpLayer.filter(
+                  (category) => category.layers.length > 0
+                ),
+              },
+            ];
+          });
+
+          // @ts-expect-error
+          setTmpAllCategories((prev) => {
+            if (prev.find((item) => item.id === "partialTwins")) {
+              prev.splice(
+                prev.findIndex((item) => item.id === "partialTwins"),
+                1
+              );
+            }
+            return [
+              ...prev,
+              {
+                id: "partialTwins",
+                categories: tmpLayer.filter(
+                  (category) => category.layers.length > 0
+                ),
+              },
+            ];
+          });
         } else {
           const tmpLayer = getLayerStructure({
             config,
             serviceName: services[key].name,
+            skipTopicMaps: true,
           });
           const mergedLayer = mergeStructures(tmpLayer, newLayers);
           newLayers = mergedLayer;
@@ -261,12 +299,70 @@ export const NewLibModal = ({
   }, []);
 
   useEffect(() => {
+    if (customCategories) {
+      if (!searchValue) {
+        setShownCategories((prev) => {
+          if (prev.find((item) => item.id === "favorites")) {
+            prev.splice(
+              prev.findIndex((item) => item.id === "favorites"),
+              1
+            );
+          }
+          return [...prev, { id: "favorites", categories: customCategories }];
+        });
+      }
+
+      setTmpAllCategories((prev) => {
+        if (prev.find((item) => item.id === "favorites")) {
+          prev.splice(
+            prev.findIndex((item) => item.id === "favorites"),
+            1
+          );
+        }
+        return [...prev, { id: "favorites", categories: customCategories }];
+      });
+    }
+  }, [customCategories]);
+
+  useEffect(() => {
     search(debouncedSearchTerm);
   }, [debouncedSearchTerm]);
 
   useEffect(() => {
     if (!searchValue) {
       setLayers(allLayers);
+
+      setTmpAllCategories((prev) => {
+        if (prev.find((item) => item.id === "mapLayers")) {
+          prev.splice(
+            prev.findIndex((item) => item.id === "mapLayers"),
+            1
+          );
+        }
+        return [
+          ...prev,
+          {
+            id: "mapLayers",
+            categories: allLayers,
+          },
+        ];
+      });
+
+      setShownCategories((prev) => {
+        if (prev.find((item) => item.id === "mapLayers")) {
+          prev.splice(
+            prev.findIndex((item) => item.id === "mapLayers"),
+            1
+          );
+        }
+        return [
+          ...prev,
+          {
+            id: "mapLayers",
+            categories: allLayers,
+          },
+        ];
+      });
     } else {
       search(debouncedSearchTerm);
     }
@@ -288,7 +384,6 @@ export const NewLibModal = ({
       if (url) {
         fetch(url)
           .then((response) => {
-            // console.log("xxx response", response);
             return response.text();
           })
           .then((text) => {
@@ -317,6 +412,19 @@ export const NewLibModal = ({
       window.removeEventListener("dragover", handleDragOver);
     };
   }, []);
+
+  const categoriesToShownLayers = (categories, shownId) => {
+    if (shownId === "searchResults") {
+      if (searchValue) {
+        return categories.map((category) => category.categories).flat();
+      } else {
+        return null;
+      }
+    }
+
+    return categories.filter((category) => category.id === shownId)?.[0]
+      ?.categories;
+  };
 
   return (
     <Modal
@@ -369,6 +477,8 @@ export const NewLibModal = ({
                   onClick={() => {
                     setSelectedNavItemIndex(i);
                   }}
+                  disabled={element.id === "searchResults" && !searchValue}
+                  key={element.id}
                 />
               );
             })}
@@ -413,15 +523,10 @@ export const NewLibModal = ({
               {layers && layers.length > 0 && (
                 <>
                   <LayerTabs
-                    layers={
-                      selectedNavItemIndex === 0
-                        ? customCategories
-                        : selectedNavItemIndex === 2
-                        ? partialTwins
-                        : selectedNavItemIndex === 3
-                        ? layers.filter((layer) => layer.Title !== "TopicMaps")
-                        : undefined
-                    }
+                    layers={categoriesToShownLayers(
+                      shownCategories,
+                      sidebarElements[selectedNavItemIndex].id
+                    )}
                     activeId={inViewCategory}
                     numberOfItems={getNumberOfLayers(layers)}
                   />
@@ -454,6 +559,22 @@ export const NewLibModal = ({
             )}
 
             <div>
+              {showItems && (
+                <ItemGrid
+                  categories={categoriesToShownLayers(
+                    shownCategories,
+                    sidebarElements[selectedNavItemIndex].id
+                  )}
+                  setAdditionalLayers={setAdditionalLayers}
+                  activeLayers={activeLayers}
+                  favorites={favorites}
+                  addFavorite={addFavorite}
+                  removeFavorite={removeFavorite}
+                  selectedLayerId={selectedLayerId}
+                  setSelectedLayerId={setSelectedLayerId}
+                  setPreview={setPreview}
+                />
+              )}
               {selectedNavItemIndex === 3 &&
                 showItems &&
                 testCategory.length > 0 &&
@@ -493,11 +614,9 @@ export const NewLibModal = ({
                         </p>
                         <div className="grid xl:grid-cols-7 grid-flow-dense lg:grid-cols-5 sm:grid-cols-4 gap-8 mb-4">
                           {category?.layers?.map((layer: any, i: number) => (
-                            <LibItem
+                            <LayerItem
                               setAdditionalLayers={setAdditionalLayers}
                               layer={layer}
-                              thumbnails={thumbnails}
-                              setThumbnail={setThumbnail}
                               activeLayers={activeLayers}
                               favorites={favorites}
                               addFavorite={addFavorite}
@@ -514,178 +633,7 @@ export const NewLibModal = ({
                     )}
                   </div>
                 ))}
-              {showItems && selectedNavItemIndex === 0
-                ? customCategories?.map((category, i) => (
-                    <div key={category.Title}>
-                      {category.layers.length > 0 && (
-                        <InView
-                          rootMargin="20px 0px 20px 0px"
-                          as="div"
-                          onChange={(inView, entry) => {
-                            if (inView) {
-                              setInViewCategory(entry.target.id);
 
-                              setAllCategoriesInView((prev) => {
-                                return [...prev, entry.target.id];
-                              });
-                            } else {
-                              const updatedCategoriesInView =
-                                allCategoriesInView.filter(
-                                  (item) => item !== entry.target.id
-                                );
-                              setAllCategoriesInView(updatedCategoriesInView);
-                              if (inViewCategory === entry.target.id && i > 0) {
-                                for (let j = i - 1; j >= 0; j--) {
-                                  if (layers[j].layers.length > 0) {
-                                    setInViewCategory(layers[j].Title);
-                                  }
-                                }
-                              }
-                            }
-                          }}
-                          id={category?.Title}
-                          key={category?.Title}
-                        >
-                          <p className="mb-4 text-2xl font-semibold">
-                            {category?.Title}
-                          </p>
-                          <div className="grid xl:grid-cols-7 grid-flow-dense lg:grid-cols-5 sm:grid-cols-4 gap-8 mb-4">
-                            {category?.layers?.map((layer: any, i: number) => (
-                              <LibItem
-                                setAdditionalLayers={setAdditionalLayers}
-                                layer={layer}
-                                thumbnails={thumbnails}
-                                setThumbnail={setThumbnail}
-                                activeLayers={activeLayers}
-                                favorites={favorites}
-                                addFavorite={addFavorite}
-                                removeFavorite={removeFavorite}
-                                selectedLayerId={selectedLayerId}
-                                setSelectedLayerId={setSelectedLayerId}
-                                setPreview={setPreview}
-                                key={`${category.Title}_layer_${i}_${layer.id}`}
-                              />
-                            ))}
-                          </div>
-                        </InView>
-                      )}
-                    </div>
-                  ))
-                : selectedNavItemIndex === 2
-                ? partialTwins?.map((category, i) => (
-                    <div key={category.Title}>
-                      {category.layers.length > 0 && (
-                        <InView
-                          rootMargin="20px 0px 20px 0px"
-                          as="div"
-                          onChange={(inView, entry) => {
-                            if (inView) {
-                              setInViewCategory(entry.target.id);
-
-                              setAllCategoriesInView((prev) => {
-                                return [...prev, entry.target.id];
-                              });
-                            } else {
-                              const updatedCategoriesInView =
-                                allCategoriesInView.filter(
-                                  (item) => item !== entry.target.id
-                                );
-                              setAllCategoriesInView(updatedCategoriesInView);
-                              if (inViewCategory === entry.target.id && i > 0) {
-                                for (let j = i - 1; j >= 0; j--) {
-                                  if (layers[j].layers.length > 0) {
-                                    setInViewCategory(layers[j].Title);
-                                  }
-                                }
-                              }
-                            }
-                          }}
-                          id={category?.Title}
-                          key={category?.Title}
-                        >
-                          <p className="mb-4 text-2xl font-semibold">
-                            {category?.Title}
-                          </p>
-                          <div className="grid xl:grid-cols-7 grid-flow-dense lg:grid-cols-5 sm:grid-cols-4 gap-8 mb-4">
-                            {category?.layers?.map((layer: any, i: number) => (
-                              <LibItem
-                                setAdditionalLayers={setAdditionalLayers}
-                                layer={layer}
-                                thumbnails={thumbnails}
-                                setThumbnail={setThumbnail}
-                                activeLayers={activeLayers}
-                                favorites={favorites}
-                                addFavorite={addFavorite}
-                                removeFavorite={removeFavorite}
-                                selectedLayerId={selectedLayerId}
-                                setSelectedLayerId={setSelectedLayerId}
-                                setPreview={setPreview}
-                                key={`${category.Title}_layer_${i}_${layer.id}`}
-                              />
-                            ))}
-                          </div>
-                        </InView>
-                      )}
-                    </div>
-                  ))
-                : selectedNavItemIndex === 3
-                ? layers.map((category, i) => (
-                    <div key={category.Title}>
-                      {category.layers.length > 0 && (
-                        <InView
-                          rootMargin="20px 0px 20px 0px"
-                          as="div"
-                          onChange={(inView, entry) => {
-                            if (inView) {
-                              setInViewCategory(entry.target.id);
-
-                              setAllCategoriesInView((prev) => {
-                                return [...prev, entry.target.id];
-                              });
-                            } else {
-                              const updatedCategoriesInView =
-                                allCategoriesInView.filter(
-                                  (item) => item !== entry.target.id
-                                );
-                              setAllCategoriesInView(updatedCategoriesInView);
-                              if (inViewCategory === entry.target.id && i > 0) {
-                                for (let j = i - 1; j >= 0; j--) {
-                                  if (layers[j].layers.length > 0) {
-                                    setInViewCategory(layers[j].Title);
-                                  }
-                                }
-                              }
-                            }
-                          }}
-                          id={category?.Title}
-                          key={category?.Title}
-                        >
-                          <p className="mb-4 text-2xl font-semibold">
-                            {category?.Title}
-                          </p>
-                          <div className="grid xl:grid-cols-7 grid-flow-dense lg:grid-cols-5 sm:grid-cols-4 gap-8 mb-4">
-                            {category?.layers?.map((layer: any, i: number) => (
-                              <LibItem
-                                setAdditionalLayers={setAdditionalLayers}
-                                layer={layer}
-                                thumbnails={thumbnails}
-                                setThumbnail={setThumbnail}
-                                activeLayers={activeLayers}
-                                favorites={favorites}
-                                addFavorite={addFavorite}
-                                removeFavorite={removeFavorite}
-                                selectedLayerId={selectedLayerId}
-                                setSelectedLayerId={setSelectedLayerId}
-                                setPreview={setPreview}
-                                key={`${category.Title}_layer_${i}_${layer.id}`}
-                              />
-                            ))}
-                          </div>
-                        </InView>
-                      )}
-                    </div>
-                  ))
-                : null}
               {layers &&
                 getNumberOfLayers(layers) === 0 &&
                 selectedNavItemIndex === 3 && (
@@ -695,7 +643,8 @@ export const NewLibModal = ({
                 )}
               {selectedNavItemIndex !== 2 &&
                 selectedNavItemIndex !== 3 &&
-                selectedNavItemIndex !== 0 && (
+                selectedNavItemIndex !== 0 &&
+                selectedNavItemIndex !== 5 && (
                   <h1 className="text-2xl font-normal">
                     Kategorie noch nicht implementiert
                   </h1>
