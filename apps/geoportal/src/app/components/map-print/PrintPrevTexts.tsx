@@ -20,6 +20,7 @@ const PrintPrevTexts = ({
             justifyContent: "center",
             margin: "auto",
             gap: "1rem",
+            textAlign: "center",
           }}
         >
           <div className="print-tooltip-text">
