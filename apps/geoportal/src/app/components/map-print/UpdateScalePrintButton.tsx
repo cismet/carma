@@ -1,10 +1,11 @@
-import {
-  faArrowsAlt,
-  faRotateRight,
-  faTimes,
-} from "@fortawesome/free-solid-svg-icons";
+import { faArrowsAlt } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { CSSProperties } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  changeRedrawPreview,
+  getRedrawPreview,
+} from "../../store/slices/print";
 
 const UpdateScalePrintButton = ({
   // updateScaleHandler,
@@ -12,7 +13,8 @@ const UpdateScalePrintButton = ({
   hide = false,
   smallMode = false,
 }) => {
-  // console.log("xxx print update", updateScaleHandler);
+  const dispatch = useDispatch();
+  const redrawPrev = useSelector(getRedrawPreview);
 
   const normalStyle: CSSProperties = {
     fontSize,
@@ -30,18 +32,23 @@ const UpdateScalePrintButton = ({
     pointerEvents: "auto",
   };
 
+  const updateScaleHandler = () => {
+    dispatch(changeRedrawPreview(!redrawPrev));
+  };
+
   return (
     <>
       {!hide && (
         <FontAwesomeIcon
           icon={faArrowsAlt}
-          // className="cursor-pointer"
           // style={smallMode ? smallStyle : normalStyle}
           style={{
             transform: "rotate(45deg)",
-            fontSize: "24px",
+            fontSize: "26px",
+            cursor: "pointer",
+            pointerEvents: "auto",
           }}
-          // onClick={updateScaleHandler}
+          onClick={updateScaleHandler}
         />
       )}
     </>
