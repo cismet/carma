@@ -10,18 +10,13 @@ import { suppressReactCismapErrors } from "@carma-commons/utils";
 import App from "./app/App";
 import store from "./app/store";
 import { CESIUM_CONFIG } from "./app/config/app.config";
-
-declare global {
-  interface Window {
-    CESIUM_BASE_URL: string;
-  }
-}
+import { setupCesiumEnvironment } from "@carma-mapping/cesium-engine";
 
 const persistor = persistStore(store);
 
 suppressReactCismapErrors();
 
-window.CESIUM_BASE_URL = CESIUM_CONFIG.baseUrl;
+setupCesiumEnvironment(CESIUM_CONFIG);
 
 console.debug("RENDER: [CARMAMAP] ROOT");
 
