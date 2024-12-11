@@ -33,6 +33,7 @@ import ClosePrintButton from "./ClosePrintButton";
 import PrintPrevTexts from "./PrintPrevTexts";
 import PrintButton from "./PrintButton";
 import "./print.css";
+import UpdateScalePrintButton from "./UpdateScalePrintButton";
 
 interface DraggablePolygonOptions extends L.PolylineOptions {
   draggable?: boolean;
@@ -229,6 +230,7 @@ const PrintPreview = () => {
           }}
         >
           <div id="btn-wrapper-print">
+            <UpdateScalePrintButton />
             <ClosePrintButton
               closePrintMode={() => console.log("xxx close btn")}
               hide={isHideContent}

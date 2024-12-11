@@ -1,14 +1,18 @@
-import { faRotateRight, faTimes } from "@fortawesome/free-solid-svg-icons";
+import {
+  faArrowsAlt,
+  faRotateRight,
+  faTimes,
+} from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { CSSProperties } from "react";
 
 const UpdateScalePrintButton = ({
-  updateScaleHandler,
+  // updateScaleHandler,
   fontSize = "24px",
   hide = false,
   smallMode = false,
 }) => {
-  console.log("xxx print update", updateScaleHandler);
+  // console.log("xxx print update", updateScaleHandler);
 
   const normalStyle: CSSProperties = {
     fontSize,
@@ -30,10 +34,13 @@ const UpdateScalePrintButton = ({
     <>
       {!hide && (
         <FontAwesomeIcon
-          icon={faRotateRight}
-          className="cursor-pointer"
-          style={smallMode ? smallStyle : normalStyle}
-          onClick={updateScaleHandler}
+          icon={faArrowsAlt}
+          // className="cursor-pointer"
+          // style={smallMode ? smallStyle : normalStyle}
+          style={{
+            transform: "rotate(45deg)",
+          }}
+          // onClick={updateScaleHandler}
         />
       )}
     </>
