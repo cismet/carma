@@ -482,6 +482,7 @@ export const NewLibModal = ({
                     categoriesToShownLayers(shownCategories, element.id)
                   )}
                   showNumberOfItems={!!searchValue && !!debouncedSearchTerm}
+                  disabled={i === sidebarElements.length - 1 && !searchValue}
                 />
               );
             })}
@@ -505,16 +506,28 @@ export const NewLibModal = ({
                 onChange={(e) => {
                   setIsSearching(true);
                   setSearchValue(e.target.value);
+
+                  const searchResultsIndex = sidebarElements.findIndex(
+                    (item) => item.id === "searchResults"
+                  );
+
+                  if (
+                    selectedNavItemIndex === searchResultsIndex &&
+                    !e.target.value
+                  ) {
+                    setSelectedNavItemIndex(0);
+                  }
                 }}
                 loading={isSearching}
                 onSearch={(value) => {
                   search(value);
 
-                  const index = sidebarElements.findIndex(
+                  const searchResultsIndex = sidebarElements.findIndex(
                     (item) => item.id === "searchResults"
                   );
+
                   if (value !== "") {
-                    setSelectedNavItemIndex(index);
+                    setSelectedNavItemIndex(searchResultsIndex);
                   }
                 }}
               />

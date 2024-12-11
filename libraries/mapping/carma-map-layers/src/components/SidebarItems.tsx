@@ -23,8 +23,8 @@ export const SidebarItem = ({
   return (
     <div
       className={`w-full ${active && "bg-[#f2f2f2]"} ${
-        disabled && "cursor-not-allowed"
-      } ml-6 rounded-l-md py-3 flex flex-col gap-1 cursor-pointer items-center`}
+        disabled ? "cursor-not-allowed" : "cursor-pointer"
+      } ml-6 rounded-l-md py-3 flex flex-col gap-1 items-center`}
       onClick={!disabled ? onClick : undefined}
     >
       {showNumberOfItems ? (
