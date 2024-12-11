@@ -45,8 +45,8 @@ interface CustomPolygon extends L.Polygon {
 const PrintPreview = () => {
   const mode = useSelector(getUIMode);
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
-  const dispatch = useDispatch();
   const map = routedMapRef?.leafletMap?.leafletElement;
+  const dispatch = useDispatch();
   const orientation = useSelector(getOrientation);
   const dpi = useSelector(getDPI);
   const ifMapPrinted = useSelector(getIfMapPrinted);
@@ -103,7 +103,6 @@ const PrintPreview = () => {
   };
 
   useEffect(() => {
-    console.log("xxx pop up", ifPopupOpened);
     if (map && mode === "print") {
       !ifMapPrinted && deleteRectangleById(map);
       const rectangleCoordinates = getPreviewBounds(
@@ -170,7 +169,7 @@ const PrintPreview = () => {
         }
       };
       const onEscKeyPress = (event) => {
-        if (event.key === "Escape" && !ifPopupOpened) {
+        if (event.key === "Escape") {
           dispatch(setUIMode("default"));
           deleteRectangleById(map);
         }
@@ -198,6 +197,7 @@ const PrintPreview = () => {
         window.removeEventListener("keydown", onEscKeyPress);
       };
     } else if (map && mode !== "print") {
+      console.log("xxx mode component");
       deleteRectangleById(map);
     }
   }, [
@@ -210,7 +210,7 @@ const PrintPreview = () => {
     scale,
     redrawPrev,
     loading,
-    ifPopupOpened,
+    // ifPopupOpened,
     stepAfterPrinting,
   ]);
 

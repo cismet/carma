@@ -1,5 +1,5 @@
 // Built-in Modules
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 
 // 3rd party Modules
 import LZString from "lz-string";
@@ -56,7 +56,7 @@ import "leaflet/dist/leaflet.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "./index.css";
-import { changeIfPopupOpend } from "./store/slices/print";
+import { changeIfPopupOpend, getIfPopupOpend } from "./store/slices/print";
 
 if (typeof global === "undefined") {
   window.global = window;
@@ -78,6 +78,7 @@ function App({ published }: { published?: boolean }) {
   const selectedMapLayer = useSelector(getSelectedMapLayer);
 
   const [syncToken, setSyncToken] = useState(null);
+  const ifPopupPrintOpened = useSelector(getIfPopupOpend);
 
   useEffect(() => {
     console.debug(
@@ -124,9 +125,12 @@ function App({ published }: { published?: boolean }) {
         dispatch(setUIShowLayerHideButtons(true));
       }
 
-      if (e.key === "Escape") {
-        dispatch(changeIfPopupOpend(false));
-      }
+      // if (e.key === "Escape") {
+      //   if (uiMode === "print" && !ifPopupPrintOpened) {
+      //     dispatch(setUIMode("default"));
+      //   }
+      //   dispatch(changeIfPopupOpend(false));
+      // }
     };
 
     const onKeyUp = (e: KeyboardEvent) => {
