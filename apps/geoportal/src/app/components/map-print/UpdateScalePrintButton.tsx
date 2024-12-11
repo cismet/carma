@@ -1,6 +1,6 @@
 import { faArrowsAlt } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { CSSProperties } from "react";
+import { CSSProperties, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   changeRedrawPreview,
@@ -12,24 +12,23 @@ const UpdateScalePrintButton = ({
   fontSize = "24px",
   hide = false,
   smallMode = false,
+  previewWidth,
 }) => {
   const dispatch = useDispatch();
   const redrawPrev = useSelector(getRedrawPreview);
-
+  const hideIcon = parseInt(previewWidth, 10) < 40;
   const normalStyle: CSSProperties = {
     fontSize,
-    marginTop: "4px",
     pointerEvents: "auto",
+    transform: "rotate(45deg)",
+    cursor: "pointer",
   };
 
   const smallStyle: CSSProperties = {
-    position: "absolute",
-    top: "50%",
-    left: "50%",
-    fontSize: "300%",
-    // fontSize: "14px ",
-    transform: "translate(-50%, -50%)",
+    fontSize: "20px ",
     pointerEvents: "auto",
+    transform: "rotate(45deg)",
+    margin: "auto",
   };
 
   const updateScaleHandler = () => {
@@ -38,16 +37,10 @@ const UpdateScalePrintButton = ({
 
   return (
     <>
-      {!hide && (
+      {!hide && !hideIcon && (
         <FontAwesomeIcon
           icon={faArrowsAlt}
-          // style={smallMode ? smallStyle : normalStyle}
-          style={{
-            transform: "rotate(45deg)",
-            fontSize: "26px",
-            cursor: "pointer",
-            pointerEvents: "auto",
-          }}
+          style={smallMode ? smallStyle : normalStyle}
           onClick={updateScaleHandler}
         />
       )}

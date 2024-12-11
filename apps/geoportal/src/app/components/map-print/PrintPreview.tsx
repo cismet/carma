@@ -1,7 +1,7 @@
 import { useDispatch, useSelector } from "react-redux";
 import { getUIMode, setUIMode } from "../../store/slices/ui";
 import * as L from "leaflet";
-import { useContext, useEffect, useState } from "react";
+import { CSSProperties, useContext, useEffect, useState } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import {
   changeIsLoading,
@@ -216,6 +216,28 @@ const PrintPreview = () => {
     stepAfterPrinting,
   ]);
 
+  const wrapperStyle: CSSProperties = {
+    padding: "7px 7px",
+    width: "100%",
+    height: "100%",
+    display: "flex",
+    flexDirection: "column",
+    flexGrow: "1",
+    pointerEvents: "none",
+  };
+
+  const smallWrapperStyle: CSSProperties = {
+    padding: "7px 7px",
+    width: "100%",
+    height: "100%",
+    display: "flex",
+    // flexDirection: "column",
+    flexGrow: "1",
+    justifyContent: "center",
+    alignItems: "center",
+    pointerEvents: "none",
+  };
+
   return (
     <>
       {mode === "print" && (
@@ -229,9 +251,16 @@ const PrintPreview = () => {
             fontSize: previewSizes.fontSize,
           }}
         >
-          <div id="btn-wrapper-print">
+          <div
+            id="btn-wrapper-print"
+            style={previewSizes.isSmallMode ? smallWrapperStyle : wrapperStyle}
+          >
             <div style={{ display: "flex", width: "100%" }}>
-              <UpdateScalePrintButton hide={isHideContent} />
+              <UpdateScalePrintButton
+                hide={isHideContent}
+                smallMode={previewSizes.isSmallMode}
+                previewWidth={previewSizes.width}
+              />
               <ClosePrintButton
                 closePrintMode={() => console.log("xxx close btn")}
                 hide={isHideContent}
