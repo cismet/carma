@@ -9,6 +9,7 @@ export type GeoportalCollection = {
   description: string;
   type: "collection";
   layers: Layer[];
+  backgroundLayer: BackgroundLayer;
   thumbnail: any;
   id: string;
   serviceName: string;

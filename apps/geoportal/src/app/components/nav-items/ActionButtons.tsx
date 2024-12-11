@@ -18,6 +18,7 @@ import { Save } from "@carma-apps/portals";
 import { selectViewerIsMode2d } from "@carma-mapping/cesium-engine";
 import {
   appendSavedLayerConfig,
+  getBackgroundLayer,
   getFocusMode,
   getLayers,
   setFocusMode,
@@ -49,6 +50,7 @@ const ActionButtons = () => {
   const showLayerButtons = useSelector(getUIShowLayerButtons);
   const activeLayers = useSelector(getLayers);
   const showPrintPopup = useSelector(getIfPopupOpend);
+  const backgroundLayer = useSelector(getBackgroundLayer);
 
   const baseUrl = window.location.origin + window.location.pathname;
 
@@ -158,6 +160,7 @@ const ActionButtons = () => {
           content={
             <Save
               layers={activeLayers}
+              backgroundLayer={backgroundLayer}
               storeConfigAction={(config) =>
                 dispatch(appendSavedLayerConfig(config))
               }

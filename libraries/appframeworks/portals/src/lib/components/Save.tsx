@@ -6,14 +6,19 @@ import "./popover.css";
 import { nanoid } from "@reduxjs/toolkit";
 import { faQuestionCircle } from "@fortawesome/free-regular-svg-icons";
 import type { Layer } from "@carma-mapping/layers";
-import type { GeoportalCollection } from "../types";
+import type { BackgroundLayer, GeoportalCollection } from "../types";
 
 interface SaveProps {
   layers: Layer[];
+  backgroundLayer: BackgroundLayer;
   storeConfigAction: (config: GeoportalCollection) => void;
 }
 
-export const Save = ({ layers, storeConfigAction }: SaveProps) => {
+export const Save = ({
+  layers,
+  backgroundLayer,
+  storeConfigAction,
+}: SaveProps) => {
   const [messageApi, contextHolder] = message.useMessage();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -31,6 +36,7 @@ export const Save = ({ layers, storeConfigAction }: SaveProps) => {
       description,
       type: "collection",
       layers,
+      backgroundLayer,
       thumbnail,
       id: nanoid(),
       serviceName: "collections",

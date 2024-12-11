@@ -9,6 +9,7 @@ import {
   getSavedLayerConfigs,
   removeLastLayer,
   removeLayer,
+  setBackgroundLayer,
   setLayers,
   updateLayer,
 } from "../../store/slices/mapping";
@@ -53,6 +54,9 @@ const ResourceModal = () => {
       } else {
         try {
           dispatch(setLayers(layer.layers));
+          if (layer.backgroundLayer) {
+            dispatch(setBackgroundLayer(layer.backgroundLayer));
+          }
           messageApi.open({
             type: "success",
             content: `${layer.title} wurde erfolgreich angewandt.`,

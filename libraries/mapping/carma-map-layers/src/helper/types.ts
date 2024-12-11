@@ -1,3 +1,4 @@
+import { BackgroundLayer } from "@carma-apps/portals";
 import type { CarmaConfig } from "@carma-commons/utils";
 
 export type LayerConfig = {
@@ -49,6 +50,7 @@ type Link = {
 type Collection = {
   type: "collection";
   layers: Layer[];
+  backgroundLayer?: BackgroundLayer;
 };
 
 export type SavedLayerConfig = {
