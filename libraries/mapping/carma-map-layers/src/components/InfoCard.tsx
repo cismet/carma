@@ -6,7 +6,9 @@ import {
   faExternalLink,
   faImage,
   faMap,
+  faSquareUpRight,
   faStar,
+  faTrash,
   faX,
 } from "@fortawesome/free-solid-svg-icons";
 
@@ -30,6 +32,7 @@ interface InfoCardProps {
   closeInfoCard: () => void;
   setPreview: (preview: boolean) => void;
   links: { url: string; text: string }[];
+  deleteCollection: () => void;
 }
 
 const InfoCard = ({
@@ -41,6 +44,7 @@ const InfoCard = ({
   closeInfoCard,
   setPreview,
   links,
+  deleteCollection,
 }: InfoCardProps) => {
   const { title, description, tags } = layer;
   // @ts-expect-error fix typing
@@ -67,6 +71,22 @@ const InfoCard = ({
                   {isActiveLayer ? "Entfernen" : "Hinzufügen"}
                 </Button>
               )}
+              {layer.type === "collection" && (
+                <>
+                  <Button
+                    onClick={handleAddClick}
+                    icon={<FontAwesomeIcon icon={faSquareUpRight} />}
+                  >
+                    Laden
+                  </Button>
+                  <Button
+                    onClick={deleteCollection}
+                    icon={<FontAwesomeIcon icon={faTrash} />}
+                  >
+                    Löschen
+                  </Button>
+                </>
+              )}
               {layer.type === "link" && (
                 <Button
                   href={layer.url}
@@ -76,12 +96,14 @@ const InfoCard = ({
                   Öffnen
                 </Button>
               )}
-              <Button
-                onClick={handleFavoriteClick}
-                icon={<FontAwesomeIcon icon={faStar} />}
-              >
-                {isFavorite ? "Favorit entfernen" : "Favorisieren"}
-              </Button>
+              {layer.type !== "collection" && (
+                <Button
+                  onClick={handleFavoriteClick}
+                  icon={<FontAwesomeIcon icon={faStar} />}
+                >
+                  {isFavorite ? "Favorit entfernen" : "Favorisieren"}
+                </Button>
+              )}
               {layer.type === "layer" && (
                 <Button
                   onClick={(e) => {

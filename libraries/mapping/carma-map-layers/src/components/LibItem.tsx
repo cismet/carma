@@ -557,6 +557,7 @@ const LibItem = ({
           closeInfoCard={() => setSelectedLayerId(null)}
           setPreview={setPreview}
           links={links}
+          deleteCollection={() => setOpenDeleteModal(true)}
         />
       )}
     </>
