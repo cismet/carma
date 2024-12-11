@@ -230,12 +230,14 @@ const PrintPreview = () => {
           }}
         >
           <div id="btn-wrapper-print">
-            <UpdateScalePrintButton />
-            <ClosePrintButton
-              closePrintMode={() => console.log("xxx close btn")}
-              hide={isHideContent}
-              smallMode={previewSizes.isSmallMode}
-            />
+            <div style={{ display: "flex", width: "100%" }}>
+              <UpdateScalePrintButton hide={isHideContent} />
+              <ClosePrintButton
+                closePrintMode={() => console.log("xxx close btn")}
+                hide={isHideContent}
+                smallMode={previewSizes.isSmallMode}
+              />
+            </div>
             <PrintPrevTexts
               scale={scale}
               dpi={dpi}

@@ -39,6 +39,7 @@ const UpdateScalePrintButton = ({
           // style={smallMode ? smallStyle : normalStyle}
           style={{
             transform: "rotate(45deg)",
+            fontSize: "24px",
           }}
           // onClick={updateScaleHandler}
         />
