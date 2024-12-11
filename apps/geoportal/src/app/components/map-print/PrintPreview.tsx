@@ -4,11 +4,11 @@ import * as L from "leaflet";
 import { useContext, useEffect, useState } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import {
-  changeIfMapPrinted,
   changeIsLoading,
   changePrintError,
   getDPI,
   getIfMapPrinted,
+  getIfPopupOpend,
   getIsLoading,
   getOrientation,
   getPrintName,
@@ -51,6 +51,7 @@ const PrintPreview = () => {
   const dpi = useSelector(getDPI);
   const ifMapPrinted = useSelector(getIfMapPrinted);
   const printName = useSelector(getPrintName);
+  const ifPopupOpened = useSelector(getIfPopupOpend);
   const [lastOrientation, setlastOrientation] = useState(orientation);
   const [stepAfterPrinting, setStepAfterPrinting] = useState(false);
   const [isHideContent, setIsHideContent] = useState(false);
@@ -102,7 +103,8 @@ const PrintPreview = () => {
   };
 
   useEffect(() => {
-    if (map && mode === "print") {
+    // console.log("xxx pop up", ifPopupOpened);
+    if (map && mode === "print" && !ifPopupOpened) {
       !ifMapPrinted && deleteRectangleById(map);
       const rectangleCoordinates = getPreviewBounds(
         map,
@@ -158,12 +160,14 @@ const PrintPreview = () => {
       };
 
       const onMapClick = (e) => {
-        const ifPolygon = e.originalEvent.target?.classList.contains(
-          "leaflet-path-draggable"
-        );
-        const ifPrintButton =
-          e.originalEvent.target?.innerText?.includes("Drucken");
-        if (!ifPolygon && !ifPrintButton) {
+        // const ifPolygon = e.originalEvent.target?.classList.contains(
+        //   "leaflet-path-draggable"
+        // );
+        const routedMap = e.originalEvent.target?.id === "routedMap";
+
+        console.log("xxx on click", e.originalEvent.target.closest("#preview"));
+        console.log("xxx on click", e.originalEvent.target);
+        if (routedMap) {
           dispatch(setUIMode("default"));
           deleteRectangleById(map);
         }
@@ -174,7 +178,6 @@ const PrintPreview = () => {
           deleteRectangleById(map);
         }
       };
-
       map.on("click", onMapClick);
 
       map.on("zoomstart", onZoomStart);
@@ -187,8 +190,6 @@ const PrintPreview = () => {
 
       window.addEventListener("keydown", onEscKeyPress);
 
-      //   setlastOrientation(orientation);
-
       return () => {
         // polygon.off();
         map.off("click", onMapClick);
@@ -200,11 +201,6 @@ const PrintPreview = () => {
       };
     } else if (map && mode !== "print") {
       deleteRectangleById(map);
-    } else if (map && mode === "print" && lastOrientation !== orientation) {
-      //   dispatch(changeIfMapPrinted(false));
-      //   setlastOrientation(orientation);
-    } else if (ifMapPrinted) {
-      //   dispatch(changeIfMapPrinted(false));
     }
   }, [
     map,
@@ -216,7 +212,7 @@ const PrintPreview = () => {
     scale,
     redrawPrev,
     loading,
-    lastOrientation,
+    ifPopupOpened,
     stepAfterPrinting,
   ]);
 

@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 
 export const useOutsideClick = (callback: () => void) => {
   const ref = useRef<HTMLDivElement>(null);
-
+  const hasBeenCalled = useRef(false);
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent | TouchEvent) => {
       const ifSelectClicked = (event.target as HTMLElement).classList.contains(
@@ -11,8 +11,10 @@ export const useOutsideClick = (callback: () => void) => {
       if (
         ref.current &&
         !ref.current.contains(event.target as Node) &&
-        !ifSelectClicked
+        !ifSelectClicked &&
+        !hasBeenCalled.current
       ) {
+        hasBeenCalled.current = true;
         callback();
       }
     };

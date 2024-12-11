@@ -15,8 +15,6 @@ import {
   getRedrawPreview,
   changeRedrawPreview,
   changeIfMapPrinted,
-  getIfPopupOpend,
-  changeIfPopupOpend,
 } from "../../store/slices/print";
 import { useSelector, useDispatch } from "react-redux";
 import { setUIMode } from "../../store/slices/ui";
@@ -64,7 +62,7 @@ const Print = ({ setShowPrintPopup }) => {
     <div
       className="p-2 flex flex-col gap-3"
       ref={printPopupRef}
-      onKeyDown={handleKeyPress}
+      // onKeyDown={handleKeyPress}
     >
       <div className="flex items-center gap-2">
         <FontAwesomeIcon icon={faPrint} className="text-xl" />
