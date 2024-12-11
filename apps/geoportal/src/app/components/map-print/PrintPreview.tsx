@@ -197,7 +197,6 @@ const PrintPreview = () => {
         window.removeEventListener("keydown", onEscKeyPress);
       };
     } else if (map && mode !== "print") {
-      console.log("xxx mode component");
       deleteRectangleById(map);
     }
   }, [
