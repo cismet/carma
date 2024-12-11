@@ -31,6 +31,7 @@ import ShareContent from "../ShareContent";
 import Print from "../map-print/Print";
 import { useEffect, useState } from "react";
 import {
+  changeIfPopupOpend,
   changePrintError,
   getIsLoading,
   getPrintError,
@@ -56,6 +57,11 @@ const ActionButtons = () => {
   const [showPrintPopup, setShowPrintPopup] = useState(false);
   const loading = useSelector(getIsLoading);
   const printError = useSelector(getPrintError);
+
+  const handlerSetShowPrintPopup = (newState) => {
+    setShowPrintPopup(newState);
+    dispatch(changeIfPopupOpend(newState));
+  };
 
   useEffect(() => {
     if (printError) {
@@ -172,18 +178,18 @@ const ActionButtons = () => {
         <Popover
           trigger="click"
           placement="bottom"
-          content={<Print setShowPrintPopup={setShowPrintPopup} />}
+          content={<Print setShowPrintPopup={handlerSetShowPrintPopup} />}
           open={showPrintPopup}
         >
           {!printError ? (
             <FontAwesomeIcon
-              onClick={() => setShowPrintPopup(true)}
+              onClick={() => handlerSetShowPrintPopup(true)}
               icon={faPrint}
               className="text-xl hover:text-gray-600 cursor-pointer"
             />
           ) : (
             <FontAwesomeIcon
-              onClick={() => setShowPrintPopup(true)}
+              onClick={() => handlerSetShowPrintPopup(true)}
               icon={faExclamation}
               className="text-xl text-red-600 cursor-pointer"
             />

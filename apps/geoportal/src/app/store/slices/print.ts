@@ -11,6 +11,7 @@ export type PrintState = {
   printError: null | string;
   redrawPreview: boolean;
   ifMapPrinted: boolean;
+  ifPopupOpend: boolean;
 };
 
 const initialState: PrintState = {
@@ -22,6 +23,7 @@ const initialState: PrintState = {
   printError: null,
   redrawPreview: true,
   ifMapPrinted: false,
+  ifPopupOpend: false,
 };
 
 const slice = createSlice({
@@ -52,6 +54,9 @@ const slice = createSlice({
     changeIfMapPrinted(state, action: PayloadAction<boolean>) {
       state.ifMapPrinted = action.payload;
     },
+    changeIfPopupOpend(state, action: PayloadAction<boolean>) {
+      state.ifPopupOpend = action.payload;
+    },
   },
 });
 
@@ -64,6 +69,7 @@ export const {
   changePrintError,
   changeRedrawPreview,
   changeIfMapPrinted,
+  changeIfPopupOpend,
 } = slice.actions;
 export const getOrientation = (state: RootState) => state.print.orientation;
 export const getDPI = (state: RootState) => state.print.dpi;
@@ -73,5 +79,6 @@ export const getScale = (state: RootState) => state.print.scale;
 export const getPrintError = (state: RootState) => state.print.printError;
 export const getRedrawPreview = (state: RootState) => state.print.redrawPreview;
 export const getIfMapPrinted = (state: RootState) => state.print.ifMapPrinted;
+export const getIfPopupOpend = (state: RootState) => state.print.ifPopupOpend;
 
 export default slice.reducer;

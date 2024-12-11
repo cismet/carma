@@ -1,7 +1,7 @@
 import { faPrint, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button, Radio, Input, Select } from "antd";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { RadioChangeEvent } from "antd";
 import { useDrawRectangle } from "../../hooks/useDrawRectangle";
 import {
@@ -15,6 +15,8 @@ import {
   getRedrawPreview,
   changeRedrawPreview,
   changeIfMapPrinted,
+  getIfPopupOpend,
+  changeIfPopupOpend,
 } from "../../store/slices/print";
 import { useSelector, useDispatch } from "react-redux";
 import { setUIMode } from "../../store/slices/ui";
@@ -25,6 +27,7 @@ const Print = ({ setShowPrintPopup }) => {
   const dispatch = useDispatch();
   const currentOrient = useSelector(getOrientation);
   const currentDPI = useSelector(getDPI);
+
   // const currentName = useSelector(getPrintName);
   const currentScale = useSelector(getScale);
   const redrawPrev = useSelector(getRedrawPreview);
@@ -33,7 +36,9 @@ const Print = ({ setShowPrintPopup }) => {
   const [dpi, setDpi] = useState(currentDPI);
 
   // useDrawRectangle(printMap, () => dispatch(setUIMode("default")));
-  const printPopupRef = useOutsideClick(() => setShowPrintPopup(false));
+  const printPopupRef = useOutsideClick(() => {
+    setShowPrintPopup(false);
+  });
 
   const onChange = (e: RadioChangeEvent) => {
     setOrientation(e.target.value);
