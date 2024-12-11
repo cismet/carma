@@ -57,14 +57,10 @@ const BaseLayerInfo = () => {
   };
 
   const getBackgroundDescription = () => {
-    if (backgroundLayer.description) {
-      return backgroundLayer.description;
+    if (backgroundLayer.id === "karte") {
+      return layerMap[selectedMapLayer.id].description;
     } else {
-      if (backgroundLayer.id === "karte") {
-        return layerMap[selectedMapLayer.id].description;
-      } else {
-        return layerMap[backgroundLayer.id].description;
-      }
+      return layerMap[backgroundLayer.id].description;
     }
   };
 

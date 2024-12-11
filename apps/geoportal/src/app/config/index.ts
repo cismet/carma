@@ -115,7 +115,7 @@ export const layerMap: LayerMap = {
   luftbild: {
     title: "Luftbild",
     layers: "rvrGrundriss@100|trueOrtho2022@75|rvrSchriftNT@100",
-    description: `Luftbildkarte (aus True Ortophoto) (c) Stadt Wuppertal / RVR und Kooperationspartner`,
+    description: `Luftbildkarte (aus True Ortophoto) © Stadt Wuppertal / RVR und Kooperationspartner`,
     inhalt: `<span>(1) Kartendienst (WMS) der Stadt Wuppertal. Datengrundlage:
               True Orthophoto aus Bildflug vom 16.03.2022, hergestellt durch Aerowest
               GmbH/Dortmund, Bodenauflösung 5 cm.
@@ -131,7 +131,7 @@ export const layerMap: LayerMap = {
   stadtplan: {
     title: "Stadtplan",
     layers: "amtlich@90",
-    description: `Stadtplan (Stadtkarte 2.0) (c) RVR und Kooperationspartner`,
+    description: `Stadtplan (Stadtkarte 2.0) © RVR und Kooperationspartner`,
     inhalt: `<span>Kartendienst (WMS) des Regionalverbandes Ruhr (RVR). Datengrundlage: Stadtkarte 2.0. Wöchentlich in einem automatischen Prozess aktualisierte Zusammenführung des Straßennetzes der OpenStreetMap mit Amtlichen Geobasisdaten des Landes NRW aus den Fachverfahren ALKIS (Gebäude, Flächennutzungen) und ATKIS (Gewässer). © RVR und Kooperationspartner (</span><a class="remove-margins" href="https://www.govdata.de/dl-de/by-2-0">
                 Datenlizenz Deutschland - Namensnennung - Version 2.0
               </a><span>). Lizenzen der Ausgangsprodukte: </span><a href="https://www.govdata.de/dl-de/zero-2-0">
@@ -143,7 +143,7 @@ export const layerMap: LayerMap = {
   gelaende: {
     title: "Gelände",
     layers: "basemap_relief@40",
-    description: `Gelände (basemap.de Web Vektor) (c) GeoBasis-DE / BKG (2024)`,
+    description: `Gelände (basemap.de Web Vektor) © GeoBasis-DE / BKG (2024)`,
     inhalt: `<span>Mapbox-konformer Vector-Tiles-Kartendienst</span>
               <a href="https://basemap.de/web-vektor/">basemap.de Web Vektor</a>
               <span>des Bundesamtes für Kartographie und Geodäsie (BKG), Kartenstil "Relief". © GeoBasis-DE /</span>
@@ -156,7 +156,7 @@ export const layerMap: LayerMap = {
   amtlich: {
     title: "Amtliche Geobasisdaten",
     layers: "amtlichBasiskarte@90",
-    description: `Amtliche Geobasisdaten (Stadtgrundkarte / ABK) (c) Stadt Wuppertal`,
+    description: `Amtliche Geobasisdaten (Stadtgrundkarte / ABK) © Stadt Wuppertal`,
     inhalt: `<span>Kartendienst (WMS) der Stadt Wuppertal. Datengrundlagen: (1) Stadtgrundkarte / Liegenschaftskarte (bei großmaßstäbigen Darstellungen), (2) Amtliche Basiskarte ABK, jeweils farbige Ausprägung. Die Karten werden täglich (Stadtgrundkarte) bzw. wöchentlich (ABK) in einem automatisierten Prozess aus dem Fachverfahren ALKIS des Liegenschaftskatasters abgeleitet. © Stadt Wuppertal (</span>
               <a class="remove-margins" href="https://www.govdata.de/dl-de/zero-2-0">Datenlizenz Deutschland - Zero - Version 2.0</a>
               <span>).</span>`,
