@@ -481,7 +481,7 @@ export const NewLibModal = ({
                   numberOfItems={getNumberOfLayers(
                     categoriesToShownLayers(shownCategories, element.id)
                   )}
-                  showNumberOfItems={!!debouncedSearchTerm}
+                  showNumberOfItems={!!searchValue && !!debouncedSearchTerm}
                 />
               );
             })}
