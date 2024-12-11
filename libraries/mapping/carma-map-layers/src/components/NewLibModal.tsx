@@ -513,7 +513,9 @@ export const NewLibModal = ({
                   const index = sidebarElements.findIndex(
                     (item) => item.id === "searchResults"
                   );
-                  setSelectedNavItemIndex(index);
+                  if (value !== "") {
+                    setSelectedNavItemIndex(index);
+                  }
                 }}
               />
               <Button
