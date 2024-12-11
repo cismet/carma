@@ -59,12 +59,12 @@ const ResourceModal = () => {
           }
           messageApi.open({
             type: "success",
-            content: `${layer.title} wurde erfolgreich angewandt.`,
+            content: `${layer.title} wurde erfolgreich geladen.`,
           });
         } catch {
           messageApi.open({
             type: "error",
-            content: `Es gab einen Fehler beim Anwenden von ${layer.title}`,
+            content: `Es gab einen Fehler beim Laden von ${layer.title}`,
           });
         }
       }

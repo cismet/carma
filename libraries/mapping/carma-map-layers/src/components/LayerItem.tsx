@@ -313,7 +313,7 @@ const LayerItem = ({
                       icon={faSquareUpRight}
                       className="text-lg mr-2"
                     />{" "}
-                    Anwenden
+                    Laden
                   </button>
                   <button
                     className="w-36 bg-gray-100 hover:bg-gray-50 rounded-md py-2 flex text-center items-center px-2"

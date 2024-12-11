@@ -46,12 +46,12 @@ export const Save = ({
       resetStates();
       messageApi.open({
         type: "success",
-        content: `Konfiguration "${title}" wurde erfolgreich gespeichert.`,
+        content: `Karte "${title}" wurde erfolgreich gespeichert.`,
       });
     } catch (e) {
       messageApi.open({
         type: "error",
-        content: "Es gab einen Fehler beim speichern der Konfiguration",
+        content: "Es gab einen Fehler beim speichern der Karte",
       });
     }
   };
@@ -94,7 +94,7 @@ export const Save = ({
         onChange={(e) => setThumbnail(e.target.value)}
       />
 
-      <Button onClick={handleOnClick}>Konfiguration speichern</Button>
+      <Button onClick={handleOnClick}>Karte speichern</Button>
     </div>
   );
 };
