@@ -1,5 +1,7 @@
 import { faTimes } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { setUIMode } from "../../store/slices/ui";
+import { useDispatch } from "react-redux";
 
 const ClosePrintButton = ({
   closePrintMode,
@@ -7,6 +9,7 @@ const ClosePrintButton = ({
   hide = false,
   smallMode = false,
 }) => {
+  const dispatch = useDispatch();
   return (
     <>
       {!hide && !smallMode && (
@@ -18,7 +21,7 @@ const ClosePrintButton = ({
             marginLeft: "auto",
             pointerEvents: "auto",
           }}
-          onClick={closePrintMode}
+          onClick={() => dispatch(setUIMode("default"))}
         />
       )}
     </>

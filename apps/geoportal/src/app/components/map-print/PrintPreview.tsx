@@ -103,8 +103,8 @@ const PrintPreview = () => {
   };
 
   useEffect(() => {
-    // console.log("xxx pop up", ifPopupOpened);
-    if (map && mode === "print" && !ifPopupOpened) {
+    console.log("xxx pop up", ifPopupOpened);
+    if (map && mode === "print") {
       !ifMapPrinted && deleteRectangleById(map);
       const rectangleCoordinates = getPreviewBounds(
         map,
@@ -160,14 +160,11 @@ const PrintPreview = () => {
       };
 
       const onMapClick = (e) => {
-        // const ifPolygon = e.originalEvent.target?.classList.contains(
-        //   "leaflet-path-draggable"
-        // );
         const routedMap = e.originalEvent.target?.id === "routedMap";
+        const glLayer =
+          e.originalEvent.target?.classList.contains("leaflet-gl-layer");
 
-        console.log("xxx on click", e.originalEvent.target.closest("#preview"));
-        console.log("xxx on click", e.originalEvent.target);
-        if (routedMap) {
+        if (routedMap || glLayer) {
           dispatch(setUIMode("default"));
           deleteRectangleById(map);
         }
@@ -178,6 +175,7 @@ const PrintPreview = () => {
           deleteRectangleById(map);
         }
       };
+
       map.on("click", onMapClick);
 
       map.on("zoomstart", onZoomStart);

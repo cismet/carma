@@ -33,6 +33,7 @@ import { useEffect, useState } from "react";
 import {
   changeIfPopupOpend,
   changePrintError,
+  getIfPopupOpend,
   getIsLoading,
   getPrintError,
 } from "../../store/slices/print";
@@ -47,6 +48,7 @@ const ActionButtons = () => {
   const focusMode = useSelector(getFocusMode);
   const showLayerButtons = useSelector(getUIShowLayerButtons);
   const activeLayers = useSelector(getLayers);
+  const showPrintPopup = useSelector(getIfPopupOpend);
 
   const baseUrl = window.location.origin + window.location.pathname;
 
@@ -54,12 +56,10 @@ const ActionButtons = () => {
     getCollabedHelpElementsConfig("MENULEISTE", geoElements)
   );
 
-  const [showPrintPopup, setShowPrintPopup] = useState(false);
   const loading = useSelector(getIsLoading);
   const printError = useSelector(getPrintError);
 
   const handlerSetShowPrintPopup = (newState) => {
-    setShowPrintPopup(newState);
     dispatch(changeIfPopupOpend(newState));
   };
 

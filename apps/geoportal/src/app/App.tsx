@@ -55,6 +55,7 @@ import "leaflet/dist/leaflet.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "./index.css";
+import { changeIfPopupOpend } from "./store/slices/print";
 
 if (typeof global === "undefined") {
   window.global = window;
@@ -121,9 +122,15 @@ function App({ published }: { published?: boolean }) {
       if (e.shiftKey) {
         dispatch(setUIShowLayerHideButtons(true));
       }
+
+      if (e.key === "Escape") {
+        dispatch(changeIfPopupOpend(false));
+      }
     };
 
     const onKeyUp = (e: KeyboardEvent) => {
+      console.log("xxx shiftKey");
+
       if (allowUiChanges) {
         dispatch(setUIShowLayerHideButtons(false));
       }
