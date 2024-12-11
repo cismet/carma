@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { CSSProperties, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
+  changeIfMapPrinted,
   changeRedrawPreview,
   getRedrawPreview,
 } from "../../store/slices/print";
@@ -32,6 +33,7 @@ const UpdateScalePrintButton = ({
   };
 
   const updateScaleHandler = () => {
+    dispatch(changeIfMapPrinted(false));
     dispatch(changeRedrawPreview(!redrawPrev));
   };
 

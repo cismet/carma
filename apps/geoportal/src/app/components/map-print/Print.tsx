@@ -1,9 +1,8 @@
-import { faPrint, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faPrint } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Button, Radio, Input, Select } from "antd";
-import { useEffect, useState } from "react";
+import { Button, Radio, Select } from "antd";
+import { useState } from "react";
 import type { RadioChangeEvent } from "antd";
-import { useDrawRectangle } from "../../hooks/useDrawRectangle";
 import {
   getOrientation,
   changeOrientation,
@@ -33,7 +32,6 @@ const Print = ({ setShowPrintPopup }) => {
   // const [name, setSName] = useState(currentName);
   const [dpi, setDpi] = useState(currentDPI);
 
-  // useDrawRectangle(printMap, () => dispatch(setUIMode("default")));
   const printPopupRef = useOutsideClick(() => {
     setShowPrintPopup(false);
   });
