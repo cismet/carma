@@ -128,7 +128,9 @@ const PrintPreview = () => {
         polygon.on("dragend", () => {
           const newBounds = polygon.getBounds();
           map.fitBounds(newBounds);
-          setIsHideContent(false);
+          setTimeout(() => {
+            setIsHideContent(false);
+          }, 250);
         });
 
         polygon.on("dblclick", () => {
