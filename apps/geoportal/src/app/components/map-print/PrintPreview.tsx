@@ -170,7 +170,7 @@ const PrintPreview = () => {
         }
       };
       const onEscKeyPress = (event) => {
-        if (event.key === "Escape") {
+        if (event.key === "Escape" && !ifPopupOpened) {
           dispatch(setUIMode("default"));
           deleteRectangleById(map);
         }

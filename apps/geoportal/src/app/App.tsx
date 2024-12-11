@@ -42,6 +42,7 @@ import {
   getUIAllowChanges,
   getUIMode,
   setUIAllowChanges,
+  setUIMode,
   setUIShowLayerButtons,
   setUIShowLayerHideButtons,
 } from "./store/slices/ui";
@@ -129,8 +130,6 @@ function App({ published }: { published?: boolean }) {
     };
 
     const onKeyUp = (e: KeyboardEvent) => {
-      console.log("xxx shiftKey");
-
       if (allowUiChanges) {
         dispatch(setUIShowLayerHideButtons(false));
       }
