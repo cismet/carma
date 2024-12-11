@@ -16,6 +16,9 @@ import getGTMFeatureStyler, {
 } from "react-cismap/topicmaps/generic/GTMStyler";
 import slugify from "slugify";
 import Map from "./Map";
+import { MappingConstants } from "react-cismap";
+import { defaultLayerConf } from "react-cismap/tools/layerFactory";
+
 const host = "https://wupp-topicmaps-data.cismet.de";
 
 async function getConfig(slugName, configType, server, path) {
@@ -57,28 +60,36 @@ export const getGazData = async (
     "bezirke",
     "quartiere",
     "adressen",
-  ]
+  ],
+  srs = 3857
 ) => {
+  const srsFolder = srs === 25832 ? "/" : "/3857";
   const prefix = "GazDataForStories";
   const sources = {};
 
   sources.adressen = await md5FetchText(
     prefix,
-    host + "/data/3857/adressen.json"
+    host + "/data" + srsFolder + "/adressen.json"
   );
   sources.bezirke = await md5FetchText(
     prefix,
-    host + "/data/3857/bezirke.json"
+    host + "/data" + srsFolder + "/bezirke.json"
   );
   sources.quartiere = await md5FetchText(
     prefix,
-    host + "/data/3857/quartiere.json"
+    host + "/data" + srsFolder + "/quartiere.json"
   );
-  sources.pois = await md5FetchText(prefix, host + "/data/3857/pois.json");
-  sources.kitas = await md5FetchText(prefix, host + "/data/3857/kitas.json");
+  sources.pois = await md5FetchText(
+    prefix,
+    host + "/data" + srsFolder + "/pois.json"
+  );
+  sources.kitas = await md5FetchText(
+    prefix,
+    host + "/data" + srsFolder + "/kitas.json"
+  );
   sources.bpklimastandorte = await md5FetchText(
     prefix,
-    host + "/data/3857/bpklimastandorte.json"
+    host + "/data" + srsFolder + "/bpklimastandorte.json"
   );
 
   const gazData = getGazDataForTopicIds(sources, topics);
@@ -178,7 +189,10 @@ function App({
       config.tm.gazetteerSearchPlaceholder =
         config.tm.gazetteerSearchBoxPlaceholdertext;
       config.info.city = config.city;
-      const gazData = await getGazData(config.tm.gazetteerTopicsList);
+      const gazData = await getGazData(
+        config.tm.gazetteerTopicsList,
+        config?.tm?.srs
+      );
       const featureGazData = [];
 
       if (config?.tm?.addGazetteerElementsPerFeature === true) {
@@ -211,8 +225,28 @@ function App({
   }, [name]);
 
   if (initialized === true) {
+    const refConfig = {};
+    if (config?.tm?.srs === 3857) {
+      //this is default, so no config is needed
+    } else if (config?.tm?.srs === 25832) {
+      refConfig.referenceSystemDefinition = MappingConstants.proj4crs25832def;
+      refConfig.mapEPSGCode = "25832";
+      refConfig.referenceSystem = MappingConstants.crs25832;
+    }
+
+    const baseLayerConf = JSON.parse(JSON.stringify(defaultLayerConf));
+    if (config?.tm?.namedLayers) {
+      for (const layerkey of Object.keys(config?.tm?.namedLayers)) {
+        baseLayerConf.namedLayers[layerkey] = config?.tm?.namedLayers[layerkey];
+      }
+    }
+
     return (
       <TopicMapContextProvider
+        {...refConfig}
+        baseLayerConf={baseLayerConf}
+        backgroundConfigurations={config?.tm?.backgroundConfigurations}
+        backgroundModes={config?.tm?.backgroundModes}
         appKey="GenericTopicMap.Playground"
         items={config.features}
         getFeatureStyler={getGTMFeatureStyler}
