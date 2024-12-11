@@ -478,6 +478,10 @@ export const NewLibModal = ({
                     setSelectedNavItemIndex(i);
                   }}
                   key={element.id}
+                  numberOfItems={getNumberOfLayers(
+                    categoriesToShownLayers(shownCategories, element.id)
+                  )}
+                  showNumberOfItems={!!debouncedSearchTerm}
                 />
               );
             })}
