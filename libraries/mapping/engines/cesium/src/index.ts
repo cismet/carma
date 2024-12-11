@@ -1,4 +1,4 @@
-import { setupCesiumEnvironment } from './lib/utils/cesiumSetup';
+import { setupCesiumEnvironment } from "./lib/utils/cesiumSetup";
 export * from "./lib/slices/cesium";
 
 export { CesiumContextProvider } from "./lib/CesiumContextProvider";

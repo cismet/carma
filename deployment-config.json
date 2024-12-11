@@ -329,7 +329,7 @@
         "manual": {
           "dev": {
             "pages": {
-             "org": "carma-dev-playground-deployments",
+              "org": "carma-dev-playground-deployments",
               "prj": "floodingmap"
             }
           },

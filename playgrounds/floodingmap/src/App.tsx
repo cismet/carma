@@ -1,132 +1,328 @@
-import React, { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { MappingConstants } from "react-cismap";
-import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
-import { md5FetchText } from "react-cismap/tools/fetching";
+import { Cartographic, Math as CesiumMath } from "cesium";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faCompress,
+  faExpand,
+  faHouseChimney,
+  faMinus,
+  faPlus,
+} from "@fortawesome/free-solid-svg-icons";
+
 import EnviroMetricMap from "@cismet-dev/react-cismap-envirometrics-maps/EnviroMetricMap";
-import { getGazDataForTopicIds } from "react-cismap/tools/gazetteerHelper";
+import { EnviroMetricMapContext } from "@cismet-dev/react-cismap-envirometrics-maps/EnviroMetricMapContextProvider";
 
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import { version as cismapEnvirometricsVersion } from "@cismet-dev/react-cismap-envirometrics-maps/meta";
 import CrossTabCommunicationControl from "react-cismap/CrossTabCommunicationControl";
 import CrossTabCommunicationContextProvider from "react-cismap/contexts/CrossTabCommunicationContextProvider";
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+
+import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
+
+import {
+  SelectionMetaData,
+  useGazData,
+  useSelection,
+  useSelectionCesium,
+  useSelectionTopicMap,
+} from "@carma-apps/portals";
+import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/hochwassergefahrenkarte";
+import { ENDPOINT, isAreaType } from "@carma-commons/resources";
+import { getApplicationVersion } from "@carma-commons/utils";
+
+import {
+  Compass,
+  CustomViewer,
+  MapTypeSwitcher,
+  selectShowPrimaryTileset,
+  selectViewerHome,
+  selectViewerIsMode2d,
+  selectViewerModels,
+  useCesiumContext,
+  useHomeControl,
+  useZoomControls,
+} from "@carma-mapping/cesium-engine";
+import {
+  Control,
+  ControlButtonStyler,
+  ControlLayout,
+} from "@carma-mapping/map-controls-layout";
 
 import config from "./config";
 
 import NotesDisplay from "./NotesDisplay";
-import { EnviroMetricMapContext } from "@cismet-dev/react-cismap-envirometrics-maps/EnviroMetricMapContextProvider";
-import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
-import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/hochwassergefahrenkarte";
 import versionData from "./version.json";
-import { getApplicationVersion } from "@carma-commons/utils";
+
+import { LibFuzzySearch, SearchResultItem } from "@carma-mapping/fuzzy-search";
+import { useSelector } from "react-redux";
+
+import { CESIUM_CONFIG } from "./config/cesium/cesium.config";
+
+import useLeafletZoomControls from "../../carmamap/src/app/hooks/leaflet/useLeafletZoomControls";
+import { vi } from "vitest";
+
+// TODO replace by hiding UI props for EnviroMetricMap
+const envirometricMapStyleOverrides = `
+  .leaflet-top { display: none !important; }
+  .leaflet-bottom.leaflet-left { display: none !important; }
+`;
+
 function App() {
   const version = getApplicationVersion(versionData);
+
+  const { gazData } = useGazData();
+
   const reactCismapEnvirometricsVersion = cismapEnvirometricsVersion;
   const [hochwasserschutz, setHochwasserschutz] = useState(true);
 
   const email = "hochwasser@stadt.wuppertal.de";
-  const [gazData, setGazData] = useState([]);
   const [hinweisData, setHinweisData] = useState([]);
 
-  const getGazData = async (setData) => {
-    const prefix = "GazDataForHochwasserkarteByCismet";
-    const sources = {};
+  const homeZoom = 18;
 
-    sources.geps = await md5FetchText(
-      prefix,
-      "https://wunda-geoportal.cismet.de/data/3857/geps.json"
-    );
-    sources.geps_reverse = await md5FetchText(
-      prefix,
-      "https://wunda-geoportal.cismet.de/data/3857/geps_reverse.json"
-    );
-    sources.adressen = await md5FetchText(
-      prefix,
-      "https://wunda-geoportal.cismet.de/data/3857/adressen.json"
-    );
-    sources.bezirke = await md5FetchText(
-      prefix,
-      "https://wunda-geoportal.cismet.de/data/3857/bezirke.json"
-    );
-    sources.quartiere = await md5FetchText(
-      prefix,
-      "https://wunda-geoportal.cismet.de/data/3857/quartiere.json"
-    );
-    sources.pois = await md5FetchText(
-      prefix,
-      "https://wunda-geoportal.cismet.de/data/3857/pois.json"
-    );
-    sources.kitas = await md5FetchText(
-      prefix,
-      "https://wunda-geoportal.cismet.de/data/3857/kitas.json"
-    );
+  // CONTROLS
 
-    const gazData = getGazDataForTopicIds(sources, [
-      "geps",
-      "geps_reverse",
-      "pois",
-      "kitas",
-      "quartiere",
-      "bezirke",
-      "adressen",
-    ]);
+  const homeControl = useHomeControl();
+  const {
+    handleZoomIn: handleZoomInCesium,
+    handleZoomOut: handleZoomOutCesium,
+  } = useZoomControls();
+  const { getLeafletZoom, zoomInLeaflet, zoomOutLeaflet } =
+    useLeafletZoomControls();
 
-    setData(gazData);
+  // LEAFLET related
+  const { routedMapRef: routedMap } =
+    useContext<typeof TopicMapContext>(TopicMapContext);
+
+  // CESIUM related
+
+  const container3dMapRef = useRef<HTMLDivElement>(null);
+  const homePosition = useSelector(selectViewerHome);
+
+  const homeCenter = useMemo(() => {
+    if (!homePosition) {
+      return null;
+    }
+    const { latitude, longitude } = Cartographic.fromCartesian(homePosition);
+    const center = [
+      CesiumMath.toDegrees(latitude),
+      CesiumMath.toDegrees(longitude),
+    ];
+
+    return center;
+  }, [homePosition]);
+
+  const { viewerRef, terrainProviderRef, surfaceProviderRef } =
+    useCesiumContext();
+
+  const isMode2d = useSelector(selectViewerIsMode2d);
+  const showPrimaryTileset = useSelector(selectShowPrimaryTileset);
+
+  const models = useSelector(selectViewerModels);
+
+  const markerAsset = models![CESIUM_CONFIG.markerKey!];
+  const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;
+
+  // selection handling
+  const { setSelection } = useSelection();
+
+  useSelectionTopicMap();
+  useSelectionCesium(
+    !isMode2d,
+    useMemo(
+      () => ({
+        markerAsset,
+        markerAnchorHeight,
+        isPrimaryStyle: showPrimaryTileset,
+        surfaceProviderRef,
+        terrainProviderRef,
+      }),
+      [
+        markerAsset,
+        markerAnchorHeight,
+        showPrimaryTileset,
+        surfaceProviderRef,
+        terrainProviderRef,
+      ]
+    )
+  );
+
+  const onGazetteerSelection = (selection: SearchResultItem | null) => {
+    if (!selection) {
+      console.debug("onGazetteerSelection", selection);
+      setSelection(null);
+      return;
+    }
+    const selectionMetaData: SelectionMetaData = {
+      selectedFrom: "gazetteer",
+      selectionTimestamp: Date.now(),
+      isAreaSelection: isAreaType(selection.type as ENDPOINT),
+    };
+    setSelection(Object.assign({}, selection, selectionMetaData));
   };
 
-  useEffect(() => {
-    getGazData(setGazData);
-    // getHinweisData(setHinweisData, config.config.hinweisDataUrl);
-  }, []);
+  const homeControlLeaflet = () => {
+    if (homeCenter && routedMap?.leafletMap?.leafletElement) {
+      console.debug("topicMapHomeClick", homeCenter, homePosition);
+      routedMap.leafletMap.leafletElement.flyTo(homeCenter, homeZoom);
+    }
+  };
+
+  const onHomeClick = () => {
+    homeControl();
+    homeControlLeaflet();
+  };
 
   return (
     <CrossTabCommunicationContextProvider
       role="sync"
       token="floodingAndRainhazardSyncWupp"
     >
-      <TopicMapContextProvider
-        appKey={"Hochwasserkarte.Story.Wuppertal"}
-        referenceSystem={MappingConstants.crs3857}
-        referenceSystemDefinition={MappingConstants.proj4crs3857def}
-        // baseLayerConf={wuppertalConfig.overridingBaseLayerConf}
-        infoBoxPixelWidth={370}
+      <style>{envirometricMapStyleOverrides}</style>
+      <div
+        className="controls-container"
+        style={{
+          position: "absolute",
+          top: "0px",
+          left: "0px",
+          zIndex: 600,
+        }}
       >
-        <EnviroMetricMap
-          appMenu={
-            <GenericModalApplicationMenu
-              {...getCollabedHelpComponentConfig({
-                versionString: version,
-                reactCismapRHMVersion: reactCismapEnvirometricsVersion,
-
-                email,
-              })}
+        <ControlLayout>
+          <Control position="topleft" order={10}>
+            <div className="flex flex-col">
+              <ControlButtonStyler
+                onClick={isMode2d ? zoomInLeaflet : handleZoomInCesium}
+                className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
+                dataTestId="zoom-in-control"
+              >
+                <FontAwesomeIcon icon={faPlus} className="text-base" />
+              </ControlButtonStyler>
+              <ControlButtonStyler
+                onClick={isMode2d ? zoomOutLeaflet : handleZoomOutCesium}
+                className="!rounded-t-none !border-t-[1px]"
+                dataTestId="zoom-out-control"
+              >
+                <FontAwesomeIcon icon={faMinus} className="text-base" />
+              </ControlButtonStyler>
+            </div>
+          </Control>
+          <Control position="topleft" order={20}>
+            <ControlButtonStyler
+              onClick={() => {
+                if (document.fullscreenElement) {
+                  document.exitFullscreen();
+                } else {
+                  document.documentElement.requestFullscreen();
+                }
+              }}
+              dataTestId="full-screen-control"
+            >
+              <FontAwesomeIcon
+                icon={document.fullscreenElement ? faCompress : faExpand}
+              />
+            </ControlButtonStyler>
+          </Control>
+          <Control position="topleft" order={40}>
+            <ControlButtonStyler
+              onClick={onHomeClick}
+              dataTestId="home-control"
+            >
+              <FontAwesomeIcon icon={faHouseChimney} className="text-lg" />
+            </ControlButtonStyler>
+          </Control>
+          <Control position="topleft" order={70}>
+            <MapTypeSwitcher
+              duration={CESIUM_CONFIG.transitions.mapMode.duration}
             />
-          }
-          applicationMenuTooltipString="Anleitung | Hintergrund"
-          initialState={config.initialState}
-          emailaddress="hochwasser@stadt.wuppertal.de"
-          config={config.config}
-          homeZoom={18}
-          contactButtonEnabled={false}
-          homeCenter={[51.27202324060668, 7.20162372978018]}
-          modeSwitcherTitle="Hochwassergefahrenkarte Wuppertal"
-          documentTitle="Hochwassergefahrenkarte Wuppertal"
+            <Compass disabled={isMode2d} />
+          </Control>
+        </ControlLayout>
+        n
+      </div>
+
+      <div
+        className="fuzzy-search-container"
+        style={{
+          position: "absolute",
+          bottom: "1rem",
+          left: "10px",
+          zIndex: 600,
+          overflow: "hidden",
+        }}
+      >
+        <LibFuzzySearch
           gazData={gazData}
-          gazetteerSearchPlaceholder="Stadtteil | Adresse | POI | GEP"
-          animationEnabled={false}
-          toggleEnabled={true}
-          customInfoBoxToggleState={hochwasserschutz}
-          customInfoBoxToggleStateSetter={setHochwasserschutz}
-          customInfoBoxDerivedToggleState={(toggleState, state) =>
-            state.selectedSimulation !== 2 && toggleState
-          }
-          customInfoBoxDerivedToggleClickable={(controlState) => {
-            return controlState.selectedSimulation !== 2;
-          }}
-        >
-          <CrossTabCommunicationControl hideWhenNoSibblingIsPresent={true} />
-          <StateAwareChildren />
-        </EnviroMetricMap>
-      </TopicMapContextProvider>
+          //referenceSystem={referenceSystem}
+          //referenceSystemDefinition={referenceSystemDefinition}
+          onSelection={onGazetteerSelection}
+          placeholder="Wohin?"
+        />
+      </div>
+      <EnviroMetricMap
+        appMenu={
+          <GenericModalApplicationMenu
+            {...getCollabedHelpComponentConfig({
+              versionString: version,
+              reactCismapRHMVersion: reactCismapEnvirometricsVersion,
+
+              email,
+            })}
+          />
+        }
+        applicationMenuTooltipString="Anleitung | Hintergrund"
+        initialState={config.initialState}
+        emailaddress="hochwasser@stadt.wuppertal.de"
+        config={config.config}
+        contactButtonEnabled={false}
+        homeZoom={homeZoom}
+        homeCenter={homeCenter}
+        modeSwitcherTitle="Hochwassergefahrenkarte Wuppertal"
+        documentTitle="Hochwassergefahrenkarte Wuppertal"
+        gazData={gazData}
+        // TODO disable Leaflet builin controls
+        locatorControl={false}
+        fullScreenControl={false}
+        zoomControls={false}
+        // TODO DISABLE GAZETTEER
+        gazetteerSearchControl={false}
+        animationEnabled={false}
+        toggleEnabled={true}
+        customInfoBoxToggleState={hochwasserschutz}
+        customInfoBoxToggleStateSetter={setHochwasserschutz}
+        customInfoBoxDerivedToggleState={(toggleState, state) =>
+          state.selectedSimulation !== 2 && toggleState
+        }
+        customInfoBoxDerivedToggleClickable={(controlState) => {
+          return controlState.selectedSimulation !== 2;
+        }}
+      >
+        <CrossTabCommunicationControl hideWhenNoSibblingIsPresent={true} />
+        <StateAwareChildren />
+      </EnviroMetricMap>
+      <div
+        ref={container3dMapRef}
+        className={"map-container-3d"}
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 400,
+          opacity: isMode2d ? 0 : 1,
+          transition: `opacity ${CESIUM_CONFIG.transitions.mapMode.duration}ms ease-in-out`,
+          pointerEvents: isMode2d ? "none" : "auto",
+        }}
+      >
+        <CustomViewer
+          containerRef={container3dMapRef}
+          cameraOptions={CESIUM_CONFIG.camera}
+          onSceneChange={() => {}} // TODO
+        ></CustomViewer>
+      </div>
     </CrossTabCommunicationContextProvider>
   );
 }

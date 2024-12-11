@@ -45,7 +45,6 @@ if (stateLoggingEnabled === true) {
     });
 }
 
-
 const store = configureStore({
   reducer: {
     cesium: persistReducer(

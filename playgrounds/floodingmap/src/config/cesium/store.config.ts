@@ -7,7 +7,6 @@ import { CesiumState, toColorRgbaArray } from "@carma-mapping/cesium-engine";
 
 import { MODEL_ASSETS } from "./assets.config";
 
-
 // SETUP Store State
 
 const homePosition = Cartesian3.fromDegrees(
