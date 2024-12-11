@@ -14,6 +14,7 @@ import { extractCarmaConfig } from "@carma-commons/utils";
 
 import { parseDescription } from "../helper/layerHelper";
 import { Item } from "../helper/types";
+import { useEffect, useState } from "react";
 
 interface InfoCardProps {
   layer: Item;
@@ -28,6 +29,7 @@ interface InfoCardProps {
   ) => void;
   closeInfoCard: () => void;
   setPreview: (preview: boolean) => void;
+  links: { url: string; text: string }[];
 }
 
 const InfoCard = ({
@@ -38,6 +40,7 @@ const InfoCard = ({
   handleFavoriteClick,
   closeInfoCard,
   setPreview,
+  links,
 }: InfoCardProps) => {
   const { title, description, tags } = layer;
   // @ts-expect-error fix typing
@@ -136,24 +139,24 @@ const InfoCard = ({
               ))}
             </p>
           </div>
-          <div className="h-full w-0 border-r border-gray-300 my-0" />
-          <div className="flex flex-col gap-0 w-1/4">
-            <h5 className="font-semibold text-lg">Links</h5>
-            {layer?.service?.url && (
-              <a
-                href={`${layer.service.url}?service=WMS&request=GetCapabilities&version=1.1.1`}
-                target="_blank"
-                className="pb-2"
-              >
-                Inhaltsverzeichnis des Kartendienstes (WMS Capabilities)
-              </a>
-            )}
-            {carmaConf?.opendata && (
-              <a href={carmaConf.opendata} target="_blank" className="pb-2">
-                Datenquelle im Open-Data-Portal Wuppertal
-              </a>
-            )}
-          </div>
+          {links.length > 0 && (
+            <>
+              <div className="h-full w-0 border-r border-gray-300 my-0" />
+              <div className="flex flex-col gap-0 w-1/4">
+                <h5 className="font-semibold text-lg">Links</h5>
+                {links.map((link, i) => (
+                  <a
+                    key={`link_${i}`}
+                    href={link.url}
+                    target="_blank"
+                    className="pb-2"
+                  >
+                    {link.text}
+                  </a>
+                ))}
+              </div>
+            </>
+          )}
           {legends && (
             <>
               <div className="h-full w-0 border-r border-gray-300 my-0" />

@@ -22,6 +22,7 @@ import type { Item, Layer, LayerProps } from "../helper/types";
 import { extractVectorStyles, parseDescription } from "../helper/layerHelper";
 import InfoCard from "./InfoCard";
 import tmpThumbnail from "./tmpService.jpg";
+import { extractCarmaConfig } from "@carma-commons/utils";
 
 interface LayerItemProps {
   setAdditionalLayers: any;
@@ -64,12 +65,19 @@ const LibItem = ({
   const [collectionImages, setCollectionImages] = useState<string[]>([]);
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
   const [forceWMS, setForceWMS] = useState(false);
+  const [links, setLinks] = useState<
+    {
+      url: string;
+      text: string;
+    }[]
+  >([]);
   const showInfo = selectedLayerId === layer.id;
   const canShowInfo =
     layer.type === "layer" || (layer.type === "link" && layer.description);
   const title = layer.title;
   const description = layer.description;
   const keywords = layer.keywords;
+  const carmaConf = extractCarmaConfig(layer.keywords);
 
   const name = layer.name;
   const service = layer.service;
@@ -238,6 +246,26 @@ const LibItem = ({
   }, [name, layer.id]);
 
   useEffect(() => {
+    const tmpLinks: { url: string; text: string }[] = [];
+
+    if (layer.service?.url) {
+      tmpLinks.push({
+        url:
+          layer.service.url +
+          "?service=WMS&request=GetCapabilities&version=1.1.1",
+        text: "Inhaltsverzeichnis des Kartendienstes (WMS Capabilities)",
+      });
+    }
+
+    if (carmaConf?.opendata) {
+      tmpLinks.push({
+        url: carmaConf.opendata,
+        text: "Datenquelle im Open-Data-Portal Wuppertal",
+      });
+    }
+
+    setLinks(tmpLinks);
+
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.altKey) {
         setForceWMS(true);
@@ -528,6 +556,7 @@ const LibItem = ({
           }}
           closeInfoCard={() => setSelectedLayerId(null)}
           setPreview={setPreview}
+          links={links}
         />
       )}
     </>

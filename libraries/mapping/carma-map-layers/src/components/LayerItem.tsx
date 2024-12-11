@@ -19,6 +19,7 @@ import { extractVectorStyles } from "../helper/layerHelper";
 import type { Item } from "../helper/types";
 import InfoCard from "./InfoCard";
 import tmpThumbnail from "./tmpService.jpg";
+import { extractCarmaConfig } from "@carma-commons/utils";
 
 interface LayerItemProps {
   setAdditionalLayers: any;
@@ -55,13 +56,22 @@ const LayerItem = ({
     : false;
   const [collectionImages, setCollectionImages] = useState<string[]>([]);
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
+  const [links, setLinks] = useState<
+    {
+      url: string;
+      text: string;
+    }[]
+  >([]);
   const [forceWMS, setForceWMS] = useState(false);
   const showInfo = selectedLayerId === layer.id;
   const canShowInfo =
-    layer.type === "layer" || (layer.type === "link" && layer.description);
+    layer.type === "layer" ||
+    (layer.type === "link" && layer.description) ||
+    (layer.type === "collection" && layer.description);
   const title = layer.title;
   const description = layer.description;
   const keywords = layer.keywords;
+  const carmaConf = extractCarmaConfig(layer.keywords);
 
   const regex = /Inhalt:(.*?)Sichtbarkeit:/s;
 
@@ -94,6 +104,26 @@ const LayerItem = ({
   }, [activeLayers]);
 
   useEffect(() => {
+    const tmpLinks: { url: string; text: string }[] = [];
+
+    if (layer.service?.url) {
+      tmpLinks.push({
+        url:
+          layer.service.url +
+          "?service=WMS&request=GetCapabilities&version=1.1.1",
+        text: "Inhaltsverzeichnis des Kartendienstes (WMS Capabilities)",
+      });
+    }
+
+    if (carmaConf?.opendata) {
+      tmpLinks.push({
+        url: carmaConf.opendata,
+        text: "Datenquelle im Open-Data-Portal Wuppertal",
+      });
+    }
+
+    setLinks(tmpLinks);
+
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.altKey) {
         setForceWMS(true);
@@ -328,7 +358,7 @@ const LayerItem = ({
             >
               {title}
             </h3>
-            {layer.type !== "collection" && (
+            {canShowInfo && (
               <div className="flex flex-col gap-2">
                 <FontAwesomeIcon
                   icon={
@@ -392,6 +422,7 @@ const LayerItem = ({
           }}
           closeInfoCard={() => setSelectedLayerId(null)}
           setPreview={setPreview}
+          links={links}
         />
       )}
     </>
