@@ -28,12 +28,7 @@ export const SidebarItem = ({
       onClick={!disabled ? onClick : undefined}
     >
       {showNumberOfItems ? (
-        <Badge
-          count={numberOfItems}
-          color="#9ca3af"
-          overflowCount={500}
-          showZero
-        >
+        <Badge count={numberOfItems} color="#9ca3af" overflowCount={500}>
           <FontAwesomeIcon className="w-9 h-9 mr-3 text-gray-400" icon={icon} />
         </Badge>
       ) : (

@@ -478,9 +478,13 @@ export const NewLibModal = ({
                     setSelectedNavItemIndex(i);
                   }}
                   key={element.id}
-                  numberOfItems={getNumberOfLayers(
-                    categoriesToShownLayers(shownCategories, element.id)
-                  )}
+                  numberOfItems={
+                    !debouncedSearchTerm
+                      ? 0
+                      : getNumberOfLayers(
+                          categoriesToShownLayers(shownCategories, element.id)
+                        )
+                  }
                   showNumberOfItems={!!searchValue && !!debouncedSearchTerm}
                   disabled={i === sidebarElements.length - 1 && !searchValue}
                 />
