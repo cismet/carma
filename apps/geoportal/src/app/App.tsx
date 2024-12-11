@@ -13,12 +13,12 @@ import { CrossTabCommunicationContextProvider } from "react-cismap/contexts/Cros
 // Monorepo Packages
 import { backgroundSettings } from "@carma-collab/wuppertal/geoportal";
 
-import type { Layer } from "@carma-mapping/layers";
 import {
   CarmaMapContextProvider,
   type BackgroundLayer,
   type Settings,
 } from "@carma-apps/portals";
+import type { Layer } from "@carma-mapping/layers";
 
 // Local Modules
 import AppErrorFallback from "./components/AppErrorFallback";
@@ -28,8 +28,11 @@ import TopNavbar from "./components/TopNavbar";
 
 import type { AppDispatch } from "./store";
 import {
+  getBackgroundLayer,
+  getSelectedMapLayer,
   setBackgroundLayer,
   setLayers,
+  setSelectedMapLayer,
   setShowFullscreenButton,
   setShowHamburgerMenu,
   setShowLocatorButton,
@@ -43,6 +46,7 @@ import {
   setUIShowLayerHideButtons,
 } from "./store/slices/ui";
 
+import { layerMap } from "./config";
 import { CESIUM_CONFIG } from "./config/app.config";
 
 // Side-Effect Imports
@@ -68,6 +72,8 @@ function App({ published }: { published?: boolean }) {
   const allowUiChanges = useSelector(getUIAllowChanges);
   const uiMode = useSelector(getUIMode);
   const location = useLocation();
+  const backgroundLayer = useSelector(getBackgroundLayer);
+  const selectedMapLayer = useSelector(getSelectedMapLayer);
 
   const [syncToken, setSyncToken] = useState(null);
 
@@ -133,6 +139,52 @@ function App({ published }: { published?: boolean }) {
       window.removeEventListener("blur", onKeyUp);
     };
   }, [allowUiChanges]);
+
+  useEffect(() => {
+    const backgroundLayerId = backgroundLayer.id;
+    const selectedMapLayerId = selectedMapLayer.id;
+
+    const getId = () => {
+      return backgroundLayerId === "luftbild"
+        ? backgroundLayerId
+        : selectedMapLayerId;
+    };
+    dispatch(
+      setBackgroundLayer({
+        title: layerMap[getId()].title,
+        id: backgroundLayerId,
+        opacity: 1.0,
+        description: layerMap[getId()].description,
+        inhalt: layerMap[getId()].inhalt,
+        eignung: layerMap[getId()].eignung,
+        visible: backgroundLayer.visible,
+        layerType: "wmts",
+        props: {
+          name: "",
+          url: layerMap[getId()].url,
+        },
+        layers: layerMap[getId()].layers,
+      })
+    );
+
+    dispatch(
+      setSelectedMapLayer({
+        title: layerMap[selectedMapLayerId].title,
+        id: selectedMapLayerId,
+        opacity: 1.0,
+        description: ``,
+        inhalt: layerMap[selectedMapLayerId].inhalt,
+        eignung: layerMap[selectedMapLayerId].eignung,
+        visible: selectedMapLayer.visible,
+        layerType: "wmts",
+        props: {
+          name: "",
+          url: layerMap[selectedMapLayerId].url,
+        },
+        layers: layerMap[selectedMapLayerId].layers,
+      })
+    );
+  }, []);
 
   const content = (
     <CarmaMapContextProvider
