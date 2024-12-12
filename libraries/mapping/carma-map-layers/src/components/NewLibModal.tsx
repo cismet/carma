@@ -384,36 +384,39 @@ export const NewLibModal = ({
 
       const file = event?.dataTransfer?.files[0];
 
-      if (file) {
-        file
-          .text()
-          .then((text) => {
-            const result = parser.toJSON(text);
-            const ownLayers = getDataFromJson(result);
-            if (ownLayers) {
-              setShownCategories((prev) => {
-                if (prev.find((item) => item.id === "mapLayers")) {
-                  prev.splice(
-                    prev.findIndex((item) => item.id === "mapLayers"),
-                    1
-                  );
-                }
-                return [
-                  ...prev,
-                  {
-                    id: "mapLayers",
-                    categories: [...ownLayers, ...allLayers],
-                  },
-                ];
-              });
-            }
-          })
-          .catch((error) => {
-            // setError(error.message);
-          });
-      }
+      if (url && url.endsWith("style.json")) {
+        const newItem = {
+          description: "",
+          id: `custom:${url}`,
+          layerType: "vector",
+          title: url.slice(0, -5),
+          serviceName: "custom",
+          type: "layer",
+          keywords: [`carmaConf://vectorStyle:${url}`],
+        };
 
-      if (url) {
+        setShownCategories((prev) => {
+          if (prev.find((item) => item.id === "mapLayers")) {
+            prev.splice(
+              prev.findIndex((item) => item.id === "mapLayers"),
+              1
+            );
+          }
+          return [
+            ...prev,
+            {
+              id: "mapLayers",
+              categories: [
+                {
+                  Title: "Eigene Daten",
+                  layers: [newItem],
+                },
+                ...allLayers,
+              ],
+            },
+          ];
+        });
+      } else if (url) {
         fetch(url)
           .then((response) => {
             return response.text();
@@ -442,6 +445,94 @@ export const NewLibModal = ({
           })
           .catch((error) => {
             console.log("xxx error", error);
+          });
+      }
+
+      if (file && file.name.endsWith("style.json")) {
+        // Handle file drop
+
+        console.log("File dropped:", file.name, file);
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            // Attempt to parse the file content as JSON
+            const fileContent = e.target?.result;
+            if (typeof fileContent === "string") {
+              const processedContent = fileContent.replace(
+                /__SERVER_URL__/g,
+                "https://tiles.cismet.de"
+              );
+
+              const jsonData = JSON.parse(processedContent);
+              console.log("xxx Parsed JSON from file:", jsonData);
+
+              const newItem = {
+                description: "",
+                id: `custom:${file.name}`,
+                layerType: "vector",
+                title: file.name,
+                serviceName: "custom",
+                type: "layer",
+                keywords: [
+                  `carmaConf://vectorStyle:${JSON.stringify(jsonData)}`,
+                ],
+              };
+
+              setShownCategories((prev) => {
+                if (prev.find((item) => item.id === "mapLayers")) {
+                  prev.splice(
+                    prev.findIndex((item) => item.id === "mapLayers"),
+                    1
+                  );
+                }
+                return [
+                  ...prev,
+                  {
+                    id: "mapLayers",
+                    categories: [
+                      {
+                        Title: "Eigene Daten",
+                        layers: [newItem],
+                      },
+                      ...allLayers,
+                    ],
+                  },
+                ];
+              });
+            }
+          } catch (error) {
+            console.error("Failed to parse the file as JSON:", error);
+          }
+        };
+
+        reader.readAsText(file);
+      } else if (file) {
+        file
+          .text()
+          .then((text) => {
+            const result = parser.toJSON(text);
+            const ownLayers = getDataFromJson(result);
+            if (ownLayers) {
+              setShownCategories((prev) => {
+                if (prev.find((item) => item.id === "mapLayers")) {
+                  prev.splice(
+                    prev.findIndex((item) => item.id === "mapLayers"),
+                    1
+                  );
+                }
+                return [
+                  ...prev,
+                  {
+                    id: "mapLayers",
+                    categories: [...ownLayers, ...allLayers],
+                  },
+                ];
+              });
+            }
+          })
+          .catch((error) => {
+            // setError(error.message);
           });
       }
     };
