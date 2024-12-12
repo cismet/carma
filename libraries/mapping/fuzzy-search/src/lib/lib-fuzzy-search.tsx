@@ -198,15 +198,14 @@ export function LibFuzzySearch({
           holderInner.style.width = inputWidth + 10 + "px";
 
           const handleScroll = (event) => {
-            console.log("xxx scroll", allTitles);
-            if (allTitles.length !== 0) {
-              const firstTitle = allTitles[0] as HTMLElement;
-              const advanceTitle = document.getElementById("advance-title");
-
-              if (advanceTitle) {
-                advanceTitle.innerText = firstTitle.innerText;
-              }
+            const titles = document.querySelectorAll("[data-category]");
+            const firstTitle = titles[0] as HTMLElement;
+            const category = firstTitle.dataset.category;
+            const advanceTitle = document.getElementById("advance-title");
+            if (advanceTitle && category) {
+              advanceTitle.innerText = category;
             }
+
             setFireScrollEvent(event.target.scrollTop);
           };
           antdDrapdownSelect.addEventListener("scroll", handleScroll);

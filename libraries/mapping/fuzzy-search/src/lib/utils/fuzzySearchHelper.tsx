@@ -288,7 +288,6 @@ export const mapDataWithCategory = (
     prepareOptions.push(optionItem);
   });
 
-  console.log("xxx item", prepareOptions);
   return prepareOptions;
 };
 
