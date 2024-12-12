@@ -13,7 +13,7 @@ export interface ProviderConfig {
   terrainProvider: {
     url: string;
   };
-  imageryProvider: ImageryProviderConfig;
+  imageryProvider?: ImageryProviderConfig;
 }
 
 export const loadCesiumTerrainProvider = async (

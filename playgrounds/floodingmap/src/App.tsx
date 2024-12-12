@@ -1,6 +1,11 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { MappingConstants } from "react-cismap";
-import { Cartographic, Math as CesiumMath } from "cesium";
+import {
+  Cartographic,
+  Math as CesiumMath,
+  CesiumTerrainProvider,
+  Color,
+} from "cesium";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCompress,
@@ -40,6 +45,7 @@ import {
   selectViewerHome,
   selectViewerIsMode2d,
   selectViewerModels,
+  setShowPrimaryTileset,
   useCesiumContext,
   useHomeControl,
   useZoomControls,
@@ -59,15 +65,30 @@ import { LibFuzzySearch, SearchResultItem } from "@carma-mapping/fuzzy-search";
 import { useSelector } from "react-redux";
 
 import { CESIUM_CONFIG } from "./config/cesium/cesium.config";
+import useLeafletZoomControls from "./hooks/useLeafletZoomControls";
 
-import useLeafletZoomControls from "../../carmamap/src/app/hooks/leaflet/useLeafletZoomControls";
-import { vi } from "vitest";
+import "cesium/Build/Cesium/Widgets/widgets.css";
 
 // TODO replace by hiding UI props for EnviroMetricMap
 const envirometricMapStyleOverrides = `
   .leaflet-top { display: none !important; }
   .leaflet-bottom.leaflet-left { display: none !important; }
 `;
+
+const HGK_KEYS = Object.freeze({
+  0: "HQ10-50",
+  1: "HQ100",
+  2: "HQ500",
+});
+
+const HGK_TERRAIN_PROVIDER_URLS = {
+  "HQ10-50": "https://cesium-wupp-terrain.cismet.de/HQ10-50/",
+  HQ100: "https://cesium-wupp-terrain.cismet.de/HQ100/",
+  HQ500: "https://cesium-wupp-terrain.cismet.de/HQ500cm/",
+};
+
+// reuse terrain provider instances
+const hgkTerrainProviders = {};
 
 function App() {
   const version = getApplicationVersion(versionData);
@@ -89,8 +110,7 @@ function App() {
     handleZoomIn: handleZoomInCesium,
     handleZoomOut: handleZoomOutCesium,
   } = useZoomControls();
-  const { getLeafletZoom, zoomInLeaflet, zoomOutLeaflet } =
-    useLeafletZoomControls();
+  const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
 
   // LEAFLET related
   const { routedMapRef: routedMap } =
@@ -118,7 +138,6 @@ function App() {
     useCesiumContext();
 
   const isMode2d = useSelector(selectViewerIsMode2d);
-  const showPrimaryTileset = useSelector(selectShowPrimaryTileset);
 
   const models = useSelector(selectViewerModels);
 
@@ -135,17 +154,11 @@ function App() {
       () => ({
         markerAsset,
         markerAnchorHeight,
-        isPrimaryStyle: showPrimaryTileset,
+        isPrimaryStyle: true,
         surfaceProviderRef,
         terrainProviderRef,
       }),
-      [
-        markerAsset,
-        markerAnchorHeight,
-        showPrimaryTileset,
-        surfaceProviderRef,
-        terrainProviderRef,
-      ]
+      [markerAsset, markerAnchorHeight, surfaceProviderRef, terrainProviderRef]
     )
   );
 
@@ -174,6 +187,27 @@ function App() {
     homeControl();
     homeControlLeaflet();
   };
+
+  useEffect(() => {
+    if (!isMode2d && viewerRef.current) {
+      const viewer = viewerRef.current;
+      setTimeout(() => {
+        console.debug("force hide default imagery layer hgk");
+        viewer.scene.backgroundColor = Color.DIMGREY;
+        viewer.scene.globe.baseColor = new Color(0.3, 0.2, 0.8, 0.7);
+        viewer.scene.globe.show = true;
+        viewer.scene.globe.translucency.enabled = true;
+        viewer.scene.globe.translucency.frontFaceAlpha = 1.0;
+        viewer.scene.globe.translucency.backFaceAlpha = 1.0;
+        if (viewer.imageryLayers.length > 0) {
+          console.debug("hide default imagery layer hgk");
+          const imageryLayer = viewer.imageryLayers.get(0);
+          imageryLayer.show = false;
+        }
+        viewer.scene.requestRender();
+      }, 300);
+    }
+  }, [isMode2d, viewerRef]);
 
   return (
     <CrossTabCommunicationContextProvider
@@ -321,6 +355,7 @@ function App() {
           containerRef={container3dMapRef}
           cameraOptions={CESIUM_CONFIG.camera}
           onSceneChange={() => {}} // TODO
+          enableSceneStyles={false}
         ></CustomViewer>
       </div>
     </CrossTabCommunicationContextProvider>
@@ -329,8 +364,50 @@ function App() {
 //x
 const StateAwareChildren = () => {
   const { controlState } = useContext(EnviroMetricMapContext);
+  const { terrainProviderRef, viewerRef } = useCesiumContext();
+
   const conf = config.config;
   const state = controlState;
+
+  useEffect(() => {
+    const hqKey = HGK_KEYS[controlState.selectedSimulation];
+    console.info(
+      "hqKey changed",
+      hqKey,
+      controlState.selectedSimulation,
+      HGK_TERRAIN_PROVIDER_URLS[hqKey]
+    );
+    if (hqKey) {
+      (async () => {
+        if (!hgkTerrainProviders[hqKey]) {
+          const url = HGK_TERRAIN_PROVIDER_URLS[hqKey];
+          try {
+            hgkTerrainProviders[hqKey] = await CesiumTerrainProvider.fromUrl(
+              url
+            );
+          } catch (e) {
+            console.error(
+              "failed to create terrain provider for",
+              hqKey,
+              url,
+              e
+            );
+          }
+        }
+        const provider = hgkTerrainProviders[hqKey];
+        terrainProviderRef.current = provider;
+        if (viewerRef.current && provider) {
+          const viewer = viewerRef.current;
+          setTimeout(() => {
+            // overwrite default terrain provider
+            console.debug("set HGK terrain provider for", hqKey, provider);
+            viewer.scene.terrainProvider = provider;
+            viewer.scene.requestRender();
+          }, 500);
+        }
+      })();
+    }
+  }, [controlState.selectedSimulation, terrainProviderRef, viewerRef]);
 
   return (
     <>

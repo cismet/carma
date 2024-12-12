@@ -10,9 +10,10 @@ import { MODEL_ASSETS } from "./assets.config";
 // SETUP Store State
 
 const homePosition = Cartesian3.fromDegrees(
-  WUPPERTAL.position.lngDeg,
-  WUPPERTAL.position.latDeg,
-  WUPPERTAL.height
+  // Unterdörnen
+  7.19163,
+  51.2677,
+  200
 );
 
 // position relative to the home position
@@ -26,8 +27,8 @@ export const defaultCesiumState: CesiumState = {
   isMode2d: true,
   homeOffset: homeOffset,
   homePosition,
-  showPrimaryTileset: false,
-  showSecondaryTileset: true,
+  showPrimaryTileset: true,
+  showSecondaryTileset: false,
   styling: {
     tileset: {
       opacity: 1.0,

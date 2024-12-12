@@ -38,6 +38,7 @@ export type CustomViewerProps = {
   // callbacks
   onSceneChange?: (encodedScene: EncodedSceneParams) => void;
   postInit?: () => void;
+  enableSceneStyles?: boolean;
 };
 
 export const TRANSITION_DELAY = 1000;
@@ -83,6 +84,7 @@ export function CustomViewer(props: CustomViewerProps) {
     constructorOptions,
     containerRef,
     onSceneChange,
+    enableSceneStyles = true,
   } = props;
 
   const options: Viewer.ConstructorOptions = useMemo(
@@ -107,7 +109,7 @@ export function CustomViewer(props: CustomViewerProps) {
   useCesiumWhenHidden(TRANSITION_DELAY);
 
   useTilesets();
-  useSceneStyles();
+  useSceneStyles(enableSceneStyles);
 
   // callback
   useOnSceneChange(onSceneChange);

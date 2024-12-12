@@ -6,7 +6,7 @@ import { CUSTOM_SHADERS_DEFINITIONS, CustomShaderKeys } from "../shaders";
 
 export type TilesetConfigs = {
   primary: TilesetConfig;
-  secondary: TilesetConfig;
+  secondary?: TilesetConfig;
 };
 
 const DEFAULT_MESH_OPTIONS: Cesium3DTileset.ConstructorOptions = {
