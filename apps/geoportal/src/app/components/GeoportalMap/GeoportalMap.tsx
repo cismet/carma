@@ -299,7 +299,8 @@ export const GeoportalMap = () => {
 
     if (
       (uiMode === UIMode.DEFAULT || uiMode === UIMode.FEATURE_INFO) &&
-      !isAreaType(selection.type as ENDPOINT)
+      !isAreaType(selection.type as ENDPOINT) &&
+      isMode2d
     ) {
       const selectedPos = proj4(proj4crs3857def, proj4crs4326def, [
         selection.x,
