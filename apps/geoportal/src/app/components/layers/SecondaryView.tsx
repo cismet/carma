@@ -54,7 +54,7 @@ interface SecondaryViewProps {}
 
 export const formatter: NonNullable<
   SliderSingleProps["tooltip"]
->["formatter"] = (value) => `${value * 100}%`;
+>["formatter"] = (value) => `${100 - value * 100}%`;
 
 const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
