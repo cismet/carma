@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useSearchParams } from "react-router-dom";
 import L from "leaflet";
 import { isMobile } from "react-device-detect";
+import proj4 from "proj4";
 
 import { Tooltip } from "antd";
 
@@ -76,6 +77,7 @@ import versionData from "../../../version.json";
 import { paramsToObject } from "../../helper/helper.ts";
 import { getBackgroundLayers } from "../../helper/layer.tsx";
 import { addCssToOverlayHelperItem } from "../../helper/overlayHelper.ts";
+import { proj4crs3857def, proj4crs4326def } from "../../helper/gisHelper.js";
 
 import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenInfoText.ts";
 import { useWindowSize } from "../../hooks/useWindowSize.ts";
@@ -294,6 +296,29 @@ export const GeoportalMap = () => {
       selectionTimestamp: Date.now(),
       isAreaSelection: isAreaType(selection.type as ENDPOINT),
     };
+
+    if (
+      (uiMode === UIMode.DEFAULT || uiMode === UIMode.FEATURE_INFO) &&
+      !isAreaType(selection.type as ENDPOINT)
+    ) {
+      const selectedPos = proj4(proj4crs3857def, proj4crs4326def, [
+        selection.x,
+        selection.y,
+      ]);
+
+      setTimeout(() => {
+        const map = routedMap.leafletMap.leafletElement;
+        const updatedPos = { lat: selectedPos[1], lng: selectedPos[0] };
+        const latlngPoint = L.latLng(updatedPos);
+
+        map.fireEvent("click", {
+          latlng: latlngPoint,
+          layerPoint: map.latLngToLayerPoint(latlngPoint),
+          containerPoint: map.latLngToContainerPoint(latlngPoint),
+        });
+      }, 250);
+    }
+
     setSelection(Object.assign({}, selection, selectionMetaData));
   };
 
