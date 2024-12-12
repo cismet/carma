@@ -71,7 +71,7 @@ const ResourceModal = () => {
       return;
     }
 
-    newLayer = await utils.parseToMapLayer(layer, forceWMS);
+    newLayer = await utils.parseToMapLayer(layer, forceWMS, true);
 
     if (activeLayers.find((activeLayer) => activeLayer.id === id)) {
       try {

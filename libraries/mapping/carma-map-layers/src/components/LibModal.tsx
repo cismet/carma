@@ -229,6 +229,7 @@ export const LibModal = ({
                         const updatedLayer = await utils.parseToMapLayer(
                           foundLayer,
                           false,
+                          activeLayer.visible,
                           activeLayer.opacity
                         );
 

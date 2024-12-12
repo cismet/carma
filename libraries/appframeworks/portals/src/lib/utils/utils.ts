@@ -87,6 +87,7 @@ const parseZoom = (
 export const parseToMapLayer = async (
   layer: Item,
   forceWMS: boolean,
+  visible: boolean,
   opacity?: number
 ) => {
   let newLayer: Layer;
@@ -122,7 +123,7 @@ export const parseToMapLayer = async (
             )
           : layer.queryable,
         useInFeatureInfo: true,
-        visible: true,
+        visible: visible,
         props: {
           style: carmaConf.vectorStyle,
           minZoom: Number(carmaConf.minZoom) || zoom?.minzoom,
