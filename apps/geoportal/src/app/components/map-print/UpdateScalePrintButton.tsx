@@ -9,11 +9,11 @@ import {
 } from "../../store/slices/print";
 
 const UpdateScalePrintButton = ({
-  // updateScaleHandler,
   fontSize = "24px",
   hide = false,
   smallMode = false,
   previewWidth,
+  previewHight,
 }) => {
   const dispatch = useDispatch();
   const redrawPrev = useSelector(getRedrawPreview);
@@ -45,6 +45,17 @@ const UpdateScalePrintButton = ({
           style={smallMode ? smallStyle : normalStyle}
           onClick={updateScaleHandler}
         />
+      )}
+      {hideIcon && (
+        <div
+          style={{
+            width: previewWidth,
+            height: previewHight,
+            pointerEvents: "auto",
+            cursor: "pointer",
+          }}
+          onClick={updateScaleHandler}
+        ></div>
       )}
     </>
   );

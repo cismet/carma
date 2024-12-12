@@ -227,7 +227,7 @@ const PrintPreview = () => {
   };
 
   const smallWrapperStyle: CSSProperties = {
-    padding: "7px 7px",
+    padding: "0px",
     width: "100%",
     height: "100%",
     display: "flex",
@@ -259,6 +259,7 @@ const PrintPreview = () => {
                 hide={isHideContent}
                 smallMode={previewSizes.isSmallMode}
                 previewWidth={previewSizes.width}
+                previewHight={previewSizes.height}
               />
               <ClosePrintButton
                 closePrintMode={() => console.log("xxx close btn")}
