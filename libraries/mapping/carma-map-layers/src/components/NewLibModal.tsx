@@ -382,6 +382,37 @@ export const NewLibModal = ({
       event.preventDefault();
       const url = event.dataTransfer?.getData("URL");
 
+      const file = event?.dataTransfer?.files[0];
+
+      if (file) {
+        file
+          .text()
+          .then((text) => {
+            const result = parser.toJSON(text);
+            const ownLayers = getDataFromJson(result);
+            if (ownLayers) {
+              setShownCategories((prev) => {
+                if (prev.find((item) => item.id === "mapLayers")) {
+                  prev.splice(
+                    prev.findIndex((item) => item.id === "mapLayers"),
+                    1
+                  );
+                }
+                return [
+                  ...prev,
+                  {
+                    id: "mapLayers",
+                    categories: [...ownLayers, ...allLayers],
+                  },
+                ];
+              });
+            }
+          })
+          .catch((error) => {
+            // setError(error.message);
+          });
+      }
+
       if (url) {
         fetch(url)
           .then((response) => {
