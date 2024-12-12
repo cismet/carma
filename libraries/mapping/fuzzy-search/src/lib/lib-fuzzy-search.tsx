@@ -166,11 +166,17 @@ export function LibFuzzySearch({
       const advanceTitle = document.getElementById("advance-title");
       if (!advanceTitle) {
         const newTitle = document.createElement("span");
-        newTitle.innerText = "Perfekte treffer";
+        newTitle.innerText = "Perfekte Treffer";
         newTitle.id = "advance-title";
         newTitle.style.fontSize = "12px";
         newTitle.style.color = "rgba(0, 0, 0, 0.45)";
-        newTitle.style.padding = "5px 12px 0";
+        newTitle.style.padding = "9px 16px 0px";
+        newTitle.style.position = "absolute";
+        newTitle.style.left = "0";
+        newTitle.style.top = "0";
+        newTitle.style.width = "100%";
+        newTitle.style.backgroundColor = "white";
+
         dropdownContainerRef.current.appendChild(newTitle);
       }
 
