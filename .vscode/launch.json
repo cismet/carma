@@ -8,7 +8,7 @@
       "type": "chrome",
       "request": "launch",
       "name": "Geoportal:4200",
-      "url": "http://localhost:4200",
+      "url": "http://localhost:4200/#/?lat=51.271203983073185&lng=7.202490270137788&zoom=18",
       "webRoot": "${workspaceFolder}/apps/geoportal"
     }
   ]
