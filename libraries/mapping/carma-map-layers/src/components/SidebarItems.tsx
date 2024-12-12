@@ -1,5 +1,6 @@
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Badge } from "antd";
+import "./badge.css";
 
 interface SidebarItemProps {
   text: string;
@@ -27,13 +28,9 @@ export const SidebarItem = ({
       } ml-6 rounded-l-md py-3 flex flex-col gap-1 items-center`}
       onClick={!disabled ? onClick : undefined}
     >
-      {showNumberOfItems ? (
-        <Badge count={numberOfItems} color="#9ca3af" overflowCount={500}>
-          <FontAwesomeIcon className="w-9 h-9 mr-3 text-gray-400" icon={icon} />
-        </Badge>
-      ) : (
+      <Badge count={numberOfItems} color="#9ca3af" overflowCount={500}>
         <FontAwesomeIcon className="w-9 h-9 mr-3 text-gray-400" icon={icon} />
-      )}
+      </Badge>
 
       <p className={`mb-0 text-base font-semibold mr-3 text-gray-400`}>
         {text}

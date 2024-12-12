@@ -479,7 +479,7 @@ export const NewLibModal = ({
                   }}
                   key={element.id}
                   numberOfItems={
-                    !debouncedSearchTerm && isSearching
+                    isSearching || !searchValue
                       ? 0
                       : getNumberOfLayers(
                           categoriesToShownLayers(shownCategories, element.id)
