@@ -144,7 +144,7 @@ export const parseToMapLayer = async (
             opacity: opacity || 1.0,
             description: layer.description,
             conf: carmaConf!,
-            visible: true,
+            visible: visible,
             queryable: layer.queryable,
             useInFeatureInfo: true,
             props: {
@@ -174,7 +174,7 @@ export const parseToMapLayer = async (
                 )
               : layer.queryable,
             useInFeatureInfo: true,
-            visible: true,
+            visible: visible,
             props: {
               style: layer.props.style ? layer.props.style : "",
               legend: layer.props.Style[0].LegendURL,
