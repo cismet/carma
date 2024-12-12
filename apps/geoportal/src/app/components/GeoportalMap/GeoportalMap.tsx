@@ -297,6 +297,8 @@ export const GeoportalMap = () => {
       isAreaSelection: isAreaType(selection.type as ENDPOINT),
     };
 
+    setSelection(Object.assign({}, selection, selectionMetaData));
+
     if (
       (uiMode === UIMode.DEFAULT || uiMode === UIMode.FEATURE_INFO) &&
       !isAreaType(selection.type as ENDPOINT) &&
@@ -317,10 +319,8 @@ export const GeoportalMap = () => {
           layerPoint: map.latLngToLayerPoint(latlngPoint),
           containerPoint: map.latLngToContainerPoint(latlngPoint),
         });
-      }, 250);
+      }, 300);
     }
-
-    setSelection(Object.assign({}, selection, selectionMetaData));
   };
 
   useEffect(() => {
