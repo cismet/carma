@@ -43,7 +43,7 @@ export function LibFuzzySearch({
   placeholder = "Wohin?",
   config = {
     prepoHandling: false,
-    ifShowScore: true,
+    ifShowScore: false,
     limit: 3,
     cut: 0.4,
     distance: 100,
@@ -202,6 +202,16 @@ export function LibFuzzySearch({
             const firstTitle = titles[0] as HTMLElement;
             const category = firstTitle.dataset.category;
             const advanceTitle = document.getElementById("advance-title");
+
+            // if (allTitles.length === 1 && dropdownContainerRef.current) {
+            //   const wrapperPos =
+            //     dropdownContainerRef.current.getBoundingClientRect();
+            //   const catPos = allTitles[0].getBoundingClientRect();
+            //   console.log(
+            //     "xxx wrapperPos / catPos",
+            //     catPos.top - wrapperPos.top
+            //   );
+            // }
             if (advanceTitle && category) {
               advanceTitle.innerText = category;
             }
