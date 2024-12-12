@@ -390,9 +390,23 @@ export const NewLibModal = ({
           .then((text) => {
             const result = parser.toJSON(text);
 
-            const test = getDataFromJson(result);
-            if (test) {
-              setTestCategory(test);
+            const ownLayers = getDataFromJson(result);
+            if (ownLayers) {
+              setShownCategories((prev) => {
+                if (prev.find((item) => item.id === "mapLayers")) {
+                  prev.splice(
+                    prev.findIndex((item) => item.id === "mapLayers"),
+                    1
+                  );
+                }
+                return [
+                  ...prev,
+                  {
+                    id: "mapLayers",
+                    categories: [...ownLayers, ...allLayers],
+                  },
+                ];
+              });
             }
           })
           .catch((error) => {
