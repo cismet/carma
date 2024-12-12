@@ -126,7 +126,7 @@ const ResourceModal = () => {
         activeLayers={activeLayers}
         customCategories={[
           {
-            Title: "Meine Zusammenstellungen",
+            Title: "Meine Karten",
             layers: savedLayerConfigs.map((layer) => {
               return {
                 ...layer,
@@ -137,7 +137,7 @@ const ResourceModal = () => {
             id: "collections",
           },
           {
-            Title: "Favoriten",
+            Title: "Meine Kartenebenen",
             // @ts-expect-error
             layers: favorites.map((favorite) => {
               return {
