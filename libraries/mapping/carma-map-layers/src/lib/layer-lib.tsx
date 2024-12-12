@@ -1,4 +1,3 @@
-import { LibModal } from "../components/LibModal";
 import type { LibModalProps } from "../components/LibModal";
 import NewLibModal from "../components/NewLibModal";
 
@@ -18,28 +17,8 @@ export function LayerLib({
   updateActiveLayer,
   removeLastLayer,
 }: LibModalProps) {
-  const urlParams = new URLSearchParams(window.location.hash);
-  const showNewStyleParam = urlParams.get("featurePreview");
-  if (showNewStyleParam !== null) {
-    return (
-      <NewLibModal
-        open={open}
-        setOpen={setOpen}
-        setAdditionalLayers={setAdditionalLayers}
-        thumbnails={thumbnails}
-        setThumbnail={setThumbnail}
-        activeLayers={activeLayers}
-        customCategories={customCategories}
-        addFavorite={addFavorite}
-        removeFavorite={removeFavorite}
-        favorites={favorites}
-        updateActiveLayer={updateActiveLayer}
-        removeLastLayer={removeLastLayer}
-      />
-    );
-  }
   return (
-    <LibModal
+    <NewLibModal
       open={open}
       setOpen={setOpen}
       setAdditionalLayers={setAdditionalLayers}
