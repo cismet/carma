@@ -234,6 +234,7 @@ const Map = ({ layers, vectorStyles }) => {
               pane: "additionalLayers" + index,
               opacity: 1,
               maxSelectionCount: 1,
+              selectionEnabled: true,
               onSelectionChanged: (e) => {
                 const selectedFeature = e.hits[0];
                 console.log(
@@ -251,7 +252,7 @@ const Map = ({ layers, vectorStyles }) => {
                   setSelectedFeature(selectedFeature);
                 } else {
                   //if style has /poi/ in it, then it is a POI layer
-                  if (style.indexOf("/poi/") > -1) {
+                  if (style?.indexOf && style.indexOf("/poi/") > -1) {
                     console.log("xxxx style ", style);
 
                     const createInfoBoxInfo = (p) => {
@@ -278,7 +279,10 @@ const Map = ({ layers, vectorStyles }) => {
                     setSelectedFeature(selectedFeature);
                   }
                   //if style has /sgk_hausnummer/ in it
-                  else if (style.indexOf("/sgk_hausnummern/") > -1) {
+                  else if (
+                    style?.indexOf &&
+                    style.indexOf("/sgk_hausnummern/") > -1
+                  ) {
                     console.log("xxx------");
 
                     const conf = [
