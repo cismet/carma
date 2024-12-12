@@ -21,17 +21,24 @@ export const renderCategoryTitle = (
   namedCategories: Partial<NamedCategory>
 ) => {
   const title = namedCategories[category] || category;
-  return <span data-title="category-title">{title}</span>;
+  return <span>{title}</span>;
 };
 
 export const joinNumberLetter = (name: string) =>
   name.replace(/(\d+)\s([a-zA-Z])/g, "$1$2");
+
 export const renderItem = (
   address: SearchResultItem,
   showScore = false,
-  score
+  score,
+  category: string = "default"
 ) => {
-  const addressLabel = buildAddressWithIconUI(address, showScore, score);
+  const addressLabel = buildAddressWithIconUI(
+    address,
+    showScore,
+    score,
+    category
+  );
   return {
     key: address.sorter,
     value: address.string,
@@ -43,7 +50,8 @@ export const renderItem = (
 export function buildAddressWithIconUI(
   addresObj: SearchResultItem,
   showScore = false,
-  score?: number
+  score?: number,
+  category: string = "default"
 ) {
   let icon;
   if (addresObj.glyph === "pie-chart") {
@@ -52,7 +60,7 @@ export function buildAddressWithIconUI(
     icon = addresObj.glyph;
   }
   const streetLabel = (
-    <div style={{ paddingLeft: "0.3rem" }}>
+    <div style={{ paddingLeft: "0.3rem" }} data-category={category}>
       <span style={{ marginRight: "0.4rem" }}>
         <i className={icon && "fas " + "fa-" + icon}></i>
         {"  "}
@@ -246,11 +254,21 @@ export const mapDataWithCategory = (
 
     if (splittedCategories.hasOwnProperty(catName)) {
       splittedCategories[catName].push(
-        renderItem(address, showScore, item.score)
+        renderItem(
+          address,
+          showScore,
+          item.score,
+          convertScoreToCategory(catName)
+        )
       );
     } else {
       splittedCategories[catName] = [
-        renderItem(address, showScore, item.score),
+        renderItem(
+          address,
+          showScore,
+          item.score,
+          convertScoreToCategory(catName)
+        ),
       ];
     }
   });
@@ -270,6 +288,7 @@ export const mapDataWithCategory = (
     prepareOptions.push(optionItem);
   });
 
+  console.log("xxx item", prepareOptions);
   return prepareOptions;
 };
 
@@ -305,4 +324,30 @@ export const renderCategoryTitleWithScore = (title: string) => {
       {category}
     </span>
   );
+};
+
+const convertScoreToCategory = (score) => {
+  let category = "";
+
+  switch (score) {
+    case "0":
+      category = "Perfekte Treffer";
+      break;
+    case "0.1":
+      category = "Sehr gute Treffer";
+      break;
+    case "0.2":
+      category = "Gute Treffer";
+      break;
+    case "0.3":
+      category = "Befriedigende Treffer";
+      break;
+    case "0.4":
+      category = "Ausreichende Treffer";
+      break;
+    default:
+      category = "Treffer";
+  }
+
+  return category;
 };

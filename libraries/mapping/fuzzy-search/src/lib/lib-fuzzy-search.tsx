@@ -181,7 +181,7 @@ export function LibFuzzySearch({
         newTitle.style.position = "absolute";
         newTitle.style.left = "0";
         newTitle.style.top = "0";
-        newTitle.style.width = "80%";
+        newTitle.style.width = "90%";
         newTitle.style.backgroundColor = "white";
 
         dropdownContainerRef.current.appendChild(newTitle);
@@ -198,6 +198,15 @@ export function LibFuzzySearch({
           holderInner.style.width = inputWidth + 10 + "px";
 
           const handleScroll = (event) => {
+            console.log("xxx scroll", allTitles);
+            if (allTitles.length !== 0) {
+              const firstTitle = allTitles[0] as HTMLElement;
+              const advanceTitle = document.getElementById("advance-title");
+
+              if (advanceTitle) {
+                advanceTitle.innerText = firstTitle.innerText;
+              }
+            }
             setFireScrollEvent(event.target.scrollTop);
           };
           antdDrapdownSelect.addEventListener("scroll", handleScroll);
