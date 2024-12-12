@@ -21,7 +21,7 @@ export const renderCategoryTitle = (
   namedCategories: Partial<NamedCategory>
 ) => {
   const title = namedCategories[category] || category;
-  return <span>{title}</span>;
+  return <span data-title="category-title">{title}</span>;
 };
 
 export const joinNumberLetter = (name: string) =>
@@ -300,6 +300,7 @@ export const renderCategoryTitleWithScore = (title: string) => {
       style={{
         paddingBottom: "-100px",
       }}
+      data-title="category-title"
     >
       {category}
     </span>

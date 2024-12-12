@@ -43,7 +43,7 @@ export function LibFuzzySearch({
   placeholder = "Wohin?",
   config = {
     prepoHandling: false,
-    ifShowScore: false,
+    ifShowScore: true,
     limit: 3,
     cut: 0.4,
     distance: 100,
@@ -163,10 +163,17 @@ export function LibFuzzySearch({
         ".ant-select-selection-search-input"
       );
 
+      const allTitles = document.querySelectorAll("[data-title]");
+      let firstCategoryText = "";
+      if (allTitles.length > 0) {
+        const firstTitle = allTitles[0] as HTMLElement;
+        firstCategoryText = firstTitle.innerText;
+      }
+
       const advanceTitle = document.getElementById("advance-title");
       if (!advanceTitle) {
         const newTitle = document.createElement("span");
-        newTitle.innerText = "Perfekte Treffer";
+        newTitle.innerText = firstCategoryText;
         newTitle.id = "advance-title";
         newTitle.style.fontSize = "12px";
         newTitle.style.color = "rgba(0, 0, 0, 0.45)";
@@ -174,7 +181,7 @@ export function LibFuzzySearch({
         newTitle.style.position = "absolute";
         newTitle.style.left = "0";
         newTitle.style.top = "0";
-        newTitle.style.width = "100%";
+        newTitle.style.width = "80%";
         newTitle.style.backgroundColor = "white";
 
         dropdownContainerRef.current.appendChild(newTitle);
