@@ -163,6 +163,17 @@ export function LibFuzzySearch({
         ".ant-select-selection-search-input"
       );
 
+      const advanceTitle = document.getElementById("advance-title");
+      if (!advanceTitle) {
+        const newTitle = document.createElement("span");
+        newTitle.innerText = "Perfekte treffer";
+        newTitle.id = "advance-title";
+        newTitle.style.fontSize = "12px";
+        newTitle.style.color = "rgba(0, 0, 0, 0.45)";
+        newTitle.style.padding = "5px 12px 0";
+        dropdownContainerRef.current.appendChild(newTitle);
+      }
+
       if (
         inputElement &&
         antdDrapdownSelect &&
@@ -240,7 +251,7 @@ export function LibFuzzySearch({
       {showCategories ? (
         <AutoComplete
           ref={autoCompleteRef}
-          // open={true}
+          open={true}
           options={searchResult}
           style={inputStyle}
           onSearch={(value) => handleSearchAutoComplete(value)}
