@@ -181,7 +181,7 @@ export function LibFuzzySearch({
         newTitle.style.position = "absolute";
         newTitle.style.left = "0";
         newTitle.style.top = "0";
-        newTitle.style.width = "90%";
+        newTitle.style.width = "100%";
         newTitle.style.backgroundColor = "white";
 
         dropdownContainerRef.current.appendChild(newTitle);

@@ -94,3 +94,7 @@
   min-height: 0px !important;
   padding-bottom: 0 !important;
 }
+
+.rc-virtual-list-scrollbar-thumb {
+  z-index: 1 !important;
+}
