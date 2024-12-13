@@ -1,5 +1,5 @@
 import { faCircleQuestion } from "@fortawesome/free-regular-svg-icons";
-import { faBars } from "@fortawesome/free-solid-svg-icons";
+import { faBars, faLayerGroup } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button, Radio, Tooltip } from "antd";
 import { useContext } from "react";
@@ -14,8 +14,10 @@ import { setCurrentSceneStyle } from "@carma-mapping/cesium-engine";
 
 import {
   getBackgroundLayer,
+  getSelectedLayerIndex,
   getSelectedMapLayer,
   setBackgroundLayer,
+  setSelectedLayerIndex,
 } from "../store/slices/mapping";
 import ActionButtons from "./nav-items/ActionButtons";
 
@@ -35,6 +37,7 @@ const TopNavbar = () => {
 
   const backgroundLayer = useSelector(getBackgroundLayer);
   const selectedMapLayer = useSelector(getSelectedMapLayer);
+  const selectedLayerIndex = useSelector(getSelectedLayerIndex);
 
   const hintergrundTourRef = useOverlayHelper(
     getCollabedHelpElementsConfig("HINTERGRUND", geoElements)
@@ -74,7 +77,13 @@ const TopNavbar = () => {
             <Radio.Group
               value={backgroundLayer.id}
               onChange={(e) => {
-                if (e.target.value === "karte") {
+                e.stopPropagation();
+                if (
+                  e.target.value === "openDialog" &&
+                  selectedLayerIndex !== -1
+                ) {
+                  dispatch(setSelectedLayerIndex(-1));
+                } else if (e.target.value === "karte") {
                   dispatch(
                     setBackgroundLayer({
                       ...selectedMapLayer,
@@ -107,6 +116,12 @@ const TopNavbar = () => {
             >
               <Radio.Button value="karte">Karte</Radio.Button>
               <Radio.Button value="luftbild">Luftbild</Radio.Button>
+              <Radio.Button
+                onClick={(e) => e.stopPropagation()}
+                value="openDialog"
+              >
+                <FontAwesomeIcon icon={faLayerGroup} />
+              </Radio.Button>
             </Radio.Group>
           )}
         </div>
