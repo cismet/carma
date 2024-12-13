@@ -43,7 +43,7 @@ export function LibFuzzySearch({
   placeholder = "Wohin?",
   config = {
     prepoHandling: false,
-    ifShowScore: false,
+    ifShowScore: true,
     limit: 3,
     cut: 0.4,
     distance: 100,
@@ -187,6 +187,16 @@ export function LibFuzzySearch({
         dropdownContainerRef.current.appendChild(newTitle);
       }
 
+      let topOffset = 39;
+      if (allTitles.length > 0 && dropdownContainerRef.current) {
+        const wrapperPos = dropdownContainerRef.current.getBoundingClientRect();
+        const catPos = allTitles[0].getBoundingClientRect();
+
+        topOffset = Math.abs(catPos.top - wrapperPos.top);
+      }
+
+      console.log("xxx offsetTop", topOffset);
+
       if (
         inputElement &&
         antdDrapdownSelect &&
@@ -203,16 +213,32 @@ export function LibFuzzySearch({
             const category = firstTitle.dataset.category;
             const advanceTitle = document.getElementById("advance-title");
 
-            // if (allTitles.length === 1 && dropdownContainerRef.current) {
-            //   const wrapperPos =
-            //     dropdownContainerRef.current.getBoundingClientRect();
-            //   const catPos = allTitles[0].getBoundingClientRect();
-            //   console.log(
-            //     "xxx wrapperPos / catPos",
-            //     catPos.top - wrapperPos.top
-            //   );
-            // }
+            if (allTitles.length > 0 && dropdownContainerRef.current) {
+              const wrapperPos =
+                dropdownContainerRef.current.getBoundingClientRect();
+              const catPos = allTitles[0].getBoundingClientRect();
+
+              topOffset = Math.abs(catPos.top - wrapperPos.top);
+            } else {
+              topOffset = 39;
+            }
+
             if (advanceTitle && category) {
+              advanceTitle.innerText = category;
+            }
+
+            if (topOffset <= 20 && advanceTitle) {
+              advanceTitle.innerText = "";
+            } else if (
+              topOffset > 20 &&
+              topOffset <= 30 &&
+              category &&
+              advanceTitle
+            ) {
+              advanceTitle.style.opacity = "0.5";
+              advanceTitle.innerText = category;
+            } else if (topOffset > 30 && category && advanceTitle) {
+              advanceTitle.style.opacity = "1";
               advanceTitle.innerText = category;
             }
 
@@ -282,7 +308,7 @@ export function LibFuzzySearch({
       {showCategories ? (
         <AutoComplete
           ref={autoCompleteRef}
-          // open={true}
+          open={true}
           options={searchResult}
           style={inputStyle}
           onSearch={(value) => handleSearchAutoComplete(value)}
