@@ -201,7 +201,7 @@ export function LibFuzzySearch({
         topOffset = Math.abs(catPos.top - wrapperPos.top);
       }
 
-      console.log("xxx offsetTop", topOffset);
+      // console.log("xxx offsetTop", topOffset);
 
       if (
         inputElement &&
@@ -233,20 +233,27 @@ export function LibFuzzySearch({
               advanceTitle.innerText = category;
             }
 
-            if (topOffset <= 20 && advanceTitle) {
-              advanceTitle.innerText = "";
-            } else if (
-              topOffset > 20 &&
-              topOffset <= 30 &&
-              category &&
-              advanceTitle
-            ) {
-              advanceTitle.style.opacity = "0.5";
-              advanceTitle.innerText = category;
-            } else if (topOffset > 30 && category && advanceTitle) {
-              advanceTitle.style.opacity = "1";
-              advanceTitle.innerText = category;
-            }
+            // console.log("xxx first opacity", (topOffset - 30) / 10);
+
+            if (topOffset)
+              if (topOffset <= 20 && advanceTitle) {
+                advanceTitle.innerText = "";
+              } else if (
+                topOffset > 20 &&
+                topOffset <= 30 &&
+                category &&
+                advanceTitle
+              ) {
+                advanceTitle.style.opacity = "" + (topOffset - 20) / 10;
+                console.log(
+                  "xxx advanceTitle.style.opacity",
+                  advanceTitle.style.opacity
+                );
+                advanceTitle.innerText = category;
+              } else if (topOffset > 30 && category && advanceTitle) {
+                advanceTitle.style.opacity = "1";
+                advanceTitle.innerText = category;
+              }
 
             setFireScrollEvent(event.target.scrollTop);
           };
