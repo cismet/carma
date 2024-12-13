@@ -16,6 +16,9 @@ import {
   removeStopwords,
   getDefaultSearchConfig,
   mapDataWithCategory,
+  createOrUpdateVisibleCategory,
+  getCategoryNameInFirstSearchItem,
+  smoothCategoriesTransition,
 } from "./utils/fuzzySearchHelper";
 
 import {
@@ -43,7 +46,7 @@ export function LibFuzzySearch({
   placeholder = "Wohin?",
   config = {
     prepoHandling: false,
-    ifShowScore: false,
+    ifShowScore: true,
     limit: 3,
     cut: 0.4,
     distance: 100,
@@ -170,36 +173,7 @@ export function LibFuzzySearch({
         firstCategoryText = firstTitle.innerText;
       }
 
-      const additionalTitle = document.getElementById("advance-title");
-      if (!additionalTitle) {
-        const categoryWrapper = document.createElement("div");
-        categoryWrapper.id = "advance-title";
-        categoryWrapper.style.fontSize = "12px";
-        categoryWrapper.style.color = "rgba(0, 0, 0, 0.45)";
-        categoryWrapper.style.padding = "9px 16px 0px";
-        categoryWrapper.style.position = "absolute";
-        categoryWrapper.style.left = "0";
-        categoryWrapper.style.top = "0";
-        categoryWrapper.style.width = "100%";
-        categoryWrapper.style.backgroundColor = "white";
-
-        const categoryText = document.createElement("span");
-        categoryText.innerText = firstCategoryText;
-
-        categoryText.id = "advance-title-text";
-
-        categoryWrapper.appendChild(categoryText);
-
-        dropdownContainerRef.current.appendChild(categoryWrapper);
-      } else {
-        const stickyTitle = document.getElementById("advance-title-text");
-        const itemWithCategory = document.querySelectorAll("[data-category]");
-        const firstTitle = itemWithCategory[0] as HTMLElement;
-        const category = firstTitle.dataset.category;
-        if (stickyTitle) {
-          stickyTitle.innerText = category ? category : firstCategoryText;
-        }
-      }
+      createOrUpdateVisibleCategory(firstCategoryText, dropdownContainerRef);
 
       let topOffset = 39;
       if (allTitles.length > 0 && dropdownContainerRef.current) {
@@ -222,11 +196,8 @@ export function LibFuzzySearch({
           const handleScroll = (event) => {
             const additionalTitle =
               document.getElementById("advance-title-text");
+            const category = getCategoryNameInFirstSearchItem();
 
-            const itemWithCategory =
-              document.querySelectorAll("[data-category]");
-            const firstTitle = itemWithCategory[0] as HTMLElement;
-            const category = firstTitle.dataset.category;
             if (allTitles.length > 0 && dropdownContainerRef.current) {
               const wrapperPos =
                 dropdownContainerRef.current.getBoundingClientRect();
@@ -237,30 +208,14 @@ export function LibFuzzySearch({
               topOffset = 39;
             }
 
-            if (additionalTitle && category) {
-              additionalTitle.innerText = category;
-            }
+            // if (additionalTitle && category) {
+            //   additionalTitle.innerText = category;
+            // }
 
             const scrollPosition = event.target?.scrollTop;
 
             if (scrollPosition > 60) {
-              if (topOffset <= 20 && additionalTitle) {
-                additionalTitle.style.display = "none";
-              } else if (
-                topOffset > 20 &&
-                topOffset <= 30 &&
-                category &&
-                additionalTitle
-              ) {
-                additionalTitle.style.display = "block";
-
-                additionalTitle.style.opacity = "" + (topOffset - 20) / 10;
-                additionalTitle.innerText = category;
-              } else if (topOffset > 30 && category && additionalTitle) {
-                additionalTitle.style.opacity = "1";
-                additionalTitle.innerText = category;
-                additionalTitle.style.display = "block";
-              }
+              smoothCategoriesTransition(topOffset, additionalTitle, category);
             } else {
               if (additionalTitle && category) {
                 additionalTitle.innerText = category;

@@ -350,3 +350,64 @@ const convertScoreToCategory = (score) => {
 
   return category;
 };
+
+export const createOrUpdateVisibleCategory = (
+  firstCategoryText,
+  dropdownContainerRef
+) => {
+  const additionalTitle = document.getElementById("advance-title");
+  if (!additionalTitle) {
+    const categoryWrapper = document.createElement("div");
+    categoryWrapper.id = "advance-title";
+    categoryWrapper.style.fontSize = "12px";
+    categoryWrapper.style.color = "rgba(0, 0, 0, 0.45)";
+    categoryWrapper.style.padding = "9px 16px 0px";
+    categoryWrapper.style.position = "absolute";
+    categoryWrapper.style.left = "0";
+    categoryWrapper.style.top = "0";
+    categoryWrapper.style.width = "100%";
+    categoryWrapper.style.backgroundColor = "white";
+
+    const categoryText = document.createElement("span");
+    categoryText.innerText = firstCategoryText;
+
+    categoryText.id = "advance-title-text";
+
+    categoryWrapper.appendChild(categoryText);
+
+    dropdownContainerRef.current.appendChild(categoryWrapper);
+  } else {
+    const stickyTitle = document.getElementById("advance-title-text");
+    const category = getCategoryNameInFirstSearchItem();
+    if (stickyTitle) {
+      stickyTitle.innerText = category ? category : firstCategoryText;
+    }
+  }
+};
+
+export const getCategoryNameInFirstSearchItem = () => {
+  const itemWithCategory = document.querySelectorAll("[data-category]");
+  const firstTitle = itemWithCategory[0] as HTMLElement;
+  const category = firstTitle.dataset.category;
+
+  return category;
+};
+
+export const smoothCategoriesTransition = (
+  topOffset,
+  additionalTitle,
+  category
+) => {
+  if (topOffset <= 20 && additionalTitle) {
+    additionalTitle.style.display = "none";
+  } else if (topOffset > 20 && topOffset <= 30 && category && additionalTitle) {
+    additionalTitle.style.display = "block";
+
+    additionalTitle.style.opacity = "" + (topOffset - 20) / 10;
+    additionalTitle.innerText = category;
+  } else if (topOffset > 30 && category && additionalTitle) {
+    additionalTitle.style.opacity = "1";
+    additionalTitle.innerText = category;
+    additionalTitle.style.display = "block";
+  }
+};
