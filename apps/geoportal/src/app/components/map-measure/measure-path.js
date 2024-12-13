@@ -388,7 +388,7 @@ L.Control.MeasurePolygon = L.Control.extend({
           // this.options.customTooltip.style.visibility = "hidden";
           if (e.target.customHandle === 0 && firsHovering) {
             this.options.cbUpdateAreaOfDrawingMeasurement(area);
-            L.drawLocal.draw.handlers.polyline.tooltip.end = `Den Startpunkt anklicken, um das Polygon zu schließen.`;
+            L.drawLocal.draw.handlers.polyline.tooltip.end = `Den Startpunkt anklicken, um die Fläche zu schließen.`;
           }
           firsHovering = true;
         });
@@ -411,13 +411,13 @@ L.Control.MeasurePolygon = L.Control.extend({
         latlngs.push(latLng);
         if (index === 1) {
           L.drawLocal.draw.handlers.polyline.tooltip.end = `
-            <div>Den Endpunkt des Linienzuges erneut anklicken,
+            <div>Den Endpunkt erneut anklicken,
             </div> <div>um die Streckenmessung zu beenden.</div>`;
         }
         if (index > 2) {
           L.drawLocal.draw.handlers.polyline.tooltip.end = `
-            <div>Den Endpunkt des Linienzuges erneut anklicken, um die Streckenmessung zu beenden.</div> 
-            <div>Zum Messen einer Fläche auf den Startpunkt klicken, um das Polygon zu schließen.</div>`;
+            <div>Den Endpunkt erneut anklicken, um die Streckenmessung zu beenden.</div> 
+            <div>Zum Messen einer Fläche erneut auf den Startpunkt klicken.</div>`;
         }
       });
 
