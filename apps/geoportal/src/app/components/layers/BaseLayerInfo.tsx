@@ -114,25 +114,23 @@ const BaseLayerInfo = () => {
                     })
                   );
 
-                  if (backgroundLayer.id === "karte") {
-                    dispatch(
-                      setBackgroundLayer({
-                        id: "karte",
-                        title: layerMap[e.target.value].title,
-                        opacity: 1.0,
-                        description: layerMap[e.target.value].description,
-                        inhalt: layerMap[e.target.value].inhalt,
-                        eignung: layerMap[e.target.value].eignung,
-                        layerType: "wmts",
-                        visible: true,
-                        props: {
-                          name: "",
-                          url: layerMap[e.target.value].url,
-                        },
-                        layers: layerMap[e.target.value].layers,
-                      })
-                    );
-                  }
+                  dispatch(
+                    setBackgroundLayer({
+                      id: "karte",
+                      title: layerMap[e.target.value].title,
+                      opacity: 1.0,
+                      description: layerMap[e.target.value].description,
+                      inhalt: layerMap[e.target.value].inhalt,
+                      eignung: layerMap[e.target.value].eignung,
+                      layerType: "wmts",
+                      visible: true,
+                      props: {
+                        name: "",
+                        url: layerMap[e.target.value].url,
+                      },
+                      layers: layerMap[e.target.value].layers,
+                    })
+                  );
                 }}
                 className="pb-2"
                 optionType="default"
