@@ -43,7 +43,7 @@ export function LibFuzzySearch({
   placeholder = "Wohin?",
   config = {
     prepoHandling: false,
-    ifShowScore: false,
+    ifShowScore: true,
     limit: 3,
     cut: 0.4,
     distance: 100,
@@ -170,8 +170,8 @@ export function LibFuzzySearch({
         firstCategoryText = firstTitle.innerText;
       }
 
-      const advanceTitle = document.getElementById("advance-title");
-      if (!advanceTitle) {
+      const additionalTitle = document.getElementById("advance-title");
+      if (!additionalTitle) {
         const categoryWrapper = document.createElement("div");
         categoryWrapper.id = "advance-title";
         categoryWrapper.style.fontSize = "12px";
@@ -191,6 +191,14 @@ export function LibFuzzySearch({
         categoryWrapper.appendChild(categoryText);
 
         dropdownContainerRef.current.appendChild(categoryWrapper);
+      } else {
+        const stickyTitle = document.getElementById("advance-title-text");
+        const itemWithCategory = document.querySelectorAll("[data-category]");
+        const firstTitle = itemWithCategory[0] as HTMLElement;
+        const category = firstTitle.dataset.category;
+        if (stickyTitle) {
+          stickyTitle.innerText = category ? category : firstCategoryText;
+        }
       }
 
       let topOffset = 39;
@@ -200,8 +208,6 @@ export function LibFuzzySearch({
 
         topOffset = Math.abs(catPos.top - wrapperPos.top);
       }
-
-      // console.log("xxx offsetTop", topOffset);
 
       if (
         inputElement &&
@@ -214,11 +220,13 @@ export function LibFuzzySearch({
           holderInner.style.width = inputWidth + 10 + "px";
 
           const handleScroll = (event) => {
+            const additionalTitle =
+              document.getElementById("advance-title-text");
+
             const itemWithCategory =
               document.querySelectorAll("[data-category]");
             const firstTitle = itemWithCategory[0] as HTMLElement;
             const category = firstTitle.dataset.category;
-            const advanceTitle = document.getElementById("advance-title-text");
             if (allTitles.length > 0 && dropdownContainerRef.current) {
               const wrapperPos =
                 dropdownContainerRef.current.getBoundingClientRect();
@@ -229,30 +237,34 @@ export function LibFuzzySearch({
               topOffset = 39;
             }
 
-            if (advanceTitle && category) {
-              advanceTitle.innerText = category;
+            if (additionalTitle && category) {
+              additionalTitle.innerText = category;
             }
 
             const scrollPosition = event.target?.scrollTop;
 
             if (scrollPosition > 60) {
-              if (topOffset <= 20 && advanceTitle) {
-                advanceTitle.innerText = "";
+              if (topOffset <= 20 && additionalTitle) {
+                // additionalTitle.innerText = "";
+                additionalTitle.style.display = "none";
               } else if (
                 topOffset > 20 &&
                 topOffset <= 30 &&
                 category &&
-                advanceTitle
+                additionalTitle
               ) {
-                advanceTitle.style.opacity = "" + (topOffset - 20) / 10;
-                advanceTitle.innerText = category;
-              } else if (topOffset > 30 && category && advanceTitle) {
-                advanceTitle.style.opacity = "1";
-                advanceTitle.innerText = category;
+                additionalTitle.style.display = "block";
+
+                additionalTitle.style.opacity = "" + (topOffset - 20) / 10;
+                additionalTitle.innerText = category;
+              } else if (topOffset > 30 && category && additionalTitle) {
+                additionalTitle.style.opacity = "1";
+                additionalTitle.innerText = category;
+                additionalTitle.style.display = "block";
               }
             } else {
-              if (advanceTitle && category) {
-                advanceTitle.innerText = category;
+              if (additionalTitle && category) {
+                additionalTitle.innerText = category;
               }
             }
             setFireScrollEvent(event.target.scrollTop);
@@ -321,7 +333,7 @@ export function LibFuzzySearch({
       {showCategories ? (
         <AutoComplete
           ref={autoCompleteRef}
-          // open={true}
+          open={true}
           options={searchResult}
           style={inputStyle}
           onSearch={(value) => handleSearchAutoComplete(value)}
