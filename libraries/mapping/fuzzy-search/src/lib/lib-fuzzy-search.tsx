@@ -233,9 +233,9 @@ export function LibFuzzySearch({
               advanceTitle.innerText = category;
             }
 
-            // console.log("xxx first opacity", (topOffset - 30) / 10);
+            const scrollPosition = event.target?.scrollTop;
 
-            if (topOffset)
+            if (scrollPosition > 60) {
               if (topOffset <= 20 && advanceTitle) {
                 advanceTitle.innerText = "";
               } else if (
@@ -245,16 +245,16 @@ export function LibFuzzySearch({
                 advanceTitle
               ) {
                 advanceTitle.style.opacity = "" + (topOffset - 20) / 10;
-                console.log(
-                  "xxx advanceTitle.style.opacity",
-                  advanceTitle.style.opacity
-                );
                 advanceTitle.innerText = category;
               } else if (topOffset > 30 && category && advanceTitle) {
                 advanceTitle.style.opacity = "1";
                 advanceTitle.innerText = category;
               }
-
+            } else {
+              if (advanceTitle && category) {
+                advanceTitle.innerText = category;
+              }
+            }
             setFireScrollEvent(event.target.scrollTop);
           };
           antdDrapdownSelect.addEventListener("scroll", handleScroll);
