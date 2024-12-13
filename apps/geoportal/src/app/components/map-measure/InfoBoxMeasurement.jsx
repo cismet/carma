@@ -247,7 +247,7 @@ const InfoBoxMeasurement = () => {
               </div>
               {visibleShapesData[currentMeasure]?.area && (
                 <div className="text-[12px] mb-1">
-                  Fläche: {visibleShapesData[currentMeasure].area}
+                  Flächeninhalt: {visibleShapesData[currentMeasure].area}
                 </div>
               )}
               <div className="flex justify-center items-center w-[96%] mt-2 pt-3">
@@ -325,7 +325,7 @@ export default InfoBoxMeasurement;
 function addDefaultShapeNameToTitle(shape) {
   let newShape = "Linienzug";
   if (shape.area) {
-    newShape = "Polygon";
+    newShape = "Fläche";
   }
   return newShape;
 }
