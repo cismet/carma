@@ -43,7 +43,7 @@ export function LibFuzzySearch({
   placeholder = "Wohin?",
   config = {
     prepoHandling: false,
-    ifShowScore: true,
+    ifShowScore: false,
     limit: 3,
     cut: 0.4,
     distance: 100,
@@ -321,7 +321,7 @@ export function LibFuzzySearch({
       {showCategories ? (
         <AutoComplete
           ref={autoCompleteRef}
-          open={true}
+          // open={true}
           options={searchResult}
           style={inputStyle}
           onSearch={(value) => handleSearchAutoComplete(value)}
