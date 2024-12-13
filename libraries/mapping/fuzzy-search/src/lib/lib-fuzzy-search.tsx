@@ -172,19 +172,25 @@ export function LibFuzzySearch({
 
       const advanceTitle = document.getElementById("advance-title");
       if (!advanceTitle) {
-        const newTitle = document.createElement("span");
-        newTitle.innerText = firstCategoryText;
-        newTitle.id = "advance-title";
-        newTitle.style.fontSize = "12px";
-        newTitle.style.color = "rgba(0, 0, 0, 0.45)";
-        newTitle.style.padding = "9px 16px 0px";
-        newTitle.style.position = "absolute";
-        newTitle.style.left = "0";
-        newTitle.style.top = "0";
-        newTitle.style.width = "100%";
-        newTitle.style.backgroundColor = "white";
+        const categoryWrapper = document.createElement("div");
+        categoryWrapper.id = "advance-title";
+        categoryWrapper.style.fontSize = "12px";
+        categoryWrapper.style.color = "rgba(0, 0, 0, 0.45)";
+        categoryWrapper.style.padding = "9px 16px 0px";
+        categoryWrapper.style.position = "absolute";
+        categoryWrapper.style.left = "0";
+        categoryWrapper.style.top = "0";
+        categoryWrapper.style.width = "100%";
+        categoryWrapper.style.backgroundColor = "white";
 
-        dropdownContainerRef.current.appendChild(newTitle);
+        const categoryText = document.createElement("span");
+        categoryText.innerText = firstCategoryText;
+
+        categoryText.id = "advance-title-text";
+
+        categoryWrapper.appendChild(categoryText);
+
+        dropdownContainerRef.current.appendChild(categoryWrapper);
       }
 
       let topOffset = 39;
@@ -208,11 +214,11 @@ export function LibFuzzySearch({
           holderInner.style.width = inputWidth + 10 + "px";
 
           const handleScroll = (event) => {
-            const titles = document.querySelectorAll("[data-category]");
-            const firstTitle = titles[0] as HTMLElement;
+            const itemWithCategory =
+              document.querySelectorAll("[data-category]");
+            const firstTitle = itemWithCategory[0] as HTMLElement;
             const category = firstTitle.dataset.category;
-            const advanceTitle = document.getElementById("advance-title");
-
+            const advanceTitle = document.getElementById("advance-title-text");
             if (allTitles.length > 0 && dropdownContainerRef.current) {
               const wrapperPos =
                 dropdownContainerRef.current.getBoundingClientRect();
