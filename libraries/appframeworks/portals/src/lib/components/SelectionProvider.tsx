@@ -8,7 +8,7 @@ export type SelectionMetaData = {
   isAreaSelection: boolean;
 };
 
-type SelectionItem = SearchResultItem & SelectionMetaData;
+export type SelectionItem = SearchResultItem & SelectionMetaData;
 
 interface SelectionContextType {
   selection: SelectionItem | null;

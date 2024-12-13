@@ -71,6 +71,7 @@ import {
   setCurrentSceneStyle,
 } from "@carma-mapping/cesium-engine";
 import { LibFuzzySearch, SearchResultItem } from "@carma-mapping/fuzzy-search";
+import { SelectionItem } from "libraries/appframeworks/portals/src/lib/components/SelectionProvider.tsx";
 
 import versionData from "../../../version.json";
 
@@ -264,7 +265,33 @@ export const GeoportalMap = () => {
 
   const { setSelection } = useSelection();
 
-  useSelectionTopicMap();
+  const onComplete = (selection: SelectionItem) => {
+    if (
+      (uiMode === UIMode.DEFAULT || uiMode === UIMode.FEATURE_INFO) &&
+      !isAreaType(selection.type as ENDPOINT) &&
+      isMode2d
+    ) {
+      const selectedPos = proj4(proj4crs3857def, proj4crs4326def, [
+        selection.x,
+        selection.y,
+      ]);
+      setTimeout(() => {
+        const map = routedMap.leafletMap.leafletElement;
+        const updatedPos = { lat: selectedPos[1], lng: selectedPos[0] };
+        const latlngPoint = L.latLng(updatedPos);
+
+        if (map) {
+          map.fireEvent("click", {
+            latlng: latlngPoint,
+            layerPoint: map.latLngToLayerPoint(latlngPoint),
+            containerPoint: map.latLngToContainerPoint(latlngPoint),
+          });
+        }
+      }, 300);
+    }
+  };
+
+  useSelectionTopicMap({ onComplete });
   useSelectionCesium(
     !isMode2d,
     useMemo(
@@ -298,29 +325,6 @@ export const GeoportalMap = () => {
     };
 
     setSelection(Object.assign({}, selection, selectionMetaData));
-
-    if (
-      (uiMode === UIMode.DEFAULT || uiMode === UIMode.FEATURE_INFO) &&
-      !isAreaType(selection.type as ENDPOINT) &&
-      isMode2d
-    ) {
-      const selectedPos = proj4(proj4crs3857def, proj4crs4326def, [
-        selection.x,
-        selection.y,
-      ]);
-
-      setTimeout(() => {
-        const map = routedMap.leafletMap.leafletElement;
-        const updatedPos = { lat: selectedPos[1], lng: selectedPos[0] };
-        const latlngPoint = L.latLng(updatedPos);
-
-        map.fireEvent("click", {
-          latlng: latlngPoint,
-          layerPoint: map.latLngToLayerPoint(latlngPoint),
-          containerPoint: map.latLngToContainerPoint(latlngPoint),
-        });
-      }, 300);
-    }
   };
 
   useEffect(() => {
