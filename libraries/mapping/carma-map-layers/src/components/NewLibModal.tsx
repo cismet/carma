@@ -31,6 +31,7 @@ import { SidebarItem } from "./SidebarItems";
 import "./input.css";
 import "./modal.css";
 import ItemGrid from "./ItemGrid";
+import { isEmpty } from "lodash";
 const { Search } = Input;
 
 // @ts-expect-error tbd
@@ -377,6 +378,38 @@ export const NewLibModal = ({
     return () => clearTimeout(timer);
   }, [open]);
 
+  const addItemToCategory = (
+    categoryId: string,
+    subCategory: { id: string; Title: string },
+    item: SavedLayerConfig
+  ) => {
+    setShownCategories((prev) => {
+      const newCategories = [...prev];
+      newCategories.map((cat) => {
+        if (cat.id === categoryId) {
+          let subCats = cat.categories;
+          let newSubCat = {};
+          subCats.forEach((subCat) => {
+            if (subCat.id === subCategory.id) {
+              newSubCat = subCat;
+              newSubCat.layers.push(item);
+            }
+          });
+          if (isEmpty(newSubCat)) {
+            cat.categories.push({
+              id: subCategory.id,
+              Title: subCategory.Title,
+              layers: [item],
+            });
+          } else {
+            return newSubCat;
+          }
+        }
+      });
+      return newCategories;
+    });
+  };
+
   useEffect(() => {
     const handleDrop = (event: DragEvent) => {
       event.preventDefault();
@@ -395,27 +428,11 @@ export const NewLibModal = ({
           keywords: [`carmaConf://vectorStyle:${url}`],
         };
 
-        setShownCategories((prev) => {
-          if (prev.find((item) => item.id === "mapLayers")) {
-            prev.splice(
-              prev.findIndex((item) => item.id === "mapLayers"),
-              1
-            );
-          }
-          return [
-            ...prev,
-            {
-              id: "mapLayers",
-              categories: [
-                {
-                  Title: "Eigene Daten",
-                  layers: [newItem],
-                },
-                ...allLayers,
-              ],
-            },
-          ];
-        });
+        addItemToCategory(
+          "mapLayers",
+          { id: "custom", Title: "Eigene Daten" },
+          newItem
+        );
       } else if (url) {
         fetch(url)
           .then((response) => {
@@ -479,27 +496,11 @@ export const NewLibModal = ({
                 ],
               };
 
-              setShownCategories((prev) => {
-                if (prev.find((item) => item.id === "mapLayers")) {
-                  prev.splice(
-                    prev.findIndex((item) => item.id === "mapLayers"),
-                    1
-                  );
-                }
-                return [
-                  ...prev,
-                  {
-                    id: "mapLayers",
-                    categories: [
-                      {
-                        Title: "Eigene Daten",
-                        layers: [newItem],
-                      },
-                      ...allLayers,
-                    ],
-                  },
-                ];
-              });
+              addItemToCategory(
+                "mapLayers",
+                { id: "custom", Title: "Eigene Daten" },
+                newItem
+              );
             }
           } catch (error) {
             console.error("Failed to parse the file as JSON:", error);
