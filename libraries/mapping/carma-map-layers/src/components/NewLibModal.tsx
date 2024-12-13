@@ -413,6 +413,7 @@ export const NewLibModal = ({
   useEffect(() => {
     const handleDrop = (event: DragEvent) => {
       event.preventDefault();
+      setOpen(true);
       const url = event.dataTransfer?.getData("URL");
 
       const file = event?.dataTransfer?.files[0];
