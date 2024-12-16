@@ -2551,7 +2551,10 @@ export const baseConfig = {
       },
       {
         name: "wohnlagen2024",
-        keywords: [":vec:"],
+        keywords: [
+          ":vec:",
+          "carmaconf://infoBoxMapping:function createInfoBoxInfo(p) { let color = '#006c72'; switch(p.WERT) { case 1: color = '#FF0000'; break; case 2: color = '#FFC000'; break; case 3: color = '#92D050'; break; case 4: color = '#00C5FF'; break; } const info = { title: p.Wohnlage, headerColor: color, header: 'Wohnlagen 2024', }; return info; }",
+        ],
         icon: "immo/Wohnlagen_2024",
       },
       {
