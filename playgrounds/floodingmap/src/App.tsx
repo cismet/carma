@@ -300,6 +300,7 @@ function App() {
         appMenu={
           <GenericModalApplicationMenu
             {...getCollabedHelpComponentConfig({
+              version,
               versionString: version,
               reactCismapRHMVersion: reactCismapEnvirometricsVersion,
 
@@ -365,7 +366,7 @@ function App() {
 }
 //x
 const StateAwareChildren = () => {
-  const { controlState } = useContext(EnviroMetricMapContext);
+  const { controlState } = useContext<typeof EnviroMetricMapContext>(EnviroMetricMapContext);
   const { terrainProviderRef, viewerRef } = useCesiumContext();
 
   const conf = config.config;

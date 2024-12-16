@@ -1,8 +1,9 @@
-import { configureStore } from "@reduxjs/toolkit";
+import { configureStore, Reducer, UnknownAction } from "@reduxjs/toolkit";
 import { createLogger } from "redux-logger";
 import { persistReducer } from "redux-persist";
+import { PersistPartial } from "redux-persist/lib/persistReducer";
 
-import { getCesiumConfig, cesiumReducer } from "@carma-mapping/cesium-engine";
+import { getCesiumConfig, cesiumReducer, CesiumState } from "@carma-mapping/cesium-engine";
 
 import { defaultCesiumState } from "../config/cesium/store.config";
 import { APP_KEY, STORAGE_PREFIX } from "../config/app.config";
@@ -50,7 +51,7 @@ const store = configureStore({
     cesium: persistReducer(
       getCesiumConfig({ appKey: APP_KEY, storagePrefix: STORAGE_PREFIX }),
       cesiumReducer
-    ),
+    ) as Reducer<CesiumState & PersistPartial, UnknownAction, CesiumState>,
   },
   preloadedState: {
     cesium: defaultCesiumState,
