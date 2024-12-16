@@ -342,10 +342,6 @@ const implicitVectorSelection = (
       selectedVectorFeature.setSelection(false);
     }
 
-    if (!selectedVectorFeature.selectionLayerExists) {
-      return;
-    }
-
     //make sure to get a point from any geometry type
     const coordinates = getCoordinates(selectedVectorFeature.geometry);
     dispatch(
@@ -369,6 +365,10 @@ const implicitVectorSelection = (
 
     if (selectedVectorFeature.setSelection) {
       selectedVectorFeature.setSelection(false);
+    }
+
+    if (!selectedVectorFeature.selectionLayerExists) {
+      return;
     }
 
     selectionHandler(e, layer);
@@ -448,7 +448,7 @@ export const createCismapLayers = (
     const keys = Object.keys(o);
     for (let i = keys.length - 1; i >= 0; i--) {
       const value = o[keys[i]];
-      if (value !== undefined) {
+      if (value !== undefined && value[0].selectionLayerExists) {
         return value;
       }
     }
@@ -472,7 +472,7 @@ export const createCismapLayers = (
     if (modeRef.current === UIMode.DEFAULT) {
       const lastObject = getLastDefinedObject(globalHits);
 
-      if (lastObject && lastObject[0].selectionLayerExists) {
+      if (lastObject) {
         const selectedVectorFeature = lastObject[0];
         if (selectedVectorFeature.setSelection) {
           selectedVectorFeature.setSelection(true);
