@@ -175,14 +175,6 @@ export function LibFuzzySearch({
 
       createOrUpdateVisibleCategory(firstCategoryText, dropdownContainerRef);
 
-      // let topOffset = 39;
-      // if (allTitles.length > 0 && dropdownContainerRef.current) {
-      //   const wrapperPos = dropdownContainerRef.current.getBoundingClientRect();
-      //   const catPos = allTitles[0].getBoundingClientRect();
-
-      //   topOffset = Math.abs(catPos.top - wrapperPos.top);
-      // }
-
       if (
         inputElement &&
         antdDrapdownSelect &&
@@ -208,10 +200,6 @@ export function LibFuzzySearch({
             } else {
               topOffset = 39;
             }
-
-            // if (additionalTitle && category) {
-            //   additionalTitle.innerText = category;
-            // }
 
             const scrollPosition = event.target?.scrollTop;
 
