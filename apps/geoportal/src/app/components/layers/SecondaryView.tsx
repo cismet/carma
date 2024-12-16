@@ -79,13 +79,52 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
   const isBaseLayer = selectedLayerIndex === -1;
 
   useEffect(() => {
+    const findElementByIdRecursive = (element: Element, id: string) => {
+      if (element.id === id) {
+        return element;
+      }
+
+      for (let i = 0; i < element.children.length; i++) {
+        const found = findElementByIdRecursive(element.children[i], id);
+        if (found) {
+          return found;
+        }
+      }
+
+      return null;
+    };
+
     const handleOutsideClick = (event: MouseEvent) => {
       let newLayerIndex = -2;
       let removedOtherLayer = false;
+      let returnFunction = false;
       const layerButtons = document.querySelectorAll('[id^="layer-"]');
       const removeLayerButtons = document.querySelectorAll(
         '[id^="removeLayerButton-"]'
       );
+      const openBaseLayerViewButtons = document.querySelectorAll(
+        '[id^="openBaseLayerView"]'
+      );
+
+      openBaseLayerViewButtons.forEach((layerButton, i) => {
+        if (layerButton.contains(event.target as Node)) {
+          returnFunction = true;
+          return;
+        }
+      });
+
+      const foundElement = findElementByIdRecursive(
+        event.target as Element,
+        "openBaseLayerView"
+      );
+
+      if (foundElement) {
+        returnFunction = true;
+      }
+
+      if (returnFunction) {
+        return;
+      }
 
       removeLayerButtons.forEach((layerButton, i) => {
         if (layerButton.contains(event.target as Node)) {

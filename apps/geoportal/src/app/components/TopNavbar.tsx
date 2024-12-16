@@ -80,10 +80,7 @@ const TopNavbar = () => {
               value={backgroundLayer.id}
               onChange={(e) => {
                 e.stopPropagation();
-                if (
-                  e.target.value === "openDialog" &&
-                  selectedLayerIndex !== -1
-                ) {
+                if (e.target.value === "openBaseLayerView") {
                   dispatch(setSelectedLayerIndex(-1));
                   dispatch(setUIShowInfo(true));
                   dispatch(setUIShowInfoText(true));
@@ -120,11 +117,8 @@ const TopNavbar = () => {
             >
               <Radio.Button value="karte">Karte</Radio.Button>
               <Radio.Button value="luftbild">Luftbild</Radio.Button>
-              <Radio.Button
-                onClick={(e) => e.stopPropagation()}
-                value="openDialog"
-              >
-                <FontAwesomeIcon icon={faLayerGroup} />
+              <Radio.Button value="openBaseLayerView">
+                <FontAwesomeIcon id="openBaseLayerView" icon={faLayerGroup} />
               </Radio.Button>
             </Radio.Group>
           )}
