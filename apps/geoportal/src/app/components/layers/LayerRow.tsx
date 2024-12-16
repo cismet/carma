@@ -6,6 +6,7 @@ import {
   faGripVertical,
   faLayerGroup,
   faMap,
+  faX,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Slider } from "antd";
@@ -14,6 +15,7 @@ import { useDispatch } from "react-redux";
 import {
   changeOpacity,
   changeVisibility,
+  removeLayer,
   setSelectedLayerIndex,
 } from "../../store/slices/mapping";
 import { iconColorMap, iconMap } from "./items";
@@ -105,6 +107,16 @@ const LayerRow = ({ layer, id, isBackgroundLayer, index }: LayerRowProps) => {
         }}
       >
         <FontAwesomeIcon icon={layer.visible ? faEye : faEyeSlash} />
+      </button>
+      <button
+        className={`hover:text-gray-500 text-gray-600 flex items-center justify-center ${
+          isBackgroundLayer && "invisible"
+        }`}
+        onClick={(e) => {
+          dispatch(removeLayer(id));
+        }}
+      >
+        <FontAwesomeIcon icon={faX} />
       </button>
     </div>
   );
