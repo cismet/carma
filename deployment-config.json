@@ -324,6 +324,33 @@
       },
       "projectPath": "./dist/envirometrics/wuppertal/floodingmap"
     },
+    "floodingmap-playground": {
+      "deployment": {
+        "manual": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "floodingmap"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "floodingmap"
+            }
+          }
+        },
+        "auto": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "floodingmap"
+            }
+          }
+        }
+      },
+      "projectPath": "./dist/playgrounds/floodingmap"
+    },
     "rainhazardmap-wuppertal": {
       "deployment": {
         "manual": {

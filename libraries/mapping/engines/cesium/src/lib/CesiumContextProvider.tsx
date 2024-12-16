@@ -38,19 +38,23 @@ export const CesiumContextProvider = ({
 
   // Asynchronous initialization of providers and imageryLayer
   useEffect(() => {
-    const abortController = new AbortController();
-    const { signal } = abortController;
+    if (providerConfig.imageryProvider) {
+      const abortController = new AbortController();
+      const { signal } = abortController;
 
-    // ImageryLayer initialization
-    loadCesiumImageryLayer(
-      imageryLayerRef,
-      providerConfig.imageryProvider,
-      signal
-    );
+      // ImageryLayer initialization
+      loadCesiumImageryLayer(
+        imageryLayerRef,
+        providerConfig.imageryProvider,
+        signal
+      );
 
-    return () => {
-      abortController.abort();
-    };
+      return () => {
+        abortController.abort();
+      };
+    } else {
+      console.info("[CESIUM|CONTEXT] No imagery provider configured");
+    }
   }, [providerConfig.imageryProvider]);
 
   useEffect(() => {
@@ -100,6 +104,8 @@ export const CesiumContextProvider = ({
         );
       };
       fetchPrimary().catch(console.error);
+    } else {
+      console.debug("[CESIUM|DEBUG] No primary tileset configured");
     }
 
     return () => {
@@ -127,6 +133,8 @@ export const CesiumContextProvider = ({
         );
       };
       fetchSecondary().catch(console.error);
+    } else {
+      console.debug("[CESIUM|DEBUG] No secondary tileset configured");
     }
 
     return () => {

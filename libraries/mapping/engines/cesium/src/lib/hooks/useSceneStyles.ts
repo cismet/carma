@@ -5,7 +5,6 @@ import {
   selectCurrentSceneStyle,
   selectSceneStylePrimary,
   selectSceneStyleSecondary,
-  setCurrentSceneStyle,
   setShowPrimaryTileset,
   setShowSecondaryTileset,
 } from "../slices/cesium";
@@ -13,9 +12,8 @@ import { setupPrimaryStyle, setupSecondaryStyle } from "../utils/sceneStyles";
 
 import { useCesiumViewer } from "./useCesiumViewer";
 import { useCesiumContext } from "./useCesiumContext";
-import { SceneStyles } from "../..";
 
-export const useSceneStyles = (initialStyle?: keyof SceneStyles) => {
+export const useSceneStyles = (enabled = true) => {
   const dispatch = useDispatch();
   const currentSceneStyle = useSelector(selectCurrentSceneStyle);
 
@@ -25,7 +23,7 @@ export const useSceneStyles = (initialStyle?: keyof SceneStyles) => {
   const secondaryStyle = useSelector(selectSceneStyleSecondary);
 
   useEffect(() => {
-    if (!viewer || currentSceneStyle === undefined) return;
+    if (!enabled || !viewer || currentSceneStyle === undefined) return;
     console.debug("currentSceneStyle change", currentSceneStyle);
     if (currentSceneStyle === "primary") {
       setupPrimaryStyle(ctx, primaryStyle);
@@ -38,13 +36,15 @@ export const useSceneStyles = (initialStyle?: keyof SceneStyles) => {
     } else {
       throw new Error(`Unknown style: ${currentSceneStyle}`);
     }
-  }, [dispatch, viewer, currentSceneStyle, primaryStyle, secondaryStyle, ctx]);
-
-  useEffect(() => {
-    if (currentSceneStyle === undefined && initialStyle) {
-      dispatch(setCurrentSceneStyle(initialStyle));
-    }
-  }, [dispatch, currentSceneStyle, initialStyle]);
+  }, [
+    dispatch,
+    enabled,
+    viewer,
+    currentSceneStyle,
+    primaryStyle,
+    secondaryStyle,
+    ctx,
+  ]);
 };
 
 export default useSceneStyles;
