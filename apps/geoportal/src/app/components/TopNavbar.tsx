@@ -17,6 +17,7 @@ import {
   getSelectedLayerIndex,
   getSelectedMapLayer,
   setBackgroundLayer,
+  setClickFromInfoView,
   setSelectedLayerIndex,
 } from "../store/slices/mapping";
 import ActionButtons from "./nav-items/ActionButtons";
@@ -26,6 +27,7 @@ import { layerMap } from "../config";
 import ResourceModal from "./nav-items/ResourceModal";
 import "./switch.css";
 import { useCarmaMapContext } from "@carma-apps/portals";
+import { setUIShowInfo, setUIShowInfoText } from "../store/slices/ui";
 
 const TopNavbar = () => {
   const dispatch = useDispatch();
@@ -83,6 +85,8 @@ const TopNavbar = () => {
                   selectedLayerIndex !== -1
                 ) {
                   dispatch(setSelectedLayerIndex(-1));
+                  dispatch(setUIShowInfo(true));
+                  dispatch(setUIShowInfoText(true));
                 } else if (e.target.value === "karte") {
                   dispatch(
                     setBackgroundLayer({
