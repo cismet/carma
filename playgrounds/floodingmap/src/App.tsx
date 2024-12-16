@@ -28,6 +28,7 @@ import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
 
 import {
   SelectionMetaData,
+  TopicMapSelectionContent,
   useGazData,
   useSelection,
   useSelectionCesium,
@@ -335,6 +336,7 @@ function App() {
       >
         <CrossTabCommunicationControl hideWhenNoSibblingIsPresent={true} />
         <StateAwareChildren />
+        <TopicMapSelectionContent/>
       </EnviroMetricMap>
       <div
         ref={container3dMapRef}
