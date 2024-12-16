@@ -1,13 +1,7 @@
 import { createSlice } from "@reduxjs/toolkit";
 
 const initialState = {
-  kassenzeichenliste: [
-    // "60037371",
-    // "60048907",
-    // "60058203",
-    // "60053055",
-    // "60082070",
-  ],
+  kassenzeichenliste: [],
 };
 
 const slice = createSlice({

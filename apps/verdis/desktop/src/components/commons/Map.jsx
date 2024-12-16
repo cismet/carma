@@ -80,6 +80,7 @@ import { proj4crs3857def } from "react-cismap/constants/gis";
 import { getJWT } from "../../store/slices/auth";
 import Toolbar from "./Toolbar";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { storeKassenzeichenliste } from "../../store/slices/searchMode";
 
 const { ScaleControl } = TransitiveReactLeaflet;
 
@@ -310,7 +311,17 @@ const Map = ({
           <Tooltip title="Suchmodus">
             <div
               className="relative flex cursor-pointer items-center justify-center"
-              // onClick={() => fitMapBounds()}
+              onClick={() => {
+                dispatch(
+                  storeKassenzeichenliste([
+                    "60037371",
+                    "60048907",
+                    "60058203",
+                    "60053055",
+                    "60082070",
+                  ])
+                );
+              }}
             >
               <FontAwesomeIcon icon={faDrawPolygon} className={`h-6`} />
             </div>
