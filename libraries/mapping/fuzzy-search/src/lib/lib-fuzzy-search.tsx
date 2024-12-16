@@ -46,7 +46,7 @@ export function LibFuzzySearch({
   placeholder = "Wohin?",
   config = {
     prepoHandling: false,
-    ifShowScore: true,
+    ifShowScore: false,
     limit: 3,
     cut: 0.4,
     distance: 100,
@@ -166,14 +166,16 @@ export function LibFuzzySearch({
         ".ant-select-selection-search-input"
       );
 
-      const allTitles = document.querySelectorAll("[data-title]");
-      let firstCategoryText = "";
-      if (allTitles.length > 0) {
-        const firstTitle = allTitles[0] as HTMLElement;
-        firstCategoryText = firstTitle.innerText;
-      }
+      if (showCategories) {
+        const allTitles = document.querySelectorAll("[data-title]");
+        let firstCategoryText = "";
+        if (allTitles.length > 0) {
+          const firstTitle = allTitles[0] as HTMLElement;
+          firstCategoryText = firstTitle.innerText;
+        }
 
-      createOrUpdateVisibleCategory(firstCategoryText, dropdownContainerRef);
+        createOrUpdateVisibleCategory(firstCategoryText, dropdownContainerRef);
+      }
 
       if (
         inputElement &&
@@ -187,27 +189,35 @@ export function LibFuzzySearch({
           holderInner.style.width = inputWidth + 10 + "px";
 
           const handleScroll = (event) => {
-            const additionalTitle =
-              document.getElementById("advance-title-text");
-            const category = getCategoryNameInFirstSearchItem();
+            if (showCategories) {
+              const allTitles = document.querySelectorAll("[data-title]");
 
-            if (allTitles.length > 0 && dropdownContainerRef.current) {
-              const wrapperPos =
-                dropdownContainerRef.current.getBoundingClientRect();
-              const catPos = allTitles[0].getBoundingClientRect();
+              const additionalTitle =
+                document.getElementById("advance-title-text");
+              const category = getCategoryNameInFirstSearchItem();
 
-              topOffset = Math.abs(catPos.top - wrapperPos.top);
-            } else {
-              topOffset = 39;
-            }
+              if (allTitles.length > 0 && dropdownContainerRef.current) {
+                const wrapperPos =
+                  dropdownContainerRef.current.getBoundingClientRect();
+                const catPos = allTitles[0].getBoundingClientRect();
 
-            const scrollPosition = event.target?.scrollTop;
+                topOffset = Math.abs(catPos.top - wrapperPos.top);
+              } else {
+                topOffset = 39;
+              }
 
-            if (scrollPosition > 60) {
-              smoothCategoriesTransition(topOffset, additionalTitle, category);
-            } else {
-              if (additionalTitle && category) {
-                additionalTitle.innerText = category;
+              const scrollPosition = event.target?.scrollTop;
+
+              if (scrollPosition > 60) {
+                smoothCategoriesTransition(
+                  topOffset,
+                  additionalTitle,
+                  category
+                );
+              } else {
+                if (additionalTitle && category) {
+                  additionalTitle.innerText = category;
+                }
               }
             }
             setFireScrollEvent(event.target.scrollTop);
