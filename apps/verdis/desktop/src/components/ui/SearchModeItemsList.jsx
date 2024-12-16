@@ -1,21 +1,20 @@
 import { faList } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Tooltip } from "antd";
+import { Badge, Tooltip } from "antd";
 import { useEffect } from "react";
 import { useSelector } from "react-redux";
 import { getKassenzeichenliste } from "../../store/slices/searchMode";
+import Dot from "../commons/Dot";
 
 const SearchModeList = () => {
   const kassenzeichenliste = useSelector(getKassenzeichenliste);
   useEffect(() => {
-    console.log("xxx kassenzeichenliste", kassenzeichenliste);
+    console.log("xxx kassenzeichenliste", kassenzeichenliste.length);
   }, [kassenzeichenliste]);
   return (
-    <Tooltip title="Kassenzeichenliste">
-      <div className="relative flex cursor-pointer items-center justify-center">
-        <FontAwesomeIcon icon={faList} className={`h-6`} />
-      </div>
-    </Tooltip>
+    <Badge count={kassenzeichenliste.length} showZero>
+      <FontAwesomeIcon icon={faList} className="h-6 cursor-pointer" />
+    </Badge>
   );
 };
 
