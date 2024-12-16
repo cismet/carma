@@ -245,10 +245,6 @@ export const NewLibModal = ({
             config,
             serviceName: services[key].name,
           });
-          console.log(
-            "xxx",
-            tmpLayer.filter((category) => category.layers.length > 0)
-          );
           // @ts-expect-error
           setShownCategories((prev) => {
             if (prev.find((item) => item.id === "partialTwins")) {
