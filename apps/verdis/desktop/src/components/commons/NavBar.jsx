@@ -5,6 +5,7 @@ import {
   faCloudRain,
   faD,
   faEarthAmericas,
+  faList,
   faTag,
   faUser,
 } from "@fortawesome/free-solid-svg-icons";
@@ -174,6 +175,11 @@ const NavBar = ({ width = "100%", height = 73, style, inStory }) => {
       </div>
       <SearchBar />
       <div className="flex items-center gap-3">
+        <Tooltip title="Kassenzeichenliste">
+          <div className="relative flex cursor-pointer items-center justify-center">
+            <FontAwesomeIcon icon={faList} className={`h-6`} />
+          </div>
+        </Tooltip>
         <a
           target="d3"
           href={`http://localhost:3033/d3/?kassenzeichen=${kassenzeichenNummer}`}

@@ -52,6 +52,7 @@ import {
 } from "../../store/slices/mapping";
 import { getArea25832 } from "../../tools/kassenzeichenMappingTools";
 import {
+  faDrawPolygon,
   faExpandArrowsAlt,
   faF,
   faLock,
@@ -306,6 +307,14 @@ const Map = ({
           {/* {(isLoadingGeofields || isLoadingKassenzeichenWithPoint) && (
             <LoadingOutlined />
           )} */}
+          <Tooltip title="Suchmodus">
+            <div
+              className="relative flex cursor-pointer items-center justify-center"
+              // onClick={() => fitMapBounds()}
+            >
+              <FontAwesomeIcon icon={faDrawPolygon} className={`h-6`} />
+            </div>
+          </Tooltip>
           <Tooltip title="optimaler Kartenausschnitt für dieses Kassenzeichen">
             <div
               className="relative flex cursor-pointer items-center justify-center"
