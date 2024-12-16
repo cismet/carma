@@ -151,6 +151,7 @@ export const NewLibModal = ({
       { name: "title", weight: 2 },
       { name: "description", weight: 1 },
       { name: "keywords", weight: 1 },
+      { name: "tags", weight: 1 },
     ],
     shouldSort: false,
     includeMatches: true,
@@ -244,6 +245,10 @@ export const NewLibModal = ({
             config,
             serviceName: services[key].name,
           });
+          console.log(
+            "xxx",
+            tmpLayer.filter((category) => category.layers.length > 0)
+          );
           // @ts-expect-error
           setShownCategories((prev) => {
             if (prev.find((item) => item.id === "partialTwins")) {
