@@ -175,13 +175,13 @@ export function LibFuzzySearch({
 
       createOrUpdateVisibleCategory(firstCategoryText, dropdownContainerRef);
 
-      let topOffset = 39;
-      if (allTitles.length > 0 && dropdownContainerRef.current) {
-        const wrapperPos = dropdownContainerRef.current.getBoundingClientRect();
-        const catPos = allTitles[0].getBoundingClientRect();
+      // let topOffset = 39;
+      // if (allTitles.length > 0 && dropdownContainerRef.current) {
+      //   const wrapperPos = dropdownContainerRef.current.getBoundingClientRect();
+      //   const catPos = allTitles[0].getBoundingClientRect();
 
-        topOffset = Math.abs(catPos.top - wrapperPos.top);
-      }
+      //   topOffset = Math.abs(catPos.top - wrapperPos.top);
+      // }
 
       if (
         inputElement &&
@@ -189,6 +189,7 @@ export function LibFuzzySearch({
         listHolder instanceof HTMLElement
       ) {
         const inputWidth = inputElement.scrollWidth;
+        let topOffset = 39;
 
         if (holderInner instanceof HTMLElement) {
           holderInner.style.width = inputWidth + 10 + "px";
