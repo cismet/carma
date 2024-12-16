@@ -342,6 +342,10 @@ const implicitVectorSelection = (
       selectedVectorFeature.setSelection(false);
     }
 
+    if (!selectedVectorFeature.selectionLayerExists) {
+      return;
+    }
+
     //make sure to get a point from any geometry type
     const coordinates = getCoordinates(selectedVectorFeature.geometry);
     dispatch(
