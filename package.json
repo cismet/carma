@@ -34,7 +34,7 @@
     "@uiw/react-codemirror": "^4.23.0",
     "antd": "^5.19.4",
     "autoprefixer": "^10.4.19",
-    "cesium": "^1.121.1",
+    "cesium": "^1.124.0",
     "chart.js": "^4.4.3",
     "chartjs-plugin-zoom": "^2.0.1",
     "clsx": "^2.1.1",
