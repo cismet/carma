@@ -1,5 +1,5 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
-import { MappingConstants } from "react-cismap";
+import { Tooltip } from "antd";
 import {
   Cartographic,
   Math as CesiumMath,
@@ -21,7 +21,7 @@ import { EnviroMetricMapContext } from "@cismet-dev/react-cismap-envirometrics-m
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import { version as cismapEnvirometricsVersion } from "@cismet-dev/react-cismap-envirometrics-maps/meta";
 import CrossTabCommunicationControl from "react-cismap/CrossTabCommunicationControl";
-import CrossTabCommunicationContextProvider from "react-cismap/contexts/CrossTabCommunicationContextProvider";
+import { CrossTabCommunicationContextProvider } from "react-cismap/contexts/CrossTabCommunicationContextProvider";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
@@ -42,11 +42,9 @@ import {
   Compass,
   CustomViewer,
   MapTypeSwitcher,
-  selectShowPrimaryTileset,
   selectViewerHome,
   selectViewerIsMode2d,
   selectViewerModels,
-  setShowPrimaryTileset,
   useCesiumContext,
   useHomeControl,
   useZoomControls,
@@ -222,26 +220,31 @@ function App() {
           position: "absolute",
           top: "0px",
           left: "0px",
+          bottom: "0px",
           zIndex: 600,
         }}
       >
-        <ControlLayout>
+        <ControlLayout ifStorybook={false}>
           <Control position="topleft" order={10}>
             <div className="flex flex-col">
-              <ControlButtonStyler
-                onClick={isMode2d ? zoomInLeaflet : handleZoomInCesium}
-                className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
-                dataTestId="zoom-in-control"
-              >
-                <FontAwesomeIcon icon={faPlus} className="text-base" />
-              </ControlButtonStyler>
-              <ControlButtonStyler
-                onClick={isMode2d ? zoomOutLeaflet : handleZoomOutCesium}
-                className="!rounded-t-none !border-t-[1px]"
-                dataTestId="zoom-out-control"
-              >
-                <FontAwesomeIcon icon={faMinus} className="text-base" />
-              </ControlButtonStyler>
+              <Tooltip title="Maßstab vergrößern (Zoom in)" placement="right">
+                <ControlButtonStyler
+                  onClick={isMode2d ? zoomInLeaflet : handleZoomInCesium}
+                  className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
+                  dataTestId="zoom-in-control"
+                >
+                  <FontAwesomeIcon icon={faPlus} className="text-base" />
+                </ControlButtonStyler>
+              </Tooltip>
+              <Tooltip title="Maßstab verkleinern (Zoom out)" placement="right">
+                <ControlButtonStyler
+                  onClick={isMode2d ? zoomOutLeaflet : handleZoomOutCesium}
+                  className="!rounded-t-none !border-t-[1px]"
+                  dataTestId="zoom-out-control"
+                >
+                  <FontAwesomeIcon icon={faMinus} className="text-base" />
+                </ControlButtonStyler>
+              </Tooltip>
             </div>
           </Control>
           <Control position="topleft" order={20}>
@@ -274,28 +277,20 @@ function App() {
             />
             <Compass disabled={isMode2d} />
           </Control>
+          <Control position="bottomleft" order={10}>
+            <div data-test-id="fuzzy-search" className="h-full w-full">
+              <LibFuzzySearch
+                gazData={gazData}
+                //referenceSystem={referenceSystem}
+                //referenceSystemDefinition={referenceSystemDefinition}
+                onSelection={onGazetteerSelection}
+                placeholder="Wohin?"
+              />
+            </div>
+          </Control>
         </ControlLayout>
-        n
       </div>
 
-      <div
-        className="fuzzy-search-container"
-        style={{
-          position: "absolute",
-          bottom: "1rem",
-          left: "10px",
-          zIndex: 600,
-          overflow: "hidden",
-        }}
-      >
-        <LibFuzzySearch
-          gazData={gazData}
-          //referenceSystem={referenceSystem}
-          //referenceSystemDefinition={referenceSystemDefinition}
-          onSelection={onGazetteerSelection}
-          placeholder="Wohin?"
-        />
-      </div>
       <EnviroMetricMap
         appMenu={
           <GenericModalApplicationMenu
@@ -366,7 +361,9 @@ function App() {
 }
 //x
 const StateAwareChildren = () => {
-  const { controlState } = useContext<typeof EnviroMetricMapContext>(EnviroMetricMapContext);
+  const { controlState } = useContext<typeof EnviroMetricMapContext>(
+    EnviroMetricMapContext
+  );
   const { terrainProviderRef, viewerRef } = useCesiumContext();
 
   const conf = config.config;
