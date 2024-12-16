@@ -131,6 +131,13 @@ export const getFeatureForLayer = async (layer, pos, coordinates) => {
   });
 
   if (result) {
+    if (result.includes("function")) {
+      // remove every line that is not a function
+      result = result
+        .split("\n")
+        .filter((line) => line.includes("function"))
+        .join("\n");
+    }
     await fetch(url)
       .then((response) => response.text())
       .then((data) => {

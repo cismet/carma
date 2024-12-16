@@ -287,6 +287,14 @@ const createVectorFeature = (coordinates, layer, selectedVectorFeature) => {
     }
 
     if (result) {
+      if (result.includes("function")) {
+        // remove every line that is not a function
+        result = result
+          .split("\n")
+          .filter((line) => line.includes("function"))
+          .join("\n");
+      }
+
       const featureProperties = result.includes("function")
         ? functionToFeature(properties, result)
         : objectToFeature(properties, result);
