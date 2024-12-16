@@ -5,7 +5,6 @@ import {
   faCloudRain,
   faD,
   faEarthAmericas,
-  faList,
   faTag,
   faUser,
 } from "@fortawesome/free-solid-svg-icons";
@@ -31,6 +30,7 @@ import SearchBar from "../search/SearchBar";
 import GrundBuch from "../ui/GrundBuch";
 import PdfCreator from "../ui/PdfCreator";
 import Settings from "./Settings";
+import SearchModeList from "../ui/SearchModeItemsList";
 
 const logoSrc = "/logo.svg";
 
@@ -175,11 +175,7 @@ const NavBar = ({ width = "100%", height = 73, style, inStory }) => {
       </div>
       <SearchBar />
       <div className="flex items-center gap-3">
-        <Tooltip title="Kassenzeichenliste">
-          <div className="relative flex cursor-pointer items-center justify-center">
-            <FontAwesomeIcon icon={faList} className={`h-6`} />
-          </div>
-        </Tooltip>
+        <SearchModeList />
         <a
           target="d3"
           href={`http://localhost:3033/d3/?kassenzeichen=${kassenzeichenNummer}`}

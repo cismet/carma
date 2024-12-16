@@ -5,6 +5,7 @@ import settingsSlice from "./slices/settings";
 import mappingSlice from "./slices/mapping";
 import gazDataSlice from "./slices/gazData";
 import uiSlice from "./slices/ui";
+import searchModeSlice from "./slices/searchMode";
 import { createLogger } from "redux-logger";
 import { persistReducer } from "redux-persist";
 import { APP_KEY, STORAGE_PREFIX } from "../constants/verdis";
@@ -116,6 +117,7 @@ export default configureStore({
     mapping: persistReducer(mappingConfig, mappingSlice.reducer),
     ui: persistReducer(uiConfig, uiSlice.reducer),
     gazetteerData: gazDataSlice.reducer,
+    searchMode: searchModeSlice.reducer,
   },
   devTools: devToolsEnabled === true && inProduction === false,
   middleware,
