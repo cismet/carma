@@ -349,7 +349,7 @@
           }
         }
       },
-      "projectPath": "./dist/envirometrics/wuppertal/floodingmap"
+      "projectPath": "./dist/playgrounds/floodingmap"
     },
     "rainhazardmap-wuppertal": {
       "deployment": {

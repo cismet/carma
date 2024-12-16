@@ -336,7 +336,7 @@ function App() {
       >
         <CrossTabCommunicationControl hideWhenNoSibblingIsPresent={true} />
         <StateAwareChildren />
-        <TopicMapSelectionContent/>
+        <TopicMapSelectionContent />
       </EnviroMetricMap>
       <div
         ref={container3dMapRef}
