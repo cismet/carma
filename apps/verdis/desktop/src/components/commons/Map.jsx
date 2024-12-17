@@ -81,6 +81,7 @@ import { getJWT } from "../../store/slices/auth";
 import Toolbar from "./Toolbar";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { storeKassenzeichenliste } from "../../store/slices/searchMode";
+import RectangleSearch from "../searchShapes/RectangleSearch";
 
 const { ScaleControl } = TransitiveReactLeaflet;
 
@@ -315,13 +316,16 @@ const Map = ({
                 dispatch(
                   storeKassenzeichenliste([
                     "60037371",
-                    "60048907",
+                    // "60048907",
                     // "60058203",
                     // "60053055",
                     // "60082070",
                     // "60090529",
                     // "60099496",
-                    "60108065",
+                    // "60108065",
+                    // "60108065",
+                    // "60108065",
+                    // "60108065",
                   ])
                 );
               }}
@@ -610,6 +614,7 @@ const Map = ({
               }
             />
           )}
+        {/* <RectangleSearch routedMapRef={refRoutedMap.current} /> */}
       </RoutedMap>
       <Toolbar />
     </Card>

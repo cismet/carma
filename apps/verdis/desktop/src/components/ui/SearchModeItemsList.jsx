@@ -1,4 +1,4 @@
-import { faList, faPlus } from "@fortawesome/free-solid-svg-icons";
+import { faList, faPlus, faSquare } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Badge, Dropdown, Tooltip } from "antd";
 import { useEffect, useState } from "react";
@@ -22,7 +22,7 @@ const SearchModeList = () => {
               className="flex justify-center items-center gap-2 px-1"
               onClick={() => dispatch(searchForKassenzeichen(item))}
             >
-              <FontAwesomeIcon icon={faPlus} />
+              <FontAwesomeIcon icon={faSquare} />
               <span>{item}</span>
             </div>
           ),
