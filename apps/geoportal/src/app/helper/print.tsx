@@ -93,8 +93,11 @@ export const printMap = async (
     // a.href = urlBlob;
     // a.download = name;
     // a.click();
-
-    URL.revokeObjectURL(urlBlob);
+    // Cleanup: Revoke the Blob URLs after a delay
+    setTimeout(() => {
+      URL.revokeObjectURL(urlBlob);
+    }, 60000); // Revoke after 60 seconds
+    handleIsLoading(false);
     handleIsLoading(false);
   } catch (error) {
     console.log("xxx print error message", error?.message);
