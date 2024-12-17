@@ -863,7 +863,7 @@ L.Control.MeasurePolygon = L.Control.extend({
           this.options.clickAfterShapeSelection = true;
         });
         savedShape.on("mouseout", (e) => {
-          this.options.checkonedrawpoligon = false;
+          // this.options.checkonedrawpoligon = false;
         });
         savedShape.on("mouseover", (e) => {
           if (this.options.customTooltip) {
