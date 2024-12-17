@@ -81,7 +81,10 @@ import { proj4crs3857def } from "react-cismap/constants/gis";
 import { getJWT } from "../../store/slices/auth";
 import Toolbar from "./Toolbar";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { storeKassenzeichenliste } from "../../store/slices/searchMode";
+import {
+  storeKassenzeichenliste,
+  storeShapeMode,
+} from "../../store/slices/searchMode";
 import RectangleSearch from "../searchShapes/RectangleSearch";
 
 const { ScaleControl } = TransitiveReactLeaflet;
@@ -330,6 +333,7 @@ const Map = ({
                     // "60116902",
                   ])
                 );
+                dispatch(storeShapeMode("rectangle"));
               }}
             >
               <FontAwesomeIcon icon={faMagnifyingGlass} className={`h-6`} />
