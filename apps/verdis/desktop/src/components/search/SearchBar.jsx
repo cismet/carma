@@ -17,6 +17,7 @@ import { useState } from "react";
 import { useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { isEqual } from "lodash";
+import SearchModeList from "../ui/SearchModeItemsList";
 
 const SearchBar = () => {
   const dispatch = useDispatch();
@@ -47,7 +48,8 @@ const SearchBar = () => {
   }, []);
 
   return (
-    <div className="flex relative items-center gap-3 w-full">
+    <div className="flex relative items-center gap-5 w-full">
+      <SearchModeList />
       <AutoComplete
         options={prevSearches
           .map((kassenzeichen) =>
@@ -64,7 +66,7 @@ const SearchBar = () => {
               : null
           )
           .filter((item) => item !== null)}
-        className="xl:w-1/2 w-full mx-auto"
+        className="xl:w-1/2 w-full mr-auto"
         value={inputValue}
         onSelect={(value) =>
           dispatch(searchForKassenzeichen(value, urlParams, setUrlParams))

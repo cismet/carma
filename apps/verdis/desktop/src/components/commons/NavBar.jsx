@@ -30,7 +30,6 @@ import SearchBar from "../search/SearchBar";
 import GrundBuch from "../ui/GrundBuch";
 import PdfCreator from "../ui/PdfCreator";
 import Settings from "./Settings";
-import SearchModeList from "../ui/SearchModeItemsList";
 
 const logoSrc = "/logo.svg";
 
@@ -173,9 +172,8 @@ const NavBar = ({ width = "100%", height = 73, style, inStory }) => {
           </Link>
         ))}
       </div>
-      <SearchModeList />
-
       <SearchBar />
+
       <div className="flex items-center gap-3">
         <a
           target="d3"

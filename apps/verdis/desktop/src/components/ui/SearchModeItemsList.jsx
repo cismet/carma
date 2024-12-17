@@ -39,7 +39,7 @@ const SearchModeList = () => {
     }
   }, [kassenzeichenliste]);
   return (
-    <Badge count={kassenzeichenliste.length}>
+    <Badge count={kassenzeichenliste.length} className="ml-auto">
       <Dropdown menu={{ items: searchResults }} placement="bottomRight">
         <FontAwesomeIcon icon={faList} className="h-6 cursor-pointer" />
       </Dropdown>
