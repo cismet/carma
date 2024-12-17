@@ -276,10 +276,11 @@ export const topicMapsConfig: Config = {
     {
       id: "wuppTopicMaps_stadtplan",
       name: "wuppTopicMaps_stadtplan",
-      title: "Online Stadtplan",
+      title: "Online-Stadtplan",
       description: `Der Online-Stadtplan Wuppertal ist eine im Auftrag der Stadt Wuppertal von der Firma cismet GmbH, Saarbrücken, betriebene interaktive Internet-Kartenanwendung zur Orientierung im Wuppertaler Stadtgebiet.`,
       tags: [
         "TopicMaps",
+        "POI",
         "Bildung",
         "Erholung",
         "Gesundheit",
@@ -293,7 +294,7 @@ export const topicMapsConfig: Config = {
       thumbnail:
         "https://images.unsplash.com/photo-1618901882511-e7adb73a1ee0?q=80&w=2664&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
 
-      url: "https://topicmaps-wuppertal.github.io/stadtplan/#/",
+      url: "https://digital-twin-wuppertal-live.github.io/stadtplan/#/",
       keywords: [
         "carmaConf://opendata:https://offenedaten-wuppertal.de/dataset/interessante-orte-poi-wuppertal/resource/5b3ccf53-0c84-474f-8d36-480ecbb8f789",
       ],
@@ -366,7 +367,7 @@ export const topicMapsConfig: Config = {
       thumbnail:
         "https://images.unsplash.com/photo-1567746455504-cb3213f8f5b8?q=80&w=2670&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
 
-      url: "https://wunda-geoportal.cismet.de/#/kitas",
+      url: "https://digital-twin-wuppertal-live.github.io/kita-finder/",
       keywords: [
         "carmaConf://opendata:https://offenedaten-wuppertal.de/dataset/kindertageseinrichtungen-wuppertal/resource/fa848527-582f-46d8-ab57-c86295333c07",
       ],
@@ -378,10 +379,10 @@ export const topicMapsConfig: Config = {
       title: "E-Auto-Ladestationskarte",
       description: `Die E-Auto-Ladestationskarte Wuppertal ist eine im Auftrag der Stadt Wuppertal von der Firma cismet GmbH, Saarbrücken, betriebene interaktive Internet-Kartenanwendung, die dem Nutzer einen Überblick über die öffentlich zugänglichen Ladestationen für Elektro-Automobile im Wuppertaler Stadtgebiet verschafft.`,
       tags: [
-        "TopicMap",
-        "E-Auto-Ladestationen",
+        "TopicMaps",
         "Verkehr",
         "Umwelt",
+        "E-Auto-Ladestationen",
         "Elektro-Auto",
         "Elektromobilität",
         "E-Mobilität",
@@ -400,7 +401,7 @@ export const topicMapsConfig: Config = {
     {
       id: "wuppTopicMaps_xandride",
       name: "wuppTopicMaps_xandride",
-      title: "Park & Ride",
+      title: "Park+Ride-Karte",
       description: `Die Park+Ride-Karte Wuppertal ist eine im Auftrag der Stadt Wuppertal von der Firma cismet GmbH, Saarbrücken, betriebene interaktive Internet-Kartenanwendung, die dem Nutzer einen Überblick über die Park+Ride- und Bike+Ride-Anlagen im Wuppertaler Stadtgebiet oder in dessen unmittelbarer Nähe verschafft.`,
       tags: [
         "TopicMaps",
@@ -412,8 +413,7 @@ export const topicMapsConfig: Config = {
         "Bike and Ride Anlage",
         "P+R-Anlage",
         "B+R-Anlage",
-        "Parkraumkonzept",
-        "Wuppertal",
+        "Parkraumkonzept Wuppertal",
       ],
       type: "link",
       thumbnail:
