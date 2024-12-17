@@ -616,7 +616,9 @@ const Map = ({
               }
             />
           )}
-        {/* <RectangleSearch routedMapRef={refRoutedMap.current} /> */}
+        <RectangleSearch
+          map={refRoutedMap?.current?.leafletMap?.leafletElement}
+        />
       </RoutedMap>
       <Toolbar />
     </Card>

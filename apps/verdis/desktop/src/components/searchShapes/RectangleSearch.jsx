@@ -1,18 +1,17 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet-draw";
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
 
-const RectangleSearch = ({ routedMapRef }) => {
-  //   const { routedMapRef } = useContext(TopicMapContext);
-  const map = routedMapRef?.leafletMap?.leafletElement;
-  //   const drawControlRef = useRef(null);
+const RectangleSearch = ({ map }) => {
+  const drawControlRef = useRef(null);
+
   useEffect(() => {
     console.log("xxx map", map);
 
     // const map = routedMapRef?.leafletMap?.leafletElement;
-    if (map) {
+    if (map && !drawControlRef.current) {
       const editableLayers = new L.FeatureGroup();
       map.addLayer(editableLayers);
 
@@ -36,34 +35,10 @@ const RectangleSearch = ({ routedMapRef }) => {
         },
       };
 
-      const drawControl = new L.Control.Draw(options);
-      map.addControl(drawControl);
-
-      //   map.on(L.Draw.Event.CREATED, (event) => {
-      //     const { layer } = event;
-      //     map.addLayer(layer);
-      //     console.log("xxx rec created:", layer.getBounds());
-      //   });
-
-      //   return () => {
-      //     map.off(L.Draw.Event.CREATED);
-      //     if (drawControlRef.current) {
-      //       map.removeControl(drawControlRef.current);
-      //     }
-      //   };
+      drawControlRef.current = new L.Control.Draw(options);
+      map.addControl(drawControlRef.current);
     }
-  }, [routedMapRef]);
-
-  const startDrawingRectangle = (map, drawControlRef) => {
-    console.log("xxx map, drawControlRef", map, drawControlRef);
-    if (map && drawControlRef.current) {
-      const rectangleHandler = new L.Draw.Rectangle(
-        map,
-        drawControlRef.current.options.draw.rectangle
-      );
-      rectangleHandler.enable();
-    }
-  };
+  }, [map]);
 
   return (
     <div
