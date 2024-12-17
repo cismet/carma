@@ -28,6 +28,7 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
 
 import {
+  replaceHashRoutedHistory,
   SelectionMetaData,
   TopicMapSelectionContent,
   useGazData,
@@ -191,6 +192,10 @@ function App() {
     homeControlLeaflet();
   };
 
+  const onCesiumSceneChange = (e) => {
+    replaceHashRoutedHistory(e, location.pathname);
+  };
+
   useEffect(() => {
     if (viewerRef.current) {
       const viewer = viewerRef.current;
@@ -198,7 +203,7 @@ function App() {
       (viewer as any)._cesiumWidget._creditContainer.style.display = "none";
       setTimeout(() => {
         console.debug("3d setup for HGK terrain style");
-        viewer.scene.backgroundColor = Color.DIMGREY;
+        viewer.scene.backgroundColnpor = Color.DIMGREY;
         viewer.scene.globe.baseColor = new Color(0.3, 0.2, 0.8, 0.7);
         viewer.scene.globe.show = true;
         viewer.scene.globe.translucency.enabled = true;
@@ -372,6 +377,7 @@ function App() {
           cameraOptions={CESIUM_CONFIG.camera}
           constructorOptions={constructorOptions}
           enableSceneStyles={false}
+          onSceneChange={onCesiumSceneChange}
         ></CustomViewer>
       </div>
     </CrossTabCommunicationContextProvider>
