@@ -193,7 +193,7 @@ function App() {
   };
 
   const onCesiumSceneChange = (e) => {
-    replaceHashRoutedHistory(e, location.pathname);
+    replaceHashRoutedHistory(e, "/");
   };
 
   useEffect(() => {
