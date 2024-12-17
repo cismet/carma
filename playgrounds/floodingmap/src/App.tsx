@@ -1,4 +1,5 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useSelector } from "react-redux";
 import { Tooltip } from "antd";
 import {
   Cartographic,
@@ -34,9 +35,9 @@ import {
   useSelectionCesium,
   useSelectionTopicMap,
 } from "@carma-apps/portals";
-import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/hochwassergefahrenkarte";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import { getApplicationVersion } from "@carma-commons/utils";
+import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/hochwassergefahrenkarte";
 
 import {
   Compass,
@@ -49,22 +50,21 @@ import {
   useHomeControl,
   useZoomControls,
 } from "@carma-mapping/cesium-engine";
+import { LibFuzzySearch, SearchResultItem } from "@carma-mapping/fuzzy-search";
+
 import {
   Control,
   ControlButtonStyler,
   ControlLayout,
 } from "@carma-mapping/map-controls-layout";
 
-import config from "./config";
-
 import NotesDisplay from "./NotesDisplay";
 import versionData from "./version.json";
 
-import { LibFuzzySearch, SearchResultItem } from "@carma-mapping/fuzzy-search";
-import { useSelector } from "react-redux";
-
-import { CESIUM_CONFIG } from "./config/cesium/cesium.config";
 import useLeafletZoomControls from "./hooks/useLeafletZoomControls";
+
+import config from "./config";
+import { CESIUM_CONFIG } from "./config/cesium/cesium.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
@@ -89,6 +89,10 @@ const HGK_TERRAIN_PROVIDER_URLS = {
 // reuse terrain provider instances
 const hgkTerrainProviders = {};
 
+const constructorOptions = {
+  contextOptions: { webgl: { alpha: false } },
+};
+
 function App() {
   const version = getApplicationVersion(versionData);
 
@@ -98,7 +102,7 @@ function App() {
   const [hochwasserschutz, setHochwasserschutz] = useState(true);
 
   const email = "hochwasser@stadt.wuppertal.de";
-  const [hinweisData, setHinweisData] = useState([]);
+  //const [hinweisData, setHinweisData] = useState([]);
 
   const homeZoom = 18;
 
@@ -188,10 +192,12 @@ function App() {
   };
 
   useEffect(() => {
-    if (!isMode2d && viewerRef.current) {
+    if (viewerRef.current) {
       const viewer = viewerRef.current;
+      // remove default cesium credit because no ion resorce is used;
+      (viewer as any)._cesiumWidget._creditContainer.style.display = "none";
       setTimeout(() => {
-        console.debug("force hide default imagery layer hgk");
+        console.debug("3d setup for HGK terrain style");
         viewer.scene.backgroundColor = Color.DIMGREY;
         viewer.scene.globe.baseColor = new Color(0.3, 0.2, 0.8, 0.7);
         viewer.scene.globe.show = true;
@@ -206,7 +212,39 @@ function App() {
         viewer.scene.requestRender();
       }, 300);
     }
-  }, [isMode2d, viewerRef]);
+  }, [viewerRef]);
+
+  const onFullscreenClick = () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      document.documentElement.requestFullscreen();
+    }
+  };
+
+  const handleControlStateToggle = (controlState) => {
+    return controlState.selectedSimulation !== 2;
+  };
+
+  const onToggleState = (toggleState, state) => {
+    return state.selectedSimulation !== 2 && toggleState;
+  };
+
+  const appMenu = () => {
+    console.debug("Render appMenu");
+    return (
+      <GenericModalApplicationMenu
+        {...getCollabedHelpComponentConfig({
+          version,
+          versionString: version,
+          reactCismapRHMVersion: reactCismapEnvirometricsVersion,
+          email,
+        })}
+      />
+    );
+  };
+
+  console.debug("RENDER: HGK App");
 
   return (
     <CrossTabCommunicationContextProvider
@@ -249,13 +287,7 @@ function App() {
           </Control>
           <Control position="topleft" order={20}>
             <ControlButtonStyler
-              onClick={() => {
-                if (document.fullscreenElement) {
-                  document.exitFullscreen();
-                } else {
-                  document.documentElement.requestFullscreen();
-                }
-              }}
+              onClick={onFullscreenClick}
               dataTestId="full-screen-control"
             >
               <FontAwesomeIcon
@@ -292,17 +324,7 @@ function App() {
       </div>
 
       <EnviroMetricMap
-        appMenu={
-          <GenericModalApplicationMenu
-            {...getCollabedHelpComponentConfig({
-              version,
-              versionString: version,
-              reactCismapRHMVersion: reactCismapEnvirometricsVersion,
-
-              email,
-            })}
-          />
-        }
+        appMenu={appMenu}
         applicationMenuTooltipString="Anleitung | Hintergrund"
         initialState={config.initialState}
         emailaddress="hochwasser@stadt.wuppertal.de"
@@ -323,12 +345,8 @@ function App() {
         toggleEnabled={true}
         customInfoBoxToggleState={hochwasserschutz}
         customInfoBoxToggleStateSetter={setHochwasserschutz}
-        customInfoBoxDerivedToggleState={(toggleState, state) =>
-          state.selectedSimulation !== 2 && toggleState
-        }
-        customInfoBoxDerivedToggleClickable={(controlState) => {
-          return controlState.selectedSimulation !== 2;
-        }}
+        customInfoBoxDerivedToggleState={onToggleState}
+        customInfoBoxDerivedToggleClickable={handleControlStateToggle}
       >
         <CrossTabCommunicationControl hideWhenNoSibblingIsPresent={true} />
         <StateAwareChildren />
@@ -352,14 +370,13 @@ function App() {
         <CustomViewer
           containerRef={container3dMapRef}
           cameraOptions={CESIUM_CONFIG.camera}
-          onSceneChange={() => {}} // TODO
+          constructorOptions={constructorOptions}
           enableSceneStyles={false}
         ></CustomViewer>
       </div>
     </CrossTabCommunicationContextProvider>
   );
 }
-//x
 const StateAwareChildren = () => {
   const { controlState } = useContext<typeof EnviroMetricMapContext>(
     EnviroMetricMapContext
@@ -408,6 +425,8 @@ const StateAwareChildren = () => {
       })();
     }
   }, [controlState.selectedSimulation, terrainProviderRef, viewerRef]);
+
+  console.debug("RENDER: StateAwareChildren");
 
   return (
     <>
