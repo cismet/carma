@@ -5,9 +5,11 @@ import { isEqual } from "lodash";
 import envelope from "@turf/envelope";
 
 import InfoBox from "react-cismap/topicmaps/InfoBox";
+import InfoBoxFotoPreview from "react-cismap/topicmaps/InfoBoxFotoPreview";
 import { getActionLinksForFeature } from "react-cismap/tools/uiHelper";
 import InfoBoxHeader from "react-cismap/topicmaps/InfoBoxHeader";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 
 import { additionalInfoFactory } from "@carma-collab/wuppertal/geoportal";
 
@@ -37,6 +39,7 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
   const layers = useSelector(getLayers);
   const numOfLayers = layers.length;
   const infoText = useSelector(getInfoText);
+  const lightBoxDispatchContext = useContext(LightBoxDispatchContext);
 
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
@@ -163,7 +166,17 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
           </div>
         }
         noCurrentFeatureContent=""
-        secondaryInfoBoxElements={featureHeaders}
+        secondaryInfoBoxElements={
+          selectedFeature.properties.foto || selectedFeature.properties.fotos
+            ? [
+                ...featureHeaders,
+                <InfoBoxFotoPreview
+                  currentFeature={selectedFeature}
+                  lightBoxDispatchContext={lightBoxDispatchContext}
+                />,
+              ]
+            : featureHeaders
+        }
         links={links}
       />
       {open && (
