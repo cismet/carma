@@ -20,7 +20,6 @@ import {
   getInfoText,
   getSecondaryInfoBoxElements,
   getSelectedFeature,
-  setSecondaryInfoBoxElements,
 } from "../../store/slices/features";
 import { getLayers } from "../../store/slices/mapping";
 import { getCoordinates } from "../GeoportalMap/topicmap.utils";
@@ -126,17 +125,6 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
     );
   });
 
-  const foto =
-    "https://www.wuppertal.de/geoportal/emobil/autos/fotos/wasserstoff_01.jpg";
-  const fotos = [
-    "https://www.wuppertal.de/geoportal/emobil/autos/fotos/wasserstoff_01.jpg",
-    "https://www.wuppertal.de/geoportal/emobil/autos/fotos/wasserstoff_02.jpg",
-    "https://www.wuppertal.de/geoportal/emobil/autos/fotos/wasserstoff_03.jpg",
-    "https://www.wuppertal.de/geoportal/emobil/autos/fotos/wasserstoff_04.jpg",
-    "https://www.wuppertal.de/geoportal/emobil/autos/fotos/wasserstoff_05.jpg",
-    "https://www.wuppertal.de/geoportal/emobil/autos/fotos/wasserstoff_06.jpg",
-  ];
-
   const Modal = additionalInfoFactory(selectedFeature?.properties?.modal);
 
   return (
@@ -179,12 +167,11 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
         }
         noCurrentFeatureContent=""
         secondaryInfoBoxElements={
-          foto
+          selectedFeature.properties.foto || selectedFeature.properties.fotos
             ? [
                 ...featureHeaders,
                 <InfoBoxFotoPreview
                   currentFeature={selectedFeature}
-                  getPhotoUrl={() => foto}
                   lightBoxDispatchContext={lightBoxDispatchContext}
                 />,
               ]
