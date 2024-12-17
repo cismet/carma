@@ -3,7 +3,11 @@ import { createLogger } from "redux-logger";
 import { persistReducer } from "redux-persist";
 import { PersistPartial } from "redux-persist/lib/persistReducer";
 
-import { getCesiumConfig, cesiumReducer, CesiumState } from "@carma-mapping/cesium-engine";
+import {
+  getCesiumConfig,
+  cesiumReducer,
+  CesiumState,
+} from "@carma-mapping/cesium-engine";
 
 import { defaultCesiumState } from "../config/cesium/store.config";
 import { APP_KEY, STORAGE_PREFIX } from "../config/app.config";

@@ -65,6 +65,7 @@ import versionData from "./version.json";
 import useLeafletZoomControls from "./hooks/useLeafletZoomControls";
 
 import config from "./config";
+import { HGK_KEYS, HGK_TERRAIN_PROVIDER_URLS } from "./config/app.config";
 import { CESIUM_CONFIG } from "./config/cesium/cesium.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
@@ -75,21 +76,10 @@ const envirometricMapStyleOverrides = `
   .leaflet-bottom.leaflet-left { display: none !important; }
 `;
 
-const HGK_KEYS = Object.freeze({
-  0: "HQ10-50",
-  1: "HQ100",
-  2: "HQ500",
-});
-
-const HGK_TERRAIN_PROVIDER_URLS = {
-  "HQ10-50": "https://cesium-wupp-terrain.cismet.de/HQ10-50/",
-  HQ100: "https://cesium-wupp-terrain.cismet.de/HQ100/",
-  HQ500: "https://cesium-wupp-terrain.cismet.de/HQ500cm/",
-};
-
 // reuse terrain provider instances
 const hgkTerrainProviders = {};
 
+// disable cesium canvas background transparency
 const constructorOptions = {
   contextOptions: { webgl: { alpha: false } },
 };
@@ -389,56 +379,62 @@ const StateAwareChildren = () => {
   );
   const { terrainProviderRef, viewerRef } = useCesiumContext();
 
+  const isHWS = controlState.customInfoBoxToggleState;
+
   const conf = config.config;
   const state = controlState;
 
   useEffect(() => {
-    const hqKey = HGK_KEYS[controlState.selectedSimulation];
+    const useHws = isHWS && controlState.selectedSimulation !== 2;
+    const hqKey =
+      HGK_KEYS[controlState.selectedSimulation][useHws ? "hws" : "noHws"];
     console.info(
       "hqKey changed",
       hqKey,
       controlState.selectedSimulation,
+      useHws,
       HGK_TERRAIN_PROVIDER_URLS[hqKey]
     );
     if (hqKey) {
       (async () => {
         if (!hgkTerrainProviders[hqKey]) {
-          const url = HGK_TERRAIN_PROVIDER_URLS[hqKey];
           try {
+            const url = HGK_TERRAIN_PROVIDER_URLS[hqKey];
             hgkTerrainProviders[hqKey] = await CesiumTerrainProvider.fromUrl(
               url
             );
           } catch (e) {
-            console.error(
-              "failed to create terrain provider for",
-              hqKey,
-              url,
-              e
-            );
+            console.error(e);
           }
         }
+
         const provider = hgkTerrainProviders[hqKey];
+
         terrainProviderRef.current = provider;
         if (viewerRef.current && provider) {
           const viewer = viewerRef.current;
           setTimeout(() => {
             // overwrite default terrain provider
-            console.debug("set HGK terrain provider for", hqKey, provider);
+            console.debug(
+              "set HGK terrain provider for",
+              hqKey,
+              isHWS,
+              provider
+            );
             viewer.scene.terrainProvider = provider;
             viewer.scene.requestRender();
           }, 500);
         }
       })();
     }
-  }, [controlState.selectedSimulation, terrainProviderRef, viewerRef]);
+  }, [isHWS, controlState.selectedSimulation, terrainProviderRef, viewerRef]);
 
   console.debug("RENDER: StateAwareChildren");
 
   return (
     <>
-      {controlState.customInfoBoxToggleState &&
-        state.selectedSimulation !== 2 && <NotesDisplay />}
-      {controlState.customInfoBoxToggleState === false &&
+      {isHWS && state.selectedSimulation !== 2 && <NotesDisplay />}
+      {!isHWS &&
         conf.simulations[state.selectedSimulation].gefaehrdungsLayer && (
           <StyledWMSTileLayer
             key={
