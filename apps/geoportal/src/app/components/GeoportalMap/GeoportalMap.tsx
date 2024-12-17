@@ -792,6 +792,7 @@ export const GeoportalMap = () => {
                 mode: uiMode,
                 dispatch,
                 zoom: getLeafletZoom(),
+                selectedFeature,
               })}
               <PrintPreview />
             </TopicMapComponent>

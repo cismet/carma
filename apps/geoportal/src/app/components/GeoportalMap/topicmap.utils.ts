@@ -271,7 +271,11 @@ const createVectorFeature = (coordinates, layer, selectedVectorFeature) => {
     `${vectorPos[1] + minimalBoxSize}` +
     `&WIDTH=10&HEIGHT=10&SRS=EPSG:25832&FORMAT=image/png&TRANSPARENT=TRUE&BGCOLOR=0xF0F0F0&EXCEPTIONS=application/vnd.ogc.se_xml&FEATURE_COUNT=99&LAYERS=${layerName}&STYLES=default&QUERY_LAYERS=${layerName}&INFO_FORMAT=text/html&X=5&Y=5`;
 
-  const properties = selectedVectorFeature.properties;
+  let properties = selectedVectorFeature.properties;
+  properties = {
+    ...properties,
+    vectorId: selectedVectorFeature.id,
+  };
   let result = "";
   let featureInfoZoom = 20;
   layer.other.keywords.forEach((keyword) => {
@@ -398,8 +402,8 @@ const onSelectionChangedVector = (
   },
   { layer, layers, dispatch, zoom, selectionHandler }
 ) => {
+  selectionHandler(e, layer);
   if (!e.hits) {
-    selectionHandler(e, layer);
   }
 
   if (e.hits && layer.queryable) {
@@ -434,10 +438,12 @@ export const createCismapLayers = (
     mode,
     dispatch,
     zoom,
+    selectedFeature,
   }: {
     mode: UIMode;
     dispatch: Dispatch;
     zoom: number;
+    selectedFeature: any;
   }
 ) => {
   const [globalHits, setGlobalHits] = useState({});
@@ -448,7 +454,7 @@ export const createCismapLayers = (
   };
   const modeRef = useRef(mode);
 
-  function getLastDefinedObject(o) {
+  const getLastDefinedObject = (o: Object) => {
     const keys = Object.keys(o);
     for (let i = keys.length - 1; i >= 0; i--) {
       const value = o[keys[i]];
@@ -457,7 +463,18 @@ export const createCismapLayers = (
       }
     }
     return undefined;
-  }
+  };
+
+  const resetSelection = (o: Object) => {
+    Object.keys(o).forEach((key) => {
+      const hits = o[key];
+      if (hits) {
+        hits.forEach((hit) => {
+          hit.setSelection(false);
+        });
+      }
+    });
+  };
 
   useEffect(() => {
     if (modeRef.current !== mode) {
@@ -484,8 +501,22 @@ export const createCismapLayers = (
       } else {
         dispatch(setSelectedFeature(null));
       }
+    } else if (selectedFeature) {
+      resetSelection(globalHits);
+      if (globalHits[selectedFeature.id]) {
+        const hits = globalHits[selectedFeature.id];
+        if (hits) {
+          hits.forEach((hit) => {
+            if (hit.id === selectedFeature.properties.wmsProps.vectorId) {
+              hit.setSelection(true);
+            } else {
+              hit.setSelection(false);
+            }
+          });
+        }
+      }
     }
-  }, [globalHits]);
+  }, [globalHits, selectedFeature]);
 
   return layers.map((layer, i) => {
     if (layer.visible) {
