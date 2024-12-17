@@ -173,9 +173,10 @@ const NavBar = ({ width = "100%", height = 73, style, inStory }) => {
           </Link>
         ))}
       </div>
+      <SearchModeList />
+
       <SearchBar />
       <div className="flex items-center gap-3">
-        <SearchModeList />
         <a
           target="d3"
           href={`http://localhost:3033/d3/?kassenzeichen=${kassenzeichenNummer}`}

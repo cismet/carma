@@ -34,8 +34,8 @@ const SearchModeList = () => {
     }
   }, [kassenzeichenliste]);
   return (
-    <Badge count={kassenzeichenliste.length} showZero>
-      <Dropdown menu={{ items: searchResults }} placement="bottom">
+    <Badge count={kassenzeichenliste.length}>
+      <Dropdown menu={{ items: searchResults }} placement="bottomRight">
         <FontAwesomeIcon icon={faList} className="h-6 cursor-pointer" />
       </Dropdown>
     </Badge>

@@ -57,6 +57,7 @@ import {
   faF,
   faLock,
   faLockOpen,
+  faMagnifyingGlass,
   faPlane,
   faImage as solidImage,
 } from "@fortawesome/free-solid-svg-icons";
@@ -330,7 +331,7 @@ const Map = ({
                 );
               }}
             >
-              <FontAwesomeIcon icon={faDrawPolygon} className={`h-6`} />
+              <FontAwesomeIcon icon={faMagnifyingGlass} className={`h-6`} />
             </div>
           </Tooltip>
           <Tooltip title="optimaler Kartenausschnitt für dieses Kassenzeichen">
