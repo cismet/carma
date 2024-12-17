@@ -86,8 +86,45 @@ export const printMap = async (
 
     const blob = await response.blob();
     const urlBlob = URL.createObjectURL(blob);
-    const newTab = window.open(urlBlob); // Open a new tab
+    window.open(urlBlob); // Open a new tab
 
+    // IFrame option
+    // // Open a new tab and write the HTML content directly
+    // const desiredFileName="DigiTalZwilling_PDF-Druck.pdf";
+    // const newTab = window.open();
+    // newTab.document.write(`
+    //   <!DOCTYPE html>
+    //   <html lang="de">
+    //   <head>
+    //     <meta charset="utf-8" />
+    //     <title>DigiTal Zwilling PDF-Druck</title>
+    //     <style>
+    //       body { margin: 0; text-align: center; font-family: Arial, sans-serif; }
+    //       iframe { width: 100%; height: 95vh; border: none; }
+    //       .download-link {
+    //           FONT-WEIGHT: 500;
+    //           text-decoration: none;
+    //           color: black;
+    //           opacity: 0.7;
+    //       }
+    //     </style>
+    //   </head>
+    //   <body>
+    //     <iframe src="${urlBlob}"></iframe>
+    //     <div>
+    //       <h1><a id="downloadLink" href="${urlBlob}" download="${desiredFileName}" class="download-link">
+    //         ⬇️ PDF speichern
+    //       </a>
+    //       </h1>
+    //     </div>
+    //   </body>
+    //   </html>
+    // `);
+
+    // // Close the document to ensure it's fully written
+    // newTab.document.close();
+
+    // Download option
     // const a = document.createElement("a");
     // a.href = urlBlob;
     // a.download = name;
