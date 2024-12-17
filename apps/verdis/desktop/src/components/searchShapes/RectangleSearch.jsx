@@ -3,10 +3,13 @@ import L from "leaflet";
 import "leaflet-draw";
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
+import { useSelector } from "react-redux";
+import { getShapeMode } from "../../store/slices/searchMode";
 window.type = true;
 const RectangleSearch = ({ map }) => {
   const drawControlRef = useRef(null);
   const editableLayersRef = useRef(new L.FeatureGroup());
+  const mode = useSelector(getShapeMode);
   useEffect(() => {
     console.log("xxx map", map);
 
@@ -46,6 +49,12 @@ const RectangleSearch = ({ map }) => {
     }
   }, [map]);
 
+  useEffect(() => {
+    if (mode === "rectangle") {
+      startDrawRect();
+    }
+  }, [map, mode]);
+
   const startDrawRect = () => {
     if (map) {
       if (drawControlRef.current) {
@@ -73,15 +82,7 @@ const RectangleSearch = ({ map }) => {
     }
   };
 
-  return (
-    <div
-      id="test-start-drawing"
-      onClick={startDrawRect}
-      className="absolute top-[120px] left-0 z-[1000]"
-    >
-      Start drawing
-    </div>
-  );
+  return null;
 };
 
 export default RectangleSearch;
