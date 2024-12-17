@@ -86,18 +86,13 @@ export const printMap = async (
 
     const blob = await response.blob();
     const urlBlob = URL.createObjectURL(blob);
-    const newTab = window.open(); // Open a new tab
-    newTab.location = urlBlob; // Set the URL of the new tab to the Blob URL
+    const newTab = window.open(urlBlob); // Open a new tab
 
     // const a = document.createElement("a");
     // a.href = urlBlob;
     // a.download = name;
     // a.click();
-    // Cleanup: Revoke the Blob URLs after a delay
-    setTimeout(() => {
-      URL.revokeObjectURL(urlBlob);
-    }, 60000); // Revoke after 60 seconds
-    handleIsLoading(false);
+
     handleIsLoading(false);
   } catch (error) {
     console.log("xxx print error message", error?.message);
