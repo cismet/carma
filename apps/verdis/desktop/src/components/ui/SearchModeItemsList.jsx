@@ -1,19 +1,43 @@
-import { faList } from "@fortawesome/free-solid-svg-icons";
+import { faList, faPlus } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Badge, Tooltip } from "antd";
-import { useEffect } from "react";
-import { useSelector } from "react-redux";
+import { Badge, Dropdown, Tooltip } from "antd";
+import { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { getKassenzeichenliste } from "../../store/slices/searchMode";
-import Dot from "../commons/Dot";
+import { searchForKassenzeichen } from "../../store/slices/search";
 
 const SearchModeList = () => {
   const kassenzeichenliste = useSelector(getKassenzeichenliste);
+  const [searchResults, setSearchResults] = useState([]);
+  const dispatch = useDispatch();
+
+  const items = [];
   useEffect(() => {
-    console.log("xxx kassenzeichenliste", kassenzeichenliste.length);
+    if (kassenzeichenliste.length > 0) {
+      const res = [];
+      kassenzeichenliste.forEach((item, idx) => {
+        res.push({
+          label: (
+            <div
+              className="flex justify-center items-center gap-2 px-1"
+              onClick={() => dispatch(searchForKassenzeichen(item))}
+            >
+              <FontAwesomeIcon icon={faPlus} />
+              <span>{item}</span>
+            </div>
+          ),
+          key: idx,
+        });
+      });
+
+      setSearchResults(res);
+    }
   }, [kassenzeichenliste]);
   return (
     <Badge count={kassenzeichenliste.length} showZero>
-      <FontAwesomeIcon icon={faList} className="h-6 cursor-pointer" />
+      <Dropdown menu={{ items: searchResults }} placement="bottom">
+        <FontAwesomeIcon icon={faList} className="h-6 cursor-pointer" />
+      </Dropdown>
     </Badge>
   );
 };
