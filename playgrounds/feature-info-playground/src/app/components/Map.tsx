@@ -19,6 +19,9 @@ import InfoBox from "react-cismap/topicmaps/InfoBox";
 import { getActionLinksForFeature } from "react-cismap/tools/uiHelper";
 import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
 import type { LatLng, Point } from "leaflet";
+window.global ||= window;
+import InfoBoxFotoPreview from "react-cismap/topicmaps/InfoBoxFotoPreview";
+import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 
 interface MapProps {
   layer: { name: string; url: string } | null;
@@ -40,6 +43,7 @@ const Map = ({ layer, selectedFeature }: MapProps) => {
   const { zoomToFeature } = useContext<typeof TopicMapDispatchContext>(
     TopicMapDispatchContext
   );
+  const lightBoxDispatchContext = useContext(LightBoxDispatchContext);
 
   useEffect(() => {
     const handleResize = () => {
@@ -101,6 +105,17 @@ const Map = ({ layer, selectedFeature }: MapProps) => {
               noCurrentFeatureTitle="nix da"
               noCurrentFeatureContent="nix da"
               links={links}
+              secondaryInfoBoxElements={
+                selectedFeature.properties.foto ||
+                selectedFeature.properties.fotos
+                  ? [
+                      <InfoBoxFotoPreview
+                        currentFeature={selectedFeature}
+                        lightBoxDispatchContext={lightBoxDispatchContext}
+                      />,
+                    ]
+                  : []
+              }
             />
           ) : (
             <></>
