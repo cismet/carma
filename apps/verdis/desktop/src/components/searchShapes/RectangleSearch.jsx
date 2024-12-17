@@ -3,49 +3,21 @@ import L from "leaflet";
 import "leaflet-draw";
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
-import { useSelector } from "react-redux";
-import { getShapeMode } from "../../store/slices/searchMode";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  getShapeMode,
+  storeKassenzeichenliste,
+  storeShapeMode,
+} from "../../store/slices/searchMode";
 window.type = true;
 const RectangleSearch = ({ map }) => {
+  const dispatch = useDispatch();
   const drawControlRef = useRef(null);
   const editableLayersRef = useRef(new L.FeatureGroup());
   const mode = useSelector(getShapeMode);
   useEffect(() => {
-    console.log("xxx map", map);
-
-    // const map = routedMapRef?.leafletMap?.leafletElement;
     if (map) {
-      //   const editableLayers = new L.FeatureGroup();
       map.addLayer(editableLayersRef.current);
-
-      //   const options = {
-      //     draw: {
-      //       polygon: false,
-      //       polyline: false,
-      //       circle: false,
-      //       marker: false,
-      //       circlemarker: false,
-      //       rectangle: {
-      //         shapeOptions: {
-      //           color: "blue",
-      //           weight: 4,
-      //         },
-      //       },
-      //     },
-      //     edit: {
-      //       featureGroup: editableLayers,
-      //       remove: false,
-      //     },
-      //   };
-
-      //   drawControlRef.current = new L.Control.Draw(options);
-      //   map.addControl(drawControlRef.current);
-
-      //   map.on("draw:created", function (e) {
-      //     const layer = e.layer;
-
-      //     editableLayers.addLayer(layer);
-      //   });
     }
   }, [map]);
 
@@ -76,7 +48,24 @@ const RectangleSearch = ({ map }) => {
         drawControlRef.current.disable();
 
         setTimeout(() => {
+          dispatch(
+            storeKassenzeichenliste([
+              "60037371",
+              "60048907",
+              "60058203",
+              // "60053055",
+              // "60082070",
+              // "60090529",
+              // "60099496",
+              // "60108065",
+              // "60108065",
+              // "60108065",
+              // "60108065",
+              // "60116902",
+            ])
+          );
           editableLayersRef.current.removeLayer(layer);
+          dispatch(storeShapeMode("default"));
         }, 3000);
       });
     }
