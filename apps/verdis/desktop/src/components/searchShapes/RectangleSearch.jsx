@@ -24,7 +24,7 @@ const RectangleSearch = ({ map }) => {
           circlemarker: false,
           rectangle: {
             shapeOptions: {
-              color: "#f357a1",
+              color: "blue",
               weight: 4,
             },
           },
@@ -37,6 +37,12 @@ const RectangleSearch = ({ map }) => {
 
       drawControlRef.current = new L.Control.Draw(options);
       map.addControl(drawControlRef.current);
+
+      map.on("draw:created", function (e) {
+        const layer = e.layer;
+
+        editableLayers.addLayer(layer);
+      });
     }
   }, [map]);
 
