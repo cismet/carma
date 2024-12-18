@@ -24,11 +24,11 @@ const RectangleSearch = ({ map }) => {
   useEffect(() => {
     if (mode === "rectangle") {
       L.drawLocal.draw.handlers.rectangle.tooltip.start =
-        "<div>Click and drag to draw a rectangle.</div>" +
-        "<div>It will set the borders for the search.</div>";
+        "<div>Klicken und ziehen, um ein Rechteck zu zeichnen.</div>" +
+        "<div>Es legt die Grenzen für die Suche fest.</div>";
 
       L.drawLocal.draw.handlers.simpleshape.tooltip.end =
-        "<div>It will set the borders for the search.</div>";
+        "<div>Maustaste loslassen zum Starten der Suche.</div>";
 
       startDrawRect();
     }
