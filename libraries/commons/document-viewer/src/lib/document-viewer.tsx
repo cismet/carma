@@ -3,6 +3,8 @@ import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
 import DocMap from "./components/DocMap";
 import { useParams } from "react-router-dom";
+import { Alert } from "react-bootstrap";
+import Icon from "react-cismap/commons/Icon";
 import "leaflet/dist/leaflet.css";
 
 export type layer = {
@@ -51,6 +53,44 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
   const [compactView, setCompactView] = useState(true);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isResizingRef = useRef(false);
+  let problemWithDocPreviewAlert = null;
+  // @ts-expect-error type is wrong
+  const pages = docs[parseInt(file!) - 1]?.meta?.pages
+    ? // @ts-expect-error type is wrong
+      docs[parseInt(file!) - 1]?.meta?.pages
+    : 0;
+
+  if (!pages) {
+    problemWithDocPreviewAlert = (
+      <div
+        style={{
+          zIndex: 234098,
+          left: "40%",
+          top: "30%",
+          width: "fit-content",
+          height: "fit-content",
+          textAlign: "center",
+          position: "absolute",
+        }}
+      >
+        <Alert style={{ width: "100%" }} variant="primary">
+          <h4>Vorschau nicht verfügbar.</h4>
+          <p>
+            Im Moment kann die Vorschau des Dokumentes nicht angezeigt werden.
+            Sie können das Dokument aber{" "}
+            <a
+              href={docs[parseInt(file!) - 1]?.url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              hier <Icon name="download" />
+            </a>{" "}
+            herunterladen.
+          </p>
+        </Alert>
+      </div>
+    );
+  }
 
   const mapHeight = "calc(100vh - 49px)";
 
@@ -104,8 +144,7 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
       >
         <Navbar
           title={docs[0]?.title || docs[0].docTitle}
-          // @ts-expect-error type is wrong
-          maxIndex={docs[parseInt(file!) - 1]?.meta.pages as unknown as number}
+          maxIndex={pages}
           downloadUrl={docs[parseInt(file!) - 1]?.url}
           docs={docs}
           setHeightTrigger={setWholeHeightTrigger}
@@ -143,10 +182,7 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
               docs={docs}
               index={parseInt(file!)}
               // TODO fix type
-              maxIndex={
-                // @ts-expect-error type is wrong
-                docs[parseInt(file!) - 1]?.meta.pages as unknown as number
-              }
+              maxIndex={pages}
               mode={mode}
               compactView={compactView}
             />
@@ -172,6 +208,7 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
           }}
           ref={mapWrapperRef}
         >
+          {problemWithDocPreviewAlert}
           <DocMap
             docs={docs}
             index={parseInt(file!)}

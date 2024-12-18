@@ -24,7 +24,7 @@ export function App() {
     const extra = await fetch(url)
       .then((response) => {
         if (!response.ok) {
-          throw new Error("Network response was not ok");
+          return undefined;
         }
         return response.json();
       })
@@ -38,8 +38,8 @@ export function App() {
     await Promise.all(
       tmpDocs.map(async (doc: Doc) => {
         // @ts-expect-error meta type inconsistent
-        const test2 = await getMeta(doc.meta); // TODO check this
-        doc.meta = test2;
+        const meta = await getMeta(doc.meta); // TODO check this
+        doc.meta = meta;
       })
     );
 
