@@ -84,6 +84,15 @@ const parseZoom = (
   return { maxzoom, minzoom };
 };
 
+function isJson(str) {
+  try {
+    JSON.parse(str);
+  } catch (e) {
+    return false;
+  }
+  return true;
+}
+
 export const parseToMapLayer = async (
   layer: Item,
   forceWMS: boolean,
@@ -96,20 +105,27 @@ export const parseToMapLayer = async (
   const carmaConf = extractCarmaConfig(layer.keywords);
   if (layer.type === "layer") {
     if (carmaConf?.vectorStyle && !forceWMS) {
-      const zoom = await fetch(carmaConf.vectorStyle)
-        .then((response) => {
-          return response.json();
-        })
-        .then((result) => {
-          const parsedZoom = parseZoom(
-            result.layers.filter((layer) => !layer.id.includes("selection")),
-            {
-              minzoom: 9,
-              maxzoom: 24,
-            }
-          );
-          return parsedZoom;
-        });
+      console.log("xxx", carmaConf.vectorStyle);
+      let zoom = {
+        minzoom: 9,
+        maxzoom: 24,
+      };
+      if (!isJson(carmaConf.vectorStyle)) {
+        zoom = await fetch(carmaConf.vectorStyle)
+          .then((response) => {
+            return response.json();
+          })
+          .then((result) => {
+            const parsedZoom = parseZoom(
+              result.layers.filter((layer) => !layer.id.includes("selection")),
+              {
+                minzoom: 9,
+                maxzoom: 24,
+              }
+            );
+            return parsedZoom;
+          });
+      }
       newLayer = {
         title: layer.title,
         id: id,
@@ -125,10 +141,12 @@ export const parseToMapLayer = async (
         useInFeatureInfo: true,
         visible: visible,
         props: {
-          style: carmaConf.vectorStyle,
+          style: isJson(carmaConf.vectorStyle)
+            ? JSON.parse(carmaConf.vectorStyle)
+            : carmaConf.vectorStyle,
           minZoom: Number(carmaConf.minZoom) || zoom?.minzoom,
           maxZoom: Number(carmaConf.maxZoom) || zoom?.maxzoom,
-          legend: layer.props.Style[0].LegendURL,
+          legend: layer?.props?.Style[0].LegendURL,
         },
         other: {
           ...layer,

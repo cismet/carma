@@ -31,6 +31,7 @@ import { SidebarItem } from "./SidebarItems";
 import "./input.css";
 import "./modal.css";
 import ItemGrid from "./ItemGrid";
+import { isEmpty } from "lodash";
 const { Search } = Input;
 
 // @ts-expect-error tbd
@@ -378,43 +379,63 @@ export const NewLibModal = ({
     return () => clearTimeout(timer);
   }, [open]);
 
+  const addItemToCategory = (
+    categoryId: string,
+    subCategory: { id: string; Title: string },
+    item: SavedLayerConfig
+  ) => {
+    setShownCategories((prev) => {
+      const newCategories = [...prev];
+      newCategories.map((cat) => {
+        if (cat.id === categoryId) {
+          let subCats = cat.categories;
+          let newSubCat = {};
+          subCats.forEach((subCat) => {
+            if (subCat.id === subCategory.id) {
+              newSubCat = subCat;
+              newSubCat.layers.push(item);
+            }
+          });
+          if (isEmpty(newSubCat)) {
+            cat.categories.push({
+              id: subCategory.id,
+              Title: subCategory.Title,
+              layers: [item],
+            });
+          } else {
+            return newSubCat;
+          }
+        }
+      });
+      return newCategories;
+    });
+  };
+
   useEffect(() => {
     const handleDrop = (event: DragEvent) => {
       event.preventDefault();
+      setOpen(true);
       const url = event.dataTransfer?.getData("URL");
 
       const file = event?.dataTransfer?.files[0];
 
-      if (file) {
-        file
-          .text()
-          .then((text) => {
-            const result = parser.toJSON(text);
-            const ownLayers = getDataFromJson(result);
-            if (ownLayers) {
-              setShownCategories((prev) => {
-                if (prev.find((item) => item.id === "mapLayers")) {
-                  prev.splice(
-                    prev.findIndex((item) => item.id === "mapLayers"),
-                    1
-                  );
-                }
-                return [
-                  ...prev,
-                  {
-                    id: "mapLayers",
-                    categories: [...ownLayers, ...allLayers],
-                  },
-                ];
-              });
-            }
-          })
-          .catch((error) => {
-            // setError(error.message);
-          });
-      }
+      if (url && url.endsWith("style.json")) {
+        const newItem = {
+          description: "",
+          id: `custom:${url}`,
+          layerType: "vector",
+          title: url.slice(0, -5),
+          serviceName: "custom",
+          type: "layer",
+          keywords: [`carmaConf://vectorStyle:${url}`],
+        };
 
-      if (url) {
+        addItemToCategory(
+          "mapLayers",
+          { id: "custom", Title: "Eigene Daten" },
+          newItem
+        );
+      } else if (url) {
         fetch(url)
           .then((response) => {
             return response.text();
@@ -443,6 +464,78 @@ export const NewLibModal = ({
           })
           .catch((error) => {
             console.log("xxx error", error);
+          });
+      }
+
+      if (file && file.name.endsWith("style.json")) {
+        // Handle file drop
+
+        console.log("File dropped:", file.name, file);
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            // Attempt to parse the file content as JSON
+            const fileContent = e.target?.result;
+            if (typeof fileContent === "string") {
+              const processedContent = fileContent.replace(
+                /__SERVER_URL__/g,
+                "https://tiles.cismet.de"
+              );
+
+              const jsonData = JSON.parse(processedContent);
+              console.log("xxx Parsed JSON from file:", jsonData);
+
+              const newItem = {
+                description: "",
+                id: `custom:${file.name}`,
+                layerType: "vector",
+                title: file.name,
+                serviceName: "custom",
+                type: "layer",
+                keywords: [
+                  `carmaConf://vectorStyle:${JSON.stringify(jsonData)}`,
+                ],
+              };
+
+              addItemToCategory(
+                "mapLayers",
+                { id: "custom", Title: "Eigene Daten" },
+                newItem
+              );
+            }
+          } catch (error) {
+            console.error("Failed to parse the file as JSON:", error);
+          }
+        };
+
+        reader.readAsText(file);
+      } else if (file) {
+        file
+          .text()
+          .then((text) => {
+            const result = parser.toJSON(text);
+            const ownLayers = getDataFromJson(result);
+            if (ownLayers) {
+              setShownCategories((prev) => {
+                if (prev.find((item) => item.id === "mapLayers")) {
+                  prev.splice(
+                    prev.findIndex((item) => item.id === "mapLayers"),
+                    1
+                  );
+                }
+                return [
+                  ...prev,
+                  {
+                    id: "mapLayers",
+                    categories: [...ownLayers, ...allLayers],
+                  },
+                ];
+              });
+            }
+          })
+          .catch((error) => {
+            // setError(error.message);
           });
       }
     };

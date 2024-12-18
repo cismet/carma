@@ -73,6 +73,8 @@ const ResourceModal = () => {
 
     newLayer = await utils.parseToMapLayer(layer, forceWMS, true);
 
+    console.log("xxx", newLayer);
+
     if (activeLayers.find((activeLayer) => activeLayer.id === id)) {
       try {
         dispatch(removeLayer(id));
