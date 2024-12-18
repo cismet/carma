@@ -393,6 +393,7 @@ export const NewLibModal = ({
           subCats.forEach((subCat) => {
             if (subCat.id === subCategory.id) {
               newSubCat = subCat;
+              // @ts-expect-error
               newSubCat.layers.push(item);
             }
           });
@@ -433,6 +434,7 @@ export const NewLibModal = ({
         addItemToCategory(
           "mapLayers",
           { id: "custom", Title: "Eigene Daten" },
+          // @ts-expect-error
           newItem
         );
       } else if (url) {
@@ -501,6 +503,7 @@ export const NewLibModal = ({
               addItemToCategory(
                 "mapLayers",
                 { id: "custom", Title: "Eigene Daten" },
+                // @ts-expect-error
                 newItem
               );
             }
