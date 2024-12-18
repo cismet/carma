@@ -57,6 +57,7 @@ import {
 import NotesDisplay from "./NotesDisplay";
 import versionData from "./version.json";
 
+import { useHGKCesiumTerrain } from "./hooks/useHGKCesiumTerrain";
 import useLeafletZoomControls from "./hooks/useLeafletZoomControls";
 
 import config from "./config";
@@ -64,12 +65,12 @@ import { HGK_KEYS, HGK_TERRAIN_PROVIDER_URLS } from "./config/app.config";
 import { CESIUM_CONFIG } from "./config/cesium/cesium.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
-import { useHGKCesiumTerrain } from "./hooks/useHGKCesiumTerrain";
 
 // TODO replace by hiding UI props for EnviroMetricMap
 const envirometricMapStyleOverrides = `
-  .leaflet-top { display: none !important; }
-  .leaflet-bottom.leaflet-left { display: none !important; }
+  .hover-control { display: none !important; }
+  # .leaflet-top { display: none !important; }
+  # .leaflet-bottom.leaflet-left { display: none !important; }
 `;
 
 // disable cesium canvas background transparency
@@ -210,7 +211,7 @@ function App() {
     }
   };
 
-  const handleControlStateToggle = (controlState) => {
+  const enableControlStateToggle = (controlState) => {
     return controlState.selectedSimulation !== 2;
   };
 
@@ -323,18 +324,16 @@ function App() {
         modeSwitcherTitle="Hochwassergefahrenkarte Wuppertal"
         documentTitle="Hochwassergefahrenkarte Wuppertal"
         gazData={gazData}
-        // TODO disable Leaflet builin controls
         locatorControl={false}
         fullScreenControl={false}
         zoomControls={false}
-        // TODO DISABLE GAZETTEER
         gazetteerSearchControl={false}
         animationEnabled={false}
         toggleEnabled={true}
         customInfoBoxToggleState={hochwasserschutz}
         customInfoBoxToggleStateSetter={setHochwasserschutz}
         customInfoBoxDerivedToggleState={onToggleState}
-        customInfoBoxDerivedToggleClickable={handleControlStateToggle}
+        customInfoBoxDerivedToggleClickable={enableControlStateToggle}
       >
         <CrossTabCommunicationControl hideWhenNoSibblingIsPresent={true} />
         <StateAwareChildren />
