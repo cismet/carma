@@ -402,13 +402,13 @@ export const NewLibModal = ({
           });
           if (!newSubCat) {
             if (Array.isArray(item)) {
-              cat.categories.push({
+              cat.categories.unshift({
                 id: subCategory.id,
                 Title: subCategory.Title,
                 layers: item,
               });
             } else {
-              cat.categories.push({
+              cat.categories.unshift({
                 id: subCategory.id,
                 Title: subCategory.Title,
                 layers: [item],
