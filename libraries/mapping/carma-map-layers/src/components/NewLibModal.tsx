@@ -416,6 +416,7 @@ export const NewLibModal = ({
     const handleDrop = (event: DragEvent) => {
       event.preventDefault();
       setOpen(true);
+      setSelectedNavItemIndex(3);
       const url = event.dataTransfer?.getData("URL");
 
       const file = event?.dataTransfer?.files[0];
