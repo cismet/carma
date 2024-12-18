@@ -53,7 +53,7 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
   const [compactView, setCompactView] = useState(true);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isResizingRef = useRef(false);
-  let problemWithDocPreviewAlert = null;
+  let problemWithDocPreviewAlert: JSX.Element | null = null;
   // @ts-expect-error type is wrong
   const pages = docs[parseInt(file!) - 1]?.meta?.pages
     ? // @ts-expect-error type is wrong
