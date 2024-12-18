@@ -1,8 +1,10 @@
-export { suppressReactCismapErrors } from "./lib/log-react-cismap-errors";
+export { isNumberArrayEqual } from "./lib/arrays";
 
 export { type CarmaConfig, extractCarmaConfig } from "./lib/carmaConfig";
 
 export { getGazData, type GazDataItem, type SourceConfig } from "./lib/gazData";
+
+export { suppressReactCismapErrors } from "./lib/log-react-cismap-errors";
 
 export {
   PROJ4_CONVERTERS,

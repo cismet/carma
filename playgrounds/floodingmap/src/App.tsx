@@ -1,7 +1,13 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { Tooltip } from "antd";
-import { Cartographic, Math as CesiumMath, Color } from "cesium";
+import {
+  Cartographic,
+  Math as CesiumMath,
+  Color,
+  ScreenSpaceEventHandler,
+  ScreenSpaceEventType,
+} from "cesium";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCompress,
@@ -32,7 +38,10 @@ import {
   useSelectionTopicMap,
 } from "@carma-apps/portals";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
-import { getApplicationVersion } from "@carma-commons/utils";
+import {
+  getApplicationVersion,
+  isNumberArrayEqual,
+} from "@carma-commons/utils";
 import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/hochwassergefahrenkarte";
 
 import {
@@ -366,6 +375,7 @@ function App() {
   );
 }
 const StateAwareChildren = () => {
+  // ENVIROMETRICMAP
   const { controlState } = useContext<typeof EnviroMetricMapContext>(
     EnviroMetricMapContext
   );
@@ -373,7 +383,58 @@ const StateAwareChildren = () => {
   const isHWS = controlState.customInfoBoxToggleState;
 
   const conf = config.config;
-  const state = controlState;
+
+  // CESIUM
+  const { viewerRef } = useCesiumContext();
+  const [cesiumPickedPosition, setCesiumPickedPosition] = useState<
+    [number, number] | null
+  >(null);
+
+  const prevPositionRef = useRef<[number, number] | null>(null);
+
+  useEffect(() => {
+    if (viewerRef.current) {
+      const viewer = viewerRef.current;
+
+      const handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
+      handler.setInputAction((click) => {
+        const cartesian = viewer.scene.pickPosition(click.position);
+        if (cartesian) {
+          const cartographic = Cartographic.fromCartesian(cartesian);
+          const lat = CesiumMath.toDegrees(cartographic.latitude);
+          const lon = CesiumMath.toDegrees(cartographic.longitude);
+          const height = cartographic.height;
+          setCesiumPickedPosition([lat, lon]);
+          console.log(
+            `Clicked position - Lat: ${lat}, Lon: ${lon}, Height: ${height}m`
+          );
+        }
+      }, ScreenSpaceEventType.LEFT_CLICK);
+
+      return () => {
+        handler.destroy();
+        setCesiumPickedPosition(null);
+      };
+    }
+  }, [viewerRef]);
+
+  useEffect(() => {
+    if (
+      cesiumPickedPosition &&
+      (!prevPositionRef.current ||
+        !isNumberArrayEqual(prevPositionRef.current, cesiumPickedPosition))
+    ) {
+      console.debug(
+        "cesium picked position changed",
+        controlState,
+        cesiumPickedPosition
+      );
+      prevPositionRef.current = cesiumPickedPosition;
+
+      // TODO add setter for feature info here
+      //setCurrentFeatureInfoPosition(cesiumPickedPosition);
+    }
+  }, [cesiumPickedPosition, controlState]);
 
   useHGKCesiumTerrain(
     controlState.selectedSimulation,
@@ -386,25 +447,29 @@ const StateAwareChildren = () => {
 
   return (
     <>
-      {isHWS && state.selectedSimulation !== 2 && <NotesDisplay />}
+      {isHWS && controlState.selectedSimulation !== 2 && <NotesDisplay />}
       {!isHWS &&
-        conf.simulations[state.selectedSimulation].gefaehrdungsLayer && (
+        conf.simulations[controlState.selectedSimulation].gefaehrdungsLayer && (
           <StyledWMSTileLayer
             key={
               "rainHazardMap.depthLayer" +
-              conf.simulations[state.selectedSimulation].gefaehrdungsLayer +
+              conf.simulations[controlState.selectedSimulation]
+                .gefaehrdungsLayer +
               "." +
-              state.selectedBackground
+              controlState.selectedBackground
             }
             url={conf.modelWMS}
             layers={
-              conf.simulations[state.selectedSimulation].gefaehrdungsLayer
+              conf.simulations[controlState.selectedSimulation]
+                .gefaehrdungsLayer
             }
             version="1.1.1"
             transparent="true"
             format="image/png"
             tiled={true}
-            styles={conf.simulations[state.selectedSimulation].depthStyle}
+            styles={
+              conf.simulations[controlState.selectedSimulation].depthStyle
+            }
             maxZoom={22}
             opacity={0.8}
           />
