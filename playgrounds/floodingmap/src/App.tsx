@@ -1,12 +1,7 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { Tooltip } from "antd";
-import {
-  Cartographic,
-  Math as CesiumMath,
-  CesiumTerrainProvider,
-  Color,
-} from "cesium";
+import { Cartographic, Math as CesiumMath, Color } from "cesium";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCompress,
@@ -69,15 +64,13 @@ import { HGK_KEYS, HGK_TERRAIN_PROVIDER_URLS } from "./config/app.config";
 import { CESIUM_CONFIG } from "./config/cesium/cesium.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
+import { useHGKCesiumTerrain } from "./hooks/useHGKCesiumTerrain";
 
 // TODO replace by hiding UI props for EnviroMetricMap
 const envirometricMapStyleOverrides = `
   .leaflet-top { display: none !important; }
   .leaflet-bottom.leaflet-left { display: none !important; }
 `;
-
-// reuse terrain provider instances
-const hgkTerrainProviders = {};
 
 // disable cesium canvas background transparency
 const constructorOptions = {
@@ -377,57 +370,18 @@ const StateAwareChildren = () => {
   const { controlState } = useContext<typeof EnviroMetricMapContext>(
     EnviroMetricMapContext
   );
-  const { terrainProviderRef, viewerRef } = useCesiumContext();
 
   const isHWS = controlState.customInfoBoxToggleState;
 
   const conf = config.config;
   const state = controlState;
 
-  useEffect(() => {
-    const useHws = isHWS && controlState.selectedSimulation !== 2;
-    const hqKey =
-      HGK_KEYS[controlState.selectedSimulation][useHws ? "hws" : "noHws"];
-    console.info(
-      "hqKey changed",
-      hqKey,
-      controlState.selectedSimulation,
-      useHws,
-      HGK_TERRAIN_PROVIDER_URLS[hqKey]
-    );
-    if (hqKey) {
-      (async () => {
-        if (!hgkTerrainProviders[hqKey]) {
-          try {
-            const url = HGK_TERRAIN_PROVIDER_URLS[hqKey];
-            hgkTerrainProviders[hqKey] = await CesiumTerrainProvider.fromUrl(
-              url
-            );
-          } catch (e) {
-            console.error(e);
-          }
-        }
-
-        const provider = hgkTerrainProviders[hqKey];
-
-        terrainProviderRef.current = provider;
-        if (viewerRef.current && provider) {
-          const viewer = viewerRef.current;
-          setTimeout(() => {
-            // overwrite default terrain provider
-            console.debug(
-              "set HGK terrain provider for",
-              hqKey,
-              isHWS,
-              provider
-            );
-            viewer.scene.terrainProvider = provider;
-            viewer.scene.requestRender();
-          }, 500);
-        }
-      })();
-    }
-  }, [isHWS, controlState.selectedSimulation, terrainProviderRef, viewerRef]);
+  useHGKCesiumTerrain(
+    controlState.selectedSimulation,
+    isHWS,
+    HGK_KEYS,
+    HGK_TERRAIN_PROVIDER_URLS
+  );
 
   console.debug("RENDER: StateAwareChildren");
 
