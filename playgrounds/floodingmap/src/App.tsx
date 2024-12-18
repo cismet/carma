@@ -415,7 +415,7 @@ const StateAwareChildren = () => {
           const newMarker = viewer.entities.add({
             position: cartesian,
             box: {
-              dimensions: new Cartesian3(1.0, 1.0, 5.0),
+              dimensions: new Cartesian3(0.3, 0.3, 2.0),
               material: Color.ORANGE,
               outline: false,
             },

@@ -37,7 +37,7 @@ export const defaultCesiumState: CesiumState = {
   sceneSpaceCameraController: {
     enableCollisionDetection: true,
     maximumZoomDistance: 50000,
-    minimumZoomDistance: 100,
+    minimumZoomDistance: 10,
   },
   sceneStyles: {
     primary: {

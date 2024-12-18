@@ -9,6 +9,7 @@ import { APP_BASE_PATH } from "../app.config";
 
 export const CESIUM_PATHNAME = "__cesium__";
 
+// see also cesium State in store
 export const CESIUM_CONFIG: CesiumConfig = {
   transitions: {
     mapMode: {
@@ -16,7 +17,7 @@ export const CESIUM_CONFIG: CesiumConfig = {
     },
   },
   camera: {
-    minPitch: 15,
+    minPitch: 5,
     minPitchRange: 10,
   },
   markerKey: "MarkerGlowLine",
