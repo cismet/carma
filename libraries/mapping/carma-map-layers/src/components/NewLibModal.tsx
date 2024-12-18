@@ -389,20 +389,18 @@ export const NewLibModal = ({
       newCategories.map((cat) => {
         if (cat.id === categoryId) {
           let subCats = cat.categories;
-          let newSubCat = {};
+          let newSubCat: LayerCategories | undefined = undefined;
           subCats.forEach((subCat) => {
             if (subCat.id === subCategory.id) {
               newSubCat = subCat;
               if (Array.isArray(item)) {
-                // @ts-expect-error
                 newSubCat.layers.push(...item);
               } else {
-                // @ts-expect-error
                 newSubCat.layers.push(item);
               }
             }
           });
-          if (isEmpty(newSubCat)) {
+          if (!newSubCat) {
             if (Array.isArray(item)) {
               cat.categories.push({
                 id: subCategory.id,
