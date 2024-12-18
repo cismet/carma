@@ -270,7 +270,7 @@ export const serviceConfig: Record<string, LayerConfig> = {
 };
 
 export const topicMapsConfig: Config = {
-  Title: "TopicMaps",
+  Title: "TopicMaps Wuppertal",
   serviceName: "wuppTopicMaps",
   layers: [
     {
