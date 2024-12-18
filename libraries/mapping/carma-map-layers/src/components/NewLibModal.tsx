@@ -575,7 +575,7 @@ export const NewLibModal = ({
           };
         });
 
-        return searchCategories;
+        return searchCategories.filter((cat) => cat.id !== "searchResults");
       } else {
         return null;
       }
