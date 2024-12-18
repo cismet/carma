@@ -382,7 +382,7 @@ export const NewLibModal = ({
   const addItemToCategory = (
     categoryId: string,
     subCategory: { id: string; Title: string },
-    item: SavedLayerConfig
+    item: SavedLayerConfig | SavedLayerConfig[]
   ) => {
     setShownCategories((prev) => {
       const newCategories = [...prev];
@@ -393,16 +393,29 @@ export const NewLibModal = ({
           subCats.forEach((subCat) => {
             if (subCat.id === subCategory.id) {
               newSubCat = subCat;
-              // @ts-expect-error
-              newSubCat.layers.push(item);
+              if (Array.isArray(item)) {
+                // @ts-expect-error
+                newSubCat.layers.push(...item);
+              } else {
+                // @ts-expect-error
+                newSubCat.layers.push(item);
+              }
             }
           });
           if (isEmpty(newSubCat)) {
-            cat.categories.push({
-              id: subCategory.id,
-              Title: subCategory.Title,
-              layers: [item],
-            });
+            if (Array.isArray(item)) {
+              cat.categories.push({
+                id: subCategory.id,
+                Title: subCategory.Title,
+                layers: item,
+              });
+            } else {
+              cat.categories.push({
+                id: subCategory.id,
+                Title: subCategory.Title,
+                layers: [item],
+              });
+            }
           } else {
             return newSubCat;
           }
@@ -448,21 +461,11 @@ export const NewLibModal = ({
 
             const ownLayers = getDataFromJson(result);
             if (ownLayers) {
-              setShownCategories((prev) => {
-                if (prev.find((item) => item.id === "mapLayers")) {
-                  prev.splice(
-                    prev.findIndex((item) => item.id === "mapLayers"),
-                    1
-                  );
-                }
-                return [
-                  ...prev,
-                  {
-                    id: "mapLayers",
-                    categories: [...ownLayers, ...allLayers],
-                  },
-                ];
-              });
+              addItemToCategory(
+                "mapLayers",
+                { id: "custom", Title: "Eigene Daten" },
+                ownLayers[0].layers
+              );
             }
           })
           .catch((error) => {
@@ -521,21 +524,11 @@ export const NewLibModal = ({
             const result = parser.toJSON(text);
             const ownLayers = getDataFromJson(result);
             if (ownLayers) {
-              setShownCategories((prev) => {
-                if (prev.find((item) => item.id === "mapLayers")) {
-                  prev.splice(
-                    prev.findIndex((item) => item.id === "mapLayers"),
-                    1
-                  );
-                }
-                return [
-                  ...prev,
-                  {
-                    id: "mapLayers",
-                    categories: [...ownLayers, ...allLayers],
-                  },
-                ];
-              });
+              addItemToCategory(
+                "mapLayers",
+                { id: "custom", Title: "Eigene Daten" },
+                ownLayers[0].layers
+              );
             }
           })
           .catch((error) => {
