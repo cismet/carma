@@ -2,10 +2,11 @@ import { Doc, DocumentViewer } from "@carma-commons/document-viewer";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "leaflet/dist/leaflet.css";
 import { useEffect, useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import {
+  getBPLaene,
   getPlanFeatureByGazObject,
   loadBPlaene,
 } from "../store/slices/bplaene";
@@ -17,6 +18,7 @@ export function App() {
   const dispatch = useDispatch();
   let { docPackageId } = useParams();
   const [docs, setDocs] = useState<Doc[]>([]);
+  const bplaene = useSelector(getBPLaene);
 
   const getMeta = async (url: string) => {
     const extra = await fetch(url)
@@ -46,14 +48,16 @@ export function App() {
 
   useEffect(() => {
     dispatch(loadBPlaene() as unknown as UnknownAction);
+  }, []);
 
+  useEffect(() => {
     const getUpdatedDocs = async (tmpDocs: Doc[]) => {
       const updatedDocs = await getDocsWithUpdatedMetaData(tmpDocs);
 
       setDocs(updatedDocs);
     };
 
-    if (docPackageId) {
+    if (docPackageId && bplaene) {
       let tmpDocs;
       tmpDocs = getDocsForBPlaeneGazetteerEntry({
         gazHit: {
@@ -65,14 +69,13 @@ export function App() {
             getPlanFeatureByGazObject(aevs, done) as unknown as UnknownAction
           ),
       });
-
       if (tmpDocs) {
         getUpdatedDocs(tmpDocs);
       }
     }
 
     document.title = `Dokumentenansicht | ${docPackageId}`;
-  }, [docPackageId]);
+  }, [docPackageId, bplaene]);
 
   return (
     <>{docs.length > 0 && <DocumentViewer docs={docs} mode="bplaene" />}</>
