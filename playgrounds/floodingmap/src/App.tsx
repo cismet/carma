@@ -429,6 +429,7 @@ const StateAwareChildren = () => {
         setCesiumPickedPosition(null);
         if (markerEntityRef.current) {
           viewer.entities.remove(markerEntityRef.current);
+          viewer.scene.requestRender();
           markerEntityRef.current = null;
         }
       };
