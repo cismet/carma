@@ -561,7 +561,21 @@ export const NewLibModal = ({
   const categoriesToShownLayers = (categories, shownId) => {
     if (shownId === "searchResults") {
       if (searchValue) {
-        return categories.map((category) => category.categories).flat();
+        const searchCategories = sidebarElements.map((element) => {
+          const matchingCategory = categories.find(
+            (category) => category.id === element.id
+          );
+          const elementLayers =
+            matchingCategory?.categories.map((cat) => cat.layers).flat() || [];
+
+          return {
+            Title: element.text,
+            id: element.id,
+            layers: elementLayers,
+          };
+        });
+
+        return searchCategories;
       } else {
         return null;
       }
