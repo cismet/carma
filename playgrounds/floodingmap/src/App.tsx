@@ -2,9 +2,11 @@ import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { Tooltip } from "antd";
 import {
+  Cartesian3,
   Cartographic,
   Math as CesiumMath,
   Color,
+  Entity,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
 } from "cesium";
@@ -18,7 +20,10 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 
 import EnviroMetricMap from "@cismet-dev/react-cismap-envirometrics-maps/EnviroMetricMap";
-import { EnviroMetricMapContext } from "@cismet-dev/react-cismap-envirometrics-maps/EnviroMetricMapContextProvider";
+import {
+  EnviroMetricMapContext,
+  EnviroMetricMapDispatchContext,
+} from "@cismet-dev/react-cismap-envirometrics-maps/EnviroMetricMapContextProvider";
 
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import { version as cismapEnvirometricsVersion } from "@cismet-dev/react-cismap-envirometrics-maps/meta";
@@ -370,6 +375,9 @@ const StateAwareChildren = () => {
   const { controlState } = useContext<typeof EnviroMetricMapContext>(
     EnviroMetricMapContext
   );
+  const { executeFeatureInfoRequest } = useContext<
+    typeof EnviroMetricMapDispatchContext
+  >(EnviroMetricMapDispatchContext);
 
   const isHWS = controlState.customInfoBoxToggleState;
 
@@ -380,11 +388,12 @@ const StateAwareChildren = () => {
   const [cesiumPickedPosition, setCesiumPickedPosition] = useState<
     [number, number] | null
   >(null);
+  const markerEntityRef = useRef<Entity | null>(null);
 
   const prevPositionRef = useRef<[number, number] | null>(null);
 
   useEffect(() => {
-    if (viewerRef.current) {
+    if (viewerRef.current && controlState.featureInfoModeActivated) {
       const viewer = viewerRef.current;
 
       const handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
@@ -394,23 +403,54 @@ const StateAwareChildren = () => {
           const cartographic = Cartographic.fromCartesian(cartesian);
           const lat = CesiumMath.toDegrees(cartographic.latitude);
           const lon = CesiumMath.toDegrees(cartographic.longitude);
-          const height = cartographic.height;
+          //const height = cartographic.height;
           setCesiumPickedPosition([lat, lon]);
-          console.log(
-            `Clicked position - Lat: ${lat}, Lon: ${lon}, Height: ${height}m`
-          );
+
+          // Remove existing marker if any
+          if (markerEntityRef.current) {
+            viewer.entities.remove(markerEntityRef.current);
+          }
+
+          // Create new marker rod
+          const newMarker = viewer.entities.add({
+            position: cartesian,
+            box: {
+              dimensions: new Cartesian3(1.0, 1.0, 5.0),
+              material: Color.ORANGE,
+              outline: false,
+            },
+          });
+          markerEntityRef.current = newMarker;
         }
       }, ScreenSpaceEventType.LEFT_CLICK);
 
       return () => {
         handler.destroy();
         setCesiumPickedPosition(null);
+        if (markerEntityRef.current) {
+          viewer.entities.remove(markerEntityRef.current);
+          markerEntityRef.current = null;
+        }
       };
     }
-  }, [viewerRef]);
+  }, [viewerRef, controlState.featureInfoModeActivated]);
+
+  // Add effect to cleanup marker when feature info mode is disabled
+  useEffect(() => {
+    if (
+      !controlState.featureInfoModeActivated &&
+      markerEntityRef.current &&
+      viewerRef.current
+    ) {
+      viewerRef.current.entities.remove(markerEntityRef.current);
+      markerEntityRef.current = null;
+      setCesiumPickedPosition(null);
+    }
+  }, [viewerRef, controlState.featureInfoModeActivated]);
 
   useEffect(() => {
     if (
+      controlState.featureInfoModeActivated &&
       cesiumPickedPosition &&
       (!prevPositionRef.current ||
         !isNumberArrayEqual(prevPositionRef.current, cesiumPickedPosition))
@@ -418,14 +458,18 @@ const StateAwareChildren = () => {
       console.debug(
         "cesium picked position changed",
         controlState,
-        cesiumPickedPosition
+        cesiumPickedPosition,
+        executeFeatureInfoRequest
       );
       prevPositionRef.current = cesiumPickedPosition;
 
       // TODO add setter for feature info here
-      //setCurrentFeatureInfoPosition(cesiumPickedPosition);
+      executeFeatureInfoRequest({
+        lat: cesiumPickedPosition[0],
+        lng: cesiumPickedPosition[1],
+      });
     }
-  }, [cesiumPickedPosition, controlState]);
+  }, [cesiumPickedPosition, controlState.featureInfoModeActivated]);
 
   useHGKCesiumTerrain(
     controlState.selectedSimulation,
