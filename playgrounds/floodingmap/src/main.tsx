@@ -7,6 +7,7 @@ import { PersistGate } from "redux-persist/integration/react";
 
 import { MappingConstants } from "react-cismap";
 import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
+import { CrossTabCommunicationContextProvider } from "react-cismap/contexts/CrossTabCommunicationContextProvider";
 
 import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
 import { TweakpaneProvider } from "@carma-commons/debug";
@@ -25,6 +26,17 @@ suppressReactCismapErrors();
 setupCesiumEnvironment();
 
 const persistor = persistStore(store);
+// TODO enable sync when needed
+const isSyncEnabled = false;
+
+const syncedApp = (
+  <CrossTabCommunicationContextProvider
+    role="sync"
+    token="floodingAndRainhazardSyncWupp"
+  >
+    <App sync={true} />
+  </CrossTabCommunicationContextProvider>
+);
 
 const appWithContext = (
   <GazDataProvider sourcesConfig={sourcesConfig} prefix={prefix}>
@@ -40,7 +52,7 @@ const appWithContext = (
           providerConfig={CESIUM_CONFIG.providerConfig}
           tilesetConfigs={CESIUM_CONFIG.tilesetConfigs}
         >
-          <App />
+          {isSyncEnabled ? syncedApp : <App />}
         </CesiumContextProvider>
       </TopicMapContextProvider>
     </SelectionProvider>

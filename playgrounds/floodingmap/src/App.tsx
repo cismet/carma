@@ -23,7 +23,6 @@ import { EnviroMetricMapContext } from "@cismet-dev/react-cismap-envirometrics-m
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import { version as cismapEnvirometricsVersion } from "@cismet-dev/react-cismap-envirometrics-maps/meta";
 import CrossTabCommunicationControl from "react-cismap/CrossTabCommunicationControl";
-import { CrossTabCommunicationContextProvider } from "react-cismap/contexts/CrossTabCommunicationContextProvider";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
@@ -74,20 +73,14 @@ import { HGK_KEYS, HGK_TERRAIN_PROVIDER_URLS } from "./config/app.config";
 import { CESIUM_CONFIG } from "./config/cesium/cesium.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
-
-// TODO replace by hiding UI props for EnviroMetricMap
-const envirometricMapStyleOverrides = `
-  .hover-control { display: none !important; }
-  # .leaflet-top { display: none !important; }
-  # .leaflet-bottom.leaflet-left { display: none !important; }
-`;
+import { content } from "../tailwind.config.cjs";
 
 // disable cesium canvas background transparency
 const constructorOptions = {
   contextOptions: { webgl: { alpha: false } },
 };
 
-function App() {
+function App({ sync = false }: { sync?: boolean }) {
   const version = getApplicationVersion(versionData);
 
   const { gazData } = useGazData();
@@ -245,11 +238,7 @@ function App() {
   console.debug("RENDER: HGK App");
 
   return (
-    <CrossTabCommunicationContextProvider
-      role="sync"
-      token="floodingAndRainhazardSyncWupp"
-    >
-      <style>{envirometricMapStyleOverrides}</style>
+    <>
       <div
         className="controls-container"
         style={{
@@ -344,7 +333,9 @@ function App() {
         customInfoBoxDerivedToggleState={onToggleState}
         customInfoBoxDerivedToggleClickable={enableControlStateToggle}
       >
-        <CrossTabCommunicationControl hideWhenNoSibblingIsPresent={true} />
+        {sync && (
+          <CrossTabCommunicationControl hideWhenNoSibblingIsPresent={true} />
+        )}
         <StateAwareChildren />
         <TopicMapSelectionContent />
       </EnviroMetricMap>
@@ -371,7 +362,7 @@ function App() {
           onSceneChange={onCesiumSceneChange}
         ></CustomViewer>
       </div>
-    </CrossTabCommunicationContextProvider>
+    </>
   );
 }
 const StateAwareChildren = () => {
