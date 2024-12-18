@@ -55,26 +55,40 @@ const RectangleSearch = ({ map }) => {
         editableLayersRef.current.addLayer(layer);
         drawControlRef.current.disable();
 
-        setTimeout(() => {
-          dispatch(
-            storeKassenzeichenliste([
-              "60037371",
-              "60048907",
-              "60058203",
-              // "60053055",
-              // "60082070",
-              // "60090529",
-              // "60099496",
-              // "60108065",
-              // "60108065",
-              // "60108065",
-              // "60108065",
-              // "60116902",
-            ])
-          );
-          editableLayersRef.current.removeLayer(layer);
-          dispatch(storeShapeMode("default"));
-        }, 2000);
+        const bounds = layer.getBounds();
+        const southWest = bounds.getSouthWest();
+        const northEast = bounds.getNorthEast();
+        const northWest = bounds.getNorthWest();
+        const southEast = bounds.getSouthEast();
+
+        const coordBox = [
+          [southWest.lat, southWest.lng],
+          [northWest.lat, northWest.lng],
+          [northEast.lat, northEast.lng],
+          [southEast.lat, southEast.lng],
+          [southWest.lat, southWest.lng],
+        ];
+
+        // setTimeout(() => {
+        //   dispatch(
+        //     storeKassenzeichenliste([
+        //       "60037371",
+        //       "60048907",
+        //       "60058203",
+        //       // "60053055",
+        //       // "60082070",
+        //       // "60090529",
+        //       // "60099496",
+        //       // "60108065",
+        //       // "60108065",
+        //       // "60108065",
+        //       // "60108065",
+        //       // "60116902",
+        //     ])
+        //   );
+        //   editableLayersRef.current.removeLayer(layer);
+        //   dispatch(storeShapeMode("default"));
+        // }, 2000);
       });
     }
   };
