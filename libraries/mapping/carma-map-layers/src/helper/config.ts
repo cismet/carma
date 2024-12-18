@@ -945,630 +945,6 @@ export const poiCategoryWithKeywords = {
 };
 
 export const baseConfig = {
-  karten: {
-    Title: "Basis",
-    serviceName: "wuppKarten",
-    layers: [
-      {
-        name: "alf",
-        icon: "basis/Flurkarte_farbig_ABK",
-      },
-      {
-        name: "algw",
-        icon: "basis/Flurkarte_Graustufen_ABK",
-      },
-      {
-        name: "alkomf",
-        icon: "basis/Stadtgrundkarte_farbig_ABK",
-      },
-      {
-        name: "alkomgw",
-        icon: "basis/Stadtgrundkarte_Graustufen_ABK",
-      },
-      {
-        name: "albsf",
-        icon: "basis/Schätzungskarte_farbig_ABK",
-      },
-      {
-        name: "albsgw",
-        icon: "basis/Schätzungskarte_Graustufen_ABK",
-      },
-      {
-        name: "expsw",
-        pictureBoundingBox: [
-          784874.5156892611, 6655868.893474152, 821182.1041247197,
-          6679927.448126909,
-        ],
-        icon: "basis/Expresskarte_Strichkarte_schwarz",
-      },
-      {
-        name: "expg",
-        pictureBoundingBox: [
-          784874.5156892611, 6655868.893474152, 821182.1041247197,
-          6679927.448126909,
-        ],
-        icon: "basis/Expresskarte_Strichkarte_gelb",
-      },
-      {
-        name: "abkf",
-        icon: "basis/Amtliche_Basiskarte_farbig",
-      },
-      {
-        name: "abkg",
-        icon: "basis/Amtliche_Basiskarte_Graustufen_ABK",
-      },
-      {
-        name: "abkt",
-        icon: "basis/Amtliche_Basiskarte_Graustufen_transparent",
-      },
-      {
-        name: "spw2_orange",
-        icon: "basis/SPW_Orange",
-      },
-      {
-        name: "spw2_light",
-        icon: "basis/SPW_Light",
-      },
-      {
-        name: "spw2_graublau",
-        icon: "basis/SPW_Graublau",
-      },
-      {
-        name: "oepnv_rvr",
-        icon: "basis/SPW_Light_OEPNV",
-      },
-      {
-        name: "hillshade",
-        icon: "basis/Reliefschummerung",
-      },
-      {
-        name: "R102:UEK125",
-        pictureBoundingBox: [
-          784874.5156892611, 6655868.893474152, 821182.1041247197,
-          6679927.448126909,
-        ],
-        icon: "basis/Übersichtskarte_RS-SG-W",
-      },
-      {
-        name: "R102:STADTRSW",
-        icon: "basis/Stadtplan_RS-SG-W",
-      },
-      {
-        name: "R102:stadtgrundkarte_hausnr",
-        keywords: [":vec:"],
-        icon: "basis/Stadtgrundkarte_Hausnummern",
-      },
-      {
-        name: "urban",
-        keywords: [":vec:"],
-        icon: "basis/Urban_Atlas",
-      },
-      {
-        name: "wuppertal:1827",
-        pictureBoundingBox: [
-          784874.5156892611, 6655868.893474152, 821182.1041247197,
-          6679927.448126909,
-        ],
-        icon: "basis/W-1827",
-      },
-      {
-        name: "wuppertal:1929",
-        pictureBoundingBox: [
-          784874.5156892611, 6655868.893474152, 821182.1041247197,
-          6679927.448126909,
-        ],
-        icon: "basis/W-1929",
-      },
-      {
-        name: "wuppertal:1979",
-        pictureBoundingBox: [
-          784874.5156892611, 6655868.893474152, 821182.1041247197,
-          6679927.448126909,
-        ],
-        icon: "basis/W-1979",
-      },
-      {
-        name: "wuppertal:2004",
-        pictureBoundingBox: [
-          784874.5156892611, 6655868.893474152, 821182.1041247197,
-          6679927.448126909,
-        ],
-        icon: "basis/W-2004",
-      },
-      {
-        name: "R102:DGK:schwarz",
-        icon: "basis/DKG_Grundriss_Schwarz-Weiss_transparent_12-2013",
-      },
-      {
-        name: "R102:DGK:gelb",
-        icon: "basis/DKG_Grundriss_Gelb-Weiss_transparent_12-2013",
-      },
-      {
-        name: "R102:DGK:grau",
-        icon: "basis/DKG_Grundriss_Graustufen_transparent_12-2013",
-      },
-      {
-        name: "R102:DGK:grau_nt",
-        icon: "basis/DKG_Grundriss_Graustufen_12-2013",
-      },
-      {
-        name: "bplanreihe",
-        icon: "basis/BPlanreihe",
-      },
-      {
-        name: "bplanhintergrund",
-        keywords: [":vec:", `carmaConf://minZoom:9`],
-        icon: "basis/BPlanhintergrund",
-      },
-      {
-        name: "R102:trueortho2022",
-        icon: "basis/Tru_Orthofoto_2018-2022",
-      },
-      {
-        name: "R102:trueortho2020",
-        icon: "basis/Tru_Orthofoto_2018-2022",
-      },
-      {
-        name: "R102:trueortho2018",
-        icon: "basis/Tru_Orthofoto_2018-2022",
-      },
-      {
-        name: "R102:luftbild2022",
-        icon: "basis/Orthofoto_2002-2022",
-      },
-      {
-        name: "R102:luftbild2020",
-        icon: "basis/Orthofoto_2002-2022",
-      },
-      {
-        name: "R102:luftbild2018",
-        icon: "basis/Orthofoto_2002-2022",
-      },
-      {
-        name: "R102:luftbild2016",
-        icon: "basis/Orthofoto_2002-2022",
-      },
-      {
-        name: "R102:luftbild2014",
-        icon: "basis/Orthofoto_2002-2022",
-      },
-      {
-        name: "R102:luftbild2012",
-        icon: "basis/Orthofoto_2002-2022",
-      },
-      {
-        name: "R102:luftbild2010",
-        icon: "basis/Orthofoto_2002-2022",
-      },
-      {
-        name: "R102:luftbild2007",
-        icon: "basis/Orthofoto_2002-2022",
-      },
-      {
-        name: "R102:luftbild2005",
-        icon: "basis/Orthofoto_2002-2022",
-      },
-      {
-        name: "R102:luftbild2002",
-        icon: "basis/Orthofoto_2002-2022",
-      },
-      {
-        name: "R102:luftbild1997",
-        icon: "basis/Orthofoto_1986-1997",
-      },
-      {
-        name: "R102:luftbild1991",
-        icon: "basis/Orthofoto_1986-1997",
-      },
-      {
-        name: "R102:luftbild1985",
-        icon: "basis/Orthofoto_1986-1997",
-      },
-      {
-        name: "R102:luftbild1979",
-        icon: "basis/Orthofoto_1979",
-      },
-      {
-        name: "R102:luftbild1928",
-        icon: "basis/Orthofoto_1928",
-      },
-    ],
-  },
-  Umwelt: {
-    Title: "Umwelt",
-    serviceName: "wuppUmwelt",
-    layers: [
-      {
-        name: "baeume",
-        icon: "umwelt/Bäume",
-        keywords: [":vec:"],
-      },
-      {
-        name: "kga",
-        pictureBoundingBox: [
-          790989.4779520752, 6664143.201786021, 800673.0939729535,
-          6670157.840449209,
-        ],
-        keywords: [":vec:"],
-        icon: "umwelt/kleingärten",
-      },
-      {
-        name: "boden:radon",
-        pictureBoundingBox: [
-          790989.4779520752, 6664143.201786021, 800673.0939729535,
-          6670157.840449209,
-        ],
-        keywords: [":vec:", "carmaConf://minZoom:9"],
-        icon: "umwelt/Radon_Potenzialkarte",
-      },
-      {
-        name: "uschwemm_ermittelt",
-        pictureBoundingBox: [
-          790989.4779520752, 6664143.201786021, 800673.0939729535,
-          6670157.840449209,
-        ],
-        icon: "umwelt/ermittelte_Überschwemmungsgebiete",
-      },
-      {
-        name: "uschwemm_vor",
-        pictureBoundingBox: [
-          808524.6099721214, 6664293.687185457, 813466.7415821848,
-          6667301.006517054,
-        ],
-        icon: "umwelt/vorläufige_gesicherte_Überschwemmungsgebiete",
-      },
-      {
-        name: "uschwemm_fest",
-        pictureBoundingBox: [
-          790989.4779520752, 6664143.201786021, 800673.0939729535,
-          6670157.840449209,
-        ],
-        icon: "umwelt/festgesetzte_Überschwemmungsgebiete",
-      },
-      {
-        name: "gefahr_niedrig",
-        pictureBoundingBox: [
-          790989.4779520752, 6664143.201786021, 800673.0939729535,
-          6670157.840449209,
-        ],
-        icon: "umwelt/Wahrscheinlichkeiten_Überschwemmungsgrenzen",
-      },
-      {
-        name: "gefahr_mittel",
-        pictureBoundingBox: [
-          790989.4779520752, 6664143.201786021, 800673.0939729535,
-          6670157.840449209,
-        ],
-        icon: "umwelt/Wahrscheinlichkeiten_Überschwemmungsgrenzen",
-      },
-      {
-        name: "gefahr_hoch",
-        pictureBoundingBox: [
-          790989.4779520752, 6664143.201786021, 800673.0939729535,
-          6670157.840449209,
-        ],
-        icon: "umwelt/Wahrscheinlichkeiten_Überschwemmungsgrenzen",
-      },
-      {
-        name: "risiko_niedrig",
-        pictureBoundingBox: [
-          790989.4779520752, 6664143.201786021, 800673.0939729535,
-          6670157.840449209,
-        ],
-        icon: "umwelt/Wahrscheinlichkeiten_Überschwemmungsgrenzen",
-      },
-      {
-        name: "risiko_mittel",
-        pictureBoundingBox: [
-          790989.4779520752, 6664143.201786021, 800673.0939729535,
-          6670157.840449209,
-        ],
-        icon: "umwelt/Wahrscheinlichkeiten_Überschwemmungsgrenzen",
-      },
-      {
-        name: "risiko_hoch",
-        pictureBoundingBox: [
-          790989.4779520752, 6664143.201786021, 800673.0939729535,
-          6670157.840449209,
-        ],
-        icon: "umwelt/Wahrscheinlichkeiten_Überschwemmungsgrenzen",
-      },
-      {
-        name: "R102:50md",
-        icon: "umwelt/Starkregen-SRI-6-max-Wassertiefe",
-      },
-      {
-        name: "R102:50d",
-        icon: "umwelt/Starkregen_Fliessrichtung",
-      },
-      {
-        name: "R102:50v",
-        icon: "umwelt/Starkregen_SRI_6-7_Fließgeschwindigkeit",
-      },
-      {
-        name: "R102:100md",
-        icon: "umwelt/Starkregen_SRI_6-7_max_Wassertiefe",
-      },
-      {
-        name: "R102:100d",
-        icon: "umwelt/Starkregen_Fliessrichtung",
-      },
-      {
-        name: "R102:100v",
-        icon: "umwelt/Starkregen_SRI_6-7_Fließgeschwindigkeit",
-      },
-      {
-        name: "R102:90md",
-        icon: "umwelt/Starkregen_SRI_10_max_Wassertiefe",
-      },
-      {
-        name: "R102:90d",
-        icon: "umwelt/Starkregen_Fliessrichtung",
-      },
-      {
-        name: "R102:90v",
-        icon: "umwelt/Starkregen_SRI_10_Fließgeschwindigkeit",
-      },
-      {
-        name: "R102:SRmd",
-        icon: "umwelt/Regen_v_29052018_Wassertiefe",
-      },
-      {
-        name: "R102:SRd",
-        icon: "umwelt/Starkregen_Fliessrichtung",
-      },
-      {
-        name: "R102:SRv",
-        icon: "umwelt/Regen_v_29052018_Fliessgeschwindigkeit",
-      },
-      {
-        name: "Klimafunktion",
-        icon: "umwelt/Klimafunktionskarte",
-      },
-      {
-        name: "Planhinweise",
-        icon: "umwelt/Planhinweiskarte_Klima",
-      },
-      {
-        name: "Nachtsituation",
-        icon: "umwelt/Wärmebild_Nachtsituation",
-      },
-      {
-        name: "Tagsituation",
-        icon: "umwelt/Wärmebild_Tagessituation",
-      },
-      {
-        name: "Hitze-Ist",
-        keywords: [":vec:"],
-        icon: "umwelt/Hitzeinseln_Ist-Zustand",
-      },
-      {
-        name: "Hitze-Stark-Ist",
-        keywords: [":vec:"],
-        icon: "umwelt/Starke_Hitzebelastung",
-      },
-      {
-        name: "Hitze-2050",
-        keywords: [":vec:"],
-        icon: "umwelt/Ausweitung_Hitzebelastung_Zukunftsszenario_2050",
-      },
-      {
-        name: "Frischluftschneisen",
-        keywords: [":vec:"],
-        icon: "umwelt/Luftleitbahnen",
-      },
-      {
-        name: "Freiflaechen",
-        pictureBoundingBox: [
-          790989.4779520752, 6664143.201786021, 800673.0939729535,
-          6670157.840449209,
-        ],
-        keywords: [":vec:"],
-        icon: "umwelt/Freiflächen",
-      },
-      {
-        name: "umweltzonen",
-        keywords: [":vec:"],
-        icon: "umwelt/Umweltzonen",
-      },
-      {
-        name: "uwz",
-        keywords: [":vec:"],
-        icon: "umwelt/Umweltzonen_TM",
-      },
-      {
-        name: "no2",
-        keywords: [":vec:"],
-        icon: "umwelt/Luftmessstationen_Passivsammler",
-      },
-      {
-        name: "lugi2000",
-        keywords: [":vec:"],
-        icon: "umwelt/Luftgüte_2000",
-      },
-      {
-        name: "lugi1987",
-        keywords: [":vec:"],
-        icon: "umwelt/Luftgüte_1987",
-      },
-      {
-        name: "solar_year",
-        icon: "umwelt/Jahres-Solarpotenzial",
-      },
-      {
-        name: "solar_zy_photo",
-        pictureBoundingBox: [
-          790989.4779520752, 6664143.201786021, 800673.0939729535,
-          6670157.840449209,
-        ],
-        keywords: [":vec:"],
-        icon: "umwelt/Solarpotenzial_Dächer_Strom",
-      },
-      {
-        name: "solar_zy_therm",
-        pictureBoundingBox: [
-          790989.4779520752, 6664143.201786021, 800673.0939729535,
-          6670157.840449209,
-        ],
-        keywords: [":vec:"],
-        icon: "umwelt/Solarpotenzial_Dächer_Wärme",
-      },
-      {
-        name: "solar_umring",
-        keywords: [":vec:"],
-        icon: "umwelt/Dachflächenumringung",
-      },
-      {
-        name: "solar_karte",
-        icon: "umwelt/Hintergrundkarte_Solar",
-      },
-      {
-        name: "laerm2016:STR_RAST_DEN",
-        pictureBoundingBox: [
-          784621.3180330665, 6660622.321170634, 794304.9340539448,
-          6666636.959833823,
-        ],
-        icon: "umwelt/2016_Str-verkehrslärm_LDEN",
-      },
-      {
-        name: "laerm2016:STR_RAST_NGT",
-        pictureBoundingBox: [
-          784621.3180330665, 6660622.321170634, 794304.9340539448,
-          6666636.959833823,
-        ],
-        icon: "umwelt/2016_Str-verkehrslärm_LNight",
-      },
-      {
-        name: "laerm2016:SCS_RAST_DEN",
-        pictureBoundingBox: [
-          793306.4753719696, 6664907.572068873, 802990.091392848,
-          6670922.2107320605,
-        ],
-        icon: "umwelt/2016_Schienenverkehrslärm_Schwebebahn_LDEN",
-      },
-      {
-        name: "laerm2016:SCS_RAST_NGT",
-        pictureBoundingBox: [
-          793306.4753719696, 6664907.572068873, 802990.091392848,
-          6670922.2107320605,
-        ],
-        icon: "umwelt/2016_Schienenverkehrslärm_Schwebebahn_LNight",
-      },
-      {
-        name: "laerm2016:LDEN_BAHN",
-        pictureBoundingBox: [
-          793306.4753719696, 6664907.572068873, 802990.091392848,
-          6670922.2107320605,
-        ],
-        icon: "umwelt/2016_Schienenverkehrslärm_Bundeseisenbahn_LDEN",
-      },
-      {
-        name: "laerm2016:LNIGHT_BAHN",
-        pictureBoundingBox: [
-          793306.4753719696, 6664907.572068873, 802990.091392848,
-          6670922.2107320605,
-        ],
-        icon: "umwelt/2016_Schienenverkehrslärm_Bundeseisenbahn_LNight",
-      },
-      {
-        name: "laerm2016:IND_RAST_DEN",
-        pictureBoundingBox: [
-          788913.734902706, 6663818.344415807, 793755.542913145,
-          6666825.663747405,
-        ],
-        icon: "umwelt/2016_Gewerbelärm_LDEN",
-      },
-      {
-        name: "laerm2016:IND_RAST_NGT",
-        pictureBoundingBox: [
-          788913.734902706, 6663818.344415807, 793755.542913145,
-          6666825.663747405,
-        ],
-        icon: "umwelt/2016_Gewerbelärm_LNight",
-      },
-      {
-        name: "laerm2022:STR_RAST_DEN",
-        pictureBoundingBox: [
-          784621.3180330665, 6660622.321170634, 794304.9340539448,
-          6666636.959833823,
-        ],
-        icon: "umwelt/2022_Str-verkehrslaerm_LDEN_Day_Ev_Night",
-      },
-      {
-        name: "laerm2022:STR_RAST_NGT",
-        pictureBoundingBox: [
-          784621.3180330665, 6660622.321170634, 794304.9340539448,
-          6666636.959833823,
-        ],
-        icon: "umwelt/2022_Str-verkehrslärm_LNight",
-      },
-      {
-        name: "laerm2022:SCS_RAST_DEN",
-        pictureBoundingBox: [
-          793306.4753719696, 6664907.572068873, 802990.091392848,
-          6670922.2107320605,
-        ],
-        icon: "umwelt/2022_Schienenverkehrslärm_Schwebebahn_LDEN",
-      },
-      {
-        name: "laerm2022:SCS_RAST_NGT",
-        pictureBoundingBox: [
-          793306.4753719696, 6664907.572068873, 802990.091392848,
-          6670922.2107320605,
-        ],
-        icon: "umwelt/2022_Schienenverkehrslärm_Schwebebahn_LNight",
-      },
-      {
-        name: "laerm:LDEN_BAHN_4",
-        pictureBoundingBox: [
-          793306.4753719696, 6664907.572068873, 802990.091392848,
-          6670922.2107320605,
-        ],
-        icon: "umwelt/2022_Schienenverkehrslärm_Bundeseisenbahn_LDEN",
-      },
-      {
-        name: "laerm:LNIGHT_BAHN_4",
-        pictureBoundingBox: [
-          793306.4753719696, 6664907.572068873, 802990.091392848,
-          6670922.2107320605,
-        ],
-        icon: "umwelt/2022_Schienenverkehrslärm_Bundeseisenbahn_LNight",
-      },
-      {
-        name: "laerm2022:IND_RAST_DEN",
-        pictureBoundingBox: [
-          788913.734902706, 6663818.344415807, 793755.542913145,
-          6666825.663747405,
-        ],
-        icon: "umwelt/2022_Gewerbelärm_LDEN",
-      },
-      {
-        name: "laerm2022:IND_RAST_NGT",
-        pictureBoundingBox: [
-          788913.734902706, 6663818.344415807, 793755.542913145,
-          6666825.663747405,
-        ],
-        icon: "umwelt/2022_Gewerbelärm_LNight",
-      },
-      {
-        name: "stadt:kompensationoe",
-        pictureBoundingBox: [
-          790989.4779520752, 6664143.201786021, 800673.0939729535,
-          6670157.840449209,
-        ],
-        keywords: [":vec:"],
-        icon: "umwelt/Veröffentlichte_Kompensationsflächen",
-      },
-      {
-        name: "naturdenkmale",
-        pictureBoundingBox: [
-          790989.4779520752, 6664143.201786021, 800673.0939729535,
-          6670157.840449209,
-        ],
-        icon: "umwelt/Naturdenkmale",
-      },
-    ],
-  },
   POI: {
     Title: "POI",
     serviceName: "wuppPOI",
@@ -2212,255 +1588,6 @@ export const baseConfig = {
       },
     ],
   },
-  Infra: {
-    Title: "Infrastruktur",
-    serviceName: "wuppInfra",
-    layers: [
-      {
-        name: "apotheken",
-        keywords: [":vec:"],
-        icon: "infra/Apotheken",
-      },
-      {
-        name: "breitband_hk",
-        keywords: [":vec:"],
-        icon: "infra/Breitbandausbau_Hauskoordinaten_FTTB",
-      },
-      {
-        name: "container",
-        keywords: [":vec:"],
-        icon: "infra/Containerstandorte",
-      },
-      {
-        name: "zvb",
-        keywords: [":vec:"],
-        icon: "infra/Zentrale_Versorgungsbereiche",
-      },
-      {
-        name: "zvb-erw",
-        keywords: [":vec:"],
-        icon: "infra/Erweiterungsbereiche",
-      },
-      {
-        name: "fernwaermewsw",
-        keywords: [":vec:"],
-        icon: "infra/Fernwärmenetz_WSW",
-      },
-      {
-        name: "fernsued",
-        keywords: [":vec:"],
-        icon: "infra/Geltungsbereich",
-      },
-      {
-        name: "belis_Masten",
-        keywords: [":vec:"],
-        icon: "infra/Leuchten",
-      },
-      {
-        name: "eplusbest",
-        keywords: [":vec:"],
-        icon: "infra/Bestehende_Telefonica_Anlagen",
-      },
-      {
-        name: "o2best",
-        keywords: [":vec:"],
-        icon: "infra/Bestehende_O2_Anlagen",
-      },
-      {
-        name: "tmobilebest",
-        keywords: [":vec:"],
-        icon: "infra/Bestehende_Telekom_Anlagen",
-      },
-      {
-        name: "vodafonebest",
-        keywords: [":vec:"],
-        icon: "infra/Bestehende_Vodafone_Anlagen",
-      },
-      {
-        name: "belis_Leitungen",
-        keywords: [":vec:"],
-        icon: "infra/Leitungen",
-      },
-      {
-        name: "fernsuedl",
-        keywords: [":vec:"],
-        icon: "infra/Betriebsfertige_Leitungen",
-      },
-      {
-        name: "belis_Masten_mit_e",
-        keywords: [":vec:"],
-        icon: "infra/Masten_m_Anschluss",
-      },
-      {
-        name: "schaechte",
-        pictureBoundingBox: [
-          801365.804541788, 6668672.095711919, 801671.5526549286,
-          6668977.84382506,
-        ],
-        icon: "infra/Schächte",
-      },
-      {
-        name: "sc_txt",
-        pictureBoundingBox: [
-          801365.804541788, 6668672.095711919, 801671.5526549286,
-          6668977.84382506,
-        ],
-        icon: "infra/Schachttexte",
-      },
-      {
-        name: "haltungen",
-        pictureBoundingBox: [
-          801365.804541788, 6668672.095711919, 801671.5526549286,
-          6668977.84382506,
-        ],
-        icon: "infra/Haltungen",
-      },
-      {
-        name: "ha_txt",
-        pictureBoundingBox: [
-          801365.804541788, 6668672.095711919, 801671.5526549286,
-          6668977.84382506,
-        ],
-        icon: "infra/Haltungstexte",
-      },
-      {
-        name: "sflaechen",
-        pictureBoundingBox: [
-          801365.804541788, 6668672.095711919, 801671.5526549286,
-          6668977.84382506,
-        ],
-        icon: "infra/Entwässerungsflächen",
-      },
-      {
-        name: "fl_txt",
-        pictureBoundingBox: [
-          801365.804541788, 6668672.095711919, 801671.5526549286,
-          6668977.84382506,
-        ],
-        icon: "infra/Flächentexte",
-      },
-    ],
-  },
-  Gebiet: {
-    Title: "Gebiete",
-    serviceName: "wuppGebiet",
-    layers: [
-      {
-        name: "R102:fluruebersicht",
-        icon: "gebiet/Flur-_u_Gemarkungsübersicht",
-      },
-      {
-        name: "kst_landtagswahlkreise",
-        keywords: [":vec:"],
-        icon: "gebiet/Landtagswahlkreise",
-      },
-      {
-        name: "kst_knoten",
-        keywords: [":vec:"],
-        icon: "gebiet/Knoten",
-      },
-      {
-        name: "kst_segment",
-        keywords: [":vec:"],
-        icon: "gebiet/Segmente",
-      },
-      {
-        name: "kst_segmenttypen",
-        keywords: [":vec:"],
-        icon: "gebiet/Segmenttypen",
-      },
-      {
-        name: "kst_segment_hnr",
-        keywords: [":vec:"],
-        icon: "gebiet/Segmente_m_Hausnummer",
-      },
-      {
-        name: "kst_segment_steigung",
-        keywords: [":vec:"],
-        icon: "gebiet/Segmente_m_Steigung",
-      },
-      {
-        name: "kst_baubloecke",
-        keywords: [":vec:"],
-        icon: "gebiet/Baublöcke",
-      },
-      {
-        name: "kst_quartiere",
-        keywords: [":vec:"],
-        icon: "gebiet/Quartiere",
-      },
-      {
-        name: "kst_stadtbezirk",
-        keywords: [":vec:"],
-        icon: "gebiet/Stadtbezirk",
-      },
-      {
-        name: "kst_stadtgebiet",
-        keywords: [":vec:"],
-        icon: "gebiet/Stadtgebiet",
-      },
-      {
-        name: "kst_statistische_bezirke",
-        keywords: [":vec:"],
-        icon: "gebiet/Statistische_Bezirke",
-      },
-      {
-        name: "kst_stimmbezirke",
-        keywords: [":vec:"],
-        icon: "gebiet/Stimmbezirke",
-      },
-      {
-        name: "kst_kommunalwahlbezirke",
-        keywords: [":vec:"],
-        icon: "gebiet/Kommunalwahlbezirke",
-      },
-      {
-        name: "kst_bundestagswahlkreise",
-        keywords: [":vec:"],
-        icon: "gebiet/Bundestagswahlkreise",
-      },
-      {
-        name: "gitter_kreuze",
-        icon: "gebiet/Gitterkreuze_ETRS89_50x50m",
-      },
-      {
-        name: "gitter_gk_500",
-        icon: "gebiet/Gitter_GK2_500x250m",
-      },
-      {
-        name: "gitter_500",
-        icon: "gebiet/Gitter_ETRS89_500x250m",
-      },
-      {
-        name: "gitter_gk_1000",
-        icon: "gebiet/Gitter_GK2_1x1km",
-      },
-      {
-        name: "gitter_1000",
-        icon: "gebiet/Gitter_ETRS89_1x1km",
-      },
-      {
-        name: "gitter_bezirke",
-        icon: "gebiet/Nummerierungsbezirke_ETRS89_1x1km",
-      },
-      {
-        name: "gitter_gk_2000",
-        icon: "gebiet/Gitter_GK2_2x2km",
-      },
-      {
-        name: "gitter_2000",
-        icon: "gebiet/Gitter_ETRS89_2x2km",
-      },
-      {
-        name: "hoehenu",
-        icon: "gebiet/1m-Höhenlinien",
-      },
-      {
-        name: "hoehenv",
-        icon: "gebiet/1m-Höhenlinien",
-      },
-    ],
-  },
   Verkehr: {
     Title: "Verkehr",
     serviceName: "wuppVerkehr",
@@ -2590,6 +1717,530 @@ export const baseConfig = {
         name: "reitwege",
         keywords: [":vec:"],
         icon: "mobi/Reitwege",
+      },
+    ],
+  },
+  Umwelt: {
+    Title: "Umwelt",
+    serviceName: "wuppUmwelt",
+    layers: [
+      {
+        name: "baeume",
+        icon: "umwelt/Bäume",
+        keywords: [":vec:"],
+      },
+      {
+        name: "kga",
+        pictureBoundingBox: [
+          790989.4779520752, 6664143.201786021, 800673.0939729535,
+          6670157.840449209,
+        ],
+        keywords: [":vec:"],
+        icon: "umwelt/kleingärten",
+      },
+      {
+        name: "boden:radon",
+        pictureBoundingBox: [
+          790989.4779520752, 6664143.201786021, 800673.0939729535,
+          6670157.840449209,
+        ],
+        keywords: [":vec:", "carmaConf://minZoom:9"],
+        icon: "umwelt/Radon_Potenzialkarte",
+      },
+      {
+        name: "uschwemm_ermittelt",
+        pictureBoundingBox: [
+          790989.4779520752, 6664143.201786021, 800673.0939729535,
+          6670157.840449209,
+        ],
+        icon: "umwelt/ermittelte_Überschwemmungsgebiete",
+      },
+      {
+        name: "uschwemm_vor",
+        pictureBoundingBox: [
+          808524.6099721214, 6664293.687185457, 813466.7415821848,
+          6667301.006517054,
+        ],
+        icon: "umwelt/vorläufige_gesicherte_Überschwemmungsgebiete",
+      },
+      {
+        name: "uschwemm_fest",
+        pictureBoundingBox: [
+          790989.4779520752, 6664143.201786021, 800673.0939729535,
+          6670157.840449209,
+        ],
+        icon: "umwelt/festgesetzte_Überschwemmungsgebiete",
+      },
+      {
+        name: "gefahr_niedrig",
+        pictureBoundingBox: [
+          790989.4779520752, 6664143.201786021, 800673.0939729535,
+          6670157.840449209,
+        ],
+        icon: "umwelt/Wahrscheinlichkeiten_Überschwemmungsgrenzen",
+      },
+      {
+        name: "gefahr_mittel",
+        pictureBoundingBox: [
+          790989.4779520752, 6664143.201786021, 800673.0939729535,
+          6670157.840449209,
+        ],
+        icon: "umwelt/Wahrscheinlichkeiten_Überschwemmungsgrenzen",
+      },
+      {
+        name: "gefahr_hoch",
+        pictureBoundingBox: [
+          790989.4779520752, 6664143.201786021, 800673.0939729535,
+          6670157.840449209,
+        ],
+        icon: "umwelt/Wahrscheinlichkeiten_Überschwemmungsgrenzen",
+      },
+      {
+        name: "risiko_niedrig",
+        pictureBoundingBox: [
+          790989.4779520752, 6664143.201786021, 800673.0939729535,
+          6670157.840449209,
+        ],
+        icon: "umwelt/Wahrscheinlichkeiten_Überschwemmungsgrenzen",
+      },
+      {
+        name: "risiko_mittel",
+        pictureBoundingBox: [
+          790989.4779520752, 6664143.201786021, 800673.0939729535,
+          6670157.840449209,
+        ],
+        icon: "umwelt/Wahrscheinlichkeiten_Überschwemmungsgrenzen",
+      },
+      {
+        name: "risiko_hoch",
+        pictureBoundingBox: [
+          790989.4779520752, 6664143.201786021, 800673.0939729535,
+          6670157.840449209,
+        ],
+        icon: "umwelt/Wahrscheinlichkeiten_Überschwemmungsgrenzen",
+      },
+      {
+        name: "R102:50md",
+        icon: "umwelt/Starkregen-SRI-6-max-Wassertiefe",
+      },
+      {
+        name: "R102:50d",
+        icon: "umwelt/Starkregen_Fliessrichtung",
+      },
+      {
+        name: "R102:50v",
+        icon: "umwelt/Starkregen_SRI_6-7_Fließgeschwindigkeit",
+      },
+      {
+        name: "R102:100md",
+        icon: "umwelt/Starkregen_SRI_6-7_max_Wassertiefe",
+      },
+      {
+        name: "R102:100d",
+        icon: "umwelt/Starkregen_Fliessrichtung",
+      },
+      {
+        name: "R102:100v",
+        icon: "umwelt/Starkregen_SRI_6-7_Fließgeschwindigkeit",
+      },
+      {
+        name: "R102:90md",
+        icon: "umwelt/Starkregen_SRI_10_max_Wassertiefe",
+      },
+      {
+        name: "R102:90d",
+        icon: "umwelt/Starkregen_Fliessrichtung",
+      },
+      {
+        name: "R102:90v",
+        icon: "umwelt/Starkregen_SRI_10_Fließgeschwindigkeit",
+      },
+      {
+        name: "R102:SRmd",
+        icon: "umwelt/Regen_v_29052018_Wassertiefe",
+      },
+      {
+        name: "R102:SRd",
+        icon: "umwelt/Starkregen_Fliessrichtung",
+      },
+      {
+        name: "R102:SRv",
+        icon: "umwelt/Regen_v_29052018_Fliessgeschwindigkeit",
+      },
+      {
+        name: "Klimafunktion",
+        icon: "umwelt/Klimafunktionskarte",
+      },
+      {
+        name: "Planhinweise",
+        icon: "umwelt/Planhinweiskarte_Klima",
+      },
+      {
+        name: "Nachtsituation",
+        icon: "umwelt/Wärmebild_Nachtsituation",
+      },
+      {
+        name: "Tagsituation",
+        icon: "umwelt/Wärmebild_Tagessituation",
+      },
+      {
+        name: "Hitze-Ist",
+        keywords: [":vec:"],
+        icon: "umwelt/Hitzeinseln_Ist-Zustand",
+      },
+      {
+        name: "Hitze-Stark-Ist",
+        keywords: [":vec:"],
+        icon: "umwelt/Starke_Hitzebelastung",
+      },
+      {
+        name: "Hitze-2050",
+        keywords: [":vec:"],
+        icon: "umwelt/Ausweitung_Hitzebelastung_Zukunftsszenario_2050",
+      },
+      {
+        name: "Frischluftschneisen",
+        keywords: [":vec:"],
+        icon: "umwelt/Luftleitbahnen",
+      },
+      {
+        name: "Freiflaechen",
+        pictureBoundingBox: [
+          790989.4779520752, 6664143.201786021, 800673.0939729535,
+          6670157.840449209,
+        ],
+        keywords: [":vec:"],
+        icon: "umwelt/Freiflächen",
+      },
+      {
+        name: "umweltzonen",
+        keywords: [":vec:"],
+        icon: "umwelt/Umweltzonen",
+      },
+      {
+        name: "uwz",
+        keywords: [":vec:"],
+        icon: "umwelt/Umweltzonen_TM",
+      },
+      {
+        name: "no2",
+        keywords: [":vec:"],
+        icon: "umwelt/Luftmessstationen_Passivsammler",
+      },
+      {
+        name: "lugi2000",
+        keywords: [":vec:"],
+        icon: "umwelt/Luftgüte_2000",
+      },
+      {
+        name: "lugi1987",
+        keywords: [":vec:"],
+        icon: "umwelt/Luftgüte_1987",
+      },
+      {
+        name: "solar_year",
+        icon: "umwelt/Jahres-Solarpotenzial",
+      },
+      {
+        name: "solar_zy_photo",
+        pictureBoundingBox: [
+          790989.4779520752, 6664143.201786021, 800673.0939729535,
+          6670157.840449209,
+        ],
+        keywords: [":vec:"],
+        icon: "umwelt/Solarpotenzial_Dächer_Strom",
+      },
+      {
+        name: "solar_zy_therm",
+        pictureBoundingBox: [
+          790989.4779520752, 6664143.201786021, 800673.0939729535,
+          6670157.840449209,
+        ],
+        keywords: [":vec:"],
+        icon: "umwelt/Solarpotenzial_Dächer_Wärme",
+      },
+      {
+        name: "solar_umring",
+        keywords: [":vec:"],
+        icon: "umwelt/Dachflächenumringung",
+      },
+      {
+        name: "solar_karte",
+        icon: "umwelt/Hintergrundkarte_Solar",
+      },
+      {
+        name: "laerm2016:STR_RAST_DEN",
+        pictureBoundingBox: [
+          784621.3180330665, 6660622.321170634, 794304.9340539448,
+          6666636.959833823,
+        ],
+        icon: "umwelt/2016_Str-verkehrslärm_LDEN",
+      },
+      {
+        name: "laerm2016:STR_RAST_NGT",
+        pictureBoundingBox: [
+          784621.3180330665, 6660622.321170634, 794304.9340539448,
+          6666636.959833823,
+        ],
+        icon: "umwelt/2016_Str-verkehrslärm_LNight",
+      },
+      {
+        name: "laerm2016:SCS_RAST_DEN",
+        pictureBoundingBox: [
+          793306.4753719696, 6664907.572068873, 802990.091392848,
+          6670922.2107320605,
+        ],
+        icon: "umwelt/2016_Schienenverkehrslärm_Schwebebahn_LDEN",
+      },
+      {
+        name: "laerm2016:SCS_RAST_NGT",
+        pictureBoundingBox: [
+          793306.4753719696, 6664907.572068873, 802990.091392848,
+          6670922.2107320605,
+        ],
+        icon: "umwelt/2016_Schienenverkehrslärm_Schwebebahn_LNight",
+      },
+      {
+        name: "laerm2016:LDEN_BAHN",
+        pictureBoundingBox: [
+          793306.4753719696, 6664907.572068873, 802990.091392848,
+          6670922.2107320605,
+        ],
+        icon: "umwelt/2016_Schienenverkehrslärm_Bundeseisenbahn_LDEN",
+      },
+      {
+        name: "laerm2016:LNIGHT_BAHN",
+        pictureBoundingBox: [
+          793306.4753719696, 6664907.572068873, 802990.091392848,
+          6670922.2107320605,
+        ],
+        icon: "umwelt/2016_Schienenverkehrslärm_Bundeseisenbahn_LNight",
+      },
+      {
+        name: "laerm2016:IND_RAST_DEN",
+        pictureBoundingBox: [
+          788913.734902706, 6663818.344415807, 793755.542913145,
+          6666825.663747405,
+        ],
+        icon: "umwelt/2016_Gewerbelärm_LDEN",
+      },
+      {
+        name: "laerm2016:IND_RAST_NGT",
+        pictureBoundingBox: [
+          788913.734902706, 6663818.344415807, 793755.542913145,
+          6666825.663747405,
+        ],
+        icon: "umwelt/2016_Gewerbelärm_LNight",
+      },
+      {
+        name: "laerm2022:STR_RAST_DEN",
+        pictureBoundingBox: [
+          784621.3180330665, 6660622.321170634, 794304.9340539448,
+          6666636.959833823,
+        ],
+        icon: "umwelt/2022_Str-verkehrslaerm_LDEN_Day_Ev_Night",
+      },
+      {
+        name: "laerm2022:STR_RAST_NGT",
+        pictureBoundingBox: [
+          784621.3180330665, 6660622.321170634, 794304.9340539448,
+          6666636.959833823,
+        ],
+        icon: "umwelt/2022_Str-verkehrslärm_LNight",
+      },
+      {
+        name: "laerm2022:SCS_RAST_DEN",
+        pictureBoundingBox: [
+          793306.4753719696, 6664907.572068873, 802990.091392848,
+          6670922.2107320605,
+        ],
+        icon: "umwelt/2022_Schienenverkehrslärm_Schwebebahn_LDEN",
+      },
+      {
+        name: "laerm2022:SCS_RAST_NGT",
+        pictureBoundingBox: [
+          793306.4753719696, 6664907.572068873, 802990.091392848,
+          6670922.2107320605,
+        ],
+        icon: "umwelt/2022_Schienenverkehrslärm_Schwebebahn_LNight",
+      },
+      {
+        name: "laerm:LDEN_BAHN_4",
+        pictureBoundingBox: [
+          793306.4753719696, 6664907.572068873, 802990.091392848,
+          6670922.2107320605,
+        ],
+        icon: "umwelt/2022_Schienenverkehrslärm_Bundeseisenbahn_LDEN",
+      },
+      {
+        name: "laerm:LNIGHT_BAHN_4",
+        pictureBoundingBox: [
+          793306.4753719696, 6664907.572068873, 802990.091392848,
+          6670922.2107320605,
+        ],
+        icon: "umwelt/2022_Schienenverkehrslärm_Bundeseisenbahn_LNight",
+      },
+      {
+        name: "laerm2022:IND_RAST_DEN",
+        pictureBoundingBox: [
+          788913.734902706, 6663818.344415807, 793755.542913145,
+          6666825.663747405,
+        ],
+        icon: "umwelt/2022_Gewerbelärm_LDEN",
+      },
+      {
+        name: "laerm2022:IND_RAST_NGT",
+        pictureBoundingBox: [
+          788913.734902706, 6663818.344415807, 793755.542913145,
+          6666825.663747405,
+        ],
+        icon: "umwelt/2022_Gewerbelärm_LNight",
+      },
+      {
+        name: "stadt:kompensationoe",
+        pictureBoundingBox: [
+          790989.4779520752, 6664143.201786021, 800673.0939729535,
+          6670157.840449209,
+        ],
+        keywords: [":vec:"],
+        icon: "umwelt/Veröffentlichte_Kompensationsflächen",
+      },
+      {
+        name: "naturdenkmale",
+        pictureBoundingBox: [
+          790989.4779520752, 6664143.201786021, 800673.0939729535,
+          6670157.840449209,
+        ],
+        icon: "umwelt/Naturdenkmale",
+      },
+    ],
+  },
+  Infra: {
+    Title: "Infrastruktur",
+    serviceName: "wuppInfra",
+    layers: [
+      {
+        name: "apotheken",
+        keywords: [":vec:"],
+        icon: "infra/Apotheken",
+      },
+      {
+        name: "breitband_hk",
+        keywords: [":vec:"],
+        icon: "infra/Breitbandausbau_Hauskoordinaten_FTTB",
+      },
+      {
+        name: "container",
+        keywords: [":vec:"],
+        icon: "infra/Containerstandorte",
+      },
+      {
+        name: "zvb",
+        keywords: [":vec:"],
+        icon: "infra/Zentrale_Versorgungsbereiche",
+      },
+      {
+        name: "zvb-erw",
+        keywords: [":vec:"],
+        icon: "infra/Erweiterungsbereiche",
+      },
+      {
+        name: "fernwaermewsw",
+        keywords: [":vec:"],
+        icon: "infra/Fernwärmenetz_WSW",
+      },
+      {
+        name: "fernsued",
+        keywords: [":vec:"],
+        icon: "infra/Geltungsbereich",
+      },
+      {
+        name: "belis_Masten",
+        keywords: [":vec:"],
+        icon: "infra/Leuchten",
+      },
+      {
+        name: "eplusbest",
+        keywords: [":vec:"],
+        icon: "infra/Bestehende_Telefonica_Anlagen",
+      },
+      {
+        name: "o2best",
+        keywords: [":vec:"],
+        icon: "infra/Bestehende_O2_Anlagen",
+      },
+      {
+        name: "tmobilebest",
+        keywords: [":vec:"],
+        icon: "infra/Bestehende_Telekom_Anlagen",
+      },
+      {
+        name: "vodafonebest",
+        keywords: [":vec:"],
+        icon: "infra/Bestehende_Vodafone_Anlagen",
+      },
+      {
+        name: "belis_Leitungen",
+        keywords: [":vec:"],
+        icon: "infra/Leitungen",
+      },
+      {
+        name: "fernsuedl",
+        keywords: [":vec:"],
+        icon: "infra/Betriebsfertige_Leitungen",
+      },
+      {
+        name: "belis_Masten_mit_e",
+        keywords: [":vec:"],
+        icon: "infra/Masten_m_Anschluss",
+      },
+      {
+        name: "schaechte",
+        pictureBoundingBox: [
+          801365.804541788, 6668672.095711919, 801671.5526549286,
+          6668977.84382506,
+        ],
+        icon: "infra/Schächte",
+      },
+      {
+        name: "sc_txt",
+        pictureBoundingBox: [
+          801365.804541788, 6668672.095711919, 801671.5526549286,
+          6668977.84382506,
+        ],
+        icon: "infra/Schachttexte",
+      },
+      {
+        name: "haltungen",
+        pictureBoundingBox: [
+          801365.804541788, 6668672.095711919, 801671.5526549286,
+          6668977.84382506,
+        ],
+        icon: "infra/Haltungen",
+      },
+      {
+        name: "ha_txt",
+        pictureBoundingBox: [
+          801365.804541788, 6668672.095711919, 801671.5526549286,
+          6668977.84382506,
+        ],
+        icon: "infra/Haltungstexte",
+      },
+      {
+        name: "sflaechen",
+        pictureBoundingBox: [
+          801365.804541788, 6668672.095711919, 801671.5526549286,
+          6668977.84382506,
+        ],
+        icon: "infra/Entwässerungsflächen",
+      },
+      {
+        name: "fl_txt",
+        pictureBoundingBox: [
+          801365.804541788, 6668672.095711919, 801671.5526549286,
+          6668977.84382506,
+        ],
+        icon: "infra/Flächentexte",
       },
     ],
   },
@@ -2726,6 +2377,355 @@ export const baseConfig = {
         name: "nwg_unbek",
         keywords: [":vec:"],
         icon: "immo/Baujahre_unbekannt_nicht-Wohngeb.",
+      },
+    ],
+  },
+  Gebiet: {
+    Title: "Gebiete",
+    serviceName: "wuppGebiet",
+    layers: [
+      {
+        name: "R102:fluruebersicht",
+        icon: "gebiet/Flur-_u_Gemarkungsübersicht",
+      },
+      {
+        name: "kst_landtagswahlkreise",
+        keywords: [":vec:"],
+        icon: "gebiet/Landtagswahlkreise",
+      },
+      {
+        name: "kst_knoten",
+        keywords: [":vec:"],
+        icon: "gebiet/Knoten",
+      },
+      {
+        name: "kst_segment",
+        keywords: [":vec:"],
+        icon: "gebiet/Segmente",
+      },
+      {
+        name: "kst_segmenttypen",
+        keywords: [":vec:"],
+        icon: "gebiet/Segmenttypen",
+      },
+      {
+        name: "kst_segment_hnr",
+        keywords: [":vec:"],
+        icon: "gebiet/Segmente_m_Hausnummer",
+      },
+      {
+        name: "kst_segment_steigung",
+        keywords: [":vec:"],
+        icon: "gebiet/Segmente_m_Steigung",
+      },
+      {
+        name: "kst_baubloecke",
+        keywords: [":vec:"],
+        icon: "gebiet/Baublöcke",
+      },
+      {
+        name: "kst_quartiere",
+        keywords: [":vec:"],
+        icon: "gebiet/Quartiere",
+      },
+      {
+        name: "kst_stadtbezirk",
+        keywords: [":vec:"],
+        icon: "gebiet/Stadtbezirk",
+      },
+      {
+        name: "kst_stadtgebiet",
+        keywords: [":vec:"],
+        icon: "gebiet/Stadtgebiet",
+      },
+      {
+        name: "kst_statistische_bezirke",
+        keywords: [":vec:"],
+        icon: "gebiet/Statistische_Bezirke",
+      },
+      {
+        name: "kst_stimmbezirke",
+        keywords: [":vec:"],
+        icon: "gebiet/Stimmbezirke",
+      },
+      {
+        name: "kst_kommunalwahlbezirke",
+        keywords: [":vec:"],
+        icon: "gebiet/Kommunalwahlbezirke",
+      },
+      {
+        name: "kst_bundestagswahlkreise",
+        keywords: [":vec:"],
+        icon: "gebiet/Bundestagswahlkreise",
+      },
+      {
+        name: "gitter_kreuze",
+        icon: "gebiet/Gitterkreuze_ETRS89_50x50m",
+      },
+      {
+        name: "gitter_gk_500",
+        icon: "gebiet/Gitter_GK2_500x250m",
+      },
+      {
+        name: "gitter_500",
+        icon: "gebiet/Gitter_ETRS89_500x250m",
+      },
+      {
+        name: "gitter_gk_1000",
+        icon: "gebiet/Gitter_GK2_1x1km",
+      },
+      {
+        name: "gitter_1000",
+        icon: "gebiet/Gitter_ETRS89_1x1km",
+      },
+      {
+        name: "gitter_bezirke",
+        icon: "gebiet/Nummerierungsbezirke_ETRS89_1x1km",
+      },
+      {
+        name: "gitter_gk_2000",
+        icon: "gebiet/Gitter_GK2_2x2km",
+      },
+      {
+        name: "gitter_2000",
+        icon: "gebiet/Gitter_ETRS89_2x2km",
+      },
+      {
+        name: "hoehenu",
+        icon: "gebiet/1m-Höhenlinien",
+      },
+      {
+        name: "hoehenv",
+        icon: "gebiet/1m-Höhenlinien",
+      },
+    ],
+  },
+  karten: {
+    Title: "Basis",
+    serviceName: "wuppKarten",
+    layers: [
+      {
+        name: "alf",
+        icon: "basis/Flurkarte_farbig_ABK",
+      },
+      {
+        name: "algw",
+        icon: "basis/Flurkarte_Graustufen_ABK",
+      },
+      {
+        name: "alkomf",
+        icon: "basis/Stadtgrundkarte_farbig_ABK",
+      },
+      {
+        name: "alkomgw",
+        icon: "basis/Stadtgrundkarte_Graustufen_ABK",
+      },
+      {
+        name: "albsf",
+        icon: "basis/Schätzungskarte_farbig_ABK",
+      },
+      {
+        name: "albsgw",
+        icon: "basis/Schätzungskarte_Graustufen_ABK",
+      },
+      {
+        name: "expsw",
+        pictureBoundingBox: [
+          784874.5156892611, 6655868.893474152, 821182.1041247197,
+          6679927.448126909,
+        ],
+        icon: "basis/Expresskarte_Strichkarte_schwarz",
+      },
+      {
+        name: "expg",
+        pictureBoundingBox: [
+          784874.5156892611, 6655868.893474152, 821182.1041247197,
+          6679927.448126909,
+        ],
+        icon: "basis/Expresskarte_Strichkarte_gelb",
+      },
+      {
+        name: "abkf",
+        icon: "basis/Amtliche_Basiskarte_farbig",
+      },
+      {
+        name: "abkg",
+        icon: "basis/Amtliche_Basiskarte_Graustufen_ABK",
+      },
+      {
+        name: "abkt",
+        icon: "basis/Amtliche_Basiskarte_Graustufen_transparent",
+      },
+      {
+        name: "spw2_orange",
+        icon: "basis/SPW_Orange",
+      },
+      {
+        name: "spw2_light",
+        icon: "basis/SPW_Light",
+      },
+      {
+        name: "spw2_graublau",
+        icon: "basis/SPW_Graublau",
+      },
+      {
+        name: "oepnv_rvr",
+        icon: "basis/SPW_Light_OEPNV",
+      },
+      {
+        name: "hillshade",
+        icon: "basis/Reliefschummerung",
+      },
+      {
+        name: "R102:UEK125",
+        pictureBoundingBox: [
+          784874.5156892611, 6655868.893474152, 821182.1041247197,
+          6679927.448126909,
+        ],
+        icon: "basis/Übersichtskarte_RS-SG-W",
+      },
+      {
+        name: "R102:STADTRSW",
+        icon: "basis/Stadtplan_RS-SG-W",
+      },
+      {
+        name: "R102:stadtgrundkarte_hausnr",
+        keywords: [":vec:"],
+        icon: "basis/Stadtgrundkarte_Hausnummern",
+      },
+      {
+        name: "urban",
+        keywords: [":vec:"],
+        icon: "basis/Urban_Atlas",
+      },
+      {
+        name: "wuppertal:1827",
+        pictureBoundingBox: [
+          784874.5156892611, 6655868.893474152, 821182.1041247197,
+          6679927.448126909,
+        ],
+        icon: "basis/W-1827",
+      },
+      {
+        name: "wuppertal:1929",
+        pictureBoundingBox: [
+          784874.5156892611, 6655868.893474152, 821182.1041247197,
+          6679927.448126909,
+        ],
+        icon: "basis/W-1929",
+      },
+      {
+        name: "wuppertal:1979",
+        pictureBoundingBox: [
+          784874.5156892611, 6655868.893474152, 821182.1041247197,
+          6679927.448126909,
+        ],
+        icon: "basis/W-1979",
+      },
+      {
+        name: "wuppertal:2004",
+        pictureBoundingBox: [
+          784874.5156892611, 6655868.893474152, 821182.1041247197,
+          6679927.448126909,
+        ],
+        icon: "basis/W-2004",
+      },
+      {
+        name: "R102:DGK:schwarz",
+        icon: "basis/DKG_Grundriss_Schwarz-Weiss_transparent_12-2013",
+      },
+      {
+        name: "R102:DGK:gelb",
+        icon: "basis/DKG_Grundriss_Gelb-Weiss_transparent_12-2013",
+      },
+      {
+        name: "R102:DGK:grau",
+        icon: "basis/DKG_Grundriss_Graustufen_transparent_12-2013",
+      },
+      {
+        name: "R102:DGK:grau_nt",
+        icon: "basis/DKG_Grundriss_Graustufen_12-2013",
+      },
+      {
+        name: "bplanreihe",
+        icon: "basis/BPlanreihe",
+      },
+      {
+        name: "bplanhintergrund",
+        keywords: [":vec:", `carmaConf://minZoom:9`],
+        icon: "basis/BPlanhintergrund",
+      },
+      {
+        name: "R102:trueortho2022",
+        icon: "basis/Tru_Orthofoto_2018-2022",
+      },
+      {
+        name: "R102:trueortho2020",
+        icon: "basis/Tru_Orthofoto_2018-2022",
+      },
+      {
+        name: "R102:trueortho2018",
+        icon: "basis/Tru_Orthofoto_2018-2022",
+      },
+      {
+        name: "R102:luftbild2022",
+        icon: "basis/Orthofoto_2002-2022",
+      },
+      {
+        name: "R102:luftbild2020",
+        icon: "basis/Orthofoto_2002-2022",
+      },
+      {
+        name: "R102:luftbild2018",
+        icon: "basis/Orthofoto_2002-2022",
+      },
+      {
+        name: "R102:luftbild2016",
+        icon: "basis/Orthofoto_2002-2022",
+      },
+      {
+        name: "R102:luftbild2014",
+        icon: "basis/Orthofoto_2002-2022",
+      },
+      {
+        name: "R102:luftbild2012",
+        icon: "basis/Orthofoto_2002-2022",
+      },
+      {
+        name: "R102:luftbild2010",
+        icon: "basis/Orthofoto_2002-2022",
+      },
+      {
+        name: "R102:luftbild2007",
+        icon: "basis/Orthofoto_2002-2022",
+      },
+      {
+        name: "R102:luftbild2005",
+        icon: "basis/Orthofoto_2002-2022",
+      },
+      {
+        name: "R102:luftbild2002",
+        icon: "basis/Orthofoto_2002-2022",
+      },
+      {
+        name: "R102:luftbild1997",
+        icon: "basis/Orthofoto_1986-1997",
+      },
+      {
+        name: "R102:luftbild1991",
+        icon: "basis/Orthofoto_1986-1997",
+      },
+      {
+        name: "R102:luftbild1985",
+        icon: "basis/Orthofoto_1986-1997",
+      },
+      {
+        name: "R102:luftbild1979",
+        icon: "basis/Orthofoto_1979",
+      },
+      {
+        name: "R102:luftbild1928",
+        icon: "basis/Orthofoto_1928",
       },
     ],
   },
