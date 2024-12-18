@@ -81,6 +81,12 @@ export const NewLibModal = ({
   updateActiveLayer,
   removeLastLayer,
 }: LibModalProps) => {
+  const getNumOfCustomLayers = () => {
+    return customCategories.reduce((acc, category) => {
+      return acc + category.layers.length;
+    }, 0);
+  };
+
   const [preview, setPreview] = useState(false);
   const [layers, setLayers] = useState<any[]>([]);
   const [allLayers, setAllLayers] = useState<any[]>([]);
@@ -91,7 +97,9 @@ export const NewLibModal = ({
   const [isSearching, setIsSearching] = useState(false);
   const [showItems, setShowItems] = useState(false);
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
-  const [selectedNavItemIndex, setSelectedNavItemIndex] = useState(0);
+  const [selectedNavItemIndex, setSelectedNavItemIndex] = useState(
+    getNumOfCustomLayers() > 0 ? 0 : 3
+  );
   const [testCategory, setTestCategory] = useState<any[]>([]);
   const [tmpAllCategories, setTmpAllCategories] = useState<
     {
