@@ -23,6 +23,13 @@ const RectangleSearch = ({ map }) => {
 
   useEffect(() => {
     if (mode === "rectangle") {
+      L.drawLocal.draw.handlers.rectangle.tooltip.start =
+        "<div>Click and drag to draw a rectangle.</div>" +
+        "<div>It will set the borders for the search.</div>";
+
+      L.drawLocal.draw.handlers.simpleshape.tooltip.end =
+        "<div>It will set the borders for the search.</div>";
+
       startDrawRect();
     }
   }, [map, mode]);
@@ -38,11 +45,12 @@ const RectangleSearch = ({ map }) => {
           color: "blue",
           weight: 4,
         },
+        showArea: false,
       });
 
       drawControlRef.current.enable();
 
-      map.once(L.Draw.Event.CREATED, (e) => {
+      map.once("draw:created", (e) => {
         const layer = e.layer;
         editableLayersRef.current.addLayer(layer);
         drawControlRef.current.disable();
@@ -66,7 +74,7 @@ const RectangleSearch = ({ map }) => {
           );
           editableLayersRef.current.removeLayer(layer);
           dispatch(storeShapeMode("default"));
-        }, 3000);
+        }, 2000);
       });
     }
   };

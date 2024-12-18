@@ -317,22 +317,6 @@ const Map = ({
             <div
               className="relative flex cursor-pointer items-center justify-center"
               onClick={() => {
-                // dispatch(
-                //   storeKassenzeichenliste([
-                //     "60037371",
-                //     "60048907",
-                //     "60058203",
-                //     // "60053055",
-                //     // "60082070",
-                //     // "60090529",
-                //     // "60099496",
-                //     // "60108065",
-                //     // "60108065",
-                //     // "60108065",
-                //     // "60108065",
-                //     // "60116902",
-                //   ])
-                // );
                 dispatch(storeShapeMode("rectangle"));
               }}
             >
