@@ -85,7 +85,6 @@ import { HGK_KEYS, HGK_TERRAIN_PROVIDER_URLS } from "./config/app.config";
 import { CESIUM_CONFIG } from "./config/cesium/cesium.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
-import { content } from "../tailwind.config.cjs";
 
 // disable cesium canvas background transparency
 const constructorOptions = {
