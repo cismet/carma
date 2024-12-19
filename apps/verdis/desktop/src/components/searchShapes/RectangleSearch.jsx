@@ -28,9 +28,7 @@ const RectangleSearch = ({ map }) => {
       }
     };
     if (map) {
-      // const zoomLevel = map.getZoom();
-      // console.log("xxx zoom level", zoomLevel >= 18);
-      if (mode === "rectangle" && zoomLevel >= 18) {
+      if (mode === "rectangle" && zoomLevel >= 17) {
         L.drawLocal.draw.handlers.rectangle.tooltip.start =
           "<div>Klicken und ziehen, um ein Rechteck zu zeichnen.</div>" +
           "<div>Es legt die Grenzen für die Suche fest.</div>";
