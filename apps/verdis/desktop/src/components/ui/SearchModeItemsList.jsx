@@ -23,7 +23,7 @@ const SearchModeList = () => {
               className="flex justify-center items-center gap-2 px-1"
               onClick={() => {
                 const trimmedItem = item;
-                dispatch(searchForKassenzeichen(item));
+                dispatch(searchForKassenzeichen("" + item));
                 setUrlParams({ kassenzeichen: trimmedItem });
               }}
             >
