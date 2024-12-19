@@ -12,12 +12,31 @@ window.type = true;
 const RectangleSearch = ({ map }) => {
   const dispatch = useDispatch();
   const drawControlRef = useRef(null);
+  const [ifMouseEnter, setIfMouseEnter] = useState(false);
   const editableLayersRef = useRef(new L.FeatureGroup());
   const mode = useSelector(getShapeMode);
   const zoomLevel = map.getZoom();
   useEffect(() => {
     if (map) {
       map.addLayer(editableLayersRef.current);
+
+      const routedMapElement = document.getElementById("routedMap");
+
+      const handleMouseEnter = (event) => {
+        setIfMouseEnter(true);
+      };
+
+      const handleMouseLeave = (event) => {
+        setIfMouseEnter(false);
+      };
+
+      routedMapElement.addEventListener("mouseenter", handleMouseEnter);
+      routedMapElement.addEventListener("mouseleave", handleMouseLeave);
+
+      return () => {
+        routedMapElement.removeEventListener("mouseenter", handleMouseEnter);
+        routedMapElement.removeEventListener("mouseleave", handleMouseLeave);
+      };
     }
   }, [map]);
 
@@ -28,7 +47,12 @@ const RectangleSearch = ({ map }) => {
       }
     };
     if (map) {
-      if (mode === "rectangle" && zoomLevel >= 17 && !drawControlRef.current) {
+      if (
+        mode === "rectangle" &&
+        zoomLevel >= 17 &&
+        !drawControlRef.current &&
+        ifMouseEnter
+      ) {
         L.drawLocal.draw.handlers.rectangle.tooltip.start =
           "<div>Klicken und ziehen, um ein Rechteck zu zeichnen.</div>" +
           "<div>Es legt die Grenzen für die Suche fest.</div>";
@@ -52,7 +76,7 @@ const RectangleSearch = ({ map }) => {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [map, mode, zoomLevel]);
+  }, [map, mode, zoomLevel, ifMouseEnter]);
 
   const startDrawRect = () => {
     if (map) {
