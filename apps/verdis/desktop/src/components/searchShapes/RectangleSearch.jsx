@@ -9,6 +9,13 @@ import {
   storeKassenzeichenliste,
   storeShapeMode,
 } from "../../store/slices/searchMode";
+import {
+  searchWithRectangle,
+  setIsLoading,
+  setIsLoadingKassenzeichenWithPoint,
+} from "../../store/slices/search";
+import { setGraphqlStatus } from "../../store/slices/mapping";
+import { convertLatLngToXY } from "../../tools/mappingTools";
 window.type = true;
 const RectangleSearch = ({ map }) => {
   const dispatch = useDispatch();
@@ -56,39 +63,30 @@ const RectangleSearch = ({ map }) => {
         drawControlRef.current.disable();
 
         const bounds = layer.getBounds();
-        const southWest = bounds.getSouthWest();
-        const northEast = bounds.getNorthEast();
-        const northWest = bounds.getNorthWest();
-        const southEast = bounds.getSouthEast();
+        const southWest = convertLatLngToXY(bounds.getSouthWest());
+        const northEast = convertLatLngToXY(bounds.getNorthEast());
+        const northWest = convertLatLngToXY(bounds.getNorthWest());
+        const southEast = convertLatLngToXY(bounds.getSouthEast());
 
-        const coordBox = [
-          [southWest.lat, southWest.lng],
-          [northWest.lat, northWest.lng],
-          [northEast.lat, northEast.lng],
-          [southEast.lat, southEast.lng],
-          [southWest.lat, southWest.lng],
+        const convertedBox = [
+          [southWest, northEast, northWest, southEast, southWest],
         ];
+        const searchParams = {
+          search_geom: {
+            type: "Polygon",
+            crs: { type: "name", properties: { name: "EPSG:25832" } },
+            coordinates: convertedBox,
+          },
+        };
+        dispatch(setGraphqlStatus("LOADING"));
+        dispatch(searchWithRectangle(searchParams));
 
-        // setTimeout(() => {
-        //   dispatch(
-        //     storeKassenzeichenliste([
-        //       "60037371",
-        //       "60048907",
-        //       "60058203",
-        //       // "60053055",
-        //       // "60082070",
-        //       // "60090529",
-        //       // "60099496",
-        //       // "60108065",
-        //       // "60108065",
-        //       // "60108065",
-        //       // "60108065",
-        //       // "60116902",
-        //     ])
-        //   );
-        //   editableLayersRef.current.removeLayer(layer);
-        //   dispatch(storeShapeMode("default"));
-        // }, 2000);
+        setTimeout(() => {
+          editableLayersRef.current.removeLayer(layer);
+          dispatch(setGraphqlStatus("LOADED"));
+
+          dispatch(storeShapeMode("default"));
+        }, 3000);
       });
     }
   };
