@@ -14,6 +14,7 @@ const RectangleSearch = ({ map }) => {
   const drawControlRef = useRef(null);
   const editableLayersRef = useRef(new L.FeatureGroup());
   const mode = useSelector(getShapeMode);
+  const zoomLevel = map.getZoom();
   useEffect(() => {
     if (map) {
       map.addLayer(editableLayersRef.current);
@@ -27,8 +28,8 @@ const RectangleSearch = ({ map }) => {
       }
     };
     if (map) {
-      const zoomLevel = map.getZoom();
-      console.log("xxx zoom level", zoomLevel >= 18);
+      // const zoomLevel = map.getZoom();
+      // console.log("xxx zoom level", zoomLevel >= 18);
       if (mode === "rectangle" && zoomLevel >= 18) {
         L.drawLocal.draw.handlers.rectangle.tooltip.start =
           "<div>Klicken und ziehen, um ein Rechteck zu zeichnen.</div>" +
@@ -40,6 +41,9 @@ const RectangleSearch = ({ map }) => {
         startDrawRect();
       } else {
         dispatch(storeShapeMode("default"));
+        if (drawControlRef.current) {
+          drawControlRef.current.disable();
+        }
       }
     }
 
@@ -48,7 +52,7 @@ const RectangleSearch = ({ map }) => {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [map, mode]);
+  }, [map, mode, zoomLevel]);
 
   const startDrawRect = () => {
     if (map) {
