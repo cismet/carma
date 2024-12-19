@@ -100,6 +100,7 @@ export type Settings = {
   showLocator: boolean;
   showMeasurement: boolean;
   showHamburgerMenu?: boolean;
+  add3dMode?: boolean;
 };
 
 // Store Mapping Slice

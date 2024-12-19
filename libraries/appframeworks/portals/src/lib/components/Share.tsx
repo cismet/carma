@@ -1,13 +1,14 @@
 import { faShareNodes } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useCopyToClipboard } from "@uidotdev/usehooks";
-import { Button, Checkbox, Radio, message } from "antd";
+import { Button, Checkbox, Radio, Tooltip, message } from "antd";
 import LZString from "lz-string";
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import "./popover.css";
 import { generateRandomString } from "@carma-commons/utils";
 import type { LayerState, Settings } from "../types";
+import { faCopy } from "@fortawesome/free-regular-svg-icons";
 
 export type ShareProps = {
   layerState: LayerState;
@@ -28,6 +29,7 @@ export const Share = ({ layerState }: ShareProps) => {
     showLocator: true,
     showMeasurement: true,
     showHamburgerMenu: true,
+    add3dMode: true,
   });
 
   const handleOnClick = () => {
@@ -44,6 +46,7 @@ export const Share = ({ layerState }: ShareProps) => {
               showLocator: true,
               showMeasurement: true,
               showHamburgerMenu: false,
+              add3dMode: true,
             },
     };
     const jsonString = JSON.stringify(newConfig);
@@ -125,17 +128,66 @@ export const Share = ({ layerState }: ShareProps) => {
         </Checkbox>
       </div>
 
-      <Checkbox
-        checked={settings.showHamburgerMenu}
-        onChange={(e) =>
-          setSettings({ ...settings, showHamburgerMenu: e.target.checked })
-        }
-        disabled={mode === ""}
-      >
-        Hamburger Menu
-      </Checkbox>
+      <div className="flex items-center gap-2">
+        <Checkbox
+          checked={settings.showHamburgerMenu}
+          onChange={(e) =>
+            setSettings({ ...settings, showHamburgerMenu: e.target.checked })
+          }
+          disabled={mode === ""}
+        >
+          Hamburger Menu
+        </Checkbox>
+        <Checkbox
+          checked={settings.add3dMode}
+          onChange={(e) =>
+            setSettings({ ...settings, add3dMode: e.target.checked })
+          }
+          disabled={mode === ""}
+        >
+          3D Modus
+        </Checkbox>
+      </div>
 
-      <Button onClick={handleOnClick}>Link kopieren</Button>
+      <div className="flex items-center gap-1">
+        <Button className="w-full" onClick={handleOnClick}>
+          Link generieren
+        </Button>
+        <Tooltip title="Konfiguration in Zwischenablage speichern">
+          <Button
+            onClick={() => {
+              const newConfig = {
+                backgroundLayer,
+                layers,
+                settings:
+                  mode === "publish/"
+                    ? settings
+                    : {
+                        showLayerButtons: true,
+                        showLayerHideButtons: false,
+                        showFullscreen: true,
+                        showLocator: true,
+                        showMeasurement: true,
+                        showHamburgerMenu: false,
+                      },
+              };
+              try {
+                copyToClipboard(JSON.stringify(newConfig));
+                messageApi.open({
+                  type: "success",
+                  content: `Konfiguration wurde in die Zwischenablage gespeichert.`,
+                });
+              } catch {
+                messageApi.open({
+                  type: "error",
+                  content: `Es gab einen Fehler beim speichern der Konfiguration.`,
+                });
+              }
+            }}
+            icon={<FontAwesomeIcon icon={faCopy} />}
+          />
+        </Tooltip>
+      </div>
     </div>
   );
 };
