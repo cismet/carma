@@ -374,6 +374,11 @@ export const GeoportalMap = () => {
     if (uiMode !== UIMode.FEATURE_INFO && marker !== undefined) {
       routedMap.leafletMap.leafletElement.removeLayer(marker);
       routedMap.leafletMap.leafletElement.removeLayer(markerAccent);
+      dispatch(setSelectedFeature(null));
+      dispatch(setSecondaryInfoBoxElements([]));
+      dispatch(setFeatures([]));
+      setPos(null);
+      dispatch(setPreferredLayerId(""));
     }
   }, [uiMode]);
 
