@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* override tailwind base img block dispaly reset for proper infobox layout */
+/* override tailwind base img display: image reset for proper infobox layout */
 .leaflet-control * img {
   display: initial;
 }
