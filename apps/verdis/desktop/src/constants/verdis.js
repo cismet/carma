@@ -46,3 +46,7 @@ export const kassenzeichenForBuchungsblattQuery = gql`
 export const crossReferencesQuery = gql`
   ${queries.crossReferences}
 `;
+
+export const kassenzeichenForGeomQuery = gql`
+  ${queries.kassenzeichenForGeom}
+`;

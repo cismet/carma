@@ -8,6 +8,7 @@ import {
   flurStueckQuery,
   geoFieldsQuery,
   kassenzeichenForBuchungsblattQuery,
+  kassenzeichenForGeomQuery,
   pointquery,
   query,
 } from "../../constants/verdis";
@@ -27,6 +28,7 @@ import {
   getVersickerungsGenFeatureCollection,
 } from "../../tools/featureFactories";
 import { createFeatureArray } from "../../tools/mappingTools";
+import { storeKassenzeichenliste } from "./searchMode";
 
 const initialState = {
   kassenzeichen: {},
@@ -718,6 +720,42 @@ export const searchForKassenzeichen = (
           error.message
         );
         dispatch(setIsLoading(false));
+      });
+  };
+};
+
+export const searchWithRectangle = (searchParams) => {
+  return async (dispatch, getState) => {
+    const jwt = getState().auth.jwt;
+    fetch(ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${jwt}`,
+      },
+      body: JSON.stringify({
+        query: kassenzeichenForGeomQuery,
+        variables: searchParams,
+      }),
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Network response was not ok");
+        }
+        return response.json();
+      })
+      .then((result) => {
+        const res = result.data.kassenzeichen.map(
+          (r) => r.kassenzeichennummer8
+        );
+        dispatch(storeKassenzeichenliste(res));
+        // console.log("xxx result", result.data.kassenzeichen);
+      })
+      .catch((error) => {
+        console.error(
+          "There was a problem with the fetch operation:",
+          error.message
+        );
       });
   };
 };

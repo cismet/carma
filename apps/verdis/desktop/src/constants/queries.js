@@ -342,3 +342,14 @@ query Kassenzeichen($kassenzeichen: Int) {
   }
 }
 `;
+
+queries.kassenzeichenForGeom = `
+query kassenzeichenForGeom($search_geom: geometry!) {
+  kassenzeichen(where: {_or: [
+    {flaechenArray: {flaecheObject: {flaecheninfoObject: {geom: {geo_field: {_st_intersects: $search_geom}}}}}}, 
+    {kassenzeichen_geometrienArray: {kassenzeichen_geometrieObject: {geom: {geo_field: {_st_intersects: $search_geom}}}}}] }) {
+    id
+    kassenzeichennummer8
+  }
+}
+`;
