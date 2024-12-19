@@ -16,6 +16,7 @@ const SearchModeList = () => {
   useEffect(() => {
     if (kassenzeichenliste.length > 0) {
       const res = [];
+      console.log("xxx kassenzeichenliste length", kassenzeichenliste.length);
       kassenzeichenliste.forEach((item, idx) => {
         res.push({
           label: (
@@ -42,30 +43,16 @@ const SearchModeList = () => {
     <Badge
       count={kassenzeichenliste.length > 99 ? "99+" : kassenzeichenliste.length}
       className="ml-auto"
-      // style={{
-      //   fontSize: kassenzeichenliste.length > 99 ? "10px" : "12px",
-      // }}
     >
       <Dropdown
         menu={{ items: searchResults }}
         placement="bottomRight"
-        // size="small"
         overlayStyle={{
           maxHeight: "350px",
           maxWidth: "250px",
           overflow: "auto",
         }}
-        // align={{
-        //   offset: [0, 0],
-        // }}
-        // It fix miscalculation of placement
         getPopupContainer={(triggerNode) => triggerNode.parentNode}
-        // dropdownRender={(menu) => {
-        //   console.log("xxx searchResults", menu.props.items);
-
-        //   return <div>123</div>;
-        // }}
-        // open={true}
       >
         <FontAwesomeIcon icon={faList} className="h-6 cursor-pointer" />
       </Dropdown>

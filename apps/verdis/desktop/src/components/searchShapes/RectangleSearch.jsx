@@ -4,16 +4,8 @@ import "leaflet-draw";
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
 import { useDispatch, useSelector } from "react-redux";
-import {
-  getShapeMode,
-  storeKassenzeichenliste,
-  storeShapeMode,
-} from "../../store/slices/searchMode";
-import {
-  searchWithRectangle,
-  setIsLoading,
-  setIsLoadingKassenzeichenWithPoint,
-} from "../../store/slices/search";
+import { getShapeMode, storeShapeMode } from "../../store/slices/searchMode";
+import { searchWithRectangle } from "../../store/slices/search";
 import { setGraphqlStatus } from "../../store/slices/mapping";
 import { convertLatLngToXY } from "../../tools/mappingTools";
 window.type = true;
@@ -29,7 +21,15 @@ const RectangleSearch = ({ map }) => {
   }, [map]);
 
   useEffect(() => {
-    if (mode === "rectangle") {
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape" && mode === "rectangle") {
+        dispatch(storeShapeMode("default"));
+      }
+    };
+
+    if (mode === "rectangle" && map) {
+      const zoomLevel = map.getZoom();
+      console.log("xxx zoom level", zoomLevel);
       L.drawLocal.draw.handlers.rectangle.tooltip.start =
         "<div>Klicken und ziehen, um ein Rechteck zu zeichnen.</div>" +
         "<div>Es legt die Grenzen für die Suche fest.</div>";
@@ -39,6 +39,12 @@ const RectangleSearch = ({ map }) => {
 
       startDrawRect();
     }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   }, [map, mode]);
 
   const startDrawRect = () => {
@@ -78,6 +84,8 @@ const RectangleSearch = ({ map }) => {
             coordinates: convertedBox,
           },
         };
+
+        console.log("xxx coord", convertedBox);
         dispatch(searchWithRectangle(searchParams));
 
         setTimeout(() => {
