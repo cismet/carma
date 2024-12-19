@@ -2,15 +2,20 @@ import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { Tooltip } from "antd";
 import {
+  Cartesian2,
   Cartesian3,
   Cartographic,
   Math as CesiumMath,
+  CheckerboardMaterialProperty,
   Color,
   Entity,
   sampleTerrain,
   sampleTerrainMostDetailed,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
+  ShadowMode,
+  StripeMaterialProperty,
+  StripeOrientation,
 } from "cesium";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -420,15 +425,33 @@ const StateAwareChildren = () => {
           if (markerEntityRef.current) {
             viewer.entities.remove(markerEntityRef.current);
           }
+          const interval = 0.1; // 10 cm
+          const rodHeight = 2.0;
+          const rodWidth = 0.3;
+          const repeats = Math.floor(rodHeight / interval);
 
           // Create new marker rod
           const newMarker = viewer.entities.add({
             //position: cartesian,
             position: groundPositionCartesian,
             box: {
-              dimensions: new Cartesian3(0.3, 0.3, 2.0),
-              material: Color.ORANGE,
+              dimensions: new Cartesian3(rodWidth, rodWidth, rodHeight),
+              /*
+              material: new StripeMaterialProperty({
+                orientation: StripeOrientation.HORIZONTAL,
+                offset: 0.05,
+                repeat: 20,
+                oddColor: Color.YELLOW,
+                evenColor: Color.BLACK,
+              }),
+              */
+              material: new CheckerboardMaterialProperty({
+                oddColor: Color.ORANGE,
+                evenColor: Color.BLACK,
+                repeat: new Cartesian2(2, repeats),
+              }),
               outline: false,
+              shadows: ShadowMode.CAST_ONLY,
             },
           });
           markerEntityRef.current = newMarker;
