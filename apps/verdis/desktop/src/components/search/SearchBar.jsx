@@ -48,7 +48,7 @@ const SearchBar = () => {
   }, []);
 
   return (
-    <div className="flex relative items-center gap-5 w-full">
+    <div className="flex relative items-center gap-7 w-full">
       <SearchModeList />
       <AutoComplete
         options={prevSearches

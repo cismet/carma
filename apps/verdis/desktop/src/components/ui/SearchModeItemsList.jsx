@@ -1,6 +1,6 @@
 import { faList, faSquare } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Badge, Dropdown, Tooltip } from "antd";
+import { Badge, Divider, Dropdown, Tooltip } from "antd";
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { getKassenzeichenliste } from "../../store/slices/searchMode";
@@ -40,7 +40,27 @@ const SearchModeList = () => {
   }, [kassenzeichenliste]);
   return (
     <Badge count={kassenzeichenliste.length} className="ml-auto">
-      <Dropdown menu={{ items: searchResults }} placement="bottomRight">
+      <Dropdown
+        menu={{ items: searchResults }}
+        placement="bottomRight"
+        // size="small"
+        overlayStyle={{
+          maxHeight: "350px",
+          maxWidth: "250px",
+          overflow: "auto",
+        }}
+        // align={{
+        //   offset: [0, 0],
+        // }}
+        // It fix miscalculation of placement
+        getPopupContainer={(triggerNode) => triggerNode.parentNode}
+        // dropdownRender={(menu) => {
+        //   console.log("xxx searchResults", menu.props.items);
+
+        //   return <div>123</div>;
+        // }}
+        // open={true}
+      >
         <FontAwesomeIcon icon={faList} className="h-6 cursor-pointer" />
       </Dropdown>
     </Badge>
