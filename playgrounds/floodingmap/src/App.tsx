@@ -7,6 +7,8 @@ import {
   Math as CesiumMath,
   Color,
   Entity,
+  sampleTerrain,
+  sampleTerrainMostDetailed,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
 } from "cesium";
@@ -384,7 +386,7 @@ const StateAwareChildren = () => {
   const conf = config.config;
 
   // CESIUM
-  const { viewerRef } = useCesiumContext();
+  const { viewerRef, terrainProviderRef } = useCesiumContext();
   const [cesiumPickedPosition, setCesiumPickedPosition] = useState<
     [number, number] | null
   >(null);
@@ -397,12 +399,20 @@ const StateAwareChildren = () => {
       const viewer = viewerRef.current;
 
       const handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
-      handler.setInputAction((click) => {
+      handler.setInputAction(async (click) => {
         const cartesian = viewer.scene.pickPosition(click.position);
-        if (cartesian) {
+        if (cartesian && terrainProviderRef.current) {
           const cartographic = Cartographic.fromCartesian(cartesian);
           const lat = CesiumMath.toDegrees(cartographic.latitude);
           const lon = CesiumMath.toDegrees(cartographic.longitude);
+          const [groundPositionCartographic] = await sampleTerrainMostDetailed(
+            terrainProviderRef.current,
+            [cartographic]
+          );
+          const groundPositionCartesian = Cartographic.toCartesian(
+            groundPositionCartographic
+          );
+
           //const height = cartographic.height;
           setCesiumPickedPosition([lat, lon]);
 
@@ -413,7 +423,8 @@ const StateAwareChildren = () => {
 
           // Create new marker rod
           const newMarker = viewer.entities.add({
-            position: cartesian,
+            //position: cartesian,
+            position: groundPositionCartesian,
             box: {
               dimensions: new Cartesian3(0.3, 0.3, 2.0),
               material: Color.ORANGE,
@@ -464,7 +475,6 @@ const StateAwareChildren = () => {
       );
       prevPositionRef.current = cesiumPickedPosition;
 
-      // TODO add setter for feature info here
       executeFeatureInfoRequest({
         lat: cesiumPickedPosition[0],
         lng: cesiumPickedPosition[1],
