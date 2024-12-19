@@ -370,6 +370,13 @@ export const GeoportalMap = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allow3d]);
 
+  useEffect(() => {
+    if (uiMode !== UIMode.FEATURE_INFO && marker !== undefined) {
+      routedMap.leafletMap.leafletElement.removeLayer(marker);
+      routedMap.leafletMap.leafletElement.removeLayer(markerAccent);
+    }
+  }, [uiMode]);
+
   const renderInfoBox = () => {
     if (isMode2d) {
       if (isModeMeasurement) {
