@@ -20,6 +20,7 @@ import {
   setGeneralGeometryCollection,
   setCollections,
   fitBounds,
+  setGraphqlStatus,
 } from "./mapping";
 import {
   getFlaechenFeatureCollection,
@@ -727,6 +728,7 @@ export const searchForKassenzeichen = (
 export const searchWithRectangle = (searchParams) => {
   return async (dispatch, getState) => {
     const jwt = getState().auth.jwt;
+    dispatch(setGraphqlStatus("LOADING"));
     fetch(ENDPOINT, {
       method: "POST",
       headers: {
@@ -740,6 +742,7 @@ export const searchWithRectangle = (searchParams) => {
     })
       .then((response) => {
         if (!response.ok) {
+          dispatch(setGraphqlStatus("LOADED"));
           throw new Error("Network response was not ok");
         }
         return response.json();
@@ -749,9 +752,10 @@ export const searchWithRectangle = (searchParams) => {
           (r) => r.kassenzeichennummer8
         );
         dispatch(storeKassenzeichenliste(res));
-        // console.log("xxx result", result.data.kassenzeichen);
+        dispatch(setGraphqlStatus("LOADED"));
       })
       .catch((error) => {
+        dispatch(setGraphqlStatus("LOADED"));
         console.error(
           "There was a problem with the fetch operation:",
           error.message

@@ -78,13 +78,10 @@ const RectangleSearch = ({ map }) => {
             coordinates: convertedBox,
           },
         };
-        dispatch(setGraphqlStatus("LOADING"));
         dispatch(searchWithRectangle(searchParams));
 
         setTimeout(() => {
           editableLayersRef.current.removeLayer(layer);
-          dispatch(setGraphqlStatus("LOADED"));
-
           dispatch(storeShapeMode("default"));
         }, 3000);
       });
