@@ -28,7 +28,7 @@ const RectangleSearch = ({ map }) => {
       }
     };
     if (map) {
-      if (mode === "rectangle" && zoomLevel >= 17) {
+      if (mode === "rectangle" && zoomLevel >= 17 && !drawControlRef.current) {
         L.drawLocal.draw.handlers.rectangle.tooltip.start =
           "<div>Klicken und ziehen, um ein Rechteck zu zeichnen.</div>" +
           "<div>Es legt die Grenzen für die Suche fest.</div>";
@@ -37,10 +37,12 @@ const RectangleSearch = ({ map }) => {
           "<div>Maustaste loslassen zum Starten der Suche.</div>";
 
         startDrawRect();
-      } else {
+      }
+      if (zoomLevel < 17) {
         dispatch(storeShapeMode("default"));
         if (drawControlRef.current) {
           drawControlRef.current.disable();
+          drawControlRef.current = null;
         }
       }
     }
@@ -95,6 +97,7 @@ const RectangleSearch = ({ map }) => {
         setTimeout(() => {
           editableLayersRef.current.removeLayer(layer);
           dispatch(storeShapeMode("default"));
+          drawControlRef.current = null;
         }, 2000);
       });
     }
