@@ -26,18 +26,21 @@ const RectangleSearch = ({ map }) => {
         dispatch(storeShapeMode("default"));
       }
     };
-
-    if (mode === "rectangle" && map) {
+    if (map) {
       const zoomLevel = map.getZoom();
-      console.log("xxx zoom level", zoomLevel);
-      L.drawLocal.draw.handlers.rectangle.tooltip.start =
-        "<div>Klicken und ziehen, um ein Rechteck zu zeichnen.</div>" +
-        "<div>Es legt die Grenzen für die Suche fest.</div>";
+      console.log("xxx zoom level", zoomLevel >= 18);
+      if (mode === "rectangle" && zoomLevel >= 18) {
+        L.drawLocal.draw.handlers.rectangle.tooltip.start =
+          "<div>Klicken und ziehen, um ein Rechteck zu zeichnen.</div>" +
+          "<div>Es legt die Grenzen für die Suche fest.</div>";
 
-      L.drawLocal.draw.handlers.simpleshape.tooltip.end =
-        "<div>Maustaste loslassen zum Starten der Suche.</div>";
+        L.drawLocal.draw.handlers.simpleshape.tooltip.end =
+          "<div>Maustaste loslassen zum Starten der Suche.</div>";
 
-      startDrawRect();
+        startDrawRect();
+      } else {
+        dispatch(storeShapeMode("default"));
+      }
     }
 
     window.addEventListener("keydown", handleKeyDown);
@@ -85,7 +88,6 @@ const RectangleSearch = ({ map }) => {
           },
         };
 
-        console.log("xxx coord", convertedBox);
         dispatch(searchWithRectangle(searchParams));
 
         setTimeout(() => {
