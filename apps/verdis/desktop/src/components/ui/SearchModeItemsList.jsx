@@ -39,7 +39,13 @@ const SearchModeList = () => {
     }
   }, [kassenzeichenliste]);
   return (
-    <Badge count={kassenzeichenliste.length} className="ml-auto">
+    <Badge
+      count={kassenzeichenliste.length > 99 ? "99+" : kassenzeichenliste.length}
+      className="ml-auto"
+      // style={{
+      //   fontSize: kassenzeichenliste.length > 99 ? "10px" : "12px",
+      // }}
+    >
       <Dropdown
         menu={{ items: searchResults }}
         placement="bottomRight"

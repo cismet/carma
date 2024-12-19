@@ -83,7 +83,7 @@ const RectangleSearch = ({ map }) => {
         setTimeout(() => {
           editableLayersRef.current.removeLayer(layer);
           dispatch(storeShapeMode("default"));
-        }, 3000);
+        }, 2000);
       });
     }
   };
