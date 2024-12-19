@@ -16,7 +16,6 @@ const SearchModeList = () => {
   useEffect(() => {
     if (kassenzeichenliste.length > 0) {
       const res = [];
-      console.log("xxx kassenzeichenliste length", kassenzeichenliste.length);
       kassenzeichenliste.forEach((item, idx) => {
         res.push({
           label: (
