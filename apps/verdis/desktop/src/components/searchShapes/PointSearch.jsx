@@ -42,7 +42,7 @@ const PointSearch = ({ map }) => {
     setTimeout(() => {
       map.removeLayer(circle);
       dispatch(storeShapeMode("default"));
-    }, 15000);
+    }, 1500);
   };
 
   return null;
