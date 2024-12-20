@@ -35,13 +35,14 @@ const PointSearch = ({ map }) => {
     }).addTo(map);
 
     const convertedCenter = convertLatLngToXY(center);
-    console.log("xxx convertedCenter", convertedCenter);
-    dispatch(searchWithPoints(convertedCenter));
+    dispatch(
+      searchWithPoints({ x: convertedCenter[0], y: convertedCenter[1] })
+    );
 
     setTimeout(() => {
       map.removeLayer(circle);
       dispatch(storeShapeMode("default"));
-    }, 1500);
+    }, 15000);
   };
 
   return null;

@@ -768,7 +768,7 @@ export const searchWithPoints = (searchParams) => {
   return async (dispatch, getState) => {
     const jwt = getState().auth.jwt;
     dispatch(setGraphqlStatus("LOADING"));
-    fetch(ENDPOINT, {
+    fetch(WUNDA_ENDPOINT, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -787,7 +787,14 @@ export const searchWithPoints = (searchParams) => {
         return response.json();
       })
       .then((result) => {
-        console.log("xxx res", result);
+        const ids = result.data.alkis_landparcel
+          .map((item) => item.id)
+          .join(",");
+
+        const url = `http://localhost:3033/renderer/?domain=WUNDA_BLAU&jwt=${jwt}&table=alkis_landparcel&id=${ids}`;
+
+        console.log("xxx url", url);
+
         dispatch(setGraphqlStatus("LOADED"));
       })
       .catch((error) => {
