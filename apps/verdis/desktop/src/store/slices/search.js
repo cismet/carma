@@ -615,8 +615,6 @@ export const searchForKassenzeichen = (
   setUrlParams
 ) => {
   return async (dispatch, getState) => {
-    console.log("xxx 1111");
-
     const jwt = getState().auth.jwt;
     const syncKassenzeichen = getState().ui.syncKassenzeichen;
     const state = getState();

@@ -44,8 +44,6 @@ export const searchWithRectangle = (searchParams) => {
         const res = result.data.kassenzeichen.map(
           (r) => r.kassenzeichennummer8
         );
-        console.log("xxx result", res);
-        // console.log("xxx result", result.data.kassenzeichen);
       })
       .catch((error) => {
         console.error(
