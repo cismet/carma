@@ -23,12 +23,15 @@ const PointSearch = ({ map }) => {
   }, [map, mode]);
 
   const drawCircle = (e) => {
+    const mapId = document.getElementById("routedMap");
+    if (mapId) {
+      console.log("xxx crosshair");
+      mapId.style.cursor = "crosshair";
+    }
     const center = e.latlng;
-
-    const baseRadius = 10;
-
+    const radius = 10;
     const circle = L.circleMarker(center, {
-      radius: baseRadius,
+      radius,
       color: "green",
       fillColor: "green",
       fillOpacity: 0.1,
