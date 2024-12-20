@@ -3,6 +3,7 @@ import { createSlice } from "@reduxjs/toolkit";
 const initialState = {
   kassenzeichenliste: [],
   shapeMode: "default",
+  ifShapeModeAvailable: true,
 };
 
 const slice = createSlice({
@@ -15,6 +16,10 @@ const slice = createSlice({
     },
     storeShapeMode(state, action) {
       state.shapeMode = action.payload;
+      return state;
+    },
+    storeIfShapeModeAvailable(state, action) {
+      state.ifShapeModeAvailable = action.payload;
       return state;
     },
   },
@@ -60,5 +65,7 @@ export const getKassenzeichenliste = (state) =>
   state.searchMode.kassenzeichenliste;
 
 export const getShapeMode = (state) => state.searchMode.shapeMode;
+export const getIfShapeModeAvailable = (state) =>
+  state.searchMode.ifShapeModeAvailable;
 
 export default slice;
