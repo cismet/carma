@@ -59,7 +59,11 @@ export const searchWithRectangle = (searchParams) => {
   };
 };
 
-export const { storeKassenzeichenliste, storeShapeMode } = slice.actions;
+export const {
+  storeKassenzeichenliste,
+  storeShapeMode,
+  storeIfShapeModeAvailable,
+} = slice.actions;
 
 export const getKassenzeichenliste = (state) =>
   state.searchMode.kassenzeichenliste;

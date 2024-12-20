@@ -4,9 +4,12 @@ import "leaflet-draw";
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
 import { useDispatch, useSelector } from "react-redux";
-import { getShapeMode, storeShapeMode } from "../../store/slices/searchMode";
+import {
+  getShapeMode,
+  storeIfShapeModeAvailable,
+  storeShapeMode,
+} from "../../store/slices/searchMode";
 import { searchWithRectangle } from "../../store/slices/search";
-import { setGraphqlStatus } from "../../store/slices/mapping";
 import { convertLatLngToXY } from "../../tools/mappingTools";
 window.type = true;
 const RectangleSearch = ({ map }) => {
@@ -59,15 +62,18 @@ const RectangleSearch = ({ map }) => {
 
         L.drawLocal.draw.handlers.simpleshape.tooltip.end =
           "<div>Maustaste loslassen zum Starten der Suche.</div>";
-
+        // dispatch(storeIfShapeModeAvailable(true));
         startDrawRect();
       }
       if (zoomLevel < 17) {
+        dispatch(storeIfShapeModeAvailable(false));
         dispatch(storeShapeMode("default"));
         if (drawControlRef.current) {
           drawControlRef.current.disable();
           drawControlRef.current = null;
         }
+      } else {
+        dispatch(storeIfShapeModeAvailable(true));
       }
     }
 
