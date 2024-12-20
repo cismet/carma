@@ -9,13 +9,10 @@ import {
   CheckerboardMaterialProperty,
   Color,
   Entity,
-  sampleTerrain,
   sampleTerrainMostDetailed,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
   ShadowMode,
-  StripeMaterialProperty,
-  StripeOrientation,
 } from "cesium";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
