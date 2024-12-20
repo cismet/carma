@@ -49,7 +49,7 @@ const RectangleSearch = ({ map }) => {
         dispatch(storeShapeMode("default"));
       }
     };
-    if (map) {
+    if (map && mode !== "point") {
       if (
         mode === "rectangle" &&
         zoomLevel >= 17 &&
@@ -62,7 +62,6 @@ const RectangleSearch = ({ map }) => {
 
         L.drawLocal.draw.handlers.simpleshape.tooltip.end =
           "<div>Maustaste loslassen zum Starten der Suche.</div>";
-        // dispatch(storeIfShapeModeAvailable(true));
         startDrawRect();
       }
       if (zoomLevel < 17) {
