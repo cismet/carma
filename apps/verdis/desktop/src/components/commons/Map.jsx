@@ -83,6 +83,7 @@ import Toolbar from "./Toolbar";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import RectangleSearch from "../searchShapes/RectangleSearch";
 import ShapeSearchButton from "../ui/ShapeSearchButton";
+import PointSearchButton from "../ui/PointSearchButton";
 
 const { ScaleControl } = TransitiveReactLeaflet;
 
@@ -310,6 +311,7 @@ const Map = ({
           {/* {(isLoadingGeofields || isLoadingKassenzeichenWithPoint) && (
             <LoadingOutlined />
           )} */}
+          <PointSearchButton />
           <ShapeSearchButton />
           <Tooltip title="optimaler Kartenausschnitt für dieses Kassenzeichen">
             <div
