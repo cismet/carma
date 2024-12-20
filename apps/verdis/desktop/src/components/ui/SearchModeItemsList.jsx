@@ -4,12 +4,7 @@ import { Badge, Divider, Dropdown, Tooltip } from "antd";
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { getKassenzeichenliste } from "../../store/slices/searchMode";
-import {
-  addSearch,
-  resetStates,
-  searchForKassenzeichen,
-  storeKassenzeichen,
-} from "../../store/slices/search";
+import { searchForKassenzeichen } from "../../store/slices/search";
 import { useSearchParams } from "react-router-dom";
 
 const SearchModeList = () => {
@@ -26,6 +21,16 @@ const SearchModeList = () => {
     setUrlParams(updatedParams);
   };
 
+  const updateOneKassenzeichen = (item) => {
+    dispatch(searchForKassenzeichen("" + item));
+  };
+
+  useEffect(() => {
+    if (kassenzeichenliste.length === 1) {
+      updateKassenzeichen(kassenzeichenliste[0]);
+    }
+  }, [kassenzeichenliste]);
+
   return (
     <Badge
       count={kassenzeichenliste.length > 99 ? "99+" : kassenzeichenliste.length}
@@ -38,7 +43,11 @@ const SearchModeList = () => {
               label: (
                 <div
                   className="flex justify-center items-center gap-2 px-1"
-                  onClick={() => updateKassenzeichen(item)}
+                  onClick={() =>
+                    kassenzeichenliste.length === 1
+                      ? updateOneKassenzeichen(item)
+                      : updateKassenzeichen(item)
+                  }
                 >
                   <FontAwesomeIcon icon={faSquare} />
                   <span>{item}</span>

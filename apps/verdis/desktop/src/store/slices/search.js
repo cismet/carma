@@ -626,7 +626,6 @@ export const searchForKassenzeichen = (
       dispatch(setIsLoading(false));
       return;
     }
-
     const trimmedQuery = kassenzeichen.trim();
     if (urlParams && setUrlParams) {
       if (urlParams.get("kassenzeichen") !== trimmedQuery) {
