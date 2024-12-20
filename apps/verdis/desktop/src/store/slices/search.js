@@ -9,6 +9,7 @@ import {
   geoFieldsQuery,
   kassenzeichenForBuchungsblattQuery,
   kassenzeichenForGeomQuery,
+  landparcelForPointGeomQuery,
   pointquery,
   query,
 } from "../../constants/verdis";
@@ -751,6 +752,42 @@ export const searchWithRectangle = (searchParams) => {
           (r) => r.kassenzeichennummer8
         );
         dispatch(storeKassenzeichenliste(res));
+        dispatch(setGraphqlStatus("LOADED"));
+      })
+      .catch((error) => {
+        dispatch(setGraphqlStatus("LOADED"));
+        console.error(
+          "There was a problem with the fetch operation:",
+          error.message
+        );
+      });
+  };
+};
+
+export const searchWithPoints = (searchParams) => {
+  return async (dispatch, getState) => {
+    const jwt = getState().auth.jwt;
+    dispatch(setGraphqlStatus("LOADING"));
+    fetch(ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${jwt}`,
+      },
+      body: JSON.stringify({
+        query: landparcelForPointGeomQuery,
+        variables: searchParams,
+      }),
+    })
+      .then((response) => {
+        if (!response.ok) {
+          dispatch(setGraphqlStatus("LOADED"));
+          throw new Error("Network response was not ok");
+        }
+        return response.json();
+      })
+      .then((result) => {
+        console.log("xxx res", result);
         dispatch(setGraphqlStatus("LOADED"));
       })
       .catch((error) => {

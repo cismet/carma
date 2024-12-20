@@ -50,3 +50,7 @@ export const crossReferencesQuery = gql`
 export const kassenzeichenForGeomQuery = gql`
   ${queries.kassenzeichenForGeom}
 `;
+
+export const landparcelForPointGeomQuery = gql`
+  ${queries.landparcelForPointGeom}
+`;
