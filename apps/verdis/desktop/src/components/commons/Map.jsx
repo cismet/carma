@@ -84,6 +84,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import RectangleSearch from "../searchShapes/RectangleSearch";
 import ShapeSearchButton from "../ui/ShapeSearchButton";
 import PointSearchButton from "../ui/PointSearchButton";
+import PointSearch from "../searchShapes/PointSearch";
 
 const { ScaleControl } = TransitiveReactLeaflet;
 
@@ -597,6 +598,7 @@ const Map = ({
         <RectangleSearch
           map={refRoutedMap?.current?.leafletMap?.leafletElement}
         />
+        <PointSearch map={refRoutedMap?.current?.leafletMap?.leafletElement} />
       </RoutedMap>
       <Toolbar />
     </Card>
