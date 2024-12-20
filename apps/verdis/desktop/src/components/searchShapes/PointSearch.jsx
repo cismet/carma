@@ -12,7 +12,16 @@ const PointSearch = ({ map }) => {
 
   useEffect(() => {
     if (map && mode === "point") {
+      const mapId = document.getElementById("routedMap");
+      if (mapId) {
+        mapId.style.cursor = "crosshair";
+      }
       map.on("click", drawCircle);
+    } else {
+      const mapId = document.getElementById("routedMap");
+      if (mapId) {
+        mapId.style.cursor = "grab";
+      }
     }
 
     return () => {
@@ -23,11 +32,6 @@ const PointSearch = ({ map }) => {
   }, [map, mode]);
 
   const drawCircle = (e) => {
-    const mapId = document.getElementById("routedMap");
-    if (mapId) {
-      console.log("xxx crosshair");
-      mapId.style.cursor = "crosshair";
-    }
     const center = e.latlng;
     const radius = 10;
     const circle = L.circleMarker(center, {
