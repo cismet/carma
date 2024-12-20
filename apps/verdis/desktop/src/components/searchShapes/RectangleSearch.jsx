@@ -19,6 +19,13 @@ const RectangleSearch = ({ map }) => {
   const editableLayersRef = useRef(new L.FeatureGroup());
   const mode = useSelector(getShapeMode);
   const zoomLevel = map.getZoom();
+
+  const disableDrawing = () => {
+    if (drawControlRef.current) {
+      drawControlRef.current.disable();
+      drawControlRef.current = null;
+    }
+  };
   useEffect(() => {
     if (map) {
       map.addLayer(editableLayersRef.current);
@@ -52,6 +59,7 @@ const RectangleSearch = ({ map }) => {
     if (map && mode !== "point") {
       if (
         mode === "rectangle" &&
+        mode !== "point" &&
         zoomLevel >= 17 &&
         !drawControlRef.current &&
         ifMouseEnter
@@ -67,13 +75,12 @@ const RectangleSearch = ({ map }) => {
       if (zoomLevel < 17) {
         dispatch(storeIfShapeModeAvailable(false));
         dispatch(storeShapeMode("default"));
-        if (drawControlRef.current) {
-          drawControlRef.current.disable();
-          drawControlRef.current = null;
-        }
+        disableDrawing();
       } else {
         dispatch(storeIfShapeModeAvailable(true));
       }
+    } else {
+      disableDrawing();
     }
 
     window.addEventListener("keydown", handleKeyDown);
