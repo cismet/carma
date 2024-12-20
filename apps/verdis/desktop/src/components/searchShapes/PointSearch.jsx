@@ -1,11 +1,13 @@
 import { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { getShapeMode } from "../../store/slices/searchMode";
+import { getShapeMode, storeShapeMode } from "../../store/slices/searchMode";
 import { convertLatLngToXY } from "../../tools/mappingTools";
+import { useSelector, useDispatch } from "react-redux";
+import { searchWithPoints } from "../../store/slices/search";
 
 const PointSearch = ({ map }) => {
-  const circleRef = useRef(null);
+  const dispatch = useDispatch();
   const mode = useSelector(getShapeMode);
 
   useEffect(() => {
@@ -23,7 +25,7 @@ const PointSearch = ({ map }) => {
   const drawCircle = (e) => {
     const center = e.latlng;
 
-    const baseRadius = 12;
+    const baseRadius = 10;
 
     const circle = L.circleMarker(center, {
       radius: baseRadius,
@@ -33,11 +35,12 @@ const PointSearch = ({ map }) => {
     }).addTo(map);
 
     const convertedCenter = convertLatLngToXY(center);
+    console.log("xxx convertedCenter", convertedCenter);
+    dispatch(searchWithPoints(convertedCenter));
 
     setTimeout(() => {
-      if (circleRef) {
-        map.removeLayer(circle);
-      }
+      map.removeLayer(circle);
+      dispatch(storeShapeMode("default"));
     }, 1500);
   };
 
