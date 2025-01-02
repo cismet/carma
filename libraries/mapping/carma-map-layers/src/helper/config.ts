@@ -598,7 +598,7 @@ export const topicMapsConfig: Config = {
       ],
       type: "link",
       thumbnail:
-        "https://plus.unsplash.com/premium_photo-1663099733543-4c503251e501?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+        "https://www.wuppertal.de/geoportal/geoportal_vorschau/umwelt_Klimafunktion.png",
       url: "https://digital-twin-wuppertal-live.github.io/hitzeinderstadt/",
       serviceName: "wuppTopicMaps",
     },
