@@ -118,7 +118,10 @@ const LayerItem = ({
     if (carmaConf?.opendata) {
       tmpLinks.push({
         url: carmaConf.opendata,
-        text: "Datenquelle im Open-Data-Portal Wuppertal",
+        text:
+          layer.type === "link"
+            ? "Beschreibung im Open-Data-Portal"
+            : "Datenquelle im Open-Data-Portal Wuppertal",
       });
     }
 
