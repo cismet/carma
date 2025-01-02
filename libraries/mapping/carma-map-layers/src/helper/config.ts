@@ -532,7 +532,7 @@ export const topicMapsConfig: Config = {
     {
       id: "wuppTopicMaps_flooding",
       name: "wuppTopicMaps_flooding",
-      title: "Hochwassergefahrenkarte",
+      title: "Hochwasser-Gefahrenkarte",
       description: `Die Hochwassergefahrenkarte Wuppertal ist eine im Auftrag der Stadt Wuppertal von der Firma cismet GmbH betriebene interaktive Internet-Kartenanwendung zur Information der Öffentlichkeit zu Überflutungsrisiken im Zusammenhang mit Hochwasserereignissen.`,
       tags: [
         "TopicMaps",
@@ -558,7 +558,7 @@ export const topicMapsConfig: Config = {
     {
       id: "wuppTopicMaps_rainhazard",
       name: "wuppTopicMaps_rainhazard",
-      title: "Starkregengefahrenkarte",
+      title: "Starkregen-Gefahrenkarte",
       description: `	Die Starkregengefahrenkarte Wuppertal ist eine im Auftrag der Stadt Wuppertal von der Firma cismet GmbH, Saarbrücken, betriebene interaktive Internet-Kartenanwendung zur Information der Öffentlichkeit zu Überflutungsrisiken im Zusammenhang mit Starkregenereignissen. Sie stellt hierzu in einem 1m x 1m Raster in zwei umschaltbaren Kartenansichten maximale Wasserstände bzw. maximale Fließgeschwindigkeiten dar, die im Verlauf von simulierten Starkregenereignissen auftreten.`,
       tags: [
         "TopicMaps",
@@ -606,11 +606,25 @@ export const topicMapsConfig: Config = {
       id: "wuppTopicMaps_klimaorte",
       name: "wuppTopicMaps_klimaorte",
       title: "Klimaortkarte",
-      description: `Interaktive Kartenanwendung für die Publikation von Best-Practice-Beispielen zum Klimaschutz in Wuppertal .`,
-      tags: ["TopicMaps", "Klimaorte"],
+      description: `Die Klimaortkarte Wuppertal ist eine im Auftrag der Stadt Wuppertal von der Firma cismet GmbH, Saarbrücken, betriebene interaktive Internet-Kartenanwendung zur Information der Öffentlichkeit über Best-Practice-Beispiele für den Klimaschutz in Wuppertal. Neben den punktförmig modellierten "Klimaorten" umfasst die Klimaortkarte mit den "Klimarouten" auch Vorschläge für Radtouren und Wanderungen, die viele dieser Klimaorte verbinden.`,
+      tags: [
+        "TopicMaps",
+        "Umwelt",
+        "Klimawandel",
+        "Klimaschutz",
+        "Solarenergie",
+        "Windenergie",
+        "Quartiersentwicklung",
+        "Energieberatung",
+        "Umweltbildung",
+        "Nachhaltigkeit",
+      ],
       type: "link",
       thumbnail:
         "https://images.unsplash.com/photo-1548337138-e87d889cc369?q=80&w=2096&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+      keywords: [
+        "carmaConf://opendata:https://offenedaten-wuppertal.de/dataset/klimaorte-wuppertal/resource/18dd4a9c-a007-480b-bbde-77ece763e408",
+      ],
       url: "https://topicmaps-wuppertal.github.io/klimaorte/#/",
       serviceName: "wuppTopicMaps",
     },
