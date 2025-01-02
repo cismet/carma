@@ -625,7 +625,7 @@ export const topicMapsConfig: Config = {
       keywords: [
         "carmaConf://opendata:https://offenedaten-wuppertal.de/dataset/klimaorte-wuppertal/resource/18dd4a9c-a007-480b-bbde-77ece763e408",
       ],
-      url: "https://topicmaps-wuppertal.github.io/klimaorte/#/",
+      url: "https://digital-twin-wuppertal-live.github.io/klimaorte/",
       serviceName: "wuppTopicMaps",
     },
     {
