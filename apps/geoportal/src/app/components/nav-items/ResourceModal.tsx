@@ -73,8 +73,6 @@ const ResourceModal = () => {
 
     newLayer = await utils.parseToMapLayer(layer, forceWMS, true);
 
-    console.log("xxx", newLayer);
-
     if (activeLayers.find((activeLayer) => activeLayer.id === id)) {
       try {
         dispatch(removeLayer(id));
@@ -128,6 +126,21 @@ const ResourceModal = () => {
         activeLayers={activeLayers}
         customCategories={[
           {
+            Title: "Meine Teilzwillinge",
+            // @ts-expect-error
+            layers: favorites
+              .filter((favorite) => {
+                return favorite.serviceName === "wuppTopicMaps";
+              })
+              .map((favorite) => {
+                return {
+                  ...favorite,
+                  serviceName: "favoriteDigitalTwins",
+                };
+              }),
+            id: "favoriteDigitalTwins",
+          },
+          {
             Title: "Meine Karten",
             layers: savedLayerConfigs.map((layer) => {
               return {
@@ -141,12 +154,16 @@ const ResourceModal = () => {
           {
             Title: "Meine Kartenebenen",
             // @ts-expect-error
-            layers: favorites.map((favorite) => {
-              return {
-                ...favorite,
-                serviceName: "favoriteLayers",
-              };
-            }),
+            layers: favorites
+              .filter((favorite) => {
+                return favorite.serviceName !== "wuppTopicMaps";
+              })
+              .map((favorite) => {
+                return {
+                  ...favorite,
+                  serviceName: "favoriteLayers",
+                };
+              }),
             id: "favoriteLayers",
           },
         ]}
