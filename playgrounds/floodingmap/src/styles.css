@@ -6,3 +6,10 @@
 .leaflet-control * img {
   display: initial;
 }
+
+/* override bootstrap tooltip to not interfere with antd */
+.tooltip,
+.tooltip .arrow,
+.tooltip .arrow::before {
+  all: unset !important;
+}
