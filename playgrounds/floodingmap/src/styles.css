@@ -8,8 +8,6 @@
 }
 
 /* override bootstrap tooltip to not interfere with antd */
-.tooltip,
-.tooltip .arrow,
-.tooltip .arrow::before {
-  all: unset !important;
+.ant-tooltip-arrow {
+  display: none !important;
 }
