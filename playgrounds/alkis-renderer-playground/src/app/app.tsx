@@ -2,21 +2,17 @@ import { faLock, faUser } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import type { FormProps } from "antd";
 import { Input, Form, Button } from "antd";
-const { Search } = Input;
-
-type FieldType = {
-  username?: string;
-  password?: string;
-};
+import { FieldType, login } from "./helper/getToken";
+import { useEffect, useState } from "react";
+import AlkisSearch from "../components/AlkisSearch";
 
 export function App() {
-  const onSearch = (value: string) => {
-    console.log("xxx Search text:", value.trim());
-  };
+  const [jwt, setJwt] = useState<string | null>(null);
+
   const onFinish: FormProps<FieldType>["onFinish"] = (values) => {
-    console.log("xxx Success:", values);
-    login(values);
+    login(values, setJwt);
   };
+
   return (
     <div>
       <Form className="w-full" onFinish={onFinish}>
@@ -62,44 +58,9 @@ export function App() {
           </Button>
         </div>
       </Form>
-      <div style={{ marginTop: "40px" }}>
-        <Search
-          placeholder="type alkis id input"
-          onSearch={onSearch}
-          enterButton
-        />
-      </div>
+      <AlkisSearch jwt={jwt} />
     </div>
   );
 }
 
 export default App;
-
-export const REST_SERVICE = "https://verdis-api.cismet.de";
-const DOMAIN = "VERDIS_GRUNDIS";
-
-const login = (values: FieldType) => {
-  fetch(REST_SERVICE + "/users", {
-    method: "GET",
-    headers: {
-      Authorization:
-        "Basic " + btoa(values.username + "@" + DOMAIN + ":" + values.password),
-      "Content-Type": "application/json",
-    },
-  })
-    .then(function (response) {
-      if (response.status >= 200 && response.status < 300) {
-        response.json().then(function (responseWithJWT) {
-          const jwt = responseWithJWT.jwt;
-          console.log("xxx jwt", jwt);
-        });
-      } else {
-        console.log("xxx error: Bei der Anmeldung ist ein Fehler aufgetreten.");
-      }
-    })
-    .catch(function (err) {
-      console.log(
-        "xxx error catch: Bei der Anmeldung ist ein Fehler aufgetreten."
-      );
-    });
-};
