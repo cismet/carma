@@ -1,6 +1,7 @@
 import { Input } from "antd";
 import { addHtmlFromData } from "../app/helper/addHtmlFromData";
 import { useState } from "react";
+import CustomCard from "./CustomCard";
 const { Search } = Input;
 
 interface AlkisSearchProps {
@@ -22,7 +23,11 @@ const AlkisSearch = ({ jwt }: AlkisSearchProps) => {
         enterButton
       />
 
-      {resHtml && <div style={{ marginTop: "40px" }}>{resHtml}</div>}
+      {resHtml && (
+        <div style={{ marginTop: "40px" }}>
+          {<CustomCard title="Flurstückenzeichen">{resHtml}</CustomCard>}
+        </div>
+      )}
     </div>
   );
 };
