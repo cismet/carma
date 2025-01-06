@@ -18,7 +18,7 @@ const RectangleSearch = ({ map }) => {
   const [ifMouseEnter, setIfMouseEnter] = useState(false);
   const editableLayersRef = useRef(new L.FeatureGroup());
   const mode = useSelector(getShapeMode);
-  const zoomLevel = map.getZoom();
+  const zoomLevel = map?.getZoom();
 
   const disableDrawing = () => {
     if (drawControlRef.current) {
@@ -56,7 +56,7 @@ const RectangleSearch = ({ map }) => {
         dispatch(storeShapeMode("default"));
       }
     };
-    if (map && mode !== "point") {
+    if (map && mode !== "point" && zoomLevel) {
       if (
         mode === "rectangle" &&
         mode !== "point" &&
