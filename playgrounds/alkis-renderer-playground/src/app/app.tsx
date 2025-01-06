@@ -1,15 +1,25 @@
 import { faLock, faUser } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import type { FormProps } from "antd";
 import { Input, Form, Button } from "antd";
 const { Search } = Input;
+
+type FieldType = {
+  username?: string;
+  password?: string;
+};
 
 export function App() {
   const onSearch = (value: string) => {
     console.log("xxx Search text:", value.trim());
   };
+  const onFinish: FormProps<FieldType>["onFinish"] = (values) => {
+    console.log("xxx Success:", values);
+    login(values);
+  };
   return (
     <div>
-      <Form className="w-full">
+      <Form className="w-full" onFinish={onFinish}>
         <div className="flex flex-col gap-6 w-full">
           <h3 className="text-primary border-b-2 border-0 w-fit border-solid">
             Anmeldung
@@ -64,3 +74,32 @@ export function App() {
 }
 
 export default App;
+
+export const REST_SERVICE = "https://verdis-api.cismet.de";
+const DOMAIN = "VERDIS_GRUNDIS";
+
+const login = (values: FieldType) => {
+  fetch(REST_SERVICE + "/users", {
+    method: "GET",
+    headers: {
+      Authorization:
+        "Basic " + btoa(values.username + "@" + DOMAIN + ":" + values.password),
+      "Content-Type": "application/json",
+    },
+  })
+    .then(function (response) {
+      if (response.status >= 200 && response.status < 300) {
+        response.json().then(function (responseWithJWT) {
+          const jwt = responseWithJWT.jwt;
+          console.log("xxx jwt", jwt);
+        });
+      } else {
+        console.log("xxx error: Bei der Anmeldung ist ein Fehler aufgetreten.");
+      }
+    })
+    .catch(function (err) {
+      console.log(
+        "xxx error catch: Bei der Anmeldung ist ein Fehler aufgetreten."
+      );
+    });
+};

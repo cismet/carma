@@ -1,10 +1,11 @@
 const DOMAIN = "VERDIS_GRUNDIS";
 
-export const login = (username, password) => {
+export const login = (values) => {
   fetch(REST_SERVICE + "/users", {
     method: "GET",
     headers: {
-      Authorization: "Basic " + btoa(username + "@" + DOMAIN + ":" + password),
+      Authorization:
+        "Basic " + btoa(values.username + "@" + DOMAIN + ":" + values.password),
       "Content-Type": "application/json",
     },
   })
