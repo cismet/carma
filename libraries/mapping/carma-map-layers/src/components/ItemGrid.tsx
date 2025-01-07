@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Item } from "../helper/types";
 import LayerItem from "./LayerItem";
 
@@ -34,12 +33,10 @@ const ItemGrid = ({
     return null;
   }
 
-  const [categoriesWithPath, setCategoriesWithPath] = useState([]);
-
-  const getAllUniquePaths = (layers) => {
+  const getAllUniquePaths = (layers: Item[]) => {
     const paths: string[] = [];
 
-    layers.forEach((layer: Item) => {
+    layers.forEach((layer) => {
       if (layer.path && !paths.includes(layer.path)) {
         paths.push(layer.path);
       }
@@ -49,8 +46,7 @@ const ItemGrid = ({
   };
 
   if (isSearch) {
-    const tmpCategories = categories.map((category) => {
-      let lastPath = category?.layers?.[0]?.path || "";
+    const categoriesWithPath = categories.map((category) => {
       return {
         ...category,
         subCategories: getAllUniquePaths(category.layers).map((path) => {
@@ -64,7 +60,7 @@ const ItemGrid = ({
 
     return (
       <>
-        {tmpCategories.map((category, i) => {
+        {categoriesWithPath.map((category, i) => {
           return (
             <div key={category.Title} id={category.Title}>
               {category.subCategories.length > 0 &&
