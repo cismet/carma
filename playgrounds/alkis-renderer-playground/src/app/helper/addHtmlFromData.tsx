@@ -1,4 +1,5 @@
 import { Divider, Tabs } from "antd";
+import { getAllAdditionalShits } from "./getToken";
 
 const demoLandparcel = {
   data: {
@@ -69,8 +70,12 @@ const demoLandparcel = {
   },
 };
 
-export const addHtmlFromData = (data = demoLandparcel) => {
+export const addHtmlFromData = async (jwt: string, data = demoLandparcel) => {
   const landparcel = data.data.alkis_landparcel[0];
+  const addShits = await getAllAdditionalShits(
+    jwt,
+    landparcel.buchungsblaetterArray
+  );
   const lage = landparcel.adressenArray[0].alkis_adresse.strasse;
   const { buchungsblaetterArray } = landparcel;
   const wrapStyle = { display: "flex", width: "100%" };

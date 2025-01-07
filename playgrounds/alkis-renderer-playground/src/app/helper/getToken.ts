@@ -290,7 +290,10 @@ export const getAdditionalShits = (jwt: string, sheetId: string) => {
         additionalShitsResponse.res.offices.landRegistryOfficeName[0];
 
       console.log("xxx double res", landRegistryName);
-      return landRegistryName;
+      return {
+        buchungsblattcode: additionalShitsResponse.res.buchungsblattCode,
+        content: landRegistryName,
+      };
     });
 };
 
@@ -301,7 +304,7 @@ interface AdditionalShits {
   };
 }
 
-const getAllAdditionalShits = async (
+export const getAllAdditionalShits = async (
   jwt: string,
   buchungsblattArray: AdditionalShits[]
 ) => {
@@ -309,6 +312,6 @@ const getAllAdditionalShits = async (
     return getAdditionalShits(jwt, b.alkis_buchungsblatt.buchungsblattcode);
   });
   const results = await Promise.all(fetchPromises);
-
+  console.log("xxx promise all", results);
   return results;
 };
