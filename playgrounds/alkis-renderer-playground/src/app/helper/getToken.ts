@@ -36,45 +36,25 @@ export const getAdditionalShits = (jwt: string, sheetId: string) => {
   const form = new FormData();
   let taskParameters = {
     parameters: {
-      // BODY: "STRING_AS_BYTE_ARRAY",
       BUCHUNGSBLATT: sheetId,
-      // TYPE: "FLAECHEN",
-      // MAP_FORMAT:
-      //   format === "optimal"
-      //     ? "A4"
-      //     : format + orientation === "optimal"
-      //     ? ""
-      //     : orientation,
-      // HINTS: hints || "",
-      // MAP_SCALE: scale === "optimal" ? "1000" : scale || "1000",
-      // ABLUSSWIRKSAMKEIT: drainEffectiveness ? "TRUE" : "FALSE",
     },
   };
 
-  const blobParams = new Blob([JSON.stringify(taskParameters)], {
-    type: "application/json",
-  });
-  console.log("xxx blobParams", blobParams);
-
   form.append(
     "taskparams",
-    // "053001-033390"
     new Blob([JSON.stringify(taskParameters)], { type: "application/json" })
   );
 
-  fetch(
-    "https://verdis-api.cismet.de/actions/VERDIS_GRUNDIS.EBReport/tasks?resultingInstanceType=result",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${jwt}`,
-      },
-      body: form,
-      // body: JSON.stringify({
-      //   taskparams: "053001-033390",
-      // }),
-    }
-  )
+  const url =
+    "https://wunda-api.cismet.de/actions/WUNDA_BLAU.alkisRestTunnelAction/tasks?resultingInstanceType=result";
+
+  fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${jwt}`,
+    },
+    body: form,
+  })
     .then((response) => {
       if (response.status >= 200 && response.status < 300) {
         const res = response.json();
