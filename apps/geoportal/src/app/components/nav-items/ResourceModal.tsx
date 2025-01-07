@@ -136,6 +136,7 @@ const ResourceModal = () => {
                 return {
                   ...favorite,
                   serviceName: "favoriteDigitalTwins",
+                  path: "Meine Teilzwillinge",
                 };
               }),
             id: "favoriteDigitalTwins",
@@ -146,6 +147,7 @@ const ResourceModal = () => {
               return {
                 ...layer,
                 serviceName: "collections",
+                path: "Meine Karten",
               };
             }),
             // @ts-expect-error
@@ -162,6 +164,7 @@ const ResourceModal = () => {
                 return {
                   ...favorite,
                   serviceName: "favoriteLayers",
+                  path: "Meine Kartenebenen",
                 };
               }),
             id: "favoriteLayers",

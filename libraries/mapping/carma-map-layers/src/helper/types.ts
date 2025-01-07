@@ -118,6 +118,7 @@ export type Item = {
   minZoom?: number;
   id: string;
   serviceName: string;
+  path?: string;
 } & (tmpLayer | Link | Feature | Collection);
 
 export type XMLLayer = {

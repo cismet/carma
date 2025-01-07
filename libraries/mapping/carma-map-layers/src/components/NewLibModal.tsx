@@ -451,6 +451,7 @@ export const NewLibModal = ({
           serviceName: "custom",
           type: "layer",
           keywords: [`carmaConf://vectorStyle:${url}`],
+          path: "Eigene Daten",
         };
 
         addItemToCategory(
@@ -472,7 +473,12 @@ export const NewLibModal = ({
               addItemToCategory(
                 "mapLayers",
                 { id: "custom", Title: "Eigene Daten" },
-                ownLayers[0].layers
+                ownLayers[0].layers.map((layer) => {
+                  return {
+                    ...layer,
+                    path: "Eigene Daten",
+                  };
+                })
               );
             }
           })
@@ -510,6 +516,7 @@ export const NewLibModal = ({
                 keywords: [
                   `carmaConf://vectorStyle:${JSON.stringify(jsonData)}`,
                 ],
+                path: "Eigene Daten",
               };
 
               addItemToCategory(
@@ -535,7 +542,12 @@ export const NewLibModal = ({
               addItemToCategory(
                 "mapLayers",
                 { id: "custom", Title: "Eigene Daten" },
-                ownLayers[0].layers
+                ownLayers[0].layers.map((layer) => {
+                  return {
+                    ...layer,
+                    path: "Eigene Daten",
+                  };
+                })
               );
             }
           })
@@ -759,6 +771,7 @@ export const NewLibModal = ({
                   selectedLayerId={selectedLayerId}
                   setSelectedLayerId={setSelectedLayerId}
                   setPreview={setPreview}
+                  isSearch={selectedNavItemIndex === 5}
                 />
               )}
               {selectedNavItemIndex === 3 &&

@@ -145,7 +145,11 @@ const scaleHintToZoom = (scaleHint: number) => {
   return Math.round(zoom);
 };
 
-export const wmsLayerToGenericItem = (layer: XMLLayer, serviceName: string) => {
+export const wmsLayerToGenericItem = (
+  layer: XMLLayer,
+  serviceName: string,
+  path?: string
+) => {
   if (layer) {
     let item: Item = {
       title: layer.Title,
@@ -161,6 +165,7 @@ export const wmsLayerToGenericItem = (layer: XMLLayer, serviceName: string) => {
       minZoom: scaleHintToZoom(layer?.ScaleHint?.max),
       props: { ...layer },
       serviceName: serviceName,
+      path: path ? path : "",
     };
 
     return item;
@@ -213,9 +218,13 @@ export const getLayerStructure = ({
             layer.name,
             []
           );
-          foundLayer = wmsLayerToGenericItem(wmsLayer, serviceName);
+          foundLayer = wmsLayerToGenericItem(
+            wmsLayer,
+            serviceName,
+            categoryObject.Title
+          );
         } else {
-          foundLayer = layer;
+          foundLayer = { ...layer, path: categoryObject.Title };
         }
         if (foundLayer) {
           if (wms) {
@@ -282,7 +291,11 @@ export const getLayerStructure = ({
           layer.Name,
           []
         );
-        let foundLayer = wmsLayerToGenericItem(wmsLayer, serviceName);
+        let foundLayer = wmsLayerToGenericItem(
+          wmsLayer,
+          serviceName,
+          categoryObject.Title
+        );
         if (foundLayer) {
           foundLayer.props["url"] =
             wms.Capability.Request.GetMap.DCPType[0].HTTP.Get.OnlineResource;
