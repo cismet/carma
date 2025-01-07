@@ -18,6 +18,7 @@
 //   },
 // };
 
+import { Divider, Tabs } from "antd";
 import { wrap } from "module";
 
 const demoLandparcel = {
@@ -92,6 +93,7 @@ const demoLandparcel = {
 export const addHtmlFromData = (data = demoLandparcel) => {
   const landparcel = data.data.alkis_landparcel[0];
   const lage = landparcel.adressenArray[0].alkis_adresse.strasse;
+  const { buchungsblaetterArray } = landparcel;
   const wrapStyle = { display: "flex", width: "100%" };
   const colStyle = { width: "50%" };
   return (
@@ -118,6 +120,22 @@ export const addHtmlFromData = (data = demoLandparcel) => {
           {landparcel.groesse} m<sup>2</sup>
         </div>
       </div>
+      <Divider />
+      <h4>Buchungsblätter</h4>
+      <Tabs
+        defaultActiveKey="1"
+        tabPosition="left"
+        style={{ height: 220 }}
+        items={buchungsblaetterArray.map((b, i) => {
+          const id = String(i);
+          return {
+            label: b.alkis_buchungsblatt.buchungsblattcode,
+            key: id,
+            disabled: i === 28,
+            children: `Content of ${b.alkis_buchungsblatt.buchungsblattcode} landparcel ${id} `,
+          };
+        })}
+      />
     </div>
   );
 };
