@@ -1,25 +1,4 @@
-// const demoLandparcel = {
-//   data: {
-//     alkis_landparcel: [
-//       {
-//         id: 1,
-//         bezeichnung: "001-00003/0002",
-//         gemarkung: "Barmen",
-//         groesse: 175,
-//         adressenArray: [
-//           {
-//             alkis_adresse: {
-//               strasse: "(01389) Herzkamper Straße",
-//             },
-//           },
-//         ],
-//       },
-//     ],
-//   },
-// };
-
 import { Divider, Tabs } from "antd";
-import { wrap } from "module";
 
 const demoLandparcel = {
   data: {

@@ -2,6 +2,7 @@ import { Input } from "antd";
 import { addHtmlFromData } from "../app/helper/addHtmlFromData";
 import { useState } from "react";
 import CustomCard from "./CustomCard";
+import { getAdditionalShits } from "../app/helper/getToken";
 const { Search } = Input;
 
 interface AlkisSearchProps {
@@ -13,7 +14,10 @@ const AlkisSearch = ({ jwt }: AlkisSearchProps) => {
   const onSearch = (value: string) => {
     const landparcelHtml = addHtmlFromData();
     setResHtml(landparcelHtml);
-    console.log("xxx jwt", landparcelHtml);
+    if (jwt) {
+      getAdditionalShits(jwt, "053001-033390");
+    }
+    console.log("xxx jwt", jwt);
   };
   return (
     <div style={{ marginTop: "40px", marginBottom: "60px" }}>
