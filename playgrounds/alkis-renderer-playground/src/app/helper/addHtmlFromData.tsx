@@ -96,9 +96,10 @@ export const addHtmlFromData = (data = demoLandparcel) => {
   const { buchungsblaetterArray } = landparcel;
   const wrapStyle = { display: "flex", width: "100%" };
   const colStyle = { width: "50%" };
+  const titleStyle = { marginBottom: "14px" };
   return (
     <div>
-      <h4>Flurstücksinformationen</h4>
+      <h4 style={titleStyle}>Flurstücksinformationen</h4>
       <div style={wrapStyle}>
         <div style={colStyle}>Flurstückenzeichen:</div>
         <div style={colStyle}>{landparcel.alkis_id}</div>
@@ -121,7 +122,7 @@ export const addHtmlFromData = (data = demoLandparcel) => {
         </div>
       </div>
       <Divider />
-      <h4>Buchungsblätter</h4>
+      <h4 style={titleStyle}>Buchungsblätter</h4>
       <Tabs
         defaultActiveKey="1"
         tabPosition="left"
