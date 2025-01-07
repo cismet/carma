@@ -51,7 +51,7 @@ const ItemGrid = ({
         ...category,
         subCategories: getAllUniquePaths(category.layers).map((path) => {
           return {
-            Title: category.Title + " | " + path,
+            Title: category.Title + " > " + path,
             layers: category.layers.filter((layer) => layer.path === path),
           };
         }),
