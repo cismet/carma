@@ -2,7 +2,6 @@ import { Input } from "antd";
 import { addHtmlFromData } from "../app/helper/addHtmlFromData";
 import { useState } from "react";
 import CustomCard from "./CustomCard";
-import { getAdditionalShits } from "../app/helper/getToken";
 const { Search } = Input;
 
 interface AlkisSearchProps {
@@ -11,11 +10,11 @@ interface AlkisSearchProps {
 
 const AlkisSearch = ({ jwt }: AlkisSearchProps) => {
   const [resHtml, setResHtml] = useState<JSX.Element | null>(null);
-  const onSearch = (value: string) => {
-    const landparcelHtml = addHtmlFromData();
-    setResHtml(landparcelHtml);
+  const onSearch = async (value: string) => {
     if (jwt) {
-      getAdditionalShits(jwt, "053001-033390");
+      const landparcelHtml = await addHtmlFromData(jwt);
+      setResHtml(landparcelHtml);
+      // getAdditionalShits(jwt, "053001-033390");
     }
     console.log("xxx jwt", jwt);
   };
