@@ -48,7 +48,7 @@ export const getAdditionalShits = (jwt: string, sheetId: string) => {
   const url =
     "https://wunda-api.cismet.de/actions/WUNDA_BLAU.alkisRestTunnelAction/tasks?resultingInstanceType=result";
 
-  fetch(url, {
+  return fetch(url, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${jwt}`,
@@ -73,5 +73,25 @@ export const getAdditionalShits = (jwt: string, sheetId: string) => {
       // let byteCharacters = atob(result.res);
 
       console.log("xxx double res", result);
+      return result;
     });
+};
+
+interface AdditionalShits {
+  alkis_buchungsblatt: {
+    id: number;
+    buchungsblattcode: string;
+  };
+}
+
+const getAllAdditionalShits = async (
+  jwt: string,
+  buchungsblattArray: AdditionalShits[]
+) => {
+  const fetchPromises = buchungsblattArray.map((b) => {
+    return getAdditionalShits(jwt, b.alkis_buchungsblatt.buchungsblattcode);
+  });
+  const results = await Promise.all(fetchPromises);
+
+  return results;
 };
