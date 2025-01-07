@@ -18,6 +18,8 @@
 //   },
 // };
 
+import { wrap } from "module";
+
 const demoLandparcel = {
   data: {
     alkis_landparcel: [
@@ -90,15 +92,31 @@ const demoLandparcel = {
 export const addHtmlFromData = (data = demoLandparcel) => {
   const landparcel = data.data.alkis_landparcel[0];
   const lage = landparcel.adressenArray[0].alkis_adresse.strasse;
+  const wrapStyle = { display: "flex", width: "100%" };
+  const colStyle = { width: "50%" };
   return (
     <div>
-      {/* <h3>Flurstücksinformationen</h3> */}
-      <div>Flurstückenzeichen: {landparcel.alkis_id}</div>
-      <div>Gemeinde: Wuppertal</div>
-      <div>Gemarkung: {landparcel.gemarkung}</div>
-      <div>Lage: {lage}</div>
-      <div>
-        Größe: {landparcel.groesse} m<sup>2</sup>
+      <h4>Flurstücksinformationen</h4>
+      <div style={wrapStyle}>
+        <div style={colStyle}>Flurstückenzeichen:</div>
+        <div style={colStyle}>{landparcel.alkis_id}</div>
+      </div>
+      <div style={wrapStyle}>
+        <div style={colStyle}>Gemeinde:</div>
+        <div style={colStyle}>Wuppertal</div>
+      </div>
+      <div style={wrapStyle}>
+        <div style={colStyle}>Gemarkung:</div>
+        <div style={colStyle}>{landparcel.gemarkung}</div>
+      </div>
+      <div style={wrapStyle}>
+        <div style={colStyle}>Lage:</div> <div style={colStyle}>{lage}</div>
+      </div>
+      <div style={wrapStyle}>
+        <div style={colStyle}>Größe:</div>
+        <div style={colStyle}>
+          {landparcel.groesse} m<sup>2</sup>
+        </div>
       </div>
     </div>
   );
