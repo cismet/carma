@@ -74,6 +74,12 @@ export const defaultLayerConfig: DefaultLayerConfig = {
       layers: "R102:trueortho2022",
       transparent: true,
     },
+    trueOrtho2024: {
+      type: "wms",
+      url: "https://maps.wuppertal.de/karten",
+      layers: "R102:trueortho2024",
+      transparent: true,
+    },
     rvrSchriftNT: {
       type: "wmts-nt",
       url: "https://geodaten.metropoleruhr.de/dop/dop_overlay?language=ger",
@@ -114,11 +120,11 @@ export const defaultLayerConfig: DefaultLayerConfig = {
 export const layerMap: LayerMap = {
   luftbild: {
     title: "Luftbild",
-    layers: "rvrGrundriss@100|trueOrtho2022@75|rvrSchriftNT@100",
+    layers: "rvrGrundriss@100|trueOrtho2024@75|rvrSchriftNT@100",
     description: `Luftbildkarte (aus True Ortophoto) © Stadt Wuppertal / RVR und Kooperationspartner`,
     inhalt: `<span>(1) Kartendienst (WMS) der Stadt Wuppertal. Datengrundlage:
-              True Orthophoto aus Bildflug vom 16.03.2022, hergestellt durch Aerowest
-              GmbH/Dortmund, Bodenauflösung 5 cm.
+               True Orthofoto aus Bildflügen vom 14.03. und 17.03.2024, hergestellt durch Aerowest
+              GmbH/Dortmund, Bodenauflösung 3 cm.
               (True Orthophoto: Aus Luftbildern mit hoher Längs- und Querüberdeckung
               in einem automatisierten Bildverarbeitungsprozess
               berechnetes Bild in Parallelprojektion, also ohne Gebäudeverkippung und sichttote Bereiche.) © Stadt Wuppertal (</span>
