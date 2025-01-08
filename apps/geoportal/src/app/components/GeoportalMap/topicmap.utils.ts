@@ -476,6 +476,14 @@ export const createCismapLayers = (
     });
   };
 
+  const updateGlobalHits = () => {
+    Object.keys(globalHits).forEach((key) => {
+      if (!layers.find((layer) => layer.id === key)) {
+        globalHits[key] = undefined;
+      }
+    });
+  };
+
   useEffect(() => {
     if (modeRef.current !== mode) {
       Object.keys(globalHits).forEach((key) => {
@@ -490,6 +498,7 @@ export const createCismapLayers = (
   }, [mode]);
 
   useEffect(() => {
+    updateGlobalHits();
     if (modeRef.current === UIMode.DEFAULT) {
       const lastObject = getLastDefinedObject(globalHits);
 
