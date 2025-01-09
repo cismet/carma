@@ -105,6 +105,9 @@ export const NewLibModal = ({
       categories: LayerCategories[];
     }[]
   >([]);
+  const [currentShownCategory, setCurrentShownCategory] = useState(
+    shownCategories[0]?.id
+  );
   const debouncedSearchTerm = useDebounce(searchValue, 300);
 
   const getNumOfCustomLayers = () => {
@@ -570,6 +573,50 @@ export const NewLibModal = ({
     };
   }, []);
 
+  useEffect(() => {
+    const handleScroll = () => {
+      const gridItemIDs = categoriesToShownLayers(
+        shownCategories,
+        sidebarElements[selectedNavItemIndex].id
+      ).map((category) => {
+        return category.Title;
+      });
+
+      let items: HTMLElement[] = [];
+
+      gridItemIDs.forEach((id) => {
+        const item = document.getElementById(id);
+        if (item) {
+          items.push(item);
+        }
+      });
+
+      let currentItemId = "";
+      let currentItemHeight = 0;
+      items.forEach((item) => {
+        if (item.getBoundingClientRect().top + 200 < window.innerHeight) {
+          if (currentItemId) {
+            if (item.getBoundingClientRect().top > currentItemHeight) {
+              currentItemId = item.id;
+              currentItemHeight = item.getBoundingClientRect().top;
+            }
+          } else {
+            currentItemId = item.id;
+            currentItemHeight = item.getBoundingClientRect().top;
+          }
+        }
+      });
+      setCurrentShownCategory(currentItemId);
+    };
+
+    const scrollContainer = document.getElementById("scrollContainer");
+    scrollContainer?.addEventListener("scroll", handleScroll);
+
+    return () => {
+      scrollContainer?.removeEventListener("scroll", handleScroll);
+    };
+  }, [selectedNavItemIndex]);
+
   const categoriesToShownLayers = (categories, shownId) => {
     if (shownId === "searchResults") {
       if (searchValue) {
@@ -725,7 +772,7 @@ export const NewLibModal = ({
                       shownCategories,
                       sidebarElements[selectedNavItemIndex].id
                     )}
-                    activeId={inViewCategory}
+                    activeId={currentShownCategory}
                     numberOfItems={getNumberOfLayers(layers)}
                   />
                   <hr className="h-px bg-gray-300 border-0 mt-0 mb-2" />
@@ -733,7 +780,10 @@ export const NewLibModal = ({
               )}
             </div>
           </div>
-          <div className="flex w-full gap-4 h-full overflow-auto pt-0.5 px-6">
+          <div
+            className="flex w-full gap-4 h-full overflow-auto pt-0.5 px-6"
+            id="scrollContainer"
+          >
             {!showItems && open && (
               <div className="h-full w-full flex items-center justify-center">
                 <div className="grid xl:grid-cols-5 lg:grid-cols-4 sm:grid-cols-2 w-full gap-8 mb-4 px-6 pt-4">
