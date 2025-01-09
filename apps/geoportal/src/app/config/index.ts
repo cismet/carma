@@ -121,17 +121,17 @@ export const layerMap: LayerMap = {
   luftbild: {
     title: "Luftbild",
     layers: "rvrGrundriss@100|trueOrtho2024@75|rvrSchriftNT@100",
-    description: `Luftbildkarte (aus True Ortophoto) © Stadt Wuppertal / RVR und Kooperationspartner`,
+    description: `Luftbildkarte (aus True Ortofoto) © Stadt Wuppertal / RVR und Kooperationspartner`,
     inhalt: `<span>(1) Kartendienst (WMS) der Stadt Wuppertal. Datengrundlage:
                True Orthofoto aus Bildflügen vom 14.03. und 17.03.2024, hergestellt durch Aerowest
               GmbH/Dortmund, Bodenauflösung 3 cm.
-              (True Orthophoto: Aus Luftbildern mit hoher Längs- und Querüberdeckung
+              (True Orthofoto: Aus Luftbildern mit hoher Längs- und Querüberdeckung
               in einem automatisierten Bildverarbeitungsprozess
               berechnetes Bild in Parallelprojektion, also ohne Gebäudeverkippung und sichttote Bereiche.) © Stadt Wuppertal (</span>
               <a class="remove-margins" href="https://www.wuppertal.de/geoportal/Nutzungsbedingungen/NB-GDIKOM-C_Geodaten.pdf">NB-GDIKOM C</a>
               <span>). (2) Kartendienste (WMS) des Regionalverbandes Ruhr (RVR). Datengrundlagen:
               Stadtkarte 2.0 und Kartenschrift aus der Stadtkarte 2.0. Details s. Hintergrundkarte Stadtplan).</span>`,
-    eignung: `Die Luftbildkarte ist der anschaulichste und inhaltsreichste Kartenhintergrund, geeignet vor allem für Detailbetrachtungen. Durch die Verwendung eines "True Orthophotos" ist die passgenaue Überlagerung mit grundrisstreuen Kartenebenen möglich. Aktualität: Wuppertal lässt in einem Turnus von 2 Jahren Bildflüge durchführen, aus denen ein True Orthophoto abgeleitet wird. Die dargestellte Situation, z. B. bezüglich des Gebäudebestandes, kann daher bis zu 2,5 Jahre alt sein.`,
+    eignung: `Die Luftbildkarte ist der anschaulichste und inhaltsreichste Kartenhintergrund, geeignet vor allem für Detailbetrachtungen. Durch die Verwendung eines "True Orthofotos" ist die passgenaue Überlagerung mit grundrisstreuen Kartenebenen möglich. Aktualität: Wuppertal lässt in einem Turnus von 2 Jahren Bildflüge durchführen, aus denen ein True Orthofoto abgeleitet wird. Die dargestellte Situation, z. B. bezüglich des Gebäudebestandes, kann daher bis zu 2,5 Jahre alt sein.`,
     url: "https://maps.wuppertal.de/karten?service=WMS&request=GetMap&layers=R102%3Aluftbild2022",
   },
   stadtplan: {
