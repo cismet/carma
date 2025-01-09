@@ -121,7 +121,7 @@ export const layerMap: LayerMap = {
   luftbild: {
     title: "Luftbild",
     layers: "rvrGrundriss@100|trueOrtho2024@75|rvrSchriftNT@100",
-    description: `Luftbildkarte (aus True Ortofoto) © Stadt Wuppertal / RVR und Kooperationspartner`,
+    description: `Luftbildkarte (aus True Orthofoto) © Stadt Wuppertal / RVR und Kooperationspartner`,
     inhalt: `<span>(1) Kartendienst (WMS) der Stadt Wuppertal. Datengrundlage:
                True Orthofoto aus Bildflügen vom 14.03. und 17.03.2024, hergestellt durch Aerowest
               GmbH/Dortmund, Bodenauflösung 3 cm.
