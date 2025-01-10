@@ -567,7 +567,16 @@ export const NewLibModal = ({
   useEffect(() => {
     if (shownCategories) {
       const sidebarId = sidebarElements[selectedNavItemIndex].id;
-      setCurrentShownCategory(shownCategories[sidebarId]?.categories[0].id);
+      shownCategories.forEach((category) => {
+        if (category.id === sidebarId) {
+          category.categories.some((subCategory) => {
+            if (subCategory.layers.length > 0) {
+              setCurrentShownCategory(subCategory.Title);
+              return true;
+            }
+          });
+        }
+      });
     }
 
     const handleScroll = () => {
@@ -611,7 +620,7 @@ export const NewLibModal = ({
     return () => {
       scrollContainer?.removeEventListener("scroll", handleScroll);
     };
-  }, [shownCategories, selectedNavItemIndex]);
+  }, [shownCategories, selectedNavItemIndex, debouncedSearchTerm]);
 
   const categoriesToShownLayers = (categories, shownId) => {
     if (shownId === "searchResults") {
