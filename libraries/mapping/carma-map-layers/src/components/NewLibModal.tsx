@@ -615,7 +615,7 @@ export const NewLibModal = ({
     return () => {
       scrollContainer?.removeEventListener("scroll", handleScroll);
     };
-  }, [selectedNavItemIndex]);
+  }, [shownCategories]);
 
   const categoriesToShownLayers = (categories, shownId) => {
     if (shownId === "searchResults") {
