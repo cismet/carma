@@ -628,26 +628,6 @@ export const topicMapsConfig: Config = {
       url: "https://digital-twin-wuppertal-live.github.io/klimaorte/",
       serviceName: "wuppTopicMaps",
     },
-    {
-      id: "wuppTopicMaps_ehrenamt",
-      name: "wuppTopicMaps_ehrenamt",
-      title: "Ehrenamtskarte",
-      description: `Die Ehrenamtskarte Wuppertal ist eine im Auftrag der Stadt Wuppertal von der Firma cismet GmbH, Saarbrücken, betriebene interaktive Internet-Kartenanwendung für die erste Recherche nach Ehrenamtsstellen in Wuppertal. `,
-      tags: [
-        "TopicMaps",
-        "Soziale Beteiligung",
-        "Bürgerengagement",
-        "Partizipation",
-        "Ehrenamtsstelle",
-        "Ehrenamtsvermittlung",
-        "Zentrum für gute Taten",
-      ],
-      type: "link",
-      thumbnail:
-        "https://plus.unsplash.com/premium_photo-1663099733543-4c503251e501?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-      url: "https://wunda-geoportal.cismet.de/#/ehrenamt",
-      serviceName: "wuppTopicMaps",
-    },
   ],
 };
 
