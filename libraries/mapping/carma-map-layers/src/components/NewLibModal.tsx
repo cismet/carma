@@ -14,7 +14,6 @@ import { useDebounce } from "@uidotdev/usehooks";
 import { Button, Input, Modal } from "antd";
 import Fuse from "fuse.js";
 import { useEffect, useState } from "react";
-import { InView } from "react-intersection-observer";
 import WMSCapabilities from "wms-capabilities";
 import { baseConfig as config, serviceConfig } from "../helper/config";
 import {
@@ -31,7 +30,6 @@ import { SidebarItem } from "./SidebarItems";
 import "./input.css";
 import "./modal.css";
 import ItemGrid from "./ItemGrid";
-import { isEmpty } from "lodash";
 const { Search } = Input;
 
 // @ts-expect-error tbd
@@ -47,8 +45,6 @@ export interface LibModalProps {
   open: boolean;
   setOpen: (open: boolean) => void;
   setAdditionalLayers: any;
-  setThumbnail: any;
-  thumbnails: any;
   favorites?: Item[];
   addFavorite: (layer: Item) => void;
   removeFavorite: (layer: Item) => void;
@@ -71,8 +67,6 @@ export const NewLibModal = ({
   open,
   setOpen,
   setAdditionalLayers,
-  thumbnails,
-  setThumbnail,
   activeLayers,
   customCategories,
   addFavorite,
@@ -85,14 +79,11 @@ export const NewLibModal = ({
   const [layers, setLayers] = useState<any[]>([]);
   const [allLayers, setAllLayers] = useState<any[]>([]);
   const services = serviceConfig;
-  const [inViewCategory, setInViewCategory] = useState("");
-  const [allCategoriesInView, setAllCategoriesInView] = useState<string[]>([]);
   const [searchValue, setSearchValue] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [showItems, setShowItems] = useState(false);
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
   const [selectedNavItemIndex, setSelectedNavItemIndex] = useState(0);
-  const [testCategory, setTestCategory] = useState<any[]>([]);
   const [tmpAllCategories, setTmpAllCategories] = useState<
     {
       id: string;
@@ -824,64 +815,6 @@ export const NewLibModal = ({
                   isSearch={selectedNavItemIndex === 5}
                 />
               )}
-              {selectedNavItemIndex === 3 &&
-                showItems &&
-                testCategory.length > 0 &&
-                testCategory.map((category, i) => (
-                  <div key={category.Title}>
-                    {category.layers.length > 0 && (
-                      <InView
-                        rootMargin="20px 0px 20px 0px"
-                        as="div"
-                        onChange={(inView, entry) => {
-                          if (inView) {
-                            setInViewCategory(entry.target.id);
-
-                            setAllCategoriesInView((prev) => {
-                              return [...prev, entry.target.id];
-                            });
-                          } else {
-                            const updatedCategoriesInView =
-                              allCategoriesInView.filter(
-                                (item) => item !== entry.target.id
-                              );
-                            setAllCategoriesInView(updatedCategoriesInView);
-                            if (inViewCategory === entry.target.id && i > 0) {
-                              for (let j = i - 1; j >= 0; j--) {
-                                if (layers[j].layers.length > 0) {
-                                  setInViewCategory(layers[j].Title);
-                                }
-                              }
-                            }
-                          }
-                        }}
-                        id={category?.Title}
-                        key={category?.Title}
-                      >
-                        <p className="mb-4 text-2xl font-semibold">
-                          {category?.Title}
-                        </p>
-                        <div className="grid xl:grid-cols-7 grid-flow-dense lg:grid-cols-5 sm:grid-cols-4 gap-8 mb-4">
-                          {category?.layers?.map((layer: any, i: number) => (
-                            <LayerItem
-                              setAdditionalLayers={setAdditionalLayers}
-                              layer={layer}
-                              activeLayers={activeLayers}
-                              favorites={favorites}
-                              addFavorite={addFavorite}
-                              removeFavorite={removeFavorite}
-                              selectedLayerId={selectedLayerId}
-                              setSelectedLayerId={setSelectedLayerId}
-                              setPreview={setPreview}
-                              key={`${category.Title}_layer_${i}_${layer.id}`}
-                              showWithoutThumbnail
-                            />
-                          ))}
-                        </div>
-                      </InView>
-                    )}
-                  </div>
-                ))}
 
               {layers &&
                 getNumberOfLayers(layers) === 0 &&
