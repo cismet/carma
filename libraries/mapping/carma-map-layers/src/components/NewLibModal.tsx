@@ -565,6 +565,11 @@ export const NewLibModal = ({
   }, []);
 
   useEffect(() => {
+    if (shownCategories) {
+      const sidebarId = sidebarElements[selectedNavItemIndex].id;
+      setCurrentShownCategory(shownCategories[sidebarId]?.categories[0].id);
+    }
+
     const handleScroll = () => {
       const gridItemIDs = categoriesToShownLayers(
         shownCategories,
