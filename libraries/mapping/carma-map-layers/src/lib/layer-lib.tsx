@@ -22,8 +22,6 @@ export function LayerLib({
       open={open}
       setOpen={setOpen}
       setAdditionalLayers={setAdditionalLayers}
-      thumbnails={thumbnails}
-      setThumbnail={setThumbnail}
       activeLayers={activeLayers}
       customCategories={customCategories}
       addFavorite={addFavorite}
