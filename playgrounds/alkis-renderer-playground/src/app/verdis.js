@@ -1,6 +1,6 @@
 import { gql } from "graphql-request";
 import queries from "./queries";
 
-export const alkisLandParcelQuery = gql`
-  ${queries.alkisLandparcel}
+export const landParcelSearchQuery = gql`
+  ${queries.landparcelSearch}
 `;
