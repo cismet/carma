@@ -292,15 +292,38 @@ export const getAdditionalSheets = (
       console.log("xxx error", e);
     })
     .then((result) => {
-      // let byteCharacters = atob(result.res);
-      // let byteCharacters = atob(additionalShitsResponse);
-      const landRegistryName =
-        additionalShitsResponse.res.offices.landRegistryOfficeName[0];
+      const owner = additionalShitsResponse.res.owners[0];
+      const { salutation, firstName, surName, dateOfBirth } = owner;
 
-      console.log("xxx sheets res", result);
+      const date = new Date(dateOfBirth);
+      const day = String(date.getDate()).padStart(2, "0");
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const year = date.getFullYear();
+      const formattedDate = `${day}.${month}.${year}`;
+
+      const { houseNumber, postalCode, city } =
+        additionalShitsResponse.res.owners[0].addresses[0];
+
+      console.log("xxx sheets res", {
+        salutation,
+        firstName,
+        surName,
+        formattedDate,
+        houseNumber,
+        postalCode,
+        city,
+      });
       return {
         buchungsblattcode: additionalShitsResponse.res.buchungsblattCode,
-        content: landRegistryName,
+        content: {
+          salutation,
+          firstName,
+          surName,
+          formattedDate,
+          houseNumber,
+          postalCode,
+          city,
+        },
       };
     });
 };
@@ -349,12 +372,15 @@ export const getLandparcelById = (name: string, jwt: string) => {
     })
     .then((result) => {
       const ids = result.data.alkis_landparcel[0].id;
-      const url = `http://localhost:3033/renderer/?domain=WUNDA_BLAU&jwt=${jwt}&table=alkis_landparcel&id=${ids}`;
-      fetch(url).catch((error) => {
-        //  i expect an error here
-      });
+      const bezeichnung = result.data.alkis_landparcel[0].bezeichnung;
+      // const url = `http://localhost:3033/renderer/?domain=WUNDA_BLAU&jwt=${jwt}&table=alkis_landparcel&id=${ids}`;
+      // fetch(url).catch((error) => {
+      //   //  i expect an error here
+      // });
 
-      console.log("xxx res searc", result);
+      // console.log("xxx res ids + bez", ids, bezeichnung);
+      console.log("xxx res", result);
+      getAdditionalSheets("053001-033391 ");
     })
     .catch((error) => {
       console.error(
