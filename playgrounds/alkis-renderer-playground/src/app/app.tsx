@@ -4,7 +4,7 @@ import type { FormProps } from "antd";
 import { Input, Form, Button } from "antd";
 import { FieldType, login } from "./helper/getToken";
 import { useEffect, useState } from "react";
-import AlkisSearch from "../components/AlkisSearch";
+import AlkisSearch from "./components/AlkisSearch";
 
 export function App() {
   const [jwt, setJwt] = useState<string | null>(null);

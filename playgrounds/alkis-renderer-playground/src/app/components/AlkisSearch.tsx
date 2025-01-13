@@ -1,8 +1,8 @@
 import { Input } from "antd";
-import { addHtmlFromData } from "../app/helper/addHtmlFromData";
+import { addHtmlFromData } from "../helper/addHtmlFromData";
 import { useState } from "react";
 import CustomCard from "./CustomCard";
-import { getLandparcelById } from "../app/helper/getToken";
+import { getLandparcelById } from "../helper/getToken";
 const { Search } = Input;
 
 interface AlkisSearchProps {
@@ -15,7 +15,7 @@ const AlkisSearch = ({ jwt }: AlkisSearchProps) => {
     if (jwt) {
       // const landparcelHtml = await addHtmlFromData(jwt);
       // setResHtml(landparcelHtml);
-      getLandparcelById("053001-137-00020/0001", jwt);
+      getLandparcelById("053001-137-00020/0001");
       // getAdditionalShits(jwt, "053001-033390");
     }
     console.log("xxx jwt", jwt);
