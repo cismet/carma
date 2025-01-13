@@ -221,6 +221,9 @@ const additionalShitsResponse = {
 const REST_SERVICE = "https://verdis-api.cismet.de";
 const DOMAIN = "VERDIS_GRUNDIS";
 
+const temporaryJwt =
+  "eyJhbGciOiJSUzI1NiJ9.eyJqdGkiOiIxMSIsInN1YiI6ImNpc21ldCIsImRvbWFpbiI6IlZFUkRJU19HUlVORElTIiwiaHR0cHM6Ly9oYXN1cmEuaW8vand0L2NsYWltcyI6eyJ4LWhhc3VyYS1kZWZhdWx0LXJvbGUiOiJ1c2VyIiwieC1oYXN1cmEtYWxsb3dlZC1yb2xlcyI6WyJlZGl0b3IiLCJ1c2VyIiwibW9kIl19fQ.CjG0Uwe1qajPLEOIKEI1s59nR5mj2i2LccjFuV7UZOjs2qZO-dIMk8vItwQDS-GslTsU8gfBb-QT4l2YHpKMMzfolHVdPbDVwjZ-DCJQ8SdqblgMCyMA-htVih2yoSyg95n5R2aWoo29VYFEuUWQMIsIR25hmqvidnyJfiB52_AfNI_ATztv8EayD8KLKzCwJGCogooqwAZyJZVg1iixAcqMoFpMMQFRiIG_O4gshCDiFAcQt-e1MN5QzXTmGVX4p7g63hknDsd02z6dLGqUG2PwWzO47niEpnzpavv-o80l6uR6pHX-118Em7yv3aOKNoioEPfQPPi9E8GPCe61ug";
+
 export const login = (values: FieldType, setJwt: (j: string) => void) => {
   fetch(REST_SERVICE + "/users", {
     method: "GET",
@@ -247,7 +250,10 @@ export const login = (values: FieldType, setJwt: (j: string) => void) => {
     });
 };
 
-export const getAdditionalShits = (jwt: string, sheetId: string) => {
+export const getAdditionalSheets = (
+  sheetId: string,
+  jwt: string = temporaryJwt
+) => {
   const form = new FormData();
   let taskParameters = {
     parameters: {
@@ -311,7 +317,7 @@ export const getAllAdditionalSheets = async (
   buchungsblattArray: AdditionalShits[]
 ) => {
   const fetchPromises = buchungsblattArray.map((b) => {
-    return getAdditionalShits(jwt, b.alkis_buchungsblatt.buchungsblattcode);
+    return getAdditionalSheets(b.alkis_buchungsblatt.buchungsblattcode);
   });
   const results = await Promise.all(fetchPromises);
   console.log("xxx promise all", results);
@@ -319,8 +325,7 @@ export const getAllAdditionalSheets = async (
 };
 
 const WUNDA_API = "https://wunda-api.cismet.de";
-const temporaryJwt =
-  "eyJhbGciOiJSUzI1NiJ9.eyJqdGkiOiIxMSIsInN1YiI6ImNpc21ldCIsImRvbWFpbiI6IlZFUkRJU19HUlVORElTIiwiaHR0cHM6Ly9oYXN1cmEuaW8vand0L2NsYWltcyI6eyJ4LWhhc3VyYS1kZWZhdWx0LXJvbGUiOiJ1c2VyIiwieC1oYXN1cmEtYWxsb3dlZC1yb2xlcyI6WyJlZGl0b3IiLCJ1c2VyIiwibW9kIl19fQ.CjG0Uwe1qajPLEOIKEI1s59nR5mj2i2LccjFuV7UZOjs2qZO-dIMk8vItwQDS-GslTsU8gfBb-QT4l2YHpKMMzfolHVdPbDVwjZ-DCJQ8SdqblgMCyMA-htVih2yoSyg95n5R2aWoo29VYFEuUWQMIsIR25hmqvidnyJfiB52_AfNI_ATztv8EayD8KLKzCwJGCogooqwAZyJZVg1iixAcqMoFpMMQFRiIG_O4gshCDiFAcQt-e1MN5QzXTmGVX4p7g63hknDsd02z6dLGqUG2PwWzO47niEpnzpavv-o80l6uR6pHX-118Em7yv3aOKNoioEPfQPPi9E8GPCe61ug";
+
 export const getLandparcelById = (name: string, jwt: string = temporaryJwt) => {
   fetch(WUNDA_API, {
     method: "POST",
