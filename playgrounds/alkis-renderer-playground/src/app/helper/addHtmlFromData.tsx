@@ -1,12 +1,15 @@
 import { Divider, Tabs } from "antd";
-import { getAllAdditionalSheets } from "./getToken";
+import {
+  getAllAdditionalSheets,
+  getLandparcelById,
+  searchLandparcelByName,
+} from "./getToken";
 
-const demoLandparcel = {
+export const demoLandparcel = {
   data: {
     alkis_landparcel: [
       {
-        id: 7827,
-        alkis_id: "053001-137-00020/0001",
+        id: 7825,
         bezeichnung: "137-00020/0001",
         gemarkung: "Barmen",
         groesse: 1938,
@@ -30,38 +33,38 @@ const demoLandparcel = {
         buchungsblaetterArray: [
           {
             alkis_buchungsblatt: {
-              id: 115277,
-              buchungsblattcode: "053001-033390 ",
-            },
-          },
-          {
-            alkis_buchungsblatt: {
-              id: 38619,
-              buchungsblattcode: "053001-000200A",
-            },
-          },
-          {
-            alkis_buchungsblatt: {
-              id: 115166,
-              buchungsblattcode: "053001-033392 ",
-            },
-          },
-          {
-            alkis_buchungsblatt: {
-              id: 115721,
-              buchungsblattcode: "053001-033391 ",
-            },
-          },
-          {
-            alkis_buchungsblatt: {
-              id: 115187,
+              id: 115189,
               buchungsblattcode: "053001-033389 ",
             },
           },
           {
             alkis_buchungsblatt: {
-              id: 115244,
+              id: 115168,
+              buchungsblattcode: "053001-033392 ",
+            },
+          },
+          {
+            alkis_buchungsblatt: {
+              id: 38621,
+              buchungsblattcode: "053001-000200A",
+            },
+          },
+          {
+            alkis_buchungsblatt: {
+              id: 115246,
               buchungsblattcode: "053001-033393 ",
+            },
+          },
+          {
+            alkis_buchungsblatt: {
+              id: 115723,
+              buchungsblattcode: "053001-033391 ",
+            },
+          },
+          {
+            alkis_buchungsblatt: {
+              id: 115279,
+              buchungsblattcode: "053001-033390 ",
             },
           },
         ],
@@ -70,13 +73,17 @@ const demoLandparcel = {
   },
 };
 
-export const addHtmlFromData = async (jwt: string, data = demoLandparcel) => {
-  const landparcel = data.data.alkis_landparcel[0];
-  const addShits = await getAllAdditionalSheets(
-    jwt,
-    landparcel.buchungsblaetterArray
+export const addHtmlFromData = async (
+  jwt: string,
+  name: string = "053001-137-00020/0001"
+) => {
+  const landparcel = await searchLandparcelByName(name);
+  const sheets = await getAllAdditionalSheets(
+    landparcel.data.alkis_landparcel[0].buchungsblaetterArray
   );
-  const lage = landparcel.adressenArray[0].alkis_adresse.strasse;
+
+  console.log("xxx sheets", sheets);
+  // const lage = landparcel.adressenArray[0].alkis_adresse.strasse;
   const { buchungsblaetterArray } = landparcel;
   const wrapStyle = { display: "flex", width: "100%" };
   const colStyle = { width: "50%" };
@@ -97,7 +104,7 @@ export const addHtmlFromData = async (jwt: string, data = demoLandparcel) => {
         <div style={colStyle}>{landparcel.gemarkung}</div>
       </div>
       <div style={wrapStyle}>
-        <div style={colStyle}>Lage:</div> <div style={colStyle}>{lage}</div>
+        {/* <div style={colStyle}>Lage:</div> <div style={colStyle}>{lage}</div> */}
       </div>
       <div style={wrapStyle}>
         <div style={colStyle}>Größe:</div>
@@ -111,7 +118,7 @@ export const addHtmlFromData = async (jwt: string, data = demoLandparcel) => {
         defaultActiveKey="1"
         tabPosition="left"
         style={{ height: 220 }}
-        items={buchungsblaetterArray.map((b, i) => {
+        items={sheets.map((b, i) => {
           const id = String(i);
           return {
             label: b.alkis_buchungsblatt.buchungsblattcode,

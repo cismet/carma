@@ -1,4 +1,5 @@
 import { landParcelSearchQuery } from "../verdis";
+import { demoLandparcel } from "./addHtmlFromData";
 export type FieldType = {
   username?: string;
   password?: string;
@@ -292,7 +293,7 @@ export const getAdditionalSheets = (
       console.log("xxx error", e);
     })
     .then((result) => {
-      const owner = additionalShitsResponse.res.owners[0];
+      const owner = result.res.owners[0];
       const { salutation, firstName, surName, dateOfBirth } = owner;
 
       const date = new Date(dateOfBirth);
@@ -336,7 +337,7 @@ interface AdditionalShits {
 }
 
 export const getAllAdditionalSheets = async (
-  jwt: string,
+  // jwt: string,
   buchungsblattArray: AdditionalShits[]
 ) => {
   const fetchPromises = buchungsblattArray.map((b) => {
@@ -352,12 +353,14 @@ export const WUNDA_DOMAIN = "WUNDA_BLAU";
 export const WUNDA_ENDPOINT =
   WUNDA_API + "/graphql/" + WUNDA_DOMAIN + "/execute";
 
-export const getLandparcelById = (name: string, jwt: string) => {
+export const getLandparcelById = async (name: string) => {
+  const temJwt =
+    "eyJhbGciOiJSUzI1NiJ9.eyJqdGkiOiIyMCIsInN1YiI6ImFkbWluIiwiZG9tYWluIjoiV1VOREFfQkxBVSIsImh0dHBzOi8vaGFzdXJhLmlvL2p3dC9jbGFpbXMiOnsieC1oYXN1cmEtZGVmYXVsdC1yb2xlIjoidXNlciIsIngtaGFzdXJhLWFsbG93ZWQtcm9sZXMiOlsiZWRpdG9yIiwidXNlciIsIm1vZCJdfX0.AhfIT_Jmsf1-yHbSeAqgMEwR2g3EJ3yZJRQZSyyH4Z4aQn3hYVKLa-YJLlSjgu4OJ4emd5DtPGABlzt3G8GxjtMKjpJo0qaC-G-WIGa42KrHeyS7YVgdtNgdfx72hKJKcFQwlBHwumeRwI8w2fbc0Z2-vuU_yqP4LEOi-TbJHXBTg-844TAfjOfVWuLchXZ96f4Td65W2hbdDTZMR2Wk964I0noDbKsNEvH2FQudg8lo8S-I1-w1wxXPEOSqTIIN9z-1hUf9cB3XA-2_HqB-edVvxR3Qe1sDFXInfs123s09saC9TmhzalAoya3AglyGz9JA6Ct989d24RszHBbOwg";
   fetch(WUNDA_ENDPOINT, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${jwt}`,
+      Authorization: `Bearer ${temJwt}`,
     },
     body: JSON.stringify({
       query: landParcelSearchQuery,
@@ -371,16 +374,17 @@ export const getLandparcelById = (name: string, jwt: string) => {
       return response.json();
     })
     .then((result) => {
-      const ids = result.data.alkis_landparcel[0].id;
-      const bezeichnung = result.data.alkis_landparcel[0].bezeichnung;
       // const url = `http://localhost:3033/renderer/?domain=WUNDA_BLAU&jwt=${jwt}&table=alkis_landparcel&id=${ids}`;
       // fetch(url).catch((error) => {
       //   //  i expect an error here
       // });
 
       // console.log("xxx res ids + bez", ids, bezeichnung);
-      console.log("xxx res", result);
-      getAdditionalSheets("053001-033391 ");
+      // console.log("xxx res", result);
+      // getAdditionalSheets("053001-033391 ");
+      // getAllAdditionalSheets(addSheets);
+
+      return result;
     })
     .catch((error) => {
       console.error(
@@ -388,4 +392,35 @@ export const getLandparcelById = (name: string, jwt: string) => {
         error.message
       );
     });
+};
+
+export const searchLandparcelByName = async (name: string) => {
+  const temJwt =
+    "eyJhbGciOiJSUzI1NiJ9.eyJqdGkiOiIyMCIsInN1YiI6ImFkbWluIiwiZG9tYWluIjoiV1VOREFfQkxBVSIsImh0dHBzOi8vaGFzdXJhLmlvL2p3dC9jbGFpbXMiOnsieC1oYXN1cmEtZGVmYXVsdC1yb2xlIjoidXNlciIsIngtaGFzdXJhLWFsbG93ZWQtcm9sZXMiOlsiZWRpdG9yIiwidXNlciIsIm1vZCJdfX0.AhfIT_Jmsf1-yHbSeAqgMEwR2g3EJ3yZJRQZSyyH4Z4aQn3hYVKLa-YJLlSjgu4OJ4emd5DtPGABlzt3G8GxjtMKjpJo0qaC-G-WIGa42KrHeyS7YVgdtNgdfx72hKJKcFQwlBHwumeRwI8w2fbc0Z2-vuU_yqP4LEOi-TbJHXBTg-844TAfjOfVWuLchXZ96f4Td65W2hbdDTZMR2Wk964I0noDbKsNEvH2FQudg8lo8S-I1-w1wxXPEOSqTIIN9z-1hUf9cB3XA-2_HqB-edVvxR3Qe1sDFXInfs123s09saC9TmhzalAoya3AglyGz9JA6Ct989d24RszHBbOwg";
+
+  try {
+    const response = await fetch(WUNDA_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${temJwt}`,
+      },
+      body: JSON.stringify({
+        query: landParcelSearchQuery,
+        variables: { name },
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Network response was not ok");
+    }
+
+    const result = await response.json();
+    return result; // Ensure that result is returned here
+  } catch (error) {
+    console.error(
+      "There was a problem with the fetch operation:",
+      error.message
+    );
+  }
 };
