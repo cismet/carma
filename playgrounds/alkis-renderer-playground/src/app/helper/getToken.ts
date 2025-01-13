@@ -257,7 +257,6 @@ export const getAdditionalSheets = (
   const form = new FormData();
   let taskParameters = {
     parameters: {
-      BODY: "BUCHUNGSBLATT",
       BUCHUNGSBLATT: sheetId,
     },
   };
