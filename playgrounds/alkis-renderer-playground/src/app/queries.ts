@@ -1,4 +1,4 @@
-const queries = {};
+const queries: Record<string, string> = {};
 export default queries;
 
 queries.landparcelSearch = `
