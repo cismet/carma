@@ -293,7 +293,6 @@ export const getAdditionalSheets = (
       console.log("xxx error", e);
     })
     .then((result) => {
-      console.log("xxx res", result);
       const owner = result.res.owners[0];
       const { salutation, firstName, surName, dateOfBirth } = owner;
 
@@ -304,7 +303,7 @@ export const getAdditionalSheets = (
       const formattedDate = `${day}.${month}.${year}`;
 
       const { houseNumber, postalCode, city, street } =
-        additionalShitsResponse.res.owners[0].addresses[0];
+        result.res.owners[0].addresses[0];
 
       return {
         buchungsblattcode: result.res.buchungsblattCode,
