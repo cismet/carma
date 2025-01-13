@@ -222,7 +222,7 @@ const REST_SERVICE = "https://verdis-api.cismet.de";
 const DOMAIN = "VERDIS_GRUNDIS";
 
 const temporaryJwt =
-  "eyJhbGciOiJSUzI1NiJ9.eyJqdGkiOiIxMSIsInN1YiI6ImNpc21ldCIsImRvbWFpbiI6IlZFUkRJU19HUlVORElTIiwiaHR0cHM6Ly9oYXN1cmEuaW8vand0L2NsYWltcyI6eyJ4LWhhc3VyYS1kZWZhdWx0LXJvbGUiOiJ1c2VyIiwieC1oYXN1cmEtYWxsb3dlZC1yb2xlcyI6WyJlZGl0b3IiLCJ1c2VyIiwibW9kIl19fQ.CjG0Uwe1qajPLEOIKEI1s59nR5mj2i2LccjFuV7UZOjs2qZO-dIMk8vItwQDS-GslTsU8gfBb-QT4l2YHpKMMzfolHVdPbDVwjZ-DCJQ8SdqblgMCyMA-htVih2yoSyg95n5R2aWoo29VYFEuUWQMIsIR25hmqvidnyJfiB52_AfNI_ATztv8EayD8KLKzCwJGCogooqwAZyJZVg1iixAcqMoFpMMQFRiIG_O4gshCDiFAcQt-e1MN5QzXTmGVX4p7g63hknDsd02z6dLGqUG2PwWzO47niEpnzpavv-o80l6uR6pHX-118Em7yv3aOKNoioEPfQPPi9E8GPCe61ug";
+  "eyJhbGciOiJSUzI1NiJ9.eyJqdGkiOiIyMCIsInN1YiI6ImFkbWluIiwiZG9tYWluIjoiV1VOREFfQkxBVSIsImh0dHBzOi8vaGFzdXJhLmlvL2p3dC9jbGFpbXMiOnsieC1oYXN1cmEtZGVmYXVsdC1yb2xlIjoidXNlciIsIngtaGFzdXJhLWFsbG93ZWQtcm9sZXMiOlsiZWRpdG9yIiwidXNlciIsIm1vZCJdfX0.AhfIT_Jmsf1-yHbSeAqgMEwR2g3EJ3yZJRQZSyyH4Z4aQn3hYVKLa-YJLlSjgu4OJ4emd5DtPGABlzt3G8GxjtMKjpJo0qaC-G-WIGa42KrHeyS7YVgdtNgdfx72hKJKcFQwlBHwumeRwI8w2fbc0Z2-vuU_yqP4LEOi-TbJHXBTg-844TAfjOfVWuLchXZ96f4Td65W2hbdDTZMR2Wk964I0noDbKsNEvH2FQudg8lo8S-I1-w1wxXPEOSqTIIN9z-1hUf9cB3XA-2_HqB-edVvxR3Qe1sDFXInfs123s09saC9TmhzalAoya3AglyGz9JA6Ct989d24RszHBbOwg";
 
 export const login = (values: FieldType, setJwt: (j: string) => void) => {
   fetch(REST_SERVICE + "/users", {
@@ -266,6 +266,8 @@ export const getAdditionalSheets = (
     "taskparams",
     new Blob([JSON.stringify(taskParameters)], { type: "application/json" })
   );
+
+  form.append("file", "BUCHUNGSBLATT");
 
   const url =
     "https://wunda-api.cismet.de/actions/WUNDA_BLAU.alkisRestTunnelAction/tasks?resultingInstanceType=result";
