@@ -77,13 +77,16 @@ export const addHtmlFromData = async (
   jwt: string,
   name: string = "053001-137-00020/0001"
 ) => {
-  const landparcel = await searchLandparcelByName(name);
+  debugger;
+
+  const landparcelData = await searchLandparcelByName(name);
+  const landparcel = landparcelData.data.alkis_landparcel[0];
   const sheets = await getAllAdditionalSheets(
-    landparcel.data.alkis_landparcel[0].buchungsblaetterArray
+    landparcelData.data.alkis_landparcel[0].buchungsblaetterArray
   );
 
   console.log("xxx sheets", sheets);
-  // const lage = landparcel.adressenArray[0].alkis_adresse.strasse;
+  const lage = landparcel.adressenArray[0].alkis_adresse.strasse;
   const { buchungsblaetterArray } = landparcel;
   const wrapStyle = { display: "flex", width: "100%" };
   const colStyle = { width: "50%" };
@@ -104,7 +107,7 @@ export const addHtmlFromData = async (
         <div style={colStyle}>{landparcel.gemarkung}</div>
       </div>
       <div style={wrapStyle}>
-        {/* <div style={colStyle}>Lage:</div> <div style={colStyle}>{lage}</div> */}
+        <div style={colStyle}>Lage:</div> <div style={colStyle}>{lage}</div>
       </div>
       <div style={wrapStyle}>
         <div style={colStyle}>Größe:</div>
@@ -121,10 +124,17 @@ export const addHtmlFromData = async (
         items={sheets.map((b, i) => {
           const id = String(i);
           return {
-            label: b.alkis_buchungsblatt.buchungsblattcode,
+            label: b.buchungsblattcode,
             key: id,
             disabled: i === 28,
-            children: `Content of ${b.alkis_buchungsblatt.buchungsblattcode} landparcel ${id} `,
+            // children: `Content of ${b.buchungsblattcode} landparcel ${id} `,
+            children: (
+              <div>
+                <p>{`${b.content.salutation} ${b.content.firstName} ${b.content.surName}, *${b.content.formattedDate}`}</p>
+                <p>{`${b.content.city}. ${b.content.houseNumber} ${b.content.postalCode}, ${b.content.city}`}</p>
+                <p>(Grundbuchamtliche Anschrift)</p>
+              </div>
+            ),
           };
         })}
       />
