@@ -77,8 +77,6 @@ export const addHtmlFromData = async (
   jwt: string,
   name: string = "053001-137-00020/0001"
 ) => {
-  debugger;
-
   const landparcelData = await searchLandparcelByName(name);
   const landparcel = landparcelData.data.alkis_landparcel[0];
   const sheets = await getAllAdditionalSheets(
@@ -127,12 +125,18 @@ export const addHtmlFromData = async (
             label: b.buchungsblattcode,
             key: id,
             disabled: i === 28,
-            // children: `Content of ${b.buchungsblattcode} landparcel ${id} `,
             children: (
               <div>
-                <p>{`${b.content.salutation} ${b.content.firstName} ${b.content.surName}, *${b.content.formattedDate}`}</p>
-                <p>{`${b.content.city}. ${b.content.houseNumber} ${b.content.postalCode}, ${b.content.city}`}</p>
-                <p>(Grundbuchamtliche Anschrift)</p>
+                <p>{`${b.content.salutation} ${b.content.firstName || ""} ${
+                  b.content.surName
+                }, ${
+                  b.content.salutation !== "Firma"
+                    ? "*" + b.content.formattedDate
+                    : ""
+                }`}</p>
+                <div>{`${b.content.street} ${b.content.houseNumber}`}</div>
+                <div>{`${b.content.postalCode}, ${b.content.city}`}</div>
+                <div>(Grundbuchamtliche Anschrift)</div>
               </div>
             ),
           };

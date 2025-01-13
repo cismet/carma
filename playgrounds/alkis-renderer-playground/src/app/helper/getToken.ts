@@ -293,6 +293,7 @@ export const getAdditionalSheets = (
       console.log("xxx error", e);
     })
     .then((result) => {
+      console.log("xxx res", result);
       const owner = result.res.owners[0];
       const { salutation, firstName, surName, dateOfBirth } = owner;
 
@@ -302,20 +303,11 @@ export const getAdditionalSheets = (
       const year = date.getFullYear();
       const formattedDate = `${day}.${month}.${year}`;
 
-      const { houseNumber, postalCode, city } =
+      const { houseNumber, postalCode, city, street } =
         additionalShitsResponse.res.owners[0].addresses[0];
 
-      console.log("xxx sheets res", {
-        salutation,
-        firstName,
-        surName,
-        formattedDate,
-        houseNumber,
-        postalCode,
-        city,
-      });
       return {
-        buchungsblattcode: additionalShitsResponse.res.buchungsblattCode,
+        buchungsblattcode: result.res.buchungsblattCode,
         content: {
           salutation,
           firstName,
@@ -324,6 +316,7 @@ export const getAdditionalSheets = (
           houseNumber,
           postalCode,
           city,
+          street,
         },
       };
     });
