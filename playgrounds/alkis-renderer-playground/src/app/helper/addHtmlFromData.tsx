@@ -1,5 +1,5 @@
 import { Divider, Tabs } from "antd";
-import { getAllAdditionalShits } from "./getToken";
+import { getAllAdditionalSheets } from "./getToken";
 
 const demoLandparcel = {
   data: {
@@ -72,7 +72,7 @@ const demoLandparcel = {
 
 export const addHtmlFromData = async (jwt: string, data = demoLandparcel) => {
   const landparcel = data.data.alkis_landparcel[0];
-  const addShits = await getAllAdditionalShits(
+  const addShits = await getAllAdditionalSheets(
     jwt,
     landparcel.buchungsblaetterArray
   );

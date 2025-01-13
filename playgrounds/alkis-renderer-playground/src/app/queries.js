@@ -3,7 +3,7 @@ export default queries;
 
 queries.landparcelSearch = `
 query landparcelForName($name: String!) {
-  alkis_landparcel(where: {bezeichnung: {_eq: $name}}) {
+  alkis_landparcel(where: {alkis_id: {_eq: $name}}) {
     id
     bezeichnung
     gemarkung
