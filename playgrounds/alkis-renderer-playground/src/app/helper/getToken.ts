@@ -250,6 +250,7 @@ export const getAdditionalShits = (jwt: string, sheetId: string) => {
   const form = new FormData();
   let taskParameters = {
     parameters: {
+      BODY: "BUCHUNGSBLATT",
       BUCHUNGSBLATT: sheetId,
     },
   };
