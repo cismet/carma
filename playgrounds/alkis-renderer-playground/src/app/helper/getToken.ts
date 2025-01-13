@@ -1,5 +1,4 @@
-import { gql } from "graphql-request";
-
+import { landParcelSearchQuery } from "../verdis";
 export type FieldType = {
   username?: string;
   password?: string;
@@ -219,7 +218,7 @@ const additionalShitsResponse = {
   },
 };
 
-export const REST_SERVICE = "https://verdis-api.cismet.de";
+const REST_SERVICE = "https://verdis-api.cismet.de";
 const DOMAIN = "VERDIS_GRUNDIS";
 
 export const login = (values: FieldType, setJwt: (j: string) => void) => {
@@ -307,7 +306,7 @@ interface AdditionalShits {
   };
 }
 
-export const getAllAdditionalShits = async (
+export const getAllAdditionalSheets = async (
   jwt: string,
   buchungsblattArray: AdditionalShits[]
 ) => {
@@ -317,4 +316,34 @@ export const getAllAdditionalShits = async (
   const results = await Promise.all(fetchPromises);
   console.log("xxx promise all", results);
   return results;
+};
+
+const WUNDA_API = "https://wunda-api.cismet.de";
+export const getLandparcelById = (jwt: string, id: string) => {
+  fetch(WUNDA_API, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${jwt}`,
+    },
+    body: JSON.stringify({
+      query: landParcelSearchQuery,
+      variables: { id },
+    }),
+  })
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error("Network response was not ok");
+      }
+      return response.json();
+    })
+    .then((result) => {
+      console.log("xxx res searc", result);
+    })
+    .catch((error) => {
+      console.error(
+        "There was a problem with the fetch operation:",
+        error.message
+      );
+    });
 };
