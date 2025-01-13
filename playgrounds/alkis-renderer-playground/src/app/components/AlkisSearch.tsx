@@ -12,7 +12,7 @@ interface AlkisSearchProps {
 const AlkisSearch = ({ jwt }: AlkisSearchProps) => {
   const [resHtml, setResHtml] = useState<JSX.Element | null>(null);
   const onSearch = async (value: string) => {
-    getAdditionalSheets("053001-033391");
+    getAdditionalSheets("053001-033391 ");
 
     if (jwt) {
       // const landparcelHtml = await addHtmlFromData(jwt);
