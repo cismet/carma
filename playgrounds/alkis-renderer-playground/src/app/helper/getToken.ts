@@ -280,7 +280,6 @@ export const getAdditionalSheets = (
     .then((response) => {
       if (response.status >= 200 && response.status < 300) {
         const res = response.json();
-        console.log("xxx res", res);
         return res;
       } else {
         console.log(
@@ -297,7 +296,7 @@ export const getAdditionalSheets = (
       const landRegistryName =
         additionalShitsResponse.res.offices.landRegistryOfficeName[0];
 
-      console.log("xxx double res", landRegistryName);
+      console.log("xxx sheets res", result);
       return {
         buchungsblattcode: additionalShitsResponse.res.buchungsblattCode,
         content: landRegistryName,
@@ -325,9 +324,12 @@ export const getAllAdditionalSheets = async (
 };
 
 const WUNDA_API = "https://wunda-api.cismet.de";
+export const WUNDA_DOMAIN = "WUNDA_BLAU";
+export const WUNDA_ENDPOINT =
+  WUNDA_API + "/graphql/" + WUNDA_DOMAIN + "/execute";
 
-export const getLandparcelById = (name: string, jwt: string = temporaryJwt) => {
-  fetch(WUNDA_API, {
+export const getLandparcelById = (name: string, jwt: string) => {
+  fetch(WUNDA_ENDPOINT, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
