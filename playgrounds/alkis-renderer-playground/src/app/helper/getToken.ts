@@ -1,3 +1,5 @@
+import { gql } from "graphql-request";
+
 export type FieldType = {
   username?: string;
   password?: string;
