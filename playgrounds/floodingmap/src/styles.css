@@ -7,7 +7,7 @@
   display: initial;
 }
 
-/* override bootstrap tooltip to not interfere with antd */
+/* intermediate workaround for antd tooltip arrow to not show until bootstrap style interference is resolvedß */
 .ant-tooltip-arrow {
   display: none !important;
 }
