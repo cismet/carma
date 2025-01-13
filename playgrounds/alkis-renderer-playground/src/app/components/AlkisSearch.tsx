@@ -16,10 +16,6 @@ interface AlkisSearchProps {
 const AlkisSearch = ({ jwt }: AlkisSearchProps) => {
   const [resHtml, setResHtml] = useState<JSX.Element | null>(null);
   const onSearch = async (value: string) => {
-    // getAdditionalSheets("053001-033391 ");
-    // const testData = await searchLandparcelByName("053001-137-00020/0001");
-    // console.log("xxx landparcel", testData);
-
     if (jwt) {
       const landparcelHtml = await addHtmlFromData(jwt);
       setResHtml(landparcelHtml);
