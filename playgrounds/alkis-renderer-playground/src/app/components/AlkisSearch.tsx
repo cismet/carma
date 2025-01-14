@@ -29,7 +29,7 @@ const AlkisSearch = ({ jwt }: AlkisSearchProps) => {
       {resHtml && (
         <div style={{ marginTop: "40px" }}>
           {
-            <CustomCard title="Flurstüc 20/1 - Flur 137 - Gemarkung 053001">
+            <CustomCard title="Flurstück 20/1 - Flur 137 - Gemarkung 053001">
               {resHtml}
             </CustomCard>
           }

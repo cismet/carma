@@ -105,7 +105,7 @@ export const addHtmlFromData = async (
       </div>
       <div style={wrapStyle}>
         <div style={colStyle}>Lage:</div>
-        <div style={colStyle}>
+        <div style={{ ...colStyle, display: "flex", gap: "0.4rem" }}>
           <div>{lage}</div>
           <div style={{ display: "flex", gap: "0.4rem" }}>
             {landparcel.adressenArray.map((a, idx: number) => {
@@ -150,10 +150,7 @@ export const addHtmlFromData = async (
                         justifyContent: "space-between",
                       }}
                     >
-                      <div
-                        style={linkStyle}
-                        onClick={() => console.log("xxx link clicked")}
-                      >{`${b.buchungsblattcode}`}</div>
+                      <div style={linkStyle}>{`${b.buchungsblattcode}`}</div>
                       <div>{`${b.content.laufendeNummer}`}</div>
                     </div>
                   </div>
