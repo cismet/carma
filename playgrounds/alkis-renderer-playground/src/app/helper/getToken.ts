@@ -35,10 +35,7 @@ export const login = (values: FieldType, setJwt: (j: string) => void) => {
     });
 };
 
-export const getAdditionalSheets = (
-  sheetId: string,
-  jwt: string = temporaryJwt
-) => {
+export const getAdditionalSheets = (sheetId: string, jwt: string) => {
   const form = new FormData();
   let taskParameters = {
     parameters: {
@@ -117,11 +114,11 @@ interface AdditionalShits {
 }
 
 export const getAllAdditionalSheets = async (
-  // jwt: string,
-  buchungsblattArray: AdditionalShits[]
+  buchungsblattArray: AdditionalShits[],
+  jwt: string
 ) => {
   const fetchPromises = buchungsblattArray.map((b) => {
-    return getAdditionalSheets(b.alkis_buchungsblatt.buchungsblattcode);
+    return getAdditionalSheets(b.alkis_buchungsblatt.buchungsblattcode, jwt);
   });
   const results = await Promise.all(fetchPromises);
   return results;
@@ -163,7 +160,7 @@ export const getLandparcelById = async (name: string) => {
     });
 };
 
-export const searchLandparcelByName = async (name: string) => {
+export const searchLandparcelByName = async (name: string, jwt: string) => {
   const temJwt =
     "eyJhbGciOiJSUzI1NiJ9.eyJqdGkiOiIyMCIsInN1YiI6ImFkbWluIiwiZG9tYWluIjoiV1VOREFfQkxBVSIsImh0dHBzOi8vaGFzdXJhLmlvL2p3dC9jbGFpbXMiOnsieC1oYXN1cmEtZGVmYXVsdC1yb2xlIjoidXNlciIsIngtaGFzdXJhLWFsbG93ZWQtcm9sZXMiOlsiZWRpdG9yIiwidXNlciIsIm1vZCJdfX0.i6TWWeqa_X1_WXIY4Wb5HYaHZ15sr3_DnIBvZNDird3HggB67mXwkMYezkB2o6BU47GYQuUm3lJDY-YVPVM7Ae6f7WwNum_C8RWKCgoL-bEInLOzvLqYr9OSLJarO9Bs6CaN75aWdYhA2Yrr8SYV7dQsuiz9x8eQ1Kj8VE5Z4uuN2lQGM0k1frhlIihJxIoSzIWufJv3wLQ3FBKkn6XQ5xJJwSIT9GDGYRSG1X28ML3jOSfexTwAK1hn0f2TvHpOzvOuEWVoP2HGzs1OohzEPMud6iRNMCahTCcYytd9FNJrK1RLWFs-reVmGGmOYVprHTmMfCIAUtKnyObyXJ5nCQ";
   try {
@@ -171,7 +168,7 @@ export const searchLandparcelByName = async (name: string) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${temJwt}`,
+        Authorization: `Bearer ${jwt}`,
       },
       body: JSON.stringify({
         query: landParcelSearchQuery,

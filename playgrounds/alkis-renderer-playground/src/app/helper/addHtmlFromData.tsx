@@ -71,10 +71,11 @@ export const addHtmlFromData = async (
   jwt: string,
   name: string = "053001-137-00020/0001"
 ) => {
-  const landparcelData = await searchLandparcelByName(name);
+  const landparcelData = await searchLandparcelByName(name, jwt);
   const landparcel = landparcelData.data.alkis_landparcel[0];
   const sheets = await getAllAdditionalSheets(
-    landparcelData.data.alkis_landparcel[0].buchungsblaetterArray
+    landparcelData.data.alkis_landparcel[0].buchungsblaetterArray,
+    jwt
   );
 
   console.log("xxx sheets", sheets);
