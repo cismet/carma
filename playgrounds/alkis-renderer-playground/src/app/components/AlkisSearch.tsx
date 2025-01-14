@@ -16,7 +16,6 @@ const AlkisSearch = ({ jwt }: AlkisSearchProps) => {
       setResHtml(landparcelHtml);
       // getLandparcelById("053001-137-00020/0001");
     }
-    console.log("xxx jwt", jwt);
   };
   return (
     <div style={{ marginTop: "40px", marginBottom: "60px" }}>

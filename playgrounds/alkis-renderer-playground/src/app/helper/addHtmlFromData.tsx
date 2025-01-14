@@ -371,7 +371,7 @@ export const addHtmlFromData = async (
                         <div>{`${salutation} ${firstName || ""} ${surName}, ${
                           salutation !== "Firma" ? "*" + formattedDate : ""
                         }`}</div>
-                        <div>{`${street} ${houseNumber}}`}</div>
+                        <div>{`${street} ${houseNumber}`}</div>
                         <div>{`${postalCode}, ${city}`}</div>
                         <div>(Grundbuchamtliche Anschrift)</div>
                       </>

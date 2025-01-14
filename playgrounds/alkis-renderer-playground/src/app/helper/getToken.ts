@@ -76,17 +76,6 @@ export const getAdditionalSheets = (sheetId: string, jwt: string) => {
     .then((result) => {
       console.log("xxx one sheet", result);
       const owners = result.res.owners;
-      // const { salutation, firstName, surName, dateOfBirth } = owner;
-
-      // const date = new Date(dateOfBirth);
-      // const day = String(date.getDate()).padStart(2, "0");
-      // const month = String(date.getMonth() + 1).padStart(2, "0");
-      // const year = date.getFullYear();
-      // const formattedDate = `${day}.${month}.${year}`;
-
-      // const { houseNumber, postalCode, city, street } =
-      //   result.res.owners[0].addresses[0];
-
       const nrCode = result.res.buchungsstellen[0].sequentialNumber;
 
       const { laufendeNummer } = result.res.namensnummern[0];
@@ -94,14 +83,6 @@ export const getAdditionalSheets = (sheetId: string, jwt: string) => {
       return {
         buchungsblattcode: result.res.buchungsblattCode,
         content: {
-          // salutation,
-          // firstName,
-          // surName,
-          // formattedDate,
-          // houseNumber,
-          // postalCode,
-          // city,
-          // street,
           owners,
           laufendeNummer,
           nrCode,
@@ -191,7 +172,7 @@ export const searchLandparcelByName = async (name: string, jwt: string) => {
       fetch(url).catch((error) => {
         //  i expect an error here
       });
-      console.log("xxx l name", ids);
+      console.log("xxx l name", result);
     }
     return result;
   } catch (error) {
