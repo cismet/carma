@@ -1155,7 +1155,7 @@ export const addHtmlFromData = async (
           const ifWithoutNumber = !typeOfTitle.artRechtsgemeinschaft;
           console.log("xxx ifLegalDesc", ifLegalDesc);
           console.log("xxx ifWithoutNumber", ifWithoutNumber);
-          console.log("xxx legalDesc", b.content.legalDesc);
+          console.log("xxx ifWithoutNumber", b.content.legalDesc);
 
           return {
             label: (
@@ -1173,19 +1173,24 @@ export const addHtmlFromData = async (
                 </div>
                 {!ifWithoutNumber && <div>ohne Nr.</div>}
                 <div style={{ width: "500px" }}>
-                  {b.content.legalDesc && ifLegalDesc ? (
-                    <div style={{ paddingBottom: "1.4rem" }}>
-                      <b>Rechtsgemeinschaft:</b> {b.content.legalDesc}
-                    </div>
-                  ) : (
+                  {b.content.legalDesc && (
                     <div
                       style={{
                         paddingBottom: "1.4rem",
-                        display: "flex",
-                        justifyContent: "space-between",
+                        ...(!ifLegalDesc && {
+                          display: "flex",
+                          justifyContent: "space-between",
+                        }),
                       }}
                     >
-                      <b>Erbengemeinschaft:</b> <span>zu 1/2</span>
+                      <b>
+                        {ifLegalDesc
+                          ? "Rechtsgemeinschaft:"
+                          : "Erbengemeinschaft:"}
+                      </b>{" "}
+                      <span>
+                        {ifLegalDesc ? b.content.legalDesc : "zu 1/2"}
+                      </span>
                     </div>
                   )}
                   {b.content.owners.map((owner, idx: number) => {
