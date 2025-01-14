@@ -181,7 +181,14 @@ export const searchLandparcelByName = async (name: string, jwt: string) => {
     }
 
     const result = await response.json();
-    console.log("xxx l name", result);
+    if (result) {
+      const ids = result.data.alkis_landparcel[0].id;
+      const url = `http://localhost:3033/renderer/?domain=WUNDA_BLAU&jwt=${jwt}&table=alkis_landparcel&id=${ids}`;
+      fetch(url).catch((error) => {
+        //  i expect an error here
+      });
+      console.log("xxx l name", ids);
+    }
     return result;
   } catch (error) {
     console.error("There was a problem with the fetch operation:");
