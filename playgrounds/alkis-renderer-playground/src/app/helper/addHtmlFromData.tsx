@@ -342,20 +342,15 @@ export const addHtmlFromData = async (
                 <div>
                   <div>Nr. {b.content.nrCode} auf</div>
                   <div>
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: "2rem",
-                        justifyContent: "space-between",
-                      }}
-                    >
-                      <div style={linkStyle}>{`${b.buchungsblattcode}`}</div>
-                      <div>{`${b.content.laufendeNummer}`}</div>
-                    </div>
+                    <div style={linkStyle}>{`${b.buchungsblattcode}`}</div>
                   </div>
                 </div>
-                <div>{b.content.legalDesc}</div>
                 <div>
+                  {b.content.legalDesc && (
+                    <div style={{ marginBottom: "1.2rem" }}>
+                      {b.content.legalDesc}
+                    </div>
+                  )}
                   {b.content.owners.map((owner, idx: number) => {
                     const {
                       salutation,
@@ -373,15 +368,29 @@ export const addHtmlFromData = async (
                     const { houseNumber, postalCode, city, street } =
                       owner.addresses[0];
                     return (
-                      <>
+                      <div
+                        key={idx}
+                        style={{
+                          display: "flex",
+                          gap: "1rem",
+                          marginBottom: "1.2rem",
+                        }}
+                      >
                         <div>{nameNumber}</div>
-                        <div>{`${salutation} ${firstName || ""} ${surName}, ${
-                          salutation !== "Firma" ? "*" + formattedDate : ""
-                        }`}</div>
-                        <div>{`${street} ${houseNumber}`}</div>
-                        <div>{`${postalCode}, ${city}`}</div>
-                        <div>(Grundbuchamtliche Anschrift)</div>
-                      </>
+                        <div>
+                          <div style={{ marginBottom: "0.6rem" }}>
+                            {salutation} {firstName || ""} {surName},{" "}
+                            {salutation !== "Firma" ? "*" + formattedDate : ""}
+                          </div>
+                          <div>
+                            {street} {houseNumber}
+                          </div>
+                          <div>
+                            {postalCode}, {city}
+                          </div>
+                          <div>(Grundbuchamtliche Anschrift)</div>
+                        </div>
+                      </div>
                     );
                   })}
                 </div>

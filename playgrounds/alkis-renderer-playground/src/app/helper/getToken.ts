@@ -78,13 +78,11 @@ export const getAdditionalSheets = (sheetId: string, jwt: string) => {
       const owners = result.res.owners;
       const nrCode = result.res.buchungsstellen[0].sequentialNumber;
       const legalDesc = result.res.descriptionOfRechtsgemeinschaft;
-      const { laufendeNummer } = result.res.namensnummern[0];
 
       return {
         buchungsblattcode: result.res.buchungsblattCode,
         content: {
           owners,
-          laufendeNummer,
           nrCode,
           legalDesc,
         },
