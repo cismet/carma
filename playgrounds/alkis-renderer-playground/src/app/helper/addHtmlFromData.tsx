@@ -1152,7 +1152,11 @@ export const addHtmlFromData = async (
           const id = String(i);
           const typeOfTitle = b.content.namesArr[0];
           const ifLegalDesc = !typeOfTitle.nenner && !typeOfTitle.zaehler;
+          const ifWithoutNumber = !typeOfTitle.artRechtsgemeinschaft;
           console.log("xxx ifLegalDesc", ifLegalDesc);
+          console.log("xxx ifWithoutNumber", ifWithoutNumber);
+          console.log("xxx legalDesc", b.content.legalDesc);
+
           return {
             label: (
               <div style={{ padding: "4px 10px" }}>{b.buchungsblattcode}</div>
@@ -1160,14 +1164,15 @@ export const addHtmlFromData = async (
             key: id,
             disabled: i === 28,
             children: (
-              <div style={{ display: "flex", gap: "4rem" }}>
-                <div>
+              <div style={{ display: "flex", gap: "1.6rem" }}>
+                <div style={{ marginRight: "4rem" }}>
                   <div>Nr. {b.content.nrCode} auf</div>
                   <div>
                     <div style={linkStyle}>{`${b.buchungsblattcode}`}</div>
                   </div>
                 </div>
-                <div style={{ width: "700px" }}>
+                {!ifWithoutNumber && <div>ohne Nr.</div>}
+                <div style={{ width: "500px" }}>
                   {b.content.legalDesc && ifLegalDesc ? (
                     <div style={{ paddingBottom: "1.4rem" }}>
                       <b>Rechtsgemeinschaft:</b> {b.content.legalDesc}
