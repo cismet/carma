@@ -4,45 +4,85 @@ import { getAllAdditionalSheets, searchLandparcelByName } from "./getToken";
 const tempData = {
   contentType: "application/octet-stream",
   res: {
-    id: "DENW29AL1000EZxW",
+    id: "DENW29AL1000EWuI",
     multiBuchungsblattUUIds: null,
-    descriptionOfRechtsgemeinschaft: null,
-    buchungsblattCode: "053001-000200A",
+    descriptionOfRechtsgemeinschaft: [
+      "Zu 4.1 und 4.2 in Errungenschaftsgemeinschaft nach russischem Recht",
+    ],
+    buchungsblattCode: "053001-011062 ",
     owners: [
       {
-        buchungsblattCode: "053001-000200A",
+        buchungsblattCode: "053001-011062 ",
         akademischergrad: null,
         sonstigeEigenschaft: null,
         part: null,
         addresses: [
           {
             country: "DEUTSCHLAND",
-            city: "Wuppertal",
-            houseNumber: "36 a",
+            city: "Krefeld",
+            houseNumber: "409",
             pob: null,
             postalCodePOB: null,
-            postalCode: "42275",
-            street: "Reichsstr.",
-            ownerId: "DENW29AL1000EAyf",
+            postalCode: "47805",
+            street: "Gladbacher Str.",
+            ownerId: "DENW29AL20000OwE",
             district: null,
             herkunftAdress: "Grundbuchamt",
           },
         ],
-        ownerId: "DENW29AL1000EAyf",
+        ownerId: "DENW29AL20000OwE",
         nameOfBirth: null,
-        firstName: null,
-        dateOfBirth: null,
+        firstName: "Vladimir",
+        dateOfBirth: "1962-03-13T00:00:00Z",
         namenzusatz: null,
-        surName: "Kinderland-Kindergarten, gemeinnützige Gesellschaft mbH",
+        surName: "Fokin",
         dateOfDead: null,
-        foreName: null,
+        foreName: "Vladimir",
         residence: null,
-        salutationCode: "3000",
-        salutation: "Firma",
-        nameNumber: "2",
+        salutationCode: "2000",
+        salutation: "Herr",
+        nameNumber: "4.1",
         kindOfOwner: {
-          kindOfOwnerCode: "2000",
-          kindOfOwnerName: "Juristische Personen",
+          kindOfOwnerCode: "1000",
+          kindOfOwnerName: "Natürliche Personen",
+        },
+        katasterPerson: null,
+        representative: null,
+      },
+      {
+        buchungsblattCode: "053001-011062 ",
+        akademischergrad: null,
+        sonstigeEigenschaft: null,
+        part: null,
+        addresses: [
+          {
+            country: "DEUTSCHLAND",
+            city: "Krefeld",
+            houseNumber: "409",
+            pob: null,
+            postalCodePOB: null,
+            postalCode: "47805",
+            street: "Gladbacher Str.",
+            ownerId: "DENW29AL20000OwH",
+            district: null,
+            herkunftAdress: "Grundbuchamt",
+          },
+        ],
+        ownerId: "DENW29AL20000OwH",
+        nameOfBirth: null,
+        firstName: "Alla",
+        dateOfBirth: "1962-08-23T00:00:00Z",
+        namenzusatz: null,
+        surName: "Klyubina",
+        dateOfDead: null,
+        foreName: "Alla",
+        residence: null,
+        salutationCode: "1000",
+        salutation: "Frau",
+        nameNumber: "4.2",
+        kindOfOwner: {
+          kindOfOwnerCode: "1000",
+          kindOfOwnerName: "Natürliche Personen",
         },
         katasterPerson: null,
         representative: null,
@@ -50,130 +90,113 @@ const tempData = {
     ],
     buchungsstellen: [
       {
-        id: "DENW29AL1000EvHv",
-        number: "1",
+        id: "DENW29AL1000BdJy",
+        number: null,
         description: null,
-        sequentialNumber: "0001",
-        buchungsartCode: "1301",
-        buchungsstellen: [
+        sequentialNumber: "0008",
+        buchungsartCode: "1100",
+        buchungsstellen: null,
+        landAgents: null,
+        fraction: null,
+        landParcel: [
           {
-            id: "DENW29AL1000BjPY",
-            number: null,
-            description: null,
-            sequentialNumber: "0001",
-            buchungsartCode: "1101",
-            buchungsstellen: null,
-            landAgents: null,
-            fraction: null,
-            landParcel: [
-              {
-                location: {
-                  location: null,
-                  houseNumbers: ["36", "36 a", "34 a"],
-                  minX: "375231.024",
-                  maxY: "5681724.075",
-                  minY: "5681663.665",
-                  maxX: "375267.644",
-                  landParcelCode: "053001-137-00020/0001",
-                  streetKeys: [
-                    "0512400002820",
-                    "0512400002820",
-                    "0512400002820",
-                  ],
-                  buildingIds: [
-                    "DENW29AL1000B0uQ",
-                    "DENW29AL1000BPRS",
-                    "DENW29AL1000BLK4",
-                  ],
-                  streetNames: ["Reichsstraße", "Reichsstraße", "Reichsstraße"],
-                  districts: [null, null, null],
-                  allGeometryY: [
-                    [
-                      "5681669.753",
-                      "5681663.665",
-                      "5681685.685",
-                      "5681704.123",
-                      "5681724.075",
-                      "5681724.018",
-                      "5681723.962",
-                      "5681723.496",
-                      "5681723.387",
-                      "5681723.311",
-                      "5681711.901",
-                      "5681711.255",
-                      "5681699.544",
-                      "5681676.010",
-                      "5681669.753",
-                    ],
-                  ],
-                  geometryString:
-                    '{"rings":[[[375249.23699999973,5681669.753],[375231.56799999997,5681663.665],[375231.2719999999,5681685.685],[375231.0240000002,5681704.123],[375231.50499999896,5681724.075],[375234.27600000054,5681724.018],[375236.66000000015,5681723.962],[375258.8040000014,5681723.496],[375263.993999999,5681723.387],[375267.64400000125,5681723.311],[375267.4979999997,5681711.901],[375267.4849999994,5681711.255],[375267.2740000002,5681699.544],[375266.8509999998,5681676.01],[375249.23699999973,5681669.753]]]}',
-                  coordinateX: "375249.184",
-                  coordinateY: "5681703.764",
-                  allGeometryX: [
-                    [
-                      "375249.237",
-                      "375231.568",
-                      "375231.272",
-                      "375231.024",
-                      "375231.505",
-                      "375234.276",
-                      "375236.660",
-                      "375258.804",
-                      "375263.994",
-                      "375267.644",
-                      "375267.498",
-                      "375267.485",
-                      "375267.274",
-                      "375266.851",
-                      "375249.237",
-                    ],
-                  ],
-                },
-                grundbuchvollzug: null,
-                administrativeDistricts: {
-                  regierungsbezirkCode: "051",
-                  regierungsbezirkName: "Düsseldorf",
-                  gemarkungCode: "053001",
-                  gemarkungName: "Barmen",
-                  gemeindeName: "Wuppertal",
-                  landParcelCode: "053001-137-00020/0001",
-                  gemeindeCode: "05124000",
-                  bundeslandName: "Nordrhein - Westfalen",
-                  kreisCode: "05124",
-                  bundeslandCode: "05",
-                  kreisName: "Wuppertal",
-                },
-                dateOfContiuance: "2021-02-12T11:52:24Z",
-                landAppraisalSegments: null,
-                utilizationSegments: null,
-                abweichenderRechtszustand: "0",
-                classificationSegments: null,
-                bodenRaumOrdnungsRecht: null,
-                areaSize: "1938.0",
-                landParcelUUId: "DENW29AL1000B4hZ",
-                landParcelCode: "053001-137-00020/0001",
-                buchungsstelle: null,
-                fdv: null,
-                dateOfOrigin: "1938-01-01T00:00:00Z",
-                landHolding: null,
-                anlassart: {
-                  anlassartCode: "300900",
-                  anlassartName:
-                    "Veränderung der Geometrie durch Implizitbehandlung",
-                },
-              },
-            ],
-            parentId: "DENW29AL1000EvHv",
-            buchungsart: "Aufgeteiltes Grundstück WEG",
-            buchungsblatt: null,
+            location: {
+              location: null,
+              houseNumbers: ["9", "7"],
+              minX: "374347.707",
+              maxY: "5681608.106",
+              minY: "5681579.273",
+              maxX: "374380.041",
+              landParcelCode: "053001-121-00097/0019",
+              streetKeys: ["0512400001393", "0512400001393"],
+              buildingIds: ["DENW29AL1000BM9I", "DENW29AL1000BM9I"],
+              streetNames: ["Heubruch", "Heubruch"],
+              districts: [null, null],
+              allGeometryY: [
+                [
+                  "5681581.079",
+                  "5681579.273",
+                  "5681582.103",
+                  "5681591.651",
+                  "5681594.191",
+                  "5681594.728",
+                  "5681598.560",
+                  "5681599.908",
+                  "5681603.837",
+                  "5681608.106",
+                  "5681589.655",
+                  "5681587.293",
+                  "5681586.948",
+                  "5681586.024",
+                  "5681584.688",
+                  "5681584.126",
+                  "5681583.980",
+                  "5681581.079",
+                ],
+              ],
+              geometryString:
+                '{"rings":[[[374362.1460000016,5681581.079],[374359.0170000009,5681579.273],[374357.3570000008,5681582.103],[374351.7569999993,5681591.651],[374350.2679999992,5681594.191],[374349.9530000016,5681594.728],[374347.70699999854,5681598.56],[374351.2650000006,5681599.908],[374361.62900000066,5681603.837],[374372.8909999989,5681608.106],[374380.04100000113,5681589.655],[374373.91899999976,5681587.293],[374373.0249999985,5681586.948],[374370.6330000013,5681586.024],[374367.1710000001,5681584.688],[374367.42500000075,5681584.126],[374367.1719999984,5681583.98],[374362.1460000016,5681581.079]]]}',
+              coordinateX: "374365.392",
+              coordinateY: "5681594.513",
+              allGeometryX: [
+                [
+                  "374362.146",
+                  "374359.017",
+                  "374357.357",
+                  "374351.757",
+                  "374350.268",
+                  "374349.953",
+                  "374347.707",
+                  "374351.265",
+                  "374361.629",
+                  "374372.891",
+                  "374380.041",
+                  "374373.919",
+                  "374373.025",
+                  "374370.633",
+                  "374367.171",
+                  "374367.425",
+                  "374367.172",
+                  "374362.146",
+                ],
+              ],
+            },
+            grundbuchvollzug: null,
+            administrativeDistricts: {
+              regierungsbezirkCode: "051",
+              regierungsbezirkName: "Düsseldorf",
+              gemarkungCode: "053001",
+              gemarkungName: "Barmen",
+              gemeindeName: "Wuppertal",
+              landParcelCode: "053001-121-00097/0019",
+              gemeindeCode: "05124000",
+              bundeslandName: "Nordrhein - Westfalen",
+              kreisCode: "05124",
+              bundeslandCode: "05",
+              kreisName: "Wuppertal",
+            },
+            dateOfContiuance: "2020-05-06T14:50:06Z",
+            landAppraisalSegments: null,
+            utilizationSegments: null,
+            abweichenderRechtszustand: "0",
+            classificationSegments: null,
+            bodenRaumOrdnungsRecht: null,
+            areaSize: "516.0",
+            landParcelUUId: "DENW29AL1000B7Ln",
+            landParcelCode: "053001-121-00097/0019",
+            buchungsstelle: null,
+            fdv: null,
+            dateOfOrigin: "1800-01-01T00:00:00Z",
+            landHolding: null,
+            anlassart: {
+              anlassartCode: "300900",
+              anlassartName:
+                "Veränderung der Geometrie durch Implizitbehandlung",
+            },
           },
         ],
-        landAgents: null,
-        fraction: "500/1000",
-        landParcel: null,
         parentId: null,
-        buchungsart: "Wohnungs-/Teileigentum",
+        buchungsart: "Grundstück",
         buchungsblatt: null,
       },
     ],
@@ -183,21 +206,48 @@ const tempData = {
     bezirkName: null,
     namensnummern: [
       {
-        beschriebRechtsgemeinschaft: null,
-        namensnummernUUIds: null,
-        artRechtsgemeinschaft: null,
+        beschriebRechtsgemeinschaft:
+          "Zu 4.1 und 4.2 in Errungenschaftsgemeinschaft nach russischem Recht",
+        namensnummernUUIds: ["DENW29AL20000OwD", "DENW29AL20000OwG"],
+        artRechtsgemeinschaft: "Sonstiges",
         rechtsgmeinschaftUUId: null,
         zaehler: null,
         nenner: null,
-        uuid: "DENW29ALxz00002w",
-        laufendeNummer: "2",
+        uuid: "DENW29AL20000OwJ",
+        laufendeNummer: null,
         nummer: null,
-        eigentuemerart: "2000",
-        eigentuemerUUId: "DENW29AL1000EAyf",
+        eigentuemerart: null,
+        eigentuemerUUId: null,
+      },
+      {
+        beschriebRechtsgemeinschaft: null,
+        namensnummernUUIds: null,
+        artRechtsgemeinschaft: null,
+        rechtsgmeinschaftUUId: "DENW29AL20000OwJ",
+        zaehler: null,
+        nenner: null,
+        uuid: "DENW29AL20000OwD",
+        laufendeNummer: "4.1",
+        nummer: null,
+        eigentuemerart: "1000",
+        eigentuemerUUId: "DENW29AL20000OwE",
+      },
+      {
+        beschriebRechtsgemeinschaft: null,
+        namensnummernUUIds: null,
+        artRechtsgemeinschaft: null,
+        rechtsgmeinschaftUUId: "DENW29AL20000OwJ",
+        zaehler: null,
+        nenner: null,
+        uuid: "DENW29AL20000OwG",
+        laufendeNummer: "4.2",
+        nummer: null,
+        eigentuemerart: "1000",
+        eigentuemerUUId: "DENW29AL20000OwH",
       },
     ],
     offices: {
-      buchungsblattCode: "053001-000200A",
+      buchungsblattCode: "053001-011062 ",
       districtCourtName: ["Wuppertal"],
       forestryOfficeName: null,
       landRegistryOfficeKey: "3290",
@@ -305,16 +355,28 @@ export const addHtmlFromData = async (
                   </div>
                 </div>
                 <div>
-                  <div>{`${b.content.salutation} ${b.content.firstName || ""} ${
-                    b.content.surName
-                  }, ${
-                    b.content.salutation !== "Firma"
-                      ? "*" + b.content.formattedDate
-                      : ""
-                  }`}</div>
-                  <div>{`${b.content.street} ${b.content.houseNumber}`}</div>
-                  <div>{`${b.content.postalCode}, ${b.content.city}`}</div>
-                  <div>(Grundbuchamtliche Anschrift)</div>
+                  {b.content.owners.map((owner, idx: number) => {
+                    const { salutation, firstName, surName, dateOfBirth } =
+                      owner;
+                    const date = new Date(dateOfBirth);
+                    const day = String(date.getDate()).padStart(2, "0");
+                    const month = String(date.getMonth() + 1).padStart(2, "0");
+                    const year = date.getFullYear();
+                    const formattedDate = `${day}.${month}.${year}`;
+
+                    const { houseNumber, postalCode, city, street } =
+                      owner.addresses[0];
+                    return (
+                      <>
+                        <div>{`${salutation} ${firstName || ""} ${surName}, ${
+                          salutation !== "Firma" ? "*" + formattedDate : ""
+                        }`}</div>
+                        <div>{`${street} ${houseNumber}}`}</div>
+                        <div>{`${postalCode}, ${city}`}</div>
+                        <div>(Grundbuchamtliche Anschrift)</div>
+                      </>
+                    );
+                  })}
                 </div>
               </div>
             ),
