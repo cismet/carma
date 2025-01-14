@@ -134,9 +134,7 @@ export const addHtmlFromData = async (
           const id = String(i);
           return {
             label: (
-              <div style={{ paddingLeft: 0, marginLeft: 0 }}>
-                {b.buchungsblattcode}
-              </div>
+              <div style={{ padding: "4px 10px" }}>{b.buchungsblattcode}</div>
             ),
             key: id,
             disabled: i === 28,
