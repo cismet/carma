@@ -120,17 +120,34 @@ export const addHtmlFromData = async (
             key: id,
             disabled: i === 28,
             children: (
-              <div>
-                <p>{`${b.content.salutation} ${b.content.firstName || ""} ${
-                  b.content.surName
-                }, ${
-                  b.content.salutation !== "Firma"
-                    ? "*" + b.content.formattedDate
-                    : ""
-                }`}</p>
-                <div>{`${b.content.street} ${b.content.houseNumber}`}</div>
-                <div>{`${b.content.postalCode}, ${b.content.city}`}</div>
-                <div>(Grundbuchamtliche Anschrift)</div>
+              <div style={{ display: "flex", gap: "4rem" }}>
+                <div>
+                  <div>Nr. 0001 auf</div>
+                  <div>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "2rem",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <div>{`${b.buchungsblattcode}`}</div>
+                      <div>{`${b.content.laufendeNummer}`}</div>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <div>{`${b.content.salutation} ${b.content.firstName || ""} ${
+                    b.content.surName
+                  }, ${
+                    b.content.salutation !== "Firma"
+                      ? "*" + b.content.formattedDate
+                      : ""
+                  }`}</div>
+                  <div>{`${b.content.street} ${b.content.houseNumber}`}</div>
+                  <div>{`${b.content.postalCode}, ${b.content.city}`}</div>
+                  <div>(Grundbuchamtliche Anschrift)</div>
+                </div>
               </div>
             ),
           };
