@@ -130,11 +130,14 @@ export const addHtmlFromData = async (
       <Tabs
         defaultActiveKey="1"
         tabPosition="left"
-        style={{ height: 220 }}
         items={sheets.map((b, i) => {
           const id = String(i);
           return {
-            label: b.buchungsblattcode,
+            label: (
+              <div style={{ paddingLeft: 0, marginLeft: 0 }}>
+                {b.buchungsblattcode}
+              </div>
+            ),
             key: id,
             disabled: i === 28,
             children: (

@@ -1,1 +1,19 @@
-/* You can add global styles to this file, and also import other style files */
+.ant-tabs-nav {
+  margin-left: 0 !important;
+  padding-left: 0 !important;
+}
+
+.ant-tabs-tab {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.ant-tabs-tab-active {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.ant-tabs-bar {
+  margin-left: 0 !important;
+  padding-left: 0 !important;
+}
