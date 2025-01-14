@@ -2,17 +2,11 @@ import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { Tooltip } from "antd";
 import {
-  Cartesian2,
-  Cartesian3,
   Cartographic,
   Math as CesiumMath,
-  CheckerboardMaterialProperty,
-  Color,
   Entity,
-  sampleTerrainMostDetailed,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
-  ShadowMode,
 } from "cesium";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -77,16 +71,22 @@ import versionData from "./version.json";
 import { useHGKCesiumTerrain } from "./hooks/useHGKCesiumTerrain";
 import useLeafletZoomControls from "./hooks/useLeafletZoomControls";
 
+import { prepareSceneForHGK } from "./utils/scene";
+
 import config from "./config";
-import { HGK_KEYS, HGK_TERRAIN_PROVIDER_URLS } from "./config/app.config";
-import { CESIUM_CONFIG } from "./config/cesium/cesium.config";
+import {
+  EMAIL,
+  HGK_KEYS,
+  HGK_TERRAIN_PROVIDER_URLS,
+  HOME_ZOOM,
+} from "./config/app.config";
+import {
+  CESIUM_CONFIG,
+  CONSTRUCTOR_OPTIONS,
+} from "./config/cesium/cesium.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
-
-// disable cesium canvas background transparency
-const constructorOptions = {
-  contextOptions: { webgl: { alpha: false } },
-};
+import { onCesiumClick } from "./utils/cesiumHandlers";
 
 function App({ sync = false }: { sync?: boolean }) {
   const version = getApplicationVersion(versionData);
@@ -95,11 +95,6 @@ function App({ sync = false }: { sync?: boolean }) {
 
   const reactCismapEnvirometricsVersion = cismapEnvirometricsVersion;
   const [hochwasserschutz, setHochwasserschutz] = useState(true);
-
-  const email = "hochwasser@stadt.wuppertal.de";
-  //const [hinweisData, setHinweisData] = useState([]);
-
-  const homeZoom = 18;
 
   // CONTROLS
 
@@ -145,21 +140,6 @@ function App({ sync = false }: { sync?: boolean }) {
   // selection handling
   const { setSelection } = useSelection();
 
-  useSelectionTopicMap();
-  useSelectionCesium(
-    !isMode2d,
-    useMemo(
-      () => ({
-        markerAsset,
-        markerAnchorHeight,
-        isPrimaryStyle: true,
-        surfaceProviderRef,
-        terrainProviderRef,
-      }),
-      [markerAsset, markerAnchorHeight, surfaceProviderRef, terrainProviderRef]
-    )
-  );
-
   const onGazetteerSelection = (selection: SearchResultItem | null) => {
     if (!selection) {
       console.debug("onGazetteerSelection", selection);
@@ -177,7 +157,7 @@ function App({ sync = false }: { sync?: boolean }) {
   const homeControlLeaflet = () => {
     if (homeCenter && routedMap?.leafletMap?.leafletElement) {
       console.debug("topicMapHomeClick", homeCenter, homePosition);
-      routedMap.leafletMap.leafletElement.flyTo(homeCenter, homeZoom);
+      routedMap.leafletMap.leafletElement.flyTo(homeCenter, HOME_ZOOM);
     }
   };
 
@@ -190,25 +170,28 @@ function App({ sync = false }: { sync?: boolean }) {
     replaceHashRoutedHistory(e, "/");
   };
 
+  useSelectionTopicMap();
+  useSelectionCesium(
+    !isMode2d,
+    useMemo(
+      () => ({
+        markerAsset,
+        markerAnchorHeight,
+        isPrimaryStyle: true,
+        surfaceProviderRef,
+        terrainProviderRef,
+      }),
+      [markerAsset, markerAnchorHeight, surfaceProviderRef, terrainProviderRef]
+    )
+  );
+
   useEffect(() => {
     if (viewerRef.current) {
       const viewer = viewerRef.current;
       // remove default cesium credit because no ion resorce is used;
       (viewer as any)._cesiumWidget._creditContainer.style.display = "none";
       setTimeout(() => {
-        console.debug("3d setup for HGK terrain style");
-        viewer.scene.backgroundColor = Color.DIMGREY;
-        viewer.scene.globe.baseColor = new Color(0.3, 0.2, 0.8, 0.7);
-        viewer.scene.globe.show = true;
-        viewer.scene.globe.translucency.enabled = true;
-        viewer.scene.globe.translucency.frontFaceAlpha = 1.0;
-        viewer.scene.globe.translucency.backFaceAlpha = 1.0;
-        if (viewer.imageryLayers.length > 0) {
-          console.debug("hide default imagery layer hgk");
-          const imageryLayer = viewer.imageryLayers.get(0);
-          imageryLayer.show = false;
-        }
-        viewer.scene.requestRender();
+        prepareSceneForHGK(viewer);
       }, 300);
     }
   }, [viewerRef]);
@@ -237,7 +220,7 @@ function App({ sync = false }: { sync?: boolean }) {
           version,
           versionString: version,
           reactCismapRHMVersion: reactCismapEnvirometricsVersion,
-          email,
+          email: EMAIL,
         })}
       />
     );
@@ -325,7 +308,7 @@ function App({ sync = false }: { sync?: boolean }) {
         emailaddress="hochwasser@stadt.wuppertal.de"
         config={config.config}
         contactButtonEnabled={false}
-        homeZoom={homeZoom}
+        homeZoom={HOME_ZOOM}
         homeCenter={homeCenter}
         modeSwitcherTitle="Hochwassergefahrenkarte Wuppertal"
         documentTitle="Hochwassergefahrenkarte Wuppertal"
@@ -365,7 +348,7 @@ function App({ sync = false }: { sync?: boolean }) {
         <CustomViewer
           containerRef={container3dMapRef}
           cameraOptions={CESIUM_CONFIG.camera}
-          constructorOptions={constructorOptions}
+          constructorOptions={CONSTRUCTOR_OPTIONS}
           enableSceneStyles={false}
           onSceneChange={onCesiumSceneChange}
         ></CustomViewer>
@@ -392,7 +375,6 @@ const StateAwareChildren = () => {
     [number, number] | null
   >(null);
   const markerEntityRef = useRef<Entity | null>(null);
-
   const prevPositionRef = useRef<[number, number] | null>(null);
 
   useEffect(() => {
@@ -400,59 +382,17 @@ const StateAwareChildren = () => {
       const viewer = viewerRef.current;
 
       const handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
-      handler.setInputAction(async (click) => {
-        const cartesian = viewer.scene.pickPosition(click.position);
-        if (cartesian && terrainProviderRef.current) {
-          const cartographic = Cartographic.fromCartesian(cartesian);
-          const lat = CesiumMath.toDegrees(cartographic.latitude);
-          const lon = CesiumMath.toDegrees(cartographic.longitude);
-          const [groundPositionCartographic] = await sampleTerrainMostDetailed(
-            terrainProviderRef.current,
-            [cartographic]
-          );
-          const groundPositionCartesian = Cartographic.toCartesian(
-            groundPositionCartographic
-          );
-
-          //const height = cartographic.height;
-          setCesiumPickedPosition([lat, lon]);
-
-          // Remove existing marker if any
-          if (markerEntityRef.current) {
-            viewer.entities.remove(markerEntityRef.current);
-          }
-          const interval = 0.1; // 10 cm
-          const rodHeight = 2.0;
-          const rodWidth = 0.3;
-          const repeats = Math.floor(rodHeight / interval);
-
-          // Create new marker rod
-          const newMarker = viewer.entities.add({
-            //position: cartesian,
-            position: groundPositionCartesian,
-            box: {
-              dimensions: new Cartesian3(rodWidth, rodWidth, rodHeight),
-              /*
-              material: new StripeMaterialProperty({
-                orientation: StripeOrientation.HORIZONTAL,
-                offset: 0.05,
-                repeat: 20,
-                oddColor: Color.YELLOW,
-                evenColor: Color.BLACK,
-              }),
-              */
-              material: new CheckerboardMaterialProperty({
-                oddColor: Color.ORANGE,
-                evenColor: Color.BLACK,
-                repeat: new Cartesian2(2, repeats),
-              }),
-              outline: false,
-              shadows: ShadowMode.CAST_ONLY,
-            },
-          });
-          markerEntityRef.current = newMarker;
-        }
-      }, ScreenSpaceEventType.LEFT_CLICK);
+      handler.setInputAction(
+        async (click) =>
+          onCesiumClick(
+            click,
+            viewer,
+            terrainProviderRef,
+            markerEntityRef,
+            setCesiumPickedPosition
+          ),
+        ScreenSpaceEventType.LEFT_CLICK
+      );
 
       return () => {
         handler.destroy();
@@ -464,7 +404,7 @@ const StateAwareChildren = () => {
         }
       };
     }
-  }, [viewerRef, controlState.featureInfoModeActivated]);
+  }, [viewerRef, terrainProviderRef, controlState.featureInfoModeActivated]);
 
   // Add effect to cleanup marker when feature info mode is disabled
   useEffect(() => {

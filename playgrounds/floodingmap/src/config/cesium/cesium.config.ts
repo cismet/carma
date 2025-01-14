@@ -1,3 +1,4 @@
+import { Viewer } from "cesium";
 import {
   WUPP_MESH_2024,
   WUPP_TERRAIN_PROVIDER,
@@ -8,6 +9,11 @@ import { CesiumConfig } from "@carma-mapping/cesium-engine";
 import { APP_BASE_PATH } from "../app.config";
 
 export const CESIUM_PATHNAME = "__cesium__";
+
+// disable cesium canvas background transparency
+export const CONSTRUCTOR_OPTIONS: Viewer.ConstructorOptions = {
+  contextOptions: { webgl: { alpha: false } },
+};
 
 // see also cesium State in store
 export const CESIUM_CONFIG: CesiumConfig = {

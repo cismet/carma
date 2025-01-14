@@ -16,3 +16,7 @@ export const HGK_TERRAIN_PROVIDER_URLS = {
   "HQ10-50_noHWS": "https://cesium-wupp-terrain.cismet.de/HQ10-50_noHWS/",
   HQ100_noHWS: "https://cesium-wupp-terrain.cismet.de/HQ100_noHWS/",
 };
+
+export const EMAIL = "hochwasser@stadt.wuppertal.de";
+
+export const HOME_ZOOM = 18;
