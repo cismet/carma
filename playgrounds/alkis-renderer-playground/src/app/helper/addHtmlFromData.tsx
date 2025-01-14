@@ -83,6 +83,11 @@ export const addHtmlFromData = async (
   const wrapStyle = { display: "flex", width: "100%" };
   const colStyle = { width: "50%" };
   const titleStyle = { marginBottom: "14px" };
+  const linkStyle = {
+    color: "#1677ff",
+    cursor: "pointer",
+    fontWeight: "500",
+  };
   return (
     <div>
       <h4 style={titleStyle}>Flurstücksinformationen</h4>
@@ -131,7 +136,14 @@ export const addHtmlFromData = async (
                         justifyContent: "space-between",
                       }}
                     >
-                      <div>{`${b.buchungsblattcode}`}</div>
+                      <div
+                        style={{
+                          color: "#1677ff",
+                          cursor: "pointer",
+                          fontWeight: "500",
+                        }}
+                        onClick={() => console.log("xxx link clicked")}
+                      >{`${b.buchungsblattcode}`}</div>
                       <div>{`${b.content.laufendeNummer}`}</div>
                     </div>
                   </div>
