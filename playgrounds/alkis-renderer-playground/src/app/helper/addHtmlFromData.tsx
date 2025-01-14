@@ -348,7 +348,7 @@ export const addHtmlFromData = async (
                 <div>
                   {b.content.legalDesc && (
                     <div style={{ paddingBottom: "1.4rem" }}>
-                      {b.content.legalDesc}
+                      <b>Rechtsgemeinschaft:</b> {b.content.legalDesc}
                     </div>
                   )}
                   {b.content.owners.map((owner, idx: number) => {
@@ -376,7 +376,7 @@ export const addHtmlFromData = async (
                           paddingBottom: "1.4rem",
                           borderLeft:
                             b.content.owners.length > 1
-                              ? "1px solid black"
+                              ? "1px solid #d9d9d9"
                               : "0px",
                           paddingLeft: "10px",
                         }}
