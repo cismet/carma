@@ -87,6 +87,8 @@ export const getAdditionalSheets = (sheetId: string, jwt: string) => {
       const { houseNumber, postalCode, city, street } =
         result.res.owners[0].addresses[0];
 
+      const nrCode = result.res.buchungsstellen[0].sequentialNumber;
+
       const { laufendeNummer } = result.res.namensnummern[0];
 
       return {
@@ -101,6 +103,7 @@ export const getAdditionalSheets = (sheetId: string, jwt: string) => {
           city,
           street,
           laufendeNummer,
+          nrCode,
         },
       };
     });
