@@ -347,7 +347,7 @@ export const addHtmlFromData = async (
                 </div>
                 <div>
                   {b.content.legalDesc && (
-                    <div style={{ marginBottom: "1.2rem" }}>
+                    <div style={{ paddingBottom: "1.4rem" }}>
                       {b.content.legalDesc}
                     </div>
                   )}
@@ -372,13 +372,15 @@ export const addHtmlFromData = async (
                         key={idx}
                         style={{
                           display: "flex",
-                          gap: "1rem",
-                          marginBottom: "1.2rem",
+                          gap: "3rem",
+                          paddingBottom: "1.4rem",
+                          borderLeft: "1px solid black",
+                          paddingLeft: "10px",
                         }}
                       >
                         <div>{nameNumber}</div>
                         <div>
-                          <div style={{ marginBottom: "0.6rem" }}>
+                          <div style={{ paddingBottom: "0.6rem" }}>
                             {salutation} {firstName || ""} {surName},{" "}
                             {salutation !== "Firma" ? "*" + formattedDate : ""}
                           </div>
