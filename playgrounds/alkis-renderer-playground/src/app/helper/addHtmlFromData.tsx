@@ -354,10 +354,16 @@ export const addHtmlFromData = async (
                     </div>
                   </div>
                 </div>
+                <div>{b.content.legalDesc}</div>
                 <div>
                   {b.content.owners.map((owner, idx: number) => {
-                    const { salutation, firstName, surName, dateOfBirth } =
-                      owner;
+                    const {
+                      salutation,
+                      firstName,
+                      surName,
+                      dateOfBirth,
+                      nameNumber,
+                    } = owner;
                     const date = new Date(dateOfBirth);
                     const day = String(date.getDate()).padStart(2, "0");
                     const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -368,6 +374,7 @@ export const addHtmlFromData = async (
                       owner.addresses[0];
                     return (
                       <>
+                        <div>{nameNumber}</div>
                         <div>{`${salutation} ${firstName || ""} ${surName}, ${
                           salutation !== "Firma" ? "*" + formattedDate : ""
                         }`}</div>

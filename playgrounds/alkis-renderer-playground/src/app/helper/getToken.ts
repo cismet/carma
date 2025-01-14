@@ -77,7 +77,7 @@ export const getAdditionalSheets = (sheetId: string, jwt: string) => {
       console.log("xxx one sheet", result);
       const owners = result.res.owners;
       const nrCode = result.res.buchungsstellen[0].sequentialNumber;
-
+      const legalDesc = result.res.descriptionOfRechtsgemeinschaft;
       const { laufendeNummer } = result.res.namensnummern[0];
 
       return {
@@ -86,6 +86,7 @@ export const getAdditionalSheets = (sheetId: string, jwt: string) => {
           owners,
           laufendeNummer,
           nrCode,
+          legalDesc,
         },
       };
     });
