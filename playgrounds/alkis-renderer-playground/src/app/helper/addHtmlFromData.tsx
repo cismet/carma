@@ -374,7 +374,10 @@ export const addHtmlFromData = async (
                           display: "flex",
                           gap: "3rem",
                           paddingBottom: "1.4rem",
-                          borderLeft: "1px solid black",
+                          borderLeft:
+                            b.content.owners.length > 1
+                              ? "1px solid black"
+                              : "0px",
                           paddingLeft: "10px",
                         }}
                       >
