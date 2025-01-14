@@ -104,7 +104,20 @@ export const addHtmlFromData = async (
         <div style={colStyle}>{landparcel.gemarkung}</div>
       </div>
       <div style={wrapStyle}>
-        <div style={colStyle}>Lage:</div> <div style={colStyle}>{lage}</div>
+        <div style={colStyle}>Lage:</div>
+        <div style={colStyle}>
+          <div>{lage}</div>
+          <div style={{ display: "flex", gap: "0.4rem" }}>
+            {landparcel.adressenArray.map((a, idx: number) => {
+              return (
+                <div key={idx}>
+                  {a.alkis_adresse.nummer.trim()}
+                  {idx !== landparcel.adressenArray.length - 1 && ","}
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
       <div style={wrapStyle}>
         <div style={colStyle}>Größe:</div>
@@ -137,11 +150,7 @@ export const addHtmlFromData = async (
                       }}
                     >
                       <div
-                        style={{
-                          color: "#1677ff",
-                          cursor: "pointer",
-                          fontWeight: "500",
-                        }}
+                        style={linkStyle}
                         onClick={() => console.log("xxx link clicked")}
                       >{`${b.buchungsblattcode}`}</div>
                       <div>{`${b.content.laufendeNummer}`}</div>

@@ -5,12 +5,15 @@ queries.landparcelSearch = `
 query landparcelForName($name: String!) {
   alkis_landparcel(where: {alkis_id: {_eq: $name}}) {
     id
+    alkis_id
     bezeichnung
     gemarkung
     groesse
     adressenArray {
       alkis_adresse {
         strasse
+        nummer
+        gebaeude
       }
     }
     buchungsblaetterArray {
