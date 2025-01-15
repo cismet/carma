@@ -28,13 +28,23 @@ const AlkisSearch = ({ jwt }: AlkisSearchProps) => {
     }
   };
 
+  const searchTitleStyle = {
+    marginBottom: "0.7rem",
+    fontSize: "14px",
+    color: "rgba(0, 0, 0, 0.88)",
+  };
+
   return (
     <div style={{ marginTop: "40px", marginBottom: "60px" }}>
-      <Search
-        placeholder="type alkis id input"
-        onSearch={onSearch}
-        enterButton
-      />
+      <div>
+        <h4 style={searchTitleStyle}>Flurstück suche</h4>
+        <Search placeholder="" onSearch={onSearch} enterButton />
+      </div>
+
+      <div>
+        <h4 style={searchTitleStyle}>Buchungsblätter</h4>
+        <Search placeholder="" onSearch={onSearch} enterButton />
+      </div>
 
       {landparcel && (
         <div

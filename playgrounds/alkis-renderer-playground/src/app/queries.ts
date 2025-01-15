@@ -22,6 +22,9 @@ query landparcelForName($name: String!) {
         buchungsblattcode
       }
     }
+    flur
+    fstck_nenner
+    fstck_zaehler
   }
 }
 `;
