@@ -1,14 +1,25 @@
-export type Props = Partial<{
-  id: string;
-  owners: string;
-  namesArr: string;
-  createdAt: string;
+export type Props = {
+  owners: Owners[];
+  namesArr: NamesArr[];
   legalDesc: string | null;
-}> & {
-  [key: string]: any;
 };
 
-const AdditionalSheet = ({ owners, namesArr, legalDesc }) => {
+type Owners = {
+  salutation: string;
+  firstName: string | null;
+  surName: string;
+  dateOfBirth: string;
+  nameNumber: string;
+  addresses: any[];
+};
+
+type NamesArr = {
+  nenner: string | null;
+  zaehler: string | null;
+  artRechtsgemeinschaft: string | null;
+};
+
+const AdditionalSheet = ({ owners, namesArr, legalDesc }: Props) => {
   const typeOfTitle = namesArr[0];
   const ifLegalDesc = !typeOfTitle.nenner && !typeOfTitle.zaehler;
   const ifWithoutNumber = !typeOfTitle.artRechtsgemeinschaft;
