@@ -46,7 +46,7 @@ const AlkisSearch = ({ jwt }: AlkisSearchProps) => {
     };
 
     if (mode === "sheet") {
-      fetchData();
+      // fetchData();
     }
   }, [mode]);
 

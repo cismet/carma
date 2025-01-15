@@ -14,9 +14,9 @@ const AdditionalSheet = ({ owners, namesArr, legalDesc }) => {
   const ifWithoutNumber = !typeOfTitle.artRechtsgemeinschaft;
 
   return (
-    <>
+    <div style={{ display: "flex", gap: "2rem" }}>
       {!ifWithoutNumber && <div>ohne Nr.</div>}
-      <div style={{ width: "500px" }}>
+      <div style={{ width: "70%" }}>
         {legalDesc && (
           <div
             style={{
@@ -70,7 +70,7 @@ const AdditionalSheet = ({ owners, namesArr, legalDesc }) => {
           );
         })}
       </div>
-    </>
+    </div>
   );
 };
 
