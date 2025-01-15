@@ -1,9 +1,6 @@
-import { Divider, Tabs } from "antd";
 import {
   getAdditionalSheetAsync,
-  getAllAdditionalSheets,
   getBookingOfficesBySheetId,
-  searchLandparcelByName,
 } from "./getToken";
 import AdditionalSheet from "../components/AdditionalSheet";
 import CustomCard from "../components/CustomCard";
@@ -222,6 +219,13 @@ const tem053001Data033389 = {
   },
 };
 
+type BookingOffisesItem = {
+  alkis_buchungsblatt_landparcel: {
+    lfn: string;
+    landparcelcode: string;
+  };
+};
+
 export const getSheetHtml = async (jwt: string, name: string) => {
   const sheetData = await getAdditionalSheetAsync(name, jwt);
   const booking = await getBookingOfficesBySheetId(name + " ", jwt);
@@ -263,7 +267,7 @@ export const getSheetHtml = async (jwt: string, name: string) => {
         </CustomCard>
         <CustomCard title="Buchungsstellen und Flurstücke">
           <div>
-            {bookingOff.map((o, idx: number) => {
+            {bookingOff.map((o: BookingOffisesItem, idx: number) => {
               return (
                 <div key={idx}>
                   {o.alkis_buchungsblatt_landparcel.lfn}{" "}
