@@ -28,3 +28,22 @@ query landparcelForName($name: String!) {
   }
 }
 `;
+
+queries.sheetSearch = `
+query buchungsblattForName($name: String!) {
+  alkis_buchungsblatt(where: {buchungsblattcode: {_eq: $name}}) {
+    buchungsblattcode
+    blattart
+    id
+    landparcelsArray {
+      alkis_buchungsblatt_landparcel {
+        landparcelcode
+        id
+        lfn
+      }
+    }
+    aid
+    bbc
+  }
+}
+`;

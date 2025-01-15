@@ -210,21 +210,6 @@ export const getAdditionalSheetAsync = async (sheetId: string, jwt: string) => {
       const result = await response.json();
       console.log("xxx async sheet", result);
 
-      // const owners = result.res.owners;
-      // const nrCode = result.res.buchungsstellen[0].sequentialNumber;
-      // const legalDesc = result.res.descriptionOfRechtsgemeinschaft;
-      // const namesArr = result.res.namensnummern;
-
-      // return {
-      //   buchungsblattcode: result.res.buchungsblattCode,
-      //   content: {
-      //     owners,
-      //     nrCode,
-      //     legalDesc,
-      //     namesArr,
-      //   },
-      // };
-
       return result;
     } else {
       console.log(
