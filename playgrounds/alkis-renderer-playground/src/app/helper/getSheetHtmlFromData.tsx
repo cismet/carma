@@ -248,14 +248,20 @@ export const getSheetHtml = async (jwt: string, name: string) => {
       <CustomCard title="Buchungsblatt">
         <CustomCard style={{ marginBottom: "1rem" }} title="Buchungsblatt">
           <div>
-            <div>Amtsgericht: {localCourt}</div>
+            <div>
+              <b>Amtsgericht:</b> {localCourt}
+            </div>
             {markingName && markingCode && (
               <div>
-                Grundbuchbezirk: {markingName} ({markingCode})
+                <b>Grundbuchbezirk:</b> {markingName} ({markingCode})
               </div>
             )}
-            <div>Blattart: {leafType}</div>
-            <div>Buchungsart: {bookingType}</div>
+            <div>
+              <b>Blattart:</b> {leafType}
+            </div>
+            <div>
+              <b>Buchungsart:</b> {bookingType}
+            </div>
           </div>
         </CustomCard>
         <CustomCard style={{ marginBottom: "1rem" }} title="Eigentümer">
