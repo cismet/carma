@@ -6,5 +6,5 @@ export const landParcelSearchQuery = gql`
 `;
 
 export const sheetSearchQuery = gql`
-  ${queries.sheetSearchQuery}
+  ${queries.sheetSearch}
 `;

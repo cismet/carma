@@ -1,4 +1,4 @@
-import { landParcelSearchQuery } from "../verdis";
+import { landParcelSearchQuery, sheetSearchQuery } from "../verdis";
 export type FieldType = {
   username?: string;
   password?: string;
@@ -218,5 +218,32 @@ export const getAdditionalSheetAsync = async (sheetId: string, jwt: string) => {
     }
   } catch (e) {
     console.log("xxx error", e);
+  }
+};
+
+export const getBookingOfficesBySheetId = async (name: string, jwt: string) => {
+  try {
+    const response = await fetch(WUNDA_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${jwt}`,
+      },
+      body: JSON.stringify({
+        query: sheetSearchQuery,
+        variables: { name },
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Network response was not ok");
+    }
+
+    const result = await response.json();
+
+    console.log("xxx l name", result);
+    return result;
+  } catch (error) {
+    console.error("There was a problem with the fetch operation:");
   }
 };

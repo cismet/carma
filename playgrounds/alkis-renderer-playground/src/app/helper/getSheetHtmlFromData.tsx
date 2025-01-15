@@ -2,6 +2,7 @@ import { Divider, Tabs } from "antd";
 import {
   getAdditionalSheetAsync,
   getAllAdditionalSheets,
+  getBookingOfficesBySheetId,
   searchLandparcelByName,
 } from "./getToken";
 import AdditionalSheet from "../components/AdditionalSheet";
@@ -1090,11 +1091,46 @@ const temData = {
   },
 };
 
+const bookingExamp = {
+  alkis_buchungsblatt: [
+    {
+      buchungsblattcode: "053001-003396 ",
+      blattart: "Grundbuchblatt",
+      id: 35329,
+      landparcelsArray: [
+        {
+          alkis_buchungsblatt_landparcel: {
+            landparcelcode: "053001-128-00101",
+            id: 7600,
+            lfn: "0009",
+          },
+        },
+        {
+          alkis_buchungsblatt_landparcel: {
+            landparcelcode: "053001-128-00102",
+            id: 7601,
+            lfn: "0012",
+          },
+        },
+        {
+          alkis_buchungsblatt_landparcel: {
+            landparcelcode: "053001-128-00004",
+            id: 7575,
+            lfn: "0002",
+          },
+        },
+      ],
+      bbc: null,
+    },
+  ],
+};
+
 export type Tem053001DataType = typeof tem053001Data011062;
 
 export const getSheetHtml = async (jwt: string, name: string) => {
   const sheetData = await getAdditionalSheetAsync(name, jwt);
-
+  const booking = await getBookingOfficesBySheetId(name + " ", jwt);
+  const bookingOff = booking.data.alkis_buchungsblatt[0].landparcelsArray;
   const localCourt = sheetData.res.offices.districtCourtName[0];
   const markingName =
     sheetData.res.buchungsstellen[0].landParcel[0].administrativeDistricts
@@ -1135,8 +1171,14 @@ export const getSheetHtml = async (jwt: string, name: string) => {
         </CustomCard>
         <CustomCard title="Buchungsstellen und Flurstücke">
           <div>
-            {sheetData.res.buchungsstellen[0].sequentialNumber}{" "}
-            {sheetData.res.buchungsstellen[0].landParcel[0].landParcelCode}
+            {bookingOff.map((o, idx: number) => {
+              return (
+                <div key={idx}>
+                  {o.alkis_buchungsblatt_landparcel.lfn}{" "}
+                  {o.alkis_buchungsblatt_landparcel.landparcelcode}
+                </div>
+              );
+            })}
           </div>
         </CustomCard>
       </CustomCard>
