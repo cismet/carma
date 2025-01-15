@@ -1097,6 +1097,16 @@ export const addHtmlFromData = async (
     jwt
   );
 
+  if (sheets) {
+    const { content, buchungsblattcode } = sheets[0];
+    setSheet({
+      id: buchungsblattcode,
+      owners: content.owners,
+      legalDesc: content.legalDesc,
+      namesArr: content.namesArr,
+    });
+  }
+
   console.log("xxx sheets", sheets);
   const lage = landparcel.adressenArray[0].alkis_adresse.strasse;
 
@@ -1148,7 +1158,7 @@ export const addHtmlFromData = async (
       <Divider />
       <h4 style={titleStyle}>Buchungsblätter</h4>
       <Tabs
-        defaultActiveKey="1"
+        defaultActiveKey="0"
         tabPosition="left"
         items={sheets.map((b, i) => {
           const id = String(i);
@@ -1158,7 +1168,12 @@ export const addHtmlFromData = async (
               <div
                 style={{ padding: "4px 10px" }}
                 onClick={() => {
-                  setSheet();
+                  setSheet({
+                    id: b.buchungsblattcode,
+                    owners: b.content.owners,
+                    legalDesc: b.content.legalDesc,
+                    namesArr: b.content.namesArr,
+                  });
                 }}
               >
                 {b.buchungsblattcode}
@@ -1174,6 +1189,7 @@ export const addHtmlFromData = async (
                       style={linkStyle}
                       onClick={() => {
                         setSheet({
+                          id: b.buchungsblattcode,
                           owners: b.content.owners,
                           legalDesc: b.content.legalDesc,
                           namesArr: b.content.namesArr,

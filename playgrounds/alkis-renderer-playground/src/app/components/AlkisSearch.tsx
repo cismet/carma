@@ -13,7 +13,7 @@ const AlkisSearch = ({ jwt }: AlkisSearchProps) => {
   const [resHtml, setResHtml] = useState<JSX.Element | null>(null);
   const [mode, setMode] = useState<string>("landparcel");
   const [sheets, setSheets] = useState<any>({
-    id: "053001-003396",
+    id: "",
     owners: [],
     namesArr: [],
     legalDesc: "",
@@ -47,7 +47,7 @@ const AlkisSearch = ({ jwt }: AlkisSearchProps) => {
             {landparcel}
           </div>
           <div onClick={() => setMode("sheet")} style={{ cursor: "pointer" }}>
-            Sheet number
+            {sheets.id}
           </div>
         </div>
       )}
