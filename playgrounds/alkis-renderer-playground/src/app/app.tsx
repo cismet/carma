@@ -9,8 +9,8 @@ import AlkisSearch from "./components/AlkisSearch";
 export function App() {
   const [jwt, setJwt] = useState<string | null>(null);
 
-  const onFinish: FormProps<FieldType>["onFinish"] = (values) => {
-    login(values, setJwt);
+  const onFinish: FormProps<FieldType>["onFinish"] = (value) => {
+    login(value, setJwt);
   };
 
   return (

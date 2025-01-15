@@ -1,5 +1,6 @@
 import { Divider, Tabs } from "antd";
 import { getAllAdditionalSheets, searchLandparcelByName } from "./getToken";
+import AdditionalSheet from "../components/AdditionalSheet";
 
 const tempData0019 = {
   contentType: "application/octet-stream",
@@ -1086,7 +1087,8 @@ const tempData00004 = {
 
 export const addHtmlFromData = async (
   jwt: string,
-  name: string = "053001-137-00020/0001"
+  name: string = "053001-137-00020/0001",
+  setSheet: (s: any) => void
 ) => {
   const landparcelData = await searchLandparcelByName(name, jwt);
   const landparcel = landparcelData.data.alkis_landparcel[0];
@@ -1150,96 +1152,35 @@ export const addHtmlFromData = async (
         tabPosition="left"
         items={sheets.map((b, i) => {
           const id = String(i);
-          const typeOfTitle = b.content.namesArr[0];
-          const ifLegalDesc = !typeOfTitle.nenner && !typeOfTitle.zaehler;
-          const ifWithoutNumber = !typeOfTitle.artRechtsgemeinschaft;
-          console.log("xxx ifLegalDesc", ifLegalDesc);
-          console.log("xxx ifWithoutNumber", ifWithoutNumber);
-          console.log("xxx ifWithoutNumber", b.content.legalDesc);
 
           return {
             label: (
-              <div style={{ padding: "4px 10px" }}>{b.buchungsblattcode}</div>
+              <div
+                style={{ padding: "4px 10px" }}
+                onClick={() => {
+                  setSheet();
+                }}
+              >
+                {b.buchungsblattcode}
+              </div>
             ),
             key: id,
-            disabled: i === 28,
             children: (
               <div style={{ display: "flex", gap: "1.6rem" }}>
                 <div style={{ marginRight: "4rem" }}>
                   <div>Nr. {b.content.nrCode} auf</div>
                   <div>
-                    <div style={linkStyle}>{`${b.buchungsblattcode}`}</div>
-                  </div>
-                </div>
-                {!ifWithoutNumber && <div>ohne Nr.</div>}
-                <div style={{ width: "500px" }}>
-                  {b.content.legalDesc && (
                     <div
-                      style={{
-                        paddingBottom: "1.4rem",
-                        ...(!ifLegalDesc && {
-                          display: "flex",
-                          justifyContent: "space-between",
-                        }),
+                      style={linkStyle}
+                      onClick={() => {
+                        setSheet({
+                          owners: b.content.owners,
+                          legalDesc: b.content.legalDesc,
+                          namesArr: b.content.namesArr,
+                        });
                       }}
-                    >
-                      <b>
-                        {ifLegalDesc
-                          ? "Rechtsgemeinschaft:"
-                          : "Erbengemeinschaft:"}
-                      </b>{" "}
-                      <span>
-                        {ifLegalDesc ? b.content.legalDesc : "zu 1/2"}
-                      </span>
-                    </div>
-                  )}
-                  {b.content.owners.map((owner, idx: number) => {
-                    const {
-                      salutation,
-                      firstName,
-                      surName,
-                      dateOfBirth,
-                      nameNumber,
-                    } = owner;
-                    const date = new Date(dateOfBirth);
-                    const day = String(date.getDate()).padStart(2, "0");
-                    const month = String(date.getMonth() + 1).padStart(2, "0");
-                    const year = date.getFullYear();
-                    const formattedDate = `${day}.${month}.${year}`;
-
-                    const { houseNumber, postalCode, city, street } =
-                      owner.addresses[0];
-                    return (
-                      <div
-                        key={idx}
-                        style={{
-                          display: "flex",
-                          gap: "3rem",
-                          paddingBottom: "1.4rem",
-                          borderLeft:
-                            b.content.owners.length > 1
-                              ? "1px solid #d9d9d9"
-                              : "0px",
-                          paddingLeft: "10px",
-                        }}
-                      >
-                        <div>{nameNumber}</div>
-                        <div>
-                          <div style={{ paddingBottom: "0.6rem" }}>
-                            {salutation} {firstName || ""} {surName},{" "}
-                            {salutation !== "Firma" ? "*" + formattedDate : ""}
-                          </div>
-                          <div>
-                            {street} {houseNumber}
-                          </div>
-                          <div>
-                            {postalCode}, {city}
-                          </div>
-                          <div>(Grundbuchamtliche Anschrift)</div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                    >{`${b.buchungsblattcode}`}</div>
+                  </div>
                 </div>
               </div>
             ),
