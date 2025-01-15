@@ -42,12 +42,12 @@ const AlkisSearch = ({ jwt }: AlkisSearchProps) => {
   return (
     <div style={{ marginTop: "40px", marginBottom: "60px" }}>
       <div>
-        <h4 style={searchTitleStyle}>Flurstück suche</h4>
+        <h4 style={searchTitleStyle}>Flurstücksuche</h4>
         <Search placeholder="" onSearch={onLandparcelSearch} enterButton />
       </div>
 
       <div>
-        <h4 style={searchTitleStyle}>Buchungsblätter</h4>
+        <h4 style={searchTitleStyle}>Buchungsblattsuche</h4>
         <Search placeholder="" onSearch={onSheetSearch} enterButton />
       </div>
 
