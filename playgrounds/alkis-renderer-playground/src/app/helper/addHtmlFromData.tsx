@@ -1087,9 +1087,7 @@ const tempData00004 = {
 
 export const addHtmlFromData = async (
   jwt: string,
-  name: string = "053001-137-00020/0001",
-  setSheet: (s: any) => void,
-  activeTabe: string
+  name: string = "053001-137-00020/0001"
 ) => {
   const landparcelData = await searchLandparcelByName(name, jwt);
   const landparcel = landparcelData.data.alkis_landparcel[0];
@@ -1097,19 +1095,6 @@ export const addHtmlFromData = async (
     landparcelData.data.alkis_landparcel[0].buchungsblaetterArray,
     jwt
   );
-
-  console.log("xxx activeTab", activeTabe);
-
-  if (sheets) {
-    const { content, buchungsblattcode } = sheets[0];
-    setSheet({
-      id: buchungsblattcode,
-      owners: content.owners,
-      legalDesc: content.legalDesc,
-      namesArr: content.namesArr,
-      placeInArr: 0,
-    });
-  }
 
   console.log("xxx sheets", sheets);
   const lage = landparcel.adressenArray[0].alkis_adresse.strasse;
@@ -1162,29 +1147,14 @@ export const addHtmlFromData = async (
       <Divider />
       <h4 style={titleStyle}>Buchungsblätter</h4>
       <Tabs
-        defaultActiveKey={activeTabe}
+        defaultActiveKey="0"
         tabPosition="left"
         destroyInactiveTabPane={true}
         items={sheets.map((b, i) => {
           const id = String(i);
-          console.log("xxx idx", i);
-
           return {
             label: (
-              <div
-                style={{ padding: "4px 10px" }}
-                onClick={() => {
-                  setSheet({
-                    id: b.buchungsblattcode,
-                    owners: b.content.owners,
-                    legalDesc: b.content.legalDesc,
-                    namesArr: b.content.namesArr,
-                    placeInArr: i,
-                  });
-                }}
-              >
-                {b.buchungsblattcode}
-              </div>
+              <div style={{ padding: "4px 10px" }}>{b.buchungsblattcode}</div>
             ),
             key: id,
             children: (
@@ -1192,20 +1162,14 @@ export const addHtmlFromData = async (
                 <div style={{ marginRight: "4rem" }}>
                   <div>Nr. {b.content.nrCode} auf</div>
                   <div>
-                    <div
-                      style={linkStyle}
-                      onClick={() => {
-                        setSheet({
-                          id: b.buchungsblattcode,
-                          owners: b.content.owners,
-                          legalDesc: b.content.legalDesc,
-                          namesArr: b.content.namesArr,
-                          placeInArr: i,
-                        });
-                      }}
-                    >{`${b.buchungsblattcode}`}</div>
+                    <div style={linkStyle}>{`${b.buchungsblattcode}`}</div>
                   </div>
                 </div>
+                <AdditionalSheet
+                  owners={b.content.owners}
+                  namesArr={b.content.namesArr}
+                  legalDesc={b.content.legalDesc}
+                />
               </div>
             ),
           };

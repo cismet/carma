@@ -1,8 +1,7 @@
 import { Input } from "antd";
 import { addHtmlFromData } from "../helper/addHtmlFromData";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import CustomCard from "./CustomCard";
-import AdditionalSheet from "./AdditionalSheet";
 const { Search } = Input;
 
 interface AlkisSearchProps {
@@ -24,31 +23,10 @@ const AlkisSearch = ({ jwt }: AlkisSearchProps) => {
   const onSearch = async (value: string) => {
     if (jwt) {
       setLandparcel(value);
-      const landparcelHtml = await addHtmlFromData(
-        jwt,
-        value,
-        setSheets,
-        sheets.placeInArr
-      );
+      const landparcelHtml = await addHtmlFromData(jwt, value);
       setResHtml(landparcelHtml);
     }
   };
-
-  useEffect(() => {
-    const fetchData = async () => {
-      const landparcelHtml = await addHtmlFromData(
-        jwt,
-        landparcel,
-        () => console.log("xxx rerender"),
-        sheets.placeInArr
-      );
-      setResHtml(landparcelHtml);
-    };
-
-    if (mode === "sheet") {
-      // fetchData();
-    }
-  }, [mode]);
 
   return (
     <div style={{ marginTop: "40px", marginBottom: "60px" }}>
@@ -89,11 +67,11 @@ const AlkisSearch = ({ jwt }: AlkisSearchProps) => {
         <div style={{ marginTop: "40px" }}>
           {
             <CustomCard title="Flurstück 20/1 - Flur 137 - Gemarkung 053001">
-              <AdditionalSheet
+              {/* <AdditionalSheet
                 owners={sheets.owners}
                 legalDesc={sheets.legalDesc}
-                namesArr={sheets.namesArr}
-              />
+                namesArr={sheets.namesArr} 
+              />*/}
             </CustomCard>
           }
         </div>
