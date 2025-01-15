@@ -1,6 +1,6 @@
 import { Input } from "antd";
 import { addHtmlFromData } from "../helper/addHtmlFromData";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import CustomCard from "./CustomCard";
 import AdditionalSheet from "./AdditionalSheet";
 const { Search } = Input;
@@ -33,6 +33,22 @@ const AlkisSearch = ({ jwt }: AlkisSearchProps) => {
       setResHtml(landparcelHtml);
     }
   };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const landparcelHtml = await addHtmlFromData(
+        jwt,
+        landparcel,
+        () => console.log("xxx rerender"),
+        sheets.placeInArr
+      );
+      setResHtml(landparcelHtml);
+    };
+
+    if (mode === "sheet") {
+      fetchData();
+    }
+  }, [mode]);
 
   return (
     <div style={{ marginTop: "40px", marginBottom: "60px" }}>
