@@ -1088,7 +1088,8 @@ const tempData00004 = {
 export const addHtmlFromData = async (
   jwt: string,
   name: string = "053001-137-00020/0001",
-  setSheet: (s: any) => void
+  setSheet: (s: any) => void,
+  activeTabe: string
 ) => {
   const landparcelData = await searchLandparcelByName(name, jwt);
   const landparcel = landparcelData.data.alkis_landparcel[0];
@@ -1097,6 +1098,8 @@ export const addHtmlFromData = async (
     jwt
   );
 
+  console.log("xxx activeTab", activeTabe);
+
   if (sheets) {
     const { content, buchungsblattcode } = sheets[0];
     setSheet({
@@ -1104,6 +1107,7 @@ export const addHtmlFromData = async (
       owners: content.owners,
       legalDesc: content.legalDesc,
       namesArr: content.namesArr,
+      placeInArr: 0,
     });
   }
 
@@ -1158,10 +1162,12 @@ export const addHtmlFromData = async (
       <Divider />
       <h4 style={titleStyle}>Buchungsblätter</h4>
       <Tabs
-        defaultActiveKey="0"
+        defaultActiveKey={activeTabe}
         tabPosition="left"
+        destroyInactiveTabPane={true}
         items={sheets.map((b, i) => {
           const id = String(i);
+          console.log("xxx idx", i);
 
           return {
             label: (
@@ -1173,6 +1179,7 @@ export const addHtmlFromData = async (
                     owners: b.content.owners,
                     legalDesc: b.content.legalDesc,
                     namesArr: b.content.namesArr,
+                    placeInArr: i,
                   });
                 }}
               >
@@ -1193,6 +1200,7 @@ export const addHtmlFromData = async (
                           owners: b.content.owners,
                           legalDesc: b.content.legalDesc,
                           namesArr: b.content.namesArr,
+                          placeInArr: i,
                         });
                       }}
                     >{`${b.buchungsblattcode}`}</div>

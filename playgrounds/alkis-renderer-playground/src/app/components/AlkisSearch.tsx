@@ -17,16 +17,23 @@ const AlkisSearch = ({ jwt }: AlkisSearchProps) => {
     owners: [],
     namesArr: [],
     legalDesc: "",
+    placeInArr: 0,
   });
   const [landparcel, setLandparcel] = useState<string | null>(null);
 
   const onSearch = async (value: string) => {
     if (jwt) {
       setLandparcel(value);
-      const landparcelHtml = await addHtmlFromData(jwt, value, setSheets);
+      const landparcelHtml = await addHtmlFromData(
+        jwt,
+        value,
+        setSheets,
+        sheets.placeInArr
+      );
       setResHtml(landparcelHtml);
     }
   };
+
   return (
     <div style={{ marginTop: "40px", marginBottom: "60px" }}>
       <Search
