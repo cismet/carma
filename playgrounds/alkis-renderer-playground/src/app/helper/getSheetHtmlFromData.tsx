@@ -227,30 +227,29 @@ export const getSheetHtml = async (jwt: string, name: string) => {
   const booking = await getBookingOfficesBySheetId(name + " ", jwt);
   const bookingOff = booking.data.alkis_buchungsblatt[0].landparcelsArray;
   const localCourt = sheetData.res.offices.districtCourtName[0];
-  //   const markingName =
-  //     sheetData.res.buchungsstellen[0].landParcel[0].administrativeDistricts
-  //       .gemarkungName;
-  //   const markingCode =
-  //     sheetData.res.buchungsstellen[0].landParcel[0].administrativeDistricts
-  //       .gemarkungCode;
+  const markingName =
+    sheetData?.res?.buchungsstellen?.[0]?.landParcel?.[0]
+      ?.administrativeDistricts?.gemarkungName ?? null;
+
+  const markingCode =
+    sheetData?.res?.buchungsstellen?.[0]?.landParcel?.[0]
+      ?.administrativeDistricts?.gemarkungCode ?? null;
+
   const leafType = sheetData.res.blattart;
   const bookingType = sheetData.res.buchungsstellen[0].buchungsart;
-  console.log("xxx sheet data", sheetData.res.buchungsstellen);
-  const wrapStyle = { display: "flex", width: "100%" };
-  const colStyle = { width: "50%" };
-  const titleStyle = { marginBottom: "14px" };
-  const linkStyle = {
-    color: "#1677ff",
-    cursor: "pointer",
-    fontWeight: "500",
-  };
+  console.log("xxx sheet data", JSON.stringify(sheetData));
+
   return (
     <div>
       <CustomCard title="Buchungsblatt">
         <CustomCard style={{ marginBottom: "1rem" }} title="Buchungsblatt">
           <div>
             <div>Amtsgericht: {localCourt}</div>
-            <div>{/* Grundbuchbezirk: {markingName} ({markingCode}) */}</div>
+            {markingName && markingCode && (
+              <div>
+                Grundbuchbezirk: {markingName} ({markingCode})
+              </div>
+            )}
             <div>Blattart: {leafType}</div>
             <div>Buchungsart: {bookingType}</div>
           </div>
