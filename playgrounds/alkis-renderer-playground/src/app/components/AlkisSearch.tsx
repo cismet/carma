@@ -58,7 +58,7 @@ const AlkisSearch = ({ jwt }: AlkisSearchProps) => {
             display: "flex",
             gap: "4rem",
             marginTop: "60px",
-            marginBottom: "20px",
+            marginBottom: "10px",
           }}
         >
           <div style={{ cursor: "pointer" }}>{idTitle}</div>
@@ -66,13 +66,7 @@ const AlkisSearch = ({ jwt }: AlkisSearchProps) => {
       )}
 
       {resHtml && mode === "landparcel" && (
-        <div style={{ marginTop: "40px" }}>
-          {
-            <CustomCard title="Flurstück 20/1 - Flur 137 - Gemarkung 053001">
-              {resHtml}
-            </CustomCard>
-          }
-        </div>
+        <div style={{ marginTop: "40px" }}>{resHtml}</div>
       )}
 
       {mode === "sheet" && <div style={{ marginTop: "40px" }}>{sheetHtml}</div>}

@@ -1,6 +1,8 @@
 import { Divider, Tabs } from "antd";
 import { getAllAdditionalSheets, searchLandparcelByName } from "./getToken";
 import AdditionalSheet from "../components/AdditionalSheet";
+import CustomCard from "../components/CustomCard";
+import { getLandparcelTitle } from "./landparcel";
 
 const tempData0019 = {
   contentType: "application/octet-stream",
@@ -1095,8 +1097,16 @@ export const addHtmlFromData = async (
     landparcelData.data.alkis_landparcel[0].buchungsblaetterArray,
     jwt
   );
-
-  console.log("xxx sheets", sheets);
+  const { alkis_id, flur, fstck_nenner, fstck_zaehler } =
+    landparcelData.data.alkis_landparcel[0];
+  console.log(
+    "xxx landparcelData",
+    alkis_id,
+    flur,
+    fstck_nenner,
+    fstck_zaehler
+  );
+  const title = getLandparcelTitle(alkis_id, flur, fstck_nenner, fstck_zaehler);
   const lage = landparcel.adressenArray[0].alkis_adresse.strasse;
 
   const wrapStyle = { display: "flex", width: "100%" };
@@ -1108,7 +1118,7 @@ export const addHtmlFromData = async (
     fontWeight: "500",
   };
   return (
-    <div>
+    <CustomCard title={title}>
       <h4 style={titleStyle}>Flurstücksinformationen</h4>
       <div style={wrapStyle}>
         <div style={colStyle}>Flurstückenzeichen:</div>
@@ -1175,6 +1185,6 @@ export const addHtmlFromData = async (
           };
         })}
       />
-    </div>
+    </CustomCard>
   );
 };

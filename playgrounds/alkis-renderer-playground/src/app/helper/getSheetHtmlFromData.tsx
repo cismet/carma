@@ -237,7 +237,7 @@ export const getSheetHtml = async (jwt: string, name: string) => {
 
   const leafType = sheetData.res.blattart;
   const bookingType = sheetData.res.buchungsstellen[0].buchungsart;
-  console.log("xxx sheet data", JSON.stringify(sheetData));
+  //   console.log("xxx sheet data", JSON.stringify(sheetData));
 
   return (
     <div>
