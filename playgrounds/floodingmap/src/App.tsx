@@ -188,19 +188,16 @@ function App({ sync = false }: { sync?: boolean }) {
     return state.selectedSimulation !== 2 && toggleState;
   };
 
-  const appMenu = () => {
-    console.debug("Render appMenu");
-    return (
-      <GenericModalApplicationMenu
-        {...getCollabedHelpComponentConfig({
-          version,
-          versionString: version,
-          reactCismapRHMVersion: reactCismapEnvirometricsVersion,
-          email: EMAIL,
-        })}
-      />
-    );
-  };
+  const appMenu = (
+    <GenericModalApplicationMenu
+      {...getCollabedHelpComponentConfig({
+        version,
+        versionString: version,
+        reactCismapRHMVersion: reactCismapEnvirometricsVersion,
+        email: EMAIL,
+      })}
+    />
+  );
 
   console.debug("RENDER: HGK App");
 
