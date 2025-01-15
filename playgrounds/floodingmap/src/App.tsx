@@ -1,13 +1,6 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { Tooltip } from "antd";
-import {
-  Cartographic,
-  Math as CesiumMath,
-  Entity,
-  ScreenSpaceEventHandler,
-  ScreenSpaceEventType,
-} from "cesium";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCompress,
@@ -18,17 +11,11 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 
 import EnviroMetricMap from "@cismet-dev/react-cismap-envirometrics-maps/EnviroMetricMap";
-import {
-  EnviroMetricMapContext,
-  EnviroMetricMapDispatchContext,
-} from "@cismet-dev/react-cismap-envirometrics-maps/EnviroMetricMapContextProvider";
 
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import { version as cismapEnvirometricsVersion } from "@cismet-dev/react-cismap-envirometrics-maps/meta";
 import CrossTabCommunicationControl from "react-cismap/CrossTabCommunicationControl";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
-
-import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
 
 import {
   replaceHashRoutedHistory,
@@ -40,15 +27,13 @@ import {
   useSelectionTopicMap,
 } from "@carma-apps/portals";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
-import {
-  getApplicationVersion,
-  isNumberArrayEqual,
-} from "@carma-commons/utils";
+import { getApplicationVersion } from "@carma-commons/utils";
 import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/hochwassergefahrenkarte";
 
 import {
   Compass,
   CustomViewer,
+  getDegreesFromCartesian,
   MapTypeSwitcher,
   selectViewerHome,
   selectViewerIsMode2d,
@@ -65,28 +50,22 @@ import {
   ControlLayout,
 } from "@carma-mapping/map-controls-layout";
 
-import NotesDisplay from "./NotesDisplay";
+import { StateAwareChildren } from "./components/StateAwareChildren";
+
 import versionData from "./version.json";
 
-import { useHGKCesiumTerrain } from "./hooks/useHGKCesiumTerrain";
 import useLeafletZoomControls from "./hooks/useLeafletZoomControls";
 
 import { prepareSceneForHGK } from "./utils/scene";
 
 import config from "./config";
-import {
-  EMAIL,
-  HGK_KEYS,
-  HGK_TERRAIN_PROVIDER_URLS,
-  HOME_ZOOM,
-} from "./config/app.config";
+import { EMAIL, HOME_ZOOM } from "./config/app.config";
 import {
   CESIUM_CONFIG,
   CONSTRUCTOR_OPTIONS,
 } from "./config/cesium/cesium.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
-import { onCesiumClick } from "./utils/cesiumHandlers";
 
 function App({ sync = false }: { sync?: boolean }) {
   const version = getApplicationVersion(versionData);
@@ -118,11 +97,8 @@ function App({ sync = false }: { sync?: boolean }) {
     if (!homePosition) {
       return null;
     }
-    const { latitude, longitude } = Cartographic.fromCartesian(homePosition);
-    const center = [
-      CesiumMath.toDegrees(latitude),
-      CesiumMath.toDegrees(longitude),
-    ];
+    const { longitude, latitude } = getDegreesFromCartesian(homePosition);
+    const center = [latitude, longitude];
 
     return center;
   }, [homePosition]);
@@ -356,131 +332,5 @@ function App({ sync = false }: { sync?: boolean }) {
     </>
   );
 }
-const StateAwareChildren = () => {
-  // ENVIROMETRICMAP
-  const { controlState } = useContext<typeof EnviroMetricMapContext>(
-    EnviroMetricMapContext
-  );
-  const { executeFeatureInfoRequest } = useContext<
-    typeof EnviroMetricMapDispatchContext
-  >(EnviroMetricMapDispatchContext);
-
-  const isHWS = controlState.customInfoBoxToggleState;
-
-  const conf = config.config;
-
-  // CESIUM
-  const { viewerRef, terrainProviderRef } = useCesiumContext();
-  const [cesiumPickedPosition, setCesiumPickedPosition] = useState<
-    [number, number] | null
-  >(null);
-  const markerEntityRef = useRef<Entity | null>(null);
-  const prevPositionRef = useRef<[number, number] | null>(null);
-
-  useEffect(() => {
-    if (viewerRef.current && controlState.featureInfoModeActivated) {
-      const viewer = viewerRef.current;
-
-      const handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
-      handler.setInputAction(
-        async (click) =>
-          onCesiumClick(
-            click,
-            viewer,
-            terrainProviderRef,
-            markerEntityRef,
-            setCesiumPickedPosition
-          ),
-        ScreenSpaceEventType.LEFT_CLICK
-      );
-
-      return () => {
-        handler.destroy();
-        setCesiumPickedPosition(null);
-        if (markerEntityRef.current) {
-          viewer.entities.remove(markerEntityRef.current);
-          viewer.scene.requestRender();
-          markerEntityRef.current = null;
-        }
-      };
-    }
-  }, [viewerRef, terrainProviderRef, controlState.featureInfoModeActivated]);
-
-  // Add effect to cleanup marker when feature info mode is disabled
-  useEffect(() => {
-    if (
-      !controlState.featureInfoModeActivated &&
-      markerEntityRef.current &&
-      viewerRef.current
-    ) {
-      viewerRef.current.entities.remove(markerEntityRef.current);
-      markerEntityRef.current = null;
-      setCesiumPickedPosition(null);
-    }
-  }, [viewerRef, controlState.featureInfoModeActivated]);
-
-  useEffect(() => {
-    if (
-      controlState.featureInfoModeActivated &&
-      cesiumPickedPosition &&
-      (!prevPositionRef.current ||
-        !isNumberArrayEqual(prevPositionRef.current, cesiumPickedPosition))
-    ) {
-      console.debug(
-        "cesium picked position changed",
-        controlState,
-        cesiumPickedPosition,
-        executeFeatureInfoRequest
-      );
-      prevPositionRef.current = cesiumPickedPosition;
-
-      executeFeatureInfoRequest({
-        lat: cesiumPickedPosition[0],
-        lng: cesiumPickedPosition[1],
-      });
-    }
-  }, [cesiumPickedPosition, controlState.featureInfoModeActivated]);
-
-  useHGKCesiumTerrain(
-    controlState.selectedSimulation,
-    isHWS,
-    HGK_KEYS,
-    HGK_TERRAIN_PROVIDER_URLS
-  );
-
-  console.debug("RENDER: StateAwareChildren");
-
-  return (
-    <>
-      {isHWS && controlState.selectedSimulation !== 2 && <NotesDisplay />}
-      {!isHWS &&
-        conf.simulations[controlState.selectedSimulation].gefaehrdungsLayer && (
-          <StyledWMSTileLayer
-            key={
-              "rainHazardMap.depthLayer" +
-              conf.simulations[controlState.selectedSimulation]
-                .gefaehrdungsLayer +
-              "." +
-              controlState.selectedBackground
-            }
-            url={conf.modelWMS}
-            layers={
-              conf.simulations[controlState.selectedSimulation]
-                .gefaehrdungsLayer
-            }
-            version="1.1.1"
-            transparent="true"
-            format="image/png"
-            tiled={true}
-            styles={
-              conf.simulations[controlState.selectedSimulation].depthStyle
-            }
-            maxZoom={22}
-            opacity={0.8}
-          />
-        )}
-    </>
-  );
-};
 
 export default App;

@@ -76,6 +76,11 @@ export const getDegreesFromCartographic = (cartographic: Cartographic) => {
   };
 };
 
+export const getDegreesFromCartesian = (cartesian: Cartesian3) => {
+  const cartographic = Cartographic.fromCartesian(cartesian);
+  return getDegreesFromCartographic(cartographic);
+};
+
 // use with onReady event of Cesium3DTileset
 export const logTileSetInfoOnReady = (tileset: Cesium3DTileset) => {
   const { center } = tileset.root.boundingSphere;

@@ -1,8 +1,9 @@
 import proj4 from "proj4";
 
 export const PROJ4_CONVERTERS = {
-  CRS25832: proj4("+proj=utm +zone=32 +ellps=GRS80 +units=m +no_defs"),
+  CRS3857: proj4("EPSG:3857"),
   CRS4326: proj4("EPSG:4326"),
+  CRS25832: proj4("+proj=utm +zone=32 +ellps=GRS80 +units=m +no_defs"),
 };
 
 export const isProj4Converter = (

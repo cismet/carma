@@ -26,7 +26,11 @@ export { CUSTOM_SHADERS_DEFINITIONS } from "./lib/shaders";
 
 // TODO: all the utils used elsewhere with no cesium dedependency should be moved to common helper utils lib
 
-export { pickViewerCanvasCenter } from "./lib/utils/cesiumHelpers";
+export {
+  pickViewerCanvasCenter,
+  getDegreesFromCartesian,
+  getDegreesFromCartographic,
+} from "./lib/utils/cesiumHelpers";
 export {
   fromColorRgbaArray,
   toColorRgbaArray,
