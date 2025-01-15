@@ -274,16 +274,17 @@ const tem053001Data011062 = {
 export type Tem053001DataType = typeof tem053001Data011062;
 
 export const getSheetHtml = async (jwt: string, name: string) => {
-  const sheetData = getAdditionalSheetAsync(name, jwt);
-  const localCourt = tem053001Data011062.res.offices.districtCourtName[0];
+  const sheetData = await getAdditionalSheetAsync(name, jwt);
+
+  const localCourt = sheetData.res.offices.districtCourtName[0];
   const markingName =
-    tem053001Data011062.res.buchungsstellen[0].landParcel[0]
-      .administrativeDistricts.gemarkungName;
+    sheetData.res.buchungsstellen[0].landParcel[0].administrativeDistricts
+      .gemarkungName;
   const markingCode =
-    tem053001Data011062.res.buchungsstellen[0].landParcel[0]
-      .administrativeDistricts.gemarkungCode;
-  const leafType = tem053001Data011062.res.blattart;
-  const bookingType = tem053001Data011062.res.buchungsstellen[0].buchungsart;
+    sheetData.res.buchungsstellen[0].landParcel[0].administrativeDistricts
+      .gemarkungCode;
+  const leafType = sheetData.res.blattart;
+  const bookingType = sheetData.res.buchungsstellen[0].buchungsart;
   console.log("xxx sheet data", sheetData);
   const wrapStyle = { display: "flex", width: "100%" };
   const colStyle = { width: "50%" };
@@ -308,18 +309,15 @@ export const getSheetHtml = async (jwt: string, name: string) => {
         </CustomCard>
         <CustomCard style={{ marginBottom: "1rem" }} title="Eigentümer">
           <AdditionalSheet
-            owners={tem053001Data011062.res.owners}
-            namesArr={tem053001Data011062.res.namensnummern}
-            legalDesc={tem053001Data011062.res.descriptionOfRechtsgemeinschaft}
+            owners={sheetData.res.owners}
+            namesArr={sheetData.res.namensnummern}
+            legalDesc={sheetData.res.descriptionOfRechtsgemeinschaft}
           />
         </CustomCard>
         <CustomCard title="Buchungsstellen und Flurstücke">
           <div>
-            {tem053001Data011062.res.buchungsstellen[0].sequentialNumber}{" "}
-            {
-              tem053001Data011062.res.buchungsstellen[0].landParcel[0]
-                .landParcelCode
-            }
+            {sheetData.res.buchungsstellen[0].sequentialNumber}{" "}
+            {sheetData.res.buchungsstellen[0].landParcel[0].landParcelCode}
           </div>
         </CustomCard>
       </CustomCard>
