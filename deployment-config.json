@@ -189,6 +189,33 @@
       },
       "projectPath": "./dist/playgrounds/fuzzy-search-playground"
     },
+    "alkis-renderer-playground": {
+      "deployment": {
+        "manual": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "alkis-renderer-playground"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "alkis-renderer-playground"
+            }
+          }
+        },
+        "auto": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "alkis-renderer-playground"
+            }
+          }
+        }
+      },
+      "projectPath": "./dist/playgrounds/alkis-renderer-playground"
+    },
     "geoportal": {
       "deployment": {
         "manual": {
