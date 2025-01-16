@@ -1,4 +1,5 @@
 import { it } from "node:test";
+import { buildGroupedOwnersArr } from "../helper/landparcel";
 
 export type Props = {
   owners: Owners[];
@@ -6,7 +7,7 @@ export type Props = {
   legalDesc: string | null;
 };
 
-type Owners = {
+export type Owners = {
   salutation: string;
   firstName: string | null;
   surName: string;
@@ -16,7 +17,7 @@ type Owners = {
   ownerId: string;
 };
 
-type NamesArr = {
+export type NamesArr = {
   nenner: string | null;
   zaehler: string | null;
   artRechtsgemeinschaft: string | null;
@@ -29,61 +30,7 @@ const AdditionalSheet = ({ owners, namesArr, legalDesc }: Props) => {
   const typeOfTitle = namesArr[0];
   const ifLegalDesc = !typeOfTitle.nenner && !typeOfTitle.zaehler;
   const ifWithoutNumber = !typeOfTitle.artRechtsgemeinschaft;
-  const uuidList = namesArr.map((n) => n.uuid);
-
-  const uuidGroupsArr = namesArr
-    .filter((n) => n.namensnummernUUIds)
-    .map((n) => n.namensnummernUUIds)
-    .flat();
-
-  const removedDoubles = uuidList.filter(
-    (uuid) => !uuidGroupsArr.includes(uuid)
-  );
-
-  const existingsUids = namesArr
-    .filter((n) => removedDoubles.includes(n.uuid))
-    .map((item) => {
-      if (item.namensnummernUUIds) {
-        return item.namensnummernUUIds;
-      } else {
-        return [item.uuid];
-      }
-    });
-
-  let result: string[][] = [];
-
-  existingsUids.forEach((innerArray) => {
-    let res: string[] = [];
-    innerArray.forEach((uuid) => {
-      const matchingObject = namesArr.filter((obj) => obj.uuid === uuid);
-      if (matchingObject) {
-        const withOwnerId = matchingObject.map((n) => {
-          if (n.eigentuemerUUId) {
-            return n.eigentuemerUUId;
-          } else {
-            return "";
-          }
-        });
-        res.push(withOwnerId[0]);
-      }
-    });
-
-    result.push(res);
-  });
-
-  const ownerRes: Owners[][] = [];
-
-  result.forEach((innerArray) => {
-    let res: Owners[] = [];
-    innerArray.forEach((uuid) => {
-      const matchingObject = owners.filter((obj) => obj.ownerId === uuid);
-      if (matchingObject) {
-        res.push(matchingObject[0]);
-      }
-    });
-
-    ownerRes.push(res);
-  });
+  const ownerRes = buildGroupedOwnersArr(namesArr, owners);
 
   return (
     <div>
