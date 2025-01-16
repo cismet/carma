@@ -101,9 +101,12 @@ export const StateAwareChildren = () => {
     if (isMode2d) {
       setBackgroundIndex(selectedBackground2dRef.current);
     } else {
+      // store 2d background layer style before forcing to aerial
+      selectedBackground2dRef.current = controlState.selectedBackground;
       setBackgroundIndex(AERIAL_BACKGROUND_INDEX);
     }
-  }, [isMode2d]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMode2d]); // intentionally only trigger on mode change
 
   useEffect(() => {
     if (viewerRef.current && controlState.featureInfoModeActivated) {
