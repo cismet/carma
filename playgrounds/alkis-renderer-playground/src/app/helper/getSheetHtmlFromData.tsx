@@ -13,7 +13,7 @@ type BookingOffisesItem = {
   };
 };
 
-const tempData = {
+const temData = {
   contentType: "application/octet-stream",
   res: {
     id: "DENW29AL1000EXHf",

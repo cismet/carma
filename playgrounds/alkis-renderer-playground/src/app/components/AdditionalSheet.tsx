@@ -17,12 +17,26 @@ type NamesArr = {
   nenner: string | null;
   zaehler: string | null;
   artRechtsgemeinschaft: string | null;
+  uuid: string;
+  namensnummernUUIds: string[] | null;
 };
 
 const AdditionalSheet = ({ owners, namesArr, legalDesc }: Props) => {
   const typeOfTitle = namesArr[0];
   const ifLegalDesc = !typeOfTitle.nenner && !typeOfTitle.zaehler;
   const ifWithoutNumber = !typeOfTitle.artRechtsgemeinschaft;
+
+  const uuidList = namesArr.map((n) => n.uuid);
+  console.log("xxx uuidList", uuidList);
+
+  const namesUids = namesArr
+    .filter((n) => n.namensnummernUUIds)
+    .map((n) => n.namensnummernUUIds)
+    .flat();
+
+  const removedDoubles = uuidList.filter((uuid) => namesUids.includes(uuid));
+
+  console.log("xxx namesUids", removedDoubles);
 
   return (
     <div style={{ display: "flex", gap: "2rem" }}>
