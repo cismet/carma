@@ -274,35 +274,43 @@ function App({ sync = false }: { sync?: boolean }) {
         </ControlLayout>
       </div>
 
-      <EnviroMetricMap
-        appMenu={appMenu}
-        applicationMenuTooltipString="Anleitung | Hintergrund"
-        initialState={config.initialState}
-        emailaddress="hochwasser@stadt.wuppertal.de"
-        config={config.config}
-        contactButtonEnabled={false}
-        homeZoom={HOME_ZOOM}
-        homeCenter={homeCenter}
-        modeSwitcherTitle="Hochwassergefahrenkarte Wuppertal"
-        documentTitle="Hochwassergefahrenkarte Wuppertal"
-        gazData={gazData}
-        locatorControl={false}
-        fullScreenControl={false}
-        zoomControls={false}
-        gazetteerSearchControl={false}
-        animationEnabled={false}
-        toggleEnabled={true}
-        customInfoBoxToggleState={hochwasserschutz}
-        customInfoBoxToggleStateSetter={setHochwasserschutz}
-        customInfoBoxDerivedToggleState={onToggleState}
-        customInfoBoxDerivedToggleClickable={enableControlStateToggle}
+      <div
+        className={
+          isMode2d
+            ? "envirometricmap-container isMode2d"
+            : "envirometricmap-container isMode3d"
+        }
       >
-        {sync && (
-          <CrossTabCommunicationControl hideWhenNoSibblingIsPresent={true} />
-        )}
-        <StateAwareChildren />
-        <TopicMapSelectionContent />
-      </EnviroMetricMap>
+        <EnviroMetricMap
+          appMenu={appMenu}
+          applicationMenuTooltipString="Anleitung | Hintergrund"
+          initialState={config.initialState}
+          emailaddress="hochwasser@stadt.wuppertal.de"
+          config={config.config}
+          contactButtonEnabled={false}
+          homeZoom={HOME_ZOOM}
+          homeCenter={homeCenter}
+          modeSwitcherTitle="Hochwassergefahrenkarte Wuppertal"
+          documentTitle="Hochwassergefahrenkarte Wuppertal"
+          gazData={gazData}
+          locatorControl={false}
+          fullScreenControl={false}
+          zoomControls={false}
+          gazetteerSearchControl={false}
+          animationEnabled={false}
+          toggleEnabled={true}
+          customInfoBoxToggleState={hochwasserschutz}
+          customInfoBoxToggleStateSetter={setHochwasserschutz}
+          customInfoBoxDerivedToggleState={onToggleState}
+          customInfoBoxDerivedToggleClickable={enableControlStateToggle}
+        >
+          {sync && (
+            <CrossTabCommunicationControl hideWhenNoSibblingIsPresent={true} />
+          )}
+          <StateAwareChildren />
+          <TopicMapSelectionContent />
+        </EnviroMetricMap>
+      </div>
       <div
         ref={container3dMapRef}
         className={"map-container-3d"}

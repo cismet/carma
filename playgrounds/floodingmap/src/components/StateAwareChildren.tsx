@@ -1,10 +1,5 @@
-import {
-  MutableRefObject,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useContext, useEffect, useRef, useState } from "react";
+import { useSelector } from "react-redux";
 
 import {
   Cartographic,
@@ -27,16 +22,18 @@ import {
   useCesiumContext,
 } from "@carma-mapping/cesium-engine";
 
-import NotesDisplay from "./NotesDisplay";
-
 import { useHGKCesiumTerrain } from "../hooks/useHGKCesiumTerrain";
 import { onCesiumClick } from "../utils/cesiumHandlers";
 import { getWebMercatorInWGS84 } from "../utils/geo";
+import { updateMarkerPosition } from "../utils/marker";
 
 import config from "../config";
-import { HGK_KEYS, HGK_TERRAIN_PROVIDER_URLS } from "../config/app.config";
-import { updateMarkerPosition } from "../utils/marker";
-import { useSelector } from "react-redux";
+import {
+  AERIAL_BACKGROUND_INDEX,
+  HGK_KEYS,
+  HGK_TERRAIN_PROVIDER_URLS,
+} from "../config/app.config";
+import NotesDisplay from "./NotesDisplay";
 
 export const StateAwareChildren = () => {
   // ENVIROMETRICMAP
@@ -45,7 +42,7 @@ export const StateAwareChildren = () => {
   );
   const isMode2d = useSelector(selectViewerIsMode2d);
 
-  const { executeFeatureInfoRequest } = useContext<
+  const { executeFeatureInfoRequest, setBackgroundIndex } = useContext<
     typeof EnviroMetricMapDispatchContext
   >(EnviroMetricMapDispatchContext);
 
@@ -60,6 +57,9 @@ export const StateAwareChildren = () => {
   >(null);
   const markerEntityRef = useRef<Entity | null>(null);
   const prevPositionRef = useRef<[number, number] | null>(null);
+  const selectedBackground2dRef = useRef<number>(
+    controlState.selectedBackground
+  );
 
   useEffect(() => {
     // update 3d marker position from 2d while in 2d
@@ -95,6 +95,15 @@ export const StateAwareChildren = () => {
     controlState.currentFeatureInfoPosition,
     isMode2d,
   ]);
+
+  useEffect(() => {
+    // force background to aerial in 2d
+    if (isMode2d) {
+      setBackgroundIndex(selectedBackground2dRef.current);
+    } else {
+      setBackgroundIndex(AERIAL_BACKGROUND_INDEX);
+    }
+  }, [isMode2d]);
 
   useEffect(() => {
     if (viewerRef.current && controlState.featureInfoModeActivated) {
@@ -167,7 +176,7 @@ export const StateAwareChildren = () => {
     HGK_TERRAIN_PROVIDER_URLS
   );
 
-  console.debug("RENDER: StateAwareChildren");
+  console.debug("RENDER: StateAwareChildren", controlState);
 
   return (
     <>
