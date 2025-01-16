@@ -31,7 +31,6 @@ const AdditionalSheet = ({ owners, namesArr, legalDesc }: Props) => {
   const ifWithoutNumber = !typeOfTitle.artRechtsgemeinschaft;
 
   const uuidList = namesArr.map((n) => n.uuid);
-  console.log("xxx uuidList", uuidList);
 
   const uuidGroupsArr = namesArr
     .filter((n) => n.namensnummernUUIds)
