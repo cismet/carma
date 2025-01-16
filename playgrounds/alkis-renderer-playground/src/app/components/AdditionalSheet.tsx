@@ -1,3 +1,5 @@
+import { it } from "node:test";
+
 export type Props = {
   owners: Owners[];
   namesArr: NamesArr[];
@@ -11,6 +13,7 @@ type Owners = {
   dateOfBirth: string;
   nameNumber: string;
   addresses: any[];
+  ownerId: string;
 };
 
 type NamesArr = {
@@ -19,6 +22,7 @@ type NamesArr = {
   artRechtsgemeinschaft: string | null;
   uuid: string;
   namensnummernUUIds: string[] | null;
+  eigentuemerUUId: string | null;
 };
 
 const AdditionalSheet = ({ owners, namesArr, legalDesc }: Props) => {
@@ -29,14 +33,63 @@ const AdditionalSheet = ({ owners, namesArr, legalDesc }: Props) => {
   const uuidList = namesArr.map((n) => n.uuid);
   console.log("xxx uuidList", uuidList);
 
-  const namesUids = namesArr
+  const uuidGroupsArr = namesArr
     .filter((n) => n.namensnummernUUIds)
     .map((n) => n.namensnummernUUIds)
     .flat();
 
-  const removedDoubles = uuidList.filter((uuid) => namesUids.includes(uuid));
+  const removedDoubles = uuidList.filter(
+    (uuid) => !uuidGroupsArr.includes(uuid)
+  );
 
-  console.log("xxx namesUids", removedDoubles);
+  const existingsUids = namesArr
+    .filter((n) => removedDoubles.includes(n.uuid))
+    .map((item) => {
+      if (item.namensnummernUUIds) {
+        return item.namensnummernUUIds;
+      } else {
+        return [];
+      }
+    });
+
+  let result: string[][] = [];
+
+  existingsUids.forEach((innerArray) => {
+    let res: string[] = [];
+    innerArray.forEach((uuid) => {
+      const matchingObject = namesArr.filter((obj) => obj.uuid === uuid);
+      if (matchingObject) {
+        const withOwnerId = matchingObject.map((n) => {
+          if (n.eigentuemerUUId) {
+            return n.eigentuemerUUId;
+          } else {
+            return "";
+          }
+        });
+        res.push(withOwnerId[0]);
+      }
+    });
+
+    result.push(res);
+  });
+
+  const ownerRes: Owners[][] = [];
+
+  result.forEach((innerArray) => {
+    let res: Owners[] = [];
+    innerArray.forEach((uuid) => {
+      const matchingObject = owners.filter((obj) => obj.ownerId === uuid);
+      if (matchingObject) {
+        res.push(matchingObject[0]);
+      }
+    });
+
+    ownerRes.push(res);
+  });
+
+  console.log("xxx ownerRes", ownerRes);
+
+  // eigentuemerUUId = ownerId
 
   return (
     <div style={{ display: "flex", gap: "2rem" }}>
