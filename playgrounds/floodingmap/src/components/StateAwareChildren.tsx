@@ -56,6 +56,7 @@ export const StateAwareChildren = () => {
     [number, number] | null
   >(null);
   const markerEntityRef = useRef<Entity | null>(null);
+  const highlightEntityRef = useRef<Entity | null>(null);
   const prevPositionRef = useRef<[number, number] | null>(null);
   const selectedBackground2dRef = useRef<number>(
     controlState.selectedBackground
@@ -83,6 +84,7 @@ export const StateAwareChildren = () => {
         updateMarkerPosition(
           viewerRef.current,
           markerEntityRef,
+          highlightEntityRef,
           groundPositionCartographic
         );
       };
@@ -120,6 +122,7 @@ export const StateAwareChildren = () => {
             viewer,
             terrainProviderRef,
             markerEntityRef,
+            highlightEntityRef,
             setCesiumPickedPosition
           ),
         ScreenSpaceEventType.LEFT_CLICK
@@ -130,22 +133,28 @@ export const StateAwareChildren = () => {
         setCesiumPickedPosition(null);
         if (markerEntityRef.current) {
           viewer.entities.remove(markerEntityRef.current);
-          viewer.scene.requestRender();
           markerEntityRef.current = null;
         }
+        if (highlightEntityRef.current) {
+          viewer.entities.remove(highlightEntityRef.current);
+          highlightEntityRef.current = null;
+        }
+        viewer.scene.requestRender();
       };
     }
   }, [viewerRef, terrainProviderRef, controlState.featureInfoModeActivated]);
 
   // Add effect to cleanup marker when feature info mode is disabled
   useEffect(() => {
-    if (
-      !controlState.featureInfoModeActivated &&
-      markerEntityRef.current &&
-      viewerRef.current
-    ) {
-      viewerRef.current.entities.remove(markerEntityRef.current);
-      markerEntityRef.current = null;
+    if (!controlState.featureInfoModeActivated && viewerRef.current) {
+      if (markerEntityRef.current) {
+        viewerRef.current.entities.remove(markerEntityRef.current);
+        markerEntityRef.current = null;
+      }
+      if (highlightEntityRef.current) {
+        viewerRef.current.entities.remove(highlightEntityRef.current);
+        highlightEntityRef.current = null;
+      }
       setCesiumPickedPosition(null);
     }
   }, [viewerRef, controlState.featureInfoModeActivated]);

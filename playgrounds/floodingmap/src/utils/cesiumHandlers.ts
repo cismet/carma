@@ -8,6 +8,7 @@ export const onCesiumClick = async (
   viewer: Viewer,
   terrainProviderRef,
   markerEntityRef,
+  highlightEntityRef,
   callback
 ) => {
   const cartesian = viewer.scene.pickPosition(click.position);
@@ -20,7 +21,12 @@ export const onCesiumClick = async (
       [cartographic]
     );
 
-    updateMarkerPosition(viewer, markerEntityRef, groundPositionCartographic);
+    updateMarkerPosition(
+      viewer,
+      markerEntityRef,
+      highlightEntityRef,
+      groundPositionCartographic
+    );
     callback([latitude, longitude]);
   }
 };

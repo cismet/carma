@@ -41,14 +41,69 @@ export const getMarkerConstructorOptions = (position: Cartesian3) => {
 export const updateMarkerPosition = (
   viewer: Viewer,
   markerEntityRef,
+  markerHighlightRef,
   positionCartographic: Cartographic
 ) => {
   // Remove existing marker if any
   if (markerEntityRef.current) {
+    // Cleanup previous listener if exists
+    if (markerEntityRef.current.cleanupListener) {
+      markerEntityRef.current.cleanupListener();
+    }
     viewer.entities.remove(markerEntityRef.current);
+    viewer.entities.remove(markerHighlightRef.current);
   }
+
   const position = Cartographic.toCartesian(positionCartographic);
 
   const newMarker = viewer.entities.add(getMarkerConstructorOptions(position));
   markerEntityRef.current = newMarker;
+
+  // higlight
+  const positionCartographicTop = positionCartographic.clone();
+  positionCartographicTop.height += 5000;
+  const top = Cartographic.toCartesian(positionCartographicTop);
+
+  const highlight = viewer.entities.add({
+    name: "FeatureInfoHighlight",
+    polyline: {
+      positions: [position, top],
+      width: 20,
+      material: Color.WHITE.withAlpha(0.5),
+    },
+  });
+
+  markerHighlightRef.current = highlight;
+
+  const updateHighlightVisibility = () => {
+    const cameraPosition = viewer.camera.position;
+    const distance = Cartesian3.distance(cameraPosition, position);
+    // Update polyline visibility based on distance
+    highlight.show = distance >= 100;
+    // TODO: update transparency based on distance
+    /*
+    if (
+      highlight.polyline &&
+      highlight.polyline.material instanceof ColorMaterialProperty
+    ) {
+      highlight.polyline.material.color = new ColorMaterialProperty(Color.RED);
+    }
+    */
+  };
+
+  // Use a closure to manage the event listener
+  const manageListener = (() => {
+    viewer.scene.postRender.addEventListener(updateHighlightVisibility);
+    return () => {
+      viewer.scene.postRender.removeEventListener(updateHighlightVisibility);
+    };
+  })();
+
+  markerEntityRef.current.cleanupListener = manageListener;
+
+  // list number of listeners
+  console.debug(
+    "LISTENER: updateHighlightVisibility",
+    viewer.scene.postRender.numberOfListeners
+  );
 };
