@@ -9,6 +9,6 @@ export const getLandparcelTitle = (
   const zaehler = parseInt(fstck_zaehler, 10);
   const fullFstck = nenner ? `${zaehler}/${nenner}` : zaehler;
   const title = `Flurstück ${fullFstck} - Flur ${flur} - Gemarkung ${gemarkung}`;
-  console.log("xxx title", title);
+
   return title;
 };

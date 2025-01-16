@@ -72,7 +72,6 @@ export const getAdditionalSheets = (sheetId: string, jwt: string) => {
       console.log("xxx error", e);
     })
     .then((result) => {
-      console.log("xxx one sheet", result);
       const owners = result.res.owners;
       const nrCode = result.res.buchungsstellen[0].sequentialNumber;
       const legalDesc = result.res.descriptionOfRechtsgemeinschaft;
@@ -113,14 +112,12 @@ export const WUNDA_DOMAIN = "WUNDA_BLAU";
 export const WUNDA_ENDPOINT =
   WUNDA_API + "/graphql/" + WUNDA_DOMAIN + "/execute";
 
-export const getLandparcelById = async (name: string) => {
-  const temJwt =
-    "eyJhbGciOiJSUzI1NiJ9.eyJqdGkiOiIyMCIsInN1YiI6ImFkbWluIiwiZG9tYWluIjoiV1VOREFfQkxBVSIsImh0dHBzOi8vaGFzdXJhLmlvL2p3dC9jbGFpbXMiOnsieC1oYXN1cmEtZGVmYXVsdC1yb2xlIjoidXNlciIsIngtaGFzdXJhLWFsbG93ZWQtcm9sZXMiOlsiZWRpdG9yIiwidXNlciIsIm1vZCJdfX0.AhfIT_Jmsf1-yHbSeAqgMEwR2g3EJ3yZJRQZSyyH4Z4aQn3hYVKLa-YJLlSjgu4OJ4emd5DtPGABlzt3G8GxjtMKjpJo0qaC-G-WIGa42KrHeyS7YVgdtNgdfx72hKJKcFQwlBHwumeRwI8w2fbc0Z2-vuU_yqP4LEOi-TbJHXBTg-844TAfjOfVWuLchXZ96f4Td65W2hbdDTZMR2Wk964I0noDbKsNEvH2FQudg8lo8S-I1-w1wxXPEOSqTIIN9z-1hUf9cB3XA-2_HqB-edVvxR3Qe1sDFXInfs123s09saC9TmhzalAoya3AglyGz9JA6Ct989d24RszHBbOwg";
+export const getLandparcelById = async (name: string, jwt: string) => {
   fetch(WUNDA_ENDPOINT, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${temJwt}`,
+      Authorization: `Bearer ${jwt}`,
     },
     body: JSON.stringify({
       query: landParcelSearchQuery,
@@ -145,8 +142,6 @@ export const getLandparcelById = async (name: string) => {
 };
 
 export const searchLandparcelByName = async (name: string, jwt: string) => {
-  const temJwt =
-    "eyJhbGciOiJSUzI1NiJ9.eyJqdGkiOiIyMCIsInN1YiI6ImFkbWluIiwiZG9tYWluIjoiV1VOREFfQkxBVSIsImh0dHBzOi8vaGFzdXJhLmlvL2p3dC9jbGFpbXMiOnsieC1oYXN1cmEtZGVmYXVsdC1yb2xlIjoidXNlciIsIngtaGFzdXJhLWFsbG93ZWQtcm9sZXMiOlsiZWRpdG9yIiwidXNlciIsIm1vZCJdfX0.i6TWWeqa_X1_WXIY4Wb5HYaHZ15sr3_DnIBvZNDird3HggB67mXwkMYezkB2o6BU47GYQuUm3lJDY-YVPVM7Ae6f7WwNum_C8RWKCgoL-bEInLOzvLqYr9OSLJarO9Bs6CaN75aWdYhA2Yrr8SYV7dQsuiz9x8eQ1Kj8VE5Z4uuN2lQGM0k1frhlIihJxIoSzIWufJv3wLQ3FBKkn6XQ5xJJwSIT9GDGYRSG1X28ML3jOSfexTwAK1hn0f2TvHpOzvOuEWVoP2HGzs1OohzEPMud6iRNMCahTCcYytd9FNJrK1RLWFs-reVmGGmOYVprHTmMfCIAUtKnyObyXJ5nCQ";
   try {
     const response = await fetch(WUNDA_ENDPOINT, {
       method: "POST",
@@ -171,7 +166,6 @@ export const searchLandparcelByName = async (name: string, jwt: string) => {
       fetch(url).catch((error) => {
         //  i expect an error here
       });
-      console.log("xxx l name", result);
     }
     return result;
   } catch (error) {
@@ -208,7 +202,6 @@ export const getAdditionalSheetAsync = async (sheetId: string, jwt: string) => {
 
     if (response.status >= 200 && response.status < 300) {
       const result = await response.json();
-      console.log("xxx async sheet", result);
 
       return result;
     } else {
@@ -241,7 +234,6 @@ export const getBookingOfficesBySheetId = async (name: string, jwt: string) => {
 
     const result = await response.json();
 
-    console.log("xxx l name", result);
     return result;
   } catch (error) {
     console.error("There was a problem with the fetch operation:");
