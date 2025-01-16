@@ -846,7 +846,7 @@ export const getSheetHtml = async (jwt: string, name: string) => {
 
   return (
     <div>
-      <CustomCard title="Buchungsblatt">
+      <CustomCard title="Buchungsblatt-Renderer">
         <CustomCard style={{ marginBottom: "1rem" }} title="Buchungsblatt">
           <div>
             <div>

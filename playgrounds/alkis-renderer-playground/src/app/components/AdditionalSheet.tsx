@@ -29,7 +29,7 @@ const AdditionalSheet = ({ owners, namesArr, legalDesc }: Props) => {
   const typeOfTitle = namesArr[0];
   const ifLegalDesc = !typeOfTitle.nenner && !typeOfTitle.zaehler;
   const ifWithoutNumber = !typeOfTitle.artRechtsgemeinschaft;
-
+  console.log("xxx namesArr", namesArr);
   const uuidList = namesArr.map((n) => n.uuid);
 
   const uuidGroupsArr = namesArr
@@ -37,9 +37,13 @@ const AdditionalSheet = ({ owners, namesArr, legalDesc }: Props) => {
     .map((n) => n.namensnummernUUIds)
     .flat();
 
+  console.log("xxx uuidGroupsArr", uuidGroupsArr);
+
   const removedDoubles = uuidList.filter(
     (uuid) => !uuidGroupsArr.includes(uuid)
   );
+
+  console.log("xxx removedDoubles", removedDoubles);
 
   const existingsUids = namesArr
     .filter((n) => removedDoubles.includes(n.uuid))
@@ -47,7 +51,7 @@ const AdditionalSheet = ({ owners, namesArr, legalDesc }: Props) => {
       if (item.namensnummernUUIds) {
         return item.namensnummernUUIds;
       } else {
-        return [];
+        return [item.uuid];
       }
     });
 
