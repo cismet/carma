@@ -3,7 +3,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import type { FormProps } from "antd";
 import { Input, Form, Button } from "antd";
 import { FieldType, login } from "./helper/getToken";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import AlkisSearch from "./components/AlkisSearch";
 
 export function App() {
