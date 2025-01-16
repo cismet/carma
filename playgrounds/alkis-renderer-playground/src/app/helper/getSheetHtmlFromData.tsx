@@ -20,10 +20,42 @@ export const getSheetHtml = async (jwt: string, name: string) => {
   const localCourt = sheetData.res.offices.districtCourtName[0];
 
   const leafType = sheetData.res.blattart;
+
   const bookingType = sheetData.res.buchungsstellen[0].buchungsart;
 
   const sheetCode = sheetData.res.buchungsblattCode;
   const districtName = getLandRegisterDistrict(sheetCode);
+
+  // const newInfos = sheetData.res.buchungsstellen;
+  // const lfn = newInfos[0].sequentialNumber;
+  // const number = newInfos[0].number;
+  // const fratcion = newInfos[0].fraction;
+  // const bookingTypeLandparcel = sheetData.res.buchungsstellen[0].buchungsart;
+  // const landParcelCode =
+  //   newInfos[0]?.buchungsstellen[0]?.landParcel[0]?.landParcelCode;
+
+  // let newText = "";
+
+  // if (
+  //   bookingTypeLandparcel &&
+  //   (bookingTypeLandparcel !== bookingType || fratcion || number)
+  // ) {
+  //   newText += ` (`;
+
+  //   if (bookingTypeLandparcel && bookingTypeLandparcel !== bookingType) {
+  //     newText += `${bookingTypeLandparcel}, `;
+  //   }
+
+  //   if (fratcion) {
+  //     newText += "Anteil " + fratcion;
+  //   }
+
+  //   if (number) {
+  //     newText += ", ATP Nr. " + number;
+  //   }
+
+  //   newText += `)`;
+  // }
 
   return (
     <div>
@@ -60,6 +92,7 @@ export const getSheetHtml = async (jwt: string, name: string) => {
                 <div key={idx}>
                   {o.alkis_buchungsblatt_landparcel.lfn}{" "}
                   {o.alkis_buchungsblatt_landparcel.landparcelcode}
+                  {/* {newText} */}
                 </div>
               );
             })}

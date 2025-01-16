@@ -40,7 +40,7 @@ const AdditionalSheet = ({ owners, namesArr, legalDesc }: Props) => {
             style={{
               display: "flex",
               gap: "2rem",
-              marginBottom: idx !== ownerRes.length - 1 ? "1.7rem" : "0px",
+              marginBottom: idx !== ownerRes.length - 1 ? "1.3rem" : "0px",
             }}
           >
             {!ifWithoutNumber && <div>ohne Nr.</div>}
