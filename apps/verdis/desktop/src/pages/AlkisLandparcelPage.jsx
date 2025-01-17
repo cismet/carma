@@ -27,11 +27,18 @@ const AlkisLandparcelPage = () => {
     <div>
       <div className="flex flex-col items-center relative h-full max-h-[calc(100vh-73px)]">
         <div className="flex flex-col gap-2 w-full bg-zinc-100 h-full overflow-clip p-2">
-          <InfoBar title={`Flurstück: ${idTitle}`} className="py-1" />
+          <InfoBar
+            title={
+              <span>
+                Flurstück: <span className="text-base">{idTitle}</span>
+              </span>
+            }
+            className="py-1"
+          />
 
           <div className="">
             {idTitle && (
-              <div className="my-5">
+              <div className="my-2">
                 {/* <div style={{ cursor: "pointer" }}>{idTitle}</div> */}
                 {resHtml && <div>{resHtml}</div>}
               </div>

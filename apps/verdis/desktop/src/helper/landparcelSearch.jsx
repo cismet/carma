@@ -28,38 +28,40 @@ export const getLandparcelHtml = async (jwt, name) => {
   return (
     <CustomCard title={title}>
       <h4 style={titleStyle}>Flurstücksinformationen</h4>
-      <div style={wrapStyle}>
-        <div style={colStyle}>Flurstückenzeichen:</div>
-        <div style={colStyle}>{name}</div>
-      </div>
-      <div style={wrapStyle}>
-        <div style={colStyle}>Gemeinde:</div>
-        <div style={colStyle}>Wuppertal</div>
-      </div>
-      <div style={wrapStyle}>
-        <div style={colStyle}>Gemarkung:</div>
-        <div style={colStyle}>{landparcel.gemarkung}</div>
-      </div>
-      <div style={wrapStyle}>
-        <div style={colStyle}>Lage:</div>
-        <div style={{ ...colStyle, display: "flex", gap: "0.4rem" }}>
-          <div>{lage}</div>
-          <div style={{ display: "flex", gap: "0.4rem" }}>
-            {landparcel.adressenArray.map((a, idx) => {
-              return (
-                <div key={idx}>
-                  {a.alkis_adresse.nummer.trim()}
-                  {idx !== landparcel.adressenArray.length - 1 && ","}
-                </div>
-              );
-            })}
+      <div className="w-[400px]">
+        <div style={wrapStyle}>
+          <div style={colStyle}>Flurstückenzeichen:</div>
+          <div style={colStyle}>{name}</div>
+        </div>
+        <div style={wrapStyle}>
+          <div style={colStyle}>Gemeinde:</div>
+          <div style={colStyle}>Wuppertal</div>
+        </div>
+        <div style={wrapStyle}>
+          <div style={colStyle}>Gemarkung:</div>
+          <div style={colStyle}>{landparcel.gemarkung}</div>
+        </div>
+        <div style={wrapStyle}>
+          <div style={colStyle}>Lage:</div>
+          <div style={{ ...colStyle, display: "flex", gap: "0.4rem" }}>
+            <div>{lage}</div>
+            <div style={{ display: "flex", gap: "0.4rem" }}>
+              {landparcel.adressenArray.map((a, idx) => {
+                return (
+                  <div key={idx}>
+                    {a.alkis_adresse.nummer.trim()}
+                    {idx !== landparcel.adressenArray.length - 1 && ","}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
-      </div>
-      <div style={wrapStyle}>
-        <div style={colStyle}>Größe:</div>
-        <div style={colStyle}>
-          {landparcel.groesse} m<sup>2</sup>
+        <div style={wrapStyle}>
+          <div style={colStyle}>Größe:</div>
+          <div style={colStyle}>
+            {landparcel.groesse} m<sup>2</sup>
+          </div>
         </div>
       </div>
       <Divider />
