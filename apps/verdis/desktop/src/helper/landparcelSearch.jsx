@@ -6,6 +6,7 @@ import CustomCard from "../components/ui/Card";
 
 export const getLandparcelHtml = async (jwt, name) => {
   const landparcelData = await searchLandparcelByName(name, jwt);
+  console.log("xxx data", landparcelData);
   const landparcel = landparcelData.data.alkis_landparcel[0];
   const sheets = await getAllAdditionalSheets(
     landparcelData.data.alkis_landparcel[0].buchungsblaetterArray,
@@ -79,7 +80,7 @@ export const getLandparcelHtml = async (jwt, name) => {
                 <div style={{ marginRight: "4rem" }}>
                   <div>Nr. {b.content.nrCode} auf</div>
                   <div>
-                    <div style={linkStyle}>{`${b.buchungsblattcode}`}</div>
+                    <div className="text-primary">{`${b.buchungsblattcode}`}</div>
                   </div>
                 </div>
                 <AdditionalSheet

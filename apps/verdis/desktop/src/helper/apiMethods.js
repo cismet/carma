@@ -1,3 +1,5 @@
+import { landParcelSearchQuery } from "../constants/verdis";
+
 const WUNDA_API = "https://wunda-api.cismet.de";
 export const WUNDA_DOMAIN = "WUNDA_BLAU";
 export const WUNDA_ENDPOINT =

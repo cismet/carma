@@ -11,9 +11,9 @@ const AlkisLandparcelPage = () => {
   const [resHtml, setResHtml] = useState(null);
   const [idTitle, setIdTitle] = useState(null);
   useEffect(() => {
-    const onLandparcelSearch = async (jwt, value) => {
-      setIdTitle(value);
-      const landparcelHtml = await getLandparcelHtml(jwt, value);
+    const onLandparcelSearch = async (jwt, id) => {
+      setIdTitle(id);
+      const landparcelHtml = await getLandparcelHtml(jwt, id);
       setResHtml(landparcelHtml);
     };
     if (jwt && id) {
@@ -25,15 +25,7 @@ const AlkisLandparcelPage = () => {
   return (
     <div>
       {idTitle && (
-        <div
-          className="flex gap-4 items-center my-5"
-          style={{
-            display: "flex",
-            gap: "4rem",
-            marginTop: "60px",
-            marginBottom: "10px",
-          }}
-        >
+        <div className="my-5">
           <div style={{ cursor: "pointer" }}>{idTitle}</div>
           {resHtml && <div style={{ marginTop: "40px" }}>{resHtml}</div>}
         </div>
