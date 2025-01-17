@@ -37,7 +37,7 @@ const AlkisBookingSheetPage = () => {
                 Buchungsblatt: <span className="text-base">{idTitle}</span>
               </span>
             }
-            className="py-1 min-h-screen"
+            className="py-1"
           />
 
           <div className="">
