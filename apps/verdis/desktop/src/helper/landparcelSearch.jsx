@@ -3,7 +3,7 @@ import { Divider, Tabs } from "antd";
 import { getLandparcelTitle } from "./utility";
 import AdditionalSheet from "../components/render/AdditionalSheet";
 import CustomCard from "../components/ui/Card";
-
+import { Link } from "react-router-dom";
 export const getLandparcelHtml = async (jwt, name) => {
   const landparcelData = await searchLandparcelByName(name, jwt);
   console.log("xxx data", landparcelData);
@@ -82,7 +82,9 @@ export const getLandparcelHtml = async (jwt, name) => {
                 <div style={{ marginRight: "4rem" }}>
                   <div>Nr. {b.content.nrCode} auf</div>
                   <div>
-                    <div className="text-primary">{`${b.buchungsblattcode}`}</div>
+                    <Link to={`/alkis-buchungsblatt?id=${b.buchungsblattcode}`}>
+                      <div className="text-primary">{`${b.buchungsblattcode}`}</div>
+                    </Link>
                   </div>
                 </div>
                 <AdditionalSheet
