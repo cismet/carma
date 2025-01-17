@@ -27,7 +27,7 @@ export const getLandparcelHtml = async (jwt, name) => {
   };
   return (
     <CustomCard title={title}>
-      <h4 style={titleStyle}>Flurstücksinformationen</h4>
+      <div className="font-bold mb-3">Flurstücksinformationen</div>
       <div className="w-[400px]">
         <div style={wrapStyle}>
           <div style={colStyle}>Flurstückenzeichen:</div>
@@ -65,7 +65,7 @@ export const getLandparcelHtml = async (jwt, name) => {
         </div>
       </div>
       <Divider />
-      <h4 style={titleStyle}>Buchungsblätter</h4>
+      <div className="font-bold">Buchungsblätter</div>
       <Tabs
         defaultActiveKey="0"
         tabPosition="left"

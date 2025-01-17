@@ -155,7 +155,11 @@ const router = createHashRouter(
     },
     {
       path: "/alkis-buchungsblatt",
-      element: <AlkisBookingSheetPage />,
+      element: (
+        <RenderNavWrapper>
+          <AlkisBookingSheetPage />
+        </RenderNavWrapper>
+      ),
     },
   ],
   {}

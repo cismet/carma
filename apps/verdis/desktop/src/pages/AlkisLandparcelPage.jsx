@@ -38,10 +38,7 @@ const AlkisLandparcelPage = () => {
 
           <div className="">
             {idTitle && (
-              <div className="my-2">
-                {/* <div style={{ cursor: "pointer" }}>{idTitle}</div> */}
-                {resHtml && <div>{resHtml}</div>}
-              </div>
+              <div className="my-1">{resHtml && <div>{resHtml}</div>}</div>
             )}
           </div>
         </div>
