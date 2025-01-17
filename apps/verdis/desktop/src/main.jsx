@@ -45,6 +45,7 @@ import { loadGazeteerEntries } from "./store/slices/gazData";
 import { getVirtualCityPassword } from "./store/slices/search";
 import { MapContainer } from "react-leaflet";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
+import AlkisLandparcelPage from "./pages/AlkisLandparcelPage";
 
 const baseLayerConf = extendBaseLayerConf({ ...defaultLayerConf });
 
@@ -135,6 +136,10 @@ const router = createHashRouter(
         {
           path: "/versickerungsgenehmigungen/details",
           element: <SeepagePermitsDetailsPage />,
+        },
+        {
+          path: "/alkis-flurstueck",
+          element: <AlkisLandparcelPage />,
         },
       ],
     },
