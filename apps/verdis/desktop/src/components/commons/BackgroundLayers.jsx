@@ -96,7 +96,7 @@ export const configuration = inIntranet
         title: "True Orthofoto 2024",
         conf: {
           type: "wms",
-          url: "https://maps.wuppertal.de/deegree/wms",
+          url: "https://maps.wuppertal.de/karten",
           layers: "R102:trueortho2024",
           tileSize: 256,
           transparent: true,
@@ -109,7 +109,7 @@ export const configuration = inIntranet
         title: "Orthofoto 2024",
         conf: {
           type: "wms",
-          url: "https://maps.wuppertal.de/deegree/wms",
+          url: "https://maps.wuppertal.de/karten",
           layers: "R102:luftbild2024",
           tileSize: 256,
           transparent: true,
