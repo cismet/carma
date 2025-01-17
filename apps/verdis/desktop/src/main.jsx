@@ -47,6 +47,7 @@ import { MapContainer } from "react-leaflet";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
 import AlkisLandparcelPage from "./pages/AlkisLandparcelPage";
 import AlkisBookingSheetPage from "./pages/AlkisBookingSheetPage";
+import RenderNavWrapper from "./components/render/RenderNavWrapper";
 
 const baseLayerConf = extendBaseLayerConf({ ...defaultLayerConf });
 
@@ -138,19 +139,23 @@ const router = createHashRouter(
           path: "/versickerungsgenehmigungen/details",
           element: <SeepagePermitsDetailsPage />,
         },
-        {
-          path: "/alkis-flurstueck",
-          element: <AlkisLandparcelPage />,
-        },
-        {
-          path: "/alkis-buchungsblatt",
-          element: <AlkisBookingSheetPage />,
-        },
       ],
     },
     {
       path: "/login",
       element: <LoginPage />,
+    },
+    {
+      path: "/alkis-flurstueck",
+      element: (
+        <RenderNavWrapper>
+          <AlkisLandparcelPage />
+        </RenderNavWrapper>
+      ),
+    },
+    {
+      path: "/alkis-buchungsblatt",
+      element: <AlkisBookingSheetPage />,
     },
   ],
   {}
