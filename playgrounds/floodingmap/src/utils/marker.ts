@@ -1,17 +1,24 @@
 import {
+  ArcType,
   Cartesian2,
   Cartesian3,
   Cartographic,
   CheckerboardMaterialProperty,
   Color,
+  ConstantProperty,
   ShadowMode,
   Viewer,
 } from "cesium";
+import { debounce } from "lodash";
 
 const interval = 0.1; // 10 cm
 const rodHeight = 2.0;
 const rodWidth = 0.3;
 const repeats = Math.floor(rodHeight / interval);
+
+const MIN_SHOW_DISTANCE = 120;
+const MAX_HIGHLIGHT_WIDTH = 8;
+const HIGHLIGHT_HEIGHT = 5000;
 
 export const getMarkerConstructorOptions = (position: Cartesian3) => {
   return {
@@ -38,6 +45,23 @@ export const getMarkerConstructorOptions = (position: Cartesian3) => {
   };
 };
 
+const getHighlightStyle = (
+  viewer: Viewer,
+  position: Cartesian3,
+  maxWidth: number,
+  minDistance: number
+) => {
+  const cameraPosition = viewer.camera.position;
+  const distance = Cartesian3.distance(cameraPosition, position);
+  return {
+    show: distance > minDistance,
+    width: Math.min(
+      maxWidth,
+      Math.sqrt(Math.abs(distance - minDistance) + 1) / 5
+    ),
+  };
+};
+
 export const updateMarkerPosition = (
   viewer: Viewer,
   markerEntityRef,
@@ -61,49 +85,61 @@ export const updateMarkerPosition = (
 
   // higlight
   const positionCartographicTop = positionCartographic.clone();
-  positionCartographicTop.height += 5000;
+  positionCartographicTop.height += HIGHLIGHT_HEIGHT;
   const top = Cartographic.toCartesian(positionCartographicTop);
+
+  const { show, width } = getHighlightStyle(
+    viewer,
+    position,
+    MAX_HIGHLIGHT_WIDTH,
+    MIN_SHOW_DISTANCE
+  );
 
   const highlight = viewer.entities.add({
     name: "FeatureInfoHighlight",
+    show: show,
     polyline: {
       positions: [position, top],
-      width: 20,
+      arcType: ArcType.NONE,
+      width,
       material: Color.WHITE.withAlpha(0.5),
     },
   });
 
   markerHighlightRef.current = highlight;
 
-  const updateHighlightVisibility = () => {
-    const cameraPosition = viewer.camera.position;
-    const distance = Cartesian3.distance(cameraPosition, position);
+  const updateHighlightVisibility = debounce(() => {
     // Update polyline visibility based on distance
-    highlight.show = distance >= 100;
-    // TODO: update transparency based on distance
-    /*
-    if (
-      highlight.polyline &&
-      highlight.polyline.material instanceof ColorMaterialProperty
-    ) {
-      highlight.polyline.material.color = new ColorMaterialProperty(Color.RED);
+
+    if (highlight.polyline && highlight.polyline.width) {
+      const { show, width } = getHighlightStyle(
+        viewer,
+        position,
+        MAX_HIGHLIGHT_WIDTH,
+        MIN_SHOW_DISTANCE
+      );
+      highlight.show = show;
+
+      console.debug("updateHighlightVisibility", width);
+      const currentWidth = highlight.polyline.width.getValue();
+      if (Math.abs(width - currentWidth) > 0.1 && width > 0.1) {
+        (highlight.polyline.width as ConstantProperty).setValue(width);
+        viewer.scene.requestRender();
+      }
     }
-    */
-  };
+  }, 50);
 
   // Use a closure to manage the event listener
   const manageListener = (() => {
-    viewer.scene.postRender.addEventListener(updateHighlightVisibility);
+    viewer.camera.percentageChanged = 0.0001;
+    // TODO: still not firing/updating every rendererd frame, but responsive enough.
+    // using postRender events is even less responsive
+    viewer.camera.changed.addEventListener(updateHighlightVisibility);
     return () => {
-      viewer.scene.postRender.removeEventListener(updateHighlightVisibility);
+      viewer.camera.changed.removeEventListener(updateHighlightVisibility);
     };
   })();
 
   markerEntityRef.current.cleanupListener = manageListener;
-
-  // list number of listeners
-  console.debug(
-    "LISTENER: updateHighlightVisibility",
-    viewer.scene.postRender.numberOfListeners
-  );
+  //console.debug("LISTENER: updateHighlightVisibility", viewer.camera.changed.numberOfListeners);
 };
