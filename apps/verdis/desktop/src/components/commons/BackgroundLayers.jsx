@@ -22,6 +22,20 @@ export const configuration = inIntranet
           format: "image/png",
         },
       },
+      ortho2024: {
+        title: "Orthofoto 2024",
+        conf: {
+          type: "wms",
+          url: "http://s10221:7098/orthofotos/services",
+          layers: "WO2024",
+          version: "1.1.1",
+          tileSize: 256,
+          transparent: true,
+          pane: "backgroundLayers",
+          maxZoom: 26,
+          format: "image/png",
+        },
+      },
       trueOrtho2022: {
         title: "True Orthofoto 2022",
         conf: {
@@ -61,20 +75,6 @@ export const configuration = inIntranet
           format: "image/png",
         },
       },
-      ortho2024: {
-        title: "Orthofoto 2024",
-        conf: {
-          type: "wms",
-          url: "http://s10221:7098/orthofotos/services",
-          layers: "WO2024",
-          version: "1.1.1",
-          tileSize: 256,
-          transparent: true,
-          pane: "backgroundLayers",
-          maxZoom: 26,
-          format: "image/png",
-        },
-      },
       ortho2022: {
         title: "Orthofoto 2022",
         conf: {
@@ -91,6 +91,32 @@ export const configuration = inIntranet
       },
     }
   : {
+      trueOrtho2024: {
+        title: "True Orthofoto 2024",
+        conf: {
+          type: "wms",
+          url: "https://maps.wuppertal.de/deegree/wms",
+          layers: "R102:trueortho2024",
+          tileSize: 256,
+          transparent: true,
+          pane: "backgroundLayers",
+          maxZoom: 26,
+          format: "image/png",
+        },
+      },
+      ortho2024: {
+        title: "Orthofoto 2024",
+        conf: {
+          type: "wms",
+          url: "https://maps.wuppertal.de/deegree/wms",
+          layers: "R102:luftbild2024",
+          tileSize: 256,
+          transparent: true,
+          pane: "backgroundLayers",
+          maxZoom: 26,
+          format: "image/png",
+        },
+      },
       trueOrtho2022: {
         title: "True Orthofoto 2022",
         conf: {
