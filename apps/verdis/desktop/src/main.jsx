@@ -46,6 +46,7 @@ import { getVirtualCityPassword } from "./store/slices/search";
 import { MapContainer } from "react-leaflet";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
 import AlkisLandparcelPage from "./pages/AlkisLandparcelPage";
+import AlkisBookingSheetPage from "./pages/AlkisBookingSheetPage";
 
 const baseLayerConf = extendBaseLayerConf({ ...defaultLayerConf });
 
@@ -140,6 +141,10 @@ const router = createHashRouter(
         {
           path: "/alkis-flurstueck",
           element: <AlkisLandparcelPage />,
+        },
+        {
+          path: "/alkis-buchungsblatt",
+          element: <AlkisBookingSheetPage />,
         },
       ],
     },
