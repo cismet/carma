@@ -312,11 +312,24 @@ export const getShowRightScrollButton = (state: RootState) =>
 export const getStartDrawing = (state: RootState) => state.mapping.startDrawing;
 
 export const getLayerState = createSelector(
-  [getLayers, getBackgroundLayer, getSelectedMapLayer, getSelectedLayerIndex],
-  (layers, backgroundLayer, selectedMapLayer, selectedLayerIndex) => ({
+  [
+    getLayers,
+    getBackgroundLayer,
+    getSelectedMapLayer,
+    getSelectedLuftbildLayer,
+    getSelectedLayerIndex,
+  ],
+  (
     layers,
     backgroundLayer,
     selectedMapLayer,
+    selectedLuftbildLayer,
+    selectedLayerIndex
+  ) => ({
+    layers,
+    backgroundLayer,
+    selectedMapLayer,
+    selectedLuftbildLayer,
     selectedLayerIndex,
   })
 );
