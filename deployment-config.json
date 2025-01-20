@@ -943,7 +943,7 @@
           }
         }
       },
-      "projectPath": "./dist/envirometrics/saarlouis/rainhazardmap"
+      "projectPath": "./dist/envirometrics/saarlouis/solarpotentialmap"
     },
     "rainhazardmap-huerth": {
       "deployment": {
