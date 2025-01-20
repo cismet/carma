@@ -1,5 +1,6 @@
 import { useDispatch, useSelector } from "react-redux";
 import {
+  getBackgroundLayer,
   getSelectedMapLayer,
   setBackgroundLayer,
   setSelectedMapLayer,
@@ -11,6 +12,29 @@ import LayerSelection from "./LayerSelection";
 const BaseLayerSelection = () => {
   const dispatch = useDispatch();
   const selectedMapLayer = useSelector(getSelectedMapLayer);
+  const backgroundLayer = useSelector(getBackgroundLayer);
+
+  const handleRadioClick = (e) => {
+    if (backgroundLayer.id !== "karte") {
+      dispatch(
+        setBackgroundLayer({
+          id: "karte",
+          title: layerMap[e.target.value].title,
+          opacity: 1.0,
+          description: layerMap[e.target.value].description,
+          inhalt: layerMap[e.target.value].inhalt,
+          eignung: layerMap[e.target.value].eignung,
+          layerType: "wmts",
+          visible: true,
+          props: {
+            name: "",
+            url: layerMap[e.target.value].url,
+          },
+          layers: layerMap[e.target.value].layers,
+        })
+      );
+    }
+  };
 
   return (
     <LayerSelection
@@ -60,9 +84,15 @@ const BaseLayerSelection = () => {
         className="pb-2"
         optionType="default"
       >
-        <Radio value="stadtplan">Stadtplan</Radio>
-        <Radio value="gelaende">Gelände</Radio>
-        <Radio value="amtlich">Amtliche Geobasisdaten</Radio>
+        <Radio onClick={handleRadioClick} value="stadtplan">
+          Stadtplan
+        </Radio>
+        <Radio onClick={handleRadioClick} value="gelaende">
+          Gelände
+        </Radio>
+        <Radio onClick={handleRadioClick} value="amtlich">
+          Amtliche Geobasisdaten
+        </Radio>
       </Radio.Group>
     </LayerSelection>
   );

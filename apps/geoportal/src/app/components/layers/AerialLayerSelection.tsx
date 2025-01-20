@@ -1,5 +1,6 @@
 import { useDispatch, useSelector } from "react-redux";
 import {
+  getBackgroundLayer,
   getSelectedLuftbildLayer,
   setBackgroundLayer,
   setSelectedLuftbildLayer,
@@ -12,6 +13,29 @@ const AerialLayerSelection = () => {
   const dispatch = useDispatch();
 
   const selectedLuftbildLayer = useSelector(getSelectedLuftbildLayer);
+  const backgroundLayer = useSelector(getBackgroundLayer);
+
+  const handleRadioClick = (e) => {
+    if (backgroundLayer.id !== "luftbild") {
+      dispatch(
+        setBackgroundLayer({
+          id: "luftbild",
+          title: layerMap[e.target.value].title,
+          opacity: 1.0,
+          description: layerMap[e.target.value].description,
+          inhalt: layerMap[e.target.value].inhalt,
+          eignung: layerMap[e.target.value].eignung,
+          layerType: "wmts",
+          visible: true,
+          props: {
+            name: "",
+            url: layerMap[e.target.value].url,
+          },
+          layers: layerMap[e.target.value].layers,
+        })
+      );
+    }
+  };
 
   return (
     <LayerSelection
@@ -61,8 +85,12 @@ const AerialLayerSelection = () => {
         className="pb-2"
         optionType="default"
       >
-        <Radio value="luftbild">Luftbildkarte 03/24</Radio>
-        <Radio value="luftbild21">Luftbildkarte 06/21</Radio>
+        <Radio onClick={handleRadioClick} value="luftbild">
+          Luftbildkarte 03/24
+        </Radio>
+        <Radio onClick={handleRadioClick} value="luftbild21">
+          Luftbildkarte 06/21
+        </Radio>
       </Radio.Group>
     </LayerSelection>
   );
