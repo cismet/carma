@@ -903,9 +903,8 @@
             }
           },
           "live": {
-            "pages": {
-              "org": "carma-dev-deployments",
-              "prj": "rainhazardmap-saarlouis"
+            "container": {
+              "image": "cismet/carma-rhm-saarlouis:"
             }
           }
         },
@@ -914,6 +913,32 @@
             "pages": {
               "org": "carma-dev-deployments",
               "prj": "rainhazardmap-saarlouis"
+            }
+          }
+        }
+      },
+      "projectPath": "./dist/envirometrics/saarlouis/rainhazardmap"
+    },
+    "solarpotentialmap-saarlouis": {
+      "deployment": {
+        "manual": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "solarpotentialmap-saarlouis"
+            }
+          },
+          "live": {
+            "container": {
+              "image": "cismet/carma-solarpot-saarlouis:"
+            }
+          }
+        },
+        "auto": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "solarpotentialmap-saarlouis"
             }
           }
         }
