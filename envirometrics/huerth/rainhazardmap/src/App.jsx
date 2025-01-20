@@ -58,7 +58,6 @@ function App() {
         modeSwitcherTitle="Starkregengefahrenkarte Hürth"
         documentTitle="Starkregengefahrenkarte Hürth"
         gazData={gazData}
-        customFeatureInfoUIs={[<div>xxx</div>]}
       ></HeavyRainHazardMap>
     </TopicMapContextProvider>
   );
