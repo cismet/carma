@@ -1,0 +1,7 @@
+{
+  "extends": "../../../tsconfig.legacy.base.json",
+
+  "compilerOptions": {},
+  "files": [],
+  "references": []
+}
