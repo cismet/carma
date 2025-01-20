@@ -373,12 +373,12 @@ jobs:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
       - name: Build container if container image is set (dev)
-        if: env.CONTAINER_IMAGE != 'null' && env.CONTAINER_IMAGE != '' && env.TARGET == 'dev'
+        if: env.CONTAINER_IMAGE != 'null' && env.CONTAINER_IMAGE != '' && env.TARGET == 'auto.dev'
         run: |
           INPUT_PLATFORMS="linux/amd64" INPUT_TAGS="${{ env.CONTAINER_IMAGE }}latest" npx nx run ${{ matrix.project }}:container
         shell: bash
       - name: Build container if container image is set (live)
-        if: env.CONTAINER_IMAGE != 'null' && env.CONTAINER_IMAGE != '' && env.TARGET == 'live'
+        if: env.CONTAINER_IMAGE != 'null' && env.CONTAINER_IMAGE != '' && env.TARGET == 'auto.live'
         run: |
           INPUT_PLATFORMS="linux/amd64" INPUT_TAGS="${{ env.CONTAINER_IMAGE }}latest,${{ env.CONTAINER_IMAGE }}${{env.VERSION}}" npx nx run ${{ matrix.project }}:container
         shell: bash
