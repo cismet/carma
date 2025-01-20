@@ -207,7 +207,7 @@ function App({ sync = false }: { sync?: boolean }) {
         className="controls-container"
         style={{
           position: "absolute",
-          top: "0px",
+          top: "45px",
           left: "0px",
           bottom: "0px",
           zIndex: 600,
