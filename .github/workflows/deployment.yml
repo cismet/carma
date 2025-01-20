@@ -289,6 +289,7 @@ jobs:
           echo "SRC_PATH=${srcPath}" >> $GITHUB_ENV
           echo "CONTAINER_IMAGE=${containerImage}" >> $GITHUB_ENV
           echo "TARGET=auto.${branch}" >> $GITHUB_ENV
+
         shell: bash
       - name: Create version.json if it doesn't exist
         run: |
@@ -304,6 +305,11 @@ jobs:
 
           mv /tmp/version.json "$SRC_PATH/version.json"
         shell: bash
+      - name: Read version from version.json
+        run: |
+          version=$(jq -r '.version // "0.0.0"' "$SRC_PATH/version.json")
+          echo "VERSION=$version" >> $GITHUB_ENV
+        shell: bash
 
       - name: Debug Outputs
         run: |
@@ -316,6 +322,7 @@ jobs:
           echo "SRC_PATH: $SRC_PATH"
           echo "SRC_MD5: $SRC_MD5"
           echo "CONTAINER_IMAGE: $CONTAINER_IMAGE"
+          echo "VERSION: $VERSION"
           echo -----------------------------------
       - name: Debug version.json
         run: |
@@ -497,6 +504,11 @@ jobs:
 
           mv /tmp/version.json "$SRC_PATH/version.json"
         shell: bash
+      - name: Read version from version.json
+        run: |
+          version=$(jq -r '.version // "0.0.0"' "$SRC_PATH/version.json")
+          echo "VERSION=$version" >> $GITHUB_ENV
+        shell: bash
 
       - name: Debug Outputs
         run: |
@@ -509,6 +521,7 @@ jobs:
           echo "SRC_PATH: $SRC_PATH"
           echo "SRC_MD5: $SRC_MD5"
           echo "CONTAINER_IMAGE: $CONTAINER_IMAGE"
+          echo "VERSION: $VERSION"
           echo -----------------------------------
       - name: Debug version.json
         run: |
@@ -719,7 +732,11 @@ jobs:
 
           mv /tmp/version.json "$SRC_PATH/version.json"
         shell: bash
-
+      - name: Read version from version.json
+        run: |
+          version=$(jq -r '.version // "0.0.0"' "$SRC_PATH/version.json")
+          echo "VERSION=$version" >> $GITHUB_ENV
+        shell: bash
       - name: Debug Outputs
         run: |
           echo -----------------------------------
@@ -732,6 +749,7 @@ jobs:
           echo "SRC_MD5: $SRC_MD5"
           echo "CONTAINER_IMAGE: $CONTAINER_IMAGE"
           echo "TARGET: $TARGET"
+          echo "VERSION: $VERSION"
           echo -----------------------------------
 
       - name: Debug version.json
