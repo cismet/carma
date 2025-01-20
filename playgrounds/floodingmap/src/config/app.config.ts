@@ -17,6 +17,8 @@ export const HGK_TERRAIN_PROVIDER_URLS = {
   HQ100_noHWS: "https://cesium-wupp-terrain.cismet.de/HQ100_noHWS/",
 };
 
+export const SYNC_TOKEN = "floodingAndRainhazardSyncWupp";
+
 export const EMAIL = "hochwasser@stadt.wuppertal.de";
 
 export const HOME_ZOOM = 18;

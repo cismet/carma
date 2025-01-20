@@ -20,20 +20,18 @@ import {
 import App from "./App";
 import store from "./store";
 import { prefix, sourcesConfig } from "./config/gazData";
+import { SYNC_TOKEN } from "./config/app.config";
 import { CESIUM_CONFIG } from "./config/cesium/cesium.config";
 
 suppressReactCismapErrors();
 setupCesiumEnvironment();
 
 const persistor = persistStore(store);
-// TODO enable sync when needed
-const isSyncEnabled = false;
+
+const enableSync = true;
 
 const syncedApp = (
-  <CrossTabCommunicationContextProvider
-    role="sync"
-    token="floodingAndRainhazardSyncWupp"
-  >
+  <CrossTabCommunicationContextProvider role="sync" token={SYNC_TOKEN}>
     <App sync={true} />
   </CrossTabCommunicationContextProvider>
 );
@@ -52,7 +50,7 @@ const appWithContext = (
           providerConfig={CESIUM_CONFIG.providerConfig}
           tilesetConfigs={CESIUM_CONFIG.tilesetConfigs}
         >
-          {isSyncEnabled ? syncedApp : <App />}
+          {enableSync ? syncedApp : <App />}
         </CesiumContextProvider>
       </TopicMapContextProvider>
     </SelectionProvider>
