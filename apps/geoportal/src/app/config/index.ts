@@ -144,15 +144,9 @@ export const layerMap: LayerMap = {
     title: "Luftbildkarte 06/21",
     layers: "rvrGrundriss@100|trueOrtho2021@75|rvrSchriftNT@100",
     description: `Luftbildkarte (aus True Orthofoto) © Stadt Wuppertal / RVR und Kooperationspartner`,
-    inhalt: `<span>(1) Kartendienst (WMS) der Stadt Wuppertal. Datengrundlage:
-               True Orthofoto aus Bildflügen vom 14.03. und 17.03.2024, hergestellt durch Aerowest
-              GmbH/Dortmund, Bodenauflösung 3 cm.
-              (True Orthofoto: Aus Luftbildern mit hoher Längs- und Querüberdeckung
-              in einem automatisierten Bildverarbeitungsprozess
-              berechnetes Bild in Parallelprojektion, also ohne Gebäudeverkippung und sichttote Bereiche.) © Stadt Wuppertal (</span>
-              <a class="remove-margins" href="https://www.wuppertal.de/geoportal/Nutzungsbedingungen/NB-GDIKOM-C_Geodaten.pdf">NB-GDIKOM C</a>
-              <span>). (2) Kartendienste (WMS) des Regionalverbandes Ruhr (RVR). Datengrundlagen:
-              Stadtkarte 2.0 und Kartenschrift aus der Stadtkarte 2.0. Details s. Hintergrundkarte Stadtplan).</span>`,
+    inhalt: `<span>(1) Kartendienst (WMS) des Landes NRW, gehostet von IT.NRW. Datengrundlage: True Orthofoto weit überwiegend aus Bildflügen vom 01. und 02. Juni 2021, durchgeführt im Auftrag von Geobasis NRW durch MGGP AERO Sp. z o.o./Krakau, Bodenauflösung 10 cm. In Teilen von Nächstebreck-Ost, Beyenburg-Mitte und Herbringhausen Bildflug vom 30. März 2021, durchgeführt durch Aerowest GmbH/Dortmund. (True Orthofoto: Aus Luftbildern mit hoher Längs- und Querüberdeckung in einem automatisierten Bildverarbeitungsprozess berechnetes Bild in Parallelprojektion, also ohne Gebäudeverkippung und sichttote Bereiche.) © Geobasis NRW (</span>
+              <a class="remove-margins" href="https://www.govdata.de/dl-de/zero-2-0">dl-zero-de/2.0</a>
+              <span>). (2) Kartendienste (WMS) des Regionalverbandes Ruhr (RVR). Datengrundlagen: Stadtkarte 2.0 und Kartenschrift aus der Stadtkarte 2.0. Details s. Hintergrundkarte Stadtplan).</span>`,
     eignung: `Die Luftbildkarte ist der anschaulichste und inhaltsreichste Kartenhintergrund, geeignet vor allem für Detailbetrachtungen. Durch die Verwendung eines "True Orthofotos" ist die passgenaue Überlagerung mit grundrisstreuen Kartenebenen möglich. Aktualität: Wuppertal lässt in einem Turnus von 2 Jahren Bildflüge durchführen, aus denen ein True Orthofoto abgeleitet wird. Die dargestellte Situation, z. B. bezüglich des Gebäudebestandes, kann daher bis zu 2,5 Jahre alt sein.`,
     url: "https://maps.wuppertal.de/karten?service=WMS&request=GetMap&layers=R102%3Aluftbild2022",
   },
