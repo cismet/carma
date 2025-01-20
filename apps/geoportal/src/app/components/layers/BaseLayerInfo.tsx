@@ -163,31 +163,22 @@ const BaseLayerInfo = () => {
             </div>
           </button>
           <button
-            onClick={() => {
-              dispatch(
-                setBackgroundLayer({
-                  id: "luftbild",
-                  title: layerMap["luftbild"].title,
-                  opacity: 1.0,
-                  description: layerMap["luftbild"].description,
-                  inhalt: layerMap["luftbild"].inhalt,
-                  eignung: layerMap["luftbild"].eignung,
-                  layerType: "wmts",
-                  visible: true,
-                  props: {
-                    name: "",
-                    url: layerMap["luftbild"].url,
-                  },
-                  layers: layerMap["luftbild"].layers,
-                })
-              );
+            onClick={(e) => {
+              if (
+                (e.target as HTMLElement).localName !== "span" &&
+                (e.target as HTMLElement).localName !== "input"
+              ) {
+                dispatch(
+                  setBackgroundLayer({ ...selectedMapLayer, id: "luftbild" })
+                );
+              }
             }}
             className={cn(
               "w-full group rounded-e-md border-[1px]",
               backgroundLayer.id === "luftbild" && "border-[#1677ff]"
             )}
           >
-            <div className="flex text-[14px]/[30px] flex-col items-center h-full justify-start">
+            <div className="w-full flex flex-col text-[14px]/[30px] items-center justify-center gap-3">
               <p
                 className={cn(
                   "mb-0 group-hover:text-[#1677ff]",
@@ -196,6 +187,66 @@ const BaseLayerInfo = () => {
               >
                 Luftbild
               </p>
+              <Radio.Group
+                value={"luftbild"}
+                onChange={(e) => {
+                  dispatch(
+                    setSelectedMapLayer({
+                      id: e.target.value,
+                      title: layerMap[e.target.value].title,
+                      opacity: 1.0,
+                      description: layerMap[e.target.value].description,
+                      inhalt: layerMap[e.target.value].inhalt,
+                      eignung: layerMap[e.target.value].eignung,
+                      layerType: "wmts",
+                      visible: true,
+                      props: {
+                        name: "",
+                        url: layerMap[e.target.value].url,
+                      },
+                      layers: layerMap[e.target.value].layers,
+                    })
+                  );
+
+                  dispatch(
+                    setBackgroundLayer({
+                      id: "karte",
+                      title: layerMap[e.target.value].title,
+                      opacity: 1.0,
+                      description: layerMap[e.target.value].description,
+                      inhalt: layerMap[e.target.value].inhalt,
+                      eignung: layerMap[e.target.value].eignung,
+                      layerType: "wmts",
+                      visible: true,
+                      props: {
+                        name: "",
+                        url: layerMap[e.target.value].url,
+                      },
+                      layers: layerMap[e.target.value].layers,
+                    })
+                  );
+                }}
+                className="pb-2"
+                optionType="default"
+              >
+                <Radio
+                  onClick={(e) => {
+                    handleRadioClick((e.target as HTMLInputElement).value);
+                  }}
+                  value="luftbild"
+                  checked
+                >
+                  Luftbildkarte 03/24
+                </Radio>
+                <Radio
+                  onClick={(e) => {
+                    handleRadioClick((e.target as HTMLInputElement).value);
+                  }}
+                  value="luftbild21"
+                >
+                  Luftbildkarte 06/21
+                </Radio>
+              </Radio.Group>
             </div>
           </button>
         </div>
