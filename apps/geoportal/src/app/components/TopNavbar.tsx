@@ -15,6 +15,7 @@ import { setCurrentSceneStyle } from "@carma-mapping/cesium-engine";
 import {
   getBackgroundLayer,
   getSelectedLayerIndex,
+  getSelectedLuftbildLayer,
   getSelectedMapLayer,
   setBackgroundLayer,
   setClickFromInfoView,
@@ -39,6 +40,7 @@ const TopNavbar = () => {
 
   const backgroundLayer = useSelector(getBackgroundLayer);
   const selectedMapLayer = useSelector(getSelectedMapLayer);
+  const selectedLuftbildLayer = useSelector(getSelectedLuftbildLayer);
   const selectedLayerIndex = useSelector(getSelectedLayerIndex);
 
   const hintergrundTourRef = useOverlayHelper(
@@ -96,19 +98,9 @@ const TopNavbar = () => {
                 } else {
                   dispatch(
                     setBackgroundLayer({
-                      id: e.target.value,
-                      title: layerMap[e.target.value].title,
-                      opacity: 1.0,
-                      description: layerMap[e.target.value].description,
-                      inhalt: layerMap[e.target.value].inhalt,
-                      eignung: layerMap[e.target.value].eignung,
-                      layerType: "wmts",
+                      ...selectedLuftbildLayer,
+                      id: "luftbild",
                       visible: true,
-                      props: {
-                        name: "",
-                        url: layerMap[e.target.value].url,
-                      },
-                      layers: layerMap[e.target.value].layers,
                     })
                   );
                   dispatch(setCurrentSceneStyle("primary"));
