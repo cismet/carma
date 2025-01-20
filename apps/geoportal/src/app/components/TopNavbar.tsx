@@ -107,8 +107,12 @@ const TopNavbar = () => {
                 }
               }}
             >
-              <Radio.Button value="karte">Karte</Radio.Button>
-              <Radio.Button value="luftbild">Luftbild</Radio.Button>
+              <Tooltip title={selectedMapLayer.title}>
+                <Radio.Button value="karte">Karte</Radio.Button>
+              </Tooltip>
+              <Tooltip title={selectedLuftbildLayer.title}>
+                <Radio.Button value="luftbild">Luftbild</Radio.Button>
+              </Tooltip>
               <Radio.Button value="openBaseLayerView">
                 <FontAwesomeIcon id="openBaseLayerView" icon={faLayerGroup} />
               </Radio.Button>
