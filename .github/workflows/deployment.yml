@@ -322,6 +322,7 @@ jobs:
           echo "SRC_PATH: $SRC_PATH"
           echo "SRC_MD5: $SRC_MD5"
           echo "CONTAINER_IMAGE: $CONTAINER_IMAGE"
+          echo "TARGET: $TARGET"
           echo "VERSION: $VERSION"
           echo -----------------------------------
       - name: Debug version.json
@@ -371,11 +372,17 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
-      - name: Build container if container image is set
-        if: env.CONTAINER_IMAGE != 'null' && env.CONTAINER_IMAGE != ''
+      - name: Build container if container image is set (dev)
+        if: env.CONTAINER_IMAGE != 'null' && env.CONTAINER_IMAGE != '' && env.TARGET == 'dev'
         run: |
-          INPUT_PLATFORMS="linux/amd64" INPUT_TAGS="${{ env.CONTAINER_IMAGE }}-latest" npx nx run ${{ matrix.project }}:container
+          INPUT_PLATFORMS="linux/amd64" INPUT_TAGS="${{ env.CONTAINER_IMAGE }}latest" npx nx run ${{ matrix.project }}:container
         shell: bash
+      - name: Build container if container image is set (live)
+        if: env.CONTAINER_IMAGE != 'null' && env.CONTAINER_IMAGE != '' && env.TARGET == 'live'
+        run: |
+          INPUT_PLATFORMS="linux/amd64" INPUT_TAGS="${{ env.CONTAINER_IMAGE }}latest,${{ env.CONTAINER_IMAGE }}${{env.VERSION}}" npx nx run ${{ matrix.project }}:container
+        shell: bash
+
   single_build:
     runs-on: ubuntu-latest
     if: ${{ (github.event.inputs['project-name'] || github.event.client_payload['project-name']) != '' && (github.event.inputs['project-name'] || github.event.client_payload['project-name']) != '*' }}
@@ -521,6 +528,7 @@ jobs:
           echo "SRC_PATH: $SRC_PATH"
           echo "SRC_MD5: $SRC_MD5"
           echo "CONTAINER_IMAGE: $CONTAINER_IMAGE"
+          echo "TARGET: $TARGET"
           echo "VERSION: $VERSION"
           echo -----------------------------------
       - name: Debug version.json
@@ -570,10 +578,15 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
-      - name: Build container if container image is set
-        if: env.CONTAINER_IMAGE != 'null' && env.CONTAINER_IMAGE != ''
+      - name: Build container if container image is set (dev)
+        if: env.CONTAINER_IMAGE != 'null' && env.CONTAINER_IMAGE != '' && env.TARGET == 'dev'
         run: |
           INPUT_PLATFORMS="linux/amd64" INPUT_TAGS="${{ env.CONTAINER_IMAGE }}${{ env.SRC_MD5_SHORT }},${{ env.CONTAINER_IMAGE }}latest" npx nx run ${{ github.event.inputs['project-name'] || github.event.client_payload['project-name'] }}:container
+        shell: bash
+      - name: Build container if container image is set (live)
+        if: env.CONTAINER_IMAGE != 'null' && env.CONTAINER_IMAGE != '' && env.TARGET == 'live'
+        run: |
+          INPUT_PLATFORMS="linux/amd64" INPUT_TAGS="${{ env.CONTAINER_IMAGE }}${{ env.SRC_MD5_SHORT }},${{ env.CONTAINER_IMAGE }}latest,${{ env.CONTAINER_IMAGE }}${{ env.VERSION}}" npx nx run ${{ github.event.inputs['project-name'] || github.event.client_payload['project-name'] }}:container
         shell: bash
 
   all_projects_build:
@@ -807,8 +820,13 @@ jobs:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
-      - name: Build container if container image is set
-        if: env.CONTAINER_IMAGE != 'null' && env.CONTAINER_IMAGE != ''
+      - name: Build container if container image is set (dev)
+        if: env.CONTAINER_IMAGE != 'null' && env.CONTAINER_IMAGE != '' && env.TARGET == 'dev'
         run: |
           INPUT_PLATFORMS="linux/amd64" INPUT_TAGS="${{ env.CONTAINER_IMAGE }}${{ env.SRC_MD5_SHORT }},${{ env.CONTAINER_IMAGE }}latest" npx nx run ${{ matrix.project }}:container
+        shell: bash
+      - name: Build container if container image is set (live)
+        if: env.CONTAINER_IMAGE != 'null' && env.CONTAINER_IMAGE != '' && env.TARGET == 'live'
+        run: |
+          INPUT_PLATFORMS="linux/amd64" INPUT_TAGS="${{ env.CONTAINER_IMAGE }}${{ env.SRC_MD5_SHORT }},${{ env.CONTAINER_IMAGE }}latest,${{ env.CONTAINER_IMAGE }}${{env.VERSION}}" npx nx run ${{ matrix.project }}:container
         shell: bash
