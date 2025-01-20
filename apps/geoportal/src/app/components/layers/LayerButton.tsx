@@ -101,7 +101,7 @@ const LayerButton = ({
   const queryable =
     layer?.queryable &&
     zoom < (layer.props.maxZoom ? layer.props.maxZoom : Infinity) &&
-    zoom > layer.props.minZoom;
+    zoom > (layer.props.minZoom ? layer.props.minZoom : 0);
   const map = routedMapRef?.leafletMap?.leafletElement as L.Map;
 
   useEffect(() => {
