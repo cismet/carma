@@ -1,17 +1,3 @@
-import { useDispatch, useSelector } from "react-redux";
-import {
-  getBackgroundLayer,
-  getLayers,
-  getSelectedLuftbildLayer,
-  getSelectedMapLayer,
-  setBackgroundLayer,
-  setLayers,
-  setSelectedLuftbildLayer,
-  setSelectedMapLayer,
-} from "../../store/slices/mapping";
-import { cn } from "../../helper/helper";
-import { Radio, Tabs } from "antd";
-import { layerMap } from "../../config";
 import { DndContext } from "@dnd-kit/core";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import {
@@ -19,6 +5,17 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+import { Tabs } from "antd";
+import { useDispatch, useSelector } from "react-redux";
+import { layerMap } from "../../config";
+import {
+  getBackgroundLayer,
+  getLayers,
+  getSelectedMapLayer,
+  setLayers,
+} from "../../store/slices/mapping";
+import AerialLayerSelection from "./AerialLayerSelection";
+import BaseLayerSelection from "./BaseLayerSelection";
 import LayerRow from "./LayerRow";
 import "./text.css";
 
@@ -26,7 +23,6 @@ const BaseLayerInfo = () => {
   const dispatch = useDispatch();
 
   const selectedMapLayer = useSelector(getSelectedMapLayer);
-  const selectedLuftbildLayer = useSelector(getSelectedLuftbildLayer);
   const backgroundLayer = useSelector(getBackgroundLayer);
   const layers = useSelector(getLayers);
 
@@ -38,15 +34,6 @@ const BaseLayerInfo = () => {
     });
 
   const getLayerPos = (id) => layers.findIndex((layer) => layer.id === id);
-
-  const handleRadioClick = (radioValue: string) => {
-    if (
-      backgroundLayer.id === "luftbild" &&
-      selectedMapLayer.id === radioValue
-    ) {
-      dispatch(setBackgroundLayer({ ...selectedMapLayer, id: "karte" }));
-    }
-  };
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
@@ -71,189 +58,8 @@ const BaseLayerInfo = () => {
     <div className="flex flex-col gap-1 overflow-y-hidden h-full">
       <div className="flex flex-col gap-2 pb-4">
         <div className="w-full flex last:rounded-s-md first:rounded-s-md">
-          <button
-            onClick={(e) => {
-              if (
-                (e.target as HTMLElement).localName !== "span" &&
-                (e.target as HTMLElement).localName !== "input"
-              ) {
-                dispatch(
-                  setBackgroundLayer({ ...selectedMapLayer, id: "karte" })
-                );
-              }
-            }}
-            className={cn(
-              "w-full group border-[1px] rounded-s-md",
-              backgroundLayer.id !== "luftbild" && "border-[#1677ff]"
-            )}
-          >
-            <div className="w-full flex flex-col text-[14px]/[30px] items-center justify-center gap-3">
-              <p
-                className={cn(
-                  "mb-0 group-hover:text-[#1677ff]",
-                  backgroundLayer.id !== "luftbild" && "text-[#1677ff]"
-                )}
-              >
-                Karte
-              </p>
-              <Radio.Group
-                value={selectedMapLayer.id}
-                onChange={(e) => {
-                  dispatch(
-                    setSelectedMapLayer({
-                      id: e.target.value,
-                      title: layerMap[e.target.value].title,
-                      opacity: 1.0,
-                      description: layerMap[e.target.value].description,
-                      inhalt: layerMap[e.target.value].inhalt,
-                      eignung: layerMap[e.target.value].eignung,
-                      layerType: "wmts",
-                      visible: true,
-                      props: {
-                        name: "",
-                        url: layerMap[e.target.value].url,
-                      },
-                      layers: layerMap[e.target.value].layers,
-                    })
-                  );
-
-                  dispatch(
-                    setBackgroundLayer({
-                      id: "karte",
-                      title: layerMap[e.target.value].title,
-                      opacity: 1.0,
-                      description: layerMap[e.target.value].description,
-                      inhalt: layerMap[e.target.value].inhalt,
-                      eignung: layerMap[e.target.value].eignung,
-                      layerType: "wmts",
-                      visible: true,
-                      props: {
-                        name: "",
-                        url: layerMap[e.target.value].url,
-                      },
-                      layers: layerMap[e.target.value].layers,
-                    })
-                  );
-                }}
-                className="pb-2"
-                optionType="default"
-              >
-                <Radio
-                  onClick={(e) => {
-                    handleRadioClick((e.target as HTMLInputElement).value);
-                  }}
-                  value="stadtplan"
-                >
-                  Stadtplan
-                </Radio>
-                <Radio
-                  onClick={(e) => {
-                    handleRadioClick((e.target as HTMLInputElement).value);
-                  }}
-                  value="gelaende"
-                >
-                  Gelände
-                </Radio>
-                <Radio
-                  onClick={(e) => {
-                    handleRadioClick((e.target as HTMLInputElement).value);
-                  }}
-                  value="amtlich"
-                >
-                  Amtliche Geobasisdaten
-                </Radio>
-              </Radio.Group>
-            </div>
-          </button>
-          <button
-            onClick={(e) => {
-              if (
-                (e.target as HTMLElement).localName !== "span" &&
-                (e.target as HTMLElement).localName !== "input"
-              ) {
-                dispatch(
-                  setBackgroundLayer({
-                    ...selectedLuftbildLayer,
-                    id: "luftbild",
-                  })
-                );
-              }
-            }}
-            className={cn(
-              "w-full group rounded-e-md border-[1px]",
-              backgroundLayer.id === "luftbild" && "border-[#1677ff]"
-            )}
-          >
-            <div className="w-full flex flex-col text-[14px]/[30px] items-center justify-center gap-3">
-              <p
-                className={cn(
-                  "mb-0 group-hover:text-[#1677ff]",
-                  backgroundLayer.id === "luftbild" && "text-[#1677ff]"
-                )}
-              >
-                Luftbild
-              </p>
-              <Radio.Group
-                value={selectedLuftbildLayer.id}
-                onChange={(e) => {
-                  dispatch(
-                    setSelectedLuftbildLayer({
-                      id: e.target.value,
-                      title: layerMap[e.target.value].title,
-                      opacity: 1.0,
-                      description: layerMap[e.target.value].description,
-                      inhalt: layerMap[e.target.value].inhalt,
-                      eignung: layerMap[e.target.value].eignung,
-                      layerType: "wmts",
-                      visible: true,
-                      props: {
-                        name: "",
-                        url: layerMap[e.target.value].url,
-                      },
-                      layers: layerMap[e.target.value].layers,
-                    })
-                  );
-
-                  dispatch(
-                    setBackgroundLayer({
-                      id: "luftbild",
-                      title: layerMap[e.target.value].title,
-                      opacity: 1.0,
-                      description: layerMap[e.target.value].description,
-                      inhalt: layerMap[e.target.value].inhalt,
-                      eignung: layerMap[e.target.value].eignung,
-                      layerType: "wmts",
-                      visible: true,
-                      props: {
-                        name: "",
-                        url: layerMap[e.target.value].url,
-                      },
-                      layers: layerMap[e.target.value].layers,
-                    })
-                  );
-                }}
-                className="pb-2"
-                optionType="default"
-              >
-                <Radio
-                  onClick={(e) => {
-                    handleRadioClick((e.target as HTMLInputElement).value);
-                  }}
-                  value="luftbild"
-                >
-                  Luftbildkarte 03/24
-                </Radio>
-                <Radio
-                  onClick={(e) => {
-                    handleRadioClick((e.target as HTMLInputElement).value);
-                  }}
-                  value="luftbild21"
-                >
-                  Luftbildkarte 06/21
-                </Radio>
-              </Radio.Group>
-            </div>
-          </button>
+          <BaseLayerSelection />
+          <AerialLayerSelection />
         </div>
       </div>
 
