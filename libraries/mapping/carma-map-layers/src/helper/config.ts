@@ -1975,51 +1975,51 @@ export const baseConfig = {
         icon: "umwelt/Wahrscheinlichkeiten_Überschwemmungsgrenzen",
       },
       {
-        name: "R102:50md",
+        name: "R102_50md",
         icon: "umwelt/Starkregen-SRI-6-max-Wassertiefe",
       },
       {
-        name: "R102:50d",
+        name: "R102_50d",
         icon: "umwelt/Starkregen_Fliessrichtung",
       },
       {
-        name: "R102:50v",
+        name: "R102_50v",
         icon: "umwelt/Starkregen_SRI_6-7_Fließgeschwindigkeit",
       },
       {
-        name: "R102:100md",
+        name: "R102_100md",
         icon: "umwelt/Starkregen_SRI_6-7_max_Wassertiefe",
       },
       {
-        name: "R102:100d",
+        name: "R102_100d",
         icon: "umwelt/Starkregen_Fliessrichtung",
       },
       {
-        name: "R102:100v",
+        name: "R102_100v",
         icon: "umwelt/Starkregen_SRI_6-7_Fließgeschwindigkeit",
       },
       {
-        name: "R102:90md",
+        name: "R102_90md",
         icon: "umwelt/Starkregen_SRI_10_max_Wassertiefe",
       },
       {
-        name: "R102:90d",
+        name: "R102_90d",
         icon: "umwelt/Starkregen_Fliessrichtung",
       },
       {
-        name: "R102:90v",
+        name: "R102_90v",
         icon: "umwelt/Starkregen_SRI_10_Fließgeschwindigkeit",
       },
       {
-        name: "R102:SRmd",
+        name: "R102_SRmd",
         icon: "umwelt/Regen_v_29052018_Wassertiefe",
       },
       {
-        name: "R102:SRd",
+        name: "R102_SRd",
         icon: "umwelt/Starkregen_Fliessrichtung",
       },
       {
-        name: "R102:SRv",
+        name: "R102_SRv",
         icon: "umwelt/Regen_v_29052018_Fliessgeschwindigkeit",
       },
       {
