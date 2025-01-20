@@ -24,7 +24,7 @@ function App() {
 
   return (
     <TopicMapContextProvider
-      appKey="carma.apps.topicmaps.HitzeInderStadt"
+      appKey="carma.apps.sls.solarpotentialmap"
       referenceSystemDefinition={MappingConstants.proj4crs3857def}
       mapEPSGCode="3857"
       referenceSystem={MappingConstants.crs3857}
