@@ -190,8 +190,10 @@ const SolarPotentialMap = () => {
         manualSelectionManagement={true}
         onSelectionClick={(e) => {}}
         onSelectionChanged={(e) => {
-          setSelectedFeature(e.hit);
-          e.hit.setSelection(true);
+          if (e?.hit) {
+            setSelectedFeature(e.hit);
+            e.hit.setSelection(true);
+          }
         }}
         opacity={1}
         pane="additionalLayers1"
