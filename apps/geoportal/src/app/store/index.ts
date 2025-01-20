@@ -77,6 +77,7 @@ const mappingConfig = {
     "savedLayerConfigs",
     "selectedMapLayer",
     "backgroundLayer",
+    "selectedLuftbildLayer",
     "showFullscreenButton",
     "showLocatorButton",
     "showMeasurementButton",

@@ -33,6 +33,22 @@ const initialState: MappingState = {
     layers: layerMap["stadtplan"].layers,
   },
 
+  selectedLuftbildLayer: {
+    title: "Luftbildkarte 03/24",
+    id: "luftbild",
+    opacity: 1.0,
+    description: layerMap["luftbild"].description,
+    inhalt: layerMap["luftbild"].inhalt,
+    eignung: layerMap["luftbild"].eignung,
+    visible: true,
+    layerType: "wmts",
+    props: {
+      name: "",
+      url: layerMap["luftbild"].url,
+    },
+    layers: layerMap["luftbild"].layers,
+  },
+
   backgroundLayer: {
     title: "Stadtplan",
     id: "karte",
@@ -187,6 +203,9 @@ const slice = createSlice({
     setBackgroundLayer(state, action: PayloadAction<BackgroundLayer>) {
       state.backgroundLayer = action.payload;
     },
+    setSelectedLuftbildLayer(state, action: PayloadAction<BackgroundLayer>) {
+      state.selectedLuftbildLayer = action.payload;
+    },
 
     setShowLeftScrollButton(state, action) {
       state.showLeftScrollButton = action.payload;
@@ -239,6 +258,7 @@ export const {
   setPreviousSelectedLayerIndex,
   setSelectedMapLayer,
   setBackgroundLayer,
+  setSelectedLuftbildLayer,
   setShowLeftScrollButton,
   setShowRightScrollButton,
   setShowFullscreenButton,
@@ -275,6 +295,8 @@ export const getSelectedLayerIndexIsAddedLayer = (state: RootState): boolean =>
 
 export const getSelectedMapLayer = (state: RootState) =>
   state.mapping.selectedMapLayer;
+export const getSelectedLuftbildLayer = (state: RootState) =>
+  state.mapping.selectedLuftbildLayer;
 export const getShowFullscreenButton = (state: RootState) =>
   state.mapping.showFullscreenButton;
 export const getShowHamburgerMenu = (state: RootState) =>

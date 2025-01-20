@@ -114,6 +114,7 @@ export interface LayerState {
   layers: Layer[];
   selectedLayerIndex: SELECTED_LAYER_INDEX | number;
   selectedMapLayer: BackgroundLayer;
+  selectedLuftbildLayer: BackgroundLayer;
   backgroundLayer: BackgroundLayer;
 }
 

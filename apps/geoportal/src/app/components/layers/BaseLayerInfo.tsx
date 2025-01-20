@@ -2,9 +2,11 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   getBackgroundLayer,
   getLayers,
+  getSelectedLuftbildLayer,
   getSelectedMapLayer,
   setBackgroundLayer,
   setLayers,
+  setSelectedLuftbildLayer,
   setSelectedMapLayer,
 } from "../../store/slices/mapping";
 import { cn } from "../../helper/helper";
@@ -24,6 +26,7 @@ const BaseLayerInfo = () => {
   const dispatch = useDispatch();
 
   const selectedMapLayer = useSelector(getSelectedMapLayer);
+  const selectedLuftbildLayer = useSelector(getSelectedLuftbildLayer);
   const backgroundLayer = useSelector(getBackgroundLayer);
   const layers = useSelector(getLayers);
 
@@ -169,7 +172,10 @@ const BaseLayerInfo = () => {
                 (e.target as HTMLElement).localName !== "input"
               ) {
                 dispatch(
-                  setBackgroundLayer({ ...selectedMapLayer, id: "luftbild" })
+                  setBackgroundLayer({
+                    ...selectedLuftbildLayer,
+                    id: "luftbild",
+                  })
                 );
               }
             }}
@@ -188,10 +194,10 @@ const BaseLayerInfo = () => {
                 Luftbild
               </p>
               <Radio.Group
-                value={"luftbild"}
+                value={selectedLuftbildLayer.id}
                 onChange={(e) => {
                   dispatch(
-                    setSelectedMapLayer({
+                    setSelectedLuftbildLayer({
                       id: e.target.value,
                       title: layerMap[e.target.value].title,
                       opacity: 1.0,
@@ -210,7 +216,7 @@ const BaseLayerInfo = () => {
 
                   dispatch(
                     setBackgroundLayer({
-                      id: "karte",
+                      id: "luftbild",
                       title: layerMap[e.target.value].title,
                       opacity: 1.0,
                       description: layerMap[e.target.value].description,
@@ -234,7 +240,6 @@ const BaseLayerInfo = () => {
                     handleRadioClick((e.target as HTMLInputElement).value);
                   }}
                   value="luftbild"
-                  checked
                 >
                   Luftbildkarte 03/24
                 </Radio>
