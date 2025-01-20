@@ -155,6 +155,10 @@ const SolarPotentialMap = () => {
                 setFeatureInfoModeActivation={() => {
                   setSelectedFeature(undefined);
                 }}
+                showModalMenu={(section) => {
+                  setAppMenuVisible(true);
+                  setAppMenuActiveMenuSection(section);
+                }}
               />
             ),
           ]}
