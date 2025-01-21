@@ -137,7 +137,7 @@ export const layerMap: LayerMap = {
               <a class="remove-margins" href="https://www.wuppertal.de/geoportal/Nutzungsbedingungen/NB-GDIKOM-C_Geodaten.pdf">NB-GDIKOM C</a>
               <span>). (2) Kartendienste (WMS) des Regionalverbandes Ruhr (RVR). Datengrundlagen:
               Stadtkarte 2.0 und Kartenschrift aus der Stadtkarte 2.0. Details s. Hintergrundkarte Stadtplan).</span>`,
-    eignung: `Die Luftbildkarte ist der anschaulichste und inhaltsreichste Kartenhintergrund, geeignet vor allem für Detailbetrachtungen. Durch die Verwendung eines "True Orthofotos" ist die passgenaue Überlagerung mit grundrisstreuen Kartenebenen möglich. Aktualität: Wuppertal lässt in einem Turnus von 2 Jahren Bildflüge durchführen, aus denen ein True Orthofoto abgeleitet wird. Die dargestellte Situation, z. B. bezüglich des Gebäudebestandes, kann daher bis zu 2,5 Jahre alt sein.`,
+    eignung: `Luftbildkarten eignen sich wegen ihrer Anschaulichkeit und ihres Inhaltsreichtums vor allem für Detailbetrachtungen. Durch die Verwendung eines "True Orthofotos" ist die passgenaue Überlagerung mit grundrisstreuen Kartenebenen möglich. Die Luftbildkarte 03/24 basiert auf einer von der Stadt Wuppertal beauftragten Befliegung vor dem Einsetzen der Belaubung (Winterbefliegung). Die Straßenbereiche sind daher vollständig sichtbar, während die Grünbereiche nicht gut zu interpretieren sind. Aktualität: Wuppertal lässt in einem Turnus von 2 Jahren Bildflüge durchführen. Die dargestellte Situation, z. B. bezüglich des Gebäudebestandes, kann daher bis zu 2,5 Jahre alt sein.`,
     url: "https://maps.wuppertal.de/karten?service=WMS&request=GetMap&layers=R102%3Aluftbild2022",
   },
   luftbild21: {
