@@ -84,6 +84,9 @@ const AerialLayerSelection = () => {
         }}
         className="pb-2"
         optionType="default"
+        style={{
+          filter: backgroundLayer.id !== "luftbild" ? "saturate(0)" : "",
+        }}
       >
         <Radio onClick={handleRadioClick} value="luftbild">
           Luftbildkarte 03/24

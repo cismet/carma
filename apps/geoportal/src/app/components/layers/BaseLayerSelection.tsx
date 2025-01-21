@@ -83,6 +83,7 @@ const BaseLayerSelection = () => {
         }}
         className="pb-2"
         optionType="default"
+        style={{ filter: backgroundLayer.id !== "karte" ? "saturate(0)" : "" }}
       >
         <Radio onClick={handleRadioClick} value="stadtplan">
           Stadtplan
