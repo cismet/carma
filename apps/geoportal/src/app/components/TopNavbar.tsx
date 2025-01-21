@@ -113,22 +113,26 @@ const TopNavbar = () => {
               <Tooltip title={selectedLuftbildLayer.title}>
                 <Radio.Button value="luftbild">Luftbild</Radio.Button>
               </Tooltip>
-              <Radio.Button value="openBaseLayerView">
-                <FontAwesomeIcon id="openBaseLayerView" icon={faLayerGroup} />
-              </Radio.Button>
+              <Tooltip title="Hintergrund auswählen">
+                <Radio.Button value="openBaseLayerView">
+                  <FontAwesomeIcon id="openBaseLayerView" icon={faLayerGroup} />
+                </Radio.Button>
+              </Tooltip>
             </Radio.Group>
           )}
         </div>
 
-        <Button
-          onClick={() => {
-            setAppMenuVisible(true);
-          }}
-          ref={modalMenuTourRef}
-          data-test-id="modal-menu-btn"
-        >
-          <FontAwesomeIcon icon={faBars} />
-        </Button>
+        <Tooltip title="Kompaktanleitung öffnen">
+          <Button
+            onClick={() => {
+              setAppMenuVisible(true);
+            }}
+            ref={modalMenuTourRef}
+            data-test-id="modal-menu-btn"
+          >
+            <FontAwesomeIcon icon={faBars} />
+          </Button>
+        </Tooltip>
       </div>
     </div>
   );
