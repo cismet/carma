@@ -14,8 +14,6 @@ import {
   getSelectedMapLayer,
   setLayers,
 } from "../../store/slices/mapping";
-import AerialLayerSelection from "./AerialLayerSelection";
-import BaseLayerSelection from "./BaseLayerSelection";
 import LayerRow from "./LayerRow";
 import "./text.css";
 
@@ -56,13 +54,6 @@ const BaseLayerInfo = () => {
 
   return (
     <div className="flex flex-col gap-1 overflow-y-hidden h-full">
-      <div className="flex flex-col gap-2 pb-4">
-        <div className="w-full flex last:rounded-s-md first:rounded-s-md">
-          <BaseLayerSelection />
-          <AerialLayerSelection />
-        </div>
-      </div>
-
       <hr className="h-px my-0 bg-gray-300 border-0 w-full" />
 
       <div className="flex flex-col h-full overflow-auto gap-2">

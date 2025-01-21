@@ -47,6 +47,8 @@ import {
 import { iconColorMap, iconMap } from "./items";
 import LayerInfo from "./LayerInfo";
 import BaseLayerInfo from "./BaseLayerInfo";
+import BaseLayerSelection from "./BaseLayerSelection";
+import AerialLayerSelection from "./AerialLayerSelection";
 
 type Ref = HTMLDivElement;
 
@@ -181,7 +183,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
           }}
           className={cn(
             `bg-white rounded-[10px] 2xl:w-1/2 w-5/6 flex flex-col relative px-10 gap-2 py-2 transition-all duration-300`,
-            showInfo ? "h-[600px]" : "h-12"
+            showInfo ? "h-[600px]" : isBaseLayer ? "h-fit" : "h-12"
           )}
           onMouseEnter={() => {
             routedMapRef?.leafletMap?.leafletElement.dragging.disable();
@@ -269,7 +271,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
                 dispatch(setUIShowInfo(!showInfo));
                 setTimeout(
                   () => dispatch(setUIShowInfoText(!showInfoText)),
-                  showInfoText ? 0 : 80
+                  showInfoText || isBaseLayer ? 0 : 80
                 );
               }}
               className="relative fa-stack"
@@ -287,6 +289,15 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
               )}
             </button>
           </div>
+
+          {isBaseLayer && (
+            <div className="flex flex-col gap-2 pb-4">
+              <div className="w-full flex last:rounded-s-md first:rounded-s-md">
+                <BaseLayerSelection />
+                <AerialLayerSelection />
+              </div>
+            </div>
+          )}
 
           {showInfoText &&
             (isBaseLayer ? (
