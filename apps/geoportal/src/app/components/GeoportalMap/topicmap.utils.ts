@@ -53,7 +53,9 @@ interface WMTSLayerProps {
   opacity: string | number;
   tiled: boolean;
   transparent: string;
-  pane: string;
+  pane?: string;
+  additionalLayerUniquePane?: string;
+  additionalLayersFreeZOrder?: number;
 }
 
 interface VectorLayerProps {
@@ -61,7 +63,9 @@ interface VectorLayerProps {
   key: string;
   style: CSSProperties | string;
   maxZoom: number;
-  pane: string;
+  pane?: string;
+  additionalLayerUniquePane?: string;
+  additionalLayersFreeZOrder?: number;
   opacity: number | string;
   selectionEnabled?: boolean;
   manualSelectionManagement?: boolean;
@@ -535,23 +539,25 @@ export const createCismapLayers = (
       switch (layer.layerType) {
         case "wmts":
           return createCismapLayer({
-            key: `${i}_${layer.id}`,
+            key: `${layer.id}`,
             url: layer.props.url,
             maxZoom: MAX_ZOOM,
             layers: layer.props.name,
             format: "image/png",
             tiled: true,
             transparent: "true",
-            pane: `additionalLayers${i + 1}`,
+            additionalLayerUniquePane: layer.id,
+            additionalLayersFreeZOrder: i,
             opacity: layer.opacity.toFixed(1) || 0.7,
             type: "wmts",
           });
         case "vector":
           return createCismapLayer({
-            key: `${i}_${layer.id}`,
+            key: `${layer.id}`,
             style: layer.props.style,
             maxZoom: MAX_ZOOM,
-            pane: `additionalLayers${i + 1}`,
+            additionalLayerUniquePane: layer.id,
+            additionalLayersFreeZOrder: i,
             opacity: layer.opacity === 0 ? "0" : layer.opacity || 0.7,
             type: "vector",
             selectionEnabled: true,

@@ -420,10 +420,8 @@ export const GeoportalMap = () => {
   lastRenderTimeStampRef.current = Date.now();
 
   useEffect(() => {
-    if (isModeFeatureInfo && pos) {
-      setTimeout(() => {
-        updateFeatureInfo();
-      }, 400);
+    if (isModeFeatureInfo && pos && layers.length > numOfLayers) {
+      updateFeatureInfo();
     }
     setNumOfLayers(layers.length);
   }, [layers]);
