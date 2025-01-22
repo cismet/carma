@@ -548,7 +548,7 @@ export const createCismapLayers = (
           });
         case "vector":
           return createCismapLayer({
-            key: `${i}_${layer.id}_${layer.opacity}`,
+            key: `${i}_${layer.id}`,
             style: layer.props.style,
             maxZoom: MAX_ZOOM,
             pane: `additionalLayers${i + 1}`,
