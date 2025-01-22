@@ -17,6 +17,7 @@ export const useHGKCesiumTerrain = (
   useEffect(() => {
     const useHws = isHWS && selectedSimulation !== 2;
     const hqKey = HGK_KEYS[selectedSimulation][useHws ? "hws" : "noHws"];
+    /*
     console.info(
       "hqKey changed",
       hqKey,
@@ -24,6 +25,7 @@ export const useHGKCesiumTerrain = (
       useHws,
       HGK_TERRAIN_PROVIDER_URLS[hqKey]
     );
+    */
     if (hqKey) {
       (async () => {
         if (!hgkTerrainProviders[hqKey]) {
@@ -44,12 +46,14 @@ export const useHGKCesiumTerrain = (
           const viewer = viewerRef.current;
           setTimeout(() => {
             // overwrite default terrain provider
+            /*
             console.debug(
               "set HGK terrain provider for",
               hqKey,
               isHWS,
               provider
             );
+            */
             viewer.scene.terrainProvider = provider;
             viewer.scene.requestRender();
           }, 500);

@@ -20,8 +20,6 @@ export default function NotesDisplay() {
         featureClickHandler={(e) => {
           // e.originalEvent.stopImmediatePropagation();
           if (hinweisShownRef.current === false) {
-            console.log("e.target.feature.properties", e);
-
             notification.info({
               style: { width: 440, marginTop: 30, marginRight: -13 },
               duration: 15,
