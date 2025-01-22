@@ -3,6 +3,7 @@ import bboxPolygon from "@turf/bbox-polygon";
 import booleanDisjoint from "@turf/boolean-disjoint";
 import { getAEVByNr, getAEVsByNrs } from "./aenderungsverfahren";
 import { setFeatureCollection, setSelectedFeatureIndex } from "./mapping";
+import { md5FetchJSON } from "react-cismap/tools/fetching";
 
 const initialState = {
   data: undefined,
@@ -21,29 +22,42 @@ const slice = createSlice({
 
 export const loadHauptnutzungen = () => {
   return async (dispatch: any) => {
-    fetch("https://wunda-geoportal.cismet.de/data/hauptnutzungen.data.json")
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Network response was not ok");
-        }
-        return response.json();
-      })
-      .then((result) => {
-        let features: any = [];
-        let counter = 0;
-        for (let item of result) {
-          let itemFeature = convertHauptnutzungToFeature(item, counter);
-          features.push(itemFeature);
-          counter++;
-        }
-        dispatch(setData(features));
-      })
-      .catch((error) => {
-        console.error(
-          "There was a problem with the fetch operation:",
-          error.message
-        );
-      });
+    const results = md5FetchJSON(
+      "hauptnutzungen",
+      "https://wunda-geoportal.cismet.de/data/hauptnutzungen.data.json"
+    );
+    let features: any = [];
+    let counter = 0;
+    for (let item of results) {
+      let itemFeature = convertHauptnutzungToFeature(item, counter);
+      features.push(itemFeature);
+      counter++;
+    }
+    dispatch(setData(features));
+
+    // fetch("https://wunda-geoportal.cismet.de/data/hauptnutzungen.data.json")
+    //   .then((response) => {
+    //     if (!response.ok) {
+    //       throw new Error("Network response was not ok");
+    //     }
+    //     return response.json();
+    //   })
+    //   .then((result) => {
+    //     let features: any = [];
+    //     let counter = 0;
+    //     for (let item of result) {
+    //       let itemFeature = convertHauptnutzungToFeature(item, counter);
+    //       features.push(itemFeature);
+    //       counter++;
+    //     }
+    //     dispatch(setData(features));
+    //   })
+    //   .catch((error) => {
+    //     console.error(
+    //       "There was a problem with the fetch operation:",
+    //       error.message
+    //     );
+    //   });
   };
 };
 

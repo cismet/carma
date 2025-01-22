@@ -61,9 +61,9 @@ const DocMap = ({
 
   const getLayer = async () => {
     try {
-      const meta = docs[index - 1].meta;
+      const meta = docs[index - 1]?.meta;
 
-      let layerUrl = docs[index - 1].layer;
+      let layerUrl = docs[index - 1]?.layer;
 
       if (meta) {
         // @ts-expect-error legacy codebase exception
@@ -131,7 +131,7 @@ const DocMap = ({
   };
 
   const getOptimalBounds = (forDimension?: string) => {
-    const meta = docs[index - 1].meta;
+    const meta = docs[index - 1]?.meta;
     const pageNumber = parseInt(page!);
     let dimensions;
 
@@ -319,7 +319,7 @@ const DocMap = ({
               padding: "5px",
             }}
           >
-            {docs[index - 1].file}
+            {docs[index - 1]?.file}
           </p>
         </div>
       </div>

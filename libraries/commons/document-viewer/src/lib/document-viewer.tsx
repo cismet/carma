@@ -143,7 +143,7 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
         }}
       >
         <Navbar
-          title={docs[0]?.title || docs[0].docTitle}
+          title={docs[0]?.title || docs[0]?.docTitle || "Dokumentenansicht"}
           maxIndex={pages}
           downloadUrl={docs[parseInt(file!) - 1]?.url}
           docs={docs}
@@ -208,7 +208,7 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
           }}
           ref={mapWrapperRef}
         >
-          {problemWithDocPreviewAlert}
+          {docs.length > 1 && problemWithDocPreviewAlert}
           <DocMap
             docs={docs}
             index={parseInt(file!)}
