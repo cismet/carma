@@ -24,6 +24,10 @@ const router = createHashRouter(
       element: <App />,
     },
     {
+      path: "/docs/static/:docPackageId?/:file?/:page?",
+      element: <App />,
+    },
+    {
       path: "/:mode?",
       element: <Map />,
     },

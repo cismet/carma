@@ -10,12 +10,17 @@ import {
   loadAEVs,
   searchForAEVs,
 } from "../store/slices/aenderungsverfahren";
-import { useParams } from "react-router-dom";
-import { getDocsForAEVGazetteerEntry } from "../utils/DocsHelper";
+import { useLocation, useParams } from "react-router-dom";
+import {
+  getDocsForAEVGazetteerEntry,
+  getDocsForStaticEntry,
+} from "../utils/DocsHelper";
 import type { UnknownAction } from "redux";
 
 export function App() {
   const dispatch = useDispatch();
+  const location = useLocation();
+  const { pathname } = location;
   let { docPackageId } = useParams();
   const [docs, setDocs] = useState<Doc[]>([]);
 
@@ -54,17 +59,30 @@ export function App() {
       setDocs(updatedDocs);
     };
 
+    const getStaticDocs = async () => {
+      const staticDocs = await getDocsForStaticEntry({
+        docPackageIdParam: docPackageId,
+      });
+      getUpdatedDocs(staticDocs);
+    };
+
     if (docPackageId) {
       let tmpDocs;
-      tmpDocs = getDocsForAEVGazetteerEntry({
-        gazHit: { type: "aenderungsv", more: { v: docPackageId } },
-        searchForAEVs: (aevs, done) =>
-          dispatch(
-            getAEVFeatureByGazObject(aevs, done) as unknown as UnknownAction
-          ),
-      });
+
+      if (pathname.includes("static")) {
+        getStaticDocs();
+      } else {
+        tmpDocs = getDocsForAEVGazetteerEntry({
+          gazHit: { type: "aenderungsv", more: { v: docPackageId } },
+          searchForAEVs: (aevs, done) =>
+            dispatch(
+              getAEVFeatureByGazObject(aevs, done) as unknown as UnknownAction
+            ),
+        });
+      }
 
       if (tmpDocs) {
+        console.log("tmpDocs", tmpDocs);
         getUpdatedDocs(tmpDocs);
       }
     }

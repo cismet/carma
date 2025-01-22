@@ -12,7 +12,7 @@ const EmptyAEVInfo = () => {
   let divWhenLarge = (
     <div>
       <a
-        href={`/#/docs/static/FNP.Legende.und.Dokumente`}
+        href={`/#/docs/static/FNP.Legende.und.Dokumente/1/1/`}
         target="_fnp"
         style={{ color: "#333", float: "right", paddingLeft: "15px" }}
       >

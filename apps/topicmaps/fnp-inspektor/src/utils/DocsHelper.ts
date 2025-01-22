@@ -112,3 +112,43 @@ export function getDocsForAEVGazetteerEntry(props: any) {
 
   return docs;
 }
+
+export async function getDocsForStaticEntry(props) {
+  let { docPackageIdParam } = props;
+  let title = "-";
+
+  let urlToGetDocsFrom =
+    tileservice + "/static/docs/" + docPackageIdParam + ".json";
+  console.log("urlToGetDocsFrom", urlToGetDocsFrom);
+
+  const response = await fetch(urlToGetDocsFrom, {
+    method: "get",
+    headers: {
+      "Content-Type": "text/plain; charset=UTF-8",
+    },
+  });
+
+  const result = await response.json();
+  title = result.title;
+  let docs = result.docs;
+  for (let d of docs) {
+    if (d.tilebase === undefined && result.tilereplacementrule !== undefined) {
+      d.tilebase = d.url.replace(
+        result.tilereplacementrule[0],
+        result.tilereplacementrule[1]
+      );
+    }
+    if (d.layer === undefined) {
+      d.layer = d.tilebase + "/{z}/{x}/{y}.png";
+    }
+    if (d.meta === undefined) {
+      d.meta = d.tilebase + "/meta.json";
+    }
+
+    if (d.file === undefined) {
+      d.file = d.url.substring(d.url.lastIndexOf("/") + 1);
+    }
+  }
+
+  return docs;
+}
