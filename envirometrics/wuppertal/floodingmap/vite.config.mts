@@ -2,7 +2,11 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
+import { viteStaticCopy } from "vite-plugin-static-copy";
 import path from 'path';
+
+const CESIUM_PATHNAME = "__cesium__";
+
 export default defineConfig({
   root: __dirname,
   cacheDir: '../../../node_modules/.vite/envirometrics/wuppertal/floodingmap',
@@ -23,7 +27,18 @@ export default defineConfig({
     host: 'localhost',
   },
 
-  plugins: [react(), nxViteTsPaths()],
+  plugins: [
+    react(),
+     nxViteTsPaths(),
+     viteStaticCopy({
+    targets: [
+      {
+        src: "../../../node_modules/cesium/Build/Cesium/*",
+        dest: CESIUM_PATHNAME,
+      },
+    ],
+    silent: false,
+  }),],
 
   // Uncomment this if you are using workers.
   // worker: {
