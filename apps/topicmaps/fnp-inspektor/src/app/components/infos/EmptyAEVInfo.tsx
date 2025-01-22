@@ -9,10 +9,12 @@ const EmptyAEVInfo = () => {
   const { setAppMenuVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
 
+  const baseUrl = window.location.origin + window.location.pathname;
+
   let divWhenLarge = (
     <div>
       <a
-        href={`/#/docs/static/FNP.Legende.und.Dokumente/1/1/`}
+        href={`${baseUrl}#/docs/static/FNP.Legende.und.Dokumente/1/1/`}
         target="_fnp"
         style={{ color: "#333", float: "right", paddingLeft: "15px" }}
       >
@@ -75,7 +77,7 @@ const EmptyAEVInfo = () => {
               }}
             >
               <a
-                href={`/#/docs/static/FNP.Legende.und.Dokumente`}
+                href={`${baseUrl}#/docs/static/FNP.Legende.und.Dokumente/1/1/`}
                 target="_fnp"
                 style={{ color: "#333" }}
               >
