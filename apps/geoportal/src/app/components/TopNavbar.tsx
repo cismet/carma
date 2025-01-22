@@ -84,8 +84,8 @@ const TopNavbar = () => {
                 e.stopPropagation();
                 if (e.target.value === "openBaseLayerView") {
                   dispatch(setSelectedLayerIndex(-1));
-                  dispatch(setUIShowInfo(true));
-                  dispatch(setUIShowInfoText(true));
+                  dispatch(setUIShowInfo(false));
+                  dispatch(setUIShowInfoText(false));
                 } else if (e.target.value === "karte") {
                   dispatch(
                     setBackgroundLayer({
