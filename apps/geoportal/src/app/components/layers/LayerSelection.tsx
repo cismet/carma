@@ -6,7 +6,7 @@ import {
   setBackgroundLayer,
 } from "../../store/slices/mapping";
 
-interface LayerSelectionProps {
+interface LayerSelectionProps extends React.HTMLAttributes<HTMLButtonElement> {
   id: string;
   selectedLayer: BackgroundLayer;
   title: string;
@@ -18,6 +18,7 @@ const LayerSelection = ({
   selectedLayer,
   title,
   children,
+  ...props
 }: LayerSelectionProps) => {
   const dispatch = useDispatch();
 
@@ -37,6 +38,7 @@ const LayerSelection = ({
         "w-full group border-[1px] rounded-s-md",
         backgroundLayer.id === id && "border-[#1677ff]"
       )}
+      {...props}
     >
       <div className="w-full flex flex-col text-[14px]/[30px] items-center justify-center gap-3">
         <p

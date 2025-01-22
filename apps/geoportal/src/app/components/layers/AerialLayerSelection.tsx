@@ -8,8 +8,10 @@ import {
 import { Radio } from "antd";
 import { layerMap } from "../../config";
 import LayerSelection from "./LayerSelection";
+import { useState } from "react";
 
 const AerialLayerSelection = () => {
+  const [hovered, setHovered] = useState(false);
   const dispatch = useDispatch();
 
   const selectedLuftbildLayer = useSelector(getSelectedLuftbildLayer);
@@ -42,6 +44,12 @@ const AerialLayerSelection = () => {
       id="luftbild"
       title="Luftbild"
       selectedLayer={{ ...selectedLuftbildLayer, id: "luftbild" }}
+      onMouseEnter={() => {
+        setHovered(true);
+      }}
+      onMouseLeave={() => {
+        setHovered(false);
+      }}
     >
       <Radio.Group
         value={selectedLuftbildLayer.id}
@@ -85,7 +93,8 @@ const AerialLayerSelection = () => {
         className="pb-2"
         optionType="default"
         style={{
-          filter: backgroundLayer.id !== "luftbild" ? "saturate(0)" : "",
+          filter:
+            backgroundLayer.id !== "luftbild" && !hovered ? "saturate(0)" : "",
         }}
       >
         <Radio onClick={handleRadioClick} value="luftbild">

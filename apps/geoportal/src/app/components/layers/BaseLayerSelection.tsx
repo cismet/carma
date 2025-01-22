@@ -8,9 +8,12 @@ import {
 import { Radio } from "antd";
 import { layerMap } from "../../config";
 import LayerSelection from "./LayerSelection";
+import { useState } from "react";
 
 const BaseLayerSelection = () => {
+  const [hovered, setHovered] = useState(false);
   const dispatch = useDispatch();
+
   const selectedMapLayer = useSelector(getSelectedMapLayer);
   const backgroundLayer = useSelector(getBackgroundLayer);
 
@@ -41,6 +44,12 @@ const BaseLayerSelection = () => {
       id="karte"
       title="Karte"
       selectedLayer={{ ...selectedMapLayer, id: "karte" }}
+      onMouseEnter={() => {
+        setHovered(true);
+      }}
+      onMouseLeave={() => {
+        setHovered(false);
+      }}
     >
       <Radio.Group
         value={selectedMapLayer.id}
@@ -83,7 +92,10 @@ const BaseLayerSelection = () => {
         }}
         className="pb-2"
         optionType="default"
-        style={{ filter: backgroundLayer.id !== "karte" ? "saturate(0)" : "" }}
+        style={{
+          filter:
+            backgroundLayer.id !== "karte" && !hovered ? "saturate(0)" : "",
+        }}
       >
         <Radio onClick={handleRadioClick} value="stadtplan">
           Stadtplan
