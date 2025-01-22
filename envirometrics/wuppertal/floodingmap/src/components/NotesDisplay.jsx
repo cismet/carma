@@ -2,7 +2,7 @@ import { notification } from "antd";
 import { useContext, useEffect, useRef, useState } from "react";
 import ProjGeoJson from "react-cismap/ProjGeoJson";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
-import verwallungBuchenhofen from "./assets/verwallung_buchenhofen.jpg";
+import verwallungBuchenhofen from "../assets/verwallung_buchenhofen.jpg";
 import "./notification.css";
 
 export default function NotesDisplay() {
@@ -20,8 +20,6 @@ export default function NotesDisplay() {
         featureClickHandler={(e) => {
           // e.originalEvent.stopImmediatePropagation();
           if (hinweisShownRef.current === false) {
-            console.log("e.target.feature.properties", e);
-
             notification.info({
               style: { width: 440, marginTop: 30, marginRight: -13 },
               duration: 15,

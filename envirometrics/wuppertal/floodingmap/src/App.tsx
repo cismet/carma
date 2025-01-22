@@ -118,7 +118,7 @@ function App({ sync = false }: { sync?: boolean }) {
 
   const onGazetteerSelection = (selection: SearchResultItem | null) => {
     if (!selection) {
-      console.debug("onGazetteerSelection", selection);
+      //console.debug("onGazetteerSelection", selection);
       setSelection(null);
       return;
     }
@@ -132,7 +132,7 @@ function App({ sync = false }: { sync?: boolean }) {
 
   const homeControlLeaflet = () => {
     if (homeCenter && routedMap?.leafletMap?.leafletElement) {
-      console.debug("topicMapHomeClick", homeCenter, homePosition);
+      //console.debug("topicMapHomeClick", homeCenter, homePosition);
       routedMap.leafletMap.leafletElement.flyTo(homeCenter, HOME_ZOOM);
     }
   };
@@ -199,7 +199,7 @@ function App({ sync = false }: { sync?: boolean }) {
     />
   );
 
-  console.debug("RENDER: HGK App");
+  //console.debug("RENDER: HGK App");
 
   return (
     <>

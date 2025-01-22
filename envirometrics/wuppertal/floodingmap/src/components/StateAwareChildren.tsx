@@ -166,12 +166,14 @@ export const StateAwareChildren = () => {
       (!prevPositionRef.current ||
         !isNumberArrayEqual(prevPositionRef.current, cesiumPickedPosition))
     ) {
+      /*
       console.debug(
         "cesium picked position changed",
         controlState,
         cesiumPickedPosition,
         executeFeatureInfoRequest
       );
+      */
       prevPositionRef.current = cesiumPickedPosition;
 
       executeFeatureInfoRequest({
@@ -188,7 +190,7 @@ export const StateAwareChildren = () => {
     HGK_TERRAIN_PROVIDER_URLS
   );
 
-  console.debug("RENDER: StateAwareChildren", controlState);
+  //console.debug("RENDER: StateAwareChildren", controlState);
 
   return (
     <>

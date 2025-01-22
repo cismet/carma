@@ -7,7 +7,7 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 export const TopicMapSelectionContent = () => {
   const { selection, overlayFeature } = useSelection();
 
-  console.debug("RENDER TopicMapSelectionContent", selection, overlayFeature);
+  //console.debug("RENDER TopicMapSelectionContent", selection, overlayFeature);
 
   const {
     routedMapRef: routedMap,
