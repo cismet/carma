@@ -138,12 +138,22 @@ const Navbar = ({
             navigate(`/docs/${docPackageId}/${file}/${currentPage - 1}`);
           } else {
             if (currentFile > 1) {
-              const previousFilePages = docs[currentFile - 2]?.meta.pages ?? 1;
+              const previousDoc = docs[currentFile - 2];
+              const previousFilePages =
+                typeof previousDoc?.meta !== "string" && previousDoc?.meta
+                  ? previousDoc.meta.pages ?? 1
+                  : 1;
+
               navigate(
                 `/docs/${docPackageId}/${currentFile - 1}/${previousFilePages}`
               );
             } else {
-              const lastFilePages = docs[docs.length - 1]?.meta.pages ?? 1;
+              const lastDoc = docs[docs.length - 1];
+              const lastFilePages =
+                typeof lastDoc?.meta !== "string" && lastDoc?.meta
+                  ? lastDoc.meta.pages ?? 1
+                  : 1;
+
               navigate(`/docs/${docPackageId}/${docs.length}/${lastFilePages}`);
             }
           }
@@ -229,16 +239,27 @@ const Navbar = ({
                       );
                     } else {
                       if (parseInt(file) > 1) {
+                        const previousDoc = docs[parseInt(file) - 1 - 1];
+                        const previousFilePages =
+                          typeof previousDoc.meta !== "string" &&
+                          previousDoc.meta
+                            ? previousDoc.meta.pages ?? 1
+                            : 1;
+
                         navigate(
-                          `/docs/${docPackageId}/${parseInt(file) - 1}/${
-                            docs[parseInt(file) - 1 - 1].meta.pages
-                          }`
+                          `/docs/${docPackageId}/${
+                            parseInt(file) - 1
+                          }/${previousFilePages}`
                         );
                       } else {
+                        const lastDoc = docs[docs.length - 1];
+                        const lastFilePages =
+                          typeof lastDoc.meta !== "string" && lastDoc.meta
+                            ? lastDoc.meta.pages ?? 1
+                            : 1;
+
                         navigate(
-                          `/docs/${docPackageId}/${docs.length}/${
-                            docs[docs.length - 1].meta.pages
-                          }`
+                          `/docs/${docPackageId}/${docs.length}/${lastFilePages}`
                         );
                       }
                     }
