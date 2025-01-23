@@ -2,7 +2,7 @@ import { createSlice } from "@reduxjs/toolkit";
 import bboxPolygon from "@turf/bbox-polygon";
 import booleanDisjoint from "@turf/boolean-disjoint";
 import { setFeatureCollection, setSelectedFeatureIndex } from "./mapping";
-import { md5FetchJSON } from "react-cismap/tools/fetching";
+import { md5FetchJSON } from "@carma-commons/utils/fetching";
 
 const initialState = {
   data: undefined,

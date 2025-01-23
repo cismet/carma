@@ -3,7 +3,7 @@ import bboxPolygon from "@turf/bbox-polygon";
 import booleanDisjoint from "@turf/boolean-disjoint";
 import { getAEVByNr, getAEVsByNrs } from "./aenderungsverfahren";
 import { setFeatureCollection, setSelectedFeatureIndex } from "./mapping";
-import { md5FetchJSON } from "react-cismap/tools/fetching";
+import { md5FetchJSON } from "@carma-commons/utils/fetching";
 
 const initialState = {
   data: undefined,
@@ -22,7 +22,7 @@ const slice = createSlice({
 
 export const loadHauptnutzungen = () => {
   return async (dispatch: any) => {
-    const results = md5FetchJSON(
+    const results = await md5FetchJSON(
       "hauptnutzungen",
       "https://wunda-geoportal.cismet.de/data/hauptnutzungen.data.json"
     );
