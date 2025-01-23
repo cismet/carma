@@ -584,7 +584,9 @@ export const NewLibModal = ({
         shownCategories,
         sidebarElements[selectedNavItemIndex].id
       ).map((category) => {
-        return category.Title;
+        if (category.layers.length > 0) {
+          return category.Title;
+        }
       });
 
       let items: HTMLElement[] = [];
