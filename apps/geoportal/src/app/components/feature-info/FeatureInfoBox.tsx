@@ -44,14 +44,14 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
 
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
-  if (secondaryInfoBoxElements.length > 3) {
+  if (secondaryInfoBoxElements.length > 4) {
     dispatch(setSecondaryInfoBoxElements([]));
     dispatch(
       setSelectedFeature({
         properties: {
           header: "Information",
           headerColor: "#0078a8",
-          title: "Es wurden mehr als 3 Ergebnisse gefunden",
+          title: `Es wurden ${secondaryInfoBoxElements.length} Ergebnisse gefunden`,
           additionalInfo: `Position: ${pos[0].toFixed(5)}, ${pos[1].toFixed(
             5
           )}`,
