@@ -6,7 +6,10 @@ const noCacheInit = {
   method: "GET",
   headers: noCacheHeaders,
 };
-export const md5FetchJSON = async (prefix: string, uri: string) => {
+export const md5FetchJSON = async <T>(
+  prefix: string,
+  uri: string
+): Promise<T[]> => {
   console.debug("uri to fetch", uri);
 
   try {
@@ -54,7 +57,10 @@ export const md5FetchJSON = async (prefix: string, uri: string) => {
     });
   }
 };
-export const cachedJSON = async (prefix: string, uri: string) => {
+export const cachedJSON = async <T>(
+  prefix: string,
+  uri: string
+): Promise<T> => {
   console.debug("uri to fetch from cache", uri);
 
   try {
@@ -72,12 +78,14 @@ export const cachedJSON = async (prefix: string, uri: string) => {
     });
   }
 };
-export const fetchJSON = async (uri: string) => {
+export const fetchJSON = async <T>(uri: string): Promise<T> => {
   const data = await (await fetch(uri)).json();
   return new Promise((resolve, reject) => {
     resolve(data);
   });
-}; // export const cachedBase64Image = async (prefix,uri) => {
+};
+
+// export const cachedBase64Image = async <T>(prefix: string, uri: string): Promise<T> => {
 // 	console.debug('uri to fetch from cache', uri);
 // 	let md5 = await (await fetch(uri + '.md5', noCacheInit)).text();
 // 	try {
@@ -94,7 +102,10 @@ export const fetchJSON = async (uri: string) => {
 // 	}
 // };
 
-export const md5FetchText = async (prefix: string, uri: string) => {
+export const md5FetchText = async (
+  prefix: string,
+  uri: string
+): Promise<string | null> => {
   console.debug("uri to fetch", uri);
 
   try {
@@ -139,13 +150,14 @@ export const md5FetchText = async (prefix: string, uri: string) => {
     });
   }
 };
-export const CACHE_JWT = "--cached--data--";
+export const CACHE_JWT: string = "--cached--data--";
+
 export const md5ActionFetchDAQ = async (
   prefix: string,
   apiUrl: string,
   jwt: string,
   daqKey: string
-) => {
+): Promise<{ data: unknown; time: string | null }> => {
   const cachePrefix = "@" + prefix + ".." + apiUrl + "." + daqKey;
   const md5Key = cachePrefix + ".md5";
   const dataKey = cachePrefix + ".data";
