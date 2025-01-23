@@ -1,4 +1,4 @@
-import { Viewer } from "cesium";
+import { Color, Viewer } from "cesium";
 import {
   WUPP_MESH_2024,
   WUPP_TERRAIN_PROVIDER,
@@ -38,3 +38,5 @@ export const CESIUM_CONFIG: CesiumConfig = {
     primary: WUPP_MESH_2024,
   },
 };
+
+export const WATER_CESIUM_COLOR = new Color(0.4, 0.4, 0.85, 0.7);
