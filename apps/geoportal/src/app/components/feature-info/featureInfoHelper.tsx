@@ -60,19 +60,24 @@ export const objectToFeature = (jsonOutput: any, code: string) => {
 };
 
 export const functionToFeature = (output: any, code: string) => {
-  let codeFunction = eval("(" + code + ")");
-  const tmpInfo = codeFunction(output);
+  try {
+    let codeFunction = eval("(" + code + ")");
+    const tmpInfo = codeFunction(output);
 
-  if (!tmpInfo) {
+    if (!tmpInfo) {
+      return undefined;
+    }
+
+    const properties = {
+      ...tmpInfo,
+      wmsProps: output,
+    };
+
+    return { properties };
+  } catch (error) {
+    console.log(error);
     return undefined;
   }
-
-  const properties = {
-    ...tmpInfo,
-    wmsProps: output,
-  };
-
-  return { properties };
 };
 
 export const createUrl = (baseUrl, pos, minimalBoxSize, layerName) => {

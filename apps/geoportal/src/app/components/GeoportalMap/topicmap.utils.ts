@@ -306,6 +306,9 @@ const createVectorFeature = (coordinates, layer, selectedVectorFeature) => {
       const featureProperties = result.includes("function")
         ? functionToFeature(properties, result)
         : objectToFeature(properties, result);
+      if (!featureProperties) {
+        return undefined;
+      }
       const genericLinks = featureProperties.properties.genericLinks || [];
 
       feature = {
