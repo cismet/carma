@@ -719,7 +719,7 @@ export const NewLibModal = ({
         </div>
 
         <div
-          className="w-full h-full flex flex-col bg-[#f2f2f2]"
+          className="w-[calc(100vw-160px)] h-full flex flex-col bg-[#f2f2f2]"
           style={{
             maxHeight: "calc(100vh - 200px)",
             minHeight: "calc(100vh - 200px)",
