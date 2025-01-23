@@ -20,6 +20,7 @@ import {
   getInfoText,
   getSecondaryInfoBoxElements,
   getSelectedFeature,
+  setSecondaryInfoBoxElements,
 } from "../../store/slices/features";
 import { getLayers } from "../../store/slices/mapping";
 import { getCoordinates } from "../GeoportalMap/topicmap.utils";
@@ -43,8 +44,32 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
 
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
+  if (secondaryInfoBoxElements.length > 3) {
+    dispatch(setSecondaryInfoBoxElements([]));
+    dispatch(
+      setSelectedFeature({
+        properties: {
+          header: "Information",
+          headerColor: "#0078a8",
+          title: "Es wurden mehr als 3 Ergebnisse gefunden",
+          additionalInfo: `Position: ${pos[0].toFixed(5)}, ${pos[1].toFixed(
+            5
+          )}`,
+          subtitle:
+            "Zoomstufe anpassen, um die Anzahl der Ergebnisse zu verringern",
+        },
+        id: "information",
+      })
+    );
+  }
+
   useEffect(() => {
-    if (pos && selectedFeature && selectedFeature.id !== "information") {
+    if (
+      pos &&
+      selectedFeature &&
+      selectedFeature.id !== "information" &&
+      secondaryInfoBoxElements.length <= 3
+    ) {
       const updatedLinks = updateUrlWithCoordinates(
         selectedFeature.properties.genericLinks,
         pos
