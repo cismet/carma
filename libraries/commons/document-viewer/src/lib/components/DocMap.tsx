@@ -296,6 +296,7 @@ const DocMap = ({
           <CismapLayer
             {...{
               type: "tiles",
+              pane: "backgroundLayers",
               url: layer.layerUrl,
               bounds: layer.layerBounds,
               minNativeZoom: 1,
