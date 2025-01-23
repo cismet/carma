@@ -9,6 +9,7 @@ import Icon from "react-cismap/commons/Icon";
 import { useNavigate, useParams } from "react-router-dom";
 import type { Doc } from "../document-viewer";
 import "./navItem.css";
+import { useEffect } from "react";
 
 interface NavProps {
   title?: string;
@@ -120,6 +121,74 @@ const Navbar = ({
     }
     prepareDownloadMultipleFiles(downloadConf);
   };
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      console.log("xxx keydown", event);
+
+      if (!page || !file) return;
+
+      const currentPage = parseInt(page, 10);
+      const currentFile = parseInt(file, 10);
+
+      switch (event.key) {
+        case "ArrowLeft":
+          // Decrement page or navigate to the last page of the previous document
+          if (currentPage > 1) {
+            navigate(`/docs/${docPackageId}/${file}/${currentPage - 1}`);
+          } else {
+            if (currentFile > 1) {
+              const previousFilePages = docs[currentFile - 2]?.meta.pages ?? 1;
+              navigate(
+                `/docs/${docPackageId}/${currentFile - 1}/${previousFilePages}`
+              );
+            } else {
+              const lastFilePages = docs[docs.length - 1]?.meta.pages ?? 1;
+              navigate(`/docs/${docPackageId}/${docs.length}/${lastFilePages}`);
+            }
+          }
+          break;
+
+        case "ArrowRight":
+          // Increment page or navigate to the first page of the next document
+          if (currentPage < maxIndex) {
+            navigate(`/docs/${docPackageId}/${file}/${currentPage + 1}`);
+          } else {
+            if (currentFile < docs.length) {
+              navigate(`/docs/${docPackageId}/${currentFile + 1}/1`);
+            } else {
+              navigate(`/docs/${docPackageId}/1/1`);
+            }
+          }
+          break;
+
+        case "ArrowUp":
+          // Navigate to the first page of the previous document
+          if (currentFile > 1) {
+            navigate(`/docs/${docPackageId}/${currentFile - 1}/1`);
+          } else {
+            navigate(`/docs/${docPackageId}/${docs.length}/1`);
+          }
+          break;
+
+        case "ArrowDown":
+          // Navigate to the first page of the next document
+          if (currentFile < docs.length) {
+            navigate(`/docs/${docPackageId}/${currentFile + 1}/1`);
+          } else {
+            navigate(`/docs/${docPackageId}/1/1`);
+          }
+          break;
+
+        default:
+          break;
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [navigate, docPackageId, file, page, docs, maxIndex]);
 
   return (
     <BootstrapNavbar
