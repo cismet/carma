@@ -118,7 +118,7 @@ export const md5FetchText = async (
 
       if (md5InCache !== null && md5InCache === md5) {
         console.debug("cache hit", prefix, uri);
-        const textStringInCache = await localforage.getItem(
+        const textStringInCache: string | null = await localforage.getItem(
           "@" + prefix + ".." + uri
         );
         return new Promise((resolve, reject) => {
@@ -142,7 +142,7 @@ export const md5FetchText = async (
     }
   } catch (e) {
     console.warn("md5 lookup error. try to server cache directly");
-    const textStringInCache = await localforage.getItem(
+    const textStringInCache: string | null = await localforage.getItem(
       "@" + prefix + ".." + uri
     );
     return new Promise((resolve, reject) => {
@@ -179,9 +179,11 @@ export const md5ActionFetchDAQ = async (
   );
 
   if (jwt === CACHE_JWT) {
-    const data = JSON.parse((await localforage.getItem(dataKey)) ?? ""); //go for result.time after the new version of the action is live
+    const data: string | null = JSON.parse(
+      (await localforage.getItem(dataKey)) ?? ""
+    ); //go for result.time after the new version of the action is live
 
-    const time = await localforage.getItem(timeKey);
+    const time: string | null = await localforage.getItem(timeKey);
     return new Promise((resolve, reject) => {
       resolve({
         data,
