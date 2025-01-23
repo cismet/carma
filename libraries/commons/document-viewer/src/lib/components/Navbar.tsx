@@ -161,10 +161,16 @@ const Navbar = ({
                     } else {
                       if (parseInt(file) > 1) {
                         navigate(
-                          `/docs/${docPackageId}/${parseInt(file) - 1}/1`
+                          `/docs/${docPackageId}/${parseInt(file) - 1}/${
+                            docs[parseInt(file) - 1 - 1].meta.pages
+                          }`
                         );
                       } else {
-                        navigate(`/docs/${docPackageId}/${docs.length}/1`);
+                        navigate(
+                          `/docs/${docPackageId}/${docs.length}/${
+                            docs[docs.length - 1].meta.pages
+                          }`
+                        );
                       }
                     }
                 }}
