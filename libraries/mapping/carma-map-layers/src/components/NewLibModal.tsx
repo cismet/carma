@@ -586,7 +586,10 @@ export const NewLibModal = ({
       setCurrentShownCategory(firstIdWithItems);
     }
 
-    const handleScroll = () => {
+    const handleScroll = (event) => {
+      let firstIdWithItems = "";
+      const scrollTop = event.target.scrollTop;
+
       const gridItemIDs = categoriesToShownLayers(
         shownCategories,
         sidebarElements[selectedNavItemIndex].id
@@ -602,6 +605,9 @@ export const NewLibModal = ({
         const item = document.getElementById(id);
         if (item) {
           items.push(item);
+          if (!firstIdWithItems) {
+            firstIdWithItems = id;
+          }
         }
       });
 
@@ -620,7 +626,11 @@ export const NewLibModal = ({
           }
         }
       });
-      setCurrentShownCategory(currentItemId);
+      if (scrollTop > 0) {
+        setCurrentShownCategory(currentItemId);
+      } else {
+        setCurrentShownCategory(firstIdWithItems);
+      }
     };
 
     const scrollContainer = document.getElementById("scrollContainer");
