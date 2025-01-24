@@ -240,6 +240,7 @@ jobs:
           # Ensure jq variables are passed correctly
           deploymentManual=$(echo "$config" | jq -r --arg project "$project_name" --arg branch "$branch" '.projects[$project].deployment.auto[$branch].repo // "null"')
           baseUrl=$(echo "$config" | jq -r --arg project "$project_name" --arg branch "$branch" '.projects[$project].deployment.auto[$branch].base // "null"')
+          additionalEnvs=$(echo "$config" | jq -r --arg project "$project_name" --arg branch "$branch" '.projects[$project].deployment.manual[$branch].pages.envs // [] | join(" ")')
           orgDeploy=$(echo "$config" | jq -r --arg project "$project_name" --arg branch "$branch" '.projects[$project].deployment.auto[$branch].pages.org // "null"')
           prjDeploy=$(echo "$config" | jq -r --arg project "$project_name" --arg branch "$branch" '.projects[$project].deployment.auto[$branch].pages.prj // "null"')
           projectPath=$(echo "$config" | jq -r --arg project "$project_name" '.projects[$project].projectPath // "null"')
@@ -289,6 +290,7 @@ jobs:
           echo "SRC_PATH=${srcPath}" >> $GITHUB_ENV
           echo "CONTAINER_IMAGE=${containerImage}" >> $GITHUB_ENV
           echo "TARGET=auto.${branch}" >> $GITHUB_ENV
+          echo "ADDITIONAL_ENVS=${additionalEnvs}" >> $GITHUB_ENV
 
         shell: bash
       - name: Create version.json if it doesn't exist
@@ -324,6 +326,7 @@ jobs:
           echo "CONTAINER_IMAGE: $CONTAINER_IMAGE"
           echo "TARGET: $TARGET"
           echo "VERSION: $VERSION"
+          echo "ADDITIONAL_ENVS: $ADDITIONAL_ENVS"
           echo -----------------------------------
       - name: Debug version.json
         run: |
@@ -357,7 +360,7 @@ jobs:
         run: npm install nx@19.5.4
       - name: Build project
         run: |
-          npx nx run ${{ matrix.project }}:build --configuration=production --base="${{ env.BASE_URL }}" --verbose --output-style=stream
+          ${{ env.ADDITIONAL_ENVS }} npx nx run ${{ matrix.project }}:build --configuration=production --base="${{ env.BASE_URL }}" --verbose --output-style=stream
         shell: bash
       - name: Deploy using GH Pages action
         if: env.EXTERNAL_REPO != 'null' && env.EXTERNAL_REPO != '' && env.EXTERNAL_REPO != 'null/null'
@@ -419,6 +422,7 @@ jobs:
           # Fetch properties dynamically based on the target (dev or live)
           deploymentManual=$(echo "$config" | jq -r --arg project "$project_name" --arg target "$target" '.projects[$project].deployment.manual[$target].repo // "null"')
           baseUrl=$(echo "$config" | jq -r --arg project "$project_name" --arg target "$target" '.projects[$project].deployment.manual[$target].base // "null"')
+          additionalEnvs=$(echo "$config" | jq -r --arg project "$project_name" --arg target "$target" '.projects[$project].deployment.manual[$target].pages.envs // [] | join(" ")')
           orgDeploy=$(echo "$config" | jq -r --arg project "$project_name" --arg target "$target" '.projects[$project].deployment.manual[$target].pages.org // "null"')
           prjDeploy=$(echo "$config" | jq -r --arg project "$project_name" --arg target "$target" '.projects[$project].deployment.manual[$target].pages.prj // "null"')
           projectPath=$(echo "$config" | jq -r --arg project "$project_name" '.projects[$project].projectPath')
@@ -461,6 +465,7 @@ jobs:
           echo "SRC_PATH=${srcPath}" >> $GITHUB_ENV
           echo "CONTAINER_IMAGE=${containerImage}" >> $GITHUB_ENV
           echo "TARGET=${target}" >> $GITHUB_ENV
+          echo "ADDITIONAL_ENVS=${additionalEnvs}" >> $GITHUB_ENV
 
         shell: bash
       - name: Create the version number
@@ -530,6 +535,7 @@ jobs:
           echo "CONTAINER_IMAGE: $CONTAINER_IMAGE"
           echo "TARGET: $TARGET"
           echo "VERSION: $VERSION"
+          echo "ADDITIONAL_ENVS: $ADDITIONAL_ENVS"
           echo -----------------------------------
       - name: Debug version.json
         run: |
@@ -563,7 +569,7 @@ jobs:
         run: npm install nx@19.5.4
       - name: Build project
         run: |
-          npx nx run ${{ github.event.inputs['project-name'] || github.event.client_payload['project-name'] }}:build --configuration=production --base="${{ env.BASE_URL }}"
+          ${{ env.ADDITIONAL_ENVS }} npx nx run ${{ github.event.inputs['project-name'] || github.event.client_payload['project-name'] }}:build --configuration=production --base="${{ env.BASE_URL }}"
         shell: bash
       - name: Deploy
         if: env.EXTERNAL_REPO != 'null' && env.EXTERNAL_REPO != '' && env.EXTERNAL_REPO != 'null/null'
@@ -650,6 +656,7 @@ jobs:
           # Fetch properties dynamically based on the target (dev or live)
           deploymentManual=$(echo "$config" | jq -r --arg project "$project_name" --arg target "$target" '.projects[$project].deployment.manual[$target].repo // "null"')
           baseUrl=$(echo "$config" | jq -r --arg project "$project_name" --arg target "$target" '.projects[$project].deployment.manual[$target].base // "null"')
+          additionalEnvs=$(echo "$config" | jq -r --arg project "$project_name" --arg target "$target" '.projects[$project].deployment.manual[$target].pages.envs // [] | join(" ")')
           orgDeploy=$(echo "$config" | jq -r --arg project "$project_name" --arg target "$target" '.projects[$project].deployment.manual[$target].pages.org // "null"')
           prjDeploy=$(echo "$config" | jq -r --arg project "$project_name" --arg target "$target" '.projects[$project].deployment.manual[$target].pages.prj // "null"')
           projectPath=$(echo "$config" | jq -r --arg project "$project_name" '.projects[$project].projectPath')
@@ -692,6 +699,7 @@ jobs:
           echo "SRC_PATH=${srcPath}" >> $GITHUB_ENV
           echo "CONTAINER_IMAGE=${containerImage}" >> $GITHUB_ENV
           echo "TARGET=${target}" >> $GITHUB_ENV
+          echo "ADDITIONAL_ENVS=${additionalEnvs}" >> $GITHUB_ENV
 
         shell: bash
 
@@ -763,6 +771,7 @@ jobs:
           echo "CONTAINER_IMAGE: $CONTAINER_IMAGE"
           echo "TARGET: $TARGET"
           echo "VERSION: $VERSION"
+          echo "ADDITIONAL_ENVS: $ADDITIONAL_ENVS"
           echo -----------------------------------
 
       - name: Debug version.json
@@ -802,7 +811,7 @@ jobs:
 
       - name: Build project
         run: |
-          npx nx run ${{ matrix.project }}:build --configuration=production --base="${{ env.BASE_URL }}"
+          ${{ env.ADDITIONAL_ENVS }} npx nx run ${{ matrix.project }}:build --configuration=production --base="${{ env.BASE_URL }}"
         shell: bash
 
       - name: Deploy

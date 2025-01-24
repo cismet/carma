@@ -141,13 +141,19 @@
           "dev": {
             "pages": {
               "org": "carma-dev-deployments",
-              "prj": "fnp-inspektor-wuppertal"
+              "prj": "fnp-inspektor-wuppertal",
+              "envs": [
+                "VITE_BPLAN_BASEURL=https://carma-dev-deployments.github.io/topicmaps-bplan-auskunft-wuppertal/"
+              ]
             }
           },
           "live": {
             "pages": {
               "org": "carma-dev-deployments",
-              "prj": "fnp-inspektor-wuppertal"
+              "prj": "fnp-inspektor-wuppertal",
+              "envs": [
+                "VITE_BPLAN_BASEURL=https://digital-twin-wuppertal-live.github.io/bplan-auskunft/"
+              ]
             }
           }
         },
@@ -155,7 +161,10 @@
           "dev": {
             "pages": {
               "org": "carma-dev-deployments",
-              "prj": "fnp-inspektor-wuppertal"
+              "prj": "fnp-inspektor-wuppertal",
+              "envs": [
+                "VITE_BPLAN_BASEURL=https://carma-dev-deployments.github.io/topicmaps-bplan-auskunft-wuppertal/"
+              ]
             }
           }
         }
