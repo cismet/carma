@@ -362,17 +362,6 @@ const LayerItem = ({
             >
               {title}
             </h3>
-
-            <div className="flex flex-col gap-2">
-              {keywords &&
-                extractVectorStyles(keywords)?.vectorStyle &&
-                !forceWMS && (
-                  <FontAwesomeIcon
-                    icon={faRocket}
-                    className="text-xl pt-1 cursor-pointer text-gray-700 z-50"
-                  />
-                )}
-            </div>
           </div>
           {canShowInfo && (
             <FontAwesomeIcon
