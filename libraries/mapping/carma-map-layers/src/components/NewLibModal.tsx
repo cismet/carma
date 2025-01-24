@@ -566,17 +566,24 @@ export const NewLibModal = ({
 
   useEffect(() => {
     if (shownCategories) {
-      const sidebarId = sidebarElements[selectedNavItemIndex].id;
-      shownCategories.forEach((category) => {
-        if (category.id === sidebarId) {
-          category.categories.some((subCategory) => {
-            if (subCategory.layers.length > 0) {
-              setCurrentShownCategory(subCategory.Title);
-              return true;
-            }
-          });
+      let firstIdWithItems = "";
+
+      const gridItemIDs = categoriesToShownLayers(
+        shownCategories,
+        sidebarElements[selectedNavItemIndex].id
+      )?.map((category) => {
+        if (category.layers.length > 0) {
+          return category.Title;
         }
       });
+
+      gridItemIDs?.forEach((id) => {
+        if (id && !firstIdWithItems) {
+          firstIdWithItems = id;
+        }
+      });
+
+      setCurrentShownCategory(firstIdWithItems);
     }
 
     const handleScroll = () => {
