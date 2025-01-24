@@ -112,9 +112,9 @@ export const NewLibModal = ({
     if (value) {
       const results = fuse.search(value);
 
-      const testTmp = JSON.parse(JSON.stringify(tmpAllCategories));
+      const copiedCategories = JSON.parse(JSON.stringify(tmpAllCategories));
 
-      const testCategories = testTmp.map((category) => {
+      const categoriesWithResults = copiedCategories.map((category) => {
         category.categories.map((tmp) => {
           const newLayers: any[] = [];
           results.forEach((result) => {
@@ -135,7 +135,7 @@ export const NewLibModal = ({
         return category;
       });
 
-      setShownCategories(testCategories);
+      setShownCategories(categoriesWithResults);
     } else {
       if (tmpAllCategories.length > 0) {
         setShownCategories(tmpAllCategories);
@@ -336,41 +336,41 @@ export const NewLibModal = ({
   }, [debouncedSearchTerm]);
 
   useEffect(() => {
-    if (!searchValue) {
-      setLayers(allLayers);
+    setLayers(allLayers);
 
-      setTmpAllCategories((prev) => {
-        if (prev.find((item) => item.id === "mapLayers")) {
-          prev.splice(
-            prev.findIndex((item) => item.id === "mapLayers"),
-            1
-          );
-        }
-        return [
-          ...prev,
-          {
-            id: "mapLayers",
-            categories: allLayers,
-          },
-        ];
-      });
+    setTmpAllCategories((prev) => {
+      if (prev.find((item) => item.id === "mapLayers")) {
+        prev.splice(
+          prev.findIndex((item) => item.id === "mapLayers"),
+          1
+        );
+      }
+      return [
+        ...prev,
+        {
+          id: "mapLayers",
+          categories: allLayers,
+        },
+      ];
+    });
 
-      setShownCategories((prev) => {
-        if (prev.find((item) => item.id === "mapLayers")) {
-          prev.splice(
-            prev.findIndex((item) => item.id === "mapLayers"),
-            1
-          );
-        }
-        return [
-          ...prev,
-          {
-            id: "mapLayers",
-            categories: allLayers,
-          },
-        ];
-      });
-    } else {
+    setShownCategories((prev) => {
+      if (prev.find((item) => item.id === "mapLayers")) {
+        prev.splice(
+          prev.findIndex((item) => item.id === "mapLayers"),
+          1
+        );
+      }
+      return [
+        ...prev,
+        {
+          id: "mapLayers",
+          categories: allLayers,
+        },
+      ];
+    });
+
+    if (searchValue) {
       search(debouncedSearchTerm);
     }
   }, [allLayers]);
