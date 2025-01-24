@@ -88,10 +88,15 @@ const Map = () => {
   }, [mode]);
 
   let info;
-
+  let showAEVButton = (
+    <ShowAEVModeButton
+      searchParams={searchParams}
+      setSearchParams={setSearchParams}
+    />
+  );
   if (features.length > 0 && (aevVisible || mapMode.mode === "arbeitskarte")) {
     if (mapMode.mode === "rechtsplan") {
-      info = <AEVInfo />;
+      info = <AEVInfo secondaryInfoBoxElements={[showAEVButton]} />;
     } else if (mapMode.mode === "arbeitskarte") {
       if (features[selectedFeatureIndex].properties.os !== "9999") {
         info = <HNInfo />;
@@ -101,7 +106,7 @@ const Map = () => {
     }
   } else {
     if (mapMode.mode === "rechtsplan") {
-      info = <EmptyAEVInfo />;
+      info = <EmptyAEVInfo secondaryInfoBoxElements={[showAEVButton]} />;
     } else if (mapMode.mode === "arbeitskarte") {
       info = <EmptyHNInfo />;
     }
@@ -365,7 +370,7 @@ const Map = () => {
           updateWhenIdle={false}
           position="bottomleft"
         />
-        {mapMode.mode === "rechtsplan" && <ShowAEVModeButton />}
+
         <FeatureCollectionDisplayWithTooltipLabels
           key={`map_` + JSON.stringify(features[0])}
           featureCollection={features}

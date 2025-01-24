@@ -14,7 +14,7 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useContext } from "react";
 import Color from "color";
 
-const AEVInfo = () => {
+const AEVInfo = ({ secondaryInfoBoxElements }) => {
   const features = useSelector(getFeatureCollection);
   const selectedFeatureIndex = useSelector(getSelectedFeatureIndex);
   const currentFeature = features[selectedFeatureIndex];
@@ -287,6 +287,7 @@ const AEVInfo = () => {
       mode={MODES.AB}
       divWhenLarge={divWhenLarge}
       divWhenCollapsed={divWhenCollapsed}
+      secondaryInfoBoxElements={secondaryInfoBoxElements}
     ></ResponsiveInfoBox>
   );
 };

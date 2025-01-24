@@ -5,7 +5,7 @@ import Icon from "react-cismap/commons/Icon";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 import { useContext } from "react";
 
-const EmptyAEVInfo = () => {
+const EmptyAEVInfo = ({ secondaryInfoBoxElements }) => {
   const { setAppMenuVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
 
@@ -104,6 +104,7 @@ const EmptyAEVInfo = () => {
       mode={MODES.AB}
       divWhenLarge={divWhenLarge}
       divWhenCollapsed={divWhenCollapsed}
+      secondaryInfoBoxElements={secondaryInfoBoxElements}
     ></ResponsiveInfoBox>
   );
 };

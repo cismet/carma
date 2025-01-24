@@ -4,8 +4,7 @@ import { Button } from "react-bootstrap";
 import "./button.css";
 import { useSearchParams } from "react-router-dom";
 
-const ShowAEVModeButton = () => {
-  let [searchParams, setSearchParams] = useSearchParams();
+const ShowAEVModeButton = ({ searchParams, setSearchParams }) => {
   let aevVisible = searchParams.get("aevVisible") !== null;
   const setAevVisible = (visible) => {
     if (visible && !aevVisible) {
@@ -23,9 +22,6 @@ const ShowAEVModeButton = () => {
         marginBottom: 5,
         textAlign: "right",
         pointerEvents: "auto",
-        position: "absolute",
-        right: 10,
-        bottom: 170,
         zIndex: 99999,
       }}
     >
