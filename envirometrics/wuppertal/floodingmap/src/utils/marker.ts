@@ -10,13 +10,13 @@ import {
   Viewer,
 } from "cesium";
 import { debounce } from "lodash";
+import { FEATUREINFO_MARKER_HIGHLIGHT_MIN_SHOW_DISTANCE } from "../config/cesium/cesium.config";
 
 const interval = 0.1; // 10 cm
 const rodHeight = 2.0;
 const rodWidth = 0.3;
 const repeats = Math.floor(rodHeight / interval);
 
-const MIN_SHOW_DISTANCE = 120;
 const MAX_HIGHLIGHT_WIDTH = 8;
 const HIGHLIGHT_HEIGHT = 5000;
 
@@ -92,7 +92,7 @@ export const updateMarkerPosition = (
     viewer,
     position,
     MAX_HIGHLIGHT_WIDTH,
-    MIN_SHOW_DISTANCE
+    FEATUREINFO_MARKER_HIGHLIGHT_MIN_SHOW_DISTANCE
   );
 
   const highlight = viewer.entities.add({
