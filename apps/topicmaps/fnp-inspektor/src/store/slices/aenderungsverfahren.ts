@@ -138,7 +138,7 @@ export function searchForAEVs({
       }
 
       let hit = state.aev.data.find((elem: any) => {
-        return elem.name === gazObject[0].more.v;
+        return elem.properties.name === gazObject[0].more.v;
       });
       if (hit) {
         finalResults.push(hit);

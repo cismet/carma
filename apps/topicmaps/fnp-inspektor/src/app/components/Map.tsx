@@ -334,6 +334,8 @@ const Map = () => {
                 done: (result) => {
                   searchParams.set("aevVisible", "true");
                   setSearchParams(searchParams);
+                  console.log("result", result);
+
                   const projectedFC = L.Proj.geoJson(result);
                   const bounds = projectedFC.getBounds();
                   const map = routedMapRef?.leafletMap?.leafletElement;
