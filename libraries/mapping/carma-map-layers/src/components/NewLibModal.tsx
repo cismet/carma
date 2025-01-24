@@ -797,6 +797,7 @@ export const NewLibModal = ({
                       sidebarElements[selectedNavItemIndex].id
                     )}
                     activeId={currentShownCategory}
+                    setActiveId={setCurrentShownCategory}
                     numberOfItems={getNumberOfLayers(layers)}
                   />
                   <hr className="h-px bg-gray-300 border-0 mt-0 mb-2" />

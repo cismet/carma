@@ -1,14 +1,41 @@
 import { Badge, Tabs } from "antd";
+import { useEffect, useState } from "react";
 
 interface LayerTabsProps {
   // TODO add type for layers
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   layers?: any[];
   activeId: string;
+  setActiveId: (id: string) => void;
   numberOfItems: number;
 }
 
-const LayerTabs = ({ layers, activeId, numberOfItems }: LayerTabsProps) => {
+const LayerTabs = ({
+  layers,
+  activeId,
+  setActiveId,
+  numberOfItems,
+}: LayerTabsProps) => {
+  const [tabClicked, setTabClicked] = useState(false);
+  const [clickedId, setClickedId] = useState("");
+
+  useEffect(() => {
+    const handleScrollEnd = () => {
+      if (tabClicked) {
+        setTabClicked(false);
+        setActiveId(clickedId);
+        setClickedId("");
+      }
+    };
+
+    const scrollContainer = document.getElementById("scrollContainer");
+    scrollContainer?.addEventListener("scrollend", handleScrollEnd);
+
+    return () => {
+      scrollContainer?.removeEventListener("scroll", handleScrollEnd);
+    };
+  }, [tabClicked]);
+
   if (!layers) {
     return null;
   }
@@ -35,6 +62,8 @@ const LayerTabs = ({ layers, activeId, numberOfItems }: LayerTabsProps) => {
         activeKey={numberOfItems > 0 ? activeId : ""}
         onTabClick={(key) => {
           document.getElementById(key)?.scrollIntoView({ behavior: "smooth" });
+          setTabClicked(true);
+          setClickedId(key);
         }}
       />
     </>
