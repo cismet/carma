@@ -1,4 +1,4 @@
-import { type RefObject, useMemo } from "react";
+import { ReactNode, type RefObject, useMemo } from "react";
 import { Color, Viewer, Rectangle, SceneMode } from "cesium";
 
 import ElevationControl from "./components/controls/ElevationControl";
@@ -27,6 +27,7 @@ export type GlobeOptions = {
 };
 
 export type CustomViewerProps = {
+  children?: ReactNode;
   containerRef: RefObject<HTMLDivElement>;
   cameraOptions?: {
     pitchLimiter?: boolean;
@@ -81,6 +82,7 @@ export function CustomViewer(props: CustomViewerProps) {
       showSkirts: false,
     },
     cameraOptions,
+    children,
     constructorOptions,
     containerRef,
     onSceneChange,
@@ -118,7 +120,11 @@ export function CustomViewer(props: CustomViewerProps) {
   useTweakpane();
   useLogCesiumRenderIn2D();
 
-  return <ElevationControl show={false} />;
+  return
+  <>
+    {props.children}
+    <ElevationControl show={false}/>
+  </>
 }
 
 export default CustomViewer;
