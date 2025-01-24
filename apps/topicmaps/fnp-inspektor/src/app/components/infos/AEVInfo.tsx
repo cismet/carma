@@ -12,6 +12,7 @@ import L from "leaflet";
 import Icon from "react-cismap/commons/Icon";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useContext } from "react";
+import Color from "color";
 
 const AEVInfo = () => {
   const features = useSelector(getFeatureCollection);
@@ -76,6 +77,11 @@ const AEVInfo = () => {
     headerColor = "#F48286";
   }
 
+  let textColor = "black";
+  let backgroundColor = new Color(headerColor);
+  if (backgroundColor.isDark()) {
+    textColor = "white";
+  }
   let rechtswirksam_seit;
 
   if (currentFeature.properties.rechtswirk !== undefined) {
@@ -260,7 +266,7 @@ const AEVInfo = () => {
               textAlign: "left",
               verticalAlign: "top",
               background: headerColor,
-              color: "black",
+              color: textColor,
               opacity: "0.9",
               paddingLeft: "3px",
               paddingTop: "0px",

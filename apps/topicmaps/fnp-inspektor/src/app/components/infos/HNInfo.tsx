@@ -160,6 +160,10 @@ const HNInfo = () => {
 
   let headerBackgroundColor = Color(getColorForHauptnutzung(selectedFeature));
 
+  let textColor = "black";
+  if (headerBackgroundColor.isDark()) {
+    textColor = "white";
+  }
   let llVis = (
     <table style={{ width: "100%" }}>
       <tbody>
@@ -169,7 +173,7 @@ const HNInfo = () => {
               textAlign: "left",
               verticalAlign: "top",
               background: headerBackgroundColor,
-              color: "black",
+              color: textColor,
               opacity: "0.9",
               paddingLeft: "3px",
               paddingTop: "0px",
