@@ -2,7 +2,7 @@ import { StrictMode } from "react";
 import * as ReactDOM from "react-dom/client";
 import { RouterProvider, createHashRouter } from "react-router-dom";
 
-import App from "./app/App";
+import App from "./app/DocViewer";
 import { PersistGate } from "redux-persist/integration/react";
 import { Provider } from "react-redux";
 import store from "./store";
