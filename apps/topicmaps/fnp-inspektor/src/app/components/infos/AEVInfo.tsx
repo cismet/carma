@@ -40,7 +40,7 @@ const AEVInfo = () => {
     currentFeature.properties.url !== undefined &&
     currentFeature.properties.url !== null &&
     currentFeature.properties.url.trim() !== "";
-  let urlPrefix = window.location.origin + window.location.pathname;
+  const baseURL = window.location.origin + window.location.pathname;
   let target = "_docviewer";
   let docOrDocs;
   let mainDocOrDocs;
@@ -83,6 +83,7 @@ const AEVInfo = () => {
 
     rechtswirksam_seit = d + "." + m + "." + y;
   }
+  const bplanBaseUrl = import.meta.env.VITE_BPLAN_BASEURL || "";
 
   const bpl = currentFeature.properties.bplan_nr || "";
   const bplArr = bpl.split("+");
@@ -90,13 +91,7 @@ const AEVInfo = () => {
   bplArr.forEach((nr, index) => {
     linkArr.push(
       <span key={"bpl." + index}>
-        <a
-          href={
-            "https://carma-dev-deployments.github.io/topicmaps-bplan-auskunft-wuppertal/" +
-            `#/docs/${nr}/1/1`
-          }
-          target={target}
-        >
+        <a href={bplanBaseUrl + `#/docs/${nr}/1/1`} target={target}>
           B-Plan {nr}
         </a>
         {index < bplArr.length - 1 ? ", " : ""}
@@ -146,7 +141,7 @@ const AEVInfo = () => {
               {hasMainDocument === true && (
                 <a
                   style={{ color: "#333" }}
-                  href={urlPrefix + `/#/docs/${currentFeature.text}/1/1`}
+                  href={baseURL + `/#/docs/${currentFeature.text}/1/1`}
                   target={target}
                 >
                   <h4
@@ -238,7 +233,7 @@ const AEVInfo = () => {
               {hasMainDocument === true && (
                 <a
                   style={{ color: "#333" }}
-                  href={`/#/docs/aenderungsv/${currentFeature.text}/1`}
+                  href={baseURL + `/#/docs/${currentFeature.text}/1`}
                   target="_aenderungsv"
                 >
                   <h4 style={{ marginLeft: 5, marginRight: 5 }}>

@@ -44,6 +44,7 @@ export const getLinkFromAEV = ({
   defaultEl = <div />,
   skipStatus = false,
 }) => {
+  const baseURL = window.location.origin + window.location.pathname;
   if (aevs !== undefined && aevs.length > 0) {
     let ret: any = [];
     for (const aev of aevs) {
@@ -62,7 +63,10 @@ export const getLinkFromAEV = ({
       }
       ret.push(
         <b>
-          <a href={"#/docs/" + aev.text + "/1/1"} target="_aenderungsv">
+          <a
+            href={baseURL + "#/docs/" + aev.text + "/1/1"}
+            target="_aenderungsv"
+          >
             {aev.text +
               (aev.properties.verfahren === ""
                 ? ". FNP-Änderung" + statusText
