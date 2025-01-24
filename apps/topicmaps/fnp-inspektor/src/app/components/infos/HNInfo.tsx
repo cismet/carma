@@ -14,7 +14,7 @@ import {
 } from "../../../utils/FnpHelper";
 
 const bplanBaseUrl = import.meta.env.VITE_BPLAN_BASEURL || "";
-
+const baseURL = window.location.origin + window.location.pathname;
 const HNInfo = () => {
   let paddingTop = 9;
   let margin = 9;
@@ -86,7 +86,7 @@ const HNInfo = () => {
           float: "right",
           maxWidth: "80px",
         }}
-        src={"/images/fnp/" + os + ".svg"}
+        src={baseURL + "/images/fnp/" + os + ".svg"}
       />
     );
   }
