@@ -13,6 +13,8 @@ import {
   validFNPIcons,
 } from "../../../utils/FnpHelper";
 
+const bplanBaseUrl = import.meta.env.VITE_BPLAN_BASEURL || "";
+
 const HNInfo = () => {
   let paddingTop = 9;
   let margin = 9;
@@ -131,7 +133,12 @@ const HNInfo = () => {
           <b>Anlass: </b>{" "}
           <b>
             <a
-              href={"/#/docs/bplaene/" + selectedFeature.properties.bplan_nr}
+              href={
+                bplanBaseUrl +
+                "/#/docs/" +
+                selectedFeature.properties.bplan_nr +
+                "/1/1"
+              }
               target="_bplaene"
             >
               B-Plan {selectedFeature.properties.bplan_nr}
