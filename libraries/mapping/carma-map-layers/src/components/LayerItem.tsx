@@ -362,25 +362,24 @@ const LayerItem = ({
             >
               {title}
             </h3>
-            {canShowInfo && (
-              <div className="flex flex-col gap-2">
-                <FontAwesomeIcon
-                  icon={
-                    selectedLayerId === layer.id ? faChevronUp : faChevronDown
-                  }
-                  className="text-xl pt-1 cursor-pointer text-gray-700 z-50"
-                />
-                {keywords &&
-                  extractVectorStyles(keywords)?.vectorStyle &&
-                  !forceWMS && (
-                    <FontAwesomeIcon
-                      icon={faRocket}
-                      className="text-xl pt-1 cursor-pointer text-gray-700 z-50"
-                    />
-                  )}
-              </div>
-            )}
+
+            <div className="flex flex-col gap-2">
+              {keywords &&
+                extractVectorStyles(keywords)?.vectorStyle &&
+                !forceWMS && (
+                  <FontAwesomeIcon
+                    icon={faRocket}
+                    className="text-xl pt-1 cursor-pointer text-gray-700 z-50"
+                  />
+                )}
+            </div>
           </div>
+          {canShowInfo && (
+            <FontAwesomeIcon
+              icon={selectedLayerId === layer.id ? faChevronUp : faChevronDown}
+              className="text-xl pt-1 cursor-pointer text-gray-700 z-50"
+            />
+          )}
         </div>
         <Modal
           footer={null}
