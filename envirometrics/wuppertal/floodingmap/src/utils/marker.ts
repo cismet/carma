@@ -10,15 +10,16 @@ import {
   Viewer,
 } from "cesium";
 import { debounce } from "lodash";
-import { FEATUREINFO_MARKER_HIGHLIGHT_MIN_SHOW_DISTANCE } from "../config/cesium/cesium.config";
+import {
+  FEATUREINFO_MARKER_HIGHLIGHT_HEIGHT,
+  FEATUREINFO_MARKER_HIGHLIGHT_MAX_WIDTH,
+  FEATUREINFO_MARKER_HIGHLIGHT_MIN_SHOW_DISTANCE,
+} from "../config/cesium/cesium.config";
 
 const interval = 0.1; // 10 cm
 const rodHeight = 2.0;
 const rodWidth = 0.3;
 const repeats = Math.floor(rodHeight / interval);
-
-const MAX_HIGHLIGHT_WIDTH = 8;
-const HIGHLIGHT_HEIGHT = 5000;
 
 export const getMarkerConstructorOptions = (position: Cartesian3) => {
   return {
@@ -85,13 +86,13 @@ export const updateMarkerPosition = (
 
   // higlight
   const positionCartographicTop = positionCartographic.clone();
-  positionCartographicTop.height += HIGHLIGHT_HEIGHT;
+  positionCartographicTop.height += FEATUREINFO_MARKER_HIGHLIGHT_HEIGHT;
   const top = Cartographic.toCartesian(positionCartographicTop);
 
   const { show, width } = getHighlightStyle(
     viewer,
     position,
-    MAX_HIGHLIGHT_WIDTH,
+    FEATUREINFO_MARKER_HIGHLIGHT_MAX_WIDTH,
     FEATUREINFO_MARKER_HIGHLIGHT_MIN_SHOW_DISTANCE
   );
 
@@ -115,8 +116,8 @@ export const updateMarkerPosition = (
       const { show, width } = getHighlightStyle(
         viewer,
         position,
-        MAX_HIGHLIGHT_WIDTH,
-        MIN_SHOW_DISTANCE
+        FEATUREINFO_MARKER_HIGHLIGHT_MAX_WIDTH,
+        FEATUREINFO_MARKER_HIGHLIGHT_MIN_SHOW_DISTANCE
       );
       highlight.show = show;
 

@@ -40,4 +40,7 @@ export const CESIUM_CONFIG: CesiumConfig = {
 };
 
 export const WATER_CESIUM_COLOR = new Color(0.4, 0.4, 0.85, 0.7);
+
 export const FEATUREINFO_MARKER_HIGHLIGHT_MIN_SHOW_DISTANCE = 90;
+export const FEATUREINFO_MARKER_HIGHLIGHT_MAX_WIDTH = 8;
+export const FEATUREINFO_MARKER_HIGHLIGHT_HEIGHT = 5000;
