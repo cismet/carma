@@ -483,6 +483,7 @@ export const LibModal = ({
                     : layers
                 }
                 activeId={inViewCategory}
+                setActiveId={setInViewCategory}
                 numberOfItems={getNumberOfLayers(layers)}
               />
               <hr className="h-px bg-gray-300 border-0 mt-0 mb-2" />
