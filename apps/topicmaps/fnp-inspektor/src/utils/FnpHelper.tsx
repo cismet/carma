@@ -62,10 +62,7 @@ export const getLinkFromAEV = ({
       }
       ret.push(
         <b>
-          <a
-            href={"/#/docs/aenderungsv/" + aev.text + "/"}
-            target="_aenderungsv"
-          >
+          <a href={"#/docs/" + aev.text + "/1/1"} target="_aenderungsv">
             {aev.text +
               (aev.properties.verfahren === ""
                 ? ". FNP-Änderung" + statusText
