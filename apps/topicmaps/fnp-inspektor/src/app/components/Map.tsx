@@ -69,6 +69,16 @@ const Map = () => {
   const [width, setWidth] = useState<number>(0);
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
+  const setAevVisible = (visible) => {
+    if (visible && !aevVisible) {
+      searchParams.set("aevVisible", "true");
+      setSearchParams(searchParams);
+    } else if (!visible && aevVisible) {
+      searchParams.delete("aevVisible");
+      setSearchParams(searchParams);
+    }
+  };
+
   useEffect(() => {
     document.title = `FNP-Inspektor Wuppertal`;
     dispatch(loadHauptnutzungen() as unknown as UnknownAction);
@@ -268,6 +278,7 @@ const Map = () => {
   };
 
   const aevSearchButtonHit = (event) => {
+    setAevVisible(true);
     dispatch(
       // @ts-expect-error legacy codebase exception
       searchForAEVs({
@@ -293,6 +304,7 @@ const Map = () => {
       resizeObserver.disconnect();
     };
   }, [wrapperRef]);
+  // console.log("render", new Error().stack);
 
   return (
     <div style={{ position: "relative" }} ref={wrapperRef}>
@@ -371,9 +383,10 @@ const Map = () => {
           position="bottomleft"
         />
 
-        {aevVisible && (
+        {(aevVisible || mapMode.mode === "arbeitskarte") && (
           <FeatureCollectionDisplayWithTooltipLabels
-            key={`map_` + JSON.stringify(features[0])}
+            appMode={mapMode.mode}
+            key={`map_` + JSON.stringify(features) + "." + selectedFeatureIndex}
             featureCollection={features}
             featureClickHandler={featureClick}
             style={
@@ -384,9 +397,11 @@ const Map = () => {
             labeler={mapMode.mode === "arbeitskarte" ? hnLabeler : aevLabeler}
           />
         )}
+
         {aevVisible && mapMode.mode === "rechtsplan" && (
           <FeatureCollectionDisplayWithTooltipLabels
-            key={`map_` + selectedFeatureIndex}
+            key={`map_` + selectedFeatureIndex + JSON.stringify(aevFeatures)}
+            appMode={mapMode.mode}
             featureCollection={aevFeatures}
             featureClickHandler={featureClick}
             style={(feature) => {

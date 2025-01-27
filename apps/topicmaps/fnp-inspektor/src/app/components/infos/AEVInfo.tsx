@@ -38,9 +38,9 @@ const AEVInfo = ({ secondaryInfoBoxElements }) => {
   };
 
   let hasMainDocument =
-    currentFeature.properties.url !== undefined &&
-    currentFeature.properties.url !== null &&
-    currentFeature.properties.url.trim() !== "";
+    currentFeature?.properties?.url !== undefined &&
+    currentFeature?.properties?.url !== null &&
+    currentFeature?.properties?.url.trim() !== "";
   const baseURL = window.location.origin + window.location.pathname;
   let target = "_docviewer";
   let docOrDocs;

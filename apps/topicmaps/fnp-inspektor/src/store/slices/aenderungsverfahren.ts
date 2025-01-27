@@ -66,7 +66,7 @@ export const loadAEVs = () => {
 export function getAEVFeatureByGazObject(
   gazObjects,
   done = (result) => {
-    console.log(result);
+    // console.log(result);
   }
 ) {
   return function (dispatch, getState) {
