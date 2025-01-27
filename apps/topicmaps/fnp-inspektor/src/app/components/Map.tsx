@@ -169,7 +169,7 @@ const Map = () => {
 
     backgrounds = [
       <StyledWMSTileLayer
-        key={"rechtsplan:aevVisible:" + aevVisible}
+        key={"rechtsplan:aevVisible:"}
         url="https://maps.wuppertal.de/planung?SRS=EPSG:25832"
         layers={"r102:fnp_clip"}
         version="1.1.1"
@@ -334,8 +334,6 @@ const Map = () => {
                 done: (result) => {
                   searchParams.set("aevVisible", "true");
                   setSearchParams(searchParams);
-                  console.log("result", result);
-
                   const projectedFC = L.Proj.geoJson(result);
                   const bounds = projectedFC.getBounds();
                   const map = routedMapRef?.leafletMap?.leafletElement;
@@ -373,15 +371,19 @@ const Map = () => {
           position="bottomleft"
         />
 
-        <FeatureCollectionDisplayWithTooltipLabels
-          key={`map_` + JSON.stringify(features[0])}
-          featureCollection={features}
-          featureClickHandler={featureClick}
-          style={
-            mapMode.mode === "arbeitskarte" ? hnFeatureStyler : aevFeatureStyler
-          }
-          labeler={mapMode.mode === "arbeitskarte" ? hnLabeler : aevLabeler}
-        />
+        {aevVisible && (
+          <FeatureCollectionDisplayWithTooltipLabels
+            key={`map_` + JSON.stringify(features[0])}
+            featureCollection={features}
+            featureClickHandler={featureClick}
+            style={
+              mapMode.mode === "arbeitskarte"
+                ? hnFeatureStyler
+                : aevFeatureStyler
+            }
+            labeler={mapMode.mode === "arbeitskarte" ? hnLabeler : aevLabeler}
+          />
+        )}
         {aevVisible && mapMode.mode === "rechtsplan" && (
           <FeatureCollectionDisplayWithTooltipLabels
             key={`map_` + selectedFeatureIndex}
