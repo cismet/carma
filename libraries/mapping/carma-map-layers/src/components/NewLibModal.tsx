@@ -376,6 +376,12 @@ export const NewLibModal = ({
   }, [allLayers]);
 
   useEffect(() => {
+    if (searchValue) {
+      search(debouncedSearchTerm);
+    }
+  }, [tmpAllCategories]);
+
+  useEffect(() => {
     const timer = setTimeout(() => {
       setShowItems(open);
     }, 225);
