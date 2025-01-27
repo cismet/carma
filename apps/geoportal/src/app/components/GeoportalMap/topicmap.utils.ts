@@ -520,7 +520,11 @@ export const createCismapLayers = (
       } else {
         dispatch(setSelectedFeature(null));
       }
-    } else if (selectedFeature) {
+    }
+  }, [globalHits]);
+
+  useEffect(() => {
+    if (selectedFeature && modeRef.current !== UIMode.DEFAULT) {
       resetSelection(globalHits);
       if (globalHits[selectedFeature.id]) {
         const hits = globalHits[selectedFeature.id];
@@ -535,7 +539,7 @@ export const createCismapLayers = (
         }
       }
     }
-  }, [globalHits, selectedFeature]);
+  }, [selectedFeature]);
 
   return layers.map((layer, i) => {
     if (layer.visible) {
