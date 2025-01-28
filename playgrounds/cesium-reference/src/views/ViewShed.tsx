@@ -15,16 +15,16 @@ import { cesiumConstructorOptions } from "../config";
 import SensorShadow from "../lib/SensorShadow/src/SensorShadow";
 import { Button, Checkbox } from "antd";
 
-const TOELLETURM = {
+const TOELLETURM_CAMERA = {
   longitude: 7.201578,
   latitude: 51.256565,
-  height: 335,
+  height: 363,
 };
 
-const TOELLETURM_CAM = {
-  longitude: 7.203,
-  latitude: 51.257,
-  height: 360,
+const TOELLETURM_TARGET = {
+  longitude: 7.2,
+  latitude: 51.256,
+  height: 340,
 };
 
 const toCartographic = ({
@@ -44,8 +44,8 @@ const toCartographic = ({
 };
 
 const sensorConfig = {
-  positionCartographic: toCartographic(TOELLETURM),
-  cameraPositionCartographic: toCartographic(TOELLETURM_CAM),
+  cameraPositionCartographic: toCartographic(TOELLETURM_CAMERA),
+  targetPositionCartographic: toCartographic(TOELLETURM_TARGET),
 };
 
 const ViewShed: React.FC = () => {
@@ -70,6 +70,27 @@ const ViewShed: React.FC = () => {
             viewer.scene.primitives.add(tileset);
             viewer.zoomTo(tileset);
           }
+
+          const targetPoint = viewer.entities.add({
+            position: Cartographic.toCartesian(
+              toCartographic(TOELLETURM_TARGET)
+            ),
+            point: {
+              pixelSize: 10,
+              color: Color.LIME,
+            },
+          });
+          const cameraPoint = viewer.entities.add({
+            position: Cartographic.toCartesian(
+              toCartographic(TOELLETURM_CAMERA)
+            ),
+            point: {
+              pixelSize: 10,
+              color: Color.YELLOW,
+            },
+          });
+
+          viewer.zoomTo([cameraPoint, targetPoint]);
         }
       } catch (error) {
         console.error("Initialization error:", error);
@@ -90,20 +111,20 @@ const ViewShed: React.FC = () => {
 
   useEffect(() => {
     if (viewerRef.current.scene && showSensorShadow) {
-      console.log(viewerRef.current, SensorShadow);
       let sensorShadow = new SensorShadow(viewerRef.current, {
         cameraPosition: Cartographic.toCartesian(
-          sensorConfig.positionCartographic
-        ),
-        viewPosition: Cartographic.toCartesian(
           sensorConfig.cameraPositionCartographic
         ),
-        viewAreaColor: new Color(0, 1, 0),
-        shadowAreaColor: new Color(1, 0, 0),
+        viewPosition: Cartographic.toCartesian(
+          sensorConfig.targetPositionCartographic
+        ),
+        viewAreaColor: new Color(0.5, 1, 0.5),
+        shadowAreaColor: new Color(0.2, 0.2, 0.2),
         alpha: 0.5,
         frustum: true,
         size: 1024,
       });
+      viewerRef.current.scene.requestRender();
     }
   }, [showSensorShadow]);
 
@@ -134,7 +155,7 @@ const ViewShed: React.FC = () => {
           checked={showSensorShadow}
           onChange={(e) => setShowSensorShadow(e.target.checked)}
         >
-          Enable Sensor Shadow
+          Add Sensor Shadow
         </Checkbox>
         <Button onClick={handleClick}>Got To Sensor</Button>
       </div>

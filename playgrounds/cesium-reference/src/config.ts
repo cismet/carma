@@ -13,7 +13,7 @@ export const views = [
     name: "Shadow Simulation (Mesh)",
     component: ShadowMesh,
   },
-  //{ path: "/view-shed", name: "View Shed", component: ViewShed }, WIP
+  { path: "/view-shed", name: "View Shed", component: ViewShed },
 ];
 
 export const cesiumConstructorOptions = {

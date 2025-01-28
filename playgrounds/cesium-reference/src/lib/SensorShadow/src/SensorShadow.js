@@ -102,14 +102,10 @@ class SensorShadow {
    * @returns {Cartesian3} The calculated camera position vector.
    */
   get _getVectors() {
-    let positionVector = this.cameraPosition
-      .getValue
-      //this.viewer.clock.currentTime
-      ();
-    let viewVector = this.viewPosition
-      .getValue
-      //this.viewer.clock.currentTime
-      ();
+    let positionVector = this.cameraPosition.getValue(
+      this.viewer.clock.currentTime
+    );
+    let viewVector = this.viewPosition.getValue(this.viewer.clock.currentTime);
     let distanceBetweenVectors = Number(
       Cartesian3.distance(viewVector, positionVector).toFixed(1)
     );
@@ -214,7 +210,7 @@ class SensorShadow {
     camera.up = Cartesian3.normalize(positionVector, new Cartesian3(0, 0, 0));
 
     camera.frustum = new PerspectiveFrustum({
-      fov: CesiumMath.toRadians(120),
+      fov: CesiumMath.toRadians(26),
       aspectRatio: scene.canvas.clientWidth / scene.canvas.clientHeight,
       near: 0.1,
       far: distance,
@@ -346,7 +342,7 @@ class SensorShadow {
 
     // If a previous listener was added, remove it
     if (this.preUpdateListener) {
-      viewer.scene.preUpdate.removeEventListener(this.preUpdateListener);
+      this.viewer.scene.preUpdate.removeEventListener(this.preUpdateListener);
     }
 
     // Add a new listener
@@ -358,7 +354,7 @@ class SensorShadow {
       }
     };
 
-    viewer.scene.preUpdate.addEventListener(this.preUpdateListener);
+    this.viewer.scene.preUpdate.addEventListener(this.preUpdateListener);
   }
 
   update(frameState) {
@@ -368,7 +364,7 @@ class SensorShadow {
 
   destroy() {
     if (this.preUpdateListener) {
-      viewer.scene.preUpdate.removeEventListener(this.preUpdateListener);
+      this.viewer.scene.preUpdate.removeEventListener(this.preUpdateListener);
     }
     this.viewer.scene.postProcessStages.remove(this.postProcess);
     for (let property in this) {
