@@ -1,6 +1,5 @@
 import { FC, useEffect, useRef } from "react";
 import {
-  Cesium3DTileset,
   CesiumTerrainProvider,
   ImageryLayer,
   Viewer,
@@ -11,13 +10,16 @@ import {
   WUPP_LOD2_TILESET,
   WUPP_TERRAIN_PROVIDER,
 } from "@carma-commons/resources";
-import { getTileset } from "../cesium.utils";
 import { cesiumConstructorOptions } from "../config";
+import useTileset from "../hooks/useTileset";
 
 const MinimalLod2: FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewerRef = useRef<Viewer | null>(null);
-  const tilesetRef = useRef<Cesium3DTileset | null>(null);
+  const { tilesetRef, tilesetReady } = useTileset(
+    WUPP_LOD2_TILESET.url,
+    viewerRef
+  );
 
   useEffect(() => {
     const initialize = async () => {
@@ -28,13 +30,6 @@ const MinimalLod2: FC = () => {
             cesiumConstructorOptions
           );
           viewerRef.current = viewer;
-
-          const tileset = await getTileset(WUPP_LOD2_TILESET.url);
-          if (tileset) {
-            tilesetRef.current = tileset;
-            viewer.scene.primitives.add(tileset);
-            viewer.zoomTo(tileset);
-          }
 
           viewer.terrainProvider = await CesiumTerrainProvider.fromUrl(
             WUPP_TERRAIN_PROVIDER.url
@@ -54,14 +49,13 @@ const MinimalLod2: FC = () => {
     initialize();
 
     return () => {
-      if (tilesetRef.current) {
-        tilesetRef.current.destroy();
-      }
       if (viewerRef.current) {
         viewerRef.current.destroy();
       }
     };
   }, []);
+
+  tilesetReady && viewerRef.current.zoomTo(tilesetRef.current);
 
   return <div ref={containerRef} style={{ width: "100%", height: "100vh" }} />;
 };

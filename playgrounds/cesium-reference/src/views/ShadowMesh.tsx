@@ -1,49 +1,39 @@
 import { FC, useEffect, useRef, useState } from "react";
-import { Viewer, ShadowMode, Cesium3DTileset, JulianDate } from "cesium";
+import { Viewer, ShadowMode, JulianDate } from "cesium";
 import { Slider, Checkbox } from "antd";
 
 import { WUPP_MESH_2024 } from "@carma-commons/resources";
 import { cesiumConstructorOptions } from "../config";
-import { getTileset } from "../cesium.utils";
+import useTileset from "../hooks/useTileset";
 
 const ShadowMesh: FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewerRef = useRef<Viewer | null>(null);
-  const tilesetRef = useRef<Cesium3DTileset | null>(null);
   const [timeOfDay, setTimeOfDay] = useState(720); // Default to noon
   const [dayOfYear, setDayOfYear] = useState(0);
   const [shadowsEnabled, setShadowsEnabled] = useState(true);
+  const { tilesetRef, tilesetReady } = useTileset(
+    WUPP_MESH_2024.url,
+    viewerRef
+  );
 
   useEffect(() => {
     const initialize = async () => {
       if (containerRef.current) {
         const viewer = new Viewer(containerRef.current, {
           ...cesiumConstructorOptions,
-          shadows: shadowsEnabled,
+          shadows: true,
           terrainShadows: ShadowMode.ENABLED,
         });
-
         viewerRef.current = viewer;
-
-        const tileset = await getTileset(WUPP_MESH_2024.url);
-        if (tileset) {
-          tilesetRef.current = tileset;
-          viewer.scene.primitives.add(tileset);
-          viewer.zoomTo(tileset);
-        }
-
         const shadowMap = viewer.shadowMap;
         shadowMap.fadingEnabled = false;
         shadowMap.maximumDistance = 50000.0;
       }
     };
-
     initialize();
 
     return () => {
-      if (tilesetRef.current) {
-        tilesetRef.current.destroy();
-      }
       if (viewerRef.current) {
         viewerRef.current.destroy();
       }
@@ -76,6 +66,8 @@ const ShadowMesh: FC = () => {
       viewerRef.current.scene.requestRender();
     }
   }, [shadowsEnabled]);
+
+  tilesetReady && viewerRef.current.zoomTo(tilesetRef.current);
 
   return (
     <>

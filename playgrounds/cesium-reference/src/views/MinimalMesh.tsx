@@ -1,13 +1,16 @@
 import { useEffect, useRef } from "react";
-import { Cesium3DTileset, Viewer } from "cesium";
+import { Viewer } from "cesium";
 import { WUPP_MESH_2024 } from "@carma-commons/resources";
-import { getTileset } from "../cesium.utils";
 import { cesiumConstructorOptions } from "../config";
+import useTileset from "../hooks/useTileset";
 
 const MinimalMesh: React.FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewerRef = useRef<Viewer | null>(null);
-  const tilesetRef = useRef<Cesium3DTileset | null>(null);
+  const { tilesetRef, tilesetReady } = useTileset(
+    WUPP_MESH_2024.url,
+    viewerRef
+  );
 
   useEffect(() => {
     const initialize = async () => {
@@ -18,13 +21,6 @@ const MinimalMesh: React.FC = () => {
             cesiumConstructorOptions
           );
           viewerRef.current = viewer;
-
-          const tileset = await getTileset(WUPP_MESH_2024.url);
-          if (tileset) {
-            tilesetRef.current = tileset;
-            viewer.scene.primitives.add(tileset);
-            viewer.zoomTo(tileset);
-          }
         }
       } catch (error) {
         console.error("Initialization error:", error);
@@ -34,14 +30,13 @@ const MinimalMesh: React.FC = () => {
     initialize();
 
     return () => {
-      if (tilesetRef.current) {
-        tilesetRef.current.destroy();
-      }
       if (viewerRef.current) {
         viewerRef.current.destroy();
       }
     };
   }, []);
+
+  tilesetReady && viewerRef.current.zoomTo(tilesetRef.current);
 
   return <div ref={containerRef} style={{ width: "100%", height: "100vh" }} />;
 };
