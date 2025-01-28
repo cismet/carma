@@ -51,12 +51,12 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
         properties: {
           header: "Information",
           headerColor: "#0078a8",
-          title: `Es wurden ${secondaryInfoBoxElements.length} Ergebnisse gefunden`,
+          title: `Es wurden ${secondaryInfoBoxElements.length} Objekte gefunden. Bis zu 4 Objekte können angezeigt werden.`,
           additionalInfo: `Position: ${pos[0].toFixed(5)}, ${pos[1].toFixed(
             5
           )}`,
           subtitle:
-            "Zoomstufe anpassen, um die Anzahl der Ergebnisse zu verringern",
+            "Hereinzoomen oder Kartenebenen ausblenden, um die Objektanzahl zu reduzieren.",
         },
         id: "information",
       })
