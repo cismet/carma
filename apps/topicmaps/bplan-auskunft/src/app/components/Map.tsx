@@ -65,9 +65,13 @@ const Map = () => {
       getPlanFeatures({
         point: { x: pos[0], y: pos[1] },
         done: (hits) => {
-          hits[0].selected = true;
-          setFeatures(hits);
-          setSelectedIndex(0);
+          if (hits?.length > 0) {
+            hits[0].selected = true;
+            setFeatures(hits);
+            setSelectedIndex(0);
+          } else {
+            setFeatures([]);
+          }
         },
       }) as unknown as UnknownAction
     );
