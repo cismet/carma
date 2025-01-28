@@ -54,7 +54,7 @@ const ShadowMesh: FC = () => {
     if (viewerRef.current) {
       const currentTime = viewerRef.current.clock.currentTime;
       // set date by day of year and time of day
-      const newDate = new Date(currentTime);
+      const newDate = JulianDate.toDate(currentTime);
       newDate.setHours(Math.floor(timeOfDay / 60), timeOfDay % 60, 0);
       viewerRef.current.clock.currentTime = JulianDate.fromDate(newDate);
     }
