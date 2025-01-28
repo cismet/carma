@@ -35,6 +35,25 @@ const Map = () => {
   const zoom = searchParams.get("zoom");
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
+  const featureClick = (event) => {
+    if (event.target.feature.selected) {
+      const projectedFC = L.Proj.geoJson(event.target.feature);
+      const bounds = projectedFC.getBounds();
+      const map = routedMapRef?.leafletMap?.leafletElement;
+      if (map === undefined) {
+        return;
+      }
+      map.fitBounds(bounds);
+    } else {
+      const index = features.findIndex(
+        (element) => element.id === event.target.feature.id
+      );
+      if (index !== -1) {
+        dispatch(setSelectedIndex(index));
+      }
+    }
+  };
+
   const doubleMapClick = (event) => {
     const pos = proj4(
       proj4.defs("EPSG:4326") as unknown as string,
@@ -151,6 +170,7 @@ const Map = () => {
         featureCollection={features}
         style={bplanFeatureStyler}
         labeler={bplanLabeler}
+        featureClickHandler={featureClick}
       />
     </TopicMapComponent>
   );
