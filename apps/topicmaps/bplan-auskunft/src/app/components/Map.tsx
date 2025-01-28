@@ -90,7 +90,7 @@ const Map = () => {
       locatorControl
       ref={refRoutedMap}
       gazetteerSearchControl={true}
-      backgroundlayers={"uwBPlan|wupp-plan-live@20"}
+      backgroundlayers={"uwBPlan|rvrGrundriss@20"}
       modalMenu={<Modal version={getApplicationVersion(versionData)} />}
       locationChangedHandler={(location) => {
         const newParams = { ...paramsToObject(searchParams), ...location };
