@@ -11,6 +11,7 @@ import { layerMap } from "../../config";
 import {
   getBackgroundLayer,
   getLayers,
+  getSelectedLuftbildLayer,
   getSelectedMapLayer,
   setLayers,
 } from "../../store/slices/mapping";
@@ -21,6 +22,7 @@ const BaseLayerInfo = () => {
   const dispatch = useDispatch();
 
   const selectedMapLayer = useSelector(getSelectedMapLayer);
+  const selectedLuftbildLayer = useSelector(getSelectedLuftbildLayer);
   const backgroundLayer = useSelector(getBackgroundLayer);
   const layers = useSelector(getLayers);
 
@@ -48,7 +50,7 @@ const BaseLayerInfo = () => {
     if (backgroundLayer.id === "karte") {
       return layerMap[selectedMapLayer.id].description;
     } else {
-      return layerMap[backgroundLayer.id].description;
+      return layerMap[selectedLuftbildLayer.id].description;
     }
   };
 

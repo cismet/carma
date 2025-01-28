@@ -127,7 +127,7 @@ export const layerMap: LayerMap = {
   luftbild: {
     title: "Luftbildkarte 03/24",
     layers: "rvrGrundriss@100|trueOrtho2024@75|rvrSchriftNT@100",
-    description: `Luftbildkarte (aus True Orthofoto) © Stadt Wuppertal / RVR und Kooperationspartner`,
+    description: `Luftbildkarte (aus True Orthofoto 03/24) © Stadt Wuppertal / RVR und Kooperationspartner`,
     inhalt: `<span>(1) Kartendienst (WMS) der Stadt Wuppertal. Datengrundlage:
                True Orthofoto aus Bildflügen vom 14.03. und 17.03.2024, hergestellt durch Aerowest
               GmbH/Dortmund, Bodenauflösung 3 cm.
@@ -143,7 +143,7 @@ export const layerMap: LayerMap = {
   luftbild21: {
     title: "Luftbildkarte 06/21",
     layers: "rvrGrundriss@100|trueOrtho2021@75|rvrSchriftNT@100",
-    description: `Luftbildkarte (aus True Orthofoto) © Stadt Wuppertal / RVR und Kooperationspartner`,
+    description: `Luftbildkarte (aus True Orthofoto 06/21) © Geobasis NRW  / RVR und Kooperationspartner`,
     inhalt: `<span>(1) Kartendienst (WMS) des Landes NRW, gehostet von IT.NRW. Datengrundlage: True Orthofoto weit überwiegend aus Bildflügen vom 01. und 02. Juni 2021, durchgeführt im Auftrag von Geobasis NRW durch MGGP AERO Sp. z o.o./Krakau, Bodenauflösung 10 cm. In Teilen von Nächstebreck-Ost, Beyenburg-Mitte und Herbringhausen Bildflug vom 30. März 2021, durchgeführt durch Aerowest GmbH/Dortmund. (True Orthofoto: Aus Luftbildern mit hoher Längs- und Querüberdeckung in einem automatisierten Bildverarbeitungsprozess berechnetes Bild in Parallelprojektion, also ohne Gebäudeverkippung und sichttote Bereiche.) © Geobasis NRW (</span>
               <a class="remove-margins" href="https://www.govdata.de/dl-de/zero-2-0">dl-zero-de/2.0</a>
               <span>). (2) Kartendienste (WMS) des Regionalverbandes Ruhr (RVR). Datengrundlagen: Stadtkarte 2.0 und Kartenschrift aus der Stadtkarte 2.0. Details s. Hintergrundkarte Stadtplan).</span>`,
