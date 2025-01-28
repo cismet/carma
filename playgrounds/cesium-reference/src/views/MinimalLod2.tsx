@@ -15,19 +15,23 @@ import { getTileset } from "../cesium.utils";
 import { cesiumConstructorOptions } from "../config";
 
 const MinimalLod2: FC = () => {
-  const viewerRef = useRef<HTMLDivElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const viewerRef = useRef<Viewer | null>(null);
+  const tilesetRef = useRef<Cesium3DTileset | null>(null);
 
   useEffect(() => {
-    let viewer: Viewer | null = null;
-    let tileset: Cesium3DTileset | null = null;
-
     const initialize = async () => {
       try {
-        if (viewerRef.current) {
-          viewer = new Viewer(viewerRef.current, cesiumConstructorOptions);
+        if (containerRef.current) {
+          const viewer = new Viewer(
+            containerRef.current,
+            cesiumConstructorOptions
+          );
+          viewerRef.current = viewer;
 
-          tileset = await getTileset(WUPP_LOD2_TILESET.url);
+          const tileset = await getTileset(WUPP_LOD2_TILESET.url);
           if (tileset) {
+            tilesetRef.current = tileset;
             viewer.scene.primitives.add(tileset);
             viewer.zoomTo(tileset);
           }
@@ -50,16 +54,16 @@ const MinimalLod2: FC = () => {
     initialize();
 
     return () => {
-      if (tileset) {
-        tileset.destroy();
+      if (tilesetRef.current) {
+        tilesetRef.current.destroy();
       }
-      if (viewer) {
-        viewer.destroy();
+      if (viewerRef.current) {
+        viewerRef.current.destroy();
       }
     };
   }, []);
 
-  return <div ref={viewerRef} style={{ width: "100%", height: "100vh" }} />;
+  return <div ref={containerRef} style={{ width: "100%", height: "100vh" }} />;
 };
 
 export default MinimalLod2;

@@ -1,6 +1,7 @@
 import MinimalMesh from "./views/MinimalMesh";
 import MinimalLod2 from "./views/MinimalLod2";
 import ShadowMesh from "./views/ShadowMesh";
+import ViewShed from "./views/ViewShed";
 
 import { DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS } from "@carma-mapping/cesium-engine";
 
@@ -12,6 +13,7 @@ export const views = [
     name: "Shadow Simulation (Mesh)",
     component: ShadowMesh,
   },
+  //{ path: "/view-shed", name: "View Shed", component: ViewShed }, WIP
 ];
 
 export const cesiumConstructorOptions = {

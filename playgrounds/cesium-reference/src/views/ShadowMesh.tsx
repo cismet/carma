@@ -9,13 +9,12 @@ import { getTileset } from "../cesium.utils";
 const ShadowMesh: FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewerRef = useRef<Viewer | null>(null);
+  const tilesetRef = useRef<Cesium3DTileset | null>(null);
   const [timeOfDay, setTimeOfDay] = useState(720); // Default to noon
   const [dayOfYear, setDayOfYear] = useState(0);
   const [shadowsEnabled, setShadowsEnabled] = useState(true);
 
   useEffect(() => {
-    let tileset: Cesium3DTileset | null = null;
-
     const initialize = async () => {
       if (containerRef.current) {
         const viewer = new Viewer(containerRef.current, {
@@ -26,8 +25,9 @@ const ShadowMesh: FC = () => {
 
         viewerRef.current = viewer;
 
-        tileset = await getTileset(WUPP_MESH_2024.url);
+        const tileset = await getTileset(WUPP_MESH_2024.url);
         if (tileset) {
+          tilesetRef.current = tileset;
           viewer.scene.primitives.add(tileset);
           viewer.zoomTo(tileset);
         }
@@ -41,8 +41,8 @@ const ShadowMesh: FC = () => {
     initialize();
 
     return () => {
-      if (tileset) {
-        tileset.destroy();
+      if (tilesetRef.current) {
+        tilesetRef.current.destroy();
       }
       if (viewerRef.current) {
         viewerRef.current.destroy();
@@ -78,7 +78,7 @@ const ShadowMesh: FC = () => {
   }, [shadowsEnabled]);
 
   return (
-    <div>
+    <>
       <div ref={containerRef} style={{ width: "100%", height: "100vh" }} />
       <div
         style={{
@@ -118,7 +118,7 @@ const ShadowMesh: FC = () => {
           Enable Shadows
         </Checkbox>
       </div>
-    </div>
+    </>
   );
 };
 
