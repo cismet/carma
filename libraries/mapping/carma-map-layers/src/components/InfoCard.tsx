@@ -51,6 +51,7 @@ const InfoCard = ({
   const legends = layer?.props?.Style?.[0]?.LegendURL;
   const parsedDescription = parseDescription(description);
   const carmaConf = extractCarmaConfig(layer.keywords);
+  const isVectorLayer = carmaConf?.vectorStyle;
 
   return (
     <div className="w-full h-[400px] p-6 shadow-sm hover:!shadow-lg rounded-lg bg-blue-50 col-span-full">
@@ -159,6 +160,12 @@ const InfoCard = ({
                   {i + 1 < tags.length && <span> · </span>}
                 </span>
               ))}
+              {isVectorLayer && (
+                <span>
+                  {tags.length > 0 && <span> · </span>}
+                  <span>Vektorlayer</span>
+                </span>
+              )}
             </p>
           </div>
           {links.length > 0 && (
