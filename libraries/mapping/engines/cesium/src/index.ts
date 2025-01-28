@@ -5,7 +5,7 @@ export { CesiumContextProvider } from "./lib/CesiumContextProvider";
 export { type CesiumContextType } from "./lib/CesiumContext";
 
 export { CustomCesiumWidget } from "./lib/CustomCesiumWidget";
-export { CustomViewer } from "./lib/CustomViewer";
+export { CustomViewer, DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS } from "./lib/CustomViewer";
 export { CustomViewerPlayground } from "./lib/CustomViewerPlayground";
 
 export { ByGeojsonClassifier } from "./lib/components/ByGeojsonClassifier";

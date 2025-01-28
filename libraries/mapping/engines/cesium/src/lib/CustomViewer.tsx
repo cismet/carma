@@ -44,7 +44,7 @@ export type CustomViewerProps = {
 export const TRANSITION_DELAY = 1000;
 const CESIUM_TARGET_FRAME_RATE = 120;
 
-const DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS: Viewer.ConstructorOptions = {
+export const DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS: Viewer.ConstructorOptions = {
   msaaSamples: 4,
   requestRenderMode: true,
 
