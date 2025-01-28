@@ -282,7 +282,7 @@ const AEVInfo = ({ secondaryInfoBoxElements }) => {
 
   return (
     <ResponsiveInfoBox
-      pixelwidth={350}
+      pixelwidth={380}
       header={llVis}
       mode={MODES.AB}
       divWhenLarge={divWhenLarge}
