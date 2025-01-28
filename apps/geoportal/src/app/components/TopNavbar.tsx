@@ -10,7 +10,10 @@ import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 import { useOverlayHelper } from "@carma-commons/ui/lib-helper-overlay";
-import { setCurrentSceneStyle } from "@carma-mapping/cesium-engine";
+import {
+  selectViewerIsMode2d,
+  setCurrentSceneStyle,
+} from "@carma-mapping/cesium-engine";
 
 import {
   getBackgroundLayer,
@@ -28,7 +31,17 @@ import { layerMap } from "../config";
 import ResourceModal from "./nav-items/ResourceModal";
 import "./switch.css";
 import { useCarmaMapContext } from "@carma-apps/portals";
-import { setUIShowInfo, setUIShowInfoText } from "../store/slices/ui";
+import {
+  getUIAllow3d,
+  setUIShowInfo,
+  setUIShowInfoText,
+} from "../store/slices/ui";
+import { detectWebGLContext } from "@carma-commons/utils";
+
+let hasGPU = false;
+const setHasGPU = (flag: boolean) => (hasGPU = flag);
+const testGPU = () => detectWebGLContext(setHasGPU);
+window.addEventListener("load", testGPU, false);
 
 const TopNavbar = () => {
   const dispatch = useDispatch();
@@ -38,6 +51,8 @@ const TopNavbar = () => {
   const { setAppMenuVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
 
+  const allow3d = useSelector(getUIAllow3d) && hasGPU;
+  const isMode2d = useSelector(selectViewerIsMode2d) || !allow3d;
   const backgroundLayer = useSelector(getBackgroundLayer);
   const selectedMapLayer = useSelector(getSelectedMapLayer);
   const selectedLuftbildLayer = useSelector(getSelectedLuftbildLayer);
@@ -107,14 +122,18 @@ const TopNavbar = () => {
                 }
               }}
             >
-              <Tooltip title={selectedMapLayer.title}>
+              <Tooltip
+                title={isMode2d ? selectedMapLayer.title : "LoD2-Gebäude (NRW)"}
+              >
                 <Radio.Button value="karte">Karte</Radio.Button>
               </Tooltip>
-              <Tooltip title={selectedLuftbildLayer.title}>
+              <Tooltip
+                title={isMode2d ? selectedLuftbildLayer.title : "3D-Mesh 03/24"}
+              >
                 <Radio.Button value="luftbild">Luftbild</Radio.Button>
               </Tooltip>
               <Tooltip title="Hintergrund auswählen">
-                <Radio.Button value="openBaseLayerView">
+                <Radio.Button value="openBaseLayerView" disabled={!isMode2d}>
                   <FontAwesomeIcon id="openBaseLayerView" icon={faLayerGroup} />
                 </Radio.Button>
               </Tooltip>
