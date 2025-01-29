@@ -45,11 +45,17 @@ const Map = () => {
       }
       map.fitBounds(bounds);
     } else {
+      console.log("features", features, event.target.feature);
+
       const index = features.findIndex(
         (element) => element.id === event.target.feature.id
       );
       if (index !== -1) {
-        dispatch(setSelectedIndex(index));
+        setSelectedIndex(index);
+        features.forEach((element) => {
+          element.selected = false;
+        });
+        event.target.feature.selected = true;
       }
     }
   };
@@ -195,6 +201,7 @@ const Map = () => {
       gazData={gazData}
     >
       <FeatureCollectionDisplayWithTooltipLabels
+        key={"fc" + selectedIndex}
         featureCollection={features}
         style={bplanFeatureStyler}
         labeler={bplanLabeler}
