@@ -167,6 +167,22 @@ const Map = () => {
               map.fitBounds(bounds);
             }) as unknown as UnknownAction
           );
+        } else if (hits !== undefined && hits.length > 0) {
+          console.log("hits", hits[0]);
+          dispatch(
+            getPlanFeatures({
+              point: { x: hits[0].x, y: hits[0].y },
+              done: (hits) => {
+                if (hits?.length > 0) {
+                  hits[0].selected = true;
+                  setFeatures(hits);
+                  setSelectedIndex(0);
+                } else {
+                  setFeatures([]);
+                }
+              },
+            }) as unknown as UnknownAction
+          );
         }
       }}
       gazData={gazData}
