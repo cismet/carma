@@ -135,6 +135,49 @@ export const NewLibModal = ({
         return category;
       });
 
+      const selectedCategoryId = sidebarElements[selectedNavItemIndex].id;
+      let categoryContainsResults = false;
+      categoriesWithResults.forEach((category) => {
+        if (category.id === selectedCategoryId) {
+          let subCats = category.categories;
+          let numOfResults = 0;
+          subCats.forEach((subCat) => {
+            numOfResults = numOfResults + subCat.layers.length;
+          });
+
+          if (numOfResults > 0) {
+            categoryContainsResults = true;
+          }
+        }
+      });
+
+      // select first category with results
+      if (!categoryContainsResults) {
+        let firstCategoryId = "";
+
+        categoriesWithResults.forEach((category) => {
+          let subCats = category.categories;
+          let numOfResults = 0;
+          subCats.forEach((subCat) => {
+            numOfResults = numOfResults + subCat.layers.length;
+          });
+          if (numOfResults > 0) {
+            firstCategoryId = category.id;
+            return;
+          }
+        });
+
+        if (firstCategoryId) {
+          const categoryIndex = sidebarElements.findIndex(
+            (element) => element.id === firstCategoryId
+          );
+
+          if (categoryIndex > -1) {
+            setSelectedNavItemIndex(categoryIndex);
+          }
+        }
+      }
+
       setShownCategories(categoriesWithResults);
     } else {
       if (tmpAllCategories.length > 0) {
