@@ -17,6 +17,13 @@
       "name": "FNP-Inspektor:4200",
       "url": "http://localhost:4200/#/rechtsplan?lat=51.273485112588936&lng=7.12272028253416&zoom=17&aevVisible=true",
       "webRoot": "${workspaceFolder}/apps/topicmaps/fnp-inspektor"
+    },
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "BPlan Auskunft:4200",
+      "url": "http://localhost:4200/#/?lat=51.25881883432255&lng=7.147081108943919&zoom=13",
+      "webRoot": "${workspaceFolder}/apps/topicmaps/bplan-auskunft"
     }
   ]
 }
