@@ -1,22 +1,34 @@
-import { useEffect, useRef, useState } from "react";
-import { Button, Checkbox } from "antd";
-import { Cartesian3, Cartographic, Color, Entity, Viewer } from "cesium";
+import { useEffect, useRef } from "react";
+import { Button } from "antd";
+import { Cartesian3, Color, Entity, Viewer, Math as CesiumMath } from "cesium";
 import { WUPP_MESH_2024 } from "@carma-commons/resources";
 import SensorShadow from "../lib/SensorShadow/src/SensorShadow";
-import { toCartographic } from "../lib/cesiumUtils";
 import useTileset from "../hooks/useTileset";
 
 import { cesiumConstructorOptions } from "../config";
 import { TOELLETURM_CAMERA, TOELLETURM_TARGET } from "../config.poi";
+import { offsetFromHeadingPitchRange } from "../lib/cesiumUtils";
 
-const sensorConfig = {
-  cameraPositionCartographic: toCartographic(TOELLETURM_CAMERA),
-  targetPositionCartographic: toCartographic(TOELLETURM_TARGET),
-};
+const cameraPosition = Cartesian3.fromDegrees(
+  TOELLETURM_CAMERA.longitude,
+  TOELLETURM_CAMERA.latitude,
+  TOELLETURM_CAMERA.height
+);
+const viewOffset = offsetFromHeadingPitchRange(cameraPosition, {
+  heading: CesiumMath.toRadians(30),
+  pitch: CesiumMath.toRadians(-25),
+  range: 200, // has to be under surface for the upper part of the frustum to hit the terrain/tileset surface
+});
+const viewPosition = Cartesian3.add(
+  cameraPosition,
+  viewOffset,
+  new Cartesian3()
+);
 
 const ViewShed: React.FC = () => {
   const constainerRef = useRef<HTMLDivElement | null>(null);
   const viewerRef = useRef<Viewer | null>(null);
+  const sensorRef = useRef<SensorShadow | null>(null);
   const { tilesetRef, tilesetReady } = useTileset(
     WUPP_MESH_2024.url,
     viewerRef
@@ -36,18 +48,14 @@ const ViewShed: React.FC = () => {
           viewerRef.current = viewer;
 
           targetPointRef.current = viewer.entities.add({
-            position: Cartographic.toCartesian(
-              toCartographic(TOELLETURM_TARGET)
-            ),
+            position: viewPosition,
             point: {
               pixelSize: 10,
               color: Color.LIME,
             },
           });
           cameraPointRef.current = viewer.entities.add({
-            position: Cartographic.toCartesian(
-              toCartographic(TOELLETURM_CAMERA)
-            ),
+            position: cameraPosition,
             point: {
               pixelSize: 10,
               color: Color.YELLOW,
@@ -72,13 +80,9 @@ const ViewShed: React.FC = () => {
 
   useEffect(() => {
     if (viewerRef.current.scene && tilesetReady) {
-      let sensorShadow = new SensorShadow(viewerRef.current, {
-        cameraPosition: Cartographic.toCartesian(
-          sensorConfig.cameraPositionCartographic
-        ),
-        viewPosition: Cartographic.toCartesian(
-          sensorConfig.targetPositionCartographic
-        ),
+      sensorRef.current = new SensorShadow(viewerRef.current, {
+        cameraPosition,
+        viewPosition,
         viewAreaColor: new Color(0.5, 1, 0.5),
         shadowAreaColor: new Color(0.2, 0.2, 0.2),
         alpha: 0.5,
@@ -103,16 +107,19 @@ const ViewShed: React.FC = () => {
         new Cartesian3()
       );
 
+      // Calculate the local up vector at the camera's position
+      const up = Cartesian3.normalize(cameraPosition, new Cartesian3());
+
       viewerRef.current.camera.flyTo({
         destination: cameraPosition,
         orientation: {
           direction: direction,
-          up: Cartesian3.UNIT_Z,
+          up: up,
         },
+        duration: 2,
       });
     }
   };
-
   const handleClickOverview = () => {
     viewerRef.current &&
       viewerRef.current.zoomTo([

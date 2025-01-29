@@ -5,6 +5,7 @@ import { Slider, Checkbox } from "antd";
 import { WUPP_MESH_2024 } from "@carma-commons/resources";
 import { cesiumConstructorOptions } from "../config";
 import useTileset from "../hooks/useTileset";
+import { useZoomToTilesetOnReady } from "../hooks/useZoomToTilesetOnReady";
 
 const ShadowMesh: FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -40,6 +41,8 @@ const ShadowMesh: FC = () => {
     };
   }, []);
 
+  useZoomToTilesetOnReady(viewerRef, tilesetRef, tilesetReady);
+
   useEffect(() => {
     if (viewerRef.current) {
       const currentTime = viewerRef.current.clock.currentTime;
@@ -61,13 +64,11 @@ const ShadowMesh: FC = () => {
   }, [dayOfYear]);
 
   useEffect(() => {
-    if (viewerRef.current) {
+    if (viewerRef.current.scene) {
       viewerRef.current.shadowMap.enabled = shadowsEnabled;
       viewerRef.current.scene.requestRender();
     }
   }, [shadowsEnabled]);
-
-  tilesetReady && viewerRef.current.zoomTo(tilesetRef.current);
 
   return (
     <>

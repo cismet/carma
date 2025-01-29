@@ -3,6 +3,7 @@ import { Viewer } from "cesium";
 import { WUPP_MESH_2024 } from "@carma-commons/resources";
 import { cesiumConstructorOptions } from "../config";
 import useTileset from "../hooks/useTileset";
+import { useZoomToTilesetOnReady } from "../hooks/useZoomToTilesetOnReady";
 
 const MinimalMesh: React.FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -35,9 +36,7 @@ const MinimalMesh: React.FC = () => {
       }
     };
   }, []);
-
-  tilesetReady && viewerRef.current.zoomTo(tilesetRef.current);
-
+  useZoomToTilesetOnReady(viewerRef, tilesetRef, tilesetReady);
   return <div ref={containerRef} style={{ width: "100%", height: "100vh" }} />;
 };
 

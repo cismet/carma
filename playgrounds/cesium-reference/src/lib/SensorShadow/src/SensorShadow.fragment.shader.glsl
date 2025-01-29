@@ -59,10 +59,10 @@ float getDepth(in vec4 depth){
 vec3 pointProjectOnPlane(in vec3 planeNormal, in vec3 planeOrigin, in vec3 point){
     // Calculate the vector from the plane origin to the point
     vec3 v01 = point - planeOrigin;
-    
+
     // Calculate the perpendicular distance from the point to the plane
     float d = dot(planeNormal, v01);
-    
+
     // Subtract the product of the plane normal and d from the point
     // to get the projection of the point on the plane
     return (point - planeNormal * d);
@@ -83,12 +83,12 @@ float point2mag(vec3 point){
 /**
  * Main function for the fragment shader.
  */
-void main() 
-{ 
+void main()
+{
     // Get the color and depth at the current texture coordinates
     vec4 color = texture(colorTexture, v_textureCoordinates);
     vec4 cDepth = texture(depthTexture, v_textureCoordinates);
-    
+
     // Get the depth and position in eye coordinates
     float depth = getDepth(cDepth);
     vec4 positionEC = toEye(v_textureCoordinates, depth);
@@ -112,30 +112,30 @@ void main()
         FragColor = color;
         return;
     }
-    
+
     // Initialize shadow parameters
-    czm_shadowParameters shadowParameters; 
-    shadowParameters.texelStepSize = shadowMap_texelSizeDepthBiasAndNormalShadingSmooth.xy; 
-    shadowParameters.depthBias = shadowMap_texelSizeDepthBiasAndNormalShadingSmooth.z; 
-    shadowParameters.normalShadingSmooth = shadowMap_texelSizeDepthBiasAndNormalShadingSmooth.w; 
-    shadowParameters.darkness = shadowMap_normalOffsetScaleDistanceMaxDistanceAndDarkness.w; 
+    czm_shadowParameters shadowParameters;
+    shadowParameters.texelStepSize = shadowMap_texelSizeDepthBiasAndNormalShadingSmooth.xy;
+    shadowParameters.depthBias = shadowMap_texelSizeDepthBiasAndNormalShadingSmooth.z;
+    shadowParameters.normalShadingSmooth = shadowMap_texelSizeDepthBiasAndNormalShadingSmooth.w;
+    shadowParameters.darkness = shadowMap_normalOffsetScaleDistanceMaxDistanceAndDarkness.w;
 
     // Adjust the depth bias
-    shadowParameters.depthBias *= max(depth * 0.01, 1.0); 
+    shadowParameters.depthBias *= max(depth * 0.01, 1.0);
 
     // Calculate the direction in eye coordinates
-    vec3 directionEC = normalize(positionEC.xyz - shadowMap_camera_positionEC.xyz); 
+    vec3 directionEC = normalize(positionEC.xyz - shadowMap_camera_positionEC.xyz);
 
     // Calculate the dot product of the normal and the negative direction
-   float nDotL = clamp(dot(vec3(1.0), -directionEC), 0.0, 1.0); 
+   float nDotL = clamp(dot(vec3(1.0), -directionEC), 0.0, 1.0);
 
     // Calculate the shadow position
-    vec4 shadowPosition = shadowMap_matrix * positionEC; 
-    shadowPosition /= shadowPosition.w; 
+    vec4 shadowPosition = shadowMap_matrix * positionEC;
+    shadowPosition /= shadowPosition.w;
 
     // If the shadow position is outside the [0, 1] range in any dimension, set the fragment color to the texture color and return
-    if (any(lessThan(shadowPosition.xyz, vec3(0.0))) || any(greaterThan(shadowPosition.xyz, vec3(1.0)))) 
-    { 
+    if (any(lessThan(shadowPosition.xyz, vec3(0.0))) || any(greaterThan(shadowPosition.xyz, vec3(1.0))))
+    {
         FragColor = color;
         return;
     }
@@ -143,23 +143,44 @@ void main()
     // If the distance between the coordinates and the viewpoint is greater than the maximum distance, the shadow effect is discarded
     vec4 lw = czm_inverseView*  vec4(shadowMap_camera_positionEC.xyz, 1.0);
     vec4 vw = czm_inverseView* vec4(positionEC.xyz, 1.0);
-    
+
     if(distance(lw.xyz,vw.xyz)>view_distance){
         FragColor = color;
         return;
     }
-    
+
     // Set the shadow parameters
-    shadowParameters.texCoords = shadowPosition.xy; 
-    shadowParameters.depth = shadowPosition.z; 
-    shadowParameters.nDotL = nDotL; 
+    shadowParameters.texCoords = shadowPosition.xy;
+    shadowParameters.depth = shadowPosition.z;
+    shadowParameters.nDotL = nDotL;
 
     // Calculate the shadow visibility
-    float visibility = czm_shadowVisibility(shadowMap, shadowParameters); 
+    float visibility = czm_shadowVisibility(shadowMap, shadowParameters);
 
     // If the visibility is 1.0, mix the color with the visible color
     if(visibility==1.0){
-        FragColor = mix(texture(colorTexture, v_textureCoordinates),vec4(viewArea_color,1.0),percentShade);
+
+    // Transform positionEC to world coordinates
+
+    // Use world coordinates to calculate grid lines
+    float gridLineWidth = 0.05; // Adjust line width as needed
+    // TODO get ratio for frustum from camera specs, not viewport
+    vec2 gridLines = vec2(5.0, 5.0);
+    vec2 gridRatio = normalize(gridLines);
+    vec2 widthUniform = gridLineWidth * gridRatio;
+    vec2 halfWidth = widthUniform / 2.0;
+    float gridX = step(widthUniform.x, abs(fract(halfWidth.x + shadowPosition.x * gridLines.x) ));
+    float gridY = step(widthUniform.y, abs(fract(halfWidth.y + shadowPosition.y * gridLines.y) ));
+
+    // Combine grid lines
+    float grid = min(gridX, gridY);
+
+    // Set grid color to white
+    vec4 gridColor = vec4(1.0, 1.0, 1.0, 0.5);
+
+    FragColor = mix(texture(colorTexture, v_textureCoordinates),vec4(viewArea_color,1.0),percentShade);
+
+    FragColor = mix(gridColor,FragColor,grid);
     }else{
         if(abs(shadowPosition.z-0.0)<0.01){
             FragColor = color;

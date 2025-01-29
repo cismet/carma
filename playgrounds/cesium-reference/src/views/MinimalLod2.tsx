@@ -12,6 +12,7 @@ import {
 } from "@carma-commons/resources";
 import { cesiumConstructorOptions } from "../config";
 import useTileset from "../hooks/useTileset";
+import { useZoomToTilesetOnReady } from "../hooks/useZoomToTilesetOnReady";
 
 const MinimalLod2: FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -55,8 +56,7 @@ const MinimalLod2: FC = () => {
     };
   }, []);
 
-  tilesetReady && viewerRef.current.zoomTo(tilesetRef.current);
-
+  useZoomToTilesetOnReady(viewerRef, tilesetRef, tilesetReady);
   return <div ref={containerRef} style={{ width: "100%", height: "100vh" }} />;
 };
 
