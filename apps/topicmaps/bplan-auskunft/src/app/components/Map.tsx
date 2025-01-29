@@ -149,8 +149,6 @@ const Map = () => {
           hits[0].type === "bplaene"
         ) {
           const gazObject = hits[0];
-          console.log("hits", gazObject);
-
           const selectionString = gazObject?.more?.v || gazObject.string;
 
           dispatch(
