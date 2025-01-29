@@ -1,8 +1,9 @@
 /// <reference types='vitest' />
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import { nxViteTsPaths } from "@nx/vite/plugins/nx-tsconfig-paths.plugin";
+//import { nxViteTsPaths } from "@nx/vite/plugins/nx-tsconfig-paths.plugin";
 import { viteStaticCopy } from "vite-plugin-static-copy";
+import viteTsConfigPaths from "vite-tsconfig-paths";
 
 const CESIUM_PATHNAME = "__cesium__";
 
@@ -26,7 +27,10 @@ export default defineConfig({
 
   plugins: [
     react(),
-    nxViteTsPaths(),
+    //nxViteTsPaths(),
+    viteTsConfigPaths({
+      root: "../../",
+    }),
     viteStaticCopy({
       targets: [
         {
@@ -39,7 +43,11 @@ export default defineConfig({
   ],
 
   worker: {
-    plugins: () => [nxViteTsPaths()],
+    plugins: () => [
+      viteTsConfigPaths({
+        root: "../../",
+      }),
+    ],
   },
 
   build: {
