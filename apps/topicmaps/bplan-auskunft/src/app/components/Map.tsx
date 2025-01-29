@@ -169,7 +169,6 @@ const Map = () => {
             }) as unknown as UnknownAction
           );
         } else if (hits !== undefined && hits.length > 0) {
-          console.log("hits", hits[0]);
           dispatch(
             getPlanFeatures({
               point: { x: hits[0].x, y: hits[0].y },
@@ -178,6 +177,13 @@ const Map = () => {
                   hits[0].selected = true;
                   setFeatures(hits);
                   setSelectedIndex(0);
+                  const projectedFC = L.Proj.geoJson([hits[0]]);
+                  const bounds = projectedFC.getBounds();
+                  const map = routedMapRef?.leafletMap?.leafletElement;
+                  if (map === undefined) {
+                    return;
+                  }
+                  map.fitBounds(bounds);
                 } else {
                   setFeatures([]);
                 }
