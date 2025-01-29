@@ -114,6 +114,7 @@ const Map = () => {
       ref={refRoutedMap}
       gazetteerSearchControl={true}
       backgroundlayers={"uwBPlan|rvrGrundriss@20"}
+      // backgroundlayers={"bplan_abkg|rvrGrundriss@20"}
       modalMenu={<Modal version={getApplicationVersion(versionData)} />}
       locationChangedHandler={(location) => {
         const newParams = { ...paramsToObject(searchParams), ...location };
