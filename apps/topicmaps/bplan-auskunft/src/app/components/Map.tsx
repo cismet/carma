@@ -140,7 +140,7 @@ const Map = () => {
         tertiaryAction: bplanSearchButtonHit,
         tertiaryActionIcon: faSearch,
         tertiaryActionTooltip: "B-Pläne Suchen",
-        teriaryActionDisabled: Number(zoom) < 12,
+        teriaryActionDisabled: Number(zoom) < 13,
       }}
       gazetteerSearchPlaceholder="B-Plan-Nr. | Adresse | POI"
       gazetteerHitTrigger={(hits) => {
