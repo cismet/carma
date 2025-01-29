@@ -21,27 +21,13 @@ import {
   getSelectedLuftbildLayer,
   getSelectedMapLayer,
   setBackgroundLayer,
-  setClickFromInfoView,
   setSelectedLayerIndex,
 } from "../store/slices/mapping";
 import ActionButtons from "./nav-items/ActionButtons";
 
-import { layerMap } from "../config";
-
+import { useCarmaMapContext } from "@carma-apps/portals";
 import ResourceModal from "./nav-items/ResourceModal";
 import "./switch.css";
-import { useCarmaMapContext } from "@carma-apps/portals";
-import {
-  getUIAllow3d,
-  setUIShowInfo,
-  setUIShowInfoText,
-} from "../store/slices/ui";
-import { detectWebGLContext } from "@carma-commons/utils";
-
-let hasGPU = false;
-const setHasGPU = (flag: boolean) => (hasGPU = flag);
-const testGPU = () => detectWebGLContext(setHasGPU);
-window.addEventListener("load", testGPU, false);
 
 const TopNavbar = () => {
   const dispatch = useDispatch();
@@ -51,8 +37,7 @@ const TopNavbar = () => {
   const { setAppMenuVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
 
-  const allow3d = useSelector(getUIAllow3d) && hasGPU;
-  const isMode2d = useSelector(selectViewerIsMode2d) || !allow3d;
+  const isMode2d = useSelector(selectViewerIsMode2d);
   const backgroundLayer = useSelector(getBackgroundLayer);
   const selectedMapLayer = useSelector(getSelectedMapLayer);
   const selectedLuftbildLayer = useSelector(getSelectedLuftbildLayer);

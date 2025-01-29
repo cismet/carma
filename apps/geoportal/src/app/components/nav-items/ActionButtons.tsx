@@ -138,8 +138,8 @@ const ActionButtons = () => {
         }`}
       >
         <button
-          className={`text-xl hover:text-gray-600 ${
-            isMode2d ? "" : disabledClass
+          className={`text-xl ${
+            isMode2d ? "hover:text-gray-600" : disabledClass
           }`}
           disabled={!isMode2d}
           onClick={() => {
@@ -168,8 +168,8 @@ const ActionButtons = () => {
           }
         >
           <button
-            className={`hover:text-gray-600 text-xl ${
-              isMode2d ? "" : disabledClass
+            className={` text-xl ${
+              isMode2d ? "hover:text-gray-600" : disabledClass
             }`}
             data-test-id="speichern-btn"
           >
@@ -182,17 +182,29 @@ const ActionButtons = () => {
           trigger="click"
           placement="bottom"
           content={<Print setShowPrintPopup={handlerSetShowPrintPopup} />}
-          open={showPrintPopup}
+          open={showPrintPopup && isMode2d}
         >
           {!printError ? (
             <FontAwesomeIcon
-              onClick={() => handlerSetShowPrintPopup(true)}
+              onClick={() => {
+                if (!isMode2d) {
+                  return;
+                }
+                handlerSetShowPrintPopup(true);
+              }}
               icon={faPrint}
-              className="text-xl hover:text-gray-600 cursor-pointer"
+              className={`text-xl ${
+                isMode2d ? "hover:text-gray-600 cursor-pointer" : disabledClass
+              }`}
             />
           ) : (
             <FontAwesomeIcon
-              onClick={() => handlerSetShowPrintPopup(true)}
+              onClick={() => {
+                if (!isMode2d) {
+                  return;
+                }
+                handlerSetShowPrintPopup(true);
+              }}
               icon={faExclamation}
               className="text-xl text-red-600 cursor-pointer"
             />
