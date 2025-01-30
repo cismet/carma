@@ -524,6 +524,7 @@ export const createCismapLayers = (
   }, [globalHits]);
 
   useEffect(() => {
+    updateGlobalHits();
     if (selectedFeature && modeRef.current !== UIMode.DEFAULT) {
       resetSelection(globalHits);
       if (globalHits[selectedFeature.id]) {
