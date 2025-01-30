@@ -100,9 +100,21 @@ const BPlanInfo = ({
 
     headerColor = "#F48286"; //'#FC0000'
   } else {
+    headertext = (
+      <div>
+        <Icon style={{ color: "#F48286" }} name="square-full" /> rechtswirksam |
+        laufende Änderung
+      </div>
+    );
+    headerColor = "#82BB8F";
   }
 
   let headerBackgroundColor = Color(headerColor);
+
+  let textColor = "black";
+  if (headerBackgroundColor.isDark()) {
+    textColor = "white";
+  }
 
   const planTooltip = <Tooltip id="test">PDF Dokument</Tooltip>;
 
@@ -115,7 +127,7 @@ const BPlanInfo = ({
               textAlign: "left",
               verticalAlign: "top",
               background: headerColor,
-              color: "black",
+              color: textColor,
               opacity: "0.9",
               paddingLeft: "3px",
               paddingTop: "0px",
