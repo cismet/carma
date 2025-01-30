@@ -38,47 +38,6 @@ export const getColorFromFeature = (feature) => {
   return color;
 };
 
-export const getColorForHauptnutzung = (feature) => {
-  const os = parseInt(feature.properties.os);
-  let c;
-  if (os === 100) {
-    c = "#CC1800";
-  } else if (os === 200 || os === 220) {
-    c = "#7D6666";
-  } else if (os === 230) {
-    c = "#4C1900";
-  } else if (os === 240) {
-    c = "#964646";
-  } else if (os === 300) {
-    c = "#9999A6";
-  } else if (os >= 410 && os <= 442) {
-    c = "#FF7F00";
-  } else if (os >= 1100 && os <= 1900) {
-    c = "#AB66AB";
-  } else if (os >= 2111 && os <= 2130) {
-    c = "#FFCC66";
-  } else if (os >= 2141 && os <= 2146) {
-    c = "#8C9445";
-  } else if (os === 2210 || os === 2220) {
-    c = "#7C7CA6";
-  } else if (os >= 3110 && os <= 3230) {
-    c = "#F2F017";
-  } else if (os >= 3300 && os <= 3390) {
-    c = "#8CCC33";
-  } else if (os === 4010 || os === 4101) {
-    c = "#B2FFFF";
-  } else if (os === 5000) {
-    c = "#D9FF99";
-  } else if (os === 5100) {
-    c = "#05773C";
-  } else if (os === 9999) {
-    c = "#FFFFFF";
-  } else {
-    c = "#000";
-  }
-  return c;
-};
-
 export const getLineColorFromFeature = (feature) => {
   let color = "#ff0000";
   switch (feature.properties.status) {
