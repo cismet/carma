@@ -15,7 +15,7 @@ const EmptyAEVInfo = ({ secondaryInfoBoxElements }) => {
     <div>
       <a
         href={`${baseUrl}#/docs/static/FNP.Legende.und.Dokumente/1/1/`}
-        target="_fnp"
+        target="_aenderungsv"
         style={{ color: "#333", float: "right", paddingLeft: "15px" }}
       >
         <h4
@@ -78,7 +78,7 @@ const EmptyAEVInfo = ({ secondaryInfoBoxElements }) => {
             >
               <a
                 href={`${baseUrl}#/docs/static/FNP.Legende.und.Dokumente/1/1/`}
-                target="_fnp"
+                target="_aenderungsv"
                 style={{ color: "#333" }}
               >
                 <h4 style={{ marginLeft: 5, marginRight: 5 }}>

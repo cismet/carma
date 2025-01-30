@@ -42,7 +42,6 @@ const AEVInfo = ({ secondaryInfoBoxElements }) => {
     currentFeature?.properties?.url !== null &&
     currentFeature?.properties?.url.trim() !== "";
   const baseURL = window.location.origin + window.location.pathname;
-  let target = "_docviewer";
   let docOrDocs;
   let mainDocOrDocs;
   if (currentFeature.properties.docUrls.length > 0) {
@@ -97,7 +96,7 @@ const AEVInfo = ({ secondaryInfoBoxElements }) => {
   bplArr.forEach((nr, index) => {
     linkArr.push(
       <span key={"bpl." + index}>
-        <a href={bplanBaseUrl + `#/docs/${nr}/1/1`} target={target}>
+        <a href={bplanBaseUrl + `#/docs/${nr}/1/1`} target={"_bplaene"}>
           B-Plan {nr}
         </a>
         {index < bplArr.length - 1 ? ", " : ""}
@@ -148,7 +147,7 @@ const AEVInfo = ({ secondaryInfoBoxElements }) => {
                 <a
                   style={{ color: "#333" }}
                   href={baseURL + `/#/docs/${currentFeature.text}/1/1`}
-                  target={target}
+                  target="_aenderungsv"
                 >
                   <h4
                     style={{
