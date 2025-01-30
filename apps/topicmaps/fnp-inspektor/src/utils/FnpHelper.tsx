@@ -1,4 +1,8 @@
 export const getColorForHauptnutzung = (feature) => {
+  if (feature.properties.farbe) {
+    return feature.properties.farbe;
+  }
+
   const os = parseInt(feature.properties.os);
   let c;
   if (os === 100) {
