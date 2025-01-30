@@ -149,8 +149,8 @@
           },
           "live": {
             "pages": {
-              "org": "carma-dev-deployments",
-              "prj": "fnp-inspektor-wuppertal",
+              "org": "digital-twin-wuppertal-live",
+              "prj": "fnp-inspektor",
               "envs": [
                 "VITE_BPLAN_BASEURL=https://digital-twin-wuppertal-live.github.io/bplan-auskunft/"
               ]
