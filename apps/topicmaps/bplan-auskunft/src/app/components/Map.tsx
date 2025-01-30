@@ -145,7 +145,7 @@ const Map = () => {
       gazetteerSearchControlProps={{
         tertiaryAction: bplanSearchButtonHit,
         tertiaryActionIcon: faSearch,
-        tertiaryActionTooltip: "B-Pläne Suchen",
+        tertiaryActionTooltip: "B-Pläne suchen",
         teriaryActionDisabled: Number(zoom) < 13,
       }}
       gazetteerSearchPlaceholder="B-Plan-Nr. | Adresse | POI"

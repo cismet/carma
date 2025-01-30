@@ -334,7 +334,7 @@ const Map = () => {
         gazetteerSearchControlProps={{
           tertiaryAction: aevSearchButtonHit,
           tertiaryActionIcon: faSearch,
-          tertiaryActionTooltip: "Änderungsverfahren Suchen",
+          tertiaryActionTooltip: "Änderungsverfahren suchen",
           teriaryActionDisabled: mapMode.mode === "arbeitskarte",
         }}
         gazetteerHitTrigger={(hits) => {
