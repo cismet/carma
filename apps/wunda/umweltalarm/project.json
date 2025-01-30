@@ -51,7 +51,8 @@
         "production": {
           "buildTarget": "umweltalarm:build:production"
         }
-      }
+      },
+      "dependsOn": ["build"]
     },
     "test": {
       "executor": "@nx/vite:test",

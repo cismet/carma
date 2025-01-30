@@ -51,7 +51,8 @@
         "production": {
           "buildTarget": "rainhazard-meschede:build:production"
         }
-      }
+      },
+      "dependsOn": ["build"]
     },
     "test": {
       "executor": "@nx/vite:test",

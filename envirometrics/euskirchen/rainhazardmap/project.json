@@ -51,7 +51,8 @@
         "production": {
           "buildTarget": "rainhazardmap-euskirchen:build:production"
         }
-      }
+      },
+      "dependsOn": ["build"]
     },
     "test": {
       "executor": "@nx/vite:test",

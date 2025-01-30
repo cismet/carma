@@ -51,7 +51,8 @@
         "production": {
           "buildTarget": "cismap-playground:build:production"
         }
-      }
+      },
+      "dependsOn": ["build"]
     },
     "test": {
       "executor": "@nx/vite:test",

@@ -142,15 +142,15 @@ const RootComponent = () => {
       <Routes>
         <Route
           path="/"
-          element={<LeafletMap vectorStyles={vectorStylesArray} />}
+          element={<LeafletMap vectorStyles={vectorStylesArray as never[]} />}
         ></Route>
         <Route
           path="/leaflet"
-          element={<LeafletMap vectorStyles={vectorStylesArray} />}
+          element={<LeafletMap vectorStyles={vectorStylesArray as never[]} />}
         ></Route>
         <Route
           path="/maplibre"
-          element={<LibreMap vectorStyles={vectorStylesArray} />}
+          element={<LibreMap vectorStyles={vectorStylesArray as never[]} />}
         ></Route>
       </Routes>
     </div>

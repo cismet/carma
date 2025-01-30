@@ -52,7 +52,8 @@
         "production": {
           "buildTarget": "klimaorte:build:production"
         }
-      }
+      },
+      "dependsOn": ["build"]
     },
     "test": {
       "executor": "@nx/vite:test",

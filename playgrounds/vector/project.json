@@ -52,7 +52,8 @@
         "production": {
           "buildTarget": "vector:build:production"
         }
-      }
+      },
+      "dependsOn": ["build"]
     },
     "lint": {
       "executor": "@nx/eslint:lint"

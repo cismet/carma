@@ -55,3 +55,6 @@ nx-cloud.env
 
 .npmrc
 deployment-config copy.json
+
+vite.config.*.timestamp*
+vitest.config.*.timestamp*

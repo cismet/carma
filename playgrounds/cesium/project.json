@@ -51,7 +51,8 @@
         "production": {
           "buildTarget": "cesium-playground:build:production"
         }
-      }
+      },
+      "dependsOn": ["build"]
     },
     "test": {
       "executor": "@nx/vite:test",

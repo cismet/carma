@@ -106,6 +106,7 @@
         "libraries/commons/ui/lib-helper-overlay/src/index.ts"
       ],
       "@carma-commons/utils": ["libraries/commons/utils/src/index.ts"],
+      "@carma-commons/utils/*": ["libraries/commons/utils/src/lib/*"],
       "@carma-mapping/cesium-engine": [
         "libraries/mapping/engines/cesium/src/index.ts"
       ],
@@ -136,7 +137,6 @@
       "@carma-mapping/utils": [
         "libraries/mapping/carma-map-utils/src/index.ts"
       ],
-      "@carma-commons/utils/*": ["libraries/commons/utils/src/lib/*"],
       "@carma-pecher-collab/emsdetten": [
         "libraries/collaboration/carma-pecher-collab/src/emsdetten/index.jsx"
       ],
