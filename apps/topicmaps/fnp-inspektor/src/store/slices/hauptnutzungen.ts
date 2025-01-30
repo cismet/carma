@@ -23,8 +23,8 @@ const slice = createSlice({
 export const loadHauptnutzungen = () => {
   return async (dispatch: any) => {
     const results = await md5FetchJSON(
-      "hauptnutzungen",
-      "https://wunda-geoportal.cismet.de/data/hauptnutzungen.data.json"
+      "hauptnutzungen600",
+      "https://wunda-geoportal.cismet.de/data/hauptnutzungen600.data.json"
     );
     let features: any = [];
     let counter = 0;
