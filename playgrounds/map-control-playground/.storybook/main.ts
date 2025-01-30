@@ -12,7 +12,7 @@ const config: StorybookConfig = {
     name: "@storybook/react-vite",
     options: {
       builder: {
-        viteConfigPath: "playgrounds/map-control-playground/vite.config.ts",
+        viteConfigPath: "playgrounds/map-control-playground/vite.config.mts",
       },
     },
   },
@@ -20,8 +20,11 @@ const config: StorybookConfig = {
   docs: {},
 
   typescript: {
-    reactDocgen: "react-docgen-typescript"
-  }
+    reactDocgen: "react-docgen-typescript",
+    reactDocgenTypescriptOptions: {
+      tsconfigPath: "playgrounds/map-control-playground/tsconfig.storybook.json",
+    },
+  },
 };
 
 export default config;

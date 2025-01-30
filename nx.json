@@ -19,10 +19,14 @@
     },
     "build-storybook": {
       "cache": true,
+      "options": {
+      "loglevel": "verbose"
+      },
       "inputs": [
         "default",
         "^production",
         "{projectRoot}/.storybook/**/*",
+        "{projectRoot}/tsconfig.json",
         "{projectRoot}/tsconfig.storybook.json"
       ]
     },
@@ -59,11 +63,12 @@
       "!{projectRoot}/**/*.cy.[jt]s?(x)",
       "!{projectRoot}/cypress.config.[jt]s",
       "!{projectRoot}/**/?(*.)+(spec|test).[jt]s?(x)?(.snap)",
+      "!{projectRoot}/tsconfig.json",
       "!{projectRoot}/tsconfig.spec.json",
+      "!{projectRoot}/tsconfig.storybook.json",
       "!{projectRoot}/*.config.(js|ts|cjs,mjs|mts)",
       "!{projectRoot}/**/*.stories.@(js|jsx|ts|tsx|mdx)",
       "!{projectRoot}/.storybook/**/*",
-      "!{projectRoot}/tsconfig.storybook.json",
       "!{projectRoot}/jest.config.[jt]s",
       "!{projectRoot}/src/test-setup.[jt]s",
       "!{projectRoot}/test-setup.[jt]s"

@@ -21,7 +21,10 @@ const config: StorybookConfig = {
   docs: {},
 
   typescript: {
-    reactDocgen: "react-docgen-typescript"
+    reactDocgen: "react-docgen-typescript",
+    reactDocgenTypescriptOptions: {
+      tsconfigPath: "libraries/mapping/carma-map-control-layout/tsconfig.storybook.json",
+    },
   }
 };
 
