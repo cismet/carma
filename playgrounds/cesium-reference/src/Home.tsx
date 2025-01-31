@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { views } from "./config";
+import { views } from "./config.views";
 
 const Home: React.FC = () => {
   return (

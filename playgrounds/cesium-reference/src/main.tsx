@@ -1,6 +1,6 @@
 import * as ReactDOM from "react-dom/client";
 import { HashRouter as Router, Routes, Route } from "react-router-dom";
-import { views } from "./config";
+import { views } from "./config.views";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "antd/dist/reset.css";
 import Home from "./Home";

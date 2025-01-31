@@ -6,6 +6,7 @@ import { WUPP_MESH_2024 } from "@carma-commons/resources";
 import { cesiumConstructorOptions } from "../config";
 import useTileset from "../hooks/useTileset";
 import { useZoomToTilesetOnReady } from "../hooks/useZoomToTilesetOnReady";
+import UiBottom from "../components/UiBottom";
 
 const ShadowMesh: FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -73,16 +74,7 @@ const ShadowMesh: FC = () => {
   return (
     <>
       <div ref={containerRef} style={{ width: "100%", height: "100vh" }} />
-      <div
-        style={{
-          position: "absolute",
-          bottom: 10,
-          right: 10,
-          left: 10,
-          padding: "10px",
-          background: "rgba(255, 255, 255, 0.85)",
-        }}
-      >
+      <UiBottom>
         <Slider
           min={0}
           max={1439}
@@ -110,7 +102,7 @@ const ShadowMesh: FC = () => {
         >
           Enable Shadows
         </Checkbox>
-      </div>
+      </UiBottom>
     </>
   );
 };
