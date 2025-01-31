@@ -139,6 +139,7 @@ export default function BackgroundLayers({
     return (
       <CismapLayer
         key={"CismapLayer." + activeBackgroundLayer + "." + opacity}
+        pane="backgroundLayers"
         {...{
           ...currentConf.conf,
           opacity,
