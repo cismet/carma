@@ -17,6 +17,8 @@ import UiBottom from "../components/UiBottom";
 import { Slider } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
+  faCircleMinus,
+  faCirclePlus,
   faMagnifyingGlassMinus,
   faMagnifyingGlassPlus,
 } from "@fortawesome/free-solid-svg-icons";
@@ -73,6 +75,7 @@ const ObliqueAndMesh: React.FC = () => {
   );
 
   const [sliderValue, setSliderValue] = useState<number>(0);
+  const [meshQuality, setMeshQuality] = useState<number>(1);
 
   useEffect(() => {
     if (viewerRef.current) {
@@ -94,6 +97,14 @@ const ObliqueAndMesh: React.FC = () => {
       if (camera.frustum instanceof PerspectiveFrustum) {
         camera.frustum.fov = CesiumMath.toRadians(value);
       }
+    }
+  };
+
+  const handleMeshQualityChange = (value: number) => {
+    setMeshQuality(value);
+    if (tilesetRef.current) {
+      tilesetRef.current.maximumScreenSpaceError = value;
+      tilesetRef.current.dynamicScreenSpaceError = false;
     }
   };
 
@@ -138,6 +149,21 @@ const ObliqueAndMesh: React.FC = () => {
             style={{ flex: 1 }}
           />
           <FontAwesomeIcon icon={faMagnifyingGlassMinus} />
+        </div>
+        <div
+          style={{ display: "flex", alignItems: "center", marginTop: "10px" }}
+        >
+          <FontAwesomeIcon icon={faCirclePlus} />
+          <Slider
+            min={0.2}
+            max={5}
+            step={0.1}
+            onChange={handleMeshQualityChange}
+            value={meshQuality}
+            tooltip={{ formatter: (value) => `Mesh maxError: ${value}` }}
+            style={{ flex: 1 }}
+          />
+          <FontAwesomeIcon icon={faCircleMinus} />
         </div>
       </UiBottom>
     </>
