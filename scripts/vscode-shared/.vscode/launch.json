@@ -1,0 +1,23 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "Geoportal:4200",
+      "url": "http://localhost:4200/#/?lat=51.271203983073185&lng=7.202490270137788&zoom=18",
+      "webRoot": "${workspaceFolder:carma}",
+      // when merging this in a single folder workspace remove the :carma suffix
+      // or omit the webRoot option altogether
+      // "webRoot": "${workspaceFolder}",
+      "preLaunchTask": "nx-geoportal:serve:development",
+      "postDebugTask": "kill-geoportal-server",
+      "sourceMapPathOverrides": {
+        "http://localhost:4200/src/*": "${workspaceFolder}/apps/geoportal/src/*"
+      }
+    }
+  ]
+}

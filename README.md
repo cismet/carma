@@ -43,6 +43,10 @@ to refresh the repo and update all submodules
 
 ... node 20 or later
 
+#### VS CODE shared launch and task configurations
+
+see docs in [scripts/vscode-shared/README.md](/scripts/vscode-shared/README.md)
+
 ### Commit Guidelines
 
 Before committing, ensure that the following conditions are met:
