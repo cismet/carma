@@ -393,7 +393,7 @@ export const topicMapsConfig: Config = {
       thumbnail:
         "https://www.wuppertal.de/geoportal/geoportal_vorschau/planung_r102_fnp_haupt_fl.png",
 
-      url: "https://wunda-geoportal.cismet.de/#/fnp/",
+      url: "https://digital-twin-wuppertal-live.github.io/fnp-inspektor/#/",
       keywords: [
         "carmaConf://opendata:https://offenedaten-wuppertal.de/dataset/laufende-fnp-%C3%A4nderungsverfahren-wuppertal/resource/ef3051ba-c658-4c32-b6bb-db4b23e1ee4a",
       ],
