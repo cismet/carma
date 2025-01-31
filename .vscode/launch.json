@@ -7,7 +7,17 @@
     {
       "type": "chrome",
       "request": "launch",
-      "name": "Geoportal:4200",
+      "name": "mount Geoportal:4200",
+      "url": "http://localhost:4200/#/?lat=51.271203983073185&lng=7.202490270137788&zoom=18",
+      // "webRoot": "${workspaceFolder}", // same as default
+      "sourceMapPathOverrides": {
+        "http://localhost:4200/src/*": "${workspaceFolder}/apps/geoportal/src/*"
+      }
+    },
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "Geoportal:4200 ",
       "url": "http://localhost:4200/#/?lat=51.271203983073185&lng=7.202490270137788&zoom=18",
       "webRoot": "${workspaceFolder}/apps/geoportal"
     },
