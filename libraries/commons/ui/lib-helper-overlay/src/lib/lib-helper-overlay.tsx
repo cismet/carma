@@ -21,39 +21,50 @@ export function LibHelperOverlay({
     }
   };
   useEffect(() => {
-    configs.forEach((currentItem) => {
-      const {
-        key,
-        el,
-        content,
-        containerPos = "center",
-        contentPos = "center",
-        contentWidth,
-        position,
-        secondary,
-      } = currentItem;
-      const rect = el && el.getBoundingClientRect();
-      const pos = getContainerPosition(containerPos);
-      const contPos = getElementPosition(contentPos);
-
-      setHightlightRects((prev) => [
-        ...prev,
-        {
+    const setItems = () => {
+      setHightlightRects([]);
+      configs.forEach((currentItem) => {
+        const {
           key,
-          rect: rect ? rect : null,
+          el,
           content,
-          pos,
-          contentPos,
-          contPos,
+          containerPos = "center",
+          contentPos = "center",
           contentWidth,
           position,
-          secondary: secondary?.content,
-          secondaryPos: secondary?.secondaryPos
-            ? secondary?.secondaryPos
-            : "top",
-        },
-      ]);
-    });
+          secondary,
+        } = currentItem;
+        const rect = el && el.getBoundingClientRect();
+        const pos = getContainerPosition(containerPos);
+        const contPos = getElementPosition(contentPos);
+
+        setHightlightRects((prev) => [
+          ...prev,
+          {
+            key,
+            rect: rect ? rect : null,
+            content,
+            pos,
+            contentPos,
+            contPos,
+            contentWidth,
+            position,
+            secondary: secondary?.content,
+            secondaryPos: secondary?.secondaryPos
+              ? secondary?.secondaryPos
+              : "top",
+          },
+        ]);
+      });
+    };
+
+    setItems();
+
+    window.addEventListener("resize", setItems);
+
+    return () => {
+      window.removeEventListener("resize", setItems);
+    };
   }, [configs]);
 
   const handleMessageClick = (e) => {
