@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { Color, GeoJsonDataSource, Viewer, Math as CesiumMath } from "cesium";
+import {
+  Color,
+  GeoJsonDataSource,
+  Viewer,
+  Math as CesiumMath,
+  PerspectiveFrustum,
+  ConstantProperty,
+  ColorMaterialProperty,
+  PointGraphics,
+} from "cesium";
 import { WUPP_MESH_2024 } from "@carma-commons/resources";
 import { cesiumConstructorOptions } from "../config";
 import useTileset from "../hooks/useTileset";
@@ -38,14 +47,15 @@ const loadGeoJson = async (viewer: Viewer, url: string) => {
     });
     viewer.dataSources.add(dataSource);
 
+    const pointStyle = new PointGraphics({
+      pixelSize: 5,
+      color: Color.YELLOW,
+    });
+
     // Change the style of the markers to circles and remove billboards
     dataSource.entities.values.forEach((entity) => {
       if (entity.position) {
-        entity.point = {
-          pixelSize: 5,
-          color: Color.LIME,
-          outline: false,
-        };
+        entity.point = pointStyle;
         entity.billboard = undefined; // Remove the default billboard
       }
     });
@@ -66,10 +76,14 @@ const ObliqueAndMesh: React.FC = () => {
 
   useEffect(() => {
     if (viewerRef.current) {
-      const initialFov = CesiumMath.toDegrees(
-        viewerRef.current.scene.camera.frustum.fov
-      );
-      setSliderValue(initialFov);
+      if (
+        viewerRef.current.scene.camera.frustum instanceof PerspectiveFrustum
+      ) {
+        const initialFov = CesiumMath.toDegrees(
+          viewerRef.current.scene.camera.frustum.fov
+        );
+        setSliderValue(initialFov);
+      }
     }
   }, [viewerRef.current]);
 
@@ -77,14 +91,9 @@ const ObliqueAndMesh: React.FC = () => {
     setSliderValue(value);
     if (viewerRef.current) {
       const camera = viewerRef.current.scene.camera;
-      camera.frustum.fov = CesiumMath.toRadians(value);
-      camera.setView({
-        destination: camera.position,
-        orientation: {
-          pitch: camera.pitch,
-          roll: camera.roll,
-        },
-      });
+      if (camera.frustum instanceof PerspectiveFrustum) {
+        camera.frustum.fov = CesiumMath.toRadians(value);
+      }
     }
   };
 
