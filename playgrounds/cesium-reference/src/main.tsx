@@ -1,18 +1,18 @@
 import * as ReactDOM from "react-dom/client";
 import { HashRouter as Router, Routes, Route } from "react-router-dom";
+
+import Home from "./Home";
+import { APP_BASE_PATH, CESIUM_PATHNAME } from "./config";
 import { views } from "./config.views";
+
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "antd/dist/reset.css";
-import Home from "./Home";
-
 declare global {
   interface Window {
     CESIUM_BASE_URL: string;
   }
 }
 
-const APP_BASE_PATH = import.meta.env.BASE_URL;
-const CESIUM_PATHNAME = "__cesium__";
 const CESIUM_BASE_URL = `${APP_BASE_PATH}${CESIUM_PATHNAME}`;
 window.CESIUM_BASE_URL = CESIUM_BASE_URL;
 
