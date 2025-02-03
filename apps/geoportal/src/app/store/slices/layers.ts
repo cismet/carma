@@ -40,6 +40,19 @@ const slice = createSlice({
       state.favorites = newFavorites;
       return state;
     },
+    updateFavorite(state, action: PayloadAction<Item>) {
+      const newFavorites = state.favorites.map((favorite) => {
+        if (favorite.id === `fav_${action.payload.id}`) {
+          return {
+            ...action.payload,
+            id: `fav_${action.payload.id}`,
+          };
+        }
+        return favorite;
+      });
+      state.favorites = newFavorites;
+      return state;
+    },
 
     setThumbnail(state, action) {
       let alreadyExists = state.thumbnails.some(
@@ -53,7 +66,8 @@ const slice = createSlice({
   },
 });
 
-export const { addFavorite, removeFavorite, setThumbnail } = slice.actions;
+export const { addFavorite, removeFavorite, updateFavorite, setThumbnail } =
+  slice.actions;
 
 export const getFavorites = (state: RootState): Item[] =>
   state.layers.favorites;

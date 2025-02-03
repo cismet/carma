@@ -30,6 +30,7 @@ import { SidebarItem } from "./SidebarItems";
 import "./input.css";
 import "./modal.css";
 import ItemGrid from "./ItemGrid";
+import { isEqual } from "lodash";
 const { Search } = Input;
 
 // @ts-expect-error tbd
@@ -48,6 +49,7 @@ export interface LibModalProps {
   favorites?: Item[];
   addFavorite: (layer: Item) => void;
   removeFavorite: (layer: Item) => void;
+  updateFavorite?: (layer: Item) => void;
   activeLayers: any[];
   customCategories: LayerCategories[];
   updateActiveLayer: (layer: Layer) => void;
@@ -74,6 +76,7 @@ export const NewLibModal = ({
   favorites,
   updateActiveLayer,
   removeLastLayer,
+  updateFavorite,
 }: LibModalProps) => {
   const [preview, setPreview] = useState(false);
   const [layers, setLayers] = useState<any[]>([]);
@@ -231,6 +234,8 @@ export const NewLibModal = ({
     return numberOfLayers;
   };
 
+  const updateFavoritedLayers = () => {};
+
   useEffect(() => {
     let newLayers: any[] = [];
     for (let key in services) {
@@ -378,8 +383,50 @@ export const NewLibModal = ({
     search(debouncedSearchTerm);
   }, [debouncedSearchTerm]);
 
+  const checkIfAllLayersAreLoaded = () => {
+    let allLayersLoaded = true;
+    if (allLayers.length === 0) {
+      allLayersLoaded = false;
+    }
+    allLayers.forEach((category) => {
+      if (category.layers.length === 0) {
+        allLayersLoaded = false;
+      }
+    });
+    return allLayersLoaded;
+  };
+
   useEffect(() => {
     setLayers(allLayers);
+
+    if (checkIfAllLayersAreLoaded()) {
+      const favoriteLayerCategory = customCategories.filter(
+        (category) => category.id === "favoriteLayers"
+      );
+      if (favoriteLayerCategory.length > 0) {
+        const favoriteLayers = favoriteLayerCategory[0].layers;
+        favoriteLayers.forEach((layer) => {
+          // @ts-expect-error fix item type
+          const serviceId = layer.service.name;
+          const serviceCategory = allLayers.filter(
+            (category) => category.id === serviceId
+          );
+          if (serviceCategory.length > 0) {
+            const serviceLayers = serviceCategory[0].layers;
+            const foundLayer = serviceLayers.find(
+              (serviceLayer) => serviceLayer.id === layer.id.slice(4)
+            );
+            if (foundLayer) {
+              if (!isEqual(foundLayer, layer)) {
+                if (updateFavorite) {
+                  updateFavorite(foundLayer);
+                }
+              }
+            }
+          }
+        });
+      }
+    }
 
     setTmpAllCategories((prev) => {
       if (prev.find((item) => item.id === "mapLayers")) {

@@ -21,6 +21,7 @@ import {
   getThumbnails,
   removeFavorite,
   setThumbnail,
+  updateFavorite,
 } from "../../store/slices/layers";
 import {
   getUIShowResourceModal,
@@ -112,10 +113,6 @@ const ResourceModal = () => {
         open={showResourceModal}
         setOpen={(show) => dispatch(setShowResourceModal(show))}
         setAdditionalLayers={updateLayers}
-        setThumbnail={(thumbnail) => {
-          dispatch(setThumbnail(thumbnail));
-        }}
-        thumbnails={thumbnails}
         favorites={favorites}
         addFavorite={(layer) => {
           dispatch(addFavorite(layer));
@@ -127,7 +124,6 @@ const ResourceModal = () => {
         customCategories={[
           {
             Title: "Meine Teilzwillinge",
-            // @ts-expect-error
             layers: favorites
               .filter((favorite) => {
                 return favorite.serviceName === "wuppTopicMaps";
@@ -150,12 +146,10 @@ const ResourceModal = () => {
                 path: "Meine Karten",
               };
             }),
-            // @ts-expect-error
             id: "collections",
           },
           {
             Title: "Meine Kartenebenen",
-            // @ts-expect-error
             layers: favorites
               .filter((favorite) => {
                 return favorite.serviceName !== "wuppTopicMaps";
@@ -175,6 +169,9 @@ const ResourceModal = () => {
         }}
         removeLastLayer={() => {
           dispatch(removeLastLayer());
+        }}
+        updateFavorite={(layer) => {
+          dispatch(updateFavorite(layer));
         }}
       />
     </>
