@@ -799,7 +799,7 @@ export const GeoportalMap = () => {
                 backgroundLayer.visible &&
                 getBackgroundLayers({ layerString: backgroundLayer.layers })}
 
-              {focusMode && <PaleOverlay />}
+              {focusMode && <PaleOverlay opacity={0.7} />}
               {createCismapLayers(layers, {
                 mode: uiMode,
                 dispatch,
