@@ -1,6 +1,5 @@
 import { Color, GeoJsonDataSource, PointGraphics, Viewer } from "cesium";
-import { buffer, difference, featureCollection } from '@turf/turf';
-
+import { buffer, difference, featureCollection } from "@turf/turf";
 const BUFFER_WIDTH_METERS = 4;
 const FOOTPRINT_COLOR = Color.YELLOW.withAlpha(0.5);
 
@@ -52,18 +51,24 @@ const prepareFootprints = (footprintFeatures: GeoJSON.FeatureCollection) => {
   const availableCaptureLocations: { [key: string]: { [key: string]: any } } =
     {};
   footprintFeatures.features.forEach((feature: GeoJSON.Feature) => {
-    if (feature.geometry && feature.geometry.coordinates) {
+    if (feature.geometry) {
       feature.properties.LINE_WAYPOINT = linewayPointToId(
         feature.properties.LINE,
         feature.properties.WAYPOINT
       );
 
       // Buffer the geometry by meters
-      const buffered = buffer(feature, BUFFER_WIDTH_METERS, { units: "meters" });
+      const buffered = buffer(feature, BUFFER_WIDTH_METERS, {
+        units: "meters",
+      }) as unknown as GeoJSON.Feature<GeoJSON.Polygon>;
 
-      console.log(buffered, feature)
       // Subtract the original geometry from the buffered one
-      const outline = difference(featureCollection([buffered, feature]));
+      const outline = difference(
+        featureCollection([
+          buffered,
+          feature as GeoJSON.Feature<GeoJSON.Polygon>,
+        ])
+      );
       feature.geometry = outline.geometry;
 
       if (

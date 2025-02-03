@@ -19,6 +19,7 @@ import {
   Entity,
   HeadingPitchRoll,
   BoundingSphere,
+  PerspectiveFrustum,
 } from "cesium";
 
 import { WUPP_MESH_2024 } from "@carma-commons/resources";
@@ -31,7 +32,6 @@ import HeadingAndNorthOffset from "../components/HeadingAndNorthOffset";
 import LineAndWaypointSelector from "../components/LineAndWaypointSelector";
 
 import useTileset from "../hooks/useTileset";
-import { useZoomToTilesetOnReady } from "../hooks/useZoomToTilesetOnReady";
 
 import {
   linewayPointToId,
@@ -289,7 +289,7 @@ const ObliqueAndMesh: React.FC = () => {
   }, [viewerRef]);
 
   useEffect(() => {
-    if (viewerRef.current) {
+    if (viewerRef.current && viewerRef.current.camera.frustum instanceof PerspectiveFrustum) {
       viewerRef.current.camera.frustum.fov = CesiumMath.toRadians(cameraFOV);
     }
   }, [cameraFOV]);
@@ -466,17 +466,17 @@ const ObliqueAndMesh: React.FC = () => {
             step={0.1}
             onChange={(v) => {
               setCameraFOV(v);
-              if (viewerRef.current) {
+              if (viewerRef.current && viewerRef.current.camera.frustum instanceof PerspectiveFrustum) {
                 viewerRef.current.camera.frustum.fov = CesiumMath.toRadians(v);
               }
               const imageElement = document.querySelector('img[alt="preview"]');
-              if (imageElement) {
+              if (imageElement && imageElement instanceof HTMLImageElement) {
                 imageElement.style.opacity = "0.5";
               }
             }}
-            onAfterChange={() => {
+            onChangeComplete={() => {
               const imageElement = document.querySelector('img[alt="preview"]');
-              if (imageElement) {
+              if (imageElement && imageElement instanceof HTMLImageElement) {
                 imageElement.style.opacity = "1";
               }
             }}
@@ -525,13 +525,13 @@ const ObliqueAndMesh: React.FC = () => {
                 }
               }
               const imageElement = document.querySelector('img[alt="preview"]');
-              if (imageElement) {
+              if (imageElement && imageElement instanceof HTMLImageElement) {
                 imageElement.style.opacity = "0.5";
               }
             }}
-            onMouseUp={() => {
+            onChangeComplete={() => {
               const imageElement = document.querySelector('img[alt="preview"]');
-              if (imageElement) {
+              if (imageElement && imageElement instanceof HTMLImageElement) {
                 imageElement.style.opacity = "1";
               }
             }}
