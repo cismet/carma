@@ -1,4 +1,5 @@
 import { DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS } from "@carma-mapping/cesium-engine";
+import { ConstantProperty } from "cesium";
 
 export const APP_BASE_PATH = import.meta.env.BASE_URL;
 export const CESIUM_PATHNAME = "__cesium__";
@@ -10,3 +11,6 @@ export const cesiumConstructorOptions = {
   ...DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS,
   creditContainer: document.createElement("div"),
 };
+
+export const NORMAL_PIXEL_SIZE = new ConstantProperty(5);
+export const SELECTED_PIXEL_SIZE = new ConstantProperty(20);
