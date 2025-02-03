@@ -407,7 +407,7 @@ export const NewLibModal = ({
         const favoriteLayers = favoriteLayerCategory[0].layers;
         favoriteLayers.forEach((layer) => {
           // @ts-expect-error fix item type
-          const serviceId = layer.service.name;
+          const serviceId = layer?.service?.name;
           const serviceCategory = allLayers.filter(
             (category) => category.id === serviceId
           );
