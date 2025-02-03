@@ -1,0 +1,3 @@
+# do not upload large files for testing purposes
+# actual data should be uploaded to usual data hosts
+public/data/previews
