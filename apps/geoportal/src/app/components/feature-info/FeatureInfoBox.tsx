@@ -68,7 +68,8 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
       pos &&
       selectedFeature &&
       selectedFeature.id !== "information" &&
-      secondaryInfoBoxElements.length <= 3
+      secondaryInfoBoxElements.length <= 3 &&
+      selectedFeature?.geometry?.type !== "Point"
     ) {
       const updatedLinks = updateUrlWithCoordinates(
         selectedFeature.properties.genericLinks,
