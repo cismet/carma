@@ -77,9 +77,11 @@ export function App() {
     document.title = `Dokumentenansicht | ${docPackageId}`;
   }, [docPackageId, bplaene]);
 
-  return (
-    <>{docs.length > 0 && <DocumentViewer docs={docs} mode="bplaene" />}</>
-  );
+  if (docs.length > 0) {
+    return <DocumentViewer docs={docs} mode="bplaene" />;
+  } else {
+    return null;
+  }
 }
 
 export default App;
