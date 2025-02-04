@@ -124,8 +124,6 @@ const Navbar = ({
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      console.log("xxx keydown", event);
-
       if (!page || !file) return;
 
       const currentPage = parseInt(page, 10);
