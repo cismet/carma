@@ -45,6 +45,13 @@ function getStyleName(vectorStyle) {
   return styleKey;
 }
 
+const isIOS = () => {
+  return (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.userAgent.includes("Mac") && "ontouchend" in document)
+  );
+};
+
 export const printMap = async (
   center,
   scale,
@@ -86,7 +93,16 @@ export const printMap = async (
 
     const blob = await response.blob();
     const urlBlob = URL.createObjectURL(blob);
-    window.open(urlBlob); // Open a new tab
+
+    if (!isIOS()) {
+      window.open(urlBlob); // Open a new tab
+    } else if (isIOS()) {
+      // Download option
+      const a = document.createElement("a");
+      a.href = urlBlob;
+      a.download = name;
+      a.click();
+    }
 
     // IFrame option
     // // Open a new tab and write the HTML content directly
@@ -123,12 +139,6 @@ export const printMap = async (
 
     // // Close the document to ensure it's fully written
     // newTab.document.close();
-
-    // Download option
-    // const a = document.createElement("a");
-    // a.href = urlBlob;
-    // a.download = name;
-    // a.click();
 
     handleIsLoading(false);
   } catch (error) {
