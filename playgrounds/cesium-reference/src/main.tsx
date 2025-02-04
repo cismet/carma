@@ -7,6 +7,8 @@ import { views } from "./config.views";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "antd/dist/reset.css";
+import { ErrorBoundary } from "react-error-boundary";
+import ErrorFallback from "./components/ErrorFallback";
 declare global {
   interface Window {
     CESIUM_BASE_URL: string;
@@ -20,12 +22,18 @@ const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement
 );
 root.render(
-  <Router>
-    <Routes>
-      <Route path="/" element={<Home />} />
-      {views.map((view) => (
-        <Route key={view.path} path={view.path} element={<view.component />} />
-      ))}
-    </Routes>
-  </Router>
+  <ErrorBoundary FallbackComponent={ErrorFallback}>
+    <Router>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        {views.map((view) => (
+          <Route
+            key={view.path}
+            path={view.path}
+            element={<view.component />}
+          />
+        ))}
+      </Routes>
+    </Router>
+  </ErrorBoundary>
 );

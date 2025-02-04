@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Viewer, Cesium3DTileset } from "cesium";
 
 const defaultConstructorOptions: Cesium3DTileset.ConstructorOptions = {
@@ -16,19 +16,16 @@ function useTileset(
   const [tilesetReady, setTilesetReady] = useState<boolean>(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const constructorOptionsMemoized = useMemo(
-    () => ({ ...defaultConstructorOptions, ...constructorOptions }),
-    [constructorOptions]
-  );
-
   useEffect(() => {
+    // keep this for identifying users that don't memoize constructorOptions
+    console.debug("useTileset", url, constructorOptions);
     const loadTileset = async (signal?: AbortSignal) => {
       try {
         setLoading(true);
-        const tileset = await Cesium3DTileset.fromUrl(
-          url,
-          constructorOptionsMemoized
-        );
+        const tileset = await Cesium3DTileset.fromUrl(url, {
+          ...defaultConstructorOptions,
+          ...constructorOptions,
+        });
         if (signal?.aborted) return;
         tilesetRef.current = tileset;
         setTilesetReady(true);
@@ -36,21 +33,17 @@ function useTileset(
         if (signal?.aborted) return;
         setError(err.message || "Failed to load tileset");
       } finally {
-        if (!signal?.aborted) setLoading(false);
+        setLoading(false);
       }
     };
 
     abortControllerRef.current = new AbortController();
     loadTileset(abortControllerRef.current.signal);
-  }, [url, constructorOptionsMemoized]);
 
-  useEffect(() => {
     return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
+      abortControllerRef.current?.abort();
     };
-  }, []);
+  }, [url, constructorOptions]);
 
   useEffect(() => {
     if (viewerRef.current && tilesetRef.current && tilesetReady) {

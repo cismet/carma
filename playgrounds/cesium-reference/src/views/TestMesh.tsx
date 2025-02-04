@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
-import { Cesium3DTilesInspector, Viewer } from "cesium";
-import { Slider, Divider } from 'antd';
+import { useEffect, useMemo, useRef, useState } from "react";
+
+import { Cesium3DTilesInspector, Viewer, CesiumWidget } from "cesium";
+import { Slider, Divider } from "antd";
 
 import { WUPP_MESH_2024 } from "@carma-commons/resources";
 import useTileset from "../hooks/useTileset";
@@ -8,6 +9,7 @@ import { useZoomToTilesetOnReady } from "../hooks/useZoomToTilesetOnReady";
 import UiBottom from "../components/UiBottom";
 import UiTopRight from "../components/UiTopRight";
 import { cesiumConstructorOptions } from "../config";
+import ErrorBoundaryHandler from "../components/ErrorBoundaryHandler";
 
 const DEFAULT_MAX_ERROR = 5;
 const MAX_MAX_ERROR = 32;
@@ -28,22 +30,70 @@ const initialMaxError = (() => {
 })();
 console.log("ini", initialMaxError);
 
+const overrideCesiumWidgetShowErrorPanel = function (
+  setErrorInfo: React.Dispatch<
+    React.SetStateAction<{ title: string; message: string; error: any } | null>
+  >,
+  setErrorHandled: React.Dispatch<React.SetStateAction<boolean>>
+) {
+  CesiumWidget.prototype.showErrorPanel = function (
+    title: string,
+    message: string,
+    error: any
+  ) {
+    console.log("showErrorPanel");
+    setErrorInfo({ title, message, error });
+    setErrorHandled(true);
+  };
+};
+
 const TestMesh: React.FC = () => {
   const [maximumScreenSpaceError, setMaximumScreenSpaceError] =
     useState<number>(initialMaxError);
-  const [showTileInspector, setTileInspectorVisible] = useState(false);
+  const [showTileInspector, setShowTileInspector] = useState(false);
   const [tilesetUrl, setTilesetUrl] = useState<string>(WUPP_MESH_2024.url);
+  const [errorInfo, setErrorInfo] = useState<{
+    title: string;
+    message: string;
+    error: Error;
+  } | null>(null);
+  const [errorHandled, setErrorHandled] = useState(false);
+
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewerRef = useRef<Viewer | null>(null);
   const uiTopRightRef = useRef<HTMLDivElement | null>(null);
-  const { tilesetRef, tilesetReady } = useTileset(tilesetUrl, viewerRef, {
-    skipLevelOfDetail: true,
-    immediatelyLoadDesiredLevelOfDetail: true,
-    maximumScreenSpaceError: maximumScreenSpaceError,
-    show: true,
-  });
+  const { tilesetRef, tilesetReady } = useTileset(
+    tilesetUrl,
+    viewerRef,
+    useMemo(
+      () => ({
+        skipLevelOfDetail: true,
+        immediatelyLoadDesiredLevelOfDetail: true,
+        maximumScreenSpaceError: maximumScreenSpaceError,
+        show: true,
+      }),
+      [] // only use initial value for constructorOptions
+    )
+  );
 
   useEffect(() => {
+    overrideCesiumWidgetShowErrorPanel(setErrorInfo, setErrorHandled);
+  }, []);
+
+  useEffect(() => {
+    if (errorInfo) {
+      // Reset error state after handling
+      setErrorInfo(null);
+      setErrorHandled(false);
+    }
+  }, [errorInfo]);
+
+  useEffect(() => {
+    if (viewerRef.current) {
+      console.log("Viewer is already loaded");
+      return;
+    }
+
     const initialize = async () => {
       try {
         if (containerRef.current) {
@@ -62,6 +112,7 @@ const TestMesh: React.FC = () => {
 
     return () => {
       if (viewerRef.current) {
+        console.log("Destroying viewer");
         viewerRef.current.destroy();
       }
     };
@@ -86,35 +137,33 @@ const TestMesh: React.FC = () => {
     window.location.hash = `${hash}?${hashParams.toString()}`;
   }, [maximumScreenSpaceError]);
 
-  const handleMeshQualityChange = (value: number) => {
-    if (value && value !== maximumScreenSpaceError) {
-      setMaximumScreenSpaceError(value);
+  useEffect(() => {
+    if (uiTopRightRef.current) {
+      uiTopRightRef.current.style.display = "none";
     }
-  };
 
-  const addTileInspector = () => {
-    if (!showTileInspector && viewerRef.current) {
+    if (showTileInspector && viewerRef.current) {
       new Cesium3DTilesInspector(
         uiTopRightRef.current,
         viewerRef.current.scene
       );
-      setTileInspectorVisible(true);
-    }
-  };
-
-  useEffect(() => {
-    if (uiTopRightRef.current) {
-      if (showTileInspector) {
+      if (uiTopRightRef.current) {
         uiTopRightRef.current.style.display = "block";
-      } else {
-        uiTopRightRef.current.style.display = "none";
       }
     }
   }, [showTileInspector]);
 
   useZoomToTilesetOnReady(viewerRef, tilesetRef, tilesetReady);
+
   return (
     <>
+      {errorInfo && (
+        <ErrorBoundaryHandler
+          title={errorInfo.title}
+          message={errorInfo.message}
+          error={errorInfo.error}
+        />
+      )}
       <div ref={containerRef} style={{ width: "100%", height: "100vh" }} />
       <UiTopRight ref={uiTopRightRef} />
       <UiBottom>
@@ -122,10 +171,10 @@ const TestMesh: React.FC = () => {
           style={{ display: "flex", alignItems: "center", marginTop: "10px" }}
         >
           <Slider
-            min={0.5}
+            min={0}
             max={MAX_MAX_ERROR}
-            step={0.5}
-            onChange={handleMeshQualityChange}
+            step={0.1}
+            onChange={setMaximumScreenSpaceError}
             value={maximumScreenSpaceError}
             tooltip={{ formatter: (value) => `Mesh maxError: ${value}` }}
             style={{ flex: 1 }}
@@ -147,7 +196,25 @@ const TestMesh: React.FC = () => {
           <button onClick={() => setMaximumScreenSpaceError(32)}>
             Error to 32
           </button>
-          <Divider type="vertical" /> <button onClick={addTileInspector}>Add Tile Inspector</button>
+          <button
+            onClick={() => {
+              try {
+                throw new Error("Forced render error");
+              } catch (error) {
+                CesiumWidget.prototype.showErrorPanel(
+                  "Render Error",
+                  "This is a forced render error for testing purposes.",
+                  error
+                );
+              }
+            }}
+          >
+            Force Render Error
+          </button>
+          <Divider type="vertical" />
+          <button onClick={() => setShowTileInspector(true)}>
+            Add Tile Inspector
+          </button>
         </div>
       </UiBottom>
     </>

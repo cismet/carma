@@ -16,6 +16,10 @@ export const views = [
   },
   { path: "/view-shed", name: "View Shed", component: ViewShed },
   { path: "/oblique", name: "Oblique and Mesh", component: ObliqueAndMesh },
-  { path: "/navigation-control", name: "Navigation Control", component: NavigationControlView },
+  {
+    path: "/navigation-control",
+    name: "Navigation Control",
+    component: NavigationControlView,
+  },
   { path: "/test-mesh", name: "Test Mesh", component: TestMesh },
 ];

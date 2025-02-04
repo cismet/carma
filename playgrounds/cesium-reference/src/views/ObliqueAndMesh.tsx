@@ -74,7 +74,6 @@ const ObliqueAndMesh: React.FC = () => {
   const [cameraCardinalDirection, setCameraCardinalDirection] =
     useState<CardinalDirections | null>(null);
 
-
   const [flightPatternHeading, setFlightPatternHeading] = useState(0);
   const [flightPatternCardinalDirection, setFlightPatternCardinalDirection] =
     useState<CardinalDirections | null>(null);
@@ -289,7 +288,10 @@ const ObliqueAndMesh: React.FC = () => {
   }, [viewerRef]);
 
   useEffect(() => {
-    if (viewerRef.current && viewerRef.current.camera.frustum instanceof PerspectiveFrustum) {
+    if (
+      viewerRef.current &&
+      viewerRef.current.camera.frustum instanceof PerspectiveFrustum
+    ) {
       viewerRef.current.camera.frustum.fov = CesiumMath.toRadians(cameraFOV);
     }
   }, [cameraFOV]);
@@ -466,7 +468,10 @@ const ObliqueAndMesh: React.FC = () => {
             step={0.1}
             onChange={(v) => {
               setCameraFOV(v);
-              if (viewerRef.current && viewerRef.current.camera.frustum instanceof PerspectiveFrustum) {
+              if (
+                viewerRef.current &&
+                viewerRef.current.camera.frustum instanceof PerspectiveFrustum
+              ) {
                 viewerRef.current.camera.frustum.fov = CesiumMath.toRadians(v);
               }
               const imageElement = document.querySelector('img[alt="preview"]');
