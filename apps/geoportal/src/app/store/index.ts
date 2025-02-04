@@ -77,6 +77,7 @@ const mappingConfig = {
     "focusMode",
     "savedLayerConfigs",
     "selectedMapLayer",
+    "paleOpacityValue",
     "backgroundLayer",
     "selectedLuftbildLayer",
     "showFullscreenButton",
