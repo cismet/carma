@@ -273,11 +273,13 @@ const LayerItem = ({
                   className="text-3xl text-white drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,1)]"
                 />
               </button>
-              <FontAwesomeIcon
-                onClick={() => setOpenDeleteModal(true)}
-                icon={faTrash}
-                className="absolute left-1 top-11 text-3xl cursor-pointer text-white drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,1)] z-50"
-              />
+              {!layer.serviceName.includes("discover") && (
+                <FontAwesomeIcon
+                  onClick={() => setOpenDeleteModal(true)}
+                  icon={faTrash}
+                  className="absolute left-1 top-11 text-3xl cursor-pointer text-white drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,1)] z-50"
+                />
+              )}
             </>
           ) : (
             <button
@@ -319,13 +321,18 @@ const LayerItem = ({
                     />{" "}
                     Laden
                   </button>
-                  <button
-                    className="w-36 bg-gray-100 hover:bg-gray-50 rounded-md py-2 flex text-center items-center px-2"
-                    onClick={() => setOpenDeleteModal(true)}
-                  >
-                    <FontAwesomeIcon icon={faTrash} className="text-lg mr-2" />{" "}
-                    Löschen
-                  </button>
+                  {!layer.serviceName.includes("discover") && (
+                    <button
+                      className="w-36 bg-gray-100 hover:bg-gray-50 rounded-md py-2 flex text-center items-center px-2"
+                      onClick={() => setOpenDeleteModal(true)}
+                    >
+                      <FontAwesomeIcon
+                        icon={faTrash}
+                        className="text-lg mr-2"
+                      />{" "}
+                      Löschen
+                    </button>
+                  )}
                 </>
               ) : (
                 <button

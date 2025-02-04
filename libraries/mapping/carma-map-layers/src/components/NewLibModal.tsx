@@ -23,14 +23,13 @@ import {
   wmsLayerToGenericItem,
 } from "../helper/layerHelper";
 import type { Item, Layer, SavedLayerConfig } from "../helper/types";
-import LayerItem from "./LayerItem";
 import LayerTabs from "./LayerTabs";
-import LibItem from "./LibItem";
 import { SidebarItem } from "./SidebarItems";
 import "./input.css";
 import "./modal.css";
 import ItemGrid from "./ItemGrid";
 import { isEqual } from "lodash";
+import { discoverConfig } from "../helper/discover";
 const { Search } = Input;
 
 // @ts-expect-error tbd
@@ -234,8 +233,6 @@ export const NewLibModal = ({
     return numberOfLayers;
   };
 
-  const updateFavoritedLayers = () => {};
-
   useEffect(() => {
     let newLayers: any[] = [];
     for (let key in services) {
@@ -346,6 +343,28 @@ export const NewLibModal = ({
           setAllLayers(tmp);
         }
       }
+    }
+
+    for (let key in discoverConfig) {
+      setShownCategories((prev) => {
+        if (prev.find((item) => item.id === "discover")) {
+          prev.splice(
+            prev.findIndex((item) => item.id === "discover"),
+            1
+          );
+        }
+        return [...prev, { id: "discover", categories: [discoverConfig[key]] }];
+      });
+
+      setTmpAllCategories((prev) => {
+        if (prev.find((item) => item.id === "discover")) {
+          prev.splice(
+            prev.findIndex((item) => item.id === "discover"),
+            1
+          );
+        }
+        return [...prev, { id: "discover", categories: [discoverConfig[key]] }];
+      });
     }
   }, []);
 
@@ -955,6 +974,7 @@ export const NewLibModal = ({
                 )}
               {selectedNavItemIndex !== 2 &&
                 selectedNavItemIndex !== 3 &&
+                selectedNavItemIndex !== 1 &&
                 selectedNavItemIndex !== 0 &&
                 selectedNavItemIndex !== 5 && (
                   <h1 className="text-2xl font-normal">
