@@ -187,7 +187,7 @@ function App({ published }: { published?: boolean }) {
       setBackgroundLayer({
         title: layerMap[getId()].title,
         id: backgroundLayerId,
-        opacity: 1.0,
+        opacity: backgroundLayer.opacity,
         description: layerMap[getId()].description,
         inhalt: layerMap[getId()].inhalt,
         eignung: layerMap[getId()].eignung,

@@ -74,6 +74,7 @@ const mappingConfig = {
   storage: localForage,
   whitelist: [
     "layers",
+    "focusMode",
     "savedLayerConfigs",
     "selectedMapLayer",
     "backgroundLayer",
