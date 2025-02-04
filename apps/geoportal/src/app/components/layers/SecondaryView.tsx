@@ -28,6 +28,7 @@ import { SELECTED_LAYER_INDEX } from "@carma-apps/portals";
 import { cn } from "../../helper/helper";
 import {
   changeBackgroundOpacity,
+  changeBackgroundVisibility,
   changeOpacity,
   changePaleOpacity,
   changeVisibility,
@@ -251,6 +252,10 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
                     } else {
                       dispatch(setFocusMode(false));
                     }
+
+                    if (value !== 0) {
+                      dispatch(changeBackgroundVisibility(true));
+                    }
                   } else {
                     dispatch(changeOpacity({ id: layer.id, opacity: value }));
                   }
@@ -270,9 +275,22 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
               className="hover:text-gray-500 text-gray-600 flex items-center justify-center"
               onClick={(e) => {
                 if (layer.visible) {
-                  dispatch(changeVisibility({ id: layer.id, visible: false }));
+                  if (isBaseLayer) {
+                    dispatch(changeBackgroundVisibility(false));
+                  } else {
+                    dispatch(
+                      changeVisibility({ id: layer.id, visible: false })
+                    );
+                  }
                 } else {
-                  dispatch(changeVisibility({ id: layer.id, visible: true }));
+                  if (isBaseLayer) {
+                    dispatch(changeBackgroundVisibility(true));
+                    if (backgroundLayer.opacity === 0) {
+                      dispatch(changeBackgroundOpacity({ opacity: 1 }));
+                    }
+                  } else {
+                    dispatch(changeVisibility({ id: layer.id, visible: true }));
+                  }
                 }
               }}
             >

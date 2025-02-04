@@ -19,6 +19,7 @@ import { selectViewerIsMode2d } from "@carma-mapping/cesium-engine";
 import {
   appendSavedLayerConfig,
   changeBackgroundOpacity,
+  changeBackgroundVisibility,
   getBackgroundLayer,
   getFocusMode,
   getLayers,
@@ -125,6 +126,9 @@ const ActionButtons = () => {
                 opacity: focusMode ? 1 : paleOpacityValue,
               })
             );
+            if (focusMode) {
+              dispatch(changeBackgroundVisibility(true));
+            }
           }}
           data-test-id="hintergrundkarte-btn"
         >

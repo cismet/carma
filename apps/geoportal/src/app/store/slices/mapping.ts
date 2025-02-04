@@ -16,7 +16,7 @@ const initialState: MappingState = {
   layers: [],
   savedLayerConfigs: [],
   selectedLayerIndex: SELECTED_LAYER_INDEX.NO_SELECTION,
-  paleOpacityValue: 0.1,
+  paleOpacityValue: 0.2,
 
   selectedMapLayer: {
     title: "Stadtplan",
@@ -125,6 +125,9 @@ const slice = createSlice({
 
     changeBackgroundOpacity(state, action) {
       state.backgroundLayer.opacity = action.payload.opacity;
+      if (action.payload.opacity === 1) {
+        state.focusMode = false;
+      }
     },
 
     changePaleOpacity(state, action) {
@@ -143,6 +146,14 @@ const slice = createSlice({
         }
       });
       state.layers = newLayers;
+    },
+    changeBackgroundVisibility(state, action: PayloadAction<boolean>) {
+      if (!action.payload) {
+        state.backgroundLayer.opacity = 0;
+        state.focusMode = true;
+        state.paleOpacityValue = 0;
+      }
+      state.backgroundLayer.visible = action.payload;
     },
 
     changeVisibility(
@@ -260,6 +271,7 @@ export const {
   changePaleOpacity,
   changeBackgroundOpacity,
   changeOpacity,
+  changeBackgroundVisibility,
   changeVisibility,
 
   setSelectedLayerIndex,

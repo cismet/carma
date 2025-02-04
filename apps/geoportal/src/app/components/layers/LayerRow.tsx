@@ -11,11 +11,16 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Slider } from "antd";
 import { Layer } from "@carma-mapping/layers";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import {
+  changeBackgroundOpacity,
+  changeBackgroundVisibility,
   changeOpacity,
+  changePaleOpacity,
   changeVisibility,
+  getBackgroundLayer,
   removeLayer,
+  setFocusMode,
   setSelectedLayerIndex,
 } from "../../store/slices/mapping";
 import { iconColorMap, iconMap } from "./items";
@@ -38,6 +43,8 @@ const LayerRow = ({ layer, id, isBackgroundLayer, index }: LayerRowProps) => {
     });
 
   const style = { transform: CSS.Translate.toString(transform) };
+
+  const backgroundLayer = useSelector(getBackgroundLayer);
 
   return (
     <div
@@ -87,11 +94,24 @@ const LayerRow = ({ layer, id, isBackgroundLayer, index }: LayerRowProps) => {
       <Slider
         min={0}
         max={1}
-        disabled={isBackgroundLayer}
         tooltip={{ formatter: formatter }}
         step={0.1}
         onChange={(value) => {
-          dispatch(changeOpacity({ id: layer.id, opacity: value }));
+          if (isBackgroundLayer) {
+            dispatch(changeBackgroundOpacity({ opacity: value }));
+            if (value !== 1) {
+              dispatch(changePaleOpacity({ paleOpacityValue: value }));
+              dispatch(setFocusMode(true));
+            } else {
+              dispatch(setFocusMode(false));
+            }
+
+            if (value !== 0) {
+              dispatch(changeBackgroundVisibility(true));
+            }
+          } else {
+            dispatch(changeOpacity({ id: layer.id, opacity: value }));
+          }
         }}
         className="w-full"
         value={layer.opacity}
@@ -100,9 +120,20 @@ const LayerRow = ({ layer, id, isBackgroundLayer, index }: LayerRowProps) => {
         className="hover:text-gray-500 text-gray-600 flex items-center justify-center"
         onClick={(e) => {
           if (layer.visible) {
-            dispatch(changeVisibility({ id, visible: false }));
+            if (isBackgroundLayer) {
+              dispatch(changeBackgroundVisibility(false));
+            } else {
+              dispatch(changeVisibility({ id, visible: false }));
+            }
           } else {
-            dispatch(changeVisibility({ id, visible: true }));
+            if (isBackgroundLayer) {
+              dispatch(changeBackgroundVisibility(true));
+              if (backgroundLayer.opacity === 0) {
+                dispatch(changeBackgroundOpacity({ opacity: 1 }));
+              }
+            } else {
+              dispatch(changeVisibility({ id, visible: true }));
+            }
           }
         }}
       >
