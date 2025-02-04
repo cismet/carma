@@ -5,3 +5,7 @@
 .leaflet-control-locate {
   visibility: hidden !important;
 }
+
+.leaflet-container {
+  background: white;
+}
