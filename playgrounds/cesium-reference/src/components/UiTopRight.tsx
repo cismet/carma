@@ -1,12 +1,13 @@
 import React from "react";
 
 interface Props {
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }
 
-const UiTopRight: React.FC<Props> = ({ children }) => {
+const UiTopRight = React.forwardRef<HTMLDivElement, Props>(({ children }, ref) => {
   return (
     <div
+      ref={ref}
       style={{
         position: "absolute",
         top: 10,
@@ -18,6 +19,6 @@ const UiTopRight: React.FC<Props> = ({ children }) => {
       {children}
     </div>
   );
-};
+});
 
 export default UiTopRight;

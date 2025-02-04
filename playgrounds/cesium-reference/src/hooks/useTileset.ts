@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Viewer, Cesium3DTileset } from "cesium";
 
+const defaultConstructorOptions: Cesium3DTileset.ConstructorOptions = {
+  show: true,
+};
+
 function useTileset(
   url: string,
   viewerRef: React.MutableRefObject<Viewer | null>,
-  show = true,
   constructorOptions?: Cesium3DTileset.ConstructorOptions
 ) {
   const tilesetRef = useRef<Cesium3DTileset | null>(null);
@@ -14,7 +17,7 @@ function useTileset(
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const constructorOptionsMemoized = useMemo(
-    () => constructorOptions,
+    () => ({ ...defaultConstructorOptions, ...constructorOptions }),
     [constructorOptions]
   );
 
@@ -54,12 +57,6 @@ function useTileset(
       viewerRef.current.scene.primitives.add(tilesetRef.current);
     }
   }, [viewerRef, tilesetReady]);
-
-  useEffect(() => {
-    if (tilesetRef.current && tilesetReady) {
-      tilesetRef.current.show = show;
-    }
-  }, [tilesetReady, show]);
 
   return { tilesetRef, error, loading, tilesetReady };
 }
