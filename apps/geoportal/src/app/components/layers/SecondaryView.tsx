@@ -27,6 +27,7 @@ import { SELECTED_LAYER_INDEX } from "@carma-apps/portals";
 
 import { cn } from "../../helper/helper";
 import {
+  changeBackgroundOpacity,
   changeOpacity,
   changeVisibility,
   getBackgroundLayer,
@@ -235,13 +236,16 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
                 Transparenz:
               </label>
               <Slider
-                disabled={isBaseLayer}
                 tooltip={{ formatter }}
                 onFocus={() => {
                   routedMapRef?.leafletMap?.leafletElement.dragging.disable();
                 }}
                 onChange={(value) => {
-                  dispatch(changeOpacity({ id: layer.id, opacity: value }));
+                  if (isBaseLayer) {
+                    dispatch(changeBackgroundOpacity({ opacity: value }));
+                  } else {
+                    dispatch(changeOpacity({ id: layer.id, opacity: value }));
+                  }
                 }}
                 onChangeComplete={() => {
                   routedMapRef?.leafletMap?.leafletElement.dragging.enable();

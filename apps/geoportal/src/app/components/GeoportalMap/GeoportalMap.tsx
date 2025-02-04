@@ -797,7 +797,10 @@ export const GeoportalMap = () => {
               <TopicMapSelectionContent />
               {backgroundLayer &&
                 backgroundLayer.visible &&
-                getBackgroundLayers({ layerString: backgroundLayer.layers })}
+                getBackgroundLayers({
+                  layerString: backgroundLayer.layers,
+                  masterOpacity: backgroundLayer.opacity,
+                })}
 
               {focusMode && <PaleOverlay opacity={0.7} />}
               {createCismapLayers(layers, {

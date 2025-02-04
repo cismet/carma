@@ -3,6 +3,7 @@ import CismapLayer from "react-cismap/CismapLayer";
 import { namedStyles, defaultLayerConfig } from "../config";
 interface backgroundLayersProps {
   layerString: string;
+  masterOpacity?: number;
   namedMapStyle?: string;
   config?: any;
   layerConfig?: any;
@@ -10,6 +11,7 @@ interface backgroundLayersProps {
 
 export function getBackgroundLayers({
   layerString,
+  masterOpacity = 1,
   namedMapStyle = "default",
   config = {
     layerSeparator: "|",
@@ -63,7 +65,7 @@ export function getBackgroundLayers({
             layOp[0] + namedMapStyleExtension;
 
           const layerOptions = {
-            opacity: parseInt(layOp[1] || "100", 10) / 100.0,
+            opacity: (parseInt(layOp[1] || "100", 10) / 100.0) * masterOpacity,
           };
           return getLayer(layerWithNamedStyleExtension, layerOptions);
         }
@@ -107,7 +109,7 @@ const createLayerFactoryFunction = (key, _conf = defaultLayerConfig) => {
         let params = { ...conf.defaults.wms, ...conf.namedLayers[key] };
         return (
           <CismapLayer
-            key={key + JSON.stringify(options)}
+            key={key + JSON.stringify(conf.namedLayers[key])}
             {...params}
             opacity={options.opacity}
             cssFilter={options["css-filter"]}
@@ -121,7 +123,7 @@ const createLayerFactoryFunction = (key, _conf = defaultLayerConfig) => {
         let params = { ...conf.defaults.wms, ...conf.namedLayers[key] };
         return (
           <CismapLayer
-            key={key + JSON.stringify(options)}
+            key={key + JSON.stringify(conf.namedLayers[key])}
             {...params}
             opacity={options.opacity}
             type="wmts-nt"
@@ -134,7 +136,7 @@ const createLayerFactoryFunction = (key, _conf = defaultLayerConfig) => {
 
         return (
           <CismapLayer
-            key={key + JSON.stringify(options)}
+            key={key + JSON.stringify(conf.namedLayers[key])}
             {...params}
             opacity={options.opacity}
             cssFilter={options["css-filter"]}
@@ -148,7 +150,7 @@ const createLayerFactoryFunction = (key, _conf = defaultLayerConfig) => {
 
         return (
           <CismapLayer
-            keyIn={key + JSON.stringify(options)}
+            keyIn={key + JSON.stringify(conf.namedLayers[key])}
             {...params}
             opacity={options.opacity}
             type="vector"

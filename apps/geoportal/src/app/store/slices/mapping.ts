@@ -122,6 +122,10 @@ const slice = createSlice({
       state.savedLayerConfigs = newLayers;
     },
 
+    changeBackgroundOpacity(state, action) {
+      state.backgroundLayer.opacity = action.payload.opacity;
+    },
+
     changeOpacity(state, action) {
       const newLayers = state.layers.map((obj) => {
         if (obj.id === action.payload.id) {
@@ -248,6 +252,7 @@ export const {
 
   appendSavedLayerConfig,
   deleteSavedLayerConfig,
+  changeBackgroundOpacity,
   changeOpacity,
   changeVisibility,
 
