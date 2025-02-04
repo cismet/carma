@@ -158,7 +158,11 @@ export const printMap = async (
 
 export const getPrintLayers = (bgLayer, layers) => {
   const layerPrint = [];
-  const bgLayers = convertLayerStringToLayers(bgLayer.layers, bgLayer.visible);
+  const bgLayers = convertLayerStringToLayers(
+    bgLayer.layers,
+    bgLayer.visible,
+    bgLayer.opacity
+  );
   const allLayers = [...bgLayers, ...layers];
 
   allLayers.forEach((layer) => {
@@ -185,7 +189,7 @@ export const getPrintLayers = (bgLayer, layers) => {
           );
           break;
         case "tiles":
-          layerPrint.unshift(buildTilesPrint(layer.url));
+          layerPrint.unshift(buildTilesPrint(layer.url, layer.opacity));
       }
     }
   });
@@ -253,7 +257,7 @@ const buildOMSPrint = (baseURL) => {
   return oms;
 };
 
-const buildTilesPrint = (url) => {
+const buildTilesPrint = (url, opacity = 1) => {
   //replace the {z} {x} {y} with {TileMatrix} {TileCol} {TileRow} and put it to baseUrl
   // 3 replacements needed
 
@@ -268,6 +272,7 @@ const buildTilesPrint = (url) => {
     layer: "--can-be-ignored-since-it-is-already-in-the-baseURL--",
     style: "default",
     imageFormat: "image/png",
+    opacity,
     matrixSet: "webmercator_hq",
     matrices: [
       {

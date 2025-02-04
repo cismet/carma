@@ -189,7 +189,8 @@ export const layerMap: LayerMap = {
 
 export const convertLayerStringToLayers = (
   layerString: string,
-  visible: boolean
+  visible: boolean,
+  mainOpacity?: number
 ): any => {
   const layers = layerString.split("|");
   return layers.map((layer) => {
@@ -199,7 +200,7 @@ export const convertLayerStringToLayers = (
       ...config,
       visible,
       layerType: config.type,
-      opacity: (Number(opacity) || 1) / 100,
+      opacity: ((Number(opacity) || 1) / 100) * mainOpacity || 1,
     };
   });
 };
