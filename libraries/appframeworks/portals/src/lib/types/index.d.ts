@@ -120,6 +120,7 @@ export interface LayerState {
 
 export interface MappingState extends LayerState {
   savedLayerConfigs: SavedLayerConfig[];
+  paleOpacityValue: number;
   showLeftScrollButton: boolean;
   showRightScrollButton: boolean;
   showFullscreenButton: boolean;

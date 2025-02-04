@@ -18,9 +18,11 @@ import { Save } from "@carma-apps/portals";
 import { selectViewerIsMode2d } from "@carma-mapping/cesium-engine";
 import {
   appendSavedLayerConfig,
+  changeBackgroundOpacity,
   getBackgroundLayer,
   getFocusMode,
   getLayers,
+  getPaleOpacityValue,
   setFocusMode,
 } from "../../store/slices/mapping";
 import {
@@ -51,6 +53,7 @@ const ActionButtons = () => {
   const activeLayers = useSelector(getLayers);
   const showPrintPopup = useSelector(getIfPopupOpend);
   const backgroundLayer = useSelector(getBackgroundLayer);
+  const paleOpacityValue = useSelector(getPaleOpacityValue);
 
   const baseUrl = window.location.origin + window.location.pathname;
 
@@ -117,6 +120,11 @@ const ActionButtons = () => {
           disabled={!isMode2d}
           onClick={() => {
             dispatch(setFocusMode(!focusMode));
+            dispatch(
+              changeBackgroundOpacity({
+                opacity: focusMode ? 1 : paleOpacityValue,
+              })
+            );
           }}
           data-test-id="hintergrundkarte-btn"
         >

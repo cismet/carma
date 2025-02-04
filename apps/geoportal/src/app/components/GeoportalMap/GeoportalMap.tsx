@@ -24,7 +24,6 @@ import {
   faPlus,
 } from "@fortawesome/free-solid-svg-icons";
 
-import PaleOverlay from "react-cismap/PaleOverlay";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
@@ -802,7 +801,6 @@ export const GeoportalMap = () => {
                   masterOpacity: backgroundLayer.opacity,
                 })}
 
-              {focusMode && <PaleOverlay opacity={0.7} />}
               {createCismapLayers(layers, {
                 mode: uiMode,
                 dispatch,

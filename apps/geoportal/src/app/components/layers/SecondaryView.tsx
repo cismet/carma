@@ -29,11 +29,13 @@ import { cn } from "../../helper/helper";
 import {
   changeBackgroundOpacity,
   changeOpacity,
+  changePaleOpacity,
   changeVisibility,
   getBackgroundLayer,
   getLayers,
   getSelectedLayerIndex,
   setClickFromInfoView,
+  setFocusMode,
   setNextSelectedLayerIndex,
   setPreviousSelectedLayerIndex,
   setSelectedLayerIndex,
@@ -243,6 +245,12 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
                 onChange={(value) => {
                   if (isBaseLayer) {
                     dispatch(changeBackgroundOpacity({ opacity: value }));
+                    if (value !== 1) {
+                      dispatch(changePaleOpacity({ paleOpacityValue: value }));
+                      dispatch(setFocusMode(true));
+                    } else {
+                      dispatch(setFocusMode(false));
+                    }
                   } else {
                     dispatch(changeOpacity({ id: layer.id, opacity: value }));
                   }
