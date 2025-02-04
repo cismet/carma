@@ -15,6 +15,12 @@ export type layer = {
   };
 };
 
+type MetaLayer = {
+  x: number;
+  y: number;
+  maxZoom: number;
+};
+
 export type Doc = {
   url: string;
   layer: string;
@@ -22,18 +28,29 @@ export type Doc = {
   docTitle?: string;
   group: string;
   file: string;
-  meta: // TODO fix type here
-  | string
+  meta:
     | {
-        [key: string]: {
-          x: number;
-          y: number;
-          maxZoom: number;
-        } & {
-          contentLength: string;
-          pages: number;
-        };
-      };
+        [key: `layer${number}`]: MetaLayer | undefined;
+        pages: number;
+        _theend: number;
+        contentLength: string;
+        lastModified?: string;
+      }
+    | string;
+  // meta: // TODO fix type here
+  // | string
+  //   | {
+  //       [key: string]: {
+  //         x: number;
+  //         y: number;
+  //         maxZoom: number;
+  //       } & {
+  //         contentLength: string;
+  //         pages: number;
+  //         _theend: number;
+  //         lastModified: string;
+  //       };
+  //     };
 };
 
 /* eslint-disable-next-line */

@@ -29,7 +29,7 @@ const router = createHashRouter(
   [
     {
       path: "/docs/:docPackageId?/:file?/:page?",
-      element: <DocumentViewer docs={docs as unknown as Doc[]} mode="bplaene" />,
+      element: <DocumentViewer docs={docs} mode="bplaene" />,
     },
   ],
   {}
