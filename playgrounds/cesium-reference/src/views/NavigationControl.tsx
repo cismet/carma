@@ -1,0 +1,74 @@
+import { FC, useEffect, useRef } from "react";
+import {
+  CesiumTerrainProvider,
+  ImageryLayer,
+  Viewer,
+  WebMapServiceImageryProvider,
+} from "cesium";
+import {
+  BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
+  WUPP_LOD2_TILESET,
+  WUPP_TERRAIN_PROVIDER,
+} from "@carma-commons/resources";
+import { cesiumConstructorOptions } from "../config";
+import useTileset from "../hooks/useTileset";
+import { useZoomToTilesetOnReady } from "../hooks/useZoomToTilesetOnReady";
+import UiTopRight from "../components/UiTopRight";
+import RotateButton from "../components/RotateButton";
+import WIP from "../components/WIP";
+
+const NavigationControlView: FC = () => {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const viewerRef = useRef<Viewer | null>(null);
+  const { tilesetRef, tilesetReady } = useTileset(
+    WUPP_LOD2_TILESET.url,
+    viewerRef
+  );
+
+  useEffect(() => {
+    const initialize = async () => {
+      try {
+        if (containerRef.current) {
+          const viewer = new Viewer(
+            containerRef.current,
+            cesiumConstructorOptions
+          );
+          viewerRef.current = viewer;
+
+          viewer.terrainProvider = await CesiumTerrainProvider.fromUrl(
+            WUPP_TERRAIN_PROVIDER.url
+          );
+
+          const imageryProvider = new WebMapServiceImageryProvider(
+            BASEMAP_METROPOLRUHR_WMS_GRAUBLAU
+          );
+          const newImageryLayer = new ImageryLayer(imageryProvider);
+          viewer.imageryLayers.add(newImageryLayer);
+        }
+      } catch (error) {
+        console.error("Initialization error:", error);
+      }
+    };
+
+    initialize();
+
+    return () => {
+      if (viewerRef.current) {
+        viewerRef.current.destroy();
+      }
+    };
+  }, []);
+
+  useZoomToTilesetOnReady(viewerRef, tilesetRef, tilesetReady);
+  return (
+    <>
+      <WIP />
+      <div ref={containerRef} style={{ width: "100%", height: "100vh" }} />
+      <UiTopRight>
+        <RotateButton viewerRef={viewerRef} />
+      </UiTopRight>
+    </>
+  );
+};
+
+export default NavigationControlView;
