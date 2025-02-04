@@ -16,6 +16,7 @@ const initialState: MappingState = {
   layers: [],
   savedLayerConfigs: [],
   selectedLayerIndex: SELECTED_LAYER_INDEX.NO_SELECTION,
+  paleOpacityValue: 0.1,
 
   selectedMapLayer: {
     title: "Stadtplan",
@@ -120,6 +121,14 @@ const slice = createSlice({
         return obj.id !== action.payload;
       });
       state.savedLayerConfigs = newLayers;
+    },
+
+    changeBackgroundOpacity(state, action) {
+      state.backgroundLayer.opacity = action.payload.opacity;
+    },
+
+    changePaleOpacity(state, action) {
+      state.paleOpacityValue = action.payload.paleOpacityValue;
     },
 
     changeOpacity(state, action) {
@@ -248,6 +257,8 @@ export const {
 
   appendSavedLayerConfig,
   deleteSavedLayerConfig,
+  changePaleOpacity,
+  changeBackgroundOpacity,
   changeOpacity,
   changeVisibility,
 
@@ -278,6 +289,8 @@ export const getBackgroundLayer = (state: RootState) =>
 export const getClickFromInfoView = (state: RootState) =>
   state.mapping.clickFromInfoView;
 export const getFocusMode = (state: RootState) => state.mapping.focusMode;
+export const getPaleOpacityValue = (state: RootState) =>
+  state.mapping.paleOpacityValue;
 
 export const getLayers = (state: RootState) => state.mapping.layers;
 export const getSavedLayerConfigs = (state: RootState) =>
