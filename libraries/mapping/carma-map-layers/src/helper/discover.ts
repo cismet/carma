@@ -47,6 +47,7 @@ export const discoverConfig = {
         title: "Liegenschaftskarte mit Luftbild",
         serviceName: "discoverBasis",
         id: "discoverBasis_liegenschaft",
+        path: "Basis",
         backgroundLayer: {
           title: "Stadtplan",
           id: "karte",
