@@ -2,6 +2,7 @@ import { type RefObject, useMemo } from "react";
 import { Color, Viewer, Rectangle, SceneMode } from "cesium";
 
 import ElevationControl from "./components/controls/ElevationControl";
+import { CesiumErrorToErrorBoundaryForwarder } from "./utils/CesiumErrorToErrorBoundaryForwarder";
 
 import useCameraRollSoftLimiter from "./hooks/useCameraRollSoftLimiter";
 import useCameraPitchEasingLimiter from "./hooks/useCameraPitchEasingLimiter";
@@ -118,7 +119,12 @@ export function CustomViewer(props: CustomViewerProps) {
   useTweakpane();
   useLogCesiumRenderIn2D();
 
-  return <ElevationControl show={false} />;
+  return (
+    <>
+      <CesiumErrorToErrorBoundaryForwarder />
+      <ElevationControl show={false} />
+    </>
+  );
 }
 
 export default CustomViewer;

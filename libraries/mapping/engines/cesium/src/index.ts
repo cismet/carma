@@ -1,11 +1,15 @@
 import { setupCesiumEnvironment } from "./lib/utils/cesiumSetup";
+import CesiumErrorToErrorBoundaryForwarder from "./lib/utils/CesiumErrorToErrorBoundaryForwarder";
 export * from "./lib/slices/cesium";
 
 export { CesiumContextProvider } from "./lib/CesiumContextProvider";
 export { type CesiumContextType } from "./lib/CesiumContext";
 
 export { CustomCesiumWidget } from "./lib/CustomCesiumWidget";
-export { CustomViewer, DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS } from "./lib/CustomViewer";
+export {
+  CustomViewer,
+  DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS,
+} from "./lib/CustomViewer";
 export { CustomViewerPlayground } from "./lib/CustomViewerPlayground";
 
 export { ByGeojsonClassifier } from "./lib/components/ByGeojsonClassifier";
@@ -25,6 +29,11 @@ export { useZoomControls } from "./lib/hooks/useZoomControls";
 export { CUSTOM_SHADERS_DEFINITIONS } from "./lib/shaders";
 
 // TODO: all the utils used elsewhere with no cesium dedependency should be moved to common helper utils lib
+
+export {
+  CesiumErrorToErrorBoundaryForwarder,
+  type ForwardedCesiumError,
+} from "./lib/utils/CesiumErrorToErrorBoundaryForwarder";
 
 export {
   pickViewerCanvasCenter,

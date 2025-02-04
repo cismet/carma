@@ -4,12 +4,13 @@ import { Cesium3DTilesInspector, Viewer, CesiumWidget } from "cesium";
 import { Slider, Divider } from "antd";
 
 import { WUPP_MESH_2024 } from "@carma-commons/resources";
+import { CesiumErrorToErrorBoundaryForwarder } from "@carma-mapping/cesium-engine";
+
 import useTileset from "../hooks/useTileset";
 import { useZoomToTilesetOnReady } from "../hooks/useZoomToTilesetOnReady";
 import UiBottom from "../components/UiBottom";
 import UiTopRight from "../components/UiTopRight";
 import { cesiumConstructorOptions } from "../config";
-import ErrorBoundaryHandler from "../components/ErrorBoundaryHandler";
 
 const DEFAULT_MAX_ERROR = 5;
 const MAX_MAX_ERROR = 32;
@@ -30,34 +31,11 @@ const initialMaxError = (() => {
 })();
 console.log("ini", initialMaxError);
 
-const overrideCesiumWidgetShowErrorPanel = function (
-  setErrorInfo: React.Dispatch<
-    React.SetStateAction<{ title: string; message: string; error: any } | null>
-  >,
-  setErrorHandled: React.Dispatch<React.SetStateAction<boolean>>
-) {
-  CesiumWidget.prototype.showErrorPanel = function (
-    title: string,
-    message: string,
-    error: any
-  ) {
-    console.log("showErrorPanel");
-    setErrorInfo({ title, message, error });
-    setErrorHandled(true);
-  };
-};
-
 const TestMesh: React.FC = () => {
   const [maximumScreenSpaceError, setMaximumScreenSpaceError] =
     useState<number>(initialMaxError);
   const [showTileInspector, setShowTileInspector] = useState(false);
   const [tilesetUrl, setTilesetUrl] = useState<string>(WUPP_MESH_2024.url);
-  const [errorInfo, setErrorInfo] = useState<{
-    title: string;
-    message: string;
-    error: Error;
-  } | null>(null);
-  const [errorHandled, setErrorHandled] = useState(false);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewerRef = useRef<Viewer | null>(null);
@@ -75,18 +53,6 @@ const TestMesh: React.FC = () => {
       [] // only use initial value for constructorOptions
     )
   );
-
-  useEffect(() => {
-    overrideCesiumWidgetShowErrorPanel(setErrorInfo, setErrorHandled);
-  }, []);
-
-  useEffect(() => {
-    if (errorInfo) {
-      // Reset error state after handling
-      setErrorInfo(null);
-      setErrorHandled(false);
-    }
-  }, [errorInfo]);
 
   useEffect(() => {
     if (viewerRef.current) {
@@ -157,13 +123,7 @@ const TestMesh: React.FC = () => {
 
   return (
     <>
-      {errorInfo && (
-        <ErrorBoundaryHandler
-          title={errorInfo.title}
-          message={errorInfo.message}
-          error={errorInfo.error}
-        />
-      )}
+      <CesiumErrorToErrorBoundaryForwarder />
       <div ref={containerRef} style={{ width: "100%", height: "100vh" }} />
       <UiTopRight ref={uiTopRightRef} />
       <UiBottom>
