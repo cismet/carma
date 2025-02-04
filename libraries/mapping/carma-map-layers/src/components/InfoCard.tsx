@@ -80,12 +80,14 @@ const InfoCard = ({
                   >
                     Laden
                   </Button>
-                  <Button
-                    onClick={deleteCollection}
-                    icon={<FontAwesomeIcon icon={faTrash} />}
-                  >
-                    Löschen
-                  </Button>
+                  {!layer.serviceName.includes("discover") && (
+                    <Button
+                      onClick={deleteCollection}
+                      icon={<FontAwesomeIcon icon={faTrash} />}
+                    >
+                      Löschen
+                    </Button>
+                  )}
                 </>
               )}
               {layer.type === "link" && (
