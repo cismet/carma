@@ -51,7 +51,8 @@
         "production": {
           "buildTarget": "rainhazardmap-olpe:build:production"
         }
-      }
+      },
+      "dependsOn": ["build"]
     },
     "test": {
       "executor": "@nx/vite:test",

@@ -51,7 +51,8 @@
         "production": {
           "buildTarget": "fuzzy-search-lib-playground:build:production"
         }
-      }
+      },
+      "dependsOn": ["build"]
     },
     "lint": {
       "executor": "@nx/eslint:lint"

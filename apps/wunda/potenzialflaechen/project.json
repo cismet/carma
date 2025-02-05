@@ -51,7 +51,8 @@
         "production": {
           "buildTarget": "potenzialflaechen-online:build:production"
         }
-      }
+      },
+      "dependsOn": ["build"]
     },
     "test": {
       "executor": "@nx/vite:test",

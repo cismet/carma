@@ -51,7 +51,8 @@
         "production": {
           "buildTarget": "alkis-renderer-playground:build:production"
         }
-      }
+      },
+      "dependsOn": ["build"]
     },
     "lint": {
       "executor": "@nx/eslint:lint"

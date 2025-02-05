@@ -167,20 +167,21 @@ Always do nx updates with the provided migrate utility.
 until further notice keep:
 
 - eslint at 8.57
-- storybook at v7
 - prettier at 2.8.8
+- react at 18
+- vite at v5 (no v6 support in nx yet)
 - vitest at 1.6
 
-the remaining dev deps can be updated with
+the remaining dev deps can be listed
 
-`npx npm-check-updates --dep dev --reject "eslint* *vitest* prettier *storybook*"`
+`npx npm-check-updates --dep dev --reject "eslint* vite* @vitest* prettier *storybook* react* @types"`
 
-and after sanity check
+update the individual packages as needed or use interactive mode for batch updates.
 
-`npx npm-check-updates --dep dev --reject "eslint* *vitest* prettier *storybook*" -u`
+`npx npm-check-updates --dep dev -i `
 
 ### Updating prod packages
 
-same as dev packages, but keep integration/migration heavy major upgrades like bootstrap or react-pdf-html at current versions
+should happen on a per package basis only as needed and has no update policy yet.
+be sure to check and update the complementing @types packages in dev deps as well.
 
-`npx npm-check-updates --dep prod --reject "\*bootstrap react-pdf-html graphql-request"`

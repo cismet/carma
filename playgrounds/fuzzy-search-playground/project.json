@@ -51,7 +51,8 @@
         "production": {
           "buildTarget": "fuzzy-search-playground:build:production"
         }
-      }
+      },
+      "dependsOn": ["build"]
     },
     "test": {
       "executor": "@nx/vite:test",

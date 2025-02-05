@@ -51,7 +51,8 @@
         "production": {
           "buildTarget": "rainhazardmap-wuppertal:build:production"
         }
-      }
+      },
+      "dependsOn": ["build"]
     },
     "test": {
       "executor": "@nx/vite:test",

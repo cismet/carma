@@ -51,7 +51,8 @@
         "production": {
           "buildTarget": "rainhazard-emsdetten:build:production"
         }
-      }
+      },
+      "dependsOn": ["build"]
     },
     "test": {
       "executor": "@nx/vite:test",

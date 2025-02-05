@@ -2,7 +2,12 @@ import type { StorybookConfig } from "@storybook/react-vite";
 
 const config: StorybookConfig = {
   stories: ["../src/lib/**/*.stories.@(js|jsx|ts|tsx)"],
-  addons: ["@storybook/addon-essentials", "@storybook/addon-interactions"],
+  addons: [
+    "@storybook/addon-essentials",
+    "@storybook/addon-interactions",
+    "@chromatic-com/storybook"
+  ],
+
   framework: {
     name: "@storybook/react-vite",
     options: {
@@ -12,6 +17,15 @@ const config: StorybookConfig = {
       },
     },
   },
+
+  docs: {},
+
+  typescript: {
+    reactDocgen: "react-docgen-typescript",
+    reactDocgenTypescriptOptions: {
+      tsconfigPath: "libraries/mapping/carma-map-control-layout/tsconfig.storybook.json",
+    },
+  }
 };
 
 export default config;

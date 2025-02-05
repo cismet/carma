@@ -51,7 +51,8 @@
         "production": {
           "buildTarget": "lagis-desktop:build:production"
         }
-      }
+      },
+      "dependsOn": ["build"]
     },
     "test": {
       "executor": "@nx/vite:test",

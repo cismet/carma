@@ -51,7 +51,8 @@
         "production": {
           "buildTarget": "generic-topicmap:build:production"
         }
-      }
+      },
+      "dependsOn": ["build"]
     },
     "test": {
       "executor": "@nx/vite:test",
