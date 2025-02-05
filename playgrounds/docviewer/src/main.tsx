@@ -3,7 +3,7 @@ import * as ReactDOM from "react-dom/client";
 import { RouterProvider, createHashRouter } from "react-router-dom";
 import { Doc, DocumentViewer } from "@carma-commons/document-viewer";
 
-import docs from "./assets/docs.json";
+import docs from "./assets/827.json";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 
 const originalWarn = console.warn.bind(console);
