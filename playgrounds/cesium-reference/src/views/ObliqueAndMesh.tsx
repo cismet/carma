@@ -40,8 +40,10 @@ import {
 
 import {
   cesiumConstructorOptions,
+  DEFAULT_PREVIEW_LEVEL,
   FOOTPRINTS_SAMPLE_URI,
   POSITIONS_GEOJSON_URI,
+  PREVIEW_PATH,
   SELECTED_PIXEL_SIZE,
 } from "../config";
 
@@ -371,7 +373,7 @@ const ObliqueAndMesh: React.FC = () => {
           ),
           complete: () => {
             setPreviewImageUri(
-              "/data/previews/" + footprintEntity.name + ".quarter.q75.avif"
+              `${PREVIEW_PATH}/${DEFAULT_PREVIEW_LEVEL}/${footprintEntity.name}.jpg`
             );
           },
         });
