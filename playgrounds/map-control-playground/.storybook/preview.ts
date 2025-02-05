@@ -1,1 +1,1 @@
-export const tags = ["autodocs", "autodocs"];
+export const tags = ["autodocs", "autodocs", "autodocs"];

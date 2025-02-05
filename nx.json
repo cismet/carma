@@ -20,7 +20,7 @@
     "build-storybook": {
       "cache": true,
       "options": {
-      "loglevel": "verbose"
+        "loglevel": "verbose"
       },
       "inputs": [
         "default",
@@ -100,5 +100,6 @@
     }
   },
   "useInferencePlugins": false,
-  "defaultBase": "dev"
+  "defaultBase": "dev",
+  "useLegacyCache": true
 }
