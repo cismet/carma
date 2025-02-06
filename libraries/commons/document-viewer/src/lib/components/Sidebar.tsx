@@ -359,7 +359,11 @@ const Sidebar = ({
                     >
                       <span>
                         {doc.title
-                          ? removePrefix(doc.title, documentPrefix)
+                          ? dynamicPrefixDetection
+                            ? removePrefix(doc.title, documentPrefix)
+                            : improveReadabilityOfDocTitles
+                              ? improveReadability(doc.title)
+                              : doc.title
                           : filenameShortener(doc.file)}
                       </span>
                     </p>
