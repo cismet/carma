@@ -485,7 +485,8 @@ export const createCismapLayers = (
 
   const updateGlobalHits = () => {
     Object.keys(globalHits).forEach((key) => {
-      if (!layers.find((layer) => layer.id === key)) {
+      const foundLayer = layers.find((layer) => layer.id === key);
+      if (!foundLayer || !foundLayer.visible) {
         globalHits[key] = undefined;
       }
     });
