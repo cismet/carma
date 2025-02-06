@@ -68,29 +68,30 @@ const Sidebar = ({
     const docsInStructure = docs.filter(
       (doc) => doc.structure === structure && doc.title
     );
-    if (docsInStructure.length <= 1) return new Map();
-
-    // Group documents by their date prefix
     const prefixGroups = new Map<string, Doc[]>();
 
+    // If there's only one document, check if it has a date prefix
+    if (docsInStructure.length === 1) {
+      const doc = docsInStructure[0];
+      const title = doc.title || "";
+      const dateMatch = title.match(/^\d{4}-\d{2}_/);
+      if (dateMatch) {
+        prefixGroups.set(dateMatch[0], [doc]);
+      }
+      return prefixGroups;
+    }
+
+    // Group documents by their date prefix
     docsInStructure.forEach((doc) => {
       const title = doc.title || "";
       const dateMatch = title.match(/^\d{4}-\d{2}_/);
       if (dateMatch) {
         const prefix = dateMatch[0];
-        if (!prefixGroups.has(prefix)) {
-          prefixGroups.set(prefix, []);
-        }
-        prefixGroups.get(prefix)?.push(doc);
+        const docs = prefixGroups.get(prefix) || [];
+        docs.push(doc);
+        prefixGroups.set(prefix, docs);
       }
     });
-
-    // Only keep prefixes that have multiple documents
-    for (const [prefix, docs] of prefixGroups.entries()) {
-      if (docs.length <= 1) {
-        prefixGroups.delete(prefix);
-      }
-    }
 
     return prefixGroups;
   };
@@ -129,7 +130,17 @@ const Sidebar = ({
     docs: Doc[]
   ) => {
     if (!dynamicPrefixDetection) return false;
-    if (!currentDoc.structure || index === 0) return false;
+    if (!currentDoc.structure) return false;
+    
+    // For first document, show prefix if it has one
+    if (index === 0) {
+      const currentPrefix = getDocumentPrefix(
+        currentDoc,
+        getPrefixGroups(docs, currentDoc)
+      );
+      return currentPrefix !== null;
+    }
+
     const prevDoc = docs[index - 1];
     const currentPrefix = getDocumentPrefix(
       currentDoc,
