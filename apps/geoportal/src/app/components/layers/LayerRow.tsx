@@ -25,6 +25,10 @@ import {
 } from "../../store/slices/mapping";
 import { iconColorMap, iconMap } from "./items";
 import { formatter } from "./SecondaryView";
+import {
+  getSelectedFeature,
+  setSelectedFeature,
+} from "../../store/slices/features";
 
 interface LayerRowProps {
   layer: Layer;
@@ -45,6 +49,7 @@ const LayerRow = ({ layer, id, isBackgroundLayer, index }: LayerRowProps) => {
   const style = { transform: CSS.Translate.toString(transform) };
 
   const backgroundLayer = useSelector(getBackgroundLayer);
+  const selectedFeature = useSelector(getSelectedFeature);
 
   return (
     <div
@@ -124,6 +129,9 @@ const LayerRow = ({ layer, id, isBackgroundLayer, index }: LayerRowProps) => {
               dispatch(changeBackgroundVisibility(false));
             } else {
               dispatch(changeVisibility({ id, visible: false }));
+              if (selectedFeature.id === id) {
+                dispatch(setSelectedFeature(null));
+              }
             }
           } else {
             if (isBackgroundLayer) {
