@@ -153,7 +153,9 @@ const MapMeasurement = (props) => {
         measureControl.options.shapes = cleanLocalLefletShapes;
       }
       if (moveToShape && !deleteShape) {
-        measureControl.showActiveShape(map, shapeCoordinates[0]?.coordinates);
+        if (shapeCoordinates.length > 0) {
+          measureControl.showActiveShape(map, shapeCoordinates[0]?.coordinates);
+        }
       }
     }
 
