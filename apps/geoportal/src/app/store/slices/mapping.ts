@@ -12,11 +12,13 @@ import {
 import { RootState } from "..";
 import { layerMap } from "../../config";
 
+const defaultOpacity = 0.2;
+
 const initialState: MappingState = {
   layers: [],
   savedLayerConfigs: [],
   selectedLayerIndex: SELECTED_LAYER_INDEX.NO_SELECTION,
-  paleOpacityValue: 0.2,
+  paleOpacityValue: defaultOpacity,
 
   selectedMapLayer: {
     title: "Stadtplan",
@@ -151,7 +153,7 @@ const slice = createSlice({
       if (!action.payload) {
         state.backgroundLayer.opacity = 0;
         state.focusMode = true;
-        state.paleOpacityValue = 0;
+        state.paleOpacityValue = defaultOpacity;
       }
       state.backgroundLayer.visible = action.payload;
     },
