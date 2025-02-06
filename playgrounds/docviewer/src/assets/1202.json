@@ -74,12 +74,187 @@
   },
   {
     "group": "Zusatzdokumente",
-    "title": "2015-06_Drucksache",
+    "title": "2015-09_Bekanntmachung",
     "structure": "/Ursprungsplan (rechtskräftig)/Satzungsbeschlüsse(4.99.1)",
-    "file": "BPL_1202_0_PB_Drs_06-2015.pdf",
-    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1202_0_PB_Drs_06-2015.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1202_0_PB_Drs_06-2015.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1202_0_PB_Drs_06-2015.pdf/meta.json",
+    "file": "BPL_1202_0_PB_Drs_09-2015_Bekanntmachung.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1202_0_PB_Drs_09-2015_Bekanntmachung.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1202_0_PB_Drs_09-2015_Bekanntmachung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1202_0_PB_Drs_09-2015_Bekanntmachung.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer7": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer8": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer9": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer10": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer11": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer12": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer13": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer14": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer15": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer16": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer17": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer18": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer19": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer20": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer21": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer22": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer23": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer24": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer25": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer26": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer27": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer28": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer29": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer30": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer31": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 32,
+      "_theend": 0,
+      "contentLength": "2171164",
+      "lastModified": "Tue, 23 Jun 2020 12:15:21 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2015-09_zusammenfassende-Erklaerung",
+    "structure": "/Ursprungsplan (rechtskräftig)/Satzungsbeschlüsse(4.99.1)",
+    "file": "BPL_1202_0_PB_Drs_09-2015_zusammenfassende-Erklaerung.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1202_0_PB_Drs_09-2015_zusammenfassende-Erklaerung.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1202_0_PB_Drs_09-2015_zusammenfassende-Erklaerung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1202_0_PB_Drs_09-2015_zusammenfassende-Erklaerung.pdf/meta.json",
     "meta": {
       "layer0": {
         "x": 2481,
@@ -96,10 +271,45 @@
         "y": 3508,
         "maxZoom": 4
       },
-      "pages": 3,
+      "layer3": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer7": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer8": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer9": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 10,
       "_theend": 0,
-      "contentLength": "55876",
-      "lastModified": "Mon, 01 Oct 2018 12:32:55 GMT"
+      "contentLength": "170133",
+      "lastModified": "Fri, 15 Mar 2024 08:30:05 GMT"
     }
   },
   {
@@ -1254,15 +1464,15 @@
   },
   {
     "group": "Zusatzdokumente",
-    "title": "2015-09_Bekanntmachung",
+    "title": "2015-06_Drucksache",
     "structure": "/Ursprungsplan (rechtskräftig)/Satzungsbeschlüsse(4.99.1)",
-    "file": "BPL_1202_0_PB_Drs_09-2015_Bekanntmachung.pdf",
-    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1202_0_PB_Drs_09-2015_Bekanntmachung.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1202_0_PB_Drs_09-2015_Bekanntmachung.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1202_0_PB_Drs_09-2015_Bekanntmachung.pdf/meta.json",
+    "file": "BPL_1202_0_PB_Drs_06-2015.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1202_0_PB_Drs_06-2015.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1202_0_PB_Drs_06-2015.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1202_0_PB_Drs_06-2015.pdf/meta.json",
     "meta": {
       "layer0": {
-        "x": 2479,
+        "x": 2481,
         "y": 3508,
         "maxZoom": 4
       },
@@ -1276,155 +1486,10 @@
         "y": 3508,
         "maxZoom": 4
       },
-      "layer3": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer4": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer5": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer6": {
-        "x": 2479,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer7": {
-        "x": 2479,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer8": {
-        "x": 2479,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer9": {
-        "x": 2479,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer10": {
-        "x": 2479,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer11": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer12": {
-        "x": 2479,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer13": {
-        "x": 2479,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer14": {
-        "x": 2479,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer15": {
-        "x": 2479,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer16": {
-        "x": 2479,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer17": {
-        "x": 2479,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer18": {
-        "x": 2479,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer19": {
-        "x": 2479,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer20": {
-        "x": 2479,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer21": {
-        "x": 2479,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer22": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer23": {
-        "x": 2479,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer24": {
-        "x": 2479,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer25": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer26": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer27": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer28": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer29": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer30": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer31": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "pages": 32,
+      "pages": 3,
       "_theend": 0,
-      "contentLength": "2171164",
-      "lastModified": "Tue, 23 Jun 2020 12:15:21 GMT"
+      "contentLength": "55876",
+      "lastModified": "Mon, 01 Oct 2018 12:32:55 GMT"
     }
   },
   {
@@ -1950,101 +2015,6 @@
       "_theend": 0,
       "contentLength": "3804746",
       "lastModified": "Mon, 01 Oct 2018 12:32:56 GMT"
-    }
-  },
-  {
-    "group": "Zusatzdokumente",
-    "title": "2015-09_zusammenfassende-Erklaerung",
-    "structure": "/Ursprungsplan (rechtskräftig)/Satzungsbeschlüsse(4.99.1)",
-    "file": "BPL_1202_0_PB_Drs_09-2015_zusammenfassende-Erklaerung.pdf",
-    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1202_0_PB_Drs_09-2015_zusammenfassende-Erklaerung.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1202_0_PB_Drs_09-2015_zusammenfassende-Erklaerung.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1202_0_PB_Drs_09-2015_zusammenfassende-Erklaerung.pdf/meta.json",
-    "meta": {
-      "layer0": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer1": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer2": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer3": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer4": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer5": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer6": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer7": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer8": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer9": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "pages": 10,
-      "_theend": 0,
-      "contentLength": "170133",
-      "lastModified": "Fri, 15 Mar 2024 08:30:05 GMT"
-    }
-  },
-  {
-    "group": "Zusatzdokumente",
-    "title": "2015-03_Drucksache",
-    "structure": "/Ursprungsplan (rechtskräftig)/Öffentliche Auslegungen(4.99.2)",
-    "file": "BPL_1202_0_OB_Drs_03-2015.pdf",
-    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1202_0_OB_Drs_03-2015.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1202_0_OB_Drs_03-2015.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1202_0_OB_Drs_03-2015.pdf/meta.json",
-    "meta": {
-      "layer0": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer1": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer2": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "pages": 3,
-      "_theend": 0,
-      "contentLength": "36708",
-      "lastModified": "Mon, 01 Oct 2018 12:32:52 GMT"
     }
   },
   {
@@ -2645,6 +2615,36 @@
       "_theend": 0,
       "contentLength": "3166724",
       "lastModified": "Tue, 23 Jun 2020 12:15:18 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2015-03_Drucksache",
+    "structure": "/Ursprungsplan (rechtskräftig)/Öffentliche Auslegungen(4.99.2)",
+    "file": "BPL_1202_0_OB_Drs_03-2015.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1202_0_OB_Drs_03-2015.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1202_0_OB_Drs_03-2015.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1202_0_OB_Drs_03-2015.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 3,
+      "_theend": 0,
+      "contentLength": "36708",
+      "lastModified": "Mon, 01 Oct 2018 12:32:52 GMT"
     }
   },
   {
@@ -11335,36 +11335,6 @@
   },
   {
     "group": "Zusatzdokumente",
-    "title": "2014-09_Drucksache",
-    "structure": "/Ursprungsplan (rechtskräftig)/Aufstellungsbeschlüsse(4.99.4)",
-    "file": "BPL_1202_0_AB_Drs_09-2014.pdf",
-    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1202_0_AB_Drs_09-2014.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1202_0_AB_Drs_09-2014.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1202_0_AB_Drs_09-2014.pdf/meta.json",
-    "meta": {
-      "layer0": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer1": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer2": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "pages": 3,
-      "_theend": 0,
-      "contentLength": "59494",
-      "lastModified": "Mon, 01 Oct 2018 12:32:52 GMT"
-    }
-  },
-  {
-    "group": "Zusatzdokumente",
     "title": "2014-09_Begruendung",
     "structure": "/Ursprungsplan (rechtskräftig)/Aufstellungsbeschlüsse(4.99.4)",
     "file": "BPL_1202_0_AB_Drs_09-2014_Begruendung.pdf",
@@ -11591,6 +11561,36 @@
       "_theend": 0,
       "contentLength": "1878251",
       "lastModified": "Tue, 23 Jun 2020 12:15:18 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2014-09_Drucksache",
+    "structure": "/Ursprungsplan (rechtskräftig)/Aufstellungsbeschlüsse(4.99.4)",
+    "file": "BPL_1202_0_AB_Drs_09-2014.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1202_0_AB_Drs_09-2014.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1202_0_AB_Drs_09-2014.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1202_0_AB_Drs_09-2014.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 3,
+      "_theend": 0,
+      "contentLength": "59494",
+      "lastModified": "Mon, 01 Oct 2018 12:32:52 GMT"
     }
   },
   {

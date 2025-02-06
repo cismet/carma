@@ -56,6 +56,51 @@
   },
   {
     "group": "Zusatzdokumente",
+    "title": "2023-03_Bekanntmachung",
+    "structure": "/1. Ergänzendes Verfahren (rechtskräftig)/Satzungsbeschlüsse(3.98.1)",
+    "file": "BPL_1223_1Erg_PB_Drs_03-2023_Bekanntmachung.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_PB_Drs_03-2023_Bekanntmachung.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_PB_Drs_03-2023_Bekanntmachung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_PB_Drs_03-2023_Bekanntmachung.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 6,
+      "_theend": 0,
+      "contentLength": "1892008",
+      "lastModified": "Fri, 21 Apr 2023 12:00:02 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
     "title": "2023-02_0Drucksache",
     "structure": "/1. Ergänzendes Verfahren (rechtskräftig)/Satzungsbeschlüsse(3.98.1)",
     "file": "BPL_1223_1Erg_PB_Drs_02-2023_0Drucksache.pdf",
@@ -917,51 +962,6 @@
       "_theend": 0,
       "contentLength": "119823",
       "lastModified": "Wed, 19 Apr 2023 11:45:02 GMT"
-    }
-  },
-  {
-    "group": "Zusatzdokumente",
-    "title": "2023-03_Bekanntmachung",
-    "structure": "/1. Ergänzendes Verfahren (rechtskräftig)/Satzungsbeschlüsse(3.98.1)",
-    "file": "BPL_1223_1Erg_PB_Drs_03-2023_Bekanntmachung.pdf",
-    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_PB_Drs_03-2023_Bekanntmachung.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_PB_Drs_03-2023_Bekanntmachung.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_PB_Drs_03-2023_Bekanntmachung.pdf/meta.json",
-    "meta": {
-      "layer0": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer1": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer2": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer3": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer4": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer5": {
-        "x": 2479,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "pages": 6,
-      "_theend": 0,
-      "contentLength": "1892008",
-      "lastModified": "Fri, 21 Apr 2023 12:00:02 GMT"
     }
   },
   {
@@ -7264,41 +7264,6 @@
   },
   {
     "group": "Zusatzdokumente",
-    "title": "2016-12_Drucksache",
-    "structure": "/Ursprungsplan (rechtskräftig)/Aufstellungsbeschlüsse(4.99.4)",
-    "file": "BPL_1223_0_AB_Drs_12-2016.pdf",
-    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_AB_Drs_12-2016.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_AB_Drs_12-2016.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_AB_Drs_12-2016.pdf/meta.json",
-    "meta": {
-      "layer0": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer1": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer2": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer3": {
-        "x": 2481,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "pages": 4,
-      "_theend": 0,
-      "contentLength": "42763",
-      "lastModified": "Mon, 29 Jun 2020 04:00:02 GMT"
-    }
-  },
-  {
-    "group": "Zusatzdokumente",
     "title": "2016-12_Ausschnitt-aus-dem-Bebauungsplan-222",
     "structure": "/Ursprungsplan (rechtskräftig)/Aufstellungsbeschlüsse(4.99.4)",
     "file": "BPL_1223_0_AB_Drs_12-2016_Ausschnitt-aus-dem-Bebauungsplan-222.pdf",
@@ -7594,6 +7559,41 @@
       "pages": 2,
       "_theend": 0,
       "contentLength": "939169",
+      "lastModified": "Mon, 29 Jun 2020 04:00:02 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2016-12_Drucksache",
+    "structure": "/Ursprungsplan (rechtskräftig)/Aufstellungsbeschlüsse(4.99.4)",
+    "file": "BPL_1223_0_AB_Drs_12-2016.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_AB_Drs_12-2016.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_AB_Drs_12-2016.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_AB_Drs_12-2016.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 4,
+      "_theend": 0,
+      "contentLength": "42763",
       "lastModified": "Mon, 29 Jun 2020 04:00:02 GMT"
     }
   },

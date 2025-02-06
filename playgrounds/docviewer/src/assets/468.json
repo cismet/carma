@@ -526,262 +526,12 @@
   },
   {
     "group": "Zusatzdokumente",
-    "title": "1979-06_Begruendung",
-    "structure": "/Ursprungsplan (rechtskräftig)/Satzungsbeschlüsse(4.99.1)",
-    "file": "BPL_0468_0_PB_Drs_06-1979_Begruendung.pdf",
-    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_06-1979_Begruendung.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_06-1979_Begruendung.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_06-1979_Begruendung.pdf/meta.json",
-    "meta": {
-      "layer0": {
-        "x": 2480,
-        "y": 3507,
-        "maxZoom": 4
-      },
-      "layer1": {
-        "x": 2480,
-        "y": 3507,
-        "maxZoom": 4
-      },
-      "layer2": {
-        "x": 2480,
-        "y": 3507,
-        "maxZoom": 4
-      },
-      "layer3": {
-        "x": 2480,
-        "y": 3507,
-        "maxZoom": 4
-      },
-      "layer4": {
-        "x": 2480,
-        "y": 3507,
-        "maxZoom": 4
-      },
-      "layer5": {
-        "x": 2480,
-        "y": 3507,
-        "maxZoom": 4
-      },
-      "layer6": {
-        "x": 2480,
-        "y": 3507,
-        "maxZoom": 4
-      },
-      "layer7": {
-        "x": 2480,
-        "y": 3507,
-        "maxZoom": 4
-      },
-      "layer8": {
-        "x": 2480,
-        "y": 3507,
-        "maxZoom": 4
-      },
-      "layer9": {
-        "x": 2480,
-        "y": 3507,
-        "maxZoom": 4
-      },
-      "layer10": {
-        "x": 2480,
-        "y": 3507,
-        "maxZoom": 4
-      },
-      "layer11": {
-        "x": 2480,
-        "y": 3507,
-        "maxZoom": 4
-      },
-      "layer12": {
-        "x": 2480,
-        "y": 3507,
-        "maxZoom": 4
-      },
-      "layer13": {
-        "x": 2480,
-        "y": 3507,
-        "maxZoom": 4
-      },
-      "layer14": {
-        "x": 2480,
-        "y": 3507,
-        "maxZoom": 4
-      },
-      "layer15": {
-        "x": 2480,
-        "y": 3507,
-        "maxZoom": 4
-      },
-      "pages": 16,
-      "_theend": 0,
-      "contentLength": "639320",
-      "lastModified": "Mon, 01 Oct 2018 12:31:58 GMT"
-    }
-  },
-  {
-    "group": "Zusatzdokumente",
-    "title": "1982-05_Beitrittsbeschluss",
-    "structure": "/Ursprungsplan (rechtskräftig)/Satzungsbeschlüsse(4.99.1)",
-    "file": "BPL_0468_0_PB_Drs_05-1982_Beitrittsbeschluss.pdf",
-    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_05-1982_Beitrittsbeschluss.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_05-1982_Beitrittsbeschluss.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_05-1982_Beitrittsbeschluss.pdf/meta.json",
-    "meta": {
-      "layer0": {
-        "x": 2480,
-        "y": 3507,
-        "maxZoom": 4
-      },
-      "layer1": {
-        "x": 2480,
-        "y": 3507,
-        "maxZoom": 4
-      },
-      "layer2": {
-        "x": 2480,
-        "y": 3507,
-        "maxZoom": 4
-      },
-      "layer3": {
-        "x": 2480,
-        "y": 3507,
-        "maxZoom": 4
-      },
-      "pages": 4,
-      "_theend": 0,
-      "contentLength": "672063",
-      "lastModified": "Mon, 28 Jan 2019 14:30:02 GMT"
-    }
-  },
-  {
-    "group": "Zusatzdokumente",
-    "title": "1982-05_Bekanntmachung",
-    "structure": "/Ursprungsplan (rechtskräftig)/Satzungsbeschlüsse(4.99.1)",
-    "file": "BPL_0468_0_PB_Drs_05-1982_Bekanntmachung.pdf",
-    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_05-1982_Bekanntmachung.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_05-1982_Bekanntmachung.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_05-1982_Bekanntmachung.pdf/meta.json",
-    "meta": {
-      "layer0": {
-        "x": 2480,
-        "y": 3507,
-        "maxZoom": 4
-      },
-      "layer1": {
-        "x": 2480,
-        "y": 3507,
-        "maxZoom": 4
-      },
-      "pages": 2,
-      "_theend": 0,
-      "contentLength": "718949",
-      "lastModified": "Mon, 28 Jan 2019 14:30:02 GMT"
-    }
-  },
-  {
-    "group": "Zusatzdokumente",
-    "title": "1979-06_Drucksache",
-    "structure": "/Ursprungsplan (rechtskräftig)/Satzungsbeschlüsse(4.99.1)",
-    "file": "BPL_0468_0_PB_Drs_06-1979_Drucksache.pdf",
-    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_06-1979_Drucksache.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_06-1979_Drucksache.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_06-1979_Drucksache.pdf/meta.json",
-    "meta": {
-      "layer0": {
-        "x": 2480,
-        "y": 3507,
-        "maxZoom": 4
-      },
-      "layer1": {
-        "x": 2480,
-        "y": 3507,
-        "maxZoom": 4
-      },
-      "layer2": {
-        "x": 2480,
-        "y": 3507,
-        "maxZoom": 4
-      },
-      "layer3": {
-        "x": 2480,
-        "y": 3507,
-        "maxZoom": 4
-      },
-      "pages": 4,
-      "_theend": 0,
-      "contentLength": "820484",
-      "lastModified": "Mon, 28 Jan 2019 14:30:02 GMT"
-    }
-  },
-  {
-    "group": "Zusatzdokumente",
-    "title": "1980-12_Drucksache",
-    "structure": "/1. Änderung (rechtskräftig)/Satzungsbeschlüsse(1.98.1)",
-    "file": "BPL_0468_1And_PB_Drs_12-1980.pdf",
-    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_1And_PB_Drs_12-1980.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_1And_PB_Drs_12-1980.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_1And_PB_Drs_12-1980.pdf/meta.json",
-    "meta": {
-      "layer0": {
-        "x": 2480,
-        "y": 3507,
-        "maxZoom": 4
-      },
-      "layer1": {
-        "x": 2480,
-        "y": 3507,
-        "maxZoom": 4
-      },
-      "layer2": {
-        "x": 2480,
-        "y": 3507,
-        "maxZoom": 4
-      },
-      "layer3": {
-        "x": 2480,
-        "y": 3507,
-        "maxZoom": 4
-      },
-      "pages": 4,
-      "_theend": 0,
-      "contentLength": "1495099",
-      "lastModified": "Mon, 01 Oct 2018 12:31:58 GMT"
-    }
-  },
-  {
-    "group": "Zusatzdokumente",
-    "title": "1981-01_Bekanntmachung",
-    "structure": "/1. Änderung (rechtskräftig)/Satzungsbeschlüsse(1.98.1)",
-    "file": "BPL_0468_1And_PB_Drs_01-1981_Bekanntmachung.pdf",
-    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_1And_PB_Drs_01-1981_Bekanntmachung.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_1And_PB_Drs_01-1981_Bekanntmachung.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_1And_PB_Drs_01-1981_Bekanntmachung.pdf/meta.json",
-    "meta": {
-      "layer0": {
-        "x": 2480,
-        "y": 3507,
-        "maxZoom": 4
-      },
-      "layer1": {
-        "x": 2480,
-        "y": 3507,
-        "maxZoom": 4
-      },
-      "pages": 2,
-      "_theend": 0,
-      "contentLength": "712502",
-      "lastModified": "Mon, 01 Oct 2018 12:31:58 GMT"
-    }
-  },
-  {
-    "group": "Zusatzdokumente",
-    "title": "2010-09_Drucksache",
+    "title": "2011-01_Bekanntmachung",
     "structure": "/2. Änderung (rechtskräftig)/Satzungsbeschlüsse(1.97.1)",
-    "file": "BPL_0468_2And_PB_Drs_09-2010.pdf",
-    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010.pdf/meta.json",
+    "file": "BPL_0468_2And_PB_Drs_01-2011_Bekanntmachung.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_01-2011_Bekanntmachung.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_01-2011_Bekanntmachung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_01-2011_Bekanntmachung.pdf/meta.json",
     "meta": {
       "layer0": {
         "x": 2479,
@@ -795,8 +545,8 @@
       },
       "pages": 2,
       "_theend": 0,
-      "contentLength": "514335",
-      "lastModified": "Mon, 01 Oct 2018 12:31:58 GMT"
+      "contentLength": "349070",
+      "lastModified": "Wed, 30 Jan 2019 09:45:02 GMT"
     }
   },
   {
@@ -842,6 +592,175 @@
       "_theend": 0,
       "contentLength": "1121708",
       "lastModified": "Mon, 01 Oct 2018 12:31:59 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2010-09_Anregungen",
+    "structure": "/2. Änderung (rechtskräftig)/Satzungsbeschlüsse(1.97.1)",
+    "file": "BPL_0468_2And_PB_Drs_09-2010_Anregungen.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Anregungen.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Anregungen.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Anregungen.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 2,
+      "_theend": 0,
+      "contentLength": "497476"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2010-09_Begruendung",
+    "structure": "/2. Änderung (rechtskräftig)/Satzungsbeschlüsse(1.97.1)",
+    "file": "BPL_0468_2And_PB_Drs_09-2010_Begruendung.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Begruendung.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Begruendung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Begruendung.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 7,
+      "_theend": 0,
+      "contentLength": "538866",
+      "lastModified": "Mon, 01 Oct 2018 12:31:59 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2010-09_Bekanntmachung",
+    "structure": "/2. Änderung (rechtskräftig)/Satzungsbeschlüsse(1.97.1)",
+    "file": "BPL_0468_2And_PB_Drs_09-2010_Bekanntmachung.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Bekanntmachung.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Bekanntmachung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Bekanntmachung.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "pages": 3,
+      "_theend": 0,
+      "contentLength": "796335",
+      "lastModified": "Mon, 28 Jan 2019 10:45:01 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2010-09_Drucksache",
+    "structure": "/2. Änderung (rechtskräftig)/Satzungsbeschlüsse(1.97.1)",
+    "file": "BPL_0468_2And_PB_Drs_09-2010.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 2,
+      "_theend": 0,
+      "contentLength": "514335",
+      "lastModified": "Mon, 01 Oct 2018 12:31:58 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2010-09_Textliche-Festsetzungen",
+    "structure": "/2. Änderung (rechtskräftig)/Satzungsbeschlüsse(1.97.1)",
+    "file": "BPL_0468_2And_PB_Drs_09-2010_Textliche-Festsetzungen.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Textliche-Festsetzungen.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Textliche-Festsetzungen.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Textliche-Festsetzungen.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2555,
+        "y": 3583,
+        "maxZoom": 4
+      },
+      "pages": 1,
+      "_theend": 0,
+      "contentLength": "98929",
+      "lastModified": "Mon, 01 Oct 2018 12:31:59 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2010-09_Vergroesserung",
+    "structure": "/2. Änderung (rechtskräftig)/Satzungsbeschlüsse(1.97.1)",
+    "file": "BPL_0468_2And_PB_Drs_09-2010_Vergroesserung.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Vergroesserung.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Vergroesserung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Vergroesserung.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2275,
+        "y": 3083,
+        "maxZoom": 4
+      },
+      "pages": 1,
+      "_theend": 0,
+      "contentLength": "997102",
+      "lastModified": "Wed, 20 Nov 2019 08:00:03 GMT"
     }
   },
   {
@@ -1431,86 +1350,72 @@
   },
   {
     "group": "Zusatzdokumente",
-    "title": "2010-09_Anregungen",
-    "structure": "/2. Änderung (rechtskräftig)/Satzungsbeschlüsse(1.97.1)",
-    "file": "BPL_0468_2And_PB_Drs_09-2010_Anregungen.pdf",
-    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Anregungen.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Anregungen.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Anregungen.pdf/meta.json",
+    "title": "1981-01_Bekanntmachung",
+    "structure": "/1. Änderung (rechtskräftig)/Satzungsbeschlüsse(1.98.1)",
+    "file": "BPL_0468_1And_PB_Drs_01-1981_Bekanntmachung.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_1And_PB_Drs_01-1981_Bekanntmachung.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_1And_PB_Drs_01-1981_Bekanntmachung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_1And_PB_Drs_01-1981_Bekanntmachung.pdf/meta.json",
     "meta": {
       "layer0": {
-        "x": 2479,
-        "y": 3508,
+        "x": 2480,
+        "y": 3507,
         "maxZoom": 4
       },
       "layer1": {
-        "x": 2479,
-        "y": 3508,
+        "x": 2480,
+        "y": 3507,
         "maxZoom": 4
       },
       "pages": 2,
       "_theend": 0,
-      "contentLength": "497476"
+      "contentLength": "712502",
+      "lastModified": "Mon, 01 Oct 2018 12:31:58 GMT"
     }
   },
   {
     "group": "Zusatzdokumente",
-    "title": "2010-09_Begruendung",
-    "structure": "/2. Änderung (rechtskräftig)/Satzungsbeschlüsse(1.97.1)",
-    "file": "BPL_0468_2And_PB_Drs_09-2010_Begruendung.pdf",
-    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Begruendung.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Begruendung.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Begruendung.pdf/meta.json",
+    "title": "1980-12_Drucksache",
+    "structure": "/1. Änderung (rechtskräftig)/Satzungsbeschlüsse(1.98.1)",
+    "file": "BPL_0468_1And_PB_Drs_12-1980.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_1And_PB_Drs_12-1980.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_1And_PB_Drs_12-1980.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_1And_PB_Drs_12-1980.pdf/meta.json",
     "meta": {
       "layer0": {
-        "x": 2479,
-        "y": 3508,
+        "x": 2480,
+        "y": 3507,
         "maxZoom": 4
       },
       "layer1": {
-        "x": 2479,
-        "y": 3508,
+        "x": 2480,
+        "y": 3507,
         "maxZoom": 4
       },
       "layer2": {
-        "x": 2479,
-        "y": 3508,
+        "x": 2480,
+        "y": 3507,
         "maxZoom": 4
       },
       "layer3": {
-        "x": 2479,
-        "y": 3508,
+        "x": 2480,
+        "y": 3507,
         "maxZoom": 4
       },
-      "layer4": {
-        "x": 2479,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer5": {
-        "x": 2479,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "layer6": {
-        "x": 2479,
-        "y": 3508,
-        "maxZoom": 4
-      },
-      "pages": 7,
+      "pages": 4,
       "_theend": 0,
-      "contentLength": "538866",
-      "lastModified": "Mon, 01 Oct 2018 12:31:59 GMT"
+      "contentLength": "1495099",
+      "lastModified": "Mon, 01 Oct 2018 12:31:58 GMT"
     }
   },
   {
     "group": "Zusatzdokumente",
-    "title": "2010-09_Bekanntmachung",
-    "structure": "/2. Änderung (rechtskräftig)/Satzungsbeschlüsse(1.97.1)",
-    "file": "BPL_0468_2And_PB_Drs_09-2010_Bekanntmachung.pdf",
-    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Bekanntmachung.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Bekanntmachung.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Bekanntmachung.pdf/meta.json",
+    "title": "1982-05_Beitrittsbeschluss",
+    "structure": "/Ursprungsplan (rechtskräftig)/Satzungsbeschlüsse(4.99.1)",
+    "file": "BPL_0468_0_PB_Drs_05-1982_Beitrittsbeschluss.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_05-1982_Beitrittsbeschluss.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_05-1982_Beitrittsbeschluss.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_05-1982_Beitrittsbeschluss.pdf/meta.json",
     "meta": {
       "layer0": {
         "x": 2480,
@@ -1527,75 +1432,170 @@
         "y": 3507,
         "maxZoom": 4
       },
-      "pages": 3,
+      "layer3": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "pages": 4,
       "_theend": 0,
-      "contentLength": "796335",
-      "lastModified": "Mon, 28 Jan 2019 10:45:01 GMT"
+      "contentLength": "672063",
+      "lastModified": "Mon, 28 Jan 2019 14:30:02 GMT"
     }
   },
   {
     "group": "Zusatzdokumente",
-    "title": "2011-01_Bekanntmachung",
-    "structure": "/2. Änderung (rechtskräftig)/Satzungsbeschlüsse(1.97.1)",
-    "file": "BPL_0468_2And_PB_Drs_01-2011_Bekanntmachung.pdf",
-    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_01-2011_Bekanntmachung.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_01-2011_Bekanntmachung.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_01-2011_Bekanntmachung.pdf/meta.json",
+    "title": "1982-05_Bekanntmachung",
+    "structure": "/Ursprungsplan (rechtskräftig)/Satzungsbeschlüsse(4.99.1)",
+    "file": "BPL_0468_0_PB_Drs_05-1982_Bekanntmachung.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_05-1982_Bekanntmachung.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_05-1982_Bekanntmachung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_05-1982_Bekanntmachung.pdf/meta.json",
     "meta": {
       "layer0": {
-        "x": 2479,
-        "y": 3508,
+        "x": 2480,
+        "y": 3507,
         "maxZoom": 4
       },
       "layer1": {
-        "x": 2479,
-        "y": 3508,
+        "x": 2480,
+        "y": 3507,
         "maxZoom": 4
       },
       "pages": 2,
       "_theend": 0,
-      "contentLength": "349070",
-      "lastModified": "Wed, 30 Jan 2019 09:45:02 GMT"
+      "contentLength": "718949",
+      "lastModified": "Mon, 28 Jan 2019 14:30:02 GMT"
     }
   },
   {
     "group": "Zusatzdokumente",
-    "title": "2010-09_Textliche-Festsetzungen",
-    "structure": "/2. Änderung (rechtskräftig)/Satzungsbeschlüsse(1.97.1)",
-    "file": "BPL_0468_2And_PB_Drs_09-2010_Textliche-Festsetzungen.pdf",
-    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Textliche-Festsetzungen.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Textliche-Festsetzungen.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Textliche-Festsetzungen.pdf/meta.json",
+    "title": "1979-06_Begruendung",
+    "structure": "/Ursprungsplan (rechtskräftig)/Satzungsbeschlüsse(4.99.1)",
+    "file": "BPL_0468_0_PB_Drs_06-1979_Begruendung.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_06-1979_Begruendung.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_06-1979_Begruendung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_06-1979_Begruendung.pdf/meta.json",
     "meta": {
       "layer0": {
-        "x": 2555,
-        "y": 3583,
+        "x": 2480,
+        "y": 3507,
         "maxZoom": 4
       },
-      "pages": 1,
+      "layer1": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer7": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer8": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer9": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer10": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer11": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer12": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer13": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer14": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer15": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "pages": 16,
       "_theend": 0,
-      "contentLength": "98929",
-      "lastModified": "Mon, 01 Oct 2018 12:31:59 GMT"
+      "contentLength": "639320",
+      "lastModified": "Mon, 01 Oct 2018 12:31:58 GMT"
     }
   },
   {
     "group": "Zusatzdokumente",
-    "title": "2010-09_Vergroesserung",
-    "structure": "/2. Änderung (rechtskräftig)/Satzungsbeschlüsse(1.97.1)",
-    "file": "BPL_0468_2And_PB_Drs_09-2010_Vergroesserung.pdf",
-    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Vergroesserung.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Vergroesserung.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Vergroesserung.pdf/meta.json",
+    "title": "1979-06_Drucksache",
+    "structure": "/Ursprungsplan (rechtskräftig)/Satzungsbeschlüsse(4.99.1)",
+    "file": "BPL_0468_0_PB_Drs_06-1979_Drucksache.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_06-1979_Drucksache.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_06-1979_Drucksache.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_06-1979_Drucksache.pdf/meta.json",
     "meta": {
       "layer0": {
-        "x": 2275,
-        "y": 3083,
+        "x": 2480,
+        "y": 3507,
         "maxZoom": 4
       },
-      "pages": 1,
+      "layer1": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "pages": 4,
       "_theend": 0,
-      "contentLength": "997102",
-      "lastModified": "Wed, 20 Nov 2019 08:00:03 GMT"
+      "contentLength": "820484",
+      "lastModified": "Mon, 28 Jan 2019 14:30:02 GMT"
     }
   }
 ]
