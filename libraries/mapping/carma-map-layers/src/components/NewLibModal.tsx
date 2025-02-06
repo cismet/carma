@@ -345,27 +345,35 @@ export const NewLibModal = ({
       }
     }
 
-    for (let key in discoverConfig) {
-      setShownCategories((prev) => {
-        if (prev.find((item) => item.id === "discover")) {
-          prev.splice(
-            prev.findIndex((item) => item.id === "discover"),
-            1
-          );
-        }
-        return [...prev, { id: "discover", categories: [discoverConfig[key]] }];
-      });
+    const discoverCategories: {
+      Title: string;
+      id: string;
+      layers: SavedLayerConfig[];
+    }[] = [];
 
-      setTmpAllCategories((prev) => {
-        if (prev.find((item) => item.id === "discover")) {
-          prev.splice(
-            prev.findIndex((item) => item.id === "discover"),
-            1
-          );
-        }
-        return [...prev, { id: "discover", categories: [discoverConfig[key]] }];
-      });
+    for (let key in discoverConfig) {
+      discoverCategories.push(discoverConfig[key]);
     }
+
+    setShownCategories((prev) => {
+      if (prev.find((item) => item.id === "discover")) {
+        prev.splice(
+          prev.findIndex((item) => item.id === "discover"),
+          1
+        );
+      }
+      return [...prev, { id: "discover", categories: discoverCategories }];
+    });
+
+    setTmpAllCategories((prev) => {
+      if (prev.find((item) => item.id === "discover")) {
+        prev.splice(
+          prev.findIndex((item) => item.id === "discover"),
+          1
+        );
+      }
+      return [...prev, { id: "discover", categories: discoverCategories }];
+    });
   }, []);
 
   useEffect(() => {
