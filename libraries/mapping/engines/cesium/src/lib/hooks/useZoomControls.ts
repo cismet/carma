@@ -1,11 +1,19 @@
 import { useCallback } from "react";
 
-import { useCesiumViewer } from "./useCesiumViewer";
+import { Viewer } from "cesium";
 
 const MOVERATE_FACTOR = 0.33;
 
-export function useZoomControls(moveRateFactor: number = MOVERATE_FACTOR) {
-  const viewer = useCesiumViewer();
+/**
+ * @param viewerRef - reference to the Cesium Viewer component
+ * @param moveRateFactor - The factor by which the camera's default zoom/moveRate increment be amplified by.
+ */
+
+export function useZoomControls(
+  viewerRef: React.MutableRefObject<Viewer | null>,
+  moveRateFactor = MOVERATE_FACTOR
+) {
+  const viewer = viewerRef.current;
 
   const handleZoomIn = useCallback(
     (event: React.MouseEvent) => {

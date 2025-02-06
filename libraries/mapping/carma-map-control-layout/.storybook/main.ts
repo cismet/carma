@@ -5,7 +5,7 @@ const config: StorybookConfig = {
   addons: [
     "@storybook/addon-essentials",
     "@storybook/addon-interactions",
-    "@chromatic-com/storybook"
+    "@chromatic-com/storybook",
   ],
 
   framework: {
@@ -23,9 +23,10 @@ const config: StorybookConfig = {
   typescript: {
     reactDocgen: "react-docgen-typescript",
     reactDocgenTypescriptOptions: {
-      tsconfigPath: "libraries/mapping/carma-map-control-layout/tsconfig.storybook.json",
+      tsconfigPath:
+        "libraries/mapping/carma-map-control-layout/tsconfig.storybook.json",
     },
-  }
+  },
 };
 
 export default config;

@@ -48,7 +48,7 @@ export const HQ500 = () => {
   const {
     handleZoomIn: handleZoomInCesium,
     handleZoomOut: handleZoomOutCesium,
-  } = useZoomControlsCesium();
+  } = useZoomControlsCesium(viewerRef);
 
   useTweakpaneCtx({
     folder: {

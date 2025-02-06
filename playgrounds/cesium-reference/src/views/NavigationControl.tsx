@@ -16,6 +16,15 @@ import { useZoomToTilesetOnReady } from "../hooks/useZoomToTilesetOnReady";
 import UiTopRight from "../components/UiTopRight";
 import RotateButton from "../components/RotateButton";
 import WIP from "../components/WIP";
+import {
+  Control,
+  ControlButtonStyler,
+  ControlLayout,
+} from "@carma-mapping/map-controls-layout";
+import { Tooltip } from "antd";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faMinus, faPlus } from "@fortawesome/free-solid-svg-icons";
+import { useZoomControls } from "@carma-mapping/cesium-engine";
 
 const NavigationControlView: FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -60,13 +69,49 @@ const NavigationControlView: FC = () => {
   }, []);
 
   useZoomToTilesetOnReady(viewerRef, tilesetRef, tilesetReady);
+  const { handleZoomIn, handleZoomOut } = useZoomControls(viewerRef, 1);
   return (
     <>
-      <WIP />
-      <div ref={containerRef} style={{ width: "100%", height: "100vh" }} />
-      <UiTopRight>
-        <RotateButton viewerRef={viewerRef} />
-      </UiTopRight>
+      <ControlLayout ifStorybook={false}>
+        <Control position="topleft" order={10}>
+          <Tooltip title="Maßstab vergrößern (Zoom in)" placement="right">
+            <ControlButtonStyler
+              onClick={handleZoomIn}
+              className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
+              dataTestId="zoom-in-control"
+            >
+              <FontAwesomeIcon icon={faPlus} className="text-base" />
+            </ControlButtonStyler>
+          </Tooltip>
+          <Tooltip title="Maßstab verkleinern (Zoom out)" placement="right">
+            <ControlButtonStyler
+              onClick={handleZoomOut}
+              className="!rounded-t-none !border-t-[1px]"
+              dataTestId="zoom-out-control"
+            >
+              <FontAwesomeIcon icon={faMinus} className="text-base" />
+            </ControlButtonStyler>
+          </Tooltip>
+        </Control>
+        <Control position="topleft" order={30}>
+          <ControlButtonStyler>
+            <RotateButton viewerRef={viewerRef} />
+          </ControlButtonStyler>
+        </Control>
+      </ControlLayout>
+      <div>
+        <WIP message="for Review only" />
+        <div
+          ref={containerRef}
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            height: "100vh",
+          }}
+        />
+      </div>
     </>
   );
 };

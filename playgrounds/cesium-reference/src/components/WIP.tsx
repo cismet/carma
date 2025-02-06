@@ -1,6 +1,8 @@
 import React from "react";
 
-const WIP: React.FC = () => {
+const WIP: React.FC<{
+  message?: string;
+}> = ({ message = "Work in Progress" }) => {
   return (
     <div
       style={{
@@ -19,7 +21,7 @@ const WIP: React.FC = () => {
         backgroundColor: "transparent",
       }}
     >
-      Under Construction
+      {message}
     </div>
   );
 };

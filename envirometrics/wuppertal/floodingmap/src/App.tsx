@@ -76,12 +76,13 @@ function App({ sync = false }: { sync?: boolean }) {
   const [hochwasserschutz, setHochwasserschutz] = useState(true);
 
   // CONTROLS
-
+  const { viewerRef, terrainProviderRef, surfaceProviderRef } =
+    useCesiumContext();
   const homeControl = useHomeControl();
   const {
     handleZoomIn: handleZoomInCesium,
     handleZoomOut: handleZoomOutCesium,
-  } = useZoomControls();
+  } = useZoomControls(viewerRef);
   const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
 
   // LEAFLET related
@@ -102,9 +103,6 @@ function App({ sync = false }: { sync?: boolean }) {
 
     return center;
   }, [homePosition]);
-
-  const { viewerRef, terrainProviderRef, surfaceProviderRef } =
-    useCesiumContext();
 
   const isMode2d = useSelector(selectViewerIsMode2d);
 

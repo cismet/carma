@@ -201,7 +201,7 @@ export const CarmaMap = ({
   const {
     handleZoomIn: handleZoomInCesium,
     handleZoomOut: handleZoomOutCesium,
-  } = useZoomControlsCesium();
+  } = useZoomControlsCesium(viewerRef);
   const { getLeafletZoom, zoomInLeaflet, zoomOutLeaflet } =
     useLeafletZoomControls();
   const showPrimaryTileset = useSelector(selectShowPrimaryTileset);

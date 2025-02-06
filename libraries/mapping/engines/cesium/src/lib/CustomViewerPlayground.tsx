@@ -425,7 +425,13 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
       skyBox={false}
     >
       {children}
-      {showControls && <ControlsUI showHome={showHome} showOrbit={showOrbit} />}
+      {showControls && (
+        <ControlsUI
+          viewerRef={viewerRef}
+          showHome={showHome}
+          showOrbit={showOrbit}
+        />
+      )}
       {showCrosshair && <Crosshair lineColor="white" />}
       <ResizeableContainer enableDragging={showFader} start={showFader ? 5 : 0}>
         <TopicMap forceShow={showFader} />

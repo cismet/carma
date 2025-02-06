@@ -122,6 +122,7 @@ import { getUrlPrefix } from "./utils";
 import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 
 import "../leaflet.css";
+// TODO: move widget css customviewer
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import PrintPreview from "../map-print/PrintPreview.tsx";
@@ -170,7 +171,7 @@ export const GeoportalMap = () => {
   const {
     handleZoomIn: handleZoomInCesium,
     handleZoomOut: handleZoomOutCesium,
-  } = useZoomControlsCesium();
+  } = useZoomControlsCesium(viewerRef);
   const { getLeafletZoom, zoomInLeaflet, zoomOutLeaflet } =
     useLeafletZoomControls();
   const showPrimaryTileset = useSelector(selectShowPrimaryTileset);
@@ -689,13 +690,13 @@ export const GeoportalMap = () => {
                             display: flex;
                             align-items: center;
                             justify-content: center;
-                            
+
                            opacity: 1;
 
-                           
+
                           ">
-                       
-                         
+
+
                             <div style="
                               position: absolute;
                               width: 20px;
@@ -704,7 +705,7 @@ export const GeoportalMap = () => {
                               border-radius: 50%;
 
                             "></div>
-                          
+
                             <div style="
                               position: absolute;
                               width: 20000px;
@@ -736,7 +737,7 @@ export const GeoportalMap = () => {
                               background-color: black;
                               bottom: 18px;
                               opacity: 0.5;
-                            "></div>                    
+                            "></div>
                           </div>
                         `,
                         iconSize: [30, 30],
@@ -757,12 +758,12 @@ export const GeoportalMap = () => {
                             border-radius: 50%;
                             display: flex;
                             align-items: center;
-                            justify-content: center;      
+                            justify-content: center;
                           ">
 
-                          
-                        
-                           
+
+
+
                              <div style="
                               position: absolute;
                               width: 6px;

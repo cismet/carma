@@ -1,16 +1,18 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import { ReactNode } from "react";
+import { Viewer } from "cesium";
+
 import { useZoomControls } from "../../hooks/useZoomControls";
 
 type ZoomControlsProps = {
   children?: ReactNode;
   role?: string;
   ariaLabel?: string;
-  viewer?: any;
+  viewerRef: React.RefObject<Viewer | null>;
 };
 
 const ZoomControls = (props: ZoomControlsProps) => {
-  const { handleZoomIn, handleZoomOut } = useZoomControls();
+  const { handleZoomIn, handleZoomOut } = useZoomControls(props.viewerRef);
 
   return (
     <div className="leaflet-control-zoom leaflet-bar leaflet-control">
