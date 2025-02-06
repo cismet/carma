@@ -14,6 +14,7 @@ interface SidebarProps {
   mode: string;
   compactView: boolean;
   dynamicPrefixDetection?: boolean;
+  improveReadabilityOfDocTitles?: boolean;
 }
 
 const Sidebar = ({
@@ -23,6 +24,7 @@ const Sidebar = ({
   mode,
   compactView,
   dynamicPrefixDetection = false,
+  improveReadabilityOfDocTitles = true,
 }: SidebarProps) => {
   const { docPackageId, page } = useParams();
   const navigate = useNavigate();
@@ -173,6 +175,40 @@ const Sidebar = ({
 
   const getDocsInStructure = (docs: Doc[], structure: string) => {
     return docs.filter((doc) => doc.structure === structure);
+  };
+
+  const improveReadability = (title: string): string => {
+    if (!improveReadabilityOfDocTitles) return title;
+
+    // Replace German umlaut representations
+    let improved = title
+      .replace(/AE/g, "Ä")
+      .replace(/ae/g, "ä")
+      .replace(/OE/g, "Ö")
+      .replace(/oe/g, "ö")
+      .replace(/UE/g, "Ü")
+      .replace(/ue/g, "ü");
+
+    // Add spaces before capital letters (camelCase to spaces)
+    improved = improved.replace(/([a-z])([A-Z])/g, "$1 $2");
+
+    // Add space between word and number
+    improved = improved.replace(/([a-zA-Z])(\d)/g, "$1 $2");
+
+    // Replace hyphens with spaces
+    improved = improved.replace(/-/g, " ");
+
+    // Clean up any double spaces that might have been created
+    improved = improved.replace(/\s+/g, " ").trim();
+
+    return improved;
+  };
+
+  const removePrefix = (title: string, prefix: string | null) => {
+    if (!prefix || !title) return improveReadability(title);
+    return improveReadability(
+      title.startsWith(prefix) ? title.slice(prefix.length).trim() : title
+    );
   };
 
   return (
@@ -331,11 +367,6 @@ const Sidebar = ({
       </div>
     </div>
   );
-};
-
-const removePrefix = (title: string, prefix: string | null) => {
-  if (!prefix || !title) return title;
-  return title.startsWith(prefix) ? title.slice(prefix.length).trim() : title;
 };
 
 export default Sidebar;
