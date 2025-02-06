@@ -3,21 +3,15 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { faGripVertical, faMap, faX } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Slider } from "antd";
 import { useDispatch, useSelector } from "react-redux";
 import { getSelectedFeature } from "../../store/slices/features";
 import {
-  changeBackgroundOpacity,
-  changeBackgroundVisibility,
-  changeOpacity,
-  changePaleOpacity,
   getBackgroundLayer,
   removeLayer,
-  setFocusMode,
   setSelectedLayerIndex,
 } from "../../store/slices/mapping";
 import { iconColorMap, iconMap } from "./items";
-import { formatter } from "./SecondaryView";
+import OpacitySlider from "./OpacitySlider";
 import VisibilityToggle from "./VisibilityToggle";
 
 interface LayerRowProps {
@@ -86,30 +80,10 @@ const LayerRow = ({ layer, id, isBackgroundLayer, index }: LayerRowProps) => {
           {layer.title}
         </p>
       </div>
-      <Slider
-        min={0}
-        max={1}
-        tooltip={{ formatter: formatter }}
-        step={0.1}
-        onChange={(value) => {
-          if (isBackgroundLayer) {
-            dispatch(changeBackgroundOpacity({ opacity: value }));
-            if (value !== 1) {
-              dispatch(changePaleOpacity({ paleOpacityValue: value }));
-              dispatch(setFocusMode(true));
-            } else {
-              dispatch(setFocusMode(false));
-            }
-
-            if (value !== 0) {
-              dispatch(changeBackgroundVisibility(true));
-            }
-          } else {
-            dispatch(changeOpacity({ id: layer.id, opacity: value }));
-          }
-        }}
-        className="w-full"
-        value={layer.opacity}
+      <OpacitySlider
+        isBackgroundLayer={isBackgroundLayer}
+        opacity={layer.opacity}
+        id={layer.id}
       />
       <VisibilityToggle
         visible={layer.visible}

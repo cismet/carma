@@ -10,7 +10,6 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import type { SliderSingleProps } from "antd";
-import { Slider } from "antd";
 import { forwardRef, useContext, useEffect, useRef } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useDispatch, useSelector } from "react-redux";
@@ -19,15 +18,10 @@ import { SELECTED_LAYER_INDEX } from "@carma-apps/portals";
 
 import { cn } from "../../helper/helper";
 import {
-  changeBackgroundOpacity,
-  changeBackgroundVisibility,
-  changeOpacity,
-  changePaleOpacity,
   getBackgroundLayer,
   getLayers,
   getSelectedLayerIndex,
   setClickFromInfoView,
-  setFocusMode,
   setNextSelectedLayerIndex,
   setPreviousSelectedLayerIndex,
   setSelectedLayerIndex,
@@ -44,6 +38,7 @@ import BaseLayerInfo from "./BaseLayerInfo";
 import BaseLayerSelection from "./BaseLayerSelection";
 import { iconColorMap, iconMap } from "./items";
 import LayerInfo from "./LayerInfo";
+import OpacitySlider from "./OpacitySlider";
 import VisibilityToggle from "./VisibilityToggle";
 
 type Ref = HTMLDivElement;
@@ -230,38 +225,13 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
               <label className="mb-0 text-[15px]" htmlFor="opacity-slider">
                 Transparenz:
               </label>
-              <Slider
-                tooltip={{ formatter }}
-                onFocus={() => {
-                  routedMapRef?.leafletMap?.leafletElement.dragging.disable();
-                }}
-                onChange={(value) => {
-                  if (isBaseLayer) {
-                    dispatch(changeBackgroundOpacity({ opacity: value }));
-                    if (value !== 1) {
-                      dispatch(changePaleOpacity({ paleOpacityValue: value }));
-                      dispatch(setFocusMode(true));
-                    } else {
-                      dispatch(setFocusMode(false));
-                    }
-
-                    if (value !== 0) {
-                      dispatch(changeBackgroundVisibility(true));
-                    }
-                  } else {
-                    dispatch(changeOpacity({ id: layer.id, opacity: value }));
-                  }
-                }}
-                onChangeComplete={() => {
-                  routedMapRef?.leafletMap?.leafletElement.dragging.enable();
-                }}
-                value={layer.opacity}
-                min={0}
-                max={1}
-                step={0.1}
-                className="w-2/3 pt-1"
-                id="opacity-slider"
-              />
+              <div className="w-2/3 pt-1">
+                <OpacitySlider
+                  isBackgroundLayer={isBaseLayer}
+                  opacity={layer.opacity}
+                  id={layer.id}
+                />
+              </div>
             </div>
             <VisibilityToggle
               visible={layer.visible}
