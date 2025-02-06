@@ -26,6 +26,9 @@ const Sidebar = ({
   const navigate = useNavigate();
   const sidebarRef = useRef(null);
 
+  const INDENTATION_PER_LEVEL = 15; // pixels per level
+  const BASE_PADDING = 6; // base padding in pixels
+
   const SIDEBAR_FILENAME_SHORTENER = {
     bplaene: (original: string) => {
       const ret = original
@@ -45,74 +48,124 @@ const Sidebar = ({
     return shorty;
   };
 
+  const getIndentationLevel = (structure: string | undefined) => {
+    if (!structure) return 0;
+    return (structure.match(/\//g) || []).length - 1;
+  };
+
+  const getStructureParts = (structure: string) => {
+    return structure.split('/').filter(Boolean);
+  };
+
+  const getChangedStructureLevels = (currentDoc: Doc, index: number, docs: Doc[]) => {
+    if (!currentDoc.structure) return [];
+    if (index === 0) return getStructureParts(currentDoc.structure).map((part, i) => ({ part, level: i }));
+    
+    const prevDoc = docs[index - 1];
+    if (!prevDoc.structure) return getStructureParts(currentDoc.structure).map((part, i) => ({ part, level: i }));
+
+    const currentParts = getStructureParts(currentDoc.structure);
+    const prevParts = getStructureParts(prevDoc.structure);
+    
+    const changedLevels: { part: string, level: number }[] = [];
+    
+    for (let i = 0; i < currentParts.length; i++) {
+      if (i >= prevParts.length || currentParts[i] !== prevParts[i]) {
+        changedLevels.push({ part: currentParts[i], level: i });
+      }
+    }
+    
+    return changedLevels;
+  };
+
   return (
     <div ref={sidebarRef}>
       <div style={{ marginBottom: 8 }}>
         {docs?.length > 0 &&
           docs?.map((doc, i) => (
-            <div
-              key={`sidebarItem.${i}`}
-              style={{
-                background: `${
-                  index - 1 === i ? "rgb(119, 119, 119)" : "#f5f5f5"
-                }`,
-                height: "100%",
-                padding: 6,
-                marginBottom: "8px",
-                cursor: "pointer",
-                color: "#333",
-              }}
-              onClick={() => navigate(`/docs/${docPackageId}/${i + 1}/1`)}
-            >
-              <div
-                style={{
-                  flexDirection: "column",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  display: "flex",
-                  gap: "6px",
-                }}
-              >
-                {doc.group === "Zusatzdokumente" ? (
-                  <FontAwesomeIcon
-                    icon={faFile}
-                    size={compactView ? "3x" : "1x"}
-                  />
-                ) : (
-                  <Icon name="file-pdf-o" size={compactView ? "3x" : "1x"} />
-                )}
-
-                <p
+            <div key={`sidebarItem.${i}`}>
+              {getChangedStructureLevels(doc, i, docs).map(({ part, level }) => (
+                <div
+                  key={`structure-${i}-${level}`}
                   style={{
-                    marginTop: 2,
-                    marginBottom: 5,
-                    fontSize: 11,
-                    wordWrap: "break-word",
-                    textWrap: "pretty",
-                    overflowWrap: "break-word",
-                    textAlign: "center",
+                    padding: "4px 8px",
+                    backgroundColor: "#f0f0f0",
+                    fontSize: "12px",
+                    fontWeight: "bold",
+                    color: "#666",
+                    marginBottom: "8px",
+                    marginLeft: level * INDENTATION_PER_LEVEL,
                   }}
                 >
-                  <span>{doc.title || filenameShortener(doc.file)}</span>
-                </p>
-                {index - 1 === i && (
-                  <>
-                    <ProgressBar
-                      style={{
-                        height: "5px",
-                        width: "100%",
-                        marginTop: 0,
-                        marginBottom: 0,
-                      }}
-                      max={maxIndex}
-                      min={0}
-                      now={parseInt(page!)}
+                  {part}
+                </div>
+              ))}
+              <div
+                style={{
+                  background: `${
+                    index - 1 === i ? "rgb(119, 119, 119)" : "#f5f5f5"
+                  }`,
+                  height: "100%",
+                  padding: BASE_PADDING,
+                  marginBottom: "8px",
+                  cursor: "pointer",
+                  color: "#333",
+                  marginLeft: doc.structure
+                    ? (getIndentationLevel(doc.structure) + 1) * INDENTATION_PER_LEVEL
+                    : 0,
+                }}
+                onClick={() => navigate(`/docs/${docPackageId}/${i + 1}/1`)}
+              >
+                <div
+                  style={{
+                    flexDirection: "column",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    display: "flex",
+                    gap: "6px",
+                  }}
+                >
+                  {doc.group === "Zusatzdokumente" ? (
+                    <FontAwesomeIcon
+                      icon={faFile}
+                      size={compactView ? "3x" : "1x"}
                     />
-                    <p style={{ marginBottom: 0 }}>
-                      {page} / {maxIndex}
-                    </p>
-                  </>
-                )}
+                  ) : (
+                    <Icon name="file-pdf-o" size={compactView ? "3x" : "1x"} />
+                  )}
+
+                  <p
+                    style={{
+                      marginTop: 2,
+                      marginBottom: 5,
+                      fontSize: 11,
+                      wordWrap: "break-word",
+                      textWrap: "pretty",
+                      overflowWrap: "break-word",
+                      textAlign: "center",
+                    }}
+                  >
+                    <span>{doc.title || filenameShortener(doc.file)}</span>
+                  </p>
+                  {index - 1 === i && (
+                    <>
+                      <ProgressBar
+                        style={{
+                          height: "5px",
+                          width: "100%",
+                          marginTop: 0,
+                          marginBottom: 0,
+                        }}
+                        max={maxIndex}
+                        min={0}
+                        now={parseInt(page!)}
+                      />
+                      <p style={{ marginBottom: 0 }}>
+                        {page} / {maxIndex}
+                      </p>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           ))}

@@ -98,8 +98,16 @@ export function getDocsForBPlaeneGazetteerEntry(props: any) {
         });
       }
       for (const doc of bplan.docs) {
+        const metaUrl = replaceUmlauteAndSpaces(
+          repairUrl(doc.url).replace(
+            "https://wunda-geoportal-docs.cismet.de/",
+            tileservice
+          ) + "/meta.json"
+        );
         docs.push({
           group: "Zusatzdokumente",
+          title: doc.title,
+          structure: doc.structure,
           file: doc.file,
           url: repairUrl(doc.url),
           hideInDocViewer: doc.hideInDocViewer,
@@ -109,16 +117,13 @@ export function getDocsForBPlaeneGazetteerEntry(props: any) {
               tileservice
             ) + "/{z}/{x}/{y}.png"
           ),
-
-          meta: replaceUmlauteAndSpaces(
-            repairUrl(doc.url).replace(
-              "https://wunda-geoportal-docs.cismet.de/",
-              tileservice
-            ) + "/meta.json"
-          ),
+          metaUrl,
+          meta: metaUrl,
         });
       }
     }
   });
+  console.log("doc with meta url", docs);
+
   return docs;
 }

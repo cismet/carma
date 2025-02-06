@@ -78,6 +78,8 @@ export function App() {
   }, [docPackageId, bplaene]);
 
   if (docs.length > 0) {
+    console.log("docs", JSON.stringify(docs, null, 2));
+
     return <DocumentViewer docs={docs} mode="bplaene" />;
   } else {
     return null;

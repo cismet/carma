@@ -1,9 +1,12 @@
 import { StrictMode } from "react";
 import * as ReactDOM from "react-dom/client";
-import { RouterProvider, createHashRouter } from "react-router-dom";
+import { RouterProvider, createHashRouter, useParams } from "react-router-dom";
 import { Doc, DocumentViewer } from "@carma-commons/document-viewer";
 
-import docs from "./assets/827.json";
+import docs468 from "./assets/468.json";
+import docs827 from "./assets/827.json";
+import docs1202 from "./assets/1202.json";
+import docs1223 from "./assets/1223.json";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 
 const originalWarn = console.warn.bind(console);
@@ -25,11 +28,27 @@ console.error = (message, ...args) => {
   }
 };
 
+function DocumentViewerWrapper() {
+  const { docPackageId, file, page } = useParams();
+
+  if (docPackageId === "468") {
+    return <DocumentViewer docs={docs468} mode="bplaene" />;
+  } else if (docPackageId === "827") {
+    return <DocumentViewer docs={docs827} mode="bplaene" />;
+  } else if (docPackageId === "1202") {
+    return <DocumentViewer docs={docs1202} mode="bplaene" />;
+  } else if (docPackageId === "1223") {
+    return <DocumentViewer docs={docs1223} mode="bplaene" />;
+  } else {
+    return <DocumentViewer docs={docs827} mode="bplaene" />;
+  }
+}
+
 const router = createHashRouter(
   [
     {
       path: "/docs/:docPackageId?/:file?/:page?",
-      element: <DocumentViewer docs={docs} mode="bplaene" />,
+      element: <DocumentViewerWrapper />,
     },
   ],
   {}
