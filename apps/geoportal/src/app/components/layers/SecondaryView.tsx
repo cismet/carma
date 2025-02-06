@@ -1,27 +1,19 @@
 /* eslint-disable jsx-a11y/no-static-element-interactions */
 /* eslint-disable jsx-a11y/click-events-have-key-events */
-import { forwardRef, useContext, useEffect, useRef, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { Slider } from "antd";
-import type { SliderSingleProps } from "antd";
 import {
-  faArrowDown,
-  faArrowUp,
-  faChevronCircleDown,
-  faChevronCircleUp,
   faChevronDown,
   faChevronLeft,
   faChevronRight,
   faChevronUp,
-  faEye,
-  faEyeSlash,
   faLayerGroup,
   faMap,
-  faWindowMaximize,
-  faWindowMinimize,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import type { SliderSingleProps } from "antd";
+import { Slider } from "antd";
+import { forwardRef, useContext, useEffect, useRef } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+import { useDispatch, useSelector } from "react-redux";
 
 import { SELECTED_LAYER_INDEX } from "@carma-apps/portals";
 
@@ -31,7 +23,6 @@ import {
   changeBackgroundVisibility,
   changeOpacity,
   changePaleOpacity,
-  changeVisibility,
   getBackgroundLayer,
   getLayers,
   getSelectedLayerIndex,
@@ -48,11 +39,12 @@ import {
   setUIShowInfo,
   setUIShowInfoText,
 } from "../../store/slices/ui";
-import { iconColorMap, iconMap } from "./items";
-import LayerInfo from "./LayerInfo";
+import AerialLayerSelection from "./AerialLayerSelection";
 import BaseLayerInfo from "./BaseLayerInfo";
 import BaseLayerSelection from "./BaseLayerSelection";
-import AerialLayerSelection from "./AerialLayerSelection";
+import { iconColorMap, iconMap } from "./items";
+import LayerInfo from "./LayerInfo";
+import VisibilityToggle from "./VisibilityToggle";
 
 type Ref = HTMLDivElement;
 
@@ -271,31 +263,11 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
                 id="opacity-slider"
               />
             </div>
-            <button
-              className="hover:text-gray-500 text-gray-600 flex items-center justify-center"
-              onClick={(e) => {
-                if (layer.visible) {
-                  if (isBaseLayer) {
-                    dispatch(changeBackgroundVisibility(false));
-                  } else {
-                    dispatch(
-                      changeVisibility({ id: layer.id, visible: false })
-                    );
-                  }
-                } else {
-                  if (isBaseLayer) {
-                    dispatch(changeBackgroundVisibility(true));
-                    if (backgroundLayer.opacity === 0) {
-                      dispatch(changeBackgroundOpacity({ opacity: 1 }));
-                    }
-                  } else {
-                    dispatch(changeVisibility({ id: layer.id, visible: true }));
-                  }
-                }
-              }}
-            >
-              <FontAwesomeIcon icon={layer.visible ? faEye : faEyeSlash} />
-            </button>
+            <VisibilityToggle
+              visible={layer.visible}
+              id={layer.id}
+              isBackgroundLayer={isBaseLayer}
+            />
             <button
               onClick={() => {
                 dispatch(setUIShowInfo(!showInfo));

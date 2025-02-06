@@ -1,23 +1,16 @@
+import { Layer } from "@carma-mapping/layers";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import {
-  faEye,
-  faEyeSlash,
-  faGripVertical,
-  faLayerGroup,
-  faMap,
-  faX,
-} from "@fortawesome/free-solid-svg-icons";
+import { faGripVertical, faMap, faX } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Slider } from "antd";
-import { Layer } from "@carma-mapping/layers";
 import { useDispatch, useSelector } from "react-redux";
+import { getSelectedFeature } from "../../store/slices/features";
 import {
   changeBackgroundOpacity,
   changeBackgroundVisibility,
   changeOpacity,
   changePaleOpacity,
-  changeVisibility,
   getBackgroundLayer,
   removeLayer,
   setFocusMode,
@@ -25,10 +18,7 @@ import {
 } from "../../store/slices/mapping";
 import { iconColorMap, iconMap } from "./items";
 import { formatter } from "./SecondaryView";
-import {
-  getSelectedFeature,
-  setSelectedFeature,
-} from "../../store/slices/features";
+import VisibilityToggle from "./VisibilityToggle";
 
 interface LayerRowProps {
   layer: Layer;
@@ -121,32 +111,11 @@ const LayerRow = ({ layer, id, isBackgroundLayer, index }: LayerRowProps) => {
         className="w-full"
         value={layer.opacity}
       />
-      <button
-        className="hover:text-gray-500 text-gray-600 flex items-center justify-center"
-        onClick={(e) => {
-          if (layer.visible) {
-            if (isBackgroundLayer) {
-              dispatch(changeBackgroundVisibility(false));
-            } else {
-              dispatch(changeVisibility({ id, visible: false }));
-              if (selectedFeature.id === id) {
-                dispatch(setSelectedFeature(null));
-              }
-            }
-          } else {
-            if (isBackgroundLayer) {
-              dispatch(changeBackgroundVisibility(true));
-              if (backgroundLayer.opacity === 0) {
-                dispatch(changeBackgroundOpacity({ opacity: 1 }));
-              }
-            } else {
-              dispatch(changeVisibility({ id, visible: true }));
-            }
-          }
-        }}
-      >
-        <FontAwesomeIcon icon={layer.visible ? faEye : faEyeSlash} />
-      </button>
+      <VisibilityToggle
+        visible={layer.visible}
+        id={id}
+        isBackgroundLayer={isBackgroundLayer}
+      />
       <button
         className={`hover:text-gray-500 text-gray-600 flex items-center justify-center ${
           isBackgroundLayer && "invisible"
