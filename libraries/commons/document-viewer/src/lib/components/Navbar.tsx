@@ -131,6 +131,7 @@ const Navbar = ({
 
       switch (event.key) {
         case "ArrowLeft":
+          event.preventDefault();
           // Decrement page or navigate to the last page of the previous document
           if (currentPage > 1) {
             navigate(`/docs/${docPackageId}/${file}/${currentPage - 1}`);
@@ -158,6 +159,7 @@ const Navbar = ({
           break;
 
         case "ArrowRight":
+          event.preventDefault();
           // Increment page or navigate to the first page of the next document
           if (currentPage < maxIndex) {
             navigate(`/docs/${docPackageId}/${file}/${currentPage + 1}`);
@@ -171,6 +173,7 @@ const Navbar = ({
           break;
 
         case "ArrowUp":
+          event.preventDefault();
           // Navigate to the first page of the previous document
           if (currentFile > 1) {
             navigate(`/docs/${docPackageId}/${currentFile - 1}/1`);
@@ -180,6 +183,7 @@ const Navbar = ({
           break;
 
         case "ArrowDown":
+          event.preventDefault();
           // Navigate to the first page of the next document
           if (currentFile < docs.length) {
             navigate(`/docs/${docPackageId}/${currentFile + 1}/1`);

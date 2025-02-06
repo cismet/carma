@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import Icon from "react-cismap/commons/Icon";
 import type { Doc } from "../document-viewer";
 import { useNavigate, useParams } from "react-router-dom";
@@ -29,6 +29,16 @@ const Sidebar = ({
   const { docPackageId, page } = useParams();
   const navigate = useNavigate();
   const sidebarRef = useRef(null);
+  const selectedItemRef = useRef(null);
+
+  useEffect(() => {
+    if (selectedItemRef.current && sidebarRef.current) {
+      selectedItemRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+    }
+  }, [index]);
 
   const INDENTATION_PER_LEVEL = 5; // pixels per level
   const BASE_PADDING = 6; // base padding in pixels
@@ -313,6 +323,7 @@ const Sidebar = ({
                   </div>
                 )}
                 <div
+                  ref={index - 1 === i ? selectedItemRef : null}
                   style={{
                     background: `${
                       index - 1 === i ? "rgb(119, 119, 119)" : "#f5f5f5"
@@ -366,8 +377,8 @@ const Sidebar = ({
                           ? dynamicPrefixDetection
                             ? removePrefix(doc.title, documentPrefix)
                             : improveReadabilityOfDocTitles
-                              ? improveReadability(doc.title)
-                              : doc.title
+                            ? improveReadability(doc.title)
+                            : doc.title
                           : filenameShortener(doc.file)}
                       </span>
                     </p>
