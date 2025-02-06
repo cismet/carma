@@ -202,6 +202,7 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
               maxIndex={pages}
               mode={mode}
               compactView={compactView}
+              dynamicPrefixDetection={true}
             />
           </div>
         )}

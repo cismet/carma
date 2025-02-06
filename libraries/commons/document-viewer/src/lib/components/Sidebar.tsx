@@ -13,6 +13,7 @@ interface SidebarProps {
   maxIndex: number;
   mode: string;
   compactView: boolean;
+  dynamicPrefixDetection?: boolean;
 }
 
 const Sidebar = ({
@@ -21,12 +22,13 @@ const Sidebar = ({
   maxIndex,
   mode,
   compactView,
+  dynamicPrefixDetection = false,
 }: SidebarProps) => {
   const { docPackageId, page } = useParams();
   const navigate = useNavigate();
   const sidebarRef = useRef(null);
 
-  const INDENTATION_PER_LEVEL = 15; // pixels per level
+  const INDENTATION_PER_LEVEL = 5; // pixels per level
   const BASE_PADDING = 6; // base padding in pixels
 
   const SIDEBAR_FILENAME_SHORTENER = {
@@ -54,124 +56,246 @@ const Sidebar = ({
   };
 
   const getStructureParts = (structure: string) => {
-    return structure.split('/').filter(Boolean);
+    return structure.split("/").filter(Boolean);
   };
 
-  const getChangedStructureLevels = (currentDoc: Doc, index: number, docs: Doc[]) => {
-    if (!currentDoc.structure) return [];
-    if (index === 0) return getStructureParts(currentDoc.structure).map((part, i) => ({ part, level: i }));
+  const findCommonPrefixForStructure = (docs: Doc[], structure: string): Map<string, Doc[]> => {
+    const docsInStructure = docs.filter(doc => doc.structure === structure && doc.title);
+    if (docsInStructure.length <= 1) return new Map();
+
+    // Group documents by their date prefix
+    const prefixGroups = new Map<string, Doc[]>();
     
+    docsInStructure.forEach(doc => {
+      const title = doc.title || '';
+      const dateMatch = title.match(/^\d{4}-\d{2}_/);
+      if (dateMatch) {
+        const prefix = dateMatch[0];
+        if (!prefixGroups.has(prefix)) {
+          prefixGroups.set(prefix, []);
+        }
+        prefixGroups.get(prefix)?.push(doc);
+      }
+    });
+
+    // Only keep prefixes that have multiple documents
+    for (const [prefix, docs] of prefixGroups.entries()) {
+      if (docs.length <= 1) {
+        prefixGroups.delete(prefix);
+      }
+    }
+
+    return prefixGroups;
+  };
+
+  const structurePrefixGroups = new Map<string, Map<string, Doc[]>>();
+
+  const getPrefixGroups = (docs: Doc[], doc: Doc) => {
+    if (!doc.structure) return new Map<string, Doc[]>();
+    
+    if (!structurePrefixGroups.has(doc.structure)) {
+      const groups = findCommonPrefixForStructure(docs, doc.structure);
+      structurePrefixGroups.set(doc.structure, groups);
+    }
+    
+    return structurePrefixGroups.get(doc.structure) || new Map<string, Doc[]>();
+  };
+
+  const getDocumentPrefix = (doc: Doc, prefixGroups: Map<string, Doc[]>): string | null => {
+    if (!doc.title) return null;
+    for (const [prefix, docs] of prefixGroups.entries()) {
+      if (docs.some(d => d === doc)) return prefix;
+    }
+    return null;
+  };
+
+  const shouldShowPrefixHeader = (currentDoc: Doc, index: number, docs: Doc[]) => {
+    if (!dynamicPrefixDetection) return false;
+    if (!currentDoc.structure || index === 0) return false;
     const prevDoc = docs[index - 1];
-    if (!prevDoc.structure) return getStructureParts(currentDoc.structure).map((part, i) => ({ part, level: i }));
+    const currentPrefix = getDocumentPrefix(currentDoc, getPrefixGroups(docs, currentDoc));
+    const prevPrefix = getDocumentPrefix(prevDoc, getPrefixGroups(docs, prevDoc));
+    return prevDoc.structure !== currentDoc.structure || currentPrefix !== prevPrefix;
+  };
+
+  const getChangedStructureLevels = (
+    currentDoc: Doc,
+    index: number,
+    docs: Doc[]
+  ) => {
+    if (!currentDoc.structure) return [];
+    if (index === 0)
+      return getStructureParts(currentDoc.structure).map((part, i) => ({
+        part,
+        level: i,
+      }));
+
+    const prevDoc = docs[index - 1];
+    if (!prevDoc.structure)
+      return getStructureParts(currentDoc.structure).map((part, i) => ({
+        part,
+        level: i,
+      }));
 
     const currentParts = getStructureParts(currentDoc.structure);
     const prevParts = getStructureParts(prevDoc.structure);
-    
-    const changedLevels: { part: string, level: number }[] = [];
-    
+
+    const changedLevels: { part: string; level: number }[] = [];
+
     for (let i = 0; i < currentParts.length; i++) {
       if (i >= prevParts.length || currentParts[i] !== prevParts[i]) {
         changedLevels.push({ part: currentParts[i], level: i });
       }
     }
-    
+
     return changedLevels;
+  };
+
+  const getDocsInStructure = (docs: Doc[], structure: string) => {
+    return docs.filter(doc => doc.structure === structure);
   };
 
   return (
     <div ref={sidebarRef}>
       <div style={{ marginBottom: 8 }}>
         {docs?.length > 0 &&
-          docs?.map((doc, i) => (
-            <div key={`sidebarItem.${i}`}>
-              {getChangedStructureLevels(doc, i, docs).map(({ part, level }) => (
-                <div
-                  key={`structure-${i}-${level}`}
-                  style={{
-                    padding: "4px 8px",
-                    backgroundColor: "#f0f0f0",
-                    fontSize: "12px",
-                    fontWeight: "bold",
-                    color: "#666",
-                    marginBottom: "8px",
-                    marginLeft: level * INDENTATION_PER_LEVEL,
-                  }}
-                >
-                  {part}
-                </div>
-              ))}
-              <div
-                style={{
-                  background: `${
-                    index - 1 === i ? "rgb(119, 119, 119)" : "#f5f5f5"
-                  }`,
-                  height: "100%",
-                  padding: BASE_PADDING,
-                  marginBottom: "8px",
-                  cursor: "pointer",
-                  color: "#333",
-                  marginLeft: doc.structure
-                    ? (getIndentationLevel(doc.structure) + 1) * INDENTATION_PER_LEVEL
-                    : 0,
-                }}
-                onClick={() => navigate(`/docs/${docPackageId}/${i + 1}/1`)}
-              >
-                <div
-                  style={{
-                    flexDirection: "column",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    display: "flex",
-                    gap: "6px",
-                  }}
-                >
-                  {doc.group === "Zusatzdokumente" ? (
-                    <FontAwesomeIcon
-                      icon={faFile}
-                      size={compactView ? "3x" : "1x"}
-                    />
-                  ) : (
-                    <Icon name="file-pdf-o" size={compactView ? "3x" : "1x"} />
-                  )}
-
-                  <p
+          docs?.map((doc, i) => {
+            const prefixGroups = getPrefixGroups(docs, doc);
+            const documentPrefix = getDocumentPrefix(doc, prefixGroups);
+            
+            return (
+              <div key={`sidebarItem.${i}`}>
+                {getChangedStructureLevels(doc, i, docs).map(({ part, level }) => (
+                  <div
+                    key={`structure-${i}-${level}`}
                     style={{
-                      marginTop: 2,
-                      marginBottom: 5,
-                      fontSize: 11,
-                      wordWrap: "break-word",
-                      textWrap: "pretty",
-                      overflowWrap: "break-word",
-                      textAlign: "center",
+                      padding: "4px 8px",
+                      backgroundColor: "#f0f0f0",
+                      fontSize: "12px",
+                      fontWeight: "bold",
+                      color: "#666",
+                      marginBottom: "8px",
+                      marginLeft: level * INDENTATION_PER_LEVEL,
+                      cursor: "pointer",
+                    }}
+                    onClick={() => {
+                      const docsInStructure = getDocsInStructure(docs, doc.structure || '');
+                      console.log('Documents in structure:', doc.structure);
+                      console.log('Documents:', docsInStructure.map(d => ({
+                        title: d.title,
+                        file: d.file,
+                        structure: d.structure
+                      })));
                     }}
                   >
-                    <span>{doc.title || filenameShortener(doc.file)}</span>
-                  </p>
-                  {index - 1 === i && (
-                    <>
-                      <ProgressBar
-                        style={{
-                          height: "5px",
-                          width: "100%",
-                          marginTop: 0,
-                          marginBottom: 0,
-                        }}
-                        max={maxIndex}
-                        min={0}
-                        now={parseInt(page!)}
+                    {part}
+                  </div>
+                ))}
+                {shouldShowPrefixHeader(doc, i, docs) && documentPrefix && (
+                  <div
+                    style={{
+                      padding: "4px 8px",
+                      fontSize: "11px",
+                      color: "#666",
+                      marginBottom: "4px",
+                      marginLeft: (doc.structure ? getIndentationLevel(doc.structure) + 1 : 0) * INDENTATION_PER_LEVEL,
+                      cursor: "pointer",
+                    }}
+                    onClick={() => {
+                      const docsWithPrefix = Array.from(prefixGroups.get(documentPrefix) || []);
+                      console.log('Documents with prefix:', documentPrefix);
+                      console.log('Documents:', docsWithPrefix.map(d => ({
+                        title: d.title,
+                        file: d.file,
+                        structure: d.structure
+                      })));
+                    }}
+                  >
+                    {documentPrefix}...
+                  </div>
+                )}
+                <div
+                  style={{
+                    background: `${
+                      index - 1 === i ? "rgb(119, 119, 119)" : "#f5f5f5"
+                    }`,
+                    height: "100%",
+                    padding: BASE_PADDING,
+                    marginBottom: "8px",
+                    cursor: "pointer",
+                    color: "#333",
+                    marginLeft: doc.structure
+                      ? (getIndentationLevel(doc.structure) + 1) * INDENTATION_PER_LEVEL
+                      : 0,
+                  }}
+                  onClick={() => navigate(`/docs/${docPackageId}/${i + 1}/1`)}
+                >
+                  <div
+                    style={{
+                      flexDirection: "column",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      display: "flex",
+                      gap: "6px",
+                    }}
+                  >
+                    {doc.group === "Zusatzdokumente" ? (
+                      <FontAwesomeIcon
+                        icon={faFile}
+                        size={compactView ? "3x" : "1x"}
                       />
-                      <p style={{ marginBottom: 0 }}>
-                        {page} / {maxIndex}
-                      </p>
-                    </>
-                  )}
+                    ) : (
+                      <Icon name="file-pdf-o" size={compactView ? "3x" : "1x"} />
+                    )}
+
+                    <p
+                      style={{
+                        marginTop: 2,
+                        marginBottom: 5,
+                        fontSize: 11,
+                        wordWrap: "break-word",
+                        textWrap: "pretty",
+                        overflowWrap: "break-word",
+                        textAlign: "center",
+                      }}
+                    >
+                      <span>
+                        {doc.title 
+                          ? removePrefix(doc.title, documentPrefix)
+                          : filenameShortener(doc.file)}
+                      </span>
+                    </p>
+                    {index - 1 === i && (
+                      <>
+                        <ProgressBar
+                          style={{
+                            height: "5px",
+                            width: "100%",
+                            marginTop: 0,
+                            marginBottom: 0,
+                          }}
+                          max={maxIndex}
+                          min={0}
+                          now={parseInt(page!)}
+                        />
+                        <p style={{ marginBottom: 0 }}>
+                          {page} / {maxIndex}
+                        </p>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
       </div>
     </div>
   );
+};
+
+const removePrefix = (title: string, prefix: string | null) => {
+  if (!prefix || !title) return title;
+  return title.startsWith(prefix) ? title.slice(prefix.length).trim() : title;
 };
 
 export default Sidebar;
