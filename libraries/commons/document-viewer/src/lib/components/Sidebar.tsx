@@ -119,6 +119,10 @@ const Sidebar = ({
     return null;
   };
 
+  const formatPrefixForDisplay = (prefix: string): string => {
+    return prefix.endsWith('_') ? prefix.slice(0, -1) : prefix;
+  };
+
   const shouldShowPrefixHeader = (
     currentDoc: Doc,
     index: number,
@@ -243,11 +247,15 @@ const Sidebar = ({
                         console.log("Documents in structure:", doc.structure);
                         console.log(
                           "Documents:",
-                          docsInStructure.map((d) => ({
-                            title: d.title,
-                            file: d.file,
-                            structure: d.structure,
-                          }))
+                          JSON.stringify(
+                            docsInStructure.map((d) => ({
+                              title: d.title,
+                              file: d.file,
+                              structure: d.structure,
+                            })),
+                            null,
+                            2
+                          )
                         );
                       }}
                     >
@@ -261,7 +269,6 @@ const Sidebar = ({
                       paddingBottom: "4px",
                       fontSize: "11px",
                       color: "#666",
-                      // marginBottom: "4px",
                       marginLeft:
                         (doc.structure
                           ? getIndentationLevel(doc.structure) + 1
@@ -275,15 +282,19 @@ const Sidebar = ({
                       console.log("Documents with prefix:", documentPrefix);
                       console.log(
                         "Documents:",
-                        docsWithPrefix.map((d) => ({
-                          title: d.title,
-                          file: d.file,
-                          structure: d.structure,
-                        }))
+                        JSON.stringify(
+                          docsWithPrefix.map((d) => ({
+                            title: d.title,
+                            file: d.file,
+                            structure: d.structure,
+                          })),
+                          null,
+                          2
+                        )
                       );
                     }}
                   >
-                    {documentPrefix}...
+                    {formatPrefixForDisplay(documentPrefix)} ...
                   </div>
                 )}
                 <div
