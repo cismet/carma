@@ -24,7 +24,7 @@ const Sidebar = ({
   mode,
   compactView,
   dynamicPrefixDetection = false,
-  improveReadabilityOfDocTitles = true,
+  improveReadabilityOfDocTitles = false,
 }: SidebarProps) => {
   const { docPackageId, page } = useParams();
   const navigate = useNavigate();
@@ -121,7 +121,7 @@ const Sidebar = ({
   };
 
   const formatPrefixForDisplay = (prefix: string): string => {
-    return prefix.endsWith('_') ? prefix.slice(0, -1) : prefix;
+    return prefix.endsWith("_") ? prefix.slice(0, -1) : prefix;
   };
 
   const shouldShowPrefixHeader = (
@@ -131,7 +131,7 @@ const Sidebar = ({
   ) => {
     if (!dynamicPrefixDetection) return false;
     if (!currentDoc.structure) return false;
-    
+
     // For first document, show prefix if it has one
     if (index === 0) {
       const currentPrefix = getDocumentPrefix(
