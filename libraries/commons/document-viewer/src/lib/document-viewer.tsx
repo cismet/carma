@@ -203,7 +203,7 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
               mode={mode}
               compactView={compactView}
               dynamicPrefixDetection={false}
-              improveReadabilityOfDocTitles={false}
+              improveReadabilityOfDocTitles={true}
             />
           </div>
         )}
