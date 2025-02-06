@@ -121,6 +121,10 @@ const Sidebar = ({
   };
 
   const formatPrefixForDisplay = (prefix: string): string => {
+    if (prefix.match(/^\d{4}-\d{2}_/)) {
+      // Convert YYYY-MM_ to YYYY/MM
+      return prefix.replace(/^(\d{4})-(\d{2})_$/, "$1/$2");
+    }
     return prefix.endsWith("_") ? prefix.slice(0, -1) : prefix;
   };
 
@@ -210,8 +214,8 @@ const Sidebar = ({
     // Add space between word and number
     improved = improved.replace(/([a-zA-Z])(\d)/g, "$1 $2");
 
-    // Replace hyphens with spaces
-    improved = improved.replace(/-/g, " ");
+    // Replace hyphens and underscores with spaces
+    improved = improved.replace(/[-_]/g, " ");
 
     // Clean up any double spaces that might have been created
     improved = improved.replace(/\s+/g, " ").trim();
