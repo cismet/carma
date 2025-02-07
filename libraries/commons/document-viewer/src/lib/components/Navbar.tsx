@@ -13,15 +13,16 @@ import { useEffect, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 interface NavProps {
   title?: string;
-  maxIndex: number;
-  downloadUrl: string;
-  docs: Doc[];
-  setWidthTrigger: any;
-  setHeightTrigger: any;
-  currentWidthTrigger?: number;
-  currentHeightTrigger?: number;
-  sidebarCollapsed?: boolean;
-  onSidebarToggle?: () => void;
+  maxIndex?: number;
+  downloadUrl?: string;
+  docs?: Doc[];
+  setWidthTrigger: (trigger: any) => void;
+  setHeightTrigger: (trigger: any) => void;
+  currentWidthTrigger: any;
+  currentHeightTrigger: any;
+  sidebarCollapsed: boolean;
+  onSidebarToggle: () => void;
+  legacyMode?: boolean;
 }
 
 const Navbar = ({
@@ -35,12 +36,13 @@ const Navbar = ({
   currentHeightTrigger,
   sidebarCollapsed: externalSidebarCollapsed,
   onSidebarToggle,
+  legacyMode = true
 }: NavProps) => {
   const { docPackageId, file, page } = useParams();
   const navigate = useNavigate();
 
   const [internalSidebarCollapsed, setInternalSidebarCollapsed] = useState(true);
-  const sidebarCollapsed = externalSidebarCollapsed ?? internalSidebarCollapsed;
+  const isCollapsed = legacyMode ? true : externalSidebarCollapsed ?? internalSidebarCollapsed;
 
   const ZIP_FILE_NAME_MAPPING = {
     bplaene: "BPLAN_Plaene_und_Zusatzdokumente",
@@ -227,30 +229,18 @@ const Navbar = ({
     >
       <Nav style={{ marginRight: "20px" }}>
         <NavItem>
-          <OverlayTrigger
-            key="bottom"
-            placement="bottom"
-            overlay={<Tooltip id="">Seitenleiste ein-/ausblenden</Tooltip>}
-          >
-            <button
-              style={{
-                background: "none",
-                border: "none",
-                padding: 0,
-                outline: "inherit",
-              }}
-              className="navItem"
-              onClick={handleSidebarToggle}
+          {!legacyMode && (
+            <div
+              className="me-2"
+              style={{ cursor: "pointer" }}
+              onClick={onSidebarToggle}
             >
               <FontAwesomeIcon
-                icon={
-                  sidebarCollapsed
-                    ? "chevron-circle-right"
-                    : "chevron-circle-left"
-                }
+                icon={isCollapsed ? "chevron-circle-right" : "chevron-circle-left"}
+                size="lg"
               />
-            </button>
-          </OverlayTrigger>
+            </div>
+          )}
         </NavItem>
       </Nav>
       <div

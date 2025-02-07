@@ -57,9 +57,10 @@ export type Doc = {
 export interface DocumentViewerProps {
   docs: Doc[];
   mode: string;
+  legacyMode?: boolean;
 }
 
-export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
+export function DocumentViewer({ docs, mode, legacyMode = true }: DocumentViewerProps) {
   let { file } = useParams();
   const collapsedSidebarWidth = 170;
   const expandedSidebarWidth = 335;
@@ -70,6 +71,7 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
   const [mapWidth, setMapWidth] = useState(0);
   const [height, setHeight] = useState(0);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [compactView, setCompactView] = useState(true);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isResizingRef = useRef(false);
   let problemWithDocPreviewAlert: JSX.Element | null = null;
@@ -128,9 +130,21 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
     if (!isResizingRef.current) return;
 
     let newWidth = event.clientX;
-    const threshold = (collapsedSidebarWidth + expandedSidebarWidth) / 2;
 
-    setSidebarCollapsed(newWidth < threshold);
+    if (legacyMode) {
+      // Legacy behavior: free resizing between min and max
+      if (newWidth < sideBarMinSize) newWidth = sideBarMinSize;
+      if (newWidth > 400) newWidth = 400;
+
+      if (sidebarRef.current) {
+        sidebarRef.current.style.width = `${newWidth}px`;
+        setCompactView(newWidth < 300); // Set compact view based on width
+      }
+    } else {
+      // New behavior: snap to collapsed/expanded width
+      const threshold = (collapsedSidebarWidth + expandedSidebarWidth) / 2;
+      setSidebarCollapsed(newWidth < threshold);
+    }
   };
 
   const handleMouseUp = () => {
@@ -146,10 +160,10 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
   }, [mapWrapperRef]);
 
   useEffect(() => {
-    if (sidebarRef.current) {
+    if (!legacyMode && sidebarRef.current) {
       sidebarRef.current.style.width = `${sidebarCollapsed ? collapsedSidebarWidth : expandedSidebarWidth}px`;
     }
-  }, [sidebarCollapsed]);
+  }, [sidebarCollapsed, legacyMode]);
 
   return (
     <div style={{ background: "#343a40", height: "100vh" }}>
@@ -169,6 +183,7 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
           currentHeightTrigger={wholeHeightTrigger}
           sidebarCollapsed={sidebarCollapsed}
           onSidebarToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+          legacyMode={legacyMode}
         />
       </div>
 
@@ -200,7 +215,7 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
               index={parseInt(file!)}
               maxIndex={pages}
               mode={mode}
-              compactView={sidebarCollapsed}
+              compactView={legacyMode ? compactView : sidebarCollapsed}
               dynamicPrefixDetection={true}
               improveReadabilityOfDocTitles={true}
             />
