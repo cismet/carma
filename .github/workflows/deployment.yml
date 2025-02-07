@@ -356,8 +356,8 @@ jobs:
       - name: create nx-cloud.env
         run: |
           echo "NX_CLOUD_ACCESS_TOKEN=${{ secrets.NX_CLOUD_ACCESS_TOKEN }}" >> nx-cloud.env
-      - name: Install Nx
-        run: npm install nx@19.5.4
+      # - name: Install Nx
+      #   run: npm install nx@19.5.4
       - name: Build project
         run: |
           ${{ env.ADDITIONAL_ENVS }} npx nx run ${{ matrix.project }}:build --configuration=production --base="${{ env.BASE_URL }}" --verbose --output-style=stream
@@ -565,8 +565,8 @@ jobs:
       - name: create nx-cloud.env
         run: |
           echo "NX_CLOUD_ACCESS_TOKEN=${{ secrets.NX_CLOUD_ACCESS_TOKEN }}" >> nx-cloud.env
-      - name: Install Nx
-        run: npm install nx@19.5.4
+      # - name: Install Nx
+      #   run: npm install nx@19.5.4
       - name: Build project
         run: |
           ${{ env.ADDITIONAL_ENVS }} npx nx run ${{ github.event.inputs['project-name'] || github.event.client_payload['project-name'] }}:build --configuration=production --base="${{ env.BASE_URL }}"
@@ -806,8 +806,8 @@ jobs:
         run: |
           echo "NX_CLOUD_ACCESS_TOKEN=${{ secrets.NX_CLOUD_ACCESS_TOKEN }}" >> nx-cloud.env
 
-      - name: Install Nx
-        run: npm install nx@19.5.4
+      # - name: Install Nx
+      #   run: npm install nx@19.5.4
 
       - name: Build project
         run: |
