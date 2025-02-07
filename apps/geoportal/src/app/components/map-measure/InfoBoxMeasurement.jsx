@@ -18,11 +18,12 @@ import {
 import { useSelector, useDispatch } from "react-redux";
 import { useState, useEffect, useContext } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faTrashCan } from "@fortawesome/free-solid-svg-icons";
+import { faBan, faTrashCan } from "@fortawesome/free-solid-svg-icons";
 import MeasurementTitle from "./MeasurementTitle";
 import Icon from "react-cismap/commons/Icon";
 import { UIContext } from "react-cismap/contexts/UIContextProvider";
 import "../infoBox.css";
+import { Tooltip } from "antd";
 
 const InfoBoxMeasurement = () => {
   const measurementsData = useSelector(getShapes);
@@ -220,37 +221,36 @@ const InfoBoxMeasurement = () => {
                 />
               </span>
               <div className="flex justify-between items-center w-[12%] mt-1 gap-2">
-                <Icon
-                  name="search-location"
-                  onClick={() => {
-                    if (!drawingMode) {
-                      dispatch(
-                        setMoveToShape(
-                          visibleShapesData[currentMeasure].shapeId
-                        )
-                      );
-                      cleanUpdateMeasurementStatus();
-                    }
-                  }}
-                  className="cursor-pointer text-[16px]"
-                  style={{
-                    color: drawingMode
-                      ? "rgba(128, 128, 128, 0.6)"
-                      : "rgba(128, 128, 128, 1)",
-                  }}
-                  data-test-id="zoom-measurement-btn"
-                />
-                <FontAwesomeIcon
-                  onClick={drawingMode ? undefined : deleteShapeHandler}
-                  className="cursor-pointer text-base"
-                  icon={faTrashCan}
-                  style={{
-                    color: drawingMode
-                      ? "rgba(128, 128, 128, 0.6)"
-                      : "rgba(128, 128, 128, 1)",
-                  }}
-                  data-test-id="delete-measurement-btn"
-                />
+                {drawingMode ? (
+                  <Tooltip title="Aktuelle Messung abbrechen">
+                    <FontAwesomeIcon
+                      icon={faBan}
+                      className="cursor-pointer text-[16px] text-[#808080] hover:text-[#a0a0a0]"
+                    />
+                  </Tooltip>
+                ) : (
+                  <>
+                    <Icon
+                      name="search-location"
+                      onClick={() => {
+                        dispatch(
+                          setMoveToShape(
+                            visibleShapesData[currentMeasure].shapeId
+                          )
+                        );
+                        cleanUpdateMeasurementStatus();
+                      }}
+                      className="cursor-pointer text-[16px] text-[#808080] hover:text-[#a0a0a0]"
+                      data-test-id="zoom-measurement-btn"
+                    />
+                    <FontAwesomeIcon
+                      onClick={deleteShapeHandler}
+                      className="cursor-pointer text-base text-[#808080] hover:text-[#a0a0a0]"
+                      icon={faTrashCan}
+                      data-test-id="delete-measurement-btn"
+                    />
+                  </>
+                )}
               </div>
             </div>
           }
