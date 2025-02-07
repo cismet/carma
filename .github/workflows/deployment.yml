@@ -357,8 +357,6 @@ jobs:
         run: |
           echo "NX_CLOUD_ACCESS_TOKEN=${{ secrets.NX_CLOUD_ACCESS_TOKEN }}" >> nx-cloud.env
 
-          - name: add cismet-dev registry secret to .npmrc
-
       - name: add cismet-dev registry secret to .npmrc
         shell: bash
         run: |
