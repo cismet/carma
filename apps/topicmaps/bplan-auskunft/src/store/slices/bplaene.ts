@@ -32,7 +32,8 @@ export default slice;
 export const loadBPlaene = (finishedHandler = () => {}) => {
   return async (dispatch) => {
     dispatch(setLoading(true));
-    fetch("https://wunda-geoportal.cismet.de/data/bplaene.datax.json")
+    // fetch("https://wunda-geoportal.cismet.de/data/bplaene.datax.json")
+    fetch("https://wunda-geoportal.cismet.de/data/bplaene.data.json")
       .then((response) => {
         if (!response.ok) {
           throw new Error("Network response was not ok");
