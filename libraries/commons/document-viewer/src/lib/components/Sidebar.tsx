@@ -342,11 +342,12 @@ const Sidebar = ({
                 >
                   <div
                     style={{
-                      flexDirection: "column",
-                      justifyContent: "center",
+                      flexDirection: compactView ? "column" : "row",
+                      justifyContent: compactView ? "center" : "flex-start",
                       alignItems: "center",
                       display: "flex",
                       gap: "6px",
+                      width: "100%",
                     }}
                   >
                     {doc.group === "Zusatzdokumente" ? (
@@ -361,46 +362,75 @@ const Sidebar = ({
                       />
                     )}
 
-                    <p
+                    <div
                       style={{
-                        marginTop: 2,
-                        marginBottom: 5,
-                        fontSize: 11,
-                        wordWrap: "break-word",
-                        textWrap: "pretty",
-                        overflowWrap: "break-word",
-                        textAlign: "center",
+                        display: "flex",
+                        flex: 1,
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: "8px",
                       }}
                     >
-                      <span>
-                        {doc.title
-                          ? dynamicPrefixDetection
-                            ? removePrefix(doc.title, documentPrefix)
-                            : improveReadabilityOfDocTitles
-                            ? improveReadability(doc.title)
-                            : doc.title
-                          : filenameShortener(doc.file)}
-                      </span>
-                    </p>
-                    {index - 1 === i && (
-                      <>
-                        <ProgressBar
+                      <p
+                        style={{
+                          marginTop: compactView ? 2 : 0,
+                          marginBottom: compactView ? 5 : 0,
+                          fontSize: 11,
+                          wordWrap: "break-word",
+                          textWrap: "pretty",
+                          overflowWrap: "break-word",
+                          textAlign: compactView ? "center" : "left",
+                        }}
+                      >
+                        <span>
+                          {doc.title
+                            ? dynamicPrefixDetection
+                              ? removePrefix(doc.title, documentPrefix)
+                              : improveReadabilityOfDocTitles
+                              ? improveReadability(doc.title)
+                              : doc.title
+                            : filenameShortener(doc.file)}
+                        </span>
+                      </p>
+                      {index - 1 === i && !compactView && (
+                        <span
                           style={{
-                            height: "5px",
-                            width: "100%",
-                            marginTop: 0,
-                            marginBottom: 0,
+                            fontSize: 11,
+                            whiteSpace: "nowrap",
+                            color: "#666",
                           }}
-                          max={maxIndex}
-                          min={0}
-                          now={parseInt(page!)}
-                        />
-                        <p style={{ marginBottom: 0 }}>
+                        >
+                          {page} / {maxIndex}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {index - 1 === i && (
+                    <div style={{ width: "100%" }}>
+                      <ProgressBar
+                        style={{
+                          height: "3px",
+                          width: "100%",
+                          marginTop: 0,
+                          marginBottom: 0,
+                        }}
+                        max={maxIndex}
+                        min={0}
+                        now={parseInt(page!)}
+                      />
+                      {compactView && (
+                        <p
+                          style={{
+                            marginBottom: 0,
+                            textAlign: "center",
+                            fontSize: 11,
+                          }}
+                        >
                           {page} / {maxIndex}
                         </p>
-                      </>
-                    )}
-                  </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             );
