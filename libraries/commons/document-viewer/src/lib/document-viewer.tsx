@@ -61,13 +61,15 @@ export interface DocumentViewerProps {
 
 export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
   let { file } = useParams();
+  const collapsedSidebarWidth = 170;
+  const expandedSidebarWidth = 335;
   const sideBarMinSize = 130;
   const mapWrapperRef = useRef<HTMLDivElement>(null);
   const [wholeWidthTrigger, setWholeWidthTrigger] = useState(undefined);
   const [wholeHeightTrigger, setWholeHeightTrigger] = useState(undefined);
   const [mapWidth, setMapWidth] = useState(0);
   const [height, setHeight] = useState(0);
-  const [compactView, setCompactView] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isResizingRef = useRef(false);
   let problemWithDocPreviewAlert: JSX.Element | null = null;
@@ -126,18 +128,9 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
     if (!isResizingRef.current) return;
 
     let newWidth = event.clientX;
+    const threshold = (collapsedSidebarWidth + expandedSidebarWidth) / 2;
 
-    if (newWidth < sideBarMinSize) newWidth = sideBarMinSize;
-    if (newWidth > 400) newWidth = 400;
-
-    if (sidebarRef.current) {
-      sidebarRef.current.style.width = `${newWidth}px`;
-      if (newWidth === 400) {
-        setCompactView(false);
-      } else {
-        setCompactView(true);
-      }
-    }
+    setSidebarCollapsed(newWidth < threshold);
   };
 
   const handleMouseUp = () => {
@@ -152,6 +145,12 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
     }
   }, [mapWrapperRef]);
 
+  useEffect(() => {
+    if (sidebarRef.current) {
+      sidebarRef.current.style.width = `${sidebarCollapsed ? collapsedSidebarWidth : expandedSidebarWidth}px`;
+    }
+  }, [sidebarCollapsed]);
+
   return (
     <div style={{ background: "#343a40", height: "100vh" }}>
       <div
@@ -160,14 +159,16 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
         }}
       >
         <Navbar
-          title={docs[0]?.title || docs[0]?.docTitle || "Dokumentenansicht"}
+          title={docs[parseInt(file!) - 1]?.title}
           maxIndex={pages}
           downloadUrl={docs[parseInt(file!) - 1]?.url}
           docs={docs}
-          setHeightTrigger={setWholeHeightTrigger}
           setWidthTrigger={setWholeWidthTrigger}
-          currentHeightTrigger={wholeHeightTrigger}
+          setHeightTrigger={setWholeHeightTrigger}
           currentWidthTrigger={wholeWidthTrigger}
+          currentHeightTrigger={wholeHeightTrigger}
+          sidebarCollapsed={sidebarCollapsed}
+          onSidebarToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
         />
       </div>
 
@@ -189,7 +190,6 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
             style={{
               background: "rgb(153, 153, 153)",
               height: mapHeight,
-              // width: sidebarWidth,
               padding: "5px 1px 5px 5px",
               overflow: "scroll",
             }}
@@ -198,10 +198,9 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
             <Sidebar
               docs={docs}
               index={parseInt(file!)}
-              // TODO fix type
               maxIndex={pages}
               mode={mode}
-              compactView={compactView}
+              compactView={sidebarCollapsed}
               dynamicPrefixDetection={true}
               improveReadabilityOfDocTitles={true}
             />
