@@ -267,6 +267,11 @@ export const getLayerStructure = ({
                 ...foundLayer,
                 queryable: false,
               };
+            } else {
+              foundLayer = {
+                ...foundLayer,
+                queryable: true,
+              };
             }
 
             if (thumbnail) {
@@ -331,6 +336,11 @@ export const getLayerStructure = ({
               foundLayer = {
                 ...foundLayer,
                 queryable: false,
+              };
+            } else {
+              foundLayer = {
+                ...foundLayer,
+                queryable: true,
               };
             }
 
