@@ -243,7 +243,7 @@ const Sidebar = ({
   };
 
   return (
-    <div ref={sidebarRef}>
+    <div ref={sidebarRef} style={{ backgroundColor: SIDEBAR_BACKGROUND_COLOR }}>
       <div style={{ marginBottom: 8 }}>
         {docs?.length > 0 &&
           docs?.map((doc, i) => {
