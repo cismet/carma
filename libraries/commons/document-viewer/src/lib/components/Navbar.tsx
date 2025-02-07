@@ -11,11 +11,12 @@ import type { Doc } from "../document-viewer";
 import "./navItem.css";
 import { useEffect, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+
 interface NavProps {
   title?: string;
-  maxIndex?: number;
+  maxIndex: number;
   downloadUrl?: string;
-  docs?: Doc[];
+  docs: Doc[];
   setWidthTrigger: (trigger: any) => void;
   setHeightTrigger: (trigger: any) => void;
   currentWidthTrigger: any;
@@ -138,19 +139,16 @@ const Navbar = ({
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (!page || !file) return;
-
-      const currentPage = parseInt(page, 10);
-      const currentFile = parseInt(file, 10);
+      const currentFile = file ? parseInt(file) : 1;
+      const currentPage = page ? parseInt(page) : 1;
 
       switch (event.key) {
         case "ArrowLeft":
           event.preventDefault();
-          // Decrement page or navigate to the last page of the previous document
           if (currentPage > 1) {
             navigate(`/docs/${docPackageId}/${file}/${currentPage - 1}`);
           } else {
-            if (currentFile > 1) {
+            if (currentFile > 1 && docs) {
               const previousDoc = docs[currentFile - 2];
               const previousFilePages =
                 typeof previousDoc?.meta !== "string" && previousDoc?.meta
@@ -160,7 +158,7 @@ const Navbar = ({
               navigate(
                 `/docs/${docPackageId}/${currentFile - 1}/${previousFilePages}`
               );
-            } else {
+            } else if (docs) {
               const lastDoc = docs[docs.length - 1];
               const lastFilePages =
                 typeof lastDoc?.meta !== "string" && lastDoc?.meta
@@ -174,10 +172,9 @@ const Navbar = ({
 
         case "ArrowRight":
           event.preventDefault();
-          // Increment page or navigate to the first page of the next document
           if (currentPage < maxIndex) {
             navigate(`/docs/${docPackageId}/${file}/${currentPage + 1}`);
-          } else {
+          } else if (docs) {
             if (currentFile < docs.length) {
               navigate(`/docs/${docPackageId}/${currentFile + 1}/1`);
             } else {
@@ -188,25 +185,20 @@ const Navbar = ({
 
         case "ArrowUp":
           event.preventDefault();
-          // Navigate to the first page of the previous document
           if (currentFile > 1) {
             navigate(`/docs/${docPackageId}/${currentFile - 1}/1`);
-          } else {
+          } else if (docs) {
             navigate(`/docs/${docPackageId}/${docs.length}/1`);
           }
           break;
 
         case "ArrowDown":
           event.preventDefault();
-          // Navigate to the first page of the next document
-          if (currentFile < docs.length) {
+          if (docs && currentFile < docs.length) {
             navigate(`/docs/${docPackageId}/${currentFile + 1}/1`);
           } else {
             navigate(`/docs/${docPackageId}/1/1`);
           }
-          break;
-
-        default:
           break;
       }
     };

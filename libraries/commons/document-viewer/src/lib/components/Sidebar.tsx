@@ -30,8 +30,8 @@ const Sidebar = ({
 }: SidebarProps) => {
   const { docPackageId, page } = useParams();
   const navigate = useNavigate();
-  const sidebarRef = useRef(null);
-  const selectedItemRef = useRef(null);
+  const sidebarRef = useRef<HTMLDivElement | null>(null);
+  const selectedItemRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (selectedItemRef.current && sidebarRef.current) {
@@ -69,14 +69,16 @@ const Sidebar = ({
     return (structure.match(/\//g) || []).length - 1;
   };
 
-  const getStructureParts = (structure: string) => {
-    return structure.split("/").filter(Boolean);
+  const getStructureParts = (structure: string | undefined) => {
+    return structure ? structure.split("/").filter(Boolean) : [];
   };
 
   const findCommonPrefixForStructure = (
     docs: Doc[],
-    structure: string
+    structure: string | undefined
   ): Map<string, Doc[]> => {
+    if (!structure) return new Map<string, Doc[]>();
+
     const docsInStructure = docs.filter(
       (doc) => doc.structure === structure && doc.title
     );
@@ -204,7 +206,7 @@ const Sidebar = ({
     return changedLevels;
   };
 
-  const getDocsInStructure = (docs: Doc[], structure: string) => {
+  const getDocsInStructure = (docs: Doc[], structure: string | undefined) => {
     return docs.filter((doc) => doc.structure === structure);
   };
 
