@@ -5,7 +5,7 @@ const config: StorybookConfig = {
   addons: [
     "@storybook/addon-essentials",
     "@storybook/addon-interactions",
-    "@chromatic-com/storybook"
+    "@chromatic-com/storybook",
   ],
 
   framework: {
@@ -22,7 +22,8 @@ const config: StorybookConfig = {
   typescript: {
     reactDocgen: "react-docgen-typescript",
     reactDocgenTypescriptOptions: {
-      tsconfigPath: "playgrounds/map-control-playground/tsconfig.storybook.json",
+      tsconfigPath:
+        "playgrounds/map-control-playground/tsconfig.storybook.json",
     },
   },
 };
