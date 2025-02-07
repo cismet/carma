@@ -337,6 +337,7 @@ const Sidebar = ({
                       ? (getIndentationLevel(doc.structure) + 1) *
                         INDENTATION_PER_LEVEL
                       : 0,
+                    position: "relative",
                   }}
                   onClick={() => navigate(`/docs/${docPackageId}/${i + 1}/1`)}
                 >
@@ -397,7 +398,7 @@ const Sidebar = ({
                           style={{
                             fontSize: 11,
                             whiteSpace: "nowrap",
-                            color: "#666",
+                            color: "#222",
                           }}
                         >
                           {page} / {maxIndex}
@@ -406,30 +407,54 @@ const Sidebar = ({
                     </div>
                   </div>
                   {index - 1 === i && (
-                    <div style={{ width: "100%" }}>
-                      <ProgressBar
-                        style={{
-                          height: "3px",
-                          width: "100%",
-                          marginTop: 0,
-                          marginBottom: 0,
-                        }}
-                        max={maxIndex}
-                        min={0}
-                        now={parseInt(page!)}
-                      />
-                      {compactView && (
-                        <p
+                    <>
+                      {!compactView ? (
+                        <div
                           style={{
-                            marginBottom: 0,
-                            textAlign: "center",
-                            fontSize: 11,
+                            position: "absolute",
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
                           }}
                         >
-                          {page} / {maxIndex}
-                        </p>
+                          <ProgressBar
+                            style={{
+                              height: "1px",
+                              width: "100%",
+                              margin: 0,
+                              borderRadius: 0,
+                            }}
+                            max={maxIndex}
+                            min={0}
+                            now={parseInt(page!)}
+                          />
+                        </div>
+                      ) : (
+                        <div style={{ width: "100%" }}>
+                          <ProgressBar
+                            style={{
+                              height: "3px",
+                              width: "100%",
+                              marginTop: 0,
+                              marginBottom: 0,
+                            }}
+                            max={maxIndex}
+                            min={0}
+                            now={parseInt(page!)}
+                          />
+                          <p
+                            style={{
+                              marginBottom: 0,
+                              textAlign: "center",
+                              fontSize: 11,
+                              color: "#222",
+                            }}
+                          >
+                            {page} / {maxIndex}
+                          </p>
+                        </div>
                       )}
-                    </div>
+                    </>
                   )}
                 </div>
               </div>
