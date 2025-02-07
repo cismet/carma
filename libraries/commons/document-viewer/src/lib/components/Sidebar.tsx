@@ -7,6 +7,8 @@ import { faFile } from "@fortawesome/free-regular-svg-icons";
 import { ProgressBar } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 
+export const SIDEBAR_BACKGROUND_COLOR = "#d2d2d2";
+
 interface SidebarProps {
   docs: Doc[];
   index: number;

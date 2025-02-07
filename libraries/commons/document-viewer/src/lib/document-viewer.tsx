@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import Navbar from "./components/Navbar";
-import Sidebar from "./components/Sidebar";
+import Sidebar, { SIDEBAR_BACKGROUND_COLOR } from "./components/Sidebar";
 import DocMap from "./components/DocMap";
 import { useParams } from "react-router-dom";
 import { Alert } from "react-bootstrap";
@@ -188,7 +188,7 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
           <div
             id="sidebar"
             style={{
-              background: "rgb(153, 153, 153)",
+              background: SIDEBAR_BACKGROUND_COLOR,
               height: mapHeight,
               padding: "5px 1px 5px 5px",
               overflow: "scroll",
