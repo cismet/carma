@@ -223,18 +223,32 @@ const InfoBoxMeasurement = () => {
                 <Icon
                   name="search-location"
                   onClick={() => {
-                    dispatch(
-                      setMoveToShape(visibleShapesData[currentMeasure].shapeId)
-                    );
-                    cleanUpdateMeasurementStatus();
+                    if (!drawingMode) {
+                      dispatch(
+                        setMoveToShape(
+                          visibleShapesData[currentMeasure].shapeId
+                        )
+                      );
+                      cleanUpdateMeasurementStatus();
+                    }
                   }}
-                  className="cursor-pointer text-[16px] text-[#808080]"
+                  className="cursor-pointer text-[16px]"
+                  style={{
+                    color: drawingMode
+                      ? "rgba(128, 128, 128, 0.6)"
+                      : "rgba(128, 128, 128, 1)",
+                  }}
                   data-test-id="zoom-measurement-btn"
                 />
                 <FontAwesomeIcon
-                  onClick={deleteShapeHandler}
-                  className="cursor-pointer text-base text-[#808080]"
+                  onClick={drawingMode ? undefined : deleteShapeHandler}
+                  className="cursor-pointer text-base"
                   icon={faTrashCan}
+                  style={{
+                    color: drawingMode
+                      ? "rgba(128, 128, 128, 0.6)"
+                      : "rgba(128, 128, 128, 1)",
+                  }}
                   data-test-id="delete-measurement-btn"
                 />
               </div>
