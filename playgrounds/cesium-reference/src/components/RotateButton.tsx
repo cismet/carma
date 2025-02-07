@@ -94,7 +94,8 @@ const RotateButton: React.FC<RotateButtonProps> = ({
   pitchFactor = 1,
   headingFactor = 1,
 }) => {
-  const [isMouseDown, setIsMouseDown] = useState(false);
+  const [isControlMouseDown, setIsControlMouseDown] = useState(false);
+  const [isViewerMouseDown, setIsViewerMouseDown] = useState(false);
   const [initialMouseX, setInitialMouseX] = useState(0);
   const [initialMouseY, setInitialMouseY] = useState(0);
   const [initialHeading, setInitialHeading] = useState<number>(0);
@@ -103,8 +104,8 @@ const RotateButton: React.FC<RotateButtonProps> = ({
   const [currentPitch, setCurrentPitch] = useState(0);
   const [currentHeading, setCurrentHeading] = useState(0);
 
-  const handleMouseDown = (event: React.MouseEvent<HTMLButtonElement>) => {
-    setIsMouseDown(true);
+  const handleMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+    setIsControlMouseDown(true);
     setInitialMouseX(event.clientX);
     setInitialMouseY(event.clientY);
     if (viewerRef.current) {
@@ -124,42 +125,126 @@ const RotateButton: React.FC<RotateButtonProps> = ({
     }
   };
 
-  const handleMouseUp = () => {
-    setIsMouseDown(false);
+  const handleControlMouseUp = () => {
+    setIsControlMouseDown(false);
     if (viewerRef.current && initialHeading !== null) {
       const scene = viewerRef.current.scene;
       scene.camera.lookAtTransform(Matrix4.IDENTITY);
     }
   };
 
-  const handleMouseMove = (event: MouseEvent) => {
-    if (!isMouseDown) return;
-    if (viewerRef.current) {
-      const deltaX = event.clientX - initialMouseX;
-      const deltaY = event.clientY - initialMouseY;
-      const headingChange = (deltaX * 0.01 * headingFactor) % CesiumMath.TWO_PI;
-      const newHeading =
-        ((initialHeading || 0) + headingChange) % CesiumMath.TWO_PI;
-      // default pitch direction is same as maplibre
-      const pitchChange = (-deltaY * 0.01 * pitchFactor) % CesiumMath.TWO_PI;
-      const newPitchRaw =
-        ((initialPitch || 0) + pitchChange) % CesiumMath.TWO_PI;
-      const newPitch = CesiumMath.clamp(newPitchRaw, minPitch, maxPitch);
-      const target = getOrbitPoint(viewerRef);
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    const getCameraOrientation = () => {
+      if (!viewer.scene) return;
+      const { pitch, heading } = viewer.scene.camera;
+      setCurrentPitch(pitch);
+      setCurrentHeading(heading);
+    };
 
-      if (target && initialRange !== null) {
-        viewerRef.current.scene.camera.lookAt(
-          target,
-          new HeadingPitchRange(newHeading, newPitch, initialRange)
-        );
+    const handleMouseDown = () => {
+      setIsViewerMouseDown(true);
+    };
+
+    const handleMouseUp = () => {
+      setIsViewerMouseDown(false);
+    };
+
+    const handleMove = () => {
+      if (!isViewerMouseDown) return;
+      getCameraOrientation();
+    };
+
+    window.addEventListener("mousedown", handleMouseDown);
+    window.addEventListener("touchstart", handleMouseDown);
+    window.addEventListener("mouseup", handleMouseUp);
+    window.addEventListener("touchend", handleMouseUp);
+
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("touchmove", handleMove);
+
+    viewer &&
+      viewer.scene.camera.changed.addEventListener(getCameraOrientation);
+
+    return () => {
+      window.removeEventListener("mousedown", handleMouseDown);
+      window.removeEventListener("touchstart", handleMouseDown);
+      window.removeEventListener("mouseup", handleMouseUp);
+      window.removeEventListener("touchend", handleMouseUp);
+
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("touchmove", handleMove);
+
+      viewer &&
+        viewer.scene.camera.changed.removeEventListener(getCameraOrientation);
+    };
+  }, [isViewerMouseDown, viewerRef]);
+
+  useEffect(() => {
+    let animationFrameId: number;
+
+    const handleMouseMove = () => {
+      if (viewerRef.current) {
+        const camera = viewerRef.current.scene.camera;
+        animationFrameId = requestAnimationFrame(() => {
+          setCurrentPitch(camera.pitch);
+          setCurrentHeading(camera.heading);
+        });
       }
+    };
 
-      setInitialMouseX(event.clientX);
-      setInitialMouseY(event.clientY);
-      setCurrentPitch(newPitch);
-      setCurrentHeading(newHeading);
+    if (isViewerMouseDown) {
+      window.addEventListener("mousemove", handleMouseMove);
     }
-  };
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
+  }, [isViewerMouseDown, viewerRef]);
+
+  useEffect(() => {
+    if (!isControlMouseDown) return;
+
+    const handleMouseMove = (event: MouseEvent) => {
+      if (!isControlMouseDown) return;
+      if (viewerRef.current) {
+        const deltaX = event.clientX - initialMouseX;
+        const deltaY = event.clientY - initialMouseY;
+        const headingChange =
+          (deltaX * 0.01 * headingFactor) % CesiumMath.TWO_PI;
+        const newHeading =
+          ((initialHeading || 0) + headingChange) % CesiumMath.TWO_PI;
+        // default pitch direction is same as maplibre
+        const pitchChange = (-deltaY * 0.01 * pitchFactor) % CesiumMath.TWO_PI;
+        const newPitchRaw =
+          ((initialPitch || 0) + pitchChange) % CesiumMath.TWO_PI;
+        const newPitch = CesiumMath.clamp(newPitchRaw, minPitch, maxPitch);
+        const target = getOrbitPoint(viewerRef);
+
+        if (target && initialRange !== null) {
+          viewerRef.current.scene.camera.lookAt(
+            target,
+            new HeadingPitchRange(newHeading, newPitch, initialRange)
+          );
+        }
+
+        setInitialMouseX(event.clientX);
+        setInitialMouseY(event.clientY);
+        setCurrentPitch(newPitch);
+        setCurrentHeading(newHeading);
+      }
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleControlMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleControlMouseUp);
+    };
+  }, [isControlMouseDown]);
 
   const animateCamera = (
     target: Cartesian3,
@@ -198,7 +283,7 @@ const RotateButton: React.FC<RotateButtonProps> = ({
     requestAnimationFrame(animate);
   };
 
-  const handleButtonClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+  const handleButtonClick = (event: React.MouseEvent<HTMLDivElement>) => {
     if (viewerRef.current && initialRange !== null) {
       const orbitPoint = getOrbitPoint(viewerRef);
       if (orbitPoint) {
@@ -215,6 +300,7 @@ const RotateButton: React.FC<RotateButtonProps> = ({
     if (viewerRef.current) {
       const camera = viewerRef.current.scene.camera;
       const updateOrientation = () => {
+        console.debug("updateOrientation");
         setCurrentPitch(camera.pitch);
         setCurrentHeading(camera.heading);
       };
@@ -227,65 +313,27 @@ const RotateButton: React.FC<RotateButtonProps> = ({
     }
   }, [viewerRef]);
 
-  useEffect(() => {
-    if (viewerRef.current) {
-      const scene = viewerRef.current.scene;
-      const updateTransform = () => {
-        setCurrentPitch(scene.camera.pitch);
-        setCurrentHeading(scene.camera.heading);
-      };
-      scene.postRender.addEventListener(updateTransform);
-
-      return () => {
-        scene.postRender.removeEventListener(updateTransform);
-      };
-    }
-  }, [viewerRef]);
-
-  useEffect(() => {
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [isMouseDown]);
-
-  useEffect(() => {
-    if (viewerRef.current) {
-      const camera = viewerRef.current.scene.camera;
-      const updateOrientation = () => {
-        setCurrentPitch(camera.pitch);
-        setCurrentHeading(camera.heading);
-      };
-      camera.changed.addEventListener(updateOrientation);
-
-      return () => {
-        camera.changed.removeEventListener(updateOrientation);
-      };
-    }
-  }, [viewerRef]);
-
   return (
-    <button
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
+    <div
       className="cesium-orbit-control-button"
       onMouseDown={handleMouseDown}
-      onMouseUp={handleMouseUp}
+      onMouseUp={handleControlMouseUp}
       onClick={handleButtonClick}
       style={{
         border: "none",
         background: "transparent",
         // TODO make sizing responsive to container size
-        width: "38px",
-        height: "38px",
+        width: "28px",
+        height: "28px",
         display: "flex",
-        margin: "-4px",
+        margin: "0px",
         justifyContent: "center",
         alignItems: "center",
       }}
     >
       <CompassNeedleSVG pitch={currentPitch} heading={currentHeading} />
-    </button>
+    </div>
   );
 };
 
