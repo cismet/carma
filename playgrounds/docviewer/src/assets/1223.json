@@ -1,0 +1,7660 @@
+[
+  {
+    "group": "rechtskraeftig",
+    "file": "B1223_DBA.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de/bplaene/rechtswirksam/B1223_DBA.pdf",
+    "docTitle": "B-Plan 1223",
+    "layer": "https://resources.cismet.de/tiles/bplaene/rechtswirksam/B1223_DBA.pdf/{z}/{x}/{y}.png",
+    "meta": {
+      "layer0": {
+        "x": 14042,
+        "y": 9934,
+        "maxZoom": 6
+      },
+      "pages": 1,
+      "_theend": 0,
+      "contentLength": "9453331",
+      "lastModified": "Thu, 30 Mar 2023 10:00:01 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "file": "Info_BPlan-Zusatzdokumente_WUP.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de/bplaene_dokumente/Info_BPlan-Zusatzdokumente_WUP.pdf",
+    "layer": "https://resources.cismet.de/tiles/bplaene_dokumente/Info_BPlan-Zusatzdokumente_WUP.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles/bplaene_dokumente/Info_BPlan-Zusatzdokumente_WUP.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 5,
+      "_theend": 0,
+      "contentLength": "830631"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2023-03_Bekanntmachung",
+    "structure": "/1. Ergänzendes Verfahren (rechtskräftig)/Satzungsbeschlüsse",
+    "file": "BPL_1223_1Erg_PB_Drs_03-2023_Bekanntmachung.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_PB_Drs_03-2023_Bekanntmachung.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_PB_Drs_03-2023_Bekanntmachung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_PB_Drs_03-2023_Bekanntmachung.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 6,
+      "_theend": 0,
+      "contentLength": "1892008",
+      "lastModified": "Fri, 21 Apr 2023 12:00:02 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2023-02_0Drucksache",
+    "structure": "/1. Ergänzendes Verfahren (rechtskräftig)/Satzungsbeschlüsse",
+    "file": "BPL_1223_1Erg_PB_Drs_02-2023_0Drucksache.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_PB_Drs_02-2023_0Drucksache.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_PB_Drs_02-2023_0Drucksache.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_PB_Drs_02-2023_0Drucksache.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 4,
+      "_theend": 0,
+      "contentLength": "73688",
+      "lastModified": "Wed, 19 Apr 2023 11:45:02 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2023-02_1Abwaegungsvorschlaege",
+    "structure": "/1. Ergänzendes Verfahren (rechtskräftig)/Satzungsbeschlüsse",
+    "file": "BPL_1223_1Erg_PB_Drs_02-2023_1Abwaegungsvorschlaege.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_PB_Drs_02-2023_1Abwaegungsvorschlaege.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_PB_Drs_02-2023_1Abwaegungsvorschlaege.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_PB_Drs_02-2023_1Abwaegungsvorschlaege.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer10": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer11": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer12": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer13": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer14": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer15": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer16": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer17": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer18": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer19": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer20": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer21": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer22": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer23": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer24": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer25": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer26": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer27": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer28": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer29": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer30": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer31": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer32": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer33": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer34": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer35": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer36": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer37": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer38": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer39": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer40": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer41": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer42": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer43": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer44": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer45": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer46": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer47": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer48": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer49": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer50": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer51": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer52": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer53": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer54": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer55": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer56": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer57": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer58": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer59": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer60": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer61": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer62": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer63": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer64": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer65": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer66": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer67": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer68": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer69": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer70": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer71": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer72": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer73": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer74": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer75": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer76": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer77": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer7": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer8": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer9": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "pages": 78,
+      "_theend": 0,
+      "contentLength": "795727",
+      "lastModified": "Wed, 19 Apr 2023 11:45:02 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2023-02_2Begruendung",
+    "structure": "/1. Ergänzendes Verfahren (rechtskräftig)/Satzungsbeschlüsse",
+    "file": "BPL_1223_1Erg_PB_Drs_02-2023_2Begruendung.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_PB_Drs_02-2023_2Begruendung.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_PB_Drs_02-2023_2Begruendung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_PB_Drs_02-2023_2Begruendung.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer10": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer11": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer12": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer13": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer14": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer15": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer16": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer17": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer18": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer19": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer20": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer21": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer22": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer23": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer24": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer25": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer26": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer27": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer28": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer7": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer8": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer9": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 29,
+      "_theend": 0,
+      "contentLength": "675310",
+      "lastModified": "Wed, 19 Apr 2023 11:45:02 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2023-02_3UmweltberichtErgaenzungen",
+    "structure": "/1. Ergänzendes Verfahren (rechtskräftig)/Satzungsbeschlüsse",
+    "file": "BPL_1223_1Erg_PB_Drs_02-2023_3UmweltberichtErgaenzungen.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_PB_Drs_02-2023_3UmweltberichtErgaenzungen.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_PB_Drs_02-2023_3UmweltberichtErgaenzungen.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_PB_Drs_02-2023_3UmweltberichtErgaenzungen.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer10": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer11": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer12": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer13": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer14": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer15": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer16": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer17": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer18": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer19": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer20": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer21": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer22": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer23": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer24": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer25": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer26": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer27": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer28": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer29": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer30": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer31": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer32": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer33": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer34": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer35": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer36": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer37": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer38": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer7": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer8": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer9": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 39,
+      "_theend": 0,
+      "contentLength": "1946303",
+      "lastModified": "Thu, 14 Sep 2023 12:30:02 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2023-02_4BebauungsplanEntwurf",
+    "structure": "/1. Ergänzendes Verfahren (rechtskräftig)/Satzungsbeschlüsse",
+    "file": "BPL_1223_1Erg_PB_Drs_02-2023_4BebauungsplanEntwurf.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_PB_Drs_02-2023_4BebauungsplanEntwurf.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_PB_Drs_02-2023_4BebauungsplanEntwurf.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_PB_Drs_02-2023_4BebauungsplanEntwurf.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 14042,
+        "y": 9933,
+        "maxZoom": 6
+      },
+      "pages": 1,
+      "_theend": 0,
+      "contentLength": "1326267",
+      "lastModified": "Wed, 19 Apr 2023 11:45:02 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2023-02_5textlicheFestsetzungen",
+    "structure": "/1. Ergänzendes Verfahren (rechtskräftig)/Satzungsbeschlüsse",
+    "file": "BPL_1223_1Erg_PB_Drs_02-2023_5textlicheFestsetzungen.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_PB_Drs_02-2023_5textlicheFestsetzungen.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_PB_Drs_02-2023_5textlicheFestsetzungen.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_PB_Drs_02-2023_5textlicheFestsetzungen.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 4,
+      "_theend": 0,
+      "contentLength": "119823",
+      "lastModified": "Wed, 19 Apr 2023 11:45:02 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2022-09_0BekanntmachungOffenlage",
+    "structure": "/1. Ergänzendes Verfahren (rechtskräftig)/Öffentliche Auslegungen",
+    "file": "BPL_1223_1Erg_OB_Drs_09-2022_0BekanntmachungOffenlage.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_09-2022_0BekanntmachungOffenlage.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_09-2022_0BekanntmachungOffenlage.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_09-2022_0BekanntmachungOffenlage.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 6,
+      "_theend": 0,
+      "contentLength": "1883133",
+      "lastModified": "Fri, 21 Apr 2023 12:00:02 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2022-08_1Wuerdigung",
+    "structure": "/1. Ergänzendes Verfahren (rechtskräftig)/Öffentliche Auslegungen",
+    "file": "BPL_1223_1Erg_OB_Drs_08-2022_1Wuerdigung.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_1Wuerdigung.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_1Wuerdigung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_1Wuerdigung.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer10": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer11": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer12": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer13": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer14": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer15": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer16": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer17": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer18": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer19": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer20": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer21": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer22": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer23": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer24": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer25": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer26": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer27": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer28": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer29": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer30": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer31": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer32": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer33": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer34": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer35": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer36": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer37": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer38": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer39": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer40": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer41": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer42": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer43": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer44": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer45": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer46": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer47": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer48": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer49": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer50": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer51": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer52": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer53": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer54": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer55": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer56": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer57": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer58": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer7": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer8": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer9": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "pages": 59,
+      "_theend": 0,
+      "contentLength": "1201509",
+      "lastModified": "Wed, 19 Apr 2023 11:45:01 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2022-08_2Begruendung",
+    "structure": "/1. Ergänzendes Verfahren (rechtskräftig)/Öffentliche Auslegungen",
+    "file": "BPL_1223_1Erg_OB_Drs_08-2022_2Begruendung.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_2Begruendung.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_2Begruendung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_2Begruendung.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer10": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer11": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer12": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer13": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer14": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer15": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer16": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer17": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer18": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer19": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer20": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer21": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer22": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer23": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer24": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer25": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer26": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer27": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer28": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer7": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer8": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer9": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 29,
+      "_theend": 0,
+      "contentLength": "1266409",
+      "lastModified": "Wed, 19 Apr 2023 11:45:01 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2022-08_3Umweltbericht",
+    "structure": "/1. Ergänzendes Verfahren (rechtskräftig)/Öffentliche Auslegungen",
+    "file": "BPL_1223_1Erg_OB_Drs_08-2022_3Umweltbericht.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_3Umweltbericht.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_3Umweltbericht.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_3Umweltbericht.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer10": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer11": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer12": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer13": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer14": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer15": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer16": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer17": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer18": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer19": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer20": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer21": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer22": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer23": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer24": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer25": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer26": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer27": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer28": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer29": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer30": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer31": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer32": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer33": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer34": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer35": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer36": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer37": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer38": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer7": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer8": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer9": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 39,
+      "_theend": 0,
+      "contentLength": "2725674",
+      "lastModified": "Wed, 19 Apr 2023 11:45:01 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2022-08_5textlicheFestsetzungen",
+    "structure": "/1. Ergänzendes Verfahren (rechtskräftig)/Öffentliche Auslegungen",
+    "file": "BPL_1223_1Erg_OB_Drs_08-2022_5textlicheFestsetzungen.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_5textlicheFestsetzungen.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_5textlicheFestsetzungen.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_5textlicheFestsetzungen.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 4,
+      "_theend": 0,
+      "contentLength": "119148",
+      "lastModified": "Wed, 19 Apr 2023 11:45:01 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2022-08_Artenschutzpruefung",
+    "structure": "/1. Ergänzendes Verfahren (rechtskräftig)/Öffentliche Auslegungen",
+    "file": "BPL_1223_1Erg_OB_Drs_08-2022_Artenschutzpruefung.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_Artenschutzpruefung.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_Artenschutzpruefung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_Artenschutzpruefung.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer10": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer11": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer12": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer13": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer14": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer15": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer16": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer17": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer18": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer19": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer20": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer21": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer22": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer23": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer24": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer25": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer7": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer8": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer9": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 26,
+      "_theend": 0,
+      "contentLength": "3963184",
+      "lastModified": "Wed, 19 Apr 2023 11:45:01 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2022-08_Drucksache",
+    "structure": "/1. Ergänzendes Verfahren (rechtskräftig)/Öffentliche Auslegungen",
+    "file": "BPL_1223_1Erg_OB_Drs_08-2022_Drucksache.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_Drucksache.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_Drucksache.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_Drucksache.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 4,
+      "_theend": 0,
+      "contentLength": "189994",
+      "lastModified": "Wed, 19 Apr 2023 11:45:01 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2022-08_Entwaesserungskonzept2005",
+    "structure": "/1. Ergänzendes Verfahren (rechtskräftig)/Öffentliche Auslegungen",
+    "file": "BPL_1223_1Erg_OB_Drs_08-2022_Entwaesserungskonzept2005.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_Entwaesserungskonzept2005.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_Entwaesserungskonzept2005.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_Entwaesserungskonzept2005.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer10": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer11": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer12": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer13": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer14": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer15": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer16": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer17": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer7": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer8": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer9": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "pages": 18,
+      "_theend": 0,
+      "contentLength": "5631952",
+      "lastModified": "Wed, 19 Apr 2023 11:45:01 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2022-08_GeotechnischerBericht2004",
+    "structure": "/1. Ergänzendes Verfahren (rechtskräftig)/Öffentliche Auslegungen",
+    "file": "BPL_1223_1Erg_OB_Drs_08-2022_GeotechnischerBericht2004.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_GeotechnischerBericht2004.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_GeotechnischerBericht2004.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_GeotechnischerBericht2004.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer10": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 4959,
+        "y": 3507,
+        "maxZoom": 5
+      },
+      "layer7": {
+        "x": 4959,
+        "y": 3507,
+        "maxZoom": 5
+      },
+      "layer8": {
+        "x": 4959,
+        "y": 3507,
+        "maxZoom": 5
+      },
+      "layer9": {
+        "x": 4959,
+        "y": 3507,
+        "maxZoom": 5
+      },
+      "pages": 11,
+      "_theend": 0,
+      "contentLength": "3068182",
+      "lastModified": "Wed, 19 Apr 2023 11:45:01 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2022-08_GutachtenHitzeInDerStadt",
+    "structure": "/1. Ergänzendes Verfahren (rechtskräftig)/Öffentliche Auslegungen",
+    "file": "BPL_1223_1Erg_OB_Drs_08-2022_GutachtenHitzeInDerStadt.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_GutachtenHitzeInDerStadt.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_GutachtenHitzeInDerStadt.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_GutachtenHitzeInDerStadt.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer100": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer101": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer102": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer103": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer104": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer105": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer106": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer107": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer108": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer109": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer10": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer110": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer111": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer112": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer113": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer114": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer115": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer116": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer117": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer118": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer119": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer11": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer120": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer121": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer122": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer123": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer124": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer125": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer126": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer127": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer128": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer129": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer12": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer130": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer131": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer132": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer133": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer134": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer135": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer136": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer137": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer138": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer139": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer13": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer140": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer141": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer142": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer143": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer144": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer145": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer146": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer147": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer148": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer149": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer14": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer150": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer151": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer152": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer153": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer154": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer155": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer156": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer157": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer158": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer159": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer15": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer160": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer161": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer162": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer163": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer164": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer165": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer166": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer167": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer168": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer169": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer16": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer170": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer171": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer172": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer173": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer174": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer175": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer176": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer177": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer178": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer179": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer17": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer180": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer181": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer18": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer19": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer20": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer21": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer22": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer23": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer24": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer25": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer26": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer27": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer28": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer29": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer30": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer31": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer32": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer33": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer34": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer35": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer36": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer37": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer38": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer39": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer40": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer41": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer42": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer43": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer44": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer45": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer46": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer47": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer48": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer49": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer50": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer51": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer52": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer53": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer54": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer55": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer56": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer57": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer58": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer59": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer60": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer61": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer62": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer63": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer64": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer65": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer66": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer67": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer68": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer69": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer70": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer71": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer72": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer73": {
+        "x": 3508,
+        "y": 2479,
+        "maxZoom": 4
+      },
+      "layer74": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer75": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer76": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer77": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer78": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer79": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer7": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer80": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer81": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer82": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer83": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer84": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer85": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer86": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer87": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer88": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer89": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer8": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer90": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer91": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer92": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer93": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer94": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer95": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer96": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer97": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer98": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer99": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer9": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 182,
+      "_theend": 0,
+      "contentLength": "75266861",
+      "lastModified": "Wed, 19 Apr 2023 11:45:02 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2022-08_HydraulischeErschliessung09-2022",
+    "structure": "/1. Ergänzendes Verfahren (rechtskräftig)/Öffentliche Auslegungen",
+    "file": "BPL_1223_1Erg_OB_Drs_08-2022_HydraulischeErschliessung09-2022.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_HydraulischeErschliessung09-2022.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_HydraulischeErschliessung09-2022.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_HydraulischeErschliessung09-2022.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer10": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer11": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer12": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer13": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer14": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer15": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer16": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer17": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer18": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer19": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer20": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer21": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer22": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer23": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer24": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer25": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer26": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer27": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer28": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer29": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer30": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer31": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer32": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer33": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer34": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer35": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer36": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer37": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer38": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer39": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer40": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer41": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer42": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer43": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer44": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer45": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer46": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer47": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer48": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer49": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer50": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer51": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer52": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer53": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer54": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer55": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer56": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer57": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer58": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer59": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer60": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer61": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer7": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer8": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer9": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 62,
+      "_theend": 0,
+      "contentLength": "8340867",
+      "lastModified": "Wed, 19 Apr 2023 11:45:02 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2022-08_HydraulischeErschliessung2022Plaene",
+    "structure": "/1. Ergänzendes Verfahren (rechtskräftig)/Öffentliche Auslegungen",
+    "file": "BPL_1223_1Erg_OB_Drs_08-2022_HydraulischeErschliessung2022Plaene.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_HydraulischeErschliessung2022Plaene.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_HydraulischeErschliessung2022Plaene.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_HydraulischeErschliessung2022Plaene.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 7017,
+        "y": 4963,
+        "maxZoom": 5
+      },
+      "layer10": {
+        "x": 7017,
+        "y": 4963,
+        "maxZoom": 5
+      },
+      "layer11": {
+        "x": 7017,
+        "y": 4963,
+        "maxZoom": 5
+      },
+      "layer12": {
+        "x": 7017,
+        "y": 4963,
+        "maxZoom": 5
+      },
+      "layer13": {
+        "x": 7017,
+        "y": 4963,
+        "maxZoom": 5
+      },
+      "layer14": {
+        "x": 7017,
+        "y": 4963,
+        "maxZoom": 5
+      },
+      "layer15": {
+        "x": 7017,
+        "y": 4963,
+        "maxZoom": 5
+      },
+      "layer16": {
+        "x": 7017,
+        "y": 4963,
+        "maxZoom": 5
+      },
+      "layer17": {
+        "x": 7017,
+        "y": 4963,
+        "maxZoom": 5
+      },
+      "layer18": {
+        "x": 7017,
+        "y": 4963,
+        "maxZoom": 5
+      },
+      "layer19": {
+        "x": 7017,
+        "y": 4963,
+        "maxZoom": 5
+      },
+      "layer1": {
+        "x": 7017,
+        "y": 4963,
+        "maxZoom": 5
+      },
+      "layer20": {
+        "x": 7017,
+        "y": 4963,
+        "maxZoom": 5
+      },
+      "layer2": {
+        "x": 7017,
+        "y": 4963,
+        "maxZoom": 5
+      },
+      "layer3": {
+        "x": 7017,
+        "y": 4963,
+        "maxZoom": 5
+      },
+      "layer4": {
+        "x": 7017,
+        "y": 4963,
+        "maxZoom": 5
+      },
+      "layer5": {
+        "x": 7017,
+        "y": 4963,
+        "maxZoom": 5
+      },
+      "layer6": {
+        "x": 7017,
+        "y": 4963,
+        "maxZoom": 5
+      },
+      "layer7": {
+        "x": 7017,
+        "y": 4963,
+        "maxZoom": 5
+      },
+      "layer8": {
+        "x": 7017,
+        "y": 4963,
+        "maxZoom": 5
+      },
+      "layer9": {
+        "x": 7017,
+        "y": 4963,
+        "maxZoom": 5
+      },
+      "pages": 21,
+      "_theend": 0,
+      "contentLength": "26367460",
+      "lastModified": "Wed, 19 Apr 2023 11:45:02 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2022-08_HydrogeologischeStellungnahme2004",
+    "structure": "/1. Ergänzendes Verfahren (rechtskräftig)/Öffentliche Auslegungen",
+    "file": "BPL_1223_1Erg_OB_Drs_08-2022_HydrogeologischeStellungnahme2004.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_HydrogeologischeStellungnahme2004.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_HydrogeologischeStellungnahme2004.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_HydrogeologischeStellungnahme2004.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 4959,
+        "y": 3507,
+        "maxZoom": 5
+      },
+      "layer5": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer7": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer8": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer9": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "pages": 10,
+      "_theend": 0,
+      "contentLength": "1905925",
+      "lastModified": "Wed, 19 Apr 2023 11:45:02 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2022-08_HydrogeologischeStellungnahme2022",
+    "structure": "/1. Ergänzendes Verfahren (rechtskräftig)/Öffentliche Auslegungen",
+    "file": "BPL_1223_1Erg_OB_Drs_08-2022_HydrogeologischeStellungnahme2022.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_HydrogeologischeStellungnahme2022.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_HydrogeologischeStellungnahme2022.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_HydrogeologischeStellungnahme2022.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2479,
+        "y": 3504,
+        "maxZoom": 4
+      },
+      "layer10": {
+        "x": 2479,
+        "y": 3504,
+        "maxZoom": 4
+      },
+      "layer11": {
+        "x": 2479,
+        "y": 3504,
+        "maxZoom": 4
+      },
+      "layer12": {
+        "x": 2479,
+        "y": 3504,
+        "maxZoom": 4
+      },
+      "layer13": {
+        "x": 2479,
+        "y": 3504,
+        "maxZoom": 4
+      },
+      "layer14": {
+        "x": 2479,
+        "y": 3504,
+        "maxZoom": 4
+      },
+      "layer15": {
+        "x": 7017,
+        "y": 4963,
+        "maxZoom": 5
+      },
+      "layer16": {
+        "x": 4963,
+        "y": 3508,
+        "maxZoom": 5
+      },
+      "layer17": {
+        "x": 2479,
+        "y": 3504,
+        "maxZoom": 4
+      },
+      "layer18": {
+        "x": 2479,
+        "y": 3504,
+        "maxZoom": 4
+      },
+      "layer19": {
+        "x": 2479,
+        "y": 3504,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2479,
+        "y": 3504,
+        "maxZoom": 4
+      },
+      "layer20": {
+        "x": 2479,
+        "y": 3504,
+        "maxZoom": 4
+      },
+      "layer21": {
+        "x": 2479,
+        "y": 3504,
+        "maxZoom": 4
+      },
+      "layer22": {
+        "x": 2479,
+        "y": 3504,
+        "maxZoom": 4
+      },
+      "layer23": {
+        "x": 2479,
+        "y": 3504,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2479,
+        "y": 3504,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2479,
+        "y": 3504,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2479,
+        "y": 3504,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2479,
+        "y": 3504,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2479,
+        "y": 3504,
+        "maxZoom": 4
+      },
+      "layer7": {
+        "x": 2479,
+        "y": 3504,
+        "maxZoom": 4
+      },
+      "layer8": {
+        "x": 2479,
+        "y": 3504,
+        "maxZoom": 4
+      },
+      "layer9": {
+        "x": 2479,
+        "y": 3504,
+        "maxZoom": 4
+      },
+      "pages": 24,
+      "_theend": 0,
+      "contentLength": "2912579",
+      "lastModified": "Wed, 19 Apr 2023 11:45:02 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2022-08_Klimagutachten2022",
+    "structure": "/1. Ergänzendes Verfahren (rechtskräftig)/Öffentliche Auslegungen",
+    "file": "BPL_1223_1Erg_OB_Drs_08-2022_Klimagutachten2022.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_Klimagutachten2022.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_Klimagutachten2022.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_Klimagutachten2022.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer10": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer11": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer12": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer13": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer14": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer15": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer16": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer17": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer18": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer19": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer7": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer8": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer9": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 20,
+      "_theend": 0,
+      "contentLength": "17553655",
+      "lastModified": "Wed, 19 Apr 2023 11:45:02 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2022-08_KurzberichtHydraulischeErschliessung2021",
+    "structure": "/1. Ergänzendes Verfahren (rechtskräftig)/Öffentliche Auslegungen",
+    "file": "BPL_1223_1Erg_OB_Drs_08-2022_KurzberichtHydraulischeErschliessung2021.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_KurzberichtHydraulischeErschliessung2021.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_KurzberichtHydraulischeErschliessung2021.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_KurzberichtHydraulischeErschliessung2021.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer7": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer8": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 9,
+      "_theend": 0,
+      "contentLength": "504616",
+      "lastModified": "Wed, 19 Apr 2023 11:45:02 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2022-08_LandschaftspflegerischerFachbeitrag",
+    "structure": "/1. Ergänzendes Verfahren (rechtskräftig)/Öffentliche Auslegungen",
+    "file": "BPL_1223_1Erg_OB_Drs_08-2022_LandschaftspflegerischerFachbeitrag.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_LandschaftspflegerischerFachbeitrag.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_LandschaftspflegerischerFachbeitrag.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_LandschaftspflegerischerFachbeitrag.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer10": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer11": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer12": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer13": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer14": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer15": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer16": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer17": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer18": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer19": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer20": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer21": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer22": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer23": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer24": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer25": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer26": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer27": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer28": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer29": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer30": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer31": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer32": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer33": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer34": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer35": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer36": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer37": {
+        "x": 4960,
+        "y": 3507,
+        "maxZoom": 5
+      },
+      "layer38": {
+        "x": 4960,
+        "y": 3507,
+        "maxZoom": 5
+      },
+      "layer3": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer7": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer8": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer9": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 39,
+      "_theend": 0,
+      "contentLength": "2818580",
+      "lastModified": "Wed, 19 Apr 2023 11:45:02 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2022-08_Verkehrsuntersuchung2022",
+    "structure": "/1. Ergänzendes Verfahren (rechtskräftig)/Öffentliche Auslegungen",
+    "file": "BPL_1223_1Erg_OB_Drs_08-2022_Verkehrsuntersuchung2022.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_Verkehrsuntersuchung2022.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_Verkehrsuntersuchung2022.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_1Erg_OB_Drs_08-2022_Verkehrsuntersuchung2022.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer100": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer101": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer102": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer103": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer104": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer105": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer106": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer107": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer108": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer109": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer10": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer110": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer111": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer112": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer113": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer114": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer115": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer116": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer117": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer118": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer119": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer11": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer120": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer121": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer122": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer123": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer124": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer125": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer126": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer127": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer128": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer129": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer12": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer130": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer131": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer132": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer133": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer134": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer13": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer14": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer15": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer16": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer17": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer18": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer19": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer20": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer21": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer22": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer23": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer24": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer25": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer26": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer27": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer28": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer29": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer30": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer31": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer32": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer33": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer34": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer35": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer36": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer37": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer38": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer39": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer40": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer41": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer42": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer43": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer44": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer45": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer46": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer47": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer48": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer49": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer50": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer51": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer52": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer53": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer54": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer55": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer56": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer57": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer58": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer59": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer60": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer61": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer62": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer63": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer64": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer65": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer66": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer67": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer68": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer69": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer70": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer71": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer72": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer73": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer74": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer75": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer76": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer77": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer78": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer79": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer7": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer80": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer81": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer82": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer83": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer84": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer85": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer86": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer87": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer88": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer89": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer8": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer90": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer91": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer92": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer93": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer94": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer95": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer96": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer97": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer98": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer99": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer9": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 135,
+      "_theend": 0,
+      "contentLength": "15751547",
+      "lastModified": "Wed, 19 Apr 2023 11:45:02 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2020-03_Abwaegung",
+    "structure": "/Ursprungsplan (rechtskräftig)/Satzungsbeschlüsse",
+    "file": "BPL_1223_0_PB_Drs_03-2020_Abwaegung.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_PB_Drs_03-2020_Abwaegung.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_PB_Drs_03-2020_Abwaegung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_PB_Drs_03-2020_Abwaegung.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer10": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer11": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer12": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer13": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer14": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer15": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer16": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer17": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer18": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer19": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer20": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer21": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer22": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer23": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer24": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer25": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer26": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer27": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer28": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer29": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer30": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer31": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer32": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer33": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer34": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer35": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer36": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer37": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer38": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer39": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer40": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer41": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer42": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer43": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer44": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer45": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer46": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer47": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer48": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer49": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer50": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer51": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer52": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer53": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer54": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer55": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer56": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer57": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer58": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer7": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer8": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer9": {
+        "x": 2475,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "pages": 59,
+      "_theend": 0,
+      "contentLength": "581809",
+      "lastModified": "Mon, 29 Jun 2020 04:00:03 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2020-03_Begruendung",
+    "structure": "/Ursprungsplan (rechtskräftig)/Satzungsbeschlüsse",
+    "file": "BPL_1223_0_PB_Drs_03-2020_Begruendung.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_PB_Drs_03-2020_Begruendung.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_PB_Drs_03-2020_Begruendung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_PB_Drs_03-2020_Begruendung.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer10": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer11": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer12": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer13": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer14": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer15": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer16": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer17": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer18": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer19": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer20": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer21": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer22": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer23": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer7": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer8": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer9": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 24,
+      "_theend": 0,
+      "contentLength": "417343",
+      "lastModified": "Mon, 29 Jun 2020 04:00:03 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2020-03_Beschlussdrucksache",
+    "structure": "/Ursprungsplan (rechtskräftig)/Satzungsbeschlüsse",
+    "file": "BPL_1223_0_PB_Drs_03-2020_Beschlussdrucksache.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_PB_Drs_03-2020_Beschlussdrucksache.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_PB_Drs_03-2020_Beschlussdrucksache.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_PB_Drs_03-2020_Beschlussdrucksache.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 4,
+      "_theend": 0,
+      "contentLength": "125917",
+      "lastModified": "Mon, 29 Jun 2020 04:00:03 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2020-03_Umweltbericht",
+    "structure": "/Ursprungsplan (rechtskräftig)/Satzungsbeschlüsse",
+    "file": "BPL_1223_0_PB_Drs_03-2020_Umweltbericht.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_PB_Drs_03-2020_Umweltbericht.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_PB_Drs_03-2020_Umweltbericht.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_PB_Drs_03-2020_Umweltbericht.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer10": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer11": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer12": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer13": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer14": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer15": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer16": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer17": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer18": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer19": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer20": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer21": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer22": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer23": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer24": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer25": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer26": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer27": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer28": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer29": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer7": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer8": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer9": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 30,
+      "_theend": 0,
+      "contentLength": "396521",
+      "lastModified": "Mon, 29 Jun 2020 04:00:03 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2020-03_textlicheFestsetzungen",
+    "structure": "/Ursprungsplan (rechtskräftig)/Satzungsbeschlüsse",
+    "file": "BPL_1223_0_PB_Drs_03-2020_textlicheFestsetzungen.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_PB_Drs_03-2020_textlicheFestsetzungen.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_PB_Drs_03-2020_textlicheFestsetzungen.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_PB_Drs_03-2020_textlicheFestsetzungen.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 5,
+      "_theend": 0,
+      "contentLength": "188484",
+      "lastModified": "Mon, 29 Jun 2020 04:00:03 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2018-12_Begruendung",
+    "structure": "/Ursprungsplan (rechtskräftig)/Öffentliche Auslegungen",
+    "file": "BPL_1223_0_OB_Drs_12-2018_Begruendung.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_OB_Drs_12-2018_Begruendung.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_OB_Drs_12-2018_Begruendung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_OB_Drs_12-2018_Begruendung.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer10": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer11": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer12": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer13": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer14": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer15": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer16": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer17": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer18": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer19": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer20": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer21": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer7": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer8": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer9": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 22,
+      "_theend": 0,
+      "contentLength": "328580"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2018-12_Gutachten-Artenschutzpruefung",
+    "structure": "/Ursprungsplan (rechtskräftig)/Öffentliche Auslegungen",
+    "file": "BPL_1223_0_OB_Drs_12-2018_Gutachten-Artenschutzpruefung.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_OB_Drs_12-2018_Gutachten-Artenschutzpruefung.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_OB_Drs_12-2018_Gutachten-Artenschutzpruefung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_OB_Drs_12-2018_Gutachten-Artenschutzpruefung.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer10": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer11": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer12": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer13": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer14": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer15": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer16": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer17": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer18": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer19": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer20": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer21": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer22": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer23": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer24": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer25": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer7": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer8": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer9": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 26,
+      "_theend": 0,
+      "contentLength": "3963184",
+      "lastModified": "Mon, 29 Jun 2020 04:00:02 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2018-12_Gutachten-Entwaesserung",
+    "structure": "/Ursprungsplan (rechtskräftig)/Öffentliche Auslegungen",
+    "file": "BPL_1223_0_OB_Drs_12-2018_Gutachten-Entwaesserung.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_OB_Drs_12-2018_Gutachten-Entwaesserung.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_OB_Drs_12-2018_Gutachten-Entwaesserung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_OB_Drs_12-2018_Gutachten-Entwaesserung.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer10": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer11": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer12": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer13": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer14": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer15": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer16": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer17": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer7": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer8": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer9": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "pages": 18,
+      "_theend": 0,
+      "contentLength": "5631952",
+      "lastModified": "Mon, 29 Jun 2020 04:00:02 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2018-12_Gutachten-GeotechnischerBericht",
+    "structure": "/Ursprungsplan (rechtskräftig)/Öffentliche Auslegungen",
+    "file": "BPL_1223_0_OB_Drs_12-2018_Gutachten-GeotechnischerBericht.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_OB_Drs_12-2018_Gutachten-GeotechnischerBericht.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_OB_Drs_12-2018_Gutachten-GeotechnischerBericht.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_OB_Drs_12-2018_Gutachten-GeotechnischerBericht.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer10": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 4959,
+        "y": 3507,
+        "maxZoom": 5
+      },
+      "layer7": {
+        "x": 4959,
+        "y": 3507,
+        "maxZoom": 5
+      },
+      "layer8": {
+        "x": 4959,
+        "y": 3507,
+        "maxZoom": 5
+      },
+      "layer9": {
+        "x": 4959,
+        "y": 3507,
+        "maxZoom": 5
+      },
+      "pages": 11,
+      "_theend": 0,
+      "contentLength": "3068182",
+      "lastModified": "Mon, 29 Jun 2020 04:00:02 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2018-12_Gutachten-Hydrogeologie",
+    "structure": "/Ursprungsplan (rechtskräftig)/Öffentliche Auslegungen",
+    "file": "BPL_1223_0_OB_Drs_12-2018_Gutachten-Hydrogeologie.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_OB_Drs_12-2018_Gutachten-Hydrogeologie.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_OB_Drs_12-2018_Gutachten-Hydrogeologie.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_OB_Drs_12-2018_Gutachten-Hydrogeologie.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 4959,
+        "y": 3507,
+        "maxZoom": 5
+      },
+      "layer5": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer7": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer8": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer9": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "pages": 10,
+      "_theend": 0,
+      "contentLength": "1905925",
+      "lastModified": "Mon, 29 Jun 2020 04:00:02 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2018-12_Gutachten-Klima",
+    "structure": "/Ursprungsplan (rechtskräftig)/Öffentliche Auslegungen",
+    "file": "BPL_1223_0_OB_Drs_12-2018_Gutachten-Klima.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_OB_Drs_12-2018_Gutachten-Klima.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_OB_Drs_12-2018_Gutachten-Klima.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_OB_Drs_12-2018_Gutachten-Klima.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "pages": 6,
+      "_theend": 0,
+      "contentLength": "1852798",
+      "lastModified": "Mon, 29 Jun 2020 04:00:02 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2018-12_Gutachten-LandschaftspflegerischerFachbeitrag",
+    "structure": "/Ursprungsplan (rechtskräftig)/Öffentliche Auslegungen",
+    "file": "BPL_1223_0_OB_Drs_12-2018_Gutachten-LandschaftspflegerischerFachbeitrag.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_OB_Drs_12-2018_Gutachten-LandschaftspflegerischerFachbeitrag.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_OB_Drs_12-2018_Gutachten-LandschaftspflegerischerFachbeitrag.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_OB_Drs_12-2018_Gutachten-LandschaftspflegerischerFachbeitrag.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer10": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer11": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer12": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer13": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer14": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer15": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer16": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer17": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer18": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer19": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer20": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer21": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer22": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer23": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer24": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer25": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer26": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer27": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer28": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer29": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer30": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer31": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer32": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer33": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer34": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer35": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer36": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer37": {
+        "x": 4960,
+        "y": 3507,
+        "maxZoom": 5
+      },
+      "layer38": {
+        "x": 4960,
+        "y": 3507,
+        "maxZoom": 5
+      },
+      "layer3": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer7": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer8": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer9": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 39,
+      "_theend": 0,
+      "contentLength": "2818580",
+      "lastModified": "Mon, 29 Jun 2020 04:00:02 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2018-12_Gutachten-Verkehr",
+    "structure": "/Ursprungsplan (rechtskräftig)/Öffentliche Auslegungen",
+    "file": "BPL_1223_0_OB_Drs_12-2018_Gutachten-Verkehr.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_OB_Drs_12-2018_Gutachten-Verkehr.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_OB_Drs_12-2018_Gutachten-Verkehr.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_OB_Drs_12-2018_Gutachten-Verkehr.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer100": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer101": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer102": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer103": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer104": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer105": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer106": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer107": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer108": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer109": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer10": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer110": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer111": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer112": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer113": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer114": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer115": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer116": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer117": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer118": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer119": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer11": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer120": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer121": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer122": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer123": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer124": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer125": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer126": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer127": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer128": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer129": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer12": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer130": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer131": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer132": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer133": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer134": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer135": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer136": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer137": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer138": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer139": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer13": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer140": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer141": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer142": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer143": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer144": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer145": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer146": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer147": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer148": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer149": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer14": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer150": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer151": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer15": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer16": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer17": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer18": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer19": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer20": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer21": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer22": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer23": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer24": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer25": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer26": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer27": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer28": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer29": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer30": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer31": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer32": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer33": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer34": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer35": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer36": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer37": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer38": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer39": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer40": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer41": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer42": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer43": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer44": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer45": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer46": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer47": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer48": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer49": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer50": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer51": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer52": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer53": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer54": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer55": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer56": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer57": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer58": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer59": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer60": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer61": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer62": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer63": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer64": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer65": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer66": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer67": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer68": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer69": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer70": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer71": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer72": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer73": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer74": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer75": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer76": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer77": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer78": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer79": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer7": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer80": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer81": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer82": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer83": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer84": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer85": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer86": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer87": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer88": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer89": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer8": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer90": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer91": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer92": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer93": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer94": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer95": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer96": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer97": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer98": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer99": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer9": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 152,
+      "_theend": 0,
+      "contentLength": "15879868",
+      "lastModified": "Mon, 29 Jun 2020 04:00:03 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2018-12_TextlicheFestsetzungen",
+    "structure": "/Ursprungsplan (rechtskräftig)/Öffentliche Auslegungen",
+    "file": "BPL_1223_0_OB_Drs_12-2018_TextlicheFestsetzungen.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_OB_Drs_12-2018_TextlicheFestsetzungen.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_OB_Drs_12-2018_TextlicheFestsetzungen.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_OB_Drs_12-2018_TextlicheFestsetzungen.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 5,
+      "_theend": 0,
+      "contentLength": "143904"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2018-12_Umweltbericht",
+    "structure": "/Ursprungsplan (rechtskräftig)/Öffentliche Auslegungen",
+    "file": "BPL_1223_0_OB_Drs_12-2018_Umweltbericht.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_OB_Drs_12-2018_Umweltbericht.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_OB_Drs_12-2018_Umweltbericht.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_OB_Drs_12-2018_Umweltbericht.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer10": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer11": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer12": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer13": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer14": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer15": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer16": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer17": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer18": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer19": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer20": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer21": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer22": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer23": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer24": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer25": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer26": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer27": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer28": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer7": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer8": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer9": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 29,
+      "_theend": 0,
+      "contentLength": "298790",
+      "lastModified": "Mon, 29 Jun 2020 04:00:03 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2018-12_Wuerdigung",
+    "structure": "/Ursprungsplan (rechtskräftig)/Öffentliche Auslegungen",
+    "file": "BPL_1223_0_OB_Drs_12-2018_Wuerdigung.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_OB_Drs_12-2018_Wuerdigung.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_OB_Drs_12-2018_Wuerdigung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_OB_Drs_12-2018_Wuerdigung.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer10": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer11": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer12": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer13": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer14": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer15": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer16": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer17": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer18": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer19": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer7": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer8": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer9": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 20,
+      "_theend": 0,
+      "contentLength": "237027",
+      "lastModified": "Mon, 29 Jun 2020 04:00:03 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2016-12_Ausschnitt-aus-dem-Bebauungsplan-222",
+    "structure": "/Ursprungsplan (rechtskräftig)/Aufstellungsbeschlüsse",
+    "file": "BPL_1223_0_AB_Drs_12-2016_Ausschnitt-aus-dem-Bebauungsplan-222.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_AB_Drs_12-2016_Ausschnitt-aus-dem-Bebauungsplan-222.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_AB_Drs_12-2016_Ausschnitt-aus-dem-Bebauungsplan-222.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_AB_Drs_12-2016_Ausschnitt-aus-dem-Bebauungsplan-222.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 1,
+      "_theend": 0,
+      "contentLength": "1047727",
+      "lastModified": "Mon, 29 Jun 2020 04:00:02 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2016-12_Bekanntmachung",
+    "structure": "/Ursprungsplan (rechtskräftig)/Aufstellungsbeschlüsse",
+    "file": "BPL_1223_0_AB_Drs_12-2016_Bekanntmachung.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_AB_Drs_12-2016_Bekanntmachung.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_AB_Drs_12-2016_Bekanntmachung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_AB_Drs_12-2016_Bekanntmachung.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer10": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer11": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer12": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer13": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer14": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer15": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer16": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer17": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer18": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer19": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer20": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer21": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer22": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer23": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer24": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer25": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer26": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer27": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer28": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer29": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer30": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer31": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer32": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer33": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer34": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer35": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer36": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer37": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer38": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer39": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer40": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer41": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer42": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer43": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer44": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer45": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer46": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer47": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer7": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer8": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer9": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 48,
+      "_theend": 0,
+      "contentLength": "3128192",
+      "lastModified": "Mon, 29 Jun 2020 04:00:02 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2016-12_Demografie-Check",
+    "structure": "/Ursprungsplan (rechtskräftig)/Aufstellungsbeschlüsse",
+    "file": "BPL_1223_0_AB_Drs_12-2016_Demografie-Check.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_AB_Drs_12-2016_Demografie-Check.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_AB_Drs_12-2016_Demografie-Check.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_AB_Drs_12-2016_Demografie-Check.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 3508,
+        "y": 2481,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 3508,
+        "y": 2481,
+        "maxZoom": 4
+      },
+      "pages": 2,
+      "_theend": 0,
+      "contentLength": "939169",
+      "lastModified": "Mon, 29 Jun 2020 04:00:02 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2016-12_Drucksache",
+    "structure": "/Ursprungsplan (rechtskräftig)/Aufstellungsbeschlüsse",
+    "file": "BPL_1223_0_AB_Drs_12-2016.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_AB_Drs_12-2016.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_AB_Drs_12-2016.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_AB_Drs_12-2016.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 4,
+      "_theend": 0,
+      "contentLength": "42763",
+      "lastModified": "Mon, 29 Jun 2020 04:00:02 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2016-12_Geltungsbereich-1025",
+    "structure": "/Ursprungsplan (rechtskräftig)/Aufstellungsbeschlüsse",
+    "file": "BPL_1223_0_AB_Drs_12-2016_Geltungsbereich-1025.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_AB_Drs_12-2016_Geltungsbereich-1025.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_AB_Drs_12-2016_Geltungsbereich-1025.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_AB_Drs_12-2016_Geltungsbereich-1025.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 3508,
+        "y": 2480,
+        "maxZoom": 4
+      },
+      "pages": 1,
+      "_theend": 0,
+      "contentLength": "1718615",
+      "lastModified": "Mon, 29 Jun 2020 04:00:02 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2016-12_Geltungsbereich-1223",
+    "structure": "/Ursprungsplan (rechtskräftig)/Aufstellungsbeschlüsse",
+    "file": "BPL_1223_0_AB_Drs_12-2016_Geltungsbereich-1223.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_AB_Drs_12-2016_Geltungsbereich-1223.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_AB_Drs_12-2016_Geltungsbereich-1223.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_AB_Drs_12-2016_Geltungsbereich-1223.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2480,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 1,
+      "_theend": 0,
+      "contentLength": "187105",
+      "lastModified": "Mon, 29 Jun 2020 04:00:02 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2016-12_Teilaufhebung-Bebauungsplan-222",
+    "structure": "/Ursprungsplan (rechtskräftig)/Aufstellungsbeschlüsse",
+    "file": "BPL_1223_0_AB_Drs_12-2016_Teilaufhebung-Bebauungsplan-222.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_AB_Drs_12-2016_Teilaufhebung-Bebauungsplan-222.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_AB_Drs_12-2016_Teilaufhebung-Bebauungsplan-222.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_1223_0_AB_Drs_12-2016_Teilaufhebung-Bebauungsplan-222.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 3508,
+        "y": 2480,
+        "maxZoom": 4
+      },
+      "pages": 1,
+      "_theend": 0,
+      "contentLength": "1071912",
+      "lastModified": "Mon, 29 Jun 2020 04:00:02 GMT"
+    }
+  }
+]
