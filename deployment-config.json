@@ -737,6 +737,33 @@
       },
       "projectPath": "./dist/playgrounds/feature-info-playground"
     },
+    "docviewer-playground": {
+      "deployment": {
+        "manual": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "docviewer-playground"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "docviewer-playground"
+            }
+          }
+        },
+        "auto": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "docviewer-playground"
+            }
+          }
+        }
+      },
+      "projectPath": "./dist/playgrounds/docviewer"
+    },
     "verdis-desktop": {
       "deployment": {
         "manual": {
