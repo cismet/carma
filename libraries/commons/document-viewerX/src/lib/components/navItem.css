@@ -1,0 +1,15 @@
+.navItem {
+  color: gray;
+}
+
+.navItem:hover {
+  color: white;
+}
+
+.navItem:disabled:hover {
+  color: #444;
+}
+
+.navItem:disabled {
+  color: #444;
+}

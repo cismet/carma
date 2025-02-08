@@ -1,0 +1,1601 @@
+[
+  {
+    "group": "rechtskraeftig",
+    "file": "B468.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de/bplaene/rechtswirksam/B468.pdf",
+    "docTitle": "B-Plan 468",
+    "layer": "https://resources.cismet.de/tiles/bplaene/rechtswirksam/B468.pdf/{z}/{x}/{y}.png",
+    "meta": {
+      "layer0": {
+        "x": 12733,
+        "y": 8797,
+        "maxZoom": 6
+      },
+      "pages": 1,
+      "_theend": 0,
+      "contentLength": "1156323",
+      "lastModified": "Mon, 01 Oct 2018 12:31:10 GMT"
+    }
+  },
+  {
+    "group": "rechtskraeftig",
+    "file": "B468_DBA.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de/bplaene/rechtswirksam/B468_DBA.pdf",
+    "docTitle": "B-Plan 468",
+    "layer": "https://resources.cismet.de/tiles/bplaene/rechtswirksam/B468_DBA.pdf/{z}/{x}/{y}.png",
+    "meta": {
+      "layer0": {
+        "x": 12402,
+        "y": 8859,
+        "maxZoom": 6
+      },
+      "pages": 1,
+      "_theend": 0,
+      "contentLength": "12524541"
+    }
+  },
+  {
+    "group": "nicht_rechtskraeftig",
+    "file": "B468_AUF.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de/bplaene/verfahren/B468_AUF.pdf",
+    "docTitle": "B-Plan 468",
+    "layer": "https://resources.cismet.de/tiles/bplaene/verfahren/B468_AUF.pdf/{z}/{x}/{y}.png",
+    "meta": {
+      "layer0": {
+        "x": 1029,
+        "y": 447,
+        "maxZoom": 3
+      },
+      "pages": 1,
+      "_theend": 0,
+      "contentLength": "83523",
+      "lastModified": "Thu, 14 Nov 2019 09:15:02 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "file": "Info_BPlan-Zusatzdokumente_WUP.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de/bplaene_dokumente/Info_BPlan-Zusatzdokumente_WUP.pdf",
+    "layer": "https://resources.cismet.de/tiles/bplaene_dokumente/Info_BPlan-Zusatzdokumente_WUP.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles/bplaene_dokumente/Info_BPlan-Zusatzdokumente_WUP.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 5,
+      "_theend": 0,
+      "contentLength": "830631"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2024-07_Artenschutzpruefung",
+    "structure": "/3. Änderung (im Verfahren)/Frühzeitige Beteiligungen",
+    "file": "BPL_n0468_3And_FB_TOEB_07-2024_Artenschutzpruefung.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Artenschutzpruefung.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Artenschutzpruefung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Artenschutzpruefung.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer10": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer11": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer12": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer13": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer14": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer15": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer16": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer17": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer18": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer19": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer20": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer21": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer22": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer23": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer24": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer25": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer7": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer8": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer9": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 26,
+      "_theend": 0,
+      "contentLength": "1897694",
+      "lastModified": "Fri, 28 Jun 2024 08:15:01 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2024-07_Entwaesserungskonzept",
+    "structure": "/3. Änderung (im Verfahren)/Frühzeitige Beteiligungen",
+    "file": "BPL_n0468_3And_FB_TOEB_07-2024_Entwaesserungskonzept.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Entwaesserungskonzept.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Entwaesserungskonzept.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Entwaesserungskonzept.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 4963,
+        "y": 3508,
+        "maxZoom": 5
+      },
+      "pages": 6,
+      "_theend": 0,
+      "contentLength": "311840",
+      "lastModified": "Fri, 28 Jun 2024 08:15:01 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2024-07_Geltungsbereich",
+    "structure": "/3. Änderung (im Verfahren)/Frühzeitige Beteiligungen",
+    "file": "BPL_n0468_3And_FB_TOEB_07-2024_Geltungsbereich.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Geltungsbereich.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Geltungsbereich.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Geltungsbereich.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 3508,
+        "y": 2480,
+        "maxZoom": 4
+      },
+      "pages": 1,
+      "_theend": 0,
+      "contentLength": "2226154",
+      "lastModified": "Fri, 28 Jun 2024 08:15:01 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2024-07_Kurzbegruendung",
+    "structure": "/3. Änderung (im Verfahren)/Frühzeitige Beteiligungen",
+    "file": "BPL_n0468_3And_FB_TOEB_07-2024_Kurzbegruendung.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Kurzbegruendung.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Kurzbegruendung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Kurzbegruendung.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer10": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer11": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer12": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer13": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer14": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer7": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer8": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer9": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 15,
+      "_theend": 0,
+      "contentLength": "1595012",
+      "lastModified": "Fri, 28 Jun 2024 08:15:01 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2024-07_Projektskizze",
+    "structure": "/3. Änderung (im Verfahren)/Frühzeitige Beteiligungen",
+    "file": "BPL_n0468_3And_FB_TOEB_07-2024_Projektskizze.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Projektskizze.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Projektskizze.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Projektskizze.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 4961,
+        "y": 3508,
+        "maxZoom": 5
+      },
+      "layer1": {
+        "x": 4961,
+        "y": 3508,
+        "maxZoom": 5
+      },
+      "layer2": {
+        "x": 4961,
+        "y": 3508,
+        "maxZoom": 5
+      },
+      "layer3": {
+        "x": 4961,
+        "y": 3508,
+        "maxZoom": 5
+      },
+      "layer4": {
+        "x": 4961,
+        "y": 3508,
+        "maxZoom": 5
+      },
+      "layer5": {
+        "x": 4961,
+        "y": 3508,
+        "maxZoom": 5
+      },
+      "pages": 6,
+      "_theend": 0,
+      "contentLength": "2022271",
+      "lastModified": "Fri, 28 Jun 2024 08:15:01 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2019-11_Drucksache",
+    "structure": "/3. Änderung (im Verfahren)/Aufstellungsbeschlüsse",
+    "file": "BPL_n0468_3And_AB_Drs_11-2019.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_AB_Drs_11-2019.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_AB_Drs_11-2019.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_AB_Drs_11-2019.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2481,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 2,
+      "_theend": 0,
+      "contentLength": "142216",
+      "lastModified": "Tue, 05 Nov 2019 10:00:01 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2019-11_Geltungsbereich",
+    "structure": "/3. Änderung (im Verfahren)/Aufstellungsbeschlüsse",
+    "file": "BPL_n0468_3And_AB_Drs_11-2019_Geltungsbereich.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_AB_Drs_11-2019_Geltungsbereich.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_AB_Drs_11-2019_Geltungsbereich.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_AB_Drs_11-2019_Geltungsbereich.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 3508,
+        "y": 2480,
+        "maxZoom": 4
+      },
+      "pages": 1,
+      "_theend": 0,
+      "contentLength": "2172776",
+      "lastModified": "Tue, 05 Nov 2019 10:00:01 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2019-11_Projektskizze",
+    "structure": "/3. Änderung (im Verfahren)/Aufstellungsbeschlüsse",
+    "file": "BPL_n0468_3And_AB_Drs_11-2019_Projektskizze.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_AB_Drs_11-2019_Projektskizze.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_AB_Drs_11-2019_Projektskizze.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_AB_Drs_11-2019_Projektskizze.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 4961,
+        "y": 3508,
+        "maxZoom": 5
+      },
+      "layer1": {
+        "x": 4961,
+        "y": 3508,
+        "maxZoom": 5
+      },
+      "layer2": {
+        "x": 4961,
+        "y": 3508,
+        "maxZoom": 5
+      },
+      "layer3": {
+        "x": 4961,
+        "y": 3508,
+        "maxZoom": 5
+      },
+      "layer4": {
+        "x": 4961,
+        "y": 3508,
+        "maxZoom": 5
+      },
+      "layer5": {
+        "x": 4961,
+        "y": 3508,
+        "maxZoom": 5
+      },
+      "pages": 6,
+      "_theend": 0,
+      "contentLength": "1992428",
+      "lastModified": "Tue, 05 Nov 2019 10:00:01 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2011-01_Bekanntmachung",
+    "structure": "/2. Änderung (rechtskräftig)/Satzungsbeschlüsse",
+    "file": "BPL_0468_2And_PB_Drs_01-2011_Bekanntmachung.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_01-2011_Bekanntmachung.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_01-2011_Bekanntmachung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_01-2011_Bekanntmachung.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 2,
+      "_theend": 0,
+      "contentLength": "349070",
+      "lastModified": "Wed, 30 Jan 2019 09:45:02 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2010-09_Abwaegung",
+    "structure": "/2. Änderung (rechtskräftig)/Satzungsbeschlüsse",
+    "file": "BPL_0468_2And_PB_Drs_09-2010_Abwaegung.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Abwaegung.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Abwaegung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Abwaegung.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 2,
+      "_theend": 0,
+      "contentLength": "501500",
+      "lastModified": "Mon, 01 Oct 2018 12:31:59 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2010-09_Aenderungsbereich",
+    "structure": "/2. Änderung (rechtskräftig)/Satzungsbeschlüsse",
+    "file": "BPL_0468_2And_PB_Drs_09-2010_Aenderungsbereich.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Aenderungsbereich.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Aenderungsbereich.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Aenderungsbereich.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 3455,
+        "y": 2393,
+        "maxZoom": 4
+      },
+      "pages": 1,
+      "_theend": 0,
+      "contentLength": "1121708",
+      "lastModified": "Mon, 01 Oct 2018 12:31:59 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2010-09_Anregungen",
+    "structure": "/2. Änderung (rechtskräftig)/Satzungsbeschlüsse",
+    "file": "BPL_0468_2And_PB_Drs_09-2010_Anregungen.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Anregungen.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Anregungen.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Anregungen.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 2,
+      "_theend": 0,
+      "contentLength": "497476"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2010-09_Begruendung",
+    "structure": "/2. Änderung (rechtskräftig)/Satzungsbeschlüsse",
+    "file": "BPL_0468_2And_PB_Drs_09-2010_Begruendung.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Begruendung.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Begruendung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Begruendung.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 7,
+      "_theend": 0,
+      "contentLength": "538866",
+      "lastModified": "Mon, 01 Oct 2018 12:31:59 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2010-09_Bekanntmachung",
+    "structure": "/2. Änderung (rechtskräftig)/Satzungsbeschlüsse",
+    "file": "BPL_0468_2And_PB_Drs_09-2010_Bekanntmachung.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Bekanntmachung.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Bekanntmachung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Bekanntmachung.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "pages": 3,
+      "_theend": 0,
+      "contentLength": "796335",
+      "lastModified": "Mon, 28 Jan 2019 10:45:01 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2010-09_Drucksache",
+    "structure": "/2. Änderung (rechtskräftig)/Satzungsbeschlüsse",
+    "file": "BPL_0468_2And_PB_Drs_09-2010.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 2,
+      "_theend": 0,
+      "contentLength": "514335",
+      "lastModified": "Mon, 01 Oct 2018 12:31:58 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2010-09_Textliche-Festsetzungen",
+    "structure": "/2. Änderung (rechtskräftig)/Satzungsbeschlüsse",
+    "file": "BPL_0468_2And_PB_Drs_09-2010_Textliche-Festsetzungen.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Textliche-Festsetzungen.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Textliche-Festsetzungen.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Textliche-Festsetzungen.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2555,
+        "y": 3583,
+        "maxZoom": 4
+      },
+      "pages": 1,
+      "_theend": 0,
+      "contentLength": "98929",
+      "lastModified": "Mon, 01 Oct 2018 12:31:59 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2010-09_Vergroesserung",
+    "structure": "/2. Änderung (rechtskräftig)/Satzungsbeschlüsse",
+    "file": "BPL_0468_2And_PB_Drs_09-2010_Vergroesserung.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Vergroesserung.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Vergroesserung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Vergroesserung.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2275,
+        "y": 3083,
+        "maxZoom": 4
+      },
+      "pages": 1,
+      "_theend": 0,
+      "contentLength": "997102",
+      "lastModified": "Wed, 20 Nov 2019 08:00:03 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "2010-01_Altlastgutachten",
+    "structure": "/2. Änderung (rechtskräftig)/Satzungsbeschlüsse",
+    "file": "BPL_0468_2And_PB_Drs_01-2010_Altlastgutachten.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_01-2010_Altlastgutachten.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_01-2010_Altlastgutachten.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_01-2010_Altlastgutachten.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer100": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer101": {
+        "x": 2481,
+        "y": 3506,
+        "maxZoom": 4
+      },
+      "layer102": {
+        "x": 2480,
+        "y": 3504,
+        "maxZoom": 4
+      },
+      "layer103": {
+        "x": 2480,
+        "y": 3504,
+        "maxZoom": 4
+      },
+      "layer104": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer105": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer106": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer107": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer108": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer109": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer10": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer110": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer111": {
+        "x": 2478,
+        "y": 3501,
+        "maxZoom": 4
+      },
+      "layer112": {
+        "x": 2479,
+        "y": 3502,
+        "maxZoom": 4
+      },
+      "layer113": {
+        "x": 4963,
+        "y": 3508,
+        "maxZoom": 5
+      },
+      "layer11": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer12": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer13": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer14": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer15": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer16": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer17": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer18": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer19": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer20": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer21": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer22": {
+        "x": 4963,
+        "y": 3508,
+        "maxZoom": 5
+      },
+      "layer23": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer24": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer25": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer26": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer27": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer28": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer29": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer30": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer31": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer32": {
+        "x": 9933,
+        "y": 7017,
+        "maxZoom": 6
+      },
+      "layer33": {
+        "x": 4963,
+        "y": 3508,
+        "maxZoom": 5
+      },
+      "layer34": {
+        "x": 4963,
+        "y": 3508,
+        "maxZoom": 5
+      },
+      "layer35": {
+        "x": 4963,
+        "y": 3508,
+        "maxZoom": 5
+      },
+      "layer36": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer37": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer38": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer39": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer40": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer41": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer42": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer43": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer44": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer45": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer46": {
+        "x": 2477,
+        "y": 3500,
+        "maxZoom": 4
+      },
+      "layer47": {
+        "x": 2476,
+        "y": 3499,
+        "maxZoom": 4
+      },
+      "layer48": {
+        "x": 2483,
+        "y": 3509,
+        "maxZoom": 4
+      },
+      "layer49": {
+        "x": 2496,
+        "y": 3511,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer50": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer51": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer52": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer53": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer54": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer55": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer56": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer57": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer58": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer59": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer60": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer61": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer62": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer63": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer64": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer65": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer66": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer67": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer68": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer69": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer70": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer71": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer72": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer73": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer74": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer75": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer76": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer77": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer78": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer79": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer7": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer80": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer81": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer82": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer83": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer84": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer85": {
+        "x": 2496,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer86": {
+        "x": 2480,
+        "y": 3505,
+        "maxZoom": 4
+      },
+      "layer87": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer88": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer89": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer8": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer90": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer91": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer92": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer93": {
+        "x": 2482,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer94": {
+        "x": 2478,
+        "y": 3501,
+        "maxZoom": 4
+      },
+      "layer95": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer96": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer97": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer98": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer99": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "layer9": {
+        "x": 2479,
+        "y": 3508,
+        "maxZoom": 4
+      },
+      "pages": 114,
+      "_theend": 0,
+      "contentLength": "10520113",
+      "lastModified": "Mon, 01 Oct 2018 12:31:58 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "1981-01_Bekanntmachung",
+    "structure": "/1. Änderung (rechtskräftig)/Satzungsbeschlüsse",
+    "file": "BPL_0468_1And_PB_Drs_01-1981_Bekanntmachung.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_1And_PB_Drs_01-1981_Bekanntmachung.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_1And_PB_Drs_01-1981_Bekanntmachung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_1And_PB_Drs_01-1981_Bekanntmachung.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "pages": 2,
+      "_theend": 0,
+      "contentLength": "712502",
+      "lastModified": "Mon, 01 Oct 2018 12:31:58 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "1980-12_Drucksache",
+    "structure": "/1. Änderung (rechtskräftig)/Satzungsbeschlüsse",
+    "file": "BPL_0468_1And_PB_Drs_12-1980.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_1And_PB_Drs_12-1980.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_1And_PB_Drs_12-1980.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_1And_PB_Drs_12-1980.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "pages": 4,
+      "_theend": 0,
+      "contentLength": "1495099",
+      "lastModified": "Mon, 01 Oct 2018 12:31:58 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "1982-05_Beitrittsbeschluss",
+    "structure": "/Ursprungsplan (rechtskräftig)/Satzungsbeschlüsse",
+    "file": "BPL_0468_0_PB_Drs_05-1982_Beitrittsbeschluss.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_05-1982_Beitrittsbeschluss.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_05-1982_Beitrittsbeschluss.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_05-1982_Beitrittsbeschluss.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "pages": 4,
+      "_theend": 0,
+      "contentLength": "672063",
+      "lastModified": "Mon, 28 Jan 2019 14:30:02 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "1982-05_Bekanntmachung",
+    "structure": "/Ursprungsplan (rechtskräftig)/Satzungsbeschlüsse",
+    "file": "BPL_0468_0_PB_Drs_05-1982_Bekanntmachung.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_05-1982_Bekanntmachung.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_05-1982_Bekanntmachung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_05-1982_Bekanntmachung.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "pages": 2,
+      "_theend": 0,
+      "contentLength": "718949",
+      "lastModified": "Mon, 28 Jan 2019 14:30:02 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "1979-06_Begruendung",
+    "structure": "/Ursprungsplan (rechtskräftig)/Satzungsbeschlüsse",
+    "file": "BPL_0468_0_PB_Drs_06-1979_Begruendung.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_06-1979_Begruendung.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_06-1979_Begruendung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_06-1979_Begruendung.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer4": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer5": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer6": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer7": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer8": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer9": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer10": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer11": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer12": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer13": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer14": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer15": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "pages": 16,
+      "_theend": 0,
+      "contentLength": "639320",
+      "lastModified": "Mon, 01 Oct 2018 12:31:58 GMT"
+    }
+  },
+  {
+    "group": "Zusatzdokumente",
+    "title": "1979-06_Drucksache",
+    "structure": "/Ursprungsplan (rechtskräftig)/Satzungsbeschlüsse",
+    "file": "BPL_0468_0_PB_Drs_06-1979_Drucksache.pdf",
+    "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_06-1979_Drucksache.pdf",
+    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_06-1979_Drucksache.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_06-1979_Drucksache.pdf/meta.json",
+    "meta": {
+      "layer0": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer1": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer2": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "layer3": {
+        "x": 2480,
+        "y": 3507,
+        "maxZoom": 4
+      },
+      "pages": 4,
+      "_theend": 0,
+      "contentLength": "820484",
+      "lastModified": "Mon, 28 Jan 2019 14:30:02 GMT"
+    }
+  }
+]

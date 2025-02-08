@@ -1,0 +1,232 @@
+import { useEffect, useRef, useState } from "react";
+import Navbar from "./components/Navbar";
+import Sidebar, { SIDEBAR_BACKGROUND_COLOR } from "./components/Sidebar";
+import DocMap from "./components/DocMap";
+import { useParams } from "react-router-dom";
+import { Alert } from "react-bootstrap";
+import Icon from "react-cismap/commons/Icon";
+import "leaflet/dist/leaflet.css";
+
+export type layer = {
+  [key: string]: {
+    x: number;
+    y: number;
+    maxZoom: number;
+  };
+};
+
+type MetaLayer = {
+  x: number;
+  y: number;
+  maxZoom: number;
+};
+
+export type Doc = {
+  url: string;
+  layer: string;
+  title?: string;
+  docTitle?: string;
+  group: string;
+  file: string;
+  structure?: string;
+  metaUrl?: string;
+  meta?:
+    | {
+        [key: `layer${number}`]: MetaLayer | undefined;
+        pages: number;
+        _theend: number;
+        contentLength: string;
+        lastModified?: string;
+      }
+    | string;
+};
+
+/* eslint-disable-next-line */
+export interface DocumentViewerProps {
+  docs: Doc[];
+  mode: string;
+}
+
+export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
+  let { file } = useParams();
+  const collapsedSidebarWidth = 170;
+  const expandedSidebarWidth = 335;
+  const sideBarMinSize = 130;
+  const mapWrapperRef = useRef<HTMLDivElement>(null);
+  const [wholeWidthTrigger, setWholeWidthTrigger] = useState(undefined);
+  const [wholeHeightTrigger, setWholeHeightTrigger] = useState(undefined);
+  const [mapWidth, setMapWidth] = useState(0);
+  const [height, setHeight] = useState(0);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  const isResizingRef = useRef(false);
+  let problemWithDocPreviewAlert: JSX.Element | null = null;
+  // @ts-expect-error type is wrong
+  const pages = docs[parseInt(file!) - 1]?.meta?.pages
+    ? // @ts-expect-error type is wrong
+      docs[parseInt(file!) - 1]?.meta?.pages
+    : 0;
+
+  if (!pages) {
+    problemWithDocPreviewAlert = (
+      <div
+        style={{
+          zIndex: 234098,
+          left: "40%",
+          top: "30%",
+          width: "fit-content",
+          height: "fit-content",
+          textAlign: "center",
+          position: "absolute",
+        }}
+      >
+        <Alert style={{ width: "100%" }} variant="primary">
+          <h4>Vorschau nicht verfügbar.</h4>
+          <p>
+            Im Moment kann die Vorschau des Dokumentes nicht angezeigt werden.
+            Sie können das Dokument aber{" "}
+            <a
+              href={docs[parseInt(file!) - 1]?.url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              hier <Icon name="download" />
+            </a>{" "}
+            herunterladen.
+          </p>
+        </Alert>
+      </div>
+    );
+  }
+
+  const mapHeight = "calc(100vh - 49px)";
+
+  const handleMouseDown = (
+    event: React.MouseEvent<HTMLDivElement, MouseEvent>
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    isResizingRef.current = true;
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+  };
+
+  const handleMouseMove = (event: MouseEvent) => {
+    if (!isResizingRef.current) return;
+
+    let newWidth = event.clientX;
+    const threshold = (collapsedSidebarWidth + expandedSidebarWidth) / 2;
+
+    setSidebarCollapsed(newWidth < threshold);
+  };
+
+  const handleMouseUp = () => {
+    isResizingRef.current = false;
+    document.removeEventListener("mousemove", handleMouseMove);
+    document.removeEventListener("mouseup", handleMouseUp);
+  };
+
+  useEffect(() => {
+    if (mapWrapperRef.current) {
+      setHeight(mapWrapperRef.current.clientHeight);
+    }
+  }, [mapWrapperRef]);
+
+  useEffect(() => {
+    if (sidebarRef.current) {
+      sidebarRef.current.style.width = `${sidebarCollapsed ? collapsedSidebarWidth : expandedSidebarWidth}px`;
+    }
+  }, [sidebarCollapsed]);
+
+  return (
+    <div style={{ background: "#343a40", height: "100vh" }}>
+      <div
+        style={{
+          backgroundImage: "linear-gradient(to bottom, #3c3c3c 0, #222 100%)",
+        }}
+      >
+        <Navbar
+          title={docs[parseInt(file!) - 1]?.title}
+          maxIndex={pages}
+          downloadUrl={docs[parseInt(file!) - 1]?.url}
+          docs={docs}
+          setWidthTrigger={setWholeWidthTrigger}
+          setHeightTrigger={setWholeHeightTrigger}
+          currentWidthTrigger={wholeWidthTrigger}
+          currentHeightTrigger={wholeHeightTrigger}
+          sidebarCollapsed={sidebarCollapsed}
+          onSidebarToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+        />
+      </div>
+
+      <div
+        style={{
+          height: mapHeight,
+          background: "grey",
+          display: "flex",
+          flexDirection: "row",
+          flexWrap: "nowrap",
+          justifyContent: "flex-start",
+          alignItems: "flex-start",
+          alignContent: "center",
+        }}
+      >
+        {docs.length > 1 && (
+          <div
+            id="sidebar"
+            style={{
+              background: SIDEBAR_BACKGROUND_COLOR,
+              height: mapHeight,
+              padding: "5px 1px 5px 5px",
+              overflow: "scroll",
+            }}
+            ref={sidebarRef}
+          >
+            <Sidebar
+              docs={docs}
+              index={parseInt(file!)}
+              maxIndex={pages}
+              mode={mode}
+              compactView={sidebarCollapsed}
+              dynamicPrefixDetection={true}
+              improveReadabilityOfDocTitles={true}
+            />
+          </div>
+        )}
+        <div
+          id="sidebar-slider"
+          style={{
+            background: "#999999",
+            height: mapHeight,
+            width: 10,
+            cursor: "col-resize",
+          }}
+          onMouseDown={handleMouseDown}
+          // onTouchStart={startResizing}
+          // onTouchEnd={stopResizing}
+        ></div>
+        <div
+          id="docviewer"
+          style={{
+            height: mapHeight,
+            width: "100%",
+          }}
+          ref={mapWrapperRef}
+        >
+          {docs.length > 1 && problemWithDocPreviewAlert}
+          <DocMap
+            docs={docs}
+            index={parseInt(file!)}
+            height={height}
+            width={mapWidth}
+            setWholeHeight={wholeHeightTrigger}
+            setWholeWidth={wholeWidthTrigger}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default DocumentViewer;
