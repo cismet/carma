@@ -45,9 +45,14 @@ export type Doc = {
 export interface DocumentViewerProps {
   docs: Doc[];
   mode: string;
+  initialSidebarCollapsed?: boolean;
 }
 
-export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
+export function DocumentViewer({
+  docs,
+  mode,
+  initialSidebarCollapsed = true,
+}: DocumentViewerProps) {
   let { file } = useParams();
   const collapsedSidebarWidth = 170;
   const expandedSidebarWidth = 335;
@@ -57,7 +62,9 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
   const [wholeHeightTrigger, setWholeHeightTrigger] = useState(undefined);
   const [mapWidth, setMapWidth] = useState(0);
   const [height, setHeight] = useState(0);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    initialSidebarCollapsed
+  );
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isResizingRef = useRef(false);
   let problemWithDocPreviewAlert: JSX.Element | null = null;
@@ -135,7 +142,9 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
 
   useEffect(() => {
     if (sidebarRef.current) {
-      sidebarRef.current.style.width = `${sidebarCollapsed ? collapsedSidebarWidth : expandedSidebarWidth}px`;
+      sidebarRef.current.style.width = `${
+        sidebarCollapsed ? collapsedSidebarWidth : expandedSidebarWidth
+      }px`;
     }
   }, [sidebarCollapsed]);
 
