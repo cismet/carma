@@ -28,7 +28,9 @@ export type Doc = {
   docTitle?: string;
   group: string;
   file: string;
-  meta:
+  structure?: string;
+  metaUrl?: string;
+  meta?:
     | {
         [key: `layer${number}`]: MetaLayer | undefined;
         pages: number;
@@ -37,20 +39,6 @@ export type Doc = {
         lastModified?: string;
       }
     | string;
-  // meta: // TODO fix type here
-  // | string
-  //   | {
-  //       [key: string]: {
-  //         x: number;
-  //         y: number;
-  //         maxZoom: number;
-  //       } & {
-  //         contentLength: string;
-  //         pages: number;
-  //         _theend: number;
-  //         lastModified: string;
-  //       };
-  //     };
 };
 
 /* eslint-disable-next-line */

@@ -30,8 +30,8 @@ const Sidebar = ({
 }: SidebarProps) => {
   const { docPackageId, page } = useParams();
   const navigate = useNavigate();
-  const sidebarRef = useRef(null);
-  const selectedItemRef = useRef(null);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  const selectedItemRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (selectedItemRef.current && sidebarRef.current) {
