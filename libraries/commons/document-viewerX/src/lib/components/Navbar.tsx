@@ -11,6 +11,7 @@ import type { Doc } from "../document-viewer";
 import "./navItem.css";
 import { useEffect, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+
 interface NavProps {
   title?: string;
   maxIndex: number;
@@ -36,11 +37,42 @@ const Navbar = ({
   sidebarCollapsed: externalSidebarCollapsed,
   onSidebarToggle,
 }: NavProps) => {
-  const { docPackageId, file, page } = useParams();
   const navigate = useNavigate();
+  const { file } = useParams();
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [tooltipText, setTooltipText] = useState("");
+  const [tooltipId, setTooltipId] = useState("");
+  const [tooltipVisible, setTooltipVisible] = useState(false);
+  const [tooltipTarget, setTooltipTarget] = useState<any>(null);
 
-  const [internalSidebarCollapsed, setInternalSidebarCollapsed] = useState(true);
-  const sidebarCollapsed = externalSidebarCollapsed ?? internalSidebarCollapsed;
+  useEffect(() => {
+    if (externalSidebarCollapsed !== undefined) {
+      setSidebarCollapsed(externalSidebarCollapsed);
+    }
+  }, [externalSidebarCollapsed]);
+
+  const handleTooltipMouseEnter = (
+    text: string,
+    id: string,
+    event: React.MouseEvent
+  ) => {
+    setTooltipText(text);
+    setTooltipId(id);
+    setTooltipTarget(event.target);
+    setTooltipVisible(true);
+  };
+
+  const handleTooltipMouseLeave = () => {
+    setTooltipVisible(false);
+  };
+
+  const handleSidebarToggle = () => {
+    setSidebarCollapsed(!sidebarCollapsed);
+    onSidebarToggle?.();
+  };
+
+  const { docPackageId, page } = useParams();
 
   const ZIP_FILE_NAME_MAPPING = {
     bplaene: "BPLAN_Plaene_und_Zusatzdokumente",
@@ -127,11 +159,6 @@ const Navbar = ({
       });
     }
     prepareDownloadMultipleFiles(downloadConf);
-  };
-
-  const handleSidebarToggle = () => {
-    setInternalSidebarCollapsed(!internalSidebarCollapsed);
-    onSidebarToggle?.();
   };
 
   useEffect(() => {
@@ -225,34 +252,6 @@ const Navbar = ({
       }}
       expand="lg"
     >
-      <Nav style={{ marginRight: "20px" }}>
-        <NavItem>
-          <OverlayTrigger
-            key="bottom"
-            placement="bottom"
-            overlay={<Tooltip id="">Seitenleiste ein-/ausblenden</Tooltip>}
-          >
-            <button
-              style={{
-                background: "none",
-                border: "none",
-                padding: 0,
-                outline: "inherit",
-              }}
-              className="navItem"
-              onClick={handleSidebarToggle}
-            >
-              <FontAwesomeIcon
-                icon={
-                  sidebarCollapsed
-                    ? "chevron-circle-right"
-                    : "chevron-circle-left"
-                }
-              />
-            </button>
-          </OverlayTrigger>
-        </NavItem>
-      </Nav>
       <div
         style={{
           width: "46%",

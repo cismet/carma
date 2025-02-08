@@ -295,7 +295,7 @@ const Sidebar = ({
                     style={{
                       paddingBottom: "4px",
                       fontSize: "11px",
-                      color: "#666",
+                      color: "#444",
                       marginLeft:
                         (doc.structure
                           ? getIndentationLevel(doc.structure) + 1
