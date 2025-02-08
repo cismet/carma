@@ -5,6 +5,7 @@ import DocMap from "./components/DocMap";
 import { useParams } from "react-router-dom";
 import { Alert } from "react-bootstrap";
 import Icon from "react-cismap/commons/Icon";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import "leaflet/dist/leaflet.css";
 
 export type layer = {
@@ -165,7 +166,6 @@ export function DocumentViewer({
           currentWidthTrigger={wholeWidthTrigger}
           currentHeightTrigger={wholeHeightTrigger}
           sidebarCollapsed={sidebarCollapsed}
-          onSidebarToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
         />
       </div>
 
@@ -182,39 +182,70 @@ export function DocumentViewer({
         }}
       >
         {docs.length > 1 && (
-          <div
-            id="sidebar"
-            style={{
-              background: SIDEBAR_BACKGROUND_COLOR,
-              height: mapHeight,
-              padding: "5px 1px 5px 5px",
-              overflow: "scroll",
-            }}
-            ref={sidebarRef}
-          >
-            <Sidebar
-              docs={docs}
-              index={parseInt(file!)}
-              maxIndex={pages}
-              mode={mode}
-              compactView={sidebarCollapsed}
-              dynamicPrefixDetection={true}
-              improveReadabilityOfDocTitles={true}
-            />
-          </div>
+          <>
+            <div
+              id="sidebar"
+              style={{
+                background: SIDEBAR_BACKGROUND_COLOR,
+                height: mapHeight,
+                padding: "5px 1px 5px 5px",
+                overflow: "scroll",
+              }}
+              ref={sidebarRef}
+            >
+              <Sidebar
+                docs={docs}
+                index={parseInt(file!)}
+                maxIndex={pages}
+                mode={mode}
+                compactView={sidebarCollapsed}
+                dynamicPrefixDetection={true}
+                improveReadabilityOfDocTitles={true}
+              />
+            </div>
+            <div style={{ position: "relative" }}>
+              <button
+                style={{
+                  position: "absolute",
+                  right: "-5px",
+                  top: "-15px",
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  outline: "inherit",
+                  zIndex: 1000,
+                  cursor: "pointer",
+                  height: "30px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              >
+                <FontAwesomeIcon
+                  icon={sidebarCollapsed ? "chevron-circle-right" : "chevron-circle-left"}
+                  style={{ 
+                    color: "#666",
+                    fontSize: "20px",
+                    backgroundColor: "white",
+                    borderRadius: "50%",
+                    boxShadow: "0 0 2px rgba(0,0,0,0.2)"
+                  }}
+                />
+              </button>
+              <div
+                id="sidebar-slider"
+                style={{
+                  background: "#999999",
+                  height: mapHeight,
+                  width: 10,
+                  cursor: "col-resize",
+                }}
+                onMouseDown={handleMouseDown}
+              ></div>
+            </div>
+          </>
         )}
-        <div
-          id="sidebar-slider"
-          style={{
-            background: "#999999",
-            height: mapHeight,
-            width: 10,
-            cursor: "col-resize",
-          }}
-          onMouseDown={handleMouseDown}
-          // onTouchStart={startResizing}
-          // onTouchEnd={stopResizing}
-        ></div>
         <div
           id="docviewer"
           style={{
