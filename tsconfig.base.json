@@ -101,7 +101,7 @@
       "@carma-commons/document-viewer": [
         "libraries/commons/document-viewer/src/index.ts"
       ],
-      "@carma-commons/document-vieweX": [
+      "@carma-commons/document-viewerX": [
         "libraries/commons/document-viewerX/src/index.ts"
       ],
       "@carma-commons/resources": ["libraries/commons/resources/src/index.ts"],
