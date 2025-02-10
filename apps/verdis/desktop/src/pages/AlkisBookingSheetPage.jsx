@@ -40,8 +40,8 @@ const AlkisBookingSheetPage = () => {
                   Buchungsblatt: <span>{idTitle}</span>
                 </span>
                 <Breadcrumb
-                  className="text-base"
-                  style={{ fontSize: "1rem !important" }}
+                  // className="text-base"
+                  // style={{ fontSize: "1rem !important" }}
                   items={[
                     {
                       title: ":flurstueck",

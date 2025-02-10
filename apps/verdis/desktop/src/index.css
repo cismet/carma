@@ -40,3 +40,7 @@ a {
   margin-left: 0 !important;
   padding-left: 0 !important;
 }
+
+.ant-breadcrumb {
+  font-family: inherit !important;
+}
