@@ -425,6 +425,11 @@ export const discoverConfig = {
             },
           },
         ],
+        settings: {
+          lat: 51.27256992259917,
+          lng: 7.199918031692506,
+          zoom: 18,
+        },
       },
     ],
   },

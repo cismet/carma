@@ -1,6 +1,6 @@
 import { Item, Layer, LayerLib } from "@carma-mapping/layers";
 import { message } from "antd";
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   appendLayer,
@@ -28,6 +28,7 @@ import {
   getUIShowResourceModal,
   setShowResourceModal,
 } from "../../store/slices/ui";
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 const ResourceModal = () => {
   const dispatch = useDispatch();
@@ -40,6 +41,9 @@ const ResourceModal = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
+
+  const { routedMapRef: routedMap } =
+    useContext<typeof TopicMapContext>(TopicMapContext);
 
   const updateLayers = async (
     layer: Item,
@@ -58,6 +62,19 @@ const ResourceModal = () => {
           dispatch(setLayers(layer.layers));
           if (layer.backgroundLayer) {
             dispatch(setBackgroundLayer(layer.backgroundLayer));
+          }
+          if (layer.settings) {
+            const map = routedMap.leafletMap.leafletElement;
+            const settings = layer.settings;
+            const changePosition =
+              settings.zoom || settings.lat || settings.lng;
+
+            const zoom = layer.settings.zoom || map.getZoom();
+            const lat = layer.settings.lat || map.getCenter().lat;
+            const lng = layer.settings.lng || map.getCenter().lng;
+            if (changePosition) {
+              map.flyTo([lat, lng], zoom);
+            }
           }
           messageApi.open({
             type: "success",
