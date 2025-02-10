@@ -114,15 +114,44 @@ export const animateCamera = (
     if (previousAnimation.cancelable) {
       console.info(`Canceling ${previousAnimation.type} animation`);
       cancelAnimationFrame(previousAnimation.id);
-      runAnimation(viewer, viewerAnimationMap, target, targetHeading, targetPitch, initialRange, duration, animationType);
+      runAnimation(
+        viewer,
+        viewerAnimationMap,
+        target,
+        targetHeading,
+        targetPitch,
+        initialRange,
+        duration,
+        animationType
+      );
     } else {
-      console.info(`Scheduling ${animationType} animation after ${previousAnimation.type}`);
+      console.info(
+        `Scheduling ${animationType} animation after ${previousAnimation.type}`
+      );
       setTimeout(() => {
-        runAnimation(viewer, viewerAnimationMap, target, targetHeading, targetPitch, initialRange, duration, animationType);
+        runAnimation(
+          viewer,
+          viewerAnimationMap,
+          target,
+          targetHeading,
+          targetPitch,
+          initialRange,
+          duration,
+          animationType
+        );
       }, duration);
     }
   } else {
-    runAnimation(viewer, viewerAnimationMap, target, targetHeading, targetPitch, initialRange, duration, animationType);
+    runAnimation(
+      viewer,
+      viewerAnimationMap,
+      target,
+      targetHeading,
+      targetPitch,
+      initialRange,
+      duration,
+      animationType
+    );
   }
 };
 

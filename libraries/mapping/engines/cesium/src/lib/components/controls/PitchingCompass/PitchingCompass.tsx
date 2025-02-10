@@ -23,8 +23,6 @@ import {
 
 import { CompassNeedleSVG } from "./CompassNeedleSVG";
 
-
-
 interface RotateButtonProps {
   viewerRef: React.RefObject<Viewer | null>;
   viewerAnimationMapRef: React.RefObject<ViewerAnimationMap | null>;

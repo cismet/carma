@@ -5,7 +5,7 @@ import DocMap from "./components/DocMap";
 import { useParams } from "react-router-dom";
 import { Alert } from "react-bootstrap";
 import Icon from "react-cismap/commons/Icon";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import "leaflet/dist/leaflet.css";
 
 export type layer = {
@@ -223,13 +223,17 @@ export function DocumentViewer({
                 onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
               >
                 <FontAwesomeIcon
-                  icon={sidebarCollapsed ? "chevron-circle-right" : "chevron-circle-left"}
-                  style={{ 
+                  icon={
+                    sidebarCollapsed
+                      ? "chevron-circle-right"
+                      : "chevron-circle-left"
+                  }
+                  style={{
                     color: "#666",
                     fontSize: "20px",
                     backgroundColor: "white",
                     borderRadius: "50%",
-                    boxShadow: "0 0 2px rgba(0,0,0,0.2)"
+                    boxShadow: "0 0 2px rgba(0,0,0,0.2)",
                   }}
                 />
               </button>

@@ -137,10 +137,15 @@ const DocMap = ({
 
     try {
       // Check if meta exists and is an object
-      if (meta && typeof meta === 'object') {
+      if (meta && typeof meta === "object") {
         const layerKey = "layer" + `${pageNumber - 1}`;
         const layer = meta[layerKey];
-        if (layer && typeof layer === 'object' && 'x' in layer && 'y' in layer) {
+        if (
+          layer &&
+          typeof layer === "object" &&
+          "x" in layer &&
+          "y" in layer
+        ) {
           dimensions = [layer.x, layer.y];
         } else {
           dimensions = [2000, 2000];

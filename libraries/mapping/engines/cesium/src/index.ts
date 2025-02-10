@@ -34,7 +34,6 @@ export {
   type ForwardedCesiumError,
 } from "./lib/utils/CesiumErrorToErrorBoundaryForwarder";
 
-
 export {
   pickViewerCanvasCenter,
   getDegreesFromCartesian,
@@ -57,7 +56,10 @@ export {
   getHeadingPitchRangeFromZoom,
 } from "./lib/utils/positions";
 
-export { type ViewerAnimationMap, initViewerAnimationMap } from "./lib/utils/viewerAnimationMap";
+export {
+  type ViewerAnimationMap,
+  initViewerAnimationMap,
+} from "./lib/utils/viewerAnimationMap";
 
 // Re-export all the types as workaround
 export * from "./index.d";

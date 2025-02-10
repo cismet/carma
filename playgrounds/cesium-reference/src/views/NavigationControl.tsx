@@ -21,12 +21,16 @@ import {
   ControlLayout,
 } from "@carma-mapping/map-controls-layout";
 
-import { useZoomControls, PitchingCompass, initViewerAnimationMap, type ViewerAnimationMap } from "@carma-mapping/cesium-engine";
+import {
+  useZoomControls,
+  PitchingCompass,
+  initViewerAnimationMap,
+  type ViewerAnimationMap,
+} from "@carma-mapping/cesium-engine";
 
 import useTileset from "../hooks/useTileset";
 import { useZoomToTilesetOnReady } from "../hooks/useZoomToTilesetOnReady";
 import { cesiumConstructorOptions } from "../config";
-
 
 const NavigationControlView: FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);

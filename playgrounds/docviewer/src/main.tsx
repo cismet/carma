@@ -1,6 +1,11 @@
 import { StrictMode } from "react";
 import * as ReactDOM from "react-dom/client";
-import { RouterProvider, createHashRouter, useParams, Link } from "react-router-dom";
+import {
+  RouterProvider,
+  createHashRouter,
+  useParams,
+  Link,
+} from "react-router-dom";
 import { DocumentViewer } from "@carma-commons/document-viewerX";
 import styled from "@emotion/styled";
 
@@ -42,7 +47,7 @@ const Card = styled.div`
   background: white;
   padding: 2rem;
   border-radius: 15px;
-  box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
   max-width: 600px;
   width: 100%;
 `;
@@ -86,8 +91,8 @@ function Landing() {
       <Card>
         <Title>DocViewer Demos</Title>
         <IntroText>
-          Willkommen bei unserer DocViewer-Demo-Sammlung! Hier finden Sie verschiedene 
-          Beispieldokumente zum Testen.
+          Willkommen bei unserer DocViewer-Demo-Sammlung! Hier finden Sie
+          verschiedene Beispieldokumente zum Testen.
         </IntroText>
         <LinksGrid>
           <StyledLink to="/docs/468">BPlan 468</StyledLink>
