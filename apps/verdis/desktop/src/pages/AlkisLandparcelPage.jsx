@@ -4,6 +4,8 @@ import { useSelector } from "react-redux";
 import { getJWT } from "../store/slices/auth.js";
 import { getLandparcelHtml } from "../helper/landparcelSearch.jsx";
 import InfoBar from "../components/commons/InfoBar.jsx";
+import { Spin } from "antd";
+import { LoadingOutlined } from "@ant-design/icons";
 
 const AlkisLandparcelPage = () => {
   const [searchParams] = useSearchParams();
@@ -11,11 +13,15 @@ const AlkisLandparcelPage = () => {
   const jwt = useSelector(getJWT);
   const [resHtml, setResHtml] = useState(null);
   const [idTitle, setIdTitle] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+
   useEffect(() => {
     const onLandparcelSearch = async (jwt, id) => {
+      setIsLoading(true);
       setIdTitle(id);
       const landparcelHtml = await getLandparcelHtml(jwt, id);
       setResHtml(landparcelHtml);
+      setIsLoading(false);
     };
     if (jwt && id) {
       onLandparcelSearch(jwt, id);
@@ -30,7 +36,19 @@ const AlkisLandparcelPage = () => {
           <InfoBar
             title={
               <span>
-                Flurstück: <span className="text-base">{idTitle}</span>
+                Flurstück:{" "}
+                <span className="text-base">
+                  {" "}
+                  {isLoading ? (
+                    <Spin
+                      indicator={<LoadingOutlined spin />}
+                      size="small"
+                      className="ml-2"
+                    />
+                  ) : (
+                    idTitle
+                  )}
+                </span>
               </span>
             }
             className="py-1"

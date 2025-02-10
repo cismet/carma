@@ -43,7 +43,11 @@ const AlkisBookingSheetPage = () => {
                 Buchungsblatt:{" "}
                 <span>
                   {isLoading ? (
-                    <Spin indicator={<LoadingOutlined spin />} size="small" />
+                    <Spin
+                      indicator={<LoadingOutlined spin />}
+                      size="small"
+                      className="ml-2"
+                    />
                   ) : (
                     idTitle
                   )}
