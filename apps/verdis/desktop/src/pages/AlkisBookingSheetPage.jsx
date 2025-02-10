@@ -35,11 +35,13 @@ const AlkisBookingSheetPage = () => {
         <div className="flex flex-col gap-2 w-full bg-zinc-100 h-full overflow-clip p-2">
           <InfoBar
             title={
-              <div>
+              <div className="font-sans text-base">
                 <span>
-                  Buchungsblatt: <span className="text-base">{idTitle}</span>
+                  Buchungsblatt: <span>{idTitle}</span>
                 </span>
                 <Breadcrumb
+                  className="text-base"
+                  style={{ fontSize: "1rem !important" }}
                   items={[
                     {
                       title: ":flurstueck",
