@@ -18,12 +18,7 @@ export const getLandparcelHtml = async (jwt, name) => {
 
   const wrapStyle = { display: "flex", width: "100%" };
   const colStyle = { width: "50%" };
-  const titleStyle = { marginBottom: "14px" };
-  const linkStyle = {
-    color: "#1677ff",
-    cursor: "pointer",
-    fontWeight: "500",
-  };
+
   return (
     <CustomCard title={title}>
       <div className="font-bold mb-3">Flurstücksinformationen</div>
