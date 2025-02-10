@@ -1,5 +1,3 @@
-import { setupCesiumEnvironment } from "./lib/utils/cesiumSetup";
-import CesiumErrorToErrorBoundaryForwarder from "./lib/utils/CesiumErrorToErrorBoundaryForwarder";
 export * from "./lib/slices/cesium";
 
 export { CesiumContextProvider } from "./lib/CesiumContextProvider";
@@ -19,6 +17,7 @@ export { Compass } from "./lib/components/controls/Compass";
 export { HomeControl } from "./lib/components/controls/HomeControl";
 export { MarkerContainer } from "./lib/components/MarkerContainer";
 export { MapTypeSwitcher } from "./lib/components/controls/MapTypeSwitcher";
+export { PitchingCompass } from "./lib/components/controls/PitchingCompass";
 export { SceneStyleToggle } from "./lib/components/controls/SceneStyleToggle";
 
 export { useCesiumContext } from "./lib/hooks/useCesiumContext";
@@ -34,6 +33,7 @@ export {
   CesiumErrorToErrorBoundaryForwarder,
   type ForwardedCesiumError,
 } from "./lib/utils/CesiumErrorToErrorBoundaryForwarder";
+
 
 export {
   pickViewerCanvasCenter,
@@ -56,6 +56,8 @@ export {
   distanceFromZoomLevel,
   getHeadingPitchRangeFromZoom,
 } from "./lib/utils/positions";
+
+export { type ViewerAnimationMap, initViewerAnimationMap } from "./lib/utils/viewerAnimationMap";
 
 // Re-export all the types as workaround
 export * from "./index.d";
