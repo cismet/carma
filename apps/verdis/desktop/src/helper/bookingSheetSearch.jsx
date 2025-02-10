@@ -4,51 +4,23 @@ import {
   getAdditionalSheetAsync,
   getBookingOfficesBySheetId,
 } from "./apiMethods";
-import { getLandRegisterDistrict } from "./utility";
+import {
+  getAdditionalTextForBooking,
+  getBookingByLandparcelCode,
+  getLandRegisterDistrict,
+} from "./utility";
 
 export const getSheetHtml = async (jwt, name) => {
   const sheetData = await getAdditionalSheetAsync(name, jwt);
   const booking = await getBookingOfficesBySheetId(name + " ", jwt);
   const bookingOff = booking.data.alkis_buchungsblatt[0].landparcelsArray;
   const localCourt = sheetData.res.offices.districtCourtName[0];
-  console.log("xxx booking", booking);
   const leafType = sheetData.res.blattart;
 
   const bookingType = sheetData.res.buchungsstellen[0].buchungsart;
 
   const sheetCode = sheetData.res.buchungsblattCode;
   const districtName = getLandRegisterDistrict(sheetCode);
-
-  // const newInfos = sheetData.res.buchungsstellen;
-  // const lfn = newInfos[0].sequentialNumber;
-  // const number = newInfos[0].number;
-  // const fratcion = newInfos[0].fraction;
-  // const bookingTypeLandparcel = sheetData.res.buchungsstellen[0].buchungsart;
-  // const landParcelCode =
-  //   newInfos[0]?.buchungsstellen[0]?.landParcel[0]?.landParcelCode;
-
-  // let newText = "";
-
-  // if (
-  //   bookingTypeLandparcel &&
-  //   (bookingTypeLandparcel !== bookingType || fratcion || number)
-  // ) {
-  //   newText += ` (`;
-
-  //   if (bookingTypeLandparcel && bookingTypeLandparcel !== bookingType) {
-  //     newText += `${bookingTypeLandparcel}, `;
-  //   }
-
-  //   if (fratcion) {
-  //     newText += "Anteil " + fratcion;
-  //   }
-
-  //   if (number) {
-  //     newText += ", ATP Nr. " + number;
-  //   }
-
-  //   newText += `)`;
-  // }
 
   return (
     <div>
@@ -81,11 +53,17 @@ export const getSheetHtml = async (jwt, name) => {
         <CustomCard title="Buchungsstellen und Flurstücke">
           <div>
             {bookingOff.map((o, idx) => {
+              const bookingArr = getBookingByLandparcelCode(
+                o.alkis_buchungsblatt_landparcel.landparcelcode,
+                sheetData.res.buchungsstellen
+              );
+
               return (
                 <div key={idx}>
                   {o.alkis_buchungsblatt_landparcel.lfn}{" "}
                   {o.alkis_buchungsblatt_landparcel.landparcelcode}
-                  {/* {newText} */}
+                  {bookingArr.length === 1 &&
+                    getAdditionalTextForBooking(bookingArr[0], bookingType)}
                 </div>
               );
             })}

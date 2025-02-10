@@ -99,3 +99,48 @@ export const getLandRegisterDistrict = (code) => {
   const districtName = districtNamesMap[codeFirstNumber];
   return `${districtName} (${codeFirstNumber})`;
 };
+
+export const getAdditionalTextForBooking = (newInfos, bookingType) => {
+  const number = newInfos.number;
+  const fratcion = newInfos.fraction;
+  const bookingTypeLandparcel = newInfos.buchungsart;
+
+  let newText = "";
+
+  if (
+    bookingTypeLandparcel &&
+    (bookingTypeLandparcel !== bookingType || fratcion || number)
+  ) {
+    newText += ` (`;
+
+    if (bookingTypeLandparcel && bookingTypeLandparcel !== bookingType) {
+      newText += `${bookingTypeLandparcel}, `;
+    }
+
+    if (fratcion) {
+      newText += "Anteil " + fratcion;
+    }
+
+    if (number) {
+      newText += ", ATP Nr. " + number;
+    }
+
+    newText += `)`;
+  }
+
+  return newText;
+};
+
+export const getBookingByLandparcelCode = (landparcelcode, buchungsstellen) => {
+  const booking = buchungsstellen.filter((b) => {
+    if (!b.buchungsstellen) {
+      return false;
+    } else {
+      return (
+        b?.buchungsstellen[0]?.landParcel[0]?.landParcelCode === landparcelcode
+      );
+    }
+  });
+
+  return booking;
+};
