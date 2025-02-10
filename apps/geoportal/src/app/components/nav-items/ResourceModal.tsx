@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   appendLayer,
+  appendSavedLayerConfig,
   deleteSavedLayerConfig,
   getLayers,
   getSavedLayerConfigs,
@@ -113,12 +114,20 @@ const ResourceModal = () => {
         open={showResourceModal}
         setOpen={(show) => dispatch(setShowResourceModal(show))}
         setAdditionalLayers={updateLayers}
-        favorites={favorites}
+        favorites={[...favorites, ...savedLayerConfigs]}
         addFavorite={(layer) => {
-          dispatch(addFavorite(layer));
+          if (layer.type !== "collection") {
+            dispatch(addFavorite(layer));
+          } else {
+            dispatch(appendSavedLayerConfig(layer));
+          }
         }}
         removeFavorite={(layer) => {
-          dispatch(removeFavorite(layer));
+          if (layer.type !== "collection") {
+            dispatch(removeFavorite(layer));
+          } else {
+            dispatch(deleteSavedLayerConfig(layer.id));
+          }
         }}
         activeLayers={activeLayers}
         customCategories={[

@@ -7,7 +7,6 @@ import {
   faExternalLinkAlt,
   faMinus,
   faPlus,
-  faRocket,
   faSquareUpRight,
   faStar,
   faTrash,
@@ -15,7 +14,6 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button, Modal, Spin } from "antd";
 import { useEffect, useState } from "react";
-import { extractVectorStyles } from "../helper/layerHelper";
 import type { Item } from "../helper/types";
 import InfoCard from "./InfoCard";
 import tmpThumbnail from "./tmpService.jpg";
@@ -54,7 +52,6 @@ const LayerItem = ({
           favorite.id === `fav_${layer.id}` || favorite.id === layer.id
       )
     : false;
-  const [collectionImages, setCollectionImages] = useState<string[]>([]);
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
   const [links, setLinks] = useState<
     {
@@ -68,18 +65,13 @@ const LayerItem = ({
     layer.type === "layer" ||
     (layer.type === "link" && layer.description) ||
     (layer.type === "collection" && layer.description);
+  const canFavoriteItem =
+    layer.type !== "collection" ||
+    (layer.type === "collection" && layer.serviceName.includes("discover"));
   const title = layer.title;
-  const description = layer.description;
-  const keywords = layer.keywords;
   const carmaConf = extractCarmaConfig(layer.keywords);
 
-  const regex = /Inhalt:(.*?)Sichtbarkeit:/s;
-
-  const match = description?.match(regex);
-
   const [isLoading, setIsLoading] = useState(true);
-
-  const hightlightTextIndexes = undefined;
 
   const handleLayerClick = (
     e: React.MouseEvent<HTMLElement, MouseEvent>,
@@ -227,7 +219,7 @@ const LayerItem = ({
             <div className="object-cover relative h-full overflow-clip w-[calc(130%+7.2px)]" />
           )}
 
-          {layer.type !== "collection" ? (
+          {canFavoriteItem ? (
             isFavorite ? (
               <FontAwesomeIcon
                 className="absolute right-1 top-1 text-3xl text-yellow-200 cursor-pointer z-50"
@@ -324,7 +316,10 @@ const LayerItem = ({
                   {!layer.serviceName.includes("discover") && (
                     <button
                       className="w-36 bg-gray-100 hover:bg-gray-50 rounded-md py-2 flex text-center items-center px-2"
-                      onClick={() => setOpenDeleteModal(true)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenDeleteModal(true);
+                      }}
                     >
                       <FontAwesomeIcon
                         icon={faTrash}
