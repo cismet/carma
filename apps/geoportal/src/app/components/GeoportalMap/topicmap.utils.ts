@@ -282,9 +282,14 @@ const createVectorFeature = (coordinates, layer, selectedVectorFeature) => {
   };
   let result = "";
   let featureInfoZoom = 20;
+  let blockLegacyGetFeatureInfo = false;
   layer.other.keywords.forEach((keyword) => {
     const extracted = keyword.split("carmaconf://infoBoxMapping:")[1];
     const zoom = keyword.split("carmaConf://featureInfoZoom:")[1];
+
+    if (keyword.includes("blockLegacyGetFeatureInfo")) {
+      blockLegacyGetFeatureInfo = true;
+    }
 
     if (extracted) {
       result += extracted + "\n";
@@ -293,45 +298,47 @@ const createVectorFeature = (coordinates, layer, selectedVectorFeature) => {
     if (zoom) {
       featureInfoZoom = parseInt(zoom);
     }
-
-    if (result) {
-      if (result.includes("function")) {
-        // remove every line that is not a function
-        result = result
-          .split("\n")
-          .filter((line) => line.includes("function"))
-          .join("\n");
-      }
-
-      const featureProperties = result.includes("function")
-        ? functionToFeature(properties, result)
-        : objectToFeature(properties, result);
-      if (!featureProperties) {
-        return undefined;
-      }
-      const genericLinks = featureProperties.properties.genericLinks || [];
-
-      feature = {
-        properties: {
-          ...featureProperties.properties,
-          genericLinks: genericLinks.concat([
-            {
-              url: imgUrl,
-              tooltip: "Vollständige Sachdatenabfrage",
-              icon: createElement(FeatureInfoIcon),
-              target: "_legacyGetFeatureInfoHtml",
-            },
-          ]),
-          zoom: featureInfoZoom,
-        },
-        geometry: selectedVectorFeature.geometry,
-        id: layer.id,
-        showMarker:
-          selectedVectorFeature.geometry.type === "Polygon" ||
-          selectedVectorFeature.geometry.type === "MultiPolygon",
-      };
-    }
   });
+
+  if (result) {
+    if (result.includes("function")) {
+      // remove every line that is not a function
+      result = result
+        .split("\n")
+        .filter((line) => line.includes("function"))
+        .join("\n");
+    }
+
+    const featureProperties = result.includes("function")
+      ? functionToFeature(properties, result)
+      : objectToFeature(properties, result);
+    if (!featureProperties) {
+      return undefined;
+    }
+    const genericLinks = featureProperties.properties.genericLinks || [];
+
+    feature = {
+      properties: {
+        ...featureProperties.properties,
+        genericLinks: blockLegacyGetFeatureInfo
+          ? genericLinks
+          : genericLinks.concat([
+              {
+                url: imgUrl,
+                tooltip: "Vollständige Sachdatenabfrage",
+                icon: createElement(FeatureInfoIcon),
+                target: "_legacyGetFeatureInfoHtml",
+              },
+            ]),
+        zoom: featureInfoZoom,
+      },
+      geometry: selectedVectorFeature.geometry,
+      id: layer.id,
+      showMarker:
+        selectedVectorFeature.geometry.type === "Polygon" ||
+        selectedVectorFeature.geometry.type === "MultiPolygon",
+    };
+  }
   return feature;
 };
 
