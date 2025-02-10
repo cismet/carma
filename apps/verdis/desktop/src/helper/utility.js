@@ -144,3 +144,11 @@ export const getBookingByLandparcelCode = (landparcelcode, buchungsstellen) => {
 
   return booking;
 };
+
+export const bookingColors = [
+  "#2956B2",
+  "#659CEF",
+  "#7DBD00",
+  "#DCF600",
+  "#FF5B00",
+];

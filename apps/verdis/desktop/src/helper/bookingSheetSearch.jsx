@@ -5,6 +5,7 @@ import {
   getBookingOfficesBySheetId,
 } from "./apiMethods";
 import {
+  bookingColors,
   getAdditionalTextForBooking,
   getBookingByLandparcelCode,
   getLandRegisterDistrict,
@@ -58,12 +59,25 @@ export const getSheetHtml = async (jwt, name) => {
                 sheetData.res.buchungsstellen
               );
 
+              const color = bookingColors[idx % bookingColors.length];
+
               return (
-                <div key={idx}>
-                  {o.alkis_buchungsblatt_landparcel.lfn}{" "}
-                  {o.alkis_buchungsblatt_landparcel.landparcelcode}
-                  {bookingArr.length === 1 &&
-                    getAdditionalTextForBooking(bookingArr[0], bookingType)}
+                <div
+                  key={idx}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
+                  <span
+                    className="w-1 h-10"
+                    style={{ background: color }}
+                  ></span>
+                  <span className="mr-1">
+                    {o.alkis_buchungsblatt_landparcel.lfn}
+                  </span>
+                  <span>{o.alkis_buchungsblatt_landparcel.landparcelcode}</span>
+                  <span>
+                    {bookingArr.length === 1 &&
+                      getAdditionalTextForBooking(bookingArr[0], bookingType)}
+                  </span>
                 </div>
               );
             })}
