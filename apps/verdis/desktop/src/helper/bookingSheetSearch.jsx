@@ -11,7 +11,7 @@ export const getSheetHtml = async (jwt, name) => {
   const booking = await getBookingOfficesBySheetId(name + " ", jwt);
   const bookingOff = booking.data.alkis_buchungsblatt[0].landparcelsArray;
   const localCourt = sheetData.res.offices.districtCourtName[0];
-
+  console.log("xxx booking", booking);
   const leafType = sheetData.res.blattart;
 
   const bookingType = sheetData.res.buchungsstellen[0].buchungsart;

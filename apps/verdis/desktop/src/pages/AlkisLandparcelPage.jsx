@@ -26,7 +26,6 @@ const AlkisLandparcelPage = () => {
     if (jwt && id) {
       onLandparcelSearch(jwt, id);
     }
-    getLandparcelHtml();
   }, [jwt, id]);
 
   return (

@@ -30,7 +30,6 @@ const AlkisBookingSheetPage = () => {
     if (jwt && id) {
       onSheetSearch(jwt, id);
     }
-    getLandparcelHtml();
   }, [jwt, id]);
 
   return (
