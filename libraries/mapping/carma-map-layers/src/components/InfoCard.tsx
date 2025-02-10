@@ -151,6 +151,14 @@ const InfoCard = ({
                   </p>
                 </>
               )}
+              {parsedDescription.eignung.length > 0 && (
+                <>
+                  <h5 className="font-semibold">Verwendungszweck</h5>
+                  <p className="text-base text-gray-600">
+                    {parsedDescription.eignung}
+                  </p>
+                </>
+              )}
             </div>
             <p
               style={{ color: "rgba(0,0,0,0.5)", fontSize: "0.875rem" }}

@@ -41,7 +41,7 @@ export const discoverConfig = {
     id: "discoverBasis",
     layers: [
       {
-        description: `Strichdarstellung der aktuellen Liegenschaftskarte aus dem Amtlichen Liegenschaftskatasterinformationssystem ALKIS mit dem Wuppertaler True Orthofoto (abgeleitet aus Bildflügen vom 14.03. und 17.03.2024, Bodenauflösung 3 cm) als Hintergrund`,
+        description: `Inhalt: Strichdarstellung der aktuellen Liegenschaftskarte aus dem Amtlichen Liegenschaftskatasterinformationssystem ALKIS mit dem Wuppertaler True Orthofoto (abgeleitet aus Bildflügen vom 14.03. und 17.03.2024, Bodenauflösung 3 cm) als Hintergrund. Verwendungszweck: Anschauliche Darstellung von Grenzverläufen in der Örtlichkeit. (Wo verlaufen meine Grundstücksgrenzen?)`,
         type: "collection",
         thumbnail: liegenschaftsThumb,
         title: "Liegenschaftskarte mit Luftbild",

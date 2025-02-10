@@ -4,8 +4,13 @@ import { serviceConfig } from "./config";
 import type { Item, XMLLayer, Layer, Config } from "./types";
 
 export const parseDescription = (description: string) => {
-  const result = { inhalt: "", sichtbarkeit: "", nutzung: "" };
-  const keywords = ["Inhalt:", "Sichtbarkeit:", "Nutzung:"];
+  const result = { inhalt: "", sichtbarkeit: "", nutzung: "", eignung: "" };
+  const keywords = [
+    "Inhalt:",
+    "Sichtbarkeit:",
+    "Nutzung:",
+    "Verwendungszweck:",
+  ];
 
   if (!description) {
     return result;
@@ -30,6 +35,7 @@ export const parseDescription = (description: string) => {
   result.inhalt = extractTextAfterKeyword(description, "Inhalt:");
   result.sichtbarkeit = extractTextAfterKeyword(description, "Sichtbarkeit:");
   result.nutzung = extractTextAfterKeyword(description, "Nutzung:");
+  result.eignung = extractTextAfterKeyword(description, "Verwendungszweck:");
 
   return result;
 };
