@@ -16,44 +16,42 @@ export const getLandparcelHtml = async (jwt, name) => {
   const title = getLandparcelTitle(alkis_id, flur, fstck_nenner, fstck_zaehler);
   const lage = landparcel.adressenArray[0].alkis_adresse.strasse;
 
-  const wrapStyle = { display: "flex", width: "100%" };
-  const colStyle = { width: "50%" };
+  const wrapStyle = { display: "flex" };
+  const colStyle = { width: "35%" };
 
   return (
     <CustomCard title={title}>
       <div className="font-bold mb-3">Flurstücksinformationen</div>
-      <div className="w-[400px]">
+      <div className="w-[600px]">
         <div style={wrapStyle}>
           <div style={colStyle}>Flurstückenzeichen:</div>
           <div style={colStyle}>{name}</div>
         </div>
         <div style={wrapStyle}>
           <div style={colStyle}>Gemeinde:</div>
-          <div style={colStyle}>Wuppertal</div>
+          <div>Wuppertal</div>
         </div>
         <div style={wrapStyle}>
           <div style={colStyle}>Gemarkung:</div>
-          <div style={colStyle}>{landparcel.gemarkung}</div>
+          <div>{landparcel.gemarkung}</div>
         </div>
         <div style={wrapStyle}>
           <div style={colStyle}>Lage:</div>
-          <div style={{ ...colStyle, display: "flex", gap: "0.4rem" }}>
+          <div style={{ display: "flex", gap: "0.4rem" }}>
             <div>{lage}</div>
-            <div style={{ display: "flex", gap: "0.4rem" }}>
-              {landparcel.adressenArray.map((a, idx) => {
-                return (
-                  <div key={idx}>
-                    {a.alkis_adresse.nummer.trim()}
-                    {idx !== landparcel.adressenArray.length - 1 && ","}
-                  </div>
-                );
-              })}
-            </div>
+            {landparcel.adressenArray.map((a, idx) => {
+              return (
+                <div key={idx}>
+                  {a.alkis_adresse.nummer.trim()}
+                  {idx !== landparcel.adressenArray.length - 1 && ","}
+                </div>
+              );
+            })}
           </div>
         </div>
         <div style={wrapStyle}>
           <div style={colStyle}>Größe:</div>
-          <div style={colStyle}>
+          <div>
             {landparcel.groesse} m<sup>2</sup>
           </div>
         </div>
