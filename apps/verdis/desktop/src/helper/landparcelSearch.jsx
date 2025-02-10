@@ -6,7 +6,6 @@ import CustomCard from "../components/ui/Card";
 import { Link } from "react-router-dom";
 export const getLandparcelHtml = async (jwt, name) => {
   const landparcelData = await searchLandparcelByName(name, jwt);
-  console.log("xxx data", landparcelData);
   const landparcel = landparcelData.data.alkis_landparcel[0];
   const sheets = await getAllAdditionalSheets(
     landparcelData.data.alkis_landparcel[0].buchungsblaetterArray,
@@ -82,7 +81,9 @@ export const getLandparcelHtml = async (jwt, name) => {
                 <div style={{ marginRight: "4rem" }}>
                   <div>Nr. {b.content.nrCode} auf</div>
                   <div>
-                    <Link to={`/alkis-buchungsblatt?id=${b.buchungsblattcode}`}>
+                    <Link
+                      to={`/alkis-buchungsblatt?id=${b.buchungsblattcode.trim()}&flurstueck=${alkis_id}`}
+                    >
                       <div className="text-primary">{`${b.buchungsblattcode}`}</div>
                     </Link>
                   </div>
