@@ -52,6 +52,9 @@ const InfoCard = ({
   const parsedDescription = parseDescription(description);
   const carmaConf = extractCarmaConfig(layer.keywords);
   const isVectorLayer = carmaConf?.vectorStyle;
+  const canFavoriteItem =
+    layer.type !== "collection" ||
+    (layer.type === "collection" && layer.serviceName.includes("discover"));
 
   return (
     <div className="w-full h-[400px] p-6 shadow-sm hover:!shadow-lg rounded-lg bg-blue-50 col-span-full">
@@ -99,7 +102,7 @@ const InfoCard = ({
                   Öffnen
                 </Button>
               )}
-              {layer.type !== "collection" && (
+              {canFavoriteItem && (
                 <Button
                   onClick={handleFavoriteClick}
                   icon={<FontAwesomeIcon icon={faStar} />}
