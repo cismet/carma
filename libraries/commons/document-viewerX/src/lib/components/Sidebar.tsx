@@ -305,7 +305,9 @@ const Sidebar = ({
                       key={`structure-${i}-${level}`}
                       style={{
                         padding: "4px 8px",
-                        backgroundColor: "#ffffff",
+                        backgroundColor: compactView ? "#e8e8e8" : "#ffffff",
+                        opacity: 1,
+                        zIndex: 999999,
                         fontSize: "12px",
                         fontWeight: "bold",
                         color: "#666",
@@ -316,6 +318,7 @@ const Sidebar = ({
                         alignItems: "center",
                         gap: "8px",
                         position: "relative",
+                        borderRadius: compactView ? "4px" : "0",
                       }}
                       onClick={() => {
                         const docsInStructure = getDocsInStructure(
@@ -338,13 +341,15 @@ const Sidebar = ({
                       }}
                     >
                       <VerticalLines level={level} isDocument={false} />
-                      <FontAwesomeIcon
-                        icon={faFolder}
-                        style={{
-                          fontSize: compactView ? "20px" : "16px",
-                          color: "#666",
-                        }}
-                      />
+                      {!compactView && (
+                        <FontAwesomeIcon
+                          icon={faFolder}
+                          style={{
+                            fontSize: "16px",
+                            color: "#666",
+                          }}
+                        />
+                      )}
                       {part}
                     </div>
                   )

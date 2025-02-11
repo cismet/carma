@@ -52,7 +52,7 @@ export interface DocumentViewerProps {
 export function DocumentViewer({
   docs,
   mode,
-  initialSidebarCollapsed = true,
+  initialSidebarCollapsed = false,
 }: DocumentViewerProps) {
   let { file } = useParams();
   const collapsedSidebarWidth = 220;

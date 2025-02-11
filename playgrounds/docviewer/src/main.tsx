@@ -95,10 +95,10 @@ function Landing() {
           verschiedene Beispieldokumente zum Testen.
         </IntroText>
         <LinksGrid>
-          <StyledLink to="/docs/468">BPlan 468</StyledLink>
-          <StyledLink to="/docs/827">BPlan 827</StyledLink>
-          <StyledLink to="/docs/1202">BPlan 1202</StyledLink>
-          <StyledLink to="/docs/1223">BPlan 1223</StyledLink>
+          <StyledLink to="/docs/468/1/1">BPlan 468</StyledLink>
+          <StyledLink to="/docs/827/1/1">BPlan 827</StyledLink>
+          <StyledLink to="/docs/1202/1/1">BPlan 1202</StyledLink>
+          <StyledLink to="/docs/1223/1/1">BPlan 1223</StyledLink>
         </LinksGrid>
       </Card>
     </Container>
