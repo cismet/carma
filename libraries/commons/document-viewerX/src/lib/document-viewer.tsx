@@ -52,10 +52,10 @@ export interface DocumentViewerProps {
 export function DocumentViewer({
   docs,
   mode,
-  initialSidebarCollapsed = true,
+  initialSidebarCollapsed = false,
 }: DocumentViewerProps) {
   let { file } = useParams();
-  const collapsedSidebarWidth = 170;
+  const collapsedSidebarWidth = 220;
   const expandedSidebarWidth = 335;
   const sideBarMinSize = 130;
   const mapWrapperRef = useRef<HTMLDivElement>(null);
@@ -207,7 +207,7 @@ export function DocumentViewer({
               <button
                 style={{
                   position: "absolute",
-                  right: "-5px",
+                  right: "-7.5px",
                   top: "-15px",
                   background: "none",
                   border: "none",
@@ -242,7 +242,7 @@ export function DocumentViewer({
                 style={{
                   background: "#999999",
                   height: mapHeight,
-                  width: 10,
+                  width: 5,
                   cursor: "col-resize",
                 }}
                 onMouseDown={handleMouseDown}

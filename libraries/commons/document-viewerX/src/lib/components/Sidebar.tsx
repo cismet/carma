@@ -4,10 +4,12 @@ import type { Doc } from "../document-viewer";
 import { useNavigate, useParams } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faFile } from "@fortawesome/free-regular-svg-icons";
+import { faFolder } from "@fortawesome/free-solid-svg-icons";
 import { ProgressBar } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
+import styled from "styled-components";
 
-export const SIDEBAR_BACKGROUND_COLOR = "#d2d2d2";
+export const SIDEBAR_BACKGROUND_COLOR = "#ffffff";
 
 interface SidebarProps {
   docs: Doc[];
@@ -42,7 +44,7 @@ const Sidebar = ({
     }
   }, [index]);
 
-  const INDENTATION_PER_LEVEL = 5; // pixels per level
+  const INDENTATION_PER_LEVEL = 10; // pixels per level
   const BASE_PADDING = 6; // base padding in pixels
 
   const SIDEBAR_FILENAME_SHORTENER = {
@@ -242,6 +244,51 @@ const Sidebar = ({
     );
   };
 
+  const VerticalLines = ({
+    level,
+    isDocument,
+  }: {
+    level: number;
+    isDocument?: boolean;
+  }) => (
+    <>
+      {Array.from({ length: level }).map((_, index) => (
+        <div
+          key={`line-${index}`}
+          style={{
+            position: "absolute",
+            left: `${
+              2 -
+              (level - index - 1) * INDENTATION_PER_LEVEL -
+              (isDocument ? 10 : 0)
+            }px`,
+            top: "-12px",
+            width: "1px",
+            height: "calc(100% + 14px)",
+            backgroundColor: "#ddd",
+          }}
+        />
+      ))}
+    </>
+  );
+
+  const HoverDiv = styled.div`
+    background: ${(props) =>
+      props.isSelected ? "rgba(58, 124, 235, 0.1)" : "#ffffff"};
+    height: 100%;
+    padding: ${BASE_PADDING + 0}px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    color: #333;
+    position: relative;
+    border-radius: ${(props) => (props.isSelected ? "6px" : "0")};
+    transition: background-color 0.2s ease;
+    &:hover {
+      background-color: ${(props) =>
+        props.isSelected ? "rgba(58, 124, 235, 0.1)" : "#f8f8f8"};
+    }
+  `;
+
   return (
     <div ref={sidebarRef} style={{ backgroundColor: SIDEBAR_BACKGROUND_COLOR }}>
       <div style={{ marginBottom: 8 }}>
@@ -258,13 +305,20 @@ const Sidebar = ({
                       key={`structure-${i}-${level}`}
                       style={{
                         padding: "4px 8px",
-                        backgroundColor: "#f0f0f0",
+                        backgroundColor: compactView ? "#e8e8e8" : "#ffffff",
+                        opacity: 1,
+                        zIndex: 999999,
                         fontSize: "12px",
                         fontWeight: "bold",
                         color: "#666",
                         marginBottom: "8px",
                         marginLeft: level * INDENTATION_PER_LEVEL,
                         cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        position: "relative",
+                        borderRadius: compactView ? "4px" : "0",
                       }}
                       onClick={() => {
                         const docsInStructure = getDocsInStructure(
@@ -286,6 +340,16 @@ const Sidebar = ({
                         );
                       }}
                     >
+                      <VerticalLines level={level} isDocument={false} />
+                      {!compactView && (
+                        <FontAwesomeIcon
+                          icon={faFolder}
+                          style={{
+                            fontSize: "16px",
+                            color: "#666",
+                          }}
+                        />
+                      )}
                       {part}
                     </div>
                   )
@@ -293,13 +357,17 @@ const Sidebar = ({
                 {shouldShowPrefixHeader(doc, i, docs) && documentPrefix && (
                   <div
                     style={{
-                      paddingBottom: "4px",
-                      fontSize: "11px",
-                      color: "#444",
+                      padding: "4px 8px",
+                      backgroundColor: "#ffffff",
+                      fontSize: "12px",
+                      fontWeight: "bold",
+                      color: "#666",
+                      marginBottom: "8px",
                       marginLeft:
                         (doc.structure
                           ? getIndentationLevel(doc.structure) + 1
                           : 0) * INDENTATION_PER_LEVEL,
+                      position: "relative",
                       cursor: "pointer",
                     }}
                     onClick={() => {
@@ -321,28 +389,36 @@ const Sidebar = ({
                       );
                     }}
                   >
+                    <VerticalLines
+                      level={
+                        doc.structure
+                          ? getIndentationLevel(doc.structure) + 1
+                          : 0
+                      }
+                      isDocument={false}
+                    />
                     {formatPrefixForDisplay(documentPrefix)} ...
                   </div>
                 )}
-                <div
+                <HoverDiv
                   ref={index - 1 === i ? selectedItemRef : null}
+                  isSelected={index - 1 === i}
                   style={{
-                    background: `${
-                      index - 1 === i ? "rgb(119, 119, 119)" : "#f5f5f5"
-                    }`,
-                    height: "100%",
-                    padding: BASE_PADDING,
-                    marginBottom: "8px",
-                    cursor: "pointer",
-                    color: "#333",
-                    marginLeft: doc.structure
-                      ? (getIndentationLevel(doc.structure) + 1) *
-                        INDENTATION_PER_LEVEL
-                      : 0,
+                    marginLeft:
+                      (doc.structure
+                        ? (getIndentationLevel(doc.structure) + 1) *
+                          INDENTATION_PER_LEVEL
+                        : 0) + 10,
                     position: "relative",
                   }}
                   onClick={() => navigate(`/docs/${docPackageId}/${i + 1}/1`)}
                 >
+                  <VerticalLines
+                    level={
+                      doc.structure ? getIndentationLevel(doc.structure) + 1 : 0
+                    }
+                    isDocument={true}
+                  />
                   <div
                     style={{
                       flexDirection: compactView ? "column" : "row",
@@ -351,17 +427,24 @@ const Sidebar = ({
                       display: "flex",
                       gap: "6px",
                       width: "100%",
+                      paddingLeft: doc.structure ? "4px" : "0",
                     }}
                   >
                     {doc.group === "Zusatzdokumente" ? (
                       <FontAwesomeIcon
                         icon={faFile}
-                        size={compactView ? "3x" : "1x"}
+                        style={{
+                          fontSize: compactView ? "36px" : "20px",
+                          color: "#666",
+                        }}
                       />
                     ) : (
                       <Icon
                         name="file-pdf-o"
-                        size={compactView ? "3x" : "1x"}
+                        style={{
+                          fontSize: compactView ? "36" : "20px",
+                          color: "#666",
+                        }}
                       />
                     )}
 
@@ -377,7 +460,7 @@ const Sidebar = ({
                       <p
                         style={{
                           marginTop: compactView ? 2 : 0,
-                          marginBottom: compactView ? 5 : 0,
+                          marginBottom: compactView ? 8 : 0,
                           fontSize: 11,
                           wordWrap: "break-word",
                           textWrap: "pretty",
@@ -458,7 +541,7 @@ const Sidebar = ({
                       )}
                     </>
                   )}
-                </div>
+                </HoverDiv>
               </div>
             );
           })}
