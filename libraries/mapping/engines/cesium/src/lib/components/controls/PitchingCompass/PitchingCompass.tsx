@@ -22,6 +22,7 @@ import {
 } from "../../../utils/cesiumAnimateOrbits";
 
 import { CompassNeedleSVG } from "./CompassNeedleSVG";
+import { applyRollToHeadingForCameraNearNadir } from "../../../utils/cesiumCamera";
 
 interface RotateButtonProps {
   viewerRef: React.RefObject<Viewer | null>;
@@ -205,11 +206,13 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
   };
 
   useEffect(() => {
-    if (viewerRef.current) {
-      const camera = viewerRef.current.scene.camera;
+    const viewer = viewerRef.current;
+    if (viewer) {
+      const camera = viewer.scene.camera;
       const updateOrientation = () => {
         setCurrentPitch(camera.pitch);
-        setCurrentHeading(camera.heading);
+        // correct heading for compass needle
+        setCurrentHeading(applyRollToHeadingForCameraNearNadir(camera));
       };
       camera.percentageChanged = 0.01;
       camera.changed.addEventListener(updateOrientation);

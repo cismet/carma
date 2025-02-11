@@ -34,6 +34,8 @@ export {
   type ForwardedCesiumError,
 } from "./lib/utils/CesiumErrorToErrorBoundaryForwarder";
 
+export { applyRollToHeadingForCameraNearNadir } from "./lib/utils/cesiumCamera";
+
 export {
   pickViewerCanvasCenter,
   getDegreesFromCartesian,
