@@ -39,7 +39,7 @@ const AlkisBookingSheetPage = () => {
           title={
             <div className="text-base">
               <span>
-                Buchungsblatt:{" "}
+                Buchungsblatt{" "}
                 <span>
                   {isLoading ? (
                     <Spin
@@ -48,13 +48,12 @@ const AlkisBookingSheetPage = () => {
                       className="ml-2"
                     />
                   ) : (
-                    idTitle
+                    ""
                   )}
                 </span>
               </span>
               {!isLoading && (
                 <Breadcrumb
-                  className="my-2"
                   items={[
                     {
                       title: ":flurstueck",
