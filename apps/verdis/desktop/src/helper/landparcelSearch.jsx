@@ -47,7 +47,7 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
             {landparcel.adressenArray.map((a, idx) => {
               return (
                 <div key={idx}>
-                  {a.alkis_adresse.nummer.trim()}
+                  {a.alkis_adresse.nummer}
                   {idx !== landparcel.adressenArray.length - 1 && ","}
                 </div>
               );
