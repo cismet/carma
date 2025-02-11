@@ -244,18 +244,28 @@ const Sidebar = ({
     );
   };
 
-  const VerticalLines = ({ level, isDocument }: { level: number; isDocument?: boolean }) => (
+  const VerticalLines = ({
+    level,
+    isDocument,
+  }: {
+    level: number;
+    isDocument?: boolean;
+  }) => (
     <>
       {Array.from({ length: level }).map((_, index) => (
         <div
           key={`line-${index}`}
           style={{
             position: "absolute",
-            left: `${2 - (level - index - 1) * INDENTATION_PER_LEVEL - (isDocument ? 10 : 0)}px`,
+            left: `${
+              2 -
+              (level - index - 1) * INDENTATION_PER_LEVEL -
+              (isDocument ? 10 : 0)
+            }px`,
             top: "-12px",
             width: "1px",
             height: "calc(100% + 14px)",
-            backgroundColor: "#ddd"
+            backgroundColor: "#ddd",
           }}
         />
       ))}
@@ -331,7 +341,7 @@ const Sidebar = ({
                       <FontAwesomeIcon
                         icon={faFolder}
                         style={{
-                          fontSize: compactView ? "20px" : "12px",
+                          fontSize: compactView ? "20px" : "16px",
                           color: "#666",
                         }}
                       />
@@ -419,7 +429,7 @@ const Sidebar = ({
                       <FontAwesomeIcon
                         icon={faFile}
                         style={{
-                          fontSize: compactView ? "36px" : "12px",
+                          fontSize: compactView ? "36px" : "20px",
                           color: "#666",
                         }}
                       />
@@ -427,7 +437,7 @@ const Sidebar = ({
                       <Icon
                         name="file-pdf-o"
                         style={{
-                          fontSize: compactView ? "36" : "12px",
+                          fontSize: compactView ? "36" : "20px",
                           color: "#666",
                         }}
                       />
