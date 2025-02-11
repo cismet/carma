@@ -65,15 +65,27 @@ const ResourceModal = () => {
           }
           if (layer.settings) {
             const map = routedMap.leafletMap.leafletElement;
+            const currentZoom = map.getZoom();
             const settings = layer.settings;
             const changePosition =
               settings.zoom || settings.lat || settings.lng;
+            const changeZoomLevel =
+              settings.zoom || settings.minZoomlevel || settings.maxZoomlevel;
 
-            const zoom = layer.settings.zoom || map.getZoom();
+            const zoom =
+              layer.settings.zoom ||
+              (settings.minZoomlevel > currentZoom && settings.minZoomlevel) ||
+              (settings.maxZoomlevel < currentZoom && settings.maxZoomlevel) ||
+              currentZoom;
             const lat = layer.settings.lat || map.getCenter().lat;
             const lng = layer.settings.lng || map.getCenter().lng;
+
             if (changePosition) {
               map.flyTo([lat, lng], zoom);
+            }
+
+            if (changeZoomLevel) {
+              map.setZoom(zoom);
             }
           }
           messageApi.open({

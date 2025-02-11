@@ -51,7 +51,13 @@ type Collection = {
   type: "collection";
   layers: Layer[];
   backgroundLayer?: BackgroundLayer;
-  settings?: { lat?: number; lng?: number; zoom?: number };
+  settings?: {
+    lat?: number;
+    lng?: number;
+    zoom?: number;
+    minZoomlevel?: number;
+    maxZoomlevel?: number;
+  };
 };
 
 export type SavedLayerConfig = {
