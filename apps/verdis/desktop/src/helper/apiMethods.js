@@ -42,7 +42,7 @@ export const searchLandparcelByName = async (
     return result;
   } catch (error) {
     setIsLoading(false);
-    setError("No data found");
+    setError("Keine Daten gefunden");
     console.error("There was a problem with the fetch operation:");
   }
 };
@@ -146,7 +146,7 @@ export const getAdditionalSheetAsync = async (
     if (response.status >= 200 && response.status < 300) {
       const result = await response.json();
       setIsLoading(false);
-
+      setError(null);
       return result;
     } else {
       setIsLoading(false);

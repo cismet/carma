@@ -20,7 +20,7 @@ export const getSheetHtml = async (jwt, name, setError, setIsLoading) => {
   );
   const booking = await getBookingOfficesBySheetId(name + " ", jwt);
   if (booking.data.alkis_buchungsblatt.length === 0) {
-    setError("No data found");
+    setError("Keine Daten gefunden");
   }
   const bookingOff = booking.data.alkis_buchungsblatt[0].landparcelsArray;
   const localCourt = sheetData.res.offices.districtCourtName[0];
