@@ -103,7 +103,6 @@ export const parseToMapLayer = async (
   const id = layer.id.startsWith("fav_") ? layer.id.slice(4) : layer.id;
 
   const carmaConf = extractCarmaConfig(layer.keywords);
-  console.log("xxx", carmaConf);
   if (layer.type === "layer") {
     if (carmaConf?.vectorStyle && !forceWMS) {
       let zoom = {
