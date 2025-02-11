@@ -242,7 +242,7 @@ export function DocumentViewer({
                 style={{
                   background: "#999999",
                   height: mapHeight,
-                  width: 10,
+                  width: 5,
                   cursor: "col-resize",
                 }}
                 onMouseDown={handleMouseDown}

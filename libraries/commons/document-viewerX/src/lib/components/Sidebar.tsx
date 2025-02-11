@@ -4,6 +4,7 @@ import type { Doc } from "../document-viewer";
 import { useNavigate, useParams } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faFile } from "@fortawesome/free-regular-svg-icons";
+import { faFolder } from "@fortawesome/free-solid-svg-icons";
 import { ProgressBar } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 import styled from "styled-components";
@@ -43,7 +44,7 @@ const Sidebar = ({
     }
   }, [index]);
 
-  const INDENTATION_PER_LEVEL = 5; // pixels per level
+  const INDENTATION_PER_LEVEL = 10; // pixels per level
   const BASE_PADDING = 6; // base padding in pixels
 
   const SIDEBAR_FILENAME_SHORTENER = {
@@ -243,19 +244,39 @@ const Sidebar = ({
     );
   };
 
+  const VerticalLines = ({ level }: { level: number }) => (
+    <>
+      {Array.from({ length: level }).map((_, index) => (
+        <div
+          key={`line-${index}`}
+          style={{
+            position: "absolute",
+            left: `${2 - ((level - index - 1) * INDENTATION_PER_LEVEL)}px`,
+            top: "-12px",
+            width: "1px",
+            height: "calc(100% + 14px)",
+            backgroundColor: "#ddd",
+          }}
+        />
+      ))}
+    </>
+  );
+
   const HoverDiv = styled.div`
-    background: ${props => props.isSelected ? "rgba(58, 124, 235, 0.1)" : "#ffffff"};
+    background: ${(props) =>
+      props.isSelected ? "rgba(58, 124, 235, 0.1)" : "#ffffff"};
     height: 100%;
     padding: ${BASE_PADDING}px;
     margin-bottom: 8px;
     cursor: pointer;
     color: #333;
     position: relative;
-    border-radius: ${props => props.isSelected ? "6px" : "0"};
+    border-radius: ${(props) => (props.isSelected ? "6px" : "0")};
     transition: background-color 0.2s ease;
 
     &:hover {
-      background-color: ${props => props.isSelected ? "rgba(58, 124, 235, 0.1)" : "#f8f8f8"};
+      background-color: ${(props) =>
+        props.isSelected ? "rgba(58, 124, 235, 0.1)" : "#f8f8f8"};
     }
   `;
 
@@ -275,13 +296,17 @@ const Sidebar = ({
                       key={`structure-${i}-${level}`}
                       style={{
                         padding: "4px 8px",
-                        backgroundColor: "#f0f0f0",
+                        backgroundColor: "#ffffff",
                         fontSize: "12px",
                         fontWeight: "bold",
                         color: "#666",
                         marginBottom: "8px",
                         marginLeft: level * INDENTATION_PER_LEVEL,
                         cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        position: "relative",
                       }}
                       onClick={() => {
                         const docsInStructure = getDocsInStructure(
@@ -303,6 +328,11 @@ const Sidebar = ({
                         );
                       }}
                     >
+                      <VerticalLines level={level} />
+                      <FontAwesomeIcon
+                        icon={faFolder}
+                        style={{ fontSize: "12px", color: "#666" }}
+                      />
                       {part}
                     </div>
                   )
@@ -310,13 +340,17 @@ const Sidebar = ({
                 {shouldShowPrefixHeader(doc, i, docs) && documentPrefix && (
                   <div
                     style={{
-                      paddingBottom: "4px",
-                      fontSize: "11px",
-                      color: "#444",
+                      padding: "4px 8px",
+                      backgroundColor: "#ffffff",
+                      fontSize: "12px",
+                      fontWeight: "bold",
+                      color: "#666",
+                      marginBottom: "8px",
                       marginLeft:
                         (doc.structure
                           ? getIndentationLevel(doc.structure) + 1
                           : 0) * INDENTATION_PER_LEVEL,
+                      position: "relative",
                       cursor: "pointer",
                     }}
                     onClick={() => {
@@ -338,6 +372,13 @@ const Sidebar = ({
                       );
                     }}
                   >
+                    <VerticalLines
+                      level={
+                        doc.structure
+                          ? getIndentationLevel(doc.structure) + 1
+                          : 0
+                      }
+                    />
                     {formatPrefixForDisplay(documentPrefix)} ...
                   </div>
                 )}
@@ -349,9 +390,17 @@ const Sidebar = ({
                       ? (getIndentationLevel(doc.structure) + 1) *
                         INDENTATION_PER_LEVEL
                       : 0,
+                    position: "relative",
                   }}
                   onClick={() => navigate(`/docs/${docPackageId}/${i + 1}/1`)}
                 >
+                  <VerticalLines
+                    level={
+                      doc.structure
+                        ? getIndentationLevel(doc.structure) + 1
+                        : 0
+                    }
+                  />
                   <div
                     style={{
                       flexDirection: compactView ? "column" : "row",
@@ -360,6 +409,7 @@ const Sidebar = ({
                       display: "flex",
                       gap: "6px",
                       width: "100%",
+                      paddingLeft: doc.structure ? "4px" : "0",
                     }}
                   >
                     {doc.group === "Zusatzdokumente" ? (
@@ -386,7 +436,7 @@ const Sidebar = ({
                       <p
                         style={{
                           marginTop: compactView ? 2 : 0,
-                          marginBottom: compactView ? 5 : 0,
+                          marginBottom: compactView ? 8 : 0,
                           fontSize: 11,
                           wordWrap: "break-word",
                           textWrap: "pretty",
