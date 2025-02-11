@@ -207,7 +207,7 @@ export function DocumentViewer({
               <button
                 style={{
                   position: "absolute",
-                  right: "-5px",
+                  right: "-7.5px",
                   top: "-15px",
                   background: "none",
                   border: "none",
