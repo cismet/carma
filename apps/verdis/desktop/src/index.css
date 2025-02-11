@@ -44,3 +44,7 @@ a {
 .ant-breadcrumb {
   font-family: inherit !important;
 }
+
+.ant-breadcrumb-separator {
+  margin-inline: 4px !important;
+}

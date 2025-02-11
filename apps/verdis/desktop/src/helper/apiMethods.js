@@ -152,13 +152,13 @@ export const getAdditionalSheetAsync = async (
       setIsLoading(false);
       setError(response.status);
       console.log(
-        "xxx Error:" + response.status + " -> " + response.statusText
+        "xxx Error: " + response.status + " -> " + response.statusText
       );
     }
-  } catch (e) {
+  } catch (error) {
     setIsLoading(false);
     setError("Error text");
-    console.log("xxx error", e);
+    console.log("xxx error", error);
   }
 };
 
