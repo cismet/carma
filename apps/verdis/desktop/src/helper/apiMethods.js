@@ -5,7 +5,12 @@ export const WUNDA_DOMAIN = "WUNDA_BLAU";
 export const WUNDA_ENDPOINT =
   WUNDA_API + "/graphql/" + WUNDA_DOMAIN + "/execute";
 
-export const searchLandparcelByName = async (name, jwt) => {
+export const searchLandparcelByName = async (
+  name,
+  jwt,
+  setError,
+  setIsLoading
+) => {
   try {
     const response = await fetch(WUNDA_ENDPOINT, {
       method: "POST",
@@ -20,6 +25,8 @@ export const searchLandparcelByName = async (name, jwt) => {
     });
 
     if (!response.ok) {
+      setIsLoading(false);
+      setError(response.status);
       throw new Error("Network response was not ok");
     }
 
@@ -30,9 +37,12 @@ export const searchLandparcelByName = async (name, jwt) => {
       // fetch(url).catch((error) => {
       //   //  i expect an error here
       // });
+      setIsLoading(false);
     }
     return result;
   } catch (error) {
+    setIsLoading(false);
+    setError("No data found");
     console.error("There was a problem with the fetch operation:");
   }
 };

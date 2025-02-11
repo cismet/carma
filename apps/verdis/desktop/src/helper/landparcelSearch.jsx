@@ -4,8 +4,13 @@ import { getLandparcelTitle } from "./utility";
 import AdditionalSheet from "../components/render/AdditionalSheet";
 import CustomCard from "../components/ui/Card";
 import { Link } from "react-router-dom";
-export const getLandparcelHtml = async (jwt, name) => {
-  const landparcelData = await searchLandparcelByName(name, jwt);
+export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
+  const landparcelData = await searchLandparcelByName(
+    name,
+    jwt,
+    setError,
+    setIsLoading
+  );
   const landparcel = landparcelData.data.alkis_landparcel[0];
   const sheets = await getAllAdditionalSheets(
     landparcelData.data.alkis_landparcel[0].buchungsblaetterArray,

@@ -14,12 +14,18 @@ const AlkisLandparcelPage = () => {
   const [resHtml, setResHtml] = useState(null);
   const [idTitle, setIdTitle] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const onLandparcelSearch = async (jwt, id) => {
       setIsLoading(true);
       setIdTitle(id);
-      const landparcelHtml = await getLandparcelHtml(jwt, id);
+      const landparcelHtml = await getLandparcelHtml(
+        jwt,
+        id,
+        setError,
+        setIsLoading
+      );
       setResHtml(landparcelHtml);
       setIsLoading(false);
     };
@@ -35,15 +41,16 @@ const AlkisLandparcelPage = () => {
           <InfoBar
             title={
               <span>
-                Flurstück:{" "}
+                {!error && "Flurstück: "}
                 <span className="text-base">
-                  {" "}
                   {isLoading ? (
                     <Spin
                       indicator={<LoadingOutlined spin />}
                       size="small"
                       className="ml-2"
                     />
+                  ) : error ? (
+                    `Error: ${error}`
                   ) : (
                     idTitle
                   )}
@@ -54,7 +61,7 @@ const AlkisLandparcelPage = () => {
           />
 
           <div className="">
-            {idTitle && (
+            {idTitle && !error && (
               <div className="my-1">{resHtml && <div>{resHtml}</div>}</div>
             )}
           </div>
