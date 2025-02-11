@@ -21,6 +21,10 @@ interface SidebarProps {
   improveReadabilityOfDocTitles?: boolean;
 }
 
+interface HoverDivProps {
+  isSelected: boolean;
+}
+
 const Sidebar = ({
   docs,
   index,
@@ -272,7 +276,7 @@ const Sidebar = ({
     </>
   );
 
-  const HoverDiv = styled.div`
+  const HoverDiv = styled.div<HoverDivProps>`
     background: ${(props) =>
       props.isSelected ? "rgba(58, 124, 235, 0.1)" : "#ffffff"};
     height: 100%;
@@ -283,6 +287,7 @@ const Sidebar = ({
     position: relative;
     border-radius: ${(props) => (props.isSelected ? "6px" : "0")};
     transition: background-color 0.2s ease;
+
     &:hover {
       background-color: ${(props) =>
         props.isSelected ? "rgba(58, 124, 235, 0.1)" : "#f8f8f8"};
