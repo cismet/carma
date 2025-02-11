@@ -1,5 +1,6 @@
 import { Badge, Tabs } from "antd";
-import { useEffect, useState } from "react";
+import { utils } from "@carma-apps/portals";
+import { useEffect, useRef, useState } from "react";
 
 interface LayerTabsProps {
   // TODO add type for layers
@@ -18,23 +19,27 @@ const LayerTabs = ({
 }: LayerTabsProps) => {
   const [tabClicked, setTabClicked] = useState(false);
   const [clickedId, setClickedId] = useState("");
+  const clickedRef = useRef("");
+  const isClickedRef = useRef(false);
 
+  clickedRef.current = clickedId;
+  isClickedRef.current = tabClicked;
+
+  const handleScrollEnd = () => {
+    if (isClickedRef.current) {
+      setTabClicked(false);
+      setActiveId(clickedRef.current);
+      setClickedId("");
+    }
+  };
   useEffect(() => {
-    const handleScrollEnd = () => {
-      if (tabClicked) {
-        setTabClicked(false);
-        setActiveId(clickedId);
-        setClickedId("");
-      }
-    };
-
     const scrollContainer = document.getElementById("scrollContainer");
     scrollContainer?.addEventListener("scrollend", handleScrollEnd);
 
     return () => {
       scrollContainer?.removeEventListener("scroll", handleScrollEnd);
     };
-  }, [tabClicked]);
+  }, []);
 
   if (!layers) {
     return null;
@@ -50,7 +55,17 @@ const LayerTabs = ({
             key: title,
             label: (
               <div className="flex items-center gap-2">
-                <span>{title}</span>
+                <span
+                  className={utils.cn(
+                    layer.layers.length === 0
+                      ? "text-black/25"
+                      : activeId === title
+                      ? "text-[#1677ff] hover:text-[#4096ff]"
+                      : "text-black/80 hover:text-[#4096ff]"
+                  )}
+                >
+                  {title}
+                </span>
                 {layer.layers.length > 0 && (
                   <Badge count={layer.layers.length} color="#808080" />
                 )}
