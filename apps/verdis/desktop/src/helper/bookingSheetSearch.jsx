@@ -1,3 +1,4 @@
+import { FilePdfOutlined } from "@ant-design/icons";
 import AdditionalSheet from "../components/render/AdditionalSheet";
 import CustomCard from "../components/ui/Card";
 import {
@@ -59,7 +60,10 @@ export const getSheetHtml = async (jwt, name, setError, setIsLoading) => {
             legalDesc={sheetData.res.descriptionOfRechtsgemeinschaft}
           />
         </CustomCard>
-        <CustomCard title="Buchungsstellen und Flurstücke">
+        <CustomCard
+          title="Buchungsstellen und Flurstücke"
+          style={{ marginBottom: "1rem" }}
+        >
           <div>
             {bookingOff.map((o, idx) => {
               const bookingArr = getBookingByLandparcelCode(
@@ -89,6 +93,34 @@ export const getSheetHtml = async (jwt, name, setError, setIsLoading) => {
                 </div>
               );
             })}
+          </div>
+        </CustomCard>
+        <CustomCard style={{ marginBottom: "1rem" }} title="PDF-Produkte">
+          <div>
+            <div>
+              <FilePdfOutlined />{" "}
+              <a
+                // onClick={(e) => {
+                //   e.preventDefault();
+                // }}
+                href="#"
+                className="cursor-pointer text-blue-600 visited:text-purple-600"
+              >
+                Bestandsnachweis (NRW)
+              </a>
+            </div>
+            <div>
+              <FilePdfOutlined />{" "}
+              <a
+                // onClick={(e) => {
+                //   e.preventDefault();
+                // }}
+                href="#"
+                className="booking-pdf-link"
+              >
+                Bestandsnachweis stichtagsbezogen (NRW)
+              </a>
+            </div>
           </div>
         </CustomCard>
       </CustomCard>
