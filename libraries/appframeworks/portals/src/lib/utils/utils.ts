@@ -103,9 +103,9 @@ export const parseToMapLayer = async (
   const id = layer.id.startsWith("fav_") ? layer.id.slice(4) : layer.id;
 
   const carmaConf = extractCarmaConfig(layer.keywords);
+  console.log("xxx", carmaConf);
   if (layer.type === "layer") {
     if (carmaConf?.vectorStyle && !forceWMS) {
-      console.log("xxx", carmaConf.vectorStyle);
       let zoom = {
         minzoom: 9,
         maxzoom: 24,
@@ -166,9 +166,9 @@ export const parseToMapLayer = async (
             queryable: layer.queryable,
             useInFeatureInfo: true,
             props: {
-              url: layer.props.url,
+              url: carmaConf?.source || layer.props.url,
               legend: layer.props.Style?.[0].LegendURL,
-              name: layer.props.Name,
+              name: carmaConf?.sourceLayer || layer.props.Name,
               maxZoom: layer.maxZoom,
               minZoom: layer.minZoom,
             },
