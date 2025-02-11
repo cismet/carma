@@ -22,6 +22,7 @@ import {
 } from "@carma-mapping/map-controls-layout";
 
 import {
+  getIsViewerReadyAsync,
   useZoomControls,
   PitchingCompass,
   initViewerAnimationMap,
@@ -31,12 +32,10 @@ import {
 import useTileset from "../hooks/useTileset";
 import { useZoomToTilesetOnReady } from "../hooks/useZoomToTilesetOnReady";
 import { cesiumConstructorOptions } from "../config";
-
 const NavigationControlView: FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewerRef = useRef<Viewer | null>(null);
   const viewerAnimationMapRef = useRef<ViewerAnimationMap | null>(null);
-
   const [isViewerReady, setIsViewerReady] = useState(false);
 
   const { tilesetRef, tilesetReady } = useTileset(
@@ -64,18 +63,7 @@ const NavigationControlView: FC = () => {
         const newImageryLayer = new ImageryLayer(imageryProvider);
         viewer.imageryLayers.add(newImageryLayer);
 
-        // checking for viewer readyness
-        // https://github.com/CesiumGS/cesium/issues/4422#issuecomment-1668233567
-        await new Promise<void>((resolve) => {
-          const removeEvent = viewer.scene.postRender.addEventListener(() => {
-            if (viewer.clockViewModel.canAnimate) {
-              console.log("Viewer is ready");
-              removeEvent();
-              setIsViewerReady(true);
-              resolve();
-            }
-          });
-        });
+        await getIsViewerReadyAsync(viewer, setIsViewerReady);
       }
     };
 
@@ -90,7 +78,10 @@ const NavigationControlView: FC = () => {
   }, []);
 
   useZoomToTilesetOnReady(viewerRef, tilesetRef, tilesetReady);
-  const { handleZoomIn, handleZoomOut } = useZoomControls(viewerRef, 1);
+  const { handleZoomIn, handleZoomOut } = useZoomControls(
+    viewerRef,
+    viewerAnimationMapRef
+  );
 
   console.log("RENDER", isViewerReady);
 

@@ -1,6 +1,8 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { Tooltip } from "antd";
+import { Math as CesiumMath } from "cesium";
+
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCompress,
@@ -31,10 +33,10 @@ import { getApplicationVersion } from "@carma-commons/utils";
 import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/hochwassergefahrenkarte";
 
 import {
-  Compass,
   CustomViewer,
   getDegreesFromCartesian,
   MapTypeSwitcher,
+  PitchingCompass,
   selectViewerHome,
   selectViewerIsMode2d,
   selectViewerModels,
@@ -76,13 +78,17 @@ function App({ sync = false }: { sync?: boolean }) {
   const [hochwasserschutz, setHochwasserschutz] = useState(true);
 
   // CONTROLS
-  const { viewerRef, terrainProviderRef, surfaceProviderRef } =
-    useCesiumContext();
+  const {
+    viewerRef,
+    viewerAnimationMapRef,
+    terrainProviderRef,
+    surfaceProviderRef,
+  } = useCesiumContext();
   const homeControl = useHomeControl();
   const {
     handleZoomIn: handleZoomInCesium,
     handleZoomOut: handleZoomOutCesium,
-  } = useZoomControls(viewerRef);
+  } = useZoomControls(viewerRef, viewerAnimationMapRef);
   const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
 
   // LEAFLET related
@@ -256,7 +262,19 @@ function App({ sync = false }: { sync?: boolean }) {
             <MapTypeSwitcher
               duration={CESIUM_CONFIG.transitions.mapMode.duration}
             />
-            <Compass disabled={isMode2d} />
+            <Tooltip title="Nach Norden ausrichten" placement="right">
+              <ControlButtonStyler
+                disabled={isMode2d}
+                //ref={tourRefLabels.alignNorth}
+                dataTestId="compass-control"
+              >
+                <PitchingCompass
+                  viewerRef={viewerRef}
+                  viewerAnimationMapRef={viewerAnimationMapRef}
+                  maxPitch={CesiumMath.toRadians(-30)}
+                />
+              </ControlButtonStyler>
+            </Tooltip>
           </Control>
           <Control position="bottomleft" order={10}>
             <div data-test-id="fuzzy-search" className="h-full w-full">

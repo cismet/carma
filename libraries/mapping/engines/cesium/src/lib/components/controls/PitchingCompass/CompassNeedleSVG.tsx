@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
+import { Math as CesiumMath } from "cesium";
 
-const PI_OVER_2 = Math.PI / 2;
+const PITCH_HORIZON_OFFSET = CesiumMath.PI_OVER_TWO - 0.2; // avoid showing completely flat from the side
 
 export const CompassNeedleSVG = ({
   pitch = 0,
@@ -18,7 +19,11 @@ export const CompassNeedleSVG = ({
   useEffect(() => {
     if (pitch && heading) {
       const normalizedHeading = -heading;
-      const normalizedPitch = pitch + PI_OVER_2;
+      const normalizedPitch = CesiumMath.clamp(
+        pitch + CesiumMath.PI_OVER_TWO, // rotate pitch range into screen plane
+        0, // NADIR end of range
+        PITCH_HORIZON_OFFSET // Horizon end of range
+      );
       const transform = `rotateX(${normalizedPitch}rad) rotateZ(${normalizedHeading}rad)`;
       setTransform(transform);
     }

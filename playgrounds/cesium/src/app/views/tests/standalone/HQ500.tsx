@@ -41,14 +41,15 @@ export const HQ500 = () => {
   const container3dMapRef = useRef<HTMLDivElement>(null);
 
   // State and Selectors
-  const { viewerRef, tilesetsRefs, imageryLayerRef } = useCesiumContext();
+  const { viewerRef, viewerAnimationMapRef, tilesetsRefs, imageryLayerRef } =
+    useCesiumContext();
   const viewer = viewerRef.current;
   const primaryTileset = tilesetsRefs.primaryRef.current;
   const homeControl = useHomeControl();
   const {
     handleZoomIn: handleZoomInCesium,
     handleZoomOut: handleZoomOutCesium,
-  } = useZoomControlsCesium(viewerRef);
+  } = useZoomControlsCesium(viewerRef, viewerAnimationMapRef);
 
   useTweakpaneCtx({
     folder: {

@@ -16,8 +16,10 @@ const useCameraPitchSoftLimiter = (
     minPitchDeg?: number;
     resetPitchOffsetDeg?: number;
     pitchLimiter?: boolean;
+    debug?: boolean;
   } = {}
 ) => {
+  const debug = options.debug ?? false;
   const pitchLimiter =
     options.pitchLimiter === undefined ? true : options.pitchLimiter;
   const minPitchDeg = options.minPitchDeg || 22;
@@ -37,9 +39,10 @@ const useCameraPitchSoftLimiter = (
 
   useEffect(() => {
     if (viewer && !isMode2d && collisions && pitchLimiter) {
-      console.debug(
-        "HOOK [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to correct camera pitch"
-      );
+      debug &&
+        console.debug(
+          "HOOK [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to correct camera pitch"
+        );
 
       const resetPitchRad = CesiumMath.toRadians(
         -(minPitchDeg + resetPitchOffsetDeg)
@@ -47,19 +50,21 @@ const useCameraPitchSoftLimiter = (
       const minPitchRad = CesiumMath.toRadians(-minPitchDeg);
 
       const moveEndListener = async () => {
-        console.debug(
-          "HOOK [2D3D|CESIUM] Soft Pitch Limiter",
-          viewer.camera.pitch,
-          minPitchRad,
-          resetPitchRad
-        );
-        const isPitchTooLow = collisions && viewer.camera.pitch > minPitchRad;
-        if (isPitchTooLow) {
+        debug &&
           console.debug(
-            "LISTENER HOOK [2D3D|CESIUM|CAMERA]: reset pitch soft",
+            "HOOK [2D3D|CESIUM] Soft Pitch Limiter",
             viewer.camera.pitch,
+            minPitchRad,
             resetPitchRad
           );
+        const isPitchTooLow = collisions && viewer.camera.pitch > minPitchRad;
+        if (isPitchTooLow) {
+          debug &&
+            console.debug(
+              "LISTENER HOOK [2D3D|CESIUM|CAMERA]: reset pitch soft",
+              viewer.camera.pitch,
+              resetPitchRad
+            );
           // TODO Get CenterPos Lower from screen if distance is muliple of elevation. prevent pitch around distant point on horizon
           const centerPos = pickViewerCanvasCenter(viewer).scenePosition;
           if (centerPos) {
@@ -97,6 +102,7 @@ const useCameraPitchSoftLimiter = (
     dispatch,
     minPitchDeg,
     resetPitchOffsetDeg,
+    debug,
   ]);
 };
 

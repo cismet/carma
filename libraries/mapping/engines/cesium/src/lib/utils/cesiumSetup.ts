@@ -1,3 +1,4 @@
+import { Viewer } from "cesium";
 import type { CesiumConfig } from "./../..";
 
 declare global {
@@ -15,4 +16,22 @@ const getDefaultBaseUrl = () => {
 export const setupCesiumEnvironment = (config?: CesiumConfig) => {
   const baseUrl = config?.baseUrl ? config.baseUrl : getDefaultBaseUrl();
   window.CESIUM_BASE_URL = baseUrl;
+};
+
+export const getIsViewerReadyAsync = async (
+  viewer: Viewer,
+  setIsViewerReady: (value: boolean) => void
+) => {
+  // checking for viewer readyness
+  // https://github.com/CesiumGS/cesium/issues/4422#issuecomment-1668233567
+  await new Promise<void>((resolve) => {
+    const removeEvent = viewer.scene.postRender.addEventListener(() => {
+      if (viewer.clockViewModel.canAnimate) {
+        console.log("Viewer is ready");
+        removeEvent();
+        setIsViewerReady(true);
+        resolve();
+      }
+    });
+  });
 };

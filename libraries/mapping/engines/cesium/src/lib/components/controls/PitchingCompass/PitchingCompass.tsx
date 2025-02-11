@@ -96,11 +96,6 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
   };
 
   useEffect(() => {
-    console.log(
-      "useEffect RotateButton",
-      viewerRef.current,
-      viewerAnimationMapRef.current
-    );
     if (!viewerRef.current || !viewerAnimationMapRef.current) return;
     const viewer = viewerRef.current;
     const animationMap = viewerAnimationMapRef.current;
@@ -175,16 +170,33 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
     ) {
       const orbitPoint = getOrbitPoint(viewerRef.current);
       if (orbitPoint) {
-        const isDoubleClick = event.detail >= 2;
-        const targetPitch = CesiumMath.toRadians(
-          isDoubleClick ? PITCH.ORTHO : pitchOblique
-        );
         animateCamera(
           viewerRef.current,
           viewerAnimationMapRef.current,
           orbitPoint,
           0,
-          targetPitch,
+          pitchOblique,
+          initialRange,
+          durationReset
+        );
+      }
+    }
+  };
+
+  const handleDoubleClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (
+      viewerRef.current &&
+      viewerAnimationMapRef.current &&
+      initialRange !== null
+    ) {
+      const orbitPoint = getOrbitPoint(viewerRef.current);
+      if (orbitPoint) {
+        animateCamera(
+          viewerRef.current,
+          viewerAnimationMapRef.current,
+          orbitPoint,
+          0,
+          PITCH.ORTHO,
           initialRange,
           durationReset
         );
@@ -215,6 +227,7 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
       onMouseDown={handleMouseDown}
       onMouseUp={handleControlMouseUp}
       onClick={handleButtonClick}
+      onDoubleClick={handleDoubleClick}
       style={{
         border: "none",
         background: "transparent",
