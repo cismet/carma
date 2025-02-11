@@ -6,8 +6,9 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faFile } from "@fortawesome/free-regular-svg-icons";
 import { ProgressBar } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
+import styled from "styled-components";
 
-export const SIDEBAR_BACKGROUND_COLOR = "#d2d2d2";
+export const SIDEBAR_BACKGROUND_COLOR = "#ffffff";
 
 interface SidebarProps {
   docs: Doc[];
@@ -242,6 +243,22 @@ const Sidebar = ({
     );
   };
 
+  const HoverDiv = styled.div`
+    background: ${props => props.isSelected ? "rgba(58, 124, 235, 0.1)" : "#ffffff"};
+    height: 100%;
+    padding: ${BASE_PADDING}px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    color: #333;
+    position: relative;
+    border-radius: ${props => props.isSelected ? "6px" : "0"};
+    transition: background-color 0.2s ease;
+
+    &:hover {
+      background-color: ${props => props.isSelected ? "rgba(58, 124, 235, 0.1)" : "#f8f8f8"};
+    }
+  `;
+
   return (
     <div ref={sidebarRef} style={{ backgroundColor: SIDEBAR_BACKGROUND_COLOR }}>
       <div style={{ marginBottom: 8 }}>
@@ -324,22 +341,14 @@ const Sidebar = ({
                     {formatPrefixForDisplay(documentPrefix)} ...
                   </div>
                 )}
-                <div
+                <HoverDiv
                   ref={index - 1 === i ? selectedItemRef : null}
+                  isSelected={index - 1 === i}
                   style={{
-                    background: `${
-                      index - 1 === i ? "rgb(119, 119, 119)" : "#f5f5f5"
-                    }`,
-                    height: "100%",
-                    padding: BASE_PADDING,
-                    marginBottom: "8px",
-                    cursor: "pointer",
-                    color: "#333",
                     marginLeft: doc.structure
                       ? (getIndentationLevel(doc.structure) + 1) *
                         INDENTATION_PER_LEVEL
                       : 0,
-                    position: "relative",
                   }}
                   onClick={() => navigate(`/docs/${docPackageId}/${i + 1}/1`)}
                 >
@@ -458,7 +467,7 @@ const Sidebar = ({
                       )}
                     </>
                   )}
-                </div>
+                </HoverDiv>
               </div>
             );
           })}
