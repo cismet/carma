@@ -244,18 +244,18 @@ const Sidebar = ({
     );
   };
 
-  const VerticalLines = ({ level }: { level: number }) => (
+  const VerticalLines = ({ level, isDocument }: { level: number; isDocument?: boolean }) => (
     <>
       {Array.from({ length: level }).map((_, index) => (
         <div
           key={`line-${index}`}
           style={{
             position: "absolute",
-            left: `${2 - ((level - index - 1) * INDENTATION_PER_LEVEL)}px`,
+            left: `${2 - (level - index - 1) * INDENTATION_PER_LEVEL - (isDocument ? 10 : 0)}px`,
             top: "-12px",
             width: "1px",
             height: "calc(100% + 14px)",
-            backgroundColor: "#ddd",
+            backgroundColor: "#ddd"
           }}
         />
       ))}
@@ -266,14 +266,13 @@ const Sidebar = ({
     background: ${(props) =>
       props.isSelected ? "rgba(58, 124, 235, 0.1)" : "#ffffff"};
     height: 100%;
-    padding: ${BASE_PADDING}px;
+    padding: ${BASE_PADDING + 0}px;
     margin-bottom: 8px;
     cursor: pointer;
     color: #333;
     position: relative;
     border-radius: ${(props) => (props.isSelected ? "6px" : "0")};
     transition: background-color 0.2s ease;
-
     &:hover {
       background-color: ${(props) =>
         props.isSelected ? "rgba(58, 124, 235, 0.1)" : "#f8f8f8"};
@@ -328,10 +327,13 @@ const Sidebar = ({
                         );
                       }}
                     >
-                      <VerticalLines level={level} />
+                      <VerticalLines level={level} isDocument={false} />
                       <FontAwesomeIcon
                         icon={faFolder}
-                        style={{ fontSize: "12px", color: "#666" }}
+                        style={{
+                          fontSize: compactView ? "20px" : "12px",
+                          color: "#666",
+                        }}
                       />
                       {part}
                     </div>
@@ -378,6 +380,7 @@ const Sidebar = ({
                           ? getIndentationLevel(doc.structure) + 1
                           : 0
                       }
+                      isDocument={false}
                     />
                     {formatPrefixForDisplay(documentPrefix)} ...
                   </div>
@@ -386,20 +389,20 @@ const Sidebar = ({
                   ref={index - 1 === i ? selectedItemRef : null}
                   isSelected={index - 1 === i}
                   style={{
-                    marginLeft: doc.structure
-                      ? (getIndentationLevel(doc.structure) + 1) *
-                        INDENTATION_PER_LEVEL
-                      : 0,
+                    marginLeft:
+                      (doc.structure
+                        ? (getIndentationLevel(doc.structure) + 1) *
+                          INDENTATION_PER_LEVEL
+                        : 0) + 10,
                     position: "relative",
                   }}
                   onClick={() => navigate(`/docs/${docPackageId}/${i + 1}/1`)}
                 >
                   <VerticalLines
                     level={
-                      doc.structure
-                        ? getIndentationLevel(doc.structure) + 1
-                        : 0
+                      doc.structure ? getIndentationLevel(doc.structure) + 1 : 0
                     }
+                    isDocument={true}
                   />
                   <div
                     style={{
@@ -415,12 +418,18 @@ const Sidebar = ({
                     {doc.group === "Zusatzdokumente" ? (
                       <FontAwesomeIcon
                         icon={faFile}
-                        size={compactView ? "3x" : "1x"}
+                        style={{
+                          fontSize: compactView ? "36px" : "12px",
+                          color: "#666",
+                        }}
                       />
                     ) : (
                       <Icon
                         name="file-pdf-o"
-                        size={compactView ? "3x" : "1x"}
+                        style={{
+                          fontSize: compactView ? "36" : "12px",
+                          color: "#666",
+                        }}
                       />
                     )}
 

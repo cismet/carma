@@ -55,7 +55,7 @@ export function DocumentViewer({
   initialSidebarCollapsed = true,
 }: DocumentViewerProps) {
   let { file } = useParams();
-  const collapsedSidebarWidth = 170;
+  const collapsedSidebarWidth = 220;
   const expandedSidebarWidth = 335;
   const sideBarMinSize = 130;
   const mapWrapperRef = useRef<HTMLDivElement>(null);
