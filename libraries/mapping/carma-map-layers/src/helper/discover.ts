@@ -215,6 +215,9 @@ export const discoverConfig = {
             },
           },
         ],
+        settings: {
+          minZoomlevel: 15,
+        },
       },
     ],
   },
