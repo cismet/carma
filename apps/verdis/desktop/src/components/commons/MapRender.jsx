@@ -17,8 +17,7 @@ const mockExtractor = (input) => {
 
 const MapRender = ({ dataIn, extractor = mockExtractor }) => {
   const data = extractor(dataIn);
-  const padding = 5;
-  const headHeight = 37;
+  const padding = 0;
   const cardRef = useRef(null);
   const [mapWidth, setMapWidth] = useState(0);
   const [mapHeight, setMapHeight] = useState(0);
@@ -40,12 +39,12 @@ const MapRender = ({ dataIn, extractor = mockExtractor }) => {
   }, []);
 
   return (
-    <div ref={cardRef} className="w-full min-h-96">
+    <div ref={cardRef} className="w-full h-80">
       <TopicMapContextProvider appKey="verdis-desktop-render.map">
         <TopicMapComponent
           mapStyle={{
-            width: mapWidth - 2 * padding,
-            height: mapHeight - 2 * padding - headHeight,
+            width: mapWidth,
+            height: mapHeight + 10,
           }}
           homeZoom={data.homeZoom}
           homeCenter={data.homeCenter}

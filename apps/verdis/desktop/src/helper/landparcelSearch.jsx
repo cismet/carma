@@ -27,8 +27,8 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
 
   return (
     <CustomCard title={title}>
-      <div className="flex">
-        <div>
+      <div className="flex gap-4 w-full">
+        <div className="w-[35%]">
           <div className="font-bold mb-3">Flurstücksinformationen</div>
           <div className="w-[600px]">
             <div style={wrapStyle}>
@@ -65,7 +65,9 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
             </div>
           </div>
         </div>
-        <MapRender />
+        <div className="w-[65%]">
+          <MapRender />
+        </div>
       </div>
       <Divider />
       <div className="font-bold">Buchungsblätter</div>
