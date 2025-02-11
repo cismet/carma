@@ -40,7 +40,7 @@ const MapRender = ({ dataIn, extractor = mockExtractor }) => {
   }, []);
 
   return (
-    <div ref={cardRef}>
+    <div ref={cardRef} className="w-full min-h-96">
       <TopicMapContextProvider appKey="verdis-desktop-render.map">
         <TopicMapComponent
           mapStyle={{

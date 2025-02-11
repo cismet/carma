@@ -6,6 +6,7 @@ import { getLandparcelHtml } from "../helper/landparcelSearch.jsx";
 import InfoBar from "../components/commons/InfoBar.jsx";
 import { Spin } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
+import MapRender from "../components/commons/MapRender.jsx";
 
 const AlkisLandparcelPage = () => {
   const [searchParams] = useSearchParams();

@@ -4,6 +4,7 @@ import { getLandparcelTitle } from "./utility";
 import AdditionalSheet from "../components/render/AdditionalSheet";
 import CustomCard from "../components/ui/Card";
 import { Link } from "react-router-dom";
+import MapRender from "../components/commons/MapRender";
 export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
   const landparcelData = await searchLandparcelByName(
     name,
@@ -26,40 +27,45 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
 
   return (
     <CustomCard title={title}>
-      <div className="font-bold mb-3">Flurstücksinformationen</div>
-      <div className="w-[600px]">
-        <div style={wrapStyle}>
-          <div style={colStyle}>Flurstückenzeichen:</div>
-          <div style={colStyle}>{name}</div>
-        </div>
-        <div style={wrapStyle}>
-          <div style={colStyle}>Gemeinde:</div>
-          <div>Wuppertal</div>
-        </div>
-        <div style={wrapStyle}>
-          <div style={colStyle}>Gemarkung:</div>
-          <div>{landparcel.gemarkung}</div>
-        </div>
-        <div style={wrapStyle}>
-          <div style={colStyle}>Lage:</div>
-          <div style={{ display: "flex", gap: "0.4rem" }}>
-            <div>{lage}</div>
-            {landparcel.adressenArray.map((a, idx) => {
-              return (
-                <div key={idx}>
-                  {a.alkis_adresse.nummer}
-                  {idx !== landparcel.adressenArray.length - 1 && ","}
-                </div>
-              );
-            })}
+      <div className="flex">
+        <div>
+          <div className="font-bold mb-3">Flurstücksinformationen</div>
+          <div className="w-[600px]">
+            <div style={wrapStyle}>
+              <div style={colStyle}>Flurstückenzeichen:</div>
+              <div style={colStyle}>{name}</div>
+            </div>
+            <div style={wrapStyle}>
+              <div style={colStyle}>Gemeinde:</div>
+              <div>Wuppertal</div>
+            </div>
+            <div style={wrapStyle}>
+              <div style={colStyle}>Gemarkung:</div>
+              <div>{landparcel.gemarkung}</div>
+            </div>
+            <div style={wrapStyle}>
+              <div style={colStyle}>Lage:</div>
+              <div style={{ display: "flex", gap: "0.4rem" }}>
+                <div>{lage}</div>
+                {landparcel.adressenArray.map((a, idx) => {
+                  return (
+                    <div key={idx}>
+                      {a.alkis_adresse.nummer}
+                      {idx !== landparcel.adressenArray.length - 1 && ","}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div style={wrapStyle}>
+              <div style={colStyle}>Größe:</div>
+              <div>
+                {landparcel.groesse} m<sup>2</sup>
+              </div>
+            </div>
           </div>
         </div>
-        <div style={wrapStyle}>
-          <div style={colStyle}>Größe:</div>
-          <div>
-            {landparcel.groesse} m<sup>2</sup>
-          </div>
-        </div>
+        <MapRender />
       </div>
       <Divider />
       <div className="font-bold">Buchungsblätter</div>
