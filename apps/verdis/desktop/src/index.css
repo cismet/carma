@@ -48,11 +48,3 @@ a {
 .ant-breadcrumb-separator {
   margin-inline: 4px !important;
 }
-
-.booking-pdf-link {
-  color: blue;
-}
-
-.booking-pdf-link:visited {
-  color: purple;
-}

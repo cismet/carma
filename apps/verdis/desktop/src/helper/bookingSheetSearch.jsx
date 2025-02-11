@@ -10,6 +10,7 @@ import {
   getAdditionalTextForBooking,
   getBookingByLandparcelCode,
   getLandRegisterDistrict,
+  pdfProductsDemo,
 } from "./utility";
 
 export const getSheetHtml = async (jwt, name, setError, setIsLoading) => {
@@ -97,30 +98,22 @@ export const getSheetHtml = async (jwt, name, setError, setIsLoading) => {
         </CustomCard>
         <CustomCard style={{ marginBottom: "1rem" }} title="PDF-Produkte">
           <div>
-            <div>
-              <FilePdfOutlined />{" "}
-              <a
-                // onClick={(e) => {
-                //   e.preventDefault();
-                // }}
-                href="#"
-                className="cursor-pointer text-blue-600 visited:text-purple-600"
-              >
-                Bestandsnachweis (NRW)
-              </a>
-            </div>
-            <div>
-              <FilePdfOutlined />{" "}
-              <a
-                // onClick={(e) => {
-                //   e.preventDefault();
-                // }}
-                href="#"
-                className="booking-pdf-link"
-              >
-                Bestandsnachweis stichtagsbezogen (NRW)
-              </a>
-            </div>
+            {pdfProductsDemo.map((p, idx) => {
+              return (
+                <div key={idx} className="my-2 flex items-center gap-2">
+                  <FilePdfOutlined />
+                  <a
+                    onClick={(e) => {
+                      e.preventDefault();
+                    }}
+                    href="#"
+                    className="cursor-pointer"
+                  >
+                    {p}
+                  </a>
+                </div>
+              );
+            })}
           </div>
         </CustomCard>
       </CustomCard>

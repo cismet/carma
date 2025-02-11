@@ -152,3 +152,12 @@ export const bookingColors = [
   "#DCF600",
   "#FF5B00",
 ];
+
+export const pdfProductsDemo = [
+  "Bestandsnachweis (NRW)",
+  "Bestandsnachweis stichtagsbezogen (NRW)",
+  "Bestandsnachweis (kommunal)",
+  "Bestandsnachweis (kommunal, intern)",
+  "Grundstücksnachweis (NRW)",
+  "Baulastbescheinigung",
+];
