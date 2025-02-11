@@ -11,9 +11,17 @@ import {
   getLandRegisterDistrict,
 } from "./utility";
 
-export const getSheetHtml = async (jwt, name) => {
-  const sheetData = await getAdditionalSheetAsync(name, jwt);
+export const getSheetHtml = async (jwt, name, setError, setIsLoading) => {
+  const sheetData = await getAdditionalSheetAsync(
+    name,
+    jwt,
+    setError,
+    setIsLoading
+  );
   const booking = await getBookingOfficesBySheetId(name + " ", jwt);
+  if (booking.data.alkis_buchungsblatt.length === 0) {
+    setError("No data found");
+  }
   const bookingOff = booking.data.alkis_buchungsblatt[0].landparcelsArray;
   const localCourt = sheetData.res.offices.districtCourtName[0];
   const leafType = sheetData.res.blattart;

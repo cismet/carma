@@ -101,7 +101,12 @@ export const getAllAdditionalSheets = async (buchungsblattArray, jwt) => {
   return results;
 };
 
-export const getAdditionalSheetAsync = async (sheetId, jwt) => {
+export const getAdditionalSheetAsync = async (
+  sheetId,
+  jwt,
+  setError,
+  setIsLoading
+) => {
   const form = new FormData();
   const taskParameters = {
     parameters: {
@@ -130,14 +135,19 @@ export const getAdditionalSheetAsync = async (sheetId, jwt) => {
 
     if (response.status >= 200 && response.status < 300) {
       const result = await response.json();
+      setIsLoading(false);
 
       return result;
     } else {
+      setIsLoading(false);
+      setError(response.status);
       console.log(
         "xxx Error:" + response.status + " -> " + response.statusText
       );
     }
   } catch (e) {
+    setIsLoading(false);
+    setError("Error text");
     console.log("xxx error", e);
   }
 };

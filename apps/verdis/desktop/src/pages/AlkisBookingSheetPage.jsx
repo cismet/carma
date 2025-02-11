@@ -16,11 +16,12 @@ const AlkisBookingSheetPage = () => {
   const [resHtml, setResHtml] = useState(null);
   const [idTitle, setIdTitle] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
   useEffect(() => {
     const onSheetSearch = async (jwt, id) => {
       if (jwt) {
         setIsLoading(true);
-        const sheetHtml = await getSheetHtml(jwt, id);
+        const sheetHtml = await getSheetHtml(jwt, id, setError, setIsLoading);
         setResHtml(sheetHtml);
         setIdTitle(id);
         setIsLoading(false);
@@ -39,7 +40,7 @@ const AlkisBookingSheetPage = () => {
           title={
             <div className="text-base">
               <span>
-                Buchungsblatt{" "}
+                {!error && "Buchungsblatt"}
                 <span>
                   {isLoading ? (
                     <Spin
@@ -48,11 +49,11 @@ const AlkisBookingSheetPage = () => {
                       className="ml-2"
                     />
                   ) : (
-                    ""
+                    error && `Error: ${error}`
                   )}
                 </span>
               </span>
-              {!isLoading && (
+              {!isLoading && !error && (
                 <Breadcrumb
                   items={[
                     {
