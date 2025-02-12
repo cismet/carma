@@ -16,6 +16,10 @@ import {
   ProviderConfig,
 } from "./utils/cesiumProviders";
 import { loadTileset, TilesetConfigs } from "./utils/cesiumTilesetProviders";
+import {
+  initViewerAnimationMap,
+  ViewerAnimationMap,
+} from "./utils/viewerAnimationMap";
 
 export const CesiumContextProvider = ({
   children,
@@ -28,6 +32,9 @@ export const CesiumContextProvider = ({
 }) => {
   // Use refs for Cesium instances to prevent re-renders
   const viewerRef = useRef<Viewer | null>(null);
+  const viewerAnimationMapRef = useRef<ViewerAnimationMap | null>(
+    initViewerAnimationMap()
+  );
   const ellipsoidTerrainProviderRef = useRef(new EllipsoidTerrainProvider());
   const terrainProviderRef = useRef<CesiumTerrainProvider | null>(null);
   const surfaceProviderRef = useRef<CesiumTerrainProvider | null>(null);
@@ -148,6 +155,7 @@ export const CesiumContextProvider = ({
   const contextValue = useMemo<CesiumContextType>(
     () => ({
       viewerRef,
+      viewerAnimationMapRef,
       ellipsoidTerrainProviderRef,
       terrainProviderRef,
       surfaceProviderRef,

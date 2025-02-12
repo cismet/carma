@@ -4,6 +4,7 @@ import { useLocation, useSearchParams } from "react-router-dom";
 import L from "leaflet";
 import { isMobile } from "react-device-detect";
 import proj4 from "proj4";
+import { Math as CesiumMath } from "cesium";
 
 import { Tooltip } from "antd";
 
@@ -68,6 +69,7 @@ import {
   useHomeControl,
   useZoomControls as useZoomControlsCesium,
   setCurrentSceneStyle,
+  PitchingCompass,
 } from "@carma-mapping/cesium-engine";
 import { LibFuzzySearch, SearchResultItem } from "@carma-mapping/fuzzy-search";
 import { SelectionItem } from "libraries/appframeworks/portals/src/lib/components/SelectionProvider.tsx";
@@ -165,13 +167,17 @@ export const GeoportalMap = () => {
   const showMeasurementButton = useSelector(getShowMeasurementButton);
   const focusMode = useSelector(getFocusMode);
   const selectedFeature = useSelector(getSelectedFeature);
-  const { viewerRef, terrainProviderRef, surfaceProviderRef } =
-    useCesiumContext();
+  const {
+    viewerRef,
+    viewerAnimationMapRef,
+    terrainProviderRef,
+    surfaceProviderRef,
+  } = useCesiumContext();
   const homeControl = useHomeControl();
   const {
     handleZoomIn: handleZoomInCesium,
     handleZoomOut: handleZoomOutCesium,
-  } = useZoomControlsCesium(viewerRef);
+  } = useZoomControlsCesium(viewerRef, viewerAnimationMapRef);
   const { getLeafletZoom, zoomInLeaflet, zoomOutLeaflet } =
     useLeafletZoomControls();
   const showPrimaryTileset = useSelector(selectShowPrimaryTileset);
@@ -561,12 +567,21 @@ export const GeoportalMap = () => {
             }}
             ref={tourRefLabels.toggle2d3d}
           />
-
+          <Tooltip title="Nach Norden ausrichten" placement="right">
+            <ControlButtonStyler
+              disabled={isMode2d}
+              ref={tourRefLabels.alignNorth}
+              dataTestId="compass-control"
+            >
+              <PitchingCompass
+                viewerRef={viewerRef}
+                viewerAnimationMapRef={viewerAnimationMapRef}
+                maxPitch={CesiumMath.toRadians(-30)}
+              />
+            </ControlButtonStyler>
+          </Tooltip>
           {
-            //<SceneStyleToggle />
-            <Compass ref={tourRefLabels.alignNorth} disabled={isMode2d} />
             // TODO implement cesium home action with generic home control for all mapping engines
-            //<HomeControl />
           }
         </Control>
       )}

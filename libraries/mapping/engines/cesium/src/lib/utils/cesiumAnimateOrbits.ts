@@ -13,8 +13,8 @@ import { AnimationType, ViewerAnimationMap } from "./viewerAnimationMap";
 
 export enum PITCH {
   HORIZONTAL = 0,
-  OBLIQUE = -45,
-  ORTHO = -90,
+  OBLIQUE = CesiumMath.toRadians(-45),
+  ORTHO = CesiumMath.toRadians(-90),
 }
 
 /**
@@ -80,12 +80,7 @@ function runAnimation(
       viewerAnimationMap.delete(viewer); // Clear the animation entry
     }
   };
-  const animationFrameId = requestAnimationFrame(animate);
-  viewerAnimationMap.set(viewer, {
-    id: animationFrameId,
-    type: animationType,
-    cancelable: true,
-  });
+  animate(performance.now());
 }
 
 /**
@@ -112,8 +107,9 @@ export const animateCamera = (
   const previousAnimation = viewerAnimationMap.get(viewer);
   if (previousAnimation) {
     if (previousAnimation.cancelable) {
-      console.info(`Canceling ${previousAnimation.type} animation`);
+      console.info(`Canceling previous ${previousAnimation.type} animation`);
       cancelAnimationFrame(previousAnimation.id);
+      viewer.scene.camera.lookAtTransform(Matrix4.IDENTITY);
       runAnimation(
         viewer,
         viewerAnimationMap,
@@ -155,6 +151,10 @@ export const animateCamera = (
   }
 };
 
+// TODO: figure out this bug
+// when pitch is at -Math.PI / 2 the HeadingPitchRange heading resets to 0;
+const OFFSET_NADIR = -Math.PI / 2 + 0.0001;
+
 /**
  * Get the heading and pitch for a mouse event.
  * @param event The mouse event.
@@ -179,14 +179,20 @@ export const getHeadingPitchForMouseEvent = (
   minPitch: number,
   maxPitch: number
 ) => {
+  const absoluteMinPitch = Math.max(minPitch, OFFSET_NADIR);
+  const absoluteMaxPitch = Math.min(maxPitch, 0);
   const deltaX = event.clientX - initialMouseX;
   const deltaY = event.clientY - initialMouseY;
   const headingChange = (deltaX * 0.01 * headingFactor) % CesiumMath.TWO_PI;
-  const newHeading =
-    ((initialHeading || 0) + headingChange) % CesiumMath.TWO_PI;
+  const newHeading = (initialHeading + headingChange) % CesiumMath.TWO_PI;
   // default pitch direction is same as maplibre
-  const pitchChange = (-deltaY * 0.01 * pitchFactor) % CesiumMath.TWO_PI;
-  const newPitchRaw = ((initialPitch || 0) + pitchChange) % CesiumMath.TWO_PI;
-  const newPitch = CesiumMath.clamp(newPitchRaw, minPitch, maxPitch);
+  let pitchChange = -deltaY * 0.01 * pitchFactor;
+
+  const newPitchRaw = (initialPitch + pitchChange) % CesiumMath.TWO_PI;
+  const newPitch = CesiumMath.clamp(
+    newPitchRaw,
+    absoluteMinPitch,
+    absoluteMaxPitch
+  );
   return { heading: newHeading, pitch: newPitch };
 };

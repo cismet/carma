@@ -22,6 +22,7 @@ import {
 } from "../../../utils/cesiumAnimateOrbits";
 
 import { CompassNeedleSVG } from "./CompassNeedleSVG";
+import { applyRollToHeadingForCameraNearNadir } from "../../../utils/cesiumCamera";
 
 interface RotateButtonProps {
   viewerRef: React.RefObject<Viewer | null>;
@@ -96,11 +97,6 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
   };
 
   useEffect(() => {
-    console.log(
-      "useEffect RotateButton",
-      viewerRef.current,
-      viewerAnimationMapRef.current
-    );
     if (!viewerRef.current || !viewerAnimationMapRef.current) return;
     const viewer = viewerRef.current;
     const animationMap = viewerAnimationMapRef.current;
@@ -175,16 +171,33 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
     ) {
       const orbitPoint = getOrbitPoint(viewerRef.current);
       if (orbitPoint) {
-        const isDoubleClick = event.detail >= 2;
-        const targetPitch = CesiumMath.toRadians(
-          isDoubleClick ? PITCH.ORTHO : pitchOblique
-        );
         animateCamera(
           viewerRef.current,
           viewerAnimationMapRef.current,
           orbitPoint,
           0,
-          targetPitch,
+          pitchOblique,
+          initialRange,
+          durationReset
+        );
+      }
+    }
+  };
+
+  const handleDoubleClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (
+      viewerRef.current &&
+      viewerAnimationMapRef.current &&
+      initialRange !== null
+    ) {
+      const orbitPoint = getOrbitPoint(viewerRef.current);
+      if (orbitPoint) {
+        animateCamera(
+          viewerRef.current,
+          viewerAnimationMapRef.current,
+          orbitPoint,
+          0,
+          PITCH.ORTHO,
           initialRange,
           durationReset
         );
@@ -193,11 +206,13 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
   };
 
   useEffect(() => {
-    if (viewerRef.current) {
-      const camera = viewerRef.current.scene.camera;
+    const viewer = viewerRef.current;
+    if (viewer) {
+      const camera = viewer.scene.camera;
       const updateOrientation = () => {
         setCurrentPitch(camera.pitch);
-        setCurrentHeading(camera.heading);
+        // correct heading for compass needle
+        setCurrentHeading(applyRollToHeadingForCameraNearNadir(camera));
       };
       camera.percentageChanged = 0.01;
       camera.changed.addEventListener(updateOrientation);
@@ -215,6 +230,7 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
       onMouseDown={handleMouseDown}
       onMouseUp={handleControlMouseUp}
       onClick={handleButtonClick}
+      onDoubleClick={handleDoubleClick}
       style={{
         border: "none",
         background: "transparent",

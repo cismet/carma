@@ -34,6 +34,8 @@ export {
   type ForwardedCesiumError,
 } from "./lib/utils/CesiumErrorToErrorBoundaryForwarder";
 
+export { applyRollToHeadingForCameraNearNadir } from "./lib/utils/cesiumCamera";
+
 export {
   pickViewerCanvasCenter,
   getDegreesFromCartesian,
@@ -50,7 +52,10 @@ export {
   removeGroundPrimitiveById,
 } from "./lib/utils/cesiumGroundPrimitives";
 export { addCesiumMarker, removeCesiumMarker } from "./lib/utils/cesiumMarkers";
-export { setupCesiumEnvironment } from "./lib/utils/cesiumSetup";
+export {
+  getIsViewerReadyAsync,
+  setupCesiumEnvironment,
+} from "./lib/utils/cesiumSetup";
 export {
   distanceFromZoomLevel,
   getHeadingPitchRangeFromZoom,

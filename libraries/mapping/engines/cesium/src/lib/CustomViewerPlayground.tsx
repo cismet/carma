@@ -1,11 +1,4 @@
-import {
-  ReactNode,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { ReactNode, useContext, useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import { useLocation } from "react-router-dom";
 
@@ -25,8 +18,6 @@ import { useTweakpaneCtx } from "@carma-commons/debug";
 
 import {
   selectShowSecondaryTileset,
-  selectViewerHome,
-  selectViewerHomeOffset,
   selectViewerIsMode2d,
 } from "./slices/cesium";
 
@@ -84,7 +75,7 @@ type CustomViewerProps = {
 };
 
 export function CustomViewerPlayground(props: CustomViewerProps) {
-  const { viewerRef } = useCesiumContext();
+  const { viewerRef, viewerAnimationMapRef } = useCesiumContext();
   let viewer = useCesiumViewer();
 
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
@@ -428,6 +419,8 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
       {showControls && (
         <ControlsUI
           viewerRef={viewerRef}
+          viewerAnimationMapRef={viewerAnimationMapRef}
+          isViewerReady={true} // TODO: check if ready properly
           showHome={showHome}
           showOrbit={showOrbit}
         />

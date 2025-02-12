@@ -1,4 +1,4 @@
-import { Viewer } from "cesium";
+import { Viewer, Matrix4 } from "cesium";
 
 export enum AnimationType {
   ResetView = "ResetView",
@@ -23,8 +23,15 @@ export const cancelViewerAnimation = (
 ) => {
   const animationEntry = viewerAnimationMap.get(viewer);
   if (animationEntry) {
-    console.info(`Canceling animation of type ${animationEntry.type}`);
     cancelAnimationFrame(animationEntry.id);
+    // reset any camera transforms
+    viewer.scene.camera.lookAtTransform(Matrix4.IDENTITY);
     viewerAnimationMap.delete(viewer);
+    console.debug(
+      `Canceling animation of type ${animationEntry.type}`,
+      animationEntry.id
+    );
   }
+  // Request a render to update the scene
+  viewer.scene.requestRender();
 };

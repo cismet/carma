@@ -7,20 +7,25 @@ import { Compass } from "./controls/Compass";
 import ControlContainer from "./controls/ControlContainer";
 import ControlGroup from "./controls/ControlGroup";
 import { HomeControl } from "./controls/HomeControl";
-import MapTypeSwitcher from "./controls/MapTypeSwitcher";
+import { MapTypeSwitcher } from "./controls/MapTypeSwitcher";
 import LockCenterControl from "./controls/LockCenterControl";
 import OrbitControl from "./controls/OrbitControl";
 import { SceneStyleToggle } from "./controls/SceneStyleToggle";
 import ZoomControls from "./controls/ZoomControls";
+import { ViewerAnimationMap } from "../utils/viewerAnimationMap";
 
 const ControlsUI = ({
   showHome = true,
   showOrbit = true,
   viewerRef,
+  viewerAnimationMapRef,
+  isViewerReady,
 }: {
   showHome?: boolean;
   showOrbit?: boolean;
   viewerRef: React.RefObject<Viewer | null>;
+  viewerAnimationMapRef: React.RefObject<ViewerAnimationMap | null>;
+  isViewerReady: boolean;
 }) => {
   const home = useSelector(selectViewerHome);
 
@@ -37,7 +42,10 @@ const ControlsUI = ({
             visibility: isMode2d ? "hidden" : "visible",
           }}
         >
-          <ZoomControls viewerRef={viewerRef} />
+          <ZoomControls
+            viewerRef={viewerRef}
+            viewerAnimationMapRef={viewerAnimationMapRef}
+          />
           {showHome && home && (
             <ControlGroup>
               <HomeControl />
