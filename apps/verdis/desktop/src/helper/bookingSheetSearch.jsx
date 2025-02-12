@@ -10,7 +10,7 @@ import {
   getAdditionalTextForBooking,
   getBookingByLandparcelCode,
   getLandRegisterDistrict,
-  pdfProductsDemo,
+  pdfProductsSheet,
 } from "./utility";
 
 export const getSheetHtml = async (jwt, name, setError, setIsLoading) => {
@@ -98,7 +98,7 @@ export const getSheetHtml = async (jwt, name, setError, setIsLoading) => {
         </CustomCard>
         <CustomCard style={{ marginBottom: "1rem" }} title="PDF-Produkte">
           <div>
-            {pdfProductsDemo.map((p, idx) => {
+            {pdfProductsSheet.map((p, idx) => {
               return (
                 <div key={idx} className="my-2 flex items-center gap-2">
                   <FilePdfOutlined />

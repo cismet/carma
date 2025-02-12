@@ -7,11 +7,14 @@ import PropTypes from "prop-types";
 import { useEffect, useRef, useState } from "react";
 import { flaechen } from "../../stories/_data/rathausKassenzeichenfeatureCollection";
 import { FeatureCollectionDisplay } from "react-cismap";
+import { stylerGeometrienStyle } from "../../helper/utility";
+
 const mockExtractor = (input) => {
   return {
     homeCenter: [51.27225612927373, 7.199918031692506],
     homeZoom: 16,
     featureCollection: flaechen,
+    styler: stylerGeometrienStyle,
   };
 };
 

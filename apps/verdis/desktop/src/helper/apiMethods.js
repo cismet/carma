@@ -187,3 +187,54 @@ export const getBookingOfficesBySheetId = async (name, jwt) => {
     console.error("There was a problem with the fetch operation:");
   }
 };
+
+export const checkPdfProductPermission = async (
+  configurationAttribute = "custom.alkis.product.flurstuecksnachweis",
+  jwt
+) => {
+  const url = `https://wunda-api.cismet.de/configattributes/${configurationAttribute}`;
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "multipart/form-data",
+        Authorization: `Bearer ${jwt}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error("Network response was not ok");
+    }
+
+    const result = await response.json();
+    console.log("xxx one pdf", result);
+
+    return result;
+  } catch (error) {
+    console.error("There was a problem with the fetch operation:");
+  }
+};
+
+export const productsPdfWithPermission = async (jwt, products) => {
+  const copyProducts = [...products];
+  for (const product of copyProducts) {
+    if (product.configurationAttribute) {
+      try {
+        const result = await checkPdfProductPermission(
+          product.configurationAttribute,
+          jwt
+        );
+        product.permission = result[product.configurationAttribute];
+      } catch (error) {
+        console.error(
+          `Error fetching permission for product ${product.name}:`,
+          error
+        );
+        product.fetchError = error;
+      }
+    }
+  }
+
+  console.log("xxx updated products:", copyProducts);
+  return copyProducts;
+};

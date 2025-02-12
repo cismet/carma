@@ -1,3 +1,5 @@
+import { featureCollection } from "@turf/turf";
+
 export const getLandparcelTitle = (
   alkisId,
   flur,
@@ -153,11 +155,97 @@ export const bookingColors = [
   "#FF5B00",
 ];
 
-export const pdfProductsDemo = [
+export const stylerGeometrienStyle = (feature) => {
+  console.log("xxx feature", feature);
+  const color = bookingColors[feature.properties.id % bookingColors.length];
+
+  const style = {
+    fillColor: color,
+    fillOpacity: 0.5,
+    color: "#000000",
+    weight: 0.4,
+  };
+
+  return style;
+};
+
+export const FLURSTUECKSNACHWEIS_PDF =
+  "custom.alkis.product.flurstuecksnachweis";
+export const FLURSTUECKS_UND_EIGENTUMSNACHWEIS_NRW_PDF =
+  " custom.alkis.product.flurstuecks_eigentumsnachweis_nrw";
+
+export const FLURSTUECKS_UND_EIGENTUMSNACHWEIS_KOMMUNAL_INTERN_PDF =
+  "custom.alkis.product.flurstuecks_eigentumsnachweis_kom_intern";
+export const FLURSTUECKS_UND_EIGENTUMSNACHWEIS_KOMMUNAL_INTERN_HTML =
+  "custom.alkis.product.flurstuecks_eigentumsnachweis_kom_intern";
+
+export const FLURSTUECKS_UND_EIGENTUMSNACHWEIS_KOMMUNAL_PDF =
+  "custom.alkis.product.flurstuecks_eigentumsnachweis_kom";
+export const FLURSTUECKS_UND_EIGENTUMSNACHWEIS_KOMMUNAL_HTML =
+  "custom.alkis.product.flurstuecks_eigentumsnachweis_kom";
+
+export const BESTANDSNACHWEIS_KOMMUNAL_PDF =
+  "custom.alkis.product.bestandsnachweis_kom";
+export const BESTANDSNACHWEIS_KOMMUNAL_HTML =
+  "custom.alkis.product.bestandsnachweis_kom";
+
+export const BESTANDSNACHWEIS_KOMMUNAL_INTERN_PDF =
+  "custom.alkis.product.bestandsnachweis_kom_intern";
+export const BESTANDSNACHWEIS_KOMMUNAL_INTERN_HTML =
+  "custom.alkis.product.bestandsnachweis_kom_intern";
+
+export const BESTANDSNACHWEIS_NRW_PDF =
+  "custom.alkis.product.bestandsnachweis_nrw;";
+export const BESTANDSNACHWEIS_NRW_HTML =
+  "custom.alkis.product.bestandsnachweis_nrw";
+
+export const BESTANDSNACHWEIS_STICHTAGSBEZOGEN_NRW_PDF =
+  " custom.alkis.product.bestandsnachweis_stichtagsbezogen_nrw";
+
+export const GRUNDSTUECKSNACHWEIS_NRW_PDF =
+  "custom.alkis.product.grundstuecksnachweis_nrw";
+export const GRUNDSTUECKSNACHWEIS_NRW_HTML =
+  " custom.alkis.product.grundstuecksnachweis_nrw";
+
+export const KARTE = "custom.alkis.product.karte";
+
+export const PRODUCT_ACTION_TAG_BAULASTBESCHEINIGUNG_ENABLED =
+  " baulast.report.bescheinigung_enabled";
+export const PRODUCT_ACTION_TAG_BAULASTBESCHEINIGUNG_DISABLED =
+  "baulast.report.bescheinigung_disabled";
+
+export const pdfProductsSheet = [
   "Bestandsnachweis (NRW)",
   "Bestandsnachweis stichtagsbezogen (NRW)",
   "Bestandsnachweis (kommunal)",
   "Bestandsnachweis (kommunal, intern)",
   "Grundstücksnachweis (NRW)",
   "Baulastbescheinigung",
+];
+
+export const pdfProductsLandparcel = [
+  {
+    name: "Flurstücksnachweis",
+    configurationAttribute: FLURSTUECKSNACHWEIS_PDF,
+  },
+  {
+    name: "Flurstücks- und Eigentumsnachweis (NRW)",
+    configurationAttribute: FLURSTUECKS_UND_EIGENTUMSNACHWEIS_NRW_PDF,
+  },
+  {
+    name: "Flurstücks- und Eigentumsnachweis (kommunal)",
+    configurationAttribute: FLURSTUECKS_UND_EIGENTUMSNACHWEIS_KOMMUNAL_PDF,
+  },
+  {
+    name: "Flurstücks- und Eigentumsnachweis (kommunal, intern)",
+    configurationAttribute:
+      FLURSTUECKS_UND_EIGENTUMSNACHWEIS_KOMMUNAL_INTERN_PDF,
+  },
+  // {
+  //   name: "Baulastbescheinigung",
+  // },
+  {
+    name: "Karte",
+    configurationAttribute: KARTE,
+  },
 ];
