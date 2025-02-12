@@ -41,6 +41,8 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
     isBillingMode["billing.mode@WUNDA_BLAU"]
   );
 
+  console.log("xxx landparcel", landparcel);
+
   const title = getLandparcelTitle(alkis_id, flur, fstck_nenner, fstck_zaehler);
   const lage = landparcel.adressenArray[0].alkis_adresse.strasse;
 

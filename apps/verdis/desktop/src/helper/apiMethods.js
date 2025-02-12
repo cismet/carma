@@ -215,6 +215,7 @@ export const checkPdfProductPermission = async (
 };
 
 export const loadPdfProduct = async (sheetId, loadingAttribute, type, jwt) => {
+  console.log("xxx sheetId", sheetId);
   const form = new FormData();
   const taskParameters = {
     parameters: {
@@ -226,6 +227,8 @@ export const loadPdfProduct = async (sheetId, loadingAttribute, type, jwt) => {
   if (type !== "Karte") {
     taskParameters.parameters.PRODUKT = `${loadingAttribute}`;
   }
+
+  console.log("xxx taskParameters", taskParameters);
 
   form.append(
     "taskparams",

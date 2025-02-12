@@ -192,22 +192,22 @@ export const BESTANDSNACHWEIS_KOMMUNAL_INTERN_HTML =
   "custom.alkis.product.bestandsnachweis_kom_intern";
 
 export const BESTANDSNACHWEIS_NRW_PDF =
-  "custom.alkis.product.bestandsnachweis_nrw;";
+  "custom.alkis.product.bestandsnachweis_nrw";
 export const BESTANDSNACHWEIS_NRW_HTML =
   "custom.alkis.product.bestandsnachweis_nrw";
 
 export const BESTANDSNACHWEIS_STICHTAGSBEZOGEN_NRW_PDF =
-  " custom.alkis.product.bestandsnachweis_stichtagsbezogen_nrw";
+  "custom.alkis.product.bestandsnachweis_stichtagsbezogen_nrw";
 
 export const GRUNDSTUECKSNACHWEIS_NRW_PDF =
   "custom.alkis.product.grundstuecksnachweis_nrw";
 export const GRUNDSTUECKSNACHWEIS_NRW_HTML =
-  " custom.alkis.product.grundstuecksnachweis_nrw";
+  "custom.alkis.product.grundstuecksnachweis_nrw";
 
 export const KARTE = "custom.alkis.product.karte";
 
 export const PRODUCT_ACTION_TAG_BAULASTBESCHEINIGUNG_ENABLED =
-  " baulast.report.bescheinigung_enabled";
+  "baulast.report.bescheinigung_enabled";
 export const PRODUCT_ACTION_TAG_BAULASTBESCHEINIGUNG_DISABLED =
   "baulast.report.bescheinigung_disabled";
 
@@ -224,6 +224,9 @@ export const LOADING_BESTANDSNACHWEIS_NRW_PDF = "LB.GDBNRW.A.BNW.1";
 export const LOADING_BESTANDSNACHWEIS_STICHTAGSBEZOGEN_NRW_PDF =
   "LB.GDBNRW.A.BNWST.1";
 export const LOADING_BESTANDSNACHWEIS_KOMMUNAL_PDF = "LB.NRW.K.BNW.1";
+
+export const LOADING_BESTANDSNACHWEIS_KOMMUNAL_INTERN_PDF = "LB.NRW.K.I.BNW.1";
+export const LOADING_GRUNDSTUECKSNACHWEIS_NRW_PDF = "LB.GDBNRW.A.GNW.1";
 
 export const pdfProductsSheet = [
   {
@@ -249,13 +252,13 @@ export const pdfProductsSheet = [
   {
     name: "Grundstücksnachweis (NRW)",
     configurationAttribute: GRUNDSTUECKSNACHWEIS_NRW_PDF,
-    loadingAttribute: "",
+    loadingAttribute: LOADING_GRUNDSTUECKSNACHWEIS_NRW_PDF,
   },
-  {
-    name: "Baulastbescheinigung",
-    configurationAttribute: "",
-    loadingAttribute: "",
-  },
+  // {
+  //   name: "Baulastbescheinigung",
+  //   configurationAttribute: "",
+  //   loadingAttribute: "",
+  // },
 ];
 
 export const pdfProductsLandparcel = [

@@ -1,9 +1,12 @@
-import { FilePdfOutlined } from "@ant-design/icons";
+import { FilePdfOutlined, LoadingOutlined } from "@ant-design/icons";
 import AdditionalSheet from "../components/render/AdditionalSheet";
 import CustomCard from "../components/ui/Card";
 import {
+  checkPdfProductPermission,
   getAdditionalSheetAsync,
   getBookingOfficesBySheetId,
+  loadPdfProduct,
+  productsPdfWithPermission,
 } from "./apiMethods";
 import {
   bookingColors,
@@ -12,8 +15,16 @@ import {
   getLandRegisterDistrict,
   pdfProductsSheet,
 } from "./utility";
+import { Spin } from "antd";
 
-export const getSheetHtml = async (jwt, name, setError, setIsLoading) => {
+export const getSheetHtml = async (
+  jwt,
+  name,
+  setError,
+  setIsLoading,
+  isPdfLoading,
+  setIsPdfLoading
+) => {
   const sheetData = await getAdditionalSheetAsync(
     name,
     jwt,
@@ -24,6 +35,20 @@ export const getSheetHtml = async (jwt, name, setError, setIsLoading) => {
   if (booking.data.alkis_buchungsblatt.length === 0) {
     setError("Keine Daten gefunden");
   }
+
+  const isAlkisProduct = await checkPdfProductPermission(
+    "csa%3A%2F%2FalkisProduct",
+    jwt
+  );
+  const isBillingMode = await checkPdfProductPermission("billing.mode", jwt);
+
+  const allPdfPermission = await productsPdfWithPermission(
+    jwt,
+    pdfProductsSheet,
+    isAlkisProduct["csa://alkisProduct@WUNDA_BLAU"],
+    isBillingMode["billing.mode@WUNDA_BLAU"]
+  );
+
   const bookingOff = booking.data.alkis_buchungsblatt[0].landparcelsArray;
   const localCourt = sheetData.res.offices.districtCourtName[0];
   const leafType = sheetData.res.blattart;
@@ -32,6 +57,33 @@ export const getSheetHtml = async (jwt, name, setError, setIsLoading) => {
 
   const sheetCode = sheetData.res.buchungsblattCode;
   const districtName = getLandRegisterDistrict(sheetCode);
+
+  const alkis_id = bookingOff[0].alkis_buchungsblatt_landparcel.landparcelcode;
+  const handleLoadPdfProduct = async (
+    event,
+    loadingAttribute,
+    permission,
+    type
+  ) => {
+    event.preventDefault();
+    if (permission) {
+      try {
+        setIsPdfLoading(true);
+        const response = await loadPdfProduct(
+          alkis_id,
+          loadingAttribute,
+          type,
+          jwt
+        );
+        const downloadUrl = response.res.url;
+        window.open(downloadUrl, "_blank", "noopener,noreferrer");
+        setIsPdfLoading(false);
+      } catch (error) {
+        console.error("Error loading PDF product:", error);
+        setIsPdfLoading(false);
+      }
+    }
+  };
 
   return (
     <div>
@@ -96,20 +148,43 @@ export const getSheetHtml = async (jwt, name, setError, setIsLoading) => {
             })}
           </div>
         </CustomCard>
-        <CustomCard style={{ marginBottom: "1rem" }} title="PDF-Produkte">
+        <CustomCard
+          style={{ marginBottom: "1rem" }}
+          title={
+            !isPdfLoading ? (
+              "PDF-Produkte"
+            ) : (
+              <Spin
+                indicator={<LoadingOutlined spin />}
+                size="small"
+                className="ml-2"
+              />
+            )
+          }
+        >
           <div>
-            {pdfProductsSheet.map((p, idx) => {
+            {allPdfPermission.map((p, idx) => {
               return (
-                <div key={idx} className="my-2 flex items-center gap-2">
+                <div
+                  key={idx}
+                  className={`my-2 flex items-center gap-2 ${
+                    p.permission ? "" : "text-gray-300"
+                  }`}
+                >
                   <FilePdfOutlined />
                   <a
-                    onClick={(e) => {
-                      e.preventDefault();
-                    }}
+                    onClick={(e) =>
+                      handleLoadPdfProduct(
+                        e,
+                        p.loadingAttribute,
+                        p.permission,
+                        p.name
+                      )
+                    }
                     href="#"
                     className="cursor-pointer"
                   >
-                    {p}
+                    {p.name}
                   </a>
                 </div>
               );
