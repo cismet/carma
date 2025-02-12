@@ -207,7 +207,6 @@ export const checkPdfProductPermission = async (
     }
 
     const result = await response.json();
-    console.log("xxx one pdf", result);
 
     return result;
   } catch (error) {
@@ -215,8 +214,28 @@ export const checkPdfProductPermission = async (
   }
 };
 
-export const productsPdfWithPermission = async (jwt, products) => {
-  const copyProducts = [...products];
+// export const fetchAllPdfProducts = async (jwt, prArray) => {
+//   const promises = prArray.map((product) =>
+//     checkPdfProductPermission(product.configurationAttribute, jwt)
+//   );
+
+//   try {
+//     const results = await Promise.all(promises);
+//     console.log("xxx all pdf permissions:", results);
+//     return results;
+//   } catch (error) {
+//     console.error("Error fetching one or more product permissions:", error);
+//     throw error;
+//   }
+// };
+
+export const productsPdfWithPermission = async (
+  jwt,
+  products,
+  isAlkisProduct,
+  isBillingMode
+) => {
+  const copyProducts = JSON.parse(JSON.stringify(products));
   for (const product of copyProducts) {
     if (product.configurationAttribute) {
       try {
@@ -235,6 +254,5 @@ export const productsPdfWithPermission = async (jwt, products) => {
     }
   }
 
-  console.log("xxx updated products:", copyProducts);
   return copyProducts;
 };

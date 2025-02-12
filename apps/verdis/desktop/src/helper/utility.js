@@ -156,7 +156,6 @@ export const bookingColors = [
 ];
 
 export const stylerGeometrienStyle = (feature) => {
-  console.log("xxx feature", feature);
   const color = bookingColors[feature.properties.id % bookingColors.length];
 
   const style = {

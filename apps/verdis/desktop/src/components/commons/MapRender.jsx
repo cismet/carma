@@ -36,8 +36,6 @@ const MapRender = ({ dataIn, extractor = mockExtractor }) => {
 
     window.addEventListener("resize", setSize);
 
-    console.log("xxx first load", data.featureCollection);
-
     return () => window.removeEventListener("resize", setSize);
   }, []);
 

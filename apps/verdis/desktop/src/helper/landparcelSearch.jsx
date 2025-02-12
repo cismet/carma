@@ -1,5 +1,5 @@
 import {
-  fetchAllPdfProducts,
+  checkPdfProductPermission,
   getAllAdditionalSheets,
   productsPdfWithPermission,
   searchLandparcelByName,
@@ -23,11 +23,23 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
     landparcelData.data.alkis_landparcel[0].buchungsblaetterArray,
     jwt
   );
-
-  const allPdfPermission = productsPdfWithPermission(
+  const isAlkisProduct = await checkPdfProductPermission(
+    "csa%3A%2F%2FalkisProduct@WUNDA_BLAU",
+    jwt
+  );
+  const isBillingMode = await checkPdfProductPermission("billing.mode", jwt);
+  console.log(
+    "xxx isAlkisProduct",
+    isAlkisProduct["csa://alkisProduct@WUNDA_BLAU"]
+  );
+  console.log("xxx isBillingMode", isBillingMode["billing.mode"]);
+  const allPdfPermission = await productsPdfWithPermission(
     jwt,
     pdfProductsLandparcel
   );
+
+  console.log("xxx allPdfPermission", allPdfPermission);
+
   const { alkis_id, flur, fstck_nenner, fstck_zaehler } =
     landparcelData.data.alkis_landparcel[0];
   const title = getLandparcelTitle(alkis_id, flur, fstck_nenner, fstck_zaehler);
@@ -119,9 +131,14 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
       </CustomCard>
       <CustomCard style={{ marginBottom: "1rem" }} title="PDF-Produkte">
         <div>
-          {pdfProductsLandparcel.map((p, idx) => {
+          {allPdfPermission.map((p, idx) => {
             return (
-              <div key={idx} className="my-2 flex items-center gap-2">
+              <div
+                key={idx}
+                className={`my-2 flex items-center gap-2 ${
+                  p.permission ? "" : "text-gray-300"
+                }`}
+              >
                 <FilePdfOutlined />
                 <a
                   onClick={(e) => {
