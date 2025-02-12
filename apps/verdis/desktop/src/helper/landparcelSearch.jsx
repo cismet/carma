@@ -1,6 +1,7 @@
 import {
   checkPdfProductPermission,
   getAllAdditionalSheets,
+  loadPdfProduct,
   productsPdfWithPermission,
   searchLandparcelByName,
 } from "./apiMethods";
@@ -23,11 +24,18 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
     landparcelData.data.alkis_landparcel[0].buchungsblaetterArray,
     jwt
   );
+
+  const { alkis_id, flur, fstck_nenner, fstck_zaehler } =
+    landparcelData.data.alkis_landparcel[0];
+
   const isAlkisProduct = await checkPdfProductPermission(
     "csa%3A%2F%2FalkisProduct@WUNDA_BLAU",
     jwt
   );
-  const isBillingMode = await checkPdfProductPermission("billing.mode", jwt);
+  const isBillingMode = await checkPdfProductPermission(
+    "billing.mode@WUNDA_BLAU",
+    jwt
+  );
   console.log(
     "xxx isAlkisProduct",
     isAlkisProduct["csa://alkisProduct@WUNDA_BLAU"]
@@ -40,13 +48,22 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
 
   console.log("xxx allPdfPermission", allPdfPermission);
 
-  const { alkis_id, flur, fstck_nenner, fstck_zaehler } =
-    landparcelData.data.alkis_landparcel[0];
   const title = getLandparcelTitle(alkis_id, flur, fstck_nenner, fstck_zaehler);
   const lage = landparcel.adressenArray[0].alkis_adresse.strasse;
 
   const wrapStyle = { display: "flex" };
   const colStyle = { width: "35%" };
+
+  const handleLoadPdfProduct = async (event, loadingAttribute) => {
+    event.preventDefault();
+    try {
+      const response = await loadPdfProduct(alkis_id, loadingAttribute, jwt);
+      const downloadUrl = response.res.url;
+      window.open(downloadUrl, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      console.error("Error loading PDF product:", error);
+    }
+  };
 
   return (
     <>
@@ -141,9 +158,7 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
               >
                 <FilePdfOutlined />
                 <a
-                  onClick={(e) => {
-                    e.preventDefault();
-                  }}
+                  onClick={(e) => handleLoadPdfProduct(e, p.loadingAttribute)}
                   href="#"
                   className="cursor-pointer"
                 >

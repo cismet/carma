@@ -1,5 +1,3 @@
-import { featureCollection } from "@turf/turf";
-
 export const getLandparcelTitle = (
   alkisId,
   flur,
@@ -171,7 +169,7 @@ export const stylerGeometrienStyle = (feature) => {
 export const FLURSTUECKSNACHWEIS_PDF =
   "custom.alkis.product.flurstuecksnachweis";
 export const FLURSTUECKS_UND_EIGENTUMSNACHWEIS_NRW_PDF =
-  " custom.alkis.product.flurstuecks_eigentumsnachweis_nrw";
+  "custom.alkis.product.flurstuecks_eigentumsnachweis_nrw";
 
 export const FLURSTUECKS_UND_EIGENTUMSNACHWEIS_KOMMUNAL_INTERN_PDF =
   "custom.alkis.product.flurstuecks_eigentumsnachweis_kom_intern";
@@ -213,6 +211,20 @@ export const PRODUCT_ACTION_TAG_BAULASTBESCHEINIGUNG_ENABLED =
 export const PRODUCT_ACTION_TAG_BAULASTBESCHEINIGUNG_DISABLED =
   "baulast.report.bescheinigung_disabled";
 
+// Constant for loading Flurstueck
+export const LOADING_FLURSTUECKSNACHWEIS_PDF = "LB.GDBNRW.A.FNW.1";
+export const LOADING_FLURSTUECKS_UND_EIGENTUMSNACHWEIS_NRW_PDF =
+  "LB.GDBNRW.A.FENW.1";
+export const LOADING_FLURSTUECKS_UND_EIGENTUMSNACHWEIS_KOMMUNAL_PDF =
+  "LB.NRW.K.FENW.1";
+export const LOADING_FLURSTUECKS_UND_EIGENTUMSNACHWEIS_KOMMUNAL_INTERN_PDF =
+  "LB.NRW.K.I.FENW.1";
+// Constant for loading Buchungsblatt
+export const LOADING_BESTANDSNACHWEIS_NRW_PDF = "LB.GDBNRW.A.BNW.1";
+export const LOADING_BESTANDSNACHWEIS_STICHTAGSBEZOGEN_NRW_PDF =
+  "LB.GDBNRW.A.BNWST.1";
+export const LOADING_BESTANDSNACHWEIS_KOMMUNAL_PDF = "LB.NRW.K.BNW.1";
+
 export const pdfProductsSheet = [
   "Bestandsnachweis (NRW)",
   "Bestandsnachweis stichtagsbezogen (NRW)",
@@ -226,19 +238,24 @@ export const pdfProductsLandparcel = [
   {
     name: "Flurstücksnachweis",
     configurationAttribute: FLURSTUECKSNACHWEIS_PDF,
+    loadingAttribute: LOADING_FLURSTUECKSNACHWEIS_PDF,
   },
   {
     name: "Flurstücks- und Eigentumsnachweis (NRW)",
     configurationAttribute: FLURSTUECKS_UND_EIGENTUMSNACHWEIS_NRW_PDF,
+    loadingAttribute: LOADING_FLURSTUECKS_UND_EIGENTUMSNACHWEIS_NRW_PDF,
   },
   {
     name: "Flurstücks- und Eigentumsnachweis (kommunal)",
     configurationAttribute: FLURSTUECKS_UND_EIGENTUMSNACHWEIS_KOMMUNAL_PDF,
+    loadingAttribute: LOADING_FLURSTUECKS_UND_EIGENTUMSNACHWEIS_KOMMUNAL_PDF,
   },
   {
     name: "Flurstücks- und Eigentumsnachweis (kommunal, intern)",
     configurationAttribute:
       FLURSTUECKS_UND_EIGENTUMSNACHWEIS_KOMMUNAL_INTERN_PDF,
+    loadingAttribute:
+      LOADING_FLURSTUECKS_UND_EIGENTUMSNACHWEIS_KOMMUNAL_INTERN_PDF,
   },
   // {
   //   name: "Baulastbescheinigung",
@@ -246,5 +263,6 @@ export const pdfProductsLandparcel = [
   {
     name: "Karte",
     configurationAttribute: KARTE,
+    loadingAttribute: "",
   },
 ];

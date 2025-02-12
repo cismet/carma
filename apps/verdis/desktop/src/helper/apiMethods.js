@@ -192,7 +192,7 @@ export const checkPdfProductPermission = async (
   configurationAttribute = "custom.alkis.product.flurstuecksnachweis",
   jwt
 ) => {
-  const url = `https://wunda-api.cismet.de/configattributes/${configurationAttribute}`;
+  const url = `https://wunda-api.cismet.de/configattributes/${configurationAttribute}@WUNDA_BLAU`;
   try {
     const response = await fetch(url, {
       method: "GET",
@@ -214,20 +214,47 @@ export const checkPdfProductPermission = async (
   }
 };
 
-// export const fetchAllPdfProducts = async (jwt, prArray) => {
-//   const promises = prArray.map((product) =>
-//     checkPdfProductPermission(product.configurationAttribute, jwt)
-//   );
+export const loadPdfProduct = async (sheetId, loadingAttribute, jwt) => {
+  const form = new FormData();
+  const taskParameters = {
+    parameters: {
+      PRODUKT: `${loadingAttribute}`,
+      ALKIS_CODE: `${sheetId}`,
+    },
+  };
 
-//   try {
-//     const results = await Promise.all(promises);
-//     console.log("xxx all pdf permissions:", results);
-//     return results;
-//   } catch (error) {
-//     console.error("Error fetching one or more product permissions:", error);
-//     throw error;
-//   }
-// };
+  form.append(
+    "taskparams",
+    new Blob([JSON.stringify(taskParameters)], { type: "application/json" })
+  );
+
+  form.append("file", "EINZELNACHWEIS");
+
+  const url =
+    "https://wunda-api.cismet.de/actions/WUNDA_BLAU.alkisProduct/tasks?resultingInstanceType=result";
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${jwt}`,
+      },
+      body: form,
+    });
+
+    if (response.status >= 200 && response.status < 300) {
+      const result = await response.json();
+      console.log("xxx loading result", result);
+      return result;
+    } else {
+      console.log(
+        "xxx Error: " + response.status + " -> " + response.statusText
+      );
+    }
+  } catch (error) {
+    console.log("xxx error", error);
+  }
+};
 
 export const productsPdfWithPermission = async (
   jwt,
@@ -243,7 +270,8 @@ export const productsPdfWithPermission = async (
           product.configurationAttribute,
           jwt
         );
-        product.permission = result[product.configurationAttribute];
+        product.permission =
+          result[product.configurationAttribute + "@WUNDA_BLAU"];
       } catch (error) {
         console.error(
           `Error fetching permission for product ${product.name}:`,
