@@ -347,7 +347,7 @@ const implicitVectorSelection = (
     hits: any[];
     hit: any;
   },
-  { layer, dispatch, selectionHandler }
+  { layer, dispatch, selectionHandler, featureHandler }
 ) => {
   selectionHandler(e, layer);
   if (!e.hits) {
@@ -366,20 +366,34 @@ const implicitVectorSelection = (
 
     //make sure to get a point from any geometry type
     const coordinates = getCoordinates(selectedVectorFeature.geometry);
-    dispatch(
-      setSelectedFeature({
-        properties: {
-          header: "Information",
-          headerColor: "#0078a8",
-          title: "Zu diesem Objekt sind keine weiteren Sachdaten verfügbar.",
-          additionalInfo: `Position: ${coordinates[1].toFixed(
-            5
-          )}, ${coordinates[0].toFixed(5)}`,
-          subtitle: "(Geogr. Breite und Länge in Dezimalgrad, ETRS89)",
-        },
-        id: "information",
-      })
-    );
+    const feature = {
+      properties: {
+        header: "Information",
+        headerColor: "#0078a8",
+        title: "Zu diesem Objekt sind keine weiteren Sachdaten verfügbar.",
+        additionalInfo: `Position: ${coordinates[1].toFixed(
+          5
+        )}, ${coordinates[0].toFixed(5)}`,
+        subtitle: "(Geogr. Breite und Länge in Dezimalgrad, ETRS89)",
+      },
+      id: "information",
+    };
+
+    featureHandler(feature, layer);
+    // dispatch(
+    //   setSelectedFeature({
+    //     properties: {
+    //       header: "Information",
+    //       headerColor: "#0078a8",
+    //       title: "Zu diesem Objekt sind keine weiteren Sachdaten verfügbar.",
+    //       additionalInfo: `Position: ${coordinates[1].toFixed(
+    //         5
+    //       )}, ${coordinates[0].toFixed(5)}`,
+    //       subtitle: "(Geogr. Breite und Länge in Dezimalgrad, ETRS89)",
+    //     },
+    //     id: "information",
+    //   })
+    // );
   }
 
   if (e.hits && layer.queryable) {
@@ -404,7 +418,8 @@ const implicitVectorSelection = (
     );
 
     if (feature) {
-      dispatch(setSelectedFeature(feature));
+      featureHandler(feature, layer);
+      // dispatch(setSelectedFeature(feature));
     }
   }
 };
@@ -461,11 +476,20 @@ export const createCismapLayers = (
   }
 ) => {
   const [globalHits, setGlobalHits] = useState({});
+  const [foundFeatures, setFoundFeatures] = useState({});
+
   const selectionHandler = (e, layer) => {
     setGlobalHits((old) => {
       return { ...old, [layer.id]: e.hits };
     });
   };
+
+  const featureHandler = (feature, layer) => {
+    setFoundFeatures((old) => {
+      return { ...old, [layer.id]: feature };
+    });
+  };
+
   const modeRef = useRef(mode);
 
   const getLastDefinedObject = (o: Object) => {
@@ -473,7 +497,7 @@ export const createCismapLayers = (
     for (let i = keys.length - 1; i >= 0; i--) {
       const value = o[keys[i]];
       if (value !== undefined && value[0].selectionLayerExists) {
-        return value;
+        return { key: keys[i], value };
       }
     }
     return undefined;
@@ -499,6 +523,20 @@ export const createCismapLayers = (
     });
   };
 
+  const rearrangeGlobalHits = () => {
+    const newGlobalHits = {};
+    layers.forEach((layer) => {
+      if (layer.visible) {
+        newGlobalHits[layer.id] = globalHits[layer.id];
+      }
+    });
+    setGlobalHits(newGlobalHits);
+  };
+
+  useEffect(() => {
+    rearrangeGlobalHits();
+  }, [layers]);
+
   useEffect(() => {
     if (modeRef.current !== mode) {
       updateGlobalHits();
@@ -521,9 +559,11 @@ export const createCismapLayers = (
       const lastObject = getLastDefinedObject(globalHits);
 
       if (lastObject) {
-        const selectedVectorFeature = lastObject[0];
+        resetSelection(globalHits);
+        const selectedVectorFeature = lastObject.value[0];
         if (selectedVectorFeature.setSelection) {
           selectedVectorFeature.setSelection(true);
+          dispatch(setSelectedFeature(foundFeatures[lastObject.key]));
         }
       } else {
         dispatch(setSelectedFeature(null));
@@ -585,6 +625,7 @@ export const createCismapLayers = (
                   layer,
                   dispatch,
                   selectionHandler,
+                  featureHandler,
                 });
               } else if (modeRef.current === UIMode.FEATURE_INFO) {
                 onSelectionChangedVector(e, {
