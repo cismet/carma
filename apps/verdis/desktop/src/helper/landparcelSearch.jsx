@@ -29,24 +29,17 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
     landparcelData.data.alkis_landparcel[0];
 
   const isAlkisProduct = await checkPdfProductPermission(
-    "csa%3A%2F%2FalkisProduct@WUNDA_BLAU",
+    "csa%3A%2F%2FalkisProduct",
     jwt
   );
-  const isBillingMode = await checkPdfProductPermission(
-    "billing.mode@WUNDA_BLAU",
-    jwt
-  );
-  console.log(
-    "xxx isAlkisProduct",
-    isAlkisProduct["csa://alkisProduct@WUNDA_BLAU"]
-  );
-  console.log("xxx isBillingMode", isBillingMode["billing.mode"]);
+  const isBillingMode = await checkPdfProductPermission("billing.mode", jwt);
+
   const allPdfPermission = await productsPdfWithPermission(
     jwt,
-    pdfProductsLandparcel
+    pdfProductsLandparcel,
+    isAlkisProduct["csa://alkisProduct@WUNDA_BLAU"],
+    isBillingMode["billing.mode@WUNDA_BLAU"]
   );
-
-  console.log("xxx allPdfPermission", allPdfPermission);
 
   const title = getLandparcelTitle(alkis_id, flur, fstck_nenner, fstck_zaehler);
   const lage = landparcel.adressenArray[0].alkis_adresse.strasse;
@@ -54,14 +47,16 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
   const wrapStyle = { display: "flex" };
   const colStyle = { width: "35%" };
 
-  const handleLoadPdfProduct = async (event, loadingAttribute) => {
+  const handleLoadPdfProduct = async (event, loadingAttribute, permission) => {
     event.preventDefault();
-    try {
-      const response = await loadPdfProduct(alkis_id, loadingAttribute, jwt);
-      const downloadUrl = response.res.url;
-      window.open(downloadUrl, "_blank", "noopener,noreferrer");
-    } catch (error) {
-      console.error("Error loading PDF product:", error);
+    if (permission) {
+      try {
+        const response = await loadPdfProduct(alkis_id, loadingAttribute, jwt);
+        const downloadUrl = response.res.url;
+        window.open(downloadUrl, "_blank", "noopener,noreferrer");
+      } catch (error) {
+        console.error("Error loading PDF product:", error);
+      }
     }
   };
 
@@ -158,7 +153,9 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
               >
                 <FilePdfOutlined />
                 <a
-                  onClick={(e) => handleLoadPdfProduct(e, p.loadingAttribute)}
+                  onClick={(e) =>
+                    handleLoadPdfProduct(e, p.loadingAttribute, p.permission)
+                  }
                   href="#"
                   className="cursor-pointer"
                 >

@@ -263,8 +263,9 @@ export const productsPdfWithPermission = async (
   isBillingMode
 ) => {
   const copyProducts = JSON.parse(JSON.stringify(products));
-  for (const product of copyProducts) {
-    if (product.configurationAttribute) {
+
+  if (isAlkisProduct !== null && isBillingMode === null) {
+    for (const product of copyProducts) {
       try {
         const result = await checkPdfProductPermission(
           product.configurationAttribute,
@@ -280,6 +281,8 @@ export const productsPdfWithPermission = async (
         product.fetchError = error;
       }
     }
+
+    return copyProducts;
   }
 
   return copyProducts;
