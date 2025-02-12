@@ -215,11 +215,9 @@ export const checkPdfProductPermission = async (
 };
 
 export const loadPdfProduct = async (sheetId, loadingAttribute, type, jwt) => {
-  console.log("xxx sheetId", sheetId);
   const form = new FormData();
   const taskParameters = {
     parameters: {
-      // PRODUKT: `${loadingAttribute}`,
       ALKIS_CODE: `${sheetId}`,
     },
   };
@@ -227,8 +225,6 @@ export const loadPdfProduct = async (sheetId, loadingAttribute, type, jwt) => {
   if (type !== "Karte") {
     taskParameters.parameters.PRODUKT = `${loadingAttribute}`;
   }
-
-  console.log("xxx taskParameters", taskParameters);
 
   form.append(
     "taskparams",
@@ -251,7 +247,6 @@ export const loadPdfProduct = async (sheetId, loadingAttribute, type, jwt) => {
 
     if (response.status >= 200 && response.status < 300) {
       const result = await response.json();
-      console.log("xxx loading result", result);
       return result;
     } else {
       console.log(

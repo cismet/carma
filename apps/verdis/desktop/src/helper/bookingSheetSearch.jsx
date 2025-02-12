@@ -58,7 +58,7 @@ export const getSheetHtml = async (
   const sheetCode = sheetData.res.buchungsblattCode;
   const districtName = getLandRegisterDistrict(sheetCode);
 
-  const alkis_id = bookingOff[0].alkis_buchungsblatt_landparcel.landparcelcode;
+  const alkis_id = sheetCode;
   const handleLoadPdfProduct = async (
     event,
     loadingAttribute,
@@ -70,7 +70,7 @@ export const getSheetHtml = async (
       try {
         setIsPdfLoading(true);
         const response = await loadPdfProduct(
-          alkis_id,
+          alkis_id.replace(" ", "%20"),
           loadingAttribute,
           type,
           jwt
