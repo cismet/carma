@@ -214,14 +214,18 @@ export const checkPdfProductPermission = async (
   }
 };
 
-export const loadPdfProduct = async (sheetId, loadingAttribute, jwt) => {
+export const loadPdfProduct = async (sheetId, loadingAttribute, type, jwt) => {
   const form = new FormData();
   const taskParameters = {
     parameters: {
-      PRODUKT: `${loadingAttribute}`,
+      // PRODUKT: `${loadingAttribute}`,
       ALKIS_CODE: `${sheetId}`,
     },
   };
+
+  if (type !== "Karte") {
+    taskParameters.parameters.PRODUKT = `${loadingAttribute}`;
+  }
 
   form.append(
     "taskparams",

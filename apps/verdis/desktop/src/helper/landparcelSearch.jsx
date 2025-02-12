@@ -47,11 +47,21 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
   const wrapStyle = { display: "flex" };
   const colStyle = { width: "35%" };
 
-  const handleLoadPdfProduct = async (event, loadingAttribute, permission) => {
+  const handleLoadPdfProduct = async (
+    event,
+    loadingAttribute,
+    permission,
+    type
+  ) => {
     event.preventDefault();
     if (permission) {
       try {
-        const response = await loadPdfProduct(alkis_id, loadingAttribute, jwt);
+        const response = await loadPdfProduct(
+          alkis_id,
+          loadingAttribute,
+          type,
+          jwt
+        );
         const downloadUrl = response.res.url;
         window.open(downloadUrl, "_blank", "noopener,noreferrer");
       } catch (error) {
@@ -154,7 +164,12 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
                 <FilePdfOutlined />
                 <a
                   onClick={(e) =>
-                    handleLoadPdfProduct(e, p.loadingAttribute, p.permission)
+                    handleLoadPdfProduct(
+                      e,
+                      p.loadingAttribute,
+                      p.permission,
+                      p.name
+                    )
                   }
                   href="#"
                   className="cursor-pointer"
