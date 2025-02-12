@@ -226,12 +226,36 @@ export const LOADING_BESTANDSNACHWEIS_STICHTAGSBEZOGEN_NRW_PDF =
 export const LOADING_BESTANDSNACHWEIS_KOMMUNAL_PDF = "LB.NRW.K.BNW.1";
 
 export const pdfProductsSheet = [
-  "Bestandsnachweis (NRW)",
-  "Bestandsnachweis stichtagsbezogen (NRW)",
-  "Bestandsnachweis (kommunal)",
-  "Bestandsnachweis (kommunal, intern)",
-  "Grundstücksnachweis (NRW)",
-  "Baulastbescheinigung",
+  {
+    name: "Bestandsnachweis (NRW)",
+    configurationAttribute: BESTANDSNACHWEIS_NRW_PDF,
+    loadingAttribute: LOADING_BESTANDSNACHWEIS_NRW_PDF,
+  },
+  {
+    name: "Bestandsnachweis stichtagsbezogen (NRW)",
+    configurationAttribute: BESTANDSNACHWEIS_STICHTAGSBEZOGEN_NRW_PDF,
+    loadingAttribute: LOADING_BESTANDSNACHWEIS_STICHTAGSBEZOGEN_NRW_PDF,
+  },
+  {
+    name: "Bestandsnachweis (kommunal)",
+    configurationAttribute: BESTANDSNACHWEIS_KOMMUNAL_PDF,
+    loadingAttribute: LOADING_BESTANDSNACHWEIS_KOMMUNAL_PDF,
+  },
+  {
+    name: "Bestandsnachweis (kommunal, intern)",
+    configurationAttribute: BESTANDSNACHWEIS_KOMMUNAL_INTERN_PDF,
+    loadingAttribute: LOADING_BESTANDSNACHWEIS_KOMMUNAL_INTERN_PDF,
+  },
+  {
+    name: "Grundstücksnachweis (NRW)",
+    configurationAttribute: GRUNDSTUECKSNACHWEIS_NRW_PDF,
+    loadingAttribute: "",
+  },
+  {
+    name: "Baulastbescheinigung",
+    configurationAttribute: "",
+    loadingAttribute: "",
+  },
 ];
 
 export const pdfProductsLandparcel = [
