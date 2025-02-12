@@ -5,14 +5,21 @@ import {
   productsPdfWithPermission,
   searchLandparcelByName,
 } from "./apiMethods";
-import { Divider, Tabs } from "antd";
+import { Divider, Spin, Tabs } from "antd";
 import { getLandparcelTitle, pdfProductsLandparcel } from "./utility";
 import AdditionalSheet from "../components/render/AdditionalSheet";
 import CustomCard from "../components/ui/Card";
 import { Link } from "react-router-dom";
 import MapRender from "../components/commons/MapRender";
-import { FilePdfOutlined } from "@ant-design/icons";
-export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
+import { FilePdfOutlined, LoadingOutlined } from "@ant-design/icons";
+export const getLandparcelHtml = async (
+  jwt,
+  name,
+  setError,
+  setIsLoading,
+  isPdfLoading,
+  setIsPdfLoading
+) => {
   const landparcelData = await searchLandparcelByName(
     name,
     jwt,
@@ -41,8 +48,6 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
     isBillingMode["billing.mode@WUNDA_BLAU"]
   );
 
-  console.log("xxx landparcel", landparcel);
-
   const title = getLandparcelTitle(alkis_id, flur, fstck_nenner, fstck_zaehler);
   const lage = landparcel.adressenArray[0].alkis_adresse.strasse;
 
@@ -58,6 +63,7 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
     event.preventDefault();
     if (permission) {
       try {
+        setIsLoading(true);
         const response = await loadPdfProduct(
           alkis_id,
           loadingAttribute,
@@ -68,6 +74,8 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
         window.open(downloadUrl, "_blank", "noopener,noreferrer");
       } catch (error) {
         console.error("Error loading PDF product:", error);
+      } finally {
+        setIsLoading(false);
       }
     }
   };
@@ -153,7 +161,20 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
           })}
         />
       </CustomCard>
-      <CustomCard style={{ marginBottom: "1rem" }} title="PDF-Produkte">
+      <CustomCard
+        style={{ marginBottom: "1rem" }}
+        title={
+          !isPdfLoading ? (
+            "PDF-Produkte"
+          ) : (
+            <Spin
+              indicator={<LoadingOutlined spin />}
+              size="small"
+              className="ml-2"
+            />
+          )
+        }
+      >
         <div>
           {allPdfPermission.map((p, idx) => {
             return (

@@ -6,7 +6,6 @@ import { getLandparcelHtml } from "../helper/landparcelSearch.jsx";
 import InfoBar from "../components/commons/InfoBar.jsx";
 import { Spin } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
-import MapRender from "../components/commons/MapRender.jsx";
 
 const AlkisLandparcelPage = () => {
   const [searchParams] = useSearchParams();
@@ -16,7 +15,7 @@ const AlkisLandparcelPage = () => {
   const [idTitle, setIdTitle] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-
+  const [isPdfLoading, setIsPdfLoading] = useState(false);
   useEffect(() => {
     const onLandparcelSearch = async (jwt, id) => {
       setIsLoading(true);
@@ -25,7 +24,9 @@ const AlkisLandparcelPage = () => {
         jwt,
         id,
         setError,
-        setIsLoading
+        setIsLoading,
+        isPdfLoading,
+        setIsPdfLoading
       );
       setResHtml(landparcelHtml);
       setIsLoading(false);
@@ -34,6 +35,10 @@ const AlkisLandparcelPage = () => {
       onLandparcelSearch(jwt, id);
     }
   }, [jwt, id]);
+
+  useEffect(() => {
+    console.log("xxx isPdfLoading", isPdfLoading);
+  }, [isLoading]);
 
   return (
     <div>
