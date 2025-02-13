@@ -14,7 +14,7 @@ const PdfDocumentLoader = ({ allPdfPermission, loadingCode, jwt }) => {
     type
   ) => {
     event.preventDefault();
-    if (permission) {
+    if (permission && !isPdfLoading) {
       try {
         setIsPdfLoading(true);
         const response = await loadPdfProduct(
@@ -54,7 +54,7 @@ const PdfDocumentLoader = ({ allPdfPermission, loadingCode, jwt }) => {
             <div
               key={idx}
               className={`my-2 flex items-center gap-2 ${
-                p.permission ? "" : "text-gray-300"
+                isPdfLoading || !p.permission ? "text-gray-300" : ""
               }`}
             >
               <FilePdfOutlined />
