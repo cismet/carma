@@ -102,6 +102,8 @@ export function getDocsForBPlaeneGazetteerEntry(props: any) {
           group: "Zusatzdokumente",
           file: doc.file,
           url: repairUrl(doc.url),
+          title: doc.title,
+          structure: doc.structure,
           hideInDocViewer: doc.hideInDocViewer,
           layer: replaceUmlauteAndSpaces(
             repairUrl(doc.url).replace(

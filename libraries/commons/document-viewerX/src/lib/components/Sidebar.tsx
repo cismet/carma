@@ -50,6 +50,7 @@ const Sidebar = ({
 
   const INDENTATION_PER_LEVEL = 10; // pixels per level
   const BASE_PADDING = 6; // base padding in pixels
+  const BASE_MARGIN = 0;
 
   const SIDEBAR_FILENAME_SHORTENER = {
     bplaene: (original: string) => {
@@ -413,7 +414,7 @@ const Sidebar = ({
                       (doc.structure
                         ? (getIndentationLevel(doc.structure) + 1) *
                           INDENTATION_PER_LEVEL
-                        : 0) + 10,
+                        : 0) + BASE_MARGIN,
                     position: "relative",
                   }}
                   onClick={() => navigate(`/docs/${docPackageId}/${i + 1}/1`)}

@@ -1,4 +1,4 @@
-import { md5FetchJSON, md5FetchText } from "react-cismap/tools/fetching";
+import { md5FetchText } from "@carma-commons/utils/fetching";
 import { getGazDataForTopicIds } from "react-cismap/tools/gazetteerHelper";
 
 import { host } from "../constants/bplaene";
@@ -21,7 +21,7 @@ export type ENDPOINT =
 
 export const getGazData = async (setGazData) => {
   const prefix = "GazData";
-  const sources: Partial<Record<ENDPOINT, string>> = {};
+  const sources: Partial<Record<ENDPOINT, string | null>> = {};
 
   sources.adressen = await md5FetchText(prefix, host + "/data/adressen.json");
   sources.bezirke = await md5FetchText(prefix, host + "/data/bezirke.json");

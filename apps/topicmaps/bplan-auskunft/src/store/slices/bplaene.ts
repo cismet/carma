@@ -1,4 +1,4 @@
-import { createSlice } from "@reduxjs/toolkit";
+import { createSlice, PayloadAction, Slice } from "@reduxjs/toolkit";
 import {
   INFO_DOC_DATEINAMEN_NAME,
   INFO_DOC_DATEINAMEN_URL,
@@ -7,7 +7,12 @@ import booleanDisjoint from "@turf/boolean-disjoint";
 import bboxPolygon from "@turf/bbox-polygon";
 import center from "@turf/center";
 
-const initialState = {
+export interface BplaeneState {
+  data: any;
+  loading: boolean;
+}
+
+const initialState: BplaeneState = {
   data: undefined,
   loading: false,
 };
@@ -16,23 +21,23 @@ const slice = createSlice({
   name: "bplaene",
   initialState,
   reducers: {
-    setData(state, action) {
+    setData(state, action: PayloadAction<any>) {
       state.data = action.payload;
       return state;
     },
-    setLoading(state, action) {
+    setLoading(state, action: PayloadAction<boolean>) {
       state.loading = action.payload;
       return state;
     },
   },
-});
+}) as Slice<BplaeneState>;
 
 export default slice;
 
 export const loadBPlaene = (finishedHandler = () => {}) => {
   return async (dispatch) => {
     dispatch(setLoading(true));
-    fetch("https://wunda-geoportal.cismet.de/data/bplaene.data.json")
+    fetch("https://wunda-geoportal.cismet.de/data/bplaene.datax.json")
       .then((response) => {
         if (!response.ok) {
           throw new Error("Network response was not ok");
