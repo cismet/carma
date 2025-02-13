@@ -25,6 +25,20 @@ const PdfDocumentLoader = ({ allPdfPermission, loadingCode, jwt }) => {
         );
         const downloadUrl = response.res.url;
         window.open(downloadUrl, "_blank", "noopener,noreferrer");
+        // window.location.href = downloadUrl;
+        // const pdfBlob = await fetch(downloadUrl).then((res) => res.blob());
+
+        // const blobUrl = URL.createObjectURL(pdfBlob);
+
+        // const link = document.createElement("a");
+        // link.href = blobUrl;
+        // link.download = "document.pdf";
+
+        // document.body.appendChild(link);
+        // link.click();
+        // document.body.removeChild(link);
+
+        // URL.revokeObjectURL(blobUrl);
         setIsPdfLoading(false);
       } catch (error) {
         console.error("Error loading PDF product:", error);
