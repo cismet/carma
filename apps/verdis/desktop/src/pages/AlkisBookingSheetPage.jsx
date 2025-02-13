@@ -49,7 +49,7 @@ const AlkisBookingSheetPage = () => {
                       className="ml-2"
                     />
                   ) : (
-                    error && `Error: ${error}`
+                    error && `${error}`
                   )}
                 </span>
               </span>

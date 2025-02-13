@@ -7,7 +7,7 @@ import { storeShapeMode } from "../../store/slices/searchMode";
 const PointSearchButton = () => {
   const dispatch = useDispatch();
   return (
-    <Tooltip title="Kassenzeichen-Suche">
+    <Tooltip title="Flurstücksuche">
       <div
         className="relative flex cursor-pointer items-center justify-center"
         onClick={() => dispatch(storeShapeMode("point"))}

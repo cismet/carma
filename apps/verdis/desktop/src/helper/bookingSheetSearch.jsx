@@ -74,8 +74,6 @@ export const getSheetHtml = async (jwt, name, setError, setIsLoading) => {
       };
     }
   );
-  // console.log("xxx booking geometry", booking);
-  // console.log("xxx booking geometry", geometry);
 
   return (
     <TopicMapContextProvider appKey="verdis-desktop-render.map">

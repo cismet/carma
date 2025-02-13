@@ -249,11 +249,11 @@ export const pdfProductsSheet = [
     configurationAttribute: BESTANDSNACHWEIS_KOMMUNAL_INTERN_PDF,
     loadingAttribute: LOADING_BESTANDSNACHWEIS_KOMMUNAL_INTERN_PDF,
   },
-  {
-    name: "Grundstücksnachweis (NRW)",
-    configurationAttribute: GRUNDSTUECKSNACHWEIS_NRW_PDF,
-    loadingAttribute: LOADING_GRUNDSTUECKSNACHWEIS_NRW_PDF,
-  },
+  // {
+  //   name: "Grundstücksnachweis (NRW)",
+  //   configurationAttribute: GRUNDSTUECKSNACHWEIS_NRW_PDF,
+  //   loadingAttribute: LOADING_GRUNDSTUECKSNACHWEIS_NRW_PDF,
+  // },
   // {
   //   name: "Baulastbescheinigung",
   //   configurationAttribute: "",

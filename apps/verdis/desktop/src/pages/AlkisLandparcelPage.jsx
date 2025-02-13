@@ -49,7 +49,7 @@ const AlkisLandparcelPage = () => {
                       className="ml-2"
                     />
                   ) : error ? (
-                    `Error: ${error}`
+                    `${error}`
                   ) : (
                     idTitle
                   )}

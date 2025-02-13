@@ -788,13 +788,7 @@ export const searchWithPoints = (searchParams) => {
       })
       .then((result) => {
         const ids = result.data.alkis_landparcel[0].alkis_id;
-        // .map((item) => item.id)
-        // .join(",");
         const baseUrl = window.location.origin;
-
-        // console.log("xxx ids", result.alkis_landparcel[0].alkis_id);
-        console.log("xxx result", result);
-        // console.log("xxx ids", ids[0].alkis_id);
 
         // const url = `http://localhost:3033/renderer/?domain=WUNDA_BLAU&jwt=${jwt}&table=alkis_landparcel&id=${ids}`;
         const url = `${baseUrl}/#/alkis-flurstueck/?id=${ids}`;

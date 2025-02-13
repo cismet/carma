@@ -23,7 +23,6 @@ const mockExtractor = (input) => {
 
 const MapRender = ({ dataIn, extractor = mockExtractor }) => {
   const data = extractor(dataIn);
-  const padding = 0;
   const cardRef = useRef(null);
   const [mapWidth, setMapWidth] = useState(0);
   const [mapHeight, setMapHeight] = useState(0);
@@ -47,17 +46,17 @@ const MapRender = ({ dataIn, extractor = mockExtractor }) => {
   function fitMapBounds() {
     const map = routedMapRef?.leafletMap?.leafletElement;
     if (map == undefined) {
-      console.log("xxx map is undefined");
+      // console.log("xxx map is undefined");
       return;
     } else {
     }
     let bb = undefined;
     if (data?.featureCollection && data?.featureCollection.length > 0) {
-      console.log("xxx will use featureCollection", data?.featureCollection);
+      // console.log("xxx will use featureCollection", data?.featureCollection);
 
       bb = getBoundsForFeatureArray(data?.featureCollection);
     } else if (data?.allFeatures && data?.allFeatures.length > 0) {
-      console.log("xxx will use allFeatures", data?.allFeatures);
+      // console.log("xxx will use allFeatures", data?.allFeatures);
       bb = getBoundsForFeatureArray(data?.allFeatures);
     }
 
@@ -69,9 +68,6 @@ const MapRender = ({ dataIn, extractor = mockExtractor }) => {
 
   useEffect(() => {
     if (routedMapRef) {
-      const map = routedMapRef?.leafletMap?.leafletElement;
-      console.log("xxx map", map);
-
       setTimeout(() => {
         fitMapBounds();
       }, 500);

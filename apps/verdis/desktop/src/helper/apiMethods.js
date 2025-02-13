@@ -42,7 +42,7 @@ export const searchLandparcelByName = async (
     return result;
   } catch (error) {
     setIsLoading(false);
-    setError("Keine Daten gefunden");
+    setError("Fehler: Keine Daten gefunden");
     console.error("There was a problem with the fetch operation:");
   }
 };
@@ -214,7 +214,13 @@ export const checkPdfProductPermission = async (
   }
 };
 
-export const loadPdfProduct = async (sheetId, loadingAttribute, type, jwt) => {
+export const loadPdfProduct = async (
+  sheetId,
+  loadingAttribute,
+  type,
+  jwt,
+  time
+) => {
   const form = new FormData();
   const taskParameters = {
     parameters: {
@@ -222,9 +228,13 @@ export const loadPdfProduct = async (sheetId, loadingAttribute, type, jwt) => {
     },
   };
 
-  if (type !== "Karte") {
+  if (type !== "Karte" && type !== "Stichtagsbezogen") {
     taskParameters.parameters.PRODUKT = `${loadingAttribute}`;
     form.append("file", "EINZELNACHWEIS");
+  } else if (type === "Stichtagsbezogen") {
+    form.append("file", "EINZELNACHWEIS_STICHTAG");
+    taskParameters.parameters.STICHTAG = `${time}`;
+    taskParameters.parameters.PRODUKT = `${loadingAttribute}`;
   } else {
     form.append("file", "KARTE");
   }

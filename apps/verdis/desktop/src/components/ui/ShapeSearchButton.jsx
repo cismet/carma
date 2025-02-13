@@ -6,14 +6,13 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMagnifyingGlass } from "@fortawesome/free-solid-svg-icons";
 import { useDispatch, useSelector } from "react-redux";
-import { useEffect } from "react";
 
 const ShapeSearchButton = () => {
   const dispatch = useDispatch();
   const ifDisable = useSelector(getIfShapeModeAvailable);
 
   return (
-    <Tooltip title="Kassenzeichen-Suche">
+    <Tooltip title="Kassenzeichensuche">
       <div
         className="relative flex cursor-pointer items-center justify-center"
         onClick={() => {

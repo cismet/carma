@@ -37,8 +37,6 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
     crs: geometry.crs,
   };
 
-  console.log("xxx landparcel geometry", extentdedGeom);
-
   const landparcel = landparcelData.data.alkis_landparcel[0];
   const sheets = await getAllAdditionalSheets(
     landparcelData.data.alkis_landparcel[0].buchungsblaetterArray,
