@@ -1,4 +1,4 @@
-import { md5FetchJSON, md5FetchText } from "react-cismap/tools/fetching";
+import { md5FetchText } from "@carma-commons/utils/fetching";
 import { getGazDataForTopicIds } from "react-cismap/tools/gazetteerHelper";
 
 import { host } from "../constants/bplaene";
