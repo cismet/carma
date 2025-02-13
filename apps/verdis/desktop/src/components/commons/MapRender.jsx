@@ -28,7 +28,7 @@ const MapRender = ({ dataIn, extractor = mockExtractor }) => {
   const [mapWidth, setMapWidth] = useState(0);
   const [mapHeight, setMapHeight] = useState(0);
 
-  const { routedMapRef } = useContext(TopicMapContext);
+  let refRoutedMap = useRef(null);
 
   useEffect(() => {
     const resizeObserver = new ResizeObserver((entries) => {
@@ -45,15 +45,16 @@ const MapRender = ({ dataIn, extractor = mockExtractor }) => {
   }, []);
 
   useEffect(() => {
-    console.log("xxx routedMapRef", routedMapRef);
-    if (routedMapRef) {
+    console.log("xxx routedMapRef", refRoutedMap);
+    if (refRoutedMap) {
     }
-  }, [routedMapRef]);
+  }, [refRoutedMap]);
 
   return (
     <div ref={cardRef} className="w-full h-80">
       <TopicMapContextProvider appKey="verdis-desktop-render.map">
         <TopicMapComponent
+          ref={refRoutedMap}
           mapStyle={{
             width: mapWidth,
             height: mapHeight + 10,
