@@ -188,7 +188,7 @@ export function DocumentViewer({
               style={{
                 background: SIDEBAR_BACKGROUND_COLOR,
                 height: mapHeight,
-                padding: "5px 1px 5px 5px",
+                padding: "5px 5px 5px 5px",
                 overflow: "scroll",
               }}
               ref={sidebarRef}
