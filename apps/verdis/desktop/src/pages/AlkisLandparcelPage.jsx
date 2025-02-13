@@ -15,7 +15,6 @@ const AlkisLandparcelPage = () => {
   const [idTitle, setIdTitle] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [isPdfLoading, setIsPdfLoading] = useState(false);
   useEffect(() => {
     const onLandparcelSearch = async (jwt, id) => {
       setIsLoading(true);
@@ -24,9 +23,7 @@ const AlkisLandparcelPage = () => {
         jwt,
         id,
         setError,
-        setIsLoading,
-        isPdfLoading,
-        setIsPdfLoading
+        setIsLoading
       );
       setResHtml(landparcelHtml);
       setIsLoading(false);
@@ -35,10 +32,6 @@ const AlkisLandparcelPage = () => {
       onLandparcelSearch(jwt, id);
     }
   }, [jwt, id]);
-
-  useEffect(() => {
-    console.log("xxx isPdfLoading landparcel", isPdfLoading);
-  }, [isPdfLoading]);
 
   return (
     <div>

@@ -16,14 +16,8 @@ import CustomCard from "../components/ui/Card";
 import { Link } from "react-router-dom";
 import MapRender from "../components/commons/MapRender";
 import { FilePdfOutlined, LoadingOutlined } from "@ant-design/icons";
-export const getLandparcelHtml = async (
-  jwt,
-  name,
-  setError,
-  setIsLoading,
-  isPdfLoading,
-  setIsPdfLoading
-) => {
+import PdfDocumentLoader from "../components/render/PdfDocumentLoader";
+export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
   const landparcelData = await searchLandparcelByName(
     name,
     jwt,
@@ -33,8 +27,6 @@ export const getLandparcelHtml = async (
 
   const geometry =
     landparcelData.data.alkis_landparcel[0].extended_geom.geo_field;
-
-  console.log("xxx landparcelData", geometry);
 
   const landparcel = landparcelData.data.alkis_landparcel[0];
   const sheets = await getAllAdditionalSheets(
@@ -63,32 +55,6 @@ export const getLandparcelHtml = async (
 
   const wrapStyle = { display: "flex" };
   const colStyle = { width: "35%" };
-
-  const handleLoadPdfProduct = async (
-    event,
-    loadingAttribute,
-    permission,
-    type
-  ) => {
-    event.preventDefault();
-    if (permission) {
-      try {
-        setIsPdfLoading(true);
-        const response = await loadPdfProduct(
-          alkis_id,
-          loadingAttribute,
-          type,
-          jwt
-        );
-        const downloadUrl = response.res.url;
-        window.open(downloadUrl, "_blank", "noopener,noreferrer");
-      } catch (error) {
-        console.error("Error loading PDF product:", error);
-      } finally {
-        setIsPdfLoading(false);
-      }
-    }
-  };
 
   return (
     <>
@@ -171,49 +137,11 @@ export const getLandparcelHtml = async (
           })}
         />
       </CustomCard>
-      <CustomCard
-        style={{ marginBottom: "1rem" }}
-        title={
-          !isPdfLoading ? (
-            "PDF-Produkte"
-          ) : (
-            <Spin
-              indicator={<LoadingOutlined spin />}
-              size="small"
-              className="ml-2"
-            />
-          )
-        }
-      >
-        <div>
-          {allPdfPermission.map((p, idx) => {
-            return (
-              <div
-                key={idx}
-                className={`my-2 flex items-center gap-2 ${
-                  p.permission ? "" : "text-gray-300"
-                }`}
-              >
-                <FilePdfOutlined />
-                <a
-                  onClick={(e) =>
-                    handleLoadPdfProduct(
-                      e,
-                      p.loadingAttribute,
-                      p.permission,
-                      p.name
-                    )
-                  }
-                  href="#"
-                  className="cursor-pointer"
-                >
-                  {p.name}
-                </a>
-              </div>
-            );
-          })}
-        </div>
-      </CustomCard>
+      <PdfDocumentLoader
+        loadingCode={alkis_id}
+        allPdfPermission={allPdfPermission}
+        jwt={jwt}
+      />
     </>
   );
 };

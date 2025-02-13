@@ -18,14 +18,7 @@ import {
 import { Spin } from "antd";
 import PdfDocumentLoader from "../components/render/PdfDocumentLoader";
 
-export const getSheetHtml = async (
-  jwt,
-  name,
-  setError,
-  setIsLoading,
-  isPdfLoading,
-  setIsPdfLoading
-) => {
+export const getSheetHtml = async (jwt, name, setError, setIsLoading) => {
   const sheetData = await getAdditionalSheetAsync(
     name,
     jwt,
@@ -60,31 +53,6 @@ export const getSheetHtml = async (
   const districtName = getLandRegisterDistrict(sheetCode);
 
   const alkis_id = sheetCode;
-  const handleLoadPdfProduct = async (
-    event,
-    loadingAttribute,
-    permission,
-    type
-  ) => {
-    event.preventDefault();
-    if (permission) {
-      try {
-        setIsPdfLoading(true);
-        const response = await loadPdfProduct(
-          alkis_id.replace(" ", "%20"),
-          loadingAttribute,
-          type,
-          jwt
-        );
-        const downloadUrl = response.res.url;
-        window.open(downloadUrl, "_blank", "noopener,noreferrer");
-      } catch (error) {
-        console.error("Error loading PDF product:", error);
-      } finally {
-        setIsPdfLoading(false);
-      }
-    }
-  };
 
   return (
     <div>
@@ -149,56 +117,11 @@ export const getSheetHtml = async (
             })}
           </div>
         </CustomCard>
-        <CustomCard
-          style={{ marginBottom: "1rem" }}
-          title={
-            !isPdfLoading ? (
-              "PDF-Produkte"
-            ) : (
-              <Spin
-                indicator={<LoadingOutlined spin />}
-                size="small"
-                className="ml-2"
-              />
-            )
-          }
-        >
-          <div>
-            {allPdfPermission.map((p, idx) => {
-              return (
-                <div
-                  key={idx}
-                  className={`my-2 flex items-center gap-2 ${
-                    p.permission ? "" : "text-gray-300"
-                  }`}
-                >
-                  <FilePdfOutlined />
-                  <a
-                    onClick={(e) =>
-                      handleLoadPdfProduct(
-                        e,
-                        p.loadingAttribute,
-                        p.permission,
-                        p.name
-                      )
-                    }
-                    href="#"
-                    className="cursor-pointer"
-                  >
-                    {p.name}
-                  </a>
-                </div>
-              );
-            })}
-          </div>
-        </CustomCard>
-        {/* <PdfDocumentLoader
+        <PdfDocumentLoader
           loadingCode={sheetCode}
           allPdfPermission={allPdfPermission}
-          isPdfLoading={isPdfLoading}
-          setIsPdfLoading={setIsPdfLoading}
           jwt={jwt}
-        /> */}
+        />
       </CustomCard>
     </div>
   );

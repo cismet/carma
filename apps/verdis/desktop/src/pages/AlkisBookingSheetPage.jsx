@@ -16,20 +16,12 @@ const AlkisBookingSheetPage = () => {
   const [resHtml, setResHtml] = useState(null);
   const [idTitle, setIdTitle] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isPdfLoading, setIsPdfLoading] = useState(false);
   const [error, setError] = useState(null);
   useEffect(() => {
     const onSheetSearch = async (jwt, id) => {
       if (jwt) {
         setIsLoading(true);
-        const sheetHtml = await getSheetHtml(
-          jwt,
-          id,
-          setError,
-          setIsLoading,
-          isPdfLoading,
-          setIsPdfLoading
-        );
+        const sheetHtml = await getSheetHtml(jwt, id, setError, setIsLoading);
         setResHtml(sheetHtml);
         setIdTitle(id);
         setIsLoading(false);
@@ -40,10 +32,6 @@ const AlkisBookingSheetPage = () => {
       onSheetSearch(jwt, id);
     }
   }, [jwt, id]);
-
-  useEffect(() => {
-    console.log("xxx isPdfLoading sheet", isPdfLoading);
-  }, [isPdfLoading]);
 
   return (
     <div className="flex flex-col items-center relative h-full max-h-[calc(100vh-73px)]">

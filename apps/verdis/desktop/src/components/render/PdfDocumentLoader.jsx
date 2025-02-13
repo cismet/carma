@@ -2,15 +2,11 @@ import { FilePdfOutlined, LoadingOutlined } from "@ant-design/icons";
 import { Spin } from "antd";
 import { loadPdfProduct } from "../../helper/apiMethods";
 import CustomCard from "../ui/Card";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
-const PdfDocumentLoader = ({
-  allPdfPermission,
-  isPdfLoading,
-  setIsPdfLoading,
-  loadingCode,
-  jwt,
-}) => {
+const PdfDocumentLoader = ({ allPdfPermission, loadingCode, jwt }) => {
+  const [isPdfLoading, setIsPdfLoading] = useState(false);
+
   const handleLoadPdfProduct = async (
     event,
     loadingAttribute,
@@ -36,10 +32,6 @@ const PdfDocumentLoader = ({
       }
     }
   };
-
-  useEffect(() => {
-    console.log("xxx pdf comp isPdfLoading", isPdfLoading);
-  }, [isPdfLoading]);
 
   return (
     <CustomCard
