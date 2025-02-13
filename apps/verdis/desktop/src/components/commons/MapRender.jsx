@@ -1,13 +1,16 @@
-import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
+import TopicMapContextProvider, {
+  TopicMapContext,
+} from "react-cismap/contexts/TopicMapContextProvider";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent.js";
 import "react-cismap/topicMaps.css";
 import "leaflet/dist/leaflet.css";
 import { Card } from "antd";
 import PropTypes from "prop-types";
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { flaechen } from "../../stories/_data/rathausKassenzeichenfeatureCollection";
 import { FeatureCollectionDisplay } from "react-cismap";
 import { stylerGeometrienStyle } from "../../helper/utility";
+import { getBoundsForFeatureArray } from "../../tools/mappingTools";
 
 const mockExtractor = (input) => {
   return {
@@ -25,19 +28,27 @@ const MapRender = ({ dataIn, extractor = mockExtractor }) => {
   const [mapWidth, setMapWidth] = useState(0);
   const [mapHeight, setMapHeight] = useState(0);
 
+  const { routedMapRef } = useContext(TopicMapContext);
+
   useEffect(() => {
-    setMapWidth(cardRef?.current?.offsetWidth);
-    setMapHeight(cardRef?.current?.offsetHeight);
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setMapWidth(cardRef?.current?.offsetWidth);
+        setMapHeight(cardRef?.current?.offsetHeight);
+      }
+    });
 
-    const setSize = () => {
-      setMapWidth(cardRef?.current?.offsetWidth);
-      setMapHeight(cardRef?.current?.offsetHeight);
+    resizeObserver.observe(cardRef.current);
+    return () => {
+      resizeObserver.disconnect();
     };
-
-    window.addEventListener("resize", setSize);
-
-    return () => window.removeEventListener("resize", setSize);
   }, []);
+
+  useEffect(() => {
+    console.log("xxx routedMapRef", routedMapRef);
+    if (routedMapRef) {
+    }
+  }, [routedMapRef]);
 
   return (
     <div ref={cardRef} className="w-full h-80">
@@ -53,6 +64,7 @@ const MapRender = ({ dataIn, extractor = mockExtractor }) => {
           gazetteerSearchControl={false}
           hamburgerMenu={false}
           fullScreenControl={false}
+          // autoFitBounds={true}
         >
           <FeatureCollectionDisplay
             featureCollection={data.featureCollection}

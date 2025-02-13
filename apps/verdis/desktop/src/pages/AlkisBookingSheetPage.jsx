@@ -37,12 +37,12 @@ const AlkisBookingSheetPage = () => {
     };
 
     if (jwt && id) {
-      onSheetSearch(jwt, id, isPdfLoading);
+      onSheetSearch(jwt, id);
     }
   }, [jwt, id]);
 
   useEffect(() => {
-    console.log("xxx isPdfLoading", isPdfLoading);
+    console.log("xxx isPdfLoading sheet", isPdfLoading);
   }, [isPdfLoading]);
 
   return (

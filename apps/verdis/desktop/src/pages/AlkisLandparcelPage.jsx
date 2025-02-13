@@ -36,6 +36,10 @@ const AlkisLandparcelPage = () => {
     }
   }, [jwt, id]);
 
+  useEffect(() => {
+    console.log("xxx isPdfLoading landparcel", isPdfLoading);
+  }, [isPdfLoading]);
+
   return (
     <div>
       <div className="flex flex-col items-center relative h-full max-h-[calc(100vh-73px)]">

@@ -364,7 +364,7 @@ query landparcelForPoint($x: Float!, $y: Float!) {
 
 queries.landparcelSearch = `
 query landparcelForName($name: String!) {
-  alkis_landparcel(where: {alkis_id: {_eq: $name}}) {
+alkis_landparcel(where: {alkis_id: {_eq: $name}}) {
     id
     alkis_id
     bezeichnung
@@ -386,6 +386,9 @@ query landparcelForName($name: String!) {
     flur
     fstck_nenner
     fstck_zaehler
+    extended_geom {
+      geo_field
+    }
   }
 }
 `;

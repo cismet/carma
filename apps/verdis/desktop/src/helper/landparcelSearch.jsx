@@ -6,7 +6,11 @@ import {
   searchLandparcelByName,
 } from "./apiMethods";
 import { Divider, Spin, Tabs } from "antd";
-import { getLandparcelTitle, pdfProductsLandparcel } from "./utility";
+import {
+  getLandparcelTitle,
+  landparcelExtractor,
+  pdfProductsLandparcel,
+} from "./utility";
 import AdditionalSheet from "../components/render/AdditionalSheet";
 import CustomCard from "../components/ui/Card";
 import { Link } from "react-router-dom";
@@ -26,6 +30,12 @@ export const getLandparcelHtml = async (
     setError,
     setIsLoading
   );
+
+  const geometry =
+    landparcelData.data.alkis_landparcel[0].extended_geom.geo_field;
+
+  console.log("xxx landparcelData", geometry);
+
   const landparcel = landparcelData.data.alkis_landparcel[0];
   const sheets = await getAllAdditionalSheets(
     landparcelData.data.alkis_landparcel[0].buchungsblaetterArray,
@@ -63,7 +73,7 @@ export const getLandparcelHtml = async (
     event.preventDefault();
     if (permission) {
       try {
-        setIsLoading(true);
+        setIsPdfLoading(true);
         const response = await loadPdfProduct(
           alkis_id,
           loadingAttribute,
@@ -75,7 +85,7 @@ export const getLandparcelHtml = async (
       } catch (error) {
         console.error("Error loading PDF product:", error);
       } finally {
-        setIsLoading(false);
+        setIsPdfLoading(false);
       }
     }
   };
@@ -122,7 +132,7 @@ export const getLandparcelHtml = async (
             </div>
           </div>
           <div className="w-[65%]">
-            <MapRender />
+            <MapRender extractor={landparcelExtractor} dataIn={geometry} />
           </div>
         </div>
         <Divider />
