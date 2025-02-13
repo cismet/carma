@@ -8,6 +8,7 @@ interface ControlButtonStylerProps
   fontSize?: string;
   disabled?: boolean;
   dataTestId?: string;
+  useDisabledStyle?: boolean;
 }
 
 type Ref = HTMLButtonElement;
@@ -21,6 +22,7 @@ const ControlButtonStyler = forwardRef<Ref, ControlButtonStylerProps>(
       fontSize = "18px",
       disabled,
       dataTestId = "",
+      useDisabledStyle = true,
       ...props
     },
     ref
@@ -38,7 +40,8 @@ const ControlButtonStyler = forwardRef<Ref, ControlButtonStylerProps>(
       alignItems: "center",
       justifyContent: "space-evenly",
       fontSize,
-      filter: disabled ? "grayscale(100%) brightness(120%)" : "",
+      filter:
+        disabled && useDisabledStyle ? "grayscale(100%) brightness(120%)" : "",
       // fontWeight: 700,
     } as CSSProperties;
     return (

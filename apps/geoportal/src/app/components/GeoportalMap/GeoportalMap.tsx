@@ -449,12 +449,31 @@ export const GeoportalMap = () => {
           <Tooltip title="Maßstab verkleinern (Zoom out)" placement="right">
             <ControlButtonStyler
               onClick={isMode2d ? zoomOutLeaflet : handleZoomOutCesium}
-              className="!rounded-t-none !border-t-[1px]"
+              className={`!rounded-t-none !border-t-[1px] ${
+                allow3d && "!rounded-b-none !border-b-0"
+              }`}
               dataTestId="zoom-out-control"
             >
               <FontAwesomeIcon icon={faMinus} className="text-base" />
             </ControlButtonStyler>
           </Tooltip>
+          {allow3d && (
+            <Tooltip title="Nach Norden ausrichten" placement="right">
+              <ControlButtonStyler
+                useDisabledStyle={false}
+                className="!rounded-t-none !border-t-[1px]"
+                ref={tourRefLabels.alignNorth}
+                dataTestId="compass-control"
+                disabled={isMode2d}
+              >
+                <PitchingCompass
+                  viewerRef={viewerRef}
+                  viewerAnimationMapRef={viewerAnimationMapRef}
+                  maxPitch={CesiumMath.toRadians(-30)}
+                />
+              </ControlButtonStyler>
+            </Tooltip>
+          )}
         </div>
       </Control>
       <Control position="topleft" order={20}>
@@ -571,19 +590,6 @@ export const GeoportalMap = () => {
             }}
             ref={tourRefLabels.toggle2d3d}
           />
-          <Tooltip title="Nach Norden ausrichten" placement="right">
-            <ControlButtonStyler
-              disabled={isMode2d}
-              ref={tourRefLabels.alignNorth}
-              dataTestId="compass-control"
-            >
-              <PitchingCompass
-                viewerRef={viewerRef}
-                viewerAnimationMapRef={viewerAnimationMapRef}
-                maxPitch={CesiumMath.toRadians(-30)}
-              />
-            </ControlButtonStyler>
-          </Tooltip>
           {
             // TODO implement cesium home action with generic home control for all mapping engines
           }
