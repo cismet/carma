@@ -16,6 +16,7 @@ import {
   pdfProductsSheet,
 } from "./utility";
 import { Spin } from "antd";
+import PdfDocumentLoader from "../components/render/PdfDocumentLoader";
 
 export const getSheetHtml = async (
   jwt,
@@ -191,6 +192,13 @@ export const getSheetHtml = async (
             })}
           </div>
         </CustomCard>
+        {/* <PdfDocumentLoader
+          loadingCode={sheetCode}
+          allPdfPermission={allPdfPermission}
+          isPdfLoading={isPdfLoading}
+          setIsPdfLoading={setIsPdfLoading}
+          jwt={jwt}
+        /> */}
       </CustomCard>
     </div>
   );
