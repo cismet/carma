@@ -28,6 +28,17 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
   const geometry =
     landparcelData.data.alkis_landparcel[0].extended_geom.geo_field;
 
+  const extentdedGeom = {
+    type: "Feature",
+    geometry: {
+      type: geometry.type,
+      coordinates: geometry.coordinates,
+    },
+    crs: geometry.crs,
+  };
+
+  console.log("xxx landparcel geometry", extentdedGeom);
+
   const landparcel = landparcelData.data.alkis_landparcel[0];
   const sheets = await getAllAdditionalSheets(
     landparcelData.data.alkis_landparcel[0].buchungsblaetterArray,
@@ -98,7 +109,7 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
             </div>
           </div>
           <div className="w-[65%] max-[1000px]:w-[100%]">
-            <MapRender extractor={landparcelExtractor} dataIn={geometry} />
+            <MapRender extractor={landparcelExtractor} dataIn={extentdedGeom} />
           </div>
         </div>
         <Divider />

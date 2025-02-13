@@ -72,7 +72,7 @@ const MapRender = ({ dataIn, extractor = mockExtractor }) => {
       const map = routedMapRef?.leafletMap?.leafletElement;
       console.log("xxx map", map);
 
-      // fitMapBounds(map);
+      fitMapBounds(map);
     }
   }, [routedMapRef]);
 
