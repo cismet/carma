@@ -66,7 +66,7 @@ export const getSheetHtml = async (jwt, name, setError, setIsLoading) => {
         <CustomCard title="Buchungsblatt-Renderer">
           <CustomCard style={{ marginBottom: "1rem" }} title="Buchungsblatt">
             <div className="flex gap-4 w-full  max-[970px]:flex-col">
-              <div className="w-[20%] min-w-">
+              <div className="w-[30%] min-w-">
                 <div>
                   <b>Amtsgericht:</b> {localCourt}
                 </div>
@@ -82,7 +82,7 @@ export const getSheetHtml = async (jwt, name, setError, setIsLoading) => {
                   <b>Buchungsart:</b> {bookingType}
                 </div>
               </div>
-              <div className="w-[80%] max-[970px]:w-[100%] mb-2">
+              <div className="w-[70%] max-[970px]:w-[100%] mb-2">
                 <MapRender
                 // extractor={additionalSheetExtractor}
                 // dataIn={geometry}
