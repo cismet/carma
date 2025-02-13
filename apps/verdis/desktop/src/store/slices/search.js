@@ -794,9 +794,9 @@ export const searchWithPoints = (searchParams) => {
         const url = `http://localhost:3033/renderer/?domain=WUNDA_BLAU&jwt=${jwt}&table=alkis_landparcel&id=${ids}`;
         // const url = `${baseUrl}/#/alkis-flurstueck/?id=${ids}`;
         // window.open(url, "_self");
-        // fetch(url).catch((error) => {
-        //   //  i expect an error here
-        // });
+        fetch(url).catch((error) => {
+          //  i expect an error here
+        });
 
         dispatch(setGraphqlStatus("LOADED"));
       })
