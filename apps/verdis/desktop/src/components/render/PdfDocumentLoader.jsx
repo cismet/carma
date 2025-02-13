@@ -2,6 +2,7 @@ import { FilePdfOutlined, LoadingOutlined } from "@ant-design/icons";
 import { Spin } from "antd";
 import { loadPdfProduct } from "../../helper/apiMethods";
 import CustomCard from "../ui/Card";
+import { useEffect } from "react";
 
 const PdfDocumentLoader = ({
   allPdfPermission,
@@ -35,6 +36,10 @@ const PdfDocumentLoader = ({
       }
     }
   };
+
+  useEffect(() => {
+    console.log("xxx pdf comp isPdfLoading", isPdfLoading);
+  }, [isPdfLoading]);
 
   return (
     <CustomCard

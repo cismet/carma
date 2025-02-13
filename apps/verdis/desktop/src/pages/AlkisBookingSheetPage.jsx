@@ -37,7 +37,7 @@ const AlkisBookingSheetPage = () => {
     };
 
     if (jwt && id) {
-      onSheetSearch(jwt, id);
+      onSheetSearch(jwt, id, isPdfLoading);
     }
   }, [jwt, id]);
 

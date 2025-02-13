@@ -224,14 +224,15 @@ export const loadPdfProduct = async (sheetId, loadingAttribute, type, jwt) => {
 
   if (type !== "Karte") {
     taskParameters.parameters.PRODUKT = `${loadingAttribute}`;
+    form.append("file", "EINZELNACHWEIS");
+  } else {
+    form.append("file", "KARTE");
   }
 
   form.append(
     "taskparams",
     new Blob([JSON.stringify(taskParameters)], { type: "application/json" })
   );
-
-  form.append("file", "EINZELNACHWEIS");
 
   const url =
     "https://wunda-api.cismet.de/actions/WUNDA_BLAU.alkisProduct/tasks?resultingInstanceType=result";

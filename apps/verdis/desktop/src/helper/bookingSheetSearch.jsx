@@ -78,9 +78,9 @@ export const getSheetHtml = async (
         );
         const downloadUrl = response.res.url;
         window.open(downloadUrl, "_blank", "noopener,noreferrer");
-        setIsPdfLoading(false);
       } catch (error) {
         console.error("Error loading PDF product:", error);
+      } finally {
         setIsPdfLoading(false);
       }
     }
