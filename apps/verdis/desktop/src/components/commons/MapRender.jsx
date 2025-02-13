@@ -67,12 +67,6 @@ const MapRender = ({ dataIn, extractor = mockExtractor }) => {
     }
   }
 
-  // useEffect(() => {
-  //   setTimeout(() => {
-  //     fitMapBounds();
-  //   }, 250);
-  // }, []);
-
   useEffect(() => {
     if (routedMapRef) {
       const map = routedMapRef?.leafletMap?.leafletElement;
@@ -80,7 +74,7 @@ const MapRender = ({ dataIn, extractor = mockExtractor }) => {
 
       setTimeout(() => {
         fitMapBounds();
-      }, 1250);
+      }, 500);
     }
   }, [routedMapRef]);
 
