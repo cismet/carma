@@ -22,11 +22,12 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import type { UnknownAction } from "redux";
 import versionData from "../../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
+import { Layer } from "leaflet";
 
 const Map = () => {
   const dispatch = useDispatch();
   const isLoading = useSelector(getLoading);
-  const [features, setFeatures] = useState<unknown[]>([]);
+  const [features, setFeatures] = useState<MapFeature[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [boundingBox, setBoundingBox] = useState(null);
   const [gazData, setGazData] = useState([]);
@@ -34,6 +35,15 @@ const Map = () => {
   let refRoutedMap = useRef(null);
   const zoom = searchParams.get("zoom");
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
+
+  interface MapFeature extends Layer {
+    id: string;
+    selected: boolean;
+    feature?: {
+      id: string;
+      selected: boolean;
+    };
+  }
 
   const featureClick = (event) => {
     if (event.target.feature.selected) {
@@ -48,12 +58,45 @@ const Map = () => {
       console.log("features", features, event.target.feature);
 
       const index = features.findIndex(
-        (element) => element.id === event.target.feature.id
+        (element) => element.feature?.id === event.target.feature.id
       );
       if (index !== -1) {
         setSelectedIndex(index);
         features.forEach((element) => {
-          element.selected = false;
+          if (element.feature) {
+            element.feature.selected = false;
+          }
+        });
+        event.target.feature.selected = true;
+      }
+    }
+  };
+
+  const mapClick = (event) => {
+    if (event.target.feature === undefined) {
+      const projectedFC = new L.FeatureGroup();
+      features.forEach((feature) => {
+        projectedFC.addLayer(feature);
+      });
+
+      const bounds = projectedFC.getBounds();
+      const map = routedMapRef?.leafletMap?.leafletElement;
+      if (map === undefined) {
+        return;
+      }
+      map.fitBounds(bounds);
+    } else {
+      console.log("features", features, event.target.feature);
+
+      const index = features.findIndex(
+        (element) => element.feature?.id === event.target.feature.id
+      );
+      if (index !== -1) {
+        setSelectedIndex(index);
+        features.forEach((element) => {
+          if (element.feature) {
+            element.feature.selected = false;
+          }
         });
         event.target.feature.selected = true;
       }
