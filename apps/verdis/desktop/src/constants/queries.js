@@ -404,6 +404,9 @@ query buchungsblattForName($name: String!) {
         landparcelcode
         id
         lfn
+        extended_geom {
+          geo_field
+        }
       }
     }
     aid

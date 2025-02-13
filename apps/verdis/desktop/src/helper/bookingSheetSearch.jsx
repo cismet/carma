@@ -28,6 +28,7 @@ export const getSheetHtml = async (jwt, name, setError, setIsLoading) => {
     setError,
     setIsLoading
   );
+  console.log("xxx name", name);
   const booking = await getBookingOfficesBySheetId(name + " ", jwt);
   if (booking.data.alkis_buchungsblatt.length === 0) {
     setError("Keine Daten gefunden");
