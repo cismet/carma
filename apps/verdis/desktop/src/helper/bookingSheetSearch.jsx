@@ -28,7 +28,6 @@ export const getSheetHtml = async (jwt, name, setError, setIsLoading) => {
     setError,
     setIsLoading
   );
-  console.log("xxx name", name);
   const booking = await getBookingOfficesBySheetId(name + " ", jwt);
   if (booking.data.alkis_buchungsblatt.length === 0) {
     setError("Keine Daten gefunden");
@@ -56,10 +55,11 @@ export const getSheetHtml = async (jwt, name, setError, setIsLoading) => {
   const sheetCode = sheetData.res.buchungsblattCode;
   const districtName = getLandRegisterDistrict(sheetCode);
 
-  const alkis_id = sheetCode;
+  const geometry = booking.data.alkis_buchungsblatt[0].landparcelsArray.map(
+    (g) => g.alkis_buchungsblatt_landparcel.extended_geom.geo_field
+  );
 
-  console.log("xxx sheetData", sheetData);
-  console.log("xxx booking", booking);
+  console.log("xxx booking", geometry);
 
   return (
     <TopicMapContextProvider appKey="verdis-desktop-render.map">
@@ -85,8 +85,8 @@ export const getSheetHtml = async (jwt, name, setError, setIsLoading) => {
               </div>
               <div className="w-[70%] max-[970px]:w-[100%] mb-2">
                 <MapRender
-                // extractor={additionalSheetExtractor}
-                // dataIn={geometry}
+                  extractor={additionalSheetExtractor}
+                  dataIn={geometry}
                 />
               </div>
             </div>
