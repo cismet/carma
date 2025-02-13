@@ -56,10 +56,17 @@ export const getSheetHtml = async (jwt, name, setError, setIsLoading) => {
   const districtName = getLandRegisterDistrict(sheetCode);
 
   const geometry = booking.data.alkis_buchungsblatt[0].landparcelsArray.map(
-    (g) => g.alkis_buchungsblatt_landparcel.extended_geom.geo_field
+    (g, idx) => {
+      return {
+        ...g?.alkis_buchungsblatt_landparcel?.extended_geom?.geo_field,
+        properties: {
+          id: idx,
+        },
+      };
+    }
   );
 
-  console.log("xxx booking", geometry);
+  console.log("xxx booking geometry", geometry);
 
   return (
     <TopicMapContextProvider appKey="verdis-desktop-render.map">
