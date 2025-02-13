@@ -127,17 +127,6 @@ export const onClickTopicMap = async (
       dispatch(setVectorInfo(undefined));
     }
 
-    const nothingFoundIDsWithoutInvisibleLayers = [...new Set(nothingFoundIDs)]
-      .map((id) => {
-        const foundLayer = layers.find((layer) => layer.id === id);
-        if (foundLayer?.visible) {
-          return id;
-        } else {
-          return undefined;
-        }
-      })
-      .filter((id) => id !== undefined);
-
     if (queryableLayers && pos[0] && pos[1]) {
       const result = await Promise.all(
         queryableLayers.map(async (testLayer) => {
@@ -220,6 +209,7 @@ export const onClickTopicMap = async (
     mode === UIMode.FEATURE_INFO &&
     !getAtLeastOneLayerIsQueryable(layers, zoom)
   ) {
+    dispatch(setSecondaryInfoBoxElements([]));
     dispatch(
       setSelectedFeature({
         properties: {
