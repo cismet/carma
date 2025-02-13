@@ -9,6 +9,7 @@ import {
   productsPdfWithPermission,
 } from "./apiMethods";
 import {
+  additionalSheetExtractor,
   bookingColors,
   getAdditionalTextForBooking,
   getBookingByLandparcelCode,
@@ -17,6 +18,7 @@ import {
 } from "./utility";
 import { Spin } from "antd";
 import PdfDocumentLoader from "../components/render/PdfDocumentLoader";
+import MapRender from "../components/commons/MapRender";
 
 export const getSheetHtml = async (jwt, name, setError, setIsLoading) => {
   const sheetData = await getAdditionalSheetAsync(
@@ -54,24 +56,35 @@ export const getSheetHtml = async (jwt, name, setError, setIsLoading) => {
 
   const alkis_id = sheetCode;
 
+  console.log("xxx sheetData", sheetData);
+  console.log("xxx booking", booking);
+
   return (
     <div>
       <CustomCard title="Buchungsblatt-Renderer">
         <CustomCard style={{ marginBottom: "1rem" }} title="Buchungsblatt">
-          <div>
-            <div>
-              <b>Amtsgericht:</b> {localCourt}
-            </div>
-            {districtName && (
+          <div className="flex gap-4 w-full  max-[920px]:flex-col">
+            <div className="w-[35%]">
               <div>
-                <b>Grundbuchbezirk:</b> {districtName}
+                <b>Amtsgericht:</b> {localCourt}
               </div>
-            )}
-            <div>
-              <b>Blattart:</b> {leafType}
+              {districtName && (
+                <div>
+                  <b>Grundbuchbezirk:</b> {districtName}
+                </div>
+              )}
+              <div>
+                <b>Blattart:</b> {leafType}
+              </div>
+              <div>
+                <b>Buchungsart:</b> {bookingType}
+              </div>
             </div>
-            <div>
-              <b>Buchungsart:</b> {bookingType}
+            <div className="w-[65%] max-[920px]:w-[100%] mb-2">
+              <MapRender
+              // extractor={additionalSheetExtractor}
+              // dataIn={geometry}
+              />
             </div>
           </div>
         </CustomCard>

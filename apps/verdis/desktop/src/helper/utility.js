@@ -307,3 +307,12 @@ export const landparcelExtractor = (geometry) => {
     },
   };
 };
+
+export const additionalSheetExtractor = (geometry) => {
+  return {
+    homeCenter: [51.27225612927373, 7.199918031692506],
+    homeZoom: 16,
+    featureCollection: geometry,
+    styler: stylerGeometrienStyle,
+  };
+};
