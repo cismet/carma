@@ -28,7 +28,7 @@ const MapRender = ({ dataIn, extractor = mockExtractor }) => {
   const [mapWidth, setMapWidth] = useState(0);
   const [mapHeight, setMapHeight] = useState(0);
 
-  let refRoutedMap = useRef(null);
+  const { routedMapRef, referenceSystem } = useContext(TopicMapContext);
 
   useEffect(() => {
     const resizeObserver = new ResizeObserver((entries) => {
@@ -44,35 +44,58 @@ const MapRender = ({ dataIn, extractor = mockExtractor }) => {
     };
   }, []);
 
-  useEffect(() => {
-    console.log("xxx routedMapRef", refRoutedMap);
-    if (refRoutedMap) {
+  function fitMapBounds(map) {
+    console.log("xxx data", data?.featureCollection);
+    if (map == undefined) {
+      console.log("xxx map is undefined");
+      return;
+    } else {
     }
-  }, [refRoutedMap]);
+    let bb = undefined;
+    if (data?.featureCollection && data?.featureCollection.length > 0) {
+      console.log("xxx will use featureCollection", data?.featureCollection);
+
+      bb = getBoundsForFeatureArray(data?.featureCollection);
+    } else if (data?.allFeatures && data?.allFeatures.length > 0) {
+      console.log("xxx will use allFeatures", data?.allFeatures);
+      bb = getBoundsForFeatureArray(data?.allFeatures);
+    }
+
+    if (map && bb) {
+      map.fitBounds(bb);
+      console.log("xxx fitBounds");
+    }
+  }
+
+  useEffect(() => {
+    if (routedMapRef) {
+      const map = routedMapRef?.leafletMap?.leafletElement;
+      console.log("xxx map", map);
+
+      // fitMapBounds(map);
+    }
+  }, [routedMapRef]);
 
   return (
     <div ref={cardRef} className="w-full h-80">
-      <TopicMapContextProvider appKey="verdis-desktop-render.map">
-        <TopicMapComponent
-          ref={refRoutedMap}
-          mapStyle={{
-            width: mapWidth,
-            height: mapHeight + 10,
-          }}
-          homeZoom={data.homeZoom}
-          homeCenter={data.homeCenter}
-          gazData={[]}
-          gazetteerSearchControl={false}
-          hamburgerMenu={false}
-          fullScreenControl={false}
-          // autoFitBounds={true}
-        >
-          <FeatureCollectionDisplay
-            featureCollection={data.featureCollection}
-            style={data.styler}
-          />
-        </TopicMapComponent>
-      </TopicMapContextProvider>
+      <TopicMapComponent
+        mapStyle={{
+          width: mapWidth,
+          height: mapHeight + 10,
+        }}
+        homeZoom={data.homeZoom}
+        homeCenter={data.homeCenter}
+        gazData={[]}
+        gazetteerSearchControl={false}
+        hamburgerMenu={false}
+        fullScreenControl={false}
+        autoFitBounds={true}
+      >
+        <FeatureCollectionDisplay
+          featureCollection={data.featureCollection}
+          style={data.styler}
+        />
+      </TopicMapComponent>
     </div>
   );
 };
