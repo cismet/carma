@@ -44,8 +44,8 @@ const MapRender = ({ dataIn, extractor = mockExtractor }) => {
     };
   }, []);
 
-  function fitMapBounds(map) {
-    console.log("xxx data", data?.featureCollection);
+  function fitMapBounds() {
+    const map = routedMapRef?.leafletMap?.leafletElement;
     if (map == undefined) {
       console.log("xxx map is undefined");
       return;
@@ -63,16 +63,24 @@ const MapRender = ({ dataIn, extractor = mockExtractor }) => {
 
     if (map && bb) {
       map.fitBounds(bb);
-      console.log("xxx fitBounds");
+      // console.log("xxx fitBounds");
     }
   }
+
+  // useEffect(() => {
+  //   setTimeout(() => {
+  //     fitMapBounds();
+  //   }, 250);
+  // }, []);
 
   useEffect(() => {
     if (routedMapRef) {
       const map = routedMapRef?.leafletMap?.leafletElement;
       console.log("xxx map", map);
 
-      fitMapBounds(map);
+      setTimeout(() => {
+        fitMapBounds();
+      }, 1250);
     }
   }, [routedMapRef]);
 
