@@ -93,10 +93,10 @@ export const getLandparcelHtml = async (
   return (
     <>
       <CustomCard title={title} style={{ marginBottom: "1rem" }}>
-        <div className="flex gap-4 w-full">
+        <div className="flex gap-4 w-full max-[1000px]:flex-col">
           <div className="w-[35%]">
             <div className="font-bold mb-3">Flurstücksinformationen</div>
-            <div className="w-[600px]">
+            <div className="w-[500px]">
               <div style={wrapStyle}>
                 <div style={colStyle}>Flurstückenzeichen:</div>
                 <div style={colStyle}>{name}</div>
@@ -131,7 +131,7 @@ export const getLandparcelHtml = async (
               </div>
             </div>
           </div>
-          <div className="w-[65%]">
+          <div className="w-[65%] max-[1000px]:w-[100%]">
             <MapRender extractor={landparcelExtractor} dataIn={geometry} />
           </div>
         </div>
