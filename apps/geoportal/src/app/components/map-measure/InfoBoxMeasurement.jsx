@@ -14,6 +14,7 @@ import {
   setMapMovingEnd,
   getMapMovingEnd,
   updateTitle,
+  setTriggerCancel,
 } from "../../store/slices/measurements";
 import { useSelector, useDispatch } from "react-redux";
 import { useState, useEffect, useContext } from "react";
@@ -220,38 +221,43 @@ const InfoBoxMeasurement = () => {
                   }
                 />
               </span>
-              <div className="flex justify-between items-center w-[12%] mt-1 gap-2">
-                {drawingMode ? (
-                  <Tooltip title="Aktuelle Messung abbrechen">
+              {drawingMode ? (
+                <Tooltip title="Aktuelle Messung abbrechen">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      dispatch(setTriggerCancel(true));
+                    }}
+                  >
                     <FontAwesomeIcon
                       icon={faBan}
                       className="cursor-pointer text-[16px] text-[#808080] hover:text-[#a0a0a0]"
                     />
-                  </Tooltip>
-                ) : (
-                  <>
-                    <Icon
-                      name="search-location"
-                      onClick={() => {
-                        dispatch(
-                          setMoveToShape(
-                            visibleShapesData[currentMeasure].shapeId
-                          )
-                        );
-                        cleanUpdateMeasurementStatus();
-                      }}
-                      className="cursor-pointer text-[16px] text-[#808080] hover:text-[#a0a0a0]"
-                      data-test-id="zoom-measurement-btn"
-                    />
-                    <FontAwesomeIcon
-                      onClick={deleteShapeHandler}
-                      className="cursor-pointer text-base text-[#808080] hover:text-[#a0a0a0]"
-                      icon={faTrashCan}
-                      data-test-id="delete-measurement-btn"
-                    />
-                  </>
-                )}
-              </div>
+                  </button>
+                </Tooltip>
+              ) : (
+                <div className="flex justify-between items-center w-[12%] mt-1 gap-2">
+                  <Icon
+                    name="search-location"
+                    onClick={() => {
+                      dispatch(
+                        setMoveToShape(
+                          visibleShapesData[currentMeasure].shapeId
+                        )
+                      );
+                      cleanUpdateMeasurementStatus();
+                    }}
+                    className="cursor-pointer text-[16px] text-[#808080] hover:text-[#a0a0a0]"
+                    data-test-id="zoom-measurement-btn"
+                  />
+                  <FontAwesomeIcon
+                    onClick={deleteShapeHandler}
+                    className="cursor-pointer text-base text-[#808080] hover:text-[#a0a0a0]"
+                    icon={faTrashCan}
+                    data-test-id="delete-measurement-btn"
+                  />
+                </div>
+              )}
             </div>
           }
           collapsibleDiv={

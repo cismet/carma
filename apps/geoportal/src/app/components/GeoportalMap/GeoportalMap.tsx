@@ -128,6 +128,7 @@ import "../leaflet.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import PrintPreview from "../map-print/PrintPreview.tsx";
+import { setDrawingShape } from "../../store/slices/measurements.ts";
 
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;
@@ -540,6 +541,9 @@ export const GeoportalMap = () => {
               <ControlButtonStyler
                 disabled={!isMode2d}
                 onClick={() => {
+                  if (!isModeMeasurement) {
+                    dispatch(setDrawingShape(false));
+                  }
                   setIsMeasurementTooltip(false);
                   handleToggleMeasurement();
                 }}

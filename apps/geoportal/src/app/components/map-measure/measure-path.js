@@ -453,6 +453,8 @@ L.Control.MeasurePolygon = L.Control.extend({
       this.options.checkonedrawpoligon = true;
       this.options.cbSetDrawingStatus(false);
 
+      this._measureHandler.disable();
+
       this._toggleMeasure(
         "img_plg_lines",
         "icon_lineActive",

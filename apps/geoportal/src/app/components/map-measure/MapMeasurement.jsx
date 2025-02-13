@@ -39,6 +39,8 @@ import {
   setActiveShapeIfDrawCancelled,
   updateAreaOfDrawing,
   deleteVisibleShapeById,
+  getTriggerCancel,
+  setTriggerCancel,
 } from "../../store/slices/measurements";
 
 import { getUIMode, toggleUIMode, UIMode } from "../../store/slices/ui";
@@ -56,6 +58,7 @@ const MapMeasurement = (props) => {
   const deleteShape = useSelector(getDeleteAll);
   const visibleShapes = useSelector(getVisibleShapes);
   const moveToShape = useSelector(getMoveToShape);
+  const triggerCancel = useSelector(getTriggerCancel);
   const mode = useSelector(getUIMode);
   const startDrawing = useSelector(getStartDrawing);
   const [measureControl, setMeasureControl] = useState(null);
@@ -161,6 +164,10 @@ const MapMeasurement = (props) => {
 
     if (measureControl) {
       const map = routedMapRef.leafletMap.leafletElement;
+      if (triggerCancel) {
+        map.fire("draw:canceled");
+        dispatch(setTriggerCancel(false));
+      }
       measureControl.changeMeasurementMode(mode, map);
       const shapeCoordinates = measurementShapes.filter(
         (s) => s.shapeId === activeShape
@@ -186,6 +193,7 @@ const MapMeasurement = (props) => {
     ifDrawing,
     moveToShape,
     mode,
+    triggerCancel,
   ]);
 
   useEffect(() => {
