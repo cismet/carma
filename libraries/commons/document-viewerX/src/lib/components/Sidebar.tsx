@@ -73,7 +73,9 @@ const Sidebar = ({
 
   const getIndentationLevel = (structure: string | undefined) => {
     if (!structure) return 0;
-    return (structure.match(/\//g) || []).length - 1;
+    // For root level ("/") return 0, otherwise count actual levels
+    if (structure === "/") return 0;
+    return structure.split("/").filter(Boolean).length;
   };
 
   const getStructureParts = (structure: string) => {
@@ -379,8 +381,8 @@ const Sidebar = ({
                       marginBottom: "8px",
                       marginLeft:
                         (doc.structure
-                          ? getIndentationLevel(doc.structure) + 1
-                          : 0) * INDENTATION_PER_LEVEL,
+                          ? getIndentationLevel(doc.structure) * INDENTATION_PER_LEVEL
+                          : 0),
                       position: "relative",
                       cursor: "pointer",
                     }}
@@ -404,11 +406,7 @@ const Sidebar = ({
                     }}
                   >
                     <VerticalLines
-                      level={
-                        doc.structure
-                          ? getIndentationLevel(doc.structure) + 1
-                          : 0
-                      }
+                      level={doc.structure ? getIndentationLevel(doc.structure) : 0}
                       isDocument={false}
                     />
                     {formatPrefixForDisplay(documentPrefix)} ...
@@ -420,8 +418,7 @@ const Sidebar = ({
                   style={{
                     marginLeft:
                       (doc.structure
-                        ? (getIndentationLevel(doc.structure) + 1) *
-                          INDENTATION_PER_LEVEL
+                        ? getIndentationLevel(doc.structure) * INDENTATION_PER_LEVEL
                         : 0) +
                       (getIndentationLevel(doc.structure) > 0
                         ? BASE_MARGIN
@@ -431,9 +428,7 @@ const Sidebar = ({
                   onClick={() => navigate(`/docs/${docPackageId}/${i + 1}/1`)}
                 >
                   <VerticalLines
-                    level={
-                      doc.structure ? getIndentationLevel(doc.structure) + 1 : 0
-                    }
+                    level={doc.structure ? getIndentationLevel(doc.structure) : 0}
                     isDocument={true}
                   />
                   <div

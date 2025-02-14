@@ -101,7 +101,7 @@ export function getDocsForAEVGazetteerEntry(props: any) {
 
         docs.push({
           group: "Zusatzdokumente",
-          structure: "/Zusatzdokumente/test",
+          structure: "/Zusatzdokumente",
           title: createTitleForFilenameForAdditionalDocuments(filename),
 
           file: filename,
