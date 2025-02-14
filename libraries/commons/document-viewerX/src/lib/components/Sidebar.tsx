@@ -50,7 +50,7 @@ const Sidebar = ({
 
   const INDENTATION_PER_LEVEL = 10; // pixels per level
   const BASE_PADDING = 6; // base padding in pixels
-  const BASE_MARGIN = 0;
+  const BASE_MARGIN = 10;
 
   const SIDEBAR_FILENAME_SHORTENER = {
     bplaene: (original: string) => {
@@ -73,7 +73,9 @@ const Sidebar = ({
 
   const getIndentationLevel = (structure: string | undefined) => {
     if (!structure) return 0;
-    return (structure.match(/\//g) || []).length - 1;
+    // For root level ("/") return 0, otherwise count actual levels
+    if (structure === "/") return 0;
+    return structure.split("/").filter(Boolean).length;
   };
 
   const getStructureParts = (structure: string) => {
@@ -89,26 +91,49 @@ const Sidebar = ({
     );
     const prefixGroups = new Map<string, Doc[]>();
 
-    // If there's only one document, check if it has a date prefix
+    // If there's only one document, check if it has a date-ending prefix
     if (docsInStructure.length === 1) {
       const doc = docsInStructure[0];
       const title = doc.title || "";
-      const dateMatch = title.match(/^\d{4}-\d{2}_/);
-      if (dateMatch) {
-        prefixGroups.set(dateMatch[0], [doc]);
+      // Match either YYYY-MM_ or MM-YYYY_ pattern with any prefix
+      const prefixMatch = title.match(/^.*?(\d{4}-\d{2}|\d{2}-\d{4})_/);
+      if (prefixMatch) {
+        prefixGroups.set(prefixMatch[0], [doc]);
       }
       return prefixGroups;
     }
 
-    // Group documents by their date prefix
+    // Find potential prefixes from titles that end with underscore
+    const potentialPrefixes = new Set<string>();
     docsInStructure.forEach((doc) => {
       const title = doc.title || "";
-      const dateMatch = title.match(/^\d{4}-\d{2}_/);
-      if (dateMatch) {
-        const prefix = dateMatch[0];
-        const docs = prefixGroups.get(prefix) || [];
-        docs.push(doc);
-        prefixGroups.set(prefix, docs);
+      const prefixMatch = title.match(/^.*?(\d{4}-\d{2}|\d{2}-\d{4})_/);
+      if (prefixMatch) {
+        potentialPrefixes.add(prefixMatch[0]);
+      }
+    });
+
+    // Group documents by prefix, including exact matches
+    potentialPrefixes.forEach((prefix) => {
+      const docsWithPrefix: Doc[] = [];
+      const exactMatches: Doc[] = [];
+
+      docsInStructure.forEach((doc) => {
+        const title = doc.title || "";
+        // Check for exact match (without the underscore)
+        if (title === prefix.slice(0, -1)) {
+          exactMatches.push(doc);
+        }
+        // Check for prefix match
+        else if (title.startsWith(prefix)) {
+          docsWithPrefix.push(doc);
+        }
+      });
+
+      // If we found matches and/or exact matches
+      if (docsWithPrefix.length > 0 || exactMatches.length > 0) {
+        // Put exact matches first, then the rest
+        prefixGroups.set(prefix, [...exactMatches, ...docsWithPrefix]);
       }
     });
 
@@ -120,12 +145,12 @@ const Sidebar = ({
   const getPrefixGroups = (docs: Doc[], doc: Doc) => {
     if (!doc.structure) return new Map<string, Doc[]>();
 
-    if (!structurePrefixGroups.has(doc.structure)) {
-      const groups = findCommonPrefixForStructure(docs, doc.structure);
-      structurePrefixGroups.set(doc.structure, groups);
-    }
+    const cached = structurePrefixGroups.get(doc.structure);
+    if (cached) return cached;
 
-    return structurePrefixGroups.get(doc.structure) || new Map<string, Doc[]>();
+    const groups = findCommonPrefixForStructure(docs, doc.structure);
+    structurePrefixGroups.set(doc.structure, groups);
+    return groups;
   };
 
   const getDocumentPrefix = (
@@ -140,9 +165,15 @@ const Sidebar = ({
   };
 
   const formatPrefixForDisplay = (prefix: string): string => {
-    if (prefix.match(/^\d{4}-\d{2}_/)) {
-      // Convert YYYY-MM_ to YYYY/MM
-      return prefix.replace(/^(\d{4})-(\d{2})_$/, "$1/$2");
+    // Handle both YYYY-MM and MM-YYYY patterns
+    const match = prefix.match(/^(.*?)(\d{4}-\d{2}|\d{2}-\d{4})_$/);
+    if (match) {
+      const [_, prefixPart, datePart] = match;
+      // Convert the date part to a consistent format (YYYY/MM)
+      const formattedDate = datePart.match(/^\d{4}/)
+        ? datePart.replace(/^(\d{4})-(\d{2})$/, "$1/$2") // YYYY-MM to YYYY/MM
+        : datePart.replace(/^(\d{2})-(\d{4})$/, "$2/$1"); // MM-YYYY to YYYY/MM
+      return (prefixPart + formattedDate).trim();
     }
     return prefix.endsWith("_") ? prefix.slice(0, -1) : prefix;
   };
@@ -244,6 +275,9 @@ const Sidebar = ({
 
   const removePrefix = (title: string, prefix: string | null) => {
     if (!prefix || !title) return improveReadability(title);
+    // If the title exactly matches the prefix (without underscore), return it as is
+    if (title === prefix.slice(0, -1)) return improveReadability(title);
+    // Otherwise remove the prefix
     return improveReadability(
       title.startsWith(prefix) ? title.slice(prefix.length).trim() : title
     );
@@ -283,6 +317,7 @@ const Sidebar = ({
     height: 100%;
     padding: ${BASE_PADDING + 0}px;
     margin-bottom: 8px;
+
     cursor: pointer;
     color: #333;
     position: relative;
@@ -371,8 +406,8 @@ const Sidebar = ({
                       marginBottom: "8px",
                       marginLeft:
                         (doc.structure
-                          ? getIndentationLevel(doc.structure) + 1
-                          : 0) * INDENTATION_PER_LEVEL,
+                          ? getIndentationLevel(doc.structure) * INDENTATION_PER_LEVEL
+                          : 0),
                       position: "relative",
                       cursor: "pointer",
                     }}
@@ -396,11 +431,7 @@ const Sidebar = ({
                     }}
                   >
                     <VerticalLines
-                      level={
-                        doc.structure
-                          ? getIndentationLevel(doc.structure) + 1
-                          : 0
-                      }
+                      level={doc.structure ? getIndentationLevel(doc.structure) : 0}
                       isDocument={false}
                     />
                     {formatPrefixForDisplay(documentPrefix)} ...
@@ -412,17 +443,17 @@ const Sidebar = ({
                   style={{
                     marginLeft:
                       (doc.structure
-                        ? (getIndentationLevel(doc.structure) + 1) *
-                          INDENTATION_PER_LEVEL
-                        : 0) + BASE_MARGIN,
+                        ? getIndentationLevel(doc.structure) * INDENTATION_PER_LEVEL
+                        : 0) +
+                      (getIndentationLevel(doc.structure) > 0
+                        ? BASE_MARGIN
+                        : 0),
                     position: "relative",
                   }}
                   onClick={() => navigate(`/docs/${docPackageId}/${i + 1}/1`)}
                 >
                   <VerticalLines
-                    level={
-                      doc.structure ? getIndentationLevel(doc.structure) + 1 : 0
-                    }
+                    level={doc.structure ? getIndentationLevel(doc.structure) : 0}
                     isDocument={true}
                   />
                   <div

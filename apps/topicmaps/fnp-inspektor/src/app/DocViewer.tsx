@@ -1,4 +1,4 @@
-import { Doc, DocumentViewer } from "@carma-commons/document-viewer";
+import { Doc, DocumentViewer } from "@carma-commons/document-viewerX";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "leaflet/dist/leaflet.css";
 import { useEffect, useState } from "react";
@@ -89,13 +89,12 @@ export function App() {
 
     document.title = `Dokumentenansicht | ${docPackageId}`;
   }, [docPackageId]);
-  return <DocumentViewer docs={docs} mode="aenderungsv" />;
 
-  // if (docs.length > 0) {
-  //   return <DocumentViewer docs={docs} mode="aenderungsv" />;
-  // } else {
-  //   return <div>Loading ...</div>;
-  // }
+  if (docs.length > 0) {
+    return <DocumentViewer docs={docs} mode="aenderungsv" />;
+  } else {
+    return null;
+  }
 }
 
 export default App;
