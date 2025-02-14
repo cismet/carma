@@ -28,8 +28,10 @@ import {
 } from "../../store/slices/mapping";
 import {
   getUIShowLayerButtons,
+  getZenMode,
   setShowResourceModal,
   setUIShowLayerButtons,
+  setZenMode,
 } from "../../store/slices/ui";
 import ShareContent from "../ShareContent";
 import Print from "../map-print/Print";
@@ -55,6 +57,7 @@ const ActionButtons = () => {
   const showPrintPopup = useSelector(getIfPopupOpend);
   const backgroundLayer = useSelector(getBackgroundLayer);
   const paleOpacityValue = useSelector(getPaleOpacityValue);
+  const zenMode = useSelector(getZenMode);
 
   const baseUrl = window.location.origin + window.location.pathname;
 
@@ -145,23 +148,18 @@ const ActionButtons = () => {
         </button>
       </Tooltip>
       <Tooltip
-        title={`Kartensteuerelemente ${
-          showLayerButtons ? "ausblenden" : "einblenden"
-        }`}
+        title={`Kartensteuerelemente ${!zenMode ? "ausblenden" : "einblenden"}`}
       >
         <button
-          className={`text-xl ${
-            isMode2d ? "hover:text-gray-600" : disabledClass
-          }`}
-          disabled={!isMode2d}
+          className={`text-xl hover:text-gray-600`}
           onClick={() => {
-            dispatch(setUIShowLayerButtons(!showLayerButtons));
+            dispatch(setZenMode(!zenMode));
           }}
           data-test-id="kartensteuerelemente-btn"
         >
           <FontAwesomeIcon
             fixedWidth={true}
-            icon={showLayerButtons ? faEye : faEyeSlash}
+            icon={!zenMode ? faEye : faEyeSlash}
           />
         </button>
       </Tooltip>
