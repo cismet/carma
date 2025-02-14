@@ -89,23 +89,24 @@ const Sidebar = ({
     );
     const prefixGroups = new Map<string, Doc[]>();
 
-    // If there's only one document, check if it has a date prefix
+    // If there's only one document, check if it has a date-ending prefix
     if (docsInStructure.length === 1) {
       const doc = docsInStructure[0];
       const title = doc.title || "";
-      const dateMatch = title.match(/^\d{4}-\d{2}_/);
-      if (dateMatch) {
-        prefixGroups.set(dateMatch[0], [doc]);
+      // Match either YYYY-MM_ or MM-YYYY_ pattern with any prefix
+      const prefixMatch = title.match(/^.*?(\d{4}-\d{2}|\d{2}-\d{4})_/);
+      if (prefixMatch) {
+        prefixGroups.set(prefixMatch[0], [doc]);
       }
       return prefixGroups;
     }
 
-    // Group documents by their date prefix
+    // Group documents by their date-ending prefix
     docsInStructure.forEach((doc) => {
       const title = doc.title || "";
-      const dateMatch = title.match(/^\d{4}-\d{2}_/);
-      if (dateMatch) {
-        const prefix = dateMatch[0];
+      const prefixMatch = title.match(/^.*?(\d{4}-\d{2}|\d{2}-\d{4})_/);
+      if (prefixMatch) {
+        const prefix = prefixMatch[0];
         const docs = prefixGroups.get(prefix) || [];
         docs.push(doc);
         prefixGroups.set(prefix, docs);
@@ -140,9 +141,15 @@ const Sidebar = ({
   };
 
   const formatPrefixForDisplay = (prefix: string): string => {
-    if (prefix.match(/^\d{4}-\d{2}_/)) {
-      // Convert YYYY-MM_ to YYYY/MM
-      return prefix.replace(/^(\d{4})-(\d{2})_$/, "$1/$2");
+    // Handle both YYYY-MM and MM-YYYY patterns
+    const match = prefix.match(/^(.*?)(\d{4}-\d{2}|\d{2}-\d{4})_$/);
+    if (match) {
+      const [_, prefixPart, datePart] = match;
+      // Convert the date part to a consistent format (YYYY/MM)
+      const formattedDate = datePart.match(/^\d{4}/) 
+        ? datePart.replace(/^(\d{4})-(\d{2})$/, "$1/$2")  // YYYY-MM to YYYY/MM
+        : datePart.replace(/^(\d{2})-(\d{4})$/, "$2/$1");  // MM-YYYY to YYYY/MM
+      return (prefixPart + formattedDate).trim();
     }
     return prefix.endsWith("_") ? prefix.slice(0, -1) : prefix;
   };

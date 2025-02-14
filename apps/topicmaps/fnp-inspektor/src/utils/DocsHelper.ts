@@ -2,6 +2,12 @@ import { Doc } from "@carma-commons/document-viewer";
 
 const tileservice = "https://resources.cismet.de/tiles/";
 
+const createTitleForFilenameForAdditionalDocuments = (
+  filename: string
+): string => {
+  // Remove FNP_XXXX_XXXAnd prefix and .pdf extension
+  return filename.replace(/^FNP_\d+_\d+And_/, "").replace(/\.pdf$/, "");
+};
 function replaceUmlauteAndSpaces(str: string) {
   const umlautMap = {
     Ü: "UE",
@@ -49,6 +55,7 @@ export function getDocsForAEVGazetteerEntry(props: any) {
           : "FNP-Berichtigung." + aev.name + ".pdf";
       docs.push({
         group: "Änderungsverfahren",
+        structure: "/",
         file: filename,
         url: aev.url.replace(
           "http://www.wuppertal.de/geoportal/",
@@ -70,6 +77,7 @@ export function getDocsForAEVGazetteerEntry(props: any) {
           "https://www.wuppertal.de/geoportal/fnp_dokumente/Info_FNP-Zusatzdokumente_WUP.pdf";
         docs.push({
           group: "Zusatzdokumente",
+          structure: "/Zusatzdokumente",
           title: "Info Dateinamen",
           file: "Info_FNP-Zusatzdokumente_WUP.pdf",
           url: url.replace(
@@ -86,11 +94,17 @@ export function getDocsForAEVGazetteerEntry(props: any) {
           ),
         });
       }
-
+      const debugOut = [];
       for (let url of aev.docUrls) {
         const filename = url.substring(url.lastIndexOf("/") + 1);
+
+        debugOut.push(createTitleForFilenameForAdditionalDocuments(filename));
+
         docs.push({
           group: "Zusatzdokumente",
+          structure: "/Zusatzdokumente",
+          title: createTitleForFilenameForAdditionalDocuments(filename),
+
           file: filename,
           url: url.replace(
             "https://www.wuppertal.de/geoportal/",
@@ -107,6 +121,7 @@ export function getDocsForAEVGazetteerEntry(props: any) {
           ),
         });
       }
+      console.log("debug filename", debugOut);
     }
   });
 

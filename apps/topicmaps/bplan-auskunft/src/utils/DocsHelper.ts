@@ -81,7 +81,7 @@ export function getDocsForBPlaeneGazetteerEntry(props: any) {
           group: "nicht_rechtskraeftig",
           file: doc.file,
           url: repairUrl(doc.url),
-          docTitle: title,
+          title,
 
           layer: replaceUmlauteAndSpaces(
             repairUrl(doc.url).replace(
