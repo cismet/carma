@@ -15,12 +15,13 @@ type Props = {
   onComplete?: (isTo2D: boolean) => void;
   forceEnabled?: boolean;
   children?: ReactNode;
+  className?: string;
 };
 
 type Ref = HTMLButtonElement;
 
 export const MapTypeSwitcher = forwardRef<Ref, Props>(
-  ({ onComplete, forceEnabled, duration }, ref) => {
+  ({ onComplete, forceEnabled, duration, className }, ref) => {
     const isMode2d = useSelector(selectViewerIsMode2d);
     const isTransitioning = useSelector(selectViewerIsTransitioning);
     const { transitionToMode2d, transitionToMode3d } = useMapTransition({
@@ -47,7 +48,7 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
         placement="right"
       >
         <ControlButtonStyler
-          className="font-semibold"
+          className={"font-semibold " + className}
           onClick={handleSwitchMapMode}
           disabled={isTransitioning && !forceEnabled}
           ref={ref}
