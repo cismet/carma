@@ -89,13 +89,12 @@ export function App() {
 
     document.title = `Dokumentenansicht | ${docPackageId}`;
   }, [docPackageId]);
-  return <DocumentViewer docs={docs} mode="aenderungsv" />;
 
-  // if (docs.length > 0) {
-  //   return <DocumentViewer docs={docs} mode="aenderungsv" />;
-  // } else {
-  //   return <div>Loading ...</div>;
-  // }
+  if (docs.length > 0) {
+    return <DocumentViewer docs={docs} mode="aenderungsv" />;
+  } else {
+    return null;
+  }
 }
 
 export default App;
