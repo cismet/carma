@@ -41,6 +41,7 @@ import {
 import {
   getUIAllowChanges,
   getUIMode,
+  getZenMode,
   setUIAllowChanges,
   setUIMode,
   setUIShowLayerButtons,
@@ -75,6 +76,7 @@ function App({ published }: { published?: boolean }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const allowUiChanges = useSelector(getUIAllowChanges);
   const uiMode = useSelector(getUIMode);
+  const zenMode = useSelector(getZenMode);
   const location = useLocation();
   const backgroundLayer = useSelector(getBackgroundLayer);
   const selectedMapLayer = useSelector(getSelectedMapLayer);
@@ -238,7 +240,7 @@ function App({ published }: { published?: boolean }) {
               <FontAwesomeIcon size="2x" icon={faSpinner} spin />
             </div>
           )}
-          {!published && <TopNavbar />}
+          {!published && !zenMode && <TopNavbar />}
           <MapMeasurement />
           <GeoportalMap />
         </div>
