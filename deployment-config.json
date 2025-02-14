@@ -770,15 +770,15 @@
           "dev": {
             "pages": {
               "org": "carma-dev-deployments",
-              "prj": "verdis-desktop",
-              "baseUrl": "/verdis-desktop"
+              "prj": "verdis-desktop-tmp",
+              "baseUrl": "/verdis-desktop-tmp"
             }
           },
           "live": {
             "pages": {
               "org": "carma-dev-deployments",
-              "prj": "verdis-desktop",
-              "baseUrl": "/verdis-desktop"
+              "prj": "verdis-desktop-tmp",
+              "baseUrl": "/verdis-desktop-tmp"
             }
           }
         },
@@ -786,8 +786,8 @@
           "dev": {
             "pages": {
               "org": "carma-dev-deployments",
-              "prj": "verdis-desktop",
-              "baseUrl": "/verdis-desktop"
+              "prj": "verdis-desktop-tmp",
+              "baseUrl": "/verdis-desktop-tmp"
             }
           }
         }
