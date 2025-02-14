@@ -55,7 +55,6 @@ export function getDocsForAEVGazetteerEntry(props: any) {
           : "FNP-Berichtigung." + aev.name + ".pdf";
       docs.push({
         group: "Änderungsverfahren",
-        structure: "/",
         file: filename,
         url: aev.url.replace(
           "http://www.wuppertal.de/geoportal/",
@@ -102,7 +101,7 @@ export function getDocsForAEVGazetteerEntry(props: any) {
 
         docs.push({
           group: "Zusatzdokumente",
-          structure: "/Zusatzdokumente",
+          structure: "/Zusatzdokumente/test",
           title: createTitleForFilenameForAdditionalDocuments(filename),
 
           file: filename,
