@@ -158,7 +158,7 @@ export const stylerGeometrienStyle = (feature) => {
 
   const style = {
     fillColor: color,
-    fillOpacity: 0.5,
+    fillOpacity: 0.6,
     color: "#000000",
     weight: 0.4,
   };
@@ -301,7 +301,7 @@ export const landparcelExtractor = (geometry) => {
     featureCollection: [geometry],
     styler: {
       fillColor: "#ff1010",
-      fillOpacity: 1,
+      fillOpacity: 0.6,
       color: "#000000",
       weight: 1,
     },
