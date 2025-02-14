@@ -1,4 +1,4 @@
-import { Doc } from "@carma-commons/document-viewer";
+import { Doc } from "@carma-commons/document-viewerX";
 
 const tileservice = "https://resources.cismet.de/tiles/";
 
@@ -94,7 +94,7 @@ export function getDocsForAEVGazetteerEntry(props: any) {
           ),
         });
       }
-      const debugOut = [];
+      const debugOut: string[] = [];
       for (let url of aev.docUrls) {
         const filename = url.substring(url.lastIndexOf("/") + 1);
 

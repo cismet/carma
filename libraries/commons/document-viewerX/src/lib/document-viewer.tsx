@@ -54,6 +54,13 @@ export function DocumentViewer({
   mode,
   initialSidebarCollapsed = false,
 }: DocumentViewerProps) {
+  const debugDocs = JSON.parse(JSON.stringify(docs));
+  for (const dd of debugDocs) {
+    delete dd.meta;
+  }
+
+  console.log("docs", debugDocs);
+
   let { file } = useParams();
   const collapsedSidebarWidth = 220;
   const expandedSidebarWidth = 335;

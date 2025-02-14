@@ -50,7 +50,7 @@ const Sidebar = ({
 
   const INDENTATION_PER_LEVEL = 10; // pixels per level
   const BASE_PADDING = 6; // base padding in pixels
-  const BASE_MARGIN = 0;
+  const BASE_MARGIN = 10;
 
   const SIDEBAR_FILENAME_SHORTENER = {
     bplaene: (original: string) => {
@@ -146,9 +146,9 @@ const Sidebar = ({
     if (match) {
       const [_, prefixPart, datePart] = match;
       // Convert the date part to a consistent format (YYYY/MM)
-      const formattedDate = datePart.match(/^\d{4}/) 
-        ? datePart.replace(/^(\d{4})-(\d{2})$/, "$1/$2")  // YYYY-MM to YYYY/MM
-        : datePart.replace(/^(\d{2})-(\d{4})$/, "$2/$1");  // MM-YYYY to YYYY/MM
+      const formattedDate = datePart.match(/^\d{4}/)
+        ? datePart.replace(/^(\d{4})-(\d{2})$/, "$1/$2") // YYYY-MM to YYYY/MM
+        : datePart.replace(/^(\d{2})-(\d{4})$/, "$2/$1"); // MM-YYYY to YYYY/MM
       return (prefixPart + formattedDate).trim();
     }
     return prefix.endsWith("_") ? prefix.slice(0, -1) : prefix;
@@ -290,6 +290,7 @@ const Sidebar = ({
     height: 100%;
     padding: ${BASE_PADDING + 0}px;
     margin-bottom: 8px;
+
     cursor: pointer;
     color: #333;
     position: relative;
@@ -421,7 +422,10 @@ const Sidebar = ({
                       (doc.structure
                         ? (getIndentationLevel(doc.structure) + 1) *
                           INDENTATION_PER_LEVEL
-                        : 0) + BASE_MARGIN,
+                        : 0) +
+                      (getIndentationLevel(doc.structure) > 0
+                        ? BASE_MARGIN
+                        : 0),
                     position: "relative",
                   }}
                   onClick={() => navigate(`/docs/${docPackageId}/${i + 1}/1`)}
