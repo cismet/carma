@@ -21,7 +21,6 @@ export type MeasurementsState = {
   updateShape: boolean;
   mapMovingEnd: boolean;
   updateTitleStatus: boolean;
-  triggerCancel: boolean;
 };
 const initialState: MeasurementsState = {
   mode: MEASUREMENT_MODE.DEFAULT,
@@ -37,7 +36,6 @@ const initialState: MeasurementsState = {
   updateShape: false,
   mapMovingEnd: false,
   updateTitleStatus: false,
-  triggerCancel: false,
 };
 
 const slice = createSlice({
@@ -80,9 +78,6 @@ const slice = createSlice({
     setLastActiveShapeBeforeDrawing(state, action) {
       state.lastActiveShapeBeforeDrawing = action.payload;
     },
-    setTriggerCancel(state, action) {
-      state.triggerCancel = action.payload;
-    },
   },
 });
 
@@ -99,7 +94,6 @@ export const {
   setMapMovingEnd,
   setUpdateTitleStatus,
   setLastActiveShapeBeforeDrawing,
-  setTriggerCancel,
 } = slice.actions;
 
 export const updateTitle = (shapeId, customTitle) => {
@@ -284,7 +278,5 @@ export const getUpdateTitleStatus = (state: RootState) =>
   state.measurements.updateTitleStatus;
 export const getVisibleShapes = (state: RootState) =>
   state.measurements.visibleShapes;
-export const getTriggerCancel = (state: RootState) =>
-  state.measurements.triggerCancel;
 
 export default slice.reducer;

@@ -14,7 +14,6 @@ import {
   setMapMovingEnd,
   getMapMovingEnd,
   updateTitle,
-  setTriggerCancel,
 } from "../../store/slices/measurements";
 import { useSelector, useDispatch } from "react-redux";
 import { useState, useEffect, useContext } from "react";
@@ -25,8 +24,11 @@ import Icon from "react-cismap/commons/Icon";
 import { UIContext } from "react-cismap/contexts/UIContextProvider";
 import "../infoBox.css";
 import { Tooltip } from "antd";
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 const InfoBoxMeasurement = () => {
+  const { routedMapRef } = useContext(TopicMapContext);
+
   const measurementsData = useSelector(getShapes);
   const visibleShapesData = useSelector(getVisibleShapes);
   const activeShape = useSelector(getActiveShapes);
@@ -226,7 +228,8 @@ const InfoBoxMeasurement = () => {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      dispatch(setTriggerCancel(true));
+                      const map = routedMapRef.leafletMap.leafletElement;
+                      map.fire("draw:canceled");
                     }}
                   >
                     <FontAwesomeIcon
