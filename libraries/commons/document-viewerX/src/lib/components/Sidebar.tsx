@@ -103,15 +103,37 @@ const Sidebar = ({
       return prefixGroups;
     }
 
-    // Group documents by their date-ending prefix
+    // Find potential prefixes from titles that end with underscore
+    const potentialPrefixes = new Set<string>();
     docsInStructure.forEach((doc) => {
       const title = doc.title || "";
       const prefixMatch = title.match(/^.*?(\d{4}-\d{2}|\d{2}-\d{4})_/);
       if (prefixMatch) {
-        const prefix = prefixMatch[0];
-        const docs = prefixGroups.get(prefix) || [];
-        docs.push(doc);
-        prefixGroups.set(prefix, docs);
+        potentialPrefixes.add(prefixMatch[0]);
+      }
+    });
+
+    // Group documents by prefix, including exact matches
+    potentialPrefixes.forEach((prefix) => {
+      const docsWithPrefix: Doc[] = [];
+      const exactMatches: Doc[] = [];
+
+      docsInStructure.forEach((doc) => {
+        const title = doc.title || "";
+        // Check for exact match (without the underscore)
+        if (title === prefix.slice(0, -1)) {
+          exactMatches.push(doc);
+        }
+        // Check for prefix match
+        else if (title.startsWith(prefix)) {
+          docsWithPrefix.push(doc);
+        }
+      });
+
+      // If we found matches and/or exact matches
+      if (docsWithPrefix.length > 0 || exactMatches.length > 0) {
+        // Put exact matches first, then the rest
+        prefixGroups.set(prefix, [...exactMatches, ...docsWithPrefix]);
       }
     });
 
@@ -123,12 +145,12 @@ const Sidebar = ({
   const getPrefixGroups = (docs: Doc[], doc: Doc) => {
     if (!doc.structure) return new Map<string, Doc[]>();
 
-    if (!structurePrefixGroups.has(doc.structure)) {
-      const groups = findCommonPrefixForStructure(docs, doc.structure);
-      structurePrefixGroups.set(doc.structure, groups);
-    }
+    const cached = structurePrefixGroups.get(doc.structure);
+    if (cached) return cached;
 
-    return structurePrefixGroups.get(doc.structure) || new Map<string, Doc[]>();
+    const groups = findCommonPrefixForStructure(docs, doc.structure);
+    structurePrefixGroups.set(doc.structure, groups);
+    return groups;
   };
 
   const getDocumentPrefix = (
@@ -253,6 +275,9 @@ const Sidebar = ({
 
   const removePrefix = (title: string, prefix: string | null) => {
     if (!prefix || !title) return improveReadability(title);
+    // If the title exactly matches the prefix (without underscore), return it as is
+    if (title === prefix.slice(0, -1)) return improveReadability(title);
+    // Otherwise remove the prefix
     return improveReadability(
       title.startsWith(prefix) ? title.slice(prefix.length).trim() : title
     );
