@@ -15,14 +15,45 @@ interface TaskParams {
   STICHTAG?: string;
 }
 
-export interface TaskParameters {
-  parameters: TaskParams;
+// export interface TaskParameters {
+//   parameters: TaskParams;
+// }
+
+// export interface Name {
+//   uuid: string;
+//   namensnummernUUIds?: string[];
+//   eigentuemerUUId?: string;
+// }
+
+export interface AdditionalSheetProps {
+  owners: Owner[];
+  namesArr: Name[];
+  legalDesc?: string;
 }
 
-export interface Name {
+export interface Address {
+  houseNumber: string;
+  postalCode: string;
+  city: string;
+  street: string;
+}
+
+export interface Owner {
+  salutation: string;
+  firstName?: string;
+  surName: string;
+  dateOfBirth: string;
+  nameNumber: string;
+  addresses: Address[];
+}
+
+interface Name {
   uuid: string;
-  namensnummernUUIds?: string[];
+  namenummernUUIds?: string[];
   eigentuemerUUId?: string;
+  nenner?: string | number;
+  zaehler?: string | number;
+  artRechtsgemeinschaft?: string;
 }
 
 export interface Owner {
