@@ -17,3 +17,8 @@ export interface Name {
 export interface Owner {
   ownerId: string;
 }
+
+export interface AlkisRendererProps {
+  landparcelId: string;
+  jwt: string;
+}
