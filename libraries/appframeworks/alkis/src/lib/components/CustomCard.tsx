@@ -1,5 +1,6 @@
 import React from "react";
 import { Card } from "antd";
+import { CustomCardProps } from "../..";
 
 export const CustomCard = ({
   style,
@@ -8,7 +9,7 @@ export const CustomCard = ({
   children,
   fullHeight,
   ...props
-}) => {
+}: CustomCardProps) => {
   return (
     <Card
       style={style}

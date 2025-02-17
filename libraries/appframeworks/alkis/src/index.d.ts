@@ -1,3 +1,14 @@
+import React, { CSSProperties, ReactNode } from "react";
+import { Card, CardProps } from "antd";
+
+interface CustomCardProps extends CardProps {
+  fullHeight?: boolean;
+  title: ReactNode;
+  extra?: ReactNode;
+  style?: CSSProperties;
+  children?: ReactNode;
+}
+
 interface TaskParams {
   ALKIS_CODE: string;
   PRODUKT?: string;
