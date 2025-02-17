@@ -6,32 +6,35 @@ import { getLandparcelHtml } from "../helper/landparcelSearch.jsx";
 import InfoBar from "../components/commons/InfoBar.jsx";
 import { Spin } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
+import { AlkisRenderer } from "@carma-apps/alkis-renderer";
 
 const AlkisLandparcelPage = () => {
   const [searchParams] = useSearchParams();
   const id = searchParams.get("id");
   const jwt = useSelector(getJWT);
-  const [resHtml, setResHtml] = useState(null);
-  const [idTitle, setIdTitle] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
-  useEffect(() => {
-    const onLandparcelSearch = async (jwt, id) => {
-      setIsLoading(true);
-      setIdTitle(id);
-      const landparcelHtml = await getLandparcelHtml(
-        jwt,
-        id,
-        setError,
-        setIsLoading
-      );
-      setResHtml(landparcelHtml);
-      setIsLoading(false);
-    };
-    if (jwt && id) {
-      onLandparcelSearch(jwt, id);
-    }
-  }, [jwt, id]);
+  // const [resHtml, setResHtml] = useState(null);
+  // const [idTitle, setIdTitle] = useState(null);
+  // const [isLoading, setIsLoading] = useState(false);
+  // const [error, setError] = useState(null);
+  // useEffect(() => {
+  //   const onLandparcelSearch = async (jwt, id) => {
+  //     setIsLoading(true);
+  //     setIdTitle(id);
+  //     const landparcelHtml = await getLandparcelHtml(
+  //       jwt,
+  //       id,
+  //       setError,
+  //       setIsLoading
+  //     );
+  //     setResHtml(landparcelHtml);
+  //     setIsLoading(false);
+  //   };
+  //   if (jwt && id) {
+  //     onLandparcelSearch(jwt, id);
+  //   }
+  // }, [jwt, id]);
+
+  return <AlkisRenderer landparcelId={id} jwt={jwt} />;
 
   return (
     <div>
