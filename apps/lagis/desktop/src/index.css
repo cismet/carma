@@ -98,3 +98,7 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+.ant-menu-inline-collapsed > .ant-menu-item .ant-menu-item-icon {
+  line-height: 0 !important;
+}
