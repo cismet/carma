@@ -460,7 +460,7 @@ export const GeoportalMap = () => {
       {allow3d && (
         <Control position="topleft" order={10}>
           <div className="flex flex-col">
-            <Tooltip title="Nach Norden ausrichten" placement="right">
+            <Tooltip title="mit gedrückter Maustaste drehen und kippen" placement="right">
               <ControlButtonStyler
                 useDisabledStyle={false}
                 className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
