@@ -4,7 +4,9 @@ export const useWindowSize = (ref: RefObject<HTMLElement>) => {
   const [size, setSize] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
-    const handleResize = () => {
+    if (!ref.current) return;
+
+    const updateSize = () => {
       if (ref.current) {
         setSize({
           width: ref.current.clientWidth,
@@ -13,10 +15,19 @@ export const useWindowSize = (ref: RefObject<HTMLElement>) => {
       }
     };
 
-    window.addEventListener("resize", handleResize);
-    handleResize();
+    const resizeObserver = new ResizeObserver(updateSize);
+    resizeObserver.observe(ref.current);
 
-    return () => window.removeEventListener("resize", handleResize);
+    window.addEventListener("resize", updateSize);
+    updateSize();
+
+    return () => {
+      if (ref.current) {
+        resizeObserver.unobserve(ref.current);
+      }
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", updateSize);
+    };
   }, [ref]);
 
   return size;

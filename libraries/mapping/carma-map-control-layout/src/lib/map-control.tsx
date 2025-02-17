@@ -1,4 +1,10 @@
-import React, { ReactNode, useRef, useState, useEffect } from "react";
+import React, {
+  ReactNode,
+  useRef,
+  useState,
+  useEffect,
+  ReactElement,
+} from "react";
 import Control, { ControlProps } from "./components/Control";
 import styles from "./map-control.module.css";
 import Main from "./components/Main";
@@ -24,49 +30,62 @@ const buildLayoutControlsChildren = (children: ReactNode) => {
   let bottomRightBiggestWidth = 300;
   const allPositions: AllPositions = {};
 
+  const controlElementToReactNode = (child: ReactElement) => {
+    const {
+      position,
+      order = 0,
+      fullCollapseWidth,
+      bottomLeftWidth,
+      bottomRightWidth,
+    } = child.props as ControlProps;
+    if (!allPositions[position]) {
+      allPositions[position] = [];
+    }
+    allPositions[position]?.push({
+      ...child.props,
+      order,
+      fullCollapseWidth,
+    });
+    if (bottomLeftWidth) {
+      bottomLeftBiggestWidth =
+        bottomLeftWidth > bottomLeftBiggestWidth
+          ? bottomLeftWidth
+          : bottomLeftBiggestWidth;
+    }
+    if (bottomRightWidth) {
+      bottomRightBiggestWidth =
+        bottomRightWidth > bottomRightBiggestWidth
+          ? bottomRightWidth
+          : bottomRightBiggestWidth;
+    }
+    allPositions[position].sort((a, b) => {
+      const orderA = a.order;
+      const orderB = b.order;
+      if (orderA < orderB) {
+        return -1;
+      }
+      if (orderA > orderB) {
+        return 1;
+      }
+
+      return 0;
+    });
+  };
+
   React.Children.forEach(children, (child) => {
     if (React.isValidElement(child)) {
-      if (child.type === Control) {
-        const {
-          position,
-          order = 0,
-          fullCollapseWidth,
-          bottomLeftWidth,
-          bottomRightWidth,
-        } = child.props as ControlProps;
-        if (!allPositions[position]) {
-          allPositions[position] = [];
+      if (child.type === React.Fragment) {
+        let subChildren = child.props.children;
+        if (!Array.isArray(subChildren)) {
+          subChildren = [subChildren];
         }
-        allPositions[position]?.push({
-          ...child.props,
-          order,
-          fullCollapseWidth,
-        });
-        if (bottomLeftWidth) {
-          bottomLeftBiggestWidth =
-            bottomLeftWidth > bottomLeftBiggestWidth
-              ? bottomLeftWidth
-              : bottomLeftBiggestWidth;
-        }
-        if (bottomRightWidth) {
-          bottomRightBiggestWidth =
-            bottomRightWidth > bottomRightBiggestWidth
-              ? bottomRightWidth
-              : bottomRightBiggestWidth;
-        }
-        allPositions[position].sort((a, b) => {
-          const orderA = a.order;
-          const orderB = b.order;
-          if (orderA < orderB) {
-            return -1;
+        subChildren.forEach((subChild) => {
+          if (React.isValidElement(subChild) && subChild.type === Control) {
+            controlElementToReactNode(subChild);
           }
-          if (orderA > orderB) {
-            return 1;
-          }
-
-          return 0;
         });
-        // .reverse();
+      } else if (child.type === Control) {
+        controlElementToReactNode(child);
       } else if (child.type === Main) {
         mainComponent = React.cloneElement(child);
       }

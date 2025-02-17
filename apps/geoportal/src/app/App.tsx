@@ -41,6 +41,7 @@ import {
 import {
   getUIAllowChanges,
   getUIMode,
+  getZenMode,
   setUIAllowChanges,
   setUIMode,
   setUIShowLayerButtons,
@@ -59,6 +60,7 @@ import "./index.css";
 import { changeIfPopupOpend, getIfPopupOpend } from "./store/slices/print";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSpinner } from "@fortawesome/free-solid-svg-icons";
+import MapWrapper from "./components/GeoportalMap/controls/MapWrapper";
 
 if (typeof global === "undefined") {
   window.global = window;
@@ -75,6 +77,7 @@ function App({ published }: { published?: boolean }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const allowUiChanges = useSelector(getUIAllowChanges);
   const uiMode = useSelector(getUIMode);
+  const zenMode = useSelector(getZenMode);
   const location = useLocation();
   const backgroundLayer = useSelector(getBackgroundLayer);
   const selectedMapLayer = useSelector(getSelectedMapLayer);
@@ -240,7 +243,7 @@ function App({ published }: { published?: boolean }) {
           )}
           {!published && <TopNavbar />}
           <MapMeasurement />
-          <GeoportalMap />
+          <MapWrapper />
         </div>
       </ErrorBoundary>
     </CarmaMapContextProvider>
