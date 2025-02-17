@@ -66,6 +66,12 @@ export interface AlkisRendererProps {
   jwt: string;
 }
 
+export interface AlkisBookingSheetRendererProps {
+  id: string;
+  jwt: string;
+  flurstueck: string;
+}
+
 export interface MapExtractorResult {
   homeCenter: number[];
   homeZoom: number;
