@@ -29,11 +29,13 @@ import {
   getAdditionalRollen,
   getStreetFronts,
   getHistory,
+  getLandparcel,
 } from "../../store/slices/lagis";
 import { useLocation, NavLink } from "react-router-dom";
 import { defaultLinksColor } from "../../core/tools/helper";
 import SearchLandparcelByFileNumber from "../searcher/SearchLandparcelByFileNumber";
 import { menuNamesHelper } from "@carma-collab/wuppertal/lagis-desktop";
+import { usageExtractor } from "../../core/extractors/overviewExtractors";
 
 function getItem(label, key, icon, children) {
   return {
@@ -67,6 +69,11 @@ const SidebarMenu = ({ parametersForLink }) => {
     width: isStory ? storyWidth : "100%",
     height: isStory ? "600px" : "100%",
   };
+
+  const landparcel = useSelector(getLandparcel);
+
+  const usageData = usageExtractor(landparcel);
+
   const items = [
     getItem(
       <NavLink to={`/?${buildUrlParams(parametersForLink)}`}>
@@ -135,7 +142,8 @@ const SidebarMenu = ({ parametersForLink }) => {
     getItem(
       usage && usage > 0 ? (
         <NavLink to={`/nutzung?${buildUrlParams(parametersForLink)}`}>
-          {menuNamesHelper.nutzung}
+          {menuNamesHelper.nutzung}{" "}
+          {usageData.numberOfUsages > 0 && usageData.numberOfUsages}
         </NavLink>
       ) : (
         <span style={{ color: defaultLinksColor }}>
