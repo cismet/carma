@@ -7,3 +7,13 @@ interface TaskParams {
 export interface TaskParameters {
   parameters: TaskParams;
 }
+
+export interface Name {
+  uuid: string;
+  namensnummernUUIds?: string[];
+  eigentuemerUUId?: string;
+}
+
+export interface Owner {
+  ownerId: string;
+}
