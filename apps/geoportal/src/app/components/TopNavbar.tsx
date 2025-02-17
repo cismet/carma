@@ -28,6 +28,7 @@ import ActionButtons from "./nav-items/ActionButtons";
 import { useCarmaMapContext } from "@carma-apps/portals";
 import ResourceModal from "./nav-items/ResourceModal";
 import "./switch.css";
+import { getZenMode } from "../store/slices/ui";
 
 const TopNavbar = () => {
   const dispatch = useDispatch();
@@ -41,6 +42,7 @@ const TopNavbar = () => {
   const backgroundLayer = useSelector(getBackgroundLayer);
   const selectedMapLayer = useSelector(getSelectedMapLayer);
   const selectedLuftbildLayer = useSelector(getSelectedLuftbildLayer);
+  const zenMode = useSelector(getZenMode);
   const selectedLayerIndex = useSelector(getSelectedLayerIndex);
 
   const hintergrundTourRef = useOverlayHelper(
@@ -56,7 +58,12 @@ const TopNavbar = () => {
   console.debug("RENDER: TopNavbar");
 
   return (
-    <div className="h-16 w-full flex items-center gap-6 relative justify-between py-2 px-[12px]">
+    <div
+      className={
+        "h-16 w-full flex items-center gap-6 relative justify-between py-2 px-[12px] " +
+        (zenMode && "hidden")
+      }
+    >
       <ResourceModal />
 
       <p className="mb-0 font-semibold text-lg">DigiTal Zwilling / Geoportal</p>

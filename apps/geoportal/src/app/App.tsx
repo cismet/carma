@@ -241,7 +241,7 @@ function App({ published }: { published?: boolean }) {
               <FontAwesomeIcon size="2x" icon={faSpinner} spin />
             </div>
           )}
-          {!published && !zenMode && <TopNavbar />}
+          {!published && <TopNavbar />}
           <MapMeasurement />
           <MapWrapper />
         </div>
