@@ -255,7 +255,7 @@ const MapWrapper = () => {
           </Control>
           {allow3d && (
             <Control position="topleft" order={10}>
-              <div ref={tourRefLabels.zoom} className="flex flex-col">
+              <div className="flex flex-col">
                 <Tooltip
                   title="mit gedrückter Maustaste drehen und kippen"
                   placement="right"
