@@ -67,7 +67,9 @@ const MapRender = ({ dataIn, extractor = mockExtractor }) => {
   }
 
   useEffect(() => {
-    if (routedMapRef) {
+    if (routedMapRef?.leafletMap?.leafletElement) {
+      const map = routedMapRef.leafletMap.leafletElement;
+      map.scrollWheelZoom.disable();
       setTimeout(() => {
         fitMapBounds();
       }, 500);
@@ -88,6 +90,7 @@ const MapRender = ({ dataIn, extractor = mockExtractor }) => {
         hamburgerMenu={false}
         fullScreenControl={false}
         autoFitBounds={true}
+        zoomControls={false}
       >
         <FeatureCollectionDisplay
           featureCollection={data.featureCollection}
