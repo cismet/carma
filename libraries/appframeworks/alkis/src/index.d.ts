@@ -50,6 +50,7 @@ export interface Owner {
 interface Name {
   uuid: string;
   namenummernUUIds?: string[];
+  namensnummernUUIds?: string[];
   eigentuemerUUId?: string;
   nenner?: string | number;
   zaehler?: string | number;
@@ -63,4 +64,22 @@ export interface Owner {
 export interface AlkisRendererProps {
   landparcelId: string;
   jwt: string;
+}
+
+export interface MapExtractorResult {
+  homeCenter: number[];
+  homeZoom: number;
+  featureCollection: any[];
+  styler: (feature: any) => {
+    fillColor: string;
+    fillOpacity: number;
+    color: string;
+    weight: number;
+  };
+  allFeatures?: any[];
+}
+
+export interface MapProps<T> {
+  dataIn: T;
+  extractor?: (input: T) => MapExtractorResult;
 }

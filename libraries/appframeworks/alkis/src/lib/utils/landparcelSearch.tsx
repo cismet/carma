@@ -2,7 +2,6 @@ import React from "react";
 import {
   checkPdfProductPermission,
   getAllAdditionalSheets,
-  loadPdfProduct,
   productsPdfWithPermission,
   searchLandparcelByName,
 } from "../utils/apiMethods";
@@ -14,10 +13,9 @@ import {
 } from "../utils/helper";
 import { AdditionalSheet } from "../components/AdditionalSheet";
 import { CustomCard } from "../components/CustomCard";
-// import MapRender from "../components/commons/MapRender";
-import { FilePdfOutlined, LoadingOutlined } from "@ant-design/icons";
+import { Map } from "../components/Map";
 import { Link } from "react-router-dom";
-// import PdfDocumentLoader from "../components/render/PdfDocumentLoader";
+import PdfDocumentLoader from "../components/PdfDocumentLoader";
 export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
   const landparcelData = await searchLandparcelByName(
     name,
@@ -112,7 +110,7 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
             </div>
           </div>
           <div className="w-[65%] max-[1000px]:w-[100%]">
-            {/* <MapRender extractor={landparcelExtractor} dataIn={extentdedGeom} /> */}
+            <Map extractor={landparcelExtractor} dataIn={extentdedGeom} />
           </div>
         </div>
         <Divider />
@@ -151,11 +149,11 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
           })}
         />
       </CustomCard>
-      {/* <PdfDocumentLoader
+      <PdfDocumentLoader
         loadingCode={alkis_id}
         allPdfPermission={allPdfPermission}
         jwt={jwt}
-      /> */}
+      />
     </>
   );
 };
