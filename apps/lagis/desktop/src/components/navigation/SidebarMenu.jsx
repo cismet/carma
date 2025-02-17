@@ -92,8 +92,6 @@ const SidebarMenu = ({ parametersForLink }) => {
     ? officesData.currentOffices.length
     : 0;
 
-  console.log("xxx mipaNumber", mipaNumber);
-
   const items = [
     getItem(
       <NavLink to={`/?${buildUrlParams(parametersForLink)}`}>
@@ -109,9 +107,10 @@ const SidebarMenu = ({ parametersForLink }) => {
         <NavLink
           to={`/verwaltungsbereiche?${buildUrlParams(parametersForLink)}`}
         >
-          <Badge count={officesNumber} className="ml-auto">
-            {menuNamesHelper.verwaltungsbereiche}
+          <Badge count={officesNumber} size="small">
+            <span>{menuNamesHelper.verwaltungsbereiche}</span>
           </Badge>
+          {/* <span>{menuNamesHelper.verwaltungsbereiche}</span> */}
 
           {/* {officesNumber > 0 && officesNumber} */}
         </NavLink>
@@ -122,6 +121,7 @@ const SidebarMenu = ({ parametersForLink }) => {
         </span>
       ),
       "/verwaltungsbereiche",
+      // <Badge count={officesNumber}>
       <FolderOpenOutlined
         style={{
           color:
@@ -132,14 +132,15 @@ const SidebarMenu = ({ parametersForLink }) => {
               : defaultLinksColor,
         }}
       />
+      // </Badge>
     ),
     getItem(
       mipa && mipa.length > 0 ? (
         <NavLink to={`/miet?${buildUrlParams(parametersForLink)}`}>
-          <Badge count={mipaNumber.numberOfRents} className="ml-auto">
+          <Badge count={mipaNumber.numberOfRents} size="small">
             {menuNamesHelper.mipa}
           </Badge>
-          {menuNamesHelper.mipa}
+          {/* {menuNamesHelper.mipa} */}
           {/* {mipaNumber.numberOfRents > 0 && mipaNumber.numberOfRents} */}
         </NavLink>
       ) : (
@@ -155,7 +156,7 @@ const SidebarMenu = ({ parametersForLink }) => {
     getItem(
       rebe && rebe.length > 0 ? (
         <NavLink to={`/rechte?${buildUrlParams(parametersForLink)}`}>
-          <Badge count={rebeNumber.numberOfRights} className="ml-auto">
+          <Badge count={rebeNumber.numberOfRights} size="small">
             {menuNamesHelper.rebe}
           </Badge>
           {/* {menuNamesHelper.rebe}{" "} */}
@@ -174,7 +175,7 @@ const SidebarMenu = ({ parametersForLink }) => {
     getItem(
       usage && usage > 0 ? (
         <NavLink to={`/nutzung?${buildUrlParams(parametersForLink)}`}>
-          <Badge count={usageNumber.numberOfUsages} className="ml-auto">
+          <Badge count={usageNumber.numberOfUsages} size="small">
             {menuNamesHelper.nutzung}
           </Badge>
           {/* {menuNamesHelper.nutzung}{" "} */}
@@ -195,7 +196,7 @@ const SidebarMenu = ({ parametersForLink }) => {
     getItem(
       contracts && contracts.length > 0 ? (
         <NavLink to={`/vorgange?${buildUrlParams(parametersForLink)}`}>
-          <Badge count={operationNumber.numberOfOperations} className="ml-auto">
+          <Badge count={operationNumber.numberOfOperations} size="small">
             {menuNamesHelper.vorgange}
           </Badge>
           {/* {menuNamesHelper.vorgange}{" "}
@@ -217,7 +218,7 @@ const SidebarMenu = ({ parametersForLink }) => {
     getItem(
       history !== undefined ? (
         <NavLink to={`/historie?${buildUrlParams(parametersForLink)}`}>
-          <Badge count={history + 1} className="ml-auto">
+          <Badge count={history + 1} size="small">
             {menuNamesHelper.historie}
           </Badge>
           {/* {menuNamesHelper.historie}{" "}
@@ -238,10 +239,7 @@ const SidebarMenu = ({ parametersForLink }) => {
     getItem(
       transaction && transaction.length > 0 ? (
         <NavLink to={`/kassenzeichen?${buildUrlParams(parametersForLink)}`}>
-          <Badge
-            count={transactionNumber.numberOfDocuments}
-            className="ml-auto"
-          >
+          <Badge count={transactionNumber.numberOfDocuments} size="small">
             {menuNamesHelper.kassenzeichen}
           </Badge>
           {/* {menuNamesHelper.kassenzeichen}{" "}
@@ -264,7 +262,7 @@ const SidebarMenu = ({ parametersForLink }) => {
     getItem(
       dms && dms.length > 0 ? (
         <NavLink to={`/dms?${buildUrlParams(parametersForLink)}`}>
-          <Badge count={dmsNumber.numberOfDocuments} className="ml-auto">
+          <Badge count={dmsNumber.numberOfDocuments} size="small">
             {menuNamesHelper.dms}
           </Badge>
           {/* {menuNamesHelper.dms}{" "}

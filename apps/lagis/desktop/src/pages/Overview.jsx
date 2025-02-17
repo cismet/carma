@@ -38,7 +38,7 @@ import { convertLatLngToXY } from "../core/tools/mappingTools";
 import { getFstckForPoint } from "../store/slices/search";
 import { setMapLoading } from "../store/slices/ui";
 const Overview = ({
-  dashboardVisible = true,
+  dashboardVisible = false,
   width = "100%",
   height = "100%",
   inStory = false,
