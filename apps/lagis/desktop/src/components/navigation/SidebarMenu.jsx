@@ -36,6 +36,8 @@ import { defaultLinksColor } from "../../core/tools/helper";
 import SearchLandparcelByFileNumber from "../searcher/SearchLandparcelByFileNumber";
 import { menuNamesHelper } from "@carma-collab/wuppertal/lagis-desktop";
 import {
+  dmsExtractor,
+  historyExtractor,
   mipaExtractor,
   operationExtractor,
   rebeExtractor,
@@ -82,8 +84,10 @@ const SidebarMenu = ({ parametersForLink }) => {
   const usageNumber = usageExtractor(landparcel);
   const transactionNumber = transactionExtractor(landparcel);
   const operationNumber = operationExtractor(landparcel);
+  const historyNumber = historyExtractor(history);
+  const dmsNumber = dmsExtractor(landparcel);
 
-  console.log("xxx operationExtractor", operationNumber.numberOfOperations);
+  console.log("xxx dmsNumber", dmsNumber.numberOfDocuments);
 
   const items = [
     getItem(
@@ -191,7 +195,8 @@ const SidebarMenu = ({ parametersForLink }) => {
     getItem(
       history !== undefined ? (
         <NavLink to={`/historie?${buildUrlParams(parametersForLink)}`}>
-          {menuNamesHelper.historie}
+          {menuNamesHelper.historie}{" "}
+          {historyNumber !== undefined && history + 1}
         </NavLink>
       ) : (
         <span style={{ color: defaultLinksColor }}>
@@ -228,7 +233,8 @@ const SidebarMenu = ({ parametersForLink }) => {
     getItem(
       dms && dms.length > 0 ? (
         <NavLink to={`/dms?${buildUrlParams(parametersForLink)}`}>
-          {menuNamesHelper.dms}
+          {menuNamesHelper.dms}{" "}
+          {dmsNumber.numberOfDocuments > 0 && dmsNumber.numberOfDocuments}
         </NavLink>
       ) : (
         <span style={{ color: defaultLinksColor }}>{menuNamesHelper.dms}</span>
