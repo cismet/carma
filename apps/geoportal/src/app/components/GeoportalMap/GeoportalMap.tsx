@@ -459,7 +459,7 @@ export const GeoportalMap = () => {
       </Control>
       {allow3d && (
         <Control position="topleft" order={10}>
-          <div ref={tourRefLabels.zoom} className="flex flex-col">
+          <div className="flex flex-col">
             <Tooltip title="Nach Norden ausrichten" placement="right">
               <ControlButtonStyler
                 useDisabledStyle={false}
