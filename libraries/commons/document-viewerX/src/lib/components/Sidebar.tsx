@@ -404,10 +404,10 @@ const Sidebar = ({
                       fontWeight: "bold",
                       color: "#666",
                       marginBottom: "8px",
-                      marginLeft:
-                        (doc.structure
-                          ? getIndentationLevel(doc.structure) * INDENTATION_PER_LEVEL
-                          : 0),
+                      marginLeft: doc.structure
+                        ? getIndentationLevel(doc.structure) *
+                          INDENTATION_PER_LEVEL
+                        : 0,
                       position: "relative",
                       cursor: "pointer",
                     }}
@@ -431,7 +431,9 @@ const Sidebar = ({
                     }}
                   >
                     <VerticalLines
-                      level={doc.structure ? getIndentationLevel(doc.structure) : 0}
+                      level={
+                        doc.structure ? getIndentationLevel(doc.structure) : 0
+                      }
                       isDocument={false}
                     />
                     {formatPrefixForDisplay(documentPrefix)} ...
@@ -443,7 +445,8 @@ const Sidebar = ({
                   style={{
                     marginLeft:
                       (doc.structure
-                        ? getIndentationLevel(doc.structure) * INDENTATION_PER_LEVEL
+                        ? getIndentationLevel(doc.structure) *
+                          INDENTATION_PER_LEVEL
                         : 0) +
                       (getIndentationLevel(doc.structure) > 0
                         ? BASE_MARGIN
@@ -453,7 +456,9 @@ const Sidebar = ({
                   onClick={() => navigate(`/docs/${docPackageId}/${i + 1}/1`)}
                 >
                   <VerticalLines
-                    level={doc.structure ? getIndentationLevel(doc.structure) : 0}
+                    level={
+                      doc.structure ? getIndentationLevel(doc.structure) : 0
+                    }
                     isDocument={true}
                   />
                   <div

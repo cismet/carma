@@ -12,7 +12,7 @@ code {
     monospace;
 }
 
-@media not all and (-webkit-min-device-pixel-ratio:0) {
+@media not all and (-webkit-min-device-pixel-ratio: 0) {
   ::-webkit-scrollbar {
     background-color: #fff;
     width: 12px;
@@ -30,7 +30,7 @@ code {
 }
 
 /* Let macOS use its native scrollbars */
-@media (-webkit-min-device-pixel-ratio:0) {
+@media (-webkit-min-device-pixel-ratio: 0) {
   #sidebar {
     overflow-y: overlay !important;
   }
