@@ -51,7 +51,7 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
   viewerRef,
   viewerAnimationMapRef,
   minPitch = CesiumMath.toRadians(-90),
-  maxPitch = CesiumMath.toRadians(-10),
+  maxPitch = CesiumMath.toRadians(-30),
   durationReset = 1500,
   pitchFactor = 1,
   pitchOblique = PITCH.OBLIQUE,

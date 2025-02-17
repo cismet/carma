@@ -79,9 +79,6 @@ import {
 } from "../../store/slices/mapping.ts";
 import { getUIMode, UIMode } from "../../store/slices/ui.ts";
 
-
-
-
 import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 
 import "../leaflet.css";

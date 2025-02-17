@@ -240,41 +240,62 @@ function App({ sync = false }: { sync?: boolean }) {
               </Tooltip>
             </div>
           </Control>
-          <Control position="topleft" order={20}>
-            <ControlButtonStyler
-              onClick={onFullscreenClick}
-              dataTestId="full-screen-control"
-            >
-              <FontAwesomeIcon
-                icon={document.fullscreenElement ? faCompress : faExpand}
-              />
-            </ControlButtonStyler>
+          <Control position="topleft" order={30}>
+            <div className="flex flex-col">
+              <Tooltip title="Nach Norden ausrichten" placement="right">
+                <ControlButtonStyler
+                  useDisabledStyle={false}
+                  className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
+                  disabled={isMode2d}
+                  //ref={tourRefLabels.alignNorth}
+                  dataTestId="compass-control"
+                >
+                  <PitchingCompass
+                    viewerRef={viewerRef}
+                    viewerAnimationMapRef={viewerAnimationMapRef}
+                  />
+                </ControlButtonStyler>
+              </Tooltip>
+              <Control position="topleft" order={40}>
+                <MapTypeSwitcher
+                  className="!rounded-t-none !border-t-[1px]"
+                  duration={CESIUM_CONFIG.transitions.mapMode.duration}
+                />
+              </Control>
+            </div>
           </Control>
-          <Control position="topleft" order={40}>
+          <Control position="topleft" order={50}>
+            <Tooltip
+              title={
+                document.fullscreenElement
+                  ? "Vollbildmodus ausschalten"
+                  : "Vollbildmodus einschalten"
+              }
+              placement="right"
+            >
+              <ControlButtonStyler
+                onClick={() => {
+                  if (document.fullscreenElement) {
+                    document.exitFullscreen();
+                  } else {
+                    document.documentElement.requestFullscreen();
+                  }
+                }}
+                dataTestId="full-screen-control"
+              >
+                <FontAwesomeIcon
+                  icon={document.fullscreenElement ? faCompress : faExpand}
+                />
+              </ControlButtonStyler>
+            </Tooltip>
+          </Control>
+          <Control position="topleft" order={50}>
             <ControlButtonStyler
               onClick={onHomeClick}
               dataTestId="home-control"
             >
               <FontAwesomeIcon icon={faHouseChimney} className="text-lg" />
             </ControlButtonStyler>
-          </Control>
-          <Control position="topleft" order={70}>
-            <MapTypeSwitcher
-              duration={CESIUM_CONFIG.transitions.mapMode.duration}
-            />
-            <Tooltip title="Nach Norden ausrichten" placement="right">
-              <ControlButtonStyler
-                disabled={isMode2d}
-                //ref={tourRefLabels.alignNorth}
-                dataTestId="compass-control"
-              >
-                <PitchingCompass
-                  viewerRef={viewerRef}
-                  viewerAnimationMapRef={viewerAnimationMapRef}
-                  maxPitch={CesiumMath.toRadians(-30)}
-                />
-              </ControlButtonStyler>
-            </Tooltip>
           </Control>
           <Control position="bottomleft" order={10}>
             <div data-test-id="fuzzy-search" className="h-full w-full">

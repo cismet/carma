@@ -265,7 +265,6 @@ const MapWrapper = () => {
                     <PitchingCompass
                       viewerRef={viewerRef}
                       viewerAnimationMapRef={viewerAnimationMapRef}
-                      maxPitch={CesiumMath.toRadians(-30)}
                     />
                   </ControlButtonStyler>
                 </Tooltip>
