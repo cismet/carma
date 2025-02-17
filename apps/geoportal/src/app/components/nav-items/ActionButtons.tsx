@@ -1,7 +1,6 @@
 import {
   faExclamation,
   faEye,
-  faEyeSlash,
   faFileExport,
   faPrint,
   faRotateRight,
@@ -11,11 +10,12 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Popover, Tooltip } from "antd";
 import { useDispatch, useSelector } from "react-redux";
 
+import { Save } from "@carma-apps/portals";
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 import { useOverlayHelper } from "@carma-commons/ui/lib-helper-overlay";
-import { Save } from "@carma-apps/portals";
 import { selectViewerIsMode2d } from "@carma-mapping/cesium-engine";
+import { useEffect } from "react";
 import {
   appendSavedLayerConfig,
   changeBackgroundOpacity,
@@ -27,22 +27,15 @@ import {
   setFocusMode,
 } from "../../store/slices/mapping";
 import {
-  getUIShowLayerButtons,
-  getZenMode,
-  setShowResourceModal,
-  setUIShowLayerButtons,
-  setZenMode,
-} from "../../store/slices/ui";
-import ShareContent from "../ShareContent";
-import Print from "../map-print/Print";
-import { useEffect, useState } from "react";
-import {
   changeIfPopupOpend,
   changePrintError,
   getIfPopupOpend,
   getIsLoading,
   getPrintError,
 } from "../../store/slices/print";
+import { setShowResourceModal, setZenMode } from "../../store/slices/ui";
+import ShareContent from "../ShareContent";
+import Print from "../map-print/Print";
 
 const disabledClass = "text-gray-300";
 const disabledImageOpacity = "opacity-20";
@@ -52,12 +45,10 @@ const ActionButtons = () => {
 
   const isMode2d = useSelector(selectViewerIsMode2d);
   const focusMode = useSelector(getFocusMode);
-  const showLayerButtons = useSelector(getUIShowLayerButtons);
   const activeLayers = useSelector(getLayers);
   const showPrintPopup = useSelector(getIfPopupOpend);
   const backgroundLayer = useSelector(getBackgroundLayer);
   const paleOpacityValue = useSelector(getPaleOpacityValue);
-  const zenMode = useSelector(getZenMode);
 
   const baseUrl = window.location.origin + window.location.pathname;
 
@@ -147,20 +138,15 @@ const ActionButtons = () => {
           />
         </button>
       </Tooltip>
-      <Tooltip
-        title={`Kartensteuerelemente ${!zenMode ? "ausblenden" : "einblenden"}`}
-      >
+      <Tooltip title={`Zen-Modus anschalten`}>
         <button
           className={`text-xl hover:text-gray-600`}
           onClick={() => {
-            dispatch(setZenMode(!zenMode));
+            dispatch(setZenMode(true));
           }}
-          data-test-id="kartensteuerelemente-btn"
+          data-test-id="zen-mode-btn"
         >
-          <FontAwesomeIcon
-            fixedWidth={true}
-            icon={!zenMode ? faEye : faEyeSlash}
-          />
+          <FontAwesomeIcon fixedWidth={true} icon={faEye} />
         </button>
       </Tooltip>
       <Tooltip title="Speichern">
