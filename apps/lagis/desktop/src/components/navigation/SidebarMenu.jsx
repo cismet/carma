@@ -243,7 +243,7 @@ const SidebarMenu = ({ parametersForLink }) => {
           {/* {menuNamesHelper.historie} */}
           {/* </Badge> */}
           {menuNamesHelper.historie}{" "}
-          <Tag>{historyNumber !== undefined && history + 1}</Tag>
+          <Tag>{historyNumber !== undefined && historyNumber + 1}</Tag>
           {/* <span>({historyNumber !== undefined && history + 1})</span> */}
         </NavLink>
       ) : (
