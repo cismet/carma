@@ -1,7 +1,7 @@
 import React, { ReactNode } from "react";
 
 type InfoBarProps = {
-  title: string;
+  title: ReactNode;
   children?: ReactNode;
   className?: string;
 };
