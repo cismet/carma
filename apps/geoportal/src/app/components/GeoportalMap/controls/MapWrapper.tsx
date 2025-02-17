@@ -31,6 +31,7 @@ import {
 } from "@carma-apps/portals";
 
 import { useTweakpaneCtx } from "@carma-commons/debug";
+import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import { detectWebGLContext } from "@carma-commons/utils";
 
 import {
@@ -45,11 +46,17 @@ import {
 } from "@carma-mapping/cesium-engine";
 import { LibFuzzySearch, SearchResultItem } from "@carma-mapping/fuzzy-search";
 
+import { GeoportalMap } from "../GeoportalMap.tsx";
+import LayerWrapper from "../../layers/LayerWrapper.tsx";
+import LocateControlComponent from "../controls/LocateControlComponent.tsx";
+
 import useLeafletZoomControls from "../../../hooks/leaflet/useLeafletZoomControls.ts";
 import { useDispatchSachdatenInfoText } from "../../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../../hooks/useFeatureInfoModeCursorStyle.ts";
 import { useTourRefCollabLabels } from "../../../hooks/useTourRefCollabLabels.ts";
 import { useWindowSize } from "../../../hooks/useWindowSize.ts";
+
+import { getUrlPrefix } from "../utils";
 
 import {
   setFeatures,
@@ -62,6 +69,7 @@ import {
   getShowLocatorButton,
   getShowMeasurementButton,
 } from "../../../store/slices/mapping.ts";
+import { setDrawingShape } from "../../../store/slices/measurements.ts";
 import {
   getUIAllow3d,
   getUIMode,
@@ -71,20 +79,7 @@ import {
   UIMode,
 } from "../../../store/slices/ui.ts";
 
-import LayerWrapper from "../../layers/LayerWrapper.tsx";
-
-import LocateControlComponent from "../controls/LocateControlComponent.tsx";
-
-import { getUrlPrefix } from "../utils";
-
 import { CESIUM_CONFIG } from "../../../config/app.config";
-
-import "../../leaflet.css";
-// TODO: move widget css customviewer
-import { ENDPOINT, isAreaType } from "@carma-commons/resources";
-import "cesium/Build/Cesium/Widgets/widgets.css";
-import { setDrawingShape } from "../../../store/slices/measurements.ts";
-import GeoportalMap from "../GeoportalMap.tsx";
 
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;

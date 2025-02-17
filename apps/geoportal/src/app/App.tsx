@@ -1,12 +1,13 @@
 // Built-in Modules
-import { useContext, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 // 3rd party Modules
 import LZString from "lz-string";
 import { ErrorBoundary } from "react-error-boundary";
 import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useSearchParams } from "react-router-dom";
-
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faSpinner } from "@fortawesome/free-solid-svg-icons";
 // 1st party Modules
 import { CrossTabCommunicationContextProvider } from "react-cismap/contexts/CrossTabCommunicationContextProvider";
 
@@ -22,7 +23,8 @@ import type { Layer } from "@carma-mapping/layers";
 
 // Local Modules
 import AppErrorFallback from "./components/AppErrorFallback";
-import { GeoportalMap } from "./components/GeoportalMap/GeoportalMap";
+import MapWrapper from "./components/GeoportalMap/controls/MapWrapper";
+
 import MapMeasurement from "./components/map-measure/MapMeasurement";
 import TopNavbar from "./components/TopNavbar";
 
@@ -38,12 +40,13 @@ import {
   setShowLocatorButton,
   setShowMeasurementButton,
 } from "./store/slices/mapping";
+import { getIfPopupOpend } from "./store/slices/print";
+
 import {
   getUIAllowChanges,
   getUIMode,
   getZenMode,
   setUIAllowChanges,
-  setUIMode,
   setUIShowLayerButtons,
   setUIShowLayerHideButtons,
 } from "./store/slices/ui";
@@ -53,14 +56,9 @@ import { CESIUM_CONFIG } from "./config/app.config";
 
 // Side-Effect Imports
 import "bootstrap/dist/css/bootstrap.min.css";
-import "leaflet/dist/leaflet.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "./index.css";
-import { changeIfPopupOpend, getIfPopupOpend } from "./store/slices/print";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faSpinner } from "@fortawesome/free-solid-svg-icons";
-import MapWrapper from "./components/GeoportalMap/controls/MapWrapper";
 
 if (typeof global === "undefined") {
   window.global = window;

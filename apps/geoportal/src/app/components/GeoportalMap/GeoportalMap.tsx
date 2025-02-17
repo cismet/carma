@@ -26,6 +26,8 @@ import {
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 
 import { useTweakpaneCtx } from "@carma-commons/debug";
+import { ENDPOINT, isAreaType } from "@carma-commons/resources";
+
 import {
   OverlayTourContext,
   useOverlayHelper,
@@ -45,6 +47,9 @@ import {
   useCesiumContext,
 } from "@carma-mapping/cesium-engine";
 import { SelectionItem } from "libraries/appframeworks/portals/src/lib/components/SelectionProvider.tsx";
+import PrintPreview from "../map-print/PrintPreview.tsx";
+import FeatureInfoBox from "../feature-info/FeatureInfoBox.tsx";
+import InfoBoxMeasurement from "../map-measure/InfoBoxMeasurement.jsx";
 
 import versionData from "../../../version.json";
 
@@ -56,6 +61,8 @@ import { addCssToOverlayHelperItem } from "../../helper/overlayHelper.ts";
 import useLeafletZoomControls from "../../hooks/leaflet/useLeafletZoomControls.ts";
 import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
+
+import { createCismapLayers, onClickTopicMap } from "./topicmap.utils.ts";
 
 import store from "../../store/index.ts";
 import {
@@ -72,18 +79,13 @@ import {
 } from "../../store/slices/mapping.ts";
 import { getUIMode, UIMode } from "../../store/slices/ui.ts";
 
-import FeatureInfoBox from "../feature-info/FeatureInfoBox.tsx";
-import InfoBoxMeasurement from "../map-measure/InfoBoxMeasurement.jsx";
 
-import { createCismapLayers, onClickTopicMap } from "./topicmap.utils.ts";
+
 
 import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 
 import "../leaflet.css";
-// TODO: move widget css customviewer
-import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import "cesium/Build/Cesium/Widgets/widgets.css";
-import PrintPreview from "../map-print/PrintPreview.tsx";
 
 interface MapProps {
   height: number;
