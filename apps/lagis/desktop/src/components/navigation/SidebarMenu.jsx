@@ -35,7 +35,13 @@ import { useLocation, NavLink } from "react-router-dom";
 import { defaultLinksColor } from "../../core/tools/helper";
 import SearchLandparcelByFileNumber from "../searcher/SearchLandparcelByFileNumber";
 import { menuNamesHelper } from "@carma-collab/wuppertal/lagis-desktop";
-import { usageExtractor } from "../../core/extractors/overviewExtractors";
+import {
+  mipaExtractor,
+  operationExtractor,
+  rebeExtractor,
+  transactionExtractor,
+  usageExtractor,
+} from "../../core/extractors/overviewExtractors";
 
 function getItem(label, key, icon, children) {
   return {
@@ -71,8 +77,13 @@ const SidebarMenu = ({ parametersForLink }) => {
   };
 
   const landparcel = useSelector(getLandparcel);
+  const rebeNumber = rebeExtractor({ rebe, landparcel });
+  // const mipaNumber = mipaExtractor({ mipa, landparcel });
+  const usageNumber = usageExtractor(landparcel);
+  const transactionNumber = transactionExtractor(landparcel);
+  const operationNumber = operationExtractor(landparcel);
 
-  const usageData = usageExtractor(landparcel);
+  console.log("xxx operationExtractor", operationNumber.numberOfOperations);
 
   const items = [
     getItem(
@@ -127,7 +138,8 @@ const SidebarMenu = ({ parametersForLink }) => {
     getItem(
       rebe && rebe.length > 0 ? (
         <NavLink to={`/rechte?${buildUrlParams(parametersForLink)}`}>
-          {menuNamesHelper.rebe}
+          {menuNamesHelper.rebe}{" "}
+          {rebeNumber.numberOfRights > 0 && rebeNumber.numberOfRights}
         </NavLink>
       ) : (
         <span style={{ color: defaultLinksColor }}>{menuNamesHelper.rebe}</span>
@@ -143,7 +155,7 @@ const SidebarMenu = ({ parametersForLink }) => {
       usage && usage > 0 ? (
         <NavLink to={`/nutzung?${buildUrlParams(parametersForLink)}`}>
           {menuNamesHelper.nutzung}{" "}
-          {usageData.numberOfUsages > 0 && usageData.numberOfUsages}
+          {usageNumber.numberOfUsages > 0 && usageNumber.numberOfUsages}
         </NavLink>
       ) : (
         <span style={{ color: defaultLinksColor }}>
@@ -160,7 +172,9 @@ const SidebarMenu = ({ parametersForLink }) => {
     getItem(
       contracts && contracts.length > 0 ? (
         <NavLink to={`/vorgange?${buildUrlParams(parametersForLink)}`}>
-          {menuNamesHelper.vorgange}
+          {menuNamesHelper.vorgange}{" "}
+          {operationNumber.numberOfOperations > 0 &&
+            operationNumber.numberOfOperations}
         </NavLink>
       ) : (
         <span style={{ color: defaultLinksColor }}>
@@ -194,7 +208,9 @@ const SidebarMenu = ({ parametersForLink }) => {
     getItem(
       transaction && transaction.length > 0 ? (
         <NavLink to={`/kassenzeichen?${buildUrlParams(parametersForLink)}`}>
-          {menuNamesHelper.kassenzeichen}
+          {menuNamesHelper.kassenzeichen}{" "}
+          {transactionNumber.numberOfDocuments > 0 &&
+            transactionNumber.numberOfDocuments}
         </NavLink>
       ) : (
         <span style={{ color: defaultLinksColor }}>
@@ -269,7 +285,7 @@ const SidebarMenu = ({ parametersForLink }) => {
 
       <div className="side-menu lg:ml-[-5px] overflow-y-auto overflow-x-hidden">
         <Menu
-          style={{ border: 0, width: !collapsed ? "230px" : "81px" }}
+          style={{ border: 0, width: !collapsed ? "260px" : "81px" }}
           defaultSelectedKeys={activeKey}
           selectedKeys={[activeKey]}
           items={items}

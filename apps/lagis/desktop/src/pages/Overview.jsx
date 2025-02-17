@@ -79,10 +79,6 @@ const Overview = ({
   const history = useSelector(getHistory);
   const geometry = useSelector(getGeometry);
 
-  // const rentData = mipaExtractor(mipa, landparcel);
-  const usageData = usageExtractor(landparcel);
-
-  console.log("xxx usageData", usageData);
   return (
     <div
       style={{
