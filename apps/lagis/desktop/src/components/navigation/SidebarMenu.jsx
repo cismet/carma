@@ -12,7 +12,7 @@ import {
   AuditOutlined,
 } from "@ant-design/icons";
 import { useState } from "react";
-import { Menu } from "antd";
+import { Badge, Menu } from "antd";
 import "./menu.css";
 import Logo from "../ui/logo/Logo";
 import { useEffect } from "react";
@@ -92,7 +92,7 @@ const SidebarMenu = ({ parametersForLink }) => {
     ? officesData.currentOffices.length
     : 0;
 
-  console.log("xxx historyNumber", historyNumber);
+  console.log("xxx mipaNumber", mipaNumber);
 
   const items = [
     getItem(
@@ -109,8 +109,11 @@ const SidebarMenu = ({ parametersForLink }) => {
         <NavLink
           to={`/verwaltungsbereiche?${buildUrlParams(parametersForLink)}`}
         >
-          {menuNamesHelper.verwaltungsbereiche}{" "}
-          {officesNumber > 0 && officesNumber}
+          <Badge count={officesNumber} className="ml-auto">
+            {menuNamesHelper.verwaltungsbereiche}
+          </Badge>
+
+          {/* {officesNumber > 0 && officesNumber} */}
         </NavLink>
       ) : (
         <span style={{ color: defaultLinksColor }}>
@@ -133,8 +136,11 @@ const SidebarMenu = ({ parametersForLink }) => {
     getItem(
       mipa && mipa.length > 0 ? (
         <NavLink to={`/miet?${buildUrlParams(parametersForLink)}`}>
-          {menuNamesHelper.mipa}{" "}
-          {mipaNumber.numberOfRents > 0 && mipaNumber.numberOfRents}
+          <Badge count={mipaNumber.numberOfRents} className="ml-auto">
+            {menuNamesHelper.mipa}
+          </Badge>
+          {menuNamesHelper.mipa}
+          {/* {mipaNumber.numberOfRents > 0 && mipaNumber.numberOfRents} */}
         </NavLink>
       ) : (
         <span style={{ color: defaultLinksColor }}>{menuNamesHelper.mipa}</span>
@@ -149,8 +155,11 @@ const SidebarMenu = ({ parametersForLink }) => {
     getItem(
       rebe && rebe.length > 0 ? (
         <NavLink to={`/rechte?${buildUrlParams(parametersForLink)}`}>
-          {menuNamesHelper.rebe}{" "}
-          {rebeNumber.numberOfRights > 0 && rebeNumber.numberOfRights}
+          <Badge count={rebeNumber.numberOfRights} className="ml-auto">
+            {menuNamesHelper.rebe}
+          </Badge>
+          {/* {menuNamesHelper.rebe}{" "} */}
+          {/* {rebeNumber.numberOfRights > 0 && rebeNumber.numberOfRights} */}
         </NavLink>
       ) : (
         <span style={{ color: defaultLinksColor }}>{menuNamesHelper.rebe}</span>
@@ -165,8 +174,11 @@ const SidebarMenu = ({ parametersForLink }) => {
     getItem(
       usage && usage > 0 ? (
         <NavLink to={`/nutzung?${buildUrlParams(parametersForLink)}`}>
-          {menuNamesHelper.nutzung}{" "}
-          {usageNumber.numberOfUsages > 0 && usageNumber.numberOfUsages}
+          <Badge count={usageNumber.numberOfUsages} className="ml-auto">
+            {menuNamesHelper.nutzung}
+          </Badge>
+          {/* {menuNamesHelper.nutzung}{" "} */}
+          {/* {usageNumber.numberOfUsages > 0 && usageNumber.numberOfUsages} */}
         </NavLink>
       ) : (
         <span style={{ color: defaultLinksColor }}>
@@ -183,9 +195,12 @@ const SidebarMenu = ({ parametersForLink }) => {
     getItem(
       contracts && contracts.length > 0 ? (
         <NavLink to={`/vorgange?${buildUrlParams(parametersForLink)}`}>
-          {menuNamesHelper.vorgange}{" "}
+          <Badge count={operationNumber.numberOfOperations} className="ml-auto">
+            {menuNamesHelper.vorgange}
+          </Badge>
+          {/* {menuNamesHelper.vorgange}{" "}
           {operationNumber.numberOfOperations > 0 &&
-            operationNumber.numberOfOperations}
+            operationNumber.numberOfOperations} */}
         </NavLink>
       ) : (
         <span style={{ color: defaultLinksColor }}>
@@ -202,8 +217,11 @@ const SidebarMenu = ({ parametersForLink }) => {
     getItem(
       history !== undefined ? (
         <NavLink to={`/historie?${buildUrlParams(parametersForLink)}`}>
-          {menuNamesHelper.historie}{" "}
-          {historyNumber !== undefined && historyNumber + 1}
+          <Badge count={history + 1} className="ml-auto">
+            {menuNamesHelper.historie}
+          </Badge>
+          {/* {menuNamesHelper.historie}{" "}
+          {historyNumber !== undefined && history + 1} */}
         </NavLink>
       ) : (
         <span style={{ color: defaultLinksColor }}>
@@ -220,9 +238,15 @@ const SidebarMenu = ({ parametersForLink }) => {
     getItem(
       transaction && transaction.length > 0 ? (
         <NavLink to={`/kassenzeichen?${buildUrlParams(parametersForLink)}`}>
-          {menuNamesHelper.kassenzeichen}{" "}
+          <Badge
+            count={transactionNumber.numberOfDocuments}
+            className="ml-auto"
+          >
+            {menuNamesHelper.kassenzeichen}
+          </Badge>
+          {/* {menuNamesHelper.kassenzeichen}{" "}
           {transactionNumber.numberOfDocuments > 0 &&
-            transactionNumber.numberOfDocuments}
+            transactionNumber.numberOfDocuments} */}
         </NavLink>
       ) : (
         <span style={{ color: defaultLinksColor }}>
@@ -240,8 +264,11 @@ const SidebarMenu = ({ parametersForLink }) => {
     getItem(
       dms && dms.length > 0 ? (
         <NavLink to={`/dms?${buildUrlParams(parametersForLink)}`}>
-          {menuNamesHelper.dms}{" "}
-          {dmsNumber.numberOfDocuments > 0 && dmsNumber.numberOfDocuments}
+          <Badge count={dmsNumber.numberOfDocuments} className="ml-auto">
+            {menuNamesHelper.dms}
+          </Badge>
+          {/* {menuNamesHelper.dms}{" "}
+          {dmsNumber.numberOfDocuments > 0 && dmsNumber.numberOfDocuments} */}
         </NavLink>
       ) : (
         <span style={{ color: defaultLinksColor }}>{menuNamesHelper.dms}</span>
