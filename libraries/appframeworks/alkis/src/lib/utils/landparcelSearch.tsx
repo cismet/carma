@@ -12,10 +12,11 @@ import {
   landparcelExtractor,
   pdfProductsLandparcel,
 } from "../utils/helper";
-// import AdditionalSheet from "../components/render/AdditionalSheet";
+import { AdditionalSheet } from "../components/AdditionalSheet";
 import { CustomCard } from "../components/CustomCard";
 // import MapRender from "../components/commons/MapRender";
 import { FilePdfOutlined, LoadingOutlined } from "@ant-design/icons";
+import { Link } from "react-router-dom";
 // import PdfDocumentLoader from "../components/render/PdfDocumentLoader";
 export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
   const landparcelData = await searchLandparcelByName(
@@ -132,18 +133,18 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
                   <div style={{ marginRight: "4rem" }}>
                     <div>Nr. {b.content.nrCode} auf</div>
                     <div>
-                      <a
+                      <Link
                         to={`/alkis-buchungsblatt?id=${b.buchungsblattcode.trim()}&flurstueck=${alkis_id}`}
                       >
                         <div className="text-primary">{`${b.buchungsblattcode}`}</div>
-                      </a>
+                      </Link>
                     </div>
                   </div>
-                  {/* <AdditionalSheet
+                  <AdditionalSheet
                     owners={b.content.owners}
                     namesArr={b.content.namesArr}
                     legalDesc={b.content.legalDesc}
-                  /> */}
+                  />
                 </div>
               ),
             };
