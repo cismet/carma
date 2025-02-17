@@ -39,6 +39,7 @@ import {
   dmsExtractor,
   historyExtractor,
   mipaExtractor,
+  officesExtractor,
   operationExtractor,
   rebeExtractor,
   transactionExtractor,
@@ -86,8 +87,12 @@ const SidebarMenu = ({ parametersForLink }) => {
   const operationNumber = operationExtractor(landparcel);
   const historyNumber = historyExtractor(history);
   const dmsNumber = dmsExtractor(landparcel);
+  const officesData = officesExtractor(landparcel);
+  const officesNumber = officesData?.currentOffices
+    ? officesData.currentOffices.length
+    : 0;
 
-  console.log("xxx dmsNumber", dmsNumber.numberOfDocuments);
+  console.log("xxx officesNumber", officesData);
 
   const items = [
     getItem(
@@ -104,7 +109,8 @@ const SidebarMenu = ({ parametersForLink }) => {
         <NavLink
           to={`/verwaltungsbereiche?${buildUrlParams(parametersForLink)}`}
         >
-          {menuNamesHelper.verwaltungsbereiche}
+          {menuNamesHelper.verwaltungsbereiche}{" "}
+          {officesNumber > 0 && officesNumber}
         </NavLink>
       ) : (
         <span style={{ color: defaultLinksColor }}>
