@@ -245,19 +245,24 @@ const MapWrapper = () => {
               <Tooltip title="Maßstab verkleinern (Zoom out)" placement="right">
                 <ControlButtonStyler
                   onClick={isMode2d ? zoomOutLeaflet : handleZoomOutCesium}
-                  className={`!rounded-t-none !border-t-[1px] ${
-                    allow3d && "!rounded-b-none !border-b-0"
-                  }`}
+                  className="!rounded-t-none !border-t-[1px]"
                   dataTestId="zoom-out-control"
                 >
                   <FontAwesomeIcon icon={faMinus} className="text-base" />
                 </ControlButtonStyler>
               </Tooltip>
-              {allow3d && (
-                <Tooltip title="Nach Norden ausrichten" placement="right">
+            </div>
+          </Control>
+          {allow3d && (
+            <Control position="topleft" order={10}>
+              <div ref={tourRefLabels.zoom} className="flex flex-col">
+                <Tooltip
+                  title="mit gedrückter Maustaste drehen und kippen"
+                  placement="right"
+                >
                   <ControlButtonStyler
                     useDisabledStyle={false}
-                    className="!rounded-t-none !border-t-[1px]"
+                    className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
                     ref={tourRefLabels.alignNorth}
                     dataTestId="compass-control"
                     disabled={isMode2d}
@@ -269,9 +274,23 @@ const MapWrapper = () => {
                     />
                   </ControlButtonStyler>
                 </Tooltip>
-              )}
-            </div>
-          </Control>
+                <Control position="topleft" order={70}>
+                  <MapTypeSwitcher
+                    duration={CESIUM_CONFIG.transitions.mapMode.duration}
+                    className="!rounded-t-none !border-t-[1px]"
+                    onComplete={(isTo2d: boolean) => {
+                      //dispatch(setBackgroundLayer({ ...backgroundLayer, visible: isTo2d }));
+                    }}
+                    ref={tourRefLabels.toggle2d3d}
+                  />
+                  {
+                    // TODO implement cesium home action with generic home control for all mapping engines
+                  }
+                </Control>
+              </div>
+            </Control>
+          )}
+
           <Control position="topleft" order={20}>
             {showFullscreenButton && (
               <Tooltip
@@ -383,20 +402,6 @@ const MapWrapper = () => {
               </div>
             )}
           </Control>
-          {allow3d && (
-            <Control position="topleft" order={70}>
-              <MapTypeSwitcher
-                duration={CESIUM_CONFIG.transitions.mapMode.duration}
-                onComplete={(isTo2d: boolean) => {
-                  //dispatch(setBackgroundLayer({ ...backgroundLayer, visible: isTo2d }));
-                }}
-                ref={tourRefLabels.toggle2d3d}
-              />
-              {
-                // TODO implement cesium home action with generic home control for all mapping engines
-              }
-            </Control>
-          )}
           <Control position="topleft" order={50}>
             <Tooltip
               title={
