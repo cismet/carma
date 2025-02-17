@@ -1,1 +1,9 @@
-// export * from "./lib/lib-alkis-renderer";
+interface TaskParams {
+  ALKIS_CODE: string;
+  PRODUKT?: string;
+  STICHTAG?: string;
+}
+
+export interface TaskParameters {
+  parameters: TaskParams;
+}
