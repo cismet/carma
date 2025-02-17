@@ -163,7 +163,10 @@
       ],
       "@carma-pecher-collab/xanten": [
         "libraries/collaboration/carma-pecher-collab/src/xanten/index.jsx"
-      ]
+      ],
+      "@carma-apps/alkis-renderer": [
+        "libraries/appframeworks/alkis/src/index.ts"
+      ],
     },
     "skipLibCheck": true
   }
