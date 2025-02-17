@@ -92,7 +92,7 @@ const SidebarMenu = ({ parametersForLink }) => {
     ? officesData.currentOffices.length
     : 0;
 
-  console.log("xxx mipaNumber", mipaNumber);
+  console.log("xxx historyNumber", historyNumber);
 
   const items = [
     getItem(
@@ -203,7 +203,7 @@ const SidebarMenu = ({ parametersForLink }) => {
       history !== undefined ? (
         <NavLink to={`/historie?${buildUrlParams(parametersForLink)}`}>
           {menuNamesHelper.historie}{" "}
-          {historyNumber !== undefined && history + 1}
+          {historyNumber !== undefined && historyNumber + 1}
         </NavLink>
       ) : (
         <span style={{ color: defaultLinksColor }}>
