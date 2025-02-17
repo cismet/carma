@@ -81,7 +81,7 @@ const SidebarMenu = ({ parametersForLink }) => {
 
   const landparcel = useSelector(getLandparcel);
   const rebeNumber = rebeExtractor({ rebe, landparcel });
-  // const mipaNumber = mipaExtractor({ mipa, landparcel });
+  const mipaNumber = mipaExtractor({ mipa, landparcel });
   const usageNumber = usageExtractor(landparcel);
   const transactionNumber = transactionExtractor(landparcel);
   const operationNumber = operationExtractor(landparcel);
@@ -92,7 +92,7 @@ const SidebarMenu = ({ parametersForLink }) => {
     ? officesData.currentOffices.length
     : 0;
 
-  console.log("xxx officesNumber", officesData);
+  console.log("xxx mipaNumber", mipaNumber);
 
   const items = [
     getItem(
@@ -133,7 +133,8 @@ const SidebarMenu = ({ parametersForLink }) => {
     getItem(
       mipa && mipa.length > 0 ? (
         <NavLink to={`/miet?${buildUrlParams(parametersForLink)}`}>
-          {menuNamesHelper.mipa}
+          {menuNamesHelper.mipa}{" "}
+          {mipaNumber.numberOfRents > 0 && mipaNumber.numberOfRents}
         </NavLink>
       ) : (
         <span style={{ color: defaultLinksColor }}>{menuNamesHelper.mipa}</span>
