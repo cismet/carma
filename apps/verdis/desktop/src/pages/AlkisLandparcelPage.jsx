@@ -1,76 +1,14 @@
-import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { getJWT } from "../store/slices/auth.js";
-import { getLandparcelHtml } from "../helper/landparcelSearch.jsx";
-import InfoBar from "../components/commons/InfoBar.jsx";
-import { Spin } from "antd";
-import { LoadingOutlined } from "@ant-design/icons";
 import { AlkisRenderer } from "@carma-apps/alkis-renderer";
 
 const AlkisLandparcelPage = () => {
   const [searchParams] = useSearchParams();
   const id = searchParams.get("id");
   const jwt = useSelector(getJWT);
-  // const [resHtml, setResHtml] = useState(null);
-  // const [idTitle, setIdTitle] = useState(null);
-  // const [isLoading, setIsLoading] = useState(false);
-  // const [error, setError] = useState(null);
-  // useEffect(() => {
-  //   const onLandparcelSearch = async (jwt, id) => {
-  //     setIsLoading(true);
-  //     setIdTitle(id);
-  //     const landparcelHtml = await getLandparcelHtml(
-  //       jwt,
-  //       id,
-  //       setError,
-  //       setIsLoading
-  //     );
-  //     setResHtml(landparcelHtml);
-  //     setIsLoading(false);
-  //   };
-  //   if (jwt && id) {
-  //     onLandparcelSearch(jwt, id);
-  //   }
-  // }, [jwt, id]);
 
   return <AlkisRenderer landparcelId={id} jwt={jwt} />;
-
-  return (
-    <div>
-      <div className="flex flex-col items-center relative h-full max-h-[calc(100vh-73px)]">
-        <div className="flex flex-col gap-2 w-full bg-zinc-100 h-full overflow-clip p-2">
-          <InfoBar
-            title={
-              <span>
-                {!error && "Flurstück: "}
-                <span className="text-base">
-                  {isLoading ? (
-                    <Spin
-                      indicator={<LoadingOutlined spin />}
-                      size="small"
-                      className="ml-2"
-                    />
-                  ) : error ? (
-                    `${error}`
-                  ) : (
-                    idTitle
-                  )}
-                </span>
-              </span>
-            }
-            className="py-1"
-          />
-
-          <div className="">
-            {idTitle && !error && (
-              <div className="my-1">{resHtml && <div>{resHtml}</div>}</div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 };
 
 export default AlkisLandparcelPage;
