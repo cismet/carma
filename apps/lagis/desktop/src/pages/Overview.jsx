@@ -37,7 +37,12 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { convertLatLngToXY } from "../core/tools/mappingTools";
 import { getFstckForPoint } from "../store/slices/search";
 import { setMapLoading } from "../store/slices/ui";
-const Overview = ({ width = "100%", height = "100%", inStory = false }) => {
+const Overview = ({
+  dashboardVisible = true,
+  width = "100%",
+  height = "100%",
+  inStory = false,
+}) => {
   let storyStyle = {};
   if (inStory) {
     storyStyle = {
@@ -81,51 +86,60 @@ const Overview = ({ width = "100%", height = "100%", inStory = false }) => {
       className="h-full overflow-clip max-h[calc(100%-30px)]"
     >
       <div className="flex gap-2 w-full  h-[calc(100%)]">
-        <div className="w-1/2 gap-2 overflow-auto">
-          <div className="grid grid-cols-2 gap-2 min-w-[430px] h-[calc(100%-3px)]">
-            <Offices
-              dataIn={landparcel}
-              extractor={officesExtractor}
-              parametersForLink={parametersForLink}
-            />
-            <Rent
-              dataIn={{ mipa, landparcel }}
-              extractor={mipaExtractor}
-              parametersForLink={parametersForLink}
-            />
-            <Rights
-              dataIn={{ rebe, landparcel }}
-              extractor={rebeExtractor}
-              parametersForLink={parametersForLink}
-            />
-            <Usage
-              dataIn={landparcel}
-              extractor={usageExtractor}
-              parametersForLink={parametersForLink}
-            />
-            <Operations
-              dataIn={landparcel}
-              extractor={operationExtractor}
-              parametersForLink={parametersForLink}
-            />
-            <History
-              dataIn={history}
-              extractor={historyExtractor}
-              parametersForLink={parametersForLink}
-            />
-            <Transaction
-              dataIn={landparcel}
-              extractor={transactionExtractor}
-              parametersForLink={parametersForLink}
-            />
-            <DMS
-              dataIn={landparcel}
-              extractor={dmsExtractor}
-              parametersForLink={parametersForLink}
-            />
+        {dashboardVisible && (
+          <div className="w-1/2 gap-2 overflow-auto">
+            <div className="grid grid-cols-2 gap-2 min-w-[430px] h-[calc(100%-3px)]">
+              <Offices
+                dataIn={landparcel}
+                extractor={officesExtractor}
+                parametersForLink={parametersForLink}
+              />
+              <Rent
+                dataIn={{ mipa, landparcel }}
+                extractor={mipaExtractor}
+                parametersForLink={parametersForLink}
+              />
+              <Rights
+                dataIn={{ rebe, landparcel }}
+                extractor={rebeExtractor}
+                parametersForLink={parametersForLink}
+              />
+              <Usage
+                dataIn={landparcel}
+                extractor={usageExtractor}
+                parametersForLink={parametersForLink}
+              />
+              <Operations
+                dataIn={landparcel}
+                extractor={operationExtractor}
+                parametersForLink={parametersForLink}
+              />
+              <History
+                dataIn={history}
+                extractor={historyExtractor}
+                parametersForLink={parametersForLink}
+              />
+              <Transaction
+                dataIn={landparcel}
+                extractor={transactionExtractor}
+                parametersForLink={parametersForLink}
+              />
+              <DMS
+                dataIn={landparcel}
+                extractor={dmsExtractor}
+                parametersForLink={parametersForLink}
+              />
+            </div>
           </div>
-        </div>
-        <div className="w-1/2 h-[calc(100%-3px)]">
+        )}
+
+        <div
+          className={
+            dashboardVisible
+              ? "w-1/2 h-[calc(100%-3px)]"
+              : "w-full h-[calc(100%-3px)]"
+          }
+        >
           <Map
             width={100}
             height={100}
