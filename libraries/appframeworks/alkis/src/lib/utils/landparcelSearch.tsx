@@ -89,13 +89,16 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
                   <div>{lage}</div>
                   {landparcel.adressenArray.map((a, idx) => {
                     const nummer = a.alkis_adresse.nummer;
-                    console.log("xxx nummer", nummer);
+                    console.log(
+                      "xxx nummer idx",
+                      idx,
+                      idx === landparcel.adressenArray.length - 1
+                    );
                     return (
                       <div key={idx}>
-                        {nummer}
-                        {idx !== landparcel.adressenArray.length - 1 &&
-                          nummer &&
-                          ","}
+                        {idx !== landparcel.adressenArray.length - 1
+                          ? nummer.trim() + ","
+                          : nummer.trim()}
                       </div>
                     );
                   })}
