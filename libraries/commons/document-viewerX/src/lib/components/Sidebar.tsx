@@ -17,6 +17,7 @@ interface SidebarProps {
   maxIndex: number;
   mode: string;
   compactView: boolean;
+  collapsible?: boolean;
   dynamicPrefixDetection?: boolean;
   improveReadabilityOfDocTitles?: boolean;
 }
@@ -25,15 +26,16 @@ interface HoverDivProps {
   isSelected: boolean;
 }
 
-const Sidebar = ({
+export default function Sidebar({
   docs,
   index,
   maxIndex,
   mode,
   compactView,
+  collapsible = true,
   dynamicPrefixDetection = false,
   improveReadabilityOfDocTitles = false,
-}: SidebarProps) => {
+}: SidebarProps) {
   const { docPackageId, page } = useParams();
   const navigate = useNavigate();
   const sidebarRef = useRef<HTMLDivElement>(null);
@@ -413,7 +415,7 @@ const Sidebar = ({
                           color: "#666",
                           marginBottom: "8px",
                           marginLeft: level * INDENTATION_PER_LEVEL,
-                          cursor: "pointer",
+                          cursor: collapsible ? "pointer" : "default",
                           display: "flex",
                           alignItems: "center",
                           gap: "8px",
@@ -421,20 +423,24 @@ const Sidebar = ({
                           borderRadius: compactView ? "4px" : "0",
                         }}
                         onClick={() => {
-                          toggleFolder(fullPath);
+                          if (collapsible) {
+                            toggleFolder(fullPath);
+                          }
                         }}
                       >
                         <VerticalLines level={level} isDocument={false} />
                         {!compactView && (
                           <>
-                            <FontAwesomeIcon
-                              icon={isCollapsed ? faChevronRight : faChevronDown}
-                              style={{
-                                fontSize: "12px",
-                                color: "#666",
-                                width: "12px",
-                              }}
-                            />
+                            {collapsible && (
+                              <FontAwesomeIcon
+                                icon={isCollapsed ? faChevronRight : faChevronDown}
+                                style={{
+                                  fontSize: "12px",
+                                  color: "#666",
+                                  width: "12px",
+                                }}
+                              />
+                            )}
                             <FontAwesomeIcon
                               icon={faFolder}
                               style={{
@@ -644,6 +650,4 @@ const Sidebar = ({
       </div>
     </div>
   );
-};
-
-export default Sidebar;
+}

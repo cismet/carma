@@ -47,12 +47,14 @@ export interface DocumentViewerProps {
   docs: Doc[];
   mode: string;
   initialSidebarCollapsed?: boolean;
+  collapsible?: boolean;
 }
 
 export function DocumentViewer({
   docs,
   mode,
   initialSidebarCollapsed = false,
+  collapsible = true,
 }: DocumentViewerProps) {
   const debugDocs = JSON.parse(JSON.stringify(docs));
   for (const dd of debugDocs) {
@@ -206,6 +208,7 @@ export function DocumentViewer({
                 maxIndex={pages}
                 mode={mode}
                 compactView={sidebarCollapsed}
+                collapsible={collapsible}
                 dynamicPrefixDetection={true}
                 improveReadabilityOfDocTitles={true}
               />
