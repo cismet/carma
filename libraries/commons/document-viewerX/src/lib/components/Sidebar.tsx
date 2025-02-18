@@ -4,7 +4,11 @@ import type { Doc } from "../document-viewer";
 import { useNavigate, useParams } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faFile } from "@fortawesome/free-regular-svg-icons";
-import { faFolder, faChevronRight, faChevronDown } from "@fortawesome/free-solid-svg-icons";
+import {
+  faFolder,
+  faChevronRight,
+  faChevronDown,
+} from "@fortawesome/free-solid-svg-icons";
 import { ProgressBar } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 import styled from "styled-components";
@@ -38,22 +42,30 @@ export default function Sidebar({
   dynamicPrefixDetection = false,
   improveReadabilityOfDocTitles = false,
 }: SidebarProps) {
+  console.log("xxx", { index });
+
   const { docPackageId, page } = useParams();
   const navigate = useNavigate();
   const sidebarRef = useRef<HTMLDivElement>(null);
   const selectedItemRef = useRef<HTMLDivElement>(null);
-  const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
+  const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(
+    new Set()
+  );
   const prevDocs = useRef<Doc[]>(docs);
   const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
-    if (initialCollapsed && !initialized && (docs !== prevDocs.current || !collapsedFolders.size)) {
+    if (
+      initialCollapsed &&
+      !initialized &&
+      (docs !== prevDocs.current || !collapsedFolders.size)
+    ) {
       const rootFolders = new Set<string>();
       docs.forEach((doc) => {
         if (doc.structure) {
           const parts = getStructureParts(doc.structure);
           if (parts.length > 0) {
-            const fullPath = '/' + parts[0];
+            const fullPath = "/" + parts[0];
             rootFolders.add(fullPath);
           }
         }
@@ -74,6 +86,31 @@ export default function Sidebar({
       });
     }
   }, [index]);
+
+  useEffect(() => {
+    console.log("xxx", "checkForCollabsedFolder", collapsedFolders);
+
+    // First check if we have a valid index and docs
+    if (index === undefined || !docs.length || index >= docs.length) return;
+
+    const selectedDoc = docs[index];
+    if (!selectedDoc?.structure) return;
+
+    // Get structure parts and expand all parent folders
+    const parts = getStructureParts(selectedDoc.structure);
+    let currentPath = "";
+
+    setCollapsedFolders((prev) => {
+      const next = new Set(prev);
+      for (const part of parts) {
+        currentPath = currentPath + "/" + part;
+        next.delete(currentPath);
+      }
+      console.log("xxx", "checkForCollabsedFolder new", next);
+
+      return next;
+    });
+  }, [index, docs]);
 
   const INDENTATION_PER_LEVEL = 10; // pixels per level
   const BASE_PADDING = 6; // base padding in pixels
@@ -261,9 +298,9 @@ export default function Sidebar({
     // Compare each level and only show if it's different from the previous document
     const changedLevels: { part: string; level: number }[] = [];
     for (let i = 0; i < currentParts.length; i++) {
-      const prevPath = prevParts.slice(0, i + 1).join('/');
-      const currentPath = currentParts.slice(0, i + 1).join('/');
-      
+      const prevPath = prevParts.slice(0, i + 1).join("/");
+      const currentPath = currentParts.slice(0, i + 1).join("/");
+
       if (prevPath !== currentPath) {
         // If this level changed, we need to show it
         changedLevels.push({ part: currentParts[i], level: i });
@@ -281,7 +318,10 @@ export default function Sidebar({
     if (!improveReadabilityOfDocTitles) return title;
 
     // First preserve dates and convert to DD.MM.YYYY format
-    let improved = title.replace(/(\d{2})[.-](\d{2})[.-](\d{4})/g, '@@$1.$2.$3@@');
+    let improved = title.replace(
+      /(\d{2})[.-](\d{2})[.-](\d{4})/g,
+      "@@$1.$2.$3@@"
+    );
 
     // Replace German umlaut representations
     improved = improved
@@ -310,7 +350,7 @@ export default function Sidebar({
     improved = improved.replace(/\s+/g, " ").trim();
 
     // Finally restore the preserved dates
-    improved = improved.replace(/@@(\d{2}\.\d{2}\.\d{4})@@/g, '$1');
+    improved = improved.replace(/@@(\d{2}\.\d{2}\.\d{4})@@/g, "$1");
 
     return improved;
   };
@@ -340,11 +380,11 @@ export default function Sidebar({
   const isDocVisible = (doc: Doc) => {
     if (!doc.structure) return true;
     const parts = getStructureParts(doc.structure);
-    
+
     // Build and check each level of the path
-    let currentPath = '';
+    let currentPath = "";
     for (let i = 0; i < parts.length; i++) {
-      currentPath = currentPath + '/' + parts[i];
+      currentPath = currentPath + "/" + parts[i];
       if (collapsedFolders.has(currentPath)) {
         return false;
       }
@@ -355,11 +395,11 @@ export default function Sidebar({
   const shouldShowStructureLevel = (currentDoc: Doc, level: number) => {
     if (!currentDoc.structure) return true;
     const parts = getStructureParts(currentDoc.structure);
-    
+
     // Check all parent folders up to this level
-    let currentPath = '';
+    let currentPath = "";
     for (let i = 0; i < level; i++) {
-      currentPath = currentPath + '/' + parts[i];
+      currentPath = currentPath + "/" + parts[i];
       if (collapsedFolders.has(currentPath)) {
         return false;
       }
@@ -427,7 +467,11 @@ export default function Sidebar({
               <div key={`sidebarItem.${i}`}>
                 {getChangedStructureLevels(doc, i, docs).map(
                   ({ part, level }) => {
-                    const fullPath = "/" + getStructureParts(doc.structure || "").slice(0, level + 1).join("/");
+                    const fullPath =
+                      "/" +
+                      getStructureParts(doc.structure || "")
+                        .slice(0, level + 1)
+                        .join("/");
                     const isCollapsed = collapsedFolders.has(fullPath);
 
                     // Only show structure levels that should be visible
@@ -464,7 +508,9 @@ export default function Sidebar({
                           <>
                             {collapsible && (
                               <FontAwesomeIcon
-                                icon={isCollapsed ? faChevronRight : faChevronDown}
+                                icon={
+                                  isCollapsed ? faChevronRight : faChevronDown
+                                }
                                 style={{
                                   fontSize: "12px",
                                   color: "#666",
@@ -486,49 +532,52 @@ export default function Sidebar({
                     );
                   }
                 )}
-                {showDocument && shouldShowPrefixHeader(doc, i, docs) && documentPrefix && (
-                  <div
-                    style={{
-                      padding: "4px 8px",
-                      backgroundColor: "#ffffff",
-                      fontSize: "12px",
-                      fontWeight: "bold",
-                      color: "#666",
-                      marginBottom: "8px",
-                      marginLeft: doc.structure
-                        ? getIndentationLevel(doc.structure) * INDENTATION_PER_LEVEL
-                        : 0,
-                      position: "relative",
-                      cursor: "pointer",
-                    }}
-                    onClick={() => {
-                      const docsWithPrefix = Array.from(
-                        prefixGroups.get(documentPrefix) || []
-                      );
-                      console.log("Documents with prefix:", documentPrefix);
-                      console.log(
-                        "Documents:",
-                        JSON.stringify(
-                          docsWithPrefix.map((d) => ({
-                            title: d.title,
-                            file: d.file,
-                            structure: d.structure,
-                          })),
-                          null,
-                          2
-                        )
-                      );
-                    }}
-                  >
-                    <VerticalLines
-                      level={
-                        doc.structure ? getIndentationLevel(doc.structure) : 0
-                      }
-                      isDocument={false}
-                    />
-                    {formatPrefixForDisplay(documentPrefix)} ...
-                  </div>
-                )}
+                {showDocument &&
+                  shouldShowPrefixHeader(doc, i, docs) &&
+                  documentPrefix && (
+                    <div
+                      style={{
+                        padding: "4px 8px",
+                        backgroundColor: "#ffffff",
+                        fontSize: "12px",
+                        fontWeight: "bold",
+                        color: "#666",
+                        marginBottom: "8px",
+                        marginLeft: doc.structure
+                          ? getIndentationLevel(doc.structure) *
+                            INDENTATION_PER_LEVEL
+                          : 0,
+                        position: "relative",
+                        cursor: "pointer",
+                      }}
+                      onClick={() => {
+                        const docsWithPrefix = Array.from(
+                          prefixGroups.get(documentPrefix) || []
+                        );
+                        console.log("Documents with prefix:", documentPrefix);
+                        console.log(
+                          "Documents:",
+                          JSON.stringify(
+                            docsWithPrefix.map((d) => ({
+                              title: d.title,
+                              file: d.file,
+                              structure: d.structure,
+                            })),
+                            null,
+                            2
+                          )
+                        );
+                      }}
+                    >
+                      <VerticalLines
+                        level={
+                          doc.structure ? getIndentationLevel(doc.structure) : 0
+                        }
+                        isDocument={false}
+                      />
+                      {formatPrefixForDisplay(documentPrefix)} ...
+                    </div>
+                  )}
                 {showDocument && (
                   <HoverDiv
                     ref={index - 1 === i ? selectedItemRef : null}
@@ -536,7 +585,8 @@ export default function Sidebar({
                     style={{
                       marginLeft:
                         (doc.structure
-                          ? getIndentationLevel(doc.structure) * INDENTATION_PER_LEVEL
+                          ? getIndentationLevel(doc.structure) *
+                            INDENTATION_PER_LEVEL
                           : 0) +
                         (getIndentationLevel(doc.structure) > 0
                           ? BASE_MARGIN
