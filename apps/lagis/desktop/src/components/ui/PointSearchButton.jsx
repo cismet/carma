@@ -7,14 +7,11 @@ import { storeShapeMode } from "../../store/slices/searchMode";
 const PointSearchButton = () => {
   const dispatch = useDispatch();
   return (
-    <Tooltip title="Flurstücksuche">
-      <div
-        className="relative flex cursor-pointer items-center justify-center"
-        onClick={() => dispatch(storeShapeMode("point"))}
-      >
-        <FontAwesomeIcon icon={faSearchLocation} className={`h-6`} />
-      </div>
-    </Tooltip>
+    <FontAwesomeIcon
+      icon={faSearchLocation}
+      className="text-lg h-5"
+      onClick={() => dispatch(storeShapeMode("point"))}
+    />
   );
 };
 

@@ -57,6 +57,8 @@ import { getJWT } from "../../store/slices/auth";
 import HoveredLandparcelInfo from "./HoveredLandparcelInfo";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBinoculars } from "@fortawesome/free-solid-svg-icons";
+import PointSearchButton from "../ui/PointSearchButton";
+import PointSearch from "../searchShapes/PointSearch";
 
 const { ScaleControl } = TransitiveReactLeaflet;
 
@@ -286,7 +288,7 @@ const Map = ({
             </div>
           )}
 
-          <div className="relative flex items-center">
+          <div className="relative flex items-center gap-2 cursor-pointer">
             <PointSearchButton />
             <Tooltip title="Hintergrund an/aus">
               <FileImageFilled
@@ -467,6 +469,7 @@ const Map = ({
             />
           </>
         )}
+        <PointSearch map={refRoutedMap?.current?.leafletMap?.leafletElement} />
       </RoutedMap>
     </Card>
   );
