@@ -280,8 +280,11 @@ export default function Sidebar({
   const improveReadability = (title: string): string => {
     if (!improveReadabilityOfDocTitles) return title;
 
+    // First preserve dates and convert to DD.MM.YYYY format
+    let improved = title.replace(/(\d{2})[.-](\d{2})[.-](\d{4})/g, '@@$1.$2.$3@@');
+
     // Replace German umlaut representations
-    let improved = title
+    improved = improved
       .replace(/AE/g, "Ä")
       .replace(/ae/g, "ä")
       .replace(/OE/g, "Ö")
@@ -294,12 +297,20 @@ export default function Sidebar({
 
     // Add space between word and number
     improved = improved.replace(/([a-zA-Z])(\d)/g, "$1 $2");
+    improved = improved.replace(/(\d)([a-zA-Z])/g, "$1 $2");
+
+    // Add space around number groups at start or end
+    improved = improved.replace(/^(\d+)/, "$1 ");
+    improved = improved.replace(/(\d+)$/, " $1");
 
     // Replace hyphens and underscores with spaces
     improved = improved.replace(/[-_]/g, " ");
 
     // Clean up any double spaces that might have been created
     improved = improved.replace(/\s+/g, " ").trim();
+
+    // Finally restore the preserved dates
+    improved = improved.replace(/@@(\d{2}\.\d{2}\.\d{4})@@/g, '$1');
 
     return improved;
   };

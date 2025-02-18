@@ -51,6 +51,8 @@ export interface DocumentViewerProps {
   initialSidebarCollapsed?: boolean;
   collapsible?: boolean;
   initialCollapsed?: boolean;
+  dynamicPrefixDetection?: boolean;
+  improveReadabilityOfDocTitles?: boolean;
 }
 
 export function DocumentViewer({
@@ -60,6 +62,8 @@ export function DocumentViewer({
   initialSidebarCollapsed = false,
   collapsible = true,
   initialCollapsed = true,
+  dynamicPrefixDetection = true,
+  improveReadabilityOfDocTitles = true,
 }: DocumentViewerProps) {
   const debugDocs = JSON.parse(JSON.stringify(docs));
   for (const dd of debugDocs) {
@@ -222,8 +226,8 @@ export function DocumentViewer({
                 compactView={sidebarCollapsed}
                 collapsible={collapsible}
                 initialCollapsed={initialCollapsed}
-                dynamicPrefixDetection={true}
-                improveReadabilityOfDocTitles={true}
+                dynamicPrefixDetection={dynamicPrefixDetection}
+                improveReadabilityOfDocTitles={improveReadabilityOfDocTitles}
               />
             </div>
             <div style={{ position: "relative" }}>
