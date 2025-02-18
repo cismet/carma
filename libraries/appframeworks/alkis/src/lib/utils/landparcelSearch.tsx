@@ -67,7 +67,7 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
   return (
     <>
       <CustomCard title={title} style={{ marginBottom: "1rem" }}>
-        {/* <div className="flex gap-4 w-full max-[1000px]:flex-col">
+        <div className="flex gap-4 w-full max-[1000px]:flex-col">
           <div className="w-[35%]">
             <div className="font-bold mb-3">Flurstücksinformationen</div>
             <div className="w-[500px]">
@@ -115,8 +115,8 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
           <div className="w-[65%] max-[1000px]:w-[100%]">
             <Map extractor={landparcelExtractor} dataIn={extentdedGeom} />
           </div>
-        </div> */}
-        <div>
+        </div>
+        {/* <div>
           <div className="font-bold mb-3">Flurstücksinformationen</div>
           <div className="flex gap-4 w-full max-[1000px]:flex-col">
             <div
@@ -139,7 +139,7 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
               <div>Lage:</div>
               <div>
                 <div style={{ display: "flex", gap: "0.4rem" }}>
-                  <div>{lage}</div>
+                  <div className="w-1/2">{lage}</div>
                   {landparcel.adressenArray.map((a, idx) => {
                     const nummer = a.alkis_adresse.nummer;
                     console.log(
@@ -166,7 +166,7 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
               <Map extractor={landparcelExtractor} dataIn={extentdedGeom} />
             </div>
           </div>
-        </div>
+        </div> */}
         <Divider />
         <div className="font-bold">Buchungsblätter</div>
         <Tabs
