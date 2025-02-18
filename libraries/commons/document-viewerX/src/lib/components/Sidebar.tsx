@@ -231,8 +231,16 @@ const Sidebar = ({
     const currentParts = getStructureParts(currentDoc.structure);
     const prevParts = getStructureParts(prevDoc.structure);
 
-    const changedLevels: { part: string; level: number }[] = [];
+    // If the structures are completely different (new section), show all levels
+    if (prevDoc.structure !== currentDoc.structure) {
+      return currentParts.map((part, i) => ({
+        part,
+        level: i,
+      }));
+    }
 
+    // Otherwise only show levels that have changed
+    const changedLevels: { part: string; level: number }[] = [];
     for (let i = 0; i < currentParts.length; i++) {
       if (i >= prevParts.length || currentParts[i] !== prevParts[i]) {
         changedLevels.push({ part: currentParts[i], level: i });
