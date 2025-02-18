@@ -108,9 +108,9 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
               </div>
             </div>
           </div>
-          {/* <div className="w-[65%] max-[1000px]:w-[100%]">
+          <div className="w-[65%] max-[1000px]:w-[100%]">
             <Map extractor={landparcelExtractor} dataIn={extentdedGeom} />
-          </div> */}
+          </div>
         </div>
         {/* <div>
           <div className="font-bold mb-3">Flurstücksinformationen</div>
@@ -171,7 +171,9 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
             const id = String(i);
             return {
               label: (
-                <div style={{ padding: "4px 10px" }}>{b.buchungsblattcode}</div>
+                <div style={{ padding: "4px 10px" }} className="text-primary">
+                  {b.buchungsblattcode}
+                </div>
               ),
               key: id,
               children: (

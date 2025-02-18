@@ -1,6 +1,5 @@
 import React, { useEffect } from "react";
 import ReactDOM from "react-dom/client";
-import "./index.css";
 import "antd/dist/reset.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
@@ -16,6 +15,7 @@ import Offices from "./pages/Offices";
 import RentAndLease from "./pages/RentAndLease";
 import RightsPage from "./pages/RightsPage";
 import UsagePage from "./pages/UsagePage";
+import "./index.css";
 import OperationsPage from "./pages/OperationsPage";
 import HistoryPage from "./pages/HistoryPage";
 import Transaction from "./pages/Transaction";
