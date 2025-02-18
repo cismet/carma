@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import Navbar from "./components/Navbar";
 import Sidebar, { SIDEBAR_BACKGROUND_COLOR } from "./components/Sidebar";
 import DocMap from "./components/DocMap";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { Alert } from "react-bootstrap";
 import Icon from "react-cismap/commons/Icon";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -65,6 +65,7 @@ export function DocumentViewer({
   }
 
   let { file } = useParams();
+  const routerNavigate = useNavigate();
   const collapsedSidebarWidth = 220;
   const expandedSidebarWidth = 335;
   const sideBarMinSize = 130;
@@ -178,6 +179,12 @@ export function DocumentViewer({
           sidebarCollapsed={sidebarCollapsed}
           collapsedSidebarWidth={collapsedSidebarWidth}
           expandedSidebarWidth={expandedSidebarWidth}
+          index={parseInt(file!) - 1}
+          navigate={(page: number) => {
+            const docPackageId = window.location.pathname.split('/')[2];
+            const currentFile = parseInt(file!);
+            routerNavigate(`/docs/${docPackageId}/${currentFile}/${page}`);
+          }}
         />
       </div>
 
