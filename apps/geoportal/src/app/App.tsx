@@ -12,7 +12,10 @@ import { faSpinner } from "@fortawesome/free-solid-svg-icons";
 import { CrossTabCommunicationContextProvider } from "react-cismap/contexts/CrossTabCommunicationContextProvider";
 
 // Monorepo Packages
-import { backgroundSettings } from "@carma-collab/wuppertal/geoportal";
+import {
+  backgroundSettings,
+  mobileInfo,
+} from "@carma-collab/wuppertal/geoportal";
 
 import {
   CarmaMapContextProvider,
@@ -246,23 +249,21 @@ function App({ published }: { published?: boolean }) {
           <MapMeasurement />
           <MapWrapper />
           <Modal
-            title="Hinweis"
+            title={mobileInfo.headerText}
             open={isModalOpen && isMobile}
             closable={false}
             closeIcon={false}
             footer={[
-              <Button type="primary" onClick={() => setIsModalOpen(false)}>
-                Verstanden
+              <Button
+                key="confirm"
+                type="primary"
+                onClick={() => setIsModalOpen(false)}
+              >
+                {mobileInfo.confirmButtonText}
               </Button>,
             ]}
           >
-            <p>
-              Dieses Geoportal ist derzeit ausschließlich für die Nutzung auf
-              Desktop-Computern optimiert. Bei der Verwendung eines mobilen
-              Endgeräts kann es zu Funktionseinschränkungen kommen. Wir arbeiten
-              aktiv an einer mobilen Version und danken Ihnen für Ihr
-              Verständnis.
-            </p>
+            <p>{mobileInfo.bodyText}</p>
           </Modal>
         </div>
       </ErrorBoundary>
