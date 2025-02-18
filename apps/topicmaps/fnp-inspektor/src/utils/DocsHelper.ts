@@ -94,33 +94,37 @@ export function getDocsForAEVGazetteerEntry(props: any) {
         });
       }
       const debugOut: string[] = [];
-      for (let url of aev.docUrls) {
-        const filename = url.substring(url.lastIndexOf("/") + 1);
+      for (let docObject of aev.docUrls) {
+        console.log("xxx fdocObject", docObject);
 
-        debugOut.push(createTitleForFilenameForAdditionalDocuments(filename));
+        const url = docObject.url;
+        const file = docObject.file;
+        const structure = docObject.structure;
+        const title = docObject.title;
+        const d = {
+          group: "Zusatzdokumente", //docs.structure,
+          structure,
+          title,
 
-        docs.push({
-          group: "Zusatzdokumente",
-          structure: "/Zusatzdokumente",
-          title: createTitleForFilenameForAdditionalDocuments(filename),
-
-          file: filename,
-          url: url.replace(
-            "https://www.wuppertal.de/geoportal/",
-            "https://wunda-geoportal-docs.cismet.de/"
-          ),
+          file,
+          url,
           layer: replaceUmlauteAndSpaces(
-            url.replace("https://www.wuppertal.de/geoportal/", tileservice) +
-              "/{z}/{x}/{y}.png"
+            url.replace(
+              "https://wunda-geoportal-docs.cismet.de/",
+              tileservice
+            ) + "/{z}/{x}/{y}.png"
           ),
           // TODO fix type here:
           meta: replaceUmlauteAndSpaces(
-            url.replace("https://www.wuppertal.de/geoportal/", tileservice) +
-              "/meta.json"
+            url.replace(
+              "https://wunda-geoportal-docs.cismet.de/",
+              tileservice
+            ) + "/meta.json"
           ),
-        });
+        };
+        docs.push(d);
       }
-      console.log("debug filename", debugOut);
+      console.log("debugOut", debugOut);
     }
   });
 
