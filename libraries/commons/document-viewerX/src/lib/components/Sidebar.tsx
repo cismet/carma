@@ -1,10 +1,10 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import Icon from "react-cismap/commons/Icon";
 import type { Doc } from "../document-viewer";
 import { useNavigate, useParams } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faFile } from "@fortawesome/free-regular-svg-icons";
-import { faFolder } from "@fortawesome/free-solid-svg-icons";
+import { faFolder, faChevronRight, faChevronDown } from "@fortawesome/free-solid-svg-icons";
 import { ProgressBar } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 import styled from "styled-components";
@@ -38,6 +38,7 @@ const Sidebar = ({
   const navigate = useNavigate();
   const sidebarRef = useRef<HTMLDivElement>(null);
   const selectedItemRef = useRef<HTMLDivElement>(null);
+  const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (selectedItemRef.current && sidebarRef.current) {
@@ -291,6 +292,48 @@ const Sidebar = ({
     );
   };
 
+  const toggleFolder = (structure: string) => {
+    setCollapsedFolders((prev) => {
+      const next = new Set(prev);
+      if (next.has(structure)) {
+        next.delete(structure);
+      } else {
+        next.add(structure);
+      }
+      return next;
+    });
+  };
+
+  const isDocVisible = (doc: Doc) => {
+    if (!doc.structure) return true;
+    const parts = getStructureParts(doc.structure);
+    
+    // Build and check each level of the path
+    let currentPath = '';
+    for (let i = 0; i < parts.length; i++) {
+      currentPath = currentPath + '/' + parts[i];
+      if (collapsedFolders.has(currentPath)) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const shouldShowStructureLevel = (currentDoc: Doc, level: number) => {
+    if (!currentDoc.structure) return true;
+    const parts = getStructureParts(currentDoc.structure);
+    
+    // Check all parent folders up to this level
+    let currentPath = '';
+    for (let i = 0; i < level; i++) {
+      currentPath = currentPath + '/' + parts[i];
+      if (collapsedFolders.has(currentPath)) {
+        return false;
+      }
+    }
+    return true;
+  };
+
   const VerticalLines = ({
     level,
     isDocument,
@@ -345,65 +388,68 @@ const Sidebar = ({
           docs?.map((doc, i) => {
             const prefixGroups = getPrefixGroups(docs, doc);
             const documentPrefix = getDocumentPrefix(doc, prefixGroups);
+            const showDocument = isDocVisible(doc);
 
             return (
               <div key={`sidebarItem.${i}`}>
                 {getChangedStructureLevels(doc, i, docs).map(
-                  ({ part, level }) => (
-                    <div
-                      key={`structure-${i}-${level}`}
-                      style={{
-                        padding: "4px 8px",
-                        backgroundColor: compactView ? "#e8e8e8" : "#ffffff",
-                        opacity: 1,
-                        zIndex: 999999,
-                        fontSize: "12px",
-                        fontWeight: "bold",
-                        color: "#666",
-                        marginBottom: "8px",
-                        marginLeft: level * INDENTATION_PER_LEVEL,
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                        position: "relative",
-                        borderRadius: compactView ? "4px" : "0",
-                      }}
-                      onClick={() => {
-                        const docsInStructure = getDocsInStructure(
-                          docs,
-                          doc.structure || ""
-                        );
-                        console.log("Documents in structure:", doc.structure);
-                        console.log(
-                          "Documents:",
-                          JSON.stringify(
-                            docsInStructure.map((d) => ({
-                              title: d.title,
-                              file: d.file,
-                              structure: d.structure,
-                            })),
-                            null,
-                            2
-                          )
-                        );
-                      }}
-                    >
-                      <VerticalLines level={level} isDocument={false} />
-                      {!compactView && (
-                        <FontAwesomeIcon
-                          icon={faFolder}
-                          style={{
-                            fontSize: "16px",
-                            color: "#666",
-                          }}
-                        />
-                      )}
-                      {part}
-                    </div>
-                  )
+                  ({ part, level }) => {
+                    const fullPath = "/" + getStructureParts(doc.structure || "").slice(0, level + 1).join("/");
+                    const isCollapsed = collapsedFolders.has(fullPath);
+
+                    // Only show structure levels that should be visible
+                    if (!shouldShowStructureLevel(doc, level)) return null;
+
+                    return (
+                      <div
+                        key={`structure-${i}-${level}`}
+                        style={{
+                          padding: "4px 8px",
+                          backgroundColor: compactView ? "#e8e8e8" : "#ffffff",
+                          opacity: 1,
+                          zIndex: 999999,
+                          fontSize: "12px",
+                          fontWeight: "bold",
+                          color: "#666",
+                          marginBottom: "8px",
+                          marginLeft: level * INDENTATION_PER_LEVEL,
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          position: "relative",
+                          borderRadius: compactView ? "4px" : "0",
+                        }}
+                        onClick={() => {
+                          toggleFolder(fullPath);
+                        }}
+                      >
+                        <VerticalLines level={level} isDocument={false} />
+                        {!compactView && (
+                          <>
+                            <FontAwesomeIcon
+                              icon={isCollapsed ? faChevronRight : faChevronDown}
+                              style={{
+                                fontSize: "12px",
+                                color: "#666",
+                                width: "12px",
+                              }}
+                            />
+                            <FontAwesomeIcon
+                              icon={faFolder}
+                              style={{
+                                fontSize: "16px",
+                                color: "#666",
+                              }}
+                            />
+                          </>
+                        )}
+                        {part}
+                      </div>
+                    );
+                  }
                 )}
-                {shouldShowPrefixHeader(doc, i, docs) && documentPrefix && (
+                {showDocument && shouldShowPrefixHeader(doc, i, docs) && documentPrefix && (
                   <div
                     style={{
                       padding: "4px 8px",
@@ -413,8 +459,7 @@ const Sidebar = ({
                       color: "#666",
                       marginBottom: "8px",
                       marginLeft: doc.structure
-                        ? getIndentationLevel(doc.structure) *
-                          INDENTATION_PER_LEVEL
+                        ? getIndentationLevel(doc.structure) * INDENTATION_PER_LEVEL
                         : 0,
                       position: "relative",
                       cursor: "pointer",
@@ -447,151 +492,152 @@ const Sidebar = ({
                     {formatPrefixForDisplay(documentPrefix)} ...
                   </div>
                 )}
-                <HoverDiv
-                  ref={index - 1 === i ? selectedItemRef : null}
-                  isSelected={index - 1 === i}
-                  style={{
-                    marginLeft:
-                      (doc.structure
-                        ? getIndentationLevel(doc.structure) *
-                          INDENTATION_PER_LEVEL
-                        : 0) +
-                      (getIndentationLevel(doc.structure) > 0
-                        ? BASE_MARGIN
-                        : 0),
-                    position: "relative",
-                  }}
-                  onClick={() => navigate(`/docs/${docPackageId}/${i + 1}/1`)}
-                >
-                  <VerticalLines
-                    level={
-                      doc.structure ? getIndentationLevel(doc.structure) : 0
-                    }
-                    isDocument={true}
-                  />
-                  <div
+                {showDocument && (
+                  <HoverDiv
+                    ref={index - 1 === i ? selectedItemRef : null}
+                    isSelected={index - 1 === i}
                     style={{
-                      flexDirection: compactView ? "column" : "row",
-                      justifyContent: compactView ? "center" : "flex-start",
-                      alignItems: "center",
-                      display: "flex",
-                      gap: "6px",
-                      width: "100%",
-                      paddingLeft: doc.structure ? "4px" : "0",
+                      marginLeft:
+                        (doc.structure
+                          ? getIndentationLevel(doc.structure) * INDENTATION_PER_LEVEL
+                          : 0) +
+                        (getIndentationLevel(doc.structure) > 0
+                          ? BASE_MARGIN
+                          : 0),
+                      position: "relative",
                     }}
+                    onClick={() => navigate(`/docs/${docPackageId}/${i + 1}/1`)}
                   >
-                    {doc.group === "Zusatzdokumente" ? (
-                      <FontAwesomeIcon
-                        icon={faFile}
-                        style={{
-                          fontSize: compactView ? "36px" : "20px",
-                          color: "#666",
-                        }}
-                      />
-                    ) : (
-                      <Icon
-                        name="file-pdf-o"
-                        style={{
-                          fontSize: compactView ? "36" : "20px",
-                          color: "#666",
-                        }}
-                      />
-                    )}
-
+                    <VerticalLines
+                      level={
+                        doc.structure ? getIndentationLevel(doc.structure) : 0
+                      }
+                      isDocument={true}
+                    />
                     <div
                       style={{
-                        display: "flex",
-                        flex: 1,
-                        justifyContent: "space-between",
+                        flexDirection: compactView ? "column" : "row",
+                        justifyContent: compactView ? "center" : "flex-start",
                         alignItems: "center",
-                        gap: "8px",
+                        display: "flex",
+                        gap: "6px",
+                        width: "100%",
+                        paddingLeft: doc.structure ? "4px" : "0",
                       }}
                     >
-                      <p
+                      {doc.group === "Zusatzdokumente" ? (
+                        <FontAwesomeIcon
+                          icon={faFile}
+                          style={{
+                            fontSize: compactView ? "36px" : "20px",
+                            color: "#666",
+                          }}
+                        />
+                      ) : (
+                        <Icon
+                          name="file-pdf-o"
+                          style={{
+                            fontSize: compactView ? "36" : "20px",
+                            color: "#666",
+                          }}
+                        />
+                      )}
+
+                      <div
                         style={{
-                          marginTop: compactView ? 2 : 0,
-                          marginBottom: compactView ? 8 : 0,
-                          fontSize: 11,
-                          wordWrap: "break-word",
-                          textWrap: "pretty",
-                          overflowWrap: "break-word",
-                          textAlign: compactView ? "center" : "left",
+                          display: "flex",
+                          flex: 1,
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          gap: "8px",
                         }}
                       >
-                        <span>
-                          {doc.title
-                            ? dynamicPrefixDetection
-                              ? removePrefix(doc.title, documentPrefix)
-                              : improveReadabilityOfDocTitles
-                              ? improveReadability(doc.title)
-                              : doc.title
-                            : filenameShortener(doc.file)}
-                        </span>
-                      </p>
-                      {index - 1 === i && !compactView && (
-                        <span
+                        <p
                           style={{
+                            marginTop: compactView ? 2 : 0,
+                            marginBottom: compactView ? 8 : 0,
                             fontSize: 11,
-                            whiteSpace: "nowrap",
-                            color: "#222",
+                            wordWrap: "break-word",
+                            textWrap: "pretty",
+                            overflowWrap: "break-word",
+                            textAlign: compactView ? "center" : "left",
                           }}
                         >
-                          {page} / {maxIndex}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  {index - 1 === i && (
-                    <>
-                      {!compactView ? (
-                        <div
-                          style={{
-                            position: "absolute",
-                            bottom: 0,
-                            left: 0,
-                            right: 0,
-                          }}
-                        >
-                          <ProgressBar
+                          <span>
+                            {doc.title
+                              ? dynamicPrefixDetection
+                                ? removePrefix(doc.title, documentPrefix)
+                                : improveReadabilityOfDocTitles
+                                ? improveReadability(doc.title)
+                                : doc.title
+                              : filenameShortener(doc.file)}
+                          </span>
+                        </p>
+                        {index - 1 === i && !compactView && (
+                          <span
                             style={{
-                              height: "1px",
-                              width: "100%",
-                              margin: 0,
-                              borderRadius: 0,
-                            }}
-                            max={maxIndex}
-                            min={0}
-                            now={parseInt(page!)}
-                          />
-                        </div>
-                      ) : (
-                        <div style={{ width: "100%" }}>
-                          <ProgressBar
-                            style={{
-                              height: "3px",
-                              width: "100%",
-                              marginTop: 0,
-                              marginBottom: 0,
-                            }}
-                            max={maxIndex}
-                            min={0}
-                            now={parseInt(page!)}
-                          />
-                          <p
-                            style={{
-                              marginBottom: 0,
-                              textAlign: "center",
                               fontSize: 11,
+                              whiteSpace: "nowrap",
                               color: "#222",
                             }}
                           >
                             {page} / {maxIndex}
-                          </p>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </HoverDiv>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {index - 1 === i && (
+                      <>
+                        {!compactView ? (
+                          <div
+                            style={{
+                              position: "absolute",
+                              bottom: 0,
+                              left: 0,
+                              right: 0,
+                            }}
+                          >
+                            <ProgressBar
+                              style={{
+                                height: "1px",
+                                width: "100%",
+                                margin: 0,
+                                borderRadius: 0,
+                              }}
+                              max={maxIndex}
+                              min={0}
+                              now={parseInt(page!)}
+                            />
+                          </div>
+                        ) : (
+                          <div style={{ width: "100%" }}>
+                            <ProgressBar
+                              style={{
+                                height: "3px",
+                                width: "100%",
+                                marginTop: 0,
+                                marginBottom: 0,
+                              }}
+                              max={maxIndex}
+                              min={0}
+                              now={parseInt(page!)}
+                            />
+                            <p
+                              style={{
+                                marginBottom: 0,
+                                textAlign: "center",
+                                fontSize: 11,
+                                color: "#222",
+                              }}
+                            >
+                              {page} / {maxIndex}
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </HoverDiv>
+                )}
               </div>
             );
           })}
