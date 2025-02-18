@@ -67,7 +67,7 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
   return (
     <>
       <CustomCard title={title} style={{ marginBottom: "1rem" }}>
-        <div className="flex gap-4 w-full max-[1000px]:flex-col">
+        {/* <div className="flex gap-4 w-full max-[1000px]:flex-col">
           <div className="w-[35%]">
             <div className="font-bold mb-3">Flurstücksinformationen</div>
             <div className="w-[500px]">
@@ -111,20 +111,18 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
           <div className="w-[65%] max-[1000px]:w-[100%]">
             <Map extractor={landparcelExtractor} dataIn={extentdedGeom} />
           </div>
-        </div>
-        {/* <div>
+        </div> */}
+        <div>
           <div className="font-bold mb-3">Flurstücksinformationen</div>
           <div className="flex gap-4 w-full max-[1000px]:flex-col">
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(2, minmax(100px, 200px))",
-                rowGap: "0.75rem",
-                columnGap: "0",
+                gridTemplateColumns: "repeat(2, fit-content(300px))",
+                rowGap: "4px",
+                columnGap: "2rem",
                 gridAutoRows: "min-content",
-                // width: "35%",
               }}
-              className="w-[35%] max-[1000px]:w-[100%]"
             >
               <div>Flurstückenzeichen:</div>
               <div>{name}</div>
@@ -135,22 +133,19 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
               <div>Lage:</div>
               <div>
                 <div style={{ display: "flex", gap: "0.4rem" }}>
-                  <div className="w-1/2">{lage}</div>
-                  {landparcel.adressenArray.map((a, idx) => {
-                    const nummer = a.alkis_adresse.nummer;
-                    console.log(
-                      "xxx nummer idx",
-                      idx,
-                      idx === landparcel.adressenArray.length - 1
-                    );
-                    return (
-                      <div key={idx}>
-                        {idx !== landparcel.adressenArray.length - 1
-                          ? nummer.trim() + ","
-                          : nummer.trim()}
-                      </div>
-                    );
-                  })}
+                  <div className="">
+                    {landparcel.adressenArray.map((a, idx) => {
+                      const number = a.alkis_adresse.nummer;
+                      const street = a.alkis_adresse.strasse;
+                      return (
+                        <div key={idx}>
+                          <span>
+                            {number ? street + ", " : street} {number && number}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
               <div>Größe:</div>
@@ -158,11 +153,14 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
                 {landparcel.groesse} m<sup>2</sup>
               </div>
             </div>
-            <div className="w-[65%] max-[1000px]:w-[100%]">
+            <div
+              // className="w-[65%] max-[1000px]:w-[100%]"
+              className="w-[65%] max-[1000px]:w-[100%] ml-auto"
+            >
               <Map extractor={landparcelExtractor} dataIn={extentdedGeom} />
             </div>
           </div>
-        </div> */}
+        </div>
         <Divider />
         <div className="font-bold">Buchungsblätter</div>
         <Tabs
