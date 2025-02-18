@@ -59,6 +59,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "./index.css";
+import { Button, Modal } from "antd";
 
 if (typeof global === "undefined") {
   window.global = window;
@@ -82,6 +83,8 @@ function App({ published }: { published?: boolean }) {
 
   const [syncToken, setSyncToken] = useState(null);
   const [loadingConfig, setLoadingConfig] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(true);
+  const isMobile = window.innerWidth < 600;
   const ifPopupPrintOpened = useSelector(getIfPopupOpend);
 
   const configBaseUrl = "https://gist.githubusercontent.com/d4v3000/";
@@ -242,6 +245,25 @@ function App({ published }: { published?: boolean }) {
           {!published && <TopNavbar />}
           <MapMeasurement />
           <MapWrapper />
+          <Modal
+            title="Hinweis"
+            open={isModalOpen && isMobile}
+            closable={false}
+            closeIcon={false}
+            footer={[
+              <Button type="primary" onClick={() => setIsModalOpen(false)}>
+                Verstanden
+              </Button>,
+            ]}
+          >
+            <p>
+              Dieses Geoportal ist derzeit ausschließlich für die Nutzung auf
+              Desktop-Computern optimiert. Bei der Verwendung eines mobilen
+              Endgeräts kann es zu Funktionseinschränkungen kommen. Wir arbeiten
+              aktiv an einer mobilen Version und danken Ihnen für Ihr
+              Verständnis.
+            </p>
+          </Modal>
         </div>
       </ErrorBoundary>
     </CarmaMapContextProvider>
