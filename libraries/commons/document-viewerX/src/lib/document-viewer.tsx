@@ -59,8 +59,6 @@ export function DocumentViewer({
     delete dd.meta;
   }
 
-  console.log("docs", debugDocs);
-
   let { file } = useParams();
   const collapsedSidebarWidth = 220;
   const expandedSidebarWidth = 335;

@@ -93,10 +93,7 @@ export function getDocsForAEVGazetteerEntry(props: any) {
           ),
         });
       }
-      const debugOut: string[] = [];
       for (let docObject of aev.docUrls) {
-        console.log("xxx fdocObject", docObject);
-
         const url = docObject.url;
         const file = docObject.file;
         const structure = docObject.structure;
@@ -124,7 +121,6 @@ export function getDocsForAEVGazetteerEntry(props: any) {
         };
         docs.push(d);
       }
-      console.log("debugOut", debugOut);
     }
   });
 
