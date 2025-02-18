@@ -531,19 +531,19 @@ export default function Sidebar({
                         paddingLeft: doc.structure ? "4px" : "0",
                       }}
                     >
-                      {doc.group === "Zusatzdokumente" ? (
-                        <FontAwesomeIcon
-                          icon={faFile}
-                          style={{
-                            fontSize: compactView ? "36px" : "20px",
-                            color: "#666",
-                          }}
-                        />
-                      ) : (
+                      {doc.primary === true ? (
                         <Icon
                           name="file-pdf-o"
                           style={{
                             fontSize: compactView ? "36" : "20px",
+                            color: "#666",
+                          }}
+                        />
+                      ) : (
+                        <FontAwesomeIcon
+                          icon={faFile}
+                          style={{
+                            fontSize: compactView ? "36px" : "20px",
                             color: "#666",
                           }}
                         />

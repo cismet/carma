@@ -31,6 +31,7 @@ export type Doc = {
   file: string;
   structure?: string;
   metaUrl?: string;
+  primary?: boolean;
   meta?:
     | {
         [key: `layer${number}`]: MetaLayer | undefined;

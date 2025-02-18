@@ -56,6 +56,7 @@ export function getDocsForBPlaeneGazetteerEntry(props: any) {
 
       for (const doc of bplan.plaene_rk) {
         docs.push({
+          primary: true,
           group: "rechtskraeftig",
           file: doc.file,
           url: doc.url,
@@ -78,6 +79,7 @@ export function getDocsForBPlaeneGazetteerEntry(props: any) {
 
       for (const doc of bplan.plaene_nrk) {
         docs.push({
+          primary: true,
           group: "nicht_rechtskraeftig",
           file: doc.file,
           url: repairUrl(doc.url),
@@ -99,6 +101,8 @@ export function getDocsForBPlaeneGazetteerEntry(props: any) {
       }
       for (const doc of bplan.docs) {
         docs.push({
+          primary: false,
+
           group: "/Zusatzdokumente", //docs.structure,
           file: doc.file,
           url: repairUrl(doc.url),
