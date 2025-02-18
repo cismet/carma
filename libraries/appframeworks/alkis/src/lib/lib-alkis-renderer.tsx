@@ -1,14 +1,11 @@
 import { AlkisRendererProps } from "..";
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
 import { getLandparcelHtml } from "../lib/utils/landparcelSearch";
 import { InfoBar } from "./components/InfoBar";
 import { Spin } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 
 export function AlkisRenderer({ landparcelId, jwt }: AlkisRendererProps) {
-  // const [searchParams] = useSearchParams();
-  // const id = searchParams.get("id");
   const [resHtml, setResHtml] = useState<React.ReactNode>(null);
   const [idTitle, setIdTitle] = useState(null);
   const [isLoading, setIsLoading] = useState(false);

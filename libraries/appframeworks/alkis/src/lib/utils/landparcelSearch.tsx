@@ -87,21 +87,17 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
                 <div style={colStyle}>Lage:</div>
                 <div style={{ display: "flex", gap: "0.4rem" }}>
                   <div>{lage}</div>
-                  {landparcel.adressenArray.map((a, idx) => {
-                    const nummer = a.alkis_adresse.nummer;
-                    console.log(
-                      "xxx nummer idx",
-                      idx,
-                      idx === landparcel.adressenArray.length - 1
-                    );
-                    return (
-                      <div key={idx}>
-                        {idx !== landparcel.adressenArray.length - 1
-                          ? nummer.trim() + ","
-                          : nummer.trim()}
-                      </div>
-                    );
-                  })}
+                  {landparcel.adressenArray[0].alkis_adresse.nummer &&
+                    landparcel.adressenArray.map((a, idx) => {
+                      const nummer = a.alkis_adresse.nummer;
+                      return (
+                        <div key={idx}>
+                          {idx !== landparcel.adressenArray.length - 1
+                            ? nummer.trim() + ","
+                            : nummer.trim()}
+                        </div>
+                      );
+                    })}
                 </div>
               </div>
               <div style={wrapStyle}>
