@@ -14,43 +14,42 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 interface NavProps {
   title?: string;
-  maxIndex: number;
-  downloadUrl: string;
   docs: Doc[];
+  maxIndex: number;
+  index: number;
+  navigate: (page: number) => void;
+  sidebarCollapsed: boolean;
+  collapsedSidebarWidth: number;
+  expandedSidebarWidth: number;
+  downloadUrl?: string;
   setWidthTrigger: any;
   setHeightTrigger: any;
   currentWidthTrigger?: number;
   currentHeightTrigger?: number;
-  sidebarCollapsed?: boolean;
-  onSidebarToggle?: () => void;
 }
 
 const Navbar = ({
   title,
-  maxIndex,
-  downloadUrl,
   docs,
+  maxIndex,
+  index,
+  navigate,
+  sidebarCollapsed,
+  collapsedSidebarWidth,
+  expandedSidebarWidth,
+  downloadUrl,
   setWidthTrigger,
   setHeightTrigger,
   currentWidthTrigger,
   currentHeightTrigger,
-  sidebarCollapsed: externalSidebarCollapsed,
-  onSidebarToggle,
 }: NavProps) => {
-  const navigate = useNavigate();
   const { file } = useParams();
   const [showTooltip, setShowTooltip] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [tooltipText, setTooltipText] = useState("");
   const [tooltipId, setTooltipId] = useState("");
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [tooltipTarget, setTooltipTarget] = useState<any>(null);
-
-  useEffect(() => {
-    if (externalSidebarCollapsed !== undefined) {
-      setSidebarCollapsed(externalSidebarCollapsed);
-    }
-  }, [externalSidebarCollapsed]);
+  const routerNavigate = useNavigate();
 
   const handleTooltipMouseEnter = (
     text: string,
@@ -65,11 +64,6 @@ const Navbar = ({
 
   const handleTooltipMouseLeave = () => {
     setTooltipVisible(false);
-  };
-
-  const handleSidebarToggle = () => {
-    setSidebarCollapsed(!sidebarCollapsed);
-    onSidebarToggle?.();
   };
 
   const { docPackageId, page } = useParams();
@@ -173,7 +167,7 @@ const Navbar = ({
           event.preventDefault();
           // Decrement page or navigate to the last page of the previous document
           if (currentPage > 1) {
-            navigate(`/docs/${docPackageId}/${file}/${currentPage - 1}`);
+            routerNavigate(`/docs/${docPackageId}/${file}/${currentPage - 1}`);
           } else {
             if (currentFile > 1) {
               const previousDoc = docs[currentFile - 2];
@@ -182,7 +176,7 @@ const Navbar = ({
                   ? previousDoc.meta.pages ?? 1
                   : 1;
 
-              navigate(
+              routerNavigate(
                 `/docs/${docPackageId}/${currentFile - 1}/${previousFilePages}`
               );
             } else {
@@ -192,7 +186,9 @@ const Navbar = ({
                   ? lastDoc.meta.pages ?? 1
                   : 1;
 
-              navigate(`/docs/${docPackageId}/${docs.length}/${lastFilePages}`);
+              routerNavigate(
+                `/docs/${docPackageId}/${docs.length}/${lastFilePages}`
+              );
             }
           }
           break;
@@ -201,12 +197,12 @@ const Navbar = ({
           event.preventDefault();
           // Increment page or navigate to the first page of the next document
           if (currentPage < maxIndex) {
-            navigate(`/docs/${docPackageId}/${file}/${currentPage + 1}`);
+            routerNavigate(`/docs/${docPackageId}/${file}/${currentPage + 1}`);
           } else {
             if (currentFile < docs.length) {
-              navigate(`/docs/${docPackageId}/${currentFile + 1}/1`);
+              routerNavigate(`/docs/${docPackageId}/${currentFile + 1}/1`);
             } else {
-              navigate(`/docs/${docPackageId}/1/1`);
+              routerNavigate(`/docs/${docPackageId}/1/1`);
             }
           }
           break;
@@ -215,9 +211,9 @@ const Navbar = ({
           event.preventDefault();
           // Navigate to the first page of the previous document
           if (currentFile > 1) {
-            navigate(`/docs/${docPackageId}/${currentFile - 1}/1`);
+            routerNavigate(`/docs/${docPackageId}/${currentFile - 1}/1`);
           } else {
-            navigate(`/docs/${docPackageId}/${docs.length}/1`);
+            routerNavigate(`/docs/${docPackageId}/${docs.length}/1`);
           }
           break;
 
@@ -225,9 +221,9 @@ const Navbar = ({
           event.preventDefault();
           // Navigate to the first page of the next document
           if (currentFile < docs.length) {
-            navigate(`/docs/${docPackageId}/${currentFile + 1}/1`);
+            routerNavigate(`/docs/${docPackageId}/${currentFile + 1}/1`);
           } else {
-            navigate(`/docs/${docPackageId}/1/1`);
+            routerNavigate(`/docs/${docPackageId}/1/1`);
           }
           break;
 
@@ -247,15 +243,14 @@ const Navbar = ({
         marginBottom: 0,
         width: "100%",
         color: "grey",
-        paddingLeft: "20px",
-        paddingRight: "20px",
+        paddingLeft: sidebarCollapsed ? `${collapsedSidebarWidth}px` : `${expandedSidebarWidth}px`,
+        paddingRight: "50px",
       }}
       expand="lg"
     >
       <div
         style={{
-          width: "46%",
-          margin: "0 auto",
+          width: "100%",
           display: "flex",
           alignItems: "center",
         }}
@@ -283,7 +278,7 @@ const Navbar = ({
                   onClick={() => {
                     if (page && file)
                       if (parseInt(page) > 1) {
-                        navigate(
+                        routerNavigate(
                           `/docs/${docPackageId}/${file}/${parseInt(page) - 1}`
                         );
                       } else {
@@ -295,7 +290,7 @@ const Navbar = ({
                               ? previousDoc.meta.pages ?? 1
                               : 1;
 
-                          navigate(
+                          routerNavigate(
                             `/docs/${docPackageId}/${
                               parseInt(file) - 1
                             }/${previousFilePages}`
@@ -307,7 +302,7 @@ const Navbar = ({
                               ? lastDoc.meta.pages ?? 1
                               : 1;
 
-                          navigate(
+                          routerNavigate(
                             `/docs/${docPackageId}/${docs.length}/${lastFilePages}`
                           );
                         }
@@ -339,16 +334,16 @@ const Navbar = ({
                   onClick={() => {
                     if (page && file)
                       if (parseInt(page) < maxIndex) {
-                        navigate(
+                        routerNavigate(
                           `/docs/${docPackageId}/${file}/${parseInt(page) + 1}`
                         );
                       } else {
                         if (parseInt(file) < docs.length) {
-                          navigate(
+                          routerNavigate(
                             `/docs/${docPackageId}/${parseInt(file) + 1}/1`
                           );
                         } else {
-                          navigate(`/docs/${docPackageId}/1/1`);
+                          routerNavigate(`/docs/${docPackageId}/1/1`);
                         }
                       }
                   }}
@@ -364,18 +359,11 @@ const Navbar = ({
           <Nav className="mr-auto">
             <NavItem>
               <OverlayTrigger
-                key={"bottom"}
                 placement="bottom"
                 overlay={<Tooltip id="">an Fensterbreite anpassen</Tooltip>}
               >
-                <button
-                  style={{
-                    background: "none",
-                    border: "none",
-                    padding: 0,
-                    outline: "inherit",
-                    marginRight: "20px",
-                  }}
+                <a
+                  style={{ marginRight: "20px" }}
                   className="navItem"
                   onClick={() => {
                     if (currentWidthTrigger) {
@@ -386,22 +374,16 @@ const Navbar = ({
                   }}
                 >
                   <Icon name="arrows-h" />
-                </button>
+                </a>
               </OverlayTrigger>
             </NavItem>
             <NavItem>
               <OverlayTrigger
-                key={"bottom"}
                 placement="bottom"
                 overlay={<Tooltip id="">an Fensterhöhe anpassen</Tooltip>}
               >
-                <button
-                  style={{
-                    background: "none",
-                    border: "none",
-                    padding: 0,
-                    outline: "inherit",
-                  }}
+                <a
+                  style={{ marginRight: "20px" }}
                   className="navItem"
                   onClick={() => {
                     if (currentHeightTrigger) {
@@ -412,7 +394,7 @@ const Navbar = ({
                   }}
                 >
                   <Icon name="arrows-v" />
-                </button>
+                </a>
               </OverlayTrigger>
             </NavItem>
           </Nav>

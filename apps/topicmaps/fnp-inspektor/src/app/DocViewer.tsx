@@ -82,7 +82,6 @@ export function App() {
       }
 
       if (tmpDocs) {
-        console.log("tmpDocs", tmpDocs);
         getUpdatedDocs(tmpDocs);
       }
     }

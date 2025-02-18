@@ -1,10 +1,14 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import Icon from "react-cismap/commons/Icon";
 import type { Doc } from "../document-viewer";
 import { useNavigate, useParams } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faFile } from "@fortawesome/free-regular-svg-icons";
-import { faFolder } from "@fortawesome/free-solid-svg-icons";
+import {
+  faFolder,
+  faChevronRight,
+  faChevronDown,
+} from "@fortawesome/free-solid-svg-icons";
 import { ProgressBar } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 import styled from "styled-components";
@@ -17,6 +21,8 @@ interface SidebarProps {
   maxIndex: number;
   mode: string;
   compactView: boolean;
+  collapsible?: boolean;
+  initialCollapsed?: boolean;
   dynamicPrefixDetection?: boolean;
   improveReadabilityOfDocTitles?: boolean;
 }
@@ -25,19 +31,52 @@ interface HoverDivProps {
   isSelected: boolean;
 }
 
-const Sidebar = ({
+export default function Sidebar({
   docs,
   index,
   maxIndex,
   mode,
   compactView,
+  collapsible = true,
+  initialCollapsed = true,
   dynamicPrefixDetection = false,
   improveReadabilityOfDocTitles = false,
-}: SidebarProps) => {
+}: SidebarProps) {
+  console.log("xxx", { index });
+
   const { docPackageId, page } = useParams();
   const navigate = useNavigate();
   const sidebarRef = useRef<HTMLDivElement>(null);
   const selectedItemRef = useRef<HTMLDivElement>(null);
+  const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(
+    new Set()
+  );
+  const prevDocs = useRef<Doc[]>(docs);
+  const [initialized, setInitialized] = useState(false);
+
+  useEffect(() => {
+    if (
+      initialCollapsed &&
+      !initialized &&
+      (docs !== prevDocs.current || !collapsedFolders.size)
+    ) {
+      const rootFolders = new Set<string>();
+      docs.forEach((doc) => {
+        if (doc.structure) {
+          const parts = getStructureParts(doc.structure);
+          if (parts.length > 0) {
+            const fullPath = "/" + parts[0];
+            rootFolders.add(fullPath);
+          }
+        }
+      });
+      setCollapsedFolders(rootFolders);
+      setInitialized(true);
+    } else if (!initialCollapsed && docs !== prevDocs.current) {
+      setCollapsedFolders(new Set());
+    }
+    prevDocs.current = docs;
+  }, [docs, initialCollapsed]);
 
   useEffect(() => {
     if (selectedItemRef.current && sidebarRef.current) {
@@ -47,6 +86,31 @@ const Sidebar = ({
       });
     }
   }, [index]);
+
+  useEffect(() => {
+    console.log("xxx", "checkForCollabsedFolder", collapsedFolders);
+
+    // First check if we have a valid index and docs
+    if (index === undefined || !docs.length || index >= docs.length) return;
+
+    const selectedDoc = docs[index];
+    if (!selectedDoc?.structure) return;
+
+    // Get structure parts and expand all parent folders
+    const parts = getStructureParts(selectedDoc.structure);
+    let currentPath = "";
+
+    setCollapsedFolders((prev) => {
+      const next = new Set(prev);
+      for (const part of parts) {
+        currentPath = currentPath + "/" + part;
+        next.delete(currentPath);
+      }
+      console.log("xxx", "checkForCollabsedFolder new", next);
+
+      return next;
+    });
+  }, [index, docs]);
 
   const INDENTATION_PER_LEVEL = 10; // pixels per level
   const BASE_PADDING = 6; // base padding in pixels
@@ -231,18 +295,14 @@ const Sidebar = ({
     const currentParts = getStructureParts(currentDoc.structure);
     const prevParts = getStructureParts(prevDoc.structure);
 
-    // If the structures are completely different (new section), show all levels
-    if (prevDoc.structure !== currentDoc.structure) {
-      return currentParts.map((part, i) => ({
-        part,
-        level: i,
-      }));
-    }
-
-    // Otherwise only show levels that have changed
+    // Compare each level and only show if it's different from the previous document
     const changedLevels: { part: string; level: number }[] = [];
     for (let i = 0; i < currentParts.length; i++) {
-      if (i >= prevParts.length || currentParts[i] !== prevParts[i]) {
+      const prevPath = prevParts.slice(0, i + 1).join("/");
+      const currentPath = currentParts.slice(0, i + 1).join("/");
+
+      if (prevPath !== currentPath) {
+        // If this level changed, we need to show it
         changedLevels.push({ part: currentParts[i], level: i });
       }
     }
@@ -257,8 +317,14 @@ const Sidebar = ({
   const improveReadability = (title: string): string => {
     if (!improveReadabilityOfDocTitles) return title;
 
+    // First preserve dates and convert to DD.MM.YYYY format
+    let improved = title.replace(
+      /(\d{2})[.-](\d{2})[.-](\d{4})/g,
+      "@@$1.$2.$3@@"
+    );
+
     // Replace German umlaut representations
-    let improved = title
+    improved = improved
       .replace(/AE/g, "Ä")
       .replace(/ae/g, "ä")
       .replace(/OE/g, "Ö")
@@ -271,12 +337,20 @@ const Sidebar = ({
 
     // Add space between word and number
     improved = improved.replace(/([a-zA-Z])(\d)/g, "$1 $2");
+    improved = improved.replace(/(\d)([a-zA-Z])/g, "$1 $2");
+
+    // Add space around number groups at start or end
+    improved = improved.replace(/^(\d+)/, "$1 ");
+    improved = improved.replace(/(\d+)$/, " $1");
 
     // Replace hyphens and underscores with spaces
     improved = improved.replace(/[-_]/g, " ");
 
     // Clean up any double spaces that might have been created
     improved = improved.replace(/\s+/g, " ").trim();
+
+    // Finally restore the preserved dates
+    improved = improved.replace(/@@(\d{2}\.\d{2}\.\d{4})@@/g, "$1");
 
     return improved;
   };
@@ -289,6 +363,48 @@ const Sidebar = ({
     return improveReadability(
       title.startsWith(prefix) ? title.slice(prefix.length).trim() : title
     );
+  };
+
+  const toggleFolder = (path: string) => {
+    setCollapsedFolders((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        next.add(path);
+      }
+      return next;
+    });
+  };
+
+  const isDocVisible = (doc: Doc) => {
+    if (!doc.structure) return true;
+    const parts = getStructureParts(doc.structure);
+
+    // Build and check each level of the path
+    let currentPath = "";
+    for (let i = 0; i < parts.length; i++) {
+      currentPath = currentPath + "/" + parts[i];
+      if (collapsedFolders.has(currentPath)) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const shouldShowStructureLevel = (currentDoc: Doc, level: number) => {
+    if (!currentDoc.structure) return true;
+    const parts = getStructureParts(currentDoc.structure);
+
+    // Check all parent folders up to this level
+    let currentPath = "";
+    for (let i = 0; i < level; i++) {
+      currentPath = currentPath + "/" + parts[i];
+      if (collapsedFolders.has(currentPath)) {
+        return false;
+      }
+    }
+    return true;
   };
 
   const VerticalLines = ({
@@ -345,40 +461,104 @@ const Sidebar = ({
           docs?.map((doc, i) => {
             const prefixGroups = getPrefixGroups(docs, doc);
             const documentPrefix = getDocumentPrefix(doc, prefixGroups);
+            const showDocument = isDocVisible(doc);
 
             return (
               <div key={`sidebarItem.${i}`}>
                 {getChangedStructureLevels(doc, i, docs).map(
-                  ({ part, level }) => (
+                  ({ part, level }) => {
+                    const fullPath =
+                      "/" +
+                      getStructureParts(doc.structure || "")
+                        .slice(0, level + 1)
+                        .join("/");
+                    const isCollapsed = collapsedFolders.has(fullPath);
+
+                    // Only show structure levels that should be visible
+                    if (!shouldShowStructureLevel(doc, level)) return null;
+
+                    return (
+                      <div
+                        key={`structure-${i}-${level}`}
+                        style={{
+                          padding: "4px 8px",
+                          backgroundColor: compactView ? "#e8e8e8" : "#ffffff",
+                          opacity: 1,
+                          zIndex: 999999,
+                          fontSize: "12px",
+                          fontWeight: "bold",
+                          color: "#666",
+                          marginBottom: "8px",
+                          marginLeft: level * INDENTATION_PER_LEVEL,
+                          cursor: collapsible ? "pointer" : "default",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          position: "relative",
+                          borderRadius: compactView ? "4px" : "0",
+                        }}
+                        onClick={() => {
+                          if (collapsible) {
+                            toggleFolder(fullPath);
+                          }
+                        }}
+                      >
+                        <VerticalLines level={level} isDocument={false} />
+                        {!compactView && (
+                          <>
+                            {collapsible && (
+                              <FontAwesomeIcon
+                                icon={
+                                  isCollapsed ? faChevronRight : faChevronDown
+                                }
+                                style={{
+                                  fontSize: "12px",
+                                  color: "#666",
+                                  width: "12px",
+                                }}
+                              />
+                            )}
+                            <FontAwesomeIcon
+                              icon={faFolder}
+                              style={{
+                                fontSize: "16px",
+                                color: "#666",
+                              }}
+                            />
+                          </>
+                        )}
+                        {part}
+                      </div>
+                    );
+                  }
+                )}
+                {showDocument &&
+                  shouldShowPrefixHeader(doc, i, docs) &&
+                  documentPrefix && (
                     <div
-                      key={`structure-${i}-${level}`}
                       style={{
                         padding: "4px 8px",
-                        backgroundColor: compactView ? "#e8e8e8" : "#ffffff",
-                        opacity: 1,
-                        zIndex: 999999,
+                        backgroundColor: "#ffffff",
                         fontSize: "12px",
                         fontWeight: "bold",
                         color: "#666",
                         marginBottom: "8px",
-                        marginLeft: level * INDENTATION_PER_LEVEL,
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
+                        marginLeft: doc.structure
+                          ? getIndentationLevel(doc.structure) *
+                            INDENTATION_PER_LEVEL
+                          : 0,
                         position: "relative",
-                        borderRadius: compactView ? "4px" : "0",
+                        cursor: "pointer",
                       }}
                       onClick={() => {
-                        const docsInStructure = getDocsInStructure(
-                          docs,
-                          doc.structure || ""
+                        const docsWithPrefix = Array.from(
+                          prefixGroups.get(documentPrefix) || []
                         );
-                        console.log("Documents in structure:", doc.structure);
+                        console.log("Documents with prefix:", documentPrefix);
                         console.log(
                           "Documents:",
                           JSON.stringify(
-                            docsInStructure.map((d) => ({
+                            docsWithPrefix.map((d) => ({
                               title: d.title,
                               file: d.file,
                               structure: d.structure,
@@ -389,215 +569,166 @@ const Sidebar = ({
                         );
                       }}
                     >
-                      <VerticalLines level={level} isDocument={false} />
-                      {!compactView && (
-                        <FontAwesomeIcon
-                          icon={faFolder}
-                          style={{
-                            fontSize: "16px",
-                            color: "#666",
-                          }}
-                        />
-                      )}
-                      {part}
+                      <VerticalLines
+                        level={
+                          doc.structure ? getIndentationLevel(doc.structure) : 0
+                        }
+                        isDocument={false}
+                      />
+                      {formatPrefixForDisplay(documentPrefix)} ...
                     </div>
-                  )
-                )}
-                {shouldShowPrefixHeader(doc, i, docs) && documentPrefix && (
-                  <div
+                  )}
+                {showDocument && (
+                  <HoverDiv
+                    ref={index - 1 === i ? selectedItemRef : null}
+                    isSelected={index - 1 === i}
                     style={{
-                      padding: "4px 8px",
-                      backgroundColor: "#ffffff",
-                      fontSize: "12px",
-                      fontWeight: "bold",
-                      color: "#666",
-                      marginBottom: "8px",
-                      marginLeft: doc.structure
-                        ? getIndentationLevel(doc.structure) *
-                          INDENTATION_PER_LEVEL
-                        : 0,
+                      marginLeft:
+                        (doc.structure
+                          ? getIndentationLevel(doc.structure) *
+                            INDENTATION_PER_LEVEL
+                          : 0) +
+                        (getIndentationLevel(doc.structure) > 0
+                          ? BASE_MARGIN
+                          : 0),
                       position: "relative",
-                      cursor: "pointer",
                     }}
-                    onClick={() => {
-                      const docsWithPrefix = Array.from(
-                        prefixGroups.get(documentPrefix) || []
-                      );
-                      console.log("Documents with prefix:", documentPrefix);
-                      console.log(
-                        "Documents:",
-                        JSON.stringify(
-                          docsWithPrefix.map((d) => ({
-                            title: d.title,
-                            file: d.file,
-                            structure: d.structure,
-                          })),
-                          null,
-                          2
-                        )
-                      );
-                    }}
+                    onClick={() => navigate(`/docs/${docPackageId}/${i + 1}/1`)}
                   >
                     <VerticalLines
                       level={
                         doc.structure ? getIndentationLevel(doc.structure) : 0
                       }
-                      isDocument={false}
+                      isDocument={true}
                     />
-                    {formatPrefixForDisplay(documentPrefix)} ...
-                  </div>
-                )}
-                <HoverDiv
-                  ref={index - 1 === i ? selectedItemRef : null}
-                  isSelected={index - 1 === i}
-                  style={{
-                    marginLeft:
-                      (doc.structure
-                        ? getIndentationLevel(doc.structure) *
-                          INDENTATION_PER_LEVEL
-                        : 0) +
-                      (getIndentationLevel(doc.structure) > 0
-                        ? BASE_MARGIN
-                        : 0),
-                    position: "relative",
-                  }}
-                  onClick={() => navigate(`/docs/${docPackageId}/${i + 1}/1`)}
-                >
-                  <VerticalLines
-                    level={
-                      doc.structure ? getIndentationLevel(doc.structure) : 0
-                    }
-                    isDocument={true}
-                  />
-                  <div
-                    style={{
-                      flexDirection: compactView ? "column" : "row",
-                      justifyContent: compactView ? "center" : "flex-start",
-                      alignItems: "center",
-                      display: "flex",
-                      gap: "6px",
-                      width: "100%",
-                      paddingLeft: doc.structure ? "4px" : "0",
-                    }}
-                  >
-                    {doc.group === "Zusatzdokumente" ? (
-                      <FontAwesomeIcon
-                        icon={faFile}
-                        style={{
-                          fontSize: compactView ? "36px" : "20px",
-                          color: "#666",
-                        }}
-                      />
-                    ) : (
-                      <Icon
-                        name="file-pdf-o"
-                        style={{
-                          fontSize: compactView ? "36" : "20px",
-                          color: "#666",
-                        }}
-                      />
-                    )}
-
                     <div
                       style={{
-                        display: "flex",
-                        flex: 1,
-                        justifyContent: "space-between",
+                        flexDirection: compactView ? "column" : "row",
+                        justifyContent: compactView ? "center" : "flex-start",
                         alignItems: "center",
-                        gap: "8px",
+                        display: "flex",
+                        gap: "6px",
+                        width: "100%",
+                        paddingLeft: doc.structure ? "4px" : "0",
                       }}
                     >
-                      <p
+                      {doc.primary === true ? (
+                        <Icon
+                          name="file-pdf-o"
+                          style={{
+                            fontSize: compactView ? "36" : "20px",
+                            color: "#666",
+                          }}
+                        />
+                      ) : (
+                        <FontAwesomeIcon
+                          icon={faFile}
+                          style={{
+                            fontSize: compactView ? "36px" : "20px",
+                            color: "#666",
+                          }}
+                        />
+                      )}
+
+                      <div
                         style={{
-                          marginTop: compactView ? 2 : 0,
-                          marginBottom: compactView ? 8 : 0,
-                          fontSize: 11,
-                          wordWrap: "break-word",
-                          textWrap: "pretty",
-                          overflowWrap: "break-word",
-                          textAlign: compactView ? "center" : "left",
+                          display: "flex",
+                          flex: 1,
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          gap: "8px",
                         }}
                       >
-                        <span>
-                          {doc.title
-                            ? dynamicPrefixDetection
-                              ? removePrefix(doc.title, documentPrefix)
-                              : improveReadabilityOfDocTitles
-                              ? improveReadability(doc.title)
-                              : doc.title
-                            : filenameShortener(doc.file)}
-                        </span>
-                      </p>
-                      {index - 1 === i && !compactView && (
-                        <span
+                        <p
                           style={{
+                            marginTop: compactView ? 2 : 0,
+                            marginBottom: compactView ? 8 : 0,
                             fontSize: 11,
-                            whiteSpace: "nowrap",
-                            color: "#222",
+                            wordWrap: "break-word",
+                            textWrap: "pretty",
+                            overflowWrap: "break-word",
+                            textAlign: compactView ? "center" : "left",
                           }}
                         >
-                          {page} / {maxIndex}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  {index - 1 === i && (
-                    <>
-                      {!compactView ? (
-                        <div
-                          style={{
-                            position: "absolute",
-                            bottom: 0,
-                            left: 0,
-                            right: 0,
-                          }}
-                        >
-                          <ProgressBar
+                          <span>
+                            {doc.title
+                              ? dynamicPrefixDetection
+                                ? removePrefix(doc.title, documentPrefix)
+                                : improveReadabilityOfDocTitles
+                                ? improveReadability(doc.title)
+                                : doc.title
+                              : filenameShortener(doc.file)}
+                          </span>
+                        </p>
+                        {index - 1 === i && !compactView && (
+                          <span
                             style={{
-                              height: "1px",
-                              width: "100%",
-                              margin: 0,
-                              borderRadius: 0,
-                            }}
-                            max={maxIndex}
-                            min={0}
-                            now={parseInt(page!)}
-                          />
-                        </div>
-                      ) : (
-                        <div style={{ width: "100%" }}>
-                          <ProgressBar
-                            style={{
-                              height: "3px",
-                              width: "100%",
-                              marginTop: 0,
-                              marginBottom: 0,
-                            }}
-                            max={maxIndex}
-                            min={0}
-                            now={parseInt(page!)}
-                          />
-                          <p
-                            style={{
-                              marginBottom: 0,
-                              textAlign: "center",
                               fontSize: 11,
+                              whiteSpace: "nowrap",
                               color: "#222",
                             }}
                           >
                             {page} / {maxIndex}
-                          </p>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </HoverDiv>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {index - 1 === i && (
+                      <>
+                        {!compactView ? (
+                          <div
+                            style={{
+                              position: "absolute",
+                              bottom: 0,
+                              left: 0,
+                              right: 0,
+                            }}
+                          >
+                            <ProgressBar
+                              style={{
+                                height: "1px",
+                                width: "100%",
+                                margin: 0,
+                                borderRadius: 0,
+                              }}
+                              max={maxIndex}
+                              min={0}
+                              now={parseInt(page!)}
+                            />
+                          </div>
+                        ) : (
+                          <div style={{ width: "100%" }}>
+                            <ProgressBar
+                              style={{
+                                height: "3px",
+                                width: "100%",
+                                marginTop: 0,
+                                marginBottom: 0,
+                              }}
+                              max={maxIndex}
+                              min={0}
+                              now={parseInt(page!)}
+                            />
+                            <p
+                              style={{
+                                marginBottom: 0,
+                                textAlign: "center",
+                                fontSize: 11,
+                                color: "#222",
+                              }}
+                            >
+                              {page} / {maxIndex}
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </HoverDiv>
+                )}
               </div>
             );
           })}
       </div>
     </div>
   );
-};
-
-export default Sidebar;
+}

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import Navbar from "./components/Navbar";
 import Sidebar, { SIDEBAR_BACKGROUND_COLOR } from "./components/Sidebar";
 import DocMap from "./components/DocMap";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { Alert } from "react-bootstrap";
 import Icon from "react-cismap/commons/Icon";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -31,6 +31,7 @@ export type Doc = {
   file: string;
   structure?: string;
   metaUrl?: string;
+  primary?: boolean;
   meta?:
     | {
         [key: `layer${number}`]: MetaLayer | undefined;
@@ -44,15 +45,25 @@ export type Doc = {
 
 /* eslint-disable-next-line */
 export interface DocumentViewerProps {
+  title?: string;
   docs: Doc[];
   mode: string;
   initialSidebarCollapsed?: boolean;
+  collapsible?: boolean;
+  initialCollapsed?: boolean;
+  dynamicPrefixDetection?: boolean;
+  improveReadabilityOfDocTitles?: boolean;
 }
 
 export function DocumentViewer({
+  title,
   docs,
   mode,
   initialSidebarCollapsed = false,
+  collapsible = true,
+  initialCollapsed = true,
+  dynamicPrefixDetection = true,
+  improveReadabilityOfDocTitles = true,
 }: DocumentViewerProps) {
   const debugDocs = JSON.parse(JSON.stringify(docs));
   for (const dd of debugDocs) {
@@ -60,6 +71,7 @@ export function DocumentViewer({
   }
 
   let { file } = useParams();
+  const routerNavigate = useNavigate();
   const collapsedSidebarWidth = 220;
   const expandedSidebarWidth = 335;
   const sideBarMinSize = 130;
@@ -162,7 +174,7 @@ export function DocumentViewer({
         }}
       >
         <Navbar
-          title={docs[parseInt(file!) - 1]?.title}
+          title={title || docs[0]?.title}
           maxIndex={pages}
           downloadUrl={docs[parseInt(file!) - 1]?.url}
           docs={docs}
@@ -171,6 +183,14 @@ export function DocumentViewer({
           currentWidthTrigger={wholeWidthTrigger}
           currentHeightTrigger={wholeHeightTrigger}
           sidebarCollapsed={sidebarCollapsed}
+          collapsedSidebarWidth={collapsedSidebarWidth}
+          expandedSidebarWidth={expandedSidebarWidth}
+          index={parseInt(file!) - 1}
+          navigate={(page: number) => {
+            const docPackageId = window.location.pathname.split("/")[2];
+            const currentFile = parseInt(file!);
+            routerNavigate(`/docs/${docPackageId}/${currentFile}/${page}`);
+          }}
         />
       </div>
 
@@ -204,8 +224,10 @@ export function DocumentViewer({
                 maxIndex={pages}
                 mode={mode}
                 compactView={sidebarCollapsed}
-                dynamicPrefixDetection={true}
-                improveReadabilityOfDocTitles={true}
+                collapsible={collapsible}
+                initialCollapsed={initialCollapsed}
+                dynamicPrefixDetection={dynamicPrefixDetection}
+                improveReadabilityOfDocTitles={improveReadabilityOfDocTitles}
               />
             </div>
             <div style={{ position: "relative" }}>
