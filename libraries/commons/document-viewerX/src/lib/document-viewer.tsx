@@ -45,6 +45,7 @@ export type Doc = {
 
 /* eslint-disable-next-line */
 export interface DocumentViewerProps {
+  title?: string;
   docs: Doc[];
   mode: string;
   initialSidebarCollapsed?: boolean;
@@ -52,6 +53,7 @@ export interface DocumentViewerProps {
 }
 
 export function DocumentViewer({
+  title,
   docs,
   mode,
   initialSidebarCollapsed = false,
@@ -165,7 +167,7 @@ export function DocumentViewer({
         }}
       >
         <Navbar
-          title={docs[parseInt(file!) - 1]?.title}
+          title={title || docs[0]?.title}
           maxIndex={pages}
           downloadUrl={docs[parseInt(file!) - 1]?.url}
           docs={docs}
