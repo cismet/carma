@@ -29,6 +29,9 @@ import { QueryClient } from "@tanstack/react-query";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 
 import { loadGazeteerEntries } from "./store/slices/gazData";
+import AlkisLandparcelPage from "./pages/AlkisLandparcelPage";
+import AlkisBookingSheetPage from "../../../verdis/desktop/src/pages/AlkisBookingSheetPage";
+import RenderNavWrapper from "./components/navigation/RenderNavWrapper";
 
 const NavBarWrapper = () => {
   const dispatch = useDispatch();
@@ -90,6 +93,22 @@ const router = createHashRouter([
   {
     path: "/login",
     element: <LoginPage />,
+  },
+  {
+    path: "/alkis-flurstueck",
+    element: (
+      <RenderNavWrapper>
+        <AlkisLandparcelPage />
+      </RenderNavWrapper>
+    ),
+  },
+  {
+    path: "/alkis-buchungsblatt",
+    element: (
+      <RenderNavWrapper>
+        <AlkisBookingSheetPage />
+      </RenderNavWrapper>
+    ),
   },
 ]);
 const queryClient = new QueryClient();
