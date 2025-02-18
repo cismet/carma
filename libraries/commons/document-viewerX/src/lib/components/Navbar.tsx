@@ -21,6 +21,11 @@ interface NavProps {
   sidebarCollapsed: boolean;
   collapsedSidebarWidth: number;
   expandedSidebarWidth: number;
+  downloadUrl?: string;
+  setWidthTrigger: any;
+  setHeightTrigger: any;
+  currentWidthTrigger?: number;
+  currentHeightTrigger?: number;
 }
 
 const Navbar = ({
@@ -32,6 +37,11 @@ const Navbar = ({
   sidebarCollapsed,
   collapsedSidebarWidth,
   expandedSidebarWidth,
+  downloadUrl,
+  setWidthTrigger,
+  setHeightTrigger,
+  currentWidthTrigger,
+  currentHeightTrigger,
 }: NavProps) => {
   const { file } = useParams();
   const [showTooltip, setShowTooltip] = useState(false);
@@ -39,6 +49,7 @@ const Navbar = ({
   const [tooltipId, setTooltipId] = useState("");
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [tooltipTarget, setTooltipTarget] = useState<any>(null);
+  const routerNavigate = useNavigate();
 
   const handleTooltipMouseEnter = (
     text: string,
@@ -156,7 +167,7 @@ const Navbar = ({
           event.preventDefault();
           // Decrement page or navigate to the last page of the previous document
           if (currentPage > 1) {
-            navigate(`/docs/${docPackageId}/${file}/${currentPage - 1}`);
+            routerNavigate(`/docs/${docPackageId}/${file}/${currentPage - 1}`);
           } else {
             if (currentFile > 1) {
               const previousDoc = docs[currentFile - 2];
@@ -165,7 +176,7 @@ const Navbar = ({
                   ? previousDoc.meta.pages ?? 1
                   : 1;
 
-              navigate(
+              routerNavigate(
                 `/docs/${docPackageId}/${currentFile - 1}/${previousFilePages}`
               );
             } else {
@@ -175,7 +186,9 @@ const Navbar = ({
                   ? lastDoc.meta.pages ?? 1
                   : 1;
 
-              navigate(`/docs/${docPackageId}/${docs.length}/${lastFilePages}`);
+              routerNavigate(
+                `/docs/${docPackageId}/${docs.length}/${lastFilePages}`
+              );
             }
           }
           break;
@@ -184,12 +197,12 @@ const Navbar = ({
           event.preventDefault();
           // Increment page or navigate to the first page of the next document
           if (currentPage < maxIndex) {
-            navigate(`/docs/${docPackageId}/${file}/${currentPage + 1}`);
+            routerNavigate(`/docs/${docPackageId}/${file}/${currentPage + 1}`);
           } else {
             if (currentFile < docs.length) {
-              navigate(`/docs/${docPackageId}/${currentFile + 1}/1`);
+              routerNavigate(`/docs/${docPackageId}/${currentFile + 1}/1`);
             } else {
-              navigate(`/docs/${docPackageId}/1/1`);
+              routerNavigate(`/docs/${docPackageId}/1/1`);
             }
           }
           break;
@@ -198,9 +211,9 @@ const Navbar = ({
           event.preventDefault();
           // Navigate to the first page of the previous document
           if (currentFile > 1) {
-            navigate(`/docs/${docPackageId}/${currentFile - 1}/1`);
+            routerNavigate(`/docs/${docPackageId}/${currentFile - 1}/1`);
           } else {
-            navigate(`/docs/${docPackageId}/${docs.length}/1`);
+            routerNavigate(`/docs/${docPackageId}/${docs.length}/1`);
           }
           break;
 
@@ -208,9 +221,9 @@ const Navbar = ({
           event.preventDefault();
           // Navigate to the first page of the next document
           if (currentFile < docs.length) {
-            navigate(`/docs/${docPackageId}/${currentFile + 1}/1`);
+            routerNavigate(`/docs/${docPackageId}/${currentFile + 1}/1`);
           } else {
-            navigate(`/docs/${docPackageId}/1/1`);
+            routerNavigate(`/docs/${docPackageId}/1/1`);
           }
           break;
 
@@ -265,7 +278,7 @@ const Navbar = ({
                   onClick={() => {
                     if (page && file)
                       if (parseInt(page) > 1) {
-                        navigate(
+                        routerNavigate(
                           `/docs/${docPackageId}/${file}/${parseInt(page) - 1}`
                         );
                       } else {
@@ -277,7 +290,7 @@ const Navbar = ({
                               ? previousDoc.meta.pages ?? 1
                               : 1;
 
-                          navigate(
+                          routerNavigate(
                             `/docs/${docPackageId}/${
                               parseInt(file) - 1
                             }/${previousFilePages}`
@@ -289,7 +302,7 @@ const Navbar = ({
                               ? lastDoc.meta.pages ?? 1
                               : 1;
 
-                          navigate(
+                          routerNavigate(
                             `/docs/${docPackageId}/${docs.length}/${lastFilePages}`
                           );
                         }
@@ -321,16 +334,16 @@ const Navbar = ({
                   onClick={() => {
                     if (page && file)
                       if (parseInt(page) < maxIndex) {
-                        navigate(
+                        routerNavigate(
                           `/docs/${docPackageId}/${file}/${parseInt(page) + 1}`
                         );
                       } else {
                         if (parseInt(file) < docs.length) {
-                          navigate(
+                          routerNavigate(
                             `/docs/${docPackageId}/${parseInt(file) + 1}/1`
                           );
                         } else {
-                          navigate(`/docs/${docPackageId}/1/1`);
+                          routerNavigate(`/docs/${docPackageId}/1/1`);
                         }
                       }
                   }}
@@ -346,47 +359,42 @@ const Navbar = ({
           <Nav className="mr-auto">
             <NavItem>
               <OverlayTrigger
-                key={"bottom"}
                 placement="bottom"
                 overlay={<Tooltip id="">an Fensterbreite anpassen</Tooltip>}
               >
-                <button
-                  style={{
-                    background: "none",
-                    border: "none",
-                    padding: 0,
-                    outline: "inherit",
-                    marginRight: "20px",
-                  }}
+                <a
+                  style={{ marginRight: "20px" }}
                   className="navItem"
                   onClick={() => {
-                    // Removed code here
+                    if (currentWidthTrigger) {
+                      setWidthTrigger(currentWidthTrigger + 1);
+                    } else {
+                      setWidthTrigger(1);
+                    }
                   }}
                 >
                   <Icon name="arrows-h" />
-                </button>
+                </a>
               </OverlayTrigger>
             </NavItem>
             <NavItem>
               <OverlayTrigger
-                key={"bottom"}
                 placement="bottom"
                 overlay={<Tooltip id="">an Fensterhöhe anpassen</Tooltip>}
               >
-                <button
-                  style={{
-                    background: "none",
-                    border: "none",
-                    padding: 0,
-                    outline: "inherit",
-                  }}
+                <a
+                  style={{ marginRight: "20px" }}
                   className="navItem"
                   onClick={() => {
-                    // Removed code here
+                    if (currentHeightTrigger) {
+                      setHeightTrigger(currentHeightTrigger + 1);
+                    } else {
+                      setHeightTrigger(1);
+                    }
                   }}
                 >
                   <Icon name="arrows-v" />
-                </button>
+                </a>
               </OverlayTrigger>
             </NavItem>
           </Nav>
@@ -398,7 +406,7 @@ const Navbar = ({
           >
             <NavItem>
               <a
-                href="/"
+                href={downloadUrl}
                 download
                 className="navItem"
                 target="_blank"
