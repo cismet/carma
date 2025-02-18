@@ -50,6 +50,7 @@ export interface DocumentViewerProps {
   mode: string;
   initialSidebarCollapsed?: boolean;
   collapsible?: boolean;
+  initialCollapsed?: boolean;
 }
 
 export function DocumentViewer({
@@ -58,6 +59,7 @@ export function DocumentViewer({
   mode,
   initialSidebarCollapsed = false,
   collapsible = true,
+  initialCollapsed = true,
 }: DocumentViewerProps) {
   const debugDocs = JSON.parse(JSON.stringify(docs));
   for (const dd of debugDocs) {
@@ -181,7 +183,7 @@ export function DocumentViewer({
           expandedSidebarWidth={expandedSidebarWidth}
           index={parseInt(file!) - 1}
           navigate={(page: number) => {
-            const docPackageId = window.location.pathname.split('/')[2];
+            const docPackageId = window.location.pathname.split("/")[2];
             const currentFile = parseInt(file!);
             routerNavigate(`/docs/${docPackageId}/${currentFile}/${page}`);
           }}
@@ -219,6 +221,7 @@ export function DocumentViewer({
                 mode={mode}
                 compactView={sidebarCollapsed}
                 collapsible={collapsible}
+                initialCollapsed={initialCollapsed}
                 dynamicPrefixDetection={true}
                 improveReadabilityOfDocTitles={true}
               />

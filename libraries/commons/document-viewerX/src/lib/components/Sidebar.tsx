@@ -18,6 +18,7 @@ interface SidebarProps {
   mode: string;
   compactView: boolean;
   collapsible?: boolean;
+  initialCollapsed?: boolean;
   dynamicPrefixDetection?: boolean;
   improveReadabilityOfDocTitles?: boolean;
 }
@@ -33,6 +34,7 @@ export default function Sidebar({
   mode,
   compactView,
   collapsible = true,
+  initialCollapsed = true,
   dynamicPrefixDetection = false,
   improveReadabilityOfDocTitles = false,
 }: SidebarProps) {
@@ -41,6 +43,28 @@ export default function Sidebar({
   const sidebarRef = useRef<HTMLDivElement>(null);
   const selectedItemRef = useRef<HTMLDivElement>(null);
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
+  const prevDocs = useRef<Doc[]>(docs);
+  const [initialized, setInitialized] = useState(false);
+
+  useEffect(() => {
+    if (initialCollapsed && !initialized && (docs !== prevDocs.current || !collapsedFolders.size)) {
+      const rootFolders = new Set<string>();
+      docs.forEach((doc) => {
+        if (doc.structure) {
+          const parts = getStructureParts(doc.structure);
+          if (parts.length > 0) {
+            const fullPath = '/' + parts[0];
+            rootFolders.add(fullPath);
+          }
+        }
+      });
+      setCollapsedFolders(rootFolders);
+      setInitialized(true);
+    } else if (!initialCollapsed && docs !== prevDocs.current) {
+      setCollapsedFolders(new Set());
+    }
+    prevDocs.current = docs;
+  }, [docs, initialCollapsed]);
 
   useEffect(() => {
     if (selectedItemRef.current && sidebarRef.current) {
@@ -234,18 +258,14 @@ export default function Sidebar({
     const currentParts = getStructureParts(currentDoc.structure);
     const prevParts = getStructureParts(prevDoc.structure);
 
-    // If the structures are completely different (new section), show all levels
-    if (prevDoc.structure !== currentDoc.structure) {
-      return currentParts.map((part, i) => ({
-        part,
-        level: i,
-      }));
-    }
-
-    // Otherwise only show levels that have changed
+    // Compare each level and only show if it's different from the previous document
     const changedLevels: { part: string; level: number }[] = [];
     for (let i = 0; i < currentParts.length; i++) {
-      if (i >= prevParts.length || currentParts[i] !== prevParts[i]) {
+      const prevPath = prevParts.slice(0, i + 1).join('/');
+      const currentPath = currentParts.slice(0, i + 1).join('/');
+      
+      if (prevPath !== currentPath) {
+        // If this level changed, we need to show it
         changedLevels.push({ part: currentParts[i], level: i });
       }
     }
@@ -294,13 +314,13 @@ export default function Sidebar({
     );
   };
 
-  const toggleFolder = (structure: string) => {
+  const toggleFolder = (path: string) => {
     setCollapsedFolders((prev) => {
       const next = new Set(prev);
-      if (next.has(structure)) {
-        next.delete(structure);
+      if (next.has(path)) {
+        next.delete(path);
       } else {
-        next.add(structure);
+        next.add(path);
       }
       return next;
     });
