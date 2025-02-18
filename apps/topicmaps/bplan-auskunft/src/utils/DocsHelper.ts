@@ -99,7 +99,7 @@ export function getDocsForBPlaeneGazetteerEntry(props: any) {
       }
       for (const doc of bplan.docs) {
         docs.push({
-          group: "Zusatzdokumente",
+          group: "/Zusatzdokumente", //docs.structure,
           file: doc.file,
           url: repairUrl(doc.url),
           title: doc.title,
