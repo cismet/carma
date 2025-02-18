@@ -60,7 +60,7 @@ export function getDocsForBPlaeneGazetteerEntry(props: any) {
           group: "rechtskraeftig",
           file: doc.file,
           url: doc.url,
-          docTitle: title,
+          title: title,
 
           layer: replaceUmlauteAndSpaces(
             repairUrl(doc.url).replace(
