@@ -171,6 +171,8 @@ export function DocumentViewer({
           currentWidthTrigger={wholeWidthTrigger}
           currentHeightTrigger={wholeHeightTrigger}
           sidebarCollapsed={sidebarCollapsed}
+          collapsedSidebarWidth={collapsedSidebarWidth}
+          expandedSidebarWidth={expandedSidebarWidth}
         />
       </div>
 

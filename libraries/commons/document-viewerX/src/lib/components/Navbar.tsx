@@ -14,43 +14,31 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 interface NavProps {
   title?: string;
-  maxIndex: number;
-  downloadUrl: string;
   docs: Doc[];
-  setWidthTrigger: any;
-  setHeightTrigger: any;
-  currentWidthTrigger?: number;
-  currentHeightTrigger?: number;
-  sidebarCollapsed?: boolean;
-  onSidebarToggle?: () => void;
+  maxIndex: number;
+  index: number;
+  navigate: (page: number) => void;
+  sidebarCollapsed: boolean;
+  collapsedSidebarWidth: number;
+  expandedSidebarWidth: number;
 }
 
 const Navbar = ({
   title,
-  maxIndex,
-  downloadUrl,
   docs,
-  setWidthTrigger,
-  setHeightTrigger,
-  currentWidthTrigger,
-  currentHeightTrigger,
-  sidebarCollapsed: externalSidebarCollapsed,
-  onSidebarToggle,
+  maxIndex,
+  index,
+  navigate,
+  sidebarCollapsed,
+  collapsedSidebarWidth,
+  expandedSidebarWidth,
 }: NavProps) => {
-  const navigate = useNavigate();
   const { file } = useParams();
   const [showTooltip, setShowTooltip] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [tooltipText, setTooltipText] = useState("");
   const [tooltipId, setTooltipId] = useState("");
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [tooltipTarget, setTooltipTarget] = useState<any>(null);
-
-  useEffect(() => {
-    if (externalSidebarCollapsed !== undefined) {
-      setSidebarCollapsed(externalSidebarCollapsed);
-    }
-  }, [externalSidebarCollapsed]);
 
   const handleTooltipMouseEnter = (
     text: string,
@@ -65,11 +53,6 @@ const Navbar = ({
 
   const handleTooltipMouseLeave = () => {
     setTooltipVisible(false);
-  };
-
-  const handleSidebarToggle = () => {
-    setSidebarCollapsed(!sidebarCollapsed);
-    onSidebarToggle?.();
   };
 
   const { docPackageId, page } = useParams();
@@ -247,15 +230,14 @@ const Navbar = ({
         marginBottom: 0,
         width: "100%",
         color: "grey",
-        paddingLeft: "20px",
-        paddingRight: "20px",
+        paddingLeft: sidebarCollapsed ? `${collapsedSidebarWidth}px` : `${expandedSidebarWidth}px`,
+        paddingRight: "50px",
       }}
       expand="lg"
     >
       <div
         style={{
-          width: "46%",
-          margin: "0 auto",
+          width: "100%",
           display: "flex",
           alignItems: "center",
         }}
@@ -378,11 +360,7 @@ const Navbar = ({
                   }}
                   className="navItem"
                   onClick={() => {
-                    if (currentWidthTrigger) {
-                      setWidthTrigger(currentWidthTrigger + 1);
-                    } else {
-                      setWidthTrigger(1);
-                    }
+                    // Removed code here
                   }}
                 >
                   <Icon name="arrows-h" />
@@ -404,11 +382,7 @@ const Navbar = ({
                   }}
                   className="navItem"
                   onClick={() => {
-                    if (currentHeightTrigger) {
-                      setHeightTrigger(currentHeightTrigger + 1);
-                    } else {
-                      setHeightTrigger(1);
-                    }
+                    // Removed code here
                   }}
                 >
                   <Icon name="arrows-v" />
@@ -424,7 +398,7 @@ const Navbar = ({
           >
             <NavItem>
               <a
-                href={downloadUrl}
+                href="/"
                 download
                 className="navItem"
                 target="_blank"
