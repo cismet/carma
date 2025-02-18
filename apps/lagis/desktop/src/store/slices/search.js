@@ -3,6 +3,10 @@ import queries from "../../core/queries/online";
 import { fetchGraphQL, fetchGraphQLFromWuNDa } from "../../core/graphql";
 import { storeGeometry, switchToLandparcel } from "./lagis";
 import { getGemarkunFlurFstckFromAlkisId } from "../../core/tools/helper";
+import {
+  landparcelForPointGeomQuery,
+  WUNDA_ENDPOINT,
+} from "../../constants/lagis";
 
 const initialState = {
   contractFlurstucke: undefined,
@@ -136,5 +140,41 @@ export const getFstckForPoint = (x, y, done) => {
       console.log("error in getFstckForPoint", e);
       done();
     }
+  };
+};
+
+export const searchWithPoints = (searchParams) => {
+  return async (dispatch, getState) => {
+    const jwt = getState().auth.jwt;
+    fetch(WUNDA_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${jwt}`,
+      },
+      body: JSON.stringify({
+        query: landparcelForPointGeomQuery,
+        variables: searchParams,
+      }),
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Network response was not ok");
+        }
+        return response.json();
+      })
+      .then((result) => {
+        const id = result.data.alkis_landparcel[0].alkis_id;
+        const baseUrl = window.location.origin + window.location.pathname;
+        console.log("xxx ids point search", id);
+        // const url = `${baseUrl}/#/alkis-flurstueck/?id=${ids}`;
+        // window.open(url, "_blank");
+      })
+      .catch((error) => {
+        console.error(
+          "There was a problem with the fetch operation:",
+          error.message
+        );
+      });
   };
 };

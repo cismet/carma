@@ -505,3 +505,12 @@ queries.getFstckForPoint = `query q($x: Float!, $y: Float!) {
   }
 }
 `;
+
+queries.landparcelForPointGeom = `
+query landparcelForPoint($x: Float!, $y: Float!) {
+  alkis_landparcel(where: {geom: {geo_field: {_st_intersects: {type: "Point", crs: {type: "name", properties: {name: "urn:ogc:def:crs:EPSG::25832"}}, coordinates: [$x, $y]}}}}) {
+    id
+    alkis_id
+  }
+}
+`;
