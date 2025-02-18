@@ -76,7 +76,7 @@ export function getDocsForAEVGazetteerEntry(props: any) {
           "https://www.wuppertal.de/geoportal/fnp_dokumente/Info_FNP-Zusatzdokumente_WUP.pdf";
         docs.push({
           group: "Zusatzdokumente",
-          structure: "/Zusatzdokumente",
+          //structure: "/Zusatzdokumente",
           title: "Info Dateinamen",
           file: "Info_FNP-Zusatzdokumente_WUP.pdf",
           url: url.replace(
