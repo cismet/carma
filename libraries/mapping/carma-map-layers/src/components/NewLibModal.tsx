@@ -794,6 +794,9 @@ export const NewLibModal = ({
   return (
     <Modal
       open={open}
+      classNames={{
+        content: "modal-content",
+      }}
       onCancel={() => {
         if (preview) {
           setPreview(false);
