@@ -287,6 +287,7 @@ const Map = ({
           )}
 
           <div className="relative flex items-center">
+            <PointSearchButton />
             <Tooltip title="Hintergrund an/aus">
               <FileImageFilled
                 className="text-lg h-6 cursor-pointer"

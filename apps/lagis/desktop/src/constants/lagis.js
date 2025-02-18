@@ -1,3 +1,4 @@
+import { gql } from "graphql-request";
 import queries from "../core/queries/online";
 
 export const REST_SERVICE_LAGIS = "https://lagis-api.cismet.de";
