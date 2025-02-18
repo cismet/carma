@@ -3,8 +3,8 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { convertLatLngToXY } from "../../tools/mappingTools";
 import { useSelector, useDispatch } from "react-redux";
-import { searchWithPoints, storeShapeMode } from "../../store/slices/search";
-import { getShapeMode } from "../../store/slices/searchMode";
+import { getShapeMode, storeShapeMode } from "../../store/slices/searchMode";
+import { searchWithPoints } from "../../store/slices/search";
 
 const PointSearch = ({ map }) => {
   const dispatch = useDispatch();
