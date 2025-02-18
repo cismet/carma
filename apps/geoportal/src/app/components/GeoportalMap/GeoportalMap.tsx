@@ -133,8 +133,15 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     "21px"
   );
 
+  const mapInteractionOverlay = addCssToOverlayHelperItem(
+    getCollabedHelpElementsConfig("CENTER", geoElements),
+    "15px",
+    "15px"
+  );
+
   useOverlayHelper(infoBoxOverlay);
   useOverlayHelper(layerButtonsOverlay);
+  useOverlayHelper(mapInteractionOverlay);
 
   useTweakpaneCtx(
     useMemo(
