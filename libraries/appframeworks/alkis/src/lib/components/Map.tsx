@@ -30,6 +30,8 @@ export const Map = <T,>({ dataIn, extractor = mockExtractor }: MapProps<T>) => {
   useEffect(() => {
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
+        console.log("xxx map width", cardRef.current?.offsetWidth);
+        console.log("xxx map height", cardRef.current?.offsetHeight);
         setMapWidth(cardRef.current?.offsetWidth ?? 0);
         setMapHeight(cardRef.current?.offsetHeight ?? 0);
       }

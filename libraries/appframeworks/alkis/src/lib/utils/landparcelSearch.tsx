@@ -114,11 +114,11 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
         </div> */}
         <div>
           <div className="font-bold mb-3">Flurstücksinformationen</div>
-          <div className="flex gap-4 w-full max-[1000px]:flex-col">
+          <div className="flex gap-8 w-full max-[1000px]:flex-col">
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(2, fit-content(300px))",
+                gridTemplateColumns: "fit-content(300px) minmax(300px, 400px)",
                 rowGap: "4px",
                 columnGap: "2rem",
                 gridAutoRows: "min-content",
@@ -155,7 +155,7 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
             </div>
             <div
               // className="w-[65%] max-[1000px]:w-[100%]"
-              className="w-[65%] max-[1000px]:w-[100%] ml-auto"
+              className="bg-blue-500 w-full"
             >
               <Map extractor={landparcelExtractor} dataIn={extentdedGeom} />
             </div>
