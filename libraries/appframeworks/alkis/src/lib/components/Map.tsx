@@ -21,7 +21,7 @@ const mockExtractor = (input) => {
 
 export const Map = <T,>({ dataIn, extractor = mockExtractor }: MapProps<T>) => {
   const data = extractor(dataIn);
-  const cardRef = useRef<HTMLDivElement | null>(null);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
   const [mapWidth, setMapWidth] = useState<number>(0);
   const [mapHeight, setMapHeight] = useState<number>(0);
 
@@ -30,15 +30,15 @@ export const Map = <T,>({ dataIn, extractor = mockExtractor }: MapProps<T>) => {
   useEffect(() => {
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        console.log("xxx map width", cardRef.current?.offsetWidth);
-        console.log("xxx map height", cardRef.current?.offsetHeight);
-        setMapWidth(cardRef.current?.offsetWidth ?? 0);
-        setMapHeight(cardRef.current?.offsetHeight ?? 0);
+        // console.log("xxx map width", wrapperRef.current?.offsetWidth);
+        // console.log("xxx map height", wrapperRef.current?.offsetHeight);
+        setMapWidth(wrapperRef.current?.offsetWidth ?? 0);
+        setMapHeight(wrapperRef.current?.offsetHeight ?? 0);
       }
     });
 
-    if (cardRef.current) {
-      resizeObserver.observe(cardRef.current);
+    if (wrapperRef.current) {
+      resizeObserver.observe(wrapperRef.current);
     }
     return () => {
       resizeObserver.disconnect();
@@ -78,11 +78,16 @@ export const Map = <T,>({ dataIn, extractor = mockExtractor }: MapProps<T>) => {
     }
   }, [routedMapRef]);
 
+  // useEffect(() => {
+  //   console.log("xxx use effect width", mapWidth);
+  //   console.log("xxx use effect hight", mapHeight);
+  // }, [mapWidth, mapHeight]);
+
   return (
-    <div ref={cardRef} className="w-full h-80">
+    <div ref={wrapperRef} className="h-80">
       <TopicMapComponent
         mapStyle={{
-          width: mapWidth,
+          width: mapWidth - 1,
           height: mapHeight + 10,
         }}
         homeZoom={data.homeZoom}

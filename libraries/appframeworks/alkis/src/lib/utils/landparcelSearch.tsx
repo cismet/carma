@@ -27,7 +27,7 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
   const geometry =
     landparcelData.data.alkis_landparcel[0].extended_geom.geo_field;
 
-  const extentdedGeom = {
+  const extendedGeom = {
     type: "Feature",
     geometry: {
       type: geometry.type,
@@ -114,7 +114,7 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
         </div> */}
         <div>
           <div className="font-bold mb-3">Flurstücksinformationen</div>
-          <div className="flex gap-10 w-full max-[1000px]:flex-col">
+          <div className="flex gap-10 max-[1000px]:flex-col">
             <div
               style={{
                 display: "grid",
@@ -155,9 +155,9 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
             </div>
             <div
               // className="w-[65%] max-[1000px]:w-[100%]"
-              className="bg-blue-500 w-full"
+              className="w-full"
             >
-              <Map extractor={landparcelExtractor} dataIn={extentdedGeom} />
+              <Map extractor={landparcelExtractor} dataIn={extendedGeom} />
             </div>
           </div>
         </div>
