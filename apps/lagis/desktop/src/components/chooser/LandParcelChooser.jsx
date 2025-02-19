@@ -96,7 +96,6 @@ const LandParcelChooser = ({
       // removeLagisStore();
     }
     const fullGemarkung = landparcelInternaDataStructure[gemarkungValue];
-
     dispatch(storeSelectedGemarkung(fullGemarkung));
     dispatch(storeSelectedFlur(undefined));
     dispatch(storeSelectedFlurstueckLabel(undefined));
@@ -228,7 +227,7 @@ const LandParcelChooser = ({
             .toLowerCase()
             .localeCompare((optionB?.label ?? "").toLowerCase())
         }
-        onKeyDown={handleKeyGemarkung}
+        // onKeyDown={handleKeyGemarkung}
         onChange={handleGemarkungChange}
         options={Object.keys(landparcelInternaDataStructure).map((key) => {
           const el = landparcelInternaDataStructure[key];
