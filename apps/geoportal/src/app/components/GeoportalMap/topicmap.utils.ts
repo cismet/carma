@@ -86,6 +86,15 @@ const MAX_ZOOM = 26;
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+let currentAbortController: AbortController | null = null;
+
+export const cancelOngoingRequests = () => {
+  if (currentAbortController) {
+    currentAbortController.abort();
+    currentAbortController = null;
+  }
+};
+
 export const onClickTopicMap = async (
   e: {
     containerPoint: Point;
@@ -139,25 +148,49 @@ export const onClickTopicMap = async (
           id: "information",
         })
       );
+      cancelOngoingRequests();
+
+      // Create new AbortController for this click
+      currentAbortController = new AbortController();
+      const signal = currentAbortController.signal;
+
+      let abortedRequests = false;
+
       const result = await Promise.all(
         queryableLayers.map(async (testLayer) => {
-          const results = allVectorInfos.filter((vi) => vi.id === testLayer.id);
-          if (testLayer.layerType === "vector" && results.length === 0) {
-            return undefined;
-          } else if (testLayer.layerType === "vector" && results.length > 0) {
-            return results;
-          }
+          try {
+            const results = allVectorInfos.filter(
+              (vi) => vi.id === testLayer.id
+            );
+            if (testLayer.layerType === "vector" && results.length === 0) {
+              return undefined;
+            } else if (testLayer.layerType === "vector" && results.length > 0) {
+              return results;
+            }
 
-          const feature = await getFeatureForLayer(testLayer, pos, [
-            e.latlng.lng,
-            e.latlng.lat,
-          ]);
+            const feature = await getFeatureForLayer(
+              testLayer,
+              pos,
+              [e.latlng.lng, e.latlng.lat],
+              signal
+            );
 
-          if (feature) {
-            return feature;
+            if (feature) {
+              return feature;
+            }
+          } catch (error) {
+            if (error.name === "AbortError") {
+              abortedRequests = true;
+              return undefined;
+            }
+            throw error;
           }
         })
       );
+
+      if (abortedRequests) {
+        return;
+      }
 
       const filteredResult = result
         .filter((feature) => feature !== undefined)
@@ -550,6 +583,7 @@ export const createCismapLayers = (
           globalHits[key] = undefined;
         }
       });
+      cancelOngoingRequests();
     }
     modeRef.current = mode;
   }, [mode]);

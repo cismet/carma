@@ -57,6 +57,7 @@ import { useTourRefCollabLabels } from "../../../hooks/useTourRefCollabLabels.ts
 import { useWindowSize } from "../../../hooks/useWindowSize.ts";
 
 import { getUrlPrefix } from "../utils";
+import { cancelOngoingRequests } from "../topicmap.utils";
 
 import {
   setFeatures,
@@ -168,10 +169,12 @@ const MapWrapper = () => {
   const { width, height } = useWindowSize(wrapperRef);
 
   const handleToggleMeasurement = () => {
+    cancelOngoingRequests();
     dispatch(toggleUIMode(UIMode.MEASUREMENT));
   };
 
   const handleToggleFeatureInfo = () => {
+    cancelOngoingRequests();
     dispatch(toggleUIMode(UIMode.FEATURE_INFO));
   };
 

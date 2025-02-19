@@ -96,7 +96,12 @@ export const createUrl = (baseUrl, pos, minimalBoxSize, layerName) => {
   return url;
 };
 
-export const getFeatureForLayer = async (layer, pos, coordinates) => {
+export const getFeatureForLayer = async (
+  layer,
+  pos: number[],
+  coordinates: number[],
+  signal?: AbortSignal
+) => {
   const props = layer.props as LayerProps;
   const minimalBoxSize = 1;
   const url = createUrl(
@@ -143,7 +148,7 @@ export const getFeatureForLayer = async (layer, pos, coordinates) => {
         .filter((line) => line.includes("function"))
         .join("\n");
     }
-    await fetch(url)
+    await fetch(url, { signal })
       .then((response) => response.text())
       .then((data) => {
         const parser = new DOMParser();
