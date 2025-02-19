@@ -3,26 +3,22 @@ import { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { getSyncLandparcel, setSyncLandparcel } from "../../store/slices/ui";
 import Settings from "../commons/Settings";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faGear } from "@fortawesome/free-solid-svg-icons";
 const UserName = ({ name = "User" }) => {
   const dispatch = useDispatch();
   const syncLandparcel = useSelector(getSyncLandparcel);
   const firstLetter = name.charAt(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
   return (
-    <div className="hidden md:block">
-      <Tooltip title="Einstellungen" placement="bottom">
-        <Avatar
-          size="small"
-          style={{
-            background: "#4ABC96",
-          }}
-          className="cursor-pointer"
+    <>
+      <Tooltip title="Einstellungen" placement="right">
+        <FontAwesomeIcon
+          icon={faGear}
+          // style={{ fontSize: "19px" }}
+          className="cursor-pointer hover:text-slate-400 text-lg hidden md:block"
           onClick={() => setDrawerOpen(true)}
-        >
-          <span className="uppercase" style={{ fontSize: "12px" }}>
-            {firstLetter}
-          </span>
-        </Avatar>
+        />
       </Tooltip>
       <Drawer
         title="Einstellungen"
@@ -33,7 +29,7 @@ const UserName = ({ name = "User" }) => {
       >
         <Settings />
       </Drawer>
-    </div>
+    </>
   );
 };
 

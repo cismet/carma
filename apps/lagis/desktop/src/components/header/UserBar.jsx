@@ -75,8 +75,8 @@ const UserBar = () => {
               }}
             />
           </Tooltip>
+          <UserName name={userLogin} />
         </div>
-        <UserName name={userLogin} />
       </div>
     </div>
   );
