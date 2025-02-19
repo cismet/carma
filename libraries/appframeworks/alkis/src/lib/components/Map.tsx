@@ -87,7 +87,7 @@ export const Map = <T,>({ dataIn, extractor = mockExtractor }: MapProps<T>) => {
     <div ref={wrapperRef} className="h-80">
       <TopicMapComponent
         mapStyle={{
-          width: mapWidth - 1,
+          width: mapWidth,
           height: mapHeight + 10,
         }}
         homeZoom={data.homeZoom}
@@ -96,7 +96,7 @@ export const Map = <T,>({ dataIn, extractor = mockExtractor }: MapProps<T>) => {
         gazetteerSearchControl={false}
         hamburgerMenu={false}
         fullScreenControl={false}
-        autoFitBounds={true}
+        // autoFitBounds={true}
         zoomControls={false}
       >
         <FeatureCollectionDisplay
