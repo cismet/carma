@@ -1,4 +1,4 @@
-import { TaskParameters } from "../..";
+import { TaskParameters } from "../../";
 import {
   landParcelSearchQuery,
   sheetSearchQuery,
@@ -42,6 +42,7 @@ export const searchLandparcelByName = async (
       //   //  i expect an error here
       // });
       setIsLoading(false);
+      setError(null);
     }
     return result;
   } catch (error) {

@@ -15,9 +15,9 @@ interface TaskParams {
   STICHTAG?: string;
 }
 
-// export interface TaskParameters {
-//   parameters: TaskParams;
-// }
+export interface TaskParameters {
+  parameters: TaskParams;
+}
 
 // export interface Name {
 //   uuid: string;
