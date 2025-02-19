@@ -89,28 +89,45 @@ export default function Sidebar({
 
   useEffect(() => {
     console.log("xxx", "checkForCollabsedFolder", collapsedFolders);
+    console.log("xxx", "current index", index);
+    console.log("xxx", "current page", page);
 
-    // First check if we have a valid index and docs
-    if (index === undefined || !docs.length || index >= docs.length) return;
+    // Adjust index to match the actual document we want
+    const currentIndex = index - 1;
+    if (
+      currentIndex === undefined ||
+      currentIndex < 0 ||
+      !docs.length ||
+      currentIndex >= docs.length
+    )
+      return;
 
-    const selectedDoc = docs[index];
+    const selectedDoc = docs[currentIndex];
+    console.log("xxx", "selected doc", selectedDoc.title);
     if (!selectedDoc?.structure) return;
 
-    // Get structure parts and expand all parent folders
     const parts = getStructureParts(selectedDoc.structure);
+    console.log("xxx", "structure", selectedDoc.structure);
+    console.log("xxx", "parts", parts);
+
+    let pathsToExpand: string[] = [];
     let currentPath = "";
+
+    for (const part of parts) {
+      currentPath = currentPath + "/" + part;
+      pathsToExpand.push(currentPath);
+    }
+
+    console.log("xxx", "paths to expand", pathsToExpand);
+    console.log("xxx", "current collapsed", Array.from(collapsedFolders));
 
     setCollapsedFolders((prev) => {
       const next = new Set(prev);
-      for (const part of parts) {
-        currentPath = currentPath + "/" + part;
-        next.delete(currentPath);
-      }
-      console.log("xxx", "checkForCollabsedFolder new", next);
-
+      pathsToExpand.forEach((path) => next.delete(path));
+      console.log("xxx", "new collapsed", Array.from(next));
       return next;
     });
-  }, [index, docs]);
+  }, [index, docs, page]);
 
   const INDENTATION_PER_LEVEL = 10; // pixels per level
   const BASE_PADDING = 6; // base padding in pixels
