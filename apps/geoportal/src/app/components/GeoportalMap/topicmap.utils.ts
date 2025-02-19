@@ -128,6 +128,17 @@ export const onClickTopicMap = async (
     }
 
     if (queryableLayers && pos[0] && pos[1]) {
+      dispatch(
+        setSelectedFeature({
+          properties: {
+            header: "Position",
+            headerColor: "#0078a8",
+            title: `${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`,
+            subtitle: "(Geogr. Breite und Länge in Dezimalgrad, ETRS89)",
+          },
+          id: "information",
+        })
+      );
       const result = await Promise.all(
         queryableLayers.map(async (testLayer) => {
           const results = allVectorInfos.filter((vi) => vi.id === testLayer.id);
