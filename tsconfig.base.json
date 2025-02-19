@@ -101,9 +101,6 @@
       "@carma-commons/document-viewer": [
         "libraries/commons/document-viewer/src/index.ts"
       ],
-      "@carma-commons/document-viewerX": [
-        "libraries/commons/document-viewerX/src/index.ts"
-      ],
       "@carma-commons/resources": ["libraries/commons/resources/src/index.ts"],
       "@carma-commons/ui/lib-helper-overlay": [
         "libraries/commons/ui/lib-helper-overlay/src/index.ts"

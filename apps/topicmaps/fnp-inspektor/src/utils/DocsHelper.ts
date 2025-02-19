@@ -1,4 +1,4 @@
-import { Doc } from "@carma-commons/document-viewerX";
+import { Doc } from "@carma-commons/document-viewer";
 
 const tileservice = "https://resources.cismet.de/tiles/";
 

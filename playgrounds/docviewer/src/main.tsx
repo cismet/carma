@@ -6,7 +6,7 @@ import {
   useParams,
   Link,
 } from "react-router-dom";
-import { DocumentViewer } from "@carma-commons/document-viewerX";
+import { DocumentViewer } from "@carma-commons/document-viewer";
 import styled from "@emotion/styled";
 
 import docs468 from "./assets/468.json";
