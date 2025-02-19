@@ -239,12 +239,20 @@ const Map = ({
     }
   }, [mapWidth, mapHeight]);
 
+  const backgroundLayerOpacities = useSelector(getBackgroundLayerOpacities);
+  const additionalLayerOpacities = useSelector(getAdditionalLayerOpacities);
+  const activeBackgroundLayer = useSelector(getActiveBackgroundLayer);
+  const activeAdditionalLayers = useSelector(getActiveAdditionalLayers);
+
+  const oldBgRef = useRef(null);
+
   useEffect(() => {
     if (
       isMapLoadingValue === false &&
       data?.featureCollection &&
       data?.featureCollection.length !== 0 &&
-      refRoutedMap?.current
+      refRoutedMap?.current &&
+      activeBackgroundLayer === oldBgRef.current
     ) {
       const map = refRoutedMap.current.leafletMap.leafletElement;
       const bb = getBoundsForFeatureArray(data?.featureCollection);
@@ -252,12 +260,16 @@ const Map = ({
         map.fitBounds(bb);
       }
     }
-  }, [data?.featureCollection, refRoutedMap.current, isMapLoadingValue]);
 
-  const backgroundLayerOpacities = useSelector(getBackgroundLayerOpacities);
-  const additionalLayerOpacities = useSelector(getAdditionalLayerOpacities);
-  const activeBackgroundLayer = useSelector(getActiveBackgroundLayer);
-  const activeAdditionalLayers = useSelector(getActiveAdditionalLayers);
+    if (activeBackgroundLayer !== oldBgRef.current) {
+      oldBgRef.current = activeBackgroundLayer;
+    }
+  }, [
+    data?.featureCollection,
+    refRoutedMap.current,
+    isMapLoadingValue,
+    activeBackgroundLayer,
+  ]);
 
   return (
     <Card
