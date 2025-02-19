@@ -57,11 +57,23 @@ const zoom = (
   const cameraPosition = camera.position;
   const distance = Cartesian3.distance(cameraPosition, pickPosition);
 
+  const maxDistance = scene.screenSpaceCameraController.maximumZoomDistance;
+  if (maxDistance === undefined || maxDistance === Number.POSITIVE_INFINITY) {
+    console.warn(
+      "Cesium maximumZoomDistance is undefined or infinite, zooming may not work as expected, set maximumZoomDistance in cesium config for ScreenSpaceCameraController"
+    );
+  }
+
   let offsetOnRay = isZoomOut
     ? -distance * moveRateFactor
     : (distance * 0.5) / moveRateFactor;
 
-  // clamp to minDistance
+  // Clamp to maxDistance
+  if (distance - offsetOnRay > maxDistance) {
+    offsetOnRay = distance - maxDistance;
+  }
+
+  // Clamp to minDistance
   if (distance - offsetOnRay < minDistance) {
     offsetOnRay = distance - minDistance;
   }
