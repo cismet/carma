@@ -26,22 +26,36 @@ export const getSheetHtml = async (jwt, name, setError, setIsLoading) => {
     setError,
     setIsLoading
   );
-  const booking = await getBookingOfficesBySheetId(name + " ", jwt);
+  const booking = await getBookingOfficesBySheetId(
+    name + " ",
+    jwt,
+    setError,
+    setIsLoading
+  );
   if (booking.data.alkis_buchungsblatt.length === 0) {
     setError("Keine Daten gefunden");
   }
 
   const isAlkisProduct = await checkPdfProductPermission(
     "csa%3A%2F%2FalkisProduct",
-    jwt
+    jwt,
+    setError,
+    setIsLoading
   );
-  const isBillingMode = await checkPdfProductPermission("billing.mode", jwt);
+  const isBillingMode = await checkPdfProductPermission(
+    "billing.mode",
+    jwt,
+    setError,
+    setIsLoading
+  );
 
   const allPdfPermission = await productsPdfWithPermission(
     jwt,
     pdfProductsSheet,
     isAlkisProduct["csa://alkisProduct@WUNDA_BLAU"],
-    isBillingMode["billing.mode@WUNDA_BLAU"]
+    isBillingMode["billing.mode@WUNDA_BLAU"],
+    setError,
+    setIsLoading
   );
 
   const bookingOff = booking.data.alkis_buchungsblatt[0].landparcelsArray;

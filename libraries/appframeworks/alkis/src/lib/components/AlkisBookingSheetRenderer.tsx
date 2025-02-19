@@ -11,10 +11,6 @@ export const AlkisBookingSheetRenderer = ({
   jwt,
   flurstueck,
 }: AlkisBookingSheetRendererProps) => {
-  //   const [searchParams] = useSearchParams();
-  //   const id = searchParams.get("id");
-  //   const flurstueck = searchParams.get("flurstueck");
-  //   const jwt = useSelector(getJWT);
   const [resHtml, setResHtml] = useState<React.ReactNode>(null);
   const [idTitle, setIdTitle] = useState(null);
   const [isLoading, setIsLoading] = useState(false);

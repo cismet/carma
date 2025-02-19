@@ -30,7 +30,7 @@ export const searchLandparcelByName = async (
 
     if (!response.ok) {
       setIsLoading(false);
-      setError(response.status);
+      // setError(response.status);
       throw new Error("Network response was not ok");
     }
 
@@ -181,7 +181,13 @@ export const getAdditionalSheetAsync = async (
   }
 };
 
-export const getBookingOfficesBySheetId = async (name, jwt) => {
+export const getBookingOfficesBySheetId = async (
+  name,
+  jwt,
+  setError,
+  setIsLoading
+) => {
+  setIsLoading(true);
   try {
     const response = await fetch(WUNDA_ENDPOINT, {
       method: "POST",
@@ -196,6 +202,7 @@ export const getBookingOfficesBySheetId = async (name, jwt) => {
     });
 
     if (!response.ok) {
+      setIsLoading(false);
       throw new Error("Network response was not ok");
     }
 
@@ -203,6 +210,8 @@ export const getBookingOfficesBySheetId = async (name, jwt) => {
 
     return result;
   } catch (error) {
+    setIsLoading(false);
+
     console.error("There was a problem with the fetch operation:");
   }
 };
