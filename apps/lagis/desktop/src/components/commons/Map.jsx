@@ -263,10 +263,14 @@ const Map = ({
     <Card
       size="small"
       hoverable={false}
-      title={<span>Karte</span>}
+      title={
+        <span>
+          <span className="mr-6">Karte</span>
+          <HoveredLandparcelInfo />
+        </span>
+      }
       extra={
         <div className="flex items-center gap-3">
-          <HoveredLandparcelInfo />
           {page && (
             <div
               className="relative flex items-center"
