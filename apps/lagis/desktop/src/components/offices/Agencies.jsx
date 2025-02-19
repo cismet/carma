@@ -25,6 +25,7 @@ const columns = [
             backgroundColor: record?.color || "transporent",
           }}
         ></span>
+        <span>{title}</span>
       </div>
     ),
     sorter: (a, b) => compare(a.type, b.type),
