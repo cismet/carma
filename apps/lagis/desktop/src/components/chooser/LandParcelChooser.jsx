@@ -62,7 +62,6 @@ const LandParcelChooser = ({
   );
 
   useEffect(() => {
-    console.log("all", all);
     if (all && all.length > 1) {
       dispatch(buildLandparcelInternalDataStructure(all, gemarkungen));
     }
