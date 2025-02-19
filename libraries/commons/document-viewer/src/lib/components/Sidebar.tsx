@@ -42,8 +42,6 @@ export default function Sidebar({
   dynamicPrefixDetection = false,
   improveReadabilityOfDocTitles = false,
 }: SidebarProps) {
-  console.log("xxx", { index });
-
   const { docPackageId, page } = useParams();
   const navigate = useNavigate();
   const sidebarRef = useRef<HTMLDivElement>(null);
@@ -88,10 +86,6 @@ export default function Sidebar({
   }, [index]);
 
   useEffect(() => {
-    console.log("xxx", "checkForCollabsedFolder", collapsedFolders);
-    console.log("xxx", "current index", index);
-    console.log("xxx", "current page", page);
-
     // Adjust index to match the actual document we want
     const currentIndex = index - 1;
     if (
@@ -103,13 +97,9 @@ export default function Sidebar({
       return;
 
     const selectedDoc = docs[currentIndex];
-    console.log("xxx", "selected doc", selectedDoc.title);
     if (!selectedDoc?.structure) return;
 
     const parts = getStructureParts(selectedDoc.structure);
-    console.log("xxx", "structure", selectedDoc.structure);
-    console.log("xxx", "parts", parts);
-
     let pathsToExpand: string[] = [];
     let currentPath = "";
 
@@ -118,13 +108,9 @@ export default function Sidebar({
       pathsToExpand.push(currentPath);
     }
 
-    console.log("xxx", "paths to expand", pathsToExpand);
-    console.log("xxx", "current collapsed", Array.from(collapsedFolders));
-
     setCollapsedFolders((prev) => {
       const next = new Set(prev);
       pathsToExpand.forEach((path) => next.delete(path));
-      console.log("xxx", "new collapsed", Array.from(next));
       return next;
     });
   }, [index, docs, page]);
@@ -570,19 +556,6 @@ export default function Sidebar({
                       onClick={() => {
                         const docsWithPrefix = Array.from(
                           prefixGroups.get(documentPrefix) || []
-                        );
-                        console.log("Documents with prefix:", documentPrefix);
-                        console.log(
-                          "Documents:",
-                          JSON.stringify(
-                            docsWithPrefix.map((d) => ({
-                              title: d.title,
-                              file: d.file,
-                              structure: d.structure,
-                            })),
-                            null,
-                            2
-                          )
                         );
                       }}
                     >
