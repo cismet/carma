@@ -8,13 +8,11 @@ import {
 
 type ZoomOptions = {
   duration: number;
-  minDistance: number;
   moveRateFactor: number;
 };
 
 const defaultZoomOptions: ZoomOptions = {
   duration: 0.5,
-  minDistance: 100,
   moveRateFactor: 1,
 };
 
@@ -22,7 +20,7 @@ const zoom = (
   viewer: Viewer,
   viewerAnimationMap: ViewerAnimationMap,
   isZoomOut = false,
-  { duration, minDistance, moveRateFactor }: ZoomOptions
+  { duration, moveRateFactor }: ZoomOptions
 ) => {
   const scene = viewer.scene;
   const camera = viewer.camera;
@@ -58,9 +56,15 @@ const zoom = (
   const distance = Cartesian3.distance(cameraPosition, pickPosition);
 
   const maxDistance = scene.screenSpaceCameraController.maximumZoomDistance;
+  const minDistance = scene.screenSpaceCameraController.minimumZoomDistance;
   if (maxDistance === undefined || maxDistance === Number.POSITIVE_INFINITY) {
     console.warn(
       "Cesium maximumZoomDistance is undefined or infinite, zooming may not work as expected, set maximumZoomDistance in cesium config for ScreenSpaceCameraController"
+    );
+  }
+  if (minDistance === undefined || minDistance === 0) {
+    console.warn(
+      "Cesium minimumZoomDistance is undefined or 0, zooming may not work as expected, set minimumZoomDistance in cesium config for ScreenSpaceCameraController"
     );
   }
 
@@ -98,6 +102,9 @@ const zoom = (
 /**
  * @param viewerRef - reference to the Cesium Viewer component
  * @param moveRateFactor - The factor by which the camera's default zoom/moveRate increment be amplified by, default 1.
+ * @param zoomOptions - Options for the zoom animation.
+ * @param zoomOptions.duration - The duration of the animation in milliseconds. Default is 0.5.
+ * @param zoomOptions.moveRateFactor - The factor by which the camera's default zoom/moveRate increment be amplified by, default 1.
  */
 
 export function useZoomControls(
