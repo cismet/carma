@@ -12,7 +12,7 @@ export function AlkisRenderer({ landparcelId, jwt }: AlkisRendererProps) {
   const [error, setError] = useState(null);
   useEffect(() => {
     const onLandparcelSearch = async (jwt, landparcelId) => {
-      setIsLoading(true);
+      // setIsLoading(true);
       setIdTitle(landparcelId);
       const landparcelHtml = await getLandparcelHtml(
         jwt,
@@ -21,7 +21,7 @@ export function AlkisRenderer({ landparcelId, jwt }: AlkisRendererProps) {
         setIsLoading
       );
       setResHtml(landparcelHtml);
-      setIsLoading(false);
+      // setIsLoading(false);
     };
     if (jwt && landparcelId) {
       onLandparcelSearch(jwt, landparcelId);

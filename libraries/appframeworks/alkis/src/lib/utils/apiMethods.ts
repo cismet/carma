@@ -52,7 +52,8 @@ export const searchLandparcelByName = async (
   }
 };
 
-export const getAdditionalSheets = (sheetId, jwt) => {
+export const getAdditionalSheets = (sheetId, jwt, setError, setIsLoading) => {
+  setIsLoading(true);
   const form = new FormData();
   let taskParameters = {
     parameters: {
@@ -82,12 +83,14 @@ export const getAdditionalSheets = (sheetId, jwt) => {
         const res = response.json();
         return res;
       } else {
+        setIsLoading(false);
         console.log(
           "xxx Error:" + response.status + " -> " + response.statusText
         );
       }
     })
     .catch((e) => {
+      setIsLoading(false);
       console.log("xxx error", e);
     })
     .then((result) => {
@@ -95,6 +98,7 @@ export const getAdditionalSheets = (sheetId, jwt) => {
       const nrCode = result.res.buchungsstellen[0].sequentialNumber;
       const legalDesc = result.res.descriptionOfRechtsgemeinschaft;
       const namesArr = result.res.namensnummern;
+      setIsLoading(false);
 
       return {
         buchungsblattcode: result.res.buchungsblattCode,
@@ -108,9 +112,19 @@ export const getAdditionalSheets = (sheetId, jwt) => {
     });
 };
 
-export const getAllAdditionalSheets = async (buchungsblattArray, jwt) => {
+export const getAllAdditionalSheets = async (
+  buchungsblattArray,
+  jwt,
+  setError,
+  setIsLoading
+) => {
   const fetchPromises = buchungsblattArray.map((b) => {
-    return getAdditionalSheets(b.alkis_buchungsblatt.buchungsblattcode, jwt);
+    return getAdditionalSheets(
+      b.alkis_buchungsblatt.buchungsblattcode,
+      jwt,
+      setError,
+      setIsLoading
+    );
   });
   const results = await Promise.all(fetchPromises);
   return results;
@@ -195,8 +209,11 @@ export const getBookingOfficesBySheetId = async (name, jwt) => {
 
 export const checkPdfProductPermission = async (
   configurationAttribute = "custom.alkis.product.flurstuecksnachweis",
-  jwt
+  jwt,
+  setError,
+  setIsLoading
 ) => {
+  setIsLoading(true);
   const url = `https://wunda-api.cismet.de/configattributes/${configurationAttribute}@WUNDA_BLAU`;
   try {
     const response = await fetch(url, {
@@ -208,13 +225,18 @@ export const checkPdfProductPermission = async (
     });
 
     if (!response.ok) {
+      setIsLoading(false);
+
       throw new Error("Network response was not ok");
     }
 
     const result = await response.json();
+    setIsLoading(false);
 
     return result;
   } catch (error) {
+    setIsLoading(false);
+
     console.error("There was a problem with the fetch operation:");
   }
 };
@@ -278,16 +300,19 @@ export const productsPdfWithPermission = async (
   jwt,
   products,
   isAlkisProduct,
-  isBillingMode
+  isBillingMode,
+  setError,
+  setIsLoading
 ) => {
   const copyProducts = JSON.parse(JSON.stringify(products));
-
   if (isAlkisProduct !== null && isBillingMode === null) {
     for (const product of copyProducts) {
       try {
         const result = await checkPdfProductPermission(
           product.configurationAttribute,
-          jwt
+          jwt,
+          setError,
+          setIsLoading
         );
         product.permission =
           result[product.configurationAttribute + "@WUNDA_BLAU"];

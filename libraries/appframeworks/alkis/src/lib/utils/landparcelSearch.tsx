@@ -39,7 +39,9 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
   const landparcel = landparcelData.data.alkis_landparcel[0];
   const sheets = await getAllAdditionalSheets(
     landparcelData.data.alkis_landparcel[0].buchungsblaetterArray,
-    jwt
+    jwt,
+    setError,
+    setIsLoading
   );
 
   const { alkis_id, flur, fstck_nenner, fstck_zaehler } =
@@ -47,15 +49,24 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
 
   const isAlkisProduct = await checkPdfProductPermission(
     "csa%3A%2F%2FalkisProduct",
-    jwt
+    jwt,
+    setError,
+    setIsLoading
   );
-  const isBillingMode = await checkPdfProductPermission("billing.mode", jwt);
+  const isBillingMode = await checkPdfProductPermission(
+    "billing.mode",
+    jwt,
+    setError,
+    setIsLoading
+  );
 
   const allPdfPermission = await productsPdfWithPermission(
     jwt,
     pdfProductsLandparcel,
     isAlkisProduct["csa://alkisProduct@WUNDA_BLAU"],
-    isBillingMode["billing.mode@WUNDA_BLAU"]
+    isBillingMode["billing.mode@WUNDA_BLAU"],
+    setError,
+    setIsLoading
   );
 
   const title = getLandparcelTitle(alkis_id, flur, fstck_nenner, fstck_zaehler);
