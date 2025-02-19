@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import Navbar from "./components/Navbar";
-import Sidebar from "./components/Sidebar";
+import Sidebar, { SIDEBAR_BACKGROUND_COLOR } from "./components/Sidebar";
 import DocMap from "./components/DocMap";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { Alert } from "react-bootstrap";
 import Icon from "react-cismap/commons/Icon";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import "leaflet/dist/leaflet.css";
 
 export type layer = {
@@ -28,7 +29,10 @@ export type Doc = {
   docTitle?: string;
   group: string;
   file: string;
-  meta:
+  structure?: string;
+  metaUrl?: string;
+  primary?: boolean;
+  meta?:
     | {
         [key: `layer${number}`]: MetaLayer | undefined;
         pages: number;
@@ -37,37 +41,48 @@ export type Doc = {
         lastModified?: string;
       }
     | string;
-  // meta: // TODO fix type here
-  // | string
-  //   | {
-  //       [key: string]: {
-  //         x: number;
-  //         y: number;
-  //         maxZoom: number;
-  //       } & {
-  //         contentLength: string;
-  //         pages: number;
-  //         _theend: number;
-  //         lastModified: string;
-  //       };
-  //     };
 };
 
 /* eslint-disable-next-line */
 export interface DocumentViewerProps {
+  title?: string;
   docs: Doc[];
   mode: string;
+  initialSidebarCollapsed?: boolean;
+  collapsible?: boolean;
+  initialCollapsed?: boolean;
+  dynamicPrefixDetection?: boolean;
+  improveReadabilityOfDocTitles?: boolean;
 }
 
-export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
+export function DocumentViewer({
+  title,
+  docs,
+  mode,
+  initialSidebarCollapsed = false,
+  collapsible = true,
+  initialCollapsed = true,
+  dynamicPrefixDetection = true,
+  improveReadabilityOfDocTitles = true,
+}: DocumentViewerProps) {
+  const debugDocs = JSON.parse(JSON.stringify(docs));
+  for (const dd of debugDocs) {
+    delete dd.meta;
+  }
+
   let { file } = useParams();
+  const routerNavigate = useNavigate();
+  const collapsedSidebarWidth = 220;
+  const expandedSidebarWidth = 335;
   const sideBarMinSize = 130;
   const mapWrapperRef = useRef<HTMLDivElement>(null);
   const [wholeWidthTrigger, setWholeWidthTrigger] = useState(undefined);
   const [wholeHeightTrigger, setWholeHeightTrigger] = useState(undefined);
   const [mapWidth, setMapWidth] = useState(0);
   const [height, setHeight] = useState(0);
-  const [compactView, setCompactView] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    initialSidebarCollapsed
+  );
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isResizingRef = useRef(false);
   let problemWithDocPreviewAlert: JSX.Element | null = null;
@@ -126,18 +141,9 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
     if (!isResizingRef.current) return;
 
     let newWidth = event.clientX;
+    const threshold = (collapsedSidebarWidth + expandedSidebarWidth) / 2;
 
-    if (newWidth < sideBarMinSize) newWidth = sideBarMinSize;
-    if (newWidth > 400) newWidth = 400;
-
-    if (sidebarRef.current) {
-      sidebarRef.current.style.width = `${newWidth}px`;
-      if (newWidth === 400) {
-        setCompactView(false);
-      } else {
-        setCompactView(true);
-      }
-    }
+    setSidebarCollapsed(newWidth < threshold);
   };
 
   const handleMouseUp = () => {
@@ -152,6 +158,14 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
     }
   }, [mapWrapperRef]);
 
+  useEffect(() => {
+    if (sidebarRef.current) {
+      sidebarRef.current.style.width = `${
+        sidebarCollapsed ? collapsedSidebarWidth : expandedSidebarWidth
+      }px`;
+    }
+  }, [sidebarCollapsed]);
+
   return (
     <div style={{ background: "#343a40", height: "100vh" }}>
       <div
@@ -160,14 +174,23 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
         }}
       >
         <Navbar
-          title={docs[0]?.title || docs[0]?.docTitle || "Dokumentenansicht"}
+          title={title || docs[0]?.title}
           maxIndex={pages}
           downloadUrl={docs[parseInt(file!) - 1]?.url}
           docs={docs}
-          setHeightTrigger={setWholeHeightTrigger}
           setWidthTrigger={setWholeWidthTrigger}
-          currentHeightTrigger={wholeHeightTrigger}
+          setHeightTrigger={setWholeHeightTrigger}
           currentWidthTrigger={wholeWidthTrigger}
+          currentHeightTrigger={wholeHeightTrigger}
+          sidebarCollapsed={sidebarCollapsed}
+          collapsedSidebarWidth={collapsedSidebarWidth}
+          expandedSidebarWidth={expandedSidebarWidth}
+          index={parseInt(file!) - 1}
+          navigate={(page: number) => {
+            const docPackageId = window.location.pathname.split("/")[2];
+            const currentFile = parseInt(file!);
+            routerNavigate(`/docs/${docPackageId}/${currentFile}/${page}`);
+          }}
         />
       </div>
 
@@ -184,39 +207,76 @@ export function DocumentViewer({ docs, mode }: DocumentViewerProps) {
         }}
       >
         {docs.length > 1 && (
-          <div
-            id="sidebar"
-            style={{
-              background: "rgb(153, 153, 153)",
-              height: mapHeight,
-              // width: sidebarWidth,
-              padding: "5px 1px 5px 5px",
-              overflow: "scroll",
-            }}
-            ref={sidebarRef}
-          >
-            <Sidebar
-              docs={docs}
-              index={parseInt(file!)}
-              // TODO fix type
-              maxIndex={pages}
-              mode={mode}
-              compactView={compactView}
-            />
-          </div>
+          <>
+            <div
+              id="sidebar"
+              style={{
+                background: SIDEBAR_BACKGROUND_COLOR,
+                height: mapHeight,
+                padding: "5px 5px 5px 5px",
+                overflow: "scroll",
+              }}
+              ref={sidebarRef}
+            >
+              <Sidebar
+                docs={docs}
+                index={parseInt(file!)}
+                maxIndex={pages}
+                mode={mode}
+                compactView={sidebarCollapsed}
+                collapsible={collapsible}
+                initialCollapsed={initialCollapsed}
+                dynamicPrefixDetection={dynamicPrefixDetection}
+                improveReadabilityOfDocTitles={improveReadabilityOfDocTitles}
+              />
+            </div>
+            <div style={{ position: "relative" }}>
+              <button
+                style={{
+                  position: "absolute",
+                  right: "-7.5px",
+                  top: "-15px",
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  outline: "inherit",
+                  zIndex: 1000,
+                  cursor: "pointer",
+                  height: "30px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              >
+                <FontAwesomeIcon
+                  icon={
+                    sidebarCollapsed
+                      ? "chevron-circle-right"
+                      : "chevron-circle-left"
+                  }
+                  style={{
+                    color: "#666",
+                    fontSize: "20px",
+                    backgroundColor: "white",
+                    borderRadius: "50%",
+                    boxShadow: "0 0 2px rgba(0,0,0,0.2)",
+                  }}
+                />
+              </button>
+              <div
+                id="sidebar-slider"
+                style={{
+                  background: "#999999",
+                  height: mapHeight,
+                  width: 5,
+                  cursor: "col-resize",
+                }}
+                onMouseDown={handleMouseDown}
+              ></div>
+            </div>
+          </>
         )}
-        <div
-          id="sidebar-slider"
-          style={{
-            background: "#999999",
-            height: mapHeight,
-            width: 10,
-            cursor: "col-resize",
-          }}
-          onMouseDown={handleMouseDown}
-          // onTouchStart={startResizing}
-          // onTouchEnd={stopResizing}
-        ></div>
         <div
           id="docviewer"
           style={{
