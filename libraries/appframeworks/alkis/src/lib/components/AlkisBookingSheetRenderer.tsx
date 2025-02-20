@@ -89,7 +89,7 @@ export const AlkisBookingSheetRenderer = ({
               className="mt-3"
               title={
                 <span>
-                  <span>"Buchungsblatt-Renderer</span>
+                  <span>Buchungsblatt-Renderer</span>
                   {isLoading && (
                     <Spin
                       indicator={<LoadingOutlined spin />}
