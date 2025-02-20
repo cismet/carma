@@ -18,7 +18,7 @@ import {
 import PdfDocumentLoader from "../components/PdfDocumentLoader";
 import { Map } from "../components/Map";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
-import { Breadcrumb } from "antd";
+import { Breadcrumb, Divider } from "antd";
 
 export const getSheetHtml = async (
   jwt,
@@ -98,22 +98,27 @@ export const getSheetHtml = async (
     <TopicMapContextProvider appKey="verdis-desktop-render.map">
       <div>
         <CustomCard
-          title="Buchungsblatt-Renderer"
-          extra={
-            <Breadcrumb className="mr-2">
-              <Breadcrumb.Item
-                href={`/#/alkis-flurstueck?id=${flurstueck}`}
-                className="text-primary hover:bg-transparent"
-              >
-                <span>{flurstueck}</span>{" "}
-              </Breadcrumb.Item>
-              <Breadcrumb.Item>
-                <span>{name}</span>
-              </Breadcrumb.Item>
-            </Breadcrumb>
+          style={{ marginBottom: "1rem" }}
+          title={
+            <div className="flex gap-4 items-center">
+              <div>Buchungsblatt</div>
+              <Breadcrumb className="mr-2">
+                <Breadcrumb.Item
+                  href={`/#/alkis-flurstueck?id=${flurstueck}`}
+                  className="text-primary hover:bg-transparent"
+                >
+                  <span>{flurstueck}</span>{" "}
+                </Breadcrumb.Item>
+                <Breadcrumb.Item>
+                  <span>{name}</span>
+                </Breadcrumb.Item>
+              </Breadcrumb>
+            </div>
           }
         >
-          <CustomCard style={{ marginBottom: "1rem" }} title="Buchungsblatt">
+          <div>
+            <div className="font-bold mb-3">Buchungsblattinformationen</div>
+
             <div className="flex gap-4 w-full  max-[970px]:flex-col">
               <div className="w-[30%] min-w-">
                 <div>
@@ -135,57 +140,54 @@ export const getSheetHtml = async (
                 <Map extractor={additionalSheetExtractor} dataIn={geometry} />
               </div>
             </div>
-          </CustomCard>
-          <CustomCard style={{ marginBottom: "1rem" }} title="Eigentümer">
+
+            <Divider />
+            <div className="font-bold mb-1">Eigentümer</div>
             <AdditionalSheet
               owners={sheetData.res.owners}
               namesArr={sheetData.res.namensnummern}
               legalDesc={sheetData.res.descriptionOfRechtsgemeinschaft}
             />
-          </CustomCard>
-          <CustomCard
-            title="Buchungsstellen und Flurstücke"
-            style={{ marginBottom: "1rem" }}
-          >
-            <div>
-              {bookingOff.map((o, idx) => {
-                const bookingArr = getBookingByLandparcelCode(
-                  o.alkis_buchungsblatt_landparcel.landparcelcode,
-                  sheetData.res.buchungsstellen
-                );
+          </div>
+          <Divider />
+          <div className="font-bold mb-1">Buchungsstellen und Flurstücke</div>
+          <div>
+            {bookingOff.map((o, idx) => {
+              const bookingArr = getBookingByLandparcelCode(
+                o.alkis_buchungsblatt_landparcel.landparcelcode,
+                sheetData.res.buchungsstellen
+              );
 
-                const color = bookingColors[idx % bookingColors.length];
+              const color = bookingColors[idx % bookingColors.length];
 
-                return (
-                  <div
-                    key={idx}
-                    className="flex items-center gap-2 cursor-pointer"
-                  >
-                    <span
-                      className="w-1 h-10"
-                      style={{ background: color }}
-                    ></span>
-                    <span className="mr-1">
-                      {o.alkis_buchungsblatt_landparcel.lfn}
-                    </span>
-                    <span>
-                      {o.alkis_buchungsblatt_landparcel.landparcelcode}
-                    </span>
-                    <span>
-                      {bookingArr.length === 1 &&
-                        getAdditionalTextForBooking(bookingArr[0], bookingType)}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </CustomCard>
-          <PdfDocumentLoader
-            loadingCode={sheetCode}
-            allPdfPermission={allPdfPermission}
-            jwt={jwt}
-          />
+              return (
+                <div
+                  key={idx}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
+                  <span
+                    className="w-1 h-10"
+                    style={{ background: color }}
+                  ></span>
+                  <span className="mr-1">
+                    {o.alkis_buchungsblatt_landparcel.lfn}
+                  </span>
+                  <span>{o.alkis_buchungsblatt_landparcel.landparcelcode}</span>
+                  <span>
+                    {bookingArr.length === 1 &&
+                      getAdditionalTextForBooking(bookingArr[0], bookingType)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </CustomCard>
+
+        <PdfDocumentLoader
+          loadingCode={sheetCode}
+          allPdfPermission={allPdfPermission}
+          jwt={jwt}
+        />
       </div>
     </TopicMapContextProvider>
   );
