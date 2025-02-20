@@ -96,9 +96,11 @@ export interface LandparcelInfoProps {
   gemarkung: string;
   addresses: Addresses[];
   size: number;
-  extendedGeom: any[];
+  extendedGeom: any;
   sheetsCode: SheetsCode[];
   alkisId: string;
+  setIsLoading?: React.Dispatch<React.SetStateAction<boolean>>;
+  isLoading: string;
 }
 
 interface Addresses {

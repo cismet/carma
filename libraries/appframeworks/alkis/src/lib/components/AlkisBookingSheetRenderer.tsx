@@ -2,9 +2,10 @@ import React from "react";
 import { useEffect, useState } from "react";
 import { InfoBar } from "../components/InfoBar";
 import { getSheetHtml } from "../utils/bookingSheetSearch";
-import { Breadcrumb, Spin } from "antd";
+import { Breadcrumb, Skeleton, Spin } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { AlkisBookingSheetRendererProps } from "../..";
+import { CustomCard } from "./CustomCard";
 
 export const AlkisBookingSheetRenderer = ({
   id,
@@ -74,9 +75,23 @@ export const AlkisBookingSheetRenderer = ({
           className="py-1"
         />
 
-        <div className="">
-          {idTitle && !isLoading && (
+        <div>
+          {!isLoading ? (
             <div className="my-1">{resHtml && <div>{resHtml}</div>}</div>
+          ) : (
+            <CustomCard
+              // className="h-[calc(90%-18px)]"
+              className="h-[600px]"
+              title={
+                <Spin
+                  indicator={<LoadingOutlined spin />}
+                  size="small"
+                  className="ml-2"
+                />
+              }
+            >
+              <Skeleton />
+            </CustomCard>
           )}
         </div>
       </div>

@@ -16,7 +16,14 @@ import { CustomCard } from "../components/CustomCard";
 import { Map } from "../components/Map";
 import { Link } from "react-router-dom";
 import PdfDocumentLoader from "../components/PdfDocumentLoader";
-export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
+import { LandparcelInfo } from "../components/LandparcelInfo";
+export const getLandparcelHtml = async (
+  jwt,
+  name,
+  setError,
+  setIsLoading,
+  isLoading
+) => {
   const landparcelData = await searchLandparcelByName(
     name,
     jwt,
@@ -73,91 +80,18 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
 
   return (
     <>
-      <CustomCard title={title} style={{ marginBottom: "1rem" }}>
-        <div>
-          <div className="font-bold mb-3">Flurstücksinformationen</div>
-          <div className="flex gap-10 max-[1000px]:flex-col">
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "max-content max-content",
-                rowGap: "4px",
-                columnGap: "2rem",
-                gridAutoRows: "min-content",
-              }}
-            >
-              <div>Flurstückenzeichen:</div>
-              <div>{name}</div>
-              <div>Gemeinde:</div>
-              <div>Wuppertal</div>
-              <div>Gemarkung:</div>
-              <div>{landparcel.gemarkung}</div>
-              <div>Lage:</div>
-              <div>
-                <div style={{ display: "flex", gap: "0.4rem" }}>
-                  <div className="">
-                    {landparcel.adressenArray.map((a, idx) => {
-                      const number = a.alkis_adresse.nummer;
-                      const street = a.alkis_adresse.strasse;
-                      return (
-                        <div key={idx}>
-                          <span>
-                            {number ? street + ", " : street} {number && number}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-              <div>Größe:</div>
-              <div>
-                {landparcel.groesse} m<sup>2</sup>
-              </div>
-            </div>
-            <div className="w-full">
-              <Map extractor={landparcelExtractor} dataIn={extendedGeom} />
-            </div>
-          </div>
-        </div>
-        <Divider />
-        <div className="font-bold">Buchungsblätter</div>
-        <Tabs
-          defaultActiveKey="0"
-          tabPosition="left"
-          destroyInactiveTabPane={true}
-          items={sheets.map((b, i) => {
-            const id = String(i);
-            return {
-              label: (
-                <div style={{ padding: "4px 10px" }} className="text-primary">
-                  {b.buchungsblattcode}
-                </div>
-              ),
-              key: id,
-              children: (
-                <div style={{ display: "flex", gap: "1.6rem" }}>
-                  <div style={{ marginRight: "4rem" }}>
-                    <div>Nr. {b.content.nrCode} auf</div>
-                    <div>
-                      <Link
-                        to={`/alkis-buchungsblatt?id=${b.buchungsblattcode.trim()}&flurstueck=${alkis_id}`}
-                      >
-                        <div className="text-primary">{`${b.buchungsblattcode}`}</div>
-                      </Link>
-                    </div>
-                  </div>
-                  <AdditionalSheet
-                    owners={b.content.owners}
-                    namesArr={b.content.namesArr}
-                    legalDesc={b.content.legalDesc}
-                  />
-                </div>
-              ),
-            };
-          })}
-        />
-      </CustomCard>
+      <LandparcelInfo
+        title={title}
+        addresses={landparcel.adressenArray}
+        alkisId={alkis_id}
+        extendedGeom={extendedGeom}
+        gemarkung={landparcel.gemarkung}
+        name={name}
+        sheetsCode={sheets}
+        size={landparcel.groesse}
+        isLoading={isLoading}
+      />
+
       <PdfDocumentLoader
         loadingCode={alkis_id}
         allPdfPermission={allPdfPermission}

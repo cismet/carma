@@ -16,9 +16,13 @@ export const LandparcelInfo = ({
   extendedGeom,
   sheetsCode,
   alkisId,
+  isLoading,
 }: LandparcelInfoProps) => {
   return (
-    <CustomCard title={title} style={{ marginBottom: "1rem" }}>
+    <CustomCard
+      title={isLoading ? "loading" : title}
+      style={{ marginBottom: "1rem" }}
+    >
       <div>
         <div className="font-bold mb-3">Flurstücksinformationen</div>
         <div className="flex gap-10 max-[1000px]:flex-col">
