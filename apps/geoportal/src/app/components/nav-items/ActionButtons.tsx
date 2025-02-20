@@ -33,7 +33,11 @@ import {
   getIsLoading,
   getPrintError,
 } from "../../store/slices/print";
-import { setShowResourceModal, setZenMode } from "../../store/slices/ui";
+import {
+  setShowResourceModal,
+  setUIMode,
+  setZenMode,
+} from "../../store/slices/ui";
 import ShareContent from "../ShareContent";
 import Print from "../map-print/Print";
 
@@ -143,6 +147,7 @@ const ActionButtons = () => {
           className={`text-xl hover:text-gray-600`}
           onClick={() => {
             dispatch(setZenMode(true));
+            dispatch(setUIMode("default"));
           }}
           data-test-id="zen-mode-btn"
         >
