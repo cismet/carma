@@ -9,6 +9,7 @@ import { getBoundsForFeatureArray } from "../utils/mappingTools";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent.js";
 import { LatLngBounds } from "leaflet";
 import { MapProps } from "../..";
+import { useLocation } from "react-router-dom";
 
 const mockExtractor = (input) => {
   return {
@@ -26,6 +27,8 @@ export const Map = <T,>({ dataIn, extractor = mockExtractor }: MapProps<T>) => {
   const [mapHeight, setMapHeight] = useState<number>(0);
 
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
+  const browserlocation = useLocation();
+  const urlSearchParams = new URLSearchParams(browserlocation.search);
 
   useEffect(() => {
     const resizeObserver = new ResizeObserver((entries) => {
@@ -98,6 +101,7 @@ export const Map = <T,>({ dataIn, extractor = mockExtractor }: MapProps<T>) => {
         fullScreenControl={false}
         // autoFitBounds={true}
         zoomControls={false}
+        urlSearchParams={urlSearchParams}
       >
         <FeatureCollectionDisplay
           featureCollection={data.featureCollection}
