@@ -89,30 +89,42 @@ export const AlkisBookingSheetRenderer = ({
               className="mt-3"
               title={
                 <span>
-                  <span>{error ? error : "Buchungsblatt-Renderer"}</span>
-                  <Spin
-                    indicator={<LoadingOutlined spin />}
-                    size="small"
-                    className="ml-2"
-                  />
+                  <span>"Buchungsblatt-Renderer</span>
+                  {isLoading && (
+                    <Spin
+                      indicator={<LoadingOutlined spin />}
+                      size="small"
+                      className="ml-2"
+                    />
+                  )}
                 </span>
               }
             >
-              <CustomCard className="mb-4" title="Buchungsblatt">
+              {!error && (
+                <>
+                  <CustomCard className="mb-4" title="Buchungsblatt">
+                    <Skeleton />
+                  </CustomCard>
+                  <CustomCard className="mb-4" title="Eigentümer">
+                    <Skeleton />
+                  </CustomCard>
+                  <CustomCard
+                    className="mb-4"
+                    title="Buchungsstellen und Flurstücke"
+                  >
+                    <Skeleton />
+                  </CustomCard>
+                  <CustomCard className="mb-4" title="PDF-Produkte">
+                    <Skeleton />
+                  </CustomCard>
+                </>
+              )}
+
+              {error ? (
+                <span className="text-red-600">{error}</span>
+              ) : (
                 <Skeleton />
-              </CustomCard>
-              <CustomCard className="mb-4" title="Eigentümer">
-                <Skeleton />
-              </CustomCard>
-              <CustomCard
-                className="mb-4"
-                title="Buchungsstellen und Flurstücke"
-              >
-                <Skeleton />
-              </CustomCard>
-              <CustomCard className="mb-4" title="PDF-Produkte">
-                <Skeleton />
-              </CustomCard>
+              )}
             </CustomCard>
           )}
         </div>

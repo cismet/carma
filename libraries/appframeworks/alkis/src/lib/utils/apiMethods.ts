@@ -136,6 +136,8 @@ export const getAdditionalSheetAsync = async (
   setError,
   setIsLoading
 ) => {
+  setIsLoading(true);
+
   const form = new FormData();
   const taskParameters = {
     parameters: {
@@ -169,14 +171,14 @@ export const getAdditionalSheetAsync = async (
       return result;
     } else {
       setIsLoading(false);
-      setError(response.status);
+      setError("Fehler: Keine Daten gefunden");
       console.log(
         "xxx Error: " + response.status + " -> " + response.statusText
       );
     }
   } catch (error) {
     setIsLoading(false);
-    setError("Error text");
+    setError("Fehler: Keine Daten gefunden");
     console.log("xxx error", error);
   }
 };

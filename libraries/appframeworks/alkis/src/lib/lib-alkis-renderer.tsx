@@ -56,8 +56,13 @@ export function AlkisRenderer({ landparcelId, jwt }: AlkisRendererProps) {
                     </>
                   }
                 >
-                  {error ? error : <Skeleton />}
+                  {error ? (
+                    <span className="text-red-600">{error}</span>
+                  ) : (
+                    <Skeleton />
+                  )}
                 </CustomCard>
+
                 {!error && (
                   <CustomCard title="PDF-Produkte">
                     <Skeleton />
