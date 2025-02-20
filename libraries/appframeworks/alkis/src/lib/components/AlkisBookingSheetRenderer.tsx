@@ -120,11 +120,7 @@ export const AlkisBookingSheetRenderer = ({
                 </>
               )}
 
-              {error ? (
-                <span className="text-red-600">{error}</span>
-              ) : (
-                <Skeleton />
-              )}
+              {error && <span className="text-red-600">{error}</span>}
             </CustomCard>
           )}
         </div>
