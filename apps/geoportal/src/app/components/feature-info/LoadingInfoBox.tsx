@@ -49,7 +49,16 @@ const LoadingInfoBox = () => {
       currentFeature={{}}
       hideNavigator={true}
       headerColor="#0078a8"
-      title={<div className="w-24 h-5 bg-zinc-400 rounded-md animate-pulse" />}
+      title={
+        <div className="w-full flex items-center justify-between">
+          <div className="w-24 h-5 bg-zinc-400 rounded-md animate-pulse" />
+          <div className="-mr-3 flex gap-2">
+            <div className="w-6 h-6 bg-zinc-400 rounded-md animate-pulse" />
+            <div className="w-6 h-6 bg-zinc-400 rounded-md animate-pulse" />
+            <div className="w-6 h-6 bg-zinc-400 rounded-md animate-pulse" />
+          </div>
+        </div>
+      }
       additionalInfo={
         '<html><div className="w-56 h-4 bg-zinc-400 rounded-md animate-pulse" /></html>'
       }
