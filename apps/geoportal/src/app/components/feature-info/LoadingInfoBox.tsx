@@ -12,7 +12,7 @@ const LoadingInfoBox = () => {
         '<html><div className="w-56 h-4 bg-zinc-400 rounded-md animate-pulse" /></html>'
       }
       subtitle={
-        <div className="w-36 h-2 bg-zinc-400 rounded-md animate-pulse" />
+        <div className="w-36 h-2 bg-zinc-400 rounded-md animate-pulse mb-4" />
       }
       header="Laden"
     />
