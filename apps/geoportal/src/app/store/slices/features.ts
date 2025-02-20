@@ -18,6 +18,7 @@ const initialState: FeatureInfoState = {
   selectedFeature: null,
   vectorInfo: undefined,
   vectorInfos: [],
+  loading: false,
 };
 
 const slice = createSlice({
@@ -121,6 +122,9 @@ const slice = createSlice({
     clearSecondaryInfoBoxElements(state) {
       state.secondaryInfoBoxElements = [];
     },
+    setLoading(state, action: PayloadAction<boolean>) {
+      state.loading = action.payload;
+    },
   },
 });
 
@@ -153,6 +157,7 @@ export const {
   setSecondaryInfoBoxElements,
   updateSecondaryInfoBoxElements,
   clearSecondaryInfoBoxElements,
+  setLoading,
 } = slice.actions;
 
 export const getFeatures = (state: RootState) => state.features.features;
@@ -167,5 +172,6 @@ export const getSecondaryInfoBoxElements = (state: RootState) =>
   state.features.secondaryInfoBoxElements;
 export const getVectorInfo = (state: RootState) => state.features.vectorInfo;
 export const getVectorInfos = (state: RootState) => state.features.vectorInfos;
+export const getLoading = (state: RootState) => state.features.loading;
 
 export default slice.reducer;

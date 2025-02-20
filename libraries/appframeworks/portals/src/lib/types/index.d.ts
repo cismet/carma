@@ -164,4 +164,5 @@ export interface FeatureInfoState {
   vectorInfo: any;
   vectorInfos: FeatureInfo[];
   nothingFoundIDs: string[];
+  loading: boolean;
 }

@@ -66,6 +66,7 @@ import { createCismapLayers, onClickTopicMap } from "./topicmap.utils.ts";
 
 import store from "../../store/index.ts";
 import {
+  getLoading,
   getSelectedFeature,
   setFeatures,
   setPreferredLayerId,
@@ -83,6 +84,7 @@ import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 
 import "../leaflet.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
+import LoadingInfoBox from "../feature-info/LoadingInfoBox.tsx";
 
 interface MapProps {
   height: number;
@@ -113,6 +115,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
   const showHamburgerMenu = useSelector(getShowHamburgerMenu);
   const selectedFeature = useSelector(getSelectedFeature);
+  const loadingFeatureInfo = useSelector(getLoading);
   const {
     viewerRef,
     viewerAnimationMapRef,
@@ -296,7 +299,11 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
         return <InfoBoxMeasurement key={uiMode} />;
       }
       if (selectedFeature) {
-        return <FeatureInfoBox pos={pos} />;
+        return loadingFeatureInfo ? (
+          <LoadingInfoBox />
+        ) : (
+          <FeatureInfoBox pos={pos} />
+        );
       }
     }
     return <div></div>;

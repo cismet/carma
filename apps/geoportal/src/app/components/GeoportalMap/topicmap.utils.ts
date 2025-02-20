@@ -28,6 +28,7 @@ import {
   removeNothingFoundID,
   setFeatures,
   setInfoTextToNothingFound,
+  setLoading,
   setSecondaryInfoBoxElements,
   setSelectedFeature,
   setVectorInfo,
@@ -137,6 +138,7 @@ export const onClickTopicMap = async (
     }
 
     if (queryableLayers && pos[0] && pos[1]) {
+      dispatch(setLoading(true));
       dispatch(
         setSelectedFeature({
           properties: {
@@ -187,6 +189,8 @@ export const onClickTopicMap = async (
           }
         })
       );
+
+      dispatch(setLoading(false));
 
       if (abortedRequests) {
         return;
