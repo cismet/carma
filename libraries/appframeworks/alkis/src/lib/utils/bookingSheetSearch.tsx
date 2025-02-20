@@ -100,23 +100,17 @@ export const getSheetHtml = async (
         <CustomCard
           title="Buchungsblatt-Renderer"
           extra={
-            <Breadcrumb
-              className="mr-2"
-              items={[
-                {
-                  title: ":flurstueck",
-                  href: `/#/alkis-flurstueck?id=${flurstueck}`,
-                },
-                {
-                  title: ":name",
-                  href: "",
-                },
-              ]}
-              params={{
-                name,
-                flurstueck,
-              }}
-            />
+            <Breadcrumb className="mr-2">
+              <Breadcrumb.Item
+                href={`/#/alkis-flurstueck?id=${flurstueck}`}
+                className="text-primary hover:bg-transparent"
+              >
+                <span>{flurstueck}</span>{" "}
+              </Breadcrumb.Item>
+              <Breadcrumb.Item>
+                <span>{name}</span>
+              </Breadcrumb.Item>
+            </Breadcrumb>
           }
         >
           <CustomCard style={{ marginBottom: "1rem" }} title="Buchungsblatt">
