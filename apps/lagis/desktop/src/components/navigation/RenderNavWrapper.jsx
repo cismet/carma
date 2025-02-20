@@ -14,7 +14,7 @@ const RenderNavWrapper = ({ children }) => {
               alt="LagIS-online"
               style={{ width: "28px" }}
             />
-            <span>LagIS-online</span>
+            <span>LagIS-online - ALKIS Auskunft</span>
           </div>
         </div>
       </header>
