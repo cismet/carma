@@ -89,3 +89,33 @@ export interface MapProps<T> {
   dataIn: T;
   extractor?: (input: T) => MapExtractorResult;
 }
+
+export interface LandparcelInfoProps {
+  title: string;
+  name: string;
+  gemarkung: string;
+  addresses: Addresses[];
+  size: number;
+  extendedGeom: any[];
+  sheetsCode: SheetsCode[];
+  alkisId: string;
+}
+
+interface Addresses {
+  alkis_adresse: {
+    nummer: string;
+    strasse: string;
+  };
+}
+
+interface SheetsCode {
+  buchungsblattcode: string;
+  content: AdditionalSheetContent;
+}
+
+interface AdditionalSheetContent {
+  owners: Owner[];
+  namesArr: Name[];
+  legalDesc?: string;
+  nrCode: string;
+}

@@ -70,59 +70,10 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
   );
 
   const title = getLandparcelTitle(alkis_id, flur, fstck_nenner, fstck_zaehler);
-  const lage = landparcel.adressenArray[0].alkis_adresse.strasse;
-
-  const wrapStyle = { display: "flex" };
-  const colStyle = { width: "35%" };
 
   return (
     <>
       <CustomCard title={title} style={{ marginBottom: "1rem" }}>
-        {/* <div className="flex gap-4 w-full max-[1000px]:flex-col">
-          <div className="w-[35%]">
-            <div className="font-bold mb-3">Flurstücksinformationen</div>
-            <div className="w-[500px]">
-              <div style={wrapStyle}>
-                <div style={colStyle}>Flurstückenzeichen:</div>
-                <div style={colStyle}>{name}</div>
-              </div>
-              <div style={wrapStyle}>
-                <div style={colStyle}>Gemeinde:</div>
-                <div>Wuppertal</div>
-              </div>
-              <div style={wrapStyle}>
-                <div style={colStyle}>Gemarkung:</div>
-                <div>{landparcel.gemarkung}</div>
-              </div>
-              <div style={wrapStyle}>
-                <div style={colStyle}>Lage:</div>
-                <div style={{ display: "flex", gap: "0.4rem" }}>
-                  <div>{lage}</div>
-                  {landparcel.adressenArray[0].alkis_adresse.nummer &&
-                    landparcel.adressenArray.map((a, idx) => {
-                      const nummer = a.alkis_adresse.nummer;
-                      return (
-                        <div key={idx}>
-                          {idx !== landparcel.adressenArray.length - 1
-                            ? nummer.trim() + ","
-                            : nummer.trim()}
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-              <div style={wrapStyle}>
-                <div style={colStyle}>Größe:</div>
-                <div>
-                  {landparcel.groesse} m<sup>2</sup>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="w-[65%] max-[1000px]:w-[100%]">
-            <Map extractor={landparcelExtractor} dataIn={extentdedGeom} />
-          </div>
-        </div> */}
         <div>
           <div className="font-bold mb-3">Flurstücksinformationen</div>
           <div className="flex gap-10 max-[1000px]:flex-col">
@@ -164,10 +115,7 @@ export const getLandparcelHtml = async (jwt, name, setError, setIsLoading) => {
                 {landparcel.groesse} m<sup>2</sup>
               </div>
             </div>
-            <div
-              // className="w-[65%] max-[1000px]:w-[100%]"
-              className="w-full"
-            >
+            <div className="w-full">
               <Map extractor={landparcelExtractor} dataIn={extendedGeom} />
             </div>
           </div>
