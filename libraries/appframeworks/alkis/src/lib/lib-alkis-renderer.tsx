@@ -2,7 +2,7 @@ import { AlkisRendererProps } from "..";
 import { useEffect, useState } from "react";
 import { getLandparcelHtml } from "../lib/utils/landparcelSearch";
 import { InfoBar } from "./components/InfoBar";
-import { Skeleton, Spin } from "antd";
+import { Divider, Skeleton, Spin } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { CustomCard } from "./components/CustomCard";
 import { className } from "cesium";
@@ -33,25 +33,32 @@ export function AlkisRenderer({ landparcelId, jwt }: AlkisRendererProps) {
 
   return (
     <div>
-      <div className="flex flex-col items-center relative h-full max-h-[calc(100vh-73px)]">
+      <div className="flex flex-col items-center relative h-full max-h-[calc(100vh-43px)]">
         <div className="flex flex-col gap-2 w-full bg-zinc-100 h-full overflow-clip p-2">
           <div>
             {!isLoading ? (
               <div className="my-1">{resHtml && <div>{resHtml}</div>}</div>
             ) : (
-              <CustomCard
-                // className="h-[calc(90%-18px)]"
-                className="h-[600px]"
-                title={
-                  <Spin
-                    indicator={<LoadingOutlined spin />}
-                    size="small"
-                    className="ml-2"
-                  />
-                }
-              >
-                <Skeleton />
-              </CustomCard>
+              <div>
+                <CustomCard
+                  className="mb-2"
+                  title={
+                    <span>
+                      <span>Flurstück</span>
+                      <Spin
+                        indicator={<LoadingOutlined spin />}
+                        size="small"
+                        className="ml-2"
+                      />
+                    </span>
+                  }
+                >
+                  <Skeleton />
+                </CustomCard>
+                <CustomCard title="PDF-Produkte">
+                  <Skeleton />
+                </CustomCard>
+              </div>
             )}
           </div>
         </div>

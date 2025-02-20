@@ -38,7 +38,7 @@ export const AlkisBookingSheetRenderer = ({
         <InfoBar
           title={
             <div className="text-base">
-              <span>
+              {/* <span>
                 {!error && "Buchungsblatt"}
                 <span>
                   {isLoading ? (
@@ -51,7 +51,7 @@ export const AlkisBookingSheetRenderer = ({
                     error && `${error}`
                   )}
                 </span>
-              </span>
+              </span> */}
               {!isLoading && !error && (
                 <Breadcrumb
                   items={[
@@ -80,17 +80,32 @@ export const AlkisBookingSheetRenderer = ({
             <div className="my-1">{resHtml && <div>{resHtml}</div>}</div>
           ) : (
             <CustomCard
-              // className="h-[calc(90%-18px)]"
-              className="h-[600px]"
               title={
-                <Spin
-                  indicator={<LoadingOutlined spin />}
-                  size="small"
-                  className="ml-2"
-                />
+                <span>
+                  <span>Buchungsblatt-Renderer</span>
+                  <Spin
+                    indicator={<LoadingOutlined spin />}
+                    size="small"
+                    className="ml-2"
+                  />
+                </span>
               }
             >
-              <Skeleton />
+              <CustomCard className="mb-2" title="Buchungsblatt">
+                <Skeleton />
+              </CustomCard>
+              <CustomCard className="mb-2" title="Eigentümer">
+                <Skeleton />
+              </CustomCard>
+              <CustomCard
+                className="mb-2"
+                title="Buchungsstellen und Flurstücke"
+              >
+                <Skeleton />
+              </CustomCard>
+              <CustomCard className="mb-2" title="PDF-Produkte">
+                <Skeleton />
+              </CustomCard>
             </CustomCard>
           )}
         </div>
