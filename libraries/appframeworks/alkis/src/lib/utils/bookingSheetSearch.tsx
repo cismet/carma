@@ -40,7 +40,7 @@ export const getSheetHtml = async (
     setIsLoading
   );
   if (booking.data.alkis_buchungsblatt.length === 0) {
-    setError("Keine Daten gefunden");
+    setError("Fehler: keine Daten gefunden");
   }
 
   const isAlkisProduct = await checkPdfProductPermission(

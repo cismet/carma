@@ -47,7 +47,7 @@ export const searchLandparcelByName = async (
     return result;
   } catch (error) {
     setIsLoading(false);
-    setError("Fehler: Keine Daten gefunden");
+    setError("Fehler: keine Daten gefunden");
     console.error("There was a problem with the fetch operation:");
   }
 };
@@ -171,14 +171,14 @@ export const getAdditionalSheetAsync = async (
       return result;
     } else {
       setIsLoading(false);
-      setError("Fehler: Keine Daten gefunden");
+      setError("Fehler: keine Daten gefunden");
       console.log(
         "xxx Error: " + response.status + " -> " + response.statusText
       );
     }
   } catch (error) {
     setIsLoading(false);
-    setError("Fehler: Keine Daten gefunden");
+    setError("Fehler: keine Daten gefunden");
     console.log("xxx error", error);
   }
 };
