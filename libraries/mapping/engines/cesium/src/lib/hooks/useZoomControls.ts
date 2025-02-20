@@ -11,6 +11,10 @@ type ZoomOptions = {
   moveRateFactor: number;
 };
 
+// Value to subtract from the globe distance to get the minimum zoom distance when not over scene content
+// Should be significantly over maximum elevations of area of interest to prevent camera going under the surface
+const FALLBACK_MIN_DISTANCE_TO_GLOBE = 2500;
+
 const defaultZoomOptions: ZoomOptions = {
   duration: 0.5,
   moveRateFactor: 1,
@@ -47,13 +51,36 @@ const zoom = (
     scene.canvas.clientWidth / 2,
     scene.canvas.clientHeight / 2
   );
+
+  const scenePickPosition = scene.pickPosition(screenCenter);
+
   const pickRay = camera.getPickRay(screenCenter);
 
-  const pickPosition = pickRay && scene.globe.pick(pickRay, scene);
-  if (!pickPosition) return;
-
   const cameraPosition = camera.position;
-  const distance = Cartesian3.distance(cameraPosition, pickPosition);
+
+  if (!pickRay) return;
+
+  const globePickPosition = pickRay && scene.globe.pick(pickRay, scene);
+
+  let globeDistance: number | undefined = undefined;
+  if (globePickPosition) {
+    globeDistance = Cartesian3.distance(cameraPosition, globePickPosition);
+  }
+
+  const sceneDistance =
+    scenePickPosition && Cartesian3.distance(cameraPosition, scenePickPosition);
+
+  let distance;
+
+  if (sceneDistance !== undefined) {
+    distance = sceneDistance;
+  } else if (globeDistance !== undefined) {
+    distance = globeDistance - FALLBACK_MIN_DISTANCE_TO_GLOBE;
+  } else {
+    return;
+  }
+
+  console.log({ distance, globeDistance, sceneDistance });
 
   const maxDistance = scene.screenSpaceCameraController.maximumZoomDistance;
   const minDistance = scene.screenSpaceCameraController.minimumZoomDistance;
