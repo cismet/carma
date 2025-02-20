@@ -18,8 +18,15 @@ import {
 import PdfDocumentLoader from "../components/PdfDocumentLoader";
 import { Map } from "../components/Map";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
+import { Breadcrumb } from "antd";
 
-export const getSheetHtml = async (jwt, name, setError, setIsLoading) => {
+export const getSheetHtml = async (
+  jwt,
+  name,
+  setError,
+  setIsLoading,
+  flurstueck
+) => {
   const sheetData = await getAdditionalSheetAsync(
     name,
     jwt,
@@ -90,7 +97,28 @@ export const getSheetHtml = async (jwt, name, setError, setIsLoading) => {
   return (
     <TopicMapContextProvider appKey="verdis-desktop-render.map">
       <div>
-        <CustomCard title="Buchungsblatt-Renderer">
+        <CustomCard
+          title="Buchungsblatt-Renderer"
+          extra={
+            <Breadcrumb
+              className="mr-2"
+              items={[
+                {
+                  title: ":flurstueck",
+                  href: `/#/alkis-flurstueck?id=${flurstueck}`,
+                },
+                {
+                  title: ":name",
+                  href: "",
+                },
+              ]}
+              params={{
+                name,
+                flurstueck,
+              }}
+            />
+          }
+        >
           <CustomCard style={{ marginBottom: "1rem" }} title="Buchungsblatt">
             <div className="flex gap-4 w-full  max-[970px]:flex-col">
               <div className="w-[30%] min-w-">

@@ -20,7 +20,13 @@ export const AlkisBookingSheetRenderer = ({
     const onSheetSearch = async (jwt, id) => {
       if (jwt) {
         setIsLoading(true);
-        const sheetHtml = await getSheetHtml(jwt, id, setError, setIsLoading);
+        const sheetHtml = await getSheetHtml(
+          jwt,
+          id,
+          setError,
+          setIsLoading,
+          flurstueck
+        );
         setResHtml(sheetHtml);
         setIdTitle(id);
         setIsLoading(false);
@@ -35,10 +41,10 @@ export const AlkisBookingSheetRenderer = ({
   return (
     <div className="flex flex-col items-center relative h-full max-h-[calc(100vh-73px)]">
       <div className="flex flex-col gap-2 w-full bg-zinc-100 h-full overflow-clip p-2">
-        <InfoBar
+        {/* <InfoBar
           title={
             <div className="text-base">
-              {/* <span>
+              <span>
                 {!error && "Buchungsblatt"}
                 <span>
                   {isLoading ? (
@@ -51,7 +57,7 @@ export const AlkisBookingSheetRenderer = ({
                     error && `${error}`
                   )}
                 </span>
-              </span> */}
+              </span>
               {!isLoading && !error && (
                 <Breadcrumb
                   items={[
@@ -73,7 +79,7 @@ export const AlkisBookingSheetRenderer = ({
             </div>
           }
           className="py-1"
-        />
+        /> */}
 
         <div>
           {!isLoading ? (
