@@ -82,14 +82,14 @@ export const AlkisBookingSheetRenderer = ({
         /> */}
 
         <div>
-          {!isLoading ? (
+          {!isLoading && !error ? (
             <div className="mt-3">{resHtml && <div>{resHtml}</div>}</div>
           ) : (
             <CustomCard
               className="mt-3"
               title={
                 <span>
-                  <span>Buchungsblatt-Renderer</span>
+                  <span>{error ? error : "Buchungsblatt-Renderer"}</span>
                   <Spin
                     indicator={<LoadingOutlined spin />}
                     size="small"

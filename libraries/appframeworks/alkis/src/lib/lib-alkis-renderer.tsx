@@ -45,7 +45,7 @@ export function AlkisRenderer({ landparcelId, jwt }: AlkisRendererProps) {
                   className="mb-4"
                   title={
                     <>
-                      <span>{error ? error : "Flurstück"}</span>
+                      <span>Flurstück</span>
                       {isLoading && (
                         <Spin
                           indicator={<LoadingOutlined spin />}
@@ -56,7 +56,7 @@ export function AlkisRenderer({ landparcelId, jwt }: AlkisRendererProps) {
                     </>
                   }
                 >
-                  <Skeleton />
+                  {error ? error : <Skeleton />}
                 </CustomCard>
                 {!error && (
                   <CustomCard title="PDF-Produkte">
