@@ -141,7 +141,7 @@ export const getAdditionalSheetAsync = async (
   const form = new FormData();
   const taskParameters = {
     parameters: {
-      BUCHUNGSBLATT: sheetId,
+      BUCHUNGSBLATT: sheetId.trim(),
     },
   };
 
@@ -207,7 +207,6 @@ export const getBookingOfficesBySheetId = async (
       setIsLoading(false);
       throw new Error("Network response was not ok");
     }
-
     const result = await response.json();
 
     return result;

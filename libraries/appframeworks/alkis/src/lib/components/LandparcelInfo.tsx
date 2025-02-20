@@ -19,7 +19,6 @@ export const LandparcelInfo = ({
   isLoading,
 }: LandparcelInfoProps) => {
   const urlPrefix = window.location.origin + window.location.pathname;
-  console.log("xxx urlPrefix", urlPrefix);
   return (
     <CustomCard title={title} style={{ marginBottom: "1rem" }}>
       <div>
@@ -88,11 +87,6 @@ export const LandparcelInfo = ({
                 <div style={{ marginRight: "4rem" }}>
                   <div>Nr. {b.content.nrCode} auf</div>
                   <div>
-                    {/* <Link
-                      to={`/alkis-buchungsblatt?id=${b.buchungsblattcode.trim()}&flurstueck=${alkisId}`}
-                    >
-                      <div className="text-primary">{`${b.buchungsblattcode}`}</div>
-                    </Link> */}
                     <a
                       href={`${urlPrefix}/#/alkis-buchungsblatt?id=${b.buchungsblattcode.trim()}&flurstueck=${alkisId}`}
                     >
