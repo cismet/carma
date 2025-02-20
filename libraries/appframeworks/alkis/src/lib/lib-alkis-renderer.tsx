@@ -6,6 +6,7 @@ import { Divider, Skeleton, Spin } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { CustomCard } from "./components/CustomCard";
 import { className } from "cesium";
+import { spawn } from "child_process";
 
 export function AlkisRenderer({ landparcelId, jwt }: AlkisRendererProps) {
   const [resHtml, setResHtml] = useState<React.ReactNode>(null);
@@ -36,28 +37,32 @@ export function AlkisRenderer({ landparcelId, jwt }: AlkisRendererProps) {
       <div className="flex flex-col items-center relative h-full max-h-[calc(100vh-43px)]">
         <div className="flex flex-col gap-2 w-full bg-zinc-100 h-full overflow-clip p-2">
           <div>
-            {!isLoading ? (
+            {!isLoading && !error ? (
               <div className="mt-3">{resHtml && <div>{resHtml}</div>}</div>
             ) : (
               <div className="mt-3">
                 <CustomCard
                   className="mb-4"
                   title={
-                    <span>
-                      <span>Flurstück</span>
-                      <Spin
-                        indicator={<LoadingOutlined spin />}
-                        size="small"
-                        className="ml-2"
-                      />
-                    </span>
+                    <>
+                      <span>{error ? error : "Flurstück"}</span>
+                      {isLoading && (
+                        <Spin
+                          indicator={<LoadingOutlined spin />}
+                          size="small"
+                          className="ml-2"
+                        />
+                      )}
+                    </>
                   }
                 >
                   <Skeleton />
                 </CustomCard>
-                <CustomCard title="PDF-Produkte">
-                  <Skeleton />
-                </CustomCard>
+                {!error && (
+                  <CustomCard title="PDF-Produkte">
+                    <Skeleton />
+                  </CustomCard>
+                )}
               </div>
             )}
           </div>
