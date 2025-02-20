@@ -19,10 +19,7 @@ export const LandparcelInfo = ({
   isLoading,
 }: LandparcelInfoProps) => {
   return (
-    <CustomCard
-      title={isLoading ? "loading" : title}
-      style={{ marginBottom: "1rem" }}
-    >
+    <CustomCard title={title} style={{ marginBottom: "1rem" }}>
       <div>
         <div className="font-bold mb-3">Flurstücksinformationen</div>
         <div className="flex gap-10 max-[1000px]:flex-col">

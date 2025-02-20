@@ -5,16 +5,7 @@ import {
   productsPdfWithPermission,
   searchLandparcelByName,
 } from "../utils/apiMethods";
-import { Divider, Spin, Tabs } from "antd";
-import {
-  getLandparcelTitle,
-  landparcelExtractor,
-  pdfProductsLandparcel,
-} from "../utils/helper";
-import { AdditionalSheet } from "../components/AdditionalSheet";
-import { CustomCard } from "../components/CustomCard";
-import { Map } from "../components/Map";
-import { Link } from "react-router-dom";
+import { getLandparcelTitle, pdfProductsLandparcel } from "../utils/helper";
 import PdfDocumentLoader from "../components/PdfDocumentLoader";
 import { LandparcelInfo } from "../components/LandparcelInfo";
 export const getLandparcelHtml = async (

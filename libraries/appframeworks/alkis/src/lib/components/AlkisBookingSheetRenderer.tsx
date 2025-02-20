@@ -83,9 +83,10 @@ export const AlkisBookingSheetRenderer = ({
 
         <div>
           {!isLoading ? (
-            <div className="my-1">{resHtml && <div>{resHtml}</div>}</div>
+            <div className="mt-3">{resHtml && <div>{resHtml}</div>}</div>
           ) : (
             <CustomCard
+              className="mt-3"
               title={
                 <span>
                   <span>Buchungsblatt-Renderer</span>
@@ -97,19 +98,19 @@ export const AlkisBookingSheetRenderer = ({
                 </span>
               }
             >
-              <CustomCard className="mb-2" title="Buchungsblatt">
+              <CustomCard className="mb-4" title="Buchungsblatt">
                 <Skeleton />
               </CustomCard>
-              <CustomCard className="mb-2" title="Eigentümer">
+              <CustomCard className="mb-4" title="Eigentümer">
                 <Skeleton />
               </CustomCard>
               <CustomCard
-                className="mb-2"
+                className="mb-4"
                 title="Buchungsstellen und Flurstücke"
               >
                 <Skeleton />
               </CustomCard>
-              <CustomCard className="mb-2" title="PDF-Produkte">
+              <CustomCard className="mb-4" title="PDF-Produkte">
                 <Skeleton />
               </CustomCard>
             </CustomCard>

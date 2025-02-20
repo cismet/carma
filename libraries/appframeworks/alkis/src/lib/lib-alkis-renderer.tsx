@@ -37,11 +37,11 @@ export function AlkisRenderer({ landparcelId, jwt }: AlkisRendererProps) {
         <div className="flex flex-col gap-2 w-full bg-zinc-100 h-full overflow-clip p-2">
           <div>
             {!isLoading ? (
-              <div className="my-1">{resHtml && <div>{resHtml}</div>}</div>
+              <div className="mt-3">{resHtml && <div>{resHtml}</div>}</div>
             ) : (
-              <div>
+              <div className="mt-3">
                 <CustomCard
-                  className="mb-2"
+                  className="mb-4"
                   title={
                     <span>
                       <span>Flurstück</span>
