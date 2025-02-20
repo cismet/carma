@@ -5,8 +5,6 @@ import { InfoBar } from "./components/InfoBar";
 import { Divider, Skeleton, Spin } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { CustomCard } from "./components/CustomCard";
-import { className } from "cesium";
-import { spawn } from "child_process";
 import "./alkis.css";
 
 export function AlkisRenderer({ landparcelId, jwt }: AlkisRendererProps) {
