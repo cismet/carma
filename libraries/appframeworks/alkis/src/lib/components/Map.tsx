@@ -75,6 +75,7 @@ export const Map = <T,>({ dataIn, extractor = mockExtractor }: MapProps<T>) => {
     if (routedMapRef?.leafletMap?.leafletElement) {
       const map = routedMapRef.leafletMap.leafletElement;
       map.scrollWheelZoom.disable();
+      map.dragging.disable();
       setTimeout(() => {
         fitMapBounds();
       }, 500);
