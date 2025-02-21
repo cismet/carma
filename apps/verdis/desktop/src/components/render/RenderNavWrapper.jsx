@@ -10,7 +10,9 @@ const RenderNavWrapper = ({ children }) => {
         <div className="md:flex hidden items-center gap-3">
           <div className="flex gap-2 items-center h-full cursor-pointer">
             <img src={urlPrefix + logoSrc} alt="Logo" className="h-10" />
-            <span class="font-semibold no-underline pt-1">VerDIS</span>
+            <span class="font-semibold no-underline pt-1">
+              VerDIS - ALKIS Auskunft
+            </span>
           </div>
         </div>
       </header>
