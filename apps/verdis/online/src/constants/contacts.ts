@@ -7,20 +7,7 @@ contacts.set("BeckerB102", {
   telefon: "+49-202-563 5964",
   mail: "bettina.becker@stadt.wuppertal.de",
 });
-contacts.set("MetzKK102", {
-  anrede: "Frau",
-  vorname: "Kira Kristin",
-  nachname: "Metz",
-  telefon: "+49-202-563 4274",
-  mail: "kira.metz@stadt.wuppertal.de",
-});
-contacts.set("AckermannS102", {
-  anrede: "Frau",
-  vorname: "Simone",
-  nachname: "Ackermann",
-  telefon: "+49-202-563 4274",
-  mail: "simone.ackermann@stadt.wuppertal.de",
-});
+
 contacts.set("SchommersM102", {
   anrede: "Frau",
   vorname: "Monja",
@@ -42,36 +29,7 @@ contacts.set("ThaederA102", {
   telefon: "+49-202-563 5998",
   mail: "achim.thaeder@stadt.wuppertal.de",
 });
-contacts.set("SteinbacherD102", {
-  anrede: "Herr",
-  vorname: "Dirk",
-  nachname: "Steinbacher",
-  telefon: "+49-202-563 5794",
-  mail: "dirk.steinbacher@stadt.wuppertal.de",
-  image: "SteinbacherD102.png",
-});
-contacts.set("HecknerA102", {
-  anrede: "Frau",
-  vorname: "Anke",
-  nachname: "Heckner",
-  telefon: "+49-202-563 6583",
-  mail: "anke.heckner@stadt.wuppertal.de",
-});
-contacts.set("FischerI403", {
-  anrede: "Frau",
-  vorname: "Iris",
-  nachname: "Fischer",
-  telefon: "+49-202-563 6339",
-  mail: "iris.fischer@stadt.wuppertal.de",
-});
-contacts.set("DavidOsbarB102", {
-  anrede: "Frau",
-  vorname: "Bärbel",
-  nachname: "David-Osbar",
-  telefon: "+49-202-563 6637",
-  mail: "baerbel.david-osbar@stadt.wuppertal.de",
-  image: "DavidOsbarB102.png",
-});
+
 contacts.set("PytlikS102", {
   anrede: "Frau",
   vorname: "Sabina",
@@ -79,13 +37,19 @@ contacts.set("PytlikS102", {
   telefon: "+49-202-563 5986",
   mail: "sabina.pytlik@stadt.wuppertal.de",
 });
-
-contacts.set("PytlikSa102", {
+contacts.set("CajicR102", {
   anrede: "Frau",
-  vorname: "Sabina",
-  nachname: "Pytlik",
-  telefon: "+49-202-563 5638",
-  mail: "sabina.pytlik@stadt.wuppertal.de",
+  vorname: "Ruzica",
+  nachname: "Cajic",
+  telefon: "+49-202-563 5794",
+  mail: "ruzica.cajic@stadt.wuppertal.de",
+});
+contacts.set("AkinI102", {
+  anrede: "Herr",
+  vorname: "Ismail",
+  nachname: "Akin",
+  telefon: "+49-202-563 4898",
+  mail: "ismail.akin@stadt.wuppertal.de",
 });
 
 export default contacts;
