@@ -123,7 +123,7 @@ export const getSheetHtml = async (
             <div className="font-bold mb-3">Buchungsblattinformationen</div>
 
             <div className="flex gap-4 w-full  max-[970px]:flex-col">
-              <div className="w-[30%] min-w-">
+              <div className="w-[30%] max-[970px]:w-full">
                 <div>
                   <b>Amtsgericht:</b> {localCourt}
                 </div>
