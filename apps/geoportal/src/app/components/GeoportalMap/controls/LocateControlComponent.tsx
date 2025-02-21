@@ -18,6 +18,15 @@ const LocateControlComponent = ({ startLocate = 0 }) => {
       const lc = (control as LocateControl)
         .locate({
           position: "topright",
+          strings: {
+            title: "Mein Standort",
+            metersUnit: "Meter",
+            feetUnit: "feet",
+            popup:
+              "Ihre reale Position kann bis zu {distance} {unit} von diesem Punkt abweichen.",
+            outsideMapBoundsMsg:
+              "Sie befinden sich außerhalb der Kartengrenzen.",
+          },
           locateOptions: {
             enableHighAccuracy: true,
           },
