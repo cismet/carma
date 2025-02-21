@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { isEqual } from "lodash";
@@ -96,14 +96,6 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
     }
   }, [pos, selectedFeature]);
 
-  useEffect(() => {
-    if (!loadingFeatureInfo) {
-      setShouldRenderLoadingInfobox(false);
-    } else {
-      setTimeout(() => setShouldRenderLoadingInfobox(true), 100);
-    }
-  }, [loadingFeatureInfo]);
-
   let links = [];
   if (selectedFeature && selectedFeature.id !== "information") {
     links = getActionLinksForFeature(selectedFeature, {
@@ -141,6 +133,29 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
     });
   }
 
+  const loadingRef = useRef(loadingFeatureInfo);
+
+  useEffect(() => {
+    loadingRef.current = loadingFeatureInfo;
+
+    if (!loadingFeatureInfo) {
+      setShouldRenderLoadingInfobox(false);
+    } else {
+      setTimeout(() => {
+        if (loadingRef.current) {
+          setShouldRenderLoadingInfobox(true);
+        }
+      }, 100);
+    }
+  }, [loadingFeatureInfo]);
+
+  if (loadingFeatureInfo && shouldRenderLoadingInfobox)
+    return <LoadingInfoBox />;
+
+  if (!selectedFeature) {
+    return null;
+  }
+
   const featureHeaders = secondaryInfoBoxElements.map((feature, i) => {
     return (
       <div
@@ -166,9 +181,6 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
   });
 
   const Modal = additionalInfoFactory(selectedFeature?.properties?.modal);
-
-  if (loadingFeatureInfo && shouldRenderLoadingInfobox)
-    return <LoadingInfoBox />;
 
   return (
     <>
