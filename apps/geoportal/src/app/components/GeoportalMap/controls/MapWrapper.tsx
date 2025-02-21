@@ -159,6 +159,41 @@ const MapWrapper = () => {
   const [layoutHeight, setLayoutHeight] = useState(null);
   const [isMeasurementTooltip, setIsMeasurementTooltip] = useState(false);
   const [isLocationActive, setIsLocationActive] = useState(false);
+  const [hasMapMoved, setHasMapMoved] = useState(false);
+  const [hasFoundLocation, setHasFoundLocation] = useState(false);
+
+  useEffect(() => {
+    if (routedMap) {
+      const map = routedMap.leafletMap.leafletElement;
+
+      const handleMapMove = () => {
+        if (isLocationActive && hasFoundLocation) {
+          setHasMapMoved(true);
+        }
+      };
+
+      const handleLocationFound = () => {
+        setTimeout(() => {
+          setHasFoundLocation(true);
+        }, 300);
+      };
+
+      map.on("move", handleMapMove);
+      map.on("locationfound", handleLocationFound);
+
+      return () => {
+        map.off("move", handleMapMove);
+        map.off("locationfound", handleLocationFound);
+      };
+    }
+  }, [routedMap, isLocationActive, hasFoundLocation]);
+
+  useEffect(() => {
+    if (!isLocationActive) {
+      setHasMapMoved(false);
+      setHasFoundLocation(false);
+    }
+  }, [isLocationActive]);
 
   // custom hooks
 
@@ -334,7 +369,11 @@ const MapWrapper = () => {
                   <FontAwesomeIcon
                     icon={faLocationArrow}
                     className={`text-2xl ${
-                      isLocationActive ? "text-blue-500" : ""
+                      isLocationActive
+                        ? hasMapMoved
+                          ? "text-blue-500"
+                          : "text-orange-500"
+                        : ""
                     }`}
                   />
                 </ControlButtonStyler>
