@@ -243,7 +243,9 @@ const Navbar = ({
         marginBottom: 0,
         width: "100%",
         color: "grey",
-        paddingLeft: sidebarCollapsed ? `${collapsedSidebarWidth}px` : `${expandedSidebarWidth}px`,
+        paddingLeft: sidebarCollapsed
+          ? `${collapsedSidebarWidth}px`
+          : `${expandedSidebarWidth}px`,
         paddingRight: "50px",
       }}
       expand="lg"
