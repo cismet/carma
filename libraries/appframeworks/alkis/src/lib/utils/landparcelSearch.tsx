@@ -42,6 +42,8 @@ export const getLandparcelHtml = async (
     setIsLoading
   );
 
+  console.log("xxx additional sheet", sheets);
+
   const { alkis_id, flur, fstck_nenner, fstck_zaehler } =
     landparcelData.data.alkis_landparcel[0];
 
