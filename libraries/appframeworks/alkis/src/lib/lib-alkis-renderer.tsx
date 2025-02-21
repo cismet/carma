@@ -54,7 +54,15 @@ export function AlkisRenderer({ landparcelId, jwt }: AlkisRendererProps) {
                   {error ? (
                     <span className="text-red-600">{error}</span>
                   ) : (
-                    <Skeleton />
+                    <>
+                      <div className="flex justify-between gap-8">
+                        <Skeleton className="w-[25%]" />
+                        <div className="bg-[#f3f3f3] w-[75%] h-80"></div>
+                      </div>
+                      <Divider />
+                      <div className="font-bold mb-1">Buchungsblätter</div>
+                      <Skeleton className="w-[25%]" />
+                    </>
                   )}
                 </CustomCard>
 
