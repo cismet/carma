@@ -144,17 +144,13 @@ export const getSheetHtml = async (
               </div>
             </div>
           </div>
-          {sheetData.res.owners[0].addresses && (
-            <>
-              <Divider />
-              <div className="font-bold mb-1">Eigentümer</div>
-              <AdditionalSheet
-                owners={sheetData.res.owners}
-                namesArr={sheetData.res.namensnummern}
-                legalDesc={sheetData.res.descriptionOfRechtsgemeinschaft}
-              />
-            </>
-          )}
+          <Divider />
+          <div className="font-bold mb-1">Eigentümer</div>
+          <AdditionalSheet
+            owners={sheetData.res.owners}
+            namesArr={sheetData.res.namensnummern}
+            legalDesc={sheetData.res.descriptionOfRechtsgemeinschaft}
+          />
 
           <Divider />
           <div className="font-bold mb-1">Buchungsstellen und Flurstücke</div>

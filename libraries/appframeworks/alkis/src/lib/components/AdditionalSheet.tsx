@@ -12,8 +12,6 @@ export const AdditionalSheet = ({
   const ifWithoutNumber = !typeOfTitle.artRechtsgemeinschaft;
   const ownerRes = buildGroupedOwnersArr(namesArr, owners);
 
-  console.log("xxx owners", namesArr);
-
   return (
     <div>
       {ownerRes &&
@@ -27,7 +25,7 @@ export const AdditionalSheet = ({
               }}
             >
               {!ifWithoutNumber && <div>ohne Nr.</div>}
-              <div style={{ width: "70%" }}>
+              <div style={{ width: "100%" }}>
                 {legalDesc && (
                   <div
                     style={{
@@ -61,7 +59,7 @@ export const AdditionalSheet = ({
                   const formattedDate = `${day}.${month}.${year}`;
 
                   const { houseNumber, postalCode, city, street } =
-                    owner.addresses[0];
+                    owner.addresses?.[0] || {};
                   return (
                     <div
                       key={idx}
@@ -76,17 +74,25 @@ export const AdditionalSheet = ({
                     >
                       <div>{nameNumber}</div>
                       <div>
-                        <div style={{ paddingBottom: "0.6rem" }}>
-                          {salutation} {firstName || ""} {surName},{" "}
-                          {salutation !== "Firma" ? "*" + formattedDate : ""}
-                        </div>
-                        <div>
-                          {street} {houseNumber}
-                        </div>
-                        <div>
-                          {postalCode}, {city}
-                        </div>
-                        <div>(Grundbuchamtliche Anschrift)</div>
+                        {owner.addresses ? (
+                          <>
+                            <div style={{ paddingBottom: "0.6rem" }}>
+                              {salutation} {firstName || ""} {surName}{" "}
+                              {salutation !== "Firma"
+                                ? "*" + formattedDate
+                                : ""}
+                            </div>
+                            <div>
+                              {street} {houseNumber}
+                            </div>
+                            <div>
+                              <span>{postalCode}</span> <span>{city}</span>
+                            </div>
+                            <div>(Grundbuchamtliche Anschrift)</div>
+                          </>
+                        ) : (
+                          <div>{surName}</div>
+                        )}
                       </div>
                     </div>
                   );

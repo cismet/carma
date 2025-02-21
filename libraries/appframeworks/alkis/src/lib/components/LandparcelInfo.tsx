@@ -20,8 +20,6 @@ export const LandparcelInfo = ({
 }: LandparcelInfoProps) => {
   const urlPrefix = window.location.origin + window.location.pathname;
 
-  console.log("xxx b.content.namesArr", sheetsCode);
-
   return (
     <CustomCard title={title} style={{ marginBottom: "1rem" }}>
       <div>
