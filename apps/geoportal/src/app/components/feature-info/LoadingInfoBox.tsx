@@ -32,11 +32,7 @@ const LoadingInfoBox = () => {
         key={"overlapping."}
       >
         <InfoBoxHeader
-          content={
-            <div className="w-full h-4 flex items-center">
-              <div className="w-14 h-2 bg-zinc-600 rounded-md animate-pulse" />
-            </div>
-          }
+          content={i === layers.length - 1 ? "Position" : layer.title}
           headerColor={"grey"}
         ></InfoBoxHeader>
       </div>
@@ -65,7 +61,7 @@ const LoadingInfoBox = () => {
       subtitle={
         <div className="w-36 h-2 bg-zinc-400 rounded-md animate-pulse mb-4" />
       }
-      header="Laden"
+      header={layers[layers.length - 1].title}
       secondaryInfoBoxElements={featureHeaders}
     />
   );
