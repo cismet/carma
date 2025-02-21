@@ -2,7 +2,7 @@ import React from "react";
 import { useEffect, useState } from "react";
 import { InfoBar } from "../components/InfoBar";
 import { getSheetHtml } from "../utils/bookingSheetSearch";
-import { Breadcrumb, Skeleton, Spin } from "antd";
+import { Breadcrumb, Divider, Skeleton, Spin } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { AlkisBookingSheetRendererProps } from "../..";
 import { CustomCard } from "./CustomCard";
@@ -60,21 +60,26 @@ export const AlkisBookingSheetRenderer = ({
             >
               {!error && (
                 <>
-                  <CustomCard className="mb-4" title="Buchungsblatt">
-                    <Skeleton />
-                  </CustomCard>
-                  <CustomCard className="mb-4" title="Eigentümer">
-                    <Skeleton />
-                  </CustomCard>
-                  <CustomCard
-                    className="mb-4"
-                    title="Buchungsstellen und Flurstücke"
-                  >
-                    <Skeleton />
-                  </CustomCard>
-                  <CustomCard className="mb-4" title="PDF-Produkte">
-                    <Skeleton />
-                  </CustomCard>
+                  <div className="font-bold mb-2">
+                    Buchungsblattinformationen
+                  </div>
+                  <div className="flex justify-between gap-20">
+                    <div className="w-[15%]">
+                      <Skeleton title={false} />
+                      <Skeleton title={false} />
+                    </div>
+                    <div className="bg-[#f3f3f3] w-[75%] h-80"></div>
+                  </div>
+                  <Divider />
+                  <div className="font-bold mb-2">Eigentümer</div>
+                  <Skeleton title={false} />
+                  <Skeleton title={false} />
+
+                  <div className="font-bold mb-2">
+                    Buchungsstellen und Flurstücke
+                  </div>
+                  <Skeleton title={false} />
+                  <Skeleton title={false} />
                 </>
               )}
 
@@ -82,6 +87,11 @@ export const AlkisBookingSheetRenderer = ({
             </CustomCard>
           )}
         </div>
+        {!error && (
+          <CustomCard title="PDF-Produkte" className="mt-2">
+            <Skeleton />
+          </CustomCard>
+        )}
       </div>
     </div>
   );
