@@ -5,7 +5,7 @@ import { control } from "leaflet";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
-const LocateControlComponent = ({ startLocate = 0 }) => {
+const LocateControlComponent = ({ isActive = false }) => {
   const { routedMapRef } = useContext<typeof TopicMapContext>(
     TopicMapContext
   ) as any;
@@ -40,16 +40,22 @@ const LocateControlComponent = ({ startLocate = 0 }) => {
       setLocationInstance(lc);
     }
 
-    // return () => {
-    //   lc.remove();
-    // };
+    return () => {
+      if (locationInstance) {
+        locationInstance.stop();
+      }
+    };
   }, [routedMapRef]);
 
   useEffect(() => {
-    if (startLocate && locationInstance) {
-      locationInstance.start();
+    if (locationInstance) {
+      if (isActive) {
+        locationInstance.start();
+      } else {
+        locationInstance.stop();
+      }
     }
-  }, [startLocate]);
+  }, [isActive, locationInstance]);
 
   return null;
 };

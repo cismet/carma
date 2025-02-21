@@ -158,7 +158,7 @@ const MapWrapper = () => {
   const [pos, setPos] = useState<[number, number] | null>(null);
   const [layoutHeight, setLayoutHeight] = useState(null);
   const [isMeasurementTooltip, setIsMeasurementTooltip] = useState(false);
-  const [locationProps, setLocationProps] = useState(0);
+  const [isLocationActive, setIsLocationActive] = useState(false);
 
   // custom hooks
 
@@ -319,22 +319,28 @@ const MapWrapper = () => {
           <Control position="topleft" order={30}>
             {showLocatorButton && isMobile && (
               <Tooltip
-                title="Modus Standortanzeige einschalten"
+                title={
+                  isLocationActive
+                    ? "Standortanzeige ausschalten"
+                    : "Standortanzeige einschalten"
+                }
                 placement="right"
               >
                 <ControlButtonStyler
                   ref={tourRefLabels.navigator}
-                  onClick={() => setLocationProps((prev) => prev + 1)}
+                  onClick={() => setIsLocationActive((prev) => !prev)}
                   dataTestId="location-control"
                 >
                   <FontAwesomeIcon
                     icon={faLocationArrow}
-                    className="text-2xl"
+                    className={`text-2xl ${
+                      isLocationActive ? "text-blue-500" : ""
+                    }`}
                   />
                 </ControlButtonStyler>
               </Tooltip>
             )}
-            <LocateControlComponent startLocate={locationProps} />
+            <LocateControlComponent isActive={isLocationActive} />
           </Control>
           <Control position="topleft" order={40}>
             <Tooltip title="Auf Ausgangspunkt positionieren" placement="right">
