@@ -9,7 +9,6 @@ import { getBoundsForFeatureArray } from "../utils/mappingTools";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent.js";
 import { LatLngBounds } from "leaflet";
 import { MapProps } from "../..";
-import { useLocation } from "react-router-dom";
 
 const mockExtractor = (input) => {
   return {
@@ -27,14 +26,10 @@ export const Map = <T,>({ dataIn, extractor = mockExtractor }: MapProps<T>) => {
   const [mapHeight, setMapHeight] = useState<number>(0);
 
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
-  const browserlocation = useLocation();
-  const urlSearchParams = new URLSearchParams(browserlocation.search);
 
   useEffect(() => {
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        // console.log("xxx map width", wrapperRef.current?.offsetWidth);
-        // console.log("xxx map height", wrapperRef.current?.offsetHeight);
         setMapWidth(wrapperRef.current?.offsetWidth ?? 0);
         setMapHeight(wrapperRef.current?.offsetHeight ?? 0);
       }
@@ -72,6 +67,7 @@ export const Map = <T,>({ dataIn, extractor = mockExtractor }: MapProps<T>) => {
   }
 
   useEffect(() => {
+    console.log("xxx routedMapRef");
     if (routedMapRef?.leafletMap?.leafletElement) {
       const map = routedMapRef.leafletMap.leafletElement;
       map.scrollWheelZoom.disable();
@@ -80,12 +76,7 @@ export const Map = <T,>({ dataIn, extractor = mockExtractor }: MapProps<T>) => {
         fitMapBounds();
       }, 500);
     }
-  }, [routedMapRef]);
-
-  // useEffect(() => {
-  //   console.log("xxx use effect width", mapWidth);
-  //   console.log("xxx use effect hight", mapHeight);
-  // }, [mapWidth, mapHeight]);
+  }, [routedMapRef, data]);
 
   return (
     <div ref={wrapperRef} className="h-80">
@@ -100,9 +91,7 @@ export const Map = <T,>({ dataIn, extractor = mockExtractor }: MapProps<T>) => {
         gazetteerSearchControl={false}
         hamburgerMenu={false}
         fullScreenControl={false}
-        // autoFitBounds={true}
         zoomControls={false}
-        urlSearchParams={urlSearchParams}
       >
         <FeatureCollectionDisplay
           featureCollection={data.featureCollection}
