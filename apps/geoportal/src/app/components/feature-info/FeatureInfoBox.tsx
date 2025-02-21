@@ -36,6 +36,8 @@ interface InfoBoxProps {
 
 const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
   const [open, setOpen] = useState(false);
+  const [shouldRenderLoadingInfobox, setShouldRenderLoadingInfobox] =
+    useState(false);
   const dispatch = useDispatch();
 
   const loadingFeatureInfo = useSelector(getLoading);
@@ -93,6 +95,14 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
       }
     }
   }, [pos, selectedFeature]);
+
+  useEffect(() => {
+    if (!loadingFeatureInfo) {
+      setShouldRenderLoadingInfobox(false);
+    } else {
+      setTimeout(() => setShouldRenderLoadingInfobox(true), 100);
+    }
+  }, [loadingFeatureInfo]);
 
   let links = [];
   if (selectedFeature && selectedFeature.id !== "information") {
@@ -157,7 +167,8 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
 
   const Modal = additionalInfoFactory(selectedFeature?.properties?.modal);
 
-  if (loadingFeatureInfo) return <LoadingInfoBox />;
+  if (loadingFeatureInfo && shouldRenderLoadingInfobox)
+    return <LoadingInfoBox />;
 
   return (
     <>

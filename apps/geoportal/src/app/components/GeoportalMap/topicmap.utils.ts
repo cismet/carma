@@ -137,17 +137,6 @@ export const onClickTopicMap = async (
 
     if (queryableLayers && pos[0] && pos[1]) {
       dispatch(setLoading(true));
-      dispatch(
-        setSelectedFeature({
-          properties: {
-            header: "Position",
-            headerColor: "#0078a8",
-            title: `${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`,
-            subtitle: "(Geogr. Breite und Länge in Dezimalgrad, ETRS89)",
-          },
-          id: "information",
-        })
-      );
       cancelOngoingRequests();
 
       // Create new AbortController for this click
