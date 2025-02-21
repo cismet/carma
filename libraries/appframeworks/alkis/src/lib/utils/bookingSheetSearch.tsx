@@ -33,10 +33,8 @@ export const getSheetHtml = async (
     setError,
     setIsLoading
   );
-  let preparedName = name;
-  if (/\d$/.test(preparedName)) {
-    preparedName += " ";
-  }
+  let preparedName = name.length < 14 ? name + " " : name;
+
   const booking = await getBookingOfficesBySheetId(
     preparedName,
     jwt,

@@ -10,9 +10,9 @@ export const AdditionalSheet = ({
   const typeOfTitle = namesArr[0];
   const ifLegalDesc = !typeOfTitle.nenner && !typeOfTitle.zaehler;
   const ifWithoutNumber = !typeOfTitle.artRechtsgemeinschaft;
-  const ownerRes = owners[0].addresses
-    ? buildGroupedOwnersArr(namesArr, owners)
-    : null;
+  const ownerRes = buildGroupedOwnersArr(namesArr, owners);
+
+  console.log("xxx owners", namesArr);
 
   return (
     <div>
