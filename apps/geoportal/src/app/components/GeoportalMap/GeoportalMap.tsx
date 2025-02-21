@@ -292,7 +292,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       if (isModeMeasurement) {
         return <InfoBoxMeasurement key={uiMode} />;
       }
-      if (selectedFeature) {
+      if (selectedFeature || loadingFeatureInfo) {
         return <FeatureInfoBox pos={pos} />;
       }
     }
