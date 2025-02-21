@@ -166,7 +166,7 @@ export const searchWithPoints = (searchParams) => {
       .then((result) => {
         const id = result.data.alkis_landparcel[0].alkis_id;
         const baseUrl = window.location.origin + window.location.pathname;
-        const url = `${baseUrl}/#/alkis-flurstueck/?id=${id}`;
+        const url = `${baseUrl}#/alkis-flurstueck/?id=${id}`;
         window.open(url, "_blank");
       })
       .catch((error) => {

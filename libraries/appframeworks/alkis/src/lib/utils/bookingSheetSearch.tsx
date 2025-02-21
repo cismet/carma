@@ -97,6 +97,7 @@ export const getSheetHtml = async (
       };
     }
   );
+  const urlPrefix = window.location.origin + window.location.pathname;
 
   return (
     <TopicMapContextProvider appKey="verdis-desktop-render.map">
@@ -108,7 +109,7 @@ export const getSheetHtml = async (
               <div>Buchungsblatt</div>
               <Breadcrumb className="mr-2">
                 <Breadcrumb.Item
-                  href={`/#/alkis-flurstueck?id=${flurstueck}`}
+                  href={`${urlPrefix}#/alkis-flurstueck?id=${flurstueck}`}
                   className="text-primary hover:bg-transparent"
                 >
                   <span>{flurstueck}</span>{" "}
