@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { isEqual } from "lodash";
@@ -21,12 +21,14 @@ import {
   getSecondaryInfoBoxElements,
   getSelectedFeature,
   setSecondaryInfoBoxElements,
+  getLoading,
 } from "../../store/slices/features";
 import { getLayers } from "../../store/slices/mapping";
 import { getCoordinates } from "../GeoportalMap/topicmap.utils";
 import { truncateString, updateUrlWithCoordinates } from "./featureInfoHelper";
 
 import "../infoBox.css";
+import LoadingInfoBox from "./LoadingInfoBox";
 
 interface InfoBoxProps {
   pos?: [number, number];
@@ -34,7 +36,11 @@ interface InfoBoxProps {
 
 const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
   const [open, setOpen] = useState(false);
+  const [shouldRenderLoadingInfobox, setShouldRenderLoadingInfobox] =
+    useState(false);
   const dispatch = useDispatch();
+
+  const loadingFeatureInfo = useSelector(getLoading);
   const selectedFeature = useSelector(getSelectedFeature);
   const secondaryInfoBoxElements = useSelector(getSecondaryInfoBoxElements);
   const layers = useSelector(getLayers);
@@ -125,6 +131,29 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
         }
       },
     });
+  }
+
+  const loadingRef = useRef(loadingFeatureInfo);
+
+  useEffect(() => {
+    loadingRef.current = loadingFeatureInfo;
+
+    if (!loadingFeatureInfo) {
+      setShouldRenderLoadingInfobox(false);
+    } else {
+      setTimeout(() => {
+        if (loadingRef.current) {
+          setShouldRenderLoadingInfobox(true);
+        }
+      }, 100);
+    }
+  }, [loadingFeatureInfo]);
+
+  if (loadingFeatureInfo && shouldRenderLoadingInfobox)
+    return <LoadingInfoBox />;
+
+  if (!selectedFeature) {
+    return null;
   }
 
   const featureHeaders = secondaryInfoBoxElements.map((feature, i) => {

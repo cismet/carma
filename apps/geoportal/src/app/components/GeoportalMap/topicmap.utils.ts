@@ -28,6 +28,7 @@ import {
   removeNothingFoundID,
   setFeatures,
   setInfoTextToNothingFound,
+  setLoading,
   setSecondaryInfoBoxElements,
   setSelectedFeature,
   setVectorInfo,
@@ -120,8 +121,6 @@ export const onClickTopicMap = async (
     const allVectorInfos = getVectorInfos(store.getState());
     const nothingFoundIDs = getNothingFoundIDs(store.getState());
     const preferredLayerId = getPreferredLayerId(store.getState());
-    dispatch(clearSecondaryInfoBoxElements());
-    dispatch(clearFeatures());
     const pos = proj4(
       proj4.defs("EPSG:4326") as unknown as string,
       proj4crs25832def,
@@ -137,17 +136,7 @@ export const onClickTopicMap = async (
     }
 
     if (queryableLayers && pos[0] && pos[1]) {
-      dispatch(
-        setSelectedFeature({
-          properties: {
-            header: "Position",
-            headerColor: "#0078a8",
-            title: `${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`,
-            subtitle: "(Geogr. Breite und Länge in Dezimalgrad, ETRS89)",
-          },
-          id: "information",
-        })
-      );
+      dispatch(setLoading(true));
       cancelOngoingRequests();
 
       // Create new AbortController for this click
@@ -187,6 +176,8 @@ export const onClickTopicMap = async (
           }
         })
       );
+
+      dispatch(setLoading(false));
 
       if (abortedRequests) {
         return;

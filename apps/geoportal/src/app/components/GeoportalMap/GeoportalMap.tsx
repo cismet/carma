@@ -14,7 +14,6 @@ import {
   TopicMapSelectionContent,
   useCarmaMapContext,
   useGazData,
-  useSelection,
   useSelectionCesium,
   useSelectionTopicMap,
 } from "@carma-apps/portals";
@@ -32,10 +31,7 @@ import {
   OverlayTourContext,
   useOverlayHelper,
 } from "@carma-commons/ui/lib-helper-overlay";
-import {
-  detectWebGLContext,
-  getApplicationVersion,
-} from "@carma-commons/utils";
+import { getApplicationVersion } from "@carma-commons/utils";
 
 import {
   CustomViewer,
@@ -43,13 +39,12 @@ import {
   selectViewerIsMode2d,
   selectViewerModels,
   setCurrentSceneStyle,
-  setIsMode2d,
   useCesiumContext,
 } from "@carma-mapping/cesium-engine";
 import { SelectionItem } from "libraries/appframeworks/portals/src/lib/components/SelectionProvider.tsx";
-import PrintPreview from "../map-print/PrintPreview.tsx";
 import FeatureInfoBox from "../feature-info/FeatureInfoBox.tsx";
 import InfoBoxMeasurement from "../map-measure/InfoBoxMeasurement.jsx";
+import PrintPreview from "../map-print/PrintPreview.tsx";
 
 import versionData from "../../../version.json";
 
@@ -66,6 +61,7 @@ import { createCismapLayers, onClickTopicMap } from "./topicmap.utils.ts";
 
 import store from "../../store/index.ts";
 import {
+  getLoading,
   getSelectedFeature,
   setFeatures,
   setPreferredLayerId,
@@ -81,8 +77,8 @@ import { getUIMode, UIMode } from "../../store/slices/ui.ts";
 
 import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 
-import "../leaflet.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
+import "../leaflet.css";
 
 interface MapProps {
   height: number;
@@ -113,6 +109,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
   const showHamburgerMenu = useSelector(getShowHamburgerMenu);
   const selectedFeature = useSelector(getSelectedFeature);
+  const loadingFeatureInfo = useSelector(getLoading);
   const {
     viewerRef,
     viewerAnimationMapRef,
@@ -295,7 +292,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       if (isModeMeasurement) {
         return <InfoBoxMeasurement key={uiMode} />;
       }
-      if (selectedFeature) {
+      if (selectedFeature || loadingFeatureInfo) {
         return <FeatureInfoBox pos={pos} />;
       }
     }
