@@ -1,8 +1,7 @@
 import React from "react";
 import { useEffect, useState } from "react";
-import { InfoBar } from "../components/InfoBar";
 import { getSheetHtml } from "../utils/bookingSheetSearch";
-import { Breadcrumb, Divider, Skeleton, Spin } from "antd";
+import { Divider, Skeleton, Spin } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { AlkisBookingSheetRendererProps } from "../..";
 import { CustomCard } from "./CustomCard";
@@ -87,7 +86,7 @@ export const AlkisBookingSheetRenderer = ({
             </CustomCard>
           )}
         </div>
-        {!error && (
+        {isLoading && !error && (
           <CustomCard title="PDF-Produkte" className="mt-2">
             <Skeleton />
           </CustomCard>
