@@ -121,8 +121,6 @@ export const onClickTopicMap = async (
     const allVectorInfos = getVectorInfos(store.getState());
     const nothingFoundIDs = getNothingFoundIDs(store.getState());
     const preferredLayerId = getPreferredLayerId(store.getState());
-    dispatch(clearSecondaryInfoBoxElements());
-    dispatch(clearFeatures());
     const pos = proj4(
       proj4.defs("EPSG:4326") as unknown as string,
       proj4crs25832def,

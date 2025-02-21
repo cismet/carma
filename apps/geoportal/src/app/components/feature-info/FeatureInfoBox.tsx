@@ -21,12 +21,14 @@ import {
   getSecondaryInfoBoxElements,
   getSelectedFeature,
   setSecondaryInfoBoxElements,
+  getLoading,
 } from "../../store/slices/features";
 import { getLayers } from "../../store/slices/mapping";
 import { getCoordinates } from "../GeoportalMap/topicmap.utils";
 import { truncateString, updateUrlWithCoordinates } from "./featureInfoHelper";
 
 import "../infoBox.css";
+import LoadingInfoBox from "./LoadingInfoBox";
 
 interface InfoBoxProps {
   pos?: [number, number];
@@ -35,6 +37,8 @@ interface InfoBoxProps {
 const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
   const [open, setOpen] = useState(false);
   const dispatch = useDispatch();
+
+  const loadingFeatureInfo = useSelector(getLoading);
   const selectedFeature = useSelector(getSelectedFeature);
   const secondaryInfoBoxElements = useSelector(getSecondaryInfoBoxElements);
   const layers = useSelector(getLayers);
@@ -152,6 +156,8 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
   });
 
   const Modal = additionalInfoFactory(selectedFeature?.properties?.modal);
+
+  if (loadingFeatureInfo) return <LoadingInfoBox />;
 
   return (
     <>

@@ -2,23 +2,9 @@ import InfoBox from "react-cismap/topicmaps/InfoBox";
 import { useSelector } from "react-redux";
 import { getLayers } from "../../store/slices/mapping";
 import InfoBoxHeader from "react-cismap/topicmaps/InfoBoxHeader";
-import { useEffect, useState } from "react";
 
 const LoadingInfoBox = () => {
   const layers = useSelector(getLayers);
-  const [shouldRender, setShouldRender] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setShouldRender(true);
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (!shouldRender) {
-    return null;
-  }
 
   const featureHeaders = layers.map((layer, i) => {
     return (
