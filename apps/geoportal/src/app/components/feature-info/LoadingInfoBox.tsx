@@ -2,9 +2,11 @@ import InfoBox from "react-cismap/topicmaps/InfoBox";
 import { useSelector } from "react-redux";
 import { getLayers } from "../../store/slices/mapping";
 import InfoBoxHeader from "react-cismap/topicmaps/InfoBoxHeader";
+import { getSelectedFeature } from "../../store/slices/features";
 
 const LoadingInfoBox = () => {
   const layers = useSelector(getLayers);
+  const selectedFeature = useSelector(getSelectedFeature);
 
   const featureHeaders = layers.map((layer, i) => {
     return (
@@ -30,7 +32,11 @@ const LoadingInfoBox = () => {
       pixelwidth={350}
       currentFeature={{}}
       hideNavigator={true}
-      headerColor="#0078a8"
+      headerColor={
+        selectedFeature?.properties.headerColor
+          ? selectedFeature.properties.headerColor
+          : "#0078a8"
+      }
       title={
         <div className="w-full flex items-center justify-between">
           <div className="w-24 h-5 bg-zinc-400 rounded-md animate-pulse" />
