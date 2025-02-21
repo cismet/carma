@@ -2,13 +2,37 @@ import InfoBox from "react-cismap/topicmaps/InfoBox";
 import { useSelector } from "react-redux";
 import { getLayers } from "../../store/slices/mapping";
 import InfoBoxHeader from "react-cismap/topicmaps/InfoBoxHeader";
-import { getSelectedFeature } from "../../store/slices/features";
+import {
+  getPreferredLayerId,
+  getSelectedFeature,
+} from "../../store/slices/features";
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+import { useContext } from "react";
+import { getQueryableLayers } from "../GeoportalMap/utils";
 
 const LoadingInfoBox = () => {
   const layers = useSelector(getLayers);
   const selectedFeature = useSelector(getSelectedFeature);
+  const preferredLayerId = useSelector(getPreferredLayerId);
 
-  const featureHeaders = layers.map((layer, i) => {
+  const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
+  const map = routedMapRef?.leafletMap?.leafletElement;
+  const zoom = map?.getZoom();
+
+  const queryableLayers = getQueryableLayers(layers, zoom);
+
+  const featureHeaders = queryableLayers.map((layer, i) => {
+    let title = layer.title;
+    if (preferredLayerId === layer.id) {
+      title = "Position";
+    } else if (
+      (!preferredLayerId ||
+        !queryableLayers.find((l) => l.id === preferredLayerId)) &&
+      i === queryableLayers.length - 1
+    ) {
+      title = "Position";
+    }
+
     return (
       <div
         style={{
@@ -19,10 +43,7 @@ const LoadingInfoBox = () => {
         }}
         key={"overlapping."}
       >
-        <InfoBoxHeader
-          content={i === layers.length - 1 ? "Position" : layer.title}
-          headerColor={"grey"}
-        ></InfoBoxHeader>
+        <InfoBoxHeader content={title} headerColor={"grey"}></InfoBoxHeader>
       </div>
     );
   });
@@ -53,7 +74,12 @@ const LoadingInfoBox = () => {
       subtitle={
         <div className="w-36 h-2 bg-zinc-400 rounded-md animate-pulse mb-4" />
       }
-      header={layers[layers.length - 1].title}
+      header={
+        preferredLayerId &&
+        queryableLayers.find((l) => l.id === preferredLayerId)
+          ? queryableLayers.find((l) => l.id === preferredLayerId)?.title
+          : queryableLayers[queryableLayers.length - 1].title
+      }
       secondaryInfoBoxElements={featureHeaders}
     />
   );
