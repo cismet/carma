@@ -32,3 +32,8 @@ export const getBoundsForFeatureCollection = (featureCollection) => {
     L.latLng(northEast4326[1], northEast4326[0]) // northeast corner
   );
 };
+
+export const convertLatLngToXY = (latlng) => {
+  const xy = proj4("EPSG:4326", "EPSG:25832", [latlng.lng, latlng.lat]);
+  return xy;
+};
