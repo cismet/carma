@@ -8,3 +8,7 @@ export const landParcelSearchQuery = gql`
 export const sheetSearchQuery = gql`
   ${queries.sheetSearch}
 `;
+
+export const landparcelForPointGeomQuery = gql`
+  ${queries.landparcelForPointGeom}
+`;
