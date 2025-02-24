@@ -142,38 +142,3 @@ export const getFstckForPoint = (x, y, done) => {
     }
   };
 };
-
-export const searchWithPoints = (searchParams) => {
-  return async (dispatch, getState) => {
-    const jwt = getState().auth.jwt;
-    fetch(WUNDA_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${jwt}`,
-      },
-      body: JSON.stringify({
-        query: landparcelForPointGeomQuery,
-        variables: searchParams,
-      }),
-    })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Network response was not ok");
-        }
-        return response.json();
-      })
-      .then((result) => {
-        const id = result.data.alkis_landparcel[0].alkis_id;
-        const baseUrl = window.location.origin + window.location.pathname;
-        const url = `${baseUrl}#/alkis-flurstueck/?id=${id}`;
-        window.open(url, "_blank");
-      })
-      .catch((error) => {
-        console.error(
-          "There was a problem with the fetch operation:",
-          error.message
-        );
-      });
-  };
-};
