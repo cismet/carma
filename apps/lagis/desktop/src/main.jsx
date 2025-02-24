@@ -30,7 +30,7 @@ import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvid
 
 import { loadGazeteerEntries } from "./store/slices/gazData";
 import AlkisLandparcelPage from "./pages/AlkisLandparcelPage";
-import AlkisBookingSheetPage from "../../../verdis/desktop/src/pages/AlkisBookingSheetPage";
+import AlkisBookingSheetPage from "./pages/AlkisBookingSheetPage";
 import RenderNavWrapper from "./components/navigation/RenderNavWrapper";
 
 const NavBarWrapper = () => {

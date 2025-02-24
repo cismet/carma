@@ -57,8 +57,9 @@ import { getJWT } from "../../store/slices/auth";
 import HoveredLandparcelInfo from "./HoveredLandparcelInfo";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBinoculars } from "@fortawesome/free-solid-svg-icons";
-import PointSearchButton from "../ui/PointSearchButton";
+import { PointSearchButton } from "@carma-apps/alkis-renderer";
 import PointSearch from "../searchShapes/PointSearch";
+import { storeShapeMode } from "../../store/slices/searchMode";
 
 const { ScaleControl } = TransitiveReactLeaflet;
 
@@ -190,6 +191,10 @@ const Map = ({
     dispatch(setShowInspectMode(!showInspectMode));
   };
 
+  const handleSetDonutSearch = () => {
+    dispatch(storeShapeMode("point"));
+  };
+
   useEffect(() => {
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
@@ -305,7 +310,7 @@ const Map = ({
           )}
 
           <div className="relative flex items-center gap-2 cursor-pointer">
-            <PointSearchButton />
+            <PointSearchButton setMode={handleSetDonutSearch} />
             <Tooltip title="Hintergrund an/aus">
               <FileImageFilled
                 className="text-lg h-6 cursor-pointer"
