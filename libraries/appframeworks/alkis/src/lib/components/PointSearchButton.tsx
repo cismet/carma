@@ -10,7 +10,7 @@ interface PointSearchButtonProps {
 
 export const PointSearchButton = ({
   setMode,
-  iconStyle = "text-lg h-5",
+  iconStyle = "text-lg h-5 cursor-pointer",
 }: PointSearchButtonProps) => {
   return (
     <Tooltip title="Flurstücksuche">

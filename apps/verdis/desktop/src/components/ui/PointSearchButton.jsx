@@ -12,7 +12,7 @@ const PointSearchButton = () => {
         className="relative flex cursor-pointer items-center justify-center"
         onClick={() => dispatch(storeShapeMode("point"))}
       >
-        <FontAwesomeIcon icon={faSearchLocation} className={`h-6`} />
+        <FontAwesomeIcon icon={faSearchLocation} className={`h-6 text-xl`} />
       </div>
     </Tooltip>
   );

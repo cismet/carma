@@ -83,8 +83,9 @@ import Toolbar from "./Toolbar";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import RectangleSearch from "../searchShapes/RectangleSearch";
 import ShapeSearchButton from "../ui/ShapeSearchButton";
-import PointSearchButton from "../ui/PointSearchButton";
-import PointSearch from "../searchShapes/PointSearch";
+// import PointSearch from "../searchShapes/PointSearch";
+import { PointSearchButton, PointSearch } from "@carma-apps/alkis-renderer";
+import { getShapeMode, storeShapeMode } from "../../store/slices/searchMode";
 
 const { ScaleControl } = TransitiveReactLeaflet;
 
@@ -120,6 +121,7 @@ const Map = ({
   const gazData = useSelector(getGazData);
   const showBackground = useSelector(getShowBackground);
   const jwt = useSelector(getJWT);
+  const mode = useSelector(getShapeMode);
   const [overlayFeature, setOverlayFeature] = useState(null);
   const [gazetteerHit, setGazetteerHit] = useState(null);
 
@@ -204,6 +206,9 @@ const Map = ({
   };
   const handleShowCurrentFeatureCollection = () => {
     dispatch(setShowCurrentFeatureCollection(!showCurrentFeatureCollection));
+  };
+  const handleSetDonutSearch = (mode = "point") => {
+    dispatch(storeShapeMode(mode));
   };
 
   useEffect(() => {
@@ -312,7 +317,10 @@ const Map = ({
           {/* {(isLoadingGeofields || isLoadingKassenzeichenWithPoint) && (
             <LoadingOutlined />
           )} */}
-          <PointSearchButton />
+          <PointSearchButton
+            setMode={handleSetDonutSearch}
+            iconStyle="h-6 cursor-pointer"
+          />
           <ShapeSearchButton />
           <Tooltip title="optimaler Kartenausschnitt für dieses Kassenzeichen">
             <div
@@ -598,7 +606,12 @@ const Map = ({
         <RectangleSearch
           map={refRoutedMap?.current?.leafletMap?.leafletElement}
         />
-        <PointSearch map={refRoutedMap?.current?.leafletMap?.leafletElement} />
+        <PointSearch
+          map={refRoutedMap?.current?.leafletMap?.leafletElement}
+          setMode={handleSetDonutSearch}
+          jwt={jwt}
+          mode={mode}
+        />
       </RoutedMap>
       <Toolbar />
     </Card>
