@@ -6,7 +6,11 @@ import {
 } from "@carma-mapping/cesium-engine";
 
 function View() {
-  const { footprintGeoJson } = useSelector(selectViewerDataSources);
+  const datasources = useSelector(selectViewerDataSources);
+
+  if (!datasources) return null;
+
+  const footprintGeoJson = datasources.footprintGeoJson;
 
   return (
     footprintGeoJson && <ByGeojsonClassifier geojson={footprintGeoJson} debug />

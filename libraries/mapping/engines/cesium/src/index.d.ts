@@ -165,10 +165,8 @@ export interface CesiumState {
       opacity: number;
     };
   };
-  dataSources: {
-    footprintGeoJson: null | GeoJsonConfig;
-  };
-  models: null | Record<string, ModelAsset | ParsedModelAsset>;
+  dataSources?: Record<string, GeoJsonConfig>;
+  models?: Record<string, ModelAsset | ParsedModelAsset>;
 }
 
 export type RootState = {

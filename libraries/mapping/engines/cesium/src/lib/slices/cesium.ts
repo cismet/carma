@@ -32,10 +32,6 @@ const initialState: CesiumState = {
     minimumZoomDistance: 1,
     maximumZoomDistance: Infinity,
   },
-  dataSources: {
-    footprintGeoJson: null,
-  },
-  models: null,
 };
 
 export const getCesiumConfig = ({

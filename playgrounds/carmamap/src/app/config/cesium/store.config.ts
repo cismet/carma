@@ -7,7 +7,6 @@ import { CesiumState, toColorRgbaArray } from "@carma-mapping/cesium-engine";
 
 import { MODEL_ASSETS } from "./assets.config";
 
-import { FOOTPRINT_GEOJSON_SOURCES } from "./dataSources.config";
 
 // SETUP Store State
 
@@ -53,9 +52,6 @@ export const defaultCesiumState: CesiumState = {
         baseColor: toColorRgbaArray(Color.WHITE),
       },
     },
-  },
-  dataSources: {
-    footprintGeoJson: FOOTPRINT_GEOJSON_SOURCES.VORONOI,
   },
   models: MODEL_ASSETS,
 };

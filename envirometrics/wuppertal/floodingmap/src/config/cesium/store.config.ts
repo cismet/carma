@@ -53,9 +53,6 @@ export const defaultCesiumState: CesiumState = {
       },
     },
   },
-  dataSources: {
-    footprintGeoJson: null,
-  },
   models: MODEL_ASSETS,
 };
 
