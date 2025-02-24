@@ -47,7 +47,11 @@ import { MapContainer } from "react-leaflet";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
 import AlkisLandparcelPage from "./pages/AlkisLandparcelPage";
 import AlkisBookingSheetPage from "./pages/AlkisBookingSheetPage";
-import RenderNavWrapper from "./components/render/RenderNavWrapper";
+// import RenderNavWrapper from "./components/render/RenderNavWrapper";
+import { AlkisNav } from "@carma-apps/alkis-renderer";
+
+const logoSrc = "/logo.svg";
+const urlPrefix = window.location.origin + window.location.pathname;
 
 const baseLayerConf = extendBaseLayerConf({ ...defaultLayerConf });
 
@@ -148,17 +152,25 @@ const router = createHashRouter(
     {
       path: "/alkis-flurstueck",
       element: (
-        <RenderNavWrapper>
+        <AlkisNav
+          name="VerDIS"
+          logoPath={urlPrefix + logoSrc}
+          style={{ height: "40px" }}
+        >
           <AlkisLandparcelPage />
-        </RenderNavWrapper>
+        </AlkisNav>
       ),
     },
     {
       path: "/alkis-buchungsblatt",
       element: (
-        <RenderNavWrapper>
+        <AlkisNav
+          name="VerDIS"
+          logoPath={urlPrefix + logoSrc}
+          style={{ height: "40px" }}
+        >
           <AlkisBookingSheetPage />
-        </RenderNavWrapper>
+        </AlkisNav>
       ),
     },
   ],
