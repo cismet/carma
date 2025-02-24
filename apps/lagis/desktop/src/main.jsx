@@ -31,7 +31,7 @@ import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvid
 import { loadGazeteerEntries } from "./store/slices/gazData";
 import AlkisLandparcelPage from "./pages/AlkisLandparcelPage";
 import AlkisBookingSheetPage from "./pages/AlkisBookingSheetPage";
-import RenderNavWrapper from "./components/navigation/RenderNavWrapper";
+import { AlkisNav } from "@carma-apps/alkis-renderer";
 
 const NavBarWrapper = () => {
   const dispatch = useDispatch();
@@ -44,6 +44,9 @@ const NavBarWrapper = () => {
   }, []);
   return <AppLayout />;
 };
+const logoSrc = "/logo.png";
+const urlPrefix = window.location.origin + window.location.pathname;
+
 const productionMode = process.env.NODE_ENV === "production";
 
 const router = createHashRouter([
@@ -97,17 +100,17 @@ const router = createHashRouter([
   {
     path: "/alkis-flurstueck",
     element: (
-      <RenderNavWrapper>
+      <AlkisNav name="LagIS-online" logoPath={urlPrefix + logoSrc}>
         <AlkisLandparcelPage />
-      </RenderNavWrapper>
+      </AlkisNav>
     ),
   },
   {
     path: "/alkis-buchungsblatt",
     element: (
-      <RenderNavWrapper>
+      <AlkisNav name="LagIS-online" logoPath={urlPrefix + logoSrc}>
         <AlkisBookingSheetPage />
-      </RenderNavWrapper>
+      </AlkisNav>
     ),
   },
 ]);
