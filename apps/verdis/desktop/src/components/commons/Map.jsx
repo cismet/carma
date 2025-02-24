@@ -83,7 +83,6 @@ import Toolbar from "./Toolbar";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import RectangleSearch from "../searchShapes/RectangleSearch";
 import ShapeSearchButton from "../ui/ShapeSearchButton";
-// import PointSearch from "../searchShapes/PointSearch";
 import { PointSearchButton, PointSearch } from "@carma-apps/alkis-renderer";
 import { getShapeMode, storeShapeMode } from "../../store/slices/searchMode";
 

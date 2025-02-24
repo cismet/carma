@@ -764,52 +764,6 @@ export const searchWithRectangle = (searchParams) => {
   };
 };
 
-export const searchWithPoints = (searchParams) => {
-  return async (dispatch, getState) => {
-    const jwt = getState().auth.jwt;
-    dispatch(setGraphqlStatus("LOADING"));
-    fetch(WUNDA_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${jwt}`,
-      },
-      body: JSON.stringify({
-        query: landparcelForPointGeomQuery,
-        variables: searchParams,
-      }),
-    })
-      .then((response) => {
-        if (!response.ok) {
-          dispatch(setGraphqlStatus("LOADED"));
-          throw new Error("Network response was not ok");
-        }
-        return response.json();
-      })
-      .then((result) => {
-        const ids = result.data.alkis_landparcel[0].alkis_id;
-        // const ids = result.data.alkis_landparcel[0].id;
-        const baseUrl = window.location.origin + window.location.pathname;
-
-        //const url = `http://localhost:3033/renderer/?domain=WUNDA_BLAU&jwt=${jwt}&table=alkis_landparcel&id=${ids}`;
-        const url = `${baseUrl}#/alkis-flurstueck/?id=${ids}`;
-        window.open(url, "_blank");
-        // fetch(url).catch((error) => {
-        //   //  i expect an error here
-        // });
-
-        dispatch(setGraphqlStatus("LOADED"));
-      })
-      .catch((error) => {
-        dispatch(setGraphqlStatus("LOADED"));
-        console.error(
-          "There was a problem with the fetch operation:",
-          error.message
-        );
-      });
-  };
-};
-
 export const {
   storeKassenzeichen,
   storeAenderungsAnfrage,
