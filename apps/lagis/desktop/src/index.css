@@ -102,31 +102,3 @@ button:focus-visible {
 .ant-menu-inline-collapsed > .ant-menu-item .ant-menu-item-icon {
   line-height: 0 !important;
 }
-
-.ant-tabs-nav {
-  margin-left: 0 !important;
-  padding-left: 0 !important;
-}
-
-.ant-tabs-tab {
-  margin: 0 !important;
-  padding: 0 !important;
-}
-
-.ant-tabs-tab-active {
-  margin: 0 !important;
-  padding: 0 !important;
-}
-
-.ant-tabs-bar {
-  margin-left: 0 !important;
-  padding-left: 0 !important;
-}
-
-.ant-breadcrumb {
-  font-family: inherit !important;
-}
-
-.ant-breadcrumb-separator {
-  margin-inline: 4px !important;
-}
