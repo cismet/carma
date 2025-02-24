@@ -31,7 +31,7 @@ export const searchLandparcelByName = async (
 
     if (!response.ok) {
       setIsLoading(false);
-      // setError(response.status);
+      setError("Fehler: keine Daten gefunden");
       throw new Error("Network response was not ok");
     }
 
@@ -82,9 +82,12 @@ export const getAdditionalSheets = (sheetId, jwt, setError, setIsLoading) => {
     .then((response) => {
       if (response.status >= 200 && response.status < 300) {
         const res = response.json();
+        setIsLoading(false);
+        setError(null);
         return res;
       } else {
         setIsLoading(false);
+        setError("Fehler: keine Daten gefunden");
         console.log(
           "xxx Error:" + response.status + " -> " + response.statusText
         );
@@ -92,6 +95,7 @@ export const getAdditionalSheets = (sheetId, jwt, setError, setIsLoading) => {
     })
     .catch((e) => {
       setIsLoading(false);
+      setError("Fehler: keine Daten gefunden");
       console.log("xxx error", e);
     })
     .then((result) => {
@@ -100,6 +104,7 @@ export const getAdditionalSheets = (sheetId, jwt, setError, setIsLoading) => {
       const legalDesc = result.res.descriptionOfRechtsgemeinschaft;
       const namesArr = result.res.namensnummern;
       setIsLoading(false);
+      setError(null);
 
       return {
         buchungsblattcode: result.res.buchungsblattCode,
@@ -206,15 +211,19 @@ export const getBookingOfficesBySheetId = async (
 
     if (!response.ok) {
       setIsLoading(false);
-      throw new Error("Network response was not ok");
+      setError("Fehler: keine Daten gefunden"),
+        console.log(
+          "xxx Error: " + response.status + " -> " + response.statusText
+        );
     }
     const result = await response.json();
-
+    setIsLoading(false);
+    setError(null);
     return result;
   } catch (error) {
     setIsLoading(false);
-
-    console.error("There was a problem with the fetch operation:");
+    setError("Fehler: keine Daten gefunden"),
+      console.error("There was a problem with the fetch operation:");
   }
 };
 
