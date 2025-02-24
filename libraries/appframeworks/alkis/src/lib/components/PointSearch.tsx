@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { useSelector, useDispatch } from "react-redux";
 import { searchWithPoints } from "../utils/apiMethods";
 import { convertLatLngToXY } from "../utils/mappingTools";
 

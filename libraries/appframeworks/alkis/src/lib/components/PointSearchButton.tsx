@@ -4,7 +4,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSearchLocation } from "@fortawesome/free-solid-svg-icons";
 
 interface PointSearchButtonProps {
-  setMode: () => void;
+  setMode: (mode: string) => void;
   iconStyle?: string;
 }
 
@@ -17,7 +17,7 @@ export const PointSearchButton = ({
       <FontAwesomeIcon
         icon={faSearchLocation}
         className={iconStyle}
-        onClick={setMode}
+        onClick={() => setMode("point")}
       />
     </Tooltip>
   );

@@ -57,9 +57,8 @@ import { getJWT } from "../../store/slices/auth";
 import HoveredLandparcelInfo from "./HoveredLandparcelInfo";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBinoculars } from "@fortawesome/free-solid-svg-icons";
-import { PointSearchButton } from "@carma-apps/alkis-renderer";
-import PointSearch from "../searchShapes/PointSearch";
-import { storeShapeMode } from "../../store/slices/searchMode";
+import { PointSearchButton, PointSearch } from "@carma-apps/alkis-renderer";
+import { getShapeMode, storeShapeMode } from "../../store/slices/searchMode";
 
 const { ScaleControl } = TransitiveReactLeaflet;
 
@@ -107,6 +106,8 @@ const Map = ({
   const showBackground = useSelector(getShowBackground);
   const showInspectMode = useSelector(getShowInspectMode);
   const jwt = useSelector(getJWT);
+  const mode = useSelector(getShapeMode);
+
   const [overlayFeature, setOverlayFeature] = useState(null);
   const [gazetteerHit, setGazetteerHit] = useState(null);
 
@@ -191,8 +192,8 @@ const Map = ({
     dispatch(setShowInspectMode(!showInspectMode));
   };
 
-  const handleSetDonutSearch = () => {
-    dispatch(storeShapeMode("point"));
+  const handleSetDonutSearch = (mode = "point") => {
+    dispatch(storeShapeMode(mode));
   };
 
   useEffect(() => {
@@ -490,7 +491,12 @@ const Map = ({
             />
           </>
         )}
-        <PointSearch map={refRoutedMap?.current?.leafletMap?.leafletElement} />
+        <PointSearch
+          map={refRoutedMap?.current?.leafletMap?.leafletElement}
+          setMode={handleSetDonutSearch}
+          jwt={jwt}
+          mode={mode}
+        />
       </RoutedMap>
     </Card>
   );
