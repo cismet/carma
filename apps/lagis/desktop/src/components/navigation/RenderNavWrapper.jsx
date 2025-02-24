@@ -7,7 +7,7 @@ const RenderNavWrapper = ({ children }) => {
   return (
     <div className="w-full min-h-screen bg-[#f4f4f5]">
       <header className="flex items-center justify-between bg-white p-3 gap-3 py-[1.4rem]">
-        <div className="md:flex hidden items-center gap-3">
+        <div className="flex items-center gap-3">
           <div className="flex flex-wrap justify-center items-center gap-1">
             <img
               src={urlPrefix + logoSrc}
