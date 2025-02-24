@@ -22,8 +22,7 @@ const LocateControlComponent = ({ isActive = false }) => {
             title: "Mein Standort",
             metersUnit: "Meter",
             feetUnit: "feet",
-            popup:
-              "Ihre reale Position kann bis zu {distance} {unit} von diesem Punkt abweichen.",
+            popup: `Ihre reale Position kann bis<br/>zu {distance} {unit}<br/> von diesem Punkt abweichen.`,
             outsideMapBoundsMsg:
               "Sie befinden sich außerhalb der Kartengrenzen.",
           },
