@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import { LibFuzzySearch, SearchResultItem } from "@carma-mapping/fuzzy-search";
 import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
@@ -7,6 +6,8 @@ import {
   SelectionMetaData,
   useGazData,
   useSelection,
+  TopicMapSelectionContent,
+  useSelectionTopicMap,
 } from "@carma-apps/portals";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 
@@ -17,6 +18,8 @@ export function App() {
   console.log("xxx gazData", gazData);
 
   const { setSelection } = useSelection();
+
+  useSelectionTopicMap();
 
   const onGazetteerSelection = (selection: SearchResultItem | null) => {
     if (!selection) {
@@ -35,6 +38,7 @@ export function App() {
   return (
     <TopicMapComponent
       gazData={gazData}
+      // gazetteerSearchControl={true}
       gazetteerSearchComponent={
         <LibFuzzySearch
           gazData={gazData}
@@ -45,7 +49,9 @@ export function App() {
         />
       } // TODO fix topicmap selectionintegration to new provider paradigm
       infoBox={<GenericInfoBoxFromFeature />}
-    ></TopicMapComponent>
+    >
+      <TopicMapSelectionContent />
+    </TopicMapComponent>
   );
 }
 
