@@ -180,6 +180,8 @@ const Map = ({
     backgroundsFromMode = backgroundConfigurations[selectedBackground].layerkey;
   } catch (e) {}
 
+  const lastPointSearchTimeRef = useRef(0);
+
   const _backgroundLayers = backgroundsFromMode || "rvrGrau@40";
   const opacities = useSelector(getAdditionalLayerOpacities);
   const handleSetShowBackground = () => {
@@ -193,6 +195,11 @@ const Map = ({
   };
 
   const handleSetDonutSearch = (mode = "point") => {
+    dispatch(storeShapeMode(mode));
+  };
+
+  const handleSetDonutWithDelay = (mode = "point") => {
+    lastPointSearchTimeRef.current = Date.now();
     dispatch(storeShapeMode(mode));
   };
 
@@ -253,6 +260,12 @@ const Map = ({
   const oldBgRef = useRef(null);
 
   useEffect(() => {
+    const now = Date.now();
+
+    if (now - lastPointSearchTimeRef.current < 1000) {
+      return;
+    }
+
     if (
       isMapLoadingValue === false &&
       data?.featureCollection &&
@@ -275,6 +288,7 @@ const Map = ({
     refRoutedMap.current,
     isMapLoadingValue,
     activeBackgroundLayer,
+    mode,
   ]);
 
   return (
@@ -311,7 +325,7 @@ const Map = ({
           )}
 
           <div className="relative flex items-center gap-2 cursor-pointer">
-            <PointSearchButton setMode={handleSetDonutSearch} />
+            <PointSearchButton setMode={handleSetDonutWithDelay} />
             <Tooltip title="Hintergrund an/aus">
               <FileImageFilled
                 className="text-lg h-6 cursor-pointer"
@@ -493,7 +507,7 @@ const Map = ({
         )}
         <PointSearch
           map={refRoutedMap?.current?.leafletMap?.leafletElement}
-          setMode={handleSetDonutSearch}
+          setMode={handleSetDonutWithDelay}
           jwt={jwt}
           mode={mode}
         />
