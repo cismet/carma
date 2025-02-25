@@ -250,16 +250,16 @@ a:hover {
 .custom-left-control {
   position: absolute;
   z-index: 1000;
-  pointer-events: none;
+  /* pointer-events: none; */
   left: 0;
   bottom: 0;
   margin-left: 10px;
   margin-bottom: 5px;
 }
 
-@media (max-width: 625px) {
+/* @media (max-width: 625px) {
   .custom-left-control {
     width: 100%;
     bottom: 70px;
   }
-}
+} */
