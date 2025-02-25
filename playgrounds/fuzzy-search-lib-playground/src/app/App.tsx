@@ -36,10 +36,15 @@ export function App() {
   };
 
   return (
-    <TopicMapComponent
-      gazData={gazData}
-      // gazetteerSearchControl={true}
-      gazetteerSearchComponent={
+    <>
+      <TopicMapComponent
+        gazData={gazData}
+        gazetteerSearchComponent={<></>}
+        infoBox={<GenericInfoBoxFromFeature />}
+      >
+        <TopicMapSelectionContent />
+      </TopicMapComponent>
+      <div className="custom-left-control">
         <LibFuzzySearch
           gazData={gazData}
           //referenceSystem={referenceSystem}
@@ -47,11 +52,8 @@ export function App() {
           onSelection={onGazetteerSelection}
           placeholder="Wohin?"
         />
-      } // TODO fix topicmap selectionintegration to new provider paradigm
-      infoBox={<GenericInfoBoxFromFeature />}
-    >
-      <TopicMapSelectionContent />
-    </TopicMapComponent>
+      </div>
+    </>
   );
 }
 
