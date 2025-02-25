@@ -1,29 +1,49 @@
 import { useEffect, useState } from "react";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
-import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
+import { LibFuzzySearch, SearchResultItem } from "@carma-mapping/fuzzy-search";
 import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
-import { useGazData } from "@carma-apps/portals";
+import {
+  SelectionMetaData,
+  useGazData,
+  useSelection,
+} from "@carma-apps/portals";
+import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 
 suppressReactCismapErrors();
 
 export function App() {
-  const [gazetteerHit, setGazetteerHit] = useState(null);
-  const [overlayFeature, setOverlayFeature] = useState(null);
-
   const { gazData } = useGazData();
+  console.log("xxx gazData", gazData);
 
-  useEffect(() => {
-    console.log("hit", gazetteerHit);
-  }, [gazetteerHit]);
-  useEffect(() => {
-    console.log("hit oveyrlay", overlayFeature);
-  }, [overlayFeature]);
+  const { setSelection } = useSelection();
+
+  const onGazetteerSelection = (selection: SearchResultItem | null) => {
+    if (!selection) {
+      //console.debug("onGazetteerSelection", selection);
+      setSelection(null);
+      return;
+    }
+    const selectionMetaData: SelectionMetaData = {
+      selectedFrom: "gazetteer",
+      selectionTimestamp: Date.now(),
+      isAreaSelection: isAreaType(selection.type as ENDPOINT),
+    };
+    setSelection(Object.assign({}, selection, selectionMetaData));
+  };
 
   return (
     <TopicMapComponent
       gazData={gazData}
-      gazetteerSearchComponent={LibFuzzySearch} // TODO fix topicmap selectionintegration to new provider paradigm
+      gazetteerSearchComponent={
+        <LibFuzzySearch
+          gazData={gazData}
+          //referenceSystem={referenceSystem}
+          //referenceSystemDefinition={referenceSystemDefinition}
+          onSelection={onGazetteerSelection}
+          placeholder="Wohin?"
+        />
+      } // TODO fix topicmap selectionintegration to new provider paradigm
       infoBox={<GenericInfoBoxFromFeature />}
     ></TopicMapComponent>
   );

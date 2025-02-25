@@ -3,7 +3,7 @@ import * as ReactDOM from "react-dom/client";
 
 import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
 
-import { GazDataProvider } from "@carma-apps/portals";
+import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
 
 import { App } from "./app/App";
 
@@ -18,9 +18,11 @@ const root = ReactDOM.createRoot(
 root.render(
   <StrictMode>
     <GazDataProvider>
-      <TopicMapContextProvider>
-        <App />
-      </TopicMapContextProvider>
+      <SelectionProvider>
+        <TopicMapContextProvider>
+          <App />
+        </TopicMapContextProvider>
+      </SelectionProvider>
     </GazDataProvider>
   </StrictMode>
 );
