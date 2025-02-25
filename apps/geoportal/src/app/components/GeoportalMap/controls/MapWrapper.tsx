@@ -56,7 +56,12 @@ import { useFeatureInfoModeCursorStyle } from "../../../hooks/useFeatureInfoMode
 import { useTourRefCollabLabels } from "../../../hooks/useTourRefCollabLabels.ts";
 import { useWindowSize } from "../../../hooks/useWindowSize.ts";
 
-import { getUrlPrefix } from "../utils";
+import {
+  exitFullscreen,
+  getUrlPrefix,
+  isFullscreen,
+  requestFullscreen,
+} from "../utils";
 import { cancelOngoingRequests } from "../topicmap.utils";
 
 import {
@@ -81,6 +86,10 @@ import {
 } from "../../../store/slices/ui.ts";
 
 import { CESIUM_CONFIG } from "../../../config/app.config";
+import {
+  FullScreenDocument,
+  FullScreenHTMLElement,
+} from "@carma-mapping/layers";
 
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;
@@ -335,10 +344,13 @@ const MapWrapper = () => {
               >
                 <ControlButtonStyler
                   onClick={() => {
-                    if (document.fullscreenElement) {
-                      document.exitFullscreen();
+                    const doc = document as FullScreenDocument;
+                    if (isFullscreen(doc)) {
+                      exitFullscreen(doc);
                     } else {
-                      document.documentElement.requestFullscreen();
+                      requestFullscreen(
+                        document.documentElement as FullScreenHTMLElement
+                      );
                     }
                   }}
                   ref={tourRefLabels.fullScreen}
