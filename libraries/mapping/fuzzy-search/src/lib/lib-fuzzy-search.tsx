@@ -298,7 +298,8 @@ export function LibFuzzySearch({
           placeholder={placeholder}
           value={value}
           dropdownAlign={{
-            offset: [0, 4],
+            points: ["bl", "tl"],
+            offset: [0, -4],
           }}
           onSelect={(value, option) => handleOnSelect(option)}
           defaultActiveFirstOption={true}
@@ -326,7 +327,8 @@ export function LibFuzzySearch({
           placeholder={placeholder}
           value={value}
           dropdownAlign={{
-            offset: [0, 4],
+            points: ["bl", "tl"],
+            offset: [0, -4],
           }}
           onSelect={(value, option) => handleOnSelect(option)}
           defaultActiveFirstOption={true}
