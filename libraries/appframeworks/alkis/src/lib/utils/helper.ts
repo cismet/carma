@@ -133,19 +133,26 @@ export const getAdditionalTextForBooking = (newInfos, bookingType) => {
   return newText;
 };
 
-export const getBookingByLandparcelCode = (landparcelcode, buchungsstellen) => {
-  const booking = buchungsstellen.filter((b) => {
-    if (!b.buchungsstellen) {
-      return false;
-    } else {
-      return (
-        b?.buchungsstellen[0]?.landParcel[0]?.landParcelCode === landparcelcode
-      );
-    }
-  });
+// export const getBookingByLandparcelCode = (landparcelcode, buchungsstellen) => {
+//   debugger;
+//   const booking = buchungsstellen.filter((b) => {
+//     if (!b.buchungsstellen) {
+//       return false;
+//     } else {
+//       return (
+//         b?.buchungsstellen[0]?.landParcel[0]?.landParcelCode === landparcelcode
+//       );
+//     }
+//   });
 
-  return booking;
-};
+//   return booking;
+// };
+
+export const getBookingByLandparcelCode = (landparcelCode, buchungsstellen) =>
+  buchungsstellen.filter(
+    (b) =>
+      b.buchungsstellen?.[0]?.landParcel?.[0]?.landParcelCode === landparcelCode
+  );
 
 export const bookingColors = [
   "#2956B2",
