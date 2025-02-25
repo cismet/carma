@@ -91,6 +91,7 @@ export const Map = <T,>({ dataIn, extractor = mockExtractor }: MapProps<T>) => {
         hamburgerMenu={false}
         fullScreenControl={false}
         zoomControls={false}
+        pushToHistory={() => {}}
       >
         <FeatureCollectionDisplay
           featureCollection={data.featureCollection}
