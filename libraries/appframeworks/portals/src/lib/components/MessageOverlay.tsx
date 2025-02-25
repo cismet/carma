@@ -9,7 +9,7 @@ export const MessageOverlay: React.FC<{
         position: "absolute",
         width: "100vw",
         height: "100%",
-        paddingBottom: "7",
+        paddingBottom: "7%",
         display: "flex",
         justifyContent: "center",
         alignItems: "end",
