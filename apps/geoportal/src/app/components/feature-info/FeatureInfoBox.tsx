@@ -104,23 +104,25 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
       if (secondaryInfoBoxElements.length === 0) {
         return;
       }
-      switch (event.key) {
-        case "ArrowUp":
-          event.preventDefault();
-          const nextFeature = secondaryInfoBoxElements[0];
-          dispatch(removeSecondaryInfoBoxElement(nextFeature));
-          dispatch(moveFeatureToEnd(selectedFeature));
-          dispatch(setSelectedFeature(nextFeature));
-          break;
-        case "ArrowDown":
-          event.preventDefault();
-          const prevFeature =
-            secondaryInfoBoxElements[secondaryInfoBoxElements.length - 1];
-          dispatch(removeSecondaryInfoBoxElement(prevFeature));
+      if (event.ctrlKey) {
+        switch (event.key) {
+          case "ArrowUp":
+            event.preventDefault();
+            const nextFeature = secondaryInfoBoxElements[0];
+            dispatch(removeSecondaryInfoBoxElement(nextFeature));
+            dispatch(moveFeatureToEnd(selectedFeature));
+            dispatch(setSelectedFeature(nextFeature));
+            break;
+          case "ArrowDown":
+            event.preventDefault();
+            const prevFeature =
+              secondaryInfoBoxElements[secondaryInfoBoxElements.length - 1];
+            dispatch(removeSecondaryInfoBoxElement(prevFeature));
 
-          dispatch(moveFeatureToFront(selectedFeature));
-          dispatch(setSelectedFeature(prevFeature));
-          break;
+            dispatch(moveFeatureToFront(selectedFeature));
+            dispatch(setSelectedFeature(prevFeature));
+            break;
+        }
       }
     };
 
