@@ -22,6 +22,9 @@ import {
   getSelectedFeature,
   setSecondaryInfoBoxElements,
   getLoading,
+  moveFeatureToEnd,
+  removeSecondaryInfoBoxElement,
+  moveFeatureToFront,
 } from "../../store/slices/features";
 import { getLayers } from "../../store/slices/mapping";
 import { getCoordinates } from "../GeoportalMap/topicmap.utils";
@@ -95,6 +98,37 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
       }
     }
   }, [pos, selectedFeature]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (secondaryInfoBoxElements.length === 0) {
+        return;
+      }
+      switch (event.key) {
+        case "ArrowUp":
+          event.preventDefault();
+          const nextFeature = secondaryInfoBoxElements[0];
+          dispatch(removeSecondaryInfoBoxElement(nextFeature));
+          dispatch(moveFeatureToEnd(selectedFeature));
+          dispatch(setSelectedFeature(nextFeature));
+          break;
+        case "ArrowDown":
+          event.preventDefault();
+          const prevFeature =
+            secondaryInfoBoxElements[secondaryInfoBoxElements.length - 1];
+          dispatch(removeSecondaryInfoBoxElement(prevFeature));
+
+          dispatch(moveFeatureToFront(selectedFeature));
+          dispatch(setSelectedFeature(prevFeature));
+          break;
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [secondaryInfoBoxElements]);
 
   let links = [];
   if (selectedFeature && selectedFeature.id !== "information") {

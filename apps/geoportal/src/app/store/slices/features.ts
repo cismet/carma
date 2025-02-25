@@ -119,6 +119,20 @@ const slice = createSlice({
         (f) => !isEqual(f, feature)
       );
     },
+    removeSecondaryInfoBoxElement(state, action: PayloadAction<FeatureInfo>) {
+      const feature = action.payload;
+      state.secondaryInfoBoxElements = state.secondaryInfoBoxElements.filter(
+        (f) => !isEqual(f, feature)
+      );
+    },
+    moveFeatureToEnd(state, action: PayloadAction<FeatureInfo>) {
+      const feature = action.payload;
+      state.secondaryInfoBoxElements.push(feature);
+    },
+    moveFeatureToFront(state, action: PayloadAction<FeatureInfo>) {
+      const feature = action.payload;
+      state.secondaryInfoBoxElements.unshift(feature);
+    },
     clearSecondaryInfoBoxElements(state) {
       state.secondaryInfoBoxElements = [];
     },
@@ -156,6 +170,9 @@ export const {
 
   setSecondaryInfoBoxElements,
   updateSecondaryInfoBoxElements,
+  removeSecondaryInfoBoxElement,
+  moveFeatureToEnd,
+  moveFeatureToFront,
   clearSecondaryInfoBoxElements,
   setLoading,
 } = slice.actions;
