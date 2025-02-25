@@ -88,11 +88,16 @@ export const LandparcelInfo = ({
                 <div style={{ marginRight: "4rem" }}>
                   <div>Nr. {b.content.nrCode} auf</div>
                   <div>
-                    <a
+                    <Link
+                      to={`/alkis-buchungsblatt?id=${b.buchungsblattcode.trim()}&flurstueck=${alkisId}`}
+                    >
+                      <div className="text-primary">{`${b.buchungsblattcode}`}</div>
+                    </Link>
+                    {/* <a
                       href={`${urlPrefix}#/alkis-buchungsblatt?id=${b.buchungsblattcode.trim()}&flurstueck=${alkisId}`}
                     >
                       <div className="text-primary">{`${b.buchungsblattcode}`}</div>
-                    </a>
+                    </a> */}
                   </div>
                 </div>
                 <AdditionalSheet
