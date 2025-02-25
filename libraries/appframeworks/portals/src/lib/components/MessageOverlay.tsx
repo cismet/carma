@@ -1,8 +1,8 @@
 import React from "react";
 
-const WIP: React.FC<{
+const MessageOverlay: React.FC<{
   message?: string;
-}> = ({ message = "Work in Progress" }) => {
+}> = ({ message = "Experimental Feature Enabled" }) => {
   return (
     <div
       style={{
@@ -14,11 +14,13 @@ const WIP: React.FC<{
         alignItems: "center",
         userSelect: "none",
         pointerEvents: "none",
-        transform: "rotate(-30deg)",
+        transform: "rotate(-15deg)",
         zIndex: 1000,
-        fontSize: "10vw",
-        color: "rgba(255, 0, 0, 0.5)",
+        fontSize: "8vh",
+        color: "rgba(255, 255, 255, 0.5)",
+        mixBlendMode: "screen",
         backgroundColor: "transparent",
+        overflow: "hidden",
       }}
     >
       {message}
@@ -26,4 +28,4 @@ const WIP: React.FC<{
   );
 };
 
-export default WIP;
+export default MessageOverlay;

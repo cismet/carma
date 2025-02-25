@@ -13,6 +13,7 @@ import {
   replaceHashRoutedHistory,
   TopicMapSelectionContent,
   useCarmaMapContext,
+  useFeatureFlags,
   useGazData,
   useSelectionCesium,
   useSelectionTopicMap,
@@ -79,6 +80,7 @@ import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
+import MessageOverlay from "../../../../../../libraries/appframeworks/portals/src/lib/components/MessageOverlay";
 
 interface MapProps {
   height: number;
@@ -90,6 +92,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const dispatch = useDispatch();
 
   const location = useLocation();
+  const flags = useFeatureFlags();
 
   const rerenderCountRef = useRef(0);
   const lastRenderTimeStampRef = useRef(Date.now());
@@ -517,6 +520,10 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
             pointerEvents: isMode2d ? "none" : "auto",
           }}
         >
+          {flags.featureFlagObliqueViewModeCesium && (
+            <MessageOverlay message="⚠️ ObliqueMode Enabled ⚠️" />
+          )}
+
           <CustomViewer
             containerRef={container3dMapRef}
             cameraOptions={CESIUM_CONFIG.camera}

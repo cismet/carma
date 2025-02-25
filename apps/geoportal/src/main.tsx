@@ -10,6 +10,8 @@ import { suppressReactCismapErrors } from "@carma-commons/utils";
 import App from "./app/App";
 import store from "./app/store";
 import { CESIUM_CONFIG } from "./app/config/app.config";
+import { featureFlagConfig } from "./app/config/featureFlags";
+import { FeatureFlagProvider } from "@carma-apps/portals";
 
 declare global {
   interface Window {
@@ -29,21 +31,23 @@ const root = createRoot(document.getElementById("root") as HTMLElement);
 
 root.render(
   <Provider store={store}>
-    <TweakpaneProvider>
-      <PersistGate loading={null} persistor={persistor}>
-        <RouterProvider
-          router={createHashRouter([
-            {
-              path: "/",
-              element: <App />,
-            },
-            {
-              path: "/publish",
-              element: <App published={true} />,
-            },
-          ])}
-        />
-      </PersistGate>
-    </TweakpaneProvider>
+    <FeatureFlagProvider config={featureFlagConfig}>
+      <TweakpaneProvider>
+        <PersistGate loading={null} persistor={persistor}>
+          <RouterProvider
+            router={createHashRouter([
+              {
+                path: "/",
+                element: <App />,
+              },
+              {
+                path: "/publish",
+                element: <App published={true} />,
+              },
+            ])}
+          />
+        </PersistGate>
+      </TweakpaneProvider>
+    </FeatureFlagProvider>
   </Provider>
 );
