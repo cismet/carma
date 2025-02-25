@@ -351,7 +351,13 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
           locatorControl={false}
           fullScreenControl={false}
           zoomControls={false}
-          mapStyle={{ width, height }}
+          mapStyle={{
+            width,
+            height,
+            touchAction: "none",
+            WebkitOverflowScrolling: "touch",
+            overscrollBehavior: "none",
+          }}
           leafletMapProps={{ editable: true }}
           minZoom={10}
           backgroundlayers="empty"
