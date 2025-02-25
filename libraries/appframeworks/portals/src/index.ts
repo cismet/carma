@@ -24,6 +24,8 @@ export {
 
 export { GazDataProvider, useGazData } from "./lib/components/GazDataProvider";
 
+export { MessageOverlay } from "./lib/components/MessageOverlay";
+
 export {
   SelectionProvider,
   type SelectionMetaData,

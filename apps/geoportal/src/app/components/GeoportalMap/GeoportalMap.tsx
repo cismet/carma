@@ -10,6 +10,7 @@ import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 
 import {
+  MessageOverlay,
   replaceHashRoutedHistory,
   TopicMapSelectionContent,
   useCarmaMapContext,
@@ -80,7 +81,6 @@ import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
-import MessageOverlay from "../../../../../../libraries/appframeworks/portals/src/lib/components/MessageOverlay";
 
 interface MapProps {
   height: number;
@@ -527,7 +527,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
           }}
         >
           {flags.featureFlagObliqueViewModeCesium && (
-            <MessageOverlay message="⚠️ ObliqueMode Enabled ⚠️" />
+            <MessageOverlay message="⚠️ Experimental Oblique Mode Enabled ⚠️" />
           )}
 
           <CustomViewer

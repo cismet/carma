@@ -1,22 +1,23 @@
 import React from "react";
 
-const MessageOverlay: React.FC<{
+export const MessageOverlay: React.FC<{
   message?: string;
 }> = ({ message = "Experimental Feature Enabled" }) => {
   return (
     <div
       style={{
-        position: "fixed",
+        position: "absolute",
         width: "100vw",
-        height: "100vh",
+        height: "100%",
+        paddingBottom: "7",
         display: "flex",
         justifyContent: "center",
-        alignItems: "center",
+        alignItems: "end",
         userSelect: "none",
         pointerEvents: "none",
-        transform: "rotate(-15deg)",
+        //transform: "rotate(-15deg)",
         zIndex: 1000,
-        fontSize: "8vh",
+        fontSize: "3vw",
         color: "rgba(255, 255, 255, 0.5)",
         mixBlendMode: "screen",
         backgroundColor: "transparent",

@@ -1,5 +1,10 @@
 // src/contexts/FeatureFlagProvider.tsx
 import React, { createContext, useContext, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
+
+const DEFAULT_FEATURE_FLAG_PARAM = "ff";
+const FEATURE_FLAG_DISABLED_PREFIX = "-";
+const FEATURE_FLAG_SEPARATOR = ",";
 
 export type FeatureFlagConfig = Record<
   string,
@@ -23,33 +28,30 @@ interface FeatureFlagProviderProps {
 
 /**
  * Provider component for managing feature flags based on URL parameters.
- * like
- * &ff=flagkey1,flagkey2 enables features
- * to disable default flags prefix with minus like
- * &ff=-flagkey1,flagkey2
- * @param children The children to render
- * @param config A map of feature flag keys to their default values
- * @param featureFlagParam optional name of the url parameter to use for feature flags, default is "ff"
- * @returns A provider component that wraps the children with feature flag context
+ * Uses standard query parameter format: /#/route?ff=flagkey1,flagkey2
+ * To disable default flags prefix with minus like: ff=-flagkey1,flagkey2
  */
-
 export const FeatureFlagProvider: React.FC<FeatureFlagProviderProps> = ({
   children,
   config,
-  featureFlagParam: featureFlagParam = "ff",
+  featureFlagParam: featureFlagParam = DEFAULT_FEATURE_FLAG_PARAM,
 }) => {
+  const [searchParams] = useSearchParams();
+
   const flags = useMemo(() => {
-    const hash = window.location.hash.slice(1);
-    const params = new URLSearchParams(hash);
-    const ffParam = params.get(featureFlagParam);
-    const enabledFlags = ffParam ? ffParam.split(",") : [];
+    const ffParam = searchParams.get(featureFlagParam);
+    const enabledFlags = ffParam ? ffParam.split(FEATURE_FLAG_SEPARATOR) : [];
 
     const urlFlags = Object.entries(config).reduce(
       (acc, [flagName, config]) => {
-        if (enabledFlags.includes(`-${config.alias}`)) {
-          acc[flagName] = false; // Disable flag if prefixed with '-'
+        if (
+          enabledFlags.includes(
+            `${FEATURE_FLAG_DISABLED_PREFIX}${config.alias}`
+          )
+        ) {
+          acc[flagName] = false;
         } else if (enabledFlags.includes(config.alias)) {
-          acc[flagName] = true; // Enable flag if present
+          acc[flagName] = true;
         }
         return acc;
       },
@@ -61,7 +63,7 @@ export const FeatureFlagProvider: React.FC<FeatureFlagProviderProps> = ({
     );
 
     return { ...defaultFlags, ...urlFlags };
-  }, [config, featureFlagParam]);
+  }, [config, featureFlagParam, searchParams]);
 
   return (
     <FeatureFlagContext.Provider value={flags}>
