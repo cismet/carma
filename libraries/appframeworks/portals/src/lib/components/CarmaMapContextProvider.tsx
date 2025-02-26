@@ -9,14 +9,16 @@ import {
 } from "react";
 import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
 
-import { GazDataOptions, GazDataProvider } from "./GazDataProvider";
+import { GazDataProvider } from "./GazDataProvider";
 import { SelectionProvider } from "./SelectionProvider";
+import { GazDataConfig } from "@carma-commons/utils";
+import { defaultGazDataConfig } from "@carma-commons/resources";
 
 type CarmaMapProviderProps = {
   children: React.ReactNode;
   overlayOptions: { background: { transparency: number; color: string } };
   cesiumOptions: { providerConfig: any; tilesetConfigs: any };
-  gazDataOptions?: GazDataOptions;
+  gazDataConfig?: GazDataConfig;
 };
 
 type CarmaMapContextType = {
@@ -40,11 +42,10 @@ export const CarmaMapContextProvider = ({
   children,
   overlayOptions,
   cesiumOptions,
-  gazDataOptions = {},
+  gazDataConfig = defaultGazDataConfig,
 }: CarmaMapProviderProps) => {
   const { background } = overlayOptions;
   const { transparency, color } = background;
-  const { sourcesConfig, prefix } = gazDataOptions;
 
   const [showTourOverlay, setShowTourOverlay] = useState(false);
 
@@ -56,8 +57,14 @@ export const CarmaMapContextProvider = ({
     setShowTourOverlay(false);
   };
 
+  if (gazDataConfig.crs !== "3857") {
+    console.warn(
+      "Gazetteer data CRS is not supported, it should be 3857, Spherical Mercator"
+    );
+  }
+
   return (
-    <GazDataProvider sourcesConfig={sourcesConfig} prefix={prefix}>
+    <GazDataProvider config={gazDataConfig}>
       <SelectionProvider>
         <TopicMapContextProvider>
           <OverlayTourProvider

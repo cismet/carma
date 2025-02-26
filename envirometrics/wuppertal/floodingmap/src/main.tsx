@@ -19,7 +19,7 @@ import {
 
 import App from "./App";
 import store from "./store";
-import { prefix, sourcesConfig } from "./config/gazData";
+import { gazDataConfig } from "./config/gazData";
 import { SYNC_TOKEN } from "./config/app.config";
 import { CESIUM_CONFIG } from "./config/cesium/cesium.config";
 
@@ -37,12 +37,12 @@ const syncedApp = (
 );
 
 const appWithContext = (
-  <GazDataProvider sourcesConfig={sourcesConfig} prefix={prefix}>
+  <GazDataProvider config={gazDataConfig}>
     <SelectionProvider>
       <TopicMapContextProvider
         appKey={"Hochwasserkarte.Story.Wuppertal"}
-        referenceSystem={MappingConstants.crs3857}
-        referenceSystemDefinition={MappingConstants.proj4crs3857def}
+        //referenceSystem={MappingConstants.crs3857}
+        //referenceSystemDefinition={MappingConstants.proj4crs3857def}
         // baseLayerConf={wuppertalConfig.overridingBaseLayerConf}
         infoBoxPixelWidth={370}
       >
