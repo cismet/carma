@@ -56,7 +56,6 @@ const Stadtplankarte = ({ poiColors }) => {
   }, [markerSymbolSize]);
 
   const { gazData } = useGazData();
-  console.log("xxx gaz data", gazData);
   const { setSelection } = useSelection();
 
   useSelectionTopicMap();
@@ -83,17 +82,17 @@ const Stadtplankarte = ({ poiColors }) => {
         gazetteerSearchControl={false}
         gazetteerSearchComponent={<></>}
         // gazetteerSearchPlaceholder={searchTextPlaceholder}
-        // gazetteerHitTrigger={(hits) => {
-        //   if (
-        //     (Array.isArray(hits) && hits[0]?.more?.pid) ||
-        //     hits[0]?.more?.kid
-        //   ) {
-        //     const gazId = hits[0]?.more?.pid || hits[0]?.more?.kid;
-        //     setSelectedFeatureByPredicate(
-        //       (feature) => feature.properties.id === gazId
-        //     );
-        //   }
-        // }}
+        gazetteerHitTrigger={(hits) => {
+          if (
+            (Array.isArray(hits) && hits[0]?.more?.pid) ||
+            hits[0]?.more?.kid
+          ) {
+            const gazId = hits[0]?.more?.pid || hits[0]?.more?.kid;
+            setSelectedFeatureByPredicate(
+              (feature) => feature.properties.id === gazId
+            );
+          }
+        }}
         applicationMenuTooltipString={<MenuTooltip />}
         infoBox={
           <GenericInfoBoxFromFeature
