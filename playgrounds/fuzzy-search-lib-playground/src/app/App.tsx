@@ -15,7 +15,6 @@ suppressReactCismapErrors();
 
 export function App() {
   const { gazData } = useGazData();
-  console.log("xxx gazData", gazData);
 
   const { setSelection } = useSelection();
 
@@ -23,7 +22,6 @@ export function App() {
 
   const onGazetteerSelection = (selection: SearchResultItem | null) => {
     if (!selection) {
-      //console.debug("onGazetteerSelection", selection);
       setSelection(null);
       return;
     }
@@ -47,8 +45,6 @@ export function App() {
       <div className="custom-left-control">
         <LibFuzzySearch
           gazData={gazData}
-          //referenceSystem={referenceSystem}
-          //referenceSystemDefinition={referenceSystemDefinition}
           onSelection={onGazetteerSelection}
           placeholder="Wohin?"
         />
