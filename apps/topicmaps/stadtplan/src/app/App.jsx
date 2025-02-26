@@ -52,8 +52,6 @@ function App() {
         }}
         // mapEPSGCode="25832"
         // referenceSystem={MappingConstants.crs25832}
-        referenceSystem={MappingConstants.crs3857}
-        referenceSystemDefinition={MappingConstants.proj4crs3857def}
         additionalStylingInfo={{ poiColors }}
       >
         <Stadtplankarte poiColors={poiColors} />
