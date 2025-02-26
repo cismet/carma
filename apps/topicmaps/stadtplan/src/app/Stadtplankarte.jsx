@@ -56,7 +56,7 @@ const Stadtplankarte = ({ poiColors }) => {
   }, [markerSymbolSize]);
 
   const { gazData } = useGazData();
-
+  console.log("xxx gaz data", gazData);
   const { setSelection } = useSelection();
 
   useSelectionTopicMap();
