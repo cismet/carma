@@ -1,13 +1,19 @@
 import { ENDPOINT } from "@carma-commons/resources";
 import { md5FetchText } from "./fetching";
 
-export type SourceConfig = {
+export type GazDataSourceConfig = {
   topic: ENDPOINT;
   url: string;
   crs: string;
 };
 
-type SourceWithPayload = SourceConfig & {
+export type GazDataConfig = {
+  crs: string;
+  sources: GazDataSourceConfig[];
+  prefix?: string;
+};
+
+type SourceWithPayload = GazDataSourceConfig & {
   payload?: unknown;
 };
 
@@ -135,20 +141,19 @@ export const getGazDataFromSources = (
 };
 
 export const getGazData = async (
-  sourcesConfig: SourceConfig[],
-  prefix: string,
+  config: GazDataConfig,
   setGazData?: (gazData: GazDataItem[]) => void
 ) => {
   await Promise.all(
-    sourcesConfig.map(async (config) => {
-      (config as SourceWithPayload).payload = await md5FetchText(
-        prefix,
-        config.url
+    config.sources.map(async (source) => {
+      (source as SourceWithPayload).payload = await md5FetchText(
+        config.prefix ?? "",
+        source.url
       );
     })
   );
 
-  const gazData = getGazDataFromSources(sourcesConfig as SourceWithPayload[]);
+  const gazData = getGazDataFromSources(config.sources as SourceWithPayload[]);
 
   setGazData && setGazData(gazData);
   return gazData;

@@ -68,7 +68,7 @@ export const createGazEndpointUri = (
   return `${host}/data/${crs}/${endpoint}.json`;
 };
 
-export const gazDataPrefix = "GazDataForStories";
+export const gazDataPrefix = "GazDataDefault";
 
 export const createConfig = (endpoint: ENDPOINT, options: EndpointOptions) => ({
   topic: endpoint,
@@ -76,9 +76,13 @@ export const createConfig = (endpoint: ENDPOINT, options: EndpointOptions) => ({
   crs: options.crs,
 });
 
-export const defaultSourcesConfig = DEFAULT_GAZ_SOURCES.map((endpoint) => {
-  return createConfig(endpoint, { crs: DEFAULT_PROJ, host: DEFAULT_HOST });
-});
+export const defaultGazDataConfig = {
+  crs: DEFAULT_PROJ,
+  sources: DEFAULT_GAZ_SOURCES.map((endpoint) => {
+    return createConfig(endpoint, { crs: DEFAULT_PROJ, host: DEFAULT_HOST });
+  }),
+  prefix: gazDataPrefix,
+};
 
 export const isEndpoint = (value: string): value is ENDPOINT => {
   return Object.values(ENDPOINT).includes(value as ENDPOINT);

@@ -6,44 +6,38 @@ import {
   useState,
 } from "react";
 
-import {
-  type GazDataItem,
-  type SourceConfig,
-  getGazData,
-} from "@carma-commons/utils";
-import { defaultSourcesConfig, gazDataPrefix } from "@carma-commons/resources";
+import { type GazDataItem, getGazData } from "@carma-commons/utils";
+import { GazDataConfig } from "@carma-commons/utils/gazData";
+import { defaultGazDataConfig } from "@carma-commons/resources";
 
 interface GazDataContextType {
   gazData: GazDataItem[];
+  crs: string;
   isLoading: boolean;
   error: Error | null;
 }
 
 const GazDataContext = createContext<GazDataContextType | undefined>(undefined);
 
-export type GazDataOptions = {
-  sourcesConfig?: SourceConfig[];
-  prefix?: string;
-};
-
-interface GazDataProviderProps extends GazDataOptions {
+interface GazDataProviderProps {
   children: ReactNode;
+  config?: GazDataConfig;
 }
 
 export function GazDataProvider({
   children,
-  sourcesConfig = defaultSourcesConfig,
-  prefix = gazDataPrefix,
+  config = defaultGazDataConfig,
 }: GazDataProviderProps) {
   const [gazData, setGazData] = useState<GazDataItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const crs = config.crs;
 
   useEffect(() => {
     const loadGazData = async () => {
       try {
         setIsLoading(true);
-        await getGazData(sourcesConfig, prefix, setGazData);
+        await getGazData(config, setGazData);
       } catch (err) {
         setError(
           err instanceof Error
@@ -56,10 +50,10 @@ export function GazDataProvider({
     };
 
     loadGazData();
-  }, [sourcesConfig, prefix]);
+  }, [config]);
 
   return (
-    <GazDataContext.Provider value={{ gazData, isLoading, error }}>
+    <GazDataContext.Provider value={{ gazData, crs, isLoading, error }}>
       {children}
     </GazDataContext.Provider>
   );
