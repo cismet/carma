@@ -20,9 +20,17 @@ import {
   MenuTooltip,
   searchTextPlaceholder,
 } from "@carma-collab/wuppertal/stadtplan";
+import {
+  useGazData,
+  useSelection,
+  TopicMapSelectionContent,
+  useSelectionTopicMap,
+} from "@carma-apps/portals";
+import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
+import { isAreaType } from "@carma-commons/resources";
 
 const Stadtplankarte = ({ poiColors }) => {
-  const [gazData, setGazData] = useState([]);
+  // const [gazData, setGazData] = useState([]);
   const { setSelectedFeatureByPredicate, setClusteringOptions } = useContext(
     FeatureCollectionDispatchContext
   );
@@ -31,9 +39,9 @@ const Stadtplankarte = ({ poiColors }) => {
   const { clusteringOptions, selectedFeature } = useContext(
     FeatureCollectionContext
   );
-  useEffect(() => {
-    getGazData(setGazData);
-  }, []);
+  // useEffect(() => {
+  //   getGazData(setGazData);
+  // }, []);
 
   useEffect(() => {
     if (markerSymbolSize) {
@@ -47,60 +55,94 @@ const Stadtplankarte = ({ poiColors }) => {
     }
   }, [markerSymbolSize]);
 
+  const { gazData } = useGazData();
+
+  const { setSelection } = useSelection();
+
+  useSelectionTopicMap();
+
+  const onGazetteerSelection = (selection) => {
+    if (!selection) {
+      setSelection(null);
+      return;
+    }
+    const selectionMetaData = {
+      selectedFrom: "gazetteer",
+      selectionTimestamp: Date.now(),
+      isAreaSelection: isAreaType(selection.type),
+    };
+    setSelection(Object.assign({}, selection, selectionMetaData));
+  };
+
   return (
-    <TopicMapComponent
-      gazData={gazData}
-      modalMenu={<Menu />}
-      locatorControl={true}
-      gazetteerSearchPlaceholder={searchTextPlaceholder}
-      gazetteerHitTrigger={(hits) => {
-        if ((Array.isArray(hits) && hits[0]?.more?.pid) || hits[0]?.more?.kid) {
-          const gazId = hits[0]?.more?.pid || hits[0]?.more?.kid;
-          setSelectedFeatureByPredicate(
-            (feature) => feature.properties.id === gazId
-          );
-        }
-      }}
-      applicationMenuTooltipString={<MenuTooltip />}
-      infoBox={
-        <GenericInfoBoxFromFeature
-          pixelwidth={350}
-          config={{
-            displaySecondaryInfoAction: false,
-            city: "Wuppertal",
-            navigator: {
-              noun: {
-                singular: "POI",
-                plural: "POIs",
+    <>
+      <TopicMapComponent
+        // gazData={gazData}
+        modalMenu={<Menu />}
+        locatorControl={true}
+        gazetteerSearchControl={false}
+        gazetteerSearchComponent={<></>}
+        // gazetteerSearchPlaceholder={searchTextPlaceholder}
+        // gazetteerHitTrigger={(hits) => {
+        //   if (
+        //     (Array.isArray(hits) && hits[0]?.more?.pid) ||
+        //     hits[0]?.more?.kid
+        //   ) {
+        //     const gazId = hits[0]?.more?.pid || hits[0]?.more?.kid;
+        //     setSelectedFeatureByPredicate(
+        //       (feature) => feature.properties.id === gazId
+        //     );
+        //   }
+        // }}
+        applicationMenuTooltipString={<MenuTooltip />}
+        infoBox={
+          <GenericInfoBoxFromFeature
+            pixelwidth={350}
+            config={{
+              displaySecondaryInfoAction: false,
+              city: "Wuppertal",
+              navigator: {
+                noun: {
+                  singular: "POI",
+                  plural: "POIs",
+                },
               },
-            },
-            noFeatureTitle: <InfoBoxTextTitle />,
-            noCurrentFeatureContent: <InfoBoxTextContent />,
-          }}
-          captionFactory={(linkUrl, feature) => {
-            const urheber =
-              feature?.properties?.urheber_foto || "Stadt Wuppertal";
-            let link = "https://www.wuppertal.de/service/impressum.php";
+              noFeatureTitle: <InfoBoxTextTitle />,
+              noCurrentFeatureContent: <InfoBoxTextContent />,
+            }}
+            captionFactory={(linkUrl, feature) => {
+              const urheber =
+                feature?.properties?.urheber_foto || "Stadt Wuppertal";
+              let link = "https://www.wuppertal.de/service/impressum.php";
 
-            if (urheber === "Stadt Wuppertal, Wuppertal Marketing GmbH") {
-              link =
-                "https://www.wuppertal.de/microsite/WMG/impressum_431218.php";
-            } else if (urheber === "Stadt Wuppertal, Medienzentrum") {
-              link =
-                "https://www.wuppertal.de/kultur-bildung/schule/medienzentrum/index.php";
-            }
+              if (urheber === "Stadt Wuppertal, Wuppertal Marketing GmbH") {
+                link =
+                  "https://www.wuppertal.de/microsite/WMG/impressum_431218.php";
+              } else if (urheber === "Stadt Wuppertal, Medienzentrum") {
+                link =
+                  "https://www.wuppertal.de/kultur-bildung/schule/medienzentrum/index.php";
+              }
 
-            return (
-              <a href={link} target="_fotos">
-                <IconComp name="copyright" /> {urheber}
-              </a>
-            );
-          }}
+              return (
+                <a href={link} target="_fotos">
+                  <IconComp name="copyright" /> {urheber}
+                </a>
+              );
+            }}
+          />
+        }
+      >
+        <TopicMapSelectionContent />
+        <FeatureCollection></FeatureCollection>
+      </TopicMapComponent>
+      <div className="custom-left-control">
+        <LibFuzzySearch
+          gazData={gazData}
+          onSelection={onGazetteerSelection}
+          placeholder={searchTextPlaceholder}
         />
-      }
-    >
-      <FeatureCollection></FeatureCollection>
-    </TopicMapComponent>
+      </div>
+    </>
   );
 };
 
