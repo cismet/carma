@@ -1,5 +1,10 @@
 import { faCircleQuestion } from "@fortawesome/free-regular-svg-icons";
-import { faBars, faLayerGroup } from "@fortawesome/free-solid-svg-icons";
+import {
+  faBars,
+  faImages,
+  faLayerGroup,
+  faPlane,
+} from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button, Radio, Tooltip } from "antd";
 import { useContext } from "react";
@@ -7,6 +12,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
+import { useCarmaMapContext, useFeatureFlags } from "@carma-apps/portals";
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 import { useOverlayHelper } from "@carma-commons/ui/lib-helper-overlay";
@@ -23,15 +29,15 @@ import {
   setBackgroundLayer,
   setSelectedLayerIndex,
 } from "../store/slices/mapping";
+import { getObliqueMode, setObliqueMode, getZenMode } from "../store/slices/ui";
 import ActionButtons from "./nav-items/ActionButtons";
 
-import { useCarmaMapContext } from "@carma-apps/portals";
 import ResourceModal from "./nav-items/ResourceModal";
 import "./switch.css";
-import { getZenMode } from "../store/slices/ui";
 
 const TopNavbar = () => {
   const dispatch = useDispatch();
+  const flags = useFeatureFlags();
 
   const { setShowTourOverlay } = useCarmaMapContext();
 
@@ -44,6 +50,7 @@ const TopNavbar = () => {
   const selectedLuftbildLayer = useSelector(getSelectedLuftbildLayer);
   const zenMode = useSelector(getZenMode);
   const selectedLayerIndex = useSelector(getSelectedLayerIndex);
+  const isObliqueMode = useSelector(getObliqueMode);
 
   const hintergrundTourRef = useOverlayHelper(
     getCollabedHelpElementsConfig("HINTERGRUND", geoElements)
@@ -83,6 +90,24 @@ const TopNavbar = () => {
             />
           </button>
         </Tooltip>
+        {flags.featureFlagObliqueViewModeCesium && !isMode2d && (
+          <Tooltip
+            title={
+              isObliqueMode
+                ? "Schrägansicht deaktivieren"
+                : "Schrägansicht aktivieren"
+            }
+          >
+            <Button
+              type={isObliqueMode ? "primary" : "default"}
+              onClick={() => dispatch(setObliqueMode(!isObliqueMode))}
+              className="mr-2"
+            >
+              <FontAwesomeIcon icon={faPlane} rotation={270} />
+              <FontAwesomeIcon icon={faImages} />
+            </Button>
+          </Tooltip>
+        )}
         <div className="lg:flex hidden" ref={hintergrundTourRef}>
           {backgroundLayer && (
             <Radio.Group

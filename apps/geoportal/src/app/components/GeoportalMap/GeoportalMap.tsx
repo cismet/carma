@@ -58,6 +58,7 @@ import { addCssToOverlayHelperItem } from "../../helper/overlayHelper.ts";
 import useLeafletZoomControls from "../../hooks/leaflet/useLeafletZoomControls.ts";
 import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
+import { useObliqueMode } from "./GeoportalMap.hooks.ts";
 
 import { createCismapLayers, onClickTopicMap } from "./topicmap.utils.ts";
 
@@ -75,7 +76,7 @@ import {
   getLayers,
   getShowHamburgerMenu,
 } from "../../store/slices/mapping.ts";
-import { getUIMode, UIMode } from "../../store/slices/ui.ts";
+import { getUIMode, UIMode, getObliqueMode } from "../../store/slices/ui.ts";
 
 import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 
@@ -102,6 +103,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
   // State and Selectors
   const backgroundLayer = useSelector(getBackgroundLayer);
+  const isObliqueMode = useSelector(getObliqueMode);
   const isMode2d = useSelector(selectViewerIsMode2d) || !allow3d;
   const models = useSelector(selectViewerModels);
   const markerAsset = models[CESIUM_CONFIG.markerKey]; //
@@ -290,6 +292,14 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     }
   }, [uiMode]);
 
+  useObliqueMode();
+
+  useEffect(() => {
+    if (isModeFeatureInfo && pos) {
+      updateFeatureInfo();
+    }
+  }, [layers]);
+
   const renderInfoBox = () => {
     if (isMode2d) {
       if (isModeMeasurement) {
@@ -326,12 +336,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   rerenderCountRef.current++;
   lastRenderIntervalRef.current = Date.now() - lastRenderTimeStampRef.current;
   lastRenderTimeStampRef.current = Date.now();
-
-  useEffect(() => {
-    if (isModeFeatureInfo && pos) {
-      updateFeatureInfo();
-    }
-  }, [layers]);
 
   return (
     <>
@@ -527,7 +531,9 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
           }}
         >
           {flags.featureFlagObliqueViewModeCesium && (
-            <MessageOverlay message="⚠️ Experimental Oblique Mode Enabled ⚠️" />
+            <MessageOverlay
+              message={isObliqueMode ? "⚠️ Oblique Mode Enabled ⚠️" : ""}
+            />
           )}
 
           <CustomViewer
@@ -540,7 +546,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
               );
               replaceHashRoutedHistory(e, location.pathname);
             }}
-          ></CustomViewer>
+          />
         </div>
       )}
     </>

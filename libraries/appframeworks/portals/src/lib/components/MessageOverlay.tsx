@@ -21,6 +21,7 @@ export const MessageOverlay: React.FC<{
         color: "rgba(255, 255, 255, 0.5)",
         mixBlendMode: "screen",
         backgroundColor: "transparent",
+        textShadow: "0 0 8px grey",
         overflow: "hidden",
       }}
     >

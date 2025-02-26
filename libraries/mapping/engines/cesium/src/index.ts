@@ -66,5 +66,7 @@ export {
   initViewerAnimationMap,
 } from "./lib/utils/viewerAnimationMap";
 
+export { getOrbitPoint } from "./lib/utils/cesiumAnimateOrbits";
+
 // Re-export all the types as workaround
 export * from "./index.d";
