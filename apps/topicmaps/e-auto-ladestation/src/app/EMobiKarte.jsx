@@ -74,11 +74,14 @@ const EMobiKarte = () => {
     };
     setSelection(Object.assign({}, selection, selectionMetaData));
     setTimeout(() => {
-      const gazId = hits[0]?.more?.pid || hits[0]?.more?.id;
+      console.log("xxx selection", selection);
+      const gazId = selection.more?.pid || selection.more?.id;
+      console.log("xxx gazId", gazId);
+
       setSelectedFeatureByPredicate(
         (feature) => feature.properties.id === gazId
       );
-    }, 100);
+    }, [100]);
   };
 
   return (
@@ -127,7 +130,7 @@ const EMobiKarte = () => {
         <LibFuzzySearch
           gazData={gazData}
           onSelection={onGazetteerSelection}
-          placeholder="Stadtteil | Adresse | POI"
+          placeholder="Ladestation | Stadtteil | Adresse | POI"
         />
       </div>
     </>
