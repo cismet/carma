@@ -17,10 +17,16 @@ import {
   UIDispatchContext,
 } from "react-cismap/contexts/UIContextProvider";
 import SecondaryInfoModal from "./SecondaryInfoModal";
-import { getGazData } from "./helper/gazData";
+import {
+  TopicMapSelectionContent,
+  useGazData,
+  useSelection,
+  useSelectionTopicMap,
+} from "@carma-apps/portals";
+import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
+import { isAreaType } from "@carma-commons/resources";
 
 const EMobiKarte = () => {
-  const [gazData, setGazData] = useState([]);
   const {
     setSelectedFeatureByPredicate,
     setClusteringOptions,
@@ -31,9 +37,6 @@ const EMobiKarte = () => {
   const { markerSymbolSize } = useContext(TopicMapStylingContext);
   const { clusteringOptions, selectedFeature, filteredItems, shownFeatures } =
     useContext(FeatureCollectionContext);
-  useEffect(() => {
-    getGazData(setGazData);
-  }, []);
 
   useEffect(() => {
     if (markerSymbolSize) {
@@ -54,52 +57,80 @@ const EMobiKarte = () => {
     });
   }, []);
 
+  const { gazData } = useGazData();
+  const { setSelection } = useSelection();
+
+  useSelectionTopicMap();
+
+  const onGazetteerSelection = (selection) => {
+    if (!selection) {
+      setSelection(null);
+      return;
+    }
+    const selectionMetaData = {
+      selectedFrom: "gazetteer",
+      selectionTimestamp: Date.now(),
+      isAreaSelection: isAreaType(selection.type),
+    };
+    setSelection(Object.assign({}, selection, selectionMetaData));
+    setTimeout(() => {
+      const gazId = hits[0]?.more?.pid || hits[0]?.more?.id;
+      setSelectedFeatureByPredicate(
+        (feature) => feature.properties.id === gazId
+      );
+    }, 100);
+  };
+
   return (
-    <TopicMapComponent
-      gazData={gazData}
-      modalMenu={<Menu />}
-      locatorControl={true}
-      gazetteerSearchPlaceholder="Ladestation | Stadtteil | Adresse | POI"
-      gazetteerHitTrigger={(hits) => {
-        if ((Array.isArray(hits) && hits[0]?.more?.pid) || hits[0]?.more?.id) {
-          const gazId = hits[0]?.more?.pid || hits[0]?.more?.id;
-          setSelectedFeatureByPredicate(
-            (feature) => feature.properties.id === gazId
-          );
-        }
-      }}
-      applicationMenuTooltipString="Filter | Einstellungen | Kompaktanleitung"
-      infoBox={
-        <GenericInfoBoxFromFeature
-          pixelwidth={350}
-          config={{
-            displaySecondaryInfoAction: true,
-            city: "Wuppertal",
-            navigator: {
-              noun: {
-                singular: "Ladestation",
-                plural: "Ladestationen",
+    <>
+      <TopicMapComponent
+        gazData={gazData}
+        modalMenu={<Menu />}
+        locatorControl={true}
+        gazetteerSearchControl={false}
+        gazetteerSearchComponent={<></>}
+        applicationMenuTooltipString="Filter | Einstellungen | Kompaktanleitung"
+        infoBox={
+          <GenericInfoBoxFromFeature
+            pixelwidth={350}
+            config={{
+              displaySecondaryInfoAction: true,
+              city: "Wuppertal",
+              navigator: {
+                noun: {
+                  singular: "Ladestation",
+                  plural: "Ladestationen",
+                },
               },
-            },
-            noCurrentFeatureTitle: "Keine Ladestationen gefunden",
-            noCurrentFeatureContent: (
-              <span>
-                Für mehr Ladestationen Ansicht mit verkleinern oder mit dem
-                untenstehenden Link auf das komplette Stadtgebiet zoomen.
-              </span>
-            ),
-          }}
+              noCurrentFeatureTitle: "Keine Ladestationen gefunden",
+              noCurrentFeatureContent: (
+                <span>
+                  Für mehr Ladestationen Ansicht mit verkleinern oder mit dem
+                  untenstehenden Link auf das komplette Stadtgebiet zoomen.
+                </span>
+              ),
+            }}
+          />
+        }
+      >
+        <TopicMapSelectionContent />
+
+        <FeatureCollection></FeatureCollection>
+        {secondaryInfoVisible && (
+          <SecondaryInfoModal
+            feature={selectedFeature}
+            setOpen={setSecondaryInfoVisible}
+          />
+        )}
+      </TopicMapComponent>
+      <div className="custom-left-control">
+        <LibFuzzySearch
+          gazData={gazData}
+          onSelection={onGazetteerSelection}
+          placeholder="Stadtteil | Adresse | POI"
         />
-      }
-    >
-      <FeatureCollection></FeatureCollection>
-      {secondaryInfoVisible && (
-        <SecondaryInfoModal
-          feature={selectedFeature}
-          setOpen={setSecondaryInfoVisible}
-        />
-      )}
-    </TopicMapComponent>
+      </div>
+    </>
   );
 };
 
