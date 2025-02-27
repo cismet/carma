@@ -26,7 +26,6 @@ import {
 } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 
-import { useTweakpaneCtx } from "@carma-commons/debug";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 
 import {
@@ -61,6 +60,7 @@ import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCur
 import { useObliqueMode } from "../../hooks/useObliqueMode.ts";
 
 import { createCismapLayers, onClickTopicMap } from "./topicmap.utils.ts";
+import { useTweakpane } from "./GeoportalMap.useTweakpane.ts";
 
 import store from "../../store/index.ts";
 import {
@@ -141,42 +141,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   useOverlayHelper(layerButtonsOverlay);
   useOverlayHelper(mapInteractionOverlay);
 
-  useTweakpaneCtx(
-    useMemo(
-      () => ({
-        folder: {
-          title: "GeoportalMap",
-        },
-        params: {
-          get renderCount() {
-            return rerenderCountRef.current;
-          },
-          get renderInterval() {
-            return lastRenderIntervalRef.current;
-          },
-          dpr: window.devicePixelRatio,
-          resolutionScale: viewerRef.current
-            ? viewerRef.current.resolutionScale
-            : 0,
-        },
-        inputs: [
-          { name: "renderCount", readonly: true, format: (v) => v.toFixed(0) },
-          {
-            name: "renderInterval",
-            readonly: true,
-            format: (v) => v.toFixed(0),
-          },
-          { name: "dpr", readonly: true, format: (v) => v.toFixed(1) },
-          {
-            name: "resolutionScale",
-            readonly: true,
-            format: (v) => v.toFixed(1),
-          },
-        ],
-      }),
-      [viewerRef, rerenderCountRef]
-    )
-  );
+  useTweakpane(viewerRef, rerenderCountRef, lastRenderIntervalRef);
 
   const { setShowTourOverlay } = useCarmaMapContext();
   const { routedMapRef: routedMap } =
