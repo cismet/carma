@@ -90,7 +90,6 @@ const Map = () => {
         modalMenu={<Menu />}
         locatorControl={true}
         photoLightBox
-        // gazetteerSearchPlaceholder={searchTextPlaceholder}
         applicationMenuTooltipString={<MenuTooltip />}
         gazetteerSearchControl={false}
         gazetteerSearchComponent={<></>}
@@ -125,7 +124,7 @@ const Map = () => {
         <LibFuzzySearch
           gazData={gazData}
           onSelection={onGazetteerSelection}
-          placeholder="Stadtteil | Adresse | POI"
+          placeholder={searchTextPlaceholder}
         />
       </div>
     </>
