@@ -5,6 +5,8 @@ import {
   HeadingPitchRange,
   PerspectiveFrustum,
   Cartesian3,
+  Viewer,
+  EasingFunction,
 } from "cesium";
 import { useCesiumContext, getOrbitPoint } from "@carma-mapping/cesium-engine";
 
@@ -26,6 +28,50 @@ const defaultOptions: ObliqueModeOptions = {
   headingOffset: 0,
 };
 
+const preUpdateCallback = (
+  viewer: Viewer,
+  fixedPitch: number,
+  fixedHeight: number
+) => {
+  // Get current camera state
+  const currentPosition = viewer.camera.position;
+  const ellipsoid = viewer.scene.globe.ellipsoid;
+  const currentCartographic =
+    ellipsoid.cartesianToCartographic(currentPosition);
+  const currentPitch = viewer.camera.pitch;
+
+  // Check if pitch or height has changed significantly
+  // Use a larger threshold for height to allow smoother rotation
+  const heightDifference = Math.abs(currentCartographic.height - fixedHeight);
+  const pitchDifference = Math.abs(currentPitch - fixedPitch);
+
+  // Only correct if significantly off-target (more tolerant thresholds)
+  // This allows smoother rotation while still maintaining general constraints
+  if (pitchDifference > 0.03 || heightDifference > 5.0) {
+    // Get current position in lat/lon
+    const longitude = currentCartographic.longitude;
+    const latitude = currentCartographic.latitude;
+
+    // Create a new position at the same lat/lon but with fixed height
+    const fixedPosition = Cartesian3.fromRadians(
+      longitude,
+      latitude,
+      fixedHeight
+    );
+
+    // Update camera position and orientation
+    // Use setView with preservePositionHeightOnly to maintain rotation
+    viewer.camera.setView({
+      destination: fixedPosition,
+      orientation: {
+        heading: viewer.camera.heading, // Keep current heading for rotation
+        pitch: fixedPitch, // Force target pitch
+        roll: 0,
+      },
+    });
+  }
+};
+
 export function useObliqueMode(options: ObliqueModeOptions = {}) {
   const { fixedPitch, fixedHeight, minFov, maxFov, headingOffset } = {
     ...defaultOptions,
@@ -43,15 +89,27 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
     if (viewerRef.current) {
       const viewer = viewerRef.current;
 
+      const cameraController = viewer.scene.screenSpaceCameraController;
+      cameraController.enableZoom = !isObliqueMode;
+      cameraController.enableRotate = true;
+      cameraController.enableTilt = true;
+      cameraController.enableTranslate = true;
+
       if (isObliqueMode) {
+        // Store current FOV but don't modify it
         if (viewer.camera.frustum instanceof PerspectiveFrustum) {
           originalFovRef.current = viewer.camera.frustum.fov;
         }
 
         const center = getOrbitPoint(viewer);
-
         const range = fixedHeight / Math.tan(-fixedPitch);
 
+        // Store current FOV to use in flyTo
+        const currentFov = viewer.camera.frustum instanceof PerspectiveFrustum
+          ? viewer.camera.frustum.fov
+          : undefined;
+
+        // Use flyTo with fov parameter to preserve FOV during transition
         viewer.camera.flyToBoundingSphere(
           new BoundingSphere(center, fixedHeight),
           {
@@ -61,11 +119,9 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
               range
             ),
             duration: 2,
+            fov: currentFov, // Preserve current FOV
           }
         );
-
-        const cameraController = viewer.scene.screenSpaceCameraController;
-        cameraController.enableZoom = false;
 
         const handleWheel = (event: WheelEvent) => {
           event.preventDefault();
@@ -95,60 +151,56 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
           };
         }
 
-        const preUpdateCallback = viewer.scene.preUpdate.addEventListener(
-          () => {
-            // Get current camera state
-            const currentPosition = viewer.camera.position;
-            const ellipsoid = viewer.scene.globe.ellipsoid;
-            const currentCartographic =
-              ellipsoid.cartesianToCartographic(currentPosition);
-            const currentPitch = viewer.camera.pitch;
+        const callback = () =>
+          preUpdateCallback(viewer, fixedPitch, fixedHeight);
 
-            // Check if pitch or height has changed significantly
-            // Use a larger threshold for height to allow smoother rotation
-            const heightDifference = Math.abs(
-              currentCartographic.height - fixedHeight
-            );
-            const pitchDifference = Math.abs(currentPitch - fixedPitch);
-
-            // Only correct if significantly off-target (more tolerant thresholds)
-            // This allows smoother rotation while still maintaining general constraints
-            if (pitchDifference > 0.03 || heightDifference > 5.0) {
-              // Get current position in lat/lon
-              const longitude = currentCartographic.longitude;
-              const latitude = currentCartographic.latitude;
-
-              // Create a new position at the same lat/lon but with fixed height
-              const fixedPosition = Cartesian3.fromRadians(
-                longitude,
-                latitude,
-                fixedHeight
-              );
-
-              // Update camera position and orientation
-              // Use setView with preservePositionHeightOnly to maintain rotation
-              viewer.camera.setView({
-                destination: fixedPosition,
-                orientation: {
-                  heading: viewer.camera.heading, // Keep current heading for rotation
-                  pitch: fixedPitch, // Force target pitch
-                  roll: 0,
-                },
-              });
-            }
-          }
-        );
+        viewer.scene.preUpdate.addEventListener(callback);
 
         cameraPreUpdateRemoveCallback = () => {
-          viewer.scene.preUpdate.removeEventListener(preUpdateCallback);
+          viewer.scene.preUpdate.removeEventListener(callback);
         };
       } else {
-        viewer.scene.screenSpaceCameraController.enableZoom = true;
-        if (viewer.camera.frustum instanceof PerspectiveFrustum) {
-          // Restore the original FOV if we have one stored
-          if (originalFovRef.current !== null) {
-            viewer.camera.frustum.fov = originalFovRef.current;
-          }
+        // Clean up preUpdateCallback when leaving oblique mode
+        if (cameraPreUpdateRemoveCallback) {
+          cameraPreUpdateRemoveCallback();
+        }
+
+        if (viewer.camera.frustum instanceof PerspectiveFrustum && originalFovRef.current !== null) {
+          const currentFov = viewer.camera.frustum.fov;
+          const targetFov = originalFovRef.current;
+          const duration = 300; // Animation duration in milliseconds
+          const startTime = performance.now();
+          
+          let animationFrameId: number;
+          
+          const animateFov = (timestamp: number) => {
+            const elapsed = timestamp - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const easedProgress = EasingFunction.SINUSOIDAL_IN_OUT(progress);
+            const newFov = currentFov + easedProgress * (targetFov - currentFov);
+            
+            if (viewer.camera.frustum instanceof PerspectiveFrustum) {
+              viewer.camera.frustum.fov = newFov;
+              viewer.scene.requestRender();
+            }
+            
+            if (progress < 1) {
+              animationFrameId = requestAnimationFrame(animateFov);
+            }
+          };
+          
+          animationFrameId = requestAnimationFrame(animateFov);
+
+          // Add cleanup for animation if component unmounts during animation
+          const existingCleanup = cameraPreUpdateRemoveCallback;
+          cameraPreUpdateRemoveCallback = () => {
+            if (existingCleanup) {
+              existingCleanup();
+            }
+            if (animationFrameId) {
+              cancelAnimationFrame(animationFrameId);
+            }
+          };
         }
       }
     }
