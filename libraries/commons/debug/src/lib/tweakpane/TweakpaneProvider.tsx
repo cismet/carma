@@ -87,7 +87,9 @@ export const TweakpaneProvider: React.FC<{
           top,
           left,
           right,
+          bottom: 0,
           zIndex: 10000,
+          overflow: "hidden",
         }}
       ></div>
       {children}

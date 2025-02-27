@@ -28,41 +28,70 @@ export const useTweakpaneCtx = ({
   const folderRef = useRef<FolderApi | null>(null);
 
   useEffect(() => {
-    if (!paneRef.current) return;
-    const isHidden = paneRef.current.element.parentElement?.hidden === true;
-    if (isHidden) return;
-    if (folder) {
-      if (folderRef.current) {
-        folderRef.current.hidden = false;
-        console.debug("HOOK: [TWEAKPANE|DEBUG] using existing folder");
-      } else {
-        console.debug("HOOK: [TWEAKPANE|DEBUG] adding new folder to pane");
-        folderRef.current = paneRef.current.addFolder(folder);
-      }
-      inputs.forEach((input) => {
-        folderRef.current &&
-          folderRef.current.addBinding(params, input.name, input);
-      });
+    let isSetup = false;
 
-      return () => {
+    const setupTweakpane = () => {
+      if (!paneRef.current) return false;
+
+      const isHidden = paneRef.current.element.parentElement?.hidden === true;
+      if (isHidden) return false;
+
+      if (folder) {
         if (folderRef.current) {
-          // hide the folder, but keep it in the pane for reuse on rerender
-          folderRef.current.hidden = true;
-          // dispose of all children
+          folderRef.current.hidden = false;
+          console.debug("HOOK: [TWEAKPANE|DEBUG] using existing folder");
+        } else {
+          console.debug("HOOK: [TWEAKPANE|DEBUG] adding new folder to pane");
+          folderRef.current = paneRef.current.addFolder(folder);
+        }
+
+        if (folderRef.current.children.length > 0) {
           folderRef.current.children.forEach((child) => {
             child.dispose();
           });
         }
+
+        inputs.forEach((input) => {
+          folderRef.current &&
+            folderRef.current.addBinding(params, input.name, input);
+        });
+      } else {
+        console.debug(
+          "[TWEAKPANE|DEBUG] Folder params not provided, using root folder"
+        );
+
+        inputs.forEach((input) => {
+          paneRef.current &&
+            paneRef.current.addBinding(params, input.name, input);
+        });
+      }
+
+      return true;
+    };
+
+    isSetup = setupTweakpane();
+
+    if (!isSetup) {
+      const intervalId = setInterval(() => {
+        isSetup = setupTweakpane();
+        if (isSetup) {
+          clearInterval(intervalId);
+        }
+      }, 500); // Check every 500ms
+
+      return () => {
+        clearInterval(intervalId);
       };
-    } else {
-      console.debug(
-        "[TWEAKPANE|DEBUG] Folder params not provided, using root folder"
-      );
-      inputs.forEach((input) => {
-        paneRef.current &&
-          paneRef.current.addBinding(params, input.name, input);
-      });
     }
+
+    return () => {
+      if (folderRef.current) {
+        folderRef.current.hidden = true;
+        folderRef.current.children.forEach((child) => {
+          child.dispose();
+        });
+      }
+    };
   }, [folder, params, inputs, paneRef]);
 
   const folderCallback = useCallback((fn: (folder: FolderApi) => void) => {
