@@ -1,11 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
 import {
   BoundingSphere,
   HeadingPitchRange,
   PerspectiveFrustum,
   Cartesian3,
-  Math as CesiumMath,
 } from "cesium";
 import { useCesiumContext, getOrbitPoint } from "@carma-mapping/cesium-engine";
 
@@ -32,8 +31,10 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
     ...defaultOptions,
     ...options,
   };
+
   const isObliqueMode = useSelector(getObliqueMode);
   const { viewerRef } = useCesiumContext();
+  const originalFovRef = useRef<number | null>(null);
 
   useEffect(() => {
     let wheelCleanupFn: (() => void) | undefined;
@@ -43,20 +44,20 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
       const viewer = viewerRef.current;
 
       if (isObliqueMode) {
+        if (viewer.camera.frustum instanceof PerspectiveFrustum) {
+          originalFovRef.current = viewer.camera.frustum.fov;
+        }
+
         const center = getOrbitPoint(viewer);
 
-        const targetPitch = -fixedPitch; // 45 degrees down from horizontal
-
-        const adjustedPitch = Math.max(targetPitch, -Math.PI / 2 + 0.01);
-        const heightAboveGround = fixedHeight; // meters
-        const range = heightAboveGround / Math.tan(-adjustedPitch);
+        const range = fixedHeight / Math.tan(-fixedPitch);
 
         viewer.camera.flyToBoundingSphere(
           new BoundingSphere(center, fixedHeight),
           {
             offset: new HeadingPitchRange(
               viewer.camera.heading,
-              targetPitch,
+              fixedPitch,
               range
             ),
             duration: 2,
@@ -138,14 +139,16 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
           }
         );
 
-        // Store callback for cleanup
         cameraPreUpdateRemoveCallback = () => {
           viewer.scene.preUpdate.removeEventListener(preUpdateCallback);
         };
       } else {
         viewer.scene.screenSpaceCameraController.enableZoom = true;
         if (viewer.camera.frustum instanceof PerspectiveFrustum) {
-          viewer.camera.frustum.fov = Math.PI / 3;
+          // Restore the original FOV if we have one stored
+          if (originalFovRef.current !== null) {
+            viewer.camera.frustum.fov = originalFovRef.current;
+          }
         }
       }
     }
