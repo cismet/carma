@@ -25,8 +25,18 @@ import {
   MenuTooltip,
   searchTextPlaceholder,
 } from "@carma-collab/wuppertal/e-bikes";
+
+import {
+  SelectionMetaData,
+  TopicMapSelectionContent,
+  useGazData,
+  useSelection,
+  useSelectionTopicMap,
+} from "@carma-apps/portals";
+import { LibFuzzySearch, SearchResultItem } from "@carma-mapping/fuzzy-search";
+import { ENDPOINT, isAreaType } from "@carma-commons/resources";
+
 const Map = () => {
-  const [gazData, setGazData] = useState([]);
   const { setSelectedFeatureByPredicate, setClusteringOptions } = useContext<
     typeof FeatureCollectionDispatchContext
   >(FeatureCollectionDispatchContext);
@@ -39,9 +49,6 @@ const Map = () => {
   const { secondaryInfoVisible } = useContext<typeof UIContext>(UIContext);
   const { setSecondaryInfoVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
-  useEffect(() => {
-    getGazData(setGazData);
-  }, []);
 
   useEffect(() => {
     if (markerSymbolSize) {
@@ -52,48 +59,76 @@ const Map = () => {
     }
   }, [markerSymbolSize]);
 
+  const { gazData } = useGazData();
+  const { setSelection } = useSelection();
+
+  useSelectionTopicMap();
+
+  const onGazetteerSelection = (selection: SearchResultItem | null) => {
+    if (!selection) {
+      setSelection(null);
+      return;
+    }
+    const selectionMetaData: SelectionMetaData = {
+      selectedFrom: "gazetteer",
+      selectionTimestamp: Date.now(),
+      isAreaSelection: isAreaType(selection.type as ENDPOINT),
+    };
+    setSelection(Object.assign({}, selection, selectionMetaData));
+
+    setTimeout(() => {
+      const gazId = selection.more?.pid || selection.more?.kid;
+      setSelectedFeatureByPredicate(
+        (feature) => feature.properties.id === gazId
+      );
+    }, 100);
+  };
+
   return (
-    <TopicMapComponent
-      gazData={gazData}
-      modalMenu={<Menu />}
-      locatorControl={true}
-      photoLightBox
-      gazetteerSearchPlaceholder={searchTextPlaceholder}
-      gazetteerHitTrigger={(hits) => {
-        if ((Array.isArray(hits) && hits[0]?.more?.pid) || hits[0]?.more?.kid) {
-          const gazId = hits[0]?.more?.pid || hits[0]?.more?.kid;
-          setSelectedFeatureByPredicate(
-            (feature) => feature.properties.id === gazId
-          );
-        }
-      }}
-      applicationMenuTooltipString={<MenuTooltip />}
-      infoBox={
-        <GenericInfoBoxFromFeature
-          pixelwidth={350}
-          config={{
-            displaySecondaryInfoAction: true,
-            city: "Wuppertal",
-            navigator: {
-              noun: {
-                singular: "Sation",
-                plural: "Stationen",
+    <>
+      <TopicMapComponent
+        modalMenu={<Menu />}
+        locatorControl={true}
+        photoLightBox
+        // gazetteerSearchPlaceholder={searchTextPlaceholder}
+        applicationMenuTooltipString={<MenuTooltip />}
+        gazetteerSearchControl={false}
+        gazetteerSearchComponent={<></>}
+        infoBox={
+          <GenericInfoBoxFromFeature
+            pixelwidth={350}
+            config={{
+              displaySecondaryInfoAction: true,
+              city: "Wuppertal",
+              navigator: {
+                noun: {
+                  singular: "Sation",
+                  plural: "Stationen",
+                },
               },
-            },
-            noFeatureTitle: <InfoBoxTextTitle />,
-            noCurrentFeatureContent: <InfoBoxTextContent />,
-          }}
+              noFeatureTitle: <InfoBoxTextTitle />,
+              noCurrentFeatureContent: <InfoBoxTextContent />,
+            }}
+          />
+        }
+      >
+        {secondaryInfoVisible && (
+          <SecondaryInfoModal
+            feature={selectedFeature}
+            setOpen={setSecondaryInfoVisible}
+          />
+        )}
+        <TopicMapSelectionContent />
+        <FeatureCollection></FeatureCollection>
+      </TopicMapComponent>
+      <div className="custom-left-control">
+        <LibFuzzySearch
+          gazData={gazData}
+          onSelection={onGazetteerSelection}
+          placeholder="Stadtteil | Adresse | POI"
         />
-      }
-    >
-      {secondaryInfoVisible && (
-        <SecondaryInfoModal
-          feature={selectedFeature}
-          setOpen={setSecondaryInfoVisible}
-        />
-      )}
-      <FeatureCollection></FeatureCollection>
-    </TopicMapComponent>
+      </div>
+    </>
   );
 };
 

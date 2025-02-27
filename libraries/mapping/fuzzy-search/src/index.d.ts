@@ -14,6 +14,7 @@ export type SearchGazetteerProps = {
 interface MoreData {
   zl: number;
   pid: number;
+  kid?: number;
 }
 export interface SearchResultItem {
   sorter: number;
