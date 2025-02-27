@@ -40,8 +40,8 @@ function App() {
           "https://wupp-topicmaps-data.cismet.de/ehrenamt/data.json"
         }
         createFeatureItemsDictionary={createItemsDictionary}
-        referenceSystemDefinition={MappingConstants.proj4crs25832def}
-        mapEPSGCode="25832"
+        // referenceSystemDefinition={MappingConstants.proj4crs25832def}
+        // mapEPSGCode="25832"
         referenceSystem={MappingConstants.crs25832}
         getFeatureStyler={getFeatureStyler}
         featureTooltipFunction={(feature) => feature?.text}
