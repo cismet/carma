@@ -96,7 +96,6 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
       cameraController.enableTranslate = true;
 
       if (isObliqueMode) {
-        // Store current FOV but don't modify it
         if (viewer.camera.frustum instanceof PerspectiveFrustum) {
           originalFovRef.current = viewer.camera.frustum.fov;
         }
@@ -104,12 +103,6 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
         const center = getOrbitPoint(viewer);
         const range = fixedHeight / Math.tan(-fixedPitch);
 
-        // Store current FOV to use in flyTo
-        const currentFov = viewer.camera.frustum instanceof PerspectiveFrustum
-          ? viewer.camera.frustum.fov
-          : undefined;
-
-        // Use flyTo with fov parameter to preserve FOV during transition
         viewer.camera.flyToBoundingSphere(
           new BoundingSphere(center, fixedHeight),
           {
@@ -119,7 +112,6 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
               range
             ),
             duration: 2,
-            fov: currentFov, // Preserve current FOV
           }
         );
 
@@ -165,30 +157,34 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
           cameraPreUpdateRemoveCallback();
         }
 
-        if (viewer.camera.frustum instanceof PerspectiveFrustum && originalFovRef.current !== null) {
+        if (
+          viewer.camera.frustum instanceof PerspectiveFrustum &&
+          originalFovRef.current !== null
+        ) {
           const currentFov = viewer.camera.frustum.fov;
           const targetFov = originalFovRef.current;
-          const duration = 300; // Animation duration in milliseconds
+          const duration = 300;
           const startTime = performance.now();
-          
+
           let animationFrameId: number;
-          
+
           const animateFov = (timestamp: number) => {
             const elapsed = timestamp - startTime;
             const progress = Math.min(elapsed / duration, 1);
             const easedProgress = EasingFunction.SINUSOIDAL_IN_OUT(progress);
-            const newFov = currentFov + easedProgress * (targetFov - currentFov);
-            
+            const newFov =
+              currentFov + easedProgress * (targetFov - currentFov);
+
             if (viewer.camera.frustum instanceof PerspectiveFrustum) {
               viewer.camera.frustum.fov = newFov;
               viewer.scene.requestRender();
             }
-            
+
             if (progress < 1) {
               animationFrameId = requestAnimationFrame(animateFov);
             }
           };
-          
+
           animationFrameId = requestAnimationFrame(animateFov);
 
           // Add cleanup for animation if component unmounts during animation
