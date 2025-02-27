@@ -58,7 +58,7 @@ import { addCssToOverlayHelperItem } from "../../helper/overlayHelper.ts";
 import useLeafletZoomControls from "../../hooks/leaflet/useLeafletZoomControls.ts";
 import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
-import { useObliqueMode } from "./GeoportalMap.hooks.ts";
+import { useObliqueMode } from "../../hooks/useObliqueMode.ts";
 
 import { createCismapLayers, onClickTopicMap } from "./topicmap.utils.ts";
 
@@ -115,12 +115,8 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const showHamburgerMenu = useSelector(getShowHamburgerMenu);
   const selectedFeature = useSelector(getSelectedFeature);
   const loadingFeatureInfo = useSelector(getLoading);
-  const {
-    viewerRef,
-    viewerAnimationMapRef,
-    terrainProviderRef,
-    surfaceProviderRef,
-  } = useCesiumContext();
+  const { viewerRef, terrainProviderRef, surfaceProviderRef } =
+    useCesiumContext();
   const { getLeafletZoom } = useLeafletZoomControls();
   const showPrimaryTileset = useSelector(selectShowPrimaryTileset);
   const infoBoxOverlay = addCssToOverlayHelperItem(

@@ -10,7 +10,7 @@ import {
 } from "cesium";
 import { useCesiumContext, getOrbitPoint } from "@carma-mapping/cesium-engine";
 
-import { getObliqueMode } from "../../store/slices/ui";
+import { getObliqueMode } from "../store/slices/ui";
 
 type ObliqueModeOptions = {
   fixedPitch?: number;
@@ -72,6 +72,61 @@ const preUpdateCallback = (
   }
 };
 
+// Options for animating FOV changes
+interface AnimateFovOptions {
+  viewer: Viewer;
+  startFov: number;
+  targetFov: number;
+  duration?: number;
+  easingFunction?: (time: number) => number;
+  onComplete?: () => void;
+}
+
+// Helper to animate FOV changes
+const animateFov = ({
+  viewer,
+  startFov,
+  targetFov,
+  duration = 300,
+  easingFunction = EasingFunction.SINUSOIDAL_IN_OUT,
+  onComplete,
+}: AnimateFovOptions): (() => void) => {
+  const startTime = performance.now();
+  let animationFrameId: number;
+
+  const animate = (timestamp: number) => {
+    if (!(viewer.camera.frustum instanceof PerspectiveFrustum)) {
+      cancelAnimationFrame(animationFrameId);
+      return;
+    }
+
+    const elapsed = timestamp - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const easedProgress = easingFunction(progress);
+    const newFov = startFov + easedProgress * (targetFov - startFov);
+
+    viewer.camera.frustum.fov = newFov;
+    viewer.scene.requestRender();
+
+    if (progress < 1) {
+      animationFrameId = requestAnimationFrame(animate);
+    } else {
+      if (onComplete) {
+        onComplete();
+      }
+    }
+  };
+
+  animationFrameId = requestAnimationFrame(animate);
+
+  // Return cleanup function
+  return () => {
+    if (animationFrameId) {
+      cancelAnimationFrame(animationFrameId);
+    }
+  };
+};
+
 export function useObliqueMode(options: ObliqueModeOptions = {}) {
   const { fixedPitch, fixedHeight, minFov, maxFov, headingOffset } = {
     ...defaultOptions,
@@ -81,6 +136,7 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
   const isObliqueMode = useSelector(getObliqueMode);
   const { viewerRef } = useCesiumContext();
   const originalFovRef = useRef<number | null>(null);
+  const fovAnimationCleanupRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     let wheelCleanupFn: (() => void) | undefined;
@@ -121,17 +177,39 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
           if (!(viewer.camera.frustum instanceof PerspectiveFrustum)) {
             return;
           }
+
           const currentFov = viewer.camera.frustum.fov;
+          const baseSensitivity = 0.002;
+          const zoomingOut = event.deltaY > 0;
 
-          const sensitivity = 0.002;
-          const newFov = currentFov * (1 + event.deltaY * sensitivity);
-
-          const clampedFov = Math.max(minFov, Math.min(newFov, maxFov));
-
-          // Set the new FOV
-          if (viewer.camera.frustum.fov !== clampedFov) {
-            viewer.camera.frustum.fov = clampedFov;
+          let adaptiveSensitivity;
+          if (zoomingOut) {
+            const fovRatio = Math.min(maxFov / currentFov, 4);
+            adaptiveSensitivity = baseSensitivity * fovRatio;
+          } else {
+            adaptiveSensitivity =
+              baseSensitivity * Math.max(0.8, currentFov / (Math.PI / 4));
           }
+
+          const delta = event.deltaY * adaptiveSensitivity;
+          const newFovTarget = currentFov * (1 + delta);
+
+          // Clamp to min/max FOV
+          const targetFov = Math.max(minFov, Math.min(newFovTarget, maxFov));
+
+          // Clean up any existing animation
+          if (fovAnimationCleanupRef.current) {
+            fovAnimationCleanupRef.current();
+          }
+
+          // Start new animation
+          fovAnimationCleanupRef.current = animateFov({
+            viewer,
+            startFov: currentFov,
+            targetFov,
+            duration: 500,
+            easingFunction: EasingFunction.SINUSOIDAL_OUT,
+          });
         };
 
         const container = viewer.container;
@@ -163,40 +241,20 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
         ) {
           const currentFov = viewer.camera.frustum.fov;
           const targetFov = originalFovRef.current;
-          const duration = 300;
-          const startTime = performance.now();
 
-          let animationFrameId: number;
+          // Clean up any existing animation
+          if (fovAnimationCleanupRef.current) {
+            fovAnimationCleanupRef.current();
+          }
 
-          const animateFov = (timestamp: number) => {
-            const elapsed = timestamp - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            const easedProgress = EasingFunction.SINUSOIDAL_IN_OUT(progress);
-            const newFov =
-              currentFov + easedProgress * (targetFov - currentFov);
-
-            if (viewer.camera.frustum instanceof PerspectiveFrustum) {
-              viewer.camera.frustum.fov = newFov;
-              viewer.scene.requestRender();
-            }
-
-            if (progress < 1) {
-              animationFrameId = requestAnimationFrame(animateFov);
-            }
-          };
-
-          animationFrameId = requestAnimationFrame(animateFov);
-
-          // Add cleanup for animation if component unmounts during animation
-          const existingCleanup = cameraPreUpdateRemoveCallback;
-          cameraPreUpdateRemoveCallback = () => {
-            if (existingCleanup) {
-              existingCleanup();
-            }
-            if (animationFrameId) {
-              cancelAnimationFrame(animationFrameId);
-            }
-          };
+          // Animate back to original FOV
+          fovAnimationCleanupRef.current = animateFov({
+            viewer,
+            startFov: currentFov,
+            targetFov,
+            duration: 300, // Longer for mode transition
+            easingFunction: EasingFunction.SINUSOIDAL_IN_OUT,
+          });
         }
       }
     }
@@ -205,6 +263,13 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
       if (wheelCleanupFn) {
         wheelCleanupFn();
       }
+
+      // Clean up any FOV animations
+      if (fovAnimationCleanupRef.current) {
+        fovAnimationCleanupRef.current();
+        fovAnimationCleanupRef.current = null;
+      }
+
       if (cameraPreUpdateRemoveCallback) {
         cameraPreUpdateRemoveCallback();
       }
