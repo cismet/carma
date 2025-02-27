@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import * as ReactDOM from "react-dom/client";
 import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
 import App from "./app/App.jsx";
+import { gazDataConfig } from "./config/gazData.js";
 
 const originalWarn = console.warn.bind(console);
 const originalError = console.error.bind(console);
@@ -27,7 +28,7 @@ const root = ReactDOM.createRoot(
 );
 root.render(
   <StrictMode>
-    <GazDataProvider>
+    <GazDataProvider config={gazDataConfig}>
       <SelectionProvider>
         <App />
       </SelectionProvider>
