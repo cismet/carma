@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import * as ReactDOM from "react-dom/client";
-
+import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
 import App from "./app/App.jsx";
 
 const root = ReactDOM.createRoot(
@@ -11,6 +11,10 @@ if (typeof global === "undefined") {
 }
 root.render(
   <StrictMode>
-    <App />
+    <GazDataProvider>
+      <SelectionProvider>
+        <App />
+      </SelectionProvider>
+    </GazDataProvider>
   </StrictMode>
 );
