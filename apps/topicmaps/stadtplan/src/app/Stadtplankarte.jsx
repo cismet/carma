@@ -1,5 +1,4 @@
-import React from "react";
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect } from "react";
 import {
   FeatureCollectionContext,
   FeatureCollectionDispatchContext,
@@ -10,27 +9,25 @@ import FeatureCollection from "react-cismap/FeatureCollection";
 import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 
-import { getGazData } from "./helper/helper";
-import { getPoiClusterIconCreatorFunction } from "./helper/styler";
-import Menu from "./Menu";
-import IconComp from "react-cismap/commons/Icon";
+import {
+  TopicMapSelectionContent,
+  useGazData,
+  useSelection,
+  useSelectionTopicMap,
+} from "@carma-apps/portals";
 import {
   InfoBoxTextContent,
   InfoBoxTextTitle,
   MenuTooltip,
   searchTextPlaceholder,
 } from "@carma-collab/wuppertal/stadtplan";
-import {
-  useGazData,
-  useSelection,
-  TopicMapSelectionContent,
-  useSelectionTopicMap,
-} from "@carma-apps/portals";
-import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { isAreaType } from "@carma-commons/resources";
+import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
+import IconComp from "react-cismap/commons/Icon";
+import { getPoiClusterIconCreatorFunction } from "./helper/styler";
+import Menu from "./Menu";
 
 const Stadtplankarte = ({ poiColors }) => {
-  // const [gazData, setGazData] = useState([]);
   const { setSelectedFeatureByPredicate, setClusteringOptions } = useContext(
     FeatureCollectionDispatchContext
   );
@@ -39,9 +36,6 @@ const Stadtplankarte = ({ poiColors }) => {
   const { clusteringOptions, selectedFeature } = useContext(
     FeatureCollectionContext
   );
-  // useEffect(() => {
-  //   getGazData(setGazData);
-  // }, []);
 
   useEffect(() => {
     if (markerSymbolSize) {
@@ -71,28 +65,21 @@ const Stadtplankarte = ({ poiColors }) => {
       isAreaSelection: isAreaType(selection.type),
     };
     setSelection(Object.assign({}, selection, selectionMetaData));
+    setTimeout(() => {
+      const gazId = selection.more?.pid || selection.more?.kid;
+      setSelectedFeatureByPredicate(
+        (feature) => feature.properties.id === gazId
+      );
+    }, [100]);
   };
 
   return (
     <>
       <TopicMapComponent
-        // gazData={gazData}
         modalMenu={<Menu />}
         locatorControl={true}
         gazetteerSearchControl={false}
         gazetteerSearchComponent={<></>}
-        // gazetteerSearchPlaceholder={searchTextPlaceholder}
-        gazetteerHitTrigger={(hits) => {
-          if (
-            (Array.isArray(hits) && hits[0]?.more?.pid) ||
-            hits[0]?.more?.kid
-          ) {
-            const gazId = hits[0]?.more?.pid || hits[0]?.more?.kid;
-            setSelectedFeatureByPredicate(
-              (feature) => feature.properties.id === gazId
-            );
-          }
-        }}
         applicationMenuTooltipString={<MenuTooltip />}
         infoBox={
           <GenericInfoBoxFromFeature
