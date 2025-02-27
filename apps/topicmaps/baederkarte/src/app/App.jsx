@@ -30,9 +30,9 @@ function App() {
       featureItemsURL={
         "https://wupp-topicmaps-data.cismet.de/data/baeder.data.json"
       }
-      referenceSystemDefinition={MappingConstants.proj4crs25832def}
-      mapEPSGCode="25832"
-      referenceSystem={MappingConstants.crs25832}
+      // referenceSystemDefinition={MappingConstants.proj4crs25832def}
+      // mapEPSGCode="25832"
+      // referenceSystem={MappingConstants.crs25832}
       getFeatureStyler={getFeatureStyler}
       featureTooltipFunction={(feature) => feature?.text}
       convertItemToFeature={convertItemToFeature}
