@@ -2,7 +2,12 @@ export { isNumberArrayEqual } from "./lib/arrays";
 
 export { type CarmaConfig, extractCarmaConfig } from "./lib/carmaConfig";
 
-export { getGazData, type GazDataItem, type GazDataConfig, type GazDataSourceConfig } from "./lib/gazData";
+export {
+  getGazData,
+  type GazDataItem,
+  type GazDataConfig,
+  type GazDataSourceConfig,
+} from "./lib/gazData";
 
 export { suppressReactCismapErrors } from "./lib/log-react-cismap-errors";
 
@@ -17,3 +22,5 @@ export { generateRandomString } from "./lib/strings";
 export { getApplicationVersion } from "./lib/version";
 
 export { detectWebGLContext } from "./lib/webgl";
+
+export { md5FetchText } from "./lib/fetching";
