@@ -68,11 +68,30 @@ export const createGazEndpointUri = (
   return `${host}/data/${crs}/${endpoint}.json`;
 };
 
+export const createGazEndpointUriWithoutCRS = (
+  endpoint: ENDPOINT,
+  { crs, host }: EndpointOptions
+) => {
+  if (crs !== "") {
+    return `${host}/data/${endpoint}.json`;
+  }
+  return `${host}/data/${crs}/${endpoint}.json`;
+};
+
 export const gazDataPrefix = "GazDataDefault";
 
 export const createConfig = (endpoint: ENDPOINT, options: EndpointOptions) => ({
   topic: endpoint,
   url: createGazEndpointUri(endpoint, options),
+  crs: options.crs,
+});
+
+export const createConfigWithoutCRS = (
+  endpoint: ENDPOINT,
+  options: EndpointOptions
+) => ({
+  topic: endpoint,
+  url: createGazEndpointUriWithoutCRS(endpoint, options),
   crs: options.crs,
 });
 
