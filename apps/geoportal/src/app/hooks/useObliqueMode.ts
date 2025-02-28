@@ -8,6 +8,7 @@ import {
   Viewer,
   EasingFunction,
   Matrix4,
+  Ray,
 } from "cesium";
 import { useCesiumContext, getOrbitPoint } from "@carma-mapping/cesium-engine";
 
@@ -157,18 +158,7 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
         const center = getOrbitPoint(viewer);
         const range = fixedHeight / Math.tan(-fixedPitch);
 
-        viewer.camera.flyToBoundingSphere(
-          new BoundingSphere(center, fixedHeight),
-          {
-            offset: new HeadingPitchRange(
-              viewer.camera.heading,
-              fixedPitch,
-              range
-            ),
-            duration: 2,
-          }
-        );
-
+        // Setup wheel handler first
         const handleWheel = (event: WheelEvent) => {
           event.preventDefault();
 
@@ -216,14 +206,60 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
           };
         }
 
-        const callback = () =>
-          preUpdateCallback(viewer, fixedPitch, fixedHeight);
+        // Animation first, only add preUpdateCallback after animation completes
+        const sphere = new BoundingSphere(center, range);
+        viewer.camera.flyToBoundingSphere(sphere, {
+          offset: new HeadingPitchRange(
+            viewer.camera.heading,
+            fixedPitch,
+            range
+          ),
+          duration: 2,
+          complete: function () {
+            // After the flyTo animation, we need to adjust the camera position to be exactly at fixedHeight
+            // Get the ray from camera to center point
+            const ray = new Ray(
+              viewer.camera.position,
+              viewer.camera.direction
+            );
+            // Calculate the distance to move along this ray to get to the desired height
+            // First, get current camera height above ellipsoid
+            const currentHeight =
+              viewer.scene.globe.ellipsoid.cartesianToCartographic(
+                viewer.camera.position
+              ).height;
+            // Calculate how far we need to move to achieve fixedHeight
+            const heightDifference = fixedHeight - currentHeight;
+            // If there's a significant difference, adjust the camera position
+            if (Math.abs(heightDifference) > 1) {
+              // Create a new position by moving along the ray
+              // If we need to move up (heightDifference is positive), move backward
+              // If we need to move down (heightDifference is negative), move forward
+              const distanceToMove = heightDifference / Math.sin(-fixedPitch);
+              const newPosition = Ray.getPoint(ray, -distanceToMove);
+              viewer.camera.flyTo({
+                destination: newPosition,
+                orientation: {
+                  heading: viewer.camera.heading,
+                  pitch: fixedPitch,
+                  roll: 0,
+                },
+                complete: function () {
+                  const callback = () =>
+                    preUpdateCallback(viewer, fixedPitch, fixedHeight);
+                  viewer.scene.preUpdate.addEventListener(callback);
 
-        viewer.scene.preUpdate.addEventListener(callback);
+                  cameraPreUpdateRemoveCallback = () => {
+                    viewer.scene.preUpdate.removeEventListener(callback);
+                  };
 
-        cameraPreUpdateRemoveCallback = () => {
-          viewer.scene.preUpdate.removeEventListener(callback);
-        };
+                  viewer.scene.requestRender();
+                },
+              });
+            }
+            // After the position adjustment, now add the constraint callback
+          },
+        });
       } else {
         // Clean up preUpdateCallback when leaving oblique mode
         if (cameraPreUpdateRemoveCallback) {
