@@ -4,9 +4,7 @@ import { useState } from "react";
 import { MappingConstants } from "react-cismap";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 
-import convertItemToFeature, {
-  getConvertItemToFeatureWithPOIColors,
-} from "./helper/convertItemToFeature";
+import convertItemToFeature from "./helper/convertItemToFeature";
 
 import itemFilterFunction from "./helper/filter";
 import { getPOIColors } from "./helper/helper";
@@ -42,9 +40,9 @@ function App() {
           "https://wupp-topicmaps-data.cismet.de/data/emob.data.json"
         }
         createFeatureItemsDictionary={createItemsDictionary}
-        // referenceSystemDefinition={MappingConstants.proj4crs25832def}
-        // mapEPSGCode="25832"
-        // referenceSystem={MappingConstants.crs25832}
+        referenceSystemDefinition={MappingConstants.proj4crs25832def}
+        mapEPSGCode="25832"
+        referenceSystem={MappingConstants.crs25832}
         getFeatureStyler={getFeatureStyler}
         featureTooltipFunction={(feature) => feature?.text}
         convertItemToFeature={convertItemToFeature}
