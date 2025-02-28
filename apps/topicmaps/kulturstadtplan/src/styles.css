@@ -2,3 +2,12 @@
 .nav-tabs {
   border-bottom: 1px solid #dee2e6 !important;
 }
+
+.custom-left-control {
+  position: absolute;
+  z-index: 1000;
+  left: 0;
+  bottom: 0;
+  margin-left: 10px;
+  margin-bottom: 5px;
+}
