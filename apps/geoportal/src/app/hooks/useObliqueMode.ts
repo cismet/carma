@@ -7,6 +7,7 @@ import {
   Cartesian3,
   Viewer,
   EasingFunction,
+  Matrix4,
 } from "cesium";
 import { useCesiumContext, getOrbitPoint } from "@carma-mapping/cesium-engine";
 
@@ -33,46 +34,43 @@ const preUpdateCallback = (
   fixedPitch: number,
   fixedHeight: number
 ) => {
-  // Get current camera state
   const currentPosition = viewer.camera.position;
   const ellipsoid = viewer.scene.globe.ellipsoid;
   const currentCartographic =
     ellipsoid.cartesianToCartographic(currentPosition);
   const currentPitch = viewer.camera.pitch;
 
-  // Check if pitch or height has changed significantly
-  // Use a larger threshold for height to allow smoother rotation
   const heightDifference = Math.abs(currentCartographic.height - fixedHeight);
   const pitchDifference = Math.abs(currentPitch - fixedPitch);
 
-  // Only correct if significantly off-target (more tolerant thresholds)
-  // This allows smoother rotation while still maintaining general constraints
   if (pitchDifference > 0.03 || heightDifference > 5.0) {
-    // Get current position in lat/lon
     const longitude = currentCartographic.longitude;
     const latitude = currentCartographic.latitude;
 
-    // Create a new position at the same lat/lon but with fixed height
     const fixedPosition = Cartesian3.fromRadians(
       longitude,
       latitude,
       fixedHeight
     );
 
-    // Update camera position and orientation
-    // Use setView with preservePositionHeightOnly to maintain rotation
+    const distance = Cartesian3.distance(fixedPosition, viewer.camera.position);
+
+    if (distance > 10000) {
+      console.warn(distance, "Target position is too far away, aborting");
+      return;
+    }
+
     viewer.camera.setView({
       destination: fixedPosition,
       orientation: {
-        heading: viewer.camera.heading, // Keep current heading for rotation
-        pitch: fixedPitch, // Force target pitch
+        heading: viewer.camera.heading,
+        pitch: fixedPitch,
         roll: 0,
       },
     });
   }
 };
 
-// Options for animating FOV changes
 interface AnimateFovOptions {
   viewer: Viewer;
   startFov: number;
@@ -82,7 +80,6 @@ interface AnimateFovOptions {
   onComplete?: () => void;
 }
 
-// Helper to animate FOV changes
 const animateFov = ({
   viewer,
   startFov,
@@ -111,6 +108,7 @@ const animateFov = ({
     if (progress < 1) {
       animationFrameId = requestAnimationFrame(animate);
     } else {
+      viewer.camera.lookAtTransform(Matrix4.IDENTITY);
       if (onComplete) {
         onComplete();
       }
@@ -194,15 +192,12 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
           const delta = event.deltaY * adaptiveSensitivity;
           const newFovTarget = currentFov * (1 + delta);
 
-          // Clamp to min/max FOV
           const targetFov = Math.max(minFov, Math.min(newFovTarget, maxFov));
 
-          // Clean up any existing animation
           if (fovAnimationCleanupRef.current) {
             fovAnimationCleanupRef.current();
           }
 
-          // Start new animation
           fovAnimationCleanupRef.current = animateFov({
             viewer,
             startFov: currentFov,
@@ -252,7 +247,7 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
             viewer,
             startFov: currentFov,
             targetFov,
-            duration: 300, // Longer for mode transition
+            duration: 300,
             easingFunction: EasingFunction.SINUSOIDAL_IN_OUT,
           });
         }
