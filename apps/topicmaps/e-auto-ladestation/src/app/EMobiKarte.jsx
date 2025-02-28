@@ -1,5 +1,5 @@
 import React from "react";
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect } from "react";
 import {
   FeatureCollectionContext,
   FeatureCollectionDispatchContext,
@@ -25,10 +25,8 @@ import {
 } from "@carma-apps/portals";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { isAreaType } from "@carma-commons/resources";
-import { getGazData } from "./helper/gazData";
 
 const EMobiKarte = () => {
-  // const [gazData, setGazData] = useState([]);
   const {
     setSelectedFeatureByPredicate,
     setClusteringOptions,
@@ -39,9 +37,6 @@ const EMobiKarte = () => {
   const { markerSymbolSize } = useContext(TopicMapStylingContext);
   const { clusteringOptions, selectedFeature, filteredItems, shownFeatures } =
     useContext(FeatureCollectionContext);
-  // useEffect(() => {
-  //   getGazData(setGazData);
-  // }, []);
 
   useEffect(() => {
     if (markerSymbolSize) {
@@ -79,14 +74,11 @@ const EMobiKarte = () => {
     };
     setSelection(Object.assign({}, selection, selectionMetaData));
     setTimeout(() => {
-      console.log("xxx selection", selection);
       const gazId = selection.more?.pid || selection.more?.id;
-      console.log("xxx gazId", gazId);
-
       setSelectedFeatureByPredicate(
         (feature) => feature.properties.id === gazId
       );
-    }, [100]);
+    }, 100);
   };
 
   return (
@@ -95,21 +87,8 @@ const EMobiKarte = () => {
         gazData={gazData}
         modalMenu={<Menu />}
         locatorControl={true}
-        // gazetteerSearchPlaceholder="Ladestation | Stadtteil | Adresse | POI"
-        // gazetteerHitTrigger={(hits) => {
-        //   if (
-        //     (Array.isArray(hits) && hits[0]?.more?.pid) ||
-        //     hits[0]?.more?.id
-        //   ) {
-        //     console.log("xxx hits data", hits);
-        //     const gazId = hits[0]?.more?.pid || hits[0]?.more?.id;
-        //     console.log("xxx gazId", hits);
-
-        //     setSelectedFeatureByPredicate(
-        //       (feature) => feature.properties.id === gazId
-        //     );
-        //   }
-        // }}
+        gazetteerSearchControl={false}
+        gazetteerSearchComponent={<></>}
         infoBox={
           <GenericInfoBoxFromFeature
             pixelwidth={350}
