@@ -25,6 +25,7 @@ export interface SearchResultItem {
   more: MoreData;
   type: string;
   xSearchData: string;
+  glyphPrefix?: string;
 }
 
 export interface SearchResultItemWithScore {

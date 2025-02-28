@@ -53,16 +53,21 @@ export function buildAddressWithIconUI(
   score?: number,
   category: string = "default"
 ) {
+  // if (addresObj.glyph === "cloudscale") {
+  //   console.log("xxx", addresObj);
+  // }
   let icon;
   if (addresObj.glyph === "pie-chart") {
     icon = "chart-pie";
   } else {
     icon = addresObj.glyph;
   }
+
+  const iconPrefix = addresObj?.glyphPrefix ? addresObj.glyphPrefix : "fas ";
   const streetLabel = (
     <div style={{ paddingLeft: "0.3rem" }} data-category={category}>
       <span style={{ marginRight: "0.4rem" }}>
-        <i className={icon && "fas " + "fa-" + icon}></i>
+        <i className={icon && iconPrefix + "fa-" + icon}></i>
         {"  "}
       </span>
       <span>
