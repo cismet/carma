@@ -25,8 +25,10 @@ import {
 } from "@carma-apps/portals";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { isAreaType } from "@carma-commons/resources";
+import { getGazData } from "./helper/gazData";
 
 const EMobiKarte = () => {
+  // const [gazData, setGazData] = useState([]);
   const {
     setSelectedFeatureByPredicate,
     setClusteringOptions,
@@ -37,6 +39,9 @@ const EMobiKarte = () => {
   const { markerSymbolSize } = useContext(TopicMapStylingContext);
   const { clusteringOptions, selectedFeature, filteredItems, shownFeatures } =
     useContext(FeatureCollectionContext);
+  // useEffect(() => {
+  //   getGazData(setGazData);
+  // }, []);
 
   useEffect(() => {
     if (markerSymbolSize) {
@@ -90,9 +95,21 @@ const EMobiKarte = () => {
         gazData={gazData}
         modalMenu={<Menu />}
         locatorControl={true}
-        gazetteerSearchControl={false}
-        gazetteerSearchComponent={<></>}
-        applicationMenuTooltipString="Filter | Einstellungen | Kompaktanleitung"
+        // gazetteerSearchPlaceholder="Ladestation | Stadtteil | Adresse | POI"
+        // gazetteerHitTrigger={(hits) => {
+        //   if (
+        //     (Array.isArray(hits) && hits[0]?.more?.pid) ||
+        //     hits[0]?.more?.id
+        //   ) {
+        //     console.log("xxx hits data", hits);
+        //     const gazId = hits[0]?.more?.pid || hits[0]?.more?.id;
+        //     console.log("xxx gazId", hits);
+
+        //     setSelectedFeatureByPredicate(
+        //       (feature) => feature.properties.id === gazId
+        //     );
+        //   }
+        // }}
         infoBox={
           <GenericInfoBoxFromFeature
             pixelwidth={350}
