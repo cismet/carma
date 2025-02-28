@@ -15,6 +15,8 @@ import Map from "./app/components/Map";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import convertItemToFeature from "./utils/convertItemToFeature";
 import { MappingConstants } from "react-cismap";
+import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
+import { gazDataConfig } from "./config/gazData";
 
 const persistor = persistStore(store);
 
@@ -58,16 +60,20 @@ const root = ReactDOM.createRoot(
 root.render(
   <StrictMode>
     <Provider store={store}>
-      <TopicMapContextProvider
-        convertItemToFeature={convertItemToFeature}
-        referenceSystemDefinition={MappingConstants.proj4crs25832def}
-        mapEPSGCode="25832"
-        referenceSystem={MappingConstants.crs25832}
-      >
-        <PersistGate loading={null} persistor={persistor}>
-          <RouterProvider router={router} />
-        </PersistGate>
-      </TopicMapContextProvider>
+      <GazDataProvider config={gazDataConfig}>
+        <SelectionProvider>
+          <TopicMapContextProvider
+            convertItemToFeature={convertItemToFeature}
+            referenceSystemDefinition={MappingConstants.proj4crs25832def}
+            mapEPSGCode="25832"
+            referenceSystem={MappingConstants.crs25832}
+          >
+            <PersistGate loading={null} persistor={persistor}>
+              <RouterProvider router={router} />
+            </PersistGate>
+          </TopicMapContextProvider>
+        </SelectionProvider>
+      </GazDataProvider>
     </Provider>
   </StrictMode>
 );
