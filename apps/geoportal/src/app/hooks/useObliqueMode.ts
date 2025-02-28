@@ -13,6 +13,8 @@ import {
 import { useCesiumContext, getOrbitPoint } from "@carma-mapping/cesium-engine";
 
 import { getObliqueMode } from "../store/slices/ui";
+import { useObliqueData } from "./useObliqueData";
+import { OBLIQUE_2024_ORIENTATIONS_CSV_URI } from "@carma-commons/resources";
 
 type ObliqueModeOptions = {
   fixedPitch?: number;
@@ -136,6 +138,19 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
   const { viewerRef } = useCesiumContext();
   const originalFovRef = useRef<number | null>(null);
   const fovAnimationCleanupRef = useRef<(() => void) | null>(null);
+
+  // Use the oblique data hook to get camera orientations
+  const { imageRecords, parseCSV, isLoading } = useObliqueData(
+    OBLIQUE_2024_ORIENTATIONS_CSV_URI
+  );
+
+  // Track oblique mode changes and load data only when entering oblique mode
+  useEffect(() => {
+    if (isObliqueMode) {
+      // Only load camera data when entering oblique mode
+      parseCSV();
+    }
+  }, [isObliqueMode, parseCSV]);
 
   useEffect(() => {
     let wheelCleanupFn: (() => void) | undefined;

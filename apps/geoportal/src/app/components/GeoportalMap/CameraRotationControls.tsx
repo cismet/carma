@@ -12,7 +12,6 @@ import {
   Color,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
-  PositionProperty,
   ConstantPositionProperty,
 } from "cesium";
 
