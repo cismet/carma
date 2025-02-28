@@ -42,7 +42,7 @@ function App() {
         createFeatureItemsDictionary={createItemsDictionary}
         // referenceSystemDefinition={MappingConstants.proj4crs25832def}
         // mapEPSGCode="25832"
-        referenceSystem={MappingConstants.crs25832}
+        // referenceSystem={MappingConstants.crs25832}
         getFeatureStyler={getFeatureStyler}
         featureTooltipFunction={(feature) => feature?.text}
         convertItemToFeature={convertItemToFeature}
