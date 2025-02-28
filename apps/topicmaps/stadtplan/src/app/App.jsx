@@ -43,15 +43,15 @@ function App() {
         convertItemToFeature={getConvertItemToFeatureWithPOIColors(poiColors)}
         itemFilterFunction={itemFilterFunction}
         titleFactory={titleFactory}
-        // referenceSystemDefinition={MappingConstants.proj4crs25832def}
+        referenceSystemDefinition={MappingConstants.proj4crs25832def}
         clusteringOptions={{
           iconCreateFunction: getPoiClusterIconCreatorFunction({
             svgSize: 35,
             poiColors,
           }),
         }}
-        // mapEPSGCode="25832"
-        // referenceSystem={MappingConstants.crs25832}
+        mapEPSGCode="25832"
+        referenceSystem={MappingConstants.crs25832}
         additionalStylingInfo={{ poiColors }}
       >
         <Stadtplankarte poiColors={poiColors} />

@@ -4,6 +4,7 @@ import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
 
 import App from "./app/App.jsx";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
+import { gazDataConfig } from "./config/gazData.js";
 
 suppressReactCismapErrors();
 
@@ -15,7 +16,7 @@ if (typeof global === "undefined") {
 }
 root.render(
   <StrictMode>
-    <GazDataProvider>
+    <GazDataProvider config={gazDataConfig}>
       <SelectionProvider>
         <App />
       </SelectionProvider>
