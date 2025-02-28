@@ -12,6 +12,8 @@ import {
   Color,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
+  PositionProperty,
+  ConstantPositionProperty,
 } from "cesium";
 
 import { useCesiumContext, getOrbitPoint } from "@carma-mapping/cesium-engine";
@@ -76,7 +78,7 @@ const CameraRotationControls: React.FC<CameraRotationControlsProps> = ({
 
     if (!orbitPointEntityRef.current) {
       orbitPointEntityRef.current = viewer.entities.add({
-        position,
+        position: new ConstantPositionProperty(position),
         point: {
           pixelSize: 10,
           color: Color.YELLOW,
@@ -86,15 +88,21 @@ const CameraRotationControls: React.FC<CameraRotationControlsProps> = ({
         },
       });
     } else {
-      orbitPointEntityRef.current.position = position;
+      orbitPointEntityRef.current.position = new ConstantPositionProperty(
+        position
+      );
     }
   }, [viewerRef]);
 
   // Remove orbit point entity when component unmounts
   useEffect(() => {
+    // Capture the current values inside the effect
+    const currentViewer = viewerRef.current;
+    const currentOrbitPointEntity = orbitPointEntityRef.current;
+
     return () => {
-      if (viewerRef.current && orbitPointEntityRef.current) {
-        viewerRef.current.entities.remove(orbitPointEntityRef.current);
+      if (currentViewer && currentOrbitPointEntity) {
+        currentViewer.entities.remove(currentOrbitPointEntity);
       }
     };
   }, [viewerRef]);
