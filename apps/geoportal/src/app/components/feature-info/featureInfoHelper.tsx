@@ -2,6 +2,7 @@ import { LayerProps } from "@carma-mapping/layers";
 import FeatureInfoIcon from "./FeatureInfoIcon";
 import { proj4crs25832def } from "react-cismap/constants/gis";
 import proj4 from "proj4";
+import type { Map } from "leaflet";
 
 export const getLeafNodes = (node, result: any = {}): any => {
   if (node.nodeType === Node.ELEMENT_NODE) {
@@ -100,6 +101,7 @@ export const getFeatureForLayer = async (
   layer,
   pos: number[],
   coordinates: number[],
+  leafletMap: Map,
   signal?: AbortSignal
 ) => {
   const props = layer.props as LayerProps;
@@ -113,14 +115,56 @@ export const getFeatureForLayer = async (
     props.name
   );
 
-  const imgUrl =
+  let viewportBbox = {
+    left: pos[0] - minimalBoxSize,
+    bottom: pos[1] - minimalBoxSize,
+    right: pos[0] + minimalBoxSize,
+    top: pos[1] + minimalBoxSize,
+  };
+  let viewportWidth = 10;
+  let viewportHeight = 10;
+
+  if (leafletMap) {
+    const bounds = leafletMap.getBounds();
+    const projectedNE = proj4(
+      proj4.defs("EPSG:4326") as unknown as string,
+      proj4crs25832def,
+      [bounds.getNorthEast().lng, bounds.getNorthEast().lat]
+    );
+    const projectedSW = proj4(
+      proj4.defs("EPSG:4326") as unknown as string,
+      proj4crs25832def,
+      [bounds.getSouthWest().lng, bounds.getSouthWest().lat]
+    );
+
+    viewportBbox = {
+      left: projectedSW[0],
+      bottom: projectedSW[1],
+      right: projectedNE[0],
+      top: projectedNE[1],
+    };
+
+    viewportWidth = leafletMap.getSize().x;
+    viewportHeight = leafletMap.getSize().y;
+  }
+
+  const pixelX = Math.round(
+    ((pos[0] - viewportBbox.left) / (viewportBbox.right - viewportBbox.left)) *
+      viewportWidth
+  );
+  const pixelY = Math.round(
+    ((viewportBbox.top - pos[1]) / (viewportBbox.top - viewportBbox.bottom)) *
+      viewportHeight
+  );
+
+  const legacyFeatureInfoUrl =
     props.url +
     `&VERSION=1.1.1&REQUEST=GetFeatureInfo&BBOX=` +
-    `${pos[0] - minimalBoxSize},` +
-    `${pos[1] - minimalBoxSize},` +
-    `${pos[0] + minimalBoxSize},` +
-    `${pos[1] + minimalBoxSize}` +
-    `&WIDTH=10&HEIGHT=10&SRS=EPSG:25832&FORMAT=image/png&TRANSPARENT=TRUE&BGCOLOR=0xF0F0F0&EXCEPTIONS=application/vnd.ogc.se_xml&FEATURE_COUNT=99&LAYERS=${props.name}&STYLES=default&QUERY_LAYERS=${props.name}&INFO_FORMAT=text/html&X=5&Y=5
+    `${viewportBbox.left},` +
+    `${viewportBbox.bottom},` +
+    `${viewportBbox.right},` +
+    `${viewportBbox.top}` +
+    `&WIDTH=${viewportWidth}&HEIGHT=${viewportHeight}&SRS=EPSG:25832&FORMAT=image/png&TRANSPARENT=TRUE&BGCOLOR=0xF0F0F0&EXCEPTIONS=application/vnd.ogc.se_xml&FEATURE_COUNT=99&LAYERS=${props.name}&STYLES=default&QUERY_LAYERS=${props.name}&INFO_FORMAT=text/html&X=${pixelX}&Y=${pixelY}
             `;
 
   let output = "";
@@ -142,7 +186,6 @@ export const getFeatureForLayer = async (
 
   if (result) {
     if (result.includes("function")) {
-      // remove every line that is not a function
       result = result
         .split("\n")
         .filter((line) => line.includes("function"))
@@ -174,7 +217,7 @@ export const getFeatureForLayer = async (
           ...feature.properties,
           genericLinks: genericLinks.concat([
             {
-              url: imgUrl,
+              url: legacyFeatureInfoUrl,
               tooltip: "Vollständige Sachdatenabfrage",
               icon: <FeatureInfoIcon />,
               target: "_legacyGetFeatureInfoHtml",

@@ -6,7 +6,7 @@ import {
   useState,
 } from "react";
 import type { Dispatch, Store } from "@reduxjs/toolkit";
-import type { LatLng, Point } from "leaflet";
+import type { LatLng, Map, Point } from "leaflet";
 import proj4 from "proj4";
 
 import CismapLayer from "react-cismap/CismapLayer";
@@ -79,6 +79,7 @@ type Options = {
   mode: UIMode;
   store: Store;
   zoom: number;
+  map: Map;
 };
 
 // TODO: move to portal lib?
@@ -106,7 +107,7 @@ export const onClickTopicMap = async (
     target: HTMLElement;
     type: string;
   },
-  { dispatch, mode, store, zoom }: Options
+  { dispatch, mode, store, zoom, map }: Options
 ) => {
   const layers = getLayers(store.getState());
   const queryableLayers = getQueryableLayers(layers, zoom);
@@ -161,6 +162,7 @@ export const onClickTopicMap = async (
               testLayer,
               pos,
               [e.latlng.lng, e.latlng.lat],
+              map,
               signal
             );
 
