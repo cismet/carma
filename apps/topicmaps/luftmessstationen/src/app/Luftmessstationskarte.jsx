@@ -22,87 +22,120 @@ import {
   InfoBoxTextContent,
 } from "@carma-collab/wuppertal/luftmessstationen";
 
+import {
+  TopicMapSelectionContent,
+  useGazData,
+  useSelection,
+  useSelectionTopicMap,
+} from "@carma-apps/portals";
+import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
+import { isAreaType } from "@carma-commons/resources";
+
 function Comp() {
-  const [gazData, setGazData] = useState([]);
   const { setSelectedFeatureByPredicate } = useContext(
     FeatureCollectionDispatchContext
   );
-  // const { items, filteredItems, allFeatures } = useContext(FeatureCollectionContext);
-
-  // console.log("allFeatures", allFeatures);
 
   useEffect(() => {
-    getGazData(setGazData);
     document.title = "Luftmessstationskarte Wuppertal";
   }, []);
 
-  return (
-    <TopicMapComponent
-      locatorControl={true}
-      gazData={gazData}
-      modalMenu={<MyMenu />}
-      applicationMenuTooltipString={<MenuTooltip />}
-      gazetteerSearchPlaceholder={searchTextPlaceholder}
-      infoBox={
-        <GenericInfoBoxFromFeature
-          pixelwidth={350}
-          config={{
-            displaySecondaryInfoAction: true,
+  const { gazData } = useGazData();
+  const { setSelection } = useSelection();
 
-            city: "Wuppertal",
-            navigator: {
-              noun: {
-                singular: "Messstation",
-                plural: "Messstationen",
+  useSelectionTopicMap();
+
+  const onGazetteerSelection = (selection) => {
+    if (!selection) {
+      setSelection(null);
+      return;
+    }
+    const selectionMetaData = {
+      selectedFrom: "gazetteer",
+      selectionTimestamp: Date.now(),
+      isAreaSelection: isAreaType(selection.type),
+    };
+    setSelection(Object.assign({}, selection, selectionMetaData));
+
+    setTimeout(() => {
+      const gazId = selection.more?.mid;
+      setSelectedFeatureByPredicate(
+        (feature) => feature.properties.id === gazId
+      );
+    }, 100);
+  };
+
+  return (
+    <>
+      <TopicMapComponent
+        locatorControl={true}
+        modalMenu={<MyMenu />}
+        applicationMenuTooltipString={<MenuTooltip />}
+        gazetteerSearchControl={false}
+        gazetteerSearchComponent={<></>}
+        infoBox={
+          <GenericInfoBoxFromFeature
+            pixelwidth={350}
+            config={{
+              displaySecondaryInfoAction: true,
+
+              city: "Wuppertal",
+              navigator: {
+                noun: {
+                  singular: "Messstation",
+                  plural: "Messstationen",
+                },
               },
-            },
-            noCurrentFeatureTitle: "Keine Messtationen gefunden",
-            noCurrentFeatureContent: <InfoBoxTextContent />,
+              noCurrentFeatureTitle: "Keine Messtationen gefunden",
+              noCurrentFeatureContent: <InfoBoxTextContent />,
+            }}
+          />
+        }
+        secondaryInfo={<InfoPanel />}
+      >
+        <ContactButton
+          title="Rückfrage zu den Messwerten"
+          action={() => {
+            let link = document.createElement("a");
+            link.setAttribute("type", "hidden");
+            const br = "\n";
+
+            let mailToHref =
+              "mailto:luftreinhaltung@stadt.wuppertal.de?subject=Rückfrage zu Messwerten&body=" +
+              encodeURI(
+                `Sehr geehrte Damen und Herren,${br}${br} zu der Luftmessstationskarte `
+              ) +
+              encodeURI(`auf${br}${br}`) +
+              `${window.location.href
+                .replace(/&/g, "%26")
+                .replace(/#/g, "%23")}` +
+              encodeURI(
+                `${br}` +
+                  `${br}` +
+                  `habe ich folgende Frage:${br}` +
+                  `${br}${br}${br}${br}` +
+                  `Mit freundlichen Grüßen${br}` +
+                  `${br}` +
+                  `${br}`
+              );
+            document.body.appendChild(link);
+            link.href = mailToHref;
+            link.click();
           }}
         />
-      }
-      secondaryInfo={<InfoPanel />}
-      gazetteerHitTrigger={(hits) => {
-        if (Array.isArray(hits) && hits[0]?.more?.mid) {
-          setSelectedFeatureByPredicate(
-            (feature) => feature.properties.id === hits[0].more.mid
-          );
-        }
-      }}
-    >
-      <ContactButton
-        title="Rückfrage zu den Messwerten"
-        action={() => {
-          let link = document.createElement("a");
-          link.setAttribute("type", "hidden");
-          const br = "\n";
+        <TopicMapSelectionContent />
 
-          let mailToHref =
-            "mailto:luftreinhaltung@stadt.wuppertal.de?subject=Rückfrage zu Messwerten&body=" +
-            encodeURI(
-              `Sehr geehrte Damen und Herren,${br}${br} zu der Luftmessstationskarte `
-            ) +
-            encodeURI(`auf${br}${br}`) +
-            `${window.location.href
-              .replace(/&/g, "%26")
-              .replace(/#/g, "%23")}` +
-            encodeURI(
-              `${br}` +
-                `${br}` +
-                `habe ich folgende Frage:${br}` +
-                `${br}${br}${br}${br}` +
-                `Mit freundlichen Grüßen${br}` +
-                `${br}` +
-                `${br}`
-            );
-          document.body.appendChild(link);
-          link.href = mailToHref;
-          link.click();
-        }}
-      />
-      <FeatureCollection></FeatureCollection>
-      {/* <LogSelection /> */}
-    </TopicMapComponent>
+        <FeatureCollection></FeatureCollection>
+        {/* <LogSelection /> */}
+      </TopicMapComponent>
+      <div className="custom-left-control">
+        <LibFuzzySearch
+          gazData={gazData}
+          onSelection={onGazetteerSelection}
+          placeholder={searchTextPlaceholder}
+        />
+      </div>
+    </>
   );
 }
 
