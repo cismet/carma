@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
+import { MappingConstants } from "react-cismap";
 
 import "bootstrap/dist/css/bootstrap.min.css";
 import "leaflet/dist/leaflet.css";
@@ -24,6 +25,9 @@ export function App() {
       featureItemsURL={
         "https://wupp-topicmaps-data.cismet.de/data/ebikes.data.json"
       }
+      referenceSystemDefinition={MappingConstants.proj4crs25832def}
+      mapEPSGCode="25832"
+      referenceSystem={MappingConstants.crs25832}
       getFeatureStyler={getFeatureStyler}
       featureTooltipFunction={(feature) => feature?.text}
       titleFactory={titleFactory}
