@@ -10,7 +10,6 @@ import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 
 import {
-  MessageOverlay,
   replaceHashRoutedHistory,
   TopicMapSelectionContent,
   useCarmaMapContext,
@@ -59,6 +58,7 @@ import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenIn
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
 import { useObliqueMode } from "../../hooks/useObliqueMode.ts";
 
+import CameraRotationControls from "./CameraRotationControls";
 import { createCismapLayers, onClickTopicMap } from "./topicmap.utils.ts";
 import { useTweakpane } from "./GeoportalMap.useTweakpane.ts";
 
@@ -88,6 +88,13 @@ interface MapProps {
   width: number;
   allow3d?: boolean;
 }
+
+// Fixed oblique mode properties
+const OBLIQUE_MODE_PROPS = {
+  fixedPitch: -Math.PI / 4, // 45 degrees
+  fixedHeight: 1000,
+  headingOffset: -Math.PI / 5.5, //  offset for cardinal directions
+};
 
 export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const dispatch = useDispatch();
@@ -253,7 +260,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     }
   }, [uiMode]);
 
-  useObliqueMode();
+  useObliqueMode(OBLIQUE_MODE_PROPS);
 
   useEffect(() => {
     if (isModeFeatureInfo && pos) {
@@ -491,12 +498,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
             pointerEvents: isMode2d ? "none" : "auto",
           }}
         >
-          {flags.featureFlagObliqueViewModeCesium && (
-            <MessageOverlay
-              message={isObliqueMode ? "⚠️ Oblique Mode Enabled ⚠️" : ""}
-            />
-          )}
-
           <CustomViewer
             containerRef={container3dMapRef}
             cameraOptions={CESIUM_CONFIG.camera}
@@ -507,6 +508,10 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
               );
               replaceHashRoutedHistory(e, location.pathname);
             }}
+          />
+          <CameraRotationControls
+            isObliqueMode={isObliqueMode}
+            headingOffset={OBLIQUE_MODE_PROPS.headingOffset}
           />
         </div>
       )}
