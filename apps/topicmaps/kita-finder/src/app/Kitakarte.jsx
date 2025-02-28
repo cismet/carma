@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext } from "react";
 import {
   FeatureCollectionContext,
   FeatureCollectionDispatchContext,
@@ -31,7 +31,6 @@ import {
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { isAreaType } from "@carma-commons/resources";
 const KitaKarte = () => {
-  // const [gazData, setGazData] = useState([]);
   const { setSelectedFeatureByPredicate, setClusteringOptions } = useContext(
     FeatureCollectionDispatchContext
   );
@@ -39,10 +38,6 @@ const KitaKarte = () => {
   const { clusteringOptions } = useContext(FeatureCollectionContext);
 
   const { additionalStylingInfo } = useContext(TopicMapStylingContext);
-
-  // useEffect(() => {
-  //   getGazData(setGazData);
-  // }, []);
 
   // useEffect(() => {
   //   if (additionalStylingInfo) {
@@ -111,20 +106,10 @@ const KitaKarte = () => {
   return (
     <>
       <TopicMapComponent
-        // gazData={gazData}
         modalMenu={
           <Menu previewFeatureCollectionProps={featureCollectionProps} />
         }
         locatorControl={true}
-        // gazetteerSearchPlaceholder={searchTextPlaceholder}
-        // gazetteerHitTrigger={(hits) => {
-        //   if ((Array.isArray(hits) && hits[0]?.more?.pid) || hits[0]?.more?.kid) {
-        //     const gazId = hits[0]?.more?.pid || hits[0]?.more?.kid;
-        //     setSelectedFeatureByPredicate(
-        //       (feature) => feature.properties.id === gazId
-        //     );
-        //   }
-        // }}
         gazetteerSearchControl={false}
         gazetteerSearchComponent={<></>}
         applicationMenuTooltipString={<MenuTooltip />}

@@ -7,6 +7,7 @@ import { suppressReactCismapErrors } from "@carma-commons/utils";
 import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
 import App from "./app/App.jsx";
 import store from "./app/store/index.js";
+import { gazDataConfig } from "./config/gazData.js";
 
 const persistor = persistStore(store);
 
@@ -19,7 +20,7 @@ root.render(
   <StrictMode>
     <Provider store={store}>
       <PersistGate loading={null} persistor={persistor}>
-        <GazDataProvider>
+        <GazDataProvider config={gazDataConfig}>
           <SelectionProvider>
             <App />
           </SelectionProvider>
