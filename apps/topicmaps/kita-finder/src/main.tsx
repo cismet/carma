@@ -4,7 +4,7 @@ import { persistStore } from "redux-persist";
 import { PersistGate } from "redux-persist/integration/react";
 import { Provider } from "react-redux";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
-
+import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
 import App from "./app/App.jsx";
 import store from "./app/store/index.js";
 
@@ -19,7 +19,11 @@ root.render(
   <StrictMode>
     <Provider store={store}>
       <PersistGate loading={null} persistor={persistor}>
-        <App />
+        <GazDataProvider>
+          <SelectionProvider>
+            <App />
+          </SelectionProvider>
+        </GazDataProvider>
       </PersistGate>
     </Provider>
   </StrictMode>

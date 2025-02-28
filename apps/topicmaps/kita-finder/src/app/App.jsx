@@ -43,9 +43,9 @@ function App() {
         convertItemToFeature={convertItemToFeature}
         itemFilterFunction={itemFilterFunction}
         titleFactory={titleFactory}
-        referenceSystemDefinition={MappingConstants.proj4crs25832def}
-        mapEPSGCode="25832"
-        referenceSystem={MappingConstants.crs25832}
+        // referenceSystemDefinition={MappingConstants.proj4crs25832def}
+        // mapEPSGCode="25832"
+        // referenceSystem={MappingConstants.crs25832}
         filterState={{
           umfang_45: true,
           umfang_35: true,
