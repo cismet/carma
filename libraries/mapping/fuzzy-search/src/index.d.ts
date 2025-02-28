@@ -15,6 +15,7 @@ interface MoreData {
   zl: number;
   pid: number;
   kid?: number;
+  v?: string;
 }
 export interface SearchResultItem {
   sorter: number;
