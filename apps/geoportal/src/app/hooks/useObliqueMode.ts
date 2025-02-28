@@ -214,7 +214,7 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
             fixedPitch,
             range
           ),
-          duration: 2,
+          duration: 1,
           complete: function () {
             // After the flyTo animation, we need to adjust the camera position to be exactly at fixedHeight
             // Get the ray from camera to center point
@@ -244,6 +244,7 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
                   pitch: fixedPitch,
                   roll: 0,
                 },
+                duration: 0.5,
                 complete: function () {
                   const callback = () =>
                     preUpdateCallback(viewer, fixedPitch, fixedHeight);
