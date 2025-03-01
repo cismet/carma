@@ -62,6 +62,7 @@ import {
 import { layerMap } from "./config";
 import { CESIUM_CONFIG } from "./config/app.config";
 import { featureFlagConfig } from "./config/featureFlags";
+import { ObliqueDataProvider } from "./context/ObliqueDataContext";
 
 // Side-Effect Imports
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -241,39 +242,41 @@ function App({ published }: { published?: boolean }) {
             background: backgroundSettings,
           }}
         >
-          <ErrorBoundary FallbackComponent={AppErrorFallback}>
-            <div className="flex flex-col w-full " style={{ height: "100dvh" }}>
-              {loadingConfig && (
-                <div
-                  id="loading"
-                  className="absolute flex flex-col items-center text-white justify-center h-screen w-full bg-black/50 z-[9999999999999]"
-                >
-                  <h2>Lade Konfiguration</h2>
-                  <FontAwesomeIcon size="2x" icon={faSpinner} spin />
-                </div>
-              )}
-              {!published && <TopNavbar />}
-              <MapMeasurement />
-              <MapWrapper />
-              <Modal
-                title={mobileInfo.headerText}
-                open={isModalOpen && isMobile}
-                closable={false}
-                closeIcon={false}
-                footer={[
-                  <Button
-                    key="confirm"
-                    type="primary"
-                    onClick={() => setIsModalOpen(false)}
+          <ObliqueDataProvider>
+            <ErrorBoundary FallbackComponent={AppErrorFallback}>
+              <div className="flex flex-col w-full " style={{ height: "100dvh" }}>
+                {loadingConfig && (
+                  <div
+                    id="loading"
+                    className="absolute flex flex-col items-center text-white justify-center h-screen w-full bg-black/50 z-[9999999999999]"
                   >
-                    {mobileInfo.confirmButtonText}
-                  </Button>,
-                ]}
-              >
-                <p>{mobileInfo.bodyText}</p>
-              </Modal>
-            </div>
-          </ErrorBoundary>
+                    <h2>Lade Konfiguration</h2>
+                    <FontAwesomeIcon size="2x" icon={faSpinner} spin />
+                  </div>
+                )}
+                {!published && <TopNavbar />}
+                <MapMeasurement />
+                <MapWrapper />
+                <Modal
+                  title={mobileInfo.headerText}
+                  open={isModalOpen && isMobile}
+                  closable={false}
+                  closeIcon={false}
+                  footer={[
+                    <Button
+                      key="confirm"
+                      type="primary"
+                      onClick={() => setIsModalOpen(false)}
+                    >
+                      {mobileInfo.confirmButtonText}
+                    </Button>,
+                  ]}
+                >
+                  <p>{mobileInfo.bodyText}</p>
+                </Modal>
+              </div>
+            </ErrorBoundary>
+          </ObliqueDataProvider>
         </CarmaMapContextProvider>
       </TweakpaneProvider>
     </FeatureFlagProvider>

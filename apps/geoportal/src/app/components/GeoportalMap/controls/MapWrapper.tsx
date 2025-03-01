@@ -1,4 +1,3 @@
-import { Math as CesiumMath } from "cesium";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { isMobile } from "react-device-detect";
 import { useDispatch, useSelector } from "react-redux";
@@ -45,10 +44,16 @@ import {
   useZoomControls as useZoomControlsCesium,
 } from "@carma-mapping/cesium-engine";
 import { LibFuzzySearch, SearchResultItem } from "@carma-mapping/fuzzy-search";
+import {
+  FullScreenDocument,
+  FullScreenHTMLElement,
+} from "@carma-mapping/layers";
 
 import { GeoportalMap } from "../GeoportalMap.tsx";
 import LayerWrapper from "../../layers/LayerWrapper.tsx";
 import LocateControlComponent from "../controls/LocateControlComponent.tsx";
+
+import { ObliqueImageInfoContainer } from "../../ObliqueImageInfoContainer.tsx";
 
 import useLeafletZoomControls from "../../../hooks/leaflet/useLeafletZoomControls.ts";
 import { useDispatchSachdatenInfoText } from "../../../hooks/useDispatchSachdatenInfoText.ts";
@@ -86,10 +91,6 @@ import {
 } from "../../../store/slices/ui.ts";
 
 import { CESIUM_CONFIG } from "../../../config/app.config";
-import {
-  FullScreenDocument,
-  FullScreenHTMLElement,
-} from "@carma-mapping/layers";
 
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;
@@ -505,7 +506,13 @@ const MapWrapper = () => {
         </>
       )}
       <Main ref={wrapperRef}>
-        <GeoportalMap height={height} width={width} allow3d={allow3d} />
+        <div
+          id="mapContainer"
+          className={`${isMobile ? "h-0" : ""} flex flex-1 relative`}
+        >
+          <GeoportalMap height={height} width={width} allow3d={allow3d} />
+          <ObliqueImageInfoContainer />
+        </div>
       </Main>
     </ControlLayout>
   );

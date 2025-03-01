@@ -1,35 +1,36 @@
-import { useEffect, useRef } from "react";
-import { useSelector } from "react-redux";
 import {
   BoundingSphere,
-  HeadingPitchRange,
-  PerspectiveFrustum,
   Cartesian3,
-  Viewer,
   EasingFunction,
+  HeadingPitchRange,
   Matrix4,
+  PerspectiveFrustum,
   Ray,
+  Viewer,
 } from "cesium";
-import { useCesiumContext, getOrbitPoint } from "@carma-mapping/cesium-engine";
+import { useEffect, useRef } from "react";
+import { useSelector } from "react-redux";
+
+import { getOrbitPoint, useCesiumContext } from "@carma-mapping/cesium-engine";
 
 import { getObliqueMode } from "../store/slices/ui";
-import { useObliqueData } from "./useObliqueData";
-import { OBLIQUE_2024_ORIENTATIONS_CSV_URI } from "@carma-commons/resources";
+import { useObliqueDataContext } from "../context/ObliqueDataContext";
 
-type ObliqueModeOptions = {
+export interface ObliqueModeOptions {
   fixedPitch?: number;
   fixedHeight?: number;
   minFov?: number;
   maxFov?: number;
   headingOffset?: number;
-};
+}
 
-const defaultOptions: ObliqueModeOptions = {
-  fixedHeight: 1000,
-  fixedPitch: -Math.PI / 4,
-  maxFov: Math.PI / 2,
-  minFov: Math.PI / 60,
-  headingOffset: 0,
+// Default parameters for the camera position and field of view
+export const defaultOptions: ObliqueModeOptions = {
+  fixedPitch: -1.5, // Pitch in radians
+  fixedHeight: 350, // Height in meters
+  minFov: 0.5, // Minimum field of view in radians
+  maxFov: 1.2, // Maximum field of view in radians
+  headingOffset: 0, // Heading offset in radians, used for calibration
 };
 
 const preUpdateCallback = (
@@ -37,10 +38,21 @@ const preUpdateCallback = (
   fixedPitch: number,
   fixedHeight: number
 ) => {
+  // Safety checks for viewer and its components
+  if (!viewer || !viewer.scene || !viewer.scene.globe || !viewer.camera) {
+    return;
+  }
+
   const currentPosition = viewer.camera.position;
   const ellipsoid = viewer.scene.globe.ellipsoid;
+
+  // Handle potential null from cartesianToCartographic
   const currentCartographic =
     ellipsoid.cartesianToCartographic(currentPosition);
+  if (!currentCartographic) {
+    return;
+  }
+
   const currentPitch = viewer.camera.pitch;
 
   const heightDifference = Math.abs(currentCartographic.height - fixedHeight);
@@ -128,7 +140,12 @@ const animateFov = ({
   };
 };
 
-export function useObliqueMode(options: ObliqueModeOptions = {}) {
+export function useObliqueMode(
+  // Parameters are kept for backward compatibility but not used anymore
+  _uri?: string,
+  _crs?: string,
+  options: ObliqueModeOptions = {}
+) {
   const { fixedPitch, fixedHeight, minFov, maxFov, headingOffset } = {
     ...defaultOptions,
     ...options,
@@ -139,18 +156,13 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
   const originalFovRef = useRef<number | null>(null);
   const fovAnimationCleanupRef = useRef<(() => void) | null>(null);
 
-  // Use the oblique data hook to get camera orientations
-  const { imageRecords, parseCSV, isLoading } = useObliqueData(
-    OBLIQUE_2024_ORIENTATIONS_CSV_URI
-  );
-
-  // Track oblique mode changes and load data only when entering oblique mode
-  useEffect(() => {
-    if (isObliqueMode) {
-      // Only load camera data when entering oblique mode
-      parseCSV();
-    }
-  }, [isObliqueMode, parseCSV]);
+  // Use the shared context to get oblique data
+  const {
+    nearestImage,
+    distanceToNearestImage,
+    refreshNearestImageSearch,
+    converter,
+  } = useObliqueDataContext();
 
   useEffect(() => {
     let wheelCleanupFn: (() => void) | undefined;
@@ -187,39 +199,31 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
 
           let adaptiveSensitivity;
           if (zoomingOut) {
-            const fovRatio = Math.min(maxFov / currentFov, 4);
-            adaptiveSensitivity = baseSensitivity * fovRatio;
+            // When zooming out, sensitivity decreases as we approach maxFov
+            const remainingRange = maxFov - currentFov;
+            adaptiveSensitivity = baseSensitivity * (remainingRange / (maxFov - minFov));
           } else {
-            adaptiveSensitivity =
-              baseSensitivity * Math.max(0.8, currentFov / (Math.PI / 4));
+            // When zooming in, sensitivity decreases as we approach minFov
+            const remainingRange = currentFov - minFov;
+            adaptiveSensitivity = baseSensitivity * (remainingRange / (maxFov - minFov));
           }
 
           const delta = event.deltaY * adaptiveSensitivity;
-          const newFovTarget = currentFov * (1 + delta);
+          let newFov = currentFov + delta;
 
-          const targetFov = Math.max(minFov, Math.min(newFovTarget, maxFov));
+          // Clamp to min/max FOV
+          newFov = Math.max(minFov, Math.min(maxFov, newFov));
 
-          if (fovAnimationCleanupRef.current) {
-            fovAnimationCleanupRef.current();
+          // Only update if there's a meaningful change
+          if (Math.abs(newFov - currentFov) > 0.0001) {
+            viewer.camera.frustum.fov = newFov;
           }
-
-          fovAnimationCleanupRef.current = animateFov({
-            viewer,
-            startFov: currentFov,
-            targetFov,
-            duration: 500,
-            easingFunction: EasingFunction.SINUSOIDAL_OUT,
-          });
         };
 
-        const container = viewer.container;
-        if (container) {
-          container.addEventListener("wheel", handleWheel, { passive: false });
-
-          wheelCleanupFn = () => {
-            container.removeEventListener("wheel", handleWheel);
-          };
-        }
+        viewer.canvas.addEventListener("wheel", handleWheel, { passive: false });
+        wheelCleanupFn = () => {
+          viewer.canvas.removeEventListener("wheel", handleWheel);
+        };
 
         // Animation first, only add preUpdateCallback after animation completes
         const sphere = new BoundingSphere(center, range);
@@ -330,6 +334,14 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
     maxFov,
     headingOffset,
   ]);
+
+  return {
+    isObliqueMode,
+    nearestImage,
+    distanceToNearestImage,
+    refreshNearestImageSearch,
+    converter,
+  };
 }
 
 export default useObliqueMode;

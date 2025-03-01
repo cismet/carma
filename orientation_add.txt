@@ -1,0 +1,32 @@
+// Add this import at the top of the file:
+import { Math as CesiumMath } from "cesium";
+
+// Add this code after the direction block (line 208) and before the distance block (line 210):
+{imageRecord.orientation && (
+  <>
+    <InfoRow>
+      <Text type="secondary" style={{ marginRight: 8 }}>
+        Omega:
+      </Text>
+      <Text>
+        {CesiumMath.toDegrees(imageRecord.orientation.omega).toFixed(2)}°
+      </Text>
+    </InfoRow>
+    <InfoRow>
+      <Text type="secondary" style={{ marginRight: 8 }}>
+        Phi:
+      </Text>
+      <Text>
+        {CesiumMath.toDegrees(imageRecord.orientation.phi).toFixed(2)}°
+      </Text>
+    </InfoRow>
+    <InfoRow>
+      <Text type="secondary" style={{ marginRight: 8 }}>
+        Kappa:
+      </Text>
+      <Text>
+        {CesiumMath.toDegrees(imageRecord.orientation.kappa).toFixed(2)}°
+      </Text>
+    </InfoRow>
+  </>
+)}

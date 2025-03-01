@@ -16,5 +16,7 @@ export interface BasicObliqueImageRecord {
 export interface ObliqueImageRecord extends BasicObliqueImageRecord {
   centerWGS84: [number, number, number];
   waypointId: string;
-  direction: string | null;
+  cameraId: string | null;
+  calculatedHeading?: number; // in radians
+  sector?: string; // N, E, S, W
 }

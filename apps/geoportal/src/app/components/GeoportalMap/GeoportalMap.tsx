@@ -25,7 +25,12 @@ import {
 } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 
-import { ENDPOINT, isAreaType } from "@carma-commons/resources";
+import {
+  ENDPOINT,
+  isAreaType,
+  OBLIQUE_2024_ORIENTATIONS_CRS,
+  OBLIQUE_2024_ORIENTATIONS_CSV_URI,
+} from "@carma-commons/resources";
 
 import {
   OverlayTourContext,
@@ -260,13 +265,13 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     }
   }, [uiMode]);
 
-  useObliqueMode(OBLIQUE_MODE_PROPS);
-
   useEffect(() => {
     if (isModeFeatureInfo && pos) {
       updateFeatureInfo();
     }
   }, [layers]);
+
+  useObliqueMode(undefined, undefined, OBLIQUE_MODE_PROPS);
 
   const renderInfoBox = () => {
     if (isMode2d) {

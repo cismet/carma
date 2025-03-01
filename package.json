@@ -63,6 +63,8 @@
     "postcss": "8.4.40",
     "prismjs": "^1.29.0",
     "proj4": "^2.11.0",
+    "rbush": "^4.0.1",
+    "rbush-knn": "^4.0.0",
     "react": "18.3.1",
     "react-bootstrap": "^1.6.8",
     "react-bootstrap-maskedinput": "^0.5.0",
