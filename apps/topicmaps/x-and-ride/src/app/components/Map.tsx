@@ -27,8 +27,13 @@ import {
   useSelection,
   useSelectionTopicMap,
 } from "@carma-apps/portals";
-import { LibFuzzySearch, SearchResultItem } from "@carma-mapping/fuzzy-search";
+import {
+  EmptySearchComponent,
+  LibFuzzySearch,
+  SearchResultItem,
+} from "@carma-mapping/fuzzy-search";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 const Map = () => {
   const { setClusteringOptions } = useContext<
     typeof FeatureCollectionDispatchContext
@@ -45,6 +50,13 @@ const Map = () => {
     setAppMenuVisible,
     setSecondaryInfoVisible,
   } = useContext<typeof UIDispatchContext>(UIDispatchContext);
+
+  const { responsiveState, gap, windowSize } = useContext<
+    typeof ResponsiveTopicMapContext
+  >(ResponsiveTopicMapContext);
+
+  const pixelwidth =
+    responsiveState === "normal" ? "300px" : windowSize.width - gap;
 
   useEffect(() => {
     if (markerSymbolSize) {
@@ -86,8 +98,8 @@ const Map = () => {
         modalMenu={<Menu />}
         locatorControl={true}
         photoLightBox
-        gazetteerSearchControl={false}
-        gazetteerSearchComponent={<></>}
+        gazetteerSearchControl={true}
+        gazetteerSearchComponent={EmptySearchComponent}
         applicationMenuTooltipString={<MenuTooltip />}
         infoBox={
           <GenericInfoBoxFromFeature
@@ -125,6 +137,7 @@ const Map = () => {
         <LibFuzzySearch
           gazData={gazData}
           onSelection={onGazetteerSelection}
+          pixelwidth={pixelwidth}
           placeholder={searchTextPlaceholder}
         />
       </div>
