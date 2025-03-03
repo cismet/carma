@@ -3,8 +3,6 @@ import "leaflet/dist/leaflet.css";
 import { useContext, useEffect, useState } from "react";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import FeatureCollection from "react-cismap/FeatureCollection";
-import { md5FetchText } from "react-cismap/tools/fetching";
-import { getGazDataForTopicIds } from "react-cismap/tools/gazetteerHelper";
 import "react-cismap/topicMaps.css";
 import InfoBoxFotoPreview from "react-cismap/topicmaps/InfoBoxFotoPreview";
 import ModeSwitcher from "./ModeSwitcher";
@@ -46,34 +44,6 @@ import {
 } from "@carma-mapping/fuzzy-search";
 import { isAreaType } from "@carma-commons/resources";
 
-// const getGazData = async (setGazData) => {
-//   const prefix = "GazDataForStories";
-//   const sources = {};
-
-//   sources.adressen = await md5FetchText(
-//     prefix,
-//     dataHost + "/data/adressen.json"
-//   );
-//   sources.bezirke = await md5FetchText(prefix, dataHost + "/data/bezirke.json");
-//   sources.quartiere = await md5FetchText(
-//     prefix,
-//     dataHost + "/data/quartiere.json"
-//   );
-//   sources.bpklimastandorte = await md5FetchText(
-//     prefix,
-//     dataHost + "/data/bpklimastandorte.json"
-//   );
-
-//   const gazData = getGazDataForTopicIds(sources, [
-//     "bpklimastandorte",
-//     "bezirke",
-//     "quartiere",
-//     "adressen",
-//   ]);
-
-//   setGazData(gazData);
-// };
-
 function KlimaorteMap() {
   const { setSelectedFeatureByPredicate } = useContext(
     FeatureCollectionDispatchContext
@@ -100,10 +70,6 @@ function KlimaorteMap() {
       setAppMode(getMode());
     }
   }, [appMode, setAppMode]);
-  // const [gazData, setGazData] = useState([]);
-  // useEffect(() => {
-  //   getGazData(setGazData);
-  // }, []);
 
   useEffect(() => {
     if (allFeatures !== undefined) {
@@ -208,23 +174,6 @@ function KlimaorteMap() {
     };
     setSelection(Object.assign({}, selection, selectionMetaData));
 
-    //  gazetteerHitTrigger={(hits) => {
-    //   if (Array.isArray(hits) && hits[0]?.more?.id) {
-    //     setSelectedFeatureByPredicate((feature) => {
-    //       try {
-    //         const check =
-    //           parseInt(feature.properties.standort.id) === hits[0].more.id;
-    //         if (check === true) {
-    //           zoomToFeature(feature);
-    //         }
-    //         return check;
-    //       } catch (e) {
-    //         return false;
-    //       }
-    //     });
-    //   }
-    // }}
-
     setTimeout(() => {
       const gazId = selection.more?.id;
       if (gazId) {
@@ -305,7 +254,6 @@ function KlimaorteMap() {
       </a>
     );
   }
-  // console.log("appMOde", appMode);
 
   let iconCreateFunction;
 
@@ -350,22 +298,6 @@ function KlimaorteMap() {
           />
         }
         secondaryInfo={<InfoPanel />}
-        // gazetteerHitTrigger={(hits) => {
-        //   if (Array.isArray(hits) && hits[0]?.more?.id) {
-        //     setSelectedFeatureByPredicate((feature) => {
-        //       try {
-        //         const check =
-        //           parseInt(feature.properties.standort.id) === hits[0].more.id;
-        //         if (check === true) {
-        //           zoomToFeature(feature);
-        //         }
-        //         return check;
-        //       } catch (e) {
-        //         return false;
-        //       }
-        //     });
-        //   }
-        // }}
       >
         <TopicMapSelectionContent />
         <FeatureCollection
