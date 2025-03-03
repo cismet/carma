@@ -5,7 +5,7 @@ import styled from "styled-components";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCamera, faCompass } from "@fortawesome/free-solid-svg-icons";
 
-import { ObliqueImageRecord } from "../helper/oblique/types";
+import { ObliqueImageRecord } from "../types";
 
 const { Text } = Typography;
 

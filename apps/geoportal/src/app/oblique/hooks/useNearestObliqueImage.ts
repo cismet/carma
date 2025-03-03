@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { Math as CesiumMath } from "cesium";
+import { type Converter } from "proj4";
 
 import { useCesiumContext } from "@carma-mapping/cesium-engine";
 
-import { getObliqueMode } from "../store/slices/ui";
-import { findNearestKObliqueImages } from "../helper/oblique/utils";
-import type { ObliqueImageRecord } from "../helper/oblique/types";
-import { getSectorFromHeading } from "../helper/oblique/orientationUtils";
-import { type Converter } from "proj4";
+import { getObliqueMode } from "../../store/slices/ui";
+import { findNearestKObliqueImages } from "../utils/spatialIndexing";
+import type { ObliqueImageRecord } from "../types";
+import { getSectorFromHeading } from "../utils/orientationUtils";
 
 export interface UseNearestObliqueImageOptions {
   trackingThreshold?: number;
@@ -56,7 +56,7 @@ export function useNearestObliqueImage(
     try {
       const camera = viewerRef.current.camera;
       const cameraPosition = camera.positionCartographic;
-      
+
       // Get camera heading and determine sector
       const cameraHeading = camera.heading;
       const cameraSector = getSectorFromHeading(cameraHeading);
@@ -77,17 +77,17 @@ export function useNearestObliqueImage(
         options.k || defaultOptions.k,
         (item) => {
           const record = obliqueRecords[item.index];
-          
+
           // Filter out nadir images
           if (record.cameraId === "NAD") {
             return false;
           }
-          
+
           // Apply sector matching if enabled
           if (options.matchSector && cameraSector && record.sector) {
             return record.sector === cameraSector;
           }
-          
+
           return true;
         }
       );
@@ -104,7 +104,7 @@ export function useNearestObliqueImage(
           options.k || defaultOptions.k,
           (record) => obliqueRecords[record.index].cameraId !== "NAD"
         );
-        
+
         if (fallbackImages.length > 0) {
           const nearestResult = fallbackImages[0];
           setNearestImage(nearestResult.record);
@@ -114,7 +114,14 @@ export function useNearestObliqueImage(
     } catch (error) {
       console.error("Error finding nearest oblique image:", error);
     }
-  }, [viewerRef, obliqueRecords, converter, isObliqueMode, options.k, options.matchSector]);
+  }, [
+    viewerRef,
+    obliqueRecords,
+    converter,
+    isObliqueMode,
+    options.k,
+    options.matchSector,
+  ]);
 
   // Setup camera movement listener
   useEffect(() => {

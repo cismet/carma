@@ -28,7 +28,7 @@ const defaultOptions: CameraMovementTrackerOptions = {
 
 /**
  * Hook that tracks camera movement in Cesium viewer
- * 
+ *
  * @param viewer The Cesium viewer instance
  * @param options Configuration options
  * @returns Controls for the camera movement tracker
@@ -43,8 +43,10 @@ export function useCameraMovementTracker(
   };
 
   const [isTracking, setIsTracking] = useState(enabled || false);
-  const [currentPosition, setCurrentPosition] = useState<CameraPosition | null>(null);
-  
+  const [currentPosition, setCurrentPosition] = useState<CameraPosition | null>(
+    null
+  );
+
   const lastUpdateTime = useRef(0);
   const lastPosition = useRef<Cartesian3 | null>(null);
   const callbacksRef = useRef<Set<MovementCallback>>(new Set());
@@ -53,14 +55,14 @@ export function useCameraMovementTracker(
   // Update camera position and notify listeners
   const updateCameraPosition = () => {
     if (!viewer || !isTracking) return;
-    
+
     const now = performance.now();
     if (now - lastUpdateTime.current < debounceTime) return;
-    
+
     const camera = viewer.camera;
     const ellipsoid = viewer.scene.globe.ellipsoid;
     const position = camera.position;
-    
+
     // Check if we've moved enough to trigger an update
     if (
       lastPosition.current &&
@@ -68,13 +70,13 @@ export function useCameraMovementTracker(
     ) {
       return;
     }
-    
+
     // Get position in geographic coordinates
     const cartographic = ellipsoid.cartesianToCartographic(position);
     const longitude = cartographic.longitude;
     const latitude = cartographic.latitude;
     const height = cartographic.height;
-    
+
     const newPosition: CameraPosition = {
       position: Cartesian3.clone(position),
       longitude,
@@ -85,14 +87,14 @@ export function useCameraMovementTracker(
       roll: camera.roll,
       timestamp: now,
     };
-    
+
     // Update state
     setCurrentPosition(newPosition);
     lastPosition.current = Cartesian3.clone(position);
     lastUpdateTime.current = now;
-    
+
     // Notify listeners
-    callbacksRef.current.forEach(callback => {
+    callbacksRef.current.forEach((callback) => {
       try {
         callback(newPosition);
       } catch (error) {
@@ -104,18 +106,18 @@ export function useCameraMovementTracker(
   // Enable or disable tracking
   useEffect(() => {
     if (!viewer) return;
-    
+
     if (isTracking) {
       // Setup camera movement tracking
       const preUpdateCallback = () => {
         updateCameraPosition();
       };
-      
+
       viewer.scene.preUpdate.addEventListener(preUpdateCallback);
       preUpdateEventRef.current = () => {
         viewer.scene.preUpdate.removeEventListener(preUpdateCallback);
       };
-      
+
       // Initial position update
       updateCameraPosition();
     } else if (preUpdateEventRef.current) {
@@ -123,7 +125,7 @@ export function useCameraMovementTracker(
       preUpdateEventRef.current();
       preUpdateEventRef.current = null;
     }
-    
+
     // Cleanup on unmount
     return () => {
       if (preUpdateEventRef.current) {
@@ -136,7 +138,7 @@ export function useCameraMovementTracker(
   // Add a movement listener
   const addMovementListener = (callback: MovementCallback) => {
     callbacksRef.current.add(callback);
-    
+
     // Return function to remove the listener
     return () => {
       callbacksRef.current.delete(callback);

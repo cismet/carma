@@ -53,7 +53,7 @@ import { GeoportalMap } from "../GeoportalMap.tsx";
 import LayerWrapper from "../../layers/LayerWrapper.tsx";
 import LocateControlComponent from "../controls/LocateControlComponent.tsx";
 
-import { ObliqueImageInfoContainer } from "../../ObliqueImageInfoContainer.tsx";
+import { ObliqueImageInfoContainer } from "../../../oblique/components/ObliqueImageInfoContainer.tsx";
 
 import useLeafletZoomControls from "../../../hooks/leaflet/useLeafletZoomControls.ts";
 import { useDispatchSachdatenInfoText } from "../../../hooks/useDispatchSachdatenInfoText.ts";

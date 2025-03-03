@@ -61,7 +61,7 @@ import { addCssToOverlayHelperItem } from "../../helper/overlayHelper.ts";
 import useLeafletZoomControls from "../../hooks/leaflet/useLeafletZoomControls.ts";
 import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
-import { useObliqueMode } from "../../hooks/useObliqueMode.ts";
+import { useObliqueMode } from "../../oblique/hooks/useObliqueMode.ts";
 
 import CameraRotationControls from "./CameraRotationControls";
 import { createCismapLayers, onClickTopicMap } from "./topicmap.utils.ts";

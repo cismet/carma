@@ -3,10 +3,10 @@ import { useSelector } from "react-redux";
 import { Cartesian3 } from "cesium";
 import { useCesiumContext } from "@carma-mapping/cesium-engine";
 
-import { getObliqueMode } from "../store/slices/ui";
+import { getObliqueMode } from "../../store/slices/ui";
 import { ObliqueImageInfo } from "./ObliqueImageInfo";
-import { ObliqueImageRecord } from "../helper/oblique/types";
-import { useObliqueDataContext } from "../context/ObliqueDataContext";
+import { ObliqueImageRecord } from "../types";
+import { useObliqueDataContext } from "./ObliqueDataContext";
 
 export const ObliqueImageInfoContainer: React.FC = () => {
   const isObliqueMode = useSelector(getObliqueMode);

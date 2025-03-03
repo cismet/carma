@@ -62,7 +62,7 @@ import {
 import { layerMap } from "./config";
 import { CESIUM_CONFIG } from "./config/app.config";
 import { featureFlagConfig } from "./config/featureFlags";
-import { ObliqueDataProvider } from "./context/ObliqueDataContext";
+import { ObliqueDataProvider } from "./oblique/components/ObliqueDataContext";
 
 // Side-Effect Imports
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -244,7 +244,10 @@ function App({ published }: { published?: boolean }) {
         >
           <ObliqueDataProvider>
             <ErrorBoundary FallbackComponent={AppErrorFallback}>
-              <div className="flex flex-col w-full " style={{ height: "100dvh" }}>
+              <div
+                className="flex flex-col w-full "
+                style={{ height: "100dvh" }}
+              >
                 {loadingConfig && (
                   <div
                     id="loading"

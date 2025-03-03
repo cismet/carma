@@ -1,9 +1,10 @@
 import { useState, useCallback } from "react";
 import proj4, { type Converter } from "proj4";
 
-import { createImageOrientationsCSVParser } from "../helper/oblique/parseOrientationsCSV";
-import { ObliqueImageRecord } from "../helper/oblique/types";
-import { extendObliqueImageRecord } from "../helper/oblique/utils";
+import { createImageOrientationsCSVParser } from "../utils/parseOrientationsCSV";
+import { extendObliqueImageRecord } from "../utils/obliqueImageRecord";
+
+import { ObliqueImageRecord } from "../types";
 
 type UseObliqueDataResult = {
   isLoading: boolean;

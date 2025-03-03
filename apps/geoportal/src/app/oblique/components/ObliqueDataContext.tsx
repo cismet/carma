@@ -2,7 +2,6 @@ import React, {
   createContext,
   useContext,
   useEffect,
-  useCallback,
   useState,
   ReactNode,
 } from "react";
@@ -15,11 +14,11 @@ import {
   OBLIQUE_2024_PREVIEW_PATH,
 } from "@carma-commons/resources";
 
-import { getObliqueMode } from "../store/slices/ui";
+import { getObliqueMode } from "../../store/slices/ui";
 import { useObliqueData } from "../hooks/useObliqueData";
 import { useNearestObliqueImage } from "../hooks/useNearestObliqueImage";
-import { ObliqueImageRecord } from "../helper/oblique/types";
-import { OBLIQUE_PREVIEW_QUALITY } from "../helper/oblique/utils";
+import { ObliqueImageRecord } from "../types";
+import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
 
 // Define the shape of our context
 interface ObliqueDataContextType {

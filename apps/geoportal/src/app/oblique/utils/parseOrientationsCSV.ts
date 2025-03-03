@@ -1,4 +1,5 @@
-import { BasicObliqueImageRecord } from "./types";
+import { ORIENTATIONS_CSV_HEADER } from "../constants";
+import { BasicObliqueImageRecord } from "../types";
 
 const TO_RADIANS = Math.PI / 180;
 
@@ -13,7 +14,7 @@ export function processCsv(
   const lines = csvText.split("\n").filter((line) => line.trim());
 
   const headerIndex = lines.findIndex((line) =>
-    line.includes("photo;x;y;z;omega;phi;kappa")
+    line.includes(ORIENTATIONS_CSV_HEADER)
   );
   const dataLines = headerIndex >= 0 ? lines.slice(headerIndex + 1) : lines;
 

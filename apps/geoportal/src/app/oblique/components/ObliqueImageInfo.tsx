@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Card, Typography, Button, Image } from "antd";
+import { styled } from "styled-components";
+
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCamera,
@@ -7,11 +9,10 @@ import {
   faLocationArrow,
 } from "@fortawesome/free-solid-svg-icons";
 
-import { ObliqueImageRecord } from "../helper/oblique/types";
-import { getPreviewImageUrl } from "../helper/oblique/utils";
-import { useObliqueDataContext } from "../context/ObliqueDataContext";
+import { useObliqueDataContext } from "./ObliqueDataContext";
 import { ObliqueImageMetadata } from "./ObliqueImageMetadata";
-import { styled } from "styled-components";
+import { ObliqueImageRecord } from "../types";
+import { getPreviewImageUrl } from "../utils/imageHandling";
 
 const { Text } = Typography;
 

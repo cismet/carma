@@ -13,8 +13,8 @@ import { useSelector } from "react-redux";
 
 import { getOrbitPoint, useCesiumContext } from "@carma-mapping/cesium-engine";
 
-import { getObliqueMode } from "../store/slices/ui";
-import { useObliqueDataContext } from "../context/ObliqueDataContext";
+import { getObliqueMode } from "../../store/slices/ui";
+import { useObliqueDataContext } from "../components/ObliqueDataContext";
 
 export interface ObliqueModeOptions {
   fixedPitch?: number;
@@ -201,11 +201,13 @@ export function useObliqueMode(
           if (zoomingOut) {
             // When zooming out, sensitivity decreases as we approach maxFov
             const remainingRange = maxFov - currentFov;
-            adaptiveSensitivity = baseSensitivity * (remainingRange / (maxFov - minFov));
+            adaptiveSensitivity =
+              baseSensitivity * (remainingRange / (maxFov - minFov));
           } else {
             // When zooming in, sensitivity decreases as we approach minFov
             const remainingRange = currentFov - minFov;
-            adaptiveSensitivity = baseSensitivity * (remainingRange / (maxFov - minFov));
+            adaptiveSensitivity =
+              baseSensitivity * (remainingRange / (maxFov - minFov));
           }
 
           const delta = event.deltaY * adaptiveSensitivity;
@@ -220,7 +222,9 @@ export function useObliqueMode(
           }
         };
 
-        viewer.canvas.addEventListener("wheel", handleWheel, { passive: false });
+        viewer.canvas.addEventListener("wheel", handleWheel, {
+          passive: false,
+        });
         wheelCleanupFn = () => {
           viewer.canvas.removeEventListener("wheel", handleWheel);
         };
