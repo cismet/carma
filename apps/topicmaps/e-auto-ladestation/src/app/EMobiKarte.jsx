@@ -23,8 +23,12 @@ import {
   useSelection,
   useSelectionTopicMap,
 } from "@carma-apps/portals";
-import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
+import {
+  EmptySearchComponent,
+  LibFuzzySearch,
+} from "@carma-mapping/fuzzy-search";
 import { isAreaType } from "@carma-commons/resources";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 const EMobiKarte = () => {
   const {
@@ -37,6 +41,13 @@ const EMobiKarte = () => {
   const { markerSymbolSize } = useContext(TopicMapStylingContext);
   const { clusteringOptions, selectedFeature, filteredItems, shownFeatures } =
     useContext(FeatureCollectionContext);
+
+  const { responsiveState, gap, windowSize } = useContext(
+    ResponsiveTopicMapContext
+  );
+
+  const pixelwidth =
+    responsiveState === "normal" ? "300px" : windowSize.width - gap;
 
   useEffect(() => {
     if (markerSymbolSize) {
@@ -87,8 +98,8 @@ const EMobiKarte = () => {
         gazData={gazData}
         modalMenu={<Menu />}
         locatorControl={true}
-        gazetteerSearchControl={false}
-        gazetteerSearchComponent={<></>}
+        gazetteerSearchControl={true}
+        gazetteerSearchComponent={EmptySearchComponent}
         infoBox={
           <GenericInfoBoxFromFeature
             pixelwidth={350}
@@ -126,6 +137,7 @@ const EMobiKarte = () => {
         <LibFuzzySearch
           gazData={gazData}
           onSelection={onGazetteerSelection}
+          pixelwidth={pixelwidth}
           placeholder="Ladestation | Stadtteil | Adresse | POI"
         />
       </div>
