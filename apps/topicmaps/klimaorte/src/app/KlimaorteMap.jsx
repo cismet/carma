@@ -22,6 +22,8 @@ import {
   TopicMapContext,
   TopicMapDispatchContext,
 } from "react-cismap/contexts/TopicMapContextProvider";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+
 import { removeQueryPart } from "react-cismap/tools/routingHelper";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 import { appModes, getMode, getModeUrl } from "./helper/modeParser";
@@ -38,7 +40,10 @@ import {
   useSelection,
   useSelectionTopicMap,
 } from "@carma-apps/portals";
-import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
+import {
+  EmptySearchComponent,
+  LibFuzzySearch,
+} from "@carma-mapping/fuzzy-search";
 import { isAreaType } from "@carma-commons/resources";
 
 // const getGazData = async (setGazData) => {
@@ -83,6 +88,12 @@ function KlimaorteMap() {
   } = useContext(FeatureCollectionContext);
   const { zoomToFeature, setAppMode } = useContext(TopicMapDispatchContext);
   const { history, appMode } = useContext(TopicMapContext);
+  const { responsiveState, gap, windowSize } = useContext(
+    ResponsiveTopicMapContext
+  );
+
+  const pixelwidth =
+    responsiveState === "normal" ? "300px" : windowSize.width - gap;
 
   useEffect(() => {
     if (appMode === undefined) {
@@ -197,11 +208,39 @@ function KlimaorteMap() {
     };
     setSelection(Object.assign({}, selection, selectionMetaData));
 
+    //  gazetteerHitTrigger={(hits) => {
+    //   if (Array.isArray(hits) && hits[0]?.more?.id) {
+    //     setSelectedFeatureByPredicate((feature) => {
+    //       try {
+    //         const check =
+    //           parseInt(feature.properties.standort.id) === hits[0].more.id;
+    //         if (check === true) {
+    //           zoomToFeature(feature);
+    //         }
+    //         return check;
+    //       } catch (e) {
+    //         return false;
+    //       }
+    //     });
+    //   }
+    // }}
+
     setTimeout(() => {
-      const gazId = selection.more?.pid || selection.more?.kid;
-      setSelectedFeatureByPredicate(
-        (feature) => feature.properties.id === gazId
-      );
+      const gazId = selection.more?.id;
+      if (gazId) {
+        setSelectedFeatureByPredicate((feature) => {
+          try {
+            const check =
+              parseInt(feature.properties.standort.id) === hits[0].more.id;
+            if (check === true) {
+              zoomToFeature(feature);
+            }
+            return check;
+          } catch (e) {
+            return false;
+          }
+        });
+      }
     }, 100);
   };
 
@@ -297,8 +336,8 @@ function KlimaorteMap() {
         applicationMenuTooltipString={<MenuTooltip appMode={appMode} />}
         locatorControl={true}
         modalMenu={<MyMenu mode={appMode} />}
-        gazData={gazData}
-        gazetteerSearchPlaceholder={searchTextPlaceholder}
+        gazetteerSearchControl={true}
+        gazetteerSearchComponent={EmptySearchComponent}
         infoBox={
           <InfoBox
             key={JSON.stringify(selectedFeature)}
@@ -311,23 +350,24 @@ function KlimaorteMap() {
           />
         }
         secondaryInfo={<InfoPanel />}
-        gazetteerHitTrigger={(hits) => {
-          if (Array.isArray(hits) && hits[0]?.more?.id) {
-            setSelectedFeatureByPredicate((feature) => {
-              try {
-                const check =
-                  parseInt(feature.properties.standort.id) === hits[0].more.id;
-                if (check === true) {
-                  zoomToFeature(feature);
-                }
-                return check;
-              } catch (e) {
-                return false;
-              }
-            });
-          }
-        }}
+        // gazetteerHitTrigger={(hits) => {
+        //   if (Array.isArray(hits) && hits[0]?.more?.id) {
+        //     setSelectedFeatureByPredicate((feature) => {
+        //       try {
+        //         const check =
+        //           parseInt(feature.properties.standort.id) === hits[0].more.id;
+        //         if (check === true) {
+        //           zoomToFeature(feature);
+        //         }
+        //         return check;
+        //       } catch (e) {
+        //         return false;
+        //       }
+        //     });
+        //   }
+        // }}
       >
+        <TopicMapSelectionContent />
         <FeatureCollection
           key={"featureCollection" + appMode}
           clusteringOptions={{
@@ -335,6 +375,14 @@ function KlimaorteMap() {
           }}
         />
       </TopicMapComponent>
+      <div className="custom-left-control">
+        <LibFuzzySearch
+          gazData={gazData}
+          onSelection={onGazetteerSelection}
+          pixelwidth={pixelwidth}
+          placeholder={searchTextPlaceholder}
+        />
+      </div>
     </div>
   );
 }
