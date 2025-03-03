@@ -14,16 +14,9 @@ code {
 
 .custom-left-control {
   position: absolute;
-  width: 300px;
   z-index: 1000;
   left: 0;
   bottom: 0;
   margin-left: 13px;
   margin-bottom: 5px;
-}
-
-@media (max-width: 675px) {
-  .custom-left-control {
-    width: 94%;
-  }
 }

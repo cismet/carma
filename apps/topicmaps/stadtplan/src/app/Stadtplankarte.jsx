@@ -29,6 +29,7 @@ import {
 import IconComp from "react-cismap/commons/Icon";
 import { getPoiClusterIconCreatorFunction } from "./helper/styler";
 import Menu from "./Menu";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 const Stadtplankarte = ({ poiColors }) => {
   const { setSelectedFeatureByPredicate, setClusteringOptions } = useContext(
@@ -39,6 +40,15 @@ const Stadtplankarte = ({ poiColors }) => {
   const { clusteringOptions, selectedFeature } = useContext(
     FeatureCollectionContext
   );
+
+  const { responsiveState, searchBoxPixelWidth, gap, windowSize } = useContext(
+    ResponsiveTopicMapContext
+  );
+
+  const pixelwidth =
+    responsiveState === "normal" ? "300px" : windowSize.width - gap;
+
+  console.log("xxx searchBoxPixelWidth", responsiveState);
 
   useEffect(() => {
     if (markerSymbolSize) {
@@ -128,7 +138,7 @@ const Stadtplankarte = ({ poiColors }) => {
         <LibFuzzySearch
           gazData={gazData}
           onSelection={onGazetteerSelection}
-          pixelwidth="100%"
+          pixelwidth={pixelwidth}
           placeholder={searchTextPlaceholder}
         />
       </div>
