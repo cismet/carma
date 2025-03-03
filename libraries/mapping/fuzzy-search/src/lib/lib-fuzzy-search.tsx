@@ -287,6 +287,14 @@ export function LibFuzzySearch({
         <AutoComplete
           ref={autoCompleteRef}
           // open={true}
+          dropdownAlign={{
+            points: ["bl", "tl"],
+            offset: [0, -4],
+            overflow: {
+              adjustX: 0,
+              adjustY: 0,
+            },
+          }}
           options={searchResult}
           style={inputStyle}
           onSearch={(value) => handleSearchAutoComplete(value)}
