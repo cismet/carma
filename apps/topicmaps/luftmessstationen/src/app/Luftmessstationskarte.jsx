@@ -28,13 +28,24 @@ import {
   useSelection,
   useSelectionTopicMap,
 } from "@carma-apps/portals";
-import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
+import {
+  EmptySearchComponent,
+  LibFuzzySearch,
+} from "@carma-mapping/fuzzy-search";
 import { isAreaType } from "@carma-commons/resources";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 function Comp() {
   const { setSelectedFeatureByPredicate } = useContext(
     FeatureCollectionDispatchContext
   );
+
+  const { responsiveState, gap, windowSize } = useContext(
+    ResponsiveTopicMapContext
+  );
+
+  const pixelwidth =
+    responsiveState === "normal" ? "300px" : windowSize.width - gap;
 
   useEffect(() => {
     document.title = "Luftmessstationskarte Wuppertal";
@@ -71,8 +82,7 @@ function Comp() {
         locatorControl={true}
         modalMenu={<MyMenu />}
         applicationMenuTooltipString={<MenuTooltip />}
-        gazetteerSearchControl={false}
-        gazetteerSearchComponent={<></>}
+        gazetteerSearchComponent={EmptySearchComponent}
         infoBox={
           <GenericInfoBoxFromFeature
             pixelwidth={350}
@@ -133,6 +143,7 @@ function Comp() {
           gazData={gazData}
           onSelection={onGazetteerSelection}
           placeholder={searchTextPlaceholder}
+          pixelwidth={pixelwidth}
         />
       </div>
     </>
