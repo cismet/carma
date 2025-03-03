@@ -22,21 +22,13 @@ import {
   searchTextPlaceholder,
 } from "@carma-collab/wuppertal/stadtplan";
 import { isAreaType } from "@carma-commons/resources";
-import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
+import {
+  LibFuzzySearch,
+  EmptySearchComponent,
+} from "@carma-mapping/fuzzy-search";
 import IconComp from "react-cismap/commons/Icon";
 import { getPoiClusterIconCreatorFunction } from "./helper/styler";
 import Menu from "./Menu";
-
-const EmptySearchComponent = ({ pixelwidth = 350 }) => {
-  return (
-    <div
-      style={{
-        width: pixelwidth,
-        height: "44px",
-      }}
-    ></div>
-  );
-};
 
 const Stadtplankarte = ({ poiColors }) => {
   const { setSelectedFeatureByPredicate, setClusteringOptions } = useContext(
