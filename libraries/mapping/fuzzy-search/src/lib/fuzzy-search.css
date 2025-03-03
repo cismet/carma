@@ -9,7 +9,7 @@
   width: 100%;
   height: calc(1.5em + 0.75rem + 2px);
   padding: 0.375rem 0.75rem;
-  font-size: 1rem;
+  font-size: 16px;
   font-weight: 400;
   line-height: 1.5;
   color: #495057;
@@ -96,4 +96,8 @@
 
 .rc-virtual-list-scrollbar-thumb {
   z-index: 1 !important;
+}
+
+.fuzzy-search-container .ant-select-item {
+  font-size: 16px;
 }
