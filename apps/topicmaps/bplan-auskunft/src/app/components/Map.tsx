@@ -30,8 +30,13 @@ import {
   useSelection,
   useSelectionTopicMap,
 } from "@carma-apps/portals";
-import { LibFuzzySearch, SearchResultItem } from "@carma-mapping/fuzzy-search";
+import {
+  EmptySearchComponent,
+  LibFuzzySearch,
+  SearchResultItem,
+} from "@carma-mapping/fuzzy-search";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 const Map = () => {
   const dispatch = useDispatch();
@@ -44,6 +49,12 @@ const Map = () => {
   let refRoutedMap = useRef(null);
   const zoom = searchParams.get("zoom");
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
+  const { responsiveState, gap, windowSize } = useContext<
+    typeof ResponsiveTopicMapContext
+  >(ResponsiveTopicMapContext);
+
+  const pixelwidth =
+    responsiveState === "normal" ? "300px" : windowSize.width - gap;
 
   interface MapFeature extends Layer {
     id: string;
@@ -239,7 +250,8 @@ const Map = () => {
         pendingLoader={isLoading ? 1 : 0}
         locatorControl
         ref={refRoutedMap}
-        gazetteerSearchControl={false}
+        gazetteerSearchControl={true}
+        gazetteerSearchComponent={EmptySearchComponent}
         backgroundlayers={"uwBPlan|rvrGrundriss@20"}
         // backgroundlayers={"bplan_abkg|rvrGrundriss@20"}
         modalMenu={<Modal version={getApplicationVersion(versionData)} />}
@@ -269,7 +281,7 @@ const Map = () => {
         //   tertiaryActionTooltip: "B-Pläne suchen",
         //   teriaryActionDisabled: Number(zoom) < 13,
         // }}
-        gazetteerSearchPlaceholder="B-Plan-Nr. | Adresse | POI"
+        // gazetteerSearchPlaceholder="B-Plan-Nr. | Adresse | POI"
         // gazetteerHitTrigger={(hits) => {
         //   if (
         //     hits !== undefined &&
@@ -335,6 +347,7 @@ const Map = () => {
         <LibFuzzySearch
           gazData={gazData}
           onSelection={onGazetteerSelection}
+          pixelwidth={pixelwidth}
           placeholder="B-Plan-Nr. | Adresse | POI"
         />
       </div>
