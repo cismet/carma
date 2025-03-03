@@ -48,8 +48,6 @@ const Stadtplankarte = ({ poiColors }) => {
   const pixelwidth =
     responsiveState === "normal" ? "300px" : windowSize.width - gap;
 
-  console.log("xxx searchBoxPixelWidth", responsiveState);
-
   useEffect(() => {
     if (markerSymbolSize) {
       setClusteringOptions({
