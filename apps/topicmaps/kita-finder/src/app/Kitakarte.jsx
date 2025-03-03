@@ -7,7 +7,6 @@ import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingCon
 import FeatureCollection from "react-cismap/FeatureCollection";
 import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
-import { getGazData } from "./helper/helper";
 import Menu from "./Menu";
 import {
   searchTextPlaceholder,
@@ -28,8 +27,13 @@ import {
   useSelection,
   useSelectionTopicMap,
 } from "@carma-apps/portals";
-import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
+import {
+  EmptySearchComponent,
+  LibFuzzySearch,
+} from "@carma-mapping/fuzzy-search";
 import { isAreaType } from "@carma-commons/resources";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+
 const KitaKarte = () => {
   const { setSelectedFeatureByPredicate, setClusteringOptions } = useContext(
     FeatureCollectionDispatchContext
@@ -38,6 +42,13 @@ const KitaKarte = () => {
   const { clusteringOptions } = useContext(FeatureCollectionContext);
 
   const { additionalStylingInfo } = useContext(TopicMapStylingContext);
+
+  const { responsiveState, gap, windowSize } = useContext(
+    ResponsiveTopicMapContext
+  );
+
+  const pixelwidth =
+    responsiveState === "normal" ? "300px" : windowSize.width - gap;
 
   // useEffect(() => {
   //   if (additionalStylingInfo) {
@@ -110,8 +121,8 @@ const KitaKarte = () => {
           <Menu previewFeatureCollectionProps={featureCollectionProps} />
         }
         locatorControl={true}
-        gazetteerSearchControl={false}
-        gazetteerSearchComponent={<></>}
+        gazetteerSearchControl={true}
+        gazetteerSearchComponent={EmptySearchComponent}
         applicationMenuTooltipString={<MenuTooltip />}
         infoBox={
           <GenericInfoBoxFromFeature
@@ -148,6 +159,7 @@ const KitaKarte = () => {
         <LibFuzzySearch
           gazData={gazData}
           onSelection={onGazetteerSelection}
+          pixelwidth={pixelwidth}
           placeholder={searchTextPlaceholder}
         />
       </div>
