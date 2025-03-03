@@ -12,7 +12,7 @@ const sources = [
   ENDPOINT.KITAS,
 ];
 const host = "https://wupp-topicmaps-data.cismet.de";
-const crs = "3857";
+const crs = "25832";
 
 export const sourcesConfig = sources.map((endpoint) => {
   return createConfig(endpoint, { crs, host });
