@@ -306,10 +306,6 @@ export function LibFuzzySearch({
           }}
           placeholder={placeholder}
           value={value}
-          dropdownAlign={{
-            points: ["bl", "tl"],
-            offset: [0, -4],
-          }}
           onSelect={(value, option) => handleOnSelect(option)}
           defaultActiveFirstOption={true}
           dropdownRender={(item) => {
