@@ -15,8 +15,12 @@ import {
   useSelection,
   useSelectionTopicMap,
 } from "@carma-apps/portals";
-import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
+import {
+  EmptySearchComponent,
+  LibFuzzySearch,
+} from "@carma-mapping/fuzzy-search";
 import { isAreaType } from "@carma-commons/resources";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 const Baederkarte = () => {
   const { setSelectedFeatureByPredicate, setClusteringOptions } = useContext(
@@ -24,6 +28,13 @@ const Baederkarte = () => {
   );
   const { markerSymbolSize } = useContext(TopicMapStylingContext);
   const { clusteringOptions } = useContext(FeatureCollectionContext);
+
+  const { responsiveState, gap, windowSize } = useContext(
+    ResponsiveTopicMapContext
+  );
+
+  const pixelwidth =
+    responsiveState === "normal" ? "300px" : windowSize.width - gap;
 
   useEffect(() => {
     if (markerSymbolSize) {
@@ -63,8 +74,8 @@ const Baederkarte = () => {
       <TopicMapComponent
         modalMenu={<Menu />}
         locatorControl={true}
-        gazetteerSearchControl={false}
-        gazetteerSearchComponent={<></>}
+        gazetteerSearchControl={true}
+        gazetteerSearchComponent={EmptySearchComponent}
         applicationMenuTooltipString="Einstellungen | Kompaktanleitung"
         infoBox={
           <GenericInfoBoxFromFeature
@@ -97,6 +108,7 @@ const Baederkarte = () => {
         <LibFuzzySearch
           gazData={gazData}
           onSelection={onGazetteerSelection}
+          pixelwidth={pixelwidth}
           placeholder="Stadtteil | Adresse | POI"
         />
       </div>
