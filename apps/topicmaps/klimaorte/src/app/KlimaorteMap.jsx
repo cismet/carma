@@ -32,34 +32,42 @@ import {
   searchTextPlaceholder,
   MenuTooltip,
 } from "@carma-collab/wuppertal/klimaorte";
+import {
+  TopicMapSelectionContent,
+  useGazData,
+  useSelection,
+  useSelectionTopicMap,
+} from "@carma-apps/portals";
+import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
+import { isAreaType } from "@carma-commons/resources";
 
-const getGazData = async (setGazData) => {
-  const prefix = "GazDataForStories";
-  const sources = {};
+// const getGazData = async (setGazData) => {
+//   const prefix = "GazDataForStories";
+//   const sources = {};
 
-  sources.adressen = await md5FetchText(
-    prefix,
-    dataHost + "/data/adressen.json"
-  );
-  sources.bezirke = await md5FetchText(prefix, dataHost + "/data/bezirke.json");
-  sources.quartiere = await md5FetchText(
-    prefix,
-    dataHost + "/data/quartiere.json"
-  );
-  sources.bpklimastandorte = await md5FetchText(
-    prefix,
-    dataHost + "/data/bpklimastandorte.json"
-  );
+//   sources.adressen = await md5FetchText(
+//     prefix,
+//     dataHost + "/data/adressen.json"
+//   );
+//   sources.bezirke = await md5FetchText(prefix, dataHost + "/data/bezirke.json");
+//   sources.quartiere = await md5FetchText(
+//     prefix,
+//     dataHost + "/data/quartiere.json"
+//   );
+//   sources.bpklimastandorte = await md5FetchText(
+//     prefix,
+//     dataHost + "/data/bpklimastandorte.json"
+//   );
 
-  const gazData = getGazDataForTopicIds(sources, [
-    "bpklimastandorte",
-    "bezirke",
-    "quartiere",
-    "adressen",
-  ]);
+//   const gazData = getGazDataForTopicIds(sources, [
+//     "bpklimastandorte",
+//     "bezirke",
+//     "quartiere",
+//     "adressen",
+//   ]);
 
-  setGazData(gazData);
-};
+//   setGazData(gazData);
+// };
 
 function KlimaorteMap() {
   const { setSelectedFeatureByPredicate } = useContext(
@@ -81,10 +89,10 @@ function KlimaorteMap() {
       setAppMode(getMode());
     }
   }, [appMode, setAppMode]);
-  const [gazData, setGazData] = useState([]);
-  useEffect(() => {
-    getGazData(setGazData);
-  }, []);
+  // const [gazData, setGazData] = useState([]);
+  // useEffect(() => {
+  //   getGazData(setGazData);
+  // }, []);
 
   useEffect(() => {
     if (allFeatures !== undefined) {
@@ -171,6 +179,31 @@ function KlimaorteMap() {
     setSelectedFeatureByPredicate,
     zoomToFeature,
   ]);
+
+  const { gazData } = useGazData();
+  const { setSelection } = useSelection();
+
+  useSelectionTopicMap();
+
+  const onGazetteerSelection = (selection) => {
+    if (!selection) {
+      setSelection(null);
+      return;
+    }
+    const selectionMetaData = {
+      selectedFrom: "gazetteer",
+      selectionTimestamp: Date.now(),
+      isAreaSelection: isAreaType(selection.type),
+    };
+    setSelection(Object.assign({}, selection, selectionMetaData));
+
+    setTimeout(() => {
+      const gazId = selection.more?.pid || selection.more?.kid;
+      setSelectedFeatureByPredicate(
+        (feature) => feature.properties.id === gazId
+      );
+    }, 100);
+  };
 
   let weitereAngebote;
   const item = selectedFeature?.properties;
