@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect } from "react";
 
 import {
   FeatureCollectionContext,
@@ -10,12 +10,12 @@ import {
   UIContext,
   UIDispatchContext,
 } from "react-cismap/contexts/UIContextProvider";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 import FeatureCollection from "react-cismap/FeatureCollection";
 import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 
-import { getGazData } from "../../helper/gazData";
 import { getPoiClusterIconCreatorFunction } from "../../helper/styler";
 import Menu from "./Menu";
 import SecondaryInfoModal from "./SecondaryInfoModal";
@@ -33,7 +33,11 @@ import {
   useSelection,
   useSelectionTopicMap,
 } from "@carma-apps/portals";
-import { LibFuzzySearch, SearchResultItem } from "@carma-mapping/fuzzy-search";
+import {
+  EmptySearchComponent,
+  LibFuzzySearch,
+  SearchResultItem,
+} from "@carma-mapping/fuzzy-search";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 
 const Map = () => {
@@ -49,6 +53,13 @@ const Map = () => {
   const { secondaryInfoVisible } = useContext<typeof UIContext>(UIContext);
   const { setSecondaryInfoVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
+
+  const { responsiveState, gap, windowSize } = useContext<
+    typeof ResponsiveTopicMapContext
+  >(ResponsiveTopicMapContext);
+
+  const pixelwidth =
+    responsiveState === "normal" ? "300px" : windowSize.width - gap;
 
   useEffect(() => {
     if (markerSymbolSize) {
@@ -91,8 +102,8 @@ const Map = () => {
         locatorControl={true}
         photoLightBox
         applicationMenuTooltipString={<MenuTooltip />}
-        gazetteerSearchControl={false}
-        gazetteerSearchComponent={<></>}
+        gazetteerSearchControl={true}
+        gazetteerSearchComponent={EmptySearchComponent}
         infoBox={
           <GenericInfoBoxFromFeature
             pixelwidth={350}
@@ -124,6 +135,7 @@ const Map = () => {
         <LibFuzzySearch
           gazData={gazData}
           onSelection={onGazetteerSelection}
+          pixelwidth={pixelwidth}
           placeholder={searchTextPlaceholder}
         />
       </div>
