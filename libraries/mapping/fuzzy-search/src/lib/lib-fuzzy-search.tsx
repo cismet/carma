@@ -61,7 +61,7 @@ export function LibFuzzySearch({
   const inputStyle = {
     width: "calc(100% - 32px)",
     borderTopLeftRadius: 0,
-    fontSize: "16px",
+    // fontSize: "14px",
   };
   const autoCompleteRef = useRef<BaseSelectRef | null>(null);
   const dropdownContainerRef = useRef<HTMLDivElement>(null);
@@ -286,7 +286,7 @@ export function LibFuzzySearch({
       {showCategories ? (
         <AutoComplete
           ref={autoCompleteRef}
-          open={true}
+          // open={true}
           options={searchResult}
           style={inputStyle}
           onSearch={(value) => handleSearchAutoComplete(value)}

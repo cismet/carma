@@ -8,7 +8,7 @@ export const EmptySearchComponent = ({
     <div
       style={{
         width: pixelwidth,
-        height: "34px",
+        height: "33px",
       }}
     ></div>
   );
