@@ -27,6 +27,17 @@ import IconComp from "react-cismap/commons/Icon";
 import { getPoiClusterIconCreatorFunction } from "./helper/styler";
 import Menu from "./Menu";
 
+const EmptySearchComponent = ({ pixelwidth = 350 }) => {
+  return (
+    <div
+      style={{
+        width: pixelwidth,
+        height: "44px",
+      }}
+    ></div>
+  );
+};
+
 const Stadtplankarte = ({ poiColors }) => {
   const { setSelectedFeatureByPredicate, setClusteringOptions } = useContext(
     FeatureCollectionDispatchContext
@@ -78,8 +89,8 @@ const Stadtplankarte = ({ poiColors }) => {
       <TopicMapComponent
         modalMenu={<Menu />}
         locatorControl={true}
-        gazetteerSearchControl={false}
-        gazetteerSearchComponent={<></>}
+        gazetteerSearchControl={true}
+        gazetteerSearchComponent={EmptySearchComponent}
         applicationMenuTooltipString={<MenuTooltip />}
         infoBox={
           <GenericInfoBoxFromFeature
@@ -125,6 +136,7 @@ const Stadtplankarte = ({ poiColors }) => {
         <LibFuzzySearch
           gazData={gazData}
           onSelection={onGazetteerSelection}
+          pixelwidth="100%"
           placeholder={searchTextPlaceholder}
         />
       </div>

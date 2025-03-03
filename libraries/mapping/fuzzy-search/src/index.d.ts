@@ -6,7 +6,7 @@ export type SearchGazetteerProps = {
   //referenceSystem: undefined;
   //referenceSystemDefinition: undefined;
   stopwords?: string[];
-  pixelwidth?: number;
+  pixelwidth?: number | string;
   ifShowCategories?: boolean;
   placeholder?: string;
   config?: SearchConfig;
