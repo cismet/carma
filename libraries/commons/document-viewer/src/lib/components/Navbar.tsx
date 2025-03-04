@@ -26,7 +26,10 @@ interface NavProps {
   setHeightTrigger: any;
   currentWidthTrigger?: number;
   currentHeightTrigger?: number;
+  rightPadding?: number;
 }
+
+const NARROW_SCREEN_THRESHOLD = 768;
 
 const Navbar = ({
   title,
@@ -42,6 +45,7 @@ const Navbar = ({
   setHeightTrigger,
   currentWidthTrigger,
   currentHeightTrigger,
+  rightPadding = 50,
 }: NavProps) => {
   const { file } = useParams();
   const [showTooltip, setShowTooltip] = useState(false);
@@ -156,6 +160,16 @@ const Navbar = ({
     prepareDownloadMultipleFiles(downloadConf);
   };
 
+  const [isNarrowScreen, setIsNarrowScreen] = useState(window.innerWidth < 800);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsNarrowScreen(window.innerWidth < 800);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!page || !file) return;
@@ -247,21 +261,32 @@ const Navbar = ({
         paddingLeft: sidebarCollapsed
           ? `${collapsedSidebarWidth}px`
           : `${expandedSidebarWidth}px`,
-        paddingRight: "50px",
+        paddingRight: `${rightPadding}px`,
       }}
-      expand="lg"
+      expand={true}
+      className="document-viewer-navbar"
     >
+      <style>
+        {`
+          @media (max-width: 800px) {
+            .document-viewer-navbar.navbar {
+              padding-left: 10px !important;
+            }
+          }
+        `}
+      </style>
       <div
         style={{
           width: "100%",
           display: "flex",
           alignItems: "center",
+          whiteSpace: "nowrap",
         }}
       >
         <BootstrapNavbar.Brand>
           <a style={{ color: "grey", marginRight: "10px" }}>{title}</a>
         </BootstrapNavbar.Brand>
-        <BootstrapNavbar.Collapse>
+        <BootstrapNavbar.Collapse style={{ display: "flex !important" }}>
           <Nav style={{ marginRight: "20px" }}>
             <NavItem>
               <OverlayTrigger

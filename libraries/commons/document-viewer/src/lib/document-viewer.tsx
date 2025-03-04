@@ -214,14 +214,15 @@ export function DocumentViewer({
           currentWidthTrigger={wholeWidthTrigger}
           currentHeightTrigger={wholeHeightTrigger}
           sidebarCollapsed={sidebarCollapsed}
-          collapsedSidebarWidth={collapsedSidebarWidth}
-          expandedSidebarWidth={expandedSidebarWidth}
+          collapsedSidebarWidth={isNarrowScreen ? 10 : collapsedSidebarWidth}
+          expandedSidebarWidth={isNarrowScreen ? 10 : expandedSidebarWidth}
           index={parseInt(file!) - 1}
           navigate={(page: number) => {
             const docPackageId = window.location.pathname.split("/")[2];
             const currentFile = parseInt(file!);
             routerNavigate(`/docs/${docPackageId}/${currentFile}/${page}`);
           }}
+          rightPadding={isNarrowScreen ? 10 : 50}
         />
       </div>
 
