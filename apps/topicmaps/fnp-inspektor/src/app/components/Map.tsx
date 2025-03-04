@@ -381,11 +381,13 @@ const Map = () => {
     // }}
 
     setTimeout(() => {
+      console.log("xxx mapMode.mode", mapMode.mode);
+      const hits = [selection];
       if (mapMode.mode === "rechtsplan") {
         dispatch(
           // @ts-expect-error legacy codebase exception
           searchForAEVs({
-            gazObject: selection,
+            gazObject: hits,
             done: (result) => {
               searchParams.set("aevVisible", "true");
               setSearchParams(searchParams);
@@ -403,7 +405,7 @@ const Map = () => {
         dispatch(
           // @ts-expect-error legacy codebase exception
           searchForHauptnutzungen({
-            point: { x: selection.x, y: selection.y },
+            point: { x: hits[0].x, y: hits[0].y },
             done: (result) => {
               const projectedFC = L.Proj.geoJson(result);
               const bounds = projectedFC.getBounds();

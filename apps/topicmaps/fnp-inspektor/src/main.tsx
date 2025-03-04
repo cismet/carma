@@ -12,6 +12,9 @@ import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvid
 import { MappingConstants } from "react-cismap";
 import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
 import { gazDataConfig } from "./config/gazData";
+import { suppressReactCismapErrors } from "@carma-commons/utils";
+
+suppressReactCismapErrors();
 
 const persistor = persistStore(store);
 
