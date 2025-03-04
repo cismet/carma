@@ -63,6 +63,7 @@ export function LibFuzzySearch({
     borderTopLeftRadius: 0,
     // fontSize: "14px",
   };
+  const buttonCloseRef = useRef<HTMLButtonElement>(null);
   const autoCompleteRef = useRef<BaseSelectRef | null>(null);
   const dropdownContainerRef = useRef<HTMLDivElement>(null);
 
@@ -122,6 +123,7 @@ export function LibFuzzySearch({
     setCleanBtnDisable(false);
     console.info("[SEARCH] selected option", option);
     onSelection(option.sData);
+    buttonCloseRef.current?.focus();
   };
 
   useEffect(() => {
@@ -263,6 +265,7 @@ export function LibFuzzySearch({
       className="fuzzy-search-container"
     >
       <Button
+        ref={buttonCloseRef}
         icon={
           cleanBtnDisable ? (
             <FontAwesomeIcon
