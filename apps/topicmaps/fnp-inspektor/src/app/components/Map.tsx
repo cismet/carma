@@ -48,6 +48,20 @@ import {
   loadingText,
 } from "@carma-collab/wuppertal/fnp-inspektor";
 import type { UnknownAction } from "redux";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import {
+  SelectionMetaData,
+  TopicMapSelectionContent,
+  useGazData,
+  useSelection,
+  useSelectionTopicMap,
+} from "@carma-apps/portals";
+import {
+  EmptySearchComponent,
+  LibFuzzySearch,
+  SearchResultItem,
+} from "@carma-mapping/fuzzy-search";
+import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 
 const { ScaleControl } = TransitiveReactLeaflet;
 
@@ -57,7 +71,7 @@ const Map = () => {
   const [boundingBox, setBoundingBox] = useState(null);
   const features = useSelector(getFeatureCollection);
   const selectedFeatureIndex = useSelector(getSelectedFeatureIndex);
-  const [gazData, setGazData] = useState([]);
+  // const [gazData, setGazData] = useState([]);
   const [mapMode, setMapMode] = useState({ mode: "rechtsplan" });
   let { mode } = useParams();
   const navigate = useNavigate();
@@ -68,6 +82,12 @@ const Map = () => {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState<number>(0);
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
+  const { responsiveState, gap, windowSize } = useContext<
+    typeof ResponsiveTopicMapContext
+  >(ResponsiveTopicMapContext);
+
+  const pixelwidth =
+    responsiveState === "normal" ? "300px" : windowSize.width - gap;
 
   const setAevVisible = (visible) => {
     if (visible && !aevVisible) {
@@ -83,7 +103,7 @@ const Map = () => {
     document.title = `FNP-Inspektor Wuppertal`;
     dispatch(loadHauptnutzungen() as unknown as UnknownAction);
     dispatch(loadAEVs() as unknown as UnknownAction);
-    getGazData(setGazData);
+    // getGazData(setGazData);
   }, []);
 
   useEffect(() => {
@@ -304,7 +324,100 @@ const Map = () => {
       resizeObserver.disconnect();
     };
   }, [wrapperRef]);
-  // console.log("render", new Error().stack);
+
+  const { gazData } = useGazData();
+  const { setSelection } = useSelection();
+
+  useSelectionTopicMap();
+
+  const onGazetteerSelection = (selection: SearchResultItem | null) => {
+    if (!selection) {
+      setSelection(null);
+      return;
+    }
+    const selectionMetaData: SelectionMetaData = {
+      selectedFrom: "gazetteer",
+      selectionTimestamp: Date.now(),
+      isAreaSelection: isAreaType(selection.type as ENDPOINT),
+    };
+    setSelection(Object.assign({}, selection, selectionMetaData));
+
+    // gazetteerHitTrigger={(hits) => {
+    //   if (mapMode.mode === "rechtsplan") {
+    //     dispatch(
+    //       // @ts-expect-error legacy codebase exception
+    //       searchForAEVs({
+    //         gazObject: hits,
+    //         done: (result) => {
+    //           searchParams.set("aevVisible", "true");
+    //           setSearchParams(searchParams);
+    //           const projectedFC = L.Proj.geoJson(result);
+    //           const bounds = projectedFC.getBounds();
+    //           const map = routedMapRef?.leafletMap?.leafletElement;
+    //           if (map === undefined) {
+    //             return;
+    //           }
+    //           map.fitBounds(bounds);
+    //         },
+    //       })
+    //     );
+    //   } else {
+    //     dispatch(
+    //       // @ts-expect-error legacy codebase exception
+    //       searchForHauptnutzungen({
+    //         point: { x: hits[0].x, y: hits[0].y },
+    //         done: (result) => {
+    //           const projectedFC = L.Proj.geoJson(result);
+    //           const bounds = projectedFC.getBounds();
+    //           const map = routedMapRef?.leafletMap?.leafletElement;
+    //           if (map === undefined) {
+    //             return;
+    //           }
+    //           map.fitBounds(bounds);
+    //         },
+    //       })
+    //     );
+    //   }
+    // }}
+
+    setTimeout(() => {
+      if (mapMode.mode === "rechtsplan") {
+        dispatch(
+          // @ts-expect-error legacy codebase exception
+          searchForAEVs({
+            gazObject: selection,
+            done: (result) => {
+              searchParams.set("aevVisible", "true");
+              setSearchParams(searchParams);
+              const projectedFC = L.Proj.geoJson(result);
+              const bounds = projectedFC.getBounds();
+              const map = routedMapRef?.leafletMap?.leafletElement;
+              if (map === undefined) {
+                return;
+              }
+              map.fitBounds(bounds);
+            },
+          })
+        );
+      } else {
+        dispatch(
+          // @ts-expect-error legacy codebase exception
+          searchForHauptnutzungen({
+            point: { x: selection.x, y: selection.y },
+            done: (result) => {
+              const projectedFC = L.Proj.geoJson(result);
+              const bounds = projectedFC.getBounds();
+              const map = routedMapRef?.leafletMap?.leafletElement;
+              if (map === undefined) {
+                return;
+              }
+              map.fitBounds(bounds);
+            },
+          })
+        );
+      }
+    }, 100);
+  };
 
   return (
     <div style={{ position: "relative" }} ref={wrapperRef}>
@@ -315,7 +428,7 @@ const Map = () => {
         //   pendingLoader={isLoading ? 1 : 0}
         locatorControl
         gazetteerSearchControl={true}
-        gazData={gazData}
+        gazetteerSearchComponent={EmptySearchComponent}
         backgroundlayers={"wupp-plan-live"}
         modalMenu={<Modal />}
         infoBox={info}
@@ -330,50 +443,50 @@ const Map = () => {
           setSearchParams(newParams);
         }}
         ondblclick={doubleMapClick}
-        gazetteerSearchPlaceholder={searchTextPlaceholder}
+        // gazetteerSearchPlaceholder={searchTextPlaceholder}
         gazetteerSearchControlProps={{
           tertiaryAction: aevSearchButtonHit,
           tertiaryActionIcon: faSearch,
           tertiaryActionTooltip: "Änderungsverfahren suchen",
           teriaryActionDisabled: mapMode.mode === "arbeitskarte",
         }}
-        gazetteerHitTrigger={(hits) => {
-          if (mapMode.mode === "rechtsplan") {
-            dispatch(
-              // @ts-expect-error legacy codebase exception
-              searchForAEVs({
-                gazObject: hits,
-                done: (result) => {
-                  searchParams.set("aevVisible", "true");
-                  setSearchParams(searchParams);
-                  const projectedFC = L.Proj.geoJson(result);
-                  const bounds = projectedFC.getBounds();
-                  const map = routedMapRef?.leafletMap?.leafletElement;
-                  if (map === undefined) {
-                    return;
-                  }
-                  map.fitBounds(bounds);
-                },
-              })
-            );
-          } else {
-            dispatch(
-              // @ts-expect-error legacy codebase exception
-              searchForHauptnutzungen({
-                point: { x: hits[0].x, y: hits[0].y },
-                done: (result) => {
-                  const projectedFC = L.Proj.geoJson(result);
-                  const bounds = projectedFC.getBounds();
-                  const map = routedMapRef?.leafletMap?.leafletElement;
-                  if (map === undefined) {
-                    return;
-                  }
-                  map.fitBounds(bounds);
-                },
-              })
-            );
-          }
-        }}
+        // gazetteerHitTrigger={(hits) => {
+        //   if (mapMode.mode === "rechtsplan") {
+        //     dispatch(
+        //       // @ts-expect-error legacy codebase exception
+        //       searchForAEVs({
+        //         gazObject: hits,
+        //         done: (result) => {
+        //           searchParams.set("aevVisible", "true");
+        //           setSearchParams(searchParams);
+        //           const projectedFC = L.Proj.geoJson(result);
+        //           const bounds = projectedFC.getBounds();
+        //           const map = routedMapRef?.leafletMap?.leafletElement;
+        //           if (map === undefined) {
+        //             return;
+        //           }
+        //           map.fitBounds(bounds);
+        //         },
+        //       })
+        //     );
+        //   } else {
+        //     dispatch(
+        //       // @ts-expect-error legacy codebase exception
+        //       searchForHauptnutzungen({
+        //         point: { x: hits[0].x, y: hits[0].y },
+        //         done: (result) => {
+        //           const projectedFC = L.Proj.geoJson(result);
+        //           const bounds = projectedFC.getBounds();
+        //           const map = routedMapRef?.leafletMap?.leafletElement;
+        //           if (map === undefined) {
+        //             return;
+        //           }
+        //           map.fitBounds(bounds);
+        //         },
+        //       })
+        //     );
+        //   }
+        // }}
       >
         <ScaleControl
           maxWidth={100}
@@ -397,6 +510,7 @@ const Map = () => {
             labeler={mapMode.mode === "arbeitskarte" ? hnLabeler : aevLabeler}
           />
         )}
+        <TopicMapSelectionContent />
 
         {aevVisible && mapMode.mode === "rechtsplan" && (
           <FeatureCollectionDisplayWithTooltipLabels
@@ -436,6 +550,14 @@ const Map = () => {
         )}
         {backgrounds}
       </TopicMapComponent>
+      <div className="custom-left-control">
+        <LibFuzzySearch
+          gazData={gazData}
+          onSelection={onGazetteerSelection}
+          pixelwidth={pixelwidth}
+          placeholder={searchTextPlaceholder}
+        />
+      </div>
     </div>
   );
 };
