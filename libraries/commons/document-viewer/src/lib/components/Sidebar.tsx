@@ -25,10 +25,8 @@ interface SidebarProps {
   initialCollapsed?: boolean;
   dynamicPrefixDetection?: boolean;
   improveReadabilityOfDocTitles?: boolean;
-}
-
-interface HoverDivProps {
-  isSelected: boolean;
+  isNarrowScreen?: boolean;
+  onToggle: () => void;
 }
 
 export default function Sidebar({
@@ -41,6 +39,8 @@ export default function Sidebar({
   initialCollapsed = true,
   dynamicPrefixDetection = false,
   improveReadabilityOfDocTitles = false,
+  isNarrowScreen = false,
+  onToggle,
 }: SidebarProps) {
   const { docPackageId, page } = useParams();
   const navigate = useNavigate();
@@ -510,16 +510,23 @@ export default function Sidebar({
                         {!compactView && (
                           <>
                             {collapsible && (
-                              <FontAwesomeIcon
-                                icon={
-                                  isCollapsed ? faChevronRight : faChevronDown
-                                }
+                              <div
                                 style={{
-                                  fontSize: "12px",
-                                  color: "#666",
-                                  width: "12px",
+                                  position: "absolute",
+                                  right: "-12px",
+                                  top: "50%",
+                                  transform: "translateY(-50%)",
+                                  cursor: isNarrowScreen ? "not-allowed" : "pointer",
+                                  opacity: isNarrowScreen ? 0.5 : 1,
                                 }}
-                              />
+                                onClick={onToggle}
+                              >
+                                <FontAwesomeIcon
+                                  icon={
+                                    isCollapsed ? faChevronRight : faChevronDown
+                                  }
+                                />
+                              </div>
                             )}
                             <FontAwesomeIcon
                               icon={faFolder}
