@@ -12,11 +12,12 @@ import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplic
 import {
   replaceHashRoutedHistory,
   TopicMapSelectionContent,
+  MessageOverlay,
   useCarmaMapContext,
-  useFeatureFlags,
   useGazData,
   useSelectionCesium,
   useSelectionTopicMap,
+  useFeatureFlags,
 } from "@carma-apps/portals";
 import {
   geoElements,
@@ -25,12 +26,7 @@ import {
 } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 
-import {
-  ENDPOINT,
-  isAreaType,
-  OBLIQUE_2024_ORIENTATIONS_CRS,
-  OBLIQUE_2024_ORIENTATIONS_CSV_URI,
-} from "@carma-commons/resources";
+import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 
 import {
   OverlayTourContext,
@@ -94,28 +90,20 @@ interface MapProps {
   allow3d?: boolean;
 }
 
-// Fixed oblique mode properties
-const OBLIQUE_MODE_PROPS = {
-  fixedPitch: -Math.PI / 4, // 45 degrees
-  fixedHeight: 1000,
-  headingOffset: -Math.PI / 5.5, //  offset for cardinal directions
-};
-
 export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const dispatch = useDispatch();
 
   const location = useLocation();
-  const flags = useFeatureFlags();
-
   const rerenderCountRef = useRef(0);
   const lastRenderTimeStampRef = useRef(Date.now());
   const lastRenderIntervalRef = useRef(0);
   const [urlParams, setUrlParams] = useSearchParams();
   const container3dMapRef = useRef<HTMLDivElement>(null);
 
+  const flags = useFeatureFlags();
+
   // State and Selectors
   const backgroundLayer = useSelector(getBackgroundLayer);
-  const isObliqueMode = useSelector(getObliqueMode);
   const isMode2d = useSelector(selectViewerIsMode2d) || !allow3d;
   const models = useSelector(selectViewerModels);
   const markerAsset = models[CESIUM_CONFIG.markerKey]; //
@@ -131,6 +119,8 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     useCesiumContext();
   const { getLeafletZoom } = useLeafletZoomControls();
   const showPrimaryTileset = useSelector(selectShowPrimaryTileset);
+  const isObliqueMode = useSelector(getObliqueMode);
+
   const infoBoxOverlay = addCssToOverlayHelperItem(
     getCollabedHelpElementsConfig("INFOBOX", geoElements),
     "350px",
@@ -271,7 +261,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     }
   }, [layers]);
 
-  useObliqueMode(undefined, undefined, OBLIQUE_MODE_PROPS);
+  useObliqueMode();
 
   const renderInfoBox = () => {
     if (isMode2d) {
@@ -515,11 +505,13 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
               replaceHashRoutedHistory(e, location.pathname);
             }}
           />
-          <CameraRotationControls
-            isObliqueMode={isObliqueMode}
-            headingOffset={OBLIQUE_MODE_PROPS.headingOffset}
-          />
+          <CameraRotationControls />
         </div>
+      )}
+      {flags.featureFlagObliqueMode && isObliqueMode && (
+        <MessageOverlay
+          message={"⚠️ In Entwicklung : Nicht zur Abnahme bereit ⚠️"}
+        />
       )}
     </>
   );

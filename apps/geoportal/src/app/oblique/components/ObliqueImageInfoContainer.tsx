@@ -7,11 +7,15 @@ import { getObliqueMode } from "../../store/slices/ui";
 import { ObliqueImageInfo } from "./ObliqueImageInfo";
 import { ObliqueImageRecord } from "../types";
 import { useObliqueDataContext } from "./ObliqueDataContext";
+import { useFeatureFlags } from "@carma-apps/portals";
 
 export const ObliqueImageInfoContainer: React.FC = () => {
   const isObliqueMode = useSelector(getObliqueMode);
   const [isVisible, setIsVisible] = useState(true);
   const { viewerRef } = useCesiumContext();
+  const flags = useFeatureFlags();
+
+  const isDebugObliqueEnabled = flags.featureFlagDebugOblique;
 
   // Get oblique data from context
   const { nearestImage, distanceToNearestImage, refreshNearestImageSearch } =
@@ -59,6 +63,10 @@ export const ObliqueImageInfoContainer: React.FC = () => {
 
   // Don't render anything if not in oblique mode or panel is hidden
   if (!isObliqueMode || !isVisible || !nearestImage) {
+    return null;
+  }
+
+  if (!isDebugObliqueEnabled) {
     return null;
   }
 

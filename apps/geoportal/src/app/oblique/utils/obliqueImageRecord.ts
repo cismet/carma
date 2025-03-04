@@ -1,9 +1,7 @@
 import { type Converter } from "proj4";
 import { BasicObliqueImageRecord, ObliqueImageRecord } from "../types";
-import {
-  calculateAccurateHeadingFromOrientation,
-  getSectorFromHeading,
-} from "./orientationUtils";
+import { calculateHPRfromOPK, getSectorFromHeading } from "./orientationUtils";
+import { adjustHeadingToWGS84 } from "./crsUtils";
 
 export const extendObliqueImageRecord = (
   image: BasicObliqueImageRecord,
@@ -32,16 +30,18 @@ export const extendObliqueImageRecord = (
   const wgs84Coords = converter.forward([x, y, z]);
 
   // Calculate heading and sector if orientation data is available
-  let calculatedHeading: number | undefined;
+  let heading: number | undefined;
   let sector: string | undefined;
 
   if (image.orientation) {
-    calculatedHeading = calculateAccurateHeadingFromOrientation(
-      image.orientation.omega,
-      image.orientation.phi,
-      image.orientation.kappa
-    );
-    sector = getSectorFromHeading(calculatedHeading);
+    // Get the heading from OPK angles
+    ({ heading } = calculateHPRfromOPK(image.orientation));
+
+    // Adjust the heading for the coordinate system if needed
+    // Use the existing converter that was passed to this function
+    //heading = adjustHeadingToWGS84(heading, image.perspectiveCenter, converter);
+
+    sector = getSectorFromHeading(heading);
   }
 
   const record: ObliqueImageRecord = {
@@ -49,7 +49,7 @@ export const extendObliqueImageRecord = (
     centerWGS84: wgs84Coords as [number, number, number],
     waypointId,
     cameraId,
-    calculatedHeading,
+    calculatedHeading: heading,
     sector,
   };
   return record;

@@ -90,7 +90,7 @@ const TopNavbar = () => {
             />
           </button>
         </Tooltip>
-        {flags.featureFlagObliqueViewModeCesium && !isMode2d && (
+        {flags.featureFlagObliqueMode && !isMode2d && (
           <Tooltip
             title={
               isObliqueMode

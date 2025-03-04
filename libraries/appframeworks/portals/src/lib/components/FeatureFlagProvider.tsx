@@ -4,7 +4,7 @@ import { useSearchParams } from "react-router-dom";
 
 const DEFAULT_FEATURE_FLAG_PARAM = "ff";
 const FEATURE_FLAG_DISABLED_PREFIX = "-";
-const FEATURE_FLAG_SEPARATOR = ",";
+const FEATURE_FLAG_SEPARATOR = ".";
 
 export type FeatureFlagConfig = Record<
   string,
@@ -28,8 +28,8 @@ interface FeatureFlagProviderProps {
 
 /**
  * Provider component for managing feature flags based on URL parameters.
- * Uses standard query parameter format: /#/route?ff=flagkey1,flagkey2
- * To disable default flags prefix with minus like: ff=-flagkey1,flagkey2
+ * Uses standard query parameter format: /#/route?ff=flagkey1|flagkey2
+ * To disable default flags prefix with minus like: ff=-flagkey1|flagkey2
  */
 export const FeatureFlagProvider: React.FC<FeatureFlagProviderProps> = ({
   children,

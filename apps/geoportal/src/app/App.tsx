@@ -35,6 +35,7 @@ import MapWrapper from "./components/GeoportalMap/controls/MapWrapper";
 
 import MapMeasurement from "./components/map-measure/MapMeasurement";
 import TopNavbar from "./components/TopNavbar";
+import { ObliqueDataProvider } from "./oblique/components/ObliqueDataContext";
 
 import type { AppDispatch } from "./store";
 import {
@@ -62,7 +63,7 @@ import {
 import { layerMap } from "./config";
 import { CESIUM_CONFIG } from "./config/app.config";
 import { featureFlagConfig } from "./config/featureFlags";
-import { ObliqueDataProvider } from "./oblique/components/ObliqueDataContext";
+import { OBLIQUE_CONFIG } from "./oblique/config";
 
 // Side-Effect Imports
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -242,7 +243,7 @@ function App({ published }: { published?: boolean }) {
             background: backgroundSettings,
           }}
         >
-          <ObliqueDataProvider>
+          <ObliqueDataProvider config={OBLIQUE_CONFIG}>
             <ErrorBoundary FallbackComponent={AppErrorFallback}>
               <div
                 className="flex flex-col w-full "

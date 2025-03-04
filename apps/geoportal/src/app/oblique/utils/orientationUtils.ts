@@ -1,67 +1,5 @@
 import { Math as CesiumMath } from "cesium";
-
-/**
- * Calculates the heading (azimuth) from omega, phi, and kappa angles
- * @param omega Rotation around the X-axis in radians
- * @param phi Rotation around the Y-axis in radians
- * @param kappa Rotation around the Z-axis in radians
- * @returns Heading in radians (0-2π, clockwise from North)
- */
-export function calculateHeadingFromOrientation(
-  omega: number,
-  phi: number,
-  kappa: number
-): number {
-  // For a simple approximation, kappa directly represents the heading
-  // This works well for near-nadir images
-  let heading = kappa;
-
-  // Normalize to 0-2π range
-  heading = ((heading % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-
-  return heading;
-}
-
-/**
- * Calculates a more accurate heading using the full rotation matrix
- * This is more accurate for oblique images with significant tilt
- * @param omega Rotation around the X-axis in radians
- * @param phi Rotation around the Y-axis in radians
- * @param kappa Rotation around the Z-axis in radians
- * @returns Heading in radians (0-2π, clockwise from North)
- */
-export function calculateAccurateHeadingFromOrientation(
-  omega: number,
-  phi: number,
-  kappa: number
-): number {
-  // Calculate rotation matrix elements
-  // These formulas represent the standard photogrammetric rotation matrix
-  const sinOmega = Math.sin(omega);
-  const cosOmega = Math.cos(omega);
-  const sinPhi = Math.sin(phi);
-  const cosPhi = Math.cos(phi);
-  const sinKappa = Math.sin(kappa);
-  const cosKappa = Math.cos(kappa);
-
-  // Calculate rotation matrix elements (simplified for heading calculation)
-  const m11 = cosKappa * cosPhi;
-  const m12 = sinKappa * cosPhi;
-  const m21 = -sinKappa * cosOmega + cosKappa * sinPhi * sinOmega;
-  const m22 = cosKappa * cosOmega + sinKappa * sinPhi * sinOmega;
-
-  // Calculate heading (azimuth) from the rotation matrix
-  // This represents the direction the camera is pointing
-  let heading = Math.atan2(m12, m22);
-
-  // Add 180 degrees (π radians) to correct the orientation
-  heading += Math.PI;
-
-  // Normalize to 0-2π range
-  heading = ((heading % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-
-  return heading;
-}
+import { ExteriorOrientationOPK } from "../types";
 
 /**
  * Determines the sector based on the heading angle
@@ -96,23 +34,55 @@ export function getSectorFromHeading(heading: number): string {
 }
 
 /**
- * Calculates the tilt angle of the camera from omega and phi
+ * Converts photogrammetric OPK angles (Omega, Phi, Kappa) to aviation YPR angles (Yaw, Pitch, Roll) in WGS84
+ * Based on the relationship described in the Pix4D documentation
  * @param omega Rotation around the X-axis in radians
  * @param phi Rotation around the Y-axis in radians
- * @returns Tilt angle in radians
+ * @param kappa Rotation around the Z-axis in radians
+ * @returns Object containing heading (yaw), pitch, and roll in radians in WGS84 coordinates
  */
-export function calculateTiltFromOrientation(
-  omega: number,
-  phi: number
-): number {
-  // Calculate the tilt angle using the rotation matrix
+export function calculateHPRfromOPK(
+  { omega, phi, kappa }: ExteriorOrientationOPK,
+  offsets: { heading?: number; pitch?: number; roll?: number } = {
+    heading: +CesiumMath.PI_OVER_TWO,
+    pitch: 0,
+    roll: 0,
+  }
+): { heading?: number; pitch?: number; roll?: number } {
+  // Calculate rotation matrix elements
   const sinOmega = Math.sin(omega);
   const cosOmega = Math.cos(omega);
   const sinPhi = Math.sin(phi);
   const cosPhi = Math.cos(phi);
+  const sinKappa = Math.sin(kappa);
+  const cosKappa = Math.cos(kappa);
 
-  // The tilt is the angle between the camera's optical axis and the nadir direction
-  const tilt = Math.acos(cosPhi * cosOmega);
+  // Calculate full rotation matrix (photogrammetric convention)
+  const r11 = cosKappa * cosPhi;
+  const r12 = sinKappa * cosPhi;
+  const r13 = -sinPhi;
+  const r21 = -sinKappa * cosOmega + cosKappa * sinPhi * sinOmega;
+  const r22 = cosKappa * cosOmega + sinKappa * sinPhi * sinOmega;
+  const r23 = cosPhi * sinOmega;
+  const r31 = sinKappa * sinOmega + cosKappa * sinPhi * cosOmega;
+  const r32 = -cosKappa * sinOmega + sinKappa * sinPhi * cosOmega;
+  const r33 = cosPhi * cosOmega;
 
-  return tilt;
+  // Convert to WGS84/aviation convention (YPR)
+  // Pitch (theta) - rotation about the y-axis
+  const pitch = Math.asin(-r13);
+
+  // Heading/Yaw (psi) - rotation about the z-axis
+  // Use atan2 to get the correct quadrant
+  const heading = Math.atan2(r12, r11) + offsets.heading;
+
+  // Roll (phi) - rotation about the x-axis
+  // Use atan2 to get the correct quadrant
+  const roll = Math.atan2(r23, r33);
+
+  return {
+    heading,
+    pitch,
+    roll,
+  };
 }

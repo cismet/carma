@@ -8,16 +8,10 @@ import React, {
 import { useSelector } from "react-redux";
 import { type Converter } from "proj4";
 
-import {
-  OBLIQUE_2024_ORIENTATIONS_CSV_URI,
-  OBLIQUE_2024_ORIENTATIONS_CRS,
-  OBLIQUE_2024_PREVIEW_PATH,
-} from "@carma-commons/resources";
-
 import { getObliqueMode } from "../../store/slices/ui";
 import { useObliqueData } from "../hooks/useObliqueData";
 import { useNearestObliqueImage } from "../hooks/useNearestObliqueImage";
-import { ObliqueImageRecord } from "../types";
+import { ObliqueDataProviderConfig, ObliqueImageRecord } from "../types";
 import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
 
 // Define the shape of our context
@@ -31,7 +25,11 @@ interface ObliqueDataContextType {
   converter: Converter;
   previewQualityLevel: OBLIQUE_PREVIEW_QUALITY;
   previewPath: string;
-  matchSector: boolean;
+  fixedPitch: number;
+  fixedHeight: number;
+  minFov: number;
+  maxFov: number;
+  headingOffset: number;
 }
 
 // Create the context with a default value
@@ -48,24 +46,28 @@ export const useObliqueDataContext = () => {
   return context;
 };
 
-// Provider component that wraps parts of the app that need access to the context
-export const ObliqueDataProvider: React.FC<{
+interface ObliqueDataProviderProps {
   children: ReactNode;
-  uri?: string;
-  crs?: string;
-  previewPath?: string;
-  previewQualityLevel?: OBLIQUE_PREVIEW_QUALITY;
-  matchSector?: boolean;
-}> = ({
+  config: ObliqueDataProviderConfig;
+}
+
+// Provider component that wraps parts of the app that need access to the context
+export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
   children,
-  uri = OBLIQUE_2024_ORIENTATIONS_CSV_URI,
-  crs = OBLIQUE_2024_ORIENTATIONS_CRS,
-  previewPath = OBLIQUE_2024_PREVIEW_PATH,
-  previewQualityLevel = OBLIQUE_PREVIEW_QUALITY.LEVEL_3_HQ,
-  matchSector = true,
+  config,
 }) => {
-  // Get oblique mode state from Redux
   const isObliqueMode = useSelector(getObliqueMode);
+  const {
+    uri,
+    crs,
+    previewPath,
+    previewQualityLevel,
+    fixedPitch,
+    fixedHeight,
+    minFov,
+    maxFov,
+    headingOffset,
+  } = config;
 
   // Use the oblique data hook to get camera orientations
   const { imageRecords, parseCSV, isLoading, converter, error } =
@@ -77,8 +79,7 @@ export const ObliqueDataProvider: React.FC<{
   // Add nearest image finding
   const { nearestImage, distance, refreshSearch } = useNearestObliqueImage(
     imageRecords,
-    converter,
-    { matchSector }
+    converter
   );
 
   // Only load data when oblique mode is enabled and not already loaded
@@ -120,7 +121,11 @@ export const ObliqueDataProvider: React.FC<{
     converter,
     previewPath,
     previewQualityLevel,
-    matchSector,
+    fixedPitch,
+    fixedHeight,
+    minFov,
+    maxFov,
+    headingOffset,
   };
 
   return (

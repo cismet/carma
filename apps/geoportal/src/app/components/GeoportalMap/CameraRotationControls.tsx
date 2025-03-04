@@ -1,4 +1,6 @@
 import React, { useCallback, useRef, useState, useEffect } from "react";
+import { useSelector } from "react-redux";
+
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faRotateLeft, faRotateRight } from "@fortawesome/free-solid-svg-icons";
 import { Tooltip } from "antd";
@@ -17,6 +19,9 @@ import {
 
 import { useCesiumContext, getOrbitPoint } from "@carma-mapping/cesium-engine";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
+import { getObliqueMode } from "../../store/slices/ui";
+import { useObliqueDataContext } from "../../oblique/components/ObliqueDataContext";
+import { useFeatureFlags } from "@carma-apps/portals";
 
 type CameraRotationControlsProps = {
   /**
@@ -35,11 +40,12 @@ enum CardinalDirection {
   West = 3,
 }
 
-const CameraRotationControls: React.FC<CameraRotationControlsProps> = ({
-  headingOffset = 0,
-  isObliqueMode = false,
-}) => {
+const CameraRotationControls: React.FC<CameraRotationControlsProps> = () => {
+  const isObliqueMode = useSelector(getObliqueMode);
+  const { headingOffset } = useObliqueDataContext();
   const { viewerRef } = useCesiumContext();
+  const flags = useFeatureFlags();
+  const isDebugMode = flags.featureFlagDebugOblique;
   const animationInProgressRef = useRef<boolean>(false);
   const [activeDirection, setActiveDirection] =
     useState<CardinalDirection | null>(null);
@@ -64,7 +70,7 @@ const CameraRotationControls: React.FC<CameraRotationControlsProps> = ({
 
   // Create or update the orbit point entity
   const updateOrbitPointEntity = useCallback(() => {
-    if (!viewerRef.current || !orbitPointRef.current) {
+    if (!viewerRef.current || !orbitPointRef.current || !isDebugMode) {
       if (orbitPointEntityRef.current) {
         viewerRef.current?.entities.remove(orbitPointEntityRef.current);
         orbitPointEntityRef.current = null;
@@ -91,7 +97,7 @@ const CameraRotationControls: React.FC<CameraRotationControlsProps> = ({
         position
       );
     }
-  }, [viewerRef]);
+  }, [viewerRef, isDebugMode]);
 
   // Remove orbit point entity when component unmounts
   useEffect(() => {
@@ -215,7 +221,9 @@ const CameraRotationControls: React.FC<CameraRotationControlsProps> = ({
     // Initialize orbit point if not yet set
     if (!orbitPointRef.current) {
       orbitPointRef.current = getOrbitPoint(viewer);
-      updateOrbitPointEntity();
+      if (isDebugMode) {
+        updateOrbitPointEntity();
+      }
     }
 
     // Initial update for active direction
@@ -241,6 +249,7 @@ const CameraRotationControls: React.FC<CameraRotationControlsProps> = ({
     getCardinalHeadings,
     findClosestCardinalIndex,
     updateOrbitPointEntity,
+    isDebugMode,
   ]);
 
   const rotateToDirection = useCallback(
@@ -268,7 +277,9 @@ const CameraRotationControls: React.FC<CameraRotationControlsProps> = ({
       // Get the center point for orbiting - use stored point if available or calculate new one
       if (!orbitPointRef.current) {
         orbitPointRef.current = getOrbitPoint(viewer);
-        updateOrbitPointEntity();
+        if (isDebugMode) {
+          updateOrbitPointEntity();
+        }
       }
 
       const centerPoint = orbitPointRef.current;
@@ -340,7 +351,7 @@ const CameraRotationControls: React.FC<CameraRotationControlsProps> = ({
 
       scene.preUpdate.addEventListener(onPreUpdate);
     },
-    [viewerRef, getCardinalHeadings, updateOrbitPointEntity]
+    [viewerRef, getCardinalHeadings, updateOrbitPointEntity, isDebugMode]
   );
 
   const rotateCamera = useCallback(

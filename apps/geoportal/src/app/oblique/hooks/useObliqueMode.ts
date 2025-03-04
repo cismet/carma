@@ -16,6 +16,7 @@ import { getOrbitPoint, useCesiumContext } from "@carma-mapping/cesium-engine";
 import { getObliqueMode } from "../../store/slices/ui";
 import { useObliqueDataContext } from "../components/ObliqueDataContext";
 
+// Options for local overrides
 export interface ObliqueModeOptions {
   fixedPitch?: number;
   fixedHeight?: number;
@@ -23,15 +24,6 @@ export interface ObliqueModeOptions {
   maxFov?: number;
   headingOffset?: number;
 }
-
-// Default parameters for the camera position and field of view
-export const defaultOptions: ObliqueModeOptions = {
-  fixedPitch: -1.5, // Pitch in radians
-  fixedHeight: 350, // Height in meters
-  minFov: 0.5, // Minimum field of view in radians
-  maxFov: 1.2, // Maximum field of view in radians
-  headingOffset: 0, // Heading offset in radians, used for calibration
-};
 
 const preUpdateCallback = (
   viewer: Viewer,
@@ -140,16 +132,14 @@ const animateFov = ({
   };
 };
 
-export function useObliqueMode(
-  // Parameters are kept for backward compatibility but not used anymore
-  _uri?: string,
-  _crs?: string,
-  options: ObliqueModeOptions = {}
-) {
-  const { fixedPitch, fixedHeight, minFov, maxFov, headingOffset } = {
-    ...defaultOptions,
-    ...options,
-  };
+export function useObliqueMode(options: ObliqueModeOptions = {}) {
+  // Get options from context and merge with any locally provided options
+  const contextOptions = useObliqueDataContext();
+  const fixedPitch = options.fixedPitch ?? contextOptions.fixedPitch;
+  const fixedHeight = options.fixedHeight ?? contextOptions.fixedHeight;
+  const minFov = options.minFov ?? contextOptions.minFov;
+  const maxFov = options.maxFov ?? contextOptions.maxFov;
+  const headingOffset = options.headingOffset ?? contextOptions.headingOffset;
 
   const isObliqueMode = useSelector(getObliqueMode);
   const { viewerRef } = useCesiumContext();

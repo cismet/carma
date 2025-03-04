@@ -9,13 +9,13 @@ import { getObliqueMode } from "../../store/slices/ui";
 import { findNearestKObliqueImages } from "../utils/spatialIndexing";
 import type { ObliqueImageRecord } from "../types";
 import { getSectorFromHeading } from "../utils/orientationUtils";
+import { NADIR_CAMERA_ID } from "../constants";
 
 export interface UseNearestObliqueImageOptions {
   trackingThreshold?: number;
   debounceTime?: number;
   enabled?: boolean;
   k?: number;
-  matchSector?: boolean;
 }
 
 const defaultOptions: UseNearestObliqueImageOptions = {
@@ -23,7 +23,6 @@ const defaultOptions: UseNearestObliqueImageOptions = {
   debounceTime: 300,
   enabled: true,
   k: 5,
-  matchSector: true,
 };
 
 /**
@@ -55,14 +54,11 @@ export function useNearestObliqueImage(
 
     try {
       const camera = viewerRef.current.camera;
-      const cameraPosition = camera.positionCartographic;
+      const cartographic = camera.positionCartographic;
 
       // Get camera heading and determine sector
       const cameraHeading = camera.heading;
       const cameraSector = getSectorFromHeading(cameraHeading);
-
-      // Convert camera position to cartographic (longitude, latitude, height)
-      const cartographic = cameraPosition;
 
       const positionInImageCrs = converter.inverse([
         CesiumMath.toDegrees(cartographic.longitude),
@@ -70,7 +66,6 @@ export function useNearestObliqueImage(
         cartographic.height,
       ]);
 
-      // Find k nearest images
       const nearestImages = findNearestKObliqueImages(
         obliqueRecords,
         [positionInImageCrs[0], positionInImageCrs[1]],
@@ -79,12 +74,12 @@ export function useNearestObliqueImage(
           const record = obliqueRecords[item.index];
 
           // Filter out nadir images
-          if (record.cameraId === "NAD") {
+          if (record.cameraId === NADIR_CAMERA_ID) {
             return false;
           }
 
           // Apply sector matching if enabled
-          if (options.matchSector && cameraSector && record.sector) {
+          if (cameraSector && record.sector) {
             return record.sector === cameraSector;
           }
 
@@ -96,32 +91,11 @@ export function useNearestObliqueImage(
         const nearestResult = nearestImages[0];
         setNearestImage(nearestResult.record);
         setDistance(nearestResult.distance);
-      } else if (options.matchSector) {
-        // If no images found with matching sector, try again without sector matching
-        const fallbackImages = findNearestKObliqueImages(
-          obliqueRecords,
-          [positionInImageCrs[0], positionInImageCrs[1]],
-          options.k || defaultOptions.k,
-          (record) => obliqueRecords[record.index].cameraId !== "NAD"
-        );
-
-        if (fallbackImages.length > 0) {
-          const nearestResult = fallbackImages[0];
-          setNearestImage(nearestResult.record);
-          setDistance(nearestResult.distance);
-        }
       }
     } catch (error) {
       console.error("Error finding nearest oblique image:", error);
     }
-  }, [
-    viewerRef,
-    obliqueRecords,
-    converter,
-    isObliqueMode,
-    options.k,
-    options.matchSector,
-  ]);
+  }, [viewerRef, obliqueRecords, converter, isObliqueMode, options.k]);
 
   // Setup camera movement listener
   useEffect(() => {
