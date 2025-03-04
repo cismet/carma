@@ -78,8 +78,8 @@ const Navbar = ({
     static: "",
   };
 
-  //const DRPROCESSOR = "https://doc-processor.cismet.de";
-  const DRPROCESSOR = "http://localhost:8081";
+  const DRPROCESSOR = "https://doc-processor.cismet.de";
+  // const DRPROCESSOR = "http://localhost:8081";
 
   const downloadSingleFile = (downloadOptions: any) => {
     try {
@@ -166,8 +166,8 @@ const Navbar = ({
     const handleResize = () => {
       setIsNarrowScreen(window.innerWidth < 800);
     };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   useEffect(() => {
