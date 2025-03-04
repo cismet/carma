@@ -39,7 +39,6 @@ import {
   hnLabeler,
 } from "../../utils/Styler";
 import Modal from "./help/Modal";
-import { getGazData } from "../../utils/gazData";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import L from "leaflet";
 import {
@@ -406,49 +405,6 @@ const Map = () => {
           setSearchParams(newParams);
         }}
         ondblclick={doubleMapClick}
-        // gazetteerSearchControlProps={{
-        //   tertiaryAction: aevSearchButtonHit,
-        //   tertiaryActionIcon: faSearch,
-        //   tertiaryActionTooltip: "Änderungsverfahren suchen",
-        //   teriaryActionDisabled: mapMode.mode === "arbeitskarte",
-        // }}
-        // gazetteerHitTrigger={(hits) => {
-        //   if (mapMode.mode === "rechtsplan") {
-        //     dispatch(
-        //       // @ts-expect-error legacy codebase exception
-        //       searchForAEVs({
-        //         gazObject: hits,
-        //         done: (result) => {
-        //           searchParams.set("aevVisible", "true");
-        //           setSearchParams(searchParams);
-        //           const projectedFC = L.Proj.geoJson(result);
-        //           const bounds = projectedFC.getBounds();
-        //           const map = routedMapRef?.leafletMap?.leafletElement;
-        //           if (map === undefined) {
-        //             return;
-        //           }
-        //           map.fitBounds(bounds);
-        //         },
-        //       })
-        //     );
-        //   } else {
-        //     dispatch(
-        //       // @ts-expect-error legacy codebase exception
-        //       searchForHauptnutzungen({
-        //         point: { x: hits[0].x, y: hits[0].y },
-        //         done: (result) => {
-        //           const projectedFC = L.Proj.geoJson(result);
-        //           const bounds = projectedFC.getBounds();
-        //           const map = routedMapRef?.leafletMap?.leafletElement;
-        //           if (map === undefined) {
-        //             return;
-        //           }
-        //           map.fitBounds(bounds);
-        //         },
-        //       })
-        //     );
-        //   }
-        // }}
       >
         <ScaleControl
           maxWidth={100}
