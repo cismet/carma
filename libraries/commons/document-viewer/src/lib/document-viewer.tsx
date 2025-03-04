@@ -8,6 +8,8 @@ import Icon from "react-cismap/commons/Icon";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import "leaflet/dist/leaflet.css";
 
+const NARROW_SCREEN_THRESHOLD = 800; // Width in pixels when sidebar auto-collapses
+
 export type layer = {
   [key: string]: {
     x: number;
@@ -80,11 +82,38 @@ export function DocumentViewer({
   const [wholeHeightTrigger, setWholeHeightTrigger] = useState(undefined);
   const [mapWidth, setMapWidth] = useState(0);
   const [height, setHeight] = useState(0);
+  const [userPreferredCollapsed, setUserPreferredCollapsed] = useState(
+    initialSidebarCollapsed
+  );
+  const [isNarrowScreen, setIsNarrowScreen] = useState(
+    window.innerWidth < NARROW_SCREEN_THRESHOLD
+  );
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     initialSidebarCollapsed
   );
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isResizingRef = useRef(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const narrow = window.innerWidth < NARROW_SCREEN_THRESHOLD;
+      setIsNarrowScreen(narrow);
+      setSidebarCollapsed(narrow ? true : userPreferredCollapsed);
+    };
+
+    window.addEventListener("resize", handleResize);
+    handleResize(); // Initial check
+    return () => window.removeEventListener("resize", handleResize);
+  }, [userPreferredCollapsed]);
+
+  const handleSidebarToggle = () => {
+    if (!isNarrowScreen) {
+      const newState = !sidebarCollapsed;
+      setUserPreferredCollapsed(newState);
+      setSidebarCollapsed(newState);
+    }
+  };
+
   let problemWithDocPreviewAlert: JSX.Element | null = null;
   // @ts-expect-error type is wrong
   const pages = docs[parseInt(file!) - 1]?.meta?.pages
@@ -126,24 +155,19 @@ export function DocumentViewer({
 
   const mapHeight = "calc(100vh - 49px)";
 
-  const handleMouseDown = (
-    event: React.MouseEvent<HTMLDivElement, MouseEvent>
-  ) => {
-    event.preventDefault();
-    event.stopPropagation();
-
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (isNarrowScreen) return; // Prevent resizing in narrow screen mode
     isResizingRef.current = true;
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
   };
 
-  const handleMouseMove = (event: MouseEvent) => {
-    if (!isResizingRef.current) return;
-
-    let newWidth = event.clientX;
-    const threshold = (collapsedSidebarWidth + expandedSidebarWidth) / 2;
-
-    setSidebarCollapsed(newWidth < threshold);
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isResizingRef.current || isNarrowScreen) return; // Also check narrow screen here
+    const newWidth = e.clientX;
+    if (newWidth >= sideBarMinSize && newWidth <= expandedSidebarWidth) {
+      setMapWidth(newWidth);
+    }
   };
 
   const handleMouseUp = () => {
@@ -151,6 +175,13 @@ export function DocumentViewer({
     document.removeEventListener("mousemove", handleMouseMove);
     document.removeEventListener("mouseup", handleMouseUp);
   };
+
+  useEffect(() => {
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
 
   useEffect(() => {
     if (mapWrapperRef.current) {
@@ -228,6 +259,8 @@ export function DocumentViewer({
                 initialCollapsed={initialCollapsed}
                 dynamicPrefixDetection={dynamicPrefixDetection}
                 improveReadabilityOfDocTitles={improveReadabilityOfDocTitles}
+                isNarrowScreen={isNarrowScreen}
+                onToggle={handleSidebarToggle}
               />
             </div>
             <div style={{ position: "relative" }}>
@@ -247,7 +280,7 @@ export function DocumentViewer({
                   alignItems: "center",
                   justifyContent: "center",
                 }}
-                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                onClick={handleSidebarToggle}
               >
                 <FontAwesomeIcon
                   icon={

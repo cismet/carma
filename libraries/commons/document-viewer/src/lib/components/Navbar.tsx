@@ -74,7 +74,8 @@ const Navbar = ({
     static: "",
   };
 
-  const DRPROCESSOR = "https://doc-processor.cismet.de";
+  //const DRPROCESSOR = "https://doc-processor.cismet.de";
+  const DRPROCESSOR = "http://localhost:8081";
 
   const downloadSingleFile = (downloadOptions: any) => {
     try {
