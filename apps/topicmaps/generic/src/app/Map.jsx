@@ -17,6 +17,18 @@ import { MenuFooter } from "@carma-collab/wuppertal/commons";
 import { getApplicationVersion } from "@carma-commons/utils";
 import versionData from "../version.json";
 import { GenericDigitalTwinReferenceSection } from "@carma-collab/wuppertal/commons";
+import {
+  TopicMapSelectionContent,
+  useGazData,
+  useSelection,
+  useSelectionTopicMap,
+} from "@carma-apps/portals";
+import {
+  EmptySearchComponent,
+  LibFuzzySearch,
+} from "@carma-mapping/fuzzy-search";
+import { isAreaType } from "@carma-commons/resources";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 const host = "https://wupp-topicmaps-data.cismet.de";
 const downloadText = (text, filename) => {
@@ -34,10 +46,38 @@ const downloadText = (text, filename) => {
 
   document.body.removeChild(element);
 };
-const Map = ({ config, gazData = [] }) => {
+const Map = ({ config, featureGazData = [] }) => {
   const { selectedFeature } = useContext(FeatureCollectionContext);
 
   const { setAppMenuActiveMenuSection } = useContext(UIDispatchContext);
+
+  const { responsiveState, gap, windowSize } = useContext(
+    ResponsiveTopicMapContext
+  );
+
+  const pixelwidth =
+    responsiveState === "normal" ? "300px" : windowSize.width - gap;
+
+  const { gazData } = useGazData();
+  const { setSelection } = useSelection();
+
+  useSelectionTopicMap();
+
+  const onGazetteerSelection = (selection) => {
+    if (!selection) {
+      setSelection(null);
+      return;
+    }
+    const selectionMetaData = {
+      selectedFrom: "gazetteer",
+      selectionTimestamp: Date.now(),
+      isAreaSelection: isAreaType(selection.type),
+    };
+    setSelection(Object.assign({}, selection, selectionMetaData));
+  };
+
+  const commonGazData = [...gazData, ...featureGazData];
+  console.log("xxx gazData", commonGazData);
 
   return (
     <>
@@ -52,7 +92,8 @@ const Map = ({ config, gazData = [] }) => {
       />
       <TopicMapComponent
         {...config.tm}
-        gazData={gazData}
+        gazetteerSearchControl={true}
+        gazetteerSearchComponent={EmptySearchComponent}
         infoBox={<GenericInfoBoxFromFeature config={config.info} />}
         modalMenu={
           <DefaultAppMenu
@@ -80,6 +121,7 @@ const Map = ({ config, gazData = [] }) => {
           ></DefaultAppMenu>
         }
       >
+        <TopicMapSelectionContent />
         <FeatureCollection />
         {/* <div className="leaflet-top leaflet-right" style={{ paddingTop: 46 }}>
           <div className="leaflet-control">
@@ -116,6 +158,14 @@ const Map = ({ config, gazData = [] }) => {
           </div>
         </div> */}
       </TopicMapComponent>
+      <div className="custom-left-control">
+        <LibFuzzySearch
+          gazData={gazData}
+          onSelection={onGazetteerSelection}
+          pixelwidth={pixelwidth}
+          placeholder="Stadtteil | Adresse | Kita"
+        />
+      </div>
     </>
   );
 };

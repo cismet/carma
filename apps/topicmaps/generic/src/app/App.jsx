@@ -18,6 +18,8 @@ import slugify from "slugify";
 import Map from "./Map";
 import { MappingConstants } from "react-cismap";
 import { defaultLayerConf } from "react-cismap/tools/layerFactory";
+import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
+import { gazDataConfig } from "../config/gazData";
 
 const host = "https://wupp-topicmaps-data.cismet.de";
 
@@ -52,50 +54,50 @@ async function getMarkdown(slugName, configType, server, path) {
   }
 }
 
-export const getGazData = async (
-  topics = [
-    "bpklimastandorte",
-    "pois",
-    "kitas",
-    "bezirke",
-    "quartiere",
-    "adressen",
-  ],
-  srs = 3857
-) => {
-  const srsFolder = srs === 25832 ? "/" : "/3857";
-  const prefix = "GazDataForStories";
-  const sources = {};
+// export const getGazData = async (
+//   topics = [
+//     "bpklimastandorte",
+//     "pois",
+//     "kitas",
+//     "bezirke",
+//     "quartiere",
+//     "adressen",
+//   ],
+//   srs = 3857
+// ) => {
+//   const srsFolder = srs === 25832 ? "/" : "/3857";
+//   const prefix = "GazDataForStories";
+//   const sources = {};
 
-  sources.adressen = await md5FetchText(
-    prefix,
-    host + "/data" + srsFolder + "/adressen.json"
-  );
-  sources.bezirke = await md5FetchText(
-    prefix,
-    host + "/data" + srsFolder + "/bezirke.json"
-  );
-  sources.quartiere = await md5FetchText(
-    prefix,
-    host + "/data" + srsFolder + "/quartiere.json"
-  );
-  sources.pois = await md5FetchText(
-    prefix,
-    host + "/data" + srsFolder + "/pois.json"
-  );
-  sources.kitas = await md5FetchText(
-    prefix,
-    host + "/data" + srsFolder + "/kitas.json"
-  );
-  sources.bpklimastandorte = await md5FetchText(
-    prefix,
-    host + "/data" + srsFolder + "/bpklimastandorte.json"
-  );
+//   sources.adressen = await md5FetchText(
+//     prefix,
+//     host + "/data" + srsFolder + "/adressen.json"
+//   );
+//   sources.bezirke = await md5FetchText(
+//     prefix,
+//     host + "/data" + srsFolder + "/bezirke.json"
+//   );
+//   sources.quartiere = await md5FetchText(
+//     prefix,
+//     host + "/data" + srsFolder + "/quartiere.json"
+//   );
+//   sources.pois = await md5FetchText(
+//     prefix,
+//     host + "/data" + srsFolder + "/pois.json"
+//   );
+//   sources.kitas = await md5FetchText(
+//     prefix,
+//     host + "/data" + srsFolder + "/kitas.json"
+//   );
+//   sources.bpklimastandorte = await md5FetchText(
+//     prefix,
+//     host + "/data" + srsFolder + "/bpklimastandorte.json"
+//   );
 
-  const gazData = getGazDataForTopicIds(sources, topics);
+//   const gazData = getGazDataForTopicIds(sources, topics);
 
-  return gazData;
-};
+//   return gazData;
+// };
 function App({
   name,
   // configPath = "/", //"/dev/",
@@ -105,7 +107,7 @@ function App({
 }) {
   const [initialized, setInitialized] = useState(false);
   const [config, setConfig] = useState({});
-  const [gazData, setGazData] = useState([]);
+  const [featureGazData, setFeatureGazData] = useState([]);
 
   useEffect(() => {
     (async () => {
@@ -189,11 +191,11 @@ function App({
       config.tm.gazetteerSearchPlaceholder =
         config.tm.gazetteerSearchBoxPlaceholdertext;
       config.info.city = config.city;
-      const gazData = await getGazData(
-        config.tm.gazetteerTopicsList,
-        config?.tm?.srs
-      );
-      const featureGazData = [];
+      // const gazData = await getGazData(
+      //   config.tm.gazetteerTopicsList,
+      //   config?.tm?.srs
+      // );
+      const featureGaz = [];
 
       if (config?.tm?.addGazetteerElementsPerFeature === true) {
         for (const f of config.features) {
@@ -213,10 +215,12 @@ function App({
             },
             type: "genericFeature",
           };
-          featureGazData.push(gazEntry);
+          featureGaz.push(gazEntry);
         }
       }
-      setGazData([...featureGazData, ...gazData]);
+      // setGazData([...featureGazData, ...gazData]);
+
+      setFeatureGazData(featureGaz);
 
       setConfig(config);
 
@@ -242,26 +246,30 @@ function App({
     }
 
     return (
-      <TopicMapContextProvider
-        {...refConfig}
-        baseLayerConf={baseLayerConf}
-        backgroundConfigurations={config?.tm?.backgroundConfigurations}
-        backgroundModes={config?.tm?.backgroundModes}
-        appKey="GenericTopicMap.Playground"
-        items={config.features}
-        getFeatureStyler={getGTMFeatureStyler}
-        getColorFromProperties={getColorFromProperties}
-        clusteringEnabled={config?.tm?.clusteringEnabled}
-        clusteringOptions={{
-          iconCreateFunction: getClusterIconCreatorFunction(
-            30,
-            (props) => props.color
-          ),
-          ...config.tm.clusterOptions,
-        }}
-      >
-        <Map config={config} gazData={gazData} />
-      </TopicMapContextProvider>
+      <GazDataProvider config={gazDataConfig}>
+        <SelectionProvider>
+          <TopicMapContextProvider
+            {...refConfig}
+            baseLayerConf={baseLayerConf}
+            backgroundConfigurations={config?.tm?.backgroundConfigurations}
+            backgroundModes={config?.tm?.backgroundModes}
+            appKey="GenericTopicMap.Playground"
+            items={config.features}
+            getFeatureStyler={getGTMFeatureStyler}
+            getColorFromProperties={getColorFromProperties}
+            clusteringEnabled={config?.tm?.clusteringEnabled}
+            clusteringOptions={{
+              iconCreateFunction: getClusterIconCreatorFunction(
+                30,
+                (props) => props.color
+              ),
+              ...config.tm.clusterOptions,
+            }}
+          >
+            <Map config={config} featureGazData={featureGazData} />
+          </TopicMapContextProvider>
+        </SelectionProvider>
+      </GazDataProvider>
     );
   }
 }
