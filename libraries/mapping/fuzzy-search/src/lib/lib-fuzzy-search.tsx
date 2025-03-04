@@ -63,7 +63,7 @@ export function LibFuzzySearch({
     borderTopLeftRadius: 0,
     // fontSize: "14px",
   };
-  const divWrapperRef = useRef<HTMLDivElement>(null);
+  const btnClosRef = useRef<HTMLButtonElement>(null);
   const autoCompleteRef = useRef<BaseSelectRef | null>(null);
   const dropdownContainerRef = useRef<HTMLDivElement>(null);
 
@@ -134,7 +134,7 @@ export function LibFuzzySearch({
     onSelection(option.sData);
 
     setTimeout(() => {
-      divWrapperRef.current?.focus();
+      btnClosRef.current?.focus();
     }, 100);
   };
 
@@ -270,7 +270,7 @@ export function LibFuzzySearch({
 
   return (
     <div
-      ref={divWrapperRef}
+      // ref={divWrapperRef}
       style={{
         width: pixelwidth,
         display: "flex",
@@ -278,6 +278,7 @@ export function LibFuzzySearch({
       className="fuzzy-search-container"
     >
       <Button
+        ref={btnClosRef}
         icon={
           cleanBtnDisable ? (
             <FontAwesomeIcon
