@@ -342,46 +342,7 @@ const Map = () => {
     };
     setSelection(Object.assign({}, selection, selectionMetaData));
 
-    // gazetteerHitTrigger={(hits) => {
-    //   if (mapMode.mode === "rechtsplan") {
-    //     dispatch(
-    //       // @ts-expect-error legacy codebase exception
-    //       searchForAEVs({
-    //         gazObject: hits,
-    //         done: (result) => {
-    //           searchParams.set("aevVisible", "true");
-    //           setSearchParams(searchParams);
-    //           const projectedFC = L.Proj.geoJson(result);
-    //           const bounds = projectedFC.getBounds();
-    //           const map = routedMapRef?.leafletMap?.leafletElement;
-    //           if (map === undefined) {
-    //             return;
-    //           }
-    //           map.fitBounds(bounds);
-    //         },
-    //       })
-    //     );
-    //   } else {
-    //     dispatch(
-    //       // @ts-expect-error legacy codebase exception
-    //       searchForHauptnutzungen({
-    //         point: { x: hits[0].x, y: hits[0].y },
-    //         done: (result) => {
-    //           const projectedFC = L.Proj.geoJson(result);
-    //           const bounds = projectedFC.getBounds();
-    //           const map = routedMapRef?.leafletMap?.leafletElement;
-    //           if (map === undefined) {
-    //             return;
-    //           }
-    //           map.fitBounds(bounds);
-    //         },
-    //       })
-    //     );
-    //   }
-    // }}
-
     setTimeout(() => {
-      console.log("xxx mapMode.mode", mapMode.mode);
       const hits = [selection];
       if (mapMode.mode === "rechtsplan") {
         dispatch(
@@ -445,7 +406,6 @@ const Map = () => {
           setSearchParams(newParams);
         }}
         ondblclick={doubleMapClick}
-        // gazetteerSearchPlaceholder={searchTextPlaceholder}
         gazetteerSearchControlProps={{
           tertiaryAction: aevSearchButtonHit,
           tertiaryActionIcon: faSearch,
