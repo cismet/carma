@@ -75,6 +75,15 @@ export function LibFuzzySearch({
   const [cleanBtnDisable, setCleanBtnDisable] = useState(true);
   const [fireScrollEvent, setFireScrollEvent] = useState(null);
 
+  const dropdownAlign = {
+    points: ["bl", "tl"],
+    offset: [0, -4],
+    overflow: {
+      adjustX: 0,
+      adjustY: 0,
+    },
+  };
+
   const handleSearchAutoComplete = (value) => {
     if (allGazeteerData.length > 0 && fuseInstance) {
       const removeStopWords = removeStopwords(value, stopwords, prepoHandling);
@@ -293,14 +302,7 @@ export function LibFuzzySearch({
         <AutoComplete
           ref={autoCompleteRef}
           // open={true}
-          dropdownAlign={{
-            points: ["bl", "tl"],
-            offset: [0, -4],
-            overflow: {
-              adjustX: 0,
-              adjustY: 0,
-            },
-          }}
+          dropdownAlign={dropdownAlign}
           options={searchResult}
           style={inputStyle}
           onSearch={(value) => handleSearchAutoComplete(value)}
@@ -341,10 +343,7 @@ export function LibFuzzySearch({
           }}
           placeholder={placeholder}
           value={value}
-          dropdownAlign={{
-            points: ["bl", "tl"],
-            offset: [0, -4],
-          }}
+          dropdownAlign={dropdownAlign}
           onSelect={(value, option) => handleOnSelect(option)}
           defaultActiveFirstOption={true}
           dropdownRender={(item) => {
