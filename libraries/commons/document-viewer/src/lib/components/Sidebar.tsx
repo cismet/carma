@@ -438,6 +438,10 @@ export default function Sidebar({
     </>
   );
 
+  interface HoverDivProps {
+    isSelected: boolean;
+  }
+
   const HoverDiv = styled.div<HoverDivProps>`
     background: ${(props) =>
       props.isSelected ? "rgba(58, 124, 235, 0.1)" : "#ffffff"};
