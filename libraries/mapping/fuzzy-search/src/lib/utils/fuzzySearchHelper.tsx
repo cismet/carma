@@ -13,6 +13,7 @@ import {
   SearchConfig,
   SearchResultItemWithScore,
 } from "../..";
+import Icon from "react-cismap/commons/Icon";
 
 import { stopwords } from "../config/stopwords.de-de";
 
@@ -53,9 +54,8 @@ export function buildAddressWithIconUI(
   score?: number,
   category: string = "default"
 ) {
-  // if (addresObj.glyph === "cloudscale") {
-  //   console.log("xxx", addresObj);
-  // }
+  const overlay = addresObj?.overlay || null;
+
   let icon;
   if (addresObj.glyph === "pie-chart") {
     icon = "chart-pie";
@@ -67,8 +67,11 @@ export function buildAddressWithIconUI(
   const streetLabel = (
     <div style={{ paddingLeft: "0.3rem" }} data-category={category}>
       <span style={{ marginRight: "0.4rem" }}>
-        <i className={icon && iconPrefix + "fa-" + icon}></i>
-        {"  "}
+        {!overlay ? (
+          <i className={icon && iconPrefix + "fa-" + icon}></i>
+        ) : (
+          <Icon name={addresObj.glyph} overlay={overlay} marginRight="2px" />
+        )}
       </span>
       <span>
         {showScore ? (

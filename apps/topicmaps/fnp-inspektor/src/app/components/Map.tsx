@@ -406,12 +406,12 @@ const Map = () => {
           setSearchParams(newParams);
         }}
         ondblclick={doubleMapClick}
-        gazetteerSearchControlProps={{
-          tertiaryAction: aevSearchButtonHit,
-          tertiaryActionIcon: faSearch,
-          tertiaryActionTooltip: "Änderungsverfahren suchen",
-          teriaryActionDisabled: mapMode.mode === "arbeitskarte",
-        }}
+        // gazetteerSearchControlProps={{
+        //   tertiaryAction: aevSearchButtonHit,
+        //   tertiaryActionIcon: faSearch,
+        //   tertiaryActionTooltip: "Änderungsverfahren suchen",
+        //   teriaryActionDisabled: mapMode.mode === "arbeitskarte",
+        // }}
         // gazetteerHitTrigger={(hits) => {
         //   if (mapMode.mode === "rechtsplan") {
         //     dispatch(
