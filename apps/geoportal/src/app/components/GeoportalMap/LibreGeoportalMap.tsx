@@ -5,11 +5,51 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { useSearchParams } from "react-router-dom";
 
 import "./LibreGeoportalMap.css";
+import { useSelector } from "react-redux";
+import { getLayers } from "../../store/slices/mapping";
 
 const LibreGeoportalMap = () => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
+
+  const layers = useSelector(getLayers);
+
+  const layersToMapLibreStyle = () => {
+    const style: StyleSpecification = {
+      version: 8,
+      sources: {},
+      layers: [],
+    };
+
+    layers.forEach((layer, index) => {
+      if (!layer.props) return;
+
+      const { url, name } = layer.props;
+      if (!url || !name) return;
+
+      const sourceId = `source-${name.replace(/[^a-zA-Z0-9]/g, "-")}-${index}`;
+
+      style.sources[sourceId] = {
+        type: "raster",
+        tiles: [
+          `${url}bbox={bbox-epsg-3857}&styles=&format=image/png&service=WMS&version=1.1.1&request=GetMap&srs=EPSG:3857&transparent=true&width=256&height=256&layers=${name}&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}`,
+        ],
+        tileSize: 256,
+      };
+
+      style.layers.push({
+        id: `layer-${name.replace(/[^a-zA-Z0-9]/g, "-")}-${index}`,
+        type: "raster",
+        source: sourceId,
+        paint: {
+          "raster-opacity": layer.opacity,
+        },
+      });
+    });
+
+    return style;
+  };
 
   const defaultLng = 7.150764;
   const defaultLat = 51.256;
@@ -79,6 +119,13 @@ const LibreGeoportalMap = () => {
     map.current.setCenter([lng, lat]);
     map.current.setZoom(zoom);
   }, [lng, lat, zoom]);
+
+  useEffect(() => {
+    if (!map.current) return;
+
+    const style = layersToMapLibreStyle();
+    map.current.setStyle(style);
+  }, [layers]);
 
   return (
     <div className="map-wrap">
