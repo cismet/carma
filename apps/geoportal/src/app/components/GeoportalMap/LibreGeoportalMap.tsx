@@ -25,27 +25,32 @@ const LibreGeoportalMap = () => {
     layers.forEach((layer, index) => {
       if (!layer.props) return;
 
-      const { url, name } = layer.props;
-      if (!url || !name) return;
+      if (layer.layerType === "wmts" || layer.layerType === "wmts-nt") {
+        const { url, name } = layer.props;
+        if (!url || !name) return;
 
-      const sourceId = `source-${name.replace(/[^a-zA-Z0-9]/g, "-")}-${index}`;
+        const sourceId = `source-${name.replace(
+          /[^a-zA-Z0-9]/g,
+          "-"
+        )}-${index}`;
 
-      style.sources[sourceId] = {
-        type: "raster",
-        tiles: [
-          `${url}bbox={bbox-epsg-3857}&styles=&format=image/png&service=WMS&version=1.1.1&request=GetMap&srs=EPSG:3857&transparent=true&width=256&height=256&layers=${name}&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}`,
-        ],
-        tileSize: 256,
-      };
+        style.sources[sourceId] = {
+          type: "raster",
+          tiles: [
+            `${url}bbox={bbox-epsg-3857}&styles=&format=image/png&service=WMS&version=1.1.1&request=GetMap&srs=EPSG:3857&transparent=true&width=256&height=256&layers=${name}&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}`,
+          ],
+          tileSize: 256,
+        };
 
-      style.layers.push({
-        id: `layer-${name.replace(/[^a-zA-Z0-9]/g, "-")}-${index}`,
-        type: "raster",
-        source: sourceId,
-        paint: {
-          "raster-opacity": layer.opacity,
-        },
-      });
+        style.layers.push({
+          id: `layer-${name.replace(/[^a-zA-Z0-9]/g, "-")}-${index}`,
+          type: "raster",
+          source: sourceId,
+          paint: {
+            "raster-opacity": layer.opacity,
+          },
+        });
+      }
     });
 
     return style;
