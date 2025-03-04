@@ -1,18 +1,12 @@
 import { useContext, useEffect, useState } from "react";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
-import { getGazData } from "./helper/helper";
 import { Badge } from "react-bootstrap";
 import topoBG from "../assets/map-bg/topo.png";
 import citymapBG from "../assets/map-bg/citymap.png";
 import mixedBG from "../assets/map-bg/mixed.png";
-import {
-  removeQueryPart,
-  modifyQueryPart,
-} from "react-cismap/tools/routingHelper";
+import { modifyQueryPart } from "react-cismap/tools/routingHelper";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import ControlInfoBox from "./ControlInfoBox";
-import ResponsiveInfoBox from "react-cismap/topicmaps/ResponsiveInfoBox";
-import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import CismapLayer from "react-cismap/CismapLayer";
 import { getApplicationVersion } from "@carma-commons/utils";
@@ -24,6 +18,19 @@ import {
   searchTextPlaceholder,
 } from "@carma-collab/wuppertal/hitzeinderstadt";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
+
+import {
+  TopicMapSelectionContent,
+  useGazData,
+  useSelection,
+  useSelectionTopicMap,
+} from "@carma-apps/portals";
+import {
+  EmptySearchComponent,
+  LibFuzzySearch,
+} from "@carma-mapping/fuzzy-search";
+import { isAreaType } from "@carma-commons/resources";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 const parseSimulationsFromURL = (search) => {
   const params = new URLSearchParams(search);
@@ -50,7 +57,6 @@ const Hitzekarte = () => {
   const { setAppMenuVisible, setAppMenuActiveMenuSection } =
     useContext(UIDispatchContext);
 
-  const [gazData, setGazData] = useState([]);
   const [selectedSimulations, setSelectedSimulations] = useState(() => {
     return parseSimulationsFromURL(history.location.search);
   });
@@ -104,9 +110,14 @@ const Hitzekarte = () => {
     { title: "starke Hitze", lt: 0.4, bg: "#FF3C2E" },
     { title: "2050-2060", lt: 1.0, bg: "#CE1EE8" },
   ];
-  useEffect(() => {
-    getGazData(setGazData);
-  }, []);
+
+  const { responsiveState, gap, windowSize } = useContext(
+    ResponsiveTopicMapContext
+  );
+
+  const pixelwidth =
+    responsiveState === "normal" ? "300px" : windowSize.width - gap;
+
   useEffect(() => {
     let simulationLabels = [];
     simulations.forEach((item, index) => {
@@ -154,95 +165,120 @@ const Hitzekarte = () => {
     setSimulationLabels(simulationLabels);
   }, [selectedSimulations]);
 
-  // let info = (
+  const { gazData } = useGazData();
+  const { setSelection } = useSelection();
 
-  // );
-  console.log("xxx render");
+  useSelectionTopicMap();
+
+  const onGazetteerSelection = (selection) => {
+    if (!selection) {
+      setSelection(null);
+      return;
+    }
+    const selectionMetaData = {
+      selectedFrom: "gazetteer",
+      selectionTimestamp: Date.now(),
+      isAreaSelection: isAreaType(selection.type),
+    };
+    setSelection(Object.assign({}, selection, selectionMetaData));
+
+    setTimeout(() => {
+      const gazId = selection.more?.pid || selection.more?.kid;
+      setSelectedFeatureByPredicate(
+        (feature) => feature.properties.id === gazId
+      );
+    }, 100);
+  };
 
   let validBackgroundIndex = selectedBackgroundIndex;
   if (validBackgroundIndex >= backgrounds.length) {
     validBackgroundIndex = 0;
   }
-  return (
-    <TopicMapComponent
-      backgroundlayers={backgrounds[validBackgroundIndex].layerkey}
-      applicationMenuIconname="info"
-      // backgroundlayers="empty"
-      infoBox={
-        <ControlInfoBox
-          pixelwidth={350}
-          selectedSimulations={selectedSimulations}
-          simulations={simulations}
-          simulationLabels={simulationLabels}
-          backgrounds={backgrounds}
-          selectedBackgroundIndex={selectedBackgroundIndex}
-          setBackgroundIndex={(index) => {
-            setSelectedBackgroundIndex(index);
 
-            history.push(
-              modifyQueryPart(history.location.search, { bg: index })
-            );
-          }}
-          minified={minifiedInfoBox}
-          minify={(minified) => setMinifiedInfoBox(minified)}
-          legendObject={legend}
-          featureInfoModeActivated={false}
-          setFeatureInfoModeActivation={() => {}}
-          featureInfoValue={undefined}
-          showModalMenu={(section) => {
-            setAppMenuVisible(true);
-            setAppMenuActiveMenuSection(section);
-          }}
-          mapClickListener={() => {}}
-          mapRef={undefined}
-          mapCursor={undefined}
-        />
-      }
-      gazData={gazData}
-      modalMenu={
-        <GenericModalApplicationMenu
-          {...getCollabedHelpComponentConfig({
-            versionString: version,
-            reactCismapRHMVersion: "",
-          })}
-        />
-      }
-      locatorControl={true}
-      gazetteerSearchPlaceholder={searchTextPlaceholder}
-      gazetteerHitTrigger={(hits) => {
-        if ((Array.isArray(hits) && hits[0]?.more?.pid) || hits[0]?.more?.kid) {
-          const gazId = hits[0]?.more?.pid || hits[0]?.more?.kid;
-          setSelectedFeatureByPredicate(
-            (feature) => feature.properties.id === gazId
-          );
+  return (
+    <div>
+      <TopicMapComponent
+        backgroundlayers={backgrounds[validBackgroundIndex].layerkey}
+        applicationMenuIconname="info"
+        // backgroundlayers="empty"
+        infoBox={
+          <ControlInfoBox
+            pixelwidth={350}
+            selectedSimulations={selectedSimulations}
+            simulations={simulations}
+            simulationLabels={simulationLabels}
+            backgrounds={backgrounds}
+            selectedBackgroundIndex={selectedBackgroundIndex}
+            setBackgroundIndex={(index) => {
+              setSelectedBackgroundIndex(index);
+
+              history.push(
+                modifyQueryPart(history.location.search, { bg: index })
+              );
+            }}
+            minified={minifiedInfoBox}
+            minify={(minified) => setMinifiedInfoBox(minified)}
+            legendObject={legend}
+            featureInfoModeActivated={false}
+            setFeatureInfoModeActivation={() => {}}
+            featureInfoValue={undefined}
+            showModalMenu={(section) => {
+              setAppMenuVisible(true);
+              setAppMenuActiveMenuSection(section);
+            }}
+            mapClickListener={() => {}}
+            mapRef={undefined}
+            mapCursor={undefined}
+          />
         }
-      }}
-      applicationMenuTooltipString={tooltipText}
-    >
-      {/* <TileLayer
+        modalMenu={
+          <GenericModalApplicationMenu
+            {...getCollabedHelpComponentConfig({
+              versionString: version,
+              reactCismapRHMVersion: "",
+            })}
+          />
+        }
+        locatorControl={true}
+        gazetteerSearchControl={true}
+        gazetteerSearchComponent={EmptySearchComponent}
+        applicationMenuTooltipString={tooltipText}
+      >
+        <TopicMapSelectionContent />
+
+        {/* <TileLayer
         maxNativeZoom={20}
         maxZoom={22}
         url={`https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}`}
       /> */}
-      {selectedSimulations.map((simulationIndex) => {
-        const selSimString = JSON.stringify(selectedSimulations);
-        return (
-          <CismapLayer
-            {...{
-              key: "heatmodellayer." + simulationIndex,
-              type: "vector",
-              style: simulations[simulationIndex].layer,
-              pane: "additionalLayers" + simulationIndex,
-              opacity: simulations[simulationIndex].opacity,
+        {selectedSimulations.map((simulationIndex) => {
+          const selSimString = JSON.stringify(selectedSimulations);
+          return (
+            <CismapLayer
+              {...{
+                key: "heatmodellayer." + simulationIndex,
+                type: "vector",
+                style: simulations[simulationIndex].layer,
+                pane: "additionalLayers" + simulationIndex,
+                opacity: simulations[simulationIndex].opacity,
 
-              // onLayerClick: (e) => {
-              //   console.log("xxx onLayerClick", e);
-              // },
-            }}
-          />
-        );
-      })}
-    </TopicMapComponent>
+                // onLayerClick: (e) => {
+                //   console.log("xxx onLayerClick", e);
+                // },
+              }}
+            />
+          );
+        })}
+      </TopicMapComponent>
+      <div className="custom-left-control">
+        <LibFuzzySearch
+          gazData={gazData}
+          onSelection={onGazetteerSelection}
+          pixelwidth={pixelwidth}
+          placeholder={searchTextPlaceholder}
+        />
+      </div>
+    </div>
   );
 };
 
