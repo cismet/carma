@@ -126,7 +126,7 @@ const LibreGeoportalMap = () => {
   }, [lng, lat, zoom]);
 
   useEffect(() => {
-    if (!map.current) return;
+    if (!map.current || layers.length === 0) return;
 
     const style = layersToMapLibreStyle();
     map.current.setStyle(style);
