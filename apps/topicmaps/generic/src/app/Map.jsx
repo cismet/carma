@@ -76,8 +76,7 @@ const Map = ({ config, featureGazData = [] }) => {
     setSelection(Object.assign({}, selection, selectionMetaData));
   };
 
-  const commonGazData = [...gazData, ...featureGazData];
-  console.log("xxx gazData", commonGazData);
+  const commonGazData = [...featureGazData, ...gazData];
 
   return (
     <>
@@ -158,14 +157,16 @@ const Map = ({ config, featureGazData = [] }) => {
           </div>
         </div> */}
       </TopicMapComponent>
-      <div className="custom-left-control">
-        <LibFuzzySearch
-          gazData={gazData}
-          onSelection={onGazetteerSelection}
-          pixelwidth={pixelwidth}
-          placeholder="Stadtteil | Adresse | Kita"
-        />
-      </div>
+      {gazData.length > 0 && (
+        <div className="custom-left-control">
+          <LibFuzzySearch
+            gazData={commonGazData}
+            onSelection={onGazetteerSelection}
+            pixelwidth={pixelwidth}
+            placeholder="Stadtteil | Adresse | Kita"
+          />
+        </div>
+      )}
     </>
   );
 };
