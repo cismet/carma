@@ -142,7 +142,7 @@ const ActionButtons = () => {
           />
         </button>
       </Tooltip>
-      <Tooltip title={`Zen-Modus anschalten`}>
+      <Tooltip title={`Bedienelemente ausblenden`}>
         <button
           className={`text-xl hover:text-gray-600`}
           onClick={() => {
