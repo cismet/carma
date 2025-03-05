@@ -71,7 +71,7 @@ interface VectorLayerProps {
   selectionEnabled?: boolean;
   manualSelectionManagement?: boolean;
   maxSelectionCount?: number;
-  onSelectionChanged?: (e: { hits: any[]; hit: any }) => void;
+  onSelectionChanged?: (e: { hits: any[]; hit: any; latlng: LatLng }) => void;
 }
 
 type Options = {
@@ -281,7 +281,13 @@ export const getCoordinates = (geometry) => {
   }
 };
 
-const createVectorFeature = (coordinates, layer, selectedVectorFeature) => {
+const createVectorFeature = (
+  coordinates,
+  layer,
+  selectedVectorFeature,
+  leafletMap,
+  latlng
+) => {
   let feature = undefined;
   const vectorPos = proj4(
     proj4.defs("EPSG:4326") as unknown as string,
@@ -289,18 +295,67 @@ const createVectorFeature = (coordinates, layer, selectedVectorFeature) => {
     coordinates
   );
 
+  const pos = proj4(
+    proj4.defs("EPSG:4326") as unknown as string,
+    proj4crs25832def,
+    [latlng.lng, latlng.lat]
+  );
+
   const minimalBoxSize = 1;
   const featureInfoBaseUrl = layer.other.service.url;
   const layerName = layer.other.name;
 
-  const imgUrl =
+  let viewportBbox = {
+    left: pos[0] - minimalBoxSize,
+    bottom: pos[1] - minimalBoxSize,
+    right: pos[0] + minimalBoxSize,
+    top: pos[1] + minimalBoxSize,
+  };
+  let viewportWidth = 10;
+  let viewportHeight = 10;
+
+  if (leafletMap) {
+    const bounds = leafletMap.getBounds();
+    const projectedNE = proj4(
+      proj4.defs("EPSG:4326") as unknown as string,
+      proj4crs25832def,
+      [bounds.getNorthEast().lng, bounds.getNorthEast().lat]
+    );
+    const projectedSW = proj4(
+      proj4.defs("EPSG:4326") as unknown as string,
+      proj4crs25832def,
+      [bounds.getSouthWest().lng, bounds.getSouthWest().lat]
+    );
+
+    viewportBbox = {
+      left: projectedSW[0],
+      bottom: projectedSW[1],
+      right: projectedNE[0],
+      top: projectedNE[1],
+    };
+
+    viewportWidth = leafletMap.getSize().x;
+    viewportHeight = leafletMap.getSize().y;
+  }
+
+  const pixelX = Math.round(
+    ((pos[0] - viewportBbox.left) / (viewportBbox.right - viewportBbox.left)) *
+      viewportWidth
+  );
+  const pixelY = Math.round(
+    ((viewportBbox.top - pos[1]) / (viewportBbox.top - viewportBbox.bottom)) *
+      viewportHeight
+  );
+
+  const legacyFeatureInfoUrl =
     featureInfoBaseUrl +
     `?&VERSION=1.1.1&REQUEST=GetFeatureInfo&BBOX=` +
-    `${vectorPos[0] - minimalBoxSize},` +
-    `${vectorPos[1] - minimalBoxSize},` +
-    `${vectorPos[0] + minimalBoxSize},` +
-    `${vectorPos[1] + minimalBoxSize}` +
-    `&WIDTH=10&HEIGHT=10&SRS=EPSG:25832&FORMAT=image/png&TRANSPARENT=TRUE&BGCOLOR=0xF0F0F0&EXCEPTIONS=application/vnd.ogc.se_xml&FEATURE_COUNT=99&LAYERS=${layerName}&STYLES=default&QUERY_LAYERS=${layerName}&INFO_FORMAT=text/html&X=5&Y=5`;
+    `${viewportBbox.left},` +
+    `${viewportBbox.bottom},` +
+    `${viewportBbox.right},` +
+    `${viewportBbox.top}` +
+    `&WIDTH=${viewportWidth}&HEIGHT=${viewportHeight}&SRS=EPSG:25832&FORMAT=image/png&TRANSPARENT=TRUE&BGCOLOR=0xF0F0F0&EXCEPTIONS=application/vnd.ogc.se_xml&FEATURE_COUNT=99&LAYERS=${layerName}&STYLES=default&QUERY_LAYERS=${layerName}&INFO_FORMAT=text/html&X=${pixelX}&Y=${pixelY}
+            `;
 
   let properties = selectedVectorFeature.properties;
   properties = {
@@ -351,7 +406,7 @@ const createVectorFeature = (coordinates, layer, selectedVectorFeature) => {
           ? genericLinks
           : genericLinks.concat([
               {
-                url: imgUrl,
+                url: legacyFeatureInfoUrl,
                 tooltip: "Vollständige Sachdatenabfrage",
                 icon: createElement(FeatureInfoIcon),
                 target: "_legacyGetFeatureInfoHtml",
@@ -373,8 +428,9 @@ const implicitVectorSelection = (
   e: {
     hits: any[];
     hit: any;
+    latlng: LatLng;
   },
-  { layer, dispatch, selectionHandler, featureHandler }
+  { layer, dispatch, selectionHandler, featureHandler, leafletMap }
 ) => {
   selectionHandler(e, layer);
   if (!e.hits) {
@@ -407,20 +463,6 @@ const implicitVectorSelection = (
     };
 
     featureHandler(feature, layer);
-    // dispatch(
-    //   setSelectedFeature({
-    //     properties: {
-    //       header: "Information",
-    //       headerColor: "#0078a8",
-    //       title: "Zu diesem Objekt sind keine weiteren Sachdaten verfügbar.",
-    //       additionalInfo: `Position: ${coordinates[1].toFixed(
-    //         5
-    //       )}, ${coordinates[0].toFixed(5)}`,
-    //       subtitle: "(Geogr. Breite und Länge in Dezimalgrad, ETRS89)",
-    //     },
-    //     id: "information",
-    //   })
-    // );
   }
 
   if (e.hits && layer.queryable) {
@@ -441,7 +483,9 @@ const implicitVectorSelection = (
     const feature = createVectorFeature(
       coordinates,
       layer,
-      selectedVectorFeature
+      selectedVectorFeature,
+      leafletMap,
+      e.latlng
     );
 
     if (feature) {
@@ -455,8 +499,9 @@ const onSelectionChangedVector = (
   e: {
     hits: any[];
     hit: any;
+    latlng: LatLng;
   },
-  { layer, layers, dispatch, zoom, selectionHandler }
+  { layer, layers, dispatch, zoom, selectionHandler, leafletMap }
 ) => {
   selectionHandler(e, layer);
   if (!e.hits) {
@@ -470,7 +515,13 @@ const onSelectionChangedVector = (
     uniqueHits.forEach((vector, i) => {
       const coordinates = getCoordinates(vector.geometry);
 
-      const feature = createVectorFeature(coordinates, layer, vector);
+      const feature = createVectorFeature(
+        coordinates,
+        layer,
+        vector,
+        leafletMap,
+        e.latlng
+      );
 
       if (feature) {
         dispatch(addVectorInfo(feature));
@@ -495,11 +546,13 @@ export const createCismapLayers = (
     dispatch,
     zoom,
     selectedFeature,
+    leafletMap,
   }: {
     mode: UIMode;
     dispatch: Dispatch;
     zoom: number;
     selectedFeature: any;
+    leafletMap: Map;
   }
 ) => {
   const [globalHits, setGlobalHits] = useState({});
@@ -654,6 +707,7 @@ export const createCismapLayers = (
                   dispatch,
                   selectionHandler,
                   featureHandler,
+                  leafletMap,
                 });
               } else if (modeRef.current === UIMode.FEATURE_INFO) {
                 onSelectionChangedVector(e, {
@@ -662,6 +716,7 @@ export const createCismapLayers = (
                   dispatch,
                   zoom,
                   selectionHandler,
+                  leafletMap,
                 });
               }
             },

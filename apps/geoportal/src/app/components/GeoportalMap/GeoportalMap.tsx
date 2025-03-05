@@ -474,6 +474,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
             dispatch,
             zoom: getLeafletZoom(),
             selectedFeature,
+            leafletMap: routedMap?.leafletMap?.leafletElement,
           })}
           <PrintPreview />
         </TopicMapComponent>

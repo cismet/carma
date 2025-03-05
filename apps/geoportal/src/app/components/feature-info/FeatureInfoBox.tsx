@@ -73,33 +73,6 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
   }
 
   useEffect(() => {
-    if (
-      pos &&
-      selectedFeature &&
-      selectedFeature.id !== "information" &&
-      secondaryInfoBoxElements.length <= 3 &&
-      selectedFeature?.geometry?.type !== "Point"
-    ) {
-      const updatedLinks = updateUrlWithCoordinates(
-        selectedFeature.properties.genericLinks,
-        pos
-      );
-
-      const updatedFeature = {
-        ...selectedFeature,
-        properties: {
-          ...selectedFeature.properties,
-          genericLinks: updatedLinks,
-        },
-      };
-
-      if (!isEqual(selectedFeature, updatedFeature)) {
-        dispatch(setSelectedFeature(updatedFeature));
-      }
-    }
-  }, [pos, selectedFeature]);
-
-  useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (secondaryInfoBoxElements.length === 0) {
         return;
