@@ -13,8 +13,6 @@ import {
   TopicMapStylingContext,
   TopicMapStylingDispatchContext,
 } from "react-cismap/contexts/TopicMapStylingContextProvider";
-import GazetteerSearchControl from "react-cismap/GazetteerSearchControl";
-import GazetteerHitDisplay from "react-cismap/GazetteerHitDisplay";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import {
   getBoundsForFeatureArray,
@@ -24,23 +22,16 @@ import {
   getShowBackground,
   getShowCurrentFeatureCollection,
   getShowInspectMode,
-  setFeatureCollection,
   setFlaechenSelected,
   setFrontenSelected,
   setGeneralGeometrySelected,
   setGraphqlLayerStatus,
-  setLeafletElement,
   setShowBackground,
   setShowCurrentFeatureCollection,
   setShowInspectMode,
 } from "../../store/slices/mapping";
 import { useDispatch, useSelector } from "react-redux";
 import { FileImageOutlined, FileImageFilled } from "@ant-design/icons";
-import getLayers from "react-cismap/tools/layerFactory";
-import { getArea25832 } from "../../core/tools/kassenzeichenMappingTools";
-import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
-import { getGazData } from "../../store/slices/gazData";
-import { Background } from "reactflow";
 import BackgroundLayers from "./BackgroundLayers";
 import AdditionalLayers from "./AdditionalLayers";
 import {
@@ -59,8 +50,14 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBinoculars } from "@fortawesome/free-solid-svg-icons";
 import { PointSearchButton, PointSearch } from "@carma-apps/alkis-renderer";
 import { getShapeMode, storeShapeMode } from "../../store/slices/searchMode";
-import { TopicMapSelectionContent } from "@carma-apps/portals";
-import FuzzySearchControl from "./FuzzySearchControl";
+import {
+  TopicMapSelectionContent,
+  useGazData,
+  useSelection,
+  useSelectionTopicMap,
+} from "@carma-apps/portals";
+import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
+import { isAreaType } from "@carma-commons/resources";
 
 const { ScaleControl } = TransitiveReactLeaflet;
 
@@ -100,43 +97,15 @@ const Map = ({
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [urlParams, setUrlParams] = useSearchParams();
-  // const [fallback, setFallback] = useState({});
   const showCurrentFeatureCollection = useSelector(
     getShowCurrentFeatureCollection
   );
-  // const gazData = useSelector(getGazData);
   const showBackground = useSelector(getShowBackground);
   const showInspectMode = useSelector(getShowInspectMode);
   const jwt = useSelector(getJWT);
   const mode = useSelector(getShapeMode);
 
   const [overlayFeature, setOverlayFeature] = useState(null);
-  const [gazetteerHit, setGazetteerHit] = useState(null);
-
-  //state for hover landparcel string
-
-  const gazetteerHitTrigger = (hits) => {
-    //somehow the map gets not moved to the right position on the first try, so this is an ugly winning to get it right
-    const pos = proj4(proj4crs3857def, proj4.defs("EPSG:4326"), [
-      hits[0].x,
-      hits[0].y,
-    ]);
-    const map = refRoutedMap.current.leafletMap.leafletElement;
-    map.panTo([pos[1], pos[0]], {
-      animate: false,
-    });
-
-    let hitObject = { ...hits[0] };
-
-    //Change the Zoomlevel of the map
-    if (hitObject.more.zl) {
-      map.setZoom(hitObject.more.zl, {
-        animate: false,
-      });
-    }
-  };
-  const searchControlWidth = 500;
-  const gazetteerSearchPlaceholder = undefined;
 
   const data = extractor(dataIn);
   const padding = 5;
@@ -293,6 +262,43 @@ const Map = ({
     mode,
   ]);
 
+  const { gazData } = useGazData();
+  const { setSelection } = useSelection();
+  // useSelectionTopicMap();
+
+  const onGazetteerSelection = (selection) => {
+    if (!selection) {
+      setSelection(null);
+      return;
+    }
+    const selectionMetaData = {
+      selectedFrom: "gazetteer",
+      selectionTimestamp: Date.now(),
+      isAreaSelection: isAreaType(selection.type),
+    };
+    setSelection(Object.assign({}, selection, selectionMetaData));
+
+    setTimeout(() => {
+      const pos = proj4(proj4crs3857def, proj4.defs("EPSG:4326"), [
+        selection.x,
+        selection.y,
+      ]);
+      const map = refRoutedMap.current.leafletMap.leafletElement;
+      console.log("xxx refRoutedMap", map);
+      map.panTo([pos[1], pos[0]], {
+        animate: false,
+      });
+
+      let hitObject = { ...selection };
+
+      //Change the Zoomlevel of the map
+      if (hitObject.more.zl) {
+        map.setZoom(hitObject.more.zl, {
+          animate: false,
+        });
+      }
+    }, 100);
+  };
   return (
     <Card
       size="small"
@@ -411,22 +417,6 @@ const Map = ({
               mapRef={leafletRoutedMapRef}
             />
           )}
-          {/* <GazetteerHitDisplay
-          key={"gazHit" + JSON.stringify(gazetteerHit)}
-          gazetteerHit={gazetteerHit}
-        /> */}
-          {/* <GazetteerSearchControl
-          mapRef={refRoutedMap}
-          gazetteerHit={gazetteerHit}
-          setGazetteerHit={setGazetteerHit}
-          gazeteerHitTrigger={gazetteerHitTrigger}
-          overlayFeature={overlayFeature}
-          setOverlayFeature={setOverlayFeature}
-          gazData={gazData}
-          enabled={gazData.length > 0}
-          pixelwidth={500}
-          placeholder={gazetteerSearchPlaceholder}
-        /> */}
           {data.featureCollection &&
             data.featureCollection.length > 0 &&
             showCurrentFeatureCollection && (
@@ -521,9 +511,17 @@ const Map = ({
             mode={mode}
           />
         </RoutedMap>
-        <FuzzySearchControl
+        {/* <FuzzySearchControl
           map={refRoutedMap?.current?.leafletMap?.leafletElement}
-        />
+        /> */}
+        <div className="custom-left-control">
+          <LibFuzzySearch
+            gazData={gazData}
+            onSelection={onGazetteerSelection}
+            pixelwidth="500px"
+            placeholder="Wohin?"
+          />
+        </div>
       </>
     </Card>
   );
