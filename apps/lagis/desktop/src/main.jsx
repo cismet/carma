@@ -27,11 +27,12 @@ import { PersistGate } from "redux-persist/integration/react";
 import { getJWT } from "./store/slices/auth";
 import { QueryClient } from "@tanstack/react-query";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
-
+import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
 import { loadGazeteerEntries } from "./store/slices/gazData";
 import AlkisLandparcelPage from "./pages/AlkisLandparcelPage";
 import AlkisBookingSheetPage from "./pages/AlkisBookingSheetPage";
 import { AlkisNav } from "@carma-apps/alkis-renderer";
+import { gazDataConfig } from "./config/gazData";
 
 const NavBarWrapper = () => {
   const dispatch = useDispatch();
@@ -120,11 +121,15 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <ConfigProvider locale={locale}>
       <Provider store={store}>
-        <TopicMapContextProvider appKey="lagis-desktop.map">
-          <PersistGate locale={locale} loading={null} persistor={persistor}>
-            <RouterProvider router={router} />
-          </PersistGate>
-        </TopicMapContextProvider>
+        <GazDataProvider config={gazDataConfig}>
+          <SelectionProvider>
+            <TopicMapContextProvider appKey="lagis-desktop.map">
+              <PersistGate locale={locale} loading={null} persistor={persistor}>
+                <RouterProvider router={router} />
+              </PersistGate>
+            </TopicMapContextProvider>
+          </SelectionProvider>
+        </GazDataProvider>
       </Provider>
     </ConfigProvider>
   </React.StrictMode>

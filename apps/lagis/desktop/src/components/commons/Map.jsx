@@ -406,11 +406,11 @@ const Map = ({
             mapRef={leafletRoutedMapRef}
           />
         )}
-        <GazetteerHitDisplay
+        {/* <GazetteerHitDisplay
           key={"gazHit" + JSON.stringify(gazetteerHit)}
           gazetteerHit={gazetteerHit}
-        />
-        <GazetteerSearchControl
+        /> */}
+        {/* <GazetteerSearchControl
           mapRef={refRoutedMap}
           gazetteerHit={gazetteerHit}
           setGazetteerHit={setGazetteerHit}
@@ -421,7 +421,7 @@ const Map = ({
           enabled={gazData.length > 0}
           pixelwidth={500}
           placeholder={gazetteerSearchPlaceholder}
-        />
+        /> */}
         {data.featureCollection &&
           data.featureCollection.length > 0 &&
           showCurrentFeatureCollection && (
