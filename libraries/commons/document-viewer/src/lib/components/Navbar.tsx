@@ -27,6 +27,7 @@ interface NavProps {
   currentWidthTrigger?: number;
   currentHeightTrigger?: number;
   rightPadding?: number;
+  mode: string;
 }
 
 const NARROW_SCREEN_THRESHOLD = 768;
