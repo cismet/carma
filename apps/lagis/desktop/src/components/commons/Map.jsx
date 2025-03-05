@@ -59,6 +59,8 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBinoculars } from "@fortawesome/free-solid-svg-icons";
 import { PointSearchButton, PointSearch } from "@carma-apps/alkis-renderer";
 import { getShapeMode, storeShapeMode } from "../../store/slices/searchMode";
+import { TopicMapSelectionContent } from "@carma-apps/portals";
+import FuzzySearchControl from "./FuzzySearchControl";
 
 const { ScaleControl } = TransitiveReactLeaflet;
 
@@ -102,7 +104,7 @@ const Map = ({
   const showCurrentFeatureCollection = useSelector(
     getShowCurrentFeatureCollection
   );
-  const gazData = useSelector(getGazData);
+  // const gazData = useSelector(getGazData);
   const showBackground = useSelector(getShowBackground);
   const showInspectMode = useSelector(getShowInspectMode);
   const jwt = useSelector(getJWT);
@@ -365,52 +367,55 @@ const Map = ({
       className="overflow-hidden shadow-md"
       ref={cardRef}
     >
-      <RoutedMap
-        editable={false}
-        style={mapStyle}
-        key={"leafletRoutedMap"}
-        // backgroundlayers={showBackground ? _backgroundLayers : null}
-        backgroundlayers={null}
-        urlSearchParams={urlSearchParams}
-        layers=""
-        referenceSystem={MappingConstants.crs3857}
-        referenceSystemDefinition={MappingConstants.proj4crs3857def}
-        ref={refRoutedMap}
-        minZoom={9}
-        maxZoom={25}
-        zoomSnap={0.5}
-        zoomDelta={0.5}
-        fallbackPosition={mapFallbacks.fallbackPosition}
-        fallbackZoom={urlSearchParamsObject?.zoom ?? mapFallbacks.zoom ?? 17}
-        locationChangedHandler={(location) => {
-          const newParams = { ...paramsToObject(urlParams), ...location };
-          // setUrlParams(newParams);
-        }}
-        boundingBoxChangedHandler={(boundingBox) => {
-          // console.log("xxx boundingBox Changed", boundingBox);
-        }}
-        ondblclick={(event) => {
-          //if data contains a ondblclick handler, call it
-          if (data.ondblclick) {
-            data.ondblclick(event);
-          }
-        }}
-      >
-        <ScaleControl {...defaults} position="topright" />
-        {overlayFeature && (
-          <ProjSingleGeoJson
-            key={JSON.stringify(overlayFeature)}
-            geoJson={overlayFeature}
-            masked={true}
-            maskingPolygon={maskingPolygon}
-            mapRef={leafletRoutedMapRef}
-          />
-        )}
-        {/* <GazetteerHitDisplay
+      <>
+        <RoutedMap
+          editable={false}
+          style={mapStyle}
+          key={"leafletRoutedMap"}
+          // backgroundlayers={showBackground ? _backgroundLayers : null}
+          backgroundlayers={null}
+          urlSearchParams={urlSearchParams}
+          layers=""
+          referenceSystem={MappingConstants.crs3857}
+          referenceSystemDefinition={MappingConstants.proj4crs3857def}
+          ref={refRoutedMap}
+          minZoom={9}
+          maxZoom={25}
+          zoomSnap={0.5}
+          zoomDelta={0.5}
+          fallbackPosition={mapFallbacks.fallbackPosition}
+          fallbackZoom={urlSearchParamsObject?.zoom ?? mapFallbacks.zoom ?? 17}
+          locationChangedHandler={(location) => {
+            const newParams = { ...paramsToObject(urlParams), ...location };
+            // setUrlParams(newParams);
+          }}
+          boundingBoxChangedHandler={(boundingBox) => {
+            // console.log("xxx boundingBox Changed", boundingBox);
+          }}
+          ondblclick={(event) => {
+            //if data contains a ondblclick handler, call it
+            if (data.ondblclick) {
+              data.ondblclick(event);
+            }
+          }}
+        >
+          <TopicMapSelectionContent />
+
+          <ScaleControl {...defaults} position="topright" />
+          {overlayFeature && (
+            <ProjSingleGeoJson
+              key={JSON.stringify(overlayFeature)}
+              geoJson={overlayFeature}
+              masked={true}
+              maskingPolygon={maskingPolygon}
+              mapRef={leafletRoutedMapRef}
+            />
+          )}
+          {/* <GazetteerHitDisplay
           key={"gazHit" + JSON.stringify(gazetteerHit)}
           gazetteerHit={gazetteerHit}
         /> */}
-        {/* <GazetteerSearchControl
+          {/* <GazetteerSearchControl
           mapRef={refRoutedMap}
           gazetteerHit={gazetteerHit}
           setGazetteerHit={setGazetteerHit}
@@ -422,96 +427,104 @@ const Map = ({
           pixelwidth={500}
           placeholder={gazetteerSearchPlaceholder}
         /> */}
-        {data.featureCollection &&
-          data.featureCollection.length > 0 &&
-          showCurrentFeatureCollection && (
-            <FeatureCollectionDisplay
-              featureCollection={data.featureCollection}
-              style={data.styler}
-              markerStyle={data.markerStyle}
-              showMarkerCollection={data.showMarkerCollection || false}
-              featureClickHandler={
-                data.featureClickHandler ||
-                ((e) => {
-                  const feature = e.target.feature;
-                  if (feature.selected) {
-                    const map = refRoutedMap.current.leafletMap.leafletElement;
-                    const bb = getBoundsForFeatureArray([feature]);
-                    const { center, zoom } = getCenterAndZoomForBounds(map, bb);
-                    setUrlParams((prev) => {
-                      prev.set("zoom", zoom);
-                      prev.set("lat", center.lat);
-                      prev.set("lng", center.lng);
-                      return prev;
-                    });
-                  } else {
-                    switch (feature.featureType) {
-                      case "flaeche": {
-                        dispatch(storeFlaechenId(feature.id));
-                        dispatch(setFlaechenSelected({ id: feature.id }));
+          {data.featureCollection &&
+            data.featureCollection.length > 0 &&
+            showCurrentFeatureCollection && (
+              <FeatureCollectionDisplay
+                featureCollection={data.featureCollection}
+                style={data.styler}
+                markerStyle={data.markerStyle}
+                showMarkerCollection={data.showMarkerCollection || false}
+                featureClickHandler={
+                  data.featureClickHandler ||
+                  ((e) => {
+                    const feature = e.target.feature;
+                    if (feature.selected) {
+                      const map =
+                        refRoutedMap.current.leafletMap.leafletElement;
+                      const bb = getBoundsForFeatureArray([feature]);
+                      const { center, zoom } = getCenterAndZoomForBounds(
+                        map,
+                        bb
+                      );
+                      setUrlParams((prev) => {
+                        prev.set("zoom", zoom);
+                        prev.set("lat", center.lat);
+                        prev.set("lng", center.lng);
+                        return prev;
+                      });
+                    } else {
+                      switch (feature.featureType) {
+                        case "flaeche": {
+                          dispatch(storeFlaechenId(feature.id));
+                          dispatch(setFlaechenSelected({ id: feature.id }));
 
-                        break;
-                      }
-                      case "front": {
-                        dispatch(storeFrontenId(feature.properties.id));
-                        dispatch(
-                          setFrontenSelected({ id: feature.properties.id })
-                        );
-                        break;
-                      }
-                      case "general": {
-                        dispatch(
-                          setGeneralGeometrySelected({
-                            id: feature.properties.id,
-                          })
-                        );
-                        break;
-                      }
-                      default: {
-                        console.log(
-                          "no featureClickHandler set",
-                          e.target.feature
-                        );
-                        onClickHandler(e.target.feature);
+                          break;
+                        }
+                        case "front": {
+                          dispatch(storeFrontenId(feature.properties.id));
+                          dispatch(
+                            setFrontenSelected({ id: feature.properties.id })
+                          );
+                          break;
+                        }
+                        case "general": {
+                          dispatch(
+                            setGeneralGeometrySelected({
+                              id: feature.properties.id,
+                            })
+                          );
+                          break;
+                        }
+                        default: {
+                          console.log(
+                            "no featureClickHandler set",
+                            e.target.feature
+                          );
+                          onClickHandler(e.target.feature);
+                        }
                       }
                     }
-                  }
-                })
-              }
-            />
-          )}
-        {/* {children} */}
-
-        {showBackground && (
-          <>
-            <BackgroundLayers
-              activeBackgroundLayer={activeBackgroundLayer}
-              opacities={backgroundLayerOpacities}
-            />
-            <AdditionalLayers
-              jwt={jwt}
-              mapRef={refRoutedMap}
-              activeLayers={activeAdditionalLayers}
-              opacities={additionalLayerOpacities}
-              onGraphqlLayerStatus={(status) => {
-                dispatch(setGraphqlLayerStatus(status));
-                if (status === "NOT_ALLOWED") {
-                  dispatch(setHoveredLandparcel(""));
+                  })
                 }
-              }}
-              onHoverUpdate={(feature) => {
-                dispatch(setHoveredLandparcel(landparcelToString(feature)));
-              }}
-            />
-          </>
-        )}
-        <PointSearch
+              />
+            )}
+          {/* {children} */}
+
+          {showBackground && (
+            <>
+              <BackgroundLayers
+                activeBackgroundLayer={activeBackgroundLayer}
+                opacities={backgroundLayerOpacities}
+              />
+              <AdditionalLayers
+                jwt={jwt}
+                mapRef={refRoutedMap}
+                activeLayers={activeAdditionalLayers}
+                opacities={additionalLayerOpacities}
+                onGraphqlLayerStatus={(status) => {
+                  dispatch(setGraphqlLayerStatus(status));
+                  if (status === "NOT_ALLOWED") {
+                    dispatch(setHoveredLandparcel(""));
+                  }
+                }}
+                onHoverUpdate={(feature) => {
+                  dispatch(setHoveredLandparcel(landparcelToString(feature)));
+                }}
+              />
+            </>
+          )}
+          <PointSearch
+            map={refRoutedMap?.current?.leafletMap?.leafletElement}
+            setMode={handleSetDonutWithDelay}
+            jwt={jwt}
+            mode={mode}
+          />
+        </RoutedMap>
+        <FuzzySearchControl
           map={refRoutedMap?.current?.leafletMap?.leafletElement}
-          setMode={handleSetDonutWithDelay}
-          jwt={jwt}
-          mode={mode}
         />
-      </RoutedMap>
+      </>
     </Card>
   );
 };
