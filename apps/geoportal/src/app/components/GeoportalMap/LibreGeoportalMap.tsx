@@ -15,14 +15,16 @@ const LibreGeoportalMap = () => {
 
   const layers = useSelector(getLayers);
 
-  const layersToMapLibreStyle = () => {
+  const layersToMapLibreStyle = async () => {
     const style: StyleSpecification = {
       version: 8,
       sources: {},
       layers: [],
+      glyphs: "https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf",
+      sprite: "https://tiles.cismet.de/poi/sprites",
     };
 
-    layers.forEach((layer, index) => {
+    const layerPromises = layers.map(async (layer, index) => {
       if (!layer.props) return;
 
       if (layer.layerType === "wmts" || layer.layerType === "wmts-nt") {
@@ -50,8 +52,20 @@ const LibreGeoportalMap = () => {
             "raster-opacity": layer.opacity,
           },
         });
+      } else if (layer.layerType === "vector") {
+        const vectorStyle = layer.props.style;
+
+        if (vectorStyle) {
+          const response = await fetch(vectorStyle);
+          const additionalStyle = await response.json();
+
+          style.sources = { ...style.sources, ...additionalStyle.sources };
+          style.layers = [...style.layers, ...additionalStyle.layers];
+        }
       }
     });
+
+    await Promise.all(layerPromises);
 
     return style;
   };
@@ -128,8 +142,16 @@ const LibreGeoportalMap = () => {
   useEffect(() => {
     if (!map.current || layers.length === 0) return;
 
-    const style = layersToMapLibreStyle();
-    map.current.setStyle(style);
+    const updateMapStyle = async () => {
+      try {
+        const style = await layersToMapLibreStyle();
+        map.current?.setStyle(style);
+      } catch (error) {
+        console.error("Error updating map style:", error);
+      }
+    };
+
+    updateMapStyle();
   }, [layers]);
 
   return (
