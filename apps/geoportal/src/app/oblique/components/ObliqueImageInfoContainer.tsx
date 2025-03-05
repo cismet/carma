@@ -5,6 +5,7 @@ import { useCesiumContext } from "@carma-mapping/cesium-engine";
 
 import { getObliqueMode } from "../../store/slices/ui";
 import { ObliqueImageInfo } from "./ObliqueImageInfo";
+import { ObliqueDebugSvg } from "./ObliqueDebugSvg";
 import { ObliqueImageRecord } from "../types";
 import { useObliqueDataContext } from "./ObliqueDataContext";
 import { useFeatureFlags } from "@carma-apps/portals";
@@ -61,22 +62,24 @@ export const ObliqueImageInfoContainer: React.FC = () => {
     [viewerRef, refreshNearestImageSearch]
   );
 
-  // Don't render anything if not in oblique mode or panel is hidden
-  if (!isObliqueMode || !isVisible || !nearestImage) {
-    return null;
-  }
-
-  if (!isDebugObliqueEnabled) {
+  // Don't render anything if not in oblique mode
+  if (!isObliqueMode) {
     return null;
   }
 
   return (
-    <ObliqueImageInfo
-      imageRecord={nearestImage}
-      distance={distanceToNearestImage}
-      onClose={hidePanel}
-      flyToImage={flyToImage}
-    />
+    <>
+      {isDebugObliqueEnabled && <ObliqueDebugSvg numImages={80} />}
+      
+      {isVisible && nearestImage && isDebugObliqueEnabled && (
+        <ObliqueImageInfo
+          imageRecord={nearestImage}
+          distance={distanceToNearestImage}
+          onClose={hidePanel}
+          flyToImage={flyToImage}
+        />
+      )}
+    </>
   );
 };
 
