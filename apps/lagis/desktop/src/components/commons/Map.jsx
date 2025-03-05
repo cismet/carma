@@ -519,7 +519,7 @@ const Map = ({
             gazData={gazData}
             onSelection={onGazetteerSelection}
             pixelwidth="500px"
-            placeholder="Wohin?"
+            placeholder="Geben Sie einen Suchbegriff ein"
           />
         </div>
       </>
