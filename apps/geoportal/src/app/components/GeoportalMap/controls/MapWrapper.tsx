@@ -13,6 +13,7 @@ import {
 import {
   faCompress,
   faExpand,
+  faEyeSlash,
   faHouseChimney,
   faInfo,
   faLocationArrow,
@@ -259,17 +260,20 @@ const MapWrapper = () => {
     <ControlLayout onHeightResize={setLayoutHeight} ifStorybook={false}>
       {zenMode ? (
         <>
-          <Control position="topleft" order={10}>
-            <ControlButtonStyler
-              onClick={() => {
-                dispatch(setZenMode(false));
-              }}
-              width="128px"
-              fontSize="12px"
-              dataTestId="close-zen-mode-control"
-            >
-              <span className="font-medium">Zen-Modus verlassen</span>
-            </ControlButtonStyler>
+          <Control position="topcenter" order={10}>
+            <div className="pr-16 pt-1.5">
+              <Tooltip title={`Bedienelemente einblenden`}>
+                <button
+                  className={`text-xl hover:text-gray-600`}
+                  onClick={() => {
+                    dispatch(setZenMode(false));
+                  }}
+                  data-test-id="zen-mode-btn"
+                >
+                  <FontAwesomeIcon fixedWidth={true} icon={faEyeSlash} />
+                </button>
+              </Tooltip>
+            </div>
           </Control>
         </>
       ) : (
