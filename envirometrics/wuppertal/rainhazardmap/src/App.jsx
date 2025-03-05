@@ -13,30 +13,15 @@ import versionData from "./version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
 import NotesDisplay from "./NotesDisplay";
 import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/starkregengefahrenkarte";
-import {
-  TopicMapSelectionContent,
-  useGazData,
-  useSelection,
-  useSelectionTopicMap,
-} from "@carma-apps/portals";
-import {
-  EmptySearchComponent,
-  LibFuzzySearch,
-} from "@carma-mapping/fuzzy-search";
-import { isAreaType } from "@carma-commons/resources";
-import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
+import { TopicMapSelectionContent } from "@carma-apps/portals";
+import FuzzySearch from "./app/components/FuzzySearch";
 
 function App() {
   const email = "starkregen@stadt.wuppertal.de";
   // const [gazData, setGazData] = useState([]);
   const [hinweisData, setHinweisData] = useState([]);
   const version = getApplicationVersion(versionData);
-  // const { responsiveState, gap, windowSize } = useContext(
-  //   ResponsiveTopicMapContext
-  // );
-
-  // const pixelwidth =
-  //   responsiveState === "normal" ? "300px" : windowSize.width - gap;
 
   // const getGazData = async (setData) => {
   //   const prefix = "GazDataForStarkregengefahrenkarteByCismet";
@@ -114,31 +99,6 @@ function App() {
     getHinweisData(setHinweisData, config.config.hinweisDataUrl);
   }, []);
 
-  const { gazData } = useGazData();
-  const { setSelection } = useSelection();
-
-  useSelectionTopicMap();
-
-  const onGazetteerSelection = (selection) => {
-    if (!selection) {
-      setSelection(null);
-      return;
-    }
-    const selectionMetaData = {
-      selectedFrom: "gazetteer",
-      selectionTimestamp: Date.now(),
-      isAreaSelection: isAreaType(selection.type),
-    };
-    setSelection(Object.assign({}, selection, selectionMetaData));
-
-    setTimeout(() => {
-      const gazId = selection.more?.pid || selection.more?.kid;
-      setSelectedFeatureByPredicate(
-        (feature) => feature.properties.id === gazId
-      );
-    }, 100);
-  };
-
   return (
     <CrossTabCommunicationContextProvider
       role="sync"
@@ -162,7 +122,8 @@ function App() {
               })}
             />
           }
-          gazetteerSearchPlaceholder="Stadtteil | Adresse | POI | GEP"
+          gazetteerSearchControl={false}
+          gazetteerSearchComponent={EmptySearchComponent}
           emailaddress={email}
           initialState={config.initialState}
           config={config.config}
@@ -170,20 +131,14 @@ function App() {
           homeCenter={[51.27202324060668, 7.20162372978018]}
           modeSwitcherTitle="Starkregengefahrenkarte"
           documentTitle="Starkregengefahrenkarte Wuppertal"
-          gazData={gazData}
+          // gazData={gazData}
         >
           <TopicMapSelectionContent />
           <NotesDisplay hinweisData={hinweisData} />
           <CrossTabCommunicationControl hideWhenNoSibblingIsPresent={true} />
         </HeavyRainHazardMap>
-        <div className="custom-left-control">
-          <LibFuzzySearch
-            gazData={gazData}
-            onSelection={onGazetteerSelection}
-            pixelwidth={pixelwidth}
-            placeholder={searchTextPlaceholder}
-          />
-        </div>
+
+        <FuzzySearch />
       </TopicMapContextProvider>
     </CrossTabCommunicationContextProvider>
   );
