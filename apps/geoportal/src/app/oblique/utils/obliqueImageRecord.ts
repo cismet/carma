@@ -38,8 +38,7 @@ export const extendObliqueImageRecord = (
     ({ heading } = calculateHPRfromOPK(image.orientation));
 
     // Adjust the heading for the coordinate system if needed
-    // Use the existing converter that was passed to this function
-    //heading = adjustHeadingToWGS84(heading, image.perspectiveCenter, converter);
+    heading = adjustHeadingToWGS84(heading, image.perspectiveCenter, converter);
 
     sector = getSectorFromHeading(heading);
   }

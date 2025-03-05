@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { Math as CesiumMath } from "cesium";
 import { useCesiumContext } from "@carma-mapping/cesium-engine";
+import { Select } from "antd";
 
 import { useObliqueDataContext } from "./ObliqueDataContext";
 import { findNearestKObliqueImages } from "../utils/spatialIndexing";
 import { ObliqueImageRecord } from "../types";
+
+type AngleType = "kappa" | "omega" | "phi" | "calculatedHeading";
 
 interface ObliqueDebugSvgProps {
   numImages?: number;
@@ -21,6 +24,7 @@ export const ObliqueDebugSvg: React.FC<ObliqueDebugSvgProps> = ({
   }>>([]);
   const [cameraPosition, setCameraPosition] = useState<[number, number]>([0, 0]);
   const [cameraHeading, setCameraHeading] = useState<number>(0);
+  const [angleType, setAngleType] = useState<AngleType>("calculatedHeading");
 
   // SVG dimensions
   const svgWidth = 400;
@@ -73,6 +77,10 @@ export const ObliqueDebugSvg: React.FC<ObliqueDebugSvgProps> = ({
     };
   }, [viewerRef, imageRecords, converter, numImages]);
 
+  const handleAngleTypeChange = (value: AngleType) => {
+    setAngleType(value);
+  };
+
   if (!nearestImages.length) {
     return null;
   }
@@ -120,9 +128,29 @@ export const ObliqueDebugSvg: React.FC<ObliqueDebugSvgProps> = ({
     );
   }
 
+  // Get the nearest image for drawing the line
+  const nearestImage = nearestImages.length > 0 ? nearestImages[0].record : null;
+  
+  // Line to nearest image
+  const lineToNearest = nearestImage ? (
+    <line
+      x1={halfGrid}
+      y1={halfGrid}
+      x2={halfGrid + (nearestImage.perspectiveCenter.x - cameraPosition[0]) * (gridSize / (2 * halfGrid))}
+      y2={halfGrid - (nearestImage.perspectiveCenter.y - cameraPosition[1]) * (gridSize / (2 * halfGrid))}
+      stroke="rgba(0, 255, 0, 0.8)"
+      strokeWidth={2}
+      strokeDasharray="5,5"
+    />
+  ) : null;
+
   // Map image points - show images on both sides
   const imagePoints = nearestImages
     .slice(0, numImages)
+    .filter(({ record }) => {
+      // Filter out nadir images (typically have "NAD" in their ID)
+      return !record.id.includes("NAD");
+    })
     .map(({ record, distance }, index) => {
       // Calculate position relative to the grid
       const relX = record.perspectiveCenter.x - cameraPosition[0];
@@ -133,8 +161,23 @@ export const ObliqueDebugSvg: React.FC<ObliqueDebugSvgProps> = ({
       const x = halfGrid + relX * scale;
       const y = halfGrid - relY * scale; // Flip Y for SVG coords
       
-      // Get heading (use calculated heading if available, otherwise default to 0)
-      const heading = record.calculatedHeading !== undefined ? record.calculatedHeading : 0;
+      // Get the selected angle based on angleType
+      let heading: number;
+      switch (angleType) {
+        case "kappa":
+          heading = record.orientation.kappa;
+          break;
+        case "omega":
+          heading = record.orientation.omega;
+          break;
+        case "phi":
+          heading = record.orientation.phi;
+          break;
+        case "calculatedHeading":
+        default:
+          heading = record.calculatedHeading !== undefined ? record.calculatedHeading : 0;
+          break;
+      }
       
       // Calculate color based on distance (closer = more opaque)
       const maxDistance = nearestImages[nearestImages.length - 1]?.distance || 1;
@@ -244,38 +287,63 @@ export const ObliqueDebugSvg: React.FC<ObliqueDebugSvgProps> = ({
   );
 
   return (
-    <svg
-      width={`${svgWidth}px`}
-      height={`${svgHeight}px`}
-      viewBox={`0 0 ${gridSize} ${gridSize}`}
-      style={{
-        position: "absolute",
-        top: "10px",
-        left: "60px", // Position with 60px left space
-        pointerEvents: "none",
-        background: "rgba(255, 255, 255, 0.5)",
-        borderRadius: "4px",
-        overflow: "hidden",
-        zIndex: 2000,
-        mixBlendMode: "normal"
-      }}
-    >
-      {gridLines}
-      {imagePoints}
-      {cameraMarker}
-      {headingIndicator}
-      <text
-        x="10"
-        y={gridSize - 10}
-        fontSize="12"
-        fill="black"
-        stroke="white"
-        strokeWidth={0.5}
-        paintOrder="stroke"
+    <>
+      <div
+        style={{
+          position: "absolute",
+          top: "10px",
+          left: "60px",
+          zIndex: 2001,
+          width: "120px",
+        }}
       >
-        Heading: {(cameraHeading * 180 / Math.PI).toFixed(1)}°
-      </text>
-    </svg>
+        <Select
+          style={{ width: "100%" }}
+          value={angleType}
+          onChange={handleAngleTypeChange}
+          options={[
+            { value: "calculatedHeading", label: "Heading" },
+            { value: "kappa", label: "Kappa" },
+            { value: "omega", label: "Omega" },
+            { value: "phi", label: "Phi" },
+          ]}
+        />
+      </div>
+      <svg
+        width={`${svgWidth}px`}
+        height={`${svgHeight}px`}
+        viewBox={`0 0 ${gridSize} ${gridSize}`}
+        style={{
+          position: "absolute",
+          top: "10px",
+          left: "60px", // Position with 60px left space
+          pointerEvents: "none",
+          background: "rgba(255, 255, 255, 0.5)",
+          borderRadius: "4px",
+          overflow: "hidden",
+          zIndex: 2000,
+          mixBlendMode: "normal",
+          marginTop: "40px", // Add space for the dropdown
+        }}
+      >
+        {gridLines}
+        {lineToNearest}
+        {imagePoints}
+        {cameraMarker}
+        {headingIndicator}
+        <text
+          x="10"
+          y={gridSize - 10}
+          fontSize="12"
+          fill="black"
+          stroke="white"
+          strokeWidth={0.5}
+          paintOrder="stroke"
+        >
+          Heading: {(cameraHeading * 180 / Math.PI).toFixed(1)}°
+        </text>
+      </svg>
+    </>
   );
 };
 
