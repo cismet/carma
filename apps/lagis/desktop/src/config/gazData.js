@@ -2,11 +2,7 @@ import { createConfig, ENDPOINT } from "@carma-commons/resources";
 
 const prefix = "GazDataForHitzeinderstadtByCismet";
 
-const endpoints = [
-  ENDPOINT.ADRESSEN,
-  ENDPOINT.POIS,
-  // ENDPOINT.KITAS
-];
+const endpoints = [ENDPOINT.ADRESSEN, ENDPOINT.POIS, ENDPOINT.KITAS];
 
 const host = "https://wunda-geoportal.cismet.de";
 const crs = "3857";

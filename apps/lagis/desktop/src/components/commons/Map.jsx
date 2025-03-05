@@ -284,7 +284,6 @@ const Map = ({
         selection.y,
       ]);
       const map = refRoutedMap.current.leafletMap.leafletElement;
-      console.log("xxx refRoutedMap", map);
       map.panTo([pos[1], pos[0]], {
         animate: false,
       });
@@ -511,14 +510,11 @@ const Map = ({
             mode={mode}
           />
         </RoutedMap>
-        {/* <FuzzySearchControl
-          map={refRoutedMap?.current?.leafletMap?.leafletElement}
-        /> */}
         <div className="custom-left-control">
           <LibFuzzySearch
             gazData={gazData}
             onSelection={onGazetteerSelection}
-            pixelwidth="500px"
+            pixelwidth="400px"
             placeholder="Geben Sie einen Suchbegriff ein"
           />
         </div>
