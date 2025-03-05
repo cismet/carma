@@ -46,6 +46,7 @@ const Navbar = ({
   currentWidthTrigger,
   currentHeightTrigger,
   rightPadding = 50,
+  mode,
 }: NavProps) => {
   const { file } = useParams();
   const [showTooltip, setShowTooltip] = useState(false);
@@ -135,7 +136,7 @@ const Navbar = ({
       encoding = "CP850";
     }
 
-    let zipnamePrefix = ZIP_FILE_NAME_MAPPING["aenderungsv"];
+    let zipnamePrefix = ZIP_FILE_NAME_MAPPING[mode];
     if (zipnamePrefix === undefined) {
       zipnamePrefix = "Archiv.";
     } else if (zipnamePrefix !== "") {

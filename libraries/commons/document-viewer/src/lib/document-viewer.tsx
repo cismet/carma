@@ -223,6 +223,7 @@ export function DocumentViewer({
             routerNavigate(`/docs/${docPackageId}/${currentFile}/${page}`);
           }}
           rightPadding={isNarrowScreen ? 10 : 50}
+          mode={mode}
         />
       </div>
 
