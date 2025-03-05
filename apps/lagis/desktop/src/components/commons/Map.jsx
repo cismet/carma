@@ -296,7 +296,7 @@ const Map = ({
           animate: false,
         });
       }
-    }, 100);
+    }, 0);
   };
   return (
     <Card
