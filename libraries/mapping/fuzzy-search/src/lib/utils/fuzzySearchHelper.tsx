@@ -64,11 +64,21 @@ export function buildAddressWithIconUI(
   }
 
   const iconPrefix = addresObj?.glyphPrefix ? addresObj.glyphPrefix : "fas ";
+  const iconWithoutOverlay =
+    addresObj?.glyph === "code-fork" ? (
+      <span style={{ fontSize: "16px" }}>
+        <Icon name={addresObj.glyph} />
+      </span>
+    ) : (
+      <i className={icon && iconPrefix + "fa-" + icon}></i>
+    );
+
   const streetLabel = (
     <div style={{ paddingLeft: "0.3rem" }} data-category={category}>
       <span style={{ marginRight: "0.4rem" }}>
         {!overlay ? (
-          <i className={icon && iconPrefix + "fa-" + icon}></i>
+          // <i className={icon && iconPrefix + "fa-" + icon}></i>
+          iconWithoutOverlay
         ) : (
           <Icon name={addresObj.glyph} overlay={overlay} marginRight="2px" />
         )}
