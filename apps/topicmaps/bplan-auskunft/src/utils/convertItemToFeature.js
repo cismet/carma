@@ -20,6 +20,7 @@ const convertItemToFeature = async (itemIn, poiColors) => {
       {
         file: INFO_DOC_DATEINAMEN_NAME,
         url: INFO_DOC_DATEINAMEN_URL,
+        group: "/Zusatzdokumente",
       },
     ].concat(item.docs);
   }

@@ -54,7 +54,7 @@ export function getDocsForAEVGazetteerEntry(props: any) {
           ? "FNP-Änderung." + aev.name + ".pdf"
           : "FNP-Berichtigung." + aev.name + ".pdf";
       docs.push({
-        group: "Änderungsverfahren",
+        group: "/Änderungsverfahren",
         primary: true,
 
         file: filename,
@@ -79,7 +79,7 @@ export function getDocsForAEVGazetteerEntry(props: any) {
         docs.push({
           primary: false,
 
-          group: "Zusatzdokumente",
+          group: "/Zusatzdokumente",
           //structure: "/Zusatzdokumente",
           title: "Info Dateinamen",
           file: "Info_FNP-Zusatzdokumente_WUP.pdf",
@@ -104,7 +104,7 @@ export function getDocsForAEVGazetteerEntry(props: any) {
         const title = docObject.title;
         const d = {
           primary: false,
-          group: "Zusatzdokumente", //docs.structure,
+          group: "Zusatzdokumente" + structure,
           structure,
           title,
 
