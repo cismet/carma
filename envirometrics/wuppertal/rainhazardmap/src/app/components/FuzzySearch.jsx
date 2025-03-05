@@ -1,13 +1,9 @@
 import {
-  TopicMapSelectionContent,
   useGazData,
   useSelection,
   useSelectionTopicMap,
 } from "@carma-apps/portals";
-import {
-  EmptySearchComponent,
-  LibFuzzySearch,
-} from "@carma-mapping/fuzzy-search";
+import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { isAreaType } from "@carma-commons/resources";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { useContext } from "react";
@@ -42,6 +38,7 @@ const FuzzySearch = () => {
       );
     }, 100);
   };
+
   return (
     <div className="custom-left-control">
       <LibFuzzySearch

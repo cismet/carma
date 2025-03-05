@@ -123,7 +123,7 @@ function App() {
             />
           }
           gazetteerSearchControl={false}
-          gazetteerSearchComponent={EmptySearchComponent}
+          // gazetteerSearchComponent={EmptySearchComponent}
           emailaddress={email}
           initialState={config.initialState}
           config={config.config}
