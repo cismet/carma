@@ -178,7 +178,7 @@ export function LibFuzzySearch({
         ".rc-virtual-list-holder"
       );
       const inputElement = document.querySelector(
-        ".ant-select-selection-search-input"
+        ".fuzzy-search-container .ant-select-selection-search-input"
       );
 
       if (showCategories) {
