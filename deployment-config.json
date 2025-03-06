@@ -1219,7 +1219,7 @@
           }
         }
       },
-      "projectPath": "./dist/services/rasterfari-tileserver-wms-companion/"
+      "projectPath": "./dist/services/rasterfari-tileserver-wms-companion"
     }
   }
 }
