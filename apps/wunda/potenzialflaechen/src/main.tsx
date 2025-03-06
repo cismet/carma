@@ -2,8 +2,9 @@ import { StrictMode } from "react";
 import * as ReactDOM from "react-dom/client";
 import reportWebVitals from "./app/reportWebVitals";
 import * as serviceWorkerRegistration from "./app/serviceWorkerRegistration";
-
+import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
 import App from "./app/App.jsx";
+import { gazDataConfig } from "./config/gazData.js";
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement
@@ -13,7 +14,11 @@ if (typeof global === "undefined") {
 }
 root.render(
   <StrictMode>
-    <App />
+    <GazDataProvider config={gazDataConfig}>
+      <SelectionProvider>
+        <App />
+      </SelectionProvider>
+    </GazDataProvider>
   </StrictMode>
 );
 
