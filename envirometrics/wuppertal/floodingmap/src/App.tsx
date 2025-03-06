@@ -28,7 +28,11 @@ import {
   useSelectionCesium,
   useSelectionTopicMap,
 } from "@carma-apps/portals";
-import { ENDPOINT, isAreaType } from "@carma-commons/resources";
+import {
+  ENDPOINT,
+  isAreaType,
+  isAreaTypeWithGEP,
+} from "@carma-commons/resources";
 import { getApplicationVersion } from "@carma-commons/utils";
 import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/hochwassergefahrenkarte";
 
@@ -44,7 +48,11 @@ import {
   useHomeControl,
   useZoomControls,
 } from "@carma-mapping/cesium-engine";
-import { LibFuzzySearch, SearchResultItem } from "@carma-mapping/fuzzy-search";
+import {
+  EmptySearchComponent,
+  LibFuzzySearch,
+  SearchResultItem,
+} from "@carma-mapping/fuzzy-search";
 
 import {
   Control,
@@ -68,9 +76,16 @@ import {
 } from "./config/cesium/cesium.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 function App({ sync = false }: { sync?: boolean }) {
   const version = getApplicationVersion(versionData);
+  const { responsiveState, gap, windowSize } = useContext<
+    typeof ResponsiveTopicMapContext
+  >(ResponsiveTopicMapContext);
+
+  const pixelwidth =
+    responsiveState === "normal" ? "300px" : windowSize.width - gap;
 
   const { gazData } = useGazData();
 
@@ -129,7 +144,7 @@ function App({ sync = false }: { sync?: boolean }) {
     const selectionMetaData: SelectionMetaData = {
       selectedFrom: "gazetteer",
       selectionTimestamp: Date.now(),
-      isAreaSelection: isAreaType(selection.type as ENDPOINT),
+      isAreaSelection: isAreaTypeWithGEP(selection.type as ENDPOINT),
     };
     setSelection(Object.assign({}, selection, selectionMetaData));
   };
@@ -303,8 +318,9 @@ function App({ sync = false }: { sync?: boolean }) {
                 gazData={gazData}
                 //referenceSystem={referenceSystem}
                 //referenceSystemDefinition={referenceSystemDefinition}
+                pixelwidth={pixelwidth}
                 onSelection={onGazetteerSelection}
-                placeholder="Wohin?"
+                placeholder="Stadtteil | Adresse | POI | GEP"
               />
             </div>
           </Control>
@@ -333,7 +349,8 @@ function App({ sync = false }: { sync?: boolean }) {
           locatorControl={false}
           fullScreenControl={false}
           zoomControls={false}
-          gazetteerSearchControl={false}
+          gazetteerSearchControl={true}
+          gazetteerSearchComponent={EmptySearchComponent}
           animationEnabled={false}
           toggleEnabled={true}
           customInfoBoxToggleState={hochwasserschutz}
