@@ -1197,5 +1197,29 @@
       },
       "projectPath": "./dist/envirometrics/paderborn/rainhazardmap"
     }
+  },
+  "rasterfari-tileserver-wms-companion": {
+    "deployment": {
+      "manual": {
+        "dev": {
+          "container": {
+            "image": "cismet/carma-rasterfari-tileserver-wms-companion:"
+          }
+        },
+        "live": {
+          "container": {
+            "image": "cismet/carma-rasterfari-tileserver-wms-companion:"
+          }
+        }
+      },
+      "auto": {
+        "dev": {
+          "container": {
+            "image": "cismet/carma-rasterfari-tileserver-wms-companion:"
+          }
+        }
+      }
+    },
+    "projectPath": "./dist/services/rasterfari-tileserver-wms-companion/"
   }
 }
