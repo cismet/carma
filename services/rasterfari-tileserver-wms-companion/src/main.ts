@@ -1,5 +1,7 @@
 // main.ts
 import express, { Request, Response } from "express";
+// import version from "./version.json";
+// console.log(`Starting rasterfari-tileserver-wms-companion v${version}`);
 
 const host = process.env.HOST ?? "localhost";
 const port = process.env.PORT ? Number(process.env.PORT) : 3000;
@@ -7,7 +9,7 @@ const app = express();
 
 // Default route
 app.get("/", (req: Request, res: Response) => {
-  res.send({ message: "Hello API" });
+  res.send({ message: "Hello rasterfari-tileserver-wms-companion" });
 });
 
 // Configurable constants for the image URL
