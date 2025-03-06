@@ -122,8 +122,8 @@ function App() {
               })}
             />
           }
-          gazetteerSearchControl={false}
-          // gazetteerSearchComponent={EmptySearchComponent}
+          gazetteerSearchControl={true}
+          gazetteerSearchComponent={EmptySearchComponent}
           emailaddress={email}
           initialState={config.initialState}
           config={config.config}
