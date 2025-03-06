@@ -85,7 +85,7 @@ function App({ sync = false }: { sync?: boolean }) {
   >(ResponsiveTopicMapContext);
 
   const pixelwidth =
-    responsiveState === "normal" ? "300px" : windowSize.width - gap;
+    responsiveState === "normal" ? "300px" : windowSize.width - gap - 2;
 
   const { gazData } = useGazData();
 
@@ -313,7 +313,7 @@ function App({ sync = false }: { sync?: boolean }) {
             </ControlButtonStyler>
           </Control>
           <Control position="bottomleft" order={10}>
-            <div data-test-id="fuzzy-search" className="h-full w-full">
+            <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
               <LibFuzzySearch
                 gazData={gazData}
                 //referenceSystem={referenceSystem}
