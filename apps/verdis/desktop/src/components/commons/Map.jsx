@@ -502,14 +502,12 @@ const Map = ({
             mapRef={leafletRoutedMapRef}
           />
         )} */}
-        {showLandParcelChooser ? (
+        {showLandParcelChooser && (
           <LandParcelChooser
-            setGazetteerHit={setGazetteerHit}
+            setGazetteerHit={onGazetteerSelection}
             setOverlayFeature={setOverlayFeature}
             setShowLandParcelChooser={setShowLandParcelChooser}
           />
-        ) : (
-          <></>
         )}
 
         {showBackground && (
@@ -613,14 +611,34 @@ const Map = ({
           mode={mode}
         />
       </RoutedMap>
-      <div className="custom-left-control">
-        <LibFuzzySearch
-          gazData={gazData}
-          onSelection={onGazetteerSelection}
-          pixelwidth="500px"
-          placeholder="Geben Sie einen Suchbegriff ein"
-        />
-      </div>
+      {!showLandParcelChooser && (
+        <div className="custom-left-control">
+          <Tooltip
+            title="Flurstückssuche"
+            align={{
+              offset: [0, -6],
+            }}
+          >
+            <button
+              className="border-[#0d6efd] z-[9999] bg-gradient-to-b from-[#ffffff] to-[#e0e0e0] h-[34px] w-[32px] border rounded-l-[4px]"
+              onClick={() => setShowLandParcelChooser(true)}
+            >
+              <FontAwesomeIcon
+                icon={faF}
+                // icon={faA}
+                // className={`${selectedGemarkung ? "text-xl" : "h-4"} mt-[2px]`}
+              />
+            </button>
+          </Tooltip>
+          <LibFuzzySearch
+            gazData={gazData}
+            onSelection={onGazetteerSelection}
+            pixelwidth="500px"
+            placeholder="Geben Sie einen Suchbegriff ein"
+          />
+        </div>
+      )}
+
       <Toolbar />
     </Card>
   );
