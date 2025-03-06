@@ -617,7 +617,7 @@ const Map = ({
         <LibFuzzySearch
           gazData={gazData}
           onSelection={onGazetteerSelection}
-          pixelwidth="400px"
+          pixelwidth="500px"
           placeholder="Geben Sie einen Suchbegriff ein"
         />
       </div>
