@@ -29,6 +29,7 @@ import StreetCleaningDetailsPage from "./pages/StreetCleaningDetails";
 import store from "./store";
 import { checkJWTValidation, getJWT } from "./store/slices/auth";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
+import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
 import {
   additionalLayerConfiguration,
   backgroundConfigurations,
@@ -47,8 +48,8 @@ import { MapContainer } from "react-leaflet";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
 import AlkisLandparcelPage from "./pages/AlkisLandparcelPage";
 import AlkisBookingSheetPage from "./pages/AlkisBookingSheetPage";
-// import RenderNavWrapper from "./components/render/RenderNavWrapper";
 import { AlkisNav } from "@carma-apps/alkis-renderer";
+import { gazDataConfig } from "./config/gazData";
 
 const logoSrc = "/logo.svg";
 const urlPrefix = window.location.origin + window.location.pathname;
@@ -193,18 +194,22 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     >
       <Provider store={store}>
         <QueryClientProvider client={queryClient}>
-          <TopicMapContextProvider
-            appKey="verdis-desktop.map"
-            backgroundModes={backgroundModes}
-            backgroundConfigurations={backgroundConfigurations}
-            baseLayerConf={baseLayerConf}
-            offlineCacheConfig={offlineConfig}
-            additionalLayerConfiguration={additionalLayerConfiguration}
-          >
-            <PersistGate loading={null} persistor={persistor}>
-              <RouterProvider router={router} />
-            </PersistGate>
-          </TopicMapContextProvider>
+          <GazDataProvider config={gazDataConfig}>
+            <SelectionProvider>
+              <TopicMapContextProvider
+                appKey="verdis-desktop.map"
+                backgroundModes={backgroundModes}
+                backgroundConfigurations={backgroundConfigurations}
+                baseLayerConf={baseLayerConf}
+                offlineCacheConfig={offlineConfig}
+                additionalLayerConfiguration={additionalLayerConfiguration}
+              >
+                <PersistGate loading={null} persistor={persistor}>
+                  <RouterProvider router={router} />
+                </PersistGate>
+              </TopicMapContextProvider>
+            </SelectionProvider>
+          </GazDataProvider>
         </QueryClientProvider>
       </Provider>
     </ConfigProvider>
