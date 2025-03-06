@@ -18,6 +18,7 @@ const LandParcelChooser = ({
   setGazetteerHit,
   setOverlayFeature,
   setShowLandParcelChooser,
+  setShowFIcon,
 }) => {
   const landparcels = useSelector(getLandparcels);
   const gemarkungen = useSelector(getGemarkungen);
@@ -217,6 +218,7 @@ const LandParcelChooser = ({
           <FontAwesomeIcon
             icon={selectedGemarkung ? faXmark : faA}
             className={`${selectedGemarkung ? "text-xl" : "h-4"} mt-[2px]`}
+            onClick={() => setShowFIcon(true)}
           />
         </button>
       </Tooltip>
