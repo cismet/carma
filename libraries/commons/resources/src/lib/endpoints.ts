@@ -61,6 +61,17 @@ export const isAreaType = (endpoint: ENDPOINT) => {
   return AREA_ENDPOINTS.includes(endpoint);
 };
 
+const AREA_ENDPOINTS_GEP = [
+  ENDPOINT.BEZIRKE,
+  ENDPOINT.QUARTIERE,
+  ENDPOINT.GEPS,
+  ENDPOINT.GEPS_REVERSE,
+];
+
+export const isAreaTypeWithGEP = (endpoint: ENDPOINT) => {
+  return AREA_ENDPOINTS_GEP.includes(endpoint);
+};
+
 export const createGazEndpointUri = (
   endpoint: ENDPOINT,
   { crs, host }: EndpointOptions

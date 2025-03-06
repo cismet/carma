@@ -4,7 +4,7 @@ import {
   useSelectionTopicMap,
 } from "@carma-apps/portals";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
-import { isAreaType } from "@carma-commons/resources";
+import { isAreaTypeWithGEP } from "@carma-commons/resources";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { useContext } from "react";
 const FuzzySearch = () => {
@@ -16,7 +16,6 @@ const FuzzySearch = () => {
     responsiveState === "normal" ? "300px" : windowSize.width - gap;
   const { gazData } = useGazData();
   const { setSelection } = useSelection();
-
   useSelectionTopicMap();
 
   const onGazetteerSelection = (selection) => {
@@ -24,10 +23,11 @@ const FuzzySearch = () => {
       setSelection(null);
       return;
     }
+
     const selectionMetaData = {
       selectedFrom: "gazetteer",
       selectionTimestamp: Date.now(),
-      isAreaSelection: isAreaType(selection.type),
+      isAreaSelection: isAreaTypeWithGEP(selection.type),
     };
     setSelection(Object.assign({}, selection, selectionMetaData));
 
