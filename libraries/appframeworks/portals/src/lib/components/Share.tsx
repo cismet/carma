@@ -5,7 +5,6 @@ import { Button, Checkbox, Radio, Tooltip, message } from "antd";
 import LZString from "lz-string";
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import "./popover.css";
 import { generateRandomString } from "@carma-commons/utils";
 import type { LayerState, Settings } from "../types";
 import { faCopy } from "@fortawesome/free-regular-svg-icons";
