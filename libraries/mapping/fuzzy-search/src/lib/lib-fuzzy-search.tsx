@@ -44,6 +44,7 @@ export function LibFuzzySearch({
   pixelwidth = 300,
   ifShowCategories: standardSearch = true,
   placeholder = "Wohin?",
+  onCLose = () => {},
   config = {
     prepoHandling: false,
     ifShowScore: false,
@@ -265,6 +266,7 @@ export function LibFuzzySearch({
       setSearchResult([]);
       setCleanBtnDisable(true);
       onSelection(null);
+      onCLose();
     }
   };
 

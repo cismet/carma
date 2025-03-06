@@ -119,6 +119,7 @@ const Map = ({
   // const [fallback, setFallback] = useState({});
   const [showVirtualCityOverlay, setShowVirtualCityOverlay] = useState(false);
   const [infoText, setInfoText] = useState("");
+  const [showFIcon, setShowFIcon] = useState(true);
   const showCurrentFeatureCollection = useSelector(
     getShowCurrentFeatureCollection
   );
@@ -243,7 +244,9 @@ const Map = ({
     }
   }, [mapWidth, mapHeight]);
   [,];
-
+  const handleShowFIcon = () => {
+    setShowFIcon(true);
+  };
   const lockMap = useSelector(getLockMap);
   const lockMapOnlyInKassenzeichen = useSelector(getLockMapOnlyInKassenzeichen);
 
@@ -323,6 +326,8 @@ const Map = ({
           animate: false,
         });
       }
+
+      setShowFIcon(false);
     }, 0);
   };
 
@@ -507,6 +512,7 @@ const Map = ({
             setGazetteerHit={onGazetteerSelection}
             setOverlayFeature={setOverlayFeature}
             setShowLandParcelChooser={setShowLandParcelChooser}
+            setShowFIcon={setShowFIcon}
           />
         )}
 
@@ -613,25 +619,24 @@ const Map = ({
       </RoutedMap>
       {!showLandParcelChooser && (
         <div className="custom-left-control">
-          <Tooltip
-            title="Flurstückssuche"
-            align={{
-              offset: [0, -6],
-            }}
-          >
-            <button
-              className="absolute border-[#0d6efd] z-[9999] bg-gradient-to-b from-[#ffffff] to-[#e0e0e0] h-[34px] w-[32px] border rounded-l-[4px]"
-              onClick={() => setShowLandParcelChooser(true)}
+          {showFIcon && (
+            <Tooltip
+              title="Flurstückssuche"
+              align={{
+                offset: [0, -6],
+              }}
             >
-              <FontAwesomeIcon
-                icon={faF}
-                // icon={faA}
-                // className={`${selectedGemarkung ? "text-xl" : "h-4"} mt-[2px]`}
-              />
-            </button>
-          </Tooltip>
+              <button
+                className="absolute border-[#0d6efd] z-[9999] bg-gradient-to-b from-[#ffffff] to-[#e0e0e0] h-[34px] w-[32px] border rounded-l-[4px]"
+                onClick={() => setShowLandParcelChooser(true)}
+              >
+                <FontAwesomeIcon icon={faF} />
+              </button>
+            </Tooltip>
+          )}
           <LibFuzzySearch
             gazData={gazData}
+            onCLose={handleShowFIcon}
             onSelection={onGazetteerSelection}
             pixelwidth="500px"
             placeholder="Geben Sie einen Suchbegriff ein"

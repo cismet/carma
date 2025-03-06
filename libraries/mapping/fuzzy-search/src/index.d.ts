@@ -3,6 +3,7 @@ import { GazDataItem } from "@carma-commons/utils";
 export type SearchGazetteerProps = {
   gazData?: GazDataItem[];
   onSelection: (hit: SearchResultItem | null) => void;
+  onCLose?: () => void;
   //referenceSystem: undefined;
   //referenceSystemDefinition: undefined;
   stopwords?: string[];
