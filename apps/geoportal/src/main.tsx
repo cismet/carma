@@ -44,6 +44,10 @@ root.render(
             path: "/maplibre",
             element: <LibreGeoportalMap />,
           },
+          {
+            path: "/ng",
+            element: <LibreGeoportalMap />,
+          },
         ])}
       />
     </PersistGate>
