@@ -1,10 +1,8 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { MappingConstants } from "react-cismap";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
-import { md5FetchText } from "react-cismap/tools/fetching";
 import HeavyRainHazardMap from "@cismet-dev/react-cismap-envirometrics-maps/HeavyRainHazardMap";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
-import { getGazDataForTopicIds } from "react-cismap/tools/gazetteerHelper";
 import { md5FetchJSON } from "react-cismap/tools/fetching";
 import CrossTabCommunicationControl from "react-cismap/CrossTabCommunicationControl";
 import CrossTabCommunicationContextProvider from "react-cismap/contexts/CrossTabCommunicationContextProvider";
@@ -19,11 +17,8 @@ import FuzzySearch from "./app/components/FuzzySearch";
 
 function App() {
   const email = "starkregen@stadt.wuppertal.de";
-  // const [gazData, setGazData] = useState([]);
   const [hinweisData, setHinweisData] = useState([]);
   const version = getApplicationVersion(versionData);
-
-  // const getGazData = async (setData) => {
   //   const prefix = "GazDataForStarkregengefahrenkarteByCismet";
   //   const sources = {};
 
@@ -95,7 +90,6 @@ function App() {
   };
 
   useEffect(() => {
-    // getGazData(setGazData);
     getHinweisData(setHinweisData, config.config.hinweisDataUrl);
   }, []);
 
@@ -131,13 +125,11 @@ function App() {
           homeCenter={[51.27202324060668, 7.20162372978018]}
           modeSwitcherTitle="Starkregengefahrenkarte"
           documentTitle="Starkregengefahrenkarte Wuppertal"
-          // gazData={gazData}
         >
           <TopicMapSelectionContent />
           <NotesDisplay hinweisData={hinweisData} />
           <CrossTabCommunicationControl hideWhenNoSibblingIsPresent={true} />
         </HeavyRainHazardMap>
-
         <FuzzySearch />
       </TopicMapContextProvider>
     </CrossTabCommunicationContextProvider>
