@@ -9,6 +9,8 @@ import { CesiumConfig } from "@carma-mapping/cesium-engine";
 import { LeafletConfig } from "types/leaflet-config";
 
 export const APP_BASE_PATH = import.meta.env.BASE_URL;
+export const ICON_PREFIX =
+  "https://www.wuppertal.de/geoportal/geoportal_icon_legends/";
 
 const CESIUM_PATHNAME = "__cesium__";
 

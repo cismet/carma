@@ -40,6 +40,7 @@ import { iconColorMap, iconMap } from "./items";
 import LayerInfo from "./LayerInfo";
 import OpacitySlider from "./OpacitySlider";
 import VisibilityToggle from "./VisibilityToggle";
+import { ICON_PREFIX } from "../../config/app.config";
 
 type Ref = HTMLDivElement;
 
@@ -55,7 +56,6 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
   const dispatch = useDispatch();
   const showInfo = useSelector(getUIShowInfo);
   const showInfoText = useSelector(getUIShowInfoText);
-  const urlPrefix = window.location.origin + window.location.pathname;
   const selectedLayerIndex = useSelector(getSelectedLayerIndex);
   const layers = useSelector(getLayers);
   const backgroundLayer = useSelector(getBackgroundLayer);
@@ -202,8 +202,8 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
               {iconName ? (
                 <div style={{ height: 14, width: 14 }}>
                   <img
-                    src={urlPrefix + `icons/${iconName}.png`}
-                    alt="Ortho"
+                    src={ICON_PREFIX + `${iconName}.png`}
+                    alt="Icon"
                     className="h-full"
                   />
                 </div>

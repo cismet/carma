@@ -13,6 +13,7 @@ import {
 import { iconColorMap, iconMap } from "./items";
 import OpacitySlider from "./OpacitySlider";
 import VisibilityToggle from "./VisibilityToggle";
+import { ICON_PREFIX } from "../../config/app.config";
 
 interface LayerRowProps {
   layer: Layer;
@@ -23,7 +24,6 @@ interface LayerRowProps {
 
 const LayerRow = ({ layer, id, isBackgroundLayer, index }: LayerRowProps) => {
   const dispatch = useDispatch();
-  const urlPrefix = window.location.origin + window.location.pathname;
   const icon = layer?.other?.icon;
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
@@ -54,8 +54,8 @@ const LayerRow = ({ layer, id, isBackgroundLayer, index }: LayerRowProps) => {
         {icon ? (
           <div style={{ height: 14, width: 14 }}>
             <img
-              src={urlPrefix + `icons/${icon}.png`}
-              alt="Ortho"
+              src={ICON_PREFIX + `${icon}.png`}
+              alt="Icon"
               className="h-full"
             />
           </div>

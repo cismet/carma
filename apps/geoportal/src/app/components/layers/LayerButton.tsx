@@ -45,6 +45,7 @@ import {
 } from "../../store/slices/ui";
 import { iconColorMap, iconMap } from "./items";
 import "./tabs.css";
+import { ICON_PREFIX } from "../../config/app.config";
 
 interface LayerButtonProps {
   title: string;
@@ -85,7 +86,6 @@ const LayerButton = ({
   const showSettings = index === selectedLayerIndex;
   const layers = useSelector(getLayers);
   const layersLength = layers.length;
-  const urlPrefix = window.location.origin + window.location.pathname;
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
       id,
@@ -190,15 +190,15 @@ const LayerButton = ({
         {iconName ? (
           <div style={{ height: 14, width: 14 }}>
             <img
-              src={urlPrefix + `icons/${iconName}.png`}
-              alt="icon"
+              src={ICON_PREFIX + `${iconName}.png`}
+              alt="Icon"
               className="h-full"
             />
           </div>
         ) : icon === "ortho" ? (
           <div style={{ height: 14, width: 14 }}>
             <img
-              src={urlPrefix + "images/ortho.png"}
+              src={ICON_PREFIX + "images/ortho.png"}
               alt="Ortho"
               className="h-full"
             />
