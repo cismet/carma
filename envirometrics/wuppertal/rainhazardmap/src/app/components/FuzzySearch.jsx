@@ -31,12 +31,12 @@ const FuzzySearch = () => {
     };
     setSelection(Object.assign({}, selection, selectionMetaData));
 
-    setTimeout(() => {
-      const gazId = selection.more?.pid || selection.more?.kid;
-      setSelectedFeatureByPredicate(
-        (feature) => feature.properties.id === gazId
-      );
-    }, 100);
+    // setTimeout(() => {
+    //   const gazId = selection.more?.pid || selection.more?.kid;
+    //   setSelectedFeatureByPredicate(
+    //     (feature) => feature.properties.id === gazId
+    //   );
+    // }, 100);
   };
 
   return (
