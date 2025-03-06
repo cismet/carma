@@ -620,7 +620,7 @@ const Map = ({
             }}
           >
             <button
-              className="border-[#0d6efd] z-[9999] bg-gradient-to-b from-[#ffffff] to-[#e0e0e0] h-[34px] w-[32px] border rounded-l-[4px]"
+              className="absolute border-[#0d6efd] z-[9999] bg-gradient-to-b from-[#ffffff] to-[#e0e0e0] h-[34px] w-[32px] border rounded-l-[4px]"
               onClick={() => setShowLandParcelChooser(true)}
             >
               <FontAwesomeIcon
