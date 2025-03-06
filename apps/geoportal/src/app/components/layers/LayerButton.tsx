@@ -195,14 +195,6 @@ const LayerButton = ({
               className="h-full"
             />
           </div>
-        ) : icon === "ortho" ? (
-          <div style={{ height: 14, width: 14 }}>
-            <img
-              src={ICON_PREFIX + "images/ortho.png"}
-              alt="Ortho"
-              className="h-full"
-            />
-          </div>
         ) : (
           <FontAwesomeIcon
             icon={icon ? iconMap[icon] : faMap}

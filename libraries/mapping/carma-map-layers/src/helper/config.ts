@@ -2811,6 +2811,10 @@ export const baseConfig = {
         icon: "basis/BPlanhintergrund",
       },
       {
+        name: "R102:trueortho2024",
+        icon: "basis/Tru_Orthofoto_2018-2022",
+      },
+      {
         name: "R102:trueortho2022",
         icon: "basis/Tru_Orthofoto_2018-2022",
       },
@@ -2821,6 +2825,10 @@ export const baseConfig = {
       {
         name: "R102:trueortho2018",
         icon: "basis/Tru_Orthofoto_2018-2022",
+      },
+      {
+        name: "R102:luftbild2024",
+        icon: "basis/Orthofoto_2002-2022",
       },
       {
         name: "R102:luftbild2022",
