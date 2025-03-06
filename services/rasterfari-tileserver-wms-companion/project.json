@@ -1,0 +1,66 @@
+{
+  "name": "rasterfari-tileserver-wms-companion",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "services/rasterfari-tileserver-wms-companion/src",
+  "projectType": "application",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/esbuild:esbuild",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "platform": "node",
+        "outputPath": "dist/services/rasterfari-tileserver-wms-companion",
+        "format": ["cjs"],
+        "bundle": false,
+        "main": "services/rasterfari-tileserver-wms-companion/src/main.ts",
+        "tsConfig": "services/rasterfari-tileserver-wms-companion/tsconfig.app.json",
+        "assets": ["services/rasterfari-tileserver-wms-companion/src/assets"],
+        "generatePackageJson": true,
+        "esbuildOptions": {
+          "sourcemap": true,
+          "outExtension": {
+            ".js": ".js"
+          }
+        }
+      },
+      "configurations": {
+        "development": {},
+        "production": {
+          "esbuildOptions": {
+            "sourcemap": false,
+            "outExtension": {
+              ".js": ".js"
+            }
+          }
+        }
+      }
+    },
+    "serve": {
+      "executor": "@nx/js:node",
+      "defaultConfiguration": "development",
+      "dependsOn": ["build"],
+      "options": {
+        "buildTarget": "rasterfari-tileserver-wms-companion:build",
+        "runBuildTargetDependencies": false
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "rasterfari-tileserver-wms-companion:build:development"
+        },
+        "production": {
+          "buildTarget": "rasterfari-tileserver-wms-companion:build:production"
+        }
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "test": {
+      "options": {
+        "passWithNoTests": true
+      }
+    }
+  }
+}

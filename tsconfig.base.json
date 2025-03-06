@@ -24,6 +24,9 @@
       "@nx/react/typings/styled-jsx.d.ts"
     ],
     "paths": {
+      "@carma-apps/alkis-renderer": [
+        "libraries/appframeworks/alkis/src/index.ts"
+      ],
       "@carma-apps/envirometrics": [
         "libraries/appframeworks/envirometrics/src/index.ts"
       ],
@@ -160,10 +163,7 @@
       ],
       "@carma-pecher-collab/xanten": [
         "libraries/collaboration/carma-pecher-collab/src/xanten/index.jsx"
-      ],
-      "@carma-apps/alkis-renderer": [
-        "libraries/appframeworks/alkis/src/index.ts"
-      ],
+      ]
     },
     "skipLibCheck": true
   }
