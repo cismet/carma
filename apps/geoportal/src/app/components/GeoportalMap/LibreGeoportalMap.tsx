@@ -6,7 +6,8 @@ import { useSearchParams } from "react-router-dom";
 
 import "./LibreGeoportalMap.css";
 import { useSelector } from "react-redux";
-import { getLayers } from "../../store/slices/mapping";
+import { getBackgroundLayer, getLayers } from "../../store/slices/mapping";
+import { defaultLayerConfig } from "../../config";
 
 const LibreGeoportalMap = () => {
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -14,6 +15,7 @@ const LibreGeoportalMap = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const layers = useSelector(getLayers);
+  const backgroundLayer = useSelector(getBackgroundLayer);
 
   const layersToMapLibreStyle = async () => {
     const style: StyleSpecification = {
@@ -23,6 +25,48 @@ const LibreGeoportalMap = () => {
       glyphs: "https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf",
       sprite: "https://tiles.cismet.de/poi/sprites",
     };
+
+    if (backgroundLayer) {
+      const namedLayers = defaultLayerConfig.namedLayers;
+      const backgroundLayers = backgroundLayer.layers.split("|");
+      for (const layer of backgroundLayers) {
+        const layerName = layer.split("@")[0];
+        const layerOptions = namedLayers[layerName];
+        const opacity = layer.split("@")[1];
+        const sourceId = `source-${layerName}`;
+
+        if (layerOptions && layerOptions.type !== "vector") {
+          const url =
+            layerOptions.type === "tiles"
+              ? layerOptions.url
+              : `${layerOptions.url}?bbox={bbox-epsg-3857}&styles=&format=image/png&service=WMS&version=1.1.1&request=GetMap&srs=EPSG:3857&transparent=true&width=256&height=256&layers=${layerOptions.layers}&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}`;
+          style.sources[sourceId] = {
+            type: "raster",
+            tiles: [url],
+            tileSize: 256,
+          };
+
+          style.layers.push({
+            id: `layer-${layerName}`,
+            type: "raster",
+            source: sourceId,
+            paint: {
+              "raster-opacity": Number(opacity) / 100,
+            },
+          });
+        } else if (layerOptions && layerOptions.type === "vector") {
+          const vectorStyle = layerOptions.style;
+
+          if (vectorStyle) {
+            const response = await fetch(vectorStyle);
+            const additionalStyle = await response.json();
+
+            style.sources = { ...style.sources, ...additionalStyle.sources };
+            style.layers = [...style.layers, ...additionalStyle.layers];
+          }
+        }
+      }
+    }
 
     const layerPromises = layers.map(async (layer, index) => {
       if (!layer.props) return;
@@ -140,7 +184,7 @@ const LibreGeoportalMap = () => {
   }, [lng, lat, zoom]);
 
   useEffect(() => {
-    if (!map.current || layers.length === 0) return;
+    if (!map.current) return;
 
     const updateMapStyle = async () => {
       try {
@@ -152,7 +196,7 @@ const LibreGeoportalMap = () => {
     };
 
     updateMapStyle();
-  }, [layers]);
+  }, [layers, backgroundLayer]);
 
   return (
     <div className="map-wrap">
