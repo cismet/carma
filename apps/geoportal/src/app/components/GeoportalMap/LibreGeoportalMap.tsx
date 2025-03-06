@@ -8,6 +8,7 @@ import "./LibreGeoportalMap.css";
 import { useSelector } from "react-redux";
 import { getBackgroundLayer, getLayers } from "../../store/slices/mapping";
 import { defaultLayerConfig } from "../../config";
+import { ControlLayout, Main } from "@carma-mapping/map-controls-layout";
 
 const LibreGeoportalMap = () => {
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -20,10 +21,22 @@ const LibreGeoportalMap = () => {
   const layersToMapLibreStyle = async () => {
     const style: StyleSpecification = {
       version: 8,
-      sources: {},
+      sources: {
+        terrainSource: {
+          type: "raster-dem",
+          tiles: [
+            "https://wuppertal-terrain.cismet.de/services/wupp_dgm_01/tiles/{z}/{x}/{y}.png",
+          ],
+          tileSize: 512,
+        },
+      },
       layers: [],
       glyphs: "https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf",
       sprite: "https://tiles.cismet.de/poi/sprites",
+      terrain: {
+        source: "terrainSource",
+        exaggeration: 1,
+      },
     };
 
     if (backgroundLayer) {
@@ -162,10 +175,26 @@ const LibreGeoportalMap = () => {
         center: [lng, lat],
         zoom: zoom,
         maxZoom: 22,
+        pitch: 0,
+        maxPitch: 85,
       });
 
       map.current.on("load", () => {
-        map.current?.addControl(new maplibregl.NavigationControl(), "top-left");
+        map.current?.addControl(
+          new maplibregl.NavigationControl({
+            visualizePitch: true,
+            showZoom: true,
+            showCompass: true,
+          }),
+          "top-left"
+        );
+        map.current?.addControl(
+          new maplibregl.TerrainControl({
+            source: "terrainSource",
+            exaggeration: 1,
+          }),
+          "top-left"
+        );
       });
     }
 
@@ -199,9 +228,13 @@ const LibreGeoportalMap = () => {
   }, [layers, backgroundLayer]);
 
   return (
-    <div className="map-wrap">
-      <div ref={mapContainer} className="map" />
-    </div>
+    <ControlLayout>
+      <Main>
+        <div className="map-wrap">
+          <div ref={mapContainer} className="map" />
+        </div>
+      </Main>
+    </ControlLayout>
   );
 };
 
