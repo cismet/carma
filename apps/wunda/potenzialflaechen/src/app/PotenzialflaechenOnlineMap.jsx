@@ -129,10 +129,18 @@ function PotenzialflaechenOnlineMap({
     setSelection(Object.assign({}, selection, selectionMetaData));
 
     setTimeout(() => {
-      const gazId = selection.more?.pid || selection.more?.kid;
-      setSelectedFeatureByPredicate(
-        (feature) => feature.properties.id === gazId
-      );
+      const gazId = selection.more?.pid;
+      setSelectedFeatureByPredicate((feature) => {
+        try {
+          const check = parseInt(feature.properties.id) === gazId;
+          if (check === true) {
+            zoomToFeature(feature);
+          }
+          return check;
+        } catch (e) {
+          return false;
+        }
+      });
     }, 100);
   };
 
