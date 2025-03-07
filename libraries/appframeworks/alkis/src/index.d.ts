@@ -28,7 +28,7 @@ export interface TaskParameters {
 export interface AdditionalSheetProps {
   owners: Owner[];
   namesArr: Name[];
-  legalDesc?: string;
+  legalDesc?: string[];
 }
 
 export interface Address {

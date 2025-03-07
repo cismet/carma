@@ -18,10 +18,12 @@ export const getLandparcelTitle = (
 export const buildGroupedOwnersArr = (namesArr: Name[], owners: Owner[]) => {
   const uuidList: string[] = namesArr.map((n) => n.uuid);
 
-  const uuidGroupsArr = namesArr
-    .filter((n) => n.namensnummernUUIds)
-    .map((n) => n.namensnummernUUIds)
-    .flat();
+  // const uuidGroupsArr = namesArr
+  //   .filter((n) => n.namensnummernUUIds)
+  //   .map((n) => n.namensnummernUUIds)
+  //   .flat();
+
+  const uuidGroupsArr = [];
 
   const removedDoubles = uuidList.filter(
     (uuid) => !uuidGroupsArr.includes(uuid)
