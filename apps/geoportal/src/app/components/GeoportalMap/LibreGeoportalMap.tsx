@@ -143,22 +143,7 @@ const LibreGeoportalMap = () => {
 
   const defaultLng = 7.150764;
   const defaultLat = 51.256;
-  const defaultZoom = 10;
-
-  const [lng, setLng] = useState(() => {
-    const lngParam = searchParams.get("lng");
-    return lngParam ? parseFloat(lngParam) : defaultLng;
-  });
-
-  const [lat, setLat] = useState(() => {
-    const latParam = searchParams.get("lat");
-    return latParam ? parseFloat(latParam) : defaultLat;
-  });
-
-  const [zoom, setZoom] = useState(() => {
-    const zoomParam = searchParams.get("zoom");
-    return zoomParam ? parseFloat(zoomParam) : defaultZoom;
-  });
+  const defaultZoom = 15;
 
   const backgroundStyle: StyleSpecification = {
     version: 8,
@@ -208,13 +193,26 @@ const LibreGeoportalMap = () => {
     if (map.current) return; // initialize map only once
 
     if (mapContainer.current) {
+      const lng = searchParams.get("lng")
+        ? parseFloat(searchParams.get("lng"))
+        : defaultLng;
+      const lat = searchParams.get("lat")
+        ? parseFloat(searchParams.get("lat"))
+        : defaultLat;
       map.current = new maplibregl.Map({
         container: mapContainer.current,
         style: backgroundStyle,
         center: [lng, lat],
-        zoom: zoom,
+        zoom: searchParams.get("zoom")
+          ? parseFloat(searchParams.get("zoom"))
+          : defaultZoom,
         maxZoom: 22,
-        pitch: 0,
+        pitch: searchParams.get("pitch")
+          ? parseFloat(searchParams.get("pitch"))
+          : 0,
+        bearing: searchParams.get("heading")
+          ? parseFloat(searchParams.get("heading"))
+          : 0,
         maxPitch: 85,
       });
 
@@ -254,11 +252,15 @@ const LibreGeoportalMap = () => {
 
       const center = mapInstance.getCenter();
       const zoom = mapInstance.getZoom();
+      const pitch = mapInstance.getPitch();
+      const bearing = mapInstance.getBearing();
 
       const newParams = new URLSearchParams(searchParams);
       newParams.set("lng", center.lng.toFixed(14));
       newParams.set("lat", center.lat.toFixed(14));
       newParams.set("zoom", zoom.toFixed(0));
+      newParams.set("pitch", pitch.toFixed(2));
+      newParams.set("heading", bearing.toFixed(1));
       setSearchParams(newParams);
     };
 
@@ -268,13 +270,6 @@ const LibreGeoportalMap = () => {
       mapInstance.off("moveend", handleMoveEnd);
     };
   }, [searchParams, setSearchParams]);
-
-  useEffect(() => {
-    if (!map.current) return;
-
-    map.current.setCenter([lng, lat]);
-    map.current.setZoom(zoom);
-  }, [lng, lat, zoom]);
 
   useEffect(() => {
     if (!map.current) return;
