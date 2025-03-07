@@ -37,6 +37,7 @@ const LibreGeoportalMap = () => {
             "https://wuppertal-terrain.cismet.de/services/wupp_dgm_01/tiles/{z}/{x}/{y}.png",
           ],
           tileSize: 512,
+          maxzoom: 15,
         },
       },
       layers: [],
