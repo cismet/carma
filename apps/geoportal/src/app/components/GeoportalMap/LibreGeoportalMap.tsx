@@ -253,10 +253,12 @@ const LibreGeoportalMap = () => {
       if (!mapInstance) return;
 
       const center = mapInstance.getCenter();
+      const zoom = mapInstance.getZoom();
 
       const newParams = new URLSearchParams(searchParams);
       newParams.set("lng", center.lng.toFixed(14));
       newParams.set("lat", center.lat.toFixed(14));
+      newParams.set("zoom", zoom.toFixed(0));
       setSearchParams(newParams);
     };
 
