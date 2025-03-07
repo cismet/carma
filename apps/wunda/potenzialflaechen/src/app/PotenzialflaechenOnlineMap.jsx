@@ -1,6 +1,6 @@
 import "bootstrap/dist/css/bootstrap.min.css";
 import "leaflet/dist/leaflet.css";
-import React, { useContext, useEffect } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import { FeatureCollectionDispatchContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import {
@@ -18,11 +18,23 @@ import InfoBox from "./components/InfoBox";
 import MyMenu from "./components/Menu";
 import InfoPanel from "./components/SecondaryInfo";
 import {
+  TopicMapSelectionContent,
+  useGazData,
+  useSelection,
+  useSelectionTopicMap,
+} from "@carma-apps/portals";
+import {
   searchTextPlaceholder,
   MenuTooltip,
   InfoBoxTextTitle,
   InfoBoxTextContent,
 } from "@carma-collab/wuppertal/potenzialflaechen-online";
+import {
+  EmptySearchComponent,
+  LibFuzzySearch,
+} from "@carma-mapping/fuzzy-search";
+import { isAreaType } from "@carma-commons/resources";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 // import consolere from "console-remote-client";
 
@@ -43,7 +55,15 @@ baseLayerConf.namedLayers.cismetLight = {
 
 export const appKey = "Potenzialflaechen.Online.Wuppertal";
 
-function PotenzialflaechenOnlineMap({ gazData, jwt, setJWT, setLoginInfo }) {
+function PotenzialflaechenOnlineMap({
+  staticGazData,
+  dynGazData,
+  jwt,
+  setJWT,
+  setLoginInfo,
+}) {
+  const [allGAazData, setAllGazData] = useState([]);
+
   const { setSelectedFeatureByPredicate, setFilterState } = useContext(
     FeatureCollectionDispatchContext
   );
@@ -51,6 +71,16 @@ function PotenzialflaechenOnlineMap({ gazData, jwt, setJWT, setLoginInfo }) {
   const { history } = useContext(TopicMapContext);
   const { setAppMenuActiveMenuSection, setAppMenuVisible } =
     useContext(UIDispatchContext);
+
+  const { responsiveState, gap, windowSize } = useContext(
+    ResponsiveTopicMapContext
+  );
+
+  const pixelwidth =
+    responsiveState === "normal" ? "300px" : windowSize.width - gap;
+
+  const { gazData } = useGazData();
+  const { setSelection } = useSelection();
 
   useEffect(() => {
     const handleCleanStart = (search) => {
@@ -72,58 +102,106 @@ function PotenzialflaechenOnlineMap({ gazData, jwt, setJWT, setLoginInfo }) {
     });
   }, [history, setFilterState, setAppMenuVisible, setAppMenuActiveMenuSection]);
 
+  useEffect(() => {
+    setAllGazData([
+      ...(dynGazData || []),
+      ...staticGazData,
+      ...(gazData || []),
+    ]);
+  }, [staticGazData, dynGazData, gazData]);
+
+  useEffect(() => {
+    console.log("xxx gazData", gazData?.length);
+  }, [allGAazData]);
+
+  useSelectionTopicMap();
+
+  const onGazetteerSelection = (selection) => {
+    if (!selection) {
+      setSelection(null);
+      return;
+    }
+    const selectionMetaData = {
+      selectedFrom: "gazetteer",
+      selectionTimestamp: Date.now(),
+      isAreaSelection: isAreaType(selection.type),
+    };
+    setSelection(Object.assign({}, selection, selectionMetaData));
+
+    setTimeout(() => {
+      const gazId = selection.more?.pid || selection.more?.kid;
+      setSelectedFeatureByPredicate(
+        (feature) => feature.properties.id === gazId
+      );
+    }, 100);
+  };
+
   return (
-    <TopicMapComponent
-      mapStyle={{ backgroundColor: "white" }}
-      applicationMenuTooltipString={<MenuTooltip />}
-      gazData={gazData}
-      homeZoom={13}
-      maxZoom={22}
-      locatorControl={true}
-      gazetteerSearchPlaceholder={searchTextPlaceholder}
-      modalMenu={<MyMenu />}
-      infoBox={
-        <InfoBox
-          pixelwidth={350}
-          config={{
-            displaySecondaryInfoAction: true,
-            city: "Wuppertal",
-            navigator: {
-              noun: {
-                singular: "Potenzialfläche",
-                plural: "Potenzialflächen",
+    <>
+      <TopicMapComponent
+        mapStyle={{ backgroundColor: "white" }}
+        applicationMenuTooltipString={<MenuTooltip />}
+        // gazData={gazData}
+        homeZoom={13}
+        maxZoom={22}
+        locatorControl={true}
+        // gazetteerSearchPlaceholder={searchTextPlaceholder}
+        gazetteerSearchControl={true}
+        gazetteerSearchComponent={EmptySearchComponent}
+        modalMenu={<MyMenu />}
+        infoBox={
+          <InfoBox
+            pixelwidth={350}
+            config={{
+              displaySecondaryInfoAction: true,
+              city: "Wuppertal",
+              navigator: {
+                noun: {
+                  singular: "Potenzialfläche",
+                  plural: "Potenzialflächen",
+                },
               },
-            },
-            noCurrentFeatureTitle: <InfoBoxTextTitle />,
-            noCurrentFeatureContent: <InfoBoxTextContent />,
-          }}
-        />
-      }
-      secondaryInfo={<InfoPanel />}
-      gazetteerHitTrigger={(hits) => {
-        if (Array.isArray(hits) && hits[0]?.more?.pid) {
-          setSelectedFeatureByPredicate((feature) => {
-            try {
-              const check =
-                parseInt(feature.properties.id) === hits[0].more.pid;
-              if (check === true) {
-                zoomToFeature(feature);
-              }
-              return check;
-            } catch (e) {
-              return false;
-            }
-          });
+              noCurrentFeatureTitle: <InfoBoxTextTitle />,
+              noCurrentFeatureContent: <InfoBoxTextContent />,
+            }}
+          />
         }
-      }}
-    >
-      <FeatureCollection
-        jwt={jwt}
-        setJWT={setJWT}
-        setLoginInfo={setLoginInfo}
-      />
-      {/* <LogSelection /> */}
-    </TopicMapComponent>
+        secondaryInfo={<InfoPanel />}
+        // gazetteerHitTrigger={(hits) => {
+        //   if (Array.isArray(hits) && hits[0]?.more?.pid) {
+        //     setSelectedFeatureByPredicate((feature) => {
+        //       try {
+        //         const check =
+        //           parseInt(feature.properties.id) === hits[0].more.pid;
+        //         if (check === true) {
+        //           zoomToFeature(feature);
+        //         }
+        //         return check;
+        //       } catch (e) {
+        //         return false;
+        //       }
+        //     });
+        //   }
+        // }}
+      >
+        <TopicMapSelectionContent />
+        <FeatureCollection
+          jwt={jwt}
+          setJWT={setJWT}
+          setLoginInfo={setLoginInfo}
+        />
+        {/* <LogSelection /> */}
+      </TopicMapComponent>
+
+      <div className="custom-left-control">
+        <LibFuzzySearch
+          gazData={allGAazData}
+          onSelection={onGazetteerSelection}
+          pixelwidth={pixelwidth}
+          placeholder={searchTextPlaceholder}
+        />
+      </div>
+    </>
   );
 }
 

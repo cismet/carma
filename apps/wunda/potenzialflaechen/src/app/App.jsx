@@ -35,47 +35,47 @@ export const appKey = "Potenzialflaechen.Online.Wuppertal";
 export const apiUrl = "https://potenzialflaechen-online-api.cismet.de";
 export const dataDaqKey = "potenzialflaechen";
 export const gazDaqKey = "potenzialflaechenGaz";
-const getGazData = async (setStaticGazData) => {
-  const prefix = "GazDataForStories";
-  const sources = {};
+// const getGazData = async (setStaticGazData) => {
+//   const prefix = "GazDataForStories";
+//   const sources = {};
 
-  sources.adressen = await md5FetchText(
-    prefix,
-    host + "/data/3857/adressen.json"
-  );
-  sources.bezirke = await md5FetchText(
-    prefix,
-    host + "/data/3857/bezirke.json"
-  );
-  sources.quartiere = await md5FetchText(
-    prefix,
-    host + "/data/3857/quartiere.json"
-  );
-  sources.pois = await md5FetchText(prefix, host + "/data/3857/pois.json");
-  sources.kitas = await md5FetchText(prefix, host + "/data/3857/kitas.json");
+//   sources.adressen = await md5FetchText(
+//     prefix,
+//     host + "/data/3857/adressen.json"
+//   );
+//   sources.bezirke = await md5FetchText(
+//     prefix,
+//     host + "/data/3857/bezirke.json"
+//   );
+//   sources.quartiere = await md5FetchText(
+//     prefix,
+//     host + "/data/3857/quartiere.json"
+//   );
+//   sources.pois = await md5FetchText(prefix, host + "/data/3857/pois.json");
+//   sources.kitas = await md5FetchText(prefix, host + "/data/3857/kitas.json");
 
-  const gazData = getGazDataForTopicIds(sources, [
-    "pois",
-    "kitas",
-    "bezirke",
-    "quartiere",
-    "adressen",
-  ]);
+//   const gazData = getGazDataForTopicIds(sources, [
+//     "pois",
+//     "kitas",
+//     "bezirke",
+//     "quartiere",
+//     "adressen",
+//   ]);
 
-  setStaticGazData(gazData);
-};
+//   setStaticGazData(gazData);
+// };
 
 function App() {
   const [staticGazData, setStaticGazData] = useState([]);
   const [dynGazData, setDynGazData] = useState([]);
   const [gazData, setGazData] = useState([]);
 
-  useEffect(() => {
-    setGazData([...(dynGazData || []), ...staticGazData]);
-  }, [staticGazData, dynGazData]);
+  // useEffect(() => {
+  //   setGazData([...(dynGazData || []), ...staticGazData]);
+  // }, [staticGazData, dynGazData]);
 
   useEffect(() => {
-    getGazData(setStaticGazData);
+    // getGazData(setStaticGazData);
     document.title = "Potenzialflächen-Online Wuppertal";
   }, []);
 
@@ -269,7 +269,8 @@ function App() {
       <Waiting waiting={waiting} />
 
       <PotenzialflaechenOnlineMap
-        gazData={gazData}
+        staticGazData={staticGazData}
+        dynGazData={dynGazData}
         jwt={jwt}
         setJWT={setJWT}
         setLoginInfo={setLoginInfo}
