@@ -233,6 +233,7 @@ const LibreGeoportalMap = () => {
           }),
           "top-left"
         );
+        map.current?.setTerrain(null);
       });
     }
 
