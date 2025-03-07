@@ -463,27 +463,27 @@ export const scaleOptions = [
   },
   {
     value: "10000",
-    label: "1 : 10 000",
+    label: "1 : 10.000",
   },
   {
     value: "20000",
-    label: "1 : 20 000",
+    label: "1 : 20.000",
   },
   {
     value: "40000",
-    label: "1 : 40 000",
+    label: "1 : 40.000",
   },
   {
     value: "60000",
-    label: "1 : 60 000",
+    label: "1 : 60.000",
   },
   {
     value: "100000",
-    label: "1 : 100 000",
+    label: "1 : 100.000",
   },
   {
     value: "150000",
-    label: "1 : 150 000",
+    label: "1 : 150.000",
   },
 ];
 
