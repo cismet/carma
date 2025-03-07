@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState } from "react";
 import maplibregl from "maplibre-gl";
-import type { StyleSpecification } from "maplibre-gl";
+import type { LayerSpecification, StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useSearchParams } from "react-router-dom";
 
@@ -8,12 +8,21 @@ import "./LibreGeoportalMap.css";
 import { useSelector } from "react-redux";
 import { getBackgroundLayer, getLayers } from "../../store/slices/mapping";
 import { defaultLayerConfig } from "../../config";
-import { ControlLayout, Main } from "@carma-mapping/map-controls-layout";
+import {
+  Control,
+  ControlLayout,
+  Main,
+} from "@carma-mapping/map-controls-layout";
+import { Slider } from "antd";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
 
 const LibreGeoportalMap = () => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
+
+  const [showOpacitySliders, setShowOpacitySliders] = useState(false);
 
   const layers = useSelector(getLayers);
   const backgroundLayer = useSelector(getBackgroundLayer);
@@ -88,10 +97,7 @@ const LibreGeoportalMap = () => {
         const { url, name } = layer.props;
         if (!url || !name) return;
 
-        const sourceId = `source-${name.replace(
-          /[^a-zA-Z0-9]/g,
-          "-"
-        )}-${index}`;
+        const sourceId = `source-${name.replace(/[^a-zA-Z0-9]/g, "-")}`;
 
         style.sources[sourceId] = {
           type: "raster",
@@ -102,7 +108,7 @@ const LibreGeoportalMap = () => {
         };
 
         style.layers.push({
-          id: `layer-${name.replace(/[^a-zA-Z0-9]/g, "-")}-${index}`,
+          id: `${layer.id}-${name.replace(/[^a-zA-Z0-9]/g, "-")}`,
           type: "raster",
           source: sourceId,
           paint: {
@@ -115,6 +121,10 @@ const LibreGeoportalMap = () => {
         if (vectorStyle) {
           const response = await fetch(vectorStyle);
           const additionalStyle = await response.json();
+          additionalStyle.layers = additionalStyle.layers.map((styleLayer) => ({
+            ...styleLayer,
+            id: `${layer.id}-${styleLayer.id}`,
+          }));
 
           style.sources = { ...style.sources, ...additionalStyle.sources };
           style.layers = [...style.layers, ...additionalStyle.layers];
@@ -163,6 +173,31 @@ const LibreGeoportalMap = () => {
         paint: { "raster-opacity": 1 },
       },
     ],
+  };
+
+  const getAllLayersByPrefix = (prefix: string) => {
+    return (
+      map.current?.getStyle().layers.filter((styleLayer) => {
+        return (
+          styleLayer.id.startsWith(prefix) &&
+          !styleLayer.id.includes("selection")
+        );
+      }) || []
+    );
+  };
+
+  const getPaintProperty = (layerStyle: LayerSpecification) => {
+    const type = layerStyle.type;
+    switch (type) {
+      case "symbol":
+        return layerStyle.id.includes("labels")
+          ? "text-opacity"
+          : "icon-opacity";
+      case "raster":
+        return "raster-opacity";
+      default:
+        return "icon-opacity";
+    }
   };
 
   useEffect(() => {
@@ -229,6 +264,45 @@ const LibreGeoportalMap = () => {
 
   return (
     <ControlLayout>
+      <Control position="topcenter" order={0}>
+        <div className="flex flex-col gap-2 items-center">
+          <div className="flex items-center rounded-md px-2 bg-white shadow-lg">
+            <button onClick={() => setShowOpacitySliders(!showOpacitySliders)}>
+              <FontAwesomeIcon
+                icon={showOpacitySliders ? faChevronUp : faChevronDown}
+              />
+            </button>
+          </div>
+
+          {showOpacitySliders &&
+            layers.map((layer, index) => {
+              return (
+                <div
+                  key={layer.id}
+                  className="flex items-center w-[600px] gap-2 rounded-md px-2 bg-white shadow-lg"
+                >
+                  <p className="mb-0 w-1/2 truncate">{layer.title}</p>
+                  <Slider
+                    min={0}
+                    max={100}
+                    defaultValue={100}
+                    className="w-80"
+                    onChange={(value) => {
+                      const styleLayers = getAllLayersByPrefix(layer.id);
+                      styleLayers.forEach((styleLayer) => {
+                        map.current?.setPaintProperty(
+                          styleLayer.id,
+                          getPaintProperty(styleLayer),
+                          value / 100
+                        );
+                      });
+                    }}
+                  />
+                </div>
+              );
+            })}
+        </div>
+      </Control>
       <Main>
         <div className="map-wrap">
           <div ref={mapContainer} className="map" />
