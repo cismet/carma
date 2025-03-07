@@ -110,10 +110,6 @@ function PotenzialflaechenOnlineMap({
     ]);
   }, [staticGazData, dynGazData, gazData]);
 
-  useEffect(() => {
-    console.log("xxx gazData", gazData?.length);
-  }, [allGAazData]);
-
   useSelectionTopicMap();
 
   const onGazetteerSelection = (selection) => {
@@ -203,6 +199,7 @@ function PotenzialflaechenOnlineMap({
 
       <div className="custom-left-control">
         <LibFuzzySearch
+          key={"PotenzialflaechenOnlineMap" + allGAazData.length}
           gazData={allGAazData}
           onSelection={onGazetteerSelection}
           pixelwidth={pixelwidth}
