@@ -246,6 +246,28 @@ const LibreGeoportalMap = () => {
   }, []);
 
   useEffect(() => {
+    const mapInstance = map.current;
+    if (!mapInstance) return;
+
+    const handleMoveEnd = () => {
+      if (!mapInstance) return;
+
+      const center = mapInstance.getCenter();
+
+      const newParams = new URLSearchParams(searchParams);
+      newParams.set("lng", center.lng.toFixed(14));
+      newParams.set("lat", center.lat.toFixed(14));
+      setSearchParams(newParams);
+    };
+
+    mapInstance.on("moveend", handleMoveEnd);
+
+    return () => {
+      mapInstance.off("moveend", handleMoveEnd);
+    };
+  }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
     if (!map.current) return;
 
     map.current.setCenter([lng, lat]);
