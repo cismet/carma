@@ -220,21 +220,6 @@ function UmweltalarmMap({ loggedOut, initialised }) {
       isAreaSelection: isAreaType(selection.type),
     };
     setSelection(Object.assign({}, selection, selectionMetaData));
-
-    // setTimeout(() => {
-    //   const gazId = selection.more?.pid;
-    //   setSelectedFeatureByPredicate((feature) => {
-    //     try {
-    //       const check = parseInt(feature.properties.id) === gazId;
-    //       if (check === true) {
-    //         zoomToFeature(feature);
-    //       }
-    //       return check;
-    //     } catch (e) {
-    //       return false;
-    //     }
-    //   });
-    // }, 100);
   };
 
   const searchInWholeWindowEnabled = currentZoom && currentZoom >= 16;
