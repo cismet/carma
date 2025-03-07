@@ -51,6 +51,9 @@ const LibreGeoportalMap = () => {
     if (backgroundLayer) {
       const namedLayers = defaultLayerConfig.namedLayers;
       const backgroundLayers = backgroundLayer.layers.split("|");
+      if (backgroundLayer.layers.includes("basemap_relief")) {
+        style.glyphs = "https://glyphs.cismet.de/fonts/{fontstack}/{range}.pbf";
+      }
       for (const layer of backgroundLayers) {
         const layerName = layer.split("@")[0];
         const layerOptions = namedLayers[layerName];
