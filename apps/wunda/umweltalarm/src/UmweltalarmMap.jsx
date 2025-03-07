@@ -26,39 +26,50 @@ import {
   tooltipText,
   searchTextPlaceholder,
 } from "@carma-collab/wuppertal/umweltalarm";
+import {
+  TopicMapSelectionContent,
+  useGazData,
+  useSelection,
+  useSelectionTopicMap,
+} from "@carma-apps/portals";
+import {
+  EmptySearchComponent,
+  LibFuzzySearch,
+} from "@carma-mapping/fuzzy-search";
+import { isAreaType } from "@carma-commons/resources";
 
 const host = "https://wupp-topicmaps-data.cismet.de";
 
-const getData = async (setGazData) => {
-  const prefix = "GazDataForStories";
-  const sources = {};
+// const getData = async (setGazData) => {
+//   const prefix = "GazDataForStories";
+//   const sources = {};
 
-  //  sources.stoerfallbetrieb = await md5ActionFetchDAQ4Dexie(prefix, 'url', 'xxx', 'daqStoerfallBetriebeKlasse1');
-  sources.adressen = await md5FetchText(
-    prefix,
-    host + "/data/3857/adressen.json"
-  );
-  sources.bezirke = await md5FetchText(
-    prefix,
-    host + "/data/3857/bezirke.json"
-  );
-  sources.quartiere = await md5FetchText(
-    prefix,
-    host + "/data/3857/quartiere.json"
-  );
-  sources.pois = await md5FetchText(prefix, host + "/data/3857/pois.json");
-  sources.kitas = await md5FetchText(prefix, host + "/data/3857/kitas.json");
+//   //  sources.stoerfallbetrieb = await md5ActionFetchDAQ4Dexie(prefix, 'url', 'xxx', 'daqStoerfallBetriebeKlasse1');
+//   sources.adressen = await md5FetchText(
+//     prefix,
+//     host + "/data/3857/adressen.json"
+//   );
+//   sources.bezirke = await md5FetchText(
+//     prefix,
+//     host + "/data/3857/bezirke.json"
+//   );
+//   sources.quartiere = await md5FetchText(
+//     prefix,
+//     host + "/data/3857/quartiere.json"
+//   );
+//   sources.pois = await md5FetchText(prefix, host + "/data/3857/pois.json");
+//   sources.kitas = await md5FetchText(prefix, host + "/data/3857/kitas.json");
 
-  const gazData = getGazDataForTopicIds(sources, [
-    "pois",
-    "kitas",
-    "bezirke",
-    "quartiere",
-    "adressen",
-  ]);
+//   const gazData = getGazDataForTopicIds(sources, [
+//     "pois",
+//     "kitas",
+//     "bezirke",
+//     "quartiere",
+//     "adressen",
+//   ]);
 
-  setGazData(gazData);
-};
+//   setGazData(gazData);
+// };
 
 const convertToFeature = (_item) => {
   const item = JSON.parse(JSON.stringify(_item));
@@ -163,7 +174,7 @@ function UmweltalarmMap({ loggedOut, initialised }) {
   const { routedMapRef } = useContext(TopicMapContext);
   const mapRef = routedMapRef?.leafletMap?.leafletElement;
   const currentZoom = mapRef?.getZoom();
-  const [gazData, setGazData] = useState([]);
+  // const [gazData, setGazData] = useState([]);
   const [isFeatureCollectionVisible, setFeatureCollectionVisible] =
     useState(false);
 
@@ -171,11 +182,19 @@ function UmweltalarmMap({ loggedOut, initialised }) {
   const [searchMode, setSearchMode] = useState(modes.CENTER);
   const [featureCollection, setFeatureCollection] = useState([]);
   const [bbPoly, setBBPoly] = useState();
-  const { windowSize } = useContext(ResponsiveTopicMapContext);
+  const { windowSize, responsiveState, gap } = useContext(
+    ResponsiveTopicMapContext
+  );
 
-  useEffect(() => {
-    getData(setGazData);
-  }, []);
+  const pixelwidth =
+    responsiveState === "normal" ? "300px" : windowSize.width - gap;
+
+  const { gazData } = useGazData();
+  const { setSelection } = useSelection();
+
+  // useEffect(() => {
+  //   getData(setGazData);
+  // }, []);
 
   useEffect(() => {
     const features = [];
@@ -188,6 +207,36 @@ function UmweltalarmMap({ loggedOut, initialised }) {
     setFeatureCollection(features);
   }, [hits]);
 
+  useSelectionTopicMap();
+
+  const onGazetteerSelection = (selection) => {
+    if (!selection) {
+      setSelection(null);
+      return;
+    }
+    const selectionMetaData = {
+      selectedFrom: "gazetteer",
+      selectionTimestamp: Date.now(),
+      isAreaSelection: isAreaType(selection.type),
+    };
+    setSelection(Object.assign({}, selection, selectionMetaData));
+
+    // setTimeout(() => {
+    //   const gazId = selection.more?.pid;
+    //   setSelectedFeatureByPredicate((feature) => {
+    //     try {
+    //       const check = parseInt(feature.properties.id) === gazId;
+    //       if (check === true) {
+    //         zoomToFeature(feature);
+    //       }
+    //       return check;
+    //     } catch (e) {
+    //       return false;
+    //     }
+    //   });
+    // }, 100);
+  };
+
   const searchInWholeWindowEnabled = currentZoom && currentZoom >= 16;
   return (
     <div key={initialised != null ? initialised : "init"}>
@@ -195,7 +244,9 @@ function UmweltalarmMap({ loggedOut, initialised }) {
       <TopicMapComponent
         gazData={gazData}
         modalMenu={<MyMenu />}
-        gazetteerSearchPlaceholder={searchTextPlaceholder}
+        // gazetteerSearchPlaceholder={searchTextPlaceholder}
+        gazetteerSearchControl={true}
+        gazetteerSearchComponent={EmptySearchComponent}
         homeZoom={13}
         maxZoom={22}
         applicationMenuTooltipString={tooltipText}
@@ -221,6 +272,8 @@ function UmweltalarmMap({ loggedOut, initialised }) {
           });
         }}
       >
+        <TopicMapSelectionContent />
+
         {!loggedOut && (
           <InfoBox
             mode={searchMode}
@@ -267,6 +320,14 @@ function UmweltalarmMap({ loggedOut, initialised }) {
           </button>
         </Control>
       </TopicMapComponent>
+      <div className="custom-left-control">
+        <LibFuzzySearch
+          gazData={gazData}
+          onSelection={onGazetteerSelection}
+          pixelwidth={pixelwidth}
+          placeholder={searchTextPlaceholder}
+        />
+      </div>
     </div>
   );
 }
