@@ -53,6 +53,9 @@ function App() {
         mapEPSGCode="25832"
         referenceSystem={MappingConstants.crs25832}
         additionalStylingInfo={{ poiColors }}
+        featureTooltipFunction={(feature) => {
+          return feature?.text;
+        }}
       >
         <Stadtplankarte poiColors={poiColors} />
       </TopicMapContextProvider>
