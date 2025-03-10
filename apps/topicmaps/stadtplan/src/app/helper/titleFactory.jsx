@@ -25,11 +25,13 @@ const factory = ({ featureCollectionContext }) => {
         }
       }
     }
-    return (
-      <div>
-        <b>Mein Themenstadtplan:</b> {themenstadtplanDesc}
-      </div>
-    );
+    if (themenstadtplanDesc) {
+      return (
+        <div>
+          <b>Mein Themenstadtplan:</b> {themenstadtplanDesc}
+        </div>
+      );
+    }
   }
 };
 

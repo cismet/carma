@@ -37,7 +37,7 @@ const Stadtplankarte = ({ poiColors }) => {
   );
   const lightBoxContext = useContext(LightBoxContext);
   const { markerSymbolSize } = useContext(TopicMapStylingContext);
-  const { clusteringOptions, selectedFeature } = useContext(
+  const { clusteringOptions, selectedFeature, filterState } = useContext(
     FeatureCollectionContext
   );
 
@@ -93,40 +93,44 @@ const Stadtplankarte = ({ poiColors }) => {
         gazetteerSearchComponent={EmptySearchComponent}
         applicationMenuTooltipString={<MenuTooltip />}
         infoBox={
-          <GenericInfoBoxFromFeature
-            pixelwidth={350}
-            config={{
-              displaySecondaryInfoAction: false,
-              city: "Wuppertal",
-              navigator: {
-                noun: {
-                  singular: "POI",
-                  plural: "POIs",
+          filterState === undefined || filterState.positiv.length > 0 ? (
+            <GenericInfoBoxFromFeature
+              pixelwidth={350}
+              config={{
+                displaySecondaryInfoAction: false,
+                city: "Wuppertal",
+                navigator: {
+                  noun: {
+                    singular: "POI",
+                    plural: "POIs",
+                  },
                 },
-              },
-              noFeatureTitle: <InfoBoxTextTitle />,
-              noCurrentFeatureContent: <InfoBoxTextContent />,
-            }}
-            captionFactory={(linkUrl, feature) => {
-              const urheber =
-                feature?.properties?.urheber_foto || "Stadt Wuppertal";
-              let link = "https://www.wuppertal.de/service/impressum.php";
+                noFeatureTitle: <InfoBoxTextTitle />,
+                noCurrentFeatureContent: <InfoBoxTextContent />,
+              }}
+              captionFactory={(linkUrl, feature) => {
+                const urheber =
+                  feature?.properties?.urheber_foto || "Stadt Wuppertal";
+                let link = "https://www.wuppertal.de/service/impressum.php";
 
-              if (urheber === "Stadt Wuppertal, Wuppertal Marketing GmbH") {
-                link =
-                  "https://www.wuppertal.de/microsite/WMG/impressum_431218.php";
-              } else if (urheber === "Stadt Wuppertal, Medienzentrum") {
-                link =
-                  "https://www.wuppertal.de/kultur-bildung/schule/medienzentrum/index.php";
-              }
+                if (urheber === "Stadt Wuppertal, Wuppertal Marketing GmbH") {
+                  link =
+                    "https://www.wuppertal.de/microsite/WMG/impressum_431218.php";
+                } else if (urheber === "Stadt Wuppertal, Medienzentrum") {
+                  link =
+                    "https://www.wuppertal.de/kultur-bildung/schule/medienzentrum/index.php";
+                }
 
-              return (
-                <a href={link} target="_fotos">
-                  <IconComp name="copyright" /> {urheber}
-                </a>
-              );
-            }}
-          />
+                return (
+                  <a href={link} target="_fotos">
+                    <IconComp name="copyright" /> {urheber}
+                  </a>
+                );
+              }}
+            />
+          ) : (
+            <div></div>
+          )
         }
       >
         <TopicMapSelectionContent />
