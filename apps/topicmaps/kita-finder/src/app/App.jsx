@@ -56,6 +56,7 @@ function App() {
         }}
         additionalStylingInfo={{ featureRenderingOption }}
         // getColorFromProperties={getColorForProperties}
+        featureTooltipFunction={(feature) => feature?.properties?.kurzname}
       >
         <KitaKarte />
       </TopicMapContextProvider>

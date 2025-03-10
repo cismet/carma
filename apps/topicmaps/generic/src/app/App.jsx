@@ -253,6 +253,9 @@ function App({
             baseLayerConf={baseLayerConf}
             backgroundConfigurations={config?.tm?.backgroundConfigurations}
             backgroundModes={config?.tm?.backgroundModes}
+            featureTooltipFunction={(feature) =>
+              feature?.properties?.hoverString || feature?.text
+            }
             appKey="GenericTopicMap.Playground"
             items={config.features}
             getFeatureStyler={getGTMFeatureStyler}
