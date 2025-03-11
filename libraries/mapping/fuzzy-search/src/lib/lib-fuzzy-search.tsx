@@ -44,6 +44,7 @@ export function LibFuzzySearch({
   pixelwidth = 300,
   ifShowCategories: standardSearch = true,
   placeholder = "Wohin?",
+  priorityTypes,
   onCLose = () => {},
   config = {
     prepoHandling: false,
@@ -110,9 +111,11 @@ export function LibFuzzySearch({
       }
 
       if (showCategories) {
+        const priority = priorityTypes ? priorityTypes : null;
         const dataWithCategory = mapDataWithCategory(
           resultWithRoundScore,
-          ifShowScore === undefined ? false : ifShowScore
+          ifShowScore === undefined ? false : ifShowScore,
+          priority
         );
         // setOptions(generateOptions(resultWithRoundScore, ifShowScore));
         setSearchResult(dataWithCategory);

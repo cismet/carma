@@ -166,7 +166,6 @@ export function removeStopwords(text, stopwords, prepoHandling) {
   }
 }
 export function prepareGazData(data, prepoHandling) {
-  console.log("xxx data", data);
   const modifiedData = data.map((item) => {
     const searchData = item?.string;
     const stringWithoutStopWords = removeStopwords(
@@ -263,9 +262,25 @@ export const getDefaultSearchConfig = (config: SearchConfig): SearchConfig => {
 
 export const mapDataWithCategory = (
   data: SearchResult<SearchResultItem>[],
-  showScore: boolean
+  showScore: boolean,
+  priorityTypes: string[] | null
 ) => {
   const splittedCategories: { [key: string]: Option[] } = {};
+
+  if (priorityTypes && priorityTypes.length) {
+    data.sort((a, b) => {
+      const aTypeIndex = priorityTypes.indexOf(a.item.type);
+      const bTypeIndex = priorityTypes.indexOf(b.item.type);
+      if (aTypeIndex === -1 && bTypeIndex === -1) {
+        return 0;
+      }
+
+      if (aTypeIndex === -1) return 1;
+      if (bTypeIndex === -1) return -1;
+
+      return aTypeIndex - bTypeIndex;
+    });
+  }
 
   data.forEach((item) => {
     const address = item.item;

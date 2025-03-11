@@ -136,6 +136,14 @@ const EMobiKarte = () => {
       <div className="custom-left-control">
         <LibFuzzySearch
           gazData={gazData}
+          priorityTypes={[
+            "emob",
+            "bezirke",
+            "quartiere",
+            "adressen",
+            "poi",
+            "kitas",
+          ]}
           onSelection={onGazetteerSelection}
           pixelwidth={pixelwidth}
           placeholder="Ladestation | Stadtteil | Adresse | POI"
