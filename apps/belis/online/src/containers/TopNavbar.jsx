@@ -61,6 +61,18 @@ import {
   setWished as setSearchModeWish,
 } from "../core/store/slices/search";
 import { getTeam } from "../core/store/slices/team";
+import {
+  TopicMapSelectionContent,
+  useGazData,
+  useSelection,
+  useSelectionTopicMap,
+} from "@carma-apps/portals";
+import {
+  EmptySearchComponent,
+  LibFuzzySearch,
+} from "@carma-mapping/fuzzy-search";
+import { isAreaType } from "@carma-commons/resources";
+import { builtInGazetteerHitTrigger } from "react-cismap/tools/gazetteerHelper";
 
 //---------
 
@@ -89,9 +101,37 @@ const TopNavbar = ({
   );
   const browserlocation = useLocation();
 
-  const gazData = useSelector(getGazData);
+  // const gazData = useSelector(getGazData);
+
+  const { gazData } = useGazData();
+  const { setSelection, setOverlayFeature } = useSelection();
+
+  const onGazetteerSelection = (selection) => {
+    if (!selection) {
+      setSelection(null);
+      return;
+    }
+    const selectionMetaData = {
+      selectedFrom: "gazetteer",
+      selectionTimestamp: Date.now(),
+      isAreaSelection: isAreaType(selection.type),
+    };
+    setSelection(Object.assign({}, selection, selectionMetaData));
+
+    setTimeout(() => {
+      builtInGazetteerHitTrigger(
+        [selection],
+        refRoutedMap.current?.leafletMap.leafletElement,
+        MappingConstants.crs3857,
+        MappingConstants.proj4crs3857def,
+        () => {},
+        setOverlayFeature
+      );
+    }, 100);
+  };
+
   useEffect(() => {
-    dispatch(loadGazeteerEntries());
+    // dispatch(loadGazeteerEntries());
   }, []);
 
   // eslint-disable-next-line no-unused-vars
@@ -309,7 +349,7 @@ const TopNavbar = ({
           className={narrow ? "reducedSizeInputComponnet" : undefined}
           style={{ marginRight: 10 }}
         >
-          <GazetteerSearchComponent
+          {/* <GazetteerSearchComponent
             mapRef={refRoutedMap}
             gazetteerHit={gazetteerHit}
             setGazetteerHit={(hit) => {
@@ -327,7 +367,15 @@ const TopNavbar = ({
             referenceSystemDefinition={MappingConstants.proj4crs3857def}
             autoFocus={false}
             tooltipPlacement="top"
-          />
+          /> */}
+          <div style={{ textAlign: "left" }}>
+            <LibFuzzySearch
+              gazData={gazData}
+              onSelection={onGazetteerSelection}
+              pixelwidth={narrow ? 250 : 350}
+              placeholder={"Geben Sie einen Suchbegriff ein"}
+            />
+          </div>
         </span>
 
         <Nav.Link

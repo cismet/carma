@@ -25,6 +25,8 @@ import "./App.css";
 // import "antd/dist/antd.min.css";
 import Login from "./containers/Login";
 import { getBelisHash, getBelisVersion } from "./constants/versions";
+import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
+import { gazDataConfig } from "./config/gazData";
 
 let persistor = persistStore(store);
 
@@ -145,37 +147,41 @@ function App() {
       <ErrorBoundary FallbackComponent={AppErrorFallback}>
         <ConfigProvider locale={deDE}>
           <PersistGate loading={null} persistor={persistor}>
-            <div className="App">
-              <TopicMapContextProvider
-                appKey={appKey + "." + storagePostfix}
-                backgroundModes={backgroundModes}
-                backgroundConfigurations={backgroundConfigurations}
-                baseLayerConf={baseLayerConf}
-                offlineCacheConfig={offlineConfig}
-                persistenceSettings={{
-                  ui: [
-                    "appMenuVisible",
-                    "appMenuActiveMenuSection",
-                    "collapsedInfoBox",
-                  ],
-                  featureCollection: [
-                    "filterState",
-                    "filterMode",
-                    "clusteringEnabled",
-                  ],
-                  responsive: [],
-                  styling: [
-                    "activeAdditionalLayerKeys",
-                    "namedMapStyle",
-                    "selectedBackground",
-                    "markerSymbolSize",
-                  ],
-                  offlinelayers: ["vectorLayerOfflineEnabled"],
-                }}
-              >
-                <RouterProvider router={router} />
-              </TopicMapContextProvider>
-            </div>
+            <GazDataProvider config={gazDataConfig}>
+              <SelectionProvider>
+                <div className="App">
+                  <TopicMapContextProvider
+                    appKey={appKey + "." + storagePostfix}
+                    backgroundModes={backgroundModes}
+                    backgroundConfigurations={backgroundConfigurations}
+                    baseLayerConf={baseLayerConf}
+                    offlineCacheConfig={offlineConfig}
+                    persistenceSettings={{
+                      ui: [
+                        "appMenuVisible",
+                        "appMenuActiveMenuSection",
+                        "collapsedInfoBox",
+                      ],
+                      featureCollection: [
+                        "filterState",
+                        "filterMode",
+                        "clusteringEnabled",
+                      ],
+                      responsive: [],
+                      styling: [
+                        "activeAdditionalLayerKeys",
+                        "namedMapStyle",
+                        "selectedBackground",
+                        "markerSymbolSize",
+                      ],
+                      offlinelayers: ["vectorLayerOfflineEnabled"],
+                    }}
+                  >
+                    <RouterProvider router={router} />
+                  </TopicMapContextProvider>
+                </div>
+              </SelectionProvider>
+            </GazDataProvider>
           </PersistGate>
         </ConfigProvider>
       </ErrorBoundary>
