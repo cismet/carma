@@ -173,17 +173,18 @@ export function prepareGazData(data, prepoHandling, typeInference) {
       stopwords,
       prepoHandling
     );
+    // Overwrite the already existing type with a type from the typeInferenceObject
     if (typeInference && typeInference[item.type]) {
       item.type = typeInference[item.type](item);
     }
-    const address = {
+    const gazElement = {
       ...item,
       // type: item.glyph === "graduation-cap" ? "schulen" : item.type,
       xSearchData: joinNumberLetter(stringWithoutStopWords),
     };
-    return address;
-  });
 
+    return gazElement;
+  });
   return modifiedData;
 }
 export function customSort(a, b) {
