@@ -175,6 +175,7 @@ export function prepareGazData(data, prepoHandling) {
     );
     const address = {
       ...item,
+      type: item.glyph === "graduation-cap" ? "schulen" : item.type,
       xSearchData: joinNumberLetter(stringWithoutStopWords),
     };
     return address;
