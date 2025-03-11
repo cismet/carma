@@ -166,6 +166,7 @@ export function removeStopwords(text, stopwords, prepoHandling) {
   }
 }
 export function prepareGazData(data, prepoHandling) {
+  console.log("xxx data", data);
   const modifiedData = data.map((item) => {
     const searchData = item?.string;
     const stringWithoutStopWords = removeStopwords(
