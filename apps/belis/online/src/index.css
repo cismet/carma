@@ -176,3 +176,13 @@ iframe {
   /* background: red; */
   z-index: 1 !important;
 }
+
+.custom-left-control {
+  position: absolute;
+  z-index: 1000;
+  left: 0;
+  bottom: 0;
+  margin-left: 14px;
+  margin-bottom: 5px;
+  text-align: left !important;
+}

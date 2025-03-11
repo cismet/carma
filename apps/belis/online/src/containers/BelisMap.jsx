@@ -32,6 +32,7 @@ import { setBounds } from "../core/store/slices/mapInfo";
 import { isPaleModeActive } from "../core/store/slices/paleMode";
 import { getLoadingState, initIndex } from "../core/store/slices/spatialIndex";
 import { getZoom, setZoom } from "../core/store/slices/zoom";
+import { TopicMapSelectionContent } from "@carma-apps/portals";
 
 //---
 
@@ -316,7 +317,9 @@ const BelisMap = ({ refRoutedMap, width, height, jwt }) => {
       )}
 
       {inPaleMode && <PaleOverlay />}
-      {overlayFeature && (
+      <TopicMapSelectionContent />
+
+      {/* {overlayFeature && (
         <ProjSingleGeoJson
           key={JSON.stringify(overlayFeature)}
           geoJson={overlayFeature}
@@ -324,12 +327,13 @@ const BelisMap = ({ refRoutedMap, width, height, jwt }) => {
           mapRef={refRoutedMap}
         />
       )}
+
       {gazetteerHit && (
         <GazetteerHitDisplay
           key={"gazHit" + JSON.stringify(gazetteerHit)}
           gazetteerHit={gazetteerHit}
         />
-      )}
+      )} */}
     </RoutedMap>
   );
 };
