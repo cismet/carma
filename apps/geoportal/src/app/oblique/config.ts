@@ -13,7 +13,7 @@ export const OBLIQUE_CONFIG: ObliqueDataProviderConfig = {
   minFov: CesiumMath.toRadians(10), // Minimum field of view in radians
   maxFov: CesiumMath.toRadians(120), // Maximum field of view in radians
   headingOffset: CesiumMath.toRadians(-34.3), // Heading offset in radians
-  previewQualityLevel: OBLIQUE_PREVIEW_QUALITY.LEVEL_4,
+  previewQualityLevel: OBLIQUE_PREVIEW_QUALITY.LEVEL_3,
   previewPath: OBLIQUE_2024_PREVIEW_PATH,
   crs: OBLIQUE_2024_ORIENTATIONS_CRS,
   uri: OBLIQUE_2024_ORIENTATIONS_CSV_URI,

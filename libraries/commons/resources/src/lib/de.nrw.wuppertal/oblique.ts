@@ -1,7 +1,5 @@
-const WUPP_MESH_2024_BASE = "https://wupp-3d-data.cismet.de/mesh2024";
+const OBLIQUE_ENDPOINT = `https://wupp-oblique.cismet.de`;
 
-const OBLIQUE_BASE = `${WUPP_MESH_2024_BASE}/oblique`;
-
-export const OBLIQUE_2024_ORIENTATIONS_CSV_URI = `${OBLIQUE_BASE}/orientation.csv`;
+export const OBLIQUE_2024_ORIENTATIONS_CSV_URI = `${OBLIQUE_ENDPOINT}/2024/orientation.csv`;
 export const OBLIQUE_2024_ORIENTATIONS_CRS = "EPSG:25832";
-export const OBLIQUE_2024_PREVIEW_PATH = `${OBLIQUE_BASE}/preview`;
+export const OBLIQUE_2024_PREVIEW_PATH = `${OBLIQUE_ENDPOINT}/2024/preview`;
