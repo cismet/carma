@@ -39,16 +39,16 @@ const CAMERA_ID_TO_DIRECTION = {
   // For even flight lines
   EVEN: {
     // Using common oblique camera IDs
-    "170": "W",
+    "170": "E",
     "171": "S",
-    "174": "E",
+    "174": "W",
     "176": "N",
   },
   // For odd flight lines
   ODD: {
-    "170": "E",
+    "170": "W",
     "171": "N",
-    "174": "W",
+    "174": "E",
     "176": "S",
   },
 };

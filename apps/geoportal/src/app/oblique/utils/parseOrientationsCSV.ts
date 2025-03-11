@@ -1,14 +1,10 @@
 import { ORIENTATIONS_CSV_HEADER } from "../constants";
 import { BasicObliqueImageRecord } from "../types";
+import { Math as CesiumMath } from "cesium";
 
-const TO_RADIANS = Math.PI / 180;
-
-function degreesToRadians(degrees: number): number {
-  return degrees * TO_RADIANS;
-}
-
-export function processCsv(
+function parseOrientedImageRecordsFromCsv(
   csvText: string,
+  noNadir = true,
   debug = true
 ): BasicObliqueImageRecord[] {
   const lines = csvText.split("\n").filter((line) => line.trim());
@@ -18,36 +14,72 @@ export function processCsv(
   );
   const dataLines = headerIndex >= 0 ? lines.slice(headerIndex + 1) : lines;
 
-  return dataLines.map((line) => {
-    const parts = line.split(";");
-    const [, id, rawX, rawY, rawZ, rawOmega, rawPhi, rawKappa] = parts;
+  return dataLines
+    .map((row) => {
+      const parts = row.split(";");
+      const [, id, rawX, rawY, rawZ, rawOmega, rawPhi, rawKappa] = parts;
 
-    const record: BasicObliqueImageRecord = {
-      id,
-      perspectiveCenter: {
+      const [lineNumber, waypointNumber, imageDescription] = id.split("_");
+      const cameraId = imageDescription.slice(0, 3);
+      const locationNumber = parseInt(imageDescription.slice(3));
+
+      if (noNadir && cameraId === "NAD") {
+        return null;
+      }
+
+      const orientation = {
+        omega: CesiumMath.toRadians(parseFloat(rawOmega)),
+        phi: CesiumMath.toRadians(parseFloat(rawPhi)),
+        kappa: CesiumMath.toRadians(parseFloat(rawKappa)),
+      };
+
+      const perspectiveCenter = {
         x: parseFloat(rawX),
         y: parseFloat(rawY),
         z: parseFloat(rawZ),
-      },
-      orientation: {
-        omega: degreesToRadians(parseFloat(rawOmega)),
-        phi: degreesToRadians(parseFloat(rawPhi)),
-        kappa: degreesToRadians(parseFloat(rawKappa)),
-      },
-    };
+      };
 
-    if (debug) {
-      record.__debugRecord = line;
-    }
+      if (
+        isNaN(orientation.omega) ||
+        isNaN(orientation.phi) ||
+        isNaN(orientation.kappa) ||
+        isNaN(perspectiveCenter.x) ||
+        isNaN(perspectiveCenter.y) ||
+        isNaN(perspectiveCenter.z)
+      ) {
+        console.info("Invalid orientation or perspective center:", row);
+        return null;
+      }
 
-    return record;
-  });
+      const record: BasicObliqueImageRecord = {
+        id,
+        cameraId,
+        waypointId: `${lineNumber}_${waypointNumber}`,
+        locationNumber,
+        lineNumber,
+        waypointNumber,
+        perspectiveCenter,
+        orientation,
+      };
+
+      if (debug) {
+        record.__debugRecord = row;
+      }
+
+      return record;
+    })
+    .filter((record): record is BasicObliqueImageRecord => record !== null);
 }
 
-export async function processCSV(url: string): Promise<{
+export async function getOrientedImageRecordAsync(
+  url: string,
+  noNadir = true,
+  debug = true
+): Promise<{
   images: BasicObliqueImageRecord[];
   stats: {
     imageCount: number;
+    noNadir: boolean;
     processingTimeMs: number;
   };
 }> {
@@ -64,11 +96,16 @@ export async function processCSV(url: string): Promise<{
       );
     }
     const csvText = await response.text();
-    const imageRecords = processCsv(csvText);
+    const imageRecords = parseOrientedImageRecordsFromCsv(
+      csvText,
+      noNadir,
+      debug
+    );
     return {
       images: imageRecords,
       stats: {
         imageCount: imageRecords.length,
+        noNadir,
         processingTimeMs: performance.now() - startTime,
       },
     };
@@ -76,10 +113,4 @@ export async function processCSV(url: string): Promise<{
     console.error("Error processing CSV:", error);
     throw error;
   }
-}
-
-export function createImageOrientationsCSVParser() {
-  return {
-    parseCSV: processCSV,
-  };
 }

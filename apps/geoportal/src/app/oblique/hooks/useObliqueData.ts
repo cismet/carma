@@ -1,8 +1,8 @@
 import { useState, useCallback } from "react";
 import proj4, { type Converter } from "proj4";
 
-import { createImageOrientationsCSVParser } from "../utils/parseOrientationsCSV";
 import { extendObliqueImageRecord } from "../utils/obliqueImageRecord";
+import { getOrientedImageRecordAsync } from "../utils/parseOrientationsCSV";
 
 import { ObliqueImageRecord } from "../types";
 
@@ -14,7 +14,10 @@ type UseObliqueDataResult = {
   error: string | null;
   stats: {
     imageCount: number;
+    noNadir: boolean;
     processingTimeMs: number;
+    extensionTimeMs: number;
+    totalProcessingTimeMs: number;
   } | null;
   parseCSV: () => Promise<void | ObliqueImageRecord[]>;
   converter: Converter;
@@ -23,7 +26,9 @@ type UseObliqueDataResult = {
 export function useObliqueData(
   uri: string,
   crs = "EPSG:25832",
-  offset = 0
+  offset = 0,
+  noNadir = true,
+  debug = true
 ): UseObliqueDataResult {
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -65,35 +70,27 @@ export function useObliqueData(
     setError(null);
 
     try {
-      const parser = createImageOrientationsCSVParser();
-      const result = await parser.parseCSV(uri);
-
-      // Create the proj4 converter once
+      const { images, stats } = await getOrientedImageRecordAsync(
+        uri,
+        noNadir,
+        debug
+      );
 
       // Transform basic records to ObliqueImageRecord with all required properties
-      const completeRecords = result.images
-        .filter((image) => {
-          // Filter out records without valid perspectiveCenter
-          if (
-            !image.perspectiveCenter ||
-            typeof image.perspectiveCenter.x === "undefined" ||
-            typeof image.perspectiveCenter.y === "undefined" ||
-            typeof image.perspectiveCenter.z === "undefined"
-          ) {
-            console.warn(
-              "Filtering out record with invalid perspectiveCenter:",
-              image.id
-            );
-            return false;
-          }
-          return true;
-        })
-        .map((image) => extendObliqueImageRecord(image, converter, offset));
+      const extensionStartTime = performance.now();
+      const completeRecords = images.map((image) =>
+        extendObliqueImageRecord(image, converter, offset)
+      );
+      const extensionTimeMs = performance.now() - extensionStartTime;
+      const totalProcessingTimeMs = stats.processingTimeMs + extensionTimeMs;
 
       setImageRecords(completeRecords);
       setStats({
         imageCount: completeRecords.length,
-        processingTimeMs: result.stats.processingTimeMs,
+        noNadir,
+        processingTimeMs: stats.processingTimeMs,
+        extensionTimeMs,
+        totalProcessingTimeMs,
       });
 
       // Log sample records to console
@@ -104,7 +101,14 @@ export function useObliqueData(
           "Last OBLIQUE record:",
           completeRecords[completeRecords.length - 1]
         );
-        console.log(`Total OBLIQUE records: ${completeRecords.length}`);
+        console.info(`ObliqueStats | Total records: ${completeRecords.length}`);
+        console.info(
+          `ObliqueStats | Orientation parse time: ${stats.processingTimeMs} ms`
+        );
+        console.info(`ObliqueStats | Extension time: ${extensionTimeMs} ms`);
+        console.info(
+          `ObliqueStats | Total processing time: ${totalProcessingTimeMs} ms`
+        );
       } else {
         console.log("No OBLIQUE image records found in CSV data");
       }
@@ -120,7 +124,7 @@ export function useObliqueData(
       setIsLoading(false);
       return Promise.reject(error);
     }
-  }, [uri, isLoading, converter]);
+  }, [uri, isLoading, converter, noNadir, debug, offset, imageRecords]);
 
   return {
     isLoading,

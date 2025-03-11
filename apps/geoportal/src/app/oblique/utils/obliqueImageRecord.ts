@@ -4,7 +4,8 @@ import {
   getApproximateHeadingBySector,
   getCardinalDirectionByLineAndCameraId,
 } from "./orientationUtils";
-import { adjustHeadingToWGS84 } from "./crsUtils";
+import { Cartesian3 } from "cesium";
+import { computeOrientations } from "./computeOrientations";
 
 export const extendObliqueImageRecord = (
   image: BasicObliqueImageRecord,
@@ -13,33 +14,25 @@ export const extendObliqueImageRecord = (
 ): ObliqueImageRecord => {
   const { x, y, z } = image.perspectiveCenter;
 
-  // Parse ID to extract waypoint ID and camera ID
-  const parts = image.id.split("_");
-  // Format is like: 039_168_170004735
-  // Waypoint ID is everything before the second underscore (e.g., 039_168)
-  // Camera ID is the first three characters after the second underscore (e.g., 170)
-
-  let waypointId = "unknown";
-  let flightLine: string | null = null;
-  let cameraId: string | null = null;
-
-  if (parts.length >= 3) {
-    waypointId = `${parts[0]}_${parts[1]}`;
-    flightLine = parts[0];
-    const cameraIdPart = parts[2];
-    if (cameraIdPart.length >= 3) {
-      cameraId = cameraIdPart.substring(0, 3);
-    }
-  }
-
   // Use the provided converter directly instead of creating a new one
   const wgs84Coords = converter.forward([x, y, z]);
+  const cartesian = Cartesian3.fromDegrees(
+    wgs84Coords[0],
+    wgs84Coords[1],
+    wgs84Coords[2]
+  );
 
   // Calculate heading and sector if orientation data is available
+  const sector = getCardinalDirectionByLineAndCameraId(
+    image.lineNumber,
+    image.cameraId
+  );
 
-  const sector = getCardinalDirectionByLineAndCameraId(flightLine, cameraId);
+  let flightPatternHeading = getApproximateHeadingBySector(sector, offset);
 
-  let heading = getApproximateHeadingBySector(sector, offset);
+  const { quaternion, hpr, rotationMatrix } = computeOrientations(
+    image.orientation
+  );
 
   // Adjust the heading for the coordinate system if needed
   //heading = adjustHeadingToWGS84(heading, image.perspectiveCenter, converter);
@@ -47,10 +40,12 @@ export const extendObliqueImageRecord = (
   const record: ObliqueImageRecord = {
     ...image,
     centerWGS84: wgs84Coords as [number, number, number],
-    waypointId,
-    cameraId,
-    calculatedHeading: heading,
+    cartesian,
+    fallbackHeading: flightPatternHeading,
     sector,
+    quaternion,
+    hpr,
+    rotationMatrix,
   };
   return record;
 };

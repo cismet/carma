@@ -37,7 +37,7 @@ export const ObliqueImageInfoContainer: React.FC = () => {
       const viewer = viewerRef.current;
 
       // Extract position from the image record
-      const { centerWGS84, calculatedHeading, sector } = image;
+      const { centerWGS84, fallbackHeading: calculatedHeading, sector } = image;
       if (!centerWGS84) return;
 
       // Create Cartesian3 from WGS84 coordinates

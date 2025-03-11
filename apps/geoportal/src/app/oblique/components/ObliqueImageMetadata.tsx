@@ -58,12 +58,12 @@ export const ObliqueImageMetadata: React.FC<ObliqueImageMetadataProps> = ({
             <FontAwesomeIcon icon={faCompass} style={{ marginRight: 4 }} />
             Heading
           </SectionTitle>
-          {imageRecord.calculatedHeading !== undefined && (
+          {imageRecord.fallbackHeading !== undefined && (
             <InfoRow>
               <Text type="secondary">
                 Primary:{" "}
-                {CesiumMath.toDegrees(imageRecord.calculatedHeading).toFixed(2)}
-                °{imageRecord.sector && ` (${imageRecord.sector})`}
+                {CesiumMath.toDegrees(imageRecord.fallbackHeading).toFixed(2)}°
+                {imageRecord.sector && ` (${imageRecord.sector})`}
               </Text>
             </InfoRow>
           )}

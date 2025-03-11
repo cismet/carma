@@ -13,8 +13,14 @@ export type ExteriorPosition = {
 
 export interface BasicObliqueImageRecord {
   id: string;
+  cameraId: string;
+  locationNumber: number;
+  lineNumber: string;
+  waypointNumber: string;
+  waypointId: string;
   perspectiveCenter: ExteriorPosition;
   orientation: ExteriorOrientationOPK;
+
   __debugRecord?: string;
 }
 
@@ -22,10 +28,12 @@ export type CardinalDirection = "N" | "E" | "S" | "W";
 
 export interface ObliqueImageRecord extends BasicObliqueImageRecord {
   centerWGS84: [number, number, number];
-  waypointId: string;
-  cameraId: string | null;
-  calculatedHeading?: number; // in radians
-  sector?: CardinalDirection;
+  fallbackHeading: number;
+  sector: CardinalDirection;
+  cartesian: Cartesian3;
+  hpr: HeadingPitchRoll;
+  quaternion: Quaternion;
+  rotationMatrix: Matrix3;
 }
 
 export interface ObliqueDataProviderConfig {
