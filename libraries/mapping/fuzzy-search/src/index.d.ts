@@ -7,6 +7,9 @@ export type SearchGazetteerProps = {
   //referenceSystem: undefined;
   //referenceSystemDefinition: undefined;
   stopwords?: string[];
+  typeInference?: {
+    [key: string]: (item: SearchResultItem) => string;
+  };
   pixelwidth?: number | string;
   ifShowCategories?: boolean;
   placeholder?: string;

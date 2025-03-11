@@ -45,6 +45,7 @@ export function LibFuzzySearch({
   ifShowCategories: standardSearch = true,
   placeholder = "Wohin?",
   priorityTypes,
+  typeInference,
   onCLose = () => {},
   config = {
     prepoHandling: false,
@@ -144,7 +145,11 @@ export function LibFuzzySearch({
 
   useEffect(() => {
     if (gazData) {
-      const allModifiedData = prepareGazData(gazData, prepoHandling);
+      const allModifiedData = prepareGazData(
+        gazData,
+        prepoHandling,
+        typeInference
+      );
       setAllGazeteerData(allModifiedData);
     }
   }, [gazData, prepoHandling]);

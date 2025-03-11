@@ -165,7 +165,7 @@ export function removeStopwords(text, stopwords, prepoHandling) {
     return text;
   }
 }
-export function prepareGazData(data, prepoHandling) {
+export function prepareGazData(data, prepoHandling, typeInference) {
   const modifiedData = data.map((item) => {
     const searchData = item?.string;
     const stringWithoutStopWords = removeStopwords(
@@ -173,9 +173,12 @@ export function prepareGazData(data, prepoHandling) {
       stopwords,
       prepoHandling
     );
+    if (typeInference && typeInference[item.type]) {
+      item.type = typeInference[item.type](item);
+    }
     const address = {
       ...item,
-      type: item.glyph === "graduation-cap" ? "schulen" : item.type,
+      // type: item.glyph === "graduation-cap" ? "schulen" : item.type,
       xSearchData: joinNumberLetter(stringWithoutStopWords),
     };
     return address;
