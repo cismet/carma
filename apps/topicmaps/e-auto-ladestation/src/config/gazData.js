@@ -8,6 +8,7 @@ const endpoints = [
   ENDPOINT.QUARTIERE,
   ENDPOINT.POIS,
   ENDPOINT.EMOB,
+  ENDPOINT.KITAS,
 ];
 
 const host = "https://wunda-geoportal.cismet.de";
