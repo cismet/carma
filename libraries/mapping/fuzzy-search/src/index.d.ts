@@ -11,6 +11,7 @@ export type SearchGazetteerProps = {
   ifShowCategories?: boolean;
   placeholder?: string;
   config?: SearchConfig;
+  priorityTypes?: string[];
 };
 interface MoreData {
   zl: number;
