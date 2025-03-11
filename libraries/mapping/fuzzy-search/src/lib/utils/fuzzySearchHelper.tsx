@@ -269,16 +269,17 @@ export const mapDataWithCategory = (
 
   if (priorityTypes && priorityTypes.length) {
     data.sort((a, b) => {
-      const aTypeIndex = priorityTypes.indexOf(a.item.type);
-      const bTypeIndex = priorityTypes.indexOf(b.item.type);
-      if (aTypeIndex === -1 && bTypeIndex === -1) {
-        return 0;
+      if (a.score === 0 && b.score === 0) {
+        const aIndex = priorityTypes.indexOf(a.item.type);
+        const bIndex = priorityTypes.indexOf(b.item.type);
+
+        if (aIndex === -1 && bIndex === -1) return 0;
+        if (aIndex === -1) return 1;
+        if (bIndex === -1) return -1;
+        return aIndex - bIndex;
       }
 
-      if (aTypeIndex === -1) return 1;
-      if (bTypeIndex === -1) return -1;
-
-      return aTypeIndex - bTypeIndex;
+      return 0;
     });
   }
 
