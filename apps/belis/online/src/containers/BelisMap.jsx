@@ -10,7 +10,7 @@ import BelisFeatureCollection from "../components/app/FeatureCollection";
 import FocusRectangle from "../components/app/FocusRectangle";
 import InfoBox from "../components/commons/InfoBox";
 import InfoPanel from "../components/commons/secondaryinfo/SecondaryInfo";
-import PaleOverlay from "../components/leaflet/PaleOverlay";
+import PaleOverlay from "react-cismap/PaleOverlay";
 import { modifyQueryPart } from "../core/commons/routingHelper";
 import { convertBounds2BBox } from "../core/helper/gisHelper";
 import { CONNECTIONMODE, getConnectionMode } from "../core/store/slices/app";
@@ -316,7 +316,7 @@ const BelisMap = ({ refRoutedMap, width, height, jwt }) => {
         <InfoBox refRoutedMap={refRoutedMap} />
       )}
 
-      {inPaleMode && <PaleOverlay />}
+      {inPaleMode && <PaleOverlay opacity={0.8} />}
       <TopicMapSelectionContent />
 
       {/* {overlayFeature && (
