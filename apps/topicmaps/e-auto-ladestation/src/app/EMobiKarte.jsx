@@ -141,8 +141,9 @@ const EMobiKarte = () => {
             "bezirke",
             "quartiere",
             "adressen",
-            "poi",
+            "pois",
             "kitas",
+            "schulen",
           ]}
           onSelection={onGazetteerSelection}
           pixelwidth={pixelwidth}
