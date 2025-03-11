@@ -521,6 +521,11 @@ const MapWrapper = () => {
         <div
           id="mapContainer"
           className={`${isMobile ? "h-0" : ""} flex flex-1 relative`}
+          style={{
+            height: isMobile ? "100vh" : "100%",
+            minHeight: "256px",
+            overflow: "hidden",
+          }}
         >
           <GeoportalMap height={height} width={width} allow3d={allow3d} />
           <ObliqueImageInfoContainer />
