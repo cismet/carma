@@ -71,7 +71,7 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
 
   // Use the oblique data hook to get camera orientations
   const { imageRecords, parseCSV, isLoading, converter, error } =
-    useObliqueData(uri, crs);
+    useObliqueData(uri, crs, headingOffset);
 
   // Store when data has been previously loaded to prevent duplicate loads
   const [dataLoaded, setDataLoaded] = useState(false);

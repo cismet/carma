@@ -1,11 +1,15 @@
 import { type Converter } from "proj4";
 import { BasicObliqueImageRecord, ObliqueImageRecord } from "../types";
-import { calculateHPRfromOPK, getSectorFromHeading } from "./orientationUtils";
+import {
+  getApproximateHeadingBySector,
+  getCardinalDirectionByLineAndCameraId,
+} from "./orientationUtils";
 import { adjustHeadingToWGS84 } from "./crsUtils";
 
 export const extendObliqueImageRecord = (
   image: BasicObliqueImageRecord,
-  converter: Converter
+  converter: Converter,
+  offset: number
 ): ObliqueImageRecord => {
   const { x, y, z } = image.perspectiveCenter;
 
@@ -16,10 +20,12 @@ export const extendObliqueImageRecord = (
   // Camera ID is the first three characters after the second underscore (e.g., 170)
 
   let waypointId = "unknown";
+  let flightLine: string | null = null;
   let cameraId: string | null = null;
 
   if (parts.length >= 3) {
     waypointId = `${parts[0]}_${parts[1]}`;
+    flightLine = parts[0];
     const cameraIdPart = parts[2];
     if (cameraIdPart.length >= 3) {
       cameraId = cameraIdPart.substring(0, 3);
@@ -30,18 +36,13 @@ export const extendObliqueImageRecord = (
   const wgs84Coords = converter.forward([x, y, z]);
 
   // Calculate heading and sector if orientation data is available
-  let heading: number | undefined;
-  let sector: string | undefined;
 
-  if (image.orientation) {
-    // Get the heading from OPK angles
-    ({ heading } = calculateHPRfromOPK(image.orientation));
+  const sector = getCardinalDirectionByLineAndCameraId(flightLine, cameraId);
 
-    // Adjust the heading for the coordinate system if needed
-    heading = adjustHeadingToWGS84(heading, image.perspectiveCenter, converter);
+  let heading = getApproximateHeadingBySector(sector, offset);
 
-    sector = getSectorFromHeading(heading);
-  }
+  // Adjust the heading for the coordinate system if needed
+  //heading = adjustHeadingToWGS84(heading, image.perspectiveCenter, converter);
 
   const record: ObliqueImageRecord = {
     ...image,

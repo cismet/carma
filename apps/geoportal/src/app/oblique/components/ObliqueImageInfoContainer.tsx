@@ -42,7 +42,11 @@ export const ObliqueImageInfoContainer: React.FC = () => {
 
       // Create Cartesian3 from WGS84 coordinates
       const [longitude, latitude, height] = centerWGS84;
-      const position = Cartesian3.fromDegrees(longitude, latitude, height);
+      const position = Cartesian3.fromDegrees(
+        longitude,
+        latitude,
+        height - 400
+      );
 
       // Fly to the image position
       viewer.camera.flyTo({
@@ -70,8 +74,8 @@ export const ObliqueImageInfoContainer: React.FC = () => {
   return (
     <>
       {isDebugObliqueEnabled && <ObliqueDebugSvg numImages={80} />}
-      
-      {isVisible && nearestImage && isDebugObliqueEnabled && (
+
+      {isDebugObliqueEnabled && isVisible && nearestImage && (
         <ObliqueImageInfo
           imageRecord={nearestImage}
           distance={distanceToNearestImage}

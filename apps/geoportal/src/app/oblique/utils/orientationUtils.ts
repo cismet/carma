@@ -1,5 +1,5 @@
 import { Math as CesiumMath } from "cesium";
-import { ExteriorOrientationOPK } from "../types";
+import { type CardinalDirection } from "../types";
 
 /**
  * Determines the sector based on the heading angle
@@ -11,7 +11,7 @@ import { ExteriorOrientationOPK } from "../types";
  * @param heading Heading in radians
  * @returns Sector as "N", "E", "S", or "W"
  */
-export function getSectorFromHeading(heading: number): string {
+export function getSectorFromHeading(heading: number): CardinalDirection {
   // Convert to degrees for easier understanding
   const degrees = CesiumMath.toDegrees(heading);
 
@@ -33,60 +33,48 @@ export function getSectorFromHeading(heading: number): string {
   }
 }
 
-/**
- * Converts photogrammetric OPK angles (Omega, Phi, Kappa) to aviation YPR angles (Yaw, Pitch, Roll)
- * This implementation calculates the full rotation matrix and extracts the effective heading
- * parallel to the ground
- *
- * @param omega Rotation around the X-axis in radians
- * @param phi Rotation around the Y-axis in radians
- * @param kappa Rotation around the Z-axis in radians
- * @returns Object containing heading (yaw), pitch, and roll in radians
- */
-export function calculateHPRfromOPK({
-  omega,
-  phi,
-  kappa,
-}: ExteriorOrientationOPK): {
-  heading?: number;
-  pitch?: number;
-  roll?: number;
-} {
-  // Calculate rotation matrix elements
-  const sinOmega = Math.sin(omega);
-  const cosOmega = Math.cos(omega);
-  const sinPhi = Math.sin(phi);
-  const cosPhi = Math.cos(phi);
-  const sinKappa = Math.sin(kappa);
-  const cosKappa = Math.cos(kappa);
+// calculate approximateheading from camera ID and line number as workaround until OPK approach works.
 
-  // Calculate full rotation matrix (photogrammetric convention)
-  // This is the standard OPK rotation matrix used in photogrammetry
-  // R = R_kappa * R_phi * R_omega
-  const r31 = sinKappa * sinOmega + cosKappa * sinPhi * cosOmega;
-  const r32 = -cosKappa * sinOmega + sinKappa * sinPhi * cosOmega;
-  const r33 = cosPhi * cosOmega;
+const CAMERA_ID_TO_DIRECTION = {
+  // For even flight lines
+  EVEN: {
+    // Using common oblique camera IDs
+    "170": "W",
+    "171": "S",
+    "174": "E",
+    "176": "N",
+  },
+  // For odd flight lines
+  ODD: {
+    "170": "E",
+    "171": "N",
+    "174": "W",
+    "176": "S",
+  },
+};
 
+const isOddFlightLine = (flightLine: string): boolean => {
+  return parseInt(flightLine) % 2 !== 0;
+};
 
-  let heading: number;
+export function getCardinalDirectionByLineAndCameraId(
+  flightLine: string,
+  cameraId: string
+): CardinalDirection {
+  const direction =
+    CAMERA_ID_TO_DIRECTION[isOddFlightLine(flightLine) ? "ODD" : "EVEN"];
+  return direction[cameraId];
+}
 
-  heading = Math.atan2(-r32, -r31);
-
-  // Normalize to [0, 2π)
-  const normalizedHeading =
-    ((heading % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-
-  // Calculate pitch as the angle between the viewing direction and the horizontal plane
-  const horizontalLength = Math.sqrt(r31 * r31 + r32 * r32);
-  const pitch = Math.atan2(-r33, horizontalLength);
-
-  // Calculate roll (bank angle) - this is more complex and requires additional calculations
-  // For simplicity, we'll use a reasonable approximation based on omega
-  const roll = omega;
-
-  return {
-    heading: normalizedHeading,
-    pitch,
-    roll,
+export function getApproximateHeadingBySector(
+  sector: CardinalDirection,
+  offset: number
+): number {
+  const headings: Record<CardinalDirection, number> = {
+    N: 0,
+    E: CesiumMath.toRadians(90),
+    S: CesiumMath.toRadians(180),
+    W: CesiumMath.toRadians(270),
   };
+  return headings[sector] + offset;
 }

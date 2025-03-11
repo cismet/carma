@@ -22,7 +22,8 @@ type UseObliqueDataResult = {
 
 export function useObliqueData(
   uri: string,
-  crs = "EPSG:25832"
+  crs = "EPSG:25832",
+  offset = 0
 ): UseObliqueDataResult {
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -87,7 +88,7 @@ export function useObliqueData(
           }
           return true;
         })
-        .map((image) => extendObliqueImageRecord(image, converter));
+        .map((image) => extendObliqueImageRecord(image, converter, offset));
 
       setImageRecords(completeRecords);
       setStats({

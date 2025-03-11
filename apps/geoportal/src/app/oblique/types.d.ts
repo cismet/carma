@@ -18,12 +18,14 @@ export interface BasicObliqueImageRecord {
   __debugRecord?: string;
 }
 
+export type CardinalDirection = "N" | "E" | "S" | "W";
+
 export interface ObliqueImageRecord extends BasicObliqueImageRecord {
   centerWGS84: [number, number, number];
   waypointId: string;
   cameraId: string | null;
   calculatedHeading?: number; // in radians
-  sector?: string; // N, E, S, W
+  sector?: CardinalDirection;
 }
 
 export interface ObliqueDataProviderConfig {
