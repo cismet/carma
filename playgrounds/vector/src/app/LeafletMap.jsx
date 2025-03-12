@@ -6,8 +6,6 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "leaflet/dist/leaflet.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
-import { md5FetchText, fetchJSON } from "react-cismap/tools/fetching";
-import { getGazDataForTopicIds } from "react-cismap/tools/gazetteerHelper";
 
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import { getClusterIconCreatorFunction } from "react-cismap/tools/uiHelper";
@@ -24,6 +22,18 @@ import { getActionLinksForFeature } from "react-cismap/tools/uiHelper";
 import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { Button } from "antd";
 import { defaultLayerConf } from "react-cismap/tools/layerFactory";
+import {
+  TopicMapSelectionContent,
+  useGazData,
+  useSelection,
+  useSelectionTopicMap,
+} from "@carma-apps/portals";
+import {
+  EmptySearchComponent,
+  LibFuzzySearch,
+} from "@carma-mapping/fuzzy-search";
+import { isAreaType } from "@carma-commons/resources";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 const host = "https://wupp-topicmaps-data.cismet.de";
 
@@ -38,36 +48,6 @@ if (!baseLayerConf.namedLayers.amtlichRVR) {
     pane: "backgroundLayers",
   };
 }
-
-const getGazData = async (setGazData) => {
-  const prefix = "GazDataForStories";
-  const sources = {};
-
-  sources.adressen = await md5FetchText(
-    prefix,
-    host + "/data/3857/adressen.json"
-  );
-  sources.bezirke = await md5FetchText(
-    prefix,
-    host + "/data/3857/bezirke.json"
-  );
-  sources.quartiere = await md5FetchText(
-    prefix,
-    host + "/data/3857/quartiere.json"
-  );
-  sources.pois = await md5FetchText(prefix, host + "/data/3857/pois.json");
-  sources.kitas = await md5FetchText(prefix, host + "/data/3857/kitas.json");
-
-  const gazData = getGazDataForTopicIds(sources, [
-    "pois",
-    "kitas",
-    "bezirke",
-    "quartiere",
-    "adressen",
-  ]);
-
-  setGazData(gazData);
-};
 
 function App({ vectorStyles = [] }) {
   const [syncToken, setSyncToken] = useState(null);
@@ -174,9 +154,15 @@ function App({ vectorStyles = [] }) {
 export default App;
 
 const Map = ({ layers, vectorStyles }) => {
-  const [gazData, setGazData] = useState([]);
   const [selectedFeature, setSelectedFeature] = useState(undefined);
   const { zoomToFeature, gotoHome } = useContext(TopicMapDispatchContext);
+  const { responsiveState, gap, windowSize } = useContext(
+    ResponsiveTopicMapContext
+  );
+
+  const pixelwidth =
+    responsiveState === "normal" ? "300px" : windowSize.width - gap;
+
   let links = [];
   if (selectedFeature) {
     links = getActionLinksForFeature(selectedFeature, {
@@ -199,128 +185,154 @@ const Map = ({ layers, vectorStyles }) => {
     });
   }
 
-  useEffect(() => {
-    getGazData(setGazData);
-  }, []);
+  const { gazData } = useGazData();
+  const { setSelection } = useSelection();
+
+  useSelectionTopicMap();
+
+  const onGazetteerSelection = (selection) => {
+    if (!selection) {
+      setSelection(null);
+      return;
+    }
+    const selectionMetaData = {
+      selectedFrom: "gazetteer",
+      selectionTimestamp: Date.now(),
+      isAreaSelection: isAreaType(selection.type),
+    };
+    setSelection(Object.assign({}, selection, selectionMetaData));
+  };
 
   return (
-    <TopicMapComponent
-      key={JSON.stringify(vectorStyles)}
-      maxZoom={22}
-      gazData={gazData}
-      locatorControl={true}
-      infoBox={
-        selectedFeature && (
-          <InfoBox
-            pixelwidth={350}
-            currentFeature={selectedFeature}
-            hideNavigator={true}
-            header="kjshd"
-            headerColor="#ff0000"
-            {...selectedFeature?.properties}
-            noCurrentFeatureTitle="nix da"
-            noCurrentFeatureContent="nix da"
-            links={links}
-          />
-        )
-      }
-    >
-      {vectorStyles.map((style, index) => {
-        return (
-          <CismapLayer
-            {...{
-              type: "vector",
-              style: style,
-              pane: "additionalLayers" + index,
-              opacity: 1,
-              maxSelectionCount: 1,
-              selectionEnabled: true,
-              onSelectionChanged: (e) => {
-                const selectedFeature = e.hits[0];
-                console.log(
-                  "xxxy selectedFeature",
-                  JSON.stringify(selectedFeature, null, 2)
-                );
+    <>
+      <TopicMapComponent
+        key={JSON.stringify(vectorStyles)}
+        maxZoom={22}
+        locatorControl={true}
+        gazetteerSearchControl={true}
+        gazetteerSearchComponent={EmptySearchComponent}
+        infoBox={
+          selectedFeature && (
+            <InfoBox
+              pixelwidth={350}
+              currentFeature={selectedFeature}
+              hideNavigator={true}
+              header="kjshd"
+              headerColor="#ff0000"
+              {...selectedFeature?.properties}
+              noCurrentFeatureTitle="nix da"
+              noCurrentFeatureContent="nix da"
+              links={links}
+            />
+          )
+        }
+      >
+        <TopicMapSelectionContent />
+        {vectorStyles.map((style, index) => {
+          return (
+            <CismapLayer
+              {...{
+                type: "vector",
+                style: style,
+                pane: "additionalLayers" + index,
+                opacity: 1,
+                maxSelectionCount: 1,
+                selectionEnabled: true,
+                onSelectionChanged: (e) => {
+                  const selectedFeature = e.hits[0];
+                  console.log(
+                    "xxxy selectedFeature",
+                    JSON.stringify(selectedFeature, null, 2)
+                  );
 
-                const p = selectedFeature.properties;
+                  const p = selectedFeature.properties;
 
-                if (p.infobox_info) {
-                  selectedFeature.properties = {
-                    ...selectedFeature.properties,
-                    ...JSON.parse(p.infobox_info),
-                  };
-                  setSelectedFeature(selectedFeature);
-                } else {
-                  //if style has /poi/ in it, then it is a POI layer
-                  if (style?.indexOf && style.indexOf("/poi/") > -1) {
-                    console.log("xxxx style ", style);
-
-                    const createInfoBoxInfo = (p) => {
-                      const identifications = JSON.parse(p.identifications);
-                      const mainlocationtype =
-                        identifications[0].identification;
-                      const info = {
-                        title: p.geographicidentifier,
-                        // additionalInfo: "bbb",
-                        subtitle: p.strasse,
-                        headerColor: p.schrift,
-                        header: mainlocationtype,
-                        url: p.url,
-                        tel: p.telefon,
-                      };
-                      return info;
-                    };
-
+                  if (p.infobox_info) {
                     selectedFeature.properties = {
                       ...selectedFeature.properties,
-                      ...createInfoBoxInfo(p),
+                      ...JSON.parse(p.infobox_info),
                     };
-
                     setSelectedFeature(selectedFeature);
-                  }
-                  //if style has /sgk_hausnummer/ in it
-                  else if (
-                    style?.indexOf &&
-                    style.indexOf("/sgk_hausnummern/") > -1
-                  ) {
-                    console.log("xxx------");
+                  } else {
+                    //if style has /poi/ in it, then it is a POI layer
+                    if (style?.indexOf && style.indexOf("/poi/") > -1) {
+                      console.log("xxxx style ", style);
 
-                    const conf = [
-                      "title:p.name+' '+p.hnummer",
-                      "header:'Adresse ('+p.adressart+')'",
-                      "headerColor:({1: '#006622', 2: '#0000CC', 3: '#FF6600', 4: '#CC0000', 5: '#7030A0'}[p.adresstyp] || '#000000')",
-                    ];
-                    // // Create the function as a string
-                    let functionString = `(function(p) {
+                      const createInfoBoxInfo = (p) => {
+                        const identifications = JSON.parse(p.identifications);
+                        const mainlocationtype =
+                          identifications[0].identification;
+                        const info = {
+                          title: p.geographicidentifier,
+                          // additionalInfo: "bbb",
+                          subtitle: p.strasse,
+                          headerColor: p.schrift,
+                          header: mainlocationtype,
+                          url: p.url,
+                          tel: p.telefon,
+                        };
+                        return info;
+                      };
+
+                      selectedFeature.properties = {
+                        ...selectedFeature.properties,
+                        ...createInfoBoxInfo(p),
+                      };
+
+                      setSelectedFeature(selectedFeature);
+                    }
+                    //if style has /sgk_hausnummer/ in it
+                    else if (
+                      style?.indexOf &&
+                      style.indexOf("/sgk_hausnummern/") > -1
+                    ) {
+                      console.log("xxx------");
+
+                      const conf = [
+                        "title:p.name+' '+p.hnummer",
+                        "header:'Adresse ('+p.adressart+')'",
+                        "headerColor:({1: '#006622', 2: '#0000CC', 3: '#FF6600', 4: '#CC0000', 5: '#7030A0'}[p.adresstyp] || '#000000')",
+                      ];
+                      // // Create the function as a string
+                      let functionString = `(function(p) {
                                           const info = {`;
 
-                    conf.forEach((rule) => {
-                      functionString += `${rule.trim()},\n`;
-                    });
+                      conf.forEach((rule) => {
+                        functionString += `${rule.trim()},\n`;
+                      });
 
-                    functionString += `
+                      functionString += `
                                           };
                                           return info;
                     })`;
-                    console.log("xxx functionString", functionString);
+                      console.log("xxx functionString", functionString);
 
-                    const tmpInfo = eval(functionString)(p);
+                      const tmpInfo = eval(functionString)(p);
 
-                    console.log("xxx tmpInfo", tmpInfo);
+                      console.log("xxx tmpInfo", tmpInfo);
 
-                    selectedFeature.properties = {
-                      ...selectedFeature.properties,
-                      ...tmpInfo,
-                    };
+                      selectedFeature.properties = {
+                        ...selectedFeature.properties,
+                        ...tmpInfo,
+                      };
 
-                    setSelectedFeature(selectedFeature);
+                      setSelectedFeature(selectedFeature);
+                    }
                   }
-                }
-              },
-            }}
-          />
-        );
-      })}
-    </TopicMapComponent>
+                },
+              }}
+            />
+          );
+        })}
+      </TopicMapComponent>
+      <div className="custom-left-control">
+        <LibFuzzySearch
+          gazData={gazData}
+          onSelection={onGazetteerSelection}
+          pixelwidth={pixelwidth}
+          placeholder="Stadtteil | Adresse | POI"
+        />
+      </div>
+    </>
   );
 };

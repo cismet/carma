@@ -9,9 +9,10 @@ import {
 } from "react-router-dom";
 import CodeMirror from "@uiw/react-codemirror";
 import { javascript } from "@codemirror/lang-javascript";
-
+import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
 import LeafletMap from "./app/LeafletMap";
 import LibreMap from "./app/LibreMap";
+import { gazDataConfig } from "./config/gazData";
 
 const originalWarn = console.warn.bind(console);
 const originalError = console.error.bind(console);
@@ -159,8 +160,12 @@ const RootComponent = () => {
 
 root.render(
   <StrictMode>
-    <Router>
-      <RootComponent />
-    </Router>
+    <GazDataProvider config={gazDataConfig}>
+      <SelectionProvider>
+        <Router>
+          <RootComponent />
+        </Router>
+      </SelectionProvider>
+    </GazDataProvider>
   </StrictMode>
 );
