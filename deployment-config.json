@@ -902,6 +902,33 @@
       },
       "projectPath": "./dist/apps/wunda/umweltalarm"
     },
+    "belis-online": {
+      "deployment": {
+        "manual": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "belis-online"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "belis-online"
+            }
+          }
+        },
+        "auto": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "belis-online"
+            }
+          }
+        }
+      },
+      "projectPath": "./dist/apps/belis/online"
+    },
     "rainhazardmap-tholey": {
       "deployment": {
         "manual": {
