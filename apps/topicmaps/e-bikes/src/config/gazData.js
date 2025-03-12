@@ -12,7 +12,7 @@ const endpoints = [
 ];
 
 const host = "https://wunda-geoportal.cismet.de";
-const crs = "3857";
+const crs = "25832";
 
 const sources = endpoints.map((endpoint) => {
   return createConfigWithoutCRS(endpoint, { crs, host });
