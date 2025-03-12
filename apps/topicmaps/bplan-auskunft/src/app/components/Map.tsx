@@ -198,7 +198,7 @@ const Map = () => {
         selection.type === "bplaene"
       ) {
         const gazObject = selection;
-        const selectionString = gazObject?.more?.v || gazObject.string;
+        const selectionString = gazObject.string;
 
         dispatch(
           getPlanFeatureByTitle(selectionString, (hit) => {
