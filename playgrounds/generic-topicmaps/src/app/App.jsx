@@ -23,6 +23,9 @@ import DefaultAppMenu from "react-cismap/topicmaps/menu/DefaultAppMenu";
 //--------  Config Files
 import * as wasserstoffConfig from "./config/wasserstoff";
 import * as parkscheinautomatenConfig from "./config/parkscheinautomaten";
+import { TopicMapSelectionContent } from "@carma-apps/portals";
+import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
+import FuzzySearchComponent from "./components/FuzzySearchComponent";
 
 const host = "https://wupp-topicmaps-data.cismet.de";
 
@@ -95,7 +98,8 @@ function App() {
     JSON.parse(JSON.stringify(configFromFile))
   );
 
-  const [gazData, setGazData] = useState([]);
+  // const [gazData, setGazData] = useState([]);
+
   useEffect(() => {
     const simpleHelpMd = undefined;
     const helpTextBlocks = undefined;
@@ -138,7 +142,7 @@ function App() {
       config.tm.gazetteerSearchBoxPlaceholdertext;
     config.info.city = config.city;
 
-    getGazData(setGazData, config.tm.gazetteerTopicsList);
+    // getGazData(setGazData, config.tm.gazetteerTopicsList);
     setConfig(config);
     setInitialized(true);
   }, []);
@@ -159,8 +163,10 @@ function App() {
         }}
       >
         <TopicMapComponent
+          gazetteerSearchControl={true}
+          gazetteerSearchComponent={EmptySearchComponent}
           {...config.tm}
-          gazData={gazData}
+          // gazData={gazData}
           infoBox={<GenericInfoBoxFromFeature config={infoBoxConfig} />}
           modalMenu={
             <DefaultAppMenu
@@ -179,6 +185,7 @@ function App() {
             ></DefaultAppMenu>
           }
         >
+          <TopicMapSelectionContent />
           <FeatureCollection />
           <div className="leaflet-top leaflet-right" style={{ paddingTop: 46 }}>
             <div className="leaflet-control">
@@ -215,6 +222,7 @@ function App() {
             </div>
           </div>
         </TopicMapComponent>
+        <FuzzySearchComponent />
       </TopicMapContextProvider>
     );
   } else return <div>not initialized</div>;
