@@ -85,7 +85,11 @@ const Menu = () => {
               />
             }
           />,
-          <DefaultSettingsPanel key="settings" />,
+          <DefaultSettingsPanel
+            key="settings"
+            checkBoxSettingsSectionTitle="Ladestation-Einstellungen"
+            checkBoxTextClustering="Ladestationen maßstabsabhängig zusammenfassen"
+          />,
           <KompaktanleitungSection
             onlineSVG={onlineSVG}
             offlineSVG={offlineSVG}

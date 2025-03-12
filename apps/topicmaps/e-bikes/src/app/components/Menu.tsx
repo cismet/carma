@@ -66,7 +66,11 @@ const Menu = () => {
             sectionBsStyle={FilterStyle}
             sectionContent={<FilterUI />}
           />,
-          <DefaultSettingsPanel key="settings" />,
+          <DefaultSettingsPanel
+            key="settings"
+            checkBoxSettingsSectionTitle="Einstellungen Lade- und Verleihstationen:"
+            checkBoxTextClustering="Stationen maßstabsabhängig zusammenfassen"
+          />,
           <KompaktanleitungSection />,
           <GenericDigitalTwinReferenceSection />,
         ]}
