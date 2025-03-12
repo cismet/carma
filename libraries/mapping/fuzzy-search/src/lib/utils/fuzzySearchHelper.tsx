@@ -29,22 +29,27 @@ export const joinNumberLetter = (name: string) =>
   name.replace(/(\d+)\s([a-zA-Z])/g, "$1$2");
 
 export const renderItem = (
-  address: SearchResultItem,
+  searchResultItem: SearchResultItem,
   showScore = false,
   score,
   category: string = "default"
 ) => {
-  const addressLabel = buildAddressWithIconUI(
-    address,
+  const searchResultItemLabel = buildAddressWithIconUI(
+    searchResultItem,
     showScore,
     score,
     category
   );
   return {
-    key: address.sorter,
-    value: address.string + "." + address.sorter,
-    label: addressLabel,
-    sData: address,
+    key: searchResultItem.sorter,
+    value:
+      searchResultItem.string +
+      "." +
+      searchResultItem.type +
+      "." +
+      searchResultItem.sorter,
+    label: searchResultItemLabel,
+    sData: searchResultItem,
   };
 };
 
