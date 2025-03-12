@@ -19,37 +19,40 @@ import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFrom
 import getGTMFeatureStyler from "react-cismap/topicmaps/generic/GTMStyler";
 import { addSVGToProps } from "react-cismap/tools/svgHelper";
 import { MappingConstants } from "react-cismap";
+import { TopicMapSelectionContent } from "@carma-apps/portals";
+import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
+import FuzzySearchComponent from "./components/FuzzySearchComponent";
 
 const host = "https://wupp-topicmaps-data.cismet.de";
 
-const getGazData = async (setGazData) => {
-  const prefix = "GazDataForStories";
-  const sources = {};
-  sources.adressen = await md5FetchText(
-    prefix,
-    host + "/data/3857/adressen.json"
-  );
-  sources.bezirke = await md5FetchText(
-    prefix,
-    host + "/data/3857/bezirke.json"
-  );
-  sources.quartiere = await md5FetchText(
-    prefix,
-    host + "/data/3857/quartiere.json"
-  );
-  sources.pois = await md5FetchText(prefix, host + "/data/3857/pois.json");
-  sources.kitas = await md5FetchText(prefix, host + "/data/3857/kitas.json");
+// const getGazData = async (setGazData) => {
+//   const prefix = "GazDataForStories";
+//   const sources = {};
+//   sources.adressen = await md5FetchText(
+//     prefix,
+//     host + "/data/3857/adressen.json"
+//   );
+//   sources.bezirke = await md5FetchText(
+//     prefix,
+//     host + "/data/3857/bezirke.json"
+//   );
+//   sources.quartiere = await md5FetchText(
+//     prefix,
+//     host + "/data/3857/quartiere.json"
+//   );
+//   sources.pois = await md5FetchText(prefix, host + "/data/3857/pois.json");
+//   sources.kitas = await md5FetchText(prefix, host + "/data/3857/kitas.json");
 
-  const gazData = getGazDataForTopicIds(sources, [
-    "pois",
-    "kitas",
-    "bezirke",
-    "quartiere",
-    "adressen",
-  ]);
+//   const gazData = getGazDataForTopicIds(sources, [
+//     "pois",
+//     "kitas",
+//     "bezirke",
+//     "quartiere",
+//     "adressen",
+//   ]);
 
-  setGazData(gazData);
-};
+//   setGazData(gazData);
+// };
 
 const convertPOIItemsToFeature = async (itemIn) => {
   let item = await addSVGToProps(
@@ -123,10 +126,10 @@ const convertPOIItemsToFeature = async (itemIn) => {
 
 const mapTitle = "Corona-Präventionskarte";
 function App() {
-  const [gazData, setGazData] = useState([]);
+  // const [gazData, setGazData] = useState([]);
   useEffect(() => {
     document.title = mapTitle;
-    getGazData(setGazData);
+    // getGazData(setGazData);
   }, []);
   return (
     <TopicMapContextProvider
@@ -136,6 +139,9 @@ function App() {
       }
       getFeatureStyler={getGTMFeatureStyler}
       featureTooltipFunction={(feature) => feature?.text}
+      referenceSystemDefinition={MappingConstants.proj4crs25832def}
+      mapEPSGCode="25832"
+      referenceSystem={MappingConstants.crs25832}
       convertItemToFeature={convertPOIItemsToFeature}
       clusteringOptions={{
         iconCreateFunction: getClusterIconCreatorFunction(
@@ -162,9 +168,10 @@ function App() {
         modalMenu={<MyMenu />}
         homeCenter={[51.251236352367464, 7.162581102842314]}
         locatorControl={true}
-        gazData={gazData}
+        // gazData={gazData}
         applicationMenuTooltipString="Einstelllungen | Statistik | Anleitung"
-        gazetteerSearchPlaceholder="Stadtteil | Adresse | POI"
+        gazetteerSearchControl={true}
+        gazetteerSearchComponent={EmptySearchComponent}
         infoBox={
           <GenericInfoBoxFromFeature
             pixelwidth={400}
@@ -191,8 +198,10 @@ function App() {
           />
         }
       >
+        <TopicMapSelectionContent />
         <FeatureCollection />
       </TopicMapComponent>
+      <FuzzySearchComponent />
     </TopicMapContextProvider>
   );
 }
