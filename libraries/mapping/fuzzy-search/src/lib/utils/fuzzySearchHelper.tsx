@@ -42,7 +42,7 @@ export const renderItem = (
   );
   return {
     key: address.sorter,
-    value: address.string,
+    value: address.string + "." + address.sorter,
     label: addressLabel,
     sData: address,
   };

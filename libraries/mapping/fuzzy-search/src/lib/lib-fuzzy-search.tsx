@@ -137,6 +137,7 @@ export function LibFuzzySearch({
     setCleanBtnDisable(false);
     console.info("[SEARCH] selected option", option);
     onSelection(option.sData);
+    setValue(option.sData.string);
 
     setTimeout(() => {
       btnClosRef.current?.focus();
