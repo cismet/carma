@@ -106,32 +106,15 @@ function convertBPlanToFeature(bplan, index) {
   };
 }
 
-export function getPlanFeatureByGazObject(
-  gazObjects,
-  done = (result) => {
-    console.log(result);
-  }
+export function getPlanFeatureByTitle(
+  _title: string,
+  done: (hit: any) => void
 ) {
-  return function (dispatch, getState) {
-    const state = getState();
-    let finalResults: any = [];
-
-    let hit = state.bplaene.data.find((elem: any) => {
-      return elem.text === gazObjects[0].more.v;
-    });
-
-    if (hit) {
-      finalResults.push(hit);
-    }
-
-    done(finalResults);
-  };
-}
-
-export function getPlanFeatureByTitle(title: string, done: (hit: any) => void) {
   return function (dispatch) {
+    const title = _title.replaceAll("_", " ");
     let status: string | undefined = undefined;
     let nr = title;
+
     if (title.includes("(nicht rechtskräftig)")) {
       status = "nicht rechtskräftig";
       nr = title.split(" (nicht rechtskräftig)")[0];

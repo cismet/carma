@@ -7,11 +7,11 @@ import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import {
   getBPLaene,
-  getPlanFeatureByGazObject,
+  getPlanFeatureByTitle,
   loadBPlaene,
 } from "../store/slices/bplaene";
 import { useParams } from "react-router-dom";
-import { getDocsForBPlaeneGazetteerEntry } from "../utils/DocsHelper";
+import { getDocsForBPlanTitle } from "../utils/DocsHelper";
 import type { UnknownAction } from "redux";
 
 export function App() {
@@ -59,16 +59,15 @@ export function App() {
 
     if (docPackageId && bplaene) {
       let tmpDocs;
-      tmpDocs = getDocsForBPlaeneGazetteerEntry({
-        gazHit: {
-          type: "bplaene",
-          more: { v: docPackageId },
-        },
-        getPlanFeatureByGazObject: (aevs, done) =>
+
+      tmpDocs = getDocsForBPlanTitle({
+        title: docPackageId,
+        getPlanFeatureByTitle: (title: string, done: (hit: any) => void) =>
           dispatch(
-            getPlanFeatureByGazObject(aevs, done) as unknown as UnknownAction
+            getPlanFeatureByTitle(title, done) as unknown as UnknownAction
           ),
       });
+
       if (tmpDocs) {
         getUpdatedDocs(tmpDocs);
       }

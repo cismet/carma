@@ -36,97 +36,101 @@ function repairUrl(url) {
     );
 }
 
-export function getDocsForBPlaeneGazetteerEntry(props: any) {
+export function getDocsForBPlanFeature(props: any) {
+  const { bplanFeature } = props;
+  let docs: any = [];
+  const bplan = bplanFeature.properties;
+
+  if (bplan) {
+    let title = "B-Plan " + bplan?.nummer;
+
+    for (const doc of bplan.plaene_rk) {
+      docs.push({
+        primary: true,
+        group: "rechtskräftig",
+        file: doc.file,
+        url: doc.url,
+        title: title,
+
+        layer: replaceUmlauteAndSpaces(
+          repairUrl(doc.url).replace(
+            "https://wunda-geoportal-docs.cismet.de/",
+            tileservice
+          ) + "/{z}/{x}/{y}.png"
+        ),
+        meta: replaceUmlauteAndSpaces(
+          repairUrl(doc.url).replace(
+            "https://wunda-geoportal-docs.cismet.de/",
+            tileservice
+          ) + "/meta.json"
+        ),
+      });
+    }
+
+    for (const doc of bplan.plaene_nrk) {
+      docs.push({
+        primary: true,
+        group: "nicht rechtskräftig",
+        file: doc.file,
+        url: repairUrl(doc.url),
+        title,
+
+        layer: replaceUmlauteAndSpaces(
+          repairUrl(doc.url).replace(
+            "https://wunda-geoportal-docs.cismet.de/",
+            tileservice
+          ) + "/{z}/{x}/{y}.png"
+        ),
+        meta: replaceUmlauteAndSpaces(
+          repairUrl(doc.url).replace(
+            "https://wunda-geoportal-docs.cismet.de/",
+            tileservice
+          ) + "/meta.json"
+        ),
+      });
+    }
+    for (const doc of bplan.docs) {
+      docs.push({
+        primary: false,
+
+        group:
+          "/Zusatzdokumente" +
+          (doc.structure !== undefined ? doc.structure : ""),
+        file: doc.file,
+        url: repairUrl(doc.url),
+        title: doc.title,
+        structure: doc.structure,
+        hideInDocViewer: doc.hideInDocViewer,
+        layer: replaceUmlauteAndSpaces(
+          repairUrl(doc.url).replace(
+            "https://wunda-geoportal-docs.cismet.de/",
+            tileservice
+          ) + "/{z}/{x}/{y}.png"
+        ),
+
+        meta: replaceUmlauteAndSpaces(
+          repairUrl(doc.url).replace(
+            "https://wunda-geoportal-docs.cismet.de/",
+            tileservice
+          ) + "/meta.json"
+        ),
+      });
+    }
+
+    return docs;
+  }
+}
+
+export function getDocsForBPlanTitle(props: any) {
   let {
-    gazHit,
+    title,
     // searchForPlans,
-    getPlanFeatureByGazObject,
+    getPlanFeatureByTitle,
   } = props;
   let docs: any = [];
 
-  getPlanFeatureByGazObject([gazHit], (bplanFeature) => {
-    let bplan;
-
-    if (bplanFeature.length > 0) {
-      bplan = bplanFeature[0].properties;
-    }
-
-    if (bplan) {
-      let title = "B-Plan " + bplan?.nummer;
-
-      for (const doc of bplan.plaene_rk) {
-        docs.push({
-          primary: true,
-          group: "rechtskräftig",
-          file: doc.file,
-          url: doc.url,
-          title: title,
-
-          layer: replaceUmlauteAndSpaces(
-            repairUrl(doc.url).replace(
-              "https://wunda-geoportal-docs.cismet.de/",
-              tileservice
-            ) + "/{z}/{x}/{y}.png"
-          ),
-          meta: replaceUmlauteAndSpaces(
-            repairUrl(doc.url).replace(
-              "https://wunda-geoportal-docs.cismet.de/",
-              tileservice
-            ) + "/meta.json"
-          ),
-        });
-      }
-
-      for (const doc of bplan.plaene_nrk) {
-        docs.push({
-          primary: true,
-          group: "nicht rechtskräftig",
-          file: doc.file,
-          url: repairUrl(doc.url),
-          title,
-
-          layer: replaceUmlauteAndSpaces(
-            repairUrl(doc.url).replace(
-              "https://wunda-geoportal-docs.cismet.de/",
-              tileservice
-            ) + "/{z}/{x}/{y}.png"
-          ),
-          meta: replaceUmlauteAndSpaces(
-            repairUrl(doc.url).replace(
-              "https://wunda-geoportal-docs.cismet.de/",
-              tileservice
-            ) + "/meta.json"
-          ),
-        });
-      }
-      for (const doc of bplan.docs) {
-        docs.push({
-          primary: false,
-
-          group:
-            "/Zusatzdokumente" +
-            (doc.structure !== undefined ? doc.structure : ""),
-          file: doc.file,
-          url: repairUrl(doc.url),
-          title: doc.title,
-          structure: doc.structure,
-          hideInDocViewer: doc.hideInDocViewer,
-          layer: replaceUmlauteAndSpaces(
-            repairUrl(doc.url).replace(
-              "https://wunda-geoportal-docs.cismet.de/",
-              tileservice
-            ) + "/{z}/{x}/{y}.png"
-          ),
-
-          meta: replaceUmlauteAndSpaces(
-            repairUrl(doc.url).replace(
-              "https://wunda-geoportal-docs.cismet.de/",
-              tileservice
-            ) + "/meta.json"
-          ),
-        });
-      }
-    }
+  getPlanFeatureByTitle(title, (bplanFeature) => {
+    docs = getDocsForBPlanFeature({ bplanFeature });
   });
   return docs;
 }

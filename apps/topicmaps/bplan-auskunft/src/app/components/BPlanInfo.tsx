@@ -141,6 +141,7 @@ const BPlanInfo = ({
     </table>
   );
 
+  const docId = selectedFeature.properties.gazeteerTitle?.replace(/ /g, "_");
   let divWhenLarge = (
     <div>
       <table border={0} style={{ width: "100%" }}>
@@ -171,7 +172,8 @@ const BPlanInfo = ({
                 href={
                   window.location.origin +
                   window.location.pathname +
-                  `/#/docs/${selectedFeature.properties.nummer}/1/1`
+                  // `/#/docs/${selectedFeature.properties.nummer} (rechtskräftig)/1/1`
+                  `/#/docs/${docId || selectedFeature.properties.nummer}/1/1`
                 }
                 target="doc"
               >
@@ -258,7 +260,7 @@ const BPlanInfo = ({
                 href={
                   window.location.origin +
                   window.location.pathname +
-                  `/#/docs/${selectedFeature.properties.nummer}/1/1`
+                  `/#/docs/${docId || selectedFeature.properties.nummer}/1/1`
                 }
                 target="doc"
               >
