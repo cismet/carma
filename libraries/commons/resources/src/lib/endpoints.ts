@@ -68,6 +68,8 @@ const AREA_ENDPOINTS_GEP = [
   ENDPOINT.GEPS_REVERSE,
 ];
 
+const DEFAULT_GAZ_PROJ = "25832";
+
 export const isAreaTypeWithGEP = (endpoint: ENDPOINT) => {
   return AREA_ENDPOINTS_GEP.includes(endpoint);
 };
@@ -76,7 +78,11 @@ export const createGazEndpointUri = (
   endpoint: ENDPOINT,
   { crs, host }: EndpointOptions
 ) => {
-  return `${host}/data/${crs}/${endpoint}.json`;
+  if (crs === "" || crs === DEFAULT_GAZ_PROJ) {
+    return `${host}/data/${endpoint}.json`;
+  } else {
+    return `${host}/data/${crs}/${endpoint}.json`;
+  }
 };
 
 export const createGazEndpointUriWithoutCRS = (
