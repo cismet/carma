@@ -333,6 +333,33 @@
       },
       "projectPath": "./dist/playgrounds/generic-topicmaps"
     },
+    "corona-praeventation": {
+      "deployment": {
+        "manual": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "corona-praeventation"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "corona-praeventation"
+            }
+          }
+        },
+        "auto": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "corona-praeventation"
+            }
+          }
+        }
+      },
+      "projectPath": "./dist/playgrounds/corona-praeventation"
+    },
     "techdemo": {
       "deployment": {
         "manual": {
