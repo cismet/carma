@@ -306,7 +306,7 @@
       },
       "projectPath": "./dist/playgrounds/carmamap"
     },
-    "generic-topicmap": {
+    "generic-topicmaps-playground": {
       "deployment": {
         "manual": {
           "dev": {
