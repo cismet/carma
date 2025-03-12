@@ -38,7 +38,11 @@ export default defineConfig({
     },
   },
 
+  // define: {
+  //   'import.meta.vitest': undefined,
+  // },
+
   define: {
-    'import.meta.vitest': undefined,
-  },
+    'process.env': {}
+  }
 });
