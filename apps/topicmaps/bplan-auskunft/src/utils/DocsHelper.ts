@@ -36,21 +36,26 @@ function repairUrl(url) {
     );
 }
 
+export function getTitleFromFilename(filename: string) {
+  let title = filename;
+  //replace the first B with the word B-Plan
+  title = title.replace("B", "B-Plan");
+  return title;
+}
+
 export function getDocsForBPlanFeature(props: any) {
   const { bplanFeature } = props;
   let docs: any = [];
   const bplan = bplanFeature.properties;
 
   if (bplan) {
-    let title = "B-Plan " + bplan?.nummer;
-
     for (const doc of bplan.plaene_rk) {
       docs.push({
         primary: true,
         group: "rechtskräftig",
         file: doc.file,
         url: doc.url,
-        title: title,
+        title: getTitleFromFilename(doc.file),
 
         layer: replaceUmlauteAndSpaces(
           repairUrl(doc.url).replace(
@@ -73,7 +78,7 @@ export function getDocsForBPlanFeature(props: any) {
         group: "nicht rechtskräftig",
         file: doc.file,
         url: repairUrl(doc.url),
-        title,
+        title: getTitleFromFilename(doc.file),
 
         layer: replaceUmlauteAndSpaces(
           repairUrl(doc.url).replace(

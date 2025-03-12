@@ -75,9 +75,16 @@ export function App() {
 
     document.title = `Dokumentenansicht | ${docPackageId}`;
   }, [docPackageId, bplaene]);
+  console.log("xxx docs", docs);
 
   if (docs.length > 0) {
-    return <DocumentViewer docs={docs} mode="bplaene" />;
+    return (
+      <DocumentViewer
+        title={docPackageId?.replaceAll("_", " ")}
+        docs={docs}
+        mode="bplaene"
+      />
+    );
   } else {
     return null;
   }
