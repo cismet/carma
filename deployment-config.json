@@ -306,6 +306,33 @@
       },
       "projectPath": "./dist/playgrounds/carmamap"
     },
+    "generic-topicmap": {
+      "deployment": {
+        "manual": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "generic-topicmap"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "generic-topicmap"
+            }
+          }
+        },
+        "auto": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "generic-topicmap"
+            }
+          }
+        }
+      },
+      "projectPath": "./dist/playgrounds/generic-topicmaps"
+    },
     "techdemo": {
       "deployment": {
         "manual": {
