@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import { useSelector } from "react-redux";
 import { getGazData, paramsToObject } from "../helper/helper";
@@ -19,9 +19,23 @@ import getBackgroundLayers from "../helper/layer";
 import { getMode, getShowLayerButtons } from "../store/slices/ui";
 import CismapLayer from "react-cismap/CismapLayer";
 import GazetteerSearchComponent from "react-cismap/GazetteerSearchComponent";
+import {
+  SelectionMetaData,
+  TopicMapSelectionContent,
+  useGazData,
+  useSelection,
+  useSelectionTopicMap,
+} from "@carma-apps/portals";
+import {
+  EmptySearchComponent,
+  LibFuzzySearch,
+  SearchResultItem,
+} from "@carma-mapping/fuzzy-search";
+import { ENDPOINT, isAreaType } from "@carma-commons/resources";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 const Map = () => {
-  const [gazData, setGazData] = useState([]);
+  // const [gazData, setGazData] = useState([]);
   const [height, setHeight] = useState(0);
   const [width, setWidth] = useState(0);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -35,9 +49,34 @@ const Map = () => {
   const focusMode = useSelector(getFocusMode);
   const [urlParams, setUrlParams] = useSearchParams();
 
+  const { responsiveState, gap, windowSize } = useContext<
+    typeof ResponsiveTopicMapContext
+  >(ResponsiveTopicMapContext);
+
+  const pixelwidth =
+    responsiveState === "normal" ? "300px" : windowSize.width - gap;
+
   useEffect(() => {
-    getGazData(setGazData);
+    // getGazData(setGazData);
   }, []);
+
+  const { gazData } = useGazData();
+  const { setSelection } = useSelection();
+
+  useSelectionTopicMap();
+
+  const onGazetteerSelection = (selection: SearchResultItem | null) => {
+    if (!selection) {
+      setSelection(null);
+      return;
+    }
+    const selectionMetaData: SelectionMetaData = {
+      selectedFrom: "gazetteer",
+      selectionTimestamp: Date.now(),
+      isAreaSelection: isAreaType(selection.type as ENDPOINT),
+    };
+    setSelection(Object.assign({}, selection, selectionMetaData));
+  };
 
   useEffect(() => {
     const handleResize = () => {
@@ -72,7 +111,9 @@ const Map = () => {
           const newParams = { ...paramsToObject(urlParams), ...location };
           setUrlParams(newParams);
         }}
-        gazetteerSearchPlaceholder="Stadtteil | Adresse | POI"
+        // gazetteerSearchPlaceholder="Stadtteil | Adresse | POI"
+        gazetteerSearchControl={true}
+        gazetteerSearchComponent={EmptySearchComponent}
         infoBox={
           mode === "measurement" ? (
             <InfoBoxMeasurement key={mode} />
@@ -81,6 +122,8 @@ const Map = () => {
           )
         }
       >
+        <TopicMapSelectionContent />
+
         {backgroundLayer.visible &&
           getBackgroundLayers({ layerString: backgroundLayer.layers })}
         {focusMode && <PaleOverlay />}
@@ -120,6 +163,14 @@ const Map = () => {
           }
         })}
       </TopicMapComponent>
+      <div className="custom-left-control">
+        <LibFuzzySearch
+          gazData={gazData}
+          onSelection={onGazetteerSelection}
+          pixelwidth={pixelwidth}
+          placeholder="Stadtteil | Adresse | POI"
+        />
+      </div>
     </div>
   );
 };

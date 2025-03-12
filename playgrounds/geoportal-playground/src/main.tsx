@@ -5,6 +5,8 @@ import store from "./app/store";
 import { RouterProvider, createHashRouter } from "react-router-dom";
 import { PersistGate } from "redux-persist/integration/react";
 import { persistStore } from "redux-persist";
+import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
+import { gazDataConfig } from "./config/gazData";
 
 const persistor = persistStore(store);
 
@@ -44,7 +46,11 @@ const root = ReactDOM.createRoot(
 root.render(
   <Provider store={store}>
     <PersistGate loading={null} persistor={persistor}>
-      <RouterProvider router={router} />
+      <GazDataProvider config={gazDataConfig}>
+        <SelectionProvider>
+          <RouterProvider router={router} />
+        </SelectionProvider>
+      </GazDataProvider>
     </PersistGate>
   </Provider>
 );
