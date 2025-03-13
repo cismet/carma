@@ -360,6 +360,33 @@
       },
       "projectPath": "./dist/playgrounds/corona-praeventation"
     },
+    "parkscheinautomaten": {
+      "deployment": {
+        "manual": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "parkscheinautomaten"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "parkscheinautomaten"
+            }
+          }
+        },
+        "auto": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "parkscheinautomaten"
+            }
+          }
+        }
+      },
+      "projectPath": "./dist/playgrounds/parkscheinautomaten"
+    },
     "techdemo": {
       "deployment": {
         "manual": {
