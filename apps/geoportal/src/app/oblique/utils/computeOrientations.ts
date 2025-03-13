@@ -37,6 +37,7 @@ export function convertToENUMatrix(photogrammetryMatrix: Matrix3): Matrix3 {
   );
 }
 
+// TODO: Still not correct, should probably use matrix from inpho project
 export function computeOrientations(orientation: ExteriorOrientationOPK): {
   quaternion: Quaternion;
   hpr: HeadingPitchRoll;

@@ -11,7 +11,6 @@ import type { ObliqueImageRecord } from "../types";
 import {
   getCardinalDirectionFromHeading,
   getHeadingFromCardinalDirection,
-  getSectorFromHeading,
 } from "../utils/orientationUtils";
 import { NADIR_CAMERA_ID } from "../constants";
 import { NUM_NEAREST_IMAGES } from "../config";
@@ -60,7 +59,7 @@ export function useNearestObliqueImage(
 
       // Get camera heading and determine sector
       const cameraHeading = camera.heading;
-      const cameraSector = getSectorFromHeading(cameraHeading);
+      const cameraSector = getCardinalDirectionFromHeading(cameraHeading);
       const effectiveHeading = cameraHeading - headingOffset;
       const cameraCardinal = getCardinalDirectionFromHeading(effectiveHeading);
 

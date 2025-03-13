@@ -14,15 +14,6 @@ import {
 
 type AngleType = "kappa" | "omega" | "phi" | "calculatedHeading";
 
-// Camera coordinate system conventions
-type CameraConvention =
-  | "default"
-  | "xForward"
-  | "yForward"
-  | "zUp"
-  | "yUp"
-  | "xUp";
-
 interface ObliqueDebugSvgProps {
   numImages: number;
 }
@@ -56,7 +47,6 @@ export const ObliqueDebugSvg: React.FC<ObliqueDebugSvgProps> = ({
   const [cardinalSector, setCardinalSector] =
     useState<CardinalDirectionEnum>(0);
   const [angleType] = useState<AngleType>("calculatedHeading");
-  const [cameraConvention] = useState<CameraConvention>("xForward");
 
   // SVG dimensions
   const svgWidth = 800;
@@ -171,48 +161,15 @@ export const ObliqueDebugSvg: React.FC<ObliqueDebugSvgProps> = ({
 
     // Calculate rotation matrix elements
     const sinOmega = Math.sin(omega);
-    const cosOmega = Math.cos(omega);
     const sinPhi = Math.sin(phi);
     const cosPhi = Math.cos(phi);
-    const sinKappa = Math.sin(kappa);
-    const cosKappa = Math.cos(kappa);
 
     // Calculate rotation matrix elements based on convention
     let r31, r32;
 
-    switch (cameraConvention) {
-      case "xForward": // X-axis forward, Z-up
-        // Rotation matrix with X-axis as forward direction
-        r31 = sinPhi;
-        r32 = -sinOmega * cosPhi;
-        break;
-      case "yForward": // Y-axis forward, Z-up
-        // Rotation matrix with Y-axis as forward direction
-        r31 = -sinOmega * cosPhi;
-        r32 = -sinPhi;
-        break;
-      case "zUp": // Z-axis up, X-forward (common in photogrammetry)
-        // This is the default photogrammetry convention
-        r31 = sinKappa * sinOmega + cosKappa * sinPhi * cosOmega;
-        r32 = cosKappa * sinOmega + sinKappa * sinPhi * cosOmega;
-        break;
-      case "yUp": // Y-axis up, Z-forward
-        // Rotation matrix with Y-axis as up direction
-        r31 = sinKappa * cosOmega - cosKappa * sinPhi * sinOmega;
-        r32 = cosKappa * cosOmega + sinKappa * sinPhi * sinOmega;
-        break;
-      case "xUp": // X-axis up, Z-forward
-        // Rotation matrix with X-axis as up direction
-        r31 = cosKappa * cosPhi;
-        r32 = sinKappa * cosPhi;
-        break;
-      case "default":
-      default:
-        // Standard photogrammetry convention (Z-up)
-        r31 = sinKappa * sinOmega + cosKappa * sinPhi * cosOmega;
-        r32 = cosKappa * sinOmega + sinKappa * sinPhi * cosOmega;
-        break;
-    }
+    // "xForward"  X-axis forward, Z-up
+    r31 = sinPhi;
+    r32 = -sinOmega * cosPhi;
 
     // Apply fixed sign combination: r31 = +1, r32 = -1
     const customR31 = r31;
@@ -291,26 +248,10 @@ export const ObliqueDebugSvg: React.FC<ObliqueDebugSvgProps> = ({
       const x = relX;
       const y = -relY;
 
-      // Get the selected angle based on angleType
-      let heading: number;
-      switch (angleType) {
-        case "kappa":
-          heading = record.orientation.kappa;
-          break;
-        case "omega":
-          heading = record.orientation.omega;
-          break;
-        case "phi":
-          heading = record.orientation.phi;
-          break;
-        case "calculatedHeading":
-        default:
-          // Use custom heading calculation with fixed sign combination
-          heading = calculateCustomHeading(record);
-          break;
-      }
-      // Triangle size - 3x larger
-      const triangleSize = 24;
+      // Use custom heading calculation with fixed sign combination
+      const heading = calculateCustomHeading(record);
+
+      const triangleSize = 30;
 
       // Calculate triangle points
       // Tip at image position
@@ -476,171 +417,119 @@ export const ObliqueDebugSvg: React.FC<ObliqueDebugSvgProps> = ({
   );
 
   return (
-    <>
-      {/**
-      <div
-        style={{
-          position: "absolute",
-          top: "10px",
-          left: "60px",
-          zIndex: 2001,
-          width: "200px",
-          background: "rgba(255, 255, 255, 0.8)",
-          padding: "10px",
-          borderRadius: "4px",
-        }}
+    <svg
+      width={`${svgWidth}px`}
+      height={`${svgHeight}px`}
+      viewBox={`${-extent} ${-extent} ${gridSize} ${gridSize}`}
+      style={{
+        position: "absolute",
+        top: "10px",
+        left: "60px", // Position with 60px left space
+        pointerEvents: "none",
+        background: "rgba(255, 255, 255, 0.5)",
+        borderRadius: "4px",
+        overflow: "hidden",
+        zIndex: 2000,
+        mixBlendMode: "normal",
+        marginTop: "180px", // Adjusted space for controls
+      }}
+    >
+      {lineToNearest}
+      {imagePoints}
+      {cameraMarker}
+      {headingIndicator}
+      <text x={-10} y={40} fontSize="40" textAnchor="end">
+        Camera
+      </text>
+      <text x={-10} y={90} fontSize="40" textAnchor="end">
+        <tspan>{String(Math.floor(cameraPosition[0])).slice(0, -4)}</tspan>
+        <tspan fontWeight="bold">
+          {String(Math.floor(cameraPosition[0])).slice(-4)}
+        </tspan>
+      </text>
+      <text x={-10} y={140} fontSize="40" textAnchor="end">
+        <tspan>{String(Math.floor(cameraPosition[1])).slice(0, -4)}</tspan>
+        <tspan fontWeight="bold">
+          {String(Math.floor(cameraPosition[1])).slice(-4)}
+        </tspan>
+      </text>
+      <text x={-extent + 50} y={extent - 50} fontSize="50">
+        Heading: {((cameraHeading * 180) / Math.PI).toFixed(1)}°
+      </text>
+      <text x={-extent + 50} y={extent - 120} fontSize="40">
+        Sector Images: {sectorImages.length}
+      </text>
+      <text x={-extent + 50} y={extent - 180} fontSize="40">
+        Current Sector: {cardinalSector} (
+        {CardinalNames["EN"].get(cardinalSector)})
+      </text>
+      <text x={-extent + 50} y={extent - 240} fontSize="40">
+        Heading Offset: {((headingOffset * 180) / Math.PI).toFixed(1)}°
+      </text>
+
+      {/* Yellow line to reference point */}
+      <line
+        x1={0}
+        y1={0}
+        x2={pointOnRadius.x}
+        y2={pointOnRadius.y}
+        stroke="rgba(255, 255, 0, 0.6)"
+        strokeWidth={2}
+        strokeDasharray="5,5"
+      />
+
+      {/* Yellow reference point marker with coordinates */}
+      <circle
+        cx={pointOnRadius.x}
+        cy={pointOnRadius.y}
+        r={10}
+        fill="rgba(255, 255, 0, 0.8)"
+        stroke="white"
+        strokeWidth={2}
+      />
+      <text
+        x={pointOnRadius.x - 10}
+        y={pointOnRadius.y + 40}
+        textAnchor="end"
+        fontSize="40"
       >
-        <Space direction="vertical" style={{ width: "100%" }}>
-          <Select
-            style={{ width: "100%" }}
-            value={angleType}
-            onChange={handleAngleTypeChange}
-            options={[
-              { value: "calculatedHeading", label: "Heading" },
-              { value: "kappa", label: "Kappa" },
-              { value: "omega", label: "Omega" },
-              { value: "phi", label: "Phi" },
-            ]}
-          />
-
-          {angleType === "calculatedHeading" && (
-            <Card
-              size="small"
-              title="Camera Coordinate System"
-              style={{ marginTop: "10px" }}
-            >
-              <Select
-                style={{ width: "100%" }}
-                value={cameraConvention}
-                onChange={handleCameraConventionChange}
-                options={[
-                  { value: "xForward", label: "X-Forward, Z-up" },
-                  { value: "default", label: "Default (Z-up)" },
-                  { value: "yForward", label: "Y-Forward, Z-up" },
-                  { value: "zUp", label: "Z-up, X-forward" },
-                  { value: "yUp", label: "Y-up, Z-forward" },
-                  { value: "xUp", label: "X-up, Z-forward" },
-                ]}
-              />
-            </Card>
-          )}
-        </Space>
-      </div>
-      */}
-      <svg
-        width={`${svgWidth}px`}
-        height={`${svgHeight}px`}
-        viewBox={`${-extent} ${-extent} ${gridSize} ${gridSize}`}
-        style={{
-          position: "absolute",
-          top: "10px",
-          left: "60px", // Position with 60px left space
-          pointerEvents: "none",
-          background: "rgba(255, 255, 255, 0.5)",
-          borderRadius: "4px",
-          overflow: "hidden",
-          zIndex: 2000,
-          mixBlendMode: "normal",
-          marginTop: "180px", // Adjusted space for controls
-        }}
+        Reference
+      </text>
+      <text
+        x={pointOnRadius.x - 10}
+        y={pointOnRadius.y + 90}
+        fontSize="40"
+        textAnchor="end"
       >
-        {lineToNearest}
-        {imagePoints}
-        {cameraMarker}
-        {headingIndicator}
-        <text x={-10} y={40} fontSize="40" textAnchor="end">
-          Camera
-        </text>
-        <text x={-10} y={90} fontSize="40" textAnchor="end">
-          <tspan>{String(Math.floor(cameraPosition[0])).slice(0, -4)}</tspan>
-          <tspan fontWeight="bold">
-            {String(Math.floor(cameraPosition[0])).slice(-4)}
-          </tspan>
-        </text>
-        <text x={-10} y={140} fontSize="40" textAnchor="end">
-          <tspan>{String(Math.floor(cameraPosition[1])).slice(0, -4)}</tspan>
-          <tspan fontWeight="bold">
-            {String(Math.floor(cameraPosition[1])).slice(-4)}
-          </tspan>
-        </text>
-        <text x={-extent + 50} y={extent - 50} fontSize="50">
-          Heading: {((cameraHeading * 180) / Math.PI).toFixed(1)}°
-        </text>
-        <text x={-extent + 50} y={extent - 120} fontSize="40">
-          Sector Images: {sectorImages.length}
-        </text>
-        <text x={-extent + 50} y={extent - 180} fontSize="40">
-          Current Sector: {cardinalSector} (
-          {CardinalNames["EN"].get(cardinalSector)})
-        </text>
-        <text x={-extent + 50} y={extent - 240} fontSize="40">
-          Heading Offset: {((headingOffset * 180) / Math.PI).toFixed(1)}°
-        </text>
-
-        {/* Yellow line to reference point */}
-        <line
-          x1={0}
-          y1={0}
-          x2={pointOnRadius.x}
-          y2={pointOnRadius.y}
-          stroke="rgba(255, 255, 0, 0.6)"
-          strokeWidth={2}
-          strokeDasharray="5,5"
-        />
-
-        {/* Yellow reference point marker with coordinates */}
-        <circle
-          cx={pointOnRadius.x}
-          cy={pointOnRadius.y}
-          r={10}
-          fill="rgba(255, 255, 0, 0.8)"
-          stroke="white"
-          strokeWidth={2}
-        />
-        <text
-          x={pointOnRadius.x - 10}
-          y={pointOnRadius.y + 40}
-          textAnchor="end"
-          fontSize="40"
-        >
-          Reference
-        </text>
-        <text
-          x={pointOnRadius.x - 10}
-          y={pointOnRadius.y + 90}
-          fontSize="40"
-          textAnchor="end"
-        >
-          <tspan>
-            {radiusPointCoords
-              ? String(Math.floor(radiusPointCoords[0])).slice(0, -4)
-              : ""}
-          </tspan>
-          <tspan fontWeight="bold">
-            {radiusPointCoords
-              ? String(Math.floor(radiusPointCoords[0])).slice(-4)
-              : ""}
-          </tspan>
-        </text>
-        <text
-          x={pointOnRadius.x - 10}
-          y={pointOnRadius.y + 140}
-          fontSize="40"
-          textAnchor="end"
-        >
-          <tspan>
-            {radiusPointCoords
-              ? String(Math.floor(radiusPointCoords[1])).slice(0, -4)
-              : ""}
-          </tspan>
-          <tspan fontWeight="bold">
-            {radiusPointCoords
-              ? String(Math.floor(radiusPointCoords[1])).slice(-4)
-              : ""}
-          </tspan>
-        </text>
-      </svg>
-    </>
+        <tspan>
+          {radiusPointCoords
+            ? String(Math.floor(radiusPointCoords[0])).slice(0, -4)
+            : ""}
+        </tspan>
+        <tspan fontWeight="bold">
+          {radiusPointCoords
+            ? String(Math.floor(radiusPointCoords[0])).slice(-4)
+            : ""}
+        </tspan>
+      </text>
+      <text
+        x={pointOnRadius.x - 10}
+        y={pointOnRadius.y + 140}
+        fontSize="40"
+        textAnchor="end"
+      >
+        <tspan>
+          {radiusPointCoords
+            ? String(Math.floor(radiusPointCoords[1])).slice(0, -4)
+            : ""}
+        </tspan>
+        <tspan fontWeight="bold">
+          {radiusPointCoords
+            ? String(Math.floor(radiusPointCoords[1])).slice(-4)
+            : ""}
+        </tspan>
+      </text>
+    </svg>
   );
 };
 

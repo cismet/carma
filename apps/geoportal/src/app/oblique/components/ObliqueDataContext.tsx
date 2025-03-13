@@ -13,6 +13,7 @@ import { useObliqueData } from "../hooks/useObliqueData";
 import { useNearestObliqueImage } from "../hooks/useNearestObliqueImage";
 import { ObliqueDataProviderConfig, ObliqueImageRecord } from "../types";
 import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
+import { CardinalDirectionEnum } from "../utils/orientationUtils";
 
 // Define the shape of our context
 interface ObliqueDataContextType {
@@ -49,12 +50,17 @@ export const useObliqueDataContext = () => {
 interface ObliqueDataProviderProps {
   children: ReactNode;
   config: ObliqueDataProviderConfig;
+  fallbackDirectionConfig: Record<
+    string,
+    Record<string, CardinalDirectionEnum>
+  >;
 }
 
 // Provider component that wraps parts of the app that need access to the context
 export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
   children,
   config,
+  fallbackDirectionConfig,
 }) => {
   const isObliqueMode = useSelector(getObliqueMode);
   const {
@@ -71,7 +77,7 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
 
   // Use the oblique data hook to get camera orientations
   const { imageRecords, parseCSV, isLoading, converter, error } =
-    useObliqueData(uri, crs, headingOffset);
+    useObliqueData(uri, crs, headingOffset, fallbackDirectionConfig);
 
   // Store when data has been previously loaded to prevent duplicate loads
   const [dataLoaded, setDataLoaded] = useState(false);
