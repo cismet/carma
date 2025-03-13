@@ -15,35 +15,39 @@ import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import FeatureCollection from "react-cismap/FeatureCollection";
 import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
 import getGTMFeatureStyler from "react-cismap/topicmaps/generic/GTMStyler";
+import { TopicMapSelectionContent } from "@carma-apps/portals";
+import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
+import FuzzySearchComponent from "./components/FuzzySearchComponent";
+import { MappingConstants } from "react-cismap";
 
 const host = "https://wupp-topicmaps-data.cismet.de";
 
-const getGazData = async (setGazData) => {
-  const prefix = "GazDataForStories";
-  const sources = {};
+// const getGazData = async (setGazData) => {
+//   const prefix = "GazDataForStories";
+//   const sources = {};
 
-  sources.adressen = await md5FetchText(prefix, host + "/data/adressen.json");
-  sources.bezirke = await md5FetchText(prefix, host + "/data/bezirke.json");
-  sources.quartiere = await md5FetchText(prefix, host + "/data/quartiere.json");
-  sources.pois = await md5FetchText(prefix, host + "/data/pois.json");
-  sources.kitas = await md5FetchText(prefix, host + "/data/kitas.json");
+//   sources.adressen = await md5FetchText(prefix, host + "/data/adressen.json");
+//   sources.bezirke = await md5FetchText(prefix, host + "/data/bezirke.json");
+//   sources.quartiere = await md5FetchText(prefix, host + "/data/quartiere.json");
+//   sources.pois = await md5FetchText(prefix, host + "/data/pois.json");
+//   sources.kitas = await md5FetchText(prefix, host + "/data/kitas.json");
 
-  const gazData = getGazDataForTopicIds(sources, [
-    "pois",
-    "kitas",
-    "bezirke",
-    "quartiere",
-    "adressen",
-  ]);
+//   const gazData = getGazDataForTopicIds(sources, [
+//     "pois",
+//     "kitas",
+//     "bezirke",
+//     "quartiere",
+//     "adressen",
+//   ]);
 
-  setGazData(gazData);
-};
+//   setGazData(gazData);
+// };
 
 function App() {
-  const [gazData, setGazData] = useState([]);
-  useEffect(() => {
-    getGazData(setGazData);
-  }, []);
+  // const [gazData, setGazData] = useState([]);
+  // useEffect(() => {
+  //   getGazData(setGazData);
+  // }, []);
   return (
     <TopicMapContextProvider
       getFeatureStyler={getGTMFeatureStyler}
@@ -54,14 +58,21 @@ function App() {
           (props) => props.color
         ),
       }}
+      referenceSystemDefinition={MappingConstants.proj4crs25832def}
+      mapEPSGCode="25832"
+      referenceSystem={MappingConstants.crs25832}
     >
       <TopicMapComponent
-        gazData={gazData}
+        // gazData={gazData}
         locatorControl={true}
         infoBox={<GenericInfoBoxFromFeature pixelwidth={300} />}
+        gazetteerSearchControl={true}
+        gazetteerSearchComponent={EmptySearchComponent}
       >
+        <TopicMapSelectionContent />
         <FeatureCollection />
       </TopicMapComponent>
+      <FuzzySearchComponent />
     </TopicMapContextProvider>
   );
 }
