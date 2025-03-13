@@ -59,7 +59,6 @@ import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenIn
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
 import { useObliqueMode } from "../../oblique/hooks/useObliqueMode.ts";
 
-import CameraRotationControls from "./CameraRotationControls";
 import { createCismapLayers, onClickTopicMap } from "./topicmap.utils.ts";
 import { useTweakpane } from "./GeoportalMap.useTweakpane.ts";
 
@@ -83,6 +82,7 @@ import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
+import ObliqueCameraRotationControls from "../../oblique/components/ObliqueCameraRotationControls";
 
 interface MapProps {
   height: number;
@@ -506,7 +506,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
               replaceHashRoutedHistory(e, location.pathname);
             }}
           />
-          <CameraRotationControls />
+          <ObliqueCameraRotationControls />
         </div>
       )}
       {flags.featureFlagObliqueMode && isObliqueMode && (

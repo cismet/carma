@@ -8,8 +8,8 @@ import { OBLIQUE_PREVIEW_QUALITY } from "./constants";
 import { ObliqueDataProviderConfig } from "./types";
 
 export const OBLIQUE_CONFIG: ObliqueDataProviderConfig = {
-  fixedPitch: CesiumMath.toRadians(-45), // Pitch in radians
-  fixedHeight: 835, // Height in meters
+  fixedPitch: CesiumMath.toRadians(-49), // Pitch in radians
+  fixedHeight: 924, // Height in meters
   minFov: CesiumMath.toRadians(10), // Minimum field of view in radians
   maxFov: CesiumMath.toRadians(120), // Maximum field of view in radians
   headingOffset: CesiumMath.toRadians(-34.3), // Heading offset in radians
@@ -18,3 +18,5 @@ export const OBLIQUE_CONFIG: ObliqueDataProviderConfig = {
   crs: OBLIQUE_2024_ORIENTATIONS_CRS,
   uri: OBLIQUE_2024_ORIENTATIONS_CSV_URI,
 };
+
+export const NUM_NEAREST_IMAGES = 200;

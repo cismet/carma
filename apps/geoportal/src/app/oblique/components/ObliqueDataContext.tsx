@@ -79,7 +79,8 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
   // Add nearest image finding
   const { nearestImage, distance, refreshSearch } = useNearestObliqueImage(
     imageRecords,
-    converter
+    converter,
+    headingOffset
   );
 
   // Only load data when oblique mode is enabled and not already loaded

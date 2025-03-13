@@ -2,7 +2,11 @@ import React, { useCallback, useRef, useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faRotateLeft, faRotateRight } from "@fortawesome/free-solid-svg-icons";
+import {
+  faRotateLeft,
+  faRotateRight,
+  faImage,
+} from "@fortawesome/free-solid-svg-icons";
 import { Tooltip } from "antd";
 import {
   HeadingPitchRange,
@@ -21,6 +25,7 @@ import { useCesiumContext, getOrbitPoint } from "@carma-mapping/cesium-engine";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { getObliqueMode } from "../../store/slices/ui";
 import { useObliqueDataContext } from "../../oblique/components/ObliqueDataContext";
+import { showObliqueImageInfo } from "../../oblique/components/ObliqueImageInfoContainer";
 import { useFeatureFlags } from "@carma-apps/portals";
 
 type CameraRotationControlsProps = {
@@ -40,9 +45,11 @@ enum CardinalDirection {
   West = 3,
 }
 
-const CameraRotationControls: React.FC<CameraRotationControlsProps> = () => {
+export const ObliqueCameraRotationControls: React.FC<
+  CameraRotationControlsProps
+> = () => {
   const isObliqueMode = useSelector(getObliqueMode);
-  const { headingOffset } = useObliqueDataContext();
+  const { headingOffset, nearestImage } = useObliqueDataContext();
   const { viewerRef } = useCesiumContext();
   const flags = useFeatureFlags();
   const isDebugMode = flags.featureFlagDebugOblique;
@@ -160,6 +167,39 @@ const CameraRotationControls: React.FC<CameraRotationControlsProps> = () => {
     // Round to nearest integer
     return Math.round(degrees);
   }, []);
+
+  const flyToNearestImage = useCallback(() => {
+    if (!viewerRef.current || !nearestImage) return;
+
+    const viewer = viewerRef.current;
+
+    // Extract position from the image record
+    const { centerWGS84, fallbackHeading: calculatedHeading } = nearestImage;
+    if (!centerWGS84) return;
+
+    // Create Cartesian3 from WGS84 coordinates
+    const [longitude, latitude, height] = centerWGS84;
+    const position = Cartesian3.fromDegrees(longitude, latitude, height - 400);
+
+    // Fly to the image position
+    viewer.camera.flyTo({
+      destination: position,
+      orientation: {
+        heading: calculatedHeading,
+        pitch: -Math.PI / 4, // 45 degrees down
+        roll: 0,
+      },
+      duration: 1.5,
+      complete: () => {
+        viewer.camera.lookAtTransform(Matrix4.IDENTITY);
+        viewer.scene.requestRender();
+        animationInProgressRef.current = false;
+
+        // Show the image info overlay and trigger fullscreen preview
+        showObliqueImageInfo(true);
+      },
+    });
+  }, [viewerRef, nearestImage]);
 
   // Update current heading and set up camera movement detection
   useEffect(() => {
@@ -343,6 +383,8 @@ const CameraRotationControls: React.FC<CameraRotationControlsProps> = () => {
           camera.lookAtTransform(Matrix4.IDENTITY);
 
           scene.requestRender();
+          animationInProgressRef.current = false;
+
           scene.preUpdate.removeEventListener(onPreUpdate);
           animationInProgressRef.current = false;
           setActiveDirection(targetDirection);
@@ -416,117 +458,143 @@ const CameraRotationControls: React.FC<CameraRotationControlsProps> = () => {
 
   return (
     <div
-      className="camera-rotation-controls"
+      className="camera-rotation-controls-container"
       style={{
         position: "absolute",
         bottom: "60px",
         left: "50%",
         transform: "translateX(-50%)",
-        display: "grid",
-        gridTemplateColumns: "repeat(3, 1fr)",
-        gridTemplateRows: "repeat(3, 1fr)",
-        gap: "4px",
-        padding: "8px",
-        backgroundColor: "rgba(255, 255, 255, 0.4)",
-        borderRadius: "8px",
-        boxShadow: "0 0 8px rgba(0, 0, 0, 0.2)",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: "8px",
         zIndex: 500,
         opacity: isVisible ? 1 : 0,
         transition: "opacity 300ms ease-in-out",
         pointerEvents: isVisible ? "auto" : "none",
       }}
     >
-      {/* Top row */}
-      <ControlButtonStyler
-        onClick={() => rotateCamera(false)}
-        width="40px"
-        height="40px"
-      >
-        <FontAwesomeIcon icon={faRotateLeft} className="text-base" />
-      </ControlButtonStyler>
-      <ControlButtonStyler
-        onClick={() => rotateToDirection(CardinalDirection.North)}
-        width="40px"
-        height="40px"
-        className={
-          activeDirection === CardinalDirection.North ? activeButtonClass : ""
-        }
-      >
-        <span style={directionLabelStyle}>N</span>
-      </ControlButtonStyler>
-      <ControlButtonStyler
-        onClick={() => rotateCamera(true)}
-        width="40px"
-        height="40px"
-      >
-        <FontAwesomeIcon icon={faRotateRight} className="text-base" />
-      </ControlButtonStyler>
+      {/* Fly to image button */}
+      {nearestImage && (
+        <Tooltip title="Zu nächstem Schrägluftbild fliegen">
+          <div>
+            <ControlButtonStyler
+              onClick={flyToNearestImage}
+              width="128px"
+              height="40px"
+            >
+              <span>Zum Bild</span>
+            </ControlButtonStyler>
+          </div>
+        </Tooltip>
+      )}
 
-      {/* Middle row */}
-      <ControlButtonStyler
-        onClick={() => rotateToDirection(CardinalDirection.West)}
-        width="40px"
-        height="40px"
-        className={
-          activeDirection === CardinalDirection.West ? activeButtonClass : ""
-        }
-      >
-        <span style={directionLabelStyle}>W</span>
-      </ControlButtonStyler>
-      <Tooltip
-        title={`Luftbildblickrichtung "Nord" hat ${offsetDegrees} Grad Abweichung von Nord`}
-        placement="top"
-        overlayInnerStyle={{
-          userSelect: "none",
-          pointerEvents: "none",
-        }}
-        overlayStyle={{
-          pointerEvents: "none",
+      {/* Cardinal direction controls */}
+      <div
+        className="camera-rotation-controls"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gridTemplateRows: "repeat(3, 1fr)",
+          gap: "4px",
+          padding: "8px",
+          backgroundColor: "rgba(255, 255, 255, 0.4)",
+          borderRadius: "8px",
+          boxShadow: "0 0 8px rgba(0, 0, 0, 0.2)",
         }}
       >
-        <div
-          style={{
-            width: "40px",
-            height: "40px",
-            margin: "2px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+        {/* Top row */}
+        <ControlButtonStyler
+          onClick={() => rotateCamera(false)}
+          width="40px"
+          height="40px"
+        >
+          <FontAwesomeIcon icon={faRotateLeft} className="text-base" />
+        </ControlButtonStyler>
+        <ControlButtonStyler
+          onClick={() => rotateToDirection(CardinalDirection.North)}
+          width="40px"
+          height="40px"
+          className={
+            activeDirection === CardinalDirection.North ? activeButtonClass : ""
+          }
+        >
+          <span style={directionLabelStyle}>N</span>
+        </ControlButtonStyler>
+        <ControlButtonStyler
+          onClick={() => rotateCamera(true)}
+          width="40px"
+          height="40px"
+        >
+          <FontAwesomeIcon icon={faRotateRight} className="text-base" />
+        </ControlButtonStyler>
+
+        {/* Middle row */}
+        <ControlButtonStyler
+          onClick={() => rotateToDirection(CardinalDirection.West)}
+          width="40px"
+          height="40px"
+          className={
+            activeDirection === CardinalDirection.West ? activeButtonClass : ""
+          }
+        >
+          <span style={directionLabelStyle}>W</span>
+        </ControlButtonStyler>
+        <Tooltip
+          title={`Luftbildblickrichtung "Nord" hat ${offsetDegrees} Grad Abweichung von Nord`}
+          placement="top"
+          overlayInnerStyle={{
+            userSelect: "none",
+            pointerEvents: "none",
+          }}
+          overlayStyle={{
+            pointerEvents: "none",
           }}
         >
-          <span style={headingDisplayStyle}>{headingDegrees}°</span>
-        </div>
-      </Tooltip>
-      <ControlButtonStyler
-        onClick={() => rotateToDirection(CardinalDirection.East)}
-        width="40px"
-        height="40px"
-        className={
-          activeDirection === CardinalDirection.East ? activeButtonClass : ""
-        }
-      >
-        <span style={directionLabelStyle}>O</span>
-      </ControlButtonStyler>
+          <div
+            style={{
+              width: "40px",
+              height: "40px",
+              margin: "2px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <span style={headingDisplayStyle}>{headingDegrees}°</span>
+          </div>
+        </Tooltip>
+        <ControlButtonStyler
+          onClick={() => rotateToDirection(CardinalDirection.East)}
+          width="40px"
+          height="40px"
+          className={
+            activeDirection === CardinalDirection.East ? activeButtonClass : ""
+          }
+        >
+          <span style={directionLabelStyle}>O</span>
+        </ControlButtonStyler>
 
-      {/* Bottom row */}
-      <div style={{ width: "40px", height: "40px", margin: "2px" }}>
-        {/* Empty bottom-left cell */}
-      </div>
-      <ControlButtonStyler
-        onClick={() => rotateToDirection(CardinalDirection.South)}
-        width="40px"
-        height="40px"
-        className={
-          activeDirection === CardinalDirection.South ? activeButtonClass : ""
-        }
-      >
-        <span style={directionLabelStyle}>S</span>
-      </ControlButtonStyler>
-      <div style={{ width: "40px", height: "40px", margin: "2px" }}>
-        {/* Empty bottom-right cell */}
+        {/* Bottom row */}
+        <div style={{ width: "40px", height: "40px", margin: "2px" }}>
+          {/* Empty bottom-left cell */}
+        </div>
+        <ControlButtonStyler
+          onClick={() => rotateToDirection(CardinalDirection.South)}
+          width="40px"
+          height="40px"
+          className={
+            activeDirection === CardinalDirection.South ? activeButtonClass : ""
+          }
+        >
+          <span style={directionLabelStyle}>S</span>
+        </ControlButtonStyler>
+        <div style={{ width: "40px", height: "40px", margin: "2px" }}>
+          {/* Empty bottom-right cell */}
+        </div>
       </div>
     </div>
   );
 };
 
-export default CameraRotationControls;
+export default ObliqueCameraRotationControls;

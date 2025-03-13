@@ -1,11 +1,16 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { Math as CesiumMath } from "cesium";
 import { useCesiumContext } from "@carma-mapping/cesium-engine";
-import { Select, Card, Space } from "antd";
 
 import { useObliqueDataContext } from "./ObliqueDataContext";
 import { findNearestKObliqueImages } from "../utils/spatialIndexing";
 import { ObliqueImageRecord } from "../types";
+import {
+  CardinalDirectionEnum,
+  CardinalNames,
+  getCardinalDirectionFromHeading,
+  getHeadingFromCardinalDirection,
+} from "../utils/orientationUtils";
 
 type AngleType = "kappa" | "omega" | "phi" | "calculatedHeading";
 
@@ -19,14 +24,25 @@ type CameraConvention =
   | "xUp";
 
 interface ObliqueDebugSvgProps {
-  numImages?: number;
+  numImages: number;
 }
 
 export const ObliqueDebugSvg: React.FC<ObliqueDebugSvgProps> = ({
-  numImages = 80,
+  numImages,
 }) => {
   const { viewerRef } = useCesiumContext();
-  const { imageRecords, converter } = useObliqueDataContext();
+  const camera = viewerRef?.current?.camera;
+  const { imageRecords, converter, headingOffset } = useObliqueDataContext();
+  // Stores the converted coordinates of the radius point in image CRS for reference
+  const [radiusPointCoords, setRadiusPointCoords] = useState<
+    [number, number] | null
+  >(null);
+  const [sectorImages, setSectorImages] = useState<
+    Array<{
+      record: ObliqueImageRecord;
+      distance: number;
+    }>
+  >([]);
   const [nearestImages, setNearestImages] = useState<
     Array<{
       record: ObliqueImageRecord;
@@ -37,14 +53,61 @@ export const ObliqueDebugSvg: React.FC<ObliqueDebugSvgProps> = ({
     0, 0,
   ]);
   const [cameraHeading, setCameraHeading] = useState<number>(0);
-  const [angleType, setAngleType] = useState<AngleType>("calculatedHeading");
-  const [cameraConvention, setCameraConvention] =
-    useState<CameraConvention>("xForward");
+  const [cardinalSector, setCardinalSector] =
+    useState<CardinalDirectionEnum>(0);
+  const [angleType] = useState<AngleType>("calculatedHeading");
+  const [cameraConvention] = useState<CameraConvention>("xForward");
 
   // SVG dimensions
-  const svgWidth = 400;
-  const svgHeight = 400;
-  const gridSize = 400;
+  const svgWidth = 800;
+  const svgHeight = 800;
+  const extent = 1500; // meters in local crs
+  const gridSize = extent * 2; // meters in local crs
+
+  // For storing the point on radius coordinates for search
+  const [pointOnRadiusRef, setPointOnRadiusRef] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+
+  // Effect to find images nearest to the radius point
+  useEffect(() => {
+    if (
+      !camera?.positionCartographic ||
+      !converter ||
+      !imageRecords ||
+      !imageRecords.length ||
+      !pointOnRadiusRef
+    ) {
+      return;
+    }
+
+    // Get the camera position in image CRS
+    const cartographic = camera.positionCartographic;
+    const positionInImageCrs = converter.inverse([
+      CesiumMath.toDegrees(cartographic.longitude),
+      CesiumMath.toDegrees(cartographic.latitude),
+      cartographic.height,
+    ]);
+
+    // Convert pointOnRadius from SVG to world coordinates
+    // SVG coordinates are relative to camera position, so add offset
+    const radiusPointInImageCrs: [number, number] = [
+      positionInImageCrs[0] + pointOnRadiusRef.x,
+      positionInImageCrs[1] - pointOnRadiusRef.y, // Y is inverted in SVG
+    ];
+
+    setRadiusPointCoords(radiusPointInImageCrs);
+
+    // Find nearest images to the radius point
+    const radiusImages = findNearestKObliqueImages(
+      imageRecords,
+      radiusPointInImageCrs,
+      numImages
+    );
+
+    setSectorImages(radiusImages);
+  }, [camera, converter, imageRecords, numImages, pointOnRadiusRef]);
 
   useEffect(() => {
     if (
@@ -58,15 +121,19 @@ export const ObliqueDebugSvg: React.FC<ObliqueDebugSvgProps> = ({
 
     const handleCameraChange = () => {
       try {
-        const camera = viewerRef.current.camera;
-        const cartographic = camera.positionCartographic;
-        const heading = camera.heading;
+        const cartographic = camera?.positionCartographic;
+        const heading = camera?.heading;
 
         setCameraHeading(heading);
 
+        const effectiveHeading = heading - headingOffset;
+        const cameraCardinal =
+          getCardinalDirectionFromHeading(effectiveHeading);
+        setCardinalSector(cameraCardinal);
+
         const positionInImageCrs = converter.inverse([
-          CesiumMath.toDegrees(cartographic.longitude),
-          CesiumMath.toDegrees(cartographic.latitude),
+          CesiumMath.toDegrees(cartographic?.longitude),
+          CesiumMath.toDegrees(cartographic?.latitude),
           cartographic.height,
         ]);
 
@@ -94,15 +161,7 @@ export const ObliqueDebugSvg: React.FC<ObliqueDebugSvgProps> = ({
     return () => {
       removeListener();
     };
-  }, [viewerRef, imageRecords, converter, numImages]);
-
-  const handleAngleTypeChange = (value: AngleType) => {
-    setAngleType(value);
-  };
-
-  const handleCameraConventionChange = (value: CameraConvention) => {
-    setCameraConvention(value);
-  };
+  }, [viewerRef, imageRecords, converter, numImages, camera, headingOffset]);
 
   // Function to calculate heading with fixed sign combination and camera convention
   const calculateCustomHeading = (record: ObliqueImageRecord): number => {
@@ -166,94 +225,71 @@ export const ObliqueDebugSvg: React.FC<ObliqueDebugSvgProps> = ({
     return ((heading % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
   };
 
+  const cameraHeight = camera?.positionCartographic?.height || 0;
+  const distanceOnGround = camera?.pitch
+    ? cameraHeight * Math.tan(camera.pitch)
+    : 0;
+  const perpendicularExtent = extent;
+
+  const pointOnGround = useMemo(
+    () => ({
+      x: -distanceOnGround * Math.sin(cameraHeading),
+      y: distanceOnGround * Math.cos(cameraHeading),
+    }),
+    [distanceOnGround, cameraHeading]
+  );
+
+  const sectorHeading = useMemo(
+    () => getHeadingFromCardinalDirection(cardinalSector) + headingOffset,
+    [cardinalSector, headingOffset]
+  );
+
+  const pointOnRadius = useMemo(
+    () => ({
+      x: pointOnGround.x + distanceOnGround * Math.sin(sectorHeading),
+      y: pointOnGround.y - distanceOnGround * Math.cos(sectorHeading),
+    }),
+    [pointOnGround.x, pointOnGround.y, distanceOnGround, sectorHeading]
+  );
+
+  useEffect(() => {
+    setPointOnRadiusRef(pointOnRadius);
+  }, [pointOnRadius]);
+
   if (!nearestImages.length) {
     return null;
   }
 
-  // Calculate grid bounds
-  const halfGrid = gridSize / 2;
-  const minX = cameraPosition[0] - halfGrid;
-  const maxX = cameraPosition[0] + halfGrid;
-  const minY = cameraPosition[1] - halfGrid;
-  const maxY = cameraPosition[1] + halfGrid;
-
-  // Create grid lines
-  const gridLines = [];
-  const gridStep = gridSize / 10;
-
-  // Vertical grid lines
-  for (let i = 0; i <= 10; i++) {
-    const x = i * gridStep;
-    gridLines.push(
-      <line
-        key={`v-${i}`}
-        x1={x}
-        y1={0}
-        x2={x}
-        y2={gridSize}
-        stroke="rgba(200, 200, 200, 0.5)"
-        strokeWidth={1}
-      />
-    );
-  }
-
-  // Horizontal grid lines
-  for (let i = 0; i <= 10; i++) {
-    const y = i * gridStep;
-    gridLines.push(
-      <line
-        key={`h-${i}`}
-        x1={0}
-        y1={y}
-        x2={gridSize}
-        y2={y}
-        stroke="rgba(200, 200, 200, 0.5)"
-        strokeWidth={1}
-      />
-    );
-  }
-
-  // Get the nearest image for drawing the line
   const nearestImage =
     nearestImages.length > 0 ? nearestImages[0].record : null;
 
-  // Line to nearest image
   const lineToNearest = nearestImage ? (
     <line
-      x1={halfGrid}
-      y1={halfGrid}
-      x2={
-        halfGrid +
-        (nearestImage.perspectiveCenter.x - cameraPosition[0]) *
-          (gridSize / (2 * halfGrid))
-      }
-      y2={
-        halfGrid -
-        (nearestImage.perspectiveCenter.y - cameraPosition[1]) *
-          (gridSize / (2 * halfGrid))
-      }
+      x1={0}
+      y1={0}
+      x2={nearestImage.perspectiveCenter.x - cameraPosition[0]}
+      y2={-(nearestImage.perspectiveCenter.y - cameraPosition[1])}
       stroke="rgba(0, 255, 0, 0.8)"
       strokeWidth={2}
       strokeDasharray="5,5"
     />
   ) : null;
 
-  // Map image points - show images on both sides
-  const imagePoints = nearestImages
+  // Map image points - show images found at the radius point
+  const imagePoints = sectorImages
     .slice(0, numImages)
     .filter(({ record }) => {
       // Filter out nadir images (typically have "NAD" in their ID)
       return !record.id.includes("NAD");
     })
-    .map(({ record, distance }, index) => {
-      // Calculate position relative to the grid
+    .map(({ record }, index) => {
+      // Calculate position relative to camera position (which is now at the origin)
       const relX = record.perspectiveCenter.x - cameraPosition[0];
       const relY = record.perspectiveCenter.y - cameraPosition[1];
 
-      // Scale to fit in our SVG
-      const scale = gridSize / (2 * halfGrid);
-      const x = halfGrid + relX * scale;
-      const y = halfGrid - relY * scale; // Flip Y for SVG coords
+      // SVG Y axis is inverted
+      const x = relX;
+      const y = -relY;
 
       // Get the selected angle based on angleType
       let heading: number;
@@ -273,12 +309,6 @@ export const ObliqueDebugSvg: React.FC<ObliqueDebugSvgProps> = ({
           heading = calculateCustomHeading(record);
           break;
       }
-
-      // Calculate color based on distance (closer = more opaque)
-      const maxDistance =
-        nearestImages[nearestImages.length - 1]?.distance || 1;
-      const opacity = Math.max(0.2, 1 - distance / maxDistance);
-
       // Triangle size - 3x larger
       const triangleSize = 24;
 
@@ -316,12 +346,7 @@ export const ObliqueDebugSvg: React.FC<ObliqueDebugSvgProps> = ({
 
       return (
         <g key={record.id}>
-          <polygon
-            points={points}
-            fill="none"
-            stroke={`rgba(0, 100, 255, ${opacity})`}
-            strokeWidth={2}
-          />
+          <polygon points={points} fill="none" stroke="blue" strokeWidth={3} />
           {index < 10 && (
             <text
               x={x + 10}
@@ -339,34 +364,45 @@ export const ObliqueDebugSvg: React.FC<ObliqueDebugSvgProps> = ({
       );
     });
 
-  // Camera position marker (center of the grid)
+  // Camera position marker (at the origin)
   const cameraMarker = (
     <g>
       <circle
-        cx={halfGrid}
-        cy={halfGrid}
+        cx={0}
+        cy={0}
         r={6}
         fill="rgba(255, 50, 50, 0.8)"
         stroke="white"
         strokeWidth={2}
       />
-      <line
-        x1={halfGrid}
-        y1={halfGrid - 12}
-        x2={halfGrid}
-        y2={halfGrid + 12}
-        stroke="white"
-        strokeWidth={2}
-      />
-      <line
-        x1={halfGrid - 12}
-        y1={halfGrid}
-        x2={halfGrid + 12}
-        y2={halfGrid}
-        stroke="white"
-        strokeWidth={2}
-      />
+      <line x1={0} y1={-12} x2={0} y2={12} stroke="white" strokeWidth={2} />
+      <line x1={-12} y1={0} x2={12} y2={0} stroke="white" strokeWidth={2} />
     </g>
+  );
+
+  // estimated footprint around Point of ground when looking from the current camera
+  const cameraFootprintTrapezoid = (
+    <polygon
+      points={"-500,-300 500,-300 250,150 -250,150"}
+      fill="none"
+      stroke="yellow"
+      strokeWidth={5}
+      transform={`translate(${pointOnGround.x}, ${pointOnGround.y}) rotate(${
+        (cameraHeading * 180) / Math.PI
+      })`}
+    />
+  );
+
+  const obliqueFootprintTrapezoid = (
+    <polygon
+      points={"-200,-200 200,-200 100,100 -100,100"}
+      fill="none"
+      stroke="red"
+      strokeWidth={8}
+      transform={`translate(${pointOnGround.x}, ${
+        pointOnGround.y
+      }) rotate(${CesiumMath.toDegrees(sectorHeading)})`}
+    />
   );
 
   // Heading indicator
@@ -374,28 +410,74 @@ export const ObliqueDebugSvg: React.FC<ObliqueDebugSvgProps> = ({
     <g>
       {/* Purple heading line */}
       <line
-        x1={halfGrid}
-        y1={halfGrid}
-        x2={halfGrid + 50 * Math.sin(cameraHeading)}
-        y2={halfGrid - 50 * Math.cos(cameraHeading)}
-        stroke="purple"
-        strokeWidth={2}
+        x1={0}
+        y1={0}
+        x2={pointOnGround.x}
+        y2={pointOnGround.y}
+        stroke="yellow"
+        strokeWidth={16}
       />
+
+      {/* Purple point on ground */}
+      <circle
+        cx={pointOnGround.x}
+        cy={pointOnGround.y}
+        r={20}
+        fill="purple"
+        stroke="white"
+        strokeWidth={4}
+      />
+
+      {/* Search Radius for best Camera Position */}
+      <circle
+        cx={pointOnGround.x}
+        cy={pointOnGround.y}
+        r={Math.abs(distanceOnGround)}
+        fill="none"
+        stroke="purple"
+        strokeWidth={8}
+      />
+
+      {/* current cardinal direction from point on ground */}
+      <line
+        x1={pointOnGround.x}
+        y1={pointOnGround.y}
+        x2={pointOnRadius.x}
+        y2={pointOnRadius.y}
+        stroke="purple"
+        strokeWidth={8}
+      />
+
+      {/* Purple point on radius */}
+      <circle
+        cx={pointOnRadius.x}
+        cy={pointOnRadius.y}
+        r={20}
+        fill="purple"
+        stroke="white"
+        strokeWidth={4}
+      />
+
+      {/* Sector heading line */}
+
+      {cameraFootprintTrapezoid}
+      {obliqueFootprintTrapezoid}
 
       {/* Blue perpendicular line */}
       <line
-        x1={halfGrid - 200 * Math.sin(cameraHeading + Math.PI / 2)}
-        y1={halfGrid + 200 * Math.cos(cameraHeading + Math.PI / 2)}
-        x2={halfGrid + 200 * Math.sin(cameraHeading + Math.PI / 2)}
-        y2={halfGrid - 200 * Math.cos(cameraHeading + Math.PI / 2)}
+        x1={-perpendicularExtent * Math.sin(-cameraHeading + Math.PI / 2)}
+        y1={-perpendicularExtent * Math.cos(-cameraHeading + Math.PI / 2)}
+        x2={perpendicularExtent * Math.sin(-cameraHeading + Math.PI / 2)}
+        y2={perpendicularExtent * Math.cos(-cameraHeading + Math.PI / 2)}
         stroke="rgba(0, 0, 255, 0.5)"
-        strokeWidth={2}
+        strokeWidth={8}
       />
     </g>
   );
 
   return (
     <>
+      {/**
       <div
         style={{
           position: "absolute",
@@ -444,10 +526,11 @@ export const ObliqueDebugSvg: React.FC<ObliqueDebugSvgProps> = ({
           )}
         </Space>
       </div>
+      */}
       <svg
         width={`${svgWidth}px`}
         height={`${svgHeight}px`}
-        viewBox={`0 0 ${gridSize} ${gridSize}`}
+        viewBox={`${-extent} ${-extent} ${gridSize} ${gridSize}`}
         style={{
           position: "absolute",
           top: "10px",
@@ -461,21 +544,100 @@ export const ObliqueDebugSvg: React.FC<ObliqueDebugSvgProps> = ({
           marginTop: "180px", // Adjusted space for controls
         }}
       >
-        {gridLines}
         {lineToNearest}
         {imagePoints}
         {cameraMarker}
         {headingIndicator}
-        <text
-          x="10"
-          y={gridSize - 10}
-          fontSize="12"
-          fill="black"
-          stroke="white"
-          strokeWidth={0.5}
-          paintOrder="stroke"
-        >
+        <text x={-10} y={40} fontSize="40" textAnchor="end">
+          Camera
+        </text>
+        <text x={-10} y={90} fontSize="40" textAnchor="end">
+          <tspan>{String(Math.floor(cameraPosition[0])).slice(0, -4)}</tspan>
+          <tspan fontWeight="bold">
+            {String(Math.floor(cameraPosition[0])).slice(-4)}
+          </tspan>
+        </text>
+        <text x={-10} y={140} fontSize="40" textAnchor="end">
+          <tspan>{String(Math.floor(cameraPosition[1])).slice(0, -4)}</tspan>
+          <tspan fontWeight="bold">
+            {String(Math.floor(cameraPosition[1])).slice(-4)}
+          </tspan>
+        </text>
+        <text x={-extent + 50} y={extent - 50} fontSize="50">
           Heading: {((cameraHeading * 180) / Math.PI).toFixed(1)}°
+        </text>
+        <text x={-extent + 50} y={extent - 120} fontSize="40">
+          Sector Images: {sectorImages.length}
+        </text>
+        <text x={-extent + 50} y={extent - 180} fontSize="40">
+          Current Sector: {cardinalSector} (
+          {CardinalNames["EN"].get(cardinalSector)})
+        </text>
+        <text x={-extent + 50} y={extent - 240} fontSize="40">
+          Heading Offset: {((headingOffset * 180) / Math.PI).toFixed(1)}°
+        </text>
+
+        {/* Yellow line to reference point */}
+        <line
+          x1={0}
+          y1={0}
+          x2={pointOnRadius.x}
+          y2={pointOnRadius.y}
+          stroke="rgba(255, 255, 0, 0.6)"
+          strokeWidth={2}
+          strokeDasharray="5,5"
+        />
+
+        {/* Yellow reference point marker with coordinates */}
+        <circle
+          cx={pointOnRadius.x}
+          cy={pointOnRadius.y}
+          r={10}
+          fill="rgba(255, 255, 0, 0.8)"
+          stroke="white"
+          strokeWidth={2}
+        />
+        <text
+          x={pointOnRadius.x - 10}
+          y={pointOnRadius.y + 40}
+          textAnchor="end"
+          fontSize="40"
+        >
+          Reference
+        </text>
+        <text
+          x={pointOnRadius.x - 10}
+          y={pointOnRadius.y + 90}
+          fontSize="40"
+          textAnchor="end"
+        >
+          <tspan>
+            {radiusPointCoords
+              ? String(Math.floor(radiusPointCoords[0])).slice(0, -4)
+              : ""}
+          </tspan>
+          <tspan fontWeight="bold">
+            {radiusPointCoords
+              ? String(Math.floor(radiusPointCoords[0])).slice(-4)
+              : ""}
+          </tspan>
+        </text>
+        <text
+          x={pointOnRadius.x - 10}
+          y={pointOnRadius.y + 140}
+          fontSize="40"
+          textAnchor="end"
+        >
+          <tspan>
+            {radiusPointCoords
+              ? String(Math.floor(radiusPointCoords[1])).slice(0, -4)
+              : ""}
+          </tspan>
+          <tspan fontWeight="bold">
+            {radiusPointCoords
+              ? String(Math.floor(radiusPointCoords[1])).slice(-4)
+              : ""}
+          </tspan>
         </text>
       </svg>
     </>
