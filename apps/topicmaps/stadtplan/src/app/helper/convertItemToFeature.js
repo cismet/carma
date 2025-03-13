@@ -16,7 +16,7 @@ const getSignature = (properties) => {
 const convertItemToFeature = async (itemIn, poiColors) => {
   let clonedItem = JSON.parse(JSON.stringify(itemIn));
 
-  let item = await addSVGToProps(clonedItem, (i) => getSignature(i));
+  let item = await addSVGToProps(clonedItem, (i) => getSignature(i), import.meta.env.VITE_WUPP_ASSET_BASEURL + "/poi-signaturen/");
   const headerColor = Color(getColorForProperties(item, poiColors));
   const info = {
     header: (item?.mainlocationtype?.lebenslagen || []).join(", "),

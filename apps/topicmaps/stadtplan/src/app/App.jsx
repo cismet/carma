@@ -26,6 +26,10 @@ if (typeof global === "undefined") {
 
 function App() {
   const [poiColors, setPoiColors] = useState();
+  console.log(
+    "VITE_WUPP_ASSET_BASEURL",
+    import.meta.env.VITE_WUPP_ASSET_BASEURL
+  );
 
   useEffect(() => {
     getPOIColors(setPoiColors);
@@ -36,7 +40,7 @@ function App() {
       <TopicMapContextProvider
         appKey="OnlineStadtplanWuppertal2022"
         featureItemsURL={
-          "https://wupp-topicmaps-data.cismet.de/data/poi.data.json"
+          import.meta.env.VITE_WUPP_ASSET_BASEURL + "/data/poi.data.json"
         }
         createFeatureItemsDictionary={createItemsDictionary}
         getFeatureStyler={getFeatureStyler}
