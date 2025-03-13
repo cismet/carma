@@ -1,8 +1,4 @@
-import {
-  createConfig,
-  createConfigWithoutCRS,
-  ENDPOINT,
-} from "@carma-commons/resources";
+import { createConfig, ENDPOINT } from "@carma-commons/resources";
 
 const prefix = "GazDataForHochwasserkarteByCismet";
 
