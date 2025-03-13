@@ -10,8 +10,8 @@ const endpoints = [
   ENDPOINT.KITAS,
 ];
 
-const host = "https://wunda-geoportal.cismet.de";
-const crs = "3857";
+const host = "https://wupp-topicmaps-data.cismet.de";
+const crs = "25832";
 
 const sources = endpoints.map((endpoint) => {
   return createConfig(endpoint, { crs, host });
