@@ -28,7 +28,7 @@ export interface TaskParameters {
 export interface AdditionalSheetProps {
   owners: Owner[];
   namesArr: Name[];
-  legalDesc?: string[];
+  legalDesc?: string[] | null | undefined;
 }
 
 export interface Address {
@@ -118,6 +118,6 @@ interface SheetsCode {
 interface AdditionalSheetContent {
   owners: Owner[];
   namesArr: Name[];
-  legalDesc?: string;
+  legalDesc?: string[] | null | undefined;
   nrCode: string;
 }

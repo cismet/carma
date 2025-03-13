@@ -9,11 +9,9 @@ export const AdditionalSheet = ({
 }: AdditionalSheetProps) => {
   const typeOfTitle = namesArr[0];
   const ifLegalDesc = !typeOfTitle.nenner && !typeOfTitle.zaehler;
-  const ifWithoutNumber = !typeOfTitle.artRechtsgemeinschaft;
+  const ifWithoutNumber = typeOfTitle.artRechtsgemeinschaft;
   const ownerRes = buildGroupedOwnersArr(namesArr, owners);
-
-  console.log("xxx legalDesc", legalDesc);
-
+  debugger;
   return (
     <div>
       {ownerRes &&
@@ -21,7 +19,7 @@ export const AdditionalSheet = ({
           return (
             <div
               style={{
-                display: "flex flex-col",
+                // display: "flex",
                 gap: "2rem",
                 marginBottom: idx !== ownerRes.length - 1 ? "1.3rem" : "0px",
               }}
@@ -42,16 +40,22 @@ export const AdditionalSheet = ({
 
                 const { houseNumber, postalCode, city, street } =
                   owner.addresses?.[0] || {};
+
                 return (
                   <div
                     key={idx}
                     style={{
-                      display: "flex",
+                      // display: "flex",
                       gap: "3rem",
                       paddingBottom: "1.4rem",
                       // borderLeft:
                       //   owners.length > 1 ? "1px solid #d9d9d9" : "0px",
-                      paddingLeft: "10px",
+                      // paddingLeft: "10px",
+                      display: "grid",
+                      gridTemplateColumns: "max-content max-content",
+                      rowGap: "4px",
+                      columnGap: "2rem",
+                      gridAutoRows: "min-content",
                     }}
                   >
                     <div>{nameNumber}</div>
@@ -81,27 +85,29 @@ export const AdditionalSheet = ({
           );
         })}
 
-      {!ifWithoutNumber && <div>ohne Nr.</div>}
-      <div style={{ width: "100%" }}>
-        {legalDesc &&
-          legalDesc.map((l, idx) => {
-            return (
-              <div
-                style={{
-                  paddingBottom: "1.4rem",
-                  ...(!ifLegalDesc && {
-                    display: "flex",
-                    justifyContent: "space-between",
-                  }),
-                }}
-              >
-                <b>
-                  {ifLegalDesc ? "Rechtsgemeinschaft:" : "Erbengemeinschaft:"}
-                </b>{" "}
-                <span>{ifLegalDesc ? l : "zu 1/2"}</span>
-              </div>
-            );
-          })}
+      <div className="flex gap-2 w-full">
+        {!ifWithoutNumber && <div>ohne Nr.</div>}
+        <div style={{ width: "100%" }}>
+          {legalDesc &&
+            legalDesc.map((l, idx) => {
+              return (
+                <div
+                  style={{
+                    paddingBottom: "1.4rem",
+                    ...(!ifLegalDesc && {
+                      display: "flex",
+                      justifyContent: "space-between",
+                    }),
+                  }}
+                >
+                  <b>
+                    {ifLegalDesc ? "Rechtsgemeinschaft:" : "Erbengemeinschaft:"}
+                  </b>{" "}
+                  <span>{ifLegalDesc ? l : "zu 1/2"}</span>
+                </div>
+              );
+            })}
+        </div>
       </div>
     </div>
   );
