@@ -76,6 +76,7 @@ export const LandparcelInfo = ({
         destroyInactiveTabPane={true}
         items={sheetsCode.map((b, i) => {
           const id = String(i);
+          console.log("xxx legalDesc", b.content.legalDesc);
           return {
             label: (
               <div style={{ padding: "4px 10px" }} className="text-primary">

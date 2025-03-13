@@ -16,28 +16,15 @@ export const getLandparcelTitle = (
 };
 
 export const buildGroupedOwnersArr = (namesArr: Name[], owners: Owner[]) => {
+  debugger‚
   const uuidList: string[] = namesArr.map((n) => n.uuid);
-
-  // const uuidGroupsArr = namesArr
-  //   .filter((n) => n.namensnummernUUIds)
-  //   .map((n) => n.namensnummernUUIds)
-  //   .flat();
-
-  const uuidGroupsArr = [];
-
-  const removedDoubles = uuidList.filter(
-    (uuid) => !uuidGroupsArr.includes(uuid)
-  );
-
-  const existingsUids = namesArr
-    .filter((n) => removedDoubles.includes(n.uuid))
-    .map((item) => {
-      if (item.namensnummernUUIds) {
-        return item.namensnummernUUIds;
-      } else {
-        return [item.uuid];
-      }
-    });
+  const existingsUids = namesArr.map((item) => {
+    if (item.namensnummernUUIds) {
+      return item.namensnummernUUIds;
+    } else {
+      return [item.uuid];
+    }
+  });
 
   let result: string[][] = [];
 
@@ -75,6 +62,7 @@ export const buildGroupedOwnersArr = (namesArr: Name[], owners: Owner[]) => {
   });
 
   return ownerRes;
+  // return ownerRes.slice(0, -1);
 };
 
 export const getLandRegisterDistrict = (code) => {
