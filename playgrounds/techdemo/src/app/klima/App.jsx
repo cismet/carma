@@ -14,7 +14,7 @@ import convertBPKlimaItemsToFeature from "./helper/itemConverter";
 import titleFactory from "./helper/titleFactory";
 import KlimaorteMap from "./KlimaorteMap";
 
-export const dataHost = "https://wupp-topicmaps-data.cismet.de";
+export const dataHost = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 
 function App() {
   return (

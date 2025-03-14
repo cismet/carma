@@ -66,7 +66,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
     ladestation.steckerverbindungen.forEach((v, index) => {
       for (let i = 0; i < v.anzahl; ++i) {
         let imageUrl =
-          "https://wunda-geoportal.cismet.de/" +
+          import.meta.env.VITE_WUPP_ASSET_BASEURL +
           getConnectorImageUrl(v.steckdosentypkey);
         let image;
 

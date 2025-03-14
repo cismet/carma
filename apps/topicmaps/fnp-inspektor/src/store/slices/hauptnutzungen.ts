@@ -24,7 +24,8 @@ export const loadHauptnutzungen = () => {
   return async (dispatch: any) => {
     const results = await md5FetchJSON(
       "hauptnutzungen600",
-      "https://wunda-geoportal.cismet.de/data/hauptnutzungen600.data.json"
+      import.meta.env.VITE_WUPP_ASSET_BASEURL +
+        "/data/hauptnutzungen600.data.json"
     );
     let features: any = [];
     let counter = 0;

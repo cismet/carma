@@ -21,7 +21,7 @@ import { defaultLayerConf } from "react-cismap/tools/layerFactory";
 import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
 import { gazDataConfig } from "../config/gazData";
 
-const host = "https://wupp-topicmaps-data.cismet.de";
+const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 
 async function getConfig(slugName, configType, server, path) {
   try {

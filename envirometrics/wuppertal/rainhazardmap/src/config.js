@@ -6,7 +6,8 @@ import mixedBG from "./assets/images/rain-hazard-map-bg/mixed.png";
 const overridingBaseLayerConf = {};
 
 const config = {
-  hinweisDataUrl: "https://wunda-geoportal.cismet.de/data/sgk_hinweise.json",
+  hinweisDataUrl:
+    import.meta.env.VITE_WUPP_ASSET_BASEURL + "/data/sgk_hinweise.json",
   upperleftX: 780160.203, //take a depth3857.tif and run gdalinfo on it get the pixelsize and upperleftcorner info from there
   upperleftY: 6678245.042,
   pixelsize: 1.595781324768881,

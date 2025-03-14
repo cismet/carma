@@ -35,7 +35,7 @@ import {
 import { isAreaType } from "@carma-commons/resources";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
-const host = "https://wupp-topicmaps-data.cismet.de";
+const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 
 const baseLayerConf = { ...defaultLayerConf };
 

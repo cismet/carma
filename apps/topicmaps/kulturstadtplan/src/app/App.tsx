@@ -25,7 +25,8 @@ export function App() {
     <TopicMapContextProvider
       appKey="KulturKarteWuppertal2022"
       featureItemsURL={
-        "https://wupp-topicmaps-data.cismet.de/data/veranstaltungsorte.data.json"
+        import.meta.env.VITE_WUPP_ASSET_BASEURL +
+        "data/veranstaltungsorte.data.json"
       }
       referenceSystemDefinition={MappingConstants.proj4crs25832def}
       createFeatureItemsDictionary={createItemsDictionary}

@@ -27,7 +27,7 @@ import { TopicMapSelectionContent } from "@carma-apps/portals";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import FuzzySearchComponent from "./components/FuzzySearchComponent";
 
-const host = "https://wupp-topicmaps-data.cismet.de";
+const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 
 const {
   configFromFile,

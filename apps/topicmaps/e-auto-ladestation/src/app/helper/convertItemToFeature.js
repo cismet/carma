@@ -12,7 +12,7 @@ const convertItemToFeature = async (itemIn, poiColors) => {
   let item = await addSVGToProps(
     clonedItem,
     (i) => getSignature(i),
-    "https://wunda-geoportal.cismet.de/svgs/"
+    import.meta.env.VITE_WUPP_ASSET_BASEURL + "/svgs/"
   );
   const headerColor = Color(getColorForProperties(item));
 

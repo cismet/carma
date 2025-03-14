@@ -36,7 +36,7 @@ function App() {
       <TopicMapContextProvider
         appKey="OnlineKitaFindernWuppertal2022"
         featureItemsURL={
-          "https://wupp-topicmaps-data.cismet.de/data/kitas.data.json"
+          import.meta.env.VITE_WUPP_ASSET_BASEURL + "/data/kitas.data.json"
         }
         createFeatureItemsDictionary={createItemsDictionary}
         // getFeatureStyler={getFeatureStyler}

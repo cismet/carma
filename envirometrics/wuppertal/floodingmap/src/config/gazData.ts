@@ -12,7 +12,7 @@ const endpoints = [
   ENDPOINT.KITAS,
 ];
 
-const host = "https://wunda-geoportal.cismet.de";
+const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 const crs = "3857";
 
 const sources = endpoints.map((endpoint) => {

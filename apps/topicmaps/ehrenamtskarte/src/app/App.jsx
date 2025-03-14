@@ -37,7 +37,7 @@ function App() {
       <TopicMapContextProvider
         appKey="OnlineEhrenamtskarteWuppertal2022"
         featureItemsURL={
-          "https://wupp-topicmaps-data.cismet.de/ehrenamt/data.json"
+          import.meta.env.VITE_WUPP_ASSET_BASEURL + "/ehrenamt/data.json"
         }
         createFeatureItemsDictionary={createItemsDictionary}
         // referenceSystemDefinition={MappingConstants.proj4crs25832def}

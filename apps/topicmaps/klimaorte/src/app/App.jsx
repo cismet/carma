@@ -16,7 +16,7 @@ import createItemsDictionary from "./helper/createItemsDictionary";
 import getKlimaOrtkarteStyler from "./helper/styler";
 import deriveSecondarySelection from "./helper/deriveSecondarySelection";
 import { md5FetchJSON } from "react-cismap/tools/fetching";
-export const dataHost = "https://wupp-topicmaps-data.cismet.de";
+export const dataHost = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 
 const appKey = "Klimaortkarte.TopicMap";
 const getPOIColors = async (setPoiColors) => {

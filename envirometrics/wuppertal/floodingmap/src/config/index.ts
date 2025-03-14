@@ -8,7 +8,7 @@ const overridingBaseLayerConf = {};
 
 const config = {
   hinweisDataUrl:
-    "https://wunda-geoportal.cismet.de/data/flooding_hinweise.json",
+    import.meta.env.VITE_WUPP_ASSET_BASEURL + "/data/flooding_hinweise.json",
   animationSwitch: false,
   toggleSwitch: true,
   toggleTitle: "HW-Schutz",

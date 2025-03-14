@@ -29,7 +29,7 @@ baseLayerConf.namedLayers.cismetLight = {
   offlineDataStoreKey: "wuppBasemap",
 };
 
-const host = "https://wupp-topicmaps-data.cismet.de";
+const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 const selectionColor = new Color("#2664D8");
 export const appKey = "Potenzialflaechen.Online.Wuppertal";
 export const apiUrl = "https://potenzialflaechen-online-api.cismet.de";

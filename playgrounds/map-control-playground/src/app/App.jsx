@@ -30,7 +30,7 @@ function App() {
       <TopicMapContextProvider
         appKey="OnlineBaederkarteWuppertal2022"
         featureItemsURL={
-          "https://wupp-topicmaps-data.cismet.de/data/baeder.data.json"
+          import.meta.env.VITE_WUPP_ASSET_BASEURL + "/data/baeder.data.json"
         }
         referenceSystemDefinition={MappingConstants.proj4crs25832def}
         mapEPSGCode="25832"

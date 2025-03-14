@@ -4,7 +4,7 @@ const prefix = "GazDataForHitzeinderstadtByCismet";
 
 const endpoints = [ENDPOINT.ADRESSEN, ENDPOINT.POIS, ENDPOINT.KITAS];
 
-const host = "https://wupp-digitaltwin-assets.cismet.de";
+const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 const crs = "3857";
 
 const sources = endpoints.map((endpoint) => {

@@ -17,7 +17,7 @@ const convertItemToFeature = async (itemIn) => {
   let ebike = await addSVGToProps(
     clonedItem,
     (i) => getSignature(i),
-    "https://wunda-geoportal.cismet.de/svgs/"
+    import.meta.env.VITE_WUPP_ASSET_BASEURL + "/svgs/"
   );
   const headerColor = Color(getColorForProperties(ebike));
 

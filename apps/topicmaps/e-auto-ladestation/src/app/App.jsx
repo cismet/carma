@@ -37,7 +37,7 @@ function App() {
       <TopicMapContextProvider
         appKey="OnlineEMobilitaetsskarteWuppertal2022"
         featureItemsURL={
-          "https://wupp-topicmaps-data.cismet.de/data/emob.data.json"
+          import.meta.env.VITE_WUPP_ASSET_BASEURL + "/data/emob.data.json"
         }
         createFeatureItemsDictionary={createItemsDictionary}
         referenceSystemDefinition={MappingConstants.proj4crs25832def}

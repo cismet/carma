@@ -38,7 +38,7 @@ import {
 } from "@carma-mapping/fuzzy-search";
 import { isAreaType } from "@carma-commons/resources";
 
-const host = "https://wupp-topicmaps-data.cismet.de";
+const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 
 // const getData = async (setGazData) => {
 //   const prefix = "GazDataForStories";

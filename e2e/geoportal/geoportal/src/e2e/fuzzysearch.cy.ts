@@ -1,6 +1,6 @@
 describe("Fuzzy search should show search results and move map to the selected item.", () => {
   beforeEach(() => {
-    cy.intercept("GET", "https://wupp-topicmaps-data.cismet.de/**", {
+    cy.intercept("GET", import.meta.env.VITE_WUPP_ASSET_BASEURL + "/**", {
       statusCode: 200,
       body: [
         {

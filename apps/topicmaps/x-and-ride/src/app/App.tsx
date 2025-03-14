@@ -26,7 +26,7 @@ export function App() {
     <TopicMapContextProvider
       appKey="XAndRideWuppertal2022"
       featureItemsURL={
-        "https://wupp-topicmaps-data.cismet.de/data/prbr.data.json"
+        import.meta.env.VITE_WUPP_ASSET_BASEURL + "/data/prbr.data.json"
       }
       referenceSystemDefinition={MappingConstants.proj4crs25832def}
       mapEPSGCode="25832"

@@ -23,7 +23,7 @@ import { TopicMapSelectionContent } from "@carma-apps/portals";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import FuzzySearchComponent from "./components/FuzzySearchComponent";
 
-const host = "https://wupp-topicmaps-data.cismet.de";
+const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 
 // const getGazData = async (setGazData) => {
 //   const prefix = "GazDataForStories";
@@ -135,7 +135,7 @@ function App() {
     <TopicMapContextProvider
       appKey="CoronaPraeventionskarteWuppertal.TopicMap"
       featureItemsURL={
-        "https://wupp-topicmaps-data.cismet.de/data/poi.data.json"
+        import.meta.env.VITE_WUPP_ASSET_BASEURL + "/data/poi.data.json"
       }
       getFeatureStyler={getGTMFeatureStyler}
       featureTooltipFunction={(feature) => feature?.text}

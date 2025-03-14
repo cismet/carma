@@ -25,7 +25,7 @@ export const loadAEVs = () => {
   return async (dispatch: any) => {
     const results = await md5FetchJSON(
       "aenderungsv",
-      "https://wunda-geoportal.cismet.de/data/aenderungsv.datax.json"
+      import.meta.env.VITE_WUPP_ASSET_BASEURL + "/data/aenderungsv.datax.json"
     );
     let features: any = [];
     let counter = 0;

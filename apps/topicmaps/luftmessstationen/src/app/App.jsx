@@ -38,7 +38,7 @@ function App() {
     <TopicMapContextProvider
       appKey="LuftmessstationenWuppertal.TopicMap"
       featureItemsURL={
-        "https://wupp-topicmaps-data.cismet.de/data/no2.data.json"
+        import.meta.env.VITE_WUPP_ASSET_BASEURL + "/data/no2.data.json"
       }
       // featureItemsURL={"/data/no2.data.json"} //for dev purpose only
       referenceSystemDefinition={MappingConstants.proj4crs25832def}

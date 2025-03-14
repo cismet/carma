@@ -1,4 +1,4 @@
-export const host = "https://wupp-topicmaps-data.cismet.de";
+export const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 //joined lebenslagen need to be sorted
 export let POI_COLORS = {
   "Freizeit, Sport": "#194761",

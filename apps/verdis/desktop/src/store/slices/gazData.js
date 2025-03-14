@@ -4,7 +4,7 @@ import { getGazDataForTopicIds } from "react-cismap/tools/gazetteerHelper";
 
 import { APP_KEY, STORAGE_PREFIX } from "../../constants/verdis";
 
-export const gazetteerHost = "https://wupp-topicmaps-data.cismet.de/";
+export const gazetteerHost = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 const topics = ["pois", "adressen"];
 const slice = createSlice({
   name: "gazetteerData",

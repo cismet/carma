@@ -6,7 +6,7 @@ import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import GazetteerSearchComponent from "react-cismap/GazetteerSearchComponent";
 import { md5FetchText } from "react-cismap/tools/fetching";
 
-const host = "https://wupp-topicmaps-data.cismet.de";
+const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 
 export const getGazData = async (
   setGazData,

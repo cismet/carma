@@ -18,7 +18,7 @@ import getGTMFeatureStyler from "react-cismap/topicmaps/generic/GTMStyler";
 // import ImprovedLocatorControl from './ImprovedLocatorControl';
 
 import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
-const host = "https://wupp-topicmaps-data.cismet.de";
+const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 
 const getGazData = async (setGazData) => {
   const prefix = "GazDataForStories";
