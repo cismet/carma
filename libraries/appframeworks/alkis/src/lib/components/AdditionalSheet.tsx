@@ -34,26 +34,20 @@ export const AdditionalSheet = ({
             const { houseNumber, postalCode, city, street } =
               owner.addresses?.[0] || {};
 
-            console.log("xxx owner", owner);
-
             return (
               <div
                 key={idx}
                 style={{
-                  // display: "flex",
                   gap: "3rem",
-                  paddingBottom: "1.4rem",
-                  // borderLeft:
-                  //   owners.length > 1 ? "1px solid #d9d9d9" : "0px",
-                  // paddingLeft: "10px",
+                  paddingBottom: "2rem",
                   display: "grid",
                   gridTemplateColumns: "max-content max-content",
-                  rowGap: "4px",
+                  // rowGap: "4px",
                   columnGap: "2rem",
                   gridAutoRows: "min-content",
                 }}
               >
-                <div>{nameNumber}</div>
+                <div className="w-[40px]">{nameNumber}</div>
                 <div>
                   {owner.addresses ? (
                     <>
@@ -63,7 +57,7 @@ export const AdditionalSheet = ({
                         {", "}
                         {salutation !== "Firma" ? "*" + formattedDate : ""}
                       </div>
-                      {/* {nameOfBirth && <div>geb. {nameOfBirth}</div>} */}
+                      {nameOfBirth && <div>geb. {nameOfBirth}</div>}
                       <div>
                         {street} {houseNumber}
                       </div>
@@ -88,7 +82,7 @@ export const AdditionalSheet = ({
           const ifWithoutNumber = l.artRechtsgemeinschaft;
           return (
             <div className="flex gap-2 w-full">
-              {ifWithoutNumber && <div>ohne Nr.</div>}
+              {ifWithoutNumber && <div className="min-w-[60px]">ohne Nr.</div>}
 
               <div
                 style={{
