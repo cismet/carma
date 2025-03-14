@@ -5,7 +5,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faRotateLeft,
   faRotateRight,
-  faImage,
+  faSpinner,
 } from "@fortawesome/free-solid-svg-icons";
 import { Tooltip } from "antd";
 import { DownloadOutlined } from "@ant-design/icons";
@@ -35,7 +35,7 @@ import {
   notifyPreviewVisibilityChange,
 } from "../utils/previewVisibility";
 
-type CameraRotationControlsProps = {
+type ObliqueControlsProps = {
   /**
    * Offset angle in radians to apply to all cardinal directions.
    * For example, Math.PI/12 (15 degrees) will rotate all directions clockwise.
@@ -52,11 +52,10 @@ enum CardinalDirection {
   West = 3,
 }
 
-export const ObliqueCameraRotationControls: React.FC<
-  CameraRotationControlsProps
-> = () => {
+export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const isObliqueMode = useSelector(getObliqueMode);
-  const { headingOffset, nearestImage, previewPath } = useObliqueDataContext();
+  const { headingOffset, nearestImage, previewPath, isAllDataReady } =
+    useObliqueDataContext();
   const { viewerRef } = useCesiumContext();
   const flags = useFeatureFlags();
   const isDebugMode = flags.featureFlagDebugOblique;
@@ -67,6 +66,11 @@ export const ObliqueCameraRotationControls: React.FC<
   const [shouldRender, setShouldRender] = useState(isObliqueMode);
   const [currentHeading, setCurrentHeading] = useState<number>(0);
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
+
+  // Function to close the preview
+  const closePreview = useCallback(() => {
+    setIsPreviewVisible(false);
+  }, []);
   const orbitPointRef = useRef<Cartesian3 | null>(null);
   const orbitPointEntityRef = useRef<Entity | null>(null);
   const userMovedCameraRef = useRef<boolean>(false);
@@ -509,7 +513,6 @@ export const ObliqueCameraRotationControls: React.FC<
         flexDirection: "column",
         alignItems: "center",
         gap: "8px",
-        zIndex: 100000,
         opacity: isVisible ? 1 : 0,
         transition: "opacity 300ms ease-in-out",
         pointerEvents: isVisible ? "auto" : "none",
@@ -521,11 +524,11 @@ export const ObliqueCameraRotationControls: React.FC<
           flexDirection: "column",
           gap: "10px",
           transition: "transform 300ms ease-in-out",
-          transform: `translateY(${isPreviewVisible ? 240 : 0}px)`,
+          transform: `translateY(${isPreviewVisible ? 200 : 0}px)`,
         }}
       >
-                {/* Fly to image button or close preview button */}
-                {nearestImage && (
+        {/* Fly to image button or close preview button */}
+        {nearestImage && (
           <Tooltip
             title={
               isPreviewVisible
@@ -534,14 +537,19 @@ export const ObliqueCameraRotationControls: React.FC<
             }
           >
             <div>
-              <ControlButtonStyler onClick={flyToNearestImage} width="160px" height="80px">
+              <ControlButtonStyler
+                onClick={isPreviewVisible ? closePreview : flyToNearestImage}
+                width="160px"
+                height="80px"
+              >
                 <span>{isPreviewVisible ? "Schließen" : "Flug zum Bild"}</span>
               </ControlButtonStyler>
             </div>
           </Tooltip>
         )}
-        {/* Download button */}
-        {nearestImage && previewPath && (
+
+        {/* Download button when preview is not visible */}
+        {!isPreviewVisible && nearestImage && previewPath && (
           <Tooltip title="Bild in Qualität Level 2 herunterladen, Bild öffnet in neuemFenster">
             <div
               style={{
@@ -563,9 +571,7 @@ export const ObliqueCameraRotationControls: React.FC<
           </Tooltip>
         )}
 
-
-
-        {/* Cardinal direction controls */}
+        {/* Cardinal direction controls with loading spinner overlay */}
         <div
           className="camera-rotation-controls"
           style={{
@@ -577,8 +583,37 @@ export const ObliqueCameraRotationControls: React.FC<
             backgroundColor: "rgba(255, 255, 255, 0.4)",
             borderRadius: "8px",
             boxShadow: "0 0 8px rgba(0, 0, 0, 0.2)",
+            position: "relative",
           }}
         >
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "rgba(255, 255, 255, 0.8)",
+              zIndex: 10,
+              borderRadius: "8px",
+              opacity: isAllDataReady ? 0 : 1,
+              transition: "opacity 0.5s ease",
+              pointerEvents: isAllDataReady ? "none" : "auto",
+            }}
+          >
+            <FontAwesomeIcon
+              icon={faSpinner}
+              spin
+              style={{ fontSize: "24px", marginBottom: "10px" }}
+            />
+            <div style={{ textAlign: "center", fontSize: "12px" }}>
+              Schrägluftbild-Daten werden geladen...
+            </div>
+          </div>
           {/* Top row */}
           <ControlButtonStyler
             onClick={() => rotateCamera(false)}
@@ -682,4 +717,4 @@ export const ObliqueCameraRotationControls: React.FC<
   );
 };
 
-export default ObliqueCameraRotationControls;
+export default ObliqueControls;
