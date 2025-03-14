@@ -16,7 +16,6 @@ export const getLandparcelTitle = (
 };
 
 export const buildGroupedOwnersArr = (namesArr: Name[], owners: Owner[]) => {
-  debugger‚
   const uuidList: string[] = namesArr.map((n) => n.uuid);
   const existingsUids = namesArr.map((item) => {
     if (item.namensnummernUUIds) {

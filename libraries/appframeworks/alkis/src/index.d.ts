@@ -44,6 +44,8 @@ export interface Owner {
   surName: string;
   dateOfBirth: string;
   nameNumber: string;
+  foreName?: string;
+  nameOfBirth?: string;
   addresses: Address[];
 }
 
@@ -55,6 +57,7 @@ interface Name {
   nenner?: string | number;
   zaehler?: string | number;
   artRechtsgemeinschaft?: string;
+  beschriebRechtsgemeinschaft?: string | null;
 }
 
 export interface Owner {
