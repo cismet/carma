@@ -11,7 +11,7 @@ const sources = [
   ENDPOINT.POIS,
   ENDPOINT.KITAS,
 ];
-const host = "https://wupp-digitaltwin-assets.cismet.de";
+const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 const crs = "25832";
 
 export const sourcesConfig = sources.map((endpoint) => {
