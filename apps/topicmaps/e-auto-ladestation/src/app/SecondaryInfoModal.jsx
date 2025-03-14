@@ -67,8 +67,6 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
       for (let i = 0; i < v.anzahl; ++i) {
         let imageUrl = getConnectorImageUrl(v.steckdosentypkey);
         let image;
-        console.log("xxx imageUrl", imageUrl);
-
         if (imageUrl) {
           image = (
             <img
