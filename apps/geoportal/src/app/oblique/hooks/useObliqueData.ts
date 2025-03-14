@@ -6,12 +6,17 @@ import { getOrientedImageRecordAsync } from "../utils/parseOrientationsCSV";
 
 import { ObliqueImageRecord } from "../types";
 import { CardinalDirectionEnum } from "../utils/orientationUtils";
+import {
+  getFootprintCentroidsAsync,
+  PointMapByIdBySectorBlocks,
+} from "../utils/parseFootprintCentroidsCSV";
 
 type UseObliqueDataResult = {
   isLoading: boolean;
   progress: number;
   progressStage: string;
   imageRecords: ObliqueImageRecord[] | null;
+  centroidMapBySectorBlock: PointMapByIdBySectorBlocks | null;
   error: string | null;
   stats: {
     imageCount: number;
@@ -19,13 +24,21 @@ type UseObliqueDataResult = {
     processingTimeMs: number;
     extensionTimeMs: number;
     totalProcessingTimeMs: number;
+    centroidStats: {
+      pointCount: number;
+      processingTimeMs: number;
+    } | null;
   } | null;
-  parseCSV: () => Promise<void | ObliqueImageRecord[]>;
+
+  parseCSV: () => Promise<
+    void | [ObliqueImageRecord[], PointMapByIdBySectorBlocks]
+  >;
   converter: Converter;
 };
 
 export function useObliqueData(
-  uri: string,
+  orientationsUri: string,
+  centroidsUri: string,
   crs = "EPSG:25832",
   offset = 0,
   fallbackDirectionConfig: Record<
@@ -42,15 +55,19 @@ export function useObliqueData(
   const [imageRecords, setImageRecords] = useState<ObliqueImageRecord[] | null>(
     null
   );
+  const [centroidMapBySectorBlock, setCentroidMapBySectorBlock] =
+    useState<PointMapByIdBySectorBlocks | null>(null);
   const [stats, setStats] = useState<UseObliqueDataResult["stats"] | null>(
     null
   );
   const converter = proj4(crs, "EPSG:4326");
 
   // Function to parse camera orientation CSV
-  const parseCSV = useCallback(async () => {
+  const parseCSV = useCallback(async (): Promise<
+    void | [ObliqueImageRecord[], PointMapByIdBySectorBlocks]
+  > => {
     // Check if we have a valid URL to parse
-    if (!uri) {
+    if (!orientationsUri) {
       setError("No URL provided for CSV data");
       console.error("Attempted to parse CSV without a valid URL");
       return Promise.reject(new Error("No URL provided for CSV data"));
@@ -59,13 +76,16 @@ export function useObliqueData(
     // Don't parse again if we're already loading
     if (isLoading) {
       console.log("CSV parsing already in progress, skipping request");
-      return Promise.resolve(); // Return resolved promise when already loading
+      return Promise.resolve(undefined); // Return resolved promise when already loading
     }
 
     // If we already have data loaded, just return it
-    if (imageRecords && imageRecords.length > 0) {
+    if (imageRecords && imageRecords.length > 0 && centroidMapBySectorBlock) {
       console.log("CSV data already loaded, using cached data");
-      return Promise.resolve(imageRecords);
+      return Promise.resolve([imageRecords, centroidMapBySectorBlock] as [
+        ObliqueImageRecord[],
+        PointMapByIdBySectorBlocks
+      ]);
     }
 
     // Reset states
@@ -75,12 +95,15 @@ export function useObliqueData(
     setError(null);
 
     try {
+      const { pointMapByIdBySectorBlock, stats: centroidStats } =
+        await getFootprintCentroidsAsync(centroidsUri);
+      setCentroidMapBySectorBlock(pointMapByIdBySectorBlock);
+
       const { images, stats } = await getOrientedImageRecordAsync(
-        uri,
+        orientationsUri,
         noNadir,
         debug
       );
-
       // Transform basic records to ObliqueImageRecord with all required properties
       const extensionStartTime = performance.now();
       const completeRecords = images.map((image) =>
@@ -97,6 +120,7 @@ export function useObliqueData(
       setImageRecords(completeRecords);
       setStats({
         imageCount: completeRecords.length,
+        centroidStats,
         noNadir,
         processingTimeMs: stats.processingTimeMs,
         extensionTimeMs,
@@ -119,6 +143,7 @@ export function useObliqueData(
         console.info(
           `ObliqueStats | Total processing time: ${totalProcessingTimeMs} ms`
         );
+        console.info(`ObliqueStats | Centroids:`, pointMapByIdBySectorBlock);
       } else {
         console.log("No OBLIQUE image records found in CSV data");
       }
@@ -127,14 +152,28 @@ export function useObliqueData(
       setProgressStage("Complete");
       setProgress(100);
 
-      return Promise.resolve(completeRecords);
+      return Promise.resolve([completeRecords, pointMapByIdBySectorBlock] as [
+        ObliqueImageRecord[],
+        PointMapByIdBySectorBlocks
+      ]);
     } catch (error) {
       console.error("Error parsing CSV:", error);
       setError(`Error parsing CSV: ${error}`);
       setIsLoading(false);
-      return Promise.reject(error);
+      return Promise.reject(error) as Promise<never>;
     }
-  }, [uri, isLoading, converter, noNadir, debug, offset, imageRecords]);
+  }, [
+    orientationsUri,
+    centroidsUri,
+    fallbackDirectionConfig,
+    isLoading,
+    converter,
+    noNadir,
+    debug,
+    offset,
+    imageRecords,
+    centroidMapBySectorBlock,
+  ]);
 
   return {
     isLoading,
@@ -142,6 +181,7 @@ export function useObliqueData(
     progressStage,
     imageRecords,
     converter,
+    centroidMapBySectorBlock,
     error,
     stats,
     parseCSV,

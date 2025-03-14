@@ -76,7 +76,8 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
 }) => {
   const isObliqueMode = useSelector(getObliqueMode);
   const {
-    uri,
+    orientationsURI,
+    centroidsURI,
     crs,
     previewPath,
     previewQualityLevel,
@@ -88,11 +89,13 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
   } = config;
 
   // Use the oblique data hook to get camera orientations
-  const { imageRecords, parseCSV, isLoading, converter, error } =
-    useObliqueData(uri, crs, headingOffset, fallbackDirectionConfig);
+  const { imageRecords, centroidMapBySectorBlock, parseCSV, isLoading, converter, error } =
+    useObliqueData(orientationsURI, centroidsURI, crs, headingOffset, fallbackDirectionConfig);
 
   // Store when data has been previously loaded to prevent duplicate loads
   const [dataLoaded, setDataLoaded] = useState(false);
+
+  console.info("xxx", centroidMapBySectorBlock);
 
   // Add nearest image finding
   const { nearestImage, distance, refreshSearch } = useNearestObliqueImage(

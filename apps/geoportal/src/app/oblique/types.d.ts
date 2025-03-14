@@ -35,7 +35,8 @@ export interface ObliqueImageRecord extends BasicObliqueImageRecord {
 }
 
 export interface ObliqueDataProviderConfig {
-  uri: string;
+  orientationsURI: string;
+  centroidsURI: string;
   crs: string;
   previewPath: string;
   previewQualityLevel?: OBLIQUE_PREVIEW_QUALITY;
