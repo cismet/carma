@@ -24,9 +24,12 @@ export function App() {
   return (
     <TopicMapContextProvider
       appKey="KulturKarteWuppertal2022"
+      // featureItemsURL={
+      //   import.meta.env.VITE_WUPP_ASSET_BASEURL +
+      //   "data/veranstaltungsorte.data.json"
+      // }
       featureItemsURL={
-        import.meta.env.VITE_WUPP_ASSET_BASEURL +
-        "data/veranstaltungsorte.data.json"
+        "https://wupp-topicmaps-data.cismet.de/data/veranstaltungsorte.data.json"
       }
       referenceSystemDefinition={MappingConstants.proj4crs25832def}
       createFeatureItemsDictionary={createItemsDictionary}
