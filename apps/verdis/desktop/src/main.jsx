@@ -70,7 +70,7 @@ const NavBarWrapper = () => {
     setIsLoading(true);
     dispatch(checkJWTValidation());
     setIsLoading(false);
-    dispatch(loadGazeteerEntries());
+    // dispatch(loadGazeteerEntries());
     dispatch(getVirtualCityPassword());
   }, []);
 
