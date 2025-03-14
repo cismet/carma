@@ -1,10 +1,7 @@
 import { useCallback, useEffect, useState, useRef } from "react";
-import { useSelector } from "react-redux";
 import { type Converter } from "proj4";
 
 import { useCesiumContext } from "@carma-mapping/cesium-engine";
-
-import { getObliqueMode } from "../../store/slices/ui";
 import { findNearestKObliqueImages } from "../utils/spatialIndexing";
 import type { ObliqueImageRecord } from "../types";
 import { getCardinalDirectionFromHeading } from "../utils/orientationUtils";
@@ -38,14 +35,13 @@ export function useNearestObliqueImage(
   options: UseNearestObliqueImageOptions = defaultOptions
 ) {
   const { viewerRef } = useCesiumContext();
-  const isObliqueMode = useSelector(getObliqueMode);
   const { orbitPointCoords } = useOrbitPoint(converter);
+
+  // State for values that need to be returned from the hook
   const [nearestImage, setNearestImage] = useState<ObliqueImageRecord | null>(
     null
   );
   const [distance, setDistance] = useState<number | null>(null);
-
-  // State to store calculated values needed for SVG rendering
   const [cameraPosition, setCameraPosition] = useState<[number, number]>([
     0, 0,
   ]);
@@ -82,8 +78,7 @@ export function useNearestObliqueImage(
       !viewerRef.current ||
       !obliqueRecords ||
       !obliqueRecords.length ||
-      !converter ||
-      !isObliqueMode
+      !converter
     ) {
       return;
     }
@@ -131,11 +126,6 @@ export function useNearestObliqueImage(
         converter
       );
 
-      // Update camera state
-      setCameraHeading(heading);
-      setCardinalSector(cameraCardinal);
-      setCameraPosition([positionInImageCrs[0], positionInImageCrs[1]]);
-
       // Calculate the point on ground based on camera pitch and heading
       const cameraHeight = cartographic.height;
       const calculatedPointOnGround = calculatePointOnGround(
@@ -143,14 +133,12 @@ export function useNearestObliqueImage(
         cameraHeight,
         camera.pitch
       );
-      setPointOnGround(calculatedPointOnGround);
 
       // Calculate the sector heading based on cardinal direction
       const calculatedSectorHeading = calculateSectorHeading(
         cameraCardinal,
         headingOffset
       );
-      setSectorHeading(calculatedSectorHeading);
 
       // Calculate distance on ground using the camera pitch
       const distanceOnGround = camera.pitch
@@ -163,7 +151,6 @@ export function useNearestObliqueImage(
         distanceOnGround,
         calculatedSectorHeading
       );
-      setPointOnRadius(calculatedPointOnRadius);
 
       // The orbit point coordinates are fetched by the useOrbitPoint hook
       if (!orbitPointCoords) return;
@@ -174,10 +161,6 @@ export function useNearestObliqueImage(
         positionInImageCrs,
         calculatedPointOnRadius
       );
-      setRadiusPointCoords([
-        radiusPointInImageCrs[0],
-        radiusPointInImageCrs[1],
-      ]);
 
       // Find and set nearest images
       const filteredImages = findNearestKObliqueImages(
@@ -189,6 +172,18 @@ export function useNearestObliqueImage(
           return record.sector === cameraCardinal;
         }
       );
+
+      // Update state in a batch to minimize rerenders
+      setCameraHeading(heading);
+      setCardinalSector(cameraCardinal);
+      setCameraPosition([positionInImageCrs[0], positionInImageCrs[1]]);
+      setPointOnGround(calculatedPointOnGround);
+      setSectorHeading(calculatedSectorHeading);
+      setPointOnRadius(calculatedPointOnRadius);
+      setRadiusPointCoords([
+        radiusPointInImageCrs[0],
+        radiusPointInImageCrs[1],
+      ]);
       setNearestImages(filteredImages);
 
       // Set the single nearest image for backward compatibility
@@ -207,19 +202,13 @@ export function useNearestObliqueImage(
     obliqueRecords,
     converter,
     headingOffset,
-    isObliqueMode,
     options.k,
     orbitPointCoords,
-  ]);
+  ]); // Include all dependencies for proper updates
 
   // Setup camera movement listener
   useEffect(() => {
-    if (
-      !viewerRef.current ||
-      !isObliqueMode ||
-      !obliqueRecords ||
-      !obliqueRecords.length
-    ) {
+    if (!viewerRef.current || !obliqueRecords || !obliqueRecords.length) {
       return;
     }
 
@@ -251,19 +240,13 @@ export function useNearestObliqueImage(
         clearTimeout(timerId);
       }
     };
-  }, [
-    viewerRef,
-    isObliqueMode,
-    obliqueRecords,
-    refreshSearch,
-    options.debounceTime,
-  ]);
+  }, [viewerRef, obliqueRecords, refreshSearch, options.debounceTime]); // Include necessary dependencies
 
-  return {
+  // Memoize the return object to prevent unnecessary rerenders in consumers
+  const returnRef = useRef({
     nearestImage,
     distance,
     refreshSearch,
-    // Additional data for SVG rendering
     cameraPosition,
     cameraHeading,
     cardinalSector,
@@ -272,5 +255,36 @@ export function useNearestObliqueImage(
     pointOnRadius,
     sectorHeading,
     nearestImages,
-  };
+  });
+
+  // Update the return ref when state changes
+  useEffect(() => {
+    returnRef.current = {
+      nearestImage,
+      distance,
+      refreshSearch,
+      cameraPosition,
+      cameraHeading,
+      cardinalSector,
+      radiusPointCoords,
+      pointOnGround,
+      pointOnRadius,
+      sectorHeading,
+      nearestImages,
+    };
+  }, [
+    nearestImage,
+    distance,
+    refreshSearch,
+    cameraPosition,
+    cameraHeading,
+    cardinalSector,
+    radiusPointCoords,
+    pointOnGround,
+    pointOnRadius,
+    sectorHeading,
+    nearestImages,
+  ]);
+
+  return returnRef.current;
 }

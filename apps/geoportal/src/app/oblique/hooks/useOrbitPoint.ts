@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Cartesian3 } from "cesium";
 import { useCesiumContext, getOrbitPoint } from "@carma-mapping/cesium-engine";
 import type { Converter } from "proj4";
@@ -20,8 +20,64 @@ export function useOrbitPoint(converter?: Converter): {
     [number, number, number] | null
   >(null);
 
+  // Use refs to avoid unnecessary rerenders
+  const converterRef = useRef(converter);
+  const lastPointRef = useRef<Cartesian3 | null>(null);
+  const lastCoordsRef = useRef<[number, number, number] | null>(null);
+
+  // Update converter ref when it changes
   useEffect(() => {
-    if (!viewerRef.current || !converter) {
+    converterRef.current = converter;
+  }, [converter]);
+
+  // Memoize the return object to prevent consumer rerenders
+  const returnRef = useRef({
+    orbitPoint,
+    orbitPointCoords,
+  });
+
+  // Update return ref when state changes
+  useEffect(() => {
+    returnRef.current = {
+      orbitPoint,
+      orbitPointCoords,
+    };
+  }, [orbitPoint, orbitPointCoords]);
+
+  // Create a memoized update function to avoid recreating it on every render
+  const updateOrbitPoint = useCallback((point: Cartesian3 | null) => {
+    if (!point || !converterRef.current) return;
+
+    // Skip update if the point hasn't changed significantly
+    if (lastPointRef.current && point.equals(lastPointRef.current)) {
+      return;
+    }
+
+    lastPointRef.current = point;
+    setOrbitPoint(point);
+
+    // Convert to image coordinates
+    const coords = calculateImageCoordsFromCartesian(
+      point,
+      converterRef.current
+    );
+
+    // Skip update if coords haven't changed significantly
+    if (
+      lastCoordsRef.current &&
+      coords[0] === lastCoordsRef.current[0] &&
+      coords[1] === lastCoordsRef.current[1] &&
+      coords[2] === lastCoordsRef.current[2]
+    ) {
+      return;
+    }
+
+    lastCoordsRef.current = coords;
+    setOrbitPointCoords(coords);
+  }, []);
+
+  useEffect(() => {
+    if (!viewerRef.current || !converterRef.current) {
       return;
     }
 
@@ -29,32 +85,19 @@ export function useOrbitPoint(converter?: Converter): {
 
     // Get the orbit point from Cesium
     const point = getOrbitPoint(viewer);
-
-    // Only proceed if we got a valid orbit point
-    if (point) {
-      setOrbitPoint(point);
-
-      // Convert to image coordinates
-      const coords = calculateImageCoordsFromCartesian(point, converter);
-      setOrbitPointCoords(coords);
-    }
+    updateOrbitPoint(point);
 
     // Update when camera changes
     const onCameraChange = () => {
       const updatedPoint = getOrbitPoint(viewer);
-      if (updatedPoint) {
-        setOrbitPoint(updatedPoint);
-        setOrbitPointCoords(
-          calculateImageCoordsFromCartesian(updatedPoint, converter)
-        );
-      }
+      updateOrbitPoint(updatedPoint);
     };
 
     viewer.camera.changed.addEventListener(onCameraChange);
     return () => {
       viewer.camera.changed.removeEventListener(onCameraChange);
     };
-  }, [viewerRef, converter]);
+  }, [viewerRef, updateOrbitPoint]);
 
-  return { orbitPoint, orbitPointCoords };
+  return returnRef.current;
 }
