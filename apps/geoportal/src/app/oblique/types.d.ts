@@ -24,12 +24,10 @@ export interface BasicObliqueImageRecord {
   __debugRecord?: string;
 }
 
-export type CardinalDirection = "N" | "E" | "S" | "W";
-
 export interface ObliqueImageRecord extends BasicObliqueImageRecord {
   centerWGS84: [number, number, number];
   fallbackHeading: number;
-  sector: CardinalDirection;
+  sector: CardinalDirectionEnum;
   cartesian: Cartesian3;
   hpr: HeadingPitchRoll;
   quaternion: Quaternion;

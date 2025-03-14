@@ -63,7 +63,7 @@ import {
 import { layerMap } from "./config";
 import { CESIUM_CONFIG } from "./config/app.config";
 import { featureFlagConfig } from "./config/featureFlags";
-import { OBLIQUE_CONFIG } from "./oblique/config";
+import { OBLIQUE_CONFIG, CAMERA_ID_TO_DIRECTION } from "./oblique/config";
 
 // Side-Effect Imports
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -243,7 +243,10 @@ function App({ published }: { published?: boolean }) {
             background: backgroundSettings,
           }}
         >
-          <ObliqueDataProvider config={OBLIQUE_CONFIG}>
+          <ObliqueDataProvider
+            config={OBLIQUE_CONFIG}
+            fallbackDirectionConfig={CAMERA_ID_TO_DIRECTION}
+          >
             <ErrorBoundary FallbackComponent={AppErrorFallback}>
               <div
                 className="flex flex-col w-full "

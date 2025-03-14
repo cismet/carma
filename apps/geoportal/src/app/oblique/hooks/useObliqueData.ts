@@ -5,6 +5,7 @@ import { extendObliqueImageRecord } from "../utils/obliqueImageRecord";
 import { getOrientedImageRecordAsync } from "../utils/parseOrientationsCSV";
 
 import { ObliqueImageRecord } from "../types";
+import { CardinalDirectionEnum } from "../utils/orientationUtils";
 
 type UseObliqueDataResult = {
   isLoading: boolean;
@@ -27,6 +28,10 @@ export function useObliqueData(
   uri: string,
   crs = "EPSG:25832",
   offset = 0,
+  fallbackDirectionConfig: Record<
+    string,
+    Record<string, CardinalDirectionEnum>
+  >,
   noNadir = true,
   debug = true
 ): UseObliqueDataResult {
@@ -79,7 +84,12 @@ export function useObliqueData(
       // Transform basic records to ObliqueImageRecord with all required properties
       const extensionStartTime = performance.now();
       const completeRecords = images.map((image) =>
-        extendObliqueImageRecord(image, converter, offset)
+        extendObliqueImageRecord(
+          image,
+          converter,
+          offset,
+          fallbackDirectionConfig
+        )
       );
       const extensionTimeMs = performance.now() - extensionStartTime;
       const totalProcessingTimeMs = stats.processingTimeMs + extensionTimeMs;

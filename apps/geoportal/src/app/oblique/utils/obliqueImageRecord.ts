@@ -1,8 +1,9 @@
 import { type Converter } from "proj4";
 import { BasicObliqueImageRecord, ObliqueImageRecord } from "../types";
 import {
-  getApproximateHeadingBySector,
   getCardinalDirectionByLineAndCameraId,
+  getApproximateHeadingBySector,
+  CardinalDirectionEnum,
 } from "./orientationUtils";
 import { Cartesian3 } from "cesium";
 import { computeOrientations } from "./computeOrientations";
@@ -10,7 +11,8 @@ import { computeOrientations } from "./computeOrientations";
 export const extendObliqueImageRecord = (
   image: BasicObliqueImageRecord,
   converter: Converter,
-  offset: number
+  offset: number,
+  fallbackDirectionConfig: Record<string, Record<string, CardinalDirectionEnum>>
 ): ObliqueImageRecord => {
   const { x, y, z } = image.perspectiveCenter;
 
@@ -25,7 +27,8 @@ export const extendObliqueImageRecord = (
   // Calculate heading and sector if orientation data is available
   const sector = getCardinalDirectionByLineAndCameraId(
     image.lineNumber,
-    image.cameraId
+    image.cameraId,
+    fallbackDirectionConfig
   );
 
   let flightPatternHeading = getApproximateHeadingBySector(sector, offset);

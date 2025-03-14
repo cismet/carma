@@ -1,57 +1,65 @@
 import { Math as CesiumMath } from "cesium";
-import { type CardinalDirection } from "../types";
 
-/**
- * Determines the sector based on the heading angle
- * North: -45° to 45° (or 315° to 45°)
- * East: 45° to 135°
- * South: 135° to 225°
- * West: 225° to 315°
- *
- * @param heading Heading in radians
- * @returns Sector as "N", "E", "S", or "W"
- */
-export function getSectorFromHeading(heading: number): CardinalDirection {
-  // Convert to degrees for easier understanding
-  const degrees = CesiumMath.toDegrees(heading);
+// North is 0 and rotations are clockwise to the east
 
-  // North is from -45 to 45 degrees (or 315 to 45 in 0-360 system)
-  if (degrees >= 315 || degrees < 45) {
-    return "N";
-  }
-  // East is from 45 to 135 degrees
-  else if (degrees >= 45 && degrees < 135) {
-    return "E";
-  }
-  // South is from 135 to 225 degrees
-  else if (degrees >= 135 && degrees < 225) {
-    return "S";
-  }
-  // West is from 225 to 315 degrees
-  else {
-    return "W";
-  }
+export enum CardinalDirectionEnum {
+  North = 0,
+  East = 1,
+  South = 2,
+  West = 3,
 }
 
-// calculate approximateheading from camera ID and line number as workaround until OPK approach works.
+export const CardinalNames = Object.freeze({
+  DE: new Map([
+    [CardinalDirectionEnum.North, "Norden"],
+    [CardinalDirectionEnum.East, "Osten"],
+    [CardinalDirectionEnum.South, "Süden"],
+    [CardinalDirectionEnum.West, "Westen"],
+  ]),
+  EN: new Map([
+    [CardinalDirectionEnum.North, "North"],
+    [CardinalDirectionEnum.East, "East"],
+    [CardinalDirectionEnum.South, "South"],
+    [CardinalDirectionEnum.West, "West"],
+  ]),
+});
 
-const CAMERA_ID_TO_DIRECTION = {
-  // For even flight lines
-  EVEN: {
-    // Using common oblique camera IDs
-    "170": "E",
-    "171": "S",
-    "174": "W",
-    "176": "N",
-  },
-  // For odd flight lines
-  ODD: {
-    "170": "W",
-    "171": "N",
-    "174": "E",
-    "176": "S",
-  },
-};
+export const CardinalLetters = Object.freeze({
+  DE: new Map([
+    [CardinalDirectionEnum.North, "N"],
+    [CardinalDirectionEnum.East, "O"],
+    [CardinalDirectionEnum.South, "S"],
+    [CardinalDirectionEnum.West, "W"],
+  ]),
+  EN: new Map([
+    [CardinalDirectionEnum.North, "N"],
+    [CardinalDirectionEnum.East, "E"],
+    [CardinalDirectionEnum.South, "S"],
+    [CardinalDirectionEnum.West, "W"],
+  ]),
+});
+
+/**
+ *
+ * @param heading Heading in radians, North is 0
+ * @returns Sector
+ */
+export function getCardinalDirectionFromHeading(
+  heading: number
+): CardinalDirectionEnum {
+  return (
+    Math.floor(
+      CesiumMath.zeroToTwoPi(heading + CesiumMath.PI_OVER_FOUR) /
+        CesiumMath.PI_OVER_TWO
+    ) % 4
+  );
+}
+
+export function getHeadingFromCardinalDirection(
+  direction: CardinalDirectionEnum
+): number {
+  return CesiumMath.zeroToTwoPi(direction * CesiumMath.PI_OVER_TWO);
+}
 
 const isOddFlightLine = (flightLine: string): boolean => {
   return parseInt(flightLine) % 2 !== 0;
@@ -59,22 +67,18 @@ const isOddFlightLine = (flightLine: string): boolean => {
 
 export function getCardinalDirectionByLineAndCameraId(
   flightLine: string,
-  cameraId: string
-): CardinalDirection {
+  cameraId: string,
+  directionConfig: Record<string, Record<string, CardinalDirectionEnum>>
+): CardinalDirectionEnum {
   const direction =
-    CAMERA_ID_TO_DIRECTION[isOddFlightLine(flightLine) ? "ODD" : "EVEN"];
+    directionConfig[isOddFlightLine(flightLine) ? "ODD" : "EVEN"];
   return direction[cameraId];
 }
 
 export function getApproximateHeadingBySector(
-  sector: CardinalDirection,
+  sector: CardinalDirectionEnum,
   offset: number
 ): number {
-  const headings: Record<CardinalDirection, number> = {
-    N: 0,
-    E: CesiumMath.toRadians(90),
-    S: CesiumMath.toRadians(180),
-    W: CesiumMath.toRadians(270),
-  };
-  return headings[sector] + offset;
+  const baseHeading = getHeadingFromCardinalDirection(sector);
+  return baseHeading + offset;
 }

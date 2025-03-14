@@ -1,0 +1,725 @@
+import React, { useEffect, useState, useMemo } from "react";
+import { Math as CesiumMath } from "cesium";
+import { useCesiumContext } from "@carma-mapping/cesium-engine";
+import { Slider } from "antd";
+import { styled } from "styled-components";
+
+import { useObliqueDataContext } from "./ObliqueDataContext";
+import { findNearestKObliqueImages } from "../utils/spatialIndexing";
+import { ObliqueImageRecord } from "../types";
+import { useOrbitPoint } from "../hooks/useOrbitPoint";
+import {
+  CardinalDirectionEnum,
+  CardinalNames,
+  getCardinalDirectionFromHeading,
+} from "../utils/orientationUtils";
+import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
+import { getPreviewImageUrl } from "../utils/imageHandling";
+import {
+  calculatePointOnGround,
+  calculatePointOnRadius,
+  calculateSectorHeading,
+  calculateImageCoordsFromCamera,
+  calculateCustomHeading as calculateHeadingForRecord,
+  calculateReferencePointFromOrbit,
+} from "../utils/obliqueReferenceUtils";
+
+interface ObliqueDebugSvgProps {
+  numImages: number;
+}
+
+const SvgContainer = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10000;
+  pointer-events: none;
+`;
+
+const ControlPanel = styled.div`
+  position: fixed;
+  top: 10px;
+  left: 60px;
+  width: 300px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 15px;
+  border-radius: 8px;
+  z-index: 10001;
+  pointer-events: all;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+  overflow: hidden;
+  max-height: ${props => props.isCollapsed ? '42px' : '500px'};
+`;
+
+const SliderGroup = styled.div`
+  margin-bottom: 15px;
+  padding-top: 5px;
+  
+  .ant-slider-track {
+    background-color: #1890ff;
+  }
+  
+  .ant-slider-handle {
+    border-color: #1890ff;
+  }
+`;
+
+const SliderLabel = styled.div`
+  color: white;
+  margin-bottom: 5px;
+  display: flex;
+  justify-content: space-between;
+`;
+
+const SliderValue = styled.span`
+  color: #1890ff;
+  font-weight: bold;
+`;
+
+const ControlButton = styled.button`
+  background: ${props => props.primary ? '#1890ff' : 'white'};
+  color: ${props => props.primary ? 'white' : '#333'};
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  padding: 4px 8px;
+  margin-right: 8px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.015);
+  
+  &:hover {
+    background: ${props => props.primary ? '#40a9ff' : '#f5f5f5'};
+    border-color: ${props => props.primary ? '#40a9ff' : '#d9d9d9'};
+  }
+  
+  &:active {
+    background: ${props => props.primary ? '#096dd9' : '#e6e6e6'};
+  }
+`;
+
+const ControlHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  cursor: pointer;
+`;
+
+const ControlTitle = styled.div`
+  font-weight: bold;
+  color: #333;
+`;
+
+const ButtonRow = styled.div`
+  display: flex;
+  margin-bottom: 10px;
+`;
+
+export const ObliqueDebugSvg: React.FC<ObliqueDebugSvgProps> = ({
+  numImages,
+}) => {
+  // UI state variables
+  const [isControlsCollapsed, setIsControlsCollapsed] = useState(false);
+  const [showImages, setShowImages] = useState(true);
+  
+  // Slider state variables
+  const [imageWidth, setImageWidth] = useState(192);
+  const [imageHeight, setImageHeight] = useState(192);
+  const [cropFactor, setCropFactor] = useState(400);
+  
+  // Calculate aspect ratio for crop centering
+  const getAdjustedCropFactor = (width: number, height: number, baseCrop: number) => {
+    const ratio = width / height;
+    return {
+      widthFactor: ratio >= 1 ? baseCrop : baseCrop * ratio,
+      heightFactor: ratio >= 1 ? baseCrop / ratio : baseCrop
+    };
+  };
+
+  // Current crop factors based on dimensions
+  const { widthFactor, heightFactor } = getAdjustedCropFactor(imageWidth, imageHeight, cropFactor);
+  // Core contexts and refs
+  const { viewerRef } = useCesiumContext();
+  const { imageRecords, converter, headingOffset, previewPath } = useObliqueDataContext();
+  const camera = viewerRef?.current?.camera;
+  const { orbitPointCoords } = useOrbitPoint(converter);
+
+  // SVG dimensions
+  const svgWidth = 800;
+  const svgHeight = 800;
+  const extent = 1500; // meters in local crs
+  const gridSize = extent * 2; // meters in local crs
+  const perpendicularExtent = extent;
+
+  // Camera properties
+  const cameraHeight = camera?.positionCartographic?.height || 0;
+  const distanceOnGround = camera?.pitch
+    ? cameraHeight * Math.tan(camera.pitch)
+    : 0;
+
+  // State declarations - grouped by purpose
+  const [cameraHeading, setCameraHeading] = useState<number>(0);
+  const [cardinalSector, setCardinalSector] =
+    useState<CardinalDirectionEnum>(0);
+  const [cameraPosition, setCameraPosition] = useState<[number, number]>([
+    0, 0,
+  ]);
+
+  // Points and references state
+  const [radiusPointCoords, setRadiusPointCoords] = useState<
+    [number, number] | null
+  >(null);
+
+  // Image collections state
+  const [nearestImages, setNearestImages] = useState<
+    Array<{
+      record: ObliqueImageRecord;
+      distance: number;
+    }>
+  >([]);
+
+  // Memoized calculations for points and angles
+  const pointOnGround = useMemo(
+    () => calculatePointOnGround(cameraHeading, cameraHeight, camera?.pitch),
+    [cameraHeading, cameraHeight, camera?.pitch]
+  );
+
+  const sectorHeading = useMemo(
+    () => calculateSectorHeading(cardinalSector, headingOffset),
+    [cardinalSector, headingOffset]
+  );
+
+  const pointOnRadius = useMemo(
+    () =>
+      calculatePointOnRadius(pointOnGround, distanceOnGround, sectorHeading),
+    [pointOnGround, distanceOnGround, sectorHeading]
+  );
+
+  // Use a ref to store camera update handler
+  const lastProcessedHeadingRef = React.useRef<number | null>(null);
+  const lastProcessedSectorRef = React.useRef<CardinalDirectionEnum | null>(null);
+
+  // Single effect to handle all camera updates
+  useEffect(() => {
+    if (!viewerRef?.current || !imageRecords?.length || !converter || !camera) {
+      return;
+    }
+
+    const handleCameraChange = () => {
+      try {
+        const cartographic = camera.positionCartographic;
+        if (!cartographic) return;
+
+        const heading = camera.heading;
+        const effectiveHeading = heading - headingOffset;
+        const cameraCardinal = getCardinalDirectionFromHeading(effectiveHeading);
+
+        // Skip processing if heading hasn't changed enough (1 degree threshold)
+        // This prevents constant recalculation on minor camera movements
+        if (
+          lastProcessedHeadingRef.current !== null &&
+          Math.abs(heading - lastProcessedHeadingRef.current) < CesiumMath.toRadians(1) &&
+          lastProcessedSectorRef.current === cameraCardinal
+        ) {
+          return;
+        }
+
+        // Update refs to prevent reprocessing
+        lastProcessedHeadingRef.current = heading;
+        lastProcessedSectorRef.current = cameraCardinal;
+
+        // Get camera position in image CRS
+        const positionInImageCrs = calculateImageCoordsFromCamera(
+          cartographic.longitude,
+          cartographic.latitude,
+          cartographic.height,
+          converter
+        );
+
+        // Update state - minimal state updates
+        setCameraHeading(heading);
+        setCardinalSector(cameraCardinal);
+        setCameraPosition([positionInImageCrs[0], positionInImageCrs[1]]);
+
+        // Process images if we have all required data
+        if (orbitPointCoords && pointOnRadius) {
+          // Calculate reference point for image finding
+          const radiusPointInImageCrs = calculateReferencePointFromOrbit(
+            orbitPointCoords,
+            positionInImageCrs,
+            pointOnRadius
+          );
+
+          setRadiusPointCoords(radiusPointInImageCrs);
+
+          // Find and set nearest images - all in a single state update
+          const filteredImages = findNearestKObliqueImages(
+            imageRecords,
+            radiusPointInImageCrs,
+            numImages,
+            (item) => {
+              const record = imageRecords[item.index];
+              return record.sector === cameraCardinal;
+            }
+          );
+
+          setNearestImages(filteredImages);
+        }
+      } catch (error) {
+        console.error("Error processing camera change:", error);
+      }
+    };
+
+    // Initial calculation
+    handleCameraChange();
+
+    // Set up event listener
+    const removeListener = viewerRef.current.camera.changed.addEventListener(handleCameraChange);
+    return () => removeListener();
+  }, [viewerRef, imageRecords, converter, camera, headingOffset, orbitPointCoords, pointOnRadius, numImages]);
+
+  // No additional filtering needed - we'll directly use the nearest images
+  // which are already filtered in the useEffect
+
+  if (!nearestImages.length) {
+    return null;
+  }
+
+  const nearestImage =
+    nearestImages.length > 0 ? nearestImages[0].record : null;
+
+  const lineToNearest = nearestImage ? (
+    <line
+      x1={0}
+      y1={0}
+      x2={nearestImage.perspectiveCenter.x - cameraPosition[0]}
+      y2={-(nearestImage.perspectiveCenter.y - cameraPosition[1])}
+      stroke="rgba(0, 255, 0, 0.8)"
+      strokeWidth={20}
+      strokeDasharray="20,20"
+    />
+  ) : null;
+
+  // Map image points - show images found at the radius point
+  const imagePoints = nearestImages.map(({ record }, index) => {
+    // Check if this is the nearest image
+    const isNearest = nearestImage && record.id === nearestImage.id;
+    // Calculate position relative to camera position (which is now at the origin)
+    const relX = record.perspectiveCenter.x - cameraPosition[0];
+    const relY = record.perspectiveCenter.y - cameraPosition[1];
+
+    // SVG Y axis is inverted
+    const x = relX;
+    const y = -relY;
+
+    // Use custom heading calculation with fixed sign combination
+    const heading = calculateHeadingForRecord(
+      record.orientation ? record.orientation : { omega: 0, phi: 0, kappa: 0 }
+    );
+
+    const triangleSize = 30;
+
+    // Calculate triangle points
+    // Tip at image position
+    const tipX = x;
+    const tipY = y;
+
+    // Base points perpendicular to heading direction
+    const baseAngle = heading + Math.PI; // Point base in direction of heading
+    const perpAngle = baseAngle + Math.PI / 2; // Perpendicular to base
+
+    // Left base point
+    const leftX =
+      tipX +
+      triangleSize * Math.sin(baseAngle) +
+      (triangleSize / 2) * Math.sin(perpAngle);
+    const leftY =
+      tipY -
+      triangleSize * Math.cos(baseAngle) -
+      (triangleSize / 2) * Math.cos(perpAngle);
+
+    // Right base point
+    const rightX =
+      tipX +
+      triangleSize * Math.sin(baseAngle) -
+      (triangleSize / 2) * Math.sin(perpAngle);
+    const rightY =
+      tipY -
+      triangleSize * Math.cos(baseAngle) +
+      (triangleSize / 2) * Math.cos(perpAngle);
+
+    // Create polygon points string
+    const points = `${tipX},${tipY} ${leftX},${leftY} ${rightX},${rightY}`;
+
+    return (
+      <g key={record.id}>
+        <g transform={`rotate(${(heading * 180) / Math.PI} ${x} ${y})`}>
+          <svg
+            x={x - imageWidth / 2}
+            y={y - imageHeight / 2}
+            width={`${imageWidth}px`}
+            height={`${imageHeight}px`}
+            overflow="hidden"
+            preserveAspectRatio="xMidYMid meet"
+          >
+            <image
+              href={getPreviewImageUrl(previewPath, OBLIQUE_PREVIEW_QUALITY.LEVEL_5, record.id)}
+              x={`-${(widthFactor - 100) / 2}%`}
+              y={`-${(heightFactor - 100) / 2}%`}
+              width={`${widthFactor}%`}
+              height={`${heightFactor}%`}
+              preserveAspectRatio="xMidYMid slice"
+            />
+          </svg>
+        </g>
+        
+        <polygon
+          points={points}
+          fill={isNearest ? "rgba(0, 255, 0, 0.2)" : "rgba(0, 0, 255, 0.2)"}
+          stroke={isNearest ? "lime" : "blue"}
+          strokeWidth={isNearest ? 5 : 3}
+        />
+        
+        {/* Index number */}
+        {index < 10 && (
+          <text
+            x={x + 10}
+            y={y + 4}
+            fontSize="10"
+            fill="white"
+            stroke="black"
+            strokeWidth={0.5}
+            paintOrder="stroke"
+          >
+            {index + 1}
+          </text>
+        )}
+
+        <text
+          x={x}
+          y={y + imageHeight / 2 + 8}
+          fontSize="10"
+          fill="white"
+          stroke="black"
+          strokeWidth={0.5}
+          paintOrder="stroke"
+          textAnchor="middle"
+        >
+          {record.cameraId} | {record.lineNumber} | {CardinalNames[record.sector]}
+        </text>
+
+        {isNearest && (
+          <text
+            x={x}
+            y={y - imageHeight / 2 - 8}
+            fontSize="14"
+            fill="white"
+            stroke="black"
+            strokeWidth={0.5}
+            paintOrder="stroke"
+            textAnchor="middle"
+          >
+            {record.id}
+          </text>
+        )}
+      </g>
+    );
+  });
+
+  // Camera position marker (at the origin)
+  const cameraMarker = (
+    <g>
+      <circle
+        cx={0}
+        cy={0}
+        r={6}
+        fill="rgba(255, 50, 50, 0.8)"
+        stroke="white"
+        strokeWidth={2}
+      />
+      <line x1={0} y1={-12} x2={0} y2={12} stroke="white" strokeWidth={2} />
+      <line x1={-12} y1={0} x2={12} y2={0} stroke="white" strokeWidth={2} />
+    </g>
+  );
+
+  // estimated footprint around Point of ground when looking from the current camera
+  const cameraFootprintTrapezoid = (
+    <polygon
+      points={"-500,-300 500,-300 250,150 -250,150"}
+      fill="none"
+      stroke="yellow"
+      strokeWidth={5}
+      transform={`translate(${pointOnGround.x}, ${pointOnGround.y}) rotate(${
+        (cameraHeading * 180) / Math.PI
+      })`}
+    />
+  );
+
+  const obliqueFootprintTrapezoid = (
+    <polygon
+      points={"-200,-200 200,-200 100,100 -100,100"}
+      fill="none"
+      stroke="red"
+      strokeWidth={8}
+      transform={`translate(${pointOnGround.x}, ${
+        pointOnGround.y
+      }) rotate(${CesiumMath.toDegrees(sectorHeading)})`}
+    />
+  );
+
+  // Heading indicator
+  const headingIndicator = (
+    <g>
+      {/* Purple heading line */}
+      <line
+        x1={0}
+        y1={0}
+        x2={pointOnGround.x}
+        y2={pointOnGround.y}
+        stroke="yellow"
+        strokeWidth={16}
+      />
+
+      {/* Purple point on ground */}
+      <circle
+        cx={pointOnGround.x}
+        cy={pointOnGround.y}
+        r={20}
+        fill="purple"
+        stroke="white"
+        strokeWidth={4}
+      />
+
+      {/* Search Radius for best Camera Position */}
+      <circle
+        cx={pointOnGround.x}
+        cy={pointOnGround.y}
+        r={Math.abs(distanceOnGround)}
+        fill="none"
+        stroke="purple"
+        strokeWidth={8}
+      />
+
+      {/* current cardinal direction from point on ground */}
+      <line
+        x1={pointOnGround.x}
+        y1={pointOnGround.y}
+        x2={pointOnRadius.x}
+        y2={pointOnRadius.y}
+        stroke="purple"
+        strokeWidth={8}
+      />
+
+      {/* Purple point on radius */}
+      <circle
+        cx={pointOnRadius.x}
+        cy={pointOnRadius.y}
+        r={20}
+        fill="purple"
+        stroke="white"
+        strokeWidth={4}
+      />
+
+      {/* Sector heading line */}
+
+      {cameraFootprintTrapezoid}
+      {obliqueFootprintTrapezoid}
+
+      {/* Blue perpendicular line */}
+      <line
+        x1={-perpendicularExtent * Math.sin(-cameraHeading + Math.PI / 2)}
+        y1={-perpendicularExtent * Math.cos(-cameraHeading + Math.PI / 2)}
+        x2={perpendicularExtent * Math.sin(-cameraHeading + Math.PI / 2)}
+        y2={perpendicularExtent * Math.cos(-cameraHeading + Math.PI / 2)}
+        stroke="rgba(0, 0, 255, 0.5)"
+        strokeWidth={8}
+      />
+    </g>
+  );
+
+
+
+  const renderControls = () => (
+    <ControlPanel isCollapsed={isControlsCollapsed}>
+      <ControlHeader onClick={() => setIsControlsCollapsed(!isControlsCollapsed)}>
+        <ControlTitle>Image Controls {isControlsCollapsed ? '▾' : '▴'}</ControlTitle>
+      </ControlHeader>
+      
+      {!isControlsCollapsed && (
+        <>
+          <ButtonRow>
+            <ControlButton 
+              primary={showImages} 
+              onClick={() => setShowImages(true)}
+            >
+              Show Images
+            </ControlButton>
+            <ControlButton 
+              primary={!showImages}
+              onClick={() => setShowImages(false)}
+            >
+              Hide Images
+            </ControlButton>
+          </ButtonRow>
+          
+          <SliderGroup>
+            <SliderLabel>
+              <span>Image Width</span>
+              <SliderValue>{imageWidth}px</SliderValue>
+            </SliderLabel>
+            <Slider
+              min={64}
+              max={320}
+              value={imageWidth}
+              onChange={(value) => setImageWidth(value as number)}
+            />
+          </SliderGroup>
+
+          <SliderGroup>
+            <SliderLabel>
+              <span>Image Height</span>
+              <SliderValue>{imageHeight}px</SliderValue>
+            </SliderLabel>
+            <Slider
+              min={64}
+              max={320}
+              value={imageHeight}
+              onChange={(value) => setImageHeight(value as number)}
+            />
+          </SliderGroup>
+
+          <SliderGroup>
+            <SliderLabel>
+              <span>Crop Factor</span>
+              <SliderValue>{cropFactor}%</SliderValue>
+            </SliderLabel>
+            <Slider
+              min={100}
+              max={800}
+              value={cropFactor}
+              onChange={(value) => setCropFactor(value as number)}
+            />
+          </SliderGroup>
+        </>
+      )}
+
+    </ControlPanel>
+  );
+
+  return (
+    <SvgContainer>
+      <svg
+      width={`${svgWidth}px`}
+      height={`${svgHeight}px`}
+      viewBox={`${-extent} ${-extent} ${gridSize} ${gridSize}`}
+      style={{
+        position: "fixed",
+        top: "240px", // Positioned below controls
+        left: "60px",
+        pointerEvents: "none",
+        background: "rgba(255, 255, 255, 0.8)",
+        borderRadius: "4px",
+        overflow: "hidden",
+        border: "2px solid rgba(0, 0, 0, 0.3)",
+        boxShadow: "0 0 15px rgba(0, 0, 0, 0.5)",
+      }}
+    >
+      {lineToNearest}
+      {imagePoints}
+      {cameraMarker}
+      {headingIndicator}
+      <text x={-10} y={40} fontSize="40" textAnchor="end">
+        Camera
+      </text>
+      <text x={-10} y={90} fontSize="40" textAnchor="end">
+        <tspan>{String(Math.floor(cameraPosition[0])).slice(0, -4)}</tspan>
+        <tspan fontWeight="bold">
+          {String(Math.floor(cameraPosition[0])).slice(-4)}
+        </tspan>
+      </text>
+      <text x={-10} y={140} fontSize="40" textAnchor="end">
+        <tspan>{String(Math.floor(cameraPosition[1])).slice(0, -4)}</tspan>
+        <tspan fontWeight="bold">
+          {String(Math.floor(cameraPosition[1])).slice(-4)}
+        </tspan>
+      </text>
+      <text x={-extent + 50} y={extent - 50} fontSize="50">
+        Heading: {((cameraHeading * 180) / Math.PI).toFixed(1)}°
+      </text>
+      <text x={-extent + 50} y={extent - 120} fontSize="40">
+        Images: {nearestImages.length}
+      </text>
+      <text x={-extent + 50} y={extent - 180} fontSize="40">
+        Current Sector: {cardinalSector} (
+        {CardinalNames["EN"].get(cardinalSector)})
+      </text>
+      <text x={-extent + 50} y={extent - 300} fontSize="40" fill="red">
+        Images Filtered By Sector
+      </text>
+      <text x={-extent + 50} y={extent - 240} fontSize="40">
+        Heading Offset: {((headingOffset * 180) / Math.PI).toFixed(1)}°
+      </text>
+
+      {/* Yellow reference point marker with coordinates */}
+      <circle
+        cx={pointOnRadius.x}
+        cy={pointOnRadius.y}
+        r={10}
+        fill="rgba(255, 255, 0, 0.8)"
+        stroke="white"
+        strokeWidth={2}
+      />
+      <text
+        x={pointOnRadius.x - 10}
+        y={pointOnRadius.y + 40}
+        textAnchor="end"
+        fontSize="40"
+      >
+        Reference
+      </text>
+      <text
+        x={pointOnRadius.x - 10}
+        y={pointOnRadius.y + 90}
+        fontSize="40"
+        textAnchor="end"
+      >
+        <tspan>
+          {radiusPointCoords
+            ? String(Math.floor(radiusPointCoords[0])).slice(0, -4)
+            : ""}
+        </tspan>
+        <tspan fontWeight="bold">
+          {radiusPointCoords
+            ? String(Math.floor(radiusPointCoords[0])).slice(-4)
+            : ""}
+        </tspan>
+      </text>
+      <text
+        x={pointOnRadius.x - 10}
+        y={pointOnRadius.y + 140}
+        fontSize="40"
+        textAnchor="end"
+      >
+        <tspan>
+          {radiusPointCoords
+            ? String(Math.floor(radiusPointCoords[1])).slice(0, -4)
+            : ""}
+        </tspan>
+        <tspan fontWeight="bold">
+          {radiusPointCoords
+            ? String(Math.floor(radiusPointCoords[1])).slice(-4)
+            : ""}
+        </tspan>
+      </text>
+      </svg>
+      {renderControls()}
+    </SvgContainer>
+  );
+};
+
+export default ObliqueDebugSvg;

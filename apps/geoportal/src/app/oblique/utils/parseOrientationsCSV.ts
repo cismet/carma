@@ -1,4 +1,4 @@
-import { ORIENTATIONS_CSV_HEADER } from "../constants";
+import { ORIENTATIONS_CSV_HEADER, NADIR_CAMERA_ID } from "../constants";
 import { BasicObliqueImageRecord } from "../types";
 import { Math as CesiumMath } from "cesium";
 
@@ -23,7 +23,7 @@ function parseOrientedImageRecordsFromCsv(
       const cameraId = imageDescription.slice(0, 3);
       const locationNumber = parseInt(imageDescription.slice(3));
 
-      if (noNadir && cameraId === "NAD") {
+      if (noNadir && cameraId === NADIR_CAMERA_ID) {
         return null;
       }
 
