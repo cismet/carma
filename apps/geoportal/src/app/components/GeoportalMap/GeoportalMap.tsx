@@ -12,12 +12,10 @@ import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplic
 import {
   replaceHashRoutedHistory,
   TopicMapSelectionContent,
-  MessageOverlay,
   useCarmaMapContext,
   useGazData,
   useSelectionCesium,
   useSelectionTopicMap,
-  useFeatureFlags,
 } from "@carma-apps/portals";
 import {
   geoElements,
@@ -46,6 +44,8 @@ import { SelectionItem } from "libraries/appframeworks/portals/src/lib/component
 import FeatureInfoBox from "../feature-info/FeatureInfoBox.tsx";
 import InfoBoxMeasurement from "../map-measure/InfoBoxMeasurement.jsx";
 import PrintPreview from "../map-print/PrintPreview.tsx";
+
+import { ObliqueCameraRotationControls } from "../../oblique/components/ObliqueCameraRotationControls";
 
 import versionData from "../../../version.json";
 
@@ -82,7 +82,6 @@ import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
-import ObliqueCameraRotationControls from "../../oblique/components/ObliqueCameraRotationControls";
 
 interface MapProps {
   height: number;
@@ -99,8 +98,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const lastRenderIntervalRef = useRef(0);
   const [urlParams, setUrlParams] = useSearchParams();
   const container3dMapRef = useRef<HTMLDivElement>(null);
-
-  const flags = useFeatureFlags();
 
   // State and Selectors
   const backgroundLayer = useSelector(getBackgroundLayer);
@@ -119,7 +116,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     useCesiumContext();
   const { getLeafletZoom } = useLeafletZoomControls();
   const showPrimaryTileset = useSelector(selectShowPrimaryTileset);
-  const isObliqueMode = useSelector(getObliqueMode);
 
   const infoBoxOverlay = addCssToOverlayHelperItem(
     getCollabedHelpElementsConfig("INFOBOX", geoElements),
@@ -508,9 +504,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
           />
           <ObliqueCameraRotationControls />
         </div>
-      )}
-      {flags.featureFlagObliqueMode && isObliqueMode && (
-        <MessageOverlay message={" MMP1 ⚠️ Prototyp"} />
       )}
     </>
   );
