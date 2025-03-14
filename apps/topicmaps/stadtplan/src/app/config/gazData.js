@@ -11,7 +11,7 @@ const sources = [
   ENDPOINT.POIS,
   ENDPOINT.KITAS,
 ];
-const host = "https://wupp-topicmaps-data.cismet.de";
+const host = "https://wupp-digitaltwin-assets.cismet.de";
 const crs = "25832";
 
 export const sourcesConfig = sources.map((endpoint) => {

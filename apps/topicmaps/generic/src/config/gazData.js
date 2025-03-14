@@ -1,8 +1,4 @@
-import {
-  createConfig,
-  createConfigWithoutCRS,
-  ENDPOINT,
-} from "@carma-commons/resources";
+import { createConfig, ENDPOINT } from "@carma-commons/resources";
 
 const prefix = "GazDataForHochwasserkarteByCismet";
 
@@ -15,7 +11,7 @@ const endpoints = [
   ENDPOINT.BPKLIMASTANDORTE,
 ];
 
-const host = "https://wunda-geoportal.cismet.de";
+const host = "https://wupp-digitaltwin-assets.cismet.de";
 const crs = "3857";
 
 const sources = endpoints.map((endpoint) => {
