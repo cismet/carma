@@ -515,46 +515,57 @@ export const ObliqueCameraRotationControls: React.FC<
         pointerEvents: isVisible ? "auto" : "none",
       }}
     >
-      {/* Download button */}
-      {nearestImage && previewPath && (
-        <Tooltip title="Bild in Qualität Level 2 herunterladen">
-          <div>
-            <ControlButtonStyler
-              onClick={downloadHighQualityImage}
-              width="128px"
-              height="40px"
-              className="download-button"
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "10px",
+          transition: "transform 300ms ease-in-out",
+          transform: `translateY(${isPreviewVisible ? 240 : 0}px)`,
+        }}
+      >
+                {/* Fly to image button or close preview button */}
+                {nearestImage && (
+          <Tooltip
+            title={
+              isPreviewVisible
+                ? "Vorschau schließen"
+                : "Zu nächstem Schrägluftbild fliegen"
+            }
+          >
+            <div>
+              <ControlButtonStyler onClick={flyToNearestImage} width="160px" height="80px">
+                <span>{isPreviewVisible ? "Schließen" : "Flug zum Bild"}</span>
+              </ControlButtonStyler>
+            </div>
+          </Tooltip>
+        )}
+        {/* Download button */}
+        {nearestImage && previewPath && (
+          <Tooltip title="Bild in Qualität Level 2 herunterladen, Bild öffnet in neuemFenster">
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                whiteSpace: "nowrap",
+                paddingBottom: "40px",
+              }}
             >
-              <DownloadOutlined style={{ marginRight: "8px" }} />
-              <span>Level 2</span>
-            </ControlButtonStyler>
-          </div>
-        </Tooltip>
-      )}
+              <ControlButtonStyler
+                onClick={downloadHighQualityImage}
+                width="160px"
+                className="download-button"
+              >
+                <DownloadOutlined style={{ marginRight: "8px" }} />
+                <span>Herunterladen</span>
+              </ControlButtonStyler>
+            </div>
+          </Tooltip>
+        )}
 
-      {/* Fly to image button or close preview button */}
-      {nearestImage && (
-        <Tooltip
-          title={
-            isPreviewVisible
-              ? "Vorschau schließen"
-              : "Zu nächstem Schrägluftbild fliegen"
-          }
-        >
-          <div>
-            <ControlButtonStyler
-              onClick={flyToNearestImage}
-              width="128px"
-              height="40px"
-            >
-              <span>{isPreviewVisible ? "Schließen" : "Zum Bild"}</span>
-            </ControlButtonStyler>
-          </div>
-        </Tooltip>
-      )}
 
-      {/* Cardinal direction controls */}
-      {!isPreviewVisible && (
+
+        {/* Cardinal direction controls */}
         <div
           className="camera-rotation-controls"
           style={{
@@ -666,7 +677,7 @@ export const ObliqueCameraRotationControls: React.FC<
             {/* Empty bottom-right cell */}
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };
