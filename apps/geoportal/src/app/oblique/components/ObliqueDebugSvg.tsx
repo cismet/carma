@@ -121,8 +121,8 @@ export const ObliqueDebugSvg: React.FC<ObliqueDebugSvgProps> = ({
 }) => {
   // UI state variables
   const [isControlsCollapsed, setIsControlsCollapsed] = useState(false);
-  const [showImages, setShowImages] = useState(true);
-  const [showLabels, setShowLabels] = useState(true);
+  const [showImages, setShowImages] = useState(false);
+  const [showLabels, setShowLabels] = useState(false);
   const [offsetImages, setOffsetImages] = useState(false);
 
   // Slider state variables

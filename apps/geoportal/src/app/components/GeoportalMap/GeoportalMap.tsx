@@ -510,9 +510,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
         </div>
       )}
       {flags.featureFlagObliqueMode && isObliqueMode && (
-        <MessageOverlay
-          message={"⚠️ In Entwicklung : Nicht zur Abnahme bereit ⚠️"}
-        />
+        <MessageOverlay message={" MMP1 ⚠️ Prototyp"} />
       )}
     </>
   );

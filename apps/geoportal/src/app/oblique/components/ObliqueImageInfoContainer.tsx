@@ -8,6 +8,7 @@ import { styled } from "styled-components";
 import { getObliqueMode } from "../../store/slices/ui";
 import { ObliqueImageInfo } from "./ObliqueImageInfo";
 import { ObliqueDebugSvg } from "./ObliqueDebugSvg";
+import { ObliqueFootprintLayer } from "./ObliqueFootprintLayer";
 import { ObliqueImageRecord } from "../types";
 import { useObliqueDataContext } from "./ObliqueDataContext";
 import { useFeatureFlags } from "@carma-apps/portals";
@@ -153,11 +154,12 @@ export const ObliqueImageInfoContainer: React.FC = () => {
 
   return (
     <>
+      {isObliqueMode && <ObliqueFootprintLayer />}
+
       {isDebugObliqueEnabled && (
         <ObliqueDebugSvg numImages={NUM_NEAREST_IMAGES} />
       )}
 
-      {/* Show detailed info in debug mode */}
       {isDebugObliqueEnabled && isVisible && nearestImage && (
         <ObliqueImageInfo
           imageRecord={nearestImage}
