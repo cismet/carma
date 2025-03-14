@@ -14,6 +14,7 @@ import { useObliqueDataContext } from "./ObliqueDataContext";
 import { useFeatureFlags } from "@carma-apps/portals";
 import { getPreviewImageUrl } from "../utils/imageHandling";
 import { NUM_NEAREST_IMAGES } from "../config";
+import { notifyPreviewVisibilityChange } from "../utils/previewVisibility";
 
 // Styled components for the preview
 const ImagePreviewContainer = styled.div`
@@ -197,6 +198,7 @@ export const ObliqueImageInfoContainer: React.FC = () => {
               ),
               onVisibleChange: (visible) => {
                 setPreviewVisible(visible);
+                notifyPreviewVisibilityChange(visible);
                 if (!visible) {
                   setFlyToMode(false);
                 }

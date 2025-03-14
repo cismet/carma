@@ -122,6 +122,26 @@ export const ObliqueFootprintLayer: React.FC = () => {
       .catch((error) => console.error("Error loading footprint data:", error));
   }, [isObliqueMode, viewerRef]);
 
+  // Clean up data source when component unmounts
+  useEffect(() => {
+    const viewer = viewerRef.current;
+
+    return () => {
+      if (dataSourceRef.current && viewer) {
+        viewer.dataSources.remove(dataSourceRef.current, true);
+        dataSourceRef.current = null;
+      }
+    };
+  }, [viewerRef]);
+
+  // Track oblique mode changes and clean up when exiting oblique mode
+  useEffect(() => {
+    if (!isObliqueMode && dataSourceRef.current && viewerRef.current) {
+      viewerRef.current.dataSources.remove(dataSourceRef.current, true);
+      dataSourceRef.current = null;
+    }
+  }, [isObliqueMode, viewerRef]);
+
   useEffect(() => {
     if (!isObliqueMode || !viewerRef.current || !footprintData || !nearestImage)
       return;
