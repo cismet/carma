@@ -65,10 +65,9 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
   ) {
     ladestation.steckerverbindungen.forEach((v, index) => {
       for (let i = 0; i < v.anzahl; ++i) {
-        let imageUrl =
-          import.meta.env.VITE_WUPP_ASSET_BASEURL +
-          getConnectorImageUrl(v.steckdosentypkey);
+        let imageUrl = getConnectorImageUrl(v.steckdosentypkey);
         let image;
+        console.log("xxx imageUrl", imageUrl);
 
         if (imageUrl) {
           image = (
@@ -78,7 +77,9 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
               width="50"
               onError={({ currentTarget }) => {
                 currentTarget.onerror = null; // prevents looping
-                currentTarget.src = "/images/emob/dynamic/unknown.png";
+                currentTarget.src =
+                  import.meta.env.VITE_WUPP_ASSET_BASEURL +
+                  "/images/emob/dynamic/unknown.png";
               }}
             />
           );

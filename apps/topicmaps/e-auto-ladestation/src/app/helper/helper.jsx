@@ -27,19 +27,21 @@ viewBox="0 0 524.197 523.652"
 `;
 
 export const getConnectorImageUrl = (type) => {
+  const base =
+    import.meta.env.VITE_WUPP_ASSET_BASEURL + "/images/emob/dynamic/";
   switch (type) {
     case "Schuko":
-      return "/images/emob/Schuko_plug.png";
+      return base + "schuko.png";
     case "Typ 2":
-      return "/images/emob/Type_2_mennekes.png";
+      return base + "typ-2.png";
     case "CHAdeMO":
-      return "/images/emob/Chademo_type4.png";
+      return base + "chademo.png";
     case "CCS":
-      return "/images/emob/Type1-ccs.png";
+      return base + "ccs.png";
     case "Tesla Supercharger":
-      return "/images/emob/Type_2_mennekes.png";
+      return base + "tesla-wallbox.png";
     case "Drehstrom":
-      return "/images/emob/cce3.png";
+      return base + "drehstrom.png";
     default:
       return undefined;
   }
