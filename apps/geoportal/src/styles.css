@@ -110,3 +110,13 @@ html {
 .ant-select-selector {
   cursor: pointer !important;
 }
+
+.fade {
+  opacity: 1;
+  transition: opacity 0.5s ease;
+}
+
+.fade.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
