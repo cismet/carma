@@ -1,19 +1,22 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { useSelector } from "react-redux";
-import { Cartographic, Math as CesiumMath } from "cesium";
 import { type Converter } from "proj4";
 
-import { getOrbitPoint, useCesiumContext } from "@carma-mapping/cesium-engine";
+import { useCesiumContext } from "@carma-mapping/cesium-engine";
 
 import { getObliqueMode } from "../../store/slices/ui";
 import { findNearestKObliqueImages } from "../utils/spatialIndexing";
 import type { ObliqueImageRecord } from "../types";
-import {
-  getCardinalDirectionFromHeading,
-  getHeadingFromCardinalDirection,
-} from "../utils/orientationUtils";
-import { NADIR_CAMERA_ID } from "../constants";
+import { getCardinalDirectionFromHeading } from "../utils/orientationUtils";
 import { NUM_NEAREST_IMAGES } from "../config";
+import { useOrbitPoint } from "./useOrbitPoint";
+import {
+  calculatePointOnGround,
+  calculatePointOnRadius,
+  calculateSectorHeading,
+  calculateImageCoordsFromCamera,
+  calculateReferencePointFromOrbit,
+} from "../utils/obliqueReferenceUtils";
 
 export interface UseNearestObliqueImageOptions {
   debounceTime?: number;
@@ -36,12 +39,44 @@ export function useNearestObliqueImage(
 ) {
   const { viewerRef } = useCesiumContext();
   const isObliqueMode = useSelector(getObliqueMode);
+  const { orbitPointCoords } = useOrbitPoint(converter);
   const [nearestImage, setNearestImage] = useState<ObliqueImageRecord | null>(
     null
   );
   const [distance, setDistance] = useState<number | null>(null);
 
-  // Function to refresh the search for the nearest image
+  // State to store calculated values needed for SVG rendering
+  const [cameraPosition, setCameraPosition] = useState<[number, number]>([
+    0, 0,
+  ]);
+  const [cameraHeading, setCameraHeading] = useState<number>(0);
+  const [cardinalSector, setCardinalSector] = useState<number>(0);
+  const [radiusPointCoords, setRadiusPointCoords] = useState<
+    [number, number] | null
+  >(null);
+  const [pointOnGround, setPointOnGround] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+  const [pointOnRadius, setPointOnRadius] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+  const [sectorHeading, setSectorHeading] = useState<number>(0);
+  const [nearestImages, setNearestImages] = useState<
+    Array<{ record: ObliqueImageRecord; distance: number }>
+  >([]);
+
+  // Refs to prevent unnecessary recalculations
+  const lastProcessedHeadingRef = useRef<number | null>(null);
+  const lastProcessedPositionRef = useRef<{
+    x: number;
+    y: number;
+    z: number;
+  } | null>(null);
+  const lastProcessedSectorRef = useRef<number | null>(null);
+
+  // Function to refresh the search for nearest images
   const refreshSearch = useCallback(() => {
     if (
       !viewerRef.current ||
@@ -56,98 +91,113 @@ export function useNearestObliqueImage(
     try {
       const camera = viewerRef.current.camera;
       const cartographic = camera.positionCartographic;
+      if (!cartographic) return;
 
       // Get camera heading and determine sector
-      const cameraHeading = camera.heading;
-      const cameraSector = getCardinalDirectionFromHeading(cameraHeading);
-      const effectiveHeading = cameraHeading - headingOffset;
+      const heading = camera.heading;
+      const effectiveHeading = heading - headingOffset;
       const cameraCardinal = getCardinalDirectionFromHeading(effectiveHeading);
 
-      console.log(
-        "Camera Sector:",
-        cameraSector,
-        cameraCardinal,
-        cameraHeading,
-        CesiumMath.toDegrees(headingOffset),
-        CesiumMath.toDegrees(effectiveHeading)
-      );
+      // Get the current camera position
+      const position = camera.position;
 
-      const positionInLocalCrs = converter.inverse([
-        CesiumMath.toDegrees(cartographic.longitude),
-        CesiumMath.toDegrees(cartographic.latitude),
+      // Skip processing if neither heading nor position has changed enough
+      if (
+        lastProcessedHeadingRef.current !== null &&
+        lastProcessedPositionRef.current !== null &&
+        Math.abs(heading - lastProcessedHeadingRef.current) < 0.01745 && // approx 1 degree in radians
+        lastProcessedSectorRef.current === cameraCardinal &&
+        Math.abs(position.x - lastProcessedPositionRef.current.x) < 1 &&
+        Math.abs(position.y - lastProcessedPositionRef.current.y) < 1 &&
+        Math.abs(position.z - lastProcessedPositionRef.current.z) < 1
+      ) {
+        return;
+      }
+
+      // Update refs to prevent reprocessing
+      lastProcessedHeadingRef.current = heading;
+      lastProcessedSectorRef.current = cameraCardinal;
+      lastProcessedPositionRef.current = {
+        x: position.x,
+        y: position.y,
+        z: position.z,
+      };
+
+      // Get camera position in image CRS
+      const positionInImageCrs = calculateImageCoordsFromCamera(
+        cartographic.longitude,
+        cartographic.latitude,
         cartographic.height,
-      ]);
-
-      const orbitPoint = getOrbitPoint(viewerRef.current);
-      const orbitPointCartographic = Cartographic.fromCartesian(orbitPoint);
-
-      const orbitPointInLocalCrs = converter.inverse([
-        CesiumMath.toDegrees(orbitPointCartographic.longitude),
-        CesiumMath.toDegrees(orbitPointCartographic.latitude),
-        orbitPointCartographic.height,
-      ]);
-
-      const groundPointDistance = 740; // assumption
-      const cardinalHeading =
-        getHeadingFromCardinalDirection(cameraCardinal) + headingOffset;
-
-      const offsetX = groundPointDistance * Math.sin(cardinalHeading);
-      const offsetY = groundPointDistance * Math.cos(cardinalHeading);
-
-      const testPositionCamera: [number, number] = [
-        positionInLocalCrs[0],
-        positionInLocalCrs[1],
-      ];
-      const testPositionGround: [number, number] = [
-        orbitPointInLocalCrs[0] - offsetX,
-        orbitPointInLocalCrs[1] - offsetY,
-      ];
-
-      const planarDistanceDiff = [
-        positionInLocalCrs[0] - orbitPointInLocalCrs[0],
-        positionInLocalCrs[1] - orbitPointInLocalCrs[1],
-      ];
-
-      const planarDistanceCameraGround = Math.sqrt(
-        planarDistanceDiff[0] ** 2 + planarDistanceDiff[1] ** 2
+        converter
       );
 
-      console.log(
-        "Test Position Camera:",
-        planarDistanceCameraGround,
-        planarDistanceDiff,
-        offsetX,
-        offsetY,
-        testPositionCamera,
-        testPositionGround,
-        cardinalHeading
-      );
+      // Update camera state
+      setCameraHeading(heading);
+      setCardinalSector(cameraCardinal);
+      setCameraPosition([positionInImageCrs[0], positionInImageCrs[1]]);
 
-      const nearestImages = findNearestKObliqueImages(
+      // Calculate the point on ground based on camera pitch and heading
+      const cameraHeight = cartographic.height;
+      const calculatedPointOnGround = calculatePointOnGround(
+        heading,
+        cameraHeight,
+        camera.pitch
+      );
+      setPointOnGround(calculatedPointOnGround);
+
+      // Calculate the sector heading based on cardinal direction
+      const calculatedSectorHeading = calculateSectorHeading(
+        cameraCardinal,
+        headingOffset
+      );
+      setSectorHeading(calculatedSectorHeading);
+
+      // Calculate distance on ground using the camera pitch
+      const distanceOnGround = camera.pitch
+        ? cameraHeight * Math.tan(camera.pitch)
+        : 0;
+
+      // Calculate the point on radius
+      const calculatedPointOnRadius = calculatePointOnRadius(
+        calculatedPointOnGround,
+        distanceOnGround,
+        calculatedSectorHeading
+      );
+      setPointOnRadius(calculatedPointOnRadius);
+
+      // The orbit point coordinates are fetched by the useOrbitPoint hook
+      if (!orbitPointCoords) return;
+
+      // Create the search point in local CRS coordinates, relative to orbit point
+      const radiusPointInImageCrs = calculateReferencePointFromOrbit(
+        orbitPointCoords,
+        positionInImageCrs,
+        calculatedPointOnRadius
+      );
+      setRadiusPointCoords([
+        radiusPointInImageCrs[0],
+        radiusPointInImageCrs[1],
+      ]);
+
+      // Find and set nearest images
+      const filteredImages = findNearestKObliqueImages(
         obliqueRecords,
-        testPositionGround,
+        radiusPointInImageCrs,
         options.k || defaultOptions.k,
         (item) => {
           const record = obliqueRecords[item.index];
-
-          // Filter out nadir images
-          if (record.cameraId === NADIR_CAMERA_ID) {
-            return false;
-          }
-
-          // Apply sector matching if enabled
-          if (cameraSector && record.sector) {
-            return record.sector === cameraSector;
-          }
-
-          return true;
+          return record.sector === cameraCardinal;
         }
       );
+      setNearestImages(filteredImages);
 
-      if (nearestImages.length > 0) {
-        const nearestResult = nearestImages[0];
-        setNearestImage(nearestResult.record);
-        setDistance(nearestResult.distance);
+      // Set the single nearest image for backward compatibility
+      if (filteredImages.length > 0) {
+        setNearestImage(filteredImages[0].record);
+        setDistance(filteredImages[0].distance);
+      } else {
+        setNearestImage(null);
+        setDistance(null);
       }
     } catch (error) {
       console.error("Error finding nearest oblique image:", error);
@@ -159,6 +209,7 @@ export function useNearestObliqueImage(
     headingOffset,
     isObliqueMode,
     options.k,
+    orbitPointCoords,
   ]);
 
   // Setup camera movement listener
@@ -208,5 +259,18 @@ export function useNearestObliqueImage(
     options.debounceTime,
   ]);
 
-  return { nearestImage, distance, refreshSearch };
+  return {
+    nearestImage,
+    distance,
+    refreshSearch,
+    // Additional data for SVG rendering
+    cameraPosition,
+    cameraHeading,
+    cardinalSector,
+    radiusPointCoords,
+    pointOnGround,
+    pointOnRadius,
+    sectorHeading,
+    nearestImages,
+  };
 }
