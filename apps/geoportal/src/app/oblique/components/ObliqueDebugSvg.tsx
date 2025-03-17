@@ -10,10 +10,7 @@ import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
 import { getPreviewImageUrl } from "../utils/imageHandling";
 import { calculateCustomHeading as calculateHeadingForRecord } from "../utils/obliqueReferenceUtils";
 import { useNearestObliqueImage } from "../hooks/useNearestObliqueImage";
-
-interface ObliqueDebugSvgProps {
-  numImages: number;
-}
+import { NUM_NEAREST_IMAGES } from "../config";
 
 const SvgContainer = styled.div`
   position: fixed;
@@ -116,9 +113,7 @@ const ButtonRow = styled.div`
   margin-bottom: 10px;
 `;
 
-export const ObliqueDebugSvg: React.FC<ObliqueDebugSvgProps> = ({
-  numImages,
-}) => {
+export const ObliqueDebugSvg = () => {
   // UI state variables
   const [isControlsCollapsed, setIsControlsCollapsed] = useState(false);
   const [showImages, setShowImages] = useState(false);
@@ -158,7 +153,7 @@ export const ObliqueDebugSvg: React.FC<ObliqueDebugSvgProps> = ({
     headingOffset,
     centroidRBushBySectorBlocks,
     {
-      k: numImages,
+      k: NUM_NEAREST_IMAGES,
       debounceTime: 150,
     }
   );

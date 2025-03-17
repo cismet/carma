@@ -54,8 +54,6 @@ import { GeoportalMap } from "../GeoportalMap.tsx";
 import LayerWrapper from "../../layers/LayerWrapper.tsx";
 import LocateControlComponent from "../controls/LocateControlComponent.tsx";
 
-import { ObliqueImageInfoContainer } from "../../../oblique/components/ObliqueImageInfoContainer.tsx";
-
 import useLeafletZoomControls from "../../../hooks/leaflet/useLeafletZoomControls.ts";
 import { useDispatchSachdatenInfoText } from "../../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../../hooks/useFeatureInfoModeCursorStyle.ts";
@@ -528,7 +526,6 @@ const MapWrapper = () => {
           }}
         >
           <GeoportalMap height={height} width={width} allow3d={allow3d} />
-          <ObliqueImageInfoContainer />
         </div>
       </Main>
     </ControlLayout>

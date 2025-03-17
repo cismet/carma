@@ -1,19 +1,10 @@
 import { useCallback, useEffect, useState, useRef, useMemo } from "react";
+import knn from "rbush-knn";
 
 import { useCesiumContext } from "@carma-mapping/cesium-engine";
-import {
-  findNearestKObliqueImages,
-  RBushBySectorBlocks,
-} from "../utils/spatialIndexing";
-import type {
-  ObliqueImageRecord,
-  ObliqueImageRecordMap,
-  Proj4Converter,
-} from "../types";
+
 import { getCardinalDirectionFromHeading } from "../utils/orientationUtils";
-import { NUM_NEAREST_IMAGES } from "../config";
 import { useOrbitPoint } from "./useOrbitPoint";
-import knn from "rbush-knn";
 import {
   calculatePointOnGround,
   calculatePointOnRadius,
@@ -21,6 +12,15 @@ import {
   calculateImageCoordsFromCamera,
   calculateReferencePointFromOrbit,
 } from "../utils/obliqueReferenceUtils";
+
+import { NUM_NEAREST_IMAGES } from "../config";
+
+import { type RBushBySectorBlocks } from "../utils/spatialIndexing";
+import type {
+  ObliqueImageRecord,
+  ObliqueImageRecordMap,
+  Proj4Converter,
+} from "../types";
 
 export interface UseNearestObliqueImageOptions {
   debounceTime?: number;
@@ -41,7 +41,7 @@ export function useNearestObliqueImage(
   headingOffset: number,
   centroidMapBySectorBlock: RBushBySectorBlocks | null = null,
   options: UseNearestObliqueImageOptions = defaultOptions,
-  hasFlownToImage: boolean = false
+  lockFootprint: boolean = false
 ) {
   const { viewerRef } = useCesiumContext();
   const { orbitPointCoords } = useOrbitPoint(converter);
@@ -80,7 +80,7 @@ export function useNearestObliqueImage(
       !obliqueRecords.size ||
       !converter ||
       !orbitPointCoords ||
-      hasFlownToImage
+      lockFootprint
     ) {
       return;
     }
@@ -230,7 +230,7 @@ export function useNearestObliqueImage(
     options.k,
     orbitPointCoords,
     centroidMapBySectorBlock,
-    hasFlownToImage,
+    lockFootprint,
   ]); // Include all dependencies for proper updates
 
   // Store timer ID in a ref to persist across renders

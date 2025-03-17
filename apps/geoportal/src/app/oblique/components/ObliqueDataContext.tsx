@@ -47,8 +47,8 @@ interface ObliqueDataContextType {
   isFootprintLoading: boolean;
   footprintError: string | null;
   isAllDataReady: boolean;
-  hasFlownToImage: boolean;
-  setHasFlownToImage: (value: boolean) => void;
+  lockFootprint: boolean;
+  setLockFootprint: (value: boolean) => void;
 }
 
 // Create the context with a default value
@@ -73,7 +73,7 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
   fallbackDirectionConfig,
 }) => {
   const isObliqueMode = useSelector(getObliqueMode);
-  const [hasFlownToImage, setHasFlownToImage] = useState(false);
+  const [lockFootprint, setLockFootprint] = useState(false);
   const {
     orientationsURI,
     centroidsURI,
@@ -119,7 +119,7 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
     headingOffset,
     centroidMapBySectorBlock,
     { debounceTime: 150, k: NUM_NEAREST_IMAGES },
-    hasFlownToImage
+    lockFootprint
   );
 
   // Footprint data states
@@ -159,11 +159,11 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
       imageRecordMap &&
       imageRecordMap.size > 0 &&
       isObliqueMode &&
-      !hasFlownToImage
+      !lockFootprint
     ) {
       refreshSearch();
     }
-  }, [imageRecordMap, isObliqueMode, refreshSearch, hasFlownToImage]);
+  }, [imageRecordMap, isObliqueMode, refreshSearch, lockFootprint]);
 
   // Load footprint data when in oblique mode
   useEffect(() => {
@@ -213,8 +213,8 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
     isFootprintLoading,
     footprintError,
     isAllDataReady,
-    hasFlownToImage,
-    setHasFlownToImage,
+    lockFootprint,
+    setLockFootprint,
   };
 
   return (

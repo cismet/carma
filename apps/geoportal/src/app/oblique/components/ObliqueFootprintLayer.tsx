@@ -15,7 +15,7 @@ import {
 export const ObliqueFootprintLayer: React.FC = () => {
   const isObliqueMode = useSelector(getObliqueMode);
   const { viewerRef } = useCesiumContext();
-  const { nearestImage, footprintData, hasFlownToImage } =
+  const { nearestImage, footprintData, lockFootprint } =
     useObliqueDataContext();
   const dataSourceRef = useRef<GeoJsonDataSource | null>(null);
   // Store the last displayed image ID to prevent unnecessary updates
@@ -46,8 +46,8 @@ export const ObliqueFootprintLayer: React.FC = () => {
     if (!isObliqueMode || !viewerRef.current || !footprintData || !nearestImage)
       return;
 
-    // If we've flown to an image and already displayed this footprint, don't update
-    if (hasFlownToImage && lastImageIdRef.current === nearestImage.id) {
+    // If footprint is locked and already displayed this footprint, don't update
+    if (lockFootprint && lastImageIdRef.current === nearestImage.id) {
       return;
     }
 
@@ -91,7 +91,7 @@ export const ObliqueFootprintLayer: React.FC = () => {
       .catch((error) =>
         console.error("Error loading footprint GeoJSON:", error)
       );
-  }, [isObliqueMode, viewerRef, footprintData, nearestImage, hasFlownToImage]);
+  }, [isObliqueMode, viewerRef, footprintData, nearestImage, lockFootprint]);
 
   return null;
 };
