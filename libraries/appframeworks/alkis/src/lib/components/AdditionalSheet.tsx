@@ -71,8 +71,8 @@ export const AdditionalSheet = ({
                         {surName}
                         {", "}
                         {salutation !== "Firma" ? "*" + formattedDate : ""}
+                        {nameOfBirth && <div>geb. {nameOfBirth}</div>}
                       </div>
-                      {nameOfBirth && <div>geb. {nameOfBirth}</div>}
                       <div>
                         {street} {houseNumber}
                       </div>
