@@ -113,46 +113,37 @@ export const BookingContent = ({
           <Divider />
           <div className="font-bold mb-1">Buchungsstellen und Flurstücke</div>
           <div>
-            {bookingOff
-              .sort((a, b) => {
-                return (
-                  a.alkis_buchungsblatt_landparcel.lfn -
-                  b.alkis_buchungsblatt_landparcel.lfn
-                );
-              })
-              .map((o, idx) => {
-                const bookingArr = getBookingByLandparcelCode(
-                  o.alkis_buchungsblatt_landparcel.landparcelcode,
-                  sheetData.res.buchungsstellen
-                );
+            {bookingOff.map((o, idx) => {
+              const bookingArr = getBookingByLandparcelCode(
+                o.alkis_buchungsblatt_landparcel.landparcelcode,
+                sheetData.res.buchungsstellen
+              );
 
-                const color = bookingColors[idx % bookingColors.length];
+              const color = bookingColors[idx % bookingColors.length];
 
-                return (
-                  <div
-                    key={idx}
-                    className="flex items-center gap-2 cursor-pointer"
-                    onClick={() =>
-                      setSelectedFeature(o.alkis_buchungsblatt_landparcel.id)
-                    }
-                  >
-                    <span
-                      className="w-1 h-10"
-                      style={{ background: color }}
-                    ></span>
-                    <span className="mr-1">
-                      {o.alkis_buchungsblatt_landparcel.lfn}
-                    </span>
-                    <span>
-                      {o.alkis_buchungsblatt_landparcel.landparcelcode}
-                    </span>
-                    <span>
-                      {bookingArr.length === 1 &&
-                        getAdditionalTextForBooking(bookingArr[0], bookingType)}
-                    </span>
-                  </div>
-                );
-              })}
+              return (
+                <div
+                  key={idx}
+                  className="flex items-center gap-2 cursor-pointer"
+                  onClick={() =>
+                    setSelectedFeature(o.alkis_buchungsblatt_landparcel.id)
+                  }
+                >
+                  <span
+                    className="w-1 h-10"
+                    style={{ background: color }}
+                  ></span>
+                  <span className="mr-1">
+                    {o.alkis_buchungsblatt_landparcel.lfn}
+                  </span>
+                  <span>{o.alkis_buchungsblatt_landparcel.landparcelcode}</span>
+                  <span>
+                    {bookingArr.length === 1 &&
+                      getAdditionalTextForBooking(bookingArr[0], bookingType)}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </CustomCard>
 

@@ -67,6 +67,7 @@ export const Map = <T,>({
 
   useEffect(() => {
     if (routedMapRef?.leafletMap?.leafletElement && !selectedFeature) {
+      console.log("xxx map updated");
       const map = routedMapRef.leafletMap.leafletElement;
       map.scrollWheelZoom.disable();
       map.dragging.disable();
@@ -74,9 +75,10 @@ export const Map = <T,>({
         fitMapBounds();
       }, 500);
     }
-  }, [routedMapRef, data]);
+  }, [routedMapRef]);
 
   useEffect(() => {
+    console.log("xxx selected", selectedFeature);
     if (selectedFeature !== null) {
       const map = routedMapRef?.leafletMap?.leafletElement;
       if (map) {
@@ -84,20 +86,29 @@ export const Map = <T,>({
           (f) => f.id === selectedFeature
         );
 
+        map.eachLayer((layer) => {
+          if (layer.feature && layer.feature.id === selectedFeature) {
+            layer.setStyle({
+              color: "blue",
+              weight: 2,
+            });
+          }
+        });
+
         const bounds = getBoundsForFeatureArray(feature);
 
         map.fitBounds(bounds);
 
-        setTimeout(() => {
-          map.eachLayer((layer) => {
-            if (layer.feature && layer.feature.id === selectedFeature) {
-              layer.setStyle({
-                color: "blue",
-                weight: 2,
-              });
-            }
-          });
-        }, 200);
+        // setTimeout(() => {
+        //   map.eachLayer((layer) => {
+        //     if (layer.feature && layer.feature.id === selectedFeature) {
+        //       layer.setStyle({
+        //         color: "blue",
+        //         weight: 2,
+        //       });
+        //     }
+        //   });
+        // }, 200);
       }
     }
   }, [selectedFeature]);
