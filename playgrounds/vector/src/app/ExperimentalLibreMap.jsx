@@ -1,6 +1,5 @@
 import React, { useRef, useEffect, useState } from "react";
 import maplibregl from "maplibre-gl";
-
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./mapLibre.css";
 import { Button } from "react-bootstrap";
@@ -27,12 +26,89 @@ const transformedPois = {
   })),
 };
 
+// Get unique colors from POIs
+const uniqueColors = [...new Set(transformedPois.features.map(f => f.properties.schrift))];
+
+function createDonutChart(props) {
+  const offsets = [];
+  const counts = uniqueColors.map(color => props[color] || 0);
+  let total = 0;
+  for (let i = 0; i < counts.length; i++) {
+    offsets.push(total);
+    total += counts[i];
+  }
+  const fontSize = total >= 1000 ? 22 : total >= 100 ? 20 : total >= 10 ? 18 : 16;
+  const r = total >= 1000 ? 50 : total >= 100 ? 32 : total >= 10 ? 24 : 18;
+  const r0 = Math.round(r * 0.6);
+  const w = r * 2;
+
+  let html = `<div><svg width="${w}" height="${w}" viewbox="0 0 ${w} ${w}" text-anchor="middle" style="font: ${fontSize}px sans-serif; display: block">`;
+
+  for (let i = 0; i < counts.length; i++) {
+    if (counts[i] > 0) {
+      html += donutSegment(
+        offsets[i] / total,
+        (offsets[i] + counts[i]) / total,
+        r,
+        r0,
+        uniqueColors[i]
+      );
+    }
+  }
+  html += `<circle cx="${r}" cy="${r}" r="${r0}" fill="white" />
+           <text dominant-baseline="central" transform="translate(${r}, ${r})">${total.toLocaleString()}</text></svg></div>`;
+
+  const el = document.createElement('div');
+  el.innerHTML = html;
+  return el.firstChild;
+}
+
+function donutSegment(start, end, r, r0, color) {
+  if (end - start === 1) end -= 0.00001;
+  const a0 = 2 * Math.PI * (start - 0.25);
+  const a1 = 2 * Math.PI * (end - 0.25);
+  const x0 = Math.cos(a0), y0 = Math.sin(a0);
+  const x1 = Math.cos(a1), y1 = Math.sin(a1);
+  const largeArc = end - start > 0.5 ? 1 : 0;
+
+  return [
+    '<path d="M',
+    r + r0 * x0,
+    r + r0 * y0,
+    'L',
+    r + r * x0,
+    r + r * y0,
+    'A',
+    r,
+    r,
+    0,
+    largeArc,
+    1,
+    r + r * x1,
+    r + r * y1,
+    'L',
+    r + r0 * x1,
+    r + r0 * y1,
+    'A',
+    r0,
+    r0,
+    0,
+    largeArc,
+    0,
+    r + r0 * x0,
+    r + r0 * y0,
+    `" fill="${color}" />`
+  ].join(' ');
+}
+
 export default function LibreMap({ opacity = 0.1, vectorStyles = [] }) {
   const mapContainer = useRef(null);
   const map = useRef(null);
   const [lng] = useState(7.150764);
   const [lat] = useState(51.256);
   const [zoom] = useState(12);
+  const markers = useRef({});
+  const markersOnScreen = useRef({});
 
   const backgroundStyle = {
     version: 8,
@@ -50,6 +126,12 @@ export default function LibreMap({ opacity = 0.1, vectorStyles = [] }) {
         cluster: true,
         clusterMaxZoom: 14,
         clusterRadius: 50,
+        clusterProperties: Object.fromEntries(
+          uniqueColors.map(color => [
+            color,
+            ["+", ["case", ["==", ["get", "schrift"], color], 1, 0]]
+          ])
+        )
       },
     },
     glyphs: "https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf",
@@ -59,29 +141,8 @@ export default function LibreMap({ opacity = 0.1, vectorStyles = [] }) {
         id: "wms-test-layer",
         type: "raster",
         opacity: 0.25,
-
         source: "rvr_wms",
         paint: { "raster-opacity": 0.7 },
-      },
-      {
-        id: "clusters",
-        type: "circle",
-        source: "poi-source",
-        filter: ["has", "point_count"],
-        paint: {
-          "circle-color": "#666666",
-          "circle-radius": [
-            "step",
-            ["get", "point_count"],
-            15,
-            50,
-            20,
-            100,
-            25,
-          ],
-          "circle-stroke-width": 1,
-          "circle-stroke-color": "#ffffff",
-        },
       },
       {
         id: "poi-circles",
@@ -94,20 +155,40 @@ export default function LibreMap({ opacity = 0.1, vectorStyles = [] }) {
           "circle-stroke-width": 1,
           "circle-stroke-color": "#ffffff",
         },
-      },
-      {
-        id: "cluster-count",
-        type: "symbol",
-        source: "poi-source",
-        filter: ["has", "point_count"],
-        layout: {
-          "text-size": 12,
-          "text-font": ["Open Sans Semibold"],
-          "text-field": ["get", "point_count"],
-        },
-      },
+      }
     ],
   };
+
+  function updateMarkers() {
+    const newMarkers = {};
+    const features = map.current.querySourceFeatures('poi-source');
+
+    for (const feature of features) {
+      const coords = feature.geometry.coordinates;
+      const props = feature.properties;
+      if (!props.cluster) continue;
+      const id = props.cluster_id;
+
+      let marker = markers.current[id];
+      if (!marker) {
+        const el = createDonutChart(props);
+        marker = markers.current[id] = new maplibregl.Marker({
+          element: el
+        }).setLngLat(coords);
+      }
+      newMarkers[id] = marker;
+
+      if (!markersOnScreen.current[id]) marker.addTo(map.current);
+    }
+
+    // Remove markers that are no longer visible
+    for (const id in markersOnScreen.current) {
+      if (!newMarkers[id]) {
+        markersOnScreen.current[id].remove();
+      }
+    }
+    markersOnScreen.current = newMarkers;
+  }
 
   useEffect(() => {
     if (map.current) return;
@@ -122,62 +203,45 @@ export default function LibreMap({ opacity = 0.1, vectorStyles = [] }) {
         maxZoom: 22,
       });
 
-      // Add error handlers
-      map.current.on("error", (e) => {
-        console.error("Map error:", e);
+      map.current.on('error', (e) => {
+        console.error('Map error:', e);
       });
 
-      map.current.on("style.error", (e) => {
-        console.error("Style error:", e);
+      map.current.on('style.error', (e) => {
+        console.error('Style error:', e);
       });
 
-      map.current.on("source.error", (e) => {
-        console.error("Source error:", e);
+      map.current.on('source.error', (e) => {
+        console.error('Source error:', e);
       });
 
       map.current.on("load", function () {
         console.log("Map loaded successfully");
 
         try {
-          map.current.addControl(
-            new maplibregl.NavigationControl(),
-            "top-left"
-          );
-          console.log("Navigation control added");
+          map.current.addControl(new maplibregl.NavigationControl(), "top-left");
 
-          // Debug source
-          const source = map.current.getSource("poi-source");
-          console.log("POI source:", source);
+          // Set up marker updates
+          map.current.on('data', (e) => {
+            if (e.sourceId !== 'poi-source' || !e.isSourceLoaded) return;
+            map.current.on('move', updateMarkers);
+            map.current.on('moveend', updateMarkers);
+            updateMarkers();
+          });
 
           // Handle cluster click
           map.current.on("click", "clusters", (e) => {
-            console.log("Cluster clicked!");
             const features = map.current.queryRenderedFeatures(e.point, {
               layers: ["clusters"],
             });
-            console.log("Features found:", features);
-            if (features.length === 0) {
-              console.log("No features found at click point");
-              return;
-            }
+            if (features.length === 0) return;
 
-            // Get current zoom and calculate zoom increment based on point count
             const currentZoom = map.current.getZoom();
             const pointCount = features[0].properties.point_count;
-            // Zoom in more for larger clusters
-            const zoomIncrement =
-              pointCount > 100 ? 3 : pointCount > 50 ? 2 : 1;
+            const zoomIncrement = pointCount > 100 ? 3 : pointCount > 50 ? 2 : 1;
             const newZoom = Math.min(
               currentZoom + zoomIncrement,
               map.current.getMaxZoom()
-            );
-            console.log(
-              "Points in cluster:",
-              pointCount,
-              "Current zoom:",
-              currentZoom,
-              "New zoom:",
-              newZoom
             );
 
             map.current.easeTo({
@@ -186,18 +250,8 @@ export default function LibreMap({ opacity = 0.1, vectorStyles = [] }) {
             });
           });
 
-          // Change cursor on cluster hover
-          map.current.on("mouseenter", "clusters", () => {
-            map.current.getCanvas().style.cursor = "pointer";
-          });
-          map.current.on("mouseleave", "clusters", () => {
-            map.current.getCanvas().style.cursor = "";
-          });
         } catch (e) {
-          console.error(
-            "Error adding navigation control or handling cluster click:",
-            e
-          );
+          console.error("Error setting up map controls:", e);
         }
       });
     } catch (e) {
