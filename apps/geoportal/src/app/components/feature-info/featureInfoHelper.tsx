@@ -81,18 +81,31 @@ export const functionToFeature = (output: any, code: string) => {
   }
 };
 
-export const createUrl = (baseUrl, pos, minimalBoxSize, layerName) => {
+export const createUrl = ({
+  baseUrl,
+  layerName,
+  viewportBbox,
+  viewportWidth,
+  viewportHeight,
+  x,
+  y,
+}: {
+  baseUrl: string;
+  layerName: string;
+  viewportBbox: { left: number; bottom: number; right: number; top: number };
+  viewportWidth: number;
+  viewportHeight: number;
+  x: number;
+  y: number;
+}) => {
   const url =
     baseUrl +
-    `?SERVICE=WMS&request=GetFeatureInfo&format=image%2Fpng&transparent=true&version=1.1.1&tiled=true&width=10&height=10&srs=EPSG%3A25832&` +
-    `bbox=` +
-    `${pos[0] - minimalBoxSize},` +
-    `${pos[1] - minimalBoxSize},` +
-    `${pos[0] + minimalBoxSize},` +
-    `${pos[1] + minimalBoxSize}&` +
-    `x=5&y=5&` +
-    `layers=${layerName}&` +
-    `feature_count=100&QUERY_LAYERS=${layerName}&`;
+    `?SERVICE=WMS&request=GetFeatureInfo&format=image%2Fpng&transparent=true&version=1.1.1&tiled=true&srs=EPSG%3A25832&BBOX=` +
+    `${viewportBbox.left},` +
+    `${viewportBbox.bottom},` +
+    `${viewportBbox.right},` +
+    `${viewportBbox.top}` +
+    `&WIDTH=${viewportWidth}&HEIGHT=${viewportHeight}&FEATURE_COUNT=99&LAYERS=${layerName}&QUERY_LAYERS=${layerName}&X=${x}&Y=${y}`;
 
   return url;
 };
@@ -106,14 +119,6 @@ export const getFeatureForLayer = async (
 ) => {
   const props = layer.props as LayerProps;
   const minimalBoxSize = 1;
-  const url = createUrl(
-    props.url.includes("https")
-      ? props.url
-      : props.url.replace("http", "https"),
-    pos,
-    minimalBoxSize,
-    props.name
-  );
 
   let viewportBbox = {
     left: pos[0] - minimalBoxSize,
@@ -157,14 +162,29 @@ export const getFeatureForLayer = async (
       viewportHeight
   );
 
+  const featureInfoUrl = props.featureInfoUrl || props.url;
+  const featureInfoName = props.featureInfoName || props.name;
+
+  const url = createUrl({
+    baseUrl: featureInfoUrl.includes("https")
+      ? featureInfoUrl
+      : featureInfoUrl.replace("http", "https"),
+    layerName: featureInfoName,
+    viewportBbox,
+    viewportWidth,
+    viewportHeight,
+    x: pixelX,
+    y: pixelY,
+  });
+
   const legacyFeatureInfoUrl =
-    props.url +
+    featureInfoUrl +
     `&VERSION=1.1.1&REQUEST=GetFeatureInfo&BBOX=` +
     `${viewportBbox.left},` +
     `${viewportBbox.bottom},` +
     `${viewportBbox.right},` +
     `${viewportBbox.top}` +
-    `&WIDTH=${viewportWidth}&HEIGHT=${viewportHeight}&SRS=EPSG:25832&FORMAT=image/png&TRANSPARENT=TRUE&BGCOLOR=0xF0F0F0&EXCEPTIONS=application/vnd.ogc.se_xml&FEATURE_COUNT=99&LAYERS=${props.name}&STYLES=default&QUERY_LAYERS=${props.name}&INFO_FORMAT=text/html&X=${pixelX}&Y=${pixelY}
+    `&WIDTH=${viewportWidth}&HEIGHT=${viewportHeight}&SRS=EPSG:25832&FORMAT=image/png&TRANSPARENT=TRUE&BGCOLOR=0xF0F0F0&EXCEPTIONS=application/vnd.ogc.se_xml&FEATURE_COUNT=99&LAYERS=${featureInfoName}&STYLES=default&QUERY_LAYERS=${featureInfoName}&INFO_FORMAT=text/html&X=${pixelX}&Y=${pixelY}
             `;
 
   let output = "";

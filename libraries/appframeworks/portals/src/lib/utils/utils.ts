@@ -170,6 +170,8 @@ export const parseToMapLayer = async (
               name: carmaConf?.sourceLayer || layer.props.Name,
               maxZoom: layer.maxZoom,
               minZoom: layer.minZoom,
+              featureInfoUrl: layer.props.url,
+              featureInfoName: layer.props.Name,
             },
             other: {
               ...layer,

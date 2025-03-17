@@ -17,6 +17,8 @@ export type LayerProps = {
     OnlineResource: string;
     size: [number, number];
   }[];
+  featureInfoUrl?: string;
+  featureInfoName?: string;
 };
 
 // TODO: fix typing and verify
