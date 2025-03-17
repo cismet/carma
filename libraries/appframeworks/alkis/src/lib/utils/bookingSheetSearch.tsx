@@ -145,7 +145,7 @@ export const getSheetHtml = async (
             </div>
           </div>
           <Divider />
-          <div className="font-bold mb-1">Eigentümer</div>
+          <div className="font-bold mb-4">Eigentümer</div>
           <AdditionalSheet
             owners={sheetData.res.owners}
             namesArr={sheetData.res.namensnummern}
