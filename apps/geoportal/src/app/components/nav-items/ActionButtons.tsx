@@ -162,7 +162,7 @@ const ActionButtons = () => {
           <FontAwesomeIcon fixedWidth={true} icon={faEye} />
         </button>
       </Tooltip>
-      <Tooltip title="Speichern">
+      <Tooltip title="Karte speichern">
         <Popover
           trigger="click"
           placement="bottom"

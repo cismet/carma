@@ -60,10 +60,10 @@ export const Save = ({
       {contextHolder}
       <div className="flex items-center gap-2">
         <FontAwesomeIcon icon={faFileExport} className="text-xl" />
-        <h4 className="mb-0">Speichern</h4>
+        <h4 className="mb-0">Karte speichern</h4>
       </div>
       <hr className="my-0" />
-      <h5 className="mb-0">Name</h5>
+      <h5 className="mb-0">Bezeichnung</h5>
       <Input
         id="title"
         value={title}
@@ -93,7 +93,7 @@ export const Save = ({
         onChange={(e) => setThumbnail(e.target.value)}
       />
 
-      <Button onClick={handleOnClick}>Karte speichern</Button>
+      <Button onClick={handleOnClick}>Als Favorit speichern</Button>
     </div>
   );
 };
