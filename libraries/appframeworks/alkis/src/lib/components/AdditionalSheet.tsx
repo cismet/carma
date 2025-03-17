@@ -105,9 +105,9 @@ export const AdditionalSheet = ({
                   ...(!ifLegalDesc && {
                     display: "flex",
                     width: "100%",
-                    // justifyContent: "space-between",
                     textAlign: "left",
                     gap: "1rem",
+                    maxWidth: "800px",
                   }),
                 }}
               >
