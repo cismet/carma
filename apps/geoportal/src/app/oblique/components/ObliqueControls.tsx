@@ -628,7 +628,10 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
           {/* Download button when preview is not visible */}
           {!isPreviewVisible && nearestImage && previewPath && (
-            <Tooltip placement="right" title="Bild in Qualität Level 2 herunterladen, Bild öffnet in neuemFenster">
+            <Tooltip
+              placement="right"
+              title="Bild in Qualität Level 2 herunterladen, Bild öffnet in neuemFenster"
+            >
               <div
                 style={{
                   display: "flex",
