@@ -52,6 +52,8 @@ export default function LibreMap({ opacity = 0.1, vectorStyles = [] }) {
         clusterRadius: 50,
       },
     },
+    glyphs: "https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf",
+    sprite: "https://tiles.cismet.de/poi/sprites",
     layers: [
       {
         id: "wms-test-layer",
@@ -93,64 +95,114 @@ export default function LibreMap({ opacity = 0.1, vectorStyles = [] }) {
           "circle-stroke-color": "#ffffff",
         },
       },
+      {
+        id: "cluster-count",
+        type: "symbol",
+        source: "poi-source",
+        filter: ["has", "point_count"],
+        layout: {
+          "text-size": 12,
+          "text-font": ["Open Sans Semibold"],
+          "text-field": ["get", "point_count"],
+        },
+      },
     ],
   };
 
   useEffect(() => {
     if (map.current) return;
-    map.current = new maplibregl.Map({
-      container: mapContainer.current,
-      style: backgroundStyle,
-      center: [lng, lat],
-      zoom: zoom,
-      opacity: 1,
-      maxZoom: 22,
-    });
 
-    console.log("Map initialized:", map.current);
+    try {
+      map.current = new maplibregl.Map({
+        container: mapContainer.current,
+        style: backgroundStyle,
+        center: [lng, lat],
+        zoom: zoom,
+        opacity: 1,
+        maxZoom: 22,
+      });
 
-    map.current.on("load", function () {
-      console.log("Style loaded");
-      map.current.addControl(new maplibregl.NavigationControl(), "top-left");
+      // Add error handlers
+      map.current.on("error", (e) => {
+        console.error("Map error:", e);
+      });
 
-      // Debug source
-      const source = map.current.getSource("poi-source");
-      console.log("POI source:", source);
+      map.current.on("style.error", (e) => {
+        console.error("Style error:", e);
+      });
 
-      // Handle cluster click
-      map.current.on("click", "clusters", (e) => {
-        console.log("Cluster clicked!");
-        const features = map.current.queryRenderedFeatures(e.point, {
-          layers: ["clusters"],
-        });
-        console.log("Features found:", features);
-        if (features.length === 0) {
-          console.log("No features found at click point");
-          return;
+      map.current.on("source.error", (e) => {
+        console.error("Source error:", e);
+      });
+
+      map.current.on("load", function () {
+        console.log("Map loaded successfully");
+
+        try {
+          map.current.addControl(
+            new maplibregl.NavigationControl(),
+            "top-left"
+          );
+          console.log("Navigation control added");
+
+          // Debug source
+          const source = map.current.getSource("poi-source");
+          console.log("POI source:", source);
+
+          // Handle cluster click
+          map.current.on("click", "clusters", (e) => {
+            console.log("Cluster clicked!");
+            const features = map.current.queryRenderedFeatures(e.point, {
+              layers: ["clusters"],
+            });
+            console.log("Features found:", features);
+            if (features.length === 0) {
+              console.log("No features found at click point");
+              return;
+            }
+
+            // Get current zoom and calculate zoom increment based on point count
+            const currentZoom = map.current.getZoom();
+            const pointCount = features[0].properties.point_count;
+            // Zoom in more for larger clusters
+            const zoomIncrement =
+              pointCount > 100 ? 3 : pointCount > 50 ? 2 : 1;
+            const newZoom = Math.min(
+              currentZoom + zoomIncrement,
+              map.current.getMaxZoom()
+            );
+            console.log(
+              "Points in cluster:",
+              pointCount,
+              "Current zoom:",
+              currentZoom,
+              "New zoom:",
+              newZoom
+            );
+
+            map.current.easeTo({
+              center: features[0].geometry.coordinates,
+              zoom: newZoom,
+            });
+          });
+
+          // Change cursor on cluster hover
+          map.current.on("mouseenter", "clusters", () => {
+            map.current.getCanvas().style.cursor = "pointer";
+          });
+          map.current.on("mouseleave", "clusters", () => {
+            map.current.getCanvas().style.cursor = "";
+          });
+        } catch (e) {
+          console.error(
+            "Error adding navigation control or handling cluster click:",
+            e
+          );
         }
-        
-        // Get current zoom and calculate zoom increment based on point count
-        const currentZoom = map.current.getZoom();
-        const pointCount = features[0].properties.point_count;
-        // Zoom in more for larger clusters
-        const zoomIncrement = pointCount > 100 ? 3 : (pointCount > 50 ? 2 : 1);
-        const newZoom = Math.min(currentZoom + zoomIncrement, map.current.getMaxZoom());
-        console.log("Points in cluster:", pointCount, "Current zoom:", currentZoom, "New zoom:", newZoom);
-        
-        map.current.easeTo({
-          center: features[0].geometry.coordinates,
-          zoom: newZoom
-        });
       });
-
-      // Change cursor on cluster hover
-      map.current.on("mouseenter", "clusters", () => {
-        map.current.getCanvas().style.cursor = "pointer";
-      });
-      map.current.on("mouseleave", "clusters", () => {
-        map.current.getCanvas().style.cursor = "";
-      });
-    });
+    } catch (e) {
+      console.error("Error initializing map:", e);
+    }
 
     return () => {
       if (map.current) {
