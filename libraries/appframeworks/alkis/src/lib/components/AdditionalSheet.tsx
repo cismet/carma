@@ -11,11 +11,26 @@ export const AdditionalSheet = ({
   const legalCommunityInfo = namesArr.filter(
     (l) => l.beschriebRechtsgemeinschaft
   );
+
+  const sortedOwners = owners?.sort((a, b) => {
+    const [aMajor, aMinor] = a.nameNumber.split(".");
+    const [bMajor, bMinor] = b.nameNumber.split(".");
+
+    const aMajorNum = parseInt(aMajor, 10);
+    const aMinorNum = parseInt(aMinor, 10);
+    const bMajorNum = parseInt(bMajor, 10);
+    const bMinorNum = parseInt(bMinor, 10);
+
+    if (aMajorNum !== bMajorNum) {
+      return aMajorNum - bMajorNum;
+    }
+    return aMinorNum - bMinorNum;
+  });
   return (
     <div>
       {ownerRes && (
         <div>
-          {owners.map((owner, idx) => {
+          {sortedOwners.map((owner, idx) => {
             const {
               salutation,
               firstName,
@@ -96,11 +111,11 @@ export const AdditionalSheet = ({
                 <div>
                   <b>
                     {/* {!ifLegalDesc ? "Rechtsgemeinschaft:" : "Erbengemeinschaft:"} */}
-                    Rechtsgemeinschaft:
+                    Rechtsgemeinschaft:{" "}
                   </b>
                   {l.beschriebRechtsgemeinschaft}
                 </div>
-                <span>{!ifLegalDesc && " 1/2"}</span>
+                <span className="ml-1"> {!ifLegalDesc && "1/2"}</span>
               </div>
             </div>
           );
