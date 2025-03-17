@@ -12,7 +12,9 @@ import { javascript } from "@codemirror/lang-javascript";
 import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
 import LeafletMap from "./app/LeafletMap";
 import LibreMap from "./app/LibreMap";
+import ExperimentalLibreMap from "./app/ExperimentalLibreMap";
 import { gazDataConfig } from "./config/gazData";
+import poisStyle from "./poiStyle.json";
 
 const originalWarn = console.warn.bind(console);
 const originalError = console.error.bind(console);
@@ -150,8 +152,20 @@ const RootComponent = () => {
           element={<LeafletMap vectorStyles={vectorStylesArray as never[]} />}
         ></Route>
         <Route
+          path="/leafletWithPois"
+          element={<LeafletMap vectorStyles={[poisStyle]} />}
+        ></Route>
+        <Route
           path="/maplibre"
           element={<LibreMap vectorStyles={vectorStylesArray as never[]} />}
+        ></Route>
+        <Route
+          path="/maplibreWithPois"
+          element={<LibreMap vectorStyles={[poisStyle]} />}
+        ></Route>
+        <Route
+          path="/experimentalMaplibre"
+          element={<ExperimentalLibreMap />}
         ></Route>
       </Routes>
     </div>
