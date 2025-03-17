@@ -1,19 +1,13 @@
 /* eslint-disable jsx-a11y/no-static-element-interactions */
 /* eslint-disable jsx-a11y/click-events-have-key-events */
 import { useContext, useEffect, useRef, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { useSearchParams } from "react-router-dom";
 import { useInView } from "react-intersection-observer";
+import { useDispatch, useSelector } from "react-redux";
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-import {
-  faEye,
-  faEyeSlash,
-  faMap,
-  faX,
-} from "@fortawesome/free-solid-svg-icons";
+import { faEye, faEyeSlash, faX } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import type L from "leaflet";
 
@@ -43,9 +37,8 @@ import {
   getUIMode,
   getUIShowLayerHideButtons,
 } from "../../store/slices/ui";
-import { iconColorMap, iconMap } from "./items";
+import LayerIcon from "./LayerIcon";
 import "./tabs.css";
-import { ICON_PREFIX } from "../../config/app.config";
 
 interface LayerButtonProps {
   title: string;
@@ -79,7 +72,6 @@ const LayerButton = ({
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
   const [error, setError] = useState(false);
-  const [imgError, setImgError] = useState(!layer.other?.icon);
 
   const selectedLayerIndex = useSelector(getSelectedLayerIndex);
   const showLayerHideButtons = useSelector(getUIShowLayerHideButtons);
@@ -94,8 +86,6 @@ const LayerButton = ({
       id,
     });
   const buttonRef = useRef<HTMLDivElement>(null);
-  const iconName =
-    layer.other?.icon || layer.other?.path + "/" + layer.other?.name;
 
   const zoom = routedMapRef?.leafletMap?.leafletElement.getZoom();
   const queryable =
@@ -135,15 +125,6 @@ const LayerButton = ({
       }
     });
   }, [map]);
-
-  useEffect(() => {
-    if (iconName) {
-      const img = new Image();
-      img.onload = () => setImgError(false);
-      img.onerror = () => setImgError(true);
-      img.src = ICON_PREFIX + `${iconName}.png`;
-    }
-  }, [iconName]);
 
   return (
     <div
@@ -196,22 +177,7 @@ const LayerButton = ({
           background ? "pr-3" : "pr-2"
         )}
       >
-        {iconName && !imgError ? (
-          <div style={{ height: 14, width: 14 }}>
-            <img
-              src={ICON_PREFIX + `${iconName}.png`}
-              alt="Icon"
-              className="h-full"
-            />
-          </div>
-        ) : (
-          <FontAwesomeIcon
-            icon={icon ? iconMap[icon] : faMap}
-            className="text-base"
-            style={{ color: iconColorMap[icon] }}
-            id="icon"
-          />
-        )}
+        <LayerIcon layer={layer} fallbackIcon={icon} />
         <span className="text-base sm:hidden">{layersLength} Layer</span>
         {error && (
           <div

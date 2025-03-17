@@ -41,6 +41,7 @@ import LayerInfo from "./LayerInfo";
 import OpacitySlider from "./OpacitySlider";
 import VisibilityToggle from "./VisibilityToggle";
 import { ICON_PREFIX } from "../../config/app.config";
+import LayerIcon from "./LayerIcon";
 
 type Ref = HTMLDivElement;
 
@@ -199,24 +200,11 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
           </button>
           <div className="flex items-center w-full h-8 gap-6">
             <div className="w-1/4 flex items-center gap-2">
-              {iconName ? (
-                <div style={{ height: 14, width: 14 }}>
-                  <img
-                    src={ICON_PREFIX + `${iconName}.png`}
-                    alt="Icon"
-                    className="h-full"
-                  />
-                </div>
-              ) : (
-                <FontAwesomeIcon
-                  icon={
-                    icon ? iconMap[icon] : isBaseLayer ? faLayerGroup : faMap
-                  }
-                  className="text-base"
-                  style={{ color: iconColorMap[icon] }}
-                  id="icon"
-                />
-              )}
+              <LayerIcon
+                layer={layer}
+                fallbackIcon={icon}
+                isBaseLayer={isBaseLayer}
+              />
               <label className="mb-0 text-base w-full truncate" htmlFor="icon">
                 {isBaseLayer ? "Hintergrund" : layer.title}
               </label>

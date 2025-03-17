@@ -14,6 +14,7 @@ import { iconColorMap, iconMap } from "./items";
 import OpacitySlider from "./OpacitySlider";
 import VisibilityToggle from "./VisibilityToggle";
 import { ICON_PREFIX } from "../../config/app.config";
+import LayerIcon from "./LayerIcon";
 
 interface LayerRowProps {
   layer: Layer;
@@ -51,22 +52,7 @@ const LayerRow = ({ layer, id, isBackgroundLayer, index }: LayerRowProps) => {
         >
           <FontAwesomeIcon icon={faGripVertical} />
         </button>
-        {icon ? (
-          <div style={{ height: 14, width: 14 }}>
-            <img
-              src={ICON_PREFIX + `${icon}.png`}
-              alt="Icon"
-              className="h-full"
-            />
-          </div>
-        ) : (
-          <FontAwesomeIcon
-            icon={icon ? iconMap[icon] : faMap}
-            className="text-base"
-            style={{ color: iconColorMap[icon] }}
-            id="icon"
-          />
-        )}
+        <LayerIcon layer={layer} fallbackIcon={icon} />
         <p
           className={`mb-0 text-lg truncate ${
             index !== -1 && "hover:underline cursor-pointer"
