@@ -56,6 +56,43 @@ export const getSheetHtml = async (
 
   const bookingOff = booking.data.alkis_buchungsblatt[0].landparcelsArray;
 
+  function parseLandparcelCode(code) {
+    return code.split("-").map((part) => parseInt(part, 10));
+  }
+
+  function compareLandparcelCodes(codeA, codeB) {
+    const [a1, a2, a3] = parseLandparcelCode(codeA);
+    const [b1, b2, b3] = parseLandparcelCode(codeB);
+
+    if (a1 - b1 !== 0) {
+      console.log("xxx a1 - b1");
+      return a1 - b1;
+    }
+
+    if (a2 - b2 !== 0) {
+      console.log("xxx a2 - b2");
+
+      return a2 - b2;
+    }
+    console.log("xxx a3 - b3");
+
+    return a3 - b3;
+  }
+
+  const sortedBooking = [...bookingOff].sort((a, b) => {
+    const lfnA = parseInt(a.alkis_buchungsblatt_landparcel.lfn, 10);
+    const lfnB = parseInt(b.alkis_buchungsblatt_landparcel.lfn, 10);
+
+    if (lfnA !== lfnB) {
+      return lfnA - lfnB;
+    }
+
+    return compareLandparcelCodes(
+      a.alkis_buchungsblatt_landparcel.landparcelcode,
+      b.alkis_buchungsblatt_landparcel.landparcelcode
+    );
+  });
+
   const localCourt = sheetData.res.offices.districtCourtName[0];
   const leafType = sheetData.res.blattart;
 
@@ -64,29 +101,26 @@ export const getSheetHtml = async (
   const sheetCode = sheetData.res.buchungsblattCode;
   const districtName = getLandRegisterDistrict(sheetCode);
 
-  const geometry = booking.data.alkis_buchungsblatt[0].landparcelsArray.map(
-    (g, idx) => {
-      return {
-        type: "Feature",
-        id: g.alkis_buchungsblatt_landparcel?.id,
-        geometry: {
-          type: g?.alkis_buchungsblatt_landparcel?.extended_geom?.geo_field
-            .type,
-          coordinates:
-            g?.alkis_buchungsblatt_landparcel?.extended_geom?.geo_field
-              ?.coordinates,
-        },
-        properties: {
-          id: idx,
-        },
-        crs: g?.alkis_buchungsblatt_landparcel?.extended_geom?.geo_field.crs,
-      };
-    }
-  );
+  const geometry = sortedBooking.map((g, idx) => {
+    return {
+      type: "Feature",
+      id: g.alkis_buchungsblatt_landparcel?.id,
+      geometry: {
+        type: g?.alkis_buchungsblatt_landparcel?.extended_geom?.geo_field.type,
+        coordinates:
+          g?.alkis_buchungsblatt_landparcel?.extended_geom?.geo_field
+            ?.coordinates,
+      },
+      properties: {
+        id: idx,
+      },
+      crs: g?.alkis_buchungsblatt_landparcel?.extended_geom?.geo_field.crs,
+    };
+  });
 
   return (
     <BookingContent
-      bookingOff={bookingOff}
+      bookingOff={sortedBooking}
       localCourt={localCourt}
       leafType={leafType}
       bookingType={bookingType}

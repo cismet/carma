@@ -83,17 +83,21 @@ export const Map = <T,>({
         const feature = data.featureCollection.filter(
           (f) => f.id === selectedFeature
         );
-        map.eachLayer((layer) => {
-          if (layer.feature && layer.feature.id === selectedFeature) {
-            layer.setStyle({
-              color: "blue",
-              weight: 3,
-            });
-          }
-        });
+
         const bounds = getBoundsForFeatureArray(feature);
 
         map.fitBounds(bounds);
+
+        setTimeout(() => {
+          map.eachLayer((layer) => {
+            if (layer.feature && layer.feature.id === selectedFeature) {
+              layer.setStyle({
+                color: "blue",
+                weight: 2,
+              });
+            }
+          });
+        }, 200);
       }
     }
   }, [selectedFeature]);
