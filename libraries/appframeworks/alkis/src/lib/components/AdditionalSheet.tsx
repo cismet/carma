@@ -45,6 +45,27 @@ export const AdditionalSheet = ({
             const month = String(date.getMonth() + 1).padStart(2, "0");
             const year = date.getFullYear();
             const formattedDate = `${day}.${month}.${year}`;
+            let attributesZaehlerNenner: null | string = null;
+
+            const ownerInNamesArr = namesArr.filter(
+              (n) => n.eigentuemerUUId === owner.ownerId
+            );
+
+            if (ownerInNamesArr && ownerInNamesArr.length > 0) {
+              const ifAttributes =
+                ownerInNamesArr[0].zaehler != null &&
+                ownerInNamesArr[0].nenner != null;
+
+              if (ifAttributes) {
+                attributesZaehlerNenner =
+                  "zu " +
+                  ownerInNamesArr[0].zaehler +
+                  "/" +
+                  ownerInNamesArr[0].nenner;
+              }
+            }
+
+            console.log("xxx attributesZaehlerNenner", attributesZaehlerNenner);
 
             const { houseNumber, postalCode, city, street } =
               owner.addresses?.[0] || {};
@@ -56,9 +77,12 @@ export const AdditionalSheet = ({
                   gap: "3rem",
                   paddingBottom: "2rem",
                   display: "grid",
-                  gridTemplateColumns: "max-content max-content",
+                  gridTemplateColumns: attributesZaehlerNenner
+                    ? "max-content max-content max-content"
+                    : "max-content max-content",
                   // rowGap: "4px",
                   columnGap: "2rem",
+                  // maxWidth: "800px",
                   gridAutoRows: "min-content",
                 }}
               >
@@ -85,6 +109,9 @@ export const AdditionalSheet = ({
                     <div>{surName}</div>
                   )}
                 </div>
+                {attributesZaehlerNenner && (
+                  <div>{attributesZaehlerNenner}</div>
+                )}
               </div>
             );
           })}

@@ -220,10 +220,10 @@ export const LOADING_FLURSTUECKS_UND_EIGENTUMSNACHWEIS_KOMMUNAL_INTERN_PDF =
 // Constant for loading Buchungsblatt
 export const LOADING_BESTANDSNACHWEIS_NRW_PDF = "LB.GDBNRW.A.BNW.1";
 export const LOADING_BESTANDSNACHWEIS_STICHTAGSBEZOGEN_NRW_PDF =
-  "LB.GDBNRW.A.BNWST.1";
+  "LB.GDBNRW.I.FENW.1";
 export const LOADING_BESTANDSNACHWEIS_KOMMUNAL_PDF = "LB.NRW.K.BNW.1";
 
-export const LOADING_BESTANDSNACHWEIS_KOMMUNAL_INTERN_PDF = "LB.NRW.K.I.BNW.1";
+export const LOADING_BESTANDSNACHWEIS_KOMMUNAL_INTERN_PDF = "LB.GDBNRW.I.BNW.1";
 export const LOADING_GRUNDSTUECKSNACHWEIS_NRW_PDF = "LB.GDBNRW.A.GNW.1";
 
 export const pdfProductsSheet = [
@@ -243,7 +243,7 @@ export const pdfProductsSheet = [
     loadingAttribute: LOADING_BESTANDSNACHWEIS_KOMMUNAL_PDF,
   },
   {
-    name: "Bestandsnachweis (kommunal, intern)",
+    name: "Bestandsnachweis (NRW, intern)",
     configurationAttribute: BESTANDSNACHWEIS_KOMMUNAL_INTERN_PDF,
     loadingAttribute: LOADING_BESTANDSNACHWEIS_KOMMUNAL_INTERN_PDF,
   },
@@ -276,7 +276,7 @@ export const pdfProductsLandparcel = [
     loadingAttribute: LOADING_FLURSTUECKS_UND_EIGENTUMSNACHWEIS_KOMMUNAL_PDF,
   },
   {
-    name: "Flurstücks- und Eigentumsnachweis (kommunal, intern)",
+    name: "Flurstücks- und Eigentumsnachweis (NRW, intern)",
     configurationAttribute:
       FLURSTUECKS_UND_EIGENTUMSNACHWEIS_KOMMUNAL_INTERN_PDF,
     loadingAttribute:
