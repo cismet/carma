@@ -124,3 +124,70 @@ interface AdditionalSheetContent {
   legalDesc?: string[] | null | undefined;
   nrCode: string;
 }
+
+interface CRS {
+  type: string;
+  properties: Record<string, unknown>;
+}
+
+interface GeoField {
+  coordinates: Array<{
+    crs: CRS;
+    type: string;
+  }>;
+}
+
+interface ExtendedGeom {
+  geo_field: GeoField;
+  id: number;
+  landparcelCode: string;
+  lfn: string;
+}
+
+interface AlkisBuchungsblattLandparcel {
+  extended_geom: ExtendedGeom;
+  landparcelcode: string;
+  lfn: string;
+  id;
+}
+
+export interface DataItem {
+  alkis_buchungsblatt_landparcel: AlkisBuchungsblattLandparcel;
+}
+
+export interface AlkisFeature {
+  crs: CRS;
+  geometry: {
+    type: string;
+    coordinates: any[];
+    properties: {
+      id: number;
+    };
+    type: string;
+    id: number;
+  };
+}
+
+export interface ConfigPdfProduct {
+  configurationAttribute: string;
+  loadingAttribute: string;
+  name: string;
+  permission: string;
+}
+
+export interface BookingResData {
+  res: {
+    bezirkCode: string | null;
+    bezirkName: string | null;
+    blattart: string;
+    blattartCode: string;
+    buchungsblattCode: string;
+    buchungsstellen: Array<object>;
+    descriptionOfRechtsgemeinschaft: string[] | null;
+    id: string;
+    multiBuchungsblattUuids: string | null;
+    namensnummern: Name[];
+    offices: Office;
+    owners: Owner[];
+  };
+}

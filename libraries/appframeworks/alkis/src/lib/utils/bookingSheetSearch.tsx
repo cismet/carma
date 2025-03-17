@@ -1,24 +1,11 @@
-import React from "react";
-import { AdditionalSheet } from "../components/AdditionalSheet";
-import { CustomCard } from "../components/CustomCard";
 import {
   checkPdfProductPermission,
   getAdditionalSheetAsync,
   getBookingOfficesBySheetId,
   productsPdfWithPermission,
 } from "../utils/apiMethods";
-import {
-  additionalSheetExtractor,
-  bookingColors,
-  getAdditionalTextForBooking,
-  getBookingByLandparcelCode,
-  getLandRegisterDistrict,
-  pdfProductsSheet,
-} from "../utils/helper";
-import PdfDocumentLoader from "../components/PdfDocumentLoader";
-import { Map } from "../components/Map";
-import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
-import { Breadcrumb, Divider } from "antd";
+import { getLandRegisterDistrict, pdfProductsSheet } from "../utils/helper";
+import { BookingContent } from "../components/BookingContent";
 
 export const getSheetHtml = async (
   jwt,
@@ -68,6 +55,7 @@ export const getSheetHtml = async (
   );
 
   const bookingOff = booking.data.alkis_buchungsblatt[0].landparcelsArray;
+
   const localCourt = sheetData.res.offices.districtCourtName[0];
   const leafType = sheetData.res.blattart;
 
@@ -95,103 +83,21 @@ export const getSheetHtml = async (
       };
     }
   );
-  const urlPrefix = window.location.origin + window.location.pathname;
 
   return (
-    <TopicMapContextProvider appKey="verdis-desktop-render.map">
-      <div>
-        <CustomCard
-          style={{ marginBottom: "1rem" }}
-          title={
-            <div className="flex gap-4 items-center">
-              <div>Buchungsblatt</div>
-              <Breadcrumb className="mr-2">
-                <Breadcrumb.Item
-                  href={`${urlPrefix}#/alkis-flurstueck?id=${flurstueck}`}
-                  className="text-primary hover:bg-transparent"
-                >
-                  <span>{flurstueck}</span>{" "}
-                </Breadcrumb.Item>
-                <Breadcrumb.Item>
-                  <span>{name}</span>
-                </Breadcrumb.Item>
-              </Breadcrumb>
-            </div>
-          }
-        >
-          <div>
-            <div className="font-bold mb-3">Buchungsblattinformationen</div>
-
-            <div className="flex gap-4 w-full  max-[970px]:flex-col">
-              <div className="w-[30%] max-[970px]:w-full">
-                <div>
-                  <b>Amtsgericht:</b> {localCourt}
-                </div>
-                {districtName && (
-                  <div>
-                    <b>Grundbuchbezirk:</b> {districtName}
-                  </div>
-                )}
-                <div>
-                  <b>Blattart:</b> {leafType}
-                </div>
-                <div>
-                  <b>Buchungsart:</b> {bookingType}
-                </div>
-              </div>
-              <div className="w-[70%] max-[970px]:w-[100%] mb-2">
-                <Map extractor={additionalSheetExtractor} dataIn={geometry} />
-              </div>
-            </div>
-          </div>
-          <Divider />
-          <div className="font-bold mb-4">Eigentümer</div>
-          <AdditionalSheet
-            owners={sheetData.res.owners}
-            namesArr={sheetData.res.namensnummern}
-            legalDesc={sheetData.res.descriptionOfRechtsgemeinschaft}
-          />
-
-          <Divider />
-          <div className="font-bold mb-1">Buchungsstellen und Flurstücke</div>
-          <div>
-            {bookingOff.map((o, idx) => {
-              const bookingArr = getBookingByLandparcelCode(
-                o.alkis_buchungsblatt_landparcel.landparcelcode,
-                sheetData.res.buchungsstellen
-              );
-
-              const color = bookingColors[idx % bookingColors.length];
-
-              return (
-                <div
-                  key={idx}
-                  className="flex items-center gap-2 cursor-pointer"
-                >
-                  <span
-                    className="w-1 h-10"
-                    style={{ background: color }}
-                  ></span>
-                  <span className="mr-1">
-                    {o.alkis_buchungsblatt_landparcel.lfn}
-                  </span>
-                  <span>{o.alkis_buchungsblatt_landparcel.landparcelcode}</span>
-                  <span>
-                    {bookingArr.length === 1 &&
-                      getAdditionalTextForBooking(bookingArr[0], bookingType)}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </CustomCard>
-
-        <PdfDocumentLoader
-          loadingCode={sheetCode}
-          allPdfPermission={allPdfPermission}
-          jwt={jwt}
-        />
-      </div>
-    </TopicMapContextProvider>
+    <BookingContent
+      bookingOff={bookingOff}
+      localCourt={localCourt}
+      leafType={leafType}
+      bookingType={bookingType}
+      districtName={districtName}
+      geometry={geometry}
+      sheetCode={sheetCode}
+      flurstueck={flurstueck}
+      name={name}
+      jwt={jwt}
+      allPdfPermission={allPdfPermission}
+      sheetData={sheetData}
+    />
   );
 };

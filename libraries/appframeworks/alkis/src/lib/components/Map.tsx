@@ -94,6 +94,9 @@ export const Map = <T,>({ dataIn, extractor = mockExtractor }: MapProps<T>) => {
         pushToHistory={() => {}}
       >
         <FeatureCollectionDisplay
+          featureClickHandler={(event, feature, layer) =>
+            console.log("xxx feature clicked", feature)
+          }
           featureCollection={data.featureCollection}
           style={data.styler}
         />
