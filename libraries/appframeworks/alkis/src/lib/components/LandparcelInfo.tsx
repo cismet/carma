@@ -76,7 +76,6 @@ export const LandparcelInfo = ({
         destroyInactiveTabPane={true}
         items={sheetsCode.map((b, i) => {
           const id = String(i);
-          console.log("xxx legalDesc", b.content.legalDesc);
           return {
             label: (
               <div style={{ padding: "4px 10px" }} className="text-primary">
@@ -85,7 +84,10 @@ export const LandparcelInfo = ({
             ),
             key: id,
             children: (
-              <div style={{ display: "flex", gap: "1.6rem" }}>
+              <div
+                style={{ display: "flex", gap: "1.6rem" }}
+                className="flex gap-6 max-[700px]:flex-col"
+              >
                 <div style={{ marginRight: "4rem" }}>
                   <div>Nr. {b.content.nrCode} auf</div>
                   <div>
