@@ -78,11 +78,12 @@ export const AdditionalSheet = ({
                   paddingBottom: "2rem",
                   display: "grid",
                   gridTemplateColumns: attributesZaehlerNenner
-                    ? "max-content max-content max-content"
+                    ? "max-content max-content 1fr"
                     : "max-content max-content",
                   // rowGap: "4px",
                   columnGap: "2rem",
-                  // maxWidth: "800px",
+                  maxWidth: "800px",
+                  width: "100%",
                   gridAutoRows: "min-content",
                 }}
               >
@@ -110,7 +111,7 @@ export const AdditionalSheet = ({
                   )}
                 </div>
                 {attributesZaehlerNenner && (
-                  <div>{attributesZaehlerNenner}</div>
+                  <div className="text-right">{attributesZaehlerNenner}</div>
                 )}
               </div>
             );
