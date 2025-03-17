@@ -77,7 +77,10 @@ const LayerButton = ({
   });
   const dispatch = useDispatch();
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
+
   const [error, setError] = useState(false);
+  const [imgError, setImgError] = useState(!layer.other?.icon);
+
   const selectedLayerIndex = useSelector(getSelectedLayerIndex);
   const showLayerHideButtons = useSelector(getUIShowLayerHideButtons);
   const showLeftScrollButton = useSelector(getShowLeftScrollButton);
@@ -91,11 +94,8 @@ const LayerButton = ({
       id,
     });
   const buttonRef = useRef<HTMLDivElement>(null);
-  let [searchParams, setSearchParams] = useSearchParams();
-  const showAlternateIcons = searchParams.get("altIcon") !== null;
-  const iconName = showAlternateIcons
-    ? layer.other?.alternativeIcon
-    : layer.other?.icon;
+  const iconName =
+    layer.other?.icon || layer.other?.path + "/" + layer.other?.name;
 
   const zoom = routedMapRef?.leafletMap?.leafletElement.getZoom();
   const queryable =
@@ -135,6 +135,15 @@ const LayerButton = ({
       }
     });
   }, [map]);
+
+  useEffect(() => {
+    if (iconName) {
+      const img = new Image();
+      img.onload = () => setImgError(false);
+      img.onerror = () => setImgError(true);
+      img.src = ICON_PREFIX + `${iconName}.png`;
+    }
+  }, [iconName]);
 
   return (
     <div
@@ -187,7 +196,7 @@ const LayerButton = ({
           background ? "pr-3" : "pr-2"
         )}
       >
-        {iconName ? (
+        {iconName && !imgError ? (
           <div style={{ height: 14, width: 14 }}>
             <img
               src={ICON_PREFIX + `${iconName}.png`}
