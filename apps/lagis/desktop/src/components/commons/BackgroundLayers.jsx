@@ -37,7 +37,7 @@ export const configuration = {
     conf: {
       type: "wms",
       url: "https://maps.wuppertal.de/deegree/wms",
-      layers: "R102:trueortho2022",
+      layers: "R102:trueOrtho2024",
       tileSize: 256,
       transparent: true,
       pane: "backgroundLayers",
@@ -63,7 +63,7 @@ export const configuration = {
       {
         type: "wms",
         url: "https://maps.wuppertal.de/deegree/wms",
-        layers: "R102:trueortho2022",
+        layers: "R102:trueOrtho2024",
         tileSize: 256,
         transparent: true,
         pane: "backgroundLayers",

@@ -91,7 +91,7 @@ const Hitzekarte = () => {
     },
 
     {
-      layerkey: "rvrGrundriss@100|trueOrtho2022@75|rvrSchriftNT@100",
+      layerkey: "rvrGrundriss@100|trueOrtho2024@75|rvrSchriftNT@100",
       src: mixedBG,
       title: "Luftbildkarte",
     },

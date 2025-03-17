@@ -106,12 +106,12 @@ export const getWebDavUrl = (jwt, doc) => {
 
 export const backgroundConfigurations = {
   lbk: {
-    layerkey: "rvrGrundriss@100|trueOrtho2022@75|rvrSchriftNT@100",
+    layerkey: "rvrGrundriss@100|trueOrtho2024@75|rvrSchriftNT@100",
     src: "/images/rain-hazard-map-bg/ortho.png",
     title: "Luftbildkarte",
   },
   ortho: {
-    layerkey: "trueOrtho2022@95",
+    layerkey: "trueOrtho2024@95",
     src: "/images/rain-hazard-map-bg/ortho.png",
     title: "Luftbild",
   },
