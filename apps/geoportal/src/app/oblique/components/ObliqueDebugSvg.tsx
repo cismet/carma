@@ -4,7 +4,7 @@ import { useCesiumContext } from "@carma-mapping/cesium-engine";
 import { Slider } from "antd";
 import { styled } from "styled-components";
 
-import { useObliqueDataContext } from "./ObliqueDataContext";
+import { useObliqueDataContext } from "../../oblique/hooks/useObliqueDataContext";
 import { CardinalNames } from "../utils/orientationUtils";
 import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
 import { getPreviewImageUrl } from "../utils/imageHandling";
@@ -133,8 +133,13 @@ export const ObliqueDebugSvg: React.FC<ObliqueDebugSvgProps> = ({
   const [imageRotation, setImageRotation] = useState(0); // 0, 90, 180, 270 degrees
   // Core contexts and refs
   const { viewerRef } = useCesiumContext();
-  const { imageRecords, converter, headingOffset, previewPath } =
-    useObliqueDataContext();
+  const {
+    imageRecords,
+    converter,
+    headingOffset,
+    previewPath,
+    centroidRBushBySectorBlocks,
+  } = useObliqueDataContext();
   const camera = viewerRef?.current?.camera;
 
   // Use enhanced hook for camera and image calculations
@@ -147,10 +152,16 @@ export const ObliqueDebugSvg: React.FC<ObliqueDebugSvgProps> = ({
     pointOnRadius,
     sectorHeading,
     nearestImages,
-  } = useNearestObliqueImage(imageRecords || null, converter, headingOffset, {
-    k: numImages,
-    debounceTime: 150,
-  });
+  } = useNearestObliqueImage(
+    imageRecords || null,
+    converter,
+    headingOffset,
+    centroidRBushBySectorBlocks,
+    {
+      k: numImages,
+      debounceTime: 150,
+    }
+  );
 
   // SVG dimensions
   const svgWidth = 800;

@@ -1,5 +1,5 @@
-import { type Converter } from "proj4";
-import { ExteriorPosition } from "../types";
+import proj4, { type Converter } from "proj4";
+import { ExteriorPosition, Proj4Converter } from "../types";
 
 /**
  * Calculates the convergence angle (meridian convergence) between a projected CRS and WGS84
@@ -11,12 +11,12 @@ import { ExteriorPosition } from "../types";
  */
 export function calculateConvergenceAngle(
   position: ExteriorPosition,
-  converter: Converter
+  converter: Proj4Converter
 ): number {
   const { x, y } = position;
 
   // Convert the point to WGS84
-  const [lon, lat] = converter.forward([x, y]);
+  const [lon, lat] = converter.converter.forward([x, y]);
 
   // Calculate two points slightly north of the original point in the source CRS
   // We'll use these to determine the grid north direction
@@ -28,7 +28,10 @@ export function calculateConvergenceAngle(
   };
 
   // Convert the north point to WGS84
-  const [northLon, northLat] = converter.forward([northPoint.x, northPoint.y]);
+  const [northLon, northLat] = converter.converter.forward([
+    northPoint.x,
+    northPoint.y,
+  ]);
 
   // Calculate the azimuth from the original point to the north point in WGS84
   // This gives us the direction of grid north in terms of true north
@@ -57,7 +60,7 @@ export function calculateConvergenceAngle(
 export function adjustHeadingToWGS84(
   heading: number,
   position: ExteriorPosition,
-  converter: Converter
+  converter: Proj4Converter
 ): number {
   // Calculate the convergence angle
   const convergenceAngle = calculateConvergenceAngle(position, converter);
@@ -70,4 +73,16 @@ export function adjustHeadingToWGS84(
     ((adjustedHeading % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
 
   return adjustedHeading;
+}
+
+export function createConverter(
+  sourceCrs: string,
+  targetCrs = "EPSG:4326"
+): Proj4Converter {
+  const converter = proj4(sourceCrs, targetCrs);
+  return {
+    converter,
+    sourceCrs,
+    targetCrs,
+  };
 }

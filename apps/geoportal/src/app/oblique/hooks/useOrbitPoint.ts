@@ -1,16 +1,16 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Cartesian3 } from "cesium";
 import { useCesiumContext, getOrbitPoint } from "@carma-mapping/cesium-engine";
-import type { Converter } from "proj4";
 
 import { calculateImageCoordsFromCartesian } from "../utils/obliqueReferenceUtils";
+import { Proj4Converter } from "../types";
 
 /**
  * Hook to get and convert the orbit point from Cesium
  * This provides the raw orbit point and its coordinates in the image CRS
  * but does not dictate how these coordinates should be used to calculate reference points
  */
-export function useOrbitPoint(converter?: Converter): {
+export function useOrbitPoint(converterObj: Proj4Converter | null): {
   orbitPoint: Cartesian3 | null;
   orbitPointCoords: [number, number, number] | null;
 } {
@@ -21,14 +21,14 @@ export function useOrbitPoint(converter?: Converter): {
   >(null);
 
   // Use refs to avoid unnecessary rerenders
-  const converterRef = useRef(converter);
+  const converterRef = useRef(converterObj);
   const lastPointRef = useRef<Cartesian3 | null>(null);
   const lastCoordsRef = useRef<[number, number, number] | null>(null);
 
   // Update converter ref when it changes
   useEffect(() => {
-    converterRef.current = converter;
-  }, [converter]);
+    converterRef.current = converterObj;
+  }, [converterObj]);
 
   // Memoize the return object to prevent consumer rerenders
   const returnRef = useRef({
@@ -61,6 +61,9 @@ export function useOrbitPoint(converter?: Converter): {
       point,
       converterRef.current
     );
+
+    // If coords is null, we can't proceed
+    if (!coords) return;
 
     // Skip update if coords haven't changed significantly
     if (

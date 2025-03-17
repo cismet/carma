@@ -25,7 +25,7 @@ import {
 import { useCesiumContext, getOrbitPoint } from "@carma-mapping/cesium-engine";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { getObliqueMode } from "../../store/slices/ui";
-import { useObliqueDataContext } from "../../oblique/components/ObliqueDataContext";
+import { useObliqueDataContext } from "../../oblique/hooks/useObliqueDataContext";
 import { showObliqueImageInfo } from "../../oblique/components/ObliqueImageInfoContainer";
 import { useFeatureFlags } from "@carma-apps/portals";
 import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
@@ -54,8 +54,13 @@ enum CardinalDirection {
 
 export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const isObliqueMode = useSelector(getObliqueMode);
-  const { headingOffset, nearestImage, previewPath, isAllDataReady } =
-    useObliqueDataContext();
+  const {
+    headingOffset,
+    nearestImage,
+    previewPath,
+    isAllDataReady,
+    setHasFlownToImage,
+  } = useObliqueDataContext();
   const { viewerRef } = useCesiumContext();
   const flags = useFeatureFlags();
   const isDebugMode = flags.featureFlagDebugOblique;
@@ -210,6 +215,9 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     const [longitude, latitude, height] = centerWGS84;
     const position = Cartesian3.fromDegrees(longitude, latitude, height - 400);
 
+    // Set flag to stop footprint updates
+    setHasFlownToImage(true);
+
     // Fly to the image position
     viewer.camera.flyTo({
       destination: position,
@@ -230,7 +238,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
         notifyPreviewVisibilityChange(true);
       },
     });
-  }, [viewerRef, nearestImage, isPreviewVisible]);
+  }, [viewerRef, nearestImage, isPreviewVisible, setHasFlownToImage]);
 
   const downloadHighQualityImage = useCallback(() => {
     if (!nearestImage || !previewPath) return;

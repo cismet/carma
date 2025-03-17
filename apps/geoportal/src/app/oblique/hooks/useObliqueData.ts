@@ -1,22 +1,24 @@
-import { useState, useCallback } from "react";
-import proj4, { type Converter } from "proj4";
+import { useState, useCallback, useMemo } from "react";
 
 import { extendObliqueImageRecord } from "../utils/obliqueImageRecord";
 import { getOrientedImageRecordAsync } from "../utils/parseOrientationsCSV";
 
-import { ObliqueImageRecord } from "../types";
-import { CardinalDirectionEnum } from "../utils/orientationUtils";
 import {
-  getFootprintCentroidsAsync,
-  PointMapByIdBySectorBlocks,
-} from "../utils/parseFootprintCentroidsCSV";
+  ObliqueImageRecord,
+  ObliqueImageRecordMap,
+  Proj4Converter,
+} from "../types";
+import { CardinalDirectionEnum } from "../utils/orientationUtils";
+import { getFootprintCentroidsAsync } from "../utils/parseFootprintCentroidsCSV";
+import { RBushBySectorBlocks } from "../utils/spatialIndexing";
+import { createConverter } from "../utils/crsUtils";
 
 type UseObliqueDataResult = {
   isLoading: boolean;
   progress: number;
   progressStage: string;
-  imageRecords: ObliqueImageRecord[] | null;
-  centroidMapBySectorBlock: PointMapByIdBySectorBlocks | null;
+  imageRecordMap: ObliqueImageRecordMap | null;
+  centroidRBushBySectorBlocks: RBushBySectorBlocks | null;
   error: string | null;
   stats: {
     imageCount: number;
@@ -30,10 +32,8 @@ type UseObliqueDataResult = {
     } | null;
   } | null;
 
-  parseCSV: () => Promise<
-    void | [ObliqueImageRecord[], PointMapByIdBySectorBlocks]
-  >;
-  converter: Converter;
+  parseCSV: () => Promise<void | [ObliqueImageRecordMap, RBushBySectorBlocks]>;
+  converter: Proj4Converter;
 };
 
 export function useObliqueData(
@@ -52,19 +52,20 @@ export function useObliqueData(
   const [progress, setProgress] = useState(0);
   const [progressStage, setProgressStage] = useState<string>("Initializing");
   const [error, setError] = useState<string | null>(null);
-  const [imageRecords, setImageRecords] = useState<ObliqueImageRecord[] | null>(
-    null
-  );
-  const [centroidMapBySectorBlock, setCentroidMapBySectorBlock] =
-    useState<PointMapByIdBySectorBlocks | null>(null);
+  const [imageRecordMap, setImageRecordMap] = useState<Map<
+    string,
+    ObliqueImageRecord
+  > | null>(null);
+  const [centroidRBushBySectorBlocks, setCentroidRBushBySectorBlocks] =
+    useState<RBushBySectorBlocks | null>(null);
   const [stats, setStats] = useState<UseObliqueDataResult["stats"] | null>(
     null
   );
-  const converter = proj4(crs, "EPSG:4326");
+  const converter = useMemo(() => createConverter(crs, "EPSG:4326"), [crs]);
 
   // Function to parse camera orientation CSV
   const parseCSV = useCallback(async (): Promise<
-    void | [ObliqueImageRecord[], PointMapByIdBySectorBlocks]
+    void | [ObliqueImageRecordMap, RBushBySectorBlocks]
   > => {
     // Check if we have a valid URL to parse
     if (!orientationsUri) {
@@ -80,11 +81,15 @@ export function useObliqueData(
     }
 
     // If we already have data loaded, just return it
-    if (imageRecords && imageRecords.length > 0 && centroidMapBySectorBlock) {
+    if (
+      imageRecordMap &&
+      imageRecordMap.size > 0 &&
+      centroidRBushBySectorBlocks
+    ) {
       console.log("CSV data already loaded, using cached data");
-      return Promise.resolve([imageRecords, centroidMapBySectorBlock] as [
-        ObliqueImageRecord[],
-        PointMapByIdBySectorBlocks
+      return Promise.resolve([imageRecordMap, centroidRBushBySectorBlocks] as [
+        ObliqueImageRecordMap,
+        RBushBySectorBlocks
       ]);
     }
 
@@ -95,9 +100,9 @@ export function useObliqueData(
     setError(null);
 
     try {
-      const { pointMapByIdBySectorBlock, stats: centroidStats } =
+      const { rbushBySectorBlocks, stats: centroidStats } =
         await getFootprintCentroidsAsync(centroidsUri);
-      setCentroidMapBySectorBlock(pointMapByIdBySectorBlock);
+      setCentroidRBushBySectorBlocks(rbushBySectorBlocks);
 
       const { images, stats } = await getOrientedImageRecordAsync(
         orientationsUri,
@@ -117,7 +122,12 @@ export function useObliqueData(
       const extensionTimeMs = performance.now() - extensionStartTime;
       const totalProcessingTimeMs = stats.processingTimeMs + extensionTimeMs;
 
-      setImageRecords(completeRecords);
+      const imageRecordMap = new Map<string, ObliqueImageRecord>();
+      completeRecords.forEach((record) => {
+        imageRecordMap.set(record.id, record);
+      });
+
+      setImageRecordMap(imageRecordMap);
       setStats({
         imageCount: completeRecords.length,
         centroidStats,
@@ -143,7 +153,7 @@ export function useObliqueData(
         console.info(
           `ObliqueStats | Total processing time: ${totalProcessingTimeMs} ms`
         );
-        console.info(`ObliqueStats | Centroids:`, pointMapByIdBySectorBlock);
+        console.info(`ObliqueStats | Centroids:`, rbushBySectorBlocks);
       } else {
         console.log("No OBLIQUE image records found in CSV data");
       }
@@ -152,9 +162,9 @@ export function useObliqueData(
       setProgressStage("Complete");
       setProgress(100);
 
-      return Promise.resolve([completeRecords, pointMapByIdBySectorBlock] as [
-        ObliqueImageRecord[],
-        PointMapByIdBySectorBlocks
+      return Promise.resolve([imageRecordMap, rbushBySectorBlocks] as [
+        ObliqueImageRecordMap,
+        RBushBySectorBlocks
       ]);
     } catch (error) {
       console.error("Error parsing CSV:", error);
@@ -171,17 +181,17 @@ export function useObliqueData(
     noNadir,
     debug,
     offset,
-    imageRecords,
-    centroidMapBySectorBlock,
+    imageRecordMap,
+    centroidRBushBySectorBlocks,
   ]);
 
   return {
     isLoading,
     progress,
     progressStage,
-    imageRecords,
+    imageRecordMap,
+    centroidRBushBySectorBlocks,
     converter,
-    centroidMapBySectorBlock,
     error,
     stats,
     parseCSV,

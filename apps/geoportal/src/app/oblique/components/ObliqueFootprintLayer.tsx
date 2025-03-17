@@ -3,9 +3,9 @@ import { useSelector } from "react-redux";
 import { GeoJsonDataSource, Color } from "cesium";
 
 import { useCesiumContext } from "@carma-mapping/cesium-engine";
+import { useObliqueDataContext } from "../../oblique/hooks/useObliqueDataContext";
 
 import { getObliqueMode } from "../../store/slices/ui";
-import { useObliqueDataContext } from "./ObliqueDataContext";
 import {
   findMatchingFeature,
   createFilteredGeoJson,
@@ -15,8 +15,11 @@ import {
 export const ObliqueFootprintLayer: React.FC = () => {
   const isObliqueMode = useSelector(getObliqueMode);
   const { viewerRef } = useCesiumContext();
-  const { nearestImage, footprintData } = useObliqueDataContext();
+  const { nearestImage, footprintData, hasFlownToImage } =
+    useObliqueDataContext();
   const dataSourceRef = useRef<GeoJsonDataSource | null>(null);
+  // Store the last displayed image ID to prevent unnecessary updates
+  const lastImageIdRef = useRef<string | null>(null);
 
   // Clean up data source when component unmounts
   useEffect(() => {
@@ -42,6 +45,14 @@ export const ObliqueFootprintLayer: React.FC = () => {
   useEffect(() => {
     if (!isObliqueMode || !viewerRef.current || !footprintData || !nearestImage)
       return;
+
+    // If we've flown to an image and already displayed this footprint, don't update
+    if (hasFlownToImage && lastImageIdRef.current === nearestImage.id) {
+      return;
+    }
+
+    // Store the current image ID
+    lastImageIdRef.current = nearestImage.id;
 
     const viewer = viewerRef.current;
 
@@ -80,7 +91,7 @@ export const ObliqueFootprintLayer: React.FC = () => {
       .catch((error) =>
         console.error("Error loading footprint GeoJSON:", error)
       );
-  }, [isObliqueMode, viewerRef, footprintData, nearestImage]);
+  }, [isObliqueMode, viewerRef, footprintData, nearestImage, hasFlownToImage]);
 
   return null;
 };

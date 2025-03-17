@@ -5,16 +5,21 @@ import { useCesiumContext } from "@carma-mapping/cesium-engine";
 import { Image } from "antd";
 import { styled, createGlobalStyle } from "styled-components";
 
+import { useFeatureFlags } from "@carma-apps/portals";
+
 import { getObliqueMode } from "../../store/slices/ui";
 import { ObliqueImageInfo } from "./ObliqueImageInfo";
 import { ObliqueDebugSvg } from "./ObliqueDebugSvg";
 import { ObliqueFootprintLayer } from "./ObliqueFootprintLayer";
-import { ObliqueImageRecord } from "../types";
-import { useObliqueDataContext } from "./ObliqueDataContext";
-import { useFeatureFlags } from "@carma-apps/portals";
+
+import { useObliqueDataContext } from "../../oblique/hooks/useObliqueDataContext";
+
 import { getPreviewImageUrl } from "../utils/imageHandling";
-import { NUM_NEAREST_IMAGES } from "../config";
 import { notifyPreviewVisibilityChange } from "../utils/previewVisibility";
+
+import { NUM_NEAREST_IMAGES } from "../config";
+
+import { ObliqueImageRecord } from "../types";
 
 const HiddenImagePreviewContainer = styled.div`
   position: "absolute";

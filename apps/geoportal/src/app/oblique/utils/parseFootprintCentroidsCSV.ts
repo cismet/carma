@@ -1,65 +1,67 @@
 import { CardinalDirectionEnum } from "./orientationUtils";
+import { createRBushByCardinal, RBushBySectorBlocks } from "./spatialIndexing";
+import { PointWithSector } from "../types";
 
 const HEADER = "X,Y,FILENAME,ORI";
+const CARDINAL_STRINGS = Object.freeze({
+  North: "NORD",
+  East: "OST",
+  South: "SUED",
+  West: "WEST",
+});
+
 const getCardinalDirection = (value: string): CardinalDirectionEnum => {
   if (!value) return CardinalDirectionEnum.North;
 
   const normalized = value.trim().toUpperCase();
 
-  //console.log(normalized);
-
-  if (normalized === 'NORD') return CardinalDirectionEnum.North;
-  if (normalized === 'OST') return CardinalDirectionEnum.East;
-  if (normalized === 'SUED') return CardinalDirectionEnum.South;
-  if (normalized === 'WEST') return CardinalDirectionEnum.West;
+  if (normalized === CARDINAL_STRINGS.North) return CardinalDirectionEnum.North;
+  if (normalized === CARDINAL_STRINGS.East) return CardinalDirectionEnum.East;
+  if (normalized === CARDINAL_STRINGS.South) return CardinalDirectionEnum.South;
+  if (normalized === CARDINAL_STRINGS.West) return CardinalDirectionEnum.West;
 
   return CardinalDirectionEnum.North;
 };
 
-export type PointMapById = Map<string, [number, number]>;
-export type PointMapByIdBySectorBlocks = Map<
-  CardinalDirectionEnum,
-  PointMapById
->;
-
-export function parsePointMapByIdBySectorBlocksFromCSV(
+export function parseFootprintCentroidsFromCSV(
   csvText: string
-): PointMapByIdBySectorBlocks {
+): PointWithSector[] {
   // Check for BOM and remove if present
-  const cleanedText = csvText.charCodeAt(0) === 0xFEFF ? csvText.slice(1) : csvText;
+  const cleanedText =
+    csvText.charCodeAt(0) === 0xfeff ? csvText.slice(1) : csvText;
   // Split by newlines (handle both \n and \r\n)
   const lines = cleanedText.split(/\r?\n/).filter((line) => line.trim());
 
   const headerIndex = lines.findIndex((line) => line.includes(HEADER));
   const dataLines = headerIndex >= 0 ? lines.slice(headerIndex + 1) : lines;
 
-  const result: PointMapByIdBySectorBlocks = new Map([
-    [CardinalDirectionEnum.North, new Map<string, [number, number]>()],
-    [CardinalDirectionEnum.East, new Map<string, [number, number]>()],
-    [CardinalDirectionEnum.South, new Map<string, [number, number]>()],
-    [CardinalDirectionEnum.West, new Map<string, [number, number]>()],
-  ]);
+  const centroids: PointWithSector[] = [];
 
-  dataLines.reduce((result, row) => {
+  dataLines.forEach((row) => {
     const parts = row.split(",");
-    if (parts.length < 4) return result;
+    if (parts.length < 4) return;
 
     const [xRaw, yRaw, id, cardinalString] = parts;
     const cardinal = getCardinalDirection(cardinalString);
     const x = parseFloat(xRaw);
     const y = parseFloat(yRaw);
 
-    if (isNaN(x) || isNaN(y)) return result;
+    if (isNaN(x) || isNaN(y)) return;
 
-    result.get(cardinal)?.set(id, [x, y]);
-    return result;
-  }, result);
+    centroids.push({
+      id,
+      x,
+      y,
+      cardinal,
+    });
+  });
 
-  return result;
+  return centroids;
 }
 
 export async function getFootprintCentroidsAsync(url: string): Promise<{
-  pointMapByIdBySectorBlock: PointMapByIdBySectorBlocks;
+  centroids: PointWithSector[];
+  rbushBySectorBlocks: RBushBySectorBlocks;
   stats: {
     pointCount: number;
     processingTimeMs: number;
@@ -78,18 +80,22 @@ export async function getFootprintCentroidsAsync(url: string): Promise<{
       );
     }
     const csvText = await response.text();
-    const centroids = parsePointMapByIdBySectorBlocksFromCSV(csvText);
+
+    // First parse the CSV to get centroids
+    const centroids = parseFootprintCentroidsFromCSV(csvText);
+
+    // Then create spatial indices from the centroids
+    const rbushBySectorBlocks = createRBushByCardinal(centroids);
+
     return {
-      pointMapByIdBySectorBlock: centroids,
+      centroids,
+      rbushBySectorBlocks,
       stats: {
-        pointCount: Array.from(centroids.values()).reduce(
-          (acc, sectorBlock) => acc + sectorBlock.size,
-          0
-        ),
+        pointCount: centroids.length,
         processingTimeMs: performance.now() - startTime,
       },
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error processing CSV:", error);
     throw error;
   }
