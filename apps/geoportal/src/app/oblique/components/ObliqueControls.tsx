@@ -605,10 +605,11 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
           {/* Fly to image button or close preview button */}
           {nearestImage && (
             <Tooltip
+              placement="right"
               title={
                 isPreviewVisible
                   ? "Vorschau schließen"
-                  : "Zu nächstem Schrägluftbild fliegen"
+                  : "Zur ausgewählten Schrägluftbild-Aufnahmeposition fliegen"
               }
             >
               <div>
@@ -627,7 +628,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
           {/* Download button when preview is not visible */}
           {!isPreviewVisible && nearestImage && previewPath && (
-            <Tooltip title="Bild in Qualität Level 2 herunterladen, Bild öffnet in neuemFenster">
+            <Tooltip placement="right" title="Bild in Qualität Level 2 herunterladen, Bild öffnet in neuemFenster">
               <div
                 style={{
                   display: "flex",
