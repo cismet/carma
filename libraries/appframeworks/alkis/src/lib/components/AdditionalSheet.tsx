@@ -82,7 +82,7 @@ export const AdditionalSheet = ({
                     : "max-content max-content",
                   // rowGap: "4px",
                   columnGap: "2rem",
-                  maxWidth: "800px",
+                  maxWidth: "500px",
                   width: "100%",
                   gridAutoRows: "min-content",
                 }}
