@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { AdditionalSheet } from "../components/AdditionalSheet";
 import { CustomCard } from "../components/CustomCard";
 import {
@@ -6,8 +6,6 @@ import {
   bookingColors,
   getAdditionalTextForBooking,
   getBookingByLandparcelCode,
-  getLandRegisterDistrict,
-  pdfProductsSheet,
 } from "../utils/helper";
 import PdfDocumentLoader from "../components/PdfDocumentLoader";
 import { Map } from "../components/Map";
@@ -49,7 +47,8 @@ export const BookingContent = ({
   allPdfPermission,
   sheetData,
 }: BookingContentProps) => {
-  //   const bookingOff = booking.data.alkis_buchungsblatt[0].landparcelsArray;
+  const [selectedFeature, setSelectedFeature] = useState<number | null>(null);
+
   const urlPrefix = window.location.origin + window.location.pathname;
 
   return (
@@ -95,7 +94,11 @@ export const BookingContent = ({
                 </div>
               </div>
               <div className="w-[70%] max-[970px]:w-[100%] mb-2">
-                <Map extractor={additionalSheetExtractor} dataIn={geometry} />
+                <Map
+                  extractor={additionalSheetExtractor}
+                  dataIn={geometry}
+                  selectedFeature={selectedFeature}
+                />
               </div>
             </div>
           </div>
@@ -123,10 +126,7 @@ export const BookingContent = ({
                   key={idx}
                   className="flex items-center gap-2 cursor-pointer"
                   onClick={() =>
-                    console.log(
-                      "xxx clicked",
-                      o.alkis_buchungsblatt_landparcel.id
-                    )
+                    setSelectedFeature(o.alkis_buchungsblatt_landparcel.id)
                   }
                 >
                   <span

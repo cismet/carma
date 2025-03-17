@@ -19,7 +19,11 @@ const mockExtractor = (input) => {
   };
 };
 
-export const Map = <T,>({ dataIn, extractor = mockExtractor }: MapProps<T>) => {
+export const Map = <T,>({
+  dataIn,
+  extractor = mockExtractor,
+  selectedFeature,
+}: MapProps<T>) => {
   const data = extractor(dataIn);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const [mapWidth, setMapWidth] = useState<number>(0);
@@ -46,28 +50,23 @@ export const Map = <T,>({ dataIn, extractor = mockExtractor }: MapProps<T>) => {
   function fitMapBounds() {
     const map = routedMapRef?.leafletMap?.leafletElement;
     if (map == undefined) {
-      // console.log("xxx map is undefined");
       return;
     } else {
     }
     let bb: LatLngBounds | undefined = undefined;
     if (data?.featureCollection && data?.featureCollection.length > 0) {
-      // console.log("xxx will use featureCollection", data?.featureCollection);
-
       bb = getBoundsForFeatureArray(data?.featureCollection);
     } else if (data?.allFeatures && data?.allFeatures.length > 0) {
-      // console.log("xxx will use allFeatures", data?.allFeatures);
       bb = getBoundsForFeatureArray(data?.allFeatures);
     }
 
     if (map && bb) {
       map.fitBounds(bb);
-      // console.log("xxx fitBounds");
     }
   }
 
   useEffect(() => {
-    if (routedMapRef?.leafletMap?.leafletElement) {
+    if (routedMapRef?.leafletMap?.leafletElement && !selectedFeature) {
       const map = routedMapRef.leafletMap.leafletElement;
       map.scrollWheelZoom.disable();
       map.dragging.disable();
@@ -76,6 +75,19 @@ export const Map = <T,>({ dataIn, extractor = mockExtractor }: MapProps<T>) => {
       }, 500);
     }
   }, [routedMapRef, data]);
+
+  useEffect(() => {
+    if (selectedFeature !== null) {
+      const map = routedMapRef?.leafletMap?.leafletElement;
+      if (map) {
+        const feature = data.featureCollection.filter(
+          (f) => f.id === selectedFeature
+        );
+        const bounds = getBoundsForFeatureArray(feature);
+        map.fitBounds(bounds);
+      }
+    }
+  }, [selectedFeature]);
 
   return (
     <div ref={wrapperRef} className="h-80">
@@ -94,9 +106,6 @@ export const Map = <T,>({ dataIn, extractor = mockExtractor }: MapProps<T>) => {
         pushToHistory={() => {}}
       >
         <FeatureCollectionDisplay
-          featureClickHandler={(event, feature, layer) =>
-            console.log("xxx feature clicked", feature)
-          }
           featureCollection={data.featureCollection}
           style={data.styler}
         />

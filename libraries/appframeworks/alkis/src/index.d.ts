@@ -91,6 +91,7 @@ export interface MapExtractorResult {
 export interface MapProps<T> {
   dataIn: T;
   extractor?: (input: T) => MapExtractorResult;
+  selectedFeature?: number | null;
 }
 
 export interface LandparcelInfoProps {

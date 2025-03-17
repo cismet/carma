@@ -122,21 +122,6 @@ export const getAdditionalTextForBooking = (newInfos, bookingType) => {
   return newText;
 };
 
-// export const getBookingByLandparcelCode = (landparcelcode, buchungsstellen) => {
-//   debugger;
-//   const booking = buchungsstellen.filter((b) => {
-//     if (!b.buchungsstellen) {
-//       return false;
-//     } else {
-//       return (
-//         b?.buchungsstellen[0]?.landParcel[0]?.landParcelCode === landparcelcode
-//       );
-//     }
-//   });
-
-//   return booking;
-// };
-
 export const getBookingByLandparcelCode = (landparcelCode, buchungsstellen) =>
   buchungsstellen.filter(
     (b) =>
