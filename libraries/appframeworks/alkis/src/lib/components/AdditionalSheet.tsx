@@ -65,8 +65,6 @@ export const AdditionalSheet = ({
               }
             }
 
-            console.log("xxx attributesZaehlerNenner", attributesZaehlerNenner);
-
             const { houseNumber, postalCode, city, street } =
               owner.addresses?.[0] || {};
 
@@ -141,8 +139,10 @@ export const AdditionalSheet = ({
               >
                 <div>
                   <b>
-                    {/* {!ifLegalDesc ? "Rechtsgemeinschaft:" : "Erbengemeinschaft:"} */}
-                    Rechtsgemeinschaft:{" "}
+                    {l.artRechtsgemeinschaft === "Sonstiges"
+                      ? "Rechtsgemeinschaft:"
+                      : l.artRechtsgemeinschaft}
+                    {/* Rechtsgemeinschaft:{" "} */}
                   </b>
                   {l.beschriebRechtsgemeinschaft}
                 </div>
