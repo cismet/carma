@@ -47,12 +47,12 @@ export const ObliqueFootprintLayer: React.FC = () => {
       return;
 
     // If footprint is locked and already displayed this footprint, don't update
-    if (lockFootprint && lastImageIdRef.current === nearestImage.id) {
+    if (lockFootprint && lastImageIdRef.current === nearestImage.record.id) {
       return;
     }
 
     // Store the current image ID
-    lastImageIdRef.current = nearestImage.id;
+    lastImageIdRef.current = nearestImage.record.id;
 
     const viewer = viewerRef.current;
 
@@ -63,11 +63,11 @@ export const ObliqueFootprintLayer: React.FC = () => {
 
     const matchingFeature = findMatchingFeature(
       footprintData.features,
-      nearestImage.id
+      nearestImage.record.id
     );
 
     if (!matchingFeature) {
-      console.log(`No footprint found for image ID: ${nearestImage.id}`);
+      console.log(`No footprint found for image ID: ${nearestImage.record.id}`);
       return;
     }
 

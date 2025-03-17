@@ -34,11 +34,17 @@ export interface ObliqueImageRecord extends BasicObliqueImageRecord {
   rotationMatrix: Matrix3;
 }
 
+export type NearestObliqueImageRecord = {
+  record: ObliqueImageRecord;
+  distanceOnGround: number;
+  distanceToCamera: number;
+  imageCenter: Omit<PointWithSector, "id">;
+};
+
 export type ObliqueImageRecordMap = Map<string, ObliqueImageRecord>;
 
 export interface ObliqueDataProviderConfig {
   orientationsURI: string;
-  centroidsURI: string;
   crs: string;
   previewPath: string;
   previewQualityLevel?: OBLIQUE_PREVIEW_QUALITY;
@@ -53,6 +59,8 @@ export interface PointWithSector {
   id: string;
   x: number;
   y: number;
+  longitude: number;
+  latitude: number;
   cardinal: CardinalDirectionEnum;
 }
 

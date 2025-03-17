@@ -1,25 +1,13 @@
 import { Entity, Color, ColorMaterialProperty, ConstantProperty } from "cesium";
 import { buffer, difference, featureCollection } from "@turf/turf";
-import type { Feature } from "@turf/helpers";
+import type { Feature, FeatureCollection, Polygon } from "geojson";
 
 export interface FootprintProperties {
   FILENAME: string;
   [key: string]: string | number | boolean;
 }
 
-export interface FootprintFeature {
-  type: string;
-  properties: FootprintProperties;
-  geometry: {
-    type: string;
-    coordinates: number[][][];
-  };
-}
-
-export interface FootprintCollection {
-  type: string;
-  features: FootprintFeature[];
-}
+export type FootprintFeature = Feature<Polygon, FootprintProperties>;
 
 export const FOOTPRINT_URL =
   "https://wupp-oblique.cismet.de/2024/metadata/fprfc.geojson";
@@ -28,7 +16,7 @@ export const BUFFER_WIDTH_METERS = 10;
 
 export const fetchGeoJson = async (
   url: string
-): Promise<FootprintCollection> => {
+): Promise<FeatureCollection<Polygon, FootprintProperties>> => {
   const response = await fetch(url);
   return response.json();
 };
@@ -40,21 +28,24 @@ export const findMatchingFeature = (
 
 export const createFilteredGeoJson = (
   feature: FootprintFeature
-): FootprintCollection => {
+): FeatureCollection<Polygon, FootprintProperties> => {
   try {
     const featureCopy = JSON.parse(JSON.stringify(feature));
     const buffered = buffer(featureCopy, BUFFER_WIDTH_METERS, {
       units: "meters",
     });
     const outline = difference(
-      featureCollection([buffered as Feature, featureCopy as Feature])
+      featureCollection([
+        buffered as FootprintFeature,
+        featureCopy as FootprintFeature,
+      ])
     );
 
     if (outline && outline.geometry) {
       const hollowFeature = {
         ...featureCopy,
         geometry: outline.geometry,
-      } as Feature;
+      } as FootprintFeature;
 
       return {
         type: "FeatureCollection",

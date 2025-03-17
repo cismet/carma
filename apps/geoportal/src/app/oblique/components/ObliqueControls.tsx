@@ -21,6 +21,8 @@ import {
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
   ConstantPositionProperty,
+  sampleTerrainMostDetailed,
+  Cartographic,
 } from "cesium";
 
 import { useCesiumContext, getOrbitPoint } from "@carma-mapping/cesium-engine";
@@ -82,7 +84,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     previewQualityLevel,
     setLockFootprint,
   } = useObliqueDataContext();
-  const { viewerRef } = useCesiumContext();
+  const { viewerRef, terrainProviderRef } = useCesiumContext();
   const flags = useFeatureFlags();
   const isDebugMode = flags.featureFlagDebugOblique;
   const animationInProgressRef = useRef<boolean>(false);
@@ -216,7 +218,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     return Math.round(degrees);
   }, []);
 
-  const flyToNearestImage = useCallback(() => {
+  const flyToNearestImage = useCallback(async () => {
     // If preview is visible, close it
     if (isPreviewVisible) {
       setIsPreviewVisible(false);
@@ -229,19 +231,29 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     const viewer = viewerRef.current;
 
     // Extract position from the image record
-    const { centerWGS84, fallbackHeading: calculatedHeading } = nearestImage;
-    if (!centerWGS84) return;
+    const { centerWGS84, fallbackHeading: calculatedHeading } =
+      nearestImage.record;
+    const { imageCenter } = nearestImage;
+    if (!centerWGS84 || !imageCenter) return;
 
     // Create Cartesian3 from WGS84 coordinates
     const [longitude, latitude, height] = centerWGS84;
-    const position = Cartesian3.fromDegrees(longitude, latitude, height - 400);
-
-    // Create lookAt point from perspective center (centroid)
-    const lookAtPoint = Cartesian3.fromDegrees(
-      nearestImage.perspectiveCenter.x,
-      nearestImage.perspectiveCenter.y,
-      0
+    const position = Cartesian3.fromDegrees(longitude, latitude, height);
+    const imageCenterCartesian = Cartesian3.fromDegrees(
+      imageCenter.longitude,
+      imageCenter.latitude
     );
+
+    console.log("imageCenterCartesian", imageCenterCartesian, imageCenter);
+
+    const imageCenterCartograpic =
+      Cartographic.fromCartesian(imageCenterCartesian);
+    const [centerWithHeight] = await sampleTerrainMostDetailed(
+      terrainProviderRef.current,
+      [imageCenterCartograpic]
+    );
+
+    console.debug("should look at centerWithHeight", centerWithHeight);
 
     // Set flag to stop footprint updates
     setLockFootprint(true);
@@ -250,7 +262,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     viewer.camera.flyTo({
       destination: position,
       orientation: {
-        target: lookAtPoint,
         heading: calculatedHeading,
         pitch: -Math.PI / 4, // 45 degrees down
         roll: 0,
@@ -265,7 +276,13 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
         notifyPreviewVisibilityChange(true);
       },
     });
-  }, [viewerRef, nearestImage, isPreviewVisible, setLockFootprint]);
+  }, [
+    viewerRef,
+    terrainProviderRef,
+    nearestImage,
+    isPreviewVisible,
+    setLockFootprint,
+  ]);
 
   const downloadHighQualityImage = useCallback(() => {
     if (!nearestImage || !previewPath) return;
@@ -274,7 +291,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     const downloadUrl = getPreviewImageUrl(
       previewPath,
       OBLIQUE_PREVIEW_QUALITY.LEVEL_2,
-      nearestImage.id
+      nearestImage.record.id
     );
 
     // Open in a new tab
@@ -545,15 +562,15 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
         <ObliqueImageInfo imageRecord={nearestImage} />
       )}
       {/* Hidden image in center that will be used for preview */}
-      {nearestImage && previewPath && nearestImage.id && (
+      {nearestImage && previewPath && nearestImage.record.id && (
         <HiddenImagePreviewContainer>
           <AntdImage
             src={getPreviewImageUrl(
               previewPath,
               previewQualityLevel,
-              nearestImage.id
+              nearestImage.record.id
             )}
-            alt={`Image preview ${nearestImage.id}`}
+            alt={`Image preview ${nearestImage.record.id}`}
             preview={{
               visible: isPreviewVisible,
               style: {
@@ -562,7 +579,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
               src: getPreviewImageUrl(
                 previewPath,
                 previewQualityLevel,
-                nearestImage.id
+                nearestImage.record.id
               ),
               onVisibleChange: (visible) => {
                 setIsPreviewVisible(visible);

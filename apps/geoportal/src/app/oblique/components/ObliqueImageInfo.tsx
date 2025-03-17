@@ -1,10 +1,10 @@
 import React from "react";
 import { Card } from "antd";
 import { styled } from "styled-components";
-import { ObliqueImageRecord } from "../types";
+import { NearestObliqueImageRecord, ObliqueImageRecord } from "../types";
 
 interface ObliqueImageInfoProps {
-  imageRecord: ObliqueImageRecord | null;
+  imageRecord: ObliqueImageRecord | NearestObliqueImageRecord | null;
 }
 
 const InfoCard = styled(Card)`

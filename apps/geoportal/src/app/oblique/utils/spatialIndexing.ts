@@ -7,14 +7,11 @@ import RBush from "rbush";
 import knn from "rbush-knn";
 import { CardinalDirectionEnum } from "./orientationUtils";
 
-export interface RBushItem {
+export interface RBushItem extends PointWithSector {
   minX: number;
   minY: number;
   maxX: number;
   maxY: number;
-  x: number;
-  y: number;
-  id: string;
 }
 
 export type RBushBySectorBlocks = Map<CardinalDirectionEnum, RBush<RBushItem>>;
@@ -192,17 +189,18 @@ export function createRBushByCardinal(
   ]);
 
   // Process all points in a single pass
-  for (const { id, x, y, cardinal } of pointWithSector) {
+  for (const { x, y, cardinal, ...rest } of pointWithSector) {
     if (typeof x === "undefined" || typeof y === "undefined") continue;
 
     const item: RBushItem = {
-      x,
-      y,
       minX: x,
       minY: y,
       maxX: x,
       maxY: y,
-      id,
+      x,
+      y,
+      cardinal,
+      ...rest,
     };
 
     const items = itemsByCardinal.get(cardinal);

@@ -82,3 +82,25 @@ export function getApproximateHeadingBySector(
   const baseHeading = getHeadingFromCardinalDirection(sector);
   return baseHeading + offset;
 }
+
+// for parser from provided GeoJSON File format.
+
+const CARDINAL_STRINGS = Object.freeze({
+  North: "NORD",
+  East: "OST",
+  South: "SUED",
+  West: "WEST",
+});
+
+export const getCardinalDirection = (value: string): CardinalDirectionEnum => {
+  if (!value) return CardinalDirectionEnum.North;
+
+  const normalized = value.trim().toUpperCase();
+
+  if (normalized === CARDINAL_STRINGS.North) return CardinalDirectionEnum.North;
+  if (normalized === CARDINAL_STRINGS.East) return CardinalDirectionEnum.East;
+  if (normalized === CARDINAL_STRINGS.South) return CardinalDirectionEnum.South;
+  if (normalized === CARDINAL_STRINGS.West) return CardinalDirectionEnum.West;
+
+  return CardinalDirectionEnum.North;
+};

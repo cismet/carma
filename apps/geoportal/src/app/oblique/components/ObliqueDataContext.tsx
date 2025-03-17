@@ -12,6 +12,7 @@ import { useObliqueData } from "../hooks/useObliqueData";
 import { NUM_NEAREST_IMAGES } from "../config";
 import { useNearestObliqueImage } from "../hooks/useNearestObliqueImage";
 import {
+  NearestObliqueImageRecord,
   ObliqueDataProviderConfig,
   ObliqueImageRecord,
   ObliqueImageRecordMap,
@@ -20,19 +21,24 @@ import {
 import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
 import { CardinalDirectionEnum } from "../utils/orientationUtils";
 import {
-  type FootprintCollection,
   fetchGeoJson,
   FOOTPRINT_URL,
+  FootprintProperties,
 } from "../utils/footprintUtils";
-import { RBushBySectorBlocks } from "../utils/spatialIndexing";
+import {
+  RBushBySectorBlocks,
+  createRBushByCardinal,
+} from "../utils/spatialIndexing";
+import { getFootprintCenterpoints } from "../utils/footprintCenterpoints";
+import type { FeatureCollection, Polygon } from "geojson";
 
 // Define the shape of our context
+// todo: consolidate per Image result data into NearestImageRecord
 interface ObliqueDataContextType {
   imageRecords: ObliqueImageRecordMap | null;
-  centroidRBushBySectorBlocks: RBushBySectorBlocks | null;
   isLoading: boolean;
   error: string | null;
-  nearestImage: ObliqueImageRecord | null;
+  nearestImage: NearestObliqueImageRecord | null;
   distanceToNearestImage: number | null;
   refreshNearestImageSearch: () => void;
   converter: Proj4Converter;
@@ -43,7 +49,8 @@ interface ObliqueDataContextType {
   minFov: number;
   maxFov: number;
   headingOffset: number;
-  footprintData: FootprintCollection | null;
+  footprintData: FeatureCollection<Polygon, FootprintProperties> | null;
+  footprintCenterpointsRBushByCardinals: RBushBySectorBlocks | null;
   isFootprintLoading: boolean;
   footprintError: string | null;
   isAllDataReady: boolean;
@@ -76,7 +83,6 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
   const [lockFootprint, setLockFootprint] = useState(false);
   const {
     orientationsURI,
-    centroidsURI,
     crs,
     previewPath,
     previewQualityLevel,
@@ -89,43 +95,42 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
 
   // Use the oblique data hook to get camera orientations
   const {
-    imageRecordMap,
-    centroidRBushBySectorBlocks,
+    imageRecordMap: imageRecords,
     parseCSV,
     isLoading,
     converter,
     error,
   } = useObliqueData(
     orientationsURI,
-    centroidsURI,
     crs,
     headingOffset,
     fallbackDirectionConfig
   );
 
-  // Use a stable reference for the centroid map to prevent unnecessary re-renders
-  const centroidMapBySectorBlock = useMemo(
-    () => centroidRBushBySectorBlocks,
-    [centroidRBushBySectorBlocks]
-  );
-
   // Store when data has been previously loaded to prevent duplicate loads
   const [dataLoaded, setDataLoaded] = useState(false);
 
+  // Footprint data states
+  const [footprintData, setFootprintData] = useState<FeatureCollection<
+    Polygon,
+    FootprintProperties
+  > | null>(null);
+  const [
+    footprintCenterpointsRBushByCardinals,
+    setFootprintCenterpointsRBushByCardinals,
+  ] = useState<RBushBySectorBlocks | null>(null);
+  const [isFootprintLoading, setIsFootprintLoading] = useState(false);
+
   // Add nearest image finding
   const { nearestImage, distance, refreshSearch } = useNearestObliqueImage(
-    imageRecordMap,
+    imageRecords,
     converter,
     headingOffset,
-    centroidMapBySectorBlock,
+    footprintCenterpointsRBushByCardinals,
     { debounceTime: 150, k: NUM_NEAREST_IMAGES },
     lockFootprint
   );
 
-  // Footprint data states
-  const [footprintData, setFootprintData] =
-    useState<FootprintCollection | null>(null);
-  const [isFootprintLoading, setIsFootprintLoading] = useState(false);
   const [footprintError, setFootprintError] = useState<string | null>(null);
 
   // Global loading state
@@ -156,14 +161,14 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
   // Trigger nearest image search when data is loaded
   useEffect(() => {
     if (
-      imageRecordMap &&
-      imageRecordMap.size > 0 &&
+      imageRecords &&
+      imageRecords.size > 0 &&
       isObliqueMode &&
       !lockFootprint
     ) {
       refreshSearch();
     }
-  }, [imageRecordMap, isObliqueMode, refreshSearch, lockFootprint]);
+  }, [imageRecords, isObliqueMode, refreshSearch, lockFootprint]);
 
   // Load footprint data when in oblique mode
   useEffect(() => {
@@ -173,8 +178,16 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
     setFootprintError(null);
 
     fetchGeoJson(FOOTPRINT_URL)
-      .then((data) => {
+      .then((data: FeatureCollection<Polygon, FootprintProperties>) => {
         setFootprintData(data);
+        const footprintCenterpoints = getFootprintCenterpoints(data, converter);
+        console.debug("Footprint centerpoints:", footprintCenterpoints);
+        const footprintCenterpointsRBushByCardinals = createRBushByCardinal(
+          footprintCenterpoints
+        );
+        setFootprintCenterpointsRBushByCardinals(
+          footprintCenterpointsRBushByCardinals
+        );
         setIsFootprintLoading(false);
       })
       .catch((error) => {
@@ -182,7 +195,7 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
         setFootprintError(error.message);
         setIsFootprintLoading(false);
       });
-  }, [isObliqueMode]);
+  }, [isObliqueMode, converter]);
 
   // Update global loading state when all data is ready
   useEffect(() => {
@@ -194,8 +207,7 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
   }, [dataLoaded, isFootprintLoading, isLoading]);
 
   const value = {
-    imageRecords: imageRecordMap,
-    centroidRBushBySectorBlocks,
+    imageRecords,
     isLoading,
     error,
     nearestImage,
@@ -210,6 +222,7 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
     maxFov,
     headingOffset,
     footprintData,
+    footprintCenterpointsRBushByCardinals,
     isFootprintLoading,
     footprintError,
     isAllDataReady,

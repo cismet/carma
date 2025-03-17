@@ -133,7 +133,7 @@ export const ObliqueDebugSvg = () => {
     converter,
     headingOffset,
     previewPath,
-    centroidRBushBySectorBlocks,
+    footprintCenterpointsRBushByCardinals,
   } = useObliqueDataContext();
   const camera = viewerRef?.current?.camera;
 
@@ -151,7 +151,7 @@ export const ObliqueDebugSvg = () => {
     imageRecords || null,
     converter,
     headingOffset,
-    centroidRBushBySectorBlocks,
+    footprintCenterpointsRBushByCardinals,
     {
       k: NUM_NEAREST_IMAGES,
       debounceTime: 150,

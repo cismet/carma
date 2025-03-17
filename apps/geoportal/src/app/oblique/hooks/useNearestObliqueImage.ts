@@ -15,9 +15,9 @@ import {
 
 import { NUM_NEAREST_IMAGES } from "../config";
 
-import { type RBushBySectorBlocks } from "../utils/spatialIndexing";
+import { RBushItem, type RBushBySectorBlocks } from "../utils/spatialIndexing";
 import type {
-  ObliqueImageRecord,
+  NearestObliqueImageRecord,
   ObliqueImageRecordMap,
   Proj4Converter,
 } from "../types";
@@ -39,7 +39,7 @@ export function useNearestObliqueImage(
   obliqueRecords: ObliqueImageRecordMap | null,
   converter: Proj4Converter | null,
   headingOffset: number,
-  centroidMapBySectorBlock: RBushBySectorBlocks | null = null,
+  centerpoints: RBushBySectorBlocks | null = null,
   options: UseNearestObliqueImageOptions = defaultOptions,
   lockFootprint: boolean = false
 ) {
@@ -47,9 +47,12 @@ export function useNearestObliqueImage(
   const { orbitPointCoords } = useOrbitPoint(converter);
 
   // State for values that need to be returned from the hook
-  const [nearestImage, setNearestImage] = useState<ObliqueImageRecord | null>(
-    null
-  );
+  const [nearestImage, setNearestImage] =
+    useState<NearestObliqueImageRecord | null>(null);
+  const [nearestImages, setNearestImages] = useState<
+    NearestObliqueImageRecord[]
+  >([]);
+
   const [distance, setDistance] = useState<number | null>(null);
   const [cameraPosition, setCameraPosition] = useState<[number, number]>([
     0, 0,
@@ -68,9 +71,6 @@ export function useNearestObliqueImage(
     y: number;
   } | null>(null);
   const [sectorHeading, setSectorHeading] = useState<number>(0);
-  const [nearestImages, setNearestImages] = useState<
-    Array<{ record: ObliqueImageRecord; distance: number }>
-  >([]);
 
   // Function to refresh the search for nearest images
   const refreshSearch = useCallback(() => {
@@ -140,60 +140,62 @@ export function useNearestObliqueImage(
       );
 
       // Find and set nearest images
-      let filteredImages;
+      let filteredImages = [];
 
-      const testPoint = {
+      const orbitPoint = {
         x: orbitPointCoords[0],
         y: orbitPointCoords[1],
       };
       const k = options.k || defaultOptions.k;
 
-      // If we have a pre-built centroid spatial index, use it
-      if (
-        centroidMapBySectorBlock &&
-        centroidMapBySectorBlock.has(cameraCardinal)
-      ) {
-        const sectorTree = centroidMapBySectorBlock.get(cameraCardinal);
+      if (centerpoints && centerpoints.has(cameraCardinal)) {
+        const sectorTree = centerpoints.get(cameraCardinal);
         console.debug("sectorTree", sectorTree);
         if (sectorTree) {
           try {
             // Use the pre-built spatial index for this sector
             // Search directly based on orbit center coordinates
-            const nearestItems = knn(sectorTree, testPoint.x, testPoint.y, k);
+            const nearestItems = knn(sectorTree, orbitPoint.x, orbitPoint.y, k);
             console.debug(
               "sectorTree nearestItems",
               cameraCardinal,
               k,
-              testPoint,
+              orbitPoint,
               nearestItems
             );
 
             // Map to records with distances - use obliqueRecords directly since it's already a Map
             filteredImages = nearestItems
-              .map((item) => {
+              .map((item: RBushItem) => {
                 const record = obliqueRecords.get(item.id);
                 if (!record) return null;
 
-                // Calculate distance directly to orbit center for more stable results
-                const dx = orbitPointCoords[0] - record.perspectiveCenter.x;
-                const dy = orbitPointCoords[1] - record.perspectiveCenter.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
+                const { x, y } = record.perspectiveCenter;
 
-                return { record, distance };
+                // Calculate distance directly to orbit center for more stable results
+                const dx = orbitPoint.x - x;
+                const dy = orbitPoint.y - y;
+                const distanceToCamera = Math.sqrt(dx * dx + dy * dy);
+
+                // Calculate distance on ground
+                const dxGround = orbitPoint.x - item.x;
+                const dyGround = orbitPoint.y - item.y;
+                const distanceOnGround = Math.sqrt(
+                  dxGround * dxGround + dyGround * dyGround
+                );
+
+                return {
+                  record,
+                  distanceToCamera,
+                  distanceOnGround,
+                  imageCenter: item,
+                };
               })
               .filter(Boolean);
           } catch (e) {
-            console.warn(
-              "Error using centroid spatial index, falling back to regular search:",
-              e
-            );
+            console.warn("Error using spatial index", e);
           }
         }
-      }
-
-      // If we don't have filtered images from the centroid index, use an empty array
-      if (!filteredImages) {
-        filteredImages = [];
       }
 
       // Update state in a batch to minimize rerenders
@@ -213,8 +215,8 @@ export function useNearestObliqueImage(
       if (filteredImages && filteredImages.length > 0) {
         const nearestImageItem = filteredImages[0];
 
-        setNearestImage(nearestImageItem.record);
-        setDistance(nearestImageItem.distance);
+        setNearestImage(nearestImageItem);
+        setDistance(nearestImageItem.distanceOnGround);
       } else {
         setNearestImage(null);
         setDistance(null);
@@ -229,7 +231,7 @@ export function useNearestObliqueImage(
     headingOffset,
     options.k,
     orbitPointCoords,
-    centroidMapBySectorBlock,
+    centerpoints,
     lockFootprint,
   ]); // Include all dependencies for proper updates
 
@@ -275,6 +277,7 @@ export function useNearestObliqueImage(
   const returnValue = useMemo(
     () => ({
       nearestImage,
+      nearestImages,
       distance,
       refreshSearch,
       cameraPosition,
@@ -284,10 +287,10 @@ export function useNearestObliqueImage(
       pointOnGround,
       pointOnRadius,
       sectorHeading,
-      nearestImages,
     }),
     [
       nearestImage,
+      nearestImages,
       distance,
       refreshSearch,
       cameraPosition,
@@ -297,7 +300,6 @@ export function useNearestObliqueImage(
       pointOnGround,
       pointOnRadius,
       sectorHeading,
-      nearestImages,
     ]
   );
 

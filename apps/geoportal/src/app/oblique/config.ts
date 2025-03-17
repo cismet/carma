@@ -3,7 +3,6 @@ import {
   OBLIQUE_2024_ORIENTATIONS_CRS,
   OBLIQUE_2024_ORIENTATIONS_CSV_URI,
   OBLIQUE_2024_PREVIEW_PATH,
-  OBLIQUE_2024_CENTROIDS_CSV_URI,
 } from "@carma-commons/resources";
 import { OBLIQUE_PREVIEW_QUALITY } from "./constants";
 import { ObliqueDataProviderConfig } from "./types";
@@ -19,7 +18,6 @@ export const OBLIQUE_CONFIG: ObliqueDataProviderConfig = {
   previewPath: OBLIQUE_2024_PREVIEW_PATH,
   crs: OBLIQUE_2024_ORIENTATIONS_CRS,
   orientationsURI: OBLIQUE_2024_ORIENTATIONS_CSV_URI,
-  centroidsURI: OBLIQUE_2024_CENTROIDS_CSV_URI,
 };
 
 export const NUM_NEAREST_IMAGES = 200;
