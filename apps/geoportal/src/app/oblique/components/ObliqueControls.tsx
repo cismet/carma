@@ -14,6 +14,7 @@ import {
   HeadingPitchRange,
   Math as CesiumMath,
   Cartesian3,
+  Cartographic,
   Matrix4,
   EasingFunction,
   Entity,
@@ -22,7 +23,6 @@ import {
   ScreenSpaceEventType,
   ConstantPositionProperty,
   sampleTerrainMostDetailed,
-  Cartographic,
 } from "cesium";
 
 import { useCesiumContext, getOrbitPoint } from "@carma-mapping/cesium-engine";
@@ -40,6 +40,7 @@ import {
   subscribeToPreviewVisibility,
   notifyPreviewVisibilityChange,
 } from "../utils/previewVisibility";
+import { getDirectionFromCartesian } from "../utils/orientationUtils";
 
 type ObliqueControlsProps = {
   /**
@@ -233,7 +234,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     // Extract position from the image record
     const { centerWGS84, fallbackHeading: calculatedHeading } =
       nearestImage.record;
-    const { imageCenter } = nearestImage;
+    const { imageCenter, distanceToCamera } = nearestImage;
     if (!centerWGS84 || !imageCenter) return;
 
     // Create Cartesian3 from WGS84 coordinates
@@ -253,21 +254,28 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       [imageCenterCartograpic]
     );
 
-    console.debug("should look at centerWithHeight", centerWithHeight);
+    const centerWithHeightCartesian =
+      Cartographic.toCartesian(centerWithHeight);
+
+    const direction = getDirectionFromCartesian(
+      position,
+      centerWithHeightCartesian
+    );
+
+    // local UP
+    const up = Cartesian3.normalize(position, new Cartesian3());
 
     // Set flag to stop footprint updates
     setLockFootprint(true);
 
+    const duration = Math.max(0, Math.min(1.5, distanceToCamera ** 0.5 / 20));
+
     // Fly to the image position
     viewer.camera.flyTo({
       destination: position,
-      orientation: {
-        heading: calculatedHeading,
-        pitch: -Math.PI / 4, // 45 degrees down
-        roll: 0,
-      },
+      orientation: { direction, up },
       endTransform: Matrix4.IDENTITY,
-      duration: 1.5,
+      duration,
       complete: () => {
         viewer.camera.lookAtTransform(Matrix4.IDENTITY);
         viewer.scene.requestRender();

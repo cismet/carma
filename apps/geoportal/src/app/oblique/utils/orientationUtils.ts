@@ -1,4 +1,4 @@
-import { Math as CesiumMath } from "cesium";
+import { Cartesian3, Cartesian3, Math as CesiumMath } from "cesium";
 
 // North is 0 and rotations are clockwise to the east
 
@@ -103,4 +103,15 @@ export const getCardinalDirection = (value: string): CardinalDirectionEnum => {
   if (normalized === CARDINAL_STRINGS.West) return CardinalDirectionEnum.West;
 
   return CardinalDirectionEnum.North;
+};
+
+export const getDirectionFromCartesian = (
+  position: Cartesian3,
+  target: Cartesian3
+): Cartesian3 => {
+  const direction = Cartesian3.normalize(
+    Cartesian3.subtract(target, position, new Cartesian3()),
+    new Cartesian3()
+  );
+  return direction;
 };
