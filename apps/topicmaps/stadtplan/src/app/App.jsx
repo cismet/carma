@@ -56,7 +56,6 @@ function App() {
           const newProgress = Math.round((e.current / e.total) * 100);
           setProgress(newProgress);
           setShowProgress(newProgress < 100);
-          console.log(`xxx Progress: ${newProgress}%`, e);
         }}
         mapEPSGCode="25832"
         referenceSystem={MappingConstants.crs25832}
