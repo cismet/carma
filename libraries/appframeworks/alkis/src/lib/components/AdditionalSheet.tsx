@@ -104,7 +104,10 @@ export const AdditionalSheet = ({
                   paddingBottom: "1.4rem",
                   ...(!ifLegalDesc && {
                     display: "flex",
-                    justifyContent: "space-between",
+                    width: "100%",
+                    // justifyContent: "space-between",
+                    textAlign: "left",
+                    gap: "1rem",
                   }),
                 }}
               >
@@ -115,7 +118,10 @@ export const AdditionalSheet = ({
                   </b>
                   {l.beschriebRechtsgemeinschaft}
                 </div>
-                <span className="ml-1"> {!ifLegalDesc && "1/2"}</span>
+                <span className="ml-auto min-w-[60px]">
+                  {" "}
+                  {!ifLegalDesc && "zu 1/2"}
+                </span>
               </div>
             </div>
           );
