@@ -3,13 +3,14 @@ import {
   OBLIQUE_2024_ORIENTATIONS_CRS,
   OBLIQUE_2024_ORIENTATIONS_CSV_URI,
   OBLIQUE_2024_PREVIEW_PATH,
+  OBLIQUE_2024_CENTROIDS_CSV_URI,
 } from "@carma-commons/resources";
 import { OBLIQUE_PREVIEW_QUALITY } from "./constants";
 import { ObliqueDataProviderConfig } from "./types";
 import { CardinalDirectionEnum } from "./utils/orientationUtils";
 
 export const OBLIQUE_CONFIG: ObliqueDataProviderConfig = {
-  fixedPitch: CesiumMath.toRadians(-49), // Pitch in radians
+  fixedPitch: CesiumMath.toRadians(-50), // Pitch in radians
   fixedHeight: 924, // Height in meters
   minFov: CesiumMath.toRadians(10), // Minimum field of view in radians
   maxFov: CesiumMath.toRadians(120), // Maximum field of view in radians
@@ -17,7 +18,8 @@ export const OBLIQUE_CONFIG: ObliqueDataProviderConfig = {
   previewQualityLevel: OBLIQUE_PREVIEW_QUALITY.LEVEL_3,
   previewPath: OBLIQUE_2024_PREVIEW_PATH,
   crs: OBLIQUE_2024_ORIENTATIONS_CRS,
-  uri: OBLIQUE_2024_ORIENTATIONS_CSV_URI,
+  orientationsURI: OBLIQUE_2024_ORIENTATIONS_CSV_URI,
+  centroidsURI: OBLIQUE_2024_CENTROIDS_CSV_URI,
 };
 
 export const NUM_NEAREST_IMAGES = 200;

@@ -1,17 +1,22 @@
 import React, {
   createContext,
-  useContext,
   useEffect,
   useState,
+  useMemo,
   ReactNode,
 } from "react";
 import { useSelector } from "react-redux";
-import { type Converter } from "proj4";
 
 import { getObliqueMode } from "../../store/slices/ui";
 import { useObliqueData } from "../hooks/useObliqueData";
+import { NUM_NEAREST_IMAGES } from "../config";
 import { useNearestObliqueImage } from "../hooks/useNearestObliqueImage";
-import { ObliqueDataProviderConfig, ObliqueImageRecord } from "../types";
+import {
+  ObliqueDataProviderConfig,
+  ObliqueImageRecord,
+  ObliqueImageRecordMap,
+  Proj4Converter,
+} from "../types";
 import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
 import { CardinalDirectionEnum } from "../utils/orientationUtils";
 import {
@@ -19,16 +24,18 @@ import {
   fetchGeoJson,
   FOOTPRINT_URL,
 } from "../utils/footprintUtils";
+import { RBushBySectorBlocks } from "../utils/spatialIndexing";
 
 // Define the shape of our context
 interface ObliqueDataContextType {
-  imageRecords: ObliqueImageRecord[] | null;
+  imageRecords: ObliqueImageRecordMap | null;
+  centroidRBushBySectorBlocks: RBushBySectorBlocks | null;
   isLoading: boolean;
   error: string | null;
   nearestImage: ObliqueImageRecord | null;
   distanceToNearestImage: number | null;
   refreshNearestImageSearch: () => void;
-  converter: Converter;
+  converter: Proj4Converter;
   previewQualityLevel: OBLIQUE_PREVIEW_QUALITY;
   previewPath: string;
   fixedPitch: number;
@@ -40,24 +47,15 @@ interface ObliqueDataContextType {
   isFootprintLoading: boolean;
   footprintError: string | null;
   isAllDataReady: boolean;
+  lockFootprint: boolean;
+  setLockFootprint: (value: boolean) => void;
 }
 
 // Create the context with a default value
 const ObliqueDataContext = createContext<ObliqueDataContextType | null>(null);
 
-// Custom hook to use the oblique data context
-const useObliqueDataContext = () => {
-  const context = useContext(ObliqueDataContext);
-  if (!context) {
-    throw new Error(
-      "useObliqueDataContext must be used within an ObliqueDataProvider"
-    );
-  }
-  return context;
-};
-
-// Export the hook separately to avoid fast refresh issues
-export { useObliqueDataContext };
+// Export the context for the hook file to use
+export { ObliqueDataContext };
 
 interface ObliqueDataProviderProps {
   children: ReactNode;
@@ -75,8 +73,10 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
   fallbackDirectionConfig,
 }) => {
   const isObliqueMode = useSelector(getObliqueMode);
+  const [lockFootprint, setLockFootprint] = useState(false);
   const {
-    uri,
+    orientationsURI,
+    centroidsURI,
     crs,
     previewPath,
     previewQualityLevel,
@@ -88,17 +88,38 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
   } = config;
 
   // Use the oblique data hook to get camera orientations
-  const { imageRecords, parseCSV, isLoading, converter, error } =
-    useObliqueData(uri, crs, headingOffset, fallbackDirectionConfig);
+  const {
+    imageRecordMap,
+    centroidRBushBySectorBlocks,
+    parseCSV,
+    isLoading,
+    converter,
+    error,
+  } = useObliqueData(
+    orientationsURI,
+    centroidsURI,
+    crs,
+    headingOffset,
+    fallbackDirectionConfig
+  );
+
+  // Use a stable reference for the centroid map to prevent unnecessary re-renders
+  const centroidMapBySectorBlock = useMemo(
+    () => centroidRBushBySectorBlocks,
+    [centroidRBushBySectorBlocks]
+  );
 
   // Store when data has been previously loaded to prevent duplicate loads
   const [dataLoaded, setDataLoaded] = useState(false);
 
   // Add nearest image finding
   const { nearestImage, distance, refreshSearch } = useNearestObliqueImage(
-    imageRecords,
+    imageRecordMap,
     converter,
-    headingOffset
+    headingOffset,
+    centroidMapBySectorBlock,
+    { debounceTime: 150, k: NUM_NEAREST_IMAGES },
+    lockFootprint
   );
 
   // Footprint data states
@@ -134,10 +155,15 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
 
   // Trigger nearest image search when data is loaded
   useEffect(() => {
-    if (imageRecords && imageRecords.length > 0 && isObliqueMode) {
+    if (
+      imageRecordMap &&
+      imageRecordMap.size > 0 &&
+      isObliqueMode &&
+      !lockFootprint
+    ) {
       refreshSearch();
     }
-  }, [imageRecords, isObliqueMode, refreshSearch]);
+  }, [imageRecordMap, isObliqueMode, refreshSearch, lockFootprint]);
 
   // Load footprint data when in oblique mode
   useEffect(() => {
@@ -168,7 +194,8 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
   }, [dataLoaded, isFootprintLoading, isLoading]);
 
   const value = {
-    imageRecords,
+    imageRecords: imageRecordMap,
+    centroidRBushBySectorBlocks,
     isLoading,
     error,
     nearestImage,
@@ -186,6 +213,8 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
     isFootprintLoading,
     footprintError,
     isAllDataReady,
+    lockFootprint,
+    setLockFootprint,
   };
 
   return (

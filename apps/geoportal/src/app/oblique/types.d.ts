@@ -34,8 +34,11 @@ export interface ObliqueImageRecord extends BasicObliqueImageRecord {
   rotationMatrix: Matrix3;
 }
 
+export type ObliqueImageRecordMap = Map<string, ObliqueImageRecord>;
+
 export interface ObliqueDataProviderConfig {
-  uri: string;
+  orientationsURI: string;
+  centroidsURI: string;
   crs: string;
   previewPath: string;
   previewQualityLevel?: OBLIQUE_PREVIEW_QUALITY;
@@ -44,4 +47,17 @@ export interface ObliqueDataProviderConfig {
   minFov?: number;
   maxFov?: number;
   headingOffset?: number;
+}
+
+export interface PointWithSector {
+  id: string;
+  x: number;
+  y: number;
+  cardinal: CardinalDirectionEnum;
+}
+
+export interface Proj4Converter {
+  converter: Converter;
+  sourceCrs: string;
+  targetCrs: string;
 }

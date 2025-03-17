@@ -1,5 +1,8 @@
-import { type Converter } from "proj4";
-import { BasicObliqueImageRecord, ObliqueImageRecord } from "../types";
+import {
+  BasicObliqueImageRecord,
+  ObliqueImageRecord,
+  Proj4Converter,
+} from "../types";
 import {
   getCardinalDirectionByLineAndCameraId,
   getApproximateHeadingBySector,
@@ -10,7 +13,7 @@ import { computeOrientations } from "./computeOrientations";
 
 export const extendObliqueImageRecord = (
   image: BasicObliqueImageRecord,
-  converter: Converter,
+  { converter }: Proj4Converter,
   offset: number,
   fallbackDirectionConfig: Record<string, Record<string, CardinalDirectionEnum>>
 ): ObliqueImageRecord => {

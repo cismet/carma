@@ -5,9 +5,6 @@ import { ObliqueImageRecord } from "../types";
 
 interface ObliqueImageInfoProps {
   imageRecord: ObliqueImageRecord | null;
-  distance: number | null;
-  onClose?: () => void;
-  flyToImage?: (record: ObliqueImageRecord) => void;
 }
 
 const InfoCard = styled(Card)`
@@ -39,22 +36,12 @@ const JsonDisplay = styled.pre`
 
 export const ObliqueImageInfo: React.FC<ObliqueImageInfoProps> = ({
   imageRecord,
-  distance,
 }) => {
   if (!imageRecord) return null;
 
-  const cleanRecord = (record: any) => {
-    return {
-      ...record,
-      distance: distance !== null ? `${distance.toFixed(2)}m` : "Unknown",
-    };
-  };
-
   return (
     <InfoCard bordered={false}>
-      <JsonDisplay>
-        {JSON.stringify(cleanRecord(imageRecord), null, 2)}
-      </JsonDisplay>
+      <JsonDisplay>{JSON.stringify(imageRecord, null, 2)}</JsonDisplay>
     </InfoCard>
   );
 };

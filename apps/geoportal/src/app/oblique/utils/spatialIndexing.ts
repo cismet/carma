@@ -1,105 +1,115 @@
-import { ObliqueImageRecord } from "../types";
+import {
+  ObliqueImageRecord,
+  ObliqueImageRecordMap,
+  PointWithSector,
+} from "../types";
 import RBush from "rbush";
 import knn from "rbush-knn";
+import { CardinalDirectionEnum } from "./orientationUtils";
 
-// Interface for RBush items with bbox
-interface RBushItem {
+export interface RBushItem {
   minX: number;
   minY: number;
   maxX: number;
   maxY: number;
-  index: number;
+  x: number;
+  y: number;
+  id: string;
 }
+
+export type RBushBySectorBlocks = Map<CardinalDirectionEnum, RBush<RBushItem>>;
 
 // Session-level storage for spatial index
 interface SpatialIndexStorage {
   tree: RBush<RBushItem> | null;
-  recordsHash: string | null; // To detect when records change
+  crs: string | null; // To detect when records change
+}
+
+interface SpatialIndexByCardinalStorage {
+  sectors: RBushBySectorBlocks;
+  crs: string | null; // To detect when records change
 }
 
 // Module-level variable to store the spatial index for the session
+
+// TODO: Unify the format to per Sector do hash check when dowloading and store to localforage.
 const spatialIndexStorage: SpatialIndexStorage = {
   tree: null,
-  recordsHash: null,
+  crs: null,
 };
 
-/**
- * Generate a simple hash for the records array to check if it has changed
- * This is a very basic hash just to detect changes in the records set
- */
-function generateRecordsHash(records: ObliqueImageRecord[]): string {
-  if (!records || records.length === 0) return "";
-
-  // Use the first, last, and middle record IDs and the total count as a simple hash
-  const firstId = records[0].id;
-  const lastId = records[records.length - 1].id;
-  const middleId = records[Math.floor(records.length / 2)]?.id || "";
-
-  return `${records.length}:${firstId}:${middleId}:${lastId}`;
-}
+// Storage for spatial indices by cardinal direction
+export const spatialIndexByCardinalStorage: SpatialIndexByCardinalStorage = {
+  sectors: null,
+  crs: null,
+};
 
 export function getSpatialIndex(
-  records: ObliqueImageRecord[]
+  records: ObliqueImageRecordMap,
+  crs: string
 ): RBush<RBushItem> {
-  const currentHash = generateRecordsHash(records);
-
   // If we already have a tree with the same records, return it
-  if (
-    spatialIndexStorage.tree &&
-    spatialIndexStorage.recordsHash === currentHash
-  ) {
+  if (spatialIndexStorage.tree && spatialIndexStorage.crs === crs) {
     return spatialIndexStorage.tree;
   }
 
   // Otherwise, build a new tree
   const tree = new RBush<RBushItem>();
-  const items: RBushItem[] = [];
 
-  // Create items for bulk insertion
-  records.forEach((record, index) => {
-    // Safety check for perspectiveCenter
-    if (
-      !record.perspectiveCenter ||
-      typeof record.perspectiveCenter.x === "undefined" ||
-      typeof record.perspectiveCenter.y === "undefined"
-    ) {
-      console.warn("Invalid perspectiveCenter in spatial index:", record.id);
-      return; // Skip this record
-    }
+  // Create items for bulk insertion - only do this once per dataset
+  const validRecords = Array.from(records.values()).filter((record) => {
+    const { perspectiveCenter } = record;
+    return (
+      perspectiveCenter &&
+      typeof perspectiveCenter.x !== "undefined" &&
+      typeof perspectiveCenter.y !== "undefined"
+    );
+  });
 
-    const { x, y } = record.perspectiveCenter;
-    items.push({
+  // Map records to RBush items in a single pass
+  const items = validRecords.map((record) => {
+    const { id, perspectiveCenter } = record;
+    const { x, y } = perspectiveCenter;
+    return {
+      x,
+      y,
       minX: x,
       minY: y,
       maxX: x,
       maxY: y,
-      index,
-    });
+      id,
+    };
   });
 
   // Bulk load the items into the tree
-  tree.load(items);
+  if (items.length > 0) {
+    console.debug("creating rBush spatial index for", items.length, "records");
+    tree.load(items);
+  }
 
   // Store the tree and hash for future use
   spatialIndexStorage.tree = tree;
-  spatialIndexStorage.recordsHash = currentHash;
+  spatialIndexStorage.crs = crs;
 
   return tree;
 }
 
 /**
  * Find the nearest oblique image to a given coordinate using RBush spatial indexing
- * Distances are calculated in UTM32 projection
+ * Distances are calculated in CRS used for Spatial Index
  *
  * @param records Array of oblique image records
  * @param targetCoord in CRS used for Spatial Index
  * @returns The nearest image record or null if no records provided
  */
 export function findNearestObliqueImage(
-  records: ObliqueImageRecord[],
+  records: ObliqueImageRecordMap,
+  crs: string,
   targetCoord: [number, number]
 ): ObliqueImageRecord | null {
-  return findNearestKObliqueImages(records, targetCoord, 1)[0]?.record || null;
+  return (
+    findNearestKObliqueImages(records, crs, targetCoord, 1)[0]?.record || null
+  );
 }
 
 /**
@@ -112,17 +122,18 @@ export function findNearestObliqueImage(
  * @returns Array of records with distance information, sorted by distance
  */
 export function findNearestKObliqueImages(
-  records: ObliqueImageRecord[],
+  records: ObliqueImageRecordMap,
+  crs: string,
   targetCoord: [number, number],
   k: number = 1,
   filter?: (item: RBushItem) => boolean
 ): Array<{ record: ObliqueImageRecord; distance: number }> {
-  if (!records || records.length === 0 || k <= 0) {
+  if (!records || records.size === 0 || k <= 0) {
     return [];
   }
 
   // Build or get the spatial index
-  const spatialIndex = getSpatialIndex(records);
+  const spatialIndex = getSpatialIndex(records, crs);
 
   // Use knn to find the nearest k neighbors
   const nearestItems = knn(
@@ -133,14 +144,86 @@ export function findNearestKObliqueImages(
     filter
   );
 
-  // Map the results to records with distances in meters (UTM32 units)
-  return nearestItems.map((item) => {
-    const record = records[item.index];
+  // Create a map for faster lookups instead of using find() repeatedly
+  const resultRecordMap = new Map();
+  if (!nearestItems.length) return [];
 
-    const dx = targetCoord[0] - record.perspectiveCenter.x;
-    const dy = targetCoord[1] - record.perspectiveCenter.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
+  // Only create the map if we have items to process
+  if (nearestItems.length > 0) {
+    records.forEach((record) => {
+      resultRecordMap.set(record.id, record);
+    });
+  }
 
-    return { record, distance };
-  });
+  // Map the results to records with distances in CRS used for Spatial Index
+  return nearestItems
+    .map((item) => {
+      const record = resultRecordMap.get(item.id);
+
+      if (!record) {
+        return null;
+      }
+      const dx = targetCoord[0] - record.perspectiveCenter.x;
+      const dy = targetCoord[1] - record.perspectiveCenter.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      return { record, distance };
+    })
+    .filter(Boolean);
+}
+
+export function createRBushByCardinal(
+  pointWithSector: PointWithSector[]
+): RBushBySectorBlocks {
+  // Create a Map to hold the RBush trees for each cardinal direction
+  const result: RBushBySectorBlocks = new Map([
+    [CardinalDirectionEnum.North, new RBush<RBushItem>()],
+    [CardinalDirectionEnum.East, new RBush<RBushItem>()],
+    [CardinalDirectionEnum.South, new RBush<RBushItem>()],
+    [CardinalDirectionEnum.West, new RBush<RBushItem>()],
+  ]);
+
+  // Group items by cardinal direction for bulk loading
+  const itemsByCardinal = new Map([
+    [CardinalDirectionEnum.North, [] as RBushItem[]],
+    [CardinalDirectionEnum.East, [] as RBushItem[]],
+    [CardinalDirectionEnum.South, [] as RBushItem[]],
+    [CardinalDirectionEnum.West, [] as RBushItem[]],
+  ]);
+
+  // Process all points in a single pass
+  for (const { id, x, y, cardinal } of pointWithSector) {
+    if (typeof x === "undefined" || typeof y === "undefined") continue;
+
+    const item: RBushItem = {
+      x,
+      y,
+      minX: x,
+      minY: y,
+      maxX: x,
+      maxY: y,
+      id,
+    };
+
+    const items = itemsByCardinal.get(cardinal);
+    if (items) items.push(item);
+  }
+
+  // Bulk load each spatial index only once
+  for (const [cardinal, items] of itemsByCardinal.entries()) {
+    if (items.length === 0) continue;
+
+    const tree = result.get(cardinal);
+    if (tree) {
+      console.debug(
+        cardinal,
+        "creating rBush spatial index for",
+        items.length,
+        "records"
+      );
+      tree.load(items);
+    }
+  }
+
+  return result;
 }

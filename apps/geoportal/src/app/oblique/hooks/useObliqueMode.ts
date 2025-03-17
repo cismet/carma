@@ -13,8 +13,9 @@ import { useSelector } from "react-redux";
 
 import { getOrbitPoint, useCesiumContext } from "@carma-mapping/cesium-engine";
 
+import { useObliqueDataContext } from "../../oblique/hooks/useObliqueDataContext";
+
 import { getObliqueMode } from "../../store/slices/ui";
-import { useObliqueDataContext } from "../components/ObliqueDataContext";
 
 // Options for local overrides
 export interface ObliqueModeOptions {
