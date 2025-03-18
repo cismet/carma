@@ -20,6 +20,25 @@ export const LandparcelInfo = ({
 }: LandparcelInfoProps) => {
   const urlPrefix = window.location.origin + window.location.pathname;
 
+  function parseSheetCode(code) {
+    return code.split("-").map((part) => parseInt(part, 10));
+  }
+
+  function compareLandparcelCodes(codeA, codeB) {
+    const [a1, a2] = parseSheetCode(codeA);
+    const [b1, b2] = parseSheetCode(codeB);
+
+    if (a1 - b1 !== 0) {
+      return a1 - b1;
+    }
+
+    return a2 - b2;
+  }
+
+  const sortedSheetsCode = [...sheetsCode].sort((a, b) => {
+    return compareLandparcelCodes(a.buchungsblattcode, b.buchungsblattcode);
+  });
+
   return (
     <CustomCard title={title} style={{ marginBottom: "1rem" }}>
       <div>
@@ -74,7 +93,7 @@ export const LandparcelInfo = ({
         defaultActiveKey="0"
         tabPosition="left"
         destroyInactiveTabPane={true}
-        items={sheetsCode.map((b, i) => {
+        items={sortedSheetsCode.map((b, i) => {
           const id = String(i);
           return {
             label: (
