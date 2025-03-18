@@ -171,6 +171,7 @@ until further notice keep:
 - react at 18
 - vite at v5 (no v6 support in nx yet)
 - vitest at 1.6
+- ua-parser-js at 1.0.40 (v2 has AGPL license)
 
 the remaining dev deps can be listed
 

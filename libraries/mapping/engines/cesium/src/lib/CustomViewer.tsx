@@ -1,6 +1,6 @@
 import { type RefObject, useMemo } from "react";
 import { Color, Viewer, Rectangle, SceneMode } from "cesium";
-import { isMobile } from "react-device-detect";
+import UAParser from "ua-parser-js";
 import { merge } from "lodash";
 
 import ElevationControl from "./components/controls/ElevationControl";
@@ -46,6 +46,7 @@ export type CustomViewerProps = {
 
 export const TRANSITION_DELAY = 1000;
 const CESIUM_TARGET_FRAME_RATE = 120;
+const isMobile = new UAParser().getDevice().type === "mobile";
 
 export const DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS: Viewer.ConstructorOptions = {
   msaaSamples: 4,
