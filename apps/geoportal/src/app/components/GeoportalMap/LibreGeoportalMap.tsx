@@ -118,6 +118,9 @@ const LibreGeoportalMap = () => {
           paint: {
             "raster-opacity": layer.opacity,
           },
+          metadata: {
+            "z-index": index,
+          },
         });
       } else if (layer.layerType === "vector") {
         const vectorStyle = layer.props.style;
@@ -128,6 +131,10 @@ const LibreGeoportalMap = () => {
           additionalStyle.layers = additionalStyle.layers.map((styleLayer) => ({
             ...styleLayer,
             id: `${layer.id}-${styleLayer.id}`,
+            metadata: {
+              ...styleLayer.metadata,
+              "z-index": index,
+            },
           }));
 
           style.sources = { ...style.sources, ...additionalStyle.sources };
@@ -137,6 +144,14 @@ const LibreGeoportalMap = () => {
     });
 
     await Promise.all(layerPromises);
+
+    style.layers.sort((a, b) => {
+      const aZIndex = a.metadata?.["z-index"] || 0;
+      const bZIndex = b.metadata?.["z-index"] || 0;
+      return aZIndex - bZIndex; // Lower z-index values are rendered first
+    });
+
+    console.log("xxx", style);
 
     return style;
   };
