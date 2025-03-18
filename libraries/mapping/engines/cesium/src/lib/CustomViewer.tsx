@@ -1,5 +1,7 @@
 import { type RefObject, useMemo } from "react";
 import { Color, Viewer, Rectangle, SceneMode } from "cesium";
+import { isMobile } from "react-device-detect";
+import { merge } from "lodash";
 
 import ElevationControl from "./components/controls/ElevationControl";
 import { CesiumErrorToErrorBoundaryForwarder } from "./utils/CesiumErrorToErrorBoundaryForwarder";
@@ -54,7 +56,12 @@ export const DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS: Viewer.ConstructorOptions = {
   selectionIndicator: false,
   targetFrameRate: CESIUM_TARGET_FRAME_RATE,
   useBrowserRecommendedResolution: true,
-  contextOptions: { webgl: { alpha: true } },
+  contextOptions: {
+    webgl: {
+      alpha: true,
+      powerPreference: isMobile ? "default" : "high-performance",
+    },
+  },
 
   // Hide UI components
   animation: false,
@@ -89,10 +96,7 @@ export function CustomViewer(props: CustomViewerProps) {
   } = props;
 
   const options: Viewer.ConstructorOptions = useMemo(
-    () => ({
-      ...DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS,
-      ...constructorOptions,
-    }),
+    () => merge({}, DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS, constructorOptions),
     [constructorOptions]
   );
 
