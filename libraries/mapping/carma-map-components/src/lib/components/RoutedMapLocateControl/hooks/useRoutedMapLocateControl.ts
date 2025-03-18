@@ -3,7 +3,7 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import type LocateControl from "leaflet.locatecontrol";
 import { control } from "leaflet";
 
-export const useRoutedMapLocateControl = (isActive = false) => {
+export const useRoutedMapLocateControl = () => {
   const { routedMapRef: routedMap } =
     useContext<typeof TopicMapContext>(TopicMapContext);
   const [isLocationActive, setIsLocationActive] = useState(false);
@@ -47,7 +47,7 @@ export const useRoutedMapLocateControl = (isActive = false) => {
 
   useEffect(() => {
     if (!locationInstance && routedMap) {
-      const mapExample = routedMap.leafletMap.leafletElement;
+      const targetMap = routedMap.leafletMap.leafletElement;
       const lc = (control as LocateControl)
         .locate({
           position: "topright",
@@ -68,7 +68,7 @@ export const useRoutedMapLocateControl = (isActive = false) => {
           flyTo: false,
           drawCircle: true,
         })
-        .addTo(mapExample);
+        .addTo(targetMap);
       setLocationInstance(lc);
     }
 
@@ -81,18 +81,17 @@ export const useRoutedMapLocateControl = (isActive = false) => {
 
   useEffect(() => {
     if (locationInstance) {
-      if (isActive) {
+      if (isLocationActive) {
         locationInstance.start();
       } else {
         locationInstance.stop();
       }
     }
-  }, [isActive, locationInstance]);
+  }, [isLocationActive, locationInstance]);
 
   return {
     isLocationActive,
     setIsLocationActive,
     hasMapMoved,
-    hasFoundLocation,
   };
 };

@@ -304,8 +304,9 @@ function App({ sync = false }: { sync?: boolean }) {
             </Tooltip>
           </Control>
           <Control position="topleft" order={60}>
-            <RoutedMapLocateControl tourRefLabels={null} />
+            <RoutedMapLocateControl tourRefLabels={null} disabled={!isMode2d} />
           </Control>
+
           <Control position="topleft" order={70}>
             <ControlButtonStyler
               onClick={onHomeClick}
