@@ -11,6 +11,9 @@ import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplic
 import { getCollabedHelpComponentConfig } from "./getCollabedHelpComponentConfig";
 import config from "./config";
 import "./notification.css";
+import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
+import FuzzySearch from "./components/FuzzySearch";
+import { TopicMapSelectionContent } from "@carma-apps/portals";
 
 function App() {
   const footerLogoUrl = undefined;
@@ -57,8 +60,12 @@ function App() {
         homeCenter={[50.883818568649005, 6.8746743723750114]}
         modeSwitcherTitle="Starkregengefahrenkarte Hürth"
         documentTitle="Starkregengefahrenkarte Hürth"
-        gazData={gazData}
-      ></HeavyRainHazardMap>
+        gazetteerSearchControl={true}
+        gazetteerSearchComponent={EmptySearchComponent}
+      >
+        <TopicMapSelectionContent />
+      </HeavyRainHazardMap>
+      <FuzzySearch gazLocalData={gazData} />
     </TopicMapContextProvider>
   );
 }
