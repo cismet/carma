@@ -25,7 +25,7 @@ interface BookingContentProps {
   bookingType: string;
   sheetCode: string;
   districtName: string;
-  geometry: AlkisFeature;
+  geometry: AlkisFeature[];
   flurstueck: string;
   name: string;
   jwt: string;

@@ -28,6 +28,12 @@ export const Map = <T,>({
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const [mapWidth, setMapWidth] = useState<number>(0);
   const [mapHeight, setMapHeight] = useState<number>(0);
+  const customStyler = (feature) => {
+    if (selectedFeature) {
+      return { color: "blue", weight: 1 };
+    }
+    return data.styler(feature);
+  };
 
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
@@ -67,7 +73,6 @@ export const Map = <T,>({
 
   useEffect(() => {
     if (routedMapRef?.leafletMap?.leafletElement && !selectedFeature) {
-      console.log("xxx map updated");
       const map = routedMapRef.leafletMap.leafletElement;
       map.scrollWheelZoom.disable();
       map.dragging.disable();
@@ -75,10 +80,9 @@ export const Map = <T,>({
         fitMapBounds();
       }, 500);
     }
-  }, [routedMapRef]);
+  }, [routedMapRef, data]);
 
   useEffect(() => {
-    console.log("xxx selected", selectedFeature);
     if (selectedFeature !== null) {
       const map = routedMapRef?.leafletMap?.leafletElement;
       if (map) {
@@ -98,17 +102,6 @@ export const Map = <T,>({
         const bounds = getBoundsForFeatureArray(feature);
 
         map.fitBounds(bounds);
-
-        // setTimeout(() => {
-        //   map.eachLayer((layer) => {
-        //     if (layer.feature && layer.feature.id === selectedFeature) {
-        //       layer.setStyle({
-        //         color: "blue",
-        //         weight: 2,
-        //       });
-        //     }
-        //   });
-        // }, 200);
       }
     }
   }, [selectedFeature]);
@@ -131,7 +124,7 @@ export const Map = <T,>({
       >
         <FeatureCollectionDisplay
           featureCollection={data.featureCollection}
-          style={data.styler}
+          style={customStyler}
         />
       </TopicMapComponent>
     </div>

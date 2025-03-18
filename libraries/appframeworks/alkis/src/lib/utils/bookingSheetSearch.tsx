@@ -65,17 +65,12 @@ export const getSheetHtml = async (
     const [b1, b2, b3] = parseLandparcelCode(codeB);
 
     if (a1 - b1 !== 0) {
-      console.log("xxx a1 - b1");
       return a1 - b1;
     }
 
     if (a2 - b2 !== 0) {
-      console.log("xxx a2 - b2");
-
       return a2 - b2;
     }
-    console.log("xxx a3 - b3");
-
     return a3 - b3;
   }
 

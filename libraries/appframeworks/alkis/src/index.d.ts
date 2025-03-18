@@ -157,16 +157,16 @@ export interface DataItem {
 }
 
 export interface AlkisFeature {
-  crs: CRS;
+  type: string;
+  id: number;
   geometry: {
     type: string;
     coordinates: any[];
-    properties: {
-      id: number;
-    };
-    type: string;
+  };
+  properties: {
     id: number;
   };
+  crs: CRS;
 }
 
 export interface ConfigPdfProduct {
