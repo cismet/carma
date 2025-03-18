@@ -24,7 +24,7 @@ export const LandparcelInfo = ({
     return code.split("-").map((part) => parseInt(part, 10));
   }
 
-  function compareLandparcelCodes(codeA, codeB) {
+  function compareSheetCodeCodes(codeA, codeB) {
     const [a1, a2] = parseSheetCode(codeA);
     const [b1, b2] = parseSheetCode(codeB);
 
@@ -36,7 +36,7 @@ export const LandparcelInfo = ({
   }
 
   const sortedSheetsCode = [...sheetsCode].sort((a, b) => {
-    return compareLandparcelCodes(a.buchungsblattcode, b.buchungsblattcode);
+    return compareSheetCodeCodes(a.buchungsblattcode, b.buchungsblattcode);
   });
 
   return (
