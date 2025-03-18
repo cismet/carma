@@ -31,7 +31,7 @@ const uniqueColors = [
   ...new Set(transformedPois.features.map((f) => f.properties.schrift)),
 ];
 
-function createDonutChart(props) {
+function createPieChart(props) {
   const offsets = [];
   const counts = uniqueColors.map((color) => props[color] || 0);
   let total = 0;
@@ -48,32 +48,40 @@ function createDonutChart(props) {
       : total >= 10
       ? baseFontsize * 1.125
       : baseFontsize;
-  const r = total >= 1000 ? 50 : total >= 100 ? 32 : total >= 10 ? 24 : 18;
-  const r0 = Math.round(r * 0.6);
+  const baseCircleSize = 20;
+  const r =
+    total >= 1000
+      ? baseCircleSize * 2.777
+      : total >= 100
+      ? baseCircleSize * 1.7777
+      : total >= 10
+      ? baseCircleSize * 1.3333
+      : baseCircleSize;
   const w = r * 2;
 
   let html = `<div><svg width="${w}" height="${w}" viewbox="0 0 ${w} ${w}" text-anchor="middle" style="font: ${fontSize}px sans-serif; display: block">`;
 
   for (let i = 0; i < counts.length; i++) {
     if (counts[i] > 0) {
-      html += donutSegment(
+      html += pieSegment(
         offsets[i] / total,
         (offsets[i] + counts[i]) / total,
         r,
-        r0,
         uniqueColors[i]
       );
     }
   }
-  html += `<circle cx="${r}" cy="${r}" r="${r0}" fill="white" />
-           <text dominant-baseline="central" transform="translate(${r}, ${r})">${total.toLocaleString()}</text></svg></div>`;
+  html += `<circle cx="${r}" cy="${r}" r="${Math.round(
+    r * 0.4
+  )}" fill="white" fill-opacity="0.75"/>`;
+  html += `<text dominant-baseline="central" transform="translate(${r}, ${r})">${total.toLocaleString()}</text></svg></div>`;
 
   const el = document.createElement("div");
   el.innerHTML = html;
   return el.firstChild;
 }
 
-function donutSegment(start, end, r, r0, color) {
+function pieSegment(start, end, r, color) {
   if (end - start === 1) end -= 0.00001;
   const a0 = 2 * Math.PI * (start - 0.25);
   const a1 = 2 * Math.PI * (end - 0.25);
@@ -85,8 +93,8 @@ function donutSegment(start, end, r, r0, color) {
 
   return [
     '<path d="M',
-    r + r0 * x0,
-    r + r0 * y0,
+    r,
+    r,
     "L",
     r + r * x0,
     r + r * y0,
@@ -98,17 +106,7 @@ function donutSegment(start, end, r, r0, color) {
     1,
     r + r * x1,
     r + r * y1,
-    "L",
-    r + r0 * x1,
-    r + r0 * y1,
-    "A",
-    r0,
-    r0,
-    0,
-    largeArc,
-    0,
-    r + r0 * x0,
-    r + r0 * y0,
+    "Z",
     `" fill="${color}" />`,
   ].join(" ");
 }
@@ -118,7 +116,7 @@ export default function LibreMap({ opacity = 0.1, vectorStyles = [] }) {
   const map = useRef(null);
   const [lng] = useState(7.150764);
   const [lat] = useState(51.256);
-  const [zoom] = useState(12);
+  const [zoom] = useState(11);
   const markers = useRef({});
   const markersOnScreen = useRef({});
 
@@ -183,7 +181,7 @@ export default function LibreMap({ opacity = 0.1, vectorStyles = [] }) {
 
       let marker = markers.current[id];
       if (!marker) {
-        const el = createDonutChart(props);
+        const el = createPieChart(props);
         marker = markers.current[id] = new maplibregl.Marker({
           element: el,
         }).setLngLat(coords);
@@ -227,8 +225,8 @@ export default function LibreMap({ opacity = 0.1, vectorStyles = [] }) {
         console.error("Source error:", e);
       });
 
-      map.current.on("load", function () {
-        console.log("Map loaded successfully");
+      map.current.on("style.load", function () {
+        console.log("Map style loaded successfully");
 
         try {
           map.current.addControl(
@@ -237,8 +235,9 @@ export default function LibreMap({ opacity = 0.1, vectorStyles = [] }) {
           );
 
           // Set up marker updates
-          map.current.on("data", (e) => {
+          map.current.on("data", function handler(e) {
             if (e.sourceId !== "poi-source" || !e.isSourceLoaded) return;
+            map.current.off("data", handler);
             map.current.on("move", updateMarkers);
             map.current.on("moveend", updateMarkers);
             updateMarkers();
