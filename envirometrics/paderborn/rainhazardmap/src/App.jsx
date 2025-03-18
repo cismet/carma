@@ -10,6 +10,9 @@ import { getCollabedHelpComponentConfig } from "@carma-pecher-collab/paderborn";
 import { getApplicationVersion } from "@carma-commons/utils";
 import "./notification.css";
 import footerLogoUrl from "./assets/images/Signet_AIS_RZ.png";
+import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
+import FuzzySearch from "./components/FuzzySearch";
+import { TopicMapSelectionContent } from "@carma-apps/portals";
 
 function App() {
   const appKey = "cismetRainhazardMap.Paderborn";
@@ -54,8 +57,12 @@ function App() {
         homeCenter={[51.71905, 8.75439]}
         modeSwitcherTitle="AIS Starkregenvorsorge Paderborn"
         documentTitle="Starkregengefahrenkarte Paderborn"
-        gazData={gazData}
-      />
+        gazetteerSearchControl={true}
+        gazetteerSearchComponent={EmptySearchComponent}
+      >
+        <TopicMapSelectionContent />
+      </HeavyRainHazardMap>
+      <FuzzySearch gazLocalData={gazData} />
     </TopicMapContextProvider>
   );
 }
