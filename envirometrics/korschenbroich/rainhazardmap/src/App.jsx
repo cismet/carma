@@ -13,6 +13,9 @@ import "./notification.css";
 import { notification } from "antd";
 // import NotesDisplay from './NotesDisplay';
 import { getCollabedHelpComponentConfig } from "@carma-pecher-collab/korschenbroich";
+import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
+import FuzzySearch from "./components/FuzzySearch";
+import { TopicMapSelectionContent } from "@carma-apps/portals";
 
 function App() {
   const email = "yvonne.tuerks@korschenbroich.de";
@@ -57,7 +60,8 @@ function App() {
         homeCenter={[51.159716445861676, 6.578933000564575]}
         modeSwitcherTitle="AIS Starkregenvorsorge Korschenbroich"
         documentTitle="AIS Korschenbroich"
-        gazData={gazData}
+        gazetteerSearchControl={true}
+        gazetteerSearchComponent={EmptySearchComponent}
       >
         {/* {contextHolder} */}
 
@@ -115,7 +119,9 @@ function App() {
             },
           }}
         />
+        <TopicMapSelectionContent />
       </HeavyRainHazardMap>
+      <FuzzySearch gazLocalData={gazData} />
     </TopicMapContextProvider>
   );
 }
