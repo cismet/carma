@@ -36,8 +36,6 @@ function App() {
       referenceSystemDefinition={MappingConstants.proj4crs3857def}
       baseLayerConf={config.overridingBaseLayerConf}
       infoBoxPixelWidth={370}
-      gazetteerSearchControl={true}
-      gazetteerSearchComponent={EmptySearchComponent}
     >
       <HeavyRainHazardMap
         appMenu={
@@ -57,7 +55,8 @@ function App() {
         homeCenter={[51.742081808761874, 7.1898638262064205]}
         modeSwitcherTitle="AIS Starkregenvorsorge Haltern am See"
         documentTitle="Starkregengefahrenkarte Haltern am See"
-        // gazData={gazData}
+        gazetteerSearchControl={true}
+        gazetteerSearchComponent={EmptySearchComponent}
       >
         <TopicMapSelectionContent />
       </HeavyRainHazardMap>
