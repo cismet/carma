@@ -1,0 +1,102 @@
+{
+  "version": 8,
+  "sources": {
+    "poi-source": {
+      "type": "vector",
+      "tiles": ["https://tiles.cismet.de/poi/{z}/{x}/{y}.pbf"],
+      "minzoom": 9,
+      "maxzoom": 14
+    }
+  },
+  "glyphs": "https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf",
+  "sprite": "https://tiles.cismet.de/poi/sprites",
+  "layers": [
+    {
+      "id": "poi-images-selection",
+      "type": "symbol",
+      "source": "poi-source",
+      "source-layer": "poi",
+      "minzoom": 9,
+      "maxzoom": 24,
+      "layout": {
+        "visibility": "visible",
+        "symbol-z-order": "source",
+        "symbol-sort-key": ["get", "geographicidentifier"],
+        "icon-allow-overlap": true,
+        "icon-ignore-placement": true,
+        "icon-size": {
+          "stops": [
+            [9, 0.32],
+            [24, 1]
+          ]
+        },
+        "icon-padding": 0,
+        "icon-image": "Icon_Full#4892F0"
+      },
+      "paint": {
+        "icon-opacity": [
+          "case",
+          ["boolean", ["feature-state", "selected"], false],
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "id": "poi-images",
+      "type": "symbol",
+      "source": "poi-source",
+      "source-layer": "poi",
+      "minzoom": 0,
+      "maxzoom": 24,
+      "layout": {
+        "visibility": "visible",
+        "symbol-z-order": "source",
+        "symbol-sort-key": ["get", "geographicidentifier"],
+        "icon-allow-overlap": true,
+        "icon-ignore-placement": true,
+        "icon-size": {
+          "stops": [
+            [9, 0.32],
+            [24, 0.8]
+          ]
+        },
+        "icon-padding": 0,
+        "icon-image": ["concat", ["get", "signatur"], ["get", "schrift"]]
+      },
+      "paint": {
+        "icon-color": ["get", "schrift"]
+      }
+    },
+    {
+      "id": "poi-labels",
+      "type": "symbol",
+      "source": "poi-source",
+      "source-layer": "poi",
+      "minzoom": 16,
+      "maxzoom": 24,
+      "layout": {
+        "text-field": ["get", "geographicidentifier"],
+        "text-font": ["Open Sans Semibold"],
+        "icon-allow-overlap": true,
+        "icon-ignore-placement": true,
+        "text-size": 12,
+        "text-offset": {
+          "stops": [
+            [17, [0, 1.3]],
+            [24, [0, 2]]
+          ]
+        },
+        "text-anchor": "top",
+        "text-allow-overlap": true,
+        "text-rotation-alignment": "viewport"
+      },
+      "paint": {
+        "text-halo-color": "#FFFFFF",
+        "text-halo-width": 5,
+        "text-color": ["get", "schrift"],
+        "text-opacity": 1
+      }
+    }
+  ]
+}
