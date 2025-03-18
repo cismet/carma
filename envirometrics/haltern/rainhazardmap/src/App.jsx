@@ -10,6 +10,9 @@ import versionData from "./version.json";
 import config from "./config";
 import "./notification.css";
 import footerLogoUrl from "./assets/images/Signet_AIS_RZ.png";
+import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
+import FuzzySearch from "./components/FuzzySearch";
+import { TopicMapSelectionContent } from "@carma-apps/portals";
 
 function App() {
   const version = getApplicationVersion(versionData);
@@ -33,6 +36,8 @@ function App() {
       referenceSystemDefinition={MappingConstants.proj4crs3857def}
       baseLayerConf={config.overridingBaseLayerConf}
       infoBoxPixelWidth={370}
+      gazetteerSearchControl={true}
+      gazetteerSearchComponent={EmptySearchComponent}
     >
       <HeavyRainHazardMap
         appMenu={
@@ -52,8 +57,11 @@ function App() {
         homeCenter={[51.742081808761874, 7.1898638262064205]}
         modeSwitcherTitle="AIS Starkregenvorsorge Haltern am See"
         documentTitle="Starkregengefahrenkarte Haltern am See"
-        gazData={gazData}
-      />
+        // gazData={gazData}
+      >
+        <TopicMapSelectionContent />
+      </HeavyRainHazardMap>
+      <FuzzySearch gazLocalData={gazData} />
     </TopicMapContextProvider>
   );
 }
