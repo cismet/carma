@@ -15,7 +15,8 @@ const LayerIcon = ({ layer, fallbackIcon, isBaseLayer }: LayerIconProps) => {
   const [imgError, setImgError] = useState(!layer.other?.icon);
 
   const iconName =
-    layer.other?.icon || layer.other?.path + "/" + layer.other?.name;
+    layer.other?.icon ||
+    layer.other?.path.toLowerCase() + "/" + layer.other?.name;
 
   useEffect(() => {
     if (iconName) {
