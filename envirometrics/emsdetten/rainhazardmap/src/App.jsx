@@ -10,11 +10,14 @@ import { getCollabedHelpComponentConfig } from "@carma-pecher-collab/emsdetten";
 import config from "./config";
 import "./notification.css";
 import footerLogoUrl from "./assets/images/Signet_AIS_RZ.png";
+import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
+import FuzzySearch from "./components/FuzzySearch";
 
 function App() {
   const version = getApplicationVersion(versionData);
   const email = "starkregen@emsdetten.de";
   const urlPrefix = window.location.origin + window.location.pathname;
+  // const urlPrefix = import.meta.env.VITE_WUPP_ASSET_BASEURL;
   const [gazData, setGazData] = useState([]);
 
   const getGazData = async (setGazData, url) => {
@@ -26,6 +29,7 @@ function App() {
   useEffect(() => {
     getGazData(setGazData, urlPrefix + "/data/adressen_emsdetten.json");
   }, []);
+
   return (
     <TopicMapContextProvider
       appKey={"cismetRainhazardMap.Emsdetten"}
@@ -50,11 +54,16 @@ function App() {
         initialState={config.initialState}
         config={config.config}
         homeZoom={18}
+        gazetteerSearchControl={true}
+        gazetteerSearchComponent={EmptySearchComponent}
         homeCenter={[52.1734, 7.52781]}
         modeSwitcherTitle="Starkregenkarte Emsdetten"
         documentTitle="Starkregenkarte Emsdetten"
         gazData={gazData}
-      />
+      >
+        {/* <TopicMapSelectionContent /> */}
+      </HeavyRainHazardMap>
+      <FuzzySearch gazLocalData={gazData} />
     </TopicMapContextProvider>
   );
 }
