@@ -140,6 +140,9 @@ export default function LibreMap({ opacity = 0.1, vectorStyles = [] }) {
       "poi-source": {
         type: "geojson",
         data: transformedPois,
+        // type: "vector",
+        // tiles: ["https://tiles.cismet.de/poi/{z}/{x}/{y}.pbf"],
+
         cluster: true,
         clusterMaxZoom: 14,
         clusterRadius: 50,
@@ -171,16 +174,72 @@ export default function LibreMap({ opacity = 0.1, vectorStyles = [] }) {
           "circle-radius": 20,
         },
       },
+      // {
+      //   id: "poi-circles",
+      //   type: "circle",
+      //   source: "poi-source",
+      //   filter: ["!", ["has", "point_count"]],
+      //   paint: {
+      //     "circle-radius": 6,
+      //     "circle-color": ["get", "schrift"],
+      //     "circle-stroke-width": 1,
+      //     "circle-stroke-color": "#ffffff",
+      //   },
+      // },
       {
-        id: "poi-circles",
-        type: "circle",
+        id: "poi-images",
+        type: "symbol",
+        source: "poi-source",
+        minzoom: 0,
+        maxzoom: 24,
+        filter: ["!", ["has", "point_count"]],
+        layout: {
+          visibility: "visible",
+          "symbol-z-order": "source",
+          "symbol-sort-key": ["get", "geographicidentifier"],
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
+          "icon-size": {
+            stops: [
+              [9, 0.32],
+              [24, 0.8],
+            ],
+          },
+          "icon-padding": 0,
+          "icon-image": ["concat", ["get", "signatur"], ["get", "schrift"]],
+        },
+        paint: {
+          "icon-color": ["get", "schrift"],
+        },
+      },
+      {
+        id: "poi-labels",
+        type: "symbol",
         source: "poi-source",
         filter: ["!", ["has", "point_count"]],
+        minzoom: 16,
+        maxzoom: 24,
+        layout: {
+          "text-field": ["get", "geographicidentifier"],
+          "text-font": ["Open Sans Semibold"],
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
+          "text-size": 12,
+          "text-offset": {
+            stops: [
+              [17, [0, 1.3]],
+              [24, [0, 2]],
+            ],
+          },
+          "text-anchor": "top",
+          "text-allow-overlap": true,
+          "text-rotation-alignment": "viewport",
+        },
         paint: {
-          "circle-radius": 6,
-          "circle-color": ["get", "schrift"],
-          "circle-stroke-width": 1,
-          "circle-stroke-color": "#ffffff",
+          "text-halo-color": "#FFFFFF",
+          "text-halo-width": 5,
+          "text-color": ["get", "schrift"],
+          "text-opacity": 1,
         },
       },
     ],
@@ -272,10 +331,10 @@ export default function LibreMap({ opacity = 0.1, vectorStyles = [] }) {
             const currentZoom = map.current.getZoom();
             const roundedZoom = Math.round(currentZoom * 100) / 100;
 
-            if (lastZoom.current !== roundedZoom) {
-              console.log(`Current zoom level: ${roundedZoom}`);
-              lastZoom.current = roundedZoom;
-            }
+            // if (lastZoom.current !== roundedZoom) {
+            //   console.log(`Current zoom level: ${roundedZoom}`);
+            //   lastZoom.current = roundedZoom;
+            // }
           });
 
           // Set up marker updates
