@@ -76,7 +76,9 @@ function createPieChart(props) {
     }
   }
 
-  html += `<circle cx="${r}" cy="${r}" r="${Math.round(r * 0.4)}" fill="white" fill-opacity="0.75"/>`;
+  html += `<circle cx="${r}" cy="${r}" r="${Math.round(
+    r * 0.4
+  )}" fill="white" fill-opacity="0.75"/>`;
   html += `<circle cx="${r}" cy="${r}" r="${r}" stroke="#000" stroke-width="1" fill="none"/>`;
   html += `<text dominant-baseline="central" transform="translate(${r}, ${r})">${total.toLocaleString()}</text></g></svg></div>`;
 
