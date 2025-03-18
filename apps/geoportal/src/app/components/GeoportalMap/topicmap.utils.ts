@@ -158,7 +158,7 @@ export const onClickTopicMap = async (
               return results;
             }
 
-            const feature = await getFeatureForLayer(
+            const features = await getFeatureForLayer(
               testLayer,
               pos,
               [e.latlng.lng, e.latlng.lat],
@@ -166,8 +166,8 @@ export const onClickTopicMap = async (
               signal
             );
 
-            if (feature) {
-              return feature;
+            if (features) {
+              return features;
             }
           } catch (error) {
             if (error.name === "AbortError") {

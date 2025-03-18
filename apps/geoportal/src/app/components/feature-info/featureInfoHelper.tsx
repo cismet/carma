@@ -187,7 +187,7 @@ export const getFeatureForLayer = async (
     `&WIDTH=${viewportWidth}&HEIGHT=${viewportHeight}&SRS=EPSG:25832&FORMAT=image/png&TRANSPARENT=TRUE&BGCOLOR=0xF0F0F0&EXCEPTIONS=application/vnd.ogc.se_xml&FEATURE_COUNT=99&LAYERS=${featureInfoName}&STYLES=default&QUERY_LAYERS=${featureInfoName}&INFO_FORMAT=text/html&X=${pixelX}&Y=${pixelY}
             `;
 
-  let output = "";
+  let output = [];
 
   let result = "";
   let featureInfoZoom = 20;
@@ -216,41 +216,55 @@ export const getFeatureForLayer = async (
       .then((data) => {
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(data, "text/xml");
-        const content = xmlDoc.getElementsByTagName("gml:featureMember")[0];
+        const content = xmlDoc.getElementsByTagName("gml:featureMember");
 
-        output = content?.outerHTML ? getLeafNodes(content) : "";
+        for (let i = 0; i < content.length; i++) {
+          if (content[i].outerHTML) {
+            output.push(getLeafNodes(content[i]));
+          }
+        }
       });
 
     if (output) {
-      const feature = result.includes("function")
-        ? functionToFeature(output, result)
-        : objectToFeature(output, result);
+      const features = output
+        .map((currentOutput) => {
+          const feature = result.includes("function")
+            ? functionToFeature(currentOutput, result)
+            : objectToFeature(currentOutput, result);
+          if (!feature) {
+            return undefined;
+          }
+          return feature;
+        })
+        .filter((feature) => feature !== undefined);
 
-      if (!feature) {
+      if (features.length === 0) {
         return undefined;
       }
 
-      const genericLinks = feature.properties.genericLinks || [];
+      return features.map((feature) => {
+        const genericLinks = feature.properties.genericLinks || [];
 
-      return {
-        properties: {
-          ...feature.properties,
-          genericLinks: genericLinks.concat([
-            {
-              url: legacyFeatureInfoUrl,
-              tooltip: "Vollständige Sachdatenabfrage",
-              icon: <FeatureInfoIcon />,
-              target: "_legacyGetFeatureInfoHtml",
-            },
-          ]),
-          zoom: featureInfoZoom,
-        },
-        geometry: {
-          type: "Point",
-          coordinates,
-        },
-        id: layer.id,
-      };
+        return {
+          properties: {
+            ...feature.properties,
+            genericLinks: genericLinks.concat([
+              {
+                url: legacyFeatureInfoUrl,
+                tooltip: "Vollständige Sachdatenabfrage",
+                icon: <FeatureInfoIcon />,
+                target: "_legacyGetFeatureInfoHtml",
+              },
+            ]),
+            zoom: featureInfoZoom,
+          },
+          geometry: {
+            type: "Point",
+            coordinates,
+          },
+          id: layer.id,
+        };
+      });
     }
   }
 };
