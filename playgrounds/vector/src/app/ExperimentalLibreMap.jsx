@@ -58,8 +58,12 @@ function createPieChart(props) {
       ? baseCircleSize * 1.3333
       : baseCircleSize;
   const w = r * 2;
+  const svgSize = w + 2; // 1px extra on each side
 
-  let html = `<div><svg width="${w}" height="${w}" viewbox="0 0 ${w} ${w}" text-anchor="middle" style="font: ${fontSize}px sans-serif; display: block">`;
+  let html = `<div><svg width="${svgSize}" height="${svgSize}" viewbox="0 0 ${svgSize} ${svgSize}" text-anchor="middle" style="font: ${fontSize}px sans-serif; display: block">`;
+
+  // Translate the group to center the content in the larger SVG
+  html += `<g transform="translate(1,1)">`;
 
   for (let i = 0; i < counts.length; i++) {
     if (counts[i] > 0) {
@@ -71,10 +75,10 @@ function createPieChart(props) {
       );
     }
   }
-  html += `<circle cx="${r}" cy="${r}" r="${Math.round(
-    r * 0.4
-  )}" fill="white" fill-opacity="0.75"/>`;
-  html += `<text dominant-baseline="central" transform="translate(${r}, ${r})">${total.toLocaleString()}</text></svg></div>`;
+
+  html += `<circle cx="${r}" cy="${r}" r="${Math.round(r * 0.4)}" fill="white" fill-opacity="0.75"/>`;
+  html += `<circle cx="${r}" cy="${r}" r="${r}" stroke="rgba(0,0,0,0.8)" stroke-width="1" fill="none"/>`;
+  html += `<text dominant-baseline="central" transform="translate(${r}, ${r})">${total.toLocaleString()}</text></g></svg></div>`;
 
   const el = document.createElement("div");
   el.innerHTML = html;
