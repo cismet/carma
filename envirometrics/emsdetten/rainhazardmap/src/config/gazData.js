@@ -1,16 +1,8 @@
 import { createConfig, ENDPOINT } from "@carma-commons/resources";
 
-const prefix = "GazDataForHochwasserkarteByCismet";
+const prefix = "GazDataStarkregenEmsdetten";
 
-const endpoints = [
-  // ENDPOINT.GEPS,
-  // ENDPOINT.GEPS_REVERSE,
-  // ENDPOINT.ADRESSEN,
-  // ENDPOINT.BEZIRKE,
-  // ENDPOINT.QUARTIERE,
-  // ENDPOINT.POIS,
-  ENDPOINT.KITAS,
-];
+const endpoints = [];
 
 const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 const crs = "3857";

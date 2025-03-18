@@ -12,12 +12,12 @@ import "./notification.css";
 import footerLogoUrl from "./assets/images/Signet_AIS_RZ.png";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import FuzzySearch from "./components/FuzzySearch";
+import { TopicMapSelectionContent } from "@carma-apps/portals";
 
 function App() {
   const version = getApplicationVersion(versionData);
   const email = "starkregen@emsdetten.de";
   const urlPrefix = window.location.origin + window.location.pathname;
-  // const urlPrefix = import.meta.env.VITE_WUPP_ASSET_BASEURL;
   const [gazData, setGazData] = useState([]);
 
   const getGazData = async (setGazData, url) => {
@@ -61,7 +61,7 @@ function App() {
         documentTitle="Starkregenkarte Emsdetten"
         gazData={gazData}
       >
-        {/* <TopicMapSelectionContent /> */}
+        <TopicMapSelectionContent />
       </HeavyRainHazardMap>
       <FuzzySearch gazLocalData={gazData} />
     </TopicMapContextProvider>

@@ -35,7 +35,7 @@ const FuzzySearch = ({ gazLocalData }) => {
   return (
     <div className="custom-left-control">
       <LibFuzzySearch
-        gazData={[...gazData, ...gazLocalData]}
+        gazData={gazLocalData}
         onSelection={onGazetteerSelection}
         pixelwidth={pixelwidth}
         placeholder="Adresssuche"
