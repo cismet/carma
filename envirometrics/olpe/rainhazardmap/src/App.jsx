@@ -10,6 +10,9 @@ import { getCollabedHelpComponentConfig } from "@carma-pecher-collab/olpe";
 import olpeConfig from "./config";
 import "./notification.css";
 import footerLogoUrl from "./assets/images/Signet_AIS_RZ.png";
+import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
+import FuzzySearch from "./components/FuzzySearch";
+import { TopicMapSelectionContent } from "@carma-apps/portals";
 
 function App() {
   const version = getApplicationVersion(versionData);
@@ -53,8 +56,12 @@ function App() {
         homeCenter={[51.0301991586838, 7.850940702483058]}
         modeSwitcherTitle="AIS Starkregenvorsorge Olpe"
         documentTitle="Starkregengefahrenkarte Olpe"
-        gazData={gazData}
-      />
+        gazetteerSearchControl={true}
+        gazetteerSearchComponent={EmptySearchComponent}
+      >
+        <TopicMapSelectionContent />
+      </HeavyRainHazardMap>
+      <FuzzySearch gazLocalData={gazData} />
     </TopicMapContextProvider>
   );
 }
