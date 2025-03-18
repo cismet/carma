@@ -12,6 +12,9 @@ import { getCollabedHelpComponentConfig } from "@carma-pecher-collab/meschede";
 import meschedeConfig from "./meschede";
 import "./notification.css";
 import footerLogoUrl from "./assets/images/Signet_AIS_RZ.png";
+import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
+import FuzzySearch from "./components/FuzzySearch";
+import { TopicMapSelectionContent } from "@carma-apps/portals";
 
 function App() {
   const version = getApplicationVersion(versionData);
@@ -84,7 +87,10 @@ function App() {
         documentTitle="AIS Starkregenvorsorge Meschede"
         gazData={gazData}
         customFeatureInfoUIs={[<div>xxx</div>]}
+        gazetteerSearchControl={true}
+        gazetteerSearchComponent={EmptySearchComponent}
       >
+        <TopicMapSelectionContent />
         <ProjGeoJson
           featureClickHandler={(e) => {
             if (gewInfoShownRef.current === false) {
@@ -116,6 +122,7 @@ function App() {
           featureCollection={gewaesserData}
         />
       </HeavyRainHazardMap>
+      <FuzzySearch gazLocalData={gazData} />
     </TopicMapContextProvider>
   );
 }
