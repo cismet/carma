@@ -1,7 +1,7 @@
 import { Proj4Converter, PointWithSector } from "../types";
 import { lineString, lineIntersect } from "@turf/turf";
 import { getCardinalDirection } from "./orientationUtils";
-import { Feature, FeatureCollection, Polygon } from "geojson";
+import type { Feature, FeatureCollection, Polygon } from "geojson";
 
 const ORIENTATION_PROPERTY_NAME = "ORI";
 const ID_PROPERTY_NAME = "FILENAME";

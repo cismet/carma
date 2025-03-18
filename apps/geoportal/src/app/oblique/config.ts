@@ -21,7 +21,7 @@ export const OBLIQUE_CONFIG: ObliqueDataProviderConfig = {
 };
 
 export const NUM_NEAREST_IMAGES = 200;
-export const FOV_SCALE_FACTOR = 0.11;
+export const FOV_SCALE_FACTOR = 0.208;
 
 export const CAMERA_ID_TO_DIRECTION = {
   // For even flight lines

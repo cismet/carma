@@ -1,6 +1,15 @@
 import { Entity, Color, ColorMaterialProperty, ConstantProperty } from "cesium";
-import { buffer, difference, featureCollection } from "@turf/turf";
+import {
+  buffer,
+  difference,
+  featureCollection,
+  transformTranslate,
+} from "@turf/turf";
 import type { Feature, FeatureCollection, Polygon } from "geojson";
+import {
+  getCardinalDirection,
+  getHeadingFromCardinalDirection,
+} from "./orientationUtils";
 
 export interface FootprintProperties {
   FILENAME: string;
@@ -13,6 +22,8 @@ export const FOOTPRINT_URL =
   "https://wupp-oblique.cismet.de/2024/metadata/fprfc.geojson";
 
 export const BUFFER_WIDTH_METERS = 10;
+
+export const BUFFER_SHIFT_FACTOR = 0.5;
 
 export const fetchGeoJson = async (
   url: string
@@ -31,14 +42,27 @@ export const createFilteredGeoJson = (
 ): FeatureCollection<Polygon, FootprintProperties> => {
   try {
     const featureCopy = JSON.parse(JSON.stringify(feature));
+
     const buffered = buffer(featureCopy, BUFFER_WIDTH_METERS, {
       units: "meters",
     });
+
+    const direction = feature.properties.ORI;
+
+    const heading = getCardinalDirection(direction.toString());
+
+    // TODO: if verified method use headingoffset as Param;
+    const headingDegree = heading * 90 - 34 + 180;
+
+    const shiftedBuffered = transformTranslate(
+      buffered,
+      BUFFER_WIDTH_METERS * BUFFER_SHIFT_FACTOR,
+      headingDegree,
+      { units: "meters" }
+    );
+
     const outline = difference(
-      featureCollection([
-        buffered as FootprintFeature,
-        featureCopy as FootprintFeature,
-      ])
+      featureCollection([shiftedBuffered, featureCopy])
     );
 
     if (outline && outline.geometry) {
