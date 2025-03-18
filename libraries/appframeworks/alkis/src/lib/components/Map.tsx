@@ -29,9 +29,8 @@ export const Map = <T,>({
   const [mapWidth, setMapWidth] = useState<number>(0);
   const [mapHeight, setMapHeight] = useState<number>(0);
   const customStyler = (feature) => {
-    console.log("xxx feature", feature);
     if (feature.id === selectedFeature && selectedFeature) {
-      return { color: "blue", weight: 1 };
+      return { color: "blue", weight: 2 };
     }
     return data.styler(feature);
   };
