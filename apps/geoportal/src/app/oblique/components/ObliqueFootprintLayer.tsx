@@ -17,14 +17,13 @@ export const ObliqueFootprintLayer: React.FC = () => {
   const { viewerRef } = useCesiumContext();
   const { nearestImage, footprintData, lockFootprint } =
     useObliqueDataContext();
-  const dataSourceRef = useRef<GeoJsonDataSource | null>(null);
-  // Store the last displayed image ID to prevent unnecessary updates
-  const lastImageIdRef = useRef<string | null>(null);
 
-  // Clean up data source when component unmounts
+  const dataSourceRef = useRef(null);
+  const lastImageIdRef = useRef(null);
+
+  // Clean up data source when component unmounts or oblique mode disabled
   useEffect(() => {
     const viewer = viewerRef.current;
-
     return () => {
       if (dataSourceRef.current && viewer) {
         viewer.dataSources.remove(dataSourceRef.current, true);
@@ -33,29 +32,27 @@ export const ObliqueFootprintLayer: React.FC = () => {
     };
   }, [viewerRef]);
 
-  // Track oblique mode changes and clean up when exiting oblique mode
   useEffect(() => {
-    if (!isObliqueMode && dataSourceRef.current && viewerRef.current) {
-      viewerRef.current.dataSources.remove(dataSourceRef.current, true);
-      dataSourceRef.current = null;
-      viewerRef.current.scene.requestRender();
-    }
-  }, [isObliqueMode, viewerRef]);
-
-  useEffect(() => {
-    if (!isObliqueMode || !viewerRef.current || !footprintData || !nearestImage)
-      return;
-
-    // If footprint is locked and already displayed this footprint, don't update
-    if (lockFootprint && lastImageIdRef.current === nearestImage.record.id) {
-      return;
-    }
-
-    // Store the current image ID
-    lastImageIdRef.current = nearestImage.record.id;
-
     const viewer = viewerRef.current;
 
+    if (
+      !isObliqueMode ||
+      !viewer ||
+      !nearestImage ||
+      !footprintData ||
+      lockFootprint
+    ) {
+      return;
+    }
+
+    // Skip unnecessary updates
+    if (nearestImage.record.id === lastImageIdRef.current) {
+      return;
+    }
+
+    lastImageIdRef.current = nearestImage.record.id;
+
+    // Remove previous datasource if exists
     if (dataSourceRef.current) {
       viewer.dataSources.remove(dataSourceRef.current, true);
       dataSourceRef.current = null;
@@ -66,12 +63,8 @@ export const ObliqueFootprintLayer: React.FC = () => {
       nearestImage.record.id
     );
 
-    if (!matchingFeature) {
-      console.log(`No footprint found for image ID: ${nearestImage.record.id}`);
-      return;
-    }
+    if (!matchingFeature) return;
 
-    // Process the feature to create the buffered visualization
     const filteredGeoJson = createFilteredGeoJson(matchingFeature);
 
     GeoJsonDataSource.load(filteredGeoJson, {
@@ -80,18 +73,13 @@ export const ObliqueFootprintLayer: React.FC = () => {
       fill: Color.WHITE.withAlpha(0.6),
       strokeWidth: 0,
       credit: "",
-    })
-      .then((dataSource) => {
-        viewer.dataSources.add(dataSource);
-        dataSourceRef.current = dataSource;
-
-        dataSource.entities.values.forEach(configureFootprintEntity);
-        viewer.scene.requestRender();
-      })
-      .catch((error) =>
-        console.error("Error loading footprint GeoJSON:", error)
-      );
-  }, [isObliqueMode, viewerRef, footprintData, nearestImage, lockFootprint]);
+    }).then((dataSource) => {
+      dataSource.entities.values.forEach(configureFootprintEntity);
+      viewer.dataSources.add(dataSource);
+      dataSourceRef.current = dataSource;
+      viewer.scene.requestRender();
+    });
+  }, [viewerRef, isObliqueMode, nearestImage, footprintData, lockFootprint]);
 
   return null;
 };

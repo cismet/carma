@@ -91,7 +91,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const [currentHeading, setCurrentHeading] = useState<number>(0);
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
 
-  // Function to close the preview
   const closePreview = useCallback(() => {
     setIsPreviewVisible(false);
   }, []);
@@ -165,7 +164,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
   // Remove orbit point entity when component unmounts
   useEffect(() => {
-    // Capture the current values inside the effect
     const currentViewer = viewerRef.current;
     const currentOrbitPointEntity = orbitPointEntityRef.current;
 
@@ -217,16 +215,13 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
   // Convert radians to degrees for display
   const formatHeadingDegrees = useCallback((headingRadians: number): number => {
-    // Convert to degrees and normalize to 0-360
     const degrees = CesiumMath.toDegrees(
       CesiumMath.zeroToTwoPi(headingRadians)
     );
-    // Round to nearest integer
     return Math.round(degrees);
   }, []);
 
   const flyToNearestImage = useCallback(async () => {
-    // If preview is visible, close it
     if (isPreviewVisible) {
       setIsPreviewVisible(false);
       notifyPreviewVisibilityChange(false);
@@ -237,13 +232,11 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
     const viewer = viewerRef.current;
 
-    // Extract position from the image record
     const { centerWGS84, fallbackHeading: calculatedHeading } =
       nearestImage.record;
     const { imageCenter, distanceToCamera } = nearestImage;
     if (!centerWGS84 || !imageCenter) return;
 
-    // Create Cartesian3 from WGS84 coordinates
     const [longitude, latitude, height] = centerWGS84;
     const position = Cartesian3.fromDegrees(longitude, latitude, height);
     const imageCenterCartesian = Cartesian3.fromDegrees(
@@ -271,12 +264,10 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     // local UP
     const up = Cartesian3.normalize(position, new Cartesian3());
 
-    // Set flag to stop footprint updates
     setLockFootprint(true);
 
     const duration = Math.max(0, Math.min(1.5, distanceToCamera ** 0.5 / 20));
 
-    // Fly to the image position
     viewer.camera.flyTo({
       destination: position,
       orientation: { direction, up },
@@ -301,7 +292,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const downloadHighQualityImage = useCallback(() => {
     if (!nearestImage || !previewPath) return;
 
-    // Use level 2 for download
     const downloadUrl = getPreviewImageUrl(
       previewPath,
       OBLIQUE_PREVIEW_QUALITY.LEVEL_2,
@@ -319,7 +309,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     const viewer = viewerRef.current;
     const camera = viewer.camera;
 
-    // Initial update of heading
     setCurrentHeading(camera.heading);
 
     // Set up event handlers to detect when the user moves the camera manually
@@ -344,23 +333,19 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       }
     }, ScreenSpaceEventType.RIGHT_DOWN);
 
-    // Update heading on camera change
     const updateCameraInfo = () => {
-      // Update current heading for display
       setCurrentHeading(camera.heading);
 
       if (animationInProgressRef.current) {
         return; // Don't process further if we're in the middle of an animation
       }
 
-      // Only reset orbit point if user manually moved the camera
       if (userMovedCameraRef.current) {
         orbitPointRef.current = getOrbitPoint(viewer);
         updateOrbitPointEntity();
         userMovedCameraRef.current = false;
       }
 
-      // Update the active direction
       const cardinalHeadings = getCardinalHeadings();
       const closestCardinalIndex = findClosestCardinalIndex(
         camera.heading,
@@ -369,7 +354,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       setActiveDirection(closestCardinalIndex);
     };
 
-    // Initialize orbit point if not yet set
     if (!orbitPointRef.current) {
       orbitPointRef.current = getOrbitPoint(viewer);
       if (isDebugMode) {
@@ -377,7 +361,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       }
     }
 
-    // Initial update for active direction
     const cardinalHeadings = getCardinalHeadings();
     const closestCardinalIndex = findClosestCardinalIndex(
       camera.heading,
@@ -385,7 +368,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     );
     setActiveDirection(closestCardinalIndex);
 
-    // Add listener for camera changes
     viewer.camera.changed.addEventListener(updateCameraInfo);
     viewer.camera.moveEnd.addEventListener(updateCameraInfo);
 
@@ -412,20 +394,16 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       const scene = viewer.scene;
       const currentHeading = camera.heading;
 
-      // Get all cardinal headings with offset applied
       const cardinalHeadings = getCardinalHeadings();
 
-      // Skip if we're already precisely at this cardinal direction
       if (
         Math.abs(currentHeading - cardinalHeadings[targetDirection]) < 0.0001
       ) {
         return;
       }
 
-      // Get the target heading
       const targetHeading = cardinalHeadings[targetDirection];
 
-      // Get the center point for orbiting - use stored point if available or calculate new one
       if (!orbitPointRef.current) {
         orbitPointRef.current = getOrbitPoint(viewer);
         if (isDebugMode) {
@@ -445,7 +423,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       let startTime = Date.now();
       const duration = 500; // ms
 
-      // Calculate the rotation difference (shortest path)
       let headingChange = targetHeading - currentHeading;
 
       // Ensure we take the shortest path
@@ -467,30 +444,24 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
         t = EasingFunction.SINUSOIDAL_IN_OUT(t);
 
         if (t < 1) {
-          // Calculate the intermediate heading
           const intermediateHeading = currentHeading + headingChange * t;
 
-          // Apply the intermediate heading while maintaining pitch and range
           camera.lookAt(
             centerPoint,
             new HeadingPitchRange(intermediateHeading, camera.pitch, range)
           );
 
-          // Update current heading display during animation
           setCurrentHeading(intermediateHeading);
 
           scene.requestRender();
         } else {
-          // Set the final heading exactly to avoid any floating point imprecision
           camera.lookAt(
             centerPoint,
             new HeadingPitchRange(targetHeading, camera.pitch, range)
           );
 
-          // Update current heading to final value
           setCurrentHeading(targetHeading);
 
-          // Reset transform
           camera.lookAtTransform(Matrix4.IDENTITY);
 
           scene.requestRender();
@@ -514,21 +485,17 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
       const camera = viewer.camera;
 
-      // Get all cardinal headings with offset applied
       const cardinalHeadings = getCardinalHeadings();
 
-      // Find the index of the closest cardinal direction
       const closestCardinalIndex = findClosestCardinalIndex(
         camera.heading,
         cardinalHeadings
       );
 
-      // Determine the next cardinal index based on rotation direction
       const nextCardinalIndex = clockwise
         ? (closestCardinalIndex + 1) % 4 // Next clockwise cardinal
         : (closestCardinalIndex + 3) % 4; // Next counterclockwise cardinal (4-1)
 
-      // Rotate to the target direction
       rotateToDirection(nextCardinalIndex);
     },
     [
@@ -539,18 +506,15 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     ]
   );
 
-  // Don't render if we shouldn't
   if (!shouldRender) {
     return null;
   }
 
-  // Direction label style
   const directionLabelStyle = {
     fontWeight: 800,
     fontSize: "16px",
   };
 
-  // Heading display style
   const headingDisplayStyle = {
     fontWeight: 600,
     fontSize: "14px",
@@ -558,20 +522,26 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     userSelect: "none" as const,
   };
 
-  // Active button className
   const activeButtonClass = "!bg-blue-100 !border-blue-400";
 
-  // Format current heading for display
   const headingDegrees = formatHeadingDegrees(currentHeading);
 
-  // Calculate the offset in degrees for the tooltip
   const offsetDegrees = Math.round(CesiumMath.toDegrees(headingOffset));
 
+  const viewerAspectRatio =
+    viewerRef.current?.scene.canvas.width >
+    viewerRef.current?.scene.canvas.height
+      ? viewerRef.current?.scene.canvas.width /
+        viewerRef.current?.scene.canvas.height
+      : 1;
+
+  // always use longer dimension
   let scaleFactor = 1;
 
   if (viewerRef.current?.camera.frustum instanceof PerspectiveFrustum) {
     const fov = viewerRef.current?.camera.frustum.fov;
-    scaleFactor = (1 / Math.tan(fov / 2)) * FOV_SCALE_FACTOR; // example mapping
+    scaleFactor =
+      viewerAspectRatio * (1 / Math.tan(fov / 2)) * FOV_SCALE_FACTOR;
   }
 
   return (

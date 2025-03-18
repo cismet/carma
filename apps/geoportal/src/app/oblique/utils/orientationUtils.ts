@@ -1,4 +1,4 @@
-import { Cartesian3, Cartesian3, Math as CesiumMath } from "cesium";
+import { Cartesian3, Math as CesiumMath } from "cesium";
 
 // North is 0 and rotations are clockwise to the east
 
