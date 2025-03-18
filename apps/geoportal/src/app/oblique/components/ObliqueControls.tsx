@@ -23,6 +23,7 @@ import {
   ScreenSpaceEventType,
   ConstantPositionProperty,
   sampleTerrainMostDetailed,
+  PerspectiveFrustum,
 } from "cesium";
 
 import { useCesiumContext, getOrbitPoint } from "@carma-mapping/cesium-engine";
@@ -41,6 +42,7 @@ import {
   notifyPreviewVisibilityChange,
 } from "../utils/previewVisibility";
 import { getDirectionFromCartesian } from "../utils/orientationUtils";
+import { FOV_SCALE_FACTOR } from "../config";
 
 type ObliqueControlsProps = {
   /**
@@ -66,13 +68,6 @@ const HiddenImagePreviewContainer = styled.div`
   width: 1;
   height: 1;
   overflow: hidden;
-`;
-
-const GlobalPreviewStyles = createGlobalStyle`
-  .ant-image-preview-root .ant-image-preview-img {
-    cursor: default !important;
-    pointer-events: none !important;
-  }
 `;
 
 export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
@@ -103,6 +98,17 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const orbitPointRef = useRef<Cartesian3 | null>(null);
   const orbitPointEntityRef = useRef<Entity | null>(null);
   const userMovedCameraRef = useRef<boolean>(false);
+
+  const GlobalPreviewStyles = createGlobalStyle<{ scale: number }>`
+  .ant-image-preview-root .ant-image-preview-img {
+    cursor: default !important;
+    pointer-events: none !important;
+        transform: scale(${({ scale }) => scale}) !important;
+    transform-origin: center center !important;
+    max-width: none !important;
+    max-height: none !important;
+  }
+`;
 
   // Handle visibility changes when oblique mode toggles
   useEffect(() => {
@@ -561,9 +567,16 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   // Calculate the offset in degrees for the tooltip
   const offsetDegrees = Math.round(CesiumMath.toDegrees(headingOffset));
 
+  let scaleFactor = 1;
+
+  if (viewerRef.current?.camera.frustum instanceof PerspectiveFrustum) {
+    const fov = viewerRef.current?.camera.frustum.fov;
+    scaleFactor = (1 / Math.tan(fov / 2)) * FOV_SCALE_FACTOR; // example mapping
+  }
+
   return (
     <>
-      <GlobalPreviewStyles />
+      <GlobalPreviewStyles scale={scaleFactor} />
       <ObliqueFootprintLayer />
       {isDebugMode && <ObliqueDebugSvg />}
       {isDebugMode && nearestImage && (

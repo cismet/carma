@@ -174,7 +174,8 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
         }
 
         const center = getOrbitPoint(viewer);
-        const range = fixedHeight / Math.tan(-fixedPitch);
+        const range =
+          viewer.camera.positionCartographic.height / Math.tan(-fixedPitch);
 
         // Setup wheel handler first
         const handleWheel = (event: WheelEvent) => {
