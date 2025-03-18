@@ -15,6 +15,7 @@ import LibreMap from "./app/LibreMap";
 import ExperimentalLibreMap from "./app/ExperimentalLibreMap";
 import { gazDataConfig } from "./config/gazData";
 import poisStyle from "./poiStyle.json";
+import { VectorStyleInput } from "./app/types";
 
 const originalWarn = console.warn.bind(console);
 const originalError = console.error.bind(console);
@@ -50,7 +51,7 @@ const RootComponent = () => {
   if (vectorStyles) {
     initialVectorStylesArray = vectorStyles.split(",");
   }
-  const [vectorStylesArray, setVectorStylesArray] = useState<string[]>(
+  const [vectorStylesArray, setVectorStylesArray] = useState<VectorStyleInput[]>(
     initialVectorStylesArray
   );
 
@@ -145,11 +146,11 @@ const RootComponent = () => {
       <Routes>
         <Route
           path="/"
-          element={<LeafletMap vectorStyles={vectorStylesArray as never[]} />}
+          element={<LeafletMap vectorStyles={vectorStylesArray} />}
         ></Route>
         <Route
           path="/leaflet"
-          element={<LeafletMap vectorStyles={vectorStylesArray as never[]} />}
+          element={<LeafletMap vectorStyles={vectorStylesArray} />}
         ></Route>
         <Route
           path="/leafletWithPois"
@@ -157,7 +158,7 @@ const RootComponent = () => {
         ></Route>
         <Route
           path="/maplibre"
-          element={<LibreMap vectorStyles={vectorStylesArray as never[]} />}
+          element={<LibreMap vectorStyles={vectorStylesArray} />}
         ></Route>
         <Route
           path="/maplibreWithPois"
