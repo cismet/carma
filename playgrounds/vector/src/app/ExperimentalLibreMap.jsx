@@ -125,6 +125,7 @@ export default function LibreMap({ opacity = 0.1, vectorStyles = [] }) {
   const [zoom] = useState(11);
   const markers = useRef({});
   const markersOnScreen = useRef({});
+  const lastZoom = useRef(null);
 
   const backgroundStyle = {
     version: 8,
@@ -161,6 +162,16 @@ export default function LibreMap({ opacity = 0.1, vectorStyles = [] }) {
         paint: { "raster-opacity": 0.7 },
       },
       {
+        id: "clusters",
+        type: "circle",
+        source: "poi-source",
+        filter: ["has", "point_count"],
+        paint: {
+          "circle-color": "rgba(0,0,0,0)",
+          "circle-radius": 20,
+        },
+      },
+      {
         id: "poi-circles",
         type: "circle",
         source: "poi-source",
@@ -191,6 +202,22 @@ export default function LibreMap({ opacity = 0.1, vectorStyles = [] }) {
         marker = markers.current[id] = new maplibregl.Marker({
           element: el,
         }).setLngLat(coords);
+
+        // Add click handler to the marker element
+        el.addEventListener("click", () => {
+          const currentZoom = map.current.getZoom();
+          const pointCount = props.point_count;
+          const zoomIncrement = pointCount > 100 ? 3 : pointCount > 50 ? 2 : 1;
+          const newZoom = Math.min(
+            currentZoom + zoomIncrement,
+            map.current.getMaxZoom()
+          );
+          map.current.flyTo({
+            center: coords,
+            zoom: newZoom,
+            essential: true,
+          });
+        });
       }
       newMarkers[id] = marker;
 
@@ -240,35 +267,28 @@ export default function LibreMap({ opacity = 0.1, vectorStyles = [] }) {
             "top-left"
           );
 
+          // Log zoom level changes
+          map.current.on("zoom", function () {
+            const currentZoom = map.current.getZoom();
+            const roundedZoom = Math.round(currentZoom * 100) / 100;
+
+            if (lastZoom.current !== roundedZoom) {
+              console.log(`Current zoom level: ${roundedZoom}`);
+              lastZoom.current = roundedZoom;
+            }
+          });
+
           // Set up marker updates
           map.current.on("data", function handler(e) {
             if (e.sourceId !== "poi-source" || !e.isSourceLoaded) return;
             map.current.off("data", handler);
             map.current.on("move", updateMarkers);
-            map.current.on("moveend", updateMarkers);
+            map.current.on("moveend", () => {
+              setTimeout(() => {
+                updateMarkers();
+              }, 100);
+            });
             updateMarkers();
-          });
-
-          // Handle cluster click
-          map.current.on("click", "clusters", (e) => {
-            const features = map.current.queryRenderedFeatures(e.point, {
-              layers: ["clusters"],
-            });
-            if (features.length === 0) return;
-
-            const currentZoom = map.current.getZoom();
-            const pointCount = features[0].properties.point_count;
-            const zoomIncrement =
-              pointCount > 100 ? 3 : pointCount > 50 ? 2 : 1;
-            const newZoom = Math.min(
-              currentZoom + zoomIncrement,
-              map.current.getMaxZoom()
-            );
-
-            map.current.easeTo({
-              center: features[0].geometry.coordinates,
-              zoom: newZoom,
-            });
           });
         } catch (e) {
           console.error("Error setting up map controls:", e);
