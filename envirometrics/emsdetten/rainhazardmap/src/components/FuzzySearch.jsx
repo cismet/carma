@@ -38,7 +38,7 @@ const FuzzySearch = ({ gazLocalData }) => {
         gazData={[...gazData, ...gazLocalData]}
         onSelection={onGazetteerSelection}
         pixelwidth={pixelwidth}
-        placeholder="Stadtteil | Adresse | POI | GEP"
+        placeholder="Adresssuche"
       />
     </div>
   );
