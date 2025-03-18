@@ -27,17 +27,27 @@ const transformedPois = {
 };
 
 // Get unique colors from POIs
-const uniqueColors = [...new Set(transformedPois.features.map(f => f.properties.schrift))];
+const uniqueColors = [
+  ...new Set(transformedPois.features.map((f) => f.properties.schrift)),
+];
 
 function createDonutChart(props) {
   const offsets = [];
-  const counts = uniqueColors.map(color => props[color] || 0);
+  const counts = uniqueColors.map((color) => props[color] || 0);
   let total = 0;
   for (let i = 0; i < counts.length; i++) {
     offsets.push(total);
     total += counts[i];
   }
-  const fontSize = total >= 1000 ? 22 : total >= 100 ? 20 : total >= 10 ? 18 : 16;
+  const baseFontsize = 10;
+  const fontSize =
+    total >= 1000
+      ? baseFontsize * 1.375
+      : total >= 100
+      ? baseFontsize * 1.25
+      : total >= 10
+      ? baseFontsize * 1.125
+      : baseFontsize;
   const r = total >= 1000 ? 50 : total >= 100 ? 32 : total >= 10 ? 24 : 18;
   const r0 = Math.round(r * 0.6);
   const w = r * 2;
@@ -58,7 +68,7 @@ function createDonutChart(props) {
   html += `<circle cx="${r}" cy="${r}" r="${r0}" fill="white" />
            <text dominant-baseline="central" transform="translate(${r}, ${r})">${total.toLocaleString()}</text></svg></div>`;
 
-  const el = document.createElement('div');
+  const el = document.createElement("div");
   el.innerHTML = html;
   return el.firstChild;
 }
@@ -67,18 +77,20 @@ function donutSegment(start, end, r, r0, color) {
   if (end - start === 1) end -= 0.00001;
   const a0 = 2 * Math.PI * (start - 0.25);
   const a1 = 2 * Math.PI * (end - 0.25);
-  const x0 = Math.cos(a0), y0 = Math.sin(a0);
-  const x1 = Math.cos(a1), y1 = Math.sin(a1);
+  const x0 = Math.cos(a0),
+    y0 = Math.sin(a0);
+  const x1 = Math.cos(a1),
+    y1 = Math.sin(a1);
   const largeArc = end - start > 0.5 ? 1 : 0;
 
   return [
     '<path d="M',
     r + r0 * x0,
     r + r0 * y0,
-    'L',
+    "L",
     r + r * x0,
     r + r * y0,
-    'A',
+    "A",
     r,
     r,
     0,
@@ -86,10 +98,10 @@ function donutSegment(start, end, r, r0, color) {
     1,
     r + r * x1,
     r + r * y1,
-    'L',
+    "L",
     r + r0 * x1,
     r + r0 * y1,
-    'A',
+    "A",
     r0,
     r0,
     0,
@@ -97,8 +109,8 @@ function donutSegment(start, end, r, r0, color) {
     0,
     r + r0 * x0,
     r + r0 * y0,
-    `" fill="${color}" />`
-  ].join(' ');
+    `" fill="${color}" />`,
+  ].join(" ");
 }
 
 export default function LibreMap({ opacity = 0.1, vectorStyles = [] }) {
@@ -127,11 +139,11 @@ export default function LibreMap({ opacity = 0.1, vectorStyles = [] }) {
         clusterMaxZoom: 14,
         clusterRadius: 50,
         clusterProperties: Object.fromEntries(
-          uniqueColors.map(color => [
+          uniqueColors.map((color) => [
             color,
-            ["+", ["case", ["==", ["get", "schrift"], color], 1, 0]]
+            ["+", ["case", ["==", ["get", "schrift"], color], 1, 0]],
           ])
-        )
+        ),
       },
     },
     glyphs: "https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf",
@@ -155,13 +167,13 @@ export default function LibreMap({ opacity = 0.1, vectorStyles = [] }) {
           "circle-stroke-width": 1,
           "circle-stroke-color": "#ffffff",
         },
-      }
+      },
     ],
   };
 
   function updateMarkers() {
     const newMarkers = {};
-    const features = map.current.querySourceFeatures('poi-source');
+    const features = map.current.querySourceFeatures("poi-source");
 
     for (const feature of features) {
       const coords = feature.geometry.coordinates;
@@ -173,7 +185,7 @@ export default function LibreMap({ opacity = 0.1, vectorStyles = [] }) {
       if (!marker) {
         const el = createDonutChart(props);
         marker = markers.current[id] = new maplibregl.Marker({
-          element: el
+          element: el,
         }).setLngLat(coords);
       }
       newMarkers[id] = marker;
@@ -203,29 +215,32 @@ export default function LibreMap({ opacity = 0.1, vectorStyles = [] }) {
         maxZoom: 22,
       });
 
-      map.current.on('error', (e) => {
-        console.error('Map error:', e);
+      map.current.on("error", (e) => {
+        console.error("Map error:", e);
       });
 
-      map.current.on('style.error', (e) => {
-        console.error('Style error:', e);
+      map.current.on("style.error", (e) => {
+        console.error("Style error:", e);
       });
 
-      map.current.on('source.error', (e) => {
-        console.error('Source error:', e);
+      map.current.on("source.error", (e) => {
+        console.error("Source error:", e);
       });
 
       map.current.on("load", function () {
         console.log("Map loaded successfully");
 
         try {
-          map.current.addControl(new maplibregl.NavigationControl(), "top-left");
+          map.current.addControl(
+            new maplibregl.NavigationControl(),
+            "top-left"
+          );
 
           // Set up marker updates
-          map.current.on('data', (e) => {
-            if (e.sourceId !== 'poi-source' || !e.isSourceLoaded) return;
-            map.current.on('move', updateMarkers);
-            map.current.on('moveend', updateMarkers);
+          map.current.on("data", (e) => {
+            if (e.sourceId !== "poi-source" || !e.isSourceLoaded) return;
+            map.current.on("move", updateMarkers);
+            map.current.on("moveend", updateMarkers);
             updateMarkers();
           });
 
@@ -238,7 +253,8 @@ export default function LibreMap({ opacity = 0.1, vectorStyles = [] }) {
 
             const currentZoom = map.current.getZoom();
             const pointCount = features[0].properties.point_count;
-            const zoomIncrement = pointCount > 100 ? 3 : pointCount > 50 ? 2 : 1;
+            const zoomIncrement =
+              pointCount > 100 ? 3 : pointCount > 50 ? 2 : 1;
             const newZoom = Math.min(
               currentZoom + zoomIncrement,
               map.current.getMaxZoom()
@@ -249,7 +265,6 @@ export default function LibreMap({ opacity = 0.1, vectorStyles = [] }) {
               zoom: newZoom,
             });
           });
-
         } catch (e) {
           console.error("Error setting up map controls:", e);
         }
