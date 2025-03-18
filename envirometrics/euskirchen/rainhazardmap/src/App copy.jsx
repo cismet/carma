@@ -15,9 +15,6 @@ import {
 } from "@carma-pecher-collab/euskirchen";
 import NotesDisplay from "./NotesDisplay";
 import footerLogoUrl from "./assets/images/Signet_AIS_RZ.png";
-import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
-import FuzzySearch from "./components/FuzzySearch";
-import { TopicMapSelectionContent } from "@carma-apps/portals";
 
 function App() {
   const version = getApplicationVersion(versionData);
@@ -133,16 +130,12 @@ function App() {
         homeCenter={[50.651147537357396, 6.792640686035157]}
         modeSwitcherTitle="AIS Starkregenvorsorge Kreis Euskirchen"
         documentTitle="AIS Starkregenvorsorge Kreis Euskirchen"
-        // gazData={gazData}
-        // gazetteerSearchPlaceholder="Kommune | Ortslage | Adresse"
-        gazetteerSearchControl={true}
-        gazetteerSearchComponent={EmptySearchComponent}
+        gazData={gazData}
+        gazetteerSearchPlaceholder="Kommune | Ortslage | Adresse"
         customFeatureInfoUIs={[<div></div>]}
       >
-        <TopicMapSelectionContent />
         <NotesDisplay hinweisData={hinweisData} />
       </HeavyRainHazardMap>
-      <FuzzySearch gazLocalData={gazData} />
     </TopicMapContextProvider>
   );
 }
