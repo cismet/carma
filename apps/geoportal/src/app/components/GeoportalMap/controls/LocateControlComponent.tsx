@@ -13,7 +13,7 @@ const LocateControlComponent = ({ isActive = false }) => {
     useState<LocateControl | null>(null);
 
   useEffect(() => {
-    if (!locationInstance && routedMapRef) {
+    if (!locationInstance && routedMapRef?.leafletMap) {
       const mapExample = routedMapRef.leafletMap.leafletElement;
       const lc = (control as LocateControl)
         .locate({

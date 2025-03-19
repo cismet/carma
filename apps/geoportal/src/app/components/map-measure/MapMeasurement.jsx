@@ -69,8 +69,8 @@ const MapMeasurement = (props) => {
   };
 
   useEffect(() => {
-    if (routedMapRef && !measureControl) {
-      const mapExample = routedMapRef.leafletMap.leafletElement;
+    if (routedMapRef?.leafletMap && !measureControl) {
+      const mapExample = routedMapRef?.leafletMap?.leafletElement;
       const customOptions = {
         position: "topright",
         icon_lineActive: makeMeasureActiveIcon,
