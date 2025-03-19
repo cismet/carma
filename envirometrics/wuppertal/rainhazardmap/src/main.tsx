@@ -1,8 +1,9 @@
+import "./index.css";
 import { StrictMode } from "react";
 import * as ReactDOM from "react-dom/client";
 import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
 import App from "./App";
-import "./index.css";
+
 import { gazDataConfig } from "./config/gazData";
 
 const originalWarn = console.warn.bind(console);
