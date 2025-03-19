@@ -138,6 +138,7 @@ function App() {
             <ControlButtonStyler
               onClick={onHomeClick}
               dataTestId="home-control"
+              title="Auf Rathaus positionieren"
             >
               <FontAwesomeIcon icon={faHouseChimney} className="text-lg" />
             </ControlButtonStyler>
