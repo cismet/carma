@@ -26,6 +26,7 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import {
   SelectionMetaData,
+  useFeatureFlags,
   useGazData,
   useSelection,
 } from "@carma-apps/portals";
@@ -75,6 +76,7 @@ import {
   setSelectedFeature,
 } from "../../../store/slices/features.ts";
 import {
+  getLibreMapRef,
   getShowFullscreenButton,
   getShowLocatorButton,
   getShowMeasurementButton,
@@ -102,15 +104,17 @@ window.addEventListener("load", testGPU, false);
 const MapWrapper = () => {
   const dispatch = useDispatch();
 
+  const flags = useFeatureFlags();
+
+  const showLibreMap = flags.featureFlagLibreMap;
+
   const rerenderCountRef = useRef(0);
   const lastRenderTimeStampRef = useRef(Date.now());
   const lastRenderIntervalRef = useRef(0);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  const [searchParams] = useSearchParams();
   // State and Selectors
-  const [showLibreMap, setShowLibreMap] = useState(false);
-
+  const libreMapRef = useSelector(getLibreMapRef);
   const allow3d = useSelector(getUIAllow3d) && hasGPU;
   const isMode2d = useSelector(selectViewerIsMode2d) || !allow3d;
   const models = useSelector(selectViewerModels);
@@ -254,11 +258,6 @@ const MapWrapper = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allow3d]);
 
-  useEffect(() => {
-    const showLibreMap = searchParams.has("mapLib");
-    setShowLibreMap(showLibreMap);
-  }, [searchParams]);
-
   console.debug("RENDER: [WRAPPER] MAP", isMode2d);
   rerenderCountRef.current++;
   lastRenderIntervalRef.current = Date.now() - lastRenderTimeStampRef.current;
@@ -298,7 +297,19 @@ const MapWrapper = () => {
             <div ref={tourRefLabels.zoom} className="flex flex-col">
               <Tooltip title="Maßstab vergrößern (Zoom in)" placement="right">
                 <ControlButtonStyler
-                  onClick={isMode2d ? zoomInLeaflet : handleZoomInCesium}
+                  onClick={(event) => {
+                    if (isMode2d) {
+                      if (showLibreMap) {
+                        if (libreMapRef.current) {
+                          libreMapRef.current.zoomIn();
+                        }
+                      } else {
+                        zoomInLeaflet();
+                      }
+                    } else {
+                      handleZoomInCesium(event);
+                    }
+                  }}
                   className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
                   dataTestId="zoom-in-control"
                 >
@@ -307,7 +318,19 @@ const MapWrapper = () => {
               </Tooltip>
               <Tooltip title="Maßstab verkleinern (Zoom out)" placement="right">
                 <ControlButtonStyler
-                  onClick={isMode2d ? zoomOutLeaflet : handleZoomOutCesium}
+                  onClick={(event) => {
+                    if (isMode2d) {
+                      if (showLibreMap) {
+                        if (libreMapRef.current) {
+                          libreMapRef.current.zoomOut();
+                        }
+                      } else {
+                        zoomOutLeaflet();
+                      }
+                    } else {
+                      handleZoomOutCesium(event);
+                    }
+                  }}
                   className="!rounded-t-none !border-t-[1px]"
                   dataTestId="zoom-out-control"
                 >
@@ -535,7 +558,7 @@ const MapWrapper = () => {
             overflow: "hidden",
           }}
         >
-          {showLibreMap ? (
+          {showLibreMap && isMode2d ? (
             <LibreGeoportalMap />
           ) : (
             <GeoportalMap height={height} width={width} allow3d={allow3d} />

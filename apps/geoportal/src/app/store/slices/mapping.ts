@@ -8,6 +8,7 @@ import {
   type LayerState,
   type MappingState,
 } from "@carma-apps/portals";
+import type { Map } from "maplibre-gl";
 
 import { RootState } from "..";
 import { layerMap } from "../../config";
@@ -19,6 +20,7 @@ const initialState: MappingState = {
   savedLayerConfigs: [],
   selectedLayerIndex: SELECTED_LAYER_INDEX.NO_SELECTION,
   paleOpacityValue: defaultOpacity,
+  libreMapRef: null,
 
   selectedMapLayer: {
     title: "Stadtplan",
@@ -258,6 +260,9 @@ const slice = createSlice({
     setClickFromInfoView(state, action: PayloadAction<boolean>) {
       state.clickFromInfoView = action.payload;
     },
+    setLibreMapRef(state, action: PayloadAction<Map | null>) {
+      state.libreMapRef = action.payload;
+    },
   },
 });
 
@@ -296,6 +301,7 @@ export const {
   setStartDrawing,
 
   toggleUseInFeatureInfo,
+  setLibreMapRef,
 } = slice.actions;
 
 export const getBackgroundLayer = (state: RootState) =>
@@ -337,6 +343,7 @@ export const getShowMeasurementButton = (state: RootState) =>
 export const getShowRightScrollButton = (state: RootState) =>
   state.mapping.showRightScrollButton;
 export const getStartDrawing = (state: RootState) => state.mapping.startDrawing;
+export const getLibreMapRef = (state: RootState) => state.mapping.libreMapRef;
 
 export const getLayerState = createSelector(
   [

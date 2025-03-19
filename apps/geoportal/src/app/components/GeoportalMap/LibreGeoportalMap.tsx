@@ -10,6 +10,7 @@ import {
   getBackgroundLayer,
   getLayers,
   setLayers,
+  setLibreMapRef,
 } from "../../store/slices/mapping";
 import { defaultLayerConfig } from "../../config";
 import {
@@ -235,6 +236,8 @@ const LibreGeoportalMap = () => {
         maxPitch: 85,
       });
 
+      dispatch(setLibreMapRef(map));
+
       map.current.on("load", () => {
         // map.current?.addControl(
         //   new maplibregl.NavigationControl({
@@ -252,6 +255,10 @@ const LibreGeoportalMap = () => {
         //   "top-left"
         // );
         // map.current?.setTerrain(null);
+      });
+
+      map.current.on("remove", () => {
+        dispatch(setLibreMapRef(null));
       });
     }
 
