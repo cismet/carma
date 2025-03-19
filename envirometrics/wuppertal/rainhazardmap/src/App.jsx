@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { MappingConstants } from "react-cismap";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
-import HeavyRainHazardMap from "@cismet-dev/react-cismap-envirometrics-maps/HeavyRainHazardMap";
+import EnviroMetricMap from "@cismet-dev/react-cismap-envirometrics-maps/EnviroMetricMap";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import { md5FetchJSON } from "react-cismap/tools/fetching";
 import CrossTabCommunicationControl from "react-cismap/CrossTabCommunicationControl";
@@ -14,56 +14,16 @@ import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/starkreg
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import { TopicMapSelectionContent } from "@carma-apps/portals";
 import FuzzySearch from "./app/components/FuzzySearch";
+import {
+  Control,
+  ControlButtonStyler,
+  ControlLayout,
+} from "@carma-mapping/map-controls-layout";
 
 function App() {
   const email = "starkregen@stadt.wuppertal.de";
   const [hinweisData, setHinweisData] = useState([]);
   const version = getApplicationVersion(versionData);
-  //   const prefix = "GazDataForStarkregengefahrenkarteByCismet";
-  //   const sources = {};
-
-  //   sources.geps = await md5FetchText(
-  //     prefix,
-  //     "https://wunda-geoportal.cismet.de/data/3857/geps.json"
-  //   );
-  //   sources.geps_reverse = await md5FetchText(
-  //     prefix,
-  //     "https://wunda-geoportal.cismet.de/data/3857/geps_reverse.json"
-  //   );
-  //   sources.adressen = await md5FetchText(
-  //     prefix,
-  //     "https://wunda-geoportal.cismet.de/data/3857/adressen.json"
-  //   );
-  //   sources.bezirke = await md5FetchText(
-  //     prefix,
-  //     "https://wunda-geoportal.cismet.de/data/3857/bezirke.json"
-  //   );
-  //   sources.quartiere = await md5FetchText(
-  //     prefix,
-  //     "https://wunda-geoportal.cismet.de/data/3857/quartiere.json"
-  //   );
-  //   sources.pois = await md5FetchText(
-  //     prefix,
-  //     "https://wunda-geoportal.cismet.de/data/3857/pois.json"
-  //   );
-  //   sources.kitas = await md5FetchText(
-  //     prefix,
-  //     "https://wunda-geoportal.cismet.de/data/3857/kitas.json"
-  //   );
-
-  //   const gazData = getGazDataForTopicIds(sources, [
-  //     "geps",
-  //     "geps_reverse",
-  //     "pois",
-  //     "kitas",
-  //     "quartiere",
-  //     "bezirke",
-  //     "adressen",
-  //   ]);
-
-  //   setData(gazData);
-  // };
-
   const getHinweisData = async (setHinweisData, url) => {
     const prefix = "HinweisDataForStarkregengefahrenkarteByCismet";
     const data = await md5FetchJSON(prefix, url);
@@ -104,7 +64,7 @@ function App() {
         referenceSystemDefinition={MappingConstants.proj4crs3857def}
         infoBoxPixelWidth={370}
       >
-        <HeavyRainHazardMap
+        <EnviroMetricMap
           applicationMenuTooltipString="Anleitung | Hintergrund"
           appMenu={
             <GenericModalApplicationMenu
@@ -129,7 +89,7 @@ function App() {
           <TopicMapSelectionContent />
           <NotesDisplay hinweisData={hinweisData} />
           <CrossTabCommunicationControl hideWhenNoSibblingIsPresent={true} />
-        </HeavyRainHazardMap>
+        </EnviroMetricMap>
         <FuzzySearch />
       </TopicMapContextProvider>
     </CrossTabCommunicationContextProvider>
