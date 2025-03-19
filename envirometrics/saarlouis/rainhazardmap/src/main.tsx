@@ -8,6 +8,8 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "leaflet/dist/leaflet.css";
 import "react-cismap/topicMaps.css";
 import App from "./App";
+import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
+import { gazDataConfig } from "./config/gazData";
 
 const root = createRoot(document.getElementById("root") as HTMLElement);
 
@@ -25,6 +27,10 @@ root.render(
         },
       ])}
     /> */}
-    <App />
+    <GazDataProvider config={gazDataConfig}>
+      <SelectionProvider>
+        <App />
+      </SelectionProvider>
+    </GazDataProvider>
   </React.StrictMode>
 );

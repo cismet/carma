@@ -9,6 +9,9 @@ import config from "./config";
 import { getApplicationVersion } from "@carma-commons/utils";
 import { getCollabedHelpComponentConfig } from "./getCollabedHelpComponentConfig";
 import "./notification.css";
+import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
+import FuzzySearch from "./components/FuzzySearch";
+import { TopicMapSelectionContent } from "@carma-apps/portals";
 
 function App() {
   const version = getApplicationVersion(versionData);
@@ -53,7 +56,12 @@ function App() {
         documentTitle="Starkregengefahrenkarte Saarlouis"
         gazData={gazData}
         customFeatureInfoUIs={[<div>xxx</div>]}
-      ></HeavyRainHazardMap>
+        gazetteerSearchControl={true}
+        gazetteerSearchComponent={EmptySearchComponent}
+      >
+        <TopicMapSelectionContent />
+      </HeavyRainHazardMap>
+      <FuzzySearch gazLocalData={gazData} />
     </TopicMapContextProvider>
   );
 }
