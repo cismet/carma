@@ -142,6 +142,14 @@ const LibreGeoportalMap = () => {
               ...styleLayer.metadata,
               "z-index": index,
             },
+            paint: {
+              ...styleLayer.paint,
+              ...(styleLayer.id.toLowerCase().includes("selection")
+                ? {}
+                : {
+                    [getPaintProperty(styleLayer)]: layer.opacity,
+                  }),
+            },
           }));
 
           style.sources = { ...style.sources, ...additionalStyle.sources };
