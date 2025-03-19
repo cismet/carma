@@ -5,7 +5,9 @@ import { Col, Container, Row } from "react-bootstrap";
 import versionData from "../../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
 import store from "../store";
-import { Button } from "antd";
+import { Button, Checkbox } from "antd";
+import { isMobile, isTablet, isDesktop } from "react-device-detect";
+import UAParser from "ua-parser-js";
 
 const AppErrorFallback = ({ error, resetErrorBoundary }) => {
   const br = "\n";
@@ -13,6 +15,13 @@ const AppErrorFallback = ({ error, resetErrorBoundary }) => {
     errorStack?: StackTrace.StackFrame[];
     stringifiedStack?: string;
   }>({});
+  const parser = new UAParser();
+  const isMobileUA = parser.getDevice().type === "mobile";
+  const isTabletUA = parser.getDevice().type === "tablet";
+  const isDesktopUA = !isMobileUA && !isTabletUA;
+  const isTouchDevice =
+    "ontouchstart" in window || navigator.maxTouchPoints > 0;
+
   const version = getApplicationVersion(versionData);
 
   useEffect(() => {
@@ -125,6 +134,34 @@ const AppErrorFallback = ({ error, resetErrorBoundary }) => {
               <img alt="" width={180} src="/images/wuppertal-white.svg" />
             </h1>
             <h2 style={{ color: "white" }}>Geoportal Wuppertal</h2>
+            <p style={{ paddingTop: "1rem" }}>
+              User Agent: <code>{navigator.userAgent}</code>
+              <br />
+              {/* mobileEmoji */}
+              <span title="mobile">📱 </span>
+              <Checkbox checked={isMobile} /> <Checkbox checked={isMobileUA} />
+              &emsp;
+              {/* tabletEmoji */}
+              <span title="tablet">🧮 </span>
+              <Checkbox checked={isTablet} /> <Checkbox checked={isTabletUA} />
+              &emsp;
+              {/* desktopEmoji */}
+              <span title="desktop">🖥️ </span>
+              <Checkbox checked={isDesktop} />{" "}
+              <Checkbox checked={isDesktopUA} />
+              &emsp;
+              {/* touchEmoji finger*/}
+              <span title="touch">👇 </span>
+              <Checkbox checked={isTouchDevice} />
+              &emsp;
+              {/* cpuEmoji */}
+              <span title="cpu">CPU </span>
+              {navigator.hardwareConcurrency}
+              &emsp;
+              <span title="ram">RAM </span>
+              {(navigator as unknown as { deviceMemory: number })
+                .deviceMemory || "n/a"}
+            </p>
           </Col>
         </Row>
       </div>
