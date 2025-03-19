@@ -9,6 +9,9 @@ import versionData from "./version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
 import { getCollabedHelpComponentConfig } from "./getCollabedHelpComponentConfig";
 import "./notification.css";
+import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
+import FuzzySearch from "./components/FuzzySearch";
+import { TopicMapSelectionContent } from "@carma-apps/portals";
 
 function App() {
   const email = "bauamt@tholey.de";
@@ -52,8 +55,12 @@ function App() {
         modeSwitcherTitle="Starkregengefahrenkarte Tholey"
         documentTitle="Starkregengefahrenkarte Tholey"
         gazetteerSearchPlaceholder="Adresssuche"
-        gazData={gazData}
-      ></HeavyRainHazardMap>
+        gazetteerSearchControl={true}
+        gazetteerSearchComponent={EmptySearchComponent}
+      >
+        <TopicMapSelectionContent />
+      </HeavyRainHazardMap>
+      <FuzzySearch gazLocalData={gazData} />
     </TopicMapContextProvider>
   );
 }
