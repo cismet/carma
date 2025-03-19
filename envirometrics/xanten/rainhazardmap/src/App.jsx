@@ -10,6 +10,9 @@ import { getApplicationVersion } from "@carma-commons/utils";
 import { getCollabedHelpComponentConfig } from "@carma-pecher-collab/xanten";
 import "./notification.css";
 import footerLogoUrl from "./assets/images/Signet_AIS_RZ.png";
+import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
+import FuzzySearch from "./components/FuzzySearch";
+import { TopicMapSelectionContent } from "@carma-apps/portals";
 
 function App() {
   const version = getApplicationVersion(versionData);
@@ -30,35 +33,41 @@ function App() {
   }, []);
 
   return (
-    <TopicMapContextProvider
-      appKey={appKey + ".Xanten"}
-      referenceSystem={MappingConstants.crs3857}
-      referenceSystemDefinition={MappingConstants.proj4crs3857def}
-      baseLayerConf={config.overridingBaseLayerConf}
-      infoBoxPixelWidth={370}
-    >
-      <HeavyRainHazardMap
-        appMenu={
-          <GenericModalApplicationMenu
-            {...getCollabedHelpComponentConfig({
-              version,
-              reactCismapRHMVersion: "_",
-              footerLogoUrl,
-              email,
-            })}
-          />
-        }
-        applicationMenuTooltipString="Anleitung | Hintergrund"
-        initialState={config.initialState}
-        emailaddress={email}
-        config={config.config}
-        homeZoom={13}
-        homeCenter={[51.658873404435404, 6.437902450561524]}
-        modeSwitcherTitle="AIS Starkregenvorsorge Xanten"
-        documentTitle="AIS Starkregenvorsorge Xanten"
-        gazData={gazData}
-      />
-    </TopicMapContextProvider>
+    <>
+      <TopicMapContextProvider
+        appKey={appKey + ".Xanten"}
+        referenceSystem={MappingConstants.crs3857}
+        referenceSystemDefinition={MappingConstants.proj4crs3857def}
+        baseLayerConf={config.overridingBaseLayerConf}
+        infoBoxPixelWidth={370}
+      >
+        <HeavyRainHazardMap
+          appMenu={
+            <GenericModalApplicationMenu
+              {...getCollabedHelpComponentConfig({
+                version,
+                reactCismapRHMVersion: "_",
+                footerLogoUrl,
+                email,
+              })}
+            />
+          }
+          applicationMenuTooltipString="Anleitung | Hintergrund"
+          initialState={config.initialState}
+          emailaddress={email}
+          config={config.config}
+          homeZoom={13}
+          homeCenter={[51.658873404435404, 6.437902450561524]}
+          modeSwitcherTitle="AIS Starkregenvorsorge Xanten"
+          documentTitle="AIS Starkregenvorsorge Xanten"
+          gazetteerSearchControl={true}
+          gazetteerSearchComponent={EmptySearchComponent}
+        >
+          <TopicMapSelectionContent />
+        </HeavyRainHazardMap>
+        <FuzzySearch gazLocalData={gazData} />
+      </TopicMapContextProvider>
+    </>
   );
 }
 
