@@ -520,7 +520,9 @@ export default function Sidebar({
                                   right: "-12px",
                                   top: "50%",
                                   transform: "translateY(-50%)",
-                                  cursor: isNarrowScreen ? "not-allowed" : "pointer",
+                                  cursor: isNarrowScreen
+                                    ? "not-allowed"
+                                    : "pointer",
                                   opacity: isNarrowScreen ? 0.5 : 1,
                                 }}
                                 onClick={onToggle}

@@ -308,16 +308,18 @@ function App({ sync = false }: { sync?: boolean }) {
           </Control>
 
           <Control position="topleft" order={70}>
-          <Tooltip
-              title={"Zur Startposition gehen\nÜberflutungsbereich Unterdörnen, Barmen"}
+            <Tooltip
+              title={
+                "Zur Startposition gehen\nÜberflutungsbereich Unterdörnen, Barmen"
+              }
               placement="right"
             >
-            <ControlButtonStyler
-              onClick={onHomeClick}
-              dataTestId="home-control"
-            >
-              <FontAwesomeIcon icon={faHouseChimney} className="text-lg" />
-            </ControlButtonStyler>
+              <ControlButtonStyler
+                onClick={onHomeClick}
+                dataTestId="home-control"
+              >
+                <FontAwesomeIcon icon={faHouseChimney} className="text-lg" />
+              </ControlButtonStyler>
             </Tooltip>
           </Control>
           <Control position="bottomleft" order={10}>

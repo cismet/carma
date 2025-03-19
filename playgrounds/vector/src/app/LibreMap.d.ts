@@ -1,5 +1,5 @@
-import React from 'react';
-import { VectorStyleInput } from './types';
+import React from "react";
+import { VectorStyleInput } from "./types";
 
 interface LibreMapProps {
   vectorStyles?: VectorStyleInput[];

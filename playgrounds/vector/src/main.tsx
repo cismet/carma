@@ -51,9 +51,9 @@ const RootComponent = () => {
   if (vectorStyles) {
     initialVectorStylesArray = vectorStyles.split(",");
   }
-  const [vectorStylesArray, setVectorStylesArray] = useState<VectorStyleInput[]>(
-    initialVectorStylesArray
-  );
+  const [vectorStylesArray, setVectorStylesArray] = useState<
+    VectorStyleInput[]
+  >(initialVectorStylesArray);
 
   useEffect(() => {
     const vectorStyles = searchParams.get("vectorStyles");

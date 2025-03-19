@@ -16,7 +16,7 @@
       "type": "symbol",
       "source": "poi-source",
       "source-layer": "poi",
-      "minzoom": 9,  
+      "minzoom": 9,
       "maxzoom": 24,
       "layout": {
         "visibility": "visible",
