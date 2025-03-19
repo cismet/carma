@@ -5,8 +5,12 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { useSearchParams } from "react-router-dom";
 
 import "./LibreGeoportalMap.css";
-import { useSelector } from "react-redux";
-import { getBackgroundLayer, getLayers } from "../../store/slices/mapping";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  getBackgroundLayer,
+  getLayers,
+  setLayers,
+} from "../../store/slices/mapping";
 import { defaultLayerConfig } from "../../config";
 import {
   Control,
@@ -18,6 +22,8 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
 
 const LibreGeoportalMap = () => {
+  const dispatch = useDispatch();
+
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -151,8 +157,6 @@ const LibreGeoportalMap = () => {
       return aZIndex - bZIndex; // Lower z-index values are rendered first
     });
 
-    console.log("xxx", style);
-
     return style;
   };
 
@@ -232,22 +236,22 @@ const LibreGeoportalMap = () => {
       });
 
       map.current.on("load", () => {
-        map.current?.addControl(
-          new maplibregl.NavigationControl({
-            visualizePitch: true,
-            showZoom: true,
-            showCompass: true,
-          }),
-          "top-left"
-        );
-        map.current?.addControl(
-          new maplibregl.TerrainControl({
-            source: "terrainSource",
-            exaggeration: 1,
-          }),
-          "top-left"
-        );
-        map.current?.setTerrain(null);
+        // map.current?.addControl(
+        //   new maplibregl.NavigationControl({
+        //     visualizePitch: true,
+        //     showZoom: true,
+        //     showCompass: true,
+        //   }),
+        //   "top-left"
+        // );
+        // map.current?.addControl(
+        //   new maplibregl.TerrainControl({
+        //     source: "terrainSource",
+        //     exaggeration: 1,
+        //   }),
+        //   "top-left"
+        // );
+        // map.current?.setTerrain(null);
       });
     }
 
@@ -303,7 +307,7 @@ const LibreGeoportalMap = () => {
 
   return (
     <ControlLayout>
-      <Control position="topcenter" order={0}>
+      {/* <Control position="topcenter" order={0}>
         <div className="flex flex-col gap-2 items-center">
           <div className="flex items-center rounded-md px-2 bg-white shadow-lg">
             <button onClick={() => setShowOpacitySliders(!showOpacitySliders)}>
@@ -314,12 +318,60 @@ const LibreGeoportalMap = () => {
           </div>
 
           {showOpacitySliders &&
-            layers.map((layer, index) => {
+            layers.map((layer, i) => {
               return (
                 <div
                   key={layer.id}
                   className="flex items-center w-[600px] gap-2 rounded-md px-2 bg-white shadow-lg"
                 >
+                  <FontAwesomeIcon
+                    icon={faChevronDown}
+                    onClick={() => {
+                      if (i !== layers.length) {
+                        const newLayers = [...layers];
+                        const [removedLayer] = newLayers.splice(i, 1);
+                        newLayers.splice(i + 1, 0, removedLayer);
+                        dispatch(setLayers(newLayers));
+                      }
+                      const styleLayers = getAllLayersByPrefix(layer.id);
+                      const index = styleLayers.findIndex(
+                        (layer) => layer.id === layer.id
+                      );
+                      if (index < styleLayers.length - 1) {
+                        const newLayers = [...styleLayers];
+                        const [removedLayer] = newLayers.splice(index, 1);
+                        newLayers.splice(index + 1, 0, removedLayer);
+                        map.current?.setStyle({
+                          ...map.current?.getStyle(),
+                          layers: newLayers,
+                        });
+                      }
+                    }}
+                  />
+                  <FontAwesomeIcon
+                    icon={faChevronUp}
+                    onClick={() => {
+                      if (i !== 0) {
+                        const newLayers = [...layers];
+                        const [removedLayer] = newLayers.splice(i, 1);
+                        newLayers.splice(i - 1, 0, removedLayer);
+                        dispatch(setLayers(newLayers));
+                      }
+                      const styleLayers = getAllLayersByPrefix(layer.id);
+                      const index = styleLayers.findIndex(
+                        (layer) => layer.id === layer.id
+                      );
+                      if (index > 0) {
+                        const newLayers = [...styleLayers];
+                        const [removedLayer] = newLayers.splice(index, 1);
+                        newLayers.splice(index - 1, 0, removedLayer);
+                        map.current?.setStyle({
+                          ...map.current?.getStyle(),
+                          layers: newLayers,
+                        });
+                      }
+                    }}
+                  />
                   <p className="mb-0 w-1/2 truncate">{layer.title}</p>
                   <Slider
                     min={0}
@@ -341,7 +393,7 @@ const LibreGeoportalMap = () => {
               );
             })}
         </div>
-      </Control>
+      </Control> */}
       <Main>
         <div className="map-wrap">
           <div ref={mapContainer} className="map" />

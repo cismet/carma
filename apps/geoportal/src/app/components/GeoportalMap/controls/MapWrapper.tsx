@@ -90,6 +90,8 @@ import {
 } from "../../../store/slices/ui.ts";
 
 import { CESIUM_CONFIG } from "../../../config/app.config";
+import { useSearchParams } from "react-router-dom";
+import LibreGeoportalMap from "../LibreGeoportalMap.tsx";
 
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;
@@ -105,7 +107,10 @@ const MapWrapper = () => {
   const lastRenderIntervalRef = useRef(0);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
+  const [searchParams] = useSearchParams();
   // State and Selectors
+  const [showLibreMap, setShowLibreMap] = useState(false);
+
   const allow3d = useSelector(getUIAllow3d) && hasGPU;
   const isMode2d = useSelector(selectViewerIsMode2d) || !allow3d;
   const models = useSelector(selectViewerModels);
@@ -172,7 +177,7 @@ const MapWrapper = () => {
   const [hasFoundLocation, setHasFoundLocation] = useState(false);
 
   useEffect(() => {
-    if (routedMap) {
+    if (routedMap?.leafletMap) {
       const map = routedMap.leafletMap.leafletElement;
 
       const handleMapMove = () => {
@@ -248,6 +253,11 @@ const MapWrapper = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allow3d]);
+
+  useEffect(() => {
+    const showLibreMap = searchParams.has("mapLib");
+    setShowLibreMap(showLibreMap);
+  }, [searchParams]);
 
   console.debug("RENDER: [WRAPPER] MAP", isMode2d);
   rerenderCountRef.current++;
@@ -525,7 +535,11 @@ const MapWrapper = () => {
             overflow: "hidden",
           }}
         >
-          <GeoportalMap height={height} width={width} allow3d={allow3d} />
+          {showLibreMap ? (
+            <LibreGeoportalMap />
+          ) : (
+            <GeoportalMap height={height} width={width} allow3d={allow3d} />
+          )}
         </div>
       </Main>
     </ControlLayout>
