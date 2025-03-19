@@ -254,8 +254,6 @@ const MapWrapper = () => {
   lastRenderIntervalRef.current = Date.now() - lastRenderTimeStampRef.current;
   lastRenderTimeStampRef.current = Date.now();
 
-return null;
-
   return (
     <ControlLayout onHeightResize={setLayoutHeight} ifStorybook={false}>
       {zenMode ? (
