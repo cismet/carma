@@ -102,7 +102,7 @@ const LibreGeoportalMap = () => {
     }
 
     const layerPromises = layers.map(async (layer, index) => {
-      if (!layer.props) return;
+      if (!layer.props || !layer.visible) return;
 
       if (layer.layerType === "wmts" || layer.layerType === "wmts-nt") {
         const { url, name } = layer.props;
