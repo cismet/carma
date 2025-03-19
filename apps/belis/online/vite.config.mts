@@ -27,8 +27,13 @@ export default defineConfig({
 
   // Uncomment this if you are using workers.
   worker: {
-    plugins: () => [comlink()],
+    plugins: () => [nxViteTsPaths()],
   },
+
+  // Uncomment this if you are using workers.
+  // worker: {
+  //   plugins: () => [comlink()],
+  // },
 
   build: {
     outDir: '../../../dist/apps/belis/online',
@@ -38,11 +43,8 @@ export default defineConfig({
     },
   },
 
-  // define: {
-  //   'import.meta.vitest': undefined,
-  // },
-
   define: {
-    'process.env': {}
-  }
+    'import.meta.vitest': undefined,
+  },
+
 });
