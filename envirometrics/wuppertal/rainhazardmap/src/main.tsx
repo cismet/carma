@@ -3,6 +3,9 @@ import { StrictMode } from "react";
 import * as ReactDOM from "react-dom/client";
 import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
 import App from "./App";
+import { MappingConstants } from "react-cismap";
+import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
+import CrossTabCommunicationContextProvider from "react-cismap/contexts/CrossTabCommunicationContextProvider";
 
 import { gazDataConfig } from "./config/gazData";
 
@@ -26,7 +29,19 @@ root.render(
   <StrictMode>
     <GazDataProvider config={gazDataConfig}>
       <SelectionProvider>
-        <App />
+        <CrossTabCommunicationContextProvider
+          role="sync"
+          token="floodingAndRainhazardSyncWupp"
+        >
+          <TopicMapContextProvider
+            appKey={"cismetRainhazardMap.Wuppertal"}
+            referenceSystem={MappingConstants.crs3857}
+            referenceSystemDefinition={MappingConstants.proj4crs3857def}
+            infoBoxPixelWidth={370}
+          >
+            <App />
+          </TopicMapContextProvider>
+        </CrossTabCommunicationContextProvider>
       </SelectionProvider>
     </GazDataProvider>
   </StrictMode>

@@ -25,7 +25,9 @@
       "executor": "@nx/vite:dev-server",
       "defaultConfiguration": "development",
       "options": {
-        "buildTarget": "rainhazardmap-wuppertal:build"
+        "buildTarget": "rainhazardmap-wuppertal:build",
+         "host": "0.0.0.0"
+
       },
       "configurations": {
         "development": {
