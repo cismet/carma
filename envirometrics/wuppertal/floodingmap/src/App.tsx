@@ -310,7 +310,7 @@ function App({ sync = false }: { sync?: boolean }) {
           <Control position="topleft" order={70}>
             <Tooltip
               title={
-                "Zur Startposition gehen\nÜberflutungsbereich Unterdörnen, Barmen"
+                "Zur Startposition:\nÜberflutungsbereich Unterdörnen, Barmen"
               }
               placement="right"
             >
