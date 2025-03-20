@@ -19,6 +19,7 @@ import {
   faInfo,
   faLocationArrow,
   faMinus,
+  faMountainCity,
   faMountainSun,
   faPlus,
 } from "@fortawesome/free-solid-svg-icons";
@@ -571,7 +572,7 @@ const MapWrapper = () => {
                   className="font-semibold"
                 >
                   <FontAwesomeIcon
-                    icon={faMountainSun}
+                    icon={faMountainCity}
                     className={showTerrain ? "text-[#1677ff]" : ""}
                   />
                 </ControlButtonStyler>
