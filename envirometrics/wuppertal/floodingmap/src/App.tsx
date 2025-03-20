@@ -234,93 +234,109 @@ function App({ sync = false }: { sync?: boolean }) {
         <ControlLayout ifStorybook={false}>
           <Control position="topleft" order={10}>
             <div className="flex flex-col">
-              <Tooltip title="Maßstab vergrößern (Zoom in)" placement="right">
-                <ControlButtonStyler
-                  onClick={isMode2d ? zoomInLeaflet : handleZoomInCesium}
-                  className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
-                  dataTestId="zoom-in-control"
-                >
-                  <FontAwesomeIcon icon={faPlus} className="text-base" />
-                </ControlButtonStyler>
-              </Tooltip>
-              <Tooltip title="Maßstab verkleinern (Zoom out)" placement="right">
-                <ControlButtonStyler
-                  onClick={isMode2d ? zoomOutLeaflet : handleZoomOutCesium}
-                  className="!rounded-t-none !border-t-[1px]"
-                  dataTestId="zoom-out-control"
-                >
-                  <FontAwesomeIcon icon={faMinus} className="text-base" />
-                </ControlButtonStyler>
-              </Tooltip>
+              {/* <Tooltip title="Maßstab vergrößern (Zoom in)" placement="right"> */}
+              <ControlButtonStyler
+                onClick={isMode2d ? zoomInLeaflet : handleZoomInCesium}
+                className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
+                dataTestId="zoom-in-control"
+                title="Maßstab vergrößern (Zoom in)"
+              >
+                <FontAwesomeIcon icon={faPlus} className="text-base" />
+              </ControlButtonStyler>
+              {/* </Tooltip> */}
+              {/* <Tooltip title="Maßstab verkleinern (Zoom out)" placement="right"> */}
+              <ControlButtonStyler
+                onClick={isMode2d ? zoomOutLeaflet : handleZoomOutCesium}
+                className="!rounded-t-none !border-t-[1px]"
+                dataTestId="zoom-out-control"
+                title="Maßstab verkleinern (Zoom out)"
+              >
+                <FontAwesomeIcon icon={faMinus} className="text-base" />
+              </ControlButtonStyler>
+              {/* </Tooltip> */}
             </div>
           </Control>
           <Control position="topleft" order={30}>
             <div className="flex flex-col">
-              <Tooltip title="Nach Norden ausrichten" placement="right">
-                <ControlButtonStyler
-                  useDisabledStyle={false}
-                  className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
-                  disabled={isMode2d}
-                  //ref={tourRefLabels.alignNorth}
-                  dataTestId="compass-control"
-                >
-                  <PitchingCompass
-                    viewerRef={viewerRef}
-                    viewerAnimationMapRef={viewerAnimationMapRef}
-                  />
-                </ControlButtonStyler>
-              </Tooltip>
+              {/* <Tooltip title="Nach Norden ausrichten" placement="right"> */}
+              <ControlButtonStyler
+                useDisabledStyle={false}
+                className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
+                disabled={isMode2d}
+                //ref={tourRefLabels.alignNorth}
+                dataTestId="compass-control"
+                title="Nach Norden ausrichten"
+              >
+                <PitchingCompass
+                  viewerRef={viewerRef}
+                  viewerAnimationMapRef={viewerAnimationMapRef}
+                />
+              </ControlButtonStyler>
+              {/* </Tooltip> */}
               <Control position="topleft" order={40}>
                 <MapTypeSwitcher
                   className="!rounded-t-none !border-t-[1px]"
                   duration={CESIUM_CONFIG.transitions.mapMode.duration}
+                  nativeTooltip={true}
                 />
               </Control>
             </div>
           </Control>
           <Control position="topleft" order={50}>
-            <Tooltip
+            {/* <Tooltip
               title={
                 document.fullscreenElement
                   ? "Vollbildmodus ausschalten"
                   : "Vollbildmodus einschalten"
               }
               placement="right"
+            > */}
+            <ControlButtonStyler
+              onClick={() => {
+                if (document.fullscreenElement) {
+                  document.exitFullscreen();
+                } else {
+                  document.documentElement.requestFullscreen();
+                }
+              }}
+              dataTestId="full-screen-control"
+              title={
+                document.fullscreenElement
+                  ? "Vollbildmodus ausschalten"
+                  : "Vollbildmodus einschalten"
+              }
             >
-              <ControlButtonStyler
-                onClick={() => {
-                  if (document.fullscreenElement) {
-                    document.exitFullscreen();
-                  } else {
-                    document.documentElement.requestFullscreen();
-                  }
-                }}
-                dataTestId="full-screen-control"
-              >
-                <FontAwesomeIcon
-                  icon={document.fullscreenElement ? faCompress : faExpand}
-                />
-              </ControlButtonStyler>
-            </Tooltip>
+              <FontAwesomeIcon
+                icon={document.fullscreenElement ? faCompress : faExpand}
+              />
+            </ControlButtonStyler>
+            {/* </Tooltip> */}
           </Control>
           <Control position="topleft" order={60}>
-            <RoutedMapLocateControl tourRefLabels={null} disabled={!isMode2d} />
+            <RoutedMapLocateControl
+              tourRefLabels={null}
+              disabled={!isMode2d}
+              nativeTooltip={true}
+            />
           </Control>
 
           <Control position="topleft" order={70}>
-            <Tooltip
+            {/* <Tooltip
               title={
                 "Zur Startposition:\nÜberflutungsbereich Unterdörnen, Barmen"
               }
               placement="right"
+            > */}
+            <ControlButtonStyler
+              onClick={onHomeClick}
+              dataTestId="home-control"
+              title={
+                "Zur Startposition:\nÜberflutungsbereich Unterdörnen, Barmen"
+              }
             >
-              <ControlButtonStyler
-                onClick={onHomeClick}
-                dataTestId="home-control"
-              >
-                <FontAwesomeIcon icon={faHouseChimney} className="text-lg" />
-              </ControlButtonStyler>
-            </Tooltip>
+              <FontAwesomeIcon icon={faHouseChimney} className="text-lg" />
+            </ControlButtonStyler>
+            {/* </Tooltip> */}
           </Control>
           <Control position="bottomleft" order={10}>
             <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
