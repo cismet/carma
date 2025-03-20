@@ -3,6 +3,7 @@ import { Cartesian3 } from "cesium";
 import { useCesiumContext, getOrbitPoint } from "@carma-mapping/cesium-engine";
 
 import { calculateImageCoordsFromCartesian } from "../utils/obliqueReferenceUtils";
+import { useObliqueDataContext } from "./useObliqueDataContext";
 import { Proj4Converter } from "../types";
 
 /**
@@ -10,7 +11,7 @@ import { Proj4Converter } from "../types";
  * This provides the raw orbit point and its coordinates in the image CRS
  * but does not dictate how these coordinates should be used to calculate reference points
  */
-export function useOrbitPoint(converterObj: Proj4Converter | null): {
+export function useOrbitPoint(converter: Proj4Converter): {
   orbitPoint: Cartesian3 | null;
   orbitPointCoords: [number, number, number] | null;
 } {
@@ -21,66 +22,35 @@ export function useOrbitPoint(converterObj: Proj4Converter | null): {
   >(null);
 
   // Use refs to avoid unnecessary rerenders
-  const converterRef = useRef(converterObj);
   const lastPointRef = useRef<Cartesian3 | null>(null);
   const lastCoordsRef = useRef<[number, number, number] | null>(null);
 
-  // Update converter ref when it changes
-  useEffect(() => {
-    converterRef.current = converterObj;
-  }, [converterObj]);
-
-  // Memoize the return object to prevent consumer rerenders
-  const returnRef = useRef({
-    orbitPoint,
-    orbitPointCoords,
-  });
-
-  // Update return ref when state changes
-  useEffect(() => {
-    returnRef.current = {
-      orbitPoint,
-      orbitPointCoords,
-    };
-  }, [orbitPoint, orbitPointCoords]);
-
   // Create a memoized update function to avoid recreating it on every render
-  const updateOrbitPoint = useCallback((point: Cartesian3 | null) => {
-    if (!point || !converterRef.current) return;
+  const updateOrbitPoint = useCallback(
+    (point: Cartesian3 | null) => {
+      if (!point) return;
 
-    // Skip update if the point hasn't changed significantly
-    if (lastPointRef.current && point.equals(lastPointRef.current)) {
-      return;
-    }
+      // Skip update if the point hasn't changed
+      if (lastPointRef.current && point.equals(lastPointRef.current)) {
+        return;
+      }
 
-    lastPointRef.current = point;
-    setOrbitPoint(point);
+      //
 
-    // Convert to image coordinates
-    const coords = calculateImageCoordsFromCartesian(
-      point,
-      converterRef.current
-    );
+      lastPointRef.current = point;
+      setOrbitPoint(point);
 
-    // If coords is null, we can't proceed
-    if (!coords) return;
+      // Convert to image coordinates
+      const coords = calculateImageCoordsFromCartesian(point, converter);
 
-    // Skip update if coords haven't changed significantly
-    if (
-      lastCoordsRef.current &&
-      coords[0] === lastCoordsRef.current[0] &&
-      coords[1] === lastCoordsRef.current[1] &&
-      coords[2] === lastCoordsRef.current[2]
-    ) {
-      return;
-    }
-
-    lastCoordsRef.current = coords;
-    setOrbitPointCoords(coords);
-  }, []);
+      lastCoordsRef.current = coords;
+      setOrbitPointCoords(coords);
+    },
+    [converter]
+  );
 
   useEffect(() => {
-    if (!viewerRef.current || !converterRef.current) {
+    if (!viewerRef.current || !converter) {
       return;
     }
 
@@ -100,7 +70,7 @@ export function useOrbitPoint(converterObj: Proj4Converter | null): {
     return () => {
       viewer.camera.changed.removeEventListener(onCameraChange);
     };
-  }, [viewerRef, updateOrbitPoint]);
+  }, [viewerRef, updateOrbitPoint, converter]);
 
-  return returnRef.current;
+  return { orbitPoint, orbitPointCoords };
 }

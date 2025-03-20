@@ -26,12 +26,14 @@ import {
   PerspectiveFrustum,
 } from "cesium";
 
-import { useCesiumContext, getOrbitPoint } from "@carma-mapping/cesium-engine";
+import { useCesiumContext } from "@carma-mapping/cesium-engine";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { useFeatureFlags } from "@carma-apps/portals";
 
 import { getObliqueMode } from "../../store/slices/ui";
-import { useObliqueDataContext } from "../../oblique/hooks/useObliqueDataContext";
+import { useObliqueDataContext } from "../hooks/useObliqueDataContext";
+import { useOrbitPoint } from "../hooks/useOrbitPoint";
+
 import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
 import { getPreviewImageUrl } from "../utils/imageHandling";
 import { ObliqueFootprintLayer } from "./ObliqueFootprintLayer";
@@ -73,6 +75,7 @@ const HiddenImagePreviewContainer = styled.div`
 export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const isObliqueMode = useSelector(getObliqueMode);
   const {
+    converter,
     headingOffset,
     nearestImage,
     isAllDataReady,
@@ -94,7 +97,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const closePreview = useCallback(() => {
     setIsPreviewVisible(false);
   }, []);
-  const orbitPointRef = useRef<Cartesian3 | null>(null);
   const orbitPointEntityRef = useRef<Entity | null>(null);
   const userMovedCameraRef = useRef<boolean>(false);
 
@@ -108,6 +110,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     max-height: none !important;
   }
 `;
+
+  const { orbitPoint } = useOrbitPoint(converter);
 
   // Handle visibility changes when oblique mode toggles
   useEffect(() => {
@@ -133,7 +137,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
   // Create or update the orbit point entity
   const updateOrbitPointEntity = useCallback(() => {
-    if (!viewerRef.current || !orbitPointRef.current || !isDebugMode) {
+    if (!viewerRef.current || !orbitPoint || !isDebugMode) {
       if (orbitPointEntityRef.current) {
         viewerRef.current?.entities.remove(orbitPointEntityRef.current);
         orbitPointEntityRef.current = null;
@@ -142,11 +146,9 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     }
 
     const viewer = viewerRef.current;
-    const position = orbitPointRef.current;
-
     if (!orbitPointEntityRef.current) {
       orbitPointEntityRef.current = viewer.entities.add({
-        position: new ConstantPositionProperty(position),
+        position: new ConstantPositionProperty(orbitPoint),
         point: {
           pixelSize: 10,
           color: Color.YELLOW,
@@ -157,10 +159,10 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       });
     } else {
       orbitPointEntityRef.current.position = new ConstantPositionProperty(
-        position
+        orbitPoint
       );
     }
-  }, [viewerRef, isDebugMode]);
+  }, [viewerRef, isDebugMode, orbitPoint]);
 
   // Remove orbit point entity when component unmounts
   useEffect(() => {
@@ -341,7 +343,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       }
 
       if (userMovedCameraRef.current) {
-        orbitPointRef.current = getOrbitPoint(viewer);
         updateOrbitPointEntity();
         userMovedCameraRef.current = false;
       }
@@ -354,11 +355,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       setActiveDirection(closestCardinalIndex);
     };
 
-    if (!orbitPointRef.current) {
-      orbitPointRef.current = getOrbitPoint(viewer);
-      if (isDebugMode) {
-        updateOrbitPointEntity();
-      }
+    if (!orbitPoint && isDebugMode) {
+      updateOrbitPointEntity();
     }
 
     const cardinalHeadings = getCardinalHeadings();
@@ -383,6 +381,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     findClosestCardinalIndex,
     updateOrbitPointEntity,
     isDebugMode,
+    orbitPoint,
   ]);
 
   const rotateToDirection = useCallback(
@@ -404,17 +403,12 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
       const targetHeading = cardinalHeadings[targetDirection];
 
-      if (!orbitPointRef.current) {
-        orbitPointRef.current = getOrbitPoint(viewer);
-        if (isDebugMode) {
-          updateOrbitPointEntity();
-        }
+      if (!orbitPoint && isDebugMode) {
+        updateOrbitPointEntity();
       }
 
-      const centerPoint = orbitPointRef.current;
-
       // Calculate the range (distance from center)
-      const range = Cartesian3.distance(centerPoint, camera.position);
+      const range = Cartesian3.distance(orbitPoint, camera.position);
 
       // Start the animation
       animationInProgressRef.current = true;
@@ -447,7 +441,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
           const intermediateHeading = currentHeading + headingChange * t;
 
           camera.lookAt(
-            centerPoint,
+            orbitPoint,
             new HeadingPitchRange(intermediateHeading, camera.pitch, range)
           );
 
@@ -456,7 +450,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
           scene.requestRender();
         } else {
           camera.lookAt(
-            centerPoint,
+            orbitPoint,
             new HeadingPitchRange(targetHeading, camera.pitch, range)
           );
 
@@ -475,7 +469,13 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
       scene.preUpdate.addEventListener(onPreUpdate);
     },
-    [viewerRef, getCardinalHeadings, updateOrbitPointEntity, isDebugMode]
+    [
+      viewerRef,
+      getCardinalHeadings,
+      updateOrbitPointEntity,
+      orbitPoint,
+      isDebugMode,
+    ]
   );
 
   const rotateCamera = useCallback(
