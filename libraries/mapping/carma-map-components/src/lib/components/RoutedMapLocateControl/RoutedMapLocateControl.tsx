@@ -10,6 +10,7 @@ import { useRoutedMapLocateControl } from "./hooks/useRoutedMapLocateControl";
 type RouteMapControlProps = {
   disabled: boolean;
   tourRefLabels: any;
+  nativeTooltip?: boolean;
 };
 
 const GlobalLocatorStyle = createGlobalStyle<{ backgroundColor?: string }>`
@@ -28,13 +29,47 @@ const GlobalLocatorStyle = createGlobalStyle<{ backgroundColor?: string }>`
 export const RoutedMapLocateControl = ({
   disabled = false,
   tourRefLabels,
+  nativeTooltip = false,
 }: RouteMapControlProps) => {
   const { isLocationActive, hasMapMoved, setIsLocationActive } =
     useRoutedMapLocateControl();
 
   console.debug("isLocationActive RENDER LOCATOR", isLocationActive);
 
-  return (
+  const cbs = (
+    <ControlButtonStyler
+      ref={tourRefLabels?.navigator ?? null}
+      disabled={disabled}
+      onClick={() => setIsLocationActive((prev) => !prev)}
+      dataTestId="location-control"
+    >
+      <FontAwesomeIcon
+        icon={faLocationArrow}
+        //color={              isLocationActive ? (hasMapMoved ? "blue" : "orange") : ""            }
+        className={`text-2xl ${
+          isLocationActive
+            ? hasMapMoved
+              ? "text-blue-500"
+              : "text-orange-500"
+            : ""
+        }`}
+        title={
+          nativeTooltip
+            ? isLocationActive
+              ? "Standortanzeige ausschalten"
+              : "Standortanzeige einschalten"
+            : undefined
+        }
+      />
+    </ControlButtonStyler>
+  );
+
+  return nativeTooltip ? (
+    <>
+      <GlobalLocatorStyle />
+      {cbs}
+    </>
+  ) : (
     <>
       <GlobalLocatorStyle />
       {!isDesktop && (
@@ -46,24 +81,7 @@ export const RoutedMapLocateControl = ({
           }
           placement="right"
         >
-          <ControlButtonStyler
-            ref={tourRefLabels?.navigator ?? null}
-            disabled={disabled}
-            onClick={() => setIsLocationActive((prev) => !prev)}
-            dataTestId="location-control"
-          >
-            <FontAwesomeIcon
-              icon={faLocationArrow}
-              //color={              isLocationActive ? (hasMapMoved ? "blue" : "orange") : ""            }
-              className={`text-2xl ${
-                isLocationActive
-                  ? hasMapMoved
-                    ? "text-blue-500"
-                    : "text-orange-500"
-                  : ""
-              }`}
-            />
-          </ControlButtonStyler>
+          {cbs}
         </Tooltip>
       )}
     </>

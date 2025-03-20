@@ -16,12 +16,16 @@ type Props = {
   forceEnabled?: boolean;
   children?: ReactNode;
   className?: string;
+  nativeTooltip?: boolean;
 };
 
 type Ref = HTMLButtonElement;
 
 export const MapTypeSwitcher = forwardRef<Ref, Props>(
-  ({ onComplete, forceEnabled, duration, className }, ref) => {
+  (
+    { onComplete, forceEnabled, duration, className, nativeTooltip = false },
+    ref
+  ) => {
     const isMode2d = useSelector(selectViewerIsMode2d);
     const isTransitioning = useSelector(selectViewerIsTransitioning);
     const { transitionToMode2d, transitionToMode3d } = useMapTransition({
@@ -41,21 +45,32 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
         transitionToMode2d();
       }
     };
-
-    return (
+    const cbs = (
+      <ControlButtonStyler
+        className={"font-semibold " + className}
+        onClick={handleSwitchMapMode}
+        disabled={isTransitioning && !forceEnabled}
+        ref={ref}
+        title={
+          nativeTooltip
+            ? isMode2d
+              ? "Zur 3D-Ansicht wechseln"
+              : "Zur 2D-Ansicht wechseln"
+            : undefined
+        }
+        dataTestId={isMode2d ? "3d-control" : "2d-control"}
+      >
+        {isMode2d ? "3D" : "2D"}
+      </ControlButtonStyler>
+    );
+    return nativeTooltip ? (
+      cbs
+    ) : (
       <Tooltip
         title={isMode2d ? "Zur 3D-Ansicht wechseln" : "Zur 2D-Ansicht wechseln"}
         placement="right"
       >
-        <ControlButtonStyler
-          className={"font-semibold " + className}
-          onClick={handleSwitchMapMode}
-          disabled={isTransitioning && !forceEnabled}
-          ref={ref}
-          dataTestId={isMode2d ? "3d-control" : "2d-control"}
-        >
-          {isMode2d ? "3D" : "2D"}
-        </ControlButtonStyler>
+        {cbs}
       </Tooltip>
     );
   }
