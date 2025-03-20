@@ -46,6 +46,7 @@ import {
   useHomeControl,
   useZoomControls as useZoomControlsCesium,
 } from "@carma-mapping/cesium-engine";
+import { LibrePitchingCompass } from "@carma-mapping/components";
 import { LibFuzzySearch, SearchResultItem } from "@carma-mapping/fuzzy-search";
 import {
   FullScreenDocument,
@@ -354,10 +355,14 @@ const MapWrapper = () => {
                     dataTestId="compass-control"
                     disabled={isMode2d && !showLibreMap}
                   >
-                    <PitchingCompass
-                      viewerRef={viewerRef}
-                      viewerAnimationMapRef={viewerAnimationMapRef}
-                    />
+                    {showLibreMap ? (
+                      <LibrePitchingCompass mapRef={libreMapRef} />
+                    ) : (
+                      <PitchingCompass
+                        viewerRef={viewerRef}
+                        viewerAnimationMapRef={viewerAnimationMapRef}
+                      />
+                    )}
                   </ControlButtonStyler>
                 </Tooltip>
                 <Control position="topleft" order={70}>
