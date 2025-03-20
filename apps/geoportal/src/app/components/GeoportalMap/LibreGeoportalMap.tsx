@@ -41,10 +41,6 @@ const LibreGeoportalMap = () => {
       layers: [],
       glyphs: "https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf",
       sprite: "https://tiles.cismet.de/poi/sprites",
-      terrain: {
-        source: "terrainSource",
-        exaggeration: 1,
-      },
     };
 
     if (backgroundLayer) {
@@ -236,25 +232,6 @@ const LibreGeoportalMap = () => {
       });
 
       dispatch(setLibreMapRef(map));
-
-      map.current.on("load", () => {
-        // map.current?.addControl(
-        //   new maplibregl.NavigationControl({
-        //     visualizePitch: true,
-        //     showZoom: true,
-        //     showCompass: true,
-        //   }),
-        //   "top-left"
-        // );
-        // map.current?.addControl(
-        //   new maplibregl.TerrainControl({
-        //     source: "terrainSource",
-        //     exaggeration: 1,
-        //   }),
-        //   "top-left"
-        // );
-        // map.current?.setTerrain(null);
-      });
 
       map.current.on("remove", () => {
         dispatch(setLibreMapRef(null));

@@ -19,6 +19,7 @@ import {
   faInfo,
   faLocationArrow,
   faMinus,
+  faMountainSun,
   faPlus,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -181,6 +182,7 @@ const MapWrapper = () => {
   const [isLocationActive, setIsLocationActive] = useState(false);
   const [hasMapMoved, setHasMapMoved] = useState(false);
   const [hasFoundLocation, setHasFoundLocation] = useState(false);
+  const [showTerrain, setShowTerrain] = useState(false);
 
   useEffect(() => {
     if (routedMap?.leafletMap) {
@@ -542,6 +544,32 @@ const MapWrapper = () => {
               </ControlButtonStyler>
             </Tooltip>
           </Control>
+          {showLibreMap && (
+            <Control position="topleft" order={80}>
+              <Tooltip title={"Terrain"} placement="right">
+                <ControlButtonStyler
+                  onClick={() => {
+                    if (libreMapRef.current.terrain) {
+                      libreMapRef.current?.setTerrain(null);
+                      setShowTerrain(false);
+                    } else {
+                      libreMapRef.current?.setTerrain({
+                        source: "terrainSource",
+                        exaggeration: 1,
+                      });
+                      setShowTerrain(true);
+                    }
+                  }}
+                  className="font-semibold"
+                >
+                  <FontAwesomeIcon
+                    icon={faMountainSun}
+                    className={showTerrain ? "text-[#1677ff]" : ""}
+                  />
+                </ControlButtonStyler>
+              </Tooltip>
+            </Control>
+          )}
           <Control position="topcenter" order={10}>
             {isMode2d && <LayerWrapper />}
           </Control>
