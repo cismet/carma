@@ -36,7 +36,7 @@ export const RoutedMapLocateControl = ({
 
   console.debug("isLocationActive RENDER LOCATOR", isLocationActive);
 
-  const cbs = (
+  const cbs = !isDesktop ? (
     <ControlButtonStyler
       ref={tourRefLabels?.navigator ?? null}
       disabled={disabled}
@@ -62,17 +62,14 @@ export const RoutedMapLocateControl = ({
         }
       />
     </ControlButtonStyler>
-  );
+  ) : null;
 
-  return nativeTooltip ? (
+  return (
     <>
       <GlobalLocatorStyle />
-      {cbs}
-    </>
-  ) : (
-    <>
-      <GlobalLocatorStyle />
-      {!isDesktop && (
+      {nativeTooltip ? (
+        cbs
+      ) : (
         <Tooltip
           title={
             isLocationActive
