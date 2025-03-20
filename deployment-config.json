@@ -983,7 +983,7 @@
       },
       "projectPath": "./dist/apps/wunda/umweltalarm"
     },
-    "_belis-online": {
+    "belis-online": {
       "deployment": {
         "manual": {
           "dev": {
