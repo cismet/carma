@@ -1,23 +1,21 @@
-import { useRef, useEffect, useState } from "react";
-import maplibregl from "maplibre-gl";
 import type { LayerSpecification, StyleSpecification } from "maplibre-gl";
+import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import "./LibreGeoportalMap.css";
-import { useSelector } from "react-redux";
-import { getBackgroundLayer, getLayers } from "../../store/slices/mapping";
+import { useDispatch, useSelector } from "react-redux";
 import { defaultLayerConfig } from "../../config";
 import {
-  Control,
-  ControlLayout,
-  Main,
-} from "@carma-mapping/map-controls-layout";
-import { Slider } from "antd";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
+  getBackgroundLayer,
+  getLayers,
+  setLibreMapRef,
+} from "../../store/slices/mapping";
+import "./LibreGeoportalMap.css";
 
 const LibreGeoportalMap = () => {
+  const dispatch = useDispatch();
+
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -43,10 +41,6 @@ const LibreGeoportalMap = () => {
       layers: [],
       glyphs: "https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf",
       sprite: "https://tiles.cismet.de/poi/sprites",
-      terrain: {
-        source: "terrainSource",
-        exaggeration: 1,
-      },
     };
 
     if (backgroundLayer) {
@@ -95,7 +89,7 @@ const LibreGeoportalMap = () => {
     }
 
     const layerPromises = layers.map(async (layer, index) => {
-      if (!layer.props) return;
+      if (!layer.props || !layer.visible) return;
 
       if (layer.layerType === "wmts" || layer.layerType === "wmts-nt") {
         const { url, name } = layer.props;
@@ -135,6 +129,14 @@ const LibreGeoportalMap = () => {
               ...styleLayer.metadata,
               "z-index": index,
             },
+            paint: {
+              ...styleLayer.paint,
+              ...(styleLayer.id.toLowerCase().includes("selection")
+                ? {}
+                : {
+                    [getPaintProperty(styleLayer)]: layer.opacity,
+                  }),
+            },
           }));
 
           style.sources = { ...style.sources, ...additionalStyle.sources };
@@ -150,8 +152,6 @@ const LibreGeoportalMap = () => {
       const bZIndex = b.metadata?.["z-index"] || 0;
       return aZIndex - bZIndex; // Lower z-index values are rendered first
     });
-
-    console.log("xxx", style);
 
     return style;
   };
@@ -231,23 +231,10 @@ const LibreGeoportalMap = () => {
         maxPitch: 85,
       });
 
-      map.current.on("load", () => {
-        map.current?.addControl(
-          new maplibregl.NavigationControl({
-            visualizePitch: true,
-            showZoom: true,
-            showCompass: true,
-          }),
-          "top-left"
-        );
-        map.current?.addControl(
-          new maplibregl.TerrainControl({
-            source: "terrainSource",
-            exaggeration: 1,
-          }),
-          "top-left"
-        );
-        map.current?.setTerrain(null);
+      dispatch(setLibreMapRef(map));
+
+      map.current.on("remove", () => {
+        dispatch(setLibreMapRef(null));
       });
     }
 
@@ -302,52 +289,9 @@ const LibreGeoportalMap = () => {
   }, [layers, backgroundLayer]);
 
   return (
-    <ControlLayout>
-      <Control position="topcenter" order={0}>
-        <div className="flex flex-col gap-2 items-center">
-          <div className="flex items-center rounded-md px-2 bg-white shadow-lg">
-            <button onClick={() => setShowOpacitySliders(!showOpacitySliders)}>
-              <FontAwesomeIcon
-                icon={showOpacitySliders ? faChevronUp : faChevronDown}
-              />
-            </button>
-          </div>
-
-          {showOpacitySliders &&
-            layers.map((layer, index) => {
-              return (
-                <div
-                  key={layer.id}
-                  className="flex items-center w-[600px] gap-2 rounded-md px-2 bg-white shadow-lg"
-                >
-                  <p className="mb-0 w-1/2 truncate">{layer.title}</p>
-                  <Slider
-                    min={0}
-                    max={100}
-                    defaultValue={100}
-                    className="w-80"
-                    onChange={(value) => {
-                      const styleLayers = getAllLayersByPrefix(layer.id);
-                      styleLayers.forEach((styleLayer) => {
-                        map.current?.setPaintProperty(
-                          styleLayer.id,
-                          getPaintProperty(styleLayer),
-                          value / 100
-                        );
-                      });
-                    }}
-                  />
-                </div>
-              );
-            })}
-        </div>
-      </Control>
-      <Main>
-        <div className="map-wrap">
-          <div ref={mapContainer} className="map" />
-        </div>
-      </Main>
-    </ControlLayout>
+    <div className="map-wrap">
+      <div ref={mapContainer} className="map" />
+    </div>
   );
 };
 

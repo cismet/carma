@@ -130,6 +130,7 @@ export interface MappingState extends LayerState {
   focusMode: boolean;
   startDrawing: boolean;
   clickFromInfoView: boolean;
+  libreMapRef: any;
 }
 
 export type FeatureInfo = {

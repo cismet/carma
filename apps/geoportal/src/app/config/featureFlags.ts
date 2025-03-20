@@ -9,4 +9,8 @@ export const featureFlagConfig: FeatureFlagConfig = {
     default: false,
     alias: "debug",
   },
+  featureFlagLibreMap: {
+    default: false,
+    alias: "ng",
+  },
 };

@@ -11,6 +11,7 @@ import {
   Main,
 } from "@carma-mapping/map-controls-layout";
 import {
+  faCompass,
   faCompress,
   faExpand,
   faEyeSlash,
@@ -18,6 +19,8 @@ import {
   faInfo,
   faLocationArrow,
   faMinus,
+  faMountainCity,
+  faMountainSun,
   faPlus,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -26,6 +29,7 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import {
   SelectionMetaData,
+  useFeatureFlags,
   useGazData,
   useSelection,
 } from "@carma-apps/portals";
@@ -44,6 +48,7 @@ import {
   useHomeControl,
   useZoomControls as useZoomControlsCesium,
 } from "@carma-mapping/cesium-engine";
+import { LibrePitchingCompass } from "@carma-mapping/components";
 import { LibFuzzySearch, SearchResultItem } from "@carma-mapping/fuzzy-search";
 import {
   FullScreenDocument,
@@ -75,6 +80,7 @@ import {
   setSelectedFeature,
 } from "../../../store/slices/features.ts";
 import {
+  getLibreMapRef,
   getShowFullscreenButton,
   getShowLocatorButton,
   getShowMeasurementButton,
@@ -90,6 +96,8 @@ import {
 } from "../../../store/slices/ui.ts";
 
 import { CESIUM_CONFIG } from "../../../config/app.config";
+import { useSearchParams } from "react-router-dom";
+import LibreGeoportalMap from "../LibreGeoportalMap.tsx";
 
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;
@@ -100,12 +108,17 @@ window.addEventListener("load", testGPU, false);
 const MapWrapper = () => {
   const dispatch = useDispatch();
 
+  const flags = useFeatureFlags();
+
+  const showLibreMap = flags.featureFlagLibreMap;
+
   const rerenderCountRef = useRef(0);
   const lastRenderTimeStampRef = useRef(Date.now());
   const lastRenderIntervalRef = useRef(0);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   // State and Selectors
+  const libreMapRef = useSelector(getLibreMapRef);
   const allow3d = useSelector(getUIAllow3d) && hasGPU;
   const isMode2d = useSelector(selectViewerIsMode2d) || !allow3d;
   const models = useSelector(selectViewerModels);
@@ -170,9 +183,10 @@ const MapWrapper = () => {
   const [isLocationActive, setIsLocationActive] = useState(false);
   const [hasMapMoved, setHasMapMoved] = useState(false);
   const [hasFoundLocation, setHasFoundLocation] = useState(false);
+  const [showTerrain, setShowTerrain] = useState(false);
 
   useEffect(() => {
-    if (routedMap) {
+    if (routedMap?.leafletMap) {
       const map = routedMap.leafletMap.leafletElement;
 
       const handleMapMove = () => {
@@ -288,7 +302,19 @@ const MapWrapper = () => {
             <div ref={tourRefLabels.zoom} className="flex flex-col">
               <Tooltip title="Maßstab vergrößern (Zoom in)" placement="right">
                 <ControlButtonStyler
-                  onClick={isMode2d ? zoomInLeaflet : handleZoomInCesium}
+                  onClick={(event) => {
+                    if (isMode2d) {
+                      if (showLibreMap) {
+                        if (libreMapRef.current) {
+                          libreMapRef.current.zoomIn();
+                        }
+                      } else {
+                        zoomInLeaflet();
+                      }
+                    } else {
+                      handleZoomInCesium(event);
+                    }
+                  }}
                   className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
                   dataTestId="zoom-in-control"
                 >
@@ -297,7 +323,19 @@ const MapWrapper = () => {
               </Tooltip>
               <Tooltip title="Maßstab verkleinern (Zoom out)" placement="right">
                 <ControlButtonStyler
-                  onClick={isMode2d ? zoomOutLeaflet : handleZoomOutCesium}
+                  onClick={(event) => {
+                    if (isMode2d) {
+                      if (showLibreMap) {
+                        if (libreMapRef.current) {
+                          libreMapRef.current.zoomOut();
+                        }
+                      } else {
+                        zoomOutLeaflet();
+                      }
+                    } else {
+                      handleZoomOutCesium(event);
+                    }
+                  }}
                   className="!rounded-t-none !border-t-[1px]"
                   dataTestId="zoom-out-control"
                 >
@@ -318,12 +356,16 @@ const MapWrapper = () => {
                     className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
                     ref={tourRefLabels.alignNorth}
                     dataTestId="compass-control"
-                    disabled={isMode2d}
+                    disabled={isMode2d && !showLibreMap}
                   >
-                    <PitchingCompass
-                      viewerRef={viewerRef}
-                      viewerAnimationMapRef={viewerAnimationMapRef}
-                    />
+                    {showLibreMap ? (
+                      <LibrePitchingCompass mapRef={libreMapRef} />
+                    ) : (
+                      <PitchingCompass
+                        viewerRef={viewerRef}
+                        viewerAnimationMapRef={viewerAnimationMapRef}
+                      />
+                    )}
                   </ControlButtonStyler>
                 </Tooltip>
                 <Control position="topleft" order={70}>
@@ -388,6 +430,8 @@ const MapWrapper = () => {
                   ref={tourRefLabels.navigator}
                   onClick={() => setIsLocationActive((prev) => !prev)}
                   dataTestId="location-control"
+                  disabled={isMode2d && showLibreMap}
+                  useDisabledStyle={isMode2d && showLibreMap}
                 >
                   <FontAwesomeIcon
                     icon={faLocationArrow}
@@ -409,11 +453,21 @@ const MapWrapper = () => {
               <ControlButtonStyler
                 ref={tourRefLabels.home}
                 onClick={() => {
-                  routedMap.leafletMap.leafletElement.flyTo(
-                    [51.272570027476256, 7.199918031692506],
-                    18
-                  );
-                  homeControl();
+                  if (showLibreMap) {
+                    if (libreMapRef.current) {
+                      libreMapRef.current.flyTo({
+                        center: [7.199918031692506, 51.272570027476256],
+                        zoom: 17,
+                        essential: true,
+                      });
+                    }
+                  } else {
+                    routedMap.leafletMap.leafletElement.flyTo(
+                      [51.272570027476256, 7.199918031692506],
+                      18
+                    );
+                    homeControl();
+                  }
                 }}
                 dataTestId="home-control"
               >
@@ -444,7 +498,7 @@ const MapWrapper = () => {
                   placement="right"
                 >
                   <ControlButtonStyler
-                    disabled={!isMode2d}
+                    disabled={!isMode2d || (isMode2d && showLibreMap)}
                     onClick={() => {
                       if (!isModeMeasurement) {
                         dispatch(setDrawingShape(false));
@@ -454,6 +508,7 @@ const MapWrapper = () => {
                     }}
                     ref={tourRefLabels.measurement}
                     dataTestId="measurement-control"
+                    useDisabledStyle={isMode2d && showLibreMap}
                   >
                     <img
                       src={`${getUrlPrefix()}${
@@ -477,7 +532,8 @@ const MapWrapper = () => {
               placement="right"
             >
               <ControlButtonStyler
-                disabled={!isMode2d}
+                disabled={!isMode2d || (isMode2d && showLibreMap)}
+                useDisabledStyle={isMode2d && showLibreMap}
                 onClick={() => {
                   handleToggleFeatureInfo();
                   dispatch(setSelectedFeature(null));
@@ -497,6 +553,32 @@ const MapWrapper = () => {
               </ControlButtonStyler>
             </Tooltip>
           </Control>
+          {showLibreMap && (
+            <Control position="topleft" order={80}>
+              <Tooltip title={"Terrain"} placement="right">
+                <ControlButtonStyler
+                  onClick={() => {
+                    if (libreMapRef.current.terrain) {
+                      libreMapRef.current?.setTerrain(null);
+                      setShowTerrain(false);
+                    } else {
+                      libreMapRef.current?.setTerrain({
+                        source: "terrainSource",
+                        exaggeration: 1,
+                      });
+                      setShowTerrain(true);
+                    }
+                  }}
+                  className="font-semibold"
+                >
+                  <FontAwesomeIcon
+                    icon={faMountainCity}
+                    className={showTerrain ? "text-[#1677ff]" : ""}
+                  />
+                </ControlButtonStyler>
+              </Tooltip>
+            </Control>
+          )}
           <Control position="topcenter" order={10}>
             {isMode2d && <LayerWrapper />}
           </Control>
@@ -525,7 +607,11 @@ const MapWrapper = () => {
             overflow: "hidden",
           }}
         >
-          <GeoportalMap height={height} width={width} allow3d={allow3d} />
+          {showLibreMap && isMode2d ? (
+            <LibreGeoportalMap />
+          ) : (
+            <GeoportalMap height={height} width={width} allow3d={allow3d} />
+          )}
         </div>
       </Main>
     </ControlLayout>
