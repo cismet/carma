@@ -30,10 +30,12 @@
       "configurations": {
         "development": {
           "buildTarget": "floodingmap-wuppertal:build:development",
+          "host":"0.0.0.0" , 
           "hmr": true
         },
         "production": {
           "buildTarget": "floodingmap-wuppertal:build:production",
+          "host":"0.0.0.0" ,
           "hmr": false
         }
       }
