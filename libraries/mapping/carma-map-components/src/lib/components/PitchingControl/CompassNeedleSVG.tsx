@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Math as CesiumMath } from "cesium";
 
-const PITCH_HORIZON_OFFSET = CesiumMath.PI_OVER_TWO - 0.2; // avoid showing completely flat from the side
+// MapLibre pitch is in degrees (0-85 typically)
+const MAX_PITCH_DEGREES = 85;
+const PITCH_HORIZON_OFFSET = Math.PI / 2 - 0.2; // avoid showing completely flat from the side
 
 export const CompassNeedleSVG = ({
   pitch = 0,
@@ -17,13 +19,16 @@ export const CompassNeedleSVG = ({
   const [transform, setTransform] = useState("");
 
   useEffect(() => {
-    if (pitch && heading) {
-      const normalizedHeading = -heading;
-      const normalizedPitch = CesiumMath.clamp(
-        pitch + CesiumMath.PI_OVER_TWO, // rotate pitch range into screen plane
-        0, // NADIR end of range
-        PITCH_HORIZON_OFFSET // Horizon end of range
+    if (pitch !== undefined && heading !== undefined) {
+      const normalizedHeading = -heading * (Math.PI / 180); // Convert degrees to radians
+      
+      // Convert MapLibre pitch (degrees, 0-85) to radians and normalize for our visualization
+      const pitchRadians = pitch * (Math.PI / 180); // Convert degrees to radians
+      const normalizedPitch = Math.min(
+        pitchRadians * (Math.PI / 2 / (MAX_PITCH_DEGREES * Math.PI / 180)), // Scale to appropriate range
+        PITCH_HORIZON_OFFSET
       );
+      
       // scale the needle for lower pitches for improved visibility
       // linear scaling makes the tilting effect look less consistent
       const transform = `scale(${Math.pow(
