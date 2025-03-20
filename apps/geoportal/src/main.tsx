@@ -9,7 +9,6 @@ import { suppressReactCismapErrors } from "@carma-commons/utils";
 import App from "./app/App";
 import store from "./app/store";
 import { CESIUM_CONFIG } from "./app/config/app.config";
-import LibreGeoportalMap from "./app/components/GeoportalMap/LibreGeoportalMap";
 
 declare global {
   interface Window {
@@ -39,14 +38,6 @@ root.render(
           {
             path: "/publish",
             element: <App published={true} />,
-          },
-          {
-            path: "/maplibre",
-            element: <LibreGeoportalMap />,
-          },
-          {
-            path: "/ng",
-            element: <LibreGeoportalMap />,
           },
         ])}
       />
