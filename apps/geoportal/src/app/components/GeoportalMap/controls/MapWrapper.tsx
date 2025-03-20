@@ -452,15 +452,23 @@ const MapWrapper = () => {
               <ControlButtonStyler
                 ref={tourRefLabels.home}
                 onClick={() => {
-                  routedMap.leafletMap.leafletElement.flyTo(
-                    [51.272570027476256, 7.199918031692506],
-                    18
-                  );
-                  homeControl();
+                  if (showLibreMap) {
+                    if (libreMapRef.current) {
+                      libreMapRef.current.flyTo({
+                        center: [7.199918031692506, 51.272570027476256],
+                        zoom: 17,
+                        essential: true,
+                      });
+                    }
+                  } else {
+                    routedMap.leafletMap.leafletElement.flyTo(
+                      [51.272570027476256, 7.199918031692506],
+                      18
+                    );
+                    homeControl();
+                  }
                 }}
                 dataTestId="home-control"
-                disabled={isMode2d && showLibreMap}
-                useDisabledStyle={isMode2d && showLibreMap}
               >
                 <FontAwesomeIcon icon={faHouseChimney} className="text-lg" />
               </ControlButtonStyler>
