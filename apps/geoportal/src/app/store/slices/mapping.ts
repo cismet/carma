@@ -260,7 +260,7 @@ const slice = createSlice({
     setClickFromInfoView(state, action: PayloadAction<boolean>) {
       state.clickFromInfoView = action.payload;
     },
-    setLibreMapRef(state, action: PayloadAction<Map | null>) {
+    setLibreMapRef(state, action: PayloadAction<any>) {
       state.libreMapRef = action.payload;
     },
   },
