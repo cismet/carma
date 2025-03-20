@@ -30,7 +30,7 @@ export const LibrePitchingCompass = ({ mapRef }: LibrePitchingCompassProps) => {
 
         const newHeading = (initialHeading + deltaX * 0.3) % 360;
 
-        const newPitch = Math.max(0, Math.min(85, initialPitch + deltaY * 0.3));
+        const newPitch = Math.max(0, Math.min(85, initialPitch - deltaY * 0.3));
 
         mapRef.current.setBearing(newHeading);
         mapRef.current.setPitch(newPitch);
