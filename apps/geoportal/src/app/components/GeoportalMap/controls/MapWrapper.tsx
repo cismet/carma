@@ -11,6 +11,7 @@ import {
   Main,
 } from "@carma-mapping/map-controls-layout";
 import {
+  faCompass,
   faCompress,
   faExpand,
   faEyeSlash,
@@ -351,7 +352,7 @@ const MapWrapper = () => {
                     className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
                     ref={tourRefLabels.alignNorth}
                     dataTestId="compass-control"
-                    disabled={isMode2d}
+                    disabled={isMode2d && !showLibreMap}
                   >
                     <PitchingCompass
                       viewerRef={viewerRef}
@@ -421,6 +422,8 @@ const MapWrapper = () => {
                   ref={tourRefLabels.navigator}
                   onClick={() => setIsLocationActive((prev) => !prev)}
                   dataTestId="location-control"
+                  disabled={isMode2d && showLibreMap}
+                  useDisabledStyle={isMode2d && showLibreMap}
                 >
                   <FontAwesomeIcon
                     icon={faLocationArrow}
@@ -449,6 +452,8 @@ const MapWrapper = () => {
                   homeControl();
                 }}
                 dataTestId="home-control"
+                disabled={isMode2d && showLibreMap}
+                useDisabledStyle={isMode2d && showLibreMap}
               >
                 <FontAwesomeIcon icon={faHouseChimney} className="text-lg" />
               </ControlButtonStyler>
@@ -477,7 +482,7 @@ const MapWrapper = () => {
                   placement="right"
                 >
                   <ControlButtonStyler
-                    disabled={!isMode2d}
+                    disabled={!isMode2d || (isMode2d && showLibreMap)}
                     onClick={() => {
                       if (!isModeMeasurement) {
                         dispatch(setDrawingShape(false));
@@ -487,6 +492,7 @@ const MapWrapper = () => {
                     }}
                     ref={tourRefLabels.measurement}
                     dataTestId="measurement-control"
+                    useDisabledStyle={isMode2d && showLibreMap}
                   >
                     <img
                       src={`${getUrlPrefix()}${
@@ -510,7 +516,8 @@ const MapWrapper = () => {
               placement="right"
             >
               <ControlButtonStyler
-                disabled={!isMode2d}
+                disabled={!isMode2d || (isMode2d && showLibreMap)}
+                useDisabledStyle={isMode2d && showLibreMap}
                 onClick={() => {
                   handleToggleFeatureInfo();
                   dispatch(setSelectedFeature(null));
