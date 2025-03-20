@@ -21,6 +21,7 @@ export { PitchingCompass } from "./lib/components/controls/PitchingCompass";
 export { SceneStyleToggle } from "./lib/components/controls/SceneStyleToggle";
 
 export { useCesiumContext } from "./lib/hooks/useCesiumContext";
+export { useCesiumOrbitPoint } from "./lib/hooks/useCesiumOrbitPoint";
 export { useHomeControl } from "./lib/hooks/useHomeControl";
 export { useSceneStyles } from "./lib/hooks/useSceneStyles";
 export { useZoomControls } from "./lib/hooks/useZoomControls";
@@ -65,8 +66,6 @@ export {
   type ViewerAnimationMap,
   initViewerAnimationMap,
 } from "./lib/utils/viewerAnimationMap";
-
-export { getOrbitPoint } from "./lib/utils/cesiumAnimateOrbits";
 
 // Re-export all the types as workaround
 export * from "./index.d";

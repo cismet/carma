@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState, useRef, useMemo } from "react";
 import knn from "rbush-knn";
 
-import { useCesiumContext } from "@carma-mapping/cesium-engine";
+import {
+  useCesiumContext,
+  useCesiumOrbitPoint,
+} from "@carma-mapping/cesium-engine";
 
 import { getCardinalDirectionFromHeading } from "../utils/orientationUtils";
-import { useOrbitPoint } from "./useOrbitPoint";
 import {
   calculatePointOnGround,
   calculatePointOnRadius,
@@ -45,7 +47,7 @@ export function useNearestObliqueImage(
   lockFootprint: boolean = false
 ) {
   const { viewerRef } = useCesiumContext();
-  const orbitPoint = useOrbitPoint();
+  const orbitPoint = useCesiumOrbitPoint();
 
   const orbitPointCoords = orbitPoint
     ? calculateImageCoordsFromCartesian(orbitPoint, converter)
