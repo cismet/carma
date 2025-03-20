@@ -25,6 +25,9 @@ import citymapGrey from "../assets/map-bg/citymapGrey.png";
 import citymapBg from "../assets/map-bg/citymap.png";
 import orthoBg from "../assets/map-bg/ortho.png";
 import DetailsBox from "./DetailsBox";
+import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
+import { TopicMapSelectionContent } from "@carma-apps/portals";
+import FuzzySearch from "../components/FuzzySearch";
 const parseSimulationsFromURL = (search) => {
   const params = new URLSearchParams(search);
   const simulationsParam = params.get("simulations");
@@ -112,97 +115,106 @@ const SolarPotentialMap = () => {
     validBackgroundIndex = 0;
   }
   return (
-    <TopicMapComponent
-      homeZoom={13}
-      homeCenter={[49.31780796845044, 6.75342544913292]}
-      // modeSwitcherTitle="Solarpotenzial Saarlouis"
-      // documentTitle="Solarpotenzial Saarlouis"
-      backgroundlayers={backgrounds[validBackgroundIndex].layerkey}
-      applicationMenuIconname="info"
-      // backgroundlayers="empty"
-      infoBox={
-        <ControlInfoBox
-          pixelwidth={350}
-          simulationLabels={simulationLabels}
-          backgrounds={backgrounds}
-          selectedBackgroundIndex={selectedBackgroundIndex}
-          setBackgroundIndex={(index) => {
-            setSelectedBackgroundIndex(index);
+    <>
+      <TopicMapComponent
+        homeZoom={13}
+        homeCenter={[49.31780796845044, 6.75342544913292]}
+        // modeSwitcherTitle="Solarpotenzial Saarlouis"
+        // documentTitle="Solarpotenzial Saarlouis"
+        backgroundlayers={backgrounds[validBackgroundIndex].layerkey}
+        applicationMenuIconname="info"
+        // backgroundlayers="empty"
+        infoBox={
+          <ControlInfoBox
+            pixelwidth={350}
+            simulationLabels={simulationLabels}
+            backgrounds={backgrounds}
+            selectedBackgroundIndex={selectedBackgroundIndex}
+            setBackgroundIndex={(index) => {
+              setSelectedBackgroundIndex(index);
 
-            history.push(
-              modifyQueryPart(history.location.search, { bg: index })
-            );
-          }}
-          minified={minifiedInfoBox}
-          minify={(minified) => setMinifiedInfoBox(minified)}
-          legendObject={legend}
-          featureInfoModeActivated={false}
-          setFeatureInfoModeActivation={() => {}}
-          featureInfoValue={undefined}
-          showModalMenu={(section) => {
-            setAppMenuVisible(true);
-            setAppMenuActiveMenuSection(section);
-          }}
-          mapClickListener={() => {}}
-          mapRef={undefined}
-          mapCursor={undefined}
-          secondaryInfoBoxElements={[
-            selectedFeature && (
-              <DetailsBox
-                legendObject={legend}
-                selectedFeature={selectedFeature}
-                featureInfoValue={selectedFeature?.properties.Elec_Prod_}
-                setFeatureInfoModeActivation={() => {
-                  setSelectedFeature(undefined);
-                }}
-                showModalMenu={(section) => {
-                  setAppMenuVisible(true);
-                  setAppMenuActiveMenuSection(section);
-                }}
-              />
-            ),
-          ]}
-        />
-      }
-      gazData={gazData}
-      modalMenu={
-        <GenericModalApplicationMenu
-          {...getCollabedHelpComponentConfig({
-            versionString: version,
-            reactCismapRHMVersion: "",
-          })}
-        />
-      }
-      locatorControl={true}
-      gazetteerSearchPlaceholder={"Adressen"}
-      gazetteerHitTrigger={(hits) => {
-        if ((Array.isArray(hits) && hits[0]?.more?.pid) || hits[0]?.more?.kid) {
-          const gazId = hits[0]?.more?.pid || hits[0]?.more?.kid;
-          setSelectedFeatureByPredicate(
-            (feature) => feature.properties.id === gazId
-          );
+              history.push(
+                modifyQueryPart(history.location.search, { bg: index })
+              );
+            }}
+            minified={minifiedInfoBox}
+            minify={(minified) => setMinifiedInfoBox(minified)}
+            legendObject={legend}
+            featureInfoModeActivated={false}
+            setFeatureInfoModeActivation={() => {}}
+            featureInfoValue={undefined}
+            showModalMenu={(section) => {
+              setAppMenuVisible(true);
+              setAppMenuActiveMenuSection(section);
+            }}
+            mapClickListener={() => {}}
+            mapRef={undefined}
+            mapCursor={undefined}
+            secondaryInfoBoxElements={[
+              selectedFeature && (
+                <DetailsBox
+                  legendObject={legend}
+                  selectedFeature={selectedFeature}
+                  featureInfoValue={selectedFeature?.properties.Elec_Prod_}
+                  setFeatureInfoModeActivation={() => {
+                    setSelectedFeature(undefined);
+                  }}
+                  showModalMenu={(section) => {
+                    setAppMenuVisible(true);
+                    setAppMenuActiveMenuSection(section);
+                  }}
+                />
+              ),
+            ]}
+          />
         }
-      }}
-      applicationMenuTooltipString={"Anleitung | Hintergrund"}
-    >
-      <CismapLayer
-        key={"key" + selectedFeature?.properties.id}
-        style="https://tiles.cismet.de/solarpotenzial_sls/style.json"
-        type="vector"
-        selectionEnabled={true}
-        maxSelectionCount={1}
-        manualSelectionManagement={true}
-        onSelectionClick={(e) => {}}
-        onSelectionChanged={(e) => {
-          if (e?.hit) {
-            setSelectedFeature(e.hit);
-            e.hit.setSelection(true);
+        gazData={gazData}
+        modalMenu={
+          <GenericModalApplicationMenu
+            {...getCollabedHelpComponentConfig({
+              versionString: version,
+              reactCismapRHMVersion: "",
+            })}
+          />
+        }
+        locatorControl={true}
+        gazetteerSearchPlaceholder={"Adressen"}
+        gazetteerHitTrigger={(hits) => {
+          if (
+            (Array.isArray(hits) && hits[0]?.more?.pid) ||
+            hits[0]?.more?.kid
+          ) {
+            const gazId = hits[0]?.more?.pid || hits[0]?.more?.kid;
+            setSelectedFeatureByPredicate(
+              (feature) => feature.properties.id === gazId
+            );
           }
         }}
-        opacity={1}
-        pane="additionalLayers1"
-      />
-    </TopicMapComponent>
+        applicationMenuTooltipString={"Anleitung | Hintergrund"}
+        gazetteerSearchControl={true}
+        gazetteerSearchComponent={EmptySearchComponent}
+      >
+        <TopicMapSelectionContent />
+        <CismapLayer
+          key={"key" + selectedFeature?.properties.id}
+          style="https://tiles.cismet.de/solarpotenzial_sls/style.json"
+          type="vector"
+          selectionEnabled={true}
+          maxSelectionCount={1}
+          manualSelectionManagement={true}
+          onSelectionClick={(e) => {}}
+          onSelectionChanged={(e) => {
+            if (e?.hit) {
+              setSelectedFeature(e.hit);
+              e.hit.setSelection(true);
+            }
+          }}
+          opacity={1}
+          pane="additionalLayers1"
+        />
+      </TopicMapComponent>
+      <FuzzySearch gazLocalData={gazData} />
+    </>
   );
 };
 
