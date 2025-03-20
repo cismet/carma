@@ -1,26 +1,17 @@
-import { useRef, useEffect, useState } from "react";
-import maplibregl from "maplibre-gl";
 import type { LayerSpecification, StyleSpecification } from "maplibre-gl";
+import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import "./LibreGeoportalMap.css";
 import { useDispatch, useSelector } from "react-redux";
+import { defaultLayerConfig } from "../../config";
 import {
   getBackgroundLayer,
   getLayers,
-  setLayers,
   setLibreMapRef,
 } from "../../store/slices/mapping";
-import { defaultLayerConfig } from "../../config";
-import {
-  Control,
-  ControlLayout,
-  Main,
-} from "@carma-mapping/map-controls-layout";
-import { Slider } from "antd";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
+import "./LibreGeoportalMap.css";
 
 const LibreGeoportalMap = () => {
   const dispatch = useDispatch();
@@ -321,100 +312,9 @@ const LibreGeoportalMap = () => {
   }, [layers, backgroundLayer]);
 
   return (
-    <ControlLayout>
-      {/* <Control position="topcenter" order={0}>
-        <div className="flex flex-col gap-2 items-center">
-          <div className="flex items-center rounded-md px-2 bg-white shadow-lg">
-            <button onClick={() => setShowOpacitySliders(!showOpacitySliders)}>
-              <FontAwesomeIcon
-                icon={showOpacitySliders ? faChevronUp : faChevronDown}
-              />
-            </button>
-          </div>
-
-          {showOpacitySliders &&
-            layers.map((layer, i) => {
-              return (
-                <div
-                  key={layer.id}
-                  className="flex items-center w-[600px] gap-2 rounded-md px-2 bg-white shadow-lg"
-                >
-                  <FontAwesomeIcon
-                    icon={faChevronDown}
-                    onClick={() => {
-                      if (i !== layers.length) {
-                        const newLayers = [...layers];
-                        const [removedLayer] = newLayers.splice(i, 1);
-                        newLayers.splice(i + 1, 0, removedLayer);
-                        dispatch(setLayers(newLayers));
-                      }
-                      const styleLayers = getAllLayersByPrefix(layer.id);
-                      const index = styleLayers.findIndex(
-                        (layer) => layer.id === layer.id
-                      );
-                      if (index < styleLayers.length - 1) {
-                        const newLayers = [...styleLayers];
-                        const [removedLayer] = newLayers.splice(index, 1);
-                        newLayers.splice(index + 1, 0, removedLayer);
-                        map.current?.setStyle({
-                          ...map.current?.getStyle(),
-                          layers: newLayers,
-                        });
-                      }
-                    }}
-                  />
-                  <FontAwesomeIcon
-                    icon={faChevronUp}
-                    onClick={() => {
-                      if (i !== 0) {
-                        const newLayers = [...layers];
-                        const [removedLayer] = newLayers.splice(i, 1);
-                        newLayers.splice(i - 1, 0, removedLayer);
-                        dispatch(setLayers(newLayers));
-                      }
-                      const styleLayers = getAllLayersByPrefix(layer.id);
-                      const index = styleLayers.findIndex(
-                        (layer) => layer.id === layer.id
-                      );
-                      if (index > 0) {
-                        const newLayers = [...styleLayers];
-                        const [removedLayer] = newLayers.splice(index, 1);
-                        newLayers.splice(index - 1, 0, removedLayer);
-                        map.current?.setStyle({
-                          ...map.current?.getStyle(),
-                          layers: newLayers,
-                        });
-                      }
-                    }}
-                  />
-                  <p className="mb-0 w-1/2 truncate">{layer.title}</p>
-                  <Slider
-                    min={0}
-                    max={100}
-                    defaultValue={100}
-                    className="w-80"
-                    onChange={(value) => {
-                      const styleLayers = getAllLayersByPrefix(layer.id);
-                      styleLayers.forEach((styleLayer) => {
-                        map.current?.setPaintProperty(
-                          styleLayer.id,
-                          getPaintProperty(styleLayer),
-                          value / 100
-                        );
-                      });
-                    }}
-                  />
-                </div>
-              );
-            })}
-        </div>
-      </Control> */}
-      <Main>
-        <div className="map-wrap">
-          <div ref={mapContainer} className="map" />
-        </div>
-      </Main>
-    </ControlLayout>
+    <div className="map-wrap">
+      <div ref={mapContainer} className="map" />
+    </div>
   );
 };
 
