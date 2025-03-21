@@ -1,5 +1,5 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { Tooltip } from "antd";
 import { Math as CesiumMath } from "cesium";
 
@@ -44,6 +44,7 @@ import {
   selectViewerHome,
   selectViewerIsMode2d,
   selectViewerModels,
+  setIsMode2d,
   useCesiumContext,
   useHomeControl,
   useZoomControls,
@@ -81,6 +82,7 @@ import { RoutedMapLocateControl } from "@carma-mapping/components";
 
 function App({ sync = false }: { sync?: boolean }) {
   const version = getApplicationVersion(versionData);
+  const dispatch = useDispatch();
   const { responsiveState, gap, windowSize } = useContext<
     typeof ResponsiveTopicMapContext
   >(ResponsiveTopicMapContext);
@@ -191,6 +193,10 @@ function App({ sync = false }: { sync?: boolean }) {
       }, 300);
     }
   }, [viewerRef]);
+
+  useEffect(() => {
+    dispatch(setIsMode2d(true));
+  }, []);
 
   const onFullscreenClick = () => {
     if (document.fullscreenElement) {
