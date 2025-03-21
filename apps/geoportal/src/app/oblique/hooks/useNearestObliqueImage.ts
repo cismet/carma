@@ -11,6 +11,7 @@ import {
   calculateSectorHeading,
   calculateImageCoordsFromCamera,
   calculateReferencePointFromOrbit,
+  calculateImageCoordsFromCartesian,
 } from "../utils/obliqueReferenceUtils";
 
 import { NUM_NEAREST_IMAGES } from "../config";
@@ -44,7 +45,7 @@ export function useNearestObliqueImage(
   lockFootprint: boolean = false
 ) {
   const { viewerRef } = useCesiumContext();
-  const { orbitPointCoords } = useOrbitPoint(converter);
+  const orbitPoint = useOrbitPoint();
 
   // State for values that need to be returned from the hook
   const [nearestImage, setNearestImage] =
@@ -79,7 +80,7 @@ export function useNearestObliqueImage(
       !obliqueRecords ||
       !obliqueRecords.size ||
       !converter ||
-      !orbitPointCoords ||
+      !orbitPoint ||
       lockFootprint
     ) {
       return;
@@ -102,6 +103,10 @@ export function useNearestObliqueImage(
         cartographic.height,
         converter
       );
+
+      const orbitPointCoords = orbitPoint
+        ? calculateImageCoordsFromCartesian(orbitPoint, converter)
+        : null;
 
       // Calculate the point on ground based on camera pitch and heading
       const cameraHeight = cartographic.height;
@@ -142,7 +147,7 @@ export function useNearestObliqueImage(
       // Find and set nearest images
       let filteredImages = [];
 
-      const orbitPoint = {
+      const orbitPointTargetCrs = {
         x: orbitPointCoords[0],
         y: orbitPointCoords[1],
       };
@@ -155,12 +160,17 @@ export function useNearestObliqueImage(
           try {
             // Use the pre-built spatial index for this sector
             // Search directly based on orbit center coordinates
-            const nearestItems = knn(sectorTree, orbitPoint.x, orbitPoint.y, k);
+            const nearestItems = knn(
+              sectorTree,
+              orbitPointTargetCrs.x,
+              orbitPointTargetCrs.y,
+              k
+            );
             console.debug(
               "sectorTree nearestItems",
               cameraCardinal,
               k,
-              orbitPoint,
+              orbitPointTargetCrs,
               nearestItems
             );
 
@@ -173,13 +183,13 @@ export function useNearestObliqueImage(
                 const { x, y } = record.perspectiveCenter;
 
                 // Calculate distance directly to orbit center for more stable results
-                const dx = orbitPoint.x - x;
-                const dy = orbitPoint.y - y;
+                const dx = orbitPointTargetCrs.x - x;
+                const dy = orbitPointTargetCrs.y - y;
                 const distanceToCamera = Math.sqrt(dx * dx + dy * dy);
 
                 // Calculate distance on ground
-                const dxGround = orbitPoint.x - item.x;
-                const dyGround = orbitPoint.y - item.y;
+                const dxGround = orbitPointTargetCrs.x - item.x;
+                const dyGround = orbitPointTargetCrs.y - item.y;
                 const distanceOnGround = Math.sqrt(
                   dxGround * dxGround + dyGround * dyGround
                 );
@@ -230,7 +240,7 @@ export function useNearestObliqueImage(
     converter,
     headingOffset,
     options.k,
-    orbitPointCoords,
+    orbitPoint,
     centerpoints,
     lockFootprint,
   ]); // Include all dependencies for proper updates

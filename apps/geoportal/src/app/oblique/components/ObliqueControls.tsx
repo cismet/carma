@@ -75,7 +75,6 @@ const HiddenImagePreviewContainer = styled.div`
 export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const isObliqueMode = useSelector(getObliqueMode);
   const {
-    converter,
     headingOffset,
     nearestImage,
     isAllDataReady,
@@ -111,7 +110,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   }
 `;
 
-  const { orbitPoint } = useOrbitPoint(converter);
+  const orbitPoint = useOrbitPoint();
 
   // Handle visibility changes when oblique mode toggles
   useEffect(() => {
