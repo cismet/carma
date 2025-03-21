@@ -9,18 +9,8 @@ import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import Menu from "./Menu";
 import { getPoiClusterIconCreatorFunction } from "./helper/styler";
 import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
-import {
-  TopicMapSelectionContent,
-  useGazData,
-  useSelection,
-  useSelectionTopicMap,
-} from "@carma-apps/portals";
-import {
-  EmptySearchComponent,
-  LibFuzzySearch,
-} from "@carma-mapping/fuzzy-search";
-import { isAreaType } from "@carma-commons/resources";
-import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import { TopicMapSelectionContent } from "@carma-apps/portals";
+import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import {
   Control,
   ControlButtonStyler,
@@ -34,8 +24,13 @@ import {
   faMinus,
   faPlus,
 } from "@fortawesome/free-solid-svg-icons";
-import { RoutedMapLocateControl } from "@carma-mapping/components";
 import useLeafletZoomControls from "../hooks/useLeafletZoomControls";
+import { RoutedMapLocateControl } from "@carma-mapping/components";
+import FuzzySearch from "./components/FuzzySearch";
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+
+export const HOME_ZOOM = 18;
+export const HOME_CENTER = [51.272021202386675, 7.201605141162873];
 
 const Baederkarte = () => {
   const { setSelectedFeatureByPredicate, setClusteringOptions } = useContext(
@@ -43,18 +38,10 @@ const Baederkarte = () => {
   );
   const { markerSymbolSize } = useContext(TopicMapStylingContext);
   const { clusteringOptions } = useContext(FeatureCollectionContext);
+  const { routedMapRef: routedMap } = useContext(TopicMapContext);
 
-  const { responsiveState, gap, windowSize } = useContext(
-    ResponsiveTopicMapContext
-  );
-
-  const pixelwidth =
-    responsiveState === "normal" ? "300px" : windowSize.width - gap;
-  const homeControlLeaflet = () => {
-    if (homeCenter && routedMap?.leafletMap?.leafletElement) {
-      //console.debug("topicMapHomeClick", homeCenter, homePosition);
-      routedMap.leafletMap.leafletElement.flyTo(homeCenter, HOME_ZOOM);
-    }
+  const onHomeClick = () => {
+    routedMap.leafletMap.leafletElement.flyTo(HOME_CENTER, HOME_ZOOM);
   };
 
   const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
@@ -67,30 +54,6 @@ const Baederkarte = () => {
       });
     }
   }, [markerSymbolSize]);
-
-  const { gazData } = useGazData();
-  const { setSelection } = useSelection();
-
-  useSelectionTopicMap();
-
-  const onGazetteerSelection = (selection) => {
-    if (!selection) {
-      setSelection(null);
-      return;
-    }
-    const selectionMetaData = {
-      selectedFrom: "gazetteer",
-      selectionTimestamp: Date.now(),
-      isAreaSelection: isAreaType(selection.type),
-    };
-    setSelection(Object.assign({}, selection, selectionMetaData));
-    setTimeout(() => {
-      const gazId = selection.more?.pid || selection.more?.kid;
-      setSelectedFeatureByPredicate(
-        (feature) => feature.properties.id === gazId
-      );
-    }, [100]);
-  };
 
   return (
     <>
@@ -107,38 +70,32 @@ const Baederkarte = () => {
         <ControlLayout ifStorybook={false}>
           <Control position="topleft" order={10}>
             <div className="flex flex-col">
-              {/* <Tooltip title="Maßstab vergrößern (Zoom in)" placement="right"> */}
               <ControlButtonStyler
                 onClick={zoomInLeaflet}
                 className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
                 dataTestId="zoom-in-control"
-                title="Maßstab vergrößern (Zoom in)"
+                title="Vergrößern"
               >
                 <FontAwesomeIcon icon={faPlus} className="text-base" />
               </ControlButtonStyler>
-              {/* </Tooltip> */}
-              {/* <Tooltip title="Maßstab verkleinern (Zoom out)" placement="right"> */}
               <ControlButtonStyler
                 onClick={zoomOutLeaflet}
                 className="!rounded-t-none !border-t-[1px]"
                 dataTestId="zoom-out-control"
-                title="Maßstab verkleinern (Zoom out)"
+                title="Verkleinern"
               >
                 <FontAwesomeIcon icon={faMinus} className="text-base" />
               </ControlButtonStyler>
-              {/* </Tooltip> */}
             </div>
           </Control>
+
           <Control position="topleft" order={50}>
-            {/* <Tooltip
+            <ControlButtonStyler
               title={
                 document.fullscreenElement
-                  ? "Vollbildmodus ausschalten"
-                  : "Vollbildmodus einschalten"
+                  ? "Vollbildmodus beenden"
+                  : "Vollbildmodus"
               }
-              placement="right"
-            > */}
-            <ControlButtonStyler
               onClick={() => {
                 if (document.fullscreenElement) {
                   document.exitFullscreen();
@@ -147,54 +104,28 @@ const Baederkarte = () => {
                 }
               }}
               dataTestId="full-screen-control"
-              title={
-                document.fullscreenElement
-                  ? "Vollbildmodus ausschalten"
-                  : "Vollbildmodus einschalten"
-              }
             >
               <FontAwesomeIcon
                 icon={document.fullscreenElement ? faCompress : faExpand}
               />
             </ControlButtonStyler>
-            {/* </Tooltip> */}
           </Control>
-          {/* <Control position="topleft" order={60}>
-            <RoutedMapLocateControl
-              tourRefLabels={null}
-              disabled={!isMode2d}
-              nativeTooltip={true}
-            />
-          </Control> */}
+          <Control position="topleft" order={60} title="Mein Standort">
+            <RoutedMapLocateControl tourRefLabels={null} disabled={false} />
+          </Control>
 
           <Control position="topleft" order={70}>
-            {/* <Tooltip
-              title={
-                "Zur Startposition:\nÜberflutungsbereich Unterdörnen, Barmen"
-              }
-              placement="right"
-            > */}
             <ControlButtonStyler
-              onClick={homeControlLeaflet}
+              onClick={onHomeClick}
               dataTestId="home-control"
-              title={
-                "Zur Startposition:\nÜberflutungsbereich Unterdörnen, Barmen"
-              }
+              title="Auf Rathaus positionieren"
             >
               <FontAwesomeIcon icon={faHouseChimney} className="text-lg" />
             </ControlButtonStyler>
-            {/* </Tooltip> */}
           </Control>
           <Control position="bottomleft" order={10}>
             <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
-              <LibFuzzySearch
-                gazData={gazData}
-                //referenceSystem={referenceSystem}
-                //referenceSystemDefinition={referenceSystemDefinition}
-                pixelwidth={pixelwidth}
-                onSelection={onGazetteerSelection}
-                placeholder="Stadtteil | Adresse | POI"
-              />
+              <FuzzySearch />
             </div>
           </Control>
         </ControlLayout>
@@ -235,14 +166,6 @@ const Baederkarte = () => {
 
         <FeatureCollection></FeatureCollection>
       </TopicMapComponent>
-      {/* <div className="custom-left-control">
-        <LibFuzzySearch
-          gazData={gazData}
-          onSelection={onGazetteerSelection}
-          pixelwidth={pixelwidth}
-          placeholder="Stadtteil | Adresse | POI"
-        />
-      </div> */}
     </>
   );
 };
