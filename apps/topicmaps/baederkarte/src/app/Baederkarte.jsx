@@ -120,7 +120,6 @@ const Baederkarte = () => {
 
           <Control position="topleft" order={70}>
             <ControlButtonStyler
-              // className="mt-[-1Opx]"
               onClick={onHomeClick}
               dataTestId="home-control"
               title="Auf Rathaus positionieren"
