@@ -29,7 +29,7 @@ import { RoutedMapLocateControl } from "@carma-mapping/components";
 import FuzzySearch from "./components/FuzzySearch";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
-export const HOME_ZOOM = 18;
+export const HOME_ZOOM = 13;
 export const HOME_CENTER = [51.272021202386675, 7.201605141162873];
 
 const Baederkarte = () => {
