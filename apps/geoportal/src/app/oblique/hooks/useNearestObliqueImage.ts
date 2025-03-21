@@ -166,14 +166,6 @@ export function useNearestObliqueImage(
               orbitPointTargetCrs.y,
               k
             );
-            console.debug(
-              "sectorTree nearestItems",
-              cameraCardinal,
-              k,
-              orbitPointTargetCrs,
-              nearestItems
-            );
-
             // Map to records with distances - use obliqueRecords directly since it's already a Map
             filteredImages = nearestItems
               .map((item: RBushItem) => {

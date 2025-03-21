@@ -24,13 +24,19 @@ export const ObliqueFootprintLayer: React.FC = () => {
   // Clean up data source when component unmounts or oblique mode disabled
   useEffect(() => {
     const viewer = viewerRef.current;
+    const dataSource = dataSourceRef.current;
     return () => {
-      if (dataSourceRef.current && viewer) {
-        viewer.dataSources.remove(dataSourceRef.current, true);
+      if (dataSource && viewer && !isObliqueMode) {
+        viewer.dataSources.remove(dataSource, true);
+        console.log(
+          "removed data source xxx",
+          viewer.dataSources.length,
+          viewer.dataSources[0] && viewer.dataSources[0].name
+        );
         dataSourceRef.current = null;
       }
     };
-  }, [viewerRef]);
+  }, [viewerRef, isObliqueMode]);
 
   useEffect(() => {
     const viewer = viewerRef.current;

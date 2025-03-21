@@ -115,12 +115,9 @@ export function useObliqueData(
 
         // Log sample records to console
         if (completeRecords.length > 0) {
-          console.log("Sample OBLIQUE image records:");
-          console.log("First OBLIQUE record:", completeRecords[0]);
-          console.log(
-            "Last OBLIQUE record:",
-            completeRecords[completeRecords.length - 1]
-          );
+          console.debug("Sample OBLIQUE image records:");
+          console.debug("First OBLIQUE record:", completeRecords[0]);
+
           console.info(
             `ObliqueStats | Total records: ${completeRecords.length}`
           );
@@ -132,7 +129,7 @@ export function useObliqueData(
             `ObliqueStats | Total processing time: ${totalProcessingTimeMs} ms`
           );
         } else {
-          console.log("No OBLIQUE image records found in CSV data");
+          console.info("No OBLIQUE image records found in CSV data");
         }
 
         setIsLoading(false);

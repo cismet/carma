@@ -80,7 +80,6 @@ export function getSpatialIndex(
 
   // Bulk load the items into the tree
   if (items.length > 0) {
-    console.debug("creating rBush spatial index for", items.length, "records");
     tree.load(items);
   }
 
@@ -213,12 +212,6 @@ export function createRBushByCardinal(
 
     const tree = result.get(cardinal);
     if (tree) {
-      console.debug(
-        cardinal,
-        "creating rBush spatial index for",
-        items.length,
-        "records"
-      );
       tree.load(items);
     }
   }

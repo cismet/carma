@@ -181,7 +181,6 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
       .then((data: FeatureCollection<Polygon, FootprintProperties>) => {
         setFootprintData(data);
         const footprintCenterpoints = getFootprintCenterpoints(data, converter);
-        console.debug("Footprint centerpoints:", footprintCenterpoints);
         const footprintCenterpointsRBushByCardinals = createRBushByCardinal(
           footprintCenterpoints
         );

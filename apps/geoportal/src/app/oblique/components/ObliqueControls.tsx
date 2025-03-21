@@ -245,8 +245,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       imageCenter.latitude
     );
 
-    console.log("imageCenterCartesian", imageCenterCartesian, imageCenter);
-
     const imageCenterCartograpic =
       Cartographic.fromCartesian(imageCenterCartesian);
     const [centerWithHeight] = await sampleTerrainMostDetailed(
