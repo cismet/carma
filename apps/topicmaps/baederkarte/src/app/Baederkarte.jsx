@@ -29,8 +29,8 @@ import { RoutedMapLocateControl } from "@carma-mapping/components";
 import FuzzySearch from "./components/FuzzySearch";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
-export const HOME_ZOOM = 13;
-export const HOME_CENTER = [51.272021202386675, 7.201605141162873];
+// export const HOME_ZOOM = 13;
+// export const HOME_CENTER = [51.272021202386675, 7.201605141162873];
 
 const Baederkarte = () => {
   const { setSelectedFeatureByPredicate, setClusteringOptions } = useContext(
@@ -38,11 +38,11 @@ const Baederkarte = () => {
   );
   const { markerSymbolSize } = useContext(TopicMapStylingContext);
   const { clusteringOptions } = useContext(FeatureCollectionContext);
-  const { routedMapRef: routedMap } = useContext(TopicMapContext);
+  // const { routedMapRef: routedMap } = useContext(TopicMapContext);
 
-  const onHomeClick = () => {
-    routedMap.leafletMap.leafletElement.flyTo(HOME_CENTER, HOME_ZOOM);
-  };
+  // const onHomeClick = () => {
+  //   routedMap.leafletMap.leafletElement.flyTo(HOME_CENTER, HOME_ZOOM);
+  // };
 
   const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
 
@@ -118,7 +118,7 @@ const Baederkarte = () => {
             />
           </Control>
 
-          <Control position="topleft" order={70}>
+          {/* <Control position="topleft" order={70}>
             <ControlButtonStyler
               onClick={onHomeClick}
               dataTestId="home-control"
@@ -126,7 +126,7 @@ const Baederkarte = () => {
             >
               <FontAwesomeIcon icon={faHouseChimney} className="text-lg" />
             </ControlButtonStyler>
-          </Control>
+          </Control> */}
           <Control position="bottomleft" order={10}>
             <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
               <FuzzySearch />
