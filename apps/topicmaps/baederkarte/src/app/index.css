@@ -24,3 +24,7 @@ code {
   margin-left: 14px;
   margin-bottom: 5px;
 }
+
+.leaflet-control * img {
+  display: initial;
+}

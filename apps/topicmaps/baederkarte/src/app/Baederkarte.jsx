@@ -193,7 +193,7 @@ const Baederkarte = () => {
                 //referenceSystemDefinition={referenceSystemDefinition}
                 pixelwidth={pixelwidth}
                 onSelection={onGazetteerSelection}
-                placeholder="Stadtteil | Adresse | POI | GEP"
+                placeholder="Stadtteil | Adresse | POI"
               />
             </div>
           </Control>
