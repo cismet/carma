@@ -19,6 +19,11 @@ const LibreGeoportalMap = () => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
+  const selectedFeatures: Set<{
+    source: string;
+    sourceLayer: string;
+    id: string | number;
+  }> = new Set();
 
   const [showOpacitySliders, setShowOpacitySliders] = useState(false);
 
@@ -233,6 +238,46 @@ const LibreGeoportalMap = () => {
       });
 
       dispatch(setLibreMapRef(map));
+
+      map.current.on("click", (e) => {
+        const point = map.current.project([e.lngLat.lng, e.lngLat.lat]);
+
+        const hits = map.current.queryRenderedFeatures(point);
+        const filteredHits = hits.filter((hit) => {
+          return !hit.layer.id.includes("selection");
+        });
+
+        selectedFeatures.forEach((feature) => {
+          try {
+            map.current?.setFeatureState(
+              {
+                source: feature.source,
+                sourceLayer: feature.sourceLayer,
+                id: feature.id,
+              },
+              { selected: false }
+            );
+          } catch (error) {
+            console.error(error);
+          }
+        });
+
+        selectedFeatures.clear();
+
+        if (filteredHits.length > 0) {
+          filteredHits.forEach((hit) => {
+            map.current.setFeatureState(
+              { source: hit.source, sourceLayer: hit.sourceLayer, id: hit.id },
+              { selected: true }
+            );
+            selectedFeatures.add({
+              source: hit.source,
+              sourceLayer: hit.sourceLayer,
+              id: hit.id,
+            });
+          });
+        }
+      });
 
       map.current.on("remove", () => {
         dispatch(setLibreMapRef(null));
