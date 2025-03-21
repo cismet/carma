@@ -111,7 +111,11 @@ const Baederkarte = () => {
             </ControlButtonStyler>
           </Control>
           <Control position="topleft" order={60} title="Mein Standort">
-            <RoutedMapLocateControl tourRefLabels={null} disabled={false} />
+            <RoutedMapLocateControl
+              tourRefLabels={null}
+              disabled={false}
+              nativeTooltip={true}
+            />
           </Control>
 
           <Control position="topleft" order={70}>
