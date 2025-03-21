@@ -219,9 +219,10 @@ const LibreGeoportalMap = () => {
         style: backgroundStyle,
         center: [lng, lat],
         zoom: searchParams.get("zoom")
-          ? parseFloat(searchParams.get("zoom"))
+          ? parseFloat(searchParams.get("zoom")) - 1
           : defaultZoom,
-        maxZoom: 22,
+        maxZoom: 21,
+        minZoom: 9,
         pitch: searchParams.get("pitch")
           ? parseFloat(searchParams.get("pitch"))
           : 0,
@@ -260,7 +261,7 @@ const LibreGeoportalMap = () => {
       const newParams = new URLSearchParams(searchParams);
       newParams.set("lng", center.lng.toFixed(14));
       newParams.set("lat", center.lat.toFixed(14));
-      newParams.set("zoom", zoom.toFixed(0));
+      newParams.set("zoom", (zoom + 1).toFixed(0));
       newParams.set("pitch", pitch.toFixed(2));
       newParams.set("heading", bearing.toFixed(1));
       setSearchParams(newParams);
