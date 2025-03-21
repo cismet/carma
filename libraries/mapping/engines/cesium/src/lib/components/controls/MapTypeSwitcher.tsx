@@ -1,5 +1,7 @@
 import { type MouseEvent, type ReactNode, forwardRef, useState } from "react";
 import { useSelector } from "react-redux";
+import { Tooltip } from "antd";
+
 import UAParser from "ua-parser-js";
 
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
@@ -9,7 +11,6 @@ import {
   selectViewerIsMode2d,
   selectViewerIsTransitioning,
 } from "../../slices/cesium";
-import { Tooltip } from "antd";
 
 type Props = {
   duration?: number;
@@ -26,9 +27,12 @@ const isMobileUA = parser.getDevice().type === "mobile";
 const isTabletUA = parser.getDevice().type === "tablet";
 const isMobileOrTablet = isMobileUA || isTabletUA;
 
-const WARNING_ENABLE_CESIUM_MODE = `Achtung ⚠️
+const LOCALE_DE_WARNING_ENABLE_CESIUM_MODE = `Achtung ⚠️
 
 Die 3D-Darstellung stellt hohe Anforderungen an die Speicherausstattung Ihres Endgerätes. Bei leistungsschwächeren Geräten funktioniert der 3D-Modus eventuell nicht stabil.`;
+
+const LOCALE_DE_SWITCH_TO_3D_MODE = `Zur 3D-Ansicht wechseln`;
+const LOCALE_DE_SWITCH_TO_2D_MODE = `Zur 2D-Ansicht wechseln`;
 
 type Ref = HTMLButtonElement;
 
@@ -62,7 +66,7 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
         enableMobileWarning &&
         isMobileOrTablet
       ) {
-        const confirmed = window.confirm(WARNING_ENABLE_CESIUM_MODE);
+        const confirmed = window.confirm(LOCALE_DE_WARNING_ENABLE_CESIUM_MODE);
         if (confirmed) {
           setHasConfirmed(true);
         } else {
@@ -80,19 +84,18 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
         await transitionToMode2d();
       }
     };
+
+    const switchInfoText = isMode2d
+      ? LOCALE_DE_SWITCH_TO_3D_MODE
+      : LOCALE_DE_SWITCH_TO_2D_MODE;
+
     const cbs = (
       <ControlButtonStyler
         className={"font-semibold " + className}
         onClick={handleSwitchMapMode}
         disabled={isTransitioning && !forceEnabled}
         ref={ref}
-        title={
-          nativeTooltip
-            ? isMode2d
-              ? "Zur 3D-Ansicht wechseln"
-              : "Zur 2D-Ansicht wechseln"
-            : undefined
-        }
+        title={nativeTooltip ? switchInfoText : undefined}
         dataTestId={isMode2d ? "3d-control" : "2d-control"}
       >
         {isMode2d ? "3D" : "2D"}
@@ -101,19 +104,11 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
     return nativeTooltip ? (
       cbs
     ) : (
-      <Tooltip
-        title={isMode2d ? "Zur 3D-Ansicht wechseln" : "Zur 2D-Ansicht wechseln"}
-        placement="right"
-      >
+      <Tooltip title={switchInfoText} placement="right">
         {cbs}
       </Tooltip>
     );
   }
 );
-
-MapTypeSwitcher.defaultProps = {
-  nativeTooltip: false,
-  enableMobileWarning: false,
-};
 
 export default MapTypeSwitcher;
