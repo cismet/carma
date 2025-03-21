@@ -278,6 +278,7 @@ function App({ sync = false }: { sync?: boolean }) {
                   className="!rounded-t-none !border-t-[1px]"
                   duration={CESIUM_CONFIG.transitions.mapMode.duration}
                   nativeTooltip={true}
+                  enableMobileWarning={true}
                 />
               </Control>
             </div>
