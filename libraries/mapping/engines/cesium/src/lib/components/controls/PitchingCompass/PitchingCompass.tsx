@@ -77,7 +77,7 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
       setCurrentPitch(viewerRef.current.scene.camera.pitch);
       setCurrentHeading(viewerRef.current.camera.heading);
 
-      const target = getOrbitPoint(viewerRef.current)?.position;
+      const target = getOrbitPoint(viewerRef.current);
       if (target) {
         const range = Cartesian3.distance(
           target,
@@ -140,7 +140,7 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
           maxPitch
         );
 
-        const target = getOrbitPoint(viewerRef.current)?.position;
+        const target = getOrbitPoint(viewerRef.current);
 
         if (target && initialRange !== null) {
           viewerRef.current.scene.camera.lookAt(
@@ -169,7 +169,7 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
       viewerAnimationMapRef.current &&
       initialRange !== null
     ) {
-      const orbitPoint = getOrbitPoint(viewerRef.current)?.position;
+      const orbitPoint = getOrbitPoint(viewerRef.current);
       if (orbitPoint) {
         animateCamera(
           viewerRef.current,
@@ -190,7 +190,7 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
       viewerAnimationMapRef.current &&
       initialRange !== null
     ) {
-      const orbitPoint = getOrbitPoint(viewerRef.current)?.position;
+      const orbitPoint = getOrbitPoint(viewerRef.current);
       if (orbitPoint) {
         animateCamera(
           viewerRef.current,

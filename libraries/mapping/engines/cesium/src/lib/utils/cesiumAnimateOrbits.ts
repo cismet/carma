@@ -5,7 +5,6 @@ import {
   Viewer,
   Math as CesiumMath,
   Cartesian2,
-  Ray,
 } from "cesium";
 import { AnimationType, ViewerAnimationMap } from "./viewerAnimationMap";
 
@@ -23,9 +22,7 @@ export enum PITCH {
  * @param viewer The Cesium viewer.
  * @returns The point on the globe that the camera is currently orbiting around.
  */
-export const getOrbitPoint = (
-  viewer: Viewer
-): { position: Cartesian3; ray: Ray } | null => {
+export const getOrbitPoint = (viewer: Viewer) => {
   const scene = viewer.scene;
   const screenCenter = new Cartesian2(
     scene.canvas.clientWidth / 2,
@@ -35,11 +32,8 @@ export const getOrbitPoint = (
   if (!ray) {
     return null;
   }
-  const position = scene.globe.pick(ray, scene);
-  if (!position) {
-    return null;
-  }
-  return { position, ray };
+  const target = scene.globe.pick(ray, scene);
+  return target;
 };
 
 function runAnimation(
