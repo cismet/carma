@@ -11,7 +11,6 @@ import {
   calculateSectorHeading,
   calculateImageCoordsFromCamera,
   calculateReferencePointFromOrbit,
-  calculateImageCoordsFromCartesian,
 } from "../utils/obliqueReferenceUtils";
 
 import { NUM_NEAREST_IMAGES } from "../config";
@@ -45,11 +44,7 @@ export function useNearestObliqueImage(
   lockFootprint: boolean = false
 ) {
   const { viewerRef } = useCesiumContext();
-  const orbitPoint = useOrbitPoint();
-
-  const orbitPointCoords = orbitPoint
-    ? calculateImageCoordsFromCartesian(orbitPoint, converter)
-    : null;
+  const { orbitPointCoords } = useOrbitPoint(converter);
 
   // State for values that need to be returned from the hook
   const [nearestImage, setNearestImage] =

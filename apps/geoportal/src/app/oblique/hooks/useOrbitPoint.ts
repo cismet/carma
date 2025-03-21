@@ -1,13 +1,16 @@
 import { useState, useEffect } from "react";
-import { Cartesian3, Viewer } from 'cesium';
+import { Cartesian3 } from "cesium";
 import { useCesiumContext, getOrbitPoint } from "@carma-mapping/cesium-engine";
+
+import { calculateImageCoordsFromCartesian } from "../utils/obliqueReferenceUtils";
+import { Proj4Converter } from "../types";
 
 // Shared state across hook instances
 let sharedOrbitPoint: Cartesian3 | null = null;
 const orbitPointSubscribers: Array<(point: Cartesian3 | null) => void> = [];
 let listenerInitialized = false;
 
-function initOrbitPointListener(viewer: Viewer) {
+function initOrbitPointListener(viewer: any) {
   if (listenerInitialized) return;
   listenerInitialized = true;
 
@@ -22,10 +25,20 @@ function initOrbitPointListener(viewer: Viewer) {
   viewer.camera.changed.addEventListener(updateOrbitPoint);
 }
 
-export function useOrbitPoint(): Cartesian3 | null {
+export function useOrbitPoint(converter: Proj4Converter): {
+  orbitPoint: Cartesian3 | null;
+  orbitPointCoords: [number, number, number] | null;
+} {
   const { viewerRef } = useCesiumContext();
   const [orbitPoint, setOrbitPoint] = useState<Cartesian3 | null>(
     sharedOrbitPoint
+  );
+  const [orbitPointCoords, setOrbitPointCoords] = useState<
+    [number, number, number] | null
+  >(
+    sharedOrbitPoint
+      ? calculateImageCoordsFromCartesian(sharedOrbitPoint, converter)
+      : null
   );
 
   useEffect(() => {
@@ -34,6 +47,9 @@ export function useOrbitPoint(): Cartesian3 | null {
 
     const callback = (point: Cartesian3 | null) => {
       setOrbitPoint(point);
+      setOrbitPointCoords(
+        point ? calculateImageCoordsFromCartesian(point, converter) : null
+      );
     };
 
     orbitPointSubscribers.push(callback);
@@ -43,7 +59,7 @@ export function useOrbitPoint(): Cartesian3 | null {
       const index = orbitPointSubscribers.indexOf(callback);
       if (index > -1) orbitPointSubscribers.splice(index, 1);
     };
-  }, [viewerRef]);
+  }, [viewerRef, converter]);
 
-  return orbitPoint;
+  return { orbitPoint, orbitPointCoords };
 }
