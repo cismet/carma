@@ -26,15 +26,13 @@ import {
   PerspectiveFrustum,
 } from "cesium";
 
-import {
-  useCesiumContext,
-  useCesiumOrbitPoint,
-} from "@carma-mapping/cesium-engine";
+import { useCesiumContext } from "@carma-mapping/cesium-engine";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { useFeatureFlags } from "@carma-apps/portals";
 
 import { getObliqueMode } from "../../store/slices/ui";
 import { useObliqueDataContext } from "../hooks/useObliqueDataContext";
+import { useOrbitPoint } from "../hooks/useOrbitPoint";
 
 import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
 import { getPreviewImageUrl } from "../utils/imageHandling";
@@ -77,6 +75,7 @@ const HiddenImagePreviewContainer = styled.div`
 export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const isObliqueMode = useSelector(getObliqueMode);
   const {
+    converter,
     headingOffset,
     nearestImage,
     isAllDataReady,
@@ -112,7 +111,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   }
 `;
 
-  const orbitPoint = useCesiumOrbitPoint();
+  const { orbitPoint } = useOrbitPoint(converter);
 
   // Handle visibility changes when oblique mode toggles
   useEffect(() => {

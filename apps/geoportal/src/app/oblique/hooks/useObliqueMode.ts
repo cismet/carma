@@ -11,10 +11,7 @@ import {
 import { useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
 
-import {
-  useCesiumContext,
-  useCesiumOrbitPoint,
-} from "@carma-mapping/cesium-engine";
+import { getOrbitPoint, useCesiumContext } from "@carma-mapping/cesium-engine";
 
 import { useObliqueDataContext } from "../../oblique/hooks/useObliqueDataContext";
 
@@ -158,8 +155,6 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
     converter,
   } = useObliqueDataContext();
 
-  const orbitPoint = useCesiumOrbitPoint();
-
   useEffect(() => {
     let wheelCleanupFn: (() => void) | undefined;
     let cameraPreUpdateRemoveCallback: (() => void) | undefined;
@@ -178,6 +173,7 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
           originalFovRef.current = viewer.camera.frustum.fov;
         }
 
+        const center = getOrbitPoint(viewer);
         const range =
           viewer.camera.positionCartographic.height / Math.tan(-fixedPitch);
 
@@ -226,7 +222,7 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
         };
 
         // Animation first, only add preUpdateCallback after animation completes
-        const sphere = new BoundingSphere(orbitPoint, range);
+        const sphere = new BoundingSphere(center, range);
         viewer.camera.flyToBoundingSphere(sphere, {
           offset: new HeadingPitchRange(
             viewer.camera.heading,
