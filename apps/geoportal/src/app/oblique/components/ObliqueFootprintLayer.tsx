@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
-import { GeoJsonDataSource, Color } from "cesium";
+import { GeoJsonDataSource, Color, Viewer } from "cesium";
 
 import { useCesiumContext } from "@carma-mapping/cesium-engine";
 import { useObliqueDataContext } from "../../oblique/hooks/useObliqueDataContext";
@@ -11,6 +11,22 @@ import {
   createFilteredGeoJson,
   configureFootprintEntity,
 } from "../utils/footprintUtils";
+
+const OBLIQUE_DATASOURCE_PREFIX = "oblq-footprint";
+
+const cleanupDatasources = (viewer: Viewer) => {
+  const dataSources = viewer.dataSources;
+  const length = dataSources.length;
+  for (let i = 0; i < length; i++) {
+    const datasource = dataSources.get(i);
+    if (
+      datasource.name &&
+      datasource.name.startsWith(OBLIQUE_DATASOURCE_PREFIX)
+    ) {
+      dataSources.remove(datasource);
+    }
+  }
+};
 
 export const ObliqueFootprintLayer: React.FC = () => {
   const isObliqueMode = useSelector(getObliqueMode);
@@ -27,12 +43,11 @@ export const ObliqueFootprintLayer: React.FC = () => {
     const dataSource = dataSourceRef.current;
     return () => {
       if (dataSource && viewer && !isObliqueMode) {
-        viewer.dataSources.remove(dataSource, true);
-        console.log(
-          "removed data source xxx",
-          viewer.dataSources.length,
-          viewer.dataSources[0] && viewer.dataSources[0].name
-        );
+        viewer.dataSources.remove(dataSource);
+        if (viewer.dataSources && viewer.dataSources.length > 0) {
+          console.info("Cleaning up leftover footprint data sources");
+          cleanupDatasources(viewer);
+        }
         dataSourceRef.current = null;
       }
     };
@@ -81,6 +96,7 @@ export const ObliqueFootprintLayer: React.FC = () => {
       credit: "",
     }).then((dataSource) => {
       dataSource.entities.values.forEach(configureFootprintEntity);
+      dataSource.name = `${OBLIQUE_DATASOURCE_PREFIX}-${nearestImage.record.id}`;
       viewer.dataSources.add(dataSource);
       dataSourceRef.current = dataSource;
       viewer.scene.requestRender();
