@@ -121,6 +121,7 @@ const ControlLayout: React.FC<ControlLayoutProps> = ({
   onHeightResize = (set: number | null) => set,
   ifStorybook = true,
 }) => {
+  console.log("xxx ControlLayout");
   const [windowWidth, setWindowWidth] = useState(0);
   const [layoutHeight, setLayoutHeight] = useState<number | null>(null);
   const [screenSizeWatcher, setScreenSizeWatcher] = useState("");
