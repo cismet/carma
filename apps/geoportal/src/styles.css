@@ -120,3 +120,8 @@ html {
   opacity: 0;
   pointer-events: none;
 }
+
+svg,
+img {
+  display: inline;
+}

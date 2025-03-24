@@ -35,6 +35,11 @@ ul {
   z-index: 1000;
   left: 0;
   bottom: 0;
-  margin-left: 14px;
+  margin-left: 4px;
   margin-bottom: 5px;
+}
+
+svg,
+img {
+  display: inline;
 }
