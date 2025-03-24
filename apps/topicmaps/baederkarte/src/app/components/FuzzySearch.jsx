@@ -7,9 +7,14 @@ import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { isAreaTypeWithGEP } from "@carma-commons/resources";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { useContext } from "react";
+import { FeatureCollectionDispatchContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
+
 const FuzzySearch = () => {
   const { responsiveState, gap, windowSize } = useContext(
     ResponsiveTopicMapContext
+  );
+  const { setSelectedFeatureByPredicate } = useContext(
+    FeatureCollectionDispatchContext
   );
 
   const pixelwidth =
