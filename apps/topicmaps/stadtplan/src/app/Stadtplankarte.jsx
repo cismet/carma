@@ -121,7 +121,7 @@ const Stadtplankarte = ({ poiColors }) => {
           </Control>
           <Control position="bottomleft" order={10}>
             <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
-              <FuzzySearch />
+              <FuzzySearch searchTextPlaceholder={searchTextPlaceholder} />
             </div>
           </Control>
         </ControlLayout>
