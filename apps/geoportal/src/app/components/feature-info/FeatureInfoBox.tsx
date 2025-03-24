@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { isEqual } from "lodash";
 import envelope from "@turf/envelope";
 
-import InfoBox from "react-cismap/topicmaps/InfoBox";
+// import InfoBox from "react-cismap/topicmaps/InfoBox";
 import InfoBoxFotoPreview from "react-cismap/topicmaps/InfoBoxFotoPreview";
 import { getActionLinksForFeature } from "react-cismap/tools/uiHelper";
 import InfoBoxHeader from "react-cismap/topicmaps/InfoBoxHeader";
@@ -32,6 +32,8 @@ import { truncateString, updateUrlWithCoordinates } from "./featureInfoHelper";
 
 import "../infoBox.css";
 import LoadingInfoBox from "./LoadingInfoBox";
+import InfoBox from "./Infobox";
+import { Control } from "@carma-mapping/map-controls-layout";
 
 interface InfoBoxProps {
   pos?: [number, number];
@@ -192,7 +194,7 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
   const Modal = additionalInfoFactory(selectedFeature?.properties?.modal);
 
   return (
-    <>
+    <Control position="bottomright" order={1}>
       <InfoBox
         pixelwidth={350}
         currentFeature={selectedFeature}
@@ -251,7 +253,7 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
           }}
         />
       )}
-    </>
+    </Control>
   );
 };
 
