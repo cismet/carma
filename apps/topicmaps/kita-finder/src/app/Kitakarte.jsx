@@ -21,18 +21,9 @@ import {
 } from "./helper/styler";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
-import {
-  TopicMapSelectionContent,
-  useGazData,
-  useSelection,
-  useSelectionTopicMap,
-} from "@carma-apps/portals";
-import {
-  EmptySearchComponent,
-  LibFuzzySearch,
-} from "@carma-mapping/fuzzy-search";
-import { isAreaType } from "@carma-commons/resources";
-import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import { TopicMapSelectionContent } from "@carma-apps/portals";
+import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
+import FuzzySearch from "./components/FuzzySearch";
 
 const KitaKarte = () => {
   const { setSelectedFeatureByPredicate, setClusteringOptions } = useContext(
@@ -42,13 +33,6 @@ const KitaKarte = () => {
   const { clusteringOptions } = useContext(FeatureCollectionContext);
 
   const { additionalStylingInfo } = useContext(TopicMapStylingContext);
-
-  const { responsiveState, gap, windowSize } = useContext(
-    ResponsiveTopicMapContext
-  );
-
-  const pixelwidth =
-    responsiveState === "normal" ? "300px" : windowSize.width - gap;
 
   // useEffect(() => {
   //   if (additionalStylingInfo) {
@@ -89,38 +73,15 @@ const KitaKarte = () => {
       ),
   };
 
-  const { gazData } = useGazData();
-  const { setSelection } = useSelection();
-
-  useSelectionTopicMap();
-
-  const onGazetteerSelection = (selection) => {
-    if (!selection) {
-      setSelection(null);
-      return;
-    }
-    const selectionMetaData = {
-      selectedFrom: "gazetteer",
-      selectionTimestamp: Date.now(),
-      isAreaSelection: isAreaType(selection.type),
-    };
-    setSelection(Object.assign({}, selection, selectionMetaData));
-
-    setTimeout(() => {
-      const gazId = selection.more?.pid || selection.more?.kid;
-      setSelectedFeatureByPredicate(
-        (feature) => feature.properties.id === gazId
-      );
-    }, 100);
-  };
-
   return (
     <>
       <TopicMapComponent
         modalMenu={
           <Menu previewFeatureCollectionProps={featureCollectionProps} />
         }
-        locatorControl={true}
+        locatorControl={false}
+        fullScreenControl={false}
+        zoomControls={false}
         gazetteerSearchControl={true}
         gazetteerSearchComponent={EmptySearchComponent}
         applicationMenuTooltipString={<MenuTooltip />}
@@ -155,14 +116,7 @@ const KitaKarte = () => {
           {...featureCollectionProps}
         ></FeatureCollection>
       </TopicMapComponent>
-      <div className="custom-left-control">
-        <LibFuzzySearch
-          gazData={gazData}
-          onSelection={onGazetteerSelection}
-          pixelwidth={pixelwidth}
-          placeholder={searchTextPlaceholder}
-        />
-      </div>
+      <FuzzySearch searchTextPlaceholder={searchTextPlaceholder} />
     </>
   );
 };
