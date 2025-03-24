@@ -39,7 +39,7 @@ ul {
   margin-bottom: 5px;
 }
 
-svg,
-img {
+.modal-content svg,
+.modal-content img {
   display: inline;
 }
