@@ -7,6 +7,7 @@ export interface ControlProps {
   children: ReactNode;
   bottomLeftWidth?: number;
   bottomRightWidth?: number;
+  title?: string;
 }
 
 const Control: React.FC<ControlProps> = ({
