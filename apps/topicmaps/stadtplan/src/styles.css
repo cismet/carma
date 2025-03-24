@@ -2,9 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
-.leaflet-control * img {
+/* .leaflet-control * img {
   display: initial;
-}
+} */
 
 .ant-tooltip-arrow {
   display: none !important;
