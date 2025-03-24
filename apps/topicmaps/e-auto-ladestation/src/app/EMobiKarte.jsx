@@ -17,37 +17,35 @@ import {
   UIDispatchContext,
 } from "react-cismap/contexts/UIContextProvider";
 import SecondaryInfoModal from "./SecondaryInfoModal";
+import { TopicMapSelectionContent } from "@carma-apps/portals";
+import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import {
-  TopicMapSelectionContent,
-  useGazData,
-  useSelection,
-  useSelectionTopicMap,
-} from "@carma-apps/portals";
+  Control,
+  ControlButtonStyler,
+  ControlLayout,
+} from "@carma-mapping/map-controls-layout";
+import useLeafletZoomControls from "../hooks/useLeafletZoomControls";
+import { RoutedMapLocateControl } from "@carma-mapping/components";
+import FuzzySearch from "./components/FuzzySearch";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  EmptySearchComponent,
-  LibFuzzySearch,
-} from "@carma-mapping/fuzzy-search";
-import { isAreaType } from "@carma-commons/resources";
-import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+  faCompress,
+  faExpand,
+  faMinus,
+  faPlus,
+} from "@fortawesome/free-solid-svg-icons";
 
 const EMobiKarte = () => {
-  const {
-    setSelectedFeatureByPredicate,
-    setClusteringOptions,
-    setFilterState,
-  } = useContext(FeatureCollectionDispatchContext);
+  const { setClusteringOptions, setFilterState } = useContext(
+    FeatureCollectionDispatchContext
+  );
   const { secondaryInfoVisible } = useContext(UIContext);
   const { setSecondaryInfoVisible } = useContext(UIDispatchContext);
   const { markerSymbolSize } = useContext(TopicMapStylingContext);
   const { clusteringOptions, selectedFeature, filteredItems, shownFeatures } =
     useContext(FeatureCollectionContext);
 
-  const { responsiveState, gap, windowSize } = useContext(
-    ResponsiveTopicMapContext
-  );
-
-  const pixelwidth =
-    responsiveState === "normal" ? "300px" : windowSize.width - gap;
+  const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
 
   useEffect(() => {
     if (markerSymbolSize) {
@@ -68,36 +66,80 @@ const EMobiKarte = () => {
     });
   }, []);
 
-  const { gazData } = useGazData();
-  const { setSelection } = useSelection();
-
-  useSelectionTopicMap();
-
-  const onGazetteerSelection = (selection) => {
-    if (!selection) {
-      setSelection(null);
-      return;
-    }
-    const selectionMetaData = {
-      selectedFrom: "gazetteer",
-      selectionTimestamp: Date.now(),
-      isAreaSelection: isAreaType(selection.type),
-    };
-    setSelection(Object.assign({}, selection, selectionMetaData));
-    setTimeout(() => {
-      const gazId = selection.more?.pid || selection.more?.id;
-      setSelectedFeatureByPredicate(
-        (feature) => feature.properties.id === gazId
-      );
-    }, 100);
-  };
-
   return (
     <>
+      <div
+        className="controls-container"
+        style={{
+          position: "absolute",
+          top: "0px",
+          left: "0px",
+          bottom: "0px",
+          zIndex: 600,
+        }}
+      >
+        <ControlLayout ifStorybook={false}>
+          <Control position="topleft" order={10}>
+            <div className="flex flex-col">
+              <ControlButtonStyler
+                onClick={zoomInLeaflet}
+                className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
+                dataTestId="zoom-in-control"
+                title="Vergrößern"
+              >
+                <FontAwesomeIcon icon={faPlus} className="text-base" />
+              </ControlButtonStyler>
+              <ControlButtonStyler
+                onClick={zoomOutLeaflet}
+                className="!rounded-t-none !border-t-[1px]"
+                dataTestId="zoom-out-control"
+                title="Verkleinern"
+              >
+                <FontAwesomeIcon icon={faMinus} className="text-base" />
+              </ControlButtonStyler>
+            </div>
+          </Control>
+
+          <Control position="topleft" order={50}>
+            <ControlButtonStyler
+              title={
+                document.fullscreenElement
+                  ? "Vollbildmodus beenden"
+                  : "Vollbildmodus"
+              }
+              onClick={() => {
+                if (document.fullscreenElement) {
+                  document.exitFullscreen();
+                } else {
+                  document.documentElement.requestFullscreen();
+                }
+              }}
+              dataTestId="full-screen-control"
+            >
+              <FontAwesomeIcon
+                icon={document.fullscreenElement ? faCompress : faExpand}
+              />
+            </ControlButtonStyler>
+          </Control>
+          <Control position="topleft" order={60} title="Mein Standort">
+            <RoutedMapLocateControl
+              tourRefLabels={null}
+              disabled={false}
+              nativeTooltip={true}
+            />
+          </Control>
+          <Control position="bottomleft" order={10}>
+            <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
+              <FuzzySearch />
+            </div>
+          </Control>
+        </ControlLayout>
+      </div>
       <TopicMapComponent
-        gazData={gazData}
+        locatorControl={false}
+        fullScreenControl={false}
+        zoomControls={false}
         modalMenu={<Menu />}
-        locatorControl={true}
         gazetteerSearchControl={true}
         gazetteerSearchComponent={EmptySearchComponent}
         infoBox={
@@ -133,48 +175,6 @@ const EMobiKarte = () => {
           />
         )}
       </TopicMapComponent>
-      <div className="custom-left-control">
-        <LibFuzzySearch
-          gazData={gazData}
-          priorityTypes={[
-            "emob",
-            "bezirke",
-            "quartiere",
-            "adressen",
-            "streets",
-            "pois",
-            "poisAlternativeNames",
-            "kitas",
-            "schulen",
-          ]}
-          typeInference={{
-            adressen: (item) => {
-              if (item.glyph === "home") {
-                return "adressen";
-              } else if (item.glyph === "road") {
-                return "streets";
-              } else {
-                return "adressen";
-              }
-            },
-
-            pois: (item) => {
-              if (item.glyph === "tag") {
-                return "pois";
-              } else if (item.glyph === "tags") {
-                return "poisAlternativeNames";
-              } else if (item.glyph === "graduation-cap") {
-                return "schulen";
-              } else {
-                return "pois";
-              }
-            },
-          }}
-          onSelection={onGazetteerSelection}
-          pixelwidth={pixelwidth}
-          placeholder="Ladestation | Stadtteil | Adresse | POI"
-        />
-      </div>
     </>
   );
 };
