@@ -121,7 +121,7 @@ html {
   pointer-events: none;
 }
 
-svg,
-img {
+.modal-content svg,
+.modal-content img {
   display: inline;
 }
