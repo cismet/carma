@@ -8,45 +8,26 @@ import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingCon
 import FeatureCollection from "react-cismap/FeatureCollection";
 import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
-
-import {
-  TopicMapSelectionContent,
-  useGazData,
-  useSelection,
-  useSelectionTopicMap,
-} from "@carma-apps/portals";
+import { TopicMapSelectionContent } from "@carma-apps/portals";
 import {
   InfoBoxTextContent,
   InfoBoxTextTitle,
   MenuTooltip,
   searchTextPlaceholder,
 } from "@carma-collab/wuppertal/stadtplan";
-import { isAreaType } from "@carma-commons/resources";
-import {
-  LibFuzzySearch,
-  EmptySearchComponent,
-} from "@carma-mapping/fuzzy-search";
+import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import IconComp from "react-cismap/commons/Icon";
 import { getPoiClusterIconCreatorFunction } from "./helper/styler";
 import Menu from "./Menu";
-import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import FuzzySearch from "./components/FuzzySearch";
 
 const Stadtplankarte = ({ poiColors }) => {
-  const { setSelectedFeatureByPredicate, setClusteringOptions } = useContext(
-    FeatureCollectionDispatchContext
-  );
+  const { setClusteringOptions } = useContext(FeatureCollectionDispatchContext);
   const lightBoxContext = useContext(LightBoxContext);
   const { markerSymbolSize } = useContext(TopicMapStylingContext);
   const { clusteringOptions, selectedFeature, filterState } = useContext(
     FeatureCollectionContext
   );
-
-  const { responsiveState, searchBoxPixelWidth, gap, windowSize } = useContext(
-    ResponsiveTopicMapContext
-  );
-
-  const pixelwidth =
-    responsiveState === "normal" ? "300px" : windowSize.width - gap;
 
   useEffect(() => {
     if (markerSymbolSize) {
@@ -59,30 +40,6 @@ const Stadtplankarte = ({ poiColors }) => {
       });
     }
   }, [markerSymbolSize]);
-
-  const { gazData } = useGazData();
-  const { setSelection } = useSelection();
-
-  useSelectionTopicMap();
-
-  const onGazetteerSelection = (selection) => {
-    if (!selection) {
-      setSelection(null);
-      return;
-    }
-    const selectionMetaData = {
-      selectedFrom: "gazetteer",
-      selectionTimestamp: Date.now(),
-      isAreaSelection: isAreaType(selection.type),
-    };
-    setSelection(Object.assign({}, selection, selectionMetaData));
-    setTimeout(() => {
-      const gazId = selection.more?.pid || selection.more?.kid;
-      setSelectedFeatureByPredicate(
-        (feature) => feature.properties.id === gazId
-      );
-    }, [100]);
-  };
 
   return (
     <>
@@ -136,14 +93,7 @@ const Stadtplankarte = ({ poiColors }) => {
         <TopicMapSelectionContent />
         <FeatureCollection></FeatureCollection>
       </TopicMapComponent>
-      <div className="custom-left-control">
-        <LibFuzzySearch
-          gazData={gazData}
-          onSelection={onGazetteerSelection}
-          pixelwidth={pixelwidth}
-          placeholder={searchTextPlaceholder}
-        />
-      </div>
+      <FuzzySearch searchTextPlaceholder={searchTextPlaceholder} />
     </>
   );
 };
