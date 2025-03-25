@@ -36,6 +36,7 @@ import {
   faPlus,
 } from "@fortawesome/free-solid-svg-icons";
 import FuzzySearch from "./FuzzySearch";
+import useLeafletZoomControls from "../../hooks/useLeafletZoomControls";
 const Map = () => {
   const { setClusteringOptions, setFilterState } = useContext<
     typeof FeatureCollectionDispatchContext
@@ -48,6 +49,8 @@ const Map = () => {
   >(FeatureCollectionContext);
   const { setAppMenuActiveMenuSection, setAppMenuVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
+
+  const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
 
   useEffect(() => {
     if (markerSymbolSize) {
@@ -88,7 +91,7 @@ const Map = () => {
           <Control position="topleft" order={10}>
             <div className="flex flex-col">
               <ControlButtonStyler
-                // onClick={zoomInLeaflet}
+                onClick={zoomInLeaflet}
                 className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
                 dataTestId="zoom-in-control"
                 title="Vergrößern"
@@ -96,7 +99,7 @@ const Map = () => {
                 <FontAwesomeIcon icon={faPlus} className="text-base" />
               </ControlButtonStyler>
               <ControlButtonStyler
-                // onClick={zoomOutLeaflet}
+                onClick={zoomOutLeaflet}
                 className="!rounded-t-none !border-t-[1px]"
                 dataTestId="zoom-out-control"
                 title="Verkleinern"
