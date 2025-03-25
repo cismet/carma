@@ -70,7 +70,14 @@ const ResponsiveInfoBox = ({
         key={"InfoBoxElements." + responsiveState}
         id={"InfoBoxElements." + responsiveState}
       > */}
-      <div style={{ ...infoBoxStyle, marginBottom: infoBoxBottomMargin }}>
+      <div
+        style={{
+          ...infoBoxStyle,
+          marginBottom: infoBoxBottomMargin,
+          fontFamily: "Helvetica Neue, Arial, Helvetica, sans-serif",
+          fontSize: "0.75rem",
+        }}
+      >
         {header}
         {mode === MODES.DEFAULT && (
           <CollapsibleWell
