@@ -32,8 +32,7 @@ import { truncateString, updateUrlWithCoordinates } from "./featureInfoHelper";
 
 import "../infoBox.css";
 import LoadingInfoBox from "./LoadingInfoBox";
-import InfoBox from "./Infobox";
-import { Control } from "@carma-mapping/map-controls-layout";
+import InfoBox from "react-cismap/topicmaps/InfoBox";
 
 interface InfoBoxProps {
   pos?: [number, number];
