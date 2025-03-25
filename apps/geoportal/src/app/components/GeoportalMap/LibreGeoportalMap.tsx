@@ -342,17 +342,6 @@ const LibreGeoportalMap = () => {
         dispatch(setSelectedFeature(null));
 
         if (filteredHits.length > 0) {
-          filteredHits.forEach((hit) => {
-            map.current.setFeatureState(
-              { source: hit.source, sourceLayer: hit.sourceLayer, id: hit.id },
-              { selected: true }
-            );
-            selectedFeatures.add({
-              source: hit.source,
-              sourceLayer: hit.sourceLayer,
-              id: hit.id,
-            });
-          });
           const selectedVectorFeature = filteredHits[0];
 
           const coordinates = getCoordinates(selectedVectorFeature.geometry);
@@ -366,6 +355,19 @@ const LibreGeoportalMap = () => {
             layer
           );
           if (feature) {
+            map.current.setFeatureState(
+              {
+                source: selectedVectorFeature.source,
+                sourceLayer: selectedVectorFeature.sourceLayer,
+                id: selectedVectorFeature.id,
+              },
+              { selected: true }
+            );
+            selectedFeatures.add({
+              source: selectedVectorFeature.source,
+              sourceLayer: selectedVectorFeature.sourceLayer,
+              id: selectedVectorFeature.id,
+            });
             dispatch(setSelectedFeature(feature));
           }
         }
