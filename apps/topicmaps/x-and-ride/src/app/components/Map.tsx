@@ -34,6 +34,7 @@ import {
 } from "@carma-mapping/fuzzy-search";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import FuzzySearch from "./FuzzySearch";
 const Map = () => {
   const { setClusteringOptions } = useContext<
     typeof FeatureCollectionDispatchContext
@@ -133,14 +134,7 @@ const Map = () => {
         <TopicMapSelectionContent />
         <FeatureCollection></FeatureCollection>
       </TopicMapComponent>
-      <div className="custom-left-control">
-        <LibFuzzySearch
-          gazData={gazData}
-          onSelection={onGazetteerSelection}
-          pixelwidth={pixelwidth}
-          placeholder={searchTextPlaceholder}
-        />
-      </div>
+      <FuzzySearch searchTextPlaceholder={searchTextPlaceholder} />
     </>
   );
 };
