@@ -12,6 +12,14 @@ import {
   setLibreMapRef,
 } from "../../store/slices/mapping";
 import "./LibreGeoportalMap.css";
+import { getCoordinates } from "./topicmap.utils";
+import proj4 from "proj4";
+import { proj4crs25832def } from "react-cismap/constants/gis";
+import {
+  functionToFeature,
+  objectToFeature,
+} from "../feature-info/featureInfoHelper";
+import { setSelectedFeature } from "../../store/slices/features";
 
 const LibreGeoportalMap = () => {
   const dispatch = useDispatch();
@@ -119,6 +127,7 @@ const LibreGeoportalMap = () => {
           },
           metadata: {
             "z-index": index,
+            "layer-id": layer.id,
           },
         });
       } else if (layer.layerType === "vector") {
@@ -133,6 +142,7 @@ const LibreGeoportalMap = () => {
             metadata: {
               ...styleLayer.metadata,
               "z-index": index,
+              "layer-id": layer.id,
             },
             paint: {
               ...styleLayer.paint,
@@ -209,6 +219,72 @@ const LibreGeoportalMap = () => {
     }
   };
 
+  const createFeature = (coordinates, selectedVectorFeature, layer) => {
+    let feature = undefined;
+    const vectorPos = proj4(
+      proj4.defs("EPSG:4326") as unknown as string,
+      proj4crs25832def,
+      coordinates
+    );
+
+    let properties = selectedVectorFeature.properties;
+    properties = {
+      ...properties,
+      vectorId: selectedVectorFeature.id,
+    };
+    let result = "";
+    let featureInfoZoom = 20;
+    let blockLegacyGetFeatureInfo = false;
+    layer.other.keywords.forEach((keyword) => {
+      const extracted = keyword.split("carmaconf://infoBoxMapping:")[1];
+      const zoom = keyword.split("carmaConf://featureInfoZoom:")[1];
+
+      if (keyword.includes("blockLegacyGetFeatureInfo")) {
+        blockLegacyGetFeatureInfo = true;
+      }
+
+      if (extracted) {
+        result += extracted + "\n";
+      }
+
+      if (zoom) {
+        featureInfoZoom = parseInt(zoom);
+      }
+    });
+
+    if (result) {
+      if (result.includes("function")) {
+        // remove every line that is not a function
+        result = result
+          .split("\n")
+          .filter((line) => line.includes("function"))
+          .join("\n");
+      }
+
+      const featureProperties = result.includes("function")
+        ? functionToFeature(properties, result)
+        : objectToFeature(properties, result);
+      if (!featureProperties) {
+        return undefined;
+      }
+      const genericLinks = featureProperties.properties.genericLinks || [];
+
+      feature = {
+        properties: {
+          ...featureProperties.properties,
+          genericLinks: genericLinks,
+          zoom: featureInfoZoom,
+        },
+        geometry: selectedVectorFeature.geometry,
+        id: layer.id,
+        showMarker:
+          selectedVectorFeature.geometry.type === "Polygon" ||
+          selectedVectorFeature.geometry.type === "MultiPolygon",
+      };
+    }
+    return feature;
+  };
+
   useEffect(() => {
     if (map.current) return; // initialize map only once
 
@@ -263,6 +339,7 @@ const LibreGeoportalMap = () => {
         });
 
         selectedFeatures.clear();
+        dispatch(setSelectedFeature(null));
 
         if (filteredHits.length > 0) {
           filteredHits.forEach((hit) => {
@@ -276,6 +353,21 @@ const LibreGeoportalMap = () => {
               id: hit.id,
             });
           });
+          const selectedVectorFeature = filteredHits[0];
+
+          const coordinates = getCoordinates(selectedVectorFeature.geometry);
+          const layer = layers.find(
+            (layer) =>
+              layer.id === selectedVectorFeature.layer.metadata["layer-id"]
+          );
+          const feature = createFeature(
+            coordinates,
+            selectedVectorFeature,
+            layer
+          );
+          if (feature) {
+            dispatch(setSelectedFeature(feature));
+          }
         }
       });
 
