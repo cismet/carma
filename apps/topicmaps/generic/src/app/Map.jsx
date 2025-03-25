@@ -17,18 +17,9 @@ import { MenuFooter } from "@carma-collab/wuppertal/commons";
 import { getApplicationVersion } from "@carma-commons/utils";
 import versionData from "../version.json";
 import { GenericDigitalTwinReferenceSection } from "@carma-collab/wuppertal/commons";
-import {
-  TopicMapSelectionContent,
-  useGazData,
-  useSelection,
-  useSelectionTopicMap,
-} from "@carma-apps/portals";
-import {
-  EmptySearchComponent,
-  LibFuzzySearch,
-} from "@carma-mapping/fuzzy-search";
-import { isAreaType } from "@carma-commons/resources";
-import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import { TopicMapSelectionContent } from "@carma-apps/portals";
+import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
+import FuzzySearch from "./components/FuzzySearch";
 
 const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 const downloadText = (text, filename) => {
@@ -50,33 +41,6 @@ const Map = ({ config, featureGazData = [] }) => {
   const { selectedFeature } = useContext(FeatureCollectionContext);
 
   const { setAppMenuActiveMenuSection } = useContext(UIDispatchContext);
-
-  const { responsiveState, gap, windowSize } = useContext(
-    ResponsiveTopicMapContext
-  );
-
-  const pixelwidth =
-    responsiveState === "normal" ? "300px" : windowSize.width - gap;
-
-  const { gazData } = useGazData();
-  const { setSelection } = useSelection();
-
-  useSelectionTopicMap();
-
-  const onGazetteerSelection = (selection) => {
-    if (!selection) {
-      setSelection(null);
-      return;
-    }
-    const selectionMetaData = {
-      selectedFrom: "gazetteer",
-      selectionTimestamp: Date.now(),
-      isAreaSelection: isAreaType(selection.type),
-    };
-    setSelection(Object.assign({}, selection, selectionMetaData));
-  };
-
-  const commonGazData = [...featureGazData, ...gazData];
 
   return (
     <>
@@ -157,16 +121,7 @@ const Map = ({ config, featureGazData = [] }) => {
           </div>
         </div> */}
       </TopicMapComponent>
-      {gazData.length > 0 && (
-        <div className="custom-left-control">
-          <LibFuzzySearch
-            gazData={commonGazData}
-            onSelection={onGazetteerSelection}
-            pixelwidth={pixelwidth}
-            placeholder="Stadtteil | Adresse | Kita"
-          />
-        </div>
-      )}
+      <FuzzySearch featureGazData={featureGazData} />
     </>
   );
 };
