@@ -32,10 +32,37 @@ import {
   faExpand,
   faMinus,
   faPlus,
+  faComment,
 } from "@fortawesome/free-solid-svg-icons";
 
 function Comp() {
   const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
+
+  const contactButtonHandler = () => {
+    let link = document.createElement("a");
+    link.setAttribute("type", "hidden");
+    const br = "\n";
+
+    let mailToHref =
+      "mailto:luftreinhaltung@stadt.wuppertal.de?subject=Rückfrage zu Messwerten&body=" +
+      encodeURI(
+        `Sehr geehrte Damen und Herren,${br}${br} zu der Luftmessstationskarte `
+      ) +
+      encodeURI(`auf${br}${br}`) +
+      `${window.location.href.replace(/&/g, "%26").replace(/#/g, "%23")}` +
+      encodeURI(
+        `${br}` +
+          `${br}` +
+          `habe ich folgende Frage:${br}` +
+          `${br}${br}${br}${br}` +
+          `Mit freundlichen Grüßen${br}` +
+          `${br}` +
+          `${br}`
+      );
+    document.body.appendChild(link);
+    link.href = mailToHref;
+    link.click();
+  };
 
   useEffect(() => {
     document.title = "Luftmessstationskarte Wuppertal";
@@ -103,6 +130,14 @@ function Comp() {
               nativeTooltip={true}
             />
           </Control>
+          <Control position="topleft" order={70}>
+            <ControlButtonStyler
+              onClick={contactButtonHandler}
+              title="Rückfrage zu den Messwerten"
+            >
+              <FontAwesomeIcon icon={faComment} className="text-base" />
+            </ControlButtonStyler>
+          </Control>
           <Control position="bottomleft" order={10}>
             <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
               <FuzzySearch searchTextPlaceholder={searchTextPlaceholder} />
@@ -137,36 +172,6 @@ function Comp() {
         }
         secondaryInfo={<InfoPanel />}
       >
-        {/* <ContactButton
-          title="Rückfrage zu den Messwerten"
-          action={() => {
-            let link = document.createElement("a");
-            link.setAttribute("type", "hidden");
-            const br = "\n";
-
-            let mailToHref =
-              "mailto:luftreinhaltung@stadt.wuppertal.de?subject=Rückfrage zu Messwerten&body=" +
-              encodeURI(
-                `Sehr geehrte Damen und Herren,${br}${br} zu der Luftmessstationskarte `
-              ) +
-              encodeURI(`auf${br}${br}`) +
-              `${window.location.href
-                .replace(/&/g, "%26")
-                .replace(/#/g, "%23")}` +
-              encodeURI(
-                `${br}` +
-                  `${br}` +
-                  `habe ich folgende Frage:${br}` +
-                  `${br}${br}${br}${br}` +
-                  `Mit freundlichen Grüßen${br}` +
-                  `${br}` +
-                  `${br}`
-              );
-            document.body.appendChild(link);
-            link.href = mailToHref;
-            link.click();
-          }}
-        /> */}
         <TopicMapSelectionContent />
 
         <FeatureCollection></FeatureCollection>
