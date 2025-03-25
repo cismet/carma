@@ -20,20 +20,8 @@ import {
   InfoBoxTextContent,
   InfoBoxTextTitle,
 } from "@carma-collab/wuppertal/kulturstadtplan";
-import {
-  SelectionMetaData,
-  TopicMapSelectionContent,
-  useGazData,
-  useSelection,
-  useSelectionTopicMap,
-} from "@carma-apps/portals";
-import {
-  EmptySearchComponent,
-  LibFuzzySearch,
-  SearchResultItem,
-} from "@carma-mapping/fuzzy-search";
-import { ENDPOINT, isAreaType } from "@carma-commons/resources";
-import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import { TopicMapSelectionContent } from "@carma-apps/portals";
+import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import {
   Control,
   ControlButtonStyler,
@@ -47,14 +35,11 @@ import {
   faMinus,
   faPlus,
 } from "@fortawesome/free-solid-svg-icons";
+import FuzzySearch from "./FuzzySearch";
 const Map = () => {
-  const {
-    setSelectedFeatureByPredicate,
-    setClusteringOptions,
-    setFilterState,
-  } = useContext<typeof FeatureCollectionDispatchContext>(
-    FeatureCollectionDispatchContext
-  );
+  const { setClusteringOptions, setFilterState } = useContext<
+    typeof FeatureCollectionDispatchContext
+  >(FeatureCollectionDispatchContext);
   const { markerSymbolSize } = useContext<typeof TopicMapStylingContext>(
     TopicMapStylingContext
   );
@@ -63,13 +48,6 @@ const Map = () => {
   >(FeatureCollectionContext);
   const { setAppMenuActiveMenuSection, setAppMenuVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
-
-  const { responsiveState, gap, windowSize } = useContext<
-    typeof ResponsiveTopicMapContext
-  >(ResponsiveTopicMapContext);
-
-  const pixelwidth =
-    responsiveState === "normal" ? "300px" : windowSize.width - gap;
 
   useEffect(() => {
     if (markerSymbolSize) {
@@ -93,31 +71,6 @@ const Map = () => {
       mode: "einrichtungen",
     });
   }, [itemsDictionary]);
-
-  const { gazData } = useGazData();
-  const { setSelection } = useSelection();
-
-  useSelectionTopicMap();
-
-  const onGazetteerSelection = (selection: SearchResultItem | null) => {
-    if (!selection) {
-      setSelection(null);
-      return;
-    }
-    const selectionMetaData: SelectionMetaData = {
-      selectedFrom: "gazetteer",
-      selectionTimestamp: Date.now(),
-      isAreaSelection: isAreaType(selection.type as ENDPOINT),
-    };
-    setSelection(Object.assign({}, selection, selectionMetaData));
-
-    setTimeout(() => {
-      const gazId = selection.more?.pid || selection.more?.kid;
-      setSelectedFeatureByPredicate(
-        (feature) => feature.properties.id === gazId
-      );
-    }, 100);
-  };
 
   return (
     <>
@@ -182,16 +135,8 @@ const Map = () => {
             />
           </Control>
           <Control position="bottomleft" order={10}>
-            {/* <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
+            <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
               <FuzzySearch searchTextPlaceholder={searchTextPlaceholder} />
-            </div> */}
-            <div className="custom-left-control">
-              <LibFuzzySearch
-                gazData={gazData}
-                onSelection={onGazetteerSelection}
-                pixelwidth={pixelwidth}
-                placeholder={searchTextPlaceholder}
-              />
             </div>
           </Control>
         </ControlLayout>
