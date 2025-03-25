@@ -108,9 +108,7 @@ const Infobox = ({
   }
 
   let featureRenderingOption = additionalStylingInfo?.featureRenderingOption;
-  let headerBackgroundColor = Color(
-    headerColor || colorizer(_currentFeature, featureRenderingOption)
-  );
+  let headerBackgroundColor = Color(headerColor || colorizer(_currentFeature));
 
   let textColor = "black";
   if (headerBackgroundColor.isDark()) {
