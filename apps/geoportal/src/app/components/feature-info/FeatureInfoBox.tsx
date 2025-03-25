@@ -194,7 +194,7 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
   const Modal = additionalInfoFactory(selectedFeature?.properties?.modal);
 
   return (
-    <Control position="bottomright" order={1}>
+    <>
       <InfoBox
         pixelwidth={350}
         currentFeature={selectedFeature}
@@ -253,7 +253,7 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
           }}
         />
       )}
-    </Control>
+    </>
   );
 };
 

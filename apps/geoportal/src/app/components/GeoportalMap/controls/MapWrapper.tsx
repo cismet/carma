@@ -98,6 +98,7 @@ import {
 import { CESIUM_CONFIG } from "../../../config/app.config";
 import { useSearchParams } from "react-router-dom";
 import LibreGeoportalMap from "../LibreGeoportalMap.tsx";
+import FeatureInfoBox from "../../feature-info/FeatureInfoBox.tsx";
 
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;
@@ -298,6 +299,9 @@ const MapWrapper = () => {
         </>
       ) : (
         <>
+          <Control position="bottomright" order={10}>
+            <FeatureInfoBox />
+          </Control>
           <Control position="topleft" order={10}>
             <div ref={tourRefLabels.zoom} className="flex flex-col">
               <Tooltip title="Maßstab vergrößern (Zoom in)" placement="right">
