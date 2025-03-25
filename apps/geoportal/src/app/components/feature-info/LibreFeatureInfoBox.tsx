@@ -32,13 +32,13 @@ import { truncateString, updateUrlWithCoordinates } from "./featureInfoHelper";
 
 import "../infoBox.css";
 import LoadingInfoBox from "./LoadingInfoBox";
-import InfoBox from "react-cismap/topicmaps/InfoBox";
+import InfoBox from "./Infobox";
 
 interface InfoBoxProps {
   pos?: [number, number];
 }
 
-const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
+const LibreFeatureInfoBox = ({ pos }: InfoBoxProps) => {
   const [open, setOpen] = useState(false);
   const [shouldRenderLoadingInfobox, setShouldRenderLoadingInfobox] =
     useState(false);
@@ -256,4 +256,4 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
   );
 };
 
-export default FeatureInfoBox;
+export default LibreFeatureInfoBox;
