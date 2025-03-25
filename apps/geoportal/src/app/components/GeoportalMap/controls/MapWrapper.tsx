@@ -99,6 +99,7 @@ import { CESIUM_CONFIG } from "../../../config/app.config";
 import { useSearchParams } from "react-router-dom";
 import LibreGeoportalMap from "../LibreGeoportalMap.tsx";
 import FeatureInfoBox from "../../feature-info/FeatureInfoBox.tsx";
+import LibreFeatureInfoBox from "../../feature-info/LibreFeatureInfoBox.tsx";
 
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;
@@ -300,7 +301,7 @@ const MapWrapper = () => {
       ) : (
         <>
           <Control position="bottomright" order={10}>
-            <FeatureInfoBox />
+            {showLibreMap && isMode2d && <LibreFeatureInfoBox />}
           </Control>
           <Control position="topleft" order={10}>
             <div ref={tourRefLabels.zoom} className="flex flex-col">
