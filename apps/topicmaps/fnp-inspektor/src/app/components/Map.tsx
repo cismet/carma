@@ -423,7 +423,7 @@ const Map = () => {
           metric={true}
           imperial={false}
           updateWhenIdle={false}
-          position="bottomleft"
+          position="topleft"
         />
 
         {(aevVisible || mapMode.mode === "arbeitskarte") && (
