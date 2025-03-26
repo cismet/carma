@@ -63,6 +63,7 @@ import {
   faPlus,
 } from "@fortawesome/free-solid-svg-icons";
 import useLeafletZoomControls from "../../hooks/useLeafletZoomControls";
+import CustomScaleControl from "./CustomScaleControl";
 
 const { ScaleControl } = TransitiveReactLeaflet;
 
@@ -383,6 +384,9 @@ const Map = () => {
               disabled={false}
               nativeTooltip={true}
             />
+          </Control>
+          <Control position="topleft" order={70}>
+            <CustomScaleControl />
           </Control>
           <Control position="bottomleft" order={10}>
             <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
