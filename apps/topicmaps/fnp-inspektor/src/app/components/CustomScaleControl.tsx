@@ -4,24 +4,33 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 const CustomScaleControl = () => {
   const [scaleLabel, setScaleLabel] = useState<string>("");
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
+  const [scaleWidth, setScaleWidth] = useState(0);
 
   useEffect(() => {
-    if (routedMapRef?.leafletMap?.leafletElement) {
+    if (routedMapRef) {
       const map = routedMapRef.leafletMap.leafletElement;
-      //   const scaleControl = L.control.scale().addTo(map);
+
       const scaleControl = new L.Control.Scale();
 
       const updateLabel = () => {
-        const pointLeft = map.containerPointToLatLng([0, map.getSize().y / 2]);
+        const centerY = map.getSize().y / 2;
+        const pointLeft = map.containerPointToLatLng([0, centerY]);
         const pointRight = map.containerPointToLatLng([
           scaleControl.options.maxWidth,
-          map.getSize().y / 2,
+          centerY,
         ]);
-        const metres = scaleControl._getRoundNum(
-          pointLeft.distanceTo(pointRight)
-        );
-        const newLabel = metres < 1000 ? `${metres} m` : `${metres / 1000} km`;
+        const rawDistance = pointLeft.distanceTo(pointRight);
+        const metres = scaleControl._getRoundNum(rawDistance);
+        const kmValue = metres / 1000;
+        const newLabel =
+          metres < 1000
+            ? `${metres} m`
+            : `${parseFloat(kmValue.toFixed(1))} km`;
+
+        const width = scaleControl.options.maxWidth * (metres / rawDistance);
+
         setScaleLabel(newLabel);
+        setScaleWidth(width);
       };
 
       map.on("moveend", updateLabel);
@@ -35,12 +44,11 @@ const CustomScaleControl = () => {
       };
     }
   }, [routedMapRef]);
-
-  //   useEffect(() => {
-  //     console.log("xxx scale", scaleLabel);
-  //   }, [scaleLabel]);
   return (
-    <div className="bg-white bg-opacity-60 border-2 border-gray-600 px-2 py-0.5 text-xs w-24 mb-[136px]">
+    <div
+      style={{ width: scaleWidth }}
+      className="bg-white bg-opacity-60 border-2 border-gray-600 px-2 py-0.5 text-xs w-24 mb-[136px]"
+    >
       {scaleLabel}
     </div>
   );
