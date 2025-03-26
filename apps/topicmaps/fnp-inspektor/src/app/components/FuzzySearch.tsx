@@ -93,12 +93,12 @@ const FuzzySearch = ({ searchTextPlaceholder, mode }: FuzzySearchProps) => {
     <div className="custom-left-control">
       <CustomScaleControl />
 
-      <LibFuzzySearch
+      {/* <LibFuzzySearch
         gazData={gazData}
         onSelection={onGazetteerSelection}
         pixelwidth={pixelwidth}
         placeholder={searchTextPlaceholder}
-      />
+      /> */}
     </div>
   );
 };

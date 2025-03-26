@@ -46,8 +46,8 @@ const CustomScaleControl = () => {
   }, [routedMapRef]);
   return (
     <div
-      style={{ width: scaleWidth }}
-      className="bg-white bg-opacity-60 border-2 border-gray-600 px-2 py-0.5 text-xs w-24 mb-[136px]"
+      style={{ width: scaleWidth, backgroundColor: "rgba(255, 255, 255, 0.7)" }}
+      className="border-t-0 border-2 border-gray-500 px-1 text-xs w-24 leading-[1.4]"
     >
       {scaleLabel}
     </div>
