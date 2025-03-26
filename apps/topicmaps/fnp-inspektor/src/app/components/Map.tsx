@@ -48,19 +48,9 @@ import {
 } from "@carma-collab/wuppertal/fnp-inspektor";
 import type { UnknownAction } from "redux";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
-import {
-  SelectionMetaData,
-  TopicMapSelectionContent,
-  useGazData,
-  useSelection,
-  useSelectionTopicMap,
-} from "@carma-apps/portals";
-import {
-  EmptySearchComponent,
-  LibFuzzySearch,
-  SearchResultItem,
-} from "@carma-mapping/fuzzy-search";
-import { ENDPOINT, isAreaType } from "@carma-commons/resources";
+import { TopicMapSelectionContent } from "@carma-apps/portals";
+import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
+import FuzzySearch from "./FuzzySearch";
 
 const { ScaleControl } = TransitiveReactLeaflet;
 
@@ -81,12 +71,6 @@ const Map = () => {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState<number>(0);
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
-  const { responsiveState, gap, windowSize } = useContext<
-    typeof ResponsiveTopicMapContext
-  >(ResponsiveTopicMapContext);
-
-  const pixelwidth =
-    responsiveState === "normal" ? "300px" : windowSize.width - gap;
 
   const setAevVisible = (visible) => {
     if (visible && !aevVisible) {
@@ -324,63 +308,6 @@ const Map = () => {
     };
   }, [wrapperRef]);
 
-  const { gazData } = useGazData();
-  const { setSelection } = useSelection();
-
-  useSelectionTopicMap();
-
-  const onGazetteerSelection = (selection: SearchResultItem | null) => {
-    if (!selection) {
-      setSelection(null);
-      return;
-    }
-    const selectionMetaData: SelectionMetaData = {
-      selectedFrom: "gazetteer",
-      selectionTimestamp: Date.now(),
-      isAreaSelection: isAreaType(selection.type as ENDPOINT),
-    };
-    setSelection(Object.assign({}, selection, selectionMetaData));
-
-    setTimeout(() => {
-      const hits = [selection];
-      if (mapMode.mode === "rechtsplan") {
-        dispatch(
-          // @ts-expect-error legacy codebase exception
-          searchForAEVs({
-            gazObject: hits,
-            done: (result) => {
-              searchParams.set("aevVisible", "true");
-              setSearchParams(searchParams);
-              const projectedFC = L.Proj.geoJson(result);
-              const bounds = projectedFC.getBounds();
-              const map = routedMapRef?.leafletMap?.leafletElement;
-              if (map === undefined) {
-                return;
-              }
-              map.fitBounds(bounds);
-            },
-          })
-        );
-      } else {
-        dispatch(
-          // @ts-expect-error legacy codebase exception
-          searchForHauptnutzungen({
-            point: { x: hits[0].x, y: hits[0].y },
-            done: (result) => {
-              const projectedFC = L.Proj.geoJson(result);
-              const bounds = projectedFC.getBounds();
-              const map = routedMapRef?.leafletMap?.leafletElement;
-              if (map === undefined) {
-                return;
-              }
-              map.fitBounds(bounds);
-            },
-          })
-        );
-      }
-    }, 100);
-  };
-
   return (
     <div style={{ position: "relative" }} ref={wrapperRef}>
       {title}
@@ -468,14 +395,10 @@ const Map = () => {
         )}
         {backgrounds}
       </TopicMapComponent>
-      <div className="custom-left-control">
-        <LibFuzzySearch
-          gazData={gazData}
-          onSelection={onGazetteerSelection}
-          pixelwidth={pixelwidth}
-          placeholder={searchTextPlaceholder}
-        />
-      </div>
+      <FuzzySearch
+        mode={mapMode.mode}
+        searchTextPlaceholder={searchTextPlaceholder}
+      />
     </div>
   );
 };
