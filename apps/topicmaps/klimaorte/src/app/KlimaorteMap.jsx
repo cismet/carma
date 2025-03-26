@@ -32,17 +32,9 @@ import {
   searchTextPlaceholder,
   MenuTooltip,
 } from "@carma-collab/wuppertal/klimaorte";
-import {
-  TopicMapSelectionContent,
-  useGazData,
-  useSelection,
-  useSelectionTopicMap,
-} from "@carma-apps/portals";
-import {
-  EmptySearchComponent,
-  LibFuzzySearch,
-} from "@carma-mapping/fuzzy-search";
-import { isAreaType } from "@carma-commons/resources";
+import { TopicMapSelectionContent } from "@carma-apps/portals";
+import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
+import FuzzySearch from "./components/FuzzySearch";
 
 function KlimaorteMap() {
   const { setSelectedFeatureByPredicate } = useContext(
@@ -58,12 +50,6 @@ function KlimaorteMap() {
   } = useContext(FeatureCollectionContext);
   const { zoomToFeature, setAppMode } = useContext(TopicMapDispatchContext);
   const { history, appMode } = useContext(TopicMapContext);
-  const { responsiveState, gap, windowSize } = useContext(
-    ResponsiveTopicMapContext
-  );
-
-  const pixelwidth =
-    responsiveState === "normal" ? "300px" : windowSize.width - gap;
 
   useEffect(() => {
     if (appMode === undefined) {
@@ -156,42 +142,6 @@ function KlimaorteMap() {
     setSelectedFeatureByPredicate,
     zoomToFeature,
   ]);
-
-  const { gazData } = useGazData();
-  const { setSelection } = useSelection();
-
-  useSelectionTopicMap();
-
-  const onGazetteerSelection = (selection) => {
-    if (!selection) {
-      setSelection(null);
-      return;
-    }
-    const selectionMetaData = {
-      selectedFrom: "gazetteer",
-      selectionTimestamp: Date.now(),
-      isAreaSelection: isAreaType(selection.type),
-    };
-    setSelection(Object.assign({}, selection, selectionMetaData));
-
-    setTimeout(() => {
-      const gazId = selection.more?.id;
-      if (gazId) {
-        setSelectedFeatureByPredicate((feature) => {
-          try {
-            const check =
-              parseInt(feature.properties.standort.id) === hits[0].more.id;
-            if (check === true) {
-              zoomToFeature(feature);
-            }
-            return check;
-          } catch (e) {
-            return false;
-          }
-        });
-      }
-    }, 100);
-  };
 
   let weitereAngebote;
   const item = selectedFeature?.properties;
@@ -307,14 +257,7 @@ function KlimaorteMap() {
           }}
         />
       </TopicMapComponent>
-      <div className="custom-left-control">
-        <LibFuzzySearch
-          gazData={gazData}
-          onSelection={onGazetteerSelection}
-          pixelwidth={pixelwidth}
-          placeholder={searchTextPlaceholder}
-        />
-      </div>
+      <FuzzySearch searchTextPlaceholder={searchTextPlaceholder} />
     </div>
   );
 }
