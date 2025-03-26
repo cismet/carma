@@ -12,9 +12,6 @@ import {
 } from "../../store/slices/bplaene";
 import proj4 from "proj4";
 import { proj4crs25832def } from "react-cismap/constants/gis";
-import { getGazData } from "../../utils/gazData";
-import GazetteerSearchControl from "react-cismap/GazetteerSearchControl";
-import { faSearch } from "@fortawesome/free-solid-svg-icons";
 import { Modal } from "@carma-collab/wuppertal/bplan-auskunft";
 import { useSearchParams } from "react-router-dom";
 import L from "leaflet";
@@ -23,20 +20,9 @@ import type { UnknownAction } from "redux";
 import versionData from "../../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
 import { Layer } from "leaflet";
-import {
-  SelectionMetaData,
-  TopicMapSelectionContent,
-  useGazData,
-  useSelection,
-  useSelectionTopicMap,
-} from "@carma-apps/portals";
-import {
-  EmptySearchComponent,
-  LibFuzzySearch,
-  SearchResultItem,
-} from "@carma-mapping/fuzzy-search";
-import { ENDPOINT, isAreaType } from "@carma-commons/resources";
-import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import { TopicMapSelectionContent } from "@carma-apps/portals";
+import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
+import FuzzySearch from "./FuzzySearch";
 
 const Map = () => {
   const dispatch = useDispatch();
@@ -49,12 +35,6 @@ const Map = () => {
   let refRoutedMap = useRef(null);
   const zoom = searchParams.get("zoom");
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
-  const { responsiveState, gap, windowSize } = useContext<
-    typeof ResponsiveTopicMapContext
-  >(ResponsiveTopicMapContext);
-
-  const pixelwidth =
-    responsiveState === "normal" ? "300px" : windowSize.width - gap;
 
   interface MapFeature extends Layer {
     id: string;
@@ -174,74 +154,6 @@ const Map = () => {
     return result;
   }
 
-  const { gazData } = useGazData();
-  const { setSelection } = useSelection();
-
-  useSelectionTopicMap();
-
-  const onGazetteerSelection = (selection: SearchResultItem | null) => {
-    if (!selection) {
-      setSelection(null);
-      return;
-    }
-    const selectionMetaData: SelectionMetaData = {
-      selectedFrom: "gazetteer",
-      selectionTimestamp: Date.now(),
-      isAreaSelection: isAreaType(selection.type as ENDPOINT),
-    };
-    setSelection(Object.assign({}, selection, selectionMetaData));
-
-    setTimeout(() => {
-      if (
-        selection !== undefined &&
-        // hits.length === 1 &&
-        selection.type === "bplaene"
-      ) {
-        const gazObject = selection;
-        const selectionString = gazObject.string;
-
-        dispatch(
-          getPlanFeatureByTitle(selectionString, (hit) => {
-            const tmpHit = { ...hit };
-            tmpHit.selected = true;
-            setFeatures([tmpHit]);
-            setSelectedIndex(0);
-
-            const projectedFC = L.Proj.geoJson([tmpHit]);
-            const bounds = projectedFC.getBounds();
-            const map = routedMapRef?.leafletMap?.leafletElement;
-            if (map === undefined) {
-              return;
-            }
-            map.fitBounds(bounds);
-          }) as unknown as UnknownAction
-        );
-      } else if (selection !== undefined) {
-        dispatch(
-          getPlanFeatures({
-            point: { x: selection.x, y: selection.y },
-            done: (hits) => {
-              if (hits?.length > 0) {
-                hits[0].selected = true;
-                setFeatures(hits);
-                setSelectedIndex(0);
-                const projectedFC = L.Proj.geoJson([hits[0]]);
-                const bounds = projectedFC.getBounds();
-                const map = routedMapRef?.leafletMap?.leafletElement;
-                if (map === undefined) {
-                  return;
-                }
-                map.fitBounds(bounds);
-              } else {
-                setFeatures([]);
-              }
-            },
-          }) as unknown as UnknownAction
-        );
-      }
-    }, 100);
-  };
-
   return (
     <>
       <TopicMapComponent
@@ -343,14 +255,10 @@ const Map = () => {
           featureClickHandler={featureClick}
         />
       </TopicMapComponent>
-      <div className="custom-left-control">
-        <LibFuzzySearch
-          gazData={gazData}
-          onSelection={onGazetteerSelection}
-          pixelwidth={pixelwidth}
-          placeholder="B-Plan-Nr. | Adresse | POI"
-        />
-      </div>
+      {/* <FuzzySearch
+        setFeatures={setFeatures}
+        setSelectedIndex={setSelectedIndex}
+      /> */}
     </>
   );
 };
