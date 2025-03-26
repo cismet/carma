@@ -1,6 +1,10 @@
 import React, { useContext, useEffect, useState } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import * as L from "leaflet";
+interface ExtendedScale extends L.Control.Scale {
+  _getRoundNum(num: number): number;
+}
 
 const CustomScaleControl = () => {
   const [scaleLabel, setScaleLabel] = useState<string>("");
@@ -16,15 +20,13 @@ const CustomScaleControl = () => {
     if (routedMapRef) {
       const map = routedMapRef.leafletMap.leafletElement;
 
-      const scaleControl = new L.Control.Scale();
+      const scaleControl = new L.Control.Scale() as ExtendedScale;
+      const maxWidth = scaleControl.options.maxWidth ?? 100;
 
       const updateLabel = () => {
         const centerY = map.getSize().y / 2;
         const pointLeft = map.containerPointToLatLng([0, centerY]);
-        const pointRight = map.containerPointToLatLng([
-          scaleControl.options.maxWidth,
-          centerY,
-        ]);
+        const pointRight = map.containerPointToLatLng([maxWidth, centerY]);
         const rawDistance = pointLeft.distanceTo(pointRight);
         const metres = scaleControl._getRoundNum(rawDistance);
         const kmValue = metres / 1000;
@@ -33,7 +35,7 @@ const CustomScaleControl = () => {
             ? `${metres} m`
             : `${parseFloat(kmValue.toFixed(1))} km`;
 
-        const width = scaleControl.options.maxWidth * (metres / rawDistance);
+        const width = maxWidth * (metres / rawDistance);
 
         setScaleLabel(newLabel);
         setScaleWidth(width);

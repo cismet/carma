@@ -418,13 +418,13 @@ const Map = () => {
         }}
         ondblclick={doubleMapClick}
       >
-        <ScaleControl
+        {/* <ScaleControl
           maxWidth={100}
           metric={true}
           imperial={false}
           updateWhenIdle={false}
           position="topleft"
-        />
+        /> */}
 
         {(aevVisible || mapMode.mode === "arbeitskarte") && (
           <FeatureCollectionDisplayWithTooltipLabels
