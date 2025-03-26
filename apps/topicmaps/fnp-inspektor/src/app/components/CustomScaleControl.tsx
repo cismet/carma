@@ -8,7 +8,8 @@ const CustomScaleControl = () => {
   useEffect(() => {
     if (routedMapRef?.leafletMap?.leafletElement) {
       const map = routedMapRef.leafletMap.leafletElement;
-      const scaleControl = L.control.scale().addTo(map);
+      //   const scaleControl = L.control.scale().addTo(map);
+      const scaleControl = new L.Control.Scale();
 
       const updateLabel = () => {
         const pointLeft = map.containerPointToLatLng([0, map.getSize().y / 2]);
