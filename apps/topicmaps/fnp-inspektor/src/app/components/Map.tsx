@@ -385,9 +385,6 @@ const Map = () => {
               nativeTooltip={true}
             />
           </Control>
-          <Control position="topleft" order={70}>
-            <CustomScaleControl />
-          </Control>
           <Control position="bottomleft" order={10}>
             <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
               <FuzzySearch

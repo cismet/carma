@@ -14,6 +14,7 @@ import L from "leaflet";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { searchForAEVs } from "../../store/slices/aenderungsverfahren";
 import { searchForHauptnutzungen } from "../../store/slices/hauptnutzungen";
+import CustomScaleControl from "./CustomScaleControl";
 
 interface FuzzySearchProps {
   mode: string;
@@ -90,6 +91,8 @@ const FuzzySearch = ({ searchTextPlaceholder, mode }: FuzzySearchProps) => {
 
   return (
     <div className="custom-left-control">
+      <CustomScaleControl />
+
       <LibFuzzySearch
         gazData={gazData}
         onSelection={onGazetteerSelection}
