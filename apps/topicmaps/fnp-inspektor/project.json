@@ -30,11 +30,13 @@
       "configurations": {
         "development": {
           "buildTarget": "fnp-inspektor:build:development",
-          "hmr": true
+          "hmr": true,
+          "host": "0.0.0.0"
         },
         "production": {
           "buildTarget": "fnp-inspektor:build:production",
-          "hmr": false
+          "hmr": false,
+          "host": "0.0.0.0"
         }
       }
     },
