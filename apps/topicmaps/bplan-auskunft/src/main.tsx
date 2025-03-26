@@ -58,22 +58,22 @@ const root = ReactDOM.createRoot(
 );
 
 root.render(
-  // <StrictMode>
-  <Provider store={store}>
-    <GazDataProvider config={gazDataConfig}>
-      <SelectionProvider>
-        <TopicMapContextProvider
-          convertItemToFeature={convertItemToFeature}
-          referenceSystemDefinition={MappingConstants.proj4crs25832def}
-          mapEPSGCode="25832"
-          referenceSystem={MappingConstants.crs25832}
-        >
-          <PersistGate loading={null} persistor={persistor}>
-            <RouterProvider router={router} />
-          </PersistGate>
-        </TopicMapContextProvider>
-      </SelectionProvider>
-    </GazDataProvider>
-  </Provider>
-  // </StrictMode>
+  <StrictMode>
+    <Provider store={store}>
+      <GazDataProvider config={gazDataConfig}>
+        <SelectionProvider>
+          <TopicMapContextProvider
+            convertItemToFeature={convertItemToFeature}
+            referenceSystemDefinition={MappingConstants.proj4crs25832def}
+            mapEPSGCode="25832"
+            referenceSystem={MappingConstants.crs25832}
+          >
+            <PersistGate loading={null} persistor={persistor}>
+              <RouterProvider router={router} />
+            </PersistGate>
+          </TopicMapContextProvider>
+        </SelectionProvider>
+      </GazDataProvider>
+    </Provider>
+  </StrictMode>
 );
