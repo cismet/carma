@@ -39,7 +39,11 @@ const CustomScaleControl = () => {
   useEffect(() => {
     console.log("xxx scale", scaleLabel);
   }, [scaleLabel]);
-  return <div className="text-white">{scaleLabel}</div>;
+  return (
+    <div className="bg-white bg-opacity-60 border-2 border-gray-600 px-2 py-0.5 text-xs w-24">
+      {scaleLabel}
+    </div>
+  );
 };
 
 export default CustomScaleControl;
