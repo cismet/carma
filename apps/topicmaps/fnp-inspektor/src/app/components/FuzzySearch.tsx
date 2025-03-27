@@ -93,7 +93,7 @@ const FuzzySearch = ({ searchTextPlaceholder, mode }: FuzzySearchProps) => {
 
   return (
     <div className="custom-left-control">
-      {!isMobile && <CustomScaleControl />}
+      {!isMobile && <CustomScaleControl marginBottom={15} />}
 
       <LibFuzzySearch
         gazData={gazData}
