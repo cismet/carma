@@ -31,7 +31,7 @@ export function register(config) {
   if (baseUrl && "serviceWorker" in navigator) {
     // The URL constructor is available in all browsers that support SW.
     // const publicUrl = new URL(process.env.PUBLIC_URL, window.location.href);
-    console.log("xxx publicUrl", baseUrl);
+    console.log("xxx baseUrl", baseUrl);
 
     // if (baseUrl !== window.location.origin) {
     // Our service worker won't work if PUBLIC_URL is on a different origin
