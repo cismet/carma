@@ -23,7 +23,7 @@ export default defineConfig({
   },
 
 
-  plugins: [react(), nxViteTsPaths()],
+  plugins: [react(), nxViteTsPaths(), comlink()],
 
   // plugins: [
   //   react(), 
