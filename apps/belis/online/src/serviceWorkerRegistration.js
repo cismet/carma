@@ -22,7 +22,6 @@ const isLocalhost = Boolean(
 
 export function register(config) {
   console.log("xxx register", process.env.NODE_ENV);
-  console.log("xxx serviceWorker in navigation", "serviceWorker" in navigator);
 
   const baseUrl = window.location.origin + window.location.pathname;
 
