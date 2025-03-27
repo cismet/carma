@@ -26,14 +26,14 @@ export default defineConfig({
     react(), 
     nxViteTsPaths(), 
     comlink(),
-    viteStaticCopy({
-      targets: [
-        {
-          src: './src/service-worker.js',
-          dest: './',
-        },
-      ],
-    }),
+    // viteStaticCopy({
+    //   targets: [
+    //     {
+    //       src: './src/service-worker.js',
+    //       dest: './',
+    //     },
+    //   ],
+    // }),
   ],
 
   base: './',
