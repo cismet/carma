@@ -21,7 +21,7 @@ const isLocalhost = Boolean(
 );
 
 export function register(config) {
-  console.log("xxx register", process.env.NODE_ENV);
+  console.log("xxx register env", process.env.NODE_ENV);
 
   const baseUrl = window.location.origin + window.location.pathname;
 

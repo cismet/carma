@@ -23,7 +23,7 @@ export default defineConfig({
   },
 
 
-  plugins: [react(), nxViteTsPaths()],
+  plugins: [react(), nxViteTsPaths(), comlink()],
 
   // plugins: [
   //   react(), 
@@ -47,9 +47,9 @@ export default defineConfig({
   // },
 
   // Uncomment this if you are using workers.
-  // worker: {
-  //   plugins: () => [comlink()],
-  // },
+  worker: {
+    plugins: () => [comlink()],
+  },
 
   build: {
     outDir: '../../../dist/apps/belis/online',
