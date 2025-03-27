@@ -5,7 +5,7 @@ import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvid
 import { defaultLayerConf } from "react-cismap/tools/layerFactory";
 import { ErrorBoundary } from "react-error-boundary";
 import { Provider } from "react-redux";
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { RouterProvider, createHashRouter } from "react-router-dom";
 import { persistStore } from "redux-persist";
 import { PersistGate } from "redux-persist/integration/react";
 
@@ -128,7 +128,18 @@ if (
   );
 }
 
-const router = createBrowserRouter([
+// const router = createBrowserRouter([
+//   {
+//     path: "/app",
+//     element: <MobileApp />,
+//   },
+//   {
+//     path: "/",
+//     element: <Login />,
+//   },
+// ]);
+
+const router = createHashRouter([
   {
     path: "/app",
     element: <MobileApp />,
