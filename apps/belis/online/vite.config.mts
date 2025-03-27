@@ -39,7 +39,7 @@ export default defineConfig({
   //   }),
   // ],
 
-  base: './',
+  // base: './',
 
   // Uncomment this if you are using workers.
   // worker: {
