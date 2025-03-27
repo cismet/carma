@@ -22,19 +22,22 @@ export default defineConfig({
     host: 'localhost',
   },
 
-  plugins: [
-    react(), 
-    nxViteTsPaths(), 
-    comlink(),
-    // viteStaticCopy({
-    //   targets: [
-    //     {
-    //       src: './src/service-worker.js',
-    //       dest: './',
-    //     },
-    //   ],
-    // }),
-  ],
+
+  plugins: [react(), nxViteTsPaths()],
+
+  // plugins: [
+  //   react(), 
+  //   nxViteTsPaths(), 
+  //   comlink(),
+  //   viteStaticCopy({
+  //     targets: [
+  //       {
+  //         src: './src/service-worker.js',
+  //         dest: './',
+  //       },
+  //     ],
+  //   }),
+  // ],
 
   base: './',
 
@@ -44,9 +47,9 @@ export default defineConfig({
   // },
 
   // Uncomment this if you are using workers.
-  worker: {
-    plugins: () => [comlink()],
-  },
+  // worker: {
+  //   plugins: () => [comlink()],
+  // },
 
   build: {
     outDir: '../../../dist/apps/belis/online',
