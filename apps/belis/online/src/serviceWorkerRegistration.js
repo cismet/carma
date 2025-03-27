@@ -44,7 +44,7 @@ export function register(config) {
       // const swUrl = `${process.env.PUBLIC_URL}/service-worker.js`;
       // const baseUrl = window.location.origin + window.location.pathname;
 
-      const swUrl = `${baseUrl}/service-worker.js`;
+      const swUrl = `${baseUrl}service-worker.js`;
       // const swUrl = `${process.env.PUBLIC_URL}/service-worker.js`;
       console.log("xxx load swUrl", swUrl);
 
