@@ -33,6 +33,8 @@ const FuzzySearch = ({ searchTextPlaceholder, mode }: FuzzySearchProps) => {
   const pixelwidth =
     responsiveState === "normal" ? "300px" : windowSize.width - gap;
 
+  const isMobile = responsiveState === "normal" ? false : true;
+
   const { gazData } = useGazData();
   const { setSelection } = useSelection();
   useSelectionTopicMap();
@@ -91,7 +93,7 @@ const FuzzySearch = ({ searchTextPlaceholder, mode }: FuzzySearchProps) => {
 
   return (
     <div className="custom-left-control">
-      <CustomScaleControl />
+      {!isMobile && <CustomScaleControl />}
 
       <LibFuzzySearch
         gazData={gazData}

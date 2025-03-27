@@ -1,6 +1,5 @@
-import React, { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
-import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import * as L from "leaflet";
 interface ExtendedScale extends L.Control.Scale {
   _getRoundNum(num: number): number;
@@ -9,15 +8,10 @@ interface ExtendedScale extends L.Control.Scale {
 const CustomScaleControl = () => {
   const [scaleLabel, setScaleLabel] = useState<string>("");
   const [scaleWidth, setScaleWidth] = useState(0);
-  const { responsiveState } = useContext<typeof ResponsiveTopicMapContext>(
-    ResponsiveTopicMapContext
-  );
-
-  const pixelwidth = responsiveState === "normal" ? "mb-1" : "mb-[132px]";
 
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   useEffect(() => {
-    if (routedMapRef) {
+    if (routedMapRef?.leafletMap?.leafletElement) {
       const map = routedMapRef.leafletMap.leafletElement;
 
       const scaleControl = new L.Control.Scale() as ExtendedScale;
@@ -55,7 +49,7 @@ const CustomScaleControl = () => {
   return (
     <div
       style={{ width: scaleWidth, backgroundColor: "rgba(255, 255, 255, 0.7)" }}
-      className={`border-t-0 border-2 border-gray-500 px-1 text-xs w-24 leading-[1.4] ${pixelwidth}`}
+      className={`border-t-0 border-2 border-gray-500 px-1 text-xs w-24 leading-[1.4] mb-1`}
     >
       {scaleLabel}
     </div>

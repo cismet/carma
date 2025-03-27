@@ -64,6 +64,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import useLeafletZoomControls from "../../hooks/useLeafletZoomControls";
 import CustomScaleControl from "./CustomScaleControl";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 const { ScaleControl } = TransitiveReactLeaflet;
 
@@ -85,6 +86,11 @@ const Map = () => {
   const [width, setWidth] = useState<number>(0);
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
+  const { responsiveState } = useContext<typeof ResponsiveTopicMapContext>(
+    ResponsiveTopicMapContext
+  );
+
+  const isMobile = responsiveState === "normal" ? false : true;
 
   const setAevVisible = (visible) => {
     if (visible && !aevVisible) {
@@ -385,6 +391,11 @@ const Map = () => {
               nativeTooltip={true}
             />
           </Control>
+          {isMobile && (
+            <Control position="topleft" order={60}>
+              <CustomScaleControl />
+            </Control>
+          )}
           <Control position="bottomleft" order={10}>
             <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
               <FuzzySearch
