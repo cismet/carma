@@ -35,6 +35,15 @@ interface FuseWithOption<T> extends Fuse<T> {
   options?: IFuseOptions<T>;
 }
 
+const defaultIcon = (
+  <FontAwesomeIcon
+    icon={faLocationDot}
+    style={{
+      fontSize: "16px",
+    }}
+  />
+);
+
 export function LibFuzzySearch({
   gazData,
   onSelection,
@@ -47,7 +56,7 @@ export function LibFuzzySearch({
   priorityTypes,
   typeInference,
   onCLose = () => {},
-  icon,
+  icon = defaultIcon,
   ifIconDisabled = true,
   config = {
     prepoHandling: false,
