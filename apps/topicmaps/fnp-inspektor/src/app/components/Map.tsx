@@ -300,7 +300,7 @@ const Map = () => {
     }
   };
 
-  const aevSearchButtonHit = (event) => {
+  const aevSearchButtonHit = () => {
     setAevVisible(true);
     dispatch(
       // @ts-expect-error legacy codebase exception
@@ -401,6 +401,7 @@ const Map = () => {
               <FuzzySearch
                 mode={mapMode.mode}
                 searchTextPlaceholder={searchTextPlaceholder}
+                onIconClick={aevSearchButtonHit}
               />
             </div>
           </Control>
