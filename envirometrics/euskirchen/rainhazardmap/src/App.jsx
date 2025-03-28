@@ -18,6 +18,16 @@ import footerLogoUrl from "./assets/images/Signet_AIS_RZ.png";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import FuzzySearch from "./components/FuzzySearch";
 import { TopicMapSelectionContent } from "@carma-apps/portals";
+import {
+  Control,
+  ControlButtonStyler,
+  ControlLayout,
+} from "@carma-mapping/map-controls-layout";
+import { RoutedMapLocateControl } from "@carma-mapping/components";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCompress, faExpand } from "@fortawesome/free-solid-svg-icons";
+import ContactButton from "./components/ContactButton";
+import ZoomControls from "./components/ZoomControls";
 
 function App() {
   const version = getApplicationVersion(versionData);
@@ -114,6 +124,59 @@ function App() {
       infoBoxPixelWidth={370}
       maskingPolygon="POLYGON ((653674.603 5986240.643, 653674.603 7372844.430, 1672962.694 7372844.430, 1672962.694 5986240.643, 653674.603 5986240.643))"
     >
+      <div
+        className="controls-container"
+        style={{
+          position: "absolute",
+          top: "0px",
+          left: "0px",
+          bottom: "0px",
+          zIndex: 600,
+        }}
+      >
+        <ControlLayout ifStorybook={false}>
+          <Control position="topleft" order={10}>
+            <ZoomControls />
+          </Control>
+
+          <Control position="topleft" order={50}>
+            <ControlButtonStyler
+              title={
+                document.fullscreenElement
+                  ? "Vollbildmodus beenden"
+                  : "Vollbildmodus"
+              }
+              onClick={() => {
+                if (document.fullscreenElement) {
+                  document.exitFullscreen();
+                } else {
+                  document.documentElement.requestFullscreen();
+                }
+              }}
+              dataTestId="full-screen-control"
+            >
+              <FontAwesomeIcon
+                icon={document.fullscreenElement ? faCompress : faExpand}
+              />
+            </ControlButtonStyler>
+          </Control>
+          <Control position="topleft" order={60} title="Mein Standort">
+            <RoutedMapLocateControl
+              tourRefLabels={null}
+              disabled={false}
+              nativeTooltip={true}
+            />
+          </Control>
+          <Control position="topleft" order={70}>
+            <ContactButton emailaddress={email} />
+          </Control>
+          <Control position="bottomleft" order={10}>
+            <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
+              <FuzzySearch gazLocalData={gazData} />
+            </div>
+          </Control>
+        </ControlLayout>
+      </div>
       <HeavyRainHazardMap
         appMenu={
           <GenericModalApplicationMenu
@@ -125,6 +188,10 @@ function App() {
             })}
           />
         }
+        contactButtonEnabled={false}
+        locatorControl={false}
+        fullScreenControl={false}
+        zoomControls={false}
         emailaddress={email}
         applicationMenuTooltipString="Anleitung | Hintergrund"
         initialState={config.initialState}
@@ -142,7 +209,6 @@ function App() {
         <TopicMapSelectionContent />
         <NotesDisplay hinweisData={hinweisData} />
       </HeavyRainHazardMap>
-      <FuzzySearch gazLocalData={gazData} />
     </TopicMapContextProvider>
   );
 }
