@@ -17,6 +17,8 @@ const FuzzySearch = ({ gazLocalData }) => {
   const { setSelection } = useSelection();
   useSelectionTopicMap();
 
+  const ifDesktop = responsiveState === "normal";
+
   const AREA_TYPE = ["circle", "pie-chart"];
 
   const isAreaWithOverlay = (selection) => {
@@ -38,7 +40,12 @@ const FuzzySearch = ({ gazLocalData }) => {
   };
 
   return (
-    <div className="custom-left-control">
+    <div
+      className="custom-left-control"
+      style={{
+        marginBottom: ifDesktop ? "0" : "18px",
+      }}
+    >
       <LibFuzzySearch
         gazData={gazLocalData}
         onSelection={onGazetteerSelection}
