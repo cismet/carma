@@ -19,18 +19,10 @@ import {
 } from "@carma-collab/wuppertal/hitzeinderstadt";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
-import {
-  TopicMapSelectionContent,
-  useGazData,
-  useSelection,
-  useSelectionTopicMap,
-} from "@carma-apps/portals";
-import {
-  EmptySearchComponent,
-  LibFuzzySearch,
-} from "@carma-mapping/fuzzy-search";
-import { isAreaType } from "@carma-commons/resources";
+import { TopicMapSelectionContent } from "@carma-apps/portals";
+import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import FuzzySearch from "./components/FuzzySearch";
 
 const parseSimulationsFromURL = (search) => {
   const params = new URLSearchParams(search);
@@ -165,31 +157,6 @@ const Hitzekarte = () => {
     setSimulationLabels(simulationLabels);
   }, [selectedSimulations]);
 
-  const { gazData } = useGazData();
-  const { setSelection } = useSelection();
-
-  useSelectionTopicMap();
-
-  const onGazetteerSelection = (selection) => {
-    if (!selection) {
-      setSelection(null);
-      return;
-    }
-    const selectionMetaData = {
-      selectedFrom: "gazetteer",
-      selectionTimestamp: Date.now(),
-      isAreaSelection: isAreaType(selection.type),
-    };
-    setSelection(Object.assign({}, selection, selectionMetaData));
-
-    setTimeout(() => {
-      const gazId = selection.more?.pid || selection.more?.kid;
-      setSelectedFeatureByPredicate(
-        (feature) => feature.properties.id === gazId
-      );
-    }, 100);
-  };
-
   let validBackgroundIndex = selectedBackgroundIndex;
   if (validBackgroundIndex >= backgrounds.length) {
     validBackgroundIndex = 0;
@@ -239,7 +206,9 @@ const Hitzekarte = () => {
             })}
           />
         }
-        locatorControl={true}
+        locatorControl={false}
+        fullScreenControl={false}
+        zoomControls={false}
         gazetteerSearchControl={true}
         gazetteerSearchComponent={EmptySearchComponent}
         applicationMenuTooltipString={tooltipText}
@@ -270,14 +239,7 @@ const Hitzekarte = () => {
           );
         })}
       </TopicMapComponent>
-      <div className="custom-left-control">
-        <LibFuzzySearch
-          gazData={gazData}
-          onSelection={onGazetteerSelection}
-          pixelwidth={pixelwidth}
-          placeholder={searchTextPlaceholder}
-        />
-      </div>
+      <FuzzySearch searchTextPlaceholder={searchTextPlaceholder} />
     </div>
   );
 };
