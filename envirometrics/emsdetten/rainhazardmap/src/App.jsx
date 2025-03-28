@@ -13,12 +13,28 @@ import footerLogoUrl from "./assets/images/Signet_AIS_RZ.png";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import FuzzySearch from "./components/FuzzySearch";
 import { TopicMapSelectionContent } from "@carma-apps/portals";
+import {
+  Control,
+  ControlButtonStyler,
+  ControlLayout,
+} from "@carma-mapping/map-controls-layout";
+import useLeafletZoomControls from "./hooks/useLeafletZoomControls";
+import { RoutedMapLocateControl } from "@carma-mapping/components";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faCompress,
+  faExpand,
+  faMinus,
+  faPlus,
+  faComment,
+} from "@fortawesome/free-solid-svg-icons";
 
 function App() {
   const version = getApplicationVersion(versionData);
   const email = "starkregen@emsdetten.de";
   const urlPrefix = window.location.origin + window.location.pathname;
   const [gazData, setGazData] = useState([]);
+  const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
 
   const getGazData = async (setGazData, url) => {
     const prefix = "GazDataForStarkregengefahrenkarteByCismet";
@@ -49,6 +65,10 @@ function App() {
             })}
           />
         }
+        contactButtonEnabled={false}
+        locatorControl={false}
+        fullScreenControl={false}
+        zoomControls={false}
         emailaddress={email}
         applicationMenuTooltipString="Anleitung | Hintergrund"
         initialState={config.initialState}
