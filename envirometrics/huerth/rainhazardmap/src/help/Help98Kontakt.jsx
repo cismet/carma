@@ -53,7 +53,7 @@ const Component = ({ email }) => {
                   <img
                     target="_contacts"
                     alt="Logo Pecher AG"
-                    height="55"
+                    style={{ height: "55px" }}
                     src={swecoLogo}
                   />
                 </td>
@@ -61,7 +61,7 @@ const Component = ({ email }) => {
                   <img
                     target="_contacts"
                     alt="Logo cismet GmbH"
-                    height="40"
+                    style={{ height: "40px" }}
                     src={cismetLogo}
                   />
                 </td>
