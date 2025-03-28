@@ -15,13 +15,20 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { searchForAEVs } from "../../store/slices/aenderungsverfahren";
 import { searchForHauptnutzungen } from "../../store/slices/hauptnutzungen";
 import CustomScaleControl from "./CustomScaleControl";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faLocationDot, faSearch } from "@fortawesome/free-solid-svg-icons";
 
 interface FuzzySearchProps {
   mode: string;
   searchTextPlaceholder: string;
+  onIconClick: () => void;
 }
 
-const FuzzySearch = ({ searchTextPlaceholder, mode }: FuzzySearchProps) => {
+const FuzzySearch = ({
+  searchTextPlaceholder,
+  mode,
+  onIconClick,
+}: FuzzySearchProps) => {
   const dispatch = useDispatch();
   let [searchParams, setSearchParams] = useSearchParams();
 
@@ -91,6 +98,14 @@ const FuzzySearch = ({ searchTextPlaceholder, mode }: FuzzySearchProps) => {
     }, 100);
   };
 
+  const searchIcon = (
+    <FontAwesomeIcon
+      icon={faSearch}
+      style={{ fontSize: "16px" }}
+      onClick={onIconClick}
+    />
+  );
+
   return (
     <div className="custom-left-control">
       {!isMobile && <CustomScaleControl marginBottom={15} />}
@@ -99,7 +114,9 @@ const FuzzySearch = ({ searchTextPlaceholder, mode }: FuzzySearchProps) => {
         gazData={gazData}
         onSelection={onGazetteerSelection}
         pixelwidth={pixelwidth}
+        ifIconDisabled={false}
         placeholder={searchTextPlaceholder}
+        icon={searchIcon}
       />
     </div>
   );
