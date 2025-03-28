@@ -1,8 +1,4 @@
-import {
-  useGazData,
-  useSelection,
-  useSelectionTopicMap,
-} from "@carma-apps/portals";
+import { useSelection, useSelectionTopicMap } from "@carma-apps/portals";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { isAreaTypeWithGEP } from "@carma-commons/resources";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
@@ -14,7 +10,6 @@ const FuzzySearch = ({ gazLocalData }) => {
 
   const pixelwidth =
     responsiveState === "normal" ? "300px" : windowSize.width - gap;
-  const { gazData } = useGazData();
   const { setSelection } = useSelection();
   useSelectionTopicMap();
 

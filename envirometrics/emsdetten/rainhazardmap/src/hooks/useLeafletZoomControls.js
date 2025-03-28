@@ -6,9 +6,7 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
  * Provides stable zoom in and zoom out functions.
  */
 const useLeafletZoomControls = () => {
-  const { routedMapRef } =
-    useContext < typeof TopicMapContext > TopicMapContext;
-
+  const { routedMapRef } = useContext(TopicMapContext);
   const leafletElement = routedMapRef?.leafletMap?.leafletElement;
 
   /**
