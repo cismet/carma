@@ -157,13 +157,15 @@ const Login = () => {
     console.log("Failed:", errorInfo);
   };
 
+  const baseUrl = window.location.origin + window.location.pathname;
+
   return (
     <div
       style={{
         // background: "#dddddd",
         height: windowHeight,
         width: "100%",
-        background: "url('/images/" + background + "')",
+        background: `url(${baseUrl}images/${background})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
