@@ -28,7 +28,7 @@ const Component = ({ email }) => {
               <br />
             </div>
             <img
-              style={{ marginBottom: 10, marginLeft: 20 }}
+              style={{ marginBottom: 10, marginLeft: 20, height: "150px" }}
               target="_contacts"
               alt="Logo Auftraggeber"
               height="150"
