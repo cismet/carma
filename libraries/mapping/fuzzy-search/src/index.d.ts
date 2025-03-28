@@ -1,9 +1,12 @@
 import { GazDataItem } from "@carma-commons/utils";
+import { ReactNode } from "react";
 
 export type SearchGazetteerProps = {
   gazData?: GazDataItem[];
   onSelection: (hit: SearchResultItem | null) => void;
   onCLose?: () => void;
+  ifIconDisabled?: boolean;
+  icon?: ReactNode;
   //referenceSystem: undefined;
   //referenceSystemDefinition: undefined;
   stopwords?: string[];
