@@ -47,6 +47,8 @@ export function LibFuzzySearch({
   priorityTypes,
   typeInference,
   onCLose = () => {},
+  icon,
+  ifIconDisabled = true,
   config = {
     prepoHandling: false,
     ifShowScore: false,
@@ -292,12 +294,13 @@ export function LibFuzzySearch({
         ref={btnClosRef}
         icon={
           cleanBtnDisable ? (
-            <FontAwesomeIcon
-              icon={faLocationDot}
-              style={{
-                fontSize: "16px",
-              }}
-            />
+            // <FontAwesomeIcon
+            //   icon={faLocationDot}
+            //   style={{
+            //     fontSize: "16px",
+            //   }}
+            // />
+            icon
           ) : (
             <IconComp name="close" />
           )
@@ -308,7 +311,7 @@ export function LibFuzzySearch({
             : "clear-fuzzy-button clear-fuzzy-button__active"
         }
         onClick={handleOnClickClear}
-        disabled={cleanBtnDisable}
+        disabled={ifIconDisabled && cleanBtnDisable}
       />
       {showCategories ? (
         <AutoComplete
