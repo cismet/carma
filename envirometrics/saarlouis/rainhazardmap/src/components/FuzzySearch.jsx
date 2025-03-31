@@ -5,12 +5,13 @@ import {
 } from "@carma-apps/portals";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
-import { useContext } from "react";
+import { useContext, useEffect, useState } from "react";
 
 const FuzzySearch = ({ gazLocalData }) => {
   const { responsiveState, gap, windowSize } = useContext(
     ResponsiveTopicMapContext
   );
+  const [attributionHeight, setAttributionHeight] = useState(0);
 
   const pixelwidth =
     responsiveState === "normal" ? "300px" : windowSize.width - gap;
@@ -38,11 +39,22 @@ const FuzzySearch = ({ gazLocalData }) => {
     setSelection(Object.assign({}, selection, selectionMetaData));
   };
 
+  useEffect(() => {
+    const attributionControl = document.querySelector(
+      ".leaflet-control-attribution"
+    );
+    if (attributionControl) {
+      const height = attributionControl.getBoundingClientRect().height;
+      setAttributionHeight(height);
+      console.log("xxx attributionControl", height);
+    }
+  }, []);
+
   return (
     <div
       className="custom-left-control"
       style={{
-        marginBottom: ifDesktop ? "0" : "18px",
+        marginBottom: ifDesktop ? "0" : attributionHeight + 3,
       }}
     >
       <LibFuzzySearch
