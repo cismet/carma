@@ -31,7 +31,7 @@ const LayerInfo = ({ description, legend, zoomLevels }: LayerInfoProps) => {
   const layers = useSelector(getLayers);
   const selectedLayerIndex = useSelector(getSelectedLayerIndex);
 
-  const currentLayer = layers[selectedLayerIndex];
+  const [currentLayer] = useState(layers[selectedLayerIndex]);
   const parsedDescription = parseDescription(description);
   const metadataUrl =
     currentLayer?.other?.props?.MetadataURL?.[0]?.OnlineResource;
