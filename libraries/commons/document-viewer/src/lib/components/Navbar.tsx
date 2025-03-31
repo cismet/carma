@@ -291,96 +291,86 @@ const Navbar = ({
         <BootstrapNavbar.Collapse style={{ display: "flex !important" }}>
           <Nav style={{ marginRight: "20px" }}>
             <NavItem>
-              <OverlayTrigger
-                key={"bottom"}
-                placement="bottom"
-                overlay={<Tooltip id="">vorherige Seite</Tooltip>}
-              >
-                <button
-                  style={{
-                    background: "none",
-                    border: "none",
-                    padding: 0,
-                    outline: "inherit",
-                    marginRight: "24px",
-                  }}
-                  className="navItem"
-                  onClick={() => {
-                    if (page && file)
-                      if (parseInt(page) > 1) {
+              <button
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  outline: "inherit",
+                  marginRight: "24px",
+                }}
+                className="navItem"
+                title="vorherige Seite"
+                onClick={() => {
+                  if (page && file)
+                    if (parseInt(page) > 1) {
+                      routerNavigate(
+                        `/docs/${docPackageId}/${file}/${parseInt(page) - 1}`
+                      );
+                    } else {
+                      if (parseInt(file) > 1) {
+                        const previousDoc = docs[parseInt(file) - 1 - 1];
+                        const previousFilePages =
+                          typeof previousDoc.meta !== "string" &&
+                          previousDoc.meta
+                            ? previousDoc.meta.pages ?? 1
+                            : 1;
+
                         routerNavigate(
-                          `/docs/${docPackageId}/${file}/${parseInt(page) - 1}`
+                          `/docs/${docPackageId}/${
+                            parseInt(file) - 1
+                          }/${previousFilePages}`
                         );
                       } else {
-                        if (parseInt(file) > 1) {
-                          const previousDoc = docs[parseInt(file) - 1 - 1];
-                          const previousFilePages =
-                            typeof previousDoc.meta !== "string" &&
-                            previousDoc.meta
-                              ? previousDoc.meta.pages ?? 1
-                              : 1;
+                        const lastDoc = docs[docs.length - 1];
+                        const lastFilePages =
+                          typeof lastDoc.meta !== "string" && lastDoc.meta
+                            ? lastDoc.meta.pages ?? 1
+                            : 1;
 
-                          routerNavigate(
-                            `/docs/${docPackageId}/${
-                              parseInt(file) - 1
-                            }/${previousFilePages}`
-                          );
-                        } else {
-                          const lastDoc = docs[docs.length - 1];
-                          const lastFilePages =
-                            typeof lastDoc.meta !== "string" && lastDoc.meta
-                              ? lastDoc.meta.pages ?? 1
-                              : 1;
-
-                          routerNavigate(
-                            `/docs/${docPackageId}/${docs.length}/${lastFilePages}`
-                          );
-                        }
+                        routerNavigate(
+                          `/docs/${docPackageId}/${docs.length}/${lastFilePages}`
+                        );
                       }
-                  }}
-                >
-                  <Icon name="chevron-left" />
-                </button>
-              </OverlayTrigger>
+                    }
+                }}
+              >
+                <Icon name="chevron-left" />
+              </button>
             </NavItem>
             <NavItem>
               {page} / {maxIndex}
             </NavItem>
             <NavItem>
-              <OverlayTrigger
-                key={"bottom"}
-                placement="bottom"
-                overlay={<Tooltip id="">nächste Seite</Tooltip>}
-              >
-                <button
-                  style={{
-                    background: "none",
-                    border: "none",
-                    padding: 0,
-                    outline: "inherit",
-                    marginLeft: "20px",
-                  }}
-                  className="navItem"
-                  onClick={() => {
-                    if (page && file)
-                      if (parseInt(page) < maxIndex) {
+              <button
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  outline: "inherit",
+                  marginLeft: "20px",
+                }}
+                className="navItem"
+                title="nächste Seite"
+                onClick={() => {
+                  if (page && file)
+                    if (parseInt(page) < maxIndex) {
+                      routerNavigate(
+                        `/docs/${docPackageId}/${file}/${parseInt(page) + 1}`
+                      );
+                    } else {
+                      if (parseInt(file) < docs.length) {
                         routerNavigate(
-                          `/docs/${docPackageId}/${file}/${parseInt(page) + 1}`
+                          `/docs/${docPackageId}/${parseInt(file) + 1}/1`
                         );
                       } else {
-                        if (parseInt(file) < docs.length) {
-                          routerNavigate(
-                            `/docs/${docPackageId}/${parseInt(file) + 1}/1`
-                          );
-                        } else {
-                          routerNavigate(`/docs/${docPackageId}/1/1`);
-                        }
+                        routerNavigate(`/docs/${docPackageId}/1/1`);
                       }
-                  }}
-                >
-                  <Icon name="chevron-right" />
-                </button>
-              </OverlayTrigger>
+                    }
+                }}
+              >
+                <Icon name="chevron-right" />
+              </button>
             </NavItem>
           </Nav>
           <BootstrapNavbar.Text>
@@ -388,44 +378,36 @@ const Navbar = ({
           </BootstrapNavbar.Text>
           <Nav className="mr-auto">
             <NavItem>
-              <OverlayTrigger
-                placement="bottom"
-                overlay={<Tooltip id="">an Fensterbreite anpassen</Tooltip>}
+              <a
+                style={{ marginRight: "20px" }}
+                className="navItem"
+                onClick={() => {
+                  if (currentWidthTrigger) {
+                    setWidthTrigger(currentWidthTrigger + 1);
+                  } else {
+                    setWidthTrigger(1);
+                  }
+                }}
+                title="an Fensterbreite anpassen"
               >
-                <a
-                  style={{ marginRight: "20px" }}
-                  className="navItem"
-                  onClick={() => {
-                    if (currentWidthTrigger) {
-                      setWidthTrigger(currentWidthTrigger + 1);
-                    } else {
-                      setWidthTrigger(1);
-                    }
-                  }}
-                >
-                  <Icon name="arrows-h" />
-                </a>
-              </OverlayTrigger>
+                <Icon name="arrows-h" />
+              </a>
             </NavItem>
             <NavItem>
-              <OverlayTrigger
-                placement="bottom"
-                overlay={<Tooltip id="">an Fensterhöhe anpassen</Tooltip>}
+              <a
+                style={{ marginRight: "20px" }}
+                className="navItem"
+                onClick={() => {
+                  if (currentHeightTrigger) {
+                    setHeightTrigger(currentHeightTrigger + 1);
+                  } else {
+                    setHeightTrigger(1);
+                  }
+                }}
+                title="an Fensterhöhe anpassen"
               >
-                <a
-                  style={{ marginRight: "20px" }}
-                  className="navItem"
-                  onClick={() => {
-                    if (currentHeightTrigger) {
-                      setHeightTrigger(currentHeightTrigger + 1);
-                    } else {
-                      setHeightTrigger(1);
-                    }
-                  }}
-                >
-                  <Icon name="arrows-v" />
-                </a>
-              </OverlayTrigger>
+                <Icon name="arrows-v" />
+              </a>
             </NavItem>
           </Nav>
           <Nav
@@ -440,6 +422,7 @@ const Navbar = ({
                 download
                 className="navItem"
                 target="_blank"
+                title="Dokument herunterladen (pdf)"
               >
                 <Icon name="download" />
               </a>
@@ -453,6 +436,7 @@ const Navbar = ({
                   cursor: docs.length < 2 ? "auto" : "pointer",
                   outline: "inherit",
                 }}
+                title="alles herunterladen (zip)"
                 className="navItem"
                 disabled={docs.length < 2}
                 onClick={() => {
