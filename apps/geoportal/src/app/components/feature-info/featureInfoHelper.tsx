@@ -191,7 +191,7 @@ export const getFeatureForLayer = async (
 
   let result = "";
   let featureInfoZoom = 20;
-  layer.other.keywords.forEach((keyword) => {
+  layer.other.keywords?.forEach((keyword) => {
     const extracted = keyword.split("carmaconf://infoBoxMapping:")[1];
     const zoom = keyword.split("carmaConf://featureInfoZoom:")[1];
 
