@@ -15,14 +15,21 @@ import {
 } from "../../store/slices/bplaene";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import L from "leaflet";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faSearch } from "@fortawesome/free-solid-svg-icons";
 import type { UnknownAction } from "redux";
 
 interface FuzzySearchProps {
   setFeatures: (hit) => void;
   setSelectedIndex: (idx) => void;
+  onIconClick: () => void;
 }
 
-const FuzzySearch = ({ setFeatures, setSelectedIndex }: FuzzySearchProps) => {
+const FuzzySearch = ({
+  setFeatures,
+  setSelectedIndex,
+  onIconClick,
+}: FuzzySearchProps) => {
   const dispatch = useDispatch();
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const { responsiveState, gap, windowSize } = useContext<
@@ -98,6 +105,13 @@ const FuzzySearch = ({ setFeatures, setSelectedIndex }: FuzzySearchProps) => {
       }
     }, 100);
   };
+  const searchIcon = (
+    <FontAwesomeIcon
+      icon={faSearch}
+      style={{ fontSize: "16px" }}
+      onClick={onIconClick}
+    />
+  );
   return (
     <div className="custom-left-control">
       <LibFuzzySearch
@@ -105,6 +119,8 @@ const FuzzySearch = ({ setFeatures, setSelectedIndex }: FuzzySearchProps) => {
         onSelection={onGazetteerSelection}
         pixelwidth={pixelwidth}
         placeholder="B-Plan-Nr. | Adresse | POI"
+        icon={searchIcon}
+        ifIconDisabled={false}
       />
     </div>
   );

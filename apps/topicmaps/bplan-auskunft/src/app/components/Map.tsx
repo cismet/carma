@@ -141,7 +141,7 @@ const Map = () => {
     );
   };
 
-  const bplanSearchButtonHit = (event) => {
+  const bplanSearchButtonHit = () => {
     dispatch(
       getPlanFeatures({
         boundingBox: boundingBox,
@@ -237,6 +237,7 @@ const Map = () => {
               <FuzzySearch
                 setFeatures={setFeatures}
                 setSelectedIndex={setSelectedIndex}
+                onIconClick={bplanSearchButtonHit}
               />
             </div>
           </Control>
