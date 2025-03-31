@@ -23,6 +23,8 @@ const FuzzySearch = ({ gazLocalData }) => {
     return AREA_TYPE.includes(selection.glyph);
   };
 
+  const ifDesktop = responsiveState === "normal";
+
   const onGazetteerSelection = (selection) => {
     if (!selection) {
       setSelection(null);
@@ -38,7 +40,12 @@ const FuzzySearch = ({ gazLocalData }) => {
   };
 
   return (
-    <div className="custom-left-control">
+    <div
+      className="custom-left-control"
+      style={{
+        marginBottom: ifDesktop ? "0" : "18px",
+      }}
+    >
       <LibFuzzySearch
         gazData={gazLocalData}
         onSelection={onGazetteerSelection}
