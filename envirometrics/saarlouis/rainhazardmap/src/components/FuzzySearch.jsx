@@ -12,6 +12,18 @@ const FuzzySearch = ({ gazLocalData }) => {
     ResponsiveTopicMapContext
   );
   const [attributionHeight, setAttributionHeight] = useState(0);
+  const [bgParam, setBgParam] = useState(
+    new URLSearchParams(window.location.search).get("bg")
+  );
+
+  const updateBgParam = () => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const newBg = searchParams.get("bg");
+    if (newBg !== bgParam) {
+      console.log("xxx newBg :", newBg);
+      setBgParam(newBg);
+    }
+  };
 
   const pixelwidth =
     responsiveState === "normal" ? "300px" : windowSize.width - gap;
@@ -40,7 +52,7 @@ const FuzzySearch = ({ gazLocalData }) => {
   };
 
   const handleHashChange = () => {
-    console.log("xxx hash change");
+    console.log("xxx hash change...");
     const attributionControl = document.querySelector(
       ".leaflet-control-attribution"
     );
@@ -49,6 +61,7 @@ const FuzzySearch = ({ gazLocalData }) => {
       setAttributionHeight(height);
       console.log("xxx attributionControl", height);
     }
+    updateBgParam();
   };
 
   useEffect(() => {
@@ -56,9 +69,17 @@ const FuzzySearch = ({ gazLocalData }) => {
     window.addEventListener("hashchange", handleHashChange);
     window.addEventListener("popstate", handleHashChange);
 
+    const originalPushState = window.history.pushState;
+    window.history.pushState = function () {
+      const result = originalPushState.apply(this, arguments);
+      window.dispatchEvent(new Event("popstate"));
+      return result;
+    };
+
     return () => {
       window.removeEventListener("hashchange", handleHashChange);
       window.removeEventListener("popstate", handleHashChange);
+      window.history.pushState = originalPushState;
     };
   }, []);
 
