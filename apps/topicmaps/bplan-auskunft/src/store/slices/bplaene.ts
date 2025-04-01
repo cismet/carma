@@ -111,26 +111,28 @@ export function getPlanFeatureByTitle(
   done: (hit: any) => void
 ) {
   return function (dispatch) {
-    const title = _title.replaceAll("_", " ");
+    const title = _title.replaceAll(" ", "_");
     let status: string | undefined = undefined;
     let nr = title;
-
-    if (title.includes("(nicht rechtskräftig)")) {
+    if (title.includes("nicht_rechtskräftig)")) {
       status = "nicht rechtskräftig";
-      nr = title.split(" (nicht rechtskräftig)")[0];
+      nr = title.split("_(nicht_rechtskräftig)")[0];
     } else if (title.includes("(rechtskräftig)")) {
       status = "rechtskräftig";
-      nr = title.split(" (rechtskräftig)")[0];
+      nr = title.split("_(rechtskräftig)")[0];
     }
 
     dispatch(getPlanFeature(nr, status, done));
   };
 }
 
-function getPlanFeature(nr, status, done) {
+function getPlanFeature(
+  nr: string,
+  status: string | undefined,
+  done: (hit: any) => void
+) {
   return function (dispatch, getState) {
     const state = getState();
-
     const hit = state.bplaene.data.find((elem, index) => {
       if (status !== undefined) {
         return elem.text === nr && elem.properties.status === status;
@@ -138,7 +140,6 @@ function getPlanFeature(nr, status, done) {
         return elem.text === nr;
       }
     });
-
     if (hit) {
       done(hit);
     }
