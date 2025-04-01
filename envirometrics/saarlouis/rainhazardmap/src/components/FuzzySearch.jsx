@@ -53,15 +53,17 @@ const FuzzySearch = ({ gazLocalData }) => {
 
   const handleHashChange = () => {
     console.log("xxx hash change...");
-    const attributionControl = document.querySelector(
-      ".leaflet-control-attribution"
-    );
-    if (attributionControl) {
-      const height = attributionControl.getBoundingClientRect().height;
-      setAttributionHeight(height);
-      console.log("xxx attributionControl", height);
-    }
-    updateBgParam();
+    setTimeout(() => {
+      const attributionControl = document.querySelector(
+        ".leaflet-control-attribution"
+      );
+      if (attributionControl) {
+        const height = attributionControl.getBoundingClientRect().height;
+        setAttributionHeight(height);
+        console.log("xxx attributionControl", height);
+      }
+      updateBgParam();
+    }, 50);
   };
 
   useEffect(() => {
