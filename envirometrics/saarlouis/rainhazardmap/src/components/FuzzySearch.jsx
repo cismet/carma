@@ -52,7 +52,6 @@ const FuzzySearch = ({ gazLocalData }) => {
         const height = attributionControl.getBoundingClientRect().height;
         attributionControl.style.marginLeft = "16px";
         setAttributionHeight(height);
-        console.log("xxx attributionControl", height);
       } else {
         setAttributionHeight(0);
       }
