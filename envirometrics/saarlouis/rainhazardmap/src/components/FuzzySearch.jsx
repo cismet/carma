@@ -51,7 +51,7 @@ const FuzzySearch = ({ gazLocalData }) => {
     setSelection(Object.assign({}, selection, selectionMetaData));
   };
 
-  const handleHashChange = () => {
+  const buildBottomGap = () => {
     console.log("xxx hash change...");
     setTimeout(() => {
       const attributionControl = document.querySelector(
@@ -61,15 +61,16 @@ const FuzzySearch = ({ gazLocalData }) => {
         const height = attributionControl.getBoundingClientRect().height;
         setAttributionHeight(height);
         console.log("xxx attributionControl", height);
+      } else {
+        setAttributionHeight(0);
       }
       updateBgParam();
     }, 50);
   };
 
   useEffect(() => {
-    handleHashChange();
-    window.addEventListener("hashchange", handleHashChange);
-    window.addEventListener("popstate", handleHashChange);
+    buildBottomGap();
+    window.addEventListener("popstate", buildBottomGap);
 
     const originalPushState = window.history.pushState;
     window.history.pushState = function () {
@@ -79,8 +80,7 @@ const FuzzySearch = ({ gazLocalData }) => {
     };
 
     return () => {
-      window.removeEventListener("hashchange", handleHashChange);
-      window.removeEventListener("popstate", handleHashChange);
+      window.removeEventListener("popstate", buildBottomGap);
       window.history.pushState = originalPushState;
     };
   }, []);
