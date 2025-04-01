@@ -107,6 +107,9 @@ const slice = createSlice({
     },
     removeLayer(state, action: PayloadAction<string>) {
       const newLayers = state.layers.filter((obj) => obj.id !== action.payload);
+      if (state.selectedLayerIndex > newLayers.length - 1) {
+        state.selectedLayerIndex = newLayers.length - 1;
+      }
       state.layers = newLayers;
     },
     removeLastLayer(state) {

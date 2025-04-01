@@ -5,12 +5,10 @@ import {
   faChevronLeft,
   faChevronRight,
   faChevronUp,
-  faLayerGroup,
-  faMap,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import type { SliderSingleProps } from "antd";
-import { forwardRef, useContext, useEffect, useRef, useState } from "react";
+import { forwardRef, useContext, useEffect, useRef } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -36,12 +34,10 @@ import {
 import AerialLayerSelection from "./AerialLayerSelection";
 import BaseLayerInfo from "./BaseLayerInfo";
 import BaseLayerSelection from "./BaseLayerSelection";
-import { iconColorMap, iconMap } from "./items";
+import LayerIcon from "./LayerIcon";
 import LayerInfo from "./LayerInfo";
 import OpacitySlider from "./OpacitySlider";
 import VisibilityToggle from "./VisibilityToggle";
-import { ICON_PREFIX } from "../../config/app.config";
-import LayerIcon from "./LayerIcon";
 
 type Ref = HTMLDivElement;
 
@@ -60,9 +56,8 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
   const selectedLayerIndex = useSelector(getSelectedLayerIndex);
   const layers = useSelector(getLayers);
   const backgroundLayer = useSelector(getBackgroundLayer);
-  const [layer] = useState(
-    selectedLayerIndex >= 0 ? layers[selectedLayerIndex] : backgroundLayer
-  );
+  const layer =
+    selectedLayerIndex >= 0 ? layers[selectedLayerIndex] : backgroundLayer;
 
   const iconName = layer?.other?.icon;
   const icon = layer.title.includes("Orthofoto")
