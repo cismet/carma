@@ -12,18 +12,11 @@ const FuzzySearch = ({ gazLocalData }) => {
     ResponsiveTopicMapContext
   );
   const [attributionHeight, setAttributionHeight] = useState(0);
+  const hash = window.location.hash; // e.g. "#/?bg=2&lat=52.34..."
+  const queryString = hash.split("?")[1];
   const [bgParam, setBgParam] = useState(
-    new URLSearchParams(window.location.search).get("bg")
+    new URLSearchParams(queryString).get("bg")
   );
-
-  const updateBgParam = () => {
-    const searchParams = new URLSearchParams(window.location.search);
-    const newBg = searchParams.get("bg");
-    if (newBg !== bgParam) {
-      console.log("xxx newBg :", newBg);
-      setBgParam(newBg);
-    }
-  };
 
   const pixelwidth =
     responsiveState === "normal" ? "300px" : windowSize.width - gap;
@@ -51,25 +44,37 @@ const FuzzySearch = ({ gazLocalData }) => {
     setSelection(Object.assign({}, selection, selectionMetaData));
   };
 
-  const buildBottomGap = () => {
-    console.log("xxx hash change...");
+  const calculateGab = () => {
     setTimeout(() => {
       const attributionControl = document.querySelector(
         ".leaflet-control-attribution"
       );
       if (attributionControl) {
         const height = attributionControl.getBoundingClientRect().height;
+        attributionControl.style.marginLeft = "16px";
         setAttributionHeight(height);
         console.log("xxx attributionControl", height);
       } else {
         setAttributionHeight(0);
       }
-      updateBgParam();
     }, 50);
   };
 
+  const buildBottomGap = () => {
+    const hash = window.location.hash;
+    const queryString = hash.split("?")[1];
+    const searchParams = new URLSearchParams(queryString);
+    const newBg = searchParams.get("bg");
+    console.log("xxx newBg", newBg);
+    console.log("xxx bgParam", bgParam);
+    if (newBg !== bgParam) {
+      calculateGab();
+    }
+    setBgParam(newBg);
+  };
+
   useEffect(() => {
-    buildBottomGap();
+    calculateGab();
     window.addEventListener("popstate", buildBottomGap);
 
     const originalPushState = window.history.pushState;
