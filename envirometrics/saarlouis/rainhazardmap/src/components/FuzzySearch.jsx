@@ -39,7 +39,8 @@ const FuzzySearch = ({ gazLocalData }) => {
     setSelection(Object.assign({}, selection, selectionMetaData));
   };
 
-  useEffect(() => {
+  const handleHashChange = () => {
+    console.log("xxx hash change");
     const attributionControl = document.querySelector(
       ".leaflet-control-attribution"
     );
@@ -48,6 +49,17 @@ const FuzzySearch = ({ gazLocalData }) => {
       setAttributionHeight(height);
       console.log("xxx attributionControl", height);
     }
+  };
+
+  useEffect(() => {
+    handleHashChange();
+    window.addEventListener("hashchange", handleHashChange);
+    window.addEventListener("popstate", handleHashChange);
+
+    return () => {
+      window.removeEventListener("hashchange", handleHashChange);
+      window.removeEventListener("popstate", handleHashChange);
+    };
   }, []);
 
   return (
