@@ -187,6 +187,9 @@ const MapWrapper = () => {
   const [hasFoundLocation, setHasFoundLocation] = useState(false);
   const [showTerrain, setShowTerrain] = useState(false);
 
+  const [zenButtonHidden, setZenButtonHidden] = useState(false);
+  const [isHoveringZenButton, setIsHoveringZenButton] = useState(false);
+
   useEffect(() => {
     if (routedMap?.leafletMap) {
       const map = routedMap.leafletMap.leafletElement;
@@ -219,6 +222,16 @@ const MapWrapper = () => {
       setHasFoundLocation(false);
     }
   }, [isLocationActive]);
+
+  useEffect(() => {
+    if (zenMode && !zenButtonHidden && !isHoveringZenButton) {
+      const timer = setTimeout(() => {
+        setZenButtonHidden(true);
+      }, 2000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [zenMode, zenButtonHidden, isHoveringZenButton]);
 
   // custom hooks
 
@@ -276,25 +289,38 @@ const MapWrapper = () => {
         <>
           <Control position="topcenter" order={10}>
             <div className="pr-16 pt-1.5">
-              <Tooltip
-                title={
-                  <span>
-                    Bedienelemente einblenden
-                    <br />
-                    (Zen-Modus beenden)
-                  </span>
-                }
-              >
-                <button
-                  className={`text-xl hover:text-gray-600`}
-                  onClick={() => {
+              <button
+                className={`text-xl hover:text-gray-600 flex items-center bg-white/80 ml-1.5 p-3 overflow-hidden rounded-md transition-all duration-300`}
+                onClick={() => {
+                  if (zenButtonHidden) {
+                    setZenButtonHidden(false);
+                  } else {
                     dispatch(setZenMode(false));
-                  }}
-                  data-test-id="zen-mode-btn"
+                  }
+                }}
+                onMouseEnter={() => setIsHoveringZenButton(true)}
+                onMouseLeave={() => setIsHoveringZenButton(false)}
+                style={{
+                  transform: zenButtonHidden
+                    ? "translateY(-85%)"
+                    : "translateY(0)",
+                  marginTop: "-1rem",
+                  height: "54px",
+                }}
+                data-test-id="zen-mode-btn"
+              >
+                <Tooltip
+                  title={
+                    <span>
+                      Bedienelemente einblenden
+                      <br />
+                      (Zen-Modus beenden)
+                    </span>
+                  }
                 >
                   <FontAwesomeIcon fixedWidth={true} icon={faEyeSlash} />
-                </button>
-              </Tooltip>
+                </Tooltip>
+              </button>
             </div>
           </Control>
         </>
