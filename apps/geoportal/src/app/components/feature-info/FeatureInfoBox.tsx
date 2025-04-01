@@ -159,6 +159,12 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
     }
   }, [loadingFeatureInfo]);
 
+  useEffect(() => {
+    if (selectedFeature && selectedFeature.properties.wmsProps) {
+      console.log("feature properties:", selectedFeature.properties.wmsProps);
+    }
+  }, [selectedFeature]);
+
   if (loadingFeatureInfo && shouldRenderLoadingInfobox)
     return <LoadingInfoBox />;
 
