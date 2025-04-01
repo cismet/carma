@@ -6,17 +6,16 @@ import {
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { useContext, useEffect, useState } from "react";
+import { useRef } from "react";
 
 const FuzzySearch = ({ gazLocalData }) => {
   const { responsiveState, gap, windowSize } = useContext(
     ResponsiveTopicMapContext
   );
   const [attributionHeight, setAttributionHeight] = useState(0);
-  const hash = window.location.hash; // e.g. "#/?bg=2&lat=52.34..."
+  const hash = window.location.hash;
   const queryString = hash.split("?")[1];
-  const [bgParam, setBgParam] = useState(
-    new URLSearchParams(queryString).get("bg")
-  );
+  const bgParam = useRef(new URLSearchParams(queryString).get("bg"));
 
   const pixelwidth =
     responsiveState === "normal" ? "300px" : windowSize.width - gap;
@@ -44,7 +43,7 @@ const FuzzySearch = ({ gazLocalData }) => {
     setSelection(Object.assign({}, selection, selectionMetaData));
   };
 
-  const calculateGab = () => {
+  const calculateBottomGab = (newBg) => {
     setTimeout(() => {
       const attributionControl = document.querySelector(
         ".leaflet-control-attribution"
@@ -57,6 +56,7 @@ const FuzzySearch = ({ gazLocalData }) => {
       } else {
         setAttributionHeight(0);
       }
+      bgParam.current = newBg;
     }, 50);
   };
 
@@ -65,16 +65,14 @@ const FuzzySearch = ({ gazLocalData }) => {
     const queryString = hash.split("?")[1];
     const searchParams = new URLSearchParams(queryString);
     const newBg = searchParams.get("bg");
-    console.log("xxx newBg", newBg);
-    console.log("xxx bgParam", bgParam);
-    if (newBg !== bgParam) {
-      calculateGab();
+
+    if (newBg !== bgParam.current) {
+      calculateBottomGab(newBg);
     }
-    setBgParam(newBg);
   };
 
   useEffect(() => {
-    calculateGab();
+    calculateBottomGab();
     window.addEventListener("popstate", buildBottomGap);
 
     const originalPushState = window.history.pushState;
