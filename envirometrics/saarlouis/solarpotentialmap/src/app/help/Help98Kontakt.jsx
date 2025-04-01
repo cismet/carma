@@ -36,10 +36,9 @@ const Component = ({ email }) => {
               <br />
             </div>
             <img
-              style={{ marginBottom: 10, marginLeft: 20 }}
+              style={{ marginBottom: 10, marginLeft: 20, height: 70 }}
               target="_contacts"
               alt="Logo Auftraggeber"
-              height="70"
               src={customerLogo}
             />
           </p>
@@ -59,7 +58,7 @@ const Component = ({ email }) => {
                   <img
                     target="_contacts"
                     alt="Logo izes"
-                    height="60"
+                    style={{ height: 60 }}
                     src={izesLogo}
                   />
                 </td>
@@ -67,7 +66,7 @@ const Component = ({ email }) => {
                   <img
                     target="_contacts"
                     alt="Logo cismet GmbH"
-                    height="40"
+                    style={{ height: 60 }}
                     src={cismetLogo}
                   />
                 </td>
