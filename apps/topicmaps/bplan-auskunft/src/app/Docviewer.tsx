@@ -75,7 +75,6 @@ export function App() {
 
     document.title = `Dokumentenansicht | ${docPackageId}`;
   }, [docPackageId, bplaene]);
-  console.log("xxx docs", docs);
 
   if (docs.length > 0) {
     return (
