@@ -29,8 +29,9 @@ import {
 import {
   EmptySearchComponent,
   LibFuzzySearch,
-  SearchResultItem,
 } from "@carma-mapping/fuzzy-search";
+import { type SearchResultItem } from "@carma-commons/types";
+
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 

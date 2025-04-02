@@ -4,7 +4,9 @@ import {
   useSelection,
   useSelectionTopicMap,
 } from "@carma-apps/portals";
-import { LibFuzzySearch, SearchResultItem } from "@carma-mapping/fuzzy-search";
+import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
+import { type SearchResultItem } from "@carma-commons/types";
+
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { useContext } from "react";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";

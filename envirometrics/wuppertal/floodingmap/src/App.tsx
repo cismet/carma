@@ -52,8 +52,8 @@ import {
 import {
   EmptySearchComponent,
   LibFuzzySearch,
-  SearchResultItem,
 } from "@carma-mapping/fuzzy-search";
+import { type SearchResultItem } from "@carma-commons/types";
 
 import {
   Control,

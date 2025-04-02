@@ -72,7 +72,8 @@ import {
   SceneStyleToggle,
   selectViewerHome,
 } from "@carma-mapping/cesium-engine";
-import { LibFuzzySearch, SearchResultItem } from "@carma-mapping/fuzzy-search";
+import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
+import { type SearchResultItem } from "@carma-commons/types";
 
 import versionData from "../../../version.json";
 

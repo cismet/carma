@@ -49,7 +49,9 @@ import {
   useZoomControls as useZoomControlsCesium,
 } from "@carma-mapping/cesium-engine";
 import { LibrePitchingCompass } from "@carma-mapping/components";
-import { LibFuzzySearch, SearchResultItem } from "@carma-mapping/fuzzy-search";
+import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
+import { type SearchResultItem } from "@carma-commons/types";
+
 import {
   FullScreenDocument,
   FullScreenHTMLElement,

@@ -1,5 +1,7 @@
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
-import { LibFuzzySearch, SearchResultItem } from "@carma-mapping/fuzzy-search";
+import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
+import { type SearchResultItem } from "@carma-commons/types";
+
 import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
 import {
