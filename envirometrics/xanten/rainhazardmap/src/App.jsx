@@ -1,7 +1,5 @@
 import HeavyRainHazardMap from "@cismet-dev/react-cismap-envirometrics-maps/HeavyRainHazardMap";
 import React, { useEffect, useState } from "react";
-import { MappingConstants } from "react-cismap";
-import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import { md5FetchJSON } from "react-cismap/tools/fetching";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import versionData from "./version.json";
@@ -41,105 +39,96 @@ function App() {
     setGazData(data || []);
   };
 
-  const appKey = "cismetRainhazardMap";
   useEffect(() => {
     getGazData(setGazData, urlPrefix + "/data/adressen_xanten.json");
   }, []);
 
   return (
     <>
-      <TopicMapContextProvider
-        appKey={appKey + ".Xanten"}
-        referenceSystem={MappingConstants.crs3857}
-        referenceSystemDefinition={MappingConstants.proj4crs3857def}
-        baseLayerConf={config.overridingBaseLayerConf}
-        infoBoxPixelWidth={370}
+      <div
+        className="controls-container"
+        style={{
+          position: "absolute",
+          top: "0px",
+          left: "0px",
+          bottom: "0px",
+          zIndex: 600,
+        }}
       >
-        <div
-          className="controls-container"
-          style={{
-            position: "absolute",
-            top: "0px",
-            left: "0px",
-            bottom: "0px",
-            zIndex: 600,
-          }}
-        >
-          <ControlLayout ifStorybook={false}>
-            <Control position="topleft" order={10}>
-              <ZoomControls />
-            </Control>
+        <ControlLayout ifStorybook={false}>
+          <Control position="topleft" order={10}>
+            <ZoomControls />
+          </Control>
 
-            <Control position="topleft" order={50}>
-              <ControlButtonStyler
-                title={
-                  document.fullscreenElement
-                    ? "Vollbildmodus beenden"
-                    : "Vollbildmodus"
+          <Control position="topleft" order={50}>
+            <ControlButtonStyler
+              title={
+                document.fullscreenElement
+                  ? "Vollbildmodus beenden"
+                  : "Vollbildmodus"
+              }
+              onClick={() => {
+                if (document.fullscreenElement) {
+                  document.exitFullscreen();
+                } else {
+                  document.documentElement.requestFullscreen();
                 }
-                onClick={() => {
-                  if (document.fullscreenElement) {
-                    document.exitFullscreen();
-                  } else {
-                    document.documentElement.requestFullscreen();
-                  }
-                }}
-                dataTestId="full-screen-control"
-              >
-                <FontAwesomeIcon
-                  icon={document.fullscreenElement ? faCompress : faExpand}
-                />
-              </ControlButtonStyler>
-            </Control>
-            <Control position="topleft" order={60} title="Mein Standort">
-              <RoutedMapLocateControl
-                tourRefLabels={null}
-                disabled={false}
-                nativeTooltip={true}
+              }}
+              dataTestId="full-screen-control"
+            >
+              <FontAwesomeIcon
+                icon={document.fullscreenElement ? faCompress : faExpand}
               />
-            </Control>
-            <Control position="topleft" order={70}>
-              <ContactButton emailaddress={email} />
-            </Control>
-            <Control position="bottomleft" order={10}>
-              <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
-                <FuzzySearch
-                  gazLocalData={gazData}
-                  attributionHeight={attributionHeight}
-                />
-              </div>
-            </Control>
-          </ControlLayout>
-        </div>
-        <HeavyRainHazardMap
-          appMenu={
-            <GenericModalApplicationMenu
-              {...getCollabedHelpComponentConfig({
-                version,
-                reactCismapRHMVersion: "_",
-                footerLogoUrl,
-                email,
-              })}
+            </ControlButtonStyler>
+          </Control>
+          <Control position="topleft" order={60} title="Mein Standort">
+            <RoutedMapLocateControl
+              tourRefLabels={null}
+              disabled={false}
+              nativeTooltip={true}
             />
-          }
-          applicationMenuTooltipString="Anleitung | Hintergrund"
-          initialState={config.initialState}
-          contactButtonEnabled={false}
-          locatorControl={false}
-          fullScreenControl={false}
-          zoomControls={false}
-          emailaddress={email}
-          config={config.config}
-          homeZoom={13}
-          homeCenter={[51.658873404435404, 6.437902450561524]}
-          modeSwitcherTitle="AIS Starkregenvorsorge Xanten"
-          documentTitle="AIS Starkregenvorsorge Xanten"
-          gazetteerSearchControl={true}
-          gazetteerSearchComponent={EmptySearchComponent}
-        >
-          <TopicMapSelectionContent />
-        </HeavyRainHazardMap>
-      </TopicMapContextProvider>
+          </Control>
+          <Control position="topleft" order={70}>
+            <ContactButton emailaddress={email} />
+          </Control>
+          <Control position="bottomleft" order={10}>
+            <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
+              <FuzzySearch
+                gazLocalData={gazData}
+                attributionHeight={attributionHeight}
+              />
+            </div>
+          </Control>
+        </ControlLayout>
+      </div>
+      <HeavyRainHazardMap
+        appMenu={
+          <GenericModalApplicationMenu
+            {...getCollabedHelpComponentConfig({
+              version,
+              reactCismapRHMVersion: "_",
+              footerLogoUrl,
+              email,
+            })}
+          />
+        }
+        applicationMenuTooltipString="Anleitung | Hintergrund"
+        initialState={config.initialState}
+        contactButtonEnabled={false}
+        locatorControl={false}
+        fullScreenControl={false}
+        zoomControls={false}
+        emailaddress={email}
+        config={config.config}
+        homeZoom={13}
+        homeCenter={[51.658873404435404, 6.437902450561524]}
+        modeSwitcherTitle="AIS Starkregenvorsorge Xanten"
+        documentTitle="AIS Starkregenvorsorge Xanten"
+        gazetteerSearchControl={true}
+        gazetteerSearchComponent={EmptySearchComponent}
+      >
+        <TopicMapSelectionContent />
+      </HeavyRainHazardMap>
     </>
   );
 }
