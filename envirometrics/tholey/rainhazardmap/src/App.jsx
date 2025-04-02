@@ -23,11 +23,13 @@ import { faCompress, faExpand } from "@fortawesome/free-solid-svg-icons";
 import ContactButton from "./components/ContactButton";
 import ZoomControls from "./components/ZoomControls";
 import useCorrectAttributionControl from "./hooks/useGetAttributionControlSizes";
+import useCorrectHTMLSizes from "./hooks/useCorrectHTMLSizes";
 
 function App() {
   const email = "bauamt@tholey.de";
   const [gazData, setGazData] = useState([]);
   const { attributionHeight } = useCorrectAttributionControl();
+  useCorrectHTMLSizes();
 
   const urlPrefix = window.location.origin + window.location.pathname;
   const getGazData = async (setGazData, url) => {
@@ -39,10 +41,6 @@ function App() {
     getGazData(setGazData, urlPrefix + "data/adressen_tholey.json");
   }, []);
   const version = getApplicationVersion(versionData);
-
-  useEffect(() => {
-    console.log("xxx attributionHeight", attributionHeight);
-  }, [attributionHeight]);
 
   return (
     <TopicMapContextProvider

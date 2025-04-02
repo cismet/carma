@@ -12,8 +12,8 @@ const useCorrectAttributionControl = () => {
         ".leaflet-control-attribution"
       );
       if (attributionControl) {
-        attributionControl.style.marginLeft = "16px";
-        attributionControl.style.marginTop = "2px";
+        // attributionControl.style.marginLeft = "16px";
+        // attributionControl.style.marginTop = "2px";
         const height = attributionControl.getBoundingClientRect().height;
         setAttributionHeight(height);
       } else {
