@@ -23,20 +23,13 @@ import {
   ControlLayout,
 } from "@carma-mapping/map-controls-layout";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faCompress,
-  faExpand,
-  faHouseChimney,
-  faMinus,
-  faPlus,
-} from "@fortawesome/free-solid-svg-icons";
+import { faMinus, faPlus } from "@fortawesome/free-solid-svg-icons";
 import useLeafletZoomControls from "../hooks/useLeafletZoomControls";
 import {
   FullscreenControl,
   RoutedMapLocateControl,
 } from "@carma-mapping/components";
-import FuzzySearch from "./components/FuzzySearch";
-import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 const Baederkarte = () => {
