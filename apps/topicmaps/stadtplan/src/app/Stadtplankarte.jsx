@@ -8,7 +8,10 @@ import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingCon
 import FeatureCollection from "react-cismap/FeatureCollection";
 import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
-import { TopicMapSelectionContent } from "@carma-apps/portals";
+import {
+  TopicMapSelectionContent,
+  useSelectionTopicMap,
+} from "@carma-apps/portals";
 import {
   InfoBoxTextContent,
   InfoBoxTextTitle,
@@ -19,7 +22,6 @@ import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import IconComp from "react-cismap/commons/Icon";
 import { getPoiClusterIconCreatorFunction } from "./helper/styler";
 import Menu from "./Menu";
-import FuzzySearch from "./components/FuzzySearch";
 import {
   Control,
   ControlButtonStyler,
@@ -34,6 +36,8 @@ import {
   faMinus,
   faPlus,
 } from "@fortawesome/free-solid-svg-icons";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 
 const Stadtplankarte = ({ poiColors }) => {
   const { setClusteringOptions } = useContext(FeatureCollectionDispatchContext);
@@ -42,8 +46,11 @@ const Stadtplankarte = ({ poiColors }) => {
   const { clusteringOptions, selectedFeature, filterState } = useContext(
     FeatureCollectionContext
   );
-
+  const { responsiveState, gap, windowSize } = useContext(
+    ResponsiveTopicMapContext
+  );
   const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
+  useSelectionTopicMap();
 
   useEffect(() => {
     if (markerSymbolSize) {
@@ -121,7 +128,14 @@ const Stadtplankarte = ({ poiColors }) => {
           </Control>
           <Control position="bottomleft" order={10}>
             <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
-              <FuzzySearch searchTextPlaceholder={searchTextPlaceholder} />
+              <LibFuzzySearch
+                pixelwidth={
+                  responsiveState === "normal"
+                    ? "300px"
+                    : windowSize.width - gap
+                }
+                placeholder={searchTextPlaceholder}
+              />
             </div>
           </Control>
         </ControlLayout>

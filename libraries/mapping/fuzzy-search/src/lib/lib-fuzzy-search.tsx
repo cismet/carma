@@ -19,17 +19,15 @@ import {
   createOrUpdateVisibleCategory,
   getCategoryNameInFirstSearchItem,
   smoothCategoriesTransition,
+  useCreateGazetteerSelectorForLeaflet,
 } from "./utils/fuzzySearchHelper";
+import { type SearchResultItem } from "@carma-commons/types";
 
-import {
-  SearchResultItem,
-  SearchGazetteerProps,
-  Option,
-  GroupedOptions,
-} from "..";
+import { SearchGazetteerProps, Option, GroupedOptions } from "..";
 import { stopwords as stopwordsDe } from "./config/stopwords.de-de";
 
 import "./fuzzy-search.css";
+import { useGazData } from "@carma-apps/portals";
 
 interface FuseWithOption<T> extends Fuse<T> {
   options?: IFuseOptions<T>;
@@ -71,6 +69,23 @@ export function LibFuzzySearch({
   const [showCategories, setShowCategories] = useState(standardSearch);
   const { prepoHandling, ifShowScore, limit, cut, distance, threshold } =
     getDefaultSearchConfig(config);
+  let _gazData, _onSelection;
+
+  const onSelectionForLeaflet = useCreateGazetteerSelectorForLeaflet({});
+
+  const { gazData: hookedGazData } = useGazData();
+
+  if (gazData) {
+    _gazData = gazData;
+  } else {
+    _gazData = hookedGazData;
+  }
+
+  if (onSelection) {
+    _onSelection = onSelection;
+  } else {
+    _onSelection = onSelectionForLeaflet;
+  }
 
   const inputStyle = {
     width: "calc(100% - 32px)",
@@ -147,7 +162,7 @@ export function LibFuzzySearch({
   const handleOnSelect = (option) => {
     setCleanBtnDisable(false);
     console.info("[SEARCH] selected option", option);
-    onSelection(option.sData);
+    _onSelection(option.sData);
     setValue(option.sData.string);
 
     setTimeout(() => {
@@ -156,15 +171,15 @@ export function LibFuzzySearch({
   };
 
   useEffect(() => {
-    if (gazData) {
+    if (_gazData) {
       const allModifiedData = prepareGazData(
-        gazData,
+        _gazData,
         prepoHandling,
         typeInference
       );
       setAllGazeteerData(allModifiedData);
     }
-  }, [gazData, prepoHandling]);
+  }, [_gazData, prepoHandling]);
 
   useEffect(() => {
     if (!fuseInstance && allGazeteerData.length > 0) {
@@ -285,7 +300,7 @@ export function LibFuzzySearch({
       setOptions([]);
       setSearchResult([]);
       setCleanBtnDisable(true);
-      onSelection(null);
+      _onSelection(null);
       onCLose();
     }
   };

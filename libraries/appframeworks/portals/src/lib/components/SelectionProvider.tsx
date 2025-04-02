@@ -1,5 +1,5 @@
 import { type Feature } from "geojson";
-import { type SearchResultItem } from "@carma-mapping/fuzzy-search";
+import { type SearchResultItem } from "@carma-commons/types";
 import { createContext, useContext, useState } from "react";
 
 export type SelectionMetaData = {

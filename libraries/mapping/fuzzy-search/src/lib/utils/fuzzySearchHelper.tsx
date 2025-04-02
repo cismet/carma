@@ -3,19 +3,24 @@ import {
   isEndpoint,
   NAMED_CATEGORIES,
   NamedCategory,
+  isAreaType,
 } from "@carma-commons/resources";
 
 import {
-  SearchResultItem,
   SearchResult,
   Option,
   GroupedOptions,
   SearchConfig,
   SearchResultItemWithScore,
 } from "../..";
+import { type SearchResultItem } from "@carma-commons/types";
+
 import Icon from "react-cismap/commons/Icon";
 
 import { stopwords } from "../config/stopwords.de-de";
+import { useContext } from "react";
+import { FeatureCollectionDispatchContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
+import { useSelection } from "@carma-apps/portals";
 
 export const renderCategoryTitle = (
   category: ENDPOINT,
@@ -450,4 +455,38 @@ export const smoothCategoriesTransition = (
     additionalTitle.innerText = category;
     additionalTitle.style.display = "block";
   }
+};
+
+export const useCreateGazetteerSelectorForLeaflet = ({
+  before = () => {},
+  after = () => {},
+}) => {
+  const { setSelectedFeatureByPredicate } = useContext<
+    typeof FeatureCollectionDispatchContext
+  >(FeatureCollectionDispatchContext);
+
+  const { setSelection } = useSelection();
+
+  const onGazetteerSelection = (selection) => {
+    before();
+    if (!selection) {
+      setSelection(null);
+      return;
+    }
+    const selectionMetaData = {
+      selectedFrom: "gazetteer",
+      selectionTimestamp: Date.now(),
+      isAreaSelection: isAreaType(selection.type),
+    };
+    setSelection(Object.assign({}, selection, selectionMetaData));
+    setTimeout(() => {
+      const gazId = selection.more?.pid || selection.more?.kid;
+      setSelectedFeatureByPredicate(
+        (feature) => feature.properties.id === gazId
+      );
+      after();
+    }, 100);
+  };
+
+  return onGazetteerSelection;
 };
