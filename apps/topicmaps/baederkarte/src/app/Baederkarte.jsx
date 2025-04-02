@@ -31,7 +31,10 @@ import {
   faPlus,
 } from "@fortawesome/free-solid-svg-icons";
 import useLeafletZoomControls from "../hooks/useLeafletZoomControls";
-import { RoutedMapLocateControl } from "@carma-mapping/components";
+import {
+  FullscreenControl,
+  RoutedMapLocateControl,
+} from "@carma-mapping/components";
 import FuzzySearch from "./components/FuzzySearch";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
@@ -94,25 +97,7 @@ const Baederkarte = () => {
           </Control>
 
           <Control position="topleft" order={50}>
-            <ControlButtonStyler
-              title={
-                document.fullscreenElement
-                  ? "Vollbildmodus beenden"
-                  : "Vollbildmodus"
-              }
-              onClick={() => {
-                if (document.fullscreenElement) {
-                  document.exitFullscreen();
-                } else {
-                  document.documentElement.requestFullscreen();
-                }
-              }}
-              dataTestId="full-screen-control"
-            >
-              <FontAwesomeIcon
-                icon={document.fullscreenElement ? faCompress : faExpand}
-              />
-            </ControlButtonStyler>
+            <FullscreenControl />
           </Control>
           <Control position="topleft" order={60} title="Mein Standort">
             <RoutedMapLocateControl
