@@ -28,7 +28,7 @@ function App() {
   const email = "bauamt@tholey.de";
   const [gazData, setGazData] = useState([]);
   const { attributionHeight } = useAttributionControlStyling({
-    styles: { marginLeft: "20px", marginTop: "5px" },
+    styles: { marginLeft: "16px", marginTop: "5px" },
   });
 
   const urlPrefix = window.location.origin + window.location.pathname;
