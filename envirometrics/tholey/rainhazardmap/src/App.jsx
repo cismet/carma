@@ -22,10 +22,13 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCompress, faExpand } from "@fortawesome/free-solid-svg-icons";
 import ContactButton from "./components/ContactButton";
 import ZoomControls from "./components/ZoomControls";
+import useCorrectAttributionControl from "./hooks/useGetAttributionControlSizes";
 
 function App() {
   const email = "bauamt@tholey.de";
   const [gazData, setGazData] = useState([]);
+  const { attributionHeight } = useCorrectAttributionControl();
+
   const urlPrefix = window.location.origin + window.location.pathname;
   const getGazData = async (setGazData, url) => {
     const prefix = "GazDataForStarkregengefahrenkarteByCismet";
@@ -36,6 +39,10 @@ function App() {
     getGazData(setGazData, urlPrefix + "data/adressen_tholey.json");
   }, []);
   const version = getApplicationVersion(versionData);
+
+  useEffect(() => {
+    console.log("xxx attributionHeight", attributionHeight);
+  }, [attributionHeight]);
 
   return (
     <TopicMapContextProvider
@@ -95,7 +102,10 @@ function App() {
           </Control>
           <Control position="bottomleft" order={10}>
             <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
-              <FuzzySearch gazLocalData={gazData} />
+              <FuzzySearch
+                gazLocalData={gazData}
+                attributionHeight={attributionHeight}
+              />
             </div>
           </Control>
         </ControlLayout>
