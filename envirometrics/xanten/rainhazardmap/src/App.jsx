@@ -9,7 +9,6 @@ import { getCollabedHelpComponentConfig } from "@carma-pecher-collab/xanten";
 import "./notification.css";
 import footerLogoUrl from "./assets/images/Signet_AIS_RZ.png";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
-import FuzzySearch from "./components/FuzzySearch";
 import {
   TopicMapSelectionContent,
   useSelection,
