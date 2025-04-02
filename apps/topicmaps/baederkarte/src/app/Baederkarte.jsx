@@ -9,8 +9,14 @@ import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import Menu from "./Menu";
 import { getPoiClusterIconCreatorFunction } from "./helper/styler";
 import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
-import { TopicMapSelectionContent } from "@carma-apps/portals";
-import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
+import {
+  TopicMapSelectionContent,
+  useSelectionTopicMap,
+} from "@carma-apps/portals";
+import {
+  EmptySearchComponent,
+  LibFuzzySearch,
+} from "@carma-mapping/fuzzy-search";
 import {
   Control,
   ControlButtonStyler,
@@ -28,9 +34,7 @@ import useLeafletZoomControls from "../hooks/useLeafletZoomControls";
 import { RoutedMapLocateControl } from "@carma-mapping/components";
 import FuzzySearch from "./components/FuzzySearch";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
-
-// export const HOME_ZOOM = 13;
-// export const HOME_CENTER = [51.272021202386675, 7.201605141162873];
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 const Baederkarte = () => {
   const { setSelectedFeatureByPredicate, setClusteringOptions } = useContext(
@@ -38,11 +42,11 @@ const Baederkarte = () => {
   );
   const { markerSymbolSize } = useContext(TopicMapStylingContext);
   const { clusteringOptions } = useContext(FeatureCollectionContext);
-  // const { routedMapRef: routedMap } = useContext(TopicMapContext);
 
-  // const onHomeClick = () => {
-  //   routedMap.leafletMap.leafletElement.flyTo(HOME_CENTER, HOME_ZOOM);
-  // };
+  const { responsiveState, gap, windowSize } = useContext(
+    ResponsiveTopicMapContext
+  );
+  useSelectionTopicMap();
 
   const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
 
@@ -117,19 +121,16 @@ const Baederkarte = () => {
               nativeTooltip={true}
             />
           </Control>
-
-          {/* <Control position="topleft" order={70}>
-            <ControlButtonStyler
-              onClick={onHomeClick}
-              dataTestId="home-control"
-              title="Auf Rathaus positionieren"
-            >
-              <FontAwesomeIcon icon={faHouseChimney} className="text-lg" />
-            </ControlButtonStyler>
-          </Control> */}
           <Control position="bottomleft" order={10}>
             <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
-              <FuzzySearch />
+              <LibFuzzySearch
+                pixelwidth={
+                  responsiveState === "normal"
+                    ? "300px"
+                    : windowSize.width - gap
+                }
+                placeholder="Stadtteil | Adresse | POI"
+              />
             </div>
           </Control>
         </ControlLayout>
