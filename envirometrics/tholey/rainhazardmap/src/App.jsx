@@ -16,13 +16,13 @@ import {
   Control,
   ControlButtonStyler,
   ControlLayout,
+  useGetAttributionControlSizes,
 } from "@carma-mapping/map-controls-layout";
 import { RoutedMapLocateControl } from "@carma-mapping/components";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCompress, faExpand } from "@fortawesome/free-solid-svg-icons";
 import ContactButton from "./components/ContactButton";
 import ZoomControls from "./components/ZoomControls";
-import useGetAttributionControlSizes from "./hooks/useGetAttributionControlSizes";
 import useCorrectHTMLSizes from "./hooks/useCorrectHTMLSizes";
 
 function App() {

@@ -1,25 +1,26 @@
 import { useEffect, useRef, useState } from "react";
 
-const useGetAttributionControlSizes = () => {
+export const useGetAttributionControlSizes = () => {
   const [attributionHeight, setAttributionHeight] = useState(0);
   const hash = window.location.hash;
   const queryString = hash.split("?")[1];
   const bgParam = useRef(new URLSearchParams(queryString).get("bg"));
-
-  const calculateBottomGab = (newBg) => {
+  const calculateBottomGab = (newBg: string | null) => {
     setTimeout(() => {
       const attributionControl = document.querySelector(
         ".leaflet-control-attribution"
       );
       if (attributionControl) {
-        // attributionControl.style.marginLeft = "16px";
-        // attributionControl.style.marginTop = "2px";
+        attributionControl.style.marginLeft = "16px";
+        attributionControl.style.marginTop = "2px";
         const height = attributionControl.getBoundingClientRect().height;
         setAttributionHeight(height);
       } else {
         setAttributionHeight(0);
       }
-      bgParam.current = newBg;
+      if (newBg) {
+        bgParam.current = newBg;
+      }
     }, 50);
   };
 
@@ -35,12 +36,16 @@ const useGetAttributionControlSizes = () => {
   };
 
   useEffect(() => {
-    calculateBottomGab();
+    calculateBottomGab(null);
     window.addEventListener("popstate", buildBottomGap);
 
     const originalPushState = window.history.pushState;
-    window.history.pushState = function () {
-      const result = originalPushState.apply(this, arguments);
+    window.history.pushState = function (
+      data: any,
+      unused: string,
+      url?: string | URL | null
+    ) {
+      const result = originalPushState.apply(this, [data, unused, url]);
       window.dispatchEvent(new Event("popstate"));
       return result;
     };
@@ -53,5 +58,3 @@ const useGetAttributionControlSizes = () => {
 
   return { attributionHeight };
 };
-
-export default useGetAttributionControlSizes;
