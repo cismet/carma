@@ -290,7 +290,7 @@ const MapWrapper = () => {
           <Control position="topcenter" order={10}>
             <div className="pr-16 pt-1.5">
               <button
-                className={`text-xl hover:text-gray-600 flex items-center bg-white/80 ml-1.5 p-3 overflow-hidden rounded-md transition-all duration-300`}
+                className={`text-xl hover:text-gray-600 flex items-center button-shadow bg-white/80 ml-1.5 p-3 overflow-hidden rounded-md transition-all duration-300`}
                 onClick={() => {
                   if (zenButtonHidden) {
                     setZenButtonHidden(false);
@@ -300,6 +300,8 @@ const MapWrapper = () => {
                 }}
                 onMouseEnter={() => setIsHoveringZenButton(true)}
                 onMouseLeave={() => setIsHoveringZenButton(false)}
+                // make sure the shadow is still visible after click
+                onMouseDown={(e) => e.preventDefault()}
                 style={{
                   transform: zenButtonHidden
                     ? "translateY(-85%)"

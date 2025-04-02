@@ -157,6 +157,8 @@ const LayerButton = ({
             dispatch(setClickFromInfoView(false));
           }
         }}
+        // make sure the shadow is still visible after click
+        onMouseDown={(e) => e.preventDefault()}
         style={{
           transform: CSS.Translate.toString(transform),
           userSelect: "none",
