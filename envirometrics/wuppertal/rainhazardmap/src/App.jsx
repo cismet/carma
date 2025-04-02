@@ -14,7 +14,10 @@ import FuzzySearch from "./app/components/FuzzySearch";
 import { Tooltip } from "antd";
 import useLeafletZoomControls from "./hooks/useLeafletZoomControls";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { RoutedMapLocateControl } from "@carma-mapping/components";
+import {
+  FullscreenControl,
+  RoutedMapLocateControl,
+} from "@carma-mapping/components";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import {
@@ -110,25 +113,7 @@ function App() {
           </Control>
 
           <Control position="topleft" order={50}>
-            <ControlButtonStyler
-              title={
-                document.fullscreenElement
-                  ? "Vollbildmodus beenden"
-                  : "Vollbildmodus"
-              }
-              onClick={() => {
-                if (document.fullscreenElement) {
-                  document.exitFullscreen();
-                } else {
-                  document.documentElement.requestFullscreen();
-                }
-              }}
-              dataTestId="full-screen-control"
-            >
-              <FontAwesomeIcon
-                icon={document.fullscreenElement ? faCompress : faExpand}
-              />
-            </ControlButtonStyler>
+            <FullscreenControl />
           </Control>
           <Control position="topleft" order={60} title="Mein Standort">
             <RoutedMapLocateControl tourRefLabels={null} disabled={false} />

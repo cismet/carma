@@ -78,7 +78,10 @@ import {
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
-import { RoutedMapLocateControl } from "@carma-mapping/components";
+import {
+  FullscreenControl,
+  RoutedMapLocateControl,
+} from "@carma-mapping/components";
 
 function App({ sync = false }: { sync?: boolean }) {
   const version = getApplicationVersion(versionData);
@@ -290,34 +293,7 @@ function App({ sync = false }: { sync?: boolean }) {
             </div>
           </Control>
           <Control position="topleft" order={50}>
-            {/* <Tooltip
-              title={
-                document.fullscreenElement
-                  ? "Vollbildmodus ausschalten"
-                  : "Vollbildmodus einschalten"
-              }
-              placement="right"
-            > */}
-            <ControlButtonStyler
-              onClick={() => {
-                if (document.fullscreenElement) {
-                  document.exitFullscreen();
-                } else {
-                  document.documentElement.requestFullscreen();
-                }
-              }}
-              dataTestId="full-screen-control"
-              title={
-                document.fullscreenElement
-                  ? "Vollbildmodus ausschalten"
-                  : "Vollbildmodus einschalten"
-              }
-            >
-              <FontAwesomeIcon
-                icon={document.fullscreenElement ? faCompress : faExpand}
-              />
-            </ControlButtonStyler>
-            {/* </Tooltip> */}
+            <FullscreenControl />
           </Control>
           <Control position="topleft" order={60}>
             <RoutedMapLocateControl
