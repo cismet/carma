@@ -6,7 +6,7 @@ import {
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { useContext } from "react";
-const FuzzySearch = ({ gazLocalData }) => {
+const FuzzySearch = ({ gazLocalData, attributionHeight }) => {
   const { responsiveState, gap, windowSize } = useContext(
     ResponsiveTopicMapContext
   );
@@ -16,6 +16,7 @@ const FuzzySearch = ({ gazLocalData }) => {
   // const { gazData } = useGazData();
   const { setSelection } = useSelection();
   useSelectionTopicMap();
+  const ifDesktop = responsiveState === "normal";
 
   const AREA_TYPE = ["circle", "pie-chart"];
 
@@ -38,7 +39,12 @@ const FuzzySearch = ({ gazLocalData }) => {
   };
 
   return (
-    <div className="custom-left-control">
+    <div
+      className="custom-left-control"
+      style={{
+        marginBottom: ifDesktop ? "0" : attributionHeight + 4,
+      }}
+    >
       <LibFuzzySearch
         gazData={gazLocalData}
         onSelection={onGazetteerSelection}
