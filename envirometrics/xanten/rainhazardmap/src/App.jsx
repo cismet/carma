@@ -1,5 +1,5 @@
 import HeavyRainHazardMap from "@cismet-dev/react-cismap-envirometrics-maps/HeavyRainHazardMap";
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { md5FetchJSON } from "react-cismap/tools/fetching";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import versionData from "./version.json";
@@ -10,7 +10,11 @@ import "./notification.css";
 import footerLogoUrl from "./assets/images/Signet_AIS_RZ.png";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import FuzzySearch from "./components/FuzzySearch";
-import { TopicMapSelectionContent } from "@carma-apps/portals";
+import {
+  TopicMapSelectionContent,
+  useSelection,
+  useSelectionTopicMap,
+} from "@carma-apps/portals";
 import {
   useAttributionControlStyling,
   Control,
@@ -22,11 +26,16 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCompress, faExpand } from "@fortawesome/free-solid-svg-icons";
 import ContactButton from "./components/ContactButton";
 import ZoomControls from "./components/ZoomControls";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 
 function App() {
   const version = getApplicationVersion(versionData);
   const email = "starkregen@xanten.de";
   const [gazData, setGazData] = useState([]);
+  const { responsiveState, gap, windowSize } = useContext(
+    ResponsiveTopicMapContext
+  );
   const urlPrefix = window.location.origin + window.location.pathname;
   const { attributionHeight } = useAttributionControlStyling({
     styles: { marginLeft: "16px", marginTop: "2px" },
@@ -42,6 +51,34 @@ function App() {
   useEffect(() => {
     getGazData(setGazData, urlPrefix + "/data/adressen_xanten.json");
   }, []);
+
+  const { setSelection } = useSelection();
+  useSelectionTopicMap();
+
+  const pixelwidth =
+    responsiveState === "normal" ? "300px" : windowSize.width - gap;
+
+  const ifDesktop = responsiveState === "normal";
+
+  const AREA_TYPE = ["circle", "pie-chart"];
+
+  const isAreaWithOverlay = (selection) => {
+    return AREA_TYPE.includes(selection.glyph);
+  };
+
+  const onGazetteerSelection = (selection) => {
+    if (!selection) {
+      setSelection(null);
+      return;
+    }
+
+    const selectionMetaData = {
+      selectedFrom: "gazetteer",
+      selectionTimestamp: Date.now(),
+      isAreaSelection: isAreaWithOverlay(selection),
+    };
+    setSelection(Object.assign({}, selection, selectionMetaData));
+  };
 
   return (
     <>
@@ -93,10 +130,19 @@ function App() {
           </Control>
           <Control position="bottomleft" order={10}>
             <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
-              <FuzzySearch
-                gazLocalData={gazData}
-                attributionHeight={attributionHeight}
-              />
+              <div
+                className="custom-left-control"
+                style={{
+                  marginBottom: ifDesktop ? "0" : attributionHeight + 4,
+                }}
+              >
+                <LibFuzzySearch
+                  gazData={gazData}
+                  onSelection={onGazetteerSelection}
+                  pixelwidth={pixelwidth}
+                  placeholder="Adresssuche"
+                />
+              </div>
             </div>
           </Control>
         </ControlLayout>
