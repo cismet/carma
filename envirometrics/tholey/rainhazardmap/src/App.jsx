@@ -16,20 +16,20 @@ import {
   Control,
   ControlButtonStyler,
   ControlLayout,
-  useGetAttributionControlSizes,
+  useAttributionControlStyling,
 } from "@carma-mapping/map-controls-layout";
 import { RoutedMapLocateControl } from "@carma-mapping/components";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCompress, faExpand } from "@fortawesome/free-solid-svg-icons";
 import ContactButton from "./components/ContactButton";
 import ZoomControls from "./components/ZoomControls";
-import useCorrectHTMLSizes from "./hooks/useCorrectHTMLSizes";
 
 function App() {
   const email = "bauamt@tholey.de";
   const [gazData, setGazData] = useState([]);
-  const { attributionHeight } = useGetAttributionControlSizes();
-  useCorrectHTMLSizes();
+  const { attributionHeight } = useAttributionControlStyling({
+    styles: { marginLeft: "20px", marginTop: "5px" },
+  });
 
   const urlPrefix = window.location.origin + window.location.pathname;
   const getGazData = async (setGazData, url) => {

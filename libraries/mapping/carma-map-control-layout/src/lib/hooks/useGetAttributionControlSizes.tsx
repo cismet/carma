@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from "react";
+import { CSSProperties } from "react";
+interface AttributionControlProps {
+  styles?: CSSProperties;
+}
 
-export const useGetAttributionControlSizes = () => {
+export const useAttributionControlStyling = ({
+  styles = {},
+}: AttributionControlProps = {}) => {
   const [attributionHeight, setAttributionHeight] = useState(0);
   const hash = window.location.hash;
   const queryString = hash.split("?")[1];
@@ -9,10 +15,11 @@ export const useGetAttributionControlSizes = () => {
     setTimeout(() => {
       const attributionControl = document.querySelector(
         ".leaflet-control-attribution"
-      );
+      ) as HTMLElement | null;
       if (attributionControl) {
         // attributionControl.style.marginLeft = "16px";
         // attributionControl.style.marginTop = "2px";
+        Object.assign(attributionControl.style, styles);
         const height = attributionControl.getBoundingClientRect().height;
         setAttributionHeight(height);
       } else {

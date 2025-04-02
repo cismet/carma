@@ -5,4 +5,4 @@ export { default as Control } from "./lib/components/Control";
 export { default as Main } from "./lib/components/Main";
 export { default as ControlButtonStyler } from "./lib/components/ControlButtonStyler";
 export { default as ControlCenterStyler } from "./lib/components/ControlCenterStyler";
-export { useGetAttributionControlSizes } from "./lib/hooks/useGetAttributionControlSizes";
+export { useAttributionControlStyling } from "./lib/hooks/useGetAttributionControlSizes";
