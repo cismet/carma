@@ -22,13 +22,13 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCompress, faExpand } from "@fortawesome/free-solid-svg-icons";
 import ContactButton from "./components/ContactButton";
 import ZoomControls from "./components/ZoomControls";
-import useCorrectAttributionControl from "./hooks/useGetAttributionControlSizes";
+import useGetAttributionControlSizes from "./hooks/useGetAttributionControlSizes";
 import useCorrectHTMLSizes from "./hooks/useCorrectHTMLSizes";
 
 function App() {
   const email = "bauamt@tholey.de";
   const [gazData, setGazData] = useState([]);
-  const { attributionHeight } = useCorrectAttributionControl();
+  const { attributionHeight } = useGetAttributionControlSizes();
   useCorrectHTMLSizes();
 
   const urlPrefix = window.location.origin + window.location.pathname;

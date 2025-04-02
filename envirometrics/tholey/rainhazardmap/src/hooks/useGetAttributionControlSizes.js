@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-const useCorrectAttributionControl = () => {
+const useGetAttributionControlSizes = () => {
   const [attributionHeight, setAttributionHeight] = useState(0);
   const hash = window.location.hash;
   const queryString = hash.split("?")[1];
@@ -54,4 +54,4 @@ const useCorrectAttributionControl = () => {
   return { attributionHeight };
 };
 
-export default useCorrectAttributionControl;
+export default useGetAttributionControlSizes;
