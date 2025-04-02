@@ -1,8 +1,8 @@
 import { LayerProps } from "@carma-mapping/layers";
 import FeatureInfoIcon from "./FeatureInfoIcon";
-import { proj4crs25832def } from "react-cismap/constants/gis";
 import proj4 from "proj4";
 import type { Map } from "leaflet";
+import { proj4crs3857def } from "../../helper/gisHelper";
 
 export const getLeafNodes = (node, result: any = {}): any => {
   if (node.nodeType === Node.ELEMENT_NODE) {
@@ -100,7 +100,7 @@ export const createUrl = ({
 }) => {
   const url =
     baseUrl +
-    `?SERVICE=WMS&request=GetFeatureInfo&format=image%2Fpng&transparent=true&version=1.1.1&tiled=true&srs=EPSG%3A25832&BBOX=` +
+    `?SERVICE=WMS&request=GetFeatureInfo&format=image%2Fpng&transparent=true&version=1.1.1&tiled=true&srs=EPSG%3A3857&BBOX=` +
     `${viewportBbox.left},` +
     `${viewportBbox.bottom},` +
     `${viewportBbox.right},` +
@@ -133,12 +133,12 @@ export const getFeatureForLayer = async (
     const bounds = leafletMap.getBounds();
     const projectedNE = proj4(
       proj4.defs("EPSG:4326") as unknown as string,
-      proj4crs25832def,
+      proj4crs3857def,
       [bounds.getNorthEast().lng, bounds.getNorthEast().lat]
     );
     const projectedSW = proj4(
       proj4.defs("EPSG:4326") as unknown as string,
-      proj4crs25832def,
+      proj4crs3857def,
       [bounds.getSouthWest().lng, bounds.getSouthWest().lat]
     );
 
@@ -184,7 +184,7 @@ export const getFeatureForLayer = async (
     `${viewportBbox.bottom},` +
     `${viewportBbox.right},` +
     `${viewportBbox.top}` +
-    `&WIDTH=${viewportWidth}&HEIGHT=${viewportHeight}&SRS=EPSG:25832&FORMAT=image/png&TRANSPARENT=TRUE&BGCOLOR=0xF0F0F0&EXCEPTIONS=application/vnd.ogc.se_xml&FEATURE_COUNT=99&LAYERS=${featureInfoName}&STYLES=default&QUERY_LAYERS=${featureInfoName}&INFO_FORMAT=text/html&X=${pixelX}&Y=${pixelY}
+    `&WIDTH=${viewportWidth}&HEIGHT=${viewportHeight}&SRS=EPSG:3857&FORMAT=image/png&TRANSPARENT=TRUE&BGCOLOR=0xF0F0F0&EXCEPTIONS=application/vnd.ogc.se_xml&FEATURE_COUNT=99&LAYERS=${featureInfoName}&STYLES=default&QUERY_LAYERS=${featureInfoName}&INFO_FORMAT=text/html&X=${pixelX}&Y=${pixelY}
             `;
 
   let output = [];
@@ -272,7 +272,7 @@ export const getFeatureForLayer = async (
 export const updateUrlWithCoordinates = (objectsArray, coordinates) => {
   const updatedCoords = proj4(
     proj4.defs("EPSG:4326") as unknown as string,
-    proj4crs25832def,
+    proj4crs3857def,
     [coordinates[1], coordinates[0]]
   );
 

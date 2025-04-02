@@ -10,7 +10,6 @@ import type { LatLng, Map, Point } from "leaflet";
 import proj4 from "proj4";
 
 import CismapLayer from "react-cismap/CismapLayer";
-import { proj4crs25832def } from "react-cismap/constants/gis";
 
 import type { Layer } from "@carma-mapping/layers";
 
@@ -43,6 +42,7 @@ import {
 import { getAtLeastOneLayerIsQueryable, getQueryableLayers } from "./utils";
 import { UIMode } from "../../store/slices/ui";
 import { FeatureInfoIcon } from "../feature-info/FeatureInfoIcon";
+import { proj4crs3857def } from "../../helper/gisHelper";
 
 interface WMTSLayerProps {
   type: "wmts";
@@ -124,7 +124,7 @@ export const onClickTopicMap = async (
     const preferredLayerId = getPreferredLayerId(store.getState());
     const pos = proj4(
       proj4.defs("EPSG:4326") as unknown as string,
-      proj4crs25832def,
+      proj4crs3857def,
       [e.latlng.lng, e.latlng.lat]
     );
 
@@ -289,15 +289,10 @@ const createVectorFeature = (
   latlng
 ) => {
   let feature = undefined;
-  const vectorPos = proj4(
-    proj4.defs("EPSG:4326") as unknown as string,
-    proj4crs25832def,
-    coordinates
-  );
 
   const pos = proj4(
     proj4.defs("EPSG:4326") as unknown as string,
-    proj4crs25832def,
+    proj4crs3857def,
     [latlng.lng, latlng.lat]
   );
 
@@ -318,12 +313,12 @@ const createVectorFeature = (
     const bounds = leafletMap.getBounds();
     const projectedNE = proj4(
       proj4.defs("EPSG:4326") as unknown as string,
-      proj4crs25832def,
+      proj4crs3857def,
       [bounds.getNorthEast().lng, bounds.getNorthEast().lat]
     );
     const projectedSW = proj4(
       proj4.defs("EPSG:4326") as unknown as string,
-      proj4crs25832def,
+      proj4crs3857def,
       [bounds.getSouthWest().lng, bounds.getSouthWest().lat]
     );
 
@@ -354,7 +349,7 @@ const createVectorFeature = (
     `${viewportBbox.bottom},` +
     `${viewportBbox.right},` +
     `${viewportBbox.top}` +
-    `&WIDTH=${viewportWidth}&HEIGHT=${viewportHeight}&SRS=EPSG:25832&FORMAT=image/png&TRANSPARENT=TRUE&BGCOLOR=0xF0F0F0&EXCEPTIONS=application/vnd.ogc.se_xml&FEATURE_COUNT=99&LAYERS=${layerName}&STYLES=default&QUERY_LAYERS=${layerName}&INFO_FORMAT=text/html&X=${pixelX}&Y=${pixelY}
+    `&WIDTH=${viewportWidth}&HEIGHT=${viewportHeight}&SRS=EPSG:3857&FORMAT=image/png&TRANSPARENT=TRUE&BGCOLOR=0xF0F0F0&EXCEPTIONS=application/vnd.ogc.se_xml&FEATURE_COUNT=99&LAYERS=${layerName}&STYLES=default&QUERY_LAYERS=${layerName}&INFO_FORMAT=text/html&X=${pixelX}&Y=${pixelY}
             `;
 
   let properties = selectedVectorFeature.properties;
