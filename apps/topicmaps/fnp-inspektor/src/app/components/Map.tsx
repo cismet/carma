@@ -7,7 +7,7 @@ import {
 import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faSearch, faShuffle } from "@fortawesome/free-solid-svg-icons";
+import { faShuffle } from "@fortawesome/free-solid-svg-icons";
 import AEVInfo from "./infos/AEVInfo";
 import HNInfo from "./infos/HNInfo";
 import HN9999Info from "./infos/HN9999Info";
@@ -55,13 +55,11 @@ import {
   ControlButtonStyler,
   ControlLayout,
 } from "@carma-mapping/map-controls-layout";
-import { RoutedMapLocateControl } from "@carma-mapping/components";
 import {
-  faCompress,
-  faExpand,
-  faMinus,
-  faPlus,
-} from "@fortawesome/free-solid-svg-icons";
+  FullscreenControl,
+  RoutedMapLocateControl,
+} from "@carma-mapping/components";
+import { faMinus, faPlus } from "@fortawesome/free-solid-svg-icons";
 import useLeafletZoomControls from "../../hooks/useLeafletZoomControls";
 import CustomScaleControl from "./CustomScaleControl";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
@@ -364,25 +362,7 @@ const Map = () => {
           </Control>
 
           <Control position="topleft" order={50}>
-            <ControlButtonStyler
-              title={
-                document.fullscreenElement
-                  ? "Vollbildmodus beenden"
-                  : "Vollbildmodus"
-              }
-              onClick={() => {
-                if (document.fullscreenElement) {
-                  document.exitFullscreen();
-                } else {
-                  document.documentElement.requestFullscreen();
-                }
-              }}
-              dataTestId="full-screen-control"
-            >
-              <FontAwesomeIcon
-                icon={document.fullscreenElement ? faCompress : faExpand}
-              />
-            </ControlButtonStyler>
+            <FullscreenControl />
           </Control>
           <Control position="topleft" order={60} title="Mein Standort">
             <RoutedMapLocateControl
