@@ -33,3 +33,9 @@ path.custom-polyline.leaflet-interactive {
 .overlay-helper-ul-class {
   list-style: disc;
 }
+
+@media (max-width: 639px) {
+  .modal-dialog {
+    margin-top: 70px;
+  }
+}
