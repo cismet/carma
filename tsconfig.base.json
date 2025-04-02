@@ -105,6 +105,7 @@
         "libraries/commons/document-viewer/src/index.ts"
       ],
       "@carma-commons/resources": ["libraries/commons/resources/src/index.ts"],
+      "@carma-commons/types": ["libraries/commons/types/src/index.ts"],
       "@carma-commons/ui/lib-helper-overlay": [
         "libraries/commons/ui/lib-helper-overlay/src/index.ts"
       ],
@@ -125,6 +126,7 @@
       "@carma-mapping/fuzzy-search": [
         "libraries/mapping/fuzzy-search/src/index.ts"
       ],
+      "@carma-mapping/fuzzy-search/*":["libraries/mapping/fuzzy-search/src/lib/*"],
       "@carma-mapping/layers": [
         "libraries/mapping/carma-map-layers/src/index.ts"
       ],
