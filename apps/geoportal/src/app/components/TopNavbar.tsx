@@ -79,7 +79,7 @@ const TopNavbar = () => {
       <div className="flex items-center gap-6">
         <Tooltip title="Hilfefolie überlagern">
           <button
-            className="hover:text-gray-600 text-xl lg:mr-11 xl:mr-40"
+            className="hover:text-gray-600 hidden sm:block text-xl lg:mr-11 xl:mr-40"
             onClick={() => setShowTourOverlay(true)}
             data-test-id="helper-overlay-btn"
             ref={helpOverlayTourRef}

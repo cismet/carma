@@ -80,7 +80,7 @@ const ActionButtons = () => {
   return (
     <div
       ref={menuTourRef}
-      className="flex items-center gap-6 lg:ml-[86px] xl:ml-[190px]"
+      className="sm:flex items-center gap-6 lg:ml-[86px] xl:ml-[190px] hidden"
     >
       <Tooltip title="Aktualisieren">
         <button
