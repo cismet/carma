@@ -47,7 +47,7 @@ import {
 } from "@carma-collab/wuppertal/klimaorte";
 import { TopicMapSelectionContent } from "@carma-apps/portals";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
-import FuzzySearch from "./components/FuzzySearch";
+import FuzzySearchWrapper from "./components/FuzzySearchWrapper";
 
 function KlimaorteMap() {
   const { setSelectedFeatureByPredicate } = useContext(
@@ -295,7 +295,9 @@ function KlimaorteMap() {
           </Control>
           <Control position="bottomleft" order={10}>
             <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
-              <FuzzySearch searchTextPlaceholder={searchTextPlaceholder} />
+              <FuzzySearchWrapper
+                searchTextPlaceholder={searchTextPlaceholder}
+              />
             </div>
           </Control>
         </ControlLayout>
