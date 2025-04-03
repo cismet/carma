@@ -21,14 +21,14 @@ export const CompassNeedleSVG = ({
   useEffect(() => {
     if (pitch !== undefined && heading !== undefined) {
       const normalizedHeading = -heading * (Math.PI / 180); // Convert degrees to radians
-      
+
       // Convert MapLibre pitch (degrees, 0-85) to radians and normalize for our visualization
       const pitchRadians = pitch * (Math.PI / 180); // Convert degrees to radians
       const normalizedPitch = Math.min(
-        pitchRadians * (Math.PI / 2 / (MAX_PITCH_DEGREES * Math.PI / 180)), // Scale to appropriate range
+        pitchRadians * (Math.PI / 2 / ((MAX_PITCH_DEGREES * Math.PI) / 180)), // Scale to appropriate range
         PITCH_HORIZON_OFFSET
       );
-      
+
       // scale the needle for lower pitches for improved visibility
       // linear scaling makes the tilting effect look less consistent
       const transform = `scale(${Math.pow(

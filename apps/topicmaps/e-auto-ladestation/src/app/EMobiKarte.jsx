@@ -23,10 +23,7 @@ import {
   EmptySearchComponent,
   LibFuzzySearch,
 } from "@carma-mapping/fuzzy-search";
-import {
-  Control,
-  ControlLayout,
-} from "@carma-mapping/map-controls-layout";
+import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import {
   FullscreenControl,
   RoutedMapLocateControl,
