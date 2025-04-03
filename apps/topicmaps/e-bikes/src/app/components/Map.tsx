@@ -20,8 +20,14 @@ import {
   MenuTooltip,
   searchTextPlaceholder,
 } from "@carma-collab/wuppertal/e-bikes";
-import { TopicMapSelectionContent } from "@carma-apps/portals";
-import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
+import {
+  TopicMapSelectionContent,
+  useSelectionTopicMap,
+} from "@carma-apps/portals";
+import {
+  EmptySearchComponent,
+  LibFuzzySearch,
+} from "@carma-mapping/fuzzy-search";
 import {
   Control,
   ControlButtonStyler,
@@ -35,8 +41,8 @@ import {
   faMinus,
   faPlus,
 } from "@fortawesome/free-solid-svg-icons";
-import FuzzySearch from "./FuzzySearch";
 import useLeafletZoomControls from "../../hooks/useLeafletZoomControls";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 const Map = () => {
   const { setClusteringOptions } = useContext<
@@ -49,6 +55,10 @@ const Map = () => {
     typeof FeatureCollectionContext
   >(FeatureCollectionContext);
   const { secondaryInfoVisible } = useContext<typeof UIContext>(UIContext);
+  const { responsiveState, gap, windowSize } = useContext<
+    typeof ResponsiveTopicMapContext
+  >(ResponsiveTopicMapContext);
+  useSelectionTopicMap();
   const { setSecondaryInfoVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
   const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
@@ -126,7 +136,49 @@ const Map = () => {
           </Control>
           <Control position="bottomleft" order={10}>
             <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
-              <FuzzySearch searchTextPlaceholder={searchTextPlaceholder} />
+              <LibFuzzySearch
+                priorityTypes={[
+                  "ebikes",
+                  "bezirke",
+                  "quartiere",
+                  "adressen",
+                  "streets",
+                  "pois",
+                  "poisAlternativeNames",
+                  "kitas",
+                  "schulen",
+                ]}
+                typeInference={{
+                  adressen: (item) => {
+                    if (item.glyph === "home") {
+                      return "adressen";
+                    } else if (item.glyph === "road") {
+                      return "streets";
+                    } else {
+                      return "adressen";
+                    }
+                  },
+
+                  pois: (item) => {
+                    if (item.glyph === "tag") {
+                      return "pois";
+                    } else if (item.glyph === "tags") {
+                      return "poisAlternativeNames";
+                    } else if (item.glyph === "graduation-cap") {
+                      return "schulen";
+                    } else {
+                      return "pois";
+                    }
+                  },
+                }}
+                // onSelection={()=> {}}
+                pixelwidth={
+                  responsiveState === "normal"
+                    ? "300px"
+                    : windowSize.width - gap
+                }
+                placeholder={searchTextPlaceholder}
+              />
             </div>
           </Control>
         </ControlLayout>
