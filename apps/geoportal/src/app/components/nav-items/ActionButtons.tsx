@@ -80,14 +80,14 @@ const ActionButtons = () => {
   return (
     <div
       ref={menuTourRef}
-      className="flex items-center gap-6 lg:ml-[86px] xl:ml-[190px]"
+      className="flex items-center gap-2 xs:gap-3 sm:gap-6 lg:ml-[86px] xl:ml-[190px]"
     >
       <Tooltip title="Aktualisieren">
         <button
           onClick={() => {
             window.location.reload();
           }}
-          className="text-xl hover:text-gray-600"
+          className="text-xl hover:text-gray-600 sm:block hidden"
           data-test-id="reload-btn"
         >
           <FontAwesomeIcon icon={faRotateRight} />
@@ -105,7 +105,7 @@ const ActionButtons = () => {
           <img
             src={baseUrl + "icons/add-layers.png"}
             alt="Kartenebenen hinzufügen"
-            className={`h-5 mb-0.5 cursor-pointer ${
+            className={`h-5 min-w-fit mb-0.5 cursor-pointer ${
               isMode2d ? "" : disabledImageOpacity
             }`}
           />
@@ -136,7 +136,7 @@ const ActionButtons = () => {
               `${focusMode ? "icons/focus-on.png" : "icons/focus-off.png"}`
             }
             alt="Kartenebenen hinzufügen"
-            className={`h-5 mb-0.5 cursor-pointer ${
+            className={`h-5 min-w-fit mb-0.5 cursor-pointer ${
               isMode2d ? "" : disabledImageOpacity
             }`}
           />
