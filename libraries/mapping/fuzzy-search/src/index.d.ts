@@ -3,7 +3,7 @@ import { ReactNode } from "react";
 
 export type SearchGazetteerProps = {
   gazData?: GazDataItem[];
-  onSelection: (hit: SearchResultItem | null) => void;
+  onSelection?: (hit: SearchResultItem | null) => void;
   onCLose?: () => void;
   ifIconDisabled?: boolean;
   icon?: ReactNode;
