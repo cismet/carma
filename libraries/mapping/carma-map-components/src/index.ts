@@ -6,3 +6,4 @@ export {
   SimpleFullscreenControl,
   NewWindowControl,
 } from "./lib/components/FullscreenControl";
+export { ZoomControl } from "./lib/components/ZoomControl";
