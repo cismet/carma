@@ -180,7 +180,9 @@ const LayerButton = ({
         )}
       >
         <LayerIcon layer={layer} fallbackIcon={icon} />
-        <span className="text-base sm:hidden">{layersLength} Layer</span>
+        {layersLength > 0 && (
+          <span className="text-base sm:hidden">{layersLength} Layer</span>
+        )}
         {error && (
           <div
             className="absolute bottom-0.5 left-0 flex"
