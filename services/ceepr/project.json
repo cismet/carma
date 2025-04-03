@@ -16,7 +16,7 @@
         "bundle": false,
         "main": "services/ceepr/src/main.ts",
         "tsConfig": "services/ceepr/tsconfig.app.json",
-        "assets": ["services/ceepr/src/assets"],
+        "assets": ["services/ceepr/src/assets", "services/ceepr/src/public"],
         "generatePackageJson": true,
         "esbuildOptions": {
           "sourcemap": true,
