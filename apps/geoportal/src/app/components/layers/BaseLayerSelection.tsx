@@ -90,7 +90,7 @@ const BaseLayerSelection = () => {
             })
           );
         }}
-        className="pb-2"
+        className="pb-2 flex flex-col px-2 min-[686px]:inline-block"
         optionType="default"
         style={{
           filter:
