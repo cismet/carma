@@ -7,7 +7,6 @@ import { LightBoxContext } from "react-cismap/contexts/LightBoxContextProvider";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import FeatureCollection from "react-cismap/FeatureCollection";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
-import { useLeafletZoomControls } from "@carma-mapping/utils";
 import Menu from "./Menu";
 import { getPoiClusterIconCreatorFunction } from "./helper/styler";
 import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
@@ -26,20 +25,13 @@ import {
 } from "@carma-mapping/fuzzy-search";
 import {
   Control,
-  ControlButtonStyler,
   ControlLayout,
 } from "@carma-mapping/map-controls-layout";
 import {
   FullscreenControl,
   RoutedMapLocateControl,
+  ZoomControl,
 } from "@carma-mapping/components";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faCompress,
-  faExpand,
-  faMinus,
-  faPlus,
-} from "@fortawesome/free-solid-svg-icons";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 const EMobiKarte = () => {
@@ -55,8 +47,6 @@ const EMobiKarte = () => {
     ResponsiveTopicMapContext
   );
   useSelectionTopicMap();
-
-  const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
 
   useEffect(() => {
     if (markerSymbolSize) {
@@ -91,24 +81,7 @@ const EMobiKarte = () => {
       >
         <ControlLayout ifStorybook={false}>
           <Control position="topleft" order={10}>
-            <div className="flex flex-col">
-              <ControlButtonStyler
-                onClick={zoomInLeaflet}
-                className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
-                dataTestId="zoom-in-control"
-                title="Vergrößern"
-              >
-                <FontAwesomeIcon icon={faPlus} className="text-base" />
-              </ControlButtonStyler>
-              <ControlButtonStyler
-                onClick={zoomOutLeaflet}
-                className="!rounded-t-none !border-t-[1px]"
-                dataTestId="zoom-out-control"
-                title="Verkleinern"
-              >
-                <FontAwesomeIcon icon={faMinus} className="text-base" />
-              </ControlButtonStyler>
-            </div>
+            <ZoomControl />
           </Control>
 
           <Control position="topleft" order={50}>

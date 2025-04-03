@@ -22,23 +22,11 @@ import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import IconComp from "react-cismap/commons/Icon";
 import { getPoiClusterIconCreatorFunction } from "./helper/styler";
 import Menu from "./Menu";
-import {
-  Control,
-  ControlButtonStyler,
-  ControlLayout,
-} from "@carma-mapping/map-controls-layout";
-import useLeafletZoomControls from "../hooks/useLeafletZoomControls";
+import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import { RoutedMapLocateControl } from "@carma-mapping/components";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faCompress,
-  faExpand,
-  faMinus,
-  faPlus,
-} from "@fortawesome/free-solid-svg-icons";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
-import { FullscreenControl } from "@carma-mapping/components/";
+import { FullscreenControl, ZoomControl } from "@carma-mapping/components/";
 
 const Stadtplankarte = ({ poiColors }) => {
   const { setClusteringOptions } = useContext(FeatureCollectionDispatchContext);
@@ -50,7 +38,6 @@ const Stadtplankarte = ({ poiColors }) => {
   const { responsiveState, gap, windowSize } = useContext(
     ResponsiveTopicMapContext
   );
-  const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
   useSelectionTopicMap();
 
   useEffect(() => {
@@ -79,24 +66,7 @@ const Stadtplankarte = ({ poiColors }) => {
       >
         <ControlLayout ifStorybook={false}>
           <Control position="topleft" order={10}>
-            <div className="flex flex-col">
-              <ControlButtonStyler
-                onClick={zoomInLeaflet}
-                className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
-                dataTestId="zoom-in-control"
-                title="Vergrößern"
-              >
-                <FontAwesomeIcon icon={faPlus} className="text-base" />
-              </ControlButtonStyler>
-              <ControlButtonStyler
-                onClick={zoomOutLeaflet}
-                className="!rounded-t-none !border-t-[1px]"
-                dataTestId="zoom-out-control"
-                title="Verkleinern"
-              >
-                <FontAwesomeIcon icon={faMinus} className="text-base" />
-              </ControlButtonStyler>
-            </div>
+            <ZoomControl />
           </Control>
 
           <Control position="topleft" order={50}>

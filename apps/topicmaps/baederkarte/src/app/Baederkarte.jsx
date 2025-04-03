@@ -17,17 +17,11 @@ import {
   EmptySearchComponent,
   LibFuzzySearch,
 } from "@carma-mapping/fuzzy-search";
-import { useLeafletZoomControls } from "@carma-mapping/utils";
-import {
-  Control,
-  ControlButtonStyler,
-  ControlLayout,
-} from "@carma-mapping/map-controls-layout";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faMinus, faPlus } from "@fortawesome/free-solid-svg-icons";
+import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import {
   FullscreenControl,
   RoutedMapLocateControl,
+  ZoomControl,
 } from "@carma-mapping/components";
 
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
@@ -43,8 +37,6 @@ const Baederkarte = () => {
     ResponsiveTopicMapContext
   );
   useSelectionTopicMap();
-
-  const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
 
   useEffect(() => {
     if (markerSymbolSize) {
@@ -69,24 +61,7 @@ const Baederkarte = () => {
       >
         <ControlLayout ifStorybook={false}>
           <Control position="topleft" order={10}>
-            <div className="flex flex-col">
-              <ControlButtonStyler
-                onClick={zoomInLeaflet}
-                className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
-                dataTestId="zoom-in-control"
-                title="Vergrößern"
-              >
-                <FontAwesomeIcon icon={faPlus} className="text-base" />
-              </ControlButtonStyler>
-              <ControlButtonStyler
-                onClick={zoomOutLeaflet}
-                className="!rounded-t-none !border-t-[1px]"
-                dataTestId="zoom-out-control"
-                title="Verkleinern"
-              >
-                <FontAwesomeIcon icon={faMinus} className="text-base" />
-              </ControlButtonStyler>
-            </div>
+            <ZoomControl />
           </Control>
 
           <Control position="topleft" order={50}>
