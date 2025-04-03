@@ -75,7 +75,7 @@ const TopNavbar = () => {
   return (
     <div
       className={
-        "h-16 w-full flex items-center gap-3 sm:gap-6 relative justify-between py-2 px-[12px] " +
+        "h-16 w-full flex items-center gap-2 xs:gap-3 sm:gap-6 relative justify-between py-2 px-[2px] xs:px-[12px] " +
         (zenMode && "hidden")
       }
     >
