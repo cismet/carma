@@ -17,6 +17,7 @@ import {
   EmptySearchComponent,
   LibFuzzySearch,
 } from "@carma-mapping/fuzzy-search";
+import { useLeafletZoomControls } from "@carma-mapping/utils";
 import {
   Control,
   ControlButtonStyler,
@@ -24,7 +25,6 @@ import {
 } from "@carma-mapping/map-controls-layout";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMinus, faPlus } from "@fortawesome/free-solid-svg-icons";
-import useLeafletZoomControls from "../hooks/useLeafletZoomControls";
 import {
   FullscreenControl,
   RoutedMapLocateControl,
