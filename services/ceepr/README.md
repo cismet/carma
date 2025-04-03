@@ -12,6 +12,7 @@ ceepr provides a simple API for storing JSON configuration objects and retrievin
 
 - Store arbitrary JSON configuration objects
 - Generate unique random keys for each configuration
+- Organize configurations in hierarchical folder structures
 - Retrieve configurations using their unique keys
 - Input validation to ensure valid configurations
 - Error handling with consistent JSON responses
@@ -30,45 +31,64 @@ Returns basic service information.
 }
 ```
 
-### POST /store
+### POST /store[/structure/path]
 
-Stores a configuration and returns a unique key.
+Stores a configuration and returns a unique key. Optionally, you can specify a structure path to organize configurations hierarchically.
 
 **Request Body:**
 Any valid non-empty JSON object.
 
-**Example Request:**
-```json
-{
-  "name": "Map Configuration",
-  "layers": [
-    {
-      "id": "base",
-      "type": "tile",
-      "url": "https://example.com/tiles/{z}/{x}/{y}.png",
-      "visible": true
+**Example Request with structure path:**
+```bash
+curl -X POST http://localhost:3000/store/wuppertal/geoportal \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Map Configuration",
+    "layers": [
+      {
+        "id": "base",
+        "type": "tile",
+        "url": "https://example.com/tiles/{z}/{x}/{y}.png",
+        "visible": true
+      }
+    ],
+    "view": {
+      "center": [7.6261, 51.9607],
+      "zoom": 12
     }
-  ],
-  "view": {
-    "center": [7.6261, 51.9607],
-    "zoom": 12
-  }
-}
+  }'
 ```
 
 **Response:**
 ```json
 {
-  "key": "a1b2c3d4e5f6g7h8"
+  "key": "a1b2c3d4e5f6g7h8",
+  "path": "wuppertal/geoportal"
 }
 ```
 
 ### GET /config/:key
 
-Retrieves a configuration by its key.
+Retrieves a configuration by its key from the root storage directory.
 
 **Parameters:**
 - `key`: The unique key for the configuration (hexadecimal string)
+
+**Response:**
+The stored configuration object.
+
+### GET /config/structure/path/:key
+
+Retrieves a configuration by its key from a specific structure path.
+
+**Parameters:**
+- `structure/path`: The hierarchical path where the configuration is stored
+- `key`: The unique key for the configuration (hexadecimal string)
+
+**Example:**
+```bash
+curl http://localhost:3000/config/wuppertal/geoportal/a1b2c3d4e5f6g7h8
+```
 
 **Response:**
 The stored configuration object.
@@ -110,7 +130,7 @@ The service can be built and run as a Docker container:
 
 ```bash
 # Build the Docker image
-nx run ceepr:container
+npx nx run ceepr:container
 
 # Run the Docker container
 docker run -p 3000:3000 ceepr
@@ -133,17 +153,17 @@ To integrate with the service from your application:
 
 1. Store a configuration:
 ```javascript
-const response = await fetch('http://localhost:3000/store', {
+const response = await fetch('http://localhost:3000/store/my/structure/path', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify(yourConfig)
 });
-const { key } = await response.json();
+const { key, path } = await response.json();
 ```
 
 2. Retrieve a configuration:
 ```javascript
-const response = await fetch(`http://localhost:3000/config/${key}`);
+const response = await fetch(`http://localhost:3000/config/${path}/${key}`);
 const config = await response.json();
 ```
 
