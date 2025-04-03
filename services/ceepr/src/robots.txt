@@ -1,0 +1,81 @@
+# EXTREMELY RESTRICTIVE ROBOTS.TXT
+# This service is not intended for public crawling or indexing
+# Also not allowed for data-mining and research/ai
+
+User-agent: *
+Disallow: /
+Crawl-delay: 3600
+
+# Block specific crawlers with extra emphasis
+User-agent: Googlebot
+Disallow: /
+
+User-agent: Bingbot
+Disallow: /
+
+User-agent: Slurp
+Disallow: /
+
+User-agent: DuckDuckBot
+Disallow: /
+
+User-agent: Baiduspider
+Disallow: /
+
+User-agent: YandexBot
+Disallow: /
+
+User-agent: Sogou
+Disallow: /
+
+User-agent: ia_archiver
+Disallow: /
+
+# No archive access
+User-agent: archive.org_bot
+Disallow: /
+
+User-agent: ia_archiver
+Disallow: /
+
+# Block all AI training crawlers
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ChatGPT-User
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: Claude-Web
+Disallow: /
+
+User-agent: Omgilibot
+Disallow: /
+
+User-agent: FacebookBot
+Disallow: /
+
+# Additional restrictive settings
+Noindex: /
+Nofollow: /
+Noarchive: /
+Nosnippet: /
+Noimageindex: /
+Noodp: /
+Noydir: /
+
+# Request minimal crawling if someone ignores all the above
+Visit-time: 0100-0200
+Request-rate: 1/86400
+
+# Final warning
+# This service contains no public content and should not be indexed
+# Crawling this service may result in IP blocking
