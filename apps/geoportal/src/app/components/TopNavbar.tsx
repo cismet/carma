@@ -89,11 +89,14 @@ const TopNavbar = () => {
         DigiTal Zwilling / Geoportal
       </p>
 
-      <Button onClick={toggleMobileMenu} className="sm:hidden block">
+      <button
+        onClick={toggleMobileMenu}
+        className="sm:hidden flex items-center justify-center p-2"
+      >
         <FontAwesomeIcon
           icon={mobileMenuOpen ? faChevronRight : faChevronLeft}
         />
-      </Button>
+      </button>
 
       <div
         className={cn("transition-all duration-300 ease-in-out", {
