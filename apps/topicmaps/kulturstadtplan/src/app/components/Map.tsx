@@ -12,7 +12,6 @@ import {
   getPoiClusterIconCreatorFunction,
 } from "../../helper/styler";
 import Menu from "./Menu";
-import Icon from "react-cismap/commons/Icon";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 import {
   searchTextPlaceholder,
@@ -20,23 +19,22 @@ import {
   InfoBoxTextContent,
   InfoBoxTextTitle,
 } from "@carma-collab/wuppertal/kulturstadtplan";
-import { TopicMapSelectionContent } from "@carma-apps/portals";
-import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import {
-  Control,
-  ControlButtonStyler,
-  ControlLayout,
-} from "@carma-mapping/map-controls-layout";
-import { RoutedMapLocateControl } from "@carma-mapping/components";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+  TopicMapSelectionContent,
+  useSelectionTopicMap,
+} from "@carma-apps/portals";
 import {
-  faCompress,
-  faExpand,
-  faMinus,
-  faPlus,
-} from "@fortawesome/free-solid-svg-icons";
-import FuzzySearch from "./FuzzySearch";
-import useLeafletZoomControls from "../../hooks/useLeafletZoomControls";
+  EmptySearchComponent,
+  LibFuzzySearch,
+} from "@carma-mapping/fuzzy-search";
+import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import {
+  FullscreenControl,
+  RoutedMapLocateControl,
+  ZoomControl,
+} from "@carma-mapping/components";
+
 const Map = () => {
   const { setClusteringOptions, setFilterState } = useContext<
     typeof FeatureCollectionDispatchContext
@@ -49,8 +47,10 @@ const Map = () => {
   >(FeatureCollectionContext);
   const { setAppMenuActiveMenuSection, setAppMenuVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
-
-  const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
+  const { responsiveState, gap, windowSize } = useContext<
+    typeof ResponsiveTopicMapContext
+  >(ResponsiveTopicMapContext);
+  useSelectionTopicMap();
 
   useEffect(() => {
     if (markerSymbolSize) {
@@ -89,46 +89,11 @@ const Map = () => {
       >
         <ControlLayout ifStorybook={false}>
           <Control position="topleft" order={10}>
-            <div className="flex flex-col">
-              <ControlButtonStyler
-                onClick={zoomInLeaflet}
-                className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
-                dataTestId="zoom-in-control"
-                title="Vergrößern"
-              >
-                <FontAwesomeIcon icon={faPlus} className="text-base" />
-              </ControlButtonStyler>
-              <ControlButtonStyler
-                onClick={zoomOutLeaflet}
-                className="!rounded-t-none !border-t-[1px]"
-                dataTestId="zoom-out-control"
-                title="Verkleinern"
-              >
-                <FontAwesomeIcon icon={faMinus} className="text-base" />
-              </ControlButtonStyler>
-            </div>
+            <ZoomControl />
           </Control>
 
           <Control position="topleft" order={50}>
-            <ControlButtonStyler
-              title={
-                document.fullscreenElement
-                  ? "Vollbildmodus beenden"
-                  : "Vollbildmodus"
-              }
-              onClick={() => {
-                if (document.fullscreenElement) {
-                  document.exitFullscreen();
-                } else {
-                  document.documentElement.requestFullscreen();
-                }
-              }}
-              dataTestId="full-screen-control"
-            >
-              <FontAwesomeIcon
-                icon={document.fullscreenElement ? faCompress : faExpand}
-              />
-            </ControlButtonStyler>
+            <FullscreenControl />
           </Control>
           <Control position="topleft" order={60} title="Mein Standort">
             <RoutedMapLocateControl
@@ -139,7 +104,14 @@ const Map = () => {
           </Control>
           <Control position="bottomleft" order={10}>
             <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
-              <FuzzySearch searchTextPlaceholder={searchTextPlaceholder} />
+              <LibFuzzySearch
+                pixelwidth={
+                  responsiveState === "normal"
+                    ? "300px"
+                    : windowSize.width - gap
+                }
+                placeholder={searchTextPlaceholder}
+              />
             </div>
           </Control>
         </ControlLayout>
