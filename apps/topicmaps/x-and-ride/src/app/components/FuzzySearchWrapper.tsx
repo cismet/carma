@@ -1,29 +1,19 @@
 import {
   SelectionMetaData,
-  useGazData,
   useSelection,
   useSelectionTopicMap,
 } from "@carma-apps/portals";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { type SearchResultItem } from "@carma-commons/types";
-
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { useContext } from "react";
-import { FeatureCollectionDispatchContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 
-const FuzzySearch = ({ searchTextPlaceholder }) => {
+const FuzzySearchWrapper = ({ searchTextPlaceholder }) => {
   const { responsiveState, gap, windowSize } = useContext<
     typeof ResponsiveTopicMapContext
   >(ResponsiveTopicMapContext);
-  const { setSelectedFeatureByPredicate } = useContext<
-    typeof FeatureCollectionDispatchContext
-  >(FeatureCollectionDispatchContext);
 
-  const pixelwidth =
-    responsiveState === "normal" ? "300px" : windowSize.width - gap;
-
-  const { gazData } = useGazData();
   const { setSelection } = useSelection();
   useSelectionTopicMap();
 
@@ -43,13 +33,14 @@ const FuzzySearch = ({ searchTextPlaceholder }) => {
   return (
     <div className="custom-left-control">
       <LibFuzzySearch
-        gazData={gazData}
         onSelection={onGazetteerSelection}
-        pixelwidth={pixelwidth}
+        pixelwidth={
+          responsiveState === "normal" ? "300px" : windowSize.width - gap
+        }
         placeholder={searchTextPlaceholder}
       />
     </div>
   );
 };
 
-export default FuzzySearch;
+export default FuzzySearchWrapper;
