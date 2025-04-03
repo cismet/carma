@@ -6,10 +6,9 @@ import {
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { useContext } from "react";
-import { FeatureCollectionDispatchContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import { isAreaType } from "@carma-commons/resources";
 
-const FuzzySearch = ({ featureGazData }) => {
+const FuzzySearchWrapper = ({ featureGazData }) => {
   const { responsiveState, gap, windowSize } = useContext(
     ResponsiveTopicMapContext
   );
@@ -42,7 +41,9 @@ const FuzzySearch = ({ featureGazData }) => {
           <LibFuzzySearch
             gazData={commonGazData}
             onSelection={onGazetteerSelection}
-            pixelwidth={pixelwidth}
+            pixelwidth={
+              responsiveState === "normal" ? "300px" : windowSize.width - gap
+            }
             placeholder="Stadtteil | Adresse | Kita"
           />
         </div>
@@ -51,4 +52,4 @@ const FuzzySearch = ({ featureGazData }) => {
   );
 };
 
-export default FuzzySearch;
+export default FuzzySearchWrapper;
