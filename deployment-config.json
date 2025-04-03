@@ -1328,6 +1328,30 @@
         }
       },
       "projectPath": "./dist/services/rasterfari-tileserver-wms-companion"
+    },
+    "ceepr": {
+      "deployment": {
+        "manual": {
+          "dev": {
+            "container": {
+              "image": "cismet/carma-ceepr:"
+            }
+          },
+          "live": {
+            "container": {
+              "image": "cismet/carma-ceepr:"
+            }
+          }
+        },
+        "auto": {
+          "dev": {
+            "container": {
+              "image": "cismet/carma-ceepr:"
+            }
+          }
+        }
+      },
+      "projectPath": "./dist/services/ceepr"
     }
   }
 }
