@@ -19,8 +19,14 @@ import {
 } from "@carma-collab/wuppertal/hitzeinderstadt";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
-import { TopicMapSelectionContent } from "@carma-apps/portals";
-import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
+import {
+  TopicMapSelectionContent,
+  useSelectionTopicMap,
+} from "@carma-apps/portals";
+import {
+  EmptySearchComponent,
+  LibFuzzySearch,
+} from "@carma-mapping/fuzzy-search";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import FuzzySearch from "./components/FuzzySearch";
 import {
@@ -63,6 +69,10 @@ const Hitzekarte = () => {
   const { history } = useContext(TopicMapContext);
   const { setAppMenuVisible, setAppMenuActiveMenuSection } =
     useContext(UIDispatchContext);
+  const { responsiveState, gap, windowSize } = useContext(
+    ResponsiveTopicMapContext
+  );
+  useSelectionTopicMap();
 
   const [selectedSimulations, setSelectedSimulations] = useState(() => {
     return parseSimulationsFromURL(history.location.search);
@@ -117,13 +127,6 @@ const Hitzekarte = () => {
     { title: "starke Hitze", lt: 0.4, bg: "#FF3C2E" },
     { title: "2050-2060", lt: 1.0, bg: "#CE1EE8" },
   ];
-
-  const { responsiveState, gap, windowSize } = useContext(
-    ResponsiveTopicMapContext
-  );
-
-  const pixelwidth =
-    responsiveState === "normal" ? "300px" : windowSize.width - gap;
 
   useEffect(() => {
     let simulationLabels = [];
@@ -241,7 +244,14 @@ const Hitzekarte = () => {
           </Control>
           <Control position="bottomleft" order={10}>
             <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
-              <FuzzySearch searchTextPlaceholder={searchTextPlaceholder} />
+              <LibFuzzySearch
+                pixelwidth={
+                  responsiveState === "normal"
+                    ? "300px"
+                    : windowSize.width - gap
+                }
+                placeholder={searchTextPlaceholder}
+              />
             </div>
           </Control>
         </ControlLayout>
