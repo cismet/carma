@@ -93,3 +93,19 @@ export function getElementPosition(
 
   return styleElement;
 }
+
+export const isElementHidden = (element: HTMLElement | null): boolean => {
+  if (!element) return true;
+
+  const style = window.getComputedStyle(element);
+
+  if (style.display === "none" || style.visibility === "hidden") {
+    return true;
+  }
+
+  if (element.offsetWidth === 0 && element.offsetHeight === 0) {
+    return true;
+  }
+
+  return false;
+};
