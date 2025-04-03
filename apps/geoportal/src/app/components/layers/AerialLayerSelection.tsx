@@ -90,7 +90,7 @@ const AerialLayerSelection = () => {
             })
           );
         }}
-        className="pb-2"
+        className="pb-2 px-2"
         optionType="default"
         style={{
           filter:
