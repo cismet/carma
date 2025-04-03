@@ -28,21 +28,12 @@ import {
   LibFuzzySearch,
 } from "@carma-mapping/fuzzy-search";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
-import FuzzySearch from "./components/FuzzySearch";
+import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import {
-  Control,
-  ControlButtonStyler,
-  ControlLayout,
-} from "@carma-mapping/map-controls-layout";
-import useLeafletZoomControls from "../hooks/useLeafletZoomControls";
-import { RoutedMapLocateControl } from "@carma-mapping/components";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faCompress,
-  faExpand,
-  faMinus,
-  faPlus,
-} from "@fortawesome/free-solid-svg-icons";
+  FullscreenControl,
+  RoutedMapLocateControl,
+  ZoomControl,
+} from "@carma-mapping/components";
 
 const parseSimulationsFromURL = (search) => {
   const params = new URLSearchParams(search);
@@ -64,7 +55,6 @@ const parseBackgroundIndexFromURL = (search) => {
 
 const Hitzekarte = () => {
   const version = getApplicationVersion(versionData);
-  const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
 
   const { history } = useContext(TopicMapContext);
   const { setAppMenuVisible, setAppMenuActiveMenuSection } =
@@ -194,46 +184,11 @@ const Hitzekarte = () => {
       >
         <ControlLayout ifStorybook={false}>
           <Control position="topleft" order={10}>
-            <div className="flex flex-col">
-              <ControlButtonStyler
-                onClick={zoomInLeaflet}
-                className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
-                dataTestId="zoom-in-control"
-                title="Vergrößern"
-              >
-                <FontAwesomeIcon icon={faPlus} className="text-base" />
-              </ControlButtonStyler>
-              <ControlButtonStyler
-                onClick={zoomOutLeaflet}
-                className="!rounded-t-none !border-t-[1px]"
-                dataTestId="zoom-out-control"
-                title="Verkleinern"
-              >
-                <FontAwesomeIcon icon={faMinus} className="text-base" />
-              </ControlButtonStyler>
-            </div>
+            <ZoomControl />
           </Control>
 
           <Control position="topleft" order={50}>
-            <ControlButtonStyler
-              title={
-                document.fullscreenElement
-                  ? "Vollbildmodus beenden"
-                  : "Vollbildmodus"
-              }
-              onClick={() => {
-                if (document.fullscreenElement) {
-                  document.exitFullscreen();
-                } else {
-                  document.documentElement.requestFullscreen();
-                }
-              }}
-              dataTestId="full-screen-control"
-            >
-              <FontAwesomeIcon
-                icon={document.fullscreenElement ? faCompress : faExpand}
-              />
-            </ControlButtonStyler>
+            <FullscreenControl />
           </Control>
           <Control position="topleft" order={60} title="Mein Standort">
             <RoutedMapLocateControl
