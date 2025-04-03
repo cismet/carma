@@ -9,7 +9,7 @@ import { useContext } from "react";
 import { FeatureCollectionDispatchContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import { isAreaType } from "@carma-commons/resources";
 
-const FuzzySearch = ({ searchTextPlaceholder }) => {
+const FuzzySearchWrapper = ({ searchTextPlaceholder }) => {
   const { responsiveState, gap, windowSize } = useContext(
     ResponsiveTopicMapContext
   );
@@ -19,7 +19,6 @@ const FuzzySearch = ({ searchTextPlaceholder }) => {
 
   const pixelwidth =
     responsiveState === "normal" ? "300px" : windowSize.width - gap;
-  const { gazData } = useGazData();
   const { setSelection } = useSelection();
   useSelectionTopicMap();
 
@@ -46,13 +45,14 @@ const FuzzySearch = ({ searchTextPlaceholder }) => {
   return (
     <div className="custom-left-control">
       <LibFuzzySearch
-        gazData={gazData}
         onSelection={onGazetteerSelection}
         placeholder={searchTextPlaceholder}
-        pixelwidth={pixelwidth}
+        pixelwidth={
+          responsiveState === "normal" ? "300px" : windowSize.width - gap
+        }
       />
     </div>
   );
 };
 
-export default FuzzySearch;
+export default FuzzySearchWrapper;

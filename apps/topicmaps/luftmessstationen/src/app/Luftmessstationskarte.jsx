@@ -2,7 +2,6 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "leaflet/dist/leaflet.css";
 import { useEffect } from "react";
 import "react-bootstrap-typeahead/css/Typeahead.css";
-import ContactButton from "react-cismap/ContactButton";
 import FeatureCollection from "react-cismap/FeatureCollection";
 import "react-cismap/topicMaps.css";
 import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
@@ -15,29 +14,23 @@ import {
   MenuTooltip,
   InfoBoxTextContent,
 } from "@carma-collab/wuppertal/luftmessstationen";
-
 import { TopicMapSelectionContent } from "@carma-apps/portals";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
-import FuzzySearch from "./components/FuzzySearch";
+import FuzzySearchWrapper from "./components/FuzzySearchWrapper";
 import {
   Control,
   ControlButtonStyler,
   ControlLayout,
 } from "@carma-mapping/map-controls-layout";
-import useLeafletZoomControls from "../hooks/useLeafletZoomControls";
-import { RoutedMapLocateControl } from "@carma-mapping/components";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faComment } from "@fortawesome/free-solid-svg-icons";
 import {
-  faCompress,
-  faExpand,
-  faMinus,
-  faPlus,
-  faComment,
-} from "@fortawesome/free-solid-svg-icons";
+  FullscreenControl,
+  RoutedMapLocateControl,
+  ZoomControl,
+} from "@carma-mapping/components";
 
 function Comp() {
-  const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
-
   const contactButtonHandler = () => {
     let link = document.createElement("a");
     link.setAttribute("type", "hidden");
@@ -82,46 +75,11 @@ function Comp() {
       >
         <ControlLayout ifStorybook={false}>
           <Control position="topleft" order={10}>
-            <div className="flex flex-col">
-              <ControlButtonStyler
-                onClick={zoomInLeaflet}
-                className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
-                dataTestId="zoom-in-control"
-                title="Vergrößern"
-              >
-                <FontAwesomeIcon icon={faPlus} className="text-base" />
-              </ControlButtonStyler>
-              <ControlButtonStyler
-                onClick={zoomOutLeaflet}
-                className="!rounded-t-none !border-t-[1px]"
-                dataTestId="zoom-out-control"
-                title="Verkleinern"
-              >
-                <FontAwesomeIcon icon={faMinus} className="text-base" />
-              </ControlButtonStyler>
-            </div>
+            <ZoomControl />
           </Control>
 
           <Control position="topleft" order={50}>
-            <ControlButtonStyler
-              title={
-                document.fullscreenElement
-                  ? "Vollbildmodus beenden"
-                  : "Vollbildmodus"
-              }
-              onClick={() => {
-                if (document.fullscreenElement) {
-                  document.exitFullscreen();
-                } else {
-                  document.documentElement.requestFullscreen();
-                }
-              }}
-              dataTestId="full-screen-control"
-            >
-              <FontAwesomeIcon
-                icon={document.fullscreenElement ? faCompress : faExpand}
-              />
-            </ControlButtonStyler>
+            <FullscreenControl />
           </Control>
           <Control position="topleft" order={60} title="Mein Standort">
             <RoutedMapLocateControl
@@ -140,7 +98,9 @@ function Comp() {
           </Control>
           <Control position="bottomleft" order={10}>
             <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
-              <FuzzySearch searchTextPlaceholder={searchTextPlaceholder} />
+              <FuzzySearchWrapper
+                searchTextPlaceholder={searchTextPlaceholder}
+              />
             </div>
           </Control>
         </ControlLayout>
