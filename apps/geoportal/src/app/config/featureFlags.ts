@@ -13,4 +13,8 @@ export const featureFlagConfig: FeatureFlagConfig = {
     default: false,
     alias: "ng",
   },
+  extendedSharing: {
+    default: false,
+    alias: "extendedSharing",
+  },
 };

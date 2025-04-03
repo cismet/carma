@@ -8,6 +8,7 @@ import { useSearchParams } from "react-router-dom";
 import { generateRandomString } from "@carma-commons/utils";
 import type { LayerState, Settings } from "../types";
 import { faCopy } from "@fortawesome/free-regular-svg-icons";
+import { useFeatureFlags } from "./FeatureFlagProvider";
 
 export type ShareProps = {
   layerState: LayerState;
@@ -30,6 +31,10 @@ export const Share = ({ layerState }: ShareProps) => {
     showHamburgerMenu: true,
     add3dMode: true,
   });
+
+  const flags = useFeatureFlags();
+
+  const extendedSharing = flags.extendedSharing;
 
   const handleOnClick = () => {
     const newConfig = {
