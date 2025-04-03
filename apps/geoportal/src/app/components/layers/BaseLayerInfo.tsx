@@ -121,7 +121,7 @@ const BaseLayerInfo = () => {
         </DndContext>
       </div>
       <hr className="h-px my-0 bg-gray-300 border-0 w-full absolute bottom-9 left-0" />
-      <p className="my-0 pt-2.5 text-gray-400 text-base">
+      <p className="my-0 pt-2.5 text-gray-400 text-base truncate">
         Aktuell: {getBackgroundDescription()}
       </p>
     </div>
