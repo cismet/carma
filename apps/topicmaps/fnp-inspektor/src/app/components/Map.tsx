@@ -49,18 +49,13 @@ import {
 import type { UnknownAction } from "redux";
 import { TopicMapSelectionContent } from "@carma-apps/portals";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
-import FuzzySearch from "./FuzzySearch";
-import {
-  Control,
-  ControlButtonStyler,
-  ControlLayout,
-} from "@carma-mapping/map-controls-layout";
+import FuzzySearchWrapper from "./FuzzySearchWrapper";
+import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import {
   FullscreenControl,
   RoutedMapLocateControl,
+  ZoomControl,
 } from "@carma-mapping/components";
-import { faMinus, faPlus } from "@fortawesome/free-solid-svg-icons";
-import useLeafletZoomControls from "../../hooks/useLeafletZoomControls";
 import CustomScaleControl from "./CustomScaleControl";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
@@ -83,7 +78,6 @@ const Map = () => {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState<number>(0);
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
-  const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
   const { responsiveState } = useContext<typeof ResponsiveTopicMapContext>(
     ResponsiveTopicMapContext
   );
@@ -341,24 +335,7 @@ const Map = () => {
       >
         <ControlLayout ifStorybook={false}>
           <Control position="topleft" order={10}>
-            <div className="flex flex-col">
-              <ControlButtonStyler
-                onClick={zoomInLeaflet}
-                className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
-                dataTestId="zoom-in-control"
-                title="Vergrößern"
-              >
-                <FontAwesomeIcon icon={faPlus} className="text-base" />
-              </ControlButtonStyler>
-              <ControlButtonStyler
-                onClick={zoomOutLeaflet}
-                className="!rounded-t-none !border-t-[1px]"
-                dataTestId="zoom-out-control"
-                title="Verkleinern"
-              >
-                <FontAwesomeIcon icon={faMinus} className="text-base" />
-              </ControlButtonStyler>
-            </div>
+            <ZoomControl />
           </Control>
 
           <Control position="topleft" order={50}>
@@ -378,11 +355,14 @@ const Map = () => {
           )}
           <Control position="bottomleft" order={10}>
             <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
-              <FuzzySearch
-                mode={mapMode.mode}
-                searchTextPlaceholder={searchTextPlaceholder}
-                onIconClick={aevSearchButtonHit}
-              />
+              <div className="custom-left-control">
+                {!isMobile && <CustomScaleControl marginBottom={15} />}
+                <FuzzySearchWrapper
+                  mode={mapMode.mode}
+                  searchTextPlaceholder={searchTextPlaceholder}
+                  onIconClick={aevSearchButtonHit}
+                />
+              </div>
             </div>
           </Control>
         </ControlLayout>

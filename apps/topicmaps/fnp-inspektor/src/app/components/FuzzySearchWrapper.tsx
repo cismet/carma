@@ -1,12 +1,10 @@
 import {
   SelectionMetaData,
-  useGazData,
   useSelection,
   useSelectionTopicMap,
 } from "@carma-apps/portals";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { type SearchResultItem } from "@carma-commons/types";
-
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { useContext } from "react";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
@@ -16,9 +14,8 @@ import L from "leaflet";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { searchForAEVs } from "../../store/slices/aenderungsverfahren";
 import { searchForHauptnutzungen } from "../../store/slices/hauptnutzungen";
-import CustomScaleControl from "./CustomScaleControl";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faLocationDot, faSearch } from "@fortawesome/free-solid-svg-icons";
+import { faSearch } from "@fortawesome/free-solid-svg-icons";
 
 interface FuzzySearchProps {
   mode: string;
@@ -26,7 +23,7 @@ interface FuzzySearchProps {
   onIconClick: () => void;
 }
 
-const FuzzySearch = ({
+const FuzzySearchWrapper = ({
   searchTextPlaceholder,
   mode,
   onIconClick,
@@ -39,12 +36,6 @@ const FuzzySearch = ({
   >(ResponsiveTopicMapContext);
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
-  const pixelwidth =
-    responsiveState === "normal" ? "300px" : windowSize.width - gap;
-
-  const isMobile = responsiveState === "normal" ? false : true;
-
-  const { gazData } = useGazData();
   const { setSelection } = useSelection();
   useSelectionTopicMap();
 
@@ -109,19 +100,18 @@ const FuzzySearch = ({
   );
 
   return (
-    <div className="custom-left-control">
-      {!isMobile && <CustomScaleControl marginBottom={15} />}
-
+    <>
       <LibFuzzySearch
-        gazData={gazData}
         onSelection={onGazetteerSelection}
-        pixelwidth={pixelwidth}
+        pixelwidth={
+          responsiveState === "normal" ? "300px" : windowSize.width - gap
+        }
         ifIconDisabled={false}
         placeholder={searchTextPlaceholder}
         icon={searchIcon}
       />
-    </div>
+    </>
   );
 };
 
-export default FuzzySearch;
+export default FuzzySearchWrapper;
