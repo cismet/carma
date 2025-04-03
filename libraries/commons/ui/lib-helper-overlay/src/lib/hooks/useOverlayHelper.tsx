@@ -1,6 +1,8 @@
-import React, { useState, useContext, useLayoutEffect } from "react";
+import { useState, useContext, useLayoutEffect } from "react";
 import { OptionsOverlayHelper, OverlayHelperConfig, Secondary } from "../..";
 import { OverlayTourContext } from "../components/OverlayTourProvider";
+import { isElementHidden } from "../utils/helper";
+
 export const useOverlayHelper = (options: OptionsOverlayHelper) => {
   const [ref, setRef] = useState<HTMLElement | null>(null);
   const { addConfig, removeConfig } = useContext(OverlayTourContext);
@@ -30,6 +32,10 @@ export const useOverlayHelper = (options: OptionsOverlayHelper) => {
       position,
       ...(secondary && { secondary }),
     };
+
+    if ((!ref || isElementHidden(ref)) && !options.primary.position) {
+      return;
+    }
 
     addConfig(config);
 
