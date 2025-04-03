@@ -80,14 +80,14 @@ const ActionButtons = () => {
   return (
     <div
       ref={menuTourRef}
-      className="sm:flex items-center gap-6 lg:ml-[86px] xl:ml-[190px] hidden"
+      className="flex items-center gap-3 sm:gap-6 lg:ml-[86px] xl:ml-[190px]"
     >
       <Tooltip title="Aktualisieren">
         <button
           onClick={() => {
             window.location.reload();
           }}
-          className="text-xl hover:text-gray-600"
+          className="text-xl hover:text-gray-600 sm:block hidden"
           data-test-id="reload-btn"
         >
           <FontAwesomeIcon icon={faRotateRight} />
