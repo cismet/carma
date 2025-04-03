@@ -42,10 +42,12 @@ import LayerButton from "./LayerButton";
 import SecondaryView from "./SecondaryView";
 
 import "./button.css";
+import { useWindowSize } from "@uidotdev/usehooks";
 
 const LayerWrapper = () => {
   const dispatch: AppDispatch = useDispatch();
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
+  const size = useWindowSize();
 
   const layers = useSelector(getLayers);
   const backgroundLayer = useSelector(getBackgroundLayer);
@@ -152,34 +154,36 @@ const LayerWrapper = () => {
                 title=""
                 background
               />
-              <div
-                id="scrollWrapper"
-                className="sm:flex overflow-x-hidden hidden items-center h-20 gap-2"
-              >
-                <SortableContext
-                  items={layers}
-                  strategy={horizontalListSortingStrategy}
+              {size.width > 640 && (
+                <div
+                  id="scrollWrapper"
+                  className="flex overflow-x-hidden items-center h-20 gap-2"
                 >
-                  {layers.map((layer, i) => (
-                    <LayerButton
-                      title={layer.title}
-                      id={layer.id}
-                      key={layer.id}
-                      index={i}
-                      icon={
-                        layer.title.includes("Orthofoto")
-                          ? "ortho"
-                          : layer.title === "Bäume"
-                          ? "bäume"
-                          : layer.title.includes("gärten")
-                          ? "gärten"
-                          : undefined
-                      }
-                      layer={layer}
-                    />
-                  ))}
-                </SortableContext>
-              </div>
+                  <SortableContext
+                    items={layers}
+                    strategy={horizontalListSortingStrategy}
+                  >
+                    {layers.map((layer, i) => (
+                      <LayerButton
+                        title={layer.title}
+                        id={layer.id}
+                        key={layer.id}
+                        index={i}
+                        icon={
+                          layer.title.includes("Orthofoto")
+                            ? "ortho"
+                            : layer.title === "Bäume"
+                            ? "bäume"
+                            : layer.title.includes("gärten")
+                            ? "gärten"
+                            : undefined
+                        }
+                        layer={layer}
+                      />
+                    ))}
+                  </SortableContext>
+                </div>
+              )}
             </div>
           </div>
         </div>
