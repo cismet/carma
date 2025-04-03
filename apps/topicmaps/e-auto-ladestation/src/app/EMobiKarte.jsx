@@ -17,8 +17,14 @@ import {
   UIDispatchContext,
 } from "react-cismap/contexts/UIContextProvider";
 import SecondaryInfoModal from "./SecondaryInfoModal";
-import { TopicMapSelectionContent } from "@carma-apps/portals";
-import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
+import {
+  TopicMapSelectionContent,
+  useSelectionTopicMap,
+} from "@carma-apps/portals";
+import {
+  EmptySearchComponent,
+  LibFuzzySearch,
+} from "@carma-mapping/fuzzy-search";
 import {
   Control,
   ControlButtonStyler,
@@ -26,7 +32,6 @@ import {
 } from "@carma-mapping/map-controls-layout";
 import useLeafletZoomControls from "../hooks/useLeafletZoomControls";
 import { RoutedMapLocateControl } from "@carma-mapping/components";
-import FuzzySearch from "./components/FuzzySearch";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCompress,
@@ -34,6 +39,7 @@ import {
   faMinus,
   faPlus,
 } from "@fortawesome/free-solid-svg-icons";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 const EMobiKarte = () => {
   const { setClusteringOptions, setFilterState } = useContext(
@@ -44,6 +50,10 @@ const EMobiKarte = () => {
   const { markerSymbolSize } = useContext(TopicMapStylingContext);
   const { clusteringOptions, selectedFeature, filteredItems, shownFeatures } =
     useContext(FeatureCollectionContext);
+  const { responsiveState, gap, windowSize } = useContext(
+    ResponsiveTopicMapContext
+  );
+  useSelectionTopicMap();
 
   const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
 
@@ -130,7 +140,48 @@ const EMobiKarte = () => {
           </Control>
           <Control position="bottomleft" order={10}>
             <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
-              <FuzzySearch />
+              <LibFuzzySearch
+                priorityTypes={[
+                  "emob",
+                  "bezirke",
+                  "quartiere",
+                  "adressen",
+                  "streets",
+                  "pois",
+                  "poisAlternativeNames",
+                  "kitas",
+                  "schulen",
+                ]}
+                typeInference={{
+                  adressen: (item) => {
+                    if (item.glyph === "home") {
+                      return "adressen";
+                    } else if (item.glyph === "road") {
+                      return "streets";
+                    } else {
+                      return "adressen";
+                    }
+                  },
+
+                  pois: (item) => {
+                    if (item.glyph === "tag") {
+                      return "pois";
+                    } else if (item.glyph === "tags") {
+                      return "poisAlternativeNames";
+                    } else if (item.glyph === "graduation-cap") {
+                      return "schulen";
+                    } else {
+                      return "pois";
+                    }
+                  },
+                }}
+                pixelwidth={
+                  responsiveState === "normal"
+                    ? "300px"
+                    : windowSize.width - gap
+                }
+                placeholder="Ladestation | Stadtteil | Adresse | POI"
+              />
             </div>
           </Control>
         </ControlLayout>
