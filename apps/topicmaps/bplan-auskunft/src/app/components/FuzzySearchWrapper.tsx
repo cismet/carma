@@ -1,6 +1,5 @@
 import {
   SelectionMetaData,
-  useGazData,
   useSelection,
   useSelectionTopicMap,
 } from "@carma-apps/portals";
@@ -27,7 +26,7 @@ interface FuzzySearchProps {
   onIconClick: () => void;
 }
 
-const FuzzySearch = ({
+const FuzzySearchWrapper = ({
   setFeatures,
   setSelectedIndex,
   onIconClick,
@@ -38,10 +37,6 @@ const FuzzySearch = ({
     typeof ResponsiveTopicMapContext
   >(ResponsiveTopicMapContext);
 
-  const pixelwidth =
-    responsiveState === "normal" ? "300px" : windowSize.width - gap;
-
-  const { gazData } = useGazData();
   const { setSelection } = useSelection();
   useSelectionTopicMap();
 
@@ -117,9 +112,10 @@ const FuzzySearch = ({
   return (
     <div className="custom-left-control">
       <LibFuzzySearch
-        gazData={gazData}
         onSelection={onGazetteerSelection}
-        pixelwidth={pixelwidth}
+        pixelwidth={
+          responsiveState === "normal" ? "300px" : windowSize.width - gap
+        }
         placeholder="B-Plan-Nr. | Adresse | POI"
         icon={searchIcon}
         ifIconDisabled={false}
@@ -128,4 +124,4 @@ const FuzzySearch = ({
   );
 };
 
-export default FuzzySearch;
+export default FuzzySearchWrapper;
