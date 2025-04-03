@@ -45,28 +45,19 @@ export function setupApp(configDir?: string): express.Express {
     });
   });
 
-  // Serve robots.txt from the assets directory
+  // Serve robots.txt from the root directory
   app.get("/robots.txt", (req: Request, res: Response) => {
     try {
-      // Try multiple possible locations for robots.txt
-      const possiblePaths = [
-        path.join(__dirname, "assets", "robots.txt"), // For production build
-        // path.join(__dirname, "../assets", "robots.txt"), // Alternative production path
-        // path.join(process.cwd(), "services/ceepr/src/assets/robots.txt") // For development
-      ];
-
-      // Find the first path that exists
-      const existingPath = possiblePaths.find((p) => fs.existsSync(p));
-
-      if (existingPath) {
-        const content = fs.readFileSync(existingPath, "utf-8");
+      // The robots.txt file should now be in the root directory of the build
+      const robotsPath = path.join(__dirname, "../robots.txt");
+      
+      if (fs.existsSync(robotsPath)) {
+        const content = fs.readFileSync(robotsPath, "utf-8");
         res.type("text/plain");
         res.send(content);
-        console.log(`Served robots.txt from ${existingPath}`);
+        console.log(`Served robots.txt from ${robotsPath}`);
       } else {
-        console.error(
-          `robots.txt file not found in any of the expected locations`
-        );
+        console.error(`robots.txt file not found at ${robotsPath}`);
         res.status(404).send("Not found");
       }
     } catch (error) {
