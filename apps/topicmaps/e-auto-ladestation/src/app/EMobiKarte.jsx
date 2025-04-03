@@ -1,4 +1,3 @@
-import React from "react";
 import { useContext, useEffect } from "react";
 import {
   FeatureCollectionContext,
@@ -8,7 +7,7 @@ import { LightBoxContext } from "react-cismap/contexts/LightBoxContextProvider";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import FeatureCollection from "react-cismap/FeatureCollection";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
-
+import { useLeafletZoomControls } from "@carma-mapping/utils";
 import Menu from "./Menu";
 import { getPoiClusterIconCreatorFunction } from "./helper/styler";
 import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
@@ -30,8 +29,10 @@ import {
   ControlButtonStyler,
   ControlLayout,
 } from "@carma-mapping/map-controls-layout";
-import useLeafletZoomControls from "../hooks/useLeafletZoomControls";
-import { RoutedMapLocateControl } from "@carma-mapping/components";
+import {
+  FullscreenControl,
+  RoutedMapLocateControl,
+} from "@carma-mapping/components";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCompress,
@@ -111,25 +112,7 @@ const EMobiKarte = () => {
           </Control>
 
           <Control position="topleft" order={50}>
-            <ControlButtonStyler
-              title={
-                document.fullscreenElement
-                  ? "Vollbildmodus beenden"
-                  : "Vollbildmodus"
-              }
-              onClick={() => {
-                if (document.fullscreenElement) {
-                  document.exitFullscreen();
-                } else {
-                  document.documentElement.requestFullscreen();
-                }
-              }}
-              dataTestId="full-screen-control"
-            >
-              <FontAwesomeIcon
-                icon={document.fullscreenElement ? faCompress : faExpand}
-              />
-            </ControlButtonStyler>
+            <FullscreenControl />
           </Control>
           <Control position="topleft" order={60} title="Mein Standort">
             <RoutedMapLocateControl
