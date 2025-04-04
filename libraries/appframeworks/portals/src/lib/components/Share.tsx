@@ -70,7 +70,7 @@ export const Share = ({ layerState }: ShareProps) => {
       });
       const data = await response.json();
       const key = data.key;
-      const url = `${baseUrl}#/?lat=${lat}&lng=${lng}&zoom=${zoom}&config=${key}`;
+      const url = `${baseUrl}#/?lat=${lat}&lng=${lng}&zoom=${zoom}&config=${key}&appKey=sharedurl`;
       copyToClipboard(url);
       messageApi.open({
         type: "success",
