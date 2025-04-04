@@ -75,10 +75,16 @@ if (typeof global === "undefined") {
   window.global = window;
 }
 
+type View = {
+  center: string[];
+  zoom: string;
+};
+
 type Config = {
   layers: Layer[];
   backgroundLayer: BackgroundLayer;
   settings?: Settings;
+  view?: View;
 };
 
 function App({ published }: { published?: boolean }) {
@@ -97,7 +103,8 @@ function App({ published }: { published?: boolean }) {
   const isMobile = window.innerWidth < 600;
   const ifPopupPrintOpened = useSelector(getIfPopupOpend);
 
-  const configBaseUrl = "https://gist.githubusercontent.com/d4v3000/";
+  const configBaseUrl =
+    "https://ceepr.cismet.de/config/wuppertal/_dev_geoportal/";
 
   useEffect(() => {
     console.debug(
@@ -142,15 +149,6 @@ function App({ published }: { published?: boolean }) {
         dispatch(setShowFullscreenButton(newConfig.settings.showFullscreen));
         dispatch(setShowLocatorButton(newConfig.settings.showLocator));
         dispatch(setShowMeasurementButton(newConfig.settings.showMeasurement));
-        dispatch(setShowHamburgerMenu(newConfig.settings.showHamburgerMenu));
-
-        if (newConfig.settings.showLayerHideButtons || published) {
-          dispatch(setUIAllowChanges(false));
-          dispatch(setUIShowLayerHideButtons(true));
-        } else {
-          dispatch(setUIAllowChanges(true));
-          dispatch(setUIShowLayerHideButtons(false));
-        }
       }
       searchParams.delete("data");
       setSearchParams(searchParams);

@@ -95,11 +95,9 @@ export interface DefaultLayerConfig {
 
 export type Settings = {
   showLayerButtons: boolean;
-  showLayerHideButtons: boolean;
   showFullscreen: boolean;
   showLocator: boolean;
   showMeasurement: boolean;
-  showHamburgerMenu?: boolean;
   add3dMode?: boolean;
 };
 
