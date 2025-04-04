@@ -1,8 +1,6 @@
 import HeavyRainHazardMap from "@cismet-dev/react-cismap-envirometrics-maps/HeavyRainHazardMap";
 import { notification } from "antd";
-import React, { useEffect, useState } from "react";
-import { MappingConstants } from "react-cismap";
-import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
+import { useContext, useEffect, useState } from "react";
 import ProjGeoJson from "react-cismap/ProjGeoJson";
 import { md5FetchJSON } from "react-cismap/tools/fetching";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
@@ -17,25 +15,39 @@ import NotesDisplay from "./NotesDisplay";
 import footerLogoUrl from "./assets/images/Signet_AIS_RZ.png";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import FuzzySearch from "./components/FuzzySearch";
-import { TopicMapSelectionContent } from "@carma-apps/portals";
+import {
+  TopicMapSelectionContent,
+  useSelection,
+  useSelectionTopicMap,
+} from "@carma-apps/portals";
 import {
   Control,
-  ControlButtonStyler,
   ControlLayout,
+  useAttributionControlStyling,
 } from "@carma-mapping/map-controls-layout";
-import { RoutedMapLocateControl } from "@carma-mapping/components";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCompress, faExpand } from "@fortawesome/free-solid-svg-icons";
+import {
+  FullscreenControl,
+  RoutedMapLocateControl,
+  ZoomControl,
+} from "@carma-mapping/components";
 import ContactButton from "./components/ContactButton";
-import ZoomControls from "./components/ZoomControls";
+import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 function App() {
   const version = getApplicationVersion(versionData);
   const email = "starkregen@kreis-euskirchen.de";
   const urlPrefix = window.location.origin + window.location.pathname;
-
   const [gazData, setGazData] = useState([]);
   const [hinweisData, setHinweisData] = useState([]);
+  const { attributionHeight } = useAttributionControlStyling({
+    styles: { marginLeft: "16px", marginTop: "2px" },
+  });
+  const { responsiveState, gap, windowSize } = useContext(
+    ResponsiveTopicMapContext
+  );
+
+  const ifDesktop = responsiveState === "normal";
 
   const getHinweisData = async (setHinweisData, url) => {
     const prefix = "HinweisDataForStarkregengefahrenkarteByCismet";
@@ -106,6 +118,29 @@ function App() {
     );
   };
 
+  const { setSelection } = useSelection();
+  useSelectionTopicMap();
+
+  const AREA_TYPE = ["circle", "pie-chart"];
+
+  const isAreaWithOverlay = (selection) => {
+    return AREA_TYPE.includes(selection.glyph);
+  };
+
+  const onGazetteerSelection = (selection) => {
+    if (!selection) {
+      setSelection(null);
+      return;
+    }
+
+    const selectionMetaData = {
+      selectedFrom: "gazetteer",
+      selectionTimestamp: Date.now(),
+      isAreaSelection: isAreaWithOverlay(selection),
+    };
+    setSelection(Object.assign({}, selection, selectionMetaData));
+  };
+
   useEffect(() => {
     getGazData(
       setGazData,
@@ -116,14 +151,7 @@ function App() {
     getHinweisData(setHinweisData, urlPrefix + "/data/overlay.json");
   }, []);
   return (
-    <TopicMapContextProvider
-      appKey={"cismetRainhazardMap.Euskirchen"}
-      referenceSystem={MappingConstants.crs3857}
-      referenceSystemDefinition={MappingConstants.proj4crs3857def}
-      baseLayerConf={config.overridingBaseLayerConf}
-      infoBoxPixelWidth={370}
-      maskingPolygon="POLYGON ((653674.603 5986240.643, 653674.603 7372844.430, 1672962.694 7372844.430, 1672962.694 5986240.643, 653674.603 5986240.643))"
-    >
+    <>
       <div
         className="controls-container"
         style={{
@@ -136,29 +164,11 @@ function App() {
       >
         <ControlLayout ifStorybook={false}>
           <Control position="topleft" order={10}>
-            <ZoomControls />
+            <ZoomControl />
           </Control>
 
           <Control position="topleft" order={50}>
-            <ControlButtonStyler
-              title={
-                document.fullscreenElement
-                  ? "Vollbildmodus beenden"
-                  : "Vollbildmodus"
-              }
-              onClick={() => {
-                if (document.fullscreenElement) {
-                  document.exitFullscreen();
-                } else {
-                  document.documentElement.requestFullscreen();
-                }
-              }}
-              dataTestId="full-screen-control"
-            >
-              <FontAwesomeIcon
-                icon={document.fullscreenElement ? faCompress : faExpand}
-              />
-            </ControlButtonStyler>
+            <FullscreenControl />
           </Control>
           <Control position="topleft" order={60} title="Mein Standort">
             <RoutedMapLocateControl
@@ -172,7 +182,23 @@ function App() {
           </Control>
           <Control position="bottomleft" order={10}>
             <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
-              <FuzzySearch gazLocalData={gazData} />
+              <div
+                className="custom-left-control"
+                style={{
+                  marginBottom: ifDesktop ? "0" : attributionHeight + 4,
+                }}
+              >
+                <LibFuzzySearch
+                  gazData={gazData}
+                  onSelection={onGazetteerSelection}
+                  pixelwidth={
+                    responsiveState === "normal"
+                      ? "300px"
+                      : windowSize.width - gap
+                  }
+                  placeholder="Kommune | Ortslage | Adresse"
+                />
+              </div>
             </div>
           </Control>
         </ControlLayout>
@@ -209,7 +235,7 @@ function App() {
         <TopicMapSelectionContent />
         <NotesDisplay hinweisData={hinweisData} />
       </HeavyRainHazardMap>
-    </TopicMapContextProvider>
+    </>
   );
 }
 
