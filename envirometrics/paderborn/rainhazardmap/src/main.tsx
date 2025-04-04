@@ -1,18 +1,29 @@
 import React from "react";
 import ReactDOM from "react-dom";
 import "./index.css";
-
+import { MappingConstants } from "react-cismap";
+import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
 import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
 import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
 import { gazDataConfig } from "./config/gazData";
+import paderbornConfig from "./config";
+const appKey = "cismetRainhazardMap.Paderborn";
 
 ReactDOM.render(
   <React.StrictMode>
     <GazDataProvider config={gazDataConfig}>
       <SelectionProvider>
-        <App />
+        <TopicMapContextProvider
+          appKey={appKey + ".Paderborn"}
+          referenceSystem={MappingConstants.crs3857}
+          referenceSystemDefinition={MappingConstants.proj4crs3857def}
+          baseLayerConf={paderbornConfig.overridingBaseLayerConf}
+          infoBoxPixelWidth={370}
+        >
+          <App />
+        </TopicMapContextProvider>
       </SelectionProvider>
     </GazDataProvider>
   </React.StrictMode>,
