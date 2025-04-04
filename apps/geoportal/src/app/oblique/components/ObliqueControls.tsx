@@ -1,6 +1,6 @@
 import React, { useCallback, useRef, useState, useEffect } from "react";
 import { useSelector } from "react-redux";
-import { styled, createGlobalStyle } from "styled-components";
+import { createGlobalStyle } from "styled-components";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -8,7 +8,7 @@ import {
   faRotateRight,
   faSpinner,
 } from "@fortawesome/free-solid-svg-icons";
-import { Tooltip, Image as AntdImage } from "antd";
+import { Tooltip } from "antd";
 import { DownloadOutlined } from "@ant-design/icons";
 import {
   HeadingPitchRange,
@@ -38,6 +38,7 @@ import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
 import { getPreviewImageUrl } from "../utils/imageHandling";
 import { ObliqueFootprintLayer } from "./ObliqueFootprintLayer";
 import { ObliqueDebugSvg } from "./ObliqueDebugSvg";
+import ObliqueImagePreview from "./ObliqueImagePreview";
 import { ObliqueImageInfo } from "./ObliqueImageInfo";
 import {
   subscribeToPreviewVisibility,
@@ -63,15 +64,6 @@ enum CardinalDirection {
   West = 3,
 }
 
-const HiddenImagePreviewContainer = styled.div`
-  position: "absolute";
-  opacity: 0;
-  pointer-events: none;
-  width: 1;
-  height: 1;
-  overflow: hidden;
-`;
-
 export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const isObliqueMode = useSelector(getObliqueMode);
   const {
@@ -92,6 +84,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const [shouldRender, setShouldRender] = useState(isObliqueMode);
   const [currentHeading, setCurrentHeading] = useState<number>(0);
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
+  const [imageScale, setImageScale] = useState(800); // Default scale factor for the image preview
 
   const closePreview = useCallback(() => {
     setIsPreviewVisible(false);
@@ -276,6 +269,12 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
         viewer.camera.lookAtTransform(Matrix4.IDENTITY);
         viewer.scene.requestRender();
         animationInProgressRef.current = false;
+        
+        // Calculate scale based on camera height and distance
+        const currentHeight = viewer.camera.positionCartographic.height;
+        const scaleFactor = Math.max(500, currentHeight * 0.8);
+        
+        setImageScale(scaleFactor);
         setIsPreviewVisible(true);
         notifyPreviewVisibilityChange(true);
       },
@@ -549,38 +548,23 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       {isDebugMode && nearestImage && (
         <ObliqueImageInfo imageRecord={nearestImage} />
       )}
-      {/* Hidden image in center that will be used for preview */}
+      {/* Image preview component */}
       {nearestImage && previewPath && nearestImage.record.id && (
-        <HiddenImagePreviewContainer>
-          <AntdImage
-            src={getPreviewImageUrl(
-              previewPath,
-              previewQualityLevel,
-              nearestImage.record.id
-            )}
-            alt={`Image preview ${nearestImage.record.id}`}
-            preview={{
-              visible: isPreviewVisible,
-              style: {
-                cursor: "default", // Prevent the grab cursor
-              },
-              src: getPreviewImageUrl(
-                previewPath,
-                previewQualityLevel,
-                nearestImage.record.id
-              ),
-              onVisibleChange: (visible) => {
-                setIsPreviewVisible(visible);
-                notifyPreviewVisibilityChange(visible);
-                if (!visible) {
-                  setLockFootprint(false);
-                }
-              },
-              toolbarRender: () => null,
-              movable: false,
-            }}
-          />
-        </HiddenImagePreviewContainer>
+        <ObliqueImagePreview
+          src={getPreviewImageUrl(
+            previewPath,
+            previewQualityLevel,
+            nearestImage.record.id
+          )}
+          alt={`Image preview ${nearestImage.record.id}`}
+          scale={imageScale}
+          isVisible={isPreviewVisible}
+          onClose={() => {
+            setIsPreviewVisible(false);
+            notifyPreviewVisibilityChange(false);
+            setLockFootprint(false);
+          }}
+        />
       )}
       <div
         className="camera-rotation-controls-container"
