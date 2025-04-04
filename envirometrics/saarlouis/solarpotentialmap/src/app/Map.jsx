@@ -25,18 +25,25 @@ import citymapGrey from "../assets/map-bg/citymapGrey.png";
 import citymapBg from "../assets/map-bg/citymap.png";
 import orthoBg from "../assets/map-bg/ortho.png";
 import DetailsBox from "./DetailsBox";
-import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
-import { TopicMapSelectionContent } from "@carma-apps/portals";
-import FuzzySearch from "../components/FuzzySearch";
+
 import {
-  Control,
-  ControlButtonStyler,
-  ControlLayout,
-} from "@carma-mapping/map-controls-layout";
-import { RoutedMapLocateControl } from "@carma-mapping/components";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCompress, faExpand } from "@fortawesome/free-solid-svg-icons";
-import ZoomControls from "../components/ZoomControls";
+  EmptySearchComponent,
+  LibFuzzySearch,
+} from "@carma-mapping/fuzzy-search";
+import {
+  TopicMapSelectionContent,
+  useSelection,
+  useSelectionTopicMap,
+} from "@carma-apps/portals";
+import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
+import {
+  FullscreenControl,
+  RoutedMapLocateControl,
+  ZoomControl,
+} from "@carma-mapping/components";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import { isAreaTypeWithGEP } from "@carma-commons/resources";
+
 const parseSimulationsFromURL = (search) => {
   const params = new URLSearchParams(search);
   const simulationsParam = params.get("simulations");
@@ -61,7 +68,9 @@ const SolarPotentialMap = () => {
   const { history } = useContext(TopicMapContext);
   const { setAppMenuVisible, setAppMenuActiveMenuSection } =
     useContext(UIDispatchContext);
-
+  const { responsiveState, gap, windowSize } = useContext(
+    ResponsiveTopicMapContext
+  );
   const [gazData, setGazData] = useState([]);
 
   const [simulationLabels, setSimulationLabels] = useState([]);
@@ -111,6 +120,24 @@ const SolarPotentialMap = () => {
       bg: "hsla(0, 100%, 50%," + legendOpacity + ")",
     },
   ];
+
+  const { setSelection } = useSelection();
+  useSelectionTopicMap();
+
+  const onGazetteerSelection = (selection) => {
+    if (!selection) {
+      setSelection(null);
+      return;
+    }
+
+    const selectionMetaData = {
+      selectedFrom: "gazetteer",
+      selectionTimestamp: Date.now(),
+      isAreaSelection: isAreaTypeWithGEP(selection.type),
+    };
+    setSelection(Object.assign({}, selection, selectionMetaData));
+  };
+
   useEffect(() => {
     getGazData(setGazData);
   }, []);
@@ -138,29 +165,11 @@ const SolarPotentialMap = () => {
       >
         <ControlLayout ifStorybook={false}>
           <Control position="topleft" order={10}>
-            <ZoomControls />
+            <ZoomControl />
           </Control>
 
           <Control position="topleft" order={50}>
-            <ControlButtonStyler
-              title={
-                document.fullscreenElement
-                  ? "Vollbildmodus beenden"
-                  : "Vollbildmodus"
-              }
-              onClick={() => {
-                if (document.fullscreenElement) {
-                  document.exitFullscreen();
-                } else {
-                  document.documentElement.requestFullscreen();
-                }
-              }}
-              dataTestId="full-screen-control"
-            >
-              <FontAwesomeIcon
-                icon={document.fullscreenElement ? faCompress : faExpand}
-              />
-            </ControlButtonStyler>
+            <FullscreenControl />
           </Control>
           <Control position="topleft" order={60} title="Mein Standort">
             <RoutedMapLocateControl
@@ -171,7 +180,16 @@ const SolarPotentialMap = () => {
           </Control>
           <Control position="bottomleft" order={10}>
             <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
-              <FuzzySearch gazLocalData={gazData} />
+              <LibFuzzySearch
+                gazData={gazData}
+                onSelection={onGazetteerSelection}
+                pixelwidth={
+                  responsiveState === "normal"
+                    ? "300px"
+                    : windowSize.width - gap
+                }
+                placeholder="Adresssuche"
+              />
             </div>
           </Control>
         </ControlLayout>
