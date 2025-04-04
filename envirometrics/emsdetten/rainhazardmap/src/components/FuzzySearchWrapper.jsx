@@ -3,13 +3,11 @@ import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { isAreaTypeWithGEP } from "@carma-commons/resources";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { useContext } from "react";
-const FuzzySearch = ({ gazLocalData }) => {
+const FuzzySearchWrapper = ({ gazLocalData, attributionHeight }) => {
   const { responsiveState, gap, windowSize } = useContext(
     ResponsiveTopicMapContext
   );
 
-  const pixelwidth =
-    responsiveState === "normal" ? "300px" : windowSize.width - gap;
   const { setSelection } = useSelection();
   useSelectionTopicMap();
 
@@ -30,20 +28,17 @@ const FuzzySearch = ({ gazLocalData }) => {
   };
 
   return (
-    <div
-      className="custom-left-control"
-      style={{
-        marginBottom: ifDesktop ? "0" : "18px",
-      }}
-    >
+    <>
       <LibFuzzySearch
         gazData={gazLocalData}
         onSelection={onGazetteerSelection}
-        pixelwidth={pixelwidth}
+        pixelwidth={
+          responsiveState === "normal" ? "300px" : windowSize.width - gap
+        }
         placeholder="Adresssuche"
       />
-    </div>
+    </>
   );
 };
 
-export default FuzzySearch;
+export default FuzzySearchWrapper;
