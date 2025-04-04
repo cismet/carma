@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { MappingConstants } from "react-cismap";
-import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
+import React, { useEffect, useState, useContext } from "react";
+
 import { md5FetchJSON } from "react-cismap/tools/fetching";
 import HeavyRainHazardMap from "@cismet-dev/react-cismap-envirometrics-maps/HeavyRainHazardMap";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
@@ -10,25 +9,49 @@ import { getCollabedHelpComponentConfig } from "@carma-pecher-collab/olpe";
 import olpeConfig from "./config";
 import "./notification.css";
 import footerLogoUrl from "./assets/images/Signet_AIS_RZ.png";
-import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
-import FuzzySearch from "./components/FuzzySearch";
-import { TopicMapSelectionContent } from "@carma-apps/portals";
 import {
-  Control,
-  ControlButtonStyler,
-  ControlLayout,
-} from "@carma-mapping/map-controls-layout";
-import { RoutedMapLocateControl } from "@carma-mapping/components";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCompress, faExpand } from "@fortawesome/free-solid-svg-icons";
+  EmptySearchComponent,
+  LibFuzzySearch,
+} from "@carma-mapping/fuzzy-search";
+import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
+import {
+  TopicMapSelectionContent,
+  useSelection,
+  useSelectionTopicMap,
+} from "@carma-apps/portals";
 import ContactButton from "./components/ContactButton";
-import ZoomControls from "./components/ZoomControls";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import { isAreaTypeWithGEP } from "@carma-commons/resources";
+import {
+  FullscreenControl,
+  RoutedMapLocateControl,
+  ZoomControl,
+} from "@carma-mapping/components";
 
 function App() {
   const version = getApplicationVersion(versionData);
   const email = "starkregen@olpe.de";
   const urlPrefix = window.location.origin + window.location.pathname;
   const [gazData, setGazData] = useState([]);
+  const { responsiveState, gap, windowSize } = useContext(
+    ResponsiveTopicMapContext
+  );
+  const { setSelection } = useSelection();
+  useSelectionTopicMap();
+
+  const onGazetteerSelection = (selection) => {
+    if (!selection) {
+      setSelection(null);
+      return;
+    }
+
+    const selectionMetaData = {
+      selectedFrom: "gazetteer",
+      selectionTimestamp: Date.now(),
+      isAreaSelection: isAreaTypeWithGEP(selection.type),
+    };
+    setSelection(Object.assign({}, selection, selectionMetaData));
+  };
 
   const getGazData = async (setGazData, url) => {
     const prefix = "GazDataForStarkregengefahrenkarteByCismet";
@@ -36,17 +59,12 @@ function App() {
 
     setGazData(data);
   };
+
   useEffect(() => {
     getGazData(setGazData, urlPrefix + "/data/adressen_olpe.json");
   }, []);
   return (
-    <TopicMapContextProvider
-      appKey={"cismetRainhazardMap.Olpe"}
-      referenceSystem={MappingConstants.crs3857}
-      referenceSystemDefinition={MappingConstants.proj4crs3857def}
-      baseLayerConf={olpeConfig.overridingBaseLayerConf}
-      infoBoxPixelWidth={370}
-    >
+    <>
       <div
         className="controls-container"
         style={{
@@ -59,29 +77,11 @@ function App() {
       >
         <ControlLayout ifStorybook={false}>
           <Control position="topleft" order={10}>
-            <ZoomControls />
+            <ZoomControl />
           </Control>
 
           <Control position="topleft" order={50}>
-            <ControlButtonStyler
-              title={
-                document.fullscreenElement
-                  ? "Vollbildmodus beenden"
-                  : "Vollbildmodus"
-              }
-              onClick={() => {
-                if (document.fullscreenElement) {
-                  document.exitFullscreen();
-                } else {
-                  document.documentElement.requestFullscreen();
-                }
-              }}
-              dataTestId="full-screen-control"
-            >
-              <FontAwesomeIcon
-                icon={document.fullscreenElement ? faCompress : faExpand}
-              />
-            </ControlButtonStyler>
+            <FullscreenControl />
           </Control>
           <Control position="topleft" order={60} title="Mein Standort">
             <RoutedMapLocateControl
@@ -95,7 +95,16 @@ function App() {
           </Control>
           <Control position="bottomleft" order={10}>
             <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
-              <FuzzySearch gazLocalData={gazData} />
+              <LibFuzzySearch
+                gazData={gazData}
+                onSelection={onGazetteerSelection}
+                pixelwidth={
+                  responsiveState === "normal"
+                    ? "300px"
+                    : windowSize.width - gap
+                }
+                placeholder="Adresssuche"
+              />
             </div>
           </Control>
         </ControlLayout>
@@ -128,7 +137,7 @@ function App() {
       >
         <TopicMapSelectionContent />
       </HeavyRainHazardMap>
-    </TopicMapContextProvider>
+    </>
   );
 }
 
