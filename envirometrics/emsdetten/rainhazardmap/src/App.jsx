@@ -13,7 +13,6 @@ import {
   EmptySearchComponent,
   LibFuzzySearch,
 } from "@carma-mapping/fuzzy-search";
-import FuzzySearchWrapper from "./components/FuzzySearchWrapper";
 import {
   TopicMapSelectionContent,
   useSelection,
