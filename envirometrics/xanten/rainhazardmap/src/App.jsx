@@ -8,7 +8,10 @@ import { getApplicationVersion } from "@carma-commons/utils";
 import { getCollabedHelpComponentConfig } from "@carma-pecher-collab/xanten";
 import "./notification.css";
 import footerLogoUrl from "./assets/images/Signet_AIS_RZ.png";
-import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
+import {
+  EmptySearchComponent,
+  LibFuzzySearch,
+} from "@carma-mapping/fuzzy-search";
 import {
   TopicMapSelectionContent,
   useSelection,
@@ -20,13 +23,16 @@ import {
   ControlButtonStyler,
   ControlLayout,
 } from "@carma-mapping/map-controls-layout";
-import { RoutedMapLocateControl } from "@carma-mapping/components";
+import {
+  FullscreenControl,
+  RoutedMapLocateControl,
+  ZoomControl,
+} from "@carma-mapping/components";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCompress, faExpand } from "@fortawesome/free-solid-svg-icons";
 import ContactButton from "./components/ContactButton";
-import ZoomControls from "./components/ZoomControls";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
-import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
+import { isAreaTypeWithGEP } from "@carma-commons/resources";
 
 function App() {
   const version = getApplicationVersion(versionData);
@@ -54,16 +60,7 @@ function App() {
   const { setSelection } = useSelection();
   useSelectionTopicMap();
 
-  const pixelwidth =
-    responsiveState === "normal" ? "300px" : windowSize.width - gap;
-
   const ifDesktop = responsiveState === "normal";
-
-  const AREA_TYPE = ["circle", "pie-chart"];
-
-  const isAreaWithOverlay = (selection) => {
-    return AREA_TYPE.includes(selection.glyph);
-  };
 
   const onGazetteerSelection = (selection) => {
     if (!selection) {
@@ -74,7 +71,7 @@ function App() {
     const selectionMetaData = {
       selectedFrom: "gazetteer",
       selectionTimestamp: Date.now(),
-      isAreaSelection: isAreaWithOverlay(selection),
+      isAreaSelection: isAreaTypeWithGEP(selection),
     };
     setSelection(Object.assign({}, selection, selectionMetaData));
   };
@@ -93,29 +90,11 @@ function App() {
       >
         <ControlLayout ifStorybook={false}>
           <Control position="topleft" order={10}>
-            <ZoomControls />
+            <ZoomControl />
           </Control>
 
           <Control position="topleft" order={50}>
-            <ControlButtonStyler
-              title={
-                document.fullscreenElement
-                  ? "Vollbildmodus beenden"
-                  : "Vollbildmodus"
-              }
-              onClick={() => {
-                if (document.fullscreenElement) {
-                  document.exitFullscreen();
-                } else {
-                  document.documentElement.requestFullscreen();
-                }
-              }}
-              dataTestId="full-screen-control"
-            >
-              <FontAwesomeIcon
-                icon={document.fullscreenElement ? faCompress : faExpand}
-              />
-            </ControlButtonStyler>
+            <FullscreenControl />
           </Control>
           <Control position="topleft" order={60} title="Mein Standort">
             <RoutedMapLocateControl
@@ -138,7 +117,11 @@ function App() {
                 <LibFuzzySearch
                   gazData={gazData}
                   onSelection={onGazetteerSelection}
-                  pixelwidth={pixelwidth}
+                  pixelwidth={
+                    responsiveState === "normal"
+                      ? "300px"
+                      : windowSize.width - gap
+                  }
                   placeholder="Adresssuche"
                 />
               </div>
