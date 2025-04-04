@@ -6,6 +6,8 @@ import {
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { useContext } from "react";
+import { isAreaTypeWithGEP } from "@carma-commons/resources";
+
 const FuzzySearch = ({ gazLocalData }) => {
   const { responsiveState, gap, windowSize } = useContext(
     ResponsiveTopicMapContext
@@ -17,12 +19,6 @@ const FuzzySearch = ({ gazLocalData }) => {
   const { setSelection } = useSelection();
   useSelectionTopicMap();
 
-  const AREA_TYPE = ["circle", "pie-chart"];
-
-  const isAreaWithOverlay = (selection) => {
-    return AREA_TYPE.includes(selection.glyph);
-  };
-
   const onGazetteerSelection = (selection) => {
     if (!selection) {
       setSelection(null);
@@ -32,7 +28,7 @@ const FuzzySearch = ({ gazLocalData }) => {
     const selectionMetaData = {
       selectedFrom: "gazetteer",
       selectionTimestamp: Date.now(),
-      isAreaSelection: isAreaWithOverlay(selection),
+      isAreaSelection: isAreaTypeWithGEP(selection.type),
     };
     setSelection(Object.assign({}, selection, selectionMetaData));
   };
@@ -42,7 +38,9 @@ const FuzzySearch = ({ gazLocalData }) => {
       <LibFuzzySearch
         gazData={gazLocalData}
         onSelection={onGazetteerSelection}
-        pixelwidth={pixelwidth}
+        pixelwidth={
+          responsiveState === "normal" ? "300px" : windowSize.width - gap
+        }
         placeholder="Adresssuche"
       />
     </div>
