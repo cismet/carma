@@ -1,5 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
-import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
+import { useContext, useEffect, useState } from "react";
 import { md5FetchJSON } from "react-cismap/tools/fetching";
 import HeavyRainHazardMap from "@cismet-dev/react-cismap-envirometrics-maps/HeavyRainHazardMap";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
