@@ -75,13 +75,6 @@ function App({ published }: { published?: boolean }) {
       if (newConfig.settings) {
         dispatch(setShowFullscreenButton(newConfig.settings.showFullscreen));
         dispatch(setShowLocatorButton(newConfig.settings.showLocator));
-        dispatch(setShowHamburgerMenu(newConfig.settings.showHamburgerMenu));
-
-        if (newConfig.settings.showLayerHideButtons || published) {
-          dispatch(setUIAllowChanges(false));
-        } else {
-          dispatch(setUIAllowChanges(true));
-        }
       }
       searchParams.delete("data");
       setSearchParams(searchParams);
