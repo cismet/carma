@@ -3,6 +3,7 @@ import express, { Request, Response, NextFunction } from "express";
 import fs, { readFileSync } from "fs";
 import path from "path";
 import crypto from "crypto";
+import cors from "cors";
 /**
  * Sets up the Express application with all routes and middleware
  * @param configDir Directory to store configuration files
@@ -10,6 +11,28 @@ import crypto from "crypto";
  */
 export function setupApp(configDir?: string): express.Express {
   const app = express();
+
+  // Configure CORS
+  const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [];
+  console.log(`CORS allowed origins: ${allowedOrigins.length ? allowedOrigins.join(', ') : 'none'}`); 
+  
+  // Setup CORS middleware
+  app.use(cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, curl, etc)
+      if (!origin) return callback(null, true);
+      
+      // Check if the origin is in the allowed list or if wildcard is enabled
+      if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      
+      // If not allowed
+      callback(new Error('CORS not allowed'));
+    },
+    credentials: true,
+    optionsSuccessStatus: 200
+  }));
 
   // Middleware to parse JSON bodies
   app.use(express.json());
@@ -50,7 +73,7 @@ export function setupApp(configDir?: string): express.Express {
     try {
       // The robots.txt file should now be in the root directory of the build
       const robotsPath = path.join(__dirname, "../robots.txt");
-      
+
       if (fs.existsSync(robotsPath)) {
         const content = fs.readFileSync(robotsPath, "utf-8");
         res.type("text/plain");

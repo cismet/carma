@@ -123,6 +123,7 @@ npx nx run ceepr:serve
 - `HOST`: Host to bind the server to (default: "localhost")
 - `PORT`: Port to listen on (default: 3000)
 - `STORAGE_DIR`: Directory to store configuration files (default: "<app_dir>/storage")
+- `ALLOWED_ORIGINS`: Comma-separated list of origins allowed to access the API via CORS (e.g., "http://localhost:4200,https://example.com"). Use `*` to allow all origins during development.
 
 ### Docker
 
