@@ -4,6 +4,9 @@ import App from "./App";
 import "./index.css";
 import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
 import { gazDataConfig } from "./config/gazData";
+import { MappingConstants } from "react-cismap";
+import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
+import config from "./config";
 
 const originalWarn = console.warn.bind(console);
 const originalError = console.error.bind(console);
@@ -33,7 +36,15 @@ root.render(
   <StrictMode>
     <GazDataProvider config={gazDataConfig}>
       <SelectionProvider>
-        <App />
+        <TopicMapContextProvider
+          appKey={"cismetRainhazardMap.Korschenbroich"}
+          referenceSystem={MappingConstants.crs3857}
+          referenceSystemDefinition={MappingConstants.proj4crs3857def}
+          infoBoxPixelWidth={370}
+          baseLayerConf={config.overridingBaseLayerConf}
+        >
+          <App />
+        </TopicMapContextProvider>
       </SelectionProvider>
     </GazDataProvider>
   </StrictMode>
