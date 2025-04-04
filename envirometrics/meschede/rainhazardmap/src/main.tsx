@@ -9,12 +9,23 @@ import App from "./App";
 import reportWebVitals from "./reportWebVitals";
 import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
 import { gazDataConfig } from "./config/gazData";
+import { MappingConstants } from "react-cismap";
+import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
+import meschedeConfig from "./meschede";
 
 ReactDOM.render(
   <React.StrictMode>
     <GazDataProvider config={gazDataConfig}>
       <SelectionProvider>
-        <App />
+        <TopicMapContextProvider
+          appKey={"cismetRainhazardMap.Meschede"}
+          referenceSystem={MappingConstants.crs3857}
+          referenceSystemDefinition={MappingConstants.proj4crs3857def}
+          baseLayerConf={meschedeConfig.overridingBaseLayerConf}
+          infoBoxPixelWidth={370}
+        >
+          <App />
+        </TopicMapContextProvider>
       </SelectionProvider>
     </GazDataProvider>
   </React.StrictMode>,
