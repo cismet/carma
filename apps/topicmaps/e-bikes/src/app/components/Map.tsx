@@ -27,6 +27,7 @@ import {
 import {
   EmptySearchComponent,
   LibFuzzySearch,
+  defaultTypeInference
 } from "@carma-mapping/fuzzy-search";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import {
@@ -104,29 +105,7 @@ const Map = () => {
                   "kitas",
                   "schulen",
                 ]}
-                typeInference={{
-                  adressen: (item) => {
-                    if (item.glyph === "home") {
-                      return "adressen";
-                    } else if (item.glyph === "road") {
-                      return "streets";
-                    } else {
-                      return "adressen";
-                    }
-                  },
-
-                  pois: (item) => {
-                    if (item.glyph === "tag") {
-                      return "pois";
-                    } else if (item.glyph === "tags") {
-                      return "poisAlternativeNames";
-                    } else if (item.glyph === "graduation-cap") {
-                      return "schulen";
-                    } else {
-                      return "pois";
-                    }
-                  },
-                }}
+                typeInference={defaultTypeInference}
                 // onSelection={()=> {}}
                 pixelwidth={
                   responsiveState === "normal"
