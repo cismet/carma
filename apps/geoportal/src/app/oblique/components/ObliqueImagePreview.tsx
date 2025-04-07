@@ -54,7 +54,7 @@ const PreviewImage = styled.img<{ width: number; $fadeIn: boolean }>`
   pointer-events: none;
   z-index: 10001;
   opacity: ${(props) => (props.$fadeIn ? 1 : 0)};
-  transition: opacity 0.5s linear;
+  transition: opacity 0.5s linear, width 0.1s linear, height 1s linear;
 `;
 
 const ObliqueImagePreview: React.FC<ObliqueImagePreviewProps> = ({
