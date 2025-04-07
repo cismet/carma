@@ -3,7 +3,10 @@ import {
   useSelection,
   useSelectionTopicMap,
 } from "@carma-apps/portals";
-import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
+import {
+  defaultTypeInference,
+  LibFuzzySearch,
+} from "@carma-mapping/fuzzy-search";
 import { type SearchResultItem } from "@carma-commons/types";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { useContext } from "react";
@@ -51,28 +54,7 @@ const FuzzySearchWrapper = ({ searchTextPlaceholder }) => {
           "kitas",
         ]}
         typeInference={{
-          adressen: (item) => {
-            if (item.glyph === "home") {
-              return "adressen";
-            } else if (item.glyph === "road") {
-              return "streets";
-            } else {
-              return "adressen";
-            }
-          },
-
-          pois: (item) => {
-            if (item.glyph === "tag") {
-              return "pois";
-            } else if (item.glyph === "tags") {
-              return "poisAlternativeNames";
-            } else if (item.glyph === "graduation-cap") {
-              return "schulen";
-            } else {
-              return "pois";
-            }
-          },
-
+          ...defaultTypeInference,
           prbr: (item) => {
             if (item.glyph === "car") {
               return "pr";
