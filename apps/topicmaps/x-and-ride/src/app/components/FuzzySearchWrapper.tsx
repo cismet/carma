@@ -38,6 +38,51 @@ const FuzzySearchWrapper = ({ searchTextPlaceholder }) => {
           responsiveState === "normal" ? "300px" : windowSize.width - gap
         }
         placeholder={searchTextPlaceholder}
+        priorityTypes={[
+          "pr",
+          "br",
+          "bezirke",
+          "quartiere",
+          "adressen",
+          "streets",
+          "pois",
+          "poisAlternativeNames",
+          "schulen",
+          "kitas",
+        ]}
+        typeInference={{
+          adressen: (item) => {
+            if (item.glyph === "home") {
+              return "adressen";
+            } else if (item.glyph === "road") {
+              return "streets";
+            } else {
+              return "adressen";
+            }
+          },
+
+          pois: (item) => {
+            if (item.glyph === "tag") {
+              return "pois";
+            } else if (item.glyph === "tags") {
+              return "poisAlternativeNames";
+            } else if (item.glyph === "graduation-cap") {
+              return "schulen";
+            } else {
+              return "pois";
+            }
+          },
+
+          prbr: (item) => {
+            if (item.glyph === "car") {
+              return "pr";
+            } else if (item.glyph === "bicycle") {
+              return "br";
+            } else {
+              return "prbr";
+            }
+          },
+        }}
       />
     </div>
   );
