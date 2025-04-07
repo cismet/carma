@@ -1,6 +1,7 @@
 import { useCesiumContext } from "@carma-mapping/cesium-engine";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, type RefObject } from "react";
 import { styled } from "styled-components";
+import { Viewer, PerspectiveFrustum } from 'cesium';
 
 interface ObliqueImagePreviewProps {
   src: string;
@@ -9,15 +10,22 @@ interface ObliqueImagePreviewProps {
   onClose?: () => void;
 }
 
-const DEFAULT_SCALE_FACTOR = 0.25;
+const BASE_SCALE_FACTOR = 0.25;
 
-const getViewerSyncedSize = (viewerRef: ViewerRef) => {
+const getViewerSyncedSize = (viewerRef: RefObject<Viewer>) => {
   const dim = Math.max(
     viewerRef.current.canvas.width,
     viewerRef.current.canvas.height
   );
-  const fovFactor = Math.tan(viewerRef.current.scene.camera.frustum.fov / 2);
-  return dim / fovFactor;
+  const frustum = viewerRef.current.scene.camera.frustum;
+
+  if (frustum instanceof PerspectiveFrustum) {
+    const fovFactor = Math.tan(frustum.fov / 2);
+    return dim / fovFactor;
+  }
+  console.warn("Unsupported frustum type");
+
+  return dim;
 };
 
 const Backdrop = styled.div<{ $fadeIn: boolean }>`
@@ -38,6 +46,7 @@ const PreviewImage = styled.img<{ width: number; $fadeIn: boolean }>`
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
+  min-width: ${(props) => props.width}px;
   height: auto;
   border: 2px solid rgba(255, 255, 255, 0.9);
   box-shadow: 0 0 50px rgba(255, 255, 255, 0.8);
@@ -54,10 +63,6 @@ const ObliqueImagePreview: React.FC<ObliqueImagePreviewProps> = ({
   isVisible,
   onClose,
 }) => {
-  const [imageDimensions, setImageDimensions] = useState({
-    width: 512,
-    height: 512,
-  });
   const [shouldFadeIn, setShouldFadeIn] = useState(false);
   const [isVertical, setIsVertical] = useState(false);
   const [imageAspectRatio, setImageAspectRatio] = useState(1);
@@ -68,10 +73,6 @@ const ObliqueImagePreview: React.FC<ObliqueImagePreviewProps> = ({
       const img = new Image();
       img.src = src;
       img.onload = () => {
-        setImageDimensions({
-          width: img.naturalWidth,
-          height: img.naturalHeight,
-        });
         setIsVertical(img.naturalWidth < img.naturalHeight);
         setImageAspectRatio(img.naturalWidth / img.naturalHeight);
       };
@@ -85,14 +86,8 @@ const ObliqueImagePreview: React.FC<ObliqueImagePreviewProps> = ({
 
       const viewer = viewerRef?.current;
       if (viewer) {
-        const handleViewerChange = () => {
-          setImageDimensions((prev) => ({ ...prev }));
-        };
-
-        viewer.scene.postRender.addEventListener(handleViewerChange);
         return () => {
           clearTimeout(timer);
-          viewer.scene.postRender.removeEventListener(handleViewerChange);
         };
       }
 
@@ -108,8 +103,7 @@ const ObliqueImagePreview: React.FC<ObliqueImagePreviewProps> = ({
 
   if (!isVisible) return null;
 
-  const scaleFactor =
-    DEFAULT_SCALE_FACTOR * (isVertical ? imageAspectRatio : 1);
+  const scaleFactor = BASE_SCALE_FACTOR * (isVertical ? imageAspectRatio : 1);
 
   const syncedSize = getViewerSyncedSize(viewerRef) * scaleFactor;
 
