@@ -14,6 +14,7 @@ import {
   useSelectionTopicMap,
 } from "@carma-apps/portals";
 import {
+  defaultTypeInference,
   EmptySearchComponent,
   LibFuzzySearch,
 } from "@carma-mapping/fuzzy-search";
@@ -83,6 +84,17 @@ const Baederkarte = () => {
                     : windowSize.width - gap
                 }
                 placeholder="Stadtteil | Adresse | POI"
+                priorityTypes={[
+                  "pois",
+                  "poisAlternativeNames",
+                  "bezirke",
+                  "quartiere",
+                  "adressen",
+                  "streets",
+                  "schulen",
+                  "kitas",
+                ]}
+                typeInference={defaultTypeInference}
               />
             </div>
           </Control>
