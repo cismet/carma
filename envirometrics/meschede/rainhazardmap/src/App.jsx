@@ -49,6 +49,8 @@ function App() {
     styles: { marginLeft: "16px", marginTop: "2px" },
   });
 
+  console.log("xxx attributionHeight", attributionHeight);
+
   const ifDesktop = responsiveState === "normal";
   const { setSelection } = useSelection();
   useSelectionTopicMap();

@@ -17,8 +17,6 @@ export const useAttributionControlStyling = ({
         ".leaflet-control-attribution"
       ) as HTMLElement | null;
       if (attributionControl) {
-        // attributionControl.style.marginLeft = "16px";
-        // attributionControl.style.marginTop = "2px";
         Object.assign(attributionControl.style, styles);
         const height = attributionControl.getBoundingClientRect().height;
         setAttributionHeight(height);
@@ -28,7 +26,7 @@ export const useAttributionControlStyling = ({
       if (newBg) {
         bgParam.current = newBg;
       }
-    }, 50);
+    }, 200);
   };
 
   const buildBottomGap = () => {
