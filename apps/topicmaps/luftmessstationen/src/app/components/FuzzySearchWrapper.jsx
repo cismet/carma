@@ -50,6 +50,40 @@ const FuzzySearchWrapper = ({ searchTextPlaceholder }) => {
         pixelwidth={
           responsiveState === "normal" ? "300px" : windowSize.width - gap
         }
+        priorityTypes={[
+          "no2",
+          "bezirke",
+          "quartiere",
+          "adressen",
+          "streets",
+          "schulen",
+          "kitas",
+          "pois",
+          "poisAlternativeNames",
+        ]}
+        typeInference={{
+          adressen: (item) => {
+            if (item.glyph === "home") {
+              return "adressen";
+            } else if (item.glyph === "road") {
+              return "streets";
+            } else {
+              return "adressen";
+            }
+          },
+
+          pois: (item) => {
+            if (item.glyph === "tag") {
+              return "pois";
+            } else if (item.glyph === "tags") {
+              return "poisAlternativeNames";
+            } else if (item.glyph === "graduation-cap") {
+              return "schulen";
+            } else {
+              return "pois";
+            }
+          },
+        }}
       />
     </div>
   );
