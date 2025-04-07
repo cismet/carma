@@ -26,7 +26,7 @@ export const useAttributionControlStyling = ({
       if (newBg) {
         bgParam.current = newBg;
       }
-    }, 200);
+    }, 400);
   };
 
   const buildBottomGap = () => {
