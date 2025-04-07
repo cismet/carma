@@ -1,6 +1,5 @@
 import React, { useCallback, useRef, useState, useEffect } from "react";
 import { useSelector } from "react-redux";
-import { styled, createGlobalStyle } from "styled-components";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -8,7 +7,7 @@ import {
   faRotateRight,
   faSpinner,
 } from "@fortawesome/free-solid-svg-icons";
-import { Tooltip, Image as AntdImage } from "antd";
+import { Tooltip } from "antd";
 import { DownloadOutlined } from "@ant-design/icons";
 import {
   HeadingPitchRange,
@@ -23,7 +22,6 @@ import {
   ScreenSpaceEventType,
   ConstantPositionProperty,
   sampleTerrainMostDetailed,
-  PerspectiveFrustum,
 } from "cesium";
 
 import { useCesiumContext } from "@carma-mapping/cesium-engine";
@@ -38,13 +36,13 @@ import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
 import { getPreviewImageUrl } from "../utils/imageHandling";
 import { ObliqueFootprintLayer } from "./ObliqueFootprintLayer";
 import { ObliqueDebugSvg } from "./ObliqueDebugSvg";
+import ObliqueImagePreview from "./ObliqueImagePreview";
 import { ObliqueImageInfo } from "./ObliqueImageInfo";
 import {
   subscribeToPreviewVisibility,
   notifyPreviewVisibilityChange,
 } from "../utils/previewVisibility";
 import { getDirectionFromCartesian } from "../utils/orientationUtils";
-import { FOV_SCALE_FACTOR } from "../config";
 
 type ObliqueControlsProps = {
   /**
@@ -62,15 +60,6 @@ enum CardinalDirection {
   South = 2,
   West = 3,
 }
-
-const HiddenImagePreviewContainer = styled.div`
-  position: "absolute";
-  opacity: 0;
-  pointer-events: none;
-  width: 1;
-  height: 1;
-  overflow: hidden;
-`;
 
 export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const isObliqueMode = useSelector(getObliqueMode);
@@ -98,17 +87,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   }, []);
   const orbitPointEntityRef = useRef<Entity | null>(null);
   const userMovedCameraRef = useRef<boolean>(false);
-
-  const GlobalPreviewStyles = createGlobalStyle<{ scale: number }>`
-  .ant-image-preview-root .ant-image-preview-img {
-    cursor: default !important;
-    pointer-events: none !important;
-        transform: scale(${({ scale }) => scale}) !important;
-    transform-origin: center center !important;
-    max-width: none !important;
-    max-height: none !important;
-  }
-`;
 
   const orbitPoint = useOrbitPoint();
 
@@ -525,62 +503,29 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
   const offsetDegrees = Math.round(CesiumMath.toDegrees(headingOffset));
 
-  const viewerAspectRatio =
-    viewerRef.current?.scene.canvas.width >
-    viewerRef.current?.scene.canvas.height
-      ? viewerRef.current?.scene.canvas.width /
-        viewerRef.current?.scene.canvas.height
-      : 1;
-
-  // always use longer dimension
-  let scaleFactor = 1;
-
-  if (viewerRef.current?.camera.frustum instanceof PerspectiveFrustum) {
-    const fov = viewerRef.current?.camera.frustum.fov;
-    scaleFactor =
-      viewerAspectRatio * (1 / Math.tan(fov / 2)) * FOV_SCALE_FACTOR;
-  }
-
   return (
     <>
-      <GlobalPreviewStyles scale={scaleFactor} />
       <ObliqueFootprintLayer />
       {isDebugMode && <ObliqueDebugSvg />}
       {isDebugMode && nearestImage && (
         <ObliqueImageInfo imageRecord={nearestImage} />
       )}
-      {/* Hidden image in center that will be used for preview */}
+      {/* Image preview component */}
       {nearestImage && previewPath && nearestImage.record.id && (
-        <HiddenImagePreviewContainer>
-          <AntdImage
-            src={getPreviewImageUrl(
-              previewPath,
-              previewQualityLevel,
-              nearestImage.record.id
-            )}
-            alt={`Image preview ${nearestImage.record.id}`}
-            preview={{
-              visible: isPreviewVisible,
-              style: {
-                cursor: "default", // Prevent the grab cursor
-              },
-              src: getPreviewImageUrl(
-                previewPath,
-                previewQualityLevel,
-                nearestImage.record.id
-              ),
-              onVisibleChange: (visible) => {
-                setIsPreviewVisible(visible);
-                notifyPreviewVisibilityChange(visible);
-                if (!visible) {
-                  setLockFootprint(false);
-                }
-              },
-              toolbarRender: () => null,
-              movable: false,
-            }}
-          />
-        </HiddenImagePreviewContainer>
+        <ObliqueImagePreview
+          src={getPreviewImageUrl(
+            previewPath,
+            previewQualityLevel,
+            nearestImage.record.id
+          )}
+          alt={`Image preview ${nearestImage.record.id}`}
+          isVisible={isPreviewVisible}
+          onClose={() => {
+            setIsPreviewVisible(false);
+            notifyPreviewVisibilityChange(false);
+            setLockFootprint(false);
+          }}
+        />
       )}
       <div
         className="camera-rotation-controls-container"
