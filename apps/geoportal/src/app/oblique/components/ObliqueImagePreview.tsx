@@ -20,7 +20,7 @@ const getViewerSyncedSize = (viewerRef: ViewerRef) => {
   return dim / fovFactor;
 };
 
-const Backdrop = styled.div<{ fadeIn: boolean }>`
+const Backdrop = styled.div<{ $fadeIn: boolean }>`
   position: fixed;
   top: 0;
   left: 0;
@@ -28,12 +28,12 @@ const Backdrop = styled.div<{ fadeIn: boolean }>`
   height: 100vh;
   background-color: rgba(0, 0, 0, 0.05);
   z-index: 10000;
-  opacity: ${(props) => (props.fadeIn ? 1 : 0)};
-  transition: opacity 1s ease;
+  opacity: ${(props) => (props.$fadeIn ? 1 : 0)};
+  transition: opacity 0.5s linear;
   cursor: pointer;
 `;
 
-const PreviewImage = styled.img<{ width: number; fadeIn: boolean }>`
+const PreviewImage = styled.img<{ width: number; $fadeIn: boolean }>`
   position: fixed;
   left: 50%;
   top: 50%;
@@ -42,10 +42,10 @@ const PreviewImage = styled.img<{ width: number; fadeIn: boolean }>`
   border: 2px solid rgba(255, 255, 255, 0.9);
   box-shadow: 0 0 50px rgba(255, 255, 255, 0.8);
   box-sizing: content-box;
-  pointer-events: none; // backdrop handles closing
+  pointer-events: none;
   z-index: 10001;
-  opacity: ${(props) => (props.fadeIn ? 1 : 0)};
-  transition: opacity 1s ease;
+  opacity: ${(props) => (props.$fadeIn ? 1 : 0)};
+  transition: opacity 0.5s linear;
 `;
 
 const ObliqueImagePreview: React.FC<ObliqueImagePreviewProps> = ({
@@ -115,12 +115,12 @@ const ObliqueImagePreview: React.FC<ObliqueImagePreviewProps> = ({
 
   return (
     <>
-      <Backdrop fadeIn={shouldFadeIn} onClick={handleBackdropClick} />
+      <Backdrop $fadeIn={shouldFadeIn} onClick={handleBackdropClick} />
       <PreviewImage
         src={src}
         alt={alt}
         width={syncedSize}
-        fadeIn={shouldFadeIn}
+        $fadeIn={shouldFadeIn}
       />
     </>
   );
