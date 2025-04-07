@@ -8,6 +8,7 @@ const endpoints = [
   ENDPOINT.QUARTIERE,
   ENDPOINT.POIS,
   ENDPOINT.BPKLIMASTANDORTE,
+  ENDPOINT.KITAS,
 ];
 
 const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
