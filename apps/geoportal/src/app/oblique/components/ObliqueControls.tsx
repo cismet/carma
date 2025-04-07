@@ -1,6 +1,5 @@
 import React, { useCallback, useRef, useState, useEffect } from "react";
 import { useSelector } from "react-redux";
-import { createGlobalStyle } from "styled-components";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -23,7 +22,6 @@ import {
   ScreenSpaceEventType,
   ConstantPositionProperty,
   sampleTerrainMostDetailed,
-  PerspectiveFrustum,
 } from "cesium";
 
 import { useCesiumContext } from "@carma-mapping/cesium-engine";
@@ -45,7 +43,6 @@ import {
   notifyPreviewVisibilityChange,
 } from "../utils/previewVisibility";
 import { getDirectionFromCartesian } from "../utils/orientationUtils";
-import { FOV_SCALE_FACTOR } from "../config";
 
 type ObliqueControlsProps = {
   /**
@@ -84,24 +81,12 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const [shouldRender, setShouldRender] = useState(isObliqueMode);
   const [currentHeading, setCurrentHeading] = useState<number>(0);
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
-  const [imageScale, setImageScale] = useState(800); // Default scale factor for the image preview
 
   const closePreview = useCallback(() => {
     setIsPreviewVisible(false);
   }, []);
   const orbitPointEntityRef = useRef<Entity | null>(null);
   const userMovedCameraRef = useRef<boolean>(false);
-
-  const GlobalPreviewStyles = createGlobalStyle<{ scale: number }>`
-  .ant-image-preview-root .ant-image-preview-img {
-    cursor: default !important;
-    pointer-events: none !important;
-        transform: scale(${({ scale }) => scale}) !important;
-    transform-origin: center center !important;
-    max-width: none !important;
-    max-height: none !important;
-  }
-`;
 
   const orbitPoint = useOrbitPoint();
 
@@ -269,12 +254,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
         viewer.camera.lookAtTransform(Matrix4.IDENTITY);
         viewer.scene.requestRender();
         animationInProgressRef.current = false;
-        
-        // Calculate scale based on camera height and distance
-        const currentHeight = viewer.camera.positionCartographic.height;
-        const scaleFactor = Math.max(500, currentHeight * 0.8);
-        
-        setImageScale(scaleFactor);
         setIsPreviewVisible(true);
         notifyPreviewVisibilityChange(true);
       },
@@ -524,25 +503,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
   const offsetDegrees = Math.round(CesiumMath.toDegrees(headingOffset));
 
-  const viewerAspectRatio =
-    viewerRef.current?.scene.canvas.width >
-    viewerRef.current?.scene.canvas.height
-      ? viewerRef.current?.scene.canvas.width /
-        viewerRef.current?.scene.canvas.height
-      : 1;
-
-  // always use longer dimension
-  let scaleFactor = 1;
-
-  if (viewerRef.current?.camera.frustum instanceof PerspectiveFrustum) {
-    const fov = viewerRef.current?.camera.frustum.fov;
-    scaleFactor =
-      viewerAspectRatio * (1 / Math.tan(fov / 2)) * FOV_SCALE_FACTOR;
-  }
-
   return (
     <>
-      <GlobalPreviewStyles scale={scaleFactor} />
       <ObliqueFootprintLayer />
       {isDebugMode && <ObliqueDebugSvg />}
       {isDebugMode && nearestImage && (
@@ -557,7 +519,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
             nearestImage.record.id
           )}
           alt={`Image preview ${nearestImage.record.id}`}
-          scale={imageScale}
           isVisible={isPreviewVisible}
           onClose={() => {
             setIsPreviewVisible(false);
