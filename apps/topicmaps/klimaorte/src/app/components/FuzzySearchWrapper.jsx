@@ -1,5 +1,8 @@
 import { useSelection, useSelectionTopicMap } from "@carma-apps/portals";
-import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
+import {
+  defaultTypeInference,
+  LibFuzzySearch,
+} from "@carma-mapping/fuzzy-search";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { useContext } from "react";
 import { FeatureCollectionDispatchContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
@@ -58,6 +61,18 @@ const FuzzySearchWrapper = ({ searchTextPlaceholder }) => {
         onSelection={onGazetteerSelection}
         pixelwidth={pixelwidth}
         placeholder={searchTextPlaceholder}
+        priorityTypes={[
+          "bpklimastandorte",
+          "pois",
+          "poisAlternativeNames",
+          "schulen",
+          "kitas",
+          "bezirke",
+          "quartiere",
+          "adressen",
+          "streets",
+        ]}
+        typeInference={defaultTypeInference}
       />
     </div>
   );
