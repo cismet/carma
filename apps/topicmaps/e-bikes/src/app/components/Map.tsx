@@ -27,7 +27,7 @@ import {
 import {
   EmptySearchComponent,
   LibFuzzySearch,
-  defaultTypeInference
+  defaultTypeInference,
 } from "@carma-mapping/fuzzy-search";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import {

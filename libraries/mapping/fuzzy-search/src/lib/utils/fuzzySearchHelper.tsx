@@ -513,4 +513,4 @@ export const defaultTypeInference = {
       return "pois";
     }
   },
-}
+};

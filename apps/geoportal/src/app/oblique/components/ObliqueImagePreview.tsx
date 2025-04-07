@@ -1,7 +1,7 @@
 import { useCesiumContext } from "@carma-mapping/cesium-engine";
 import React, { useEffect, useState, type RefObject } from "react";
 import { styled } from "styled-components";
-import { Viewer, PerspectiveFrustum } from 'cesium';
+import { Viewer, PerspectiveFrustum } from "cesium";
 
 interface ObliqueImagePreviewProps {
   src: string;
