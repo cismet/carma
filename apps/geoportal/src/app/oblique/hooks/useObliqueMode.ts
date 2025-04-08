@@ -153,6 +153,12 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
   const isObliqueMode = useSelector(getObliqueMode);
   const { viewerRef } = useCesiumContext();
   const originalFovRef = useRef<number | null>(null);
+
+  // Store all callback references to ensure proper cleanup
+  const wheelEventHandlerRef = useRef<((event: WheelEvent) => void) | null>(
+    null
+  );
+  const preUpdateCallbackFnRef = useRef<((scene: any) => void) | null>(null);
   const fovAnimationCleanupRef = useRef<(() => void) | null>(null);
 
   // Use the shared context to get oblique data
@@ -164,169 +170,205 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
   } = useObliqueDataContext();
 
   useEffect(() => {
-    let wheelCleanupFn: (() => void) | undefined;
-    let cameraPreUpdateRemoveCallback: (() => void) | undefined;
+    if (!viewerRef.current) {
+      return;
+    }
 
-    if (viewerRef.current) {
-      const viewer = viewerRef.current;
+    const viewer = viewerRef.current;
+    const cameraController = viewer.scene.screenSpaceCameraController;
 
-      const cameraController = viewer.scene.screenSpaceCameraController;
-      cameraController.enableZoom = !isObliqueMode;
-      cameraController.enableRotate = true;
-      cameraController.enableTilt = true;
-      cameraController.enableTranslate = true;
+    // Define all event handlers as local constants
+    let wheelEventHandler: ((event: WheelEvent) => void) | null = null;
+    let preUpdateCallbackFn: ((scene: any) => void) | null = null;
+    let fovAnimationCleanup: (() => void) | null = null;
 
-      if (isObliqueMode) {
-        if (viewer.camera.frustum instanceof PerspectiveFrustum) {
-          originalFovRef.current = viewer.camera.frustum.fov;
+    // Clean up any existing event handlers from previous renders
+    // Do this immediately to prevent stale event handlers
+    if (wheelEventHandlerRef.current) {
+      viewer.canvas.removeEventListener("wheel", wheelEventHandlerRef.current);
+      wheelEventHandlerRef.current = null;
+    }
+
+    if (preUpdateCallbackFnRef.current) {
+      viewer.scene.preUpdate.removeEventListener(
+        preUpdateCallbackFnRef.current
+      );
+      preUpdateCallbackFnRef.current = null;
+    }
+
+    // Clean up any animation callbacks immediately
+    if (fovAnimationCleanupRef.current) {
+      fovAnimationCleanupRef.current();
+      fovAnimationCleanupRef.current = null;
+    }
+
+    cameraController.enableZoom = !isObliqueMode;
+    cameraController.enableRotate = true;
+    cameraController.enableTilt = true;
+    cameraController.enableTranslate = true;
+
+    if (isObliqueMode) {
+      if (viewer.camera.frustum instanceof PerspectiveFrustum) {
+        originalFovRef.current = viewer.camera.frustum.fov;
+      }
+
+      const center = getOrbitPoint(viewer);
+      const range =
+        viewer.camera.positionCartographic.height / Math.tan(-fixedPitch);
+
+      // Define wheel handler as a local constant
+      wheelEventHandler = (event: WheelEvent) => {
+        event.preventDefault();
+
+        if (!(viewer.camera.frustum instanceof PerspectiveFrustum)) {
+          return;
         }
 
-        const center = getOrbitPoint(viewer);
-        const range =
-          viewer.camera.positionCartographic.height / Math.tan(-fixedPitch);
+        const currentFov = viewer.camera.frustum.fov;
+        const baseSensitivity = 0.002;
+        const zoomingOut = event.deltaY > 0;
 
-        // Setup wheel handler first
-        const handleWheel = (event: WheelEvent) => {
-          event.preventDefault();
-
-          if (!(viewer.camera.frustum instanceof PerspectiveFrustum)) {
-            return;
-          }
-
-          const currentFov = viewer.camera.frustum.fov;
-          const baseSensitivity = 0.002;
-          const zoomingOut = event.deltaY > 0;
-
-          let adaptiveSensitivity;
-          if (zoomingOut) {
-            // When zooming out, sensitivity decreases as we approach maxFov
-            const remainingRange = maxFov - currentFov;
-            adaptiveSensitivity =
-              baseSensitivity * (remainingRange / (maxFov - minFov));
-          } else {
-            // When zooming in, sensitivity decreases as we approach minFov
-            const remainingRange = currentFov - minFov;
-            adaptiveSensitivity =
-              baseSensitivity * (remainingRange / (maxFov - minFov));
-          }
-
-          const delta = event.deltaY * adaptiveSensitivity;
-          let newFov = currentFov + delta;
-
-          // Clamp to min/max FOV
-          newFov = Math.max(minFov, Math.min(maxFov, newFov));
-
-          // Only update if there's a meaningful change
-          if (Math.abs(newFov - currentFov) > 0.0001) {
-            viewer.camera.frustum.fov = newFov;
-          }
-        };
-
-        viewer.canvas.addEventListener("wheel", handleWheel, {
-          passive: false,
-        });
-        wheelCleanupFn = () => {
-          viewer.canvas.removeEventListener("wheel", handleWheel);
-        };
-
-        // Animation first, only add preUpdateCallback after animation completes
-        const sphere = new BoundingSphere(center, range);
-        viewer.camera.flyToBoundingSphere(sphere, {
-          offset: new HeadingPitchRange(
-            viewer.camera.heading,
-            fixedPitch,
-            range
-          ),
-          duration: 1,
-          complete: function () {
-            // After the flyTo animation, we need to adjust the camera position to be exactly at fixedHeight
-            // Get the ray from camera to center point
-            const ray = new Ray(
-              viewer.camera.position,
-              viewer.camera.direction
-            );
-            // Calculate the distance to move along this ray to get to the desired height
-            // First, get current camera height above ellipsoid
-            const currentHeight =
-              viewer.scene.globe.ellipsoid.cartesianToCartographic(
-                viewer.camera.position
-              ).height;
-            // Calculate how far we need to move to achieve fixedHeight
-            const heightDifference = fixedHeight - currentHeight;
-            // If there's a significant difference, adjust the camera position
-            if (Math.abs(heightDifference) > 100) {
-              // Create a new position by moving along the ray
-              // If we need to move up (heightDifference is positive), move backward
-              // If we need to move down (heightDifference is negative), move forward
-              const distanceToMove = heightDifference / Math.sin(-fixedPitch);
-              const newPosition = Ray.getPoint(ray, -distanceToMove);
-              viewer.camera.flyTo({
-                destination: newPosition,
-                orientation: {
-                  heading: viewer.camera.heading,
-                  pitch: fixedPitch,
-                  roll: 0,
-                },
-                duration: 0.5,
-                complete: function () {
-                  const callback = () =>
-                    preUpdateCallback(viewer, fixedPitch, fixedHeight);
-                  viewer.scene.preUpdate.addEventListener(callback);
-
-                  cameraPreUpdateRemoveCallback = () => {
-                    viewer.scene.preUpdate.removeEventListener(callback);
-                  };
-
-                  viewer.scene.requestRender();
-                },
-              });
-            }
-            // After the position adjustment, now add the constraint callback
-          },
-        });
-      } else {
-        // Clean up preUpdateCallback when leaving oblique mode
-        if (cameraPreUpdateRemoveCallback) {
-          cameraPreUpdateRemoveCallback();
+        let adaptiveSensitivity;
+        if (zoomingOut) {
+          // When zooming out, sensitivity decreases as we approach maxFov
+          const remainingRange = maxFov - currentFov;
+          adaptiveSensitivity =
+            baseSensitivity * (remainingRange / (maxFov - minFov));
+        } else {
+          // When zooming in, sensitivity decreases as we approach minFov
+          const remainingRange = currentFov - minFov;
+          adaptiveSensitivity =
+            baseSensitivity * (remainingRange / (maxFov - minFov));
         }
 
-        if (
-          viewer.camera.frustum instanceof PerspectiveFrustum &&
-          originalFovRef.current !== null
-        ) {
-          const currentFov = viewer.camera.frustum.fov;
-          const targetFov = originalFovRef.current;
+        const delta = event.deltaY * adaptiveSensitivity;
+        let newFov = currentFov + delta;
 
-          // Clean up any existing animation
-          if (fovAnimationCleanupRef.current) {
-            fovAnimationCleanupRef.current();
-          }
+        // Clamp to min/max FOV
+        newFov = Math.max(minFov, Math.min(maxFov, newFov));
 
-          // Animate back to original FOV
-          fovAnimationCleanupRef.current = animateFov({
-            viewer,
-            startFov: currentFov,
-            targetFov,
-            duration: 300,
-            easingFunction: EasingFunction.SINUSOIDAL_IN_OUT,
+        // Only update if there's a meaningful change
+        if (Math.abs(newFov - currentFov) > 0.0001) {
+          viewer.camera.frustum.fov = newFov;
+        }
+      };
+
+      // Store the handler in the ref and add the event listener
+      wheelEventHandlerRef.current = wheelEventHandler;
+      viewer.canvas.addEventListener("wheel", wheelEventHandler, {
+        passive: false,
+      });
+
+      // Animation first, only add preUpdateCallback after animation completes
+      const sphere = new BoundingSphere(center, range);
+
+      // Define preUpdateCallbackFn here as a local constant so we can reference
+      // the exact same function in both setup and cleanup
+      preUpdateCallbackFn = () =>
+        preUpdateCallback(viewer, fixedPitch, fixedHeight);
+
+      const flightCompleteCallback = () => {
+        // After the flyTo animation, we need to adjust the camera position to be exactly at fixedHeight
+        // Get the ray from camera to center point
+        const ray = new Ray(viewer.camera.position, viewer.camera.direction);
+
+        // Calculate the distance to move along this ray to get to the desired height
+        // First, get current camera height above ellipsoid
+        const currentCartographic =
+          viewer.scene.globe.ellipsoid.cartesianToCartographic(
+            viewer.camera.position
+          );
+
+        if (!currentCartographic) {
+          console.debug("Failed to get cartographic position");
+          return;
+        }
+
+        const currentHeight = currentCartographic.height;
+
+        // Calculate how far we need to move to achieve fixedHeight
+        const heightDifference = fixedHeight - currentHeight;
+
+        // If there's a significant difference, adjust the camera position
+        if (Math.abs(heightDifference) > 100) {
+          // Create a new position by moving along the ray
+          // If we need to move up (heightDifference is positive), move backward
+          // If we need to move down (heightDifference is negative), move forward
+          const distanceToMove = heightDifference / Math.sin(-fixedPitch);
+          const newPosition = Ray.getPoint(ray, -distanceToMove);
+
+          viewer.camera.flyTo({
+            destination: newPosition,
+            orientation: {
+              heading: viewer.camera.heading,
+              pitch: fixedPitch,
+              roll: 0,
+            },
+            duration: 0.5,
+            complete: function () {
+              // Store the reference to ensure we remove exactly this function later
+              preUpdateCallbackFnRef.current = preUpdateCallbackFn;
+              viewer.scene.preUpdate.addEventListener(preUpdateCallbackFn);
+
+              viewer.scene.requestRender();
+            },
           });
+        } else {
+          // No need for an additional flight, just add the callback
+          // Store the reference to ensure we remove exactly this function later
+          preUpdateCallbackFnRef.current = preUpdateCallbackFn;
+          viewer.scene.preUpdate.addEventListener(preUpdateCallbackFn);
         }
+      };
+
+      viewer.camera.flyToBoundingSphere(sphere, {
+        offset: new HeadingPitchRange(viewer.camera.heading, fixedPitch, range),
+        duration: 1,
+        complete: flightCompleteCallback,
+      });
+    } else {
+      // Non-oblique mode
+      if (
+        viewer.camera.frustum instanceof PerspectiveFrustum &&
+        originalFovRef.current !== null
+      ) {
+        const currentFov = viewer.camera.frustum.fov;
+        const targetFov = originalFovRef.current;
+
+        // Clean up any existing animation
+        if (fovAnimationCleanupRef.current) {
+          fovAnimationCleanupRef.current();
+          fovAnimationCleanupRef.current = null;
+        }
+
+        // Animate back to original FOV
+        fovAnimationCleanup = animateFov({
+          viewer,
+          startFov: currentFov,
+          targetFov,
+          duration: 300,
+          easingFunction: EasingFunction.SINUSOIDAL_IN_OUT,
+        });
+
+        // Store the cleanup function
+        fovAnimationCleanupRef.current = fovAnimationCleanup;
       }
     }
 
     return () => {
-      if (wheelCleanupFn) {
-        wheelCleanupFn();
+      // Clean up all event listeners using local constants
+      if (wheelEventHandler) {
+        viewer.canvas.removeEventListener("wheel", wheelEventHandler);
+        wheelEventHandlerRef.current = null;
       }
 
-      // Clean up any FOV animations
-      if (fovAnimationCleanupRef.current) {
-        fovAnimationCleanupRef.current();
-        fovAnimationCleanupRef.current = null;
+      if (preUpdateCallbackFn) {
+        viewer.scene.preUpdate.removeEventListener(preUpdateCallbackFn);
+        preUpdateCallbackFnRef.current = null;
       }
 
-      if (cameraPreUpdateRemoveCallback) {
-        cameraPreUpdateRemoveCallback();
+      if (fovAnimationCleanup) {
+        fovAnimationCleanup();
       }
     };
   }, [

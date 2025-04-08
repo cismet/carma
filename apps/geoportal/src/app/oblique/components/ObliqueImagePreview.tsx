@@ -10,7 +10,7 @@ interface ObliqueImagePreviewProps {
   onClose?: () => void;
 }
 
-const BASE_SCALE_FACTOR = 0.25;
+const BASE_SCALE_FACTOR = 0.245;
 
 const getViewerSyncedSize = (viewerRef: RefObject<Viewer>) => {
   const dim = Math.max(
@@ -53,7 +53,7 @@ const PreviewImage = styled.img<{ width: number; $fadeIn: boolean }>`
   box-shadow: 0 0 50px rgba(255, 255, 255, 0.8);
   box-sizing: content-box;
   pointer-events: none;
-  backdrop-filter: contrast(120%);
+  backdrop-filter: contrast(80%);
   z-index: 10001;
   opacity: ${(props) => (props.$fadeIn ? 1 : 0)};
   transition: opacity 0.5s linear, width 0.1s linear, height 1s linear;
