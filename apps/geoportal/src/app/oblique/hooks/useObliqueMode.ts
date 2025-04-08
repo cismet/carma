@@ -13,9 +13,12 @@ import { useSelector } from "react-redux";
 
 import { getOrbitPoint, useCesiumContext } from "@carma-mapping/cesium-engine";
 
-import { useObliqueDataContext } from "../../oblique/hooks/useObliqueDataContext";
-
 import { getObliqueMode } from "../../store/slices/ui";
+
+const PITCH_TOLERANCE_THRESHOLD = CesiumMath.toRadians(10);
+const HEIGHT_TOLERANCE_THRESHOLD = 150.0;
+
+const VALID_CORRECTION_DISTANCE_THRESHOLD = 10000.0;
 
 // Options for local overrides
 export interface ObliqueModeOptions {
@@ -51,7 +54,10 @@ const preUpdateCallback = (
   const heightDifference = Math.abs(currentCartographic.height - fixedHeight);
   const pitchDifference = Math.abs(currentPitch - fixedPitch);
 
-  if (pitchDifference > 0.03 || heightDifference > 5.0) {
+  const shouldPitchCorrect = pitchDifference > PITCH_TOLERANCE_THRESHOLD;
+  const shouldHeightCorrect = heightDifference > HEIGHT_TOLERANCE_THRESHOLD;
+
+  if (shouldPitchCorrect || shouldHeightCorrect) {
     const longitude = currentCartographic.longitude;
     const latitude = currentCartographic.latitude;
 
@@ -63,7 +69,7 @@ const preUpdateCallback = (
 
     const distance = Cartesian3.distance(fixedPosition, viewer.camera.position);
 
-    if (distance > 10000) {
+    if (distance > VALID_CORRECTION_DISTANCE_THRESHOLD) {
       console.warn(distance, "Target position is too far away, aborting");
       return;
     }
@@ -246,7 +252,7 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
             // Calculate how far we need to move to achieve fixedHeight
             const heightDifference = fixedHeight - currentHeight;
             // If there's a significant difference, adjust the camera position
-            if (Math.abs(heightDifference) > 1) {
+            if (Math.abs(heightDifference) > 100) {
               // Create a new position by moving along the ray
               // If we need to move up (heightDifference is positive), move backward
               // If we need to move down (heightDifference is negative), move forward
