@@ -113,7 +113,9 @@ const LibreGeoportalMap = () => {
         style.sources[sourceId] = {
           type: "raster",
           tiles: [
-            `${url}bbox={bbox-epsg-3857}&styles=&format=image/png&service=WMS&version=1.1.1&request=GetMap&srs=EPSG:3857&transparent=true&width=256&height=256&layers=${name}&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}`,
+            `${url}${
+              url.endsWith("?") ? "" : "?"
+            }bbox={bbox-epsg-3857}&styles=&format=image/png&service=WMS&version=1.1.1&request=GetMap&srs=EPSG:3857&transparent=true&width=256&height=256&layers=${name}&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}`,
           ],
           tileSize: 256,
         };
