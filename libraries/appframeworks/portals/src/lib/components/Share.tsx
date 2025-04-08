@@ -15,7 +15,8 @@ export type ShareProps = {
 const shortenerUrl = "https://ceepr.cismet.de/store/wuppertal/_dev_geoportal";
 
 export const Share = ({ layerState }: ShareProps) => {
-  const { layers, backgroundLayer } = layerState;
+  const { layers, backgroundLayer, selectedLuftbildLayer, selectedMapLayer } =
+    layerState;
   const [searchParams] = useSearchParams();
   const [, copyToClipboard] = useCopyToClipboard();
   const [messageApi, contextHolder] = message.useMessage();
@@ -43,7 +44,13 @@ export const Share = ({ layerState }: ShareProps) => {
       zoom: zoom,
     };
     const newConfig = {
-      backgroundLayer,
+      backgroundLayer: {
+        ...backgroundLayer,
+        selectedLayerId:
+          backgroundLayer.id === "luftbild"
+            ? selectedLuftbildLayer.id
+            : selectedMapLayer.id,
+      },
       layers,
       settings:
         mode === "publish/"

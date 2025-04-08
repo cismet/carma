@@ -43,6 +43,7 @@ import {
   getSelectedMapLayer,
   setBackgroundLayer,
   setLayers,
+  setSelectedLuftbildLayer,
   setSelectedMapLayer,
   setShowFullscreenButton,
   setShowHamburgerMenu,
@@ -82,7 +83,7 @@ type View = {
 
 type Config = {
   layers: Layer[];
-  backgroundLayer: BackgroundLayer;
+  backgroundLayer: BackgroundLayer & { selectedLayerId: string };
   settings?: Settings;
   view?: View;
 };
@@ -128,7 +129,33 @@ function App({ published }: { published?: boolean }) {
         })
         .then((newConfig: Config) => {
           dispatch(setLayers(newConfig.layers));
-          dispatch(setBackgroundLayer(newConfig.backgroundLayer));
+          const selectedMapLayerId = newConfig.backgroundLayer.selectedLayerId;
+          const selectedBackgroundLayer: BackgroundLayer = {
+            title: layerMap[selectedMapLayerId].title,
+            id: selectedMapLayerId,
+            opacity: newConfig.backgroundLayer.opacity,
+            description: layerMap[selectedMapLayerId].description,
+            inhalt: layerMap[selectedMapLayerId].inhalt,
+            eignung: layerMap[selectedMapLayerId].eignung,
+            visible: newConfig.backgroundLayer.visible,
+            layerType: "wmts",
+            props: {
+              name: "",
+              url: layerMap[selectedMapLayerId].url,
+            },
+            layers: layerMap[selectedMapLayerId].layers,
+          };
+          dispatch(
+            setBackgroundLayer({
+              ...selectedBackgroundLayer,
+              id: newConfig.backgroundLayer.id,
+            })
+          );
+          if (newConfig.backgroundLayer.id === "luftbild") {
+            dispatch(setSelectedLuftbildLayer(selectedBackgroundLayer));
+          } else {
+            dispatch(setSelectedMapLayer(selectedBackgroundLayer));
+          }
           searchParams.delete("config");
           setSearchParams(searchParams);
         })
