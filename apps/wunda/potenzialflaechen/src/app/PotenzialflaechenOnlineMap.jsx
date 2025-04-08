@@ -141,9 +141,9 @@ function PotenzialflaechenOnlineMap({
     }, 100);
   };
 
-  useEffect(() => {
-    console.log("xxx allGAazData", allGAazData);
-  }, [allGAazData]);
+  // useEffect(() => {
+  //   console.log("xxx allGAazData", allGAazData);
+  // }, [allGAazData]);
 
   return (
     <>
