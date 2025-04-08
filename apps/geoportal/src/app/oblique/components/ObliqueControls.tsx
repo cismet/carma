@@ -38,6 +38,8 @@ import { ObliqueFootprintLayer } from "./ObliqueFootprintLayer";
 import { ObliqueDebugSvg } from "./ObliqueDebugSvg";
 import ObliqueImagePreview from "./ObliqueImagePreview";
 import { ObliqueImageInfo } from "./ObliqueImageInfo";
+
+import { resetCamera } from "../utils/cameraUtils";
 import {
   subscribeToPreviewVisibility,
   notifyPreviewVisibilityChange,
@@ -251,8 +253,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       endTransform: Matrix4.IDENTITY,
       duration,
       complete: () => {
-        viewer.camera.lookAtTransform(Matrix4.IDENTITY);
-        viewer.scene.requestRender();
         animationInProgressRef.current = false;
         setIsPreviewVisible(true);
         notifyPreviewVisibilityChange(true);
@@ -430,19 +430,21 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
           );
 
           setCurrentHeading(targetHeading);
-
-          camera.lookAtTransform(Matrix4.IDENTITY);
-
-          scene.requestRender();
+          resetCamera(viewer);
           animationInProgressRef.current = false;
+          userMovedCameraRef.current = true;
 
           scene.preUpdate.removeEventListener(onPreUpdate);
-          animationInProgressRef.current = false;
           setActiveDirection(targetDirection);
         }
       };
-
       scene.preUpdate.addEventListener(onPreUpdate);
+      return () => {
+        resetCamera(viewer);
+        animationInProgressRef.current = false;
+        userMovedCameraRef.current = true;
+        scene.preUpdate.removeEventListener(onPreUpdate);
+      };
     },
     [
       viewerRef,

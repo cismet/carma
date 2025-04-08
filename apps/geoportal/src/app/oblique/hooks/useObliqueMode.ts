@@ -3,7 +3,7 @@ import {
   Cartesian3,
   EasingFunction,
   HeadingPitchRange,
-  Matrix4,
+  Math as CesiumMath,
   PerspectiveFrustum,
   Ray,
   Viewer,
@@ -14,6 +14,8 @@ import { useSelector } from "react-redux";
 import { getOrbitPoint, useCesiumContext } from "@carma-mapping/cesium-engine";
 
 import { getObliqueMode } from "../../store/slices/ui";
+import { resetCamera } from "../utils/cameraUtils";
+import { useObliqueDataContext } from "./useObliqueDataContext";
 
 const PITCH_TOLERANCE_THRESHOLD = CesiumMath.toRadians(10);
 const HEIGHT_TOLERANCE_THRESHOLD = 150.0;
@@ -107,7 +109,7 @@ const animateFov = ({
 
   const animate = (timestamp: number) => {
     if (!(viewer.camera.frustum instanceof PerspectiveFrustum)) {
-      cancelAnimationFrame(animationFrameId);
+      resetCamera(viewer);
       return;
     }
 
@@ -117,12 +119,11 @@ const animateFov = ({
     const newFov = startFov + easedProgress * (targetFov - startFov);
 
     viewer.camera.frustum.fov = newFov;
-    viewer.scene.requestRender();
 
     if (progress < 1) {
       animationFrameId = requestAnimationFrame(animate);
     } else {
-      viewer.camera.lookAtTransform(Matrix4.IDENTITY);
+      resetCamera(viewer);
       if (onComplete) {
         onComplete();
       }
@@ -135,6 +136,7 @@ const animateFov = ({
   return () => {
     if (animationFrameId) {
       cancelAnimationFrame(animationFrameId);
+      resetCamera(viewer);
     }
   };
 };
