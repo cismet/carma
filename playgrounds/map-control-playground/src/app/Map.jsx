@@ -17,6 +17,7 @@ import { useContext, useEffect, useRef, useState } from "react";
 import GazetteerSearchComponent from "react-cismap/GazetteerSearchComponent";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
+import { FullscreenControl } from "@carma-mapping/components";
 
 const Map = () => {
   const containerRef = useRef(null);
@@ -58,19 +59,7 @@ const Map = () => {
         </div>
       </Control>
       <Control position="topleft" order={20}>
-        <ControlButtonStyler
-          onClick={() => {
-            if (document.fullscreenElement) {
-              document.exitFullscreen();
-            } else {
-              document.documentElement.requestFullscreen();
-            }
-          }}
-        >
-          <FontAwesomeIcon
-            icon={document.fullscreenElement ? faCompress : faExpand}
-          />
-        </ControlButtonStyler>
+        <FullscreenControl />
       </Control>
       <Control position="topleft" order={30}>
         <ControlButtonStyler>
