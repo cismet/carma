@@ -293,6 +293,9 @@ export const mapDataWithCategory = (
     });
   }
 
+  // data.sort((a, b) => a.score - b.score);
+  data.sort((a, b) => (a.score ?? 0) - (b.score ?? 0));
+
   data.forEach((item) => {
     const address = item.item;
     const catName = String(item.score);
@@ -332,6 +335,8 @@ export const mapDataWithCategory = (
 
     prepareOptions.push(optionItem);
   });
+
+  // console.log("xxx prepareOptions", prepareOptions);
 
   return prepareOptions;
 };
