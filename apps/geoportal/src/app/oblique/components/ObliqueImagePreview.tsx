@@ -42,7 +42,7 @@ const Backdrop = styled.div<{ $fadeIn: boolean }>`
 `;
 
 const PreviewImage = styled.img<{ width: number; $fadeIn: boolean }>`
-  position: fixed;
+  position: absolute;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
