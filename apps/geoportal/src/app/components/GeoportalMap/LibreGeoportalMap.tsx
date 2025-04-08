@@ -178,18 +178,20 @@ const LibreGeoportalMap = () => {
   const backgroundStyle: StyleSpecification = {
     version: 8,
     sources: {
-      osm: {
+      "source-amtlich": {
         type: "raster",
-        tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+        tiles: [
+          "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
+        ],
         tileSize: 256,
       },
     },
     layers: [
       {
-        id: "osm-layer",
+        id: "layer-amtlich",
         type: "raster",
-        source: "osm",
-        paint: { "raster-opacity": 1 },
+        source: "source-amtlich",
+        paint: { "raster-opacity": 0.9 },
       },
     ],
   };
