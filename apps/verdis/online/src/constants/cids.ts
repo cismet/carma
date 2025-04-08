@@ -26,3 +26,7 @@ export const SERVICE = "https://verdis-api.cismet.de";
 export const STAC_SERVICE = "https://verdis-api.cismet.de";
 // export const SERVICE = 'http://localhost:8890';
 // export const STAC_SERVICE = 'http://localhost:8890';
+
+// Playground DB
+// export const SERVICE = "https://verdis-cloud.cismet.de/verdis/api/";
+// export const STAC_SERVICE = "https://verdis-cloud.cismet.de/verdis/api/";
