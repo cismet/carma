@@ -297,6 +297,7 @@ const MapWrapper = () => {
                   if (zenButtonHidden) {
                     setZenButtonHidden(false);
                   } else {
+                    setIsHoveringZenButton(false);
                     dispatch(setZenMode(false));
                   }
                 }}
