@@ -115,3 +115,41 @@ export const getDirectionFromCartesian = (
   );
   return direction;
 };
+
+export const findClosestCardinalIndex = (
+  heading: number,
+  cardinals: number[]
+) => {
+  const normalizedHeading = CesiumMath.zeroToTwoPi(heading);
+
+  let closestIndex = 0;
+  let minDifference = Number.MAX_VALUE;
+
+  cardinals.forEach((cardinal, index) => {
+    let diff = Math.abs(normalizedHeading - cardinal);
+    if (diff > Math.PI) {
+      diff = CesiumMath.TWO_PI - diff;
+    }
+
+    if (diff < minDifference) {
+      minDifference = diff;
+      closestIndex = index;
+    }
+  });
+  return closestIndex;
+};
+
+export const getCardinalHeadings = (headingOffset: number) => {
+  // Base cardinal directions in radians
+  const directions = [
+    0, // North
+    CesiumMath.PI_OVER_TWO, // East
+    CesiumMath.PI, // South
+    CesiumMath.THREE_PI_OVER_TWO, // West
+  ];
+
+  // Apply the heading offset to all directions
+  return directions.map((heading) =>
+    CesiumMath.zeroToTwoPi(heading + headingOffset)
+  );
+};

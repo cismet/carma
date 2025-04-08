@@ -41,10 +41,17 @@ import { ObliqueImageInfo } from "./ObliqueImageInfo";
 
 import { resetCamera } from "../utils/cameraUtils";
 import {
+  CardinalDirectionEnum,
+  findClosestCardinalIndex,
+  getCardinalHeadings,
+  getDirectionFromCartesian,
+} from "../utils/orientationUtils";
+
+import {
   subscribeToPreviewVisibility,
   notifyPreviewVisibilityChange,
 } from "../utils/previewVisibility";
-import { getDirectionFromCartesian } from "../utils/orientationUtils";
+import { formatHeadingDegrees } from "../utils/formatters";
 
 type ObliqueControlsProps = {
   /**
@@ -55,13 +62,6 @@ type ObliqueControlsProps = {
   headingOffset?: number;
   isObliqueMode?: boolean;
 };
-
-enum CardinalDirection {
-  North = 0,
-  East = 1,
-  South = 2,
-  West = 3,
-}
 
 export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const isObliqueMode = useSelector(getObliqueMode);
@@ -78,7 +78,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const isDebugMode = flags.featureFlagDebugOblique;
   const animationInProgressRef = useRef<boolean>(false);
   const [activeDirection, setActiveDirection] =
-    useState<CardinalDirection | null>(null);
+    useState<CardinalDirectionEnum | null>(null);
   const [isVisible, setIsVisible] = useState(isObliqueMode);
   const [shouldRender, setShouldRender] = useState(isObliqueMode);
   const [currentHeading, setCurrentHeading] = useState<number>(0);
@@ -154,53 +154,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       }
     };
   }, [viewerRef]);
-
-  const getCardinalHeadings = useCallback(() => {
-    // Base cardinal directions in radians
-    const directions = [
-      0, // North
-      CesiumMath.PI_OVER_TWO, // East
-      CesiumMath.PI, // South
-      CesiumMath.THREE_PI_OVER_TWO, // West
-    ];
-
-    // Apply the heading offset to all directions
-    return directions.map((heading) =>
-      CesiumMath.zeroToTwoPi(heading + headingOffset)
-    );
-  }, [headingOffset]);
-
-  const findClosestCardinalIndex = useCallback(
-    (heading: number, cardinals: number[]) => {
-      const normalizedHeading = CesiumMath.zeroToTwoPi(heading);
-
-      let closestIndex = 0;
-      let minDifference = Number.MAX_VALUE;
-
-      cardinals.forEach((cardinal, index) => {
-        let diff = Math.abs(normalizedHeading - cardinal);
-        if (diff > Math.PI) {
-          diff = CesiumMath.TWO_PI - diff;
-        }
-
-        if (diff < minDifference) {
-          minDifference = diff;
-          closestIndex = index;
-        }
-      });
-
-      return closestIndex;
-    },
-    []
-  );
-
-  // Convert radians to degrees for display
-  const formatHeadingDegrees = useCallback((headingRadians: number): number => {
-    const degrees = CesiumMath.toDegrees(
-      CesiumMath.zeroToTwoPi(headingRadians)
-    );
-    return Math.round(degrees);
-  }, []);
 
   const flyToNearestImage = useCallback(async () => {
     if (isPreviewVisible) {
@@ -322,7 +275,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
         userMovedCameraRef.current = false;
       }
 
-      const cardinalHeadings = getCardinalHeadings();
+      const cardinalHeadings = getCardinalHeadings(headingOffset);
       const closestCardinalIndex = findClosestCardinalIndex(
         camera.heading,
         cardinalHeadings
@@ -334,7 +287,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       updateOrbitPointEntity();
     }
 
-    const cardinalHeadings = getCardinalHeadings();
+    const cardinalHeadings = getCardinalHeadings(headingOffset);
     const closestCardinalIndex = findClosestCardinalIndex(
       camera.heading,
       cardinalHeadings
@@ -352,15 +305,14 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   }, [
     viewerRef,
     isObliqueMode,
-    getCardinalHeadings,
-    findClosestCardinalIndex,
+    headingOffset,
     updateOrbitPointEntity,
     isDebugMode,
     orbitPoint,
   ]);
 
   const rotateToDirection = useCallback(
-    (targetDirection: CardinalDirection) => {
+    (targetDirection: CardinalDirectionEnum) => {
       const viewer = viewerRef.current;
       if (!viewer || animationInProgressRef.current) return;
 
@@ -368,7 +320,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       const scene = viewer.scene;
       const currentHeading = camera.heading;
 
-      const cardinalHeadings = getCardinalHeadings();
+      const cardinalHeadings = getCardinalHeadings(headingOffset);
 
       if (
         Math.abs(currentHeading - cardinalHeadings[targetDirection]) < 0.0001
@@ -446,13 +398,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
         scene.preUpdate.removeEventListener(onPreUpdate);
       };
     },
-    [
-      viewerRef,
-      getCardinalHeadings,
-      updateOrbitPointEntity,
-      orbitPoint,
-      isDebugMode,
-    ]
+    [viewerRef, headingOffset, updateOrbitPointEntity, orbitPoint, isDebugMode]
   );
 
   const rotateCamera = useCallback(
@@ -462,7 +408,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
       const camera = viewer.camera;
 
-      const cardinalHeadings = getCardinalHeadings();
+      const cardinalHeadings = getCardinalHeadings(headingOffset);
 
       const closestCardinalIndex = findClosestCardinalIndex(
         camera.heading,
@@ -475,12 +421,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
       rotateToDirection(nextCardinalIndex);
     },
-    [
-      viewerRef,
-      getCardinalHeadings,
-      findClosestCardinalIndex,
-      rotateToDirection,
-    ]
+    [viewerRef, headingOffset, rotateToDirection]
   );
 
   if (!shouldRender) {
@@ -656,11 +597,11 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
               <FontAwesomeIcon icon={faRotateLeft} className="text-base" />
             </ControlButtonStyler>
             <ControlButtonStyler
-              onClick={() => rotateToDirection(CardinalDirection.North)}
+              onClick={() => rotateToDirection(CardinalDirectionEnum.North)}
               width="40px"
               height="40px"
               className={
-                activeDirection === CardinalDirection.North
+                activeDirection === CardinalDirectionEnum.North
                   ? activeButtonClass
                   : ""
               }
@@ -677,11 +618,11 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
             {/* Middle row */}
             <ControlButtonStyler
-              onClick={() => rotateToDirection(CardinalDirection.West)}
+              onClick={() => rotateToDirection(CardinalDirectionEnum.West)}
               width="40px"
               height="40px"
               className={
-                activeDirection === CardinalDirection.West
+                activeDirection === CardinalDirectionEnum.West
                   ? activeButtonClass
                   : ""
               }
@@ -713,11 +654,11 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
               </div>
             </Tooltip>
             <ControlButtonStyler
-              onClick={() => rotateToDirection(CardinalDirection.East)}
+              onClick={() => rotateToDirection(CardinalDirectionEnum.East)}
               width="40px"
               height="40px"
               className={
-                activeDirection === CardinalDirection.East
+                activeDirection === CardinalDirectionEnum.East
                   ? activeButtonClass
                   : ""
               }
@@ -730,11 +671,11 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
               {/* Empty bottom-left cell */}
             </div>
             <ControlButtonStyler
-              onClick={() => rotateToDirection(CardinalDirection.South)}
+              onClick={() => rotateToDirection(CardinalDirectionEnum.South)}
               width="40px"
               height="40px"
               className={
-                activeDirection === CardinalDirection.South
+                activeDirection === CardinalDirectionEnum.South
                   ? activeButtonClass
                   : ""
               }
