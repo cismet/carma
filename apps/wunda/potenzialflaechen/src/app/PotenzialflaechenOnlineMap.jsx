@@ -141,6 +141,10 @@ function PotenzialflaechenOnlineMap({
     }, 100);
   };
 
+  useEffect(() => {
+    console.log("xxx allGAazData", allGAazData);
+  }, [allGAazData]);
+
   return (
     <>
       <TopicMapComponent
@@ -210,14 +214,17 @@ function PotenzialflaechenOnlineMap({
           priorityTypes={[
             "gewerbe",
             "wohnbau",
-            "bezirke",
-            "quartiere",
+            "wiedernutzung",
+            "baulucke",
+            "brachflache",
             "adressen",
             "streets",
+            "bezirke",
+            "quartiere",
             "pois",
             "poisAlternativeNames",
-            "kitas",
             "schulen",
+            "kitas",
           ]}
           typeInference={{
             ...defaultTypeInference,
@@ -226,6 +233,12 @@ function PotenzialflaechenOnlineMap({
                 return "gewerbe";
               } else if (item.overlay === "W") {
                 return "wohnbau";
+              } else if (item.overlay === "N") {
+                return "wiedernutzung";
+              } else if (item.overlay === "L") {
+                return "baulucke";
+              } else if (item.overlay === "B") {
+                return "brachflache";
               }
             },
           }}
