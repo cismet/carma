@@ -216,6 +216,10 @@ const LibreGeoportalMap = () => {
           : "icon-opacity";
       case "raster":
         return "raster-opacity";
+      case "line":
+        return "line-opacity";
+      case "fill":
+        return "fill-opacity";
       default:
         return "icon-opacity";
     }
