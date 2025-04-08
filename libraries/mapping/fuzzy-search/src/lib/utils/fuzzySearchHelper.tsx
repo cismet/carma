@@ -187,7 +187,7 @@ export function prepareGazData(data, prepoHandling, typeInference) {
     // Overwrite the already existing type with a type from the typeInferenceObject
     if (typeInference && typeInference[item.type]) {
       item.type = typeInference[item.type](item);
-    } else if (typeInference && !item.type) {
+    } else if (typeInference && !item.type && typeInference["withoutType"]) {
       item.type = typeInference["withoutType"](item);
     }
     const gazElement = {

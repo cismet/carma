@@ -108,6 +108,10 @@ function App() {
       md5ActionFetchDAQ(appKey, apiUrl, jwt, gazDaqKey)
         .then(
           (potenzialflaechenGazResult) => {
+            for (const item of potenzialflaechenGazResult.data) {
+              item.type = "potflaechegazdata";
+            }
+
             setDynGazData(potenzialflaechenGazResult.data);
           },
           (problem) => {

@@ -141,10 +141,6 @@ function PotenzialflaechenOnlineMap({
     }, 100);
   };
 
-  // useEffect(() => {
-  //   console.log("xxx allGAazData", allGAazData);
-  // }, [allGAazData]);
-
   return (
     <>
       <TopicMapComponent
@@ -217,6 +213,7 @@ function PotenzialflaechenOnlineMap({
             "wiedernutzung",
             "baulucke",
             "brachflache",
+            "restpot",
             "adressen",
             "streets",
             "bezirke",
@@ -228,7 +225,7 @@ function PotenzialflaechenOnlineMap({
           ]}
           typeInference={{
             ...defaultTypeInference,
-            withoutType: (item) => {
+            potflaechegazdata: (item) => {
               if (item.overlay === "G") {
                 return "gewerbe";
               } else if (item.overlay === "W") {
@@ -239,6 +236,8 @@ function PotenzialflaechenOnlineMap({
                 return "baulucke";
               } else if (item.overlay === "B") {
                 return "brachflache";
+              } else {
+                return "restpot";
               }
             },
           }}
