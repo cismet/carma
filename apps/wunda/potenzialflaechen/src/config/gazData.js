@@ -3,10 +3,10 @@ import { createConfig, ENDPOINT } from "@carma-commons/resources";
 const prefix = "GazDataForHochwasserkarteByCismet";
 
 const endpoints = [
-  ENDPOINT.ADRESSEN,
+  // ENDPOINT.ADRESSEN,
   ENDPOINT.BEZIRKE,
-  ENDPOINT.QUARTIERE,
-  ENDPOINT.POIS,
+  // ENDPOINT.QUARTIERE,
+  // ENDPOINT.POIS,
   ENDPOINT.KITAS,
 ];
 

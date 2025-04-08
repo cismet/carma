@@ -30,6 +30,7 @@ import {
   InfoBoxTextContent,
 } from "@carma-collab/wuppertal/potenzialflaechen-online";
 import {
+  defaultTypeInference,
   EmptySearchComponent,
   LibFuzzySearch,
 } from "@carma-mapping/fuzzy-search";
@@ -202,8 +203,32 @@ function PotenzialflaechenOnlineMap({
           key={"PotenzialflaechenOnlineMap" + allGAazData.length}
           gazData={allGAazData}
           onSelection={onGazetteerSelection}
-          pixelwidth={pixelwidth}
+          pixelwidth={
+            responsiveState === "normal" ? "300px" : windowSize.width - gap
+          }
           placeholder={searchTextPlaceholder}
+          priorityTypes={[
+            "gewerbe",
+            "wohnbau",
+            "bezirke",
+            "quartiere",
+            "adressen",
+            "streets",
+            "pois",
+            "poisAlternativeNames",
+            "kitas",
+            "schulen",
+          ]}
+          typeInference={{
+            ...defaultTypeInference,
+            withoutType: (item) => {
+              if (item.overlay === "G") {
+                return "gewerbe";
+              } else if (item.overlay === "W") {
+                return "wohnbau";
+              }
+            },
+          }}
         />
       </div>
     </>
