@@ -54,7 +54,7 @@ const LayerRow = ({ layer, id, isBackgroundLayer, index }: LayerRowProps) => {
         </button>
         <LayerIcon layer={layer} fallbackIcon={icon} />
         <p
-          className={`mb-0 text-lg truncate ${
+          className={`mb-0 text-lg max-w-14 xs:max-w-28 sm:max-w-full truncate ${
             index !== -1 && "hover:underline cursor-pointer"
           }`}
           onClick={() => {

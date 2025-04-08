@@ -16,6 +16,18 @@ html {
   display: none !important;
 }
 
+.secondary-view {
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .secondary-view {
+    padding-left: 2.5rem;
+    padding-right: 2.5rem;
+  }
+}
+
 /* TODO: remove not needed debug colors */
 .cesium-viewer {
   background-color: red;

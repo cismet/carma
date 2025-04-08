@@ -171,7 +171,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
             e.stopPropagation();
           }}
           className={cn(
-            `bg-white button-shadow rounded-[10px] 2xl:w-1/2 w-full md:w-5/6 flex flex-col relative px-10 gap-2 py-2 transition-all duration-300`,
+            `bg-white button-shadow rounded-[10px] 2xl:w-1/2 w-[130%] sm:w-[125%] md:w-5/6 flex flex-col relative secondary-view gap-2 py-2 transition-all duration-300`,
             showInfo ? "h-[600px]" : isBaseLayer ? "h-fit" : "h-12"
           )}
           onMouseEnter={() => {
@@ -195,7 +195,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
           >
             <FontAwesomeIcon icon={faChevronRight} />
           </button>
-          <div className="flex items-center w-full h-8 gap-6">
+          <div className="flex items-center w-full h-8 gap-2 px-6 sm:px-0 sm:gap-6">
             <div className="w-1/4 flex items-center gap-2">
               <LayerIcon
                 layer={layer}
@@ -207,7 +207,10 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
               </label>
             </div>
             <div className="w-full flex items-center gap-2">
-              <label className="mb-0 text-[15px]" htmlFor="opacity-slider">
+              <label
+                className="mb-0 text-[15px] hidden sm:block"
+                htmlFor="opacity-slider"
+              >
                 Transparenz:
               </label>
               <div className="w-2/3 pt-1">
