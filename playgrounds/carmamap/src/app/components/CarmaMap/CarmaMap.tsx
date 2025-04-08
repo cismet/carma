@@ -32,6 +32,7 @@ import {
   faMinus,
   faPlus,
 } from "@fortawesome/free-solid-svg-icons";
+import { FullscreenControl } from "@carma-mapping/components";
 
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
@@ -455,22 +456,7 @@ export const CarmaMap = ({
         </div>
       </Control>
       <Control position="topleft" order={20}>
-        {showFullscreenButton && (
-          <ControlButtonStyler
-            onClick={() => {
-              if (document.fullscreenElement) {
-                document.exitFullscreen();
-              } else {
-                document.documentElement.requestFullscreen();
-              }
-            }}
-            dataTestId="full-screen-control"
-          >
-            <FontAwesomeIcon
-              icon={document.fullscreenElement ? faCompress : faExpand}
-            />
-          </ControlButtonStyler>
-        )}
+        {showFullscreenButton && <FullscreenControl />}
       </Control>
       <Control position="topleft" order={40}>
         <ControlButtonStyler onClick={onHomeClick} dataTestId="home-control">
