@@ -47,11 +47,13 @@ const PreviewImage = styled.img<{ width: number; $fadeIn: boolean }>`
   top: 50%;
   transform: translate(-50%, -50%);
   min-width: ${(props) => props.width}px;
+  min-height: ${(props) => props.height}px;
   height: auto;
   border: 2px solid rgba(255, 255, 255, 0.9);
   box-shadow: 0 0 50px rgba(255, 255, 255, 0.8);
   box-sizing: content-box;
   pointer-events: none;
+  backdrop-filter: contrast(120%);
   z-index: 10001;
   opacity: ${(props) => (props.$fadeIn ? 1 : 0)};
   transition: opacity 0.5s linear, width 0.1s linear, height 1s linear;
@@ -103,9 +105,13 @@ const ObliqueImagePreview: React.FC<ObliqueImagePreviewProps> = ({
 
   if (!isVisible) return null;
 
-  const scaleFactor = BASE_SCALE_FACTOR * (isVertical ? imageAspectRatio : 1);
+  const widthScaleFactor =
+    BASE_SCALE_FACTOR * (isVertical ? imageAspectRatio : 1);
+  const heightScaleFactor =
+    BASE_SCALE_FACTOR * (isVertical ? 1 : 1 / imageAspectRatio);
 
-  const syncedSize = getViewerSyncedSize(viewerRef) * scaleFactor;
+  const syncedWidth = getViewerSyncedSize(viewerRef) * widthScaleFactor;
+  const syncedHeight = getViewerSyncedSize(viewerRef) * heightScaleFactor;
 
   return (
     <>
@@ -113,7 +119,8 @@ const ObliqueImagePreview: React.FC<ObliqueImagePreviewProps> = ({
       <PreviewImage
         src={src}
         alt={alt}
-        width={syncedSize}
+        width={syncedWidth}
+        height={syncedHeight}
         $fadeIn={shouldFadeIn}
       />
     </>
