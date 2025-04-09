@@ -22,6 +22,7 @@ export { SceneStyleToggle } from "./lib/components/controls/SceneStyleToggle";
 
 export { useCesiumContext } from "./lib/hooks/useCesiumContext";
 export { useHomeControl } from "./lib/hooks/useHomeControl";
+export { useFovWheelZoom } from "./lib/hooks/useFovWheelZoom";
 export { useSceneStyles } from "./lib/hooks/useSceneStyles";
 export { useZoomControls } from "./lib/hooks/useZoomControls";
 

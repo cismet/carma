@@ -11,7 +11,11 @@ import {
 import { useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
 
-import { getOrbitPoint, useCesiumContext } from "@carma-mapping/cesium-engine";
+import {
+  getOrbitPoint,
+  useCesiumContext,
+  useFovWheelZoom,
+} from "@carma-mapping/cesium-engine";
 
 import { getObliqueMode } from "../../store/slices/ui";
 import { resetCamera } from "../utils/cameraUtils";
@@ -154,10 +158,7 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
   const { viewerRef } = useCesiumContext();
   const originalFovRef = useRef<number | null>(null);
 
-  // Store all callback references to ensure proper cleanup
-  const wheelEventHandlerRef = useRef<((event: WheelEvent) => void) | null>(
-    null
-  );
+  // Store callback reference for cleanup
   const preUpdateCallbackFnRef = useRef<((scene: any) => void) | null>(null);
   const fovAnimationCleanupRef = useRef<(() => void) | null>(null);
 
@@ -169,6 +170,18 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
     converter,
   } = useObliqueDataContext();
 
+  const wheelZoomOptions = {
+    minFov,
+    maxFov,
+    fovChangeRate: 0.01,
+    enabled: isObliqueMode,
+  };
+
+  const { setEnabled: setWheelZoomEnabled } = useFovWheelZoom(
+    viewerRef,
+    wheelZoomOptions
+  );
+
   useEffect(() => {
     if (!viewerRef.current) {
       return;
@@ -177,17 +190,8 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
     const viewer = viewerRef.current;
     const cameraController = viewer.scene.screenSpaceCameraController;
 
-    // Define all event handlers as local constants
-    let wheelEventHandler: ((event: WheelEvent) => void) | null = null;
     let preUpdateCallbackFn: ((scene: any) => void) | null = null;
     let fovAnimationCleanup: (() => void) | null = null;
-
-    // Clean up any existing event handlers from previous renders
-    // Do this immediately to prevent stale event handlers
-    if (wheelEventHandlerRef.current) {
-      viewer.canvas.removeEventListener("wheel", wheelEventHandlerRef.current);
-      wheelEventHandlerRef.current = null;
-    }
 
     if (preUpdateCallbackFnRef.current) {
       viewer.scene.preUpdate.removeEventListener(
@@ -196,16 +200,17 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
       preUpdateCallbackFnRef.current = null;
     }
 
-    // Clean up any animation callbacks immediately
     if (fovAnimationCleanupRef.current) {
       fovAnimationCleanupRef.current();
       fovAnimationCleanupRef.current = null;
     }
 
-    cameraController.enableZoom = !isObliqueMode;
     cameraController.enableRotate = true;
     cameraController.enableTilt = true;
     cameraController.enableTranslate = true;
+
+    // Enable or disable wheel zoom based on oblique mode state
+    setWheelZoomEnabled(isObliqueMode);
 
     if (isObliqueMode) {
       if (viewer.camera.frustum instanceof PerspectiveFrustum) {
@@ -215,49 +220,6 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
       const center = getOrbitPoint(viewer);
       const range =
         viewer.camera.positionCartographic.height / Math.tan(-fixedPitch);
-
-      // Define wheel handler as a local constant
-      wheelEventHandler = (event: WheelEvent) => {
-        event.preventDefault();
-
-        if (!(viewer.camera.frustum instanceof PerspectiveFrustum)) {
-          return;
-        }
-
-        const currentFov = viewer.camera.frustum.fov;
-        const baseSensitivity = 0.002;
-        const zoomingOut = event.deltaY > 0;
-
-        let adaptiveSensitivity;
-        if (zoomingOut) {
-          // When zooming out, sensitivity decreases as we approach maxFov
-          const remainingRange = maxFov - currentFov;
-          adaptiveSensitivity =
-            baseSensitivity * (remainingRange / (maxFov - minFov));
-        } else {
-          // When zooming in, sensitivity decreases as we approach minFov
-          const remainingRange = currentFov - minFov;
-          adaptiveSensitivity =
-            baseSensitivity * (remainingRange / (maxFov - minFov));
-        }
-
-        const delta = event.deltaY * adaptiveSensitivity;
-        let newFov = currentFov + delta;
-
-        // Clamp to min/max FOV
-        newFov = Math.max(minFov, Math.min(maxFov, newFov));
-
-        // Only update if there's a meaningful change
-        if (Math.abs(newFov - currentFov) > 0.0001) {
-          viewer.camera.frustum.fov = newFov;
-        }
-      };
-
-      // Store the handler in the ref and add the event listener
-      wheelEventHandlerRef.current = wheelEventHandler;
-      viewer.canvas.addEventListener("wheel", wheelEventHandler, {
-        passive: false,
-      });
 
       // Animation first, only add preUpdateCallback after animation completes
       const sphere = new BoundingSphere(center, range);
@@ -356,12 +318,7 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
     }
 
     return () => {
-      // Clean up all event listeners using local constants
-      if (wheelEventHandler) {
-        viewer.canvas.removeEventListener("wheel", wheelEventHandler);
-        wheelEventHandlerRef.current = null;
-      }
-
+      // Clean up all event listeners
       if (preUpdateCallbackFn) {
         viewer.scene.preUpdate.removeEventListener(preUpdateCallbackFn);
         preUpdateCallbackFnRef.current = null;
@@ -370,6 +327,7 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
       if (fovAnimationCleanup) {
         fovAnimationCleanup();
       }
+      setWheelZoomEnabled(false);
     };
   }, [
     isObliqueMode,
@@ -379,6 +337,7 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
     minFov,
     maxFov,
     headingOffset,
+    setWheelZoomEnabled,
   ]);
 
   return {
