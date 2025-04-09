@@ -20,7 +20,7 @@ interface ExtendedEasyButton extends L.EasyButton {
 
 const CyclingBackgroundButton = ({
   tooltipPostfix = " als Hintergrund",
-  tooltipPrefix,
+  tooltipPrefix = "",
   mapRef,
 }: CyclingBackgroundButtonInterface) => {
   const dispatch = useDispatch();
@@ -50,6 +50,7 @@ const CyclingBackgroundButton = ({
         dispatch(setSelectedBackgroundIndex({ selectedBackgroundIndex: newI }));
       },
       title: `${tooltipPrefix}${backgrounds[newI].title}${tooltipPostfix}`,
+      // title: `${backgrounds[newI].title}${tooltipPostfix}`,
     };
     buttonStates.push(state);
   }
