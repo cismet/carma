@@ -80,14 +80,14 @@ const ActionButtons = () => {
   return (
     <div
       ref={menuTourRef}
-      className="flex items-center gap-2 xs:gap-3 sm:gap-6 lg:ml-[86px] xl:ml-[190px]"
+      className="flex items-center gap-2 sm:gap-6 lg:ml-[86px] xl:ml-[190px]"
     >
       <Tooltip title="Aktualisieren">
         <button
           onClick={() => {
             window.location.reload();
           }}
-          className="text-xl hover:text-gray-600 sm:block hidden"
+          className="text-xl hover:text-gray-600"
           data-test-id="reload-btn"
         >
           <FontAwesomeIcon icon={faRotateRight} />
@@ -99,7 +99,7 @@ const ActionButtons = () => {
           onClick={() => {
             dispatch(setShowResourceModal(true));
           }}
-          className="h-[24.5px]"
+          className="h-[24.5px] min-w-fit"
           data-test-id="kartenebenen-hinzufügen-btn"
         >
           <img
@@ -115,7 +115,7 @@ const ActionButtons = () => {
         title={`Hintergrundkarte ${focusMode ? "zurücksetzen" : "abschwächen"}`}
       >
         <button
-          className="h-[24.5px]"
+          className="h-[24.5px] min-w-fit"
           disabled={!isMode2d}
           onClick={() => {
             dispatch(setFocusMode(!focusMode));
