@@ -6,6 +6,7 @@ import {
 import L from "leaflet";
 import "leaflet-easybutton";
 import "leaflet-easybutton/src/easy-button.css";
+import { useEffect, useRef } from "react";
 
 interface CyclingBackgroundButtonInterface {
   tooltipPrefix?: string;
@@ -19,11 +20,12 @@ const CyclingBackgroundButton = ({
   mapRef,
 }: CyclingBackgroundButtonInterface) => {
   const dispatch = useDispatch();
+  const bgButtonInstanceRef = useRef<boolean>(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapping = useSelector(getMapping) as any;
   let newIndex = mapping.selectedBackgroundIndex + 1;
   const backgrounds = mapping.backgrounds;
-  let leafletElement = mapRef.current.leafletMap.leafletElement;
+  // let leafletElement = mapRef.current.leafletMap.leafletElement;
 
   if (newIndex >= backgrounds.length) {
     newIndex = 0;
@@ -48,14 +50,22 @@ const CyclingBackgroundButton = ({
     buttonStates.push(state);
   }
 
-  leafletElement = L.easyButton({
-    states: buttonStates,
-  });
-  leafletElement.button.style.padding = "1px";
-  leafletElement.button.style.lineHeight = "24px";
-  leafletElement.state("bg-" + mapping.selectedBackgroundIndex);
-  console.log("xxx", leafletElement);
-  console.log("xxx", mapRef.current.leafletMap.leafletElement);
+  useEffect(() => {
+    const map = mapRef.current.leafletMap.leafletElement;
+    if (map && !bgButtonInstanceRef.current) {
+      const leafletElement = L.easyButton({
+        states: buttonStates,
+        position: "topleft",
+      });
+      leafletElement.button.style.padding = "1px";
+      leafletElement.button.style.lineHeight = "24px";
+      leafletElement.state("bg-" + mapping.selectedBackgroundIndex);
+      leafletElement.addTo(map);
+      bgButtonInstanceRef.current = true;
+      console.log("xxx leafletElement", leafletElement);
+    }
+  }, []);
+
   return <div></div>;
 };
 
