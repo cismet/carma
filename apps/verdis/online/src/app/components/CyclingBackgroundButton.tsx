@@ -14,6 +14,10 @@ interface CyclingBackgroundButtonInterface {
   mapRef: any;
 }
 
+interface ExtendedEasyButton extends L.EasyButton {
+  button: HTMLElement;
+}
+
 const CyclingBackgroundButton = ({
   tooltipPostfix = " als Hintergrund",
   tooltipPrefix,
@@ -52,18 +56,21 @@ const CyclingBackgroundButton = ({
 
   useEffect(() => {
     const map = mapRef.current.leafletMap.leafletElement;
-    if (map && !bgButtonInstanceRef.current) {
-      const leafletElement = L.easyButton({
-        states: buttonStates,
-        position: "topleft",
-      });
-      leafletElement.button.style.padding = "1px";
-      leafletElement.button.style.lineHeight = "24px";
-      leafletElement.state("bg-" + mapping.selectedBackgroundIndex);
-      leafletElement.addTo(map);
-      bgButtonInstanceRef.current = true;
-      console.log("xxx leafletElement", leafletElement);
-    }
+    setTimeout(() => {
+      if (map && !bgButtonInstanceRef.current) {
+        const leafletElement = L.easyButton({
+          states: buttonStates,
+          // position: "topleft",
+        });
+        leafletElement.button.style.padding = "1px";
+        leafletElement.button.style.lineHeight = "24px";
+        leafletElement.state("bg-" + mapping.selectedBackgroundIndex);
+        leafletElement.addTo(map);
+        bgButtonInstanceRef.current = true;
+        console.log("xxx leafletElement", leafletElement);
+        // map.addControl(leafletElement);
+      }
+    }, 0);
   }, []);
 
   return <div></div>;
