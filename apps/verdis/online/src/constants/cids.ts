@@ -22,11 +22,11 @@ export const GEOM_FIELD = "geo_field";
 // export const STAC_SERVICE = 'http://s10222.wuppertal-intra.de:8890';
 
 // live db
-export const SERVICE = "https://verdis-api.cismet.de";
-export const STAC_SERVICE = "https://verdis-api.cismet.de";
+// export const SERVICE = "https://verdis-api.cismet.de";
+// export const STAC_SERVICE = "https://verdis-api.cismet.de";
 // export const SERVICE = 'http://localhost:8890';
 // export const STAC_SERVICE = 'http://localhost:8890';
 
 // Playground DB
-// export const SERVICE = "https://verdis-cloud.cismet.de/verdis/api/";
-// export const STAC_SERVICE = "https://verdis-cloud.cismet.de/verdis/api/";
+export const SERVICE = "https://verdis-cloud.cismet.de/verdis/api/";
+export const STAC_SERVICE = "https://verdis-cloud.cismet.de/verdis/api/";
