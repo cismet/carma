@@ -10,7 +10,6 @@ export const cesiumCameraForceOblique = (
   fixedPitch: number,
   fixedHeight: number
 ) => {
-  // Safety checks for viewer and its components
   if (!viewer || !viewer.scene || !viewer.scene.globe || !viewer.camera) {
     return;
   }
@@ -18,7 +17,6 @@ export const cesiumCameraForceOblique = (
   const currentPosition = viewer.camera.position;
   const ellipsoid = viewer.scene.globe.ellipsoid;
 
-  // Handle potential null from cartesianToCartographic
   const currentCartographic =
     ellipsoid.cartesianToCartographic(currentPosition);
   if (!currentCartographic) {
@@ -26,27 +24,46 @@ export const cesiumCameraForceOblique = (
   }
 
   const currentPitch = viewer.camera.pitch;
+  const currentHeight = currentCartographic.height;
 
-  const heightDifference = Math.abs(currentCartographic.height - fixedHeight);
-  const pitchDifference = Math.abs(currentPitch - fixedPitch);
+  // Calculate target values only if outside tolerance bands
+  let targetPitch = currentPitch;
+  let targetHeight = currentHeight;
+  let needsCorrection = false;
 
-  const shouldPitchCorrect = pitchDifference > PITCH_TOLERANCE_THRESHOLD;
-  const shouldHeightCorrect = heightDifference > HEIGHT_TOLERANCE_THRESHOLD;
+  // Check if pitch exceeds tolerance band and clip if necessary
+  if (currentPitch > fixedPitch + PITCH_TOLERANCE_THRESHOLD) {
+    targetPitch = fixedPitch + PITCH_TOLERANCE_THRESHOLD;
+    needsCorrection = true;
+  } else if (currentPitch < fixedPitch - PITCH_TOLERANCE_THRESHOLD) {
+    targetPitch = fixedPitch - PITCH_TOLERANCE_THRESHOLD;
+    needsCorrection = true;
+  }
 
-  if (shouldPitchCorrect || shouldHeightCorrect) {
+  // Check if height exceeds tolerance band and clip if necessary
+  if (currentHeight > fixedHeight + HEIGHT_TOLERANCE_THRESHOLD) {
+    targetHeight = fixedHeight + HEIGHT_TOLERANCE_THRESHOLD;
+    needsCorrection = true;
+  } else if (currentHeight < fixedHeight - HEIGHT_TOLERANCE_THRESHOLD) {
+    targetHeight = fixedHeight - HEIGHT_TOLERANCE_THRESHOLD;
+    needsCorrection = true;
+  }
+
+  // Only apply corrections if needed
+  if (needsCorrection) {
     const longitude = currentCartographic.longitude;
     const latitude = currentCartographic.latitude;
 
     const fixedPosition = Cartesian3.fromRadians(
       longitude,
       latitude,
-      fixedHeight
+      targetHeight
     );
 
     const distance = Cartesian3.distance(fixedPosition, viewer.camera.position);
 
     if (distance > VALID_CORRECTION_DISTANCE_THRESHOLD) {
-      console.warn(distance, "Target position is too far away, aborting");
+      console.debug(distance, "Target position is too far away, aborting");
       return;
     }
 
@@ -54,7 +71,7 @@ export const cesiumCameraForceOblique = (
       destination: fixedPosition,
       orientation: {
         heading: viewer.camera.heading,
-        pitch: fixedPitch,
+        pitch: targetPitch,
         roll: 0,
       },
     });
