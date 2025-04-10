@@ -1,7 +1,7 @@
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import localforage from "localforage";
-import { useContext, useEffect, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { Button, Form, Modal } from "react-bootstrap";
 import IconComp from "react-cismap/commons/Icon";
 import { FeatureCollectionDispatchContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
@@ -45,9 +45,22 @@ const LoginForm = ({
     localforage.setItem("@" + appKey + "." + "auth" + "." + "user", user);
     _setUser(user);
   };
+
+  const focusUsername = () => {
+    if (userFieldRef?.current) {
+      userFieldRef.current.focus();
+      userFieldRef.current.select();
+    }
+  };
+
   useEffect(() => {
     setAppMenuVisible(false);
   }, []);
+
+  const updateMetaInformation = useCallback((timeValue) => {
+    setMetaInformation({ time: timeValue });
+  }, []);
+
   useEffect(() => {
     (async () => {
       // eslint-disable-next-line
@@ -61,20 +74,18 @@ const LoginForm = ({
       );
       if (dataValueInCache !== null && dataValueInCache !== undefined) {
         const time = dayjs(dataValueInCache, "YYYY-MM-DD hh:mm:ss").toDate();
-        setMetaInformation({ time });
+        updateMetaInformation(time);
       }
       if (userInCache) {
         setUser(userInCache);
       }
-      if (userFieldRef?.current) {
-        userFieldRef.current.focus();
-        userFieldRef.current.select();
-      }
+      focusUsername();
     })();
-  }, [setMetaInformation]);
+  }, [updateMetaInformation]);
 
   /*eslint no-useless-concat: "off"*/
   const login = () => {
+    focusUsername();
     fetch("https://umweltalarm-api.cismet.de/users", {
       method: "GET",
       headers: {
