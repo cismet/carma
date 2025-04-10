@@ -271,11 +271,11 @@ export const getKassenzeichenbySTAC = (stac, callback) => {
 
               dispatch(setFeatureCollection([...flaechenFC, ...annoFC]));
 
-              dispatch(
-                setFeatureCollection(
-                  getFlaechenFeatureCollection(kassenzeichenData)
-                )
-              );
+              // dispatch(
+              //   setFeatureCollection(
+              //     getFlaechenFeatureCollection(kassenzeichenData)
+              //   )
+              // );
               dispatch(setSelectedFeatureIndex(null));
               dispatch(fitAll());
               dispatch(setStac(stac));
