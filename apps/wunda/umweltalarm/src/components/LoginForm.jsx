@@ -49,7 +49,9 @@ const LoginForm = ({
   const focusUsername = () => {
     if (userFieldRef?.current) {
       userFieldRef.current.focus();
-      userFieldRef.current.select();
+      setTimeout(() => {
+        userFieldRef.current.select();
+      }, 150);
     }
   };
 
