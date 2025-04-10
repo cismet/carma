@@ -1,30 +1,44 @@
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 
-import { Viewer, Cartesian2, Cartesian3, EasingFunction, Ray } from "cesium";
+import {
+  Viewer,
+  Cartesian2,
+  Cartesian3,
+  EasingFunction,
+  Math as CesiumMath,
+  Ray,
+  PerspectiveFrustum,
+} from "cesium";
 import {
   cancelViewerAnimation,
   type ViewerAnimationMap,
 } from "../utils/viewerAnimationMap";
+import { cesiumAnimateFov } from "../utils/cesiumAnimateFov";
+
+const FOV_MOVERATE_FACTOR = 0.5;
 
 type ZoomOptions = {
-  duration: number;
-  moveRateFactor: number;
+  duration?: number;
+  moveRateFactor?: number;
+  fovMode?: boolean;
 };
 
 // Value to subtract from the globe distance to get the minimum zoom distance when not over scene content
 // Should be significantly over maximum elevations of area of interest to prevent camera going under the surface
 const FALLBACK_MIN_DISTANCE_TO_GLOBE = 2500;
 
-const defaultZoomOptions: ZoomOptions = {
+const defaultZoomOptions: Required<ZoomOptions> = {
   duration: 0.5,
   moveRateFactor: 1,
+  fovMode: false,
 };
 
 const zoom = (
   viewer: Viewer,
   viewerAnimationMap: ViewerAnimationMap,
   isZoomOut = false,
-  { duration, moveRateFactor }: ZoomOptions
+  duration: number,
+  moveRateFactor: number
 ) => {
   const scene = viewer.scene;
   const camera = viewer.camera;
@@ -80,8 +94,6 @@ const zoom = (
     return;
   }
 
-  console.log({ distance, globeDistance, sceneDistance });
-
   const maxDistance = scene.screenSpaceCameraController.maximumZoomDistance;
   const minDistance = scene.screenSpaceCameraController.minimumZoomDistance;
   if (maxDistance === undefined || maxDistance === Number.POSITIVE_INFINITY) {
@@ -126,10 +138,47 @@ const zoom = (
   return;
 };
 
+const fovZoom = (
+  viewer: Viewer,
+  viewerAnimationMap: ViewerAnimationMap,
+  zoomIn: boolean,
+  duration: number,
+  moveRateFactor: number,
+  maxFov: number = CesiumMath.toRadians(120),
+  minFov: number = CesiumMath.toRadians(5)
+) => {
+  if (viewerAnimationMap.get(viewer)) {
+    cancelViewerAnimation(viewer, viewerAnimationMap);
+  }
+  if (!(viewer.camera.frustum instanceof PerspectiveFrustum)) {
+    console.debug("Camera frustum is not PerspectiveFrustum");
+    return;
+  }
+
+  if (!viewer.camera.frustum.fov) return;
+
+  const startFov = viewer.camera.frustum.fov;
+
+  const fovChange = moveRateFactor * FOV_MOVERATE_FACTOR;
+
+  const newFov = startFov * (zoomIn ? 1 + fovChange : 1 - fovChange);
+
+  const targetFov = Math.max(Math.min(newFov, maxFov), minFov);
+
+  cesiumAnimateFov({
+    viewer,
+    startFov,
+    targetFov,
+    duration,
+    easingFunction: EasingFunction.SINUSOIDAL_IN_OUT,
+  });
+};
+
 /**
  * @param viewerRef - reference to the Cesium Viewer component
  * @param moveRateFactor - The factor by which the camera's default zoom/moveRate increment be amplified by, default 1.
  * @param zoomOptions - Options for the zoom animation.
+ * @param zoomOptions.fovMode - The mode of the zoom animation. Default is "zoom".
  * @param zoomOptions.duration - The duration of the animation in milliseconds. Default is 0.5.
  * @param zoomOptions.moveRateFactor - The factor by which the camera's default zoom/moveRate increment be amplified by, default 1.
  */
@@ -141,27 +190,43 @@ export function useZoomControls(
 ) {
   const viewer = viewerRef.current;
   const viewerAnimationMap = viewerAnimationMapRef.current;
-  const opts = useMemo(
-    () => ({ ...defaultZoomOptions, ...zoomOptions }),
-    [zoomOptions]
-  );
+  const { duration, fovMode, moveRateFactor } = {
+    ...defaultZoomOptions,
+    ...zoomOptions,
+  };
 
   const handleZoomIn = useCallback(
     (event: React.MouseEvent) => {
       if (!viewer || !viewerAnimationMap) return;
       event.preventDefault();
-      zoom(viewer, viewerAnimationMap, false, opts);
+      fovMode
+        ? fovZoom(
+            viewer,
+            viewerAnimationMap,
+            false,
+            duration * 1000,
+            moveRateFactor
+          )
+        : zoom(viewer, viewerAnimationMap, false, duration, moveRateFactor);
     },
-    [viewer, viewerAnimationMap, opts]
+    [viewer, viewerAnimationMap, duration, moveRateFactor, fovMode]
   );
 
   const handleZoomOut = useCallback(
     (event: React.MouseEvent) => {
       if (!viewer || !viewerAnimationMap) return;
       event.preventDefault();
-      zoom(viewer, viewerAnimationMap, true, opts);
+      fovMode
+        ? fovZoom(
+            viewer,
+            viewerAnimationMap,
+            true,
+            duration * 1000,
+            moveRateFactor
+          )
+        : zoom(viewer, viewerAnimationMap, true, duration, moveRateFactor);
     },
-    [viewer, viewerAnimationMap, opts]
+    [viewer, viewerAnimationMap, duration, moveRateFactor, fovMode]
   );
 
   return { handleZoomIn, handleZoomOut };
