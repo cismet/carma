@@ -23,7 +23,10 @@ import {
   createFlaechenStyler,
   getMarkerStyleFromFeatureConsideringSelection,
 } from "../../utils/kassenzeichenMappingTools";
-import { getKassenzeichen } from "../../store/slices/kassenzeichen";
+import {
+  addAnnotation,
+  getKassenzeichen,
+} from "../../store/slices/kassenzeichen";
 import CyclingBackgroundButton from "./CyclingBackgroundButton";
 import { ReactNode, useRef } from "react";
 
@@ -76,6 +79,11 @@ const Map = ({ children }: MapProps) => {
     }
   };
 
+  const handleFeatureCreation = (feature) => {
+    console.log("xxx marker created:", feature);
+    dispatch(addAnnotation(feature));
+  };
+
   const mapStyle = {
     height: height - 55,
     cursor: "grab",
@@ -84,7 +92,7 @@ const Map = ({ children }: MapProps) => {
   return (
     <RoutedMap
       editable={true}
-      // onFeatureCreation={this.onFeatureCreation}
+      onFeatureCreation={handleFeatureCreation}
       // onFeatureChangeAfterEditing={this.onFeatureChange}
       snappingEnabled={true}
       key={"leafletRoutedMap0 + "}
@@ -165,9 +173,9 @@ const Map = ({ children }: MapProps) => {
             // this.state.featuresInEditmode +
             // this.props.mapping.selectedBackgroundIndex
           }
-          // onSelect={() => {
-          //     this.setState({ featuresInEditmode: false });
-          // }}
+          onSelect={() => {
+            console.log("xxx marker selected");
+          }}
           tooltip="Punkt anlegen"
         />
       )}

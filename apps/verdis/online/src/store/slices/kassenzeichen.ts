@@ -10,6 +10,7 @@ import {
   setFeatureCollection,
   setSelectedFeatureIndex,
 } from "./mapping";
+import { toRoman } from "roman-numerals";
 
 const initialState = {
   id: -1,
@@ -136,6 +137,22 @@ export const searchByKassenzeichenId = (kassenzeichenId, fitBounds) => {
       });
   };
 };
+
+function createFeatureCollectionForFlaechen({
+  dispatch,
+  kassenzeichenData,
+  selectedIndex = null,
+  changeRequestsEditMode = false,
+}) {
+  const flaechenFC = getFlaechenFeatureCollection(kassenzeichenData);
+  //kassenzeichenData
+  //state.kassenzeichen
+  const annoFC = getAnnotationFeatureCollection(
+    kassenzeichenData.aenderungsanfrage
+  );
+  dispatch(setFeatureCollection([...flaechenFC, ...annoFC]));
+  dispatch(setSelectedFeatureIndex(selectedIndex));
+}
 
 export const getKassenzeichenbySTAC = (stac, callback) => {
   return function (dispatch, getState) {
@@ -288,4 +305,65 @@ export function getNumberOfPendingChanges(cr) {
   }
 
   return { crDraftCounter, crCounter };
+}
+
+export function addAnnotation(annotationFeature) {
+  return function (dispatch, getState) {
+    const state = getState();
+    const kassenzeichen = state.kassenzeichen;
+    const newKassz = JSON.parse(JSON.stringify(kassenzeichen));
+    const feature = JSON.parse(JSON.stringify(annotationFeature));
+
+    const annotationkeys = Object.keys(
+      (newKassz.aenderungsanfrage || {}).geometrien || {}
+    );
+
+    let maxId = 0;
+    for (const ak of annotationkeys) {
+      if (Object.keys(newKassz.aenderungsanfrage || {}.geometrien).length > 0) {
+        const nid =
+          newKassz.aenderungsanfrage.geometrien[ak].properties.numericId;
+        if (nid > maxId) {
+          maxId = nid;
+        }
+      }
+    }
+    feature.id = "anno." + (maxId + 1);
+
+    const annotationName = toRoman(maxId + 1);
+    feature.properties.name = annotationName;
+    feature.properties.id = feature.id;
+    feature.properties.numericId = maxId + 1;
+
+    feature.properties.draft = true;
+
+    if (
+      newKassz.aenderungsanfrage === undefined ||
+      newKassz.aenderungsanfrage === null
+    ) {
+      newKassz.aenderungsanfrage = {
+        kassenzeichen: newKassz.kassenzeichennummer8,
+        flaechen: [],
+        nachrichten: [],
+        geometrien: {},
+      };
+    } else {
+      if (
+        newKassz.aenderungsanfrage.geometrien === undefined ||
+        newKassz.aenderungsanfrage.geometrien === null
+      ) {
+        newKassz.aenderungsanfrage.geometrien = {};
+      }
+    }
+    newKassz.aenderungsanfrage.geometrien[annotationName] = feature;
+    console.log("xxx newKassz", newKassz);
+    dispatch(setKassenzeichen(newKassz));
+    createFeatureCollectionForFlaechen({
+      dispatch,
+      kassenzeichenData: newKassz,
+      selectedIndex: getState().mapping.featureCollection.length,
+      changeRequestsEditMode: state.uiState.changeRequestsEditMode,
+    });
+    // dispatch(storeCR(newKassz.aenderungsanfrage));
+  };
 }
