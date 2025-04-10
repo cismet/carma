@@ -174,7 +174,7 @@ function App() {
       title: "Luftbildkarte",
     },
     stadtplan: {
-      layerkey: "wupp-plan-live@60",
+      layerkey: "wupp-plan-live-tiles-3857@60",
       src: "/images/rain-hazard-map-bg/citymap.png",
       title: "Stadtplan",
     },
