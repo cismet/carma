@@ -11,6 +11,7 @@ import {
   setSelectedFeatureIndex,
 } from "./mapping";
 import { toRoman } from "roman-numerals";
+import { CLOUDSTORAGESTATES, setCloudStorageStatus, setError } from "./ui";
 
 const initialState = {
   id: -1,
@@ -137,6 +138,75 @@ export const searchByKassenzeichenId = (kassenzeichenId, fitBounds) => {
       });
   };
 };
+
+function storeCR(cr, callback = (payload) => {}) {
+  return function (dispatch, getState) {
+    dispatch(setCloudStorageStatus(CLOUDSTORAGESTATES.CLOUD_STORAGE_UP));
+    const stac = getState().auth.stac;
+    const kassenzeichen = getState().kassenzeichen;
+    let taskParameters = {
+      parameters: {
+        changerequestJson: cr,
+        stac: stac,
+        // email: "max.mustermann@cismet.de"
+      },
+    };
+
+    let fd = new FormData();
+
+    fd.append(
+      "taskparams",
+      new Blob([JSON.stringify(taskParameters)], {
+        type: "application/json",
+      })
+    );
+    // const STAC_SERVICE_ = 'https://eneywvj94f7b6.x.pipedream.net/';
+
+    const url =
+      STAC_SERVICE +
+      "/actions/" +
+      DOMAIN +
+      ".kassenzeichenChangeRequest/tasks?role=all&resultingInstanceType=result";
+
+    fetch(url, {
+      method: "post",
+      body: fd,
+    })
+      .then(function (response) {
+        if (response.status >= 200 && response.status < 300) {
+          response.json().then(function (result) {
+            const resultObject = JSON.parse(result.res);
+            if (resultObject.resultStatus === "SUCCESS") {
+              callback(resultObject);
+              setTimeout(() => {
+                dispatch(setCloudStorageStatus(undefined));
+              }, 100);
+              const newKassz = JSON.parse(JSON.stringify(kassenzeichen));
+              newKassz.aenderungsanfrage = resultObject.aenderungsanfrage;
+              dispatch(setKassenzeichen(newKassz));
+            } else {
+              dispatch(
+                setError(
+                  "Fehler beim Speichern der Änderungsanfrage: " +
+                    resultObject.errorMessage
+                ),
+                new Error()
+              );
+            }
+          });
+        }
+      })
+      .catch(function (err) {
+        // dispatch(UiStateActions.showError("Bei der Suche nach dem Kassenzeichen " + kassenzeichen + " ist ein Fehler aufgetreten. (" + err + ")"));
+        // dispatch(UiStateActions.setKassenzeichenSearchInProgress(false));
+        console.log("Error in action" + err);
+        // dispatch(AuthActions.logout());
+        // if (typeof callback === "function") {
+        //     //callback(false);
+        // }
+      });
+  };
+}
 
 function createFeatureCollectionForFlaechen({
   dispatch,
@@ -356,14 +426,13 @@ export function addAnnotation(annotationFeature) {
       }
     }
     newKassz.aenderungsanfrage.geometrien[annotationName] = feature;
-    console.log("xxx newKassz", newKassz);
     dispatch(setKassenzeichen(newKassz));
     createFeatureCollectionForFlaechen({
       dispatch,
       kassenzeichenData: newKassz,
       selectedIndex: getState().mapping.featureCollection.length,
-      changeRequestsEditMode: state.uiState.changeRequestsEditMode,
+      changeRequestsEditMode: state.ui.changeRequestsEditMode,
     });
-    // dispatch(storeCR(newKassz.aenderungsanfrage));
+    dispatch(storeCR(newKassz.aenderungsanfrage));
   };
 }

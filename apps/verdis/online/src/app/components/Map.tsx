@@ -80,7 +80,6 @@ const Map = ({ children }: MapProps) => {
   };
 
   const handleFeatureCreation = (feature) => {
-    console.log("xxx marker created:", feature);
     dispatch(addAnnotation(feature));
   };
 
@@ -173,9 +172,7 @@ const Map = ({ children }: MapProps) => {
             // this.state.featuresInEditmode +
             // this.props.mapping.selectedBackgroundIndex
           }
-          onSelect={() => {
-            console.log("xxx marker selected");
-          }}
+          onSelect={() => {}}
           tooltip="Punkt anlegen"
         />
       )}

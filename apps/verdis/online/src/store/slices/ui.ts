@@ -206,3 +206,11 @@ export const getUiState = (state) => {
 export const getHeight = (state) => {
   return state.ui.height;
 };
+
+export function setCloudStorageStatus(status, msg) {
+  return {
+    type: types.SET_CLOUD_STORAGE_STATUS,
+    status,
+    msg,
+  };
+}
