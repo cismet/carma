@@ -26,7 +26,6 @@ const PITCH_TOLERANCE_THRESHOLD = CesiumMath.toRadians(10);
 const HEIGHT_TOLERANCE_THRESHOLD = 150.0;
 
 const VALID_CORRECTION_DISTANCE_THRESHOLD = 10000.0;
-const FOV_ZOOM_WHEEL_CHANGE_RATE = 0.01;
 
 // Options for local overrides
 export interface ObliqueModeOptions {
@@ -122,14 +121,13 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
     () => ({
       minFov,
       maxFov,
-      fovChangeRate: FOV_ZOOM_WHEEL_CHANGE_RATE,
-      enabled: isObliqueMode,
     }),
-    [minFov, maxFov, isObliqueMode]
+    [minFov, maxFov]
   );
 
   const { setEnabled: setWheelZoomEnabled } = useFovWheelZoom(
     viewerRef,
+    isObliqueMode,
     wheelZoomOptions
   );
 

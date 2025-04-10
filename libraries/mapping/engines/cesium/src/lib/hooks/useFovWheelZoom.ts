@@ -1,20 +1,29 @@
-import { useCallback, useEffect, useRef } from "react";
-import { type Viewer, PerspectiveFrustum } from "cesium";
+import { useCallback, useEffect } from "react";
+import { Math as CesiumMath, PerspectiveFrustum, type Viewer } from "cesium";
+
+const viewerWheelHandlers = new WeakMap<Viewer, (event: WheelEvent) => void>();
 
 export interface FovWheelZoomOptions {
-  minFov: number;
-  maxFov: number;
-  fovChangeRate: number;
-  enabled?: boolean;
+  minFov?: number;
+  maxFov?: number;
+  fovChangeRate?: number;
 }
+
+const defaultFovWheelZoomOptions: Required<FovWheelZoomOptions> = {
+  minFov: CesiumMath.toRadians(10), // Minimum field of view in radians
+  maxFov: CesiumMath.toRadians(120), // Maximum field of view in radians
+  fovChangeRate: 0.01,
+};
 
 export function useFovWheelZoom(
   viewerRef: React.MutableRefObject<Viewer | null>,
-  options: FovWheelZoomOptions
+  enabled: boolean = true,
+  options: FovWheelZoomOptions = {}
 ) {
-  const { minFov, maxFov, fovChangeRate, enabled = true } = options;
-
-  const wheelHandlerRef = useRef<((event: WheelEvent) => void) | null>(null);
+  const { minFov, maxFov, fovChangeRate } = {
+    ...defaultFovWheelZoomOptions,
+    ...options,
+  };
 
   const handleWheel = useCallback(
     (event: WheelEvent) => {
@@ -32,15 +41,9 @@ export function useFovWheelZoom(
 
       const deltaSign = Math.sign(event.deltaY);
 
-      // dampen the larger deltas by a square root for smoother zooming
-      // TODO: consider using accumulating deltas and running an independent fov change animation
       const deltaYNormalized = Math.sqrt(Math.abs(event.deltaY)) * deltaSign;
 
       const targetFov = currentFov * (1 + deltaYNormalized * fovChangeRate);
-
-      console.debug(
-        `Current FOV: ${currentFov}, Target FOV: ${targetFov}, Delta Y: ${event.deltaY}`
-      );
 
       const newFov = Math.max(minFov, Math.min(maxFov, targetFov));
 
@@ -56,25 +59,30 @@ export function useFovWheelZoom(
     const viewer = viewerRef.current;
     if (!viewer || !viewer.scene) return;
 
-    // Disable the native zoom behavior
     viewer.scene.screenSpaceCameraController.enableZoom = false;
 
-    wheelHandlerRef.current = handleWheel;
+    if (!viewerWheelHandlers.has(viewer)) {
+      viewer.canvas.addEventListener("wheel", handleWheel, {
+        passive: false,
+      });
 
-    viewer.canvas.addEventListener("wheel", handleWheel, {
-      passive: false,
-    });
+      viewerWheelHandlers.set(viewer, handleWheel);
+    }
   }, [viewerRef, handleWheel]);
 
   const disableWheelZoom = useCallback(() => {
     const viewer = viewerRef.current;
     if (!viewer || !viewer.scene) return;
 
-    const handler = wheelHandlerRef.current;
-    if (handler) {
-      viewer.canvas.removeEventListener("wheel", handler);
-      wheelHandlerRef.current = null;
+    if (viewerWheelHandlers.has(viewer)) {
+      const handlerToRemove = viewerWheelHandlers.get(viewer);
+      viewer.canvas.removeEventListener(
+        "wheel",
+        handlerToRemove as (event: WheelEvent) => void
+      );
+      viewerWheelHandlers.delete(viewer);
     }
+
     viewer.scene.screenSpaceCameraController.enableZoom = true;
   }, [viewerRef]);
 
@@ -88,7 +96,7 @@ export function useFovWheelZoom(
     return () => {
       disableWheelZoom();
     };
-  }, [viewerRef, enabled, enableWheelZoom, disableWheelZoom]);
+  }, [enabled, enableWheelZoom, disableWheelZoom]);
 
   const setEnabled = useCallback(
     (isEnabled: boolean) => {
@@ -104,7 +112,9 @@ export function useFovWheelZoom(
   return {
     handleWheel,
     setEnabled,
-    isEnabled: Boolean(wheelHandlerRef.current),
+    isEnabled: Boolean(
+      viewerRef.current && viewerWheelHandlers.has(viewerRef.current)
+    ),
   };
 }
 
