@@ -11,7 +11,6 @@ import {
   Main,
 } from "@carma-mapping/map-controls-layout";
 import {
-  faCompass,
   faCompress,
   faExpand,
   faEyeSlash,
@@ -20,7 +19,6 @@ import {
   faLocationArrow,
   faMinus,
   faMountainCity,
-  faMountainSun,
   faPlus,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -98,10 +96,9 @@ import {
 } from "../../../store/slices/ui.ts";
 
 import { CESIUM_CONFIG } from "../../../config/app.config";
-import { useSearchParams } from "react-router-dom";
 import LibreGeoportalMap from "../LibreGeoportalMap.tsx";
-import FeatureInfoBox from "../../feature-info/FeatureInfoBox.tsx";
 import LibreFeatureInfoBox from "../../feature-info/LibreFeatureInfoBox.tsx";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;
@@ -180,6 +177,9 @@ const MapWrapper = () => {
 
   const { routedMapRef: routedMap } =
     useContext<typeof TopicMapContext>(TopicMapContext);
+  const { responsiveState, gap, windowSize } = useContext<
+    typeof ResponsiveTopicMapContext
+  >(ResponsiveTopicMapContext);
 
   const [pos, setPos] = useState<[number, number] | null>(null);
   const [layoutHeight, setLayoutHeight] = useState(null);
@@ -622,12 +622,17 @@ const MapWrapper = () => {
             <div
               ref={tourRefLabels.gazetteer}
               data-test-id="fuzzy-search"
-              className="h-full w-full"
+              className="h-full w-full pl-[6px]"
             >
               <LibFuzzySearch
                 gazData={gazData}
                 onSelection={onGazetteerSelection}
                 placeholder="Wohin?"
+                pixelwidth={
+                  responsiveState === "normal"
+                    ? "300px"
+                    : windowSize.width - gap
+                }
               />
             </div>
           </Control>

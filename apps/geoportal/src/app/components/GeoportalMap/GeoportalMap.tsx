@@ -82,6 +82,7 @@ import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
+import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 
 interface MapProps {
   height: number;
@@ -309,6 +310,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
               })}
             />
           }
+          gazetteerSearchComponent={EmptySearchComponent}
           applicationMenuTooltipString={tooltipText}
           hamburgerMenu={showHamburgerMenu}
           locatorControl={false}
@@ -452,7 +454,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
               map: map,
             });
           }}
-          gazetteerSearchControl={false}
+          gazetteerSearchControl={true}
           infoBox={renderInfoBox()}
           zoomSnap={LEAFLET_CONFIG.zoomSnap}
           zoomDelta={LEAFLET_CONFIG.zoomDelta}
