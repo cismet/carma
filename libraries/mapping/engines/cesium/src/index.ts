@@ -30,6 +30,9 @@ export { CUSTOM_SHADERS_DEFINITIONS } from "./lib/shaders";
 
 // TODO: all the utils used elsewhere with no cesium dedependency should be moved to common helper utils lib
 
+export { getOrbitPoint } from "./lib/utils/cesiumAnimateOrbits";
+export { cesiumAnimateFov, type CesiumAnimateFovOptions } from "./lib/utils/cesiumAnimateFov";
+
 export {
   CesiumErrorToErrorBoundaryForwarder,
   type ForwardedCesiumError,
@@ -66,8 +69,6 @@ export {
   type ViewerAnimationMap,
   initViewerAnimationMap,
 } from "./lib/utils/viewerAnimationMap";
-
-export { getOrbitPoint } from "./lib/utils/cesiumAnimateOrbits";
 
 // Re-export all the types as workaround
 export * from "./index.d";

@@ -15,7 +15,6 @@ export function useFovWheelZoom(
   const { minFov, maxFov, fovChangeRate, enabled = true } = options;
 
   const wheelHandlerRef = useRef<((event: WheelEvent) => void) | null>(null);
-  const previousEnableZoomRef = useRef<boolean | null>(null);
 
   const handleWheel = useCallback(
     (event: WheelEvent) => {
@@ -31,7 +30,13 @@ export function useFovWheelZoom(
 
       const currentFov = viewer.camera.frustum.fov || 1;
 
-      const targetFov = currentFov * (1 + event.deltaY * fovChangeRate);
+      const deltaSign = Math.sign(event.deltaY);
+
+      // dampen the larger deltas by a square root for smoother zooming
+      // TODO: consider using accumulating deltas and running an independent fov change animation
+      const deltaYNormalized = Math.sqrt(Math.abs(event.deltaY)) * deltaSign;
+
+      const targetFov = currentFov * (1 + deltaYNormalized * fovChangeRate);
 
       console.debug(
         `Current FOV: ${currentFov}, Target FOV: ${targetFov}, Delta Y: ${event.deltaY}`
@@ -51,20 +56,12 @@ export function useFovWheelZoom(
     const viewer = viewerRef.current;
     if (!viewer || !viewer.scene) return;
 
-    const cameraController = viewer.scene.screenSpaceCameraController;
-
-    // Store the current enableZoom state before changing it
-    previousEnableZoomRef.current = cameraController.enableZoom;
-
     // Disable the native zoom behavior
-    cameraController.enableZoom = false;
+    viewer.scene.screenSpaceCameraController.enableZoom = false;
 
-    // Use the current handler function for the event listener
-    // This ensures we're using the most up-to-date callback
-    const handler = handleWheel;
-    wheelHandlerRef.current = handler;
+    wheelHandlerRef.current = handleWheel;
 
-    viewer.canvas.addEventListener("wheel", handler, {
+    viewer.canvas.addEventListener("wheel", handleWheel, {
       passive: false,
     });
   }, [viewerRef, handleWheel]);
@@ -73,20 +70,12 @@ export function useFovWheelZoom(
     const viewer = viewerRef.current;
     if (!viewer || !viewer.scene) return;
 
-    // Capture the current handler to ensure we remove the correct one
     const handler = wheelHandlerRef.current;
     if (handler) {
       viewer.canvas.removeEventListener("wheel", handler);
       wheelHandlerRef.current = null;
     }
-
-    // Restore the previous enableZoom state if we have one stored
-    const previousEnableZoom = previousEnableZoomRef.current;
-    if (previousEnableZoom !== null) {
-      const cameraController = viewer.scene.screenSpaceCameraController;
-      cameraController.enableZoom = previousEnableZoom;
-      previousEnableZoomRef.current = null;
-    }
+    viewer.scene.screenSpaceCameraController.enableZoom = true;
   }, [viewerRef]);
 
   useEffect(() => {

@@ -1,3 +1,6 @@
+import { useEffect, useMemo, useRef } from "react";
+import { useSelector } from "react-redux";
+
 import {
   BoundingSphere,
   Cartesian3,
@@ -8,23 +11,22 @@ import {
   Ray,
   Viewer,
 } from "cesium";
-import { useEffect, useRef } from "react";
-import { useSelector } from "react-redux";
 
 import {
+  cesiumAnimateFov,
   getOrbitPoint,
   useCesiumContext,
   useFovWheelZoom,
 } from "@carma-mapping/cesium-engine";
 
 import { getObliqueMode } from "../../store/slices/ui";
-import { resetCamera } from "../utils/cameraUtils";
 import { useObliqueDataContext } from "./useObliqueDataContext";
 
 const PITCH_TOLERANCE_THRESHOLD = CesiumMath.toRadians(10);
 const HEIGHT_TOLERANCE_THRESHOLD = 150.0;
 
 const VALID_CORRECTION_DISTANCE_THRESHOLD = 10000.0;
+const FOV_ZOOM_WHEEL_CHANGE_RATE = 0.01;
 
 // Options for local overrides
 export interface ObliqueModeOptions {
@@ -91,60 +93,6 @@ const preUpdateCallback = (
   }
 };
 
-interface AnimateFovOptions {
-  viewer: Viewer;
-  startFov: number;
-  targetFov: number;
-  duration?: number;
-  easingFunction?: (time: number) => number;
-  onComplete?: () => void;
-}
-
-const animateFov = ({
-  viewer,
-  startFov,
-  targetFov,
-  duration = 300,
-  easingFunction = EasingFunction.SINUSOIDAL_IN_OUT,
-  onComplete,
-}: AnimateFovOptions): (() => void) => {
-  const startTime = performance.now();
-  let animationFrameId: number;
-
-  const animate = (timestamp: number) => {
-    if (!(viewer.camera.frustum instanceof PerspectiveFrustum)) {
-      resetCamera(viewer);
-      return;
-    }
-
-    const elapsed = timestamp - startTime;
-    const progress = Math.min(elapsed / duration, 1);
-    const easedProgress = easingFunction(progress);
-    const newFov = startFov + easedProgress * (targetFov - startFov);
-
-    viewer.camera.frustum.fov = newFov;
-
-    if (progress < 1) {
-      animationFrameId = requestAnimationFrame(animate);
-    } else {
-      resetCamera(viewer);
-      if (onComplete) {
-        onComplete();
-      }
-    }
-  };
-
-  animationFrameId = requestAnimationFrame(animate);
-
-  // Return cleanup function
-  return () => {
-    if (animationFrameId) {
-      cancelAnimationFrame(animationFrameId);
-      resetCamera(viewer);
-    }
-  };
-};
-
 export function useObliqueMode(options: ObliqueModeOptions = {}) {
   // Get options from context and merge with any locally provided options
   const contextOptions = useObliqueDataContext();
@@ -170,12 +118,15 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
     converter,
   } = useObliqueDataContext();
 
-  const wheelZoomOptions = {
-    minFov,
-    maxFov,
-    fovChangeRate: 0.01,
-    enabled: isObliqueMode,
-  };
+  const wheelZoomOptions = useMemo(
+    () => ({
+      minFov,
+      maxFov,
+      fovChangeRate: FOV_ZOOM_WHEEL_CHANGE_RATE,
+      enabled: isObliqueMode,
+    }),
+    [minFov, maxFov, isObliqueMode]
+  );
 
   const { setEnabled: setWheelZoomEnabled } = useFovWheelZoom(
     viewerRef,
@@ -304,7 +255,7 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
         }
 
         // Animate back to original FOV
-        fovAnimationCleanup = animateFov({
+        fovAnimationCleanup = cesiumAnimateFov({
           viewer,
           startFov: currentFov,
           targetFov,
