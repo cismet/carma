@@ -90,6 +90,11 @@ const Map = ({ children }: MapProps) => {
 
   return (
     <RoutedMap
+      key={
+        "RoutedMap" +
+        JSON.stringify(kassenzeichen) +
+        JSON.stringify(annotationEditable)
+      }
       editable={true}
       onFeatureCreation={handleFeatureCreation}
       // onFeatureChangeAfterEditing={this.onFeatureChange}
