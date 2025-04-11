@@ -82,15 +82,10 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
       );
     } else {
       console.debug("leaving Oblique Mode", originalFovRef.current);
-      leaveObliqueMode(
-        viewer,
-        viewerAnimationMap,
-        originalFovRef,
-        () => {
-          disableCameraForceOblique();
-          viewer.scene.requestRender();
-        }
-      );
+      leaveObliqueMode(viewer, viewerAnimationMap, originalFovRef, () => {
+        disableCameraForceOblique();
+        viewer.scene.requestRender();
+      });
     }
 
     return () => {

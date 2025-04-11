@@ -40,6 +40,8 @@ import {
   setCurrentSceneStyle,
   useCesiumContext,
 } from "@carma-mapping/cesium-engine";
+import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
+
 import { SelectionItem } from "libraries/appframeworks/portals/src/lib/components/SelectionProvider.tsx";
 import FeatureInfoBox from "../feature-info/FeatureInfoBox.tsx";
 import InfoBoxMeasurement from "../map-measure/InfoBoxMeasurement.jsx";
@@ -76,13 +78,12 @@ import {
   getLayers,
   getShowHamburgerMenu,
 } from "../../store/slices/mapping.ts";
-import { getUIMode, UIMode, getObliqueMode } from "../../store/slices/ui.ts";
+import { getUIMode, UIMode } from "../../store/slices/ui.ts";
 
 import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
-import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 
 interface MapProps {
   height: number;
