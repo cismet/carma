@@ -16,6 +16,7 @@ import ExperimentalLibreMap from "./app/ExperimentalLibreMap";
 import { gazDataConfig } from "./config/gazData";
 import poisStyle from "./poiStyle.json";
 import { VectorStyleInput } from "./app/types";
+import SimpleMapLibreMap from "./app/SimpleMapLibre";
 
 const originalWarn = console.warn.bind(console);
 const originalError = console.error.bind(console);
@@ -148,6 +149,7 @@ const RootComponent = () => {
           path="/"
           element={<LeafletMap vectorStyles={vectorStylesArray} />}
         ></Route>
+        <Route path="/simple" element={<SimpleMapLibreMap />}></Route>
         <Route
           path="/leaflet"
           element={<LeafletMap vectorStyles={vectorStylesArray} />}

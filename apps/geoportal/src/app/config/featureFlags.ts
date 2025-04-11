@@ -17,4 +17,8 @@ export const featureFlagConfig: FeatureFlagConfig = {
     default: false,
     alias: "extendedSharing",
   },
+  debugTileBoundaries: {
+    default: false,
+    alias: "debugTileBoundaries",
+  },
 };

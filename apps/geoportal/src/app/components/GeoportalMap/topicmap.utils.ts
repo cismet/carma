@@ -43,6 +43,7 @@ import { getAtLeastOneLayerIsQueryable, getQueryableLayers } from "./utils";
 import { UIMode } from "../../store/slices/ui";
 import { FeatureInfoIcon } from "../feature-info/FeatureInfoIcon";
 import { proj4crs3857def } from "../../helper/gisHelper";
+import { useFeatureFlags } from "@carma-apps/portals";
 
 interface WMTSLayerProps {
   type: "wmts";
@@ -71,6 +72,7 @@ interface VectorLayerProps {
   selectionEnabled?: boolean;
   manualSelectionManagement?: boolean;
   maxSelectionCount?: number;
+  showTileBoundaries?: boolean;
   onSelectionChanged?: (e: { hits: any[]; hit: any; latlng: LatLng }) => void;
 }
 
@@ -552,7 +554,9 @@ export const createCismapLayers = (
 ) => {
   const [globalHits, setGlobalHits] = useState({});
   const [foundFeatures, setFoundFeatures] = useState({});
+  const flags = useFeatureFlags();
 
+  const showTileBoundaries = flags?.debugTileBoundaries;
   const selectionHandler = (e, layer) => {
     setGlobalHits((old) => {
       return { ...old, [layer.id]: e.hits };
@@ -688,6 +692,7 @@ export const createCismapLayers = (
             key: `${layer.id}`,
             style: layer.props.style,
             maxZoom: MAX_ZOOM,
+            showTileBoundaries: showTileBoundaries,
             additionalLayerUniquePane: layer.id,
             additionalLayersFreeZOrder: i,
             opacity: layer.opacity === 0 ? "0" : layer.opacity || 0.7,
