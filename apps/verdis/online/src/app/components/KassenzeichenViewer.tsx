@@ -27,6 +27,7 @@ import ChangeRequests from "../components/changerequests/CR00MainComponent";
 import { getStac } from "../../store/slices/auth";
 import { useNavigate } from "react-router-dom";
 import { KassenzeichenViewerGefahrensignal } from "@carma-collab/wuppertal/verdis-online";
+import AnnotationPanel from "./AnnotationPanel";
 
 const KassenzeichenViewer = () => {
   const kassenzeichen = useSelector(getKassenzeichen);
@@ -131,6 +132,7 @@ const KassenzeichenViewer = () => {
   let verdisMapWithAdditionalComponents;
   let mapHeight = height - 50;
   let flaechen = [];
+  let anmerkungsflaechen = [];
 
   if (kassenzeichen.flaechen) {
     flaechen = kassenzeichen.flaechen
@@ -138,10 +140,22 @@ const KassenzeichenViewer = () => {
       .sort(kassenzeichenFlaechenSorter);
   }
 
+  if (
+    kassenzeichen.aenderungsanfrage !== undefined &&
+    kassenzeichen.aenderungsanfrage !== null &&
+    kassenzeichen.aenderungsanfrage.geometrien !== undefined
+  ) {
+    const keys = Object.keys(kassenzeichen.aenderungsanfrage.geometrien);
+    for (const key of keys) {
+      anmerkungsflaechen.push(kassenzeichen.aenderungsanfrage.geometrien[key]);
+    }
+  }
+
   let contactPanel = <div />;
   let kassenzeichenPanel = <div />;
   let kassenzeichenHorizontalFlaechenChartsPanel;
   let kassenzeichenVerticalFlaechenChartsPanel;
+  let anComps = [];
   let flComps = [];
 
   flComps = flaechen.map(function (flaeche) {
@@ -169,6 +183,58 @@ const KassenzeichenViewer = () => {
       />
     );
   });
+
+  if (anmerkungsflaechen) {
+    anComps = anmerkungsflaechen.map((annotationFeature) => {
+      // const sel = isFlaecheSelected(annotationFeature);
+
+      const ap = (
+        <AnnotationPanel
+          key={"AnnotationPanel." + JSON.stringify(annotationFeature)}
+          // ref={c => {
+          //     that.flaechenPanelRefs[annotationFeature.id] = c;
+          // }}
+          annotationFeature={annotationFeature}
+          // selected={sel}
+          // showEditAnnoMenu={() => {
+          //     that.props.uiStateActions.showCRAnnotationEditUI(
+          //         annotationFeature,
+          //         {}
+          //     );
+          // }}
+          // inPolyEditMode={that.props.mapping.idsInEdit.includes(
+          //     annotationFeature.id
+          // )}
+          // togglePolyEditMode={() => {
+          //     if (
+          //         that.props.mapping.idsInEdit.includes(
+          //             annotationFeature.id
+          //         )
+          //     ) {
+          //         const newIds = that.props.mapping.idsInEdit.filter(
+          //             id => id !== annotationFeature.id
+          //         );
+          //         that.props.mappingActions.setIdsInEdit(newIds);
+          //     } else {
+          //         const newIds = JSON.parse(
+          //             JSON.stringify(that.props.mapping.idsInEdit)
+          //         );
+          //         newIds.push(annotationFeature.id);
+          //         that.props.mappingActions.setIdsInEdit(newIds);
+          //     }
+          // }}
+          // clickHandler={that.flaechenPanelClick}
+          //map={this.verdisMap.wrappedInstance.leafletRoutedMap}
+          // layer={getLayerForFeatureId(
+          // 	this.verdisMap.wrappedInstance.leafletRoutedMap,
+          // 	annotationFeature.id
+          // )}
+        />
+      );
+
+      return ap;
+    });
+  }
 
   if (kassenzeichen.id !== -1) {
     kassenzeichenPanel = (
@@ -204,6 +270,7 @@ const KassenzeichenViewer = () => {
         {contactPanel}
         {kassenzeichenPanel}
         {kassenzeichenHorizontalFlaechenChartsPanel}
+        {anComps}
         {flComps}
       </div>
       <Map />
