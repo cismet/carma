@@ -8,7 +8,7 @@ import {
   Ray,
   type Viewer,
 } from "cesium";
-import { cesiumAnimateFov, getOrbitPoint } from "@carma-mapping/cesium-engine";
+import { cesiumAnimateFov, getOrbitPoint, type ViewerAnimationMap } from "@carma-mapping/cesium-engine";
 
 const ENTER_DURATION = 1000;
 const LEAVE_BASE_DURATION = 800;
@@ -20,6 +20,7 @@ export const resetCamera = (viewer: Viewer) => {
 
 export const enterObliqueMode = (
   viewer: Viewer,
+  viewerAnimationMap: ViewerAnimationMap,
   originalFovRef: MutableRefObject<number | null>,
   targetPitch: number,
   targetHeight: number,
@@ -79,6 +80,7 @@ export const enterObliqueMode = (
 
 export const leaveObliqueMode = (
   viewer: Viewer,
+  viewerAnimationMap: ViewerAnimationMap,
   originalFovRef: MutableRefObject<number | null>,
   leaveObliqueModeAnimationRef: MutableRefObject<(() => void) | null>,
   onComplete: () => void
@@ -106,6 +108,7 @@ export const leaveObliqueMode = (
 
     const leaveObliqueModeAnimation = cesiumAnimateFov({
       viewer,
+      viewerAnimationMap,
       startFov: currentFov,
       targetFov,
       duration: adaptiveLeaveDuration,

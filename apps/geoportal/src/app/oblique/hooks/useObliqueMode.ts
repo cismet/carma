@@ -12,7 +12,6 @@ import {
 import { getObliqueMode } from "../../store/slices/ui";
 import { useObliqueDataContext } from "./useObliqueDataContext";
 import { enterObliqueMode, leaveObliqueMode } from "../utils/cameraUtils";
-import { start } from "repl";
 
 export interface ObliqueModeOptions {
   fixedPitch?: number;
@@ -33,7 +32,7 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
   const headingOffset = options.headingOffset ?? contextOptions.headingOffset;
 
   const isObliqueMode = useSelector(getObliqueMode);
-  const { viewerRef } = useCesiumContext();
+  const { viewerRef, viewerAnimationMapRef } = useCesiumContext();
   const originalFovRef = useRef<number | null>(null);
   const leaveFovAnimationRef = useRef<(() => void) | null>(null);
 
@@ -60,6 +59,7 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
     }
 
     const viewer = viewerRef.current;
+    const viewerAnimationMap = viewerAnimationMapRef.current;
     const cameraController = viewer.scene.screenSpaceCameraController;
 
     let leaveFovAnimation: (() => void) | null = null;
@@ -77,16 +77,29 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
 
     if (isObliqueMode) {
       console.debug("entering Oblique Mode");
-      enterObliqueMode(viewer, originalFovRef, fixedPitch, fixedHeight, () => {
-        enableCameraForceOblique();
-        viewer.scene.requestRender();
-      });
+      enterObliqueMode(
+        viewer,
+        viewerAnimationMap,
+        originalFovRef,
+        fixedPitch,
+        fixedHeight,
+        () => {
+          enableCameraForceOblique();
+          viewer.scene.requestRender();
+        }
+      );
     } else {
       console.debug("leaving Oblique Mode", originalFovRef.current);
-      leaveObliqueMode(viewer, originalFovRef, leaveFovAnimationRef, () => {
-        disableCameraForceOblique();
-        viewer.scene.requestRender();
-      });
+      leaveObliqueMode(
+        viewer,
+        viewerAnimationMap,
+        originalFovRef,
+        leaveFovAnimationRef,
+        () => {
+          disableCameraForceOblique();
+          viewer.scene.requestRender();
+        }
+      );
     }
 
     return () => {
@@ -103,6 +116,7 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
   }, [
     isObliqueMode,
     viewerRef,
+    viewerAnimationMapRef,
     fixedPitch,
     fixedHeight,
     minFov,

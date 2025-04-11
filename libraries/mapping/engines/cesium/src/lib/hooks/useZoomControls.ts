@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 
 import {
-  Viewer,
+  type Viewer,
   Cartesian2,
   Cartesian3,
   EasingFunction,
@@ -167,6 +167,7 @@ const fovZoom = (
 
   cesiumAnimateFov({
     viewer,
+    viewerAnimationMap,
     startFov,
     targetFov,
     duration,
