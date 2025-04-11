@@ -33,8 +33,7 @@ const LayerInfo = ({ description, legend, zoomLevels }: LayerInfoProps) => {
 
   const currentLayer = layers[selectedLayerIndex];
   const parsedDescription = parseDescription(description);
-  const metadataUrl =
-    currentLayer?.other?.props?.MetadataURL?.[0]?.OnlineResource;
+  const metadataUrl = currentLayer?.props?.metaData?.[0]?.OnlineResource;
   // @ts-ignore
   const layerType = currentLayer?.props?.style
     ? "Vektorlayer (Mapbox-konformer Vector-Tiles-Service)"

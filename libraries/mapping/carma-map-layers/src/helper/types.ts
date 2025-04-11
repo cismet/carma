@@ -19,10 +19,15 @@ export type LayerProps = {
   }[];
   featureInfoUrl?: string;
   featureInfoName?: string;
+  metaData?: {
+    Format: string;
+    OnlineResource: string;
+    type: string;
+  }[];
 };
 
 // TODO: fix typing and verify
-type OtherLayerProps = Partial<LayerProps & Item & { props: XMLLayer }>;
+type OtherLayerProps = Partial<LayerProps & Item>;
 
 export type Layer = {
   title: string;
@@ -87,6 +92,11 @@ export type vectorProps = {
       format: string;
       OnlineResource: string;
       size: [number, number];
+    }[];
+    metaData?: {
+      Format: string;
+      OnlineResource: string;
+      type: string;
     }[];
   };
 };

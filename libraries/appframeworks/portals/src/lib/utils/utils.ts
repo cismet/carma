@@ -146,9 +146,12 @@ export const parseToMapLayer = async (
           minZoom: Number(carmaConf.minZoom) || zoom?.minzoom,
           maxZoom: Number(carmaConf.maxZoom) || zoom?.maxzoom,
           legend: layer?.props?.Style[0].LegendURL,
+          metaData: layer.props.MetadataURL,
         },
         other: {
-          ...layer,
+          ...Object.fromEntries(
+            Object.entries(layer).filter(([key]) => !["props"].includes(key))
+          ),
         },
       };
     } else {
@@ -172,9 +175,14 @@ export const parseToMapLayer = async (
               minZoom: layer.minZoom,
               featureInfoUrl: layer.props.url,
               featureInfoName: layer.props.Name,
+              metaData: layer.props.MetadataURL,
             },
             other: {
-              ...layer,
+              ...Object.fromEntries(
+                Object.entries(layer).filter(
+                  ([key]) => !["props"].includes(key)
+                )
+              ),
             },
           };
           break;
@@ -197,9 +205,14 @@ export const parseToMapLayer = async (
             props: {
               style: layer.props.style ? layer.props.style : "",
               legend: layer.props.Style[0].LegendURL,
+              metaData: layer.props.MetadataURL,
             },
             other: {
-              ...layer,
+              ...Object.fromEntries(
+                Object.entries(layer).filter(
+                  ([key]) => !["props"].includes(key)
+                )
+              ),
             },
           };
           break;
