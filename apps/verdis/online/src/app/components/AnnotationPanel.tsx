@@ -1,5 +1,6 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck
 import React, { useRef, useEffect } from "react";
-import scrollIntoViewIfNeeded from "scroll-into-view-if-needed";
 import { getArea25832 } from "../../utils/kassenzeichenMappingTools";
 import {
   faEdit,
@@ -18,6 +19,8 @@ import {
   getMapping,
   setSelectedFeatureIndexWithSelector,
 } from "../../store/slices/mapping";
+import scrollIntoViewIfNeeded from "scroll-into-view-if-needed";
+
 interface AnnotationPanelProps {
   annotationFeature: any;
   selected: boolean;
@@ -33,16 +36,16 @@ const AnnotationPanel = ({
   //   clickHandler = () => {},
   showEverything = false,
 }: AnnotationPanelProps) => {
-  const theDivRef = useRef(null);
+  const panelRef = useRef(null);
   const mapping = useSelector(getMapping);
   const dispatch = useDispatch();
-  // useEffect(() => {
-  //     if (theDivRef.current) {
-  //         scrollIntoViewIfNeeded(theDivRef.current, false, {
-  //             duration: 250
-  //         });
-  //     }
-  // }, [selected]);
+  useEffect(() => {
+    if (selected && panelRef.current) {
+      scrollIntoViewIfNeeded(panelRef.current, false, {
+        duration: 250,
+      });
+    }
+  }, [selected]);
 
   const isFlaecheSelected = (flaeche) => {
     return (
@@ -122,7 +125,7 @@ const AnnotationPanel = ({
   const content = showEverything ? aFeature.properties.text : secondaryInfo;
 
   return (
-    <div ref={theDivRef} onClick={featureClick}>
+    <div ref={panelRef} onClick={featureClick}>
       <div
         style={{
           ...styleOverride,

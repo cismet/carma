@@ -8,6 +8,7 @@ import {
   setSelectedFeatureIndexWithSelector,
 } from "../../store/slices/mapping";
 import { useEffect, useRef } from "react";
+import scrollIntoViewIfNeeded from "scroll-into-view-if-needed";
 
 interface FlaechenPanelProps {
   flaeche: any;
@@ -99,8 +100,10 @@ const FlaechenPanel = ({ flaeche, selected }: FlaechenPanelProps) => {
   }
 
   useEffect(() => {
-    if (selected) {
-      panelRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (selected && panelRef.current) {
+      scrollIntoViewIfNeeded(panelRef.current, false, {
+        duration: 250,
+      });
     }
   }, [selected]);
 
