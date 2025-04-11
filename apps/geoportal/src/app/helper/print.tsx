@@ -1,7 +1,11 @@
 import "leaflet-path-drag";
 import proj4 from "proj4";
 import bbox from "@turf/bbox";
-import { convertBBox2Bounds, proj4crs3857def } from "./gisHelper";
+import {
+  convertBBox2Bounds,
+  getMeractorScale,
+  proj4crs3857def,
+} from "./gisHelper";
 import * as L from "leaflet";
 import { createRoot } from "react-dom/client";
 import PrintButton from "../components/map-print/PrintButton";
@@ -52,6 +56,10 @@ const isIOS = () => {
   );
 };
 
+function degToRad(degrees) {
+  return degrees * (Math.PI / 180);
+}
+
 export const printMap = async (
   center,
   scale,
@@ -63,6 +71,7 @@ export const printMap = async (
   handleIsError
 ) => {
   const { url, title } = getOrientationTemplateParams(orientation);
+  const latLng = proj4("EPSG:3857", "EPSG:4326", center);
   const data = {
     layout: title,
     attributes: {
@@ -72,7 +81,8 @@ export const printMap = async (
         rotation: 0,
         longitudeFirst: true,
         layers,
-        scale,
+        scale: getMeractorScale(scale, latLng[1]),
+        displayedScale: scale,
         projection: "EPSG:3857",
         dpi,
       },
@@ -1024,8 +1034,17 @@ export const getPreviewBounds = (
       const width = orientation === "landscape" ? 802 : 555;
       const height = orientation === "landscape" ? 555 : 802;
 
+      const mercatorScale = getMeractorScale(scale, latLngCenter.lat);
+
       const f = createFeatureFromBBox(
-        calculateBBox(pointCenter[0], pointCenter[1], width, height, 72, scale)
+        calculateBBox(
+          pointCenter[0],
+          pointCenter[1],
+          width,
+          height,
+          72,
+          mercatorScale
+        )
       );
 
       const bb = bbox(f);

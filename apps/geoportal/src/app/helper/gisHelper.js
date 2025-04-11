@@ -38,6 +38,11 @@ export function getPolygonfromBBox(bbox) {
   );
 }
 
+const degToRad = (degrees) => degrees * (Math.PI / 180);
+
+export const getMeractorScale = (scale, lat) =>
+  scale * (1 / Math.cos(degToRad(lat)));
+
 export function getLabelPosition(feature) {
   if (feature.geometry.type === "Polygon") {
     return getLabelPositionForPolygon(feature.geometry.coordinates);
