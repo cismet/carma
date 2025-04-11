@@ -47,8 +47,6 @@ import FeatureInfoBox from "../feature-info/FeatureInfoBox.tsx";
 import InfoBoxMeasurement from "../map-measure/InfoBoxMeasurement.jsx";
 import PrintPreview from "../map-print/PrintPreview.tsx";
 
-import { ObliqueControls } from "../../oblique/components/ObliqueControls";
-
 import versionData from "../../../version.json";
 
 import { proj4crs3857def, proj4crs4326def } from "../../helper/gisHelper.js";
@@ -505,7 +503,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
               replaceHashRoutedHistory(e, location.pathname);
             }}
           />
-          <ObliqueControls />
         </div>
       )}
     </>

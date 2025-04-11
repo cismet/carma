@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState, useEffect } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -28,7 +28,7 @@ import { useCesiumContext } from "@carma-mapping/cesium-engine";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { useFeatureFlags } from "@carma-apps/portals";
 
-import { getObliqueMode } from "../../store/slices/ui";
+import { getObliqueMode, setZenMode } from "../../store/slices/ui";
 import { useObliqueDataContext } from "../hooks/useObliqueDataContext";
 import { useOrbitPoint } from "../hooks/useOrbitPoint";
 
@@ -65,6 +65,7 @@ type ObliqueControlsProps = {
 
 export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const isObliqueMode = useSelector(getObliqueMode);
+  const dispatch = useDispatch();
   const {
     headingOffset,
     nearestImage,
@@ -156,6 +157,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   }, [viewerRef]);
 
   const flyToNearestImage = useCallback(async () => {
+    //dispatch(setZenMode(true));
     if (isPreviewVisible) {
       setIsPreviewVisible(false);
       notifyPreviewVisibilityChange(false);
@@ -217,6 +219,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     nearestImage,
     isPreviewVisible,
     setLockFootprint,
+    dispatch
   ]);
 
   const downloadHighQualityImage = useCallback(() => {
@@ -464,6 +467,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
           alt={`Image preview ${nearestImage.record.id}`}
           isVisible={isPreviewVisible}
           onClose={() => {
+            //dispatch(setZenMode(false));
             setIsPreviewVisible(false);
             notifyPreviewVisibilityChange(false);
             setLockFootprint(false);
@@ -481,9 +485,9 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
           flexDirection: "column",
           alignItems: "center",
           gap: "8px",
-          opacity: isVisible ? 1 : 0,
+          zIndex: 1000,
+          opacity: (isVisible && !isPreviewVisible) ? 1 : 0,
           transition: "opacity 300ms ease-in-out",
-          pointerEvents: isVisible ? "auto" : "none",
         }}
       >
         <div
@@ -491,36 +495,28 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
             display: "flex",
             flexDirection: "column",
             gap: "10px",
-            transition: "transform 300ms ease-in-out",
-            transform: `translateY(${isPreviewVisible ? 200 : 0}px)`,
           }}
         >
-          {/* Fly to image button or close preview button */}
           {nearestImage && (
             <Tooltip
               placement="right"
               title={
-                isPreviewVisible
-                  ? "Vorschau schließen"
-                  : "Zur ausgewählten Schrägluftbild-Aufnahmeposition fliegen"
+                "Zur ausgewählten Schrägluftbild-Aufnahmeposition fliegen"
               }
             >
               <div>
                 <ControlButtonStyler
-                  onClick={isPreviewVisible ? closePreview : flyToNearestImage}
+                  onClick={flyToNearestImage}
                   width="160px"
                   height="80px"
                 >
-                  <span>
-                    {isPreviewVisible ? "Schließen" : "Flug zum Bild"}
-                  </span>
+                  <span>Flug zum Bild</span>
                 </ControlButtonStyler>
               </div>
             </Tooltip>
           )}
 
-          {/* Download button when preview is not visible */}
-          {!isPreviewVisible && nearestImage && previewPath && (
+          {nearestImage && previewPath && (
             <Tooltip
               placement="right"
               title="Bild in Qualität Level 2 herunterladen, Bild öffnet in neuemFenster"

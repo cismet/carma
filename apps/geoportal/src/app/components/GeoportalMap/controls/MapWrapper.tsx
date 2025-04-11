@@ -24,6 +24,7 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 import {
   SelectionMetaData,
@@ -56,7 +57,10 @@ import {
 } from "@carma-mapping/layers";
 
 import { GeoportalMap } from "../GeoportalMap.tsx";
+import LibreGeoportalMap from "../LibreGeoportalMap.tsx";
+import { ObliqueControls } from "../../../oblique/components/ObliqueControls.tsx";
 import LayerWrapper from "../../layers/LayerWrapper.tsx";
+import LibreFeatureInfoBox from "../../feature-info/LibreFeatureInfoBox.tsx";
 import LocateControlComponent from "../controls/LocateControlComponent.tsx";
 
 import useLeafletZoomControls from "../../../hooks/leaflet/useLeafletZoomControls.ts";
@@ -97,9 +101,6 @@ import {
 } from "../../../store/slices/ui.ts";
 
 import { CESIUM_CONFIG } from "../../../config/app.config";
-import LibreGeoportalMap from "../LibreGeoportalMap.tsx";
-import LibreFeatureInfoBox from "../../feature-info/LibreFeatureInfoBox.tsx";
-import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;
@@ -476,13 +477,12 @@ const MapWrapper = () => {
                 >
                   <FontAwesomeIcon
                     icon={faLocationArrow}
-                    className={`text-2xl ${
-                      isLocationActive
-                        ? hasMapMoved
-                          ? "text-blue-500"
-                          : "text-orange-500"
-                        : ""
-                    }`}
+                    className={`text-2xl ${isLocationActive
+                      ? hasMapMoved
+                        ? "text-blue-500"
+                        : "text-orange-500"
+                      : ""
+                      }`}
                   />
                 </ControlButtonStyler>
               </Tooltip>
@@ -524,8 +524,8 @@ const MapWrapper = () => {
                     !isMode2d
                       ? "zum Messen zu 2D-Modus wechseln"
                       : isModeMeasurement
-                      ? "Messungsmodus ausschalten"
-                      : "Messungsmodus einschalten"
+                        ? "Messungsmodus ausschalten"
+                        : "Messungsmodus einschalten"
                   }
                   // open={isMeasurementTooltip}
                   defaultOpen={false}
@@ -552,9 +552,8 @@ const MapWrapper = () => {
                     useDisabledStyle={isMode2d && showLibreMap}
                   >
                     <img
-                      src={`${getUrlPrefix()}${
-                        isModeMeasurement ? "measure-active.png" : "measure.png"
-                      }`}
+                      src={`${getUrlPrefix()}${isModeMeasurement ? "measure-active.png" : "measure.png"
+                        }`}
                       alt="Measure"
                       className="w-6"
                     />
@@ -644,6 +643,8 @@ const MapWrapper = () => {
         </>
       )}
       <Main ref={wrapperRef}>
+        <ObliqueControls />
+
         <div
           id="mapContainer"
           className={`${isMobile ? "h-0" : ""} flex flex-1 relative`}
@@ -653,6 +654,7 @@ const MapWrapper = () => {
             overflow: "hidden",
           }}
         >
+
           {showLibreMap && isMode2d ? (
             <LibreGeoportalMap />
           ) : (
