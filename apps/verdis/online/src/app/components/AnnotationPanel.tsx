@@ -12,17 +12,30 @@ import {
   colorDraft,
   colorUnchanged,
 } from "../../utils/kassenzeichenHelper";
-
+import { useDispatch, useSelector } from "react-redux";
+import {
+  fitFeatureBounds,
+  getMapping,
+  setSelectedFeatureIndexWithSelector,
+} from "../../store/slices/mapping";
+interface AnnotationPanelProps {
+  annotationFeature: any;
+  selected: boolean;
+  editmode: boolean;
+  showEditAnnoMenu: boolean;
+  showEverything: boolean;
+}
 const AnnotationPanel = ({
-  annotationFeature: rawFeature,
+  annotationFeature,
   editmode = true,
   selected,
-  showEditAnnoMenu,
-  clickHandler = () => {},
+  showEditAnnoMenu = true,
+  //   clickHandler = () => {},
   showEverything = false,
-}) => {
+}: AnnotationPanelProps) => {
   const theDivRef = useRef(null);
-
+  const mapping = useSelector(getMapping);
+  const dispatch = useDispatch();
   // useEffect(() => {
   //     if (theDivRef.current) {
   //         scrollIntoViewIfNeeded(theDivRef.current, false, {
@@ -31,8 +44,40 @@ const AnnotationPanel = ({
   //     }
   // }, [selected]);
 
-  const annotationFeature = JSON.parse(JSON.stringify(rawFeature));
-  annotationFeature.crs = {
+  const isFlaecheSelected = (flaeche) => {
+    return (
+      mapping.featureCollection !== "undefined" &&
+      mapping.featureCollection.length > 0 &&
+      mapping.selectedIndex !== "undefined" &&
+      mapping.featureCollection.length > mapping.selectedIndex &&
+      mapping.featureCollection[mapping.selectedIndex] &&
+      mapping.featureCollection[mapping.selectedIndex]?.properties.id ===
+        flaeche.id
+    );
+  };
+
+  const featureClick = (event) => {
+    const feature = mapping.featureCollection.find((feature) => {
+      return feature.properties.id === aFeature.id;
+    });
+
+    console.log("xxx find feature", feature);
+
+    if (isFlaecheSelected(feature.properties)) {
+      dispatch(
+        fitFeatureBounds(mapping.featureCollection[mapping.selectedIndex], "")
+      );
+    } else {
+      dispatch(
+        setSelectedFeatureIndexWithSelector((testFeature) => {
+          return testFeature.properties.id === feature.properties.id;
+        })
+      );
+    }
+  };
+
+  const aFeature = JSON.parse(JSON.stringify(annotationFeature));
+  aFeature.crs = {
     type: "name",
     properties: { name: "urn:ogc:def:crs:EPSG::25832" },
   };
@@ -61,8 +106,8 @@ const AnnotationPanel = ({
     borderWidth: 3,
   };
 
-  const geomType = annotationFeature.geometry.type;
-  const area = getArea25832(annotationFeature);
+  const geomType = aFeature.geometry.type;
+  const area = getArea25832(aFeature);
 
   const secondaryInfo =
     geomType === "Polygon" ? (
@@ -74,46 +119,55 @@ const AnnotationPanel = ({
       <Icon style={{ color: "#999" }} icon={faMapMarker} />
     );
 
-  const content = showEverything
-    ? annotationFeature.properties.text
-    : secondaryInfo;
+  const content = showEverything ? aFeature.properties.text : secondaryInfo;
 
   return (
-    <div ref={theDivRef}>
-      {/* onClick={() => clickHandler(annotationFeature)} */}
-      <table style={{ width: "100%" }}>
-        <tbody>
-          <tr>
-            <td>
-              <b style={{ color }}>
-                Anmerkung {annotationFeature.properties.name}{" "}
-                {showEverything && <span>({secondaryInfo})</span>}
-              </b>
-            </td>
-            <td style={{ textAlign: "right" }} />
-            {showEditAnnoMenu && editmode && (
-              <td
-                style={{
-                  textAlign: "right",
-                  color: editButtonColor,
-                  cursor: "pointer",
-                }}
-              >
-                <Icon
-                  onClick={(e) => {
-                    showEditAnnoMenu(annotationFeature);
-                    e.stopPropagation();
-                  }}
-                  icon={faEdit}
-                />
+    <div ref={theDivRef} onClick={featureClick}>
+      <div
+        style={{
+          ...styleOverride,
+          minHeight: 20,
+          backgroundColor: "#f5f5f5",
+          border: "1px solid #e3e3e3",
+          padding: 9,
+          borderRadius: 3,
+          height: "auto",
+        }}
+      >
+        <table style={{ width: "100%" }}>
+          <tbody>
+            <tr>
+              <td>
+                <b style={{ color }}>
+                  Anmerkung {annotationFeature.properties.name}{" "}
+                  {showEverything && <span>({secondaryInfo})</span>}
+                </b>
               </td>
-            )}
-          </tr>
-          <tr>
-            <td style={{ color: anmerkungsTitleColor }}>{content}</td>
-          </tr>
-        </tbody>
-      </table>
+              <td style={{ textAlign: "right" }} />
+              {showEditAnnoMenu && editmode && (
+                <td
+                  style={{
+                    textAlign: "right",
+                    color: editButtonColor,
+                    cursor: "pointer",
+                  }}
+                >
+                  <Icon
+                    onClick={(e) => {
+                      showEditAnnoMenu(annotationFeature);
+                      e.stopPropagation();
+                    }}
+                    icon={faEdit}
+                  />
+                </td>
+              )}
+            </tr>
+            <tr>
+              <td style={{ color: anmerkungsTitleColor }}>{content}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };
