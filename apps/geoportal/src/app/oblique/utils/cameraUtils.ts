@@ -8,7 +8,11 @@ import {
   Ray,
   type Viewer,
 } from "cesium";
-import { cesiumAnimateFov, getOrbitPoint, type ViewerAnimationMap } from "@carma-mapping/cesium-engine";
+import {
+  cesiumAnimateFov,
+  getOrbitPoint,
+  type ViewerAnimationMap,
+} from "@carma-mapping/cesium-engine";
 
 const ENTER_DURATION = 1000;
 const LEAVE_BASE_DURATION = 800;
@@ -82,7 +86,6 @@ export const leaveObliqueMode = (
   viewer: Viewer,
   viewerAnimationMap: ViewerAnimationMap,
   originalFovRef: MutableRefObject<number | null>,
-  leaveObliqueModeAnimationRef: MutableRefObject<(() => void) | null>,
   onComplete: () => void
 ) => {
   if (
@@ -91,11 +94,6 @@ export const leaveObliqueMode = (
   ) {
     const currentFov = viewer.camera.frustum.fov || 1;
     const targetFov = originalFovRef.current || 1;
-
-    if (leaveObliqueModeAnimationRef.current) {
-      leaveObliqueModeAnimationRef.current();
-      leaveObliqueModeAnimationRef.current = null;
-    }
 
     if (currentFov === targetFov) {
       console.debug("No FOV change needed, skipping animation");
@@ -106,7 +104,7 @@ export const leaveObliqueMode = (
     const adaptiveLeaveDuration =
       LEAVE_BASE_DURATION * Math.abs(currentFov - targetFov);
 
-    const leaveObliqueModeAnimation = cesiumAnimateFov({
+    cesiumAnimateFov({
       viewer,
       viewerAnimationMap,
       startFov: currentFov,
@@ -114,12 +112,9 @@ export const leaveObliqueMode = (
       duration: adaptiveLeaveDuration,
       easingFunction: EasingFunction.SINUSOIDAL_IN_OUT,
       onComplete: () => {
-        leaveObliqueModeAnimationRef.current = null; // Ensure cleanup after animation completes
         onComplete();
       },
     });
-
-    leaveObliqueModeAnimationRef.current = leaveObliqueModeAnimation;
   } else {
     // If no animation is needed, directly reset the FOV and invoke the onComplete callback
     if (viewer.camera.frustum instanceof PerspectiveFrustum) {

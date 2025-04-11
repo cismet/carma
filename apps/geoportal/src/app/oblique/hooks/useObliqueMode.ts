@@ -34,7 +34,6 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
   const isObliqueMode = useSelector(getObliqueMode);
   const { viewerRef, viewerAnimationMapRef } = useCesiumContext();
   const originalFovRef = useRef<number | null>(null);
-  const leaveFovAnimationRef = useRef<(() => void) | null>(null);
 
   const wheelZoomOptions = useMemo(
     () => ({
@@ -62,13 +61,6 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
     const viewerAnimationMap = viewerAnimationMapRef.current;
     const cameraController = viewer.scene.screenSpaceCameraController;
 
-    let leaveFovAnimation: (() => void) | null = null;
-
-    if (leaveFovAnimationRef.current) {
-      leaveFovAnimationRef.current();
-      leaveFovAnimationRef.current = null;
-    }
-
     cameraController.enableRotate = true;
     cameraController.enableTilt = true;
     cameraController.enableTranslate = true;
@@ -94,7 +86,6 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
         viewer,
         viewerAnimationMap,
         originalFovRef,
-        leaveFovAnimationRef,
         () => {
           disableCameraForceOblique();
           viewer.scene.requestRender();
@@ -107,9 +98,6 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
         const handlerToRemove = viewerPreUpdateHandlers.get(viewer);
         viewer.scene.preUpdate.removeEventListener(handlerToRemove!);
         viewerPreUpdateHandlers.delete(viewer);
-      }
-      if (leaveFovAnimation) {
-        leaveFovAnimation();
       }
       setWheelZoomEnabled(false);
     };
