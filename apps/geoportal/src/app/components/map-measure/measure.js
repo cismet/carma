@@ -79,6 +79,8 @@
 
   var formatDistance = function (d) {
     var unit, feet;
+    const degToRad = (degrees) => degrees * (Math.PI / 180);
+    d = d / (1 / Math.cos(degToRad(51.2)));
 
     if (this._measurementOptions.imperial) {
       feet = d / 0.3048;
@@ -107,6 +109,8 @@
 
   var formatArea = function (a) {
     var unit, sqfeet;
+    const degToRad = (degrees) => degrees * (Math.PI / 180);
+    a = a / Math.pow(1 / Math.cos(degToRad(51.2)), 2);
 
     if (this._measurementOptions.imperial) {
       if (a > 404.685642) {
