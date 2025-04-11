@@ -36,7 +36,7 @@ const VisibilityToggle = ({
             dispatch(changeBackgroundVisibility(false));
           } else {
             dispatch(changeVisibility({ id, visible: false }));
-            if (selectedFeature.id === id) {
+            if (selectedFeature?.id === id) {
               dispatch(setSelectedFeature(null));
             }
           }
