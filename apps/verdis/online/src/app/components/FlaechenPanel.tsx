@@ -7,6 +7,7 @@ import {
   getMapping,
   setSelectedFeatureIndexWithSelector,
 } from "../../store/slices/mapping";
+import { useEffect, useRef } from "react";
 
 interface FlaechenPanelProps {
   flaeche: any;
@@ -27,6 +28,7 @@ const FlaechenPanel = ({ flaeche, selected }: FlaechenPanelProps) => {
   let borderColor = "";
   const mapping = useSelector(getMapping);
   const dispatch = useDispatch();
+  const panelRef = useRef(null);
 
   const isFlaecheSelected = (flaeche) => {
     return (
@@ -96,8 +98,14 @@ const FlaechenPanel = ({ flaeche, selected }: FlaechenPanelProps) => {
     beschreibung = <div>{flaeche.flaecheninfo.beschreibung.beschreibung}</div>;
   }
 
+  useEffect(() => {
+    if (selected) {
+      panelRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [selected]);
+
   return (
-    <div>
+    <div ref={panelRef}>
       <div
         onClick={featureClick}
         style={{

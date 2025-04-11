@@ -28,6 +28,7 @@ import { getStac } from "../../store/slices/auth";
 import { useNavigate } from "react-router-dom";
 import { KassenzeichenViewerGefahrensignal } from "@carma-collab/wuppertal/verdis-online";
 import AnnotationPanel from "./AnnotationPanel";
+// import { useRef } from "react";
 
 const KassenzeichenViewer = () => {
   const kassenzeichen = useSelector(getKassenzeichen);
@@ -42,7 +43,7 @@ const KassenzeichenViewer = () => {
     navigate("/");
   }
 
-  let flaechenPanelRefs = {};
+  // let flaechenPanelRefs = useRef({});
 
   const verticalPanelWidth = 280;
 
@@ -165,8 +166,8 @@ const KassenzeichenViewer = () => {
     const hasAttachments = hasAttachment(kassenzeichen.aenderungsanfrage);
     return (
       <FlaechenPanel
-        // ref={c => {
-        //     that.flaechenPanelRefs[flaeche.id] = c;
+        // ref={(c) => {
+        //   flaechenPanelRefs.current[flaeche.id] = c;
         // }}
         // key={flaeche.id + "." + sel}
         selected={sel}
