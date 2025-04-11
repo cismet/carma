@@ -87,6 +87,7 @@ import {
 } from "../../../store/slices/mapping.ts";
 import { setDrawingShape } from "../../../store/slices/measurements.ts";
 import {
+  getObliqueMode,
   getUIAllow3d,
   getUIMode,
   getZenMode,
@@ -132,10 +133,12 @@ const MapWrapper = () => {
   const zenMode = useSelector(getZenMode);
   const { viewerRef, viewerAnimationMapRef } = useCesiumContext();
   const homeControl = useHomeControl();
+  const isObliqueMode = useSelector(getObliqueMode);
+
   const {
     handleZoomIn: handleZoomInCesium,
     handleZoomOut: handleZoomOutCesium,
-  } = useZoomControlsCesium(viewerRef, viewerAnimationMapRef);
+  } = useZoomControlsCesium(viewerRef, viewerAnimationMapRef, { fovMode: isObliqueMode });
   const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
 
   useTweakpaneCtx(
@@ -471,13 +474,12 @@ const MapWrapper = () => {
                 >
                   <FontAwesomeIcon
                     icon={faLocationArrow}
-                    className={`text-2xl ${
-                      isLocationActive
-                        ? hasMapMoved
-                          ? "text-blue-500"
-                          : "text-orange-500"
-                        : ""
-                    }`}
+                    className={`text-2xl ${isLocationActive
+                      ? hasMapMoved
+                        ? "text-blue-500"
+                        : "text-orange-500"
+                      : ""
+                      }`}
                   />
                 </ControlButtonStyler>
               </Tooltip>
@@ -519,8 +521,8 @@ const MapWrapper = () => {
                     !isMode2d
                       ? "zum Messen zu 2D-Modus wechseln"
                       : isModeMeasurement
-                      ? "Messungsmodus ausschalten"
-                      : "Messungsmodus einschalten"
+                        ? "Messungsmodus ausschalten"
+                        : "Messungsmodus einschalten"
                   }
                   // open={isMeasurementTooltip}
                   defaultOpen={false}
@@ -547,9 +549,8 @@ const MapWrapper = () => {
                     useDisabledStyle={isMode2d && showLibreMap}
                   >
                     <img
-                      src={`${getUrlPrefix()}${
-                        isModeMeasurement ? "measure-active.png" : "measure.png"
-                      }`}
+                      src={`${getUrlPrefix()}${isModeMeasurement ? "measure-active.png" : "measure.png"
+                        }`}
                       alt="Measure"
                       className="w-6"
                     />

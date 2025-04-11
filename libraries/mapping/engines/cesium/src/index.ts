@@ -21,13 +21,21 @@ export { PitchingCompass } from "./lib/components/controls/PitchingCompass";
 export { SceneStyleToggle } from "./lib/components/controls/SceneStyleToggle";
 
 export { useCesiumContext } from "./lib/hooks/useCesiumContext";
+export { useCesiumCameraForceOblique } from "./lib/hooks/useCameraForceOblique";
 export { useHomeControl } from "./lib/hooks/useHomeControl";
+export { useFovWheelZoom } from "./lib/hooks/useFovWheelZoom";
 export { useSceneStyles } from "./lib/hooks/useSceneStyles";
 export { useZoomControls } from "./lib/hooks/useZoomControls";
 
 export { CUSTOM_SHADERS_DEFINITIONS } from "./lib/shaders";
 
 // TODO: all the utils used elsewhere with no cesium dedependency should be moved to common helper utils lib
+
+export { getOrbitPoint } from "./lib/utils/cesiumAnimateOrbits";
+export {
+  cesiumAnimateFov,
+  type CesiumAnimateFovOptions,
+} from "./lib/utils/cesiumAnimateFov";
 
 export {
   CesiumErrorToErrorBoundaryForwarder,
@@ -65,8 +73,6 @@ export {
   type ViewerAnimationMap,
   initViewerAnimationMap,
 } from "./lib/utils/viewerAnimationMap";
-
-export { getOrbitPoint } from "./lib/utils/cesiumAnimateOrbits";
 
 // Re-export all the types as workaround
 export * from "./index.d";

@@ -1,9 +1,10 @@
-import { Viewer, Matrix4 } from "cesium";
+import { type Viewer, Matrix4 } from "cesium";
 
 export enum AnimationType {
   ResetView = "ResetView",
   Tilt = "Tilt",
   Rotate = "Rotate",
+  FovChange = "FovChange",
 }
 
 export type AnimationMapEntry = {
