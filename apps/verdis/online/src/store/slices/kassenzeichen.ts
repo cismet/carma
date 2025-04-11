@@ -390,7 +390,10 @@ export function addAnnotation(annotationFeature) {
 
     let maxId = 0;
     for (const ak of annotationkeys) {
-      if (Object.keys(newKassz.aenderungsanfrage || {}.geometrien).length > 0) {
+      if (
+        Object.keys(newKassz.aenderungsanfrage || ({} as any).geometrien)
+          .length > 0
+      ) {
         const nid =
           newKassz.aenderungsanfrage.geometrien[ak].properties.numericId;
         if (nid > maxId) {
