@@ -184,8 +184,13 @@ const KassenzeichenViewer = () => {
     );
   });
 
-  if (anmerkungsflaechen) {
-    anComps = anmerkungsflaechen.map((annotationFeature) => {
+  if (anmerkungsflaechen && uiState.changeRequestsEditMode === true) {
+    const sortedAnmerkungsflaechen = anmerkungsflaechen.sort((a, b) => {
+      return (
+        Number(a.id.replace("anno.", "")) - Number(b.id.replace("anno.", ""))
+      );
+    });
+    anComps = sortedAnmerkungsflaechen.map((annotationFeature) => {
       // const sel = isFlaecheSelected(annotationFeature);
 
       const ap = (
