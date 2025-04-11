@@ -191,7 +191,7 @@ const KassenzeichenViewer = () => {
       );
     });
     anComps = sortedAnmerkungsflaechen.map((annotationFeature) => {
-      // const sel = isFlaecheSelected(annotationFeature);
+      const sel = isFlaecheSelected(annotationFeature);
 
       const ap = (
         <AnnotationPanel
@@ -200,7 +200,7 @@ const KassenzeichenViewer = () => {
           //     that.flaechenPanelRefs[annotationFeature.id] = c;
           // }}
           annotationFeature={annotationFeature}
-          // selected={sel}
+          selected={sel}
           // showEditAnnoMenu={() => {
           //     that.props.uiStateActions.showCRAnnotationEditUI(
           //         annotationFeature,
