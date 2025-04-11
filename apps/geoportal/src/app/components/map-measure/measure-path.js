@@ -537,6 +537,8 @@ L.Control.MeasurePolygon = L.Control.extend({
   },
 
   _UpdateDistance: function (layer) {
+    const degToRad = (degrees) => degrees * (Math.PI / 180);
+
     let totalDistance = 0;
     const isLine = layer.toGeoJSON().geometry.type === "LineString";
     const latlngs = isLine ? layer.getLatLngs() : layer.getLatLngs()[0];
@@ -566,11 +568,14 @@ L.Control.MeasurePolygon = L.Control.extend({
       }
     };
 
+    totalDistance = totalDistance / (1 / Math.cos(degToRad(51.2)));
+
     return formatPerimeter(totalDistance);
   },
 
   _UpdateDistanceByLatLngs: function (latlngs) {
     let totalDistance = 0;
+    const degToRad = (degrees) => degrees * (Math.PI / 180);
 
     for (let i = 0; i < latlngs.length - 1; i++) {
       const point1 = L.latLng(latlngs[i][0], latlngs[i][1]);
@@ -588,11 +593,14 @@ L.Control.MeasurePolygon = L.Control.extend({
       }
     };
 
+    totalDistance = totalDistance / (1 / Math.cos(degToRad(51.2)));
+
     return formatPerimeter(totalDistance);
   },
 
   calculateDistance: function (latlngs) {
     let totalDistance = 0;
+    const degToRad = (degrees) => degrees * (Math.PI / 180);
 
     for (let i = 0; i < latlngs.length - 1; i++) {
       const point1 = latlngs[i];
@@ -602,7 +610,7 @@ L.Control.MeasurePolygon = L.Control.extend({
 
       totalDistance += distance;
     }
-
+    totalDistance = totalDistance / (1 / Math.cos(degToRad(51.2)));
     return totalDistance;
   },
 
@@ -632,7 +640,7 @@ L.Control.MeasurePolygon = L.Control.extend({
         return `${area.toFixed(2)} m²`;
       }
     };
-
+    total = total / Math.pow(1 / Math.cos(toRadians(51.2)), 2);
     return formatArea(total);
   },
 
