@@ -20,6 +20,7 @@ import {
   flattenLayer,
   getLayerStructure,
   mergeStructures,
+  normalizeObject,
   wmsLayerToGenericItem,
 } from "../helper/layerHelper";
 import type { Item, Layer, SavedLayerConfig } from "../helper/types";
@@ -268,7 +269,19 @@ export const NewLibModal = ({
                           activeLayer.opacity
                         );
 
-                        updateActiveLayer(updatedLayer);
+                        const normalizedActiveLayer =
+                          normalizeObject(activeLayer);
+                        const normalizedUpdatedLayer =
+                          normalizeObject(updatedLayer);
+
+                        if (
+                          !isEqual(
+                            normalizedActiveLayer,
+                            normalizedUpdatedLayer
+                          )
+                        ) {
+                          updateActiveLayer(updatedLayer);
+                        }
                       }
                     });
                   }

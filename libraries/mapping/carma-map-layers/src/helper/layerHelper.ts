@@ -167,8 +167,8 @@ export const wmsLayerToGenericItem = (
       type: "layer",
       layerType: "wmts",
       queryable: layer.queryable,
-      maxZoom: scaleHintToZoom(layer?.ScaleHint?.min),
-      minZoom: scaleHintToZoom(layer?.ScaleHint?.max),
+      maxZoom: scaleHintToZoom(layer?.ScaleHint?.min) || 24,
+      minZoom: scaleHintToZoom(layer?.ScaleHint?.max) || 0,
       props: { ...layer },
       serviceName: serviceName,
       path: path ? path : "",
@@ -178,6 +178,23 @@ export const wmsLayerToGenericItem = (
   } else {
     return null;
   }
+};
+
+export const normalizeObject = (obj: any): any => {
+  if (!obj || typeof obj !== "object") return obj;
+
+  if (Array.isArray(obj)) {
+    return obj.map((item) => normalizeObject(item));
+  }
+
+  const normalized: any = {};
+  for (const [key, value] of Object.entries(obj)) {
+    // Skip undefined values
+    if (value === undefined) continue;
+
+    normalized[key] = normalizeObject(value);
+  }
+  return normalized;
 };
 
 export const getLayerStructure = ({
