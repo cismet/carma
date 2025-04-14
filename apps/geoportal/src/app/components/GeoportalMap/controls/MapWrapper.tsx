@@ -24,6 +24,7 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 import {
   SelectionMetaData,
@@ -56,7 +57,10 @@ import {
 } from "@carma-mapping/layers";
 
 import { GeoportalMap } from "../GeoportalMap.tsx";
+import LibreGeoportalMap from "../LibreGeoportalMap.tsx";
+import { ObliqueControls } from "../../../oblique/components/ObliqueControls.tsx";
 import LayerWrapper from "../../layers/LayerWrapper.tsx";
+import LibreFeatureInfoBox from "../../feature-info/LibreFeatureInfoBox.tsx";
 import LocateControlComponent from "../controls/LocateControlComponent.tsx";
 
 import useLeafletZoomControls from "../../../hooks/leaflet/useLeafletZoomControls.ts";
@@ -97,9 +101,6 @@ import {
 } from "../../../store/slices/ui.ts";
 
 import { CESIUM_CONFIG } from "../../../config/app.config";
-import LibreGeoportalMap from "../LibreGeoportalMap.tsx";
-import LibreFeatureInfoBox from "../../feature-info/LibreFeatureInfoBox.tsx";
-import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;
@@ -644,6 +645,8 @@ const MapWrapper = () => {
         </>
       )}
       <Main ref={wrapperRef}>
+        <ObliqueControls />
+
         <div
           id="mapContainer"
           className={`${isMobile ? "h-0" : ""} flex flex-1 relative`}

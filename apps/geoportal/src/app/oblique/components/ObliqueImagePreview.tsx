@@ -34,8 +34,9 @@ const Backdrop = styled.div<{ $fadeIn: boolean }>`
   left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: rgba(0, 0, 0, 0.05);
-  z-index: 10000;
+  background-color: rgba(0, 0, 0, 0.2);
+  backdrop-filter: contrast(80%);
+  z-index: 1100;
   opacity: ${(props) => (props.$fadeIn ? 1 : 0)};
   transition: opacity 0.5s linear;
   cursor: pointer;
@@ -54,7 +55,7 @@ const PreviewImage = styled.img<{ width: number; $fadeIn: boolean }>`
   box-sizing: content-box;
   pointer-events: none;
   backdrop-filter: contrast(80%);
-  z-index: 10001;
+  z-index: 1200;
   opacity: ${(props) => (props.$fadeIn ? 1 : 0)};
   transition: opacity 0.5s linear, width 0.1s linear, height 1s linear;
 `;

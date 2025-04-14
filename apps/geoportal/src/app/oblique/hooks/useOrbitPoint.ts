@@ -23,14 +23,14 @@ function initOrbitPointListener(viewer: Viewer) {
 }
 
 export function useOrbitPoint(): Cartesian3 | null {
-  const { viewerRef } = useCesiumContext();
+  const { viewer } = useCesiumContext();
   const [orbitPoint, setOrbitPoint] = useState<Cartesian3 | null>(
     sharedOrbitPoint
   );
 
   useEffect(() => {
-    if (!viewerRef.current) return;
-    initOrbitPointListener(viewerRef.current);
+    if (!viewer) return;
+    initOrbitPointListener(viewer);
 
     const callback = (point: Cartesian3 | null) => {
       setOrbitPoint(point);
@@ -43,7 +43,7 @@ export function useOrbitPoint(): Cartesian3 | null {
       const index = orbitPointSubscribers.indexOf(callback);
       if (index > -1) orbitPointSubscribers.splice(index, 1);
     };
-  }, [viewerRef]);
+  }, [viewer]);
 
   return orbitPoint;
 }

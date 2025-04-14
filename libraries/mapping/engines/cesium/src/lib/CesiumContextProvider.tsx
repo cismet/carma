@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import {
@@ -30,6 +30,8 @@ export const CesiumContextProvider = ({
   providerConfig: ProviderConfig;
   tilesetConfigs: TilesetConfigs;
 }) => {
+  // use viewer directly to trigger rerenders;
+  const [viewer, setViewer] = useState<Viewer | undefined>(undefined);
   // Use refs for Cesium instances to prevent re-renders
   const viewerRef = useRef<Viewer | null>(null);
   const viewerAnimationMapRef = useRef<ViewerAnimationMap | null>(
@@ -154,6 +156,8 @@ export const CesiumContextProvider = ({
 
   const contextValue = useMemo<CesiumContextType>(
     () => ({
+      viewer,
+      setViewer,
       viewerRef,
       viewerAnimationMapRef,
       ellipsoidTerrainProviderRef,
@@ -165,7 +169,7 @@ export const CesiumContextProvider = ({
         secondaryRef: secondaryTilesetRef,
       },
     }),
-    []
+    [viewer]
   );
 
   console.debug("CesiumContextProvider Initialized", contextValue);

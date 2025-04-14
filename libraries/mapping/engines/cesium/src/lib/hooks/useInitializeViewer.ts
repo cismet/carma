@@ -28,7 +28,7 @@ export const useInitializeViewer = (
   containerRef?: React.RefObject<HTMLDivElement>,
   options?: Viewer.ConstructorOptions
 ) => {
-  const { viewerRef } = useCesiumContext();
+  const { viewerRef, setViewer } = useCesiumContext();
   const home = useSelector(selectViewerHome);
   const homeOffset = useSelector(selectViewerHomeOffset);
 
@@ -59,6 +59,7 @@ export const useInitializeViewer = (
     if (containerRef?.current) {
       try {
         viewerRef.current = new Viewer(containerRef.current, options);
+        setViewer(viewerRef.current);
         /*
         // make cesium added containers transparent
         const container = viewerRef.current.container;
@@ -82,7 +83,7 @@ export const useInitializeViewer = (
         //viewerRef.current = null;
       }
     };
-  }, [options, containerRef, viewerRef]);
+  }, [options, containerRef, viewerRef, setViewer]);
 
   useEffect(() => {
     console.debug("HOOK: useInitializeViewer useEffect terrain");

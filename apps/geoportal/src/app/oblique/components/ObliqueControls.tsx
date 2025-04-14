@@ -73,7 +73,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     previewQualityLevel,
     setLockFootprint,
   } = useObliqueDataContext();
-  const { viewerRef, terrainProviderRef } = useCesiumContext();
+  const { viewer, terrainProviderRef } = useCesiumContext();
   const flags = useFeatureFlags();
   const isDebugMode = flags.featureFlagDebugOblique;
   const animationInProgressRef = useRef<boolean>(false);
@@ -116,15 +116,13 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
   // Create or update the orbit point entity
   const updateOrbitPointEntity = useCallback(() => {
-    if (!viewerRef.current || !orbitPoint || !isDebugMode) {
+    if (!viewer || !orbitPoint || !isDebugMode) {
       if (orbitPointEntityRef.current) {
-        viewerRef.current?.entities.remove(orbitPointEntityRef.current);
+        viewer.entities.remove(orbitPointEntityRef.current);
         orbitPointEntityRef.current = null;
       }
       return;
     }
-
-    const viewer = viewerRef.current;
     if (!orbitPointEntityRef.current) {
       orbitPointEntityRef.current = viewer.entities.add({
         position: new ConstantPositionProperty(orbitPoint),
@@ -141,19 +139,18 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
         orbitPoint
       );
     }
-  }, [viewerRef, isDebugMode, orbitPoint]);
+  }, [viewer, isDebugMode, orbitPoint]);
 
   // Remove orbit point entity when component unmounts
   useEffect(() => {
-    const currentViewer = viewerRef.current;
     const currentOrbitPointEntity = orbitPointEntityRef.current;
 
     return () => {
-      if (currentViewer && currentOrbitPointEntity) {
-        currentViewer.entities.remove(currentOrbitPointEntity);
+      if (viewer && currentOrbitPointEntity) {
+        viewer.entities.remove(currentOrbitPointEntity);
       }
     };
-  }, [viewerRef]);
+  }, [viewer]);
 
   const flyToNearestImage = useCallback(async () => {
     if (isPreviewVisible) {
@@ -162,12 +159,9 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       return;
     }
 
-    if (!viewerRef.current || !nearestImage) return;
+    if (!viewer || !nearestImage) return;
 
-    const viewer = viewerRef.current;
-
-    const { centerWGS84, fallbackHeading: calculatedHeading } =
-      nearestImage.record;
+    const { centerWGS84 } = nearestImage.record;
     const { imageCenter, distanceToCamera } = nearestImage;
     if (!centerWGS84 || !imageCenter) return;
 
@@ -212,7 +206,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       },
     });
   }, [
-    viewerRef,
+    viewer,
     terrainProviderRef,
     nearestImage,
     isPreviewVisible,
@@ -234,9 +228,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
   // Update current heading and set up camera movement detection
   useEffect(() => {
-    if (!viewerRef.current || !isObliqueMode) return;
+    if (!viewer || !isObliqueMode) return;
 
-    const viewer = viewerRef.current;
     const camera = viewer.camera;
 
     setCurrentHeading(camera.heading);
@@ -303,7 +296,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       inputHandler.destroy();
     };
   }, [
-    viewerRef,
+    viewer,
     isObliqueMode,
     headingOffset,
     updateOrbitPointEntity,
@@ -313,7 +306,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
   const rotateToDirection = useCallback(
     (targetDirection: CardinalDirectionEnum) => {
-      const viewer = viewerRef.current;
       if (!viewer || animationInProgressRef.current) return;
 
       const camera = viewer.camera;
@@ -398,12 +390,11 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
         scene.preUpdate.removeEventListener(onPreUpdate);
       };
     },
-    [viewerRef, headingOffset, updateOrbitPointEntity, orbitPoint, isDebugMode]
+    [viewer, headingOffset, updateOrbitPointEntity, orbitPoint, isDebugMode]
   );
 
   const rotateCamera = useCallback(
     (clockwise: boolean) => {
-      const viewer = viewerRef.current;
       if (!viewer || animationInProgressRef.current) return;
 
       const camera = viewer.camera;
@@ -421,7 +412,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
       rotateToDirection(nextCardinalIndex);
     },
-    [viewerRef, headingOffset, rotateToDirection]
+    [viewer, headingOffset, rotateToDirection]
   );
 
   if (!shouldRender) {
@@ -481,9 +472,9 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
           flexDirection: "column",
           alignItems: "center",
           gap: "8px",
-          opacity: isVisible ? 1 : 0,
+          zIndex: 1000,
+          opacity: isVisible && !isPreviewVisible ? 1 : 0,
           transition: "opacity 300ms ease-in-out",
-          pointerEvents: isVisible ? "auto" : "none",
         }}
       >
         <div
@@ -491,36 +482,26 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
             display: "flex",
             flexDirection: "column",
             gap: "10px",
-            transition: "transform 300ms ease-in-out",
-            transform: `translateY(${isPreviewVisible ? 200 : 0}px)`,
           }}
         >
-          {/* Fly to image button or close preview button */}
           {nearestImage && (
             <Tooltip
               placement="right"
-              title={
-                isPreviewVisible
-                  ? "Vorschau schließen"
-                  : "Zur ausgewählten Schrägluftbild-Aufnahmeposition fliegen"
-              }
+              title={"Zur ausgewählten Schrägluftbild-Aufnahmeposition fliegen"}
             >
               <div>
                 <ControlButtonStyler
-                  onClick={isPreviewVisible ? closePreview : flyToNearestImage}
+                  onClick={flyToNearestImage}
                   width="160px"
                   height="80px"
                 >
-                  <span>
-                    {isPreviewVisible ? "Schließen" : "Flug zum Bild"}
-                  </span>
+                  <span>Flug zum Bild</span>
                 </ControlButtonStyler>
               </div>
             </Tooltip>
           )}
 
-          {/* Download button when preview is not visible */}
-          {!isPreviewVisible && nearestImage && previewPath && (
+          {nearestImage && previewPath && (
             <Tooltip
               placement="right"
               title="Bild in Qualität Level 2 herunterladen, Bild öffnet in neuemFenster"
