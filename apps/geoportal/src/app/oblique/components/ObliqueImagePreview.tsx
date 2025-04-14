@@ -1,12 +1,19 @@
-import { useCesiumContext } from "@carma-mapping/cesium-engine";
 import React, { useEffect, useState, type RefObject } from "react";
 import { styled } from "styled-components";
-import { Viewer, PerspectiveFrustum } from "cesium";
+import { type Viewer, PerspectiveFrustum } from "cesium";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faExternalLink, faFileArrowDown } from "@fortawesome/free-solid-svg-icons";
+import { Tooltip } from "antd";
+
+import { useCesiumContext } from "@carma-mapping/cesium-engine";
+import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 
 interface ObliqueImagePreviewProps {
   src: string;
   alt: string;
   isVisible: boolean;
+  onOpenImageLink: () => void;
+  onDirectDownload: () => void;
   onClose?: () => void;
 }
 
@@ -58,12 +65,32 @@ const PreviewImage = styled.img<{ width: number; $fadeIn: boolean }>`
   z-index: 1200;
   opacity: ${(props) => (props.$fadeIn ? 1 : 0)};
   transition: opacity 0.5s linear, width 0.1s linear, height 1s linear;
+  overflow: hidden;
+  scroll: none;
+`;
+
+const ButtonsContainer = styled.div`
+  position: absolute;
+  bottom: 50px;
+  width: 100%;
+  max-width: 800px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  z-index: 1300;
 `;
 
 const ObliqueImagePreview: React.FC<ObliqueImagePreviewProps> = ({
   src,
   alt,
   isVisible,
+  onOpenImageLink,
+  onDirectDownload,
   onClose,
 }) => {
   const [shouldFadeIn, setShouldFadeIn] = useState(false);
@@ -115,8 +142,38 @@ const ObliqueImagePreview: React.FC<ObliqueImagePreviewProps> = ({
   const syncedHeight = getViewerSyncedSize(viewerRef) * heightScaleFactor;
 
   return (
-    <>
+    <div style={{ position: "absolute", width: "100%", height: "100%", overflow: "hidden" }}>
       <Backdrop $fadeIn={shouldFadeIn} onClick={handleBackdropClick} />
+
+      <ButtonsContainer>
+        <Tooltip title="Bild in hoher Qualität in neuem Tab öffnen" placement="top">
+          <div>
+            <ControlButtonStyler onClick={onOpenImageLink} width="auto">
+              <span className="flex-1 text-base px-4">
+                <FontAwesomeIcon icon={faExternalLink} className="mr-2" />
+                Bild öffnen
+              </span>
+            </ControlButtonStyler>
+          </div>
+        </Tooltip>
+        <Tooltip title="Bild direkt herunterladen" placement="top">
+          <div>
+            <ControlButtonStyler onClick={onDirectDownload} width="auto">
+              <span className="flex-1 text-base px-4">
+                <FontAwesomeIcon icon={faFileArrowDown} className="mr-2" />
+                Herunterladen
+              </span>
+            </ControlButtonStyler>
+          </div>
+        </Tooltip>
+        <Tooltip title="Vorschau schließen" placement="top">
+          <div>
+            <ControlButtonStyler onClick={handleBackdropClick} width="auto">
+              <span className="flex-1 text-base px-4">Vorschau Schließen</span>
+            </ControlButtonStyler>
+          </div>
+        </Tooltip>
+      </ButtonsContainer>
       <PreviewImage
         src={src}
         alt={alt}
@@ -124,7 +181,7 @@ const ObliqueImagePreview: React.FC<ObliqueImagePreviewProps> = ({
         height={syncedHeight}
         $fadeIn={shouldFadeIn}
       />
-    </>
+    </div>
   );
 };
 

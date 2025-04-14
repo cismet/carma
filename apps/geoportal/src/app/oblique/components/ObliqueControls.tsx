@@ -6,9 +6,10 @@ import {
   faRotateLeft,
   faRotateRight,
   faSpinner,
+  faExternalLink,
+  faFileArrowDown,
 } from "@fortawesome/free-solid-svg-icons";
 import { Tooltip } from "antd";
-import { DownloadOutlined } from "@ant-design/icons";
 import {
   HeadingPitchRange,
   Math as CesiumMath,
@@ -220,7 +221,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     setLockFootprint,
   ]);
 
-  const downloadHighQualityImage = useCallback(() => {
+  const openImageLink = useCallback(() => {
     if (!nearestImage || !previewPath) return;
 
     const downloadUrl = getPreviewImageUrl(
@@ -228,9 +229,30 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       OBLIQUE_PREVIEW_QUALITY.LEVEL_2,
       nearestImage.record.id
     );
-
-    // Open in a new tab
     window.open(downloadUrl, "_blank");
+  }, [nearestImage, previewPath]);
+
+  const handleDirectDownload = useCallback(async () => {
+    if (!nearestImage || !previewPath) return;
+    const downloadUrl = getPreviewImageUrl(
+      previewPath,
+      OBLIQUE_PREVIEW_QUALITY.LEVEL_2,
+      nearestImage.record.id
+    );
+    try {
+      const response = await fetch(downloadUrl, { mode: "cors" });
+      if (!response.ok) throw new Error("Network response was not ok");
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const filename = downloadUrl.split("/").pop() || `oblique-image-${Date.now()}.jpg`;
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = filename;
+      link.click();
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (e) {
+      console.debug("Download failed", e);
+    }
   }, [nearestImage, previewPath]);
 
   // Update current heading and set up camera movement detection
@@ -461,6 +483,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
           )}
           alt={`Image preview ${nearestImage.record.id}`}
           isVisible={isPreviewVisible}
+          onOpenImageLink={openImageLink}
+          onDirectDownload={handleDirectDownload}
           onClose={() => {
             setIsPreviewVisible(false);
             notifyPreviewVisibilityChange(false);
@@ -509,28 +533,48 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
           )}
 
           {nearestImage && previewPath && (
-            <Tooltip
-              placement="right"
-              title="Bild in Qualität Level 2 herunterladen, Bild öffnet in neuemFenster"
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "10px",
+                paddingBottom: "40px",
+              }}
             >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  whiteSpace: "nowrap",
-                  paddingBottom: "40px",
-                }}
+              <Tooltip
+                placement="right"
+                title="Bild in hoher Qualität in neuem Tab öffnen"
               >
-                <ControlButtonStyler
-                  onClick={downloadHighQualityImage}
-                  width="160px"
-                  className="download-button"
-                >
-                  <DownloadOutlined style={{ marginRight: "8px" }} />
-                  <span>Herunterladen</span>
-                </ControlButtonStyler>
-              </div>
-            </Tooltip>
+                <div>
+                  <ControlButtonStyler
+                    onClick={openImageLink}
+                    width="160px"
+                  >
+                    <span className="flex items-center text-base">
+                      <FontAwesomeIcon icon={faExternalLink} className="mr-2" />
+                      Bild öffnen
+                    </span>
+                  </ControlButtonStyler>
+                </div>
+              </Tooltip>
+
+              <Tooltip
+                placement="right"
+                title="Bild direkt herunterladen"
+              >
+                <div>
+                  <ControlButtonStyler
+                    onClick={handleDirectDownload}
+                    width="160px"
+                  >
+                    <span className="flex items-center text-base">
+                      <FontAwesomeIcon icon={faFileArrowDown} className="mr-2" />
+                      Herunterladen
+                    </span>
+                  </ControlButtonStyler>
+                </div>
+              </Tooltip>
+            </div>
           )}
 
           {/* Cardinal direction controls with loading spinner overlay */}
