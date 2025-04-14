@@ -97,10 +97,18 @@ const AerialLayerSelection = () => {
             backgroundLayer.id !== "luftbild" && !hovered ? "saturate(0)" : "",
         }}
       >
-        <Radio onClick={handleRadioClick} value="luftbild">
+        <Radio
+          onClick={handleRadioClick}
+          value="luftbild"
+          className="text-left"
+        >
           Luftbildkarte 03/24
         </Radio>
-        <Radio onClick={handleRadioClick} value="luftbild21">
+        <Radio
+          onClick={handleRadioClick}
+          value="luftbild21"
+          className="text-left"
+        >
           Luftbildkarte 06/21
         </Radio>
       </Radio.Group>

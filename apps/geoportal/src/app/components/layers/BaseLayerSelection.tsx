@@ -97,13 +97,21 @@ const BaseLayerSelection = () => {
             backgroundLayer.id !== "karte" && !hovered ? "saturate(0)" : "",
         }}
       >
-        <Radio onClick={handleRadioClick} value="stadtplan">
+        <Radio
+          onClick={handleRadioClick}
+          value="stadtplan"
+          className="text-left"
+        >
           Stadtplan
         </Radio>
-        <Radio onClick={handleRadioClick} value="gelaende">
+        <Radio
+          onClick={handleRadioClick}
+          value="gelaende"
+          className="text-left"
+        >
           Gelände
         </Radio>
-        <Radio onClick={handleRadioClick} value="amtlich">
+        <Radio onClick={handleRadioClick} value="amtlich" className="text-left">
           Amtliche Geobasisdaten
         </Radio>
       </Radio.Group>
