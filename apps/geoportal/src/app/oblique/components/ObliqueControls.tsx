@@ -170,7 +170,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     if (!viewer || !nearestImage) return;
 
     const { centerWGS84 } = nearestImage.record;
-    const { imageCenter, distanceToCamera } = nearestImage;
+    const { imageCenter } = nearestImage;
     if (!centerWGS84 || !imageCenter) return;
 
     const [longitude, latitude, height] = centerWGS84;
@@ -200,7 +200,14 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
     setLockFootprint(true);
 
-    const duration = Math.max(0, Math.min(1.5, distanceToCamera ** 0.5 / 20));
+    const currentDistanceToCamera = Cartesian3.distance(
+      viewer.camera.positionWC,
+      position
+    );
+
+
+
+    const duration = Math.max(0.05, Math.min(3, Math.sqrt(Math.abs(currentDistanceToCamera)) / 10)); // seconds
 
     viewer.camera.flyTo({
       destination: position,
