@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState, useEffect } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -24,11 +24,11 @@ import {
   sampleTerrainMostDetailed,
 } from "cesium";
 
-import { useCesiumContext } from "@carma-mapping/cesium-engine";
+import { selectViewerIsMode2d, selectViewerIsTransitioning, useCesiumContext } from "@carma-mapping/cesium-engine";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { useFeatureFlags } from "@carma-apps/portals";
 
-import { getObliqueMode } from "../../store/slices/ui";
+import { getObliqueMode, setObliqueMode } from "../../store/slices/ui";
 import { useObliqueDataContext } from "../hooks/useObliqueDataContext";
 import { useOrbitPoint } from "../hooks/useOrbitPoint";
 
@@ -65,6 +65,7 @@ type ObliqueControlsProps = {
 
 export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const isObliqueMode = useSelector(getObliqueMode);
+  const dispatch = useDispatch();
   const {
     headingOffset,
     nearestImage,
@@ -83,10 +84,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const [shouldRender, setShouldRender] = useState(isObliqueMode);
   const [currentHeading, setCurrentHeading] = useState<number>(0);
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
-
-  const closePreview = useCallback(() => {
-    setIsPreviewVisible(false);
-  }, []);
+  const isMode2d = useSelector(selectViewerIsMode2d);
+  const isTransitioning = useSelector(selectViewerIsTransitioning);
   const orbitPointEntityRef = useRef<Entity | null>(null);
   const userMovedCameraRef = useRef<boolean>(false);
 
@@ -103,6 +102,14 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       return () => clearTimeout(timeout);
     }
   }, [isObliqueMode]);
+
+  useEffect(() => {
+    if (isTransitioning && !isMode2d) {
+      console.debug("ObliqueControls: Transitioning to 2D mode disabling oblique mode");
+      dispatch(setObliqueMode(false));
+      viewer?.scene.requestRender();
+    }
+  }, [isTransitioning, isMode2d, viewer, dispatch]);
 
   // Subscribe to preview visibility changes from outside this component
   useEffect(() => {
@@ -415,7 +422,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     [viewer, headingOffset, rotateToDirection]
   );
 
-  if (!shouldRender) {
+  if (!shouldRender || isMode2d) {
     return null;
   }
 

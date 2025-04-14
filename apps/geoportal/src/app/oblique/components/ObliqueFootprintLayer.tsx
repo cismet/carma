@@ -15,16 +15,21 @@ import {
 const OBLIQUE_DATASOURCE_PREFIX = "oblq-footprint";
 
 const cleanupDatasources = (viewer: Viewer) => {
-  const dataSources = viewer.dataSources;
-  const length = dataSources.length;
-  for (let i = 0; i < length; i++) {
-    const datasource = dataSources.get(i);
-    if (
-      datasource.name &&
-      datasource.name.startsWith(OBLIQUE_DATASOURCE_PREFIX)
-    ) {
-      dataSources.remove(datasource);
+  try {
+    const dataSources = viewer.dataSources;
+    const length = dataSources.length;
+    for (let i = 0; i < length; i++) {
+      const datasource = dataSources.get(i);
+      if (
+        datasource.name &&
+        datasource.name.startsWith(OBLIQUE_DATASOURCE_PREFIX)
+      ) {
+        dataSources.remove(datasource);
+      }
     }
+  }
+  catch (error) {
+    console.warn("Error cleaning up oblique data sources:", error);
   }
 };
 
@@ -42,13 +47,14 @@ export const ObliqueFootprintLayer: React.FC = () => {
     const viewer = viewerRef.current;
     const dataSource = dataSourceRef.current;
     return () => {
-      if (dataSource && viewer && !isObliqueMode) {
-        viewer.dataSources.remove(dataSource);
-        if (viewer.dataSources && viewer.dataSources.length > 0) {
+      if (viewer && viewer.dataSources && !isObliqueMode) {
+        dataSource && viewer.dataSources.remove(dataSource);
+        if (viewer.dataSources.length > 0) {
           console.info("Cleaning up leftover footprint data sources");
           cleanupDatasources(viewer);
         }
         dataSourceRef.current = null;
+        viewer.scene.requestRender();
       }
     };
   }, [viewerRef, isObliqueMode]);
@@ -75,7 +81,8 @@ export const ObliqueFootprintLayer: React.FC = () => {
 
     // Remove previous datasource if exists
     if (dataSourceRef.current) {
-      viewer.dataSources.remove(dataSourceRef.current, true);
+      viewer.dataSources.remove(dataSourceRef.current);
+      cleanupDatasources(viewer);
       dataSourceRef.current = null;
     }
 
