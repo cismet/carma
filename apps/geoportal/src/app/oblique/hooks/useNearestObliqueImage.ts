@@ -44,7 +44,7 @@ export function useNearestObliqueImage(
   options: UseNearestObliqueImageOptions = defaultOptions,
   lockFootprint: boolean = false
 ) {
-  const { viewerRef } = useCesiumContext();
+  const { viewer } = useCesiumContext();
   const orbitPoint = useOrbitPoint();
 
   // State for values that need to be returned from the hook
@@ -76,7 +76,7 @@ export function useNearestObliqueImage(
   // Function to refresh the search for nearest images
   const refreshSearch = useCallback(() => {
     if (
-      !viewerRef.current ||
+      !viewer ||
       !obliqueRecords ||
       !obliqueRecords.size ||
       !converter ||
@@ -87,7 +87,7 @@ export function useNearestObliqueImage(
     }
 
     try {
-      const camera = viewerRef.current.camera;
+      const camera = viewer.camera;
       const cartographic = camera.positionCartographic;
       if (!cartographic) return;
 
@@ -227,7 +227,7 @@ export function useNearestObliqueImage(
       console.error("Error finding nearest oblique image:", error);
     }
   }, [
-    viewerRef,
+    viewer,
     obliqueRecords,
     converter,
     headingOffset,
@@ -242,15 +242,13 @@ export function useNearestObliqueImage(
 
   // Setup camera movement listener
   useEffect(() => {
-    if (!viewerRef.current || !obliqueRecords || !obliqueRecords.size) {
+    if (!viewer || !obliqueRecords || !obliqueRecords.size) {
       return;
     }
 
     // Refresh on mount
     refreshSearch();
 
-    // Refresh when camera moves
-    const viewer = viewerRef.current;
 
     // Create a stable handler function that doesn't change on every render
     const handleCameraMove = () => {
@@ -273,7 +271,7 @@ export function useNearestObliqueImage(
         timerIdRef.current = null;
       }
     };
-  }, [viewerRef, obliqueRecords, refreshSearch, options.debounceTime]); // Include necessary dependencies
+  }, [viewer, obliqueRecords, refreshSearch, options.debounceTime]); // Include necessary dependencies
 
   // Use useMemo to create a stable return object that only changes when its dependencies change
   const returnValue = useMemo(

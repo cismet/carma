@@ -176,7 +176,7 @@ const fovZoom = (
 };
 
 /**
- * @param viewerRef - reference to the Cesium Viewer component
+ * @param viewer - the Cesium Viewer component
  * @param moveRateFactor - The factor by which the camera's default zoom/moveRate increment be amplified by, default 1.
  * @param zoomOptions - Options for the zoom animation.
  * @param zoomOptions.fovMode - The mode of the zoom animation. Default is "zoom".
@@ -185,11 +185,10 @@ const fovZoom = (
  */
 
 export function useZoomControls(
-  viewerRef: React.MutableRefObject<Viewer | null>,
+  viewer: Viewer | undefined,
   viewerAnimationMapRef: React.MutableRefObject<ViewerAnimationMap | null>,
   zoomOptions: Partial<ZoomOptions> = {}
 ) {
-  const viewer = viewerRef.current;
   const viewerAnimationMap = viewerAnimationMapRef.current;
   const { duration, fovMode, moveRateFactor } = {
     ...defaultZoomOptions,

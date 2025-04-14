@@ -8,7 +8,7 @@ import {
   Cartesian3,
 } from "cesium";
 
-import { useCesiumViewer } from "./useCesiumViewer";
+import { useCesiumContext } from "./useCesiumContext";
 
 export type ClickData = {
   id: string | null;
@@ -22,7 +22,7 @@ export const useClickActionFootprints = (
   setSelectedEntity: (id: string | null) => void
 ) => {
   const [clickData, setClickData] = useState<ClickData | null>(null);
-  const viewer = useCesiumViewer();
+  const { viewer } = useCesiumContext();
 
   useEffect(() => {
     if (!viewer?.scene || !viewer?.canvas) return;

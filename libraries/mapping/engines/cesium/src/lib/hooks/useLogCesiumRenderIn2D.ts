@@ -5,12 +5,11 @@ import { selectViewerIsMode2d } from "../slices/cesium";
 import { useCesiumContext } from "./useCesiumContext";
 
 export const useLogCesiumRenderIn2D = () => {
-  const { viewerRef } = useCesiumContext();
+  const { viewer } = useCesiumContext();
   const isMode2d = useSelector(selectViewerIsMode2d);
 
   useEffect(() => {
-    if (!viewerRef || !viewerRef.current || !viewerRef.current.scene) return;
-    const viewer = viewerRef.current;
+    if (!viewer || !viewer.scene) return;
     const scene = viewer.scene;
     const logRender = () => {
       if (isMode2d) {
@@ -30,5 +29,5 @@ export const useLogCesiumRenderIn2D = () => {
       scene && scene.postRender.removeEventListener(logRender);
       console.debug("HOOK [CESIUM|SCENE] add postrender removed");
     };
-  }, [viewerRef, isMode2d]);
+  }, [viewer, isMode2d]);
 };

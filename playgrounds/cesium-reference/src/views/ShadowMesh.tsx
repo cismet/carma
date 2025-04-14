@@ -7,69 +7,65 @@ import { cesiumConstructorOptions } from "../config";
 import useTileset from "../hooks/useTileset";
 import { useZoomToTilesetOnReady } from "../hooks/useZoomToTilesetOnReady";
 import UiBottom from "../components/UiBottom";
+import { U } from "vitest/dist/reporters-yx5ZTtEV.js";
+import { vi } from "vitest";
 
 const ShadowMesh: FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const viewerRef = useRef<Viewer | null>(null);
+  const [viewer, setViewer] = useState<Viewer | undefined>(undefined);
   const [timeOfDay, setTimeOfDay] = useState(720); // Default to noon
   const [dayOfYear, setDayOfYear] = useState(0);
   const [shadowsEnabled, setShadowsEnabled] = useState(true);
   const { tilesetRef, tilesetReady } = useTileset(
     WUPP_MESH_2024.url,
-    viewerRef
+    viewer
   );
 
   useEffect(() => {
     const initialize = async () => {
       if (containerRef.current) {
-        const viewer = new Viewer(containerRef.current, {
+        const newViewer = new Viewer(containerRef.current, {
           ...cesiumConstructorOptions,
           shadows: true,
           terrainShadows: ShadowMode.ENABLED,
         });
-        viewerRef.current = viewer;
-        const shadowMap = viewer.shadowMap;
+        setViewer(newViewer);
+        const shadowMap = newViewer.shadowMap;
         shadowMap.fadingEnabled = false;
         shadowMap.maximumDistance = 50000.0;
       }
     };
     initialize();
-
-    return () => {
-      if (viewerRef.current) {
-        viewerRef.current.destroy();
-      }
-    };
   }, []);
 
-  useZoomToTilesetOnReady(viewerRef, tilesetRef, tilesetReady);
+  useZoomToTilesetOnReady(viewer, tilesetRef, tilesetReady);
 
   useEffect(() => {
-    if (viewerRef.current) {
-      const currentTime = viewerRef.current.clock.currentTime;
+    if (viewer) {
+      const currentTime = viewer.clock.currentTime;
       // set date by day of year and time of day
       const newDate = JulianDate.toDate(currentTime);
       newDate.setHours(Math.floor(timeOfDay / 60), timeOfDay % 60, 0);
-      viewerRef.current.clock.currentTime = JulianDate.fromDate(newDate);
+      viewer.clock.currentTime = JulianDate.fromDate(newDate);
     }
-  }, [timeOfDay]);
+  }, [timeOfDay, viewer]);
 
   useEffect(() => {
-    if (viewerRef.current) {
-      const currentTime = viewerRef.current.clock.currentTime;
+    if (viewer) {
+      const currentTime = viewer.clock.currentTime;
       const newDate = JulianDate.toDate(currentTime);
       newDate.setMonth(0); // Reset to January
       newDate.setDate(dayOfYear + 1); // Set day of the year
-      viewerRef.current.clock.currentTime = JulianDate.fromDate(newDate);
+      viewer.clock.currentTime = JulianDate.fromDate(newDate);
     }
-  }, [dayOfYear]);
+  }, [dayOfYear, viewer]);
 
   useEffect(() => {
-    if (viewerRef.current.scene) {
-      viewerRef.current.shadowMap.enabled = shadowsEnabled;
-      viewerRef.current.scene.requestRender();
+    if (viewer) {
+      viewer.shadowMap.enabled = shadowsEnabled;
+      viewer.scene.requestRender();
     }
-  }, [shadowsEnabled]);
+  }, [shadowsEnabled, viewer]);
 
   return (
     <>

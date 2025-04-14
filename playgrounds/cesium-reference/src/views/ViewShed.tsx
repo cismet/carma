@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "antd";
 import { Cartesian3, Color, Entity, Viewer, Math as CesiumMath } from "cesium";
 import { WUPP_MESH_2024 } from "@carma-commons/resources";
@@ -8,6 +8,7 @@ import useTileset from "../hooks/useTileset";
 import { cesiumConstructorOptions } from "../config";
 import { TOELLETURM_CAMERA, TOELLETURM_TARGET } from "../config.poi";
 import { offsetFromHeadingPitchRange } from "../lib/cesiumUtils";
+import { vi } from "vitest";
 
 const cameraPosition = Cartesian3.fromDegrees(
   TOELLETURM_CAMERA.longitude,
@@ -27,11 +28,11 @@ const viewPosition = Cartesian3.add(
 
 const ViewShed: React.FC = () => {
   const constainerRef = useRef<HTMLDivElement | null>(null);
-  const viewerRef = useRef<Viewer | null>(null);
+  const [viewer, setViewer] = useState<Viewer | undefined>(undefined);
   const sensorRef = useRef<SensorShadow | null>(null);
   const { tilesetRef, tilesetReady } = useTileset(
     WUPP_MESH_2024.url,
-    viewerRef
+    viewer
   );
 
   const targetPointRef = useRef<Entity | null>(null);
@@ -41,20 +42,20 @@ const ViewShed: React.FC = () => {
     const initialize = async () => {
       try {
         if (constainerRef.current) {
-          const viewer = new Viewer(
+          const newViewer = new Viewer(
             constainerRef.current,
             cesiumConstructorOptions
           );
-          viewerRef.current = viewer;
+          setViewer(newViewer);
 
-          targetPointRef.current = viewer.entities.add({
+          targetPointRef.current = newViewer.entities.add({
             position: viewPosition,
             point: {
               pixelSize: 10,
               color: Color.LIME,
             },
           });
-          cameraPointRef.current = viewer.entities.add({
+          cameraPointRef.current = newViewer.entities.add({
             position: cameraPosition,
             point: {
               pixelSize: 10,
@@ -62,7 +63,7 @@ const ViewShed: React.FC = () => {
             },
           });
 
-          viewer.zoomTo([cameraPointRef.current, targetPointRef.current]);
+          newViewer.zoomTo([cameraPointRef.current, targetPointRef.current]);
         }
       } catch (error) {
         console.error("Initialization error:", error);
@@ -70,17 +71,11 @@ const ViewShed: React.FC = () => {
     };
 
     initialize();
-
-    return () => {
-      if (viewerRef.current) {
-        viewerRef.current.destroy();
-      }
-    };
   }, []);
 
   useEffect(() => {
-    if (viewerRef.current.scene && tilesetReady) {
-      sensorRef.current = new SensorShadow(viewerRef.current, {
+    if (viewer && viewer.scene && tilesetReady) {
+      sensorRef.current = new SensorShadow(viewer, {
         cameraPosition,
         viewPosition,
         viewAreaColor: new Color(0.5, 1, 0.5),
@@ -89,17 +84,17 @@ const ViewShed: React.FC = () => {
         frustum: true,
         size: 1024,
       });
-      viewerRef.current.scene.requestRender();
+      viewer.scene.requestRender();
     }
-  }, [tilesetReady]);
+  }, [tilesetReady, viewer]);
 
   const handleClickPOV = () => {
-    if (viewerRef.current && cameraPointRef.current && targetPointRef.current) {
+    if (viewer && cameraPointRef.current && targetPointRef.current) {
       const cameraPosition = cameraPointRef.current.position.getValue(
-        viewerRef.current.clock.currentTime
+        viewer.clock.currentTime
       );
       const targetPosition = targetPointRef.current.position.getValue(
-        viewerRef.current.clock.currentTime
+        viewer.clock.currentTime
       );
 
       const direction = Cartesian3.normalize(
@@ -110,7 +105,7 @@ const ViewShed: React.FC = () => {
       // Calculate the local up vector at the camera's position
       const up = Cartesian3.normalize(cameraPosition, new Cartesian3());
 
-      viewerRef.current.camera.flyTo({
+      viewer.camera.flyTo({
         destination: cameraPosition,
         orientation: {
           direction: direction,
@@ -121,8 +116,8 @@ const ViewShed: React.FC = () => {
     }
   };
   const handleClickOverview = () => {
-    viewerRef.current &&
-      viewerRef.current.zoomTo([
+    viewer &&
+      viewer.zoomTo([
         cameraPointRef.current,
         targetPointRef.current,
       ]);

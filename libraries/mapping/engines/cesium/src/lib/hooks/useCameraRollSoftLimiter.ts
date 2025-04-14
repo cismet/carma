@@ -7,7 +7,7 @@ import {
   selectViewerIsMode2d,
   setIsAnimating,
 } from "../slices/cesium";
-import { useCesiumViewer } from "./useCesiumViewer";
+import { useCesiumContext } from "./useCesiumContext";
 
 const NADIR_THRESHOLD = 0.2;
 
@@ -20,7 +20,7 @@ const useCameraRollSoftLimiter = ({
   debug?: boolean;
   nadirThreshold?: number;
 } = {}) => {
-  const viewer = useCesiumViewer();
+  const { viewer } = useCesiumContext();
   const dispatch = useDispatch();
   const isMode2d = useSelector(selectViewerIsMode2d);
 

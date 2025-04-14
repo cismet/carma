@@ -11,7 +11,6 @@ import { ViewerAnimationMap } from "./utils/viewerAnimationMap";
 
 export interface CesiumContextType {
   viewer?: Viewer;
-  viewerRef: MutableRefObject<Viewer | null>;
   viewerAnimationMapRef: MutableRefObject<ViewerAnimationMap | null>;
   terrainProviderRef: MutableRefObject<CesiumTerrainProvider | null>;
   surfaceProviderRef: MutableRefObject<CesiumTerrainProvider | null>;

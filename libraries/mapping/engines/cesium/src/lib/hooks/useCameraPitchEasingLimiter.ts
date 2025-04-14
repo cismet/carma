@@ -3,7 +3,7 @@ import { useSelector } from "react-redux";
 
 import { Math as CesiumMath, Cartographic, EasingFunction } from "cesium";
 
-import { useCesiumViewer } from "./useCesiumViewer";
+import { useCesiumContext } from "./useCesiumContext";
 import {
   selectScreenSpaceCameraControllerEnableCollisionDetection,
   selectViewerIsAnimating,
@@ -26,7 +26,7 @@ const useCameraPitchEasingLimiter = (
   const easing = options.easing ?? EasingFunction.CIRCULAR_IN;
   const pitchLimiter =
     options.pitchLimiter === undefined ? true : options.pitchLimiter;
-  const viewer = useCesiumViewer();
+  const { viewer } = useCesiumContext();
 
   const isMode2d = useSelector(selectViewerIsMode2d);
   const isAnimating = useSelector(selectViewerIsAnimating);

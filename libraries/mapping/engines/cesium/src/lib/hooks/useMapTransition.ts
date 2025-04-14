@@ -38,7 +38,7 @@ export const useMapTransition = ({
   const topicMapContext = useContext<typeof TopicMapContext>(TopicMapContext);
   const { realRoutedMapRef: routedMapRef } = topicMapContext;
 
-  const { viewerRef, surfaceProviderRef, terrainProviderRef } =
+  const { viewer, surfaceProviderRef, terrainProviderRef } =
     useCesiumContext();
 
   if (duration === undefined) {
@@ -50,14 +50,13 @@ export const useMapTransition = ({
 
   const transitionToMode3d = async () => {
     if (
-      !viewerRef.current ||
+      !viewer ||
       !routedMapRef.current?.leafletMap?.leafletElement
     ) {
       console.warn("cesium or leaflet not available");
       return null;
     }
 
-    const viewer = viewerRef.current;
     const leaflet = routedMapRef.current?.leafletMap?.leafletElement;
 
     // cancel any ongoing flight
@@ -111,12 +110,11 @@ export const useMapTransition = ({
       console.warn("leaflet not available no transition possible [zoom]");
       return null;
     }
-    if (!viewerRef.current) {
+    if (!viewer) {
       console.warn("cesium not available no transition possible [zoom]");
       return null;
     }
 
-    const viewer = viewerRef.current;
     const leaflet = routedMapRef.current?.leafletMap?.leafletElement;
 
     dispatch(setTransitionTo2d());

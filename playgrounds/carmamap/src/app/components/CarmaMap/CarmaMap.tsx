@@ -198,7 +198,7 @@ export const CarmaMap = ({
   const uiMode = useSelector(getUIMode);
   const showFullscreenButton = useSelector(getShowFullscreenButton);
   const {
-    viewerRef,
+    viewer,
     viewerAnimationMapRef,
     terrainProviderRef,
     surfaceProviderRef,
@@ -209,7 +209,7 @@ export const CarmaMap = ({
   const {
     handleZoomIn: handleZoomInCesium,
     handleZoomOut: handleZoomOutCesium,
-  } = useZoomControlsCesium(viewerRef, viewerAnimationMapRef);
+  } = useZoomControlsCesium(viewer, viewerAnimationMapRef);
   const { getLeafletZoom, zoomInLeaflet, zoomOutLeaflet } =
     useLeafletZoomControls();
   const showPrimaryTileset = useSelector(selectShowPrimaryTileset);
@@ -264,7 +264,7 @@ export const CarmaMap = ({
   };
 
   useEffect(() => {
-    if (viewerRef.current && backgroundLayer) {
+    if (viewer && backgroundLayer) {
       if (backgroundLayer.id === MANAGED_BACKGROUND_LAYERS.ORTHO) {
         dispatch(setCurrentSceneStyle("primary"));
       } else {
@@ -398,23 +398,21 @@ export const CarmaMap = ({
         }
         const provider = hgkTerrainProviders[hqKey];
         terrainProviderRef.current = provider;
-        if (viewerRef.current && provider) {
+        if (viewer && provider) {
           setTimeout(() => {
             // overwrite default terrain provider
             console.debug("set HGK terrain provider for", hqKey, provider);
-            const viewer = viewerRef.current;
             viewer.scene.terrainProvider = provider;
             viewer.scene.requestRender();
           }, 500);
         }
       })();
     }
-  }, [hqKey, terrainProviderRef, viewerRef]);
+  }, [hqKey, terrainProviderRef, viewer]);
 
   useEffect(() => {
-    if (!isMode2d && viewerRef.current) {
+    if (!isMode2d && viewer) {
       setTimeout(() => {
-        const viewer = viewerRef.current;
         setCurrentSceneStyle("primary");
         console.debug("force hide default imagery layer hgk");
         viewer.scene.backgroundColor = Color.DIMGREY;
@@ -431,7 +429,7 @@ export const CarmaMap = ({
         viewer.scene.requestRender();
       }, 300);
     }
-  }, [isMode2d, viewerRef, tilesetsRefs]);
+  }, [isMode2d, viewer, tilesetsRefs]);
 
   console.debug("CARMAMAP render hgk", hqKey);
 

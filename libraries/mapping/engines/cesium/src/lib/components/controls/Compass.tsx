@@ -1,5 +1,6 @@
 import { MouseEvent, ReactNode, forwardRef } from "react";
 import { useSelector } from "react-redux";
+import { Tooltip } from "antd";
 
 import { faCompass } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -13,10 +14,9 @@ import {
 } from "cesium";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 
-import { useCesiumViewer } from "../../hooks/useCesiumViewer";
+import { useCesiumContext } from "../../hooks/useCesiumContext";
 import { selectScreenSpaceCameraControllerMinimumZoomDistance } from "../../slices/cesium";
 import { pickViewerCanvasCenter } from "../../utils/cesiumHelpers";
-import { Tooltip } from "antd";
 
 type CompassProps = {
   children?: ReactNode;
@@ -27,7 +27,7 @@ type Ref = HTMLButtonElement;
 
 export const Compass = forwardRef<Ref, CompassProps>(
   ({ children, disabled }, ref) => {
-    const viewer = useCesiumViewer();
+    const { viewer } = useCesiumContext();
     const minZoomDistance = useSelector(
       selectScreenSpaceCameraControllerMinimumZoomDistance
     );

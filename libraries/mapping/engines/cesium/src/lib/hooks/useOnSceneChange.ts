@@ -15,7 +15,7 @@ import { useCesiumContext } from "./useCesiumContext";
 export const useOnSceneChange = (
   onSceneChange?: (p: EncodedSceneParams) => void
 ) => {
-  const { viewerRef } = useCesiumContext();
+  const { viewer } = useCesiumContext();
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
   const isMode2d = useSelector(selectViewerIsMode2d);
 
@@ -25,7 +25,6 @@ export const useOnSceneChange = (
   console.debug("HOOKINIT [CESIUM|HASH] useCesiumHashUpdater");
 
   useEffect(() => {
-    const viewer = viewerRef.current;
     if (viewer && viewer.scene && !isMode2d) {
       console.debug(
         "HOOK: update Hash, route or style changed",
@@ -44,11 +43,10 @@ export const useOnSceneChange = (
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewerRef, isMode2d, isSecondaryStyle]);
+  }, [viewer, isMode2d, isSecondaryStyle]);
 
   useEffect(() => {
     // update hash hook
-    const viewer = viewerRef.current;
     if (viewer && viewer.scene) {
       console.debug(
         "HOOK: [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to update hash"
@@ -82,7 +80,7 @@ export const useOnSceneChange = (
           viewer.scene.camera.moveEnd.removeEventListener(moveEndListener);
       };
     }
-  }, [viewerRef, isSecondaryStyle, isMode2d, onSceneChange]);
+  }, [viewer, isSecondaryStyle, isMode2d, onSceneChange]);
 };
 
 export default useOnSceneChange;

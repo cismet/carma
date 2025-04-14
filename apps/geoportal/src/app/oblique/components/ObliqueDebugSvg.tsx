@@ -127,7 +127,7 @@ export const ObliqueDebugSvg = () => {
   const [cropHeightFactor, setCropHeightFactor] = useState(400);
   const [imageRotation, setImageRotation] = useState(0); // 0, 90, 180, 270 degrees
   // Core contexts and refs
-  const { viewerRef } = useCesiumContext();
+  const { viewer } = useCesiumContext();
   const {
     imageRecords,
     converter,
@@ -135,7 +135,7 @@ export const ObliqueDebugSvg = () => {
     previewPath,
     footprintCenterpointsRBushByCardinals,
   } = useObliqueDataContext();
-  const camera = viewerRef?.current?.camera;
+  const camera = viewer.camera;
 
   // Use enhanced hook for camera and image calculations
   const {

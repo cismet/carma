@@ -1,9 +1,9 @@
 import { useEffect } from "react";
-import { useCesiumViewer } from "./useCesiumViewer";
+import { useCesiumContext } from "./useCesiumContext";
 import type { GlobeOptions } from "../CustomViewer";
 
 export const useCesiumGlobe = (globeOptions: GlobeOptions) => {
-  const viewer = useCesiumViewer();
+  const { viewer } = useCesiumContext();
 
   useEffect(() => {
     if (viewer && viewer.scene.globe) {

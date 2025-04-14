@@ -4,7 +4,7 @@ import { Cesium3DTileset, CustomShader } from "cesium";
 import { useTweakpaneCtx } from "@carma-commons/debug";
 
 import { CUSTOM_SHADERS_DEFINITIONS, CustomShaderKeys as k } from "../shaders";
-import { useCesiumViewer } from "./useCesiumViewer";
+import { useCesiumContext } from "./useCesiumContext";
 
 const customShaderKeys = {
   clay: k.CLAY,
@@ -25,7 +25,7 @@ export const useTilesetsTweakpane = (
   const [customShaderKey, setCustomShaderKey] = useState(
     DEFAULT_MESH_SHADER_KEY
   );
-  const viewer = useCesiumViewer();
+  const { viewer } = useCesiumContext();
 
   const [enableDebugWireframe, setEnableDebugWireframe] = useState(false);
 

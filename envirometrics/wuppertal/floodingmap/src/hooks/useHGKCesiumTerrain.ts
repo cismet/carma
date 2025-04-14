@@ -12,7 +12,7 @@ export const useHGKCesiumTerrain = (
   HGK_KEYS,
   HGK_TERRAIN_PROVIDER_URLS
 ) => {
-  const { terrainProviderRef, viewerRef } = useCesiumContext();
+  const { terrainProviderRef, viewer } = useCesiumContext();
 
   useEffect(() => {
     const useHws = isHWS && selectedSimulation !== 2;
@@ -42,8 +42,7 @@ export const useHGKCesiumTerrain = (
         const provider = hgkTerrainProviders[hqKey];
 
         terrainProviderRef.current = provider;
-        if (viewerRef.current && provider) {
-          const viewer = viewerRef.current;
+        if (viewer && provider) {
           setTimeout(() => {
             // overwrite default terrain provider
             /*
@@ -64,7 +63,7 @@ export const useHGKCesiumTerrain = (
     isHWS,
     selectedSimulation,
     terrainProviderRef,
-    viewerRef,
+    viewer,
     HGK_KEYS,
     HGK_TERRAIN_PROVIDER_URLS,
   ]);

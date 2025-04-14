@@ -7,14 +7,12 @@ import { cesiumCameraForceOblique } from "../utils/cesiumCameraForceOblique";
 const viewerPreUpdateHandlers = new WeakMap<Viewer, (scene: Scene) => void>();
 
 export function useCesiumCameraForceOblique(
-  viewerRef: React.MutableRefObject<Viewer | null>,
+  viewer: Viewer | undefined,
   fixedPitch: number,
   fixedHeight: number
 ) {
   const enableCameraForceOblique = useCallback(() => {
-    if (!viewerRef.current) return;
-
-    const viewer = viewerRef.current;
+    if (!viewer) return;
 
     const onPreupdate = () => {
       cesiumCameraForceOblique(viewer, fixedPitch, fixedHeight);
@@ -24,19 +22,17 @@ export function useCesiumCameraForceOblique(
       viewer.scene.preUpdate.addEventListener(onPreupdate);
       viewerPreUpdateHandlers.set(viewer, onPreupdate);
     }
-  }, [viewerRef, fixedPitch, fixedHeight]);
+  }, [viewer, fixedPitch, fixedHeight]);
 
   const disableCameraForceOblique = useCallback(() => {
-    if (!viewerRef.current) return;
-
-    const viewer = viewerRef.current;
+    if (!viewer) return;
 
     if (viewerPreUpdateHandlers.has(viewer)) {
       const handlerToRemove = viewerPreUpdateHandlers.get(viewer);
       viewer.scene.preUpdate.removeEventListener(handlerToRemove!);
       viewerPreUpdateHandlers.delete(viewer);
     }
-  }, [viewerRef]);
+  }, [viewer]);
 
   return { enableCameraForceOblique, disableCameraForceOblique };
 }

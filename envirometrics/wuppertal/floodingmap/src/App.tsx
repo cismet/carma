@@ -100,7 +100,7 @@ function App({ sync = false }: { sync?: boolean }) {
 
   // CONTROLS
   const {
-    viewerRef,
+    viewer,
     viewerAnimationMapRef,
     terrainProviderRef,
     surfaceProviderRef,
@@ -109,7 +109,7 @@ function App({ sync = false }: { sync?: boolean }) {
   const {
     handleZoomIn: handleZoomInCesium,
     handleZoomOut: handleZoomOutCesium,
-  } = useZoomControls(viewerRef, viewerAnimationMapRef);
+  } = useZoomControls(viewer, viewerAnimationMapRef);
   const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
 
   // LEAFLET related
@@ -187,15 +187,14 @@ function App({ sync = false }: { sync?: boolean }) {
   );
 
   useEffect(() => {
-    if (viewerRef.current) {
-      const viewer = viewerRef.current;
+    if (viewer) {
       // remove default cesium credit because no ion resorce is used;
       (viewer as any)._cesiumWidget._creditContainer.style.display = "none";
       setTimeout(() => {
         prepareSceneForHGK(viewer);
       }, 300);
     }
-  }, [viewerRef]);
+  }, [viewer]);
 
   useEffect(() => {
     dispatch(setIsMode2d(true));
@@ -277,7 +276,7 @@ function App({ sync = false }: { sync?: boolean }) {
                 title="Nach Norden ausrichten"
               >
                 <PitchingCompass
-                  viewerRef={viewerRef}
+                  viewer={viewer}
                   viewerAnimationMapRef={viewerAnimationMapRef}
                 />
               </ControlButtonStyler>

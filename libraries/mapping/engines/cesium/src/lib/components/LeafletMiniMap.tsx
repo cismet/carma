@@ -2,7 +2,8 @@ import { useEffect, useRef } from "react";
 import L from "leaflet";
 import { Color, Entity, PolygonGraphics } from "cesium";
 
-import { useCesiumViewer } from "../hooks/useCesiumViewer";
+import { useCesiumContext } from "../hooks/useCesiumContext";
+
 import {
   cameraToCartographicDegrees,
   getViewerViewportPolygonRing,
@@ -39,7 +40,7 @@ export const LeafletMiniMap = ({
   showCesiumPolygon?: boolean;
   viewportLimitResolutionFactor?: number;
 }) => {
-  const viewer = useCesiumViewer();
+  const { viewer } = useCesiumContext();
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
 

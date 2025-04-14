@@ -3,12 +3,12 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { BoundingSphere, Cartesian3 } from "cesium";
 
-import { useCesiumViewer } from "./useCesiumViewer";
+import { useCesiumContext } from "./useCesiumContext";
 import { selectViewerHome, clearIsAnimating } from "../slices/cesium";
 
 export const useHomeControl = () => {
   const dispatch = useDispatch();
-  const viewer = useCesiumViewer();
+  const { viewer } = useCesiumContext();
   const homePosition = useSelector(selectViewerHome);
 
   const [homePos, setHomePos] = useState<Cartesian3 | null>(null);

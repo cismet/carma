@@ -8,7 +8,6 @@ import {
 } from "../slices/cesium";
 
 import { useCesiumContext } from "./useCesiumContext";
-import { useCesiumViewer } from "./useCesiumViewer";
 import { useSecondaryStyleTilesetClickHandler } from "./useSecondaryStyleTilesetClickHandler";
 
 import { TRANSITION_DELAY } from "../CustomViewer";
@@ -17,8 +16,7 @@ import { useBaseTilesetsTweakpane } from "./useBaseTilesetsTweakpane";
 
 export const useTilesets = () => {
   const showPrimary = useSelector(selectShowPrimaryTileset);
-  const { tilesetsRefs } = useCesiumContext();
-  const viewer = useCesiumViewer();
+  const { tilesetsRefs, viewer } = useCesiumContext();
   let tilesetPrimary = tilesetsRefs.primaryRef.current;
   let tilesetSecondary = tilesetsRefs.secondaryRef.current;
   const showSecondary = useSelector(selectShowSecondaryTileset);

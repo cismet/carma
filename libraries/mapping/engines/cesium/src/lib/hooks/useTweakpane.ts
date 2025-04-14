@@ -11,7 +11,6 @@ import { useTweakpaneCtx } from "@carma-commons/debug";
 import { formatFractions } from "../utils/formatters";
 import { resolutionFractions } from "../utils/cesiumHelpers";
 
-import { useCesiumViewer } from "./useCesiumViewer";
 import {
   setScreenSpaceCameraControllerEnableCollisionDetection,
   setScreenSpaceCameraControllerMaximumZoomDistance,
@@ -20,9 +19,10 @@ import {
   selectScreenSpaceCameraControllerMaximumZoomDistance,
   selectScreenSpaceCameraControllerMinimumZoomDistance,
 } from "../slices/cesium";
+import { useCesiumContext } from "./useCesiumContext";
 
 const useTweakpane = () => {
-  const viewer = useCesiumViewer();
+  const { viewer } = useCesiumContext();
 
   const dispatch = useDispatch();
 

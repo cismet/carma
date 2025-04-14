@@ -16,7 +16,7 @@ const defaultFovWheelZoomOptions: Required<FovWheelZoomOptions> = {
 };
 
 export function useFovWheelZoom(
-  viewerRef: React.MutableRefObject<Viewer | null>,
+  viewer: Viewer | undefined,
   enabled: boolean = true,
   options: FovWheelZoomOptions = {}
 ) {
@@ -29,7 +29,6 @@ export function useFovWheelZoom(
     (event: WheelEvent) => {
       event.preventDefault();
 
-      const viewer = viewerRef.current;
       if (!viewer || !viewer.scene) return;
 
       if (!(viewer.camera.frustum instanceof PerspectiveFrustum)) {
@@ -52,11 +51,10 @@ export function useFovWheelZoom(
         viewer.scene.requestRender();
       }
     },
-    [viewerRef, minFov, maxFov, fovChangeRate]
+    [viewer, minFov, maxFov, fovChangeRate]
   );
 
   const enableWheelZoom = useCallback(() => {
-    const viewer = viewerRef.current;
     if (!viewer || !viewer.scene) return;
 
     viewer.scene.screenSpaceCameraController.enableZoom = false;
@@ -68,10 +66,9 @@ export function useFovWheelZoom(
 
       viewerWheelHandlers.set(viewer, handleWheel);
     }
-  }, [viewerRef, handleWheel]);
+  }, [viewer, handleWheel]);
 
   const disableWheelZoom = useCallback(() => {
-    const viewer = viewerRef.current;
     if (!viewer || !viewer.scene) return;
 
     if (viewerWheelHandlers.has(viewer)) {
@@ -84,7 +81,7 @@ export function useFovWheelZoom(
     }
 
     viewer.scene.screenSpaceCameraController.enableZoom = true;
-  }, [viewerRef]);
+  }, [viewer]);
 
   useEffect(() => {
     if (!enabled) {
@@ -97,6 +94,22 @@ export function useFovWheelZoom(
       disableWheelZoom();
     };
   }, [enabled, enableWheelZoom, disableWheelZoom]);
+
+  useEffect(() => {
+    if (!viewer) return;
+
+    const checkViewerReady = () => {
+      if (viewer.canvas.width > 0 && viewer.scene) {
+        console.debug("Viewer is ready for rendering");
+        // Perform any additional setup or callback here
+      } else {
+        console.debug("Viewer canvas not ready, retrying...");
+        requestAnimationFrame(checkViewerReady);
+      }
+    };
+
+    checkViewerReady();
+  }, [viewer]);
 
   const setEnabled = useCallback(
     (isEnabled: boolean) => {
@@ -113,7 +126,7 @@ export function useFovWheelZoom(
     handleWheel,
     setEnabled,
     isEnabled: Boolean(
-      viewerRef.current && viewerWheelHandlers.has(viewerRef.current)
+      viewer && viewerWheelHandlers.has(viewer)
     ),
   };
 }

@@ -18,12 +18,11 @@ export const INVERTED_SELECTED_POLYGON_ID = "searchgaz-inverted-polygon";
 const NEW_SELECTION_TIMEOUT = 100;
 
 const cleanUpCesium = (
-  viewerRef: MutableRefObject<Viewer | null>,
+  viewer: Viewer,
   selectedCesiumEntityData: EntityData | null,
   setSelectedCesiumEntityData: (data: EntityData | null) => void
 ) => {
   console.debug("HOOK: cleanUpCesium", selectedCesiumEntityData);
-  const viewer = viewerRef.current;
   if (!viewer) return;
   if (selectedCesiumEntityData) {
     removeCesiumMarker(viewer, selectedCesiumEntityData);
@@ -38,7 +37,7 @@ export const useSelectionCesium = (
   isActive: boolean,
   cesiumOptions: CesiumOptions
 ) => {
-  const { viewerRef } = useCesiumContext();
+  const { viewer } = useCesiumContext();
   const { selection } = useSelection();
   const lastSelectionKey = useRef<number | null>(null);
   const lastSelectionTimestamp = useRef<number | null>(null);
@@ -48,7 +47,7 @@ export const useSelectionCesium = (
   // Ref to store the previous selection
 
   useEffect(() => {
-    if (!isActive || !viewerRef) {
+    if (!isActive || !viewer) {
       return;
     }
 
@@ -79,18 +78,18 @@ export const useSelectionCesium = (
         invertedSelectedPolygonId: INVERTED_SELECTED_POLYGON_ID,
       };
 
-      carmaHitTrigger([selection], viewerRef, options);
+      carmaHitTrigger([selection], viewer, options);
     } else {
       lastSelectionKey.current = null;
       cleanUpCesium(
-        viewerRef,
+        viewer,
         selectedCesiumEntityData,
         setSelectedCesiumEntityData
       );
     }
   }, [
     selection,
-    viewerRef,
+    viewer,
     isActive,
     cesiumOptions,
     setSelectedCesiumEntityData,

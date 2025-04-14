@@ -6,14 +6,14 @@ import {
   selectViewerCurrentTransition,
   selectViewerIsTransitioning,
 } from "../slices/cesium";
-import { useCesiumViewer } from "./useCesiumViewer";
+import { useCesiumContext } from "./useCesiumContext";
 
 const DEFAULT_TIMEOUT = 4000;
 
 const useTransitionTimeout = (timeOut = DEFAULT_TIMEOUT) => {
   const isTransitioning = useSelector(selectViewerIsTransitioning);
   const currentTransition = useSelector(selectViewerCurrentTransition);
-  const viewer = useCesiumViewer();
+  const { viewer } = useCesiumContext();
   const dispatch = useDispatch();
 
   useEffect(() => {

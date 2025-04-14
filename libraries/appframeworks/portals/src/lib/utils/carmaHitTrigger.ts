@@ -37,6 +37,7 @@ import {
   type EntityData,
 } from "@carma-mapping/cesium-engine";
 import { PROJ4_CONVERTERS } from "@carma-commons/utils";
+import { map } from "leaflet";
 
 const proj4ConverterLookup = {};
 const DEFAULT_ZOOM_LEVEL = 16;
@@ -179,7 +180,7 @@ export type GazetteerOptions = {
 
 export const carmaHitTrigger = async (
   hit,
-  mapRef: MutableRefObject<Viewer | null> | MutableRefObject<L.Map | null>,
+  mapRef: undefined | Viewer | MutableRefObject<L.Map | null>,
   options: GazetteerOptions
 ) => {
   if (hit !== undefined && hit.length !== undefined && hit.length > 0) {
@@ -218,7 +219,13 @@ export const carmaHitTrigger = async (
       hitObject
     );
 
-    const mapElement = mapRef.current;
+    let mapElement;
+
+    if (mapRef instanceof Viewer) {
+      mapElement = mapRef;
+    } else {
+      mapElement = mapRef?.current;
+    }
     console.log("mapElement", mapElement);
     if (mapElement instanceof Viewer && options) {
       const viewer = mapElement;

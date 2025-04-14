@@ -33,7 +33,6 @@ export const CesiumContextProvider = ({
   // use viewer directly to trigger rerenders;
   const [viewer, setViewer] = useState<Viewer | undefined>(undefined);
   // Use refs for Cesium instances to prevent re-renders
-  const viewerRef = useRef<Viewer | null>(null);
   const viewerAnimationMapRef = useRef<ViewerAnimationMap | null>(
     initViewerAnimationMap()
   );
@@ -158,7 +157,6 @@ export const CesiumContextProvider = ({
     () => ({
       viewer,
       setViewer,
-      viewerRef,
       viewerAnimationMapRef,
       ellipsoidTerrainProviderRef,
       terrainProviderRef,

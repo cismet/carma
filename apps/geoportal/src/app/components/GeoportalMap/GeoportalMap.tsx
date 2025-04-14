@@ -112,7 +112,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const showHamburgerMenu = useSelector(getShowHamburgerMenu);
   const selectedFeature = useSelector(getSelectedFeature);
   const loadingFeatureInfo = useSelector(getLoading);
-  const { viewerRef, terrainProviderRef, surfaceProviderRef } =
+  const { viewer, terrainProviderRef, surfaceProviderRef } =
     useCesiumContext();
   const { getLeafletZoom } = useLeafletZoomControls();
   const showPrimaryTileset = useSelector(selectShowPrimaryTileset);
@@ -139,7 +139,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   useOverlayHelper(layerButtonsOverlay);
   useOverlayHelper(mapInteractionOverlay);
 
-  useTweakpane(viewerRef, rerenderCountRef, lastRenderIntervalRef);
+  useTweakpane(viewer, rerenderCountRef, lastRenderIntervalRef);
 
   const { setShowTourOverlay } = useCarmaMapContext();
   const { routedMapRef: routedMap } =
@@ -229,7 +229,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   useEffect(() => {
     // TODO wrap this with 3d component in own component?
     // INTIALIZE Cesium Tileset style from Geoportal/TopicMap background later style
-    if (viewerRef.current && backgroundLayer) {
+    if (viewer && backgroundLayer) {
       if (backgroundLayer.id === "luftbild") {
         dispatch(setCurrentSceneStyle("primary"));
       } else {

@@ -2,7 +2,7 @@ import { useCallback, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { BoundingSphere, Cartesian3, Math as CesiumMath } from "cesium";
 
-import { useCesiumViewer } from "./useCesiumViewer";
+import { useCesiumContext } from "./useCesiumContext";
 import {
   selectScreenSpaceCameraControllerEnableCollisionDetection,
   selectViewerIsMode2d,
@@ -25,7 +25,7 @@ const useCameraPitchSoftLimiter = (
   const minPitchDeg = options.minPitchDeg || 22;
   const resetPitchOffsetDeg = options.resetPitchOffsetDeg || 8;
 
-  const viewer = useCesiumViewer();
+  const { viewer } = useCesiumContext();
   const dispatch = useDispatch();
   const isMode2d = useSelector(selectViewerIsMode2d);
   const collisions = useSelector(

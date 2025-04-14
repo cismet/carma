@@ -11,12 +11,12 @@ import {
 } from "cesium";
 
 import { selectShowSecondaryTileset } from "../slices/cesium";
-import { useCesiumViewer } from "./useCesiumViewer";
+import { useCesiumContext } from "./useCesiumContext";
 
 export const useSecondaryStyleTilesetClickHandler = (
   disableSelection = true
 ) => {
-  const viewer = useCesiumViewer();
+  const { viewer } = useCesiumContext();
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
 
   useEffect(() => {

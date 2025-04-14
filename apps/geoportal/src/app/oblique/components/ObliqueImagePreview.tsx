@@ -19,12 +19,12 @@ interface ObliqueImagePreviewProps {
 
 const BASE_SCALE_FACTOR = 0.245;
 
-const getViewerSyncedSize = (viewerRef: RefObject<Viewer>) => {
+const getViewerSyncedSize = (viewer?: Viewer) => {
   const dim = Math.max(
-    viewerRef.current.canvas.width,
-    viewerRef.current.canvas.height
+    viewer.canvas.width,
+    viewer.canvas.height
   );
-  const frustum = viewerRef.current.scene.camera.frustum;
+  const frustum = viewer.scene.camera.frustum;
 
   if (frustum instanceof PerspectiveFrustum) {
     const fovFactor = Math.tan(frustum.fov / 2);
@@ -96,7 +96,7 @@ const ObliqueImagePreview: React.FC<ObliqueImagePreviewProps> = ({
   const [shouldFadeIn, setShouldFadeIn] = useState(false);
   const [isVertical, setIsVertical] = useState(false);
   const [imageAspectRatio, setImageAspectRatio] = useState(1);
-  const { viewerRef } = useCesiumContext();
+  const { viewer } = useCesiumContext();
 
   useEffect(() => {
     if (src) {
@@ -114,7 +114,6 @@ const ObliqueImagePreview: React.FC<ObliqueImagePreviewProps> = ({
       setShouldFadeIn(false);
       const timer = setTimeout(() => setShouldFadeIn(true), 50);
 
-      const viewer = viewerRef?.current;
       if (viewer) {
         return () => {
           clearTimeout(timer);
@@ -125,7 +124,7 @@ const ObliqueImagePreview: React.FC<ObliqueImagePreviewProps> = ({
     } else {
       setShouldFadeIn(false);
     }
-  }, [isVisible, viewerRef]);
+  }, [isVisible, viewer]);
 
   const handleBackdropClick = () => {
     if (onClose) onClose();
@@ -138,8 +137,8 @@ const ObliqueImagePreview: React.FC<ObliqueImagePreviewProps> = ({
   const heightScaleFactor =
     BASE_SCALE_FACTOR * (isVertical ? 1 : 1 / imageAspectRatio);
 
-  const syncedWidth = getViewerSyncedSize(viewerRef) * widthScaleFactor;
-  const syncedHeight = getViewerSyncedSize(viewerRef) * heightScaleFactor;
+  const syncedWidth = getViewerSyncedSize(viewer) * widthScaleFactor;
+  const syncedHeight = getViewerSyncedSize(viewer) * heightScaleFactor;
 
   return (
     <div style={{ position: "absolute", width: "100%", height: "100%", overflow: "hidden" }}>

@@ -17,15 +17,13 @@ import { ViewerAnimationMap } from "../utils/viewerAnimationMap";
 const ControlsUI = ({
   showHome = true,
   showOrbit = true,
-  viewerRef,
+  viewer,
   viewerAnimationMapRef,
-  isViewerReady,
 }: {
   showHome?: boolean;
   showOrbit?: boolean;
-  viewerRef: React.RefObject<Viewer | null>;
+  viewer?: Viewer;
   viewerAnimationMapRef: React.RefObject<ViewerAnimationMap | null>;
-  isViewerReady: boolean;
 }) => {
   const home = useSelector(selectViewerHome);
 
@@ -43,7 +41,7 @@ const ControlsUI = ({
           }}
         >
           <ZoomControls
-            viewerRef={viewerRef}
+            viewer={viewer}
             viewerAnimationMapRef={viewerAnimationMapRef}
           />
           {showHome && home && (

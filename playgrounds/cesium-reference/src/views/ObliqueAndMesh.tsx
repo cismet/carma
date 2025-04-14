@@ -49,10 +49,10 @@ import {
 
 const ObliqueAndMesh: React.FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const viewerRef = useRef<Viewer | null>(null);
+  const [viewer, setViewer] = useState<Viewer | undefined>(undefined);
   const { tilesetRef, tilesetReady } = useTileset(
     WUPP_MESH_2024.url,
-    viewerRef
+    viewer
   );
 
   const [meshQuality, setMeshQuality] = useState<number>(1);
@@ -98,7 +98,7 @@ const ObliqueAndMesh: React.FC = () => {
     if (selectedWaypointEntity) {
       // Remove the previously cloned entity
       waypoints?.entities.remove(selectedWaypointEntity);
-      viewerRef.current?.scene.requestRender();
+      viewer.scene.requestRender();
       setSelectedWaypointEntity(null);
     }
 
@@ -120,7 +120,7 @@ const ObliqueAndMesh: React.FC = () => {
       // Add the cloned entity to the data source
       waypoints?.entities.add(clonedEntity);
       setSelectedWaypointEntity(clonedEntity);
-      viewerRef.current?.scene.requestRender();
+      viewer.scene.requestRender();
     }
   };
 
@@ -149,7 +149,7 @@ const ObliqueAndMesh: React.FC = () => {
       // Add the cloned entity to the data source
       waypoints?.entities.add(clonedEntity);
       setSelectedWaypointEntity(clonedEntity);
-      viewerRef.current?.scene.requestRender();
+      viewer.scene.requestRender();
     }
   };
 
@@ -158,14 +158,14 @@ const ObliqueAndMesh: React.FC = () => {
       const hasFootprint = entity.properties.hasProperty("HAS_FOOTPRINT");
       entity.show = isFiltered || hasFootprint;
     });
-    viewerRef.current?.scene.requestRender();
+    viewer.scene.requestRender();
   };
 
   useEffect(() => {
-    if (viewerRef.current && waypoints) {
+    if (viewer && waypoints) {
       filterWaypoints(waypoints);
     }
-  }, [isFiltered, waypoints, viewerRef.current]);
+  }, [isFiltered, waypoints, viewer]);
 
   const drawLinesToWaypoint = (
     footprintEntity: Entity,
@@ -197,7 +197,7 @@ const ObliqueAndMesh: React.FC = () => {
   };
 
   useEffect(() => {
-    if (selectedWaypointEntity && viewerRef.current && footprints) {
+    if (selectedWaypointEntity && viewer && footprints) {
       removeLines();
       const footprintEntity = footprints?.entities.values.find(
         (entity) =>
@@ -207,12 +207,12 @@ const ObliqueAndMesh: React.FC = () => {
         drawLinesToWaypoint(footprintEntity, selectedWaypointEntity);
       }
     }
-  }, [selectedWaypointEntity, footprints, viewerRef.current]);
+  }, [selectedWaypointEntity, footprints, viewer]);
 
   useEffect(() => {
     const updateHeading = () => {
-      if (viewerRef.current) {
-        const heading = viewerRef.current.camera.heading;
+      if (viewer) {
+        const heading = viewer.camera.heading;
         const adjustedHeading =
           (CesiumMath.toDegrees(heading) +
             CesiumMath.toDegrees(flightPatternHeadingOffset)) %
@@ -223,7 +223,7 @@ const ObliqueAndMesh: React.FC = () => {
     };
 
     const handler = new ScreenSpaceEventHandler(
-      viewerRef.current?.scene.canvas
+      viewer.scene.canvas
     );
 
     handler.setInputAction(updateHeading, ScreenSpaceEventType.MOUSE_MOVE);
@@ -241,14 +241,14 @@ const ObliqueAndMesh: React.FC = () => {
     const initialize = async () => {
       try {
         if (containerRef.current) {
-          const viewer = new Viewer(containerRef.current, {
+          const newViewer = new Viewer(containerRef.current, {
             ...cesiumConstructorOptions,
             //selectionIndicator: true,
             //infoBox: true,
           });
-          viewerRef.current = viewer;
+          setViewer(newViewer);
           const { waypoints, footprints } = await loadAndPrepareGeoJson(
-            viewer,
+            newViewer,
             POSITIONS_GEOJSON_URI,
             FOOTPRINTS_SAMPLE_URI
           );
@@ -261,22 +261,16 @@ const ObliqueAndMesh: React.FC = () => {
     };
 
     initialize();
-
-    return () => {
-      if (viewerRef.current) {
-        viewerRef.current.destroy();
-      }
-    };
   }, []);
 
   useEffect(() => {
-    if (viewerRef.current) {
+    if (viewer) {
       const handler = new ScreenSpaceEventHandler(
-        viewerRef.current.scene.canvas
+        viewer.scene.canvas
       );
 
       handler.setInputAction((movement) => {
-        const pickedObject = viewerRef.current.scene.pick(movement.position);
+        const pickedObject = viewer.scene.pick(movement.position);
         if (defined(pickedObject) && pickedObject.id) {
           const entity = pickedObject.id;
           setSelectedWaypointId(entity.properties.LINE_WAYPOINT.getValue());
@@ -287,19 +281,18 @@ const ObliqueAndMesh: React.FC = () => {
         handler.destroy();
       };
     }
-  }, [viewerRef]);
+  }, [viewer]);
 
   useEffect(() => {
     if (
-      viewerRef.current &&
-      viewerRef.current.camera.frustum instanceof PerspectiveFrustum
+      viewer && viewer.camera.frustum instanceof PerspectiveFrustum
     ) {
-      viewerRef.current.camera.frustum.fov = CesiumMath.toRadians(cameraFOV);
+      viewer.camera.frustum.fov = CesiumMath.toRadians(cameraFOV);
     }
-  }, [cameraFOV]);
+  }, [cameraFOV, viewer]);
 
   useEffect(() => {
-    if (footprints && viewerRef.current) {
+    if (footprints && viewer) {
       const positions = [];
       footprints.entities.values.forEach((entity) => {
         const hierarchy = entity.polygon.hierarchy.getValue();
@@ -309,21 +302,21 @@ const ObliqueAndMesh: React.FC = () => {
       });
       if (positions.length > 0) {
         const boundingSphere = BoundingSphere.fromPoints(positions);
-        viewerRef.current.scene.camera.flyToBoundingSphere(boundingSphere, {
+        viewer.scene.camera.flyToBoundingSphere(boundingSphere, {
           duration: 0,
         });
       }
     }
-  }, [footprints, viewerRef.current]);
+  }, [footprints, viewer]);
 
   useEffect(() => {
-    if (footprints) {
+    if (viewer && footprints) {
       footprints.show = showFootprints && previewImageUri === null;
-      viewerRef.current?.scene.requestRender();
+      viewer.scene.requestRender();
     }
-  }, [showFootprints, footprints, previewImageUri]);
+  }, [viewer, showFootprints, footprints, previewImageUri]);
 
-  // useZoomToTilesetOnReady(viewerRef, tilesetRef, tilesetReady);
+  // useZoomToTilesetOnReady(viewer, tilesetRef, tilesetReady);
 
   const obliqueKeys = ["ORI_NORTH", "ORI_SOUTH", "ORI_EAST", "ORI_WEST"];
   const ORI_KEYMAP = Object.freeze({
@@ -364,7 +357,7 @@ const ObliqueAndMesh: React.FC = () => {
         const waypointPosition = waypoint.position.getValue();
         const viewHeading =
           ORI_KEYMAP[orientation].valueRadians - flightPatternHeadingOffset;
-        viewerRef.current.camera.flyTo({
+        viewer.camera.flyTo({
           destination: waypointPosition,
           orientation: new HeadingPitchRoll(
             viewHeading,
@@ -442,7 +435,7 @@ const ObliqueAndMesh: React.FC = () => {
             <Button
               onClick={() => {
                 const position = selectedWaypointEntity.position.getValue();
-                viewerRef.current.scene.camera.flyTo({
+                viewer.scene.camera.flyTo({
                   destination: position,
                 });
               }}
@@ -471,10 +464,9 @@ const ObliqueAndMesh: React.FC = () => {
             onChange={(v) => {
               setCameraFOV(v);
               if (
-                viewerRef.current &&
-                viewerRef.current.camera.frustum instanceof PerspectiveFrustum
+                viewer && viewer.camera.frustum instanceof PerspectiveFrustum
               ) {
-                viewerRef.current.camera.frustum.fov = CesiumMath.toRadians(v);
+                viewer.camera.frustum.fov = CesiumMath.toRadians(v);
               }
               const imageElement = document.querySelector('img[alt="preview"]');
               if (imageElement && imageElement instanceof HTMLImageElement) {
@@ -517,10 +509,10 @@ const ObliqueAndMesh: React.FC = () => {
             max={0}
             step={0.1}
             onChange={(v) => {
-              if (viewerRef.current) {
-                const currentHeading = viewerRef.current.camera.heading;
+              if (viewer) {
+                const currentHeading = viewer.camera.heading;
                 try {
-                  viewerRef.current.camera.setView({
+                  viewer.camera.setView({
                     orientation: {
                       heading: currentHeading,
                       pitch: CesiumMath.toRadians(v),
@@ -543,8 +535,8 @@ const ObliqueAndMesh: React.FC = () => {
               }
             }}
             value={
-              viewerRef.current
-                ? CesiumMath.toDegrees(viewerRef.current.camera.pitch)
+              viewer
+                ? CesiumMath.toDegrees(viewer.camera.pitch)
                 : obliquePitch
             }
             tooltip={{ formatter: (value) => `Pitch: ${value}°` }}

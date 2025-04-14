@@ -17,7 +17,7 @@ import { MutableRefObject } from "react";
 const INVERTED_SELECTED_POLYGON_ID = "searchgaz-inverted-polygon";
 
 const waitAndSetTerrainProvider = (
-  viewerRef: MutableRefObject<Viewer | null>,
+  viewer: Viewer | undefined,
   terrainProviderRef: MutableRefObject<
     CesiumTerrainProvider | EllipsoidTerrainProvider | null
   >,
@@ -29,23 +29,23 @@ const waitAndSetTerrainProvider = (
   const checkTerrainProvider = () => {
     if (isTerrainProviderSet) return;
 
-    if (terrainProviderRef.current && viewerRef.current) {
+    if (terrainProviderRef.current && viewer) {
       console.debug(
         "[STYLES|TERRAIN|CESIUM] terrainProvider ready after",
         performance.now() - startTime,
         "ms",
         label
       );
-      viewerRef.current.scene.terrainProvider = terrainProviderRef.current;
+      viewer.scene.terrainProvider = terrainProviderRef.current;
       isTerrainProviderSet = true;
       onReady?.();
     }
-    if (!viewerRef.current || viewerRef.current.isDestroyed()) return;
+    if (!viewer || viewer.isDestroyed()) return;
     requestAnimationFrame(checkTerrainProvider);
   };
 
-  if (terrainProviderRef.current && viewerRef.current) {
-    viewerRef.current.scene.terrainProvider = terrainProviderRef.current;
+  if (terrainProviderRef.current && viewer) {
+    viewer.scene.terrainProvider = terrainProviderRef.current;
     isTerrainProviderSet = true;
     onReady?.();
     console.debug("[STYLES|TERRAIN|CESIUM] terrainProvider already set");
@@ -57,7 +57,7 @@ const waitAndSetTerrainProvider = (
 
 export const setupPrimaryStyle = (
   {
-    viewerRef,
+    viewer,
     terrainProviderRef,
     surfaceProviderRef,
     ellipsoidTerrainProviderRef,
@@ -66,8 +66,7 @@ export const setupPrimaryStyle = (
   style?: Partial<SceneStyle>
 ) => {
   (async () => {
-    if (!viewerRef.current) return;
-    const viewer = viewerRef.current;
+    if (!viewer) return;
     const imageryLayer = imageryLayerRef.current;
 
     viewer.scene.globe.baseColor =
@@ -78,7 +77,7 @@ export const setupPrimaryStyle = (
     console.debug("[STYLES|TERRAIN|CESIUM] setup primary style");
 
     // use terrain provider not the surface provider to prevent camera jitter on move
-    waitAndSetTerrainProvider(viewerRef, terrainProviderRef, {
+    waitAndSetTerrainProvider(viewer, terrainProviderRef, {
       label: "secondary",
       //onReady: addImageryLayer,
     });
@@ -100,13 +99,12 @@ export const setupPrimaryStyle = (
 };
 
 export const setupSecondaryStyle = (
-  { viewerRef, terrainProviderRef, imageryLayerRef }: CesiumContextType,
+  { viewer, terrainProviderRef, imageryLayerRef }: CesiumContextType,
   style?: Partial<SceneStyle>
 ) => {
   const imageryLayer = imageryLayerRef.current;
 
-  if (!viewerRef.current) return;
-  const viewer = viewerRef.current;
+  if (!viewer) return;
   (async () => {
     viewer.scene.globe.baseColor =
       fromColorRgbaArray(style?.globe?.baseColor) ?? Color.WHITE;
@@ -126,7 +124,7 @@ export const setupSecondaryStyle = (
       }
     };
 
-    waitAndSetTerrainProvider(viewerRef, terrainProviderRef, {
+    waitAndSetTerrainProvider(viewer, terrainProviderRef, {
       label: "secondary",
       onReady: addImageryLayer,
     });

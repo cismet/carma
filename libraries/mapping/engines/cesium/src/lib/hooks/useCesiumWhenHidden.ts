@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useCesiumViewer } from "./useCesiumViewer";
+import { useCesiumContext } from "./useCesiumContext";
 import { selectViewerIsMode2d } from "../slices/cesium";
 import { useSelector } from "react-redux";
 import { Viewer } from "cesium";
@@ -25,7 +25,7 @@ const showLayers = (viewer: Viewer) => {
 };
 
 export const useCesiumWhenHidden = (delay = 0) => {
-  const viewer = useCesiumViewer();
+  const { viewer } = useCesiumContext();
   const isMode2d = useSelector(selectViewerIsMode2d);
   console.debug("HOOKINIT: [CESIUM] useCesiumWhenHidden");
   useEffect(() => {

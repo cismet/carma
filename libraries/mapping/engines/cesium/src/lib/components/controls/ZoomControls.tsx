@@ -9,13 +9,13 @@ type ZoomControlsProps = {
   children?: ReactNode;
   role?: string;
   ariaLabel?: string;
-  viewerRef: React.RefObject<Viewer | null>;
+  viewer?: Viewer;
   viewerAnimationMapRef: React.RefObject<ViewerAnimationMap | null>;
 };
 
 const ZoomControls = (props: ZoomControlsProps) => {
   const { handleZoomIn, handleZoomOut } = useZoomControls(
-    props.viewerRef,
+    props.viewer,
     props.viewerAnimationMapRef
   );
 

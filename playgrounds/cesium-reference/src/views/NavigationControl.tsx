@@ -34,26 +34,26 @@ import { useZoomToTilesetOnReady } from "../hooks/useZoomToTilesetOnReady";
 import { cesiumConstructorOptions } from "../config";
 const NavigationControlView: FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const viewerRef = useRef<Viewer | null>(null);
+  const [viewer, setViewer] = useState<Viewer | undefined>(undefined);
   const viewerAnimationMapRef = useRef<ViewerAnimationMap | null>(null);
   const [isViewerReady, setIsViewerReady] = useState(false);
 
   const { tilesetRef, tilesetReady } = useTileset(
     WUPP_LOD2_TILESET.url,
-    viewerRef
+    viewer
   );
 
   useEffect(() => {
     const initializeViewer = async () => {
       if (containerRef.current) {
-        const viewer = new Viewer(
+        const newViewer = new Viewer(
           containerRef.current,
           cesiumConstructorOptions
         );
-        viewerRef.current = viewer;
+        setViewer(newViewer);
         viewerAnimationMapRef.current = initViewerAnimationMap();
 
-        viewer.terrainProvider = await CesiumTerrainProvider.fromUrl(
+        newViewer.terrainProvider = await CesiumTerrainProvider.fromUrl(
           WUPP_TERRAIN_PROVIDER.url
         );
 
@@ -61,25 +61,18 @@ const NavigationControlView: FC = () => {
           BASEMAP_METROPOLRUHR_WMS_GRAUBLAU
         );
         const newImageryLayer = new ImageryLayer(imageryProvider);
-        viewer.imageryLayers.add(newImageryLayer);
+        newViewer.imageryLayers.add(newImageryLayer);
 
-        await getIsViewerReadyAsync(viewer, setIsViewerReady);
+        await getIsViewerReadyAsync(newViewer, setIsViewerReady);
       }
     };
 
     initializeViewer();
-
-    return () => {
-      if (viewerRef.current) {
-        viewerRef.current.destroy();
-        viewerAnimationMapRef.current = null;
-      }
-    };
   }, []);
 
-  useZoomToTilesetOnReady(viewerRef, tilesetRef, tilesetReady);
+  useZoomToTilesetOnReady(viewer, tilesetRef, tilesetReady);
   const { handleZoomIn, handleZoomOut } = useZoomControls(
-    viewerRef,
+    viewer,
     viewerAnimationMapRef
   );
 
@@ -112,7 +105,7 @@ const NavigationControlView: FC = () => {
           <Control position="topleft" order={30}>
             <ControlButtonStyler>
               <PitchingCompass
-                viewerRef={viewerRef}
+                viewer={viewer}
                 viewerAnimationMapRef={viewerAnimationMapRef}
               />
             </ControlButtonStyler>

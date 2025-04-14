@@ -28,7 +28,6 @@ import { ResizeableContainer } from "./components/ResizeableContainer";
 import { TopicMap } from "./components/TopicMap";
 
 import { useCesiumContext } from "./hooks/useCesiumContext";
-import { useCesiumViewer } from "./hooks/useCesiumViewer";
 import useDisableSSCC from "./hooks/useDisableSSCC";
 import { useInitializeViewer } from "./hooks/useInitializeViewer";
 import { useSceneStyles } from "./hooks/useSceneStyles";
@@ -75,8 +74,7 @@ type CustomViewerProps = {
 };
 
 export function CustomViewerPlayground(props: CustomViewerProps) {
-  const { viewerRef, viewerAnimationMapRef } = useCesiumContext();
-  let viewer = useCesiumViewer();
+  const { viewer, setViewer, viewerAnimationMapRef } = useCesiumContext();
 
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
   const isMode2d = useSelector(selectViewerIsMode2d);
@@ -251,8 +249,7 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
     )
   );
   useEffect(() => {
-    if (!viewerRef.current) return;
-    const viewer = viewerRef.current;
+    if (!viewer) return;
 
     const canvas = viewer.canvas;
 
@@ -282,40 +279,34 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
       canvas.removeEventListener("mousedown", handleMouseDown);
       canvas.removeEventListener("mousemove", handleMouseDown);
     };
-  }, [viewerRef]);
+  }, [viewer]);
 
   const location = useLocation();
 
   useInitializeViewer();
 
   useEffect(() => {
-    if (!viewerRef.current) return;
-    const viewer = viewerRef.current;
-    if (viewer) {
-      console.debug(
-        "HOOK: update Hash, route or style changed",
-        isSecondaryStyle
-      );
-      onSceneChange &&
-        onSceneChange(encodeScene(viewer.scene, { isSecondaryStyle }));
-    }
+    if (!viewer) return;
+    console.debug(
+      "HOOK: update Hash, route or style changed",
+      isSecondaryStyle
+    );
+    onSceneChange &&
+      onSceneChange(encodeScene(viewer.scene, { isSecondaryStyle }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewerRef, location.pathname, isSecondaryStyle]);
+  }, [viewer, location.pathname, isSecondaryStyle]);
 
   useEffect(() => {
-    if (!viewerRef.current) return;
-    const viewer = viewerRef.current;
-    if (viewer) {
-      console.debug("HOOK: globe setting changed");
-      // set the globe props
-      //Object.assign(scene.globe, globeProps);
-      Object.entries(globeProps).forEach(([key, value]) => {
-        if (viewer && value !== undefined) {
-          viewer.scene.globe[key] = value;
-        }
-      });
-    }
-  }, [viewerRef, globeProps]);
+    if (!viewer) return;
+    console.debug("HOOK: globe setting changed");
+    // set the globe props
+    //Object.assign(scene.globe, globeProps);
+    Object.entries(globeProps).forEach(([key, value]) => {
+      if (viewer && value !== undefined) {
+        viewer.scene.globe[key] = value;
+      }
+    });
+  }, [viewer, globeProps]);
 
   useDisableSSCC();
 
@@ -325,11 +316,10 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
 
   useEffect(() => {
     console.debug("HOOK: viewer changed", isSecondaryStyle);
-    if (!viewerRef.current) return;
-    const viewer = viewerRef.current;
+    if (!viewer) return;
 
     const moveEndListener = async () => {
-      if (viewer?.camera.position) {
+      if (viewer.camera.position) {
         console.debug("LISTENER: moveEndListener", isSecondaryStyle);
         const encodedScene = encodeScene(viewer.scene, { isSecondaryStyle });
 
@@ -365,10 +355,10 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
 
     viewer.camera.moveEnd.addEventListener(moveEndListener);
     return () => {
-      viewer?.camera.moveEnd.removeEventListener(moveEndListener);
+      viewer.camera.moveEnd.removeEventListener(moveEndListener);
     };
   }, [
-    viewerRef,
+    viewer,
     location.pathname,
     isSecondaryStyle,
     showFader,
@@ -384,7 +374,7 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
     <ResiumViewer
       ref={(node) => {
         if (node !== null) {
-          viewerRef.current = node.cesiumElement ?? null;
+          setViewer(node.cesiumElement);
         }
       }}
       className={className}
@@ -418,9 +408,8 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
       {children}
       {showControls && (
         <ControlsUI
-          viewerRef={viewerRef}
+          viewer={viewer}
           viewerAnimationMapRef={viewerAnimationMapRef}
-          isViewerReady={true} // TODO: check if ready properly
           showHome={showHome}
           showOrbit={showOrbit}
         />

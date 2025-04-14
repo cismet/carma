@@ -10,7 +10,6 @@ import {
 } from "../slices/cesium";
 import { setupPrimaryStyle, setupSecondaryStyle } from "../utils/sceneStyles";
 
-import { useCesiumViewer } from "./useCesiumViewer";
 import { useCesiumContext } from "./useCesiumContext";
 
 export const useSceneStyles = (enabled = true) => {
@@ -18,7 +17,7 @@ export const useSceneStyles = (enabled = true) => {
   const currentSceneStyle = useSelector(selectCurrentSceneStyle);
 
   const ctx = useCesiumContext();
-  const viewer = useCesiumViewer();
+  const { viewer } = ctx;
   const primaryStyle = useSelector(selectSceneStylePrimary);
   const secondaryStyle = useSelector(selectSceneStyleSecondary);
 

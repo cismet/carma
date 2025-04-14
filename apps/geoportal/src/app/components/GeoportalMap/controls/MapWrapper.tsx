@@ -132,14 +132,14 @@ const MapWrapper = () => {
   const showLocatorButton = useSelector(getShowLocatorButton);
   const showMeasurementButton = useSelector(getShowMeasurementButton);
   const zenMode = useSelector(getZenMode);
-  const { viewerRef, viewerAnimationMapRef } = useCesiumContext();
+  const { viewer, viewerAnimationMapRef } = useCesiumContext();
   const homeControl = useHomeControl();
   const isObliqueMode = useSelector(getObliqueMode);
 
   const {
     handleZoomIn: handleZoomInCesium,
     handleZoomOut: handleZoomOutCesium,
-  } = useZoomControlsCesium(viewerRef, viewerAnimationMapRef, {
+  } = useZoomControlsCesium(viewer, viewerAnimationMapRef, {
     fovMode: isObliqueMode,
   });
   const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
@@ -158,8 +158,8 @@ const MapWrapper = () => {
             return lastRenderIntervalRef.current;
           },
           dpr: window.devicePixelRatio,
-          resolutionScale: viewerRef.current
-            ? viewerRef.current.resolutionScale
+          resolutionScale: viewer
+            ? viewer.resolutionScale
             : 0,
         },
         inputs: [
@@ -177,7 +177,7 @@ const MapWrapper = () => {
           },
         ],
       }),
-      [viewerRef, rerenderCountRef]
+      [viewer, rerenderCountRef]
     )
   );
 
@@ -404,7 +404,7 @@ const MapWrapper = () => {
                       <LibrePitchingCompass mapRef={libreMapRef} />
                     ) : (
                       <PitchingCompass
-                        viewerRef={viewerRef}
+                        viewer={viewer}
                         viewerAnimationMapRef={viewerAnimationMapRef}
                       />
                     )}

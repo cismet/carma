@@ -2,7 +2,6 @@ import { useEffect, useRef } from "react";
 import { viewerCesium3DTilesInspectorMixin } from "cesium";
 
 import { useCesiumContext } from "./useCesiumContext";
-import { useCesiumViewer } from "./useCesiumViewer";
 
 import { useTilesetsTweakpane } from "./useTilesetTweakpane";
 import { useTweakpaneCtx } from "@carma-commons/debug";
@@ -10,7 +9,7 @@ import { type ButtonApi } from "tweakpane";
 
 export const useBaseTilesetsTweakpane = () => {
   const { tilesetsRefs } = useCesiumContext();
-  const viewer = useCesiumViewer();
+  const { viewer } = useCesiumContext();
   const tilesetPrimary = tilesetsRefs.primaryRef.current;
   const tilesetSecondary = tilesetsRefs.secondaryRef.current;
 

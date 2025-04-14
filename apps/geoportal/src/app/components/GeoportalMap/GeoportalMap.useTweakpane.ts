@@ -3,7 +3,7 @@ import { Viewer } from "cesium";
 import { useTweakpaneCtx } from "@carma-commons/debug";
 
 export const useTweakpane = (
-  viewerRef: React.MutableRefObject<Viewer | null>,
+  viewer: Viewer,
   rerenderCountRef: React.MutableRefObject<number>,
   lastRenderIntervalRef: React.MutableRefObject<number>
 ) => {
@@ -21,9 +21,7 @@ export const useTweakpane = (
             return lastRenderIntervalRef.current;
           },
           dpr: window.devicePixelRatio,
-          resolutionScale: viewerRef.current
-            ? viewerRef.current.resolutionScale
-            : 0,
+          resolutionScale: viewer ? viewer.resolutionScale : 0,
         },
         inputs: [
           { name: "renderCount", readonly: true, format: (v) => v.toFixed(0) },
@@ -40,7 +38,7 @@ export const useTweakpane = (
           },
         ],
       }),
-      [viewerRef, rerenderCountRef, lastRenderIntervalRef]
+      [viewer, rerenderCountRef, lastRenderIntervalRef]
     )
   );
 };

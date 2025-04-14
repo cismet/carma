@@ -35,7 +35,7 @@ const cleanupDatasources = (viewer: Viewer) => {
 
 export const ObliqueFootprintLayer: React.FC = () => {
   const isObliqueMode = useSelector(getObliqueMode);
-  const { viewerRef } = useCesiumContext();
+  const { viewer } = useCesiumContext();
   const { nearestImage, footprintData, lockFootprint } =
     useObliqueDataContext();
 
@@ -44,7 +44,6 @@ export const ObliqueFootprintLayer: React.FC = () => {
 
   // Clean up data source when component unmounts or oblique mode disabled
   useEffect(() => {
-    const viewer = viewerRef.current;
     const dataSource = dataSourceRef.current;
     return () => {
       if (viewer && viewer.dataSources && !isObliqueMode) {
@@ -57,11 +56,9 @@ export const ObliqueFootprintLayer: React.FC = () => {
         viewer.scene.requestRender();
       }
     };
-  }, [viewerRef, isObliqueMode]);
+  }, [viewer, isObliqueMode]);
 
   useEffect(() => {
-    const viewer = viewerRef.current;
-
     if (
       !isObliqueMode ||
       !viewer ||
@@ -108,7 +105,7 @@ export const ObliqueFootprintLayer: React.FC = () => {
       dataSourceRef.current = dataSource;
       viewer.scene.requestRender();
     });
-  }, [viewerRef, isObliqueMode, nearestImage, footprintData, lockFootprint]);
+  }, [viewer, isObliqueMode, nearestImage, footprintData, lockFootprint]);
 
   return null;
 };

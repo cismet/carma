@@ -1,4 +1,4 @@
-import { FC, useEffect, useRef } from "react";
+import { FC, useEffect, useRef, useState } from "react";
 import {
   CesiumTerrainProvider,
   ImageryLayer,
@@ -16,23 +16,23 @@ import { useZoomToTilesetOnReady } from "../hooks/useZoomToTilesetOnReady";
 
 const MinimalLod2: FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const viewerRef = useRef<Viewer | null>(null);
+  const [viewer, setViewer] = useState<Viewer | undefined>(undefined);
   const { tilesetRef, tilesetReady } = useTileset(
     WUPP_LOD2_TILESET.url,
-    viewerRef
+    viewer
   );
 
   useEffect(() => {
     const initialize = async () => {
       try {
         if (containerRef.current) {
-          const viewer = new Viewer(
+          const newViewer = new Viewer(
             containerRef.current,
             cesiumConstructorOptions
           );
-          viewerRef.current = viewer;
+          setViewer(newViewer);
 
-          viewer.terrainProvider = await CesiumTerrainProvider.fromUrl(
+          newViewer.terrainProvider = await CesiumTerrainProvider.fromUrl(
             WUPP_TERRAIN_PROVIDER.url
           );
 
@@ -40,7 +40,7 @@ const MinimalLod2: FC = () => {
             BASEMAP_METROPOLRUHR_WMS_GRAUBLAU
           );
           const newImageryLayer = new ImageryLayer(imageryProvider);
-          viewer.imageryLayers.add(newImageryLayer);
+          newViewer.imageryLayers.add(newImageryLayer);
         }
       } catch (error) {
         console.error("Initialization error:", error);
@@ -48,15 +48,9 @@ const MinimalLod2: FC = () => {
     };
 
     initialize();
-
-    return () => {
-      if (viewerRef.current) {
-        viewerRef.current.destroy();
-      }
-    };
   }, []);
 
-  useZoomToTilesetOnReady(viewerRef, tilesetRef, tilesetReady);
+  useZoomToTilesetOnReady(viewer, tilesetRef, tilesetReady);
   return <div ref={containerRef} style={{ width: "100%", height: "100vh" }} />;
 };
 

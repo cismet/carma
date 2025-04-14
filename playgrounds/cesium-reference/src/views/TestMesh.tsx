@@ -38,11 +38,11 @@ const TestMesh: React.FC = () => {
   const [tilesetUrl, setTilesetUrl] = useState<string>(WUPP_MESH_2024.url);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const viewerRef = useRef<Viewer | null>(null);
+  const [viewer, setViewer] = useState<Viewer | undefined>(undefined);
   const uiTopRightRef = useRef<HTMLDivElement | null>(null);
   const { tilesetRef, tilesetReady } = useTileset(
     tilesetUrl,
-    viewerRef,
+    viewer,
     useMemo(
       () => ({
         skipLevelOfDetail: true,
@@ -50,38 +50,25 @@ const TestMesh: React.FC = () => {
         maximumScreenSpaceError: maximumScreenSpaceError,
         show: true,
       }),
-      [] // only use initial value for constructorOptions
+      [maximumScreenSpaceError] // only use initial value for constructorOptions
     )
   );
 
   useEffect(() => {
-    if (viewerRef.current) {
-      console.log("Viewer is already loaded");
-      return;
-    }
-
     const initialize = async () => {
       try {
         if (containerRef.current) {
-          const viewer = new Viewer(
+          const newViewer = new Viewer(
             containerRef.current,
             cesiumConstructorOptions
           );
-          viewerRef.current = viewer;
+          setViewer(newViewer);
         }
       } catch (error) {
         console.error("Initialization error:", error);
       }
     };
-
     initialize();
-
-    return () => {
-      if (viewerRef.current) {
-        console.log("Destroying viewer");
-        viewerRef.current.destroy();
-      }
-    };
   }, []);
 
   useEffect(() => {
@@ -108,10 +95,10 @@ const TestMesh: React.FC = () => {
       uiTopRightRef.current.style.display = "none";
     }
 
-    if (showTileInspector && viewerRef.current) {
+    if (showTileInspector && viewer) {
       new Cesium3DTilesInspector(
         uiTopRightRef.current,
-        viewerRef.current.scene
+        viewer.scene
       );
       if (uiTopRightRef.current) {
         uiTopRightRef.current.style.display = "block";
@@ -119,7 +106,7 @@ const TestMesh: React.FC = () => {
     }
   }, [showTileInspector]);
 
-  useZoomToTilesetOnReady(viewerRef, tilesetRef, tilesetReady);
+  useZoomToTilesetOnReady(viewer, tilesetRef, tilesetReady);
 
   return (
     <>

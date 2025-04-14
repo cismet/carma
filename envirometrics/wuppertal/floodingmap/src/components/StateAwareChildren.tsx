@@ -51,7 +51,7 @@ export const StateAwareChildren = () => {
   const conf = config.config;
 
   // CESIUM
-  const { viewerRef, terrainProviderRef } = useCesiumContext();
+  const { viewer, terrainProviderRef } = useCesiumContext();
   const [cesiumPickedPosition, setCesiumPickedPosition] = useState<
     [number, number] | null
   >(null);
@@ -69,7 +69,7 @@ export const StateAwareChildren = () => {
       controlState.currentFeatureInfoPosition
     ) {
       const asyncUpdate = async () => {
-        if (!viewerRef.current || !terrainProviderRef.current) return;
+        if (!viewer || !terrainProviderRef.current) return;
         const { lat, lon } = getWebMercatorInWGS84(
           controlState.currentFeatureInfoPosition
         );
@@ -82,7 +82,7 @@ export const StateAwareChildren = () => {
         );
 
         updateMarkerPosition(
-          viewerRef.current,
+          viewer,
           markerEntityRef,
           highlightEntityRef,
           groundPositionCartographic
@@ -91,7 +91,7 @@ export const StateAwareChildren = () => {
       asyncUpdate();
     }
   }, [
-    viewerRef,
+    viewer,
     terrainProviderRef,
     controlState.featureInfoModeActivated,
     controlState.currentFeatureInfoPosition,
@@ -111,8 +111,7 @@ export const StateAwareChildren = () => {
   }, [isMode2d]); // intentionally only trigger on mode change
 
   useEffect(() => {
-    if (viewerRef.current && controlState.featureInfoModeActivated) {
-      const viewer = viewerRef.current;
+    if (viewer && controlState.featureInfoModeActivated) {
 
       const handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
       handler.setInputAction(
@@ -142,22 +141,22 @@ export const StateAwareChildren = () => {
         viewer.scene.requestRender();
       };
     }
-  }, [viewerRef, terrainProviderRef, controlState.featureInfoModeActivated]);
+  }, [viewer, terrainProviderRef, controlState.featureInfoModeActivated]);
 
   // Add effect to cleanup marker when feature info mode is disabled
   useEffect(() => {
-    if (!controlState.featureInfoModeActivated && viewerRef.current) {
+    if (!controlState.featureInfoModeActivated && viewer) {
       if (markerEntityRef.current) {
-        viewerRef.current.entities.remove(markerEntityRef.current);
+        viewer.entities.remove(markerEntityRef.current);
         markerEntityRef.current = null;
       }
       if (highlightEntityRef.current) {
-        viewerRef.current.entities.remove(highlightEntityRef.current);
+        viewer.entities.remove(highlightEntityRef.current);
         highlightEntityRef.current = null;
       }
       setCesiumPickedPosition(null);
     }
-  }, [viewerRef, controlState.featureInfoModeActivated]);
+  }, [viewer, controlState.featureInfoModeActivated]);
 
   useEffect(() => {
     if (
