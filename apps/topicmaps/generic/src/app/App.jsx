@@ -54,56 +54,14 @@ async function getMarkdown(slugName, configType, server, path) {
   }
 }
 
-// export const getGazData = async (
-//   topics = [
-//     "bpklimastandorte",
-//     "pois",
-//     "kitas",
-//     "bezirke",
-//     "quartiere",
-//     "adressen",
-//   ],
-//   srs = 3857
-// ) => {
-//   const srsFolder = srs === 25832 ? "/" : "/3857";
-//   const prefix = "GazDataForStories";
-//   const sources = {};
-
-//   sources.adressen = await md5FetchText(
-//     prefix,
-//     host + "/data" + srsFolder + "/adressen.json"
-//   );
-//   sources.bezirke = await md5FetchText(
-//     prefix,
-//     host + "/data" + srsFolder + "/bezirke.json"
-//   );
-//   sources.quartiere = await md5FetchText(
-//     prefix,
-//     host + "/data" + srsFolder + "/quartiere.json"
-//   );
-//   sources.pois = await md5FetchText(
-//     prefix,
-//     host + "/data" + srsFolder + "/pois.json"
-//   );
-//   sources.kitas = await md5FetchText(
-//     prefix,
-//     host + "/data" + srsFolder + "/kitas.json"
-//   );
-//   sources.bpklimastandorte = await md5FetchText(
-//     prefix,
-//     host + "/data" + srsFolder + "/bpklimastandorte.json"
-//   );
-
-//   const gazData = getGazDataForTopicIds(sources, topics);
-
-//   return gazData;
-// };
 function App({
   name,
   // configPath = "/", //"/dev/",
   // configServer = "http://localhost:3000", //
+  // configPath = "/dev/",
+  // configServer = "https://raw.githubusercontent.com/cismet/wupp-generic-topic-map-config", //"https://raw.githubusercontent.com/cismet/wupp-generic-topic-map-config",
   configPath = "/dev/",
-  configServer = "https://raw.githubusercontent.com/cismet/wupp-generic-topic-map-config", //"https://raw.githubusercontent.com/cismet/wupp-generic-topic-map-config",
+  configServer = "http://localhost:4200",
 }) {
   const [initialized, setInitialized] = useState(false);
   const [config, setConfig] = useState({});
@@ -115,49 +73,69 @@ function App({
       const server = configServer;
       const slugName = slugify(name, { lower: true });
       const config = await getConfig(slugName, "config", server, path);
+      console.log("xxx config: loaded ", config.tm, config.skipFeature);
+      if (config.tm.skipFeatures !== true) {
+        config.featureDefaultProperties = await getConfig(
+          slugName,
+          "featureDefaultProperties",
+          server,
+          path
+        );
+        config.featureDefaults = await getConfig(
+          slugName,
+          "featureDefaults",
+          server,
+          path
+        );
+        config.infoBoxConfig = await getConfig(
+          slugName,
+          "infoBoxConfig",
+          server,
+          path
+        );
+        config.features = await getConfig(slugName, "features", server, path);
+        const fc = [];
+        let i = 0;
+        for (const f of config.features) {
+          const ef = { ...config.featureDefaults, ...f };
+          ef.id = i;
+          i++;
+          ef.properties = {
+            ...config.featureDefaultProperties,
+            ...ef.properties,
+          };
+          fc.push(ef);
+        }
+        config.features = fc;
+        config.info.city = config.city;
+      }
 
-      const featureDefaultProperties = await getConfig(
-        slugName,
-        "featureDefaultProperties",
-        server,
-        path
-      );
-      const featureDefaults = await getConfig(
-        slugName,
-        "featureDefaults",
-        server,
-        path
-      );
-      const helpTextBlocks = await getConfig(
+      config.helpTextBlocks = await getConfig(
         slugName,
         "helpTextBlocks",
         server,
         path
       );
-      const simpleHelpMd = await await getMarkdown(
+      config.simpleHelpMd = await await getMarkdown(
         slugName,
         "simpleHelp",
         server,
         path
       );
-      const simpleHelp = await await getConfig(
+      config.simpleHelp = await await getConfig(
         slugName,
         "simpleHelp",
         server,
         path
       );
-      const infoBoxConfig = await getConfig(
-        slugName,
-        "infoBoxConfig",
-        server,
-        path
-      );
-      const features = await getConfig(slugName, "features", server, path);
 
-      if (helpTextBlocks !== undefined) {
-        config.helpTextblocks = helpTextBlocks;
-      } else if (simpleHelpMd !== undefined) {
-        config.simpleHelpObject = { type: "MARKDOWN", content: simpleHelpMd };
+      if (config.helpTextBlocks !== undefined) {
+        //all good
+      } else if (config.simpleHelpMd !== undefined) {
+        config.simpleHelpObject = {
+          type: "MARKDOWN",
+          content: config.simpleHelpMd,
+        };
         config.helpTextblocks = getSimpleHelpForGenericTM(
           document.title,
           config.simpleHelpObject
@@ -165,39 +143,27 @@ function App({
       } else {
         config.helpTextblocks = getSimpleHelpForGenericTM(
           document.title,
-          simpleHelp
+          config.simpleHelp
         );
       }
-      if (features !== undefined) {
-        config.features = features;
-      }
 
-      if (infoBoxConfig !== undefined) {
-        config.info = infoBoxConfig;
+      if (config.infoBoxConfig !== undefined) {
+        config.info = config.infoBoxConfig;
       }
-
-      const fc = [];
-      let i = 0;
-      for (const f of config.features) {
-        const ef = { ...featureDefaults, ...f };
-        ef.id = i;
-        i++;
-        ef.properties = { ...featureDefaultProperties, ...ef.properties };
-        fc.push(ef);
-      }
-      config.features = fc;
 
       //Backwards conmpatibility
       config.tm.gazetteerSearchPlaceholder =
         config.tm.gazetteerSearchBoxPlaceholdertext;
-      config.info.city = config.city;
       // const gazData = await getGazData(
       //   config.tm.gazetteerTopicsList,
       //   config?.tm?.srs
       // );
       const featureGaz = [];
 
-      if (config?.tm?.addGazetteerElementsPerFeature === true) {
+      if (
+        config?.tm?.addGazetteerElementsPerFeature === true &&
+        config.tm.skipFeatures !== true
+      ) {
         for (const f of config.features) {
           const pof = pointOnFeature(f);
           const x = pof.geometry.coordinates[0];
@@ -257,7 +223,7 @@ function App({
               feature?.properties?.hoverString || feature?.text
             }
             appKey="GenericTopicMap.Playground"
-            items={config.features}
+            //items={config.features}
             getFeatureStyler={getGTMFeatureStyler}
             getColorFromProperties={getColorFromProperties}
             clusteringEnabled={config?.tm?.clusteringEnabled}

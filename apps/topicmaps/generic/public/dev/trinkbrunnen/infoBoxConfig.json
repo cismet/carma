@@ -1,0 +1,14 @@
+{
+  "pixelwidth": 300,
+  "header": "Wasserstofftankstelle",
+  "displaySecondaryInfoAction": true,
+
+  "navigator": {
+    "noun": {
+      "singular": "Wasserstofftankstelle",
+      "plural": "Wasserstofftankstellen"
+    }
+  },
+  "noCurrentFeatureTitle": "Keine Wasserstofftankstelle gefunden",
+  "noCurrentFeatureContent": "Zurück zur einzigen Wasserstofftankstelle in Wuppertal mit dem untenstehenden Link."
+}

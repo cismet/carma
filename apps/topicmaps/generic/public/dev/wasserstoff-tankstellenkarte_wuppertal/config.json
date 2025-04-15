@@ -1,0 +1,77 @@
+{
+  "tm": {
+    "srs": 3857,
+    "fullScreenControl": true,
+    "locatorControl": true,
+    "gazetteerSearchBox": true,
+    "noInitialLoadingText": true,
+    "gazetteerSearchBoxPlaceholdertext": "Stadtteil | Adresse | POI",
+    "photoLightBox": true,
+    "fallbackBackgroundlayers": "wupp-plan-live@90",
+    "previewFeatureCollectionCount": -1,
+    "previewMapPosition": "lat=51.30849778367392&lng=7.2529529926447776&zoom=13",
+    "gazetteerTopicsList": [
+      "pois",
+      "kitas",
+      "quartiere",
+      "bezirke",
+      "adressen"
+    ],
+    "home": {
+      "center": [51.30809014045725, 7.252747363995086],
+      "zoom": 14
+    },
+    "applicationMenuTooltipString": "Einstellungen | Anleitung",
+    "applicationMenuTitle": "Einstellungen und Kompaktanleitung",
+    "applicationMenuIntroductionMarkdown": "Über **Einstellungen** können Sie die Darstellung der Hintergrundkarte und der Wasserstofftankstelle an Ihre Vorlieben anpassen. Wählen Sie **Kompaktanleitung** für detailliertere Bedienungsinformationen und **Urbaner Digitaler Zwilling** für eine Einordnung der Wasserstoff-Tankstellenkarte in das Gesamtsystem des Digitalen Zwillings der Stadt Wuppertal.",
+    "applicationMenuIconname": "bars",
+    "clusterOptions": {
+      "spiderfyOnMaxZoom": false,
+      "showCoverageOnHover": false,
+      "zoomToBoundsOnClick": false,
+      "maxClusterRadius": 40,
+      "disableClusteringAtZoom": 19,
+      "animate": false,
+      "cismapZoomTillSpiderfy": 12,
+      "selectionSpiderfyMinZoom": 12
+    },
+    "minZoom": 5,
+    "maxZoom": 19,
+    "addGazetteerElementsPerFeature": true,
+    "defaultLayerConf": null,
+    "namedLayers": {
+      "rvr-spw2_light-tiles": {
+        "type": "tiles",
+        "maxNativeZoom": 20,
+        "maxZoom": 22,
+        "url": "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}"
+      }
+    },
+    "backgroundModes": [
+      {
+        "title": "Stadtplan (Tag)",
+        "mode": "default",
+        "layerKey": "stadtplan"
+      },
+      {
+        "title": "Stadtplan (Nacht)",
+        "mode": "night",
+        "layerKey": "stadtplan"
+      },
+      { "title": "Luftbildkarte", "mode": "default", "layerKey": "lbk" }
+    ],
+    "backgroundConfigurations": {
+      "lbk": {
+        "layerkey": "rvrGrundriss@100|trueOrtho2022@75|rvrSchriftNT@100",
+        "src": "/images/rain-hazard-map-bg/ortho.png",
+        "title": "Luftbildkarte"
+      },
+      "stadtplan": {
+        "layerkey": "rvr-spw2_light-tiles",
+        "src": "/images/rain-hazard-map-bg/citymap.png",
+        "title": "Stadtplan"
+      }
+    }
+  },
+  "city": "Wuppertal"
+}
