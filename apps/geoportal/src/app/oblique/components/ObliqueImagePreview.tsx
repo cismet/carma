@@ -101,34 +101,27 @@ const ObliqueImagePreview: React.FC<ObliqueImagePreviewProps> = ({
   const [imageAspectRatio, setImageAspectRatio] = useState(1);
   const { viewerRef } = useCesiumContext();
 
+  // Only load image for aspect ratio when visible
   useEffect(() => {
-    if (src) {
-      const img = new Image();
+    if (isVisible && src) {
+      const img = new window.Image();
       img.src = src;
       img.onload = () => {
         setIsVertical(img.naturalWidth < img.naturalHeight);
         setImageAspectRatio(img.naturalWidth / img.naturalHeight);
       };
     }
-  }, [src]);
+  }, [isVisible, src]);
 
   useEffect(() => {
     if (isVisible) {
       setShouldFadeIn(false);
       const timer = setTimeout(() => setShouldFadeIn(true), 50);
-
-      const viewer = viewerRef?.current;
-      if (viewer) {
-        return () => {
-          clearTimeout(timer);
-        };
-      }
-
       return () => clearTimeout(timer);
     } else {
       setShouldFadeIn(false);
     }
-  }, [isVisible, viewerRef]);
+  }, [isVisible]);
 
   const handleBackdropClick = () => {
     if (onClose) onClose();

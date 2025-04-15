@@ -1,5 +1,6 @@
 import React, { useCallback, useRef, useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { debounce } from "lodash";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -24,6 +25,7 @@ import {
   ConstantPositionProperty,
   sampleTerrainMostDetailed,
 } from "cesium";
+
 
 import {
   selectViewerIsMode2d,
@@ -93,6 +95,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const isTransitioning = useSelector(selectViewerIsTransitioning);
   const orbitPointEntityRef = useRef<Entity | null>(null);
   const userMovedCameraRef = useRef<boolean>(false);
+  const preloadImageRef = useRef<ReturnType<typeof debounce> | null>(null);
 
   const orbitPoint = useOrbitPoint();
 
@@ -347,6 +350,27 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     isDebugMode,
     orbitPoint,
   ]);
+
+  useEffect(() => {
+    if (!nearestImage || !previewPath) return;
+    if (preloadImageRef.current) {
+      preloadImageRef.current.cancel();
+    }
+    preloadImageRef.current = debounce(() => {
+      const img = new window.Image();
+      img.src = getPreviewImageUrl(
+        previewPath,
+        previewQualityLevel,
+        nearestImage.record.id
+      );
+    }, 500);
+    preloadImageRef.current();
+    return () => {
+      if (preloadImageRef.current) {
+        preloadImageRef.current.cancel();
+      }
+    };
+  }, [nearestImage, previewPath, previewQualityLevel]);
 
   const rotateToDirection = useCallback(
     (targetDirection: CardinalDirectionEnum) => {
