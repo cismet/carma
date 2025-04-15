@@ -19,7 +19,8 @@ import L from "leaflet";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSearch } from "@fortawesome/free-solid-svg-icons";
 import type { UnknownAction } from "redux";
-
+import { getBoundingBoxForLeafletMap } from "@carma-mapping/utils";
+import proj4 from "proj4";
 interface FuzzySearchProps {
   setFeatures: (hit) => void;
   setSelectedIndex: (idx) => void;
@@ -77,24 +78,58 @@ const FuzzySearchWrapper = ({
             map.fitBounds(bounds);
           }) as unknown as UnknownAction
         );
-      } else if (selection !== undefined) {
+      } else if (
+        selection !== undefined &&
+        selection?.more?.g?.type !== "Polygon"
+      ) {
+        const boundingBox = getBoundingBoxForLeafletMap(
+          routedMapRef?.leafletMap,
+          proj4.defs("EPSG:25832")
+        );
         dispatch(
           getPlanFeatures({
             point: { x: selection.x, y: selection.y },
             done: (hits) => {
-              if (hits?.length > 0) {
-                hits[0].selected = true;
-                setFeatures(hits);
-                setSelectedIndex(0);
-                const projectedFC = L.Proj.geoJson([hits[0]]);
-                const bounds = projectedFC.getBounds();
-                const map = routedMapRef?.leafletMap?.leafletElement;
-                if (map === undefined) {
-                  return;
-                }
-                map.fitBounds(bounds);
+              if (hits?.length === 0) {
+                dispatch(
+                  getPlanFeatures({
+                    boundingBox: boundingBox,
+                    done: (hits) => {
+                      if (hits?.length === 0) {
+                      } else {
+                        if (hits?.length > 0) {
+                          hits[0].selected = true;
+                          setFeatures(hits);
+                          setSelectedIndex(0);
+                          const projectedFC = L.Proj.geoJson([hits[0]]);
+                          const bounds = projectedFC.getBounds();
+                          const map = routedMapRef?.leafletMap?.leafletElement;
+                          if (map === undefined) {
+                            return;
+                          }
+                          //map.fitBounds(bounds);
+                        } else {
+                          setFeatures([]);
+                        }
+                      }
+                    },
+                  }) as unknown as UnknownAction
+                );
               } else {
-                setFeatures([]);
+                if (hits?.length > 0) {
+                  hits[0].selected = true;
+                  setFeatures(hits);
+                  setSelectedIndex(0);
+                  const projectedFC = L.Proj.geoJson([hits[0]]);
+                  const bounds = projectedFC.getBounds();
+                  const map = routedMapRef?.leafletMap?.leafletElement;
+                  if (map === undefined) {
+                    return;
+                  }
+                  map.fitBounds(bounds);
+                } else {
+                  setFeatures([]);
+                }
               }
             },
           }) as unknown as UnknownAction
