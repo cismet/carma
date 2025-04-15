@@ -160,7 +160,6 @@ const Map = () => {
 
   return (
     <>
-      {" "}
       <div
         className="controls-container"
         style={{
@@ -187,7 +186,11 @@ const Map = () => {
             />
           </Control>
           <Control position="bottomleft" order={10}>
-            <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
+            <div
+              data-test-id="fuzzy-search"
+              title="B-Pläne suchen"
+              className="h-full w-full pl-2"
+            >
               <FuzzySearchWrapper
                 setFeatures={setFeatures}
                 setSelectedIndex={setSelectedIndex}
