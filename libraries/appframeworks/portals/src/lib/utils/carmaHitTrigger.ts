@@ -1,4 +1,4 @@
-import { MutableRefObject, RefObject } from "react";
+import { MutableRefObject } from "react";
 import {
   BoundingSphere,
   Cartesian3,
@@ -81,7 +81,7 @@ const LeafletMapActions = {
 const CesiumMapActions = {
   lookAt: async (
     viewer: Viewer,
-    { longitude, latitude, height }: Cartographic,
+    targetPosition: Cartographic,
     zoom: number,
     cesiumConfig: { pitchAdjustHeight?: number } = {},
     options: {
@@ -93,8 +93,7 @@ const CesiumMapActions = {
     const { scene } = viewer;
     if (scene) {
       const currentCenterPos = pickViewerCanvasCenter(viewer).scenePosition;
-
-      const center = Cartesian3.fromRadians(longitude, latitude, height);
+      const center = Cartographic.toCartesian(targetPosition);
 
       let duration = 4;
 
@@ -109,7 +108,7 @@ const CesiumMapActions = {
       );
 
       const hpr = options.useCameraHeight
-        ? getHeadingPitchRangeFromHeight(scene.camera)
+        ? getHeadingPitchRangeFromHeight(scene.camera, targetPosition)
         : getHeadingPitchRangeFromZoom(zoom - 1, scene.camera);
       const range = distanceFromZoomLevel(zoom - 2);
 

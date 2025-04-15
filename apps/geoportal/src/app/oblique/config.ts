@@ -9,8 +9,8 @@ import { ObliqueDataProviderConfig } from "./types";
 import { CardinalDirectionEnum } from "./utils/orientationUtils";
 
 export const OBLIQUE_CONFIG: ObliqueDataProviderConfig = {
-  fixedPitch: CesiumMath.toRadians(-50), // Pitch in radians
-  fixedHeight: 924, // Height in meters
+  fixedPitch: CesiumMath.toRadians(-45), // Pitch in radians
+  fixedHeight: 900, // Height in meters
   minFov: CesiumMath.toRadians(10), // Minimum field of view in radians
   maxFov: CesiumMath.toRadians(120), // Maximum field of view in radians
   headingOffset: CesiumMath.toRadians(-34.3), // Heading offset in radians

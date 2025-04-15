@@ -22,11 +22,15 @@ export const getHeadingPitchRangeFromZoom = (
 };
 
 export const getHeadingPitchRangeFromHeight = (
-  { positionCartographic, heading, pitch }: Camera // prior
+  { positionCartographic, heading, pitch }: Camera,
+  targetPosition: Cartographic
 ) => {
-  const height = positionCartographic.height;
-  const range = height / Math.cos(-pitch);
-  console.log("xxx",range, height);
+  const cameraHeight = positionCartographic.height;
+  const targetHeight = targetPosition.height;
+  const heightDifference = cameraHeight - targetHeight;
+
+  const range = heightDifference / Math.cos(pitch);
+  //console.log("getHPR from Height", Math.round(cameraHeight),Math.round(targetHeight),Math.round(heightDifference),Math.round(range), Math.cos(pitch),);
   return new HeadingPitchRange(heading, pitch, range);
 };
 
