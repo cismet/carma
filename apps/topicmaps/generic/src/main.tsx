@@ -51,11 +51,11 @@ function AppWrapper() {
 }
 
 root.render(
-  <StrictMode>
-    <Router>
-      <Routes>
-        <Route path="/:name?" element={<AppWrapper />}></Route>
-      </Routes>
-    </Router>
-  </StrictMode>
+  // <StrictMode>
+  <Router>
+    <Routes>
+      <Route path="/:name?" element={<AppWrapper />}></Route>
+    </Routes>
+  </Router>
+  // </StrictMode>
 );
