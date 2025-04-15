@@ -1,4 +1,4 @@
-import { useContext } from "react";
+import { useContext, useState } from "react";
 
 import "./App.css";
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -25,6 +25,9 @@ import {
   RoutedMapLocateControl,
   ZoomControl,
 } from "@carma-mapping/components";
+import CismapLayer from "react-cismap/CismapLayer";
+import { createVectorFeature } from "./helper";
+import FeatureInfobox from "./components/FeatureInfobox";
 
 const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 const downloadText = (text, filename) => {
@@ -43,6 +46,7 @@ const downloadText = (text, filename) => {
   document.body.removeChild(element);
 };
 const Map = ({ config, featureGazData = [] }) => {
+  const [feature, setFeature] = useState(undefined);
   const { selectedFeature } = useContext(FeatureCollectionContext);
 
   const { setAppMenuActiveMenuSection } = useContext(UIDispatchContext);
@@ -96,7 +100,13 @@ const Map = ({ config, featureGazData = [] }) => {
         fullScreenControl={false}
         zoomControls={false}
         gazetteerSearchComponent={EmptySearchComponent}
-        infoBox={<GenericInfoBoxFromFeature config={config.info} />}
+        infoBox={
+          config.tm.vectorStyle ? (
+            <FeatureInfobox selectedFeature={feature} />
+          ) : (
+            <GenericInfoBoxFromFeature config={config.info} />
+          )
+        }
         modalMenu={
           <DefaultAppMenu
             menuTitle={config?.tm?.applicationMenuTitle}
@@ -123,8 +133,34 @@ const Map = ({ config, featureGazData = [] }) => {
           ></DefaultAppMenu>
         }
       >
-        <TopicMapSelectionContent />
-        <FeatureCollection />
+        {config.tm.vectorStyle ? (
+          <CismapLayer
+            type="vector"
+            style={config.tm.vectorStyle}
+            additionalLayerUniquePane="vector"
+            additionalLayersFreeZOrder={0}
+            selectionEnabled={true}
+            onSelectionChanged={(e) => {
+              const mapping = config.tm.infoboxMapping;
+              if (e.hits && mapping) {
+                const selectedVectorFeature = e.hits[0];
+                const feature = createVectorFeature(
+                  mapping,
+                  selectedVectorFeature
+                );
+
+                setFeature(feature);
+              } else {
+                setFeature(undefined);
+              }
+            }}
+          />
+        ) : (
+          <>
+            <TopicMapSelectionContent />
+            <FeatureCollection />
+          </>
+        )}
       </TopicMapComponent>
     </>
   );
