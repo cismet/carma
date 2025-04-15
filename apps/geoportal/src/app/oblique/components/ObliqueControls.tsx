@@ -25,7 +25,11 @@ import {
   sampleTerrainMostDetailed,
 } from "cesium";
 
-import { selectViewerIsMode2d, selectViewerIsTransitioning, useCesiumContext } from "@carma-mapping/cesium-engine";
+import {
+  selectViewerIsMode2d,
+  selectViewerIsTransitioning,
+  useCesiumContext,
+} from "@carma-mapping/cesium-engine";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { useFeatureFlags } from "@carma-apps/portals";
 
@@ -106,7 +110,9 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
   useEffect(() => {
     if (isTransitioning && !isMode2d) {
-      console.debug("ObliqueControls: Transitioning to 2D mode disabling oblique mode");
+      console.debug(
+        "ObliqueControls: Transitioning to 2D mode disabling oblique mode"
+      );
       dispatch(setObliqueMode(false));
       viewer?.scene.requestRender();
     }
@@ -205,9 +211,10 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       position
     );
 
-
-
-    const duration = Math.max(0.05, Math.min(3, Math.sqrt(Math.abs(currentDistanceToCamera)) / 10)); // seconds
+    const duration = Math.max(
+      0.05,
+      Math.min(3, Math.sqrt(Math.abs(currentDistanceToCamera)) / 10)
+    ); // seconds
 
     viewer.camera.flyTo({
       destination: position,
@@ -251,7 +258,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       if (!response.ok) throw new Error("Network response was not ok");
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
-      const filename = downloadUrl.split("/").pop() || `oblique-image-${Date.now()}.jpg`;
+      const filename =
+        downloadUrl.split("/").pop() || `oblique-image-${Date.now()}.jpg`;
       const link = document.createElement("a");
       link.href = blobUrl;
       link.download = filename;
@@ -553,10 +561,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
                 title="Bild in hoher Qualität in neuem Tab öffnen"
               >
                 <div>
-                  <ControlButtonStyler
-                    onClick={openImageLink}
-                    width="160px"
-                  >
+                  <ControlButtonStyler onClick={openImageLink} width="160px">
                     <span className="flex items-center text-base">
                       <FontAwesomeIcon icon={faExternalLink} className="mr-2" />
                       Bild öffnen
@@ -565,17 +570,17 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
                 </div>
               </Tooltip>
 
-              <Tooltip
-                placement="right"
-                title="Bild direkt herunterladen"
-              >
+              <Tooltip placement="right" title="Bild direkt herunterladen">
                 <div>
                   <ControlButtonStyler
                     onClick={handleDirectDownload}
                     width="160px"
                   >
                     <span className="flex items-center text-base">
-                      <FontAwesomeIcon icon={faFileArrowDown} className="mr-2" />
+                      <FontAwesomeIcon
+                        icon={faFileArrowDown}
+                        className="mr-2"
+                      />
                       Herunterladen
                     </span>
                   </ControlButtonStyler>

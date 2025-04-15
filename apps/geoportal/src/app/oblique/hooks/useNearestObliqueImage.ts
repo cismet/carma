@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState, useRef, useMemo } from "react";
 import knn from "rbush-knn";
 
-import { cesiumSceneHasTweens, useCesiumContext } from "@carma-mapping/cesium-engine";
+import {
+  cesiumSceneHasTweens,
+  useCesiumContext,
+} from "@carma-mapping/cesium-engine";
 
 import { getCardinalDirectionFromHeading } from "../utils/orientationUtils";
 import { useOrbitPoint } from "./useOrbitPoint";

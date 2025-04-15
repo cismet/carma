@@ -2,7 +2,10 @@ import React, { useEffect, useState, type RefObject } from "react";
 import { styled } from "styled-components";
 import { type Viewer, PerspectiveFrustum } from "cesium";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faExternalLink, faFileArrowDown } from "@fortawesome/free-solid-svg-icons";
+import {
+  faExternalLink,
+  faFileArrowDown,
+} from "@fortawesome/free-solid-svg-icons";
 import { Tooltip } from "antd";
 
 import { useCesiumContext } from "@carma-mapping/cesium-engine";
@@ -142,11 +145,21 @@ const ObliqueImagePreview: React.FC<ObliqueImagePreviewProps> = ({
   const syncedHeight = getViewerSyncedSize(viewerRef) * heightScaleFactor;
 
   return (
-    <div style={{ position: "absolute", width: "100%", height: "100%", overflow: "hidden" }}>
+    <div
+      style={{
+        position: "absolute",
+        width: "100%",
+        height: "100%",
+        overflow: "hidden",
+      }}
+    >
       <Backdrop $fadeIn={shouldFadeIn} onClick={handleBackdropClick} />
 
       <ButtonsContainer>
-        <Tooltip title="Bild in hoher Qualität in neuem Tab öffnen" placement="top">
+        <Tooltip
+          title="Bild in hoher Qualität in neuem Tab öffnen"
+          placement="top"
+        >
           <div>
             <ControlButtonStyler onClick={onOpenImageLink} width="auto">
               <span className="flex-1 text-base px-4">
