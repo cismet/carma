@@ -61,19 +61,17 @@ const Map = () => {
       }
       map.fitBounds(bounds);
     } else {
-      console.log("features", features, event.target.feature);
-
       const index = features.findIndex(
-        (element) => element.feature?.id === event.target.feature.id
+        (element) => element?.id === event.target.feature.id
       );
       if (index !== -1) {
-        setSelectedIndex(index);
         features.forEach((element) => {
-          if (element.feature) {
-            element.feature.selected = false;
+          if (element) {
+            element.selected = false;
           }
         });
         event.target.feature.selected = true;
+        setSelectedIndex(index);
       }
     }
   };
@@ -189,11 +187,7 @@ const Map = () => {
             />
           </Control>
           <Control position="bottomleft" order={10}>
-            <div
-              data-test-id="fuzzy-search"
-              title="B-Pläne suchen"
-              className="h-full w-full pl-2"
-            >
+            <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
               <FuzzySearchWrapper
                 setFeatures={setFeatures}
                 setSelectedIndex={setSelectedIndex}
