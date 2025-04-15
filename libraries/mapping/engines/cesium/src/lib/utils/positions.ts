@@ -1,4 +1,5 @@
 import {
+  Camera,
   Cartographic,
   HeadingPitchRange,
   sampleTerrainMostDetailed,
@@ -17,6 +18,19 @@ export const getHeadingPitchRangeFromZoom = (
   }: { heading?: number; pitch?: number } = {} // prior
 ) => {
   const range = distanceFromZoomLevel(zoom);
+  return new HeadingPitchRange(heading, pitch, range);
+};
+
+export const getHeadingPitchRangeFromHeight = (
+  { positionCartographic, heading, pitch }: Camera,
+  targetPosition: Cartographic
+) => {
+  const cameraHeight = positionCartographic.height;
+  const targetHeight = targetPosition.height;
+  const heightDifference = cameraHeight - targetHeight;
+
+  const range = heightDifference / Math.cos(pitch);
+  //console.log("getHPR from Height", Math.round(cameraHeight),Math.round(targetHeight),Math.round(heightDifference),Math.round(range), Math.cos(pitch),);
   return new HeadingPitchRange(heading, pitch, range);
 };
 
