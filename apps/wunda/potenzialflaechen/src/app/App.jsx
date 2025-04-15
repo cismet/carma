@@ -28,6 +28,12 @@ baseLayerConf.namedLayers.cismetLight = {
   offlineAvailable: true,
   offlineDataStoreKey: "wuppBasemap",
 };
+baseLayerConf.namedLayers.tiledRVRGrau = {
+  type: "tiles",
+  url: "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_graublau&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
+  maxNativeZoom: 20,
+  maxZoom: 22,
+};
 
 const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 const selectionColor = new Color("#2664D8");
@@ -35,35 +41,6 @@ export const appKey = "Potenzialflaechen.Online.Wuppertal";
 export const apiUrl = "https://potenzialflaechen-online-api.cismet.de";
 export const dataDaqKey = "potenzialflaechen";
 export const gazDaqKey = "potenzialflaechenGaz";
-// const getGazData = async (setStaticGazData) => {
-//   const prefix = "GazDataForStories";
-//   const sources = {};
-
-//   sources.adressen = await md5FetchText(
-//     prefix,
-//     host + "/data/3857/adressen.json"
-//   );
-//   sources.bezirke = await md5FetchText(
-//     prefix,
-//     host + "/data/3857/bezirke.json"
-//   );
-//   sources.quartiere = await md5FetchText(
-//     prefix,
-//     host + "/data/3857/quartiere.json"
-//   );
-//   sources.pois = await md5FetchText(prefix, host + "/data/3857/pois.json");
-//   sources.kitas = await md5FetchText(prefix, host + "/data/3857/kitas.json");
-
-//   const gazData = getGazDataForTopicIds(sources, [
-//     "pois",
-//     "kitas",
-//     "bezirke",
-//     "quartiere",
-//     "adressen",
-//   ]);
-
-//   setStaticGazData(gazData);
-// };
 
 function App() {
   const [staticGazData, setStaticGazData] = useState([]);
@@ -179,7 +156,7 @@ function App() {
       title: "Luftbildkarte",
     },
     stadtplan: {
-      layerkey: "rvrGrau@45",
+      layerkey: "tiledRVRGrau@45",
       src: "/images/rain-hazard-map-bg/citymap.png",
       title: "Stadtplan",
     },
