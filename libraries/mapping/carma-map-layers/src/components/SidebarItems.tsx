@@ -29,10 +29,15 @@ export const SidebarItem = ({
       onClick={!disabled ? onClick : undefined}
     >
       <Badge count={numberOfItems} color="#9ca3af" overflowCount={500}>
-        <FontAwesomeIcon className="w-9 h-9 mr-3 text-gray-400" icon={icon} />
+        <FontAwesomeIcon
+          className="sm:w-9 sm:h-9 w-6 h-6 mr-3 text-gray-400"
+          icon={icon}
+        />
       </Badge>
 
-      <p className={`mb-0 text-base font-semibold mr-3 text-gray-400`}>
+      <p
+        className={`mb-0 hidden sm:block text-base font-semibold mr-3 text-gray-400`}
+      >
         {text}
       </p>
     </div>

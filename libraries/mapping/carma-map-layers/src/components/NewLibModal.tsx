@@ -844,7 +844,7 @@ export const NewLibModal = ({
         }}
       >
         <div
-          className={`w-40 h-full flex justify-between items-center flex-col pb-3 bg-gray-600`}
+          className={`sm:w-40 w-12 h-full flex justify-between items-center flex-col pb-3 bg-gray-600`}
           style={{ height: "calc(100vh - 188px)" }}
         >
           <div className="flex flex-col w-full items-center gap-2 overflow-y-auto overflow-x-hidden">
@@ -875,7 +875,7 @@ export const NewLibModal = ({
         </div>
 
         <div
-          className="w-[calc(100vw-160px)] h-full flex flex-col bg-[#f2f2f2]"
+          className="sm:w-[calc(100vw-160px)] w-[calc(100vw-48px)] h-full flex flex-col bg-[#f2f2f2]"
           style={{
             maxHeight: "calc(100vh - 200px)",
             minHeight: "calc(100vh - 200px)",

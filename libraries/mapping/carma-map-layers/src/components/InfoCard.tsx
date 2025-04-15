@@ -57,12 +57,17 @@ const InfoCard = ({
     (layer.type === "collection" && layer.serviceName.includes("discover"));
 
   return (
-    <div className="w-full h-[400px] p-6 shadow-sm hover:!shadow-lg rounded-lg bg-blue-50 col-span-full">
+    <div
+      className="w-full h-full sm:h-[400px] p-6 shadow-sm hover:!shadow-lg rounded-lg bg-blue-50 col-span-full max-w-full overflow-x-auto"
+      style={{ maxWidth: "100vw" }}
+    >
       <div className="flex h-full flex-col justify-between">
-        <div className="flex pb-4 gap-4 items-center w-full justify-between">
-          <div className="flex w-max overflow-hidden gap-4 items-center">
-            <h3 className="mb-0 truncate leading-10">{title}</h3>
-            <div className="flex items-center gap-4">
+        <div className="relative pb-4">
+          <div className="flex flex-wrap gap-4 items-center pr-8">
+            <h3 className="mb-0 truncate leading-10 text-xl sm:text-2xl">
+              {title}
+            </h3>
+            <div className="flex flex-wrap items-center gap-4">
               {layer.type === "layer" && (
                 <Button
                   onClick={handleAddClick}
@@ -72,7 +77,9 @@ const InfoCard = ({
                     />
                   }
                 >
-                  {isActiveLayer ? "Entfernen" : "Hinzufügen"}
+                  <span className="!hidden sm:!inline-block">
+                    {isActiveLayer ? "Entfernen" : "Hinzufügen"}
+                  </span>
                 </Button>
               )}
               {layer.type === "collection" && (
@@ -81,14 +88,14 @@ const InfoCard = ({
                     onClick={handleAddClick}
                     icon={<FontAwesomeIcon icon={faSquareUpRight} />}
                   >
-                    Laden
+                    <span className="!hidden sm:!inline-block">Laden</span>
                   </Button>
                   {!layer.serviceName.includes("discover") && (
                     <Button
                       onClick={deleteCollection}
                       icon={<FontAwesomeIcon icon={faTrash} />}
                     >
-                      Löschen
+                      <span className="!hidden sm:!inline-block">Löschen</span>
                     </Button>
                   )}
                 </>
@@ -99,7 +106,7 @@ const InfoCard = ({
                   target="_topicMaps"
                   icon={<FontAwesomeIcon icon={faExternalLink} />}
                 >
-                  Öffnen
+                  <span className="!hidden sm:!inline-block">Öffnen</span>
                 </Button>
               )}
               {canFavoriteItem && (
@@ -107,7 +114,9 @@ const InfoCard = ({
                   onClick={handleFavoriteClick}
                   icon={<FontAwesomeIcon icon={faStar} />}
                 >
-                  {isFavorite ? "Favorit entfernen" : "Favorisieren"}
+                  <span className="!hidden sm:!inline-block">
+                    {isFavorite ? "Favorit entfernen" : "Favorisieren"}
+                  </span>
                 </Button>
               )}
               {layer.type === "layer" && (
@@ -118,19 +127,19 @@ const InfoCard = ({
                   }}
                   icon={<FontAwesomeIcon icon={faMap} />}
                 >
-                  Vorschau
+                  <span className="!hidden sm:!inline-block">Vorschau</span>
                 </Button>
               )}
             </div>
           </div>
           <button
             onClick={closeInfoCard}
-            className="text-gray-600 hover:text-gray-500 flex items-center justify-center py-0.5 px-1"
+            className="text-gray-600 hover:text-gray-500 flex items-center justify-center py-0.5 px-1 absolute top-2 right-0"
           >
             <FontAwesomeIcon icon={faX} />
           </button>
         </div>
-        <div className="flex gap-2 w-full h-full overflow-hidden">
+        <div className="flex flex-col sm:flex-row gap-2 w-full h-full overflow-hidden">
           <div className="w-full flex flex-col justify-between overflow-auto">
             <div>
               <h5 className="font-semibold text-lg">Inhalt</h5>
@@ -183,8 +192,8 @@ const InfoCard = ({
           </div>
           {links.length > 0 && (
             <>
-              <div className="h-full w-0 border-r border-gray-300 my-0" />
-              <div className="flex flex-col gap-0 w-1/4">
+              <div className="h-full w-0 border-r border-gray-300 my-0 hidden sm:block" />
+              <div className="flex flex-col gap-0 sm:w-1/4 w-full">
                 <h5 className="font-semibold text-lg">Links</h5>
                 {links.map((link, i) => (
                   <a
@@ -201,8 +210,8 @@ const InfoCard = ({
           )}
           {legends && (
             <>
-              <div className="h-full w-0 border-r border-gray-300 my-0" />
-              <div className="flex flex-col gap-0 w-1/4">
+              <div className="h-full w-0 border-r border-gray-300 my-0 hidden sm:block" />
+              <div className="flex flex-col gap-0 sm:w-1/4 w-full">
                 <h5 className="font-semibold text-lg">Legende</h5>
                 <div className="h-full overflow-auto">
                   {legends?.map((legend, i) => (
