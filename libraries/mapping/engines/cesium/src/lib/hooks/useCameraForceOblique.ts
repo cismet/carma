@@ -18,8 +18,8 @@ export function useCesiumCameraForceOblique(
     const viewer = viewerRef.current;
 
     const onPreupdate = () => {
-      !cesiumSceneHasTweens(viewer) &&   
-      cesiumCameraForceOblique(viewer, fixedPitch, fixedHeight);
+      !cesiumSceneHasTweens(viewer) &&
+        cesiumCameraForceOblique(viewer, fixedPitch, fixedHeight);
     };
 
     if (!viewerPreUpdateHandlers.has(viewer)) {

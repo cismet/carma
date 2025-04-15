@@ -8,16 +8,14 @@ export function getBoundingBoxForLeafletMap(
   referenceSystemDefinition
 ) {
   const bounds = leafletMap.leafletElement.getBounds();
-  const projectedNE = proj4(
-    "EPSG:4326",
-    referenceSystemDefinition,
-    [bounds._northEast.lng, bounds._northEast.lat]
-  );
-  const projectedSW = proj4(
-    "EPSG:4326",
-    referenceSystemDefinition,
-    [bounds._southWest.lng, bounds._southWest.lat]
-  );
+  const projectedNE = proj4("EPSG:4326", referenceSystemDefinition, [
+    bounds._northEast.lng,
+    bounds._northEast.lat,
+  ]);
+  const projectedSW = proj4("EPSG:4326", referenceSystemDefinition, [
+    bounds._southWest.lng,
+    bounds._southWest.lat,
+  ]);
   return {
     left: projectedSW[0],
     top: projectedNE[1],

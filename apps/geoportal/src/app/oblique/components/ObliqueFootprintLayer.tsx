@@ -27,8 +27,7 @@ const cleanupDatasources = (viewer: Viewer) => {
         dataSources.remove(datasource);
       }
     }
-  }
-  catch (error) {
+  } catch (error) {
     console.warn("Error cleaning up oblique data sources:", error);
   }
 };

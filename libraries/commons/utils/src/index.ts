@@ -1,4 +1,3 @@
-import { clampToToleranceRange } from './lib/numbers';
 export { isNumberArrayEqual } from "./lib/arrays";
 
 export { type CarmaConfig, extractCarmaConfig } from "./lib/carmaConfig";
@@ -27,4 +26,3 @@ export { generateRandomString } from "./lib/strings";
 export { getApplicationVersion } from "./lib/version";
 
 export { detectWebGLContext } from "./lib/webgl";
-
