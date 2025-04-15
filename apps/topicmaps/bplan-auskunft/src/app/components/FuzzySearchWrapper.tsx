@@ -25,12 +25,14 @@ interface FuzzySearchProps {
   setFeatures: (hit) => void;
   setSelectedIndex: (idx) => void;
   onIconClick: () => void;
+  mapSearchAllowed: boolean;
 }
 
 const FuzzySearchWrapper = ({
   setFeatures,
   setSelectedIndex,
   onIconClick,
+  mapSearchAllowed,
 }: FuzzySearchProps) => {
   const dispatch = useDispatch();
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
@@ -153,7 +155,7 @@ const FuzzySearchWrapper = ({
         }
         placeholder="B-Plan-Nr. | Adresse | POI"
         icon={searchIcon}
-        ifIconDisabled={false}
+        ifIconDisabled={!mapSearchAllowed}
       />
     </div>
   );

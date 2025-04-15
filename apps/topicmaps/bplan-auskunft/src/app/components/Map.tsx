@@ -192,6 +192,7 @@ const Map = () => {
               className="h-full w-full pl-2"
             >
               <FuzzySearchWrapper
+                mapSearchAllowed={zoom === null || Number(zoom) >= 12}
                 setFeatures={setFeatures}
                 setSelectedIndex={setSelectedIndex}
                 onIconClick={bplanSearchButtonHit}
@@ -232,63 +233,6 @@ const Map = () => {
         mappingBoundsChanged={(bbox) => {
           setBoundingBox(bbox);
         }}
-        // gazetteerSearchControlProps={{
-        //   tertiaryAction: bplanSearchButtonHit,
-        //   tertiaryActionIcon: faSearch,
-        //   tertiaryActionTooltip: "B-Pläne suchen",
-        //   teriaryActionDisabled: Number(zoom) < 13,
-        // }}
-        // gazetteerSearchPlaceholder="B-Plan-Nr. | Adresse | POI"
-        // gazetteerHitTrigger={(hits) => {
-        //   if (
-        //     hits !== undefined &&
-        //     hits.length === 1 &&
-        //     hits[0].type === "bplaene"
-        //   ) {
-        //     const gazObject = hits[0];
-        //     const selectionString = gazObject?.more?.v || gazObject.string;
-
-        //     dispatch(
-        //       getPlanFeatureByTitle(selectionString, (hit) => {
-        //         const tmpHit = { ...hit };
-        //         tmpHit.selected = true;
-        //         setFeatures([tmpHit]);
-        //         setSelectedIndex(0);
-
-        //         const projectedFC = L.Proj.geoJson([tmpHit]);
-        //         const bounds = projectedFC.getBounds();
-        //         const map = routedMapRef?.leafletMap?.leafletElement;
-        //         if (map === undefined) {
-        //           return;
-        //         }
-        //         map.fitBounds(bounds);
-        //       }) as unknown as UnknownAction
-        //     );
-        //   } else if (hits !== undefined && hits.length > 0) {
-        //     dispatch(
-        //       getPlanFeatures({
-        //         point: { x: hits[0].x, y: hits[0].y },
-        //         done: (hits) => {
-        //           if (hits?.length > 0) {
-        //             hits[0].selected = true;
-        //             setFeatures(hits);
-        //             setSelectedIndex(0);
-        //             const projectedFC = L.Proj.geoJson([hits[0]]);
-        //             const bounds = projectedFC.getBounds();
-        //             const map = routedMapRef?.leafletMap?.leafletElement;
-        //             if (map === undefined) {
-        //               return;
-        //             }
-        //             map.fitBounds(bounds);
-        //           } else {
-        //             setFeatures([]);
-        //           }
-        //         },
-        //       }) as unknown as UnknownAction
-        //     );
-        //   }
-        // }}
-        // gazData={gazData}
       >
         <TopicMapSelectionContent />
 
