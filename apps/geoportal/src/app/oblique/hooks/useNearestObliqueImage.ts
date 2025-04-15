@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, useRef, useMemo } from "react";
 import knn from "rbush-knn";
 
-import { useCesiumContext } from "@carma-mapping/cesium-engine";
+import { cesiumSceneHasTweens, useCesiumContext } from "@carma-mapping/cesium-engine";
 
 import { getCardinalDirectionFromHeading } from "../utils/orientationUtils";
 import { useOrbitPoint } from "./useOrbitPoint";
@@ -22,6 +22,7 @@ import type {
   ObliqueImageRecordMap,
   Proj4Converter,
 } from "../types";
+import { Scene } from "cesium";
 
 export interface UseNearestObliqueImageOptions {
   debounceTime?: number;
@@ -259,7 +260,7 @@ export function useNearestObliqueImage(
       }
 
       timerIdRef.current = setTimeout(() => {
-        refreshSearch();
+        !cesiumSceneHasTweens(viewer) && refreshSearch();
       }, options.debounceTime || defaultOptions.debounceTime);
     };
 

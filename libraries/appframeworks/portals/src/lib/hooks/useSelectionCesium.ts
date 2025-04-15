@@ -36,7 +36,8 @@ const cleanUpCesium = (
 
 export const useSelectionCesium = (
   isActive: boolean,
-  cesiumOptions: CesiumOptions
+  cesiumOptions: CesiumOptions,
+  useCameraHeight: boolean = false
 ) => {
   const { viewerRef } = useCesiumContext();
   const { selection } = useSelection();
@@ -77,6 +78,7 @@ export const useSelectionCesium = (
         setSelectedCesiumEntityData,
         selectedPolygonId: SELECTED_POLYGON_ID,
         invertedSelectedPolygonId: INVERTED_SELECTED_POLYGON_ID,
+        useCameraHeight,
       };
 
       carmaHitTrigger([selection], viewerRef, options);
@@ -90,6 +92,7 @@ export const useSelectionCesium = (
     }
   }, [
     selection,
+    useCameraHeight,
     viewerRef,
     isActive,
     cesiumOptions,

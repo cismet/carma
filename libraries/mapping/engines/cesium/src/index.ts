@@ -31,6 +31,8 @@ export { CUSTOM_SHADERS_DEFINITIONS } from "./lib/shaders";
 
 // TODO: all the utils used elsewhere with no cesium dedependency should be moved to common helper utils lib
 
+
+export { cesiumSceneHasTweens } from "./lib/utils/cesiumAnimations";
 export { getOrbitPoint } from "./lib/utils/cesiumAnimateOrbits";
 export {
   cesiumAnimateFov,
@@ -66,6 +68,7 @@ export {
 } from "./lib/utils/cesiumSetup";
 export {
   distanceFromZoomLevel,
+  getHeadingPitchRangeFromHeight,
   getHeadingPitchRangeFromZoom,
 } from "./lib/utils/positions";
 

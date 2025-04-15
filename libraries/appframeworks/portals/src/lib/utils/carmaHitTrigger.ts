@@ -27,6 +27,7 @@ import { DEFAULT_PROJ } from "@carma-commons/resources";
 import {
   addCesiumMarker,
   distanceFromZoomLevel,
+  getHeadingPitchRangeFromHeight,
   getHeadingPitchRangeFromZoom,
   invertedPolygonHierarchy,
   pickViewerCanvasCenter,
@@ -57,7 +58,11 @@ type CesiumMapActions = {
     pos: Cartographic,
     zoom: number,
     cesiumConfig: { pitchAdjustHeight?: number },
-    options?: { onComplete?: Function; durationFactor?: number }
+    options?: {
+      onComplete?: Function;
+      durationFactor?: number;
+      useCameraHeight?: boolean;
+    }
   ) => void;
   setZoom: (scene: Scene, zoom: number) => void;
   fitBoundingSphere: (scene: Scene, bounds: BoundingSphere) => void;
@@ -79,7 +84,11 @@ const CesiumMapActions = {
     { longitude, latitude, height }: Cartographic,
     zoom: number,
     cesiumConfig: { pitchAdjustHeight?: number } = {},
-    options: { onComplete?: Function; durationFactor?: number } = {}
+    options: {
+      onComplete?: Function;
+      durationFactor?: number;
+      useCameraHeight?: boolean;
+    } = {}
   ) => {
     const { scene } = viewer;
     if (scene) {
@@ -99,7 +108,9 @@ const CesiumMapActions = {
         scene.camera.position
       );
 
-      const hpr = getHeadingPitchRangeFromZoom(zoom - 1, scene.camera);
+      const hpr = options.useCameraHeight
+        ? getHeadingPitchRangeFromHeight(scene.camera)
+        : getHeadingPitchRangeFromZoom(zoom - 1, scene.camera);
       const range = distanceFromZoomLevel(zoom - 2);
 
       // TODO ADD TEST FOR DURATION FACTOR
@@ -175,6 +186,7 @@ export type GazetteerOptions = {
   setSelectedCesiumEntityData?: Function;
   selectedPolygonId: string;
   invertedSelectedPolygonId: string;
+  useCameraHeight?: boolean;
 };
 
 export const carmaHitTrigger = async (
@@ -357,6 +369,7 @@ export const carmaHitTrigger = async (
           cAction.lookAt(viewer, groundPosition, zoom, mapOptions, {
             //onComplete: delayedMarker,
             durationFactor: 0.2,
+            useCameraHeight: options.useCameraHeight,
           });
         console.debug(
           "GAZETTEER: [2D3D|CESIUM|CAMERA] look at Marker (Terrain Elevation)"
