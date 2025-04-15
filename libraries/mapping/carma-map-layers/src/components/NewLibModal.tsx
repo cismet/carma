@@ -882,13 +882,24 @@ export const NewLibModal = ({
           }}
         >
           <div className="sticky top-0 px-6 pt-6">
-            <div className="flex justify-between md:gap-0 gap-1 items-center">
-              <h1 className="mb-0 text-xl sm:text-3xl font-semibold">
-                Karteninhalte
-              </h1>
+            <div className="flex flex-col sm:flex-row justify-between md:gap-0 gap-1 items-center">
+              <div className="flex w-full sm:w-fit items-center justify-between">
+                <h1 className="mb-0 text-3xl font-semibold">Karteninhalte</h1>
+                <Button
+                  type="text"
+                  className="sm:hidden block"
+                  onClick={() => {
+                    setOpen(false);
+                    setPreview(false);
+                    setSelectedLayerId(null);
+                  }}
+                >
+                  <FontAwesomeIcon icon={faX} />
+                </Button>
+              </div>
               <Search
                 placeholder="Suchbegriff eingeben"
-                className="w-[76%]"
+                className="w-full sm:w-[76%]"
                 allowClear
                 onChange={(e) => {
                   setIsSearching(true);
@@ -920,6 +931,7 @@ export const NewLibModal = ({
               />
               <Button
                 type="text"
+                className="hidden sm:block"
                 onClick={() => {
                   setOpen(false);
                   setPreview(false);
