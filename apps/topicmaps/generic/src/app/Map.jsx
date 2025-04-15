@@ -125,40 +125,6 @@ const Map = ({ config, featureGazData = [] }) => {
       >
         <TopicMapSelectionContent />
         <FeatureCollection />
-        {/* <div className="leaflet-top leaflet-right" style={{ paddingTop: 46 }}>
-          <div className="leaflet-control">
-            <a
-              style={{ margin: 5 }}
-              className="styleaslink"
-              onClick={() => {
-                downloadText(
-                  JSON.stringify(configFromFile, null, 2),
-                  "config.json"
-                );
-                downloadText(
-                  JSON.stringify(featureDefaultProperties, null, 2),
-                  "featureDefaultProperties.json"
-                );
-                downloadText(
-                  JSON.stringify(featureDefaults, null, 2),
-                  "featureDefaults.json"
-                );
-                downloadText(
-                  JSON.stringify(features, null, 2),
-                  "features.json"
-                );
-                // downloadText(JSON.stringify(infoBoxConfig, null, 2), "infoBoxConfig.json");
-                downloadText(
-                  JSON.stringify(simpleHelp, null, 2),
-                  "simpleHelp.json"
-                );
-              }}
-            >
-              <Icon name="cog" />
-              <Icon name="download" />
-            </a>
-          </div>
-        </div> */}
       </TopicMapComponent>
     </>
   );
