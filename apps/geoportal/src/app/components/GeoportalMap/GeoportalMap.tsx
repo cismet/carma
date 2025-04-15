@@ -76,7 +76,7 @@ import {
   getLayers,
   getShowHamburgerMenu,
 } from "../../store/slices/mapping.ts";
-import { getUIMode, UIMode } from "../../store/slices/ui.ts";
+import { getObliqueMode, getUIMode, UIMode } from "../../store/slices/ui.ts";
 
 import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 
@@ -102,6 +102,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   // State and Selectors
   const backgroundLayer = useSelector(getBackgroundLayer);
   const isMode2d = useSelector(selectViewerIsMode2d) || !allow3d;
+  const isObliqueMode = useSelector(getObliqueMode);
   const models = useSelector(selectViewerModels);
   const markerAsset = models[CESIUM_CONFIG.markerKey]; //
   const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;
@@ -207,7 +208,8 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
         surfaceProviderRef,
         terrainProviderRef,
       ]
-    )
+    ),
+    isObliqueMode
   );
 
   useEffect(() => {
