@@ -1,6 +1,9 @@
+import { clampToToleranceRange } from './lib/numbers';
 export { isNumberArrayEqual } from "./lib/arrays";
 
 export { type CarmaConfig, extractCarmaConfig } from "./lib/carmaConfig";
+
+export { md5FetchText } from "./lib/fetching";
 
 export {
   getGazData,
@@ -10,6 +13,8 @@ export {
 } from "./lib/gazData";
 
 export { suppressReactCismapErrors } from "./lib/log-react-cismap-errors";
+
+export { clampToToleranceRange } from "./lib/numbers";
 
 export {
   PROJ4_CONVERTERS,
@@ -23,4 +28,3 @@ export { getApplicationVersion } from "./lib/version";
 
 export { detectWebGLContext } from "./lib/webgl";
 
-export { md5FetchText } from "./lib/fetching";
