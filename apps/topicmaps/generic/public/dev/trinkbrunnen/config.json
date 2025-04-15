@@ -72,7 +72,20 @@
         "src": "/images/rain-hazard-map-bg/citymap.png",
         "title": "Stadtplan"
       }
-    }
+    },
+    "vectorStyle": "https://tiles.cismet.de/poi/trinkwasserbrunnen.style.json",
+    "infoboxMapping": [
+      "foto: p.foto",
+      "headerColor:p.schrift",
+      "header:p.kombi",
+      "title:p.geographicidentifier",
+      "additionalInfo:p.adresse",
+      "subtitle: p.info",
+      "url:p.url",
+      "tel:p.telefon",
+      "email:p.email",
+      "modal:'trinkwasser'"
+    ]
   },
   "city": "Wuppertal"
 }
