@@ -10,7 +10,8 @@ const viewerPreUpdateHandlers = new WeakMap<Viewer, (scene: Scene) => void>();
 export function useCesiumCameraForceOblique(
   viewerRef: React.MutableRefObject<Viewer | null>,
   fixedPitch: number,
-  fixedHeight: number
+  fixedHeight: number,
+  shouldSuspendRef: React.MutableRefObject<boolean>
 ) {
   const enableCameraForceOblique = useCallback(() => {
     if (!viewerRef.current) return;
@@ -19,14 +20,19 @@ export function useCesiumCameraForceOblique(
 
     const onPreupdate = () => {
       !cesiumSceneHasTweens(viewer) &&
-        cesiumCameraForceOblique(viewer, fixedPitch, fixedHeight);
+        cesiumCameraForceOblique(
+          viewer,
+          fixedPitch,
+          fixedHeight,
+          shouldSuspendRef
+        );
     };
 
     if (!viewerPreUpdateHandlers.has(viewer)) {
       viewer.scene.preUpdate.addEventListener(onPreupdate);
       viewerPreUpdateHandlers.set(viewer, onPreupdate);
     }
-  }, [viewerRef, fixedPitch, fixedHeight]);
+  }, [viewerRef, shouldSuspendRef, fixedPitch, fixedHeight]);
 
   const disableCameraForceOblique = useCallback(() => {
     if (!viewerRef.current) return;
