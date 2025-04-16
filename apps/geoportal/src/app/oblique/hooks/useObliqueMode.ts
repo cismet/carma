@@ -32,7 +32,8 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
   const headingOffset = options.headingOffset ?? contextOptions.headingOffset;
 
   const isObliqueMode = useSelector(getObliqueMode);
-  const { viewerRef, viewerAnimationMapRef } = useCesiumContext();
+  const { viewerRef, viewerAnimationMapRef, shouldSuspendPitchLimiterRef } =
+    useCesiumContext();
   const originalFovRef = useRef<number | null>(null);
 
   const wheelZoomOptions = useMemo(
@@ -50,7 +51,12 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
   );
 
   const { enableCameraForceOblique, disableCameraForceOblique } =
-    useCesiumCameraForceOblique(viewerRef, fixedPitch, fixedHeight);
+    useCesiumCameraForceOblique(
+      viewerRef,
+      fixedPitch,
+      fixedHeight,
+      shouldSuspendPitchLimiterRef
+    );
 
   useEffect(() => {
     if (!viewerRef.current) {

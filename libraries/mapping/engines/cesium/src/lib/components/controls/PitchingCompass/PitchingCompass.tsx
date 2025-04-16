@@ -23,6 +23,7 @@ import {
 
 import { CompassNeedleSVG } from "./CompassNeedleSVG";
 import { applyRollToHeadingForCameraNearNadir } from "../../../utils/cesiumCamera";
+import { useCesiumContext } from "../../../hooks/useCesiumContext";
 
 interface RotateButtonProps {
   viewerRef: React.RefObject<Viewer | null>;
@@ -66,7 +67,10 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
   const [currentPitch, setCurrentPitch] = useState(0);
   const [currentHeading, setCurrentHeading] = useState(0);
 
+  const { shouldSuspendPitchLimiterRef } = useCesiumContext();
+
   const handleMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+    shouldSuspendPitchLimiterRef.current = true;
     if (viewerRef.current && viewerAnimationMapRef.current) {
       cancelViewerAnimation(viewerRef.current, viewerAnimationMapRef.current);
       setIsControlMouseDown(true);
@@ -89,6 +93,7 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
   };
 
   const handleControlMouseUp = () => {
+    shouldSuspendPitchLimiterRef.current = false;
     setIsControlMouseDown(false);
     if (viewerRef.current && initialHeading !== null) {
       const scene = viewerRef.current.scene;

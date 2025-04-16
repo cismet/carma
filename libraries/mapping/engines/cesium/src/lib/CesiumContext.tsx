@@ -20,6 +20,7 @@ export interface CesiumContextType {
     primaryRef: MutableRefObject<Cesium3DTileset | null>;
     secondaryRef: MutableRefObject<Cesium3DTileset | null>;
   };
+  shouldSuspendPitchLimiterRef: MutableRefObject<boolean>;
   isViewerReady: boolean;
   setIsViewerReady: (flag: boolean) => void;
 }

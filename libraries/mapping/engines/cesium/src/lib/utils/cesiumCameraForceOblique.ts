@@ -26,9 +26,16 @@ const cameraObliqueCorrectionStateMap = new WeakMap<
 export const cesiumCameraForceOblique = (
   viewer: Viewer,
   fixedPitch: number,
-  fixedHeight: number
+  fixedHeight: number,
+  shouldSuspendRef: React.MutableRefObject<boolean>
 ) => {
-  if (!viewer || !viewer.scene || !viewer.scene.globe || !viewer.camera) {
+  if (
+    !viewer ||
+    !viewer.scene ||
+    !viewer.scene.globe ||
+    !viewer.camera ||
+    shouldSuspendRef.current
+  ) {
     return;
   }
   const currentPosition = viewer.camera.position;
