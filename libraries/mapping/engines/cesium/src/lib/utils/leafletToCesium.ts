@@ -66,7 +66,7 @@ export const leafletToCesium = async (
     latRad
   );
 
-  const START_DISTANCE = 10000;
+  const START_DISTANCE = 1000;
 
   const baseComputedPixelResolution = getCesiumCameraPixelDimensionForDistance(
     viewer,

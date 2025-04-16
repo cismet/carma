@@ -34,7 +34,7 @@ interface CameraState {
 }
 
 const postRenderHandlerMap: WeakMap<Viewer, () => void> = new WeakMap();
-const preRenderHandlerMap: WeakMap<Viewer, () => void> = new WeakMap();
+const preUpdateHandlerMap: WeakMap<Viewer, () => void> = new WeakMap();
 
 export const useInitializeViewer = (
   containerRef?: React.RefObject<HTMLDivElement>,
@@ -106,9 +106,14 @@ export const useInitializeViewer = (
             } else {
               if (lastGoodCameraState.current) {
                 console.warn(
-                  "HOOK: [2D3D|CESIUM|CAMERA] invalid camera position, restoring last good state"
+                  "HOOK: [2D3D|CESIUM|CAMERA] invalid camera position, restoring last good state",
+                  isValidLocalPosition,
+                  camera.position,
+                  camera.positionCartographic,
+                  home,
+                  maxZoom
                 );
-
+                debugger;
                 // Restore camera position and orientation vectors
                 camera.setView({
                   destination: lastGoodCameraState.current.position,
@@ -122,8 +127,8 @@ export const useInitializeViewer = (
           }
         };
 
-        viewer.scene.postUpdate.addEventListener(handleValidCameraPosition);
-        preRenderHandlerMap.set(viewer, handleValidCameraPosition);
+        viewer.scene.preUpdate.addEventListener(handleValidCameraPosition);
+        preUpdateHandlerMap.set(viewer, handleValidCameraPosition);
 
         viewer.scene.postRender.addEventListener(handlePostRender);
         postRenderHandlerMap.set(viewer, handlePostRender);
@@ -135,19 +140,19 @@ export const useInitializeViewer = (
       if (viewerRef.current) {
         // cleanup listeners
         const handlePostRender = postRenderHandlerMap.get(viewerRef.current);
-        if (handlePostRender) {
+        if (handlePostRender && viewerRef.current.scene) {
           viewerRef.current.scene.postRender.removeEventListener(
             handlePostRender
           );
           postRenderHandlerMap.delete(viewerRef.current);
         }
 
-        const handlePreRender = preRenderHandlerMap.get(viewerRef.current);
-        if (handlePreRender) {
-          viewerRef.current.scene.preRender.removeEventListener(
-            handlePreRender
+        const handlePreUpdate = preUpdateHandlerMap.get(viewerRef.current);
+        if (handlePreUpdate && viewerRef.current.scene) {
+          viewerRef.current.scene.preUpdate.removeEventListener(
+            handlePreUpdate
           );
-          preRenderHandlerMap.delete(viewerRef.current);
+          preUpdateHandlerMap.delete(viewerRef.current);
         }
         console.info("RENDER: [CESIUM] CustomViewer cleanup destroy viewer");
         viewerRef.current.destroy();
