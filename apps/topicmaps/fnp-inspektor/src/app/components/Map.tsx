@@ -63,6 +63,7 @@ const { ScaleControl } = TransitiveReactLeaflet;
 
 const Map = () => {
   const searchMinZoom = 7;
+
   const baseURL = window.location.origin + window.location.pathname;
   const [boundingBox, setBoundingBox] = useState(null);
   const features = useSelector(getFeatureCollection);
@@ -72,6 +73,7 @@ const Map = () => {
   let { mode } = useParams();
   const navigate = useNavigate();
   let [searchParams, setSearchParams] = useSearchParams();
+  const zoom = searchParams.get("zoom");
   let aevVisible = searchParams.get("aevVisible") !== null;
   const dispatch = useDispatch();
   const aevFeatures = useSelector(getData);
@@ -355,9 +357,20 @@ const Map = () => {
           )}
           <Control position="bottomleft" order={10}>
             <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
-              <div className="custom-left-control">
+              <div
+                className="custom-left-control"
+                title={
+                  mode === "arbeitskarte"
+                    ? "Änderungsverfahren suchen"
+                    : undefined
+                }
+              >
                 {!isMobile && <CustomScaleControl marginBottom={15} />}
                 <FuzzySearchWrapper
+                  mapSearchAllowed={
+                    mode === "arbeitskarte" &&
+                    (zoom === null || Number(zoom) >= 12)
+                  }
                   mode={mapMode.mode}
                   searchTextPlaceholder={searchTextPlaceholder}
                   onIconClick={aevSearchButtonHit}

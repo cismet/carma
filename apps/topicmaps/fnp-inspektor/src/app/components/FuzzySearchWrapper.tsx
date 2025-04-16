@@ -21,12 +21,14 @@ interface FuzzySearchProps {
   mode: string;
   searchTextPlaceholder: string;
   onIconClick: () => void;
+  mapSearchAllowed: boolean;
 }
 
 const FuzzySearchWrapper = ({
   searchTextPlaceholder,
   mode,
   onIconClick,
+  mapSearchAllowed,
 }: FuzzySearchProps) => {
   const dispatch = useDispatch();
   let [searchParams, setSearchParams] = useSearchParams();
@@ -106,7 +108,7 @@ const FuzzySearchWrapper = ({
         pixelwidth={
           responsiveState === "normal" ? "300px" : windowSize.width - gap
         }
-        ifIconDisabled={false}
+        ifIconDisabled={!mapSearchAllowed}
         placeholder={searchTextPlaceholder}
         icon={searchIcon}
       />
