@@ -1,7 +1,6 @@
-import React, { useCallback, useRef, useState, useEffect } from "react";
+import { useCallback, useRef, useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { debounce } from "lodash";
-
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faRotateLeft,
@@ -26,7 +25,6 @@ import {
   sampleTerrainMostDetailed,
 } from "cesium";
 
-
 import {
   selectViewerIsMode2d,
   selectViewerIsTransitioning,
@@ -35,30 +33,32 @@ import {
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { useFeatureFlags } from "@carma-apps/portals";
 
+import { ObliqueFootprintLayer } from "./ObliqueFootprintLayer";
+import { ObliqueDebugSvg } from "./ObliqueDebugSvg";
+import { ObliqueImagePreview } from "./ObliqueImagePreview";
+import { ObliqueImageInfo } from "./ObliqueImageInfo";
+
 import { getObliqueMode, setObliqueMode } from "../../store/slices/ui";
+
 import { useObliqueDataContext } from "../hooks/useObliqueDataContext";
 import { useOrbitPoint } from "../hooks/useOrbitPoint";
 
-import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
-import { getPreviewImageUrl } from "../utils/imageHandling";
-import { ObliqueFootprintLayer } from "./ObliqueFootprintLayer";
-import { ObliqueDebugSvg } from "./ObliqueDebugSvg";
-import ObliqueImagePreview from "./ObliqueImagePreview";
-import { ObliqueImageInfo } from "./ObliqueImageInfo";
-
 import { resetCamera } from "../utils/cameraUtils";
+import { downloadAsBlobAsync } from "../utils/downloads";
+import { formatHeadingDegrees } from "../utils/formatters";
 import {
   CardinalDirectionEnum,
   findClosestCardinalIndex,
   getCardinalHeadings,
   getDirectionFromCartesian,
 } from "../utils/orientationUtils";
-
+import { getPreviewImageUrl } from "../utils/imageHandling";
 import {
   subscribeToPreviewVisibility,
   notifyPreviewVisibilityChange,
 } from "../utils/previewVisibility";
-import { formatHeadingDegrees } from "../utils/formatters";
+
+import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
 
 type ObliqueControlsProps = {
   /**
@@ -98,6 +98,22 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const preloadImageRef = useRef<ReturnType<typeof debounce> | null>(null);
 
   const orbitPoint = useOrbitPoint();
+
+  const previewUrl = nearestImage
+    ? getPreviewImageUrl(
+        previewPath,
+        previewQualityLevel,
+        nearestImage.record.id
+      )
+    : null;
+
+  const downloadUrl = nearestImage
+    ? getPreviewImageUrl(
+        previewPath,
+        OBLIQUE_PREVIEW_QUALITY.LEVEL_2,
+        nearestImage.record.id
+      )
+    : null;
 
   // Handle visibility changes when oblique mode toggles
   useEffect(() => {
@@ -239,39 +255,13 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   ]);
 
   const openImageLink = useCallback(() => {
-    if (!nearestImage || !previewPath) return;
-
-    const downloadUrl = getPreviewImageUrl(
-      previewPath,
-      OBLIQUE_PREVIEW_QUALITY.LEVEL_2,
-      nearestImage.record.id
-    );
     window.open(downloadUrl, "_blank");
-  }, [nearestImage, previewPath]);
+  }, [downloadUrl]);
 
-  const handleDirectDownload = useCallback(async () => {
-    if (!nearestImage || !previewPath) return;
-    const downloadUrl = getPreviewImageUrl(
-      previewPath,
-      OBLIQUE_PREVIEW_QUALITY.LEVEL_2,
-      nearestImage.record.id
-    );
-    try {
-      const response = await fetch(downloadUrl, { mode: "cors" });
-      if (!response.ok) throw new Error("Network response was not ok");
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      const filename =
-        downloadUrl.split("/").pop() || `oblique-image-${Date.now()}.jpg`;
-      const link = document.createElement("a");
-      link.href = blobUrl;
-      link.download = filename;
-      link.click();
-      window.URL.revokeObjectURL(blobUrl);
-    } catch (e) {
-      console.debug("Download failed", e);
-    }
-  }, [nearestImage, previewPath]);
+  const handleDirectDownload = useCallback(
+    () => downloadAsBlobAsync(downloadUrl),
+    [downloadUrl]
+  );
 
   // Update current heading and set up camera movement detection
   useEffect(() => {
@@ -352,17 +342,12 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   ]);
 
   useEffect(() => {
-    if (!nearestImage || !previewPath) return;
     if (preloadImageRef.current) {
       preloadImageRef.current.cancel();
     }
     preloadImageRef.current = debounce(() => {
       const img = new window.Image();
-      img.src = getPreviewImageUrl(
-        previewPath,
-        previewQualityLevel,
-        nearestImage.record.id
-      );
+      img.src = previewUrl;
     }, 500);
     preloadImageRef.current();
     return () => {
@@ -370,7 +355,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
         preloadImageRef.current.cancel();
       }
     };
-  }, [nearestImage, previewPath, previewQualityLevel]);
+  }, [previewUrl]);
 
   const rotateToDirection = useCallback(
     (targetDirection: CardinalDirectionEnum) => {
@@ -512,14 +497,9 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       {isDebugMode && nearestImage && (
         <ObliqueImageInfo imageRecord={nearestImage} />
       )}
-      {/* Image preview component */}
       {nearestImage && previewPath && nearestImage.record.id && (
         <ObliqueImagePreview
-          src={getPreviewImageUrl(
-            previewPath,
-            previewQualityLevel,
-            nearestImage.record.id
-          )}
+          src={previewUrl}
           alt={`Image preview ${nearestImage.record.id}`}
           isVisible={isPreviewVisible}
           onOpenImageLink={openImageLink}

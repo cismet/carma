@@ -88,7 +88,7 @@ const ButtonsContainer = styled.div`
   z-index: 1300;
 `;
 
-const ObliqueImagePreview: React.FC<ObliqueImagePreviewProps> = ({
+export const ObliqueImagePreview: React.FC<ObliqueImagePreviewProps> = ({
   src,
   alt,
   isVisible,
