@@ -207,7 +207,8 @@ export type AppState = {
   zoom?: number;
 };
 
+// todo: move to common types
 export type EncodedSceneParams = {
   hashParams: Record<string, string>;
-  state: SceneStateDescription;
+  state?: SceneStateDescription;
 };

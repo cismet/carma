@@ -1,10 +1,4 @@
-import {
-  Cartesian3,
-  Cartographic,
-  Viewer,
-  Math as CesiumMath,
-  Scene,
-} from "cesium";
+import { Math as CesiumMath, Scene } from "cesium";
 import {
   AppState,
   EncodedSceneParams,
@@ -57,6 +51,7 @@ export const hashcodecs = {
     decode: (value: string) => CesiumMath.toRadians(Number(value)),
     encode: (value: number) => formatRadians(value, CAMERA_DEGREE_DIGITS) % 360,
   },
+  /**
   zoom: {
     key: "zoom",
     decode: (value: string) => undefined,
@@ -67,6 +62,7 @@ export const hashcodecs = {
         )
       ),
   },
+  **/
   isSecondaryStyle: {
     key: "m",
     decode: (value: string) => value === "true" || value === "1",
@@ -84,17 +80,10 @@ export function encodeScene(
   scene: Scene,
   appState: AppState = {}
 ): EncodedSceneParams {
-  const { camera } = scene;
-  const { x, y, z } = camera.position;
+  const { positionCartographic, pitch, heading } = scene.camera;
+  const { longitude, latitude, height } = positionCartographic;
 
-  const { longitude, latitude, height } = Cartographic.fromCartesian(
-    new Cartesian3(x, y, z)
-  );
-
-  const heading = camera.heading;
-  const pitch = camera.pitch;
-
-  const { isSecondaryStyle, zoom, isMode2d } = appState;
+  const { isSecondaryStyle, isMode2d } = appState;
   // set param order here
   const hashParams = [
     longitude,
@@ -102,7 +91,6 @@ export function encodeScene(
     height,
     heading,
     pitch,
-    zoom,
     isSecondaryStyle,
     isMode2d,
   ].reduce((acc, value, index) => {
@@ -115,8 +103,6 @@ export function encodeScene(
     }
     return acc;
   }, {});
-  //console.debug('hashparams', hashparams);
-  //const hash = new URLSearchParams(hashParams).toString();
   return {
     hashParams,
     state: {
@@ -127,7 +113,6 @@ export function encodeScene(
         heading,
         pitch,
       },
-      zoom,
       isSecondaryStyle,
     },
   };

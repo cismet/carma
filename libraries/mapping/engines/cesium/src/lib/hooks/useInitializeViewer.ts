@@ -195,6 +195,8 @@ export const useInitializeViewer = (
       const { camera } = sceneFromHashParams;
       const { latitude, longitude, height, heading, pitch } = camera;
 
+      const restoredHeight = CesiumMath.clamp(height || 1000, 0, 50000);
+
       if (viewer.camera.frustum instanceof PerspectiveFrustum) {
         viewer.camera.frustum.fov = Math.PI / 4;
       }
@@ -224,7 +226,7 @@ export const useInitializeViewer = (
           const destination = Cartesian3.fromRadians(
             longitude,
             latitude,
-            height ?? 1000 // restore height if missing
+            restoredHeight
           );
 
           const isValidDestination = validateWorldCoordinate(
@@ -240,7 +242,7 @@ export const useInitializeViewer = (
               destination,
               longitude,
               latitude,
-              height
+              restoredHeight
             );
             viewer.camera.setView({
               destination,

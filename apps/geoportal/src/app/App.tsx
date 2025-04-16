@@ -71,6 +71,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "./index.css";
+import { setIsMode2d } from "@carma-mapping/cesium-engine";
 
 if (typeof global === "undefined") {
   window.global = window;
@@ -117,6 +118,15 @@ function App({ published }: { published?: boolean }) {
   useEffect(() => {
     if (searchParams.get("sync")) {
       setSyncToken(searchParams.get("sync"));
+    }
+
+    if (searchParams.has("is3d")) {
+      const is3d = searchParams.get("is3d");
+      if (is3d === "1" || is3d === "true") {
+        dispatch(setIsMode2d(false));
+      } else {
+        dispatch(setIsMode2d(true));
+      }
     }
 
     if (searchParams.get("config")) {

@@ -7,6 +7,7 @@ import { encodeScene } from "../utils/hashHelpers";
 import {
   selectShowSecondaryTileset,
   selectViewerIsMode2d,
+  selectViewerIsTransitioning,
 } from "../slices/cesium";
 
 import { EncodedSceneParams } from "../..";
@@ -18,6 +19,7 @@ export const useOnSceneChange = (
   const { viewerRef } = useCesiumContext();
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
   const isMode2d = useSelector(selectViewerIsMode2d);
+  const isTransitioning = useSelector(selectViewerIsTransitioning);
 
   // todo handle style change explicitly not via tileset, is secondarystyle
   // todo consider declaring changed part of state in the callback, not full state only
@@ -49,6 +51,10 @@ export const useOnSceneChange = (
   useEffect(() => {
     // update hash hook
     const viewer = viewerRef.current;
+    if (isTransitioning) {
+      return;
+    }
+
     if (viewer && viewer.scene) {
       console.debug(
         "HOOK: [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to update hash"
@@ -77,12 +83,14 @@ export const useOnSceneChange = (
       };
       viewer.scene.camera.moveEnd.addEventListener(moveEndListener);
       return () => {
+        // clear hash on unmount
+        onSceneChange && onSceneChange({hashParams: {}});
         viewer &&
           viewer.scene &&
           viewer.scene.camera.moveEnd.removeEventListener(moveEndListener);
       };
     }
-  }, [viewerRef, isSecondaryStyle, isMode2d, onSceneChange]);
+  }, [viewerRef, isSecondaryStyle, isMode2d, onSceneChange, isTransitioning]);
 };
 
 export default useOnSceneChange;
