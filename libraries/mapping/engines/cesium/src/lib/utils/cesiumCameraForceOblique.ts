@@ -55,8 +55,6 @@ export const cesiumCameraForceOblique = (
 
   // Only apply corrections if needed
   if (heightNeedsCorrection || pitchNeedsCorrection) {
-    debugger;
-    // Height correction with cubic easeInOut animation along the camera's view direction (zoom ray)
     const now = performance.now();
     let anim = cameraObliqueCorrectionStateMap.get(viewer);
 
