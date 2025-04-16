@@ -81,7 +81,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     previewQualityLevel,
     setLockFootprint,
   } = useObliqueDataContext();
-  const { viewer, terrainProviderRef } = useCesiumContext();
+  const { viewerRef, terrainProviderRef } = useCesiumContext();
   const flags = useFeatureFlags();
   const isDebugMode = flags.featureFlagDebugOblique;
   const animationInProgressRef = useRef<boolean>(false);
@@ -128,14 +128,14 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   }, [isObliqueMode]);
 
   useEffect(() => {
-    if (isTransitioning && !isMode2d) {
+    if (isTransitioning && !isMode2d && viewerRef.current) {
       console.debug(
         "ObliqueControls: Transitioning to 2D mode disabling oblique mode"
       );
       dispatch(setObliqueMode(false));
-      viewer?.scene.requestRender();
+      viewerRef.current.scene.requestRender();
     }
-  }, [isTransitioning, isMode2d, viewer, dispatch]);
+  }, [isTransitioning, isMode2d, viewerRef, dispatch]);
 
   // Subscribe to preview visibility changes from outside this component
   useEffect(() => {
@@ -149,15 +149,15 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
   // Create or update the orbit point entity
   const updateOrbitPointEntity = useCallback(() => {
-    if (!viewer || !orbitPoint || !isDebugMode) {
+    if (viewerRef.current || !orbitPoint || !isDebugMode) {
       if (orbitPointEntityRef.current) {
-        viewer.entities.remove(orbitPointEntityRef.current);
+        viewerRef.current.entities.remove(orbitPointEntityRef.current);
         orbitPointEntityRef.current = null;
       }
       return;
     }
     if (!orbitPointEntityRef.current) {
-      orbitPointEntityRef.current = viewer.entities.add({
+      orbitPointEntityRef.current = viewerRef.current.entities.add({
         position: new ConstantPositionProperty(orbitPoint),
         point: {
           pixelSize: 10,
@@ -172,18 +172,19 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
         orbitPoint
       );
     }
-  }, [viewer, isDebugMode, orbitPoint]);
+  }, [viewerRef, isDebugMode, orbitPoint]);
 
   // Remove orbit point entity when component unmounts
   useEffect(() => {
     const currentOrbitPointEntity = orbitPointEntityRef.current;
+    const viewer = viewerRef.current;
 
     return () => {
       if (viewer && currentOrbitPointEntity) {
         viewer.entities.remove(currentOrbitPointEntity);
       }
     };
-  }, [viewer]);
+  }, [viewerRef]);
 
   const flyToNearestImage = useCallback(async () => {
     if (isPreviewVisible) {
@@ -191,6 +192,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       notifyPreviewVisibilityChange(false);
       return;
     }
+
+    const viewer = viewerRef.current;
 
     if (!viewer || !nearestImage) return;
 
@@ -247,7 +250,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       },
     });
   }, [
-    viewer,
+    viewerRef,
     terrainProviderRef,
     nearestImage,
     isPreviewVisible,
@@ -265,6 +268,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
   // Update current heading and set up camera movement detection
   useEffect(() => {
+    const viewer = viewerRef.current;
     if (!viewer || !isObliqueMode) return;
 
     const camera = viewer.camera;
@@ -333,7 +337,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       inputHandler.destroy();
     };
   }, [
-    viewer,
+    viewerRef,
     isObliqueMode,
     headingOffset,
     updateOrbitPointEntity,
@@ -359,6 +363,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
   const rotateToDirection = useCallback(
     (targetDirection: CardinalDirectionEnum) => {
+      const viewer = viewerRef.current;
       if (!viewer || animationInProgressRef.current) return;
 
       const camera = viewer.camera;
@@ -443,11 +448,12 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
         scene.preUpdate.removeEventListener(onPreUpdate);
       };
     },
-    [viewer, headingOffset, updateOrbitPointEntity, orbitPoint, isDebugMode]
+    [viewerRef, headingOffset, updateOrbitPointEntity, orbitPoint, isDebugMode]
   );
 
   const rotateCamera = useCallback(
     (clockwise: boolean) => {
+      const viewer = viewerRef.current;
       if (!viewer || animationInProgressRef.current) return;
 
       const camera = viewer.camera;
@@ -465,7 +471,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
       rotateToDirection(nextCardinalIndex);
     },
-    [viewer, headingOffset, rotateToDirection]
+    [viewerRef, headingOffset, rotateToDirection]
   );
 
   if (!shouldRender || isMode2d) {

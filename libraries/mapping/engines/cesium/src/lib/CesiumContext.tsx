@@ -10,7 +10,6 @@ import {
 import { ViewerAnimationMap } from "./utils/viewerAnimationMap";
 
 export interface CesiumContextType {
-  viewer?: Viewer;
   viewerRef: MutableRefObject<Viewer | null>;
   viewerAnimationMapRef: MutableRefObject<ViewerAnimationMap | null>;
   terrainProviderRef: MutableRefObject<CesiumTerrainProvider | null>;
@@ -21,7 +20,8 @@ export interface CesiumContextType {
     primaryRef: MutableRefObject<Cesium3DTileset | null>;
     secondaryRef: MutableRefObject<Cesium3DTileset | null>;
   };
-  setViewer: (viewer?: Viewer) => void;
+  isViewerReady: boolean;
+  setIsViewerReady: (flag: boolean) => void;
 }
 
 export const CesiumContext = createContext<CesiumContextType | null>(null);

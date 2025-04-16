@@ -30,8 +30,6 @@ export const CesiumContextProvider = ({
   providerConfig: ProviderConfig;
   tilesetConfigs: TilesetConfigs;
 }) => {
-  // use viewer directly to trigger rerenders;
-  const [viewer, setViewer] = useState<Viewer | undefined>(undefined);
   // Use refs for Cesium instances to prevent re-renders
   const viewerRef = useRef<Viewer | null>(null);
   const viewerAnimationMapRef = useRef<ViewerAnimationMap | null>(
@@ -44,6 +42,9 @@ export const CesiumContextProvider = ({
 
   const primaryTilesetRef = useRef<Cesium3DTileset | null>(null);
   const secondaryTilesetRef = useRef<Cesium3DTileset | null>(null);
+
+  // explicitly trigger re-renders
+  const [isViewerReady, setIsViewerReady] = useState<boolean>(false);
 
   // Asynchronous initialization of providers and imageryLayer
   useEffect(() => {
@@ -156,8 +157,6 @@ export const CesiumContextProvider = ({
 
   const contextValue = useMemo<CesiumContextType>(
     () => ({
-      viewer,
-      setViewer,
       viewerRef,
       viewerAnimationMapRef,
       ellipsoidTerrainProviderRef,
@@ -168,8 +167,10 @@ export const CesiumContextProvider = ({
         primaryRef: primaryTilesetRef,
         secondaryRef: secondaryTilesetRef,
       },
+      isViewerReady,
+      setIsViewerReady,
     }),
-    [viewer]
+    [isViewerReady]
   );
 
   console.debug("CesiumContextProvider Initialized", contextValue);

@@ -24,11 +24,13 @@ import { decodeSceneFromLocation } from "../utils/hashHelpers";
 
 import { useCesiumContext } from "./useCesiumContext";
 
+const postRenderHandlerMap: WeakMap<Viewer, () => void> = new WeakMap();
+
 export const useInitializeViewer = (
   containerRef?: React.RefObject<HTMLDivElement>,
   options?: Viewer.ConstructorOptions
 ) => {
-  const { viewerRef, setViewer } = useCesiumContext();
+  const { viewerRef, setIsViewerReady } = useCesiumContext();
   const home = useSelector(selectViewerHome);
   const homeOffset = useSelector(selectViewerHomeOffset);
 
@@ -38,7 +40,6 @@ export const useInitializeViewer = (
   const previousIsMode2d = useRef<boolean | null>(null);
   const previousIsSecondaryStyle = useRef<boolean | null>(null);
 
-  //const location = useLocation();
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
   const minZoom = useSelector(
     selectScreenSpaceCameraControllerMinimumZoomDistance
@@ -58,32 +59,42 @@ export const useInitializeViewer = (
     console.debug("HOOK: [CESIUM] init CustomViewer");
     if (containerRef?.current) {
       try {
-        viewerRef.current = new Viewer(containerRef.current, options);
-        setViewer(viewerRef.current);
-        /*
-        // make cesium added containers transparent
-        const container = viewerRef.current.container;
-        const cesiumViewer = container.children[0] as HTMLElement;
-        const cesiumViewerCesiumWidgetContainer = cesiumViewer
-          .children[0] as HTMLElement;
-        const cesiumWidget = cesiumViewerCesiumWidgetContainer
-          .children[0] as HTMLElement;
-        cesiumViewer.style.backgroundColor = "transparent";
-        cesiumViewerCesiumWidgetContainer.style.backgroundColor = "transparent";
-        cesiumWidget.style.backgroundColor = "transparent";
-        */
+        const viewer = new Viewer(containerRef.current, options);
+        viewerRef.current = viewer;
+
+        const handlePostRender = () => {
+          if (
+            viewerRef.current &&
+            !viewerRef.current.isDestroyed() &&
+            viewerRef.current.canvas.width > 0 &&
+            viewerRef.current.canvas.height > 0
+          ) {
+            setIsViewerReady(true);
+            viewer.scene.postRender.removeEventListener(handlePostRender);
+            postRenderHandlerMap.delete(viewer);
+          }
+        };
+        viewer.scene.postRender.addEventListener(handlePostRender);
+        postRenderHandlerMap.set(viewer, handlePostRender);
       } catch (error) {
         console.error("Error initializing viewer:", error);
       }
     }
     return () => {
       if (viewerRef.current) {
+        const handlePostRender = postRenderHandlerMap.get(viewerRef.current);
+        if (handlePostRender) {
+          viewerRef.current.scene.postRender.removeEventListener(
+            handlePostRender
+          );
+          postRenderHandlerMap.delete(viewerRef.current);
+        }
         console.info("RENDER: [CESIUM] CustomViewer cleanup destroy viewer");
-        //viewerRef.current.destroy();
-        //viewerRef.current = null;
+        viewerRef.current.destroy();
+        viewerRef.current = null;
       }
     };
-  }, [options, containerRef, viewerRef, setViewer]);
+  }, [options, containerRef, viewerRef, setIsViewerReady]);
 
   useEffect(() => {
     console.debug("HOOK: useInitializeViewer useEffect terrain");
