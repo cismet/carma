@@ -4,7 +4,9 @@ import { useSelector } from "react-redux";
 import {
   BoundingSphere,
   Cartesian3,
+  Cartographic,
   Math as CesiumMath,
+  Matrix4,
   PerspectiveFrustum,
   Scene,
   ScreenSpaceCameraController,
@@ -24,13 +26,14 @@ import {
 } from "../slices/cesium";
 
 import { decodeSceneFromLocation } from "../utils/hashHelpers";
-import { validateLocalPosition } from "../utils/positions";
+import { validateWorldCoordinate } from "../utils/positions";
 
 // Type for storing position and orientation
 interface CameraState {
   position: Cartesian3;
   direction: Cartesian3;
   up: Cartesian3;
+  postionCartographic?: Cartographic;
 }
 
 const postRenderHandlerMap: WeakMap<Viewer, () => void> = new WeakMap();
@@ -90,31 +93,30 @@ export const useInitializeViewer = (
         const handleValidCameraPosition = () => {
           if (viewerRef.current && viewerRef.current.camera && home) {
             const camera = viewerRef.current.camera;
-            const isValidLocalPosition = validateLocalPosition(
-              camera.position,
+            const isValidWorldCoordinate = validateWorldCoordinate(
+              camera,
               home,
-              maxZoom,
-              0
+              maxZoom
             );
-            if (isValidLocalPosition) {
+            if (isValidWorldCoordinate) {
               // Save the camera position and orientation vectors
               lastGoodCameraState.current = {
-                position: camera.position.clone(),
-                direction: camera.direction.clone(),
-                up: camera.up.clone(),
+                position: camera.positionWC.clone(),
+                direction: camera.directionWC.clone(),
+                up: camera.upWC.clone(),
+                postionCartographic: camera.positionCartographic.clone(),
               };
             } else {
               if (lastGoodCameraState.current) {
                 console.warn(
                   "HOOK: [2D3D|CESIUM|CAMERA] invalid camera position, restoring last good state",
-                  isValidLocalPosition,
+                  isValidWorldCoordinate,
                   camera.position,
                   camera.positionCartographic,
-                  home,
-                  maxZoom
+                  lastGoodCameraState.current
                 );
-                debugger;
                 // Restore camera position and orientation vectors
+                camera.lookAtTransform(Matrix4.IDENTITY);
                 camera.setView({
                   destination: lastGoodCameraState.current.position,
                   orientation: {
@@ -225,7 +227,7 @@ export const useInitializeViewer = (
             height ?? 1000 // restore height if missing
           );
 
-          const isValidDestination = validateLocalPosition(
+          const isValidDestination = validateWorldCoordinate(
             destination,
             home,
             maxZoom,

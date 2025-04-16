@@ -127,14 +127,16 @@ export const getPositionWithHeightAsync = async (
   }
 };
 
-export const validateLocalPosition = (
-  testPosition: Cartesian3,
+export const validateWorldCoordinate = (
+  testPosition: Cartesian3 | Camera,
   center: Cartesian3,
   range: number = 50000,
   minHeight: number = 0
 ): boolean => {
+  const wc =
+    testPosition instanceof Camera ? testPosition.positionWC : testPosition;
   return (
-    Cartesian3.distance(testPosition, center) <= range &&
-    Cartographic.fromCartesian(testPosition).height >= minHeight
+    Cartesian3.distance(wc, center) <= range &&
+    Cartographic.fromCartesian(wc).height >= minHeight
   );
 };
