@@ -126,17 +126,14 @@ const FeatureInfobox = ({ selectedFeature }: InfoboxProps) => {
         }
         noCurrentFeatureContent=""
         secondaryInfoBoxElements={
-          selectedFeature?.properties.foto ||
-          selectedFeature?.properties.fotos ? (
-            [
-              <InfoBoxFotoPreview
-                currentFeature={selectedFeature}
-                lightBoxDispatchContext={lightBoxDispatchContext}
-              />,
-            ]
-          ) : (
-            <></>
-          )
+          selectedFeature?.properties.foto || selectedFeature?.properties.fotos
+            ? [
+                <InfoBoxFotoPreview
+                  currentFeature={selectedFeature}
+                  lightBoxDispatchContext={lightBoxDispatchContext}
+                />,
+              ]
+            : []
         }
         links={links}
       />
