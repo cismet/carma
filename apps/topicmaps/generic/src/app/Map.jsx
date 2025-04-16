@@ -164,10 +164,10 @@ const Map = ({ config, featureGazData = [] }) => {
           />
         ) : (
           <>
-            <TopicMapSelectionContent />
             <FeatureCollection />
           </>
         )}
+        <TopicMapSelectionContent />
       </TopicMapComponent>
     </>
   );
