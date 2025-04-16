@@ -30,7 +30,7 @@
     "applicationMenuSkipClusteringSettings": true,
     "applicationMenuSkipSymbolsizeSetting": true,
     "minZoom": 5,
-    "maxZoom": 19,
+    "maxZoom": 22,
     "addGazetteerElementsPerFeature": true,
     "defaultLayerConf": null,
     "namedLayers": {
