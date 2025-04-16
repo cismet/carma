@@ -312,13 +312,21 @@
           "dev": {
             "pages": {
               "org": "carma-dev-playground-deployments",
-              "prj": "generic-topicmap"
+              "prj": "generic-topicmap",
+              "envs": [
+                "VITE_GTM_CONFIGSERVER=https://carma-dev-deployments.github.io/topicmaps-bplan-auskunft-wuppertal/",
+                "VITE_GTM_CONFIG_PATH=/dev/"
+              ]
             }
           },
           "live": {
             "pages": {
               "org": "carma-dev-playground-deployments",
-              "prj": "generic-topicmap"
+              "prj": "generic-topicmap",
+              "envs": [
+                "VITE_GTM_CONFIGSERVER=https://carma-dev-deployments.github.io/topicmaps-bplan-auskunft-wuppertal/",
+                "VITE_GTM_CONFIG_PATH=/dev/"
+              ]
             }
           }
         },
@@ -326,7 +334,11 @@
           "dev": {
             "pages": {
               "org": "carma-dev-playground-deployments",
-              "prj": "generic-topicmap"
+              "prj": "generic-topicmap",
+              "envs": [
+                "VITE_GTM_CONFIGSERVER=https://carma-dev-deployments.github.io/topicmaps-bplan-auskunft-wuppertal/",
+                "VITE_GTM_CONFIG_PATH=/dev/"
+              ]
             }
           }
         }

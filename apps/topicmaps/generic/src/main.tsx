@@ -44,10 +44,7 @@ function AppWrapper() {
   //set the window title to the name param but replace the underscores with spaces
   document.title = name.split("_").join(" ");
 
-  return (
-    // <App name={name} configServer="http://localhost:3000" configPath="/" />
-    <App name={name} />
-  );
+  return <App name={name} />;
 }
 
 root.render(

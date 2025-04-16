@@ -54,15 +54,10 @@ async function getMarkdown(slugName, configType, server, path) {
   }
 }
 
-function App({
-  name,
-  // configPath = "/", //"/dev/",
-  // configServer = "http://localhost:3000", //
-  // configPath = "/dev/",
-  // configServer = "https://raw.githubusercontent.com/cismet/wupp-generic-topic-map-config", //"https://raw.githubusercontent.com/cismet/wupp-generic-topic-map-config",
-  configPath = "/dev/",
-  configServer = "http://localhost:4200",
-}) {
+function App({ name }) {
+  const configServer = import.meta.env.VITE_GTM_CONFIGSERVER || ""; //uses the local server when no ENV is set
+  const configPath = import.meta.env.VITE_GTM_CONFIG_PATH || "/dev/"; //uses the dev folder in public to debug local stuff when no ENV is set
+
   const [initialized, setInitialized] = useState(false);
   const [config, setConfig] = useState({});
   const [featureGazData, setFeatureGazData] = useState([]);
@@ -153,10 +148,7 @@ function App({
       //Backwards conmpatibility
       config.tm.gazetteerSearchPlaceholder =
         config.tm.gazetteerSearchBoxPlaceholdertext;
-      // const gazData = await getGazData(
-      //   config.tm.gazetteerTopicsList,
-      //   config?.tm?.srs
-      // );
+
       const featureGaz = [];
 
       if (
@@ -195,7 +187,7 @@ function App({
 
   if (initialized === true) {
     const refConfig = {};
-    if (config?.tm?.srs === 3857) {
+    if (config?.tm?.srs || 3857 === 3857) {
       //this is default, so no config is needed
     } else if (config?.tm?.srs === 25832) {
       refConfig.referenceSystemDefinition = MappingConstants.proj4crs25832def;
@@ -210,30 +202,34 @@ function App({
       }
     }
 
+    const cpConfig = {};
+    if (config.skipFeatures !== true) {
+      cpConfig.featureTooltipFunction = (feature) =>
+        feature?.properties?.hoverString || feature?.text;
+
+      cpConfig.getFeatureStyler = getGTMFeatureStyler;
+      cpConfig.getColorFromProperties = getColorFromProperties;
+      cpConfig.clusteringEnabled = config?.tm?.clusteringEnabled;
+      cpConfig.clusteringOptions = {
+        iconCreateFunction: getClusterIconCreatorFunction(
+          30,
+          (props) => props.color
+        ),
+        ...config.tm.clusterOptions,
+      };
+      cpConfig.items = config.features;
+    }
+
     return (
       <GazDataProvider config={gazDataConfig}>
         <SelectionProvider>
           <TopicMapContextProvider
             {...refConfig}
+            {...cpConfig}
             baseLayerConf={baseLayerConf}
             backgroundConfigurations={config?.tm?.backgroundConfigurations}
             backgroundModes={config?.tm?.backgroundModes}
-            featureTooltipFunction={(feature) =>
-              feature?.properties?.hoverString || feature?.text
-            }
-            appKey="GenericTopicMap.Playground" // todo
-            //items={config.features} //todo
-            getFeatureStyler={getGTMFeatureStyler} //todo
-            getColorFromProperties={getColorFromProperties} //todo
-            clusteringEnabled={config?.tm?.clusteringEnabled} //todo
-            clusteringOptions={{
-              iconCreateFunction: getClusterIconCreatorFunction(
-                30,
-                (props) => props.color
-              ),
-              ...config.tm.clusterOptions,
-            }} // todo
-            // modalMenu={<Gen}
+            appKey="GenericTopicMap"
           >
             <Map config={config} featureGazData={featureGazData || []} />
           </TopicMapContextProvider>
