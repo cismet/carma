@@ -11,6 +11,8 @@ import {
   Viewer,
 } from "cesium";
 
+import { useCesiumContext } from "./useCesiumContext";
+
 import {
   selectScreenSpaceCameraControllerMaximumZoomDistance,
   selectScreenSpaceCameraControllerMinimumZoomDistance,
@@ -20,12 +22,19 @@ import {
   selectViewerHome,
   selectViewerHomeOffset,
 } from "../slices/cesium";
-import { decodeSceneFromLocation } from "../utils/hashHelpers";
 
-import { useCesiumContext } from "./useCesiumContext";
-import { isValidLocalPosition } from "../utils/positions";
+import { decodeSceneFromLocation } from "../utils/hashHelpers";
+import { validateLocalPosition } from "../utils/positions";
+
+// Type for storing position and orientation
+interface CameraState {
+  position: Cartesian3;
+  direction: Cartesian3;
+  up: Cartesian3;
+}
 
 const postRenderHandlerMap: WeakMap<Viewer, () => void> = new WeakMap();
+const preRenderHandlerMap: WeakMap<Viewer, () => void> = new WeakMap();
 
 export const useInitializeViewer = (
   containerRef?: React.RefObject<HTMLDivElement>,
@@ -40,6 +49,8 @@ export const useInitializeViewer = (
 
   const previousIsMode2d = useRef<boolean | null>(null);
   const previousIsSecondaryStyle = useRef<boolean | null>(null);
+  // Store camera position and orientation vectors
+  const lastGoodCameraState = useRef<CameraState | null>(null);
 
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
   const minZoom = useSelector(
@@ -75,6 +86,45 @@ export const useInitializeViewer = (
             postRenderHandlerMap.delete(viewer);
           }
         };
+
+        const handleValidCameraPosition = () => {
+          if (viewerRef.current && viewerRef.current.camera && home) {
+            const camera = viewerRef.current.camera;
+            const isValidLocalPosition = validateLocalPosition(
+              camera.position,
+              home,
+              maxZoom,
+              0
+            );
+            if (isValidLocalPosition) {
+              // Save the camera position and orientation vectors
+              lastGoodCameraState.current = {
+                position: camera.position.clone(),
+                direction: camera.direction.clone(),
+                up: camera.up.clone(),
+              };
+            } else {
+              if (lastGoodCameraState.current) {
+                console.warn(
+                  "HOOK: [2D3D|CESIUM|CAMERA] invalid camera position, restoring last good state"
+                );
+
+                // Restore camera position and orientation vectors
+                camera.setView({
+                  destination: lastGoodCameraState.current.position,
+                  orientation: {
+                    direction: lastGoodCameraState.current.direction,
+                    up: lastGoodCameraState.current.up,
+                  },
+                });
+              }
+            }
+          }
+        };
+
+        viewer.scene.postUpdate.addEventListener(handleValidCameraPosition);
+        preRenderHandlerMap.set(viewer, handleValidCameraPosition);
+
         viewer.scene.postRender.addEventListener(handlePostRender);
         postRenderHandlerMap.set(viewer, handlePostRender);
       } catch (error) {
@@ -83,6 +133,7 @@ export const useInitializeViewer = (
     }
     return () => {
       if (viewerRef.current) {
+        // cleanup listeners
         const handlePostRender = postRenderHandlerMap.get(viewerRef.current);
         if (handlePostRender) {
           viewerRef.current.scene.postRender.removeEventListener(
@@ -90,12 +141,20 @@ export const useInitializeViewer = (
           );
           postRenderHandlerMap.delete(viewerRef.current);
         }
+
+        const handlePreRender = preRenderHandlerMap.get(viewerRef.current);
+        if (handlePreRender) {
+          viewerRef.current.scene.preRender.removeEventListener(
+            handlePreRender
+          );
+          preRenderHandlerMap.delete(viewerRef.current);
+        }
         console.info("RENDER: [CESIUM] CustomViewer cleanup destroy viewer");
         viewerRef.current.destroy();
         viewerRef.current = null;
       }
     };
-  }, [options, containerRef, viewerRef, setIsViewerReady]);
+  }, [options, containerRef, viewerRef, home, maxZoom, setIsViewerReady]);
 
   useEffect(() => {
     console.debug("HOOK: useInitializeViewer useEffect terrain");
@@ -133,6 +192,20 @@ export const useInitializeViewer = (
         viewer.camera.frustum.fov = Math.PI / 4;
       }
 
+      if (!home || !homeOffset) {
+        console.warn(
+          "HOOK: [2D3D|CESIUM|CAMERA] initViewer has no home or homeOffset set, please provide them"
+        );
+        return;
+      }
+
+      const resetToHome = () => {
+        viewer.camera.lookAt(home, homeOffset);
+        viewer.camera.flyToBoundingSphere(new BoundingSphere(home, 500), {
+          duration: 2,
+        });
+      };
+
       // TODO enable 2D Mode if zoom value is present in hash on startup
 
       if (isMode2d) {
@@ -140,40 +213,49 @@ export const useInitializeViewer = (
           "HOOK: skipping cesium location setup with 2d mode active zoom"
         );
       } else {
-        if (sceneFromHashParams && longitude && latitude && home) {
-          console.debug(
-            "HOOK [2D3D|CESIUM|CAMERA] init Viewer set camera from hash zoom",
-            height
-          );
-
+        if (sceneFromHashParams && longitude && latitude) {
           const destination = Cartesian3.fromRadians(
             longitude,
             latitude,
             height ?? 1000 // restore height if missing
           );
 
-          isValidLocalPosition(destination, home, maxZoom, 0);
-
-          viewer.camera.setView({
+          const isValidDestination = validateLocalPosition(
             destination,
-            orientation: {
-              heading: heading ?? 0,
-              pitch: pitch ?? -CesiumMath.PI_OVER_TWO,
-            },
-          });
-        } else if (home && homeOffset) {
-          console.debug(
-            "HOOK: [2D3D|CESIUM|CAMERA] initViewer no hash, using home zoom",
-            home
+            home,
+            maxZoom,
+            0
           );
-          viewer.camera.lookAt(home, homeOffset);
-          viewer.camera.flyToBoundingSphere(new BoundingSphere(home, 500), {
-            duration: 2,
-          });
-          // triggers url hash update on moveend
-        } else {
-          console.debug("HOOK: initViewer no hash, no home, no zoom");
+
+          if (isValidDestination) {
+            console.debug(
+              "HOOK [2D3D|CESIUM|CAMERA] init Viewer set camera from hash",
+              destination,
+              longitude,
+              latitude,
+              height
+            );
+            viewer.camera.setView({
+              destination,
+              orientation: {
+                heading: heading ?? 0,
+                pitch: pitch ?? -CesiumMath.PI_OVER_TWO,
+              },
+            });
+            return;
+          } else {
+            console.warn(
+              "invalid camera position restored, using default as fallback",
+              destination,
+              home
+            );
+          }
         }
+        console.info(
+          "Cesium Viewer initialized with default home position",
+          home
+        );
+        resetToHome();
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

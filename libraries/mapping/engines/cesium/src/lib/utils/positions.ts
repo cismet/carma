@@ -127,7 +127,7 @@ export const getPositionWithHeightAsync = async (
   }
 };
 
-export const isValidLocalPosition = (
+export const validateLocalPosition = (
   testPosition: Cartesian3,
   center: Cartesian3,
   range: number = 50000,
