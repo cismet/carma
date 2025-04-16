@@ -1,16 +1,5 @@
-Als Mitglied der Wasserstoff-Kompetenzregion *Düssel.Rhein.Wupper* treibt die Stadt Wuppertal 
-die Wasserstoff-Mobilität im öffentlichen Sektor voran. Die Kompetenzregion mit den weiteren 
-Städten Düsseldorf und Duisburg, dem Rhein-Kreis Neuss und den Unternehmen Wuppertaler Stadtwerke (WSW), 
-Stadtwerke Düsseldorf und Air Liquide ist Sieger des in 2018 gestarteten Landeswettbewerbs "Modellkommune/-region Wasserstoffmobilität NRW". 
-Das prämierte Konzept der Kompetenzregion basiert auf einer von den WSW und der Abfallwirtschaftsgesellschaft Wuppertal (AWG) 
-entwickelten geschlossenen Wertschöpfungskette, in der Wasserstoff lokal im AWG-Müllheizkraftwerk Korzert produziert 
-und in der Wasserstoff-Busflotte der WSW genutzt wird.
+Als Beitrag zur nachhaltigen Stadtentwicklung und zur Anpassung an den Klimawandel baut die Stadt Wuppertal die öffentliche Trinkwasserversorgung im Stadtraum aus. Mit einer digitalen Übersichtskarte macht die Stadt die Standorte von öffentlichen Trinkwasserbrunnen sowie Trinkwasserzugängen in ausgewählten öffentlichen Gebäuden leicht auffindbar. Die Karte wurde gemeinsam vom Ressort Klima und Nachhaltigkeit sowie dem Ressort Vermessung, Katographie und Geodaten entwickelt.
 
-Im privaten Sektor ist die Verfügbarkeit von Wasserstofftankstellen für Brennstoffzellenfahrzeuge entscheidend 
-für den Ausbau der Wasserstoff-Mobilität. Solche Tankstellen halten flüssigen oder komprimiert 
-gasförmigen Wasserstoff in ihren Tanks bereit. Die Region Rhein-Ruhr gehört neben Hamburg, Berlin, Frankfurt, 
-Nürnberg, Stuttgart und München zu den sieben Schwerpunktregionen Deutschlands, in denen eine 
-flächendeckende Wasserstoff-Infrastruktur aufgebaut werden soll. Zusätzlich sollen Wasserstofftankstellen 
-entlang der verbindenden Autobahnen und Fernstraßen entstehen. Auch wenn es Stand 11/2020 erst eine 
-Wasserstofftankstelle in Wuppertal gibt, ist also damit zu rechnen, dass recht kurzfristig 
-weitere Wasserstofftankstellen entstehen werden.
+Die Karte zeigt nicht nur den Standort der einzelnen Trinkwasserstellen, sondern stellt auch ergänzende Informationen bereit, wie z. B. Hinweise zur Barrierefreiheit, Fotos zur besseren Orientierung sowie aktuelle Meldungen zu Wartungsarbeiten. Die öffentliche Bereitstellung von Trinkwasser trägt dazu bei, Bürgerinnen und Bürger an heißen Tagen zu entlasten, Hitzevorsorge zu betreiben und gleichzeitig den nachhaltigen Umgang mit Ressourcen zu fördern.
+
+Das Projekt ist Teil der städtischen Maßnahmen zur Klimaanpassung und dient insbesondere dem Schutz vulnerabler Gruppen im öffentlichen Raum. Trinkwasser aus öffentlichen Brunnen ist in Deutschland ein sicheres, streng kontrolliertes Lebensmittel und bietet eine gesunde, umweltfreundliche Alternative zu abgefülltem Wasser. Die Stadt Wuppertal leistet damit einen wichtigen Beitrag zur Lebensqualität und zur Förderung der öffentlichen Gesundheit.

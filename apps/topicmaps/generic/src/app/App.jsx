@@ -73,7 +73,6 @@ function App({
       const server = configServer;
       const slugName = slugify(name, { lower: true });
       const config = await getConfig(slugName, "config", server, path);
-      console.log("xxx config: loaded ", config.tm, config.skipFeature);
       if (config.tm.skipFeatures !== true) {
         config.featureDefaultProperties = await getConfig(
           slugName,
@@ -107,7 +106,6 @@ function App({
           fc.push(ef);
         }
         config.features = fc;
-        config.info.city = config.city;
       }
 
       config.helpTextBlocks = await getConfig(
@@ -149,6 +147,7 @@ function App({
 
       if (config.infoBoxConfig !== undefined) {
         config.info = config.infoBoxConfig;
+        config.info.city = config.city;
       }
 
       //Backwards conmpatibility
@@ -222,18 +221,19 @@ function App({
             featureTooltipFunction={(feature) =>
               feature?.properties?.hoverString || feature?.text
             }
-            appKey="GenericTopicMap.Playground"
-            //items={config.features}
-            getFeatureStyler={getGTMFeatureStyler}
-            getColorFromProperties={getColorFromProperties}
-            clusteringEnabled={config?.tm?.clusteringEnabled}
+            appKey="GenericTopicMap.Playground" // todo
+            //items={config.features} //todo
+            getFeatureStyler={getGTMFeatureStyler} //todo
+            getColorFromProperties={getColorFromProperties} //todo
+            clusteringEnabled={config?.tm?.clusteringEnabled} //todo
             clusteringOptions={{
               iconCreateFunction: getClusterIconCreatorFunction(
                 30,
                 (props) => props.color
               ),
               ...config.tm.clusterOptions,
-            }}
+            }} // todo
+            // modalMenu={<Gen}
           >
             <Map config={config} featureGazData={featureGazData} />
           </TopicMapContextProvider>
