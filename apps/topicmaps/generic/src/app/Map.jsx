@@ -80,7 +80,7 @@ const Map = ({ config, featureGazData = [] }) => {
           </Control>
           <Control position="bottomleft" order={10}>
             <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
-              <FuzzySearchWrapper featureGazData={featureGazData} />≈{" "}
+              <FuzzySearchWrapper featureGazData={featureGazData} />
             </div>
           </Control>
         </ControlLayout>
