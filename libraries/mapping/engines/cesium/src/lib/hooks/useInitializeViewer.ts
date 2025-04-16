@@ -23,6 +23,7 @@ import {
 import { decodeSceneFromLocation } from "../utils/hashHelpers";
 
 import { useCesiumContext } from "./useCesiumContext";
+import { isValidLocalPosition } from "../utils/positions";
 
 const postRenderHandlerMap: WeakMap<Viewer, () => void> = new WeakMap();
 
@@ -139,17 +140,22 @@ export const useInitializeViewer = (
           "HOOK: skipping cesium location setup with 2d mode active zoom"
         );
       } else {
-        if (sceneFromHashParams && longitude && latitude) {
+        if (sceneFromHashParams && longitude && latitude && home) {
           console.debug(
             "HOOK [2D3D|CESIUM|CAMERA] init Viewer set camera from hash zoom",
             height
           );
+
+          const destination = Cartesian3.fromRadians(
+            longitude,
+            latitude,
+            height ?? 1000 // restore height if missing
+          );
+
+          isValidLocalPosition(destination, home, maxZoom, 0);
+
           viewer.camera.setView({
-            destination: Cartesian3.fromRadians(
-              longitude,
-              latitude,
-              height ?? 1000 // restore height if missing
-            ),
+            destination,
             orientation: {
               heading: heading ?? 0,
               pitch: pitch ?? -CesiumMath.PI_OVER_TWO,

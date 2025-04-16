@@ -1,5 +1,6 @@
 import {
   Camera,
+  Cartesian3,
   Cartographic,
   HeadingPitchRange,
   sampleTerrainMostDetailed,
@@ -124,4 +125,16 @@ export const getPositionWithHeightAsync = async (
       return position;
     }
   }
+};
+
+export const isValidLocalPosition = (
+  testPosition: Cartesian3,
+  center: Cartesian3,
+  range: number = 50000,
+  minHeight: number = 0
+): boolean => {
+  return (
+    Cartesian3.distance(testPosition, center) <= range &&
+    Cartographic.fromCartesian(testPosition).height >= minHeight
+  );
 };
