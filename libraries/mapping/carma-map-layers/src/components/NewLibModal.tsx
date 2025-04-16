@@ -848,7 +848,7 @@ export const NewLibModal = ({
           style={{ height: "calc(100vh - 188px)" }}
         >
           <div className="flex flex-col w-full items-center gap-2 overflow-y-auto overflow-x-hidden">
-            <div className="h-24"></div>
+            <div className="h-8 sm:h-24"></div>
             {sidebarElements.map((element, i) => {
               return (
                 <SidebarItem
