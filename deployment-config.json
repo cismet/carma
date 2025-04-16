@@ -314,7 +314,7 @@
               "org": "carma-dev-playground-deployments",
               "prj": "generic-topicmap",
               "envs": [
-                "VITE_GTM_CONFIGSERVER=ttps://raw.githubusercontent.com/cismet/wupp-generic-topic-map-config",
+                "VITE_GTM_CONFIGSERVER=https://raw.githubusercontent.com/cismet/wupp-generic-topic-map-config",
                 "VITE_GTM_CONFIG_PATH=/dev/"
               ]
             }
@@ -324,7 +324,7 @@
               "org": "carma-dev-playground-deployments",
               "prj": "generic-topicmap",
               "envs": [
-                "VITE_GTM_CONFIGSERVER=ttps://raw.githubusercontent.com/cismet/wupp-generic-topic-map-config",
+                "VITE_GTM_CONFIGSERVER=https://raw.githubusercontent.com/cismet/wupp-generic-topic-map-config",
                 "VITE_GTM_CONFIG_PATH=/dev/"
               ]
             }
@@ -336,7 +336,7 @@
               "org": "carma-dev-playground-deployments",
               "prj": "generic-topicmap",
               "envs": [
-                "VITE_GTM_CONFIGSERVER=ttps://raw.githubusercontent.com/cismet/wupp-generic-topic-map-config",
+                "VITE_GTM_CONFIGSERVER=https://raw.githubusercontent.com/cismet/wupp-generic-topic-map-config",
                 "VITE_GTM_CONFIG_PATH=/dev/"
               ]
             }
@@ -922,7 +922,7 @@
               "org": "carma-dev-deployments",
               "prj": "generic-topicmap",
               "envs": [
-                "VITE_GTM_CONFIGSERVER=ttps://raw.githubusercontent.com/cismet/wupp-generic-topic-map-config",
+                "VITE_GTM_CONFIGSERVER=https://raw.githubusercontent.com/cismet/wupp-generic-topic-map-config",
                 "VITE_GTM_CONFIG_PATH=/dev/"
               ]
             }
@@ -932,7 +932,7 @@
               "org": "carma-dev-deployments",
               "prj": "generic-topicmap",
               "envs": [
-                "VITE_GTM_CONFIGSERVER=ttps://raw.githubusercontent.com/cismet/wupp-generic-topic-map-config",
+                "VITE_GTM_CONFIGSERVER=https://raw.githubusercontent.com/cismet/wupp-generic-topic-map-config",
                 "VITE_GTM_CONFIG_PATH=/dev/"
               ]
             }
@@ -944,7 +944,7 @@
               "org": "carma-dev-deployments",
               "prj": "generic-topicmap",
               "envs": [
-                "VITE_GTM_CONFIGSERVER=ttps://raw.githubusercontent.com/cismet/wupp-generic-topic-map-config",
+                "VITE_GTM_CONFIGSERVER=https://raw.githubusercontent.com/cismet/wupp-generic-topic-map-config",
                 "VITE_GTM_CONFIG_PATH=/dev/"
               ]
             }
