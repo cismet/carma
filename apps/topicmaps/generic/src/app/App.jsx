@@ -59,7 +59,7 @@ async function getMarkdown(slugName, configType, server, path) {
 function App({ name }) {
   const configPath = import.meta.env.VITE_GTM_CONFIG_PATH || "/dev/"; //uses the dev folder in public to debug local stuff when no ENV is set
   const configServer = import.meta.env.VITE_GTM_CONFIGSERVER || ""; //uses the local server when no ENV is set
-
+  console.log("... where i get my config from: ", { configServer, configPath });
   const [initialized, setInitialized] = useState(false);
   const [config, setConfig] = useState({});
   const [featureGazData, setFeatureGazData] = useState([]);
