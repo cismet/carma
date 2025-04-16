@@ -58,7 +58,7 @@ const InfoCard = ({
 
   return (
     <div
-      className="w-full h-full sm:h-[400px] p-6 shadow-sm hover:!shadow-lg rounded-lg bg-blue-50 col-span-full max-w-full overflow-x-auto"
+      className="w-full h-full sm:h-[400px] px-6 pt-6 pb-2 shadow-sm hover:!shadow-lg rounded-lg bg-blue-50 col-span-full max-w-full overflow-x-auto"
       style={{ maxWidth: "100vw" }}
     >
       <div className="flex h-full flex-col justify-between">
@@ -172,23 +172,6 @@ const InfoCard = ({
                 </>
               )}
             </div>
-            <p
-              style={{ color: "rgba(0,0,0,0.5)", fontSize: "0.875rem" }}
-              className="mb-0"
-            >
-              {tags?.map((tag, i) => (
-                <span key={"tag_" + tag + "_" + i}>
-                  <span>{tag}</span>
-                  {i + 1 < tags.length && <span> · </span>}
-                </span>
-              ))}
-              {isVectorLayer && (
-                <span>
-                  {tags.length > 0 && <span> · </span>}
-                  <span>Vektorlayer</span>
-                </span>
-              )}
-            </p>
           </div>
           {links.length > 0 && (
             <>
@@ -227,6 +210,23 @@ const InfoCard = ({
             </>
           )}
         </div>
+        <p
+          style={{ color: "rgba(0,0,0,0.5)", fontSize: "0.875rem" }}
+          className="mb-0"
+        >
+          {tags?.map((tag, i) => (
+            <span key={"tag_" + tag + "_" + i}>
+              <span>{tag}</span>
+              {i + 1 < tags.length && <span> · </span>}
+            </span>
+          ))}
+          {isVectorLayer && (
+            <span>
+              {tags.length > 0 && <span> · </span>}
+              <span>Vektorlayer</span>
+            </span>
+          )}
+        </p>
       </div>
     </div>
   );
