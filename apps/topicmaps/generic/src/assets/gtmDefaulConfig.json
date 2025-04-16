@@ -9,7 +9,6 @@
     "photoLightBox": true,
     "fallbackBackgroundlayers": "wupp-plan-live@90",
     "previewFeatureCollectionCount": -1,
-    "skipFeatures": true,
     "previewMapPosition": "lat=51.25487836727032&lng=7.169437408447266&zoom=13",
     "gazetteerTopicsList": [
       "pois",
@@ -20,7 +19,7 @@
     ],
     "home": {
       "center": [51.25487836727032, 7.169437408447266],
-      "zoom": 14
+      "zoom": 13
     },
     "applicationMenuTooltipString": "Einstellungen | Anleitung",
     "applicationMenuTitle": "Einstellungen und Kompaktanleitung",

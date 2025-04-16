@@ -21,6 +21,9 @@ import { defaultLayerConf } from "react-cismap/tools/layerFactory";
 import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
 import { gazDataConfig } from "../config/gazData";
 
+import merge from "lodash/merge";
+import defaultConfig from "../assets/gtmDefaulConfig.json";
+
 const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 
 async function getConfig(slugName, configType, server, path) {
@@ -53,7 +56,6 @@ async function getMarkdown(slugName, configType, server, path) {
     );
   }
 }
-
 function App({ name }) {
   const configServer = import.meta.env.VITE_GTM_CONFIGSERVER || ""; //uses the local server when no ENV is set
   const configPath = import.meta.env.VITE_GTM_CONFIG_PATH || "/dev/"; //uses the dev folder in public to debug local stuff when no ENV is set
@@ -67,8 +69,19 @@ function App({ name }) {
       const path = configPath;
       const server = configServer;
       const slugName = slugify(name, { lower: true });
-      const config = await getConfig(slugName, "config", server, path);
-      if (config.tm.skipFeatures !== true) {
+      // Start with a deep clone of the default config
+      let config = JSON.parse(JSON.stringify(defaultConfig));
+      // Fetch project-specific config
+      const projectConfig = await getConfig(slugName, "config", server, path);
+      if (projectConfig?.tm?.noFeatureCollection === true) {
+        config.tm.applicationMenuSkipFilterTitleSettings = true;
+        config.tm.applicationMenuSkipClusteringSettings = true;
+        config.tm.applicationMenuSkipSymbolsizeSetting = true;
+      }
+      // Deep-merge project config into default config
+      merge(config, projectConfig);
+
+      if (config.tm.noFeatureCollection !== true) {
         config.featureDefaultProperties = await getConfig(
           slugName,
           "featureDefaultProperties",
@@ -153,7 +166,7 @@ function App({ name }) {
 
       if (
         config?.tm?.addGazetteerElementsPerFeature === true &&
-        config.tm.skipFeatures !== true
+        config.tm.noFeatureCollection !== true
       ) {
         for (const f of config.features) {
           const pof = pointOnFeature(f);
@@ -203,7 +216,7 @@ function App({ name }) {
     }
 
     const cpConfig = {};
-    if (config.skipFeatures !== true) {
+    if (config.noFeatureCollection !== true) {
       cpConfig.featureTooltipFunction = (feature) =>
         feature?.properties?.hoverString || feature?.text;
 
