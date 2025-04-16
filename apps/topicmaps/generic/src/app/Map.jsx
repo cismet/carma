@@ -110,6 +110,13 @@ const Map = ({ config, featureGazData = [] }) => {
         modalMenu={
           <DefaultAppMenu
             menuTitle={config?.tm?.applicationMenuTitle}
+            checkBoxSettingsSectionTitle={null}
+            skipClusteringSettings={
+              config?.tm?.applicationMenuSkipClusteringSettings
+            }
+            skipSymbolsizeSetting={
+              config?.tm?.applicationMenuSkipSymbolsizeSetting
+            }
             simpleHelp={config?.simpleHelpObject}
             previewMapPosition={config?.tm?.previewMapPosition}
             previewFeatureCollectionCount={

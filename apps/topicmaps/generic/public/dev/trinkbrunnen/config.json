@@ -26,16 +26,9 @@
     "applicationMenuTitle": "Einstellungen und Kompaktanleitung",
     "applicationMenuIntroductionMarkdown": "Über **Einstellungen** können Sie die Darstellung der Hintergrundkarte und der Trinkbrunnen an Ihre Vorlieben anpassen. Wählen Sie **Kompaktanleitung** für detailliertere Bedienungsinformationen und **Urbaner Digitaler Zwilling** für eine Einordnung der Wasserstoff-Tankstellenkarte in das Gesamtsystem des Digitalen Zwillings der Stadt Wuppertal.",
     "applicationMenuIconname": "bars",
-    "clusterOptions": {
-      "spiderfyOnMaxZoom": false,
-      "showCoverageOnHover": false,
-      "zoomToBoundsOnClick": false,
-      "maxClusterRadius": 40,
-      "disableClusteringAtZoom": 19,
-      "animate": false,
-      "cismapZoomTillSpiderfy": 12,
-      "selectionSpiderfyMinZoom": 12
-    },
+    "applicationMenuSkipFilterTitleSettings": true,
+    "applicationMenuSkipClusteringSettings": true,
+    "applicationMenuSkipSymbolsizeSetting": true,
     "minZoom": 5,
     "maxZoom": 19,
     "addGazetteerElementsPerFeature": true,
@@ -46,6 +39,12 @@
         "maxNativeZoom": 20,
         "maxZoom": 22,
         "url": "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}"
+      },
+      "fasttrueOrtho2024": {
+        "type": "wms",
+        "url": "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
+        "layers": "GIS-102:trueortho2024",
+        "transparent": true
       }
     },
     "backgroundModes": [
@@ -63,7 +62,7 @@
     ],
     "backgroundConfigurations": {
       "lbk": {
-        "layerkey": "rvrGrundriss@100|trueOrtho2022@75|rvrSchriftNT@100",
+        "layerkey": "rvrGrundriss@100|fasttrueOrtho2024@75|rvrSchriftNT@100",
         "src": "/images/rain-hazard-map-bg/ortho.png",
         "title": "Luftbildkarte"
       },
