@@ -129,6 +129,7 @@ const FeatureInfobox = ({ selectedFeature }: InfoboxProps) => {
           selectedFeature?.properties.foto || selectedFeature?.properties.fotos
             ? [
                 <InfoBoxFotoPreview
+                  key="infobox-foto-preview"
                   currentFeature={selectedFeature}
                   lightBoxDispatchContext={lightBoxDispatchContext}
                 />,
