@@ -235,7 +235,7 @@ function App({
             }} // todo
             // modalMenu={<Gen}
           >
-            <Map config={config} featureGazData={featureGazData} />
+            <Map config={config} featureGazData={featureGazData || []} />
           </TopicMapContextProvider>
         </SelectionProvider>
       </GazDataProvider>
