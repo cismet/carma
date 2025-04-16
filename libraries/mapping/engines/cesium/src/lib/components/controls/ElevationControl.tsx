@@ -12,11 +12,9 @@ const getNewPosition = (
   posCarto: Cartographic,
   newHeight: number
 ): Cartesian3 => {
-  return Cartesian3.fromRadians(
-    posCarto.longitude,
-    posCarto.latitude,
-    newHeight
-  );
+  const heightAdjustedCarto = posCarto.clone();
+  heightAdjustedCarto.height = newHeight;
+  return Cartographic.toCartesian(heightAdjustedCarto);
 };
 
 interface ElevationControlProps {
@@ -311,12 +309,11 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
         viewer.camera.setView({
           destination: newPosition,
           orientation: {
-            heading: viewer.camera.heading,
-            pitch: viewer.camera.pitch,
-            roll: viewer.camera.roll,
-          },
+            direction: viewer.camera.direction.clone(),
+            up: viewer.camera.up.clone(),
+          }
         });
-        //viewer.scene.requestRender();
+        viewer.scene.requestRender();
         updateHeight.current && updateHeight.current();
       });
     }

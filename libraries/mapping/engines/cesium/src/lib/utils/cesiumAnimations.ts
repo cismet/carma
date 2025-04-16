@@ -102,9 +102,13 @@ export function animateInterpolateHeadingPitchRange(
     // Interpolate heading and pitch over time
     const currentHeading = interpolateAngle(initialHeading, heading, easing(t));
     const currentPitch = CesiumMath.lerp(initialPitch, pitch, easing(t));
-    const currentRange = useCurrentDistance
-      ? initialRange
-      : CesiumMath.lerp(initialRange, range, easing(t));
+    const currentRange = CesiumMath.clamp(
+      useCurrentDistance
+        ? initialRange
+        : CesiumMath.lerp(initialRange, range, easing(t)),
+      10,
+      40000
+    );
 
     const orientation = new HeadingPitchRange(
       currentHeading,
@@ -113,6 +117,7 @@ export function animateInterpolateHeadingPitchRange(
     );
 
     // Update the camera's orientation
+    viewer.camera.lookAtTransform(Matrix4.IDENTITY);
     viewer.camera.lookAt(destination, orientation);
     // explicit render call due to cesium request render mode.
     viewer.scene.render();
