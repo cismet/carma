@@ -42,6 +42,10 @@ const TopNavbar = () => {
   const dispatch = useDispatch();
   const flags = useFeatureFlags();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showHelpTooltip, setShowHelpTooltip] = useState(false);
+
+  const isTouchDevice =
+    "ontouchstart" in window || navigator.maxTouchPoints > 0;
 
   const { setShowTourOverlay } = useCarmaMapContext();
 
@@ -116,12 +120,17 @@ const TopNavbar = () => {
         })}
       >
         <div className={cn("flex items-center gap-3 sm:gap-6")}>
-          <Tooltip title="Hilfefolie überlagern">
+          <Tooltip
+            open={!isTouchDevice && showHelpTooltip}
+            title="Hilfefolie überlagern"
+          >
             <button
               className="hover:text-gray-600 text-xl lg:mr-11 hidden sm:block xl:mr-40"
               onClick={() => setShowTourOverlay(true)}
               data-test-id="helper-overlay-btn"
               ref={helpOverlayTourRef}
+              onMouseEnter={() => setShowHelpTooltip(true)}
+              onMouseLeave={() => setShowHelpTooltip(false)}
             >
               <FontAwesomeIcon
                 className="h-[24px] pt-1"
