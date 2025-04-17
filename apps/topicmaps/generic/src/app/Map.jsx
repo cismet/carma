@@ -109,10 +109,14 @@ const Map = ({ config, featureGazData = [] }) => {
         zoomControls={false}
         gazetteerSearchComponent={EmptySearchComponent}
         infoBox={
-          config.tm.vectorStyle ? (
+          config.tm.vectorStyle && config.tm.noFeatureCollection === true ? (
             <FeatureInfobox selectedFeature={feature} />
           ) : (
-            <GenericInfoBoxFromFeature config={config.info} />
+            <>
+              {config.tm.noFeatureCollection !== true && (
+                <GenericInfoBoxFromFeature config={config.info} />
+              )}
+            </>
           )
         }
         modalMenu={
@@ -148,7 +152,7 @@ const Map = ({ config, featureGazData = [] }) => {
           ></DefaultAppMenu>
         }
       >
-        {config.tm.vectorStyle ? (
+        {config.tm.vectorStyle && (
           <CismapLayer
             type="vector"
             style={config.tm.vectorStyle}
@@ -170,7 +174,8 @@ const Map = ({ config, featureGazData = [] }) => {
               }
             }}
           />
-        ) : (
+        )}
+        {config.tm.noFeatureCollection !== true && (
           <>
             <FeatureCollection />
           </>

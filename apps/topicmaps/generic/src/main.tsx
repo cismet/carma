@@ -39,7 +39,7 @@ function AppWrapper() {
   let { name } = useParams();
   // Now you can use 'name' inside your App component or pass it as a prop
   if (name === undefined) {
-    name = "Wasserstoff-Tankstellenkarte_Wuppertal";
+    name = "GTM_ohne_Konfiguration";
   }
   //set the window title to the name param but replace the underscores with spaces
   document.title = name.split("_").join(" ");
