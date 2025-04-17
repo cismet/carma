@@ -53,6 +53,7 @@ export function App() {
   useEffect(() => {
     dispatch(
       loadAEVs(() => {
+        //has now a done callback that executes when everything is loaded
         const getUpdatedDocs = async (tmpDocs: Doc[]) => {
           const updatedDocs = await getDocsWithUpdatedMetaData(tmpDocs);
 

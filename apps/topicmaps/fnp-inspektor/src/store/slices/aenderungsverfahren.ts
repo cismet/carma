@@ -22,6 +22,7 @@ const slice = createSlice({
 export default slice;
 
 export const loadAEVs = (done = () => {}) => {
+  //has now a done callback that executes when everything is loaded
   return async (dispatch: any) => {
     const results = await md5FetchJSON(
       "aenderungsv",
