@@ -64,25 +64,33 @@ const Map = ({ config, featureGazData = [] }) => {
         }}
       >
         <ControlLayout ifStorybook={false}>
-          <Control position="topleft" order={10}>
-            <ZoomControl />
-          </Control>
+          {config?.tm?.zoomControls && (
+            <Control position="topleft" order={10}>
+              <ZoomControl />
+            </Control>
+          )}
 
-          <Control position="topleft" order={50}>
-            <FullscreenControl />
-          </Control>
-          <Control position="topleft" order={60} title="Mein Standort">
-            <RoutedMapLocateControl
-              tourRefLabels={null}
-              disabled={false}
-              nativeTooltip={true}
-            />
-          </Control>
-          <Control position="bottomleft" order={10}>
-            <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
-              <FuzzySearchWrapper featureGazData={featureGazData} />
-            </div>
-          </Control>
+          {config?.tm?.fullScreenControl && (
+            <Control position="topleft" order={50}>
+              <FullscreenControl />
+            </Control>
+          )}
+          {config?.tm?.locatorControl && (
+            <Control position="topleft" order={60} title="Mein Standort">
+              <RoutedMapLocateControl
+                tourRefLabels={null}
+                disabled={false}
+                nativeTooltip={true}
+              />
+            </Control>
+          )}
+          {config?.tm?.gazetteerSearchBox && (
+            <Control position="bottomleft" order={10}>
+              <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
+                <FuzzySearchWrapper featureGazData={featureGazData} />
+              </div>
+            </Control>
+          )}
         </ControlLayout>
       </div>
       <SecondaryInfoModal

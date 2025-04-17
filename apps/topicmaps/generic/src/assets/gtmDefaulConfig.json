@@ -3,6 +3,7 @@
     "srs": 3857,
     "fullScreenControl": true,
     "locatorControl": true,
+    "zoomControls": true,
     "gazetteerSearchBox": true,
     "noInitialLoadingText": true,
     "gazetteerSearchBoxPlaceholdertext": "Stadtteil | Adresse | POI",
