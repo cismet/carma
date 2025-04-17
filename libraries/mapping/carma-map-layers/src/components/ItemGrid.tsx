@@ -71,7 +71,7 @@ const ItemGrid = ({
                         {subCategory?.Title}
                       </p>
 
-                      <div className="grid xl:grid-cols-7 grid-flow-dense lg:grid-cols-5 sm:grid-cols-4 gap-8 mb-4">
+                      <div className="grid xl:grid-cols-7 grid-flow-dense lg:grid-cols-5 sm:grid-cols-3 min-[490px]:grid-cols-2 gap-8 mb-4">
                         {subCategory?.layers?.map((layer, i: number) => {
                           return (
                             <LayerItem
@@ -108,7 +108,7 @@ const ItemGrid = ({
               <>
                 <p className="mb-4 text-2xl font-semibold">{category?.Title}</p>
 
-                <div className="grid xl:grid-cols-7 grid-flow-dense lg:grid-cols-5 sm:grid-cols-4 gap-8 mb-4">
+                <div className="grid xl:grid-cols-7 grid-flow-dense lg:grid-cols-5 sm:grid-cols-3 min-[490px]:grid-cols-2 gap-8 mb-4">
                   {category?.layers?.map((layer, i: number) => {
                     return (
                       <LayerItem
