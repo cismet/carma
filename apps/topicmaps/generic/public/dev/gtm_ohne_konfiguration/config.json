@@ -1,0 +1,9 @@
+{
+  "tm": {
+    "fullScreenControl": false,
+    "locatorControl": false,
+    "zoomControls": false,
+    "noFeatureCollection": true,
+    "gazetteerSearchBox": false
+  }
+}
