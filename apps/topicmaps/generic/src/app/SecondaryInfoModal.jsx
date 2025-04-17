@@ -14,9 +14,9 @@ const SecondaryInfoModal = ({
       setSecondaryInfoVisible(false);
     };
 
-    const properties = feature?.properties.secondaryInfos;
+    const properties = feature?.properties?.secondaryInfos;
     let foto;
-    if (properties.image !== undefined) {
+    if (properties?.image !== undefined) {
       foto = properties.image;
     }
 
@@ -33,10 +33,10 @@ const SecondaryInfoModal = ({
         uiHeight={"100%"}
         imageUrl={foto}
         //   setVisibleState={setSecondaryInfoVisible}
-        title={properties.title}
-        titleIconName={properties.iconName}
-        mainSection={<Markdown content={properties.md} />}
-        subSections={properties.secondarySections.map((item, index) => (
+        title={properties?.title}
+        titleIconName={properties?.iconName}
+        mainSection={<Markdown content={properties?.md} />}
+        subSections={properties?.secondarySections.map((item, index) => (
           <GenericSecondaryInfoPanelSection
             header={item.title}
             bsStyle={item.type}
