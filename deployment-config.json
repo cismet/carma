@@ -929,7 +929,7 @@
           },
           "live": {
             "pages": {
-              "org": "carma-dev-deployments",
+              "org": "digital-twin-wuppertal-live",
               "prj": "generic-topicmap",
               "envs": [
                 "VITE_GTM_CONFIGSERVER=https://raw.githubusercontent.com/cismet/wupp-generic-topic-map-config",
