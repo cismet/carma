@@ -3,7 +3,12 @@
     "applicationMenuIntroductionMarkdown": "Über **Einstellungen** können Sie die Darstellung der Hintergrundkarte an Ihre Vorlieben anpassen. Wählen Sie **Kompaktanleitung** für detailliertere Bedienungsinformationen und **Urbaner Digitaler Zwilling** für eine Einordnung der Wohnlagenkarte in das Gesamtsystem des Digitalen Zwillings der Stadt Wuppertal.",
 
     "noFeatureCollection": true,
-    "vectorStyle": "https://tiles.cismet.de/wohnlagen2024/style.json",
+    "vectorLayers": [
+      {
+        "style": "https://tiles.cismet.de/wohnlagen2024/style.json",
+        "opacity": 0.5
+      }
+    ],
     "infoboxMapping": [
       "function createInfoBoxInfo(p) { let color = '#006c72'; switch(p.WERT) { case 1: color = '#FF0000'; break; case 2: color = '#FFC000'; break; case 3: color = '#92D050'; break; case 4: color = '#00C5FF'; break; } const info = { title: p.Wohnlage, headerColor: color, header: 'Wohnlagen 2024', }; return info; }"
     ]
