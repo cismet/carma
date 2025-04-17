@@ -87,7 +87,10 @@ const Map = ({ config, featureGazData = [] }) => {
           {config?.tm?.gazetteerSearchBox && (
             <Control position="bottomleft" order={10}>
               <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
-                <FuzzySearchWrapper featureGazData={featureGazData} />
+                <FuzzySearchWrapper
+                  featureGazData={featureGazData}
+                  placeholder={config.tm.gazetteerSearchBoxPlaceholdertext}
+                />
               </div>
             </Control>
           )}
@@ -119,6 +122,7 @@ const Map = ({ config, featureGazData = [] }) => {
             </>
           )
         }
+        hamburgerMenu={config?.tm?.applicationMenu}
         modalMenu={
           <DefaultAppMenu
             menuTitle={config?.tm?.applicationMenuTitle}

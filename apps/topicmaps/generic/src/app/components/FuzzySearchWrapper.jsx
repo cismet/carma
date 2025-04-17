@@ -8,7 +8,7 @@ import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopic
 import { useContext } from "react";
 import { isAreaType } from "@carma-commons/resources";
 
-const FuzzySearchWrapper = ({ featureGazData }) => {
+const FuzzySearchWrapper = ({ featureGazData, placeholder }) => {
   const { responsiveState, gap, windowSize } = useContext(
     ResponsiveTopicMapContext
   );
@@ -44,7 +44,7 @@ const FuzzySearchWrapper = ({ featureGazData }) => {
             pixelwidth={
               responsiveState === "normal" ? "300px" : windowSize.width - gap
             }
-            placeholder="Stadtteil | Adresse | Kita"
+            placeholder={placeholder || "Wohin?"}
           />
         </div>
       )}

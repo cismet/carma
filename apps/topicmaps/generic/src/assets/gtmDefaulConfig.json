@@ -22,6 +22,7 @@
       "center": [51.25487836727032, 7.169437408447266],
       "zoom": 13
     },
+    "applicationMenu": true,
     "applicationMenuTooltipString": "Einstellungen | Anleitung",
     "applicationMenuTitle": "Einstellungen und Kompaktanleitung",
     "applicationMenuIntroductionMarkdown": "Über **Einstellungen** können Sie die Darstellung der Hintergrundkarte an Ihre Vorlieben anpassen. Wählen Sie **Kompaktanleitung** für detailliertere Bedienungsinformationen und **Urbaner Digitaler Zwilling** für eine Einordnung der Karte in das Gesamtsystem des Digitalen Zwillings der Stadt Wuppertal.",
