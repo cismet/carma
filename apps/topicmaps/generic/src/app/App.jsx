@@ -26,17 +26,28 @@ import defaultConfig from "../assets/gtmDefaulConfig.json";
 
 const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 
+const errorConfig = {
+  tm: {
+    fullScreenControl: false,
+    locatorControl: false,
+    zoomControls: false,
+    noFeatureCollection: true,
+    gazetteerSearchBox: false,
+    applicationMenu: false,
+  },
+};
+
 async function getConfig(slugName, configType, server, path) {
   try {
     const u = server + path + slugName + "/" + configType + ".json";
-    console.debug("try to read rconfig at ", u);
+    console.debug("try to read config at ", u);
     const result = await fetch(u);
     const resultObject = await result.json();
-    console.debug("config: loaded " + slugName + "/" + configType);
+    console.debug("... config: loaded " + slugName + "/" + configType);
     return resultObject;
   } catch (ex) {
     console.debug(
-      "no config found at ",
+      "... no config found at ",
       server + path + slugName + "/" + configType + ".json"
     );
   }
@@ -63,6 +74,7 @@ function App({ name }) {
   const [initialized, setInitialized] = useState(false);
   const [config, setConfig] = useState({});
   const [featureGazData, setFeatureGazData] = useState([]);
+  const [faultyConfig, setFaultyConfig] = useState(false);
   useEffect(() => {
     console.log("... where i get my config from: ", {
       configServer,
@@ -78,7 +90,12 @@ function App({ name }) {
       // Start with a deep clone of the default config
       let config = JSON.parse(JSON.stringify(defaultConfig));
       // Fetch project-specific config
-      const projectConfig = await getConfig(slugName, "config", server, path);
+      let projectConfig = await getConfig(slugName, "config", server, path);
+      console.log("... projectConfig", projectConfig);
+      if (!projectConfig) {
+        projectConfig = errorConfig;
+      }
+
       if (projectConfig?.tm?.noFeatureCollection === true) {
         config.tm.applicationMenuSkipFilterTitleSettings = true;
         config.tm.applicationMenuSkipClusteringSettings = true;
