@@ -30,6 +30,8 @@
     "minZoom": 10,
     "maxZoom": 22,
     "addGazetteerElementsPerFeature": true,
+    "clickAfterGazetteerHit": true,
+    "applicationMenuSkipFilterTitleSettings": true,
     "defaultLayerConf": null,
     "namedLayers": {
       "rvr-spw2_light-tiles": {

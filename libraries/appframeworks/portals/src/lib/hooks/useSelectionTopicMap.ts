@@ -83,4 +83,5 @@ export const useSelectionTopicMap = ({
     setSelection,
     setOverlayFeature,
   ]);
+  return topicMapCtx;
 };

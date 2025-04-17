@@ -28,6 +28,7 @@ import {
 import CismapLayer from "react-cismap/CismapLayer";
 import { createVectorFeature } from "./helper";
 import FeatureInfobox from "./components/FeatureInfobox";
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 const downloadText = (text, filename) => {
@@ -90,6 +91,7 @@ const Map = ({ config, featureGazData = [] }) => {
                 <FuzzySearchWrapper
                   featureGazData={featureGazData}
                   placeholder={config.tm.gazetteerSearchBoxPlaceholdertext}
+                  clickAfterGazetteerHit={config.tm.clickAfterGazetteerHit}
                 />
               </div>
             </Control>
