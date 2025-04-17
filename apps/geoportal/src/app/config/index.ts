@@ -84,6 +84,7 @@ export const defaultLayerConfig: DefaultLayerConfig = {
       type: "wms",
       url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
       layers: "GIS-102:trueortho2024",
+      // maxNativeZoom: 20,
       transparent: true,
     },
     trueOrtho2021: {
@@ -122,8 +123,11 @@ export const defaultLayerConfig: DefaultLayerConfig = {
     },
     amtlichBasiskarte: {
       type: "wmts",
-      url: "https://maps.wuppertal.de/karten",
-      layers: "abkf",
+      // url: "https://maps.wuppertal.de/karten",
+      // layers: "abkf",
+      url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
+      layers: "GIS-102:abkf",
+      maxNativeZoom: 20,
       transparent: true,
     },
   },

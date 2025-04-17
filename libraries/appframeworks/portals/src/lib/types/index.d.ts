@@ -52,6 +52,7 @@ interface WMSOptions {
   layers: string;
   tiled?: boolean;
   transparent?: boolean;
+  maxNativeZoom?: number;
   version?: string;
 }
 
@@ -62,6 +63,7 @@ interface WMTSOptions {
   version?: string;
   tiled?: boolean;
   transparent: boolean;
+  maxNativeZoom?: number;
   buffer?: number;
 }
 
