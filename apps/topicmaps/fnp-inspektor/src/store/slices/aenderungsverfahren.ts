@@ -21,7 +21,7 @@ const slice = createSlice({
 
 export default slice;
 
-export const loadAEVs = () => {
+export const loadAEVs = (done = () => {}) => {
   return async (dispatch: any) => {
     const results = await md5FetchJSON(
       "aenderungsv",
@@ -36,31 +36,8 @@ export const loadAEVs = () => {
       counter++;
     }
     dispatch(setData(features));
+    done();
   };
-  //   fetch("https://wunda-geoportal.cismet.de/data/aenderungsv.data.json")
-  //     .then((response) => {
-  //       if (!response.ok) {
-  //         throw new Error("Network response was not ok");
-  //       }
-  //       return response.json();
-  //     })
-  //     .then((result) => {
-  //       let features: any = [];
-  //       let counter = 0;
-  //       for (let item of result) {
-  //         let itemFeature = convertAEVToFeature(item, counter);
-  //         features.push(itemFeature);
-  //         counter++;
-  //       }
-  //       dispatch(setData(features));
-  //     })
-  //     .catch((error) => {
-  //       console.error(
-  //         "There was a problem with the fetch operation:",
-  //         error.message
-  //       );
-  //     });
-  // };
 };
 
 export function getAEVFeatureByGazObject(

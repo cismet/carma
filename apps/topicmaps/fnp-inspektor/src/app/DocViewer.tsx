@@ -51,41 +51,45 @@ export function App() {
   };
 
   useEffect(() => {
-    dispatch(loadAEVs() as unknown as UnknownAction);
+    dispatch(
+      loadAEVs(() => {
+        const getUpdatedDocs = async (tmpDocs: Doc[]) => {
+          const updatedDocs = await getDocsWithUpdatedMetaData(tmpDocs);
 
-    const getUpdatedDocs = async (tmpDocs: Doc[]) => {
-      const updatedDocs = await getDocsWithUpdatedMetaData(tmpDocs);
+          setDocs(updatedDocs);
+        };
 
-      setDocs(updatedDocs);
-    };
+        const getStaticDocs = async () => {
+          const staticDocs = await getDocsForStaticEntry({
+            docPackageIdParam: docPackageId,
+          });
+          getUpdatedDocs(staticDocs);
+        };
 
-    const getStaticDocs = async () => {
-      const staticDocs = await getDocsForStaticEntry({
-        docPackageIdParam: docPackageId,
-      });
-      getUpdatedDocs(staticDocs);
-    };
+        if (docPackageId) {
+          let tmpDocs;
 
-    if (docPackageId) {
-      let tmpDocs;
+          if (pathname.includes("static")) {
+            getStaticDocs();
+          } else {
+            tmpDocs = getDocsForAEVGazetteerEntry({
+              gazHit: { type: "aenderungsv", more: { v: docPackageId } },
+              searchForAEVs: (aevs, done) =>
+                dispatch(
+                  getAEVFeatureByGazObject(
+                    aevs,
+                    done
+                  ) as unknown as UnknownAction
+                ),
+            });
+          }
 
-      if (pathname.includes("static")) {
-        getStaticDocs();
-      } else {
-        tmpDocs = getDocsForAEVGazetteerEntry({
-          gazHit: { type: "aenderungsv", more: { v: docPackageId } },
-          searchForAEVs: (aevs, done) =>
-            dispatch(
-              getAEVFeatureByGazObject(aevs, done) as unknown as UnknownAction
-            ),
-        });
-      }
-
-      if (tmpDocs) {
-        getUpdatedDocs(tmpDocs);
-      }
-    }
-
+          if (tmpDocs) {
+            getUpdatedDocs(tmpDocs);
+          }
+        }
+      }) as unknown as UnknownAction
+    );
     document.title = `Dokumentenansicht | ${docPackageId}`;
   }, [docPackageId]);
 
