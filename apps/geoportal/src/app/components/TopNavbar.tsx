@@ -62,9 +62,13 @@ const TopNavbar = () => {
   const modalMenuTourRef = useOverlayHelper(
     getCollabedHelpElementsConfig("MENU", geoElements)
   );
-  const helpOverlayTourRef = useOverlayHelper(
-    getCollabedHelpElementsConfig("HILFE_OVERLAY", geoElements)
-  );
+  const helpOverlayTourRef = useOverlayHelper({
+    ...getCollabedHelpElementsConfig("HILFE_OVERLAY", geoElements),
+    primary: {
+      ...getCollabedHelpElementsConfig("HILFE_OVERLAY", geoElements).primary,
+      minWindowSize: 1024,
+    },
+  });
 
   const toggleMobileMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen);
@@ -114,7 +118,7 @@ const TopNavbar = () => {
         <div className={cn("flex items-center gap-3 sm:gap-6")}>
           <Tooltip title="Hilfefolie überlagern">
             <button
-              className="hover:text-gray-600 text-xl lg:mr-11 xl:mr-40"
+              className="hover:text-gray-600 text-xl lg:mr-11 hidden sm:block xl:mr-40"
               onClick={() => setShowTourOverlay(true)}
               data-test-id="helper-overlay-btn"
               ref={helpOverlayTourRef}
