@@ -37,19 +37,21 @@ const errorConfig = {
   },
 };
 
-async function getConfig(slugName, configType, server, path) {
+async function getConfig(slugName, configType, server, path, log) {
   try {
     const u = server + path + slugName + "/" + configType + ".json";
-    console.debug("try to read config at ", u);
+    log(`... try to read config at ${u}`);
     const result = await fetch(u);
     const resultObject = await result.json();
-    console.debug("... config: loaded " + slugName + "/" + configType);
+    log(`... config: loaded ${slugName}/${configType}`);
     return resultObject;
   } catch (ex) {
-    console.debug(
-      "... no config found at ",
-      server + path + slugName + "/" + configType + ".json"
+    log(
+      `... no config found at ${
+        server + path + slugName + "/" + configType + ".json"
+      }`
     );
+    return undefined;
   }
 }
 async function getMarkdown(slugName, configType, server, path) {
@@ -68,6 +70,13 @@ async function getMarkdown(slugName, configType, server, path) {
   }
 }
 function App({ name }) {
+  // --- Fault log state and helper ---
+  const [faultLog, setFaultLog] = useState([]);
+  const log = (msg) => {
+    console.log(msg);
+    setFaultLog((prev) => [...prev, msg]);
+  };
+
   const configPath = import.meta.env.VITE_GTM_CONFIG_PATH || "/dev/"; //uses the dev folder in public to debug local stuff when no ENV is set
   const configServer = import.meta.env.VITE_GTM_CONFIGSERVER || ""; //uses the local server when no ENV is set
 
@@ -75,11 +84,14 @@ function App({ name }) {
   const [config, setConfig] = useState({});
   const [featureGazData, setFeatureGazData] = useState([]);
   const [faultyConfig, setFaultyConfig] = useState(false);
+  const [projectConfigFound, setProjectConfigFound] = useState(true);
   useEffect(() => {
-    console.log("... where i get my config from: ", {
-      configServer,
-      configPath,
-    });
+    log(
+      `... where i get my config from: ${JSON.stringify({
+        configServer,
+        configPath,
+      })}`
+    );
   }, []);
 
   useEffect(() => {
@@ -90,11 +102,20 @@ function App({ name }) {
       // Start with a deep clone of the default config
       let config = JSON.parse(JSON.stringify(defaultConfig));
       // Fetch project-specific config
-      let projectConfig = await getConfig(slugName, "config", server, path);
-      console.log("... projectConfig", projectConfig);
+      let projectConfig = await getConfig(
+        slugName,
+        "config",
+        server,
+        path,
+        log
+      );
+      log(`... projectConfig: ${JSON.stringify(projectConfig)}`);
+      let found = true;
       if (!projectConfig) {
+        found = false;
         projectConfig = errorConfig;
       }
+      setProjectConfigFound(found);
 
       if (projectConfig?.tm?.noFeatureCollection === true) {
         config.tm.applicationMenuSkipFilterTitleSettings = true;
@@ -104,7 +125,7 @@ function App({ name }) {
       // Deep-merge project config into default config
       merge(config, projectConfig);
 
-      console.log("... mergedConfig", config);
+      console.log(`... mergedConfig:`, config);
 
       if (config.tm.noFeatureCollection !== true) {
         config.featureDefaultProperties = await getConfig(
@@ -145,19 +166,21 @@ function App({ name }) {
         slugName,
         "helpTextBlocks",
         server,
-        path
+        path,
+        log
       );
-      config.simpleHelpMd = await await getMarkdown(
+      config.simpleHelpMd = await getMarkdown(
         slugName,
         "simpleHelp",
         server,
         path
       );
-      config.simpleHelp = await await getConfig(
+      config.simpleHelp = await getConfig(
         slugName,
         "simpleHelp",
         server,
-        path
+        path,
+        log
       );
 
       if (config.helpTextBlocks !== undefined) {
@@ -259,20 +282,59 @@ function App({ name }) {
     }
 
     return (
-      <GazDataProvider config={gazDataConfig}>
-        <SelectionProvider>
-          <TopicMapContextProvider
-            {...refConfig}
-            {...cpConfig}
-            baseLayerConf={baseLayerConf}
-            backgroundConfigurations={config?.tm?.backgroundConfigurations}
-            backgroundModes={config?.tm?.backgroundModes}
-            appKey="GenericTopicMap"
+      <>
+        {!projectConfigFound && (
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              width: "100vw",
+              height: "100vh",
+              background: "rgba(255,255,255,0.4)",
+              zIndex: 2000,
+              color: "#222",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              fontFamily: "monospace",
+              padding: 32,
+            }}
           >
-            <Map config={config} featureGazData={featureGazData || []} />
-          </TopicMapContextProvider>
-        </SelectionProvider>
-      </GazDataProvider>
+            <div
+              style={{
+                maxWidth: 800,
+                textAlign: "left",
+                background: "#f8f8f8",
+                borderRadius: 8,
+                padding: 16,
+                boxShadow: "0 2px 6px #0001",
+                fontSize: 14,
+              }}
+            >
+              <h2 style={{ marginBottom: 24 }}>
+                Probleme beim Laden der Konfigurationsdateien
+              </h2>
+              <pre>{faultLog.join("\n")}</pre>
+            </div>
+          </div>
+        )}
+        <GazDataProvider config={gazDataConfig}>
+          <SelectionProvider>
+            <TopicMapContextProvider
+              {...refConfig}
+              {...cpConfig}
+              baseLayerConf={baseLayerConf}
+              backgroundConfigurations={config?.tm?.backgroundConfigurations}
+              backgroundModes={config?.tm?.backgroundModes}
+              appKey="GenericTopicMap"
+            >
+              <Map config={config} featureGazData={featureGazData || []} />
+            </TopicMapContextProvider>
+          </SelectionProvider>
+        </GazDataProvider>
+      </>
     );
   }
 }

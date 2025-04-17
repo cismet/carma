@@ -112,7 +112,7 @@ const Map = ({ config, featureGazData = [] }) => {
         zoomControls={false}
         gazetteerSearchComponent={EmptySearchComponent}
         infoBox={
-          config.tm.vectorStyle && config.tm.noFeatureCollection === true ? (
+          config.tm.vectorLayers && config.tm.noFeatureCollection === true ? (
             <FeatureInfobox selectedFeature={feature} />
           ) : (
             <>
@@ -156,29 +156,32 @@ const Map = ({ config, featureGazData = [] }) => {
           ></DefaultAppMenu>
         }
       >
-        {config.tm.vectorStyle && (
-          <CismapLayer
-            type="vector"
-            style={config.tm.vectorStyle}
-            additionalLayerUniquePane="vector"
-            additionalLayersFreeZOrder={0}
-            selectionEnabled={true}
-            onSelectionChanged={(e) => {
-              const mapping = config.tm.infoboxMapping;
-              if (e.hits && mapping) {
-                const selectedVectorFeature = e.hits[0];
-                const feature = createVectorFeature(
-                  mapping,
-                  selectedVectorFeature
-                );
+        {config.tm.vectorLayers &&
+          config.tm.vectorLayers.map((layer) => {
+            return (
+              <CismapLayer
+                type="vector"
+                {...layer}
+                additionalLayerUniquePane="vector"
+                additionalLayersFreeZOrder={0}
+                selectionEnabled={true}
+                onSelectionChanged={(e) => {
+                  const mapping = config.tm.infoboxMapping;
+                  if (e.hits && mapping) {
+                    const selectedVectorFeature = e.hits[0];
+                    const feature = createVectorFeature(
+                      mapping,
+                      selectedVectorFeature
+                    );
 
-                setFeature(feature);
-              } else {
-                setFeature(undefined);
-              }
-            }}
-          />
-        )}
+                    setFeature(feature);
+                  } else {
+                    setFeature(undefined);
+                  }
+                }}
+              />
+            );
+          })}
         {config.tm.noFeatureCollection !== true && (
           <>
             <FeatureCollection />
