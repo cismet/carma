@@ -64,6 +64,7 @@ export type OptionsOverlayHelper = {
     contentPos?: PositionOverlayHelper;
     contentWidth?: string;
     position?: React.CSSProperties;
+    minWindowSize?: number;
     content: JSX.Element | string;
   };
   secondary?: Secondary;

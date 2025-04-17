@@ -2,18 +2,28 @@ import { useState, useContext, useLayoutEffect } from "react";
 import { OptionsOverlayHelper, OverlayHelperConfig, Secondary } from "../..";
 import { OverlayTourContext } from "../components/OverlayTourProvider";
 import { isElementHidden } from "../utils/helper";
+import { useWindowSize } from "@uidotdev/usehooks";
 
 export const useOverlayHelper = (options: OptionsOverlayHelper) => {
   const [ref, setRef] = useState<HTMLElement | null>(null);
   const { addConfig, removeConfig } = useContext(OverlayTourContext);
+
+  const size = useWindowSize();
 
   if (!options || options.primary === undefined) {
     console.info("No options provided to useOverlayHelper, helper not ready");
     return;
   }
 
-  const { containerPos, contentPos, contentWidth, content, position, key } =
-    options.primary;
+  const {
+    containerPos,
+    contentPos,
+    contentWidth,
+    content,
+    position,
+    key,
+    minWindowSize,
+  } = options.primary;
 
   let secondary: Secondary | undefined = undefined;
 
@@ -33,7 +43,10 @@ export const useOverlayHelper = (options: OptionsOverlayHelper) => {
       ...(secondary && { secondary }),
     };
 
-    if ((!ref || isElementHidden(ref)) && !options.primary.position) {
+    if (
+      ((!ref || isElementHidden(ref)) && !options.primary.position) ||
+      (size.width && minWindowSize && size.width < minWindowSize)
+    ) {
       return;
     }
 
