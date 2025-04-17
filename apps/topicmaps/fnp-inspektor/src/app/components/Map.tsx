@@ -360,7 +360,7 @@ const Map = () => {
               <div
                 className="custom-left-control"
                 title={
-                  mode === "arbeitskarte"
+                  mode === "rechtsplan"
                     ? "Änderungsverfahren suchen"
                     : undefined
                 }
@@ -368,7 +368,7 @@ const Map = () => {
                 {!isMobile && <CustomScaleControl marginBottom={15} />}
                 <FuzzySearchWrapper
                   mapSearchAllowed={
-                    mode === "arbeitskarte" &&
+                    mode === "rechtsplan" &&
                     (zoom === null || Number(zoom) >= 12)
                   }
                   mode={mapMode.mode}
