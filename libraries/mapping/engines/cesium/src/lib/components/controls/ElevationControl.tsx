@@ -311,7 +311,7 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
           orientation: {
             direction: viewer.camera.direction.clone(),
             up: viewer.camera.up.clone(),
-          }
+          },
         });
         viewer.scene.requestRender();
         updateHeight.current && updateHeight.current();

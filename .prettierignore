@@ -52,6 +52,8 @@ manifest.json
 **/public/data/**/*.json
 **/public/data/**/*.geojson
 
+**/public/dev/**/*.json
+
 **/worker/**/*.js
 **/workers/**/*.js
 worker.js
