@@ -29,6 +29,7 @@ import CismapLayer from "react-cismap/CismapLayer";
 import { createVectorFeature } from "./helper";
 import FeatureInfobox from "./components/FeatureInfobox";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+import Menu from "./components/Menu";
 
 const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 const downloadText = (text, filename) => {
@@ -126,7 +127,7 @@ const Map = ({ config, featureGazData = [] }) => {
         }
         hamburgerMenu={config?.tm?.applicationMenu}
         modalMenu={
-          <DefaultAppMenu
+          <Menu
             menuTitle={config?.tm?.applicationMenuTitle}
             checkBoxSettingsSectionTitle={null}
             skipClusteringSettings={
@@ -152,10 +153,8 @@ const Map = ({ config, featureGazData = [] }) => {
                 />
               )
             }
-            sections={{
-              xx_last_twin: <GenericDigitalTwinReferenceSection />,
-            }}
-          ></DefaultAppMenu>
+            sections={[<GenericDigitalTwinReferenceSection />]}
+          />
         }
       >
         {config.tm.vectorLayers &&
