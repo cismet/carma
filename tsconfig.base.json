@@ -55,6 +55,9 @@
       "@carma-collab/wuppertal/fnp-inspektor": [
         "libraries/collaboration/carma-wuppertal-collab/src/fnp-inspektor/index.ts"
       ],
+      "@carma-collab/wuppertal/generic-topicmap": [
+        "libraries/collaboration/carma-wuppertal-collab/src/generic-topicmap/index.ts"
+      ],
       "@carma-collab/wuppertal/geoportal": [
         "libraries/collaboration/carma-wuppertal-collab/src/geoportal/index.tsx"
       ],
@@ -100,9 +103,6 @@
       "@carma-collab/wuppertal/x-and-ride": [
         "libraries/collaboration/carma-wuppertal-collab/src/x-and-ride/index.ts"
       ],
-      "@carma-collab/wuppertal/generic-topicmap": [
-        "libraries/collaboration/carma-wuppertal-collab/src/generic-topicmap/index.ts"
-      ],
       "@carma-commons/debug": ["libraries/commons/debug/src/index.ts"],
       "@carma-commons/document-viewer": [
         "libraries/commons/document-viewer/src/index.ts"
@@ -129,7 +129,9 @@
       "@carma-mapping/fuzzy-search": [
         "libraries/mapping/fuzzy-search/src/index.ts"
       ],
-      "@carma-mapping/fuzzy-search/*":["libraries/mapping/fuzzy-search/src/lib/*"],
+      "@carma-mapping/fuzzy-search/*": [
+        "libraries/mapping/fuzzy-search/src/lib/*"
+      ],
       "@carma-mapping/layers": [
         "libraries/mapping/carma-map-layers/src/index.ts"
       ],
