@@ -1,13 +1,9 @@
 // Built-in Modules
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 // 3rd party Modules
-
 import { Button, Modal } from "antd";
-import LZString from "lz-string";
 import { ErrorBoundary } from "react-error-boundary";
-import { useDispatch, useSelector } from "react-redux";
-import { useLocation, useSearchParams } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSpinner } from "@fortawesome/free-solid-svg-icons";
 // 1st party Modules
@@ -24,10 +20,7 @@ import { TweakpaneProvider } from "@carma-commons/debug";
 import {
   CarmaMapContextProvider,
   FeatureFlagProvider,
-  type BackgroundLayer,
-  type Settings,
 } from "@carma-apps/portals";
-import type { Layer } from "@carma-mapping/layers";
 
 // Local Modules
 import AppErrorFallback from "./components/AppErrorFallback";
@@ -37,32 +30,18 @@ import MapMeasurement from "./components/map-measure/MapMeasurement";
 import TopNavbar from "./components/TopNavbar";
 import { ObliqueDataProvider } from "./oblique/components/ObliqueDataContext";
 
-import type { AppDispatch } from "./store";
-import {
-  getBackgroundLayer,
-  getSelectedMapLayer,
-  setBackgroundLayer,
-  setLayers,
-  setSelectedLuftbildLayer,
-  setSelectedMapLayer,
-  setShowFullscreenButton,
-  setShowHamburgerMenu,
-  setShowLocatorButton,
-  setShowMeasurementButton,
-} from "./store/slices/mapping";
-import { getIfPopupOpend } from "./store/slices/print";
-
-import {
-  getUIAllowChanges,
-  getUIMode,
-  getZenMode,
-  setUIAllowChanges,
-  setUIShowLayerButtons,
-  setUIShowLayerHideButtons,
-} from "./store/slices/ui";
+import { useAppConfig } from "./hooks/useAppConfig";
+import { useManageLayers } from "./hooks/useManageLayers";
+import { useSyncToken } from "./hooks/useSyncToken";
+import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
+import { use3dMode } from "./hooks/use3dMode";
 
 import { layerMap } from "./config";
-import { CESIUM_CONFIG } from "./config/app.config";
+import {
+  CESIUM_CONFIG,
+  CONFIG_BASE_URL,
+  MIN_MOBILE_WIDTH,
+} from "./config/app.config";
 import { featureFlagConfig } from "./config/featureFlags";
 import { OBLIQUE_CONFIG, CAMERA_ID_TO_DIRECTION } from "./oblique/config";
 
@@ -71,203 +50,19 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "./index.css";
-import { setIsMode2d } from "@carma-mapping/cesium-engine";
 
 if (typeof global === "undefined") {
   window.global = window;
 }
-
-type View = {
-  center: string[];
-  zoom: string;
-};
-
-type Config = {
-  layers: Layer[];
-  backgroundLayer: BackgroundLayer & { selectedLayerId: string };
-  settings?: Settings;
-  view?: View;
-};
-
 function App({ published }: { published?: boolean }) {
-  const dispatch: AppDispatch = useDispatch();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const allowUiChanges = useSelector(getUIAllowChanges);
-  const uiMode = useSelector(getUIMode);
-  const zenMode = useSelector(getZenMode);
-  const location = useLocation();
-  const backgroundLayer = useSelector(getBackgroundLayer);
-  const selectedMapLayer = useSelector(getSelectedMapLayer);
-
-  const [syncToken, setSyncToken] = useState(null);
-  const [loadingConfig, setLoadingConfig] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(true);
-  const isMobile = window.innerWidth < 600;
-  const ifPopupPrintOpened = useSelector(getIfPopupOpend);
+  const isMobile = window.innerWidth < MIN_MOBILE_WIDTH;
 
-  const configBaseUrl =
-    "https://ceepr.cismet.de/config/wuppertal/_dev_geoportal/";
-
-  useEffect(() => {
-    console.debug(
-      " [GEOPORTAL|ROUTER] App Route changed to:",
-      location.pathname
-    );
-  }, [location]);
-
-  useEffect(() => {
-    if (searchParams.get("sync")) {
-      setSyncToken(searchParams.get("sync"));
-    }
-
-    if (searchParams.has("is3d")) {
-      const is3d = searchParams.get("is3d");
-      if (is3d === "1" || is3d === "true") {
-        dispatch(setIsMode2d(false));
-      } else {
-        dispatch(setIsMode2d(true));
-      }
-    }
-
-    if (searchParams.get("config")) {
-      setLoadingConfig(true);
-      const config = searchParams.get("config");
-
-      fetch(configBaseUrl + config)
-        .then((response) => {
-          return response.json();
-        })
-        .then((newConfig: Config) => {
-          dispatch(setLayers(newConfig.layers));
-          const selectedMapLayerId = newConfig.backgroundLayer.selectedLayerId;
-          const selectedBackgroundLayer: BackgroundLayer = {
-            title: layerMap[selectedMapLayerId].title,
-            id: selectedMapLayerId,
-            opacity: newConfig.backgroundLayer.opacity,
-            description: layerMap[selectedMapLayerId].description,
-            inhalt: layerMap[selectedMapLayerId].inhalt,
-            eignung: layerMap[selectedMapLayerId].eignung,
-            visible: newConfig.backgroundLayer.visible,
-            layerType: "wmts",
-            props: {
-              name: "",
-              url: layerMap[selectedMapLayerId].url,
-            },
-            layers: layerMap[selectedMapLayerId].layers,
-          };
-          dispatch(
-            setBackgroundLayer({
-              ...selectedBackgroundLayer,
-              id: newConfig.backgroundLayer.id,
-            })
-          );
-          if (newConfig.backgroundLayer.id === "luftbild") {
-            dispatch(setSelectedLuftbildLayer(selectedBackgroundLayer));
-          } else {
-            dispatch(setSelectedMapLayer(selectedBackgroundLayer));
-          }
-          searchParams.delete("config");
-          setSearchParams(searchParams);
-        })
-        .finally(() => {
-          setLoadingConfig(false);
-        });
-    }
-
-    if (searchParams.get("data")) {
-      const data = searchParams.get("data");
-      const newConfig: Config = JSON.parse(
-        LZString.decompressFromEncodedURIComponent(data)
-      );
-      dispatch(setLayers(newConfig.layers));
-      dispatch(setBackgroundLayer(newConfig.backgroundLayer));
-      if (newConfig.settings) {
-        dispatch(setUIShowLayerButtons(newConfig.settings.showLayerButtons));
-        dispatch(setShowFullscreenButton(newConfig.settings.showFullscreen));
-        dispatch(setShowLocatorButton(newConfig.settings.showLocator));
-        dispatch(setShowMeasurementButton(newConfig.settings.showMeasurement));
-      }
-      searchParams.delete("data");
-      setSearchParams(searchParams);
-    }
-  }, [searchParams]);
-
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.shiftKey) {
-        dispatch(setUIShowLayerHideButtons(true));
-      }
-
-      // if (e.key === "Escape") {
-      //   if (uiMode === "print" && !ifPopupPrintOpened) {
-      //     dispatch(setUIMode("default"));
-      //   }
-      //   dispatch(changeIfPopupOpend(false));
-      // }
-    };
-
-    const onKeyUp = (e: KeyboardEvent) => {
-      if (allowUiChanges) {
-        dispatch(setUIShowLayerHideButtons(false));
-      }
-    };
-
-    document.addEventListener("keydown", onKeyDown);
-    document.addEventListener("keyup", onKeyUp);
-    window.addEventListener("blur", onKeyUp);
-
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-      document.removeEventListener("keyup", onKeyUp);
-      window.removeEventListener("blur", onKeyUp);
-    };
-  }, [allowUiChanges]);
-
-  useEffect(() => {
-    const backgroundLayerId = backgroundLayer.id;
-    const selectedMapLayerId = selectedMapLayer.id;
-
-    const getId = () => {
-      return backgroundLayerId === "luftbild"
-        ? backgroundLayerId
-        : selectedMapLayerId;
-    };
-    dispatch(
-      setBackgroundLayer({
-        title: layerMap[getId()].title,
-        id: backgroundLayerId,
-        opacity: backgroundLayer.opacity,
-        description: layerMap[getId()].description,
-        inhalt: layerMap[getId()].inhalt,
-        eignung: layerMap[getId()].eignung,
-        visible: backgroundLayer.visible,
-        layerType: "wmts",
-        props: {
-          name: "",
-          url: layerMap[getId()].url,
-        },
-        layers: layerMap[getId()].layers,
-      })
-    );
-
-    dispatch(
-      setSelectedMapLayer({
-        title: layerMap[selectedMapLayerId].title,
-        id: selectedMapLayerId,
-        opacity: 1.0,
-        description: ``,
-        inhalt: layerMap[selectedMapLayerId].inhalt,
-        eignung: layerMap[selectedMapLayerId].eignung,
-        visible: selectedMapLayer.visible,
-        layerType: "wmts",
-        props: {
-          name: "",
-          url: layerMap[selectedMapLayerId].url,
-        },
-        layers: layerMap[selectedMapLayerId].layers,
-      })
-    );
-  }, []);
+  const isLoadingConfig = useAppConfig(CONFIG_BASE_URL, layerMap);
+  useManageLayers(layerMap);
+  use3dMode();
+  const syncToken = useSyncToken();
+  useKeyboardShortcuts();
 
   const content = (
     <FeatureFlagProvider config={featureFlagConfig}>
@@ -287,7 +82,7 @@ function App({ published }: { published?: boolean }) {
                 className="flex flex-col w-full "
                 style={{ height: "100dvh" }}
               >
-                {loadingConfig && (
+                {isLoadingConfig && (
                   <div
                     id="loading"
                     className="absolute flex flex-col items-center text-white justify-center h-screen w-full bg-black/50 z-[9999999999999]"
