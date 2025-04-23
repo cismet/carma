@@ -257,6 +257,15 @@ export const getLayerStructure = ({
           }
           let tags = foundLayer.tags;
           let keywords = foundLayer.keywords;
+          let hideLayer = false;
+          keywords?.forEach((keyword) => {
+            if (keyword.includes("carmaconf://hideLayer")) {
+              hideLayer = true;
+            }
+          });
+          if (hideLayer) {
+            continue;
+          }
           tags[0] =
             foundLayer.type === "link"
               ? foundLayer.tags[0]
