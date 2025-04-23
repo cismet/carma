@@ -17,10 +17,13 @@ import {
 } from "../../store/slices/print";
 import { useSelector, useDispatch } from "react-redux";
 import { setUIMode } from "../../store/slices/ui";
-import { useOutsideClick } from "../../hooks/useOutsideClick";
-import { printMap, scaleOptions } from "../../helper/print";
+import { scaleOptions } from "../../helper/print";
 
-const Print = ({ setShowPrintPopup }) => {
+interface PrintProps {
+  closePopover?: () => void;
+}
+
+const Print = ({ closePopover }: PrintProps) => {
   const dispatch = useDispatch();
   const currentOrient = useSelector(getOrientation);
   const currentDPI = useSelector(getDPI);
@@ -31,10 +34,6 @@ const Print = ({ setShowPrintPopup }) => {
   const [orientation, setOrientation] = useState(currentOrient);
   // const [name, setSName] = useState(currentName);
   const [dpi, setDpi] = useState(currentDPI);
-
-  const printPopupRef = useOutsideClick(() => {
-    setShowPrintPopup(false);
-  });
 
   const onChange = (e: RadioChangeEvent) => {
     setOrientation(e.target.value);
@@ -47,19 +46,9 @@ const Print = ({ setShowPrintPopup }) => {
     dispatch(changeIfMapPrinted(false));
   };
 
-  const handleKeyPress = (event) => {
-    if (event.key === "Enter") {
-      dispatch(setUIMode("print"));
-      dispatch(changeRedrawPreview(!redrawPrev));
-      setShowPrintPopup(false);
-      dispatch(changeIfMapPrinted(false));
-    }
-  };
-
   return (
     <div
       className="p-2 flex flex-col gap-3"
-      ref={printPopupRef}
       // onKeyDown={handleKeyPress}
     >
       <div className="flex items-center gap-2">
@@ -114,7 +103,7 @@ const Print = ({ setShowPrintPopup }) => {
         onClick={() => {
           dispatch(setUIMode("print"));
           dispatch(changeRedrawPreview(!redrawPrev));
-          setShowPrintPopup(false);
+          closePopover?.();
           dispatch(changeIfMapPrinted(false));
         }}
       >

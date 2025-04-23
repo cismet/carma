@@ -10,11 +10,12 @@ import { useFeatureFlags } from "./FeatureFlagProvider";
 
 export type ShareProps = {
   layerState: LayerState;
+  closePopover?: () => void;
 };
 
 const shortenerUrl = "https://ceepr.cismet.de/store/wuppertal/_dev_geoportal";
 
-export const Share = ({ layerState }: ShareProps) => {
+export const Share = ({ layerState, closePopover }: ShareProps) => {
   const { layers, backgroundLayer, selectedLuftbildLayer, selectedMapLayer } =
     layerState;
   const [searchParams] = useSearchParams();
@@ -89,6 +90,7 @@ export const Share = ({ layerState }: ShareProps) => {
         content: `Es gab einen Fehler beim erstellen des Links`,
       });
     }
+    closePopover?.();
   };
 
   return (

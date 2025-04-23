@@ -27,7 +27,6 @@ import {
   setFocusMode,
 } from "../../store/slices/mapping";
 import {
-  changeIfPopupOpend,
   changePrintError,
   getIfPopupOpend,
   getIsLoading,
@@ -40,6 +39,7 @@ import {
 } from "../../store/slices/ui";
 import ShareContent from "../ShareContent";
 import Print from "../map-print/Print";
+import CustomPopover from "./CustomPopover";
 
 const disabledClass = "text-gray-300";
 const disabledImageOpacity = "opacity-20";
@@ -62,10 +62,6 @@ const ActionButtons = () => {
 
   const loading = useSelector(getIsLoading);
   const printError = useSelector(getPrintError);
-
-  const handlerSetShowPrintPopup = (newState) => {
-    dispatch(changeIfPopupOpend(newState));
-  };
 
   useEffect(() => {
     if (printError) {
@@ -162,74 +158,35 @@ const ActionButtons = () => {
           <FontAwesomeIcon fixedWidth={true} icon={faEye} />
         </button>
       </Tooltip>
-      <Tooltip title="Karte speichern">
-        <Popover
-          trigger="click"
-          placement="bottom"
-          content={
-            <Save
-              layers={activeLayers}
-              backgroundLayer={backgroundLayer}
-              storeConfigAction={(config) =>
-                dispatch(appendSavedLayerConfig(config))
-              }
-            />
-          }
-        >
-          <button
-            className={` text-xl ${
-              isMode2d ? "hover:text-gray-600" : disabledClass
-            }`}
-            data-test-id="speichern-btn"
-          >
-            <FontAwesomeIcon icon={faFileExport} />
-          </button>
-        </Popover>
-      </Tooltip>
-      <Tooltip title={printError ? printError : "Drucken"}>
-        <Popover
-          trigger="click"
-          placement="bottom"
-          content={<Print setShowPrintPopup={handlerSetShowPrintPopup} />}
-          open={showPrintPopup && isMode2d}
-        >
-          {!printError ? (
-            <FontAwesomeIcon
-              onClick={() => {
-                if (!isMode2d) {
-                  return;
-                }
-                handlerSetShowPrintPopup(true);
-              }}
-              icon={faPrint}
-              className={`text-xl ${
-                isMode2d ? "hover:text-gray-600 cursor-pointer" : disabledClass
-              }`}
-            />
-          ) : (
-            <FontAwesomeIcon
-              onClick={() => {
-                if (!isMode2d) {
-                  return;
-                }
-                handlerSetShowPrintPopup(true);
-              }}
-              icon={faExclamation}
-              className="text-xl text-red-600 cursor-pointer"
-            />
-          )}
-        </Popover>
-      </Tooltip>
-      <Tooltip title="Teilen">
-        <Popover trigger="click" placement="bottom" content={<ShareContent />}>
-          <button
-            className="hover:text-gray-600 text-xl"
-            data-test-id="teilen-btn"
-          >
-            <FontAwesomeIcon icon={faShareNodes} />
-          </button>
-        </Popover>
-      </Tooltip>
+      <CustomPopover
+        content={
+          <Save
+            layers={activeLayers}
+            backgroundLayer={backgroundLayer}
+            storeConfigAction={(config) =>
+              dispatch(appendSavedLayerConfig(config))
+            }
+          />
+        }
+        icon={faFileExport}
+        testId="speichern-btn"
+        tooltip="Karte speichern"
+        disabled={!isMode2d}
+      />
+      <CustomPopover
+        content={<Print />}
+        icon={printError ? faExclamation : faPrint}
+        testId="print-btn"
+        tooltip={printError ? printError : "Drucken"}
+        disabled={!isMode2d}
+        className={printError ? "text-red-600" : ""}
+      />
+      <CustomPopover
+        content={<ShareContent />}
+        icon={faShareNodes}
+        testId="teilen-btn"
+        tooltip="Teilen"
+      />
     </div>
   );
 };

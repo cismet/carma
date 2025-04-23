@@ -11,12 +11,14 @@ interface SaveProps {
   layers: Layer[];
   backgroundLayer: BackgroundLayer;
   storeConfigAction: (config: GeoportalCollection) => void;
+  closePopover?: () => void;
 }
 
 export const Save = ({
   layers,
   backgroundLayer,
   storeConfigAction,
+  closePopover,
 }: SaveProps) => {
   const [messageApi, contextHolder] = message.useMessage();
   const [title, setTitle] = useState("");
@@ -53,6 +55,7 @@ export const Save = ({
         content: "Es gab einen Fehler beim speichern der Karte",
       });
     }
+    closePopover?.();
   };
 
   return (
