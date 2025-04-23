@@ -30,20 +30,22 @@ interface MenuProps {
   sections: React.ReactNode[];
 }
 
-const Menu = ({
-  menuTitle = "Einstellungen und Kompaktanleitung",
-  checkBoxSettingsSectionTitle,
-  skipClusteringSettings,
-  skipSymbolsizeSetting,
-  simpleHelp,
-  previewMapPosition,
-  previewFeatureCollectionCount,
-  introductionMarkdown,
-  menuIcon = "bars",
-  menuFooter,
-  introductionTerm = "der Objekte",
-  sections,
-}: MenuProps) => {
+const Menu = (props: MenuProps) => {
+  const {
+    menuTitle = "Einstellungen und Kompaktanleitung",
+    checkBoxSettingsSectionTitle,
+    skipClusteringSettings,
+    skipSymbolsizeSetting,
+    simpleHelp,
+    previewMapPosition,
+    previewFeatureCollectionCount,
+    introductionMarkdown,
+    menuIcon = "bars",
+    menuFooter,
+    introductionTerm = "der Objekte",
+    sections,
+  } = props;
+
   return (
     <CustomizationContextProvider customizations={{}}>
       <ModalApplicationMenu
@@ -62,7 +64,7 @@ const Menu = ({
           />
         }
         menuSections={[
-          <DefaultSettingsPanel key="settings" />,
+          <DefaultSettingsPanel key="settings" {...props} />,
           <Section
             key="help"
             sectionKey="HelpSection"
