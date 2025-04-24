@@ -38,6 +38,10 @@ const CustomPopover = ({
   const handleClickOutside = (event: MouseEvent | TouchEvent) => {
     const target = event.target as Node;
     let clickInPopover = false;
+    const ifSelectionClicked =
+      (event.target as HTMLElement).classList.contains(
+        "ant-select-item-option-content"
+      ) || (event.target as HTMLElement).classList.contains("ant-select-item");
 
     const popoverContent = document.querySelectorAll(".ant-popover-content");
 
@@ -50,6 +54,7 @@ const CustomPopover = ({
     if (
       buttonRef.current &&
       !buttonRef.current.contains(target) &&
+      !ifSelectionClicked &&
       (!popoverContent || !clickInPopover)
     ) {
       setOpen(false);
