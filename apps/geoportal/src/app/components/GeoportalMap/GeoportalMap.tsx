@@ -35,6 +35,7 @@ import { getApplicationVersion } from "@carma-commons/utils";
 import {
   CustomViewer,
   decodeCesiumCamera,
+  InitialCameraView,
   selectShowPrimaryTileset,
   selectViewerIsMode2d,
   selectViewerModels,
@@ -83,7 +84,6 @@ import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
-import { CameraState } from "libraries/mapping/engines/cesium/src/lib/utils/cesiumHashParamsCodec.ts";
 
 interface MapProps {
   height: number;
@@ -156,8 +156,9 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const [markerAccent, setMarkerAccent] = useState(undefined);
   const [pos, setPos] = useState<[number, number] | null>(null);
 
-  const [cesiumCameraState, setCesiumCameraState] =
-    useState<CameraState | null>(null);
+  const [cesiumInitialCameraView, setCesiumInitialCameraView] = useState<
+    InitialCameraView | null | undefined
+  >(null);
 
   const version = getApplicationVersion(versionData);
 
@@ -259,13 +260,14 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   }, [uiMode]);
 
   useEffect(() => {
-    // Get camera state from URL for initial Cesium view
-    const cameraState = decodeCesiumCamera(urlParams);
-    if (cameraState) {
-      setCesiumCameraState(cameraState);
+    const view = decodeCesiumCamera(urlParams);
+    if (view && cesiumInitialCameraView === null) {
+      setCesiumInitialCameraView(view);
     } else {
-      setCesiumCameraState({ position: undefined });
+      setCesiumInitialCameraView(undefined);
     }
+    // only evaluate url once on load for intial view
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -305,13 +307,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       });
     }, 150);
   };
-
-  const cameraOptions = useMemo(() => {
-    return {
-      ...CESIUM_CONFIG.camera,
-      ...cesiumCameraState,
-    };
-  }, [cesiumCameraState]);
 
   // TODO Move out Controls to own component
 
@@ -500,7 +495,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
           <PrintPreview />
         </TopicMapComponent>
       </div>
-      {allow3d && cesiumCameraState !== null && (
+      {allow3d && cesiumInitialCameraView !== null && (
         <div
           ref={container3dMapRef}
           className={"map-container-3d"}
@@ -517,8 +512,10 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
           }}
         >
           <CustomViewer
+            enableSceneStyles={showPrimaryTileset}
             containerRef={container3dMapRef}
-            cameraOptions={cameraOptions}
+            cameraLimiterOptions={CESIUM_CONFIG.camera}
+            initialCameraView={cesiumInitialCameraView}
             onSceneChange={(e) => {
               console.debug(
                 "[GEOPORTALMAP|HASH|SCENE|CESIUM]cesium scene changed",

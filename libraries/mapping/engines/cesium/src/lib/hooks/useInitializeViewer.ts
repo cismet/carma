@@ -26,7 +26,7 @@ import {
 } from "../slices/cesium";
 
 import { validateWorldCoordinate } from "../utils/positions";
-import { CameraOptions } from "../CustomViewer";
+import type { InitialCameraView } from "../CustomViewer";
 
 // Type for storing position and orientation
 interface CameraState {
@@ -38,11 +38,12 @@ interface CameraState {
 
 const postRenderHandlerMap: WeakMap<Viewer, () => void> = new WeakMap();
 const preUpdateHandlerMap: WeakMap<Viewer, () => void> = new WeakMap();
+const initialViewSetMap: WeakMap<Viewer, boolean> = new WeakMap();
 
 export const useInitializeViewer = (
   containerRef?: React.RefObject<HTMLDivElement>,
   options?: Viewer.ConstructorOptions,
-  cameraOptions?: CameraOptions
+  initialCameraView?: InitialCameraView
 ) => {
   const { viewerRef, setIsViewerReady } = useCesiumContext();
   const home = useSelector(selectViewerHome);
@@ -162,7 +163,7 @@ export const useInitializeViewer = (
   }, [
     options,
     containerRef,
-    cameraOptions,
+    initialCameraView,
     viewerRef,
     home,
     maxZoom,
@@ -170,7 +171,7 @@ export const useInitializeViewer = (
   ]);
 
   useEffect(() => {
-    console.debug("HOOK: useInitializeViewer useEffect terrain");
+    console.debug("HOOK: useInitializeViewer useEffect scene settings");
     if (viewerRef.current) {
       const scene: Scene = viewerRef.current.scene;
       const sscc: ScreenSpaceCameraController =
@@ -189,13 +190,20 @@ export const useInitializeViewer = (
   }, [viewerRef, isSecondaryStyle, maxZoom, minZoom, enableCollisionDetection]);
 
   useEffect(() => {
-    console.debug("HOOK: useInitializeViewer position", cameraOptions);
+    console.debug("HOOK: useInitializeViewer position", initialCameraView);
     if (viewerRef.current) {
       const viewer = viewerRef.current;
 
       if (!home || !homeOffset) {
         console.warn(
           "HOOK: [2D3D|CESIUM|CAMERA] initViewer has no home or homeOffset set, please provide them"
+        );
+        return;
+      }
+
+      if (initialViewSetMap.has(viewer)) {
+        console.debug(
+          "HOOK: [CESIUM|CAMERA] Initial view already set, skipping."
         );
         return;
       }
@@ -212,7 +220,10 @@ export const useInitializeViewer = (
           "HOOK: skipping cesium location setup with 2d mode active zoom"
         );
       } else {
-        const { position, heading, pitch, fov } = cameraOptions ?? {};
+        const position = initialCameraView?.position;
+        const heading = initialCameraView?.heading;
+        const pitch = initialCameraView?.pitch;
+        const fov = initialCameraView?.fov;
 
         if (position) {
           const restoredHeight = CesiumMath.clamp(
@@ -263,9 +274,9 @@ export const useInitializeViewer = (
         );
         resetToHome();
       }
+      initialViewSetMap.set(viewer, true);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewerRef, cameraOptions, home, homeOffset, location.pathname, isMode2d]);
+  }, [viewerRef, home, homeOffset, initialCameraView, isMode2d, maxZoom]);
 
   useEffect(() => {
     console.debug("HOOK: useInitializeViewer useEffect resize");

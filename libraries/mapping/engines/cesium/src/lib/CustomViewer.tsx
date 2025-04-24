@@ -29,10 +29,13 @@ export type GlobeOptions = {
   showSkirts?: boolean;
 };
 
-export type CameraOptions = {
+export type CameraLimiterOptions = {
   pitchLimiter?: boolean;
   minPitch?: number;
   minPitchRange?: number;
+};
+
+export type InitialCameraView = {
   position?: Cartographic;
   heading?: number;
   pitch?: number;
@@ -41,7 +44,8 @@ export type CameraOptions = {
 
 export type CustomViewerProps = {
   containerRef: RefObject<HTMLDivElement>;
-  cameraOptions?: CameraOptions;
+  cameraLimiterOptions?: CameraLimiterOptions;
+  initialCameraView?: InitialCameraView;
   constructorOptions?: Viewer.ConstructorOptions;
   globeOptions?: GlobeOptions;
   // callbacks
@@ -101,7 +105,8 @@ export function CustomViewer(props: CustomViewerProps) {
       showGroundAtmosphere: false,
       showSkirts: false,
     },
-    cameraOptions,
+    cameraLimiterOptions,
+    initialCameraView,
     constructorOptions,
     containerRef,
     onSceneChange,
@@ -113,16 +118,16 @@ export function CustomViewer(props: CustomViewerProps) {
     [constructorOptions]
   );
 
-  useInitializeViewer(containerRef, options, cameraOptions);
+  useInitializeViewer(containerRef, options, initialCameraView);
   useCesiumGlobe(globeOptions);
 
   useTransitionTimeout();
 
   // camera enhancements
   useDisableSSCC();
-  useCameraRollSoftLimiter(cameraOptions);
-  useCameraPitchSoftLimiter(cameraOptions);
-  useCameraPitchEasingLimiter(cameraOptions);
+  useCameraRollSoftLimiter(cameraLimiterOptions);
+  useCameraPitchSoftLimiter(cameraLimiterOptions);
+  useCameraPitchEasingLimiter(cameraLimiterOptions);
 
   useCesiumWhenHidden(TRANSITION_DELAY);
 

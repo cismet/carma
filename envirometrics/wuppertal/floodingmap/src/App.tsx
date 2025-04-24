@@ -391,7 +391,7 @@ function App({ sync = false }: { sync?: boolean }) {
       >
         <CustomViewer
           containerRef={container3dMapRef}
-          cameraOptions={CESIUM_CONFIG.camera}
+          cameraLimiterOptions={CESIUM_CONFIG.camera}
           constructorOptions={CONSTRUCTOR_OPTIONS}
           enableSceneStyles={false}
           onSceneChange={onCesiumSceneChange}

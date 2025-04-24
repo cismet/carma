@@ -7,6 +7,8 @@ export { CustomCesiumWidget } from "./lib/CustomCesiumWidget";
 export {
   CustomViewer,
   DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS,
+  type InitialCameraView,
+  type CameraLimiterOptions,
 } from "./lib/CustomViewer";
 export { CustomViewerPlayground } from "./lib/CustomViewerPlayground";
 

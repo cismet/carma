@@ -155,7 +155,7 @@ export const HQ500 = () => {
         >
           <CustomViewer
             containerRef={container3dMapRef}
-            cameraOptions={{
+            cameraLimiterOptions={{
               pitchLimiter: false,
             }}
             globeOptions={{
