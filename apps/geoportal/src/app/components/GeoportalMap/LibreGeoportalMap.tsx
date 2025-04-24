@@ -93,9 +93,22 @@ const LibreGeoportalMap = () => {
           if (vectorStyle) {
             const response = await fetch(vectorStyle);
             const additionalStyle = await response.json();
+            let layers = additionalStyle.layers.map((layer) => {
+              if (layer.type.includes("extrusion")) {
+                return {
+                  ...layer,
+                  metadata: {
+                    ...layer.metadata,
+                    "z-index": 100000,
+                  },
+                };
+              } else {
+                return layer;
+              }
+            });
 
             style.sources = { ...style.sources, ...additionalStyle.sources };
-            style.layers = [...style.layers, ...additionalStyle.layers];
+            style.layers = [...style.layers, ...layers];
           }
         }
       }
