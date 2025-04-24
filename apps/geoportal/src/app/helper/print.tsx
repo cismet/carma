@@ -76,13 +76,13 @@ export const printMap = async (
     layout: title,
     attributes: {
       keywordsAtt: ["map", "example", "metadata"],
+      displayedScale: scale,
       map: {
         center,
         rotation: 0,
         longitudeFirst: true,
         layers,
         scale: getMeractorScale(scale, latLng[1]),
-        displayedScale: scale,
         projection: "EPSG:3857",
         dpi,
       },
