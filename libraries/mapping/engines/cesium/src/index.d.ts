@@ -1,7 +1,6 @@
 import { TerrainProvider } from "cesium";
 import { PlainCartesian3 } from "types/common-geo";
 
-import { hashcodecs } from "./lib/utils/hashHelpers";
 import { ProviderConfig } from "./lib/utils/cesiumProviders";
 import { TilesetConfigs } from "./lib/utils/cesiumTilesetProviders";
 
