@@ -5,6 +5,9 @@ import { useSelector } from "react-redux";
 import { Viewer } from "cesium";
 
 const hideLayers = (viewer: Viewer) => {
+  if (viewer.isDestroyed()) {
+    return;
+  }
   for (let i = 0; i < viewer.imageryLayers.length; i++) {
     const layer = viewer.imageryLayers.get(i);
     if (layer) {
@@ -15,6 +18,9 @@ const hideLayers = (viewer: Viewer) => {
 };
 
 const showLayers = (viewer: Viewer) => {
+  if (viewer.isDestroyed()) {
+    return;
+  }
   for (let i = 0; i < viewer.imageryLayers.length; i++) {
     const layer = viewer.imageryLayers.get(i);
     if (layer) {

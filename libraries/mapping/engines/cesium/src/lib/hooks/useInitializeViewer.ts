@@ -3,11 +3,14 @@ import { useSelector } from "react-redux";
 
 import {
   BoundingSphere,
+  Camera,
   Cartesian3,
   Cartographic,
   Math as CesiumMath,
+  HeadingPitchRange,
   Matrix4,
   PerspectiveFrustum,
+  Rectangle,
   Scene,
   ScreenSpaceCameraController,
   Viewer,
@@ -43,11 +46,24 @@ const initialViewSetMap: WeakMap<Viewer, boolean> = new WeakMap();
 export const useInitializeViewer = (
   containerRef?: React.RefObject<HTMLDivElement>,
   options?: Viewer.ConstructorOptions,
-  initialCameraView?: InitialCameraView
+  initialCameraView?: InitialCameraView | null
 ) => {
-  const { viewerRef, setIsViewerReady } = useCesiumContext();
+  const { viewerRef, isViewerReady, setIsViewerReady } = useCesiumContext();
   const home = useSelector(selectViewerHome);
   const homeOffset = useSelector(selectViewerHomeOffset);
+
+  // aling Cesium Default fallback with local home
+  if (home) {
+    const { longitude, latitude } = Cartographic.fromCartesian(home);
+    const rect = new Rectangle(longitude, latitude, longitude, latitude);
+
+    Camera.DEFAULT_VIEW_RECTANGLE = rect;
+  }
+  Camera.DEFAULT_OFFSET = new HeadingPitchRange(
+    CesiumMath.toRadians(0),
+    CesiumMath.toRadians(-45),
+    700
+  );
 
   const previousIsMode2d = useRef<boolean | null>(null);
   const previousIsSecondaryStyle = useRef<boolean | null>(null);
@@ -191,7 +207,7 @@ export const useInitializeViewer = (
 
   useEffect(() => {
     console.debug("HOOK: useInitializeViewer position", initialCameraView);
-    if (viewerRef.current) {
+    if (viewerRef.current && isViewerReady && initialCameraView !== null) {
       const viewer = viewerRef.current;
 
       if (!home || !homeOffset) {
@@ -276,7 +292,15 @@ export const useInitializeViewer = (
       }
       initialViewSetMap.set(viewer, true);
     }
-  }, [viewerRef, home, homeOffset, initialCameraView, isMode2d, maxZoom]);
+  }, [
+    viewerRef,
+    isViewerReady,
+    home,
+    homeOffset,
+    initialCameraView,
+    isMode2d,
+    maxZoom,
+  ]);
 
   useEffect(() => {
     console.debug("HOOK: useInitializeViewer useEffect resize");
@@ -284,7 +308,7 @@ export const useInitializeViewer = (
       const viewer = viewerRef.current;
       const resizeObserver = new ResizeObserver(() => {
         console.debug("HOOK: resize cesium container");
-        if (viewer && containerRef?.current) {
+        if (viewer && !viewer.isDestroyed() && containerRef?.current) {
           viewer.canvas.width = containerRef.current.clientWidth;
           viewer.canvas.height = containerRef.current.clientHeight;
           viewer.canvas.style.width = "100%";

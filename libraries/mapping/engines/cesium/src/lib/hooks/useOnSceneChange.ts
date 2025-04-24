@@ -56,7 +56,7 @@ export const useOnSceneChange = (
   useEffect(() => {
     // on changes to mode or style
     const viewer = viewerRef.current;
-    if (viewer && viewer.scene && !isMode2d) {
+    if (viewer && viewer.camera && !isMode2d) {
       console.debug(
         "HOOK: update Hash, route or style changed",
         isSecondaryStyle
@@ -82,13 +82,13 @@ export const useOnSceneChange = (
       return;
     }
 
-    if (viewer && viewer.scene) {
+    if (viewer && viewer.camera) {
       console.debug(
         "HOOK: [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to update hash"
       );
       const moveEndListener = async () => {
         // let TopicMap/leaflet handle the view change in 2d Mode
-        if (viewer.scene && viewer.camera.position && !isMode2d) {
+        if (viewer.camera && viewer.camera.position && !isMode2d) {
           const camDeg = cameraToCartographicDegrees(viewer.camera);
           console.debug(
             "LISTENER: Cesium moveEndListener encode viewer to hash",
@@ -108,13 +108,12 @@ export const useOnSceneChange = (
           }
         }
       };
-      viewer.scene.camera.moveEnd.addEventListener(moveEndListener);
+      viewer.camera.moveEnd.addEventListener(moveEndListener);
       return () => {
         // clear hash on unmount
         onSceneChange && onSceneChange({ hashParams: {} });
-        viewer &&
-          viewer.scene &&
-          viewer.scene.camera.moveEnd.removeEventListener(moveEndListener);
+        !viewer.isDestroyed() &&
+          viewer.camera.moveEnd.removeEventListener(moveEndListener);
       };
     }
   }, [viewerRef, isSecondaryStyle, isMode2d, onSceneChange, isTransitioning]);

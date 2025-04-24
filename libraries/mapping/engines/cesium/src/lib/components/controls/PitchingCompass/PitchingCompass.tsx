@@ -102,13 +102,19 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
   };
 
   useEffect(() => {
-    if (!viewerRef.current || !viewerAnimationMapRef.current) return;
+    if (
+      !viewerRef.current ||
+      !viewerRef.current.camera ||
+      !viewerAnimationMapRef.current
+    )
+      return;
     const viewer = viewerRef.current;
+    const camera = viewer.camera;
     const animationMap = viewerAnimationMapRef.current;
 
     const getCameraOrientation = () => {
-      if (!viewer || !viewer.camera) return;
-      const { pitch, heading } = viewer.camera;
+      if (!camera) return;
+      const { pitch, heading } = camera;
       setCurrentPitch(pitch);
       setCurrentHeading(heading);
     };
@@ -119,11 +125,11 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
       cancelViewerAnimation(viewer, animationMap);
     }, ScreenSpaceEventType.LEFT_DOWN);
 
-    viewer.camera.changed.addEventListener(getCameraOrientation);
+    camera.changed.addEventListener(getCameraOrientation);
 
     return () => {
       handler.destroy();
-      viewer.camera.changed.removeEventListener(getCameraOrientation);
+      camera.changed.removeEventListener(getCameraOrientation);
     };
   }, [viewerRef, viewerAnimationMapRef]);
 
@@ -211,9 +217,8 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
   };
 
   useEffect(() => {
-    const viewer = viewerRef.current;
-    if (viewer) {
-      const camera = viewer.scene.camera;
+    if (viewerRef.current && viewerRef.current.scene) {
+      const camera = viewerRef.current.scene.camera;
       const updateOrientation = () => {
         setCurrentPitch(camera.pitch);
         // correct heading for compass needle

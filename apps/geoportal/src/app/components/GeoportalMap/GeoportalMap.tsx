@@ -495,7 +495,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
           <PrintPreview />
         </TopicMapComponent>
       </div>
-      {allow3d && cesiumInitialCameraView !== null && (
+      {allow3d && (
         <div
           ref={container3dMapRef}
           className={"map-container-3d"}
@@ -512,7 +512,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
           }}
         >
           <CustomViewer
-            enableSceneStyles={showPrimaryTileset}
             containerRef={container3dMapRef}
             cameraLimiterOptions={CESIUM_CONFIG.camera}
             initialCameraView={cesiumInitialCameraView}
