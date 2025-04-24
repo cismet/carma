@@ -46,6 +46,11 @@ export {
 export { applyRollToHeadingForCameraNearNadir } from "./lib/utils/cesiumCamera";
 
 export {
+  encodeCesiumCamera,
+  decodeCesiumCamera,
+} from "./lib/utils/cesiumHashParamsCodec";
+
+export {
   pickViewerCanvasCenter,
   getDegreesFromCartesian,
   getDegreesFromCartographic,

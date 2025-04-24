@@ -102,7 +102,7 @@ export const CesiumContextProvider = ({
 
   // Load Primary Tileset
   useEffect(() => {
-    if (tilesetConfigs.primary) {
+    if (isViewerReady && tilesetConfigs.primary) {
       const fetchPrimary = async () => {
         console.debug(
           "[CESIUM|DEBUG] Loading primary tileset",
@@ -125,11 +125,11 @@ export const CesiumContextProvider = ({
         primaryTilesetRef.current = null;
       }
     };
-  }, [tilesetConfigs.primary]);
+  }, [isViewerReady, tilesetConfigs.primary]);
 
   // Load Secondary Tileset
   useEffect(() => {
-    if (tilesetConfigs.secondary) {
+    if (isViewerReady && tilesetConfigs.secondary) {
       const fetchSecondary = async () => {
         console.debug(
           "[CESIUM|DEBUG] Loading secondary tileset",
@@ -154,7 +154,7 @@ export const CesiumContextProvider = ({
         secondaryTilesetRef.current = null;
       }
     };
-  }, [tilesetConfigs.secondary]);
+  }, [isViewerReady, tilesetConfigs.secondary]);
 
   const contextValue = useMemo<CesiumContextType>(
     () => ({

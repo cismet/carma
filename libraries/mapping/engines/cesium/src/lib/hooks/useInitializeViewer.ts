@@ -25,8 +25,8 @@ import {
   selectViewerHomeOffset,
 } from "../slices/cesium";
 
-import { decodeSceneFromLocation } from "../utils/hashHelpers";
 import { validateWorldCoordinate } from "../utils/positions";
+import { CameraOptions } from "../CustomViewer";
 
 // Type for storing position and orientation
 interface CameraState {
@@ -41,14 +41,12 @@ const preUpdateHandlerMap: WeakMap<Viewer, () => void> = new WeakMap();
 
 export const useInitializeViewer = (
   containerRef?: React.RefObject<HTMLDivElement>,
-  options?: Viewer.ConstructorOptions
+  options?: Viewer.ConstructorOptions,
+  cameraOptions?: CameraOptions
 ) => {
   const { viewerRef, setIsViewerReady } = useCesiumContext();
   const home = useSelector(selectViewerHome);
   const homeOffset = useSelector(selectViewerHomeOffset);
-
-  // todo move initialization from hash to consuming component
-  const hashRef = useRef<string | null>(null); // effectively hook should run only once
 
   const previousIsMode2d = useRef<boolean | null>(null);
   const previousIsSecondaryStyle = useRef<boolean | null>(null);
@@ -161,7 +159,15 @@ export const useInitializeViewer = (
         viewerRef.current = null;
       }
     };
-  }, [options, containerRef, viewerRef, home, maxZoom, setIsViewerReady]);
+  }, [
+    options,
+    containerRef,
+    cameraOptions,
+    viewerRef,
+    home,
+    maxZoom,
+    setIsViewerReady,
+  ]);
 
   useEffect(() => {
     console.debug("HOOK: useInitializeViewer useEffect terrain");
@@ -183,23 +189,9 @@ export const useInitializeViewer = (
   }, [viewerRef, isSecondaryStyle, maxZoom, minZoom, enableCollisionDetection]);
 
   useEffect(() => {
-    console.debug("HOOK: useInitializeViewer useEffect hash");
-    if (viewerRef.current && hashRef.current === null) {
+    console.debug("HOOK: useInitializeViewer position", cameraOptions);
+    if (viewerRef.current) {
       const viewer = viewerRef.current;
-      const locationHash = window.location.hash ?? "";
-      hashRef.current = locationHash;
-      console.debug("HOOK: set initialHash", locationHash);
-
-      const hashParams = locationHash.split("?")[1];
-      const sceneFromHashParams = decodeSceneFromLocation(hashParams);
-      const { camera } = sceneFromHashParams;
-      const { latitude, longitude, height, heading, pitch } = camera;
-
-      const restoredHeight = CesiumMath.clamp(height || 1000, 0, 50000);
-
-      if (viewer.camera.frustum instanceof PerspectiveFrustum) {
-        viewer.camera.frustum.fov = Math.PI / 4;
-      }
 
       if (!home || !homeOffset) {
         console.warn(
@@ -215,19 +207,22 @@ export const useInitializeViewer = (
         });
       };
 
-      // TODO enable 2D Mode if zoom value is present in hash on startup
-
       if (isMode2d) {
         console.debug(
           "HOOK: skipping cesium location setup with 2d mode active zoom"
         );
       } else {
-        if (sceneFromHashParams && longitude && latitude) {
-          const destination = Cartesian3.fromRadians(
-            longitude,
-            latitude,
-            restoredHeight
+        const { position, heading, pitch, fov } = cameraOptions ?? {};
+
+        if (position) {
+          const restoredHeight = CesiumMath.clamp(
+            position?.height || 1000,
+            0,
+            50000
           );
+          position.height = restoredHeight;
+
+          const destination = Cartographic.toCartesian(position);
 
           const isValidDestination = validateWorldCoordinate(
             destination,
@@ -236,13 +231,15 @@ export const useInitializeViewer = (
             0
           );
 
+          if (viewer.camera.frustum instanceof PerspectiveFrustum) {
+            viewer.camera.frustum.fov = fov ?? Math.PI / 4;
+          }
+
           if (isValidDestination) {
             console.debug(
-              "HOOK [2D3D|CESIUM|CAMERA] init Viewer set camera from hash",
+              "HOOK [2D3D|CESIUM|CAMERA] init Viewer set camera from provided position",
               destination,
-              longitude,
-              latitude,
-              restoredHeight
+              position
             );
             viewer.camera.setView({
               destination,
@@ -268,7 +265,7 @@ export const useInitializeViewer = (
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewerRef, home, homeOffset, location.pathname, isMode2d]);
+  }, [viewerRef, cameraOptions, home, homeOffset, location.pathname, isMode2d]);
 
   useEffect(() => {
     console.debug("HOOK: useInitializeViewer useEffect resize");

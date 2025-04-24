@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import { useSelector } from "react-redux";
 
 import { cameraToCartographicDegrees } from "../utils/cesiumHelpers";
-import { encodeScene } from "../utils/hashHelpers";
 
 import {
   selectShowSecondaryTileset,
@@ -10,11 +9,41 @@ import {
   selectViewerIsTransitioning,
 } from "../slices/cesium";
 
-import { EncodedSceneParams } from "../..";
+import { encodeCesiumCamera } from "../..";
 import { useCesiumContext } from "./useCesiumContext";
+import { Viewer } from "cesium";
+import { StringifiedCameraState } from "../utils/cesiumHashParamsCodec";
+
+export const VIEWERSTATE_KEYS = {
+  mapStyle: "m",
+  is3d: "is3d",
+};
+
+const toHashParams = (
+  cesiumCameraState: StringifiedCameraState,
+  args: { isSecondaryStyle: boolean; isMode2d: boolean }
+) => {
+  const viewerState = {
+    [VIEWERSTATE_KEYS.mapStyle]: args.isSecondaryStyle ? "0" : "1",
+    [VIEWERSTATE_KEYS.is3d]: args.isMode2d ? "0" : "1",
+  };
+
+  const hashParams = cesiumCameraState.reduce((acc, { key, value }) => {
+    acc[key] = value;
+    return acc;
+  }, viewerState);
+
+  return hashParams;
+};
 
 export const useOnSceneChange = (
-  onSceneChange?: (p: EncodedSceneParams) => void
+  onSceneChange?: (
+    e: { hashParams: Record<string, string> },
+    viewer?: Viewer,
+    cesiumCameraState?: StringifiedCameraState | null,
+    isSecondaryStyle?: boolean,
+    isMode2d?: boolean
+  ) => void
 ) => {
   const { viewerRef } = useCesiumContext();
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
@@ -24,23 +53,21 @@ export const useOnSceneChange = (
   // todo handle style change explicitly not via tileset, is secondarystyle
   // todo consider declaring changed part of state in the callback, not full state only
 
-  console.debug("HOOKINIT [CESIUM|HASH] useCesiumHashUpdater");
-
   useEffect(() => {
+    // on changes to mode or style
     const viewer = viewerRef.current;
     if (viewer && viewer.scene && !isMode2d) {
       console.debug(
         "HOOK: update Hash, route or style changed",
         isSecondaryStyle
       );
-
-      const encodedScene = encodeScene(viewer.scene, {
-        isSecondaryStyle,
-        isMode2d,
-      });
-
       if (onSceneChange) {
-        onSceneChange(encodedScene);
+        const cameraState = encodeCesiumCamera(viewer.camera);
+        const hashParams = toHashParams(cameraState, {
+          isSecondaryStyle,
+          isMode2d,
+        });
+        onSceneChange({ hashParams });
       } else {
         console.info("HOOK: [NOOP] no onSceneChange callback");
       }
@@ -68,14 +95,14 @@ export const useOnSceneChange = (
             isSecondaryStyle,
             camDeg
           );
-          const encodedScene =
-            viewer.scene &&
-            encodeScene(viewer.scene, {
+
+          if (onSceneChange) {
+            const cameraState = encodeCesiumCamera(viewer.camera);
+            const hashParams = toHashParams(cameraState, {
               isSecondaryStyle,
               isMode2d,
             });
-          if (onSceneChange) {
-            onSceneChange(encodedScene);
+            onSceneChange({ hashParams });
           } else {
             console.info("HOOK: [NOOP] no onSceneChange callback");
           }
@@ -84,7 +111,7 @@ export const useOnSceneChange = (
       viewer.scene.camera.moveEnd.addEventListener(moveEndListener);
       return () => {
         // clear hash on unmount
-        onSceneChange && onSceneChange({hashParams: {}});
+        onSceneChange && onSceneChange({ hashParams: {} });
         viewer &&
           viewer.scene &&
           viewer.scene.camera.moveEnd.removeEventListener(moveEndListener);

@@ -42,10 +42,11 @@ const DEFAULT_LOD2_OPTIONS: Cesium3DTileset.ConstructorOptions = {
 };
 
 const loadLOD2Tileset = async (tileset: TilesetConfig) => {
-  const lod2 = await Cesium3DTileset.fromUrl(tileset.url, {
+  const lod2Options = {
     ...tileset.constructorOptions,
     ...DEFAULT_LOD2_OPTIONS,
-  });
+  };
+  const lod2 = await Cesium3DTileset.fromUrl(tileset.url, lod2Options);
   return lod2;
 };
 
@@ -54,10 +55,11 @@ const loadMeshTileset = async (tileset: TilesetConfig) => {
   const shader = new CustomShader(
     CUSTOM_SHADERS_DEFINITIONS[CustomShaderKeys.UNLIT_ENHANCED_2024]
   );
-  const mesh = await Cesium3DTileset.fromUrl(tileset.url, {
+  const meshOptions = {
     ...tileset.constructorOptions,
     ...DEFAULT_MESH_OPTIONS,
-  });
+  };
+  const mesh = await Cesium3DTileset.fromUrl(tileset.url, meshOptions);
   mesh.customShader = shader;
   return mesh;
 };

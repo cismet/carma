@@ -37,7 +37,6 @@ import { useTilesets } from "./hooks/useTilesets";
 import { resolutionFractions } from "./utils/cesiumHelpers";
 
 import { formatFractions } from "./utils/formatters";
-import { encodeScene } from "./utils/hashHelpers";
 import { setLeafletView } from "./utils/leafletHelpers";
 import { EncodedSceneParams } from "..";
 
@@ -96,7 +95,6 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
       showSkirts: false,
     },
     minimapLayerUrl,
-    onSceneChange,
   } = props;
 
   const [showFader, setShowFader] = useState(props.showFader ?? false);
@@ -296,8 +294,6 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
         "HOOK: update Hash, route or style changed",
         isSecondaryStyle
       );
-      onSceneChange &&
-        onSceneChange(encodeScene(viewer.scene, { isSecondaryStyle }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewerRef, location.pathname, isSecondaryStyle]);
@@ -331,10 +327,6 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
     const moveEndListener = async () => {
       if (viewer?.camera.position) {
         console.debug("LISTENER: moveEndListener", isSecondaryStyle);
-        const encodedScene = encodeScene(viewer.scene, { isSecondaryStyle });
-
-        // let TopicMap/leaflet handle the view change in 2d Mode
-        !isMode2d && onSceneChange && onSceneChange(encodedScene);
 
         if (isUserAction && (!isMode2d || showFader)) {
           // remove roll from camera orientation
@@ -375,7 +367,6 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
     topicMapContext?.routedMapRef,
     isMode2d,
     isUserAction,
-    onSceneChange,
   ]);
 
   console.debug("RENDER: CustomViewer");

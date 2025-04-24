@@ -1,5 +1,5 @@
 import { type RefObject, useMemo } from "react";
-import { Color, Viewer, Rectangle, SceneMode } from "cesium";
+import { Color, Viewer, Rectangle, SceneMode, Cartographic } from "cesium";
 import UAParser from "ua-parser-js";
 import { merge } from "lodash";
 
@@ -19,7 +19,7 @@ import useTransitionTimeout from "./hooks/useTransitionTimeout";
 import useTweakpane from "./hooks/useTweakpane";
 import { useTilesets } from "./hooks/useTilesets";
 import { useSceneStyles } from "./hooks/useSceneStyles";
-import { EncodedSceneParams } from "..";
+import { StringifiedCameraState } from "./utils/cesiumHashParamsCodec";
 
 export type GlobeOptions = {
   // https://cesium.com/learn/cesiumjs/ref-doc/Globe.html
@@ -29,17 +29,29 @@ export type GlobeOptions = {
   showSkirts?: boolean;
 };
 
+export type CameraOptions = {
+  pitchLimiter?: boolean;
+  minPitch?: number;
+  minPitchRange?: number;
+  position?: Cartographic;
+  heading?: number;
+  pitch?: number;
+  fov?: number;
+};
+
 export type CustomViewerProps = {
   containerRef: RefObject<HTMLDivElement>;
-  cameraOptions?: {
-    pitchLimiter?: boolean;
-    minPitch?: number;
-    minPitchRange?: number;
-  };
+  cameraOptions?: CameraOptions;
   constructorOptions?: Viewer.ConstructorOptions;
   globeOptions?: GlobeOptions;
   // callbacks
-  onSceneChange?: (encodedScene: EncodedSceneParams) => void;
+  onSceneChange?: (
+    e: { hashParams: Record<string, string> },
+    viewer?: Viewer,
+    cesiumCameraState?: StringifiedCameraState | null,
+    isSecondaryStyle?: boolean,
+    isMode2d?: boolean
+  ) => void;
   postInit?: () => void;
   enableSceneStyles?: boolean;
 };
@@ -101,7 +113,7 @@ export function CustomViewer(props: CustomViewerProps) {
     [constructorOptions]
   );
 
-  useInitializeViewer(containerRef, options);
+  useInitializeViewer(containerRef, options, cameraOptions);
   useCesiumGlobe(globeOptions);
 
   useTransitionTimeout();
