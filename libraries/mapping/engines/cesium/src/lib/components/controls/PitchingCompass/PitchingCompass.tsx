@@ -28,6 +28,7 @@ import { useCesiumContext } from "../../../hooks/useCesiumContext";
 interface RotateButtonProps {
   viewerRef: React.RefObject<Viewer | null>;
   viewerAnimationMapRef: React.RefObject<ViewerAnimationMap | null>;
+  isViewerReady: boolean;
   minPitch?: number;
   maxPitch?: number;
   durationReset?: number;
@@ -39,6 +40,7 @@ interface RotateButtonProps {
 /**
  * @viewerRef reference to cesium viewer
  * @viewerAnimationMapRef reference to a WeakMap of viewer animations
+ * @isViewerReady boolean state indicating if the viewer is ready
  * @minPitch pitch angle in radians starting from Nadir -90 to -0, should be left at -90
  * @maxPitch pitch angle in radians starting from Nadir -90 to -0 is flat with terrain and should be avoided.
  * @durationReset duration in milliseconds when returning to top down or default oblique view

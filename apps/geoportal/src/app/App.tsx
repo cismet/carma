@@ -34,7 +34,7 @@ import { useAppConfig } from "./hooks/useAppConfig";
 import { useManageLayers } from "./hooks/useManageLayers";
 import { useSyncToken } from "./hooks/useSyncToken";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
-import { use3dMode } from "./hooks/use3dMode";
+import { useCesiumSearchParams } from "./hooks/useCesiumSearchParams";
 
 import { layerMap } from "./config";
 import {
@@ -60,7 +60,7 @@ function App({ published }: { published?: boolean }) {
 
   const isLoadingConfig = useAppConfig(CONFIG_BASE_URL, layerMap);
   useManageLayers(layerMap);
-  use3dMode();
+  useCesiumSearchParams();
   const syncToken = useSyncToken();
   useKeyboardShortcuts();
 

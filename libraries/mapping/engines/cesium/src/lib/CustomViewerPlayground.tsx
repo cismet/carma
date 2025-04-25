@@ -38,7 +38,6 @@ import { resolutionFractions } from "./utils/cesiumHelpers";
 
 import { formatFractions } from "./utils/formatters";
 import { setLeafletView } from "./utils/leafletHelpers";
-import { EncodedSceneParams } from "..";
 
 type CustomViewerProps = {
   children?: ReactNode;
@@ -70,7 +69,7 @@ type CustomViewerProps = {
   };
 
   minimapLayerUrl?: string;
-  onSceneChange?: (encodedScene: EncodedSceneParams) => void;
+  onSceneChange?: (e: unknown) => void;
 };
 
 export function CustomViewerPlayground(props: CustomViewerProps) {

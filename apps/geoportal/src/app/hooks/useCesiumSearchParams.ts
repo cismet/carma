@@ -2,9 +2,12 @@ import { useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useDispatch } from "react-redux";
 
-import { setIsMode2d } from "@carma-mapping/cesium-engine";
+import {
+  setIsMode2d,
+  setCurrentSceneStyle,
+} from "@carma-mapping/cesium-engine";
 
-export const use3dMode = () => {
+export const useCesiumSearchParams = () => {
   const [searchParams] = useSearchParams();
   const dispatch = useDispatch();
   useEffect(() => {
@@ -15,6 +18,12 @@ export const use3dMode = () => {
       } else {
         dispatch(setIsMode2d(true));
       }
+    }
+
+    // TODO: handle this in common hook with TopicMap basemap setting on start from URL
+    if (searchParams.has("m")) {
+      const isPrimaryStyle = searchParams.get("m") === "1";
+      dispatch(setCurrentSceneStyle(isPrimaryStyle ? "primary" : "secondary"));
     }
     // run only once on load
     // eslint-disable-next-line react-hooks/exhaustive-deps

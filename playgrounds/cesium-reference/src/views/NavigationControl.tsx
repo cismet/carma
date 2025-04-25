@@ -114,6 +114,7 @@ const NavigationControlView: FC = () => {
               <PitchingCompass
                 viewerRef={viewerRef}
                 viewerAnimationMapRef={viewerAnimationMapRef}
+                isViewerReady={isViewerReady}
               />
             </ControlButtonStyler>
           </Control>

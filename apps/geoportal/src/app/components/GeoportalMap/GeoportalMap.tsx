@@ -36,6 +36,7 @@ import {
   CustomViewer,
   decodeCesiumCamera,
   InitialCameraView,
+  selectCurrentSceneStyle,
   selectShowPrimaryTileset,
   selectViewerIsMode2d,
   selectViewerModels,
@@ -84,6 +85,7 @@ import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
+import { current } from "@reduxjs/toolkit";
 
 interface MapProps {
   height: number;
@@ -119,6 +121,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     useCesiumContext();
   const { getLeafletZoom } = useLeafletZoomControls();
   const showPrimaryTileset = useSelector(selectShowPrimaryTileset);
+  const currentSceneStyle = useSelector(selectCurrentSceneStyle);
 
   const infoBoxOverlay = addCssToOverlayHelperItem(
     getCollabedHelpElementsConfig("INFOBOX", geoElements),
@@ -266,13 +269,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     } else {
       setCesiumInitialCameraView(undefined);
     }
-
-    const isPrimaryStyle = urlParams.get("m") === "1";
-
-    console.log("xxx isPrimaryStyle", isPrimaryStyle);
-
-    dispatch(setCurrentSceneStyle(isPrimaryStyle ? "primary" : "secondary"));
-
     // only evaluate url once on load for intial view
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -358,6 +354,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
             const newParams = { ...paramsToObject(urlParams), ...location };
             newParams.lng = newParams.lng.toFixed(8);
             newParams.lat = newParams.lat.toFixed(8);
+            newParams.m = currentSceneStyle === "primary" ? 1 : 0;
             setUrlParams(newParams);
             if (
               location.zoom.toString() !== urlParams.get("zoom").toString() &&

@@ -172,20 +172,6 @@ export type RootState = {
   cesium: CesiumState;
 };
 
-// from Hash
-
-type HashKey = keyof typeof hashcodecs;
-
-type CodecKeys = {
-  [K in HashKey]: (typeof hashcodecs)[K]["key"];
-};
-
-export type FlatDecodedSceneHash = {
-  [K in CodecKeys[keyof CodecKeys]]?: ReturnType<
-    (typeof hashcodecs)[HashKey]["decode"]
-  >;
-};
-
 export type SceneStateDescription = {
   camera: {
     longitude?: number | null;
@@ -204,10 +190,4 @@ export type AppState = {
   isMode2d?: boolean;
   isSecondaryStyle?: boolean;
   zoom?: number;
-};
-
-// todo: move to common types
-export type EncodedSceneParams = {
-  hashParams: Record<string, string>;
-  state?: SceneStateDescription;
 };

@@ -102,6 +102,7 @@ function App({ sync = false }: { sync?: boolean }) {
   const {
     viewerRef,
     viewerAnimationMapRef,
+    isViewerReady,
     terrainProviderRef,
     surfaceProviderRef,
   } = useCesiumContext();
@@ -279,6 +280,7 @@ function App({ sync = false }: { sync?: boolean }) {
                 <PitchingCompass
                   viewerRef={viewerRef}
                   viewerAnimationMapRef={viewerAnimationMapRef}
+                  isViewerReady={isViewerReady}
                 />
               </ControlButtonStyler>
               {/* </Tooltip> */}
