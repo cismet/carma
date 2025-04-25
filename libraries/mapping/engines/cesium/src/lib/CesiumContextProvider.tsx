@@ -69,6 +69,10 @@ export const CesiumContextProvider = ({
   }, [providerConfig.imageryProvider]);
 
   useEffect(() => {
+    if (!isViewerReady) {
+      return;
+    } // avoids runtime issues with WebGL context not available
+
     const abortController = new AbortController();
     const { signal } = abortController;
 
@@ -81,9 +85,13 @@ export const CesiumContextProvider = ({
     return () => {
       abortController.abort();
     };
-  }, [providerConfig.terrainProvider.url]);
+  }, [providerConfig.terrainProvider.url, isViewerReady]);
 
   useEffect(() => {
+    if (!isViewerReady) {
+      return;
+    } // avoids runtime issues with WebGL context not available
+
     if (providerConfig.surfaceProvider) {
       const abortController = new AbortController();
       const { signal } = abortController;
@@ -98,7 +106,7 @@ export const CesiumContextProvider = ({
         abortController.abort();
       };
     }
-  }, [providerConfig.surfaceProvider]);
+  }, [providerConfig.surfaceProvider, isViewerReady]);
 
   // Load Primary Tileset
   useEffect(() => {
