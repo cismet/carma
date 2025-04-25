@@ -266,6 +266,13 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     } else {
       setCesiumInitialCameraView(undefined);
     }
+
+    const isPrimaryStyle = urlParams.get("m") === "1";
+
+    console.log("xxx isPrimaryStyle", isPrimaryStyle);
+
+    dispatch(setCurrentSceneStyle(isPrimaryStyle ? "primary" : "secondary"));
+
     // only evaluate url once on load for intial view
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -349,6 +356,8 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
           }}
           locationChangedHandler={(location) => {
             const newParams = { ...paramsToObject(urlParams), ...location };
+            newParams.lng = newParams.lng.toFixed(8);
+            newParams.lat = newParams.lat.toFixed(8);
             setUrlParams(newParams);
             if (
               location.zoom.toString() !== urlParams.get("zoom").toString() &&

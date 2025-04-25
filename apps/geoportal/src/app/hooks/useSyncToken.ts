@@ -8,7 +8,9 @@ export const useSyncToken = () => {
     if (searchParams.get("sync")) {
       setSyncToken(searchParams.get("sync"));
     }
-  }, [searchParams]);
+    // run only once on load
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return syncToken;
 };

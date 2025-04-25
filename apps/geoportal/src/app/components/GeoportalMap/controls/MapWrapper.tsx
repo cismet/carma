@@ -132,7 +132,8 @@ const MapWrapper = () => {
   const showLocatorButton = useSelector(getShowLocatorButton);
   const showMeasurementButton = useSelector(getShowMeasurementButton);
   const zenMode = useSelector(getZenMode);
-  const { viewerRef, viewerAnimationMapRef } = useCesiumContext();
+  const { viewerRef, viewerAnimationMapRef, isViewerReady } =
+    useCesiumContext();
   const homeControl = useHomeControl();
   const isObliqueMode = useSelector(getObliqueMode);
 
@@ -406,6 +407,7 @@ const MapWrapper = () => {
                       <PitchingCompass
                         viewerRef={viewerRef}
                         viewerAnimationMapRef={viewerAnimationMapRef}
+                        isViewerReady={isViewerReady}
                       />
                     )}
                   </ControlButtonStyler>

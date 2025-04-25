@@ -19,6 +19,14 @@ export const VIEWERSTATE_KEYS = {
   is3d: "is3d",
 };
 
+const clear3dOnlyHashParams = {
+  heading: "",
+  pitch: "",
+  fov: "",
+  h: "",
+  [VIEWERSTATE_KEYS.is3d]: "",
+};
+
 const toHashParams = (
   cesiumCameraState: StringifiedCameraState,
   args: { isSecondaryStyle: boolean; isMode2d: boolean }
@@ -67,6 +75,7 @@ export const useOnSceneChange = (
           isSecondaryStyle,
           isMode2d,
         });
+        hashParams.zoom = "";
         onSceneChange({ hashParams });
       } else {
         console.info("HOOK: [NOOP] no onSceneChange callback");
@@ -106,12 +115,14 @@ export const useOnSceneChange = (
           } else {
             console.info("HOOK: [NOOP] no onSceneChange callback");
           }
+        } else if (isMode2d) {
+          onSceneChange && onSceneChange({ hashParams: clear3dOnlyHashParams });
         }
       };
       viewer.camera.moveEnd.addEventListener(moveEndListener);
       return () => {
         // clear hash on unmount
-        onSceneChange && onSceneChange({ hashParams: {} });
+        // onSceneChange && onSceneChange({ hashParams: clear3dOnlyHashParams });
         !viewer.isDestroyed() &&
           viewer.camera.moveEnd.removeEventListener(moveEndListener);
       };

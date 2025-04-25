@@ -10,11 +10,13 @@ export const use3dMode = () => {
   useEffect(() => {
     if (searchParams.has("is3d")) {
       const is3d = searchParams.get("is3d");
-      if (is3d === "1" || is3d === "true") {
+      if (is3d === "1") {
         dispatch(setIsMode2d(false));
       } else {
         dispatch(setIsMode2d(true));
       }
     }
-  }, [searchParams, dispatch]);
+    // run only once on load
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 };

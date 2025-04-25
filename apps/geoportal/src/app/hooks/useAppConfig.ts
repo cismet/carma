@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useDispatch } from "react-redux";
 import { useSearchParams } from "react-router-dom";
 
@@ -89,13 +89,8 @@ export const useAppConfig = (configBaseUrl: string, layerMap: LayerMap) => {
     return () => {
       controller.abort();
     };
-  }, [
-    config,
-    configBaseUrl,
-    layerMap,
-    dispatch,
-    searchParams,
-    setSearchParams,
-  ]);
+    // run only once on load
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return isLoadingConfig;
 };
