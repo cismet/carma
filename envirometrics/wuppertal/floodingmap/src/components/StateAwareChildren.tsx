@@ -51,7 +51,7 @@ export const StateAwareChildren = () => {
   const conf = config.config;
 
   // CESIUM
-  const { viewerRef, terrainProviderRef } = useCesiumContext();
+  const { viewerRef, terrainProviderRef, isViewerReady } = useCesiumContext();
   const [cesiumPickedPosition, setCesiumPickedPosition] = useState<
     [number, number] | null
   >(null);
@@ -69,7 +69,13 @@ export const StateAwareChildren = () => {
       controlState.currentFeatureInfoPosition
     ) {
       const asyncUpdate = async () => {
-        if (!viewerRef.current || !terrainProviderRef.current) return;
+        if (
+          !isViewerReady ||
+          !viewerRef.current ||
+          viewerRef.current.isDestroyed() ||
+          !terrainProviderRef.current
+        )
+          return;
         const { lat, lon } = getWebMercatorInWGS84(
           controlState.currentFeatureInfoPosition
         );
@@ -91,6 +97,7 @@ export const StateAwareChildren = () => {
       asyncUpdate();
     }
   }, [
+    isViewerReady,
     viewerRef,
     terrainProviderRef,
     controlState.featureInfoModeActivated,
@@ -131,6 +138,9 @@ export const StateAwareChildren = () => {
       return () => {
         handler.destroy();
         setCesiumPickedPosition(null);
+
+        if (viewer.isDestroyed()) return;
+
         if (markerEntityRef.current) {
           viewer.entities.remove(markerEntityRef.current);
           markerEntityRef.current = null;
@@ -147,6 +157,8 @@ export const StateAwareChildren = () => {
   // Add effect to cleanup marker when feature info mode is disabled
   useEffect(() => {
     if (!controlState.featureInfoModeActivated && viewerRef.current) {
+      if (viewerRef.current.isDestroyed()) return;
+
       if (markerEntityRef.current) {
         viewerRef.current.entities.remove(markerEntityRef.current);
         markerEntityRef.current = null;

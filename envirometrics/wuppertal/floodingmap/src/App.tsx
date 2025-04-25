@@ -203,15 +203,20 @@ function App({ sync = false }: { sync?: boolean }) {
   }, []);
 
   useEffect(() => {
-    if (viewerRef.current) {
+    if (
+      isViewerReady &&
+      viewerRef.current &&
+      !viewerRef.current.isDestroyed()
+    ) {
       const viewer = viewerRef.current;
-      // remove default cesium credit because no ion resorce is used;
+      // remove default cesium credit because no ion resource is used;
       (viewer as any)._cesiumWidget._creditContainer.style.display = "none";
       setTimeout(() => {
         prepareSceneForHGK(viewer);
       }, 300);
+      viewer.scene.requestRender();
     }
-  }, [viewerRef]);
+  }, [viewerRef, isViewerReady]);
 
   const onFullscreenClick = () => {
     if (document.fullscreenElement) {
