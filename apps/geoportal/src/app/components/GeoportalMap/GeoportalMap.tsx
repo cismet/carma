@@ -34,14 +34,13 @@ import { getApplicationVersion } from "@carma-commons/utils";
 
 import {
   CustomViewer,
-  decodeCesiumCamera,
-  InitialCameraView,
   selectCurrentSceneStyle,
   selectShowPrimaryTileset,
   selectViewerIsMode2d,
   selectViewerModels,
   setCurrentSceneStyle,
   useCesiumContext,
+  useCesiumInitialCameraFromSearchParams,
 } from "@carma-mapping/cesium-engine";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 
@@ -85,7 +84,6 @@ import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
-import { current } from "@reduxjs/toolkit";
 
 interface MapProps {
   height: number;
@@ -159,10 +157,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const [markerAccent, setMarkerAccent] = useState(undefined);
   const [pos, setPos] = useState<[number, number] | null>(null);
 
-  const [cesiumInitialCameraView, setCesiumInitialCameraView] = useState<
-    InitialCameraView | null | undefined
-  >(null);
-
+  const cesiumInitialCameraView = useCesiumInitialCameraFromSearchParams();
   const version = getApplicationVersion(versionData);
 
   // custom hooks
@@ -261,17 +256,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       dispatch(setPreferredLayerId(""));
     }
   }, [uiMode]);
-
-  useEffect(() => {
-    const view = decodeCesiumCamera(urlParams);
-    if (view && cesiumInitialCameraView === null) {
-      setCesiumInitialCameraView(view);
-    } else {
-      setCesiumInitialCameraView(undefined);
-    }
-    // only evaluate url once on load for intial view
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     if (isModeFeatureInfo && pos) {

@@ -46,6 +46,7 @@ import {
   selectViewerModels,
   setIsMode2d,
   useCesiumContext,
+  useCesiumInitialCameraFromSearchParams,
   useHomeControl,
   useZoomControls,
 } from "@carma-mapping/cesium-engine";
@@ -82,6 +83,7 @@ import {
   FullscreenControl,
   RoutedMapLocateControl,
 } from "@carma-mapping/components";
+import { useSearchParams } from "react-router-dom";
 
 function App({ sync = false }: { sync?: boolean }) {
   const version = getApplicationVersion(versionData);
@@ -97,6 +99,10 @@ function App({ sync = false }: { sync?: boolean }) {
 
   const reactCismapEnvirometricsVersion = cismapEnvirometricsVersion;
   const [hochwasserschutz, setHochwasserschutz] = useState(true);
+
+  const [searchParams] = useSearchParams();
+
+  const initialCameraView = useCesiumInitialCameraFromSearchParams();
 
   // CONTROLS
   const {
@@ -169,7 +175,7 @@ function App({ sync = false }: { sync?: boolean }) {
   };
 
   const onCesiumSceneChange = (e) => {
-    replaceHashRoutedHistory(e, "/");
+    isMode2d ? undefined : replaceHashRoutedHistory(e, "/");
   };
 
   useSelectionTopicMap();
@@ -188,6 +194,15 @@ function App({ sync = false }: { sync?: boolean }) {
   );
 
   useEffect(() => {
+    if (searchParams.has("is3d")) {
+      const is3d = searchParams.get("is3d") === "1";
+      dispatch(setIsMode2d(!is3d));
+    }
+    // run only once on load
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     if (viewerRef.current) {
       const viewer = viewerRef.current;
       // remove default cesium credit because no ion resorce is used;
@@ -197,10 +212,6 @@ function App({ sync = false }: { sync?: boolean }) {
       }, 300);
     }
   }, [viewerRef]);
-
-  useEffect(() => {
-    dispatch(setIsMode2d(true));
-  }, []);
 
   const onFullscreenClick = () => {
     if (document.fullscreenElement) {
@@ -394,6 +405,7 @@ function App({ sync = false }: { sync?: boolean }) {
         <CustomViewer
           containerRef={container3dMapRef}
           cameraLimiterOptions={CESIUM_CONFIG.camera}
+          initialCameraView={initialCameraView}
           constructorOptions={CONSTRUCTOR_OPTIONS}
           enableSceneStyles={false}
           onSceneChange={onCesiumSceneChange}
