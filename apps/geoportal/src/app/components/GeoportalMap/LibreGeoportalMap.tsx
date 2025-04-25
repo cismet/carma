@@ -340,9 +340,22 @@ const LibreGeoportalMap = () => {
         const point = map.current.project([e.lngLat.lng, e.lngLat.lat]);
 
         const hits = map.current.queryRenderedFeatures(point);
-        const filteredHits = hits.filter((hit) => {
+
+        console.log("xxx", hits);
+        let filteredHits = hits.filter((hit) => {
           return !hit.layer.id.includes("selection");
         });
+
+        if (filteredHits.length === 0 && hits.length > 0) {
+          hits.forEach((hit) => {
+            if (
+              hit["source-layer"] === "Gebaeudeflaeche" &&
+              hit.id.toString().includes("3D")
+            ) {
+              filteredHits.push(hit);
+            }
+          });
+        }
 
         selectedFeatures.forEach((feature) => {
           try {
@@ -350,7 +363,7 @@ const LibreGeoportalMap = () => {
               {
                 source: feature.source,
                 sourceLayer: feature.sourceLayer,
-                id: feature.id,
+                id: feature.id || 123456,
               },
               { selected: false }
             );
@@ -370,24 +383,35 @@ const LibreGeoportalMap = () => {
             (layer) =>
               layer.id === selectedVectorFeature.layer.metadata["layer-id"]
           );
-          const feature = createFeature(
-            coordinates,
-            selectedVectorFeature,
-            layer
-          );
+          let feature;
+          if (layer) {
+            feature = createFeature(coordinates, selectedVectorFeature, layer);
+          } else {
+            feature = {
+              geometry: selectedVectorFeature.geometry,
+              id: "3d_gebaeude",
+              properties: {
+                header: "Gebäude Informationen",
+                title: selectedVectorFeature.properties.klasse,
+                subtitle:
+                  "Höhe: " + selectedVectorFeature.properties.hoehe + "m",
+              },
+            };
+          }
+
           if (feature) {
             map.current.setFeatureState(
               {
                 source: selectedVectorFeature.source,
                 sourceLayer: selectedVectorFeature.sourceLayer,
-                id: selectedVectorFeature.id,
+                id: selectedVectorFeature.id || 123456,
               },
               { selected: true }
             );
             selectedFeatures.add({
               source: selectedVectorFeature.source,
               sourceLayer: selectedVectorFeature.sourceLayer,
-              id: selectedVectorFeature.id,
+              id: selectedVectorFeature.id || 123456,
             });
             dispatch(setSelectedFeature(feature));
           }
