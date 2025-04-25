@@ -27,7 +27,11 @@ export const useHGKCesiumTerrain = (
     );
 
     if (hqKey) {
-      if (!isViewerReady || !viewerRef.current || viewerRef.current.isDestroyed())
+      if (
+        !isViewerReady ||
+        !viewerRef.current ||
+        viewerRef.current.isDestroyed()
+      )
         return;
 
       (async () => {
@@ -47,13 +51,11 @@ export const useHGKCesiumTerrain = (
         terrainProviderRef.current = provider;
         if (provider) {
           const viewer = viewerRef.current;
-          setTimeout(() => {
-            // overwrite default terrain provider
-            if (viewer && !viewer.isDestroyed()) {
-              viewer.scene.terrainProvider = provider;
-              viewer.scene.requestRender();
-            }
-          }, 500);
+          // overwrite default terrain provider
+          if (viewer && !viewer.isDestroyed()) {
+            viewer.scene.terrainProvider = provider;
+            viewer.scene.requestRender();
+          }
         }
       })();
     }
