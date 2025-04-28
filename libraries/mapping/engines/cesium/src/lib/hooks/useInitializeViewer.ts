@@ -89,6 +89,11 @@ export const useInitializeViewer = (
     console.debug("HOOK: [CESIUM] init CustomViewer");
     if (containerRef?.current) {
       try {
+        console.debug(
+          "HOOK: [CESIUM] xxx new init CustomViewer",
+          containerRef,
+          Date.now()
+        );
         const viewer = new Viewer(containerRef.current, options);
         viewerRef.current = viewer;
 

@@ -1,21 +1,18 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Tooltip } from "antd";
-import { Math as CesiumMath } from "cesium";
-
+import { useSearchParams } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faCompress,
-  faExpand,
   faHouseChimney,
   faMinus,
   faPlus,
 } from "@fortawesome/free-solid-svg-icons";
 
 import EnviroMetricMap from "@cismet-dev/react-cismap-envirometrics-maps/EnviroMetricMap";
-
-import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import { version as cismapEnvirometricsVersion } from "@cismet-dev/react-cismap-envirometrics-maps/meta";
+
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import CrossTabCommunicationControl from "react-cismap/CrossTabCommunicationControl";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
@@ -34,6 +31,7 @@ import {
   isAreaTypeWithGEP,
 } from "@carma-commons/resources";
 import { getApplicationVersion } from "@carma-commons/utils";
+
 import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/hochwassergefahrenkarte";
 
 import {
@@ -57,6 +55,10 @@ import {
 import { type SearchResultItem } from "@carma-commons/types";
 
 import {
+  FullscreenControl,
+  RoutedMapLocateControl,
+} from "@carma-mapping/components";
+import {
   Control,
   ControlButtonStyler,
   ControlLayout,
@@ -68,8 +70,6 @@ import versionData from "./version.json";
 
 import useLeafletZoomControls from "./hooks/useLeafletZoomControls";
 
-import { prepareSceneForHGK } from "./utils/scene";
-
 import config from "./config";
 import { EMAIL, HOME_ZOOM } from "./config/app.config";
 import {
@@ -78,12 +78,6 @@ import {
 } from "./config/cesium/cesium.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
-import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
-import {
-  FullscreenControl,
-  RoutedMapLocateControl,
-} from "@carma-mapping/components";
-import { useSearchParams } from "react-router-dom";
 
 function App({ sync = false }: { sync?: boolean }) {
   const version = getApplicationVersion(versionData);
@@ -211,9 +205,6 @@ function App({ sync = false }: { sync?: boolean }) {
       const viewer = viewerRef.current;
       // remove default cesium credit because no ion resource is used;
       (viewer as any)._cesiumWidget._creditContainer.style.display = "none";
-      setTimeout(() => {
-        prepareSceneForHGK(viewer);
-      }, 300);
       viewer.scene.requestRender();
     }
   }, [viewerRef, isViewerReady]);
