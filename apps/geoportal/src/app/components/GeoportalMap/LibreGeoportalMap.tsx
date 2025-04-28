@@ -25,7 +25,7 @@ import {
 } from "../feature-info/featureInfoHelper";
 import { setSelectedFeature } from "../../store/slices/features";
 import store from "../../store";
-import { layersToMapLibreStyle } from "./libremap.utils";
+import { createFeature, layersToMapLibreStyle } from "./libremap.utils";
 
 const LibreGeoportalMap = () => {
   const dispatch = useDispatch();
@@ -66,72 +66,6 @@ const LibreGeoportalMap = () => {
         paint: { "raster-opacity": 0.9 },
       },
     ],
-  };
-
-  const createFeature = (coordinates, selectedVectorFeature, layer) => {
-    let feature = undefined;
-    const vectorPos = proj4(
-      proj4.defs("EPSG:4326") as unknown as string,
-      proj4crs25832def,
-      coordinates
-    );
-
-    let properties = selectedVectorFeature.properties;
-    properties = {
-      ...properties,
-      vectorId: selectedVectorFeature.id,
-    };
-    let result = "";
-    let featureInfoZoom = 20;
-    let blockLegacyGetFeatureInfo = false;
-    layer.other.keywords.forEach((keyword) => {
-      const extracted = keyword.split("carmaconf://infoBoxMapping:")[1];
-      const zoom = keyword.split("carmaConf://featureInfoZoom:")[1];
-
-      if (keyword.includes("blockLegacyGetFeatureInfo")) {
-        blockLegacyGetFeatureInfo = true;
-      }
-
-      if (extracted) {
-        result += extracted + "\n";
-      }
-
-      if (zoom) {
-        featureInfoZoom = parseInt(zoom);
-      }
-    });
-
-    if (result) {
-      if (result.includes("function")) {
-        // remove every line that is not a function
-        result = result
-          .split("\n")
-          .filter((line) => line.includes("function"))
-          .join("\n");
-      }
-
-      const featureProperties = result.includes("function")
-        ? functionToFeature(properties, result)
-        : objectToFeature(properties, result);
-      if (!featureProperties) {
-        return undefined;
-      }
-      const genericLinks = featureProperties.properties.genericLinks || [];
-
-      feature = {
-        properties: {
-          ...featureProperties.properties,
-          genericLinks: genericLinks,
-          zoom: featureInfoZoom,
-        },
-        geometry: selectedVectorFeature.geometry,
-        id: layer.id,
-        showMarker:
-          selectedVectorFeature.geometry.type === "Polygon" ||
-          selectedVectorFeature.geometry.type === "MultiPolygon",
-      };
-    }
-    return feature;
   };
 
   useEffect(() => {
@@ -213,7 +147,7 @@ const LibreGeoportalMap = () => {
           const layer = currentLayers.find((layer) => layer.id === layerId);
           let feature;
           if (layer) {
-            feature = createFeature(coordinates, selectedVectorFeature, layer);
+            feature = createFeature(selectedVectorFeature, layer);
           } else {
             if (!selectedVectorFeature.layer.id.includes("3D")) {
               return;
