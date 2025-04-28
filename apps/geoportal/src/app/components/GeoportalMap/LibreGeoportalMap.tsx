@@ -507,10 +507,12 @@ const LibreGeoportalMap = () => {
                   ]);
                 }
 
-                map.current.setFilter(
-                  selectionLayerId,
-                  filterConditions as FilterSpecification
-                );
+                if (false) {
+                  map.current.setFilter(
+                    selectionLayerId,
+                    filterConditions as FilterSpecification
+                  );
+                }
               } else {
                 console.warn("Selection layer not found:", selectionLayerId);
               }
