@@ -95,7 +95,7 @@ interface MapProps {
 export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const dispatch = useDispatch();
 
-  const location = useLocation();
+  const { pathname } = useLocation();
   const rerenderCountRef = useRef(0);
   const lastRenderTimeStampRef = useRef(Date.now());
   const lastRenderIntervalRef = useRef(0);
@@ -334,7 +334,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
     replaceHashRoutedHistory(
       { hashParams: newParams },
-      location.pathname,
+      pathname,
       "GPM:TopicMap:locationChangedHandler"
     );
 
@@ -354,7 +354,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       );
       return;
     }
-    replaceHashRoutedHistory(e, location.pathname, "GPM:3D");
+    replaceHashRoutedHistory(e, pathname, "GPM:3D");
   };
 
   // TODO Move out Controls to own component

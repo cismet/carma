@@ -103,6 +103,7 @@ import {
 } from "../../../store/slices/ui.ts";
 
 import { CESIUM_CONFIG } from "../../../config/app.config";
+import { useLocation } from "react-router-dom";
 
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;
@@ -110,8 +111,11 @@ const setHasGPU = (flag: boolean) => (hasGPU = flag);
 const testGPU = () => detectWebGLContext(setHasGPU);
 window.addEventListener("load", testGPU, false);
 
+// TODO: centralize the hash params update behavior
+
 const MapWrapper = () => {
   const dispatch = useDispatch();
+  const { pathname } = useLocation();
 
   const flags = useFeatureFlags();
 
@@ -251,6 +255,27 @@ const MapWrapper = () => {
   const tourRefLabels = useTourRefCollabLabels();
   const { gazData } = useGazData();
   const { width, height } = useWindowSize(wrapperRef);
+
+  const clear3dHashParams = () => {
+    console.debug("[CESIUM|DEBUG] MapTypeSwitcher: 2D mode, clear hash params");
+
+    const only3d = cesiumCameraParamsKeyList.filter(
+      (k) => !["lng", "lat"].includes(k) // keep lng and lat for consistency
+    );
+
+    const clearValues = only3d.reduce(
+      (acc, key) => {
+        acc[key] = "";
+        return acc;
+      },
+      { is3d: "" }
+    );
+    replaceHashRoutedHistory(
+      { hashParams: clearValues },
+      pathname,
+      "MapTypeSwitcher Clear"
+    );
+  };
 
   const handleToggleMeasurement = () => {
     cancelOngoingRequests();
@@ -419,25 +444,7 @@ const MapWrapper = () => {
                     duration={CESIUM_CONFIG.transitions.mapMode.duration}
                     className="!rounded-t-none !border-t-[1px]"
                     onComplete={(isTo2d: boolean) => {
-                      isTo2d &&
-                        (() => {
-                          console.debug(
-                            "[CESIUM|DEBUG] MapTypeSwitcher: 2D mode, clear hash params"
-                          );
-                          const clearValues = cesiumCameraParamsKeyList.reduce(
-                            (acc, key) => {
-                              acc[key] = "";
-                              return acc;
-                            },
-                            { is3d: "" }
-                          );
-                          replaceHashRoutedHistory(
-                            { hashParams: clearValues },
-                            location.pathname,
-                            "MapTypeSwitcher Clear"
-                          );
-                        })();
-
+                      isTo2d && clear3dHashParams();
                       //dispatch(setBackgroundLayer({ ...backgroundLayer, visible: isTo2d }));
                     }}
                     ref={tourRefLabels.toggle2d3d}
