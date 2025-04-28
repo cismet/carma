@@ -29,6 +29,7 @@ import { useNavigate } from "react-router-dom";
 import { KassenzeichenViewerGefahrensignal } from "@carma-collab/wuppertal/verdis-online";
 import AnnotationPanel from "./AnnotationPanel";
 // import { useRef } from "react";
+import ChangeRequestEditView from "../components/changerequests/CR60AnnotationDialog";
 
 const KassenzeichenViewer = () => {
   const kassenzeichen = useSelector(getKassenzeichen);
@@ -392,6 +393,7 @@ const KassenzeichenViewer = () => {
         }}
         deleteAnnotation={this.props.kassenzeichenActions.removeAnnotation}
       /> */}
+      <ChangeRequestEditView />
       {verdisMapWithAdditionalComponents}
       {flaechenInfoOverlay}
       {draftAlert}
