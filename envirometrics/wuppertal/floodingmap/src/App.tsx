@@ -169,7 +169,7 @@ function App({ sync = false }: { sync?: boolean }) {
   };
 
   const onCesiumSceneChange = (e) => {
-    isMode2d ? undefined : replaceHashRoutedHistory(e, "/");
+    isMode2d ? undefined : replaceHashRoutedHistory(e, "/", "app/hgk");
   };
 
   useSelectionTopicMap();

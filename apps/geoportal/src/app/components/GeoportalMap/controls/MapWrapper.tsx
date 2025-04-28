@@ -27,6 +27,7 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 import {
+  replaceHashRoutedHistory,
   SelectionMetaData,
   useFeatureFlags,
   useGazData,
@@ -38,6 +39,7 @@ import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import { detectWebGLContext } from "@carma-commons/utils";
 
 import {
+  cesiumCameraParamsKeyList,
   MapTypeSwitcher,
   PitchingCompass,
   selectViewerIsMode2d,
@@ -417,6 +419,25 @@ const MapWrapper = () => {
                     duration={CESIUM_CONFIG.transitions.mapMode.duration}
                     className="!rounded-t-none !border-t-[1px]"
                     onComplete={(isTo2d: boolean) => {
+                      isTo2d &&
+                        (() => {
+                          console.debug(
+                            "[CESIUM|DEBUG] MapTypeSwitcher: 2D mode, clear hash params"
+                          );
+                          const clearValues = cesiumCameraParamsKeyList.reduce(
+                            (acc, key) => {
+                              acc[key] = "";
+                              return acc;
+                            },
+                            { is3d: "" }
+                          );
+                          replaceHashRoutedHistory(
+                            { hashParams: clearValues },
+                            location.pathname,
+                            "MapTypeSwitcher Clear"
+                          );
+                        })();
+
                       //dispatch(setBackgroundLayer({ ...backgroundLayer, visible: isTo2d }));
                     }}
                     ref={tourRefLabels.toggle2d3d}

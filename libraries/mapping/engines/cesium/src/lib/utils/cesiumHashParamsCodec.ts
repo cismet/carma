@@ -69,6 +69,10 @@ const cameraCodec: Record<string, HashCodec> = {
   },
 };
 
+export const cesiumCameraParamsKeyList = Object.values(cameraCodec).map(
+  (codec) => codec.key
+);
+
 function isNumber(value: unknown): value is number {
   return (
     value !== undefined &&

@@ -30,6 +30,7 @@ const showLayers = (viewer: Viewer) => {
   }
 };
 
+// reduce resoures use when cesium is not visible
 export const useCesiumWhenHidden = (delay = 0) => {
   const viewer = useCesiumViewer();
   const isMode2d = useSelector(selectViewerIsMode2d);

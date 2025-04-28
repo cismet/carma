@@ -3,15 +3,21 @@ type EncodedSceneParams = {
   state?: unknown;
 };
 
+export const getHashParams = (
+  hash = window.location.hash.split("?")[1] || ""
+) => {
+  const params = Object.fromEntries(new URLSearchParams(hash));
+  return params;
+};
+
 export const replaceHashRoutedHistory = (
   { hashParams }: EncodedSceneParams,
-  routedPath: string
+  routedPath: string,
+  label: string = "N/A" // for tracing debugging only
 ) => {
   // this is method is used to avoid triggering rerenders from the HashRouter when updating the hash
   if (hashParams) {
-    const currentHash = window.location.hash.split("?")[1] || "";
-    const currentParams = Object.fromEntries(new URLSearchParams(currentHash));
-
+    const currentParams = getHashParams();
     const combinedParams: Record<string, string> = {
       ...currentParams,
       ...hashParams, // overwrite from state but keep others
