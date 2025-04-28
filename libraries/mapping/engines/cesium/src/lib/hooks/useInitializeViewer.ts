@@ -90,9 +90,11 @@ export const useInitializeViewer = (
     if (containerRef?.current) {
       try {
         console.debug(
-          "HOOK: [CESIUM] xxx new init CustomViewer",
+          "HOOK: [CESIUM] new init CustomViewer",
           containerRef,
-          Date.now()
+          Date.now(),
+          options,
+          initialCameraView
         );
         const viewer = new Viewer(containerRef.current, options);
         viewerRef.current = viewer;

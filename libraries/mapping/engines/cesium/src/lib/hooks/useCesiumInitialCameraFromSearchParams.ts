@@ -3,6 +3,7 @@ import { decodeCesiumCamera } from "../utils/cesiumHashParamsCodec";
 import { useSearchParams } from "react-router-dom";
 import { InitialCameraView } from "../CustomViewer";
 
+// null means not set, undefined means no camera view found
 export const useCesiumInitialCameraFromSearchParams = () => {
   const [searchParams] = useSearchParams();
   const [initialCameraView, setInitialCameraView] = useState<
@@ -20,5 +21,5 @@ export const useCesiumInitialCameraFromSearchParams = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return initialCameraView !== null ? initialCameraView : undefined;
+  return initialCameraView;
 };

@@ -236,6 +236,11 @@ function App({ sync = false }: { sync?: boolean }) {
     />
   );
 
+  if (initialCameraView === null) {
+    // viewer from URL not yet evaluated, don't render anything yet
+    return null;
+  }
+
   return (
     <>
       <div
