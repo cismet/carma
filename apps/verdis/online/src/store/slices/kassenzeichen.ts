@@ -434,7 +434,8 @@ export function addAnnotation(annotationFeature) {
       }
     }
     newKassz.aenderungsanfrage.geometrien[annotationName] = feature;
-    dispatch(setKassenzeichen(newKassz));
+
+    dispatch(setKassenzeichen({ kassenzeichenObject: newKassz }));
     createFeatureCollectionForFlaechen({
       dispatch,
       kassenzeichenData: newKassz,
@@ -455,7 +456,7 @@ export function removeAnnotation(annotation) {
       delete newKassz.aenderungsanfrage.geometrien[annotation.properties.name];
     }
     dispatch(storeCR(newKassz.aenderungsanfrage));
-    dispatch(setKassenzeichen(newKassz));
+    dispatch(setKassenzeichen({ kassenzeichenObject: newKassz }));
     createFeatureCollectionForFlaechen({
       dispatch,
       kassenzeichenData: newKassz,
