@@ -319,7 +319,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     }
 
     const currentParams = getHashParams();
-    console.log("xxx", lat, lng, zoom, currentParams);
 
     const latTruncated = lat.toFixed(8);
     const lngTruncated = lng.toFixed(8);
