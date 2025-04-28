@@ -70,7 +70,6 @@ const CyclingBackgroundButton = ({
         leafletElement.state("bg-" + mapping.selectedBackgroundIndex);
         leafletElement.addTo(map);
         bgButtonInstanceRef.current = true;
-        console.log("xxx leafletElement", leafletElement);
         // map.addControl(leafletElement);
       }
     }, 0);

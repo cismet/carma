@@ -209,10 +209,6 @@ const KassenzeichenViewer = () => {
           annotationFeature={annotationFeature}
           selected={sel}
           showEditAnnoMenu={() => {
-            console.log(
-              "xxx setChangeRequestsAnnotationEditViewAnnotationAndCR",
-              annotationFeature
-            );
             dispatch(
               setChangeRequestsAnnotationEditViewAnnotationAndCR({
                 annotation: annotationFeature,
