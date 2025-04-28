@@ -439,3 +439,23 @@ export function addAnnotation(annotationFeature) {
     dispatch(storeCR(newKassz.aenderungsanfrage));
   };
 }
+
+export function removeAnnotation(annotation) {
+  console.log("xxx annotation", annotation);
+  return function (dispatch, getState) {
+    const state = getState();
+    const kassenzeichen = state.kassenzeichen;
+
+    const newKassz = JSON.parse(JSON.stringify(kassenzeichen));
+    if (newKassz.aenderungsanfrage.geometrien !== undefined) {
+      delete newKassz.aenderungsanfrage.geometrien[annotation.properties.name];
+    }
+    dispatch(storeCR(newKassz.aenderungsanfrage));
+    dispatch(setKassenzeichen(newKassz));
+    createFeatureCollectionForFlaechen({
+      dispatch,
+      kassenzeichenData: newKassz,
+      changeRequestsEditMode: state.uiState.changeRequestsEditMode,
+    });
+  };
+}
