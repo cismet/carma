@@ -11,7 +11,12 @@ import {
   setSelectedFeatureIndex,
 } from "./mapping";
 import { toRoman } from "roman-numerals";
-import { CLOUDSTORAGESTATES, setCloudStorageStatus, setError } from "./ui";
+import {
+  CLOUDSTORAGESTATES,
+  setCloudStorageStatus,
+  setError,
+  showChangeRequestAnnotationEditViewVisible,
+} from "./ui";
 
 const initialState = {
   id: -1,
@@ -441,7 +446,6 @@ export function addAnnotation(annotationFeature) {
 }
 
 export function removeAnnotation(annotation) {
-  console.log("xxx annotation", annotation);
   return function (dispatch, getState) {
     const state = getState();
     const kassenzeichen = state.kassenzeichen;
@@ -455,7 +459,8 @@ export function removeAnnotation(annotation) {
     createFeatureCollectionForFlaechen({
       dispatch,
       kassenzeichenData: newKassz,
-      changeRequestsEditMode: state.uiState.changeRequestsEditMode,
+      changeRequestsEditMode: state.ui.changeRequestsEditMode,
     });
+    dispatch(showChangeRequestAnnotationEditViewVisible(false));
   };
 }
