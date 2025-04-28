@@ -1,4 +1,5 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { isMobile } from "react-device-detect";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -39,7 +40,7 @@ import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import { detectWebGLContext } from "@carma-commons/utils";
 
 import {
-  cesiumCameraParamsKeyList,
+  getClearCesiumCameraParams,
   MapTypeSwitcher,
   PitchingCompass,
   selectViewerIsMode2d,
@@ -103,13 +104,14 @@ import {
 } from "../../../store/slices/ui.ts";
 
 import { CESIUM_CONFIG } from "../../../config/app.config";
-import { useLocation } from "react-router-dom";
 
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;
 const setHasGPU = (flag: boolean) => (hasGPU = flag);
 const testGPU = () => detectWebGLContext(setHasGPU);
 window.addEventListener("load", testGPU, false);
+
+const clear3dHashParamsObject = getClearCesiumCameraParams();
 
 // TODO: centralize the hash params update behavior
 
@@ -258,20 +260,8 @@ const MapWrapper = () => {
 
   const clear3dHashParams = () => {
     console.debug("[CESIUM|DEBUG] MapTypeSwitcher: 2D mode, clear hash params");
-
-    const only3d = cesiumCameraParamsKeyList.filter(
-      (k) => !["lng", "lat"].includes(k) // keep lng and lat for consistency
-    );
-
-    const clearValues = only3d.reduce(
-      (acc, key) => {
-        acc[key] = "";
-        return acc;
-      },
-      { is3d: "" }
-    );
     replaceHashRoutedHistory(
-      { hashParams: clearValues },
+      { hashParams: clear3dHashParamsObject },
       pathname,
       "MapTypeSwitcher Clear"
     );

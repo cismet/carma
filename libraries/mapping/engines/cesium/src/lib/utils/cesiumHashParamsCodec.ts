@@ -73,6 +73,21 @@ export const cesiumCameraParamsKeyList = Object.values(cameraCodec).map(
   (codec) => codec.key
 );
 
+export const getClearCesiumCameraParams = (emptyValue = "") => {
+  const only3d = cesiumCameraParamsKeyList.filter(
+    (k) => !["lng", "lat"].includes(k) // keep lng and lat for consistency
+  );
+
+  const clearValues = only3d.reduce(
+    (acc, key) => {
+      acc[key] = emptyValue;
+      return acc;
+    },
+    { is3d: emptyValue }
+  );
+  return clearValues;
+};
+
 function isNumber(value: unknown): value is number {
   return (
     value !== undefined &&

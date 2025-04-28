@@ -35,6 +35,7 @@ import { getApplicationVersion } from "@carma-commons/utils";
 
 import {
   CustomViewer,
+  getClearCesiumCameraParams,
   selectCurrentSceneStyle,
   selectShowPrimaryTileset,
   selectViewerIsMode2d,
@@ -84,13 +85,14 @@ import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
-import { on } from "events";
 
 interface MapProps {
   height: number;
   width: number;
   allow3d?: boolean;
 }
+
+const clear3dParams = getClearCesiumCameraParams();
 
 export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const dispatch = useDispatch();
@@ -326,6 +328,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
     const newParams = {
       ...currentParams,
+      ...clear3dParams,
       m: sceneStyle,
       lat: latTruncated,
       lng: lngTruncated,
