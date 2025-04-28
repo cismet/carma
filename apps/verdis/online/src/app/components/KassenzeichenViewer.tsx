@@ -6,7 +6,10 @@ import Waiting from "./Waiting";
 import Map from "./Map";
 import ContactPanel from "./ContactPanel";
 import { useDispatch, useSelector } from "react-redux";
-import { getKassenzeichen } from "../../store/slices/kassenzeichen";
+import {
+  getKassenzeichen,
+  removeAnnotation,
+} from "../../store/slices/kassenzeichen";
 import KassenzeichenPanel from "./KassenzeichenPanel";
 import KassenzeichenFlaechenChartPanel from "./KassenzeichenFlaechenChartPanel";
 import {
@@ -19,6 +22,8 @@ import FlaechenPanel from "./FlaechenPanel";
 import {
   getHeight,
   getUiState,
+  setChangeRequestsAnnotationEditViewAnnotationAndCR,
+  showChangeRequestAnnotationEditViewVisible,
   toggleInfoElements,
 } from "../../store/slices/ui";
 import { getMapping } from "../../store/slices/mapping";
@@ -29,7 +34,7 @@ import { useNavigate } from "react-router-dom";
 import { KassenzeichenViewerGefahrensignal } from "@carma-collab/wuppertal/verdis-online";
 import AnnotationPanel from "./AnnotationPanel";
 // import { useRef } from "react";
-import ChangeRequestEditView from "../components/changerequests/CR60AnnotationDialog";
+import AnnotationEditView from "../components/changerequests/CR60AnnotationDialog";
 
 const KassenzeichenViewer = () => {
   const kassenzeichen = useSelector(getKassenzeichen);
@@ -203,12 +208,19 @@ const KassenzeichenViewer = () => {
           // }}
           annotationFeature={annotationFeature}
           selected={sel}
-          // showEditAnnoMenu={() => {
-          //     that.props.uiStateActions.showCRAnnotationEditUI(
-          //         annotationFeature,
-          //         {}
-          //     );
-          // }}
+          showEditAnnoMenu={() => {
+            console.log(
+              "xxx setChangeRequestsAnnotationEditViewAnnotationAndCR",
+              annotationFeature
+            );
+            dispatch(
+              setChangeRequestsAnnotationEditViewAnnotationAndCR({
+                annotation: annotationFeature,
+                cr: {},
+              })
+            );
+            dispatch(showChangeRequestAnnotationEditViewVisible(true));
+          }}
           // inPolyEditMode={that.props.mapping.idsInEdit.includes(
           //     annotationFeature.id
           // )}
@@ -393,7 +405,15 @@ const KassenzeichenViewer = () => {
         }}
         deleteAnnotation={this.props.kassenzeichenActions.removeAnnotation}
       /> */}
-      <ChangeRequestEditView />
+      <AnnotationEditView
+        visible={uiState.changeRequestAnnotationEditViewVisible}
+        annotationFeature={uiState.changeRequestAnnotationEditViewAnnotation}
+        deleteAnnotation={() => {
+          dispatch(
+            removeAnnotation(uiState.changeRequestAnnotationEditViewAnnotation)
+          );
+        }}
+      />
       {verdisMapWithAdditionalComponents}
       {flaechenInfoOverlay}
       {draftAlert}

@@ -157,7 +157,7 @@ const AnnotationPanel = ({
                 >
                   <Icon
                     onClick={(e) => {
-                      showEditAnnoMenu(annotationFeature);
+                      showEditAnnoMenu();
                       e.stopPropagation();
                     }}
                     icon={faEdit}

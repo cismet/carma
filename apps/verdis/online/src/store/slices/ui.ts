@@ -175,6 +175,14 @@ const slice = createSlice({
     setCREditMode(state, action) {
       state.changeRequestsEditMode = action.payload;
     },
+    showChangeRequestAnnotationEditViewVisible(state, action) {
+      state.changeRequestAnnotationEditViewVisible = action.payload;
+    },
+    setChangeRequestsAnnotationEditViewAnnotationAndCR(state, action) {
+      const { annotation, cr } = action.payload;
+      state.changeRequestAnnotationEditViewAnnotation = annotation;
+      state.changeRequestAnnotationEditViewCR = cr;
+    },
   },
 });
 
@@ -193,6 +201,8 @@ export const {
   toggleKanalElements,
   showChangeRequests,
   setCREditMode,
+  showChangeRequestAnnotationEditViewVisible,
+  setChangeRequestsAnnotationEditViewAnnotationAndCR,
 } = slice.actions;
 
 export const getConfData = (state) => {
