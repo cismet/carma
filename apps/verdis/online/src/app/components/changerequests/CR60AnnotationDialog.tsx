@@ -1,19 +1,8 @@
-import React, { useEffect } from "react";
-import {
-  Accordion,
-  Button,
-  Form,
-  FormControl,
-  FormGroup,
-  Modal,
-} from "react-bootstrap";
+import { Button, Form, Modal } from "react-bootstrap";
 import { Icon } from "react-fa";
 import Section from "react-cismap/topicmaps/menu/Section";
 
 const Comp = ({ visible, annotationFeature, deleteAnnotation }) => {
-  useEffect(() => {
-    console.log("xxx visible", visible);
-  }, [visible]);
   if (visible !== false && annotationFeature !== {}) {
     return (
       <Modal
