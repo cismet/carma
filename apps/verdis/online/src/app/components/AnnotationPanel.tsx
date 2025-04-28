@@ -96,6 +96,9 @@ const AnnotationPanel = ({
 
   if (selected === true) {
     borderColor = colorChanged;
+  } else {
+    borderStyle = "solid";
+    borderColor = "#ffffff00";
   }
 
   const styleOverride = {
