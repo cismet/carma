@@ -1,4 +1,8 @@
-import type { LayerSpecification, StyleSpecification } from "maplibre-gl";
+import type {
+  FilterSpecification,
+  LayerSpecification,
+  StyleSpecification,
+} from "maplibre-gl";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
@@ -20,6 +24,7 @@ import {
   objectToFeature,
 } from "../feature-info/featureInfoHelper";
 import { setSelectedFeature } from "../../store/slices/features";
+import store from "../../store";
 
 const LibreGeoportalMap = () => {
   const dispatch = useDispatch();
@@ -31,9 +36,8 @@ const LibreGeoportalMap = () => {
     source: string;
     sourceLayer: string;
     id: string | number;
+    selectionLayerId?: string;
   }> = new Set();
-
-  const [showOpacitySliders, setShowOpacitySliders] = useState(false);
 
   const layers = useSelector(getLayers);
   const backgroundLayer = useSelector(getBackgroundLayer);
@@ -93,19 +97,46 @@ const LibreGeoportalMap = () => {
           if (vectorStyle) {
             const response = await fetch(vectorStyle);
             const additionalStyle = await response.json();
+            // Process the regular layers
             let layers = additionalStyle.layers.map((layer) => {
               if (layer.type.includes("extrusion")) {
-                return {
+                // Create a duplicate layer for selections
+                const selectionLayerId = `${layer.id}-selection`;
+
+                // Add the original layer
+                const originalLayer = {
                   ...layer,
                   metadata: {
                     ...layer.metadata,
                     "z-index": 100000,
                   },
                 };
+
+                // Create a selection layer (will be empty initially)
+                const selectionLayer = {
+                  ...layer,
+                  id: selectionLayerId,
+                  metadata: {
+                    ...layer.metadata,
+                    "z-index": 100001, // Higher z-index to appear on top
+                    "selection-layer": true,
+                  },
+                  paint: {
+                    ...layer.paint,
+                    "fill-extrusion-color": "rgb(0,0,255)",
+                    "fill-extrusion-opacity": 0.7,
+                  },
+                  filter: ["==", "__selected__", "true"], // This filter won't match any features initially
+                };
+
+                return [originalLayer, selectionLayer];
               } else {
                 return layer;
               }
             });
+
+            // Flatten the array since some items might be arrays now
+            layers = layers.flat();
 
             style.sources = { ...style.sources, ...additionalStyle.sources };
             style.layers = [...style.layers, ...layers];
@@ -340,35 +371,36 @@ const LibreGeoportalMap = () => {
         const point = map.current.project([e.lngLat.lng, e.lngLat.lat]);
 
         const hits = map.current.queryRenderedFeatures(point);
-
-        console.log("xxx", hits);
         let filteredHits = hits.filter((hit) => {
           return !hit.layer.id.includes("selection");
         });
 
-        if (filteredHits.length === 0 && hits.length > 0) {
-          hits.forEach((hit) => {
-            if (
-              hit["source-layer"] === "Gebaeudeflaeche" &&
-              hit.id.toString().includes("3D")
-            ) {
-              filteredHits.push(hit);
-            }
-          });
-        }
-
+        // Clear all selection layers by resetting their filters
         selectedFeatures.forEach((feature) => {
           try {
-            map.current?.setFeatureState(
-              {
-                source: feature.source,
-                sourceLayer: feature.sourceLayer,
-                id: feature.id || 123456,
-              },
-              { selected: false }
-            );
+            // If we have a selection layer ID, reset its filter
+            if (
+              feature.selectionLayerId &&
+              map.current?.getLayer(feature.selectionLayerId)
+            ) {
+              // Set a filter that won't match any features
+              map.current.setFilter(feature.selectionLayerId, [
+                "==",
+                "__selected__",
+                "true",
+              ]);
+            } else {
+              map.current?.setFeatureState(
+                {
+                  source: feature.source,
+                  sourceLayer: feature.sourceLayer,
+                  id: feature.id,
+                },
+                { selected: false }
+              );
+            }
           } catch (error) {
-            console.error(error);
+            console.error("Error clearing building selection:", error);
           }
         });
 
@@ -379,14 +411,16 @@ const LibreGeoportalMap = () => {
           const selectedVectorFeature = filteredHits[0];
 
           const coordinates = getCoordinates(selectedVectorFeature.geometry);
-          const layer = layers.find(
-            (layer) =>
-              layer.id === selectedVectorFeature.layer.metadata["layer-id"]
-          );
+          const layerId = selectedVectorFeature.layer?.metadata?.["layer-id"];
+          const currentLayers = getLayers(store.getState());
+          const layer = currentLayers.find((layer) => layer.id === layerId);
           let feature;
           if (layer) {
             feature = createFeature(coordinates, selectedVectorFeature, layer);
           } else {
+            if (!selectedVectorFeature.layer.id.includes("3D")) {
+              return;
+            }
             feature = {
               geometry: selectedVectorFeature.geometry,
               id: "3d_gebaeude",
@@ -400,19 +434,89 @@ const LibreGeoportalMap = () => {
           }
 
           if (feature) {
-            map.current.setFeatureState(
-              {
+            if (layer) {
+              map.current.setFeatureState(
+                {
+                  source: selectedVectorFeature.source,
+                  sourceLayer: selectedVectorFeature.sourceLayer,
+                  id: selectedVectorFeature.id,
+                },
+                { selected: true }
+              );
+              selectedFeatures.add({
                 source: selectedVectorFeature.source,
                 sourceLayer: selectedVectorFeature.sourceLayer,
-                id: selectedVectorFeature.id || 123456,
-              },
-              { selected: true }
-            );
-            selectedFeatures.add({
-              source: selectedVectorFeature.source,
-              sourceLayer: selectedVectorFeature.sourceLayer,
-              id: selectedVectorFeature.id || 123456,
-            });
+                id: selectedVectorFeature.id,
+              });
+            } else {
+              // Create a unique identifier for this building using its properties and coordinates
+              const buildingType =
+                selectedVectorFeature.properties?.klasse || "";
+              const buildingHeight =
+                selectedVectorFeature.properties?.hoehe || "";
+
+              // Get the selection layer ID based on the original layer ID
+              const originalLayerId = selectedVectorFeature.layer.id;
+              const selectionLayerId = `${originalLayerId}-selection`;
+
+              // Store information about the selected feature for later deselection
+              const selectedInfo = {
+                source: selectedVectorFeature.source,
+                sourceLayer: selectedVectorFeature.sourceLayer,
+                id:
+                  selectedVectorFeature.id ||
+                  `${buildingType}-${buildingHeight}`,
+                selectionLayerId: selectionLayerId,
+                geometryCoordinates: JSON.stringify(
+                  // @ts-expect-error
+                  selectedVectorFeature.geometry.coordinates[0].slice(0, 3)
+                ),
+              };
+
+              // Update the selection layer filter to show this building
+              if (map.current.getLayer(selectionLayerId)) {
+                const filterConditions: any[] = [
+                  "all",
+                  ["==", ["geometry-type"], "Polygon"],
+                ];
+
+                // Add building type condition if available
+                if (buildingType) {
+                  filterConditions.push([
+                    "==",
+                    ["get", "klasse"],
+                    buildingType,
+                  ]);
+                }
+
+                // Add building height condition if available
+                if (buildingHeight) {
+                  filterConditions.push([
+                    "==",
+                    ["get", "hoehe"],
+                    buildingHeight,
+                  ]);
+                }
+
+                // Add a condition to match the specific feature ID if available
+                if (selectedVectorFeature.id) {
+                  filterConditions.push([
+                    "==",
+                    ["id"],
+                    selectedVectorFeature.id,
+                  ]);
+                }
+
+                map.current.setFilter(
+                  selectionLayerId,
+                  filterConditions as FilterSpecification
+                );
+              } else {
+                console.warn("Selection layer not found:", selectionLayerId);
+              }
+
+              selectedFeatures.add(selectedInfo);
+            }
             dispatch(setSelectedFeature(feature));
           }
         }
