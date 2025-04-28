@@ -64,8 +64,6 @@ const AnnotationPanel = ({
       return feature.properties.id === aFeature.id;
     });
 
-    console.log("xxx find feature", feature);
-
     if (isFlaecheSelected(feature.properties)) {
       dispatch(
         fitFeatureBounds(mapping.featureCollection[mapping.selectedIndex], "")
