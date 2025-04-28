@@ -7,6 +7,7 @@ import Map from "./Map";
 import ContactPanel from "./ContactPanel";
 import { useDispatch, useSelector } from "react-redux";
 import {
+  changeAnnotation,
   getKassenzeichen,
   removeAnnotation,
 } from "../../store/slices/kassenzeichen";
@@ -408,6 +409,24 @@ const KassenzeichenViewer = () => {
           dispatch(
             removeAnnotation(uiState.changeRequestAnnotationEditViewAnnotation)
           );
+        }}
+        setNewAnnotation={(anno) => {
+          dispatch(
+            setChangeRequestsAnnotationEditViewAnnotationAndCR({
+              annotation: anno,
+              cr: {},
+            })
+          );
+        }}
+        showAnnotationEditView={(storeIt) => {
+          if (storeIt === true) {
+            dispatch(
+              changeAnnotation(
+                uiState.changeRequestAnnotationEditViewAnnotation
+              )
+            );
+          }
+          dispatch(showChangeRequestAnnotationEditViewVisible(false));
         }}
       />
       {verdisMapWithAdditionalComponents}

@@ -446,6 +446,36 @@ export function addAnnotation(annotationFeature) {
   };
 }
 
+export function changeAnnotation(annotation) {
+  const anno = JSON.parse(JSON.stringify(annotation));
+  const selected = anno.selected;
+  const inEditMode = anno.inEditMode;
+  delete anno.selected;
+  delete anno.inEditMode;
+  return function (dispatch, getState) {
+    const state = getState();
+    const kassenzeichen = state.kassenzeichen;
+    const newKassz = JSON.parse(JSON.stringify(kassenzeichen));
+    if (newKassz.aenderungsanfrage.geometrien !== undefined) {
+      newKassz.aenderungsanfrage.geometrien[annotation.properties.name] = anno;
+    }
+    dispatch(storeCR(newKassz.aenderungsanfrage));
+
+    newKassz.aenderungsanfrage.geometrien[annotation.properties.name].selected =
+      selected;
+    newKassz.aenderungsanfrage.geometrien[
+      annotation.properties.name
+    ].inEditMode = inEditMode;
+    dispatch(setKassenzeichen({ kassenzeichenObject: newKassz }));
+    createFeatureCollectionForFlaechen({
+      dispatch,
+      kassenzeichenData: newKassz,
+      selectedIndex: getState().mapping.selectedIndex,
+      changeRequestsEditMode: state.ui.changeRequestsEditMod,
+    });
+  };
+}
+
 export function removeAnnotation(annotation) {
   return function (dispatch, getState) {
     const state = getState();

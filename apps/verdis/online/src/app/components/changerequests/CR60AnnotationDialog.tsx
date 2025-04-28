@@ -2,7 +2,21 @@ import { Button, Form, Modal } from "react-bootstrap";
 import { Icon } from "react-fa";
 import Section from "react-cismap/topicmaps/menu/Section";
 
-const Comp = ({ visible, annotationFeature, deleteAnnotation }) => {
+const Comp = ({
+  visible,
+  annotationFeature,
+  deleteAnnotation,
+  setNewAnnotation,
+  showAnnotationEditView,
+}) => {
+  const closeHandler = () => {
+    showAnnotationEditView(true);
+  };
+
+  const cancelHandler = () => {
+    showAnnotationEditView(false);
+  };
+
   if (visible !== false && annotationFeature !== {}) {
     return (
       <Modal
@@ -41,12 +55,14 @@ const Comp = ({ visible, annotationFeature, deleteAnnotation }) => {
                   <Form.Control
                     type="text"
                     placeholder="Geben Sie hier den Titel Ihrer Anmerkung an"
-                    // onChange={(e) => {
-                    //   const newA = { ...annotationFeature, properties: { ...annotationFeature.properties } };
-                    //   newA.properties.title = e.target.value;
-                    //   newA.properties.draft = true;
-                    //   setNewAnnotation(newA);
-                    // }}
+                    onChange={(e) => {
+                      const newA = JSON.parse(
+                        JSON.stringify(annotationFeature)
+                      );
+                      newA.properties.title = e.target.value;
+                      newA.properties.draft = true;
+                      setNewAnnotation(newA);
+                    }}
                     value={annotationFeature?.properties?.title || ""}
                   />
                 </Form.Group>
@@ -59,12 +75,15 @@ const Comp = ({ visible, annotationFeature, deleteAnnotation }) => {
                   <Form.Control
                     as="textarea"
                     rows={8}
-                    // onChange={(e) => {
-                    //   const newA = { ...annotationFeature, properties: { ...annotationFeature.properties } };
-                    //   newA.properties.text = e.target.value;
-                    //   newA.properties.draft = true;
-                    //   setNewAnnotation(newA);
-                    // }}
+                    onChange={(e) => {
+                      const newA = {
+                        ...annotationFeature,
+                        properties: { ...annotationFeature.properties },
+                      };
+                      newA.properties.text = e.target.value;
+                      newA.properties.draft = true;
+                      setNewAnnotation(newA);
+                    }}
                     value={annotationFeature?.properties?.text || ""}
                   />
                 </Form.Group>
@@ -110,7 +129,7 @@ const Comp = ({ visible, annotationFeature, deleteAnnotation }) => {
             id="cmdCloseModalApplicationMenu"
             variant="warning"
             type="submit"
-            // onClick={cancel}
+            onClick={cancelHandler}
           >
             Abbrechen
           </Button>
@@ -118,7 +137,7 @@ const Comp = ({ visible, annotationFeature, deleteAnnotation }) => {
             id="cmdCloseModalApplicationMenu"
             variant="primary"
             type="submit"
-            onClick={close}
+            onClick={closeHandler}
           >
             Übernehmen
           </Button>
