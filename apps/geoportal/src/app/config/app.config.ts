@@ -12,6 +12,11 @@ export const APP_BASE_PATH = import.meta.env.BASE_URL;
 export const ICON_PREFIX =
   "https://www.wuppertal.de/geoportal/geoportal_icon_legends/";
 
+export const CONFIG_BASE_URL =
+  "https://ceepr.cismet.de/config/wuppertal/_dev_geoportal/";
+
+export const MIN_MOBILE_WIDTH = 600;
+
 const CESIUM_PATHNAME = "__cesium__";
 
 export const CESIUM_CONFIG: CesiumConfig = {

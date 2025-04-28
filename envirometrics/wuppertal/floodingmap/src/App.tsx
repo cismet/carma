@@ -1,21 +1,18 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Tooltip } from "antd";
-import { Math as CesiumMath } from "cesium";
-
+import { useSearchParams } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faCompress,
-  faExpand,
   faHouseChimney,
   faMinus,
   faPlus,
 } from "@fortawesome/free-solid-svg-icons";
 
 import EnviroMetricMap from "@cismet-dev/react-cismap-envirometrics-maps/EnviroMetricMap";
-
-import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import { version as cismapEnvirometricsVersion } from "@cismet-dev/react-cismap-envirometrics-maps/meta";
+
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import CrossTabCommunicationControl from "react-cismap/CrossTabCommunicationControl";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
@@ -34,6 +31,7 @@ import {
   isAreaTypeWithGEP,
 } from "@carma-commons/resources";
 import { getApplicationVersion } from "@carma-commons/utils";
+
 import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/hochwassergefahrenkarte";
 
 import {
@@ -46,6 +44,7 @@ import {
   selectViewerModels,
   setIsMode2d,
   useCesiumContext,
+  useCesiumInitialCameraFromSearchParams,
   useHomeControl,
   useZoomControls,
 } from "@carma-mapping/cesium-engine";
@@ -55,6 +54,10 @@ import {
 } from "@carma-mapping/fuzzy-search";
 import { type SearchResultItem } from "@carma-commons/types";
 
+import {
+  FullscreenControl,
+  RoutedMapLocateControl,
+} from "@carma-mapping/components";
 import {
   Control,
   ControlButtonStyler,
@@ -67,8 +70,6 @@ import versionData from "./version.json";
 
 import useLeafletZoomControls from "./hooks/useLeafletZoomControls";
 
-import { prepareSceneForHGK } from "./utils/scene";
-
 import config from "./config";
 import { EMAIL, HOME_ZOOM } from "./config/app.config";
 import {
@@ -77,11 +78,6 @@ import {
 } from "./config/cesium/cesium.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
-import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
-import {
-  FullscreenControl,
-  RoutedMapLocateControl,
-} from "@carma-mapping/components";
 
 function App({ sync = false }: { sync?: boolean }) {
   const version = getApplicationVersion(versionData);
@@ -98,10 +94,15 @@ function App({ sync = false }: { sync?: boolean }) {
   const reactCismapEnvirometricsVersion = cismapEnvirometricsVersion;
   const [hochwasserschutz, setHochwasserschutz] = useState(true);
 
+  const [searchParams] = useSearchParams();
+
+  const initialCameraView = useCesiumInitialCameraFromSearchParams();
+
   // CONTROLS
   const {
     viewerRef,
     viewerAnimationMapRef,
+    isViewerReady,
     terrainProviderRef,
     surfaceProviderRef,
   } = useCesiumContext();
@@ -168,7 +169,7 @@ function App({ sync = false }: { sync?: boolean }) {
   };
 
   const onCesiumSceneChange = (e) => {
-    replaceHashRoutedHistory(e, "/");
+    isMode2d ? undefined : replaceHashRoutedHistory(e, "/", "app/hgk");
   };
 
   useSelectionTopicMap();
@@ -187,19 +188,26 @@ function App({ sync = false }: { sync?: boolean }) {
   );
 
   useEffect(() => {
-    if (viewerRef.current) {
-      const viewer = viewerRef.current;
-      // remove default cesium credit because no ion resorce is used;
-      (viewer as any)._cesiumWidget._creditContainer.style.display = "none";
-      setTimeout(() => {
-        prepareSceneForHGK(viewer);
-      }, 300);
+    if (searchParams.has("is3d")) {
+      const is3d = searchParams.get("is3d") === "1";
+      dispatch(setIsMode2d(!is3d));
     }
-  }, [viewerRef]);
+    // run only once on load
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
-    dispatch(setIsMode2d(true));
-  }, []);
+    if (
+      isViewerReady &&
+      viewerRef.current &&
+      !viewerRef.current.isDestroyed()
+    ) {
+      const viewer = viewerRef.current;
+      // remove default cesium credit because no ion resource is used;
+      (viewer as any)._cesiumWidget._creditContainer.style.display = "none";
+      viewer.scene.requestRender();
+    }
+  }, [viewerRef, isViewerReady]);
 
   const onFullscreenClick = () => {
     if (document.fullscreenElement) {
@@ -227,6 +235,11 @@ function App({ sync = false }: { sync?: boolean }) {
       })}
     />
   );
+
+  if (initialCameraView === null) {
+    // viewer from URL not yet evaluated, don't render anything yet
+    return null;
+  }
 
   return (
     <>
@@ -279,6 +292,7 @@ function App({ sync = false }: { sync?: boolean }) {
                 <PitchingCompass
                   viewerRef={viewerRef}
                   viewerAnimationMapRef={viewerAnimationMapRef}
+                  isViewerReady={isViewerReady}
                 />
               </ControlButtonStyler>
               {/* </Tooltip> */}
@@ -391,7 +405,8 @@ function App({ sync = false }: { sync?: boolean }) {
       >
         <CustomViewer
           containerRef={container3dMapRef}
-          cameraOptions={CESIUM_CONFIG.camera}
+          cameraLimiterOptions={CESIUM_CONFIG.camera}
+          initialCameraView={initialCameraView}
           constructorOptions={CONSTRUCTOR_OPTIONS}
           enableSceneStyles={false}
           onSceneChange={onCesiumSceneChange}

@@ -11,6 +11,8 @@ export const onCesiumClick = async (
   highlightEntityRef,
   callback
 ) => {
+  if (viewer.isDestroyed()) return;
+
   const cartesian = viewer.scene.pickPosition(click.position);
   if (cartesian && terrainProviderRef.current) {
     const cartographic = Cartographic.fromCartesian(cartesian);

@@ -7,6 +7,8 @@ export { CustomCesiumWidget } from "./lib/CustomCesiumWidget";
 export {
   CustomViewer,
   DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS,
+  type InitialCameraView,
+  type CameraLimiterOptions,
 } from "./lib/CustomViewer";
 export { CustomViewerPlayground } from "./lib/CustomViewerPlayground";
 
@@ -23,6 +25,7 @@ export { SceneStyleToggle } from "./lib/components/controls/SceneStyleToggle";
 export { useCesiumContext } from "./lib/hooks/useCesiumContext";
 export { useCesiumCameraForceOblique } from "./lib/hooks/useCameraForceOblique";
 export { useHomeControl } from "./lib/hooks/useHomeControl";
+export { useCesiumInitialCameraFromSearchParams } from "./lib/hooks/useCesiumInitialCameraFromSearchParams";
 export { useFovWheelZoom } from "./lib/hooks/useFovWheelZoom";
 export { useSceneStyles } from "./lib/hooks/useSceneStyles";
 export { useZoomControls } from "./lib/hooks/useZoomControls";
@@ -44,6 +47,13 @@ export {
 } from "./lib/utils/CesiumErrorToErrorBoundaryForwarder";
 
 export { applyRollToHeadingForCameraNearNadir } from "./lib/utils/cesiumCamera";
+
+export {
+  encodeCesiumCamera,
+  decodeCesiumCamera,
+  cesiumCameraParamsKeyList,
+  getClearCesiumCameraParams,
+} from "./lib/utils/cesiumHashParamsCodec";
 
 export {
   pickViewerCanvasCenter,

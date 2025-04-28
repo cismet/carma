@@ -75,7 +75,8 @@ const useCameraRollSoftLimiter = ({
       };
       viewer.camera.moveEnd.addEventListener(moveEndListener);
       return () => {
-        viewer.camera.moveEnd.removeEventListener(moveEndListener);
+        !viewer.isDestroyed() &&
+          viewer.camera.moveEnd.removeEventListener(moveEndListener);
       };
     }
   }, [

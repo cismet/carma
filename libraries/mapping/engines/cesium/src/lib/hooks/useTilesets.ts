@@ -8,7 +8,6 @@ import {
 } from "../slices/cesium";
 
 import { useCesiumContext } from "./useCesiumContext";
-import { useCesiumViewer } from "./useCesiumViewer";
 import { useSecondaryStyleTilesetClickHandler } from "./useSecondaryStyleTilesetClickHandler";
 
 import { TRANSITION_DELAY } from "../CustomViewer";
@@ -17,8 +16,7 @@ import { useBaseTilesetsTweakpane } from "./useBaseTilesetsTweakpane";
 
 export const useTilesets = () => {
   const showPrimary = useSelector(selectShowPrimaryTileset);
-  const { tilesetsRefs } = useCesiumContext();
-  const viewer = useCesiumViewer();
+  const { tilesetsRefs, viewerRef } = useCesiumContext();
   let tilesetPrimary = tilesetsRefs.primaryRef.current;
   let tilesetSecondary = tilesetsRefs.secondaryRef.current;
   const showSecondary = useSelector(selectShowSecondaryTileset);
@@ -27,24 +25,34 @@ export const useTilesets = () => {
   useBaseTilesetsTweakpane();
 
   useEffect(() => {
-    if (viewer && tilesetPrimary) {
+    if (
+      viewerRef.current &&
+      !viewerRef.current.isDestroyed() &&
+      tilesetPrimary
+    ) {
+      const viewer = viewerRef.current;
       viewer.scene.primitives.add(tilesetPrimary);
       console.debug(
         "[CESIUM|DEBUG] Adding primary tileset to viewer",
         viewer.scene.primitives.length
       );
     }
-  }, [tilesetPrimary, viewer]);
+  }, [tilesetPrimary, viewerRef]);
 
   useEffect(() => {
-    if (viewer && tilesetSecondary) {
+    if (
+      viewerRef.current &&
+      !viewerRef.current.isDestroyed() &&
+      tilesetSecondary
+    ) {
+      const viewer = viewerRef.current;
       viewer.scene.primitives.add(tilesetSecondary);
       console.debug(
         "[CESIUM|DEBUG] Adding secondary tileset to viewer",
         viewer.scene.primitives.length
       );
     }
-  }, [tilesetSecondary, viewer]);
+  }, [tilesetSecondary, viewerRef]);
 
   useEffect(() => {
     console.debug("HOOK BaseTilesets: showSecondary", showSecondary);
@@ -78,7 +86,7 @@ export const useTilesets = () => {
         tilesetSecondary.show = false;
       }
     };
-    if (viewer) {
+    if (viewerRef.current && !viewerRef.current.isDestroyed()) {
       if (isMode2d) {
         setTimeout(() => {
           hideTilesets();
@@ -97,7 +105,7 @@ export const useTilesets = () => {
     }
   }, [
     isMode2d,
-    viewer,
+    viewerRef,
     showPrimary,
     showSecondary,
     tilesetPrimary,

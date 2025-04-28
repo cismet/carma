@@ -69,6 +69,10 @@ export const CesiumContextProvider = ({
   }, [providerConfig.imageryProvider]);
 
   useEffect(() => {
+    if (!isViewerReady) {
+      return;
+    } // avoids runtime issues with WebGL context not available
+
     const abortController = new AbortController();
     const { signal } = abortController;
 
@@ -81,9 +85,13 @@ export const CesiumContextProvider = ({
     return () => {
       abortController.abort();
     };
-  }, [providerConfig.terrainProvider.url]);
+  }, [providerConfig.terrainProvider.url, isViewerReady]);
 
   useEffect(() => {
+    if (!isViewerReady) {
+      return;
+    } // avoids runtime issues with WebGL context not available
+
     if (providerConfig.surfaceProvider) {
       const abortController = new AbortController();
       const { signal } = abortController;
@@ -98,11 +106,16 @@ export const CesiumContextProvider = ({
         abortController.abort();
       };
     }
-  }, [providerConfig.surfaceProvider]);
+  }, [providerConfig.surfaceProvider, isViewerReady]);
 
   // Load Primary Tileset
   useEffect(() => {
-    if (tilesetConfigs.primary) {
+    if (
+      tilesetConfigs.primary &&
+      isViewerReady &&
+      viewerRef.current &&
+      !viewerRef.current.isDestroyed()
+    ) {
       const fetchPrimary = async () => {
         console.debug(
           "[CESIUM|DEBUG] Loading primary tileset",
@@ -125,11 +138,16 @@ export const CesiumContextProvider = ({
         primaryTilesetRef.current = null;
       }
     };
-  }, [tilesetConfigs.primary]);
+  }, [tilesetConfigs.primary, viewerRef, isViewerReady]);
 
   // Load Secondary Tileset
   useEffect(() => {
-    if (tilesetConfigs.secondary) {
+    if (
+      tilesetConfigs.secondary &&
+      isViewerReady &&
+      viewerRef.current &&
+      !viewerRef.current.isDestroyed()
+    ) {
       const fetchSecondary = async () => {
         console.debug(
           "[CESIUM|DEBUG] Loading secondary tileset",
@@ -154,7 +172,7 @@ export const CesiumContextProvider = ({
         secondaryTilesetRef.current = null;
       }
     };
-  }, [tilesetConfigs.secondary]);
+  }, [tilesetConfigs.secondary, viewerRef, isViewerReady]);
 
   const contextValue = useMemo<CesiumContextType>(
     () => ({
@@ -175,7 +193,11 @@ export const CesiumContextProvider = ({
     [isViewerReady]
   );
 
-  console.debug("CesiumContextProvider Initialized", contextValue);
+  console.debug(
+    "CesiumContextProvider Changed/Rendered",
+    isViewerReady,
+    contextValue
+  );
 
   return (
     <CesiumContext.Provider value={contextValue}>

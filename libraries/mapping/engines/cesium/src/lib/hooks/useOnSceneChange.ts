@@ -2,43 +2,73 @@ import { useEffect } from "react";
 import { useSelector } from "react-redux";
 
 import { cameraToCartographicDegrees } from "../utils/cesiumHelpers";
-import { encodeScene } from "../utils/hashHelpers";
 
 import {
   selectShowSecondaryTileset,
   selectViewerIsMode2d,
+  selectViewerIsTransitioning,
 } from "../slices/cesium";
 
-import { EncodedSceneParams } from "../..";
+import { encodeCesiumCamera } from "../..";
 import { useCesiumContext } from "./useCesiumContext";
+import { Viewer } from "cesium";
+import { StringifiedCameraState } from "../utils/cesiumHashParamsCodec";
+
+export const VIEWERSTATE_KEYS = {
+  mapStyle: "m",
+  is3d: "is3d",
+};
+
+const toHashParams = (
+  cesiumCameraState: StringifiedCameraState,
+  args: { isSecondaryStyle: boolean; isMode2d: boolean }
+) => {
+  const viewerState = {
+    [VIEWERSTATE_KEYS.mapStyle]: args.isSecondaryStyle ? "0" : "1",
+    [VIEWERSTATE_KEYS.is3d]: args.isMode2d ? "0" : "1",
+  };
+
+  const hashParams = cesiumCameraState.reduce((acc, { key, value }) => {
+    acc[key] = value;
+    return acc;
+  }, viewerState);
+
+  return hashParams;
+};
 
 export const useOnSceneChange = (
-  onSceneChange?: (p: EncodedSceneParams) => void
+  onSceneChange?: (
+    e: { hashParams: Record<string, string> },
+    viewer?: Viewer,
+    cesiumCameraState?: StringifiedCameraState | null,
+    isSecondaryStyle?: boolean,
+    isMode2d?: boolean
+  ) => void
 ) => {
   const { viewerRef } = useCesiumContext();
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
   const isMode2d = useSelector(selectViewerIsMode2d);
+  const isTransitioning = useSelector(selectViewerIsTransitioning);
 
   // todo handle style change explicitly not via tileset, is secondarystyle
   // todo consider declaring changed part of state in the callback, not full state only
 
-  console.debug("HOOKINIT [CESIUM|HASH] useCesiumHashUpdater");
-
   useEffect(() => {
+    // on changes to mode or style
     const viewer = viewerRef.current;
-    if (viewer && viewer.scene && !isMode2d) {
+    if (viewer && viewer.camera && !isMode2d) {
       console.debug(
         "HOOK: update Hash, route or style changed",
         isSecondaryStyle
       );
-
-      const encodedScene = encodeScene(viewer.scene, {
-        isSecondaryStyle,
-        isMode2d,
-      });
-
       if (onSceneChange) {
-        onSceneChange(encodedScene);
+        const cameraState = encodeCesiumCamera(viewer.camera);
+        const hashParams = toHashParams(cameraState, {
+          isSecondaryStyle,
+          isMode2d,
+        });
+        hashParams.zoom = "";
+        onSceneChange({ hashParams });
       } else {
         console.info("HOOK: [NOOP] no onSceneChange callback");
       }
@@ -49,40 +79,45 @@ export const useOnSceneChange = (
   useEffect(() => {
     // update hash hook
     const viewer = viewerRef.current;
-    if (viewer && viewer.scene) {
+    if (isTransitioning) {
+      return;
+    }
+
+    if (viewer && viewer.camera) {
       console.debug(
         "HOOK: [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to update hash"
       );
       const moveEndListener = async () => {
         // let TopicMap/leaflet handle the view change in 2d Mode
-        if (viewer.scene && viewer.camera.position && !isMode2d) {
+        if (viewer.camera && viewer.camera.position && !isMode2d) {
           const camDeg = cameraToCartographicDegrees(viewer.camera);
           console.debug(
             "LISTENER: Cesium moveEndListener encode viewer to hash",
             isSecondaryStyle,
             camDeg
           );
-          const encodedScene =
-            viewer.scene &&
-            encodeScene(viewer.scene, {
+
+          if (onSceneChange) {
+            const cameraState = encodeCesiumCamera(viewer.camera);
+            const hashParams = toHashParams(cameraState, {
               isSecondaryStyle,
               isMode2d,
             });
-          if (onSceneChange) {
-            onSceneChange(encodedScene);
+            onSceneChange({ hashParams });
           } else {
             console.info("HOOK: [NOOP] no onSceneChange callback");
           }
         }
       };
-      viewer.scene.camera.moveEnd.addEventListener(moveEndListener);
+      viewer.camera.moveEnd.addEventListener(moveEndListener);
       return () => {
-        viewer &&
-          viewer.scene &&
-          viewer.scene.camera.moveEnd.removeEventListener(moveEndListener);
+        // clear hash on unmount
+        // onSceneChange && onSceneChange({ hashParams: clear3dOnlyHashParams });
+        !viewer.isDestroyed() &&
+          viewer.camera.moveEnd.removeEventListener(moveEndListener);
       };
     }
-  }, [viewerRef, isSecondaryStyle, isMode2d, onSceneChange]);
+  }, [viewerRef, isSecondaryStyle, isMode2d, onSceneChange, isTransitioning]);
 };
 
 export default useOnSceneChange;

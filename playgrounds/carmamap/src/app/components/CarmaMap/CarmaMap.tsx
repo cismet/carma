@@ -570,7 +570,7 @@ export const CarmaMap = ({
             >
               <CustomViewer
                 containerRef={container3dMapRef}
-                cameraOptions={CESIUM_CONFIG.camera}
+                cameraLimiterOptions={CESIUM_CONFIG.camera}
                 onSceneChange={(e) => {
                   console.debug(
                     "[GEOPORTALMAP|HASH|SCENE|CESIUM]cesium scene changed",

@@ -1,26 +1,40 @@
 type EncodedSceneParams = {
   hashParams: Record<string, string>;
-  state: unknown;
+  state?: unknown;
+};
+
+export const getHashParams = (
+  hash = window.location.hash.split("?")[1] || ""
+) => {
+  const params = Object.fromEntries(new URLSearchParams(hash));
+  return params;
 };
 
 export const replaceHashRoutedHistory = (
-  encodedScene: EncodedSceneParams,
-  routedPath: string
+  { hashParams }: EncodedSceneParams,
+  routedPath: string,
+  label: string = "N/A" // for tracing debugging only
 ) => {
   // this is method is used to avoid triggering rerenders from the HashRouter when updating the hash
-  if (encodedScene.hashParams) {
-    const currentHash = window.location.hash.split("?")[1] || "";
-    const currentParams = Object.fromEntries(new URLSearchParams(currentHash));
-
-    const combinedParams = {
+  if (hashParams) {
+    const currentParams = getHashParams();
+    const combinedParams: Record<string, string> = {
       ...currentParams,
-      ...encodedScene.hashParams, // overwrite from state but keep others
+      ...hashParams, // overwrite from state but keep others
     };
+
+    // remove empty values
+    // be aware this disables "boolean" keys without a value
+    Object.entries(combinedParams).forEach(([key, value]) => {
+      if (value.trim() === "") {
+        delete combinedParams[key];
+      }
+    });
 
     const combinedSearchParams = new URLSearchParams(combinedParams);
     const combinedHash = combinedSearchParams.toString();
-    const formattedHash = combinedHash.replace(/=&/g, "&").replace(/=$/, ""); // remove empty values
-    const fullHashState = `#${routedPath}?${formattedHash}`;
+    //const formattedHash = combinedHash.replace(/=&/g, "&").replace(/=$/, ""); // remove empty values
+    const fullHashState = `#${routedPath}?${combinedHash}`;
     // this is a workaround to avoid triggering rerenders from the HashRouter
     // navigate would cause rerenders
     // navigate(`${routedPath}?${formattedHash}`, { replace: true });

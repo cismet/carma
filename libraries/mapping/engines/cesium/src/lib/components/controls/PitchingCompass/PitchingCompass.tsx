@@ -28,6 +28,7 @@ import { useCesiumContext } from "../../../hooks/useCesiumContext";
 interface RotateButtonProps {
   viewerRef: React.RefObject<Viewer | null>;
   viewerAnimationMapRef: React.RefObject<ViewerAnimationMap | null>;
+  isViewerReady: boolean;
   minPitch?: number;
   maxPitch?: number;
   durationReset?: number;
@@ -39,6 +40,7 @@ interface RotateButtonProps {
 /**
  * @viewerRef reference to cesium viewer
  * @viewerAnimationMapRef reference to a WeakMap of viewer animations
+ * @isViewerReady boolean state indicating if the viewer is ready
  * @minPitch pitch angle in radians starting from Nadir -90 to -0, should be left at -90
  * @maxPitch pitch angle in radians starting from Nadir -90 to -0 is flat with terrain and should be avoided.
  * @durationReset duration in milliseconds when returning to top down or default oblique view
@@ -51,6 +53,7 @@ interface RotateButtonProps {
 export const PitchingCompass: React.FC<RotateButtonProps> = ({
   viewerRef,
   viewerAnimationMapRef,
+  isViewerReady,
   minPitch = CesiumMath.toRadians(-90),
   maxPitch = CesiumMath.toRadians(-30),
   durationReset = 1500,
@@ -71,14 +74,18 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
 
   const handleMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
     shouldSuspendPitchLimiterRef.current = true;
-    if (viewerRef.current && viewerAnimationMapRef.current) {
+    if (
+      viewerRef.current &&
+      viewerAnimationMapRef.current &&
+      !viewerRef.current.isDestroyed()
+    ) {
       cancelViewerAnimation(viewerRef.current, viewerAnimationMapRef.current);
       setIsControlMouseDown(true);
       setInitialMouseX(event.clientX);
       setInitialMouseY(event.clientY);
       setInitialHeading(viewerRef.current.camera.heading);
-      setInitialPitch(viewerRef.current.scene.camera.pitch);
-      setCurrentPitch(viewerRef.current.scene.camera.pitch);
+      setInitialPitch(viewerRef.current.camera.pitch);
+      setCurrentPitch(viewerRef.current.camera.pitch);
       setCurrentHeading(viewerRef.current.camera.heading);
 
       const target = getOrbitPoint(viewerRef.current);
@@ -95,20 +102,30 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
   const handleControlMouseUp = () => {
     shouldSuspendPitchLimiterRef.current = false;
     setIsControlMouseDown(false);
-    if (viewerRef.current && initialHeading !== null) {
-      const scene = viewerRef.current.scene;
-      scene.camera.lookAtTransform(Matrix4.IDENTITY);
+    if (
+      viewerRef.current &&
+      initialHeading !== null &&
+      !viewerRef.current.isDestroyed()
+    ) {
+      viewerRef.current.camera.lookAtTransform(Matrix4.IDENTITY);
     }
   };
 
   useEffect(() => {
-    if (!viewerRef.current || !viewerAnimationMapRef.current) return;
+    if (
+      !viewerRef.current ||
+      viewerRef.current.isDestroyed() ||
+      !viewerAnimationMapRef.current
+    ) {
+      return;
+    }
     const viewer = viewerRef.current;
+    const camera = viewer.camera;
     const animationMap = viewerAnimationMapRef.current;
 
     const getCameraOrientation = () => {
-      if (!viewer || !viewer.camera) return;
-      const { pitch, heading } = viewer.camera;
+      if (!camera) return;
+      const { pitch, heading } = camera;
       setCurrentPitch(pitch);
       setCurrentHeading(heading);
     };
@@ -119,11 +136,11 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
       cancelViewerAnimation(viewer, animationMap);
     }, ScreenSpaceEventType.LEFT_DOWN);
 
-    viewer.camera.changed.addEventListener(getCameraOrientation);
+    camera.changed.addEventListener(getCameraOrientation);
 
     return () => {
       handler.destroy();
-      viewer.camera.changed.removeEventListener(getCameraOrientation);
+      camera.changed.removeEventListener(getCameraOrientation);
     };
   }, [viewerRef, viewerAnimationMapRef]);
 
@@ -148,7 +165,7 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
         const target = getOrbitPoint(viewerRef.current);
 
         if (target && initialRange !== null) {
-          viewerRef.current.scene.camera.lookAt(
+          viewerRef.current.camera.lookAt(
             target,
             new HeadingPitchRange(heading, pitch, initialRange)
           );
@@ -211,9 +228,12 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
   };
 
   useEffect(() => {
-    const viewer = viewerRef.current;
-    if (viewer) {
-      const camera = viewer.scene.camera;
+    if (
+      viewerRef.current &&
+      isViewerReady &&
+      !viewerRef.current.isDestroyed()
+    ) {
+      const camera = viewerRef.current.camera;
       const updateOrientation = () => {
         setCurrentPitch(camera.pitch);
         // correct heading for compass needle
@@ -226,7 +246,7 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
         camera.changed.removeEventListener(updateOrientation);
       };
     }
-  }, [viewerRef]);
+  }, [viewerRef, isViewerReady]);
 
   return (
     // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions

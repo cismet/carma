@@ -7,7 +7,7 @@ export enum SELECTED_LAYER_INDEX {
 }
 
 export { utils };
-export { replaceHashRoutedHistory } from "./lib/utils/routing";
+export { replaceHashRoutedHistory, getHashParams } from "./lib/utils/routing";
 
 export {
   FeatureFlagProvider,

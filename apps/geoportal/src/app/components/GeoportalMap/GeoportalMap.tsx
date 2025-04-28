@@ -2,7 +2,7 @@ import L from "leaflet";
 import proj4 from "proj4";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useLocation, useSearchParams } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
@@ -10,6 +10,7 @@ import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 
 import {
+  getHashParams,
   replaceHashRoutedHistory,
   TopicMapSelectionContent,
   useCarmaMapContext,
@@ -34,11 +35,14 @@ import { getApplicationVersion } from "@carma-commons/utils";
 
 import {
   CustomViewer,
+  getClearCesiumCameraParams,
+  selectCurrentSceneStyle,
   selectShowPrimaryTileset,
   selectViewerIsMode2d,
   selectViewerModels,
   setCurrentSceneStyle,
   useCesiumContext,
+  useCesiumInitialCameraFromSearchParams,
 } from "@carma-mapping/cesium-engine";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 
@@ -50,7 +54,6 @@ import PrintPreview from "../map-print/PrintPreview.tsx";
 import versionData from "../../../version.json";
 
 import { proj4crs3857def, proj4crs4326def } from "../../helper/gisHelper.js";
-import { paramsToObject } from "../../helper/helper.ts";
 import { getBackgroundLayers } from "../../helper/layer.tsx";
 import { addCssToOverlayHelperItem } from "../../helper/overlayHelper.ts";
 
@@ -89,14 +92,15 @@ interface MapProps {
   allow3d?: boolean;
 }
 
+const clear3dParams = getClearCesiumCameraParams();
+
 export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const dispatch = useDispatch();
 
-  const location = useLocation();
+  const { pathname } = useLocation();
   const rerenderCountRef = useRef(0);
   const lastRenderTimeStampRef = useRef(Date.now());
   const lastRenderIntervalRef = useRef(0);
-  const [urlParams, setUrlParams] = useSearchParams();
   const container3dMapRef = useRef<HTMLDivElement>(null);
 
   // State and Selectors
@@ -117,6 +121,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     useCesiumContext();
   const { getLeafletZoom } = useLeafletZoomControls();
   const showPrimaryTileset = useSelector(selectShowPrimaryTileset);
+  const currentSceneStyle = useSelector(selectCurrentSceneStyle);
 
   const infoBoxOverlay = addCssToOverlayHelperItem(
     getCollabedHelpElementsConfig("INFOBOX", geoElements),
@@ -154,6 +159,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const [markerAccent, setMarkerAccent] = useState(undefined);
   const [pos, setPos] = useState<[number, number] | null>(null);
 
+  const cesiumInitialCameraView = useCesiumInitialCameraFromSearchParams();
   const version = getApplicationVersion(versionData);
 
   // custom hooks
@@ -291,6 +297,68 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     }, 150);
   };
 
+  /** TODO:
+      move url request to own hook something like
+      shouldUpdateLocationHash on only set the TopicMapLocation to some ref or state
+      same for onSceneChange with cesium so we can centrally handle and debounce url updates
+  **/
+  const topicMapLocationChangedHandler = ({
+    lat,
+    lng,
+    zoom,
+  }: {
+    lat: number;
+    lng: number;
+    zoom: number;
+  }) => {
+    if (!isMode2d) {
+      console.debug(
+        "[TopicMap|DEBUG] Location changed handler triggered while in 3D mode"
+      );
+      return;
+    }
+
+    const currentParams = getHashParams();
+
+    const latTruncated = lat.toFixed(8);
+    const lngTruncated = lng.toFixed(8);
+    const zoomString = parseFloat(zoom.toFixed(2)).toString();
+    const sceneStyle = currentSceneStyle === "primary" ? "1" : "0";
+
+    const newParams = {
+      ...currentParams,
+      ...clear3dParams,
+      m: sceneStyle,
+      lat: latTruncated,
+      lng: lngTruncated,
+      zoom: zoomString,
+    };
+
+    replaceHashRoutedHistory(
+      { hashParams: newParams },
+      pathname,
+      "GPM:TopicMap:locationChangedHandler"
+    );
+
+    if (
+      // TODO this should be it's own hook, not a side effect
+      zoom.toString() !== currentParams.zoom.toString() &&
+      isModeFeatureInfo
+    ) {
+      updateFeatureInfo();
+    }
+  };
+
+  const onSceneChange = (e: { hashParams: Record<string, string> }) => {
+    if (isMode2d) {
+      console.debug(
+        "[CESIUM|DEBUG|CESIUM_WARN] Cesium scene change triggered while in 2D mode"
+      );
+      return;
+    }
+    replaceHashRoutedHistory(e, pathname, "GPM:3D");
+  };
+
   // TODO Move out Controls to own component
 
   console.debug("RENDER: [GEOPORTAL] MAP", isMode2d);
@@ -330,16 +398,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
           mappingBoundsChanged={(boundingbox) => {
             // console.debug('xxx bbox', createWMSBbox(boundingbox));
           }}
-          locationChangedHandler={(location) => {
-            const newParams = { ...paramsToObject(urlParams), ...location };
-            setUrlParams(newParams);
-            if (
-              location.zoom.toString() !== urlParams.get("zoom").toString() &&
-              isModeFeatureInfo
-            ) {
-              updateFeatureInfo();
-            }
-          }}
+          locationChangedHandler={topicMapLocationChangedHandler}
           onclick={(e) => {
             const map = routedMap.leafletMap.leafletElement;
             const baseUrl = window.location.origin + window.location.pathname;
@@ -478,7 +537,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
           <PrintPreview />
         </TopicMapComponent>
       </div>
-      {allow3d && (
+      {allow3d && cesiumInitialCameraView !== null && (
         <div
           ref={container3dMapRef}
           className={"map-container-3d"}
@@ -496,14 +555,9 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
         >
           <CustomViewer
             containerRef={container3dMapRef}
-            cameraOptions={CESIUM_CONFIG.camera}
-            onSceneChange={(e) => {
-              console.debug(
-                "[GEOPORTALMAP|HASH|SCENE|CESIUM]cesium scene changed",
-                e
-              );
-              replaceHashRoutedHistory(e, location.pathname);
-            }}
+            cameraLimiterOptions={CESIUM_CONFIG.camera}
+            initialCameraView={cesiumInitialCameraView}
+            onSceneChange={onSceneChange}
           />
         </div>
       )}

@@ -3,11 +3,14 @@ import { useSelector } from "react-redux";
 
 import {
   BoundingSphere,
+  Camera,
   Cartesian3,
   Cartographic,
   Math as CesiumMath,
+  HeadingPitchRange,
   Matrix4,
   PerspectiveFrustum,
+  Rectangle,
   Scene,
   ScreenSpaceCameraController,
   Viewer,
@@ -25,8 +28,8 @@ import {
   selectViewerHomeOffset,
 } from "../slices/cesium";
 
-import { decodeSceneFromLocation } from "../utils/hashHelpers";
 import { validateWorldCoordinate } from "../utils/positions";
+import type { InitialCameraView } from "../CustomViewer";
 
 // Type for storing position and orientation
 interface CameraState {
@@ -38,17 +41,29 @@ interface CameraState {
 
 const postRenderHandlerMap: WeakMap<Viewer, () => void> = new WeakMap();
 const preUpdateHandlerMap: WeakMap<Viewer, () => void> = new WeakMap();
+const initialViewSetMap: WeakMap<Viewer, boolean> = new WeakMap();
 
 export const useInitializeViewer = (
   containerRef?: React.RefObject<HTMLDivElement>,
-  options?: Viewer.ConstructorOptions
+  options?: Viewer.ConstructorOptions,
+  initialCameraView?: InitialCameraView | null
 ) => {
-  const { viewerRef, setIsViewerReady } = useCesiumContext();
+  const { viewerRef, isViewerReady, setIsViewerReady } = useCesiumContext();
   const home = useSelector(selectViewerHome);
   const homeOffset = useSelector(selectViewerHomeOffset);
 
-  // todo move initialization from hash to consuming component
-  const hashRef = useRef<string | null>(null); // effectively hook should run only once
+  // aling Cesium Default fallback with local home
+  if (home) {
+    const { longitude, latitude } = Cartographic.fromCartesian(home);
+    const rect = new Rectangle(longitude, latitude, longitude, latitude);
+
+    Camera.DEFAULT_VIEW_RECTANGLE = rect;
+  }
+  Camera.DEFAULT_OFFSET = new HeadingPitchRange(
+    CesiumMath.toRadians(0),
+    CesiumMath.toRadians(-45),
+    700
+  );
 
   const previousIsMode2d = useRef<boolean | null>(null);
   const previousIsSecondaryStyle = useRef<boolean | null>(null);
@@ -74,6 +89,13 @@ export const useInitializeViewer = (
     console.debug("HOOK: [CESIUM] init CustomViewer");
     if (containerRef?.current) {
       try {
+        console.debug(
+          "HOOK: [CESIUM] new init CustomViewer",
+          containerRef,
+          Date.now(),
+          options,
+          initialCameraView
+        );
         const viewer = new Viewer(containerRef.current, options);
         viewerRef.current = viewer;
 
@@ -161,10 +183,18 @@ export const useInitializeViewer = (
         viewerRef.current = null;
       }
     };
-  }, [options, containerRef, viewerRef, home, maxZoom, setIsViewerReady]);
+  }, [
+    options,
+    containerRef,
+    initialCameraView,
+    viewerRef,
+    home,
+    maxZoom,
+    setIsViewerReady,
+  ]);
 
   useEffect(() => {
-    console.debug("HOOK: useInitializeViewer useEffect terrain");
+    console.debug("HOOK: useInitializeViewer useEffect scene settings");
     if (viewerRef.current) {
       const scene: Scene = viewerRef.current.scene;
       const sscc: ScreenSpaceCameraController =
@@ -183,25 +213,20 @@ export const useInitializeViewer = (
   }, [viewerRef, isSecondaryStyle, maxZoom, minZoom, enableCollisionDetection]);
 
   useEffect(() => {
-    console.debug("HOOK: useInitializeViewer useEffect hash");
-    if (viewerRef.current && hashRef.current === null) {
+    console.debug("HOOK: useInitializeViewer position", initialCameraView);
+    if (viewerRef.current && isViewerReady && initialCameraView !== null) {
       const viewer = viewerRef.current;
-      const locationHash = window.location.hash ?? "";
-      hashRef.current = locationHash;
-      console.debug("HOOK: set initialHash", locationHash);
-
-      const hashParams = locationHash.split("?")[1];
-      const sceneFromHashParams = decodeSceneFromLocation(hashParams);
-      const { camera } = sceneFromHashParams;
-      const { latitude, longitude, height, heading, pitch } = camera;
-
-      if (viewer.camera.frustum instanceof PerspectiveFrustum) {
-        viewer.camera.frustum.fov = Math.PI / 4;
-      }
 
       if (!home || !homeOffset) {
         console.warn(
           "HOOK: [2D3D|CESIUM|CAMERA] initViewer has no home or homeOffset set, please provide them"
+        );
+        return;
+      }
+
+      if (initialViewSetMap.has(viewer)) {
+        console.debug(
+          "HOOK: [CESIUM|CAMERA] Initial view already set, skipping."
         );
         return;
       }
@@ -213,19 +238,25 @@ export const useInitializeViewer = (
         });
       };
 
-      // TODO enable 2D Mode if zoom value is present in hash on startup
-
       if (isMode2d) {
         console.debug(
           "HOOK: skipping cesium location setup with 2d mode active zoom"
         );
       } else {
-        if (sceneFromHashParams && longitude && latitude) {
-          const destination = Cartesian3.fromRadians(
-            longitude,
-            latitude,
-            height ?? 1000 // restore height if missing
+        const position = initialCameraView?.position;
+        const heading = initialCameraView?.heading;
+        const pitch = initialCameraView?.pitch;
+        const fov = initialCameraView?.fov;
+
+        if (position) {
+          const restoredHeight = CesiumMath.clamp(
+            position?.height || 1000,
+            0,
+            50000
           );
+          position.height = restoredHeight;
+
+          const destination = Cartographic.toCartesian(position);
 
           const isValidDestination = validateWorldCoordinate(
             destination,
@@ -234,13 +265,15 @@ export const useInitializeViewer = (
             0
           );
 
+          if (viewer.camera.frustum instanceof PerspectiveFrustum) {
+            viewer.camera.frustum.fov = fov ?? Math.PI / 4;
+          }
+
           if (isValidDestination) {
             console.debug(
-              "HOOK [2D3D|CESIUM|CAMERA] init Viewer set camera from hash",
+              "HOOK [2D3D|CESIUM|CAMERA] init Viewer set camera from provided position",
               destination,
-              longitude,
-              latitude,
-              height
+              position
             );
             viewer.camera.setView({
               destination,
@@ -264,9 +297,17 @@ export const useInitializeViewer = (
         );
         resetToHome();
       }
+      initialViewSetMap.set(viewer, true);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewerRef, home, homeOffset, location.pathname, isMode2d]);
+  }, [
+    viewerRef,
+    isViewerReady,
+    home,
+    homeOffset,
+    initialCameraView,
+    isMode2d,
+    maxZoom,
+  ]);
 
   useEffect(() => {
     console.debug("HOOK: useInitializeViewer useEffect resize");
@@ -274,7 +315,7 @@ export const useInitializeViewer = (
       const viewer = viewerRef.current;
       const resizeObserver = new ResizeObserver(() => {
         console.debug("HOOK: resize cesium container");
-        if (viewer && containerRef?.current) {
+        if (viewer && !viewer.isDestroyed() && containerRef?.current) {
           viewer.canvas.width = containerRef.current.clientWidth;
           viewer.canvas.height = containerRef.current.clientHeight;
           viewer.canvas.style.width = "100%";

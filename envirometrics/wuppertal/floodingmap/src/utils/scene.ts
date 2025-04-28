@@ -3,6 +3,8 @@ import { WATER_CESIUM_COLOR } from "../config/cesium/cesium.config";
 
 export const prepareSceneForHGK = (viewer: Viewer) => {
   //console.debug("3d setup for HGK terrain style");
+  if (viewer.isDestroyed()) return;
+
   viewer.scene.backgroundColor = Color.DIMGREY;
   viewer.scene.globe.baseColor = WATER_CESIUM_COLOR;
   viewer.scene.globe.show = true;

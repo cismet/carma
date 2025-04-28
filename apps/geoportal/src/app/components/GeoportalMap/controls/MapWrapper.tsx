@@ -1,4 +1,5 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { isMobile } from "react-device-detect";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -27,6 +28,7 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 import {
+  replaceHashRoutedHistory,
   SelectionMetaData,
   useFeatureFlags,
   useGazData,
@@ -38,6 +40,7 @@ import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import { detectWebGLContext } from "@carma-commons/utils";
 
 import {
+  getClearCesiumCameraParams,
   MapTypeSwitcher,
   PitchingCompass,
   selectViewerIsMode2d,
@@ -108,8 +111,13 @@ const setHasGPU = (flag: boolean) => (hasGPU = flag);
 const testGPU = () => detectWebGLContext(setHasGPU);
 window.addEventListener("load", testGPU, false);
 
+const clear3dHashParamsObject = getClearCesiumCameraParams();
+
+// TODO: centralize the hash params update behavior
+
 const MapWrapper = () => {
   const dispatch = useDispatch();
+  const { pathname } = useLocation();
 
   const flags = useFeatureFlags();
 
@@ -132,7 +140,8 @@ const MapWrapper = () => {
   const showLocatorButton = useSelector(getShowLocatorButton);
   const showMeasurementButton = useSelector(getShowMeasurementButton);
   const zenMode = useSelector(getZenMode);
-  const { viewerRef, viewerAnimationMapRef } = useCesiumContext();
+  const { viewerRef, viewerAnimationMapRef, isViewerReady } =
+    useCesiumContext();
   const homeControl = useHomeControl();
   const isObliqueMode = useSelector(getObliqueMode);
 
@@ -248,6 +257,15 @@ const MapWrapper = () => {
   const tourRefLabels = useTourRefCollabLabels();
   const { gazData } = useGazData();
   const { width, height } = useWindowSize(wrapperRef);
+
+  const clear3dHashParams = () => {
+    console.debug("[CESIUM|DEBUG] MapTypeSwitcher: 2D mode, clear hash params");
+    replaceHashRoutedHistory(
+      { hashParams: clear3dHashParamsObject },
+      pathname,
+      "MapTypeSwitcher Clear"
+    );
+  };
 
   const handleToggleMeasurement = () => {
     cancelOngoingRequests();
@@ -406,6 +424,7 @@ const MapWrapper = () => {
                       <PitchingCompass
                         viewerRef={viewerRef}
                         viewerAnimationMapRef={viewerAnimationMapRef}
+                        isViewerReady={isViewerReady}
                       />
                     )}
                   </ControlButtonStyler>
@@ -415,6 +434,7 @@ const MapWrapper = () => {
                     duration={CESIUM_CONFIG.transitions.mapMode.duration}
                     className="!rounded-t-none !border-t-[1px]"
                     onComplete={(isTo2d: boolean) => {
+                      isTo2d && clear3dHashParams();
                       //dispatch(setBackgroundLayer({ ...backgroundLayer, visible: isTo2d }));
                     }}
                     ref={tourRefLabels.toggle2d3d}
