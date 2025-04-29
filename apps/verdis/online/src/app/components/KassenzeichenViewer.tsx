@@ -40,7 +40,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { KassenzeichenViewerGefahrensignal } from "@carma-collab/wuppertal/verdis-online";
 import AnnotationPanel from "./AnnotationPanel";
-// import { useRef } from "react";
+import ChangeRequestEditView from "../components/changerequests/CR50Flaechendialog";
 import AnnotationEditView from "../components/changerequests/CR60AnnotationDialog";
 
 const KassenzeichenViewer = () => {
@@ -189,12 +189,12 @@ const KassenzeichenViewer = () => {
         // ref={(c) => {
         //   flaechenPanelRefs.current[flaeche.id] = c;
         // }}
-        // key={flaeche.id + "." + sel}
+        key={flaeche.id + "." + sel}
         selected={sel}
         // flaechenPanelClickHandler={that.flaechenPanelClick}
         flaeche={flaeche}
-        // changerequest={flaechenCR}
-        // editmode={that.props.uiState.changeRequestsEditMode}
+        changerequest={flaechenCR}
+        editmode={uiState.changeRequestsEditMode}
         // proofNeeded={needsProofSingleFlaeche(flaechenCR) && !hasAttachments}
         // display={
         //     that.props.uiState.changeRequestsEditMode === true
@@ -415,6 +415,41 @@ const KassenzeichenViewer = () => {
         }}
         deleteAnnotation={this.props.kassenzeichenActions.removeAnnotation}
       /> */}
+      <ChangeRequestEditView
+      // height={mapHeight + 10}
+      // visible={this.props.uiState.changeRequestEditViewVisible}
+      // showChangeRequestMenu={storeIt => {
+      //     if (storeIt === true) {
+      //         this.props.kassenzeichenActions.setChangeRequestsForFlaeche(
+      //             this.props.uiState.changeRequestEditViewFlaeche,
+      //             this.props.uiState.changeRequestEditViewCR
+      //         );
+      //     }
+      //     this.props.uiStateActions.showChangeRequestsEditView(false);
+      // }}
+      // flaeche={this.props.uiState.changeRequestEditViewFlaeche}
+      // flaechenCR={this.props.uiState.changeRequestEditViewCR}
+      // setFlaechenCR={cr => {
+      //     this.props.uiStateActions.setChangeRequestsEditViewFlaecheAndCR(
+      //         this.props.uiState.changeRequestEditViewFlaeche,
+      //         cr
+      //     );
+      // }}
+      // uploadCRDoc={this.props.kassenzeichenActions.addCRDoc}
+      // documents={documents}
+      // addFiles={attachments => {
+      //     const msg = {
+      //         typ: "CITIZEN",
+      //         timestamp: Date.now(),
+      //         draft: true,
+      //         anhang: attachments
+      //     };
+
+      //     this.props.kassenzeichenActions.addChangeRequestMessage(msg);
+      // }}
+      // localErrorMessages={this.props.uiState.localErrorMessages}
+      // addLocalErrorMessage={this.props.uiStateActions.addLocalErrorMessage}
+      />
       <AnnotationEditView
         visible={uiState.changeRequestAnnotationEditViewVisible}
         annotationFeature={uiState.changeRequestAnnotationEditViewAnnotation}

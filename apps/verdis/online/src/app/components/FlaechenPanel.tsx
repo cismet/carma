@@ -12,7 +12,7 @@ import scrollIntoViewIfNeeded from "scroll-into-view-if-needed";
 
 interface FlaechenPanelProps {
   flaeche: any;
-  selected: boolean;
+  selected?: boolean;
 }
 
 const FlaechenPanel = ({ flaeche, selected }: FlaechenPanelProps) => {
