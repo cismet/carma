@@ -456,10 +456,10 @@ const KassenzeichenViewer = () => {
         flaechenCR={uiState.changeRequestEditViewCR}
         setFlaechenCR={(cr) => {
           dispatch(
-            setChangeRequestsEditViewFlaecheAndCR(
-              uiState.changeRequestEditViewFlaeche,
-              cr
-            )
+            setChangeRequestsEditViewFlaecheAndCR({
+              flaeche: uiState.changeRequestEditViewFlaeche,
+              cr,
+            })
           );
         }}
         // uploadCRDoc={this.props.kassenzeichenActions.addCRDoc}
