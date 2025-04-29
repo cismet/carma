@@ -9,13 +9,22 @@ import {
 } from "../../store/slices/mapping";
 import { useEffect, useRef } from "react";
 import scrollIntoViewIfNeeded from "scroll-into-view-if-needed";
+import { FontAwesomeIcon as Icon } from "@fortawesome/react-fontawesome";
+import { faEdit } from "@fortawesome/free-solid-svg-icons";
 
 interface FlaechenPanelProps {
   flaeche: any;
   selected?: boolean;
+  editMode: boolean;
+  showEditCRMenu: () => void;
 }
 
-const FlaechenPanel = ({ flaeche, selected }: FlaechenPanelProps) => {
+const FlaechenPanel = ({
+  flaeche,
+  selected,
+  editMode = true,
+  showEditCRMenu = () => {},
+}: FlaechenPanelProps) => {
   let background = "";
   let groesse,
     groesseColor = "black",
@@ -131,23 +140,23 @@ const FlaechenPanel = ({ flaeche, selected }: FlaechenPanelProps) => {
               </td>
               <td style={{ textAlign: "right" }}>{beschreibung}</td>
 
-              {/* {this.props.editmode === true && (
-                            <td
-                                style={{
-                                    textAlign: "right",
-                                    color: editButtonColor,
-                                    cursor: "pointer"
-                                }}
-                            >
-                                <Icon
-                                    onClick={e => {
-                                        this.props.showEditCRMenu(this.props.flaeche);
-                                        e.stopPropagation();
-                                    }}
-                                    icon={faEdit}
-                                />
-                            </td>
-                        )} */}
+              {editMode === true && (
+                <td
+                  style={{
+                    textAlign: "right",
+                    color: editButtonColor,
+                    cursor: "pointer",
+                  }}
+                >
+                  <Icon
+                    onClick={(e) => {
+                      showEditCRMenu();
+                      e.stopPropagation();
+                    }}
+                    icon={faEdit}
+                  />
+                </td>
+              )}
             </tr>
             <tr>
               <td>{area}</td>
