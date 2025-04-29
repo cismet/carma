@@ -10,8 +10,6 @@ import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 
 import {
-  getHashParams,
-  replaceHashRoutedHistory,
   TopicMapSelectionContent,
   useCarmaMapContext,
   useGazData,
@@ -31,11 +29,15 @@ import {
   OverlayTourContext,
   useOverlayHelper,
 } from "@carma-commons/ui/lib-helper-overlay";
-import { getApplicationVersion } from "@carma-commons/utils";
+import {
+  getApplicationVersion,
+  getHashParams,
+  updateHashHistoryState,
+} from "@carma-commons/utils";
 
 import {
+  cesiumClearParamKeys,
   CustomViewer,
-  getClearCesiumCameraParams,
   selectCurrentSceneStyle,
   selectShowPrimaryTileset,
   selectViewerIsMode2d,
@@ -43,6 +45,7 @@ import {
   setCurrentSceneStyle,
   useCesiumContext,
   useCesiumInitialCameraFromSearchParams,
+  VIEWERSTATE_KEYS,
 } from "@carma-mapping/cesium-engine";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 
@@ -91,8 +94,6 @@ interface MapProps {
   width: number;
   allow3d?: boolean;
 }
-
-const clear3dParams = getClearCesiumCameraParams();
 
 export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const dispatch = useDispatch();
@@ -355,16 +356,16 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
     const newParams = {
       ...currentParams,
-      ...clear3dParams,
-      m: sceneStyle,
+      [VIEWERSTATE_KEYS.mapStyle]: sceneStyle,
       lat: latTruncated,
       lng: lngTruncated,
       zoom: zoomString,
     };
 
-    replaceHashRoutedHistory(
-      { hashParams: newParams },
+    updateHashHistoryState(
+      newParams,
       pathname,
+      cesiumClearParamKeys,
       "GPM:TopicMap:locationChangedHandler"
     );
   };
@@ -376,7 +377,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       );
       return;
     }
-    replaceHashRoutedHistory(e, pathname, "GPM:3D");
+    updateHashHistoryState(e.hashParams, pathname, ["zoom"], "GPM:3D");
   };
 
   // TODO Move out Controls to own component

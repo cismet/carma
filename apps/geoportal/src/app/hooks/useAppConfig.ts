@@ -1,14 +1,14 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
-import { useSearchParams } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 
 import {
-  BackgroundLayer,
-  getHashParams,
-  LayerMap,
-  Settings,
+  type BackgroundLayer,
+  type LayerMap,
+  type SelectionItem,
+  type Settings,
 } from "@carma-apps/portals";
-import { Layer } from "@carma-mapping/layers";
+import { type Layer } from "@carma-mapping/layers";
 
 import {
   setBackgroundLayer,
@@ -19,7 +19,10 @@ import {
 } from "../store/slices/mapping";
 
 import { AppDispatch } from "../store";
-import { SelectionItem } from "@carma-apps/portals";
+import {
+  deleteHashParamsFromHistoryState,
+  getHashParams,
+} from "@carma-commons/utils";
 
 type View = {
   center: string[];
@@ -33,6 +36,8 @@ type Config = {
   view?: View;
   selection?: SelectionItem;
 };
+
+const CONFIG_KEY = "config";
 
 const onLoadedConfig = (
   config: Config,
@@ -73,13 +78,13 @@ const onLoadedConfig = (
 };
 
 export const useAppConfig = (configBaseUrl: string, layerMap: LayerMap) => {
-  const [searchParams, setSearchParams] = useSearchParams();
   const dispatch = useDispatch();
-  const currentParams = getHashParams();
-  const config = currentParams.config;
+  const { pathname } = useLocation();
   const [isLoadingConfig, setIsLoadingConfig] = useState(false);
 
   useEffect(() => {
+    const hashParams = getHashParams();
+    const config = hashParams[CONFIG_KEY];
     if (!config) return;
     setIsLoadingConfig(true);
     const controller = new AbortController();
@@ -88,9 +93,12 @@ export const useAppConfig = (configBaseUrl: string, layerMap: LayerMap) => {
       .then((response) => response.json())
       .then((newConfig: Config) => {
         onLoadedConfig(newConfig, layerMap, dispatch);
-        searchParams.delete("config");
-        setSearchParams(searchParams);
         setIsLoadingConfig(false);
+        deleteHashParamsFromHistoryState(
+          [CONFIG_KEY],
+          pathname,
+          "remove config postinit"
+        );
       })
       .catch((error) => {
         if (error.name === "AbortError") return;

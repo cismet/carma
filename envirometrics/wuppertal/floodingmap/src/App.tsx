@@ -17,7 +17,6 @@ import CrossTabCommunicationControl from "react-cismap/CrossTabCommunicationCont
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import {
-  replaceHashRoutedHistory,
   SelectionMetaData,
   TopicMapSelectionContent,
   useGazData,
@@ -30,7 +29,10 @@ import {
   isAreaType,
   isAreaTypeWithGEP,
 } from "@carma-commons/resources";
-import { getApplicationVersion } from "@carma-commons/utils";
+import {
+  getApplicationVersion,
+  updateHashHistoryState,
+} from "@carma-commons/utils";
 
 import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/hochwassergefahrenkarte";
 
@@ -47,6 +49,7 @@ import {
   useCesiumInitialCameraFromSearchParams,
   useHomeControl,
   useZoomControls,
+  VIEWERSTATE_KEYS,
 } from "@carma-mapping/cesium-engine";
 import {
   EmptySearchComponent,
@@ -169,7 +172,9 @@ function App({ sync = false }: { sync?: boolean }) {
   };
 
   const onCesiumSceneChange = (e) => {
-    isMode2d ? undefined : replaceHashRoutedHistory(e, "/", "app/hgk");
+    isMode2d
+      ? undefined
+      : updateHashHistoryState(e.hashParams, "/", ["zoom"], "app/hgk:3D");
   };
 
   useSelectionTopicMap();
@@ -188,8 +193,8 @@ function App({ sync = false }: { sync?: boolean }) {
   );
 
   useEffect(() => {
-    if (searchParams.has("is3d")) {
-      const is3d = searchParams.get("is3d") === "1";
+    if (searchParams.has(VIEWERSTATE_KEYS.is3d)) {
+      const is3d = searchParams.get(VIEWERSTATE_KEYS.is3d) === "1";
       dispatch(setIsMode2d(!is3d));
     }
     // run only once on load

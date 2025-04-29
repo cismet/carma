@@ -30,6 +30,7 @@ export { useFovWheelZoom } from "./lib/hooks/useFovWheelZoom";
 export { useSceneStyles } from "./lib/hooks/useSceneStyles";
 export { useZoomControls } from "./lib/hooks/useZoomControls";
 
+export { VIEWERSTATE_KEYS } from "./lib/constants";
 export { CUSTOM_SHADERS_DEFINITIONS } from "./lib/shaders";
 
 // TODO: all the utils used elsewhere with no cesium dedependency should be moved to common helper utils lib
@@ -51,8 +52,8 @@ export { applyRollToHeadingForCameraNearNadir } from "./lib/utils/cesiumCamera";
 export {
   encodeCesiumCamera,
   decodeCesiumCamera,
-  cesiumCameraParamsKeyList,
-  getClearCesiumCameraParams,
+  cesiumCameraParamKeys,
+  cesiumClearParamKeys,
 } from "./lib/utils/cesiumHashParamsCodec";
 
 export {

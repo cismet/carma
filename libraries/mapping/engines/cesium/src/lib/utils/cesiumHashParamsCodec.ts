@@ -4,6 +4,7 @@ import {
   Math as CesiumMath,
   PerspectiveFrustum,
 } from "cesium";
+import { VIEWERSTATE_KEYS } from "../constants";
 
 // Constants for URL parameter formatting
 const DEGREE_DIGITS = 7;
@@ -69,24 +70,15 @@ const cameraCodec: Record<string, HashCodec> = {
   },
 };
 
-export const cesiumCameraParamsKeyList = Object.values(cameraCodec).map(
+export const cesiumCameraParamKeys = Object.values(cameraCodec).map(
   (codec) => codec.key
 );
 
-export const getClearCesiumCameraParams = (emptyValue = "") => {
-  const only3d = cesiumCameraParamsKeyList.filter(
-    (k) => !["lng", "lat"].includes(k) // keep lng and lat for consistency
-  );
-
-  const clearValues = only3d.reduce(
-    (acc, key) => {
-      acc[key] = emptyValue;
-      return acc;
-    },
-    { is3d: emptyValue }
-  );
-  return clearValues;
-};
+export const cesiumClearParamKeys = cesiumCameraParamKeys
+  .filter(
+    (k) => !["lng", "lat"].includes(k) // keep lng and lat  as they are used for 2D mode too an will be overwritten
+  )
+  .concat(VIEWERSTATE_KEYS.is3d); // remove Cesium Only state keys
 
 function isNumber(value: unknown): value is number {
   return (
@@ -122,11 +114,11 @@ export const encodeCesiumCamera = (camera: Camera): StringifiedCameraState => {
 };
 
 export const decodeCesiumCamera = (
-  hashParams: URLSearchParams
+  hashParams: Record<string, string>
 ): CameraState | null => {
   const decoded = Object.keys(cameraCodec).reduce((acc, key) => {
     const shortKey = cameraCodec[key].key;
-    const value = hashParams.get(shortKey);
+    const value = hashParams[shortKey];
     acc[key] =
       value !== null && value !== undefined
         ? cameraCodec[key].decode(value)

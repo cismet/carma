@@ -28,7 +28,6 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 import {
-  replaceHashRoutedHistory,
   SelectionMetaData,
   useFeatureFlags,
   useGazData,
@@ -37,10 +36,13 @@ import {
 
 import { useTweakpaneCtx } from "@carma-commons/debug";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
-import { detectWebGLContext } from "@carma-commons/utils";
+import {
+  deleteHashParamsFromHistoryState,
+  detectWebGLContext,
+} from "@carma-commons/utils";
 
 import {
-  getClearCesiumCameraParams,
+  cesiumClearParamKeys,
   MapTypeSwitcher,
   PitchingCompass,
   selectViewerIsMode2d,
@@ -111,8 +113,6 @@ let hasGPU = false;
 const setHasGPU = (flag: boolean) => (hasGPU = flag);
 const testGPU = () => detectWebGLContext(setHasGPU);
 window.addEventListener("load", testGPU, false);
-
-const clear3dHashParamsObject = getClearCesiumCameraParams();
 
 // TODO: centralize the hash params update behavior
 
@@ -262,8 +262,8 @@ const MapWrapper = () => {
 
   const clear3dHashParams = () => {
     console.debug("[CESIUM|DEBUG] MapTypeSwitcher: 2D mode, clear hash params");
-    replaceHashRoutedHistory(
-      { hashParams: clear3dHashParamsObject },
+    deleteHashParamsFromHistoryState(
+      cesiumClearParamKeys,
       pathname,
       "MapTypeSwitcher Clear"
     );
