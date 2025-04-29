@@ -65,7 +65,6 @@ const CR00 = ({
 
   if (visible !== false) {
     const crInfo = getProcessedFlaechenCR(flaeche, flaechenCR);
-    console.log("xxx crInfo", crInfo);
     return (
       <Modal
         style={{
@@ -159,12 +158,9 @@ const CR00 = ({
                       ).alpha(0.1),
                     }}
                     onChange={(e) => {
-                      console.log("xxx 1");
                       if (isAnteiligeFlaeche() === false) {
                         const newCR = JSON.parse(JSON.stringify(flaechenCR));
                         newCR.groesse = Number(e.target.value);
-                        console.log("xxx 2", newCR);
-
                         setNewFlaechenCR(newCR);
                       }
                     }}
