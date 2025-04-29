@@ -158,6 +158,9 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const [marker, setMarker] = useState(undefined);
   const [markerAccent, setMarkerAccent] = useState(undefined);
   const [pos, setPos] = useState<[number, number] | null>(null);
+  // TODO: move all these to a custom hook and collect all calls to updateFeatureInfo there
+  const [shouldUpdateFeatureInfo, setShouldUpdateFeatureInfo] =
+    useState<boolean>(false);
 
   const cesiumInitialCameraView = useCesiumInitialCameraFromSearchParams();
   const version = getApplicationVersion(versionData);
@@ -261,9 +264,27 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
   useEffect(() => {
     if (isModeFeatureInfo && pos) {
-      updateFeatureInfo();
+      updateFeatureInfoLeaflet();
     }
   }, [layers]);
+
+  useEffect(() => {
+    if (routedMap) {
+      const map = routedMap.leafletMap.leafletElement;
+      if (map) {
+        const handleZoomEnd = () => {
+          setShouldUpdateFeatureInfo(true);
+        };
+
+        map.on("zoomend", handleZoomEnd);
+
+        // Clean up the event listener when the component unmounts
+        return () => {
+          map.off("zoomend", handleZoomEnd);
+        };
+      }
+    }
+  }, [routedMap]);
 
   useObliqueMode();
 
@@ -285,7 +306,8 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     setShowTourOverlay(true);
   };
 
-  const updateFeatureInfo = () => {
+  const updateFeatureInfoLeaflet = () => {
+    setShouldUpdateFeatureInfo(false);
     setTimeout(() => {
       const map = routedMap.leafletMap.leafletElement;
       const latlngPoint = L.latLng(pos);
@@ -296,6 +318,12 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       });
     }, 150);
   };
+
+  useEffect(() => {
+    if (routedMap && shouldUpdateFeatureInfo) updateFeatureInfoLeaflet();
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routedMap, shouldUpdateFeatureInfo]);
 
   /** TODO:
       move url request to own hook something like
@@ -339,14 +367,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       pathname,
       "GPM:TopicMap:locationChangedHandler"
     );
-
-    if (
-      // TODO this should be it's own hook, not a side effect
-      zoom.toString() !== currentParams.zoom.toString() &&
-      isModeFeatureInfo
-    ) {
-      updateFeatureInfo();
-    }
   };
 
   const onSceneChange = (e: { hashParams: Record<string, string> }) => {
