@@ -13,7 +13,6 @@ import useDisableSSCC from "./hooks/useDisableSSCC";
 import { useCesiumGlobe } from "./hooks/useCesiumGlobe";
 import { useCesiumWhenHidden } from "./hooks/useCesiumWhenHidden";
 import { useInitializeViewer } from "./hooks/useInitializeViewer";
-import { useLogCesiumRenderIn2D } from "./hooks/useLogCesiumRenderIn2D";
 import { useOnSceneChange } from "./hooks/useOnSceneChange";
 import useTransitionTimeout from "./hooks/useTransitionTimeout";
 import useTweakpane from "./hooks/useTweakpane";
@@ -139,7 +138,6 @@ export function CustomViewer(props: CustomViewerProps) {
 
   // optional
   useTweakpane();
-  useLogCesiumRenderIn2D();
 
   return (
     <>
