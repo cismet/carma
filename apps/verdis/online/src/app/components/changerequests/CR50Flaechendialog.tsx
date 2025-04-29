@@ -8,6 +8,7 @@ import {
   getProcessedFlaechenCR,
   flaechenarten,
   anschlussgrade,
+  getOverlayTextForFlaeche,
 } from "../../../utils/kassenzeichenHelper";
 import Button from "react-bootstrap/Button";
 import Modal from "react-bootstrap/Modal";
@@ -125,7 +126,7 @@ const CR00 = ({
           />
           <Section
             key={"sectionKey1"}
-            sectionKey={"sectionKey"}
+            sectionKey={"sectionKey1"}
             style={{ marginBottom: 6 }}
             sectionBsStyle="warning"
             sectionTitle={`Ihre Änderungsvorschläge${
@@ -260,6 +261,38 @@ const CR00 = ({
                   </Form.Control.Feedback>
                 </Form.Group>
               </Form>
+            }
+          />
+          <Section
+            key={"sectionKey3"}
+            sectionKey={"sectionKey3"}
+            style={{ marginBottom: 6 }}
+            sectionBsStyle="info"
+            sectionTitle={`Ihre Änderungsvorschläge${
+              crInfo.changeCounter > 0 ? " (" + crInfo.changeCounter + ")" : ""
+            }`}
+            sectionContent={getOverlayTextForFlaeche(flaeche, flaechenCR)}
+          />
+          <Section
+            key={"sectionKey4"}
+            sectionKey={"sectionKey4"}
+            style={{ marginBottom: 6 }}
+            sectionBsStyle="danger"
+            sectionTitle={`Ihre Dokumente 
+                                    ${
+                                      documents.length > 0
+                                        ? " (" + documents.length + ")"
+                                        : ""
+                                    }`}
+            sectionContent={
+              <DocPanel
+                // uploadCRDoc={uploadCRDoc}
+                documents={documents}
+                // tmpAttachments={tmpAttachments}
+                // setTmpAttachments={setTmpAttachments}
+                // localErrorMessages={localErrorMessages}
+                // addLocalErrorMessage={addLocalErrorMessage}
+              />
             }
           />
         </Modal.Body>
