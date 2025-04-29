@@ -1,6 +1,10 @@
 import { createSlice } from "@reduxjs/toolkit";
 import { DOMAIN, SERVICE } from "../../constants/cids";
-import { WAITING_TYPE_MESSAGE, appModes } from "../../constants/ui";
+import {
+  WAITING_TYPE_INFO,
+  WAITING_TYPE_MESSAGE,
+  appModes,
+} from "../../constants/ui";
 
 export const types = {
   TOGGLE_INFO_ELEMENTS: "UI_STATE/TOGGLE_INFO_ELEMENTS",
@@ -183,6 +187,11 @@ const slice = createSlice({
       state.changeRequestAnnotationEditViewAnnotation = annotation;
       state.changeRequestAnnotationEditViewCR = cr;
     },
+    showInfo(state, action) {
+      state.waitingVisible = true;
+      state.waitingMessage = action.payload;
+      state.waitingType = WAITING_TYPE_INFO;
+    },
   },
 });
 
@@ -203,6 +212,7 @@ export const {
   setCREditMode,
   showChangeRequestAnnotationEditViewVisible,
   setChangeRequestsAnnotationEditViewAnnotationAndCR,
+  showInfo,
 } = slice.actions;
 
 export const getConfData = (state) => {

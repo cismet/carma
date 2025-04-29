@@ -9,6 +9,7 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   changeAnnotation,
   getKassenzeichen,
+  getKassenzeichenbySTAC,
   removeAnnotation,
 } from "../../store/slices/kassenzeichen";
 import KassenzeichenPanel from "./KassenzeichenPanel";
@@ -25,12 +26,17 @@ import {
   getUiState,
   setChangeRequestsAnnotationEditViewAnnotationAndCR,
   showChangeRequestAnnotationEditViewVisible,
+  showInfo,
   toggleInfoElements,
 } from "../../store/slices/ui";
 import { getMapping } from "../../store/slices/mapping";
 import HelpAndSettings from "../components/helpandsettings/Menu00MainComponent";
 import ChangeRequests from "../components/changerequests/CR00MainComponent";
-import { getStac } from "../../store/slices/auth";
+import {
+  getStac,
+  getSuccesfullLogin,
+  setLoginInProgress,
+} from "../../store/slices/auth";
 import { useNavigate } from "react-router-dom";
 import { KassenzeichenViewerGefahrensignal } from "@carma-collab/wuppertal/verdis-online";
 import AnnotationPanel from "./AnnotationPanel";
@@ -43,11 +49,18 @@ const KassenzeichenViewer = () => {
   const uiState = useSelector(getUiState);
   const mapping = useSelector(getMapping);
   const stac = useSelector(getStac);
+  const login = useSelector(getSuccesfullLogin);
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
   if (!stac) {
     navigate("/");
+  } else {
+    if (!login) {
+      // dispatch(setLoginInProgress({}));
+      // dispatch(showInfo("Kassenzeichen wird wieder geladen"));
+      dispatch(getKassenzeichenbySTAC(stac, () => {}));
+    }
   }
 
   // let flaechenPanelRefs = useRef({});
