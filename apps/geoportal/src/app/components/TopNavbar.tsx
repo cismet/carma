@@ -14,10 +14,13 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
-import { useCarmaMapContext, useFeatureFlags } from "@carma-apps/portals";
+import { useFeatureFlags } from "@carma-apps/portals";
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
-import { useOverlayHelper } from "@carma-commons/ui/lib-helper-overlay";
+import {
+  useOverlayHelper,
+  useOverlayTourContext,
+} from "@carma-commons/ui/lib-helper-overlay";
 import {
   selectViewerIsMode2d,
   setCurrentSceneStyle,
@@ -43,11 +46,10 @@ const TopNavbar = () => {
   const flags = useFeatureFlags();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showHelpTooltip, setShowHelpTooltip] = useState(false);
+  const { showOverlayHandler } = useOverlayTourContext();
 
   const isTouchDevice =
     "ontouchstart" in window || navigator.maxTouchPoints > 0;
-
-  const { setShowTourOverlay } = useCarmaMapContext();
 
   const { setAppMenuVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
@@ -126,7 +128,7 @@ const TopNavbar = () => {
           >
             <button
               className="hover:text-gray-600 text-xl lg:mr-11 hidden sm:block xl:mr-40"
-              onClick={() => setShowTourOverlay(true)}
+              onClick={showOverlayHandler}
               data-test-id="helper-overlay-btn"
               ref={helpOverlayTourRef}
               onMouseEnter={() => setShowHelpTooltip(true)}

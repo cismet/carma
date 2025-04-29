@@ -11,7 +11,6 @@ import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplic
 
 import {
   TopicMapSelectionContent,
-  useCarmaMapContext,
   useGazData,
   useSelectionCesium,
   useSelectionTopicMap,
@@ -26,8 +25,8 @@ import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from 
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 
 import {
-  OverlayTourContext,
   useOverlayHelper,
+  useOverlayTourContext,
 } from "@carma-commons/ui/lib-helper-overlay";
 import {
   getApplicationVersion,
@@ -150,13 +149,12 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
   useTweakpane(viewerRef, rerenderCountRef, lastRenderIntervalRef);
 
-  const { setShowTourOverlay } = useCarmaMapContext();
   const { routedMapRef: routedMap } =
     useContext<typeof TopicMapContext>(TopicMapContext);
 
   const { setAppMenuVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
-  const { setSecondaryWithKey } = useContext(OverlayTourContext);
+  const { setSecondaryWithKey, showOverlayHandler } = useOverlayTourContext();
 
   const [marker, setMarker] = useState(undefined);
   const [markerAccent, setMarkerAccent] = useState(undefined);
@@ -312,7 +310,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const showOverlayFromOutside = (key: string) => {
     setAppMenuVisible(false);
     setSecondaryWithKey(key);
-    setShowTourOverlay(true);
+    showOverlayHandler();
   };
 
   const updateFeatureInfoLeaflet = () => {
@@ -405,7 +403,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
             <GenericModalApplicationMenu
               {...getCollabedHelpComponentConfig({
                 versionString: version,
-                showOverlayFromOutside: showOverlayFromOutside,
+                showOverlayFromOutside,
               })}
             />
           }

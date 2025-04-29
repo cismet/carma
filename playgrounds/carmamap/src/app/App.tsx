@@ -15,7 +15,7 @@ import { backgroundSettings } from "@carma-collab/wuppertal/geoportal";
 
 import type { Layer } from "@carma-mapping/layers";
 import {
-  CarmaMapContextProvider,
+  CarmaMapProviderWrapper,
   type BackgroundLayer,
   type Settings,
 } from "@carma-apps/portals";
@@ -82,7 +82,7 @@ function App({ published }: { published?: boolean }) {
   }, [searchParams]);
 
   const content = (
-    <CarmaMapContextProvider
+    <CarmaMapProviderWrapper
       cesiumOptions={CESIUM_CONFIG}
       overlayOptions={{
         background: backgroundSettings,
@@ -93,7 +93,7 @@ function App({ published }: { published?: boolean }) {
           <CarmaMap />
         </div>
       </ErrorBoundary>
-    </CarmaMapContextProvider>
+    </CarmaMapProviderWrapper>
   );
 
   return syncToken ? (

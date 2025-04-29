@@ -1,4 +1,10 @@
-import { useState, createContext } from "react";
+import {
+  useState,
+  createContext,
+  useMemo,
+  useCallback,
+  useContext,
+} from "react";
 import {
   type OverlayTourContextType,
   type OverlayHelperConfig,
@@ -7,67 +13,99 @@ import {
 } from "../..";
 
 export const OverlayTourContext = createContext<OverlayTourContextType>({
-  configs: [],
   addConfig: (arg) => {},
   removeConfig: (arg) => {},
   showSecondaryWithKey: null,
   setSecondaryWithKey: (key) => {},
-  showOverlay: (show) => {},
+  showOverlayHandler: () => {},
+  closeOverlayHandler: () => {},
+  setShowOverlayHandler: (show) => {},
 });
 
 export const OverlayTourProvider = ({
   children,
-  show = false,
-  closeOverlay = () => {},
   transparency = 0.8,
   color = "black",
+  showOnLoad = false,
 }: OverlayTourProviderProps) => {
   const [configs, setConfigs] = useState<OverlayHelperConfig[]>([]);
   const [secondaryKey, setSecondaryKey] = useState<null | string>(null);
+  const [showOverlay, setShowOverlay] = useState<boolean>(showOnLoad);
 
-  const addConfig = (config) => {
+  const addConfig = useCallback((config) => {
     setConfigs((prevConfigs) => [...prevConfigs, config]);
-  };
+  }, []);
 
-  const removeConfig = (config) => {
+  const removeConfig = useCallback((config) => {
     setConfigs((prevConfigs) => prevConfigs.filter((c) => c !== config));
-  };
+  }, []);
 
-  const setSecondaryWithKey = (key: string | null) => {
+  const setSecondaryWithKey = useCallback((key: string | null) => {
     setSecondaryKey(key);
-  };
+  }, []);
 
-  const showOverlayHandler = (shouldShow: boolean) => {
-    if (shouldShow) {
-      show = true;
-    } else {
-      closeOverlay();
+  const closeOverlayHandler = useCallback(() => {
+    setShowOverlay(false);
+    setSecondaryKey(null);
+  }, []);
+
+  const showOverlayHandler = useCallback(() => {
+    setShowOverlay(true);
+  }, []);
+
+  const setShowOverlayHandler = useCallback((shouldShow: boolean) => {
+    setShowOverlay(shouldShow);
+    if (!shouldShow) {
+      setSecondaryKey(null);
     }
-  };
+  }, []);
+
+  const value = useMemo(
+    () => ({
+      setShowOverlayHandler,
+      showOverlayHandler,
+      closeOverlayHandler,
+      addConfig,
+      removeConfig,
+      showSecondaryWithKey: secondaryKey,
+      setSecondaryWithKey,
+    }),
+    [
+      secondaryKey,
+      addConfig,
+      removeConfig,
+      setSecondaryWithKey,
+      setShowOverlayHandler,
+      showOverlayHandler,
+      closeOverlayHandler,
+    ]
+  );
 
   return (
-    <OverlayTourContext.Provider
-      value={{
-        configs,
-        addConfig,
-        removeConfig,
-        showSecondaryWithKey: secondaryKey,
-        setSecondaryWithKey,
-        showOverlay: showOverlayHandler,
-      }}
-    >
+    <OverlayTourContext.Provider value={value}>
       {children}
-      {show && (
+      {showOverlay && (
         <LibHelperOverlay
           configs={configs}
-          closeOverlay={closeOverlay}
+          closeOverlay={closeOverlayHandler}
           transparency={transparency}
           color={color}
           showSecondaryWithKey={setSecondaryWithKey}
           openedSecondaryKey={secondaryKey}
-          showOverlay={showOverlayHandler}
+          showOverlay={setShowOverlayHandler}
         />
       )}
     </OverlayTourContext.Provider>
   );
 };
+
+export const useOverlayTourContext = () => {
+  const context = useContext(OverlayTourContext);
+  if (!context) {
+    throw new Error(
+      "useOverlayTourContext must be used within an OverlayTourProvider"
+    );
+  }
+  return context;
+};
+export default OverlayTourProvider;

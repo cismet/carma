@@ -11,12 +11,13 @@ export type OverlayHelperHightlighterProps = {
 export type OverlayTourAction = (arg: OverlayHelperConfig) => void;
 
 export interface OverlayTourContextType {
-  configs: OverlayHelperConfig[];
   addConfig: OverlayTourAction;
   removeConfig: OverlayTourAction;
   showSecondaryWithKey: null | string;
   setSecondaryWithKey: (key: string) => void;
-  showOverlay: (show: boolean) => void;
+  closeOverlayHandler: () => void;
+  showOverlayHandler: () => void;
+  setShowOverlayHandler: (show: boolean) => void;
 }
 
 export type PositionOverlayHelper =
@@ -98,12 +99,9 @@ export interface HighlightRect {
 
 export type OverlayTourProviderProps = {
   children: JSX.Element;
-  show: boolean;
-  closeOverlay: () => void;
+  showOnLoad?: boolean;
   transparency?: number;
   color?: string;
-  // showSecondaryWithKey: (key: string) => void;
-  // openedSecondaryKey: string | null;
 };
 
 export type GeoElementType = {

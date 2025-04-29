@@ -18,7 +18,7 @@ import {
 import { TweakpaneProvider } from "@carma-commons/debug";
 
 import {
-  CarmaMapContextProvider,
+  CarmaMapProviderWrapper,
   FeatureFlagProvider,
 } from "@carma-apps/portals";
 
@@ -67,7 +67,7 @@ function App({ published }: { published?: boolean }) {
   const content = (
     <FeatureFlagProvider config={featureFlagConfig}>
       <TweakpaneProvider>
-        <CarmaMapContextProvider
+        <CarmaMapProviderWrapper
           cesiumOptions={CESIUM_CONFIG}
           overlayOptions={{
             background: backgroundSettings,
@@ -114,7 +114,7 @@ function App({ published }: { published?: boolean }) {
               </div>
             </ErrorBoundary>
           </ObliqueDataProvider>
-        </CarmaMapContextProvider>
+        </CarmaMapProviderWrapper>
       </TweakpaneProvider>
     </FeatureFlagProvider>
   );
