@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useState,
+  useMemo,
 } from "react";
 
 import { type GazDataItem, getGazData } from "@carma-commons/utils";
@@ -52,8 +53,19 @@ export function GazDataProvider({
     loadGazData();
   }, [config]);
 
+  // Memoize the context value to prevent unnecessary rerenders
+  const value = useMemo(
+    () => ({
+      gazData,
+      crs,
+      isLoading,
+      error,
+    }),
+    [gazData, crs, isLoading, error]
+  );
+
   return (
-    <GazDataContext.Provider value={{ gazData, crs, isLoading, error }}>
+    <GazDataContext.Provider value={value}>
       {children}
     </GazDataContext.Provider>
   );

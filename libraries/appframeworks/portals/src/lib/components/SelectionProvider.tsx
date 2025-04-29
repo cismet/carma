@@ -1,6 +1,12 @@
 import { type Feature } from "geojson";
 import { type SearchResultItem } from "@carma-commons/types";
-import { createContext, useContext, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+} from "react";
 
 export type SelectionMetaData = {
   selectionTimestamp: number | null;
@@ -22,7 +28,7 @@ const SelectionContext = createContext<SelectionContextType | undefined>(
   undefined
 );
 
-export const areSelectionsEqual = (
+const areSelectionsEqual = (
   a: SelectionItem | null,
   b: SelectionItem | null
 ): boolean => {
@@ -39,22 +45,29 @@ export function SelectionProvider({ children }: SelectionProviderProps) {
   const [selection, setSelection] = useState<SelectionItem | null>(null);
   const [overlayFeature, setOverlayFeature] = useState<Feature | null>(null);
 
-  const checkedSetSelection = (selection: SelectionItem | null) => {
-    if (selection && areSelectionsEqual(selection, value.selection)) {
-      console.debug(
-        "SelectionProvider: checkedSetSelection - same selection, skipping"
-      );
-      return;
-    }
-    setSelection(selection);
-  };
+  const checkedSetSelection = useCallback(
+    (newSelection: SelectionItem | null) => {
+      if (newSelection && areSelectionsEqual(newSelection, selection)) {
+        console.debug(
+          "SelectionProvider: checkedSetSelection - same selection, skipping"
+        );
+        return;
+      }
+      setSelection(newSelection);
+    },
+    [selection]
+  );
 
-  const value = {
-    selection,
-    setSelection: checkedSetSelection,
-    overlayFeature,
-    setOverlayFeature,
-  };
+  const value = useMemo(
+    () => ({
+      selection,
+      setSelection: checkedSetSelection,
+      overlayFeature,
+      setOverlayFeature,
+    }),
+    [selection, checkedSetSelection, overlayFeature, setOverlayFeature]
+  );
+
   return (
     <SelectionContext.Provider value={value}>
       {children}
