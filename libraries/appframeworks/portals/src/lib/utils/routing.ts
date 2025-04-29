@@ -34,47 +34,45 @@ export const getHashParams = (
  * Updates the URL hash parameters without triggering a React Router navigation
  */
 export const replaceHashRoutedHistory = (
-  { hashParams }: EncodedSceneParams,
+  hashParams: Record<string, string> = {},
   routedPath: string,
+  removeKeys: string[] = [],
   label: string = "N/A" // for tracing debugging only
 ) => {
   // this is method is used to avoid triggering rerenders from the HashRouter when updating the hash
-  if (hashParams) {
-    const currentParams = getHashParams();
+  const currentParams = getHashParams();
 
-    const combinedParams: Record<string, string> = {
-      ...currentParams,
-      ...hashParams, // overwrite from state but keep others
-    };
+  const combinedParams: Record<string, string> = {
+    ...currentParams,
+    ...hashParams, // overwrite from state but keep others
+  };
 
-    // remove empty values
-    // be aware this disables "boolean" keys without a value
-    Object.entries(combinedParams).forEach(([key, value]) => {
-      if (value?.trim?.() === "") {
-        delete combinedParams[key];
-      }
-    });
+  // remove keys that are in the removeKeys array
+  removeKeys.forEach((key) => {
+    if (key in combinedParams) {
+      delete combinedParams[key];
+    }
+  });
 
-    // Store the combined parameters in our WeakMap
-    currentHashParamsStore.set(window, { ...combinedParams });
+  // Store the combined parameters in our WeakMap
+  currentHashParamsStore.set(window, { ...combinedParams });
 
-    const combinedSearchParams = new URLSearchParams(combinedParams);
-    const combinedHash = combinedSearchParams.toString();
-    const fullHashState = `#${routedPath}?${combinedHash}`;
-    // this is a workaround to avoid triggering rerenders from the HashRouter
-    // navigate would cause rerenders
-    // navigate(`${routedPath}?${formattedHash}`, { replace: true });
-    // see https://github.com/remix-run/react-router/discussions/9851#discussioncomment-9459061
+  const combinedSearchParams = new URLSearchParams(combinedParams);
+  const combinedHash = combinedSearchParams.toString();
+  const fullHashState = `#${routedPath}?${combinedHash}`;
+  // this is a workaround to avoid triggering rerenders from the HashRouter
+  // navigate would cause rerenders
+  // navigate(`${routedPath}?${formattedHash}`, { replace: true });
+  // see https://github.com/remix-run/react-router/discussions/9851#discussioncomment-9459061
 
-    const currentUrl = new URL(window.location.href);
-    const newUrl = `${currentUrl.origin}${currentUrl.pathname}${fullHashState}`;
+  const currentUrl = new URL(window.location.href);
+  const newUrl = `${currentUrl.origin}${currentUrl.pathname}${fullHashState}`;
 
-    window.history.replaceState(null, "", newUrl);
-    console.debug(
-      `[Routing] Hash parameters updated (${label}):`,
-      combinedParams
-    );
-  }
+  window.history.replaceState(null, "", newUrl);
+  console.debug(
+    `[Routing] Hash parameters updated (${label}):`,
+    combinedParams
+  );
 };
 
 /**

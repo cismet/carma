@@ -576,7 +576,12 @@ export const CarmaMap = ({
                     "[GEOPORTALMAP|HASH|SCENE|CESIUM]cesium scene changed",
                     e
                   );
-                  replaceHashRoutedHistory(e, "/");
+                  replaceHashRoutedHistory(
+                    e.hashParams,
+                    "/",
+                    ["zoom"],
+                    "app/carma:3D"
+                  );
                 }}
               ></CustomViewer>
             </div>

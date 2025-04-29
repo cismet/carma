@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { useSelector } from "react-redux";
-
-import { cameraToCartographicDegrees } from "../utils/cesiumHelpers";
+import { type Viewer } from "cesium";
 
 import {
   selectShowSecondaryTileset,
@@ -9,15 +8,15 @@ import {
   selectViewerIsTransitioning,
 } from "../slices/cesium";
 
-import { encodeCesiumCamera } from "../..";
 import { useCesiumContext } from "./useCesiumContext";
-import { Viewer } from "cesium";
-import { StringifiedCameraState } from "../utils/cesiumHashParamsCodec";
 
-export const VIEWERSTATE_KEYS = {
-  mapStyle: "m",
-  is3d: "is3d",
-};
+import { cameraToCartographicDegrees } from "../utils/cesiumHelpers";
+import {
+  encodeCesiumCamera,
+  type StringifiedCameraState,
+} from "../utils/cesiumHashParamsCodec";
+
+import { VIEWERSTATE_KEYS } from "../constants";
 
 const toHashParams = (
   cesiumCameraState: StringifiedCameraState,
