@@ -2,18 +2,10 @@ import Color from "color";
 import React, { useState } from "react";
 import { Button, FormControl, FormGroup, Modal } from "react-bootstrap";
 import Section from "react-cismap/topicmaps/menu/Section";
-
 import { Icon } from "react-fa";
-// import {
-//     anschlussgrade,
-//     flaechenarten,
-//     getOverlayTextForFlaeche,
-//     getProcessedFlaechenCR,
-//     needsProof,
-//     needsProofSingleFlaeche
-// } from "../../utils/kassenzeichenHelper";
 import FlaechenPanel from "../FlaechenPanel";
 import DocPanel from "./CR20DocumentsPanel";
+import { getProcessedFlaechenCR } from "../../../utils/kassenzeichenHelper";
 
 const CR00 = ({
   visible,
@@ -65,8 +57,8 @@ const CR00 = ({
   // };
 
   if (visible !== false) {
-    // const crInfo = getProcessedFlaechenCR(flaeche, flaechenCR);
-
+    const crInfo = getProcessedFlaechenCR(flaeche, flaechenCR);
+    console.log("xxx crInfo", crInfo);
     return (
       <Modal
         style={{
@@ -100,7 +92,7 @@ const CR00 = ({
             key={"sectionKey0"}
             sectionKey={"sectionKey"}
             style={{ marginBottom: 6 }}
-            // defaultActiveKey={"sectionKey0"}
+            sectionBsStyle="info"
             sectionTitle={"Übersicht "}
             sectionContent={
               <div
@@ -124,6 +116,15 @@ const CR00 = ({
                 </div>
               </div>
             }
+          />
+          <Section
+            key={"sectionKey1"}
+            sectionKey={"sectionKey"}
+            style={{ marginBottom: 6 }}
+            sectionBsStyle="warning"
+            sectionTitle={`Ihre Änderungsvorschläge${
+              crInfo.changeCounter > 0 ? " (" + crInfo.changeCounter + ")" : ""
+            }`}
           />
         </Modal.Body>
 

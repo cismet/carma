@@ -459,3 +459,204 @@ export const getInfoTextForAnschlussgrad = (flaeche) => {
 
   return anschlussgrad;
 };
+
+const isProcessedByClerk = (attr, cr) => {
+  try {
+    if (
+      cr !== undefined &&
+      cr[attr] !== undefined &&
+      cr.pruefung !== undefined &&
+      cr.pruefung[attr] !== undefined &&
+      cr.pruefung[attr].value !== undefined
+    ) {
+      const crValue = cr[attr];
+      const checkValue = cr.pruefung[attr].value;
+
+      switch (attr) {
+        case "groesse":
+          return crValue === checkValue;
+        case "flaechenart":
+          return (
+            crValue.art_abkuerzung === checkValue.art_abkuerzung &&
+            crValue.art === checkValue.art
+          );
+        case "anschlussgrad":
+          return (
+            crValue.grad_abkuerzung === checkValue.grad_abkuerzung &&
+            crValue.grad === checkValue.grad
+          );
+        default:
+          return false;
+      }
+    } else {
+      return false;
+    }
+  } catch (e) {
+    console.log("error in isChecked", e);
+    console.log("cr", cr);
+
+    return false;
+  }
+};
+
+const setColorForAttr = (
+  colorStates,
+  attr,
+  flaechenCR,
+  colorProcessed,
+  colorUnprocessed
+) => {
+  if (isProcessedByClerk(attr, flaechenCR)) {
+    colorStates[attr] = colorProcessed;
+  } else {
+    colorStates[attr] = colorUnprocessed;
+  }
+};
+
+const setValidationStringForAttr = (
+  validationStates,
+  attr,
+  flaechenCR,
+  validationString
+) => {
+  if (isProcessedByClerk(attr, flaechenCR)) {
+    validationStates[attr] = validationString;
+  }
+};
+
+export const getProcessedFlaechenCR = (flaeche, flaechenCR) => {
+  let groesse, art, anschlussgrad;
+  let changeCounter = 0;
+  let edited = false;
+  let validationStates = {
+    groesse: null, //means 'pending'
+    flaechenart: null, //means 'pending'
+    anschlussgrad: null, //means 'pending'
+  };
+  let colors = {
+    groesse: "black",
+    flaechenart: "black",
+    anschlussgrad: "black",
+  };
+  if (
+    flaechenCR.groesse !== undefined &&
+    flaechenCR.groesse !== flaeche.flaecheninfo.groesse_korrektur
+  ) {
+    groesse = flaechenCR.groesse;
+    setValidationStringForAttr(
+      validationStates,
+      "groesse",
+      flaechenCR,
+      "error"
+    );
+    setColorForAttr(colors, "groesse", flaechenCR, colorRejected, colorChanged);
+    if (!isProcessedByClerk("groesse", flaechenCR)) {
+      changeCounter++;
+    }
+  } else {
+    groesse = flaeche.flaecheninfo.groesse_korrektur;
+    setValidationStringForAttr(
+      validationStates,
+      "groesse",
+      flaechenCR,
+      "success"
+    );
+    setColorForAttr(
+      colors,
+      "groesse",
+      flaechenCR,
+      colorAccepted,
+      colorUnchanged
+    );
+  }
+  if (
+    flaechenCR.flaechenart !== undefined &&
+    flaechenCR.flaechenart.art_abkuerzung !==
+      flaeche.flaecheninfo.flaechenart.art_abkuerzung
+  ) {
+    art = flaechenCR.flaechenart;
+    setValidationStringForAttr(
+      validationStates,
+      "flaechenart",
+      flaechenCR,
+      "error"
+    );
+    setColorForAttr(
+      colors,
+      "flaechenart",
+      flaechenCR,
+      colorRejected,
+      colorChanged
+    );
+    if (!isProcessedByClerk("flaechenart", flaechenCR)) {
+      changeCounter++;
+    }
+  } else {
+    art = flaeche.flaecheninfo.flaechenart;
+    setValidationStringForAttr(
+      validationStates,
+      "flaechenart",
+      flaechenCR,
+      "success"
+    );
+    setColorForAttr(
+      colors,
+      "flaechenart",
+      flaechenCR,
+      colorAccepted,
+      colorUnchanged
+    );
+  }
+
+  if (
+    flaechenCR.anschlussgrad !== undefined &&
+    flaechenCR.anschlussgrad.grad_abkuerzung !==
+      flaeche.flaecheninfo.anschlussgrad.grad_abkuerzung
+  ) {
+    anschlussgrad = flaechenCR.anschlussgrad;
+    setValidationStringForAttr(
+      validationStates,
+      "anschlussgrad",
+      flaechenCR,
+      "error"
+    );
+    setColorForAttr(
+      colors,
+      "anschlussgrad",
+      flaechenCR,
+      colorRejected,
+      colorChanged
+    );
+    if (!isProcessedByClerk("anschlussgrad", flaechenCR)) {
+      changeCounter++;
+    }
+  } else {
+    anschlussgrad = flaeche.flaecheninfo.anschlussgrad;
+    setValidationStringForAttr(
+      validationStates,
+      "anschlussgrad",
+      flaechenCR,
+      "success"
+    );
+    setColorForAttr(
+      colors,
+      "anschlussgrad",
+      flaechenCR,
+      colorAccepted,
+      colorUnchanged
+    );
+  }
+  if (changeCounter > 0) {
+    edited = true;
+  }
+
+  return {
+    groesse,
+    art,
+    anschlussgrad,
+    validationStates,
+    changeCounter,
+    colors,
+    edited,
+  };
+};
