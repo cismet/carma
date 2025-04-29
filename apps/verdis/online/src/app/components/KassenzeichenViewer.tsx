@@ -25,7 +25,9 @@ import {
   getHeight,
   getUiState,
   setChangeRequestsAnnotationEditViewAnnotationAndCR,
+  setChangeRequestsEditViewFlaecheAndCR,
   showChangeRequestAnnotationEditViewVisible,
+  showChangeRequestsEditView,
   showInfo,
   toggleInfoElements,
 } from "../../store/slices/ui";
@@ -180,7 +182,6 @@ const KassenzeichenViewer = () => {
   let flComps = [];
 
   flComps = flaechen.map(function (flaeche) {
-    // const sel = that.isFlaecheSelected(flaeche);
     const sel = isFlaecheSelected(flaeche);
     const flaechenCR = getCRsForFlaeche(kassenzeichen, flaeche);
     const hasAttachments = hasAttachment(kassenzeichen.aenderungsanfrage);
@@ -201,6 +202,12 @@ const KassenzeichenViewer = () => {
         //         ? "cr"
         //         : "original"
         // }
+        showEditCRMenu={() => {
+          dispatch(
+            setChangeRequestsEditViewFlaecheAndCR({ flaeche, flaechenCR })
+          );
+          dispatch(showChangeRequestsEditView(true));
+        }}
       />
     );
   });
@@ -416,39 +423,39 @@ const KassenzeichenViewer = () => {
         deleteAnnotation={this.props.kassenzeichenActions.removeAnnotation}
       /> */}
       <ChangeRequestEditView
-      // height={mapHeight + 10}
-      // visible={this.props.uiState.changeRequestEditViewVisible}
-      // showChangeRequestMenu={storeIt => {
-      //     if (storeIt === true) {
-      //         this.props.kassenzeichenActions.setChangeRequestsForFlaeche(
-      //             this.props.uiState.changeRequestEditViewFlaeche,
-      //             this.props.uiState.changeRequestEditViewCR
-      //         );
-      //     }
-      //     this.props.uiStateActions.showChangeRequestsEditView(false);
-      // }}
-      // flaeche={this.props.uiState.changeRequestEditViewFlaeche}
-      // flaechenCR={this.props.uiState.changeRequestEditViewCR}
-      // setFlaechenCR={cr => {
-      //     this.props.uiStateActions.setChangeRequestsEditViewFlaecheAndCR(
-      //         this.props.uiState.changeRequestEditViewFlaeche,
-      //         cr
-      //     );
-      // }}
-      // uploadCRDoc={this.props.kassenzeichenActions.addCRDoc}
-      // documents={documents}
-      // addFiles={attachments => {
-      //     const msg = {
-      //         typ: "CITIZEN",
-      //         timestamp: Date.now(),
-      //         draft: true,
-      //         anhang: attachments
-      //     };
+        // height={mapHeight + 10}
+        visible={uiState.changeRequestEditViewVisible}
+        showChangeRequestMenu={(storeIt) => {
+          // if (storeIt === true) {
+          //     this.props.kassenzeichenActions.setChangeRequestsForFlaeche(
+          //         this.props.uiState.changeRequestEditViewFlaeche,
+          //         this.props.uiState.changeRequestEditViewCR
+          //     );
+          // }
+          dispatch(showChangeRequestsEditView(false));
+        }}
+        flaeche={uiState.changeRequestEditViewFlaeche}
+        // flaechenCR={this.props.uiState.changeRequestEditViewCR}
+        // setFlaechenCR={cr => {
+        //     this.props.uiStateActions.setChangeRequestsEditViewFlaecheAndCR(
+        //         this.props.uiState.changeRequestEditViewFlaeche,
+        //         cr
+        //     );
+        // }}
+        // uploadCRDoc={this.props.kassenzeichenActions.addCRDoc}
+        // documents={documents}
+        // addFiles={attachments => {
+        //     const msg = {
+        //         typ: "CITIZEN",
+        //         timestamp: Date.now(),
+        //         draft: true,
+        //         anhang: attachments
+        //     };
 
-      //     this.props.kassenzeichenActions.addChangeRequestMessage(msg);
-      // }}
-      // localErrorMessages={this.props.uiState.localErrorMessages}
-      // addLocalErrorMessage={this.props.uiStateActions.addLocalErrorMessage}
+        //     this.props.kassenzeichenActions.addChangeRequestMessage(msg);
+        // }}
+        // localErrorMessages={this.props.uiState.localErrorMessages}
+        // addLocalErrorMessage={this.props.uiStateActions.addLocalErrorMessage}
       />
       <AnnotationEditView
         visible={uiState.changeRequestAnnotationEditViewVisible}

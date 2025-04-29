@@ -221,6 +221,8 @@ export const {
   showChangeRequestAnnotationEditViewVisible,
   setChangeRequestsAnnotationEditViewAnnotationAndCR,
   showInfo,
+  showChangeRequestsEditView,
+  setChangeRequestsEditViewFlaecheAndCR,
 } = slice.actions;
 
 export const getConfData = (state) => {
@@ -233,6 +235,10 @@ export const getUiState = (state) => {
 
 export const getHeight = (state) => {
   return state.ui.height;
+};
+
+export const getChangeRequestEditViewVisible = (state) => {
+  return state.ui.changeRequestEditViewVisible;
 };
 
 export function setCloudStorageStatus(status, msg = "") {

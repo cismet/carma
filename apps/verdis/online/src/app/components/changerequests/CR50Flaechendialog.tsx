@@ -18,7 +18,7 @@ import DocPanel from "./CR20DocumentsPanel";
 const CR00 = ({
   visible,
   //   height,
-  showChangeRequestMenu = () => {},
+  showChangeRequestMenu = (arg: boolean) => {},
   flaeche = {},
   flaechenCR = {},
   setFlaechenCR = () => {},
@@ -47,7 +47,7 @@ const CR00 = ({
   };
   const cancel = () => {
     // setTmpAttachments([]);
-    // showChangeRequestMenu(false);
+    showChangeRequestMenu(false);
   };
 
   // const proofNeeded =
@@ -73,16 +73,14 @@ const CR00 = ({
           zIndex: 3000000000,
         }}
         height="100%"
-        // show={true || visible}
-        show={true}
+        show={visible}
         onHide={cancel}
         keyboard={false}
       >
         <Modal.Header>
           <Modal.Title>
             <Icon name={"edit"} />{" "}
-            {/* {`Änderungen an ${flaeche.flaecheninfo.flaechenart.art} ${flaeche.flaechenbezeichnung}`} */}
-            {`Änderungen an`}
+            {`Änderungen an ${flaeche.flaecheninfo.flaechenart.art} ${flaeche.flaechenbezeichnung}`}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body
@@ -105,10 +103,24 @@ const CR00 = ({
             // defaultActiveKey={"sectionKey0"}
             sectionTitle={"Übersicht "}
             sectionContent={
-              <div>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "1rem",
+                }}
+              >
                 <div>
                   <h4>aktueller Datenbestand</h4>
-                  {/* <FlaechenPanel flaeche={flaeche} /> */}
+                  <FlaechenPanel flaeche={flaeche} editMode={false} />
+                </div>
+                <div>
+                  <h4>Ihr Änderungswunsch</h4>
+                  <FlaechenPanel
+                    key={"cr"}
+                    flaeche={flaeche}
+                    editMode={false}
+                    display={"cr"}
+                  />
                 </div>
               </div>
             }
