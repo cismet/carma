@@ -3,13 +3,36 @@ type EncodedSceneParams = {
   state?: unknown;
 };
 
+// Using a singleton pattern to store the current hash parameters
+// We use a WeakMap with window as key to ensure it's garbage collected if needed
+const currentHashParamsStore: WeakMap<
+  Window,
+  Record<string, string>
+> = new WeakMap();
+
+/**
+ * Get the stored parameters or parse them from the URL as fallback
+ */
 export const getHashParams = (
   hash = window.location.hash.split("?")[1] || ""
-) => {
-  const params = Object.fromEntries(new URLSearchParams(hash));
-  return params;
+): Record<string, string> => {
+  try {
+    // Check if we have stored parameters first
+    if (currentHashParamsStore.has(window)) {
+      return { ...currentHashParamsStore.get(window) };
+    }
+
+    // Fallback to parsing from URL
+    return Object.fromEntries(new URLSearchParams(hash));
+  } catch (error) {
+    console.debug("Error parsing hash parameters:", error);
+    return {};
+  }
 };
 
+/**
+ * Updates the URL hash parameters without triggering a React Router navigation
+ */
 export const replaceHashRoutedHistory = (
   { hashParams }: EncodedSceneParams,
   routedPath: string,
@@ -18,6 +41,7 @@ export const replaceHashRoutedHistory = (
   // this is method is used to avoid triggering rerenders from the HashRouter when updating the hash
   if (hashParams) {
     const currentParams = getHashParams();
+
     const combinedParams: Record<string, string> = {
       ...currentParams,
       ...hashParams, // overwrite from state but keep others
@@ -26,14 +50,16 @@ export const replaceHashRoutedHistory = (
     // remove empty values
     // be aware this disables "boolean" keys without a value
     Object.entries(combinedParams).forEach(([key, value]) => {
-      if (value.trim() === "") {
+      if (value?.trim?.() === "") {
         delete combinedParams[key];
       }
     });
 
+    // Store the combined parameters in our WeakMap
+    currentHashParamsStore.set(window, { ...combinedParams });
+
     const combinedSearchParams = new URLSearchParams(combinedParams);
     const combinedHash = combinedSearchParams.toString();
-    //const formattedHash = combinedHash.replace(/=&/g, "&").replace(/=$/, ""); // remove empty values
     const fullHashState = `#${routedPath}?${combinedHash}`;
     // this is a workaround to avoid triggering rerenders from the HashRouter
     // navigate would cause rerenders
@@ -44,5 +70,31 @@ export const replaceHashRoutedHistory = (
     const newUrl = `${currentUrl.origin}${currentUrl.pathname}${fullHashState}`;
 
     window.history.replaceState(null, "", newUrl);
+    console.debug(
+      `[Routing] Hash parameters updated (${label}):`,
+      combinedParams
+    );
+  }
+};
+
+/**
+ * Synchronizes the internal parameter store with the current URL
+ * Call this when you know the URL has been changed externally (e.g., by user navigation)
+ */
+export const syncParamsWithUrl = (): void => {
+  const urlParams = Object.fromEntries(
+    new URLSearchParams(window.location.hash.split("?")[1] || "")
+  );
+  currentHashParamsStore.set(window, urlParams);
+  console.debug("[Routing] Parameters synced from URL:", urlParams);
+};
+
+/**
+ * Clears the stored parameters, forcing fallback to URL parsing
+ */
+export const clearStoredParams = (): void => {
+  if (currentHashParamsStore.has(window)) {
+    currentHashParamsStore.delete(window);
+    console.debug("[Routing] Cleared stored parameters");
   }
 };
