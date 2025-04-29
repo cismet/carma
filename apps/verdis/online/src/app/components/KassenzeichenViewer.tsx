@@ -142,8 +142,6 @@ const KassenzeichenViewer = () => {
     }
   });
 
-  console.log("xxx docs", documents);
-
   let proofAlert;
 
   if (false) {
@@ -455,13 +453,15 @@ const KassenzeichenViewer = () => {
           dispatch(showChangeRequestsEditView(false));
         }}
         flaeche={uiState.changeRequestEditViewFlaeche}
-        // flaechenCR={this.props.uiState.changeRequestEditViewCR}
-        // setFlaechenCR={cr => {
-        //     this.props.uiStateActions.setChangeRequestsEditViewFlaecheAndCR(
-        //         this.props.uiState.changeRequestEditViewFlaeche,
-        //         cr
-        //     );
-        // }}
+        flaechenCR={uiState.changeRequestEditViewCR}
+        setFlaechenCR={(cr) => {
+          dispatch(
+            setChangeRequestsEditViewFlaecheAndCR(
+              uiState.changeRequestEditViewFlaeche,
+              cr
+            )
+          );
+        }}
         // uploadCRDoc={this.props.kassenzeichenActions.addCRDoc}
         documents={documents}
         // addFiles={attachments => {

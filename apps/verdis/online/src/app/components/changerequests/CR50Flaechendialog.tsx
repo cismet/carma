@@ -79,7 +79,7 @@ const CR00 = ({
         <Modal.Header>
           <Modal.Title>
             <Icon name={"edit"} />{" "}
-            {`Änderungen an ${flaeche.flaecheninfo.flaechenart.art} ${flaeche.flaechenbezeichnung}`}
+            {`Änderungen an ${flaeche?.flaecheninfo?.flaechenart.art} ${flaeche.flaechenbezeichnung}`}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body
@@ -136,7 +136,7 @@ const CR00 = ({
               <Form>
                 <Form.Group
                   controlId="formControlsTextarea"
-                  validationState={crInfo.validationStates.groesse}
+                  //   validationState={crInfo.validationStates.groesse}
                   className="customLeftAlignedValidation"
                 >
                   {isAnteiligeFlaeche() === false && (
@@ -159,9 +159,12 @@ const CR00 = ({
                       ).alpha(0.1),
                     }}
                     onChange={(e) => {
+                      console.log("xxx 1");
                       if (isAnteiligeFlaeche() === false) {
                         const newCR = JSON.parse(JSON.stringify(flaechenCR));
                         newCR.groesse = Number(e.target.value);
+                        console.log("xxx 2", newCR);
+
                         setNewFlaechenCR(newCR);
                       }
                     }}
@@ -191,7 +194,7 @@ const CR00 = ({
                           : crInfo.colors.flaechenart
                       ).alpha(0.1),
                     }}
-                    value={crInfo.art.art_abkuerzung}
+                    value={crInfo.art?.art_abkuerzung}
                     onChange={(e) => {
                       const newCR = JSON.parse(JSON.stringify(flaechenCR));
                       newCR.flaechenart = flaechenarten.find(
@@ -237,7 +240,7 @@ const CR00 = ({
                           : crInfo.colors.anschlussgrad
                       ).alpha(0.1),
                     }}
-                    value={crInfo.anschlussgrad.grad_abkuerzung}
+                    value={crInfo.anschlussgrad?.grad_abkuerzung}
                     onChange={(e) => {
                       const newCR = JSON.parse(JSON.stringify(flaechenCR));
                       newCR.anschlussgrad = anschlussgrade.find(
@@ -263,7 +266,7 @@ const CR00 = ({
               </Form>
             }
           />
-          <Section
+          {/* <Section
             key={"sectionKey3"}
             sectionKey={"sectionKey3"}
             style={{ marginBottom: 6 }}
@@ -294,7 +297,7 @@ const CR00 = ({
                 // addLocalErrorMessage={addLocalErrorMessage}
               />
             }
-          />
+          /> */}
         </Modal.Body>
 
         <Modal.Footer>
