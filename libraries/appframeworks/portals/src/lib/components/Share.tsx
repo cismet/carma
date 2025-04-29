@@ -7,18 +7,20 @@ import { useSearchParams } from "react-router-dom";
 import type { LayerState, Settings } from "../types";
 import { faCopy } from "@fortawesome/free-regular-svg-icons";
 import { useFeatureFlags } from "./FeatureFlagProvider";
+import { SelectionItem } from "./SelectionProvider";
+import { getHashParams } from "../utils/routing";
 
 export type ShareProps = {
   layerState: LayerState;
+  selection?: SelectionItem;
   closePopover?: () => void;
 };
 
 const shortenerUrl = "https://ceepr.cismet.de/store/wuppertal/_dev_geoportal";
 
-export const Share = ({ layerState, closePopover }: ShareProps) => {
+export const Share = ({ layerState, closePopover, selection }: ShareProps) => {
   const { layers, backgroundLayer, selectedLuftbildLayer, selectedMapLayer } =
     layerState;
-  const [searchParams] = useSearchParams();
   const [, copyToClipboard] = useCopyToClipboard();
   const [messageApi, contextHolder] = message.useMessage();
   const [mode, setMode] = useState("");
@@ -35,10 +37,13 @@ export const Share = ({ layerState, closePopover }: ShareProps) => {
   const extendedSharing = flags.extendedSharing;
 
   const handleOnClick = async () => {
-    const queryParams = new URLSearchParams(searchParams);
-    const lat = queryParams.get("lat") || 51.27256992259917;
-    const lng = queryParams.get("lng") || 7.199920713901521;
-    const zoom = queryParams.get("zoom") || 18;
+    const currentParams = getHashParams();
+    const lat = currentParams.lat || 51.27256992259917;
+    const lng = currentParams.lng || 7.199920713901521;
+    const zoom = currentParams.zoom || 18;
+
+    const newSearchParams = new URLSearchParams(currentParams);
+    const combinedHash = newSearchParams.toString();
 
     const view = {
       center: [lat, lng],
@@ -64,6 +69,7 @@ export const Share = ({ layerState, closePopover }: ShareProps) => {
               add3dMode: true,
             },
       view,
+      selection,
     };
     const jsonString = JSON.stringify(newConfig);
     try {
@@ -78,7 +84,7 @@ export const Share = ({ layerState, closePopover }: ShareProps) => {
       });
       const data = await response.json();
       const key = data.key;
-      const url = `${baseUrl}#/?lat=${lat}&lng=${lng}&zoom=${zoom}&config=${key}&appKey=sharedurl`;
+      const url = `${baseUrl}#/?${combinedHash}&config=${key}&appKey=sharedurl`;
       copyToClipboard(url);
       messageApi.open({
         type: "success",
