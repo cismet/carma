@@ -124,6 +124,26 @@ const KassenzeichenViewer = () => {
     );
   }
 
+  const changerequests = kassenzeichen.aenderungsanfrage;
+  const changerequestBezeichnungsArray =
+    Object.keys((changerequests || { flaechen: [] }).flaechen || []) || [];
+
+  const changerequestMessagesArray =
+    (changerequests || { nachrichten: [] }).nachrichten || [];
+  const sMsgs = changerequestMessagesArray;
+  const documents: any = [];
+
+  sMsgs.forEach((msg) => {
+    //if a document exists, add it to the documents array
+    if (msg.anhang !== undefined && msg.anhang.length > 0) {
+      msg.anhang.forEach((anhang) => {
+        documents.push(anhang);
+      });
+    }
+  });
+
+  console.log("xxx docs", documents);
+
   let proofAlert;
 
   if (false) {
@@ -443,7 +463,7 @@ const KassenzeichenViewer = () => {
         //     );
         // }}
         // uploadCRDoc={this.props.kassenzeichenActions.addCRDoc}
-        // documents={documents}
+        documents={documents}
         // addFiles={attachments => {
         //     const msg = {
         //         typ: "CITIZEN",
