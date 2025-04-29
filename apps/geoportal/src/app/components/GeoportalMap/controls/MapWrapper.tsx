@@ -87,6 +87,7 @@ import {
   setSelectedFeature,
 } from "../../../store/slices/features.ts";
 import {
+  getConfigSelection,
   getLibreMapRef,
   getShowFullscreenButton,
   getShowLocatorButton,
@@ -144,6 +145,7 @@ const MapWrapper = () => {
     useCesiumContext();
   const homeControl = useHomeControl();
   const isObliqueMode = useSelector(getObliqueMode);
+  const configSelection = useSelector(getConfigSelection);
 
   const {
     handleZoomIn: handleZoomInCesium,
@@ -659,6 +661,7 @@ const MapWrapper = () => {
                     ? "300px"
                     : windowSize.width - gap
                 }
+                selection={configSelection}
               />
             </div>
           </Control>

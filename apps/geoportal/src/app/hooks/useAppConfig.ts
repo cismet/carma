@@ -2,17 +2,24 @@ import { useEffect, useState, useRef } from "react";
 import { useDispatch } from "react-redux";
 import { useSearchParams } from "react-router-dom";
 
-import { BackgroundLayer, LayerMap, Settings } from "@carma-apps/portals";
+import {
+  BackgroundLayer,
+  getHashParams,
+  LayerMap,
+  Settings,
+} from "@carma-apps/portals";
 import { Layer } from "@carma-mapping/layers";
 
 import {
   setBackgroundLayer,
+  setConfigSelection,
   setLayers,
   setSelectedLuftbildLayer,
   setSelectedMapLayer,
 } from "../store/slices/mapping";
 
 import { AppDispatch } from "../store";
+import { SelectionItem } from "@carma-apps/portals";
 
 type View = {
   center: string[];
@@ -24,6 +31,7 @@ type Config = {
   backgroundLayer: BackgroundLayer & { selectedLayerId: string };
   settings?: Settings;
   view?: View;
+  selection?: SelectionItem;
 };
 
 const onLoadedConfig = (
@@ -59,12 +67,16 @@ const onLoadedConfig = (
   } else {
     dispatch(setSelectedMapLayer(selectedBackgroundLayer));
   }
+  if (config.selection) {
+    dispatch(setConfigSelection(config.selection));
+  }
 };
 
 export const useAppConfig = (configBaseUrl: string, layerMap: LayerMap) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const dispatch = useDispatch();
-  const config = searchParams.get("config");
+  const currentParams = getHashParams();
+  const config = currentParams.config;
   const [isLoadingConfig, setIsLoadingConfig] = useState(false);
 
   useEffect(() => {

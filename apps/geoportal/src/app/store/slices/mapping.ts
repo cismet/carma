@@ -4,6 +4,7 @@ import type { PayloadAction } from "@reduxjs/toolkit";
 import type { Layer, SavedLayerConfig } from "@carma-mapping/layers";
 import {
   SELECTED_LAYER_INDEX,
+  SelectionItem,
   type BackgroundLayer,
   type LayerState,
   type MappingState,
@@ -81,6 +82,7 @@ const initialState: MappingState = {
 
   clickFromInfoView: false,
   startDrawing: false,
+  configSelection: undefined,
 };
 
 const slice = createSlice({
@@ -266,6 +268,9 @@ const slice = createSlice({
     setLibreMapRef(state, action: PayloadAction<any>) {
       state.libreMapRef = action.payload;
     },
+    setConfigSelection(state, action: PayloadAction<SelectionItem>) {
+      state.configSelection = action.payload;
+    },
   },
 });
 
@@ -305,6 +310,7 @@ export const {
 
   toggleUseInFeatureInfo,
   setLibreMapRef,
+  setConfigSelection,
 } = slice.actions;
 
 export const getBackgroundLayer = (state: RootState) =>
@@ -347,6 +353,8 @@ export const getShowRightScrollButton = (state: RootState) =>
   state.mapping.showRightScrollButton;
 export const getStartDrawing = (state: RootState) => state.mapping.startDrawing;
 export const getLibreMapRef = (state: RootState) => state.mapping.libreMapRef;
+export const getConfigSelection = (state: RootState) =>
+  state.mapping.configSelection;
 
 export const getLayerState = createSelector(
   [

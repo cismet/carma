@@ -1,3 +1,4 @@
+import { SelectionItem } from "@carma-apps/portals";
 import { GazDataItem } from "@carma-commons/utils";
 import { ReactNode } from "react";
 
@@ -18,6 +19,7 @@ export type SearchGazetteerProps = {
   placeholder?: string;
   config?: SearchConfig;
   priorityTypes?: string[];
+  selection?: SelectionItem;
 };
 
 export interface SearchResultItemWithScore {

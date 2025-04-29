@@ -1,6 +1,6 @@
 import type { Layer } from "@carma-mapping/layers";
 import type { CismapLayerProps } from "types/react-cismap.extended";
-import { SELECTED_LAYER_INDEX } from "../..";
+import { SELECTED_LAYER_INDEX, SelectionItem } from "../..";
 
 // TODO elevate some of the type here to carma-commons
 
@@ -131,6 +131,7 @@ export interface MappingState extends LayerState {
   startDrawing: boolean;
   clickFromInfoView: boolean;
   libreMapRef: any;
+  configSelection?: SelectionItem;
 }
 
 export type FeatureInfo = {

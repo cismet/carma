@@ -30,6 +30,7 @@ export {
   SelectionProvider,
   type SelectionMetaData,
   useSelection,
+  type SelectionItem,
 } from "./lib/components/SelectionProvider";
 
 export { TopicMapSelectionContent } from "./lib/components/TopicMapSelectionContent";

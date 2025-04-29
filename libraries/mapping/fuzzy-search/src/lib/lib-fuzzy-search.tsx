@@ -64,6 +64,7 @@ export function LibFuzzySearch({
     distance: 100,
     threshold: 0.5,
   },
+  selection,
 }: SearchGazetteerProps) {
   const [options, setOptions] = useState<Option[]>([]);
   const [showCategories, setShowCategories] = useState(standardSearch);
@@ -162,8 +163,13 @@ export function LibFuzzySearch({
   const handleOnSelect = (option) => {
     setCleanBtnDisable(false);
     console.info("[SEARCH] selected option", option);
-    _onSelection(option.sData);
-    setValue(option.sData.string);
+    if (option.sData) {
+      _onSelection(option.sData);
+      setValue(option.sData.string);
+    } else {
+      _onSelection(option);
+      setValue(option.string);
+    }
 
     setTimeout(() => {
       btnClosRef.current?.focus();
@@ -304,6 +310,16 @@ export function LibFuzzySearch({
       onCLose();
     }
   };
+
+  useEffect(() => {
+    if (selection) {
+      handleOnSelect(selection);
+    }
+
+    if (selection && fuseInstance) {
+      handleSearchAutoComplete(selection.string);
+    }
+  }, [selection, fuseInstance]);
 
   return (
     <div
