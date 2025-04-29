@@ -26,3 +26,5 @@ export { generateRandomString } from "./lib/strings";
 export { getApplicationVersion } from "./lib/version";
 
 export { detectWebGLContext } from "./lib/webgl";
+
+export { extractInformation } from "./lib/layer-parser";

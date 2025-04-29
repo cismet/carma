@@ -20,11 +20,16 @@ import { MappingConstants } from "react-cismap";
 import { defaultLayerConf } from "react-cismap/tools/layerFactory";
 import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
 import { gazDataConfig } from "../config/gazData";
+import WMSCapabilities from "wms-capabilities";
 
 import merge from "lodash/merge";
 import defaultConfig from "../assets/gtmDefaulConfig.json";
+import { getAllLeafLayers } from "@carma-mapping/layers";
+import { extractCarmaConfig, extractInformation } from "@carma-commons/utils";
 
 const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
+
+const parser = new WMSCapabilities();
 
 const errorConfig = {
   tm: {
@@ -69,6 +74,7 @@ async function getMarkdown(slugName, configType, server, path) {
     );
   }
 }
+
 function App({ name }) {
   // --- Fault log state and helper ---
   const [faultLog, setFaultLog] = useState([]);
@@ -116,6 +122,32 @@ function App({ name }) {
         projectConfig = errorConfig;
       }
       setProjectConfigFound(found);
+
+      if (projectConfig.tm.capabilities) {
+        const fetchedCapabilities = await fetch(projectConfig.tm.capabilities)
+          .then((response) => response.text())
+          .then((text) => {
+            return parser.toJSON(text);
+          });
+
+        const allLayers = getAllLeafLayers(fetchedCapabilities);
+
+        const targetLayer = allLayers.find(
+          (layer) => layer.Name === projectConfig.tm.capabilitiesLayer
+        );
+        if (targetLayer) {
+          const carmaConf = extractCarmaConfig(targetLayer.KeywordList);
+          const links = [
+            projectConfig.tm.capabilities,
+            carmaConf?.opendata || undefined,
+          ].filter((l) => l !== undefined);
+          const extractedInformation = await extractInformation(targetLayer);
+          const layerInformation = {
+            ...extractedInformation,
+            links,
+          };
+        }
+      }
 
       if (projectConfig?.tm?.noFeatureCollection === true) {
         config.tm.applicationMenuSkipFilterTitleSettings = true;
