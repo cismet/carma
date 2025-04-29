@@ -262,14 +262,12 @@ const CR00 = ({
               </Form>
             }
           />
-          {/* <Section
+          <Section
             key={"sectionKey3"}
             sectionKey={"sectionKey3"}
             style={{ marginBottom: 6 }}
             sectionBsStyle="info"
-            sectionTitle={`Ihre Änderungsvorschläge${
-              crInfo.changeCounter > 0 ? " (" + crInfo.changeCounter + ")" : ""
-            }`}
+            sectionTitle={`Hinweise zur Gebührenerhebung`}
             sectionContent={getOverlayTextForFlaeche(flaeche, flaechenCR)}
           />
           <Section
@@ -293,7 +291,7 @@ const CR00 = ({
                 // addLocalErrorMessage={addLocalErrorMessage}
               />
             }
-          /> */}
+          />
         </Modal.Body>
 
         <Modal.Footer>
