@@ -212,17 +212,16 @@ const KassenzeichenViewer = () => {
         selected={sel}
         // flaechenPanelClickHandler={that.flaechenPanelClick}
         flaeche={flaeche}
-        changerequest={flaechenCR}
+        flaechenCR={flaechenCR}
         editmode={uiState.changeRequestsEditMode}
         // proofNeeded={needsProofSingleFlaeche(flaechenCR) && !hasAttachments}
-        // display={
-        //     that.props.uiState.changeRequestsEditMode === true
-        //         ? "cr"
-        //         : "original"
-        // }
+        // display={uiState.changeRequestsEditMode === true ? "cr" : "original"}
         showEditCRMenu={() => {
           dispatch(
-            setChangeRequestsEditViewFlaecheAndCR({ flaeche, flaechenCR })
+            setChangeRequestsEditViewFlaecheAndCR({
+              flaeche: flaeche,
+              cr: flaechenCR,
+            })
           );
           dispatch(showChangeRequestsEditView(true));
         }}

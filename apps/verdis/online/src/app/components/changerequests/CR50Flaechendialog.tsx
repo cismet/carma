@@ -118,6 +118,7 @@ const CR00 = ({
                     flaeche={flaeche}
                     editMode={false}
                     display={"cr"}
+                    flaechenCR={flaechenCR}
                   />
                 </div>
               </div>

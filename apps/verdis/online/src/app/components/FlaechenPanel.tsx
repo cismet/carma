@@ -1,7 +1,10 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
 import { useDispatch, useSelector } from "react-redux";
-import { colorChanged } from "../../utils/kassenzeichenHelper";
+import {
+  colorChanged,
+  getProcessedFlaechenCR,
+} from "../../utils/kassenzeichenHelper";
 import {
   fitFeatureBounds,
   getMapping,
@@ -17,6 +20,8 @@ interface FlaechenPanelProps {
   selected?: boolean;
   editMode: boolean;
   showEditCRMenu: () => void;
+  display?: string | null;
+  flaechenCR: any;
 }
 
 const FlaechenPanel = ({
@@ -24,6 +29,8 @@ const FlaechenPanel = ({
   selected,
   editMode = true,
   showEditCRMenu = () => {},
+  display = null,
+  flaechenCR,
 }: FlaechenPanelProps) => {
   let background = "";
   let groesse,
@@ -91,6 +98,16 @@ const FlaechenPanel = ({
   anteil = flaeche.anteil;
   anschlussgrad = flaeche.flaecheninfo.anschlussgrad.grad_abkuerzung;
   flaechenart = flaeche.flaecheninfo.flaechenart.art;
+
+  if (display && display === "cr") {
+    const crInfo = getProcessedFlaechenCR(flaeche, flaechenCR);
+    groesse = crInfo.groesse;
+    anschlussgrad = crInfo.anschlussgrad.grad_abkuerzung;
+    flaechenart = crInfo.art.art;
+    groesseColor = crInfo.colors.groesse;
+    anschlussgradColor = crInfo.colors.anschlussgrad;
+    flaechenartColor = crInfo.colors.flaechenart;
+  }
 
   let area = <div />;
   if (flaeche.anteil) {
