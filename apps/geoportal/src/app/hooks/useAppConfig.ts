@@ -1,13 +1,12 @@
 import { useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
-import { useLocation, useSearchParams } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 
 import {
   type BackgroundLayer,
   type LayerMap,
   type SelectionItem,
   type Settings,
-  replaceHashRoutedHistory,
 } from "@carma-apps/portals";
 import { type Layer } from "@carma-mapping/layers";
 
@@ -20,6 +19,10 @@ import {
 } from "../store/slices/mapping";
 
 import { AppDispatch } from "../store";
+import {
+  deleteHashParamsFromHistoryState,
+  getHashParams,
+} from "@carma-commons/utils";
 
 type View = {
   center: string[];
@@ -75,13 +78,13 @@ const onLoadedConfig = (
 };
 
 export const useAppConfig = (configBaseUrl: string, layerMap: LayerMap) => {
-  const [searchParams, setSearchParams] = useSearchParams();
   const dispatch = useDispatch();
   const { pathname } = useLocation();
-  const config = searchParams.get(CONFIG_KEY);
   const [isLoadingConfig, setIsLoadingConfig] = useState(false);
 
   useEffect(() => {
+    const hashParams = getHashParams();
+    const config = hashParams[CONFIG_KEY];
     if (!config) return;
     setIsLoadingConfig(true);
     const controller = new AbortController();
@@ -90,15 +93,11 @@ export const useAppConfig = (configBaseUrl: string, layerMap: LayerMap) => {
       .then((response) => response.json())
       .then((newConfig: Config) => {
         onLoadedConfig(newConfig, layerMap, dispatch);
-        searchParams.delete(CONFIG_KEY);
-
-        setSearchParams(searchParams);
         setIsLoadingConfig(false);
-        replaceHashRoutedHistory(
-          {},
-          pathname,
+        deleteHashParamsFromHistoryState(
           [CONFIG_KEY],
-          "load config, remove key after evaluation"
+          pathname,
+          "remove config postinit"
         );
       })
       .catch((error) => {

@@ -3,12 +3,11 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useCopyToClipboard } from "@uidotdev/usehooks";
 import { Button, Checkbox, Radio, Tooltip, message } from "antd";
 import { useState } from "react";
-import { useSearchParams } from "react-router-dom";
 import type { LayerState, Settings } from "../types";
 import { faCopy } from "@fortawesome/free-regular-svg-icons";
 import { useFeatureFlags } from "./FeatureFlagProvider";
 import { SelectionItem } from "./SelectionProvider";
-import { getHashParams } from "../utils/routing";
+import { getHashParams } from "@carma-commons/utils";
 
 export type ShareProps = {
   layerState: LayerState;

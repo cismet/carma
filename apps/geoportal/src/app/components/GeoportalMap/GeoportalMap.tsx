@@ -10,8 +10,6 @@ import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 
 import {
-  getHashParams,
-  replaceHashRoutedHistory,
   TopicMapSelectionContent,
   useCarmaMapContext,
   useGazData,
@@ -31,10 +29,13 @@ import {
   OverlayTourContext,
   useOverlayHelper,
 } from "@carma-commons/ui/lib-helper-overlay";
-import { getApplicationVersion } from "@carma-commons/utils";
+import {
+  getApplicationVersion,
+  getHashParams,
+  updateHashHistoryState,
+} from "@carma-commons/utils";
 
 import {
-  cesiumCameraParamsKeyList,
   cesiumClearParamKeys,
   CustomViewer,
   selectCurrentSceneStyle,
@@ -361,7 +362,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       zoom: zoomString,
     };
 
-    replaceHashRoutedHistory(
+    updateHashHistoryState(
       newParams,
       pathname,
       cesiumClearParamKeys,
@@ -376,7 +377,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       );
       return;
     }
-    replaceHashRoutedHistory(e.hashParams, pathname, ["zoom"], "GPM:3D");
+    updateHashHistoryState(e.hashParams, pathname, ["zoom"], "GPM:3D");
   };
 
   // TODO Move out Controls to own component

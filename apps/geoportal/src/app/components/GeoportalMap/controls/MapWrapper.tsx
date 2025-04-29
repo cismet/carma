@@ -28,7 +28,6 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 import {
-  replaceHashRoutedHistory,
   SelectionMetaData,
   useFeatureFlags,
   useGazData,
@@ -37,7 +36,10 @@ import {
 
 import { useTweakpaneCtx } from "@carma-commons/debug";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
-import { detectWebGLContext } from "@carma-commons/utils";
+import {
+  deleteHashParamsFromHistoryState,
+  detectWebGLContext,
+} from "@carma-commons/utils";
 
 import {
   cesiumClearParamKeys,
@@ -260,10 +262,9 @@ const MapWrapper = () => {
 
   const clear3dHashParams = () => {
     console.debug("[CESIUM|DEBUG] MapTypeSwitcher: 2D mode, clear hash params");
-    replaceHashRoutedHistory(
-      {},
-      pathname,
+    deleteHashParamsFromHistoryState(
       cesiumClearParamKeys,
+      pathname,
       "MapTypeSwitcher Clear"
     );
   };

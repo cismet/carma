@@ -16,7 +16,6 @@ import {
   faPlus,
 } from "@fortawesome/free-solid-svg-icons";
 
-import { replaceHashRoutedHistory } from "@carma-apps/portals";
 import {
   CustomViewer,
   Compass,
@@ -25,6 +24,7 @@ import {
   useZoomControls as useZoomControlsCesium,
 } from "@carma-mapping/cesium-engine";
 import { useTweakpaneCtx } from "@carma-commons/debug";
+import { updateHashHistoryState } from "@carma-commons/utils";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
@@ -168,7 +168,7 @@ export const HQ500 = () => {
                 "[GEOPORTALMAP|HASH|SCENE|CESIUM]cesium scene changed",
                 e
               );
-              replaceHashRoutedHistory(
+              updateHashHistoryState(
                 e.hashParams,
                 location.pathname,
                 ["zoom"],

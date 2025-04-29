@@ -6,16 +6,17 @@ import type {
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
 
 import { useDispatch, useSelector } from "react-redux";
+
+import { getHashParams, updateHashHistoryState } from "@carma-commons/utils";
+
 import { defaultLayerConfig } from "../../config";
 import {
   getBackgroundLayer,
   getLayers,
   setLibreMapRef,
 } from "../../store/slices/mapping";
-import "./LibreGeoportalMap.css";
 import { getCoordinates } from "./topicmap.utils";
 import proj4 from "proj4";
 import { proj4crs25832def } from "react-cismap/constants/gis";
@@ -26,13 +27,16 @@ import {
 import { setSelectedFeature } from "../../store/slices/features";
 import store from "../../store";
 import { createFeature, layersToMapLibreStyle } from "./libremap.utils";
+import "./LibreGeoportalMap.css";
+import { useLocation } from "react-router-dom";
+import path from "path";
 
 const LibreGeoportalMap = () => {
   const dispatch = useDispatch();
+  const { pathname } = useLocation();
 
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
-  const [searchParams, setSearchParams] = useSearchParams();
   const selectedFeatures: Set<{
     source: string;
     sourceLayer: string;
@@ -71,28 +75,36 @@ const LibreGeoportalMap = () => {
   useEffect(() => {
     if (map.current) return; // initialize map only once
 
+    const hashParams = getHashParams();
+
     if (mapContainer.current) {
-      const lng = searchParams.get("lng")
-        ? parseFloat(searchParams.get("lng"))
-        : defaultLng;
-      const lat = searchParams.get("lat")
-        ? parseFloat(searchParams.get("lat"))
-        : defaultLat;
+      const lng =
+        hashParams["lng"] !== undefined
+          ? parseFloat(hashParams["lng"])
+          : defaultLng;
+
+      const lat =
+        hashParams["lat"] !== undefined
+          ? parseFloat(hashParams["lat"])
+          : defaultLat;
       map.current = new maplibregl.Map({
         container: mapContainer.current,
         style: backgroundStyle,
         center: [lng, lat],
-        zoom: searchParams.get("zoom")
-          ? parseFloat(searchParams.get("zoom")) - 1
-          : defaultZoom,
+        zoom:
+          hashParams["zoom"] !== undefined
+            ? parseFloat(hashParams["zoom"]) - 1
+            : defaultZoom,
         maxZoom: 21,
         minZoom: 9,
-        pitch: searchParams.get("pitch")
-          ? parseFloat(searchParams.get("pitch"))
-          : 0,
-        bearing: searchParams.get("heading")
-          ? parseFloat(searchParams.get("heading"))
-          : 0,
+        pitch:
+          hashParams["pitch"] !== undefined
+            ? parseFloat(hashParams["pitch"])
+            : 0,
+        bearing:
+          hashParams["heading"] !== undefined
+            ? parseFloat(hashParams["heading"])
+            : 0,
         maxPitch: 85,
       });
 
@@ -279,13 +291,14 @@ const LibreGeoportalMap = () => {
       const pitch = mapInstance.getPitch();
       const bearing = mapInstance.getBearing();
 
-      const newParams = new URLSearchParams(searchParams);
-      newParams.set("lng", center.lng.toFixed(14));
-      newParams.set("lat", center.lat.toFixed(14));
-      newParams.set("zoom", (zoom + 1).toFixed(0));
-      newParams.set("pitch", pitch.toFixed(2));
-      newParams.set("heading", bearing.toFixed(1));
-      setSearchParams(newParams);
+      const newParams = {
+        lng: center.lng.toFixed(8),
+        lat: center.lat.toFixed(8),
+        zoom: (zoom + 1).toFixed(0),
+        pitch: pitch.toFixed(2),
+        heading: bearing.toFixed(1),
+      };
+      updateHashHistoryState(newParams, pathname, [], "MapLibre");
     };
 
     mapInstance.on("moveend", handleMoveEnd);
@@ -293,7 +306,7 @@ const LibreGeoportalMap = () => {
     return () => {
       mapInstance.off("moveend", handleMoveEnd);
     };
-  }, [searchParams, setSearchParams]);
+  }, [pathname]);
 
   useEffect(() => {
     if (!map.current) return;

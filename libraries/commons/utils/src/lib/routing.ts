@@ -1,14 +1,6 @@
-type EncodedSceneParams = {
-  hashParams: Record<string, string>;
-  state?: unknown;
-};
-
 // Using a singleton pattern to store the current hash parameters
 // We use a WeakMap with window as key to ensure it's garbage collected if needed
-const currentHashParamsStore: WeakMap<
-  Window,
-  Record<string, string>
-> = new WeakMap();
+const hashStore: WeakMap<Window, Record<string, string>> = new WeakMap();
 
 /**
  * Get the stored parameters or parse them from the URL as fallback
@@ -18,8 +10,8 @@ export const getHashParams = (
 ): Record<string, string> => {
   try {
     // Check if we have stored parameters first
-    if (currentHashParamsStore.has(window)) {
-      return { ...currentHashParamsStore.get(window) };
+    if (hashStore.has(window)) {
+      return { ...hashStore.get(window) };
     }
 
     // Fallback to parsing from URL
@@ -33,7 +25,7 @@ export const getHashParams = (
 /**
  * Updates the URL hash parameters without triggering a React Router navigation
  */
-export const replaceHashRoutedHistory = (
+export const updateHashHistoryState = (
   hashParams: Record<string, string> = {},
   routedPath: string,
   removeKeys: string[] = [],
@@ -55,7 +47,7 @@ export const replaceHashRoutedHistory = (
   });
 
   // Store the combined parameters in our WeakMap
-  currentHashParamsStore.set(window, { ...combinedParams });
+  hashStore.set(window, { ...combinedParams });
 
   const combinedSearchParams = new URLSearchParams(combinedParams);
   const combinedHash = combinedSearchParams.toString();
@@ -76,6 +68,17 @@ export const replaceHashRoutedHistory = (
 };
 
 /**
+ * Replaces the current URL hash with a new one, preserving the existing parameters
+ */
+export const deleteHashParamsFromHistoryState = (
+  keys: string[],
+  routedPath: string,
+  label: string = "N/A" // for tracing debugging only
+): void => {
+  updateHashHistoryState({}, routedPath, keys, label);
+};
+
+/**
  * Synchronizes the internal parameter store with the current URL
  * Call this when you know the URL has been changed externally (e.g., by user navigation)
  */
@@ -83,7 +86,7 @@ export const syncParamsWithUrl = (): void => {
   const urlParams = Object.fromEntries(
     new URLSearchParams(window.location.hash.split("?")[1] || "")
   );
-  currentHashParamsStore.set(window, urlParams);
+  hashStore.set(window, urlParams);
   console.debug("[Routing] Parameters synced from URL:", urlParams);
 };
 
@@ -91,8 +94,8 @@ export const syncParamsWithUrl = (): void => {
  * Clears the stored parameters, forcing fallback to URL parsing
  */
 export const clearStoredParams = (): void => {
-  if (currentHashParamsStore.has(window)) {
-    currentHashParamsStore.delete(window);
+  if (hashStore.has(window)) {
+    hashStore.delete(window);
     console.debug("[Routing] Cleared stored parameters");
   }
 };

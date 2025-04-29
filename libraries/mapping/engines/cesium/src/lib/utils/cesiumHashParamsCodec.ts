@@ -114,11 +114,11 @@ export const encodeCesiumCamera = (camera: Camera): StringifiedCameraState => {
 };
 
 export const decodeCesiumCamera = (
-  hashParams: URLSearchParams
+  hashParams: Record<string, string>
 ): CameraState | null => {
   const decoded = Object.keys(cameraCodec).reduce((acc, key) => {
     const shortKey = cameraCodec[key].key;
-    const value = hashParams.get(shortKey);
+    const value = hashParams[shortKey];
     acc[key] =
       value !== null && value !== undefined
         ? cameraCodec[key].decode(value)

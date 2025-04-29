@@ -17,7 +17,6 @@ import CrossTabCommunicationControl from "react-cismap/CrossTabCommunicationCont
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import {
-  replaceHashRoutedHistory,
   SelectionMetaData,
   TopicMapSelectionContent,
   useGazData,
@@ -30,7 +29,10 @@ import {
   isAreaType,
   isAreaTypeWithGEP,
 } from "@carma-commons/resources";
-import { getApplicationVersion } from "@carma-commons/utils";
+import {
+  getApplicationVersion,
+  updateHashHistoryState,
+} from "@carma-commons/utils";
 
 import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/hochwassergefahrenkarte";
 
@@ -172,7 +174,7 @@ function App({ sync = false }: { sync?: boolean }) {
   const onCesiumSceneChange = (e) => {
     isMode2d
       ? undefined
-      : replaceHashRoutedHistory(e.hashParams, "/", ["zoom"], "app/hgk:3D");
+      : updateHashHistoryState(e.hashParams, "/", ["zoom"], "app/hgk:3D");
   };
 
   useSelectionTopicMap();

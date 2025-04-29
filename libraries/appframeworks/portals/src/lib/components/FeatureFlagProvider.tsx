@@ -1,6 +1,6 @@
 // src/contexts/FeatureFlagProvider.tsx
+import { getHashParams } from "@carma-commons/utils";
 import React, { createContext, useContext, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
 
 const DEFAULT_FEATURE_FLAG_PARAM = "ff";
 const FEATURE_FLAG_DISABLED_PREFIX = "-";
@@ -36,10 +36,9 @@ export const FeatureFlagProvider: React.FC<FeatureFlagProviderProps> = ({
   config,
   featureFlagParam: featureFlagParam = DEFAULT_FEATURE_FLAG_PARAM,
 }) => {
-  const [searchParams] = useSearchParams();
-
   const flags = useMemo(() => {
-    const ffParam = searchParams.get(featureFlagParam);
+    const hashParams = getHashParams();
+    const ffParam = hashParams[featureFlagParam];
     const enabledFlags = ffParam ? ffParam.split(FEATURE_FLAG_SEPARATOR) : [];
 
     const urlFlags = Object.entries(config).reduce(
@@ -63,7 +62,7 @@ export const FeatureFlagProvider: React.FC<FeatureFlagProviderProps> = ({
     );
 
     return { ...defaultFlags, ...urlFlags };
-  }, [config, featureFlagParam, searchParams]);
+  }, [config, featureFlagParam]);
 
   return (
     <FeatureFlagContext.Provider value={flags}>

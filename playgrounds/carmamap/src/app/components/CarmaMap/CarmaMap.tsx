@@ -40,7 +40,6 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import {
-  replaceHashRoutedHistory,
   SelectionMetaData,
   TopicMapSelectionContent,
   useGazData,
@@ -56,6 +55,7 @@ import {
 import {
   detectWebGLContext,
   getApplicationVersion,
+  updateHashHistoryState,
 } from "@carma-commons/utils";
 
 import {
@@ -576,7 +576,7 @@ export const CarmaMap = ({
                     "[GEOPORTALMAP|HASH|SCENE|CESIUM]cesium scene changed",
                     e
                   );
-                  replaceHashRoutedHistory(
+                  updateHashHistoryState(
                     e.hashParams,
                     "/",
                     ["zoom"],
