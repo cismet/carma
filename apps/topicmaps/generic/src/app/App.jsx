@@ -88,6 +88,8 @@ function App({ name }) {
 
   const [initialized, setInitialized] = useState(false);
   const [config, setConfig] = useState({});
+  const [layerInformation, setLayerInformation] = useState({});
+  const [carmaConf, setCarmaConf] = useState();
   const [featureGazData, setFeatureGazData] = useState([]);
   const [faultyConfig, setFaultyConfig] = useState(false);
   const [projectConfigFound, setProjectConfigFound] = useState(true);
@@ -136,16 +138,19 @@ function App({ name }) {
           (layer) => layer.Name === projectConfig.tm.capabilitiesLayer
         );
         if (targetLayer) {
-          const carmaConf = extractCarmaConfig(targetLayer.KeywordList);
+          const extractedCarmaConf = extractCarmaConfig(
+            targetLayer.KeywordList
+          );
+          setCarmaConf(extractedCarmaConf);
           const links = [
             projectConfig.tm.capabilities,
-            carmaConf?.opendata || undefined,
+            extractedCarmaConf?.opendata || undefined,
           ].filter((l) => l !== undefined);
           const extractedInformation = await extractInformation(targetLayer);
-          const layerInformation = {
+          setLayerInformation({
             ...extractedInformation,
             links,
-          };
+          });
         }
       }
 
@@ -362,7 +367,11 @@ function App({ name }) {
               backgroundModes={config?.tm?.backgroundModes}
               appKey="GenericTopicMap"
             >
-              <Map config={config} featureGazData={featureGazData || []} />
+              <Map
+                config={config}
+                featureGazData={featureGazData || []}
+                carmaConf={carmaConf}
+              />
             </TopicMapContextProvider>
           </SelectionProvider>
         </GazDataProvider>

@@ -47,7 +47,7 @@ const downloadText = (text, filename) => {
 
   document.body.removeChild(element);
 };
-const Map = ({ config, featureGazData = [] }) => {
+const Map = ({ config, featureGazData = [], carmaConf }) => {
   const [feature, setFeature] = useState(undefined);
   const { selectedFeature } = useContext(FeatureCollectionContext);
 
@@ -167,7 +167,8 @@ const Map = ({ config, featureGazData = [] }) => {
                 additionalLayersFreeZOrder={0}
                 selectionEnabled={true}
                 onSelectionChanged={(e) => {
-                  const mapping = config.tm.infoboxMapping;
+                  const mapping =
+                    config.tm.infoboxMapping ?? carmaConf?.infoboxMapping;
                   if (e.hits && mapping) {
                     const selectedVectorFeature = e.hits[0];
                     const feature = createVectorFeature(
