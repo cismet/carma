@@ -187,6 +187,14 @@ const slice = createSlice({
       state.changeRequestAnnotationEditViewAnnotation = annotation;
       state.changeRequestAnnotationEditViewCR = cr;
     },
+    showChangeRequestsEditView(state, action) {
+      state.changeRequestEditViewVisible = action.payload;
+    },
+    setChangeRequestsEditViewFlaecheAndCR(state, action) {
+      const { flaeche, cr } = action.payload;
+      state.changeRequestEditViewFlaeche = flaeche;
+      state.changeRequestEditViewCR = cr;
+    },
     showInfo(state, action) {
       state.waitingVisible = true;
       state.waitingMessage = action.payload;
