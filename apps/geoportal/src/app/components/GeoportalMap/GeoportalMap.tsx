@@ -177,6 +177,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   useFeatureInfoModeCursorStyle();
 
   const onComplete = (selection: SelectionItem) => {
+    if (layers.filter((l) => l.layerType === "vector").length === 0) return;
     const layersIdle = getLayersIdle(store.getState());
     if (
       (uiMode === UIMode.DEFAULT || uiMode === UIMode.FEATURE_INFO) &&
