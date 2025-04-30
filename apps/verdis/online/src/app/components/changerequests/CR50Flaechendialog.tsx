@@ -9,6 +9,7 @@ import {
   flaechenarten,
   anschlussgrade,
   getOverlayTextForFlaeche,
+  needsProofSingleFlaeche,
 } from "../../../utils/kassenzeichenHelper";
 import Button from "react-bootstrap/Button";
 import Modal from "react-bootstrap/Modal";
@@ -49,10 +50,10 @@ const CR00 = ({
     setTmpAttachments([]);
   };
 
-  // const proofNeeded =
-  //     needsProofSingleFlaeche(flaechenCR) &&
-  //     documents?.length === 0 &&
-  //     tmpAttachments.length === 0;
+  const proofNeeded =
+    needsProofSingleFlaeche(flaechenCR) &&
+    documents?.length === 0 &&
+    tmpAttachments.length === 0;
 
   const setNewFlaechenCR = (cr) => {
     cr.draft = true;
@@ -120,6 +121,7 @@ const CR00 = ({
                     editMode={false}
                     display={"cr"}
                     flaechenCR={flaechenCR}
+                    proofNeeded={proofNeeded}
                   />
                 </div>
               </div>

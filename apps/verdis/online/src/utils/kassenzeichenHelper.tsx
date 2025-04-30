@@ -694,3 +694,38 @@ export const anschlussgrade = [
     nachweis: true,
   },
 ];
+
+export const nachweisPflichtText = () => (
+  <span>
+    <b>Sie haben noch keinen Nachweis hinzugefügt.</b> Bitte beachten Sie, dass
+    Änderungswünsche, die nachweispflichtig sind, erst eingereicht werden
+    können, wenn Sie einen Nachweis als Dokument hinterlegt haben.
+  </span>
+);
+
+export const nachweispflicht = {
+  flaechenart: ["GDF", "LVS", "LVF"],
+  anschlussgrad: ["vers.", "direkt OG", "Va-Über", "Bach verrohrt"],
+};
+
+export const needsProofSingleFlaeche = (flaechenCR_SingleFlaeche) => {
+  let needsProofValue = false;
+  if (flaechenCR_SingleFlaeche?.flaechenart !== undefined) {
+    const flaechenart_abkuerzung =
+      flaechenCR_SingleFlaeche.flaechenart.art_abkuerzung;
+    //check whether flaechenart.art_abkuerzung is in nachweispflicht.flaechenart array
+    if (nachweispflicht.flaechenart.includes(flaechenart_abkuerzung)) {
+      needsProofValue = true;
+    }
+  }
+
+  if (flaechenCR_SingleFlaeche?.anschlussgrad !== undefined) {
+    const anschlussgrad_abkuerzung =
+      flaechenCR_SingleFlaeche.anschlussgrad.grad_abkuerzung;
+    //check whether flaechenart.art_abkuerzung is in nachweispflicht.flaechenart array
+    if (nachweispflicht.anschlussgrad.includes(anschlussgrad_abkuerzung)) {
+      needsProofValue = true;
+    }
+  }
+  return needsProofValue;
+};

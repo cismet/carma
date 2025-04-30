@@ -4,6 +4,8 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   colorChanged,
   getProcessedFlaechenCR,
+  colorUnchanged,
+  colorNeededProof,
 } from "../../utils/kassenzeichenHelper";
 import {
   fitFeatureBounds,
@@ -14,6 +16,7 @@ import { useEffect, useRef } from "react";
 import scrollIntoViewIfNeeded from "scroll-into-view-if-needed";
 import { FontAwesomeIcon as Icon } from "@fortawesome/react-fontawesome";
 import { faEdit } from "@fortawesome/free-solid-svg-icons";
+import { colorDraft } from "../../utils/kassenzeichenHelper";
 
 interface FlaechenPanelProps {
   flaeche: any;
@@ -22,6 +25,7 @@ interface FlaechenPanelProps {
   showEditCRMenu: () => void;
   display?: string | null;
   flaechenCR: any;
+  proofNeeded: boolean;
 }
 
 const FlaechenPanel = ({
@@ -31,6 +35,7 @@ const FlaechenPanel = ({
   showEditCRMenu = () => {},
   display = null,
   flaechenCR,
+  proofNeeded = false,
 }: FlaechenPanelProps) => {
   let background = "";
   let groesse,
@@ -81,8 +86,9 @@ const FlaechenPanel = ({
     borderStyle = "solid";
     borderColor = colorChanged;
   } else {
-    borderStyle = "solid";
-    borderColor = "#ffffff00";
+    // borderStyle = "solid";
+    // borderColor = "#ffffff00";
+    borderColor = proofNeeded ? colorNeededProof : colorDraft;
   }
   let styleOverride = {
     marginBottom: "5px",
@@ -141,11 +147,11 @@ const FlaechenPanel = ({
         style={{
           ...styleOverride,
           minHeight: 20,
-          // backgroundColor: "#f5f5f5",
-          // border: "1px solid #e3e3e3",
-          // padding: 9,
-          // borderRadius: 3,
-          // height: "auto",
+          backgroundColor: "#f5f5f5",
+          border: "1px solid #e3e3e3",
+          padding: 9,
+          borderRadius: 3,
+          height: "auto",
         }}
       >
         <table style={{ width: "100%" }}>
