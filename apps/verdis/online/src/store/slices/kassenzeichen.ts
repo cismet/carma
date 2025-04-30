@@ -558,7 +558,7 @@ export function addChangeRequestMessage(msg) {
         newKassz.aenderungsanfrage.nachrichten.push(msg);
       }
     }
-    dispatch(setKassenzeichen(newKassz));
+    dispatch(setKassenzeichen({ kassenzeichenObject: newKassz }));
     dispatch(storeCR(newKassz.aenderungsanfrage));
   };
 }
@@ -581,7 +581,7 @@ export function setChangeRequestsForFlaeche(flaeche, crs) {
       newKassz.aenderungsanfrage.flaechen = {};
     }
     newKassz.aenderungsanfrage.flaechen[flaeche.flaechenbezeichnung] = crs;
-    dispatch(setKassenzeichen(newKassz));
+    dispatch(setKassenzeichen({ kassenzeichenObject: newKassz }));
     dispatch(storeCR(newKassz.aenderungsanfrage));
   };
 }
