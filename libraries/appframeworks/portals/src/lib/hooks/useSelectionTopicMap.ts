@@ -69,9 +69,16 @@ export const useSelectionTopicMap = ({
         );
 
         if (leafletElement) {
-          leafletElement.once("moveend zoomend", () => {
+          const willMapMove =
+            leafletElement._animateToCenter || leafletElement._animateToZoom;
+
+          if (willMapMove) {
+            leafletElement.once("moveend zoomend", () => {
+              onComplete?.(selection, leafletElement);
+            });
+          } else {
             onComplete?.(selection, leafletElement);
-          });
+          }
         }
       }
     }
