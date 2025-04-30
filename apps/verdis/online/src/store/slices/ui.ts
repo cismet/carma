@@ -200,6 +200,9 @@ const slice = createSlice({
       state.waitingMessage = action.payload;
       state.waitingType = WAITING_TYPE_INFO;
     },
+    setErrorMessages(state, action) {
+      state.localErrorMessages = action.payload;
+    },
   },
 });
 
@@ -223,6 +226,7 @@ export const {
   showInfo,
   showChangeRequestsEditView,
   setChangeRequestsEditViewFlaecheAndCR,
+  setErrorMessages,
 } = slice.actions;
 
 export const getConfData = (state) => {
@@ -246,5 +250,16 @@ export function setCloudStorageStatus(status, msg = "") {
     type: types.SET_CLOUD_STORAGE_STATUS,
     status,
     msg,
+  };
+}
+
+export function addLocalErrorMessage(message) {
+  return function (dispatch, getState) {
+    const state = getState();
+    const errorMessages = JSON.parse(
+      JSON.stringify(state.ui.localErrorMessages)
+    );
+    errorMessages.push(message);
+    dispatch(setErrorMessages(errorMessages));
   };
 }

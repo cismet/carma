@@ -8,6 +8,7 @@ import ContactPanel from "./ContactPanel";
 import { useDispatch, useSelector } from "react-redux";
 import {
   addChangeRequestMessage,
+  addCRDoc,
   changeAnnotation,
   getKassenzeichen,
   getKassenzeichenbySTAC,
@@ -24,6 +25,7 @@ import {
 } from "../../utils/kassenzeichenHelper";
 import FlaechenPanel from "./FlaechenPanel";
 import {
+  addLocalErrorMessage,
   getHeight,
   getUiState,
   setChangeRequestsAnnotationEditViewAnnotationAndCR,
@@ -205,7 +207,6 @@ const KassenzeichenViewer = () => {
     const sel = isFlaecheSelected(flaeche);
     const flaechenCR = getCRsForFlaeche(kassenzeichen, flaeche);
     const hasAttachments = hasAttachment(kassenzeichen.aenderungsanfrage);
-    console.log("xxx sel", sel);
     return (
       <FlaechenPanel
         // ref={(c) => {
@@ -466,7 +467,7 @@ const KassenzeichenViewer = () => {
             })
           );
         }}
-        // uploadCRDoc={this.props.kassenzeichenActions.addCRDoc}
+        uploadCRDoc={addCRDoc}
         documents={documents}
         addFiles={(attachments) => {
           const msg = {
@@ -478,8 +479,8 @@ const KassenzeichenViewer = () => {
 
           dispatch(addChangeRequestMessage(msg));
         }}
-        // localErrorMessages={this.props.uiState.localErrorMessages}
-        // addLocalErrorMessage={this.props.uiStateActions.addLocalErrorMessage}
+        localErrorMessages={uiState.localErrorMessages}
+        addLocalErrorMessage={addLocalErrorMessage}
       />
       <AnnotationEditView
         visible={uiState.changeRequestAnnotationEditViewVisible}

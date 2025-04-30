@@ -16,7 +16,9 @@ import {
   setCloudStorageStatus,
   setError,
   showChangeRequestAnnotationEditViewVisible,
+  addLocalErrorMessage,
 } from "./ui";
+import slugify from "slugify";
 
 const initialState = {
   id: -1,
@@ -583,5 +585,70 @@ export function setChangeRequestsForFlaeche(flaeche, crs) {
     newKassz.aenderungsanfrage.flaechen[flaeche.flaechenbezeichnung] = crs;
     dispatch(setKassenzeichen({ kassenzeichenObject: newKassz }));
     dispatch(storeCR(newKassz.aenderungsanfrage));
+  };
+}
+
+export function addCRDoc(file, callback) {
+  return function (dispatch, getState) {
+    const stac = getState().auth.stac;
+    let taskParameters = {
+      parameters: {
+        fileName: slugify(file.name),
+        stac,
+      },
+    };
+
+    let fd = new FormData();
+    fd.append("file", new Blob([file]));
+
+    fd.append(
+      "taskparams",
+      new Blob([JSON.stringify(taskParameters)], {
+        type: "application/json",
+      })
+    );
+
+    const url =
+      STAC_SERVICE +
+      "/actions/" +
+      DOMAIN +
+      ".uploadChangeRequestAnhang/tasks?role=all&resultingInstanceType=result";
+
+    fetch(url, {
+      method: "post",
+      body: fd,
+    })
+      .then(function (response) {
+        if (response.status >= 200 && response.status < 300) {
+          response.json().then(function (result) {
+            callback(result.res);
+          });
+        } else {
+          dispatch(
+            addLocalErrorMessage({
+              typ: "LOCALERROR",
+              nachricht:
+                "Der Server hat einen unerwarteten Status Code beim Hochladen der Datei geliefert (" +
+                response.status +
+                "). Bitte versuchen Sie es später noch einmal. Sollte der Fehler weiter bestehen bleiben, bitten wir Sie Ihren Ansprechpartner in der Stadtverwaltung per Mail zu kontaktieren.",
+              draft: true,
+            })
+          );
+          callback();
+        }
+      })
+      .catch(function (err) {
+        dispatch(
+          addLocalErrorMessage({
+            typ: "LOCALERROR",
+            nachricht:
+              "Der Server hat einen unerwarteten Fehler beim Hochladen der Datei geliefert (" +
+              err +
+              "). Bitte versuchen Sie es später noch einmal. Sollte der Fehler weiter bestehen bleiben, bitten wir Sie Ihren Ansprechpartner in der Stadtverwaltung per Mail zu kontaktieren.",
+            draft: true,
+          })
+        );
+        callback();
+      });
   };
 }
