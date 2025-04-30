@@ -205,6 +205,7 @@ const KassenzeichenViewer = () => {
     const sel = isFlaecheSelected(flaeche);
     const flaechenCR = getCRsForFlaeche(kassenzeichen, flaeche);
     const hasAttachments = hasAttachment(kassenzeichen.aenderungsanfrage);
+    console.log("xxx sel", sel);
     return (
       <FlaechenPanel
         // ref={(c) => {
