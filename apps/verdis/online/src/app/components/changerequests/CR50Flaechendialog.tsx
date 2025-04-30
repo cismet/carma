@@ -46,7 +46,7 @@ const CR00 = ({
   };
   const cancel = () => {
     showChangeRequestMenu(false);
-    // setTmpAttachments([]);
+    setTmpAttachments([]);
   };
 
   // const proofNeeded =
