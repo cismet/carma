@@ -288,12 +288,12 @@ const CR00 = ({
                                     }`}
             sectionContent={
               <DocPanel
-                // uploadCRDoc={uploadCRDoc}
+                uploadCRDoc={uploadCRDoc}
                 documents={documents}
-                // tmpAttachments={tmpAttachments}
-                // setTmpAttachments={setTmpAttachments}
-                // localErrorMessages={localErrorMessages}
-                // addLocalErrorMessage={addLocalErrorMessage}
+                tmpAttachments={tmpAttachments}
+                setTmpAttachments={setTmpAttachments}
+                localErrorMessages={localErrorMessages}
+                addLocalErrorMessage={addLocalErrorMessage}
               />
             }
           />

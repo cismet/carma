@@ -1,10 +1,12 @@
 import { useCallback } from "react";
 import Document from "../conversations/Document";
 import { Icon } from "react-fa";
+import { useDropzone } from "react-dropzone";
 
 const CR20DocumentsPanel = ({
   documents = [],
   uploadCRDoc,
+  tmpAttachments = [],
   setTmpAttachments = (msga) => {},
   localErrorMessages = [],
   addLocalErrorMessage = () => {},
@@ -104,10 +106,24 @@ const CR20DocumentsPanel = ({
     },
     [setTmpAttachments, uploadCRDoc]
   );
+
+  const { getRootProps, getInputProps, open } = useDropzone({
+    onDrop,
+    noClick: true,
+    noKeyboard: true,
+  });
+
+  let dndInputProps = {};
+  let dndRootProps = {};
+
+  if (readOnly === false) {
+    dndInputProps = getInputProps();
+    dndRootProps = getRootProps();
+  }
   return (
-    <div>
+    <div {...dndRootProps}>
       {readOnly === false && (
-        <div className="pull-right">
+        <div className="pull-right" onClick={open}>
           <button
             style={{
               border: 0,
@@ -123,6 +139,7 @@ const CR20DocumentsPanel = ({
           </button>
         </div>
       )}
+      {readOnly === false && <input style={{ height: 0 }} {...dndInputProps} />}
       {documents.length > 0 &&
         documents.map((doc, index) => {
           return (
@@ -134,6 +151,43 @@ const CR20DocumentsPanel = ({
             </div>
           );
         })}
+
+      {tmpAttachments.length > 0 &&
+        tmpAttachments.map((doc, index) => {
+          return (
+            <div
+              key={"msgAttachments.div." + index}
+              style={{ margin: 10, fontSize: "110%" }}
+            >
+              <Document
+                fileObject={doc}
+                remove={() => {
+                  removeAttachment(doc);
+                }}
+                background="#dddddd"
+              />
+            </div>
+          );
+        })}
+      {documents.length === 0 && tmpAttachments.length === 0 && (
+        <div style={{ color: "grey" }}>keine Datei vorhanden</div>
+      )}
+      {/* {localErrorMessages.length > 0 &&
+                localErrorMessages.map((msg, index) => {
+                    return (
+                        <InternalMessage
+                            key={"SYSTEM.LOCALERROR." + index}
+                            msg={msg.nachricht}
+                            alignment="center"
+                            background="#fcf0f0"
+                            color="#E73B2F"
+                            margin={5}
+                            padding={5}
+                            fontSize={0.9}
+                            width="80%"
+                        />
+                    );
+                })} */}
     </div>
   );
 };
