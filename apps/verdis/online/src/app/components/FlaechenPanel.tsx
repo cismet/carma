@@ -86,6 +86,7 @@ const FlaechenPanel = ({
   }
   let styleOverride = {
     marginBottom: "5px",
+    padding: "4px",
     width: "100%",
     height: "100%",
     background: background,
