@@ -11,7 +11,7 @@
     "infoboxMapping": [
       "foto: p.foto",
       "headerColor:p.schrift",
-      "header:p.kombi",
+      "header:p.signatur==='tw_outdoor' ? 'Trinkwasserbrunnen, Freiluft' : p.signatur==='tw_indoor' ? 'Trinkwasserbrunnen, Gebäude' : p.signatur==='tw_outdoor_inaktiv' ? 'Trinkwasserbrunnen, Freiluft (in Wartung)' : p.signatur==='tw_indoor_inaktiv' ? 'Trinkwasserbrunnen, Gebäude (in Wartung)' : ''",
       "title:p.geographicidentifier",
       "additionalInfo:p.adresse",
       "subtitle: p.info",
