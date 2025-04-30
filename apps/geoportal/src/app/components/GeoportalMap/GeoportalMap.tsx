@@ -80,7 +80,9 @@ import {
 import {
   getBackgroundLayer,
   getLayers,
+  getLayersIdle,
   getShowHamburgerMenu,
+  setLayersIdle,
 } from "../../store/slices/mapping.ts";
 import { getObliqueMode, getUIMode, UIMode } from "../../store/slices/ui.ts";
 
@@ -175,6 +177,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   useFeatureInfoModeCursorStyle();
 
   const onComplete = (selection: SelectionItem) => {
+    const layersIdle = getLayersIdle(store.getState());
     if (
       (uiMode === UIMode.DEFAULT || uiMode === UIMode.FEATURE_INFO) &&
       !isAreaType(selection.type as ENDPOINT) &&
@@ -184,7 +187,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
         selection.x,
         selection.y,
       ]);
-      setTimeout(() => {
+      if (layersIdle) {
         const map = routedMap.leafletMap.leafletElement;
         const updatedPos = { lat: selectedPos[1], lng: selectedPos[0] };
         const latlngPoint = L.latLng(updatedPos);
@@ -196,7 +199,11 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
             containerPoint: map.latLngToContainerPoint(latlngPoint),
           });
         }
-      }, 300);
+      } else {
+        setTimeout(() => {
+          onComplete(selection);
+        }, 20);
+      }
     }
   };
 
@@ -368,6 +375,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       cesiumClearParamKeys,
       "GPM:TopicMap:locationChangedHandler"
     );
+    dispatch(setLayersIdle(false));
   };
 
   const onSceneChange = (e: { hashParams: Record<string, string> }) => {

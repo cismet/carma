@@ -6,7 +6,7 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { SelectionItem, useSelection } from "../components/SelectionProvider";
 import type { Map } from "leaflet";
 
-const NEW_SELECTION_TIMEOUT = 100;
+const NEW_SELECTION_TIMEOUT = 200;
 
 type SelectionTopicMapOptions = {
   onComplete?: (selection: SelectionItem, map: Map) => void;
@@ -69,16 +69,7 @@ export const useSelectionTopicMap = ({
         );
 
         if (leafletElement) {
-          const willMapMove =
-            leafletElement._animateToCenter || leafletElement._animateToZoom;
-
-          if (willMapMove) {
-            leafletElement.once("moveend zoomend", () => {
-              onComplete?.(selection, leafletElement);
-            });
-          } else {
-            onComplete?.(selection, leafletElement);
-          }
+          onComplete?.(selection, leafletElement);
         }
       }
     }
