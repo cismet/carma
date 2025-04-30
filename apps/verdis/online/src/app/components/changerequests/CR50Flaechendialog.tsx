@@ -23,7 +23,7 @@ const CR00 = ({
   setFlaechenCR = () => {},
   documents = [],
   uploadCRDoc = () => {},
-  addFiles = () => {},
+  addFiles = (tmpAtt) => {},
   localErrorMessages = [],
   addLocalErrorMessage = () => {},
 }) => {
@@ -34,19 +34,19 @@ const CR00 = ({
     // maxHeight: height - 200,
   };
   const close = () => {
-    // if (tmpAttachments.length > 0) {
-    //     addFiles(tmpAttachments);
-    //     setTmpAttachments([]);
-    // }
-    // if (JSON.stringify(flaechenCR) !== "{}") {
-    //     showChangeRequestMenu(true);
-    // } else {
-    //     showChangeRequestMenu(false);
-    // }
+    if (tmpAttachments.length > 0) {
+      addFiles(tmpAttachments);
+      setTmpAttachments([]);
+    }
+    if (JSON.stringify(flaechenCR) !== "{}") {
+      showChangeRequestMenu(true);
+    } else {
+      showChangeRequestMenu(false);
+    }
   };
   const cancel = () => {
-    // setTmpAttachments([]);
     showChangeRequestMenu(false);
+    // setTmpAttachments([]);
   };
 
   // const proofNeeded =
