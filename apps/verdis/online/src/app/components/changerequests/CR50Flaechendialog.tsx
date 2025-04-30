@@ -100,6 +100,7 @@ const CR00 = ({
             style={{ marginBottom: 6 }}
             sectionBsStyle="info"
             sectionTitle={"Übersicht "}
+            setActiveSectionKey={() => {}}
             sectionContent={
               <div
                 style={{
@@ -129,6 +130,7 @@ const CR00 = ({
             sectionKey={"sectionKey1"}
             style={{ marginBottom: 6 }}
             sectionBsStyle="warning"
+            setActiveSectionKey={() => {}}
             sectionTitle={`Ihre Änderungsvorschläge${
               crInfo.changeCounter > 0 ? " (" + crInfo.changeCounter + ")" : ""
             }`}
@@ -269,6 +271,7 @@ const CR00 = ({
             style={{ marginBottom: 6 }}
             sectionBsStyle="info"
             sectionTitle={`Hinweise zur Gebührenerhebung`}
+            setActiveSectionKey={() => {}}
             sectionContent={getOverlayTextForFlaeche(flaeche, flaechenCR)}
           />
           <Section
@@ -276,6 +279,7 @@ const CR00 = ({
             sectionKey={"sectionKey4"}
             style={{ marginBottom: 6 }}
             sectionBsStyle="danger"
+            setActiveSectionKey={() => {}}
             sectionTitle={`Ihre Dokumente 
                                     ${
                                       documents.length > 0
