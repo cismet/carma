@@ -77,7 +77,7 @@ const FlaechenPanel = ({
     }
   };
 
-  if (selected) {
+  if (selected === true) {
     borderStyle = "solid";
     borderColor = colorChanged;
   } else {
@@ -140,11 +140,11 @@ const FlaechenPanel = ({
         style={{
           ...styleOverride,
           minHeight: 20,
-          backgroundColor: "#f5f5f5",
-          border: "1px solid #e3e3e3",
-          padding: 9,
-          borderRadius: 3,
-          height: "auto",
+          // backgroundColor: "#f5f5f5",
+          // border: "1px solid #e3e3e3",
+          // padding: 9,
+          // borderRadius: 3,
+          // height: "auto",
         }}
       >
         <table style={{ width: "100%" }}>
