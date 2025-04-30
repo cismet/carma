@@ -1,22 +1,10 @@
-import { faSpinner } from "@fortawesome/free-solid-svg-icons";
+import React, { useState, useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { useEffect, useState } from "react";
+import { faSpinner } from "@fortawesome/free-solid-svg-icons";
 import { getLinkForDoc } from "../../../utils/kassenzeichenHelper";
 import DocIcon from "./DocIcon";
 
-interface DocumentProps {
-  fileObject: any;
-  remove?: any;
-  background?: string;
-  addComma?: boolean;
-}
-
-const Document = ({
-  fileObject,
-  remove,
-  background = "#eeeeee",
-  addComma = false,
-}: DocumentProps) => {
+const Comp = ({ fileObject, remove, background = "#eeeeee", addComma }) => {
   const [verifiedState, setVerifiedState] = useState("unverified");
   useEffect(() => {
     if (fileObject.inProgress !== true && verifiedState === "unverified") {
@@ -37,9 +25,11 @@ const Document = ({
 
           setVerifiedState("error");
         });
+      // setTimeout(() => {
+      // 	setVerifiedState('verified');
+      // }, 1000);
     }
-  }, []);
-
+  });
   let color;
   let comma = "";
   if (addComma === true) {
@@ -63,7 +53,7 @@ const Document = ({
   if (remove !== undefined) {
     deleteLink = (
       <a
-        style={{ color, verticalAlign: "super", cursor: "pointer" }}
+        style={{ color, xverticalAlign: "super", cursor: "pointer" }}
         onClick={() => {
           remove();
         }}
@@ -120,4 +110,4 @@ const Document = ({
   );
 };
 
-export default Document;
+export default Comp;
