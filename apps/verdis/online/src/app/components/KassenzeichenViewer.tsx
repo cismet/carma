@@ -7,10 +7,12 @@ import Map from "./Map";
 import ContactPanel from "./ContactPanel";
 import { useDispatch, useSelector } from "react-redux";
 import {
+  addChangeRequestMessage,
   changeAnnotation,
   getKassenzeichen,
   getKassenzeichenbySTAC,
   removeAnnotation,
+  setChangeRequestsForFlaeche,
 } from "../../store/slices/kassenzeichen";
 import KassenzeichenPanel from "./KassenzeichenPanel";
 import KassenzeichenFlaechenChartPanel from "./KassenzeichenFlaechenChartPanel";
@@ -443,12 +445,14 @@ const KassenzeichenViewer = () => {
         // height={mapHeight + 10}
         visible={uiState.changeRequestEditViewVisible}
         showChangeRequestMenu={(storeIt) => {
-          // if (storeIt === true) {
-          //     this.props.kassenzeichenActions.setChangeRequestsForFlaeche(
-          //         this.props.uiState.changeRequestEditViewFlaeche,
-          //         this.props.uiState.changeRequestEditViewCR
-          //     );
-          // }
+          if (storeIt === true) {
+            dispatch(
+              setChangeRequestsForFlaeche(
+                uiState.changeRequestEditViewFlaeche,
+                uiState.changeRequestEditViewCR
+              )
+            );
+          }
           dispatch(showChangeRequestsEditView(false));
         }}
         flaeche={uiState.changeRequestEditViewFlaeche}
@@ -463,16 +467,16 @@ const KassenzeichenViewer = () => {
         }}
         // uploadCRDoc={this.props.kassenzeichenActions.addCRDoc}
         documents={documents}
-        // addFiles={attachments => {
-        //     const msg = {
-        //         typ: "CITIZEN",
-        //         timestamp: Date.now(),
-        //         draft: true,
-        //         anhang: attachments
-        //     };
+        addFiles={(attachments) => {
+          const msg = {
+            typ: "CITIZEN",
+            timestamp: Date.now(),
+            draft: true,
+            anhang: attachments,
+          };
 
-        //     this.props.kassenzeichenActions.addChangeRequestMessage(msg);
-        // }}
+          dispatch(addChangeRequestMessage(msg));
+        }}
         // localErrorMessages={this.props.uiState.localErrorMessages}
         // addLocalErrorMessage={this.props.uiStateActions.addLocalErrorMessage}
       />

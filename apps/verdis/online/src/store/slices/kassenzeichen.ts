@@ -495,3 +495,93 @@ export function removeAnnotation(annotation) {
     dispatch(showChangeRequestAnnotationEditViewVisible(false));
   };
 }
+
+export function addChangeRequestMessage(msg) {
+  return function (dispatch, getState) {
+    const kassenzeichen = getState().kassenzeichen;
+    const newKassz = JSON.parse(JSON.stringify(kassenzeichen));
+
+    if (
+      newKassz.aenderungsanfrage === undefined ||
+      newKassz.aenderungsanfrage === null
+    ) {
+      newKassz.aenderungsanfrage = {
+        kassenzeichen: newKassz.kassenzeichennummer8,
+        flaechen: [],
+        nachrichten: [msg],
+        geometrien: {},
+      };
+    } else {
+      if (
+        newKassz.aenderungsanfrage.nachrichten === undefined ||
+        newKassz.aenderungsanfrage.nachrichten === null
+      ) {
+        newKassz.aenderungsanfrage.nachrichten = [];
+      }
+      const sMsgs = newKassz.aenderungsanfrage.nachrichten.sort(
+        (a, b) => a.timestamp - b.timestamp
+      );
+      if (
+        sMsgs.length !== 0 &&
+        sMsgs[sMsgs.length - 1].typ === "CITIZEN" &&
+        sMsgs[sMsgs.length - 1].draft === true
+      ) {
+        //last Message is from citizen, so add stuff to it
+
+        //1. Messagetext
+        if (msg.nachricht !== undefined && msg.nachricht !== "") {
+          if (
+            sMsgs[sMsgs.length - 1].nachricht !== undefined &&
+            sMsgs[sMsgs.length - 1].nachricht.trim() !== ""
+          ) {
+            sMsgs[sMsgs.length - 1].nachricht =
+              sMsgs[sMsgs.length - 1].nachricht + "\n" + msg.nachricht;
+          } else {
+            sMsgs[sMsgs.length - 1].nachricht = msg.nachricht;
+          }
+        }
+
+        //2. Messageatachments
+        if (msg.anhang !== undefined) {
+          if (sMsgs[sMsgs.length - 1].anhang !== undefined) {
+            msg.anhang.forEach((doc) =>
+              sMsgs[sMsgs.length - 1].anhang.push(doc)
+            );
+          } else {
+            sMsgs[sMsgs.length - 1].anhang = msg.anhang;
+          }
+        }
+      } else if (
+        (msg.anhang !== undefined && msg.anhang.length > 0) ||
+        (msg.nachricht !== undefined && msg.nachricht.trim() !== "")
+      ) {
+        newKassz.aenderungsanfrage.nachrichten.push(msg);
+      }
+    }
+    dispatch(setKassenzeichen(newKassz));
+    dispatch(storeCR(newKassz.aenderungsanfrage));
+  };
+}
+
+export function setChangeRequestsForFlaeche(flaeche, crs) {
+  return function (dispatch, getState) {
+    const kassenzeichen = getState().kassenzeichen;
+    const newKassz = JSON.parse(JSON.stringify(kassenzeichen));
+    if (
+      newKassz.aenderungsanfrage === undefined ||
+      newKassz.aenderungsanfrage === null
+    ) {
+      newKassz.aenderungsanfrage = {
+        kassenzeichen: newKassz.kassenzeichennummer8,
+        flaechen: {},
+        nachrichten: [],
+        annotations: [],
+      };
+    } else if (newKassz.aenderungsanfrage.flaechen === undefined) {
+      newKassz.aenderungsanfrage.flaechen = {};
+    }
+    newKassz.aenderungsanfrage.flaechen[flaeche.flaechenbezeichnung] = crs;
+    dispatch(setKassenzeichen(newKassz));
+    dispatch(storeCR(newKassz.aenderungsanfrage));
+  };
+}
