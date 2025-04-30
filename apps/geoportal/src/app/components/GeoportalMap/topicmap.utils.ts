@@ -32,7 +32,7 @@ import {
   setSelectedFeature,
   setVectorInfo,
 } from "../../store/slices/features";
-import { getLayers } from "../../store/slices/mapping";
+import { getLayers, setLayersIdle } from "../../store/slices/mapping";
 
 import {
   functionToFeature,
@@ -74,6 +74,7 @@ interface VectorLayerProps {
   maxSelectionCount?: number;
   showTileBoundaries?: boolean;
   onSelectionChanged?: (e: { hits: any[]; hit: any; latlng: LatLng }) => void;
+  onStyleIdle?: (e: any) => void;
 }
 
 type Options = {
@@ -553,6 +554,7 @@ export const createCismapLayers = (
   }
 ) => {
   const [globalHits, setGlobalHits] = useState({});
+  const [idleLayers, setIdleLayers] = useState({});
   const [foundFeatures, setFoundFeatures] = useState({});
   const flags = useFeatureFlags();
 
@@ -614,6 +616,7 @@ export const createCismapLayers = (
 
   useEffect(() => {
     rearrangeGlobalHits();
+    setIdleLayers({});
   }, [layers]);
 
   useEffect(() => {
@@ -670,6 +673,15 @@ export const createCismapLayers = (
     }
   }, [selectedFeature]);
 
+  useEffect(() => {
+    if (
+      Object.keys(idleLayers).length ===
+      layers.filter((l) => l.layerType === "vector").length
+    ) {
+      dispatch(setLayersIdle(true));
+    }
+  }, [idleLayers]);
+
   return layers.map((layer, i) => {
     if (layer.visible) {
       switch (layer.layerType) {
@@ -700,6 +712,11 @@ export const createCismapLayers = (
             selectionEnabled: true,
             manualSelectionManagement: true,
             maxSelectionCount: 10,
+            onStyleIdle: (e) => {
+              setIdleLayers((old) => {
+                return { ...old, [layer.id]: true };
+              });
+            },
             onSelectionChanged: (e) => {
               if (modeRef.current === UIMode.DEFAULT) {
                 implicitVectorSelection(e, {

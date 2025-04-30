@@ -22,6 +22,7 @@ const initialState: MappingState = {
   selectedLayerIndex: SELECTED_LAYER_INDEX.NO_SELECTION,
   paleOpacityValue: defaultOpacity,
   libreMapRef: null,
+  layersIdle: false,
 
   selectedMapLayer: {
     title: "Stadtplan",
@@ -271,6 +272,9 @@ const slice = createSlice({
     setConfigSelection(state, action: PayloadAction<SelectionItem>) {
       state.configSelection = action.payload;
     },
+    setLayersIdle(state, action: PayloadAction<boolean>) {
+      state.layersIdle = action.payload;
+    },
   },
 });
 
@@ -311,6 +315,7 @@ export const {
   toggleUseInFeatureInfo,
   setLibreMapRef,
   setConfigSelection,
+  setLayersIdle,
 } = slice.actions;
 
 export const getBackgroundLayer = (state: RootState) =>
@@ -355,6 +360,7 @@ export const getStartDrawing = (state: RootState) => state.mapping.startDrawing;
 export const getLibreMapRef = (state: RootState) => state.mapping.libreMapRef;
 export const getConfigSelection = (state: RootState) =>
   state.mapping.configSelection;
+export const getLayersIdle = (state: RootState) => state.mapping.layersIdle;
 
 export const getLayerState = createSelector(
   [

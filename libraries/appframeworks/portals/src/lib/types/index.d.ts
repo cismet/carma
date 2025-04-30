@@ -132,6 +132,7 @@ export interface MappingState extends LayerState {
   clickFromInfoView: boolean;
   libreMapRef: any;
   configSelection?: SelectionItem;
+  layersIdle: boolean;
 }
 
 export type FeatureInfo = {
