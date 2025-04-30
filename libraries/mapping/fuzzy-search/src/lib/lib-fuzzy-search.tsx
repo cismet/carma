@@ -312,14 +312,16 @@ export function LibFuzzySearch({
   };
 
   useEffect(() => {
-    if (selection) {
-      handleOnSelect(selection);
-    }
-
     if (selection && fuseInstance) {
       handleSearchAutoComplete(selection.string);
     }
   }, [selection, fuseInstance]);
+
+  useEffect(() => {
+    if (selection) {
+      handleOnSelect(selection);
+    }
+  }, [selection]);
 
   return (
     <div
