@@ -3,6 +3,7 @@ import Document from "../conversations/Document";
 import { Icon } from "react-fa";
 import { useDropzone } from "react-dropzone";
 import { useDispatch } from "react-redux";
+import InternalMessage from "../conversations/InternalMessage";
 
 const CR20DocumentsPanel = ({
   documents = [],
@@ -177,22 +178,22 @@ const CR20DocumentsPanel = ({
       {documents.length === 0 && tmpAttachments.length === 0 && (
         <div style={{ color: "grey" }}>keine Datei vorhanden</div>
       )}
-      {/* {localErrorMessages.length > 0 &&
-                localErrorMessages.map((msg, index) => {
-                    return (
-                        <InternalMessage
-                            key={"SYSTEM.LOCALERROR." + index}
-                            msg={msg.nachricht}
-                            alignment="center"
-                            background="#fcf0f0"
-                            color="#E73B2F"
-                            margin={5}
-                            padding={5}
-                            fontSize={0.9}
-                            width="80%"
-                        />
-                    );
-                })} */}
+      {localErrorMessages.length > 0 &&
+        localErrorMessages.map((msg, index) => {
+          return (
+            <InternalMessage
+              key={"SYSTEM.LOCALERROR." + index}
+              msg={msg.nachricht}
+              alignment="center"
+              background="#fcf0f0"
+              color="#E73B2F"
+              margin={5}
+              padding={5}
+              fontSize={0.9}
+              width="80%"
+            />
+          );
+        })}
     </div>
   );
 };
