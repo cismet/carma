@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import Document from "../conversations/Document";
 import { Icon } from "react-fa";
 import { useDropzone } from "react-dropzone";
+import { useDispatch } from "react-redux";
 
 const CR20DocumentsPanel = ({
   documents = [],
@@ -11,6 +12,8 @@ const CR20DocumentsPanel = ({
   localErrorMessages = [],
   addLocalErrorMessage = () => {},
 }) => {
+  const dispatch = useDispatch();
+
   let readOnly = false;
   if (uploadCRDoc === undefined) {
     readOnly = true;
@@ -64,44 +67,46 @@ const CR20DocumentsPanel = ({
           nonce: file.nonce,
           inProgress: true,
         });
-        return uploadCRDoc(file, (returnedFOString) => {
-          if (returnedFOString) {
-            try {
-              const returnedFO = JSON.parse(returnedFOString);
-              // returnedFO.status = 412;
-              // returnedFO.message = "Parameter FILENAME nicht gesetzt";
-              if (returnedFO.status === 201) {
-                returnedFO.nonce = file.nonce;
-                returnedFO.inProgress = false;
-                updateAttachment(returnedFO);
-              } else {
+        return dispatch(
+          uploadCRDoc(file, (returnedFOString) => {
+            if (returnedFOString) {
+              try {
+                const returnedFO = JSON.parse(returnedFOString);
+                // returnedFO.status = 412;
+                // returnedFO.message = "Parameter FILENAME nicht gesetzt";
+                if (returnedFO.status === 201) {
+                  returnedFO.nonce = file.nonce;
+                  returnedFO.inProgress = false;
+                  updateAttachment(returnedFO);
+                } else {
+                  addLocalErrorMessage({
+                    typ: "LOCALERROR",
+                    nachricht:
+                      "Beim Hochladen der Datei hat der Server mit dem unerwarteten Status " +
+                      returnedFO.status +
+                      " geantwortet. (" +
+                      returnedFO.message +
+                      "). Bitte versuchen Sie es später noch einmal. Sollte der Fehler weiter bestehen bleiben, bitten wir Sie Ihren Ansprechpartner in der Stadtverwaltung per Mail zu kontaktieren.",
+                    draft: true,
+                  });
+                  removeAttachment(file);
+                }
+              } catch (err) {
                 addLocalErrorMessage({
                   typ: "LOCALERROR",
                   nachricht:
-                    "Beim Hochladen der Datei hat der Server mit dem unerwarteten Status " +
-                    returnedFO.status +
-                    " geantwortet. (" +
-                    returnedFO.message +
-                    "). Bitte versuchen Sie es später noch einmal. Sollte der Fehler weiter bestehen bleiben, bitten wir Sie Ihren Ansprechpartner in der Stadtverwaltung per Mail zu kontaktieren.",
+                    "Beim Hochladen der Datei ist ein unerwarteter Fehler passiert: (" +
+                    err +
+                    ")",
                   draft: true,
                 });
                 removeAttachment(file);
               }
-            } catch (err) {
-              addLocalErrorMessage({
-                typ: "LOCALERROR",
-                nachricht:
-                  "Beim Hochladen der Datei ist ein unerwarteter Fehler passiert: (" +
-                  err +
-                  ")",
-                draft: true,
-              });
+            } else {
               removeAttachment(file);
             }
-          } else {
-            removeAttachment(file);
-          }
-        });
+          })
+        );
       });
     },
     [setTmpAttachments, uploadCRDoc]
