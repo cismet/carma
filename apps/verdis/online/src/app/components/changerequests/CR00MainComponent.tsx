@@ -17,7 +17,7 @@ import {
   removeLastChangeRequestMessage,
 } from "../../../store/slices/kassenzeichen";
 import CRConversation from "../conversations/CRConversation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import ConversationInput from "../conversations/ConversationInput";
 import CR20DocumentsPanel from "./CR20DocumentsPanel";
 import { Button } from "react-bootstrap";
@@ -31,15 +31,19 @@ import {
 import FlaechenPanel from "../FlaechenPanel";
 import {
   hasAttachment,
+  needsProof,
   needsProofSingleFlaeche,
 } from "../../../utils/kassenzeichenHelper";
 import AnnotationPanel from "../AnnotationPanel";
+import { Icon } from "react-fa";
 
 const CR00MainComponent = ({ localErrorMessages = [] }) => {
   const uiState = useSelector(getUiState);
   const kassenzeichen = useSelector(getKassenzeichen);
   const dispatch = useDispatch();
   const [hideSystemMessages, setHideSystemMessages] = useState(false);
+  const [locked, setLocked] = useState(true);
+  const scrollDivRef = useRef(null);
 
   const draftHint = anderungswunscheSimpleTexts.draftHint;
 
@@ -146,11 +150,33 @@ const CR00MainComponent = ({ localErrorMessages = [] }) => {
     }
   }
 
+  const scrollToVisible = (ref) => {
+    if (ref && ref.current) {
+      ref.current.scrollIntoView({
+        behavior: "smooth",
+        block: "end",
+        inline: "nearest",
+      });
+    }
+  };
+
+  const needsProofResult = needsProof(kassenzeichen.aenderungsanfrage);
+  const unlockOrSubmit = () => {
+    if (locked === true) {
+      setLocked(false);
+    } else {
+      //submit
+      submit();
+      setLocked(true);
+      //then
+      //close();
+    }
+  };
+
   return (
     <ModalApplicationMenu
       menuIcon={"edit"}
       menuTitle={anderungswunscheSimpleTexts.andrTitle}
-      // menuFooter={<></>}
       menuIntroduction={<Introduction />}
       visible={uiState.changeRequestsMenuVisible}
       setVisible={(value) => dispatch(showChangeRequests({ visible: value }))}
@@ -206,6 +232,7 @@ const CR00MainComponent = ({ localErrorMessages = [] }) => {
                 sectionTitle="Ihre Kommunikation"
                 sectionBsStyle="info"
                 setActiveSectionKey={() => {}}
+                activeSectionKey={"sectionKey0"}
                 sectionContent={
                   <>
                     <CRConversation
@@ -224,11 +251,17 @@ const CR00MainComponent = ({ localErrorMessages = [] }) => {
 
                         dispatch(addChangeRequestMessage(msg));
                       }}
+                      scrollToInput={() => {
+                        setTimeout(() => {
+                          scrollToVisible(scrollDivRef);
+                        }, 10);
+                      }}
                       lastUserMessage={lastUserMessage}
                       uploadCRDoc={addCRDoc}
                       addLocalErrorMessage={addLocalErrorMessage}
                       removeLastUserMessage={removeLastChangeRequestMessage}
                     />
+                    <div ref={scrollDivRef} style={{ height: 1 }} />
                   </>
                 }
               />,
@@ -236,6 +269,7 @@ const CR00MainComponent = ({ localErrorMessages = [] }) => {
                 key="sectionKey1"
                 sectionKey="sectionKey1"
                 setActiveSectionKey={() => {}}
+                activeSectionKey={"sectionKey1"}
                 sectionTitle={
                   "Ihre Änderungsvorschläge" +
                   (changerequestBezeichnungsArray !== undefined &&
@@ -290,6 +324,7 @@ const CR00MainComponent = ({ localErrorMessages = [] }) => {
                 key="sectionKey2"
                 sectionKey="sectionKey2"
                 setActiveSectionKey={() => {}}
+                activeSectionKey={"sectionKey2"}
                 sectionTitle={
                   "Ihre Anmerkungen in der Karte" +
                   (annoPanels.length > 0 ? " (" + annoPanels.length + ")" : "")
@@ -335,6 +370,7 @@ const CR00MainComponent = ({ localErrorMessages = [] }) => {
               <Section
                 key="sectionKey3"
                 sectionKey="sectionKey3"
+                activeSectionKey={"sectionKey3"}
                 sectionTitle="eMail Benachrichtigungen aktivieren"
                 sectionBsStyle="info"
                 sectionContent={<></>}
@@ -365,6 +401,157 @@ const CR00MainComponent = ({ localErrorMessages = [] }) => {
               </div>,
             ]
       }
+      // menuFooter={
+      //   <>
+      //     {" "}
+      //     {crEditMode === true && (
+      //       <div>
+      //         <table
+      //           style={{
+      //             width: "100%",
+      //           }}
+      //         >
+      //           <tbody>
+      //             <tr>
+      //               <td
+      //                 style={{
+      //                   textAlign: "left",
+      //                   verticalAlign: "top",
+      //                   paddingRight: "30px",
+      //                 }}
+      //               >
+      //                 <p>
+      //                   {crDraftCounter > 0 && <b>{draftHint}</b>}
+      //                   {!(crDraftCounter > 0) && <span>{draftHint}</span>}
+      //                 </p>
+      //                 <p>
+      //                   Sollten sich nach Abschluss der Bearbeitung Änderungen
+      //                   gegenüber der bisherigen Gebührenerhebung ergeben,
+      //                   erhalten Sie einen Änderungsbescheid durch das
+      //                   Steueramt. Eine Veranlagung findet ggf. rückwirkend
+      //                   statt. Maßgebend ist das Datum des Luftbilds, in dem die
+      //                   Änderung feststellbar ist, aber längsten das laufende
+      //                   und die 4 vorhergegangenen Jahre.
+      //                 </p>
+      //               </td>
+      //               <td />
+      //             </tr>
+      //           </tbody>
+      //         </table>
+      //         <div style={{ textAlign: "left", paddingBottom: 15 }}>
+      //           <Section
+      //             key={"sectionKey0email"}
+      //             name={"sectionKeyemail"}
+      //             style={{ marginBottom: 6 }}
+      //             defaultActiveKey={"none"}
+      //             sectionBsStyle="info"
+      //             sectionTitle={
+      //               ((kassenzeichen.aenderungsanfrage || {}).emailAdresse ===
+      //                 undefined &&
+      //                 "eMail Benachrichtigungen aktivieren") ||
+      //               (!(kassenzeichen.aenderungsanfrage || {})
+      //                 .emailVerifiziert &&
+      //                 "eMail Benachrichtigungen Verifikationscode eingeben") ||
+      //               "eMail Benachrichtigungen verwalten"
+      //             }
+      //             onSelect={() => {
+      //               setEmailSettingsShown(!emailSettingsShown);
+      //               // if (applicationMenuActiveKey === sectionKey) {
+      //               //   setApplicationMenuActiveKey("none");
+      //               // } else {
+      //               //   setApplicationMenuActiveKey(sectionKey);
+      //               // }
+      //             }}
+      //             sectionContent={<></>}
+      //           />
+      //         </div>
+
+      //         {needsProofResult && (
+      //           <div
+      //             style={{
+      //               textAlign: "left",
+      //               color: colorNeededProof,
+      //               margin: 2,
+      //               marginBottom: 10,
+      //             }}
+      //           >
+      //             {nachweisPflichtText()}
+      //           </div>
+      //         )}
+      //         <table
+      //           style={{
+      //             width: "100%",
+      //           }}
+      //           border={0}
+      //         >
+      //           <tbody>
+      //             <tr>
+      //               <td width="100%" style={{ paddingRight: 10 }}>
+      //                 <Button
+      //                   style={{ width: "200px" }}
+      //                   id="cmdCloseModalApplicationMenu"
+      //                   variant="default"
+      //                   type="submit"
+      //                   onClick={close}
+      //                 >
+      //                   Schließen
+      //                 </Button>
+      //                 <div style={{ fontSize: 11 }}>
+      //                   es gehen kein Änderungen verloren
+      //                 </div>
+      //               </td>
+      //               <td width="100%" style={{ verticalAlign: "top" }}>
+      //                 <Button
+      //                   style={{ width: "300px" }}
+      //                   variant={locked === true ? "warning" : "success"}
+      //                   className="fillButton"
+      //                   onClick={unlockOrSubmit}
+      //                   disabled={crDraftCounter === 0 || needsProofResult}
+      //                 >
+      //                   <Icon name={locked === true ? "lock" : "unlock"} />{" "}
+      //                   {crDraftCounter === 0
+      //                     ? "Keine aktuelle Änderung"
+      //                     : locked === true
+      //                     ? "Entsperren zum Einreichen"
+      //                     : "Einreichen der Änderungswünsche"}
+      //                 </Button>
+      //                 <div style={{ fontSize: 11 }} />
+      //               </td>
+      //             </tr>
+      //           </tbody>
+      //         </table>
+      //       </div>
+      //     )}
+      //     {!crEditMode === true && (
+      //       <div>
+      //         <p style={{ textAlign: "left" }}>
+      //           Wenn Sie den Änderungsmodus aktivieren, erscheinen in diesem
+      //           Dialog die Steuerelemente mit denen Sie Ihre Änderungen anlegen
+      //           können und weitere Hilfsinformationen erhalten.
+      //         </p>
+      //         <Button
+      //           className="pull-left"
+      //           id="cmdCloseModalApplicationMenu"
+      //           bsStyle="success"
+      //           type="submit"
+      //           onClick={() => {
+      //             showModalMenu("anleitung");
+      //           }}
+      //         >
+      //           Hilfe
+      //         </Button>
+      //         <Button
+      //           id="cmdCloseModalApplicationMenu"
+      //           bsStyle="primary"
+      //           type="submit"
+      //           onClick={close}
+      //         >
+      //           Ok
+      //         </Button>
+      //       </div>
+      //     )}
+      //   </>
+      // }
     />
   );
 };
