@@ -26,9 +26,9 @@ const EditModeControlButton: React.FC<EditModeControlButtonProps> = ({
 
     if (!map) return;
 
-    if (!map.editTools) {
-      map.editTools = new L.Editable(map);
-    }
+    // if (!map.editTools) {
+    //   map.editTools = new L.Editable(map);
+    // }
 
     const ControlClass = L.Control.extend({
       options: { position, kind, html },
@@ -54,8 +54,6 @@ const EditModeControlButton: React.FC<EditModeControlButtonProps> = ({
     const control = new ControlClass();
     map.addControl(control);
 
-    console.log("xxx selectedFeatureId", selectedFeatureId);
-
     map.eachLayer((layer) => {
       if (
         layer.feature?.properties?.type === "annotation" &&
@@ -69,8 +67,39 @@ const EditModeControlButton: React.FC<EditModeControlButtonProps> = ({
       }
     });
 
+    if (!featuresInEditmode) {
+      map.eachLayer((layer) => {
+        if (
+          layer.feature?.properties?.type === "annotation" &&
+          layer.feature !== undefined
+        ) {
+          layer.disableEdit();
+        }
+      });
+    }
+
+    const reapplyEdit = () => {
+      map.eachLayer((layer: any) => {
+        if (
+          layer.feature?.properties?.type === "annotation" &&
+          layer.feature.id === selectedFeatureId
+        ) {
+          layer.enableEdit();
+        }
+      });
+    };
+
+    map.on("moveend", reapplyEdit);
+    map.on("zoomend", reapplyEdit);
+    map.on("editable:vertex:dragend", () => {
+      console.log("xxx drag end");
+      reapplyEdit();
+    });
+
     return () => {
       map.removeControl(control);
+      map.off("moveend", reapplyEdit);
+      map.off("zoomend", reapplyEdit);
     };
   }, [mapRef, featuresInEditmode, onFeatureChange, selectedFeatureId]);
 
