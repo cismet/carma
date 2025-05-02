@@ -29,6 +29,7 @@ import {
 } from "../../store/slices/kassenzeichen";
 import CyclingBackgroundButton from "./CyclingBackgroundButton";
 import { ReactNode, useRef } from "react";
+import EditModeControlButton from "./EditModeControlButton";
 
 interface MapProps {
   children?: ReactNode;
@@ -206,6 +207,13 @@ const Map = ({ children }: MapProps) => {
             }}
         />
     )} */}
+      {annotationEditable && (
+        <EditModeControlButton
+          mapRef={refRoutedMap}
+          featuresInEditmode={annotationEditable}
+          onFeatureChange={(flag) => dispatch(setChangeRequestsEditMode(flag))}
+        />
+      )}
       {children}
     </RoutedMap>
   );
