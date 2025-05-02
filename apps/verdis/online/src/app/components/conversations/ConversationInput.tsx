@@ -210,9 +210,8 @@ const ConversationInput = ({
             margin: 0,
             marginTop: 0,
             padding: 2,
-
             color: "grey",
-            borderTop: "2px solid grey",
+            // borderTop: "2px solid grey",
             fontSize: "12px",
             textAlign: "right",
           }}
@@ -350,7 +349,7 @@ const ConversationInput = ({
             padding: 2,
 
             color: "grey",
-            borderTop: "2px solid grey",
+            // borderTop: "2px solid grey",
             fontSize: "12px",
           }}
         >
