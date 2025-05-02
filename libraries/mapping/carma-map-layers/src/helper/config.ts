@@ -1,5 +1,7 @@
 import { customCategoryToLayers } from "./layerHelper";
 import type { Config, LayerConfig, LayerProps } from "./types";
+import trinkwasserbrunnenThumb from "../thumbnails/trinkwasserbrunnen.jpg";
+import wohnlagenThumb from "../thumbnails/wonhlagen_topicmap.jpg";
 
 export const config = {
   Ortho: {
@@ -626,6 +628,54 @@ export const topicMapsConfig: Config = {
         "carmaConf://opendata:https://offenedaten-wuppertal.de/dataset/klimaorte-wuppertal/resource/18dd4a9c-a007-480b-bbde-77ece763e408",
       ],
       url: "https://digital-twin-wuppertal-live.github.io/klimaorte/",
+      serviceName: "wuppTopicMaps",
+    },
+    {
+      id: "wuppTopicMaps_trinkwasserbrunnen",
+      name: "wuppTopicMaps_trinkwasserbrunnen",
+      title: "Trinkwasserbrunnen-Karte",
+      description: `Die Trinkwasserbrunnenkarte Wuppertal ist eine im Auftrag der Stadt Wuppertal von der Firma cismet GmbH, Saarbrücken, betriebene interaktive Internet-Kartenanwendung zur Information über die öffentlich zugänglichen Trinkwasserbrunnen im Wuppertaler Stadtgebiet.`,
+      tags: [
+        "TopicMaps",
+        "POI",
+        "Infrastruktur",
+        "Klimawandel",
+        "Hitzewelle",
+        "Trinkwasserversorgung",
+        "Hitzeaktionsplan",
+        "Trinkbrunnennetz",
+        "Trinkwasserspender",
+      ],
+      type: "link",
+      thumbnail: trinkwasserbrunnenThumb,
+      keywords: [
+        "carmaConf://opendata:https://offenedaten-wuppertal.de/dataset/trinkwasserbrunnen-wuppertal/resource/b0481158-b4f5-4a0b-bcf5-be24168e993c",
+      ],
+      url: "https://digital-twin-wuppertal-live.github.io/generic-topicmap/#/Trinkbrunnenkarte_Wuppertal",
+      serviceName: "wuppTopicMaps",
+    },
+    {
+      id: "wuppTopicMaps_wohnlagen",
+      name: "wuppTopicMaps_wohnlagen",
+      title: "Wohnlagen-Karte",
+      description: `	Die Wohnlagenkarte Wuppertal ist eine im Auftrag der Stadt Wuppertal von der Firma cismet GmbH, Saarbrücken, betriebene interaktive Internet-Kartenanwendung Ermittlung von Wohnlagen gemäß Nr. 6.9 des qualifizierten Mietspiegels der Stadt Wuppertal für die Ermittlung ortsüblicher Vergleichsmieten. Sie beruht auf der jährlich vom Gutachterausschuss für Grundstückswerte in der Stadt Wuppertal aktualisierten vierstufigen Klassifizierung der Wuppertaler Wohnlagen.`,
+      tags: [
+        "TopicMaps",
+        "Infrastruktur",
+        "Gebäude",
+        "Wohngebäude",
+        "Wohnlage",
+        "Lagequalität",
+        "Mietspiegel",
+        "Immobilienmarkt",
+        "Gutachterausschuss",
+      ],
+      type: "link",
+      thumbnail: wohnlagenThumb,
+      keywords: [
+        "carmaConf://opendata:https://offenedaten-wuppertal.de/dataset/wohnlagen-wuppertal/resource/c35aec3c-eed2-4c04-9f53-7bcd83f36559",
+      ],
+      url: "https://digital-twin-wuppertal-live.github.io/generic-topicmap/#/Wohnlagenkarte_Wuppertal",
       serviceName: "wuppTopicMaps",
     },
   ],
