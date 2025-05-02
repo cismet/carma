@@ -369,8 +369,8 @@ const CR00MainComponent = ({ localErrorMessages = [] }) => {
               </table>,
               <Section
                 key="sectionKey3"
-                sectionKey="sectionKey3"
-                activeSectionKey={"sectionKey3"}
+                // sectionKey="sectionKey3"
+                // activeSectionKey={"sectionKey3"}
                 sectionTitle="eMail Benachrichtigungen aktivieren"
                 sectionBsStyle="info"
                 sectionContent={<></>}
