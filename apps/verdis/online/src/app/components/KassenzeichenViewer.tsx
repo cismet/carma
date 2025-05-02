@@ -201,7 +201,7 @@ const KassenzeichenViewer = () => {
         // flaechenPanelClickHandler={that.flaechenPanelClick}
         flaeche={flaeche}
         flaechenCR={flaechenCR ? flaechenCR : {}}
-        editmode={uiState.changeRequestsEditMode}
+        editMode={uiState.changeRequestsEditMode}
         // proofNeeded={needsProofSingleFlaeche(flaechenCR) && !hasAttachments}
         display={uiState.changeRequestsEditMode === true ? "cr" : "original"}
         showEditCRMenu={() => {

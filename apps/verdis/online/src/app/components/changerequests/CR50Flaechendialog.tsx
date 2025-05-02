@@ -97,7 +97,8 @@ const CR00 = ({
           </p>
           <Section
             key={"sectionKey0"}
-            sectionKey={"sectionKey"}
+            sectionKey={"sectionKey0"}
+            activeSectionKey={"sectionKey0"}
             style={{ marginBottom: 6 }}
             sectionBsStyle="info"
             sectionTitle={"Übersicht "}
@@ -110,11 +111,11 @@ const CR00 = ({
                 }}
               >
                 <div>
-                  <h4>aktueller Datenbestand</h4>
+                  <div>aktueller Datenbestand</div>
                   <FlaechenPanel flaeche={flaeche} editMode={false} />
                 </div>
                 <div>
-                  <h4>Ihr Änderungswunsch</h4>
+                  <div>Ihr Änderungswunsch</div>
                   <FlaechenPanel
                     key={"cr"}
                     flaeche={flaeche}
@@ -133,6 +134,7 @@ const CR00 = ({
             style={{ marginBottom: 6 }}
             sectionBsStyle="warning"
             setActiveSectionKey={() => {}}
+            activeSectionKey={"sectionKey1"}
             sectionTitle={`Ihre Änderungsvorschläge${
               crInfo.changeCounter > 0 ? " (" + crInfo.changeCounter + ")" : ""
             }`}
@@ -270,6 +272,7 @@ const CR00 = ({
           <Section
             key={"sectionKey3"}
             sectionKey={"sectionKey3"}
+            activeSectionKey={"sectionKey3"}
             style={{ marginBottom: 6 }}
             sectionBsStyle="info"
             sectionTitle={`Hinweise zur Gebührenerhebung`}
@@ -279,6 +282,7 @@ const CR00 = ({
           <Section
             key={"sectionKey4"}
             sectionKey={"sectionKey4"}
+            activeSectionKey={"sectionKey4"}
             style={{ marginBottom: 6 }}
             sectionBsStyle="danger"
             setActiveSectionKey={() => {}}
