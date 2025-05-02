@@ -72,27 +72,29 @@ const ConversationInput = ({
                   returnedFO.inProgress = false;
                   updateAttachment(returnedFO);
                 } else {
-                  addLocalErrorMessage({
-                    typ: "LOCALERROR",
-                    nachricht:
-                      "Beim Hochladen der Datei hat der Server mit dem unerwarteten Status " +
-                      returnedFO.status +
-                      " geantwortet. (" +
-                      returnedFO.message +
-                      "). Bitte versuchen Sie es später noch einmal. Sollte der Fehler weiter bestehen bleiben, bitten wir Sie Ihren Ansprechpartner in der Stadtverwaltung per Mail zu kontaktieren.",
-                    draft: true,
-                  });
+                  dispatch(
+                    addLocalErrorMessage({
+                      typ: "LOCALERROR",
+                      nachricht:
+                        "Beim Hochladen der Datei hat der Server mit dem unerwarteten Status " +
+                        returnedFO.status +
+                        " geantwortet. (" +
+                        returnedFO.message +
+                        "). Bitte versuchen Sie es später noch einmal. Sollte der Fehler weiter bestehen bleiben, bitten wir Sie Ihren Ansprechpartner in der Stadtverwaltung per Mail zu kontaktieren.",
+                      draft: true,
+                    })
+                  );
                   removeAttachment(file);
                 }
               } catch (err) {
-                addLocalErrorMessage({
+                dispatch(addLocalErrorMessage({
                   typ: "LOCALERROR",
                   nachricht:
                     "Beim Hochladen der Datei ist ein unerwarteter Fehler passiert: (" +
                     err +
                     ")",
                   draft: true,
-                });
+                });)
                 removeAttachment(file);
               }
             } else {
@@ -310,7 +312,7 @@ const ConversationInput = ({
                 } else if (e.currentTarget.value === "" && e.keyCode === 38) {
                   // arrow up - should edit the last draft message
                   if (lastUserMessage !== undefined) {
-                    removeLastUserMessage();
+                    dispatch(removeLastUserMessage());
                     setMsgTextValue(lastUserMessage.nachricht);
                     setMsgAttachments(lastUserMessage.anhang);
                     setTimeout(() => {
