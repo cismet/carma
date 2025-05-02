@@ -708,6 +708,28 @@ export const nachweispflicht = {
   anschlussgrad: ["vers.", "direkt OG", "Va-Über", "Bach verrohrt"],
 };
 
+export const needsProof = (flaechenCR) => {
+  if (flaechenCR === undefined || flaechenCR === null) {
+    return false;
+  }
+  let needsProofValue = false;
+  for (const key in flaechenCR.flaechen) {
+    const flaechenCR_SingleFlaeche = flaechenCR.flaechen[key];
+    needsProofValue = needsProofSingleFlaeche(flaechenCR_SingleFlaeche);
+    if (needsProofValue === true) {
+      break;
+    }
+  }
+
+  if (needsProofValue === true && flaechenCR.nachrichten !== undefined) {
+    // now check whether in the messages array is a message that has a anhang property
+    if (hasAttachment(flaechenCR) === true) {
+      needsProofValue = false;
+    }
+  }
+  return needsProofValue;
+};
+
 export const needsProofSingleFlaeche = (flaechenCR_SingleFlaeche) => {
   let needsProofValue = false;
   if (flaechenCR_SingleFlaeche?.flaechenart !== undefined) {
