@@ -68,10 +68,6 @@ const CR00MainComponent = ({ localErrorMessages = [] }) => {
   const annoPanels = [];
   let lastUserMessage = undefined;
   // const sMsgs = changerequestMessagesArray.sort((a, b) => a.timestamp - b.timestamp);
-  console.log(
-    "xxx changerequestBezeichnungsArray",
-    changerequestBezeichnungsArray
-  );
   (changerequestBezeichnungsArray || []).forEach(
     (flaechenbezeichnung, index) => {
       //find flaeche
@@ -135,10 +131,6 @@ const CR00MainComponent = ({ localErrorMessages = [] }) => {
           }
         }
       }
-
-      console.log("xxx origPanels", origPanels);
-      console.log("xxx crPanels", crPanels);
-      console.log("xxx annoPanels", annoPanels);
     }
   );
 
