@@ -49,7 +49,7 @@ const VerdisOnlineAppNavbar = () => {
   const kassenzeichen = useSelector(getKassenzeichen);
   const uiState = useSelector(getUiState);
 
-  const crCounter = getNumberOfPendingChanges(kassenzeichen);
+  const crCounter = getNumberOfPendingChanges(kassenzeichen.aenderungsanfrage);
   let kasszLabel = "Kassenzeichen: ";
   let lblDownLoadFeb = "Flächenerfassungsbogen herunterladen (PDF)";
   let lblInfo = uiState.infoElementsEnabled
