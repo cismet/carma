@@ -249,7 +249,7 @@ const ConversationInput = ({
             style={
               {
                 resize: "none",
-                minHeight: "34px",
+                // minHeight: "34px",
                 textAlign: "right",
                 backgroundColor: inputBackgroundColor,
               } as any
@@ -257,6 +257,7 @@ const ConversationInput = ({
             className="basicSelectionColor form-control"
             value={msgTextValue}
             maxRows={12}
+            minRows={1}
             onChange={(e: ChangeEvent<HTMLTextAreaElement>) => {
               if (textarea && textarea.current) {
                 let text = "";
