@@ -12,6 +12,7 @@ import {
   changeAnnotation,
   getKassenzeichen,
   getKassenzeichenbySTAC,
+  getNumberOfPendingChanges,
   removeAnnotation,
   setChangeRequestsForFlaeche,
 } from "../../store/slices/kassenzeichen";
@@ -22,6 +23,7 @@ import {
   getOverlayTextForFlaeche,
   hasAttachment,
   kassenzeichenFlaechenSorter,
+  needsProof,
 } from "../../utils/kassenzeichenHelper";
 import FlaechenPanel from "./FlaechenPanel";
 import {
@@ -31,6 +33,7 @@ import {
   setChangeRequestsAnnotationEditViewAnnotationAndCR,
   setChangeRequestsEditViewFlaecheAndCR,
   showChangeRequestAnnotationEditViewVisible,
+  showChangeRequests,
   showChangeRequestsEditView,
   showInfo,
   toggleInfoElements,
@@ -100,8 +103,9 @@ const KassenzeichenViewer = () => {
     overflow: "auto",
   };
 
-  let crDraftCounter = 0;
-
+  let { crDraftCounter } = getNumberOfPendingChanges(
+    kassenzeichen.aenderungsanfrage
+  );
   let draftAlert;
   if (crDraftCounter > 0) {
     draftAlert = (
@@ -119,10 +123,15 @@ const KassenzeichenViewer = () => {
           variant="danger"
           dismissible
           onClose={() => {
-            dispatch(toggleInfoElements({}));
+            dispatch(showChangeRequests({ visible: true }));
           }}
         >
-          <KassenzeichenFlaechenChartPanel />
+          <div>
+            <b>Sie haben momentan nicht eingereichte Änderungen.</b> Bitte
+            beachten Sie, dass Änderungswünsche, Anmerkungen und Ihre
+            hochgeladenen Dokumente erst für den Sachbearbeiter sichtbar werden,
+            wenn sie die Änderungen freigegeben/entsperrt und eingereicht haben.
+          </div>
         </Alert>
       </div>
     );
@@ -147,31 +156,6 @@ const KassenzeichenViewer = () => {
   });
 
   let proofAlert;
-
-  if (false) {
-    proofAlert = (
-      <div
-        style={{
-          position: "absolute",
-          top: crDraftCounter > 0 ? 195 : 60,
-          right: 285,
-          zIndex: 500,
-          width: 500,
-          opacity: 0.9,
-        }}
-      >
-        <Alert
-          variant="danger"
-          onClose={() => {
-            // this.props.uiStateActions.showChangeRequestsMenu(true);
-          }}
-          dismissible
-        >
-          {/* <h5>{nachweisPflichtText()}</h5> */}
-        </Alert>
-      </div>
-    );
-  }
 
   let flaechenInfoOverlay;
   let verdisMapWithAdditionalComponents;
