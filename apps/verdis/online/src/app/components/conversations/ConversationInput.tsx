@@ -87,14 +87,16 @@ const ConversationInput = ({
                   removeAttachment(file);
                 }
               } catch (err) {
-                dispatch(addLocalErrorMessage({
-                  typ: "LOCALERROR",
-                  nachricht:
-                    "Beim Hochladen der Datei ist ein unerwarteter Fehler passiert: (" +
-                    err +
-                    ")",
-                  draft: true,
-                });)
+                dispatch(
+                  addLocalErrorMessage({
+                    typ: "LOCALERROR",
+                    nachricht:
+                      "Beim Hochladen der Datei ist ein unerwarteter Fehler passiert: (" +
+                      err +
+                      ")",
+                    draft: true,
+                  })
+                );
                 removeAttachment(file);
               }
             } else {
