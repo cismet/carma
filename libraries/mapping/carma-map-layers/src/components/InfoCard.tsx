@@ -55,6 +55,7 @@ const InfoCard = ({
   const canFavoriteItem =
     layer.type !== "collection" ||
     (layer.type === "collection" && layer.serviceName.includes("discover"));
+  const isGenericTopicMap = layer.name.startsWith("wuppGenericTopicMaps_");
 
   return (
     <div
@@ -146,6 +147,18 @@ const InfoCard = ({
               <p className="text-base text-gray-600">
                 {parsedDescription.inhalt || description}
               </p>
+              {isGenericTopicMap && (
+                <>
+                  <h5 className="font-semibold text-lg">Implementierung</h5>
+                  <p className="text-base">
+                    Themenspezifische Kartenanwendung im Framework{" "}
+                    <a href="https://github.com/cismet/carma">carma</a>, durch
+                    Anpassen von Konfigurationsdateien aus den Daten und
+                    Methoden des DigiTal Zwillings abgeleitet ("Generic
+                    TopicMap")
+                  </p>
+                </>
+              )}
               {parsedDescription.sichtbarkeit.slice(0, -1) !== "öffentlich" &&
                 parsedDescription.sichtbarkeit.length > 0 && (
                   <>
