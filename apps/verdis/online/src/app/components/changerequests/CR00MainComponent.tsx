@@ -1,7 +1,11 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
 import { useDispatch, useSelector } from "react-redux";
-import { getUiState, showChangeRequests } from "../../../store/slices/ui";
+import {
+  addLocalErrorMessage,
+  getUiState,
+  showChangeRequests,
+} from "../../../store/slices/ui";
 import ModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import Section from "react-cismap/topicmaps/menu/Section";
 import Introduction from "./CR05Introduction";
@@ -10,6 +14,7 @@ import {
   addCRDoc,
   getKassenzeichen,
   getNumberOfPendingChanges,
+  removeLastChangeRequestMessage,
 } from "../../../store/slices/kassenzeichen";
 import CRConversation from "../conversations/CRConversation";
 import { useState } from "react";
@@ -55,6 +60,7 @@ const CR00MainComponent = ({ localErrorMessages = [] }) => {
     (changerequests || { nachrichten: [] }).nachrichten || [];
   const sMsgs = changerequestMessagesArray;
   const documents: any = [];
+  let lastUserMessage = undefined;
 
   sMsgs.forEach((msg) => {
     //if a document exists, add it to the documents array
@@ -63,13 +69,16 @@ const CR00MainComponent = ({ localErrorMessages = [] }) => {
         documents.push(anhang);
       });
     }
+
+    if (msg.typ === "CITIZEN" && msg.draft === true) {
+      lastUserMessage = msg;
+    }
   });
 
   const origPanels = [];
   const crPanels = [];
   const annoPanels = [];
-  let lastUserMessage = undefined;
-  // const sMsgs = changerequestMessagesArray.sort((a, b) => a.timestamp - b.timestamp);
+
   (changerequestBezeichnungsArray || []).forEach(
     (flaechenbezeichnung, index) => {
       //find flaeche
@@ -215,7 +224,10 @@ const CR00MainComponent = ({ localErrorMessages = [] }) => {
 
                         dispatch(addChangeRequestMessage(msg));
                       }}
+                      lastUserMessage={lastUserMessage}
                       uploadCRDoc={addCRDoc}
+                      addLocalErrorMessage={addLocalErrorMessage}
+                      removeLastUserMessage={removeLastChangeRequestMessage}
                     />
                   </>
                 }

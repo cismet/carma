@@ -499,9 +499,7 @@ export function removeAnnotation(annotation) {
 }
 
 export function addChangeRequestMessage(msg) {
-  console.log("xxx addChangeRequestMessage", msg);
   return function (dispatch, getState) {
-    console.log("xxx addChangeRequestMessage funct");
     const kassenzeichen = getState().kassenzeichen;
     const newKassz = JSON.parse(JSON.stringify(kassenzeichen));
 
@@ -652,5 +650,23 @@ export function addCRDoc(file, callback) {
         );
         callback();
       });
+  };
+}
+
+export function removeLastChangeRequestMessage() {
+  return function (dispatch, getState) {
+    const kassenzeichen = getState().kassenzeichen;
+    const newKassz = JSON.parse(JSON.stringify(kassenzeichen));
+    const sMsgs = newKassz.aenderungsanfrage.nachrichten.sort(
+      (a, b) => a.timestamp - b.timestamp
+    );
+    const lastMsg = sMsgs[sMsgs.length - 1];
+    if (lastMsg.typ === "CITIZEN" && lastMsg.draft === true) {
+      sMsgs.length = sMsgs.length - 1;
+      newKassz.aenderungsanfrage.nachrichten = sMsgs;
+    }
+
+    dispatch(storeCR(newKassz.aenderungsanfrage));
+    dispatch(setKassenzeichen({ kassenzeichenObject: newKassz }));
   };
 }
