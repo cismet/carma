@@ -101,38 +101,39 @@ const CR00MainComponent = ({ localErrorMessages = [] }) => {
           />
         );
       }
-
-      if (
-        kassenzeichen !== undefined &&
-        kassenzeichen.aenderungsanfrage !== undefined &&
-        kassenzeichen.aenderungsanfrage !== null
-      ) {
-        const annos = kassenzeichen.aenderungsanfrage.geometrien;
-        if (annos !== undefined) {
-          const annoArr = [];
-
-          for (const ak of Object.keys(annos)) {
-            annoArr.push(annos[ak]);
-          }
-
-          const sortedAnnoArr = annoArr.sort(
-            (a, b) => a.properties.numericId - b.properties.numericId
-          );
-          for (const a of sortedAnnoArr) {
-            const ap = (
-              <AnnotationPanel
-                key={"AnnotationPanel" + JSON.stringify(a)}
-                showEverything={true}
-                annotationFeature={a}
-              />
-            );
-
-            annoPanels.push(ap);
-          }
-        }
-      }
     }
   );
+
+  if (
+    kassenzeichen !== undefined &&
+    kassenzeichen.aenderungsanfrage !== undefined &&
+    kassenzeichen.aenderungsanfrage !== null
+  ) {
+    const annos = kassenzeichen.aenderungsanfrage.geometrien;
+    if (annos !== undefined) {
+      const annoArr = [];
+
+      for (const ak of Object.keys(annos)) {
+        annoArr.push(annos[ak]);
+      }
+
+      const sortedAnnoArr = annoArr.sort(
+        (a, b) => a.properties.numericId - b.properties.numericId
+      );
+      for (const a of sortedAnnoArr) {
+        const ap = (
+          <AnnotationPanel
+            key={"AnnotationPanel" + JSON.stringify(a)}
+            showEverything={true}
+            annotationFeature={a}
+            editmode={false}
+          />
+        );
+
+        annoPanels.push(ap);
+      }
+    }
+  }
 
   return (
     <ModalApplicationMenu
@@ -193,6 +194,7 @@ const CR00MainComponent = ({ localErrorMessages = [] }) => {
                 sectionKey="sectionKey0"
                 sectionTitle="Ihre Kommunikation"
                 sectionBsStyle="info"
+                setActiveSectionKey={() => {}}
                 sectionContent={
                   <>
                     <CRConversation
@@ -206,6 +208,7 @@ const CR00MainComponent = ({ localErrorMessages = [] }) => {
               <Section
                 key="sectionKey1"
                 sectionKey="sectionKey1"
+                setActiveSectionKey={() => {}}
                 sectionTitle={
                   "Ihre Änderungsvorschläge" +
                   (changerequestBezeichnungsArray !== undefined &&
@@ -259,12 +262,17 @@ const CR00MainComponent = ({ localErrorMessages = [] }) => {
               <Section
                 key="sectionKey2"
                 sectionKey="sectionKey2"
-                sectionTitle={"Ihre Anmerkungen in der Karte"}
+                setActiveSectionKey={() => {}}
+                sectionTitle={
+                  "Ihre Anmerkungen in der Karte" +
+                  (annoPanels.length > 0 ? " (" + annoPanels.length + ")" : "")
+                }
                 sectionBsStyle="success"
-                sectionContent={<></>}
+                sectionContent={<>{annoPanels}</>}
               />,
               <Section
                 key="sectionKey2"
+                setActiveSectionKey={() => {}}
                 sectionKey="sectionKey2"
                 sectionTitle={
                   "Ihre Dokumente" +
