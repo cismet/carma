@@ -7,6 +7,7 @@ import Section from "react-cismap/topicmaps/menu/Section";
 import Introduction from "./CR05Introduction";
 import {
   addChangeRequestMessage,
+  addCRDoc,
   getKassenzeichen,
   getNumberOfPendingChanges,
 } from "../../../store/slices/kassenzeichen";
@@ -214,6 +215,7 @@ const CR00MainComponent = ({ localErrorMessages = [] }) => {
 
                         dispatch(addChangeRequestMessage(msg));
                       }}
+                      uploadCRDoc={addCRDoc}
                     />
                   </>
                 }
