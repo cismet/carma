@@ -1,13 +1,19 @@
-export type CarmaConfig = Record<string, string>;
+export type CarmaConfig = Record<string, string | string[]>;
 
 export const extractCarmaConfig = (
   keywords: string[] | undefined
 ): CarmaConfig | null => {
-  let carmaConfig: CarmaConfig | null = null;
+  let carmaConfig: CarmaConfig | null = {};
+  let infoboxMapping: string[] = [];
 
   if (keywords) {
     keywords.forEach((keyword) => {
       if (keyword.toLowerCase().startsWith("carmaconf://")) {
+        const mapping = keyword.split("carmaconf://infoBoxMapping:")[1];
+        if (mapping) {
+          infoboxMapping.push(mapping);
+          return;
+        }
         const objectString = keyword.slice(12);
         let colonIndex = objectString.indexOf(":");
         const property = objectString.split(":")[0];
@@ -20,6 +26,11 @@ export const extractCarmaConfig = (
       }
     });
   }
+
+  carmaConfig = {
+    ...carmaConfig,
+    infoboxMapping,
+  };
 
   return carmaConfig;
 };
