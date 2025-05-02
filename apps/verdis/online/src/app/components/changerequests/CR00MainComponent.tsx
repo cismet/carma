@@ -21,6 +21,12 @@ import {
   anderungswunscheSimpleTexts,
   AnderungswunscheHint,
 } from "@carma-collab/wuppertal/verdis-online";
+import FlaechenPanel from "../FlaechenPanel";
+import {
+  hasAttachment,
+  needsProofSingleFlaeche,
+} from "../../../utils/kassenzeichenHelper";
+import AnnotationPanel from "../AnnotationPanel";
 
 const CR00MainComponent = ({ localErrorMessages = [] }) => {
   const uiState = useSelector(getUiState);
@@ -56,6 +62,85 @@ const CR00MainComponent = ({ localErrorMessages = [] }) => {
       });
     }
   });
+
+  const origPanels = [];
+  const crPanels = [];
+  const annoPanels = [];
+  let lastUserMessage = undefined;
+  // const sMsgs = changerequestMessagesArray.sort((a, b) => a.timestamp - b.timestamp);
+  console.log(
+    "xxx changerequestBezeichnungsArray",
+    changerequestBezeichnungsArray
+  );
+  (changerequestBezeichnungsArray || []).forEach(
+    (flaechenbezeichnung, index) => {
+      //find flaeche
+      const flaeche = kassenzeichen.flaechen.find(
+        (fCand) => fCand.flaechenbezeichnung === flaechenbezeichnung
+      );
+
+      //get cr for flaeche
+      const cr = changerequests.flaechen[flaechenbezeichnung];
+
+      if (cr !== undefined && flaeche !== undefined) {
+        origPanels.push(
+          <FlaechenPanel
+            key={"orig." + index}
+            flaeche={flaeche}
+            editMode={false}
+            flaechenCR={cr ? cr : {}}
+          />
+        );
+        crPanels.push(
+          <FlaechenPanel
+            key={"cr" + index}
+            flaeche={flaeche}
+            display={"cr"}
+            flaechenCR={cr}
+            editMode={false}
+            proofNeeded={
+              needsProofSingleFlaeche(cr) &&
+              !hasAttachment(kassenzeichen.aenderungsanfrage)
+            }
+          />
+        );
+      }
+
+      if (
+        kassenzeichen !== undefined &&
+        kassenzeichen.aenderungsanfrage !== undefined &&
+        kassenzeichen.aenderungsanfrage !== null
+      ) {
+        const annos = kassenzeichen.aenderungsanfrage.geometrien;
+        if (annos !== undefined) {
+          const annoArr = [];
+
+          for (const ak of Object.keys(annos)) {
+            annoArr.push(annos[ak]);
+          }
+
+          const sortedAnnoArr = annoArr.sort(
+            (a, b) => a.properties.numericId - b.properties.numericId
+          );
+          for (const a of sortedAnnoArr) {
+            const ap = (
+              <AnnotationPanel
+                key={"AnnotationPanel" + JSON.stringify(a)}
+                showEverything={true}
+                annotationFeature={a}
+              />
+            );
+
+            annoPanels.push(ap);
+          }
+        }
+      }
+
+      console.log("xxx origPanels", origPanels);
+      console.log("xxx crPanels", crPanels);
+      console.log("xxx annoPanels", annoPanels);
+    }
+  );
 
   return (
     <ModalApplicationMenu
@@ -137,7 +222,47 @@ const CR00MainComponent = ({ localErrorMessages = [] }) => {
                     : "")
                 }
                 sectionBsStyle="warning"
-                sectionContent={<p>keine Änderungsvorschläge vorhanden</p>}
+                sectionContent={
+                  <div>
+                    {origPanels.length > 0 && (
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "1rem",
+                          flexDirection: "column",
+                          width: "100%",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "1rem",
+                          }}
+                        >
+                          <div>
+                            <h4>aktueller Datenbestand</h4>
+                            {origPanels.map((panel) => {
+                              return <div>{panel}</div>;
+                            })}
+                          </div>
+                          {/* <div column grow /> */}
+
+                          <div>
+                            <h4>Ihr Änderungswunsch</h4>
+                            {crPanels.map((panel) => {
+                              return <div>{panel}</div>;
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {origPanels.length === 0 && (
+                      <div style={{ color: "grey" }}>
+                        keine Änderungsvorschläge vorhanden
+                      </div>
+                    )}
+                  </div>
+                }
               />,
               <Section
                 key="sectionKey2"
