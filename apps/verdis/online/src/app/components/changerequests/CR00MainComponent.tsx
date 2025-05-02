@@ -6,6 +6,7 @@ import ModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMe
 import Section from "react-cismap/topicmaps/menu/Section";
 import Introduction from "./CR05Introduction";
 import {
+  addChangeRequestMessage,
   getKassenzeichen,
   getNumberOfPendingChanges,
 } from "../../../store/slices/kassenzeichen";
@@ -201,7 +202,19 @@ const CR00MainComponent = ({ localErrorMessages = [] }) => {
                       messages={messages}
                       hideSystemMessages={hideSystemMessages}
                     />
-                    {/* <ConversationInput /> */}
+                    <ConversationInput
+                      setDraft={(draftText, attachments) => {
+                        const msg = {
+                          typ: "CITIZEN",
+                          timestamp: Date.now(),
+                          nachricht: draftText,
+                          draft: true,
+                          anhang: attachments,
+                        };
+
+                        dispatch(addChangeRequestMessage(msg));
+                      }}
+                    />
                   </>
                 }
               />,

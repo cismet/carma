@@ -499,7 +499,9 @@ export function removeAnnotation(annotation) {
 }
 
 export function addChangeRequestMessage(msg) {
+  console.log("xxx addChangeRequestMessage", msg);
   return function (dispatch, getState) {
+    console.log("xxx addChangeRequestMessage funct");
     const kassenzeichen = getState().kassenzeichen;
     const newKassz = JSON.parse(JSON.stringify(kassenzeichen));
 
