@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import L from "leaflet";
+import "leaflet-editable";
 
 interface EditModeControlButtonProps {
   mapRef: React.RefObject<any>;
@@ -21,7 +22,11 @@ const EditModeControlButton: React.FC<EditModeControlButtonProps> = ({
   useEffect(() => {
     const map = mapRef.current.leafletMap.leafletElement;
 
-    if (!map || !(map instanceof L.Map)) return;
+    if (!map) return;
+
+    if (!map.editTools) {
+      map.editTools = new L.Editable(map);
+    }
 
     const ControlClass = L.Control.extend({
       options: { position, kind, html },
@@ -47,10 +52,23 @@ const EditModeControlButton: React.FC<EditModeControlButtonProps> = ({
     const control = new ControlClass();
     map.addControl(control);
 
+    map.eachLayer((layer) => {
+      if (
+        layer.feature?.properties?.type === "annotation" &&
+        typeof layer.enableEdit === "function"
+      ) {
+        if (featuresInEditmode) {
+          layer.enableEdit();
+        } else {
+          layer.disableEdit();
+        }
+      }
+    });
+
     return () => {
       map.removeControl(control);
     };
-  }, [mapRef, featuresInEditmode, onFeatureChange, position, html, kind]);
+  }, [mapRef, featuresInEditmode, onFeatureChange]);
 
   return null;
 };

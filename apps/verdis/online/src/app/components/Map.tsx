@@ -28,7 +28,7 @@ import {
   getKassenzeichen,
 } from "../../store/slices/kassenzeichen";
 import CyclingBackgroundButton from "./CyclingBackgroundButton";
-import { ReactNode, useRef } from "react";
+import { ReactNode, useRef, useState } from "react";
 import EditModeControlButton from "./EditModeControlButton";
 
 interface MapProps {
@@ -44,6 +44,7 @@ const Map = ({ children }: MapProps) => {
   const height = useSelector(getHeight);
   const kassenzeichen = useSelector(getKassenzeichen);
   const annotationEditable = uiState.changeRequestsEditMode;
+  const [featuresInEditmode, setFeaturesInEditmode] = useState(false);
 
   function paramsToObject(entries) {
     const result = {};
@@ -210,8 +211,8 @@ const Map = ({ children }: MapProps) => {
       {annotationEditable && (
         <EditModeControlButton
           mapRef={refRoutedMap}
-          featuresInEditmode={annotationEditable}
-          onFeatureChange={(flag) => dispatch(setChangeRequestsEditMode(flag))}
+          featuresInEditmode={featuresInEditmode}
+          onFeatureChange={setFeaturesInEditmode}
         />
       )}
       {children}
