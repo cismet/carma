@@ -25,6 +25,7 @@ import {
 } from "../../utils/kassenzeichenMappingTools";
 import {
   addAnnotation,
+  changeAnnotation,
   getKassenzeichen,
 } from "../../store/slices/kassenzeichen";
 import CyclingBackgroundButton from "./CyclingBackgroundButton";
@@ -85,6 +86,10 @@ const Map = ({ children }: MapProps) => {
     dispatch(addAnnotation(feature));
   };
 
+  const handleFeatureAfterEditing = (feature) => {
+    dispatch(changeAnnotation(feature));
+  };
+
   const mapStyle = {
     height: height - 55,
     cursor: "grab",
@@ -99,7 +104,7 @@ const Map = ({ children }: MapProps) => {
       }
       editable={true}
       onFeatureCreation={handleFeatureCreation}
-      // onFeatureChangeAfterEditing={this.onFeatureChange}
+      onFeatureChangeAfterEditing={handleFeatureAfterEditing}
       snappingEnabled={true}
       key={"leafletRoutedMap0 + "}
       referenceSystem={MappingConstants.crs25832}
