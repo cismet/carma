@@ -109,7 +109,7 @@ const LayerItem = ({
 
     if (carmaConf?.opendata) {
       tmpLinks.push({
-        url: carmaConf.opendata,
+        url: carmaConf.opendata as string,
         text:
           layer.type === "link"
             ? "Beschreibung im Open-Data-Portal"

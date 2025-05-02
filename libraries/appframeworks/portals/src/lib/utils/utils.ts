@@ -110,7 +110,7 @@ export const parseToMapLayer = async (
         maxzoom: 24,
       };
       if (!isJson(carmaConf.vectorStyle)) {
-        zoom = await fetch(carmaConf.vectorStyle)
+        zoom = await fetch(carmaConf.vectorStyle as string)
           .then((response) => {
             return response.json();
           })
@@ -141,7 +141,7 @@ export const parseToMapLayer = async (
         visible: visible,
         props: {
           style: isJson(carmaConf.vectorStyle)
-            ? JSON.parse(carmaConf.vectorStyle)
+            ? JSON.parse(carmaConf.vectorStyle as string)
             : carmaConf.vectorStyle,
           minZoom: Number(carmaConf.minZoom) || zoom?.minzoom,
           maxZoom: Number(carmaConf.maxZoom) || zoom?.maxzoom,
@@ -168,9 +168,9 @@ export const parseToMapLayer = async (
             queryable: layer.queryable,
             useInFeatureInfo: true,
             props: {
-              url: carmaConf?.source || layer.props.url,
+              url: (carmaConf?.source as string) || layer.props.url,
               legend: layer.props.Style?.[0].LegendURL,
-              name: carmaConf?.sourceLayer || layer.props.Name,
+              name: (carmaConf?.sourceLayer as string) || layer.props.Name,
               maxZoom: layer.maxZoom,
               minZoom: layer.minZoom,
               featureInfoUrl: layer.props.url,

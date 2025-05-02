@@ -40,7 +40,7 @@ export const tabItems = (
             </a>
           )}
           {currentLayer?.conf?.opendata && (
-            <a href={currentLayer.conf.opendata} target="_blank">
+            <a href={currentLayer.conf.opendata as string} target="_blank">
               Datenquelle im Open-Data-Portal Wuppertal
             </a>
           )}
