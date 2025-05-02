@@ -9,6 +9,7 @@ interface EditModeControlButtonProps {
   position?: L.ControlPosition;
   html?: string;
   kind?: string;
+  selectedFeatureId: string | undefined;
 }
 
 const EditModeControlButton: React.FC<EditModeControlButtonProps> = ({
@@ -18,6 +19,7 @@ const EditModeControlButton: React.FC<EditModeControlButtonProps> = ({
   position = "topleft",
   html = '<i class="fas fa-edit"></i>',
   kind = "xxx",
+  selectedFeatureId,
 }) => {
   useEffect(() => {
     const map = mapRef.current.leafletMap.leafletElement;
@@ -52,12 +54,14 @@ const EditModeControlButton: React.FC<EditModeControlButtonProps> = ({
     const control = new ControlClass();
     map.addControl(control);
 
+    console.log("xxx selectedFeatureId", selectedFeatureId);
+
     map.eachLayer((layer) => {
       if (
         layer.feature?.properties?.type === "annotation" &&
-        typeof layer.enableEdit === "function"
+        layer.feature !== undefined
       ) {
-        if (featuresInEditmode) {
+        if (layer.feature?.id === selectedFeatureId) {
           layer.enableEdit();
         } else {
           layer.disableEdit();
@@ -68,7 +72,7 @@ const EditModeControlButton: React.FC<EditModeControlButtonProps> = ({
     return () => {
       map.removeControl(control);
     };
-  }, [mapRef, featuresInEditmode, onFeatureChange]);
+  }, [mapRef, featuresInEditmode, onFeatureChange, selectedFeatureId]);
 
   return null;
 };
