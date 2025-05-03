@@ -218,9 +218,7 @@ const Map = ({ children }: MapProps) => {
           mapRef={refRoutedMap}
           featuresInEditmode={featuresInEditmode}
           onFeatureChange={setFeaturesInEditmode}
-          selectedFeatureId={
-            mapping.featureCollection[mapping?.selectedIndex]?.id
-          }
+          selectedFeatureId={mapping.featureCollection[mapping?.selectedIndex]}
         />
       )}
       {children}
