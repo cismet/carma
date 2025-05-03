@@ -9,7 +9,7 @@ interface EditModeControlButtonProps {
   position?: L.ControlPosition;
   html?: string;
   kind?: string;
-  selectedFeatureId: string | undefined;
+  selectedFeatureId: any;
 }
 
 const EditModeControlButton: React.FC<EditModeControlButtonProps> = ({
@@ -59,7 +59,7 @@ const EditModeControlButton: React.FC<EditModeControlButtonProps> = ({
         layer.feature?.properties?.type === "annotation" &&
         layer.feature !== undefined
       ) {
-        if (layer.feature?.id === selectedFeatureId) {
+        if (layer.feature?.id === selectedFeatureId?.id) {
           layer.enableEdit();
         } else {
           layer.disableEdit();
@@ -82,7 +82,7 @@ const EditModeControlButton: React.FC<EditModeControlButtonProps> = ({
       map.eachLayer((layer: any) => {
         if (
           layer.feature?.properties?.type === "annotation" &&
-          layer.feature.id === selectedFeatureId
+          layer.feature.id === selectedFeatureId?.id
         ) {
           layer.enableEdit();
         }
@@ -91,10 +91,6 @@ const EditModeControlButton: React.FC<EditModeControlButtonProps> = ({
 
     map.on("moveend", reapplyEdit);
     map.on("zoomend", reapplyEdit);
-    map.on("editable:vertex:dragend", () => {
-      console.log("xxx drag end");
-      reapplyEdit();
-    });
 
     return () => {
       map.removeControl(control);
