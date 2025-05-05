@@ -475,48 +475,44 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
                 {nachweisPflichtText()}
               </div>
             )}
-            <table
+            <div
               style={{
-                width: "100%",
+                display: "flex",
+                gap: "1rem",
+                justifyContent: "flex-end",
               }}
-              border={0}
             >
-              <tbody>
-                <tr>
-                  <td width="100%" style={{ paddingRight: 10 }}>
-                    <Button
-                      style={{ width: "200px" }}
-                      id="cmdCloseModalApplicationMenu"
-                      variant="default"
-                      type="submit"
-                      onClick={close}
-                    >
-                      Schließen
-                    </Button>
-                    <div style={{ fontSize: 11 }}>
-                      es gehen kein Änderungen verloren
-                    </div>
-                  </td>
-                  <td width="100%" style={{ verticalAlign: "top" }}>
-                    <Button
-                      style={{ width: "300px" }}
-                      variant={locked === true ? "warning" : "success"}
-                      className="fillButton"
-                      onClick={unlockOrSubmit}
-                      disabled={crDraftCounter === 0 || needsProofResult}
-                    >
-                      <Icon name={locked === true ? "lock" : "unlock"} />{" "}
-                      {crDraftCounter === 0
-                        ? "Keine aktuelle Änderung"
-                        : locked === true
-                        ? "Entsperren zum Einreichen"
-                        : "Einreichen der Änderungswünsche"}
-                    </Button>
-                    <div style={{ fontSize: 11 }} />
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+              <div>
+                <Button
+                  style={{ width: "200px" }}
+                  id="cmdCloseModalApplicationMenu"
+                  variant="default"
+                  type="submit"
+                  onClick={close}
+                >
+                  Schließen
+                </Button>
+                <div style={{ fontSize: 11, textAlign: "end" }}>
+                  es gehen kein Änderungen verloren
+                </div>
+              </div>
+              <div>
+                <Button
+                  style={{ width: "300px" }}
+                  variant={locked === true ? "warning" : "success"}
+                  className="fillButton"
+                  onClick={unlockOrSubmit}
+                  disabled={crDraftCounter === 0 || needsProofResult}
+                >
+                  <Icon name={locked === true ? "lock" : "unlock"} />{" "}
+                  {crDraftCounter === 0
+                    ? "Keine aktuelle Änderung"
+                    : locked === true
+                    ? "Entsperren zum Einreichen"
+                    : "Einreichen der Änderungswünsche"}
+                </Button>
+              </div>
+            </div>
           </div>
         )}
         {!crEditMode === true && (
