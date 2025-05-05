@@ -45,7 +45,7 @@ const Map = ({ children }: MapProps) => {
   const height = useSelector(getHeight);
   const kassenzeichen = useSelector(getKassenzeichen);
   const annotationEditable = uiState.changeRequestsEditMode;
-  const [featuresInEditmode, setFeaturesInEditmode] = useState(false);
+  const [featuresInEditMode, setFeaturesInEditMode] = useState(false);
 
   function paramsToObject(entries) {
     const result = {};
@@ -87,6 +87,7 @@ const Map = ({ children }: MapProps) => {
   };
 
   const handleFeatureAfterEditing = (feature) => {
+    console.log("xxx change annotation", feature.id);
     dispatch(changeAnnotation(feature));
   };
 
@@ -216,8 +217,8 @@ const Map = ({ children }: MapProps) => {
       {annotationEditable && (
         <EditModeControlButton
           mapRef={refRoutedMap}
-          featuresInEditmode={featuresInEditmode}
-          onFeatureChange={setFeaturesInEditmode}
+          featuresInEditMode={featuresInEditMode}
+          onFeatureChange={setFeaturesInEditMode}
           selectedFeatureId={mapping.featureCollection[mapping?.selectedIndex]}
         />
       )}

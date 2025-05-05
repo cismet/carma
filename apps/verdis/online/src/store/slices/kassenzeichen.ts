@@ -147,20 +147,38 @@ export const searchByKassenzeichenId = (kassenzeichenId, fitBounds) => {
 };
 
 function storeCR(cr, callback = (payload) => {}) {
+  console.log("xxx storeCR");
   return function (dispatch, getState) {
     dispatch(setCloudStorageStatus(CLOUDSTORAGESTATES.CLOUD_STORAGE_UP));
     const stac = getState().auth.stac;
     const kassenzeichen = getState().kassenzeichen;
+    function sanitizeChangeRequest(cr: any) {
+      const sanitizedGeoms: Record<string, any> = {};
+      Object.entries(cr.geometrien || {}).forEach(
+        ([name, feature]: [string, any]) => {
+          const { selected, inEditMode, ...rest } = feature;
+          sanitizedGeoms[name] = rest;
+        }
+      );
+      return {
+        ...cr,
+        geometrien: sanitizedGeoms,
+      };
+    }
+
+    const cleanCR = sanitizeChangeRequest(cr);
+
     let taskParameters = {
       parameters: {
-        changerequestJson: cr,
+        changerequestJson: cleanCR,
         stac: stac,
         // email: "max.mustermann@cismet.de"
       },
     };
 
-    let fd = new FormData();
+    console.log("xxx fd", taskParameters);
 
+    let fd = new FormData();
     fd.append(
       "taskparams",
       new Blob([JSON.stringify(taskParameters)], {
@@ -168,7 +186,6 @@ function storeCR(cr, callback = (payload) => {}) {
       })
     );
     // const STAC_SERVICE_ = 'https://eneywvj94f7b6.x.pipedream.net/';
-
     const url =
       STAC_SERVICE +
       "/actions/" +
@@ -450,6 +467,7 @@ export function addAnnotation(annotationFeature) {
 
 export function changeAnnotation(annotation) {
   const anno = JSON.parse(JSON.stringify(annotation));
+  console.log("xxx anno", anno);
   const selected = anno.selected;
   const inEditMode = anno.inEditMode;
   delete anno.selected;
@@ -461,6 +479,9 @@ export function changeAnnotation(annotation) {
     if (newKassz.aenderungsanfrage.geometrien !== undefined) {
       newKassz.aenderungsanfrage.geometrien[annotation.properties.name] = anno;
     }
+
+    console.log("xxx newKassz.aenderungsanfrage", newKassz.aenderungsanfrage);
+
     dispatch(storeCR(newKassz.aenderungsanfrage));
 
     newKassz.aenderungsanfrage.geometrien[annotation.properties.name].selected =
