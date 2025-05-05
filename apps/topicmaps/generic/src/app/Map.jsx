@@ -1,4 +1,4 @@
-import { useContext, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 
 import "./App.css";
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -47,10 +47,28 @@ const downloadText = (text, filename) => {
 
   document.body.removeChild(element);
 };
-const Map = ({ config, featureGazData = [], carmaConf }) => {
+const Map = ({ config, featureGazData = [] }) => {
   const [feature, setFeature] = useState(undefined);
   const { selectedFeature } = useContext(FeatureCollectionContext);
+  const [globalHits, setGlobalHits] = useState({});
 
+  // lets assume we will only have vector layers
+  useEffect(() => {
+    console.log("xxx globalHits", globalHits);
+    if (globalHits) {
+      const layers = config.tm.vectorLayers;
+      //iterate layers in reverse order
+      const reversedLayers = [...layers].reverse();
+
+      for (const layer of reversedLayers) {
+        if (globalHits[layer.id] && globalHits[layer.id].length > 0) {
+          console.log("xxx globalHit", globalHits[layer.id][0]);
+          globalHits[layer.id][0].setSelection(true);
+          return;
+        }
+      }
+    }
+  }, [globalHits]);
   const { setAppMenuActiveMenuSection } = useContext(UIDispatchContext);
 
   return (
@@ -158,27 +176,39 @@ const Map = ({ config, featureGazData = [], carmaConf }) => {
         }
       >
         {config.tm.vectorLayers &&
-          config.tm.vectorLayers.map((layer) => {
+          config.tm.vectorLayers.map((layer, index) => {
             return (
               <CismapLayer
                 type="vector"
                 {...layer}
-                additionalLayerUniquePane="vector"
-                additionalLayersFreeZOrder={0}
+                additionalLayerUniquePane={"vector." + index}
+                additionalLayersFreeZOrder={index}
                 selectionEnabled={true}
+                manualSelectionManagement={true}
+                maxSelectionCount={1}
                 onSelectionChanged={(e) => {
-                  const mapping =
-                    config.tm.infoboxMapping ?? carmaConf?.infoboxMapping;
-                  if (e.hits && mapping) {
-                    const selectedVectorFeature = e.hits[0];
-                    const feature = createVectorFeature(
-                      mapping,
-                      selectedVectorFeature
-                    );
+                  console.log("xxx onSelectionChanged", e);
+                  setGlobalHits((old) => {
+                    const ret = { ...old, [layer.id]: e.hits };
+                    return ret;
+                  });
 
-                    setFeature(feature);
+                  console.log("xxx layer", layer, e);
+
+                  if (e.hits && e.hits.length > 0) {
+                    if (e.hits && layer.infoboxMapping) {
+                      const selectedVectorFeature = e.hits[0];
+                      const feature = createVectorFeature(
+                        layer.infoboxMapping,
+                        selectedVectorFeature
+                      );
+
+                      setFeature(feature);
+                    } else {
+                      setFeature(undefined);
+                    }
                   } else {
-                    setFeature(undefined);
+                    console.log("xxx no hits");
                   }
                 }}
               />
