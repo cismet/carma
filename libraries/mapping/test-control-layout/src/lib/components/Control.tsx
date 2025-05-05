@@ -1,20 +1,21 @@
 import { ReactNode, useEffect } from "react";
-import { useControlContext } from "./ControlProvider";
+import { Positions, useControlContext } from "./ControlProvider";
 
 interface ControlProps {
+  position: Positions;
   children: ReactNode;
 }
 
-export function Control({ children }: ControlProps) {
+export function Control({ position, children }: ControlProps) {
   const { addControl, removeControl } = useControlContext();
 
   useEffect(() => {
     // Add this control component when mounted
-    addControl(children);
+    addControl({ position, component: children });
 
     // Remove control when unmounted
     return () => {
-      removeControl(children);
+      removeControl({ position, component: children });
     };
   }, []);
 

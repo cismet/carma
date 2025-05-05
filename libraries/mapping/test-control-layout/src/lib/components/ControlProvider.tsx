@@ -6,12 +6,23 @@ import {
   useEffect,
 } from "react";
 
+export type Positions =
+  | "top-left"
+  | "top-right"
+  | "bottom-left"
+  | "bottom-right";
+
+type Control = {
+  position: Positions;
+  component: ReactNode;
+};
+
 interface ControlContextType {
   setMain: (component: ReactNode) => void;
-  addControl: (component: ReactNode) => void;
-  removeControl: (component: ReactNode) => void;
+  addControl: (component: Control) => void;
+  removeControl: (component: Control) => void;
   main: ReactNode | null;
-  controls: ReactNode[];
+  controls: Control[];
 }
 
 const ControlContext = createContext<ControlContextType | undefined>(undefined);
@@ -26,7 +37,7 @@ export function useControlContext() {
 
 export function ControlProvider({ children }: { children: ReactNode }) {
   const [main, setMain] = useState<ReactNode | null>(null);
-  const [controls, setControls] = useState<ReactNode[]>([]);
+  const [controls, setControls] = useState<Control[]>([]);
 
   // Log when components change
   useEffect(() => {
@@ -38,11 +49,11 @@ export function ControlProvider({ children }: { children: ReactNode }) {
     console.log("Control components:", controls);
   }, [controls]);
 
-  const addControl = (component: ReactNode) => {
+  const addControl = (component: Control) => {
     setControls((prev) => [...prev, component]);
   };
 
-  const removeControl = (component: ReactNode) => {
+  const removeControl = (component: Control) => {
     setControls((prev) => prev.filter((c) => c !== component));
   };
 
