@@ -419,6 +419,7 @@ export const topicMapsConfig: Config = {
         "Satzung",
         "städtebauliche Entwicklung",
         "Bodennutzung",
+        "©iStockphoto.com/KSuhorukov",
       ],
       type: "link",
       thumbnail: bplanThumb,
