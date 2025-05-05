@@ -203,6 +203,9 @@ const slice = createSlice({
     setErrorMessages(state, action) {
       state.localErrorMessages = action.payload;
     },
+    setFebBlob(state, action) {
+      state.febBlob = action.payload;
+    },
   },
 });
 
@@ -227,6 +230,7 @@ export const {
   showChangeRequestsEditView,
   setChangeRequestsEditViewFlaecheAndCR,
   setErrorMessages,
+  setFebBlob,
 } = slice.actions;
 
 export const getConfData = (state) => {
