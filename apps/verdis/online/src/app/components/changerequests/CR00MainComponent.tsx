@@ -461,8 +461,15 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
                 </tr>
               </tbody>
             </table>
-            <div style={{ textAlign: "left", paddingBottom: 15 }}></div>
-
+            <Section
+              key="sectionKey3"
+              // sectionKey="sectionKey3"
+              // activeSectionKey={"sectionKey3"}
+              sectionTitle="eMail Benachrichtigungen aktivieren"
+              sectionBsStyle="info"
+              sectionContent={<></>}
+            />
+            ,
             {needsProofResult && (
               <div
                 style={{
