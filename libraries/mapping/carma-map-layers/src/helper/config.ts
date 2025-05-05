@@ -2,6 +2,9 @@ import { customCategoryToLayers } from "./layerHelper";
 import type { Config, LayerConfig, LayerProps } from "./types";
 import trinkwasserbrunnenThumb from "../thumbnails/trinkwasserbrunnen.jpg";
 import wohnlagenThumb from "../thumbnails/wonhlagen_topicmap.jpg";
+import fnpThumb from "../thumbnails/fnp.png";
+import hitzeThumb from "../thumbnails/hitze.png";
+import bplanThumb from "../thumbnails/bplan.png";
 
 export const config = {
   Ortho: {
@@ -392,8 +395,7 @@ export const topicMapsConfig: Config = {
         "FNP-Änderungsverfahren",
       ],
       type: "link",
-      thumbnail:
-        "https://www.wuppertal.de/geoportal/geoportal_vorschau/planung_r102_fnp_haupt_fl.png",
+      thumbnail: fnpThumb,
 
       url: "https://digital-twin-wuppertal-live.github.io/fnp-inspektor/#/",
       keywords: [
@@ -419,8 +421,7 @@ export const topicMapsConfig: Config = {
         "Bodennutzung",
       ],
       type: "link",
-      thumbnail:
-        "https://www.wuppertal.de/geoportal/geoportal_vorschau/planung_bverfahren-r.png",
+      thumbnail: bplanThumb,
 
       url: "https://digital-twin-wuppertal-live.github.io/bplan-auskunft/",
       keywords: [
@@ -599,8 +600,7 @@ export const topicMapsConfig: Config = {
         "Treibausgasemissionen",
       ],
       type: "link",
-      thumbnail:
-        "https://www.wuppertal.de/geoportal/geoportal_vorschau/umwelt_Klimafunktion.png",
+      thumbnail: hitzeThumb,
       url: "https://digital-twin-wuppertal-live.github.io/hitzeinderstadt/",
       serviceName: "wuppTopicMaps",
     },
