@@ -131,44 +131,52 @@ function App({ name }) {
       if (!vectorLayers || !Array.isArray(vectorLayers)) {
         log('No vectorLayers found in projectConfig.tm.vectorLayers');
       } else {
+        // Fast-path: Add minimal info for layers with style property
         for (const layer of vectorLayers) {
-          log(`[DEBUG] Processing layer:`, layer);
+          if (layer.style) {
+            layerInfoObj[layer.capabilitiesLayer] = {
+              ...(layer.id ? { id: layer.id } : {}),
+              ...(layer.style ? { style: layer.style } : {}),
+              ...(layer.infoboxMapping ? { infoboxMapping: layer.infoboxMapping } : {}),
+              ...(layer.opacity ? { opacity: layer.opacity } : {}),
+              // Add any other config-provided info you want to be immediately available
+            };
+          }
+        }
+        setLayerInformation(layerInfoObj); // Initial render with minimal info
+
+        // Async enrichment: fetch capabilities and merge
+        for (const layer of vectorLayers) {
           if (layer.capabilities && layer.capabilitiesLayer) {
-            try {
-              log(`[DEBUG] Fetching capabilities for: ${layer.capabilities}, layer: ${layer.capabilitiesLayer}`);
-              const capabilitiesText = await fetch(layer.capabilities)
-                .then((response) => response.text());
-              log(`[DEBUG] Capabilities XML fetched for ${layer.capabilitiesLayer}:\n${capabilitiesText.substring(0, 500)}`);
-              const fetchedCapabilities = parser.toJSON(capabilitiesText);
-              log(`[DEBUG] Parsed capabilities for ${layer.capabilitiesLayer}:`, fetchedCapabilities);
-              const allLayers = getAllLeafLayers(fetchedCapabilities);
-              log(`[DEBUG] All layers in capabilities:`, allLayers.map(l => l.Name));
-              const targetLayer = allLayers.find((l) => l.Name === layer.capabilitiesLayer);
-              log(`[DEBUG] Target layer found for ${layer.capabilitiesLayer}:`, targetLayer);
-              if (targetLayer) {
-                const extractedCarmaConf = extractCarmaConfig(targetLayer.KeywordList);
-                const links = [layer.capabilities, extractedCarmaConf?.opendata || undefined].filter((l) => l !== undefined);
-                const extractedInformation = await extractInformation(targetLayer);
-                layerInfoObj[layer.capabilitiesLayer] = {
-                  ...extractedInformation,
-                  ...(layer.infoboxMapping ? { infoboxMapping: layer.infoboxMapping } : {}),
-                  links,
-                  carmaConf: extractedCarmaConf,
-                  ...(layer.id ? { id: layer.id } : {}),
-                };
-              } else {
-                log(`[DEBUG] No matching targetLayer found for ${layer.capabilitiesLayer}`);
+            (async () => {
+              try {
+                const capabilitiesText = await fetch(layer.capabilities).then((response) => response.text());
+                const fetchedCapabilities = parser.toJSON(capabilitiesText);
+                const allLayers = getAllLeafLayers(fetchedCapabilities);
+                const targetLayer = allLayers.find((l) => l.Name === layer.capabilitiesLayer);
+                if (targetLayer) {
+                  const extractedCarmaConf = extractCarmaConfig(targetLayer.KeywordList);
+                  const links = [layer.capabilities, extractedCarmaConf?.opendata || undefined].filter((l) => l !== undefined);
+                  const extractedInformation = await extractInformation(targetLayer);
+                  setLayerInformation((prev) => ({
+                    ...prev,
+                    [layer.capabilitiesLayer]: {
+                      ...prev[layer.capabilitiesLayer], // Preserve fast-path info
+                      ...extractedInformation,
+                      links,
+                      carmaConf: extractedCarmaConf,
+                      ...(layer.id ? { id: layer.id } : {}),
+                    },
+                  }));
+                }
+              } catch (e) {
+                log(`Failed to fetch capabilities for ${layer.capabilitiesLayer}: ${e}`);
               }
-            } catch (e) {
-              log(`Failed to fetch capabilities for ${layer.capabilitiesLayer}: ${e}`);
-            }
-          } else {
-            log(`[DEBUG] Layer missing capabilities or capabilitiesLayer:`, layer);
+            })();
           }
         }
       }
-      log('[DEBUG] Final layerInfoObj:', layerInfoObj);
-      setLayerInformation(layerInfoObj);
+
 
       if (projectConfig?.tm?.noFeatureCollection === true) {
         config.tm.applicationMenuSkipFilterTitleSettings = true;
@@ -333,7 +341,6 @@ function App({ name }) {
       };
       cpConfig.items = config.features;
     }
-    console.log("xxx LayerInfo", layerInformation);
 
     return (
       <>

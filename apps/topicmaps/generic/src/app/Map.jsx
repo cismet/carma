@@ -54,7 +54,7 @@ const Map = ({ config, featureGazData = [] }) => {
 
   // lets assume we will only have vector layers
   useEffect(() => {
-    console.log("xxx globalHits", globalHits);
+    
     if (globalHits) {
       const layers = config.tm.vectorLayers;
       //iterate layers in reverse order
@@ -62,7 +62,7 @@ const Map = ({ config, featureGazData = [] }) => {
 
       for (const layer of reversedLayers) {
         if (globalHits[layer.id] && globalHits[layer.id].length > 0) {
-          console.log("xxx globalHit", globalHits[layer.id][0]);
+          
           globalHits[layer.id][0].setSelection(true);
           return;
         }
@@ -187,13 +187,13 @@ const Map = ({ config, featureGazData = [] }) => {
                 manualSelectionManagement={true}
                 maxSelectionCount={1}
                 onSelectionChanged={(e) => {
-                  console.log("xxx onSelectionChanged", e);
+                  
                   setGlobalHits((old) => {
                     const ret = { ...old, [layer.id]: e.hits };
                     return ret;
                   });
 
-                  console.log("xxx layer", layer, e);
+                  
 
                   if (e.hits && e.hits.length > 0) {
                     if (e.hits && layer.infoboxMapping) {
@@ -208,7 +208,7 @@ const Map = ({ config, featureGazData = [] }) => {
                       setFeature(undefined);
                     }
                   } else {
-                    console.log("xxx no hits");
+                    
                   }
                 }}
               />
