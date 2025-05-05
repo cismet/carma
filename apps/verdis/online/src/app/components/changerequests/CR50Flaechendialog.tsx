@@ -17,7 +17,7 @@ import Form from "react-bootstrap/Form";
 
 const CR00 = ({
   visible,
-  //   height,
+  height,
   showChangeRequestMenu = (arg: boolean) => {},
   flaeche = {},
   flaechenCR = {},
@@ -32,7 +32,7 @@ const CR00 = ({
   const modalBodyStyle = {
     overflowY: "auto",
     overflowX: "hidden",
-    // maxHeight: height - 200,
+    maxHeight: height - 200,
   };
   const close = () => {
     if (tmpAttachments.length > 0) {
@@ -71,6 +71,7 @@ const CR00 = ({
         style={{
           zIndex: 3000000000,
         }}
+        size="lg"
         height="100%"
         show={visible}
         onHide={cancel}
@@ -83,7 +84,7 @@ const CR00 = ({
           </Modal.Title>
         </Modal.Header>
         <Modal.Body
-          //   style={modalBodyStyle}
+          style={modalBodyStyle}
           id="myMenu"
           key={"applicationMenuActiveKey"}
         >

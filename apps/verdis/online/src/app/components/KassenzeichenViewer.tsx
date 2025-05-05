@@ -429,7 +429,7 @@ const KassenzeichenViewer = () => {
         deleteAnnotation={this.props.kassenzeichenActions.removeAnnotation}
       /> */}
       <ChangeRequestEditView
-        // height={mapHeight + 10}
+        height={mapHeight + 10}
         visible={uiState.changeRequestEditViewVisible}
         showChangeRequestMenu={(storeIt) => {
           if (storeIt === true) {
