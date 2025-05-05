@@ -38,7 +38,7 @@ import { colorDraft } from "../../utils/kassenzeichenHelper";
 import Waiting from "./Waiting";
 import { useRef } from "react";
 import "./navbar.css";
-import { logout } from "../../store/slices/auth";
+import { getStac, logout } from "../../store/slices/auth";
 import { tooltips } from "@carma-collab/wuppertal/verdis-online";
 import type { OverlayTriggerType } from "react-bootstrap/esm/OverlayTrigger";
 import type { UnknownAction } from "redux";
@@ -48,6 +48,7 @@ const VerdisOnlineAppNavbar = () => {
   const helpRef = useRef(null);
   const kassenzeichen = useSelector(getKassenzeichen);
   const uiState = useSelector(getUiState);
+  const stac = useSelector(getStac);
 
   const crCounter = getNumberOfPendingChanges(kassenzeichen.aenderungsanfrage);
   let kasszLabel = "Kassenzeichen: ";
@@ -80,6 +81,26 @@ const VerdisOnlineAppNavbar = () => {
   } else {
     pdfIconStyle = { color: "grey" };
   }
+
+  const handleDownloadFEB = () => {
+    console.log("xxx uiState.febBlob", uiState.febBlob);
+    let link = document.createElement("a");
+    link.href = window.URL.createObjectURL(uiState.febBlob);
+    link.download = "FEB." + kassenzeichennummer + ".STAC." + stac + ".pdf";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    if (uiState.febBlob !== null) {
+      // let link = document.createElement("a");
+      // link.href = window.URL.createObjectURL(uiState.febBlob);
+      // link.download = "FEB." + kassenzeichennummer + ".STAC." + stac + ".pdf";
+      // document.body.appendChild(link);
+      // link.click();
+      // document.body.removeChild(link);
+    } else {
+      // setWaitForFEB(true);
+    }
+  };
 
   return (
     <div>
@@ -179,7 +200,7 @@ const VerdisOnlineAppNavbar = () => {
               </li>
               <li role="presentation">
                 <a
-                  href="#"
+                  // href="#"
                   role="button"
                   style={{
                     color: "#9d9d9d",
@@ -195,7 +216,7 @@ const VerdisOnlineAppNavbar = () => {
                   <FontAwesomeIcon
                     icon={faFilePdf}
                     style={pdfIconStyle}
-                    onClick={() => console.log("xxx download")}
+                    onClick={handleDownloadFEB}
                   />
                   {menuIsHidden ? "   " + lblDownLoadFeb : ""}
                 </a>
