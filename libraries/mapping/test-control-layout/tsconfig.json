@@ -1,0 +1,10 @@
+{
+  "extends": "../../../tsconfig.legacy.base.json",
+  "compilerOptions": {},
+  "files": [],
+  "references": [
+    {
+      "path": "./tsconfig.storybook.json"
+    }
+  ]
+}
