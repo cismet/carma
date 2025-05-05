@@ -108,14 +108,19 @@ const CR00 = ({
               <div
                 style={{
                   display: "flex",
-                  gap: "1rem",
+                  flexDirection: "row",
+                  justifyContent: "space-around",
+                  alignItems: "flex-start",
+                  minHeight: "0px",
+                  minWidth: "0px",
                 }}
               >
-                <div>
+                <div style={{ flex: "1 1 auto" }}>
                   <div>aktueller Datenbestand</div>
                   <FlaechenPanel flaeche={flaeche} editMode={false} />
                 </div>
-                <div>
+                <div style={{ flex: "1 1 auto" }} />
+                <div style={{ flex: "1 1 auto" }}>
                   <div>Ihr Änderungswunsch</div>
                   <FlaechenPanel
                     key={"cr"}
