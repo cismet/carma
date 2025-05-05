@@ -9,17 +9,18 @@
         "_style":"wohnlagen2024@https://maps.wuppertal.de/immo?service=WMS&request=GetCapabilities&version=1.1.1",
         "style": "https://tiles.cismet.de/wohnlagen2024/style.json",
         "opacity": 0.5,
-        "infoboxMapping": [
+        "_infoboxMapping": [
           "function createInfoBoxInfo(p) { let color = '#006c72'; switch(p.WERT) { case 1: color = '#FF0000'; break; case 2: color = '#FFC000'; break; case 3: color = '#92D050'; break; case 4: color = '#00C5FF'; break; } const info = { title: p.Wohnlage, headerColor: color, header: 'Wohnlagen 2024', }; return info; }"
         ],
-         "capabilities": "https://maps.wuppertal.de/immo?service=WMS&request=GetCapabilities&version=1.1.1",
-    "capabilitiesLayer": "wohnlagen2024"
-      },{
+        "capabilities": "https://maps.wuppertal.de/immo?service=WMS&request=GetCapabilities&version=1.1.1",
+        "capabilitiesLayer": "wohnlagen2024"
+      },
+      {
         "id":"trinkwasser",
         "style": "https://tiles.cismet.de/poi/trinkwasserbrunnen.style.json",
         "capabilities": "https://maps.wuppertal.de/poi?service=WMS&request=GetCapabilities&version=1.1.1",
         "capabilitiesLayer": "poi_trinkwasser",
-        "infoboxMapping": [
+        "_infoboxMapping": [
           "foto: p.foto",
           "headerColor:p.schrift",
           "header:p.signatur==='tw_outdoor' ? 'Trinkwasserbrunnen, Freiluft' : p.signatur==='tw_indoor' ? 'Trinkwasserbrunnen, Gebäude' : p.signatur==='tw_outdoor_inaktiv' ? 'Trinkwasserbrunnen, Freiluft (in Wartung)' : p.signatur==='tw_indoor_inaktiv' ? 'Trinkwasserbrunnen, Gebäude (in Wartung)' : ''",
@@ -33,7 +34,8 @@
         ]
       }
       
-    ]
+    ],
+    "x":[]
   
   }
 }

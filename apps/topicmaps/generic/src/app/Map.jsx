@@ -47,14 +47,13 @@ const downloadText = (text, filename) => {
 
   document.body.removeChild(element);
 };
-const Map = ({ config, featureGazData = [] }) => {
+const Map = ({ config, featureGazData = [], layerInformation = {} }) => {
   const [feature, setFeature] = useState(undefined);
   const { selectedFeature } = useContext(FeatureCollectionContext);
   const [globalHits, setGlobalHits] = useState({});
 
   // lets assume we will only have vector layers
   useEffect(() => {
-    
     if (globalHits) {
       const layers = config.tm.vectorLayers;
       //iterate layers in reverse order
@@ -62,13 +61,21 @@ const Map = ({ config, featureGazData = [] }) => {
 
       for (const layer of reversedLayers) {
         if (globalHits[layer.id] && globalHits[layer.id].length > 0) {
-          
-          globalHits[layer.id][0].setSelection(true);
+          const hit = globalHits[layer.id][0];
+          hit.setSelection(true);
+
+          const infoBoxMapping =
+            layerInformation[layer.capabilitiesLayer]?.carmaConf
+              ?.infoboxMapping;
+          if (infoBoxMapping) {
+            const feature = createVectorFeature(infoBoxMapping, hit);
+            setFeature(feature);
+          }
           return;
         }
       }
     }
-  }, [globalHits]);
+  }, [globalHits, layerInformation]);
   const { setAppMenuActiveMenuSection } = useContext(UIDispatchContext);
 
   return (
@@ -187,29 +194,10 @@ const Map = ({ config, featureGazData = [] }) => {
                 manualSelectionManagement={true}
                 maxSelectionCount={1}
                 onSelectionChanged={(e) => {
-                  
                   setGlobalHits((old) => {
                     const ret = { ...old, [layer.id]: e.hits };
                     return ret;
                   });
-
-                  
-
-                  if (e.hits && e.hits.length > 0) {
-                    if (e.hits && layer.infoboxMapping) {
-                      const selectedVectorFeature = e.hits[0];
-                      const feature = createVectorFeature(
-                        layer.infoboxMapping,
-                        selectedVectorFeature
-                      );
-
-                      setFeature(feature);
-                    } else {
-                      setFeature(undefined);
-                    }
-                  } else {
-                    
-                  }
                 }}
               />
             );

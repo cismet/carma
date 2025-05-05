@@ -129,7 +129,7 @@ function App({ name }) {
       const layerInfoObj = {};
       const vectorLayers = projectConfig.tm?.vectorLayers;
       if (!vectorLayers || !Array.isArray(vectorLayers)) {
-        log('No vectorLayers found in projectConfig.tm.vectorLayers');
+        log("No vectorLayers found in projectConfig.tm.vectorLayers");
       } else {
         // Fast-path: Add minimal info for layers with style property
         for (const layer of vectorLayers) {
@@ -137,27 +137,39 @@ function App({ name }) {
             layerInfoObj[layer.capabilitiesLayer] = {
               ...(layer.id ? { id: layer.id } : {}),
               ...(layer.style ? { style: layer.style } : {}),
-              ...(layer.infoboxMapping ? { infoboxMapping: layer.infoboxMapping } : {}),
+              ...(layer.infoboxMapping
+                ? { infoboxMapping: layer.infoboxMapping }
+                : {}),
               ...(layer.opacity ? { opacity: layer.opacity } : {}),
               // Add any other config-provided info you want to be immediately available
             };
           }
         }
         setLayerInformation(layerInfoObj); // Initial render with minimal info
-
         // Async enrichment: fetch capabilities and merge
         for (const layer of vectorLayers) {
           if (layer.capabilities && layer.capabilitiesLayer) {
             (async () => {
               try {
-                const capabilitiesText = await fetch(layer.capabilities).then((response) => response.text());
+                const capabilitiesText = await fetch(layer.capabilities).then(
+                  (response) => response.text()
+                );
                 const fetchedCapabilities = parser.toJSON(capabilitiesText);
                 const allLayers = getAllLeafLayers(fetchedCapabilities);
-                const targetLayer = allLayers.find((l) => l.Name === layer.capabilitiesLayer);
+                const targetLayer = allLayers.find(
+                  (l) => l.Name === layer.capabilitiesLayer
+                );
                 if (targetLayer) {
-                  const extractedCarmaConf = extractCarmaConfig(targetLayer.KeywordList);
-                  const links = [layer.capabilities, extractedCarmaConf?.opendata || undefined].filter((l) => l !== undefined);
-                  const extractedInformation = await extractInformation(targetLayer);
+                  const extractedCarmaConf = extractCarmaConfig(
+                    targetLayer.KeywordList
+                  );
+                  const links = [
+                    layer.capabilities,
+                    extractedCarmaConf?.opendata || undefined,
+                  ].filter((l) => l !== undefined);
+                  const extractedInformation = await extractInformation(
+                    targetLayer
+                  );
                   setLayerInformation((prev) => ({
                     ...prev,
                     [layer.capabilitiesLayer]: {
@@ -170,13 +182,14 @@ function App({ name }) {
                   }));
                 }
               } catch (e) {
-                log(`Failed to fetch capabilities for ${layer.capabilitiesLayer}: ${e}`);
+                log(
+                  `Failed to fetch capabilities for ${layer.capabilitiesLayer}: ${e}`
+                );
               }
             })();
           }
         }
       }
-
 
       if (projectConfig?.tm?.noFeatureCollection === true) {
         config.tm.applicationMenuSkipFilterTitleSettings = true;
@@ -341,6 +354,7 @@ function App({ name }) {
       };
       cpConfig.items = config.features;
     }
+    console.log("xxx layerInformation", layerInformation);
 
     return (
       <>
@@ -394,6 +408,7 @@ function App({ name }) {
               <Map
                 config={config}
                 featureGazData={featureGazData || []}
+                layerInformation={layerInformation}
               />
             </TopicMapContextProvider>
           </SelectionProvider>
