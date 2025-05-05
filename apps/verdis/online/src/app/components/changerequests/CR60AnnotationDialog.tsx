@@ -25,6 +25,7 @@ const Comp = ({
         }}
         height="100%"
         show={visible}
+        size="lg"
         onHide={close}
         keyboard={false}
       >
