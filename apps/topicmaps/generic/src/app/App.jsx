@@ -125,6 +125,24 @@ function App({ name }) {
       }
       setProjectConfigFound(found);
 
+      // Normalize vectorLayers: if only 'layer' is present, extract 'capabilitiesLayer' and 'capabilities'
+      if (Array.isArray(projectConfig?.tm?.vectorLayers)) {
+        projectConfig.tm.vectorLayers.forEach(layerObj => {
+          if (
+            layerObj.layer &&
+            (!layerObj.capabilities || !layerObj.capabilitiesLayer)
+          ) {
+            const atIdx = layerObj.layer.indexOf('@');
+            if (atIdx > 0) {
+              const capLayer = layerObj.layer.substring(0, atIdx);
+              const caps = layerObj.layer.substring(atIdx + 1);
+              if (!layerObj.capabilitiesLayer) layerObj.capabilitiesLayer = capLayer;
+              if (!layerObj.capabilities) layerObj.capabilities = caps;
+            }
+          }
+        });
+      }
+
       // Per-layer capabilities: build a layerInformation object keyed by capabilitiesLayer
       const layerInfoObj = {};
       const vectorLayers = projectConfig.tm?.vectorLayers;
@@ -198,6 +216,24 @@ function App({ name }) {
       }
       // Deep-merge project config into default config
       merge(config, projectConfig);
+
+      // Normalize vectorLayers: if only 'layer' is present, extract 'capabilitiesLayer' and 'capabilities'
+      if (Array.isArray(config?.tm?.vectorLayers)) {
+        config.tm.vectorLayers.forEach(layerObj => {
+          if (
+            layerObj.layer &&
+            (!layerObj.capabilities || !layerObj.capabilitiesLayer)
+          ) {
+            const atIdx = layerObj.layer.indexOf('@');
+            if (atIdx > 0) {
+              const capLayer = layerObj.layer.substring(0, atIdx);
+              const caps = layerObj.layer.substring(atIdx + 1);
+              if (!layerObj.capabilitiesLayer) layerObj.capabilitiesLayer = capLayer;
+              if (!layerObj.capabilities) layerObj.capabilities = caps;
+            }
+          }
+        });
+      }
 
       console.log(`... mergedConfig:`, config);
 
