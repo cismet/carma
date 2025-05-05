@@ -522,25 +522,33 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
         {!crEditMode === true && (
           <div>
             <AnderungswunscheIntroductionAus />
-            <Button
-              className="pull-left"
-              id="cmdCloseModalApplicationMenu"
-              variant="success"
-              type="submit"
-              onClick={() => {
-                showModalMenu("anleitung");
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "2rem",
               }}
             >
-              Hilfe
-            </Button>
-            <Button
-              id="cmdCloseModalApplicationMenu"
-              variant="primary"
-              type="submit"
-              onClick={close}
-            >
-              Ok
-            </Button>
+              <Button
+                className="pull-left"
+                id="cmdCloseModalApplicationMenu"
+                variant="success"
+                type="submit"
+                onClick={() => {
+                  showModalMenu("anleitung");
+                }}
+              >
+                Hilfe
+              </Button>
+              <Button
+                id="cmdCloseModalApplicationMenu"
+                variant="primary"
+                type="submit"
+                onClick={close}
+              >
+                Ok
+              </Button>
+            </div>
           </div>
         )}
       </Modal.Footer>
