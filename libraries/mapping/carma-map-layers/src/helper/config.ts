@@ -419,11 +419,10 @@ export const topicMapsConfig: Config = {
         "Satzung",
         "städtebauliche Entwicklung",
         "Bodennutzung",
-        "©iStockphoto.com/KSuhorukov",
       ],
       type: "link",
       thumbnail: bplanThumb,
-
+      copyright: "©iStockphoto.com/KSuhorukov",
       url: "https://digital-twin-wuppertal-live.github.io/bplan-auskunft/",
       keywords: [
         "carmaConf://opendata:https://offenedaten-wuppertal.de/dataset/rechtsverbindliche-bebauungspl%C3%A4ne-wuppertal/resource/367ce59c-3770-4edc-923b-8c4df35c8452",

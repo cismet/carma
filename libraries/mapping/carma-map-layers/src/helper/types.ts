@@ -125,6 +125,7 @@ export type Item = {
   description: string;
   tags: string[];
   thumbnail?: string;
+  copyright?: string;
   keywords?: string[];
   icon?: string;
   alternativeIcon?: string;

@@ -57,6 +57,7 @@ const InfoCard = ({
     (layer.type === "collection" && layer.serviceName.includes("discover"));
   const isGenericTopicMap = layer?.name?.startsWith("wuppGenericTopicMaps_");
   const isTopicMap = layer?.name?.startsWith("wuppTopicMaps_");
+  const copyright = layer.copyright;
 
   return (
     <div
@@ -187,11 +188,13 @@ const InfoCard = ({
               )}
             </div>
           </div>
-          {links.length > 0 && (
+          {(links.length > 0 || copyright) && (
             <>
               <div className="h-full w-0 border-r border-gray-300 my-0 hidden sm:block" />
               <div className="flex flex-col gap-0 sm:w-1/4 w-full">
-                <h5 className="font-semibold text-lg">Links</h5>
+                {links.length > 0 && (
+                  <h5 className="font-semibold text-lg">Links</h5>
+                )}
                 {links.map((link, i) => (
                   <a
                     key={`link_${i}`}
@@ -202,6 +205,12 @@ const InfoCard = ({
                     {link.text}
                   </a>
                 ))}
+                {copyright && (
+                  <>
+                    <h5 className="font-semibold text-lg">Bildnachweis</h5>
+                    <p className="text-base text-gray-600">{copyright}</p>
+                  </>
+                )}
               </div>
             </>
           )}
