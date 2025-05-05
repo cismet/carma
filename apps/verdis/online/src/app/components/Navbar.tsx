@@ -83,20 +83,13 @@ const VerdisOnlineAppNavbar = () => {
   }
 
   const handleDownloadFEB = () => {
-    console.log("xxx uiState.febBlob", uiState.febBlob);
-    let link = document.createElement("a");
-    link.href = window.URL.createObjectURL(uiState.febBlob);
-    link.download = "FEB." + kassenzeichennummer + ".STAC." + stac + ".pdf";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
     if (uiState.febBlob !== null) {
-      // let link = document.createElement("a");
-      // link.href = window.URL.createObjectURL(uiState.febBlob);
-      // link.download = "FEB." + kassenzeichennummer + ".STAC." + stac + ".pdf";
-      // document.body.appendChild(link);
-      // link.click();
-      // document.body.removeChild(link);
+      let link = document.createElement("a");
+      link.href = window.URL.createObjectURL(uiState.febBlob);
+      link.download = "FEB." + kassenzeichennummer + ".STAC." + stac + ".pdf";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     } else {
       // setWaitForFEB(true);
     }

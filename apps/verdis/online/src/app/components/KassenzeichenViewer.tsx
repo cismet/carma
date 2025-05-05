@@ -360,14 +360,14 @@ const KassenzeichenViewer = () => {
     <div>
       <Navbar />
       <Waiting
-      // key={
-      //   'Waiting.visible.' +
-      //   this.props.uiState.waitingVisible +
-      //   ' ...message.' +
-      //   this.props.uiState.waitingMessage +
-      //   ' ...type.' +
-      //   this.props.uiState.waitingType
-      // }
+        key={
+          "Waiting.visible." +
+          uiState.waitingVisible +
+          " ...message." +
+          uiState.waitingMessage +
+          " ...type." +
+          uiState.waitingType
+        }
       />
       <HelpAndSettings />
       <ChangeRequests />
