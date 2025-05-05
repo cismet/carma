@@ -64,6 +64,12 @@ const CR00 = ({
     return flaeche.anteil !== undefined && flaeche.anteil !== null;
   };
 
+  const titleStyle = {
+    fontSize: "18px",
+    marginTop: "10px",
+    marginBottom: "10px",
+  };
+
   if (visible !== false) {
     const crInfo = getProcessedFlaechenCR(flaeche, flaechenCR);
     return (
@@ -116,12 +122,12 @@ const CR00 = ({
                 }}
               >
                 <div style={{ flex: "1 1 auto" }}>
-                  <div>aktueller Datenbestand</div>
+                  <div style={titleStyle}>aktueller Datenbestand</div>
                   <FlaechenPanel flaeche={flaeche} editMode={false} />
                 </div>
                 <div style={{ flex: "1 1 auto" }} />
                 <div style={{ flex: "1 1 auto" }}>
-                  <div>Ihr Änderungswunsch</div>
+                  <div style={titleStyle}>Ihr Änderungswunsch</div>
                   <FlaechenPanel
                     key={"cr"}
                     flaeche={flaeche}
