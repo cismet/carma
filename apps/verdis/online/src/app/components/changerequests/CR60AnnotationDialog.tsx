@@ -17,7 +17,7 @@ const Comp = ({
     showAnnotationEditView(false);
   };
 
-  if (visible !== false && annotationFeature !== {}) {
+  if (visible !== false) {
     return (
       <Modal
         style={{

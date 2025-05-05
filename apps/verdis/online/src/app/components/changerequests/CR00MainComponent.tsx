@@ -173,6 +173,12 @@ const CR00MainComponent = ({ localErrorMessages = [] }) => {
     }
   };
 
+  const titleStyle = {
+    fontSize: "18px",
+    marginTop: "10px",
+    marginBottom: "10px",
+  };
+
   return (
     <ModalApplicationMenu
       menuIcon={"edit"}
@@ -295,16 +301,16 @@ const CR00MainComponent = ({ localErrorMessages = [] }) => {
                             gap: "1rem",
                           }}
                         >
-                          <div>
-                            <h4>aktueller Datenbestand</h4>
+                          <div style={{ flex: "1 1 auto" }}>
+                            <div style={titleStyle}>aktueller Datenbestand</div>
                             {origPanels.map((panel) => {
                               return <div>{panel}</div>;
                             })}
                           </div>
-                          {/* <div column grow /> */}
+                          <div style={{ flex: "1 1 auto" }} />
 
-                          <div>
-                            <h4>Ihr Änderungswunsch</h4>
+                          <div style={{ flex: "1 1 auto" }}>
+                            <div style={titleStyle}>Ihr Änderungswunsch</div>
                             {crPanels.map((panel) => {
                               return <div>{panel}</div>;
                             })}
