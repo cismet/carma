@@ -101,10 +101,14 @@ const VerdisOnlineAppNavbar = () => {
   useEffect(() => {
     //dh downloadFeb() wurde aufgerufen aber der Download ist noch nicht fertig
     if (uiState.febBlob === null && uiState.waitingVisible === false) {
-      showInfo("FEB wird erzeugt");
+      console.log("xxx 1");
+      // dispatch(showWaiting(true));
+      // dispatch(showInfo("FEB wird erzeugt"));
     } else if (uiState.febBlob !== null && uiState.waitingVisible === true) {
-      showWaiting(false);
-      setWaitForFEB(false);
+      console.log("xxx 2");
+
+      // showWaiting(false);
+      // setWaitForFEB(false);
       handleDownloadFEB();
     }
   }, [uiState.waitForFEB]);
