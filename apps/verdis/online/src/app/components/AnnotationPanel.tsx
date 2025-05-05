@@ -140,7 +140,7 @@ const AnnotationPanel = ({
           // border: "3px solid #e3e3e3",
           // padding: 9,
           // borderRadius: 3,
-          height: "auto",
+          backgroundColor: "#f5f5f5",
         }}
       >
         <table style={{ width: "100%" }}>
