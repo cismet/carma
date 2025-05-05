@@ -371,7 +371,7 @@ const KassenzeichenViewer = () => {
         }
       />
       <HelpAndSettings />
-      <ChangeRequests />
+      <ChangeRequests height={mapHeight + 10} />
       {/* <ChangeRequestEditView
         height={mapHeight + 10}
         visible={this.props.uiState.changeRequestEditViewVisible}
