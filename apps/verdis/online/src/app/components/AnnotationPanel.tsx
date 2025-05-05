@@ -88,13 +88,15 @@ const AnnotationPanel = ({
   const anmerkungsTitleColor = colorUnchanged;
 
   let borderStyle = "solid";
-  let borderColor = "#ffffff00";
+  let borderColor = "";
 
   if (annotationFeature.properties.draft === true) {
+    borderStyle = "solid";
     borderColor = colorDraft;
   }
 
   if (selected === true) {
+    borderStyle = "solid";
     borderColor = colorChanged;
   } else {
     borderStyle = "solid";
@@ -103,11 +105,14 @@ const AnnotationPanel = ({
 
   const styleOverride = {
     marginBottom: "5px",
+    // padding: "4px",
     width: "100%",
     height: "100%",
-    borderStyle,
-    borderColor,
+    borderStyle: borderStyle,
+    borderColor: borderColor,
     borderWidth: 3,
+    borderRadius: 3,
+    padding: 9,
   };
 
   const geomType = aFeature.geometry.type;
@@ -130,11 +135,11 @@ const AnnotationPanel = ({
       <div
         style={{
           ...styleOverride,
-          minHeight: 20,
-          backgroundColor: "#f5f5f5",
-          border: "3px solid #e3e3e3",
-          padding: 9,
-          borderRadius: 3,
+          // minHeight: 20,
+          // backgroundColor: "#f5f5f5",
+          // border: "3px solid #e3e3e3",
+          // padding: 9,
+          // borderRadius: 3,
           height: "auto",
         }}
       >
