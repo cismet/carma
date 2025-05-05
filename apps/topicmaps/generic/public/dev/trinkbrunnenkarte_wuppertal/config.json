@@ -6,20 +6,21 @@
     "vectorLayers": [
       {
         "id":"wohnlagen2024",
-        "_style":"wohnlagen2024@https://maps.wuppertal.de/immo?service=WMS&request=GetCapabilities&version=1.1.1",
         "style": "https://tiles.cismet.de/wohnlagen2024/style.json",
         "opacity": 0.5,
         "_infoboxMapping": [
           "function createInfoBoxInfo(p) { let color = '#006c72'; switch(p.WERT) { case 1: color = '#FF0000'; break; case 2: color = '#FFC000'; break; case 3: color = '#92D050'; break; case 4: color = '#00C5FF'; break; } const info = { title: p.Wohnlage, headerColor: color, header: 'Wohnlagen 2024', }; return info; }"
         ],
-        "capabilities": "https://maps.wuppertal.de/immo?service=WMS&request=GetCapabilities&version=1.1.1",
-        "capabilitiesLayer": "wohnlagen2024"
+        "layer":"wohnlagen2024@https://maps.wuppertal.de/immo?service=WMS&request=GetCapabilities&version=1.1.1",
+        "_capabilities": "https://maps.wuppertal.de/immo?service=WMS&request=GetCapabilities&version=1.1.1",
+        "_capabilitiesLayer": "wohnlagen2024"
       },
       {
         "id":"trinkwasser",
         "style": "https://tiles.cismet.de/poi/trinkwasserbrunnen.style.json",
-        "capabilities": "https://maps.wuppertal.de/poi?service=WMS&request=GetCapabilities&version=1.1.1",
-        "capabilitiesLayer": "poi_trinkwasser",
+        "_capabilities": "https://maps.wuppertal.de/poi?service=WMS&request=GetCapabilities&version=1.1.1",
+        "_capabilitiesLayer": "poi_trinkwasser",
+        "layer": "poi_trinkwasser@https://maps.wuppertal.de/poi?service=WMS&request=GetCapabilities&version=1.1.1",
         "_infoboxMapping": [
           "foto: p.foto",
           "headerColor:p.schrift",

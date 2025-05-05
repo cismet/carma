@@ -51,7 +51,6 @@ const Map = ({ config, featureGazData = [], layerInformation = {} }) => {
   const [feature, setFeature] = useState(undefined);
   const { selectedFeature } = useContext(FeatureCollectionContext);
   const [globalHits, setGlobalHits] = useState({});
-
   // lets assume we will only have vector layers
   useEffect(() => {
     if (globalHits) {
