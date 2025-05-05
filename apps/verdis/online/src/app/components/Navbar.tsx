@@ -192,7 +192,11 @@ const VerdisOnlineAppNavbar = () => {
                     paddingBottom: "15px",
                   }}
                 >
-                  <FontAwesomeIcon icon={faFilePdf} style={pdfIconStyle} />
+                  <FontAwesomeIcon
+                    icon={faFilePdf}
+                    style={pdfIconStyle}
+                    onClick={() => console.log("xxx download")}
+                  />
                   {menuIsHidden ? "   " + lblDownLoadFeb : ""}
                 </a>
               </li>
