@@ -4,40 +4,70 @@ import { serviceConfig } from "./config";
 import type { Item, XMLLayer, Layer, Config } from "./types";
 
 export const parseDescription = (description: string) => {
-  const result = { inhalt: "", sichtbarkeit: "", nutzung: "", eignung: "" };
-  const keywords = [
-    "Inhalt:",
-    "Sichtbarkeit:",
-    "Nutzung:",
-    "Verwendungszweck:",
+  if (!description) {
+    return [];
+  }
+
+  const results: { title: string; description: string }[] = [];
+
+  // Define the list of possible titles to look for
+  const possibleTitles = [
+    "Inhalt",
+    "Sichtbarkeit",
+    "Nutzung",
+    "Verwendungszweck",
+    "Implementierung",
   ];
 
-  if (!description) {
-    return result;
-  }
+  const titleMatches: { title: string; fullMatch: string; position: number }[] =
+    [];
 
-  function extractTextAfterKeyword(input, keyword) {
-    const index = input.indexOf(keyword);
-    if (index !== -1) {
-      const startIndex = index + keyword.length;
-      let endIndex = input.length;
-      for (const nextKeyword of keywords) {
-        const nextIndex = input.indexOf(nextKeyword, startIndex);
-        if (nextIndex !== -1 && nextIndex < endIndex) {
-          endIndex = nextIndex;
-        }
-      }
-      return input.slice(startIndex, endIndex).trim();
+  // Find all occurrences of each possible title in the description
+  for (const title of possibleTitles) {
+    const titleWithColon = `${title}:`;
+    let startPos = 0;
+    let pos: number;
+
+    while ((pos = description.indexOf(titleWithColon, startPos)) !== -1) {
+      titleMatches.push({
+        title: title,
+        fullMatch: titleWithColon,
+        position: pos,
+      });
+      startPos = pos + titleWithColon.length;
     }
-    return "";
   }
 
-  result.inhalt = extractTextAfterKeyword(description, "Inhalt:");
-  result.sichtbarkeit = extractTextAfterKeyword(description, "Sichtbarkeit:");
-  result.nutzung = extractTextAfterKeyword(description, "Nutzung:");
-  result.eignung = extractTextAfterKeyword(description, "Verwendungszweck:");
+  titleMatches.sort((a, b) => a.position - b.position);
 
-  return result;
+  if (titleMatches.length === 0) {
+    return [{ title: "Inhalt", description: description.trim() }];
+  }
+
+  // Process each title and extract its description
+  for (let i = 0; i < titleMatches.length; i++) {
+    const currentMatch = titleMatches[i];
+    const currentTitle = currentMatch.fullMatch;
+    const titleWithoutColon = currentMatch.title;
+
+    const titleStartPos = currentMatch.position;
+
+    let nextTitleStartPos = description.length;
+    if (i < titleMatches.length - 1) {
+      nextTitleStartPos = titleMatches[i + 1].position;
+    }
+
+    const descriptionText = description
+      .substring(titleStartPos + currentTitle.length, nextTitleStartPos)
+      .trim();
+
+    results.push({
+      title: titleWithoutColon,
+      description: descriptionText,
+    });
+  }
+
+  return results;
 };
 
 export const flattenLayer = (
