@@ -24,6 +24,7 @@ import {
   hasAttachment,
   kassenzeichenFlaechenSorter,
   needsProof,
+  needsProofSingleFlaeche,
 } from "../../utils/kassenzeichenHelper";
 import FlaechenPanel from "./FlaechenPanel";
 import {
@@ -202,7 +203,7 @@ const KassenzeichenViewer = () => {
         flaeche={flaeche}
         flaechenCR={flaechenCR ? flaechenCR : {}}
         editMode={uiState.changeRequestsEditMode}
-        // proofNeeded={needsProofSingleFlaeche(flaechenCR) && !hasAttachments}
+        proofNeeded={needsProofSingleFlaeche(flaechenCR) && !hasAttachments}
         display={uiState.changeRequestsEditMode === true ? "cr" : "original"}
         showEditCRMenu={() => {
           dispatch(

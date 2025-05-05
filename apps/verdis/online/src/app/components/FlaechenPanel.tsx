@@ -51,6 +51,7 @@ const FlaechenPanel = ({
   const mapping = useSelector(getMapping);
   const dispatch = useDispatch();
   const panelRef = useRef(null);
+  console.log("xxx proof proofNeeded", proofNeeded);
 
   const isFlaecheSelected = (flaeche) => {
     return (
