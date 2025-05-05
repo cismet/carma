@@ -637,7 +637,7 @@ export const topicMapsConfig: Config = {
       title: "Trinkwasserbrunnen-Karte",
       description: `Die Trinkwasserbrunnenkarte Wuppertal ist eine im Auftrag der Stadt Wuppertal von der Firma cismet GmbH, Saarbrücken, betriebene interaktive Internet-Kartenanwendung zur Information über die öffentlich zugänglichen Trinkwasserbrunnen im Wuppertaler Stadtgebiet.`,
       tags: [
-        "TopicMaps",
+        "Generic TopicMaps",
         "POI",
         "Infrastruktur",
         "Klimawandel",
@@ -661,7 +661,7 @@ export const topicMapsConfig: Config = {
       title: "Wohnlagen-Karte",
       description: `Die Wohnlagenkarte Wuppertal ist eine im Auftrag der Stadt Wuppertal von der Firma cismet GmbH, Saarbrücken, betriebene interaktive Internet-Kartenanwendung Ermittlung von Wohnlagen gemäß Nr. 6.9 des qualifizierten Mietspiegels der Stadt Wuppertal für die Ermittlung ortsüblicher Vergleichsmieten. Sie beruht auf der jährlich vom Gutachterausschuss für Grundstückswerte in der Stadt Wuppertal aktualisierten vierstufigen Klassifizierung der Wuppertaler Wohnlagen.`,
       tags: [
-        "TopicMaps",
+        "Generic TopicMaps",
         "Infrastruktur",
         "Gebäude",
         "Wohngebäude",
