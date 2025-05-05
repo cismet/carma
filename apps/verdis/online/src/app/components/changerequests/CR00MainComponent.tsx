@@ -20,7 +20,7 @@ import CRConversation from "../conversations/CRConversation";
 import { useRef, useState } from "react";
 import ConversationInput from "../conversations/ConversationInput";
 import CR20DocumentsPanel from "./CR20DocumentsPanel";
-import { Button } from "react-bootstrap";
+import { Button, Modal } from "react-bootstrap";
 import Toggle from "react-bootstrap-toggle";
 import "./toggle.css";
 import {
@@ -37,7 +37,7 @@ import {
 import AnnotationPanel from "../AnnotationPanel";
 import { Icon } from "react-fa";
 
-const CR00MainComponent = ({ localErrorMessages = [] }) => {
+const CR00MainComponent = ({ localErrorMessages = [], height }) => {
   const uiState = useSelector(getUiState);
   const kassenzeichen = useSelector(getKassenzeichen);
   const dispatch = useDispatch();
@@ -179,15 +179,41 @@ const CR00MainComponent = ({ localErrorMessages = [] }) => {
     marginBottom: "10px",
   };
 
+  const modalBodyStyle = {
+    overflowY: "auto",
+    overflowX: "hidden",
+    // maxHeight: height - (emailSettingsShown ? 480 : 350),
+  };
+
   return (
-    <ModalApplicationMenu
-      menuIcon={"edit"}
-      menuTitle={anderungswunscheSimpleTexts.andrTitle}
-      menuIntroduction={<Introduction />}
-      visible={uiState.changeRequestsMenuVisible}
-      setVisible={(value) => dispatch(showChangeRequests({ visible: value }))}
-      menuSections={
-        crEditMode
+    <Modal
+      style={{
+        zIndex: 3000000000,
+      }}
+      height="100%"
+      bsSize={crEditMode === true ? "large" : undefined} //undefined == mid
+      show={true || visible}
+      onHide={close}
+      keyboard={false}
+      size="xl"
+    >
+      <Modal.Header>
+        <Modal.Title>
+          <div className="pull-left">
+            <Icon name={"edit"} /> {"Änderungswünsche und Kommentare"}
+          </div>
+          {/* <div className="pull-right">
+            <CloudLoadingAttributeIcon value={cloudStorageStatus} />
+          </div> */}
+        </Modal.Title>
+      </Modal.Header>
+      <Modal.Body
+        style={modalBodyStyle}
+        id="myMenu"
+        key={"applicationMenuActiveKey"}
+      >
+        <Introduction />
+        {crEditMode
           ? [
               <table style={{ marginTop: 15, marginBottom: 10 }} width="100%">
                 <tbody>
@@ -349,42 +375,34 @@ const CR00MainComponent = ({ localErrorMessages = [] }) => {
                 sectionBsStyle="danger"
                 sectionContent={<CR20DocumentsPanel documents={documents} />}
               />,
-              <table
-                style={{
-                  width: "100%",
-                }}
-              >
-                <tbody>
-                  <tr>
-                    <td
-                      style={{
-                        textAlign: "left",
-                        verticalAlign: "top",
-                        paddingRight: "30px",
-                      }}
-                    >
-                      <p>
-                        {crDraftCounter > 0 && <b>{draftHint}</b>}
-                        {!(crDraftCounter > 0) && <span>{draftHint}</span>}
-                      </p>
-                      <AnderungswunscheHint />
-                    </td>
-                    <td />
-                  </tr>
-                </tbody>
-              </table>,
-              <Section
-                key="sectionKey3"
-                // sectionKey="sectionKey3"
-                // activeSectionKey={"sectionKey3"}
-                sectionTitle="eMail Benachrichtigungen aktivieren"
-                sectionBsStyle="info"
-                sectionContent={<></>}
-              />,
+              // <table
+              //   style={{
+              //     width: "100%",
+              //   }}
+              // >
+              //   <tbody>
+              //     <tr>
+              //       <td
+              //         style={{
+              //           textAlign: "left",
+              //           verticalAlign: "top",
+              //           paddingRight: "30px",
+              //         }}
+              //       >
+              //         <p>
+              //           {crDraftCounter > 0 && <b>{draftHint}</b>}
+              //           {!(crDraftCounter > 0) && <span>{draftHint}</span>}
+              //         </p>
+              //         <AnderungswunscheHint />
+              //       </td>
+              //       <td />
+              //     </tr>
+              //   </tbody>
+              // </table>,
             ]
           : [
               <div>
-                <AnderungswunscheIntroductionAus />
+                {/* <AnderungswunscheIntroductionAus /> */}
                 {/* <Button
                   className="pull-left"
                   id="cmdCloseModalApplicationMenu"
@@ -405,160 +423,128 @@ const CR00MainComponent = ({ localErrorMessages = [] }) => {
                   Ok
                 </Button> */}
               </div>,
-            ]
-      }
-      // menuFooter={
-      //   <>
-      //     {" "}
-      //     {crEditMode === true && (
-      //       <div>
-      //         <table
-      //           style={{
-      //             width: "100%",
-      //           }}
-      //         >
-      //           <tbody>
-      //             <tr>
-      //               <td
-      //                 style={{
-      //                   textAlign: "left",
-      //                   verticalAlign: "top",
-      //                   paddingRight: "30px",
-      //                 }}
-      //               >
-      //                 <p>
-      //                   {crDraftCounter > 0 && <b>{draftHint}</b>}
-      //                   {!(crDraftCounter > 0) && <span>{draftHint}</span>}
-      //                 </p>
-      //                 <p>
-      //                   Sollten sich nach Abschluss der Bearbeitung Änderungen
-      //                   gegenüber der bisherigen Gebührenerhebung ergeben,
-      //                   erhalten Sie einen Änderungsbescheid durch das
-      //                   Steueramt. Eine Veranlagung findet ggf. rückwirkend
-      //                   statt. Maßgebend ist das Datum des Luftbilds, in dem die
-      //                   Änderung feststellbar ist, aber längsten das laufende
-      //                   und die 4 vorhergegangenen Jahre.
-      //                 </p>
-      //               </td>
-      //               <td />
-      //             </tr>
-      //           </tbody>
-      //         </table>
-      //         <div style={{ textAlign: "left", paddingBottom: 15 }}>
-      //           <Section
-      //             key={"sectionKey0email"}
-      //             name={"sectionKeyemail"}
-      //             style={{ marginBottom: 6 }}
-      //             defaultActiveKey={"none"}
-      //             sectionBsStyle="info"
-      //             sectionTitle={
-      //               ((kassenzeichen.aenderungsanfrage || {}).emailAdresse ===
-      //                 undefined &&
-      //                 "eMail Benachrichtigungen aktivieren") ||
-      //               (!(kassenzeichen.aenderungsanfrage || {})
-      //                 .emailVerifiziert &&
-      //                 "eMail Benachrichtigungen Verifikationscode eingeben") ||
-      //               "eMail Benachrichtigungen verwalten"
-      //             }
-      //             onSelect={() => {
-      //               setEmailSettingsShown(!emailSettingsShown);
-      //               // if (applicationMenuActiveKey === sectionKey) {
-      //               //   setApplicationMenuActiveKey("none");
-      //               // } else {
-      //               //   setApplicationMenuActiveKey(sectionKey);
-      //               // }
-      //             }}
-      //             sectionContent={<></>}
-      //           />
-      //         </div>
+            ]}
+      </Modal.Body>
 
-      //         {needsProofResult && (
-      //           <div
-      //             style={{
-      //               textAlign: "left",
-      //               color: colorNeededProof,
-      //               margin: 2,
-      //               marginBottom: 10,
-      //             }}
-      //           >
-      //             {nachweisPflichtText()}
-      //           </div>
-      //         )}
-      //         <table
-      //           style={{
-      //             width: "100%",
-      //           }}
-      //           border={0}
-      //         >
-      //           <tbody>
-      //             <tr>
-      //               <td width="100%" style={{ paddingRight: 10 }}>
-      //                 <Button
-      //                   style={{ width: "200px" }}
-      //                   id="cmdCloseModalApplicationMenu"
-      //                   variant="default"
-      //                   type="submit"
-      //                   onClick={close}
-      //                 >
-      //                   Schließen
-      //                 </Button>
-      //                 <div style={{ fontSize: 11 }}>
-      //                   es gehen kein Änderungen verloren
-      //                 </div>
-      //               </td>
-      //               <td width="100%" style={{ verticalAlign: "top" }}>
-      //                 <Button
-      //                   style={{ width: "300px" }}
-      //                   variant={locked === true ? "warning" : "success"}
-      //                   className="fillButton"
-      //                   onClick={unlockOrSubmit}
-      //                   disabled={crDraftCounter === 0 || needsProofResult}
-      //                 >
-      //                   <Icon name={locked === true ? "lock" : "unlock"} />{" "}
-      //                   {crDraftCounter === 0
-      //                     ? "Keine aktuelle Änderung"
-      //                     : locked === true
-      //                     ? "Entsperren zum Einreichen"
-      //                     : "Einreichen der Änderungswünsche"}
-      //                 </Button>
-      //                 <div style={{ fontSize: 11 }} />
-      //               </td>
-      //             </tr>
-      //           </tbody>
-      //         </table>
-      //       </div>
-      //     )}
-      //     {!crEditMode === true && (
-      //       <div>
-      //         <p style={{ textAlign: "left" }}>
-      //           Wenn Sie den Änderungsmodus aktivieren, erscheinen in diesem
-      //           Dialog die Steuerelemente mit denen Sie Ihre Änderungen anlegen
-      //           können und weitere Hilfsinformationen erhalten.
-      //         </p>
-      //         <Button
-      //           className="pull-left"
-      //           id="cmdCloseModalApplicationMenu"
-      //           bsStyle="success"
-      //           type="submit"
-      //           onClick={() => {
-      //             showModalMenu("anleitung");
-      //           }}
-      //         >
-      //           Hilfe
-      //         </Button>
-      //         <Button
-      //           id="cmdCloseModalApplicationMenu"
-      //           bsStyle="primary"
-      //           type="submit"
-      //           onClick={close}
-      //         >
-      //           Ok
-      //         </Button>
-      //       </div>
-      //     )}
-      //   </>
-      // }
-    />
+      <Modal.Footer>
+        {crEditMode === true && (
+          <div>
+            <table
+              style={{
+                width: "100%",
+              }}
+            >
+              <tbody>
+                <tr>
+                  <td
+                    style={{
+                      textAlign: "left",
+                      verticalAlign: "top",
+                      paddingRight: "30px",
+                    }}
+                  >
+                    <p>
+                      {crDraftCounter > 0 && <b>{draftHint}</b>}
+                      {!(crDraftCounter > 0) && <span>{draftHint}</span>}
+                    </p>
+                    <p>
+                      Sollten sich nach Abschluss der Bearbeitung Änderungen
+                      gegenüber der bisherigen Gebührenerhebung ergeben,
+                      erhalten Sie einen Änderungsbescheid durch das Steueramt.
+                      Eine Veranlagung findet ggf. rückwirkend statt. Maßgebend
+                      ist das Datum des Luftbilds, in dem die Änderung
+                      feststellbar ist, aber längsten das laufende und die 4
+                      vorhergegangenen Jahre.
+                    </p>
+                  </td>
+                  <td />
+                </tr>
+              </tbody>
+            </table>
+            <div style={{ textAlign: "left", paddingBottom: 15 }}></div>
+
+            {needsProofResult && (
+              <div
+                style={{
+                  textAlign: "left",
+                  color: colorNeededProof,
+                  margin: 2,
+                  marginBottom: 10,
+                }}
+              >
+                {nachweisPflichtText()}
+              </div>
+            )}
+            <table
+              style={{
+                width: "100%",
+              }}
+              border={0}
+            >
+              <tbody>
+                <tr>
+                  <td width="100%" style={{ paddingRight: 10 }}>
+                    <Button
+                      style={{ width: "200px" }}
+                      id="cmdCloseModalApplicationMenu"
+                      variant="default"
+                      type="submit"
+                      onClick={close}
+                    >
+                      Schließen
+                    </Button>
+                    <div style={{ fontSize: 11 }}>
+                      es gehen kein Änderungen verloren
+                    </div>
+                  </td>
+                  <td width="100%" style={{ verticalAlign: "top" }}>
+                    <Button
+                      style={{ width: "300px" }}
+                      variant={locked === true ? "warning" : "success"}
+                      className="fillButton"
+                      onClick={unlockOrSubmit}
+                      disabled={crDraftCounter === 0 || needsProofResult}
+                    >
+                      <Icon name={locked === true ? "lock" : "unlock"} />{" "}
+                      {crDraftCounter === 0
+                        ? "Keine aktuelle Änderung"
+                        : locked === true
+                        ? "Entsperren zum Einreichen"
+                        : "Einreichen der Änderungswünsche"}
+                    </Button>
+                    <div style={{ fontSize: 11 }} />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+        {!crEditMode === true && (
+          <div>
+            <AnderungswunscheIntroductionAus />
+            <Button
+              className="pull-left"
+              id="cmdCloseModalApplicationMenu"
+              variant="success"
+              type="submit"
+              onClick={() => {
+                showModalMenu("anleitung");
+              }}
+            >
+              Hilfe
+            </Button>
+            <Button
+              id="cmdCloseModalApplicationMenu"
+              variant="primary"
+              type="submit"
+              onClick={close}
+            >
+              Ok
+            </Button>
+          </div>
+        )}
+      </Modal.Footer>
+    </Modal>
   );
 };
 
