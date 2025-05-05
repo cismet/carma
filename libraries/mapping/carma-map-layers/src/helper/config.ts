@@ -673,7 +673,7 @@ export const topicMapsConfig: Config = {
       type: "link",
       thumbnail: wohnlagenThumb,
       keywords: [
-        "carmaConf://opendata:https://offenedaten-wuppertal.de/dataset/wohnlagen-wuppertal/resource/c35aec3c-eed2-4c04-9f53-7bcd83f36559",
+        "carmaConf://opendata:https://offenedaten-wuppertal.de/dataset/wohnlagen-wuppertal/resource/610da804-fb6f-4be8-9cfd-5349c13c733f",
       ],
       url: "https://digital-twin-wuppertal-live.github.io/generic-topicmap/#/Wohnlagenkarte_Wuppertal",
       serviceName: "wuppTopicMaps",
