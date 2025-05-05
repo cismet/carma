@@ -49,13 +49,14 @@ const InfoCard = ({
   const { title, description, tags } = layer;
   // @ts-expect-error fix typing
   const legends = layer?.props?.Style?.[0]?.LegendURL;
-  const parsedDescription = parseDescription(description);
+  const parsedDescriptions = parseDescription(description);
   const carmaConf = extractCarmaConfig(layer.keywords);
   const isVectorLayer = carmaConf?.vectorStyle;
   const canFavoriteItem =
     layer.type !== "collection" ||
     (layer.type === "collection" && layer.serviceName.includes("discover"));
   const isGenericTopicMap = layer?.name?.startsWith("wuppGenericTopicMaps_");
+  const isTopicMap = layer?.name?.startsWith("wuppTopicMaps_");
 
   return (
     <div
@@ -143,10 +144,24 @@ const InfoCard = ({
         <div className="flex flex-col sm:flex-row gap-2 w-full h-full overflow-hidden">
           <div className="w-full flex flex-col justify-between overflow-auto">
             <div>
-              <h5 className="font-semibold text-lg">Inhalt</h5>
-              <p className="text-base text-gray-600">
-                {parsedDescription.inhalt || description}
-              </p>
+              {parsedDescriptions.map((description, i) => {
+                if (description.title === "Sichtbarkeit") {
+                  return null;
+                }
+                return (
+                  <>
+                    <h5 className="font-semibold text-lg">
+                      {description.title}
+                    </h5>
+                    <p
+                      className="text-base text-gray-600"
+                      dangerouslySetInnerHTML={{
+                        __html: description.description,
+                      }}
+                    />
+                  </>
+                );
+              })}
               {isGenericTopicMap && (
                 <>
                   <h5 className="font-semibold text-lg">Implementierung</h5>
@@ -159,28 +174,14 @@ const InfoCard = ({
                   </p>
                 </>
               )}
-              {parsedDescription.sichtbarkeit.slice(0, -1) !== "öffentlich" &&
-                parsedDescription.sichtbarkeit.length > 0 && (
-                  <>
-                    <h5 className="font-semibold">Sichtbarkeit</h5>
-                    <p className="text-sm">
-                      {parsedDescription.sichtbarkeit.slice(0, -1)}
-                    </p>
-                  </>
-                )}
-              {parsedDescription.nutzung.length > 0 && (
+              {isTopicMap && (
                 <>
-                  <h5 className="font-semibold">Nutzung</h5>
+                  <h5 className="font-semibold text-lg">Implementierung</h5>
                   <p className="text-base text-gray-600">
-                    {parsedDescription.nutzung}
-                  </p>
-                </>
-              )}
-              {parsedDescription.eignung.length > 0 && (
-                <>
-                  <h5 className="font-semibold">Verwendungszweck</h5>
-                  <p className="text-base text-gray-600">
-                    {parsedDescription.eignung}
+                    Themenspezifische Kartenanwendung im Framework{" "}
+                    <a href="https://github.com/cismet/carma">carma</a>, durch
+                    spezifische Programmierung aus den Daten und Methoden des
+                    DigiTal Zwillings abgeleitet.
                   </p>
                 </>
               )}
