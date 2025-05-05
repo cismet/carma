@@ -132,7 +132,7 @@ const AnnotationPanel = ({
           ...styleOverride,
           minHeight: 20,
           backgroundColor: "#f5f5f5",
-          border: "1px solid #e3e3e3",
+          border: "3px solid #e3e3e3",
           padding: 9,
           borderRadius: 3,
           height: "auto",

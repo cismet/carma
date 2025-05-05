@@ -51,7 +51,6 @@ const FlaechenPanel = ({
   const mapping = useSelector(getMapping);
   const dispatch = useDispatch();
   const panelRef = useRef(null);
-  console.log("xxx proof proofNeeded", proofNeeded);
 
   const isFlaecheSelected = (flaeche) => {
     return (
@@ -87,20 +86,9 @@ const FlaechenPanel = ({
     borderStyle = "solid";
     borderColor = colorChanged;
   } else {
-    // borderStyle = "solid";
-    // borderColor = "#ffffff00";
-    borderColor = proofNeeded ? colorNeededProof : colorDraft;
+    borderStyle = "solid";
+    borderColor = "#ffffff00";
   }
-  let styleOverride = {
-    marginBottom: "5px",
-    padding: "4px",
-    width: "100%",
-    height: "100%",
-    background: background,
-    borderStyle: borderStyle,
-    borderColor: borderColor,
-    borderWidth: 3,
-  };
 
   groesse = flaeche.flaecheninfo.groesse_korrektur;
   anteil = flaeche.anteil;
@@ -115,6 +103,23 @@ const FlaechenPanel = ({
     groesseColor = crInfo.colors.groesse;
     anschlussgradColor = crInfo.colors.anschlussgrad;
     flaechenartColor = crInfo.colors.flaechenart;
+
+    const colorSelected = colorChanged;
+
+    if (flaechenCR.draft === true) {
+      if (selected === true) {
+        borderColor =
+          colorSelected +
+          " " +
+          colorDraft +
+          " " +
+          colorSelected +
+          " " +
+          colorSelected;
+      } else {
+        borderColor = proofNeeded ? colorNeededProof : colorDraft;
+      }
+    }
   }
 
   let area = <div />;
@@ -132,6 +137,18 @@ const FlaechenPanel = ({
   if (flaeche.flaecheninfo.beschreibung) {
     beschreibung = <div>{flaeche.flaecheninfo.beschreibung.beschreibung}</div>;
   }
+
+  let styleOverride = {
+    marginBottom: "5px",
+    // padding: "4px",
+    width: "100%",
+    height: "100%",
+    background: background,
+    borderStyle: borderStyle,
+    borderColor: borderColor,
+    borderWidth: 3,
+    borderRadius: 3,
+  };
 
   useEffect(() => {
     if (selected && panelRef.current) {
