@@ -55,7 +55,7 @@ const InfoCard = ({
   const canFavoriteItem =
     layer.type !== "collection" ||
     (layer.type === "collection" && layer.serviceName.includes("discover"));
-  const isGenericTopicMap = layer.name.startsWith("wuppGenericTopicMaps_");
+  const isGenericTopicMap = layer?.name?.startsWith("wuppGenericTopicMaps_");
 
   return (
     <div
