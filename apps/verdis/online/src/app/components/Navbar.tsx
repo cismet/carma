@@ -28,15 +28,18 @@ import {
 import {
   CLOUDSTORAGESTATES,
   getUiState,
+  setWaitForFEB,
   showChangeRequests,
+  showInfo,
   showSettings,
+  showWaiting,
   toggleChartElements,
   toggleContactElement,
   toggleInfoElements,
 } from "../../store/slices/ui";
 import { colorDraft } from "../../utils/kassenzeichenHelper";
 import Waiting from "./Waiting";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import "./navbar.css";
 import { getStac, logout } from "../../store/slices/auth";
 import { tooltips } from "@carma-collab/wuppertal/verdis-online";
@@ -91,9 +94,20 @@ const VerdisOnlineAppNavbar = () => {
       link.click();
       document.body.removeChild(link);
     } else {
-      // setWaitForFEB(true);
+      dispatch(setWaitForFEB(true));
     }
   };
+
+  useEffect(() => {
+    //dh downloadFeb() wurde aufgerufen aber der Download ist noch nicht fertig
+    if (uiState.febBlob === null && uiState.waitingVisible === false) {
+      showInfo("FEB wird erzeugt");
+    } else if (uiState.febBlob !== null && uiState.waitingVisible === true) {
+      showWaiting(false);
+      setWaitForFEB(false);
+      handleDownloadFEB();
+    }
+  }, [uiState.waitForFEB]);
 
   return (
     <div>

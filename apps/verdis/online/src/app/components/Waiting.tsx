@@ -30,8 +30,15 @@ const Waiting = () => {
       <Modal.Footer />
     );
 
+  console.log("xxx waitingMessage", waitingMessage);
+  console.log("xxx waitingVisible", waitingVisible);
+
   return (
-    <Modal animation={waitingUIAnimation} show={true} onHide={handleClose}>
+    <Modal
+      animation={waitingUIAnimation}
+      show={waitingVisible}
+      onHide={handleClose}
+    >
       <Modal.Header>
         <Modal.Title>{title}</Modal.Title>
       </Modal.Header>

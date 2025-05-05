@@ -154,21 +154,21 @@ const slice = createSlice({
     toggleContactElement(state, action) {
       state.contactElementEnabled = !state.contactElementEnabled;
     },
-    showWaiting(state, action) {
-      if (action.payload.visible && state.waitingVisible) {
-        state.waitingUIAnimation = false;
-      } else {
-        state.waitingUIAnimation = true;
-      }
+    // showWaiting(state, action) {
+    //   if (action.payload.visible && state.waitingVisible) {
+    //     state.waitingUIAnimation = false;
+    //   } else {
+    //     state.waitingUIAnimation = true;
+    //   }
 
-      state.waitingVisible = action.payload.visible;
-      state.waitingMessage = action.payload.message;
-      if (action.payload.waitingType !== null) {
-        state.waitingType = action.payload.waitingType;
-      } else {
-        state.waitingType = WAITING_TYPE_MESSAGE;
-      }
-    },
+    //   state.waitingVisible = action.payload.visible;
+    //   state.waitingMessage = action.payload.message;
+    //   if (action.payload.waitingType !== null) {
+    //     state.waitingType = action.payload.waitingType;
+    //   } else {
+    //     state.waitingType = WAITING_TYPE_MESSAGE;
+    //   }
+    // },
     showSettings(state, action) {
       state.settingsVisible = action.payload.visible;
       state.applicationMenuVisible = action.payload.visible;
@@ -206,6 +206,12 @@ const slice = createSlice({
     setFebBlob(state, action) {
       state.febBlob = action.payload;
     },
+    setWaitForFEB(state, action) {
+      state.waitForFEB = action.payload;
+    },
+    showWaiting(state, action) {
+      state.waitingVisible = action.payload;
+    },
   },
 });
 
@@ -231,6 +237,7 @@ export const {
   setChangeRequestsEditViewFlaecheAndCR,
   setErrorMessages,
   setFebBlob,
+  setWaitForFEB,
 } = slice.actions;
 
 export const getConfData = (state) => {
