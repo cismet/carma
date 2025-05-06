@@ -128,16 +128,17 @@ function App({ name }) {
 
       // Normalize vectorLayers: if only 'layer' is present, extract 'capabilitiesLayer' and 'capabilities'
       if (Array.isArray(projectConfig?.tm?.vectorLayers)) {
-        projectConfig.tm.vectorLayers.forEach(layerObj => {
+        projectConfig.tm.vectorLayers.forEach((layerObj) => {
           if (
             layerObj.layer &&
             (!layerObj.capabilities || !layerObj.capabilitiesLayer)
           ) {
-            const atIdx = layerObj.layer.indexOf('@');
+            const atIdx = layerObj.layer.indexOf("@");
             if (atIdx > 0) {
               const capLayer = layerObj.layer.substring(0, atIdx);
               const caps = layerObj.layer.substring(atIdx + 1);
-              if (!layerObj.capabilitiesLayer) layerObj.capabilitiesLayer = capLayer;
+              if (!layerObj.capabilitiesLayer)
+                layerObj.capabilitiesLayer = capLayer;
               if (!layerObj.capabilities) layerObj.capabilities = caps;
             }
           }
@@ -147,11 +148,19 @@ function App({ name }) {
       // If a layer has no id, set it to md5 hash of the full config string
       if (Array.isArray(projectConfig?.tm?.vectorLayers)) {
         const configHash = md5(JSON.stringify(projectConfig));
-        projectConfig.tm.vectorLayers.forEach(layerObj => {
+        projectConfig.tm.vectorLayers.forEach((layerObj) => {
           if (!layerObj.id) {
             layerObj.id = configHash;
           }
         });
+        // Backwards compatibility: apply tm.infoboxMapping to every vectorLayer if defined and not already set
+        if (Array.isArray(projectConfig.tm.infoboxMapping)) {
+          projectConfig.tm.vectorLayers.forEach((layerObj) => {
+            if (!layerObj.infoboxMapping) {
+              layerObj.infoboxMapping = projectConfig.tm.infoboxMapping;
+            }
+          });
+        }
       }
 
       // Per-layer capabilities: build a layerInformation object keyed by capabilitiesLayer
@@ -230,16 +239,17 @@ function App({ name }) {
 
       // Normalize vectorLayers: if only 'layer' is present, extract 'capabilitiesLayer' and 'capabilities'
       if (Array.isArray(config?.tm?.vectorLayers)) {
-        config.tm.vectorLayers.forEach(layerObj => {
+        config.tm.vectorLayers.forEach((layerObj) => {
           if (
             layerObj.layer &&
             (!layerObj.capabilities || !layerObj.capabilitiesLayer)
           ) {
-            const atIdx = layerObj.layer.indexOf('@');
+            const atIdx = layerObj.layer.indexOf("@");
             if (atIdx > 0) {
               const capLayer = layerObj.layer.substring(0, atIdx);
               const caps = layerObj.layer.substring(atIdx + 1);
-              if (!layerObj.capabilitiesLayer) layerObj.capabilitiesLayer = capLayer;
+              if (!layerObj.capabilitiesLayer)
+                layerObj.capabilitiesLayer = capLayer;
               if (!layerObj.capabilities) layerObj.capabilities = caps;
             }
           }

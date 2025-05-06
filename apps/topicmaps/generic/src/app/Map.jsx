@@ -63,12 +63,14 @@ const Map = ({ config, featureGazData = [], layerInformation = {} }) => {
         if (globalHits[layer.id] && globalHits[layer.id].length > 0) {
           const hit = globalHits[layer.id][0];
           hit.setSelection(true);
+          console.log("layer", layer);
 
-          const infoBoxMapping =
+          const infoboxMapping =
+            layer.infoboxMapping ||
             layerInformation[layer.capabilitiesLayer]?.carmaConf
               ?.infoboxMapping;
-          if (infoBoxMapping) {
-            const feature = createVectorFeature(infoBoxMapping, hit);
+          if (infoboxMapping) {
+            const feature = createVectorFeature(infoboxMapping, hit);
             setFeature(feature);
           }
           return;
