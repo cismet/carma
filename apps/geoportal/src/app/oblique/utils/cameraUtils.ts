@@ -8,14 +8,18 @@ import {
   PerspectiveFrustum,
   Ray,
   type Viewer,
-  Math as CesiumMath,
+  defined,
 } from "cesium";
 import {
   cesiumAnimateFov,
   getOrbitPoint,
   type ViewerAnimationMap,
 } from "@carma-mapping/cesium-engine";
-import type { ObliqueImageRecord, NearestObliqueImageRecord } from "../types";
+import {
+  DerivedExteriorOrientation,
+  enuToEcef,
+} from "./transformExteriorOrientation";
+import { Vector3Arr } from "types/math";
 
 const ENTER_DURATION = 1000;
 const LEAVE_BASE_DURATION = 800;
@@ -26,68 +30,44 @@ const LEAVE_BASE_DURATION = 800;
  * @param imageRecord Oblique image record containing metadata
  * @param onComplete Callback to execute after flight completion
  */
-export const flyToImprovedOrientation = (
+export const flyToExteriorOrientation = (
   viewer: Viewer,
-  imageRecord: ObliqueImageRecord | NearestObliqueImageRecord,
+  exteriorOrientation: DerivedExteriorOrientation,
   onComplete?: () => void
 ): void => {
-  if (!viewer || !imageRecord || !imageRecord.record) {
-    console.debug("Missing required parameters for improved orientation calculation");
-    return;
-  }
-
-  // Get camera position from image record
-  const { centerWGS84 } = imageRecord.record;
-  if (!centerWGS84 || centerWGS84.length < 3) {
-    console.debug("Missing center coordinates in image record");
+  if (
+    !viewer ||
+    !exteriorOrientation ||
+    !exteriorOrientation.position.wgs84 ||
+    !exteriorOrientation.rotation.ecef.direction
+  ) {
+    console.debug(
+      "Missing required parameters for improved orientation calculation",
+      exteriorOrientation,
+      exteriorOrientation.position.wgs84,
+      exteriorOrientation.rotation.ecef.direction
+    );
     return;
   }
 
   // Create position from WGS84 coordinates
-  const [longitude, latitude, height] = centerWGS84;
+  const [longitude, latitude, height] = exteriorOrientation.position.wgs84;
   const position = Cartesian3.fromDegrees(longitude, latitude, height);
 
-  // Look for camera orientation vectors in the global state
-  // This is populated by CameraVectorControls component
-  const cameraState = (window as any).__obliqueCameraState;
-  
-  if (!cameraState) {
-    console.debug("No camera state available from CameraVectorControls");
-    return;
-  }
-
-  const { directionVectorECEF, upVector } = cameraState;
-  
-  if (!directionVectorECEF || !upVector) {
-    console.debug("Missing direction or up vectors in camera state");
-    return;
-  }
-
-  // Prepare vectors for camera orientation
-  const dirVec = new Cartesian3(
-    directionVectorECEF[0],
-    directionVectorECEF[1],
-    directionVectorECEF[2]
-  );
-  
-  const upVec = new Cartesian3(
-    upVector[0],
-    upVector[1],
-    upVector[2]
+  const direction = new Cartesian3(
+    ...exteriorOrientation.rotation.ecef.direction
   );
 
-  // Validate vectors
-  const dirMagnitude = Cartesian3.magnitude(dirVec);
-  const upMagnitude = Cartesian3.magnitude(upVec);
-  
-  if (dirMagnitude < CesiumMath.EPSILON6 || upMagnitude < CesiumMath.EPSILON6) {
-    console.debug("Direction or up vector has near-zero magnitude");
+  const up = new Cartesian3(...exteriorOrientation.rotation.ecef.up);
+
+  if (!defined(direction) || !defined(up)) {
+    console.debug(
+      "Missing direction or up vectors in camera state",
+      direction,
+      up
+    );
     return;
   }
-
-  // Normalize vectors for camera orientation
-  const normalizedDirection = Cartesian3.normalize(dirVec, new Cartesian3());
-  const normalizedUp = Cartesian3.normalize(upVec, new Cartesian3());
 
   // Calculate appropriate flight duration based on distance
   const currentDistanceToCamera = Cartesian3.distance(
@@ -100,14 +80,19 @@ export const flyToImprovedOrientation = (
     Math.min(3, Math.sqrt(Math.abs(currentDistanceToCamera)) / 10)
   );
 
+  // TODO workaround until using actual exterior orientation up vector,
+  // but that one is rotating differently by each camera ID
+  const localEnuUpAxis: Vector3Arr = [0, 0, 1];
+  const upZ = enuToEcef(localEnuUpAxis, position);
+
   // Execute the camera flight
   viewer.camera.flyTo({
     destination: position,
     orientation: {
-      direction: normalizedDirection,
-      up: normalizedUp
+      direction,
+      up: new Cartesian3(...upZ),
     },
-    endTransform: Matrix4.IDENTITY,
+    //endTransform: Matrix4.IDENTITY,
     duration,
     complete: onComplete,
   });

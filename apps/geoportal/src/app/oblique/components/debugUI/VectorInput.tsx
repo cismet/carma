@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Typography, Input } from 'antd';
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { Typography, Input } from "antd";
 
 // Constants for slider behavior
 const SLIDER_MIN = -1.0; // Slider range min
@@ -35,24 +35,30 @@ const VectorAxisSliderControl: React.FC<VectorAxisSliderControlProps> = ({
   const sliderHeight = 150; // Increased to accommodate text input
 
   // Functions for handling mouse events
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isDragging) return;
+  const handleMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (!isDragging) return;
 
-    if (!sliderRef.current) return;
+      if (!sliderRef.current) return;
 
-    const sliderRect = sliderRef.current.getBoundingClientRect();
-    const sliderTop = sliderRect.top;
-    const sliderBottom = sliderRect.bottom;
+      const sliderRect = sliderRef.current.getBoundingClientRect();
+      const sliderTop = sliderRect.top;
+      const sliderBottom = sliderRect.bottom;
 
-    // Calculate relative position (0 at top, 1 at bottom)
-    const relativeY = Math.max(0, Math.min(1, (e.clientY - sliderTop) / (sliderBottom - sliderTop)));
+      // Calculate relative position (0 at top, 1 at bottom)
+      const relativeY = Math.max(
+        0,
+        Math.min(1, (e.clientY - sliderTop) / (sliderBottom - sliderTop))
+      );
 
-    // Convert to slider value (MAX at top, MIN at bottom)
-    const newValue = SLIDER_MAX - relativeY * (SLIDER_MAX - SLIDER_MIN);
+      // Convert to slider value (MAX at top, MIN at bottom)
+      const newValue = SLIDER_MAX - relativeY * (SLIDER_MAX - SLIDER_MIN);
 
-    setSliderValue(newValue);
-    onChangeRate(index, newValue);
-  }, [isDragging, onChangeRate, index]);
+      setSliderValue(newValue);
+      onChangeRate(index, newValue);
+    },
+    [isDragging, onChangeRate, index]
+  );
 
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
@@ -61,37 +67,43 @@ const VectorAxisSliderControl: React.FC<VectorAxisSliderControlProps> = ({
     onChangeRate(index, 0);
 
     // Remove global event listeners
-    document.removeEventListener('mousemove', handleMouseMove);
-    document.removeEventListener('mouseup', handleMouseUp);
+    document.removeEventListener("mousemove", handleMouseMove);
+    document.removeEventListener("mouseup", handleMouseUp);
   }, [onChangeRate, index, handleMouseMove]);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (disabled) return;
-    e.preventDefault();
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      if (disabled) return;
+      e.preventDefault();
 
-    setIsDragging(true);
-    startYRef.current = e.clientY;
+      setIsDragging(true);
+      startYRef.current = e.clientY;
 
-    // Calculate initial value based on vertical position
-    if (sliderRef.current) {
-      const sliderRect = sliderRef.current.getBoundingClientRect();
-      const sliderTop = sliderRect.top;
-      const sliderBottom = sliderRect.bottom;
+      // Calculate initial value based on vertical position
+      if (sliderRef.current) {
+        const sliderRect = sliderRef.current.getBoundingClientRect();
+        const sliderTop = sliderRect.top;
+        const sliderBottom = sliderRect.bottom;
 
-      // Calculate relative position (0 at top, 1 at bottom)
-      const relativeY = Math.max(0, Math.min(1, (e.clientY - sliderTop) / (sliderBottom - sliderTop)));
+        // Calculate relative position (0 at top, 1 at bottom)
+        const relativeY = Math.max(
+          0,
+          Math.min(1, (e.clientY - sliderTop) / (sliderBottom - sliderTop))
+        );
 
-      // Convert to slider value (MAX at top, MIN at bottom)
-      const newValue = SLIDER_MAX - relativeY * (SLIDER_MAX - SLIDER_MIN);
+        // Convert to slider value (MAX at top, MIN at bottom)
+        const newValue = SLIDER_MAX - relativeY * (SLIDER_MAX - SLIDER_MIN);
 
-      setSliderValue(newValue);
-      onChangeRate(index, newValue);
-    }
+        setSliderValue(newValue);
+        onChangeRate(index, newValue);
+      }
 
-    // Add global event listeners
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-  }, [disabled, onChangeRate, index, handleMouseMove, handleMouseUp]);
+      // Add global event listeners
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+    },
+    [disabled, onChangeRate, index, handleMouseMove, handleMouseUp]
+  );
 
   // Update input value when prop value changes
   useEffect(() => {
@@ -106,16 +118,16 @@ const VectorAxisSliderControl: React.FC<VectorAxisSliderControlProps> = ({
   // Handle manual input blur (apply value)
   const handleInputBlur = () => {
     let newValue = parseFloat(inputValue);
-    
+
     // Validate and clamp input
     if (isNaN(newValue)) {
       setInputValue(value.toFixed(4));
       return;
     }
-    
+
     // Clamp to valid range
     newValue = Math.max(SLIDER_MIN, Math.min(SLIDER_MAX, newValue));
-    
+
     // Update display and trigger change
     setInputValue(newValue.toFixed(4));
     onChangeValue(index, newValue);
@@ -123,7 +135,7 @@ const VectorAxisSliderControl: React.FC<VectorAxisSliderControlProps> = ({
 
   // Handle key press (apply on Enter)
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       e.currentTarget.blur();
     }
   };
@@ -134,47 +146,55 @@ const VectorAxisSliderControl: React.FC<VectorAxisSliderControlProps> = ({
     const localHandleMouseUp = handleMouseUp;
 
     return () => {
-      document.removeEventListener('mousemove', localHandleMouseMove);
-      document.removeEventListener('mouseup', localHandleMouseUp);
+      document.removeEventListener("mousemove", localHandleMouseMove);
+      document.removeEventListener("mouseup", localHandleMouseUp);
     };
   }, [handleMouseMove, handleMouseUp]);
 
   // Calculate handle position for custom slider
-  const handlePosition = ((SLIDER_MAX - sliderValue) / (SLIDER_MAX - SLIDER_MIN)) * 100;
+  const handlePosition =
+    ((SLIDER_MAX - sliderValue) / (SLIDER_MAX - SLIDER_MIN)) * 100;
 
   return (
-    <div style={{ textAlign: 'center', margin: '0 8px', height: `${sliderHeight}px`, width: '80px' }}>
+    <div
+      style={{
+        textAlign: "center",
+        margin: "0 8px",
+        height: `${sliderHeight}px`,
+        width: "80px",
+      }}
+    >
       <div
         ref={sliderRef}
         style={{
-          position: 'relative',
-          height: '100px',
-          width: '100%',
-          backgroundColor: '#eee',
-          borderRadius: '4px',
-          margin: '8px auto',
-          cursor: disabled ? 'not-allowed' : 'pointer',
+          position: "relative",
+          height: "100px",
+          width: "100%",
+          backgroundColor: "#eee",
+          borderRadius: "4px",
+          margin: "8px auto",
+          cursor: disabled ? "not-allowed" : "pointer",
           opacity: disabled ? 0.5 : 1,
-          overflow: 'hidden', // Ensure the label doesn't overflow
+          overflow: "hidden", // Ensure the label doesn't overflow
         }}
         onMouseDown={handleMouseDown}
       >
         {/* Large centered label in background */}
         <div
           style={{
-            position: 'absolute',
+            position: "absolute",
             left: 0,
             right: 0,
             top: 0,
             bottom: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '32px',
-            fontWeight: 'bold',
-            color: 'rgba(0, 0, 0, 0.1)', // Very light text as watermark
-            pointerEvents: 'none', // Make it non-interactive
-            userSelect: 'none', // Prevent text selection
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "32px",
+            fontWeight: "bold",
+            color: "rgba(0, 0, 0, 0.1)", // Very light text as watermark
+            pointerEvents: "none", // Make it non-interactive
+            userSelect: "none", // Prevent text selection
           }}
         >
           {label}
@@ -183,33 +203,33 @@ const VectorAxisSliderControl: React.FC<VectorAxisSliderControlProps> = ({
         {/* Slider track - transparent background */}
         <div
           style={{
-            position: 'absolute',
+            position: "absolute",
             left: 0,
             right: 0,
             top: 0,
             bottom: 0,
-            borderRadius: '4px',
+            borderRadius: "4px",
           }}
         />
 
         {/* Zero mark */}
         <div
           style={{
-            position: 'absolute',
+            position: "absolute",
             left: 0,
             right: 0,
-            top: '50%',
-            height: '1px',
-            backgroundColor: '#999',
+            top: "50%",
+            height: "1px",
+            backgroundColor: "#999",
           }}
         />
         <div
           style={{
-            position: 'absolute',
-            right: '-20px',
-            top: 'calc(50% - 8px)',
-            fontSize: '12px',
-            color: '#999',
+            position: "absolute",
+            right: "-20px",
+            top: "calc(50% - 8px)",
+            fontSize: "12px",
+            color: "#999",
           }}
         >
           0
@@ -218,17 +238,17 @@ const VectorAxisSliderControl: React.FC<VectorAxisSliderControlProps> = ({
         {/* Slider handle */}
         <div
           style={{
-            position: 'absolute',
+            position: "absolute",
             left: 0,
             right: 0,
             top: `${handlePosition}%`,
-            width: '100%',
-            height: '14px',
-            transform: 'translateY(-50%)',
-            backgroundColor: isDragging ? '#1890ff' : '#91caff',
-            borderRadius: '4px',
-            boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
-            transition: isDragging ? 'none' : 'top 0.2s',
+            width: "100%",
+            height: "14px",
+            transform: "translateY(-50%)",
+            backgroundColor: isDragging ? "#1890ff" : "#91caff",
+            borderRadius: "4px",
+            boxShadow: "0 2px 5px rgba(0,0,0,0.2)",
+            transition: isDragging ? "none" : "top 0.2s",
           }}
         />
       </div>
@@ -240,9 +260,9 @@ const VectorAxisSliderControl: React.FC<VectorAxisSliderControlProps> = ({
         onKeyPress={handleKeyPress}
         disabled={disabled}
         style={{
-          marginTop: '8px',
-          width: '100%',
-          textAlign: 'center',
+          marginTop: "8px",
+          width: "100%",
+          textAlign: "center",
         }}
       />
     </div>
@@ -266,7 +286,7 @@ const VectorInput: React.FC<VectorInputProps> = ({
   const [changeRates, setChangeRates] = useState<[number, number, number]>([
     0, 0, 0,
   ]);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<number | null>(null);
 
   // Refs to store the latest values and rates for the interval callback
   const currentValuesRef = useRef<[number, number, number]>(values);
@@ -315,11 +335,20 @@ const VectorInput: React.FC<VectorInputProps> = ({
         if (changed) {
           // Apply clamping to ensure values are between -1 and 1
           const clampedValues = [
-            Math.max(SLIDER_MIN, Math.min(SLIDER_MAX, Number(newValues[0].toFixed(5)))),
-            Math.max(SLIDER_MIN, Math.min(SLIDER_MAX, Number(newValues[1].toFixed(5)))),
-            Math.max(SLIDER_MIN, Math.min(SLIDER_MAX, Number(newValues[2].toFixed(5))))
+            Math.max(
+              SLIDER_MIN,
+              Math.min(SLIDER_MAX, Number(newValues[0].toFixed(5)))
+            ),
+            Math.max(
+              SLIDER_MIN,
+              Math.min(SLIDER_MAX, Number(newValues[1].toFixed(5)))
+            ),
+            Math.max(
+              SLIDER_MIN,
+              Math.min(SLIDER_MAX, Number(newValues[2].toFixed(5)))
+            ),
           ] as [number, number, number];
-          
+
           // Call the parent onChange with the clamped values
           onChange(clampedValues);
         }
@@ -340,13 +369,13 @@ const VectorInput: React.FC<VectorInputProps> = ({
   }, [changeRates, onChange, values]);
 
   return (
-    <div style={{ marginBottom: '16px' }}>
+    <div style={{ marginBottom: "16px" }}>
       <Typography.Text strong>{label}</Typography.Text>
       <div
         style={{
-          display: 'flex',
-          justifyContent: 'space-around',
-          marginTop: '8px',
+          display: "flex",
+          justifyContent: "space-around",
+          marginTop: "8px",
         }}
       >
         <VectorAxisSliderControl

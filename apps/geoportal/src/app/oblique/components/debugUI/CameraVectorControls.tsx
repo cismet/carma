@@ -1,4 +1,4 @@
-import { styled } from "styled-components";
+import { type CSSProperties, styled } from "styled-components";
 
 import { InputNumber, Row, Col } from "antd";
 import { ExteriorOrientationRecord } from "../../types";
@@ -16,7 +16,7 @@ const Container = styled.section`
   width: 350px;
   max-width: 90%;
 `;
-const style = {
+const style: CSSProperties = {
   //display: "none",
   position: "absolute",
   top: "10px",
