@@ -43,6 +43,16 @@
       "sourceMapPathOverrides": {
         "http://localhost:4200/src/*": "${workspaceFolder}/apps//topicmaps/bplan-auskunft/src/*"
       }
+    },
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "Trinkbrunnen orig:4200",
+      "url": "http://localhost:4200/#/Trinkbrunnenkarte_Wuppertal_orig?lat=51.2811455511234&lng=7.2175776958465585&zoom=16",
+      "webRoot": "${workspaceFolder}",
+      "sourceMapPathOverrides": {
+        "http://localhost:4200/src/*": "${workspaceFolder}/apps/topicmaps/generic/src/*"
+      }
     }
   ]
 }
