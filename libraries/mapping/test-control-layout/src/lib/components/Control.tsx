@@ -16,7 +16,7 @@ export function Control({ position, children, order }: ControlProps) {
     return () => {
       removeControl({ position, component: children, order });
     };
-  }, []);
+  }, [children]);
 
   return <></>;
 }
