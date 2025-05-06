@@ -50,6 +50,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "./index.css";
+import { ControlProvider } from "@carma-mapping/test-controls-layout";
 
 if (typeof global === "undefined") {
   window.global = window;
@@ -65,58 +66,60 @@ function App({ published }: { published?: boolean }) {
   useKeyboardShortcuts();
 
   const content = (
-    <FeatureFlagProvider config={featureFlagConfig}>
-      <TweakpaneProvider>
-        <CarmaMapContextProvider
-          cesiumOptions={CESIUM_CONFIG}
-          overlayOptions={{
-            background: backgroundSettings,
-          }}
-        >
-          <ObliqueDataProvider
-            config={OBLIQUE_CONFIG}
-            fallbackDirectionConfig={CAMERA_ID_TO_DIRECTION}
+    <ControlProvider>
+      <FeatureFlagProvider config={featureFlagConfig}>
+        <TweakpaneProvider>
+          <CarmaMapContextProvider
+            cesiumOptions={CESIUM_CONFIG}
+            overlayOptions={{
+              background: backgroundSettings,
+            }}
           >
-            <ErrorBoundary FallbackComponent={AppErrorFallback}>
-              <div
-                className="flex flex-col w-full "
-                style={{ height: "100dvh" }}
-              >
-                {isLoadingConfig && (
-                  <div
-                    id="loading"
-                    className="absolute flex flex-col items-center text-white justify-center h-screen w-full bg-black/50 z-[9999999999999]"
-                  >
-                    <h2>Lade Konfiguration</h2>
-                    <FontAwesomeIcon size="2x" icon={faSpinner} spin />
-                  </div>
-                )}
-                {!published && <TopNavbar />}
-                <MapMeasurement />
-                <MapWrapper />
-                <Modal
-                  title={mobileInfo.headerText}
-                  open={isModalOpen && isMobile}
-                  closable={false}
-                  closeIcon={false}
-                  footer={[
-                    <Button
-                      key="confirm"
-                      type="primary"
-                      onClick={() => setIsModalOpen(false)}
-                    >
-                      {mobileInfo.confirmButtonText}
-                    </Button>,
-                  ]}
+            <ObliqueDataProvider
+              config={OBLIQUE_CONFIG}
+              fallbackDirectionConfig={CAMERA_ID_TO_DIRECTION}
+            >
+              <ErrorBoundary FallbackComponent={AppErrorFallback}>
+                <div
+                  className="flex flex-col w-full "
+                  style={{ height: "100dvh" }}
                 >
-                  <p>{mobileInfo.bodyText}</p>
-                </Modal>
-              </div>
-            </ErrorBoundary>
-          </ObliqueDataProvider>
-        </CarmaMapContextProvider>
-      </TweakpaneProvider>
-    </FeatureFlagProvider>
+                  {isLoadingConfig && (
+                    <div
+                      id="loading"
+                      className="absolute flex flex-col items-center text-white justify-center h-screen w-full bg-black/50 z-[9999999999999]"
+                    >
+                      <h2>Lade Konfiguration</h2>
+                      <FontAwesomeIcon size="2x" icon={faSpinner} spin />
+                    </div>
+                  )}
+                  {!published && <TopNavbar />}
+                  <MapMeasurement />
+                  <MapWrapper />
+                  <Modal
+                    title={mobileInfo.headerText}
+                    open={isModalOpen && isMobile}
+                    closable={false}
+                    closeIcon={false}
+                    footer={[
+                      <Button
+                        key="confirm"
+                        type="primary"
+                        onClick={() => setIsModalOpen(false)}
+                      >
+                        {mobileInfo.confirmButtonText}
+                      </Button>,
+                    ]}
+                  >
+                    <p>{mobileInfo.bodyText}</p>
+                  </Modal>
+                </div>
+              </ErrorBoundary>
+            </ObliqueDataProvider>
+          </CarmaMapContextProvider>
+        </TweakpaneProvider>
+      </FeatureFlagProvider>
+    </ControlProvider>
   );
 
   console.debug("RENDER: [GEOPORTAL] APP");
