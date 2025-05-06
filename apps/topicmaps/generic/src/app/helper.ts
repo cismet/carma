@@ -96,3 +96,93 @@ export const createVectorFeature = (mapping, selectedVectorFeature) => {
   }
   return feature;
 };
+
+/**
+ * Generate a markdown info block for a vector layer.
+ * @param {string} layerName - The display name of the layer.
+ * @param {object} info - The layer information object.
+ * @returns {string} Markdown content for the layer.
+ */
+export function layerMetaToMarkdown(layerName, info) {
+  return `
+
+${
+  info.legend
+    ? `<img src="${info.legend}" alt="Legende für ${layerName}" style="padding-left:10px;padding-right:10px;float:right;padding-bottom:5px;max-width:250px;" />`
+    : ""
+}
+
+**Inhalt:**  
+${info.inhalt || ""}
+
+**Nutzung:**  
+${info.nutzung || ""}
+
+**Datenquelle:**  
+${info.metadata?.text || ""}
+
+${
+  info.metadata?.url
+    ? `[Vollständiger Metadatensatz (PDF)](${info.metadata.url})`
+    : ""
+}
+
+${
+  info.links && info.links.length > 0
+    ? "**Links:**\n" +
+      info.links.map((link) => `- [${link}](${link})`).join("\n")
+    : ""
+}
+  `.trim();
+}
+
+/**
+ * Create a help block object for a layer's meta info.
+ * @param {string} name - The layer's display name.
+ * @param {string} content - The markdown content for the layer.
+ * @returns {object} The help block object.
+ */
+export function createMetaHelpBlock(name, layerName, info) {
+  const content = layerMetaToMarkdown(layerName, info);
+  return {
+    title: `Layerinformation ${name}`,
+    bsStyle: "warning",
+    contentBlockConf: {
+      type: "MARKDOWN",
+      content,
+    },
+  };
+}
+
+export async function getConfig(slugName, configType, server, path, log) {
+  try {
+    const u = server + path + slugName + "/" + configType + ".json";
+    log(`... try to read config at ${u}`);
+    const result = await fetch(u);
+    const resultObject = await result.json();
+    log(`... config: loaded ${slugName}/${configType}`);
+    return resultObject;
+  } catch (ex) {
+    log(
+      `... no config found at ${
+        server + path + slugName + "/" + configType + ".json"
+      }`
+    );
+    return undefined;
+  }
+}
+export async function getMarkdown(slugName, configType, server, path) {
+  try {
+    const u = server + path + slugName + "/" + configType + ".md";
+    console.debug("try to read markdown at ", u);
+    const result = await fetch(u);
+    const resultObject = await result.text();
+    console.debug("config: loaded " + slugName + "/" + configType);
+    return resultObject;
+  } catch (ex) {
+    console.debug(
+      "no markdown found at ",
+      server + path + slugName + "/" + configType + ".md"
+    );
+  }
+}

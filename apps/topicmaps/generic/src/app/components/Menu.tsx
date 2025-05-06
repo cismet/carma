@@ -14,6 +14,7 @@ import {
   KartendarstellungDerFachobjekte,
 } from "@carma-collab/wuppertal/generic-topicmap";
 import GenericMenuIntroduction from "react-cismap/topicmaps/menu/Introduction";
+import { layer } from "@fortawesome/fontawesome-svg-core";
 
 interface MenuProps {
   menuTitle: string;
@@ -28,6 +29,7 @@ interface MenuProps {
   menuFooter: any;
   introductionTerm?: string;
   sections: React.ReactNode[];
+  layerHelpBlocks: any;
 }
 
 const Menu = (props: MenuProps) => {
@@ -44,6 +46,7 @@ const Menu = (props: MenuProps) => {
     menuFooter,
     introductionTerm = "der Objekte",
     sections,
+    layerHelpBlocks,
   } = props;
 
   return (
@@ -92,6 +95,9 @@ const Menu = (props: MenuProps) => {
                           content: simpleHelp.content,
                         },
                       },
+
+                      ...(layerHelpBlocks || []),
+
                       {
                         title: "Fachobjekte auswählen und abfragen",
                         bsStyle: "success",

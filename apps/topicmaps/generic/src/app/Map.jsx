@@ -47,7 +47,14 @@ const downloadText = (text, filename) => {
 
   document.body.removeChild(element);
 };
-const Map = ({ config, featureGazData = [], layerInformation = {} }) => {
+const Map = ({
+  config,
+  featureGazData = [],
+  layerInformation = {},
+  layerHelpBlocks,
+}) => {
+  console.log("xxx layerHelpBlocks", layerHelpBlocks);
+
   const [feature, setFeature] = useState(undefined);
   const { selectedFeature } = useContext(FeatureCollectionContext);
   const [globalHits, setGlobalHits] = useState({});
@@ -181,6 +188,7 @@ const Map = ({ config, featureGazData = [], layerInformation = {} }) => {
               )
             }
             sections={[<GenericDigitalTwinReferenceSection />]}
+            layerHelpBlocks={layerHelpBlocks}
           />
         }
       >

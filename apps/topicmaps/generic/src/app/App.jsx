@@ -16,6 +16,7 @@ import getGTMFeatureStyler, {
 } from "react-cismap/topicmaps/generic/GTMStyler";
 import slugify from "slugify";
 import Map from "./Map";
+import Menu from "./components/Menu";
 import { MappingConstants } from "react-cismap";
 import { defaultLayerConf } from "react-cismap/tools/layerFactory";
 import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
@@ -27,6 +28,7 @@ import defaultConfig from "../assets/gtmDefaulConfig.json";
 import { getAllLeafLayers } from "@carma-mapping/layers";
 import { extractCarmaConfig, extractInformation } from "@carma-commons/utils";
 import md5 from "md5";
+import { createMetaHelpBlock, getConfig, getMarkdown } from "./helper";
 
 const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 
@@ -43,39 +45,6 @@ const errorConfig = {
   },
 };
 
-async function getConfig(slugName, configType, server, path, log) {
-  try {
-    const u = server + path + slugName + "/" + configType + ".json";
-    log(`... try to read config at ${u}`);
-    const result = await fetch(u);
-    const resultObject = await result.json();
-    log(`... config: loaded ${slugName}/${configType}`);
-    return resultObject;
-  } catch (ex) {
-    log(
-      `... no config found at ${
-        server + path + slugName + "/" + configType + ".json"
-      }`
-    );
-    return undefined;
-  }
-}
-async function getMarkdown(slugName, configType, server, path) {
-  try {
-    const u = server + path + slugName + "/" + configType + ".md";
-    console.debug("try to read markdown at ", u);
-    const result = await fetch(u);
-    const resultObject = await result.text();
-    console.debug("config: loaded " + slugName + "/" + configType);
-    return resultObject;
-  } catch (ex) {
-    console.debug(
-      "no markdown found at ",
-      server + path + slugName + "/" + configType + ".md"
-    );
-  }
-}
-
 function App({ name }) {
   // --- Fault log state and helper ---
   const [faultLog, setFaultLog] = useState([]);
@@ -90,7 +59,7 @@ function App({ name }) {
   const [initialized, setInitialized] = useState(false);
   const [config, setConfig] = useState({});
   const [layerInformation, setLayerInformation] = useState({});
-
+  const [layerHelpBlocks, setLayerHelpBlocks] = useState([]);
   const [featureGazData, setFeatureGazData] = useState([]);
   const [faultyConfig, setFaultyConfig] = useState(false);
   const [projectConfigFound, setProjectConfigFound] = useState(true);
@@ -246,6 +215,11 @@ function App({ name }) {
                       links,
                       carmaConf: extractedCarmaConf,
                       ...(layer.id ? { id: layer.id } : {}),
+                      ...(layer.name ? { name: layer.name } : {}), // Add name property from config
+                      ...(typeof layer.addMetaInfoToHelp !== "undefined"
+                        ? { addMetaInfoToHelp: layer.addMetaInfoToHelp }
+                        : {}), // Add addMetaInfoToHelp property from config
+                      doneWithFetchingAdditionalInfo: true,
                     },
                   }));
                 }
@@ -372,6 +346,8 @@ function App({ name }) {
         );
       }
 
+      console.log("xxx helpTextBlocks", config.helpTextblocks);
+
       if (config.infoBoxConfig !== undefined) {
         config.info = config.infoBoxConfig;
         config.info.city = config.city;
@@ -417,6 +393,46 @@ function App({ name }) {
     })();
   }, [name]);
 
+  useEffect(() => {
+    if (config?.tm?.vectorLayers) {
+      //check if every layer which has addMetaInfoToHelp turned on
+      // is ready (shown in doneWithFetchingAdditionalInfo)
+      let readyForProduction = false;
+      config.tm.vectorLayers.forEach((layer) => {
+        const info = layerInformation[layer.capabilitiesLayer];
+        if (
+          (info &&
+            info.addMetaInfoToHelp === true &&
+            info.doneWithFetchingAdditionalInfo === true) ||
+          info.addMetaInfoToHelp === false
+        ) {
+          readyForProduction = true;
+        } else {
+          readyForProduction = false;
+        }
+      });
+
+      if (readyForProduction === true) {
+        const layerBlocks = [];
+        config.tm.vectorLayers.forEach((layer) => {
+          const info = layerInformation[layer.capabilitiesLayer];
+
+          if (
+            info &&
+            info.doneWithFetchingAdditionalInfo &&
+            info.addMetaInfoToHelp
+          ) {
+            console.log("xxx layerInformation", info);
+            const helpBlock = createMetaHelpBlock(layer.name, layer.name, info);
+            layerBlocks.push(helpBlock);
+            console.log("xxxhelpBlock", helpBlock);
+          }
+        });
+        setLayerHelpBlocks(layerBlocks);
+      }
+    }
+  }, [config?.tm?.vectorLayers, layerInformation]);
+
   if (initialized === true) {
     const refConfig = {};
     if (config?.tm?.srs || 3857 === 3857) {
@@ -451,7 +467,40 @@ function App({ name }) {
       };
       cpConfig.items = config.features;
     }
-    console.log("xxx layerInformation", layerInformation);
+
+    // // --- BEGIN: Meta Info Markdown Block Generation ---
+
+    // let metaMarkdownBlocks = [];
+    // if (config?.tm?.vectorLayers && layerInformation) {
+    //   metaMarkdownBlocks = config.tm.vectorLayers
+    //     .filter(
+    //       (layer) =>
+    //         layer.addMetaInfoToHelp &&
+    //         layer.name &&
+    //         layerInformation[layer.capabilitiesLayer]
+    //     )
+    //     .map((layer) =>
+    //       layerMetaToMarkdown(
+    //         layer.name,
+    //         layerInformation[layer.capabilitiesLayer]
+    //       )
+    //     );
+    // }
+
+    // // If you have a simpleHelp prop/content, append the markdown blocks
+    // // Example: pass to Menu as simpleHelp={{ ...simpleHelp, content: `${simpleHelp.content}\n\n---\n\n${metaMarkdownBlocks.join("\n\n---\n\n")}` }}
+    // // Or build a new prop:
+    // const extendedSimpleHelp = config?.tm?.simpleHelp
+    //   ? {
+    //       ...config.tm.simpleHelp,
+    //       content: `${
+    //         config.tm.simpleHelp.content || ""
+    //       }\n\n---\n\n${metaMarkdownBlocks.join("\n\n---\n\n")}`,
+    //     }
+    //   : { content: metaMarkdownBlocks.join("\n\n---\n\n") };
+    // config.simpleHelpMd = extendedSimpleHelp.content;
+    // // --- END: Meta Info Markdown Block Generation ---
+    // console.log("xx extendedSimpleHelp", extendedSimpleHelp);
 
     return (
       <>
@@ -506,6 +555,7 @@ function App({ name }) {
                 config={config}
                 featureGazData={featureGazData || []}
                 layerInformation={layerInformation}
+                layerHelpBlocks={layerHelpBlocks}
               />
             </TopicMapContextProvider>
           </SelectionProvider>
