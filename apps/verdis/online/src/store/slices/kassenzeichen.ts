@@ -303,15 +303,15 @@ export const getKassenzeichenbySTAC = (stac, callback) => {
               dispatch(setSelectedFeatureIndex(null));
               dispatch(fitAll());
               dispatch(setStac(stac));
-              // dispatch(
-              //   getFEBByStac(
-              //     stac,
-              //     (blob) => {
-              //       dispatch(setFebBlob(blob));
-              //     },
-              //     true
-              //   )
-              // );
+              dispatch(
+                getFEBByStac(
+                  stac,
+                  (blob) => {
+                    dispatch(setFebBlob(blob));
+                  },
+                  true
+                )
+              );
 
               if (typeof callback === "function") {
                 callback(true);
