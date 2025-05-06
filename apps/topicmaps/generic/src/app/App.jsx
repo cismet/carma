@@ -26,6 +26,7 @@ import merge from "lodash/merge";
 import defaultConfig from "../assets/gtmDefaulConfig.json";
 import { getAllLeafLayers } from "@carma-mapping/layers";
 import { extractCarmaConfig, extractInformation } from "@carma-commons/utils";
+import md5 from "md5";
 
 const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 
@@ -139,6 +140,16 @@ function App({ name }) {
               if (!layerObj.capabilitiesLayer) layerObj.capabilitiesLayer = capLayer;
               if (!layerObj.capabilities) layerObj.capabilities = caps;
             }
+          }
+        });
+      }
+
+      // If a layer has no id, set it to md5 hash of the full config string
+      if (Array.isArray(projectConfig?.tm?.vectorLayers)) {
+        const configHash = md5(JSON.stringify(projectConfig));
+        projectConfig.tm.vectorLayers.forEach(layerObj => {
+          if (!layerObj.id) {
+            layerObj.id = configHash;
           }
         });
       }

@@ -184,17 +184,10 @@ const Map = ({ config, featureGazData = [], layerInformation = {} }) => {
       >
         {config.tm.vectorLayers &&
           config.tm.vectorLayers.map((layer, index) => {
-            // Use style from layerInformation if not already set
-            const info = layerInformation[layer.capabilitiesLayer];
-            const style = layer.style || info?.carmaConf?.vectorStyle;
-            // Use a key that changes with style to force remount
-            const layerKey = `${layer.id}-${style || "nostyle"}`;
             return (
               <CismapLayer
-                key={layerKey}
                 type="vector"
                 {...layer}
-                style={style}
                 additionalLayerUniquePane={"vector." + index}
                 additionalLayersFreeZOrder={index}
                 selectionEnabled={true}
