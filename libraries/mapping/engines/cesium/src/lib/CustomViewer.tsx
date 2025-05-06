@@ -124,9 +124,9 @@ export function CustomViewer(props: CustomViewerProps) {
 
   // camera enhancements
   useDisableSSCC();
-  useCameraRollSoftLimiter(cameraLimiterOptions);
-  useCameraPitchSoftLimiter(cameraLimiterOptions);
-  useCameraPitchEasingLimiter(cameraLimiterOptions);
+  //useCameraRollSoftLimiter(cameraLimiterOptions);
+  //useCameraPitchSoftLimiter(cameraLimiterOptions);
+  //useCameraPitchEasingLimiter(cameraLimiterOptions);
 
   useCesiumWhenHidden(TRANSITION_DELAY);
 

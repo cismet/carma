@@ -11,6 +11,17 @@ export type ExteriorPosition = {
   z: number;
 };
 
+
+type row3 = [number, number, number]; 
+
+export interface ExteriorOrientationDataArray {
+  [number, number, number, row3, row3, row3];
+}
+export interface ExteriorOrientations {
+  [key: string]: ExteriorOrientationDataArray;
+}
+
+
 export interface BasicObliqueImageRecord {
   id: string;
   cameraId: string;
@@ -45,6 +56,8 @@ export type ObliqueImageRecordMap = Map<string, ObliqueImageRecord>;
 
 export interface ObliqueDataProviderConfig {
   orientationsURI: string;
+  exteriorOrientationsURI: string;
+  footprintsURI: string;
   crs: string;
   previewPath: string;
   previewQualityLevel?: OBLIQUE_PREVIEW_QUALITY;

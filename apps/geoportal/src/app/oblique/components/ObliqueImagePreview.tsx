@@ -6,21 +6,28 @@ import {
   faExternalLink,
   faFileArrowDown,
 } from "@fortawesome/free-solid-svg-icons";
-import { Tooltip } from "antd";
+import { Tooltip, Radio, type RadioChangeEvent } from "antd";
 
 import { useCesiumContext } from "@carma-mapping/cesium-engine";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
+import { NearestObliqueImageRecord, ObliqueImageRecord } from "../types";
+import { CameraVectorControls } from "./CameraVectorControls";
 
 interface ObliqueImagePreviewProps {
   src: string;
   alt: string;
   isVisible: boolean;
-  onOpenImageLink: () => void;
-  onDirectDownload: () => void;
+  onOpenImageLink?: () => void;
+  onDirectDownload?: () => void;
   onClose?: () => void;
+  imageRecord?: ObliqueImageRecord | NearestObliqueImageRecord;
 }
 
-const BASE_SCALE_FACTOR = 0.245;
+type BlendMode = 'normal' | 'difference' | 'normal50';
+
+
+
+const BASE_SCALE_FACTOR = 0.2454;
 
 const getViewerSyncedSize = (viewerRef: RefObject<Viewer>) => {
   const dim = Math.max(
@@ -44,33 +51,56 @@ const Backdrop = styled.div<{ $fadeIn: boolean }>`
   left: 0;
   width: 100vw;
   height: 100vh;
+  /*
   background-color: rgba(0, 0, 0, 0.2);
   backdrop-filter: contrast(80%);
+  */
   z-index: 1100;
   opacity: ${(props) => (props.$fadeIn ? 1 : 0)};
   transition: opacity 0.5s linear;
   cursor: pointer;
 `;
 
-const PreviewImage = styled.img<{ width: number; $fadeIn: boolean }>`
+const PreviewImage = styled.img<{
+  $fadeIn: boolean;
+  width: number;
+  height: number;
+  $blendMode?: BlendMode;
+}>`
   position: absolute;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
+  ${(props) => {
+    switch(props.$blendMode) {
+      case 'difference':
+        return 'mix-blend-mode: difference;';
+      case 'normal50':
+        return 'mix-blend-mode: normal !important; opacity: 0.5 !important;';
+      default: // normal
+        return 'mix-blend-mode: normal;';
+    }
+  }}
   min-width: ${(props) => props.width}px;
   min-height: ${(props) => props.height}px;
   height: auto;
+  /*
   border: 2px solid rgba(255, 255, 255, 0.9);
   box-shadow: 0 0 50px rgba(255, 255, 255, 0.8);
+  */
   box-sizing: content-box;
   pointer-events: none;
+  /*
   backdrop-filter: contrast(80%);
+  */
   z-index: 1200;
   opacity: ${(props) => (props.$fadeIn ? 1 : 0)};
   transition: opacity 0.5s linear, width 0.1s linear, height 1s linear;
   overflow: hidden;
   scroll: none;
 `;
+
+
 
 const ButtonsContainer = styled.div`
   position: absolute;
@@ -88,6 +118,8 @@ const ButtonsContainer = styled.div`
   z-index: 1300;
 `;
 
+
+
 export const ObliqueImagePreview: React.FC<ObliqueImagePreviewProps> = ({
   src,
   alt,
@@ -95,10 +127,13 @@ export const ObliqueImagePreview: React.FC<ObliqueImagePreviewProps> = ({
   onOpenImageLink,
   onDirectDownload,
   onClose,
+  imageRecord,
 }) => {
   const [shouldFadeIn, setShouldFadeIn] = useState(false);
   const [isVertical, setIsVertical] = useState(false);
   const [imageAspectRatio, setImageAspectRatio] = useState(1);
+  const [blendMode, setBlendMode] = useState<BlendMode>('normal');
+
   const { viewerRef } = useCesiumContext();
 
   // Only load image for aspect ratio when visible
@@ -127,6 +162,10 @@ export const ObliqueImagePreview: React.FC<ObliqueImagePreviewProps> = ({
     if (onClose) onClose();
   };
 
+  const handleBlendModeChange = (e: RadioChangeEvent) => {
+    setBlendMode(e.target.value as BlendMode);
+  };
+
   if (!isVisible) return null;
 
   const widthScaleFactor =
@@ -147,10 +186,9 @@ export const ObliqueImagePreview: React.FC<ObliqueImagePreviewProps> = ({
       }}
     >
       <Backdrop $fadeIn={shouldFadeIn} onClick={handleBackdropClick} />
-
       <ButtonsContainer>
         <Tooltip
-          title="Bild in hoher Qualität in neuem Tab öffnen"
+          title="Bild in neuem Tab öffnen"
           placement="top"
         >
           <div>
@@ -179,6 +217,19 @@ export const ObliqueImagePreview: React.FC<ObliqueImagePreviewProps> = ({
             </ControlButtonStyler>
           </div>
         </Tooltip>
+
+        <Radio.Group 
+          value={blendMode} 
+          onChange={handleBlendModeChange}
+          optionType="button" 
+          buttonStyle="solid"
+          size="small"
+          style={{ marginLeft: '10px' }}
+        >
+          <Radio.Button value="normal">Normal</Radio.Button>
+          <Radio.Button value="difference">Difference</Radio.Button>
+          <Radio.Button value="normal50">50% Opacity</Radio.Button>
+        </Radio.Group>
       </ButtonsContainer>
       <PreviewImage
         src={src}
@@ -186,6 +237,20 @@ export const ObliqueImagePreview: React.FC<ObliqueImagePreviewProps> = ({
         width={syncedWidth}
         height={syncedHeight}
         $fadeIn={shouldFadeIn}
+        $blendMode={blendMode}
+      />
+
+      {/* Camera vector controls component */}
+      <CameraVectorControls
+        imageRecord={imageRecord}
+        viewer={viewerRef}
+        style={{
+          //display: "none",
+          position: "absolute",
+          top: "10px",
+          right: "10px",
+          zIndex: 2000
+        }}
       />
     </div>
   );

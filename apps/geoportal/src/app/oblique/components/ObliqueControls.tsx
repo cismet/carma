@@ -8,6 +8,7 @@ import {
   faSpinner,
   faExternalLink,
   faFileArrowDown,
+  faMagic,
 } from "@fortawesome/free-solid-svg-icons";
 import { Tooltip } from "antd";
 import {
@@ -43,7 +44,7 @@ import { getObliqueMode, setObliqueMode } from "../../store/slices/ui";
 import { useObliqueDataContext } from "../hooks/useObliqueDataContext";
 import { useOrbitPoint } from "../hooks/useOrbitPoint";
 
-import { resetCamera } from "../utils/cameraUtils";
+import { resetCamera, flyToImprovedOrientation } from "../utils/cameraUtils";
 import { downloadAsBlobAsync } from "../utils/downloads";
 import { formatHeadingDegrees } from "../utils/formatters";
 import {
@@ -256,6 +257,30 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     isPreviewVisible,
     setLockFootprint,
   ]);
+
+  // Function to fly to improved orientation based on CameraVectorControls data
+  const flyToImprovedCameraOrientation = useCallback(() => {
+    if (isPreviewVisible) {
+      setIsPreviewVisible(false);
+      notifyPreviewVisibilityChange(false);
+      return;
+    }
+
+    const viewer = viewerRef.current;
+    if (!viewer || !nearestImage) return;
+
+    // Set lock on footprint during flight
+    setLockFootprint(true);
+    animationInProgressRef.current = true;
+
+    // Use the utility function to perform the flight with improved orientation
+    flyToImprovedOrientation(viewer, nearestImage, () => {
+      animationInProgressRef.current = false;
+      setIsPreviewVisible(true);
+      notifyPreviewVisibilityChange(true);
+    });
+
+  }, [viewerRef, nearestImage, isPreviewVisible, setLockFootprint]);
 
   const openImageLink = useCallback(() => {
     window.open(downloadUrl, "_blank");
@@ -505,6 +530,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       )}
       {nearestImage && previewPath && nearestImage.record.id && (
         <ObliqueImagePreview
+          imageRecord={nearestImage}
           src={previewUrl}
           alt={`Image preview ${nearestImage.record.id}`}
           isVisible={isPreviewVisible}
@@ -541,20 +567,41 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
           }}
         >
           {nearestImage && (
-            <Tooltip
-              placement="right"
-              title={"Zur ausgewählten Schrägluftbild-Aufnahmeposition fliegen"}
-            >
-              <div>
-                <ControlButtonStyler
-                  onClick={flyToNearestImage}
-                  width="160px"
-                  height="80px"
-                >
-                  <span>Flug zum Bild</span>
-                </ControlButtonStyler>
-              </div>
-            </Tooltip>
+            <>
+              <Tooltip
+                placement="right"
+                title={"Zur ausgewählten Schrägluftbild-Aufnahmeposition fliegen"}
+              >
+                <div>
+                  <ControlButtonStyler
+                    onClick={flyToNearestImage}
+                    width="160px"
+                    height="40px"
+                  >
+                    <span>Flug zum Bild</span>
+                  </ControlButtonStyler>
+                </div>
+              </Tooltip>
+
+              <Tooltip
+                placement="right"
+                title={"Mit verbesserter Orientierung zum Bild fliegen"}
+              >
+                <div>
+                  <ControlButtonStyler
+                    onClick={flyToImprovedCameraOrientation}
+                    width="160px"
+                    height="40px"
+                    className="bg-blue-50 hover:bg-blue-100"
+                  >
+                    <span className="flex items-center text-base">
+                      <FontAwesomeIcon icon={faMagic} className="mr-2" />
+                      Optimierte Ansicht
+                    </span>
+                  </ControlButtonStyler>
+                </div>
+              </Tooltip>
+            </>
           )}
 
           {nearestImage && previewPath && (
