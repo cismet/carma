@@ -1,0 +1,42 @@
+{
+  "tm": {
+    "noFeatureCollection": true,
+    "applicationMenuIntroductionMarkdown": "Über **Einstellungen** können Sie die Darstellung der Hintergrundkarte an Ihre Vorlieben anpassen. Wählen Sie **Kompaktanleitung** für detailliertere Bedienungsinformationen und **Urbaner Digitaler Zwilling** für eine Einordnung der Trinkwasserbrunnenkarte in das Gesamtsystem des Digitalen Zwillings der Stadt Wuppertal.",
+
+    "vectorLayers": [
+      {
+        "_id":"wohnlagen2024",
+        "style": "https://tiles.cismet.de/wohnlagen2024/style.json",
+        "opacity": 0.5,
+        "_infoboxMapping": [
+          "function createInfoBoxInfo(p) { let color = '#006c72'; switch(p.WERT) { case 1: color = '#FF0000'; break; case 2: color = '#FFC000'; break; case 3: color = '#92D050'; break; case 4: color = '#00C5FF'; break; } const info = { title: p.Wohnlage, headerColor: color, header: 'Wohnlagen 2024', }; return info; }"
+        ],
+        "layer":"wohnlagen2024@https://maps.wuppertal.de/immo?service=WMS&request=GetCapabilities&version=1.1.1",
+        "_capabilities": "https://maps.wuppertal.de/immo?service=WMS&request=GetCapabilities&version=1.1.1",
+        "_capabilitiesLayer": "wohnlagen2024"
+      },
+      {
+        "_id":"trinkwasser",
+        "style": "https://tiles.cismet.de/poi/trinkwasserbrunnen.style.json",
+        "_capabilities": "https://maps.wuppertal.de/poi?service=WMS&request=GetCapabilities&version=1.1.1",
+        "_capabilitiesLayer": "poi_trinkwasser",
+        "layer": "poi_trinkwasser@https://maps.wuppertal.de/poi?service=WMS&request=GetCapabilities&version=1.1.1",
+        "_infoboxMapping": [
+          "foto: p.foto",
+          "headerColor:p.schrift",
+          "header:p.signatur==='tw_outdoor' ? 'Trinkwasserbrunnen, Freiluft' : p.signatur==='tw_indoor' ? 'Trinkwasserbrunnen, Gebäude' : p.signatur==='tw_outdoor_inaktiv' ? 'Trinkwasserbrunnen, Freiluft (in Wartung)' : p.signatur==='tw_indoor_inaktiv' ? 'Trinkwasserbrunnen, Gebäude (in Wartung)' : ''",
+          "title:p.geographicidentifier",
+          "additionalInfo:p.adresse",
+          "subtitle: p.info",
+          "url:p.url",
+          "tel:p.telefon",
+          "email:p.email",
+          "modal:'trinkwasser'"
+        ]
+      }
+      
+    ],
+    "x":[]
+  
+  }
+}

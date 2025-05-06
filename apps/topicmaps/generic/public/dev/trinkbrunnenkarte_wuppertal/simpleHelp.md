@@ -3,3 +3,4 @@ Mit der Installation von Trinkwasserbrunnen im öffentlichen Raum wird u. a. ein
 Nachdem bereits durch die Abfallwirtschaftsgesellschaft mbH Wuppertal (AWG) der erste Trinkwasserbrunnen an der Sambatrasse installiert worden ist, baut die Stadt Wuppertal das Trinkwasserbrunnennetz seit 2022 sukzessive stadtweit aus. Die Planung und Installation der Brunnen erfolgt dabei vor allem in enger Zusammenarbeit mit der WAW (Wasser Abwasser Wuppertal) als Betreiber der Trinkwasserbrunnen, den Wuppertaler Stadtwerke (WSW) sowie den Ressorts Klima und Nachhaltigkeit sowie Straßen und Verkehr.
 
 Die vorliegende Karte wird kontinuierlich fortgeschrieben und gibt einen aktuellen Überblick über alle Trinkwasserbrunnen in Wuppertal. Zukünftig werden hier auch ausgewählte öffentliche Gebäude mit öffentlichem Trinkwasserzugang angezeigt.
+g
