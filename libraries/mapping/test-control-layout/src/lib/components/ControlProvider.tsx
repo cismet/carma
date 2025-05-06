@@ -39,10 +39,6 @@ export function useControlContext() {
 export function ControlProvider({ children }: { children: ReactNode }) {
   const [controls, setControls] = useState<Control[]>([]);
 
-  useEffect(() => {
-    console.log("Control components:", controls);
-  }, [controls]);
-
   const addControl = (component: Control) => {
     setControls((prev) => [...prev, component]);
   };

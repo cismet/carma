@@ -8,8 +8,6 @@ interface MainProps {
 export function Main({ children }: MainProps) {
   const { controls } = useControlContext();
 
-  console.log("xxx", controls);
-
   const topLeftControls = controls
     .filter((c) => c.position === "topleft")
     .sort((a, b) => a.order - b.order);
