@@ -82,14 +82,14 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
         fixedPitch,
         fixedHeight,
         () => {
-          //enableCameraForceObliqu`e();
+          enableCameraForceOblique();
           viewer.scene.requestRender();
         }
       );
     } else {
       console.debug("leaving Oblique Mode", originalFovRef.current);
       leaveObliqueMode(viewer, viewerAnimationMap, originalFovRef, () => {
-        //disableCameraForceOblique();
+        disableCameraForceOblique();
         viewer.scene.requestRender();
       });
     }

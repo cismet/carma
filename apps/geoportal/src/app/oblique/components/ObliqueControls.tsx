@@ -313,9 +313,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
         cardinalHeadings
       );
       setActiveDirection(closestCardinalIndex);
-      const { x, y, z } = camera.directionWC;
-      console.log("xxx dir", x, y, z);
-      //console.log("xxx up", camera.up, camera.upWC);
     };
 
     if (!orbitPoint && isDebugMode) {

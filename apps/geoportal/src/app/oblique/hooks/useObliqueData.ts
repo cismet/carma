@@ -64,13 +64,13 @@ export function useObliqueData(
 
       // Don't parse again if we're already loading
       if (isLoading) {
-        console.log("CSV parsing already in progress, skipping request");
+        console.info("CSV parsing already in progress, skipping request");
         return Promise.resolve(undefined); // Return resolved promise when already loading
       }
 
       // If we already have data loaded, just return it
       if (imageRecordMap && imageRecordMap.size > 0) {
-        console.log("CSV data already loaded, using cached data");
+        console.info("CSV data already loaded, using cached data");
         return Promise.resolve(imageRecordMap);
       }
 
