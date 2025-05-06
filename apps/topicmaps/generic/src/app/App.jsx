@@ -153,11 +153,32 @@ function App({ name }) {
             layerObj.id = configHash;
           }
         });
-        // Backwards compatibility: apply tm.infoboxMapping to every vectorLayer if defined and not already set
+        // Backwards compatibility: apply tm.infoboxMapping, layer, capabilities, capabilitiesLayer to every vectorLayer if defined and not already set
         if (Array.isArray(projectConfig.tm.infoboxMapping)) {
           projectConfig.tm.vectorLayers.forEach((layerObj) => {
             if (!layerObj.infoboxMapping) {
               layerObj.infoboxMapping = projectConfig.tm.infoboxMapping;
+            }
+          });
+        }
+        if (projectConfig.tm.layer) {
+          projectConfig.tm.vectorLayers.forEach((layerObj) => {
+            if (!layerObj.layer) {
+              layerObj.layer = projectConfig.tm.layer;
+            }
+          });
+        }
+        if (projectConfig.tm.capabilities) {
+          projectConfig.tm.vectorLayers.forEach((layerObj) => {
+            if (!layerObj.capabilities) {
+              layerObj.capabilities = projectConfig.tm.capabilities;
+            }
+          });
+        }
+        if (projectConfig.tm.capabilitiesLayer) {
+          projectConfig.tm.vectorLayers.forEach((layerObj) => {
+            if (!layerObj.capabilitiesLayer) {
+              layerObj.capabilitiesLayer = projectConfig.tm.capabilitiesLayer;
             }
           });
         }
