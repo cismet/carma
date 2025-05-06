@@ -4,13 +4,13 @@ import { useCesiumContext } from "@carma-mapping/cesium-engine";
 import { Slider } from "antd";
 import { styled } from "styled-components";
 
-import { useObliqueDataContext } from "../../oblique/hooks/useObliqueDataContext";
-import { CardinalNames } from "../utils/orientationUtils";
-import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
-import { getPreviewImageUrl } from "../utils/imageHandling";
-import { calculateCustomHeading as calculateHeadingForRecord } from "../utils/obliqueReferenceUtils";
-import { useNearestObliqueImage } from "../hooks/useNearestObliqueImage";
-import { NUM_NEAREST_IMAGES } from "../config";
+import { useObliqueDataContext } from "../../hooks/useObliqueDataContext";
+import { CardinalNames } from "../../utils/orientationUtils";
+import { OBLIQUE_PREVIEW_QUALITY } from "../../constants";
+import { getPreviewImageUrl } from "../../utils/imageHandling";
+import { calculateCustomHeading as calculateHeadingForRecord } from "../../utils/obliqueReferenceUtils";
+import { useNearestObliqueImage } from "../../hooks/useNearestObliqueImage";
+import { NUM_NEAREST_IMAGES } from "../../config";
 
 const SvgContainer = styled.div`
   position: fixed;

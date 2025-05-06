@@ -17,6 +17,7 @@ interface VectorAxisSliderControlProps {
   disabled?: boolean;
 }
 
+// TODO simplyfy and remove, but keep non-linear dragging input slider method
 const VectorAxisSliderControl: React.FC<VectorAxisSliderControlProps> = ({
   label,
   index,

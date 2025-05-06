@@ -1,7 +1,7 @@
 import React from "react";
 import { Card } from "antd";
 import { styled } from "styled-components";
-import { NearestObliqueImageRecord, ObliqueImageRecord } from "../types";
+import { NearestObliqueImageRecord, ObliqueImageRecord } from "../../types";
 
 interface ObliqueImageInfoProps {
   imageRecord: ObliqueImageRecord | NearestObliqueImageRecord | null;

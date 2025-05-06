@@ -1,11 +1,11 @@
 import React from "react";
 import { Typography, Card, Space } from "antd";
 import { Math as CesiumMath } from "cesium";
-import styled from "styled-components";
+import { styled } from "styled-components";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCamera, faCompass } from "@fortawesome/free-solid-svg-icons";
 
-import { ObliqueImageRecord } from "../types";
+import { ObliqueImageRecord } from "../../types";
 
 const { Text } = Typography;
 

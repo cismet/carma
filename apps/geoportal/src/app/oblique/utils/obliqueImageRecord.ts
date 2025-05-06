@@ -1,5 +1,7 @@
 import {
   BasicObliqueImageRecord,
+  ExteriorOrientationDataArray,
+  ExteriorOrientationRecord,
   ObliqueImageRecord,
   Proj4Converter,
 } from "../types";
@@ -10,6 +12,7 @@ import {
 } from "./orientationUtils";
 import { Cartesian3 } from "cesium";
 import { computeOrientations } from "./computeOrientations";
+import { Matrix3RowMajor } from "types/math";
 
 export const extendObliqueImageRecord = (
   image: BasicObliqueImageRecord,
@@ -54,4 +57,24 @@ export const extendObliqueImageRecord = (
     rotationMatrix,
   };
   return record;
+};
+
+export const mapExtOriArrToRecord = (
+  id: string,
+  arr: ExteriorOrientationDataArray
+): ExteriorOrientationRecord => {
+  const x = arr[0];
+  const y = arr[1];
+  const z = arr[2];
+  const row0 = arr[3];
+  const row1 = arr[4];
+  const row2 = arr[5];
+  const m: Matrix3RowMajor = [row0, row1, row2];
+  return {
+    id,
+    x,
+    y,
+    z,
+    m,
+  };
 };

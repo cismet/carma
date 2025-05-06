@@ -11,7 +11,6 @@ export type ExteriorPosition = {
   z: number;
 };
 
-
 type row3 = [number, number, number]; 
 
 export interface ExteriorOrientationDataArray {
@@ -22,6 +21,7 @@ export interface ExteriorOrientations {
 }
 
 
+// TODO: consolidate with type ExteriorOrientationRecord
 export interface BasicObliqueImageRecord {
   id: string;
   cameraId: string;
@@ -44,6 +44,16 @@ export interface ObliqueImageRecord extends BasicObliqueImageRecord {
   quaternion: Quaternion;
   rotationMatrix: Matrix3;
 }
+
+// small utility format for json
+
+export type ExteriorOrientationRecord = {
+  id: string;
+  x: number;
+  y: number;
+  z: number;
+  m: Matrix3RowMajor;
+};
 
 export type NearestObliqueImageRecord = {
   record: ObliqueImageRecord;
