@@ -5,8 +5,11 @@
     "noFeatureCollection": true,
     "vectorLayers": [
       {
+        "name": "Wohnlagen",
         "style": "https://tiles.cismet.de/wohnlagen2024/style.json",
-        "opacity": 0.5
+        "opacity": 0.5,
+        "addMetaInfoToHelp":true,
+        "layer":"wohnlagen2024@https://maps.wuppertal.de/immo?service=WMS&request=GetCapabilities&version=1.1.1"
       }
     ],
     "infoboxMapping": [
