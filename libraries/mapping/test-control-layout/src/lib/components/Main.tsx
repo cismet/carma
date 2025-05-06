@@ -117,10 +117,11 @@ export function Main({ children }: MainProps) {
             zIndex: 1000,
             margin: "10px",
             fontSize: "14px",
+            alignItems: "center",
           }}
         >
           {topCenterControls.map((control, index) => (
-            <div key={`top-center-${index}`}>{control.component}</div>
+            <>{control.component}</>
           ))}
         </div>
       )}
