@@ -753,3 +753,46 @@ export function getFEBByStac(stac, callback, silent = false) {
       });
   };
 }
+
+export function requestEmailChange(email) {
+  return function (dispatch, getState) {
+    const kassenzeichen = getState().kassenzeichen;
+    const newKassz = JSON.parse(JSON.stringify(kassenzeichen));
+
+    if (
+      newKassz.aenderungsanfrage === undefined ||
+      newKassz.aenderungsanfrage === null
+    ) {
+      newKassz.aenderungsanfrage = {
+        kassenzeichen: newKassz.kassenzeichennummer8,
+        emailAdresse: email,
+        flaechen: [],
+        nachrichten: [],
+        geometrien: {},
+      };
+    } else {
+      newKassz.aenderungsanfrage.emailAdresse = email;
+      newKassz.aenderungsanfrage.emailVerifiziert = null;
+    }
+    dispatch(setKassenzeichen({ kassenzeichenObject: newKassz }));
+    dispatch(storeCR(newKassz.aenderungsanfrage));
+  };
+}
+
+export function completeEmailChange(code, callback = (payload) => {}) {
+  return function (dispatch, getState) {
+    const kassenzeichen = getState().kassenzeichen;
+    const newKassz = JSON.parse(JSON.stringify(kassenzeichen));
+
+    if (
+      newKassz.aenderungsanfrage === undefined ||
+      newKassz.aenderungsanfrage === null
+    ) {
+      // kann/darf nie passieren. Woher soll die email kommen, wenn nicht aus einer vorherigen Änderungsanfrage ?!
+    } else {
+      newKassz.aenderungsanfrage.emailVerifikation = code;
+    }
+    dispatch(setKassenzeichen({ kassenzeichenObject: newKassz }));
+    dispatch(storeCR(newKassz.aenderungsanfrage, callback));
+  };
+}

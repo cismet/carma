@@ -5,6 +5,7 @@ import {
   addLocalErrorMessage,
   getUiState,
   showChangeRequests,
+  showSettings,
 } from "../../../store/slices/ui";
 import ModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import Section from "react-cismap/topicmaps/menu/Section";
@@ -15,6 +16,7 @@ import {
   getKassenzeichen,
   getNumberOfPendingChanges,
   removeLastChangeRequestMessage,
+  requestEmailChange,
 } from "../../../store/slices/kassenzeichen";
 import CRConversation from "../conversations/CRConversation";
 import { useRef, useState } from "react";
@@ -36,14 +38,27 @@ import {
 } from "../../../utils/kassenzeichenHelper";
 import AnnotationPanel from "../AnnotationPanel";
 import { Icon } from "react-fa";
+import Form from "react-bootstrap/Form";
 
 const CR00MainComponent = ({ localErrorMessages = [], height }) => {
   const uiState = useSelector(getUiState);
   const kassenzeichen = useSelector(getKassenzeichen);
   const dispatch = useDispatch();
-  const [hideSystemMessages, setHideSystemMessages] = useState(false);
+  const [contactemailInput, setContactemailInput] = useState("");
+  const [
+    contactemailVerificationCodeInput,
+    setContactemailVerificationCodeInput,
+  ] = useState("");
   const [locked, setLocked] = useState(true);
+  const [emailSettingsShown, setEmailSettingsShown] = useState(false);
+  const [hideSystemMessages, setHideSystemMessages] = useState(false);
+  const [codeVerificationInProgress, setCodeVerificationInProgress] =
+    useState(false);
+  const [codeVerificationMessage, setCodeVerificationMessage] = useState("");
   const scrollDivRef = useRef(null);
+  const contactemail = kassenzeichen.aenderungsanfrage
+    ? kassenzeichen.aenderungsanfrage.emailAdresse
+    : null;
 
   const draftHint = anderungswunscheSimpleTexts.draftHint;
 
@@ -151,7 +166,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
   }
 
   const scrollToVisible = (ref) => {
-    if (ref && ref.current) {
+    if (ref && ref.current && !emailSettingsShown) {
       ref.current.scrollIntoView({
         behavior: "smooth",
         block: "end",
@@ -185,6 +200,18 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
     // maxHeight: height - (emailSettingsShown ? 480 : 350),
   };
 
+  const close = () => {
+    setLocked(true);
+    dispatch(showChangeRequests(false));
+    // setEmailSettingsShown(false);
+  };
+
+  const changeEmail = (email) => {
+    dispatch(requestEmailChange(email));
+  };
+
+  const confirmEmail = () => {};
+
   return (
     <Modal
       style={{
@@ -192,7 +219,10 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
       }}
       height="100%"
       bsSize={crEditMode === true ? "large" : undefined} //undefined == mid
-      show={true || visible}
+      show={
+        uiState.changeRequestsMenuVisible === true &&
+        uiState.applicationMenuVisible === false
+      }
       onHide={close}
       keyboard={false}
       size="xl"
@@ -202,9 +232,6 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
           <div className="pull-left">
             <Icon name={"edit"} /> {"Änderungswünsche und Kommentare"}
           </div>
-          {/* <div className="pull-right">
-            <CloudLoadingAttributeIcon value={cloudStorageStatus} />
-          </div> */}
         </Modal.Title>
       </Modal.Header>
       <Modal.Body
@@ -225,7 +252,8 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
                         variant="success"
                         type="submit"
                         onClick={() => {
-                          // showModalMenu("anleitung");
+                          // dispatch(showChangeRequests(false));
+                          dispatch(showSettings({ visible: true }));
                         }}
                         //hier gehts weiter
                         style={{ margin: 5 }}
@@ -463,11 +491,188 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
             </table>
             <Section
               key="sectionKey3"
-              // sectionKey="sectionKey3"
-              // activeSectionKey={"sectionKey3"}
+              sectionKey="sectionKey3"
+              activeSectionKey={"sectionKey3"}
               sectionTitle="eMail Benachrichtigungen aktivieren"
               sectionBsStyle="info"
-              sectionContent={<></>}
+              setActiveSectionKey={() => {
+                console.log("xxx on select");
+                setEmailSettingsShown(!emailSettingsShown);
+              }}
+              sectionContent={
+                <>
+                  {((kassenzeichen.aenderungsanfrage || {}).emailAdresse ===
+                    undefined && (
+                    <div>
+                      <p>
+                        Um Benachrichtigungen bei Statusänderungen zu erhalten
+                        können Sie hier eine eMail-Adresse hinterlegen.
+                      </p>
+                      <Form inline>
+                        <Form.Group controlId="formInlineEmail">
+                          <Form.Label>eMail-Adresse</Form.Label>{" "}
+                          <Form.Control
+                            style={{ width: "300px", marginLeft: "3px" }}
+                            type="email"
+                            placeholder="ihre@email.de"
+                            onChange={(e) =>
+                              setContactemailInput(e.target.value)
+                            }
+                          />{" "}
+                        </Form.Group>
+                        <Button
+                          variant="default"
+                          onClick={() => {
+                            changeEmail(contactemailInput);
+                          }}
+                        >
+                          Senden
+                        </Button>
+                      </Form>
+                      <p style={{ paddingTop: 15 }}>
+                        Nach der Übermittlung Ihrer eMail Adresse schicken wir
+                        Ihnen eine eMail mit einem Verifizierungscode. Nachdem
+                        Sie den Code hier eingetragen haben, ist Ihre
+                        eMail-Adresse für weiter Benachrichtigungen an diesem
+                        Kassenzeichen hinterlegt.
+                      </p>
+                    </div>
+                  )) ||
+                    (!(kassenzeichen.aenderungsanfrage || {})
+                      .emailVerifiziert && (
+                      <div>
+                        <p>
+                          Bitte geben Sie hier den Code aus der
+                          Verifikationsmail an
+                        </p>
+                        <span style={{ marginBottom: 15 }}>
+                          <b>{contactemail}</b>
+                          <Button
+                            variant="danger"
+                            onClick={() => {
+                              changeEmail(null);
+                            }}
+                            style={{ marginLeft: 20 }}
+                          >
+                            <Icon name={"trash"} />
+                          </Button>
+                        </span>
+
+                        <Form style={{ paddingTop: 10 }} inline>
+                          <Form.Group controlId="formInlineEmail">
+                            <Form.Label>
+                              <span style={{ marginRight: "3px" }}>Code</span>
+                            </Form.Label>{" "}
+                            <Form.Control
+                              type="text"
+                              value={contactemailVerificationCodeInput}
+                              disabled={codeVerificationInProgress}
+                              placeholder="Code eingeben"
+                              onChange={(e) =>
+                                setContactemailVerificationCodeInput(
+                                  e.target.value
+                                )
+                              }
+                            />
+                          </Form.Group>
+                          <span style={{ marginLeft: 5 }} />
+                          <Button
+                            variant="success"
+                            disabled={
+                              codeVerificationInProgress ||
+                              contactemailVerificationCodeInput.length === 0
+                            }
+                            onClick={() => {
+                              setCodeVerificationInProgress(true);
+                              confirmEmail(
+                                contactemailVerificationCodeInput,
+                                (result) => {
+                                  setContactemailVerificationCodeInput("");
+                                  setCodeVerificationInProgress(false);
+                                  if (
+                                    (result.aenderungsanfrage || {})
+                                      .emailVerifiziert
+                                  ) {
+                                    setCodeVerificationMessage(
+                                      "Verifikation erfolgreich"
+                                    );
+                                  } else {
+                                    setCodeVerificationMessage(
+                                      "Verifikation fehlgeschlagen"
+                                    );
+                                  }
+                                  setTimeout(() => {
+                                    setCodeVerificationMessage("");
+                                  }, 2500);
+                                }
+                              );
+                            }}
+                          >
+                            Senden
+                          </Button>
+                          <span style={{ marginLeft: "3px" }}>
+                            <Button
+                              variant="default"
+                              onClick={() => {
+                                changeEmail(contactemail);
+                              }}
+                            >
+                              Verifikationsmail erneut anfordern
+                            </Button>
+                          </span>
+                          <span
+                            style={{
+                              paddingLeft: 10,
+                              color:
+                                codeVerificationMessage.indexOf("erfolgreich") >
+                                -1
+                                  ? "#70AE60"
+                                  : "#B8473F",
+                            }}
+                          >
+                            {codeVerificationMessage}
+                          </span>
+                        </Form>
+                        <p style={{ paddingTop: 15 }}>
+                          Ihre eMail-Adresse ist für weiter Benachrichtigungen
+                          an diesem Kassenzeichen hinterlegt.
+                        </p>
+                      </div>
+                    )) || (
+                      <div>
+                        <span style={{ marginBottom: 15 }}>
+                          <b>{contactemail}</b>
+                          <Button
+                            variant="danger"
+                            onClick={() => {
+                              changeEmail(null);
+                            }}
+                            style={{ marginLeft: 20 }}
+                          >
+                            <Icon name={"trash"} />
+                          </Button>
+                          <span
+                            style={{
+                              paddingLeft: 10,
+                              color:
+                                codeVerificationMessage.indexOf("erfolgreich") >
+                                -1
+                                  ? "#70AE60"
+                                  : "#B8473F",
+                            }}
+                          >
+                            {codeVerificationMessage}
+                          </span>
+                        </span>
+                        <p style={{ paddingTop: 15 }}>
+                          Durch das Entfernen Ihrer eMail-Adresse erhalten Sie
+                          keine weiteren Benachrichtigungen für dieses
+                          Kassenzeichen.
+                        </p>
+                      </div>
+                    )}
+                </>
+              }
             />
             ,
             {needsProofResult && (
@@ -538,7 +743,8 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
                 variant="success"
                 type="submit"
                 onClick={() => {
-                  showModalMenu("anleitung");
+                  // dispatch(showChangeRequests(false));
+                  dispatch(showSettings({ visible: true }));
                 }}
               >
                 Hilfe
