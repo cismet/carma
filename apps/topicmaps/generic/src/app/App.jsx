@@ -223,8 +223,17 @@ function App({ name }) {
                     targetLayer.KeywordList
                   );
                   const links = [
-                    layer.capabilities,
-                    extractedCarmaConf?.opendata || undefined,
+                    {
+                      link: layer.capabilities,
+                      label:
+                        "Inhaltsverzeichnis des Kartendienstes (WMS Capabilities)",
+                    },
+                    extractedCarmaConf?.opendata
+                      ? {
+                          link: extractedCarmaConf?.opendata,
+                          label: "Datenquelle im Open-Data-Portal Wuppertal",
+                        }
+                      : undefined,
                   ].filter((l) => l !== undefined);
                   const extractedInformation = await extractInformation(
                     targetLayer
