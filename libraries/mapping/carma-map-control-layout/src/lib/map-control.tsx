@@ -1,257 +1,66 @@
-import React, {
-  ReactNode,
-  useRef,
-  useState,
-  useEffect,
-  ReactElement,
-} from "react";
-import Control, { ControlProps } from "./components/Control";
-import styles from "./map-control.module.css";
-import Main from "./components/Main";
+import { createContext, ReactNode, useState, useContext } from "react";
 
-export interface ControlLayoutProps {
-  children: ReactNode;
-  onResponsiveCollapse?: (e: unknown) => void;
-  onHeightResize?: (set: number | null) => void;
-  debugMode?: boolean;
-  ifStorybook?: boolean;
-}
+export type Positions =
+  | "topleft"
+  | "topright"
+  | "topcenter"
+  | "bottomleft"
+  | "bottomright"
+  | "bottomcenter";
 
-export interface AllPositions {
-  topleft?: ControlProps[];
-  topright?: ControlProps[];
-  bottomleft?: ControlProps[];
-  bottomright?: ControlProps[];
-}
-
-const buildLayoutControlsChildren = (children: ReactNode) => {
-  let mainComponent: React.ReactElement | null = null;
-  let bottomLeftBiggestWidth = 300;
-  let bottomRightBiggestWidth = 300;
-  const allPositions: AllPositions = {};
-
-  const controlElementToReactNode = (child: ReactElement) => {
-    const {
-      position,
-      order = 0,
-      fullCollapseWidth,
-      bottomLeftWidth,
-      bottomRightWidth,
-    } = child.props as ControlProps;
-    if (!allPositions[position]) {
-      allPositions[position] = [];
-    }
-    allPositions[position]?.push({
-      ...child.props,
-      order,
-      fullCollapseWidth,
-    });
-    if (bottomLeftWidth) {
-      bottomLeftBiggestWidth =
-        bottomLeftWidth > bottomLeftBiggestWidth
-          ? bottomLeftWidth
-          : bottomLeftBiggestWidth;
-    }
-    if (bottomRightWidth) {
-      bottomRightBiggestWidth =
-        bottomRightWidth > bottomRightBiggestWidth
-          ? bottomRightWidth
-          : bottomRightBiggestWidth;
-    }
-    allPositions[position].sort((a, b) => {
-      const orderA = a.order;
-      const orderB = b.order;
-      if (orderA < orderB) {
-        return -1;
-      }
-      if (orderA > orderB) {
-        return 1;
-      }
-
-      return 0;
-    });
-  };
-
-  React.Children.forEach(children, (child) => {
-    if (React.isValidElement(child)) {
-      if (child.type === React.Fragment) {
-        let subChildren = child.props.children;
-        if (!Array.isArray(subChildren)) {
-          subChildren = [subChildren];
-        }
-        subChildren.forEach((subChild) => {
-          if (React.isValidElement(subChild) && subChild.type === Control) {
-            controlElementToReactNode(subChild);
-          }
-        });
-      } else if (child.type === Control) {
-        controlElementToReactNode(child);
-      } else if (child.type === Main) {
-        mainComponent = React.cloneElement(child);
-      }
-    }
-  });
-
-  return {
-    mainComponent,
-    allPositions,
-    bottomLeftBiggestWidth,
-    bottomRightBiggestWidth,
-  };
+export type ControlComponent = {
+  position: Positions;
+  component: ReactNode;
+  order: number;
 };
 
-const buildChildHiegthWithBottomShift = (childNodes, className, gap) => {
-  let bottomShift = 0;
-  childNodes.forEach((currentItem) => {
-    if (currentItem.className.startsWith(className)) {
-      if (bottomShift > 0) {
-        currentItem.style.bottom = bottomShift + "px";
-      }
+interface ControlContextType {
+  addControl: (component: ControlComponent) => void;
+  removeControl: (component: ControlComponent) => void;
+  controls: ControlComponent[];
+}
 
-      bottomShift += currentItem.clientHeight + gap;
-    }
-  });
-};
+const ControlContext = createContext<ControlContextType | undefined>(undefined);
 
-const ControlLayout: React.FC<ControlLayoutProps> = ({
-  children,
-  onResponsiveCollapse = (e) =>
-    console.debug("HOOK: [MAPCONTROL] ControlLayout onResponsiveCollapse", e),
-  debugMode = false,
-  onHeightResize = (set: number | null) => set,
-  ifStorybook = true,
-}) => {
-  const [windowWidth, setWindowWidth] = useState(0);
-  const [layoutHeight, setLayoutHeight] = useState<number | null>(null);
-  const [screenSizeWatcher, setScreenSizeWatcher] = useState("");
-  const {
-    allPositions,
-    mainComponent,
-    bottomLeftBiggestWidth,
-    bottomRightBiggestWidth,
-  } = buildLayoutControlsChildren(children);
+export function useControlContext() {
+  const context = useContext(ControlContext);
+  if (!context) {
+    throw new Error("useControlContext must be used within a ControlProvider");
+  }
+  return context;
+}
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  const bottomGap = 26;
+function ControlLayout({ children }: { children: ReactNode }) {
+  const [controls, setControls] = useState<ControlComponent[]>([]);
 
-  const bottomCollapsBrake =
-    bottomLeftBiggestWidth + bottomGap + bottomRightBiggestWidth;
-
-  const layoutWidth = containerRef.current?.clientWidth;
-
-  const handleResize = () => {
-    setWindowWidth(window.innerWidth);
-    setLayoutHeight(ifStorybook ? window.innerHeight - 28 : window.innerHeight);
+  const addControl = (component: ControlComponent) => {
+    setControls((prev) => [...prev, component]);
   };
-  useEffect(() => {
-    window.addEventListener("resize", handleResize);
-    handleResize();
 
-    return () => {
-      window.removeEventListener("resize", handleResize);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (containerRef.current) {
-      // if (!mainComponent) {
-      //   throw new Error('ControlLayout requires a Main component as a child.');
-      // }
-
-      const containerWidth = containerRef.current?.clientWidth;
-
-      if (
-        containerWidth &&
-        containerWidth < bottomCollapsBrake &&
-        screenSizeWatcher !== "mobile"
-      ) {
-        setScreenSizeWatcher("mobile");
-        console.debug("HOOK: [MAPCONTROL] callback mobile");
-        onResponsiveCollapse("mobile");
-      } else if (
-        containerWidth &&
-        containerWidth > bottomCollapsBrake &&
-        screenSizeWatcher !== "screen"
-      ) {
-        setScreenSizeWatcher("screen");
-        console.debug("HOOK: [MAPCONTROL] callback screen");
-        onResponsiveCollapse("screen");
-      }
-
-      const childNodes = containerRef.current.childNodes;
-
-      buildChildHiegthWithBottomShift(childNodes, "_bottomright", 10);
-
-      buildChildHiegthWithBottomShift(childNodes, "_bottomleft", 10);
-    }
-  }, [containerRef, windowWidth, screenSizeWatcher]);
-
-  useEffect(() => {
-    onHeightResize(layoutHeight);
-  }, [layoutHeight]);
+  const removeControl = (component: ControlComponent) => {
+    setControls((prev) =>
+      prev.filter(
+        (c) =>
+          !(
+            c.position === component.position &&
+            c.order === component.order &&
+            c.component === component.component
+          )
+      )
+    );
+  };
 
   return (
-    <div
-      className={`${styles["container"]} ${
-        debugMode ? styles["debug-mode"] : ""
-      }`}
-      style={{
-        height: "100%", //layoutHeight ? `${layoutHeight}px` : "calc(100vh - 54px)",
+    <ControlContext.Provider
+      value={{
+        addControl,
+        removeControl,
+        controls,
       }}
     >
-      <div
-        className={`${styles["controls-container"]} ${
-          layoutWidth && layoutWidth <= bottomCollapsBrake
-            ? styles["controls-container__mobile"]
-            : ""
-        }`}
-        ref={containerRef}
-      >
-        {mainComponent ? mainComponent : null}
-        {Object.entries(allPositions).map(([position, components]) => {
-          if (position.startsWith("bottom")) {
-            return components.map((component, idx) => (
-              <div
-                key={`${position}_${idx}`}
-                className={`${styles[position]} ${
-                  debugMode ? styles["debug-mode"] : ""
-                } ${
-                  component.fullCollapseWidth &&
-                  layoutWidth &&
-                  layoutWidth <= bottomCollapsBrake
-                    ? styles["full-collapse-width"]
-                    : ""
-                } ${
-                  layoutWidth && layoutWidth <= bottomCollapsBrake
-                    ? styles[`${position}__mobile`]
-                    : ""
-                } ${
-                  idx === 0 && layoutWidth && layoutWidth <= bottomCollapsBrake
-                    ? styles[`${position}__first`]
-                    : ""
-                }`}
-              >
-                <Control {...component} key={`control_${position}_${idx}`} />
-              </div>
-            ));
-          } else {
-            return (
-              <div
-                key={position}
-                className={`${styles[position]} ${
-                  debugMode ? styles["debug-mode"] : ""
-                }`}
-              >
-                {allPositions[position].map((component, idx) => {
-                  return <Control {...component} key={idx} />;
-                })}
-              </div>
-            );
-          }
-        })}
-      </div>
-    </div>
+      {children}
+    </ControlContext.Provider>
   );
-};
+}
 
 export default ControlLayout;

@@ -1,24 +1,24 @@
-import React, { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
+import { Positions, useControlContext } from "../map-control";
 
-export interface ControlProps {
-  position: string;
-  order: number;
-  fullCollapseWidth?: boolean;
+interface ControlProps {
+  position: Positions;
   children: ReactNode;
-  bottomLeftWidth?: number;
-  bottomRightWidth?: number;
-  title?: string;
+  order: number;
 }
 
-const Control: React.FC<ControlProps> = ({
-  position,
-  order,
-  children,
-  fullCollapseWidth = false,
-  bottomLeftWidth = 300,
-  bottomRightWidth = 300,
-}) => {
-  return <>{children}</>;
-};
+function Control({ position, children, order }: ControlProps) {
+  const { addControl, removeControl } = useControlContext();
+
+  useEffect(() => {
+    addControl({ position, component: children, order });
+
+    return () => {
+      removeControl({ position, component: children, order });
+    };
+  }, [children]);
+
+  return <></>;
+}
 
 export default Control;

@@ -36,7 +36,7 @@ export function useControlContext() {
   return context;
 }
 
-export function ControlProvider({ children }: { children: ReactNode }) {
+function ControlLayout({ children }: { children: ReactNode }) {
   const [controls, setControls] = useState<ControlComponent[]>([]);
 
   const addControl = (component: ControlComponent) => {
@@ -68,3 +68,5 @@ export function ControlProvider({ children }: { children: ReactNode }) {
     </ControlContext.Provider>
   );
 }
+
+export default ControlLayout;
