@@ -1,0 +1,25 @@
+{
+  "tm": {
+    "noFeatureCollection": true,
+    "applicationMenuIntroductionMarkdown": "Die Trinkwasserbrunnenkarte Wuppertal ist eine Anwendung der **GenericTopicMap Wuppertal**. Dies ist eine Komponente aus dem Gesamtsystem des Digitalen Zwillings der Stadt Wuppertal (**DigiTal Zwilling**), mit der eine einfache, für den mobilen Einsatz prädestinierte Web-Karte erzeugt werden kann, indem zwei Konfigurationsdateien angepasst werden. Über **Einstellungen** können Sie die Darstellung der Hintergrundkarte an Ihre Vorlieben anpassen. Wählen Sie **Kompaktanleitung** für detailliertere Bedienungsinformationen und **Urbaner Digitaler Zwilling** für eine Einordnung der Trinkwasserbrunnenkarte in den Kontext des DigiTal Zwillings.",
+
+    "vectorLayers": [
+      {
+        "style": "https://tiles.cismet.de/poi/trinkwasserbrunnen.style.json"
+      }
+    ],
+    "infoboxMapping": [
+      "foto: p.foto",
+      "headerColor:p.schrift",
+      "header:p.signatur==='tw_outdoor' ? 'Trinkwasserbrunnen, Freiluft' : p.signatur==='tw_indoor' ? 'Trinkwasserbrunnen, Gebäude' : p.signatur==='tw_outdoor_inaktiv' ? 'Trinkwasserbrunnen, Freiluft (in Wartung)' : p.signatur==='tw_indoor_inaktiv' ? 'Trinkwasserbrunnen, Gebäude (in Wartung)' : ''",
+      "title:p.geographicidentifier",
+      "additionalInfo:p.adresse",
+      "subtitle: p.info",
+      "url:p.url",
+      "tel:p.telefon",
+      "email:p.email",
+      "modal:'trinkwasser'"
+    ]
+  
+  }
+}
