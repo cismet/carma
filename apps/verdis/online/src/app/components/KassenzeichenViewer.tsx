@@ -298,6 +298,7 @@ const KassenzeichenViewer = () => {
         <KassenzeichenPanel />
       </div>
     );
+
     if (uiState.chartElementsEnabled) {
       kassenzeichenHorizontalFlaechenChartsPanel = (
         <KassenzeichenFlaechenChartPanel orientation="vertical" />
@@ -308,6 +309,12 @@ const KassenzeichenViewer = () => {
         // </Flexbox>
       );
     }
+  } else {
+    verdisMapWithAdditionalComponents = (
+      <div>
+        <Map />
+      </div>
+    );
   }
 
   if (uiState.contactElementEnabled && kassenzeichen.id !== -1) {
