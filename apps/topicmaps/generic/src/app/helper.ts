@@ -104,7 +104,7 @@ export const createVectorFeature = (mapping, selectedVectorFeature) => {
  * @returns {string} Markdown content for the layer.
  */
 export function layerMetaToMarkdown(layerName, info) {
-  return `
+  const ret = `
 
 ${
   info.legend
@@ -130,10 +130,10 @@ ${
 ${
   info.links && info.links.length > 0
     ? "**Links:**\n" +
-      info.links.map((link) => `- [${link}](${link})`).join("\n")
+      info.links.map((link) => `- [${link.label}](${link.link})`).join("\n")
     : ""
-}
-  `.trim();
+}`.trim();
+  return ret;
 }
 
 /**
@@ -145,8 +145,8 @@ ${
 export function createMetaHelpBlock(name, layerName, info) {
   const content = layerMetaToMarkdown(layerName, info);
   return {
-    title: `Layerinformation ${name}`,
-    bsStyle: "warning",
+    title: `${name}`,
+    bsStyle: "primary",
     contentBlockConf: {
       type: "MARKDOWN",
       content,
