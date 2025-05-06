@@ -1,5 +1,5 @@
-import { ReactNode, useEffect } from "react";
-import { useControlContext } from "./ControlProvider";
+import React, { ReactNode, useEffect } from "react";
+import { ControlComponent, useControlContext } from "./ControlProvider";
 
 interface MainProps {
   children: ReactNode;
@@ -8,24 +8,34 @@ interface MainProps {
 export function Main({ children }: MainProps) {
   const { controls } = useControlContext();
 
+  const filterControls = (control: ControlComponent, position: string) => {
+    return (
+      control.position === position && React.isValidElement(control.component)
+    );
+  };
+
+  const sortControls = (a: ControlComponent, b: ControlComponent) => {
+    return a.order - b.order;
+  };
+
   const topLeftControls = controls
-    .filter((c) => c.position === "topleft")
-    .sort((a, b) => a.order - b.order);
+    .filter((c) => filterControls(c, "topleft"))
+    .sort(sortControls);
   const topRightControls = controls
-    .filter((c) => c.position === "topright")
-    .sort((a, b) => a.order - b.order);
+    .filter((c) => filterControls(c, "topright"))
+    .sort(sortControls);
   const topCenterControls = controls
-    .filter((c) => c.position === "topcenter")
-    .sort((a, b) => a.order - b.order);
+    .filter((c) => filterControls(c, "topcenter"))
+    .sort(sortControls);
   const bottomLeftControls = controls
-    .filter((c) => c.position === "bottomleft")
-    .sort((a, b) => a.order - b.order);
+    .filter((c) => filterControls(c, "bottomleft"))
+    .sort(sortControls);
   const bottomRightControls = controls
-    .filter((c) => c.position === "bottomright")
-    .sort((a, b) => a.order - b.order);
+    .filter((c) => filterControls(c, "bottomright"))
+    .sort(sortControls);
   const bottomCenterControls = controls
-    .filter((c) => c.position === "bottomcenter")
-    .sort((a, b) => a.order - b.order);
+    .filter((c) => filterControls(c, "bottomcenter"))
+    .sort(sortControls);
 
   return (
     <div style={{ position: "relative", height: "100%", width: "100%" }}>
@@ -94,12 +104,11 @@ export function Main({ children }: MainProps) {
         <div
           style={{
             position: "absolute",
-            bottom: "10px",
-            left: "10px",
-            zIndex: 1000,
-            display: "flex",
-            flexDirection: "column-reverse",
-            gap: "10px",
+            bottom: "0",
+            left: "0",
+            zIndex: 500,
+            margin: "10px 10px 5px 10px",
+            marginRight: "auto",
           }}
         >
           {bottomLeftControls.map((control, index) => (

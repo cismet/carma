@@ -14,16 +14,16 @@ export type Positions =
   | "bottomright"
   | "bottomcenter";
 
-type Control = {
+export type ControlComponent = {
   position: Positions;
   component: ReactNode;
   order: number;
 };
 
 interface ControlContextType {
-  addControl: (component: Control) => void;
-  removeControl: (component: Control) => void;
-  controls: Control[];
+  addControl: (component: ControlComponent) => void;
+  removeControl: (component: ControlComponent) => void;
+  controls: ControlComponent[];
 }
 
 const ControlContext = createContext<ControlContextType | undefined>(undefined);
@@ -37,14 +37,23 @@ export function useControlContext() {
 }
 
 export function ControlProvider({ children }: { children: ReactNode }) {
-  const [controls, setControls] = useState<Control[]>([]);
+  const [controls, setControls] = useState<ControlComponent[]>([]);
 
-  const addControl = (component: Control) => {
+  const addControl = (component: ControlComponent) => {
     setControls((prev) => [...prev, component]);
   };
 
-  const removeControl = (component: Control) => {
-    setControls((prev) => prev.filter((c) => c !== component));
+  const removeControl = (component: ControlComponent) => {
+    setControls((prev) =>
+      prev.filter(
+        (c) =>
+          !(
+            c.position === component.position &&
+            c.order === component.order &&
+            c.component === component.component
+          )
+      )
+    );
   };
 
   return (
