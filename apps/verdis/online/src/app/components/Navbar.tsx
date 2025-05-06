@@ -87,24 +87,36 @@ const VerdisOnlineAppNavbar = () => {
   }
 
   const handleDownloadFEB = () => {
-    dispatch(
-      getFEBByStac(
-        stac,
-        (blob: Blob) => {
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `FEB.${kassenzeichennummer}.STAC.${stac}.pdf`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-
-          URL.revokeObjectURL(url);
-        },
-        false
-      )
-    );
+    console.log("xxx handleDownloadFEB uiState.febBlob", uiState.febBlob);
+    if (uiState.febBlob !== null) {
+      let link = document.createElement("a");
+      link.href = window.URL.createObjectURL(uiState.febBlob);
+      link.download =
+        "FEB." + kassenzeichen.kassenzeichennummer + ".STAC." + stac + ".pdf";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      dispatch(setWaitForFEB(true));
+    }
   };
+
+  useEffect(() => {
+    console.log("xxx uiState.waitForFEB", uiState.waitForFEB);
+    if (uiState.waitForFEB === true) {
+      //dh downloadFeb() wurde aufgerufen aber der Download ist noch nicht fertig
+      if (uiState.febBlob === null && uiState.waitingVisible === false) {
+        console.log("xxx 1");
+        dispatch(showInfo("FEB wird erzeugt"));
+        dispatch(showWaiting(true));
+      } else if (uiState.febBlob !== null && uiState.waitingVisible === true) {
+        console.log("xxx 2");
+        handleDownloadFEB();
+        dispatch(showWaiting(false));
+        dispatch(setWaitForFEB(false));
+      }
+    }
+  }, [uiState.waitForFEB, uiState.febBlob, uiState.waitingVisible]);
 
   return (
     <div>
