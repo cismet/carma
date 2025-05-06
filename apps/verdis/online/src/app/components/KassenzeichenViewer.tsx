@@ -37,9 +37,10 @@ import {
   showChangeRequests,
   showChangeRequestsEditView,
   showInfo,
+  showWaiting,
   toggleInfoElements,
 } from "../../store/slices/ui";
-import { getMapping } from "../../store/slices/mapping";
+import { fitAll, getMapping } from "../../store/slices/mapping";
 import HelpAndSettings from "../components/helpandsettings/Menu00MainComponent";
 import ChangeRequests from "../components/changerequests/CR00MainComponent";
 import {
@@ -67,10 +68,26 @@ const KassenzeichenViewer = () => {
     navigate("/");
   } else {
     if (!login) {
+      // console.log("xxx not successefull login");
       // dispatch(setLoginInProgress({}));
       // dispatch(showInfo("Kassenzeichen wird wieder geladen"));
-      dispatch(getKassenzeichenbySTAC(stac, () => {}));
+      // dispatch(showWaiting(true));
+      // dispatch(
+      //   getKassenzeichenbySTAC(stac, () => {
+      //     (success) => {
+      //       console.log("xxx success", success);
+      //       if (success === true) {
+      //         setTimeout(() => {
+      //           dispatch(showWaiting(false));
+      //           dispatch(fitAll());
+      //         }, 300);
+      //       }
+      //     };
+      //   })
+      // );
     }
+
+    // console.log("xxx successefull login");
   }
 
   // let flaechenPanelRefs = useRef({});
