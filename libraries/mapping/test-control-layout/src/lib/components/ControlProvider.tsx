@@ -18,10 +18,8 @@ type Control = {
 };
 
 interface ControlContextType {
-  setMain: (component: ReactNode) => void;
   addControl: (component: Control) => void;
   removeControl: (component: Control) => void;
-  main: ReactNode | null;
   controls: Control[];
 }
 
@@ -36,16 +34,9 @@ export function useControlContext() {
 }
 
 export function ControlProvider({ children }: { children: ReactNode }) {
-  const [main, setMain] = useState<ReactNode | null>(null);
   const [controls, setControls] = useState<Control[]>([]);
 
-  // Log when components change
   useEffect(() => {
-    console.log("Main component set:", main !== null);
-  }, [main]);
-
-  useEffect(() => {
-    console.log("Control components count:", controls.length);
     console.log("Control components:", controls);
   }, [controls]);
 
@@ -60,10 +51,8 @@ export function ControlProvider({ children }: { children: ReactNode }) {
   return (
     <ControlContext.Provider
       value={{
-        setMain,
         addControl,
         removeControl,
-        main,
         controls,
       }}
     >
