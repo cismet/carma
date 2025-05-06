@@ -108,7 +108,7 @@ export function layerMetaToMarkdown(layerName, info) {
 
 ${
   info.legend
-    ? `<img src="${info.legend}" alt="Legende für ${layerName}" style="padding-left:10px;padding-right:10px;float:right;padding-bottom:5px;max-width:300px;max-width:50%;height:auto;" />`
+    ? `<img src="${info.legend}" alt="Legende für ${layerName}" style="padding-left:10px;padding-right:10px;float:right;padding-bottom:5px;max-width:250px;" />`
     : ""
 }
 
