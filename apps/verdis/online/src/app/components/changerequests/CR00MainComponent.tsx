@@ -209,7 +209,6 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
   };
 
   const changeEmail = (email) => {
-    console.log("xxx changeEmail");
     dispatch(requestEmailChange(email));
   };
 
@@ -501,8 +500,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
               sectionTitle="eMail Benachrichtigungen aktivieren"
               sectionBsStyle="info"
               setActiveSectionKey={() => {
-                console.log("xxx on select");
-                setEmailSettingsShown(false);
+                setEmailSettingsShown(!emailSettingsShown);
               }}
               sectionContent={
                 <>
@@ -555,7 +553,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
                           <Button
                             variant="danger"
                             onClick={() => {
-                              changeEmail(undefined);
+                              changeEmail(null);
                             }}
                             style={{ marginLeft: 20 }}
                           >
@@ -590,7 +588,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
                             onClick={() => {
                               setCodeVerificationInProgress(true);
                               dispatch(
-                                confirmEmail(
+                                completeEmailChange(
                                   contactemailVerificationCodeInput,
                                   (result) => {
                                     setContactemailVerificationCodeInput("");

@@ -207,7 +207,7 @@ function storeCR(cr, callback = (payload) => {}) {
               }, 100);
               const newKassz = JSON.parse(JSON.stringify(kassenzeichen));
               newKassz.aenderungsanfrage = resultObject.aenderungsanfrage;
-              dispatch(setKassenzeichen(newKassz));
+              dispatch(setKassenzeichen({ kassenzeichenObject: newKassz }));
             } else {
               dispatch(
                 setError(
@@ -783,7 +783,6 @@ export function completeEmailChange(code, callback = (payload) => {}) {
   return function (dispatch, getState) {
     const kassenzeichen = getState().kassenzeichen;
     const newKassz = JSON.parse(JSON.stringify(kassenzeichen));
-
     if (
       newKassz.aenderungsanfrage === undefined ||
       newKassz.aenderungsanfrage === null
