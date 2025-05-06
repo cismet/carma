@@ -12,7 +12,7 @@ export type ExteriorPosition = {
   z: number;
 };
 
-type row3 = [number, number, number]; 
+type row3 = [number, number, number];
 
 export interface ExteriorOrientationDataArray {
   [number, number, number, row3, row3, row3];
@@ -20,7 +20,6 @@ export interface ExteriorOrientationDataArray {
 export interface ExteriorOrientations {
   [key: string]: ExteriorOrientationDataArray;
 }
-
 
 // TODO: consolidate with type ExteriorOrientationRecord
 export interface BasicObliqueImageRecord {

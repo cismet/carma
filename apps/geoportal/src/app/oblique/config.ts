@@ -4,7 +4,7 @@ import {
   OBLIQUE_2024_ORIENTATIONS_CSV_URI,
   OBLIQUE_2024_PREVIEW_PATH,
   OBLIQUE_2024_EXT_ORI_UTM32_URI,
-  OBLIQUE_2024_FPRFC_GEOJSON_URI
+  OBLIQUE_2024_FPRFC_GEOJSON_URI,
 } from "@carma-commons/resources";
 import { OBLIQUE_PREVIEW_QUALITY } from "./constants";
 import { ObliqueDataProviderConfig } from "./types";

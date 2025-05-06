@@ -21,10 +21,7 @@ import {
 } from "../types";
 import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
 import { CardinalDirectionEnum } from "../utils/orientationUtils";
-import {
-  fetchGeoJson,
-  FootprintProperties,
-} from "../utils/footprintUtils";
+import { fetchGeoJson, FootprintProperties } from "../utils/footprintUtils";
 import {
   RBushBySectorBlocks,
   createRBushByCardinal,
@@ -130,9 +127,8 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
     footprintCenterpointsRBushByCardinals,
     setFootprintCenterpointsRBushByCardinals,
   ] = useState<RBushBySectorBlocks | null>(null);
-  const [exteriorOrientations, setExteriorOrientations] = useState<
-    ExteriorOrientations | null
-  >(null);
+  const [exteriorOrientations, setExteriorOrientations] =
+    useState<ExteriorOrientations | null>(null);
   const [isFootprintLoading, setIsFootprintLoading] = useState(false);
   const [isExtOriLoading, setIsExtOriLoading] = useState(false);
 
@@ -210,7 +206,6 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
         setIsFootprintLoading(false);
       });
   }, [isObliqueMode, converter, footprintsURI]);
-
 
   // Load exterior orientations data when in oblique mode
   useEffect(() => {
