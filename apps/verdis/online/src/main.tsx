@@ -13,6 +13,7 @@ import VerdisOnlineLanding from "./app/components/VerdisOnlineLanding";
 import HelpAndSettings from "./app/components/helpandsettings/Menu00MainComponent";
 import "bootstrap/dist/css/bootstrap.min.css";
 import Layout from "./app/components/Layout";
+import VerdisOnlineHelp from "./containers/VerdisOnlineHelpFAQs";
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement
@@ -32,7 +33,7 @@ const router = createHashRouter(
     },
     {
       path: "/verdisOnlineHilfeFAQs",
-      element: <HelpAndSettings />,
+      element: <VerdisOnlineHelp />,
     },
   ],
   {}
