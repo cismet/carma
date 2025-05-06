@@ -13,6 +13,7 @@ import Introduction from "./CR05Introduction";
 import {
   addChangeRequestMessage,
   addCRDoc,
+  completeEmailChange,
   getKassenzeichen,
   getNumberOfPendingChanges,
   removeLastChangeRequestMessage,
@@ -166,7 +167,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
   }
 
   const scrollToVisible = (ref) => {
-    if (ref && ref.current && !emailSettingsShown) {
+    if (ref && ref.current && emailSettingsShown) {
       ref.current.scrollIntoView({
         behavior: "smooth",
         block: "end",
@@ -207,11 +208,11 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
   };
 
   const changeEmail = (email) => {
+    console.log("xxx changeEmail");
     dispatch(requestEmailChange(email));
   };
 
-  const confirmEmail = () => {};
-
+  // dispatch(requestEmailChange());
   return (
     <Modal
       style={{
@@ -497,7 +498,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
               sectionBsStyle="info"
               setActiveSectionKey={() => {
                 console.log("xxx on select");
-                setEmailSettingsShown(!emailSettingsShown);
+                setEmailSettingsShown(false);
               }}
               sectionContent={
                 <>
@@ -550,7 +551,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
                           <Button
                             variant="danger"
                             onClick={() => {
-                              changeEmail(null);
+                              changeEmail(undefined);
                             }}
                             style={{ marginLeft: 20 }}
                           >
@@ -584,27 +585,29 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
                             }
                             onClick={() => {
                               setCodeVerificationInProgress(true);
-                              confirmEmail(
-                                contactemailVerificationCodeInput,
-                                (result) => {
-                                  setContactemailVerificationCodeInput("");
-                                  setCodeVerificationInProgress(false);
-                                  if (
-                                    (result.aenderungsanfrage || {})
-                                      .emailVerifiziert
-                                  ) {
-                                    setCodeVerificationMessage(
-                                      "Verifikation erfolgreich"
-                                    );
-                                  } else {
-                                    setCodeVerificationMessage(
-                                      "Verifikation fehlgeschlagen"
-                                    );
+                              dispatch(
+                                confirmEmail(
+                                  contactemailVerificationCodeInput,
+                                  (result) => {
+                                    setContactemailVerificationCodeInput("");
+                                    setCodeVerificationInProgress(false);
+                                    if (
+                                      (result.aenderungsanfrage || {})
+                                        .emailVerifiziert
+                                    ) {
+                                      setCodeVerificationMessage(
+                                        "Verifikation erfolgreich"
+                                      );
+                                    } else {
+                                      setCodeVerificationMessage(
+                                        "Verifikation fehlgeschlagen"
+                                      );
+                                    }
+                                    setTimeout(() => {
+                                      setCodeVerificationMessage("");
+                                    }, 2500);
                                   }
-                                  setTimeout(() => {
-                                    setCodeVerificationMessage("");
-                                  }, 2500);
-                                }
+                                )
                               );
                             }}
                           >
