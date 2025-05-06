@@ -54,7 +54,7 @@ const Map = ({ config, featureGazData = [], layerInformation = {} }) => {
   console.log("layerInformation", layerInformation);
   // lets assume we will only have vector layers
   useEffect(() => {
-    if (globalHits) {
+    if (globalHits && config?.tm?.vectorLayers) {
       const layers = config.tm.vectorLayers;
       //iterate layers in reverse order
       const reversedLayers = [...layers].reverse();

@@ -284,21 +284,31 @@ function App({ name }) {
           slugName,
           "featureDefaultProperties",
           server,
-          path
+          path,
+          log
         );
         config.featureDefaults = await getConfig(
           slugName,
           "featureDefaults",
           server,
-          path
+          path,
+
+          log
         );
         config.infoBoxConfig = await getConfig(
           slugName,
           "infoBoxConfig",
           server,
-          path
+          path,
+          log
         );
-        config.features = await getConfig(slugName, "features", server, path);
+        config.features = await getConfig(
+          slugName,
+          "features",
+          server,
+          path,
+          log
+        );
         const fc = [];
         let i = 0;
         for (const f of config.features) {
