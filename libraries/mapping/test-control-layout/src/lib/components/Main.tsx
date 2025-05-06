@@ -38,8 +38,33 @@ export function Main({ children }: MainProps) {
     .sort(sortControls);
 
   return (
-    <div style={{ position: "relative", height: "100%", width: "100%" }}>
-      {children}
+    <div
+      style={{
+        height: "100%",
+        position: "relative",
+        width: "100%",
+      }}
+    >
+      <div
+        style={{
+          height: "100%",
+          position: "relative",
+          width: "100%",
+        }}
+      ></div>
+      <div
+        style={{
+          position: "absolute",
+          maxWidth: "100%",
+          maxHeight: "100%",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+        }}
+      >
+        {children}
+      </div>
 
       {topLeftControls.length > 0 && (
         <div
@@ -108,11 +133,10 @@ export function Main({ children }: MainProps) {
             left: "0",
             zIndex: 500,
             margin: "10px 10px 5px 10px",
-            marginRight: "auto",
           }}
         >
           {bottomLeftControls.map((control, index) => (
-            <div key={`bottom-left-${index}`}>{control.component}</div>
+            <>{control.component}</>
           ))}
         </div>
       )}
