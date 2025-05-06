@@ -7,14 +7,17 @@ import {
 } from "react";
 
 export type Positions =
-  | "top-left"
-  | "top-right"
-  | "bottom-left"
-  | "bottom-right";
+  | "topleft"
+  | "topright"
+  | "topcenter"
+  | "bottomleft"
+  | "bottomright"
+  | "bottomcenter";
 
 type Control = {
   position: Positions;
   component: ReactNode;
+  order: number;
 };
 
 interface ControlContextType {
