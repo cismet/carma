@@ -58,42 +58,30 @@ export const extractInformation = async (layer: ExtendedLayer) => {
   };
   if (metadataUrl) {
     const urlWithoutWhitespace = metadataUrl.replaceAll(" ", "");
-    fetch(urlWithoutWhitespace)
-      .then((response) => {
-        return response.text();
-      })
-      .then((text) => {
-        const result = parser.parseFromString(text, "text/xml");
-        const abstract = result.getElementsByTagName("gmd:abstract")[0];
-        if (abstract.textContent) {
-          metadata.text = abstract.textContent;
-          metadata.url = `https://geoportal-nrw-content-type-pdf-proxy.cismet.de/geoportal-smartfinder-iso-1.2/resources/content/document/${getIdFromUrl(
-            urlWithoutWhitespace
-          )}?filename=Metadatensatz.${layer.Name.replaceAll(
-            " ",
-            "_"
-          )}.Wuppertal.pdf`;
-        }
-      });
+    try {
+      const response = await fetch(urlWithoutWhitespace);
+      const text = await response.text();
+      const xml = parser.parseFromString(text, "text/xml");
+      const abstract = xml.getElementsByTagName("gmd:abstract")[0];
+      if (abstract && abstract.textContent) {
+        metadata.text = abstract.textContent;
+        metadata.url = `https://geoportal-nrw-content-type-pdf-proxy.cismet.de/geoportal-smartfinder-iso-1.2/resources/content/document/${getIdFromUrl(
+          urlWithoutWhitespace
+        )}?filename=Metadatensatz.${layer.Name.replaceAll(
+          " ",
+          "_"
+        )}.Wuppertal.pdf`;
+      }
+    } catch (e) {
+      // handle error, e.g. log or ignore
+    }
   }
   let legend = "";
-  layer.Style.forEach(
-    (style: {
-      Name: string;
-      Title: string;
-      LegendURL: {
-        Format: string;
-        OnlineResource: string;
-        size: number[];
-      }[];
-    }) => {
-      if (style.LegendURL) {
-        const url = style.LegendURL[0].OnlineResource;
-        legend = url;
-        return;
-      }
-      return "";
+  layer.Style.forEach((style) => {
+    if (style.LegendURL) {
+      legend = style.LegendURL[0].OnlineResource;
+      return;
     }
-  );
+  });
   return { ...result, legend, metadata };
 };
