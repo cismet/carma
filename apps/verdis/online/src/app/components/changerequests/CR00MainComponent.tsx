@@ -40,6 +40,7 @@ import {
 import AnnotationPanel from "../AnnotationPanel";
 import { Icon } from "react-fa";
 import Form from "react-bootstrap/Form";
+import CloudLoadingAttributeIcon from "../commons/CloudLoadingAttributeIcon";
 
 const CR00MainComponent = ({ localErrorMessages = [], height }) => {
   const uiState = useSelector(getUiState);
@@ -232,6 +233,9 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
         <Modal.Title>
           <div className="pull-left">
             <Icon name={"edit"} /> {"Änderungswünsche und Kommentare"}
+            <div className="pull-right">
+              {/* <CloudLoadingAttributeIcon /> */}
+            </div>
           </div>
         </Modal.Title>
       </Modal.Header>
