@@ -24,7 +24,6 @@ import {
 const ModalHelpAndInfo = () => {
   const uiState = useSelector(getUiState);
   const mapping = useSelector(getMapping);
-  mapping.backgrounds;
   const dispatch = useDispatch();
   return (
     <ModalApplicationMenu
