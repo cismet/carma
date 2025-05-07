@@ -9,7 +9,7 @@ import {
   Control,
   ControlButtonStyler,
   ControlLayout,
-  Main,
+  ControlLayoutCanvas,
 } from "@carma-mapping/map-controls-layout";
 import {
   faCompress,
@@ -312,7 +312,7 @@ const MapWrapper = () => {
   lastRenderTimeStampRef.current = Date.now();
 
   return (
-    <ControlLayout onHeightResize={setLayoutHeight} ifStorybook={false}>
+    <ControlLayout>
       {zenMode ? (
         <>
           <Control position="topcenter" order={10}>
@@ -431,20 +431,19 @@ const MapWrapper = () => {
                     )}
                   </ControlButtonStyler>
                 </Tooltip>
-                <Control position="topleft" order={70}>
-                  <MapTypeSwitcher
-                    duration={CESIUM_CONFIG.transitions.mapMode.duration}
-                    className="!rounded-t-none !border-t-[1px]"
-                    onComplete={(isTo2d: boolean) => {
-                      isTo2d && clear3dHashParams();
-                      //dispatch(setBackgroundLayer({ ...backgroundLayer, visible: isTo2d }));
-                    }}
-                    ref={tourRefLabels.toggle2d3d}
-                  />
-                  {
-                    // TODO implement cesium home action with generic home control for all mapping engines
-                  }
-                </Control>
+
+                <MapTypeSwitcher
+                  duration={CESIUM_CONFIG.transitions.mapMode.duration}
+                  className="!rounded-t-none !border-t-[1px]"
+                  onComplete={(isTo2d: boolean) => {
+                    isTo2d && clear3dHashParams();
+                    //dispatch(setBackgroundLayer({ ...backgroundLayer, visible: isTo2d }));
+                  }}
+                  ref={tourRefLabels.toggle2d3d}
+                />
+                {
+                  // TODO implement cesium home action with generic home control for all mapping engines
+                }
               </div>
             </Control>
           )}
@@ -667,7 +666,7 @@ const MapWrapper = () => {
           </Control>
         </>
       )}
-      <Main ref={wrapperRef}>
+      <ControlLayoutCanvas>
         <ObliqueControls />
 
         <div
@@ -678,6 +677,7 @@ const MapWrapper = () => {
             minHeight: "256px",
             overflow: "hidden",
           }}
+          ref={wrapperRef}
         >
           {showLibreMap && isMode2d ? (
             <LibreGeoportalMap />
@@ -685,7 +685,7 @@ const MapWrapper = () => {
             <GeoportalMap height={height} width={width} allow3d={allow3d} />
           )}
         </div>
-      </Main>
+      </ControlLayoutCanvas>
     </ControlLayout>
   );
 };

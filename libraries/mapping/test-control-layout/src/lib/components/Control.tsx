@@ -1,17 +1,13 @@
 import { ReactNode, useEffect } from "react";
-import { Positions, useControlContext } from "../map-control";
+import { Positions, useControlContext } from "./ControlProvider";
 
 interface ControlProps {
   position: Positions;
   children: ReactNode;
   order: number;
-  fullCollapseWidth?: boolean;
-  bottomLeftWidth?: number;
-  bottomRightWidth?: number;
-  title?: string;
 }
 
-function Control({ position, children, order }: ControlProps) {
+export function Control({ position, children, order }: ControlProps) {
   const { addControl, removeControl } = useControlContext();
 
   useEffect(() => {
@@ -24,5 +20,3 @@ function Control({ position, children, order }: ControlProps) {
 
   return <></>;
 }
-
-export default Control;
