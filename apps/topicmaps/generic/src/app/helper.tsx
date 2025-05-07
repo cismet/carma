@@ -219,11 +219,10 @@ export function gtmComponentResolver(
     return null;
   }
 
-  const component = GTMComponentDictionary[componentName]();
-  if (!component) {
+  const Component = GTMComponentDictionary[componentName];
+  if (!Component) {
     console.error(`Component ${componentName} not found in dictionary.`);
     return null;
   }
-
-  return component;
+  return <Component {...componentProps} />;
 }
