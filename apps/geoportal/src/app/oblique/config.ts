@@ -3,6 +3,8 @@ import {
   OBLIQUE_2024_ORIENTATIONS_CRS,
   OBLIQUE_2024_ORIENTATIONS_CSV_URI,
   OBLIQUE_2024_PREVIEW_PATH,
+  OBLIQUE_2024_EXT_ORI_UTM32_URI,
+  OBLIQUE_2024_FPRFC_GEOJSON_URI,
 } from "@carma-commons/resources";
 import { OBLIQUE_PREVIEW_QUALITY } from "./constants";
 import { ObliqueDataProviderConfig } from "./types";
@@ -18,10 +20,11 @@ export const OBLIQUE_CONFIG: ObliqueDataProviderConfig = {
   previewPath: OBLIQUE_2024_PREVIEW_PATH,
   crs: OBLIQUE_2024_ORIENTATIONS_CRS,
   orientationsURI: OBLIQUE_2024_ORIENTATIONS_CSV_URI,
+  exteriorOrientationsURI: OBLIQUE_2024_EXT_ORI_UTM32_URI,
+  footprintsURI: OBLIQUE_2024_FPRFC_GEOJSON_URI,
 };
 
 export const NUM_NEAREST_IMAGES = 200;
-export const FOV_SCALE_FACTOR = 0.208;
 
 export const CAMERA_ID_TO_DIRECTION = {
   // For even flight lines

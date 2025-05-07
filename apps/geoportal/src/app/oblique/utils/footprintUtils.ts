@@ -18,9 +18,6 @@ export interface FootprintProperties {
 
 export type FootprintFeature = Feature<Polygon, FootprintProperties>;
 
-export const FOOTPRINT_URL =
-  "https://wupp-oblique.cismet.de/2024/metadata/fprfc.geojson";
-
 export const BUFFER_WIDTH_METERS = 10;
 
 export const BUFFER_SHIFT_FACTOR = 0.5;

@@ -1,116 +1,22 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Math as CesiumMath } from "cesium";
 import { useCesiumContext } from "@carma-mapping/cesium-engine";
-import { Slider } from "antd";
 import { styled } from "styled-components";
+import { Collapse } from "antd";
 
-import { useObliqueDataContext } from "../../oblique/hooks/useObliqueDataContext";
-import { CardinalNames } from "../utils/orientationUtils";
-import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
-import { getPreviewImageUrl } from "../utils/imageHandling";
-import { calculateCustomHeading as calculateHeadingForRecord } from "../utils/obliqueReferenceUtils";
-import { useNearestObliqueImage } from "../hooks/useNearestObliqueImage";
-import { NUM_NEAREST_IMAGES } from "../config";
+import { useObliqueDataContext } from "../../hooks/useObliqueDataContext";
+import { CardinalNames } from "../../utils/orientationUtils";
+import { OBLIQUE_PREVIEW_QUALITY } from "../../constants";
+import { getPreviewImageUrl } from "../../utils/imageHandling";
+import { calculateCustomHeading as calculateHeadingForRecord } from "../../utils/obliqueReferenceUtils";
+import { useNearestObliqueImage } from "../../hooks/useNearestObliqueImage";
+import { NUM_NEAREST_IMAGES } from "../../config";
+import { ObliqueControlPanel } from "./ObliqueControlPanel";
 
-const SvgContainer = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 10000;
-  pointer-events: none;
-`;
-
-interface ControlPanelProps {
-  isCollapsed: boolean;
-}
-
-const ControlPanel = styled.div<ControlPanelProps>`
-  position: fixed;
-  top: 10px;
-  left: 60px;
-  width: 300px;
-  background: rgba(255, 255, 255, 0.9);
-  padding: 15px;
-  border-radius: 8px;
-  z-index: 10001;
-  pointer-events: all;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  transition: all 0.3s ease;
-  overflow: hidden;
-  max-height: ${(props) => (props.isCollapsed ? "42px" : "500px")};
-`;
-
-const SliderGroup = styled.div`
-  margin-bottom: 15px;
-  padding-top: 5px;
-
-  .ant-slider-track {
-    background-color: #1890ff;
-  }
-
-  .ant-slider-handle {
-    border-color: #1890ff;
-  }
-`;
-
-const SliderLabel = styled.div`
-  color: #333;
-  margin-bottom: 5px;
-  display: flex;
-  justify-content: space-between;
-  font-weight: 500;
-`;
-
-const SliderValue = styled.span`
-  color: #1890ff;
-  font-weight: bold;
-`;
-
-interface ControlButtonProps {
-  primary?: boolean;
-}
-
-const ControlButton = styled.button<ControlButtonProps>`
-  background: ${(props) => (props.primary ? "#1890ff" : "white")};
-  color: ${(props) => (props.primary ? "white" : "#333")};
-  border: 1px solid #d9d9d9;
-  border-radius: 4px;
-  padding: 4px 8px;
-  margin-right: 8px;
-  margin-bottom: 8px;
-  cursor: pointer;
-  font-size: 12px;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.015);
-
-  &:hover {
-    background: ${(props) => (props.primary ? "#40a9ff" : "#f5f5f5")};
-    border-color: ${(props) => (props.primary ? "#40a9ff" : "#d9d9d9")};
-  }
-
-  &:active {
-    background: ${(props) => (props.primary ? "#096dd9" : "#e6e6e6")};
-  }
-`;
-
-const ControlHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-  cursor: pointer;
-`;
-
-const ControlTitle = styled.div`
-  font-weight: bold;
-  color: #333;
-`;
-
-const ButtonRow = styled.div`
-  display: flex;
-  margin-bottom: 10px;
+const ControlPanelContainer = styled.div`
+  position: absolute;
+  top: 4rem;
+  left: 1rem;
 `;
 
 export const ObliqueDebugSvg = () => {
@@ -119,6 +25,7 @@ export const ObliqueDebugSvg = () => {
   const [showImages, setShowImages] = useState(false);
   const [showLabels, setShowLabels] = useState(false);
   const [offsetImages, setOffsetImages] = useState(false);
+  const [isSvgCollapsed, setIsSvgCollapsed] = useState(false);
 
   // Slider state variables
   const [imageWidth, setImageWidth] = useState(316);
@@ -356,7 +263,6 @@ export const ObliqueDebugSvg = () => {
                   fontSize="30"
                   fill="black"
                   textAnchor="middle"
-                  dominantBaseline="middle"
                 >
                   {index + 1}
                 </text>
@@ -479,304 +385,208 @@ export const ObliqueDebugSvg = () => {
     </g>
   );
 
-  const renderControls = () => (
-    <ControlPanel isCollapsed={isControlsCollapsed}>
-      <ControlHeader
-        onClick={() => setIsControlsCollapsed(!isControlsCollapsed)}
-      >
-        <ControlTitle>
-          Image Controls {isControlsCollapsed ? "▾" : "▴"}
-        </ControlTitle>
-      </ControlHeader>
-
-      {!isControlsCollapsed && (
-        <>
-          <ButtonRow>
-            <ControlButton
-              primary={showImages}
-              onClick={() => setShowImages(!showImages)}
-            >
-              {showImages ? "Hide Images" : "Show Images"}
-            </ControlButton>
-            <ControlButton
-              primary={showLabels}
-              onClick={() => setShowLabels(!showLabels)}
-            >
-              {showLabels ? "Hide Labels" : "Show Labels"}
-            </ControlButton>
-            <ControlButton
-              primary={offsetImages}
-              onClick={() => setOffsetImages(!offsetImages)}
-            >
-              {offsetImages
-                ? "Center on Ground Points"
-                : "Center on Capture Points"}
-            </ControlButton>
-          </ButtonRow>
-
-          <SliderGroup>
-            <SliderLabel>
-              <span>Image Width</span>
-              <SliderValue>{imageWidth}px</SliderValue>
-            </SliderLabel>
-            <Slider
-              min={64}
-              max={400}
-              value={imageWidth}
-              onChange={(value) => setImageWidth(value as number)}
-            />
-          </SliderGroup>
-
-          <SliderGroup>
-            <SliderLabel>
-              <span>Image Height</span>
-              <SliderValue>{imageHeight}px</SliderValue>
-            </SliderLabel>
-            <Slider
-              min={64}
-              max={400}
-              value={imageHeight}
-              onChange={(value) => setImageHeight(value as number)}
-            />
-          </SliderGroup>
-
-          <SliderGroup>
-            <SliderLabel>
-              <span>Crop Width Factor</span>
-              <SliderValue>{cropWidthFactor}%</SliderValue>
-            </SliderLabel>
-            <Slider
-              min={100}
-              max={800}
-              value={cropWidthFactor}
-              onChange={(value) => setCropWidthFactor(value as number)}
-            />
-          </SliderGroup>
-
-          <SliderGroup>
-            <SliderLabel>
-              <span>Crop Height Factor</span>
-              <SliderValue>{cropHeightFactor}%</SliderValue>
-            </SliderLabel>
-            <Slider
-              min={100}
-              max={800}
-              value={cropHeightFactor}
-              onChange={(value) => setCropHeightFactor(value as number)}
-            />
-          </SliderGroup>
-
-          <div style={{ marginTop: "15px", marginBottom: "5px" }}>
-            <SliderLabel>
-              <span>Image Rotation</span>
-            </SliderLabel>
-
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-around",
-                marginTop: "8px",
-              }}
-            >
-              {[0, 90, 180, 270].map((angle) => (
-                <div
-                  key={angle}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    cursor: "pointer",
-                  }}
-                >
-                  <input
-                    type="radio"
-                    id={`rotation-${angle}`}
-                    name="imageRotation"
-                    value={angle}
-                    checked={imageRotation === angle}
-                    onChange={() => setImageRotation(angle)}
-                    style={{ cursor: "pointer" }}
-                  />
-                  <label
-                    htmlFor={`rotation-${angle}`}
-                    style={{ marginLeft: "4px", cursor: "pointer" }}
-                  >
-                    {angle}°
-                  </label>
-                </div>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
-    </ControlPanel>
-  );
-
   return (
-    <SvgContainer>
-      {renderControls()}
-      <svg
-        width={`${svgWidth}px`}
-        height={`${svgHeight}px`}
-        viewBox={`${-extent} ${-extent} ${gridSize} ${gridSize}`}
+    <Collapse
+      activeKey={isSvgCollapsed ? [] : ["1"]}
+      onChange={() => setIsSvgCollapsed(!isSvgCollapsed)}
+    >
+      <Collapse.Panel
+        key="1"
+        header="Debug Visualization"
         style={{
-          position: "fixed",
-          top: "60px",
-          left: "60px",
-          pointerEvents: "none",
           background: "rgba(255, 255, 255, 0.8)",
           borderRadius: "4px",
           overflow: "hidden",
           border: "2px solid rgba(0, 0, 0, 0.3)",
           boxShadow: "0 0 15px rgba(0, 0, 0, 0.5)",
+          position: "relative", // This makes positioning context for absolute children
         }}
       >
-        {/* Chart elements that stay fixed regardless of centering */}
-        <text x={-extent + 50} y={extent - 50} fontSize="50">
-          Heading: {((cameraHeading * 180) / Math.PI).toFixed(1)}°
-        </text>
-        <text x={-extent + 50} y={extent - 120} fontSize="40">
-          Images: {nearestImages.length}
-        </text>
-        <text x={-extent + 50} y={extent - 180} fontSize="40">
-          Current Sector: {cardinalSector} (
-          {CardinalNames["EN"].get(cardinalSector)})
-        </text>
-        <text x={-extent + 50} y={extent - 300} fontSize="40" fill="red">
-          Images Filtered By Sector
-        </text>
-        <text x={-extent + 50} y={extent - 240} fontSize="40">
-          Heading Offset: {((headingOffset * 180) / Math.PI).toFixed(1)}°
-        </text>
-
-        {/* Main chart group with conditional centering on ground point */}
-        <g
-          transform={
-            offsetImages
-              ? `translate(${-pointOnGround.x}, ${-pointOnGround.y})`
-              : ""
-          }
-        >
-          {lineToNearest}
-          {imagePoints}
-          {cameraMarker}
-          {headingIndicator}
-
-          <text x={-10} y={40} fontSize="40" textAnchor="end">
-            Camera
-          </text>
-          <text x={-10} y={90} fontSize="40" textAnchor="end">
-            <tspan>{String(Math.floor(cameraPosition[0])).slice(0, -4)}</tspan>
-            <tspan fontWeight="bold">
-              {String(Math.floor(cameraPosition[0])).slice(-4)}
-            </tspan>
-          </text>
-          <text x={-10} y={140} fontSize="40" textAnchor="end">
-            <tspan>{String(Math.floor(cameraPosition[1])).slice(0, -4)}</tspan>
-            <tspan fontWeight="bold">
-              {String(Math.floor(cameraPosition[1])).slice(-4)}
-            </tspan>
-          </text>
-
-          {/* Yellow reference point marker with coordinates */}
-          <circle
-            cx={pointOnRadius.x}
-            cy={pointOnRadius.y}
-            r={10}
-            fill="rgba(255, 255, 0, 0.8)"
-            stroke="white"
-            strokeWidth={2}
+        {/* Image Controls Panel - Overlay on top of SVG */}
+        <ControlPanelContainer>
+          <ObliqueControlPanel
+            isCollapsed={isControlsCollapsed}
+            onToggleCollapse={() =>
+              setIsControlsCollapsed(!isControlsCollapsed)
+            }
+            showImages={showImages}
+            onToggleImages={() => setShowImages(!showImages)}
+            showLabels={showLabels}
+            onToggleLabels={() => setShowLabels(!showLabels)}
+            offsetImages={offsetImages}
+            onToggleOffsetImages={() => setOffsetImages(!offsetImages)}
+            imageWidth={imageWidth}
+            onImageWidthChange={setImageWidth}
+            imageHeight={imageHeight}
+            onImageHeightChange={setImageHeight}
+            cropWidthFactor={cropWidthFactor}
+            onCropWidthFactorChange={setCropWidthFactor}
+            cropHeightFactor={cropHeightFactor}
+            onCropHeightFactorChange={setCropHeightFactor}
+            imageRotation={imageRotation}
+            onImageRotationChange={setImageRotation}
           />
-          <text
-            x={pointOnRadius.x - 10}
-            y={pointOnRadius.y + 40}
-            textAnchor="end"
-            fontSize="40"
-          >
-            Reference
+        </ControlPanelContainer>
+        <svg
+          width={`${svgWidth}px`}
+          height={`${svgHeight}px`}
+          viewBox={`${-extent} ${-extent} ${gridSize} ${gridSize}`}
+          style={{
+            pointerEvents: "none",
+          }}
+        >
+          {/* Chart elements that stay fixed regardless of centering */}
+          <text x={-extent + 50} y={extent - 50} fontSize="50">
+            Heading: {((cameraHeading * 180) / Math.PI).toFixed(1)}°
           </text>
-          <text
-            x={pointOnRadius.x - 10}
-            y={pointOnRadius.y + 90}
-            fontSize="40"
-            textAnchor="end"
-          >
-            <tspan>
-              {radiusPointCoords
-                ? String(Math.floor(radiusPointCoords[0])).slice(0, -4)
-                : ""}
-            </tspan>
-            <tspan fontWeight="bold">
-              {radiusPointCoords
-                ? String(Math.floor(radiusPointCoords[0])).slice(-4)
-                : ""}
-            </tspan>
+          <text x={-extent + 50} y={extent - 120} fontSize="40">
+            Images: {nearestImages.length}
           </text>
-          <text
-            x={pointOnRadius.x - 10}
-            y={pointOnRadius.y + 140}
-            fontSize="40"
-            textAnchor="end"
-          >
-            <tspan>
-              {radiusPointCoords
-                ? String(Math.floor(radiusPointCoords[1])).slice(0, -4)
-                : ""}
-            </tspan>
-            <tspan fontWeight="bold">
-              {radiusPointCoords
-                ? String(Math.floor(radiusPointCoords[1])).slice(-4)
-                : ""}
-            </tspan>
+          <text x={-extent + 50} y={extent - 180} fontSize="40">
+            Current Sector: {cardinalSector} (
+            {CardinalNames["EN"].get(cardinalSector)})
           </text>
-        </g>
+          <text x={-extent + 50} y={extent - 300} fontSize="40" fill="red">
+            Images Filtered By Sector
+          </text>
+          <text x={-extent + 50} y={extent - 240} fontSize="40">
+            Heading Offset: {((headingOffset * 180) / Math.PI).toFixed(1)}°
+          </text>
 
-        {/* Preview of selected image in lower right */}
-        {nearestImage && (
-          <g transform={`translate(${extent - 650}, ${extent - 650})`}>
-            <rect
-              x={0}
-              y={0}
-              width="600"
-              height="600"
-              fill="white"
-              stroke="black"
-              strokeWidth="2"
-            />
-            <image
-              href={getPreviewImageUrl(
-                previewPath,
-                OBLIQUE_PREVIEW_QUALITY.LEVEL_5,
-                nearestImage.id
-              )}
-              x={0}
-              y={0}
-              width="600"
-              height="600"
-              preserveAspectRatio="xMidYMid meet"
-            />
-            <rect
-              x={0}
-              y={600}
-              width="600"
-              height="50"
-              fill="white"
-              stroke="black"
-              strokeWidth="1"
+          {/* Main chart group with conditional centering on ground point */}
+          <g
+            transform={
+              offsetImages
+                ? `translate(${-pointOnGround.x}, ${-pointOnGround.y})`
+                : ""
+            }
+          >
+            {lineToNearest}
+            {imagePoints}
+            {cameraMarker}
+            {headingIndicator}
+
+            <text x={-10} y={40} fontSize="40" textAnchor="end">
+              Camera
+            </text>
+            <text x={-10} y={90} fontSize="40" textAnchor="end">
+              <tspan>
+                {String(Math.floor(cameraPosition[0])).slice(0, -4)}
+              </tspan>
+              <tspan fontWeight="bold">
+                {String(Math.floor(cameraPosition[0])).slice(-4)}
+              </tspan>
+            </text>
+            <text x={-10} y={140} fontSize="40" textAnchor="end">
+              <tspan>
+                {String(Math.floor(cameraPosition[1])).slice(0, -4)}
+              </tspan>
+              <tspan fontWeight="bold">
+                {String(Math.floor(cameraPosition[1])).slice(-4)}
+              </tspan>
+            </text>
+
+            {/* Yellow reference point marker with coordinates */}
+            <circle
+              cx={pointOnRadius.x}
+              cy={pointOnRadius.y}
+              r={10}
+              fill="rgba(255, 255, 0, 0.8)"
+              stroke="white"
+              strokeWidth={2}
             />
             <text
-              x={300}
-              y={630}
-              fontSize="30"
-              fill="black"
-              textAnchor="middle"
-              dominantBaseline="middle"
+              x={pointOnRadius.x - 10}
+              y={pointOnRadius.y + 40}
+              textAnchor="end"
+              fontSize="40"
             >
-              ID: {nearestImage.id}
+              Reference
+            </text>
+            <text
+              x={pointOnRadius.x - 10}
+              y={pointOnRadius.y + 90}
+              fontSize="40"
+              textAnchor="end"
+            >
+              <tspan>
+                {radiusPointCoords
+                  ? String(Math.floor(radiusPointCoords[0])).slice(0, -4)
+                  : ""}
+              </tspan>
+              <tspan fontWeight="bold">
+                {radiusPointCoords
+                  ? String(Math.floor(radiusPointCoords[0])).slice(-4)
+                  : ""}
+              </tspan>
+            </text>
+            <text
+              x={pointOnRadius.x - 10}
+              y={pointOnRadius.y + 140}
+              fontSize="40"
+              textAnchor="end"
+            >
+              <tspan>
+                {radiusPointCoords
+                  ? String(Math.floor(radiusPointCoords[1])).slice(0, -4)
+                  : ""}
+              </tspan>
+              <tspan fontWeight="bold">
+                {radiusPointCoords
+                  ? String(Math.floor(radiusPointCoords[1])).slice(-4)
+                  : ""}
+              </tspan>
             </text>
           </g>
-        )}
-      </svg>
-    </SvgContainer>
+
+          {/* Preview of selected image in lower right */}
+          {nearestImage && (
+            <g transform={`translate(${extent - 650}, ${extent - 650})`}>
+              <rect
+                x={0}
+                y={0}
+                width="600"
+                height="600"
+                fill="white"
+                stroke="black"
+                strokeWidth="2"
+              />
+              <image
+                href={getPreviewImageUrl(
+                  previewPath,
+                  OBLIQUE_PREVIEW_QUALITY.LEVEL_5,
+                  nearestImage.id
+                )}
+                x={0}
+                y={0}
+                width="600"
+                height="600"
+                preserveAspectRatio="xMidYMid meet"
+              />
+              <rect
+                x={0}
+                y={600}
+                width="600"
+                height="50"
+                fill="white"
+                stroke="black"
+                strokeWidth="1"
+              />
+              <text
+                x={300}
+                y={630}
+                fontSize="30"
+                fill="black"
+                textAnchor="middle"
+                dominantBaseline="middle"
+              >
+                ID: {nearestImage.id}
+              </text>
+            </g>
+          )}
+        </svg>
+      </Collapse.Panel>
+    </Collapse>
   );
 };
 

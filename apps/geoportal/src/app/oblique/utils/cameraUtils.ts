@@ -1,21 +1,102 @@
 import { type MutableRefObject } from "react";
 import {
   BoundingSphere,
+  Cartesian3,
   EasingFunction,
   HeadingPitchRange,
   Matrix4,
   PerspectiveFrustum,
   Ray,
   type Viewer,
+  defined,
 } from "cesium";
 import {
   cesiumAnimateFov,
   getOrbitPoint,
   type ViewerAnimationMap,
 } from "@carma-mapping/cesium-engine";
+import {
+  DerivedExteriorOrientation,
+  enuToEcef,
+} from "./transformExteriorOrientation";
+import { Vector3Arr } from "types/math";
 
 const ENTER_DURATION = 1000;
 const LEAVE_BASE_DURATION = 800;
+
+/**
+ * Computes and flies to an improved camera orientation based on image metadata
+ * @param viewer Cesium viewer instance
+ * @param imageRecord Oblique image record containing metadata
+ * @param onComplete Callback to execute after flight completion
+ */
+export const flyToExteriorOrientation = (
+  viewer: Viewer,
+  exteriorOrientation: DerivedExteriorOrientation,
+  onComplete?: () => void
+): void => {
+  if (
+    !viewer ||
+    !exteriorOrientation ||
+    !exteriorOrientation.position.wgs84 ||
+    !exteriorOrientation.rotation.ecef.direction
+  ) {
+    console.debug(
+      "Missing required parameters for improved orientation calculation",
+      exteriorOrientation,
+      exteriorOrientation.position.wgs84,
+      exteriorOrientation.rotation.ecef.direction
+    );
+    return;
+  }
+
+  // Create position from WGS84 coordinates
+  const [longitude, latitude, height] = exteriorOrientation.position.wgs84;
+  const position = Cartesian3.fromDegrees(longitude, latitude, height);
+
+  const direction = new Cartesian3(
+    ...exteriorOrientation.rotation.ecef.direction
+  );
+
+  const up = new Cartesian3(...exteriorOrientation.rotation.ecef.up);
+
+  if (!defined(direction) || !defined(up)) {
+    console.debug(
+      "Missing direction or up vectors in camera state",
+      direction,
+      up
+    );
+    return;
+  }
+
+  // Calculate appropriate flight duration based on distance
+  const currentDistanceToCamera = Cartesian3.distance(
+    viewer.camera.positionWC,
+    position
+  );
+
+  const duration = Math.max(
+    0.05,
+    Math.min(3, Math.sqrt(Math.abs(currentDistanceToCamera)) / 10)
+  );
+
+  // TODO workaround until using actual exterior orientation up vector,
+  // but that one is rotating differently by each camera ID
+  const localEnuUpAxis: Vector3Arr = [0, 0, 1];
+  const upZ = enuToEcef(localEnuUpAxis, position);
+
+  // Execute the camera flight
+  viewer.camera.flyTo({
+    destination: position,
+    orientation: {
+      direction,
+      up: new Cartesian3(...upZ),
+    },
+    //endTransform: Matrix4.IDENTITY,
+    duration,
+    complete: onComplete,
+  });
+};
 
 export const resetCamera = (viewer: Viewer) => {
   viewer.camera.lookAtTransform(Matrix4.IDENTITY);

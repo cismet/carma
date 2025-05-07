@@ -17,11 +17,8 @@ import {
   Cartographic,
   Matrix4,
   EasingFunction,
-  Entity,
-  Color,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
-  ConstantPositionProperty,
   sampleTerrainMostDetailed,
 } from "cesium";
 
@@ -34,16 +31,19 @@ import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { useFeatureFlags } from "@carma-apps/portals";
 
 import { ObliqueFootprintLayer } from "./ObliqueFootprintLayer";
-import { ObliqueDebugSvg } from "./ObliqueDebugSvg";
+import { ObliqueDebugSvg } from "./debugUI/ObliqueDebugSvg";
 import { ObliqueImagePreview } from "./ObliqueImagePreview";
-import { ObliqueImageInfo } from "./ObliqueImageInfo";
+import { ObliqueImageInfo } from "./debugUI/ObliqueImageInfo";
+import { CameraVectorControls } from "./debugUI/CameraVectorControls";
 
 import { getObliqueMode, setObliqueMode } from "../../store/slices/ui";
 
 import { useObliqueDataContext } from "../hooks/useObliqueDataContext";
 import { useOrbitPoint } from "../hooks/useOrbitPoint";
+import { useDebugOrbitPoint } from "../hooks/useDebugOrbitPoint";
+import { useExteriorOrientation } from "../hooks/useExteriorOrientation";
 
-import { resetCamera } from "../utils/cameraUtils";
+import { resetCamera, flyToExteriorOrientation } from "../utils/cameraUtils";
 import { downloadAsBlobAsync } from "../utils/downloads";
 import { formatHeadingDegrees } from "../utils/formatters";
 import {
@@ -59,6 +59,30 @@ import {
 } from "../utils/previewVisibility";
 
 import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
+import { styled } from "styled-components";
+
+// Container for debug components that will arrange them vertically
+const DebugComponentsContainerRight = styled.div`
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 450px;
+  max-width: calc(100vw - 20px);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  z-index: 1000;
+`;
+
+const DebugComponentsContainerLeft = styled.div`
+  position: absolute;
+  top: 10px;
+  left: 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  z-index: 1000;
+`;
 
 type ObliqueControlsProps = {
   /**
@@ -93,11 +117,14 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
   const isMode2d = useSelector(selectViewerIsMode2d);
   const isTransitioning = useSelector(selectViewerIsTransitioning);
-  const orbitPointEntityRef = useRef<Entity | null>(null);
   const userMovedCameraRef = useRef<boolean>(false);
   const preloadImageRef = useRef<ReturnType<typeof debounce> | null>(null);
 
   const orbitPoint = useOrbitPoint();
+  const updateOrbitPointEntity = useDebugOrbitPoint(orbitPoint, isDebugMode);
+
+  const { derivedExteriorOrientationRef } =
+    useExteriorOrientation(nearestImage);
 
   const previewUrl = nearestImage
     ? getPreviewImageUrl(
@@ -146,45 +173,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
     return unsubscribe;
   }, []);
-
-  // Create or update the orbit point entity
-  const updateOrbitPointEntity = useCallback(() => {
-    if (viewerRef.current || !orbitPoint || !isDebugMode) {
-      if (orbitPointEntityRef.current) {
-        viewerRef.current.entities.remove(orbitPointEntityRef.current);
-        orbitPointEntityRef.current = null;
-      }
-      return;
-    }
-    if (!orbitPointEntityRef.current) {
-      orbitPointEntityRef.current = viewerRef.current.entities.add({
-        position: new ConstantPositionProperty(orbitPoint),
-        point: {
-          pixelSize: 10,
-          color: Color.YELLOW,
-          outlineColor: Color.BLACK,
-          outlineWidth: 2,
-          disableDepthTestDistance: Number.POSITIVE_INFINITY,
-        },
-      });
-    } else {
-      orbitPointEntityRef.current.position = new ConstantPositionProperty(
-        orbitPoint
-      );
-    }
-  }, [viewerRef, isDebugMode, orbitPoint]);
-
-  // Remove orbit point entity when component unmounts
-  useEffect(() => {
-    const currentOrbitPointEntity = orbitPointEntityRef.current;
-    const viewer = viewerRef.current;
-
-    return () => {
-      if (viewer && currentOrbitPointEntity) {
-        viewer.entities.remove(currentOrbitPointEntity);
-      }
-    };
-  }, [viewerRef]);
 
   const flyToNearestImage = useCallback(async () => {
     if (isPreviewVisible) {
@@ -255,6 +243,37 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     nearestImage,
     isPreviewVisible,
     setLockFootprint,
+  ]);
+
+  const flyToNearestExteriorOrientation = useCallback(() => {
+    if (isPreviewVisible) {
+      setIsPreviewVisible(false);
+      notifyPreviewVisibilityChange(false);
+      return;
+    }
+
+    const viewer = viewerRef.current;
+    if (!viewer || !nearestImage || !derivedExteriorOrientationRef.current)
+      return;
+
+    setLockFootprint(true);
+    animationInProgressRef.current = true;
+
+    flyToExteriorOrientation(
+      viewer,
+      derivedExteriorOrientationRef.current,
+      () => {
+        animationInProgressRef.current = false;
+        setIsPreviewVisible(true);
+        notifyPreviewVisibilityChange(true);
+      }
+    );
+  }, [
+    viewerRef,
+    nearestImage,
+    isPreviewVisible,
+    setLockFootprint,
+    derivedExteriorOrientationRef,
   ]);
 
   const openImageLink = useCallback(() => {
@@ -477,6 +496,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   if (!shouldRender || isMode2d) {
     return null;
   }
+  // --- styles and derived formatting for render ---
 
   const directionLabelStyle = {
     fontWeight: 800,
@@ -499,9 +519,27 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   return (
     <>
       <ObliqueFootprintLayer />
-      {isDebugMode && <ObliqueDebugSvg />}
+      {isDebugMode && (
+        <DebugComponentsContainerLeft>
+          <ObliqueDebugSvg />
+        </DebugComponentsContainerLeft>
+      )}
       {isDebugMode && nearestImage && (
-        <ObliqueImageInfo imageRecord={nearestImage} />
+        <DebugComponentsContainerRight>
+          <CameraVectorControls
+            photoId={nearestImage.record.id}
+            exteriorOrientation={derivedExteriorOrientationRef.current}
+            directionVectorLocal={
+              derivedExteriorOrientationRef.current?.rotation?.enu?.wgs84
+                ?.direction
+            }
+            upVector={
+              derivedExteriorOrientationRef.current?.rotation?.enu?.wgs84?.up
+            }
+            setUpVector={() => {}}
+          />
+          <ObliqueImageInfo imageRecord={nearestImage} />
+        </DebugComponentsContainerRight>
       )}
       {nearestImage && previewPath && nearestImage.record.id && (
         <ObliqueImagePreview
@@ -541,20 +579,42 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
           }}
         >
           {nearestImage && (
-            <Tooltip
-              placement="right"
-              title={"Zur ausgewählten Schrägluftbild-Aufnahmeposition fliegen"}
-            >
-              <div>
-                <ControlButtonStyler
-                  onClick={flyToNearestImage}
-                  width="160px"
-                  height="80px"
+            <>
+              <Tooltip
+                placement="right"
+                title={
+                  "Zur ausgewählten Schrägluftbild-Aufnahmeposition fliegen"
+                }
+              >
+                <div>
+                  <ControlButtonStyler
+                    onClick={flyToNearestImage}
+                    width="160px"
+                    height="40px"
+                  >
+                    <span>Flug zum Bild</span>
+                  </ControlButtonStyler>
+                </div>
+              </Tooltip>
+
+              {derivedExteriorOrientationRef.current && (
+                <Tooltip
+                  placement="right"
+                  title={"Mit verbesserter Orientierung zum Bild fliegen"}
                 >
-                  <span>Flug zum Bild</span>
-                </ControlButtonStyler>
-              </div>
-            </Tooltip>
+                  <div>
+                    <ControlButtonStyler
+                      onClick={flyToNearestExteriorOrientation}
+                      width="160px"
+                      height="40px"
+                      className="bg-blue-50 hover:bg-blue-100"
+                    >
+                      <span className="flex items-center">Flug zu ExtOri</span>
+                    </ControlButtonStyler>
+                  </div>
+                </Tooltip>
+              )}
+            </>
           )}
 
           {nearestImage && previewPath && (

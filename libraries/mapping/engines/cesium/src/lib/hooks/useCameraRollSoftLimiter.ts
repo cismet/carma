@@ -15,10 +15,12 @@ const useCameraRollSoftLimiter = ({
   pitchLimiter = true,
   debug = false,
   nadirThreshold = NADIR_THRESHOLD,
+  rollThreshold = CesiumMath.toRadians(5),
 }: {
   pitchLimiter?: boolean;
   debug?: boolean;
   nadirThreshold?: number;
+  rollThreshold?: number;
 } = {}) => {
   const viewer = useCesiumViewer();
   const dispatch = useDispatch();
@@ -37,12 +39,19 @@ const useCameraRollSoftLimiter = ({
         );
       const moveEndListener = async () => {
         if (viewer.camera.position && !isMode2d) {
-          const rollDeviation =
-            Math.abs(CesiumMath.TWO_PI - viewer.camera.roll) %
-            CesiumMath.TWO_PI;
+          const rollDeviation = CesiumMath.equalsEpsilon(
+            viewer.camera.roll,
+            0,
+            0,
+            rollThreshold
+          );
 
-          const isCloseToNadir =
-            Math.abs(viewer.camera.pitch + Math.PI / 2) < nadirThreshold;
+          const isCloseToNadir = CesiumMath.equalsEpsilon(
+            viewer.camera.pitch,
+            -Math.PI / 2,
+            0,
+            nadirThreshold
+          );
 
           debug &&
             console.debug(
@@ -52,13 +61,15 @@ const useCameraRollSoftLimiter = ({
               Math.abs(viewer.camera.pitch + Math.PI / 2)
             );
 
-          if (rollDeviation > 0.02 && !isCloseToNadir) {
+          if (!rollDeviation && !isCloseToNadir) {
             debug &&
               console.debug(
                 "LISTENER HOOK [2D3D|CESIUM|CAMERA]: flyTo reset roll 2D3D",
                 rollDeviation
               );
-            const duration = Math.min(rollDeviation, 1);
+            const rollDelta = Math.abs(viewer.camera.roll);
+            const duration = Math.min(rollDelta, 1);
+            console.debug("Roll delta animation duration mapping", rollDelta, duration);
             dispatch(setIsAnimating());
             viewer.camera.flyTo({
               destination: viewer.camera.position,
@@ -87,6 +98,7 @@ const useCameraRollSoftLimiter = ({
     dispatch,
     debug,
     nadirThreshold,
+    rollThreshold,
   ]);
 };
 

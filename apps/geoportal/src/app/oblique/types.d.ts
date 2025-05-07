@@ -1,3 +1,4 @@
+import { Vector3Arr } from "types/math";
 import { OBLIQUE_PREVIEW_QUALITY } from "./constants";
 
 export type ExteriorOrientationOPK = {
@@ -11,6 +12,16 @@ export type ExteriorPosition = {
   z: number;
 };
 
+type row3 = [number, number, number];
+
+export interface ExteriorOrientationDataArray {
+  [number, number, number, row3, row3, row3];
+}
+export interface ExteriorOrientations {
+  [key: string]: ExteriorOrientationDataArray;
+}
+
+// TODO: consolidate with type ExteriorOrientationRecord
 export interface BasicObliqueImageRecord {
   id: string;
   cameraId: string;
@@ -29,10 +40,17 @@ export interface ObliqueImageRecord extends BasicObliqueImageRecord {
   fallbackHeading: number;
   sector: CardinalDirectionEnum;
   cartesian: Cartesian3;
-  hpr: HeadingPitchRoll;
-  quaternion: Quaternion;
-  rotationMatrix: Matrix3;
 }
+
+// small utility format for json
+
+export type ExteriorOrientationRecord = {
+  id: string;
+  x: number;
+  y: number;
+  z: number;
+  m: Matrix3RowMajor;
+};
 
 export type NearestObliqueImageRecord = {
   record: ObliqueImageRecord;
@@ -45,6 +63,8 @@ export type ObliqueImageRecordMap = Map<string, ObliqueImageRecord>;
 
 export interface ObliqueDataProviderConfig {
   orientationsURI: string;
+  exteriorOrientationsURI: string;
+  footprintsURI: string;
   crs: string;
   previewPath: string;
   previewQualityLevel?: OBLIQUE_PREVIEW_QUALITY;
