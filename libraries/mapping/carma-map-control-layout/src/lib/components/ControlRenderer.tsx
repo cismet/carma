@@ -40,7 +40,7 @@ function ControlRenderer({ controls }: ControlRendererProps) {
             margin: "10px",
           }}
         >
-          {topLeftControls.map((control, index) => (
+          {topLeftControls.map((control) => (
             <>{control.component}</>
           ))}
         </div>
@@ -59,8 +59,8 @@ function ControlRenderer({ controls }: ControlRendererProps) {
             margin: "10px",
           }}
         >
-          {topRightControls.map((control, index) => (
-            <div key={`top-right-${index}`}>{control.component}</div>
+          {topRightControls.map((control) => (
+            <>{control.component}</>
           ))}
         </div>
       )}
@@ -81,7 +81,7 @@ function ControlRenderer({ controls }: ControlRendererProps) {
             alignItems: "center",
           }}
         >
-          {topCenterControls.map((control, index) => (
+          {topCenterControls.map((control) => (
             <>{control.component}</>
           ))}
         </div>
@@ -97,7 +97,7 @@ function ControlRenderer({ controls }: ControlRendererProps) {
             margin: "10px 10px 5px 10px",
           }}
         >
-          {bottomLeftControls.map((control, index) => (
+          {bottomLeftControls.map((control) => (
             <>{control.component}</>
           ))}
         </div>
@@ -107,17 +107,17 @@ function ControlRenderer({ controls }: ControlRendererProps) {
         <div
           style={{
             position: "absolute",
-            bottom: "10px",
-            right: "10px",
-            zIndex: 1000,
+            bottom: 0,
+            right: 0,
             display: "flex",
-            flexDirection: "column-reverse",
+            flexDirection: "column",
+            zIndex: 500,
             gap: "10px",
-            alignItems: "flex-end",
+            margin: "10px 10px 5px 10px",
           }}
         >
-          {bottomRightControls.map((control, index) => (
-            <div key={`bottom-right-${index}`}>{control.component}</div>
+          {bottomRightControls.map((control) => (
+            <>{control.component}</>
           ))}
         </div>
       )}
@@ -126,17 +126,17 @@ function ControlRenderer({ controls }: ControlRendererProps) {
         <div
           style={{
             position: "absolute",
-            bottom: "10px",
             left: "50%",
-            zIndex: 1000,
+            bottom: 0,
             display: "flex",
             flexDirection: "column",
             gap: "10px",
-            alignItems: "center",
+            zIndex: 500,
+            margin: "10px",
           }}
         >
-          {bottomCenterControls.map((control, index) => (
-            <div key={`bottom-center-${index}`}>{control.component}</div>
+          {bottomCenterControls.map((control) => (
+            <>{control.component}</>
           ))}
         </div>
       )}
