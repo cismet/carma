@@ -9,7 +9,7 @@ import {
   EasingFunction,
   PolylineGraphics,
 } from "cesium";
-import type { Cartesian3 } from "cesium";
+import type { Cartesian3, Property, PolygonGraphics } from "cesium";
 
 import {
   useCesiumContext,
@@ -379,20 +379,23 @@ export const useFootprints = (): void => {
     }
 
     // Create the main polygon entity
+    // TODO: fix types here
     const footprintEntity = new Entity({
       id: FOOTPRINT_ENTITY_ID,
       name: `${OBLIQUE_DATASOURCE_PREFIX}-${nearestImage.record.id}`,
       polygon: {
-        hierarchy: polygonHierarchy,
+        hierarchy: polygonHierarchy as unknown as Property,
         material: new ColorMaterialProperty(Color.WHITE.withAlpha(0.8)),
         outline: new ConstantProperty(false), // Disable outline on the main polygon to avoid duplicate lines
         closeTop: new ConstantProperty(false),
         closeBottom: new ConstantProperty(false),
         extrudedHeight: heightCallbackProperty,
-        extrudedHeightReference: HeightReference.RELATIVE_TO_3D_TILE,
+        extrudedHeightReference: new ConstantProperty(
+          HeightReference.RELATIVE_TO_3D_TILE
+        ),
         height: new ConstantProperty(HEIGHT_OFFSET),
-        heightReference: HeightReference.CLAMP_TO_3D_TILE,
-      },
+        heightReference: new ConstantProperty(HeightReference.CLAMP_TO_3D_TILE),
+      } as unknown as PolygonGraphics,
     });
 
     // Add the main polygon entity to the viewer
