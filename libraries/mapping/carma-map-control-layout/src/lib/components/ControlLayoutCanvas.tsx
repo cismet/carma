@@ -1,11 +1,11 @@
 import React, { ReactNode, useEffect } from "react";
 import { ControlComponent, useControlContext } from "../map-control";
 
-interface MainProps {
+interface ControlLayoutCanvasProps {
   children: ReactNode;
 }
 
-function Main({ children }: MainProps) {
+function ControlLayoutCanvas({ children }: ControlLayoutCanvasProps) {
   const { controls } = useControlContext();
 
   const filterControls = (control: ControlComponent, position: string) => {
@@ -183,4 +183,4 @@ function Main({ children }: MainProps) {
   );
 }
 
-export default Main;
+export default ControlLayoutCanvas;

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 // import { MapControl } from './map-control';
 import Control from "./components/Control";
-import Main from "./components/Main";
+import ControlLayoutCanvas from "./components/ControlLayoutCanvas.js";
 import {
   HomeOutlined,
   LoadingOutlined,
@@ -66,11 +66,11 @@ export const SimleExample = () => {
       <Control position="bottomleft" order={20}>
         <LoadingOutlined />
       </Control>
-      <Main>
+      <ControlLayoutCanvas>
         <div style={{ height: "100%", width: "100%" }}>
           <Excalidraw />
         </div>
-      </Main>
+      </ControlLayoutCanvas>
     </ControlLayout>
   );
 };
@@ -82,11 +82,11 @@ export const LeafletExample = () => {
       <Control position="topleft" order={30}>
         <FilterOutlined onClick={() => setFireLocation(!fireLocation)} />
       </Control>
-      <Main>
+      <ControlLayoutCanvas>
         <div style={{ height: "100%", width: "100%" }}>
           <MapExample startLocate={fireLocation} />
         </div>
-      </Main>
+      </ControlLayoutCanvas>
     </ControlLayout>
   );
 };

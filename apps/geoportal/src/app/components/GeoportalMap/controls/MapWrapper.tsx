@@ -9,7 +9,7 @@ import {
   Control,
   ControlButtonStyler,
   ControlLayout,
-  Main,
+  ControlLayoutCanvas,
 } from "@carma-mapping/map-controls-layout";
 import {
   faCompress,
@@ -666,7 +666,7 @@ const MapWrapper = () => {
           </Control>
         </>
       )}
-      <Main>
+      <ControlLayoutCanvas>
         <ObliqueControls />
 
         <div
@@ -685,7 +685,7 @@ const MapWrapper = () => {
             <GeoportalMap height={height} width={width} allow3d={allow3d} />
           )}
         </div>
-      </Main>
+      </ControlLayoutCanvas>
     </ControlLayout>
   );
 };
