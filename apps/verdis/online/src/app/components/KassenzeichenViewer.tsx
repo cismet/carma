@@ -69,7 +69,7 @@ const KassenzeichenViewer = () => {
   } else {
     if (!login) {
       // console.log("xxx not successefull login");
-      dispatch(setLoginInProgress({}));
+      // dispatch(setLoginInProgress({}));
       dispatch(showInfo("Kassenzeichen wird wieder geladen"));
       dispatch(showWaiting(true));
       dispatch(
@@ -292,6 +292,10 @@ const KassenzeichenViewer = () => {
     });
   }
 
+  if (uiState.contactElementEnabled && kassenzeichen.id !== -1) {
+    contactPanel = <ContactPanel />;
+  }
+
   if (kassenzeichen.id !== -1) {
     kassenzeichenPanel = (
       <div>
@@ -334,10 +338,6 @@ const KassenzeichenViewer = () => {
         <Map />
       </div>
     );
-  }
-
-  if (uiState.contactElementEnabled && kassenzeichen.id !== -1) {
-    contactPanel = <ContactPanel />;
   }
 
   if (
