@@ -186,9 +186,9 @@ export const layerMap: LayerMap = {
     url: "https://sgx.geodatenzentrum.de/gdz_basemapde_vektor/styles/bm_web_top.json",
   },
   amtlich: {
-    title: "Amtliche Geobasisdaten",
+    title: "Amtliche Basiskarte",
     layers: "amtlichBasiskarte@90",
-    description: `Amtliche Geobasisdaten (Stadtgrundkarte / ABK) © Stadt Wuppertal`,
+    description: `Amtliche Basiskarte (Stadtgrundkarte / ABK) © Stadt Wuppertal`,
     inhalt: `<span>Kartendienst (WMS) der Stadt Wuppertal. Datengrundlagen: (1) Stadtgrundkarte / Liegenschaftskarte (bei großmaßstäbigen Darstellungen), (2) Amtliche Basiskarte ABK, jeweils farbige Ausprägung. Die Karten werden täglich (Stadtgrundkarte) bzw. wöchentlich (ABK) in einem automatisierten Prozess aus dem Fachverfahren ALKIS des Liegenschaftskatasters abgeleitet. © Stadt Wuppertal (</span>
               <a class="remove-margins" href="https://www.govdata.de/dl-de/zero-2-0">Datenlizenz Deutschland - Zero - Version 2.0</a>
               <span>).</span>`,

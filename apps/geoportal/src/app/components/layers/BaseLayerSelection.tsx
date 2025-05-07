@@ -112,7 +112,7 @@ const BaseLayerSelection = () => {
           Gelände
         </Radio>
         <Radio onClick={handleRadioClick} value="amtlich" className="text-left">
-          Amtliche Geobasisdaten
+          Amtliche Basiskarte
         </Radio>
       </Radio.Group>
     </LayerSelection>
