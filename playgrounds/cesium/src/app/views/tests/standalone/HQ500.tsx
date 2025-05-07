@@ -7,7 +7,7 @@ import {
   Control,
   ControlButtonStyler,
   ControlLayout,
-  Main,
+  ControlLayoutCanvas,
 } from "@carma-mapping/map-controls-layout";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -145,7 +145,7 @@ export const HQ500 = () => {
           <FontAwesomeIcon icon={faHouseChimney} className="text-lg" />
         </ControlButtonStyler>
       </Control>
-      <Main ref={wrapperRef}>
+      <ControlLayoutCanvas ref={wrapperRef}>
         <div
           ref={container3dMapRef}
           className={"map-container-3d"}
@@ -177,7 +177,7 @@ export const HQ500 = () => {
             }}
           ></CustomViewer>
         </div>
-      </Main>
+      </ControlLayoutCanvas>
     </ControlLayout>
   );
 };

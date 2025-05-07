@@ -22,7 +22,7 @@ import {
   Control,
   ControlButtonStyler,
   ControlLayout,
-  Main,
+  ControlLayoutCanvas,
 } from "@carma-mapping/map-controls-layout";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -436,7 +436,7 @@ export const CarmaMap = ({
   console.debug("CARMAMAP render hgk", hqKey);
 
   return (
-    <ControlLayout ifStorybook={false}>
+    <ControlLayout>
       <Control position="topleft" order={10}>
         <div className="flex flex-col">
           <ControlButtonStyler
@@ -485,7 +485,7 @@ export const CarmaMap = ({
           />
         </div>
       </Control>
-      <Main ref={wrapperRef}>
+      <ControlLayoutCanvas ref={wrapperRef}>
         <>
           <div className={"map-container-2d"} style={{ zIndex: 400 }}>
             <TopicMapComponent
@@ -587,7 +587,7 @@ export const CarmaMap = ({
             </div>
           )}
         </>
-      </Main>
+      </ControlLayoutCanvas>
     </ControlLayout>
   );
 };

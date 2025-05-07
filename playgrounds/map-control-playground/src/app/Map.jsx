@@ -3,7 +3,7 @@ import {
   Control,
   ControlButtonStyler,
   ControlLayout,
-  Main,
+  ControlLayoutCanvas,
 } from "@carma-mapping/map-controls-layout";
 import {
   faCompress,
@@ -104,7 +104,7 @@ const Map = () => {
       <Control position="bottomleft" order={10} fullCollapseWidth={true}>
         <GazetteerSearchComponent />
       </Control>
-      <Main ref={containerRef}>
+      <ControlLayoutCanvas ref={containerRef}>
         {mode === "2D" ? (
           <TopicMapComponent
             locatorControl={false}
@@ -128,7 +128,7 @@ const Map = () => {
             <p>3D Map kommt hierhin</p>
           </div>
         )}
-      </Main>
+      </ControlLayoutCanvas>
     </ControlLayout>
   );
 };
