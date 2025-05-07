@@ -8,21 +8,24 @@ import {
   Menu50FAQ,
   Menu60Datenschutz,
 } from "@carma-collab/wuppertal/verdis-online";
-import Section from "react-cismap/topicmaps/menu/Section";
+import GenericModalMenuSection from "react-cismap/topicmaps/menu/Section";
+import Menu30Kartenhintergruende from "../app/components/helpandsettings/Menu30Kartenhintergruende";
+import { useSelector } from "react-redux";
+import { getMapping } from "../store/slices/mapping";
 
 const VerdisOnlineHelp = () => {
+  const mapping = useSelector(getMapping);
   return (
     <div style={{ margin: 25 }}>
       <h3>Kompaktanleitung und Hintergrundinformationen</h3>
       <hr />
       <Menu10Datengrundlagen />
       <Menu20MeinKassenzeichen />
-      <Section
-        key="kartenhintergruende"
-        sectionKey="kartenhintergruende"
-        sectionTitle="Hintergrundkarten"
-        sectionBsStyle="info"
-        sectionContent={<Menu30KartenhintergruendeText />}
+      <Menu30Kartenhintergruende
+        key="Kartenhintergruende"
+        selectedBackgroundIndex={mapping.selectedBackgroundIndex}
+        backgrounds={mapping.backgrounds}
+        urlSearch={""}
       />
       <Menu40Anleitung />
       <Menu41Mailservice />
