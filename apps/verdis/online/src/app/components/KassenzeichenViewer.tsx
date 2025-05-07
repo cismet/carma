@@ -71,18 +71,18 @@ const KassenzeichenViewer = () => {
     if (!login) {
       // console.log("xxx not successefull login");
       // dispatch(setLoginInProgress({}));
-      dispatch(showInfo("Kassenzeichen wird wieder geladen"));
-      dispatch(showWaiting(true));
-      dispatch(
-        getKassenzeichenbySTAC(stac, (success) => {
-          if (success === true) {
-            setTimeout(() => {
-              dispatch(showWaiting(false));
-              dispatch(fitAll());
-            }, 300);
-          }
-        })
-      );
+      // dispatch(showInfo("Kassenzeichen wird wieder geladen"));
+      // dispatch(showWaiting(true));
+      // dispatch(
+      //   getKassenzeichenbySTAC(stac, (success) => {
+      //     if (success === true) {
+      //       setTimeout(() => {
+      //         dispatch(showWaiting(false));
+      //         dispatch(fitAll());
+      //       }, 300);
+      //     }
+      //   })
+      // );
     }
 
     // console.log("xxx successefull login");

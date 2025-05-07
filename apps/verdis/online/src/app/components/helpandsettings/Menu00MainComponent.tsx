@@ -15,9 +15,12 @@ import {
   Menu50FAQ,
   Menu60Datenschutz,
 } from "@carma-collab/wuppertal/verdis-online";
+import Menu30Kartenhintergruende from "./Menu30Kartenhintergruende";
+import { getMapping } from "../../../store/slices/mapping";
 
 const ModalHelpAndInfo = () => {
   const uiState = useSelector(getUiState);
+  const mapping = useSelector(getMapping);
   const dispatch = useDispatch();
   return (
     <ModalApplicationMenu
@@ -30,13 +33,23 @@ const ModalHelpAndInfo = () => {
       menuSections={[
         <Menu10Datengrundlagen />,
         <Menu20MeinKassenzeichen />,
-        <Section
-          key="kartenhintergruende"
-          sectionKey="kartenhintergruende"
-          sectionTitle="Hintergrundkarten"
-          sectionBsStyle="info"
-          sectionContent={<Menu30KartenhintergruendeText />}
+        <Menu30Kartenhintergruende
+          key="Kartenhintergruende"
+          // applicationMenuActiveKey={applicationMenuActiveKey}
+          // setApplicationMenuActiveKey={setApplicationMenuActiveKey}
+          // showModalMenu={showModalMenu}
+          selectedBackgroundIndex={mapping.setSelectedBackgroundIndex}
+          backgrounds={mapping.backgrounds}
+          setBackgroundIndex={mapping.setBackgroundIndex}
+          // showOnSeperatePage={showOnSeperatePage}
         />,
+        // <Section
+        //   key="kartenhintergruende"
+        //   sectionKey="kartenhintergruende"
+        //   sectionTitle="Hintergrundkarten"
+        //   sectionBsStyle="info"
+        //   sectionContent={<Menu30KartenhintergruendeText />}
+        // />,
         <Menu40Anleitung />,
         <Menu41Mailservice />,
         <Menu42Aenderungen />,
