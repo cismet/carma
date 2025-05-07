@@ -1,24 +1,33 @@
-import React from "react";
-import { Card } from "antd";
+import React, { useState } from "react";
+import { Card, Collapse } from "antd";
+import type { CollapseProps } from "antd";
 import { styled } from "styled-components";
-import { NearestObliqueImageRecord, ObliqueImageRecord } from "../../types";
+import type { NearestObliqueImageRecord, ObliqueImageRecord } from "../../types";
 
 interface ObliqueImageInfoProps {
   imageRecord: ObliqueImageRecord | NearestObliqueImageRecord | null;
 }
 
-const InfoCard = styled(Card)`
+const InfoWrapper = styled.div`
   position: absolute;
   top: 10px;
   right: 10px;
   width: 450px;
   max-width: calc(100vw - 20px);
+  z-index: 1000;
+`;
+
+const InfoCard = styled(Card)`
+  width: 100%;
   padding: 0;
   margin: 0;
   border-radius: 4px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
   overflow: hidden;
+
+  .ant-card-body {
+    padding: 6px;
+  }
 `;
 
 const JsonDisplay = styled.pre`
@@ -30,19 +39,46 @@ const JsonDisplay = styled.pre`
   overflow: auto;
   max-height: 60vh;
   white-space: pre-wrap;
-  margin-top: 8px;
+  margin-top: 4px;
   margin-bottom: 0;
 `;
 
 export const ObliqueImageInfo: React.FC<ObliqueImageInfoProps> = ({
   imageRecord,
 }) => {
+  const [activeKey, setActiveKey] = useState<string[]>(['1']);
+
   if (!imageRecord) return null;
 
+  const onChange = (key: string | string[]) => {
+    setActiveKey(Array.isArray(key) ? key : [key]);
+  };
+
+  const items: CollapseProps['items'] = [
+    {
+      key: '1',
+      label: 'Image Info',
+      children: (
+        <InfoCard bordered={false}>
+          <JsonDisplay>{JSON.stringify(imageRecord, null, 2)}</JsonDisplay>
+        </InfoCard>
+      ),
+    },
+  ];
+
   return (
-    <InfoCard bordered={false}>
-      <JsonDisplay>{JSON.stringify(imageRecord, null, 2)}</JsonDisplay>
-    </InfoCard>
+    <InfoWrapper>
+      <Collapse 
+        items={items} 
+        activeKey={activeKey} 
+        onChange={onChange}
+        style={{ 
+          background: 'rgba(255, 255, 255, 0.9)',
+          borderRadius: '4px',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)'
+        }}
+      />
+    </InfoWrapper>
   );
 };
 

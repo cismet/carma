@@ -1,6 +1,5 @@
 import { type CSSProperties, styled } from "styled-components";
 
-import { InputNumber, Row, Col } from "antd";
 import { ExteriorOrientationRecord } from "../../types";
 import VectorInput from "./VectorInput";
 import { UnitVectorDisplay } from "./UnitVectorDisplay";

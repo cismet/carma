@@ -205,7 +205,7 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
 
   // Load exterior orientations data when in oblique mode
   useEffect(() => {
-    if (!isObliqueMode || exteriorOrientationsURI) return;
+    if (!isObliqueMode || !exteriorOrientationsURI) return;
 
     setIsExtOriLoading(true);
 
