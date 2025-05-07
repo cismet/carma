@@ -797,3 +797,49 @@ export function completeEmailChange(code, callback = (payload) => {}) {
     dispatch(storeCR(newKassz.aenderungsanfrage, callback));
   };
 }
+
+export function submitCR() {
+  return function (dispatch, getState) {
+    dispatch(
+      setCloudStorageStatus({ status: CLOUDSTORAGESTATES.CLOUD_STORAGE_UP })
+    );
+    const kassenzeichen = getState().kassenzeichen;
+    const newKassz = JSON.parse(JSON.stringify(kassenzeichen));
+
+    if (
+      newKassz.aenderungsanfrage !== undefined &&
+      newKassz.aenderungsanfrage !== null
+    ) {
+      if (newKassz.aenderungsanfrage.nachrichten === undefined) {
+        newKassz.aenderungsanfrage.nachrichten = [];
+      }
+      if (newKassz.aenderungsanfrage.flaechen !== undefined) {
+        const changerequestBezeichnungsArray = Object.keys(
+          newKassz.aenderungsanfrage.flaechen
+        );
+        (changerequestBezeichnungsArray || []).forEach(
+          (flaechenbezeichnung, index) => {
+            newKassz.aenderungsanfrage.flaechen[flaechenbezeichnung].draft =
+              false;
+          }
+        );
+      }
+      const changerequestMessagesArray = newKassz.aenderungsanfrage.nachrichten;
+      (changerequestMessagesArray || []).forEach((msg) => {
+        if (msg.draft === true) {
+          msg.draft = false;
+        }
+      });
+
+      if (newKassz.aenderungsanfrage.geometrien === undefined) {
+        newKassz.aenderungsanfrage.geometrien = {};
+      }
+      for (const ak of Object.keys(newKassz.aenderungsanfrage.geometrien)) {
+        newKassz.aenderungsanfrage.geometrien[ak].properties.draft = false;
+      }
+
+      dispatch(setKassenzeichen({ kassenzeichenObject: newKassz }));
+      dispatch(storeCR({ ...newKassz.aenderungsanfrage, submission: true }));
+    }
+  };
+}
