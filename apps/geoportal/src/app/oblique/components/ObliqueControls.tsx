@@ -508,11 +508,10 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
               derivedExteriorOrientationRef.current?.rotation?.enu?.wgs84
                 ?.direction
             }
-            rotationAngle={
-              derivedExteriorOrientationRef.current?.utmConvergenceAngle
+            upVector={
+              derivedExteriorOrientationRef.current?.rotation?.enu?.wgs84
+                ?.up
             }
-            setRotationAngle={() => {}}
-            upVector={[0, 0, 0]}
             setUpVector={() => {}}
           />
         </>

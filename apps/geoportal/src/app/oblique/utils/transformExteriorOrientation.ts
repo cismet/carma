@@ -1,25 +1,7 @@
 import { Matrix3RowMajor, Vector3Arr } from "types/math";
 import { ExteriorOrientationRecord, Proj4Converter } from "../types";
-import {
-  Cartesian3,
-  Ellipsoid,
-  Matrix4,
-  Transforms,
-  Math as CesiumMath,
-} from "cesium";
-import { type Converter } from "proj4";
-import { dir } from "console";
-
-export const DEFAULT_UTM_GRID_CONVERGENCE_ANGLE = 1.52;
-
-const getConvergenceAngleForUTM = (
-  easting: number,
-  northing: number
-): number => {
-  // Placeholder for actual UTM convergence angle calculation
-  // This should be replaced with the actual logic to compute the convergence angle
-  return DEFAULT_UTM_GRID_CONVERGENCE_ANGLE;
-};
+import { Cartesian3, Ellipsoid, Matrix4, Transforms } from "cesium";
+import { calculateUTMConvergence } from "./utmConvergence";
 
 const negateRow = <T extends readonly number[]>(
   row: T
@@ -78,24 +60,24 @@ export const enuToEcef = (
 
 const correctForUTMConvergence = (
   dirEnuSourceCRS: Vector3Arr,
-  easting: number,
-  northing: number
+  longitude: number,
+  latitude: number
 ): [Vector3Arr, number] => {
   const [x, y, z] = dirEnuSourceCRS;
 
-  const angle = getConvergenceAngleForUTM(easting, northing);
+  const radians = calculateUTMConvergence(longitude, latitude);
 
-  const radians = CesiumMath.toRadians(angle);
+  const negatedRadians = -radians;
 
   // Apply 2D rotation on XY plane
-  const cosAngle = Math.cos(radians);
-  const sinAngle = Math.sin(radians);
+  // rotation against the convergence angle to compensate for it;
+  const cosAngle = Math.cos(negatedRadians);
+  const sinAngle = Math.sin(negatedRadians);
 
-  // Rotation formula: x' = x*cos(θ) - y*sin(θ), y' = x*sin(θ) + y*cos(θ)
   const rotatedX = x * cosAngle - y * sinAngle;
   const rotatedY = x * sinAngle + y * cosAngle;
 
-  return [[rotatedX, rotatedY, z], angle];
+  return [[rotatedX, rotatedY, z], radians];
 };
 
 export const computeDerivedExteriorOrientation = (
@@ -130,11 +112,11 @@ export const computeDerivedExteriorOrientation = (
 
   const [dirEnuWGS84, convergenceAngle] = correctForUTMConvergence(
     dirEnuSourceNegated,
-    x,
-    y
+    lon,
+    lat
   );
 
-  const [upEnuWGS84] = correctForUTMConvergence(upEnuSourceNegated, x, y);
+  const [upEnuWGS84] = correctForUTMConvergence(upEnuSourceNegated, lon, lat);
 
   derivedOrientation.rotation.enu.wgs84 = {
     direction: dirEnuWGS84,

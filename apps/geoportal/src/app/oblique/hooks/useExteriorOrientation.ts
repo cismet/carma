@@ -7,7 +7,6 @@ import { mapExtOriArrToRecord } from "../utils/obliqueImageRecord";
 import { useObliqueDataContext } from "./useObliqueDataContext";
 import {
   computeDerivedExteriorOrientation,
-  DEFAULT_UTM_GRID_CONVERGENCE_ANGLE,
   DerivedExteriorOrientation,
 } from "../utils/transformExteriorOrientation";
 
@@ -24,9 +23,6 @@ export const useExteriorOrientation = (
   const derivedExteriorOrientationRef =
     useRef<DerivedExteriorOrientation | null>(null);
 
-  // State for rotation angle
-  const [convergenceRotationAngle, setConvergenceRotationAngle] =
-    useState<number>(DEFAULT_UTM_GRID_CONVERGENCE_ANGLE);
 
   useEffect(() => {
     // Reset the orientation record if no image is selected or no orientations are available
@@ -56,8 +52,6 @@ export const useExteriorOrientation = (
     // Camera vector states
     // Rotation angle state
     derivedExteriorOrientationRef,
-    rotationAngle: convergenceRotationAngle,
-    setRotationAngle: setConvergenceRotationAngle,
   };
 };
 

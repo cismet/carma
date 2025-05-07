@@ -27,8 +27,6 @@ const style: CSSProperties = {
 interface CameraVectorControlsProps {
   photoMatch?: ExteriorOrientationRecord;
   directionVectorLocal: Vector3Arr;
-  rotationAngle: number;
-  setRotationAngle: (angle: number) => void;
   upVector: Vector3Arr;
   setUpVector: (vector: Vector3Arr) => void;
 }
@@ -37,8 +35,6 @@ interface CameraVectorControlsProps {
 export const CameraVectorControls: React.FC<CameraVectorControlsProps> = ({
   photoMatch,
   directionVectorLocal,
-  rotationAngle,
-  setRotationAngle,
   upVector,
   setUpVector,
 }: CameraVectorControlsProps) => {
@@ -66,25 +62,6 @@ export const CameraVectorControls: React.FC<CameraVectorControlsProps> = ({
         {/* XY Circle Direction Control */}
         <div style={{ marginTop: 8, marginBottom: 8 }}>
           <UnitVectorDisplay vector={directionVectorLocal} />
-        </div>
-        {/* XY Rotation Control */}
-        <div style={{ marginTop: 8, marginBottom: 16 }}>
-          <Row gutter={8} align="middle">
-            <Col span={12}>Rotate XY Direction</Col>
-            <Col span={8}>
-              <InputNumber
-                value={rotationAngle}
-                onChange={(value) => setRotationAngle(Number(value) || 0)}
-                size="small"
-                min={-5}
-                max={5}
-                precision={2}
-                step={0.01}
-                addonAfter="°"
-                style={{ width: "100%" }}
-              />
-            </Col>
-          </Row>
         </div>
       </div>
       {/* Up Controls (Applied) */}
