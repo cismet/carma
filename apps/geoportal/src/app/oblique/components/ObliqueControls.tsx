@@ -593,7 +593,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
                     height="40px"
                   >
                     <span>
-                      Flug zum Bild&nbsp;<sup>alt</sup>
+                      Flug zum Bild&nbsp;
+                      {derivedExteriorOrientationRef.current && <sup>alt</sup>}
                     </span>
                   </ControlButtonStyler>
                 </div>
