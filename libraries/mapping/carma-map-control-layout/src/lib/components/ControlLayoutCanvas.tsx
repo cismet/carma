@@ -1,4 +1,4 @@
-import React, { ReactNode, useEffect } from "react";
+import React, { ReactNode, useEffect, forwardRef, ForwardedRef } from "react";
 import { ControlComponent, useControlContext } from "../map-control";
 import ControlRenderer from "./ControlRenderer";
 
@@ -6,7 +6,10 @@ interface ControlLayoutCanvasProps {
   children: ReactNode;
 }
 
-function ControlLayoutCanvas({ children }: ControlLayoutCanvasProps) {
+const ControlLayoutCanvas = forwardRef(function ControlLayoutCanvas(
+  { children }: ControlLayoutCanvasProps,
+  ref?: ForwardedRef<HTMLDivElement>
+) {
   const { controls, addCanvas, removeCanvas } = useControlContext();
 
   useEffect(() => {
@@ -19,6 +22,7 @@ function ControlLayoutCanvas({ children }: ControlLayoutCanvasProps) {
 
   return (
     <div
+      ref={ref}
       style={{
         height: "100%",
         position: "relative",
@@ -49,6 +53,6 @@ function ControlLayoutCanvas({ children }: ControlLayoutCanvasProps) {
       <ControlRenderer controls={controls} />
     </div>
   );
-}
+});
 
 export default ControlLayoutCanvas;
