@@ -592,7 +592,9 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
                     width="160px"
                     height="40px"
                   >
-                    <span>Flug zum Bild</span>
+                    <span>
+                      Flug zum Bild&nbsp;<sup>alt</sup>
+                    </span>
                   </ControlButtonStyler>
                 </div>
               </Tooltip>
@@ -600,7 +602,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
               {derivedExteriorOrientationRef.current && (
                 <Tooltip
                   placement="right"
-                  title={"Mit verbesserter Orientierung zum Bild fliegen"}
+                  title={"Mit Orientierung zum Bild fliegen"}
                 >
                   <div>
                     <ControlButtonStyler
@@ -609,7 +611,9 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
                       height="40px"
                       className="bg-blue-50 hover:bg-blue-100"
                     >
-                      <span className="flex items-center">Flug zu ExtOri</span>
+                      <span className="flex items-center">
+                        Flug zum Bild&nbsp;<sup>neu</sup>
+                      </span>
                     </ControlButtonStyler>
                   </div>
                 </Tooltip>
