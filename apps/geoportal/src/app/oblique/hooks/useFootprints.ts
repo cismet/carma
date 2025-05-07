@@ -1,11 +1,12 @@
-import React, { useEffect, useRef } from "react";
-import { useSelector } from "react-redux";
+import { useEffect, useRef } from "react";
 import { GeoJsonDataSource, Color, Viewer } from "cesium";
 
 import { useCesiumContext } from "@carma-mapping/cesium-engine";
-import { useObliqueDataContext } from "../../oblique/hooks/useObliqueDataContext";
+import { useObliqueDataContext } from "./useObliqueDataContext";
+import { useSelector } from "react-redux";
 
 import { getObliqueMode } from "../../store/slices/ui";
+import type { FootprintFeature } from "../utils/footprintUtils";
 import {
   findMatchingFeature,
   createFilteredGeoJson,
@@ -32,19 +33,20 @@ const cleanupDatasources = (viewer: Viewer) => {
   }
 };
 
-export const ObliqueFootprintLayer: React.FC = () => {
+export const useFootprints = (): void => {
   const isObliqueMode = useSelector(getObliqueMode);
   const { viewerRef } = useCesiumContext();
   const { nearestImage, footprintData, lockFootprint } =
     useObliqueDataContext();
 
-  const dataSourceRef = useRef(null);
-  const lastImageIdRef = useRef(null);
+  const dataSourceRef = useRef<GeoJsonDataSource | null>(null);
+  const lastImageIdRef = useRef<string | null>(null);
 
   // Clean up data source when component unmounts or oblique mode disabled
   useEffect(() => {
     const viewer = viewerRef.current;
     const dataSource = dataSourceRef.current;
+
     return () => {
       if (viewer && viewer.dataSources && !isObliqueMode) {
         dataSource && viewer.dataSources.remove(dataSource);
@@ -86,7 +88,7 @@ export const ObliqueFootprintLayer: React.FC = () => {
     }
 
     const matchingFeature = findMatchingFeature(
-      footprintData.features,
+      footprintData.features as FootprintFeature[],
       nearestImage.record.id
     );
 
@@ -108,8 +110,4 @@ export const ObliqueFootprintLayer: React.FC = () => {
       viewer.scene.requestRender();
     });
   }, [viewerRef, isObliqueMode, nearestImage, footprintData, lockFootprint]);
-
-  return null;
 };
-
-export default ObliqueFootprintLayer;

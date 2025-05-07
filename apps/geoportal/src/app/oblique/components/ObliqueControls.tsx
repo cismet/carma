@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
+
 import { debounce } from "lodash";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -30,11 +31,14 @@ import {
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { useFeatureFlags } from "@carma-apps/portals";
 
-import { ObliqueFootprintLayer } from "./ObliqueFootprintLayer";
 import { ObliqueDebugSvg } from "./debugUI/ObliqueDebugSvg";
 import { ObliqueImagePreview } from "./ObliqueImagePreview";
 import { ObliqueImageInfo } from "./debugUI/ObliqueImageInfo";
 import { CameraVectorControls } from "./debugUI/CameraVectorControls";
+import {
+  DebugComponentsContainerLeft,
+  DebugComponentsContainerRight,
+} from "./debugUI/StyledComponents";
 
 import { getObliqueMode, setObliqueMode } from "../../store/slices/ui";
 
@@ -42,6 +46,7 @@ import { useObliqueDataContext } from "../hooks/useObliqueDataContext";
 import { useOrbitPoint } from "../hooks/useOrbitPoint";
 import { useDebugOrbitPoint } from "../hooks/useDebugOrbitPoint";
 import { useExteriorOrientation } from "../hooks/useExteriorOrientation";
+import { useFootprints } from "../hooks/useFootprints";
 
 import { resetCamera, flyToExteriorOrientation } from "../utils/cameraUtils";
 import { downloadAsBlobAsync } from "../utils/downloads";
@@ -59,30 +64,6 @@ import {
 } from "../utils/previewVisibility";
 
 import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
-import { styled } from "styled-components";
-
-// Container for debug components that will arrange them vertically
-const DebugComponentsContainerRight = styled.div`
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 450px;
-  max-width: calc(100vw - 20px);
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  z-index: 1000;
-`;
-
-const DebugComponentsContainerLeft = styled.div`
-  position: absolute;
-  top: 10px;
-  left: 60px;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  z-index: 1000;
-`;
 
 type ObliqueControlsProps = {
   /**
@@ -125,6 +106,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
   const { derivedExteriorOrientationRef } =
     useExteriorOrientation(nearestImage);
+
+  useFootprints();
 
   const previewUrl = nearestImage
     ? getPreviewImageUrl(
@@ -519,7 +502,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
   return (
     <>
-      <ObliqueFootprintLayer />
       {isDebugMode && (
         <DebugComponentsContainerLeft>
           <ObliqueDebugSvg />
