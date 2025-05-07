@@ -28,7 +28,7 @@ const FOOTPRINT_OUTLINE_ID = "oblq-footprint-outline";
 const DEFAULT_EXTRUDED_HEIGHT = 50;
 const HEIGHT_OFFSET = -10; // Offset for the height of the polygon
 const MIN_EXTRUDED_HEIGHT = HEIGHT_OFFSET + 0.1; // Minimum height for the polygon
-const ANIMATION_DURATION = 3000; // milliseconds
+const ANIMATION_DURATION = 800; // milliseconds
 const EXIT_ANIMATION_DURATION = 300; // faster animation when exiting
 const OUTLINE_WIDTH = 2; // Width for the outline in pixels
 
