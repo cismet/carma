@@ -18,6 +18,8 @@ const ContactPanel = ({ contact }: ContactProps) => {
     _contact = contact;
   }
 
+  console.log("xxx contact", contact);
+
   const image = _contact.image || "wuppertal.jpg";
 
   return (
@@ -56,11 +58,11 @@ const ContactPanel = ({ contact }: ContactProps) => {
         />
       </div>
 
-      <h4>{panelTitles.contactTitle}</h4>
-      <h5>
+      <h4 style={{ fontSize: "18px" }}>{panelTitles.contactTitle}</h4>
+      <h5 style={{ fontSize: "14px" }}>
         {_contact.anrede} {_contact.vorname} {_contact.nachname}{" "}
       </h5>
-      <h6>
+      <h6 style={{ fontSize: "12px" }}>
         Telefon: <a href={"tel:" + _contact.telefon}>{_contact.telefon} </a>
       </h6>
       <h6
@@ -71,6 +73,7 @@ const ContactPanel = ({ contact }: ContactProps) => {
           maxWidth: "200px", // Adjust as needed
           display: "inline-block",
           verticalAlign: "middle",
+          fontSize: "12px",
         }}
         title={_contact.mail} // Shows full email on hover
       >
