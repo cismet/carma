@@ -8,21 +8,24 @@ import { Map } from "react-leaflet";
 import * as L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import SettingsPanelWithPreviewSection from "./SettingsPanelWithPreviewSection";
+import { useDispatch } from "react-redux";
+import { setSelectedBackgroundIndex } from "../../../store/slices/mapping";
 const Menu30Kartenhintergruende = ({
-  selectedBackgroundIndex = 0,
+  selectedBackgroundIndex,
   backgrounds = [],
-  setBackgroundIndex = () => {},
-  mapRef,
   width = 20,
   urlSearch,
 }) => {
+  const dispatch = useDispatch();
   let namedMapStyle =
     new URLSearchParams(urlSearch).get("mapStyle") || "default";
   let zoom = 13;
-  let layers = backgrounds[selectedBackgroundIndex].layerkey;
-  if (mapRef) {
-    layers = mapRef.wrappedInstance.props.backgroundlayers;
-  }
+  //   let layers = backgrounds[selectedBackgroundIndex]?.layerkey;
+  let layers = backgrounds[selectedBackgroundIndex]?.layerkey;
+
+  console.log("xxx backgrounds", backgrounds);
+  console.log("xxx selectedBackgroundIndex", selectedBackgroundIndex);
+
   const mapPreview = (
     <PreviewMap
       crs={MappingConstants.crs25832}
@@ -94,21 +97,28 @@ const Menu30Kartenhintergruende = ({
                 <Form.Label>Hintergrundkarten</Form.Label> <br />{" "}
                 {backgrounds.map((item, key) => {
                   return (
-                    <Form.Check
-                      id={"cboMapStyleChooser_" + item}
-                      key={key}
-                      readOnly={true}
-                      onClick={(e) => {
-                        setBackgroundIndex(key);
-                      }}
-                      type="radio"
-                      checked={selectedBackgroundIndex === key}
-                      name="mapBackground"
-                      inline
-                    >
-                      {" "}
-                      {item.title} &nbsp;{" "}
-                    </Form.Check>
+                    <Form>
+                      <br />
+                      {backgrounds.map((bg, idx) => (
+                        <Form.Check
+                          key={idx}
+                          type="radio"
+                          id={`cboMapStyleChooser_${idx}`}
+                          name="mapBackground"
+                          inline
+                          label={bg.title}
+                          checked={selectedBackgroundIndex === idx}
+                          onChange={() => {
+                            console.log("xxx onChange");
+                            dispatch(
+                              setSelectedBackgroundIndex({
+                                selectedBackgroundIndex: idx,
+                              })
+                            );
+                          }}
+                        />
+                      ))}
+                    </Form>
                   );
                 })}{" "}
               </Form>,
