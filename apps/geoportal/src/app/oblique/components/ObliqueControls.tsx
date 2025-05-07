@@ -59,6 +59,30 @@ import {
 } from "../utils/previewVisibility";
 
 import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
+import { styled } from "styled-components";
+
+// Container for debug components that will arrange them vertically
+const DebugComponentsContainerRight = styled.div`
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 450px;
+  max-width: calc(100vw - 20px);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  z-index: 1000;
+`;
+
+const DebugComponentsContainerLeft = styled.div`
+  position: absolute;
+  top: 10px;
+  left: 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  z-index: 1000;
+`;
 
 type ObliqueControlsProps = {
   /**
@@ -495,12 +519,16 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   return (
     <>
       <ObliqueFootprintLayer />
-      {isDebugMode && <ObliqueDebugSvg />}
+      {isDebugMode && (
+        <DebugComponentsContainerLeft>
+          <ObliqueDebugSvg />
+        </DebugComponentsContainerLeft>
+      )}
       {isDebugMode && nearestImage && (
-        <>
-          <ObliqueImageInfo imageRecord={nearestImage} />
-          {/* Camera vector controls component TODO: clean up or remove */}
+        <DebugComponentsContainerRight>
           <CameraVectorControls
+            photoId={nearestImage.record.id}
+            exteriorOrientation={derivedExteriorOrientationRef.current}
             directionVectorLocal={
               derivedExteriorOrientationRef.current?.rotation?.enu?.wgs84
                 ?.direction
@@ -510,7 +538,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
             }
             setUpVector={() => {}}
           />
-        </>
+          <ObliqueImageInfo imageRecord={nearestImage} />
+        </DebugComponentsContainerRight>
       )}
       {nearestImage && previewPath && nearestImage.record.id && (
         <ObliqueImagePreview

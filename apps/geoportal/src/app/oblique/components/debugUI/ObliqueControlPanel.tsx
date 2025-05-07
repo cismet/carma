@@ -105,23 +105,17 @@ export const ObliqueControlPanel: React.FC<ControlPanelProps> = ({
   onToggleCollapse,
 }) => {
   // Items for the Collapse component
-  const items: CollapseProps['items'] = [
+  const items: CollapseProps["items"] = [
     {
-      key: '1',
-      label: 'Image Controls',
+      key: "1",
+      label: "Image Controls",
       children: (
         <>
           <ButtonRow>
-            <ControlButton
-              primary={showImages}
-              onClick={onToggleImages}
-            >
+            <ControlButton primary={showImages} onClick={onToggleImages}>
               {showImages ? "Hide Images" : "Show Images"}
             </ControlButton>
-            <ControlButton
-              primary={showLabels}
-              onClick={onToggleLabels}
-            >
+            <ControlButton primary={showLabels} onClick={onToggleLabels}>
               {showLabels ? "Hide Labels" : "Show Labels"}
             </ControlButton>
             <ControlButton
@@ -233,14 +227,14 @@ export const ObliqueControlPanel: React.FC<ControlPanelProps> = ({
 
   return (
     <Collapse
-      activeKey={isCollapsed ? [] : ['1']}
+      activeKey={isCollapsed ? [] : ["1"]}
       onChange={onToggleCollapse}
       items={items}
-      style={{ 
-        width: '300px', 
-        background: 'rgba(255, 255, 255, 0.9)',
-        borderRadius: '8px',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+      style={{
+        width: "300px",
+        background: "rgba(255, 255, 255, 0.9)",
+        borderRadius: "8px",
+        boxShadow: "0 2px 8px rgba(0, 0, 0, 0.3)",
       }}
     />
   );

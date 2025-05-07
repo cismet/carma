@@ -2,20 +2,14 @@ import React, { useState } from "react";
 import { Card, Collapse } from "antd";
 import type { CollapseProps } from "antd";
 import { styled } from "styled-components";
-import type { NearestObliqueImageRecord, ObliqueImageRecord } from "../../types";
+import type {
+  NearestObliqueImageRecord,
+  ObliqueImageRecord,
+} from "../../types";
 
 interface ObliqueImageInfoProps {
   imageRecord: ObliqueImageRecord | NearestObliqueImageRecord | null;
 }
-
-const InfoWrapper = styled.div`
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 450px;
-  max-width: calc(100vw - 20px);
-  z-index: 1000;
-`;
 
 const InfoCard = styled(Card)`
   width: 100%;
@@ -46,7 +40,7 @@ const JsonDisplay = styled.pre`
 export const ObliqueImageInfo: React.FC<ObliqueImageInfoProps> = ({
   imageRecord,
 }) => {
-  const [activeKey, setActiveKey] = useState<string[]>(['1']);
+  const [activeKey, setActiveKey] = useState<string[]>(["1"]);
 
   if (!imageRecord) return null;
 
@@ -54,10 +48,10 @@ export const ObliqueImageInfo: React.FC<ObliqueImageInfoProps> = ({
     setActiveKey(Array.isArray(key) ? key : [key]);
   };
 
-  const items: CollapseProps['items'] = [
+  const items: CollapseProps["items"] = [
     {
-      key: '1',
-      label: 'Image Info',
+      key: "1",
+      label: "Image Info",
       children: (
         <InfoCard bordered={false}>
           <JsonDisplay>{JSON.stringify(imageRecord, null, 2)}</JsonDisplay>
@@ -67,18 +61,16 @@ export const ObliqueImageInfo: React.FC<ObliqueImageInfoProps> = ({
   ];
 
   return (
-    <InfoWrapper>
-      <Collapse 
-        items={items} 
-        activeKey={activeKey} 
-        onChange={onChange}
-        style={{ 
-          background: 'rgba(255, 255, 255, 0.9)',
-          borderRadius: '4px',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)'
-        }}
-      />
-    </InfoWrapper>
+    <Collapse
+      items={items}
+      activeKey={activeKey}
+      onChange={onChange}
+      style={{
+        background: "rgba(255, 255, 255, 0.9)",
+        borderRadius: "4px",
+        boxShadow: "0 2px 8px rgba(0, 0, 0, 0.15)",
+      }}
+    />
   );
 };
 

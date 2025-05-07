@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Math as CesiumMath } from "cesium";
 import { useCesiumContext } from "@carma-mapping/cesium-engine";
 import { styled } from "styled-components";
-import { Collapse, Divider } from "antd";
+import { Collapse } from "antd";
 
 import { useObliqueDataContext } from "../../hooks/useObliqueDataContext";
 import { CardinalNames } from "../../utils/orientationUtils";
@@ -11,31 +11,12 @@ import { getPreviewImageUrl } from "../../utils/imageHandling";
 import { calculateCustomHeading as calculateHeadingForRecord } from "../../utils/obliqueReferenceUtils";
 import { useNearestObliqueImage } from "../../hooks/useNearestObliqueImage";
 import { NUM_NEAREST_IMAGES } from "../../config";
-import ObliqueControlPanel from "./ObliqueControlPanel";
-
-const SvgContainer = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 10000;
-  pointer-events: none;
-`;
-
-const CollapsibleSvgWrapper = styled.div`
-  position: fixed;
-  top: 60px;
-  left: 60px;
-  z-index: 10001;
-  pointer-events: all;
-`;
+import { ObliqueControlPanel } from "./ObliqueControlPanel";
 
 const ControlPanelContainer = styled.div`
   position: absolute;
-  top: 4rem; /* Position below the header of the Collapse */
+  top: 4rem;
   left: 1rem;
-  z-index: 10;
 `;
 
 export const ObliqueDebugSvg = () => {
@@ -405,207 +386,207 @@ export const ObliqueDebugSvg = () => {
   );
 
   return (
-    <SvgContainer>
-      <CollapsibleSvgWrapper>
-        {/* Debug Visualization Panel with Control Panel overlay */}
-        <Collapse 
-          activeKey={isSvgCollapsed ? [] : ['1']}
-          onChange={() => setIsSvgCollapsed(!isSvgCollapsed)}
-          style={{ width: `${svgWidth}px`, background: 'transparent', border: 'none' }}
+    <Collapse
+      activeKey={isSvgCollapsed ? [] : ["1"]}
+      onChange={() => setIsSvgCollapsed(!isSvgCollapsed)}
+    >
+      <Collapse.Panel
+        key="1"
+        header="Debug Visualization"
+        style={{
+          background: "rgba(255, 255, 255, 0.8)",
+          borderRadius: "4px",
+          overflow: "hidden",
+          border: "2px solid rgba(0, 0, 0, 0.3)",
+          boxShadow: "0 0 15px rgba(0, 0, 0, 0.5)",
+          position: "relative", // This makes positioning context for absolute children
+        }}
+      >
+        {/* Image Controls Panel - Overlay on top of SVG */}
+        <ControlPanelContainer>
+          <ObliqueControlPanel
+            isCollapsed={isControlsCollapsed}
+            onToggleCollapse={() =>
+              setIsControlsCollapsed(!isControlsCollapsed)
+            }
+            showImages={showImages}
+            onToggleImages={() => setShowImages(!showImages)}
+            showLabels={showLabels}
+            onToggleLabels={() => setShowLabels(!showLabels)}
+            offsetImages={offsetImages}
+            onToggleOffsetImages={() => setOffsetImages(!offsetImages)}
+            imageWidth={imageWidth}
+            onImageWidthChange={setImageWidth}
+            imageHeight={imageHeight}
+            onImageHeightChange={setImageHeight}
+            cropWidthFactor={cropWidthFactor}
+            onCropWidthFactorChange={setCropWidthFactor}
+            cropHeightFactor={cropHeightFactor}
+            onCropHeightFactorChange={setCropHeightFactor}
+            imageRotation={imageRotation}
+            onImageRotationChange={setImageRotation}
+          />
+        </ControlPanelContainer>
+        <svg
+          width={`${svgWidth}px`}
+          height={`${svgHeight}px`}
+          viewBox={`${-extent} ${-extent} ${gridSize} ${gridSize}`}
+          style={{
+            pointerEvents: "none",
+          }}
         >
-          <Collapse.Panel 
-            key="1" 
-            header="Debug Visualization" 
-            style={{ 
-              background: 'rgba(255, 255, 255, 0.8)',
-              borderRadius: '4px',
-              overflow: 'hidden',
-              border: '2px solid rgba(0, 0, 0, 0.3)',
-              boxShadow: '0 0 15px rgba(0, 0, 0, 0.5)',
-              position: 'relative', // This makes positioning context for absolute children
-            }}
+          {/* Chart elements that stay fixed regardless of centering */}
+          <text x={-extent + 50} y={extent - 50} fontSize="50">
+            Heading: {((cameraHeading * 180) / Math.PI).toFixed(1)}°
+          </text>
+          <text x={-extent + 50} y={extent - 120} fontSize="40">
+            Images: {nearestImages.length}
+          </text>
+          <text x={-extent + 50} y={extent - 180} fontSize="40">
+            Current Sector: {cardinalSector} (
+            {CardinalNames["EN"].get(cardinalSector)})
+          </text>
+          <text x={-extent + 50} y={extent - 300} fontSize="40" fill="red">
+            Images Filtered By Sector
+          </text>
+          <text x={-extent + 50} y={extent - 240} fontSize="40">
+            Heading Offset: {((headingOffset * 180) / Math.PI).toFixed(1)}°
+          </text>
+
+          {/* Main chart group with conditional centering on ground point */}
+          <g
+            transform={
+              offsetImages
+                ? `translate(${-pointOnGround.x}, ${-pointOnGround.y})`
+                : ""
+            }
           >
-            {/* Image Controls Panel - Overlay on top of SVG */}
-            <ControlPanelContainer>
-              <ObliqueControlPanel
-                isCollapsed={isControlsCollapsed}
-                onToggleCollapse={() => setIsControlsCollapsed(!isControlsCollapsed)}
-                showImages={showImages}
-                onToggleImages={() => setShowImages(!showImages)}
-                showLabels={showLabels}
-                onToggleLabels={() => setShowLabels(!showLabels)}
-                offsetImages={offsetImages}
-                onToggleOffsetImages={() => setOffsetImages(!offsetImages)}
-                imageWidth={imageWidth}
-                onImageWidthChange={setImageWidth}
-                imageHeight={imageHeight}
-                onImageHeightChange={setImageHeight}
-                cropWidthFactor={cropWidthFactor}
-                onCropWidthFactorChange={setCropWidthFactor}
-                cropHeightFactor={cropHeightFactor}
-                onCropHeightFactorChange={setCropHeightFactor}
-                imageRotation={imageRotation}
-                onImageRotationChange={setImageRotation}
-              />
-            </ControlPanelContainer>            
-            <svg
-              width={`${svgWidth}px`}
-              height={`${svgHeight}px`}
-              viewBox={`${-extent} ${-extent} ${gridSize} ${gridSize}`}
-              style={{
-                pointerEvents: "none",
-              }}
+            {lineToNearest}
+            {imagePoints}
+            {cameraMarker}
+            {headingIndicator}
+
+            <text x={-10} y={40} fontSize="40" textAnchor="end">
+              Camera
+            </text>
+            <text x={-10} y={90} fontSize="40" textAnchor="end">
+              <tspan>
+                {String(Math.floor(cameraPosition[0])).slice(0, -4)}
+              </tspan>
+              <tspan fontWeight="bold">
+                {String(Math.floor(cameraPosition[0])).slice(-4)}
+              </tspan>
+            </text>
+            <text x={-10} y={140} fontSize="40" textAnchor="end">
+              <tspan>
+                {String(Math.floor(cameraPosition[1])).slice(0, -4)}
+              </tspan>
+              <tspan fontWeight="bold">
+                {String(Math.floor(cameraPosition[1])).slice(-4)}
+              </tspan>
+            </text>
+
+            {/* Yellow reference point marker with coordinates */}
+            <circle
+              cx={pointOnRadius.x}
+              cy={pointOnRadius.y}
+              r={10}
+              fill="rgba(255, 255, 0, 0.8)"
+              stroke="white"
+              strokeWidth={2}
+            />
+            <text
+              x={pointOnRadius.x - 10}
+              y={pointOnRadius.y + 40}
+              textAnchor="end"
+              fontSize="40"
             >
-              {/* Chart elements that stay fixed regardless of centering */}
-              <text x={-extent + 50} y={extent - 50} fontSize="50">
-                Heading: {((cameraHeading * 180) / Math.PI).toFixed(1)}°
-              </text>
-              <text x={-extent + 50} y={extent - 120} fontSize="40">
-                Images: {nearestImages.length}
-              </text>
-              <text x={-extent + 50} y={extent - 180} fontSize="40">
-                Current Sector: {cardinalSector} (
-                {CardinalNames["EN"].get(cardinalSector)})
-              </text>
-              <text x={-extent + 50} y={extent - 300} fontSize="40" fill="red">
-                Images Filtered By Sector
-              </text>
-              <text x={-extent + 50} y={extent - 240} fontSize="40">
-                Heading Offset: {((headingOffset * 180) / Math.PI).toFixed(1)}°
-              </text>
+              Reference
+            </text>
+            <text
+              x={pointOnRadius.x - 10}
+              y={pointOnRadius.y + 90}
+              fontSize="40"
+              textAnchor="end"
+            >
+              <tspan>
+                {radiusPointCoords
+                  ? String(Math.floor(radiusPointCoords[0])).slice(0, -4)
+                  : ""}
+              </tspan>
+              <tspan fontWeight="bold">
+                {radiusPointCoords
+                  ? String(Math.floor(radiusPointCoords[0])).slice(-4)
+                  : ""}
+              </tspan>
+            </text>
+            <text
+              x={pointOnRadius.x - 10}
+              y={pointOnRadius.y + 140}
+              fontSize="40"
+              textAnchor="end"
+            >
+              <tspan>
+                {radiusPointCoords
+                  ? String(Math.floor(radiusPointCoords[1])).slice(0, -4)
+                  : ""}
+              </tspan>
+              <tspan fontWeight="bold">
+                {radiusPointCoords
+                  ? String(Math.floor(radiusPointCoords[1])).slice(-4)
+                  : ""}
+              </tspan>
+            </text>
+          </g>
 
-              {/* Main chart group with conditional centering on ground point */}
-              <g
-                transform={
-                  offsetImages
-                    ? `translate(${-pointOnGround.x}, ${-pointOnGround.y})`
-                    : ""
-                }
+          {/* Preview of selected image in lower right */}
+          {nearestImage && (
+            <g transform={`translate(${extent - 650}, ${extent - 650})`}>
+              <rect
+                x={0}
+                y={0}
+                width="600"
+                height="600"
+                fill="white"
+                stroke="black"
+                strokeWidth="2"
+              />
+              <image
+                href={getPreviewImageUrl(
+                  previewPath,
+                  OBLIQUE_PREVIEW_QUALITY.LEVEL_5,
+                  nearestImage.id
+                )}
+                x={0}
+                y={0}
+                width="600"
+                height="600"
+                preserveAspectRatio="xMidYMid meet"
+              />
+              <rect
+                x={0}
+                y={600}
+                width="600"
+                height="50"
+                fill="white"
+                stroke="black"
+                strokeWidth="1"
+              />
+              <text
+                x={300}
+                y={630}
+                fontSize="30"
+                fill="black"
+                textAnchor="middle"
+                dominantBaseline="middle"
               >
-                {lineToNearest}
-                {imagePoints}
-                {cameraMarker}
-                {headingIndicator}
-
-                <text x={-10} y={40} fontSize="40" textAnchor="end">
-                  Camera
-                </text>
-                <text x={-10} y={90} fontSize="40" textAnchor="end">
-                  <tspan>{String(Math.floor(cameraPosition[0])).slice(0, -4)}</tspan>
-                  <tspan fontWeight="bold">
-                    {String(Math.floor(cameraPosition[0])).slice(-4)}
-                  </tspan>
-                </text>
-                <text x={-10} y={140} fontSize="40" textAnchor="end">
-                  <tspan>{String(Math.floor(cameraPosition[1])).slice(0, -4)}</tspan>
-                  <tspan fontWeight="bold">
-                    {String(Math.floor(cameraPosition[1])).slice(-4)}
-                  </tspan>
-                </text>
-
-                {/* Yellow reference point marker with coordinates */}
-                <circle
-                  cx={pointOnRadius.x}
-                  cy={pointOnRadius.y}
-                  r={10}
-                  fill="rgba(255, 255, 0, 0.8)"
-                  stroke="white"
-                  strokeWidth={2}
-                />
-                <text
-                  x={pointOnRadius.x - 10}
-                  y={pointOnRadius.y + 40}
-                  textAnchor="end"
-                  fontSize="40"
-                >
-                  Reference
-                </text>
-                <text
-                  x={pointOnRadius.x - 10}
-                  y={pointOnRadius.y + 90}
-                  fontSize="40"
-                  textAnchor="end"
-                >
-                  <tspan>
-                    {radiusPointCoords
-                      ? String(Math.floor(radiusPointCoords[0])).slice(0, -4)
-                      : ""}
-                  </tspan>
-                  <tspan fontWeight="bold">
-                    {radiusPointCoords
-                      ? String(Math.floor(radiusPointCoords[0])).slice(-4)
-                      : ""}
-                  </tspan>
-                </text>
-                <text
-                  x={pointOnRadius.x - 10}
-                  y={pointOnRadius.y + 140}
-                  fontSize="40"
-                  textAnchor="end"
-                >
-                  <tspan>
-                    {radiusPointCoords
-                      ? String(Math.floor(radiusPointCoords[1])).slice(0, -4)
-                      : ""}
-                  </tspan>
-                  <tspan fontWeight="bold">
-                    {radiusPointCoords
-                      ? String(Math.floor(radiusPointCoords[1])).slice(-4)
-                      : ""}
-                  </tspan>
-                </text>
-              </g>
-
-              {/* Preview of selected image in lower right */}
-              {nearestImage && (
-                <g transform={`translate(${extent - 650}, ${extent - 650})`}>
-                  <rect
-                    x={0}
-                    y={0}
-                    width="600"
-                    height="600"
-                    fill="white"
-                    stroke="black"
-                    strokeWidth="2"
-                  />
-                  <image
-                    href={getPreviewImageUrl(
-                      previewPath,
-                      OBLIQUE_PREVIEW_QUALITY.LEVEL_5,
-                      nearestImage.id
-                    )}
-                    x={0}
-                    y={0}
-                    width="600"
-                    height="600"
-                    preserveAspectRatio="xMidYMid meet"
-                  />
-                  <rect
-                    x={0}
-                    y={600}
-                    width="600"
-                    height="50"
-                    fill="white"
-                    stroke="black"
-                    strokeWidth="1"
-                  />
-                  <text
-                    x={300}
-                    y={630}
-                    fontSize="30"
-                    fill="black"
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                  >
-                    ID: {nearestImage.id}
-                  </text>
-                </g>
-              )}
-            </svg>
-          </Collapse.Panel>
-        </Collapse>
-      </CollapsibleSvgWrapper>
-    </SvgContainer>
+                ID: {nearestImage.id}
+              </text>
+            </g>
+          )}
+        </svg>
+      </Collapse.Panel>
+    </Collapse>
   );
 };
 
