@@ -18,6 +18,7 @@ import {
   getNumberOfPendingChanges,
   removeLastChangeRequestMessage,
   requestEmailChange,
+  submitCR,
 } from "../../../store/slices/kassenzeichen";
 import CRConversation from "../conversations/CRConversation";
 import { useRef, useState } from "react";
@@ -183,7 +184,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
       setLocked(false);
     } else {
       //submit
-      submit();
+      dispatch(submitCR());
       setLocked(true);
       //then
       //close();
