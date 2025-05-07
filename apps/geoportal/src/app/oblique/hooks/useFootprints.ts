@@ -7,6 +7,8 @@ import {
   HeightReference,
   CallbackProperty,
   EasingFunction,
+  PolylineGraphics,
+  Cartesian3,
 } from "cesium";
 
 import {
@@ -22,9 +24,12 @@ import { findMatchingFeature } from "../utils/footprintUtils";
 
 const OBLIQUE_DATASOURCE_PREFIX = "oblq-footprint";
 const FOOTPRINT_ENTITY_ID = "oblq-footprint-entity";
-const DEFAULT_EXTRUDED_HEIGHT = 80;
-const MIN_EXTRUDED_HEIGHT = 0.1;
-const ANIMATION_DURATION = 400; // milliseconds
+const FOOTPRINT_OUTLINE_ID = "oblq-footprint-outline";
+const DEFAULT_EXTRUDED_HEIGHT = 50;
+const HEIGHT_OFFSET = -10; // Offset for the height of the polygon
+const MIN_EXTRUDED_HEIGHT = HEIGHT_OFFSET + 0.1; // Minimum height for the polygon
+const ANIMATION_DURATION = 3000; // milliseconds
+const OUTLINE_WIDTH = 2; // Width for the outline in pixels
 
 export const useFootprints = (): void => {
   const isObliqueMode = useSelector(getObliqueMode);
@@ -34,10 +39,12 @@ export const useFootprints = (): void => {
 
   const lastImageIdRef = useRef<string | null>(null);
   const footprintEntityRef = useRef<Entity | null>(null);
+  const outlineEntityRef = useRef<Entity | null>(null);
   const animationStartTimeRef = useRef<number | null>(null);
   const startHeightRef = useRef<number>(DEFAULT_EXTRUDED_HEIGHT);
   const targetHeightRef = useRef<number>(DEFAULT_EXTRUDED_HEIGHT);
   const isAnimatingRef = useRef<boolean>(false);
+  const polygonPositionsRef = useRef<Cartesian3[]>([]);
 
   // Clean up entities when component unmounts or oblique mode disabled
   useEffect(() => {
@@ -45,8 +52,9 @@ export const useFootprints = (): void => {
 
     return () => {
       if (viewer && !isObliqueMode) {
-        // Clean up the entity when the component unmounts
+        // Clean up the entities when the component unmounts
         viewer.entities.removeById(FOOTPRINT_ENTITY_ID);
+        viewer.entities.removeById(FOOTPRINT_OUTLINE_ID);
         viewer.scene.requestRender();
       }
     };
@@ -118,7 +126,36 @@ export const useFootprints = (): void => {
         heightCallbackProperty;
       viewer.scene.requestRender();
     }
+
+    // Toggle outline visibility based on lockFootprint
+    if (outlineEntityRef.current && outlineEntityRef.current.polyline) {
+      // Use the show property to toggle visibility
+      outlineEntityRef.current.show = !lockFootprint;
+      viewer.scene.requestRender();
+    }
   }, [lockFootprint, viewerRef]);
+
+  // Helper function to create outline entity
+  const createOutlineEntity = (positions: Cartesian3[]) => {
+    if (!positions || positions.length === 0) return null;
+
+    // Close the loop by adding the first position to the end
+    const outlinePositions = [...positions, positions[0]];
+
+    return new Entity({
+      id: FOOTPRINT_OUTLINE_ID,
+      name: `${OBLIQUE_DATASOURCE_PREFIX}-outline-${
+        nearestImage?.record.id || ""
+      }`,
+      show: !lockFootprint, // Initially visible only when lockFootprint is false
+      polyline: new PolylineGraphics({
+        positions: outlinePositions,
+        width: new ConstantProperty(OUTLINE_WIDTH),
+        material: new ColorMaterialProperty(Color.WHITE),
+        clampToGround: new ConstantProperty(true),
+      }),
+    });
+  };
 
   useEffect(() => {
     const viewer = viewerRef.current;
@@ -134,9 +171,11 @@ export const useFootprints = (): void => {
 
     lastImageIdRef.current = nearestImage.record.id;
 
-    // Remove previous entity if exists
+    // Remove previous entities if they exist
     viewer.entities.removeById(FOOTPRINT_ENTITY_ID);
+    viewer.entities.removeById(FOOTPRINT_OUTLINE_ID);
     footprintEntityRef.current = null;
+    outlineEntityRef.current = null;
     viewer.scene.requestRender();
 
     const matchingFeature = findMatchingFeature(
@@ -158,7 +197,7 @@ export const useFootprints = (): void => {
     startHeightRef.current = initialHeight;
     targetHeightRef.current = initialHeight;
 
-    // Create a callback property that will be evaluated on each frame
+    // Create a callback property for the height animation
     const heightCallbackProperty = new CallbackProperty(() => {
       if (!isAnimatingRef.current || animationStartTimeRef.current === null) {
         return targetHeightRef.current;
@@ -188,27 +227,42 @@ export const useFootprints = (): void => {
       return newHeight;
     }, false);
 
-    // Create the entity directly
+    // Get polygon hierarchy for use in both entities
+    const polygonHierarchy = polygonHierarchyFromPolygonCoords(polygonCoords);
+
+    // Store the polygon positions for later use with the outline
+    if (polygonHierarchy.positions && polygonHierarchy.positions.length > 0) {
+      polygonPositionsRef.current = [...polygonHierarchy.positions];
+    }
+
+    // Create the main polygon entity
     const footprintEntity = new Entity({
       id: FOOTPRINT_ENTITY_ID,
       name: `${OBLIQUE_DATASOURCE_PREFIX}-${nearestImage.record.id}`,
       polygon: {
-        hierarchy: polygonHierarchyFromPolygonCoords(polygonCoords),
+        hierarchy: polygonHierarchy,
         material: new ColorMaterialProperty(Color.WHITE.withAlpha(0.8)),
-        outline: new ConstantProperty(false),
-        //outlineColor: new ConstantProperty(Color.WHITE),
-        //outlineWidth: new ConstantProperty(2),
+        outline: new ConstantProperty(false), // Disable outline on the main polygon to avoid duplicate lines
         closeTop: new ConstantProperty(false),
         closeBottom: new ConstantProperty(false),
         extrudedHeight: heightCallbackProperty,
-        extrudedHeightReference: HeightReference.RELATIVE_TO_GROUND,
-        height: new ConstantProperty(0),
-        heightReference: HeightReference.RELATIVE_TO_GROUND,
+        extrudedHeightReference: HeightReference.RELATIVE_TO_3D_TILE,
+        height: new ConstantProperty(HEIGHT_OFFSET),
+        heightReference: HeightReference.CLAMP_TO_3D_TILE,
       },
     });
 
+    // Add the main polygon entity to the viewer
     viewer.entities.add(footprintEntity);
     footprintEntityRef.current = footprintEntity;
+
+    // Always create the outline entity, but control visibility with the show property
+    const outlineEntity = createOutlineEntity(polygonPositionsRef.current);
+    if (outlineEntity) {
+      viewer.entities.add(outlineEntity);
+      outlineEntityRef.current = outlineEntity;
+    }
+
     viewer.scene.requestRender();
   }, [viewerRef, isObliqueMode, nearestImage, footprintData, lockFootprint]);
 };
