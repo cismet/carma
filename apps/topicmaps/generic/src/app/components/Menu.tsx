@@ -48,7 +48,6 @@ const Menu = (props: MenuProps) => {
     sections,
     layerHelpBlocks,
   } = props;
-  console.log("xxx simpleHelp", simpleHelp);
 
   return (
     <CustomizationContextProvider customizations={{}}>

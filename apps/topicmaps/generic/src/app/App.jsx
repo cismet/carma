@@ -333,7 +333,6 @@ function App({ name }) {
 
       if (config?.simpleHelpObject?.type === "REACTCOMP") {
         const x = gtmComponentResolver(config.simpleHelpObject.content, {});
-        console.log("xxx x", x);
         config.simpleHelpObject.content = x;
       }
 
