@@ -226,3 +226,53 @@ export function gtmComponentResolver(
   }
   return <Component {...componentProps} />;
 }
+
+type RenderMarkdownSectionLinksProps = {
+  text: string;
+  sectionmapping?: Record<string, string>;
+  setAppMenuActiveMenuSection: (section: string) => void;
+};
+
+export function RenderMarkdownSectionLinks({
+  text,
+  sectionmapping = {},
+  setAppMenuActiveMenuSection,
+}: RenderMarkdownSectionLinksProps) {
+  // Regex to match **SectionName**
+  const regex = /\*\*(.+?)\*\*/g;
+
+  // Split the text into parts, keeping track of matches
+  const parts: (string | JSX.Element)[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(text)) !== null) {
+    const before = text.slice(lastIndex, match.index);
+    if (before) parts.push(before);
+
+    const sectionName = match[1];
+    const sectionKey = sectionmapping[sectionName];
+    if (sectionKey) {
+      parts.push(
+        <a
+          key={sectionKey + match.index}
+          className="renderAsLink"
+          onClick={() => setAppMenuActiveMenuSection(sectionKey)}
+          style={{ cursor: "pointer" }}
+        >
+          {sectionName}
+        </a>
+      );
+    } else {
+      // If not in mapping, render as <strong>SectionName</strong>
+      parts.push(<strong key={"strong-" + match.index}>{sectionName}</strong>);
+    }
+    lastIndex = regex.lastIndex;
+  }
+  // Add any remaining text after the last match
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return <span>{parts}</span>;
+}

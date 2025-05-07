@@ -176,6 +176,9 @@ const Map = ({
             introductionMarkdown={
               config?.tm?.applicationMenuIntroductionMarkdown
             }
+            sectionmapping={
+              config?.tm?.applicationMenuIntroductionMarkdownSectionMapping
+            }
             menuIcon={config?.tm?.applicationMenuIconname}
             menuFooter={
               config?.tm?.applicationMenuFooter || (
