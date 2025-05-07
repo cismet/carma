@@ -53,6 +53,7 @@ import { KassenzeichenViewerGefahrensignal } from "@carma-collab/wuppertal/verdi
 import AnnotationPanel from "./AnnotationPanel";
 import ChangeRequestEditView from "../components/changerequests/CR50Flaechendialog";
 import AnnotationEditView from "../components/changerequests/CR60AnnotationDialog";
+import CONTACTS_MAP, { defaultContact } from "../../constants/contacts";
 
 const KassenzeichenViewer = () => {
   const kassenzeichen = useSelector(getKassenzeichen);
@@ -292,8 +293,23 @@ const KassenzeichenViewer = () => {
     });
   }
 
+  let contact;
+  let creator = defaultContact;
+  try {
+    creator = kassenzeichen.stac_options.creatorUserName;
+  } catch (e) {}
+  if (kassenzeichen.contactinfo === undefined) {
+    if (CONTACTS_MAP.has(creator)) {
+      contact = CONTACTS_MAP.get(creator);
+    } else {
+      contact = CONTACTS_MAP.get(defaultContact);
+    }
+  } else {
+    contact = kassenzeichen.contactinfo;
+  }
+
   if (uiState.contactElementEnabled && kassenzeichen.id !== -1) {
-    contactPanel = <ContactPanel />;
+    contactPanel = <ContactPanel contact={contact} />;
   }
 
   if (kassenzeichen.id !== -1) {
