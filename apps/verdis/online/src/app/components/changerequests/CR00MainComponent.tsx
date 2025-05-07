@@ -200,7 +200,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
   const modalBodyStyle = {
     overflowY: "auto",
     overflowX: "hidden",
-    maxHeight: height - (!emailSettingsShown ? 520 : 350),
+    maxHeight: height - (emailSettingsShown ? 520 : 350),
   };
 
   const close = () => {
@@ -502,7 +502,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
             <Section
               key="sectionKey3"
               sectionKey="sectionKey3"
-              activeSectionKey={"sectionKey3"}
+              // activeSectionKey={"sectionKey3"}
               sectionTitle="eMail Benachrichtigungen aktivieren"
               sectionBsStyle="info"
               setActiveSectionKey={() => {
