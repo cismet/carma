@@ -1,26 +1,12 @@
 import { Entity, Color, ColorMaterialProperty, ConstantProperty } from "cesium";
-import {
-  buffer,
-  difference,
-  featureCollection,
-  transformTranslate,
-} from "@turf/turf";
-import type { Feature, FeatureCollection, Polygon } from "geojson";
-import {
-  getCardinalDirection,
-  getHeadingFromCardinalDirection,
-} from "./orientationUtils";
 
+import type { Feature, FeatureCollection, Polygon } from "geojson";
 export interface FootprintProperties {
   FILENAME: string;
   [key: string]: string | number | boolean;
 }
 
 export type FootprintFeature = Feature<Polygon, FootprintProperties>;
-
-export const BUFFER_WIDTH_METERS = 10;
-
-export const BUFFER_SHIFT_FACTOR = 0.5;
 
 export const fetchGeoJson = async (
   url: string
@@ -38,48 +24,15 @@ export const createFilteredGeoJson = (
   feature: FootprintFeature
 ): FeatureCollection<Polygon, FootprintProperties> => {
   try {
+    // Simple deep copy of the feature without any buffering or modification
     const featureCopy = JSON.parse(JSON.stringify(feature));
-
-    const buffered = buffer(featureCopy, BUFFER_WIDTH_METERS, {
-      units: "meters",
-    });
-
-    const direction = feature.properties.ORI;
-
-    const heading = getCardinalDirection(direction.toString());
-
-    // TODO: if verified method use headingoffset as Param;
-    const headingDegree = heading * 90 - 34 + 180;
-
-    const shiftedBuffered = transformTranslate(
-      buffered,
-      BUFFER_WIDTH_METERS * BUFFER_SHIFT_FACTOR,
-      headingDegree,
-      { units: "meters" }
-    );
-
-    const outline = difference(
-      featureCollection([shiftedBuffered, featureCopy])
-    );
-
-    if (outline && outline.geometry) {
-      const hollowFeature = {
-        ...featureCopy,
-        geometry: outline.geometry,
-      } as FootprintFeature;
-
-      return {
-        type: "FeatureCollection",
-        features: [hollowFeature],
-      };
-    }
 
     return {
       type: "FeatureCollection",
       features: [featureCopy],
     };
   } catch (error) {
-    console.error("Error creating footprint buffer:", error);
+    console.error("Error creating footprint:", error);
     return {
       type: "FeatureCollection",
       features: [feature],
@@ -89,10 +42,16 @@ export const createFilteredGeoJson = (
 
 export const configureFootprintEntity = (entity: Entity) => {
   if (entity.polygon) {
-    entity.polygon.height = undefined;
-    entity.polygon.outline = new ConstantProperty(false);
+    // Configure polygon to create a simple extruded polygon with no top
+    entity.polygon.height = new ConstantProperty(0);
+    entity.polygon.extrudedHeight = new ConstantProperty(50); // Wall height in meters
+    entity.polygon.closeTop = new ConstantProperty(false); // No top surface
+    entity.polygon.closeBottom = new ConstantProperty(true); // Keep bottom surface
+    entity.polygon.outline = new ConstantProperty(true);
+    entity.polygon.outlineColor = new ConstantProperty(Color.WHITE);
+    entity.polygon.outlineWidth = new ConstantProperty(2);
     entity.polygon.material = new ColorMaterialProperty(
-      Color.WHITE.withAlpha(0.8)
+      Color.WHITE.withAlpha(0.3)
     );
   }
   return entity;
