@@ -12,9 +12,9 @@ import {
   GenericHelpTextForMyLocation,
   InKartePositionieren,
   KartendarstellungDerFachobjekte,
+  GTMComponentDictionary,
 } from "@carma-collab/wuppertal/generic-topicmap";
 import GenericMenuIntroduction from "react-cismap/topicmaps/menu/Introduction";
-import { layer } from "@fortawesome/fontawesome-svg-core";
 
 interface MenuProps {
   menuTitle: string;
@@ -48,6 +48,7 @@ const Menu = (props: MenuProps) => {
     sections,
     layerHelpBlocks,
   } = props;
+  console.log("xxx simpleHelp", simpleHelp);
 
   return (
     <CustomizationContextProvider customizations={{}}>
@@ -90,10 +91,7 @@ const Menu = (props: MenuProps) => {
                       simpleHelp && {
                         title: "Hintergrund",
                         bsStyle: "secondary",
-                        contentBlockConf: {
-                          type: simpleHelp.type || "MARKDOWN",
-                          content: simpleHelp.content,
-                        },
+                        contentBlockConf: simpleHelp,
                       },
 
                       ...(layerHelpBlocks || []),
@@ -138,7 +136,7 @@ const Menu = (props: MenuProps) => {
                           content: <Einstellungen />,
                         },
                       },
-                    ],
+                    ].filter(Boolean), // Filter out any falsy values (inn that case the simpleHelp if it is not set)
                   },
                 ]}
               />

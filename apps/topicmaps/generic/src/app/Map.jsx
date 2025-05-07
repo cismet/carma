@@ -53,8 +53,6 @@ const Map = ({
   layerInformation = {},
   layerHelpBlocks,
 }) => {
-  console.log("xxx layerHelpBlocks", layerHelpBlocks);
-
   const [feature, setFeature] = useState(undefined);
   const { selectedFeature } = useContext(FeatureCollectionContext);
   const [globalHits, setGlobalHits] = useState({});

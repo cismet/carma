@@ -28,7 +28,12 @@ import defaultConfig from "../assets/gtmDefaulConfig.json";
 import { getAllLeafLayers } from "@carma-mapping/layers";
 import { extractCarmaConfig, extractInformation } from "@carma-commons/utils";
 import md5 from "md5";
-import { createMetaHelpBlock, getConfig, getMarkdown } from "./helper";
+import {
+  createMetaHelpBlock,
+  getConfig,
+  getMarkdown,
+  gtmComponentResolver,
+} from "./helper";
 
 const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 
@@ -48,9 +53,14 @@ const errorConfig = {
 function App({ name }) {
   // --- Fault log state and helper ---
   const [faultLog, setFaultLog] = useState([]);
-  const log = (msg) => {
-    console.log(msg);
-    setFaultLog((prev) => [...prev, msg]);
+  const log = (msg, attachment) => {
+    if (attachment) {
+      console.log(msg, attachment);
+      setFaultLog((prev) => [...prev, msg + attachment]);
+    } else {
+      console.log(msg);
+      setFaultLog((prev) => [...prev, msg]);
+    }
   };
 
   const configPath = import.meta.env.VITE_GTM_CONFIG_PATH || "/dev/"; //uses the dev folder in public to debug local stuff when no ENV is set
@@ -87,7 +97,7 @@ function App({ name }) {
         path,
         log
       );
-      log(`... projectConfig: ${JSON.stringify(projectConfig)}`);
+      log(`... projectConfig: ${projectConfig}`);
       let found = true;
       if (!projectConfig) {
         found = false;
@@ -307,20 +317,13 @@ function App({ name }) {
         config.features = fc;
       }
 
-      config.helpTextBlocks = await getConfig(
-        slugName,
-        "helpTextBlocks",
-        server,
-        path,
-        log
-      );
       config.simpleHelpMd = await getMarkdown(
         slugName,
         "simpleHelp",
         server,
         path
       );
-      config.simpleHelp = await getConfig(
+      config.simpleHelpObject = await getConfig(
         slugName,
         "simpleHelp",
         server,
@@ -328,25 +331,22 @@ function App({ name }) {
         log
       );
 
-      if (config.helpTextBlocks !== undefined) {
-        //all good
-      } else if (config.simpleHelpMd !== undefined) {
+      if (config?.simpleHelpObject?.type === "REACTCOMP") {
+        const x = gtmComponentResolver(config.simpleHelpObject.content, {});
+        console.log("xxx x", x);
+        config.simpleHelpObject.content = x;
+      }
+
+      console.log("... simpleHelpMd", config.simpleHelpMd);
+
+      if (config.simpleHelpMd !== undefined && config.simpleHelpMd !== "") {
         config.simpleHelpObject = {
           type: "MARKDOWN",
           content: config.simpleHelpMd,
         };
-        config.helpTextblocks = getSimpleHelpForGenericTM(
-          document.title,
-          config.simpleHelpObject
-        );
-      } else {
-        config.helpTextblocks = getSimpleHelpForGenericTM(
-          document.title,
-          config.simpleHelp
-        );
       }
 
-      console.log("xxx helpTextBlocks", config.helpTextblocks);
+      console.log("... simpleHelpObject", config.simpleHelpObject);
 
       if (config.infoBoxConfig !== undefined) {
         config.info = config.infoBoxConfig;
@@ -422,10 +422,8 @@ function App({ name }) {
             info.doneWithFetchingAdditionalInfo &&
             info.addMetaInfoToHelp
           ) {
-            console.log("xxx layerInformation", info);
             const helpBlock = createMetaHelpBlock(layer.name, layer.name, info);
             layerBlocks.push(helpBlock);
-            console.log("xxxhelpBlock", helpBlock);
           }
         });
         setLayerHelpBlocks(layerBlocks);
@@ -467,40 +465,6 @@ function App({ name }) {
       };
       cpConfig.items = config.features;
     }
-
-    // // --- BEGIN: Meta Info Markdown Block Generation ---
-
-    // let metaMarkdownBlocks = [];
-    // if (config?.tm?.vectorLayers && layerInformation) {
-    //   metaMarkdownBlocks = config.tm.vectorLayers
-    //     .filter(
-    //       (layer) =>
-    //         layer.addMetaInfoToHelp &&
-    //         layer.name &&
-    //         layerInformation[layer.capabilitiesLayer]
-    //     )
-    //     .map((layer) =>
-    //       layerMetaToMarkdown(
-    //         layer.name,
-    //         layerInformation[layer.capabilitiesLayer]
-    //       )
-    //     );
-    // }
-
-    // // If you have a simpleHelp prop/content, append the markdown blocks
-    // // Example: pass to Menu as simpleHelp={{ ...simpleHelp, content: `${simpleHelp.content}\n\n---\n\n${metaMarkdownBlocks.join("\n\n---\n\n")}` }}
-    // // Or build a new prop:
-    // const extendedSimpleHelp = config?.tm?.simpleHelp
-    //   ? {
-    //       ...config.tm.simpleHelp,
-    //       content: `${
-    //         config.tm.simpleHelp.content || ""
-    //       }\n\n---\n\n${metaMarkdownBlocks.join("\n\n---\n\n")}`,
-    //     }
-    //   : { content: metaMarkdownBlocks.join("\n\n---\n\n") };
-    // config.simpleHelpMd = extendedSimpleHelp.content;
-    // // --- END: Meta Info Markdown Block Generation ---
-    // console.log("xx extendedSimpleHelp", extendedSimpleHelp);
 
     return (
       <>
