@@ -95,30 +95,25 @@ const Menu30Kartenhintergruende = ({
               <Form key="kartenselector">
                 {" "}
                 <Form.Label>Hintergrundkarten</Form.Label> <br />{" "}
-                {backgrounds.map((item, key) => {
+                {backgrounds.map((bg, idx) => {
                   return (
-                    <Form>
-                      <br />
-                      {backgrounds.map((bg, idx) => (
-                        <Form.Check
-                          key={idx}
-                          type="radio"
-                          id={`cboMapStyleChooser_${idx}`}
-                          name="mapBackground"
-                          inline
-                          label={bg.title}
-                          checked={selectedBackgroundIndex === idx}
-                          onChange={() => {
-                            console.log("xxx onChange");
-                            dispatch(
-                              setSelectedBackgroundIndex({
-                                selectedBackgroundIndex: idx,
-                              })
-                            );
-                          }}
-                        />
-                      ))}
-                    </Form>
+                    <Form.Check
+                      key={idx}
+                      type="radio"
+                      id={`cboMapStyleChooser_${idx}`}
+                      name="mapBackground"
+                      inline
+                      label={bg.title}
+                      checked={selectedBackgroundIndex === idx}
+                      onChange={() => {
+                        console.log("xxx onChange");
+                        dispatch(
+                          setSelectedBackgroundIndex({
+                            selectedBackgroundIndex: idx,
+                          })
+                        );
+                      }}
+                    />
                   );
                 })}{" "}
               </Form>,
