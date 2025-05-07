@@ -301,14 +301,13 @@ function App({ sync = false }: { sync?: boolean }) {
                 />
               </ControlButtonStyler>
               {/* </Tooltip> */}
-              <Control position="topleft" order={40}>
-                <MapTypeSwitcher
-                  className="!rounded-t-none !border-t-[1px]"
-                  duration={CESIUM_CONFIG.transitions.mapMode.duration}
-                  nativeTooltip={true}
-                  enableMobileWarning={true}
-                />
-              </Control>
+
+              <MapTypeSwitcher
+                className="!rounded-t-none !border-t-[1px]"
+                duration={CESIUM_CONFIG.transitions.mapMode.duration}
+                nativeTooltip={true}
+                enableMobileWarning={true}
+              />
             </div>
           </Control>
           <Control position="topleft" order={50}>
