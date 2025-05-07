@@ -26,6 +26,9 @@ interface ControlContextType {
 interface ControlLayoutProps {
   children: ReactNode;
   ifStorybook?: boolean;
+  onResponsiveCollapse?: (collapseEvent: any) => void;
+  onHeightResize?: (height: number) => void;
+  debugMode?: boolean;
 }
 
 const ControlContext = createContext<ControlContextType | undefined>(undefined);

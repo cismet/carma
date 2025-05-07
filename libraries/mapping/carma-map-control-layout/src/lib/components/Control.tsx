@@ -5,6 +5,10 @@ interface ControlProps {
   position: Positions;
   children: ReactNode;
   order: number;
+  fullCollapseWidth?: boolean;
+  bottomLeftWidth?: number;
+  bottomRightWidth?: number;
+  title?: string;
 }
 
 function Control({ position, children, order }: ControlProps) {
