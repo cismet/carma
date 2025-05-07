@@ -92,7 +92,7 @@ export const flyToExteriorOrientation = (
       direction,
       up: new Cartesian3(...upZ),
     },
-    //endTransform: Matrix4.IDENTITY,
+    endTransform: Matrix4.IDENTITY,
     duration,
     complete: onComplete,
   });

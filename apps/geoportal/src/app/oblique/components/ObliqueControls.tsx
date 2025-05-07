@@ -215,6 +215,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     const up = Cartesian3.normalize(position, new Cartesian3());
 
     setLockFootprint(true);
+    animationInProgressRef.current = true;
 
     const currentDistanceToCamera = Cartesian3.distance(
       viewer.camera.positionWC,
@@ -245,7 +246,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     setLockFootprint,
   ]);
 
-  const flyToNearestExteriorOrientation = useCallback(() => {
+  const flyToNearestExteriorOrientation = useCallback(async () => {
     if (isPreviewVisible) {
       setIsPreviewVisible(false);
       notifyPreviewVisibilityChange(false);
@@ -548,6 +549,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
           isVisible={isPreviewVisible}
           onOpenImageLink={openImageLink}
           onDirectDownload={handleDirectDownload}
+          isDebugMode={isDebugMode}
           onClose={() => {
             setIsPreviewVisible(false);
             notifyPreviewVisibilityChange(false);
@@ -603,7 +605,9 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
               {derivedExteriorOrientationRef.current && (
                 <Tooltip
                   placement="right"
-                  title={"Mit Orientierung zum Bild fliegen"}
+                  title={
+                    "Zur ausgewählten Schrägluftbild-Aufnahmeposition fliegen"
+                  }
                 >
                   <div>
                     <ControlButtonStyler

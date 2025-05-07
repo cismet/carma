@@ -41,18 +41,23 @@ const getViewerSyncedSize = (viewerRef: RefObject<Viewer>) => {
   return dim;
 };
 
-const Backdrop = styled.div<{ $fadeIn: boolean }>`
+const Backdrop = styled.div<{ $fadeIn: boolean; $isDebug?: boolean }>`
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  /*
+  ${({ $isDebug }) => {
+    if ($isDebug) {
+      return;
+    }
+    return `
   background-color: rgba(0, 0, 0, 0.2);
   backdrop-filter: contrast(80%);
-  */
+`;
+  }}
   z-index: 1100;
-  opacity: ${(props) => (props.$fadeIn ? 1 : 0)};
+  opacity: ${({ $fadeIn }) => ($fadeIn ? 1 : 0)};
   transition: opacity 0.5s linear;
   cursor: pointer;
 `;
@@ -61,14 +66,15 @@ const PreviewImage = styled.img<{
   $fadeIn: boolean;
   width: number;
   height: number;
+  $isDebug?: boolean;
   $blendMode?: BlendMode;
 }>`
   position: absolute;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  ${(props) => {
-    switch (props.$blendMode) {
+  ${({ $blendMode }) => {
+    switch ($blendMode) {
       case "difference":
         return "mix-blend-mode: difference;";
       case "normal50":
@@ -77,20 +83,23 @@ const PreviewImage = styled.img<{
         return "mix-blend-mode: normal;";
     }
   }}
-  min-width: ${(props) => props.width}px;
-  min-height: ${(props) => props.height}px;
+  min-width: ${({ width }) => width}px;
+  min-height: ${({ height }) => height}px;
   height: auto;
-  /*
-  border: 2px solid rgba(255, 255, 255, 0.9);
-  box-shadow: 0 0 50px rgba(255, 255, 255, 0.8);
-  */
   box-sizing: content-box;
   pointer-events: none;
-  /*
+  ${({ $isDebug }) => {
+    if ($isDebug) {
+      return;
+    }
+    return `
+    border: 2px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 0 50px rgba(255, 255, 255, 0.8);
+  `;
+  }}
   backdrop-filter: contrast(80%);
-  */
   z-index: 1200;
-  opacity: ${(props) => (props.$fadeIn ? 1 : 0)};
+  opacity: ${({ $fadeIn }) => ($fadeIn ? 1 : 0)};
   transition: opacity 0.5s linear, width 0.1s linear, height 1s linear;
   overflow: hidden;
   scroll: none;
@@ -228,6 +237,7 @@ export const ObliqueImagePreview: React.FC<ObliqueImagePreviewProps> = ({
         height={syncedHeight}
         $fadeIn={shouldFadeIn}
         $blendMode={blendMode}
+        $isDebug={isDebugMode}
       />
     </div>
   );
