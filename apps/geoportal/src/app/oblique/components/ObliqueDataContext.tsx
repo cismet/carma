@@ -1,25 +1,20 @@
-import React, {
-  createContext,
-  useEffect,
-  useState,
-  useMemo,
-  ReactNode,
-} from "react";
+import React, { createContext, useEffect, useState, ReactNode } from "react";
 import { useSelector } from "react-redux";
+import type { FeatureCollection, Polygon } from "geojson";
 
-import { getObliqueMode } from "../../store/slices/ui";
-import { useObliqueData } from "../hooks/useObliqueData";
-import { NUM_NEAREST_IMAGES } from "../config";
-import { useNearestObliqueImage } from "../hooks/useNearestObliqueImage";
 import {
   ExteriorOrientations,
   NearestObliqueImageRecord,
   ObliqueDataProviderConfig,
-  ObliqueImageRecord,
   ObliqueImageRecordMap,
   Proj4Converter,
 } from "../types";
-import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
+
+import { getObliqueMode } from "../../store/slices/ui";
+
+import { useObliqueData } from "../hooks/useObliqueData";
+import { useNearestObliqueImage } from "../hooks/useNearestObliqueImage";
+
 import { CardinalDirectionEnum } from "../utils/orientationUtils";
 import { fetchGeoJson, FootprintProperties } from "../utils/footprintUtils";
 import {
@@ -27,8 +22,9 @@ import {
   createRBushByCardinal,
 } from "../utils/spatialIndexing";
 import { getFootprintCenterpoints } from "../utils/footprintCenterpoints";
-import type { FeatureCollection, Polygon } from "geojson";
-import { OBLIQUE_2024_EXT_ORI_UTM32_URI } from "@carma-commons/resources";
+
+import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
+import { NUM_NEAREST_IMAGES } from "../config";
 
 // Define the shape of our context
 // todo: consolidate per Image result data into NearestImageRecord
@@ -209,7 +205,7 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
 
   // Load exterior orientations data when in oblique mode
   useEffect(() => {
-    if (!isObliqueMode || !OBLIQUE_2024_EXT_ORI_UTM32_URI) return;
+    if (!isObliqueMode || exteriorOrientationsURI) return;
 
     setIsExtOriLoading(true);
 

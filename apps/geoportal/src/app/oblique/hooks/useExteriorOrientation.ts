@@ -23,7 +23,6 @@ export const useExteriorOrientation = (
   const derivedExteriorOrientationRef =
     useRef<DerivedExteriorOrientation | null>(null);
 
-
   useEffect(() => {
     // Reset the orientation record if no image is selected or no orientations are available
     if (!nearestImage || !exteriorOrientations) {

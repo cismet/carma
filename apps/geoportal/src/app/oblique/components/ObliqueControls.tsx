@@ -8,7 +8,6 @@ import {
   faSpinner,
   faExternalLink,
   faFileArrowDown,
-  faMagic,
 } from "@fortawesome/free-solid-svg-icons";
 import { Tooltip } from "antd";
 import {
@@ -35,11 +34,14 @@ import { ObliqueFootprintLayer } from "./ObliqueFootprintLayer";
 import { ObliqueDebugSvg } from "./debugUI/ObliqueDebugSvg";
 import { ObliqueImagePreview } from "./ObliqueImagePreview";
 import { ObliqueImageInfo } from "./debugUI/ObliqueImageInfo";
+import { CameraVectorControls } from "./debugUI/CameraVectorControls";
 
 import { getObliqueMode, setObliqueMode } from "../../store/slices/ui";
 
 import { useObliqueDataContext } from "../hooks/useObliqueDataContext";
 import { useOrbitPoint } from "../hooks/useOrbitPoint";
+import { useDebugOrbitPoint } from "../hooks/useDebugOrbitPoint";
+import { useExteriorOrientation } from "../hooks/useExteriorOrientation";
 
 import { resetCamera, flyToExteriorOrientation } from "../utils/cameraUtils";
 import { downloadAsBlobAsync } from "../utils/downloads";
@@ -57,11 +59,6 @@ import {
 } from "../utils/previewVisibility";
 
 import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
-import { CameraVectorControls } from "./debugUI/CameraVectorControls";
-import { useDebugOrbitPoint } from "../hooks/useDebugOrbitPoint";
-import { DerivedExteriorOrientation } from "../utils/transformExteriorOrientation";
-import useExteriorOrientation from "../hooks/useExteriorOrientation";
-import { exec } from "child_process";
 
 type ObliqueControlsProps = {
   /**
@@ -509,8 +506,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
                 ?.direction
             }
             upVector={
-              derivedExteriorOrientationRef.current?.rotation?.enu?.wgs84
-                ?.up
+              derivedExteriorOrientationRef.current?.rotation?.enu?.wgs84?.up
             }
             setUpVector={() => {}}
           />
