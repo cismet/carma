@@ -151,7 +151,9 @@ export const searchByKassenzeichenId = (kassenzeichenId, fitBounds) => {
 
 function storeCR(cr, callback = (payload) => {}) {
   return function (dispatch, getState) {
-    dispatch(setCloudStorageStatus(CLOUDSTORAGESTATES.CLOUD_STORAGE_UP));
+    dispatch(
+      setCloudStorageStatus({ status: CLOUDSTORAGESTATES.CLOUD_STORAGE_UP })
+    );
     const stac = getState().auth.stac;
     const kassenzeichen = getState().kassenzeichen;
     function sanitizeChangeRequest(cr: any) {
@@ -203,7 +205,7 @@ function storeCR(cr, callback = (payload) => {}) {
             if (resultObject.resultStatus === "SUCCESS") {
               callback(resultObject);
               setTimeout(() => {
-                dispatch(setCloudStorageStatus(undefined));
+                dispatch(setCloudStorageStatus({ status: undefined }));
               }, 100);
               const newKassz = JSON.parse(JSON.stringify(kassenzeichen));
               newKassz.aenderungsanfrage = resultObject.aenderungsanfrage;

@@ -116,7 +116,7 @@ const initialState = {
   waitForFEB: false,
 
   cloudStorageStatus: undefined, //CLOUDSTORAGESTATES.CLOUD_STORAGE_UP,
-  cloudStorageStatusMessages: [],
+  cloudStorageStatusMessages: [] as string[],
   catchedError: undefined,
   catchedErrorCause: undefined,
   localErrorMessages: [],
@@ -212,6 +212,13 @@ const slice = createSlice({
     showWaiting(state, action) {
       state.waitingVisible = action.payload;
     },
+    setCloudStorageStatus(state, action) {
+      const { status, message } = action.payload;
+      state.cloudStorageStatus = status;
+      if (message !== undefined) {
+        state.cloudStorageStatusMessages.push(message);
+      }
+    },
   },
 });
 
@@ -238,6 +245,7 @@ export const {
   setErrorMessages,
   setFebBlob,
   setWaitForFEB,
+  setCloudStorageStatus,
 } = slice.actions;
 
 export const getConfData = (state) => {
@@ -255,14 +263,6 @@ export const getHeight = (state) => {
 export const getChangeRequestEditViewVisible = (state) => {
   return state.ui.changeRequestEditViewVisible;
 };
-
-export function setCloudStorageStatus(status, msg = "") {
-  return {
-    type: types.SET_CLOUD_STORAGE_STATUS,
-    status,
-    msg,
-  };
-}
 
 export function addLocalErrorMessage(message) {
   return function (dispatch, getState) {
