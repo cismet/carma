@@ -199,7 +199,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
   const modalBodyStyle = {
     overflowY: "auto",
     overflowX: "hidden",
-    // maxHeight: height - (emailSettingsShown ? 480 : 350),
+    maxHeight: height - (emailSettingsShown ? 480 : 350),
   };
 
   const close = () => {
