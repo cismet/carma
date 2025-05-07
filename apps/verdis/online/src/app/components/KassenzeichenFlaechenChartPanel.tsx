@@ -4,10 +4,13 @@ import { getKassenzeichen } from "../../store/slices/kassenzeichen";
 import {
   anschlussgradLookupByAbk,
   flaechenartLookupByAbk,
+  getCRsForFlaeche,
+  getMergedFlaeche,
   veranlagungsgrundlage,
 } from "../../utils/kassenzeichenHelper";
 import { getColorFromFlaechenArt } from "../../utils/kassenzeichenMappingTools";
 import { panelTitles } from "@carma-collab/wuppertal/verdis-online";
+import { getUiState } from "../../store/slices/ui";
 
 interface PanelProps {
   orientation: string;
@@ -15,6 +18,7 @@ interface PanelProps {
 
 const KassenzeichenFlaechenChartPanel = ({ orientation }: PanelProps) => {
   const kassenzeichen = useSelector(getKassenzeichen);
+  const uiState = useSelector(getUiState);
 
   const styleOverride = {
     marginBottom: "5px",
@@ -34,6 +38,15 @@ const KassenzeichenFlaechenChartPanel = ({ orientation }: PanelProps) => {
   if (kassenzeichen.flaechen) {
     kassenzeichen.flaechen.forEach((flaeche_) => {
       let flaeche = flaeche_;
+
+      if (uiState.changeRequestsEditMode === true) {
+        flaeche = getMergedFlaeche(
+          flaeche_,
+          getCRsForFlaeche(kassenzeichen, flaeche_)
+        );
+      } else {
+        flaeche = flaeche_;
+      }
       const flaechenartId =
         flaeche.flaecheninfo.flaechenart.id ||
         flaechenartLookupByAbk[flaeche.flaecheninfo.flaechenart.art_abkuerzung];
