@@ -40,9 +40,6 @@ export interface ObliqueImageRecord extends BasicObliqueImageRecord {
   fallbackHeading: number;
   sector: CardinalDirectionEnum;
   cartesian: Cartesian3;
-  hpr: HeadingPitchRoll;
-  quaternion: Quaternion;
-  rotationMatrix: Matrix3;
 }
 
 // small utility format for json

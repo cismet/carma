@@ -1,3 +1,5 @@
+import { Cartesian3 } from "cesium";
+
 import {
   BasicObliqueImageRecord,
   ExteriorOrientationDataArray,
@@ -10,8 +12,6 @@ import {
   getApproximateHeadingBySector,
   CardinalDirectionEnum,
 } from "./orientationUtils";
-import { Cartesian3 } from "cesium";
-import { computeOrientations } from "./computeOrientations";
 import { Matrix3RowMajor } from "types/math";
 
 export const extendObliqueImageRecord = (
@@ -39,10 +39,6 @@ export const extendObliqueImageRecord = (
 
   let flightPatternHeading = getApproximateHeadingBySector(sector, offset);
 
-  const { quaternion, hpr, rotationMatrix } = computeOrientations(
-    image.orientation
-  );
-
   // Adjust the heading for the coordinate system if needed
   //heading = adjustHeadingToWGS84(heading, image.perspectiveCenter, converter);
 
@@ -52,9 +48,6 @@ export const extendObliqueImageRecord = (
     cartesian,
     fallbackHeading: flightPatternHeading,
     sector,
-    quaternion,
-    hpr,
-    rotationMatrix,
   };
   return record;
 };
