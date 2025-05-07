@@ -204,7 +204,9 @@ const VerdisOnlineAppNavbar = () => {
                   Änderungswünsche{" "}
                   {uiState.changeRequestsEditMode === true &&
                     crCounter.crDraftCounter > 0 && (
-                      <Badge style={{ backgroundColor: colorDraft }}>
+                      <Badge
+                        style={{ backgroundColor: colorDraft, color: "white" }}
+                      >
                         {crCounter.crDraftCounter}
                       </Badge>
                     )}
