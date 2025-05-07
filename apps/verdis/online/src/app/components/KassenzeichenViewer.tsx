@@ -71,18 +71,18 @@ const KassenzeichenViewer = () => {
     if (!login) {
       // console.log("xxx not successefull login");
       // dispatch(setLoginInProgress({}));
-      // dispatch(showInfo("Kassenzeichen wird wieder geladen"));
-      // dispatch(showWaiting(true));
-      // dispatch(
-      //   getKassenzeichenbySTAC(stac, (success) => {
-      //     if (success === true) {
-      //       setTimeout(() => {
-      //         dispatch(showWaiting(false));
-      //         dispatch(fitAll());
-      //       }, 300);
-      //     }
-      //   })
-      // );
+      dispatch(showInfo("Kassenzeichen wird wieder geladen"));
+      dispatch(showWaiting(true));
+      dispatch(
+        getKassenzeichenbySTAC(stac, (success) => {
+          if (success === true) {
+            setTimeout(() => {
+              dispatch(showWaiting(false));
+              dispatch(fitAll());
+            }, 300);
+          }
+        })
+      );
     }
 
     // console.log("xxx successefull login");
@@ -259,33 +259,6 @@ const KassenzeichenViewer = () => {
             );
             dispatch(showChangeRequestAnnotationEditViewVisible(true));
           }}
-          // inPolyEditMode={that.props.mapping.idsInEdit.includes(
-          //     annotationFeature.id
-          // )}
-          // togglePolyEditMode={() => {
-          //     if (
-          //         that.props.mapping.idsInEdit.includes(
-          //             annotationFeature.id
-          //         )
-          //     ) {
-          //         const newIds = that.props.mapping.idsInEdit.filter(
-          //             id => id !== annotationFeature.id
-          //         );
-          //         that.props.mappingActions.setIdsInEdit(newIds);
-          //     } else {
-          //         const newIds = JSON.parse(
-          //             JSON.stringify(that.props.mapping.idsInEdit)
-          //         );
-          //         newIds.push(annotationFeature.id);
-          //         that.props.mappingActions.setIdsInEdit(newIds);
-          //     }
-          // }}
-          // clickHandler={that.flaechenPanelClick}
-          //map={this.verdisMap.wrappedInstance.leafletRoutedMap}
-          // layer={getLayerForFeatureId(
-          // 	this.verdisMap.wrappedInstance.leafletRoutedMap,
-          // 	annotationFeature.id
-          // )}
         />
       );
 
@@ -380,15 +353,7 @@ const KassenzeichenViewer = () => {
           }}
           dismissible
         >
-          {getOverlayTextForFlaeche(
-            selectedFlaeche.properties,
-            undefined
-            // this.props.uiState.changeRequestsEditMode === true
-            //     ? getCRsForFlaeche(this.props.kassenzeichen, {
-            //           flaechenbezeichnung: selectedFlaeche.properties.bez
-            //       })
-            //     : undefined
-          )}
+          {getOverlayTextForFlaeche(selectedFlaeche.properties, undefined)}
         </Alert>
       </div>
     );
@@ -409,62 +374,6 @@ const KassenzeichenViewer = () => {
       />
       <HelpAndSettings />
       <ChangeRequests height={mapHeight + 10} />
-      {/* <ChangeRequestEditView
-        height={mapHeight + 10}
-        visible={this.props.uiState.changeRequestEditViewVisible}
-        showChangeRequestMenu={(storeIt) => {
-          if (storeIt === true) {
-            this.props.kassenzeichenActions.setChangeRequestsForFlaeche(
-              this.props.uiState.changeRequestEditViewFlaeche,
-              this.props.uiState.changeRequestEditViewCR
-            );
-          }
-          this.props.uiStateActions.showChangeRequestsEditView(false);
-        }}
-        flaeche={this.props.uiState.changeRequestEditViewFlaeche}
-        flaechenCR={this.props.uiState.changeRequestEditViewCR}
-        setFlaechenCR={(cr) => {
-          this.props.uiStateActions.setChangeRequestsEditViewFlaecheAndCR(
-            this.props.uiState.changeRequestEditViewFlaeche,
-            cr
-          );
-        }}
-        uploadCRDoc={this.props.kassenzeichenActions.addCRDoc}
-        documents={documents}
-        addFiles={(attachments) => {
-          const msg = {
-            typ: 'CITIZEN',
-            timestamp: Date.now(),
-            draft: true,
-            anhang: attachments,
-          };
-
-          this.props.kassenzeichenActions.addChangeRequestMessage(msg);
-        }}
-        localErrorMessages={this.props.uiState.localErrorMessages}
-        addLocalErrorMessage={this.props.uiStateActions.addLocalErrorMessage}
-      /> */}
-      {/* <AnnotationEditView
-        height={mapHeight + 10}
-        visible={this.props.uiState.changeRequestAnnotationEditViewVisible}
-        annotationFeature={
-          this.props.uiState.changeRequestAnnotationEditViewAnnotation
-        }
-        setNewAnnotation={(anno) => {
-          this.props.uiStateActions.setChangeRequestsAnnotationEditViewAnnotationAndCR(
-            anno
-          );
-        }}
-        showAnnotationEditView={(storeIt) => {
-          if (storeIt === true) {
-            this.props.kassenzeichenActions.changeAnnotation(
-              this.props.uiState.changeRequestAnnotationEditViewAnnotation
-            );
-          }
-          this.props.uiStateActions.showChangeRequestsAnnotationEditView(false);
-        }}
-        deleteAnnotation={this.props.kassenzeichenActions.removeAnnotation}
-      /> */}
       <ChangeRequestEditView
         height={mapHeight + 10}
         visible={uiState.changeRequestEditViewVisible}
