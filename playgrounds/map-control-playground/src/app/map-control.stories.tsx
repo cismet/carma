@@ -22,7 +22,7 @@ import LocateControl from "leaflet.locatecontrol";
 import {
   ControlLayout,
   Control,
-  Main,
+  ControlLayoutCanvas,
   ControlButtonStyler,
   ControlCenterStyler,
 } from "@carma-mapping/map-controls-layout";
@@ -171,9 +171,9 @@ export const ReplaceLocatorFromLeaflet = () => {
             </ControlButtonStyler>
             <LocateControlComponent startLocate={locationProps} />
           </Control>
-          <Main ref={containerRef}>
+          <ControlLayoutCanvas ref={containerRef}>
             <Map mapStyle={containerHeight ?? undefined} />
-          </Main>
+          </ControlLayoutCanvas>
         </ControlLayout>
       </TopicMapContextProvider>
     </div>
@@ -240,9 +240,9 @@ export const ExcalidrawExample = () => {
         <Control position="bottomleft" order={1}>
           <SyncOutlined />
         </Control>
-        <Main ref={containerRef}>
+        <ControlLayoutCanvas ref={containerRef}>
           <DemoExcalidraw />
-        </Main>
+        </ControlLayoutCanvas>
       </ControlLayout>
     </div>
   );
@@ -276,9 +276,9 @@ export const ResponsiveControlWithTwoColumns = () => {
             Info banner
           </div>
         </Control>
-        <Main ref={containerRef}>
+        <ControlLayoutCanvas ref={containerRef}>
           <GoogleMapIframe />
-        </Main>
+        </ControlLayoutCanvas>
       </ControlLayout>
     </div>
   );
@@ -361,9 +361,9 @@ export const ResponsiveCollapsWithTwoColumnsOnBottom = () => {
             </div>
           </Control>
 
-          <Main ref={containerRef}>
+          <ControlLayoutCanvas ref={containerRef}>
             <Map mapStyle={containerWidth ?? undefined} />
-          </Main>
+          </ControlLayoutCanvas>
         </ControlLayout>
       </TopicMapContextProvider>
     </div>
@@ -437,9 +437,9 @@ export const ResponsiveThreeColumnsOnTop = () => {
               <div>Center controller</div>
             </ControlCenterStyler>
           </Control>
-          <Main ref={containerRef}>
+          <ControlLayoutCanvas ref={containerRef}>
             <Map mapStyle={containerWidth ?? undefined} />
-          </Main>
+          </ControlLayoutCanvas>
         </ControlLayout>
       </TopicMapContextProvider>
     </div>
@@ -551,9 +551,9 @@ export const ResponsiveAllPosition = () => {
             Info Box
           </div>
         </Control>
-        <Main ref={containerRef}>
+        <ControlLayoutCanvas ref={containerRef}>
           <Map mapStyle={containerWidth ?? undefined} />
-        </Main>
+        </ControlLayoutCanvas>
       </ControlLayout>
     </TopicMapContextProvider>
   );
@@ -673,9 +673,9 @@ export const ResponsiveDebugMode = () => {
               Pic Box
             </div>
           </Control>
-          <Main ref={containerRef}>
+          <ControlLayoutCanvas ref={containerRef}>
             <Map mapStyle={containerWidth ?? undefined} />
-          </Main>
+          </ControlLayoutCanvas>
         </ControlLayout>
       </TopicMapContextProvider>
     </div>
@@ -781,9 +781,9 @@ export const CalculateResponsiveBrake = () => {
               Second Gazetter
             </div>
           </Control>
-          <Main ref={containerRef}>
+          <ControlLayoutCanvas ref={containerRef}>
             <Map mapStyle={containerWidth ?? undefined} />
-          </Main>
+          </ControlLayoutCanvas>
         </ControlLayout>
       </TopicMapContextProvider>
     </div>

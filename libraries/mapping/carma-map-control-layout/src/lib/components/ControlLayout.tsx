@@ -1,7 +1,6 @@
 import React, { ReactNode } from "react";
 import Control from "./Control";
 import styles from "../map-control.module.css";
-import Main from "./Main";
 
 interface ControlLayoutProps {
   children: ReactNode;
