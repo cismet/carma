@@ -199,7 +199,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
   const modalBodyStyle = {
     overflowY: "auto",
     overflowX: "hidden",
-    maxHeight: height - (emailSettingsShown ? 480 : 350),
+    maxHeight: height - (!emailSettingsShown ? 520 : 350),
   };
 
   const close = () => {
@@ -229,12 +229,17 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
       size="xl"
     >
       <Modal.Header>
-        <Modal.Title>
-          <div className="pull-left">
+        <Modal.Title style={{ width: "100%" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
             <Icon name={"edit"} /> {"Änderungswünsche und Kommentare"}
-            <div className="pull-right">
+            <span style={{ marginLeft: "auto" }}>
               <CloudLoadingAttributeIcon value={uiState.cloudStorageStatus} />
-            </div>
+            </span>
           </div>
         </Modal.Title>
       </Modal.Header>
