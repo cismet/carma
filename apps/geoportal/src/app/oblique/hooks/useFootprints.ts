@@ -8,8 +8,8 @@ import {
   CallbackProperty,
   EasingFunction,
   PolylineGraphics,
-  Cartesian3,
 } from "cesium";
+import type { Cartesian3 } from "cesium";
 
 import {
   useCesiumContext,
@@ -29,6 +29,7 @@ const DEFAULT_EXTRUDED_HEIGHT = 50;
 const HEIGHT_OFFSET = -10; // Offset for the height of the polygon
 const MIN_EXTRUDED_HEIGHT = HEIGHT_OFFSET + 0.1; // Minimum height for the polygon
 const ANIMATION_DURATION = 3000; // milliseconds
+const EXIT_ANIMATION_DURATION = 300; // faster animation when exiting
 const OUTLINE_WIDTH = 2; // Width for the outline in pixels
 
 export const useFootprints = (): void => {
@@ -45,20 +46,128 @@ export const useFootprints = (): void => {
   const targetHeightRef = useRef<number>(DEFAULT_EXTRUDED_HEIGHT);
   const isAnimatingRef = useRef<boolean>(false);
   const polygonPositionsRef = useRef<Cartesian3[]>([]);
+  const prevObliqueMode = useRef<boolean>(isObliqueMode);
+  const isExitAnimationRef = useRef<boolean>(false);
+  const exitAnimationCompleteCallbackRef = useRef<(() => void) | null>(null);
 
-  // Clean up entities when component unmounts or oblique mode disabled
-  useEffect(() => {
+  // Function to clean up entities
+  const cleanupEntities = () => {
     const viewer = viewerRef.current;
+    if (viewer && !viewer.isDestroyed()) {
+      viewer.entities.removeById(FOOTPRINT_ENTITY_ID);
+      viewer.entities.removeById(FOOTPRINT_OUTLINE_ID);
+      footprintEntityRef.current = null;
+      outlineEntityRef.current = null;
+      viewer.scene.requestRender();
+    }
+  };
 
-    return () => {
-      if (viewer && !isObliqueMode) {
-        // Clean up the entities when the component unmounts
-        viewer.entities.removeById(FOOTPRINT_ENTITY_ID);
-        viewer.entities.removeById(FOOTPRINT_OUTLINE_ID);
+  // Start exit animation and clean up after completion
+  const startExitAnimation = (onComplete: () => void) => {
+    const viewer = viewerRef.current;
+    if (
+      !viewer ||
+      viewer.isDestroyed() ||
+      !footprintEntityRef.current ||
+      !footprintEntityRef.current.polygon
+    ) {
+      // If no entities to animate, just complete immediately
+      onComplete();
+      return;
+    }
+
+    // Get current height
+    let currentHeight = DEFAULT_EXTRUDED_HEIGHT;
+    if (
+      footprintEntityRef.current.polygon.extrudedHeight instanceof
+      ConstantProperty
+    ) {
+      currentHeight = (
+        footprintEntityRef.current.polygon.extrudedHeight as any
+      ).getValue();
+    }
+
+    // If already at minimum height, just complete
+    if (Math.abs(currentHeight - MIN_EXTRUDED_HEIGHT) < 0.1) {
+      onComplete();
+      return;
+    }
+
+    // Set animation parameters for exit animation
+    startHeightRef.current = currentHeight;
+    targetHeightRef.current = MIN_EXTRUDED_HEIGHT;
+    animationStartTimeRef.current = performance.now();
+    isAnimatingRef.current = true;
+    isExitAnimationRef.current = true;
+    exitAnimationCompleteCallbackRef.current = onComplete;
+
+    // Create a CallbackProperty that will be evaluated on each frame
+    const heightCallbackProperty = new CallbackProperty(() => {
+      if (!isAnimatingRef.current || animationStartTimeRef.current === null) {
+        return targetHeightRef.current;
+      }
+
+      const elapsed = performance.now() - animationStartTimeRef.current;
+      const progress = Math.min(elapsed / EXIT_ANIMATION_DURATION, 1);
+
+      // Apply easing function for smoother animation
+      const easedProgress = EasingFunction.SINUSOIDAL_IN(progress);
+
+      // Calculate new height with eased interpolation
+      const newHeight =
+        startHeightRef.current +
+        (targetHeightRef.current - startHeightRef.current) * easedProgress;
+
+      // When animation is complete, mark it as done and trigger callback
+      if (progress >= 1) {
+        isAnimatingRef.current = false;
+        isExitAnimationRef.current = false;
+
+        // Call the completion callback after animation finishes
+        if (exitAnimationCompleteCallbackRef.current) {
+          const callback = exitAnimationCompleteCallbackRef.current;
+          exitAnimationCompleteCallbackRef.current = null;
+          callback();
+        }
+      }
+
+      // Force Cesium to re-render
+      if (viewer && !viewer.isDestroyed()) {
         viewer.scene.requestRender();
       }
+
+      return newHeight;
+    }, false);
+
+    // Update the entity with the callback property
+    if (
+      footprintEntityRef.current &&
+      footprintEntityRef.current.polygon &&
+      viewer &&
+      !viewer.isDestroyed()
+    ) {
+      footprintEntityRef.current.polygon.extrudedHeight =
+        heightCallbackProperty;
+      viewer.scene.requestRender();
+    }
+  };
+
+  // Clean up entities when component unmounts
+  useEffect(() => {
+    return () => {
+      cleanupEntities();
     };
-  }, [viewerRef, isObliqueMode]);
+  }, []);
+
+  // React to changes in oblique mode
+  useEffect(() => {
+    // If we're leaving oblique mode, trigger exit animation then clean up
+    if (prevObliqueMode.current && !isObliqueMode) {
+      // Start exit animation, then clean up when complete
+      startExitAnimation(cleanupEntities);
+    }
+    prevObliqueMode.current = isObliqueMode;
+  }, [isObliqueMode, viewerRef]);
 
   // Handle the height transition when lockFootprint changes
   useEffect(() => {
@@ -66,7 +175,8 @@ export const useFootprints = (): void => {
     if (
       !viewer ||
       !footprintEntityRef.current ||
-      !footprintEntityRef.current.polygon
+      !footprintEntityRef.current.polygon ||
+      isExitAnimationRef.current // Skip normal animation if exit animation is running
     )
       return;
 
@@ -121,14 +231,24 @@ export const useFootprints = (): void => {
     }, false);
 
     // Update the entity with the callback property
-    if (footprintEntityRef.current && footprintEntityRef.current.polygon) {
+    if (
+      footprintEntityRef.current &&
+      footprintEntityRef.current.polygon &&
+      viewer &&
+      !viewer.isDestroyed()
+    ) {
       footprintEntityRef.current.polygon.extrudedHeight =
         heightCallbackProperty;
       viewer.scene.requestRender();
     }
 
     // Toggle outline visibility based on lockFootprint
-    if (outlineEntityRef.current && outlineEntityRef.current.polyline) {
+    if (
+      outlineEntityRef.current &&
+      outlineEntityRef.current.polyline &&
+      viewer &&
+      !viewer.isDestroyed()
+    ) {
       // Use the show property to toggle visibility
       outlineEntityRef.current.show = !lockFootprint;
       viewer.scene.requestRender();
@@ -161,6 +281,10 @@ export const useFootprints = (): void => {
     const viewer = viewerRef.current;
 
     if (!isObliqueMode || !viewer || !nearestImage || !footprintData) {
+      // Clean up if we're not in oblique mode and not already in exit animation
+      if (!isObliqueMode && !isExitAnimationRef.current) {
+        cleanupEntities();
+      }
       return;
     }
 
@@ -172,11 +296,13 @@ export const useFootprints = (): void => {
     lastImageIdRef.current = nearestImage.record.id;
 
     // Remove previous entities if they exist
-    viewer.entities.removeById(FOOTPRINT_ENTITY_ID);
-    viewer.entities.removeById(FOOTPRINT_OUTLINE_ID);
-    footprintEntityRef.current = null;
-    outlineEntityRef.current = null;
-    viewer.scene.requestRender();
+    if (viewer && !viewer.isDestroyed()) {
+      viewer.entities.removeById(FOOTPRINT_ENTITY_ID);
+      viewer.entities.removeById(FOOTPRINT_OUTLINE_ID);
+      footprintEntityRef.current = null;
+      outlineEntityRef.current = null;
+      viewer.scene.requestRender();
+    }
 
     const matchingFeature = findMatchingFeature(
       footprintData.features as FootprintFeature[],
@@ -204,10 +330,16 @@ export const useFootprints = (): void => {
       }
 
       const elapsed = performance.now() - animationStartTimeRef.current;
-      const progress = Math.min(elapsed / ANIMATION_DURATION, 1);
+      // Use the appropriate duration based on whether it's an exit animation
+      const duration = isExitAnimationRef.current
+        ? EXIT_ANIMATION_DURATION
+        : ANIMATION_DURATION;
+      const progress = Math.min(elapsed / duration, 1);
 
       // Apply easing function for smoother animation
-      const easedProgress = EasingFunction.SINUSOIDAL_IN_OUT(progress);
+      const easedProgress = isExitAnimationRef.current
+        ? EasingFunction.SINUSOIDAL_IN(progress)
+        : EasingFunction.SINUSOIDAL_IN_OUT(progress);
 
       // Calculate new height with eased interpolation
       const newHeight =
@@ -217,6 +349,17 @@ export const useFootprints = (): void => {
       // When animation is complete, mark it as done
       if (progress >= 1) {
         isAnimatingRef.current = false;
+
+        // Call the exit animation completion callback if applicable
+        if (
+          isExitAnimationRef.current &&
+          exitAnimationCompleteCallbackRef.current
+        ) {
+          isExitAnimationRef.current = false;
+          const callback = exitAnimationCompleteCallbackRef.current;
+          exitAnimationCompleteCallbackRef.current = null;
+          callback();
+        }
       }
 
       // Force Cesium to re-render
