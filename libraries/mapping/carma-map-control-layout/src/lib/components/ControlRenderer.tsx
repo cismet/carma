@@ -41,7 +41,7 @@ function ControlRenderer({ controls }: ControlRendererProps) {
           }}
         >
           {topLeftControls.map((control, index) => (
-            <div key={`top-left-${index}`}>{control.component}</div>
+            <>{control.component}</>
           ))}
         </div>
       )}
