@@ -233,7 +233,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
           <div className="pull-left">
             <Icon name={"edit"} /> {"Änderungswünsche und Kommentare"}
             <div className="pull-right">
-              {/* <CloudLoadingAttributeIcon /> */}
+              <CloudLoadingAttributeIcon value={uiState.cloudStorageStatus} />
             </div>
           </div>
         </Modal.Title>
