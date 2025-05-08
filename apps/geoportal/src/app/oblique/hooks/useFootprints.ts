@@ -21,7 +21,6 @@ import { useSelector } from "react-redux";
 import { getObliqueMode } from "../../store/slices/ui";
 import type { FootprintFeature } from "../utils/footprintUtils";
 import { findMatchingFeature } from "../utils/footprintUtils";
-import { AnimationConfig } from "../types";
 import { useFeatureFlags } from "@carma-apps/portals";
 
 const OBLIQUE_DATASOURCE_PREFIX = "oblq-footprint";
@@ -62,6 +61,11 @@ export const useFootprints = (): void => {
   const prevObliqueMode = useRef<boolean>(isObliqueMode);
   const isExitAnimationRef = useRef<boolean>(false);
   const exitAnimationCompleteCallbackRef = useRef<(() => void) | null>(null);
+
+  const startOpacityRef = useRef<number>(1.0);
+  const targetOpacityRef = useRef<number>(1.0);
+  const opacityAnimationStartTimeRef = useRef<number | null>(null);
+  const isOpacityAnimatingRef = useRef<boolean>(false);
 
   const cleanupFootprintEntity = () => {
     const viewer = viewerRef.current;
@@ -177,6 +181,46 @@ export const useFootprints = (): void => {
     }
   };
 
+  const createOpacityCallbackProperty = () => {
+    return new CallbackProperty(() => {
+      if (
+        !isOpacityAnimatingRef.current ||
+        opacityAnimationStartTimeRef.current === null
+      ) {
+        return Color.WHITE.withAlpha(targetOpacityRef.current);
+      }
+
+      const elapsed = performance.now() - opacityAnimationStartTimeRef.current;
+      const progress = Math.min(elapsed / animationDuration, 1);
+
+      // Apply easing function for smoother animation
+      const easedProgress = animationEasing(progress);
+
+      // Calculate new opacity with eased interpolation
+      const newOpacity =
+        startOpacityRef.current +
+        (targetOpacityRef.current - startOpacityRef.current) * easedProgress;
+
+      // When animation is complete, mark it as done
+      if (progress >= 1) {
+        isOpacityAnimatingRef.current = false;
+
+        // If opacity is 0, hide the outline entity completely
+        if (Math.abs(newOpacity) < 0.01 && outlineEntityRef.current) {
+          outlineEntityRef.current.show = false;
+        }
+      }
+
+      // Force Cesium to re-render
+      const viewer = viewerRef.current;
+      if (viewer && !viewer.isDestroyed()) {
+        viewer.scene.requestRender();
+      }
+
+      return Color.WHITE.withAlpha(newOpacity);
+    }, false);
+  };
+
   // Clean up entities when component unmounts
   useEffect(() => {
     return () => {
@@ -201,85 +245,107 @@ export const useFootprints = (): void => {
     const viewer = viewerRef.current;
     if (
       !viewer ||
-      !footprintEntityRef.current ||
-      !footprintEntityRef.current.polygon ||
       isExitAnimationRef.current // Skip normal animation if exit animation is running
     )
       return;
 
-    // Set animation parameters
-    startHeightRef.current =
-      footprintEntityRef.current.polygon.extrudedHeight instanceof
-      ConstantProperty
-        ? (footprintEntityRef.current.polygon.extrudedHeight as any).getValue()
-        : lockFootprint
-        ? DEFAULT_EXTRUDED_HEIGHT
-        : MIN_EXTRUDED_HEIGHT;
+    // Handle footprint entity height animation if it exists
+    if (footprintEntityRef.current && footprintEntityRef.current.polygon) {
+      // Set animation parameters
+      startHeightRef.current =
+        footprintEntityRef.current.polygon.extrudedHeight instanceof
+        ConstantProperty
+          ? (
+              footprintEntityRef.current.polygon.extrudedHeight as any
+            ).getValue()
+          : lockFootprint
+          ? DEFAULT_EXTRUDED_HEIGHT
+          : MIN_EXTRUDED_HEIGHT;
 
-    targetHeightRef.current = lockFootprint
-      ? MIN_EXTRUDED_HEIGHT
-      : DEFAULT_EXTRUDED_HEIGHT;
+      targetHeightRef.current = lockFootprint
+        ? MIN_EXTRUDED_HEIGHT
+        : DEFAULT_EXTRUDED_HEIGHT;
 
-    // Skip animation if the height is already at the target
-    if (Math.abs(startHeightRef.current - targetHeightRef.current) < 0.1)
-      return;
+      // Skip animation if the height is already at the target
+      if (Math.abs(startHeightRef.current - targetHeightRef.current) > 0.1) {
+        animationStartTimeRef.current = performance.now();
+        isAnimatingRef.current = true;
 
-    animationStartTimeRef.current = performance.now();
-    isAnimatingRef.current = true;
+        // Create a CallbackProperty that will be evaluated on each frame
+        const heightCallbackProperty = new CallbackProperty(() => {
+          if (
+            !isAnimatingRef.current ||
+            animationStartTimeRef.current === null
+          ) {
+            return targetHeightRef.current;
+          }
 
-    // Create a CallbackProperty that will be evaluated on each frame
-    const heightCallbackProperty = new CallbackProperty(() => {
-      if (!isAnimatingRef.current || animationStartTimeRef.current === null) {
-        return targetHeightRef.current;
+          const elapsed = performance.now() - animationStartTimeRef.current;
+          const progress = Math.min(elapsed / animationDuration, 1);
+
+          // Apply easing function for smoother animation
+          const easedProgress = animationEasing(progress);
+
+          // Calculate new height with eased interpolation
+          const newHeight =
+            startHeightRef.current +
+            (targetHeightRef.current - startHeightRef.current) * easedProgress;
+
+          // When animation is complete, mark it as done
+          if (progress >= 1) {
+            isAnimatingRef.current = false;
+          }
+
+          if (viewer && !viewer.isDestroyed()) {
+            viewer.scene.requestRender();
+          }
+
+          return newHeight;
+        }, false);
+
+        // Update the entity with the callback property
+        if (viewer && !viewer.isDestroyed()) {
+          footprintEntityRef.current.polygon.extrudedHeight =
+            heightCallbackProperty;
+          viewer.scene.requestRender();
+        }
       }
-
-      const elapsed = performance.now() - animationStartTimeRef.current;
-      const progress = Math.min(elapsed / animationDuration, 1);
-
-      // Apply easing function for smoother animation
-      const easedProgress = animationEasing(progress);
-
-      // Calculate new height with eased interpolation
-      const newHeight =
-        startHeightRef.current +
-        (targetHeightRef.current - startHeightRef.current) * easedProgress;
-
-      // When animation is complete, mark it as done
-      if (progress >= 1) {
-        isAnimatingRef.current = false;
-      }
-
-      if (viewer && !viewer.isDestroyed()) {
-        viewer.scene.requestRender();
-      }
-
-      return newHeight;
-    }, false);
-
-    // Update the entity with the callback property
-    if (
-      footprintEntityRef.current &&
-      footprintEntityRef.current.polygon &&
-      viewer &&
-      !viewer.isDestroyed()
-    ) {
-      footprintEntityRef.current.polygon.extrudedHeight =
-        heightCallbackProperty;
-      viewer.scene.requestRender();
     }
 
-    // Toggle outline visibility based on lockFootprint
-    if (
-      outlineEntityRef.current &&
-      outlineEntityRef.current.polyline &&
-      viewer &&
-      !viewer.isDestroyed()
-    ) {
-      // Use the show property to toggle visibility
-      outlineEntityRef.current.show = !lockFootprint;
+    // Handle outline entity opacity
+    if (outlineEntityRef.current && outlineEntityRef.current.polyline) {
+      if (lockFootprint) {
+        // When entering locked mode - animate opacity to 0
+        startOpacityRef.current = 1.0;
+        targetOpacityRef.current = 0.0;
+
+        // Start the opacity animation
+        opacityAnimationStartTimeRef.current = performance.now();
+        isOpacityAnimatingRef.current = true;
+      } else {
+        // When leaving locked mode - set opacity to 1 instantly
+        if (
+          outlineEntityRef.current.polyline.material instanceof
+          ColorMaterialProperty
+        ) {
+          // Set opacity to 1 immediately
+          (
+            outlineEntityRef.current.polyline.material as ColorMaterialProperty
+          ).color = new ConstantProperty(Color.WHITE);
+        }
+
+        // Ensure visibility is set
+        outlineEntityRef.current.show = true;
+
+        // Reset animation flags to prevent transition
+        isOpacityAnimatingRef.current = false;
+        opacityAnimationStartTimeRef.current = null;
+        targetOpacityRef.current = 1.0;
+      }
+
       viewer.scene.requestRender();
     }
-  }, [lockFootprint, viewerRef]);
+  }, [lockFootprint, viewerRef, animationDuration, animationEasing]);
 
   const createOutlineEntity = (positions: Cartesian3[]) => {
     if (!positions || positions.length === 0) return null;
@@ -287,16 +353,21 @@ export const useFootprints = (): void => {
     // Close the loop by adding the first position to the end
     const outlinePositions = [...positions, positions[0]];
 
+    // Initialize opacity values based on lockFootprint state
+    startOpacityRef.current = 1.0;
+    targetOpacityRef.current = lockFootprint ? 0.0 : 1.0;
+    isOpacityAnimatingRef.current = false;
+
     return new Entity({
       id: FOOTPRINT_OUTLINE_ID,
       name: `${OBLIQUE_DATASOURCE_PREFIX}-outline-${
         nearestImage?.record.id || ""
       }`,
-      show: !lockFootprint, // Initially visible only when lockFootprint is false
+      show: true, // Always show initially, opacity will control visibility
       polyline: new PolylineGraphics({
         positions: outlinePositions,
         width: new ConstantProperty(OUTLINE_WIDTH),
-        material: new ColorMaterialProperty(Color.WHITE),
+        material: new ColorMaterialProperty(createOpacityCallbackProperty()),
         clampToGround: new ConstantProperty(true),
       }),
     });

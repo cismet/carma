@@ -24,11 +24,11 @@ export const OBLIQUE_CONFIG: ObliqueDataProviderConfig = {
   footprintsURI: OBLIQUE_2024_FPRFC_GEOJSON_URI,
   animations: {
     flyToExteriorOrientation: {
-      duration: 500,
+      duration: 800,
       easingFunction: EasingFunction.QUADRATIC_IN,
     },
     footprintExtrusion: {
-      duration: 450,
+      duration: 500,
       easingFunction: EasingFunction.QUADRATIC_IN_OUT,
     },
   },
