@@ -1,7 +1,7 @@
 import React from "react";
 import GenericModalMenuSection from "react-cismap/topicmaps/menu/Section";
 import cismetLogo from "./assets/cismetSignet2k.png";
-import izesLogo from "./assets/IZESgGmbH_logo_1024.png";
+import izesLogo from "./assets/IZESgGmbH_logo.png";
 
 import customerLogo from "./assets/logo-saarlouis.jpg";
 /* eslint-disable jsx-a11y/anchor-is-valid */
@@ -15,39 +15,15 @@ const Component = ({ email }) => {
       sectionContent={
         <div>
           <p>
-            Für telefonische Auskünfte zum Umgang mit der
-            Starkregengefahrenkarte der Stadt Saarlouis, stehen Ihnen die
-            Mitarbeiter und Mitarbeiterinnen der Stadt Saarlouis zur Verfügung.
+            Für telefonische Auskünfte zum Umgang mit dem Solarkataster steht
+            Ihnen die IZES gGmbH gerne zur Verfügung:
           </p>
 
-          <p style={{ display: "flex" }}>
-            <div>
-              Kreisstadt Saarlouis
-              <br />
-              Stabsstelle für Klimaschutz, Digitalisierung und Energiemanagement
-              <br />
-              Großer Markt 1
-              <br />
-              66740 Saarlouis
-              <br />
-              Telefon:(06831) 443-0
-              <br />
-              E-Mail: <a href="mailto:{email)}">{email}</a>
-              <br />
-            </div>
-            <img
-              style={{ marginBottom: 10, marginLeft: 20, height: 70 }}
-              target="_contacts"
-              alt="Logo Auftraggeber"
-              src={customerLogo}
-            />
-          </p>
-
-          <table width="100%" style={{ marginTop: 50 }}>
+          <table width="100%" style={{ marginTop: 20 }}>
             <tbody>
               <tr>
                 <td style={{ textAlign: "left", paddingBottom: 20 }}>
-                  <strong>Simulationsberechnungen</strong>
+                  <strong>Erstellung des Solarkatsters</strong>
                 </td>
                 <td style={{ textAlign: "left", paddingBottom: 20 }}>
                   <strong>Visualisierung und technische Umsetzung</strong>

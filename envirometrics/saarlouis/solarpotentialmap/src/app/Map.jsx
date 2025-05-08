@@ -64,6 +64,7 @@ const parseBackgroundIndexFromURL = (search) => {
 
 const SolarPotentialMap = () => {
   const version = getApplicationVersion(versionData);
+
   const [selectedFeature, setSelectedFeature] = useState();
   const { history } = useContext(TopicMapContext);
   const { setAppMenuVisible, setAppMenuActiveMenuSection } =
@@ -253,7 +254,7 @@ const SolarPotentialMap = () => {
         modalMenu={
           <GenericModalApplicationMenu
             {...getCollabedHelpComponentConfig({
-              versionString: version,
+              version: version,
               reactCismapRHMVersion: "",
             })}
           />

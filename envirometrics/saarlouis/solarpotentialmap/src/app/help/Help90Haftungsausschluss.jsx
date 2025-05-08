@@ -14,11 +14,10 @@ const Component = ({ appName }) => {
       sectionContent={
         <div>
           <p>
-            Alle Informationen zur Anwendung der "Starkregengefahrenkarte der
-            Stadt Saarlouis" erfolgen ohne Gewähr für ihre Richtigkeit. Es fällt
-            in die Verantwortung der Betrachterinnen und Betrachter, aus den
-            dargestellten Informationen die spezifische Gefährdungslage
-            einzuschätzen und Schlüsse für die Durchführbarkeit oder
+            Alle Informationen zur Anwendung der "Solarpotenzial in Saarlouis"
+            erfolgen ohne Gewähr für ihre Richtigkeit. Es fällt in die
+            Verantwortung der Betrachterinnen und Betrachter, aus den
+            dargestellten Informationen Schlüsse für die Durchführbarkeit oder
             Wirtschaftlichkeit von Maßnahmen zu treffen. Die Inhalte entsprechen
             dem aktuellen Kenntnisstand und wurden durch eine abgestimmte
             Methodik erzeugt. Die Aussagekraft der Ergebnisse und die
