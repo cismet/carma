@@ -285,6 +285,14 @@ const KassenzeichenViewer = () => {
     contact = kassenzeichen.contactinfo;
   }
 
+  if (kassenzeichen.id !== -1) {
+    kassenzeichenPanel = (
+      <div>
+        <KassenzeichenPanel />
+      </div>
+    );
+  }
+
   if (uiState.contactElementEnabled && kassenzeichen.id !== -1) {
     contactPanel = <ContactPanel contact={contact} />;
   }
@@ -330,12 +338,19 @@ const KassenzeichenViewer = () => {
     );
   }
 
-  if (kassenzeichen.id !== -1) {
-    kassenzeichenPanel = (
+  let nothingEnabled =
+    !uiState.chartElementsEnabled &&
+    !uiState.kanalElementsEnabled &&
+    !uiState.filterElementEnabled &&
+    !uiState.detailElementsEnabled;
+
+  if (kassenzeichen.id === -1 || nothingEnabled) {
+    verdisMapWithAdditionalComponents = (
       <div>
-        <KassenzeichenPanel />
+        <Map />
       </div>
     );
+  } else {
     verdisMapWithAdditionalComponents = (
       <div>
         <div
@@ -351,12 +366,6 @@ const KassenzeichenViewer = () => {
           {anComps}
           {flComps}
         </div>
-        <Map />
-      </div>
-    );
-  } else {
-    verdisMapWithAdditionalComponents = (
-      <div>
         <Map />
       </div>
     );
