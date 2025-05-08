@@ -301,7 +301,12 @@ function App({ name, styleManipulation }) {
           }
           return null;
         }
-        async function loadStyleManipulation(layer, configServer, configPath, slugName) {
+        async function loadStyleManipulation(
+          layer,
+          configServer,
+          configPath,
+          slugName
+        ) {
           if (
             layer.styleManipulation &&
             typeof layer.styleManipulation === "string" &&
