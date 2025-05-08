@@ -60,6 +60,7 @@ export {
   pickViewerCanvasCenter,
   getDegreesFromCartesian,
   getDegreesFromCartographic,
+  cesiumSafeRequestRender,
 } from "./lib/utils/cesiumHelpers";
 export {
   fromColorRgbaArray,
@@ -76,6 +77,9 @@ export {
   getIsViewerReadyAsync,
   setupCesiumEnvironment,
 } from "./lib/utils/cesiumSetup";
+
+export { isValidViewerInstance } from "./lib/utils/cesiumTypeGuards";
+
 export {
   distanceFromZoomLevel,
   getHeadingPitchRangeFromHeight,

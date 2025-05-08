@@ -1,6 +1,6 @@
 import { Cartesian3, Color } from "cesium";
-import { PlainCartesian3 } from "types/common-geo";
-import { ColorRgbaArray } from "./cesiumHelpers";
+import type { PlainCartesian3 } from "types/common-geo";
+import type { ColorRgbaArray } from "types/data-structures";
 
 export const toPlainCartesian3 = (cartesian3: Cartesian3): PlainCartesian3 => {
   return { x: cartesian3.x, y: cartesian3.y, z: cartesian3.z };

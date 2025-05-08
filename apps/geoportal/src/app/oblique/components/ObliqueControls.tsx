@@ -24,6 +24,7 @@ import {
 } from "cesium";
 
 import {
+  cesiumSafeRequestRender,
   selectViewerIsMode2d,
   selectViewerIsTransitioning,
   useCesiumContext,
@@ -234,7 +235,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   }, [
     viewerRef,
     terrainProviderRef,
-    flyToExteriorOrientation,
+    animations.flyToExteriorOrientation,
     nearestImage,
     isPreviewVisible,
     setLockFootprint,
@@ -549,6 +550,10 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
             setIsPreviewVisible(false);
             notifyPreviewVisibilityChange(false);
             setLockFootprint(false);
+            // TODO: properly trigger a rerender that shows after not moving the camera, but leaving the preview
+            setTimeout(() => {
+              cesiumSafeRequestRender(viewerRef.current);
+            }, 50);
           }}
         />
       )}

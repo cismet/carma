@@ -6,3 +6,8 @@ export type Matrix3RowMajor = [
   [number, number, number],
   [number, number, number]
 ];
+
+export type NumericResult = {
+  value: number | null;
+  error?: string;
+};

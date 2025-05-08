@@ -1,33 +1,15 @@
-import { TerrainProvider } from "cesium";
-import { PlainCartesian3 } from "types/common-geo";
+import type { TerrainProvider } from "cesium";
+import type { PlainCartesian3 } from "types/common-geo";
+import type { ColorRgbaArray } from "types/data-structures";
 
-import { ProviderConfig } from "./lib/utils/cesiumProviders";
-import { TilesetConfigs } from "./lib/utils/cesiumTilesetProviders";
-
-// TODO consolidate with rest of libs
-
-export type LatLngRecord = {
-  latitude: number;
-  longitude: number;
-};
-
-export type LatLngRadians = {
-  latRad: number;
-  lngRad: number;
-};
-
-export type ColorRgbaArray = [number, number, number, number];
+import type { ProviderConfig } from "./lib/utils/cesiumProviders";
+import type { TilesetConfigs } from "./lib/utils/cesiumTilesetProviders";
 
 export type CameraPositionAndOrientation = {
   position: Cartesian3;
   up: Cartesian3;
   direction: Cartesian3;
 };
-
-export interface NumericResult {
-  value: number | null;
-  error?: string;
-}
 
 // MODELS
 

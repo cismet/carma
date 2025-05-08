@@ -21,15 +21,11 @@ import {
   PerspectiveFrustum,
   PerspectiveOffCenterFrustum,
 } from "cesium";
+import type { TilesetConfig } from "@carma-commons/resources";
 
-import type {
-  ColorRgbaArray,
-  LatLngRadians,
-  LatLngRecord,
-  NumericResult,
-} from "../..";
-import { TilesetConfig } from "@carma-commons/resources";
-export type { ColorRgbaArray, LatLngRadians, LatLngRecord, NumericResult };
+import { isValidViewerInstance } from "./cesiumTypeGuards";
+import type { LatLngRadians, LatLngRecord } from "types/common-geo";
+import type { NumericResult } from "types/math";
 
 // Constants
 
@@ -698,4 +694,14 @@ export const cesiumCenterPixelSizeToLeafletZoom = (
   }
 
   return { value: zoom };
+};
+
+export const cesiumSafeRequestRender = (viewer: unknown): void => {
+  if (isValidViewerInstance(viewer)) {
+    viewer.scene.requestRender();
+  } else {
+    console.warn(
+      "Cesium Render request failed, viewer is destroyed or invalid"
+    );
+  }
 };

@@ -1,4 +1,6 @@
 import { useEffect, useRef } from "react";
+import { useSelector } from "react-redux";
+
 import {
   Color,
   ColorMaterialProperty,
@@ -11,17 +13,18 @@ import {
 } from "cesium";
 import type { Cartesian3, Property, PolygonGraphics } from "cesium";
 
+import { useFeatureFlags } from "@carma-apps/portals";
 import {
   useCesiumContext,
   polygonHierarchyFromPolygonCoords,
+  cesiumSafeRequestRender,
 } from "@carma-mapping/cesium-engine";
+
 import { useObliqueDataContext } from "./useObliqueDataContext";
-import { useSelector } from "react-redux";
 
 import { getObliqueMode } from "../../store/slices/ui";
 import type { FootprintFeature } from "../utils/footprintUtils";
 import { findMatchingFeature } from "../utils/footprintUtils";
-import { useFeatureFlags } from "@carma-apps/portals";
 
 const OBLIQUE_DATASOURCE_PREFIX = "oblq-footprint";
 const FOOTPRINT_ENTITY_ID = "oblq-footprint-entity";
@@ -160,25 +163,17 @@ export const useFootprints = (): void => {
           callback();
         }
       }
-
-      if (viewer && !viewer.isDestroyed()) {
-        viewer.scene.requestRender();
-      }
+      cesiumSafeRequestRender(viewer);
 
       return newHeight;
     }, false);
 
     // Update the entity with the callback property
-    if (
-      footprintEntityRef.current &&
-      footprintEntityRef.current.polygon &&
-      viewer &&
-      !viewer.isDestroyed()
-    ) {
+    if (footprintEntityRef.current && footprintEntityRef.current.polygon) {
       footprintEntityRef.current.polygon.extrudedHeight =
         heightCallbackProperty;
-      viewer.scene.requestRender();
     }
+    cesiumSafeRequestRender(viewer);
   };
 
   const createOpacityCallbackProperty = () => {
@@ -211,11 +206,7 @@ export const useFootprints = (): void => {
         }
       }
 
-      // Force Cesium to re-render
-      const viewer = viewerRef.current;
-      if (viewer && !viewer.isDestroyed()) {
-        viewer.scene.requestRender();
-      }
+      cesiumSafeRequestRender(viewerRef.current);
 
       return Color.WHITE.withAlpha(newOpacity);
     }, false);
@@ -303,12 +294,9 @@ export const useFootprints = (): void => {
           return newHeight;
         }, false);
 
-        // Update the entity with the callback property
-        if (viewer && !viewer.isDestroyed()) {
-          footprintEntityRef.current.polygon.extrudedHeight =
-            heightCallbackProperty;
-          viewer.scene.requestRender();
-        }
+        footprintEntityRef.current.polygon.extrudedHeight =
+          heightCallbackProperty;
+        cesiumSafeRequestRender(viewer);
       }
     }
 
@@ -342,9 +330,8 @@ export const useFootprints = (): void => {
         opacityAnimationStartTimeRef.current = null;
         targetOpacityRef.current = 1.0;
       }
-
-      viewer.scene.requestRender();
     }
+    cesiumSafeRequestRender(viewer);
   }, [lockFootprint, viewerRef, animationDuration, animationEasing]);
 
   const createOutlineEntity = (positions: Cartesian3[]) => {

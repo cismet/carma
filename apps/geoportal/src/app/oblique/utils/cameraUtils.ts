@@ -97,13 +97,6 @@ export const flyToExteriorOrientation = (
   const localEnuUpAxis: Vector3Arr = [0, 0, 1];
   const upZ = enuToEcef(localEnuUpAxis, position);
 
-  console.log(
-    "xxx flyToExteriorOrientation",
-    duration,
-    flyToOptions,
-    easingFunction
-  );
-
   // Execute the camera flight
   viewer.camera.flyTo({
     destination: position,
