@@ -46,6 +46,7 @@ import { getStac, logout } from "../../store/slices/auth";
 import { tooltips } from "@carma-collab/wuppertal/verdis-online";
 import type { OverlayTriggerType } from "react-bootstrap/esm/OverlayTrigger";
 import type { UnknownAction } from "redux";
+import { useNavigate } from "react-router-dom";
 
 const VerdisOnlineAppNavbar = () => {
   const dispatch = useDispatch();
@@ -53,6 +54,7 @@ const VerdisOnlineAppNavbar = () => {
   const kassenzeichen = useSelector(getKassenzeichen);
   const uiState = useSelector(getUiState);
   const stac = useSelector(getStac);
+  const navigate = useNavigate();
 
   const crCounter = getNumberOfPendingChanges(kassenzeichen.aenderungsanfrage);
   let kasszLabel = "Kassenzeichen: ";
@@ -361,9 +363,10 @@ const VerdisOnlineAppNavbar = () => {
                       paddingTop: "15px",
                       paddingBottom: "15px",
                     }}
-                    onClick={() =>
-                      dispatch(logout() as unknown as UnknownAction)
-                    }
+                    onClick={() => {
+                      navigate("/");
+                      dispatch(logout() as unknown as UnknownAction);
+                    }}
                   >
                     <FontAwesomeIcon icon={faPowerOff} />
                     {menuIsHidden ? "   " + lblExit : ""}
