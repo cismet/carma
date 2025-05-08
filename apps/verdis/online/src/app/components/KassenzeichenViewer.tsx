@@ -350,6 +350,33 @@ const KassenzeichenViewer = () => {
         <Map />
       </div>
     );
+  } else if (uiState.width < switchToBottomWhenSmallerThan) {
+    verdisMapWithAdditionalComponents = (
+      <div>
+        <Map newHeight={mapHeight - horizontalPanelHeight - 25} />
+        <div
+          style={{
+            maxWidth: switchToBottomWhenSmallerThan,
+            overflowY: "hidden",
+            overflowX: "auto",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              height: horizontalPanelHeight,
+              minWidth: horizontalPanelWidth,
+            }}
+          >
+            {contactPanel}
+            {kassenzeichenPanel}
+            {kassenzeichenHorizontalFlaechenChartsPanel}
+            {/* {anComps} */}
+            {flComps}
+          </div>
+        </div>
+      </div>
+    );
   } else {
     verdisMapWithAdditionalComponents = (
       <div>
