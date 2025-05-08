@@ -19,6 +19,8 @@ import { createFeature, layersToMapLibreStyle } from "./libremap.utils";
 import "./LibreGeoportalMap.css";
 import { useLocation } from "react-router-dom";
 import { getUIMode, UIMode } from "../../store/slices/ui";
+import { Control } from "@carma-mapping/map-controls-layout";
+import LibreFeatureInfoBox from "../feature-info/LibreFeatureInfoBox";
 
 const LibreGeoportalMap = () => {
   const dispatch = useDispatch();
@@ -383,9 +385,14 @@ const LibreGeoportalMap = () => {
   }, [uiMode]);
 
   return (
-    <div className="map-wrap">
-      <div ref={mapContainer} className="map" />
-    </div>
+    <>
+      <Control position="bottomright" order={10}>
+        <LibreFeatureInfoBox />
+      </Control>
+      <div className="map-wrap">
+        <div ref={mapContainer} className="map" />
+      </div>
+    </>
   );
 };
 

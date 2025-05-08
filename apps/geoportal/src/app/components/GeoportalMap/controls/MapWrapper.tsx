@@ -357,9 +357,6 @@ const MapWrapper = () => {
         </>
       ) : (
         <>
-          <Control position="bottomright" order={10}>
-            {showLibreMap && isMode2d && <LibreFeatureInfoBox />}
-          </Control>
           <Control position="topleft" order={10}>
             <div ref={tourRefLabels.zoom} className="flex flex-col">
               <Tooltip title="Maßstab vergrößern (Zoom in)" placement="right">
