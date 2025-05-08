@@ -1,35 +1,23 @@
-import type {
-  FilterSpecification,
-  LayerSpecification,
-  StyleSpecification,
-} from "maplibre-gl";
+import type { FilterSpecification, StyleSpecification } from "maplibre-gl";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
 import { getHashParams, updateHashHistoryState } from "@carma-commons/utils";
 
-import { defaultLayerConfig } from "../../config";
 import {
   getBackgroundLayer,
   getLayers,
   setLibreMapRef,
 } from "../../store/slices/mapping";
 import { getCoordinates } from "./topicmap.utils";
-import proj4 from "proj4";
-import { proj4crs25832def } from "react-cismap/constants/gis";
-import {
-  functionToFeature,
-  objectToFeature,
-} from "../feature-info/featureInfoHelper";
 import { setSelectedFeature } from "../../store/slices/features";
 import store from "../../store";
 import { createFeature, layersToMapLibreStyle } from "./libremap.utils";
 import "./LibreGeoportalMap.css";
 import { useLocation } from "react-router-dom";
-import path from "path";
 import { getUIMode, UIMode } from "../../store/slices/ui";
 
 const LibreGeoportalMap = () => {
