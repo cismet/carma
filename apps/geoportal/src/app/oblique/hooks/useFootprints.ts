@@ -21,6 +21,7 @@ import { useSelector } from "react-redux";
 import { getObliqueMode } from "../../store/slices/ui";
 import type { FootprintFeature } from "../utils/footprintUtils";
 import { findMatchingFeature } from "../utils/footprintUtils";
+import { AnimationConfig } from "../types";
 
 const OBLIQUE_DATASOURCE_PREFIX = "oblq-footprint";
 const FOOTPRINT_ENTITY_ID = "oblq-footprint-entity";
@@ -28,15 +29,21 @@ const FOOTPRINT_OUTLINE_ID = "oblq-footprint-outline";
 const DEFAULT_EXTRUDED_HEIGHT = 50;
 const HEIGHT_OFFSET = -10; // Offset for the height of the polygon
 const MIN_EXTRUDED_HEIGHT = HEIGHT_OFFSET + 0.1; // Minimum height for the polygon
-const ANIMATION_DURATION = 800; // milliseconds
+const DEFAULT_ANIMATION_DURATION = 500; // milliseconds
 const EXIT_ANIMATION_DURATION = 300; // faster animation when exiting
 const OUTLINE_WIDTH = 2; // Width for the outline in pixels
 
 export const useFootprints = (): void => {
   const isObliqueMode = useSelector(getObliqueMode);
   const { viewerRef } = useCesiumContext();
-  const { nearestImage, footprintData, lockFootprint } =
+  const { nearestImage, footprintData, lockFootprint, animationConfig } =
     useObliqueDataContext();
+
+  const animationDuration =
+    (animationConfig?.footprintExtrusion as AnimationConfig).duration ||
+    DEFAULT_ANIMATION_DURATION;
+  const animationEasing =
+    animationConfig?.footprintExtrusion?.easing || EasingFunction.LINEAR_NONE;
 
   const lastImageIdRef = useRef<string | null>(null);
   const footprintEntityRef = useRef<Entity | null>(null);
@@ -207,10 +214,10 @@ export const useFootprints = (): void => {
       }
 
       const elapsed = performance.now() - animationStartTimeRef.current;
-      const progress = Math.min(elapsed / ANIMATION_DURATION, 1);
+      const progress = Math.min(elapsed / animationDuration, 1);
 
       // Apply easing function for smoother animation
-      const easedProgress = EasingFunction.SINUSOIDAL_OUT(progress);
+      const easedProgress = animationEasing(progress);
 
       // Calculate new height with eased interpolation
       const newHeight =
@@ -333,7 +340,7 @@ export const useFootprints = (): void => {
       // Use the appropriate duration based on whether it's an exit animation
       const duration = isExitAnimationRef.current
         ? EXIT_ANIMATION_DURATION
-        : ANIMATION_DURATION;
+        : DEFAULT_ANIMATION_DURATION;
       const progress = Math.min(elapsed / duration, 1);
 
       // Apply easing function for smoother animation
@@ -412,3 +419,5 @@ export const useFootprints = (): void => {
     viewer.scene.requestRender();
   }, [viewerRef, isObliqueMode, nearestImage, footprintData, lockFootprint]);
 };
+
+export default useFootprints;

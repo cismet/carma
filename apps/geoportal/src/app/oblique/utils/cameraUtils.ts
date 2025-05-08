@@ -23,6 +23,7 @@ import { Vector3Arr } from "types/math";
 
 const ENTER_DURATION = 1000;
 const LEAVE_BASE_DURATION = 800;
+const MAX_FLY_DURATION = 2000;
 
 /**
  * Computes and flies to an improved camera orientation based on image metadata
@@ -75,9 +76,14 @@ export const flyToExteriorOrientation = (
     position
   );
 
+  const maxDurationSecond = MAX_FLY_DURATION / 1000;
+
   const duration = Math.max(
     0.05,
-    Math.min(3, Math.sqrt(Math.abs(currentDistanceToCamera)) / 10)
+    Math.min(
+      maxDurationSecond,
+      Math.sqrt(Math.abs(currentDistanceToCamera)) / 10
+    )
   );
 
   // TODO workaround until using actual exterior orientation up vector,

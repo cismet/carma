@@ -207,7 +207,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
     const duration = Math.max(
       0.05,
-      Math.min(3, Math.sqrt(Math.abs(currentDistanceToCamera)) / 10)
+      Math.min(2, Math.sqrt(Math.abs(currentDistanceToCamera)) / 10)
     ); // seconds
 
     viewer.camera.flyTo({

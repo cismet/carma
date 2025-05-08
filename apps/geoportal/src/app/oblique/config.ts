@@ -1,4 +1,4 @@
-import { Math as CesiumMath } from "cesium";
+import { Math as CesiumMath, EasingFunction } from "cesium";
 import {
   OBLIQUE_2024_ORIENTATIONS_CRS,
   OBLIQUE_2024_ORIENTATIONS_CSV_URI,
@@ -22,6 +22,17 @@ export const OBLIQUE_CONFIG: ObliqueDataProviderConfig = {
   orientationsURI: OBLIQUE_2024_ORIENTATIONS_CSV_URI,
   exteriorOrientationsURI: OBLIQUE_2024_EXT_ORI_UTM32_URI,
   footprintsURI: OBLIQUE_2024_FPRFC_GEOJSON_URI,
+  animations: {
+    flyToEteriorOrientation: {
+      minDuration: 50,
+      maxDuration: 2000,
+      easing: EasingFunction.CUBIC_IN_OUT,
+    },
+    footprintExtrusion: {
+      duration: 450,
+      easing: EasingFunction.CUBIC_IN_OUT,
+    },
+  },
 };
 
 export const NUM_NEAREST_IMAGES = 200;
