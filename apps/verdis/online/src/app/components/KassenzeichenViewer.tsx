@@ -55,6 +55,7 @@ import ChangeRequestEditView from "../components/changerequests/CR50Flaechendial
 import AnnotationEditView from "../components/changerequests/CR60AnnotationDialog";
 import CONTACTS_MAP, { defaultContact } from "../../constants/contacts";
 import { useEffect } from "react";
+import sysend from "sysend";
 
 const KassenzeichenViewer = () => {
   const kassenzeichen = useSelector(getKassenzeichen);
@@ -288,47 +289,14 @@ const KassenzeichenViewer = () => {
     contactPanel = <ContactPanel contact={contact} />;
   }
 
-  if (kassenzeichen.id !== -1) {
-    kassenzeichenPanel = (
-      <div>
-        <KassenzeichenPanel />
-      </div>
+  if (uiState.chartElementsEnabled && kassenzeichen.id !== -1) {
+    kassenzeichenHorizontalFlaechenChartsPanel = (
+      <KassenzeichenFlaechenChartPanel orientation="vertical" />
     );
-
-    if (uiState.chartElementsEnabled) {
-      kassenzeichenHorizontalFlaechenChartsPanel = (
-        <KassenzeichenFlaechenChartPanel orientation="vertical" />
-      );
-      kassenzeichenVerticalFlaechenChartsPanel = (
-        // <Flexbox height={"" + horizontalPanelHeight} minWidth={"" + horizontalPanelWidth}>
-        <KassenzeichenFlaechenChartPanel orientation="horizontal" />
-        // </Flexbox>
-      );
-
-      verdisMapWithAdditionalComponents = (
-        <div>
-          <div
-            style={Object.assign({}, detailsStyle, {
-              height: mapHeight + "px",
-              width: verticalPanelWidth + "px",
-              float: "right",
-            })}
-          >
-            {contactPanel}
-            {kassenzeichenPanel}
-            {kassenzeichenHorizontalFlaechenChartsPanel}
-            {anComps}
-            {flComps}
-          </div>
-          <Map />
-        </div>
-      );
-    }
-  } else {
-    verdisMapWithAdditionalComponents = (
-      <div>
-        <Map />
-      </div>
+    kassenzeichenVerticalFlaechenChartsPanel = (
+      // <Flexbox height={"" + horizontalPanelHeight} minWidth={"" + horizontalPanelWidth}>
+      <KassenzeichenFlaechenChartPanel orientation="horizontal" />
+      // </Flexbox>
     );
   }
 
@@ -358,6 +326,38 @@ const KassenzeichenViewer = () => {
         >
           {getOverlayTextForFlaeche(selectedFlaeche.properties, undefined)}
         </Alert>
+      </div>
+    );
+  }
+
+  if (kassenzeichen.id !== -1) {
+    kassenzeichenPanel = (
+      <div>
+        <KassenzeichenPanel />
+      </div>
+    );
+    verdisMapWithAdditionalComponents = (
+      <div>
+        <div
+          style={Object.assign({}, detailsStyle, {
+            height: mapHeight + "px",
+            width: verticalPanelWidth + "px",
+            float: "right",
+          })}
+        >
+          {contactPanel}
+          {kassenzeichenPanel}
+          {kassenzeichenHorizontalFlaechenChartsPanel}
+          {anComps}
+          {flComps}
+        </div>
+        <Map />
+      </div>
+    );
+  } else {
+    verdisMapWithAdditionalComponents = (
+      <div>
+        <Map />
       </div>
     );
   }
