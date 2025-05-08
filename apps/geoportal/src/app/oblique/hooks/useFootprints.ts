@@ -8,8 +8,11 @@ import {
   CallbackProperty,
   EasingFunction,
   PolylineGraphics,
+  sampleTerrainMostDetailed,
+  Cartographic,
+  PolygonHierarchy,
 } from "cesium";
-import type { Cartesian3, Property, PolygonGraphics } from "cesium";
+import { Cartesian3, Property, PolygonGraphics } from "cesium";
 
 import {
   useCesiumContext,
@@ -34,7 +37,7 @@ const OUTLINE_WIDTH = 2; // Width for the outline in pixels
 
 export const useFootprints = (): void => {
   const isObliqueMode = useSelector(getObliqueMode);
-  const { viewerRef } = useCesiumContext();
+  const { viewerRef, terrainProviderRef } = useCesiumContext();
   const { nearestImage, footprintData, lockFootprint } =
     useObliqueDataContext();
 
@@ -45,7 +48,9 @@ export const useFootprints = (): void => {
   const startHeightRef = useRef<number>(DEFAULT_EXTRUDED_HEIGHT);
   const targetHeightRef = useRef<number>(DEFAULT_EXTRUDED_HEIGHT);
   const isAnimatingRef = useRef<boolean>(false);
-  const polygonPositionsRef = useRef<Cartesian3[]>([]);
+  const polygonRingRef = useRef<Cartographic[] | null>(null);
+  const maxTerrainHeightRef = useRef<number | null>(null);
+  const minTerrainHeightRef = useRef<number | null>(null);
   const prevObliqueMode = useRef<boolean>(isObliqueMode);
   const isExitAnimationRef = useRef<boolean>(false);
   const exitAnimationCompleteCallbackRef = useRef<(() => void) | null>(null);
@@ -255,26 +260,43 @@ export const useFootprints = (): void => {
     }
   }, [lockFootprint, viewerRef]);
 
-  // Helper function to create outline entity
-  const createOutlineEntity = (positions: Cartesian3[]) => {
-    if (!positions || positions.length === 0) return null;
+  // Helper function to create or update outline entity
+  const createOrUpdateOutlineEntity = (ring: Cartographic[]) => {
+    if (!ring || ring.length === 0) return null;
+    const viewer = viewerRef.current;
+    if (!viewer || viewer.isDestroyed()) return null;
 
-    // Close the loop by adding the first position to the end
-    const outlinePositions = [...positions, positions[0]];
+    const positions = ring.map((coord) => Cartographic.toCartesian(coord));
 
-    return new Entity({
-      id: FOOTPRINT_OUTLINE_ID,
-      name: `${OBLIQUE_DATASOURCE_PREFIX}-outline-${
-        nearestImage?.record.id || ""
-      }`,
-      show: !lockFootprint, // Initially visible only when lockFootprint is false
-      polyline: new PolylineGraphics({
-        positions: outlinePositions,
-        width: new ConstantProperty(OUTLINE_WIDTH),
-        material: new ColorMaterialProperty(Color.WHITE),
-        clampToGround: new ConstantProperty(true),
-      }),
-    });
+    // Check if outline entity already exists
+    if (outlineEntityRef.current) {
+      // Update existing entity
+      if (outlineEntityRef.current.polyline) {
+        outlineEntityRef.current.polyline.positions = positions;
+        outlineEntityRef.current.show = !lockFootprint;
+      }
+      return outlineEntityRef.current;
+    } else {
+      // Create new entity if it doesn't exist
+      const polyline: PolylineGraphics.ConstructorOptions = {
+        positions,
+        width: OUTLINE_WIDTH,
+        material: Color.WHITE,
+      };
+
+      const outlineEntity = new Entity({
+        id: FOOTPRINT_OUTLINE_ID,
+        name: `${OBLIQUE_DATASOURCE_PREFIX}-outline-${
+          nearestImage?.record.id || ""
+        }`,
+        show: !lockFootprint,
+        polyline,
+      });
+
+      viewer.entities.add(outlineEntity);
+      outlineEntityRef.current = outlineEntity;
+      return outlineEntity;
+    }
   };
 
   useEffect(() => {
@@ -295,7 +317,7 @@ export const useFootprints = (): void => {
 
     lastImageIdRef.current = nearestImage.record.id;
 
-    // Remove previous entities if they exist
+    // Remove previous entities when switching to a new image
     if (viewer && !viewer.isDestroyed()) {
       viewer.entities.removeById(FOOTPRINT_ENTITY_ID);
       viewer.entities.removeById(FOOTPRINT_OUTLINE_ID);
@@ -311,104 +333,163 @@ export const useFootprints = (): void => {
 
     if (!matchingFeature) return;
 
-    // Extract polygon coordinates from the feature
-    const polygonCoords = matchingFeature.geometry.coordinates.map((ring) =>
-      ring.map((coord) => [coord[0], coord[1]])
-    );
+    const quadCorners = matchingFeature.geometry.coordinates[0]
+      .slice(0, 4)
+      .map((coord) => [coord[0], coord[1]]);
 
-    // Set initial heights
-    const initialHeight = lockFootprint
-      ? MIN_EXTRUDED_HEIGHT
-      : DEFAULT_EXTRUDED_HEIGHT;
-    startHeightRef.current = initialHeight;
-    targetHeightRef.current = initialHeight;
+    // We create an async function to handle the terrain sampling
+    const setupFootprint = async () => {
+      try {
+        // add elevation to the polygon coordinates
+        const coordsWithHeights = await sampleTerrainMostDetailed(
+          terrainProviderRef.current,
+          quadCorners.map(([lon, lat]) => Cartographic.fromDegrees(lon, lat))
+        );
 
-    // Create a callback property for the height animation
-    const heightCallbackProperty = new CallbackProperty(() => {
-      if (!isAnimatingRef.current || animationStartTimeRef.current === null) {
-        return targetHeightRef.current;
-      }
+        const minHeight = coordsWithHeights.reduce(
+          (min, coord) => Math.min(min, coord.height),
+          1000
+        );
+        const maxHeight = coordsWithHeights.reduce(
+          (max, coord) => Math.max(max, coord.height),
+          0
+        );
+        coordsWithHeights.push(coordsWithHeights[0]); // Close the polygon
 
-      const elapsed = performance.now() - animationStartTimeRef.current;
-      // Use the appropriate duration based on whether it's an exit animation
-      const duration = isExitAnimationRef.current
-        ? EXIT_ANIMATION_DURATION
-        : ANIMATION_DURATION;
-      const progress = Math.min(elapsed / duration, 1);
+        polygonRingRef.current = coordsWithHeights;
+        minTerrainHeightRef.current = minHeight;
+        maxTerrainHeightRef.current = maxHeight;
 
-      // Apply easing function for smoother animation
-      const easedProgress = isExitAnimationRef.current
-        ? EasingFunction.SINUSOIDAL_IN(progress)
-        : EasingFunction.SINUSOIDAL_IN_OUT(progress);
-
-      // Calculate new height with eased interpolation
-      const newHeight =
-        startHeightRef.current +
-        (targetHeightRef.current - startHeightRef.current) * easedProgress;
-
-      // When animation is complete, mark it as done
-      if (progress >= 1) {
-        isAnimatingRef.current = false;
-
-        // Call the exit animation completion callback if applicable
+        // Check if component is still mounted and in the right state before continuing
         if (
-          isExitAnimationRef.current &&
-          exitAnimationCompleteCallbackRef.current
+          !viewerRef.current ||
+          viewerRef.current.isDestroyed() ||
+          !isObliqueMode
         ) {
-          isExitAnimationRef.current = false;
-          const callback = exitAnimationCompleteCallbackRef.current;
-          exitAnimationCompleteCallbackRef.current = null;
-          callback();
+          return;
         }
-      }
 
-      // Force Cesium to re-render
-      if (viewer && !viewer.isDestroyed()) {
+        // Set initial heights
+        const initialHeight = lockFootprint
+          ? MIN_EXTRUDED_HEIGHT
+          : DEFAULT_EXTRUDED_HEIGHT;
+        startHeightRef.current = initialHeight;
+        targetHeightRef.current = initialHeight;
+
+        // Create a callback property for the height animation
+        const heightCallbackProperty = new CallbackProperty(() => {
+          if (
+            !isAnimatingRef.current ||
+            animationStartTimeRef.current === null
+          ) {
+            return targetHeightRef.current;
+          }
+
+          const elapsed = performance.now() - animationStartTimeRef.current;
+          // Use the appropriate duration based on whether it's an exit animation
+          const duration = isExitAnimationRef.current
+            ? EXIT_ANIMATION_DURATION
+            : ANIMATION_DURATION;
+          const progress = Math.min(elapsed / duration, 1);
+
+          // Apply easing function for smoother animation
+          const easedProgress = isExitAnimationRef.current
+            ? EasingFunction.SINUSOIDAL_IN(progress)
+            : EasingFunction.SINUSOIDAL_IN_OUT(progress);
+
+          // Calculate new height with eased interpolation
+          const newHeight =
+            startHeightRef.current +
+            (targetHeightRef.current - startHeightRef.current) * easedProgress;
+
+          // When animation is complete, mark it as done
+          if (progress >= 1) {
+            isAnimatingRef.current = false;
+
+            // Call the exit animation completion callback if applicable
+            if (
+              isExitAnimationRef.current &&
+              exitAnimationCompleteCallbackRef.current
+            ) {
+              isExitAnimationRef.current = false;
+              const callback = exitAnimationCompleteCallbackRef.current;
+              exitAnimationCompleteCallbackRef.current = null;
+              callback();
+            }
+          }
+
+          // Force Cesium to re-render
+          if (viewer && !viewer.isDestroyed()) {
+            viewer.scene.requestRender();
+          }
+
+          return newHeight;
+        }, false);
+
+        const cartesianRing = coordsWithHeights.map((coord: Cartographic) =>
+          Cartographic.toCartesian(coord)
+        );
+
+        const hierarchy = new PolygonHierarchy(cartesianRing);
+
+        // Check if footprint entity already exists
+        if (footprintEntityRef.current) {
+          // Update existing entity polygon properties
+          if (footprintEntityRef.current.polygon) {
+            footprintEntityRef.current.polygon.hierarchy = hierarchy;
+            footprintEntityRef.current.polygon.extrudedHeight = heightCallbackProperty;
+            footprintEntityRef.current.name = `${OBLIQUE_DATASOURCE_PREFIX}-${nearestImage.record.id}`;
+          }
+        } else {
+          // Create new entity if it doesn't exist
+          const polygon: PolygonGraphics.ConstructorOptions = {
+            hierarchy,
+            material: Color.WHITE.withAlpha(0.8),
+            outline: false, // Disable outline on the main polygon to avoid duplicate lines
+            closeTop: false,
+            closeBottom: false,
+            extrudedHeight: heightCallbackProperty,
+            extrudedHeightReference: HeightReference.RELATIVE_TO_3D_TILE,
+            height: HEIGHT_OFFSET,
+            heightReference: HeightReference.CLAMP_TO_3D_TILE,
+            perPositionHeight: true,
+          };
+
+          const footprintEntity = new Entity({
+            id: FOOTPRINT_ENTITY_ID,
+            name: `${OBLIQUE_DATASOURCE_PREFIX}-${nearestImage.record.id}`,
+            polygon,
+          });
+
+          // Add the main polygon entity to the viewer
+          viewer.entities.add(footprintEntity);
+          footprintEntityRef.current = footprintEntity;
+        }
+
+        // Create or update the outline entity
+        createOrUpdateOutlineEntity(polygonRingRef.current);
+
         viewer.scene.requestRender();
+      } catch (error) {
+        console.error("Error setting up footprint:", error);
       }
+    };
 
-      return newHeight;
-    }, false);
+    // Start the async process
+    setupFootprint();
 
-    // Get polygon hierarchy for use in both entities
-    const polygonHierarchy = polygonHierarchyFromPolygonCoords(polygonCoords);
-
-    // Store the polygon positions for later use with the outline
-    if (polygonHierarchy.positions && polygonHierarchy.positions.length > 0) {
-      polygonPositionsRef.current = [...polygonHierarchy.positions];
-    }
-
-    // Create the main polygon entity
-    // TODO: fix types here
-    const footprintEntity = new Entity({
-      id: FOOTPRINT_ENTITY_ID,
-      name: `${OBLIQUE_DATASOURCE_PREFIX}-${nearestImage.record.id}`,
-      polygon: {
-        hierarchy: polygonHierarchy as unknown as Property,
-        material: new ColorMaterialProperty(Color.WHITE.withAlpha(0.8)),
-        outline: new ConstantProperty(false), // Disable outline on the main polygon to avoid duplicate lines
-        closeTop: new ConstantProperty(false),
-        closeBottom: new ConstantProperty(false),
-        extrudedHeight: heightCallbackProperty,
-        extrudedHeightReference: new ConstantProperty(
-          HeightReference.RELATIVE_TO_3D_TILE
-        ),
-        height: new ConstantProperty(HEIGHT_OFFSET),
-        heightReference: new ConstantProperty(HeightReference.CLAMP_TO_3D_TILE),
-      } as unknown as PolygonGraphics,
-    });
-
-    // Add the main polygon entity to the viewer
-    viewer.entities.add(footprintEntity);
-    footprintEntityRef.current = footprintEntity;
-
-    // Always create the outline entity, but control visibility with the show property
-    const outlineEntity = createOutlineEntity(polygonPositionsRef.current);
-    if (outlineEntity) {
-      viewer.entities.add(outlineEntity);
-      outlineEntityRef.current = outlineEntity;
-    }
-
-    viewer.scene.requestRender();
-  }, [viewerRef, isObliqueMode, nearestImage, footprintData, lockFootprint]);
+    // Return synchronous cleanup function
+    return () => {
+      // Since we can't do async operations directly in the cleanup function,
+      // we can only perform synchronous cleanup here
+      cleanupEntities();
+    };
+  }, [
+    viewerRef,
+    isObliqueMode,
+    nearestImage,
+    footprintData,
+    lockFootprint,
+    terrainProviderRef,
+  ]);
 };
