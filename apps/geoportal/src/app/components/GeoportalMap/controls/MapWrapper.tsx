@@ -595,8 +595,8 @@ const MapWrapper = () => {
               placement="right"
             >
               <ControlButtonStyler
-                disabled={!isMode2d || (isMode2d && showLibreMap)}
-                useDisabledStyle={isMode2d && showLibreMap}
+                disabled={!isMode2d}
+                useDisabledStyle={!isMode2d}
                 onClick={() => {
                   handleToggleFeatureInfo();
                   dispatch(setSelectedFeature(null));

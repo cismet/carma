@@ -30,13 +30,23 @@ import { createFeature, layersToMapLibreStyle } from "./libremap.utils";
 import "./LibreGeoportalMap.css";
 import { useLocation } from "react-router-dom";
 import path from "path";
+import { getUIMode, UIMode } from "../../store/slices/ui";
 
 const LibreGeoportalMap = () => {
   const dispatch = useDispatch();
   const { pathname } = useLocation();
+  const uiMode = useSelector(getUIMode);
+  const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
+
+  const uiModeRef = useRef(uiMode);
+
+  useEffect(() => {
+    uiModeRef.current = uiMode;
+  }, [uiMode]);
 
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
+  const featureInfoMarkerRef = useRef<maplibregl.Marker | null>(null);
   const selectedFeatures: Set<{
     source: string;
     sourceLayer: string;
@@ -111,6 +121,37 @@ const LibreGeoportalMap = () => {
       dispatch(setLibreMapRef(map));
 
       map.current.on("click", (e) => {
+        const currentIsModeFeatureInfo =
+          uiModeRef.current === UIMode.FEATURE_INFO;
+        if (currentIsModeFeatureInfo) {
+          if (featureInfoMarkerRef.current) {
+            featureInfoMarkerRef.current.setLngLat([
+              e.lngLat.lng,
+              e.lngLat.lat,
+            ]);
+          } else {
+            const el = document.createElement("div");
+            el.className = "feature-info-marker";
+            el.innerHTML = `
+              <div class="marker-inner">
+                <div class="marker-circle"></div>
+                <div class="marker-line horizontal-left"></div>
+                <div class="marker-line horizontal-right"></div>
+                <div class="marker-line vertical-top"></div>
+                <div class="marker-line vertical-bottom"></div>
+              </div>
+            `;
+
+            const marker = new maplibregl.Marker({
+              element: el,
+              draggable: false,
+            })
+              .setLngLat([e.lngLat.lng, e.lngLat.lat])
+              .addTo(map.current);
+
+            featureInfoMarkerRef.current = marker;
+          }
+        }
         const point = map.current.project([e.lngLat.lng, e.lngLat.lat]);
 
         const hits = map.current.queryRenderedFeatures(point);
@@ -322,6 +363,20 @@ const LibreGeoportalMap = () => {
 
     updateMapStyle();
   }, [layers, backgroundLayer]);
+
+  useEffect(() => {
+    if (map.current) {
+      if (isModeFeatureInfo) {
+        map.current.getCanvas().style.cursor = "crosshair";
+      } else {
+        map.current.getCanvas().style.cursor = "grab";
+        if (featureInfoMarkerRef.current) {
+          featureInfoMarkerRef.current.remove();
+          featureInfoMarkerRef.current = null;
+        }
+      }
+    }
+  }, [uiMode]);
 
   return (
     <div className="map-wrap">
