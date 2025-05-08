@@ -10,6 +10,7 @@ import {
   CallbackProperty,
   EasingFunction,
   PolylineGraphics,
+  Math as CesiumMath,
 } from "cesium";
 import type { Cartesian3, Property, PolygonGraphics } from "cesium";
 
@@ -48,7 +49,8 @@ export const useFootprints = (): void => {
   const showWall = !featureFlagObliqueFootprintStyleNoWall;
 
   const animationDuration =
-    animations?.footprintExtrusion?.duration || DEFAULT_ANIMATION_DURATION;
+    animations?.footprintExtrusion?.duration ?? DEFAULT_ANIMATION_DURATION;
+  const animationDelay = animations?.outlineFadeOut?.duration ?? 0;
   const animationEasing =
     animations?.footprintExtrusion?.easingFunction ||
     EasingFunction.LINEAR_NONE;
@@ -185,8 +187,11 @@ export const useFootprints = (): void => {
         return Color.WHITE.withAlpha(targetOpacityRef.current);
       }
 
-      const elapsed = performance.now() - opacityAnimationStartTimeRef.current;
-      const progress = Math.min(elapsed / animationDuration, 1);
+      const elapsed =
+        performance.now() -
+        opacityAnimationStartTimeRef.current -
+        animationDelay;
+      const progress = CesiumMath.clamp(elapsed / animationDuration, 0, 1);
 
       // Apply easing function for smoother animation
       const easedProgress = animationEasing(progress);
@@ -219,12 +224,12 @@ export const useFootprints = (): void => {
     };
   }, []);
 
-  // React to changes in oblique mode
   useEffect(() => {
     // If we're leaving oblique mode, trigger exit animation then clean up the footprint
     if (prevObliqueMode.current && !isObliqueMode) {
       // Always clean up the outline immediately
       cleanupOutlineEntity();
+      cesiumSafeRequestRender(viewerRef.current);
       // Start exit animation for the footprint, then clean up when complete
       startExitAnimation(cleanupFootprintEntity);
     }
@@ -311,6 +316,7 @@ export const useFootprints = (): void => {
         opacityAnimationStartTimeRef.current = performance.now();
         isOpacityAnimatingRef.current = true;
       } else {
+        lastImageIdRef.current = null;
         // When leaving locked mode - set opacity to 1 instantly
         if (
           outlineEntityRef.current.polyline.material instanceof
@@ -371,7 +377,6 @@ export const useFootprints = (): void => {
       return;
     }
 
-    // Skip unnecessary updates
     if (nearestImage.record.id === lastImageIdRef.current) {
       return;
     }
@@ -450,38 +455,43 @@ export const useFootprints = (): void => {
       polygonPositionsRef.current = [...polygonHierarchy.positions];
     }
 
-    // Create the main polygon entity
-    // TODO: fix types here
-    const footprintEntity = new Entity({
-      id: FOOTPRINT_ENTITY_ID,
-      name: `${OBLIQUE_DATASOURCE_PREFIX}-${nearestImage.record.id}`,
-      polygon: {
-        hierarchy: polygonHierarchy as unknown as Property,
-        material: new ColorMaterialProperty(Color.WHITE.withAlpha(0.8)),
-        outline: new ConstantProperty(false), // Disable outline on the main polygon to avoid duplicate lines
-        closeTop: new ConstantProperty(false),
-        closeBottom: new ConstantProperty(false),
-        extrudedHeight: heightCallbackProperty,
-        extrudedHeightReference: new ConstantProperty(
-          HeightReference.RELATIVE_TO_3D_TILE
-        ),
-        height: new ConstantProperty(HEIGHT_OFFSET),
-        heightReference: new ConstantProperty(HeightReference.CLAMP_TO_3D_TILE),
-      } as unknown as PolygonGraphics,
-    });
-
-    // Add the main polygon entity to the viewer
-    showWall && viewer.entities.add(footprintEntity);
-    footprintEntityRef.current = footprintEntity;
-
-    // Always create the outline entity, but control visibility with the show property
-    const outlineEntity = createOutlineEntity(polygonPositionsRef.current);
-    if (outlineEntity) {
-      viewer.entities.add(outlineEntity);
-      outlineEntityRef.current = outlineEntity;
+    if (showWall) {
+      // TODO: fix types here
+      const footprintEntity = new Entity({
+        id: FOOTPRINT_ENTITY_ID,
+        name: `${OBLIQUE_DATASOURCE_PREFIX}-${nearestImage.record.id}`,
+        polygon: {
+          hierarchy: polygonHierarchy as unknown as Property,
+          material: new ColorMaterialProperty(Color.WHITE.withAlpha(0.8)),
+          outline: new ConstantProperty(false), // Disable outline on the main polygon to avoid duplicate lines
+          closeTop: new ConstantProperty(false),
+          closeBottom: new ConstantProperty(false),
+          extrudedHeight: heightCallbackProperty,
+          extrudedHeightReference: new ConstantProperty(
+            HeightReference.RELATIVE_TO_3D_TILE
+          ),
+          height: new ConstantProperty(HEIGHT_OFFSET),
+          heightReference: new ConstantProperty(
+            HeightReference.CLAMP_TO_3D_TILE
+          ),
+        } as unknown as PolygonGraphics,
+      });
+      viewer.entities.add(footprintEntity);
+      footprintEntityRef.current = footprintEntity;
     }
 
-    viewer.scene.requestRender();
+    // Always create the outline entity, but control visibility with the show property
+
+    if (outlineEntityRef.current) {
+      outlineEntityRef.current.show = !lockFootprint;
+    } else {
+      const outlineEntity = createOutlineEntity(polygonPositionsRef.current);
+      if (outlineEntity) {
+        viewer.entities.add(outlineEntity);
+        outlineEntityRef.current = outlineEntity;
+      }
+    }
+    cesiumSafeRequestRender(viewer);
   }, [viewerRef, isObliqueMode, nearestImage, footprintData, lockFootprint]);
 };
 

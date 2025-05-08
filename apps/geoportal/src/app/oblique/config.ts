@@ -31,6 +31,11 @@ export const OBLIQUE_CONFIG: ObliqueDataProviderConfig = {
       duration: 500,
       easingFunction: EasingFunction.QUADRATIC_IN_OUT,
     },
+    outlineFadeOut: {
+      delay: 300,
+      duration: 500,
+      easingFunction: EasingFunction.QUADRATIC_IN_OUT,
+    },
   },
 };
 

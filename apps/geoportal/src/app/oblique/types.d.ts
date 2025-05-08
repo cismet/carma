@@ -62,6 +62,7 @@ export type NearestObliqueImageRecord = {
 export type ObliqueImageRecordMap = Map<string, ObliqueImageRecord>;
 
 export type AnimationConfig = {
+  delay?: number; // in ms, useful for synchronizing independedent animations
   duration?: number; // in ms, also max value for dynamic duration
   easingFunction?: EasingFunction.Callback;
 };
@@ -69,6 +70,7 @@ export type AnimationConfig = {
 export type ObliqueAnimationsConfig = {
   flyToExteriorOrientation?: AnimationConfigDynamicDuration;
   footprintExtrusion?: AnimationConfig;
+  outlineFadeOut?: AnimationConfig;
 };
 
 export interface ObliqueDataProviderConfig {
