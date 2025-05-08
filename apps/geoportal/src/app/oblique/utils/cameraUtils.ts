@@ -9,6 +9,7 @@ import {
   Ray,
   type Viewer,
   defined,
+  Math as CesiumMath,
 } from "cesium";
 import {
   cesiumAnimateFov,
@@ -20,21 +21,27 @@ import {
   enuToEcef,
 } from "./transformExteriorOrientation";
 import { Vector3Arr } from "types/math";
+import { AnimationConfig } from "../types";
 
 const ENTER_DURATION = 1000;
 const LEAVE_BASE_DURATION = 800;
-const MAX_FLY_DURATION = 2000;
+const MAX_FLY_DURATION_MS = 2000; // ms
+const MIN_FLY_DURATION_MS = 50; // should be about a frame to avoid zero duration artifacts in calculations and code paths taken
+const DEFAULT_EASING_FUNCTION = EasingFunction.LINEAR_NONE;
+const DYNAMIC_DISTANCE_TO_MS_FACTOR = 100;
 
 /**
  * Computes and flies to an improved camera orientation based on image metadata
  * @param viewer Cesium viewer instance
  * @param imageRecord Oblique image record containing metadata
  * @param onComplete Callback to execute after flight completion
+ * @param flyToOptions Optional configuration for the flight animation
  */
 export const flyToExteriorOrientation = (
   viewer: Viewer,
   exteriorOrientation: DerivedExteriorOrientation,
-  onComplete?: () => void
+  onComplete?: () => void,
+  flyToOptions: AnimationConfig = {}
 ): void => {
   if (
     !viewer ||
@@ -76,20 +83,26 @@ export const flyToExteriorOrientation = (
     position
   );
 
-  const maxDurationSecond = MAX_FLY_DURATION / 1000;
+  // TODO: also factor in orientation change
 
-  const duration = Math.max(
-    0.05,
-    Math.min(
-      maxDurationSecond,
-      Math.sqrt(Math.abs(currentDistanceToCamera)) / 10
-    )
+  const duration = getDynamicDurationSecondsFromDistance(
+    currentDistanceToCamera,
+    flyToOptions.duration
   );
+
+  const easingFunction = flyToOptions.easingFunction || DEFAULT_EASING_FUNCTION;
 
   // TODO workaround until using actual exterior orientation up vector,
   // but that one is rotating differently by each camera ID
   const localEnuUpAxis: Vector3Arr = [0, 0, 1];
   const upZ = enuToEcef(localEnuUpAxis, position);
+
+  console.log(
+    "xxx flyToExteriorOrientation",
+    duration,
+    flyToOptions,
+    easingFunction
+  );
 
   // Execute the camera flight
   viewer.camera.flyTo({
@@ -100,6 +113,7 @@ export const flyToExteriorOrientation = (
     },
     endTransform: Matrix4.IDENTITY,
     duration,
+    easingFunction,
     complete: onComplete,
   });
 };
@@ -107,6 +121,29 @@ export const flyToExteriorOrientation = (
 export const resetCamera = (viewer: Viewer) => {
   viewer.camera.lookAtTransform(Matrix4.IDENTITY);
   viewer.scene.requestRender();
+};
+
+const distanceSqrtInMetersToMilliseconds = (
+  distance: number,
+  min: number,
+  max: number,
+  factor = DYNAMIC_DISTANCE_TO_MS_FACTOR
+) => {
+  const distanceToMSeconds = Math.sqrt(Math.abs(distance)) * factor;
+  return CesiumMath.clamp(distanceToMSeconds, min, max);
+};
+
+export const getDynamicDurationSecondsFromDistance = (
+  distance: number,
+  maxDurationMilliseconds = MAX_FLY_DURATION_MS
+) => {
+  const dynamicDurationMilliseconds = distanceSqrtInMetersToMilliseconds(
+    distance,
+    MIN_FLY_DURATION_MS,
+    maxDurationMilliseconds
+  );
+  const duration = dynamicDurationMilliseconds / 1000;
+  return duration;
 };
 
 export const enterObliqueMode = (
@@ -197,7 +234,6 @@ export const leaveObliqueMode = (
       startFov: currentFov,
       targetFov,
       duration: adaptiveLeaveDuration,
-      easingFunction: EasingFunction.SINUSOIDAL_IN_OUT,
       onComplete: () => {
         onComplete();
       },

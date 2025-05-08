@@ -37,7 +37,7 @@ const OUTLINE_WIDTH = 2; // Width for the outline in pixels
 export const useFootprints = (): void => {
   const isObliqueMode = useSelector(getObliqueMode);
   const { viewerRef } = useCesiumContext();
-  const { nearestImage, footprintData, lockFootprint, animationConfig } =
+  const { nearestImage, footprintData, lockFootprint, animations } =
     useObliqueDataContext();
 
   const featureFlags = useFeatureFlags();
@@ -46,10 +46,10 @@ export const useFootprints = (): void => {
   const showWall = !featureFlagObliqueFootprintStyleNoWall;
 
   const animationDuration =
-    (animationConfig?.footprintExtrusion as AnimationConfig).duration ||
-    DEFAULT_ANIMATION_DURATION;
+    animations?.footprintExtrusion?.duration || DEFAULT_ANIMATION_DURATION;
   const animationEasing =
-    animationConfig?.footprintExtrusion?.easing || EasingFunction.LINEAR_NONE;
+    animations?.footprintExtrusion?.easingFunction ||
+    EasingFunction.LINEAR_NONE;
 
   const lastImageIdRef = useRef<string | null>(null);
   const footprintEntityRef = useRef<Entity | null>(null);

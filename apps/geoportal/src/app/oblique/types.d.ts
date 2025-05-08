@@ -62,14 +62,13 @@ export type NearestObliqueImageRecord = {
 export type ObliqueImageRecordMap = Map<string, ObliqueImageRecord>;
 
 export type AnimationConfig = {
-  duration: number; // ms
-  easing?: EasingFunction;
+  duration?: number; // in ms, also max value for dynamic duration
+  easingFunction?: EasingFunction.Callback;
 };
 
-export type AnimationConfigDynamicDuration = {
-  minDuration: number; // ms
-  maxDuration: number; // ms
-  easing?: EasingFunction;
+export type ObliqueAnimationsConfig = {
+  flyToExteriorOrientation?: AnimationConfigDynamicDuration;
+  footprintExtrusion?: AnimationConfig;
 };
 
 export interface ObliqueDataProviderConfig {
@@ -84,10 +83,7 @@ export interface ObliqueDataProviderConfig {
   minFov?: number;
   maxFov?: number;
   headingOffset?: number;
-  animations?: {
-    flyToEteriorOrientation?: AnimationConfigDynamicDuration;
-    footprintExtrusion?: AnimationConfig;
-  };
+  animations?: ObliqueAnimationsConfig;
 }
 
 export interface PointWithSector {

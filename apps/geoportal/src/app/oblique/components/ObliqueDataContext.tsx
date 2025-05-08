@@ -3,9 +3,9 @@ import { useSelector } from "react-redux";
 import type { FeatureCollection, Polygon } from "geojson";
 
 import {
-  AnimationConfigDynamicDuration,
   ExteriorOrientations,
   NearestObliqueImageRecord,
+  ObliqueAnimationsConfig,
   ObliqueDataProviderConfig,
   ObliqueImageRecordMap,
   Proj4Converter,
@@ -26,7 +26,6 @@ import { getFootprintCenterpoints } from "../utils/footprintCenterpoints";
 
 import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
 import { NUM_NEAREST_IMAGES } from "../config";
-import { AnimationConfig } from '../types';
 
 // Define the shape of our context
 // todo: consolidate per Image result data into NearestImageRecord
@@ -53,7 +52,7 @@ interface ObliqueDataContextType {
   isAllDataReady: boolean;
   lockFootprint: boolean;
   setLockFootprint: (value: boolean) => void;
-  animationConfig: Record<string, AnimationConfig | AnimationConfigDynamicDuration>;
+  animations: ObliqueAnimationsConfig;
 }
 
 // Create the context with a default value
@@ -98,7 +97,7 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
     minFov,
     maxFov,
     headingOffset,
-    animations
+    animations,
   } = config;
 
   // Use the oblique data hook to get camera orientations
@@ -255,7 +254,7 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
     footprintError,
     isAllDataReady,
     lockFootprint,
-    animationConfig: animations,
+    animations,
     setLockFootprint,
   };
 

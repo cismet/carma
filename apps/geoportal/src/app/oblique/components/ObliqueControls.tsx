@@ -48,7 +48,11 @@ import { useDebugOrbitPoint } from "../hooks/useDebugOrbitPoint";
 import { useExteriorOrientation } from "../hooks/useExteriorOrientation";
 import { useFootprints } from "../hooks/useFootprints";
 
-import { resetCamera, flyToExteriorOrientation } from "../utils/cameraUtils";
+import {
+  resetCamera,
+  flyToExteriorOrientation,
+  getDynamicDurationSecondsFromDistance,
+} from "../utils/cameraUtils";
 import { downloadAsBlobAsync } from "../utils/downloads";
 import { formatHeadingDegrees } from "../utils/formatters";
 import {
@@ -85,6 +89,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     previewPath,
     previewQualityLevel,
     setLockFootprint,
+    animations,
   } = useObliqueDataContext();
   const { viewerRef, terrainProviderRef } = useCesiumContext();
   const flags = useFeatureFlags();
@@ -205,16 +210,21 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       position
     );
 
-    const duration = Math.max(
-      0.05,
-      Math.min(2, Math.sqrt(Math.abs(currentDistanceToCamera)) / 10)
-    ); // seconds
+    const duration = getDynamicDurationSecondsFromDistance(
+      currentDistanceToCamera,
+      animations.flyToExteriorOrientation.duration
+    );
+
+    const easingFunction =
+      animations.flyToExteriorOrientation.easingFunction ||
+      EasingFunction.LINEAR_NONE;
 
     viewer.camera.flyTo({
       destination: position,
       orientation: { direction, up },
       endTransform: Matrix4.IDENTITY,
       duration,
+      easingFunction,
       complete: () => {
         animationInProgressRef.current = false;
         setIsPreviewVisible(true);
@@ -224,6 +234,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   }, [
     viewerRef,
     terrainProviderRef,
+    flyToExteriorOrientation,
     nearestImage,
     isPreviewVisible,
     setLockFootprint,
@@ -250,10 +261,12 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
         animationInProgressRef.current = false;
         setIsPreviewVisible(true);
         notifyPreviewVisibilityChange(true);
-      }
+      },
+      animations.flyToExteriorOrientation
     );
   }, [
     viewerRef,
+    animations,
     nearestImage,
     isPreviewVisible,
     setLockFootprint,
