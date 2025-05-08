@@ -54,6 +54,7 @@ import AnnotationPanel from "./AnnotationPanel";
 import ChangeRequestEditView from "../components/changerequests/CR50Flaechendialog";
 import AnnotationEditView from "../components/changerequests/CR60AnnotationDialog";
 import CONTACTS_MAP, { defaultContact } from "../../constants/contacts";
+import { useEffect } from "react";
 
 const KassenzeichenViewer = () => {
   const kassenzeichen = useSelector(getKassenzeichen);
@@ -65,28 +66,30 @@ const KassenzeichenViewer = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  if (!stac) {
-    navigate("/");
-  } else {
-    if (!login) {
-      // console.log("xxx not successefull login");
-      // dispatch(setLoginInProgress({}));
-      dispatch(showInfo("Kassenzeichen wird wieder geladen"));
-      dispatch(showWaiting(true));
-      dispatch(
-        getKassenzeichenbySTAC(stac, (success) => {
-          if (success === true) {
-            setTimeout(() => {
-              dispatch(showWaiting(false));
-              dispatch(fitAll());
-            }, 300);
-          }
-        })
-      );
-    }
+  useEffect(() => {
+    if (!stac) {
+      navigate("/");
+    } else {
+      if (!login) {
+        // console.log("xxx not successefull login");
+        // dispatch(setLoginInProgress({}));
+        dispatch(showInfo("Kassenzeichen wird wieder geladen"));
+        dispatch(showWaiting(true));
+        dispatch(
+          getKassenzeichenbySTAC(stac, (success) => {
+            if (success === true) {
+              setTimeout(() => {
+                dispatch(showWaiting(false));
+                dispatch(fitAll());
+              }, 300);
+            }
+          })
+        );
+      }
 
-    // console.log("xxx successefull login");
-  }
+      // console.log("xxx successefull login");
+    }
+  }, []);
 
   // let flaechenPanelRefs = useRef({});
 
