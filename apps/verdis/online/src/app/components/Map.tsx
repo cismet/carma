@@ -34,9 +34,10 @@ import EditModeControlButton from "./EditModeControlButton";
 
 interface MapProps {
   children?: ReactNode;
+  newHeight?: number;
 }
 
-const Map = ({ children }: MapProps) => {
+const Map = ({ children, newHeight }: MapProps) => {
   const [urlParams, setUrlParams] = useSearchParams();
   let refRoutedMap = useRef(null);
   const dispatch = useDispatch();
@@ -92,7 +93,7 @@ const Map = ({ children }: MapProps) => {
   };
 
   const mapStyle = {
-    height: height - 55,
+    height: newHeight ? newHeight : height - 55,
     cursor: "grab",
   };
 
