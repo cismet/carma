@@ -22,6 +22,7 @@ import { getObliqueMode } from "../../store/slices/ui";
 import type { FootprintFeature } from "../utils/footprintUtils";
 import { findMatchingFeature } from "../utils/footprintUtils";
 import { AnimationConfig } from "../types";
+import { useFeatureFlags } from "@carma-apps/portals";
 
 const OBLIQUE_DATASOURCE_PREFIX = "oblq-footprint";
 const FOOTPRINT_ENTITY_ID = "oblq-footprint-entity";
@@ -38,6 +39,11 @@ export const useFootprints = (): void => {
   const { viewerRef } = useCesiumContext();
   const { nearestImage, footprintData, lockFootprint, animationConfig } =
     useObliqueDataContext();
+
+  const featureFlags = useFeatureFlags();
+  const { featureFlagObliqueFootprintStyleNoWall } = featureFlags;
+
+  const showWall = !featureFlagObliqueFootprintStyleNoWall;
 
   const animationDuration =
     (animationConfig?.footprintExtrusion as AnimationConfig).duration ||
@@ -406,7 +412,7 @@ export const useFootprints = (): void => {
     });
 
     // Add the main polygon entity to the viewer
-    viewer.entities.add(footprintEntity);
+    showWall && viewer.entities.add(footprintEntity);
     footprintEntityRef.current = footprintEntity;
 
     // Always create the outline entity, but control visibility with the show property
