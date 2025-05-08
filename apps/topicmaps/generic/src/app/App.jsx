@@ -50,7 +50,7 @@ const errorConfig = {
   },
 };
 
-function App({ name }) {
+function App({ name, styleManipulation }) {
   // --- Fault log state and helper ---
   const [faultLog, setFaultLog] = useState([]);
   const log = (msg, attachment) => {
@@ -251,6 +251,90 @@ function App({ name }) {
       // Deep-merge project config into default config
       merge(config, projectConfig);
 
+      // --- Style Manipulation: Fetch style JSON if needed ---
+      if (Array.isArray(config?.tm?.vectorLayers)) {
+        const styleFetchPromises = config.tm.vectorLayers.map(async (layer) => {
+          if (
+            typeof layer.styleManipulation !== "undefined" &&
+            layer.style &&
+            typeof layer.style === "string" &&
+            (layer.style.startsWith("http://") ||
+              layer.style.startsWith("https://"))
+          ) {
+            try {
+              const resp = await fetch(layer.style);
+              if (!resp.ok)
+                throw new Error(`Failed to fetch style: ${resp.status}`);
+              const json = await resp.json();
+              layer.style = json;
+            } catch (e) {
+              log(
+                `Failed to fetch/parse style for layer ${
+                  layer.name || layer.id
+                }: ${e}`
+              );
+            }
+          }
+        });
+        await Promise.all(styleFetchPromises);
+
+        // --- Style Manipulation: Load manipulation function from JS file if needed ---
+        function getStyleManipulationUrl(
+          styleManipulation,
+          configServer,
+          configPath,
+          slugName
+        ) {
+          if (
+            typeof styleManipulation === "string" &&
+            styleManipulation.startsWith("@")
+          ) {
+            const filename = styleManipulation.slice(1);
+            const path = configPath.endsWith("/")
+              ? configPath
+              : configPath + "/";
+            const server = configServer.endsWith("/")
+              ? configServer.slice(0, -1)
+              : configServer;
+            // Insert slugName as a path component
+            return `${server}${path}${slugName}/${filename}`;
+          }
+          return null;
+        }
+        async function loadStyleManipulation(layer, configServer, configPath, slugName) {
+          if (
+            layer.styleManipulation &&
+            typeof layer.styleManipulation === "string" &&
+            layer.styleManipulation.startsWith("@")
+          ) {
+            const url = getStyleManipulationUrl(
+              layer.styleManipulation,
+              configServer,
+              configPath,
+              slugName
+            );
+            try {
+              const code = await fetch(url).then((r) => r.text());
+              // The JS file must define a function named styleManipulation
+              console.log("xxx code", code);
+              const func = new Function(code + "; return styleManipulation;")();
+              console.log("xxx func", func);
+              layer.styleManipulation = func;
+            } catch (e) {
+              log(
+                `xxx Failed to fetch/parse styleManipulation for layer ${
+                  layer.name || layer.id
+                }: ${e}`
+              );
+            }
+          }
+        }
+        const manipulationPromises = config.tm.vectorLayers.map((layer) =>
+          loadStyleManipulation(layer, configServer, configPath, slugName)
+        );
+        await Promise.all(manipulationPromises);
+      }
+
       // Normalize vectorLayers: if only 'layer' is present, extract 'capabilitiesLayer' and 'capabilities'
       if (Array.isArray(config?.tm?.vectorLayers)) {
         config.tm.vectorLayers.forEach((layerObj) => {
@@ -344,8 +428,6 @@ function App({ name }) {
           content: config.simpleHelpMd,
         };
       }
-
-      console.log("... simpleHelpObject", config.simpleHelpObject);
 
       if (config.infoBoxConfig !== undefined) {
         config.info = config.infoBoxConfig;

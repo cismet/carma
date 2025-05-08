@@ -30,7 +30,8 @@ import { createVectorFeature } from "./helper";
 import FeatureInfobox from "./components/FeatureInfobox";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import Menu from "./components/Menu";
-
+import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
+import md5 from "md5";
 const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 const downloadText = (text, filename) => {
   var element = document.createElement("a");
@@ -56,7 +57,16 @@ const Map = ({
   const [feature, setFeature] = useState(undefined);
   const { selectedFeature } = useContext(FeatureCollectionContext);
   const [globalHits, setGlobalHits] = useState({});
-  console.log("layerInformation", layerInformation);
+  const { markerSymbolSize } = useContext(TopicMapStylingContext);
+
+  const [mss, setMss] = useState(markerSymbolSize);
+
+  useEffect(() => {
+    setMss(markerSymbolSize);
+  }, [markerSymbolSize]);
+
+  // console.log("xxx markerSymbolSize", markerSymbolSize);
+
   // lets assume we will only have vector layers
   useEffect(() => {
     if (globalHits && config?.tm?.vectorLayers) {
@@ -195,10 +205,25 @@ const Map = ({
       >
         {config.tm.vectorLayers &&
           config.tm.vectorLayers.map((layer, index) => {
+            // Use config.tm.markerSymbolSize if available, else default to 16
+            let style = layer.style;
+            if (typeof layer.styleManipulation === "function") {
+              style = layer.styleManipulation(markerSymbolSize, layer.style);
+            }
+            // console.log(" layer ", layer);
+            const cl_key =
+              "cismapLayer." +
+              md5(JSON.stringify(style)) +
+              "." +
+              (layer.id || index);
+            console.log("xxx cl_key ", cl_key);
+
             return (
               <CismapLayer
+                key={cl_key}
                 type="vector"
                 {...layer}
+                style={style}
                 additionalLayerUniquePane={"vector." + index}
                 additionalLayersFreeZOrder={index}
                 selectionEnabled={true}

@@ -2,20 +2,23 @@
   "tm": {
     "noFeatureCollection": true,
     "applicationMenuIntroductionMarkdown": "Über **Einstellungen** können Sie die Darstellung der Hintergrundkarte an Ihre Vorlieben anpassen. Wählen Sie **Kompaktanleitung** für detailliertere Bedienungsinformationen und **Urbaner Digitaler Zwilling** für eine Einordnung der Trinkwasserbrunnenkarte in das Gesamtsystem des Digitalen Zwillings der Stadt Wuppertal.",
-
+    "applicationMenuSkipSymbolsizeSetting":false,
     "vectorLayers": [
       {
         "name": "Wohnlagen",
         "style": "https://tiles.cismet.de/wohnlagen2024/style.json",
         "opacity": 0.5,
         "layer":"wohnlagen2024@https://maps.wuppertal.de/immo?service=WMS&request=GetCapabilities&version=1.1.1",
-        "addMetaInfoToHelp":true
+        "addMetaInfoToHelp":true,
+        "styleManipulation_": "thisandthat. impl. comes late"
+
       },
       {
         "name": "Trinkwasserbrunnen",
         "style": "https://tiles.cismet.de/poi/trinkwasserbrunnen.style.json",
         "layer": "poi_trinkwasser@https://maps.wuppertal.de/poi?service=WMS&request=GetCapabilities&version=1.1.1",
-        "addMetaInfoToHelp":true
+        "addMetaInfoToHelp":true,
+        "styleManipulation": "@trinkwasserbrunnenStyleModification.js"
       }
     ] 
   }
