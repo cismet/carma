@@ -39,6 +39,7 @@ import {
 } from "../../store/slices/ui";
 import LayerIcon from "./LayerIcon";
 import "./tabs.css";
+import { getHashParams } from "@carma-commons/utils";
 
 interface LayerButtonProps {
   title: string;
@@ -86,8 +87,9 @@ const LayerButton = ({
       id,
     });
   const buttonRef = useRef<HTMLDivElement>(null);
-
-  const zoom = routedMapRef?.leafletMap?.leafletElement.getZoom();
+  const hashParams = getHashParams();
+  const zoom =
+    routedMapRef?.leafletMap?.leafletElement.getZoom() || hashParams.zoom;
   const queryable =
     layer?.queryable &&
     zoom < (layer.props.maxZoom ? layer.props.maxZoom : Infinity) &&
