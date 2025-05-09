@@ -9,10 +9,6 @@ export const featureFlagConfig: FeatureFlagConfig = {
     default: false,
     alias: "debug",
   },
-  featureFlagObliqueFootprintStyleNoWall: {
-    default: false,
-    alias: "nowall",
-  },
   featureFlagLibreMap: {
     default: false,
     alias: "ng",

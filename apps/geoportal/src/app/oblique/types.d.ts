@@ -68,8 +68,7 @@ export type AnimationConfig = {
 };
 
 export type ObliqueAnimationsConfig = {
-  flyToExteriorOrientation?: AnimationConfigDynamicDuration;
-  footprintExtrusion?: AnimationConfig;
+  flyToExteriorOrientation?: AnimationConfig;
   outlineFadeOut?: AnimationConfig;
 };
 

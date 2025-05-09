@@ -27,13 +27,9 @@ export const OBLIQUE_CONFIG: ObliqueDataProviderConfig = {
       duration: 800,
       easingFunction: EasingFunction.QUADRATIC_IN,
     },
-    footprintExtrusion: {
-      duration: 500,
-      easingFunction: EasingFunction.QUADRATIC_IN_OUT,
-    },
     outlineFadeOut: {
-      delay: 300,
-      duration: 500,
+      delay: 500,
+      duration: 300,
       easingFunction: EasingFunction.QUADRATIC_IN_OUT,
     },
   },
