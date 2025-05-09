@@ -242,7 +242,6 @@ const LibreGeoportalMap = () => {
 
               limitedHits.forEach((hit) => {
                 const setSelection = (selected) => {
-                  console.log("xxx setting selection", hit, selected);
                   map.current?.setFeatureState(
                     {
                       source: hit.source,
@@ -299,7 +298,7 @@ const LibreGeoportalMap = () => {
               dispatch,
               mode: uiModeRef.current,
               store,
-              zoom: map.current?.getZoom(),
+              zoom: map.current?.getZoom() + 1,
               map: undefined,
             }
           );
