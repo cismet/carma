@@ -266,6 +266,7 @@ const LibreGeoportalMap = () => {
                   });
                 };
 
+                // @ts-expect-error
                 hit.setSelection = setSelection;
 
                 //add hit to normalizedLimitedHits if an object with the id isn't already in the array
