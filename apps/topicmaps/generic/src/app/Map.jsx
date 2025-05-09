@@ -95,6 +95,7 @@ const Map = ({
   featureGazData = [],
   layerInformation = {},
   layerHelpBlocks,
+  slugName,
 }) => {
   const [feature, setFeature] = useState(undefined);
   const { selectedFeature } = useContext(FeatureCollectionContext);
@@ -132,16 +133,48 @@ const Map = ({
   }, [globalHits, layerInformation]);
   const { setAppMenuActiveMenuSection } = useContext(UIDispatchContext);
 
-  const getSymbolSVG = (size, color) => {
-    return (
-      <img
-        width={size}
-        src={
-          "http://localhost:4200/dev/trinkbrunnenkarte_wuppertal/tw_outdoor.svg"
+  // Compute getSymbolSVG only if a settingsSymbol is present
+  let getSymbolSVG;
+  const vectorLayerWithSymbol = config.tm?.vectorLayers?.find(
+    (l) => l.settingsSymbol
+  );
+  // Try to get slugName from config, else guess from configPath
+  // Compute slugName
+
+  const endsWithSlug =
+    configPath.replace(/\/+$/, "").endsWith("/" + slugName) ||
+    configPath.replace(/\/+$/, "").endsWith(slugName);
+  if (vectorLayerWithSymbol && vectorLayerWithSymbol.settingsSymbol) {
+    getSymbolSVG = (size, color) => {
+      let symbol = vectorLayerWithSymbol.settingsSymbol;
+      let symbolPath = null;
+      if (symbol.startsWith("@")) {
+        const filename = symbol.substring(1);
+        const path = configPath.endsWith("/") ? configPath : configPath + "/";
+        const server = configServer.endsWith("/")
+          ? configServer.slice(0, -1)
+          : configServer;
+        if (configServer && configServer.length > 0) {
+          symbolPath = `${server}${path}${slugName}/${filename}`;
+        } else {
+          symbolPath = `${path}${slugName}/${filename}`;
         }
-      />
-    );
-  };
+      } else {
+        symbolPath = symbol;
+      }
+      console.log("symbolPath", symbolPath);
+      return (
+        <img
+          width={size}
+          src={symbolPath}
+          style={color ? { filter: `drop-shadow(0 0 0 ${color})` } : {}}
+          alt="symbol"
+        />
+      );
+    };
+  } else {
+    getSymbolSVG = undefined;
+  }
 
   return (
     <>
@@ -236,7 +269,7 @@ const Map = ({
             previewFeatureCollectionCount={
               config?.tm?.previewFeatureCollectionCount
             }
-            getSymbolSVG={getSymbolSVG}
+            {...(getSymbolSVG ? { getSymbolSVG } : {})}
             previewChildrenKey={cl_key}
             introductionMarkdown={
               config?.tm?.applicationMenuIntroductionMarkdown
