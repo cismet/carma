@@ -17,6 +17,7 @@ import {
   setLibreMapRef,
 } from "../../store/slices/mapping";
 import {
+  cancelOngoingRequests,
   getCoordinates,
   onClickTopicMap,
   onSelectionChangedVector,
@@ -54,10 +55,6 @@ const LibreGeoportalMap = () => {
   const maxSelectionCount = 10;
 
   const uiModeRef = useRef(uiMode);
-
-  useEffect(() => {
-    uiModeRef.current = uiMode;
-  }, [uiMode]);
 
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -526,6 +523,20 @@ const LibreGeoportalMap = () => {
         }
       }
     }
+    if (uiModeRef.current !== uiMode) {
+      updateGlobalHits();
+      Object.keys(globalHits).forEach((key) => {
+        const hits = globalHits[key];
+        if (hits) {
+          hits.forEach((hit) => {
+            hit.setSelection(false);
+          });
+          globalHits[key] = undefined;
+        }
+      });
+      cancelOngoingRequests();
+    }
+    uiModeRef.current = uiMode;
   }, [uiMode]);
 
   useEffect(() => {
