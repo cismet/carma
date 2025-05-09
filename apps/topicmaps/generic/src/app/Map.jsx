@@ -48,7 +48,8 @@ const downloadText = (text, filename) => {
 
   document.body.removeChild(element);
 };
-
+const configPath = import.meta.env.VITE_GTM_CONFIG_PATH || "/dev/"; //uses the dev folder in public to debug local stuff when no ENV is set
+const configServer = import.meta.env.VITE_GTM_CONFIGSERVER || ""; //uses the local server when no ENV is set
 // Function to render vector layers
 function renderVectorLayers(config, markerSymbolSize, setGlobalHits) {
   return (
@@ -130,6 +131,17 @@ const Map = ({
     }
   }, [globalHits, layerInformation]);
   const { setAppMenuActiveMenuSection } = useContext(UIDispatchContext);
+
+  const getSymbolSVG = (size, color) => {
+    return (
+      <img
+        width={size}
+        src={
+          "http://localhost:4200/dev/trinkbrunnenkarte_wuppertal/tw_outdoor.svg"
+        }
+      />
+    );
+  };
 
   return (
     <>
@@ -216,10 +228,15 @@ const Map = ({
             }
             simpleHelp={config?.simpleHelpObject}
             previewMapPosition={config?.tm?.previewMapPosition}
-            previewChildren={renderVectorLayers(config, markerSymbolSize, setGlobalHits)}
+            previewChildren={renderVectorLayers(
+              config,
+              markerSymbolSize,
+              setGlobalHits
+            )}
             previewFeatureCollectionCount={
               config?.tm?.previewFeatureCollectionCount
             }
+            getSymbolSVG={getSymbolSVG}
             previewChildrenKey={cl_key}
             introductionMarkdown={
               config?.tm?.applicationMenuIntroductionMarkdown
