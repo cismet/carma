@@ -9,6 +9,7 @@ import {
   computeDerivedExteriorOrientation,
   DerivedExteriorOrientation,
 } from "../utils/transformExteriorOrientation";
+import { CAMERA_ID_TO_UP_VECTOR_MATRIX_MAPPING } from "../config";
 
 export const useExteriorOrientation = (
   nearestImage: NearestObliqueImageRecord
@@ -35,9 +36,14 @@ export const useExteriorOrientation = (
       const matchingExtOriData = exteriorOrientations[id];
       const mappedRecord = mapExtOriArrToRecord(id, matchingExtOriData);
       setExtOriInputRecord(mappedRecord);
+
+      const upMapping =
+        CAMERA_ID_TO_UP_VECTOR_MATRIX_MAPPING[nearestImage.record.cameraId];
+
       derivedExteriorOrientationRef.current = computeDerivedExteriorOrientation(
         mappedRecord,
-        converter
+        converter,
+        upMapping
       );
     } else {
       setExtOriInputRecord(null);

@@ -152,9 +152,10 @@ export const useFootprints = (): void => {
     useObliqueDataContext();
 
   const featureFlags = useFeatureFlags();
-  const { featureFlagObliqueFootprintStyleNoWall } = featureFlags;
-
-  const showWall = !featureFlagObliqueFootprintStyleNoWall;
+  const {
+    featureFlagObliqueFootprintStyleNoWall: noWall,
+    featureFlagDebugOblique: isDebug,
+  } = featureFlags;
 
   const animationDuration =
     animations?.footprintExtrusion?.duration ?? DEFAULT_ANIMATION_DURATION;
@@ -371,7 +372,7 @@ export const useFootprints = (): void => {
       polygonPositionsRef.current = [...polygonHierarchy.positions];
     }
 
-    if (showWall) {
+    if (!noWall && !isDebug) {
       // TODO: fix types here
       const footprintEntity = new Entity({
         id: FOOTPRINT_ENTITY_ID,
@@ -406,7 +407,7 @@ export const useFootprints = (): void => {
       }
     }
     cesiumSafeRequestRender(viewer);
-  }, [viewerRef, isObliqueMode, nearestImage, footprintData, showWall]);
+  }, [viewerRef, isObliqueMode, nearestImage, footprintData, noWall, isDebug]);
 };
 
 export default useFootprints;

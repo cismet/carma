@@ -40,7 +40,7 @@ const JsonDisplay = styled.pre`
 export const ObliqueImageInfo: React.FC<ObliqueImageInfoProps> = ({
   imageRecord,
 }) => {
-  const [activeKey, setActiveKey] = useState<string[]>(["1"]);
+  const [activeKey, setActiveKey] = useState<string[]>([]);
 
   if (!imageRecord) return null;
 

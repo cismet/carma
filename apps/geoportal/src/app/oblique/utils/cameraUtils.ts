@@ -94,15 +94,15 @@ export const flyToExteriorOrientation = (
 
   // TODO workaround until using actual exterior orientation up vector,
   // but that one is rotating differently by each camera ID
-  const localEnuUpAxis: Vector3Arr = [0, 0, 1];
-  const upZ = enuToEcef(localEnuUpAxis, position);
+  // const localEnuUpAxis: Vector3Arr = [0, 0, 1];
+  // const upZ = enuToEcef(localEnuUpAxis, position);
 
   // Execute the camera flight
   viewer.camera.flyTo({
     destination: position,
     orientation: {
       direction,
-      up: new Cartesian3(...upZ),
+      up,
     },
     endTransform: Matrix4.IDENTITY,
     duration,

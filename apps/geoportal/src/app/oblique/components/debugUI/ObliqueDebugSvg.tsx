@@ -21,11 +21,11 @@ const ControlPanelContainer = styled.div`
 
 export const ObliqueDebugSvg = () => {
   // UI state variables
-  const [isControlsCollapsed, setIsControlsCollapsed] = useState(false);
+  const [isControlsCollapsed, setIsControlsCollapsed] = useState(true);
   const [showImages, setShowImages] = useState(false);
   const [showLabels, setShowLabels] = useState(false);
   const [offsetImages, setOffsetImages] = useState(false);
-  const [isSvgCollapsed, setIsSvgCollapsed] = useState(false);
+  const [isSvgCollapsed, setIsSvgCollapsed] = useState(true);
 
   // Slider state variables
   const [imageWidth, setImageWidth] = useState(316);

@@ -25,7 +25,7 @@ export const CameraVectorControls: React.FC<CameraVectorControlsProps> = ({
   upVector,
   setUpVector,
 }: CameraVectorControlsProps) => {
-  const [activeKey, setActiveKey] = useState<string[]>(["1"]);
+  const [activeKey, setActiveKey] = useState<string[]>([]);
 
   if (!exteriorOrientation || !photoId) return null;
 

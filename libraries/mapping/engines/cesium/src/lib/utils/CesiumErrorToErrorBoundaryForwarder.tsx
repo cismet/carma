@@ -1,5 +1,5 @@
 import {
-  ErrorBoundaryProps,
+  type ErrorBoundaryProps,
   useErrorBoundary,
   withErrorBoundary,
 } from "react-error-boundary";

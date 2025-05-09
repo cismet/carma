@@ -82,13 +82,22 @@ const correctForUTMConvergence = (
 
 export const computeDerivedExteriorOrientation = (
   record: ExteriorOrientationRecord,
-  { converter, sourceCrs }: Proj4Converter
+  { converter, sourceCrs }: Proj4Converter,
+  upMapping: { rowIndex: number; negate: boolean } = {
+    rowIndex: 1,
+    negate: false,
+  }
 ): DerivedExteriorOrientation => {
   const { x, y, z, m } = record;
 
   const [lon, lat, height] = converter.forward([x, y, z]);
 
   // Create the derived exterior orientation object with sourceCRS
+
+  const up = upMapping.negate
+    ? negateRow(m[upMapping.rowIndex])
+    : m[upMapping.rowIndex];
+
   const derivedOrientation: DerivedExteriorOrientation = {
     sourceCrs,
     position: {
@@ -97,7 +106,7 @@ export const computeDerivedExteriorOrientation = (
     },
     rotation: {
       enu: {
-        sourceCRS: { m, direction: m[2], up: m[1] },
+        sourceCRS: { m, direction: m[2], up },
       },
     },
   };

@@ -69,6 +69,7 @@ import {
 } from "../utils/previewVisibility";
 
 import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
+import { CAMERA_ID_INTERIOR_ORIENTATION_PERCENTAGE_OFFSETS } from "../config";
 
 type ObliqueControlsProps = {
   /**
@@ -119,6 +120,22 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     ? getPreviewImageUrl(
         previewPath,
         previewQualityLevel,
+        nearestImage.record.id
+      )
+    : null;
+
+  const previewUrlHq = nearestImage
+    ? getPreviewImageUrl(
+        previewPath,
+        OBLIQUE_PREVIEW_QUALITY.LEVEL_2,
+        nearestImage.record.id
+      )
+    : null;
+
+  const previewUrlOriginal = nearestImage
+    ? getPreviewImageUrl(
+        previewPath,
+        OBLIQUE_PREVIEW_QUALITY.LEVEL_1,
         nearestImage.record.id
       )
     : null;
@@ -541,6 +558,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       {nearestImage && previewPath && nearestImage.record.id && (
         <ObliqueImagePreview
           src={previewUrl}
+          srcHQ={previewUrlHq}
+          srcOriginal={previewUrlOriginal}
           alt={`Image preview ${nearestImage.record.id}`}
           isVisible={isPreviewVisible}
           onOpenImageLink={openImageLink}
@@ -555,6 +574,11 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
               cesiumSafeRequestRender(viewerRef.current);
             }, 50);
           }}
+          interiorOrientationOffsets={
+            CAMERA_ID_INTERIOR_ORIENTATION_PERCENTAGE_OFFSETS[
+              nearestImage.record.cameraId
+            ]
+          }
         />
       )}
       <div
