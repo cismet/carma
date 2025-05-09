@@ -321,9 +321,7 @@ function App({ name, styleManipulation }) {
             try {
               const code = await fetch(url).then((r) => r.text());
               // The JS file must define a function named styleManipulation
-              console.log("xxx code", code);
               const func = new Function(code + "; return styleManipulation;")();
-              console.log("xxx func", func);
               layer.styleManipulation = func;
             } catch (e) {
               log(

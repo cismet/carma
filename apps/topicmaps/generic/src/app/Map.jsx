@@ -116,7 +116,7 @@ const Map = ({
         if (globalHits[layer.id] && globalHits[layer.id].length > 0) {
           const hit = globalHits[layer.id][0];
           hit.setSelection(true);
-          console.log("layer", layer);
+          // console.log("layer", layer);
 
           const infoboxMapping =
             layer.infoboxMapping ||
