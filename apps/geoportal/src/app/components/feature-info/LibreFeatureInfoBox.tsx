@@ -159,8 +159,8 @@ const LibreFeatureInfoBox = ({ pos }: InfoBoxProps) => {
     }
   }, [loadingFeatureInfo]);
 
-  if (loadingFeatureInfo && shouldRenderLoadingInfobox)
-    return <LoadingInfoBox />;
+  // if (loadingFeatureInfo && shouldRenderLoadingInfobox)
+  //   return <LoadingInfoBox />;
 
   if (!selectedFeature) {
     return null;
