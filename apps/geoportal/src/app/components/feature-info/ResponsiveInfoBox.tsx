@@ -1,6 +1,7 @@
 import CollapsibleWell from "react-cismap/commons/CollapsibleWell";
 import CollapsibleABWell from "react-cismap/commons/CollapsibleABWell";
 import { useState } from "react";
+import { Control } from "@carma-mapping/map-controls-layout";
 
 export const MODES = { DEFAULT: "DEFAULT", AB: "AB" };
 
@@ -66,68 +67,68 @@ const ResponsiveInfoBox = ({
 
   return (
     <div>
-      {/* <Control
-        key={"InfoBoxElements." + responsiveState}
-        id={"InfoBoxElements." + responsiveState}
-      > */}
-      <div
-        style={{
-          ...infoBoxStyle,
-          marginBottom: infoBoxBottomMargin,
-          fontFamily: "Helvetica Neue, Arial, Helvetica, sans-serif",
-          fontSize: "0.75rem",
-        }}
-      >
-        {header}
-        {mode === MODES.DEFAULT && (
-          <CollapsibleWell
-            collapsed={collapsed}
-            setCollapsed={setCollapsed}
-            style={{
-              pointerEvents: "auto",
-              padding: 0,
-              paddingLeft: 9,
-              ...collapsibleStyle,
-            }}
-            debugBorder={0}
-            tableStyle={{ margin: 0 }}
-            fixedRow={fixedRow}
-            alwaysVisibleDiv={alwaysVisibleDiv}
-            collapsibleDiv={collapsibleDiv}
-            collapseButtonAreaStyle={collapseButtonAreaStyle}
-            onClick={panelClick}
-            pixelwidth={pixelwidth}
-            isCollapsible={isCollapsible}
-          />
-        )}
-        {mode === MODES.AB && (
-          <CollapsibleABWell
-            collapsed={collapsed}
-            setCollapsed={setCollapsed}
-            style={{
-              pointerEvents: "auto",
-              padding: 0,
-              paddingLeft: 9,
-              ...collapsibleStyle,
-            }}
-            debugBorder={0}
-            tableStyle={{ margin: 0 }}
-            fixedRow={fixedRow}
-            divWhenCollapsed={divWhenCollapsed}
-            divWhenLarge={divWhenLarge}
-            collapseButtonAreaStyle={collapseButtonAreaStyle}
-            onClick={panelClick}
-            pixelwidth={pixelwidth}
-            isCollapsible={isCollapsible}
-          />
-        )}
-      </div>
-      {/* </Control> */}
+      <Control position="bottomright" order={11}>
+        <div
+          style={{
+            ...infoBoxStyle,
+            marginBottom: infoBoxBottomMargin,
+            fontFamily: "Helvetica Neue, Arial, Helvetica, sans-serif",
+            fontSize: "0.75rem",
+          }}
+        >
+          {header}
+          {mode === MODES.DEFAULT && (
+            <CollapsibleWell
+              collapsed={collapsed}
+              setCollapsed={setCollapsed}
+              style={{
+                pointerEvents: "auto",
+                padding: 0,
+                paddingLeft: 9,
+                ...collapsibleStyle,
+              }}
+              debugBorder={0}
+              tableStyle={{ margin: 0 }}
+              fixedRow={fixedRow}
+              alwaysVisibleDiv={alwaysVisibleDiv}
+              collapsibleDiv={collapsibleDiv}
+              collapseButtonAreaStyle={collapseButtonAreaStyle}
+              onClick={panelClick}
+              pixelwidth={pixelwidth}
+              isCollapsible={isCollapsible}
+            />
+          )}
+          {mode === MODES.AB && (
+            <CollapsibleABWell
+              collapsed={collapsed}
+              setCollapsed={setCollapsed}
+              style={{
+                pointerEvents: "auto",
+                padding: 0,
+                paddingLeft: 9,
+                ...collapsibleStyle,
+              }}
+              debugBorder={0}
+              tableStyle={{ margin: 0 }}
+              fixedRow={fixedRow}
+              divWhenCollapsed={divWhenCollapsed}
+              divWhenLarge={divWhenLarge}
+              collapseButtonAreaStyle={collapseButtonAreaStyle}
+              onClick={panelClick}
+              pixelwidth={pixelwidth}
+              isCollapsible={isCollapsible}
+            />
+          )}
+        </div>
+      </Control>
       {secondaryInfoBoxElements.map((element, index) => (
-        // <Control
-        // >
-        <div style={{ opacity: 0.9 }}>{element}</div>
-        // </Control>
+        <Control
+          position="bottomright"
+          order={10 - index}
+          key={"secondaryElement_" + index}
+        >
+          <div style={{ opacity: 0.9 }}>{element}</div>
+        </Control>
       ))}
     </div>
   );
