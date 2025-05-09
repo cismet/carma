@@ -277,8 +277,6 @@ export const addMarkerToMap = (
       <div class="marker-line vertical-top"></div>
       <div class="marker-line vertical-bottom"></div>
     </div>
-    <div class="feature-info-marker-inner">
-    </div>
   `;
 
   const marker = new maplibregl.Marker({

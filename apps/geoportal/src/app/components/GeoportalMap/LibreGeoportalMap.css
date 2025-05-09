@@ -20,14 +20,6 @@
   justify-content: center;
 }
 
-.feature-info-marker-inner {
-  position: absolute;
-  width: 6px;
-  height: 6px;
-  background-color: yellow;
-  border-radius: 50%;
-}
-
 .marker-inner {
   position: relative;
   width: 30px;
@@ -57,23 +49,23 @@
 .horizontal-left {
   width: 20000px;
   height: 1px;
-  right: 18px;
+  right: 14px;
 }
 
 .horizontal-right {
   width: 20000px;
   height: 1px;
-  left: 18px;
+  left: 14px;
 }
 
 .vertical-top {
   width: 1px;
   height: 20000px;
-  top: 18px;
+  top: 14px;
 }
 
 .vertical-bottom {
   width: 1px;
   height: 20000px;
-  bottom: 18px;
+  bottom: 14px;
 }
