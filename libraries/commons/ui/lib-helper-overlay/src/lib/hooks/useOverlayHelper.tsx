@@ -1,13 +1,12 @@
-import { useState, useContext, useLayoutEffect } from "react";
+import { useState, useLayoutEffect } from "react";
 import { OptionsOverlayHelper, OverlayHelperConfig, Secondary } from "../..";
-import { OverlayTourContext } from "../components/OverlayTourProvider";
+import { useOverlayTourContext } from "../components/OverlayTourProvider";
 import { isElementHidden } from "../utils/helper";
 import { useWindowSize } from "@uidotdev/usehooks";
 
 export const useOverlayHelper = (options: OptionsOverlayHelper) => {
   const [ref, setRef] = useState<HTMLElement | null>(null);
-  const { addConfig, removeConfig } = useContext(OverlayTourContext);
-
+  const { addConfig, removeConfig } = useOverlayTourContext();
   const size = useWindowSize();
 
   if (!options || options.primary === undefined) {

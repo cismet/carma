@@ -16,10 +16,7 @@ export {
 
 export { Save } from "./lib/components/Save.tsx";
 export { Share } from "./lib/components/Share.tsx";
-export {
-  CarmaMapContextProvider,
-  useCarmaMapContext,
-} from "./lib/components/CarmaMapContextProvider.tsx";
+export { CarmaMapProviderWrapper } from "./lib/components/CarmaMapProviderWrapper.tsx";
 
 export { GazDataProvider, useGazData } from "./lib/components/GazDataProvider";
 

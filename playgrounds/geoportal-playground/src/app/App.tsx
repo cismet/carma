@@ -114,8 +114,7 @@ function App({ published }: { published?: boolean }) {
 
   const content = (
     <OverlayTourProvider
-      show={mode === "tour" ? true : false}
-      closeOverlay={() => dispatch(setMode("default"))}
+      showOnLoad={mode === "tour" ? true : false}
       transparency={0.8}
       color="black"
     >
