@@ -1,4 +1,8 @@
-import type { FilterSpecification, StyleSpecification } from "maplibre-gl";
+import type {
+  FilterSpecification,
+  MapGeoJSONFeature,
+  StyleSpecification,
+} from "maplibre-gl";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
@@ -40,7 +44,10 @@ const LibreGeoportalMap = () => {
   const dispatch = useDispatch();
   const { pathname } = useLocation();
   const selectedFeature = useSelector(getSelectedFeature);
-  const [selectedVectorFeatures, setSelectedVectorFeatures] = useState([]);
+  const selectedVectorFeaturesRef = useRef<Set<MapGeoJSONFeature>>(new Set());
+  const [selectedVectorFeatures, setSelectedVectorFeatures] = useState<
+    Set<MapGeoJSONFeature>
+  >(new Set());
   const uiMode = useSelector(getUIMode);
   const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
 
@@ -76,17 +83,6 @@ const LibreGeoportalMap = () => {
     return undefined;
   };
 
-  const setSelection = (selection: boolean, hit: any) => {
-    map.current?.setFeatureState(
-      {
-        source: hit.source,
-        sourceLayer: hit.sourceLayer,
-        id: hit.id,
-      },
-      { selected: selection }
-    );
-  };
-
   const updateGlobalHits = () => {
     Object.keys(globalHits).forEach((key) => {
       const foundLayer = layers.find((layer) => layer.id === key);
@@ -101,7 +97,7 @@ const LibreGeoportalMap = () => {
       const hits = o[key];
       if (hits) {
         hits.forEach((hit) => {
-          setSelection(false, hit);
+          hit.setSelection(false, hit);
         });
       }
     });
@@ -222,7 +218,7 @@ const LibreGeoportalMap = () => {
             });
 
             // Deselect all selected vector features first
-            selectedVectorFeatures.forEach((feature) => {
+            selectedVectorFeaturesRef.current.forEach((feature) => {
               try {
                 map.current?.setFeatureState(
                   {
@@ -237,7 +233,7 @@ const LibreGeoportalMap = () => {
               }
             });
 
-            setSelectedVectorFeatures([]);
+            setSelectedVectorFeatures(new Set());
 
             if (filteredHits.length > 0) {
               const limitedHits = filteredHits.slice(0, maxSelectionCount);
@@ -246,6 +242,7 @@ const LibreGeoportalMap = () => {
 
               limitedHits.forEach((hit) => {
                 const setSelection = (selected) => {
+                  console.log("xxx setting selection", hit, selected);
                   map.current?.setFeatureState(
                     {
                       source: hit.source,
@@ -254,6 +251,15 @@ const LibreGeoportalMap = () => {
                     },
                     { selected }
                   );
+                  setSelectedVectorFeatures((prev) => {
+                    const newSet = new Set(prev);
+                    if (selected) {
+                      newSet.add(hit);
+                    } else {
+                      newSet.delete(hit);
+                    }
+                    return newSet;
+                  });
                   selectedFeatures.add({
                     source: hit.source,
                     sourceLayer: hit.sourceLayer,
@@ -523,6 +529,10 @@ const LibreGeoportalMap = () => {
   }, [uiMode]);
 
   useEffect(() => {
+    selectedVectorFeaturesRef.current = selectedVectorFeatures;
+  }, [selectedVectorFeatures]);
+
+  useEffect(() => {
     updateGlobalHits();
     if (selectedFeature && uiModeRef.current !== UIMode.DEFAULT) {
       resetSelection(globalHits);
@@ -531,9 +541,9 @@ const LibreGeoportalMap = () => {
         if (hits) {
           hits.forEach((hit) => {
             if (hit.id === selectedFeature.properties.wmsProps.vectorId) {
-              setSelection(true, hit);
+              hit.setSelection(true, hit);
             } else {
-              setSelection(false, hit);
+              hit.setSelection(false, hit);
             }
           });
         }
