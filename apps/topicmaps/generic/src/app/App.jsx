@@ -62,6 +62,7 @@ function App({ name, styleManipulation }) {
       setFaultLog((prev) => [...prev, msg]);
     }
   };
+  const slugName = slugify(name, { lower: true });
 
   const configPath = import.meta.env.VITE_GTM_CONFIG_PATH || "/dev/"; //uses the dev folder in public to debug local stuff when no ENV is set
   const configServer = import.meta.env.VITE_GTM_CONFIGSERVER || ""; //uses the local server when no ENV is set
@@ -86,7 +87,6 @@ function App({ name, styleManipulation }) {
     (async () => {
       const path = configPath;
       const server = configServer;
-      const slugName = slugify(name, { lower: true });
       // Start with a deep clone of the default config
       let config = JSON.parse(JSON.stringify(defaultConfig));
       // Fetch project-specific config
@@ -477,7 +477,7 @@ function App({ name, styleManipulation }) {
 
       setInitialized(true);
     })();
-  }, [name]);
+  }, [slugName, name]);
 
   useEffect(() => {
     if (config?.tm?.vectorLayers) {
@@ -602,6 +602,7 @@ function App({ name, styleManipulation }) {
               appKey="GenericTopicMap"
             >
               <Map
+                slugName={slugName}
                 config={config}
                 featureGazData={featureGazData || []}
                 layerInformation={layerInformation}
