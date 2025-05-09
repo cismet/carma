@@ -41,6 +41,7 @@ import LibreFeatureInfoBox from "../feature-info/LibreFeatureInfoBox";
 const LibreGeoportalMap = () => {
   const [globalHits, setGlobalHits] = useState({});
   const [foundFeatures, setFoundFeatures] = useState({});
+  const [pos, setPos] = useState<[number, number]>([0, 0]);
 
   const dispatch = useDispatch();
   const { pathname } = useLocation();
@@ -170,6 +171,7 @@ const LibreGeoportalMap = () => {
       dispatch(setLibreMapRef(map));
 
       map.current.on("click", (e) => {
+        setPos([e.lngLat.lat, e.lngLat.lng]);
         const point = map.current.project([e.lngLat.lng, e.lngLat.lat]);
         const hits = map.current.queryRenderedFeatures(point);
         const currentIsModeFeatureInfo =
@@ -582,7 +584,7 @@ const LibreGeoportalMap = () => {
 
   return (
     <>
-      <LibreFeatureInfoBox />
+      <LibreFeatureInfoBox pos={pos} />
       <div className="map-wrap">
         <div ref={mapContainer} className="map" />
       </div>
