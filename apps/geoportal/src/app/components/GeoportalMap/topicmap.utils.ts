@@ -493,13 +493,13 @@ const implicitVectorSelection = (
   }
 };
 
-const onSelectionChangedVector = (
+export const onSelectionChangedVector = (
   e: {
     hits: any[];
     hit: any;
     latlng: LatLng;
   },
-  { layer, layers, dispatch, zoom, selectionHandler, leafletMap }
+  { layer, dispatch, selectionHandler, leafletMap }
 ) => {
   selectionHandler(e, layer);
   if (!e.hits) {
@@ -585,6 +585,7 @@ export const createCismapLayers = (
   };
 
   const resetSelection = (o: Object) => {
+    console.log("xxx", o);
     Object.keys(o).forEach((key) => {
       const hits = o[key];
       if (hits) {
@@ -596,6 +597,7 @@ export const createCismapLayers = (
   };
 
   const updateGlobalHits = () => {
+    console.log("xxx", globalHits);
     Object.keys(globalHits).forEach((key) => {
       const foundLayer = layers.find((layer) => layer.id === key);
       if (!foundLayer || !foundLayer.visible) {
@@ -729,9 +731,7 @@ export const createCismapLayers = (
               } else if (modeRef.current === UIMode.FEATURE_INFO) {
                 onSelectionChangedVector(e, {
                   layer,
-                  layers,
                   dispatch,
-                  zoom,
                   selectionHandler,
                   leafletMap,
                 });

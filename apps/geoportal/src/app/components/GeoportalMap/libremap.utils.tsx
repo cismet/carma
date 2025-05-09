@@ -6,6 +6,7 @@ import {
   functionToFeature,
   objectToFeature,
 } from "../feature-info/featureInfoHelper";
+import maplibregl from "maplibre-gl";
 
 const getPaintProperty = (layerStyle: LayerSpecification) => {
   const type = layerStyle.type;
@@ -260,4 +261,44 @@ export const createFeature = (selectedVectorFeature, layer) => {
     };
   }
   return feature;
+};
+
+export const addMarkerToMap = (
+  map: maplibregl.Map,
+  latlng: { lat: number; lng: number }
+) => {
+  const el = document.createElement("div");
+  // el.className = "feature-info-marker";
+  el.innerHTML = `
+    <div class="marker-inner">
+      <div class="marker-circle"></div>
+      <div class="marker-line horizontal-left"></div>
+      <div class="marker-line horizontal-right"></div>
+      <div class="marker-line vertical-top"></div>
+      <div class="marker-line vertical-bottom"></div>
+    </div>
+  `;
+
+  const test = document.createElement("div");
+  test.className = "feature-info-marker";
+  test.innerHTML = `
+    <div class="feature-info-marker-inner">
+    </div>
+  `;
+
+  const marker = new maplibregl.Marker({
+    element: el,
+    draggable: false,
+  })
+    .setLngLat([latlng.lng, latlng.lat])
+    .addTo(map);
+
+  // const testMarker = new maplibregl.Marker({
+  //   element: test,
+  //   draggable: false,
+  // })
+  //   .setLngLat([latlng.lng, latlng.lat])
+  //   .addTo(map);
+
+  return marker;
 };

@@ -1,7 +1,7 @@
 import type { FilterSpecification, StyleSpecification } from "maplibre-gl";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
@@ -12,10 +12,21 @@ import {
   getLayers,
   setLibreMapRef,
 } from "../../store/slices/mapping";
-import { getCoordinates } from "./topicmap.utils";
-import { setSelectedFeature } from "../../store/slices/features";
+import {
+  getCoordinates,
+  onClickTopicMap,
+  onSelectionChangedVector,
+} from "./topicmap.utils";
+import {
+  getSelectedFeature,
+  setSelectedFeature,
+} from "../../store/slices/features";
 import store from "../../store";
-import { createFeature, layersToMapLibreStyle } from "./libremap.utils";
+import {
+  addMarkerToMap,
+  createFeature,
+  layersToMapLibreStyle,
+} from "./libremap.utils";
 import "./LibreGeoportalMap.css";
 import { useLocation } from "react-router-dom";
 import { getUIMode, UIMode } from "../../store/slices/ui";
@@ -23,10 +34,17 @@ import { Control } from "@carma-mapping/map-controls-layout";
 import LibreFeatureInfoBox from "../feature-info/LibreFeatureInfoBox";
 
 const LibreGeoportalMap = () => {
+  const [globalHits, setGlobalHits] = useState({});
+  const [foundFeatures, setFoundFeatures] = useState({});
+
   const dispatch = useDispatch();
   const { pathname } = useLocation();
+  const selectedFeature = useSelector(getSelectedFeature);
+  const [selectedVectorFeatures, setSelectedVectorFeatures] = useState([]);
   const uiMode = useSelector(getUIMode);
   const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
+
+  const maxSelectionCount = 10;
 
   const uiModeRef = useRef(uiMode);
 
@@ -46,6 +64,54 @@ const LibreGeoportalMap = () => {
 
   const layers = useSelector(getLayers);
   const backgroundLayer = useSelector(getBackgroundLayer);
+
+  const getLastDefinedObject = (o: Object) => {
+    const keys = Object.keys(o);
+    for (let i = keys.length - 1; i >= 0; i--) {
+      const value = o[keys[i]];
+      if (value !== undefined && value[0].selectionLayerExists) {
+        return { key: keys[i], value };
+      }
+    }
+    return undefined;
+  };
+
+  const setSelection = (selection: boolean, hit: any) => {
+    map.current?.setFeatureState(
+      {
+        source: hit.source,
+        sourceLayer: hit.sourceLayer,
+        id: hit.id,
+      },
+      { selected: selection }
+    );
+  };
+
+  const updateGlobalHits = () => {
+    Object.keys(globalHits).forEach((key) => {
+      const foundLayer = layers.find((layer) => layer.id === key);
+      if (!foundLayer || !foundLayer.visible) {
+        globalHits[key] = undefined;
+      }
+    });
+  };
+
+  const resetSelection = (o?: Object) => {
+    Object.keys(o).forEach((key) => {
+      const hits = o[key];
+      if (hits) {
+        hits.forEach((hit) => {
+          setSelection(false, hit);
+        });
+      }
+    });
+  };
+
+  const selectionHandler = (e, layer) => {
+    setGlobalHits((old) => {
+      return { ...old, [layer.id]: e.hits };
+    });
+  };
 
   const defaultLng = 7.150764;
   const defaultLat = 51.256;
@@ -122,43 +188,115 @@ const LibreGeoportalMap = () => {
               e.lngLat.lat,
             ]);
           } else {
-            const el = document.createElement("div");
-            el.className = "feature-info-marker";
-            el.innerHTML = `
-              <div class="marker-inner">
-                <div class="marker-circle"></div>
-                <div class="marker-line horizontal-left"></div>
-                <div class="marker-line horizontal-right"></div>
-                <div class="marker-line vertical-top"></div>
-                <div class="marker-line vertical-bottom"></div>
-              </div>
-            `;
-
-            const marker = new maplibregl.Marker({
-              element: el,
-              draggable: false,
-            })
-              .setLngLat([e.lngLat.lng, e.lngLat.lat])
-              .addTo(map.current);
-
-            featureInfoMarkerRef.current = marker;
-          }
-          if (hits) {
-            const uniqueHits = hits.filter(
-              (hit, index) => hits.findIndex((h) => h.id === hit.id) === index
-            );
-            uniqueHits.forEach((selectedVectorFeature) => {
-              const layerId =
-                selectedVectorFeature.layer?.metadata?.["layer-id"];
-              const currentLayers = getLayers(store.getState());
-              const layer = currentLayers.find((layer) => layer.id === layerId);
-              let feature;
-              if (layer) {
-                feature = createFeature(selectedVectorFeature, layer);
-              }
-              console.log("xxx", feature);
+            featureInfoMarkerRef.current = addMarkerToMap(map.current, {
+              lat: e.lngLat.lat,
+              lng: e.lngLat.lng,
             });
           }
+
+          const currentLayers = getLayers(store.getState());
+          const hitsByLayer = currentLayers
+            .map((layer) => {
+              return {
+                hits: hits.filter(
+                  (hit) => hit.layer?.metadata?.["layer-id"] === layer.id
+                ),
+                layerId: layer.id,
+              };
+            })
+            .filter((hit) => hit.hits.length > 0);
+
+          hitsByLayer.forEach((layerHit) => {
+            const layer = currentLayers.find(
+              (layer) => layer.id === layerHit.layerId
+            );
+            const layerHits = layerHit.hits;
+            if (!layer) {
+              return;
+            }
+            // click listener from cismap
+
+            const filteredHits = layerHits.filter((hit) => {
+              //hit.layer.id should not contain selection
+              return !hit.layer.id.includes("selection");
+            });
+
+            // Deselect all selected vector features first
+            selectedVectorFeatures.forEach((feature) => {
+              try {
+                map.current?.setFeatureState(
+                  {
+                    source: feature.source,
+                    sourceLayer: feature.sourceLayer,
+                    id: feature.id,
+                  },
+                  { selected: false }
+                );
+              } catch (error) {
+                console.error("Error deselecting feature state:", error);
+              }
+            });
+
+            setSelectedVectorFeatures([]);
+
+            if (filteredHits.length > 0) {
+              const limitedHits = filteredHits.slice(0, maxSelectionCount);
+
+              const normalizedLimitedHits = [];
+
+              limitedHits.forEach((hit) => {
+                const setSelection = (selected) => {
+                  map.current?.setFeatureState(
+                    {
+                      source: hit.source,
+                      sourceLayer: hit.sourceLayer,
+                      id: hit.id,
+                    },
+                    { selected }
+                  );
+                  selectedFeatures.add({
+                    source: hit.source,
+                    sourceLayer: hit.sourceLayer,
+                    id: hit.id,
+                  });
+                };
+
+                hit.setSelection = setSelection;
+
+                //add hit to normalizedLimitedHits if an object with the id isn't already in the array
+                if (!normalizedLimitedHits.some((e) => e.id === hit.id)) {
+                  normalizedLimitedHits.push(hit);
+                }
+              });
+              // onSelectionChanged will be called here
+              onSelectionChangedVector(
+                {
+                  hits: normalizedLimitedHits,
+                  hit: normalizedLimitedHits[0],
+                  latlng: e.lngLat,
+                },
+                {
+                  layer,
+                  dispatch,
+                  selectionHandler,
+                  leafletMap: undefined,
+                }
+              );
+            }
+          });
+
+          onClickTopicMap(
+            {
+              latlng: e.lngLat,
+            },
+            {
+              dispatch,
+              mode: uiModeRef.current,
+              store,
+              zoom: map.current?.getZoom(),
+              map: undefined,
+            }
+          );
         } else {
           let filteredHits = hits.filter((hit) => {
             return !hit.layer.id.includes("selection");
@@ -384,11 +522,46 @@ const LibreGeoportalMap = () => {
     }
   }, [uiMode]);
 
+  useEffect(() => {
+    updateGlobalHits();
+    if (selectedFeature && uiModeRef.current !== UIMode.DEFAULT) {
+      resetSelection(globalHits);
+      if (globalHits[selectedFeature.id]) {
+        const hits = globalHits[selectedFeature.id];
+        if (hits) {
+          hits.forEach((hit) => {
+            if (hit.id === selectedFeature.properties.wmsProps.vectorId) {
+              setSelection(true, hit);
+            } else {
+              setSelection(false, hit);
+            }
+          });
+        }
+      }
+    }
+  }, [selectedFeature]);
+
+  useEffect(() => {
+    updateGlobalHits();
+    if (uiModeRef.current === UIMode.DEFAULT) {
+      const lastObject = getLastDefinedObject(globalHits);
+
+      if (lastObject) {
+        resetSelection(globalHits);
+        const selectedVectorFeature = lastObject.value[0];
+        if (selectedVectorFeature.setSelection) {
+          selectedVectorFeature.setSelection(true);
+          dispatch(setSelectedFeature(foundFeatures[lastObject.key]));
+        }
+      } else {
+        dispatch(setSelectedFeature(null));
+      }
+    }
+  }, [globalHits]);
+
   return (
     <>
-      <Control position="bottomright" order={10}>
-        <LibreFeatureInfoBox />
-      </Control>
+      <LibreFeatureInfoBox />
       <div className="map-wrap">
         <div ref={mapContainer} className="map" />
       </div>
