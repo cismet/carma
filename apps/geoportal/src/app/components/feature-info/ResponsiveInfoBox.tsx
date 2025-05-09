@@ -127,7 +127,15 @@ const ResponsiveInfoBox = ({
           order={10 - index}
           key={"secondaryElement_" + index}
         >
-          <div style={{ opacity: 0.9 }}>{element}</div>
+          <div
+            style={{
+              opacity: 0.9,
+              display: "flex",
+              justifyContent: "flex-end",
+            }}
+          >
+            {element}
+          </div>
         </Control>
       ))}
     </div>

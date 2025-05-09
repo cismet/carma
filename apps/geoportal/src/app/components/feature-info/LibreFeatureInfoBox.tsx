@@ -174,6 +174,8 @@ const LibreFeatureInfoBox = ({ pos }: InfoBoxProps) => {
           paddingBottom: 3,
           paddingLeft: 10 + i * 10,
           cursor: "pointer",
+          fontSize: "0.75rem",
+          fontFamily: "Helvetica Neue, Arial, Helvetica, sans-serif",
         }}
         key={"overlapping."}
         onClick={() => {
