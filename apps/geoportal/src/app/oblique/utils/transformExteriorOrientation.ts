@@ -1,6 +1,6 @@
-import { Matrix3RowMajor, Vector3Arr } from "types/math";
-import { ExteriorOrientationRecord, Proj4Converter } from "../types";
 import { Cartesian3, Ellipsoid, Matrix4, Transforms } from "cesium";
+import type { Matrix3RowMajor, Vector3Arr } from "@carma-commons/types";
+import type { ExteriorOrientationRecord, Proj4Converter } from "../types";
 import { calculateUTMConvergence } from "./utmConvergence";
 
 const negateRow = <T extends readonly number[]>(

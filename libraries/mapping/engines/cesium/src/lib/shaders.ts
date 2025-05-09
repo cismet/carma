@@ -1,5 +1,5 @@
 import { LightingModel } from "cesium";
-import { CesiumCustomChaderOptions } from "types/shaders";
+import type { CesiumCustomChaderOptions } from "@carma-commons/types";
 
 export enum CustomShaderKeys {
   CLAY = "CLAY",

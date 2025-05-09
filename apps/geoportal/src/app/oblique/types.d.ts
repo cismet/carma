@@ -1,4 +1,3 @@
-import { Vector3Arr } from "types/math";
 import { OBLIQUE_PREVIEW_QUALITY } from "./constants";
 
 export type ExteriorOrientationOPK = {

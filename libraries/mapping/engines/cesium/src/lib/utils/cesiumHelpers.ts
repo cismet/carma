@@ -24,8 +24,8 @@ import {
 import type { TilesetConfig } from "@carma-commons/resources";
 
 import { isValidViewerInstance } from "./cesiumTypeGuards";
-import type { LatLngRadians, LatLngRecord } from "types/common-geo";
-import type { NumericResult } from "types/math";
+import type { LatLngRadians, LatLngRecord } from "@carma-commons/types";
+import type { NumericResult } from "@carma-commons/types";
 
 // Constants
 
