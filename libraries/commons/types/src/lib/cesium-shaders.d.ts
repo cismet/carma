@@ -6,7 +6,7 @@ import type {
   VaryingType,
 } from "cesium";
 
-export type CesiumCustomChaderOptions = {
+export interface CesiumCustomChaderOptions {
   mode?: CustomShaderMode;
   lightingModel?: LightingModel;
   translucencyMode?: CustomShaderTranslucencyMode;
@@ -18,4 +18,4 @@ export type CesiumCustomChaderOptions = {
   };
   vertexShaderText?: string;
   fragmentShaderText?: string;
-};
+}

@@ -1,20 +1,20 @@
-export type LatLngRecord = {
+export interface LatLngRecord {
   latitude: number;
   longitude: number;
-};
+}
 
-export type LatLngDegrees = {
+export interface LatLngDegrees {
   latDeg: number;
   lngDeg: number;
-};
+}
 
-export type LatLngRadians = {
+export interface LatLngRadians {
   latRad: number;
   lngRad: number;
-};
+}
 
-export type PlainCartesian3 = {
+export interface PlainCartesian3 {
   x: number;
   y: number;
   z: number;
-};
+}
