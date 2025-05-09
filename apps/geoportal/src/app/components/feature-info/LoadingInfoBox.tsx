@@ -1,4 +1,3 @@
-import InfoBox from "react-cismap/topicmaps/InfoBox";
 import { useSelector } from "react-redux";
 import { getLayers } from "../../store/slices/mapping";
 import InfoBoxHeader from "react-cismap/topicmaps/InfoBoxHeader";
@@ -9,6 +8,8 @@ import {
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useContext } from "react";
 import { getQueryableLayers } from "../GeoportalMap/utils";
+import { getHashParams } from "@carma-commons/utils";
+import Infobox from "./Infobox";
 
 const LoadingInfoBox = () => {
   const layers = useSelector(getLayers);
@@ -16,8 +17,9 @@ const LoadingInfoBox = () => {
   const preferredLayerId = useSelector(getPreferredLayerId);
 
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
+  const hashParams = getHashParams();
   const map = routedMapRef?.leafletMap?.leafletElement;
-  const zoom = map?.getZoom();
+  const zoom = map?.getZoom() ?? hashParams.zoom;
 
   const queryableLayers = getQueryableLayers(layers, zoom);
 
@@ -40,6 +42,8 @@ const LoadingInfoBox = () => {
           paddingBottom: 3,
           paddingLeft: 10 + i * 10,
           cursor: "pointer",
+          fontSize: "0.75rem",
+          fontFamily: "Helvetica Neue, Arial, Helvetica, sans-serif",
         }}
         key={"overlapping."}
       >
@@ -49,7 +53,7 @@ const LoadingInfoBox = () => {
   });
 
   return (
-    <InfoBox
+    <Infobox
       pixelwidth={350}
       currentFeature={{}}
       hideNavigator={true}

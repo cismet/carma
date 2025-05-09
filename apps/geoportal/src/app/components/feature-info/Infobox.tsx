@@ -13,6 +13,37 @@ import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopic
 import Color from "color";
 import parseHtml from "html-react-parser";
 
+interface InfoboxProps {
+  currentFeature: any;
+  featureCollection?: any;
+  selectedIndex?: any;
+  next?: any;
+  previous?: any;
+  fitAll?: any;
+  panelClick?: any;
+  pixelwidth: any;
+  header: any;
+  headerColor: any;
+  links?: any;
+  title: any;
+  subtitle: any;
+  additionalInfo: any;
+  zoomToAllLabel?: any;
+  currentlyShownCountLabel?: any;
+  collapsedInfoBox?: any;
+  setCollapsedInfoBox?: any;
+  noCurrentFeatureTitle?: any;
+  noCurrentFeatureContent?: any;
+  isCollapsible?: any;
+  hideNavigator?: any;
+  handleResponsiveDesign?: any;
+  infoStyle?: any;
+  fixedRow?: any;
+  secondaryInfoBoxElements?: any;
+  colorizer?: any;
+  defaultContextValues?: any;
+}
+
 const Infobox = ({
   currentFeature,
   featureCollection,
@@ -43,7 +74,7 @@ const Infobox = ({
 
   colorizer = (props) => ((props || {}).properties || {}).color, //
   defaultContextValues = {},
-}) => {
+}: InfoboxProps) => {
   const featureCollectionContext =
     useContext<typeof FeatureCollectionContext>(FeatureCollectionContext) ||
     defaultContextValues;
