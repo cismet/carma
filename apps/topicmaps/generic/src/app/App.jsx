@@ -50,7 +50,7 @@ const errorConfig = {
   },
 };
 
-function App({ name, styleManipulation }) {
+function App({ name }) {
   // --- Fault log state and helper ---
   const [faultLog, setFaultLog] = useState([]);
   const log = (msg, attachment) => {
