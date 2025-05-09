@@ -56,6 +56,11 @@ const LibreGeoportalMap = () => {
   const maxSelectionCount = 10;
 
   const uiModeRef = useRef(uiMode);
+  const positionRef = useRef<[number, number]>([0, 0]);
+
+  useEffect(() => {
+    positionRef.current = pos;
+  }, [pos]);
 
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -171,6 +176,7 @@ const LibreGeoportalMap = () => {
       dispatch(setLibreMapRef(map));
 
       map.current.on("click", (e) => {
+        console.log("xxx trigger click", e);
         setPos([e.lngLat.lat, e.lngLat.lng]);
         const point = map.current.project([e.lngLat.lng, e.lngLat.lat]);
         const hits = map.current.queryRenderedFeatures(point);
@@ -454,6 +460,29 @@ const LibreGeoportalMap = () => {
               dispatch(setSelectedFeature(feature));
             }
           }
+        }
+      });
+
+      map.current.on("zoomend", () => {
+        const currentIsModeFeatureInfo =
+          uiModeRef.current === UIMode.FEATURE_INFO;
+        if (currentIsModeFeatureInfo && positionRef.current[0] !== 0) {
+          map.current.fire("click", {
+            lngLat: {
+              lat: positionRef.current[0],
+              lng: positionRef.current[1],
+            },
+            target: map.current,
+            type: "click",
+            point: map.current.project([
+              positionRef.current[1],
+              positionRef.current[0],
+            ]),
+            originalEvent: {
+              preventDefault: () => {},
+              stopPropagation: () => {},
+            },
+          });
         }
       });
 
