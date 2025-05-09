@@ -18,7 +18,7 @@ import {
 } from "cesium";
 import { generateRingFromDegrees } from "./utils/cesiumHelpers";
 import { CUSTOM_SHADERS_DEFINITIONS } from "./shaders";
-import type { LatLngRadians, LatLngRecord } from "types/common-geo";
+import type { LatLngRadians, LatLngRecord } from "@carma-commons/types";
 
 const unlit = new CustomShader(CUSTOM_SHADERS_DEFINITIONS.UNLIT);
 

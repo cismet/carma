@@ -5,7 +5,7 @@ import { useTweakpaneCtx } from "@carma-commons/debug";
 import { Widget } from "@carma-mapping/cesium-widget-engine";
 
 import { WUPP_MESH_2024 } from "@carma-commons/resources";
-import type { LatLngRecord } from "types/common-geo";
+import type { LatLngRecord } from "@carma-commons/types";
 
 import { FOOTPRINT_GEOJSON_SOURCES } from "../../../config/dataSources.config";
 

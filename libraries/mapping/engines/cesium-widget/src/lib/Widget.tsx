@@ -19,7 +19,7 @@ import {
 import { generateRingFromDegrees } from "./utils";
 
 import type { FC, ReactNode } from "react";
-import type { LatLngRadians, LatLngRecord } from "types/common-geo";
+import type { LatLngRadians, LatLngRecord } from "@carma-commons/types";
 import { CUSTOM_SHADERS_DEFINITIONS } from "@carma-mapping/cesium-engine";
 
 const unlit = new CustomShader(CUSTOM_SHADERS_DEFINITIONS.UNLIT_ENHANCED_2024);

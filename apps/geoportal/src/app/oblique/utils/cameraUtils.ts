@@ -16,12 +16,8 @@ import {
   getOrbitPoint,
   type ViewerAnimationMap,
 } from "@carma-mapping/cesium-engine";
-import {
-  DerivedExteriorOrientation,
-  enuToEcef,
-} from "./transformExteriorOrientation";
-import { Vector3Arr } from "types/math";
-import { AnimationConfig } from "../types";
+import { DerivedExteriorOrientation } from "./transformExteriorOrientation";
+import type { AnimationConfig } from "../types";
 
 const ENTER_DURATION = 1000;
 const LEAVE_BASE_DURATION = 800;

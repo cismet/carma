@@ -1,4 +1,4 @@
-import { LatLngDegrees } from "types/common-geo";
+import type { LatLngDegrees } from "@carma-commons/types";
 
 export type PositionPreset = {
   name: string;

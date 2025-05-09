@@ -12,7 +12,7 @@ import {
   getApproximateHeadingBySector,
   CardinalDirectionEnum,
 } from "./orientationUtils";
-import { Matrix3RowMajor } from "types/math";
+import type { Matrix3RowMajor } from "@carma-commons/types";
 
 export const extendObliqueImageRecord = (
   image: BasicObliqueImageRecord,

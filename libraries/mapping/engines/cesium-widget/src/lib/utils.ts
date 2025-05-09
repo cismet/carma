@@ -1,6 +1,6 @@
 import { Cartographic, Math as CesiumMath } from "cesium";
 
-import type { LatLngRadians, LatLngRecord } from "types/common-geo";
+import type { LatLngRadians, LatLngRecord } from "@carma-commons/types";
 
 export const EARTH_RADIUS = 6371008.7714;
 

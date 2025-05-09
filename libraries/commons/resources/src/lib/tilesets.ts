@@ -1,6 +1,6 @@
 import { type Cesium3DTileset } from "cesium";
-import { type PlainCartesian3 } from "types/common-geo";
-import { type CesiumCustomChaderOptions } from "types/shaders";
+import { type PlainCartesian3 } from "@carma-commons/types";
+import { type CesiumCustomChaderOptions } from "@carma-commons/types";
 
 export enum TilesetType {
   MESH = "mesh",

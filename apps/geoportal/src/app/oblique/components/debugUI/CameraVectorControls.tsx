@@ -1,13 +1,11 @@
 import React, { useState } from "react";
-import { type CSSProperties, styled } from "styled-components";
 import { Collapse } from "antd";
 import type { CollapseProps } from "antd";
+import type { Vector3Arr } from "@carma-commons/types";
 
-import type { ExteriorOrientationRecord } from "../../types";
 import VectorInput from "./VectorInput";
 import { UnitVectorDisplay } from "./UnitVectorDisplay";
-import type { Vector3Arr } from "types/math";
-import { DerivedExteriorOrientation } from "../../utils/transformExteriorOrientation";
+import type { DerivedExteriorOrientation } from "../../utils/transformExteriorOrientation";
 
 interface CameraVectorControlsProps {
   photoId?: string;
