@@ -65,9 +65,7 @@ export function GazDataProvider({
   );
 
   return (
-    <GazDataContext.Provider value={value}>
-      {children}
-    </GazDataContext.Provider>
+    <GazDataContext.Provider value={value}>{children}</GazDataContext.Provider>
   );
 }
 

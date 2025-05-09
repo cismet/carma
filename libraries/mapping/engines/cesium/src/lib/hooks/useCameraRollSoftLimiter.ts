@@ -69,7 +69,11 @@ const useCameraRollSoftLimiter = ({
               );
             const rollDelta = Math.abs(viewer.camera.roll);
             const duration = Math.min(rollDelta, 1);
-            console.debug("Roll delta animation duration mapping", rollDelta, duration);
+            console.debug(
+              "Roll delta animation duration mapping",
+              rollDelta,
+              duration
+            );
             dispatch(setIsAnimating());
             viewer.camera.flyTo({
               destination: viewer.camera.position,
