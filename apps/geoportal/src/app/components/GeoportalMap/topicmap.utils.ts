@@ -585,7 +585,6 @@ export const createCismapLayers = (
   };
 
   const resetSelection = (o: Object) => {
-    console.log("xxx", o);
     Object.keys(o).forEach((key) => {
       const hits = o[key];
       if (hits) {
@@ -597,7 +596,6 @@ export const createCismapLayers = (
   };
 
   const updateGlobalHits = () => {
-    console.log("xxx", globalHits);
     Object.keys(globalHits).forEach((key) => {
       const foundLayer = layers.find((layer) => layer.id === key);
       if (!foundLayer || !foundLayer.visible) {
