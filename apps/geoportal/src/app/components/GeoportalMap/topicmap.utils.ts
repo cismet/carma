@@ -102,13 +102,13 @@ export const cancelOngoingRequests = () => {
 
 export const onClickTopicMap = async (
   e: {
-    containerPoint: Point;
-    latlng: LatLng;
-    layerPoint: Point;
-    originalEvent: PointerEvent;
-    sourceTarget: HTMLElement;
-    target: HTMLElement;
-    type: string;
+    containerPoint?: Point;
+    latlng: LatLng | maplibregl.LngLat;
+    layerPoint?: Point;
+    originalEvent?: PointerEvent;
+    sourceTarget?: HTMLElement;
+    target?: HTMLElement;
+    type?: string;
   },
   { dispatch, mode, store, zoom, map }: Options
 ) => {
@@ -497,7 +497,7 @@ export const onSelectionChangedVector = (
   e: {
     hits: any[];
     hit: any;
-    latlng: LatLng;
+    latlng: LatLng | maplibregl.LngLat;
   },
   { layer, dispatch, selectionHandler, leafletMap }
 ) => {
