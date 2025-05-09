@@ -22,13 +22,6 @@ contacts.set("RohdeT102", {
   telefon: "+49-202-563 6738",
   mail: "tanja.rohde@stadt.wuppertal.de",
 });
-contacts.set("ThaederA102", {
-  anrede: "Herr",
-  vorname: "Achim",
-  nachname: "Thäder",
-  telefon: "+49-202-563 5998",
-  mail: "achim.thaeder@stadt.wuppertal.de",
-});
 
 contacts.set("PytlikS102", {
   anrede: "Frau",

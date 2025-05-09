@@ -18,8 +18,8 @@
         "style": "https://tiles.cismet.de/poi/trinkwasserbrunnen.style.json",
         "layer": "poi_trinkwasser@https://maps.wuppertal.de/poi?service=WMS&request=GetCapabilities&version=1.1.1",
         "addMetaInfoToHelp":true,
-        "styleManipulation": "@trinkwasserbrunnenStyleModification.js"
-      }
+        "styleManipulation": "@trinkwasserbrunnenStyleModification.js"   
+         }
     ] 
   }
 }

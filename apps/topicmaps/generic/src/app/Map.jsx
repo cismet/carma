@@ -48,6 +48,47 @@ const downloadText = (text, filename) => {
 
   document.body.removeChild(element);
 };
+
+// Function to render vector layers
+function renderVectorLayers(config, markerSymbolSize, setGlobalHits) {
+  return (
+    <>
+      {config.tm.vectorLayers &&
+        config.tm.vectorLayers.map((layer, index) => {
+          let style = layer.style;
+          if (typeof layer.styleManipulation === "function") {
+            style = layer.styleManipulation(markerSymbolSize, layer.style);
+          }
+          const cl_key =
+            "cismapLayer." +
+            md5(JSON.stringify(style)) +
+            "." +
+            (layer.id || index);
+
+          return (
+            <CismapLayer
+              key={cl_key}
+              type="vector"
+              {...layer}
+              style={style}
+              additionalLayerUniquePane={"vector." + index}
+              additionalLayersFreeZOrder={index}
+              selectionEnabled={true}
+              manualSelectionManagement={true}
+              maxSelectionCount={1}
+              onSelectionChanged={(e) => {
+                setGlobalHits((old) => {
+                  const ret = { ...old, [layer.id]: e.hits };
+                  return ret;
+                });
+              }}
+            />
+          );
+        })}
+    </>
+  );
+}
+
 const Map = ({
   config,
   featureGazData = [],
@@ -58,12 +99,7 @@ const Map = ({
   const { selectedFeature } = useContext(FeatureCollectionContext);
   const [globalHits, setGlobalHits] = useState({});
   const { markerSymbolSize } = useContext(TopicMapStylingContext);
-
-  const [mss, setMss] = useState(markerSymbolSize);
-
-  useEffect(() => {
-    setMss(markerSymbolSize);
-  }, [markerSymbolSize]);
+  const [cl_key, setClKey] = useState("");
 
   // console.log("xxx markerSymbolSize", markerSymbolSize);
 
@@ -180,9 +216,11 @@ const Map = ({
             }
             simpleHelp={config?.simpleHelpObject}
             previewMapPosition={config?.tm?.previewMapPosition}
+            previewChildren={renderVectorLayers(config, markerSymbolSize, setGlobalHits)}
             previewFeatureCollectionCount={
               config?.tm?.previewFeatureCollectionCount
             }
+            previewChildrenKey={cl_key}
             introductionMarkdown={
               config?.tm?.applicationMenuIntroductionMarkdown
             }
@@ -203,41 +241,7 @@ const Map = ({
           />
         }
       >
-        {config.tm.vectorLayers &&
-          config.tm.vectorLayers.map((layer, index) => {
-            // Use config.tm.markerSymbolSize if available, else default to 16
-            let style = layer.style;
-            if (typeof layer.styleManipulation === "function") {
-              style = layer.styleManipulation(markerSymbolSize, layer.style);
-            }
-            // console.log(" layer ", layer);
-            const cl_key =
-              "cismapLayer." +
-              md5(JSON.stringify(style)) +
-              "." +
-              (layer.id || index);
-            console.log("xxx cl_key ", cl_key);
-
-            return (
-              <CismapLayer
-                key={cl_key}
-                type="vector"
-                {...layer}
-                style={style}
-                additionalLayerUniquePane={"vector." + index}
-                additionalLayersFreeZOrder={index}
-                selectionEnabled={true}
-                manualSelectionManagement={true}
-                maxSelectionCount={1}
-                onSelectionChanged={(e) => {
-                  setGlobalHits((old) => {
-                    const ret = { ...old, [layer.id]: e.hits };
-                    return ret;
-                  });
-                }}
-              />
-            );
-          })}
+        {renderVectorLayers(config, markerSymbolSize, setGlobalHits)}
         {config.tm.noFeatureCollection !== true && (
           <>
             <FeatureCollection />
