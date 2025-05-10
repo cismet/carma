@@ -80,7 +80,7 @@ const Menu = (props: MenuProps) => {
                   },
                 },
                 simpleHelp && {
-                  title: "Hintergrund",
+                  title: "Zweckbestimmung",
                   bsStyle: "secondary",
                   contentBlockConf: simpleHelp,
                 },
