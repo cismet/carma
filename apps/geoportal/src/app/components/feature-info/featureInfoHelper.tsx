@@ -182,13 +182,6 @@ export const getFeatureForLayer = async (
         top: projectedNE[1],
       };
 
-      console.log("xxx bbox", {
-        left: projectedSW[0],
-        bottom: projectedSW[1],
-        right: projectedNE[0],
-        top: projectedNE[1],
-      });
-
       const container = map.getContainer();
       viewportWidth = container.clientWidth;
       viewportHeight = container.clientHeight;
