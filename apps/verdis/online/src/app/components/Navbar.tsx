@@ -128,6 +128,7 @@ const VerdisOnlineAppNavbar = () => {
           borderColor: "#080808",
           padding: 0,
         }}
+        expand="md"
       >
         <Container>
           <OverlayTrigger
@@ -154,10 +155,10 @@ const VerdisOnlineAppNavbar = () => {
                 </a>
               </Navbar.Brand>
 
-              <Navbar.Toggle />
+              <Navbar.Toggle aria-controls="basic-navbar-nav" />
             </>
           </OverlayTrigger>
-          <Navbar.Collapse>
+          <Navbar.Collapse id="basic-navbar-nav">
             <ul
               className="nav navbar-right navbar-nav ml-auto"
               style={{ listStyle: "none" }}
