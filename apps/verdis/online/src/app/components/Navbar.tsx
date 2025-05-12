@@ -130,7 +130,7 @@ const VerdisOnlineAppNavbar = () => {
         }}
         expand="md"
       >
-        <Container>
+        <Container className="d-flex flex-wrap">
           <OverlayTrigger
             placement="bottom"
             overlay={
