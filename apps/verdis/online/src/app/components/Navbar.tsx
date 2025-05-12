@@ -129,6 +129,7 @@ const VerdisOnlineAppNavbar = () => {
           padding: 0,
         }}
         expand="md"
+        variant="dark"
       >
         <Container className="d-flex flex-wrap">
           <OverlayTrigger
@@ -155,7 +156,10 @@ const VerdisOnlineAppNavbar = () => {
                 </a>
               </Navbar.Brand>
 
-              <Navbar.Toggle aria-controls="basic-navbar-nav" />
+              <Navbar.Toggle
+                aria-controls="basic-navbar-nav"
+                style={{ borderColor: "transparent" }}
+              />
             </>
           </OverlayTrigger>
           <Navbar.Collapse id="basic-navbar-nav">
