@@ -1,3 +1,5 @@
+import { forwardRef, useContext, useEffect, useRef } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import {
   faArrowDown,
   faArrowUp,
@@ -5,16 +7,16 @@ import {
   faChevronRight,
   faEye,
   faEyeSlash,
-  faInfo,
   faLayerGroup,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Slider } from "antd";
-import { forwardRef, useContext, useEffect, useRef } from "react";
-import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
-import { useDispatch, useSelector } from "react-redux";
-import { cn } from "../../helper/helper";
 import type { SliderSingleProps } from "antd";
+
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+
+import { cn } from "@carma-commons/utils";
+
 import {
   changeOpacity,
   changeVisibility,

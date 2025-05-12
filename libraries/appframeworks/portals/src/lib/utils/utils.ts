@@ -1,13 +1,6 @@
-import clsx from "clsx";
-import { twMerge } from "tailwind-merge";
-
 import { extractCarmaConfig } from "@carma-commons/utils";
 import { Item, Layer } from "@carma-mapping/layers";
 import { isNaN } from "lodash";
-
-export function cn(...inputs: string[]) {
-  return twMerge(clsx(inputs));
-}
 
 export const parseDescription = (description: string) => {
   const result = { inhalt: "", sichtbarkeit: "", nutzung: "" };

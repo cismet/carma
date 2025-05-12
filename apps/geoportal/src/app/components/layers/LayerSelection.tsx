@@ -1,6 +1,8 @@
-import { BackgroundLayer } from "@carma-apps/portals";
 import { useDispatch, useSelector } from "react-redux";
-import { cn } from "../../helper/helper";
+
+import { BackgroundLayer } from "@carma-apps/portals";
+import { cn } from "@carma-commons/utils";
+
 import {
   getBackgroundLayer,
   setBackgroundLayer,

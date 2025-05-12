@@ -1,14 +1,12 @@
+import { useContext } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  getBackgroundLayer,
-  getLayers,
-  getSelectedLayerIndex,
-  getShowLeftScrollButton,
-  getShowRightScrollButton,
-  setLayers,
-  setSelectedLayerIndex,
-} from "../../store/slices/mapping";
-import LayerButton from "./LayerButton";
+  faChevronLeft,
+  faChevronRight,
+} from "@fortawesome/free-solid-svg-icons";
 import {
   DndContext,
   PointerSensor,
@@ -21,18 +19,24 @@ import {
   horizontalListSortingStrategy,
   arrayMove,
 } from "@dnd-kit/sortable";
-import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
-import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
-import { useContext } from "react";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faChevronLeft,
-  faChevronRight,
-} from "@fortawesome/free-solid-svg-icons";
-import { cn } from "../../helper/helper";
-import "./button.css";
-import SecondaryView from "./SecondaryView";
+
 import { useOverlayHelper } from "@carma-commons/ui/lib-helper-overlay";
+import { cn } from "@carma-commons/utils";
+
+import {
+  getBackgroundLayer,
+  getLayers,
+  getSelectedLayerIndex,
+  getShowLeftScrollButton,
+  getShowRightScrollButton,
+  setLayers,
+  setSelectedLayerIndex,
+} from "../../store/slices/mapping";
+import LayerButton from "./LayerButton";
+import SecondaryView from "./SecondaryView";
+
+import "./button.css";
+
 const LayerWrapper = () => {
   const layerButtonTour = useOverlayHelper({
     primary: {

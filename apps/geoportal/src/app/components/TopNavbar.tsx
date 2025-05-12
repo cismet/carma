@@ -21,6 +21,7 @@ import {
   useOverlayHelper,
   useOverlayTourContext,
 } from "@carma-commons/ui/lib-helper-overlay";
+import { cn } from "@carma-commons/utils";
 import {
   selectViewerIsMode2d,
   setCurrentSceneStyle,
@@ -39,7 +40,6 @@ import ActionButtons from "./nav-items/ActionButtons";
 
 import ResourceModal from "./nav-items/ResourceModal";
 import "./switch.css";
-import { cn } from "../helper/helper";
 
 const TopNavbar = () => {
   const dispatch = useDispatch();

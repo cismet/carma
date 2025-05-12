@@ -1,6 +1,6 @@
 import { Badge, Tabs } from "antd";
-import { utils } from "@carma-apps/portals";
 import { useEffect, useRef, useState } from "react";
+import { cn } from "@carma-commons/utils";
 
 interface LayerTabsProps {
   // TODO add type for layers
@@ -56,7 +56,7 @@ const LayerTabs = ({
             label: (
               <div className="flex items-center gap-2">
                 <span
-                  className={utils.cn(
+                  className={cn(
                     layer.layers.length === 0
                       ? "text-black/25"
                       : activeId === title

@@ -29,6 +29,8 @@ export {
 
 export { generateRandomString } from "./lib/strings";
 
+export { cn } from "./lib/styles-tailwind";
+
 export { getApplicationVersion } from "./lib/version";
 
 export { detectWebGLContext } from "./lib/webgl";
