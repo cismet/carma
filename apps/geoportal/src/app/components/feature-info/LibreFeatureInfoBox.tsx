@@ -145,6 +145,16 @@ const LibreFeatureInfoBox = ({ pos, libreMap }: InfoBoxProps) => {
                 [bbox[3], bbox[2]],
                 [bbox[1], bbox[0]],
               ]);
+            } else if (libreMap) {
+              libreMap.fitBounds(
+                [
+                  [bbox[0], bbox[1]],
+                  [bbox[2], bbox[3]],
+                ],
+                {
+                  padding: 60,
+                }
+              );
             }
           }
         }
