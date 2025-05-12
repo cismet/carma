@@ -136,7 +136,17 @@ const KassenzeichenFlaechenChartPanel = ({ orientation }: PanelProps) => {
     );
   } else {
     return (
-      <div style={styleOverride}>
+      <div
+        style={{
+          ...styleOverride,
+          minHeight: 20,
+          backgroundColor: "#f5f5f5",
+          border: "1px solid #e3e3e3",
+          padding: 9,
+          borderRadius: 3,
+          height: "100%",
+        }}
+      >
         <h4>Statistik: {total.toLocaleString("de-DE")} m&sup2;</h4>
         <PieChart width={140} height={100}>
           <Pie

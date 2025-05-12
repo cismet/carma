@@ -359,6 +359,7 @@ const KassenzeichenViewer = () => {
             maxWidth: switchToBottomWhenSmallerThan,
             overflowY: "hidden",
             overflowX: "auto",
+            backgroundColor: "#eee",
           }}
         >
           <div
@@ -370,7 +371,7 @@ const KassenzeichenViewer = () => {
           >
             {contactPanel}
             {kassenzeichenPanel}
-            {kassenzeichenHorizontalFlaechenChartsPanel}
+            {kassenzeichenVerticalFlaechenChartsPanel}
             {/* {anComps} */}
             {flComps}
           </div>
