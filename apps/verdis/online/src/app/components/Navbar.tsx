@@ -133,7 +133,7 @@ const VerdisOnlineAppNavbar = () => {
           borderRadius: 4,
           backgroundColor: "#222",
           borderColor: "#080808",
-          padding: menuIsHidden ? "20px" : 0,
+          padding: menuIsHidden ? "10px" : 0,
         }}
         expand="md"
         variant="dark"
