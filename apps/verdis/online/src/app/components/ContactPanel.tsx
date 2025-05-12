@@ -18,7 +18,7 @@ const ContactPanel = ({ contact }: ContactProps) => {
     _contact = contact;
   }
 
-  const image = _contact.image || "wuppertal.jpg";
+  const image = _contact.image;
 
   return (
     <div

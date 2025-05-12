@@ -47,6 +47,7 @@ import { tooltips } from "@carma-collab/wuppertal/verdis-online";
 import type { OverlayTriggerType } from "react-bootstrap/esm/OverlayTrigger";
 import type { UnknownAction } from "redux";
 import { useNavigate } from "react-router-dom";
+import { fitAll } from "../../store/slices/mapping";
 
 const VerdisOnlineAppNavbar = () => {
   const dispatch = useDispatch();
@@ -157,7 +158,7 @@ const VerdisOnlineAppNavbar = () => {
                 <a
                   id="verdis_online_brand"
                   style={{ cursor: "pointer" }}
-                  // onClick={this.fitBounds}
+                  onClick={() => dispatch(fitAll() as unknown as UnknownAction)}
                 >
                   VerDIS-online{kassenzeichennummer}
                 </a>
