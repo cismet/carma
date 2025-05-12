@@ -13,8 +13,8 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useDispatch, useSelector } from "react-redux";
 
 import { SELECTED_LAYER_INDEX } from "@carma-apps/portals";
+import { cn } from "@carma-commons/utils";
 
-import { cn } from "../../helper/helper";
 import {
   getBackgroundLayer,
   getLayers,

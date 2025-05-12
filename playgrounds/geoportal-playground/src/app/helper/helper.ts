@@ -1,8 +1,6 @@
 import { md5FetchText } from "react-cismap/tools/fetching";
 import { getGazDataForTopicIds } from "react-cismap/tools/gazetteerHelper";
 import { host } from "./constants";
-import clsx from "clsx";
-import { twMerge } from "tailwind-merge";
 
 export const getGazData = async (setGazData) => {
   const prefix = "GazData";
@@ -33,10 +31,6 @@ export const getGazData = async (setGazData) => {
 
   setGazData(gazData);
 };
-
-export function cn(...inputs) {
-  return twMerge(clsx(inputs));
-}
 
 export const parseDescription = (description: string) => {
   const result = { inhalt: "", sichtbarkeit: "", nutzung: "" };

@@ -22,8 +22,11 @@ import {
   faChevronLeft,
   faChevronRight,
 } from "@fortawesome/free-solid-svg-icons";
+import { useWindowSize } from "@uidotdev/usehooks";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+
+import { cn } from "@carma-commons/utils";
 
 import { AppDispatch } from "../../store";
 import {
@@ -37,12 +40,10 @@ import {
   setSelectedLayerIndex,
   setSelectedLayerIndexNoSelection,
 } from "../../store/slices/mapping";
-import { cn } from "../../helper/helper";
 import LayerButton from "./LayerButton";
 import SecondaryView from "./SecondaryView";
 
 import "./button.css";
-import { useWindowSize } from "@uidotdev/usehooks";
 
 const LayerWrapper = () => {
   const dispatch: AppDispatch = useDispatch();
