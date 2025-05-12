@@ -106,7 +106,7 @@ const VerdisOnlineAppNavbar = () => {
     }
   };
 
-  const fixLeftPadding = menuIsHidden ? "10px 15px 15px 0px" : "10px 15px";
+  const fixLeftPadding = menuIsHidden ? "10px 15px 15px 10px" : "10px 15px";
 
   useEffect(() => {
     if (uiState.waitForFEB === true) {
@@ -132,12 +132,12 @@ const VerdisOnlineAppNavbar = () => {
           borderRadius: 4,
           backgroundColor: "#222",
           borderColor: "#080808",
-          padding: 0,
+          padding: "10px 0",
         }}
         expand="md"
         variant="dark"
       >
-        <Container className="d-flex flex-wrap">
+        <Container className="d-flex flex-wrap" fluid="md">
           <OverlayTrigger
             placement="bottom"
             overlay={
@@ -151,6 +151,7 @@ const VerdisOnlineAppNavbar = () => {
                 style={{
                   color: "#9d9d9d",
                   textShadow: "0 -1px 0 rgba(0, 0, 0, .25)",
+                  paddingLeft: menuIsHidden ? "10px" : "0px",
                 }}
               >
                 <a
