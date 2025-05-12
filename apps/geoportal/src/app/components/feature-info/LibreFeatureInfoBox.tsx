@@ -36,9 +36,10 @@ import InfoBox from "./Infobox";
 
 interface InfoBoxProps {
   pos?: [number, number];
+  libreMap?: maplibregl.Map;
 }
 
-const LibreFeatureInfoBox = ({ pos }: InfoBoxProps) => {
+const LibreFeatureInfoBox = ({ pos, libreMap }: InfoBoxProps) => {
   const [open, setOpen] = useState(false);
   const [shouldRenderLoadingInfobox, setShouldRenderLoadingInfobox] =
     useState(false);
@@ -127,6 +128,14 @@ const LibreFeatureInfoBox = ({ pos }: InfoBoxProps) => {
                   ? selectedFeature.properties.zoom
                   : 20
               );
+            } else if (libreMap) {
+              libreMap.flyTo({
+                center: [coordinates[0], coordinates[1]],
+                zoom: selectedFeature.properties.zoom
+                  ? selectedFeature.properties.zoom - 1
+                  : 19,
+                animate: false,
+              });
             }
           } else {
             const bbox = envelope(selectedFeature.geometry).bbox;

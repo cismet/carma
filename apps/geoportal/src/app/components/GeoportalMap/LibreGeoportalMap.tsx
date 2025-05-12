@@ -613,7 +613,7 @@ const LibreGeoportalMap = () => {
 
   return (
     <>
-      <LibreFeatureInfoBox pos={pos} />
+      <LibreFeatureInfoBox pos={pos} libreMap={map.current} />
       <div className="map-wrap">
         <div ref={mapContainer} className="map" />
       </div>
