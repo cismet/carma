@@ -15,7 +15,6 @@ import {
   NavItem,
   OverlayTrigger,
   Tooltip,
-  Badge,
   Popover,
   Overlay,
   Container,
@@ -48,6 +47,7 @@ import type { OverlayTriggerType } from "react-bootstrap/esm/OverlayTrigger";
 import type { UnknownAction } from "redux";
 import { useNavigate } from "react-router-dom";
 import { fitAll } from "../../store/slices/mapping";
+import { Badge } from "antd";
 
 const VerdisOnlineAppNavbar = () => {
   const dispatch = useDispatch();
@@ -107,7 +107,7 @@ const VerdisOnlineAppNavbar = () => {
     }
   };
 
-  const fixLeftPadding = menuIsHidden ? "10px 15px 15px 10px" : "10px 15px";
+  const fixLeftPadding = menuIsHidden ? "10px 15px 15px 10px" : "20px 15px";
 
   useEffect(() => {
     if (uiState.waitForFEB === true) {
@@ -133,7 +133,7 @@ const VerdisOnlineAppNavbar = () => {
           borderRadius: 4,
           backgroundColor: "#222",
           borderColor: "#080808",
-          padding: "10px 0",
+          padding: menuIsHidden ? "20px" : 0,
         }}
         expand="md"
         variant="dark"
@@ -186,7 +186,7 @@ const VerdisOnlineAppNavbar = () => {
                     position: "relative",
                     display: "block",
                     padding: fixLeftPadding,
-                    // lineHeight: "20px",
+                    lineHeight: "20px",
                     // paddingTop: "15px",
                     // paddingBottom: "15px",
                   }}
@@ -216,14 +216,24 @@ const VerdisOnlineAppNavbar = () => {
                   {uiState.changeRequestsEditMode === true &&
                     crCounter.crDraftCounter > 0 && (
                       <Badge
-                        style={{ backgroundColor: colorDraft, color: "white" }}
-                      >
-                        {crCounter.crDraftCounter}
-                      </Badge>
+                        count={crCounter.crDraftCounter}
+                        color={colorDraft}
+                        style={{
+                          backgroundColor: colorDraft,
+                          boxShadow: "none",
+                        }}
+                      />
                     )}
                   {crCounter.crDraftCounter === 0 &&
                     crCounter.crCounter > 0 && (
-                      <Badge>{crCounter.crCounter}</Badge>
+                      <Badge
+                        color="#777777"
+                        count={crCounter.crCounter}
+                        style={{
+                          backgroundColor: "#777777",
+                          boxShadow: "none",
+                        }}
+                      />
                     )}
                 </a>
               </li>
