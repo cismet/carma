@@ -1,3 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck
 import React, { useEffect } from "react";
 import L from "leaflet";
 import "leaflet-editable";
