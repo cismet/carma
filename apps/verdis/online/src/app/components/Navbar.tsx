@@ -106,6 +106,8 @@ const VerdisOnlineAppNavbar = () => {
     }
   };
 
+  const fixLeftPadding = menuIsHidden ? "10px 15px 15px 0px" : "10px 15px";
+
   useEffect(() => {
     if (uiState.waitForFEB === true) {
       //dh downloadFeb() wurde aufgerufen aber der Download ist noch nicht fertig
@@ -181,10 +183,10 @@ const VerdisOnlineAppNavbar = () => {
                     backgroundColor: "transparent",
                     position: "relative",
                     display: "block",
-                    padding: "10px 15px",
-                    lineHeight: "20px",
-                    paddingTop: "15px",
-                    paddingBottom: "15px",
+                    padding: fixLeftPadding,
+                    // lineHeight: "20px",
+                    // paddingTop: "15px",
+                    // paddingBottom: "15px",
                   }}
                 >
                   Hilfe & Einstellungen
@@ -202,10 +204,10 @@ const VerdisOnlineAppNavbar = () => {
                     backgroundColor: "transparent",
                     position: "relative",
                     display: "block",
-                    padding: "10px 15px",
+                    padding: fixLeftPadding,
                     lineHeight: "20px",
-                    paddingTop: "15px",
-                    paddingBottom: "15px",
+                    // paddingTop: "15px",
+                    // paddingBottom: "15px",
                   }}
                 >
                   Änderungswünsche{" "}
@@ -232,10 +234,10 @@ const VerdisOnlineAppNavbar = () => {
                     backgroundColor: "transparent",
                     position: "relative",
                     display: "block",
-                    padding: "10px 15px",
+                    padding: fixLeftPadding,
                     lineHeight: "20px",
-                    paddingTop: "15px",
-                    paddingBottom: "15px",
+                    // paddingTop: "15px",
+                    // paddingBottom: "15px",
                   }}
                 >
                   <FontAwesomeIcon
@@ -267,10 +269,10 @@ const VerdisOnlineAppNavbar = () => {
                       backgroundColor: "transparent",
                       position: "relative",
                       display: "block",
-                      padding: "10px 15px",
+                      padding: fixLeftPadding,
                       lineHeight: "20px",
-                      paddingTop: "15px",
-                      paddingBottom: "15px",
+                      // paddingTop: "15px",
+                      // paddingBottom: "15px",
                     }}
                     onClick={() => dispatch(toggleInfoElements({}))}
                   >
@@ -300,10 +302,10 @@ const VerdisOnlineAppNavbar = () => {
                       backgroundColor: "transparent",
                       position: "relative",
                       display: "block",
-                      padding: "10px 15px",
+                      padding: fixLeftPadding,
                       lineHeight: "20px",
-                      paddingTop: "15px",
-                      paddingBottom: "15px",
+                      // paddingTop: "15px",
+                      // paddingBottom: "15px",
                     }}
                     onClick={() => dispatch(toggleChartElements({}))}
                   >
@@ -333,10 +335,11 @@ const VerdisOnlineAppNavbar = () => {
                       backgroundColor: "transparent",
                       position: "relative",
                       display: "block",
-                      padding: "10px 15px",
-                      lineHeight: "20px",
-                      paddingTop: "15px",
-                      paddingBottom: "15px",
+                      paddingLeft: "10px",
+                      padding: fixLeftPadding,
+                      // lineHeight: "20px",
+                      // paddingTop: "15px",
+                      // paddingBottom: "15px",
                     }}
                     onClick={() => dispatch(toggleContactElement({}))}
                   >
@@ -363,10 +366,10 @@ const VerdisOnlineAppNavbar = () => {
                       backgroundColor: "transparent",
                       position: "relative",
                       display: "block",
-                      padding: "10px 15px",
+                      padding: fixLeftPadding,
                       lineHeight: "20px",
-                      paddingTop: "15px",
-                      paddingBottom: "15px",
+                      // paddingTop: "15px",
+                      // paddingBottom: "15px",
                     }}
                     onClick={() => {
                       navigate("/");
