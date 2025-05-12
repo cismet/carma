@@ -4,7 +4,7 @@ import { useCesiumContext } from "@carma-mapping/cesium-engine";
 import { styled } from "styled-components";
 import { Collapse } from "antd";
 
-import { useObliqueDataContext } from "../../hooks/useOblique";
+import { useOblique } from "../../hooks/useOblique";
 import { CardinalNames } from "../../utils/orientationUtils";
 import { OBLIQUE_PREVIEW_QUALITY } from "../../constants";
 import { getPreviewImageUrl } from "../../utils/imageHandling";
@@ -41,7 +41,7 @@ export const ObliqueDebugSvg = () => {
     headingOffset,
     previewPath,
     footprintCenterpointsRBushByCardinals,
-  } = useObliqueDataContext();
+  } = useOblique();
   const camera = viewerRef?.current?.camera;
 
   // Use enhanced hook for camera and image calculations

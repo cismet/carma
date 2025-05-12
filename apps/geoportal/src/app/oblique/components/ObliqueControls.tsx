@@ -41,8 +41,6 @@ import {
   DebugComponentsContainerRight,
 } from "./debugUI/StyledComponents";
 
-
-import { useObliqueDataContext } from "../hooks/useOblique";
 import { useOrbitPoint } from "../hooks/useOrbitPoint";
 import { useDebugOrbitPoint } from "../hooks/useDebugOrbitPoint";
 import { useExteriorOrientation } from "../hooks/useExteriorOrientation";
@@ -69,6 +67,7 @@ import {
 
 import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
 import { CAMERA_ID_INTERIOR_ORIENTATION_PERCENTAGE_OFFSETS } from "../config";
+import { useOblique } from "../hooks/useOblique";
 
 type ObliqueControlsProps = {
   /**
@@ -81,7 +80,6 @@ type ObliqueControlsProps = {
 };
 
 export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
-  const isObliqueMode = useSelector(getObliqueMode);
   const dispatch = useDispatch();
   const {
     headingOffset,
@@ -91,7 +89,9 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     previewQualityLevel,
     setLockFootprint,
     animations,
-  } = useObliqueDataContext();
+    isObliqueMode,
+    toggleObliqueMode,
+  } = useOblique();
   const { viewerRef, terrainProviderRef } = useCesiumContext();
   const flags = useFeatureFlags();
   const isDebugMode = flags.featureFlagDebugOblique;
@@ -164,7 +164,9 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       console.debug(
         "ObliqueControls: Transitioning to 2D mode disabling oblique mode"
       );
-      dispatch(setObliqueMode(false));
+      if (isObliqueMode) {
+        toggleObliqueMode();
+      }
       viewerRef.current.scene.requestRender();
     }
   }, [isTransitioning, isMode2d, viewerRef, dispatch]);

@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef } from "react";
-import { useSelector } from "react-redux";
 
 import { type Viewer, type Scene } from "cesium";
 
@@ -30,9 +29,9 @@ export function useObliqueInitializer(options: ObliqueInitializerOptions = {}) {
   const maxFov = options.maxFov ?? contextOptions.maxFov;
   const headingOffset = options.headingOffset ?? contextOptions.headingOffset;
 
-  const isObliqueMode = useSelector(getObliqueMode);
   const { viewerRef, viewerAnimationMapRef, shouldSuspendPitchLimiterRef } =
     useCesiumContext();
+  const { isObliqueMode } = useOblique();
   const originalFovRef = useRef<number | null>(null);
 
   const wheelZoomOptions = useMemo(

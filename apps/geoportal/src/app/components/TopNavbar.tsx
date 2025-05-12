@@ -50,7 +50,7 @@ const TopNavbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showHelpTooltip, setShowHelpTooltip] = useState(false);
   const { showOverlayHandler } = useOverlayTourContext();
-  const { isObliqueMode } = useOblique();
+  const { isObliqueMode, toggleObliqueMode } = useOblique();
 
   const isTouchDevice =
     "ontouchstart" in window || navigator.maxTouchPoints > 0;
@@ -153,7 +153,7 @@ const TopNavbar = () => {
             >
               <Button
                 type={isObliqueMode ? "primary" : "default"}
-                onClick={() => dispatch(setObliqueMode(!isObliqueMode))}
+                onClick={toggleObliqueMode}
                 className="mr-2"
               >
                 <FontAwesomeIcon icon={faPlane} rotation={270} />

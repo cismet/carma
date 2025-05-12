@@ -83,12 +83,13 @@ import {
   getShowHamburgerMenu,
   setLayersIdle,
 } from "../../store/slices/mapping.ts";
-import { getObliqueMode, getUIMode, UIMode } from "../../store/slices/ui.ts";
+import { getUIMode, UIMode } from "../../store/slices/ui.ts";
 
 import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
+import { useOblique } from "../../oblique/hooks/useOblique.ts";
 
 interface MapProps {
   height: number;
@@ -99,7 +100,12 @@ interface MapProps {
 export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const dispatch = useDispatch();
 
+  // Contexts
   const { pathname } = useLocation();
+  const { viewerRef, terrainProviderRef, surfaceProviderRef } =
+    useCesiumContext();
+  const { isObliqueMode } = useOblique();
+
   const rerenderCountRef = useRef(0);
   const lastRenderTimeStampRef = useRef(Date.now());
   const lastRenderIntervalRef = useRef(0);
@@ -108,7 +114,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   // State and Selectors
   const backgroundLayer = useSelector(getBackgroundLayer);
   const isMode2d = useSelector(selectViewerIsMode2d) || !allow3d;
-  const isObliqueMode = useSelector(getObliqueMode);
   const models = useSelector(selectViewerModels);
   const markerAsset = models[CESIUM_CONFIG.markerKey]; //
   const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;
@@ -119,8 +124,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const showHamburgerMenu = useSelector(getShowHamburgerMenu);
   const selectedFeature = useSelector(getSelectedFeature);
   const loadingFeatureInfo = useSelector(getLoading);
-  const { viewerRef, terrainProviderRef, surfaceProviderRef } =
-    useCesiumContext();
+
   const { getLeafletZoom } = useLeafletZoomControls();
   const showPrimaryTileset = useSelector(selectShowPrimaryTileset);
   const currentSceneStyle = useSelector(selectCurrentSceneStyle);

@@ -1,7 +1,21 @@
-import React, { createContext, useEffect, useState, ReactNode, useCallback } from "react";
+import React, {
+  createContext,
+  useEffect,
+  useState,
+  ReactNode,
+  useCallback,
+} from "react";
+import { useLocation } from "react-router-dom";
+
 import type { FeatureCollection, Polygon } from "geojson";
-import { updateHashHistoryState, deleteHashParamsFromHistoryState } from "@carma-commons/utils";
-import { useInitialObliqueModeFromSearchParams, VIEWERSTATE_KEYS } from "@carma-mapping/cesium-engine";
+import {
+  updateHashHistoryState,
+  deleteHashParamsFromHistoryState,
+} from "@carma-commons/utils";
+import {
+  useInitialObliqueModeFromSearchParams,
+  VIEWERSTATE_KEYS,
+} from "@carma-mapping/cesium-engine";
 
 import {
   ExteriorOrientations,
@@ -84,7 +98,8 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   fallbackDirectionConfig,
 }) => {
   const initialObliqueMode = useInitialObliqueModeFromSearchParams();
-  const [isObliqueMode, setIsObliqueMode] = useState<boolean>(initialObliqueMode);
+  const [isObliqueMode, setIsObliqueMode] =
+    useState<boolean>(initialObliqueMode);
   const [lockFootprint, setLockFootprint] = useState(false);
   const {
     orientationsURI,
@@ -114,6 +129,8 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     headingOffset,
     fallbackDirectionConfig
   );
+
+  const { pathname } = useLocation();
 
   // Store when data has been previously loaded to prevent duplicate loads
   const [dataLoaded, setDataLoaded] = useState(false);
@@ -151,9 +168,12 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     setIsObliqueMode((prevMode) => {
       const newMode = !prevMode;
       if (newMode) {
-        updateHashHistoryState({ [VIEWERSTATE_KEYS.isOblique]: "1" });
+        updateHashHistoryState({ [VIEWERSTATE_KEYS.isOblique]: "1" }, pathname);
       } else {
-        deleteHashParamsFromHistoryState([VIEWERSTATE_KEYS.isOblique]);
+        deleteHashParamsFromHistoryState(
+          [VIEWERSTATE_KEYS.isOblique],
+          pathname
+        );
       }
       return newMode;
     });
@@ -274,8 +294,6 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   };
 
   return (
-    <ObliqueContext.Provider value={value}>
-      {children}
-    </ObliqueContext.Provider>
+    <ObliqueContext.Provider value={value}>{children}</ObliqueContext.Provider>
   );
 };

@@ -23,9 +23,8 @@ import {
   isValidViewerInstance,
 } from "@carma-mapping/cesium-engine";
 
-import { useObliqueDataContext } from "./useOblique";
+import { useOblique } from "./useOblique";
 
-import { getObliqueMode } from "../../store/slices/ui";
 import type { FootprintFeature } from "../utils/footprintUtils";
 import { findMatchingFeature } from "../utils/footprintUtils";
 
@@ -130,10 +129,14 @@ const cleanupOutlineEntity = (
 };
 
 export const useFootprints = (): void => {
-  const isObliqueMode = useSelector(getObliqueMode);
   const { viewerRef } = useCesiumContext();
-  const { nearestImage, footprintData, lockFootprint, animations } =
-    useObliqueDataContext();
+  const {
+    isObliqueMode,
+    nearestImage,
+    footprintData,
+    lockFootprint,
+    animations,
+  } = useOblique();
 
   const featureFlags = useFeatureFlags();
   const { featureFlagDebugOblique: isDebug } = featureFlags;
