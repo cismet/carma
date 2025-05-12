@@ -1,5 +1,7 @@
 import { Radio, Tabs } from "antd";
-import { cn, parseDescription } from "../../helper/helper";
+import { cn } from "@carma-commons/utils";
+
+import { parseDescription } from "../../helper/helper";
 import { tabItems } from "./items";
 import { useDispatch, useSelector } from "react-redux";
 import { getActiveTabKey, setActiveTabKey } from "../../store/slices/ui";

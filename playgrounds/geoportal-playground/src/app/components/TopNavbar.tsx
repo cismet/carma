@@ -1,8 +1,9 @@
+import { useContext, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+
 import { Button, Popover, Radio, Tooltip, message } from "antd";
 import {
-  faB,
   faBars,
-  faLandmark,
   faLayerGroup,
   faPrint,
   faRedo,
@@ -14,11 +15,12 @@ import {
   faBookOpenReader,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import React, { useContext, useEffect, useState } from "react";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
+import { useOverlayHelper } from "@carma-commons/ui/lib-helper-overlay";
+import { cn } from "@carma-commons/utils";
 import { LayerLib, Item, Layer } from "@carma-mapping/layers";
-import { useDispatch, useSelector } from "react-redux";
+
 import { getThumbnails, setThumbnail } from "../store/slices/layers";
 import {
   appendLayer,
@@ -34,17 +36,15 @@ import {
   setLayers,
 } from "../store/slices/mapping";
 import Share from "./Share";
-import "./switch.css";
 import {
   getShowLayerButtons,
   setShowLayerButtons,
   setMode,
   getMode,
 } from "../store/slices/ui";
-import { cn } from "../helper/helper";
 import Save from "./Save";
 import { layerMap } from "../helper/layer";
-import { useOverlayHelper } from "@carma-commons/ui/lib-helper-overlay";
+import "./switch.css";
 
 const TopNavbar = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
