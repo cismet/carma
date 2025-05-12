@@ -71,6 +71,10 @@ const VerdisOnlineAppNavbar = () => {
   let lblExit = "VerDIS-online beenden";
   let menuIsHidden = false;
 
+  if (uiState.width < 768) {
+    menuIsHidden = true;
+  }
+
   let ttTriggerOn: OverlayTriggerType[] = ["hover", "focus"];
   let ttTriggerOff: OverlayTriggerType[] = [];
   let kassenzeichennummer;
