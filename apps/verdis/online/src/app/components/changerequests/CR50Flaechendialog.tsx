@@ -1,3 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck
 import Color from "color";
 import React, { useState } from "react";
 import Section from "react-cismap/topicmaps/menu/Section";

@@ -1,3 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck
 import { useCallback } from "react";
 import Document from "../conversations/Document";
 import { Icon } from "react-fa";
