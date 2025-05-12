@@ -35,7 +35,10 @@ import {
   setBackgroundLayer,
   setSelectedLayerIndex,
 } from "../store/slices/mapping";
-import { getObliqueMode, setObliqueMode, getZenMode } from "../store/slices/ui";
+import { getZenMode } from "../store/slices/ui";
+
+import { useOblique } from "../oblique/hooks/useOblique";
+
 import ActionButtons from "./nav-items/ActionButtons";
 
 import ResourceModal from "./nav-items/ResourceModal";
@@ -47,6 +50,7 @@ const TopNavbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showHelpTooltip, setShowHelpTooltip] = useState(false);
   const { showOverlayHandler } = useOverlayTourContext();
+  const { isObliqueMode } = useOblique();
 
   const isTouchDevice =
     "ontouchstart" in window || navigator.maxTouchPoints > 0;
@@ -60,7 +64,6 @@ const TopNavbar = () => {
   const selectedLuftbildLayer = useSelector(getSelectedLuftbildLayer);
   const zenMode = useSelector(getZenMode);
   const selectedLayerIndex = useSelector(getSelectedLayerIndex);
-  const isObliqueMode = useSelector(getObliqueMode);
 
   const hintergrundTourRef = useOverlayHelper(
     getCollabedHelpElementsConfig("HINTERGRUND", geoElements)

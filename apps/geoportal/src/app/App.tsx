@@ -28,7 +28,7 @@ import MapWrapper from "./components/GeoportalMap/controls/MapWrapper";
 
 import MapMeasurement from "./components/map-measure/MapMeasurement";
 import TopNavbar from "./components/TopNavbar";
-import { ObliqueDataProvider } from "./oblique/components/ObliqueDataContext";
+import { ObliqueDataProvider } from "./oblique/components/ObliqueContextProvider";
 
 import { useAppConfig } from "./hooks/useAppConfig";
 import { useManageLayers } from "./hooks/useManageLayers";

@@ -1,6 +1,7 @@
-import React, { createContext, useEffect, useState, ReactNode } from "react";
-import { useSelector } from "react-redux";
+import React, { createContext, useEffect, useState, ReactNode, useCallback } from "react";
 import type { FeatureCollection, Polygon } from "geojson";
+import { updateHashHistoryState, deleteHashParamsFromHistoryState } from "@carma-commons/utils";
+import { useInitialObliqueModeFromSearchParams, VIEWERSTATE_KEYS } from "@carma-mapping/cesium-engine";
 
 import {
   ExteriorOrientations,
@@ -11,10 +12,8 @@ import {
   Proj4Converter,
 } from "../types";
 
-import { getObliqueMode } from "../../store/slices/ui";
-
 import { useObliqueData } from "../hooks/useObliqueData";
-import { useNearestObliqueImage } from "../hooks/useNearestObliqueImage";
+import { useObliqueNearestImage } from "../hooks/useObliqueNearestImage";
 
 import { CardinalDirectionEnum } from "../utils/orientationUtils";
 import { fetchGeoJson, FootprintProperties } from "../utils/footprintUtils";
@@ -28,8 +27,9 @@ import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
 import { NUM_NEAREST_IMAGES } from "../config";
 
 // Define the shape of our context
-// todo: consolidate per Image result data into NearestImageRecord
-interface ObliqueDataContextType {
+interface ObliqueContextType {
+  isObliqueMode: boolean;
+  toggleObliqueMode: () => void;
   imageRecords: ObliqueImageRecordMap | null;
   isLoading: boolean;
   error: string | null;
@@ -56,12 +56,12 @@ interface ObliqueDataContextType {
 }
 
 // Create the context with a default value
-const ObliqueDataContext = createContext<ObliqueDataContextType | null>(null);
+const ObliqueContext = createContext<ObliqueContextType | null>(null);
 
 // Export the context for the hook file to use
-export { ObliqueDataContext };
+export { ObliqueContext };
 
-interface ObliqueDataProviderProps {
+interface ObliqueProviderProps {
   children: ReactNode;
   config: ObliqueDataProviderConfig;
   fallbackDirectionConfig: Record<
@@ -78,12 +78,13 @@ const fetchExteriorOrientationsJson = async (
 };
 
 // Provider component that wraps parts of the app that need access to the context
-export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
+export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   children,
   config,
   fallbackDirectionConfig,
 }) => {
-  const isObliqueMode = useSelector(getObliqueMode);
+  const initialObliqueMode = useInitialObliqueModeFromSearchParams();
+  const [isObliqueMode, setIsObliqueMode] = useState<boolean>(initialObliqueMode);
   const [lockFootprint, setLockFootprint] = useState(false);
   const {
     orientationsURI,
@@ -132,7 +133,7 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
   const [isExtOriLoading, setIsExtOriLoading] = useState(false);
 
   // Add nearest image finding
-  const { nearestImage, distance, refreshSearch } = useNearestObliqueImage(
+  const { nearestImage, distance, refreshSearch } = useObliqueNearestImage(
     imageRecords,
     converter,
     headingOffset,
@@ -145,6 +146,18 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
 
   // Global loading state
   const [isAllDataReady, setIsAllDataReady] = useState(false);
+
+  const toggleObliqueMode = useCallback(() => {
+    setIsObliqueMode((prevMode) => {
+      const newMode = !prevMode;
+      if (newMode) {
+        updateHashHistoryState({ [VIEWERSTATE_KEYS.isOblique]: "1" });
+      } else {
+        deleteHashParamsFromHistoryState([VIEWERSTATE_KEYS.isOblique]);
+      }
+      return newMode;
+    });
+  }, []);
 
   // Only load data when oblique mode is enabled and not already loaded
   useEffect(() => {
@@ -233,6 +246,8 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
   }, [dataLoaded, isFootprintLoading, isExtOriLoading, isLoading]);
 
   const value = {
+    isObliqueMode,
+    toggleObliqueMode,
     imageRecords,
     isLoading,
     error,
@@ -259,8 +274,8 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
   };
 
   return (
-    <ObliqueDataContext.Provider value={value}>
+    <ObliqueContext.Provider value={value}>
       {children}
-    </ObliqueDataContext.Provider>
+    </ObliqueContext.Provider>
   );
 };

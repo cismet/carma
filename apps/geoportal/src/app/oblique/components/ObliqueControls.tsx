@@ -41,9 +41,8 @@ import {
   DebugComponentsContainerRight,
 } from "./debugUI/StyledComponents";
 
-import { getObliqueMode, setObliqueMode } from "../../store/slices/ui";
 
-import { useObliqueDataContext } from "../hooks/useObliqueDataContext";
+import { useObliqueDataContext } from "../hooks/useOblique";
 import { useOrbitPoint } from "../hooks/useOrbitPoint";
 import { useDebugOrbitPoint } from "../hooks/useDebugOrbitPoint";
 import { useExteriorOrientation } from "../hooks/useExteriorOrientation";

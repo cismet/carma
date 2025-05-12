@@ -26,6 +26,7 @@ export { useCesiumContext } from "./lib/hooks/useCesiumContext";
 export { useCesiumCameraForceOblique } from "./lib/hooks/useCameraForceOblique";
 export { useHomeControl } from "./lib/hooks/useHomeControl";
 export { useCesiumInitialCameraFromSearchParams } from "./lib/hooks/useCesiumInitialCameraFromSearchParams";
+export { useInitialObliqueModeFromSearchParams } from "./lib/hooks/useInitialObliqueModeFromSearchParams";
 export { useFovWheelZoom } from "./lib/hooks/useFovWheelZoom";
 export { useSceneStyles } from "./lib/hooks/useSceneStyles";
 export { useZoomControls } from "./lib/hooks/useZoomControls";

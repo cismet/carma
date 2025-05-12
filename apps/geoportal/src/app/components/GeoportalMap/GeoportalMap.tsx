@@ -62,7 +62,7 @@ import { addCssToOverlayHelperItem } from "../../helper/overlayHelper.ts";
 import useLeafletZoomControls from "../../hooks/leaflet/useLeafletZoomControls.ts";
 import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
-import { useObliqueMode } from "../../oblique/hooks/useObliqueMode.ts";
+import { useObliqueInitializer } from "../../oblique/hooks/useObliqueModeSetup.ts";
 
 import { createCismapLayers, onClickTopicMap } from "./topicmap.utils.ts";
 import { useTweakpane } from "./GeoportalMap.useTweakpane.ts";
@@ -293,7 +293,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     }
   }, [routedMap]);
 
-  useObliqueMode();
+  useObliqueInitializer();
 
   const renderInfoBox = () => {
     if (isMode2d) {

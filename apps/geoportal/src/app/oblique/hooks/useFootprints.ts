@@ -23,7 +23,7 @@ import {
   isValidViewerInstance,
 } from "@carma-mapping/cesium-engine";
 
-import { useObliqueDataContext } from "./useObliqueDataContext";
+import { useObliqueDataContext } from "./useOblique";
 
 import { getObliqueMode } from "../../store/slices/ui";
 import type { FootprintFeature } from "../utils/footprintUtils";

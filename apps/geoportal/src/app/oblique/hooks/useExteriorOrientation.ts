@@ -4,7 +4,7 @@ import type {
   NearestObliqueImageRecord,
 } from "../types";
 import { mapExtOriArrToRecord } from "../utils/obliqueImageRecord";
-import { useObliqueDataContext } from "./useObliqueDataContext";
+import { useObliqueDataContext } from "./useOblique";
 import {
   computeDerivedExteriorOrientation,
   DerivedExteriorOrientation,

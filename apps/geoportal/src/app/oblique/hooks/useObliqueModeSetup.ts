@@ -9,11 +9,10 @@ import {
   useCesiumCameraForceOblique,
 } from "@carma-mapping/cesium-engine";
 
-import { getObliqueMode } from "../../store/slices/ui";
-import { useObliqueDataContext } from "./useObliqueDataContext";
+import { useOblique } from "./useOblique";
 import { enterObliqueMode, leaveObliqueMode } from "../utils/cameraUtils";
 
-export interface ObliqueModeOptions {
+export interface ObliqueInitializerOptions {
   fixedPitch?: number;
   fixedHeight?: number;
   minFov?: number;
@@ -23,8 +22,8 @@ export interface ObliqueModeOptions {
 
 const viewerPreUpdateHandlers = new WeakMap<Viewer, (scene: Scene) => void>();
 
-export function useObliqueMode(options: ObliqueModeOptions = {}) {
-  const contextOptions = useObliqueDataContext();
+export function useObliqueInitializer(options: ObliqueInitializerOptions = {}) {
+  const contextOptions = useOblique();
   const fixedPitch = options.fixedPitch ?? contextOptions.fixedPitch;
   const fixedHeight = options.fixedHeight ?? contextOptions.fixedHeight;
   const minFov = options.minFov ?? contextOptions.minFov;
@@ -121,4 +120,4 @@ export function useObliqueMode(options: ObliqueModeOptions = {}) {
   };
 }
 
-export default useObliqueMode;
+export default useObliqueInitializer;

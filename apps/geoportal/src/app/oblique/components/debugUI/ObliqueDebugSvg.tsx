@@ -4,12 +4,12 @@ import { useCesiumContext } from "@carma-mapping/cesium-engine";
 import { styled } from "styled-components";
 import { Collapse } from "antd";
 
-import { useObliqueDataContext } from "../../hooks/useObliqueDataContext";
+import { useObliqueDataContext } from "../../hooks/useOblique";
 import { CardinalNames } from "../../utils/orientationUtils";
 import { OBLIQUE_PREVIEW_QUALITY } from "../../constants";
 import { getPreviewImageUrl } from "../../utils/imageHandling";
 import { calculateCustomHeading as calculateHeadingForRecord } from "../../utils/obliqueReferenceUtils";
-import { useNearestObliqueImage } from "../../hooks/useNearestObliqueImage";
+import { useObliqueNearestImage } from "../../hooks/useObliqueNearestImage";
 import { NUM_NEAREST_IMAGES } from "../../config";
 import { ObliqueControlPanel } from "./ObliqueControlPanel";
 
@@ -54,7 +54,7 @@ export const ObliqueDebugSvg = () => {
     pointOnRadius,
     sectorHeading,
     nearestImages,
-  } = useNearestObliqueImage(
+  } = useObliqueNearestImage(
     imageRecords || null,
     converter,
     headingOffset,
