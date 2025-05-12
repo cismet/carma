@@ -290,7 +290,7 @@ const LibreGeoportalMap = () => {
                   layer,
                   dispatch,
                   selectionHandler,
-                  leafletMap: undefined,
+                  map: map.current,
                 }
               );
             }
@@ -305,7 +305,7 @@ const LibreGeoportalMap = () => {
               mode: uiModeRef.current,
               store,
               zoom: map.current?.getZoom() + 1,
-              map: undefined,
+              map: map.current,
             }
           );
         } else {

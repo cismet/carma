@@ -114,7 +114,7 @@ export const getFeatureForLayer = async (
   layer,
   pos: number[],
   coordinates: number[],
-  leafletMap: Map,
+  map: Map | maplibregl.Map,
   signal?: AbortSignal
 ) => {
   const props = layer.props as LayerProps;
@@ -129,28 +129,70 @@ export const getFeatureForLayer = async (
   let viewportWidth = 10;
   let viewportHeight = 10;
 
-  if (leafletMap) {
-    const bounds = leafletMap.getBounds();
-    const projectedNE = proj4(
-      proj4.defs("EPSG:4326") as unknown as string,
-      proj4crs3857def,
-      [bounds.getNorthEast().lng, bounds.getNorthEast().lat]
-    );
-    const projectedSW = proj4(
-      proj4.defs("EPSG:4326") as unknown as string,
-      proj4crs3857def,
-      [bounds.getSouthWest().lng, bounds.getSouthWest().lat]
-    );
+  if (map) {
+    if (
+      "getBounds" in map &&
+      typeof map.getBounds === "function" &&
+      "getSize" in map &&
+      typeof map.getSize === "function"
+    ) {
+      // Leaflet map
+      const bounds = map.getBounds();
+      const projectedNE = proj4(
+        proj4.defs("EPSG:4326") as unknown as string,
+        proj4crs3857def,
+        [bounds.getNorthEast().lng, bounds.getNorthEast().lat]
+      );
+      const projectedSW = proj4(
+        proj4.defs("EPSG:4326") as unknown as string,
+        proj4crs3857def,
+        [bounds.getSouthWest().lng, bounds.getSouthWest().lat]
+      );
 
-    viewportBbox = {
-      left: projectedSW[0],
-      bottom: projectedSW[1],
-      right: projectedNE[0],
-      top: projectedNE[1],
-    };
+      viewportBbox = {
+        left: projectedSW[0],
+        bottom: projectedSW[1],
+        right: projectedNE[0],
+        top: projectedNE[1],
+      };
 
-    viewportWidth = leafletMap.getSize().x;
-    viewportHeight = leafletMap.getSize().y;
+      viewportWidth = map.getSize().x;
+      viewportHeight = map.getSize().y;
+    } else if ("getBounds" in map && typeof map.getBounds === "function") {
+      // MapLibre map
+      const bounds = map.getBounds();
+      const ne = bounds.getNorthEast();
+      const sw = bounds.getSouthWest();
+
+      const projectedNE = proj4(
+        proj4.defs("EPSG:4326") as unknown as string,
+        proj4crs3857def,
+        [ne.lng, ne.lat]
+      );
+      const projectedSW = proj4(
+        proj4.defs("EPSG:4326") as unknown as string,
+        proj4crs3857def,
+        [sw.lng, sw.lat]
+      );
+
+      viewportBbox = {
+        left: projectedSW[0],
+        bottom: projectedSW[1],
+        right: projectedNE[0],
+        top: projectedNE[1],
+      };
+
+      console.log("xxx bbox", {
+        left: projectedSW[0],
+        bottom: projectedSW[1],
+        right: projectedNE[0],
+        top: projectedNE[1],
+      });
+
+      const container = map.getContainer();
+      viewportWidth = container.clientWidth;
+      viewportHeight = container.clientHeight;
+    }
   }
 
   const pixelX = Math.round(
