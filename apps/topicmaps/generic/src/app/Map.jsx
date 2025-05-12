@@ -129,6 +129,7 @@ const Map = ({
           return;
         }
       }
+      setFeature(undefined);
     }
   }, [globalHits, layerInformation]);
   const { setAppMenuActiveMenuSection } = useContext(UIDispatchContext);
