@@ -56,7 +56,7 @@ import ChangeRequestEditView from "../components/changerequests/CR50Flaechendial
 import AnnotationEditView from "../components/changerequests/CR60AnnotationDialog";
 import CONTACTS_MAP, { defaultContact } from "../../constants/contacts";
 import { useEffect } from "react";
-import sysend from "sysend";
+// import sysend from "sysend";
 import queryString from "query-string";
 import { removeQueryPart } from "../../utils/routingHelper";
 
@@ -96,6 +96,19 @@ const KassenzeichenViewer = () => {
     }
   }, []);
 
+  const reloadOnEmailVerification = () => {
+    const changeRequestMenuVisible =
+      uiState.changeRequestsMenuVisible === true &&
+      uiState.applicationMenuVisible === false;
+
+    console.log("xxx reloadOnEmailVerification", changeRequestMenuVisible);
+
+    // if (changeRequestMenuVisible) {
+    //     this.props.routingActions.push(this.props.routing.location.pathname + "?crOpen");
+    // }
+    // window.location.reload();
+  };
+
   useEffect(() => {
     const { emailVerificationCode } = queryString.parse(location.search);
     console.log("xxx emailVerificationCode kassen view", emailVerificationCode);
@@ -106,8 +119,11 @@ const KassenzeichenViewer = () => {
         const success = !!result.aenderungsanfrage?.emailVerifiziert;
 
         if (success) {
-          // sysend.broadcast('reloadOnEmailVerification');
           console.log("xxx success");
+          // sysend.broadcast(
+          //   "reloadOnEmailVerification",
+          //   reloadOnEmailVerification
+          // );
 
           dispatch(showInfo("Verifizierung erfolgreich"));
           dispatch(showWaiting(true));
