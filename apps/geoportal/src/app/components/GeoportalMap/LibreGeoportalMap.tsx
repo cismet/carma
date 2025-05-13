@@ -10,6 +10,10 @@ import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { getHashParams, updateHashHistoryState } from "@carma-commons/utils";
+import {
+  LibreMapSelectionContent,
+  useSelectionLibreMap,
+} from "@carma-apps/portals";
 
 import {
   getBackgroundLayer,
@@ -74,6 +78,10 @@ const LibreGeoportalMap = () => {
 
   const layers = useSelector(getLayers);
   const backgroundLayer = useSelector(getBackgroundLayer);
+
+  useSelectionLibreMap({
+    map: map.current,
+  });
 
   const getLastDefinedObject = (o: Object) => {
     const keys = Object.keys(o);
@@ -176,7 +184,6 @@ const LibreGeoportalMap = () => {
       dispatch(setLibreMapRef(map));
 
       map.current.on("click", (e) => {
-        console.log("xxx trigger click", e);
         setPos([e.lngLat.lat, e.lngLat.lng]);
         const point = map.current.project([e.lngLat.lng, e.lngLat.lat]);
         const hits = map.current.queryRenderedFeatures(point);
@@ -614,6 +621,7 @@ const LibreGeoportalMap = () => {
   return (
     <>
       <LibreFeatureInfoBox pos={pos} libreMap={map.current} />
+      <LibreMapSelectionContent map={map.current} />
       <div className="map-wrap">
         <div ref={mapContainer} className="map" />
       </div>

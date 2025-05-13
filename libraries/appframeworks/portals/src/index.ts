@@ -30,6 +30,8 @@ export {
 } from "./lib/components/SelectionProvider";
 
 export { TopicMapSelectionContent } from "./lib/components/TopicMapSelectionContent";
+export { LibreMapSelectionContent } from "./lib/components/LibreMapSelectionContent";
 
 export { useSelectionTopicMap } from "./lib/hooks/useSelectionTopicMap";
 export { useSelectionCesium } from "./lib/hooks/useSelectionCesium";
+export { useSelectionLibreMap } from "./lib/hooks/useSelectionLibreMap";
