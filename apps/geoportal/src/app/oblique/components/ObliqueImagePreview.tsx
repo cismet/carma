@@ -1,5 +1,4 @@
-import React, { useEffect, useState, type RefObject } from "react";
-import { styled } from "styled-components";
+import { useEffect, useState, type RefObject, type FC } from "react";
 import { type Viewer, PerspectiveFrustum } from "cesium";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -11,6 +10,12 @@ import { Tooltip, Radio, type RadioChangeEvent } from "antd";
 import { useCesiumContext } from "@carma-mapping/cesium-engine";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { PREVIEW_IMAGE_BASE_SCALE_FACTOR } from "../config";
+import type { ObliqueImagePreviewStyle } from "../types";
+import {
+  type BlendMode,
+  PreviewImage,
+} from "./ObliqueImagePreview.PreviewImage";
+import { Backdrop } from "./ObliqueImagePreview.Backdrop";
 
 interface ObliqueImagePreviewProps {
   src: string;
@@ -26,10 +31,10 @@ interface ObliqueImagePreviewProps {
     xOffset: number;
     yOffset: number;
   };
+  style?: ObliqueImagePreviewStyle;
 }
 
 type ImageQuality = "REGULAR" | "HQ" | "BEST";
-type BlendMode = "normal" | "difference" | "normal50";
 
 const getViewerSyncedSize = (viewerRef: RefObject<Viewer>) => {
   const dim = Math.max(
@@ -47,84 +52,13 @@ const getViewerSyncedSize = (viewerRef: RefObject<Viewer>) => {
   return dim;
 };
 
-const Backdrop = styled.div<{ $fadeIn: boolean; $isDebug?: boolean }>`
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  ${({ $isDebug }) => {
-    if (!$isDebug)
-      return `
-  background-color: rgba(167, 75, 75, 0.2);
-`;
-  }}
-  backdrop-filter: contrast(${({ $isDebug }) => ($isDebug ? 85 : 80)}%);
-  z-index: 1100;
-  opacity: ${({ $fadeIn }) => ($fadeIn ? 1 : 0)};
-  transition: opacity 0.5s linear;
-  cursor: pointer;
-`;
+const defaultStyle: ObliqueImagePreviewStyle = {
+  backdropColor: "rgba(75, 75, 75, 0.2)",
+  border: "2px solid rgba(255, 255, 255, 0.9)",
+  boxShadow: "0 0 50px rgba(255, 255, 255, 0.8)",
+};
 
-const PreviewImage = styled.img<{
-  $fadeIn: boolean;
-  width: number;
-  height: number;
-  $translate?: string;
-  $isDebug?: boolean;
-  $blendMode?: BlendMode;
-}>`
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: ${({ $translate }) => $translate || "translate(-50%, -50%)"};
-  ${({ $blendMode }) => {
-    switch ($blendMode) {
-      case "difference":
-        return "mix-blend-mode: difference;";
-      case "normal50":
-        return "mix-blend-mode: normal !important; opacity: 0.5 !important;";
-      default: // normal
-        return "mix-blend-mode: normal;";
-    }
-  }}
-  min-width: ${({ width }) => width}px;
-  min-height: ${({ height }) => height}px;
-  height: auto;
-  box-sizing: content-box;
-  pointer-events: none;
-  ${({ $isDebug }) => {
-    if (!$isDebug)
-      return `
-  border: 2px solid rgba(255, 255, 255, 0.9);
-  box-shadow: 0 0 50px rgba(255, 255, 255, 0.8);
-  backdrop-filter: contrast(50%);
-`;
-  }}
-  z-index: 1200;
-  opacity: ${({ $fadeIn }) => ($fadeIn ? 1 : 0)};
-  transition: opacity 0.5s linear, width 0.1s linear, height 1s linear;
-  overflow: hidden;
-  scroll: none;
-`;
-
-const ButtonsContainer = styled.div`
-  position: absolute;
-  bottom: 50px;
-  width: 100%;
-  max-width: 800px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  flex-direction: row;
-  justify-content: center;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  z-index: 1300;
-`;
-
-export const ObliqueImagePreview: React.FC<ObliqueImagePreviewProps> = ({
+export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   src,
   srcHQ,
   srcOriginal,
@@ -134,6 +68,7 @@ export const ObliqueImagePreview: React.FC<ObliqueImagePreviewProps> = ({
   onOpenImageLink,
   onDirectDownload,
   onClose,
+  style,
   interiorOrientationOffsets = { xOffset: 0, yOffset: 0 },
 }) => {
   const [shouldFadeIn, setShouldFadeIn] = useState(false);
@@ -142,6 +77,11 @@ export const ObliqueImagePreview: React.FC<ObliqueImagePreviewProps> = ({
   const [blendMode, setBlendMode] = useState<BlendMode>("normal");
   const [currentQuality, setCurrentQuality] = useState<ImageQuality>("REGULAR");
   const [activeSource, setActiveSource] = useState(src);
+
+  const { backdropColor, border, boxShadow } = {
+    ...defaultStyle,
+    ...style,
+  };
 
   const { viewerRef } = useCesiumContext();
 
@@ -159,10 +99,10 @@ export const ObliqueImagePreview: React.FC<ObliqueImagePreviewProps> = ({
   }, [src, srcHQ, srcOriginal, currentQuality]);
 
   // compensate for interior orientation sensor offsets
-  const translateX = `${-50 + xOffset * 0.5 * 100}%`;
-  const translateY = `${-50 + yOffset * 0.5 * 100}%`;
+  const translateX = -50 + xOffset * 0.5 * 100;
+  const translateY = -50 + yOffset * 0.5 * 100;
 
-  const translate = `translate(${translateX}, ${translateY})`;
+  const transform = `translate(${translateX}%, ${translateY}%)`;
 
   // Only load image for aspect ratio when visible
   useEffect(() => {
@@ -201,7 +141,7 @@ export const ObliqueImagePreview: React.FC<ObliqueImagePreviewProps> = ({
   if (!isVisible) return null;
 
   const f = PREVIEW_IMAGE_BASE_SCALE_FACTOR;
-  // seems to need no adjustmert per dimension
+  // seems to need no adjustment per dimension
 
   const widthScaleFactor = f * (isVertical ? imageAspectRatio : 1);
   const heightScaleFactor = f * (isVertical ? 1 : 1 / imageAspectRatio);
@@ -219,11 +159,28 @@ export const ObliqueImagePreview: React.FC<ObliqueImagePreviewProps> = ({
       }}
     >
       <Backdrop
-        $fadeIn={shouldFadeIn}
-        $isDebug={isDebugMode}
+        color={backdropColor}
+        fadeIn={shouldFadeIn}
+        isDebug={isDebugMode}
         onClick={handleBackdropClick}
       />
-      <ButtonsContainer>
+      <div
+        style={{
+          position: "absolute",
+          bottom: "50px",
+          width: "100%",
+          maxWidth: "800px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          display: "flex",
+          flexDirection: "row",
+          justifyContent: "center",
+          flexWrap: "wrap",
+          alignItems: "center",
+          gap: "10px",
+          zIndex: 1300,
+        }}
+      >
         <Tooltip title="Bild in neuem Tab öffnen" placement="top">
           <div>
             <ControlButtonStyler onClick={onOpenImageLink} width="auto">
@@ -281,16 +238,18 @@ export const ObliqueImagePreview: React.FC<ObliqueImagePreviewProps> = ({
             </Radio.Group>
           </>
         )}
-      </ButtonsContainer>
+      </div>
       <PreviewImage
         src={activeSource}
         alt={alt}
         width={syncedWidth}
         height={syncedHeight}
-        $fadeIn={shouldFadeIn}
-        $blendMode={blendMode}
-        $isDebug={isDebugMode}
-        $translate={translate}
+        borderStyle={border}
+        boxShadowStyle={boxShadow}
+        fadeIn={shouldFadeIn}
+        blendMode={blendMode}
+        isDebug={isDebugMode}
+        transform={transform}
       />
     </div>
   );
