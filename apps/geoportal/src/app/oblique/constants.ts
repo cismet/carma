@@ -22,3 +22,7 @@ export const AVIF_LEVELS = [
 
 export const ORIENTATIONS_CSV_HEADER = "photo;x;y;z;omega;phi;kappa";
 export const NADIR_CAMERA_ID = "NAD";
+
+export const OBLIQUE_STATE_KEYS: Record<string, string> = {
+  isOblique: "oblq",
+};

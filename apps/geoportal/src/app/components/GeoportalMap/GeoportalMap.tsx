@@ -62,7 +62,7 @@ import { addCssToOverlayHelperItem } from "../../helper/overlayHelper.ts";
 import useLeafletZoomControls from "../../hooks/leaflet/useLeafletZoomControls.ts";
 import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
-import { useObliqueInitializer } from "../../oblique/hooks/useObliqueModeSetup.ts";
+import { useObliqueInitializer } from "../../oblique/hooks/useObliqueInitializer.ts";
 
 import { createCismapLayers, onClickTopicMap } from "./topicmap.utils.ts";
 import { useTweakpane } from "./GeoportalMap.useTweakpane.ts";
@@ -89,7 +89,6 @@ import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
-import { useOblique } from "../../oblique/hooks/useOblique.ts";
 
 interface MapProps {
   height: number;
@@ -104,7 +103,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const { pathname } = useLocation();
   const { viewerRef, terrainProviderRef, surfaceProviderRef } =
     useCesiumContext();
-  const { isObliqueMode } = useOblique();
 
   const rerenderCountRef = useRef(0);
   const lastRenderTimeStampRef = useRef(Date.now());
@@ -167,10 +165,12 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const [shouldUpdateFeatureInfo, setShouldUpdateFeatureInfo] =
     useState<boolean>(false);
 
-  const cesiumInitialCameraView = useCesiumInitialCameraFromSearchParams();
   const version = getApplicationVersion(versionData);
 
   // custom hooks
+
+  const cesiumInitialCameraView = useCesiumInitialCameraFromSearchParams();
+  const { isObliqueMode } = useObliqueInitializer();
 
   useDispatchSachdatenInfoText();
 
@@ -296,8 +296,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       }
     }
   }, [routedMap]);
-
-  useObliqueInitializer();
 
   const renderInfoBox = () => {
     if (isMode2d) {

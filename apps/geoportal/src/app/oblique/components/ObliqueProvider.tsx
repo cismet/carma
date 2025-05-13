@@ -12,10 +12,6 @@ import {
   updateHashHistoryState,
   deleteHashParamsFromHistoryState,
 } from "@carma-commons/utils";
-import {
-  useInitialObliqueModeFromSearchParams,
-  VIEWERSTATE_KEYS,
-} from "@carma-mapping/cesium-engine";
 
 import {
   ExteriorOrientations,
@@ -37,7 +33,7 @@ import {
 } from "../utils/spatialIndexing";
 import { getFootprintCenterpoints } from "../utils/footprintCenterpoints";
 
-import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
+import { OBLIQUE_PREVIEW_QUALITY, OBLIQUE_STATE_KEYS } from "../constants";
 import { NUM_NEAREST_IMAGES } from "../config";
 
 // Define the shape of our context
@@ -97,9 +93,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   config,
   fallbackDirectionConfig,
 }) => {
-  const initialObliqueMode = useInitialObliqueModeFromSearchParams();
-  const [isObliqueMode, setIsObliqueMode] =
-    useState<boolean>(initialObliqueMode);
+  const [isObliqueMode, setIsObliqueMode] = useState<boolean>(false);
   const [lockFootprint, setLockFootprint] = useState(false);
   const {
     orientationsURI,
@@ -168,10 +162,13 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     setIsObliqueMode((prevMode) => {
       const newMode = !prevMode;
       if (newMode) {
-        updateHashHistoryState({ [VIEWERSTATE_KEYS.isOblique]: "1" }, pathname);
+        updateHashHistoryState(
+          { [OBLIQUE_STATE_KEYS.isOblique]: "1" },
+          pathname
+        );
       } else {
         deleteHashParamsFromHistoryState(
-          [VIEWERSTATE_KEYS.isOblique],
+          [OBLIQUE_STATE_KEYS.isOblique],
           pathname
         );
       }
