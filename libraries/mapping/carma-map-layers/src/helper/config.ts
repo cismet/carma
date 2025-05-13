@@ -2460,16 +2460,16 @@ export const baseConfig = {
     serviceName: "wuppImmo",
     layers: [
       {
+        name: "wohnlagen2025",
+        keywords: [":vec:"],
+        icon: "immo/Wohnlagen_2024",
+      },
+      {
         name: "wohnlage2024",
         icon: "immo/Wohnlagenkarte_2024",
       },
       {
         name: "wohnlagen2024",
-        keywords: [":vec:"],
-        icon: "immo/Wohnlagen_2024",
-      },
-      {
-        name: "wohnlagen2025",
         keywords: [":vec:"],
         icon: "immo/Wohnlagen_2024",
       },
