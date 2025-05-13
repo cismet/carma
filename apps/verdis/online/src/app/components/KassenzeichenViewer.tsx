@@ -75,6 +75,7 @@ const KassenzeichenViewer = () => {
     const changeRequestMenuVisible =
       uiState.changeRequestsMenuVisible === true &&
       uiState.applicationMenuVisible === false;
+    console.log("xxx success");
 
     if (changeRequestMenuVisible) {
       navigate(
@@ -134,10 +135,7 @@ const KassenzeichenViewer = () => {
 
     dispatch(
       completeEmailChange(emailVerificationCode, (result) => {
-        const success = !!result.aenderungsanfrage?.emailVerifiziert;
-
-        if (success) {
-          console.log("xxx success");
+        if ((result.aenderungsanfrage || {}).emailVerifiziert) {
           sysend.broadcast("reloadOnEmailVerification");
 
           dispatch(showInfo("Verifizierung erfolgreich"));
