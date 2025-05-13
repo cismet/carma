@@ -25,14 +25,13 @@ import type {
   ObliqueImageRecordMap,
   Proj4Converter,
 } from "../types";
-import { Scene } from "cesium";
 
-export interface UseNearestObliqueImageOptions {
+interface UseObliqueNearestImageOptions {
   debounceTime?: number;
   k?: number;
 }
 
-const defaultOptions: UseNearestObliqueImageOptions = {
+const defaultOptions: UseObliqueNearestImageOptions = {
   debounceTime: 150,
   k: NUM_NEAREST_IMAGES,
 };
@@ -40,12 +39,12 @@ const defaultOptions: UseNearestObliqueImageOptions = {
 /**
  * Hook to find the nearest oblique image to the current camera position
  */
-export function useNearestObliqueImage(
+export function useObliqueNearestImage(
   obliqueRecords: ObliqueImageRecordMap | null,
   converter: Proj4Converter | null,
   headingOffset: number,
   centerpoints: RBushBySectorBlocks | null = null,
-  options: UseNearestObliqueImageOptions = defaultOptions,
+  options: UseObliqueNearestImageOptions = defaultOptions,
   lockFootprint: boolean = false
 ) {
   const { viewerRef } = useCesiumContext();
@@ -311,3 +310,5 @@ export function useNearestObliqueImage(
 
   return returnValue;
 }
+
+export default useObliqueNearestImage;

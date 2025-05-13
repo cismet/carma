@@ -28,7 +28,7 @@ import MapWrapper from "./components/GeoportalMap/controls/MapWrapper";
 
 import MapMeasurement from "./components/map-measure/MapMeasurement";
 import TopNavbar from "./components/TopNavbar";
-import { ObliqueDataProvider } from "./oblique/components/ObliqueDataContext";
+import { ObliqueProvider } from "./oblique/components/ObliqueProvider";
 
 import { useAppConfig } from "./hooks/useAppConfig";
 import { useManageLayers } from "./hooks/useManageLayers";
@@ -73,7 +73,7 @@ function App({ published }: { published?: boolean }) {
             background: backgroundSettings,
           }}
         >
-          <ObliqueDataProvider
+          <ObliqueProvider
             config={OBLIQUE_CONFIG}
             fallbackDirectionConfig={CAMERA_ID_TO_DIRECTION}
           >
@@ -113,7 +113,7 @@ function App({ published }: { published?: boolean }) {
                 </Modal>
               </div>
             </ErrorBoundary>
-          </ObliqueDataProvider>
+          </ObliqueProvider>
         </CarmaMapProviderWrapper>
       </TweakpaneProvider>
     </FeatureFlagProvider>

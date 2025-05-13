@@ -22,7 +22,6 @@ export interface UIState {
   showLayerHideButtons: boolean;
   showResourceModal: boolean;
   zenMode: boolean;
-  obliqueMode: boolean;
 }
 
 const initialState: UIState = {
@@ -36,7 +35,6 @@ const initialState: UIState = {
   showLayerHideButtons: false,
   showResourceModal: false,
   zenMode: false,
-  obliqueMode: false,
 };
 
 const slice = createSlice({
@@ -82,9 +80,6 @@ const slice = createSlice({
     setZenMode(state, action: PayloadAction<boolean>) {
       state.zenMode = action.payload;
     },
-    setObliqueMode(state, action: PayloadAction<boolean>) {
-      state.obliqueMode = action.payload;
-    },
   },
 });
 
@@ -101,7 +96,6 @@ export const {
   setUIShowLayerHideButtons,
   setShowResourceModal,
   setZenMode,
-  setObliqueMode,
 } = slice.actions;
 
 export const getUIMode = (state: RootState) => state.ui.mode;
@@ -118,6 +112,5 @@ export const getUIShowLayerHideButtons = (state: RootState) =>
 export const getUIShowResourceModal = (state: RootState) =>
   state.ui.showResourceModal;
 export const getZenMode = (state: RootState) => state.ui.zenMode;
-export const getObliqueMode = (state: RootState) => state.ui.obliqueMode;
 
 export default slice.reducer;

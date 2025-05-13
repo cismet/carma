@@ -1,6 +1,19 @@
-import React, { createContext, useEffect, useState, ReactNode } from "react";
-import { useSelector } from "react-redux";
+import React, {
+  createContext,
+  useEffect,
+  useState,
+  ReactNode,
+  useCallback,
+  useMemo,
+} from "react";
+import { useLocation } from "react-router-dom";
+import debounce from "lodash/debounce";
+
 import type { FeatureCollection, Polygon } from "geojson";
+import {
+  updateHashHistoryState,
+  deleteHashParamsFromHistoryState,
+} from "@carma-commons/utils";
 
 import {
   ExteriorOrientations,
@@ -11,10 +24,8 @@ import {
   Proj4Converter,
 } from "../types";
 
-import { getObliqueMode } from "../../store/slices/ui";
-
 import { useObliqueData } from "../hooks/useObliqueData";
-import { useNearestObliqueImage } from "../hooks/useNearestObliqueImage";
+import { useObliqueNearestImage } from "../hooks/useObliqueNearestImage";
 
 import { CardinalDirectionEnum } from "../utils/orientationUtils";
 import { fetchGeoJson, FootprintProperties } from "../utils/footprintUtils";
@@ -24,12 +35,16 @@ import {
 } from "../utils/spatialIndexing";
 import { getFootprintCenterpoints } from "../utils/footprintCenterpoints";
 
-import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
+import { OBLIQUE_PREVIEW_QUALITY, OBLIQUE_STATE_KEYS } from "../constants";
 import { NUM_NEAREST_IMAGES } from "../config";
 
-// Define the shape of our context
-// todo: consolidate per Image result data into NearestImageRecord
-interface ObliqueDataContextType {
+const DEBOUNCE_MS = 250; // time in milliseconds
+const DEBOUNCE_LEADING_EDGE = { leading: true, trailing: false };
+const NEAREST_IMAGE_DEBOUNCE_MS = 200;
+
+interface ObliqueContextType {
+  isObliqueMode: boolean;
+  toggleObliqueMode: () => void;
   imageRecords: ObliqueImageRecordMap | null;
   isLoading: boolean;
   error: string | null;
@@ -55,13 +70,11 @@ interface ObliqueDataContextType {
   animations: ObliqueAnimationsConfig;
 }
 
-// Create the context with a default value
-const ObliqueDataContext = createContext<ObliqueDataContextType | null>(null);
+const ObliqueContext = createContext<ObliqueContextType | null>(null);
 
-// Export the context for the hook file to use
-export { ObliqueDataContext };
+export { ObliqueContext };
 
-interface ObliqueDataProviderProps {
+interface ObliqueProviderProps {
   children: ReactNode;
   config: ObliqueDataProviderConfig;
   fallbackDirectionConfig: Record<
@@ -77,13 +90,12 @@ const fetchExteriorOrientationsJson = async (
   return response.json();
 };
 
-// Provider component that wraps parts of the app that need access to the context
-export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
+export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   children,
   config,
   fallbackDirectionConfig,
 }) => {
-  const isObliqueMode = useSelector(getObliqueMode);
+  const [isObliqueMode, setIsObliqueMode] = useState<boolean>(false);
   const [lockFootprint, setLockFootprint] = useState(false);
   const {
     orientationsURI,
@@ -100,7 +112,6 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
     animations,
   } = config;
 
-  // Use the oblique data hook to get camera orientations
   const {
     imageRecordMap: imageRecords,
     parseCSV,
@@ -114,10 +125,11 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
     fallbackDirectionConfig
   );
 
+  const { pathname } = useLocation();
+
   // Store when data has been previously loaded to prevent duplicate loads
   const [dataLoaded, setDataLoaded] = useState(false);
 
-  // Footprint data states
   const [footprintData, setFootprintData] = useState<FeatureCollection<
     Polygon,
     FootprintProperties
@@ -131,20 +143,40 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
   const [isFootprintLoading, setIsFootprintLoading] = useState(false);
   const [isExtOriLoading, setIsExtOriLoading] = useState(false);
 
-  // Add nearest image finding
-  const { nearestImage, distance, refreshSearch } = useNearestObliqueImage(
+  const { nearestImage, distance, refreshSearch } = useObliqueNearestImage(
     imageRecords,
     converter,
     headingOffset,
     footprintCenterpointsRBushByCardinals,
-    { debounceTime: 150, k: NUM_NEAREST_IMAGES },
+    { debounceTime: NEAREST_IMAGE_DEBOUNCE_MS, k: NUM_NEAREST_IMAGES },
     lockFootprint
   );
 
   const [footprintError, setFootprintError] = useState<string | null>(null);
-
-  // Global loading state
   const [isAllDataReady, setIsAllDataReady] = useState(false);
+
+  const performToggleAction = useCallback(() => {
+    setIsObliqueMode((prevMode: boolean) => {
+      const newMode = !prevMode;
+      if (newMode) {
+        updateHashHistoryState(
+          { [OBLIQUE_STATE_KEYS.isOblique]: "1" },
+          pathname
+        );
+      } else {
+        deleteHashParamsFromHistoryState(
+          [OBLIQUE_STATE_KEYS.isOblique],
+          pathname
+        );
+      }
+      return newMode;
+    });
+  }, [pathname, setIsObliqueMode]); // setIsObliqueMode is stable
+
+  const toggleObliqueMode = useMemo(
+    () => debounce(performToggleAction, DEBOUNCE_MS, DEBOUNCE_LEADING_EDGE),
+    [performToggleAction]
+  );
 
   // Only load data when oblique mode is enabled and not already loaded
   useEffect(() => {
@@ -180,7 +212,6 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
     }
   }, [imageRecords, isObliqueMode, refreshSearch, lockFootprint]);
 
-  // Load footprint data when in oblique mode
   useEffect(() => {
     if (!isObliqueMode || !footprintsURI) return;
 
@@ -233,6 +264,8 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
   }, [dataLoaded, isFootprintLoading, isExtOriLoading, isLoading]);
 
   const value = {
+    isObliqueMode,
+    toggleObliqueMode,
     imageRecords,
     isLoading,
     error,
@@ -259,8 +292,6 @@ export const ObliqueDataProvider: React.FC<ObliqueDataProviderProps> = ({
   };
 
   return (
-    <ObliqueDataContext.Provider value={value}>
-      {children}
-    </ObliqueDataContext.Provider>
+    <ObliqueContext.Provider value={value}>{children}</ObliqueContext.Provider>
   );
 };

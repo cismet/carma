@@ -62,7 +62,7 @@ import { addCssToOverlayHelperItem } from "../../helper/overlayHelper.ts";
 import useLeafletZoomControls from "../../hooks/leaflet/useLeafletZoomControls.ts";
 import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
-import { useObliqueMode } from "../../oblique/hooks/useObliqueMode.ts";
+import { useObliqueInitializer } from "../../oblique/hooks/useObliqueInitializer.ts";
 
 import { createCismapLayers, onClickTopicMap } from "./topicmap.utils.ts";
 import { useTweakpane } from "./GeoportalMap.useTweakpane.ts";
@@ -83,7 +83,7 @@ import {
   getShowHamburgerMenu,
   setLayersIdle,
 } from "../../store/slices/mapping.ts";
-import { getObliqueMode, getUIMode, UIMode } from "../../store/slices/ui.ts";
+import { getUIMode, UIMode } from "../../store/slices/ui.ts";
 
 import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 
@@ -99,7 +99,11 @@ interface MapProps {
 export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const dispatch = useDispatch();
 
+  // Contexts
   const { pathname } = useLocation();
+  const { viewerRef, terrainProviderRef, surfaceProviderRef } =
+    useCesiumContext();
+
   const rerenderCountRef = useRef(0);
   const lastRenderTimeStampRef = useRef(Date.now());
   const lastRenderIntervalRef = useRef(0);
@@ -108,7 +112,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   // State and Selectors
   const backgroundLayer = useSelector(getBackgroundLayer);
   const isMode2d = useSelector(selectViewerIsMode2d) || !allow3d;
-  const isObliqueMode = useSelector(getObliqueMode);
   const models = useSelector(selectViewerModels);
   const markerAsset = models[CESIUM_CONFIG.markerKey]; //
   const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;
@@ -119,8 +122,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const showHamburgerMenu = useSelector(getShowHamburgerMenu);
   const selectedFeature = useSelector(getSelectedFeature);
   const loadingFeatureInfo = useSelector(getLoading);
-  const { viewerRef, terrainProviderRef, surfaceProviderRef } =
-    useCesiumContext();
+
   const { getLeafletZoom } = useLeafletZoomControls();
   const showPrimaryTileset = useSelector(selectShowPrimaryTileset);
   const currentSceneStyle = useSelector(selectCurrentSceneStyle);
@@ -163,10 +165,12 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const [shouldUpdateFeatureInfo, setShouldUpdateFeatureInfo] =
     useState<boolean>(false);
 
-  const cesiumInitialCameraView = useCesiumInitialCameraFromSearchParams();
   const version = getApplicationVersion(versionData);
 
   // custom hooks
+
+  const cesiumInitialCameraView = useCesiumInitialCameraFromSearchParams();
+  const { isObliqueMode } = useObliqueInitializer();
 
   useDispatchSachdatenInfoText();
 
@@ -292,8 +296,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       }
     }
   }, [routedMap]);
-
-  useObliqueMode();
 
   const renderInfoBox = () => {
     if (isMode2d) {

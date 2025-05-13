@@ -72,6 +72,8 @@ import { useFeatureInfoModeCursorStyle } from "../../../hooks/useFeatureInfoMode
 import { useTourRefCollabLabels } from "../../../hooks/useTourRefCollabLabels.ts";
 import { useWindowSize } from "../../../hooks/useWindowSize.ts";
 
+import { useOblique } from "../../../oblique/hooks/useOblique.ts";
+
 import {
   exitFullscreen,
   getUrlPrefix,
@@ -95,7 +97,6 @@ import {
 } from "../../../store/slices/mapping.ts";
 import { setDrawingShape } from "../../../store/slices/measurements.ts";
 import {
-  getObliqueMode,
   getUIAllow3d,
   getUIMode,
   getZenMode,
@@ -142,8 +143,9 @@ const MapWrapper = () => {
   const { viewerRef, viewerAnimationMapRef, isViewerReady } =
     useCesiumContext();
   const homeControl = useHomeControl();
-  const isObliqueMode = useSelector(getObliqueMode);
   const configSelection = useSelector(getConfigSelection);
+
+  const { isObliqueMode } = useOblique();
 
   const {
     handleZoomIn: handleZoomInCesium,
@@ -428,6 +430,7 @@ const MapWrapper = () => {
                 </Tooltip>
 
                 <MapTypeSwitcher
+                  // TODO: move Config to props
                   duration={CESIUM_CONFIG.transitions.mapMode.duration}
                   className="!rounded-t-none !border-t-[1px]"
                   onComplete={(isTo2d: boolean) => {

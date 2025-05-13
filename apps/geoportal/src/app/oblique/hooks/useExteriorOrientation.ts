@@ -4,7 +4,7 @@ import type {
   NearestObliqueImageRecord,
 } from "../types";
 import { mapExtOriArrToRecord } from "../utils/obliqueImageRecord";
-import { useObliqueDataContext } from "./useObliqueDataContext";
+import { useOblique } from "./useOblique";
 import {
   computeDerivedExteriorOrientation,
   DerivedExteriorOrientation,
@@ -16,7 +16,7 @@ export const useExteriorOrientation = (
 ) => {
   // Exterior orientation record
 
-  const { exteriorOrientations, converter } = useObliqueDataContext();
+  const { exteriorOrientations, converter } = useOblique();
 
   const [extOriInputRecord, setExtOriInputRecord] =
     useState<ExteriorOrientationRecord | null>(null);
