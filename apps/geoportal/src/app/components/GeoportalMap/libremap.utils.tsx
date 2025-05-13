@@ -7,6 +7,7 @@ import {
   objectToFeature,
 } from "../feature-info/featureInfoHelper";
 import maplibregl from "maplibre-gl";
+import slugify from "slugify";
 
 const getPaintProperty = (layerStyle: LayerSpecification) => {
   const type = layerStyle.type;
@@ -28,6 +29,9 @@ export const layersToMapLibreStyle = async (
   backgroundLayer: BackgroundLayer,
   layers: Layer[]
 ) => {
+  const defaultSprite = "https://tiles.cismet.de/poi/sprites";
+  const customSprites: maplibregl.SpriteSpecification = [];
+
   const style: StyleSpecification = {
     version: 8,
     sources: {
@@ -42,10 +46,10 @@ export const layersToMapLibreStyle = async (
     },
     layers: [],
     glyphs: "https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf",
-    sprite: "https://tiles.cismet.de/poi/sprites",
+    sprite: defaultSprite,
   };
 
-  if (backgroundLayer) {
+  if (backgroundLayer && backgroundLayer.visible) {
     const namedLayers = defaultLayerConfig.namedLayers;
     const backgroundLayers = backgroundLayer.layers.split("|");
     if (backgroundLayer.layers.includes("basemap_relief")) {
@@ -167,13 +171,31 @@ export const layersToMapLibreStyle = async (
       if (vectorStyle) {
         const response = await fetch(vectorStyle);
         const additionalStyle = await response.json();
+        const layerId = layer.id;
+        let spriteId = layerId.replace(":", "_");
+        if (additionalStyle.sprite) {
+          spriteId = slugify(additionalStyle.sprite, {
+            remove: /[^a-zA-Z0-9]/g,
+            lower: true,
+          });
+
+          const spriteExists = customSprites.some(
+            (sprite) => sprite.id === spriteId
+          );
+          if (!spriteExists) {
+            customSprites.push({
+              id: spriteId,
+              url: additionalStyle.sprite,
+            });
+          }
+        }
         additionalStyle.layers = additionalStyle.layers.map((styleLayer) => ({
           ...styleLayer,
-          id: `${layer.id}-${styleLayer.id}`,
+          id: `${layerId}-${styleLayer.id}`,
           metadata: {
             ...styleLayer.metadata,
             "z-index": index,
-            "layer-id": layer.id,
+            "layer-id": layerId,
           },
           paint: {
             ...styleLayer.paint,
@@ -182,6 +204,18 @@ export const layersToMapLibreStyle = async (
               : {
                   [getPaintProperty(styleLayer)]: layer.opacity,
                 }),
+          },
+          layout: {
+            ...styleLayer.layout,
+            ...(styleLayer.layout?.["icon-image"] !== undefined
+              ? {
+                  "icon-image": [
+                    "concat",
+                    `${spriteId}:`,
+                    styleLayer.layout?.["icon-image"],
+                  ],
+                }
+              : {}),
           },
         }));
 
@@ -198,6 +232,10 @@ export const layersToMapLibreStyle = async (
     const bZIndex = b.metadata?.["z-index"] || 0;
     return aZIndex - bZIndex; // Lower z-index values are rendered first
   });
+
+  if (customSprites.length > 0) {
+    style.sprite = customSprites;
+  }
 
   return style;
 };
