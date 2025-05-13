@@ -45,10 +45,12 @@ const Comp = ({
           </p>
           <Section
             key={"sectionKey0"}
-            sectionKey={"sectionKey"}
+            sectionKey={"sectionKey0"}
             style={{ marginBottom: 6 }}
             sectionBsStyle="info"
             sectionTitle={"Anmerkung "}
+            activeSectionKey={"sectionKey0"}
+            setActiveSectionKey={() => {}}
             sectionContent={
               <Form>
                 <Form.Group controlId="subject">
