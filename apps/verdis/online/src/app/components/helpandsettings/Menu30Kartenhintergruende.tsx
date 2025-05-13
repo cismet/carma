@@ -23,9 +23,6 @@ const Menu30Kartenhintergruende = ({
   //   let layers = backgrounds[selectedBackgroundIndex]?.layerkey;
   let layers = backgrounds[selectedBackgroundIndex]?.layerkey;
 
-  console.log("xxx backgrounds", backgrounds);
-  console.log("xxx selectedBackgroundIndex", selectedBackgroundIndex);
-
   const mapPreview = (
     <PreviewMap
       crs={MappingConstants.crs25832}
