@@ -251,6 +251,10 @@ function App({ name }) {
       // Deep-merge project config into default config
       merge(config, projectConfig);
 
+      if (config?.tm?.windowtitle) {
+        document.title = config.tm.windowtitle;
+      }
+
       // --- Style Manipulation: Fetch style JSON if needed ---
       if (Array.isArray(config?.tm?.vectorLayers)) {
         const styleFetchPromises = config.tm.vectorLayers.map(async (layer) => {
