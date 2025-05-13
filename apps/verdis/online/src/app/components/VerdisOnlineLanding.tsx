@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { getKassenzeichenbySTAC } from "../../store/slices/kassenzeichen";
 import { getLoginInProgress, getLoginInfoText } from "../../store/slices/auth";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { getConfData, getUiState } from "../../store/slices/ui";
 import {
   Kontaktinformationen,
@@ -15,6 +15,8 @@ import {
 import type { UnknownAction } from "redux";
 import { getApplicationVersion } from "@carma-commons/utils";
 import versionData from "../../version.json";
+import queryString from "query-string";
+
 const VerdisOnlineLanding = () => {
   const [stac, setStac] = useState("");
   const [loginAlertVisible, setLoginAlertVisible] = useState(false);
@@ -24,6 +26,8 @@ const VerdisOnlineLanding = () => {
   const loginInfoText = useSelector(getLoginInfoText);
   const confData = useSelector(getConfData);
   const navigate = useNavigate();
+  const location = useLocation();
+
   const uiState = useSelector(getUiState);
   let landingStyle = {
     backgroundColor: "red",
@@ -51,19 +55,25 @@ const VerdisOnlineLanding = () => {
   const handleStacChange = (rawStac) => {
     setStac(rawStac);
     if (rawStac) {
-      console.log("xxx", rawStac);
+      console.log("xxx callback");
+
       let stac = rawStac.trim().replace(/[- ]/g, "");
       if (stac.length === 12) {
         dispatch(
           getKassenzeichenbySTAC(stac, (success) => {
             if (success === true) {
               setTimeout(() => {
-                const verificationCode = "";
+                const verificationCode = queryString.parse(
+                  location.search
+                ).emailVerificationCode;
                 let verificationCodeSuffix = "";
                 if (verificationCode) {
                   verificationCodeSuffix =
                     "?emailVerificationCode=" + verificationCode;
                 }
+                console.log("xxx verificationCode", verificationCode);
+                console.log("xxx location.search", location.search);
+
                 navigate("/meinkassenzeichen" + verificationCodeSuffix);
               }, 100);
             } else {

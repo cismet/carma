@@ -10,6 +10,7 @@ import {
   addChangeRequestMessage,
   addCRDoc,
   changeAnnotation,
+  completeEmailChange,
   getKassenzeichen,
   getKassenzeichenbySTAC,
   getNumberOfPendingChanges,
@@ -48,7 +49,7 @@ import {
   getSuccesfullLogin,
   setLoginInProgress,
 } from "../../store/slices/auth";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { KassenzeichenViewerGefahrensignal } from "@carma-collab/wuppertal/verdis-online";
 import AnnotationPanel from "./AnnotationPanel";
 import ChangeRequestEditView from "../components/changerequests/CR50Flaechendialog";
@@ -56,6 +57,8 @@ import AnnotationEditView from "../components/changerequests/CR60AnnotationDialo
 import CONTACTS_MAP, { defaultContact } from "../../constants/contacts";
 import { useEffect } from "react";
 import sysend from "sysend";
+import queryString from "query-string";
+import { removeQueryPart } from "../../utils/routingHelper";
 
 const KassenzeichenViewer = () => {
   const kassenzeichen = useSelector(getKassenzeichen);
@@ -65,6 +68,7 @@ const KassenzeichenViewer = () => {
   const stac = useSelector(getStac);
   const login = useSelector(getSuccesfullLogin);
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useDispatch();
 
   useEffect(() => {
@@ -91,6 +95,45 @@ const KassenzeichenViewer = () => {
       // console.log("xxx successefull login");
     }
   }, []);
+
+  useEffect(() => {
+    const { emailVerificationCode } = queryString.parse(location.search);
+    console.log("xxx emailVerificationCode kassen view", emailVerificationCode);
+    if (emailVerificationCode === undefined) return;
+
+    dispatch(
+      completeEmailChange(emailVerificationCode, (result) => {
+        const success = !!result.aenderungsanfrage?.emailVerifiziert;
+
+        // if (success) {
+        //   sysend.broadcast('reloadOnEmailVerification');
+        //   dispatch(showInfo('Verifizierung erfolgreich'));
+        //   setTimeout(() => {
+        //     dispatch(hideInfo());
+        //   }, 1500);
+        // } else {
+        //   dispatch(showError('Verifizierung fehlgeschlagen'));
+        //   setTimeout(() => {
+        //     dispatch(uiStateActions.hideInfo());
+        //   }, 2500);
+        // }
+      })
+    );
+
+    const cleanSearch = removeQueryPart(
+      location.search,
+      "emailVerificationCode"
+    );
+
+    console.log("xxx cleanSearch", cleanSearch);
+    navigate(
+      {
+        pathname: location.pathname,
+        search: cleanSearch,
+      },
+      { replace: true }
+    );
+  }, [location.search]);
 
   // let flaechenPanelRefs = useRef({});
 
