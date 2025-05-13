@@ -56,9 +56,9 @@ import ChangeRequestEditView from "../components/changerequests/CR50Flaechendial
 import AnnotationEditView from "../components/changerequests/CR60AnnotationDialog";
 import CONTACTS_MAP, { defaultContact } from "../../constants/contacts";
 import { useEffect } from "react";
-// import sysend from "sysend";
 import queryString from "query-string";
 import { removeQueryPart } from "../../utils/routingHelper";
+import sysend from "sysend";
 
 const KassenzeichenViewer = () => {
   const kassenzeichen = useSelector(getKassenzeichen);
@@ -70,6 +70,20 @@ const KassenzeichenViewer = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
+
+  const reloadOnEmailVerification = () => {
+    console.log("xxx reloadOnEmailVerification");
+    const changeRequestMenuVisible =
+      uiState.changeRequestsMenuVisible === true &&
+      uiState.applicationMenuVisible === false;
+
+    console.log("xxx reloadOnEmailVerification", changeRequestMenuVisible);
+
+    // if (changeRequestMenuVisible) {
+    //     this.props.routingActions.push(this.props.routing.location.pathname + "?crOpen");
+    // }
+    // window.location.reload();
+  };
 
   useEffect(() => {
     if (!stac) {
@@ -91,23 +105,15 @@ const KassenzeichenViewer = () => {
           })
         );
       }
-
-      // console.log("xxx successefull login");
     }
+
+    sysend.on("reloadOnEmailVerification", () => {
+      reloadOnEmailVerification();
+    });
+    return () => {
+      sysend.off("reloadOnEmailVerification");
+    };
   }, []);
-
-  const reloadOnEmailVerification = () => {
-    const changeRequestMenuVisible =
-      uiState.changeRequestsMenuVisible === true &&
-      uiState.applicationMenuVisible === false;
-
-    console.log("xxx reloadOnEmailVerification", changeRequestMenuVisible);
-
-    // if (changeRequestMenuVisible) {
-    //     this.props.routingActions.push(this.props.routing.location.pathname + "?crOpen");
-    // }
-    // window.location.reload();
-  };
 
   useEffect(() => {
     const { emailVerificationCode } = queryString.parse(location.search);
@@ -120,10 +126,7 @@ const KassenzeichenViewer = () => {
 
         if (success) {
           console.log("xxx success");
-          // sysend.broadcast(
-          //   "reloadOnEmailVerification",
-          //   reloadOnEmailVerification
-          // );
+          sysend.broadcast("reloadOnEmailVerification", { verified: true });
 
           dispatch(showInfo("Verifizierung erfolgreich"));
           dispatch(showWaiting(true));

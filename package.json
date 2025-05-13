@@ -106,6 +106,7 @@
     "sort-by": "^1.2.0",
     "stacktrace-js": "^2.0.2",
     "storybook": "8.5.3",
+    "sysend": "^1.17.5",
     "tailwind-merge": "^2.4.0",
     "tslib": "^2.8.1",
     "tweakpane": "^4.0.5",
