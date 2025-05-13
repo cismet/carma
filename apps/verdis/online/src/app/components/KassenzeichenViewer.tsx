@@ -72,16 +72,19 @@ const KassenzeichenViewer = () => {
   const dispatch = useDispatch();
 
   const reloadOnEmailVerification = () => {
-    console.log("xxx reloadOnEmailVerification");
     const changeRequestMenuVisible =
       uiState.changeRequestsMenuVisible === true &&
       uiState.applicationMenuVisible === false;
 
-    console.log("xxx reloadOnEmailVerification", changeRequestMenuVisible);
-
-    // if (changeRequestMenuVisible) {
-    //     this.props.routingActions.push(this.props.routing.location.pathname + "?crOpen");
-    // }
+    if (changeRequestMenuVisible) {
+      navigate(
+        {
+          pathname: location.pathname,
+          search: "?crOpen",
+        },
+        { replace: true }
+      );
+    }
     // window.location.reload();
   };
 
@@ -110,6 +113,7 @@ const KassenzeichenViewer = () => {
     sysend.on("reloadOnEmailVerification", () => {
       reloadOnEmailVerification();
     });
+
     return () => {
       sysend.off("reloadOnEmailVerification");
     };
@@ -117,7 +121,15 @@ const KassenzeichenViewer = () => {
 
   useEffect(() => {
     const { emailVerificationCode } = queryString.parse(location.search);
-    console.log("xxx emailVerificationCode kassen view", emailVerificationCode);
+
+    const crOpen = queryString.parse(location.search).crOpen;
+
+    if (crOpen !== undefined) {
+      console.log("xxx crOpen", crOpen);
+      dispatch(showChangeRequests({ visible: true }));
+      const cleanSearch = removeQueryPart(location.search, "crOpen");
+    }
+
     if (emailVerificationCode === undefined) return;
 
     dispatch(
@@ -126,7 +138,7 @@ const KassenzeichenViewer = () => {
 
         if (success) {
           console.log("xxx success");
-          sysend.broadcast("reloadOnEmailVerification", { verified: true });
+          sysend.broadcast("reloadOnEmailVerification");
 
           dispatch(showInfo("Verifizierung erfolgreich"));
           dispatch(showWaiting(true));
