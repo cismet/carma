@@ -452,7 +452,7 @@ export const NewLibModal = ({
       if (favoriteLayerCategory.length > 0) {
         const favoriteLayers = favoriteLayerCategory[0].layers;
         favoriteLayers.forEach((layer) => {
-          const serviceId = layer?.serviceName;
+          const serviceId = (layer as unknown as any)?.service.name; // TODO: fix type
           const serviceCategory = allLayers.filter(
             (category) => category.id === serviceId
           );
