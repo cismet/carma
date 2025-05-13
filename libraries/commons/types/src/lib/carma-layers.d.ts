@@ -1,5 +1,10 @@
-import { BackgroundLayer } from "@carma-apps/portals";
-import type { CarmaConfig } from "@carma-commons/utils";
+import { CarmaConfig } from "./carma-config";
+
+export type BackgroundLayer = Layer & {
+  layers: string;
+  inhalt?: string;
+  eignung?: string;
+};
 
 export type LayerConfig = {
   name: string;

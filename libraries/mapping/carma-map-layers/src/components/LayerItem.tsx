@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { faStar as regularFaStar } from "@fortawesome/free-regular-svg-icons";
 import {
   faChevronDown,
@@ -13,11 +14,12 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button, Modal, Spin } from "antd";
-import { useEffect, useState } from "react";
-import type { Item } from "../helper/types";
+
+import { Item } from "@carma-commons/types";
+import { extractCarmaConfig } from "@carma-commons/utils";
+
 import InfoCard from "./InfoCard";
 import tmpThumbnail from "./tmpService.jpg";
-import { extractCarmaConfig } from "@carma-commons/utils";
 
 interface LayerItemProps {
   setAdditionalLayers: any;

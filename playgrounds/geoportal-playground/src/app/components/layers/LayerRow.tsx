@@ -1,3 +1,5 @@
+import { useDispatch } from "react-redux";
+import { Slider } from "antd";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
@@ -7,9 +9,9 @@ import {
   faLayerGroup,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Slider } from "antd";
-import { Layer } from "@carma-mapping/layers";
-import { useDispatch } from "react-redux";
+
+import { Layer } from "@carma-commons/types";
+
 import { changeOpacity, changeVisibility } from "../../store/slices/mapping";
 import { iconColorMap, iconMap } from "./items";
 import { formatter } from "./SecondaryView";

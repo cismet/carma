@@ -1,7 +1,7 @@
-import { LayerProps } from "@carma-mapping/layers";
-import FeatureInfoIcon from "./FeatureInfoIcon";
 import proj4 from "proj4";
 import type { Map } from "leaflet";
+import type { LayerProps } from "@carma-commons/types";
+import { FeatureInfoIcon } from "./FeatureInfoIcon";
 import { proj4crs3857def } from "../../helper/gisHelper";
 
 export const getLeafNodes = (node, result: any = {}): any => {

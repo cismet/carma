@@ -6,12 +6,6 @@ import { useDispatch, useSelector } from "react-redux";
 import { Tooltip } from "antd";
 
 import {
-  Control,
-  ControlButtonStyler,
-  ControlLayout,
-  ControlLayoutCanvas,
-} from "@carma-mapping/map-controls-layout";
-import {
   faCompress,
   faExpand,
   faEyeSlash,
@@ -36,6 +30,11 @@ import {
 
 import { useTweakpaneCtx } from "@carma-commons/debug";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
+import type {
+  FullScreenDocument,
+  FullScreenHTMLElement,
+  SearchResultItem,
+} from "@carma-commons/types";
 import {
   deleteHashParamsFromHistoryState,
   detectWebGLContext,
@@ -54,18 +53,17 @@ import {
 } from "@carma-mapping/cesium-engine";
 import { LibrePitchingCompass } from "@carma-mapping/components";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
-import { type SearchResultItem } from "@carma-commons/types";
-
 import {
-  FullScreenDocument,
-  FullScreenHTMLElement,
-} from "@carma-mapping/layers";
+  Control,
+  ControlButtonStyler,
+  ControlLayout,
+  ControlLayoutCanvas,
+} from "@carma-mapping/map-controls-layout";
 
 import { GeoportalMap } from "../GeoportalMap.tsx";
 import LibreGeoportalMap from "../LibreGeoportalMap.tsx";
 import { ObliqueControls } from "../../../oblique/components/ObliqueControls.tsx";
 import LayerWrapper from "../../layers/LayerWrapper.tsx";
-import LibreFeatureInfoBox from "../../feature-info/LibreFeatureInfoBox.tsx";
 import LocateControlComponent from "../controls/LocateControlComponent.tsx";
 
 import useLeafletZoomControls from "../../../hooks/leaflet/useLeafletZoomControls.ts";

@@ -1,13 +1,14 @@
-import { BackgroundLayer } from "@carma-apps/portals";
+import maplibregl from "maplibre-gl";
 import { type LayerSpecification, type StyleSpecification } from "maplibre-gl";
-import { defaultLayerConfig } from "../../config";
-import { Layer } from "@carma-mapping/layers";
+import slugify from "slugify";
+
+import type { BackgroundLayer, Layer } from "@carma-commons/types";
+
 import {
   functionToFeature,
   objectToFeature,
 } from "../feature-info/featureInfoHelper";
-import maplibregl from "maplibre-gl";
-import slugify from "slugify";
+import { defaultLayerConfig } from "../../config";
 
 const getPaintProperty = (layerStyle: LayerSpecification) => {
   const type = layerStyle.type;

@@ -11,7 +11,8 @@ import proj4 from "proj4";
 
 import CismapLayer from "react-cismap/CismapLayer";
 
-import type { Layer } from "@carma-mapping/layers";
+import { useFeatureFlags } from "@carma-apps/portals";
+import type { Layer } from "@carma-commons/types";
 
 import {
   addNothingFoundID,
@@ -43,7 +44,6 @@ import { getAtLeastOneLayerIsQueryable, getQueryableLayers } from "./utils";
 import { UIMode } from "../../store/slices/ui";
 import { FeatureInfoIcon } from "../feature-info/FeatureInfoIcon";
 import { proj4crs3857def } from "../../helper/gisHelper";
-import { useFeatureFlags } from "@carma-apps/portals";
 
 interface WMTSLayerProps {
   type: "wmts";

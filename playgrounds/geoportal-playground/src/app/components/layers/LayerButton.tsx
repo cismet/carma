@@ -14,8 +14,8 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 // import { faCircle } from '@fortawesome/free-regular-svg-icons';
 
+import type { Layer } from "@carma-commons/types";
 import { cn } from "@carma-commons/utils";
-import { Layer } from "@carma-mapping/layers";
 
 import {
   changeVisibility,

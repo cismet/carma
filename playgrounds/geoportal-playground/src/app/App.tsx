@@ -1,16 +1,13 @@
-import "bootstrap/dist/css/bootstrap.min.css";
-import "leaflet/dist/leaflet.css";
-import "react-bootstrap-typeahead/css/Typeahead.css";
-import "react-cismap/topicMaps.css";
-import "./index.css";
-import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
-import Map from "./components/Map";
-import TopNavbar from "./components/TopNavbar";
-import MapMeasurement from "./components/map-measure/MapMeasurement";
 import { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { useSearchParams } from "react-router-dom";
 import LZString from "lz-string";
-import { useDispatch, useSelector } from "react-redux";
+
+import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
+import { CrossTabCommunicationContextProvider } from "react-cismap/contexts/CrossTabCommunicationContextProvider";
+
+import { OverlayTourProvider } from "@carma-commons/ui/lib-helper-overlay";
+import type { Layer } from "@carma-commons/types";
 import {
   BackgroundLayer,
   getShowMeasurementButton,
@@ -21,20 +18,26 @@ import {
   setShowLocatorButton,
   setShowMeasurementButton,
 } from "./store/slices/mapping";
+import Map from "./components/Map";
+import TopNavbar from "./components/TopNavbar";
+import MapMeasurement from "./components/map-measure/MapMeasurement";
 import {
   getAllowUiChanges,
   getMode,
   setAllowUiChanges,
   setShowLayerButtons,
   setShowLayerHideButtons,
-  setMode,
 } from "./store/slices/ui";
-import { Layer } from "@carma-mapping/layers";
+
 import { Settings } from "./components/Share";
-import CrossTabCommunicationContextProvider from "react-cismap/contexts/CrossTabCommunicationContextProvider";
+
 import HomeButton from "./components/HomeButton";
-import { OverlayTourProvider } from "@carma-commons/ui/lib-helper-overlay";
-// import { OverlayTourProvider } from './hooks/useOverlayHelper';
+
+import "bootstrap/dist/css/bootstrap.min.css";
+import "leaflet/dist/leaflet.css";
+import "react-bootstrap-typeahead/css/Typeahead.css";
+import "react-cismap/topicMaps.css";
+import "./index.css";
 
 if (typeof global === "undefined") {
   window.global = window;

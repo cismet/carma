@@ -1,6 +1,6 @@
 export { isNumberArrayEqual } from "./lib/arrays";
 
-export { type CarmaConfig, extractCarmaConfig } from "./lib/carmaConfig";
+export { extractCarmaConfig } from "./lib/carmaConfig";
 
 export { md5FetchText } from "./lib/fetching";
 

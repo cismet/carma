@@ -1,4 +1,4 @@
-import { Item } from "../helper/types";
+import { Item } from "@carma-commons/types";
 import LayerItem from "./LayerItem";
 
 interface ItemGridProps {
