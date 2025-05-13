@@ -55,8 +55,6 @@ const VerdisOnlineLanding = () => {
   const handleStacChange = (rawStac) => {
     setStac(rawStac);
     if (rawStac) {
-      console.log("xxx callback");
-
       let stac = rawStac.trim().replace(/[- ]/g, "");
       if (stac.length === 12) {
         dispatch(
@@ -71,8 +69,6 @@ const VerdisOnlineLanding = () => {
                   verificationCodeSuffix =
                     "?emailVerificationCode=" + verificationCode;
                 }
-                console.log("xxx verificationCode", verificationCode);
-                console.log("xxx location.search", location.search);
 
                 navigate("/meinkassenzeichen" + verificationCodeSuffix);
               }, 100);

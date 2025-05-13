@@ -105,18 +105,23 @@ const KassenzeichenViewer = () => {
       completeEmailChange(emailVerificationCode, (result) => {
         const success = !!result.aenderungsanfrage?.emailVerifiziert;
 
-        // if (success) {
-        //   sysend.broadcast('reloadOnEmailVerification');
-        //   dispatch(showInfo('Verifizierung erfolgreich'));
-        //   setTimeout(() => {
-        //     dispatch(hideInfo());
-        //   }, 1500);
-        // } else {
-        //   dispatch(showError('Verifizierung fehlgeschlagen'));
-        //   setTimeout(() => {
-        //     dispatch(uiStateActions.hideInfo());
-        //   }, 2500);
-        // }
+        if (success) {
+          // sysend.broadcast('reloadOnEmailVerification');
+          console.log("xxx success");
+
+          dispatch(showInfo("Verifizierung erfolgreich"));
+          dispatch(showWaiting(true));
+          setTimeout(() => {
+            dispatch(showWaiting(false));
+          }, 1500);
+        } else {
+          console.log("xxx false");
+
+          // dispatch(showError('Verifizierung fehlgeschlagen'));
+          setTimeout(() => {
+            dispatch(showWaiting(false));
+          }, 2500);
+        }
       })
     );
 
@@ -125,7 +130,6 @@ const KassenzeichenViewer = () => {
       "emailVerificationCode"
     );
 
-    console.log("xxx cleanSearch", cleanSearch);
     navigate(
       {
         pathname: location.pathname,
