@@ -1494,6 +1494,9 @@ export const baseConfig = {
         icon: "poi/Theater",
       },
       {
+        name: "poi_toiletten",
+      },
+      {
         name: "poi_trinkwasser",
         keywords: [":vec:"],
         icon: "poi/Trinkwasserbrunnen",
@@ -1516,6 +1519,9 @@ export const baseConfig = {
         name: "poi_weihnacht",
         keywords: [":vec:"],
         icon: "poi/Weihnachtsmärkte",
+      },
+      {
+        name: "poi_wochenmaerkte",
       },
       {
         name: "poi_wupperufer",
@@ -2459,10 +2465,12 @@ export const baseConfig = {
       },
       {
         name: "wohnlagen2024",
-        keywords: [
-          ":vec:",
-          "carmaconf://infoBoxMapping:function createInfoBoxInfo(p) { let color = '#006c72'; switch(p.WERT) { case 1: color = '#FF0000'; break; case 2: color = '#FFC000'; break; case 3: color = '#92D050'; break; case 4: color = '#00C5FF'; break; } const info = { title: p.Wohnlage, headerColor: color, header: 'Wohnlagen 2024', }; return info; }",
-        ],
+        keywords: [":vec:"],
+        icon: "immo/Wohnlagen_2024",
+      },
+      {
+        name: "wohnlagen2025",
+        keywords: [":vec:"],
         icon: "immo/Wohnlagen_2024",
       },
       {
