@@ -1,11 +1,12 @@
+import { useState } from "react";
+import { nanoid } from "@reduxjs/toolkit";
+
 import { faFileExport } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button, Input, Tooltip, message } from "antd";
-import { useState } from "react";
-import { nanoid } from "@reduxjs/toolkit";
 import { faQuestionCircle } from "@fortawesome/free-regular-svg-icons";
-import type { Layer } from "@carma-mapping/layers";
-import type { BackgroundLayer, GeoportalCollection } from "../types";
+import type { BackgroundLayer, Layer } from "@carma-commons/types";
+import type { GeoportalCollection } from "../types";
 
 interface SaveProps {
   layers: Layer[];

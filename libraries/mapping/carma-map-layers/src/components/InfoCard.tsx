@@ -4,7 +4,6 @@ import {
   faCircleMinus,
   faCirclePlus,
   faExternalLink,
-  faImage,
   faMap,
   faSquareUpRight,
   faStar,
@@ -12,11 +11,10 @@ import {
   faX,
 } from "@fortawesome/free-solid-svg-icons";
 
+import { Item } from "@carma-commons/types";
 import { extractCarmaConfig } from "@carma-commons/utils";
 
 import { parseDescription } from "../helper/layerHelper";
-import { Item } from "../helper/types";
-import { useEffect, useState } from "react";
 
 interface InfoCardProps {
   layer: Item;
@@ -47,9 +45,8 @@ const InfoCard = ({
   deleteCollection,
 }: InfoCardProps) => {
   const { title, description, tags } = layer;
-  // @ts-expect-error fix typing
-  const legends = layer?.props?.Style?.[0]?.LegendURL;
-  const parsedDescriptions = parseDescription(description);
+  const legends = (layer as unknown as any).props?.Style?.[0]?.LegendURL; // TODO: fix type
+  const parsedDescriptions = parseDescription(description);        
   const carmaConf = extractCarmaConfig(layer.keywords);
   const isVectorLayer = carmaConf?.vectorStyle;
   const canFavoriteItem =

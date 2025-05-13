@@ -1,19 +1,20 @@
-import { Layer } from "@carma-mapping/layers";
+import { useDispatch, useSelector } from "react-redux";
+
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { faGripVertical, faMap, faX } from "@fortawesome/free-solid-svg-icons";
+import { faGripVertical, faX } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { useDispatch, useSelector } from "react-redux";
+
+import type { Layer } from "@carma-commons/types";
+
 import { getSelectedFeature } from "../../store/slices/features";
 import {
   getBackgroundLayer,
   removeLayer,
   setSelectedLayerIndex,
 } from "../../store/slices/mapping";
-import { iconColorMap, iconMap } from "./items";
 import OpacitySlider from "./OpacitySlider";
 import VisibilityToggle from "./VisibilityToggle";
-import { ICON_PREFIX } from "../../config/app.config";
 import LayerIcon from "./LayerIcon";
 
 interface LayerRowProps {

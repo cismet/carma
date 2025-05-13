@@ -1,7 +1,21 @@
-import { Item, Layer, LayerLib } from "@carma-mapping/layers";
 import { message } from "antd";
 import { useContext, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+
+import { utils } from "@carma-apps/portals";
+import type { Item, Layer } from "@carma-commons/types";
+import { LayerLib } from "@carma-mapping/layers";
+
+import { updateInfoElementsAfterRemovingFeature } from "../../store/slices/features";
+import {
+  addFavorite,
+  getFavorites,
+  getThumbnails,
+  removeFavorite,
+  updateFavorite,
+} from "../../store/slices/layers";
 import {
   appendLayer,
   appendSavedLayerConfig,
@@ -14,21 +28,10 @@ import {
   setLayers,
   updateLayer,
 } from "../../store/slices/mapping";
-import { utils } from "@carma-apps/portals";
-import { updateInfoElementsAfterRemovingFeature } from "../../store/slices/features";
-import {
-  addFavorite,
-  getFavorites,
-  getThumbnails,
-  removeFavorite,
-  setThumbnail,
-  updateFavorite,
-} from "../../store/slices/layers";
 import {
   getUIShowResourceModal,
   setShowResourceModal,
 } from "../../store/slices/ui";
-import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 const ResourceModal = () => {
   const dispatch = useDispatch();

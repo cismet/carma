@@ -1,6 +1,7 @@
-import { extractCarmaConfig } from "@carma-commons/utils";
-import { Item, Layer } from "@carma-mapping/layers";
 import { isNaN } from "lodash";
+
+import type { Item, Layer } from "@carma-commons/types";
+import { extractCarmaConfig } from "@carma-commons/utils";
 
 export const parseDescription = (description: string) => {
   const result = { inhalt: "", sichtbarkeit: "", nutzung: "" };

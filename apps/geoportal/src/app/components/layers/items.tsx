@@ -1,10 +1,10 @@
-import { Layer } from "@carma-mapping/layers";
 import {
   faCircle,
   faGlobe,
   faLayerGroup,
   faSquare,
 } from "@fortawesome/free-solid-svg-icons";
+import { Layer } from "@carma-commons/types";
 
 export const tabItems = (
   currentLayer: Layer,

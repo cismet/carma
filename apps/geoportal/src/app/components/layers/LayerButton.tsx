@@ -13,8 +13,8 @@ import type L from "leaflet";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
+import type { Layer } from "@carma-commons/types";
 import { cn, getHashParams } from "@carma-commons/utils";
-import { Layer } from "@carma-mapping/layers";
 
 import { updateInfoElementsAfterRemovingFeature } from "../../store/slices/features";
 import {
@@ -37,6 +37,7 @@ import {
   getUIShowLayerHideButtons,
 } from "../../store/slices/ui";
 import LayerIcon from "./LayerIcon";
+
 import "./tabs.css";
 
 interface LayerButtonProps {

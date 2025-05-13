@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { utils } from "@carma-apps/portals";
+import { useEffect, useState } from "react";
+import { isEqual } from "lodash";
+
 import {
   faBook,
   faList,
@@ -13,8 +15,10 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useDebounce } from "@uidotdev/usehooks";
 import { Button, Input, Modal } from "antd";
 import Fuse from "fuse.js";
-import { useEffect, useState } from "react";
 import WMSCapabilities from "wms-capabilities";
+import type { Item, Layer, SavedLayerConfig } from "@carma-commons/types";
+import { utils } from "@carma-apps/portals";
+
 import { baseConfig as config, serviceConfig } from "../helper/config";
 import {
   flattenLayer,
@@ -23,16 +27,18 @@ import {
   normalizeObject,
   wmsLayerToGenericItem,
 } from "../helper/layerHelper";
-import type { Item, Layer, SavedLayerConfig } from "../helper/types";
 import LayerTabs from "./LayerTabs";
 import { SidebarItem } from "./SidebarItems";
+
+import ItemGrid from "./ItemGrid";
+import { discoverConfig } from "../helper/discover";
+
 import "./input.css";
 import "./modal.css";
-import ItemGrid from "./ItemGrid";
-import { isEqual } from "lodash";
-import { discoverConfig } from "../helper/discover";
+
 const { Search } = Input;
 
+// TODO: fix interface
 // @ts-expect-error tbd
 const parser = new WMSCapabilities();
 
@@ -304,8 +310,8 @@ export const NewLibModal = ({
             config,
             serviceName: services[key].name,
           });
-          // @ts-expect-error
-          setShownCategories((prev) => {
+          setShownCategories((prev: any) => {
+            // TODO fix type
             if (prev.find((item) => item.id === "partialTwins")) {
               prev.splice(
                 prev.findIndex((item) => item.id === "partialTwins"),
@@ -323,8 +329,8 @@ export const NewLibModal = ({
             ];
           });
 
-          // @ts-expect-error
-          setTmpAllCategories((prev) => {
+          setTmpAllCategories((prev: any) => {
+            // TODO: Fix type
             if (prev.find((item) => item.id === "partialTwins")) {
               prev.splice(
                 prev.findIndex((item) => item.id === "partialTwins"),
@@ -446,8 +452,7 @@ export const NewLibModal = ({
       if (favoriteLayerCategory.length > 0) {
         const favoriteLayers = favoriteLayerCategory[0].layers;
         favoriteLayers.forEach((layer) => {
-          // @ts-expect-error fix item type
-          const serviceId = layer?.service?.name;
+          const serviceId = layer?.serviceName;
           const serviceCategory = allLayers.filter(
             (category) => category.id === serviceId
           );
@@ -587,8 +592,7 @@ export const NewLibModal = ({
         addItemToCategory(
           "mapLayers",
           { id: "custom", Title: "Eigene Daten" },
-          // @ts-expect-error
-          newItem
+          newItem as unknown as SavedLayerConfig // TODO: Fix type
         );
       } else if (url) {
         fetch(url)
@@ -652,8 +656,7 @@ export const NewLibModal = ({
               addItemToCategory(
                 "mapLayers",
                 { id: "custom", Title: "Eigene Daten" },
-                // @ts-expect-error
-                newItem
+                newItem as unknown as SavedLayerConfig // TODO: Fix type
               );
             }
           } catch (error) {

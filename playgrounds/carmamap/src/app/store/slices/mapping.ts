@@ -1,13 +1,12 @@
 import { createSelector, createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 
-import type { Layer, SavedLayerConfig } from "@carma-mapping/layers";
-import {
-  SELECTED_LAYER_INDEX,
-  type BackgroundLayer,
-  type LayerState,
-  type MappingState,
-} from "@carma-apps/portals";
+import { SELECTED_LAYER_INDEX, type MappingState } from "@carma-apps/portals";
+import type {
+  Layer,
+  BackgroundLayer,
+  SavedLayerConfig,
+} from "@carma-commons/types";
 
 import { RootState } from "..";
 import { layerMap } from "../../config";

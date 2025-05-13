@@ -1,4 +1,4 @@
-export type CarmaConfig = Record<string, string | string[]>;
+import { CarmaConfig } from "@carma-commons/types";
 
 export const extractCarmaConfig = (
   keywords: string[] | undefined

@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { WMSCapabilitiesJSON } from "wms-capabilities";
+import type { Item, XMLLayer, Layer } from "@carma-commons/types";
+
 import { serviceConfig } from "./config";
-import type { Item, XMLLayer, Layer, Config } from "./types";
 
 export const parseDescription = (description: string) => {
   if (!description) {

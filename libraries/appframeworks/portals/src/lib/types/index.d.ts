@@ -1,5 +1,4 @@
-import type { Layer } from "@carma-mapping/layers";
-import type { CismapLayerProps } from "@carma-commons/types";
+import type { CismapLayerProps, Layer } from "@carma-commons/types";
 import { SELECTED_LAYER_INDEX, SelectionItem } from "../..";
 
 // TODO elevate some of the type here to carma-commons
@@ -105,11 +104,6 @@ export type Settings = {
 
 // Store Mapping Slice
 
-export type BackgroundLayer = Layer & {
-  layers: string;
-  inhalt?: string;
-  eignung?: string;
-};
 export interface LayerState {
   layers: Layer[];
   selectedLayerIndex: SELECTED_LAYER_INDEX | number;

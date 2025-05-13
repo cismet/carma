@@ -1,5 +1,4 @@
-import { customCategoryToLayers } from "./layerHelper";
-import type { Config, LayerConfig, LayerProps } from "./types";
+import type { Config, LayerConfig } from "@carma-commons/types";
 import trinkwasserbrunnenThumb from "../thumbnails/trinkwasserbrunnen.jpg";
 import wohnlagenThumb from "../thumbnails/wonhlagen_topicmap.jpg";
 import fnpThumb from "../thumbnails/fnp.png";

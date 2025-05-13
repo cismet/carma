@@ -1,6 +1,6 @@
 import { useDispatch, useSelector } from "react-redux";
 
-import { BackgroundLayer } from "@carma-apps/portals";
+import type { BackgroundLayer } from "@carma-commons/types";
 import { cn } from "@carma-commons/utils";
 
 import {

@@ -3,12 +3,11 @@ import { useDispatch } from "react-redux";
 import { useLocation } from "react-router-dom";
 
 import {
-  type BackgroundLayer,
   type LayerMap,
   type SelectionItem,
   type Settings,
 } from "@carma-apps/portals";
-import { type Layer } from "@carma-mapping/layers";
+import type { BackgroundLayer, Layer } from "@carma-commons/types";
 
 import {
   setBackgroundLayer,

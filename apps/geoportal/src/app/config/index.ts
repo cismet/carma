@@ -1,6 +1,5 @@
 import type {
   DefaultLayerConfig,
-  LayerConfig,
   LayerMap,
   NamedStyles,
 } from "@carma-apps/portals";

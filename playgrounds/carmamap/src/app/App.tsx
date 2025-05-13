@@ -13,12 +13,8 @@ import { CrossTabCommunicationContextProvider } from "react-cismap/contexts/Cros
 // Monorepo Packages
 import { backgroundSettings } from "@carma-collab/wuppertal/geoportal";
 
-import type { Layer } from "@carma-mapping/layers";
-import {
-  CarmaMapProviderWrapper,
-  type BackgroundLayer,
-  type Settings,
-} from "@carma-apps/portals";
+import { CarmaMapProviderWrapper, type Settings } from "@carma-apps/portals";
+import type { BackgroundLayer, Layer } from "@carma-commons/types";
 
 // Local Modules
 import AppErrorFallback from "./components/AppErrorFallback";
@@ -29,10 +25,9 @@ import {
   setBackgroundLayer,
   setLayers,
   setShowFullscreenButton,
-  setShowHamburgerMenu,
   setShowLocatorButton,
 } from "./store/slices/mapping";
-import { getUIAllowChanges, setUIAllowChanges } from "./store/slices/ui";
+import { getUIAllowChanges } from "./store/slices/ui";
 
 import { CESIUM_CONFIG } from "./config/app.config";
 
