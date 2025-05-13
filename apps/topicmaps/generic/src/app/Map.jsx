@@ -16,7 +16,10 @@ import { MenuFooter } from "@carma-collab/wuppertal/commons";
 import { getApplicationVersion } from "@carma-commons/utils";
 import versionData from "../version.json";
 import { GenericDigitalTwinReferenceSection } from "@carma-collab/wuppertal/commons";
-import { TopicMapSelectionContent } from "@carma-apps/portals";
+import {
+  TopicMapSelectionContent,
+  useSelectionTopicMap,
+} from "@carma-apps/portals";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import FuzzySearchWrapper from "./components/FuzzySearchWrapper";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
@@ -51,7 +54,12 @@ const downloadText = (text, filename) => {
 const configPath = import.meta.env.VITE_GTM_CONFIG_PATH || "/dev/"; //uses the dev folder in public to debug local stuff when no ENV is set
 const configServer = import.meta.env.VITE_GTM_CONFIGSERVER || ""; //uses the local server when no ENV is set
 // Function to render vector layers
-function renderVectorLayers(config, markerSymbolSize, setGlobalHits) {
+function renderVectorLayers(
+  config,
+  markerSymbolSize,
+  setGlobalHits,
+  initialVisualSelection
+) {
   return (
     <>
       {config.tm.vectorLayers &&
@@ -72,6 +80,7 @@ function renderVectorLayers(config, markerSymbolSize, setGlobalHits) {
               type="vector"
               {...layer}
               style={style}
+              initialVisualSelection={initialVisualSelection}
               additionalLayerUniquePane={"vector." + index}
               additionalLayersFreeZOrder={index}
               selectionEnabled={true}
@@ -102,7 +111,8 @@ const Map = ({
   const [globalHits, setGlobalHits] = useState({});
   const { markerSymbolSize } = useContext(TopicMapStylingContext);
   const [cl_key, setClKey] = useState("");
-
+  const { routedMapRef } = useSelectionTopicMap() ?? {};
+  const [selectedVectorObject, setSelectedVectorObject] = useState(undefined);
   // console.log("xxx markerSymbolSize", markerSymbolSize);
 
   // lets assume we will only have vector layers
@@ -115,13 +125,43 @@ const Map = ({
       for (const layer of reversedLayers) {
         if (globalHits[layer.id] && globalHits[layer.id].length > 0) {
           const hit = globalHits[layer.id][0];
-          hit.setSelection(true);
+          setSelectedVectorObject({
+            source: hit.source,
+            sourceLayer: hit.sourceLayer,
+            id: hit.id,
+          });
+          try {
+            hit.setSelection(true);
+          } catch (e) {
+            // console.log("xxx routedMapRef", routedMapRef);
+            // const map = routedMapRef.leafletMap.leafletElement;
+            // const latlngPoint = L.latLng([
+            //   hit.geometry.coordinates[1],
+            //   hit.geometry.coordinates[0],
+            // ]);
+            // console.log(
+            //   "xxx hit.geometry.coordinates",
+            //   hit.geometry.coordinates
+            // );
+            // console.log(
+            //   "xxx map.latLngToLayerPoint(latlngPoint)",
+            //   map.latLngToLayerPoint(latlngPoint)
+            // );
+            // setTimeout(() => {
+            //   map.fireEvent("click", {
+            //     latlng: latlngPoint,
+            //     layerPoint: map.latLngToLayerPoint(latlngPoint),
+            //     containerPoint: map.latLngToContainerPoint(latlngPoint),
+            //   });
+            // }, 500);
+          }
           // console.log("layer", layer);
 
           const infoboxMapping =
             layer.infoboxMapping ||
             layerInformation[layer.capabilitiesLayer]?.carmaConf
               ?.infoboxMapping;
+
           if (infoboxMapping) {
             const feature = createVectorFeature(infoboxMapping, hit);
             setFeature(feature);
@@ -163,7 +203,6 @@ const Map = ({
       } else {
         symbolPath = symbol;
       }
-      console.log("symbolPath", symbolPath);
       return (
         <img
           width={size}
@@ -265,7 +304,8 @@ const Map = ({
             previewChildren={renderVectorLayers(
               config,
               markerSymbolSize,
-              setGlobalHits
+              setGlobalHits,
+              selectedVectorObject
             )}
             previewFeatureCollectionCount={
               config?.tm?.previewFeatureCollectionCount
@@ -292,7 +332,12 @@ const Map = ({
           />
         }
       >
-        {renderVectorLayers(config, markerSymbolSize, setGlobalHits)}
+        {renderVectorLayers(
+          config,
+          markerSymbolSize,
+          setGlobalHits,
+          selectedVectorObject
+        )}
         {config.tm.noFeatureCollection !== true && (
           <>
             <FeatureCollection />

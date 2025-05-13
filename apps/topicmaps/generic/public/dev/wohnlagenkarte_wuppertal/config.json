@@ -6,16 +6,12 @@
     "vectorLayers": [
       {
         "name": "Wohnlagen",
-        "style": "https://tiles.cismet.de/wohnlagen2024/style.json",
+        "style": "https://tiles.cismet.de/wohnlagen2025/style.json",
         "opacity": 0.5,
         "addMetaInfoToHelp":true,
-        "layer":"wohnlagen2024@https://maps.wuppertal.de/immo?service=WMS&request=GetCapabilities&version=1.1.1"
+        "layer":"wohnlagen2025@https://maps.wuppertal.de/immo?service=WMS&request=GetCapabilities&version=1.1.1"
       }
-    ],
-    "infoboxMapping": [
-      "function createInfoBoxInfo(p) { let color = '#006c72'; switch(p.WERT) { case 1: color = '#FF0000'; break; case 2: color = '#FFC000'; break; case 3: color = '#92D050'; break; case 4: color = '#00C5FF'; break; } const info = { title: p.Wohnlage, headerColor: color, header: 'Wohnlagen 2024', }; return info; }"
-    ],
-    "capabilities": "https://maps.wuppertal.de/immo?service=WMS&request=GetCapabilities&version=1.1.1",
-    "capabilitiesLayer": "wohnlagen2024"
+  ]
+   
   }
 }

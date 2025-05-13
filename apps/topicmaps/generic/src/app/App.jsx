@@ -97,7 +97,7 @@ function App({ name }) {
         path,
         log
       );
-      log(`... projectConfig: ${projectConfig}`);
+      log(`... projectConfig:`, projectConfig);
       let found = true;
       if (!projectConfig) {
         found = false;
