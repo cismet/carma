@@ -4,8 +4,10 @@ import React, {
   useState,
   ReactNode,
   useCallback,
+  useMemo,
 } from "react";
 import { useLocation } from "react-router-dom";
+import debounce from "lodash/debounce";
 
 import type { FeatureCollection, Polygon } from "geojson";
 import {
@@ -36,7 +38,10 @@ import { getFootprintCenterpoints } from "../utils/footprintCenterpoints";
 import { OBLIQUE_PREVIEW_QUALITY, OBLIQUE_STATE_KEYS } from "../constants";
 import { NUM_NEAREST_IMAGES } from "../config";
 
-// Define the shape of our context
+const DEBOUNCE_MS = 250; // time in milliseconds
+const DEBOUNCE_LEADING_EDGE = { leading: true, trailing: false };
+const NEAREST_IMAGE_DEBOUNCE_MS = 200;
+
 interface ObliqueContextType {
   isObliqueMode: boolean;
   toggleObliqueMode: () => void;
@@ -65,10 +70,8 @@ interface ObliqueContextType {
   animations: ObliqueAnimationsConfig;
 }
 
-// Create the context with a default value
 const ObliqueContext = createContext<ObliqueContextType | null>(null);
 
-// Export the context for the hook file to use
 export { ObliqueContext };
 
 interface ObliqueProviderProps {
@@ -87,7 +90,6 @@ const fetchExteriorOrientationsJson = async (
   return response.json();
 };
 
-// Provider component that wraps parts of the app that need access to the context
 export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   children,
   config,
@@ -110,7 +112,6 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     animations,
   } = config;
 
-  // Use the oblique data hook to get camera orientations
   const {
     imageRecordMap: imageRecords,
     parseCSV,
@@ -129,7 +130,6 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   // Store when data has been previously loaded to prevent duplicate loads
   const [dataLoaded, setDataLoaded] = useState(false);
 
-  // Footprint data states
   const [footprintData, setFootprintData] = useState<FeatureCollection<
     Polygon,
     FootprintProperties
@@ -143,23 +143,20 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   const [isFootprintLoading, setIsFootprintLoading] = useState(false);
   const [isExtOriLoading, setIsExtOriLoading] = useState(false);
 
-  // Add nearest image finding
   const { nearestImage, distance, refreshSearch } = useObliqueNearestImage(
     imageRecords,
     converter,
     headingOffset,
     footprintCenterpointsRBushByCardinals,
-    { debounceTime: 150, k: NUM_NEAREST_IMAGES },
+    { debounceTime: NEAREST_IMAGE_DEBOUNCE_MS, k: NUM_NEAREST_IMAGES },
     lockFootprint
   );
 
   const [footprintError, setFootprintError] = useState<string | null>(null);
-
-  // Global loading state
   const [isAllDataReady, setIsAllDataReady] = useState(false);
 
-  const toggleObliqueMode = useCallback(() => {
-    setIsObliqueMode((prevMode) => {
+  const performToggleAction = useCallback(() => {
+    setIsObliqueMode((prevMode: boolean) => {
       const newMode = !prevMode;
       if (newMode) {
         updateHashHistoryState(
@@ -174,7 +171,12 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
       }
       return newMode;
     });
-  }, []);
+  }, [pathname, setIsObliqueMode]); // setIsObliqueMode is stable
+
+  const toggleObliqueMode = useMemo(
+    () => debounce(performToggleAction, DEBOUNCE_MS, DEBOUNCE_LEADING_EDGE),
+    [performToggleAction]
+  );
 
   // Only load data when oblique mode is enabled and not already loaded
   useEffect(() => {
@@ -210,7 +212,6 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     }
   }, [imageRecords, isObliqueMode, refreshSearch, lockFootprint]);
 
-  // Load footprint data when in oblique mode
   useEffect(() => {
     if (!isObliqueMode || !footprintsURI) return;
 
