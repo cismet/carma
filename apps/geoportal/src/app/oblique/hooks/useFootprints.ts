@@ -1,5 +1,4 @@
-import { MutableRefObject, useEffect, useRef } from "react";
-import { useSelector } from "react-redux";
+import { MutableRefObject, useEffect, useMemo, useRef } from "react";
 
 import {
   Color,
@@ -23,10 +22,12 @@ import {
   isValidViewerInstance,
 } from "@carma-mapping/cesium-engine";
 
-import { useOblique } from "./useOblique";
-
-import type { FootprintFeature } from "../utils/footprintUtils";
-import { findMatchingFeature } from "../utils/footprintUtils";
+import { useOblique } from "../hooks/useOblique";
+import {
+  findMatchingFeature,
+  type FootprintFeature,
+} from "../utils/footprintUtils";
+import type { ObliqueFootprintsStyle } from "../types";
 
 interface AnimationState<T> {
   isAnimating: boolean;
@@ -44,7 +45,12 @@ type OpacityAnimationState = AnimationState<number>;
 const OBLIQUE_DATASOURCE_PREFIX = "oblq-footprint";
 const FOOTPRINT_OUTLINE_ID = "oblq-footprint-outline";
 const DEFAULT_ANIMATION_DURATION = 500; // milliseconds
-const OUTLINE_WIDTH = 2; // Width for the outline in pixels
+
+const defaultFootprintsStyle: ObliqueFootprintsStyle = {
+  outlineColor: Color.WHITE,
+  outlineWidth: 5,
+  outlineOpacity: 1,
+};
 
 function createAnimationState<T>(
   params: Partial<AnimationState<T>> & { startValue: T; targetValue: T }
@@ -136,10 +142,17 @@ export const useFootprints = (): void => {
     footprintData,
     lockFootprint,
     animations,
+    footprintsStyle,
   } = useOblique();
 
   const featureFlags = useFeatureFlags();
   const { featureFlagDebugOblique: isDebug } = featureFlags;
+  const { outlineColor, outlineOpacity, outlineWidth } = useMemo(() => {
+    return {
+      ...defaultFootprintsStyle,
+      ...(footprintsStyle || {}),
+    };
+  }, [footprintsStyle]);
 
   const animationDuration = animations?.outlineFadeOut?.duration ?? 1000;
   const animationDelay = animations?.outlineFadeOut?.delay ?? 0;
@@ -154,8 +167,8 @@ export const useFootprints = (): void => {
 
   const opacityAnimationRef = useRef<OpacityAnimationState>(
     createAnimationState({
-      startValue: 1.0,
-      targetValue: 1.0,
+      startValue: outlineOpacity,
+      targetValue: outlineOpacity,
       duration: animationDuration,
       delay: animationDelay,
       easingFunction: animationEasing,
@@ -179,7 +192,7 @@ export const useFootprints = (): void => {
         outlineEntityRef.current.show = false;
       }
 
-      return Color.WHITE.withAlpha(newOpacity);
+      return outlineColor.withAlpha(newOpacity);
     }, false);
   };
 
@@ -217,7 +230,7 @@ export const useFootprints = (): void => {
     if (outlineEntityRef.current && outlineEntityRef.current.polyline) {
       if (lockFootprint) {
         // When entering locked mode - animate opacity to 0
-        startAnimation(opacityAnimationRef.current, 1.0, 0.0);
+        startAnimation(opacityAnimationRef.current, outlineOpacity, 0.0);
       } else {
         lastImageIdRef.current = null;
         // When leaving locked mode - set opacity to 1 instantly
@@ -228,7 +241,9 @@ export const useFootprints = (): void => {
           // Set opacity to 1 immediately
           (
             outlineEntityRef.current.polyline.material as ColorMaterialProperty
-          ).color = new ConstantProperty(Color.WHITE);
+          ).color = new ConstantProperty(
+            outlineColor.withAlpha(outlineOpacity)
+          );
         }
 
         // Ensure visibility is set
@@ -237,11 +252,18 @@ export const useFootprints = (): void => {
         // Reset animation flags to prevent transition
         opacityAnimationRef.current.isAnimating = false;
         opacityAnimationRef.current.startTime = null;
-        opacityAnimationRef.current.targetValue = 1.0;
+        opacityAnimationRef.current.targetValue = outlineOpacity;
       }
     }
     cesiumSafeRequestRender(viewer);
-  }, [lockFootprint, viewerRef, animationDuration, animationEasing]);
+  }, [
+    lockFootprint,
+    viewerRef,
+    animationDuration,
+    animationEasing,
+    outlineOpacity,
+    outlineColor,
+  ]);
 
   const createOutlineEntity = (positions: Cartesian3[]) => {
     if (!positions || positions.length === 0) return null;
@@ -257,7 +279,7 @@ export const useFootprints = (): void => {
       show: true, // Always show initially, opacity will control visibility
       polyline: new PolylineGraphics({
         positions: outlinePositions,
-        width: new ConstantProperty(OUTLINE_WIDTH),
+        width: new ConstantProperty(outlineWidth),
         material: new ColorMaterialProperty(createOpacityCallbackProperty()),
         clampToGround: new ConstantProperty(true),
       }),

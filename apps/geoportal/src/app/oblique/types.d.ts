@@ -71,6 +71,18 @@ export type ObliqueAnimationsConfig = {
   outlineFadeOut?: AnimationConfig;
 };
 
+export type ObliqueFootprintsStyle = {
+  outlineColor?: Color;
+  outlineWidth?: number;
+  outlineOpacity?: number;
+};
+
+export interface ObliqueImagePreviewStyle {
+  backdropColor?: string;
+  border?: string;
+  boxShadow?: string;
+}
+
 export interface ObliqueDataProviderConfig {
   orientationsURI: string;
   exteriorOrientationsURI: string;
@@ -84,6 +96,8 @@ export interface ObliqueDataProviderConfig {
   maxFov?: number;
   headingOffset?: number;
   animations?: ObliqueAnimationsConfig;
+  footprintsStyle?: ObliqueFootprintsStyle;
+  imagePreviewStyle?: ObliqueImagePreviewStyle;
 }
 
 export interface PointWithSector {

@@ -1,4 +1,4 @@
-import { Math as CesiumMath, EasingFunction } from "cesium";
+import { Math as CesiumMath, Color, EasingFunction } from "cesium";
 import {
   OBLIQUE_2024_ORIENTATIONS_CRS,
   OBLIQUE_2024_ORIENTATIONS_CSV_URI,
@@ -9,7 +9,6 @@ import {
 import { OBLIQUE_PREVIEW_QUALITY } from "./constants";
 import { ObliqueDataProviderConfig } from "./types";
 import { CardinalDirectionEnum } from "./utils/orientationUtils";
-import { S } from "vitest/dist/reporters-yx5ZTtEV.js";
 
 export const OBLIQUE_CONFIG: ObliqueDataProviderConfig = {
   fixedPitch: CesiumMath.toRadians(-45), // Pitch in radians
@@ -33,6 +32,14 @@ export const OBLIQUE_CONFIG: ObliqueDataProviderConfig = {
       duration: 300,
       easingFunction: EasingFunction.QUADRATIC_IN_OUT,
     },
+  },
+  footprintsStyle: {
+    outlineColor: Color.WHITE,
+    outlineWidth: 8,
+    outlineOpacity: 0.85,
+  },
+  imagePreviewStyle: {
+    backdropColor: "rgba(0, 0, 0, 0.13)",
   },
 };
 

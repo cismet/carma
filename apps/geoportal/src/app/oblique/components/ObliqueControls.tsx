@@ -91,6 +91,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     animations,
     isObliqueMode,
     toggleObliqueMode,
+    imagePreviewStyle,
   } = useOblique();
   const { viewerRef, terrainProviderRef } = useCesiumContext();
   const flags = useFeatureFlags();
@@ -580,6 +581,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
               nearestImage.record.cameraId
             ]
           }
+          style={imagePreviewStyle}
         />
       )}
       <div

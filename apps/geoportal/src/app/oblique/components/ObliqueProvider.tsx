@@ -15,11 +15,13 @@ import {
   deleteHashParamsFromHistoryState,
 } from "@carma-commons/utils";
 
-import {
+import type {
   ExteriorOrientations,
   NearestObliqueImageRecord,
   ObliqueAnimationsConfig,
   ObliqueDataProviderConfig,
+  ObliqueFootprintsStyle,
+  ObliqueImagePreviewStyle,
   ObliqueImageRecordMap,
   Proj4Converter,
 } from "../types";
@@ -68,6 +70,8 @@ interface ObliqueContextType {
   lockFootprint: boolean;
   setLockFootprint: (value: boolean) => void;
   animations: ObliqueAnimationsConfig;
+  footprintsStyle: ObliqueFootprintsStyle;
+  imagePreviewStyle: ObliqueImagePreviewStyle;
 }
 
 const ObliqueContext = createContext<ObliqueContextType | null>(null);
@@ -110,6 +114,8 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     maxFov,
     headingOffset,
     animations,
+    footprintsStyle,
+    imagePreviewStyle,
   } = config;
 
   const {
@@ -288,6 +294,8 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     isAllDataReady,
     lockFootprint,
     animations,
+    footprintsStyle,
+    imagePreviewStyle,
     setLockFootprint,
   };
 
