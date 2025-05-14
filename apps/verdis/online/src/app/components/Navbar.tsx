@@ -108,6 +108,20 @@ const VerdisOnlineAppNavbar = () => {
   };
 
   const fixLeftPadding = menuIsHidden ? "10px 15px 15px 10px" : "20px 15px";
+  const popoverHint = (
+    <Popover
+      id="popover-basic"
+      placement="right"
+      positionLeft={200}
+      positionTop={50}
+      _title="Hilfe & Einstellungen"
+    >
+      Benötigen Sie Unterstützung oder möchten nähere Information, finden Sie
+      diese hier unter "Hilfe & Einstellungen"
+    </Popover>
+  );
+
+  const target = useRef(null);
 
   useEffect(() => {
     if (uiState.waitForFEB === true) {
@@ -175,7 +189,7 @@ const VerdisOnlineAppNavbar = () => {
               className="nav navbar-right navbar-nav ml-auto"
               style={{ listStyle: "none" }}
             >
-              <li role="presentation">
+              <li role="presentation" ref={target}>
                 <a
                   // href="#"
                   role="button"
@@ -193,6 +207,22 @@ const VerdisOnlineAppNavbar = () => {
                 >
                   Hilfe & Einstellungen
                 </a>
+                <Overlay
+                  target={target.current}
+                  show={!uiState.waitingVisible && uiState.hintVisible}
+                  placement="bottom"
+                >
+                  <Popover
+                    id="popover-basic"
+                    placement="right"
+                    positionLeft={200}
+                    positionTop={50}
+                    _title="Hilfe & Einstellungen"
+                  >
+                    Benötigen Sie Unterstützung oder möchten nähere Information,
+                    finden Sie diese hier unter "Hilfe & Einstellungen"
+                  </Popover>
+                </Overlay>
               </li>
               <li role="presentation">
                 <a
