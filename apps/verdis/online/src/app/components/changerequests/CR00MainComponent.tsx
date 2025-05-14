@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   addLocalErrorMessage,
   getUiState,
-  showChangeRequests,
+  showChangeRequestsMenu,
   showSettings,
 } from "../../../store/slices/ui";
 import ModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
@@ -205,7 +205,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
 
   const close = () => {
     setLocked(true);
-    dispatch(showChangeRequests(false));
+    dispatch(showChangeRequestsMenu(false));
     // setEmailSettingsShown(false);
   };
 

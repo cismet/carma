@@ -29,7 +29,7 @@ import {
   CLOUDSTORAGESTATES,
   getUiState,
   setWaitForFEB,
-  showChangeRequests,
+  showChangeRequestsMenu,
   showInfo,
   showSettings,
   showWaiting,
@@ -198,7 +198,7 @@ const VerdisOnlineAppNavbar = () => {
                 <a
                   // href="#"
                   onClick={() =>
-                    dispatch(showChangeRequests({ visible: true }))
+                    dispatch(showChangeRequestsMenu({ visible: true }))
                   }
                   role="button"
                   style={{

@@ -35,7 +35,7 @@ import {
   setChangeRequestsAnnotationEditViewAnnotationAndCR,
   setChangeRequestsEditViewFlaecheAndCR,
   showChangeRequestAnnotationEditViewVisible,
-  showChangeRequests,
+  showChangeRequestsMenu,
   showChangeRequestsEditView,
   showInfo,
   showWaiting,
@@ -127,7 +127,7 @@ const KassenzeichenViewer = () => {
 
     if (crOpen !== undefined) {
       console.log("xxx crOpen", crOpen);
-      dispatch(showChangeRequests({ visible: true }));
+      dispatch(showChangeRequestsMenu({ visible: true }));
       const cleanSearch = removeQueryPart(location.search, "crOpen");
     }
 
@@ -219,7 +219,7 @@ const KassenzeichenViewer = () => {
           variant="danger"
           dismissible
           onClose={() => {
-            dispatch(showChangeRequests({ visible: true }));
+            dispatch(showChangeRequestsMenu({ visible: true }));
           }}
         >
           <div>

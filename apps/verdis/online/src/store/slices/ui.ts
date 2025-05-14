@@ -173,7 +173,7 @@ const slice = createSlice({
       state.settingsVisible = action.payload.visible;
       state.applicationMenuVisible = action.payload.visible;
     },
-    showChangeRequests(state, action) {
+    showChangeRequestsMenu(state, action) {
       state.changeRequestsMenuVisible = action.payload.visible;
     },
     setCREditMode(state, action) {
@@ -235,7 +235,7 @@ export const {
   toggleFilterElement,
   toggleInfoElements,
   toggleKanalElements,
-  showChangeRequests,
+  showChangeRequestsMenu,
   setCREditMode,
   showChangeRequestAnnotationEditViewVisible,
   setChangeRequestsAnnotationEditViewAnnotationAndCR,
