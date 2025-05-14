@@ -53,24 +53,38 @@ const downloadText = (text, filename) => {
 };
 const configPath = import.meta.env.VITE_GTM_CONFIG_PATH || "/dev/"; //uses the dev folder in public to debug local stuff when no ENV is set
 const configServer = import.meta.env.VITE_GTM_CONFIGSERVER || ""; //uses the local server when no ENV is set
+// Helper to get the style for a layer from various possible sources
+function getLayerStyle(layer, layerInformation) {
+  // Try direct style on layer
+  if (layer.style) return layer.style;
+  // Try style in layerInformation
+  const info = layerInformation?.[layer.capabilitiesLayer];
+  if (!info) return undefined;
+  if (info.style) return info.style;
+  if (info.carmaConf && info.carmaConf.vectorStyle)
+    return info.carmaConf.vectorStyle;
+  return undefined;
+}
+
 // Function to render vector layers
-function renderVectorLayers(
+function renderCismapLayers(
   config,
   markerSymbolSize,
   setGlobalHits,
-  initialVisualSelection
+  initialVisualSelection,
+  layerInformation
 ) {
   return (
     <>
-      {config.tm.vectorLayers &&
-        config.tm.vectorLayers.map((layer, index) => {
-          let style = layer.style;
+      {(Array.isArray(config.tm.layers) ? config.tm.layers : config.tm.vectorLayers) &&
+        (Array.isArray(config.tm.layers) ? config.tm.layers : config.tm.vectorLayers).map((layer, index) => {
+          let style = getLayerStyle(layer, layerInformation);
           if (typeof layer.styleManipulation === "function") {
-            style = layer.styleManipulation(markerSymbolSize, layer.style);
+            style = layer.styleManipulation(markerSymbolSize, style);
           }
           const cl_key =
             "cismapLayer." +
-            md5(JSON.stringify(style)) +
+            md5(JSON.stringify(style + "")) +
             "." +
             (layer.id || index);
 
@@ -132,30 +146,7 @@ const Map = ({
           });
           try {
             hit.setSelection(true);
-          } catch (e) {
-            // console.log("xxx routedMapRef", routedMapRef);
-            // const map = routedMapRef.leafletMap.leafletElement;
-            // const latlngPoint = L.latLng([
-            //   hit.geometry.coordinates[1],
-            //   hit.geometry.coordinates[0],
-            // ]);
-            // console.log(
-            //   "xxx hit.geometry.coordinates",
-            //   hit.geometry.coordinates
-            // );
-            // console.log(
-            //   "xxx map.latLngToLayerPoint(latlngPoint)",
-            //   map.latLngToLayerPoint(latlngPoint)
-            // );
-            // setTimeout(() => {
-            //   map.fireEvent("click", {
-            //     latlng: latlngPoint,
-            //     layerPoint: map.latLngToLayerPoint(latlngPoint),
-            //     containerPoint: map.latLngToContainerPoint(latlngPoint),
-            //   });
-            // }, 500);
-          }
-          // console.log("layer", layer);
+          } catch (e) {}
 
           const infoboxMapping =
             layer.infoboxMapping ||
@@ -301,11 +292,12 @@ const Map = ({
             }
             simpleHelp={config?.simpleHelpObject}
             previewMapPosition={config?.tm?.previewMapPosition}
-            previewChildren={renderVectorLayers(
+            previewChildren={renderCismapLayers(
               config,
               markerSymbolSize,
               setGlobalHits,
-              selectedVectorObject
+              selectedVectorObject,
+              layerInformation
             )}
             previewFeatureCollectionCount={
               config?.tm?.previewFeatureCollectionCount
@@ -332,11 +324,12 @@ const Map = ({
           />
         }
       >
-        {renderVectorLayers(
+        {renderCismapLayers(
           config,
           markerSymbolSize,
           setGlobalHits,
-          selectedVectorObject
+          selectedVectorObject,
+          layerInformation
         )}
         {config.tm.noFeatureCollection !== true && (
           <>

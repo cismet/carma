@@ -34,6 +34,10 @@ import {
   getMarkdown,
   gtmComponentResolver,
 } from "./helper";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import CodeMirror from "@uiw/react-codemirror";
+import { javascript } from "@codemirror/lang-javascript";
+import { layer } from "@fortawesome/fontawesome-svg-core";
 
 const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 
@@ -50,7 +54,99 @@ const errorConfig = {
   },
 };
 
+function getUrlSearchParamsForHash(_hash) {
+  // Extract the full geoportalLink from the hash/query string, even if it contains & and =
+  try {
+    const hash = _hash || window.location.hash || "";
+    let query = "";
+    const hashParts = hash.split("?");
+    if (hashParts.length > 1) {
+      query = hashParts.slice(1).join("?");
+    }
+
+    console.log("xxx query", query);
+    const params = new URLSearchParams(query);
+    return params;
+  } catch (e) {
+    return null;
+  }
+}
+
+function getGeoportalLinkFromUrl() {
+  // Extract the full geoportalLink from the hash/query string, even if it contains & and =
+  try {
+    const hash = window.location.hash || "";
+    // Look for geoportalLink= and grab everything after it
+    const match = hash.match(/geoportalLink=([^&]*)/);
+    if (match && match[1]) {
+      // decodeURIComponent in case it's encoded
+      return decodeURIComponent(match[1]);
+    }
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
 function App({ name }) {
+  const [showCopied, setShowCopied] = useState(false);
+  const [starterConfig, setStarterConfig] = useState(`{
+    "tm": {
+      "noFeatureCollection": true,
+      "layers": []
+    }
+  }`);
+
+  // Effect: If geoportalLink contains a config param, fetch config and build starterConfig
+  useEffect(() => {
+    const params = getUrlSearchParamsForHash();
+    const config = params.get("config");
+    console.log("xxx config", config);
+
+    if (!config) return;
+    try {
+      if (!config) return;
+      const fetchUrl = `https://ceepr.cismet.de/config/wuppertal/_dev_geoportal/${config}`;
+      fetch(fetchUrl)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (!data || !Array.isArray(data.layers)) return;
+          // Always output modern config: layers
+          const layers = data.layers.map((layer) => {
+            let layerType = layer.layerType || layer.other?.layerType || (layer.ceepr && layer.ceepr.layerType);
+            const layerObj = {
+              name: layer.title,
+              layer:
+                (layer.other?.layerName || "") +
+                "@" +
+                (layer.other?.capabilitiesUrl || ""),
+              addMetaInfoToHelp: true,
+              ...(layerType ? { layerType } : {})
+            };
+            const styleVal = layer.conf?.vectorStyle;
+            if (styleVal && styleVal !== "") {
+              layerObj.style = styleVal;
+            }
+            return layerObj;
+          });
+          console.log("xxx layers (modern config)", layers);
+          setStarterConfig(
+            JSON.stringify(
+              {
+                tm: {
+                  noFeatureCollection: true,
+                  layers,
+                },
+              },
+              null,
+              2
+            )
+          );
+        });
+    } catch (e) {
+      // ignore
+    }
+  }, []);
   // --- Fault log state and helper ---
   const [faultLog, setFaultLog] = useState([]);
   const log = (msg, attachment) => {
@@ -125,52 +221,63 @@ function App({ name }) {
       }
 
       // If a layer has no id, set it to md5 hash of the full config string
-      if (Array.isArray(projectConfig?.tm?.vectorLayers)) {
-        const configHash = md5(JSON.stringify(projectConfig));
-        projectConfig.tm.vectorLayers.forEach((layerObj) => {
-          if (!layerObj.id) {
-            layerObj.id = configHash;
+      // Use tm.layers if present, otherwise fallback to tm.vectorLayers (backward compatibility)
+      let layersArr = Array.isArray(projectConfig?.tm?.layers)
+        ? projectConfig.tm.layers
+        : Array.isArray(projectConfig?.tm?.vectorLayers)
+        ? projectConfig.tm.vectorLayers
+        : [];
+      layersArr.forEach((layerObj) => {
+        if (!layerObj.id) {
+          if (layerObj.name) {
+            layerObj.id = slugify(layerObj.name);
+          } else {
+            layerObj.id = md5(JSON.stringify(layerObj));
+          }
+        }
+      });
+      // Backwards compatibility: apply tm.infoboxMapping, layer, capabilities, capabilitiesLayer to every layer if defined and not already set
+      if (Array.isArray(projectConfig.tm.infoboxMapping)) {
+        layersArr.forEach((layerObj) => {
+          if (!layerObj.infoboxMapping) {
+            layerObj.infoboxMapping = projectConfig.tm.infoboxMapping;
           }
         });
-        // Backwards compatibility: apply tm.infoboxMapping, layer, capabilities, capabilitiesLayer to every vectorLayer if defined and not already set
-        if (Array.isArray(projectConfig.tm.infoboxMapping)) {
-          projectConfig.tm.vectorLayers.forEach((layerObj) => {
-            if (!layerObj.infoboxMapping) {
-              layerObj.infoboxMapping = projectConfig.tm.infoboxMapping;
-            }
-          });
-        }
-        if (projectConfig.tm.layer) {
-          projectConfig.tm.vectorLayers.forEach((layerObj) => {
-            if (!layerObj.layer) {
-              layerObj.layer = projectConfig.tm.layer;
-            }
-          });
-        }
-        if (projectConfig.tm.capabilities) {
-          projectConfig.tm.vectorLayers.forEach((layerObj) => {
-            if (!layerObj.capabilities) {
-              layerObj.capabilities = projectConfig.tm.capabilities;
-            }
-          });
-        }
-        if (projectConfig.tm.capabilitiesLayer) {
-          projectConfig.tm.vectorLayers.forEach((layerObj) => {
-            if (!layerObj.capabilitiesLayer) {
-              layerObj.capabilitiesLayer = projectConfig.tm.capabilitiesLayer;
-            }
-          });
-        }
+      }
+      if (projectConfig.tm.layer) {
+        layersArr.forEach((layerObj) => {
+          if (!layerObj.layer) {
+            layerObj.layer = projectConfig.tm.layer;
+          }
+        });
+      }
+      if (projectConfig.tm.capabilities) {
+        layersArr.forEach((layerObj) => {
+          if (!layerObj.capabilities) {
+            layerObj.capabilities = projectConfig.tm.capabilities;
+          }
+        });
+      }
+      if (projectConfig.tm.capabilitiesLayer) {
+        layersArr.forEach((layerObj) => {
+          if (!layerObj.capabilitiesLayer) {
+            layerObj.capabilitiesLayer = projectConfig.tm.capabilitiesLayer;
+          }
+        });
       }
 
       // Per-layer capabilities: build a layerInformation object keyed by capabilitiesLayer
       const layerInfoObj = {};
-      const vectorLayers = projectConfig.tm?.vectorLayers;
-      if (!vectorLayers || !Array.isArray(vectorLayers)) {
-        log("No vectorLayers found in projectConfig.tm.vectorLayers");
+      const mainLayersArr2 = Array.isArray(projectConfig.tm?.layers)
+        ? projectConfig.tm.layers
+        : Array.isArray(projectConfig.tm?.vectorLayers)
+        ? projectConfig.tm.vectorLayers
+        : [];
+      if (!mainLayersArr2.length) {
+        log("No layers found in projectConfig.tm.layers or vectorLayers");
       } else {
         // Fast-path: Add minimal info for layers with style property
-        for (const layer of vectorLayers) {
+        for (const layer of mainLayersArr2) {
           if (layer.style) {
             layerInfoObj[layer.capabilitiesLayer] = {
               ...(layer.id ? { id: layer.id } : {}),
@@ -217,6 +324,7 @@ function App({ name }) {
                   const extractedInformation = await extractInformation(
                     targetLayer
                   );
+
                   setLayerInformation((prev) => ({
                     ...prev,
                     [layer.capabilitiesLayer]: {
@@ -256,8 +364,13 @@ function App({ name }) {
       }
 
       // --- Style Manipulation: Fetch style JSON if needed ---
-      if (Array.isArray(config?.tm?.vectorLayers)) {
-        const styleFetchPromises = config.tm.vectorLayers.map(async (layer) => {
+      const mainLayersArr = Array.isArray(config?.tm?.layers)
+        ? config.tm.layers
+        : Array.isArray(config?.tm?.vectorLayers)
+        ? config.tm.vectorLayers
+        : [];
+      if (mainLayersArr.length > 0) {
+        const styleFetchPromises = mainLayersArr.map(async (layer) => {
           if (
             typeof layer.styleManipulation !== "undefined" &&
             layer.style &&
@@ -342,9 +455,9 @@ function App({ name }) {
         await Promise.all(manipulationPromises);
       }
 
-      // Normalize vectorLayers: if only 'layer' is present, extract 'capabilitiesLayer' and 'capabilities'
-      if (Array.isArray(config?.tm?.vectorLayers)) {
-        config.tm.vectorLayers.forEach((layerObj) => {
+      // Normalize layers: if only 'layer' is present, extract 'capabilitiesLayer' and 'capabilities'
+      if (mainLayersArr.length > 0) {
+        mainLayersArr.forEach((layerObj) => {
           if (
             layerObj.layer &&
             (!layerObj.capabilities || !layerObj.capabilitiesLayer)
@@ -482,17 +595,24 @@ function App({ name }) {
   }, [slugName, name]);
 
   useEffect(() => {
-    if (config?.tm?.vectorLayers) {
+    console.log("xxx layerInformation", layerInformation);
+
+    const mainLayersArr = Array.isArray(config?.tm?.layers)
+      ? config.tm.layers
+      : Array.isArray(config?.tm?.vectorLayers)
+      ? config.tm.vectorLayers
+      : [];
+    if (mainLayersArr.length > 0) {
       //check if every layer which has addMetaInfoToHelp turned on
       // is ready (shown in doneWithFetchingAdditionalInfo)
       let readyForProduction = false;
-      config.tm.vectorLayers.forEach((layer) => {
+      mainLayersArr.forEach((layer) => {
         const info = layerInformation[layer.capabilitiesLayer];
         if (
           (info &&
             info.addMetaInfoToHelp === true &&
             info.doneWithFetchingAdditionalInfo === true) ||
-          info.addMetaInfoToHelp === false
+          (info && info.addMetaInfoToHelp === false)
         ) {
           readyForProduction = true;
         } else {
@@ -502,7 +622,7 @@ function App({ name }) {
 
       if (readyForProduction === true) {
         const layerBlocks = [];
-        config.tm.vectorLayers.forEach((layer) => {
+        mainLayersArr.forEach((layer) => {
           const info = layerInformation[layer.capabilitiesLayer];
 
           if (
@@ -517,7 +637,7 @@ function App({ name }) {
         setLayerHelpBlocks(layerBlocks);
       }
     }
-  }, [config?.tm?.vectorLayers, layerInformation]);
+  }, [config?.tm?.layers, config?.tm?.vectorLayers, layerInformation]);
 
   if (initialized === true) {
     const refConfig = {};
@@ -586,10 +706,93 @@ function App({ name }) {
                 fontSize: 14,
               }}
             >
-              <h2 style={{ marginBottom: 24 }}>
-                Probleme beim Laden der Konfigurationsdateien
-              </h2>
-              <pre>{faultLog.join("\n")}</pre>
+              {getGeoportalLinkFromUrl() ? (
+                <>
+                  <div style={{ position: "relative" }}>
+                    <h2 style={{ marginBottom: 24, background: "none" }}>
+                      Starter for{" "}
+                      {slugName.charAt(0).toUpperCase() + slugName.slice(1)}
+                    </h2>
+                  </div>
+                  {faultLog.length > 0 && (
+                    <pre
+                      style={{
+                        background: "rgba(240,240,240,0.95)",
+                        color: "#444",
+                        borderRadius: 6,
+                        border: "1px solid #ccc",
+                        padding: 10,
+                        marginBottom: 12,
+                        fontSize: 13,
+                        fontFamily: "monospace",
+                        whiteSpace: "pre-wrap",
+                      }}
+                    >
+                      {faultLog.join("\n")}
+                    </pre>
+                  )}
+                  <div style={{ marginBottom: 12 }}>
+                    we will add a minimal config.json for the developer to start
+                  </div>
+                  <pre style={{ fontWeight: "bold", marginBottom: 8 }}>
+                    config.json
+                  </pre>
+                  <div style={{ position: "relative", marginBottom: 16 }}>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(starterConfig);
+                        setShowCopied(true);
+                        setTimeout(() => setShowCopied(false), 1200);
+                      }}
+                      style={{
+                        position: "absolute",
+                        top: 8,
+                        right: 8,
+                        zIndex: 10,
+                        background: "#fff",
+                        border: "1px solid #bbb",
+                        borderRadius: 4,
+                        padding: "4px 10px",
+                        fontSize: 13,
+                        cursor: "pointer",
+                        boxShadow: "0 1px 4px #0001",
+                        opacity: 0.85,
+                      }}
+                      title="Copy config.json to clipboard"
+                    >
+                      {showCopied ? (
+                        <FontAwesomeIcon icon="check" />
+                      ) : (
+                        <FontAwesomeIcon icon="copy" />
+                      )}
+                    </button>
+                    <CodeMirror
+                      value={starterConfig}
+                      height="300px"
+                      extensions={[javascript({ jsx: true })]}
+                      readOnly={true}
+                      theme="light"
+                      style={{
+                        background: "rgba(220,220,220,0.85)",
+                        borderRadius: 8,
+                        border: "1px solid #888",
+                        padding: 2,
+                        fontWeight: "bold",
+                        fontSize: 14,
+                        margin: 0,
+                      }}
+                      basicSetup={{ lineNumbers: false }}
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h2 style={{ marginBottom: 24 }}>
+                    Probleme beim Laden der Konfigurationsdateien
+                  </h2>
+                  <pre>{faultLog.join("\n")}</pre>
+                </>
+              )}
             </div>
           </div>
         )}
