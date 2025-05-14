@@ -1,4 +1,4 @@
-import { CSSProperties, FC } from "react";
+import type { CSSProperties, FC } from "react";
 
 export type BlendMode = "normal" | "difference" | "normal50";
 
@@ -39,7 +39,7 @@ export const PreviewImage: FC<PreviewImageProps> = ({
     boxSizing: "content-box",
     pointerEvents: "none",
     zIndex: 1200,
-    transition: "opacity 0.5s linear, width 0.1s linear, height 1s linear",
+    transition: "opacity 0.8s linear",
     overflow: "hidden",
     //scroll: "none",
   };

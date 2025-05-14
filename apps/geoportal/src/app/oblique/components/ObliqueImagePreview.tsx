@@ -1,4 +1,10 @@
-import { useEffect, useState, type RefObject, type FC } from "react";
+import {
+  useEffect,
+  useState,
+  type RefObject,
+  type FC,
+  type CSSProperties,
+} from "react";
 import { type Viewer, PerspectiveFrustum } from "cesium";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -7,6 +13,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { Tooltip, Radio, type RadioChangeEvent } from "antd";
 
+import { useMemoMergedDefaultOptions } from "@carma-commons/utils";
 import { useCesiumContext } from "@carma-mapping/cesium-engine";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { PREVIEW_IMAGE_BASE_SCALE_FACTOR } from "../config";
@@ -58,6 +65,22 @@ const defaultStyle: ObliqueImagePreviewStyle = {
   boxShadow: "0 0 50px rgba(255, 255, 255, 0.8)",
 };
 
+const ControlsContainerStyle: CSSProperties = {
+  position: "absolute",
+  bottom: "50px",
+  width: "100%",
+  maxWidth: "800px",
+  left: "50%",
+  transform: "translateX(-50%)",
+  display: "flex",
+  flexDirection: "row",
+  justifyContent: "center",
+  flexWrap: "wrap",
+  alignItems: "center",
+  gap: "10px",
+  zIndex: 1300,
+};
+
 export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   src,
   srcHQ,
@@ -78,10 +101,10 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   const [currentQuality, setCurrentQuality] = useState<ImageQuality>("REGULAR");
   const [activeSource, setActiveSource] = useState(src);
 
-  const { backdropColor, border, boxShadow } = {
-    ...defaultStyle,
-    ...style,
-  };
+  const { backdropColor, border, boxShadow } = useMemoMergedDefaultOptions(
+    style,
+    defaultStyle
+  );
 
   const { viewerRef } = useCesiumContext();
 
@@ -164,23 +187,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
         isDebug={isDebugMode}
         onClick={handleBackdropClick}
       />
-      <div
-        style={{
-          position: "absolute",
-          bottom: "50px",
-          width: "100%",
-          maxWidth: "800px",
-          left: "50%",
-          transform: "translateX(-50%)",
-          display: "flex",
-          flexDirection: "row",
-          justifyContent: "center",
-          flexWrap: "wrap",
-          alignItems: "center",
-          gap: "10px",
-          zIndex: 1300,
-        }}
-      >
+      <div style={ControlsContainerStyle}>
         <Tooltip title="Bild in neuem Tab öffnen" placement="top">
           <div>
             <ControlButtonStyler onClick={onOpenImageLink} width="auto">

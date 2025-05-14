@@ -1,3 +1,5 @@
+export { useMemoMergedDefaultOptions } from "./lib/react/hooks/useMemoMergedDefaultOptions";
+
 export { isNumberArrayEqual } from "./lib/arrays";
 
 export { extractCarmaConfig } from "./lib/carmaConfig";
