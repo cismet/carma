@@ -32,7 +32,10 @@ export type LayerProps = {
 };
 
 // TODO: fix typing and verify
-type OtherLayerProps = Partial<LayerProps & Item>;
+type OtherLayerProps = Partial<LayerProps & Item> & {
+  layerName?: string;
+  capabilitiesUrl?: string;
+};
 
 export type Layer = {
   title: string;

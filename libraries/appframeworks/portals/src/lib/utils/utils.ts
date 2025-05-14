@@ -93,7 +93,7 @@ export const parseToMapLayer = async (
   visible: boolean,
   opacity?: number
 ) => {
-  let newLayer: Layer;
+  let newLayer: Layer | null = null;
   const id = layer.id.startsWith("fav_") ? layer.id.slice(4) : layer.id;
 
   const carmaConf = extractCarmaConfig(layer.keywords);
@@ -119,6 +119,7 @@ export const parseToMapLayer = async (
             return parsedZoom;
           });
       }
+
       newLayer = {
         title: layer.title,
         id: id,
@@ -146,6 +147,10 @@ export const parseToMapLayer = async (
           ...Object.fromEntries(
             Object.entries(layer).filter(([key]) => !["props"].includes(key))
           ),
+          layerName: layer.name,
+          capabilitiesUrl:
+            layer.props.url +
+            "service=WMS&request=GetCapabilities&version=1.1.1",
         },
       };
     } else {
@@ -177,6 +182,10 @@ export const parseToMapLayer = async (
                   ([key]) => !["props"].includes(key)
                 )
               ),
+              layerName: layer.name,
+              capabilitiesUrl:
+                layer.props.url +
+                "service=WMS&request=GetCapabilities&version=1.1.1",
             },
           };
           break;
@@ -207,6 +216,10 @@ export const parseToMapLayer = async (
                   ([key]) => !["props"].includes(key)
                 )
               ),
+              layerName: layer.name,
+              capabilitiesUrl:
+                layer.props.url +
+                "service=WMS&request=GetCapabilities&version=1.1.1",
             },
           };
           break;
@@ -215,6 +228,9 @@ export const parseToMapLayer = async (
     }
   }
 
-  // @ts-ignore
+  // Check if newLayer was assigned and throw an error if not
+  if (newLayer === null) {
+    throw new Error(`Could not parse layer ${layer.id} to map layer.`);
+  }
   return newLayer;
 };
