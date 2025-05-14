@@ -93,7 +93,7 @@ function App({ name }) {
   const [starterConfig, setStarterConfig] = useState(`{
     "tm": {
       "noFeatureCollection": true,
-      "layers": []
+      "vectorLayers": []
     }
   }`);
 
@@ -111,8 +111,8 @@ function App({ name }) {
         .then((r) => (r.ok ? r.json() : null))
         .then((data) => {
           if (!data || !Array.isArray(data.layers)) return;
-          // Always output modern config: layers
-          const layers = data.layers.map((layer) => {
+          // Always output legacy config: vectorLayers
+          const vectorLayers = data.layers.map((layer) => {
             let layerType = layer.layerType || layer.other?.layerType || (layer.ceepr && layer.ceepr.layerType);
             const layerObj = {
               name: layer.title,
@@ -129,13 +129,13 @@ function App({ name }) {
             }
             return layerObj;
           });
-          console.log("xxx layers (modern config)", layers);
+          console.log("xxx vectorLayers (legacy config)", vectorLayers);
           setStarterConfig(
             JSON.stringify(
               {
                 tm: {
                   noFeatureCollection: true,
-                  layers,
+                  vectorLayers,
                 },
               },
               null,
@@ -222,12 +222,11 @@ function App({ name }) {
 
       // If a layer has no id, set it to md5 hash of the full config string
       // Use tm.layers if present, otherwise fallback to tm.vectorLayers (backward compatibility)
-      let layersArr = Array.isArray(projectConfig?.tm?.layers)
-        ? projectConfig.tm.layers
-        : Array.isArray(projectConfig?.tm?.vectorLayers)
+      // Declare vectorLayers ONCE after projectConfig is set
+      const vectorLayers = Array.isArray(projectConfig?.tm?.vectorLayers)
         ? projectConfig.tm.vectorLayers
         : [];
-      layersArr.forEach((layerObj) => {
+      vectorLayers.forEach((layerObj) => {
         if (!layerObj.id) {
           if (layerObj.name) {
             layerObj.id = slugify(layerObj.name);
@@ -238,28 +237,28 @@ function App({ name }) {
       });
       // Backwards compatibility: apply tm.infoboxMapping, layer, capabilities, capabilitiesLayer to every layer if defined and not already set
       if (Array.isArray(projectConfig.tm.infoboxMapping)) {
-        layersArr.forEach((layerObj) => {
+        vectorLayers.forEach((layerObj) => {
           if (!layerObj.infoboxMapping) {
             layerObj.infoboxMapping = projectConfig.tm.infoboxMapping;
           }
         });
       }
       if (projectConfig.tm.layer) {
-        layersArr.forEach((layerObj) => {
+        vectorLayers.forEach((layerObj) => {
           if (!layerObj.layer) {
             layerObj.layer = projectConfig.tm.layer;
           }
         });
       }
       if (projectConfig.tm.capabilities) {
-        layersArr.forEach((layerObj) => {
+        vectorLayers.forEach((layerObj) => {
           if (!layerObj.capabilities) {
             layerObj.capabilities = projectConfig.tm.capabilities;
           }
         });
       }
       if (projectConfig.tm.capabilitiesLayer) {
-        layersArr.forEach((layerObj) => {
+        vectorLayers.forEach((layerObj) => {
           if (!layerObj.capabilitiesLayer) {
             layerObj.capabilitiesLayer = projectConfig.tm.capabilitiesLayer;
           }
@@ -268,16 +267,11 @@ function App({ name }) {
 
       // Per-layer capabilities: build a layerInformation object keyed by capabilitiesLayer
       const layerInfoObj = {};
-      const mainLayersArr2 = Array.isArray(projectConfig.tm?.layers)
-        ? projectConfig.tm.layers
-        : Array.isArray(projectConfig.tm?.vectorLayers)
-        ? projectConfig.tm.vectorLayers
-        : [];
-      if (!mainLayersArr2.length) {
-        log("No layers found in projectConfig.tm.layers or vectorLayers");
+      if (!vectorLayers.length) {
+        log("No layers found in projectConfig.tm.vectorLayers");
       } else {
         // Fast-path: Add minimal info for layers with style property
-        for (const layer of mainLayersArr2) {
+        for (const layer of vectorLayers) {
           if (layer.style) {
             layerInfoObj[layer.capabilitiesLayer] = {
               ...(layer.id ? { id: layer.id } : {}),
@@ -364,13 +358,12 @@ function App({ name }) {
       }
 
       // --- Style Manipulation: Fetch style JSON if needed ---
-      const mainLayersArr = Array.isArray(config?.tm?.layers)
-        ? config.tm.layers
-        : Array.isArray(config?.tm?.vectorLayers)
+      // Use a different variable name to avoid redeclaration
+      const vectorLayersConfig = Array.isArray(config?.tm?.vectorLayers)
         ? config.tm.vectorLayers
         : [];
-      if (mainLayersArr.length > 0) {
-        const styleFetchPromises = mainLayersArr.map(async (layer) => {
+      if (vectorLayersConfig.length > 0) {
+        const styleFetchPromises = vectorLayersConfig.map(async (layer) => {
           if (
             typeof layer.styleManipulation !== "undefined" &&
             layer.style &&
@@ -456,8 +449,8 @@ function App({ name }) {
       }
 
       // Normalize layers: if only 'layer' is present, extract 'capabilitiesLayer' and 'capabilities'
-      if (mainLayersArr.length > 0) {
-        mainLayersArr.forEach((layerObj) => {
+      if (vectorLayers.length > 0) {
+        vectorLayers.forEach((layerObj) => {
           if (
             layerObj.layer &&
             (!layerObj.capabilities || !layerObj.capabilitiesLayer)
@@ -597,16 +590,16 @@ function App({ name }) {
   useEffect(() => {
     console.log("xxx layerInformation", layerInformation);
 
-    const mainLayersArr = Array.isArray(config?.tm?.layers)
-      ? config.tm.layers
+    const vectorLayers = Array.isArray(config?.tm?.vectorLayers)
+      ? config.tm.vectorLayers
       : Array.isArray(config?.tm?.vectorLayers)
       ? config.tm.vectorLayers
       : [];
-    if (mainLayersArr.length > 0) {
+    if (vectorLayers.length > 0) {
       //check if every layer which has addMetaInfoToHelp turned on
       // is ready (shown in doneWithFetchingAdditionalInfo)
       let readyForProduction = false;
-      mainLayersArr.forEach((layer) => {
+      vectorLayers.forEach((layer) => {
         const info = layerInformation[layer.capabilitiesLayer];
         if (
           (info &&
@@ -622,7 +615,7 @@ function App({ name }) {
 
       if (readyForProduction === true) {
         const layerBlocks = [];
-        mainLayersArr.forEach((layer) => {
+        vectorLayers.forEach((layer) => {
           const info = layerInformation[layer.capabilitiesLayer];
 
           if (
@@ -637,7 +630,7 @@ function App({ name }) {
         setLayerHelpBlocks(layerBlocks);
       }
     }
-  }, [config?.tm?.layers, config?.tm?.vectorLayers, layerInformation]);
+  }, [config?.tm?.vectorLayers, config?.tm?.vectorLayers, layerInformation]);
 
   if (initialized === true) {
     const refConfig = {};
