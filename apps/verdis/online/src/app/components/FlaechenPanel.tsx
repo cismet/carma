@@ -13,7 +13,7 @@ import {
   setSelectedFeatureIndexWithSelector,
 } from "../../store/slices/mapping";
 import { useEffect, useRef } from "react";
-import scrollIntoViewIfNeeded from "scroll-into-view-if-needed";
+import scrollIntoView from "scroll-into-view-if-needed";
 import { FontAwesomeIcon as Icon } from "@fortawesome/react-fontawesome";
 import { faEdit } from "@fortawesome/free-solid-svg-icons";
 import { colorDraft } from "../../utils/kassenzeichenHelper";
@@ -152,8 +152,9 @@ const FlaechenPanel = ({
 
   useEffect(() => {
     if (selected && panelRef.current) {
-      scrollIntoViewIfNeeded(panelRef.current, false, {
-        duration: 250,
+      scrollIntoView(panelRef.current, {
+        behavior: "smooth",
+        scrollMode: "if-needed",
       });
     }
   }, [selected]);
