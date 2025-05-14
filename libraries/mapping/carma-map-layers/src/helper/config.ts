@@ -275,7 +275,7 @@ export const serviceConfig: Record<string, LayerConfig> = {
 
 export const topicMapsConfig: Config = {
   Title: "TopicMaps Wuppertal",
-  serviceName: "wuppTopicMaps",
+  id: "wuppTopicMaps",
   layers: [
     {
       id: "wuppTopicMaps_stadtplan",
@@ -678,6 +678,37 @@ export const topicMapsConfig: Config = {
       serviceName: "wuppTopicMaps",
     },
   ],
+};
+
+export const partianTwinConfig = {
+  TopicMaps: topicMapsConfig,
+  ArcGISOnline: {
+    Title: "ArcGIS Online",
+    id: "wuppArcGisOnline",
+    layers: [
+      {
+        id: "wuppArcGisOnline_seilbahn",
+        name: "wuppArcGisOnline_seilbahn",
+        title: "Seilbahnplanung BUGA 2031",
+        description: `3D-Visualisierung der für die Bundesgartenschau 2031 geplanten Seilbahn zwischen dem Wuppertaler Zoo und der Königshöhe, Planungsstand 05/2025.`,
+        tags: [
+          "ArcGIS Online",
+          "BUGA 2031",
+          "Bundesgartenschau",
+          "Kernareal",
+          "Seilbahn",
+          "Zoo",
+          "Planung",
+        ],
+        type: "link",
+        thumbnail:
+          "https://images.unsplash.com/photo-1736540495915-cf33061212b5?q=80&w=2572&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+
+        url: "https://experience.arcgis.com/experience/a78e9ce521df42f5a0ac98389e90bca6?draft=true",
+        serviceName: "wuppArcGisOnline",
+      },
+    ],
+  },
 };
 
 const vectorBaseUrl = "https://tiles.cismet.de/";

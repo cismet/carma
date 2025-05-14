@@ -46,7 +46,7 @@ const InfoCard = ({
 }: InfoCardProps) => {
   const { title, description, tags } = layer;
   const legends = (layer as unknown as any).props?.Style?.[0]?.LegendURL; // TODO: fix type
-  const parsedDescriptions = parseDescription(description);        
+  const parsedDescriptions = parseDescription(description);
   const carmaConf = extractCarmaConfig(layer.keywords);
   const isVectorLayer = carmaConf?.vectorStyle;
   const canFavoriteItem =
@@ -54,6 +54,7 @@ const InfoCard = ({
     (layer.type === "collection" && layer.serviceName.includes("discover"));
   const isGenericTopicMap = layer?.name?.startsWith("wuppGenericTopicMaps_");
   const isTopicMap = layer?.name?.startsWith("wuppTopicMaps_");
+  const isArcGisOnline = layer?.name?.startsWith("wuppArcGisOnline_");
   const copyright = layer.copyright;
 
   return (
@@ -180,6 +181,15 @@ const InfoCard = ({
                     <a href="https://github.com/cismet/carma">carma</a>, durch
                     spezifische Programmierung aus den Daten und Methoden des
                     DigiTal Zwillings abgeleitet.
+                  </p>
+                </>
+              )}
+              {isArcGisOnline && (
+                <>
+                  <h5 className="font-semibold text-lg">Implementierung</h5>
+                  <p className="text-base text-gray-600">
+                    Interaktive 3D-Szene realisiert mit ArcGIS Online auf Basis
+                    von Daten des DigiTal Zwillings.
                   </p>
                 </>
               )}

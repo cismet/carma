@@ -19,7 +19,11 @@ import WMSCapabilities from "wms-capabilities";
 import type { Item, Layer, SavedLayerConfig } from "@carma-commons/types";
 import { utils } from "@carma-apps/portals";
 
-import { baseConfig as config, serviceConfig } from "../helper/config";
+import {
+  baseConfig as config,
+  partianTwinConfig,
+  serviceConfig,
+} from "../helper/config";
 import {
   flattenLayer,
   getLayerStructure,
@@ -306,47 +310,6 @@ export const NewLibModal = ({
           });
       } else {
         if (services[key].type === "topicmaps") {
-          const tmpLayer = getLayerStructure({
-            config,
-            serviceName: services[key].name,
-          });
-          setShownCategories((prev: any) => {
-            // TODO fix type
-            if (prev.find((item) => item.id === "partialTwins")) {
-              prev.splice(
-                prev.findIndex((item) => item.id === "partialTwins"),
-                1
-              );
-            }
-            return [
-              ...prev,
-              {
-                id: "partialTwins",
-                categories: tmpLayer.filter(
-                  (category) => category.layers.length > 0
-                ),
-              },
-            ];
-          });
-
-          setTmpAllCategories((prev: any) => {
-            // TODO: Fix type
-            if (prev.find((item) => item.id === "partialTwins")) {
-              prev.splice(
-                prev.findIndex((item) => item.id === "partialTwins"),
-                1
-              );
-            }
-            return [
-              ...prev,
-              {
-                id: "partialTwins",
-                categories: tmpLayer.filter(
-                  (category) => category.layers.length > 0
-                ),
-              },
-            ];
-          });
         } else {
           const tmpLayer = getLayerStructure({
             config,
@@ -364,6 +327,44 @@ export const NewLibModal = ({
       }
     }
 
+    // Partial Twins Category
+    const partialTwinsCategories: {
+      Title: string;
+      id: string;
+      layers: SavedLayerConfig[];
+    }[] = [];
+
+    for (let key in partianTwinConfig) {
+      partialTwinsCategories.push(partianTwinConfig[key]);
+    }
+
+    setShownCategories((prev) => {
+      if (prev.find((item) => item.id === "partialTwins")) {
+        prev.splice(
+          prev.findIndex((item) => item.id === "partialTwins"),
+          1
+        );
+      }
+      return [
+        ...prev,
+        { id: "partialTwins", categories: partialTwinsCategories },
+      ];
+    });
+
+    setTmpAllCategories((prev) => {
+      if (prev.find((item) => item.id === "partialTwins")) {
+        prev.splice(
+          prev.findIndex((item) => item.id === "partialTwins"),
+          1
+        );
+      }
+      return [
+        ...prev,
+        { id: "partialTwins", categories: partialTwinsCategories },
+      ];
+    });
+
+    // Discover Category
     const discoverCategories: {
       Title: string;
       id: string;
@@ -452,7 +453,7 @@ export const NewLibModal = ({
       if (favoriteLayerCategory.length > 0) {
         const favoriteLayers = favoriteLayerCategory[0].layers;
         favoriteLayers.forEach((layer) => {
-          const serviceId = (layer as unknown as any)?.service.name; // TODO: fix type
+          const serviceId = (layer as unknown as any)?.service?.name; // TODO: fix type
           const serviceCategory = allLayers.filter(
             (category) => category.id === serviceId
           );

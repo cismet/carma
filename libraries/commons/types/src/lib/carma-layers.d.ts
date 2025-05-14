@@ -124,7 +124,8 @@ type Feature = {
 
 export type Config = {
   Title: string;
-  serviceName: string;
+  serviceName?: string;
+  id?: string;
   layers: Item[];
 };
 
