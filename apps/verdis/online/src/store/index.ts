@@ -74,11 +74,33 @@ const authConfig = {
   whitelist: ["user", "password", "stac"],
 };
 
+const uiStateConfig = {
+  key: "uiState",
+  storage: localForage,
+  whitelist: [
+    // "d3Available",
+    "settingsVisible",
+    "applicationMenuVisible",
+    "applicationMenuActiveKey",
+    "changeRequestEditViewVisible",
+    "changeRequestEditViewFlaeche",
+    "changeRequestEditViewCR",
+    // "changeRequestsMenuVisible",
+    "changeRequestsEditMode",
+  ],
+};
+
+const mappingConfig = {
+  key: "mapping",
+  storage: localForage,
+  whitelist: ["selectedBackgroundIndex"],
+};
+
 export default configureStore({
   reducer: {
     auth: persistReducer(authConfig, authSlice.reducer),
-    kassenzeichen: kassenzeichenReducer.reducer,
-    ui: uiReducer.reducer,
+    kassenzeichen: persistReducer(mappingConfig, kassenzeichenReducer.reducer),
+    ui: persistReducer(uiStateConfig, uiReducer.reducer),
     mapping: mappingReducer.reducer,
   },
   devTools: devToolsEnabled === true && inProduction === false,
