@@ -212,6 +212,9 @@ const slice = createSlice({
     showWaiting(state, action) {
       state.waitingVisible = action.payload;
     },
+    setHintVisible(state, action) {
+      state.hintVisible = action.payload;
+    },
     setCloudStorageStatus(state, action) {
       const { status, message } = action.payload;
       state.cloudStorageStatus = status;
@@ -246,6 +249,7 @@ export const {
   setFebBlob,
   setWaitForFEB,
   setCloudStorageStatus,
+  setHintVisible,
 } = slice.actions;
 
 export const getConfData = (state) => {

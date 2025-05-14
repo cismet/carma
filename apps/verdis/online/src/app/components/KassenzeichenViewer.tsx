@@ -40,6 +40,7 @@ import {
   showInfo,
   showWaiting,
   toggleInfoElements,
+  setHintVisible,
 } from "../../store/slices/ui";
 import { fitAll, getMapping } from "../../store/slices/mapping";
 import HelpAndSettings from "../components/helpandsettings/Menu00MainComponent";
@@ -109,6 +110,10 @@ const KassenzeichenViewer = () => {
         );
       }
     }
+
+    setTimeout(() => {
+      dispatch(setHintVisible(false));
+    }, 10000);
 
     sysend.on("reloadOnEmailVerification", () => {
       reloadOnEmailVerification();
