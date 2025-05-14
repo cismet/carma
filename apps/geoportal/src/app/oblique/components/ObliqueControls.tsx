@@ -1,5 +1,5 @@
-import { useCallback, useRef, useState, useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useCallback, useRef, useState, useEffect, useMemo } from "react";
+import { useSelector } from "react-redux";
 
 import { debounce } from "lodash";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -15,17 +15,12 @@ import {
   HeadingPitchRange,
   Math as CesiumMath,
   Cartesian3,
-  Cartographic,
-  Matrix4,
   EasingFunction,
-  ScreenSpaceEventHandler,
-  ScreenSpaceEventType,
-  sampleTerrainMostDetailed,
 } from "cesium";
 
 import {
   cesiumSafeRequestRender,
-  selectViewerIsMode2d,
+  isValidViewerInstance,
   selectViewerIsTransitioning,
   useCesiumContext,
 } from "@carma-mapping/cesium-engine";
@@ -46,28 +41,23 @@ import { useDebugOrbitPoint } from "../hooks/useDebugOrbitPoint";
 import { useExteriorOrientation } from "../hooks/useExteriorOrientation";
 import { useFootprints } from "../hooks/useFootprints";
 
-import {
-  resetCamera,
-  flyToExteriorOrientation,
-  getDynamicDurationSecondsFromDistance,
-} from "../utils/cameraUtils";
+import { resetCamera, flyToExteriorOrientation } from "../utils/cameraUtils";
 import { downloadAsBlobAsync } from "../utils/downloads";
 import { formatHeadingDegrees } from "../utils/formatters";
 import {
   CardinalDirectionEnum,
   findClosestCardinalIndex,
   getCardinalHeadings,
-  getDirectionFromCartesian,
 } from "../utils/orientationUtils";
-import { getPreviewImageUrl } from "../utils/imageHandling";
+import { getImageUrls } from "../utils/imageHandling";
 import {
   subscribeToPreviewVisibility,
   notifyPreviewVisibilityChange,
 } from "../utils/previewVisibility";
 
-import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
 import { CAMERA_ID_INTERIOR_ORIENTATION_PERCENTAGE_OFFSETS } from "../config";
 import { useOblique } from "../hooks/useOblique";
+import { useObliqueCameraHandlers } from "../hooks/useObliqueCameraHandlers";
 
 type ObliqueControlsProps = {
   /**
@@ -80,7 +70,6 @@ type ObliqueControlsProps = {
 };
 
 export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
-  const dispatch = useDispatch();
   const {
     headingOffset,
     nearestImage,
@@ -93,60 +82,30 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     toggleObliqueMode,
     imagePreviewStyle,
   } = useOblique();
-  const { viewerRef, terrainProviderRef } = useCesiumContext();
+  const { viewerRef } = useCesiumContext();
   const flags = useFeatureFlags();
   const isDebugMode = flags.featureFlagDebugOblique;
   const animationInProgressRef = useRef<boolean>(false);
-  const [activeDirection, setActiveDirection] =
-    useState<CardinalDirectionEnum | null>(null);
+
   const [isVisible, setIsVisible] = useState(isObliqueMode);
   const [shouldRender, setShouldRender] = useState(isObliqueMode);
-  const [currentHeading, setCurrentHeading] = useState<number>(0);
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
-  const isMode2d = useSelector(selectViewerIsMode2d);
   const isTransitioning = useSelector(selectViewerIsTransitioning);
-  const userMovedCameraRef = useRef<boolean>(false);
   const preloadImageRef = useRef<ReturnType<typeof debounce> | null>(null);
 
-  const orbitPoint = useOrbitPoint();
-  const updateOrbitPointEntity = useDebugOrbitPoint(orbitPoint, isDebugMode);
+
+  const {currentHeading, activeDirection} = useObliqueCameraHandlers(animationInProgressRef);
 
   const { derivedExteriorOrientationRef } =
     useExteriorOrientation(nearestImage);
 
   useFootprints();
 
-  const previewUrl = nearestImage
-    ? getPreviewImageUrl(
-        previewPath,
-        previewQualityLevel,
-        nearestImage.record.id
-      )
-    : null;
-
-  const previewUrlHq = nearestImage
-    ? getPreviewImageUrl(
-        previewPath,
-        OBLIQUE_PREVIEW_QUALITY.LEVEL_2,
-        nearestImage.record.id
-      )
-    : null;
-
-  const previewUrlOriginal = nearestImage
-    ? getPreviewImageUrl(
-        previewPath,
-        OBLIQUE_PREVIEW_QUALITY.LEVEL_1,
-        nearestImage.record.id
-      )
-    : null;
-
-  const downloadUrl = nearestImage
-    ? getPreviewImageUrl(
-        previewPath,
-        OBLIQUE_PREVIEW_QUALITY.LEVEL_2,
-        nearestImage.record.id
-      )
-    : null;
+  const { downloadUrl, previewUrl, previewUrlHq, previewUrlOriginal } = useMemo(
+    () =>
+      getImageUrls(nearestImage?.record?.id, previewPath, previewQualityLevel),
+    [previewPath, previewQualityLevel, nearestImage?.record?.id]
+  );
 
   // Handle visibility changes when oblique mode toggles
   useEffect(() => {
@@ -161,16 +120,19 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   }, [isObliqueMode]);
 
   useEffect(() => {
-    if (isTransitioning && !isMode2d && viewerRef.current) {
+    const viewer = viewerRef.current;
+    if (isTransitioning && isValidViewerInstance(viewer)) {
       console.debug(
         "ObliqueControls: Transitioning to 2D mode disabling oblique mode"
       );
       if (isObliqueMode) {
         toggleObliqueMode();
       }
-      viewerRef.current.scene.requestRender();
+      viewer.scene.requestRender();
     }
-  }, [isTransitioning, isMode2d, viewerRef, dispatch]);
+    // only respond to change in transitioning state the whole component should not be rerendered in 2d mode even
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTransitioning, viewerRef]);
 
   // Subscribe to preview visibility changes from outside this component
   useEffect(() => {
@@ -182,84 +144,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     return unsubscribe;
   }, []);
 
-  const flyToNearestImage = useCallback(async () => {
-    if (isPreviewVisible) {
-      setIsPreviewVisible(false);
-      notifyPreviewVisibilityChange(false);
-      return;
-    }
-
-    const viewer = viewerRef.current;
-
-    if (!viewer || !nearestImage) return;
-
-    const { centerWGS84 } = nearestImage.record;
-    const { imageCenter } = nearestImage;
-    if (!centerWGS84 || !imageCenter) return;
-
-    const [longitude, latitude, height] = centerWGS84;
-    const position = Cartesian3.fromDegrees(longitude, latitude, height);
-    const imageCenterCartesian = Cartesian3.fromDegrees(
-      imageCenter.longitude,
-      imageCenter.latitude
-    );
-
-    const imageCenterCartograpic =
-      Cartographic.fromCartesian(imageCenterCartesian);
-    const [centerWithHeight] = await sampleTerrainMostDetailed(
-      terrainProviderRef.current,
-      [imageCenterCartograpic]
-    );
-
-    const centerWithHeightCartesian =
-      Cartographic.toCartesian(centerWithHeight);
-
-    const direction = getDirectionFromCartesian(
-      position,
-      centerWithHeightCartesian
-    );
-
-    // local UP
-    const up = Cartesian3.normalize(position, new Cartesian3());
-
-    setLockFootprint(true);
-    animationInProgressRef.current = true;
-
-    const currentDistanceToCamera = Cartesian3.distance(
-      viewer.camera.positionWC,
-      position
-    );
-
-    const duration = getDynamicDurationSecondsFromDistance(
-      currentDistanceToCamera,
-      animations.flyToExteriorOrientation.duration
-    );
-
-    const easingFunction =
-      animations.flyToExteriorOrientation.easingFunction ||
-      EasingFunction.LINEAR_NONE;
-
-    viewer.camera.flyTo({
-      destination: position,
-      orientation: { direction, up },
-      endTransform: Matrix4.IDENTITY,
-      duration,
-      easingFunction,
-      complete: () => {
-        animationInProgressRef.current = false;
-        setIsPreviewVisible(true);
-        notifyPreviewVisibilityChange(true);
-      },
-    });
-  }, [
-    viewerRef,
-    terrainProviderRef,
-    animations.flyToExteriorOrientation,
-    nearestImage,
-    isPreviewVisible,
-    setLockFootprint,
-  ]);
-
   const flyToNearestExteriorOrientation = useCallback(async () => {
     if (isPreviewVisible) {
       setIsPreviewVisible(false);
@@ -268,7 +152,11 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     }
 
     const viewer = viewerRef.current;
-    if (!viewer || !nearestImage || !derivedExteriorOrientationRef.current)
+    if (
+      !isValidViewerInstance(viewer) ||
+      !nearestImage ||
+      !derivedExteriorOrientationRef.current
+    )
       return;
 
     setLockFootprint(true);
@@ -303,83 +191,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   );
 
   // Update current heading and set up camera movement detection
-  useEffect(() => {
-    const viewer = viewerRef.current;
-    if (!viewer || !isObliqueMode) return;
-
-    const camera = viewer.camera;
-
-    setCurrentHeading(camera.heading);
-
-    // Set up event handlers to detect when the user moves the camera manually
-    const inputHandler = new ScreenSpaceEventHandler(viewer.canvas);
-
-    // Track when the user starts manipulating the camera
-    inputHandler.setInputAction(() => {
-      if (!animationInProgressRef.current) {
-        userMovedCameraRef.current = true;
-      }
-    }, ScreenSpaceEventType.LEFT_DOWN);
-
-    inputHandler.setInputAction(() => {
-      if (!animationInProgressRef.current) {
-        userMovedCameraRef.current = true;
-      }
-    }, ScreenSpaceEventType.MIDDLE_DOWN);
-
-    inputHandler.setInputAction(() => {
-      if (!animationInProgressRef.current) {
-        userMovedCameraRef.current = true;
-      }
-    }, ScreenSpaceEventType.RIGHT_DOWN);
-
-    const updateCameraInfo = () => {
-      setCurrentHeading(camera.heading);
-
-      if (animationInProgressRef.current) {
-        return; // Don't process further if we're in the middle of an animation
-      }
-
-      if (userMovedCameraRef.current) {
-        updateOrbitPointEntity();
-        userMovedCameraRef.current = false;
-      }
-
-      const cardinalHeadings = getCardinalHeadings(headingOffset);
-      const closestCardinalIndex = findClosestCardinalIndex(
-        camera.heading,
-        cardinalHeadings
-      );
-      setActiveDirection(closestCardinalIndex);
-    };
-
-    if (!orbitPoint && isDebugMode) {
-      updateOrbitPointEntity();
-    }
-
-    const cardinalHeadings = getCardinalHeadings(headingOffset);
-    const closestCardinalIndex = findClosestCardinalIndex(
-      camera.heading,
-      cardinalHeadings
-    );
-    setActiveDirection(closestCardinalIndex);
-
-    viewer.camera.changed.addEventListener(updateCameraInfo);
-    viewer.camera.moveEnd.addEventListener(updateCameraInfo);
-
-    return () => {
-      viewer.camera.changed.removeEventListener(updateCameraInfo);
-      viewer.camera.moveEnd.removeEventListener(updateCameraInfo);
-      inputHandler.destroy();
-    };
-  }, [
-    viewerRef,
-    isObliqueMode,
-    headingOffset,
-    updateOrbitPointEntity,
-    isDebugMode,
-    orbitPoint,
-  ]);
+ 
 
   useEffect(() => {
     if (preloadImageRef.current) {
@@ -397,120 +209,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     };
   }, [previewUrl]);
 
-  const rotateToDirection = useCallback(
-    (targetDirection: CardinalDirectionEnum) => {
-      const viewer = viewerRef.current;
-      if (!viewer || animationInProgressRef.current) return;
-
-      const camera = viewer.camera;
-      const scene = viewer.scene;
-      const currentHeading = camera.heading;
-
-      const cardinalHeadings = getCardinalHeadings(headingOffset);
-
-      if (
-        Math.abs(currentHeading - cardinalHeadings[targetDirection]) < 0.0001
-      ) {
-        return;
-      }
-
-      const targetHeading = cardinalHeadings[targetDirection];
-
-      if (!orbitPoint && isDebugMode) {
-        updateOrbitPointEntity();
-      }
-
-      // Calculate the range (distance from center)
-      const range = Cartesian3.distance(orbitPoint, camera.position);
-
-      // Start the animation
-      animationInProgressRef.current = true;
-      userMovedCameraRef.current = false; // Reset this flag since we're starting a programmatic move
-
-      let startTime = Date.now();
-      const duration = 500; // ms
-
-      let headingChange = targetHeading - currentHeading;
-
-      // Ensure we take the shortest path
-      if (headingChange > Math.PI) {
-        headingChange -= CesiumMath.TWO_PI;
-      } else if (headingChange < -Math.PI) {
-        headingChange += CesiumMath.TWO_PI;
-      }
-
-      // Skip animation if the change is very small
-      if (Math.abs(headingChange) < 0.0001) {
-        animationInProgressRef.current = false;
-        return;
-      }
-
-      const onPreUpdate = () => {
-        const currentTime = Date.now();
-        let t = Math.min((currentTime - startTime) / duration, 1);
-        t = EasingFunction.SINUSOIDAL_IN_OUT(t);
-
-        if (t < 1) {
-          const intermediateHeading = currentHeading + headingChange * t;
-
-          camera.lookAt(
-            orbitPoint,
-            new HeadingPitchRange(intermediateHeading, camera.pitch, range)
-          );
-
-          setCurrentHeading(intermediateHeading);
-
-          scene.requestRender();
-        } else {
-          camera.lookAt(
-            orbitPoint,
-            new HeadingPitchRange(targetHeading, camera.pitch, range)
-          );
-
-          setCurrentHeading(targetHeading);
-          resetCamera(viewer);
-          animationInProgressRef.current = false;
-          userMovedCameraRef.current = true;
-
-          scene.preUpdate.removeEventListener(onPreUpdate);
-          setActiveDirection(targetDirection);
-        }
-      };
-      scene.preUpdate.addEventListener(onPreUpdate);
-      return () => {
-        resetCamera(viewer);
-        animationInProgressRef.current = false;
-        userMovedCameraRef.current = true;
-        scene.preUpdate.removeEventListener(onPreUpdate);
-      };
-    },
-    [viewerRef, headingOffset, updateOrbitPointEntity, orbitPoint, isDebugMode]
-  );
-
-  const rotateCamera = useCallback(
-    (clockwise: boolean) => {
-      const viewer = viewerRef.current;
-      if (!viewer || animationInProgressRef.current) return;
-
-      const camera = viewer.camera;
-
-      const cardinalHeadings = getCardinalHeadings(headingOffset);
-
-      const closestCardinalIndex = findClosestCardinalIndex(
-        camera.heading,
-        cardinalHeadings
-      );
-
-      const nextCardinalIndex = clockwise
-        ? (closestCardinalIndex + 1) % 4 // Next clockwise cardinal
-        : (closestCardinalIndex + 3) % 4; // Next counterclockwise cardinal (4-1)
-
-      rotateToDirection(nextCardinalIndex);
-    },
-    [viewerRef, headingOffset, rotateToDirection]
-  );
-
-  if (!shouldRender || isMode2d) {
+  
+  if (!shouldRender) {
     return null;
   }
   // --- styles and derived formatting for render ---
@@ -607,53 +307,25 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
             gap: "10px",
           }}
         >
-          {nearestImage && (
-            <>
-              <Tooltip
-                placement="right"
-                title={
-                  "Zur ausgewählten Schrägluftbild-Aufnahmeposition fliegen"
-                }
-              >
-                <div>
-                  <ControlButtonStyler
-                    onClick={flyToNearestImage}
-                    width="160px"
-                    height="40px"
-                  >
-                    <span>
-                      Flug zum Bild&nbsp;
-                      {derivedExteriorOrientationRef.current && <sup>alt</sup>}
-                    </span>
-                  </ControlButtonStyler>
-                </div>
-              </Tooltip>
-
-              {derivedExteriorOrientationRef.current && (
-                <Tooltip
-                  placement="right"
-                  title={
-                    "Zur ausgewählten Schrägluftbild-Aufnahmeposition fliegen"
-                  }
+          {derivedExteriorOrientationRef.current && (
+            <Tooltip
+              placement="right"
+              title={"Zur ausgewählten Schrägluftbild-Aufnahmeposition fliegen"}
+            >
+              <div>
+                <ControlButtonStyler
+                  onClick={flyToNearestExteriorOrientation}
+                  width="160px"
+                  height="40px"
+                  className="bg-blue-50 hover:bg-blue-100"
                 >
-                  <div>
-                    <ControlButtonStyler
-                      onClick={flyToNearestExteriorOrientation}
-                      width="160px"
-                      height="40px"
-                      className="bg-blue-50 hover:bg-blue-100"
-                    >
-                      <span className="flex items-center">
-                        Flug zum Bild&nbsp;<sup>neu</sup>
-                      </span>
-                    </ControlButtonStyler>
-                  </div>
-                </Tooltip>
-              )}
-            </>
+                  <span className="flex items-center">Flug zum Bild</span>
+                </ControlButtonStyler>
+              </div>
+            </Tooltip>
           )}
 
-          {nearestImage && previewPath && (
+          {previewPath && (
             <div
               style={{
                 display: "flex",

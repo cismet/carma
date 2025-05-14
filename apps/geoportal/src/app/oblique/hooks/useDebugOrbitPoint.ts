@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useRef } from "react";
-import { Cartesian3, Color, ConstantPositionProperty, Entity } from "cesium";
-import { useCesiumContext } from "@carma-mapping/cesium-engine";
+import {
+  Cartesian3,
+  Color,
+  ConstantPositionProperty,
+  defined,
+  Entity,
+} from "cesium";
+import {
+  isValidViewerInstance,
+  useCesiumContext,
+} from "@carma-mapping/cesium-engine";
 
 export const useDebugOrbitPoint = (
   orbitPoint: Cartesian3,
@@ -11,15 +20,16 @@ export const useDebugOrbitPoint = (
 
   // Create or update the orbit point entity
   const updateOrbitPointEntity = useCallback(() => {
-    if (viewerRef.current || !orbitPoint || !isDebugMode) {
-      if (orbitPointEntityRef.current) {
-        viewerRef.current.entities.remove(orbitPointEntityRef.current);
+    const viewer = viewerRef.current;
+    if (isValidViewerInstance(viewer) && (!orbitPoint || !isDebugMode)) {
+      if (orbitPointEntityRef.current && defined(orbitPointEntityRef.current)) {
+        viewer.entities.remove(orbitPointEntityRef.current);
         orbitPointEntityRef.current = null;
       }
       return;
     }
     if (!orbitPointEntityRef.current) {
-      orbitPointEntityRef.current = viewerRef.current.entities.add({
+      orbitPointEntityRef.current = viewer.entities.add({
         position: new ConstantPositionProperty(orbitPoint),
         point: {
           pixelSize: 10,
@@ -29,7 +39,7 @@ export const useDebugOrbitPoint = (
           disableDepthTestDistance: Number.POSITIVE_INFINITY,
         },
       });
-    } else {
+    } else if (defined(orbitPoint) && defined(orbitPointEntityRef.current)) {
       orbitPointEntityRef.current.position = new ConstantPositionProperty(
         orbitPoint
       );
@@ -42,7 +52,7 @@ export const useDebugOrbitPoint = (
     const viewer = viewerRef.current;
 
     return () => {
-      if (viewer && currentOrbitPointEntity) {
+      if (isValidViewerInstance(viewer) && defined(currentOrbitPointEntity)) {
         viewer.entities.remove(currentOrbitPointEntity);
       }
     };

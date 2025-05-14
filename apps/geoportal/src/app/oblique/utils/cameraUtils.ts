@@ -14,6 +14,7 @@ import {
 import {
   cesiumAnimateFov,
   getOrbitPoint,
+  isValidViewerInstance,
   type ViewerAnimationMap,
 } from "@carma-mapping/cesium-engine";
 import { DerivedExteriorOrientation } from "./transformExteriorOrientation";
@@ -108,8 +109,10 @@ export const flyToExteriorOrientation = (
 };
 
 export const resetCamera = (viewer: Viewer) => {
-  viewer.camera.lookAtTransform(Matrix4.IDENTITY);
-  viewer.scene.requestRender();
+  if (isValidViewerInstance(viewer) && defined(viewer.camera)) {
+    viewer.camera.lookAtTransform(Matrix4.IDENTITY);
+    viewer.scene.requestRender();
+  }
 };
 
 const distanceSqrtInMetersToMilliseconds = (
