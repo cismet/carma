@@ -13,6 +13,7 @@ const KassenzeichenPanel = () => {
   };
   return (
     <div
+      className="gradient-bg-for-cards"
       onClick={() => {}}
       style={{
         ...styleOverride,

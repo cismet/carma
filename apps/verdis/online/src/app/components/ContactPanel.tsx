@@ -22,6 +22,7 @@ const ContactPanel = ({ contact }: ContactProps) => {
 
   return (
     <div
+      className="gradient-bg-for-cards"
       style={{
         minHeight: 20,
         backgroundColor: "#f5f5f5",

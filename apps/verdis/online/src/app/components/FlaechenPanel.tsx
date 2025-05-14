@@ -163,6 +163,7 @@ const FlaechenPanel = ({
     <div ref={panelRef}>
       <div
         onClick={featureClick}
+        className="gradient-bg-for-cards"
         style={{
           ...styleOverride,
           // minHeight: 20,

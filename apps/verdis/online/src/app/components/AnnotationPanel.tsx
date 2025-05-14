@@ -133,6 +133,7 @@ const AnnotationPanel = ({
   return (
     <div ref={panelRef} onClick={featureClick}>
       <div
+        className="gradient-bg-for-cards"
         style={{
           ...styleOverride,
           // minHeight: 20,

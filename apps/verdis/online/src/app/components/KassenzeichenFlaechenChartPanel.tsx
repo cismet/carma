@@ -93,6 +93,7 @@ const KassenzeichenFlaechenChartPanel = ({ orientation }: PanelProps) => {
   if (orientation === "vertical") {
     return (
       <div
+        className="gradient-bg-for-cards"
         style={{
           ...styleOverride,
           minHeight: 20,
@@ -137,6 +138,7 @@ const KassenzeichenFlaechenChartPanel = ({ orientation }: PanelProps) => {
   } else {
     return (
       <div
+        className="gradient-bg-for-cards"
         style={{
           ...styleOverride,
           minHeight: 20,
