@@ -75,7 +75,6 @@ const KassenzeichenViewer = () => {
     const changeRequestMenuVisible =
       uiState.changeRequestsMenuVisible === true &&
       uiState.applicationMenuVisible === false;
-    console.log("xxx success");
 
     if (changeRequestMenuVisible) {
       navigate(
@@ -86,7 +85,7 @@ const KassenzeichenViewer = () => {
         { replace: true }
       );
     }
-    // window.location.reload();
+    window.location.reload();
   };
 
   useEffect(() => {
@@ -126,46 +125,46 @@ const KassenzeichenViewer = () => {
     const crOpen = queryString.parse(location.search).crOpen;
 
     if (crOpen !== undefined) {
-      console.log("xxx crOpen", crOpen);
+      // console.log("xxx crOpen", crOpen);
       dispatch(showChangeRequestsMenu({ visible: true }));
       const cleanSearch = removeQueryPart(location.search, "crOpen");
     }
 
-    if (emailVerificationCode === undefined) return;
+    if (emailVerificationCode !== undefined) {
+      dispatch(
+        completeEmailChange(emailVerificationCode, (result) => {
+          if ((result.aenderungsanfrage || {}).emailVerifiziert) {
+            sysend.broadcast("reloadOnEmailVerification");
 
-    dispatch(
-      completeEmailChange(emailVerificationCode, (result) => {
-        if ((result.aenderungsanfrage || {}).emailVerifiziert) {
-          sysend.broadcast("reloadOnEmailVerification");
+            dispatch(showInfo("Verifizierung erfolgreich"));
+            dispatch(showWaiting(true));
+            setTimeout(() => {
+              dispatch(showWaiting(false));
+            }, 1500);
+          } else {
+            // console.log("xxx false");
 
-          dispatch(showInfo("Verifizierung erfolgreich"));
-          dispatch(showWaiting(true));
-          setTimeout(() => {
-            dispatch(showWaiting(false));
-          }, 1500);
-        } else {
-          console.log("xxx false");
+            // dispatch(showError('Verifizierung fehlgeschlagen'));
+            setTimeout(() => {
+              dispatch(showWaiting(false));
+            }, 2500);
+          }
+        })
+      );
 
-          // dispatch(showError('Verifizierung fehlgeschlagen'));
-          setTimeout(() => {
-            dispatch(showWaiting(false));
-          }, 2500);
-        }
-      })
-    );
+      const cleanSearch = removeQueryPart(
+        location.search,
+        "emailVerificationCode"
+      );
 
-    const cleanSearch = removeQueryPart(
-      location.search,
-      "emailVerificationCode"
-    );
-
-    navigate(
-      {
-        pathname: location.pathname,
-        search: cleanSearch,
-      },
-      { replace: true }
-    );
+      navigate(
+        {
+          pathname: location.pathname,
+          search: cleanSearch,
+        },
+        { replace: true }
+      );
+    }
   }, [location.search]);
 
   // let flaechenPanelRefs = useRef({});

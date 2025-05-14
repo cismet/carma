@@ -264,7 +264,7 @@ export const getKassenzeichenbySTAC = (stac, callback) => {
         type: "application/json",
       })
     );
-    dispatch(logout());
+    // dispatch(logout());
     dispatch(setLoginInProgress({ loginInProgressTextInfo: "Anmelden ..." }));
     const url =
       STAC_SERVICE +
