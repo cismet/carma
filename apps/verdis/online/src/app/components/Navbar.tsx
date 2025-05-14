@@ -212,15 +212,12 @@ const VerdisOnlineAppNavbar = () => {
                   show={!uiState.waitingVisible && uiState.hintVisible}
                   placement="bottom"
                 >
-                  <Popover
-                    id="popover-basic"
-                    placement="right"
-                    positionLeft={200}
-                    positionTop={50}
-                    _title="Hilfe & Einstellungen"
-                  >
-                    Benötigen Sie Unterstützung oder möchten nähere Information,
-                    finden Sie diese hier unter "Hilfe & Einstellungen"
+                  <Popover id="popover-basic" _title="Hilfe & Einstellungen">
+                    <div style={{ padding: "10px" }}>
+                      Benötigen Sie Unterstützung oder möchten nähere
+                      Information, finden Sie diese hier unter "Hilfe &
+                      Einstellungen"
+                    </div>
                   </Popover>
                 </Overlay>
               </li>
