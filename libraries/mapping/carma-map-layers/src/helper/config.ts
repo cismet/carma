@@ -657,7 +657,7 @@ export const topicMapsConfig: Config = {
       id: "wuppTopicMaps_wohnlagen",
       name: "wuppGenericTopicMaps_wohnlagen",
       title: "Wohnlagen-Karte",
-      description: `Die Wohnlagenkarte Wuppertal ist eine im Auftrag der Stadt Wuppertal von der Firma cismet GmbH, Saarbrücken, betriebene interaktive Internet-Kartenanwendung Ermittlung von Wohnlagen gemäß Nr. 6.9 des qualifizierten Mietspiegels der Stadt Wuppertal für die Ermittlung ortsüblicher Vergleichsmieten. Sie beruht auf der jährlich vom Gutachterausschuss für Grundstückswerte in der Stadt Wuppertal aktualisierten vierstufigen Klassifizierung der Wuppertaler Wohnlagen.`,
+      description: `Die Wohnlagenkarte Wuppertal ist eine im Auftrag der Stadt Wuppertal von der Firma cismet GmbH, Saarbrücken, betriebene interaktive Internet-Kartenanwendung zur Ermittlung von Wohnlagen gemäß Nr. 6.9 des qualifizierten Mietspiegels der Stadt Wuppertal für die Ermittlung ortsüblicher Vergleichsmieten. Sie beruht auf der jährlich vom Gutachterausschuss für Grundstückswerte in der Stadt Wuppertal aktualisierten vierstufigen Klassifizierung der Wuppertaler Wohnlagen.`,
       tags: [
         "Generic TopicMaps",
         "Infrastruktur",
