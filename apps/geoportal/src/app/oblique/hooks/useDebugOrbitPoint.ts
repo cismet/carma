@@ -12,6 +12,7 @@ import {
 } from "@carma-mapping/cesium-engine";
 
 export const useDebugOrbitPoint = (
+  isEnabled: boolean,
   orbitPoint: Cartesian3,
   isDebugMode = false
 ) => {
@@ -21,7 +22,8 @@ export const useDebugOrbitPoint = (
   // Create or update the orbit point entity
   const updateOrbitPointEntity = useCallback(() => {
     const viewer = viewerRef.current;
-    if (isValidViewerInstance(viewer) && (!orbitPoint || !isDebugMode)) {
+    if (!isValidViewerInstance(viewer)) return;
+    if (!orbitPoint || !isDebugMode || !isEnabled) {
       if (orbitPointEntityRef.current && defined(orbitPointEntityRef.current)) {
         viewer.entities.remove(orbitPointEntityRef.current);
         orbitPointEntityRef.current = null;
@@ -44,7 +46,7 @@ export const useDebugOrbitPoint = (
         orbitPoint
       );
     }
-  }, [viewerRef, isDebugMode, orbitPoint]);
+  }, [viewerRef, isDebugMode, isEnabled, orbitPoint]);
 
   // Remove orbit point entity when component unmounts
   useEffect(() => {

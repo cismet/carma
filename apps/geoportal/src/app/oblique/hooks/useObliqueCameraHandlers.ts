@@ -37,8 +37,12 @@ export const useObliqueCameraHandlers = (
 ) => {
   const { viewerRef } = useCesiumContext();
   const { headingOffset, isObliqueMode } = useOblique();
-  const orbitPoint = useOrbitPoint();
-  const updateOrbitPointEntity = useDebugOrbitPoint(orbitPoint, isDebugMode);
+  const orbitPoint = useOrbitPoint(isObliqueMode);
+  const updateOrbitPointEntity = useDebugOrbitPoint(
+    isObliqueMode,
+    orbitPoint,
+    isDebugMode
+  );
   const userMovedCameraRef = useRef<boolean>(false);
 
   const [currentHeading, setCurrentHeading] = useState<number>(0);

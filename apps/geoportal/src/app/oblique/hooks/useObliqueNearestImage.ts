@@ -49,8 +49,8 @@ export function useObliqueNearestImage(
     setNearestImageRefresh,
     setNearestImage,
     footprintCenterpointsRBushByCardinals,
+    isObliqueMode,
   } = useOblique();
-  const orbitPoint = useOrbitPoint();
 
   const [nearestImages, setNearestImages] = useState<
     NearestObliqueImageRecord[]
@@ -74,8 +74,16 @@ export function useObliqueNearestImage(
   } | null>(null);
   const [sectorHeading, setSectorHeading] = useState<number>(0);
 
+  const orbitPoint = useOrbitPoint(isObliqueMode);
+
   // Function to refresh the search for nearest images
   const refreshSearch = useCallback(() => {
+    // Check if the search is enabled
+    if (!isObliqueMode) {
+      debug && console.debug("refreshSearch skipped - disabled");
+      return;
+    }
+
     const viewer = viewerRef.current;
     if (
       !isValidViewerInstance(viewer) ||
@@ -244,11 +252,13 @@ export function useObliqueNearestImage(
     converter,
     headingOffset,
     options.k,
+    options.debounceTime,
     orbitPoint,
     footprintCenterpointsRBushByCardinals,
     setNearestImageDistance,
     setNearestImage,
     debug,
+    isObliqueMode,
   ]); // Include all dependencies for proper updates
 
   // Store timer ID in a ref to persist across renders
@@ -260,15 +270,19 @@ export function useObliqueNearestImage(
 
   // Setup camera movement listener
   useEffect(() => {
-    if (!viewerRef.current || !imageRecords || !imageRecords.size) {
+    const viewer = viewerRef.current;
+    // Don't set up camera listener if not enabled
+    if (
+      !isObliqueMode ||
+      !isValidViewerInstance(viewer) ||
+      !imageRecords ||
+      !imageRecords.size
+    ) {
       return;
     }
 
     // Refresh on mount
     refreshSearch();
-
-    // Refresh when camera moves
-    const viewer = viewerRef.current;
 
     // Create a stable handler function that doesn't change on every render
     const handleCameraMove = () => {
@@ -281,8 +295,12 @@ export function useObliqueNearestImage(
       }, options.debounceTime || defaultOptions.debounceTime);
     };
 
-    const removeListener =
-      viewer.camera.changed.addEventListener(handleCameraMove);
+    viewer.camera.changed.addEventListener(handleCameraMove);
+    const removeListener = () => {
+      if (isValidViewerInstance(viewer)) {
+        viewer.camera.changed.removeEventListener(handleCameraMove);
+      }
+    };
 
     return () => {
       removeListener();
@@ -291,7 +309,13 @@ export function useObliqueNearestImage(
         timerIdRef.current = null;
       }
     };
-  }, [viewerRef, imageRecords, refreshSearch, options.debounceTime]); // Include necessary dependencies
+  }, [
+    viewerRef,
+    imageRecords,
+    refreshSearch,
+    options.debounceTime,
+    isObliqueMode,
+  ]); // Include necessary dependencies
 
   // Use useMemo to create a stable return object that only changes when its dependencies change
   const returnValue = useMemo(

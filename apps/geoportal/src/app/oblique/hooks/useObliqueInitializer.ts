@@ -27,7 +27,7 @@ export function useObliqueInitializer(debug = false) {
   } = useOblique();
   const originalFovRef = useRef<number | null>(null);
 
-  useObliqueNearestImage();
+  useObliqueNearestImage(debug);
 
   const wheelZoomOptions = useMemo(
     () => ({

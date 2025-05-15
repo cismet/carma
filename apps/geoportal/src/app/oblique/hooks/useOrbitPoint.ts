@@ -4,7 +4,10 @@ import { useCesiumContext, getOrbitPoint } from "@carma-mapping/cesium-engine";
 
 // Shared state across hook instances
 let sharedOrbitPoint: Cartesian3 | null = null;
-const orbitPointSubscribers: Array<(point: Cartesian3 | null) => void> = [];
+const orbitPointSubscribers: Array<{
+  callback: (point: Cartesian3 | null) => void;
+  enabled: boolean;
+}> = [];
 let listenerInitialized = false;
 
 function initOrbitPointListener(viewer: Viewer) {
@@ -12,17 +15,24 @@ function initOrbitPointListener(viewer: Viewer) {
   listenerInitialized = true;
 
   const updateOrbitPoint = () => {
+    // Check if any subscribers are enabled
+    if (!orbitPointSubscribers.some((subscriber) => subscriber.enabled)) return;
+
     const point = getOrbitPoint(viewer);
     if (sharedOrbitPoint && point && point.equals(sharedOrbitPoint)) return;
     sharedOrbitPoint = point;
-    orbitPointSubscribers.forEach((callback) => callback(point));
+    orbitPointSubscribers.forEach((subscriber) => {
+      if (subscriber.enabled) {
+        subscriber.callback(point);
+      }
+    });
   };
 
   updateOrbitPoint();
   viewer.camera.changed.addEventListener(updateOrbitPoint);
 }
 
-export function useOrbitPoint(): Cartesian3 | null {
+export function useOrbitPoint(enabled = true): Cartesian3 | null {
   const { viewerRef, isViewerReady } = useCesiumContext();
   const [orbitPoint, setOrbitPoint] = useState<Cartesian3 | null>(
     sharedOrbitPoint
@@ -30,22 +40,27 @@ export function useOrbitPoint(): Cartesian3 | null {
 
   useEffect(() => {
     if (!isViewerReady) return;
+
     const viewer = viewerRef.current;
     if (!viewer) return;
     initOrbitPointListener(viewer);
 
-    const callback = (point: Cartesian3 | null) => {
-      setOrbitPoint(point);
+    const subscriber = {
+      callback: (point: Cartesian3 | null) => setOrbitPoint(point),
+      enabled,
     };
+    orbitPointSubscribers.push(subscriber);
 
-    orbitPointSubscribers.push(callback);
-    callback(sharedOrbitPoint);
+    // Trigger an initial update
+    if (enabled) {
+      subscriber.callback(sharedOrbitPoint);
+    }
 
     return () => {
-      const index = orbitPointSubscribers.indexOf(callback);
+      const index = orbitPointSubscribers.indexOf(subscriber);
       if (index > -1) orbitPointSubscribers.splice(index, 1);
     };
-  }, [viewerRef, isViewerReady]);
+  }, [viewerRef, isViewerReady, enabled]);
 
   return orbitPoint;
 }
