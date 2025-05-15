@@ -118,7 +118,9 @@ function App({ name }) {
           console.log("xxx config", config);
           const hash = window.location.hash;
           const newHash = hash.replace(geoportalLink, config);
-          window.location.replace(newHash);
+          window.location.replace(
+            window.location.pathname + window.location.search + newHash
+          );
         } else {
           config = geoportalLink;
         }
