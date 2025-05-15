@@ -41,11 +41,9 @@ export function useObliqueNearestImage(
 ) {
   const { viewerRef } = useCesiumContext();
   const {
-    isObliqueMode,
     converter,
     headingOffset,
     imageRecords,
-    lockFootprint,
     setNearestImageDistance,
     setNearestImageRefresh,
     setNearestImage,
@@ -83,9 +81,7 @@ export function useObliqueNearestImage(
       !imageRecords ||
       !imageRecords.size ||
       !converter ||
-      !orbitPoint ||
-      //!isObliqueMode ||
-      lockFootprint
+      !orbitPoint
     ) {
       return;
     }
@@ -239,11 +235,9 @@ export function useObliqueNearestImage(
     headingOffset,
     options.k,
     orbitPoint,
-    lockFootprint,
     footprintCenterpointsRBushByCardinals,
     setNearestImageDistance,
     setNearestImage,
-    isObliqueMode,
     debug,
   ]); // Include all dependencies for proper updates
 

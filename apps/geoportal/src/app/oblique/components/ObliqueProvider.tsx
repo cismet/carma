@@ -53,8 +53,8 @@ interface ObliqueContextType {
   nearestImageDistance: number | null;
   setNearestImageDistance: (distance: number | null) => void;
 
-  nearestImageRefresh: () => void;
-  setNearestImageRefresh: (refresh: () => void) => void;
+  nearestImageRefresh: () => void | null;
+  setNearestImageRefresh: (refresh: () => void | null) => void;
   lockFootprint: boolean;
   setLockFootprint: (value: boolean) => void;
 
@@ -100,9 +100,8 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   const [nearestImageDistance, setNearestImageDistance] = useState<
     number | null
   >(null);
-  const [nearestImageRefresh, setNearestImageRefresh] = useState<() => void>(
-    () => () => {}
-  );
+  const [nearestImageRefresh, setNearestImageRefresh] =
+    useState<() => void | null>(null);
 
   const {
     exteriorOrientationsURI,
@@ -170,12 +169,14 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   useEffect(() => {
     if (
       imageRecords &&
-      imageRecords.size > 0 &&
       isObliqueMode &&
-      !lockFootprint
+      !lockFootprint &&
+      nearestImageRefresh
     ) {
-      nearestImageRefresh && nearestImageRefresh();
+      // TODO: check if this ever needed, remove if not
+      nearestImageRefresh();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [imageRecords, isObliqueMode, nearestImageRefresh, lockFootprint]);
 
   const value = {
