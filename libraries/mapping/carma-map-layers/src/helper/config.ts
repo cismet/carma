@@ -279,6 +279,7 @@ export const topicMapsConfig: Config = {
   layers: [
     {
       id: "wuppTopicMaps_stadtplan",
+      path: "TopicMaps Wuppertal",
       name: "wuppTopicMaps_stadtplan",
       title: "Online-Stadtplan",
       description: `Der Online-Stadtplan Wuppertal ist eine im Auftrag der Stadt Wuppertal von der Firma cismet GmbH, Saarbrücken, betriebene interaktive Internet-Kartenanwendung zur Orientierung im Wuppertaler Stadtgebiet.`,
@@ -306,6 +307,7 @@ export const topicMapsConfig: Config = {
     },
     {
       id: "wuppTopicMaps_kultur",
+      path: "TopicMaps Wuppertal",
       name: "wuppTopicMaps_kultur",
       title: "Kulturstadtplan",
       description: `Der Kulturstadtplan Wuppertal ist eine im Auftrag der Stadt Wuppertal von der Firma cismet GmbH, Saarbrücken, betriebene interaktive Internet-Kartenanwendung, die dem Nutzer einen Überblick über die kulturellen Veranstaltungsorte im Wuppertaler Stadtgebiet verschafft.`,
@@ -333,6 +335,7 @@ export const topicMapsConfig: Config = {
     },
     {
       id: "wuppTopicMaps_baeder",
+      path: "TopicMaps Wuppertal",
       name: "wuppTopicMaps_baeder",
       title: "Bäderkarte",
       description: `	Die Bäderkarte Wuppertal ist eine im Auftrag der Stadt Wuppertal von der Firma cismet GmbH, Saarbrücken, betriebene interaktive Internet-Kartenanwendung für die Recherche nach Schwimmbädern in Wuppertal.`,
@@ -354,6 +357,7 @@ export const topicMapsConfig: Config = {
     },
     {
       id: "wuppTopicMaps_kitas",
+      path: "TopicMaps Wuppertal",
       name: "wuppTopicMaps_kitas",
       title: "Kita-Finder",
       description: `Der Kita-Finder Wuppertal ist eine im Auftrag der Stadt Wuppertal von der Firma cismet GmbH, Saarbrücken, betriebene interaktive Internet-Kartenanwendung für die erste Recherche nach Kindertageseinrichtungen (Kitas) in Wuppertal.`,
@@ -379,6 +383,7 @@ export const topicMapsConfig: Config = {
     },
     {
       id: "wuppTopicMaps_fnp",
+      path: "TopicMaps Wuppertal",
       name: "wuppTopicMaps_fnp",
       title: "FNP-Inspektor",
       description: `Der FNP-Inspektor Wuppertal ist eine im Auftrag der Stadt Wuppertal von der Firma cismet GmbH, Saarbrücken, betriebene interaktive Internet-Kartenanwendung für die Orientierung im und die Informationsentnahme aus dem Wuppertaler Flächennutzungsplan vom 17.01.2005 (FNP), den Änderungsverfahren zum FNP sowie dem fortgeschriebenen Stand der flächenhaften FNP-Hauptnutzungen.`,
@@ -404,6 +409,7 @@ export const topicMapsConfig: Config = {
     },
     {
       id: "wuppTopicMaps_bplan",
+      path: "TopicMaps Wuppertal",
       name: "wuppTopicMaps_bplan",
       title: "Online-B-Plan-Auskunft",
       description: `Die Online-B-Plan-Auskunft Wuppertal ist eine im Auftrag der Stadt Wuppertal von der Firma cismet GmbH, Saarbrücken, betriebene interaktive Internet-Kartenanwendung für die schnelle Identifikation relevanter laufender oder rechtswirksamer Bebauungsplanverfahren (B-Pläne) im Stadtgebiet von Wuppertal sowie für den Download der zugehörigen PDF-Dokumente.`,
@@ -430,6 +436,7 @@ export const topicMapsConfig: Config = {
     },
     {
       id: "wuppTopicMaps_xandride",
+      path: "TopicMaps Wuppertal",
       name: "wuppTopicMaps_xandride",
       title: "Park+Ride-Karte",
       description: `Die Park+Ride-Karte Wuppertal ist eine im Auftrag der Stadt Wuppertal von der Firma cismet GmbH, Saarbrücken, betriebene interaktive Internet-Kartenanwendung, die dem Nutzer einen Überblick über die Park+Ride- und Bike+Ride-Anlagen im Wuppertaler Stadtgebiet oder in dessen unmittelbarer Nähe verschafft.`,
@@ -456,6 +463,7 @@ export const topicMapsConfig: Config = {
     },
     {
       id: "wuppTopicMaps_emobi",
+      path: "TopicMaps Wuppertal",
       name: "wuppTopicMaps_emobi",
       title: "E-Auto-Ladestationskarte",
       description: `Die E-Auto-Ladestationskarte Wuppertal ist eine im Auftrag der Stadt Wuppertal von der Firma cismet GmbH, Saarbrücken, betriebene interaktive Internet-Kartenanwendung, die dem Nutzer einen Überblick über die öffentlich zugänglichen Ladestationen für Elektro-Automobile im Wuppertaler Stadtgebiet verschafft.`,
@@ -481,6 +489,7 @@ export const topicMapsConfig: Config = {
     },
     {
       id: "wuppTopicMaps_ebike",
+      path: "TopicMaps Wuppertal",
       name: "wuppTopicMaps_ebike",
       title: "E-Fahrrad-Karte",
       description: `Die E-Fahrrad-Karte Wuppertal ist eine im Auftrag der Stadt Wuppertal von der Firma cismet GmbH, Saarbrücken, betriebene interaktive Internet-Kartenanwendung, die dem Nutzer einen Überblick über die öffentlich zugänglichen Lade- und Verleihstationen für Elektro-Fahrräder im Wuppertaler Stadtgebiet verschafft.`,
@@ -507,6 +516,7 @@ export const topicMapsConfig: Config = {
     },
     {
       id: "wuppTopicMaps_luftMess",
+      path: "TopicMaps Wuppertal",
       name: "wuppTopicMaps_luftMess",
       title: "Luft-Messstationskarte",
       description: `Die Luftmessstationskarte Wuppertal ist eine im Auftrag der Stadt Wuppertal von der Firma cismet GmbH, Saarbrücken, betriebene interaktive Internet-Kartenanwendung, mit der die Ergebnisdaten des Passivsammler-Netzwerkes zur Bestimmung der durchschnittlichen Stickstoffdioxid-Konzentration in der Luft öffentlich zugänglich gemacht werden. In den Passivsammlern reichert sich das Stickstoffdioxid über vier Wochen durch natürliche Diffusion an. Danach werden durch eine labortechnische Analyse monatliche Mittelwerte bestimmt. Die Luftmessstationskarte liefert daher keine aktuellen Luftqualitätsdaten.`,
@@ -533,6 +543,7 @@ export const topicMapsConfig: Config = {
     },
     {
       id: "wuppTopicMaps_flooding",
+      path: "TopicMaps Wuppertal",
       name: "wuppTopicMaps_flooding",
       title: "Hochwasser-Gefahrenkarte",
       description: `Die Hochwassergefahrenkarte Wuppertal ist eine im Auftrag der Stadt Wuppertal von der Firma cismet GmbH betriebene interaktive Internet-Kartenanwendung zur Information der Öffentlichkeit zu Überflutungsrisiken im Zusammenhang mit Hochwasserereignissen.`,
@@ -559,6 +570,7 @@ export const topicMapsConfig: Config = {
     },
     {
       id: "wuppTopicMaps_rainhazard",
+      path: "TopicMaps Wuppertal",
       name: "wuppTopicMaps_rainhazard",
       title: "Starkregen-Gefahrenkarte",
       description: `	Die Starkregengefahrenkarte Wuppertal ist eine im Auftrag der Stadt Wuppertal von der Firma cismet GmbH, Saarbrücken, betriebene interaktive Internet-Kartenanwendung zur Information der Öffentlichkeit zu Überflutungsrisiken im Zusammenhang mit Starkregenereignissen. Sie stellt hierzu in einem 1m x 1m Raster in zwei umschaltbaren Kartenansichten maximale Wasserstände bzw. maximale Fließgeschwindigkeiten dar, die im Verlauf von simulierten Starkregenereignissen auftreten.`,
@@ -584,6 +596,7 @@ export const topicMapsConfig: Config = {
     },
     {
       id: "wuppTopicMaps_hitze",
+      path: "TopicMaps Wuppertal",
       name: "wuppTopicMaps_hitze",
       title: "Hitze-Belastungskarte",
       description: `Die Hitzebelastungskarte Wuppertal ist eine im Auftrag der Stadt Wuppertal von der Firma cismet GmbH, Saarbrücken, betriebene interaktive Internet-Kartenanwendung, mit der die Ergebnisse einer vom Ingenieurbüro K.PLAN Klima.Umwelt & Planung GmbH erarbeiteten Klimatopkartierung öffentlich zugänglich gemacht werden. Die Hitzebelastungskarte zeigt die im IST-Zustand durch Hitze belasteten oder stark belasteten Areale im Stadtgebiet sowie ein Zukunftsszenario der Hitzebelastungen für den Zeitraum 2050 bis 2060.`,
@@ -605,6 +618,7 @@ export const topicMapsConfig: Config = {
     },
     {
       id: "wuppTopicMaps_klimaorte",
+      path: "TopicMaps Wuppertal",
       name: "wuppTopicMaps_klimaorte",
       title: "Klimaortkarte",
       description: `Die Klimaortkarte Wuppertal ist eine im Auftrag der Stadt Wuppertal von der Firma cismet GmbH, Saarbrücken, betriebene interaktive Internet-Kartenanwendung zur Information der Öffentlichkeit über Best-Practice-Beispiele für den Klimaschutz in Wuppertal. Neben den punktförmig modellierten "Klimaorten" umfasst die Klimaortkarte mit den "Klimarouten" auch Vorschläge für Radtouren und Wanderungen, die viele dieser Klimaorte verbinden.`,
@@ -631,6 +645,7 @@ export const topicMapsConfig: Config = {
     },
     {
       id: "wuppTopicMaps_trinkwasserbrunnen",
+      path: "TopicMaps Wuppertal",
       name: "wuppGenericTopicMaps_trinkwasserbrunnen",
       title: "Trinkwasserbrunnen-Karte",
       description: `Die Trinkwasserbrunnenkarte Wuppertal ist eine im Auftrag der Stadt Wuppertal von der Firma cismet GmbH, Saarbrücken, betriebene interaktive Internet-Kartenanwendung zur Information über die öffentlich zugänglichen Trinkwasserbrunnen im Wuppertaler Stadtgebiet.`,
@@ -655,6 +670,7 @@ export const topicMapsConfig: Config = {
     },
     {
       id: "wuppTopicMaps_wohnlagen",
+      path: "TopicMaps Wuppertal",
       name: "wuppGenericTopicMaps_wohnlagen",
       title: "Wohnlagen-Karte",
       description: `Die Wohnlagenkarte Wuppertal ist eine im Auftrag der Stadt Wuppertal von der Firma cismet GmbH, Saarbrücken, betriebene interaktive Internet-Kartenanwendung zur Ermittlung von Wohnlagen gemäß Nr. 6.9 des qualifizierten Mietspiegels der Stadt Wuppertal für die Ermittlung ortsüblicher Vergleichsmieten. Sie beruht auf der jährlich vom Gutachterausschuss für Grundstückswerte in der Stadt Wuppertal aktualisierten vierstufigen Klassifizierung der Wuppertaler Wohnlagen.`,
@@ -688,6 +704,7 @@ export const partianTwinConfig = {
     layers: [
       {
         id: "wuppArcGisOnline_seilbahn",
+        path: "ArcGIS Online",
         name: "wuppArcGisOnline_seilbahn",
         title: "Seilbahnplanung BUGA 2031",
         description: `3D-Visualisierung der für die Bundesgartenschau 2031 geplanten Seilbahn zwischen dem Wuppertaler Zoo und der Königshöhe, Planungsstand 05/2025.`,
