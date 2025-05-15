@@ -76,8 +76,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const { viewerRef } = useCesiumContext();
   const photoId = nearestImage?.record?.id;
   const cameraId = nearestImage?.record?.cameraId;
-  const flags = useFeatureFlags();
-  const isDebugMode = flags.featureFlagDebugOblique;
+  const { isDebugMode } = useFeatureFlags();
   const animationInProgressRef = useRef<boolean>(false);
 
   const [isVisible, setIsVisible] = useState(isObliqueMode);
@@ -87,7 +86,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const preloadImageRef = useRef<ReturnType<typeof debounce> | null>(null);
 
   const { currentHeading, activeDirection, rotateCamera, rotateToDirection } =
-    useObliqueCameraHandlers(animationInProgressRef);
+    useObliqueCameraHandlers(animationInProgressRef, isDebugMode);
 
   const { derivedExteriorOrientationRef } =
     useExteriorOrientation(nearestImage);
@@ -114,9 +113,10 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   useEffect(() => {
     const viewer = viewerRef.current;
     if (isTransitioning && isValidViewerInstance(viewer)) {
-      console.debug(
-        "ObliqueControls: Transitioning to 2D mode disabling oblique mode"
-      );
+      isDebugMode &&
+        console.debug(
+          "ObliqueControls: Transitioning to 2D mode disabling oblique mode"
+        );
       if (isObliqueMode) {
         toggleObliqueMode();
       }

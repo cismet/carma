@@ -32,12 +32,11 @@ import { useDebugOrbitPoint } from "./useDebugOrbitPoint";
 import { resetCamera } from "../utils/cameraUtils";
 
 export const useObliqueCameraHandlers = (
-  animationInProgressRef: MutableRefObject<boolean>
+  animationInProgressRef: MutableRefObject<boolean>,
+  isDebugMode: boolean
 ) => {
   const { viewerRef } = useCesiumContext();
   const { headingOffset, isObliqueMode } = useOblique();
-  const flags = useFeatureFlags();
-  const isDebugMode = flags.featureFlagDebugOblique;
   const orbitPoint = useOrbitPoint();
   const updateOrbitPointEntity = useDebugOrbitPoint(orbitPoint, isDebugMode);
   const userMovedCameraRef = useRef<boolean>(false);

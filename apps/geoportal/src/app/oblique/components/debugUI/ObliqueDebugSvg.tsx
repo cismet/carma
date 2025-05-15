@@ -8,10 +8,10 @@ import { useOblique } from "../../hooks/useOblique";
 import { CardinalNames } from "../../utils/orientationUtils";
 import { OBLIQUE_PREVIEW_QUALITY } from "../../constants";
 import { getPreviewImageUrl } from "../../utils/imageHandling";
-import { calculateCustomHeading as calculateHeadingForRecord } from "../../utils/obliqueReferenceUtils";
 import { useObliqueNearestImage } from "../../hooks/useObliqueNearestImage";
-import { NUM_NEAREST_IMAGES } from "../../config";
+import { CAMERA_ID_TO_UP_VECTOR_MATRIX_MAPPING } from "../../config";
 import { ObliqueControlPanel } from "./ObliqueControlPanel";
+import { computeDerivedExteriorOrientation } from "../../utils/transformExteriorOrientation";
 
 const ControlPanelContainer = styled.div`
   position: absolute;
@@ -35,13 +35,7 @@ export const ObliqueDebugSvg = () => {
   const [imageRotation, setImageRotation] = useState(0); // 0, 90, 180, 270 degrees
   // Core contexts and refs
   const { viewerRef } = useCesiumContext();
-  const {
-    imageRecords,
-    converter,
-    headingOffset,
-    previewPath,
-    footprintCenterpointsRBushByCardinals,
-  } = useOblique();
+  const { converter, headingOffset, previewPath } = useOblique();
   const camera = viewerRef?.current?.camera;
 
   // Use enhanced hook for camera and image calculations
@@ -54,16 +48,7 @@ export const ObliqueDebugSvg = () => {
     pointOnRadius,
     sectorHeading,
     nearestImages,
-  } = useObliqueNearestImage(
-    imageRecords || null,
-    converter,
-    headingOffset,
-    footprintCenterpointsRBushByCardinals,
-    {
-      k: NUM_NEAREST_IMAGES,
-      debounceTime: 150,
-    }
-  );
+  } = useObliqueNearestImage(true);
 
   // SVG dimensions
   const svgWidth = 800;
@@ -92,8 +77,8 @@ export const ObliqueDebugSvg = () => {
     <line
       x1={0}
       y1={0}
-      x2={nearestImage.perspectiveCenter.x - cameraPosition[0]}
-      y2={-(nearestImage.perspectiveCenter.y - cameraPosition[1])}
+      x2={nearestImage.x - cameraPosition[0]}
+      y2={-(nearestImage.y - cameraPosition[1])}
       stroke="green"
       strokeWidth={20}
       strokeDasharray="20,20"
@@ -105,8 +90,8 @@ export const ObliqueDebugSvg = () => {
     // Check if this is the nearest image
     const isNearest = nearestImage && record.id === nearestImage.id;
     // Calculate position relative to camera position (which is now at the origin)
-    let relX = record.perspectiveCenter.x - cameraPosition[0];
-    let relY = record.perspectiveCenter.y - cameraPosition[1];
+    let relX = record.x - cameraPosition[0];
+    let relY = record.y - cameraPosition[1];
 
     // Apply translation based on sector heading if enabled
     if (offsetImages && pointOnGround) {
@@ -130,9 +115,22 @@ export const ObliqueDebugSvg = () => {
     const y = -relY;
 
     // Use custom heading calculation with fixed sign combination
-    const heading = calculateHeadingForRecord(
-      record.orientation ? record.orientation : { omega: 0, phi: 0, kappa: 0 }
-    );
+    // todo: get from exterior orientation
+
+    const upMapping = CAMERA_ID_TO_UP_VECTOR_MATRIX_MAPPING[record.cameraId];
+
+    if (record.derivedExtOri === undefined) {
+      const derivedExtOri = computeDerivedExteriorOrientation(
+        record,
+        converter,
+        upMapping
+      );
+      record.derivedExtOri = derivedExtOri;
+    }
+
+    const headingVector = record.derivedExtOri.rotation.enu.sourceCRS.direction;
+
+    const heading = Math.atan2(headingVector[1], headingVector[0]);
 
     // We now use a simpler arrow representation with the path element
     // No need for complex triangle calculations
@@ -210,7 +208,7 @@ export const ObliqueDebugSvg = () => {
               textAnchor="middle"
               dominantBaseline="middle"
             >
-              {record.cameraId}|{record.lineNumber}|
+              {record.cameraId}|{record.lineIndex}|
               {CardinalNames[record.sector]}
             </text>
 

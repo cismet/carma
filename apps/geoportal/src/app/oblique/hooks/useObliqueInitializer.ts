@@ -10,29 +10,24 @@ import {
 
 import { useOblique } from "./useOblique";
 import { enterObliqueMode, leaveObliqueMode } from "../utils/cameraUtils";
-
-export interface ObliqueInitializerOptions {
-  fixedPitch?: number;
-  fixedHeight?: number;
-  minFov?: number;
-  maxFov?: number;
-  headingOffset?: number;
-}
+import { useObliqueNearestImage } from "./useObliqueNearestImage";
 
 const viewerPreUpdateHandlers = new WeakMap<Viewer, (scene: Scene) => void>();
 
-export function useObliqueInitializer(options: ObliqueInitializerOptions = {}) {
-  const contextOptions = useOblique();
-  const fixedPitch = options.fixedPitch ?? contextOptions.fixedPitch;
-  const fixedHeight = options.fixedHeight ?? contextOptions.fixedHeight;
-  const minFov = options.minFov ?? contextOptions.minFov;
-  const maxFov = options.maxFov ?? contextOptions.maxFov;
-  const headingOffset = options.headingOffset ?? contextOptions.headingOffset;
-
+export function useObliqueInitializer(debug = false) {
   const { viewerRef, viewerAnimationMapRef, shouldSuspendPitchLimiterRef } =
     useCesiumContext();
-  const { isObliqueMode } = useOblique();
+  const {
+    isObliqueMode,
+    fixedHeight,
+    fixedPitch,
+    minFov,
+    maxFov,
+    headingOffset,
+  } = useOblique();
   const originalFovRef = useRef<number | null>(null);
+
+  useObliqueNearestImage();
 
   const wheelZoomOptions = useMemo(
     () => ({
@@ -72,7 +67,7 @@ export function useObliqueInitializer(options: ObliqueInitializerOptions = {}) {
     setWheelZoomEnabled(isObliqueMode);
 
     if (isObliqueMode) {
-      console.debug("entering Oblique Mode");
+      debug && console.debug("entering Oblique Mode");
       enterObliqueMode(
         viewer,
         viewerAnimationMap,
@@ -85,7 +80,7 @@ export function useObliqueInitializer(options: ObliqueInitializerOptions = {}) {
         }
       );
     } else {
-      console.debug("leaving Oblique Mode", originalFovRef.current);
+      debug && console.debug("leaving Oblique Mode", originalFovRef.current);
       leaveObliqueMode(viewer, viewerAnimationMap, originalFovRef, () => {
         disableCameraForceOblique();
         viewer.scene.requestRender();
@@ -101,6 +96,7 @@ export function useObliqueInitializer(options: ObliqueInitializerOptions = {}) {
       setWheelZoomEnabled(false);
     };
   }, [
+    debug,
     isObliqueMode,
     viewerRef,
     viewerAnimationMapRef,

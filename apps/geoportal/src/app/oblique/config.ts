@@ -1,7 +1,6 @@
 import { Math as CesiumMath, Color, EasingFunction } from "cesium";
 import {
   OBLIQUE_2024_ORIENTATIONS_CRS,
-  OBLIQUE_2024_ORIENTATIONS_CSV_URI,
   OBLIQUE_2024_PREVIEW_PATH,
   OBLIQUE_2024_EXT_ORI_UTM32_URI,
   OBLIQUE_2024_FPRFC_GEOJSON_URI,
@@ -19,7 +18,6 @@ export const OBLIQUE_CONFIG: ObliqueDataProviderConfig = {
   previewQualityLevel: OBLIQUE_PREVIEW_QUALITY.LEVEL_3,
   previewPath: OBLIQUE_2024_PREVIEW_PATH,
   crs: OBLIQUE_2024_ORIENTATIONS_CRS,
-  orientationsURI: OBLIQUE_2024_ORIENTATIONS_CSV_URI,
   exteriorOrientationsURI: OBLIQUE_2024_EXT_ORI_UTM32_URI,
   footprintsURI: OBLIQUE_2024_FPRFC_GEOJSON_URI,
   animations: {
@@ -103,6 +101,8 @@ const SENSOR_SPECS: Record<string, SensorSpecs> = Object.freeze({
     ppmm: 265.9574468085,
   },
 });
+
+export const NADIR_CAMERA_ID = "NAD";
 
 const INTERIOR_ORIENTATIONS: Record<
   string,

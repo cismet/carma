@@ -1,10 +1,5 @@
 import { OBLIQUE_PREVIEW_QUALITY } from "./constants";
 
-export type ExteriorOrientationOPK = {
-  omega: number; // in radians
-  phi: number; // in radians
-  kappa: number; // in radians
-};
 export type ExteriorPosition = {
   x: number;
   y: number;
@@ -20,18 +15,17 @@ export interface ExteriorOrientations {
   [key: string]: ExteriorOrientationDataArray;
 }
 
-// TODO: consolidate with type ExteriorOrientationRecord
 export interface BasicObliqueImageRecord {
   id: string;
+  x: number;
+  y: number;
+  z: number;
+  m: Matrix3RowMajor;
   cameraId: string;
-  locationNumber: number;
-  lineNumber: string;
-  waypointNumber: string;
-  waypointId: string;
-  perspectiveCenter: ExteriorPosition;
-  orientation: ExteriorOrientationOPK;
-
-  __debugRecord?: string;
+  photoIndex: number;
+  lineIndex: number;
+  waypointIndex: number;
+  stationId: string;
 }
 
 export interface ObliqueImageRecord extends BasicObliqueImageRecord {
@@ -39,17 +33,8 @@ export interface ObliqueImageRecord extends BasicObliqueImageRecord {
   fallbackHeading: number;
   sector: CardinalDirectionEnum;
   cartesian: Cartesian3;
+  derivedExtOri?: DerivedExteriorOrientation;
 }
-
-// small utility format for json
-
-export type ExteriorOrientationRecord = {
-  id: string;
-  x: number;
-  y: number;
-  z: number;
-  m: Matrix3RowMajor;
-};
 
 export type NearestObliqueImageRecord = {
   record: ObliqueImageRecord;
@@ -84,7 +69,6 @@ export interface ObliqueImagePreviewStyle {
 }
 
 export interface ObliqueDataProviderConfig {
-  orientationsURI: string;
   exteriorOrientationsURI: string;
   footprintsURI: string;
   crs: string;

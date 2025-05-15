@@ -55,18 +55,13 @@ export function getSpatialIndex(
 
   // Create items for bulk insertion - only do this once per dataset
   const validRecords = Array.from(records.values()).filter((record) => {
-    const { perspectiveCenter } = record;
-    return (
-      perspectiveCenter &&
-      typeof perspectiveCenter.x !== "undefined" &&
-      typeof perspectiveCenter.y !== "undefined"
-    );
+    const { x, y } = record;
+    return typeof x !== "undefined" && typeof y !== "undefined";
   });
 
   // Map records to RBush items in a single pass
   const items = validRecords.map((record) => {
-    const { id, perspectiveCenter } = record;
-    const { x, y } = perspectiveCenter;
+    const { id, x, y } = record;
     return {
       x,
       y,
@@ -153,14 +148,15 @@ export function findNearestKObliqueImages(
 
   // Map the results to records with distances in CRS used for Spatial Index
   return nearestItems
-    .map((item) => {
+    .map((item: ObliqueImageRecord) => {
       const record = resultRecordMap.get(item.id);
+      const { x, y } = record.record;
 
-      if (!record) {
+      if (Number.isNaN(x) || Number.isNaN(y)) {
         return null;
       }
-      const dx = targetCoord[0] - record.perspectiveCenter.x;
-      const dy = targetCoord[1] - record.perspectiveCenter.y;
+      const dx = targetCoord[0] - x;
+      const dy = targetCoord[1] - y;
       const distance = Math.sqrt(dx * dx + dy * dy);
 
       return { record, distance };
