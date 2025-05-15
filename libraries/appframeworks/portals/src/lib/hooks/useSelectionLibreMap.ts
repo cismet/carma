@@ -4,6 +4,7 @@ import { SelectionItem, useSelection } from "../components/SelectionProvider";
 import maplibregl from "maplibre-gl";
 import proj4 from "proj4";
 import { proj4crs3857def, proj4crs4326def } from "@carma-mapping/utils";
+import * as turfHelpers from "@turf/helpers";
 
 const NEW_SELECTION_TIMEOUT = 200;
 
@@ -60,6 +61,9 @@ export const useSelectionLibreMap = ({
 
           if (selection.more.zl) {
             map.setZoom(selection.more.zl - 1);
+          } else if (selection.more.g) {
+            let feature = turfHelpers.feature(selection.more.g);
+            setOverlayFeature(feature);
           }
         }
 

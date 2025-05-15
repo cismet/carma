@@ -3,6 +3,7 @@ interface MoreData {
   pid: number;
   kid?: number;
   v?: string;
+  g?: maplibregl.GeoJSONSource;
 }
 export interface SearchResultItem {
   sorter: number;
