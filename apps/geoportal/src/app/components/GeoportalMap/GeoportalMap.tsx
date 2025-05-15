@@ -191,7 +191,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
         selection.y,
       ]);
       if (layersIdle) {
-        const map = routedMap.leafletMap.leafletElement;
+        const map = routedMap?.leafletMap?.leafletElement;
         const updatedPos = { lat: selectedPos[1], lng: selectedPos[0] };
         const latlngPoint = L.latLng(updatedPos);
 
@@ -262,9 +262,10 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   }, [backgroundLayer]);
 
   useEffect(() => {
-    if (uiMode !== UIMode.FEATURE_INFO && marker !== undefined) {
-      routedMap.leafletMap.leafletElement.removeLayer(marker);
-      routedMap.leafletMap.leafletElement.removeLayer(markerAccent);
+    const map = routedMap?.leafletMap?.leafletElement;
+    if (uiMode !== UIMode.FEATURE_INFO && marker !== undefined && map) {
+      map.removeLayer(marker);
+      map.removeLayer(markerAccent);
       dispatch(setSelectedFeature(null));
       dispatch(setSecondaryInfoBoxElements([]));
       dispatch(setFeatures([]));
@@ -280,21 +281,18 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   }, [layers]);
 
   useEffect(() => {
-    if (routedMap) {
-      const map = routedMap.leafletMap.leafletElement;
-      if (map) {
-        const handleZoomEnd = () => {
-          setShouldUpdateFeatureInfo(true);
-        };
+    const map = routedMap?.leafletMap?.leafletElement;
 
-        map.on("zoomend", handleZoomEnd);
+    const handleZoomEnd = () => {
+      setShouldUpdateFeatureInfo(true);
+    };
 
-        // Clean up the event listener when the component unmounts
-        return () => {
-          map.off("zoomend", handleZoomEnd);
-        };
-      }
-    }
+    map && map.on("zoomend", handleZoomEnd);
+
+    // Clean up the event listener when the component unmounts
+    return () => {
+      map && map.off("zoomend", handleZoomEnd);
+    };
   }, [routedMap]);
 
   const renderInfoBox = () => {
@@ -315,21 +313,24 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     showOverlayHandler();
   };
 
-  const updateFeatureInfoLeaflet = () => {
+  const updateFeatureInfoLeaflet = (routedMapInstance) => {
+    const map = routedMapInstance?.leafletMap?.leafletElement;
+
     setShouldUpdateFeatureInfo(false);
     setTimeout(() => {
-      const map = routedMap.leafletMap.leafletElement;
       const latlngPoint = L.latLng(pos);
-      map.fireEvent("click", {
-        latlng: latlngPoint,
-        layerPoint: map.latLngToLayerPoint(latlngPoint),
-        containerPoint: map.latLngToContainerPoint(latlngPoint),
-      });
+      map &&
+        map.fireEvent("click", {
+          latlng: latlngPoint,
+          layerPoint: map.latLngToLayerPoint(latlngPoint),
+          containerPoint: map.latLngToContainerPoint(latlngPoint),
+        });
     }, 150);
   };
 
   useEffect(() => {
-    if (routedMap && shouldUpdateFeatureInfo) updateFeatureInfoLeaflet();
+    if (routedMap && shouldUpdateFeatureInfo)
+      updateFeatureInfoLeaflet(routedMap);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routedMap, shouldUpdateFeatureInfo]);
@@ -430,8 +431,8 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
           }}
           locationChangedHandler={topicMapLocationChangedHandler}
           onclick={(e) => {
-            const map = routedMap.leafletMap.leafletElement;
-            const baseUrl = window.location.origin + window.location.pathname;
+            const map = routedMap?.leafletMap?.leafletElement;
+            if (!map) return;
 
             if (uiMode === UIMode.FEATURE_INFO) {
               if (marker !== undefined) {
