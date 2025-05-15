@@ -166,10 +166,11 @@ const FlaechenPanel = ({
         className="gradient-bg-for-cards"
         style={{
           ...styleOverride,
-          // minHeight: 20,
+          minHeight: 20,
           backgroundColor: "#f5f5f5",
           // border: "1px solid #e3e3e3",
           padding: 9,
+          lineHeight: "1.3",
           // borderRadius: 3,
           // height: "auto",
         }}
