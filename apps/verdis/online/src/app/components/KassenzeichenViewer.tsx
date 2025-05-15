@@ -63,7 +63,7 @@ import queryString from "query-string";
 import { removeQueryPart } from "../../utils/routingHelper";
 import sysend from "sysend";
 import type { UnknownAction } from "redux";
-import type { ReactElement } from "react";
+import type { CSSProperties, ReactElement } from "react";
 
 const KassenzeichenViewer = () => {
   const kassenzeichen = useSelector(getKassenzeichen);
@@ -206,7 +206,7 @@ const KassenzeichenViewer = () => {
   const horizontalPanelWidth = 200;
 
   const switchToBottomWhenSmallerThan = 900;
-  const detailsStyle = {
+  const detailsStyle: CSSProperties = {
     backgroundColor: "#EEE",
     padding: "5px 5px 5px 5px",
     overflow: "auto",
@@ -502,7 +502,7 @@ const KassenzeichenViewer = () => {
               setChangeRequestsForFlaeche(
                 uiState.changeRequestEditViewFlaeche,
                 uiState.changeRequestEditViewCR
-              )
+              ) as unknown as UnknownAction
             );
           }
           dispatch(showChangeRequestsEditView(false));
@@ -527,7 +527,7 @@ const KassenzeichenViewer = () => {
             anhang: attachments,
           };
 
-          dispatch(addChangeRequestMessage(msg));
+          dispatch(addChangeRequestMessage(msg) as unknown as UnknownAction);
         }}
         localErrorMessages={uiState.localErrorMessages}
         addLocalErrorMessage={addLocalErrorMessage}
@@ -537,7 +537,9 @@ const KassenzeichenViewer = () => {
         annotationFeature={uiState.changeRequestAnnotationEditViewAnnotation}
         deleteAnnotation={() => {
           dispatch(
-            removeAnnotation(uiState.changeRequestAnnotationEditViewAnnotation)
+            removeAnnotation(
+              uiState.changeRequestAnnotationEditViewAnnotation
+            ) as unknown as UnknownAction
           );
         }}
         setNewAnnotation={(anno) => {
@@ -553,7 +555,7 @@ const KassenzeichenViewer = () => {
             dispatch(
               changeAnnotation(
                 uiState.changeRequestAnnotationEditViewAnnotation
-              )
+              ) as unknown as UnknownAction
             );
           }
           dispatch(showChangeRequestAnnotationEditViewVisible(false));

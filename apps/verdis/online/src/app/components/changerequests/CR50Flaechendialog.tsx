@@ -23,12 +23,12 @@ const CR00 = ({
   showChangeRequestMenu = (arg: boolean) => {},
   flaeche = {},
   flaechenCR = {},
-  setFlaechenCR = () => {},
+  setFlaechenCR = (cr: any) => {},
   documents = [],
-  uploadCRDoc = () => {},
+  uploadCRDoc = (file: any, callback: any) => {},
   addFiles = (tmpAtt) => {},
   localErrorMessages = [],
-  addLocalErrorMessage = () => {},
+  addLocalErrorMessage = (msg: string) => {},
 }) => {
   const [tmpAttachments, setTmpAttachments] = useState([]);
   const modalBodyStyle = {
