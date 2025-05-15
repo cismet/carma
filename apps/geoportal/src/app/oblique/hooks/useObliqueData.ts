@@ -258,7 +258,7 @@ export function useObliqueData(
     } else if (isAllDataReady) {
       setError(null);
     } else {
-      setError("Undefinded Error while loading data...");
+      setError("Undefined Error while loading data...");
     }
   }, [
     footprintError,
