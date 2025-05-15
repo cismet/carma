@@ -22,6 +22,24 @@ import {
   setFebBlob,
 } from "./ui";
 import slugify from "slugify";
+import type { Feature, Polygon } from "geojson";
+
+export interface GeometryProperties {
+  name: string;
+  id: string;
+  numericId: number;
+  draft: boolean;
+  type: string;
+}
+
+export type GeometryFeature = Feature<Polygon, GeometryProperties>;
+
+export interface Aenderungsanfrage {
+  kassenzeichen: number;
+  flaechen: Record<string, any>;
+  nachrichten: any[];
+  geometrien: Record<string, GeometryFeature>;
+}
 
 const initialState = {
   id: -1,

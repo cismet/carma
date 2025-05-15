@@ -1,5 +1,3 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
 import { Alert } from "react-bootstrap";
 import Navbar from "./Navbar";
 import Waiting from "./Waiting";
@@ -11,6 +9,7 @@ import {
   addCRDoc,
   changeAnnotation,
   completeEmailChange,
+  GeometryFeature,
   getKassenzeichen,
   getKassenzeichenbySTAC,
   getNumberOfPendingChanges,
@@ -62,6 +61,7 @@ import { useEffect } from "react";
 import queryString from "query-string";
 import { removeQueryPart } from "../../utils/routingHelper";
 import sysend from "sysend";
+import type { UnknownAction } from "redux";
 
 const KassenzeichenViewer = () => {
   const kassenzeichen = useSelector(getKassenzeichen);
@@ -96,8 +96,6 @@ const KassenzeichenViewer = () => {
       navigate("/");
     } else {
       if (!login) {
-        // console.log("xxx not successefull login");
-        // dispatch(setLoginInProgress({}));
         dispatch(showInfo("Kassenzeichen wird wieder geladen"));
         dispatch(showWaiting(true));
         dispatch(
@@ -105,10 +103,10 @@ const KassenzeichenViewer = () => {
             if (success === true) {
               setTimeout(() => {
                 dispatch(showWaiting(false));
-                dispatch(fitAll());
+                dispatch(fitAll() as unknown as UnknownAction);
               }, 300);
             }
-          })
+          }) as unknown as UnknownAction
         );
       }
     }
@@ -131,13 +129,17 @@ const KassenzeichenViewer = () => {
               dispatch(showWaiting(false));
             }, 1500);
           } else {
-            dispatch(showInfoWithError("Verifizierung fehlgeschlagen"));
+            dispatch(
+              showInfoWithError(
+                "Verifizierung fehlgeschlagen"
+              ) as unknown as UnknownAction
+            );
 
             setTimeout(() => {
               dispatch(showWaiting(false));
             }, 2500);
           }
-        })
+        }) as unknown as UnknownAction
       );
 
       const cleanSearch = removeQueryPart(
@@ -178,8 +180,6 @@ const KassenzeichenViewer = () => {
       );
     }
   }, [location.search]);
-
-  // let flaechenPanelRefs = useRef({});
 
   const verticalPanelWidth = 280;
 
@@ -268,7 +268,7 @@ const KassenzeichenViewer = () => {
   let verdisMapWithAdditionalComponents;
   let mapHeight = height - 50;
   let flaechen = [];
-  let anmerkungsflaechen = [];
+  let anmerkungsflaechen: GeometryFeature[] = [];
 
   if (kassenzeichen.flaechen) {
     flaechen = kassenzeichen.flaechen
