@@ -167,7 +167,10 @@ const ResourceModal = () => {
             Title: "Meine Teilzwillinge",
             layers: favorites
               .filter((favorite) => {
-                return favorite.serviceName === "wuppTopicMaps";
+                return (
+                  favorite.serviceName === "wuppTopicMaps" ||
+                  favorite.serviceName === "wuppArcGisOnline"
+                );
               })
               .map((favorite) => {
                 return {
@@ -193,7 +196,10 @@ const ResourceModal = () => {
             Title: "Meine Kartenebenen",
             layers: favorites
               .filter((favorite) => {
-                return favorite.serviceName !== "wuppTopicMaps";
+                return (
+                  favorite.serviceName !== "wuppTopicMaps" &&
+                  favorite.serviceName !== "wuppArcGisOnline"
+                );
               })
               .map((favorite) => {
                 return {
