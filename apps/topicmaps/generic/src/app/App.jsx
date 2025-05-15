@@ -89,86 +89,104 @@ function getGeoportalLinkFromUrl() {
 }
 
 function App({ name }) {
-  const [showCopied, setShowCopied] = useState(false);
-  const [starterConfig, setStarterConfig] = useState(`{
+  const defaultStarterConfig = `{
     "tm": {
       "noFeatureCollection": true,
       "vectorLayers": []
     }
-  }`);
+  }`;
+  const [showCopied, setShowCopied] = useState(false);
+  const [geoportalConfig, setGeoportalConfig] = useState();
+  const [starterConfig, setStarterConfig] = useState(defaultStarterConfig);
+
+  // Listen for URL changes and update geoportalLink accordingly
+  useEffect(() => {
+    const onUrlChange = () => {
+      console.log("xxx urlchange");
+      if (!window.location.hash.includes("geoportalLink=")) {
+        return;
+      } else {
+        const geoportalLink = window.location.hash.split("geoportalLink=")[1];
+
+        console.log("xxx geoportalLink", geoportalLink);
+        let config;
+        if (geoportalLink.startsWith("http")) {
+          const params = new URLSearchParams(
+            getUrlSearchParamsForHash(geoportalLink)
+          );
+          config = params.get("config");
+          console.log("xxx config", config);
+          const hash = window.location.hash;
+          const newHash = hash.replace(geoportalLink, config);
+          window.location.replace(newHash);
+        } else {
+          config = geoportalLink;
+        }
+
+        console.log("xxx config", config);
+        setGeoportalConfig(config);
+      }
+    };
+    window.addEventListener("popstate", onUrlChange);
+    window.addEventListener("hashchange", onUrlChange);
+    window.addEventListener("urlchange", onUrlChange);
+    onUrlChange();
+    return () => {
+      window.removeEventListener("popstate", onUrlChange);
+      window.removeEventListener("hashchange", onUrlChange);
+      window.removeEventListener("urlchange", onUrlChange);
+    };
+  }, []);
 
   // Effect: If geoportalLink contains a config param, fetch config and build starterConfig
   useEffect(() => {
     // need to extract the config from the hashGeoportalLink
-    console.log("xxx indow.location.hash", window.location.hash);
-    if (!window.location.hash.includes("geoportalLink=")) {
-      return;
-    } else {
-      const geoportalLink = window.location.hash.split("geoportalLink=")[1];
 
-      console.log("xxx geoportalLink", geoportalLink);
-      let config;
-      if (geoportalLink.startsWith("http")) {
-        const params = new URLSearchParams(
-          getUrlSearchParamsForHash(geoportalLink)
-        );
-        config = params.get("config");
-        console.log("xxx config", config);
-        const hash = window.location.hash;
-        const newHash = hash.replace(geoportalLink, config);
-        window.location.replace(newHash);
-      } else {
-        config = geoportalLink;
-      }
-      console.log("xxx config", config);
-      if (!config) return;
-
-      try {
-        const fetchUrl = `https://ceepr.cismet.de/config/wuppertal/_dev_geoportal/${config}`;
-        fetch(fetchUrl)
-          .then((r) => (r.ok ? r.json() : null))
-          .then((data) => {
-            if (!data || !Array.isArray(data.layers)) return;
-            // Always output legacy config: vectorLayers
-            const vectorLayers = data.layers.map((layer) => {
-              let layerType =
-                layer.layerType ||
-                layer.other?.layerType ||
-                (layer.ceepr && layer.ceepr.layerType);
-              const layerObj = {
-                name: layer.title,
-                layer:
-                  (layer.other?.layerName || "") +
-                  "@" +
-                  (layer.other?.capabilitiesUrl || ""),
-                addMetaInfoToHelp: true,
-                ...(layerType ? { layerType } : {}),
-              };
-              const styleVal = layer.conf?.vectorStyle;
-              if (styleVal && styleVal !== "") {
-                layerObj.style = styleVal;
-              }
-              return layerObj;
-            });
-            console.log("xxx vectorLayers (legacy config)", vectorLayers);
-            setStarterConfig(
-              JSON.stringify(
-                {
-                  tm: {
-                    noFeatureCollection: true,
-                    vectorLayers,
-                  },
-                },
-                null,
-                2
-              )
-            );
+    try {
+      const fetchUrl = `https://ceepr.cismet.de/config/wuppertal/_dev_geoportal/${geoportalConfig}`;
+      fetch(fetchUrl)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (!data || !Array.isArray(data.layers)) return;
+          // Always output legacy config: vectorLayers
+          const vectorLayers = data.layers.map((layer) => {
+            let layerType =
+              layer.layerType ||
+              layer.other?.layerType ||
+              (layer.ceepr && layer.ceepr.layerType);
+            const layerObj = {
+              name: layer.title,
+              layer:
+                (layer.other?.layerName || "") +
+                "@" +
+                (layer.other?.capabilitiesUrl || ""),
+              addMetaInfoToHelp: true,
+              ...(layerType ? { layerType } : {}),
+            };
+            const styleVal = layer.conf?.vectorStyle;
+            if (styleVal && styleVal !== "") {
+              layerObj.style = styleVal;
+            }
+            return layerObj;
           });
-      } catch (e) {
-        // ignore
-      }
+          console.log("xxx vectorLayers (legacy config)", vectorLayers);
+          setStarterConfig(
+            JSON.stringify(
+              {
+                tm: {
+                  noFeatureCollection: true,
+                  vectorLayers,
+                },
+              },
+              null,
+              2
+            )
+          );
+        });
+    } catch (e) {
+      setStarterConfig(defaultStarterConfig);
     }
-  }, []);
+  }, [geoportalConfig]);
   // --- Fault log state and helper ---
   const [faultLog, setFaultLog] = useState([]);
   const log = (msg, attachment) => {
