@@ -41,6 +41,52 @@ export interface Aenderungsanfrage {
   geometrien: Record<string, GeometryFeature>;
 }
 
+export interface Anschlussgrad {
+  id: number;
+  grad: string;
+  grad_abkürzung: string;
+}
+
+export interface Beschreibung {
+  id: number;
+  beschreibung: string;
+  dachflaeche: boolean;
+}
+
+export interface Flaechenart {
+  id: number;
+  art: string;
+  art_abkürzung: string;
+}
+
+export interface FlaechenInfo {
+  $self: string;
+  anschlussgrad: Anschlussgrad;
+  beschreibung: Beschreibung;
+  flaechenart: Flaechenart;
+}
+
+export interface GeometrieRecord {
+  $self: string;
+  geo_field: string;
+  id: number;
+}
+
+export interface Flaeche {
+  $self: string;
+  anteil: number | null;
+  bemerkung: string | null;
+  datum_erfassung: string;
+  datum_veranlagung: string;
+  flaechenbezeichnung: string;
+  flaecheninfo: FlaechenInfo;
+  geometrie: GeometrieRecord;
+  groesse_aus_grafik: number;
+  groesse_korrektur: number;
+  nachgewiesen: boolean;
+  id: number;
+}
+
 const initialState = {
   id: -1,
 };

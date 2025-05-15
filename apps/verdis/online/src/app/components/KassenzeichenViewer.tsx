@@ -9,6 +9,7 @@ import {
   addCRDoc,
   changeAnnotation,
   completeEmailChange,
+  Flaeche,
   GeometryFeature,
   getKassenzeichen,
   getKassenzeichenbySTAC,
@@ -62,6 +63,7 @@ import queryString from "query-string";
 import { removeQueryPart } from "../../utils/routingHelper";
 import sysend from "sysend";
 import type { UnknownAction } from "redux";
+import type { ReactElement } from "react";
 
 const KassenzeichenViewer = () => {
   const kassenzeichen = useSelector(getKassenzeichen);
@@ -292,9 +294,9 @@ const KassenzeichenViewer = () => {
   let kassenzeichenHorizontalFlaechenChartsPanel;
   let kassenzeichenVerticalFlaechenChartsPanel;
   let anComps = [];
-  let flComps = [];
+  let flComps: ReactElement[] = [];
 
-  flComps = flaechen.map(function (flaeche) {
+  flComps = flaechen.map(function (flaeche: Flaeche) {
     const sel = isFlaecheSelected(flaeche);
     const flaechenCR = getCRsForFlaeche(kassenzeichen, flaeche);
     const hasAttachments = hasAttachment(kassenzeichen.aenderungsanfrage);
