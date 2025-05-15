@@ -7,10 +7,10 @@ import {
   faShareNodes,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Popover, Tooltip } from "antd";
+import { Tooltip } from "antd";
 import { useDispatch, useSelector } from "react-redux";
 
-import { Save } from "@carma-apps/portals";
+import { Save, useSelection, useShareUrl } from "@carma-apps/portals";
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 import { useOverlayHelper } from "@carma-commons/ui/lib-helper-overlay";
@@ -23,6 +23,7 @@ import {
   getBackgroundLayer,
   getFocusMode,
   getLayers,
+  getLayerState,
   getPaleOpacityValue,
   setFocusMode,
 } from "../../store/slices/mapping";
@@ -36,7 +37,6 @@ import {
   setShowResourceModal,
   setUIMode,
   setZenMode,
-  incrementShareShiftClicked,
 } from "../../store/slices/ui";
 import ShareContent from "../ShareContent";
 import Print from "../map-print/Print";
@@ -47,6 +47,9 @@ const disabledImageOpacity = "opacity-20";
 
 const ActionButtons = () => {
   const dispatch = useDispatch();
+  const layerState = useSelector(getLayerState);
+  const { selection } = useSelection();
+  const { copyShareUrl, contextHolder } = useShareUrl();
 
   const isMode2d = useSelector(selectViewerIsMode2d);
   const focusMode = useSelector(getFocusMode);
@@ -188,9 +191,13 @@ const ActionButtons = () => {
         testId="teilen-btn"
         tooltip="Teilen"
         shiftClickHandler={() => {
-          dispatch(incrementShareShiftClicked());
+          copyShareUrl({
+            layerState,
+            selection,
+          });
         }}
       />
+      {contextHolder}
     </div>
   );
 };

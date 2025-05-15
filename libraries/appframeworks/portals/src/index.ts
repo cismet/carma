@@ -15,7 +15,7 @@ export {
 } from "./lib/components/FeatureFlagProvider.tsx";
 
 export { Save } from "./lib/components/Save.tsx";
-export { Share } from "./lib/components/Share.tsx";
+export { Share, useShareUrl, SHORTENER_URL } from "./lib/components/Share.tsx";
 export { CarmaMapProviderWrapper } from "./lib/components/CarmaMapProviderWrapper.tsx";
 
 export { GazDataProvider, useGazData } from "./lib/components/GazDataProvider";

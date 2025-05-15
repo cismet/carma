@@ -13,35 +13,30 @@ export type ShareProps = {
   layerState: LayerState;
   selection?: SelectionItem;
   closePopover?: () => void;
-  forceClick?: number;
 };
 
-const shortenerUrl = "https://ceepr.cismet.de/store/wuppertal/_dev_geoportal";
+export const SHORTENER_URL =
+  "https://ceepr.cismet.de/store/wuppertal/_dev_geoportal";
 
-export const Share = ({
-  layerState,
-  closePopover,
-  selection,
-  forceClick,
-}: ShareProps) => {
-  const { layers, backgroundLayer, selectedLuftbildLayer, selectedMapLayer } =
-    layerState;
+export const useShareUrl = () => {
   const [, copyToClipboard] = useCopyToClipboard();
   const [messageApi, contextHolder] = message.useMessage();
-  const [mode, setMode] = useState("");
-  const [settings, setSettings] = useState<Settings>({
-    showLayerButtons: true,
-    showFullscreen: true,
-    showLocator: true,
-    showMeasurement: true,
-    add3dMode: true,
-  });
 
-  const flags = useFeatureFlags();
-
-  const extendedSharing = flags.extendedSharing;
-
-  const handleOnClick = async () => {
+  const copyShareUrl = async ({
+    layerState,
+    closePopover = () => {},
+    selection,
+    mode = "",
+    settings,
+  }: {
+    layerState: LayerState;
+    closePopover?: () => void;
+    selection?: SelectionItem;
+    mode?: string;
+    settings?: Settings;
+  }) => {
+    const { layers, backgroundLayer, selectedLuftbildLayer, selectedMapLayer } =
+      layerState;
     const currentParams = getHashParams();
     const lat = currentParams.lat || 51.27256992259917;
     const lng = currentParams.lng || 7.199920713901521;
@@ -80,7 +75,7 @@ export const Share = ({
     try {
       const baseUrl = window.location.origin + window.location.pathname;
 
-      const response = await fetch(shortenerUrl, {
+      const response = await fetch(SHORTENER_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -94,21 +89,38 @@ export const Share = ({
       messageApi.open({
         type: "success",
         content: `Link wurde in die Zwischenablage kopiert.`,
+        duration: 0.8,
       });
     } catch {
       messageApi.open({
         type: "error",
         content: `Es gab einen Fehler beim erstellen des Links`,
+        duration: 0.8,
       });
     }
     closePopover?.();
   };
 
-  useEffect(() => {
-    if (forceClick && forceClick > 0) {
-      handleOnClick();
-    }
-  }, [forceClick]);
+  return { copyShareUrl, contextHolder };
+};
+
+export const Share = ({ layerState, closePopover, selection }: ShareProps) => {
+  const { layers, backgroundLayer } = layerState;
+  const { copyShareUrl, contextHolder } = useShareUrl();
+  const [, copyToClipboard] = useCopyToClipboard();
+  const [messageApi] = message.useMessage();
+  const [mode, setMode] = useState("");
+  const [settings, setSettings] = useState<Settings>({
+    showLayerButtons: true,
+    showFullscreen: true,
+    showLocator: true,
+    showMeasurement: true,
+    add3dMode: true,
+  });
+
+  const flags = useFeatureFlags();
+
+  const extendedSharing = flags.extendedSharing;
 
   return (
     <div className="p-2 flex flex-col gap-3">
@@ -187,7 +199,18 @@ export const Share = ({
       )}
 
       <div className="flex items-center gap-1">
-        <Button className="w-full" onClick={handleOnClick}>
+        <Button
+          className="w-full"
+          onClick={() => {
+            copyShareUrl({
+              layerState,
+              closePopover,
+              selection,
+              mode,
+              settings,
+            });
+          }}
+        >
           Link kopieren
         </Button>
         {extendedSharing && (
