@@ -219,7 +219,7 @@ const VerdisOnlineLanding = () => {
                   <span>
                     <Button
                       style={{ margin: 5 }}
-                      variant="secondary"
+                      variant="light"
                       onClick={() => {
                         handleStacChange("STACSTACSTAC");
                       }}
@@ -228,7 +228,7 @@ const VerdisOnlineLanding = () => {
                     </Button>
                     <Button
                       style={{ margin: 5 }}
-                      variant="secondary"
+                      variant="light"
                       onClick={() => {
                         handleStacChange("SUNC-ZWSO-PEWR");
                       }}
@@ -237,7 +237,7 @@ const VerdisOnlineLanding = () => {
                     </Button>
                     <Button
                       style={{ margin: 5 }}
-                      variant="secondary"
+                      variant="light"
                       onClick={() => {
                         handleStacChange("TKNM-GBOF-XHTN");
                       }}
