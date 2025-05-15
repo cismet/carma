@@ -200,6 +200,9 @@ const slice = createSlice({
       state.waitingMessage = action.payload;
       state.waitingType = WAITING_TYPE_INFO;
     },
+    setWaitingType(state, action) {
+      state.waitingType = action.payload;
+    },
     setErrorMessages(state, action) {
       state.localErrorMessages = action.payload;
     },
@@ -250,6 +253,7 @@ export const {
   setWaitForFEB,
   setCloudStorageStatus,
   setHintVisible,
+  setWaitingType,
 } = slice.actions;
 
 export const getConfData = (state) => {
@@ -278,3 +282,11 @@ export function addLocalErrorMessage(message) {
     dispatch(setErrorMessages(errorMessages));
   };
 }
+
+export const showInfoWithError = (message) => {
+  return function (dispatch) {
+    dispatch(showInfo(message));
+    dispatch(setWaitingType("WAITING_TYPE_ERROR"));
+    dispatch(showWaiting(true));
+  };
+};

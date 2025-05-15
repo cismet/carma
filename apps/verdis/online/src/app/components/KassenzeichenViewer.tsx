@@ -41,6 +41,8 @@ import {
   showWaiting,
   toggleInfoElements,
   setHintVisible,
+  setWaitingType,
+  showInfoWithError,
 } from "../../store/slices/ui";
 import { fitAll, getMapping } from "../../store/slices/mapping";
 import HelpAndSettings from "../components/helpandsettings/Menu00MainComponent";
@@ -147,9 +149,8 @@ const KassenzeichenViewer = () => {
               dispatch(showWaiting(false));
             }, 1500);
           } else {
-            // console.log("xxx false");
+            dispatch(showInfoWithError("Verifizierung fehlgeschlagen"));
 
-            // dispatch(showError('Verifizierung fehlgeschlagen'));
             setTimeout(() => {
               dispatch(showWaiting(false));
             }, 2500);
