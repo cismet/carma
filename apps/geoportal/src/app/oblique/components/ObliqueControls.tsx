@@ -11,12 +11,7 @@ import {
   faFileArrowDown,
 } from "@fortawesome/free-solid-svg-icons";
 import { Tooltip } from "antd";
-import {
-  HeadingPitchRange,
-  Math as CesiumMath,
-  Cartesian3,
-  EasingFunction,
-} from "cesium";
+import { Math as CesiumMath } from "cesium";
 
 import {
   cesiumSafeRequestRender,
@@ -36,19 +31,15 @@ import {
   DebugComponentsContainerRight,
 } from "./debugUI/StyledComponents";
 
-import { useOrbitPoint } from "../hooks/useOrbitPoint";
-import { useDebugOrbitPoint } from "../hooks/useDebugOrbitPoint";
 import { useExteriorOrientation } from "../hooks/useExteriorOrientation";
 import { useFootprints } from "../hooks/useFootprints";
+import { useOblique } from "../hooks/useOblique";
+import { useObliqueCameraHandlers } from "../hooks/useObliqueCameraHandlers";
 
-import { resetCamera, flyToExteriorOrientation } from "../utils/cameraUtils";
+import { flyToExteriorOrientation } from "../utils/cameraUtils";
 import { downloadAsBlobAsync } from "../utils/downloads";
 import { formatHeadingDegrees } from "../utils/formatters";
-import {
-  CardinalDirectionEnum,
-  findClosestCardinalIndex,
-  getCardinalHeadings,
-} from "../utils/orientationUtils";
+import { CardinalDirectionEnum } from "../utils/orientationUtils";
 import { getImageUrls } from "../utils/imageHandling";
 import {
   subscribeToPreviewVisibility,
@@ -56,10 +47,8 @@ import {
 } from "../utils/previewVisibility";
 
 import { CAMERA_ID_INTERIOR_ORIENTATION_PERCENTAGE_OFFSETS } from "../config";
-import { useOblique } from "../hooks/useOblique";
-import { useObliqueCameraHandlers } from "../hooks/useObliqueCameraHandlers";
 
-type ObliqueControlsProps = {
+interface ObliqueControlsProps {
   /**
    * Offset angle in radians to apply to all cardinal directions.
    * For example, Math.PI/12 (15 degrees) will rotate all directions clockwise.
@@ -67,7 +56,9 @@ type ObliqueControlsProps = {
    */
   headingOffset?: number;
   isObliqueMode?: boolean;
-};
+}
+
+const activeButtonClass = "!bg-blue-100 !border-blue-400";
 
 export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const {
@@ -83,6 +74,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     imagePreviewStyle,
   } = useOblique();
   const { viewerRef } = useCesiumContext();
+  const photoId = nearestImage?.record?.id;
+  const cameraId = nearestImage?.record?.cameraId;
   const flags = useFeatureFlags();
   const isDebugMode = flags.featureFlagDebugOblique;
   const animationInProgressRef = useRef<boolean>(false);
@@ -93,8 +86,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const isTransitioning = useSelector(selectViewerIsTransitioning);
   const preloadImageRef = useRef<ReturnType<typeof debounce> | null>(null);
 
-
-  const {currentHeading, activeDirection} = useObliqueCameraHandlers(animationInProgressRef);
+  const { currentHeading, activeDirection, rotateCamera, rotateToDirection } =
+    useObliqueCameraHandlers(animationInProgressRef);
 
   const { derivedExteriorOrientationRef } =
     useExteriorOrientation(nearestImage);
@@ -102,9 +95,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   useFootprints();
 
   const { downloadUrl, previewUrl, previewUrlHq, previewUrlOriginal } = useMemo(
-    () =>
-      getImageUrls(nearestImage?.record?.id, previewPath, previewQualityLevel),
-    [previewPath, previewQualityLevel, nearestImage?.record?.id]
+    () => getImageUrls(photoId, previewPath, previewQualityLevel),
+    [previewPath, previewQualityLevel, photoId]
   );
 
   // Handle visibility changes when oblique mode toggles
@@ -191,7 +183,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   );
 
   // Update current heading and set up camera movement detection
- 
 
   useEffect(() => {
     if (preloadImageRef.current) {
@@ -209,7 +200,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     };
   }, [previewUrl]);
 
-  
   if (!shouldRender) {
     return null;
   }
@@ -227,8 +217,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     userSelect: "none" as const,
   };
 
-  const activeButtonClass = "!bg-blue-100 !border-blue-400";
-
   const headingDegrees = formatHeadingDegrees(currentHeading);
 
   const offsetDegrees = Math.round(CesiumMath.toDegrees(headingOffset));
@@ -243,7 +231,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       {isDebugMode && nearestImage && (
         <DebugComponentsContainerRight>
           <CameraVectorControls
-            photoId={nearestImage.record.id}
+            photoId={photoId}
             exteriorOrientation={derivedExteriorOrientationRef.current}
             directionVectorLocal={
               derivedExteriorOrientationRef.current?.rotation?.enu?.wgs84
@@ -257,12 +245,12 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
           <ObliqueImageInfo imageRecord={nearestImage} />
         </DebugComponentsContainerRight>
       )}
-      {nearestImage && previewPath && nearestImage.record.id && (
+      {nearestImage && photoId && (
         <ObliqueImagePreview
           src={previewUrl}
           srcHQ={previewUrlHq}
           srcOriginal={previewUrlOriginal}
-          alt={`Image preview ${nearestImage.record.id}`}
+          alt={`Image preview ${photoId}`}
           isVisible={isPreviewVisible}
           onOpenImageLink={openImageLink}
           onDirectDownload={handleDirectDownload}
@@ -277,9 +265,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
             }, 50);
           }}
           interiorOrientationOffsets={
-            CAMERA_ID_INTERIOR_ORIENTATION_PERCENTAGE_OFFSETS[
-              nearestImage.record.cameraId
-            ]
+            CAMERA_ID_INTERIOR_ORIENTATION_PERCENTAGE_OFFSETS[cameraId]
           }
           style={imagePreviewStyle}
         />
@@ -307,7 +293,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
             gap: "10px",
           }}
         >
-          {derivedExteriorOrientationRef.current && (
+          {photoId && derivedExteriorOrientationRef.current && (
             <Tooltip
               placement="right"
               title={"Zur ausgewählten Schrägluftbild-Aufnahmeposition fliegen"}
@@ -325,7 +311,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
             </Tooltip>
           )}
 
-          {previewPath && (
+          {photoId && downloadUrl && (
             <div
               style={{
                 display: "flex",
