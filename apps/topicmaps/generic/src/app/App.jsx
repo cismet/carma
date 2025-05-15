@@ -99,52 +99,66 @@ function App({ name }) {
 
   // Effect: If geoportalLink contains a config param, fetch config and build starterConfig
   useEffect(() => {
-    const params = getUrlSearchParamsForHash();
-    const config = params.get("config");
-    console.log("xxx config", config);
+    // need to extract the config from the hashGeoportalLink
+    console.log("xxx indow.location.hash", window.location.hash);
+    if (!window.location.hash.includes("geoportalLink=")) {
+      return;
+    } else {
+      const geoportalLink = window.location.hash.split("geoportalLink=")[1];
+      console.log("xxx geoportalLink", geoportalLink);
 
-    if (!config) return;
-    try {
+      const params = new URLSearchParams(
+        getUrlSearchParamsForHash(geoportalLink)
+      );
+      const config = params.get("config");
+      console.log("xxx config", config);
+
       if (!config) return;
-      const fetchUrl = `https://ceepr.cismet.de/config/wuppertal/_dev_geoportal/${config}`;
-      fetch(fetchUrl)
-        .then((r) => (r.ok ? r.json() : null))
-        .then((data) => {
-          if (!data || !Array.isArray(data.layers)) return;
-          // Always output legacy config: vectorLayers
-          const vectorLayers = data.layers.map((layer) => {
-            let layerType = layer.layerType || layer.other?.layerType || (layer.ceepr && layer.ceepr.layerType);
-            const layerObj = {
-              name: layer.title,
-              layer:
-                (layer.other?.layerName || "") +
-                "@" +
-                (layer.other?.capabilitiesUrl || ""),
-              addMetaInfoToHelp: true,
-              ...(layerType ? { layerType } : {})
-            };
-            const styleVal = layer.conf?.vectorStyle;
-            if (styleVal && styleVal !== "") {
-              layerObj.style = styleVal;
-            }
-            return layerObj;
-          });
-          console.log("xxx vectorLayers (legacy config)", vectorLayers);
-          setStarterConfig(
-            JSON.stringify(
-              {
-                tm: {
-                  noFeatureCollection: true,
-                  vectorLayers,
+      try {
+        if (!config) return;
+        const fetchUrl = `https://ceepr.cismet.de/config/wuppertal/_dev_geoportal/${config}`;
+        fetch(fetchUrl)
+          .then((r) => (r.ok ? r.json() : null))
+          .then((data) => {
+            if (!data || !Array.isArray(data.layers)) return;
+            // Always output legacy config: vectorLayers
+            const vectorLayers = data.layers.map((layer) => {
+              let layerType =
+                layer.layerType ||
+                layer.other?.layerType ||
+                (layer.ceepr && layer.ceepr.layerType);
+              const layerObj = {
+                name: layer.title,
+                layer:
+                  (layer.other?.layerName || "") +
+                  "@" +
+                  (layer.other?.capabilitiesUrl || ""),
+                addMetaInfoToHelp: true,
+                ...(layerType ? { layerType } : {}),
+              };
+              const styleVal = layer.conf?.vectorStyle;
+              if (styleVal && styleVal !== "") {
+                layerObj.style = styleVal;
+              }
+              return layerObj;
+            });
+            console.log("xxx vectorLayers (legacy config)", vectorLayers);
+            setStarterConfig(
+              JSON.stringify(
+                {
+                  tm: {
+                    noFeatureCollection: true,
+                    vectorLayers,
+                  },
                 },
-              },
-              null,
-              2
-            )
-          );
-        });
-    } catch (e) {
-      // ignore
+                null,
+                2
+              )
+            );
+          });
+      } catch (e) {
+        // ignore
+      }
     }
   }, []);
   // --- Fault log state and helper ---
@@ -691,101 +705,125 @@ function App({ name }) {
             <div
               style={{
                 maxWidth: 800,
+                minWidth: 340,
+                width: "auto",
+                height: "auto",
+                maxHeight: "80vh",
                 textAlign: "left",
                 background: "#f8f8f8",
                 borderRadius: 8,
                 padding: 16,
                 boxShadow: "0 2px 6px #0001",
                 fontSize: 14,
+                display: "flex",
+                flexDirection: "column",
               }}
             >
-              {getGeoportalLinkFromUrl() ? (
-                <>
-                  <div style={{ position: "relative" }}>
-                    <h2 style={{ marginBottom: 24, background: "none" }}>
-                      Starter for{" "}
-                      {slugName.charAt(0).toUpperCase() + slugName.slice(1)}
-                    </h2>
-                  </div>
-                  {faultLog.length > 0 && (
-                    <pre
-                      style={{
-                        background: "rgba(240,240,240,0.95)",
-                        color: "#444",
-                        borderRadius: 6,
-                        border: "1px solid #ccc",
-                        padding: 10,
-                        marginBottom: 12,
-                        fontSize: 13,
-                        fontFamily: "monospace",
-                        whiteSpace: "pre-wrap",
-                      }}
-                    >
-                      {faultLog.join("\n")}
-                    </pre>
-                  )}
-                  <div style={{ marginBottom: 12 }}>
-                    we will add a minimal config.json for the developer to start
-                  </div>
-                  <pre style={{ fontWeight: "bold", marginBottom: 8 }}>
-                    config.json
-                  </pre>
-                  <div style={{ position: "relative", marginBottom: 16 }}>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(starterConfig);
-                        setShowCopied(true);
-                        setTimeout(() => setShowCopied(false), 1200);
-                      }}
-                      style={{
-                        position: "absolute",
-                        top: 8,
-                        right: 8,
-                        zIndex: 10,
-                        background: "#fff",
-                        border: "1px solid #bbb",
-                        borderRadius: 4,
-                        padding: "4px 10px",
-                        fontSize: 13,
-                        cursor: "pointer",
-                        boxShadow: "0 1px 4px #0001",
-                        opacity: 0.85,
-                      }}
-                      title="Copy config.json to clipboard"
-                    >
-                      {showCopied ? (
-                        <FontAwesomeIcon icon="check" />
-                      ) : (
-                        <FontAwesomeIcon icon="copy" />
-                      )}
-                    </button>
-                    <CodeMirror
-                      value={starterConfig}
-                      height="300px"
-                      extensions={[javascript({ jsx: true })]}
-                      readOnly={true}
-                      theme="light"
-                      style={{
-                        background: "rgba(220,220,220,0.85)",
-                        borderRadius: 8,
-                        border: "1px solid #888",
-                        padding: 2,
-                        fontWeight: "bold",
-                        fontSize: 14,
-                        margin: 0,
-                      }}
-                      basicSetup={{ lineNumbers: false }}
-                    />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <h2 style={{ marginBottom: 24 }}>
-                    Probleme beim Laden der Konfigurationsdateien
+              <>
+                <div style={{ position: "relative" }}>
+                  <h2 style={{ marginBottom: 24, background: "none" }}>
+                    {getGeoportalLinkFromUrl()
+                      ? `Starter for ${
+                          slugName.charAt(0).toUpperCase() + slugName.slice(1)
+                        }`
+                      : "Probleme beim Laden der Konfigurationsdateien"}
                   </h2>
-                  <pre>{faultLog.join("\n")}</pre>
-                </>
-              )}
+                </div>
+                <div
+                  style={{
+                    background: "rgba(240,240,240,0.95)",
+                    color: "#444",
+                    borderRadius: 6,
+                    border: "1px solid #ccc",
+                    padding: 10,
+                    marginBottom: 12,
+                    fontSize: 13,
+                    fontFamily: "monospace",
+                    whiteSpace: "pre-wrap",
+                    maxHeight: "30vh",
+                    overflowY: "auto",
+                  }}
+                >
+                  {faultLog.join("\n")}
+                </div>
+                {getGeoportalLinkFromUrl() && (
+                  <>
+                    <div style={{ marginBottom: 12 }}>
+                      we will add a minimal config.json for the developer to
+                      start
+                    </div>
+                    <pre style={{ fontWeight: "bold", marginBottom: 8 }}>
+                      config.json
+                    </pre>
+                    <div
+                      style={{
+                        position: "relative",
+                        marginBottom: 16,
+                        display: "flex",
+                        flexDirection: "column",
+                        flex: 1,
+                        minHeight: 0,
+                        height: "100%",
+                      }}
+                    >
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(starterConfig);
+                          setShowCopied(true);
+                          setTimeout(() => setShowCopied(false), 1200);
+                        }}
+                        style={{
+                          position: "absolute",
+                          top: 8,
+                          right: 8,
+                          zIndex: 10,
+                          background: "#fff",
+                          border: "1px solid #bbb",
+                          borderRadius: 4,
+                          padding: "4px 10px",
+                          fontSize: 13,
+                          cursor: "pointer",
+                          boxShadow: "0 1px 4px #0001",
+                          opacity: 0.85,
+                        }}
+                        title="Copy config.json to clipboard"
+                      >
+                        {showCopied ? (
+                          <FontAwesomeIcon icon="check" />
+                        ) : (
+                          <FontAwesomeIcon icon="copy" />
+                        )}
+                      </button>
+                      <div
+                        style={{
+                          height: "40vh",
+                          maxHeight: "40vh",
+                          overflowY: "auto",
+                        }}
+                      >
+                        <CodeMirror
+                          value={starterConfig}
+                          height="100%"
+                          extensions={[javascript({ jsx: true })]}
+                          readOnly={true}
+                          theme="light"
+                          style={{
+                            background: "rgba(220,220,220,0.85)",
+                            borderRadius: 8,
+                            border: "1px solid #888",
+                            padding: 2,
+                            fontWeight: "bold",
+                            fontSize: 14,
+                            margin: 0,
+                            height: "100%",
+                          }}
+                          basicSetup={{ lineNumbers: false }}
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+              </>
             </div>
           </div>
         )}

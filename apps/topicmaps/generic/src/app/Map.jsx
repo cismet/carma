@@ -76,8 +76,13 @@ function renderCismapLayers(
 ) {
   return (
     <>
-      {(Array.isArray(config.tm.vectorLayers) ? config.tm.vectorLayers : config.tm.vectorLayers) &&
-        (Array.isArray(config.tm.vectorLayers) ? config.tm.vectorLayers : config.tm.vectorLayers).map((layer, index) => {
+      {(Array.isArray(config.tm.vectorLayers)
+        ? config.tm.vectorLayers
+        : config.tm.vectorLayers) &&
+        (Array.isArray(config.tm.vectorLayers)
+          ? config.tm.vectorLayers
+          : config.tm.vectorLayers
+        ).map((layer, index) => {
           let style = getLayerStyle(layer, layerInformation);
           if (typeof layer.styleManipulation === "function") {
             style = layer.styleManipulation(markerSymbolSize, style);
