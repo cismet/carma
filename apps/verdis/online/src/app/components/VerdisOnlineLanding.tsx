@@ -282,6 +282,7 @@ const VerdisOnlineLanding = () => {
                       >
                         <FormGroup controlId="stacInput">
                           <MaskedFormControl
+                            autoFocus
                             key={"MaskedFormControl.with"}
                             style={{
                               height: "50px",
