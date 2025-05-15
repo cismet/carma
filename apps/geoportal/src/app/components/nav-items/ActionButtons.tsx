@@ -36,6 +36,7 @@ import {
   setShowResourceModal,
   setUIMode,
   setZenMode,
+  incrementShareShiftClicked,
 } from "../../store/slices/ui";
 import ShareContent from "../ShareContent";
 import Print from "../map-print/Print";
@@ -186,6 +187,9 @@ const ActionButtons = () => {
         icon={faShareNodes}
         testId="teilen-btn"
         tooltip="Teilen"
+        shiftClickHandler={() => {
+          dispatch(incrementShareShiftClicked());
+        }}
       />
     </div>
   );

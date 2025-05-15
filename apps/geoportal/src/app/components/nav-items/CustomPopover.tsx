@@ -22,6 +22,7 @@ interface PopoverProps {
   testId?: string;
   disabled?: boolean;
   className?: string;
+  shiftClickHandler?: () => void;
 }
 
 const CustomPopover = ({
@@ -31,6 +32,7 @@ const CustomPopover = ({
   testId,
   disabled,
   className,
+  shiftClickHandler,
 }: PopoverProps) => {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef(null);
@@ -99,8 +101,15 @@ const CustomPopover = ({
           } ${className}`}
           data-test-id={testId}
           ref={buttonRef}
-          onClick={() => {
-            setOpen(!open);
+          onClick={(event) => {
+            // Check if shift key was held during click
+            const isShiftClick = event.shiftKey;
+
+            if (isShiftClick && shiftClickHandler) {
+              shiftClickHandler();
+            } else {
+              setOpen(!open);
+            }
           }}
         >
           <FontAwesomeIcon icon={icon} />

@@ -2,7 +2,7 @@ import { faShareNodes } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useCopyToClipboard } from "@uidotdev/usehooks";
 import { Button, Checkbox, Radio, Tooltip, message } from "antd";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { LayerState, Settings } from "../types";
 import { faCopy } from "@fortawesome/free-regular-svg-icons";
 import { useFeatureFlags } from "./FeatureFlagProvider";
@@ -13,11 +13,17 @@ export type ShareProps = {
   layerState: LayerState;
   selection?: SelectionItem;
   closePopover?: () => void;
+  forceClick?: number;
 };
 
 const shortenerUrl = "https://ceepr.cismet.de/store/wuppertal/_dev_geoportal";
 
-export const Share = ({ layerState, closePopover, selection }: ShareProps) => {
+export const Share = ({
+  layerState,
+  closePopover,
+  selection,
+  forceClick,
+}: ShareProps) => {
   const { layers, backgroundLayer, selectedLuftbildLayer, selectedMapLayer } =
     layerState;
   const [, copyToClipboard] = useCopyToClipboard();
@@ -97,6 +103,12 @@ export const Share = ({ layerState, closePopover, selection }: ShareProps) => {
     }
     closePopover?.();
   };
+
+  useEffect(() => {
+    if (forceClick && forceClick > 0) {
+      handleOnClick();
+    }
+  }, [forceClick]);
 
   return (
     <div className="p-2 flex flex-col gap-3">
