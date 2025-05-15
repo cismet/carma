@@ -293,7 +293,7 @@ const KassenzeichenViewer = () => {
   let kassenzeichenPanel = <div />;
   let kassenzeichenHorizontalFlaechenChartsPanel;
   let kassenzeichenVerticalFlaechenChartsPanel;
-  let anComps = [];
+  let anComps: ReactElement[] = [];
   let flComps: ReactElement[] = [];
 
   flComps = flaechen.map(function (flaeche: Flaeche) {

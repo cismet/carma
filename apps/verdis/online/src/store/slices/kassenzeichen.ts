@@ -32,7 +32,9 @@ export interface GeometryProperties {
   type: string;
 }
 
-export type GeometryFeature = Feature<Polygon, GeometryProperties>;
+export type GeometryFeature = Feature<Polygon, GeometryProperties> & {
+  id: string;
+};
 
 export interface Aenderungsanfrage {
   kassenzeichen: number;
