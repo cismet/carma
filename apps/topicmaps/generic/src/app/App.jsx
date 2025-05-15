@@ -105,17 +105,25 @@ function App({ name }) {
       return;
     } else {
       const geoportalLink = window.location.hash.split("geoportalLink=")[1];
+
       console.log("xxx geoportalLink", geoportalLink);
-
-      const params = new URLSearchParams(
-        getUrlSearchParamsForHash(geoportalLink)
-      );
-      const config = params.get("config");
+      let config;
+      if (geoportalLink.startsWith("http")) {
+        const params = new URLSearchParams(
+          getUrlSearchParamsForHash(geoportalLink)
+        );
+        config = params.get("config");
+        console.log("xxx config", config);
+        const hash = window.location.hash;
+        const newHash = hash.replace(geoportalLink, config);
+        window.location.replace(newHash);
+      } else {
+        config = geoportalLink;
+      }
       console.log("xxx config", config);
-
       if (!config) return;
+
       try {
-        if (!config) return;
         const fetchUrl = `https://ceepr.cismet.de/config/wuppertal/_dev_geoportal/${config}`;
         fetch(fetchUrl)
           .then((r) => (r.ok ? r.json() : null))
