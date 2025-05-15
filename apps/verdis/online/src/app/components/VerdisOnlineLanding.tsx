@@ -16,6 +16,7 @@ import type { UnknownAction } from "redux";
 import { getApplicationVersion } from "@carma-commons/utils";
 import versionData from "../../version.json";
 import queryString from "query-string";
+import { getVersion } from "../../constants/versions";
 
 const VerdisOnlineLanding = () => {
   const [stac, setStac] = useState("");
@@ -125,7 +126,7 @@ const VerdisOnlineLanding = () => {
             margin: 4,
           }}
         >
-          {/* {getVersion()} */}
+          {getVersion()}
         </div>
       </div>
       <div style={{ width: "100%", height: "100%", position: "absolute" }}>
@@ -186,35 +187,38 @@ const VerdisOnlineLanding = () => {
               <h1 style={{ color: "white" }}>
                 <img alt="" width={180} src="/images/wuppertal-white.svg" />
               </h1>
-              {/* {getVersion() === "dev-hot-reload" &&
-                                    process.env.NODE_ENV === "development" && (
-                                        <span>
-                                            <Button
-                                                style={{ margin: 5 }}
-                                                onClick={() => {
-                                                    this.handleSTAC("STACSTACSTAC");
-                                                }}
-                                            >
-                                                Rathaus
-                                            </Button>
-                                            <Button
-                                                style={{ margin: 5 }}
-                                                onClick={() => {
-                                                    this.handleSTAC("SUNC-ZWSO-PEWR");
-                                                }}
-                                            >
-                                                Test 1
-                                            </Button>
-                                            <Button
-                                                style={{ margin: 5 }}
-                                                onClick={() => {
-                                                    this.handleSTAC("TKNM-GBOF-XHTN");
-                                                }}
-                                            >
-                                                Test 2
-                                            </Button>
-                                        </span>
-                                    )} */}
+              {getVersion() === "dev-hot-reload" &&
+                process.env.NODE_ENV === "development" && (
+                  <span>
+                    <Button
+                      style={{ margin: 5 }}
+                      variant="secondary"
+                      onClick={() => {
+                        handleStacChange("STACSTACSTAC");
+                      }}
+                    >
+                      Rathaus
+                    </Button>
+                    <Button
+                      style={{ margin: 5 }}
+                      variant="secondary"
+                      onClick={() => {
+                        handleStacChange("SUNC-ZWSO-PEWR");
+                      }}
+                    >
+                      Test 1
+                    </Button>
+                    <Button
+                      style={{ margin: 5 }}
+                      variant="secondary"
+                      onClick={() => {
+                        handleStacChange("TKNM-GBOF-XHTN");
+                      }}
+                    >
+                      Test 2
+                    </Button>
+                  </span>
+                )}
               <h2 style={{ color: "white" }}>VerDIS - online</h2>
               <h3 style={{ color: "white" }}>
                 Versiegelungsdaten | Flächenentwässerung
