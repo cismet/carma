@@ -117,25 +117,7 @@ const KassenzeichenViewer = () => {
       dispatch(setHintVisible(false));
     }, 10000);
 
-    sysend.on("reloadOnEmailVerification", () => {
-      reloadOnEmailVerification();
-    });
-
-    return () => {
-      sysend.off("reloadOnEmailVerification");
-    };
-  }, []);
-
-  useEffect(() => {
     const { emailVerificationCode } = queryString.parse(location.search);
-
-    const crOpen = queryString.parse(location.search).crOpen;
-
-    if (crOpen !== undefined) {
-      // console.log("xxx crOpen", crOpen);
-      dispatch(showChangeRequestsMenu({ visible: true }));
-      const cleanSearch = removeQueryPart(location.search, "crOpen");
-    }
 
     if (emailVerificationCode !== undefined) {
       dispatch(
@@ -163,6 +145,30 @@ const KassenzeichenViewer = () => {
         "emailVerificationCode"
       );
 
+      navigate(
+        {
+          pathname: location.pathname,
+          search: cleanSearch,
+        },
+        { replace: true }
+      );
+    }
+
+    sysend.on("reloadOnEmailVerification", () => {
+      reloadOnEmailVerification();
+    });
+
+    return () => {
+      sysend.off("reloadOnEmailVerification");
+    };
+  }, []);
+
+  useEffect(() => {
+    const crOpen = queryString.parse(location.search).crOpen;
+
+    if (crOpen !== undefined) {
+      dispatch(showChangeRequestsMenu({ visible: true }));
+      const cleanSearch = removeQueryPart(location.search, "crOpen");
       navigate(
         {
           pathname: location.pathname,
