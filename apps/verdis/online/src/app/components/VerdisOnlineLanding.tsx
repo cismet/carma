@@ -2,7 +2,7 @@ import { Alert, AlertContainer } from "react-bs-notifier";
 import { Form, FormGroup, Row, Col, Button, Container } from "react-bootstrap";
 import Loadable from "react-loading-overlay-ts";
 import MaskedFormControl from "react-bootstrap-maskedinput";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { getKassenzeichenbySTAC } from "../../store/slices/kassenzeichen";
 import { getLoginInProgress, getLoginInfoText } from "../../store/slices/auth";
@@ -17,6 +17,7 @@ import { getApplicationVersion } from "@carma-commons/utils";
 import versionData from "../../version.json";
 import queryString from "query-string";
 import { getVersion } from "../../constants/versions";
+import { DOMAIN, STAC_SERVICE } from "../../constants/cids";
 
 const VerdisOnlineLanding = () => {
   const [stac, setStac] = useState("");
@@ -85,6 +86,32 @@ const VerdisOnlineLanding = () => {
       }
     }
   };
+
+  const checkNetworkConnection = () => {
+    const url =
+      STAC_SERVICE + "/actions/" + DOMAIN + ".checkCidsServerMessage?role=all";
+    fetch(url, {
+      method: "get",
+    })
+      .then(function (response) {
+        if (response.status >= 200 && response.status < 300) {
+          setConnectionProblem(false);
+        } else {
+          setConnectionProblem(true);
+        }
+      })
+      .catch(function (err) {
+        setConnectionProblem(true);
+      });
+  };
+
+  useEffect(() => {
+    const interval = setInterval(() => checkNetworkConnection(), 2000);
+
+    return () => {
+      return clearInterval(interval);
+    };
+  }, []);
 
   return (
     <div style={{ position: "relative" }}>
