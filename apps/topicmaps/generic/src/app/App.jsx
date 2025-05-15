@@ -167,6 +167,24 @@ function App({ name }) {
             if (styleVal && styleVal !== "") {
               layerObj.style = styleVal;
             }
+            // Add url and layers for wmts/wms
+            if (layerType === "wmts") {
+              if (layer.props && layer.props.url) {
+                layerObj.url = layer.props.url;
+              }
+              if (layer.other?.layerName) {
+                layerObj.layers = layer.other.layerName;
+              }
+            } else if (layerType === "wms") {
+              if (layer.service && layer.service.url) {
+                layerObj.url = layer.service.url;
+              }
+              if (layer.other?.layerName) {
+                layerObj.layers = layer.other.layerName;
+              }
+            }
+            layerObj.opacity = layer.opacity;
+
             return layerObj;
           });
           console.log("xxx vectorLayers (legacy config)", vectorLayers);
@@ -789,18 +807,28 @@ function App({ name }) {
                         ) {
                           const fetchUrl = `https://ceepr.cismet.de/config/wuppertal/_dev_geoportal/${geoportalConfig}`;
                           return (
-                            <span> (based on <a
-                              href={fetchUrl}
-                              onClick={e => {
-                                e.preventDefault();
-                                window.open(fetchUrl, '_config');
-                              }}
-                              role="link"
-                              tabIndex={0}
-                              style={{ wordBreak: 'break-all', color: '#007bff', cursor: 'pointer', textDecoration: 'underline' }}
-                            >
-                              {geoportalLink}
-                            </a>)</span>
+                            <span>
+                              {" "}
+                              (based on{" "}
+                              <a
+                                href={fetchUrl}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  window.open(fetchUrl, "_config");
+                                }}
+                                role="link"
+                                tabIndex={0}
+                                style={{
+                                  wordBreak: "break-all",
+                                  color: "#007bff",
+                                  cursor: "pointer",
+                                  textDecoration: "underline",
+                                }}
+                              >
+                                {geoportalLink}
+                              </a>
+                              )
+                            </span>
                           );
                         }
                         return null;
