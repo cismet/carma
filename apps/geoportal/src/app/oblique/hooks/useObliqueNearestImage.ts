@@ -40,6 +40,7 @@ export function useObliqueNearestImage(
   options: UseObliqueNearestImageOptions = defaultOptions
 ) {
   const { viewerRef } = useCesiumContext();
+  const lastSearchTimeRef = useRef<number>(0);
   const {
     converter,
     headingOffset,
@@ -85,6 +86,15 @@ export function useObliqueNearestImage(
     ) {
       return;
     }
+
+    const timeDelta = Date.now() - lastSearchTimeRef.current;
+    if (timeDelta < (options.debounceTime || defaultOptions.debounceTime)) {
+      debug && console.debug("Skipping refreshSearch");
+      return;
+    }
+    lastSearchTimeRef.current = Date.now();
+
+    debug && console.debug(" refreshSearch");
 
     try {
       const camera = viewer.camera;
