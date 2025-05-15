@@ -212,6 +212,21 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     }
   };
 
+  const updateFeatureInfoLeaflet = () => {
+    const map = routedMap?.leafletMap?.leafletElement;
+
+    setShouldUpdateFeatureInfo(false);
+    setTimeout(() => {
+      const latlngPoint = L.latLng(pos);
+      map &&
+        map.fireEvent("click", {
+          latlng: latlngPoint,
+          layerPoint: map.latLngToLayerPoint(latlngPoint),
+          containerPoint: map.latLngToContainerPoint(latlngPoint),
+        });
+    }, 150);
+  };
+
   useSelectionTopicMap({ onComplete });
   useSelectionCesium(
     !isMode2d,
@@ -277,9 +292,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   }, [uiMode]);
 
   useEffect(() => {
-    if (isModeFeatureInfo && pos) {
-      updateFeatureInfoLeaflet();
-    }
+    if (isModeFeatureInfo && pos) updateFeatureInfoLeaflet();
   }, [layers]);
 
   useEffect(() => {
@@ -315,27 +328,11 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     showOverlayHandler();
   };
 
-  const updateFeatureInfoLeaflet = (routedMapInstance) => {
-    const map = routedMapInstance?.leafletMap?.leafletElement;
-
-    setShouldUpdateFeatureInfo(false);
-    setTimeout(() => {
-      const latlngPoint = L.latLng(pos);
-      map &&
-        map.fireEvent("click", {
-          latlng: latlngPoint,
-          layerPoint: map.latLngToLayerPoint(latlngPoint),
-          containerPoint: map.latLngToContainerPoint(latlngPoint),
-        });
-    }, 150);
-  };
-
   useEffect(() => {
-    if (routedMap && shouldUpdateFeatureInfo)
-      updateFeatureInfoLeaflet(routedMap);
+    if (shouldUpdateFeatureInfo) updateFeatureInfoLeaflet();
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [routedMap, shouldUpdateFeatureInfo]);
+  }, [shouldUpdateFeatureInfo]);
 
   /** TODO:
       move url request to own hook something like
