@@ -24,15 +24,15 @@ import scrollIntoViewIfNeeded from "scroll-into-view-if-needed";
 interface AnnotationPanelProps {
   annotationFeature: any;
   selected: boolean;
-  editmode: boolean;
-  showEditAnnoMenu: boolean;
-  showEverything: boolean;
+  editmode?: boolean;
+  showEditAnnoMenu: ()=> void;
+  showEverything?: boolean;
 }
 const AnnotationPanel = ({
   annotationFeature,
   editmode = true,
   selected,
-  showEditAnnoMenu = true,
+  showEditAnnoMenu,
   //   clickHandler = () => {},
   showEverything = false,
 }: AnnotationPanelProps) => {

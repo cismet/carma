@@ -302,12 +302,8 @@ const KassenzeichenViewer = () => {
     const hasAttachments = hasAttachment(kassenzeichen.aenderungsanfrage);
     return (
       <FlaechenPanel
-        // ref={(c) => {
-        //   flaechenPanelRefs.current[flaeche.id] = c;
-        // }}
         key={flaeche.id + "." + sel}
         selected={sel}
-        // flaechenPanelClickHandler={that.flaechenPanelClick}
         flaeche={flaeche}
         flaechenCR={flaechenCR ? flaechenCR : {}}
         editMode={uiState.changeRequestsEditMode}
@@ -338,9 +334,6 @@ const KassenzeichenViewer = () => {
       const ap = (
         <AnnotationPanel
           key={"AnnotationPanel." + JSON.stringify(annotationFeature)}
-          // ref={c => {
-          //     that.flaechenPanelRefs[annotationFeature.id] = c;
-          // }}
           annotationFeature={annotationFeature}
           selected={sel}
           showEditAnnoMenu={() => {
@@ -391,9 +384,7 @@ const KassenzeichenViewer = () => {
       <KassenzeichenFlaechenChartPanel orientation="vertical" />
     );
     kassenzeichenVerticalFlaechenChartsPanel = (
-      // <Flexbox height={"" + horizontalPanelHeight} minWidth={"" + horizontalPanelWidth}>
       <KassenzeichenFlaechenChartPanel orientation="horizontal" />
-      // </Flexbox>
     );
   }
 
@@ -461,7 +452,6 @@ const KassenzeichenViewer = () => {
             {contactPanel}
             {kassenzeichenPanel}
             {kassenzeichenVerticalFlaechenChartsPanel}
-            {/* {anComps} */}
             {flComps}
           </div>
         </div>
