@@ -5,7 +5,12 @@ import MaskedFormControl from "react-bootstrap-maskedinput";
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { getKassenzeichenbySTAC } from "../../store/slices/kassenzeichen";
-import { getLoginInProgress, getLoginInfoText } from "../../store/slices/auth";
+import {
+  getLoginInProgress,
+  getLoginInfoText,
+  getStac,
+  logout,
+} from "../../store/slices/auth";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getConfData, getUiState } from "../../store/slices/ui";
 import {
@@ -24,6 +29,7 @@ const VerdisOnlineLanding = () => {
   const [loginAlertVisible, setLoginAlertVisible] = useState(false);
   const [connectionProblem, setConnectionProblem] = useState(false);
   const dispatch = useDispatch();
+  const authStac = useSelector(getStac);
   const loginInProgress = useSelector(getLoginInProgress);
   const loginInfoText = useSelector(getLoginInfoText);
   const confData = useSelector(getConfData);
@@ -107,6 +113,22 @@ const VerdisOnlineLanding = () => {
 
   useEffect(() => {
     const interval = setInterval(() => checkNetworkConnection(), 2000);
+
+    const verificationCode = queryString.parse(
+      location.search
+    ).emailVerificationCode;
+
+    let stac = "";
+
+    if (verificationCode && authStac) {
+      //Check whether the user is already logged in
+      stac = authStac;
+    } else {
+      dispatch(logout() as unknown as UnknownAction);
+    }
+
+    setStac(stac);
+    handleStacChange(stac);
 
     return () => {
       return clearInterval(interval);
