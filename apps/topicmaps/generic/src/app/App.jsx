@@ -780,7 +780,33 @@ function App({ name }) {
                     </div>
                     <pre style={{ fontWeight: "bold", marginBottom: 8 }}>
                       config.json
+                      {(() => {
+                        const geoportalLink = getGeoportalLinkFromUrl();
+                        if (
+                          geoportalLink &&
+                          !geoportalLink.startsWith("http") &&
+                          geoportalConfig
+                        ) {
+                          const fetchUrl = `https://ceepr.cismet.de/config/wuppertal/_dev_geoportal/${geoportalConfig}`;
+                          return (
+                            <span> (based on <a
+                              href={fetchUrl}
+                              onClick={e => {
+                                e.preventDefault();
+                                window.open(fetchUrl, '_config');
+                              }}
+                              role="link"
+                              tabIndex={0}
+                              style={{ wordBreak: 'break-all', color: '#007bff', cursor: 'pointer', textDecoration: 'underline' }}
+                            >
+                              {geoportalLink}
+                            </a>)</span>
+                          );
+                        }
+                        return null;
+                      })()}
                     </pre>
+
                     <div
                       style={{
                         position: "relative",
