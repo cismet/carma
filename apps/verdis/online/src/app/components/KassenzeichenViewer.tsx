@@ -197,7 +197,7 @@ const KassenzeichenViewer = () => {
     );
   };
 
-  let selectedFlaeche = null;
+  let selectedFlaeche: GeometryFeature | null = null;
   if (mapping.selectedIndex !== undefined && mapping.selectedIndex !== -1) {
     selectedFlaeche = mapping.featureCollection[mapping.selectedIndex];
   }
