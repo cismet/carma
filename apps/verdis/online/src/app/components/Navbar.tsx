@@ -408,49 +408,72 @@ const VerdisOnlineAppNavbar = () => {
                   </a>
                 </li>
               </OverlayTrigger>
+              <li role="presentation">
+                {uiState.cloudStorageStatus ===
+                  CLOUDSTORAGESTATES.CLOUD_STORAGE_UP && (
+                  <a
+                    style={{
+                      color: "#9d9d9d",
+                      backgroundColor: "transparent",
+                      position: "relative",
+                      display: "block",
+                      padding: fixLeftPadding,
+                      lineHeight: "20px",
+                    }}
+                  >
+                    <FontAwesomeIcon icon={faCloudUploadAlt} />
+                    {menuIsHidden ? "   " + lblExit : ""}
+                  </a>
+                )}
+                {uiState.cloudStorageStatus ===
+                  CLOUDSTORAGESTATES.CLOUD_STORAGE_DOWN && (
+                  <a
+                    style={{
+                      color: "#9d9d9d",
+                      backgroundColor: "transparent",
+                      position: "relative",
+                      display: "block",
+                      padding: fixLeftPadding,
+                      lineHeight: "20px",
+                    }}
+                  >
+                    <FontAwesomeIcon icon={faCloudDownloadAlt} />
+                    {menuIsHidden ? "   " + lblExit : ""}
+                  </a>
+                )}
+                {uiState.cloudStorageStatus ===
+                  CLOUDSTORAGESTATES.CLOUD_STORAGE_ERROR && (
+                  <a
+                    style={{
+                      color: "#9d9d9d",
+                      backgroundColor: "transparent",
+                      position: "relative",
+                      display: "block",
+                      padding: fixLeftPadding,
+                      lineHeight: "20px",
+                    }}
+                  >
+                    <FontAwesomeIcon icon={faCloudRain} />
+                    {menuIsHidden ? "   " + lblExit : ""}
+                  </a>
+                )}
+                {uiState.cloudStorageStatus === undefined && (
+                  <a
+                    style={{
+                      color: "#9d9d9d",
+                      backgroundColor: "transparent",
+                      position: "relative",
+                      display: "block",
+                      padding: fixLeftPadding,
+                      lineHeight: "20px",
+                      width: 50,
+                    }}
+                  >
+                    {menuIsHidden ? "   " + lblExit : ""}
+                  </a>
+                )}
+              </li>
             </ul>
-            {/* <Nav className="ml-auto">
-              {uiState.cloudStorageStatus ===
-                CLOUDSTORAGESTATES.CLOUD_STORAGE_UP && (
-                <NavItem
-                  id="navitem_cloud"
-                  //   eventKey={4}
-                >
-                  <FontAwesomeIcon icon={faCloudUploadAlt} />
-                  {menuIsHidden ? '   ' + lblExit : ''}
-                </NavItem>
-              )}
-              {uiState.cloudStorageStatus ===
-                CLOUDSTORAGESTATES.CLOUD_STORAGE_DOWN && (
-                <NavItem
-                  id="navitem_cloud"
-                  //   eventKey={4}
-                >
-                  <FontAwesomeIcon icon={faCloudDownloadAlt} />
-                  {menuIsHidden ? '   ' + lblExit : ''}
-                </NavItem>
-              )}
-              {uiState.cloudStorageStatus ===
-                CLOUDSTORAGESTATES.CLOUD_STORAGE_ERROR && (
-                <NavItem
-                  id="navitem_cloud"
-                  //    eventKey={4}
-                >
-                  <FontAwesomeIcon icon={faCloudRain} />
-                  {menuIsHidden ? '   ' + lblExit : ''}
-                </NavItem>
-              )}
-              {uiState.cloudStorageStatus === undefined && (
-                <NavItem
-                  style={{ width: 50 }}
-                  id="navitem_cloud"
-                  // eventKey={4}
-                  // href="/#/"
-                >
-                  {menuIsHidden ? '   ' + lblExit : ''}
-                </NavItem>
-              )}
-            </Nav> */}
           </Navbar.Collapse>
         </Container>
       </Navbar>
