@@ -1,11 +1,14 @@
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { getKassenzeichen } from "../../store/slices/kassenzeichen";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faLockOpen } from "@fortawesome/free-solid-svg-icons";
 import { panelTitles } from "@carma-collab/wuppertal/verdis-online";
+import { fitAll } from "../../store/slices/mapping";
+import type { UnknownAction } from "redux";
 
 const KassenzeichenPanel = () => {
   const kassenzeichen = useSelector(getKassenzeichen);
+  const dispatch = useDispatch();
 
   const styleOverride = {
     marginBottom: "5px",
@@ -14,7 +17,7 @@ const KassenzeichenPanel = () => {
   return (
     <div
       className="gradient-bg-for-cards"
-      onClick={() => {}}
+      onClick={() => dispatch(fitAll() as unknown as UnknownAction)}
       style={{
         ...styleOverride,
         minHeight: 20,
@@ -39,7 +42,6 @@ const KassenzeichenPanel = () => {
           </tr>
         </tbody>
       </table>
-      {/* {d3} */}
     </div>
   );
 };
