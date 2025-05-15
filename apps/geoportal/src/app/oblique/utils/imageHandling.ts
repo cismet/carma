@@ -13,3 +13,40 @@ export function getPreviewImageUrl(
     isAvifLevel(level) ? "avif" : "jpg"
   }`;
 }
+
+export const getImageUrls = (
+  id: string | undefined,
+  path: string | undefined,
+  level: OBLIQUE_PREVIEW_QUALITY
+) => {
+  if (!id || !path || id.length === 0 || path.length === 0) {
+    return {
+      previewUrl: null,
+      previewUrlHq: null,
+      previewUrlOriginal: null,
+      downloadUrl: null,
+    };
+  }
+
+  const previewUrl = getPreviewImageUrl(path, level, id);
+
+  const previewUrlHq = getPreviewImageUrl(
+    path,
+    OBLIQUE_PREVIEW_QUALITY.LEVEL_2,
+    id
+  );
+
+  const previewUrlOriginal = getPreviewImageUrl(
+    path,
+    OBLIQUE_PREVIEW_QUALITY.LEVEL_1,
+    id
+  );
+
+  const downloadUrl = getPreviewImageUrl(
+    path,
+    OBLIQUE_PREVIEW_QUALITY.LEVEL_2,
+    id
+  );
+
+  return { previewUrl, previewUrlHq, previewUrlOriginal, downloadUrl };
+};

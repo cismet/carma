@@ -3,7 +3,6 @@ import { Cartesian3 } from "cesium";
 import {
   BasicObliqueImageRecord,
   ExteriorOrientationDataArray,
-  ExteriorOrientationRecord,
   ObliqueImageRecord,
   Proj4Converter,
 } from "../types";
@@ -14,13 +13,30 @@ import {
 } from "./orientationUtils";
 import type { Matrix3RowMajor } from "@carma-commons/types";
 
+// TODO: quite specific for the provided, should be more generic or standardized
+const unpackIdInfo = (id: string) => {
+  const [lineIdx, waypointIdx, imageDescription] = id.split("_");
+  const cameraId = imageDescription.slice(0, 3);
+  const photoIndex = parseInt(imageDescription.slice(3));
+  const stationId = `${lineIdx}_${waypointIdx}`;
+  const lineIndex = parseInt(lineIdx);
+  const waypointIndex = parseInt(waypointIdx);
+  return {
+    lineIndex,
+    waypointIndex,
+    cameraId,
+    photoIndex,
+    stationId,
+  };
+};
+
 export const extendObliqueImageRecord = (
   image: BasicObliqueImageRecord,
   { converter }: Proj4Converter,
   offset: number,
   fallbackDirectionConfig: Record<string, Record<string, CardinalDirectionEnum>>
 ): ObliqueImageRecord => {
-  const { x, y, z } = image.perspectiveCenter;
+  const { x, y, z } = image;
 
   // Use the provided converter directly instead of creating a new one
   const wgs84Coords = converter.forward([x, y, z]);
@@ -32,15 +48,12 @@ export const extendObliqueImageRecord = (
 
   // Calculate heading and sector if orientation data is available
   const sector = getCardinalDirectionByLineAndCameraId(
-    image.lineNumber,
+    image.lineIndex,
     image.cameraId,
     fallbackDirectionConfig
   );
 
   let flightPatternHeading = getApproximateHeadingBySector(sector, offset);
-
-  // Adjust the heading for the coordinate system if needed
-  //heading = adjustHeadingToWGS84(heading, image.perspectiveCenter, converter);
 
   const record: ObliqueImageRecord = {
     ...image,
@@ -55,7 +68,7 @@ export const extendObliqueImageRecord = (
 export const mapExtOriArrToRecord = (
   id: string,
   arr: ExteriorOrientationDataArray
-): ExteriorOrientationRecord => {
+): BasicObliqueImageRecord => {
   const x = arr[0];
   const y = arr[1];
   const z = arr[2];
@@ -63,8 +76,17 @@ export const mapExtOriArrToRecord = (
   const row1 = arr[4];
   const row2 = arr[5];
   const m: Matrix3RowMajor = [row0, row1, row2];
+
+  if (isNaN(x) || isNaN(y) || isNaN(z)) {
+    console.warn("invalid perspective center:", id, x, y, z);
+    return null;
+  }
+
+  const unpacked = unpackIdInfo(id);
+
   return {
     id,
+    ...unpacked,
     x,
     y,
     z,

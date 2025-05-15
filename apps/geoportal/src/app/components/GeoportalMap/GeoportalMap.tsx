@@ -11,6 +11,7 @@ import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplic
 
 import {
   TopicMapSelectionContent,
+  useFeatureFlags,
   useGazData,
   useSelectionCesium,
   useSelectionTopicMap,
@@ -168,9 +169,10 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const version = getApplicationVersion(versionData);
 
   // custom hooks
-
+  const flags = useFeatureFlags();
+  const { isDebugMode } = flags;
   const cesiumInitialCameraView = useCesiumInitialCameraFromSearchParams();
-  const { isObliqueMode } = useObliqueInitializer();
+  const { isObliqueMode } = useObliqueInitializer(isDebugMode);
 
   useDispatchSachdatenInfoText();
 

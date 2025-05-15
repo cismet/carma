@@ -3,11 +3,14 @@ import knn from "rbush-knn";
 
 import {
   cesiumSceneHasTweens,
+  isValidViewerInstance,
   useCesiumContext,
 } from "@carma-mapping/cesium-engine";
 
-import { getCardinalDirectionFromHeading } from "../utils/orientationUtils";
 import { useOrbitPoint } from "./useOrbitPoint";
+import { useOblique } from "./useOblique";
+
+import { getCardinalDirectionFromHeading } from "../utils/orientationUtils";
 import {
   calculatePointOnGround,
   calculatePointOnRadius,
@@ -16,15 +19,11 @@ import {
   calculateReferencePointFromOrbit,
   calculateImageCoordsFromCartesian,
 } from "../utils/obliqueReferenceUtils";
+import type { RBushItem } from "../utils/spatialIndexing";
+
+import type { NearestObliqueImageRecord } from "../types";
 
 import { NUM_NEAREST_IMAGES } from "../config";
-
-import { RBushItem, type RBushBySectorBlocks } from "../utils/spatialIndexing";
-import type {
-  NearestObliqueImageRecord,
-  ObliqueImageRecordMap,
-  Proj4Converter,
-} from "../types";
 
 interface UseObliqueNearestImageOptions {
   debounceTime?: number;
@@ -36,28 +35,27 @@ const defaultOptions: UseObliqueNearestImageOptions = {
   k: NUM_NEAREST_IMAGES,
 };
 
-/**
- * Hook to find the nearest oblique image to the current camera position
- */
 export function useObliqueNearestImage(
-  obliqueRecords: ObliqueImageRecordMap | null,
-  converter: Proj4Converter | null,
-  headingOffset: number,
-  centerpoints: RBushBySectorBlocks | null = null,
-  options: UseObliqueNearestImageOptions = defaultOptions,
-  lockFootprint: boolean = false
+  debug = false,
+  options: UseObliqueNearestImageOptions = defaultOptions
 ) {
   const { viewerRef } = useCesiumContext();
-  const orbitPoint = useOrbitPoint();
+  const lastSearchTimeRef = useRef<number>(0);
+  const {
+    converter,
+    headingOffset,
+    imageRecords,
+    setNearestImageDistance,
+    setNearestImageRefresh,
+    setNearestImage,
+    footprintCenterpointsRBushByCardinals,
+    isObliqueMode,
+  } = useOblique();
 
-  // State for values that need to be returned from the hook
-  const [nearestImage, setNearestImage] =
-    useState<NearestObliqueImageRecord | null>(null);
   const [nearestImages, setNearestImages] = useState<
     NearestObliqueImageRecord[]
   >([]);
 
-  const [distance, setDistance] = useState<number | null>(null);
   const [cameraPosition, setCameraPosition] = useState<[number, number]>([
     0, 0,
   ]);
@@ -76,21 +74,38 @@ export function useObliqueNearestImage(
   } | null>(null);
   const [sectorHeading, setSectorHeading] = useState<number>(0);
 
+  const orbitPoint = useOrbitPoint(isObliqueMode);
+
   // Function to refresh the search for nearest images
   const refreshSearch = useCallback(() => {
+    // Check if the search is enabled
+    if (!isObliqueMode) {
+      debug && console.debug("refreshSearch skipped - disabled");
+      return;
+    }
+
+    const viewer = viewerRef.current;
     if (
-      !viewerRef.current ||
-      !obliqueRecords ||
-      !obliqueRecords.size ||
+      !isValidViewerInstance(viewer) ||
+      !imageRecords ||
+      !imageRecords.size ||
       !converter ||
-      !orbitPoint ||
-      lockFootprint
+      !orbitPoint
     ) {
       return;
     }
 
+    const timeDelta = Date.now() - lastSearchTimeRef.current;
+    if (timeDelta < (options.debounceTime || defaultOptions.debounceTime)) {
+      debug && console.debug("Skipping refreshSearch");
+      return;
+    }
+    lastSearchTimeRef.current = Date.now();
+
+    debug && console.debug(" refreshSearch");
+
     try {
-      const camera = viewerRef.current.camera;
+      const camera = viewer.camera;
       const cartographic = camera.positionCartographic;
       if (!cartographic) return;
 
@@ -156,9 +171,11 @@ export function useObliqueNearestImage(
       };
       const k = options.k || defaultOptions.k;
 
+      const centerpoints = footprintCenterpointsRBushByCardinals;
+
       if (centerpoints && centerpoints.has(cameraCardinal)) {
         const sectorTree = centerpoints.get(cameraCardinal);
-        console.debug("sectorTree", sectorTree);
+        debug && console.debug("sectorTree", sectorTree);
         if (sectorTree) {
           try {
             // Use the pre-built spatial index for this sector
@@ -172,10 +189,10 @@ export function useObliqueNearestImage(
             // Map to records with distances - use obliqueRecords directly since it's already a Map
             filteredImages = nearestItems
               .map((item: RBushItem) => {
-                const record = obliqueRecords.get(item.id);
+                const record = imageRecords.get(item.id);
                 if (!record) return null;
 
-                const { x, y } = record.perspectiveCenter;
+                const { x, y } = record;
 
                 // Calculate distance directly to orbit center for more stable results
                 const dx = orbitPointTargetCrs.x - x;
@@ -221,39 +238,51 @@ export function useObliqueNearestImage(
         const nearestImageItem = filteredImages[0];
 
         setNearestImage(nearestImageItem);
-        setDistance(nearestImageItem.distanceOnGround);
+        setNearestImageDistance(nearestImageItem.distanceOnGround);
       } else {
         setNearestImage(null);
-        setDistance(null);
+        setNearestImageDistance(null);
       }
     } catch (error) {
       console.error("Error finding nearest oblique image:", error);
     }
   }, [
     viewerRef,
-    obliqueRecords,
+    imageRecords,
     converter,
     headingOffset,
     options.k,
+    options.debounceTime,
     orbitPoint,
-    centerpoints,
-    lockFootprint,
+    footprintCenterpointsRBushByCardinals,
+    setNearestImageDistance,
+    setNearestImage,
+    debug,
+    isObliqueMode,
   ]); // Include all dependencies for proper updates
 
   // Store timer ID in a ref to persist across renders
   const timerIdRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  useEffect(() => {
+    setNearestImageRefresh(refreshSearch);
+  }, [refreshSearch, setNearestImageRefresh]);
+
   // Setup camera movement listener
   useEffect(() => {
-    if (!viewerRef.current || !obliqueRecords || !obliqueRecords.size) {
+    const viewer = viewerRef.current;
+    // Don't set up camera listener if not enabled
+    if (
+      !isObliqueMode ||
+      !isValidViewerInstance(viewer) ||
+      !imageRecords ||
+      !imageRecords.size
+    ) {
       return;
     }
 
     // Refresh on mount
     refreshSearch();
-
-    // Refresh when camera moves
-    const viewer = viewerRef.current;
 
     // Create a stable handler function that doesn't change on every render
     const handleCameraMove = () => {
@@ -266,8 +295,12 @@ export function useObliqueNearestImage(
       }, options.debounceTime || defaultOptions.debounceTime);
     };
 
-    const removeListener =
-      viewer.camera.changed.addEventListener(handleCameraMove);
+    viewer.camera.changed.addEventListener(handleCameraMove);
+    const removeListener = () => {
+      if (isValidViewerInstance(viewer)) {
+        viewer.camera.changed.removeEventListener(handleCameraMove);
+      }
+    };
 
     return () => {
       removeListener();
@@ -276,14 +309,18 @@ export function useObliqueNearestImage(
         timerIdRef.current = null;
       }
     };
-  }, [viewerRef, obliqueRecords, refreshSearch, options.debounceTime]); // Include necessary dependencies
+  }, [
+    viewerRef,
+    imageRecords,
+    refreshSearch,
+    options.debounceTime,
+    isObliqueMode,
+  ]); // Include necessary dependencies
 
   // Use useMemo to create a stable return object that only changes when its dependencies change
   const returnValue = useMemo(
     () => ({
-      nearestImage,
       nearestImages,
-      distance,
       refreshSearch,
       cameraPosition,
       cameraHeading,
@@ -294,9 +331,7 @@ export function useObliqueNearestImage(
       sectorHeading,
     }),
     [
-      nearestImage,
       nearestImages,
-      distance,
       refreshSearch,
       cameraPosition,
       cameraHeading,

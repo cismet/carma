@@ -14,7 +14,6 @@ import {
   defined,
 } from "cesium";
 
-import { useFeatureFlags } from "@carma-apps/portals";
 import {
   useCesiumContext,
   polygonHierarchyFromPolygonCoords,
@@ -145,8 +144,6 @@ export const useFootprints = (): void => {
     footprintsStyle,
   } = useOblique();
 
-  const featureFlags = useFeatureFlags();
-  const { featureFlagDebugOblique: isDebug } = featureFlags;
   const { outlineColor, outlineOpacity, outlineWidth } = useMemo(() => {
     return {
       ...defaultFootprintsStyle,
@@ -331,13 +328,13 @@ export const useFootprints = (): void => {
       outlineEntityRef.current.show = true;
     } else {
       const outlineEntity = createOutlineEntity(polygonPositionsRef.current);
-      if (outlineEntity) {
+      if (isValidViewerInstance(viewer) && outlineEntity) {
         viewer.entities.add(outlineEntity);
         outlineEntityRef.current = outlineEntity;
       }
     }
     cesiumSafeRequestRender(viewer);
-  }, [viewerRef, isObliqueMode, nearestImage, footprintData, isDebug]);
+  }, [viewerRef, isObliqueMode, nearestImage, footprintData]);
 };
 
 export default useFootprints;

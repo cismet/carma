@@ -27,33 +27,41 @@ import type {
 } from "../types";
 
 import { useObliqueData } from "../hooks/useObliqueData";
-import { useObliqueNearestImage } from "../hooks/useObliqueNearestImage";
 
 import { CardinalDirectionEnum } from "../utils/orientationUtils";
-import { fetchGeoJson, FootprintProperties } from "../utils/footprintUtils";
-import {
-  RBushBySectorBlocks,
-  createRBushByCardinal,
-} from "../utils/spatialIndexing";
-import { getFootprintCenterpoints } from "../utils/footprintCenterpoints";
+import { FootprintProperties } from "../utils/footprintUtils";
+import { RBushBySectorBlocks } from "../utils/spatialIndexing";
 
 import { OBLIQUE_PREVIEW_QUALITY, OBLIQUE_STATE_KEYS } from "../constants";
-import { NUM_NEAREST_IMAGES } from "../config";
+import { createConverter } from "../utils/crsUtils";
 
 const DEBOUNCE_MS = 250; // time in milliseconds
 const DEBOUNCE_LEADING_EDGE = { leading: true, trailing: false };
-const NEAREST_IMAGE_DEBOUNCE_MS = 200;
 
 interface ObliqueContextType {
   isObliqueMode: boolean;
   toggleObliqueMode: () => void;
-  imageRecords: ObliqueImageRecordMap | null;
-  isLoading: boolean;
-  error: string | null;
-  nearestImage: NearestObliqueImageRecord | null;
-  distanceToNearestImage: number | null;
-  refreshNearestImageSearch: () => void;
   converter: Proj4Converter;
+
+  imageRecords: ObliqueImageRecordMap | null;
+  exteriorOrientations: ExteriorOrientations | null;
+  footprintData: FeatureCollection<Polygon, FootprintProperties> | null;
+  footprintCenterpointsRBushByCardinals: RBushBySectorBlocks | null;
+
+  nearestImage: NearestObliqueImageRecord | null;
+  setNearestImage: (image: NearestObliqueImageRecord | null) => void;
+  nearestImageDistance: number | null;
+  setNearestImageDistance: (distance: number | null) => void;
+
+  nearestImageRefresh: () => void | null;
+  setNearestImageRefresh: (refresh: () => void | null) => void;
+  lockFootprint: boolean;
+  setLockFootprint: (value: boolean) => void;
+
+  isLoading: boolean;
+  isAllDataReady: boolean;
+  error: string | null;
+
   previewQualityLevel: OBLIQUE_PREVIEW_QUALITY;
   previewPath: string;
   fixedPitch: number;
@@ -61,14 +69,7 @@ interface ObliqueContextType {
   minFov: number;
   maxFov: number;
   headingOffset: number;
-  exteriorOrientations: ExteriorOrientations | null;
-  footprintData: FeatureCollection<Polygon, FootprintProperties> | null;
-  footprintCenterpointsRBushByCardinals: RBushBySectorBlocks | null;
-  isFootprintLoading: boolean;
-  footprintError: string | null;
-  isAllDataReady: boolean;
-  lockFootprint: boolean;
-  setLockFootprint: (value: boolean) => void;
+
   animations: ObliqueAnimationsConfig;
   footprintsStyle: ObliqueFootprintsStyle;
   imagePreviewStyle: ObliqueImagePreviewStyle;
@@ -87,13 +88,6 @@ interface ObliqueProviderProps {
   >;
 }
 
-const fetchExteriorOrientationsJson = async (
-  url: string
-): Promise<ExteriorOrientations> => {
-  const response = await fetch(url);
-  return response.json();
-};
-
 export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   children,
   config,
@@ -101,8 +95,15 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
 }) => {
   const [isObliqueMode, setIsObliqueMode] = useState<boolean>(false);
   const [lockFootprint, setLockFootprint] = useState(false);
+  const [nearestImage, setNearestImage] =
+    useState<NearestObliqueImageRecord | null>(null);
+  const [nearestImageDistance, setNearestImageDistance] = useState<
+    number | null
+  >(null);
+  const [nearestImageRefresh, setNearestImageRefresh] =
+    useState<() => void | null>(null);
+
   const {
-    orientationsURI,
     exteriorOrientationsURI,
     footprintsURI,
     crs,
@@ -118,48 +119,28 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     imagePreviewStyle,
   } = config;
 
-  const {
-    imageRecordMap: imageRecords,
-    parseCSV,
-    isLoading,
-    converter,
-    error,
-  } = useObliqueData(
-    orientationsURI,
-    crs,
-    headingOffset,
-    fallbackDirectionConfig
-  );
-
   const { pathname } = useLocation();
 
   // Store when data has been previously loaded to prevent duplicate loads
-  const [dataLoaded, setDataLoaded] = useState(false);
 
-  const [footprintData, setFootprintData] = useState<FeatureCollection<
-    Polygon,
-    FootprintProperties
-  > | null>(null);
-  const [
+  const converter = useMemo(() => createConverter(crs, "EPSG:4326"), [crs]);
+
+  const {
+    imageRecordMap: imageRecords,
+    isLoading,
+    isAllDataReady,
+    exteriorOrientations,
     footprintCenterpointsRBushByCardinals,
-    setFootprintCenterpointsRBushByCardinals,
-  ] = useState<RBushBySectorBlocks | null>(null);
-  const [exteriorOrientations, setExteriorOrientations] =
-    useState<ExteriorOrientations | null>(null);
-  const [isFootprintLoading, setIsFootprintLoading] = useState(false);
-  const [isExtOriLoading, setIsExtOriLoading] = useState(false);
-
-  const { nearestImage, distance, refreshSearch } = useObliqueNearestImage(
-    imageRecords,
+    footprintData,
+    error,
+  } = useObliqueData(
+    isObliqueMode,
+    exteriorOrientationsURI,
+    footprintsURI,
     converter,
     headingOffset,
-    footprintCenterpointsRBushByCardinals,
-    { debounceTime: NEAREST_IMAGE_DEBOUNCE_MS, k: NUM_NEAREST_IMAGES },
-    lockFootprint
+    fallbackDirectionConfig
   );
-
-  const [footprintError, setFootprintError] = useState<string | null>(null);
-  const [isAllDataReady, setIsAllDataReady] = useState(false);
 
   const performToggleAction = useCallback(() => {
     setIsObliqueMode((prevMode: boolean) => {
@@ -184,100 +165,33 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     [performToggleAction]
   );
 
-  // Only load data when oblique mode is enabled and not already loaded
-  useEffect(() => {
-    let isMounted = true;
-
-    if (isObliqueMode && !isLoading && !dataLoaded) {
-      // Load the CSV data only once
-      parseCSV()
-        .then(() => {
-          if (isMounted) {
-            setDataLoaded(true);
-          }
-        })
-        .catch((error) => {
-          console.error("Error loading oblique data:", error);
-        });
-    }
-
-    return () => {
-      isMounted = false;
-    };
-  }, [isObliqueMode, parseCSV, isLoading, dataLoaded]);
-
   // Trigger nearest image search when data is loaded
   useEffect(() => {
     if (
       imageRecords &&
-      imageRecords.size > 0 &&
       isObliqueMode &&
-      !lockFootprint
+      !lockFootprint &&
+      typeof nearestImageRefresh === 'function'
     ) {
-      refreshSearch();
+      // TODO: check if this ever needed, remove if not
+      nearestImageRefresh();
     }
-  }, [imageRecords, isObliqueMode, refreshSearch, lockFootprint]);
-
-  useEffect(() => {
-    if (!isObliqueMode || !footprintsURI) return;
-
-    setIsFootprintLoading(true);
-    setFootprintError(null);
-
-    fetchGeoJson(footprintsURI)
-      .then((data: FeatureCollection<Polygon, FootprintProperties>) => {
-        setFootprintData(data);
-        const footprintCenterpoints = getFootprintCenterpoints(data, converter);
-        const footprintCenterpointsRBushByCardinals = createRBushByCardinal(
-          footprintCenterpoints
-        );
-        setFootprintCenterpointsRBushByCardinals(
-          footprintCenterpointsRBushByCardinals
-        );
-        setIsFootprintLoading(false);
-      })
-      .catch((error) => {
-        console.error("Error loading footprint data:", error);
-        setFootprintError(error.message);
-        setIsFootprintLoading(false);
-      });
-  }, [isObliqueMode, converter, footprintsURI]);
-
-  // Load exterior orientations data when in oblique mode
-  useEffect(() => {
-    if (!isObliqueMode || !exteriorOrientationsURI) return;
-
-    setIsExtOriLoading(true);
-
-    fetchExteriorOrientationsJson(exteriorOrientationsURI)
-      .then((data: ExteriorOrientations) => {
-        setExteriorOrientations(data);
-        setIsExtOriLoading(false);
-      })
-      .catch((error) => {
-        console.error("Error loading exterior orientations data:", error);
-        setIsExtOriLoading(false);
-      });
-  }, [isObliqueMode, exteriorOrientationsURI]);
-
-  // Update global loading state when all data is ready
-  useEffect(() => {
-    if (dataLoaded && !isFootprintLoading && !isExtOriLoading && !isLoading) {
-      setIsAllDataReady(true);
-    } else {
-      setIsAllDataReady(false);
-    }
-  }, [dataLoaded, isFootprintLoading, isExtOriLoading, isLoading]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [imageRecords, isObliqueMode, nearestImageRefresh, lockFootprint]);
 
   const value = {
     isObliqueMode,
-    toggleObliqueMode,
     imageRecords,
     isLoading,
+    isAllDataReady,
     error,
+    nearestImageDistance,
+    setNearestImageDistance,
+    nearestImageRefresh,
+    setNearestImageRefresh,
+    toggleObliqueMode,
     nearestImage,
-    distanceToNearestImage: distance,
-    refreshNearestImageSearch: refreshSearch,
+    setNearestImage,
     converter,
     previewPath,
     previewQualityLevel,
@@ -289,14 +203,11 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     exteriorOrientations,
     footprintData,
     footprintCenterpointsRBushByCardinals,
-    isFootprintLoading,
-    footprintError,
-    isAllDataReady,
     lockFootprint,
+    setLockFootprint,
     animations,
     footprintsStyle,
     imagePreviewStyle,
-    setLockFootprint,
   };
 
   return (

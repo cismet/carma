@@ -665,7 +665,7 @@ const MapWrapper = () => {
         </>
       )}
       <ControlLayoutCanvas>
-        <ObliqueControls />
+        {!isMode2d && <ObliqueControls />}
 
         <div
           id="mapContainer"

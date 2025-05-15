@@ -1,6 +1,5 @@
 const OBLIQUE_ENDPOINT = `https://wupp-oblique.cismet.de`;
 
-export const OBLIQUE_2024_ORIENTATIONS_CSV_URI = `${OBLIQUE_ENDPOINT}/2024/metadata/orientation.csv`;
 export const OBLIQUE_2024_EXT_ORI_UTM32_URI = `${OBLIQUE_ENDPOINT}/2024/metadata/exterior_orientations_utm32.noNadir.json`;
 
 export const OBLIQUE_2024_FPRFC_GEOJSON_URI = `${OBLIQUE_ENDPOINT}/2024/metadata/fprfc.geojson`;

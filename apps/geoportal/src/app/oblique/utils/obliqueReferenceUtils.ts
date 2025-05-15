@@ -98,32 +98,3 @@ export function calculateOrbitPointCoords(
 
   return calculateImageCoordsFromCartesian(orbitPoint, converterObj);
 }
-
-export interface Orientation {
-  omega: number;
-  phi: number;
-  kappa: number;
-}
-
-export function calculateCustomHeading(orientation: Orientation): number {
-  const { omega, phi } = orientation; // kappa not used in this calculation
-  // Calculate rotation matrix elements
-  const sinOmega = Math.sin(omega);
-  const sinPhi = Math.sin(phi);
-  const cosPhi = Math.cos(phi);
-
-  // Calculate rotation matrix elements based on convention
-  // "xForward" X-axis forward, Z-up
-  const r31 = sinPhi;
-  const r32 = -sinOmega * cosPhi;
-
-  // Apply fixed sign combination: r31 = +1, r32 = -1
-  const customR31 = r31;
-  const customR32 = -r32;
-
-  // Calculate heading with fixed signs
-  const heading = Math.atan2(customR32, customR31);
-
-  // Normalize to [0, 2π)
-  return ((heading % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-}

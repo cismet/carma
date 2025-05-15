@@ -1,6 +1,6 @@
 import { Cartesian3, Ellipsoid, Matrix4, Transforms } from "cesium";
 import type { Matrix3RowMajor, Vector3Arr } from "@carma-commons/types";
-import type { ExteriorOrientationRecord, Proj4Converter } from "../types";
+import type { ObliqueImageRecord, Proj4Converter } from "../types";
 import { calculateUTMConvergence } from "./utmConvergence";
 
 const negateRow = <T extends readonly number[]>(
@@ -81,7 +81,7 @@ const correctForUTMConvergence = (
 };
 
 export const computeDerivedExteriorOrientation = (
-  record: ExteriorOrientationRecord,
+  record: ObliqueImageRecord,
   { converter, sourceCrs }: Proj4Converter,
   upMapping: { rowIndex: number; negate: boolean } = {
     rowIndex: 1,

@@ -4,9 +4,9 @@ interface MoreData {
   kid?: number;
   v?: string;
   g?: {
-    type: 'Polygon';
+    type: "Polygon";
     crs?: {
-      type: 'name';
+      type: "name";
       properties: {
         name: string;
       };

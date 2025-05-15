@@ -61,17 +61,12 @@ export function getHeadingFromCardinalDirection(
   return CesiumMath.zeroToTwoPi(direction * CesiumMath.PI_OVER_TWO);
 }
 
-const isOddFlightLine = (flightLine: string): boolean => {
-  return parseInt(flightLine) % 2 !== 0;
-};
-
 export function getCardinalDirectionByLineAndCameraId(
-  flightLine: string,
+  flightLine: number,
   cameraId: string,
   directionConfig: Record<string, Record<string, CardinalDirectionEnum>>
 ): CardinalDirectionEnum {
-  const direction =
-    directionConfig[isOddFlightLine(flightLine) ? "ODD" : "EVEN"];
+  const direction = directionConfig[flightLine % 2 === 1 ? "ODD" : "EVEN"];
   return direction[cameraId];
 }
 
