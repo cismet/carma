@@ -3,8 +3,16 @@ interface MoreData {
   pid: number;
   kid?: number;
   v?: string;
-  // use any for now to fix build. change it to proper type afterwards
-  g?: any;
+  g?: {
+    type: 'Polygon';
+    crs?: {
+      type: 'name';
+      properties: {
+        name: string;
+      };
+    };
+    coordinates: number[][][];
+  };
 }
 export interface SearchResultItem {
   sorter: number;
