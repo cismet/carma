@@ -169,7 +169,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
   }
 
   const scrollToVisible = (ref) => {
-    if (ref && ref.current && emailSettingsShown) {
+    if (ref && ref.current && !emailSettingsShown) {
       ref.current.scrollIntoView({
         behavior: "smooth",
         block: "end",
@@ -206,7 +206,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
   const close = () => {
     setLocked(true);
     dispatch(showChangeRequestsMenu(false));
-    // setEmailSettingsShown(false);
+    setEmailSettingsShown(false);
   };
 
   const changeEmail = (email) => {
