@@ -91,7 +91,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const { derivedExteriorOrientationRef } =
     useExteriorOrientation(nearestImage);
 
-  useFootprints();
+  useFootprints(isDebugMode);
 
   const { downloadUrl, previewUrl, previewUrlHq, previewUrlOriginal } = useMemo(
     () => getImageUrls(photoId, previewPath, previewQualityLevel),

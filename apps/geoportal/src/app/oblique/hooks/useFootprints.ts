@@ -1,4 +1,4 @@
-import { MutableRefObject, useEffect, useMemo, useRef } from "react";
+import { MutableRefObject, useEffect, useRef } from "react";
 
 import {
   Color,
@@ -8,12 +8,12 @@ import {
   CallbackProperty,
   EasingFunction,
   PolylineGraphics,
-  Math as CesiumMath,
   type Cartesian3,
   Viewer,
   defined,
 } from "cesium";
 
+import { useMemoMergedDefaultOptions } from "@carma-commons/utils";
 import {
   useCesiumContext,
   polygonHierarchyFromPolygonCoords,
@@ -27,23 +27,17 @@ import {
   type FootprintFeature,
 } from "../utils/footprintUtils";
 import type { ObliqueFootprintsStyle } from "../types";
-
-interface AnimationState<T> {
-  isAnimating: boolean;
-  startTime: number | null;
-  startValue: T;
-  targetValue: T;
-  onComplete?: () => void;
-  duration: number;
-  delay?: number;
-  easingFunction: (time: number) => number;
-}
+import {
+  AnimationState,
+  createAnimationState,
+  processAnimation,
+  startAnimation,
+} from "../utils/animateUnitValue";
 
 type OpacityAnimationState = AnimationState<number>;
 
 const OBLIQUE_DATASOURCE_PREFIX = "oblq-footprint";
 const FOOTPRINT_OUTLINE_ID = "oblq-footprint-outline";
-const DEFAULT_ANIMATION_DURATION = 500; // milliseconds
 
 const defaultFootprintsStyle: ObliqueFootprintsStyle = {
   outlineColor: Color.WHITE,
@@ -51,89 +45,21 @@ const defaultFootprintsStyle: ObliqueFootprintsStyle = {
   outlineOpacity: 1,
 };
 
-function createAnimationState<T>(
-  params: Partial<AnimationState<T>> & { startValue: T; targetValue: T }
-): AnimationState<T> {
-  return {
-    isAnimating: false,
-    startTime: null,
-    duration: DEFAULT_ANIMATION_DURATION,
-    delay: 0,
-    easingFunction: EasingFunction.LINEAR_NONE,
-    ...params,
-  };
-}
-
-/**
- * Generic animation processor that updates an animation state and returns the interpolated value
- */
-function processAnimation<T extends number>(
-  animState: AnimationState<T>,
-  viewer: unknown
-): T {
-  if (!animState.isAnimating || animState.startTime === null) {
-    return animState.targetValue;
-  }
-
-  const elapsed =
-    performance.now() - animState.startTime - (animState.delay || 0);
-  const duration = animState.duration;
-  const progress = CesiumMath.clamp(elapsed / duration, 0, 1);
-  const easedProgress = animState.easingFunction(progress);
-  // Calculate interpolated value
-  const newValue =
-    animState.startValue +
-    (animState.targetValue - animState.startValue) * easedProgress;
-
-  // Check for animation completion
-  if (progress >= 1) {
-    animState.isAnimating = false;
-    animState.onComplete && animState.onComplete();
-  }
-
-  cesiumSafeRequestRender(viewer);
-
-  return newValue as T;
-}
-
-/**
- * Starts an animation with the provided parameters
- */
-function startAnimation<T extends number>(
-  animState: AnimationState<T>,
-  startValue: T,
-  targetValue: T,
-  options?: Partial<AnimationState<T>>
-): void {
-  // Skip animation if the values are already very close
-  if (Math.abs(startValue - targetValue) < 0.1) {
-    animState.targetValue = targetValue;
-    animState.isAnimating = false;
-    return;
-  }
-
-  animState.startValue = startValue;
-  animState.targetValue = targetValue;
-  animState.startTime = performance.now();
-  animState.isAnimating = true;
-
-  // Apply any additional options
-  if (options) {
-    Object.assign(animState, options);
-  }
-}
-
 const cleanupOutlineEntity = (
-  viewer: Viewer,
-  ref: MutableRefObject<Entity | null>
+  viewerRef: MutableRefObject<Viewer | null>,
+  ref: MutableRefObject<Entity | null>,
+  debug = false
 ) => {
+  const viewer = viewerRef.current;
   if (isValidViewerInstance(viewer) && defined(viewer.entities)) {
+    debug && console.log(`Oblique Footprints: Removing outline entity`);
     viewer.entities.removeById(FOOTPRINT_OUTLINE_ID);
     ref.current = null;
+    cesiumSafeRequestRender(viewer);
   }
 };
 
-export const useFootprints = (): void => {
+export const useFootprints = (debug = false): void => {
   const { viewerRef } = useCesiumContext();
   const {
     isObliqueMode,
@@ -144,22 +70,16 @@ export const useFootprints = (): void => {
     footprintsStyle,
   } = useOblique();
 
-  const { outlineColor, outlineOpacity, outlineWidth } = useMemo(() => {
-    return {
-      ...defaultFootprintsStyle,
-      ...(footprintsStyle || {}),
-    };
-  }, [footprintsStyle]);
+  const { outlineColor, outlineOpacity, outlineWidth } =
+    useMemoMergedDefaultOptions(footprintsStyle, defaultFootprintsStyle);
 
   const animationDuration = animations?.outlineFadeOut?.duration ?? 1000;
   const animationDelay = animations?.outlineFadeOut?.delay ?? 0;
   const animationEasing =
     animations?.outlineFadeOut?.easingFunction || EasingFunction.LINEAR_NONE;
 
-  // Common refs
   const lastImageIdRef = useRef<string | null>(null);
   const outlineEntityRef = useRef<Entity | null>(null);
-  const polygonPositionsRef = useRef<Cartesian3[]>([]);
   const prevObliqueMode = useRef<boolean>(isObliqueMode);
 
   const opacityAnimationRef = useRef<OpacityAnimationState>(
@@ -172,137 +92,137 @@ export const useFootprints = (): void => {
     })
   );
 
-  const cleanupEntities = (viewer: Viewer) => {
-    cleanupOutlineEntity(viewer, outlineEntityRef);
-    cesiumSafeRequestRender(viewer);
-  };
-
-  const createOpacityCallbackProperty = () => {
-    return new CallbackProperty(() => {
-      const newOpacity = processAnimation(
-        opacityAnimationRef.current,
-        viewerRef.current
-      );
-
-      // If opacity is 0, hide the outline entity completely
-      if (Math.abs(newOpacity) < 0.01 && outlineEntityRef.current) {
-        outlineEntityRef.current.show = false;
-      }
-
-      return outlineColor.withAlpha(newOpacity);
-    }, false);
-  };
-
   // Clean up entities when component unmounts
   useEffect(() => {
-    // Clean up entities when the component unmounts
-    const viewer = viewerRef.current;
     return () => {
-      cleanupEntities(viewer);
+      cleanupOutlineEntity(viewerRef, outlineEntityRef, debug);
     };
-  }, []);
+  }, [debug, viewerRef]);
 
   useEffect(() => {
     // If we're leaving oblique mode, trigger exit animation then clean up the footprint
     if (prevObliqueMode.current && !isObliqueMode) {
       // Always clean up the outline immediately
-      cleanupEntities(viewerRef.current);
+      cleanupOutlineEntity(viewerRef, outlineEntityRef, debug);
     }
     prevObliqueMode.current = isObliqueMode;
-  }, [isObliqueMode, viewerRef]);
+  }, [isObliqueMode, viewerRef, debug]);
 
-  // Update animation configuration when it changes
   useEffect(() => {
     opacityAnimationRef.current.duration = animationDuration;
     opacityAnimationRef.current.delay = animationDelay;
     opacityAnimationRef.current.easingFunction = animationEasing;
   }, [animationDuration, animationDelay, animationEasing]);
 
-  // Handle the height transition when lockFootprint changes
   useEffect(() => {
     const viewer = viewerRef.current;
     if (!viewer) return;
 
-    // Handle outline entity opacity
+    // When lockFootprint is set, start fade-out animation with a completion callback to clean up
     if (outlineEntityRef.current && outlineEntityRef.current.polyline) {
       if (lockFootprint) {
-        // When entering locked mode - animate opacity to 0
-        startAnimation(opacityAnimationRef.current, outlineOpacity, 0.0);
-      } else {
+        startAnimation(opacityAnimationRef.current, outlineOpacity, 0.0, {
+          forceStart: true,
+          onComplete: () => {
+            // Remove entity completely when animation finishes
+            cleanupOutlineEntity(viewerRef, outlineEntityRef, debug);
+            // Reset lastImageIdRef to null to force recreation on unlock
+            lastImageIdRef.current = null;
+          },
+        });
+      } else if (lastImageIdRef.current === null && nearestImage) {
+        // Coming back from locked state - we'll recreate the entity
+        // by setting lastImageIdRef to null to force the next effect to run
         lastImageIdRef.current = null;
-        // When leaving locked mode - set opacity to 1 instantly
-        if (
-          outlineEntityRef.current.polyline.material instanceof
-          ColorMaterialProperty
-        ) {
-          // Set opacity to 1 immediately
-          (
-            outlineEntityRef.current.polyline.material as ColorMaterialProperty
-          ).color = new ConstantProperty(
-            outlineColor.withAlpha(outlineOpacity)
-          );
-        }
-
-        // Ensure visibility is set
-        outlineEntityRef.current.show = true;
-
-        // Reset animation flags to prevent transition
-        opacityAnimationRef.current.isAnimating = false;
-        opacityAnimationRef.current.startTime = null;
-        opacityAnimationRef.current.targetValue = outlineOpacity;
       }
     }
     cesiumSafeRequestRender(viewer);
   }, [
     lockFootprint,
-    viewerRef,
-    animationDuration,
-    animationEasing,
     outlineOpacity,
     outlineColor,
+    viewerRef,
+    nearestImage,
+    debug,
   ]);
-
-  const createOutlineEntity = (positions: Cartesian3[]) => {
-    if (!positions || positions.length === 0) return null;
-
-    // Close the loop by adding the first position to the end
-    const outlinePositions = [...positions, positions[0]];
-
-    return new Entity({
-      id: FOOTPRINT_OUTLINE_ID,
-      name: `${OBLIQUE_DATASOURCE_PREFIX}-outline-${
-        nearestImage?.record.id || ""
-      }`,
-      show: true, // Always show initially, opacity will control visibility
-      polyline: new PolylineGraphics({
-        positions: outlinePositions,
-        width: new ConstantProperty(outlineWidth),
-        material: new ColorMaterialProperty(createOpacityCallbackProperty()),
-        clampToGround: new ConstantProperty(true),
-      }),
-    });
-  };
 
   useEffect(() => {
     const viewer = viewerRef.current;
 
-    if (!viewer || !nearestImage || !footprintData) {
+    if (
+      !isValidViewerInstance(viewer) ||
+      !nearestImage ||
+      !footprintData ||
+      !isObliqueMode
+    ) {
       return;
     }
 
-    if (!isObliqueMode) {
-      cleanupEntities(viewer);
-      lastImageIdRef.current = null;
+    // If footprint is locked, don't create a new entity
+    if (lockFootprint) {
       return;
     }
 
-    if (nearestImage.record.id === lastImageIdRef.current) {
+    const currentImageId = nearestImage.record.id;
+    const sameImage = lastImageIdRef.current === currentImageId;
+
+    // Only clean up and recreate entity if:
+    // 1. It's a new image
+    // 2. We don't already have an entity
+    if (sameImage && outlineEntityRef.current) {
+      // If it's the same image and we already have an entity, no need to recreate
       return;
     }
 
-    lastImageIdRef.current = nearestImage.record.id;
+    lastImageIdRef.current = currentImageId;
 
-    cleanupEntities(viewer);
+    // Clean up any existing entity
+    cleanupOutlineEntity(viewerRef, outlineEntityRef, debug);
+
+    const createOpacityCallbackProperty = () => {
+      return new CallbackProperty(() => {
+        const newOpacity = processAnimation(
+          opacityAnimationRef.current,
+          viewerRef.current
+        );
+
+        // If opacity is near zero, remove the entity completely instead of just hiding it
+        if (Math.abs(newOpacity) < 0.01 && outlineEntityRef.current) {
+          debug &&
+            console.log(
+              `Oblique Footprints: Animation complete, removing outline entity`
+            );
+          requestAnimationFrame(() => {
+            // Delay to no conflict with current updates, Remove the entity completely
+            cleanupOutlineEntity(viewerRef, outlineEntityRef, debug);
+          });
+        }
+        return outlineColor.withAlpha(newOpacity);
+      }, false);
+    };
+
+    const createOutlineEntity = (positions: Cartesian3[]) => {
+      if (!positions || positions.length === 0) return null;
+
+      // Close the loop by adding the first position to the end
+      const outlinePositions = [...positions, positions[0]];
+
+      debug && console.log(`Oblique Footprints: Creating outline entity`);
+
+      return new Entity({
+        id: FOOTPRINT_OUTLINE_ID,
+        name: `${OBLIQUE_DATASOURCE_PREFIX}-outline-${
+          nearestImage?.record.id || ""
+        }`,
+        show: true,
+        polyline: new PolylineGraphics({
+          positions: outlinePositions,
+          width: new ConstantProperty(outlineWidth),
+          material: new ColorMaterialProperty(createOpacityCallbackProperty()),
+          clampToGround: new ConstantProperty(true),
+        }),
+      });
+    };
 
     const matchingFeature = findMatchingFeature(
       footprintData.features as FootprintFeature[],
@@ -319,22 +239,37 @@ export const useFootprints = (): void => {
     // Get polygon hierarchy for use in both entities
     const polygonHierarchy = polygonHierarchyFromPolygonCoords(polygonCoords);
 
-    // Store the polygon positions for later use with the outline
     if (polygonHierarchy.positions && polygonHierarchy.positions.length > 0) {
-      polygonPositionsRef.current = [...polygonHierarchy.positions];
-    }
+      // Create fresh animation state for this entity
+      opacityAnimationRef.current = createAnimationState({
+        startValue: outlineOpacity,
+        targetValue: outlineOpacity,
+        duration: animationDuration,
+        delay: animationDelay,
+        easingFunction: animationEasing,
+      });
 
-    if (outlineEntityRef.current) {
-      outlineEntityRef.current.show = true;
-    } else {
-      const outlineEntity = createOutlineEntity(polygonPositionsRef.current);
-      if (isValidViewerInstance(viewer) && outlineEntity) {
+      if (isValidViewerInstance(viewer)) {
+        const outlineEntity = createOutlineEntity(polygonHierarchy.positions);
         viewer.entities.add(outlineEntity);
         outlineEntityRef.current = outlineEntity;
       }
     }
     cesiumSafeRequestRender(viewer);
-  }, [viewerRef, isObliqueMode, nearestImage, footprintData]);
+  }, [
+    viewerRef,
+    isObliqueMode,
+    nearestImage,
+    footprintData,
+    outlineWidth,
+    outlineColor,
+    outlineOpacity,
+    lockFootprint,
+    animationDuration,
+    animationDelay,
+    animationEasing,
+    debug,
+  ]);
 };
 
 export default useFootprints;
