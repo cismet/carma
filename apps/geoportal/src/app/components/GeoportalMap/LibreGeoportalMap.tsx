@@ -20,7 +20,6 @@ import {
 import {
   getBackgroundLayer,
   getLayers,
-  getLayersIdle,
   setLibreMapRef,
 } from "../../store/slices/mapping";
 import {
@@ -36,13 +35,13 @@ import {
 import store from "../../store";
 import {
   addMarkerToMap,
+  changeWmsVisibility,
   createFeature,
   layersToMapLibreStyle,
 } from "./libremap.utils";
 import "./LibreGeoportalMap.css";
 import { useLocation } from "react-router-dom";
 import { getUIMode, UIMode } from "../../store/slices/ui";
-import { Control } from "@carma-mapping/map-controls-layout";
 import LibreFeatureInfoBox from "../feature-info/LibreFeatureInfoBox";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import { proj4crs3857def, proj4crs4326def } from "../../helper/gisHelper.js";
@@ -51,7 +50,7 @@ const LibreGeoportalMap = () => {
   const [globalHits, setGlobalHits] = useState({});
   const [foundFeatures, setFoundFeatures] = useState({});
   const [pos, setPos] = useState<[number, number]>([0, 0]);
-  const [isIdle, setIsIdle] = useState(false);
+  const isIdleRef = useRef(false);
 
   const dispatch = useDispatch();
   const { pathname } = useLocation();
@@ -85,7 +84,10 @@ const LibreGeoportalMap = () => {
   const layers = useSelector(getLayers);
   const backgroundLayer = useSelector(getBackgroundLayer);
 
-  const onComplete = (selection: SelectionItem) => {
+  const onComplete = (
+    selection: SelectionItem,
+    triggerVisibilityChange?: boolean
+  ) => {
     if (layers.filter((l) => l.layerType === "vector").length === 0) return;
     if (
       (uiMode === UIMode.DEFAULT || uiMode === UIMode.FEATURE_INFO) &&
@@ -95,27 +97,29 @@ const LibreGeoportalMap = () => {
         selection.x,
         selection.y,
       ]);
-      if (isIdle) {
+      if (isIdleRef.current) {
         if (map.current) {
-          setTimeout(() => {
-            map.current.fire("click", {
-              lngLat: {
-                lat: selectedPos[1],
-                lng: selectedPos[0],
-              },
-              target: map.current,
-              type: "click",
-              point: map.current.project([selectedPos[1], selectedPos[0]]),
-              originalEvent: {
-                preventDefault: () => {},
-                stopPropagation: () => {},
-              },
-            });
-          }, 400);
+          changeWmsVisibility(map.current, layers, backgroundLayer, true);
+          map.current.fire("click", {
+            lngLat: {
+              lat: selectedPos[1],
+              lng: selectedPos[0],
+            },
+            target: map.current,
+            type: "click",
+            point: map.current.project([selectedPos[1], selectedPos[0]]),
+            originalEvent: {
+              preventDefault: () => {},
+              stopPropagation: () => {},
+            },
+          });
         }
       } else {
+        if (triggerVisibilityChange) {
+          changeWmsVisibility(map.current, layers, backgroundLayer, false);
+        }
         setTimeout(() => {
-          onComplete(selection);
+          onComplete(selection, false);
         }, 20);
       }
     }
@@ -227,11 +231,11 @@ const LibreGeoportalMap = () => {
       dispatch(setLibreMapRef(map));
 
       map.current.on("idle", () => {
-        setIsIdle(true);
+        isIdleRef.current = true;
       });
 
       map.current.on("move", () => {
-        setIsIdle(false);
+        isIdleRef.current = false;
       });
 
       map.current.on("click", (e) => {

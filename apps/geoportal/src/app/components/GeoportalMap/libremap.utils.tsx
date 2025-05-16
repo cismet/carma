@@ -26,6 +26,26 @@ const getPaintProperty = (layerStyle: LayerSpecification) => {
   }
 };
 
+export const changeWmsVisibility = (
+  map: maplibregl.Map,
+  layers: Layer[],
+  backgroundLayer: BackgroundLayer,
+  visible: boolean
+) => {
+  map.style.stylesheet.layers.forEach((layer) => {
+    if (layer.type === "raster") {
+      const layerName = layer.id.replace("source-", "");
+      const carmaLayer = layers.find((l) => layerName.startsWith(l.id));
+      let showLayer = carmaLayer?.visible ?? backgroundLayer.visible;
+      map.setLayoutProperty(
+        layer.id,
+        "visibility",
+        visible && showLayer ? "visible" : "none"
+      );
+    }
+  });
+};
+
 export const layersToMapLibreStyle = async (
   backgroundLayer: BackgroundLayer,
   layers: Layer[]

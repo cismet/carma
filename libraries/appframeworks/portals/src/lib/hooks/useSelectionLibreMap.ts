@@ -10,7 +10,10 @@ const NEW_SELECTION_TIMEOUT = 200;
 
 type SelectionTopicMapOptions = {
   map?: maplibregl.Map;
-  onComplete?: (selection: SelectionItem) => void;
+  onComplete?: (
+    selection: SelectionItem,
+    triggerVisibilityChange?: boolean
+  ) => void;
 };
 
 export const useSelectionLibreMap = ({
@@ -54,9 +57,8 @@ export const useSelectionLibreMap = ({
         ]);
 
         if (map) {
-          map.flyTo({
+          map.jumpTo({
             center: [pos[0], pos[1]],
-            animate: false,
           });
 
           if (selection.more.zl) {
@@ -67,7 +69,9 @@ export const useSelectionLibreMap = ({
           }
         }
 
-        onComplete?.(selection);
+        setTimeout(() => {
+          onComplete?.(selection, true);
+        }, 40);
       }
     }
   }, [selection, setSelection, setOverlayFeature]);
