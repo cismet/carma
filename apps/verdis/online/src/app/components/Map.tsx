@@ -35,11 +35,14 @@ import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import { ZoomControl } from "./controls/ZoomControl";
 import { CyclingControl } from "./controls/CyclingControl";
 import { PolygonControl } from "./controls/PolygonControl";
-// import {
-//   FullscreenControl,
-//   RoutedMapLocateControl,
-//   ZoomControl,
-// } from "@carma-mapping/components";
+import proj4 from "proj4";
+
+const WGS84 = "EPSG:4326";
+const CRS25832 = MappingConstants.proj4crs25832def;
+
+function to25832([lon, lat]: [number, number]): [number, number] {
+  return proj4(WGS84, CRS25832, [lon, lat]);
+}
 
 interface MapProps {
   children?: ReactNode;
@@ -92,9 +95,20 @@ const Map = ({ children, newHeight }: MapProps) => {
     }
   };
 
-  const handleFeatureCreation = (feature) => {
-    console.log("xxx feature created");
-    dispatch(addAnnotation(feature));
+  const handleFeatureCreation = (feature: GeoJSON.Feature) => {
+    const reprojectedCoords = (
+      feature.geometry as GeoJSON.Polygon
+    ).coordinates.map((ring) => ring.map(to25832));
+
+    const feature25832: GeoJSON.Feature = {
+      ...feature,
+      geometry: {
+        ...feature.geometry,
+        coordinates: reprojectedCoords,
+      },
+    };
+
+    dispatch(addAnnotation(feature25832));
   };
 
   const handleFeatureAfterEditing = (feature) => {
@@ -128,7 +142,10 @@ const Map = ({ children, newHeight }: MapProps) => {
           </Control>
           {annotationEditable && (
             <Control position="topleft" order={20}>
-              <PolygonControl routedMapRef={refRoutedMap} />
+              <PolygonControl
+                routedMapRef={refRoutedMap}
+                onCreated={handleFeatureCreation}
+              />
             </Control>
           )}
         </ControlLayout>
