@@ -1,5 +1,4 @@
 import ModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
-import Section from "react-cismap/topicmaps/menu/Section";
 import { getUiState, showSettings } from "../../../store/slices/ui";
 import { useDispatch, useSelector } from "react-redux";
 import Menu99Footer from "./Menu99Footer";
@@ -8,7 +7,6 @@ import {
   Introduction,
   Menu10Datengrundlagen,
   Menu20MeinKassenzeichen,
-  Menu30KartenhintergruendeText,
   Menu40Anleitung,
   Menu41Mailservice,
   Menu42Aenderungen,
@@ -16,10 +14,7 @@ import {
   Menu60Datenschutz,
 } from "@carma-collab/wuppertal/verdis-online";
 import Menu30Kartenhintergruende from "./Menu30Kartenhintergruende";
-import {
-  getMapping,
-  setSelectedBackgroundIndex,
-} from "../../../store/slices/mapping";
+import { getMapping } from "../../../store/slices/mapping";
 
 const ModalHelpAndInfo = () => {
   const uiState = useSelector(getUiState);

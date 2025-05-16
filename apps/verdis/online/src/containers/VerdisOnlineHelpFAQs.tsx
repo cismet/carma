@@ -1,7 +1,6 @@
 import {
   Menu10Datengrundlagen,
   Menu20MeinKassenzeichen,
-  Menu30KartenhintergruendeText,
   Menu40Anleitung,
   Menu41Mailservice,
   Menu42Aenderungen,
@@ -15,6 +14,9 @@ import { getMapping } from "../store/slices/mapping";
 import type { CSSProperties } from "react";
 import { FontAwesomeIcon as Icon } from "@fortawesome/react-fontawesome";
 import { faInfo } from "@fortawesome/free-solid-svg-icons";
+import { KompaktanleitungFooter } from "@carma-collab/wuppertal/verdis-online";
+import { getApplicationVersion } from "@carma-commons/utils";
+import versionData from "../version.json";
 
 const VerdisOnlineHelp = () => {
   const mapping = useSelector(getMapping);
@@ -24,6 +26,7 @@ const VerdisOnlineHelp = () => {
     maxHeight: "100vh",
   };
   const showOpened = true;
+  const version = getApplicationVersion(versionData);
 
   return (
     <div style={{ margin: 25 }}>
@@ -58,6 +61,9 @@ const VerdisOnlineHelp = () => {
         <Menu50FAQ showOpened={showOpened} />
       </div>
       <Menu60Datenschutz showOpened={showOpened} />
+      <div style={{ marginTop: "20px" }}>
+        <KompaktanleitungFooter version={version} />
+      </div>
     </div>
   );
 };
