@@ -171,7 +171,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
       imageRecords &&
       isObliqueMode &&
       !lockFootprint &&
-      typeof nearestImageRefresh === 'function'
+      typeof nearestImageRefresh === "function"
     ) {
       // TODO: check if this ever needed, remove if not
       nearestImageRefresh();

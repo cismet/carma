@@ -25,7 +25,7 @@ interface AnnotationPanelProps {
   annotationFeature: any;
   selected: boolean;
   editmode?: boolean;
-  showEditAnnoMenu: ()=> void;
+  showEditAnnoMenu: () => void;
   showEverything?: boolean;
 }
 const AnnotationPanel = ({
