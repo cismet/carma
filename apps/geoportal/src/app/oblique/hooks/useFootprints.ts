@@ -1,4 +1,4 @@
-import { MutableRefObject, useEffect, useMemo, useRef } from "react";
+import { MutableRefObject, useEffect, useRef } from "react";
 
 import {
   Color,
@@ -8,12 +8,12 @@ import {
   CallbackProperty,
   EasingFunction,
   PolylineGraphics,
-  Math as CesiumMath,
   type Cartesian3,
   Viewer,
   defined,
 } from "cesium";
 
+import { useMemoMergedDefaultOptions } from "@carma-commons/utils";
 import {
   useCesiumContext,
   polygonHierarchyFromPolygonCoords,
@@ -27,23 +27,17 @@ import {
   type FootprintFeature,
 } from "../utils/footprintUtils";
 import type { ObliqueFootprintsStyle } from "../types";
-
-interface AnimationState<T> {
-  isAnimating: boolean;
-  startTime: number | null;
-  startValue: T;
-  targetValue: T;
-  onComplete?: () => void;
-  duration: number;
-  delay?: number;
-  easingFunction: (time: number) => number;
-}
+import {
+  AnimationState,
+  createAnimationState,
+  processAnimation,
+  startAnimation,
+} from "../utils/animateUnitValue";
 
 type OpacityAnimationState = AnimationState<number>;
 
 const OBLIQUE_DATASOURCE_PREFIX = "oblq-footprint";
 const FOOTPRINT_OUTLINE_ID = "oblq-footprint-outline";
-const DEFAULT_ANIMATION_DURATION = 500; // milliseconds
 
 const defaultFootprintsStyle: ObliqueFootprintsStyle = {
   outlineColor: Color.WHITE,
@@ -51,87 +45,17 @@ const defaultFootprintsStyle: ObliqueFootprintsStyle = {
   outlineOpacity: 1,
 };
 
-function createAnimationState<T>(
-  params: Partial<AnimationState<T>> & { startValue: T; targetValue: T }
-): AnimationState<T> {
-  return {
-    isAnimating: false,
-    startTime: null,
-    duration: DEFAULT_ANIMATION_DURATION,
-    delay: 0,
-    easingFunction: EasingFunction.LINEAR_NONE,
-    ...params,
-  };
-}
-
-/**
- * Generic animation processor that updates an animation state and returns the interpolated value
- */
-function processAnimation<T extends number>(
-  animState: AnimationState<T>,
-  viewer: unknown
-): T {
-  if (!animState.isAnimating || animState.startTime === null) {
-    return animState.targetValue;
-  }
-
-  const elapsed =
-    performance.now() - animState.startTime - (animState.delay || 0);
-  const duration = animState.duration;
-  const progress = CesiumMath.clamp(elapsed / duration, 0, 1);
-  const easedProgress = animState.easingFunction(progress);
-  // Calculate interpolated value
-  const newValue =
-    animState.startValue +
-    (animState.targetValue - animState.startValue) * easedProgress;
-
-  // Check for animation completion
-  if (progress >= 1) {
-    animState.isAnimating = false;
-    animState.onComplete && animState.onComplete();
-  }
-
-  cesiumSafeRequestRender(viewer);
-
-  return newValue as T;
-}
-
-/**
- * Starts an animation with the provided parameters
- */
-function startAnimation<T extends number>(
-  animState: AnimationState<T>,
-  startValue: T,
-  targetValue: T,
-  options?: Partial<AnimationState<T>> & { forceStart?: boolean }
-): void {
-  // Skip animation if the values are already very close and not forced
-  if (!options?.forceStart && Math.abs(startValue - targetValue) < 0.1) {
-    animState.targetValue = targetValue;
-    animState.isAnimating = false;
-    return;
-  }
-
-  animState.startValue = startValue;
-  animState.targetValue = targetValue;
-  animState.startTime = performance.now();
-  animState.isAnimating = true;
-
-  // Apply any additional options
-  if (options) {
-    Object.assign(animState, options);
-  }
-}
-
 const cleanupOutlineEntity = (
-  viewer: Viewer,
+  viewerRef: MutableRefObject<Viewer | null>,
   ref: MutableRefObject<Entity | null>,
   debug = false
 ) => {
+  const viewer = viewerRef.current;
   if (isValidViewerInstance(viewer) && defined(viewer.entities)) {
     debug && console.log(`Oblique Footprints: Removing outline entity`);
     viewer.entities.removeById(FOOTPRINT_OUTLINE_ID);
     ref.current = null;
+    cesiumSafeRequestRender(viewer);
   }
 };
 
@@ -146,12 +70,8 @@ export const useFootprints = (debug = false): void => {
     footprintsStyle,
   } = useOblique();
 
-  const { outlineColor, outlineOpacity, outlineWidth } = useMemo(() => {
-    return {
-      ...defaultFootprintsStyle,
-      ...(footprintsStyle || {}),
-    };
-  }, [footprintsStyle]);
+  const { outlineColor, outlineOpacity, outlineWidth } =
+    useMemoMergedDefaultOptions(footprintsStyle, defaultFootprintsStyle);
 
   const animationDuration = animations?.outlineFadeOut?.duration ?? 1000;
   const animationDelay = animations?.outlineFadeOut?.delay ?? 0;
@@ -172,17 +92,10 @@ export const useFootprints = (debug = false): void => {
     })
   );
 
-  const cleanupEntities = (viewer: Viewer, debug: boolean) => {
-    cleanupOutlineEntity(viewer, outlineEntityRef, debug);
-    cesiumSafeRequestRender(viewer);
-  };
-
   // Clean up entities when component unmounts
   useEffect(() => {
-    // Clean up entities when the component unmounts
-    const viewer = viewerRef.current;
     return () => {
-      cleanupEntities(viewer, debug);
+      cleanupOutlineEntity(viewerRef, outlineEntityRef, debug);
     };
   }, [debug, viewerRef]);
 
@@ -190,10 +103,10 @@ export const useFootprints = (debug = false): void => {
     // If we're leaving oblique mode, trigger exit animation then clean up the footprint
     if (prevObliqueMode.current && !isObliqueMode) {
       // Always clean up the outline immediately
-      cleanupEntities(viewerRef.current, debug);
+      cleanupOutlineEntity(viewerRef, outlineEntityRef, debug);
     }
     prevObliqueMode.current = isObliqueMode;
-  }, [isObliqueMode, debug, viewerRef]);
+  }, [isObliqueMode, viewerRef, debug]);
 
   useEffect(() => {
     opacityAnimationRef.current.duration = animationDuration;
@@ -212,7 +125,7 @@ export const useFootprints = (debug = false): void => {
           forceStart: true,
           onComplete: () => {
             // Remove entity completely when animation finishes
-            cleanupOutlineEntity(viewer, outlineEntityRef, debug);
+            cleanupOutlineEntity(viewerRef, outlineEntityRef, debug);
             // Reset lastImageIdRef to null to force recreation on unlock
             lastImageIdRef.current = null;
           },
@@ -264,7 +177,7 @@ export const useFootprints = (debug = false): void => {
     lastImageIdRef.current = currentImageId;
 
     // Clean up any existing entity
-    cleanupOutlineEntity(viewer, outlineEntityRef, debug);
+    cleanupOutlineEntity(viewerRef, outlineEntityRef, debug);
 
     const createOpacityCallbackProperty = () => {
       return new CallbackProperty(() => {
@@ -280,8 +193,8 @@ export const useFootprints = (debug = false): void => {
               `Oblique Footprints: Animation complete, removing outline entity`
             );
           requestAnimationFrame(() => {
-            // Remove the entity completely
-            cleanupOutlineEntity(viewer, outlineEntityRef);
+            // Delay to no conflict with current updates, Remove the entity completely
+            cleanupOutlineEntity(viewerRef, outlineEntityRef, debug);
           });
         }
         return outlineColor.withAlpha(newOpacity);
@@ -326,7 +239,6 @@ export const useFootprints = (debug = false): void => {
     // Get polygon hierarchy for use in both entities
     const polygonHierarchy = polygonHierarchyFromPolygonCoords(polygonCoords);
 
-    // Store the polygon positions for later use with the outline
     if (polygonHierarchy.positions && polygonHierarchy.positions.length > 0) {
       // Create fresh animation state for this entity
       opacityAnimationRef.current = createAnimationState({
@@ -337,8 +249,8 @@ export const useFootprints = (debug = false): void => {
         easingFunction: animationEasing,
       });
 
-      const outlineEntity = createOutlineEntity(polygonHierarchy.positions);
-      if (isValidViewerInstance(viewer) && outlineEntity) {
+      if (isValidViewerInstance(viewer)) {
+        const outlineEntity = createOutlineEntity(polygonHierarchy.positions);
         viewer.entities.add(outlineEntity);
         outlineEntityRef.current = outlineEntity;
       }
@@ -356,6 +268,7 @@ export const useFootprints = (debug = false): void => {
     animationDuration,
     animationDelay,
     animationEasing,
+    debug,
   ]);
 };
 
