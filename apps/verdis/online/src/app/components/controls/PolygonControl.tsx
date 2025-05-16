@@ -1,6 +1,6 @@
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import type { Map as LeafletMap } from "leaflet";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 interface PolygonControlProps {
   routedMapRef: React.RefObject<any>;
@@ -11,6 +11,7 @@ export const PolygonControl = ({
   routedMapRef,
   onCreated,
 }: PolygonControlProps) => {
+  const [drawing, setDrawing] = useState(false);
   const map: LeafletMap | undefined =
     routedMapRef.current?.leafletMap?.leafletElement;
 
@@ -18,6 +19,8 @@ export const PolygonControl = ({
     if (!map || !map.editTools) return;
 
     const commitHandler = (e: any) => {
+      console.log("xxx stop drawing");
+      setDrawing(false);
       const geojson = e.layer.toGeoJSON() as GeoJSON.Feature;
       e.layer.addTo(map);
       onCreated(geojson);
@@ -31,6 +34,7 @@ export const PolygonControl = ({
 
   const startDraw = () => {
     if (!map?.editTools?.startPolygon) return;
+    setDrawing(true);
     map.editTools.startPolygon(null, {
       shapeOptions: { color: "#3388ff", weight: 4 },
       allowIntersection: false,
@@ -39,7 +43,11 @@ export const PolygonControl = ({
 
   return (
     <ControlButtonStyler onClick={startDraw}>
-      <i className="fas fa-draw-polygon"></i>
+      <div
+        style={{ border: drawing ? "2px solid blue" : "0px", width: "33px" }}
+      >
+        <i className="fas fa-draw-polygon"></i>
+      </div>
     </ControlButtonStyler>
   );
 };
