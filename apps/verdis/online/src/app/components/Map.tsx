@@ -34,6 +34,7 @@ import EditModeControlButton from "./EditModeControlButton";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import { ZoomControl } from "./controls/ZoomControl";
 import { CyclingControl } from "./controls/CyclingControl";
+import { PolygonControl } from "./controls/PolygonControl";
 // import {
 //   FullscreenControl,
 //   RoutedMapLocateControl,
@@ -121,9 +122,14 @@ const Map = ({ children, newHeight }: MapProps) => {
           <Control position="topleft" order={10}>
             <ZoomControl routedMapRef={refRoutedMap} />
           </Control>
-          <Control position="topleft" order={60}>
+          <Control position="topleft" order={20}>
             <CyclingControl />
           </Control>
+          {annotationEditable && (
+            <Control position="topleft" order={20}>
+              <PolygonControl routedMapRef={refRoutedMap} />
+            </Control>
+          )}
         </ControlLayout>
       </div>
       <RoutedMap
