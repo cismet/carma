@@ -31,6 +31,13 @@ import {
 import CyclingBackgroundButton from "./CyclingBackgroundButton";
 import { ReactNode, useRef, useState } from "react";
 import EditModeControlButton from "./EditModeControlButton";
+import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
+import { ZoomControl } from "./controls/ZoomControl";
+// import {
+//   FullscreenControl,
+//   RoutedMapLocateControl,
+//   ZoomControl,
+// } from "@carma-mapping/components";
 
 interface MapProps {
   children?: ReactNode;
@@ -98,133 +105,129 @@ const Map = ({ children, newHeight }: MapProps) => {
   };
 
   return (
-    <RoutedMap
-      key={
-        "RoutedMap" +
-        JSON.stringify(kassenzeichen) +
-        JSON.stringify(annotationEditable)
-      }
-      editable={true}
-      onFeatureCreation={handleFeatureCreation}
-      onFeatureChangeAfterEditing={handleFeatureAfterEditing}
-      snappingEnabled={true}
-      key={"leafletRoutedMap0 + "}
-      referenceSystem={MappingConstants.crs25832}
-      referenceSystemDefinition={MappingConstants.proj4crs25832def}
-      ref={refRoutedMap}
-      layers=""
-      style={mapStyle}
-      // ondblclick={this.mapDblClick}
-      doubleClickZoom={false}
-      locationChangedHandler={(location) => {
-        const newParams = { ...paramsToObject(urlParams), ...location };
-        setUrlParams(newParams);
-      }}
-      autoFitConfiguration={{
-        autoFitBounds: mapping.autoFitBounds,
-        autoFitMode: mapping.autoFitMode,
-        autoFitBoundsTarget: mapping.autoFitBoundsTarget,
-      }}
-      autoFitProcessedHandler={
-        () => dispatch(setAutoFit({ autofit: false }))
-        // this.props.mappingActions.setAutoFit(false)
-      }
-      urlSearchParams={urlParams}
-      boundingBoxChangedHandler={
-        (bbox) => dispatch(mapBoundsChanged({ bbox }))
-        // this.props.mappingActions.mappingBoundsChanged(bbox)
-      }
-      backgroundlayers={
-        // this.props.backgroundlayers ||
-        mapping.backgrounds[mapping.selectedBackgroundIndex].layerkey
-      }
-    >
-      <FeatureCollectionDisplay
+    <>
+      <div
+        className="controls-container"
+        style={{
+          position: "absolute",
+          top: "0px",
+          left: "0px",
+          bottom: "0px",
+          zIndex: 600,
+        }}
+      >
+        <ControlLayout ifStorybook={false}>
+          <Control position="topleft" order={10}>
+            <ZoomControl routedMapRef={refRoutedMap} />
+          </Control>
+        </ControlLayout>
+      </div>
+      <RoutedMap
         key={
-          "fc" +
-          JSON.stringify(mapping.featureCollection) +
-          "+" +
-          mapping.selectedIndex +
-          "+editEnabled:"
-          // this.props.uiState.changeRequestsEditMode
+          "RoutedMap" +
+          JSON.stringify(kassenzeichen) +
+          JSON.stringify(annotationEditable)
         }
-        featureCollection={mapping.featureCollection.filter(
-          (feature) =>
-            annotationEditable || feature.properties.type !== "annotation"
-        )}
-        boundingBox={mapping.boundingBox}
-        clusteringEnabled={false}
-        style={createFlaechenStyler(false, kassenzeichen)}
-        // hoverer={this.props.hoverer}
-        featureClickHandler={featureClick}
-        // mapRef={this.leafletRoutedMap}
-        showMarkerCollection={urlParams.get("zoom") >= 15}
-        markerStyle={getMarkerStyleFromFeatureConsideringSelection}
-        snappingGuides={true}
-      />
-      <CyclingBackgroundButton
-        key={"CyclingBackgroundButton."}
-        mapRef={refRoutedMap}
-      />
-      {annotationEditable && (
-        <NewPolyControl
+        zoomControlEnabled={false}
+        editable={true}
+        onFeatureCreation={handleFeatureCreation}
+        onFeatureChangeAfterEditing={handleFeatureAfterEditing}
+        snappingEnabled={true}
+        key={"leafletRoutedMap0 + "}
+        referenceSystem={MappingConstants.crs25832}
+        referenceSystemDefinition={MappingConstants.proj4crs25832def}
+        ref={refRoutedMap}
+        layers=""
+        style={mapStyle}
+        // ondblclick={this.mapDblClick}
+        doubleClickZoom={false}
+        locationChangedHandler={(location) => {
+          const newParams = { ...paramsToObject(urlParams), ...location };
+          setUrlParams(newParams);
+        }}
+        autoFitConfiguration={{
+          autoFitBounds: mapping.autoFitBounds,
+          autoFitMode: mapping.autoFitMode,
+          autoFitBoundsTarget: mapping.autoFitBoundsTarget,
+        }}
+        autoFitProcessedHandler={
+          () => dispatch(setAutoFit({ autofit: false }))
+          // this.props.mappingActions.setAutoFit(false)
+        }
+        urlSearchParams={urlParams}
+        boundingBoxChangedHandler={
+          (bbox) => dispatch(mapBoundsChanged({ bbox }))
+          // this.props.mappingActions.mappingBoundsChanged(bbox)
+        }
+        backgroundlayers={
+          // this.props.backgroundlayers ||
+          mapping.backgrounds[mapping.selectedBackgroundIndex].layerkey
+        }
+      >
+        <FeatureCollectionDisplay
           key={
-            "NewPolyControl + update when CyclingBackgroundButton."
-            // this.state.featuresInEditmode +
-            // this.props.mapping.selectedBackgroundIndex
+            "fc" +
+            JSON.stringify(mapping.featureCollection) +
+            "+" +
+            mapping.selectedIndex +
+            "+editEnabled:"
+            // this.props.uiState.changeRequestsEditMode
           }
-          // onSelect={() => {
-          //     this.setState({ featuresInEditmode: false });
-          // }}
-          tooltip="Fläche anlegen"
+          featureCollection={mapping.featureCollection.filter(
+            (feature) =>
+              annotationEditable || feature.properties.type !== "annotation"
+          )}
+          boundingBox={mapping.boundingBox}
+          clusteringEnabled={false}
+          style={createFlaechenStyler(false, kassenzeichen)}
+          // hoverer={this.props.hoverer}
+          featureClickHandler={featureClick}
+          // mapRef={this.leafletRoutedMap}
+          showMarkerCollection={urlParams.get("zoom") >= 15}
+          markerStyle={getMarkerStyleFromFeatureConsideringSelection}
+          snappingGuides={true}
         />
-      )}
-      {annotationEditable && (
-        <NewMarkerControl
-          key={
-            "NewMarkerControl+ update when CyclingBackgroundButton."
-            // this.state.featuresInEditmode +
-            // this.props.mapping.selectedBackgroundIndex
-          }
-          onSelect={() => {}}
-          tooltip="Punkt anlegen"
-        />
-      )}
-      {/* {annotationEditable && (
-        <EditModeControlButton
-            key={
-                "EditModeControlButton" +
-                this.state.featuresInEditmode +
-                this.props.mapping.selectedBackgroundIndex
-            }
-            featuresInEditmode={this.state.featuresInEditmode}
-            onChange={featuresInEditmode => {
-                this.setState({ featuresInEditmode });
-                try {
-                    const map = this.leafletRoutedMap.leafletMap.leafletElement;
-                    console.log("map.editTools.mode.name", map.editTools.mode.name);
-
-                    if (map.editTools.mode.name !== undefined) {
-                        console.log("stopDrawing");
-
-                        map.editTools.stopDrawing();
-                        map.editTools.mode.name = undefined;
-                        map.editTools.validClicks = 0;
-                    }
-                } catch (skip) {}
-            }}
-        />
-    )} */}
-      {annotationEditable && (
-        <EditModeControlButton
+        {/* <CyclingBackgroundButton
+          key={"CyclingBackgroundButton."}
           mapRef={refRoutedMap}
-          featuresInEditMode={featuresInEditMode}
-          onFeatureChange={setFeaturesInEditMode}
-          selectedFeatureId={mapping.featureCollection[mapping?.selectedIndex]}
         />
-      )}
-      {children}
-    </RoutedMap>
+        {annotationEditable && (
+          <NewPolyControl
+            key={
+              "NewPolyControl + update when CyclingBackgroundButton."
+              // this.state.featuresInEditmode +
+              // this.props.mapping.selectedBackgroundIndex
+            }
+            // onSelect={() => {
+            //     this.setState({ featuresInEditmode: false });
+            // }}
+            tooltip="Fläche anlegen"
+          />
+        )}
+        {annotationEditable && (
+          <NewMarkerControl
+            key={
+              "NewMarkerControl+ update when CyclingBackgroundButton."
+              // this.state.featuresInEditmode +
+              // this.props.mapping.selectedBackgroundIndex
+            }
+            onSelect={() => {}}
+            tooltip="Punkt anlegen"
+          />
+        )}
+        {annotationEditable && (
+          <EditModeControlButton
+            mapRef={refRoutedMap}
+            featuresInEditMode={featuresInEditMode}
+            onFeatureChange={setFeaturesInEditMode}
+            selectedFeatureId={
+              mapping.featureCollection[mapping?.selectedIndex]
+            }
+          />
+        )} */}
+        {children}
+      </RoutedMap>
+    </>
   );
 };
 
