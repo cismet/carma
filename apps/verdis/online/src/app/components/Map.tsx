@@ -93,6 +93,7 @@ const Map = ({ children, newHeight }: MapProps) => {
   };
 
   const handleFeatureCreation = (feature) => {
+    console.log("xxx feature created");
     dispatch(addAnnotation(feature));
   };
 

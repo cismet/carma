@@ -5,6 +5,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
 import "leaflet-draw";
+window.type = true;
 
 export const PolygonControl = ({ routedMapRef }) => {
   const map: LeafletMap | undefined =
