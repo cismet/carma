@@ -50,7 +50,7 @@ export const layersToMapLibreStyle = async (
     sprite: defaultSprite,
   };
 
-  if (backgroundLayer && backgroundLayer.visible) {
+  if (backgroundLayer) {
     const namedLayers = defaultLayerConfig.namedLayers;
     const backgroundLayers = backgroundLayer.layers.split("|");
     if (backgroundLayer.layers.includes("basemap_relief")) {
@@ -79,6 +79,9 @@ export const layersToMapLibreStyle = async (
           source: sourceId,
           paint: {
             "raster-opacity": Number(opacity) / 100,
+          },
+          layout: {
+            visibility: backgroundLayer.visible ? "visible" : "none",
           },
         });
       } else if (layerOptions && layerOptions.type === "vector") {
@@ -136,7 +139,7 @@ export const layersToMapLibreStyle = async (
   }
 
   const layerPromises = layers.map(async (layer, index) => {
-    if (!layer.props || !layer.visible) return;
+    if (!layer.props) return;
 
     if (layer.layerType === "wmts" || layer.layerType === "wmts-nt") {
       const { url, name } = layer.props;
@@ -164,6 +167,9 @@ export const layersToMapLibreStyle = async (
         metadata: {
           "z-index": index,
           "layer-id": layer.id,
+        },
+        layout: {
+          visibility: layer.visible ? "visible" : "none",
         },
       });
     } else if (layer.layerType === "vector") {
@@ -217,6 +223,8 @@ export const layersToMapLibreStyle = async (
                   ],
                 }
               : {}),
+
+            visibility: layer.visible ? "visible" : "none",
           },
         }));
 
