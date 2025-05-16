@@ -30,6 +30,7 @@ export interface GeometryProperties {
   numericId: number;
   draft: boolean;
   type: string;
+  bez?: string;
 }
 
 export type GeometryFeature = Feature<Polygon, GeometryProperties> & {
