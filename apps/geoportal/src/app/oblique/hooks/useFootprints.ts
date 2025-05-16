@@ -103,10 +103,10 @@ function startAnimation<T extends number>(
   animState: AnimationState<T>,
   startValue: T,
   targetValue: T,
-  options?: Partial<AnimationState<T>>
+  options?: Partial<AnimationState<T>> & { forceStart?: boolean }
 ): void {
-  // Skip animation if the values are already very close
-  if (Math.abs(startValue - targetValue) < 0.1) {
+  // Skip animation if the values are already very close and not forced
+  if (!options?.forceStart && Math.abs(startValue - targetValue) < 0.1) {
     animState.targetValue = targetValue;
     animState.isAnimating = false;
     return;
@@ -125,15 +125,17 @@ function startAnimation<T extends number>(
 
 const cleanupOutlineEntity = (
   viewer: Viewer,
-  ref: MutableRefObject<Entity | null>
+  ref: MutableRefObject<Entity | null>,
+  debug = false
 ) => {
   if (isValidViewerInstance(viewer) && defined(viewer.entities)) {
+    debug && console.log(`Oblique Footprints: Removing outline entity`);
     viewer.entities.removeById(FOOTPRINT_OUTLINE_ID);
     ref.current = null;
   }
 };
 
-export const useFootprints = (): void => {
+export const useFootprints = (debug = false): void => {
   const { viewerRef } = useCesiumContext();
   const {
     isObliqueMode,
@@ -156,10 +158,8 @@ export const useFootprints = (): void => {
   const animationEasing =
     animations?.outlineFadeOut?.easingFunction || EasingFunction.LINEAR_NONE;
 
-  // Common refs
   const lastImageIdRef = useRef<string | null>(null);
   const outlineEntityRef = useRef<Entity | null>(null);
-  const polygonPositionsRef = useRef<Cartesian3[]>([]);
   const prevObliqueMode = useRef<boolean>(isObliqueMode);
 
   const opacityAnimationRef = useRef<OpacityAnimationState>(
@@ -172,25 +172,9 @@ export const useFootprints = (): void => {
     })
   );
 
-  const cleanupEntities = (viewer: Viewer) => {
-    cleanupOutlineEntity(viewer, outlineEntityRef);
+  const cleanupEntities = (viewer: Viewer, debug: boolean) => {
+    cleanupOutlineEntity(viewer, outlineEntityRef, debug);
     cesiumSafeRequestRender(viewer);
-  };
-
-  const createOpacityCallbackProperty = () => {
-    return new CallbackProperty(() => {
-      const newOpacity = processAnimation(
-        opacityAnimationRef.current,
-        viewerRef.current
-      );
-
-      // If opacity is 0, hide the outline entity completely
-      if (Math.abs(newOpacity) < 0.01 && outlineEntityRef.current) {
-        outlineEntityRef.current.show = false;
-      }
-
-      return outlineColor.withAlpha(newOpacity);
-    }, false);
   };
 
   // Clean up entities when component unmounts
@@ -198,111 +182,134 @@ export const useFootprints = (): void => {
     // Clean up entities when the component unmounts
     const viewer = viewerRef.current;
     return () => {
-      cleanupEntities(viewer);
+      cleanupEntities(viewer, debug);
     };
-  }, []);
+  }, [debug, viewerRef]);
 
   useEffect(() => {
     // If we're leaving oblique mode, trigger exit animation then clean up the footprint
     if (prevObliqueMode.current && !isObliqueMode) {
       // Always clean up the outline immediately
-      cleanupEntities(viewerRef.current);
+      cleanupEntities(viewerRef.current, debug);
     }
     prevObliqueMode.current = isObliqueMode;
-  }, [isObliqueMode, viewerRef]);
+  }, [isObliqueMode, debug, viewerRef]);
 
-  // Update animation configuration when it changes
   useEffect(() => {
     opacityAnimationRef.current.duration = animationDuration;
     opacityAnimationRef.current.delay = animationDelay;
     opacityAnimationRef.current.easingFunction = animationEasing;
   }, [animationDuration, animationDelay, animationEasing]);
 
-  // Handle the height transition when lockFootprint changes
   useEffect(() => {
     const viewer = viewerRef.current;
     if (!viewer) return;
 
-    // Handle outline entity opacity
+    // When lockFootprint is set, start fade-out animation with a completion callback to clean up
     if (outlineEntityRef.current && outlineEntityRef.current.polyline) {
       if (lockFootprint) {
-        // When entering locked mode - animate opacity to 0
-        startAnimation(opacityAnimationRef.current, outlineOpacity, 0.0);
-      } else {
+        startAnimation(opacityAnimationRef.current, outlineOpacity, 0.0, {
+          forceStart: true,
+          onComplete: () => {
+            // Remove entity completely when animation finishes
+            cleanupOutlineEntity(viewer, outlineEntityRef, debug);
+            // Reset lastImageIdRef to null to force recreation on unlock
+            lastImageIdRef.current = null;
+          },
+        });
+      } else if (lastImageIdRef.current === null && nearestImage) {
+        // Coming back from locked state - we'll recreate the entity
+        // by setting lastImageIdRef to null to force the next effect to run
         lastImageIdRef.current = null;
-        // When leaving locked mode - set opacity to 1 instantly
-        if (
-          outlineEntityRef.current.polyline.material instanceof
-          ColorMaterialProperty
-        ) {
-          // Set opacity to 1 immediately
-          (
-            outlineEntityRef.current.polyline.material as ColorMaterialProperty
-          ).color = new ConstantProperty(
-            outlineColor.withAlpha(outlineOpacity)
-          );
-        }
-
-        // Ensure visibility is set
-        outlineEntityRef.current.show = true;
-
-        // Reset animation flags to prevent transition
-        opacityAnimationRef.current.isAnimating = false;
-        opacityAnimationRef.current.startTime = null;
-        opacityAnimationRef.current.targetValue = outlineOpacity;
       }
     }
     cesiumSafeRequestRender(viewer);
   }, [
     lockFootprint,
-    viewerRef,
-    animationDuration,
-    animationEasing,
     outlineOpacity,
     outlineColor,
+    viewerRef,
+    nearestImage,
+    debug,
   ]);
-
-  const createOutlineEntity = (positions: Cartesian3[]) => {
-    if (!positions || positions.length === 0) return null;
-
-    // Close the loop by adding the first position to the end
-    const outlinePositions = [...positions, positions[0]];
-
-    return new Entity({
-      id: FOOTPRINT_OUTLINE_ID,
-      name: `${OBLIQUE_DATASOURCE_PREFIX}-outline-${
-        nearestImage?.record.id || ""
-      }`,
-      show: true, // Always show initially, opacity will control visibility
-      polyline: new PolylineGraphics({
-        positions: outlinePositions,
-        width: new ConstantProperty(outlineWidth),
-        material: new ColorMaterialProperty(createOpacityCallbackProperty()),
-        clampToGround: new ConstantProperty(true),
-      }),
-    });
-  };
 
   useEffect(() => {
     const viewer = viewerRef.current;
 
-    if (!viewer || !nearestImage || !footprintData) {
+    if (
+      !isValidViewerInstance(viewer) ||
+      !nearestImage ||
+      !footprintData ||
+      !isObliqueMode
+    ) {
       return;
     }
 
-    if (!isObliqueMode) {
-      cleanupEntities(viewer);
-      lastImageIdRef.current = null;
+    // If footprint is locked, don't create a new entity
+    if (lockFootprint) {
       return;
     }
 
-    if (nearestImage.record.id === lastImageIdRef.current) {
+    const currentImageId = nearestImage.record.id;
+    const sameImage = lastImageIdRef.current === currentImageId;
+
+    // Only clean up and recreate entity if:
+    // 1. It's a new image
+    // 2. We don't already have an entity
+    if (sameImage && outlineEntityRef.current) {
+      // If it's the same image and we already have an entity, no need to recreate
       return;
     }
 
-    lastImageIdRef.current = nearestImage.record.id;
+    lastImageIdRef.current = currentImageId;
 
-    cleanupEntities(viewer);
+    // Clean up any existing entity
+    cleanupOutlineEntity(viewer, outlineEntityRef, debug);
+
+    const createOpacityCallbackProperty = () => {
+      return new CallbackProperty(() => {
+        const newOpacity = processAnimation(
+          opacityAnimationRef.current,
+          viewerRef.current
+        );
+
+        // If opacity is near zero, remove the entity completely instead of just hiding it
+        if (Math.abs(newOpacity) < 0.01 && outlineEntityRef.current) {
+          debug &&
+            console.log(
+              `Oblique Footprints: Animation complete, removing outline entity`
+            );
+          requestAnimationFrame(() => {
+            // Remove the entity completely
+            cleanupOutlineEntity(viewer, outlineEntityRef);
+          });
+        }
+        return outlineColor.withAlpha(newOpacity);
+      }, false);
+    };
+
+    const createOutlineEntity = (positions: Cartesian3[]) => {
+      if (!positions || positions.length === 0) return null;
+
+      // Close the loop by adding the first position to the end
+      const outlinePositions = [...positions, positions[0]];
+
+      debug && console.log(`Oblique Footprints: Creating outline entity`);
+
+      return new Entity({
+        id: FOOTPRINT_OUTLINE_ID,
+        name: `${OBLIQUE_DATASOURCE_PREFIX}-outline-${
+          nearestImage?.record.id || ""
+        }`,
+        show: true,
+        polyline: new PolylineGraphics({
+          positions: outlinePositions,
+          width: new ConstantProperty(outlineWidth),
+          material: new ColorMaterialProperty(createOpacityCallbackProperty()),
+          clampToGround: new ConstantProperty(true),
+        }),
+      });
+    };
 
     const matchingFeature = findMatchingFeature(
       footprintData.features as FootprintFeature[],
@@ -321,20 +328,35 @@ export const useFootprints = (): void => {
 
     // Store the polygon positions for later use with the outline
     if (polygonHierarchy.positions && polygonHierarchy.positions.length > 0) {
-      polygonPositionsRef.current = [...polygonHierarchy.positions];
-    }
+      // Create fresh animation state for this entity
+      opacityAnimationRef.current = createAnimationState({
+        startValue: outlineOpacity,
+        targetValue: outlineOpacity,
+        duration: animationDuration,
+        delay: animationDelay,
+        easingFunction: animationEasing,
+      });
 
-    if (outlineEntityRef.current) {
-      outlineEntityRef.current.show = true;
-    } else {
-      const outlineEntity = createOutlineEntity(polygonPositionsRef.current);
+      const outlineEntity = createOutlineEntity(polygonHierarchy.positions);
       if (isValidViewerInstance(viewer) && outlineEntity) {
         viewer.entities.add(outlineEntity);
         outlineEntityRef.current = outlineEntity;
       }
     }
     cesiumSafeRequestRender(viewer);
-  }, [viewerRef, isObliqueMode, nearestImage, footprintData]);
+  }, [
+    viewerRef,
+    isObliqueMode,
+    nearestImage,
+    footprintData,
+    outlineWidth,
+    outlineColor,
+    outlineOpacity,
+    lockFootprint,
+    animationDuration,
+    animationDelay,
+    animationEasing,
+  ]);
 };
 
 export default useFootprints;
