@@ -15,6 +15,7 @@ const Menu30Kartenhintergruende = ({
   backgrounds = [],
   width = 20,
   urlSearch,
+  showOpened = false,
 }) => {
   const dispatch = useDispatch();
   let namedMapStyle =
@@ -57,6 +58,7 @@ const Menu30Kartenhintergruende = ({
     <Section
       key="kartenhintergruende"
       sectionKey="kartenhintergruende"
+      {...(showOpened ? { activeSectionKey: "kartenhintergruende" } : {})}
       sectionTitle="Hintergrundkarten"
       sectionBsStyle="info"
       sectionContent={

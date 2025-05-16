@@ -23,6 +23,8 @@ const VerdisOnlineHelp = () => {
     overflowX: "hidden",
     maxHeight: "100vh",
   };
+  const showOpened = true;
+
   return (
     <div style={{ margin: 25 }}>
       <div style={{ display: "flex", alignItems: "center" }}>
@@ -40,21 +42,22 @@ const VerdisOnlineHelp = () => {
         </h3>
       </div>
       <hr />
-      <Menu10Datengrundlagen />
-      <Menu20MeinKassenzeichen />
+      <Menu10Datengrundlagen showOpened={showOpened} />
+      <Menu20MeinKassenzeichen showOpened={showOpened} />
       <Menu30Kartenhintergruende
         key="Kartenhintergruende"
         selectedBackgroundIndex={mapping.selectedBackgroundIndex}
         backgrounds={mapping.backgrounds}
         urlSearch={""}
+        showOpened={showOpened}
       />
-      <Menu40Anleitung />
-      <Menu41Mailservice />
+      <Menu40Anleitung showOpened={showOpened} />
+      <Menu41Mailservice showOpened={showOpened} />
       <Menu42Aenderungen />
       <div id="myMenu" style={modalBodyStyle}>
-        <Menu50FAQ />
+        <Menu50FAQ showOpened={showOpened} />
       </div>
-      <Menu60Datenschutz />
+      <Menu60Datenschutz showOpened={showOpened} />
     </div>
   );
 };
