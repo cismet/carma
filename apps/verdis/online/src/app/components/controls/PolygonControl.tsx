@@ -1,60 +1,32 @@
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import type { Map as LeafletMap } from "leaflet";
-import { useEffect, useState } from "react";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
-import "leaflet-draw/dist/leaflet.draw.css";
-import "leaflet-draw";
-window.type = true;
+import React from "react";
 
-export const PolygonControl = ({ routedMapRef }) => {
-  const map: LeafletMap | undefined =
-    routedMapRef.current?.leafletMap?.leafletElement;
+interface PolygonControlProps {
+  routedMapRef: React.RefObject<any>;
+}
 
-  const [drawing, setDrawing] = useState(false);
-
-  useEffect(() => {
-    if (!map) return;
-    const options = {
-      allowIntersection: false,
-      showArea: true,
-      drawError: {
-        color: "#e1e100",
-        message: "<strong>Oh snap!<strong> you can't draw that!",
-      },
-    };
-    const drawer = new L.Draw.Polygon(map, options);
-
-    const onDrawCreated = (e) => {
-      drawer.disable();
-      setDrawing(false);
-    };
-    map.on(L.Draw.Event.CREATED, onDrawCreated);
-
-    if (drawing) {
-      drawer.enable();
-    } else {
-      drawer.disable();
+export const PolygonControl = ({ routedMapRef }: PolygonControlProps) => {
+  const handleClick = () => {
+    const map: LeafletMap | undefined =
+      routedMapRef.current?.leafletMap?.leafletElement;
+    if (!map) return console.warn("Map not ready");
+    if (!map.editTools?.startPolygon) {
+      return console.error("`leaflet-editable` not loaded");
     }
 
-    // cleanup on unmount
-    return () => {
-      map.off(L.Draw.Event.CREATED, onDrawCreated);
-      drawer.disable();
-    };
-  }, [map, drawing]);
+    map.editTools.startPolygon(null, {
+      shapeOptions: { color: "#3388ff", weight: 4 },
+      allowIntersection: false,
+    });
+  };
 
   return (
-    <div className="flex flex-col">
-      <ControlButtonStyler
-        onClick={() => setDrawing(true)}
-        className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
-        // title={`${tooltipPrefix}${
-        //   backgrounds[mapping.selectedBackgroundIndex].title
-        // }${tooltipPostfix}`}
-      >
-        <div>P</div>
-      </ControlButtonStyler>
-    </div>
+    <ControlButtonStyler
+      onClick={handleClick}
+      className="!border-b-0 !rounded-b-none font-bold"
+    >
+      Draw Polygon
+    </ControlButtonStyler>
   );
 };
