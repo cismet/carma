@@ -20,11 +20,10 @@ import {
 import KassenzeichenPanel from "./KassenzeichenPanel";
 import KassenzeichenFlaechenChartPanel from "./KassenzeichenFlaechenChartPanel";
 import {
-  getCRsForFlaeche,
   getOverlayTextForFlaeche,
   hasAttachment,
   kassenzeichenFlaechenSorter,
-  needsProof,
+  getCRsForFlaeche,
   needsProofSingleFlaeche,
 } from "../../utils/kassenzeichenHelper";
 import FlaechenPanel from "./FlaechenPanel";
@@ -412,7 +411,14 @@ const KassenzeichenViewer = () => {
           }}
           dismissible
         >
-          {getOverlayTextForFlaeche(selectedFlaeche.properties, undefined)}
+          {getOverlayTextForFlaeche(
+            selectedFlaeche.properties,
+            uiState.changeRequestsEditMode === true
+              ? getCRsForFlaeche(kassenzeichen, {
+                  flaechenbezeichnung: selectedFlaeche.properties.bez,
+                })
+              : undefined
+          )}
         </Alert>
       </div>
     );
