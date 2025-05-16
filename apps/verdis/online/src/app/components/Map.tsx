@@ -33,6 +33,7 @@ import { ReactNode, useRef, useState } from "react";
 import EditModeControlButton from "./EditModeControlButton";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import { ZoomControl } from "./controls/ZoomControl";
+import { CyclingControl } from "./controls/CyclingControl";
 // import {
 //   FullscreenControl,
 //   RoutedMapLocateControl,
@@ -110,7 +111,7 @@ const Map = ({ children, newHeight }: MapProps) => {
         className="controls-container"
         style={{
           position: "absolute",
-          top: "0px",
+          top: "70px",
           left: "0px",
           bottom: "0px",
           zIndex: 600,
@@ -119,6 +120,9 @@ const Map = ({ children, newHeight }: MapProps) => {
         <ControlLayout ifStorybook={false}>
           <Control position="topleft" order={10}>
             <ZoomControl routedMapRef={refRoutedMap} />
+          </Control>
+          <Control position="topleft" order={60}>
+            <CyclingControl />
           </Control>
         </ControlLayout>
       </div>
