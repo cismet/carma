@@ -101,21 +101,19 @@ const Map = ({ children, newHeight }: MapProps) => {
     let feature25832: GeoJSON.Feature;
 
     if (geom.type === "Polygon") {
-      const polygon = geom as GeoJSON.Polygon;
-      const rings25832 = polygon.coordinates.map((ring) => ring.map(to25832));
-      const areaM2 = planarArea(rings25832[0]);
+      const poly = feature.geometry as GeoJSON.Polygon;
+      const rings25832 = poly.coordinates.map((ring) => ring.map(to25832));
 
-      feature25832 = {
+      const feature25832: GeoJSON.Feature = {
         ...feature,
         geometry: {
           type: "Polygon",
           coordinates: rings25832,
         },
-        properties: {
-          ...feature.properties,
-          area: areaM2,
-        },
+        properties: { ...feature.properties },
       };
+
+      dispatch(addAnnotation(feature25832));
     } else if (geom.type === "Point") {
       const point = geom as GeoJSON.Point;
       const [lon, lat] = point.coordinates;
