@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import type { Map as LeafletMap } from "leaflet";
 import { EditableMap } from "../Map";
+import { useDispatch, useSelector } from "react-redux";
+import { getDrawMode, setDrawMode } from "../../../store/slices/ui";
 
 interface MarkerControlProps {
   routedMapRef: React.RefObject<any>;
@@ -14,6 +16,8 @@ export const MarkerControl: React.FC<MarkerControlProps> = ({
   onCreated,
   tooltip = "Punkt anlegen",
 }) => {
+  const dispatch = useDispatch();
+  const mode = useSelector(getDrawMode);
   const [drawing, setDrawing] = useState(false);
   const map: EditableMap | undefined =
     routedMapRef.current?.leafletMap?.leafletElement;
@@ -36,19 +40,27 @@ export const MarkerControl: React.FC<MarkerControlProps> = ({
     map.on("editable:drawing:commit", commitHandler);
     map.on("editable:drawing:cancel", cancelHandler);
 
+    if (mode !== "marker") {
+      map.editTools.stopDrawing();
+      setDrawing(false);
+    }
+
     return () => {
       map.off("editable:drawing:commit", commitHandler);
       map.off("editable:drawing:cancel", cancelHandler);
     };
-  }, [map, onCreated]);
+  }, [map, mode]);
 
   const togglePlacing = () => {
     if (!map?.editTools) return;
     if (drawing) {
       map.editTools.stopDrawing();
+      dispatch(setDrawMode("default"));
       setDrawing(false);
     } else {
       setDrawing(true);
+      dispatch(setDrawMode("marker"));
+
       map.editTools.startMarker({
         repeatMode: false,
         draggable: true,
