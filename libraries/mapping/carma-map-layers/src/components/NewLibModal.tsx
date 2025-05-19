@@ -230,7 +230,7 @@ export const NewLibModal = ({
 
     return [
       {
-        Title: "Eigene Daten",
+        Title: "Externe Dienste",
         layers: tmpLayer,
       },
     ];
@@ -587,12 +587,12 @@ export const NewLibModal = ({
           serviceName: "custom",
           type: "layer",
           keywords: [`carmaConf://vectorStyle:${url}`],
-          path: "Eigene Daten",
+          path: "Externe Dienste",
         };
 
         addItemToCategory(
           "mapLayers",
-          { id: "custom", Title: "Eigene Daten" },
+          { id: "custom", Title: "Externe Dienste" },
           newItem as unknown as SavedLayerConfig // TODO: Fix type
         );
       } else if (url) {
@@ -607,11 +607,11 @@ export const NewLibModal = ({
             if (ownLayers) {
               addItemToCategory(
                 "mapLayers",
-                { id: "custom", Title: "Eigene Daten" },
+                { id: "custom", Title: "Externe Dienste" },
                 ownLayers[0].layers.map((layer) => {
                   return {
                     ...layer,
-                    path: "Eigene Daten",
+                    path: "Externe Dienste",
                   };
                 })
               );
@@ -651,12 +651,12 @@ export const NewLibModal = ({
                 keywords: [
                   `carmaConf://vectorStyle:${JSON.stringify(jsonData)}`,
                 ],
-                path: "Eigene Daten",
+                path: "Externe Dienste",
               };
 
               addItemToCategory(
                 "mapLayers",
-                { id: "custom", Title: "Eigene Daten" },
+                { id: "custom", Title: "Externe Dienste" },
                 newItem as unknown as SavedLayerConfig // TODO: Fix type
               );
             }
@@ -675,11 +675,11 @@ export const NewLibModal = ({
             if (ownLayers) {
               addItemToCategory(
                 "mapLayers",
-                { id: "custom", Title: "Eigene Daten" },
+                { id: "custom", Title: "Externe Dienste" },
                 ownLayers[0].layers.map((layer) => {
                   return {
                     ...layer,
-                    path: "Eigene Daten",
+                    path: "Externe Dienste",
                   };
                 })
               );
