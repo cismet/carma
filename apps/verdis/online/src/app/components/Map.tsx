@@ -37,6 +37,7 @@ import { CyclingControl } from "./controls/CyclingControl";
 import { PolygonControl } from "./controls/PolygonControl";
 import proj4 from "proj4";
 import { MarkerControl } from "./controls/MarkerControl";
+import { EditControl } from "./controls/EditControl";
 
 const WGS84 = "EPSG:4326";
 const CRS25832 = MappingConstants.proj4crs25832def;
@@ -141,6 +142,10 @@ const Map = ({ children, newHeight }: MapProps) => {
     dispatch(changeAnnotation(feature));
   };
 
+  const handleFeatureCreation = (feature) => {
+    dispatch(addAnnotation(feature));
+  };
+
   const mapStyle = {
     height: newHeight ? newHeight : height - 55,
     cursor: "grab",
@@ -181,13 +186,25 @@ const Map = ({ children, newHeight }: MapProps) => {
               />
             </Control>
           )}
+          {annotationEditable && (
+            <Control position="topleft" order={20}>
+              <EditControl
+                routedMapRef={refRoutedMap}
+                featuresInEditMode={featuresInEditMode}
+                setFeaturesInEditMode={setFeaturesInEditMode}
+                selectedFeatureId={
+                  mapping.featureCollection[mapping?.selectedIndex]
+                }
+              />
+            </Control>
+          )}
         </ControlLayout>
       </div>
       <RoutedMap
         key={"RoutedMapKey"}
         zoomControlEnabled={false}
         editable={true}
-        // onFeatureCreation={handleFeatureCreation}
+        onFeatureCreation={handleFeatureCreation}
         onFeatureChangeAfterEditing={handleFeatureAfterEditing}
         snappingEnabled={true}
         referenceSystem={MappingConstants.crs25832}

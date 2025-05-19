@@ -28,29 +28,29 @@ const EditModeControlButton: React.FC<EditModeControlButtonProps> = ({
 
     if (!map) return;
 
-    const ControlClass = L.Control.extend({
-      options: { position, kind, html },
-      onAdd() {
-        const div = L.DomUtil.create("div", "leaflet-control leaflet-bar");
-        const link = L.DomUtil.create("a", "", div);
-        link.href = "#";
-        link.title = "Verändern der selektierten Anmerkung";
-        link.innerHTML = featuresInEditMode
-          ? `<span style="padding:2px 4px; border-radius:4px; border:3px solid #008AFA;">
-               ${html}
-             </span>`
-          : html;
+    // const ControlClass = L.Control.extend({
+    //   options: { position, kind, html },
+    //   onAdd() {
+    //     const div = L.DomUtil.create("div", "leaflet-control leaflet-bar");
+    //     const link = L.DomUtil.create("a", "", div);
+    //     link.href = "#";
+    //     link.title = "Verändern der selektierten Anmerkung";
+    //     link.innerHTML = featuresInEditMode
+    //       ? `<span style="padding:2px 4px; border-radius:4px; border:3px solid #008AFA;">
+    //            ${html}
+    //          </span>`
+    //       : html;
 
-        L.DomEvent.on(link, "click", L.DomEvent.stop).on(link, "click", () =>
-          onFeatureChange(!featuresInEditMode)
-        );
-        L.DomEvent.disableClickPropagation(div);
-        return div;
-      },
-    });
+    //     L.DomEvent.on(link, "click", L.DomEvent.stop).on(link, "click", () =>
+    //       onFeatureChange(!featuresInEditMode)
+    //     );
+    //     L.DomEvent.disableClickPropagation(div);
+    //     return div;
+    //   },
+    // });
 
-    const control = new ControlClass();
-    map.addControl(control);
+    // const control = new ControlClass();
+    // map.addControl(control);
 
     map.eachLayer((layer) => {
       if (
@@ -91,7 +91,7 @@ const EditModeControlButton: React.FC<EditModeControlButtonProps> = ({
     map.on("zoomend", reapplyEdit);
 
     return () => {
-      map.removeControl(control);
+      // map.removeControl(control);
       map.off("moveend", reapplyEdit);
       map.off("zoomend", reapplyEdit);
     };
