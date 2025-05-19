@@ -36,6 +36,7 @@ import { ZoomControl } from "./controls/ZoomControl";
 import { CyclingControl } from "./controls/CyclingControl";
 import { PolygonControl } from "./controls/PolygonControl";
 import proj4 from "proj4";
+import { MarkerControl } from "./controls/MarkerControl";
 
 const WGS84 = "EPSG:4326";
 const CRS25832 = MappingConstants.proj4crs25832def;
@@ -96,15 +97,64 @@ const Map = ({ children, newHeight }: MapProps) => {
   };
 
   const handleFeatureCreation = (feature: GeoJSON.Feature) => {
-    const reprojectedCoords = (
-      feature.geometry as GeoJSON.Polygon
-    ).coordinates.map((ring) => ring.map(to25832));
+    const geom = feature.geometry;
+    let feature25832: GeoJSON.Feature;
+
+    if (geom.type === "Polygon") {
+      const polygon = geom as GeoJSON.Polygon;
+      const rings25832 = polygon.coordinates.map((ring) => ring.map(to25832));
+      const areaM2 = planarArea(rings25832[0]);
+
+      feature25832 = {
+        ...feature,
+        geometry: {
+          type: "Polygon",
+          coordinates: rings25832,
+        },
+        properties: {
+          ...feature.properties,
+          area: areaM2,
+        },
+      };
+    } else if (geom.type === "Point") {
+      const point = geom as GeoJSON.Point;
+      const [lon, lat] = point.coordinates;
+      const [x, y] = to25832([lon, lat]);
+
+      feature25832 = {
+        ...feature,
+        geometry: {
+          type: "Point",
+          coordinates: [x, y],
+        },
+        properties: {
+          ...feature.properties,
+        },
+      };
+    } else {
+      console.warn(`Unsupported geometry type: ${geom.type}`);
+      return;
+    }
+
+    dispatch(addAnnotation(feature25832));
+  };
+
+  const handleMarkerCreation = (feature: GeoJSON.Feature) => {
+    const [lon, lat] = (feature.geometry as any).coordinates as [
+      number,
+      number
+    ];
+
+    const [x, y] = to25832([lon, lat]);
 
     const feature25832: GeoJSON.Feature = {
       ...feature,
       geometry: {
-        ...feature.geometry,
-        coordinates: reprojectedCoords,
+        type: "Point",
+        coordinates: [x, y],
+      },
+      properties: {
+        ...feature.properties,
       },
     };
 
@@ -145,6 +195,14 @@ const Map = ({ children, newHeight }: MapProps) => {
               <PolygonControl
                 routedMapRef={refRoutedMap}
                 onCreated={handleFeatureCreation}
+              />
+            </Control>
+          )}
+          {annotationEditable && (
+            <Control position="topleft" order={20}>
+              <MarkerControl
+                routedMapRef={refRoutedMap}
+                onCreated={handleMarkerCreation}
               />
             </Control>
           )}
