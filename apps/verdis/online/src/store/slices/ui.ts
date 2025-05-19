@@ -6,6 +6,8 @@ import {
   appModes,
 } from "../../constants/ui";
 
+type DrawMode = "default" | "polygon" | "marker" | "edit-feature";
+
 export const types = {
   TOGGLE_INFO_ELEMENTS: "UI_STATE/TOGGLE_INFO_ELEMENTS",
   TOGGLE_CHART_ELEMENTS: "UI_STATE/TOGGLE_CHART_ELEMENTS",
@@ -122,6 +124,7 @@ const initialState = {
   localErrorMessages: [],
   confData: undefined,
   hintVisible: true,
+  drawMode: "default" as DrawMode,
 };
 
 const slice = createSlice({
@@ -225,6 +228,9 @@ const slice = createSlice({
         state.cloudStorageStatusMessages.push(message);
       }
     },
+    setDrawMode(state, action) {
+      state.drawMode = action.payload;
+    },
   },
 });
 
@@ -254,6 +260,7 @@ export const {
   setCloudStorageStatus,
   setHintVisible,
   setWaitingType,
+  setDrawMode,
 } = slice.actions;
 
 export const getConfData = (state) => {
