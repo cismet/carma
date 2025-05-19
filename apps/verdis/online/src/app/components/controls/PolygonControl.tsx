@@ -35,7 +35,7 @@ export const PolygonControl = ({
       map.off("editable:drawing:commit", commitHandler);
       map.off("editable:drawing:cancel", cancelHandler);
     };
-  }, [map, onCreated]);
+  }, [map]);
 
   const toggleDraw = () => {
     if (!map?.editTools) return;

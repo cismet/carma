@@ -96,53 +96,30 @@ const Map = ({ children, newHeight }: MapProps) => {
     }
   };
 
-  const handleFeatureCreation = (feature: GeoJSON.Feature) => {
-    const geom = feature.geometry;
-    let feature25832: GeoJSON.Feature;
+  const handlePolygonCreation = (feature: GeoJSON.Feature) => {
+    if (feature.geometry.type !== "Polygon") return;
 
-    if (geom.type === "Polygon") {
-      const poly = feature.geometry as GeoJSON.Polygon;
-      const rings25832 = poly.coordinates.map((ring) => ring.map(to25832));
+    const poly = feature.geometry as GeoJSON.Polygon;
+    const rings25832 = poly.coordinates.map((ring) => ring.map(to25832));
 
-      const feature25832: GeoJSON.Feature = {
-        ...feature,
-        geometry: {
-          type: "Polygon",
-          coordinates: rings25832,
-        },
-        properties: { ...feature.properties },
-      };
-
-      dispatch(addAnnotation(feature25832));
-    } else if (geom.type === "Point") {
-      const point = geom as GeoJSON.Point;
-      const [lon, lat] = point.coordinates;
-      const [x, y] = to25832([lon, lat]);
-
-      feature25832 = {
-        ...feature,
-        geometry: {
-          type: "Point",
-          coordinates: [x, y],
-        },
-        properties: {
-          ...feature.properties,
-        },
-      };
-    } else {
-      console.warn(`Unsupported geometry type: ${geom.type}`);
-      return;
-    }
+    const feature25832: GeoJSON.Feature = {
+      ...feature,
+      geometry: {
+        type: "Polygon",
+        coordinates: rings25832,
+      },
+      properties: {
+        ...feature.properties,
+      },
+    };
 
     dispatch(addAnnotation(feature25832));
   };
 
   const handleMarkerCreation = (feature: GeoJSON.Feature) => {
-    const [lon, lat] = (feature.geometry as any).coordinates as [
-      number,
-      number
-    ];
+    if (feature.geometry.type !== "Point") return;
 
+    const [lon, lat] = (feature.geometry as GeoJSON.Point).coordinates;
     const [x, y] = to25832([lon, lat]);
 
     const feature25832: GeoJSON.Feature = {
@@ -192,7 +169,7 @@ const Map = ({ children, newHeight }: MapProps) => {
             <Control position="topleft" order={20}>
               <PolygonControl
                 routedMapRef={refRoutedMap}
-                onCreated={handleFeatureCreation}
+                onCreated={handlePolygonCreation}
               />
             </Control>
           )}
@@ -214,7 +191,7 @@ const Map = ({ children, newHeight }: MapProps) => {
         }
         zoomControlEnabled={false}
         editable={true}
-        onFeatureCreation={handleFeatureCreation}
+        // onFeatureCreation={handleFeatureCreation}
         onFeatureChangeAfterEditing={handleFeatureAfterEditing}
         snappingEnabled={true}
         referenceSystem={MappingConstants.crs25832}
