@@ -51,6 +51,14 @@ interface MapProps {
   newHeight?: number;
 }
 
+export type EditableMap = LeafletMap & {
+  editTools: {
+    startPolygon: (options?: any, config?: any) => void;
+    startMarker: (options?: any) => void;
+    stopDrawing: () => void;
+  };
+};
+
 const Map = ({ children, newHeight }: MapProps) => {
   const [urlParams, setUrlParams] = useSearchParams();
   let refRoutedMap = useRef(null);
@@ -61,6 +69,7 @@ const Map = ({ children, newHeight }: MapProps) => {
   const kassenzeichen = useSelector(getKassenzeichen);
   const annotationEditable = uiState.changeRequestsEditMode;
   const [featuresInEditMode, setFeaturesInEditMode] = useState(false);
+  const [drawPolygon, setDrawPolygon] = useState(false);
 
   function paramsToObject(entries) {
     const result = {};
@@ -146,6 +155,8 @@ const Map = ({ children, newHeight }: MapProps) => {
     dispatch(addAnnotation(feature));
   };
 
+  const handleDrawPolygon = () => {};
+
   const mapStyle = {
     height: newHeight ? newHeight : height - 55,
     cursor: "grab",
@@ -175,6 +186,7 @@ const Map = ({ children, newHeight }: MapProps) => {
               <PolygonControl
                 routedMapRef={refRoutedMap}
                 onCreated={handlePolygonCreation}
+                drawing={setDrawPolygon}
               />
             </Control>
           )}

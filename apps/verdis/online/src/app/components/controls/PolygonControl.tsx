@@ -1,6 +1,7 @@
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import type { Map as LeafletMap } from "leaflet";
 import { useEffect, useState } from "react";
+import { EditableMap } from "../Map";
 
 interface PolygonControlProps {
   routedMapRef: React.RefObject<any>;
@@ -12,7 +13,7 @@ export const PolygonControl = ({
   onCreated,
 }: PolygonControlProps) => {
   const [drawing, setDrawing] = useState(false);
-  const map: LeafletMap | undefined =
+  const map: EditableMap | undefined =
     routedMapRef.current?.leafletMap?.leafletElement;
 
   useEffect(() => {

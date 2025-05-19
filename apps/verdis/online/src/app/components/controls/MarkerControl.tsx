@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import type { Map as LeafletMap } from "leaflet";
+import { EditableMap } from "../Map";
 
 interface MarkerControlProps {
   routedMapRef: React.RefObject<any>;
@@ -14,7 +15,7 @@ export const MarkerControl: React.FC<MarkerControlProps> = ({
   tooltip = "Punkt anlegen",
 }) => {
   const [drawing, setDrawing] = useState(false);
-  const map: LeafletMap | undefined =
+  const map: EditableMap | undefined =
     routedMapRef.current?.leafletMap?.leafletElement;
 
   useEffect(() => {
