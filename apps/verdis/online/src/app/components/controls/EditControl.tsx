@@ -2,6 +2,8 @@ import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import type { Map as LeafletMap } from "leaflet";
 import { useEffect, useState } from "react";
 import EditModeControlButton from "../EditModeControlButton";
+import { useDispatch, useSelector } from "react-redux";
+import { getDrawMode, setDrawMode } from "../../../store/slices/ui";
 
 interface PolygonControlProps {
   routedMapRef: React.RefObject<any>;
@@ -16,12 +18,23 @@ export const EditControl = ({
   setFeaturesInEditMode,
   selectedFeatureId,
 }: PolygonControlProps) => {
-  const map: LeafletMap | undefined =
-    routedMapRef.current?.leafletMap?.leafletElement;
+  const dispatch = useDispatch();
+  const mode = useSelector(getDrawMode);
 
   const toggleEditMode = () => {
     setFeaturesInEditMode(!featuresInEditMode);
+    if (featuresInEditMode) {
+      dispatch(setDrawMode("default"));
+    } else {
+      dispatch(setDrawMode("edit-feature"));
+    }
   };
+
+  useEffect(() => {
+    if (mode === "default" || mode === "marker" || mode === "polygon") {
+      setFeaturesInEditMode(false);
+    }
+  }, [mode]);
 
   return (
     <>
