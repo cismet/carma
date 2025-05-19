@@ -161,7 +161,6 @@ const Map = ({ children, newHeight }: MapProps) => {
         onFeatureCreation={handleFeatureCreation}
         onFeatureChangeAfterEditing={handleFeatureAfterEditing}
         snappingEnabled={true}
-        key={"leafletRoutedMap0 + "}
         referenceSystem={MappingConstants.crs25832}
         referenceSystemDefinition={MappingConstants.proj4crs25832def}
         ref={refRoutedMap}

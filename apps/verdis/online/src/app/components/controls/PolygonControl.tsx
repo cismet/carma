@@ -44,7 +44,15 @@ export const PolygonControl = ({
   return (
     <ControlButtonStyler onClick={startDraw}>
       <div
-        style={{ border: drawing ? "2px solid blue" : "0px", width: "33px" }}
+        style={{
+          //   position: "relative",
+          border: drawing ? "2px solid #008AFA" : "2px solid transparent",
+          width: "28px",
+          height: "28px",
+          borderRadius: "2px",
+          top: 0,
+          left: 0,
+        }}
       >
         <i className="fas fa-draw-polygon"></i>
       </div>
