@@ -184,11 +184,7 @@ const Map = ({ children, newHeight }: MapProps) => {
         </ControlLayout>
       </div>
       <RoutedMap
-        key={
-          "RoutedMap" +
-          JSON.stringify(kassenzeichen) +
-          JSON.stringify(annotationEditable)
-        }
+        key={"RoutedMapKey"}
         zoomControlEnabled={false}
         editable={true}
         // onFeatureCreation={handleFeatureCreation}
