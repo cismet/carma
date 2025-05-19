@@ -28,6 +28,7 @@ import {
 import {
   CLOUDSTORAGESTATES,
   getUiState,
+  setNavbarHight,
   setWaitForFEB,
   showChangeRequestsMenu,
   showInfo,
@@ -51,6 +52,7 @@ import { Badge } from "antd";
 
 const VerdisOnlineAppNavbar = () => {
   const dispatch = useDispatch();
+  const navRef = useRef<HTMLElement>(null);
   const helpRef = useRef(null);
   const kassenzeichen = useSelector(getKassenzeichen);
   const uiState = useSelector(getUiState);
@@ -112,6 +114,19 @@ const VerdisOnlineAppNavbar = () => {
   const target = useRef(null);
 
   useEffect(() => {
+    if (!navRef.current) return;
+    // measure function
+    const measure = () => {
+      const h = navRef.current!.getBoundingClientRect().height;
+      dispatch(setNavbarHight(h));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(navRef.current);
+    return () => ro.disconnect();
+  }, []);
+
+  useEffect(() => {
     if (uiState.waitForFEB === true) {
       //dh downloadFeb() wurde aufgerufen aber der Download ist noch nicht fertig
       if (uiState.febBlob === null && uiState.waitingVisible === false) {
@@ -126,7 +141,7 @@ const VerdisOnlineAppNavbar = () => {
   }, [uiState.waitForFEB, uiState.febBlob, uiState.waitingVisible]);
 
   return (
-    <div>
+    <div ref={navRef}>
       <Navbar
         style={{
           marginBottom: 0,

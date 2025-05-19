@@ -18,7 +18,7 @@ import {
 } from "../../store/slices/mapping";
 import "react-cismap/topicMaps.css";
 import "leaflet/dist/leaflet.css";
-import { getHeight, getUiState } from "../../store/slices/ui";
+import { getHeight, getNavbarHeight, getUiState } from "../../store/slices/ui";
 import {
   createFlaechenStyler,
   getMarkerStyleFromFeatureConsideringSelection,
@@ -66,6 +66,7 @@ const Map = ({ children, newHeight }: MapProps) => {
   const mapping = useSelector(getMapping);
   const uiState = useSelector(getUiState);
   const height = useSelector(getHeight);
+  const navbarHeight = useSelector(getNavbarHeight);
   const kassenzeichen = useSelector(getKassenzeichen);
   const annotationEditable = uiState.changeRequestsEditMode;
   const [featuresInEditMode, setFeaturesInEditMode] = useState(false);
@@ -147,7 +148,6 @@ const Map = ({ children, newHeight }: MapProps) => {
   };
 
   const handleFeatureAfterEditing = (feature) => {
-    console.log("xxx change annotation", feature.id);
     dispatch(changeAnnotation(feature));
   };
 
@@ -168,7 +168,7 @@ const Map = ({ children, newHeight }: MapProps) => {
         className="controls-container"
         style={{
           position: "absolute",
-          top: "70px",
+          top: navbarHeight,
           left: "0px",
           bottom: "0px",
           zIndex: 600,

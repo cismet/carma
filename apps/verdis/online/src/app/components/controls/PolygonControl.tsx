@@ -32,7 +32,6 @@ export const PolygonControl = ({
     };
 
     const cancelHandler = () => {
-      console.log("xxx cancelHandler polygon");
       setDrawing(false);
     };
 

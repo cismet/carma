@@ -125,6 +125,7 @@ const initialState = {
   confData: undefined,
   hintVisible: true,
   drawMode: "default" as DrawMode,
+  navbarHight: 40,
 };
 
 const slice = createSlice({
@@ -231,6 +232,9 @@ const slice = createSlice({
     setDrawMode(state, action) {
       state.drawMode = action.payload;
     },
+    setNavbarHight(state, action) {
+      state.navbarHight = action.payload;
+    },
   },
 });
 
@@ -261,6 +265,7 @@ export const {
   setHintVisible,
   setWaitingType,
   setDrawMode,
+  setNavbarHight,
 } = slice.actions;
 
 export const getConfData = (state) => {
@@ -273,6 +278,10 @@ export const getUiState = (state) => {
 
 export const getHeight = (state) => {
   return state.ui.height;
+};
+
+export const getNavbarHeight = (state) => {
+  return state.ui.navbarHight;
 };
 
 export const getDrawMode = (state) => {
