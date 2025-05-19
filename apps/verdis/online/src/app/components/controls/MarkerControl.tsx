@@ -41,7 +41,7 @@ export const MarkerControl: React.FC<MarkerControlProps> = ({
     map.on("editable:drawing:cancel", cancelHandler);
 
     if (mode !== "marker") {
-      map.editTools.stopDrawing();
+      // map.editTools.stopDrawing();
       setDrawing(false);
     }
 
