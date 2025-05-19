@@ -66,6 +66,7 @@ export const MarkerControl: React.FC<MarkerControlProps> = ({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          fontSize: "14px",
         }}
       >
         <i className="fas fa-map-marker-alt"></i>

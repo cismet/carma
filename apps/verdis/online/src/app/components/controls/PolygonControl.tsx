@@ -63,6 +63,7 @@ export const PolygonControl = ({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          fontSize: "14px",
         }}
       >
         <i className="fas fa-draw-polygon"></i>

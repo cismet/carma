@@ -40,6 +40,7 @@ export const EditControl = ({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            fontSize: "14px",
           }}
         >
           <i className="fas fa-edit"></i>
