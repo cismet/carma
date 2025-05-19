@@ -275,6 +275,10 @@ export const getHeight = (state) => {
   return state.ui.height;
 };
 
+export const getDrawMode = (state) => {
+  return state.ui.drawMode;
+};
+
 export const getChangeRequestEditViewVisible = (state) => {
   return state.ui.changeRequestEditViewVisible;
 };
