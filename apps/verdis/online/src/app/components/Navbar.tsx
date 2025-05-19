@@ -21,7 +21,6 @@ import {
 } from "react-bootstrap";
 import { useDispatch, useSelector } from "react-redux";
 import {
-  getFEBByStac,
   getKassenzeichen,
   getNumberOfPendingChanges,
 } from "../../store/slices/kassenzeichen";
@@ -52,7 +51,7 @@ import { Badge } from "antd";
 
 const VerdisOnlineAppNavbar = () => {
   const dispatch = useDispatch();
-  const navRef = useRef<HTMLElement>(null);
+  const navRef = useRef<HTMLDivElement>(null);
   const helpRef = useRef(null);
   const kassenzeichen = useSelector(getKassenzeichen);
   const uiState = useSelector(getUiState);
@@ -115,7 +114,6 @@ const VerdisOnlineAppNavbar = () => {
 
   useEffect(() => {
     if (!navRef.current) return;
-    // measure function
     const measure = () => {
       const h = navRef.current!.getBoundingClientRect().height;
       dispatch(setNavbarHight(h));
