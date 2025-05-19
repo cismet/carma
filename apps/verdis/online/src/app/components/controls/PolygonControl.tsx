@@ -19,39 +19,50 @@ export const PolygonControl = ({
     if (!map || !map.editTools) return;
 
     const commitHandler = (e: any) => {
-      console.log("xxx stop drawing");
       setDrawing(false);
       const geojson = e.layer.toGeoJSON() as GeoJSON.Feature;
       e.layer.addTo(map);
       onCreated(geojson);
     };
 
+    const cancelHandler = () => {
+      setDrawing(false);
+    };
+
     map.on("editable:drawing:commit", commitHandler);
+    map.on("editable:drawing:cancel", cancelHandler);
     return () => {
       map.off("editable:drawing:commit", commitHandler);
+      map.off("editable:drawing:cancel", cancelHandler);
     };
   }, [map, onCreated]);
 
-  const startDraw = () => {
-    if (!map?.editTools?.startPolygon) return;
-    setDrawing(true);
-    map.editTools.startPolygon(null, {
-      shapeOptions: { color: "#3388ff", weight: 4 },
-      allowIntersection: false,
-    });
+  const toggleDraw = () => {
+    if (!map?.editTools) return;
+
+    if (drawing) {
+      map.editTools.stopDrawing();
+      setDrawing(false);
+    } else {
+      setDrawing(true);
+      map.editTools.startPolygon(null, {
+        shapeOptions: { color: "#3388ff", weight: 4 },
+        allowIntersection: false,
+      });
+    }
   };
 
   return (
-    <ControlButtonStyler onClick={startDraw}>
+    <ControlButtonStyler onClick={toggleDraw} title="Draw / Cancel">
       <div
         style={{
-          //   position: "relative",
           border: drawing ? "2px solid #008AFA" : "2px solid transparent",
           width: "28px",
           height: "28px",
           borderRadius: "2px",
-          top: 0,
-          left: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
         }}
       >
         <i className="fas fa-draw-polygon"></i>
