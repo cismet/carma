@@ -45,6 +45,14 @@ export const MarkerControl: React.FC<MarkerControlProps> = ({
       setDrawing(false);
     }
 
+    if (mode === "marker") {
+      map.editTools.startMarker({
+        repeatMode: false,
+        draggable: true,
+      });
+      setDrawing(true);
+    }
+
     return () => {
       map.off("editable:drawing:commit", commitHandler);
       map.off("editable:drawing:cancel", cancelHandler);
