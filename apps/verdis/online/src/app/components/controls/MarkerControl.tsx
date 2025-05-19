@@ -13,7 +13,7 @@ export const MarkerControl: React.FC<MarkerControlProps> = ({
   onCreated,
   tooltip = "Punkt anlegen",
 }) => {
-  const [placing, setPlacing] = useState(false);
+  const [drawing, setDrawing] = useState(false);
   const map: LeafletMap | undefined =
     routedMapRef.current?.leafletMap?.leafletElement;
 
@@ -21,7 +21,7 @@ export const MarkerControl: React.FC<MarkerControlProps> = ({
     if (!map || !map.editTools) return;
 
     const commitHandler = (e: any) => {
-      setPlacing(false);
+      setDrawing(false);
       const layer = e.layer;
       layer.addTo(map);
       const feature = layer.toGeoJSON() as GeoJSON.Feature;
@@ -29,7 +29,7 @@ export const MarkerControl: React.FC<MarkerControlProps> = ({
     };
 
     const cancelHandler = () => {
-      setPlacing(false);
+      setDrawing(false);
     };
 
     map.on("editable:drawing:commit", commitHandler);
@@ -43,11 +43,11 @@ export const MarkerControl: React.FC<MarkerControlProps> = ({
 
   const togglePlacing = () => {
     if (!map?.editTools) return;
-    if (placing) {
+    if (drawing) {
       map.editTools.stopDrawing();
-      setPlacing(false);
+      setDrawing(false);
     } else {
-      setPlacing(true);
+      setDrawing(true);
       map.editTools.startMarker({
         repeatMode: false,
         draggable: true,
@@ -57,7 +57,19 @@ export const MarkerControl: React.FC<MarkerControlProps> = ({
 
   return (
     <ControlButtonStyler onClick={togglePlacing} title={tooltip}>
-      <i className="fas fa-map-marker-alt"></i>
+      <div
+        style={{
+          border: drawing ? "3px solid #008AFA" : "3px solid transparent",
+          width: "28px",
+          height: "28px",
+          borderRadius: "2px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <i className="fas fa-map-marker-alt"></i>
+      </div>
     </ControlButtonStyler>
   );
 };
