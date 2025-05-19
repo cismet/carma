@@ -53,7 +53,7 @@ export const PolygonControl = ({
   };
 
   return (
-    <ControlButtonStyler onClick={toggleDraw} title="Draw / Cancel">
+    <ControlButtonStyler onClick={toggleDraw} title="Fläche anlegen">
       <div
         style={{
           border: drawing ? "3px solid #008AFA" : "3px solid transparent",
