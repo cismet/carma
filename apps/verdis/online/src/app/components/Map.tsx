@@ -1,11 +1,7 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
 import {
   MappingConstants,
   RoutedMap,
   FeatureCollectionDisplay,
-  NewMarkerControl,
-  NewPolyControl,
 } from "react-cismap";
 import { useDispatch, useSelector } from "react-redux";
 import { useSearchParams } from "react-router-dom";
@@ -28,9 +24,7 @@ import {
   changeAnnotation,
   getKassenzeichen,
 } from "../../store/slices/kassenzeichen";
-import CyclingBackgroundButton from "./CyclingBackgroundButton";
 import { ReactNode, useRef, useState } from "react";
-import EditModeControlButton from "./EditModeControlButton";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import { ZoomControl } from "./controls/ZoomControl";
 import { CyclingControl } from "./controls/CyclingControl";
@@ -38,11 +32,15 @@ import { PolygonControl } from "./controls/PolygonControl";
 import proj4 from "proj4";
 import { MarkerControl } from "./controls/MarkerControl";
 import { EditControl } from "./controls/EditControl";
+import type { Map as LeafletMap } from "leaflet";
+import type { UnknownAction } from "redux";
+import { Position } from "geojson";
 
 const WGS84 = "EPSG:4326";
 const CRS25832 = MappingConstants.proj4crs25832def;
 
-function to25832([lon, lat]: [number, number]): [number, number] {
+function to25832(coord: Position): [number, number] {
+  const [lon, lat] = coord;
   return proj4(WGS84, CRS25832, [lon, lat]);
 }
 
@@ -96,13 +94,16 @@ const Map = ({ children, newHeight }: MapProps) => {
   const featureClick = (event, feature) => {
     if (isFlaecheSelected(feature.properties)) {
       dispatch(
-        fitFeatureBounds(mapping.featureCollection[mapping.selectedIndex], "")
+        fitFeatureBounds(
+          mapping.featureCollection[mapping.selectedIndex],
+          ""
+        ) as unknown as UnknownAction
       );
     } else {
       dispatch(
         setSelectedFeatureIndexWithSelector((testFeature) => {
           return testFeature.properties.id === feature.properties.id;
-        })
+        }) as unknown as UnknownAction
       );
     }
   };
@@ -124,7 +125,7 @@ const Map = ({ children, newHeight }: MapProps) => {
       },
     };
 
-    dispatch(addAnnotation(feature25832));
+    dispatch(addAnnotation(feature25832) as unknown as UnknownAction);
   };
 
   const handleMarkerCreation = (feature: GeoJSON.Feature) => {
@@ -144,18 +145,16 @@ const Map = ({ children, newHeight }: MapProps) => {
       },
     };
 
-    dispatch(addAnnotation(feature25832));
+    dispatch(addAnnotation(feature25832) as unknown as UnknownAction);
   };
 
   const handleFeatureAfterEditing = (feature) => {
-    dispatch(changeAnnotation(feature));
+    dispatch(changeAnnotation(feature) as unknown as UnknownAction);
   };
 
   const handleFeatureCreation = (feature) => {
-    dispatch(addAnnotation(feature));
+    dispatch(addAnnotation(feature) as unknown as UnknownAction);
   };
-
-  const handleDrawPolygon = () => {};
 
   const mapStyle = {
     height: newHeight ? newHeight : height - 55,
@@ -186,7 +185,6 @@ const Map = ({ children, newHeight }: MapProps) => {
               <PolygonControl
                 routedMapRef={refRoutedMap}
                 onCreated={handlePolygonCreation}
-                drawing={setDrawPolygon}
               />
             </Control>
           )}
@@ -224,7 +222,6 @@ const Map = ({ children, newHeight }: MapProps) => {
         ref={refRoutedMap}
         layers=""
         style={mapStyle}
-        // ondblclick={this.mapDblClick}
         doubleClickZoom={false}
         locationChangedHandler={(location) => {
           const newParams = { ...paramsToObject(urlParams), ...location };
@@ -235,17 +232,12 @@ const Map = ({ children, newHeight }: MapProps) => {
           autoFitMode: mapping.autoFitMode,
           autoFitBoundsTarget: mapping.autoFitBoundsTarget,
         }}
-        autoFitProcessedHandler={
-          () => dispatch(setAutoFit({ autofit: false }))
-          // this.props.mappingActions.setAutoFit(false)
-        }
+        autoFitProcessedHandler={() => dispatch(setAutoFit({ autofit: false }))}
         urlSearchParams={urlParams}
-        boundingBoxChangedHandler={
-          (bbox) => dispatch(mapBoundsChanged({ bbox }))
-          // this.props.mappingActions.mappingBoundsChanged(bbox)
+        boundingBoxChangedHandler={(bbox) =>
+          dispatch(mapBoundsChanged({ bbox }))
         }
         backgroundlayers={
-          // this.props.backgroundlayers ||
           mapping.backgrounds[mapping.selectedBackgroundIndex].layerkey
         }
       >
@@ -256,7 +248,6 @@ const Map = ({ children, newHeight }: MapProps) => {
             "+" +
             mapping.selectedIndex +
             "+editEnabled:"
-            // this.props.uiState.changeRequestsEditMode
           }
           featureCollection={mapping.featureCollection.filter(
             (feature) =>
@@ -265,10 +256,10 @@ const Map = ({ children, newHeight }: MapProps) => {
           boundingBox={mapping.boundingBox}
           clusteringEnabled={false}
           style={createFlaechenStyler(false, kassenzeichen)}
-          // hoverer={this.props.hoverer}
           featureClickHandler={featureClick}
-          // mapRef={this.leafletRoutedMap}
-          showMarkerCollection={urlParams.get("zoom") >= 15}
+          showMarkerCollection={
+            parseInt(urlParams.get("zoom") ?? "0", 10) >= 15
+          }
           markerStyle={getMarkerStyleFromFeatureConsideringSelection}
           snappingGuides={true}
         />
