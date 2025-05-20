@@ -16,6 +16,7 @@ export const CyclingControl = ({
   if (newIndex >= backgrounds.length) {
     newIndex = 0;
   }
+  const baseUrl = window.location.origin + window.location.pathname;
 
   const clickHandler = () => {
     dispatch(setSelectedBackgroundIndex({ selectedBackgroundIndex: newIndex }));
@@ -32,7 +33,7 @@ export const CyclingControl = ({
       >
         <div>
           <img
-            src={backgrounds[mapping.selectedBackgroundIndex].src}
+            src={baseUrl + backgrounds[mapping.selectedBackgroundIndex].src}
             width="28"
             height="28"
           />

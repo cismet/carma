@@ -19,6 +19,7 @@ const ContactPanel = ({ contact }: ContactProps) => {
   }
 
   const image = _contact.image;
+  const baseUrl = window.location.origin + window.location.pathname;
 
   return (
     <div
@@ -49,7 +50,7 @@ const ContactPanel = ({ contact }: ContactProps) => {
           style={{
             width: "100%",
             height: "100%",
-            backgroundImage: `url("/images/contacts/${image}")`,
+            backgroundImage: `url("${baseUrl}images/contacts/${image}")`,
             backgroundRepeat: "no-repeat",
             backgroundSize: "cover",
             backgroundPosition: "center",

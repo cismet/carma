@@ -135,6 +135,8 @@ const VerdisOnlineLanding = () => {
     };
   }, []);
 
+  const baseUrl = window.location.origin + window.location.pathname;
+
   return (
     <div style={{ position: "relative" }}>
       <div
@@ -234,7 +236,11 @@ const VerdisOnlineLanding = () => {
           <Row className="show-grid">
             <Col xs={12} md={12}>
               <h1 style={{ color: "white" }}>
-                <img alt="" width={180} src="/images/wuppertal-white.svg" />
+                <img
+                  alt=""
+                  width={180}
+                  src={baseUrl + "/images/wuppertal-white.svg"}
+                />
               </h1>
               {getVersion() === "dev-hot-reload" &&
                 process.env.NODE_ENV === "development" && (
