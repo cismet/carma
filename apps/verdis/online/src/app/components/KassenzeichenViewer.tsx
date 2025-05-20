@@ -159,7 +159,7 @@ const KassenzeichenViewer = () => {
     return () => {
       sysend.off("reloadOnEmailVerification");
     };
-  }, [uiState.changeRequestsMenuVisible]);
+  }, [uiState.changeRequestsMenuVisible, stac]);
 
   useEffect(() => {
     const crOpen = queryString.parse(location.search).crOpen;

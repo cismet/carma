@@ -99,9 +99,9 @@ const mappingConfig = {
 export default configureStore({
   reducer: {
     auth: persistReducer(authConfig, authSlice.reducer),
-    kassenzeichen: persistReducer(mappingConfig, kassenzeichenReducer.reducer),
+    kassenzeichen: kassenzeichenReducer.reducer,
     ui: persistReducer(uiStateConfig, uiReducer.reducer),
-    mapping: mappingReducer.reducer,
+    mapping: persistReducer(mappingConfig, mappingReducer.reducer),
   },
   devTools: devToolsEnabled === true && inProduction === false,
   middleware,
