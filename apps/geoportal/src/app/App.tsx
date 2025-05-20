@@ -79,8 +79,8 @@ function App({ published }: { published?: boolean }) {
           >
             <ErrorBoundary FallbackComponent={AppErrorFallback}>
               <div
-                className="flex flex-col w-full "
-                style={{ height: "100dvh" }}
+                className="fixed flex flex-col w-lvw h-lvh"
+                style={{ border: "2px dotted red" }}
               >
                 {isLoadingConfig && (
                   <div
