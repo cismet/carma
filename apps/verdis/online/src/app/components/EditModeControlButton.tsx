@@ -1,5 +1,3 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
 import React, { useEffect } from "react";
 import L from "leaflet";
 import "leaflet-editable";
@@ -7,7 +5,6 @@ import "leaflet-editable";
 interface EditModeControlButtonProps {
   mapRef: React.RefObject<any>;
   featuresInEditMode: boolean;
-  onFeatureChange: (editing: boolean) => void;
   position?: L.ControlPosition;
   html?: string;
   kind?: string;
@@ -17,10 +14,6 @@ interface EditModeControlButtonProps {
 const EditModeControlButton: React.FC<EditModeControlButtonProps> = ({
   mapRef,
   featuresInEditMode,
-  onFeatureChange,
-  position = "topleft",
-  html = '<i class="fas fa-edit"></i>',
-  kind = "xxx",
   selectedFeatureId,
 }) => {
   useEffect(() => {
@@ -28,64 +21,25 @@ const EditModeControlButton: React.FC<EditModeControlButtonProps> = ({
 
     if (!map) return;
 
-    // const ControlClass = L.Control.extend({
-    //   options: { position, kind, html },
-    //   onAdd() {
-    //     const div = L.DomUtil.create("div", "leaflet-control leaflet-bar");
-    //     const link = L.DomUtil.create("a", "", div);
-    //     link.href = "#";
-    //     link.title = "Verändern der selektierten Anmerkung";
-    //     link.innerHTML = featuresInEditMode
-    //       ? `<span style="padding:2px 4px; border-radius:4px; border:3px solid #008AFA;">
-    //            ${html}
-    //          </span>`
-    //       : html;
-
-    //     L.DomEvent.on(link, "click", L.DomEvent.stop).on(link, "click", () =>
-    //       onFeatureChange(!featuresInEditMode)
-    //     );
-    //     L.DomEvent.disableClickPropagation(div);
-    //     return div;
-    //   },
-    // });
-
-    // const control = new ControlClass();
-    // map.addControl(control);
-
-    map.eachLayer((layer) => {
-      if (
-        layer.feature?.properties?.type === "annotation" &&
-        layer.feature !== undefined
-      ) {
-        if (layer.feature?.id === selectedFeatureId?.id) {
-          layer.enableEdit();
-        } else {
-          layer.disableEdit();
-        }
-      }
-    });
-
-    if (!featuresInEditMode) {
-      map.eachLayer((layer) => {
-        if (
-          layer.feature?.properties?.type === "annotation" &&
-          layer.feature !== undefined
-        ) {
-          layer.disableEdit();
-        }
-      });
-    }
-
     const reapplyEdit = () => {
       map.eachLayer((layer: any) => {
-        if (
+        const isMyAnnotation =
           layer.feature?.properties?.type === "annotation" &&
-          layer.feature.id === selectedFeatureId?.id
-        ) {
-          layer.enableEdit();
+          layer.feature.id === selectedFeatureId?.id;
+
+        if (isMyAnnotation && featuresInEditMode) {
+          if (typeof layer.enableEdit === "function") {
+            layer.enableEdit();
+          }
+        } else {
+          if (typeof layer.disableEdit === "function") {
+            layer.disableEdit();
+          }
         }
       });
     };
+
+    reapplyEdit();
 
     map.on("moveend", reapplyEdit);
     map.on("zoomend", reapplyEdit);

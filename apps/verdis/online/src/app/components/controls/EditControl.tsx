@@ -62,7 +62,6 @@ export const EditControl = ({
       <EditModeControlButton
         mapRef={routedMapRef}
         featuresInEditMode={featuresInEditMode}
-        onFeatureChange={setFeaturesInEditMode}
         selectedFeatureId={selectedFeatureId}
       />
     </>
