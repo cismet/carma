@@ -211,7 +211,9 @@ const slice = createSlice({
       state.localErrorMessages = action.payload;
     },
     setFebBlob(state, action) {
-      state.febBlob = action.payload;
+      if (action.payload.size && action.payload.size > 0) {
+        state.febBlob = action.payload;
+      }
     },
     setWaitForFEB(state, action) {
       state.waitForFEB = action.payload;
