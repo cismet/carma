@@ -887,6 +887,33 @@
       },
       "projectPath": "./dist/apps/verdis/desktop"
     },
+    "verdis-online": {
+      "deployment": {
+        "manual": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "verdis-online"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "verdis-online"
+            }
+          }
+        },
+        "auto": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "verdis-online"
+            }
+          }
+        }
+      },
+      "projectPath": "./dist/apps/verdis/online"
+    },
     "lagis-desktop": {
       "deployment": {
         "manual": {
