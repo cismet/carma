@@ -13,7 +13,6 @@ import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFrom
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import { getPoiClusterIconCreatorFunction } from "../../helper/styler";
 import Menu from "./Menu";
-import SecondaryInfoModal from "./SecondaryInfoModal";
 import {
   InfoBoxTextContent,
   InfoBoxTextTitle,
@@ -36,6 +35,11 @@ import {
   ZoomControl,
 } from "@carma-mapping/components";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import { getApplicationVersion } from "@carma-commons/utils";
+import versionData from "../../version.json";
+
+import SIMComponentDictionary from "@carma-collab/wuppertal/secondary-info-modals";
+const SecondaryInfoModal = SIMComponentDictionary["ebikesSIM"];
 
 const Map = () => {
   const { setClusteringOptions } = useContext<
@@ -147,6 +151,7 @@ const Map = () => {
       >
         {secondaryInfoVisible && (
           <SecondaryInfoModal
+            versionString={getApplicationVersion(versionData)}
             feature={selectedFeature}
             setOpen={setSecondaryInfoVisible}
           />

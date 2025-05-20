@@ -103,6 +103,9 @@
       "@carma-collab/wuppertal/generic-topicmap": [
         "libraries/collaboration/carma-wuppertal-collab/src/generic-topicmap/index.ts"
       ],
+       "@carma-collab/wuppertal/secondary-info-modals": [
+        "libraries/collaboration/carma-wuppertal-collab/src/secondary-info-modals/index.ts"
+      ],
       "@carma-commons/debug": ["libraries/commons/debug/src/index.ts"],
       "@carma-commons/document-viewer": [
         "libraries/commons/document-viewer/src/index.ts"
