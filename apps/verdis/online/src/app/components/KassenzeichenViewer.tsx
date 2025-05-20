@@ -46,13 +46,8 @@ import {
 import { fitAll, getMapping } from "../../store/slices/mapping";
 import HelpAndSettings from "../components/helpandsettings/Menu00MainComponent";
 import ChangeRequests from "../components/changerequests/CR00MainComponent";
-import {
-  getStac,
-  getSuccesfullLogin,
-  setLoginInProgress,
-} from "../../store/slices/auth";
+import { getStac, getSuccesfullLogin } from "../../store/slices/auth";
 import { useLocation, useNavigate } from "react-router-dom";
-import { KassenzeichenViewerGefahrensignal } from "@carma-collab/wuppertal/verdis-online";
 import AnnotationPanel from "./AnnotationPanel";
 import ChangeRequestEditView from "../components/changerequests/CR50Flaechendialog";
 import AnnotationEditView from "../components/changerequests/CR60AnnotationDialog";
