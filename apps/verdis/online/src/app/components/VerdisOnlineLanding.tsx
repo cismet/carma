@@ -35,13 +35,14 @@ const VerdisOnlineLanding = () => {
   const confData = useSelector(getConfData);
   const navigate = useNavigate();
   const location = useLocation();
+  const baseUrl = window.location.origin + window.location.pathname;
 
   const uiState = useSelector(getUiState);
   let landingStyle = {
     backgroundColor: "red",
     height: uiState.height,
     width: "100%",
-    background: "url('/images/" + "background.jpg" + "')",
+    background: `url(${baseUrl}images/background.jpg)`,
     backgroundSize: "cover",
     backgroundPosition: "center",
     backgroundRepeat: "no-repeat",
@@ -134,8 +135,6 @@ const VerdisOnlineLanding = () => {
       return clearInterval(interval);
     };
   }, []);
-
-  const baseUrl = window.location.origin + window.location.pathname;
 
   return (
     <div style={{ position: "relative" }}>
