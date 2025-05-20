@@ -1,6 +1,8 @@
-export const DOMAIN = "VERDIS_GRUNDIS";
-export const GEOM_CLASS = "GEOM";
-export const GEOM_FIELD = "geo_field";
+const cfg = (window as any).VERDIS_ONLINE_ENV_CONFIG ?? {};
+
+export const DOMAIN = cfg.DOMAIN ?? "VERDIS_GRUNDIS";
+export const GEOM_CLASS = cfg.GEOM_CLASS ?? "GEOM";
+export const GEOM_FIELD = cfg.GEOM_FIELD ?? "geo_field";
 
 //export const SERVICE = "http://192.168.178.69:8890";
 //export const STAC_SERVICE = "http://192.168.178.69:8890";
@@ -28,5 +30,9 @@ export const GEOM_FIELD = "geo_field";
 // export const STAC_SERVICE = 'http://localhost:8890';
 
 // Playground DB
-export const SERVICE = "https://verdis-cloud.cismet.de/verdis/api/";
-export const STAC_SERVICE = "https://verdis-cloud.cismet.de/verdis/api/";
+export const SERVICE =
+  cfg.SERVICE ?? "https://verdis-cloud.cismet.de/verdis/api/";
+export const STAC_SERVICE =
+  cfg.STAC_SERVICE ?? "https://verdis-cloud.cismet.de/verdis/api/";
+
+export const PLAYGROUND = cfg.PLAYGROUND ?? true;
