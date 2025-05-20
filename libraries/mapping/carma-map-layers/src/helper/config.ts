@@ -4,6 +4,7 @@ import wohnlagenThumb from "../thumbnails/wonhlagen_topicmap.jpg";
 import fnpThumb from "../thumbnails/fnp.png";
 import hitzeThumb from "../thumbnails/hitze.png";
 import bplanThumb from "../thumbnails/bplan.png";
+import seilbahnThumb from "../thumbnails/seilbahn.png";
 
 export const config = {
   Ortho: {
@@ -718,9 +719,7 @@ export const partianTwinConfig = {
           "Planung",
         ],
         type: "link",
-        thumbnail:
-          "https://images.unsplash.com/photo-1736540495915-cf33061212b5?q=80&w=2572&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-
+        thumbnail: seilbahnThumb,
         url: "https://experience.arcgis.com/experience/a78e9ce521df42f5a0ac98389e90bca6?draft=true",
         serviceName: "wuppArcGisOnline",
       },
