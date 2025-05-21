@@ -25,6 +25,28 @@ const BASE_CONTROL_GROUP_STYLE: CSSProperties = {
   pointerEvents: "auto",
   zIndex: 1500,
 };
+
+const BOTTOM_CONTROLS_CONTAINER_STYLE: CSSProperties = {
+  position: "absolute",
+  bottom: `calc(${SAFE_AREA_BOTTOM} + ${CONTROL_MARGIN_FROM_SAFE_AREA} + ${BOTTOM_EXTRA_MARGIN})`,
+  left: `calc(${SAFE_AREA_LEFT} + ${CONTROL_MARGIN_FROM_SAFE_AREA})`,
+  right: `calc(${SAFE_AREA_RIGHT} + ${CONTROL_MARGIN_FROM_SAFE_AREA})`,
+  display: "flex",
+  flexWrap: "wrap-reverse",
+  justifyContent: "space-between",
+  pointerEvents: "none",
+  zIndex: 1500,
+  gap: "4px",
+};
+
+const BOTTOM_CONTROL_GROUP_STYLE: CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  pointerEvents: "auto",
+  height: "100%",
+  fontFamily: "Helvetica Neue, Arial, Helvetica, sans-serif",
+  fontSize: "0.75rem",
+};
 // --- End Style Constants ---
 
 function ControlRenderer({ controls }: ControlRendererProps) {
@@ -72,23 +94,18 @@ function ControlRenderer({ controls }: ControlRendererProps) {
   };
 
   const bottomLeftStyle: CSSProperties = {
-    ...BASE_CONTROL_GROUP_STYLE,
-    bottom: `calc(${SAFE_AREA_BOTTOM} + ${CONTROL_MARGIN_FROM_SAFE_AREA} + ${BOTTOM_EXTRA_MARGIN})`,
-    left: `calc(${SAFE_AREA_LEFT} + ${CONTROL_MARGIN_FROM_SAFE_AREA})`,
+    ...BOTTOM_CONTROL_GROUP_STYLE,
+    alignItems: "flex-end",
   };
 
   const bottomRightStyle: CSSProperties = {
-    ...BASE_CONTROL_GROUP_STYLE,
-    bottom: `calc(${SAFE_AREA_BOTTOM} + ${CONTROL_MARGIN_FROM_SAFE_AREA})`,
-    right: `calc(${SAFE_AREA_RIGHT} + ${CONTROL_MARGIN_FROM_SAFE_AREA})`,
+    ...BOTTOM_CONTROL_GROUP_STYLE,
+    alignItems: "flex-end",
   };
 
   const bottomCenterStyle: CSSProperties = {
-    ...BASE_CONTROL_GROUP_STYLE,
-    bottom: `calc(${SAFE_AREA_BOTTOM} + ${CONTROL_MARGIN_FROM_SAFE_AREA})`,
-    left: "50%",
-    transform: "translateX(-50%)",
-    alignItems: "center", // Center items within the column
+    ...BOTTOM_CONTROL_GROUP_STYLE,
+    alignItems: "center",
   };
   // --- End Specific Style Objects ---
 
@@ -120,29 +137,35 @@ function ControlRenderer({ controls }: ControlRendererProps) {
         </div>
       )}
 
-      {bottomLeftControls.length > 0 && (
-        <div style={bottomLeftStyle}>
-          {bottomLeftControls.map((control, index) => (
-            <div key={`bottomLeft-${index}`}>{control.component}</div>
-          ))}
-        </div>
-      )}
-
-      {bottomRightControls.length > 0 && (
-        <div style={bottomRightStyle}>
-          {bottomRightControls.map((control, index) => (
-            <div key={`bottomRight-${index}`}>{control.component}</div>
-          ))}
-        </div>
-      )}
-
-      {bottomCenterControls.length > 0 && (
-        <div style={bottomCenterStyle}>
-          {bottomCenterControls.map((control, index) => (
-            <div style={{ width: "100%" }} key={`bottomCenter-${index}`}>
-              {control.component}
+      {(bottomLeftControls.length > 0 ||
+        bottomRightControls.length > 0 ||
+        bottomCenterControls.length > 0) && (
+        <div style={BOTTOM_CONTROLS_CONTAINER_STYLE}>
+          {bottomLeftControls.length > 0 && (
+            <div style={bottomLeftStyle}>
+              {bottomLeftControls.map((control, index) => (
+                <div key={`bottomLeft-${index}`}>{control.component}</div>
+              ))}
             </div>
-          ))}
+          )}
+
+          {bottomCenterControls.length > 0 && (
+            <div style={bottomCenterStyle}>
+              {bottomCenterControls.map((control, index) => (
+                <div style={{ width: "100%" }} key={`bottomCenter-${index}`}>
+                  {control.component}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {bottomRightControls.length > 0 && (
+            <div style={bottomRightStyle}>
+              {bottomRightControls.map((control, index) => (
+                <div key={`bottomRight-${index}`}>{control.component}</div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </>

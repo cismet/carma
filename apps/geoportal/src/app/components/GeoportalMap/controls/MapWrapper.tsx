@@ -647,7 +647,7 @@ const MapWrapper = () => {
             <div
               ref={tourRefLabels.gazetteer}
               data-test-id="fuzzy-search"
-              className="h-full w-full pl-[6px]"
+              className={`h-full w-full`}
             >
               <LibFuzzySearch
                 gazData={gazData}

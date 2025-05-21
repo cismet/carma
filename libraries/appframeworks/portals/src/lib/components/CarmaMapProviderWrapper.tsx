@@ -32,7 +32,7 @@ export const CarmaMapProviderWrapper = ({
   return (
     <GazDataProvider config={gazDataConfig}>
       <SelectionProvider>
-        <TopicMapContextProvider>
+        <TopicMapContextProvider infoBoxPixelWidth={350}>
           <OverlayTourProvider transparency={transparency} color={color}>
             <CesiumContextProvider
               //initialViewerState={defaultCesiumState}
