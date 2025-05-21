@@ -481,16 +481,16 @@ const KassenzeichenViewer = () => {
 
   return (
     <div
-      style={
-        uiState.width > switchToBottomWhenSmallerThan
-          ? {
-              position: "relative",
-              height: "100vh",
-              width: "100vw",
-              overflow: "hidden",
-            }
-          : {}
-      }
+    // style={
+    //   uiState.width > switchToBottomWhenSmallerThan
+    //     ? {
+    //         position: "relative",
+    //         height: "100vh",
+    //         width: "100vw",
+    //         overflow: "hidden",
+    //       }
+    //     : {}
+    // }
     >
       <Navbar />
       <Waiting
