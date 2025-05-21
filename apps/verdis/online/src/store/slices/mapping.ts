@@ -2,6 +2,7 @@
 // @ts-nocheck
 import { createSlice } from "@reduxjs/toolkit";
 import L from "leaflet";
+import proj4 from "proj4";
 
 const initialState = {
   featureCollection: [],
@@ -91,9 +92,40 @@ export const getMapping = (state) => {
 
 export function fitFeatureBounds(feature, mode) {
   return function (dispatch) {
-    const projectedF = L.Proj.geoJson(feature);
-    const bounds = projectedF.getBounds();
-    dispatch(setAutoFit({ autofit: true, bounds: getSimpleBounds(bounds) }));
+    const featureType = feature.geometry.type === "Point";
+
+    if (featureType) {
+      var lonLat = proj4(
+        "EPSG:25832",
+        "EPSG:4326",
+        feature.geometry.coordinates
+      );
+      var latLng = [lonLat[1], lonLat[0]];
+
+      const centerLat = latLng[0];
+      const centerLng = latLng[1];
+
+      const delta = 0.00009;
+      const sw: [number, number] = [centerLat - delta, centerLng - delta];
+      const ne: [number, number] = [centerLat + delta, centerLng + delta];
+      const tightBounds: [[number, number], [number, number]] = [sw, ne];
+
+      dispatch(
+        setAutoFit({
+          autofit: true,
+          bounds: tightBounds,
+        })
+      );
+    } else {
+      const projectedF = L.Proj.geoJson(feature);
+      const bounds = projectedF.getBounds();
+      dispatch(
+        setAutoFit({
+          autofit: true,
+          bounds: getSimpleBounds(bounds),
+        })
+      );
+    }
   };
 }
 
