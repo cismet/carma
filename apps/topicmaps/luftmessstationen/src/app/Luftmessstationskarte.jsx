@@ -1,14 +1,18 @@
 import "bootstrap/dist/css/bootstrap.min.css";
 import "leaflet/dist/leaflet.css";
-import { useEffect } from "react";
+import { useEffect, useContext } from "react";
+
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import FeatureCollection from "react-cismap/FeatureCollection";
 import "react-cismap/topicMaps.css";
 import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import "./App.css";
+import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+
 import MyMenu from "./Menu";
-import InfoPanel from "./SecondaryInfo";
+
 import {
   searchTextPlaceholder,
   MenuTooltip,
@@ -29,6 +33,25 @@ import {
   RoutedMapLocateControl,
   ZoomControl,
 } from "@carma-mapping/components";
+import { getApplicationVersion } from "@carma-commons/utils";
+import versionData from "../version.json";
+import { version as reactCismapVersion } from "react-cismap/meta";
+
+import SIMComponentDictionary from "@carma-collab/wuppertal/secondary-info-modals";
+const LuftmessstationenSIM = SIMComponentDictionary["luftmessstationenSIM"];
+
+const InfoPanel = () => {
+  const { selectedFeature } = useContext(FeatureCollectionContext);
+  const { windowSize } = useContext(ResponsiveTopicMapContext);
+  return (
+    <LuftmessstationenSIM
+      feature={selectedFeature}
+      versionString={getApplicationVersion(versionData)}
+      reactCismapVersion={reactCismapVersion}
+      windowSize={windowSize}
+    />
+  );
+};
 
 function Comp() {
   const contactButtonHandler = () => {
