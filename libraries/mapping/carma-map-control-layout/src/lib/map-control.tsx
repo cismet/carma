@@ -83,15 +83,7 @@ function ControlLayout({ children }: ControlLayoutProps) {
       {children}
       {/* Render ControlRenderer directly when there's no canvas */}
       {!canvas && controls.length > 0 && (
-        <div
-          style={{
-            height: "100%",
-            position: "relative",
-            width: "100%",
-          }}
-        >
-          <ControlRenderer controls={controls} />
-        </div>
+        <ControlRenderer controls={controls} />
       )}
     </ControlContext.Provider>
   );

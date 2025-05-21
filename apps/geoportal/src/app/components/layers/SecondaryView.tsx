@@ -162,7 +162,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
       onClick={() => {
         dispatch(setSelectedLayerIndexNoSelection());
       }}
-      className="absolute top-14 w-full z-[999]"
+      className="relative top-14 w-full z-[999]"
     >
       <div className="w-full flex items-center justify-center">
         <div
@@ -171,7 +171,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
             e.stopPropagation();
           }}
           className={cn(
-            `bg-white button-shadow rounded-[10px] 2xl:w-1/2 w-[130%] sm:w-[125%] md:w-5/6 flex flex-col relative secondary-view gap-2 py-2 transition-all duration-300`,
+            `bg-white button-shadow rounded-[10px] 2xl:w-1/2 w-[70%] sm:w-[90%] md:w-5/6 flex flex-col relative secondary-view gap-2 py-2 transition-all duration-300`,
             showInfo ? "h-[600px]" : isBaseLayer ? "h-fit" : "h-12"
           )}
           onMouseEnter={() => {

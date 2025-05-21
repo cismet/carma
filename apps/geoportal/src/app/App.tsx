@@ -78,10 +78,7 @@ function App({ published }: { published?: boolean }) {
             fallbackDirectionConfig={CAMERA_ID_TO_DIRECTION}
           >
             <ErrorBoundary FallbackComponent={AppErrorFallback}>
-              <div
-                className="fixed flex flex-col w-lvw h-lvh"
-                style={{ border: "2px dotted red" }}
-              >
+              <div className="fixed flex flex-col w-full h-full">
                 {isLoadingConfig && (
                   <div
                     id="loading"

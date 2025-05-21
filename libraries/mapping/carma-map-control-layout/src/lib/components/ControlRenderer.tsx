@@ -8,7 +8,8 @@ interface ControlRendererProps {
 
 // --- Style Constants ---
 const CONTROL_MARGIN_FROM_SAFE_AREA = "10px";
-const TOP_CENTER_HORIZONTAL_OFFSET_FROM_SAFE_AREA_EDGE = "44px";
+const TOOLBAR_HORIZONTAL_OFFSET = "44px";
+const BOTTOM_EXTRA_MARGIN = "0px";
 
 // Safe Area Inset CSS variables
 const SAFE_AREA_TOP = "env(safe-area-inset-top, 0px)";
@@ -19,7 +20,6 @@ const SAFE_AREA_LEFT = "env(safe-area-inset-left, 0px)";
 const BASE_CONTROL_GROUP_STYLE: CSSProperties = {
   position: "absolute",
   display: "flex",
-  border: "1px dashed limegreen", // Debug border
   flexDirection: "column",
   gap: "10px",
   pointerEvents: "auto",
@@ -63,16 +63,17 @@ function ControlRenderer({ controls }: ControlRendererProps) {
   const topCenterStyle: CSSProperties = {
     ...BASE_CONTROL_GROUP_STYLE,
     top: `calc(${SAFE_AREA_TOP} + ${CONTROL_MARGIN_FROM_SAFE_AREA})`,
-    left: `calc(${SAFE_AREA_LEFT} + ${TOP_CENTER_HORIZONTAL_OFFSET_FROM_SAFE_AREA_EDGE})`,
-    right: `calc(${SAFE_AREA_RIGHT} + ${TOP_CENTER_HORIZONTAL_OFFSET_FROM_SAFE_AREA_EDGE})`,
+    left: `calc(${SAFE_AREA_LEFT} + ${TOOLBAR_HORIZONTAL_OFFSET})`,
+    right: `calc(${SAFE_AREA_RIGHT} + ${TOOLBAR_HORIZONTAL_OFFSET})`,
     alignItems: "center",
+    display: "flex",
     zIndex: 1000, // Specific zIndex for topCenter
     fontSize: "14px", // Specific fontSize for topCenter
   };
 
   const bottomLeftStyle: CSSProperties = {
     ...BASE_CONTROL_GROUP_STYLE,
-    bottom: `calc(${SAFE_AREA_BOTTOM} + ${CONTROL_MARGIN_FROM_SAFE_AREA})`,
+    bottom: `calc(${SAFE_AREA_BOTTOM} + ${CONTROL_MARGIN_FROM_SAFE_AREA} + ${BOTTOM_EXTRA_MARGIN})`,
     left: `calc(${SAFE_AREA_LEFT} + ${CONTROL_MARGIN_FROM_SAFE_AREA})`,
   };
 
@@ -92,10 +93,7 @@ function ControlRenderer({ controls }: ControlRendererProps) {
   // --- End Specific Style Objects ---
 
   return (
-    <div
-      className="w-full h-full pointer-events-none"
-      style={{ zIndex: 400, border: "1px solid magenta" }} // Debug border for root container
-    >
+    <>
       {topLeftControls.length > 0 && (
         <div style={topLeftStyle}>
           {topLeftControls.map((control, index) => (
@@ -143,7 +141,7 @@ function ControlRenderer({ controls }: ControlRendererProps) {
           ))}
         </div>
       )}
-    </div>
+    </>
   );
 }
 
