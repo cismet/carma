@@ -187,64 +187,68 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
         isDebug={isDebugMode}
         onClick={handleBackdropClick}
       />
-      <div style={ControlsContainerStyle}>
-        <Tooltip title="Bild in neuem Tab öffnen" placement="top">
-          <div>
-            <ControlButtonStyler onClick={onOpenImageLink} width="auto">
-              <span className="flex-1 text-base px-4">
-                <FontAwesomeIcon icon={faExternalLink} className="mr-2" />
-                Bild öffnen
-              </span>
-            </ControlButtonStyler>
-          </div>
-        </Tooltip>
-        <Tooltip title="Bild direkt herunterladen" placement="top">
-          <div>
-            <ControlButtonStyler onClick={onDirectDownload} width="auto">
-              <span className="flex-1 text-base px-4">
-                <FontAwesomeIcon icon={faFileArrowDown} className="mr-2" />
-                Herunterladen
-              </span>
-            </ControlButtonStyler>
-          </div>
-        </Tooltip>
-        <Tooltip title="Vorschau schließen" placement="top">
-          <div>
-            <ControlButtonStyler onClick={handleBackdropClick} width="auto">
-              <span className="flex-1 text-base px-4">Vorschau Schließen</span>
-            </ControlButtonStyler>
-          </div>
-        </Tooltip>
-        {/* Force a new row for the radio groups */}
-        {isDebugMode && (
-          <>
-            <div style={{ flexBasis: "100%", height: 0 }} />
-            <Radio.Group
-              value={currentQuality}
-              onChange={handleQualityChange}
-              optionType="button"
-              buttonStyle="solid"
-              size="small"
-              style={{ marginLeft: "10px" }}
-            >
-              <Radio.Button value="REGULAR">Standard (L3)</Radio.Button>
-              <Radio.Button value="HQ">HQ (L2)</Radio.Button>
-              <Radio.Button value="BEST">(L1 N/A)</Radio.Button>
-            </Radio.Group>
-            <Radio.Group
-              value={blendMode}
-              onChange={handleBlendModeChange}
-              optionType="button"
-              buttonStyle="solid"
-              size="small"
-              style={{ marginLeft: "10px" }}
-            >
-              <Radio.Button value="normal">Normal</Radio.Button>
-              <Radio.Button value="difference">Difference</Radio.Button>
-              <Radio.Button value="normal50">50% Opacity</Radio.Button>
-            </Radio.Group>
-          </>
-        )}
+      <div className="absolute top-0 left-0 w-full h-svh">
+        <div style={ControlsContainerStyle}>
+          <Tooltip title="Bild in neuem Tab öffnen" placement="top">
+            <div>
+              <ControlButtonStyler onClick={onOpenImageLink} width="auto">
+                <span className="flex-1 text-base px-4">
+                  <FontAwesomeIcon icon={faExternalLink} className="mr-2" />
+                  Bild öffnen
+                </span>
+              </ControlButtonStyler>
+            </div>
+          </Tooltip>
+          <Tooltip title="Bild direkt herunterladen" placement="top">
+            <div>
+              <ControlButtonStyler onClick={onDirectDownload} width="auto">
+                <span className="flex-1 text-base px-4">
+                  <FontAwesomeIcon icon={faFileArrowDown} className="mr-2" />
+                  Herunterladen
+                </span>
+              </ControlButtonStyler>
+            </div>
+          </Tooltip>
+          <Tooltip title="Vorschau schließen" placement="top">
+            <div>
+              <ControlButtonStyler onClick={handleBackdropClick} width="auto">
+                <span className="flex-1 text-base px-4">
+                  Vorschau Schließen
+                </span>
+              </ControlButtonStyler>
+            </div>
+          </Tooltip>
+          {/* Force a new row for the radio groups */}
+          {isDebugMode && (
+            <>
+              <div style={{ flexBasis: "100%", height: 0 }} />
+              <Radio.Group
+                value={currentQuality}
+                onChange={handleQualityChange}
+                optionType="button"
+                buttonStyle="solid"
+                size="small"
+                style={{ marginLeft: "10px" }}
+              >
+                <Radio.Button value="REGULAR">Standard (L3)</Radio.Button>
+                <Radio.Button value="HQ">HQ (L2)</Radio.Button>
+                <Radio.Button value="BEST">(L1 N/A)</Radio.Button>
+              </Radio.Group>
+              <Radio.Group
+                value={blendMode}
+                onChange={handleBlendModeChange}
+                optionType="button"
+                buttonStyle="solid"
+                size="small"
+                style={{ marginLeft: "10px" }}
+              >
+                <Radio.Button value="normal">Normal</Radio.Button>
+                <Radio.Button value="difference">Difference</Radio.Button>
+                <Radio.Button value="normal50">50% Opacity</Radio.Button>
+              </Radio.Group>
+            </>
+          )}
+        </div>
       </div>
       <PreviewImage
         src={activeSource}

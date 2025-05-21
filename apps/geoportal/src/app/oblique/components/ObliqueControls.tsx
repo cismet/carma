@@ -270,228 +270,235 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
           style={imagePreviewStyle}
         />
       )}
-      <div
-        className="camera-rotation-controls-container"
-        style={{
-          position: "absolute",
-          bottom: "60px",
-          left: "50%",
-          transform: "translateX(-50%)",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: "8px",
-          zIndex: 1000,
-          opacity: isVisible && !isPreviewVisible ? 1 : 0,
-          transition: "opacity 300ms ease-in-out",
-        }}
-      >
+      <div className="absolute top-0 left-0 w-svw h-svh">
         <div
+          className="camera-rotation-controls-container"
           style={{
+            position: "absolute",
+            bottom: "60px",
+            left: "50%",
+            transform: "translateX(-50%)",
             display: "flex",
             flexDirection: "column",
-            gap: "10px",
+            alignItems: "center",
+            gap: "8px",
+            zIndex: 1000,
+            opacity: isVisible && !isPreviewVisible ? 1 : 0,
+            transition: "opacity 300ms ease-in-out",
           }}
         >
-          {photoId && derivedExteriorOrientationRef.current && (
-            <Tooltip
-              placement="right"
-              title={"Zur ausgewählten Schrägluftbild-Aufnahmeposition fliegen"}
-            >
-              <div>
-                <ControlButtonStyler
-                  onClick={flyToNearestExteriorOrientation}
-                  width="160px"
-                  height="40px"
-                  className="bg-blue-50 hover:bg-blue-100"
-                >
-                  <span className="flex items-center">Flug zum Bild</span>
-                </ControlButtonStyler>
-              </div>
-            </Tooltip>
-          )}
-
-          {photoId && downloadUrl && (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "10px",
-                paddingBottom: "40px",
-              }}
-            >
-              <Tooltip
-                placement="right"
-                title="Bild in hoher Qualität in neuem Tab öffnen"
-              >
-                <div>
-                  <ControlButtonStyler onClick={openImageLink} width="160px">
-                    <span className="flex items-center text-base">
-                      <FontAwesomeIcon icon={faExternalLink} className="mr-2" />
-                      Bild öffnen
-                    </span>
-                  </ControlButtonStyler>
-                </div>
-              </Tooltip>
-
-              <Tooltip placement="right" title="Bild direkt herunterladen">
-                <div>
-                  <ControlButtonStyler
-                    onClick={handleDirectDownload}
-                    width="160px"
-                  >
-                    <span className="flex items-center text-base">
-                      <FontAwesomeIcon
-                        icon={faFileArrowDown}
-                        className="mr-2"
-                      />
-                      Herunterladen
-                    </span>
-                  </ControlButtonStyler>
-                </div>
-              </Tooltip>
-            </div>
-          )}
-
-          {/* Cardinal direction controls with loading spinner overlay */}
           <div
-            className="camera-rotation-controls"
             style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
-              gridTemplateRows: "repeat(3, 1fr)",
-              gap: "4px",
-              padding: "8px",
-              backgroundColor: "rgba(255, 255, 255, 0.4)",
-              borderRadius: "8px",
-              boxShadow: "0 0 8px rgba(0, 0, 0, 0.2)",
-              position: "relative",
+              display: "flex",
+              flexDirection: "column",
+              gap: "10px",
             }}
           >
-            <div
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: "rgba(255, 255, 255, 0.8)",
-                zIndex: 10,
-                borderRadius: "8px",
-                opacity: isAllDataReady ? 0 : 1,
-                transition: "opacity 0.5s ease",
-                pointerEvents: isAllDataReady ? "none" : "auto",
-              }}
-            >
-              <FontAwesomeIcon
-                icon={faSpinner}
-                spin
-                style={{ fontSize: "24px", marginBottom: "10px" }}
-              />
-              <div style={{ textAlign: "center", fontSize: "12px" }}>
-                Schrägluftbild-Daten werden geladen...
-              </div>
-            </div>
-            {/* Top row */}
-            <ControlButtonStyler
-              onClick={() => rotateCamera(false)}
-              width="40px"
-              height="40px"
-            >
-              <FontAwesomeIcon icon={faRotateLeft} className="text-base" />
-            </ControlButtonStyler>
-            <ControlButtonStyler
-              onClick={() => rotateToDirection(CardinalDirectionEnum.North)}
-              width="40px"
-              height="40px"
-              className={
-                activeDirection === CardinalDirectionEnum.North
-                  ? activeButtonClass
-                  : ""
-              }
-            >
-              <span style={directionLabelStyle}>N</span>
-            </ControlButtonStyler>
-            <ControlButtonStyler
-              onClick={() => rotateCamera(true)}
-              width="40px"
-              height="40px"
-            >
-              <FontAwesomeIcon icon={faRotateRight} className="text-base" />
-            </ControlButtonStyler>
+            {photoId && derivedExteriorOrientationRef.current && (
+              <Tooltip
+                placement="right"
+                title={
+                  "Zur ausgewählten Schrägluftbild-Aufnahmeposition fliegen"
+                }
+              >
+                <div>
+                  <ControlButtonStyler
+                    onClick={flyToNearestExteriorOrientation}
+                    width="160px"
+                    height="40px"
+                    className="bg-blue-50 hover:bg-blue-100"
+                  >
+                    <span className="flex items-center">Flug zum Bild</span>
+                  </ControlButtonStyler>
+                </div>
+              </Tooltip>
+            )}
 
-            {/* Middle row */}
-            <ControlButtonStyler
-              onClick={() => rotateToDirection(CardinalDirectionEnum.West)}
-              width="40px"
-              height="40px"
-              className={
-                activeDirection === CardinalDirectionEnum.West
-                  ? activeButtonClass
-                  : ""
-              }
-            >
-              <span style={directionLabelStyle}>W</span>
-            </ControlButtonStyler>
-            <Tooltip
-              title={`Luftbildblickrichtung "Nord" hat ${offsetDegrees} Grad Abweichung von Nord`}
-              placement="top"
-              overlayInnerStyle={{
-                userSelect: "none",
-                pointerEvents: "none",
-              }}
-              overlayStyle={{
-                pointerEvents: "none",
+            {photoId && downloadUrl && (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "10px",
+                  paddingBottom: "40px",
+                }}
+              >
+                <Tooltip
+                  placement="right"
+                  title="Bild in hoher Qualität in neuem Tab öffnen"
+                >
+                  <div>
+                    <ControlButtonStyler onClick={openImageLink} width="160px">
+                      <span className="flex items-center text-base">
+                        <FontAwesomeIcon
+                          icon={faExternalLink}
+                          className="mr-2"
+                        />
+                        Bild öffnen
+                      </span>
+                    </ControlButtonStyler>
+                  </div>
+                </Tooltip>
+
+                <Tooltip placement="right" title="Bild direkt herunterladen">
+                  <div>
+                    <ControlButtonStyler
+                      onClick={handleDirectDownload}
+                      width="160px"
+                    >
+                      <span className="flex items-center text-base">
+                        <FontAwesomeIcon
+                          icon={faFileArrowDown}
+                          className="mr-2"
+                        />
+                        Herunterladen
+                      </span>
+                    </ControlButtonStyler>
+                  </div>
+                </Tooltip>
+              </div>
+            )}
+
+            {/* Cardinal direction controls with loading spinner overlay */}
+            <div
+              className="camera-rotation-controls"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3, 1fr)",
+                gridTemplateRows: "repeat(3, 1fr)",
+                gap: "4px",
+                padding: "8px",
+                backgroundColor: "rgba(255, 255, 255, 0.4)",
+                borderRadius: "8px",
+                boxShadow: "0 0 8px rgba(0, 0, 0, 0.2)",
+                position: "relative",
               }}
             >
               <div
                 style={{
-                  width: "40px",
-                  height: "40px",
-                  margin: "2px",
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
                   display: "flex",
+                  flexDirection: "column",
                   alignItems: "center",
                   justifyContent: "center",
+                  backgroundColor: "rgba(255, 255, 255, 0.8)",
+                  zIndex: 10,
+                  borderRadius: "8px",
+                  opacity: isAllDataReady ? 0 : 1,
+                  transition: "opacity 0.5s ease",
+                  pointerEvents: isAllDataReady ? "none" : "auto",
                 }}
               >
-                <span style={headingDisplayStyle}>{headingDegrees}°</span>
+                <FontAwesomeIcon
+                  icon={faSpinner}
+                  spin
+                  style={{ fontSize: "24px", marginBottom: "10px" }}
+                />
+                <div style={{ textAlign: "center", fontSize: "12px" }}>
+                  Schrägluftbild-Daten werden geladen...
+                </div>
               </div>
-            </Tooltip>
-            <ControlButtonStyler
-              onClick={() => rotateToDirection(CardinalDirectionEnum.East)}
-              width="40px"
-              height="40px"
-              className={
-                activeDirection === CardinalDirectionEnum.East
-                  ? activeButtonClass
-                  : ""
-              }
-            >
-              <span style={directionLabelStyle}>O</span>
-            </ControlButtonStyler>
+              {/* Top row */}
+              <ControlButtonStyler
+                onClick={() => rotateCamera(false)}
+                width="40px"
+                height="40px"
+              >
+                <FontAwesomeIcon icon={faRotateLeft} className="text-base" />
+              </ControlButtonStyler>
+              <ControlButtonStyler
+                onClick={() => rotateToDirection(CardinalDirectionEnum.North)}
+                width="40px"
+                height="40px"
+                className={
+                  activeDirection === CardinalDirectionEnum.North
+                    ? activeButtonClass
+                    : ""
+                }
+              >
+                <span style={directionLabelStyle}>N</span>
+              </ControlButtonStyler>
+              <ControlButtonStyler
+                onClick={() => rotateCamera(true)}
+                width="40px"
+                height="40px"
+              >
+                <FontAwesomeIcon icon={faRotateRight} className="text-base" />
+              </ControlButtonStyler>
 
-            {/* Bottom row */}
-            <div style={{ width: "40px", height: "40px", margin: "2px" }}>
-              {/* Empty bottom-left cell */}
-            </div>
-            <ControlButtonStyler
-              onClick={() => rotateToDirection(CardinalDirectionEnum.South)}
-              width="40px"
-              height="40px"
-              className={
-                activeDirection === CardinalDirectionEnum.South
-                  ? activeButtonClass
-                  : ""
-              }
-            >
-              <span style={directionLabelStyle}>S</span>
-            </ControlButtonStyler>
-            <div style={{ width: "40px", height: "40px", margin: "2px" }}>
-              {/* Empty bottom-right cell */}
+              {/* Middle row */}
+              <ControlButtonStyler
+                onClick={() => rotateToDirection(CardinalDirectionEnum.West)}
+                width="40px"
+                height="40px"
+                className={
+                  activeDirection === CardinalDirectionEnum.West
+                    ? activeButtonClass
+                    : ""
+                }
+              >
+                <span style={directionLabelStyle}>W</span>
+              </ControlButtonStyler>
+              <Tooltip
+                title={`Luftbildblickrichtung "Nord" hat ${offsetDegrees} Grad Abweichung von Nord`}
+                placement="top"
+                overlayInnerStyle={{
+                  userSelect: "none",
+                  pointerEvents: "none",
+                }}
+                overlayStyle={{
+                  pointerEvents: "none",
+                }}
+              >
+                <div
+                  style={{
+                    width: "40px",
+                    height: "40px",
+                    margin: "2px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <span style={headingDisplayStyle}>{headingDegrees}°</span>
+                </div>
+              </Tooltip>
+              <ControlButtonStyler
+                onClick={() => rotateToDirection(CardinalDirectionEnum.East)}
+                width="40px"
+                height="40px"
+                className={
+                  activeDirection === CardinalDirectionEnum.East
+                    ? activeButtonClass
+                    : ""
+                }
+              >
+                <span style={directionLabelStyle}>O</span>
+              </ControlButtonStyler>
+
+              {/* Bottom row */}
+              <div style={{ width: "40px", height: "40px", margin: "2px" }}>
+                {/* Empty bottom-left cell */}
+              </div>
+              <ControlButtonStyler
+                onClick={() => rotateToDirection(CardinalDirectionEnum.South)}
+                width="40px"
+                height="40px"
+                className={
+                  activeDirection === CardinalDirectionEnum.South
+                    ? activeButtonClass
+                    : ""
+                }
+              >
+                <span style={directionLabelStyle}>S</span>
+              </ControlButtonStyler>
+              <div style={{ width: "40px", height: "40px", margin: "2px" }}>
+                {/* Empty bottom-right cell */}
+              </div>
             </div>
           </div>
         </div>
