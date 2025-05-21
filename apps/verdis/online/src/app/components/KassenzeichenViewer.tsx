@@ -40,7 +40,6 @@ import {
   showWaiting,
   toggleInfoElements,
   setHintVisible,
-  setWaitingType,
   showInfoWithError,
 } from "../../store/slices/ui";
 import { fitAll, getMapping } from "../../store/slices/mapping";
@@ -262,7 +261,7 @@ const KassenzeichenViewer = () => {
 
   let flaechenInfoOverlay;
   let verdisMapWithAdditionalComponents;
-  let mapHeight = height - 50;
+  let mapHeight = height - 68;
   let flaechen = [];
   let anmerkungsflaechen: GeometryFeature[] = [];
 
@@ -434,7 +433,7 @@ const KassenzeichenViewer = () => {
   } else if (uiState.width < switchToBottomWhenSmallerThan) {
     verdisMapWithAdditionalComponents = (
       <div>
-        <Map newHeight={mapHeight - horizontalPanelHeight - 25} />
+        <Map newHeight={mapHeight - horizontalPanelHeight - 44} />
         <div
           style={{
             maxWidth: switchToBottomWhenSmallerThan,
@@ -474,24 +473,13 @@ const KassenzeichenViewer = () => {
           {anComps}
           {flComps}
         </div>
-        <Map />
+        <Map newHeight={mapHeight} />
       </div>
     );
   }
 
   return (
-    <div
-    // style={
-    //   uiState.width > switchToBottomWhenSmallerThan
-    //     ? {
-    //         position: "relative",
-    //         height: "100vh",
-    //         width: "100vw",
-    //         overflow: "hidden",
-    //       }
-    //     : {}
-    // }
-    >
+    <div>
       <Navbar />
       <Waiting
         key={
