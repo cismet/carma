@@ -14,7 +14,6 @@ import {
   UIContext,
   UIDispatchContext,
 } from "react-cismap/contexts/UIContextProvider";
-import SecondaryInfoModal from "./SecondaryInfoModal";
 import {
   TopicMapSelectionContent,
   useSelectionTopicMap,
@@ -31,6 +30,10 @@ import {
   ZoomControl,
 } from "@carma-mapping/components";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import { getApplicationVersion } from "@carma-commons/utils";
+import versionData from "../version.json";
+import SIMComponentDictionary from "@carma-collab/wuppertal/secondary-info-modals";
+const SecondaryInfoModal = SIMComponentDictionary["eMobSIM"];
 
 const EMobiKarte = () => {
   const { setClusteringOptions, setFilterState } = useContext(
@@ -155,6 +158,7 @@ const EMobiKarte = () => {
           <SecondaryInfoModal
             feature={selectedFeature}
             setOpen={setSecondaryInfoVisible}
+            versionString={getApplicationVersion(versionData)}
           />
         )}
       </TopicMapComponent>
