@@ -13,7 +13,6 @@ import {
   UIDispatchContext,
 } from "react-cismap/contexts/UIContextProvider";
 import Menu from "./Menu";
-import SecondaryInfoModal from "./menu/SecondaryInfoModal";
 import {
   searchTextPlaceholder,
   MenuTooltip,
@@ -29,7 +28,8 @@ import {
   RoutedMapLocateControl,
   ZoomControl,
 } from "@carma-mapping/components";
-
+import SIMComponentDictionary from "@carma-collab/wuppertal/secondary-info-modals";
+const SecondaryInfoModal = SIMComponentDictionary["xandRideSIM"];
 const Map = () => {
   const { setClusteringOptions } = useContext<
     typeof FeatureCollectionDispatchContext
