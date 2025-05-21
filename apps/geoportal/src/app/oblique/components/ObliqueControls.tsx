@@ -295,23 +295,14 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
             }}
           >
             {photoId && derivedExteriorOrientationRef.current && (
-              <Tooltip
-                placement="right"
-                title={
-                  "Zur ausgewählten Schrägluftbild-Aufnahmeposition fliegen"
-                }
+              <ControlButtonStyler
+                onClick={flyToNearestExteriorOrientation}
+                width="160px"
+                height="40px"
+                className="bg-blue-50 hover:bg-blue-100"
               >
-                <div>
-                  <ControlButtonStyler
-                    onClick={flyToNearestExteriorOrientation}
-                    width="160px"
-                    height="40px"
-                    className="bg-blue-50 hover:bg-blue-100"
-                  >
-                    <span className="flex items-center">Flug zum Bild</span>
-                  </ControlButtonStyler>
-                </div>
-              </Tooltip>
+                <span className="flex items-center">Flug zum Bild</span>
+              </ControlButtonStyler>
             )}
 
             {photoId && downloadUrl && (
