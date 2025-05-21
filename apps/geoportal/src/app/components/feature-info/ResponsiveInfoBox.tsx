@@ -47,7 +47,11 @@ const ResponsiveInfoBox = ({
   let infoBoxBottomMargin = 0;
   let infoBoxStyle = {
     opacity: "0.9",
-    width: pixelwidth,
+    width:
+      typeof window !== "undefined" &&
+      window.innerWidth - 25 - pixelwidth - 300 <= 0
+        ? window.innerWidth - 25
+        : pixelwidth,
     ...infoStyle,
   };
 
