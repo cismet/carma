@@ -113,7 +113,9 @@ function ControlRenderer({ controls }: ControlRendererProps) {
       {topCenterControls.length > 0 && (
         <div style={topCenterStyle}>
           {topCenterControls.map((control, index) => (
-            <div key={`topCenter-${index}`}>{control.component}</div>
+            <div style={{ width: "100%" }} key={`topCenter-${index}`}>
+              {control.component}
+            </div>
           ))}
         </div>
       )}
@@ -137,7 +139,9 @@ function ControlRenderer({ controls }: ControlRendererProps) {
       {bottomCenterControls.length > 0 && (
         <div style={bottomCenterStyle}>
           {bottomCenterControls.map((control, index) => (
-            <div key={`bottomCenter-${index}`}>{control.component}</div>
+            <div style={{ width: "100%" }} key={`bottomCenter-${index}`}>
+              {control.component}
+            </div>
           ))}
         </div>
       )}
