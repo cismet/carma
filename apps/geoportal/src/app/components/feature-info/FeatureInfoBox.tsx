@@ -32,7 +32,7 @@ import { truncateString, updateUrlWithCoordinates } from "./featureInfoHelper";
 
 import "../infoBox.css";
 import LoadingInfoBox from "./LoadingInfoBox";
-import InfoBox from "react-cismap/topicmaps/InfoBox";
+import InfoBox from "./Infobox";
 
 interface InfoBoxProps {
   pos?: [number, number];

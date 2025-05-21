@@ -1,4 +1,4 @@
-import ResponsiveInfoBox from "react-cismap/topicmaps/ResponsiveInfoBox";
+import ResponsiveInfoBox from "../feature-info/ResponsiveInfoBox";
 import {
   getShapes,
   setActiveShape,
