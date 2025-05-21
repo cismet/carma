@@ -155,6 +155,7 @@ const VerdisOnlineAppNavbar = () => {
       >
         <Container className="d-flex flex-wrap" fluid="md">
           <OverlayTrigger
+            trigger={menuIsHidden ? ttTriggerOff : ttTriggerOn}
             placement="bottom"
             overlay={
               <Tooltip style={{ zIndex: 3000000000 }} id="prevtt">
@@ -162,7 +163,7 @@ const VerdisOnlineAppNavbar = () => {
               </Tooltip>
             }
           >
-            <>
+            <span style={{ padding: "10px" }}>
               <Navbar.Brand
                 style={{
                   color: "#9d9d9d",
@@ -183,7 +184,7 @@ const VerdisOnlineAppNavbar = () => {
                 aria-controls="basic-navbar-nav"
                 style={{ borderColor: "transparent" }}
               />
-            </>
+            </span>
           </OverlayTrigger>
           <Navbar.Collapse id="basic-navbar-nav">
             <ul
@@ -265,29 +266,39 @@ const VerdisOnlineAppNavbar = () => {
                     )}
                 </a>
               </li>
-              <li role="presentation">
-                <a
-                  // href="#"
-                  role="button"
-                  style={{
-                    color: "#9d9d9d",
-                    backgroundColor: "transparent",
-                    position: "relative",
-                    display: "block",
-                    padding: fixLeftPadding,
-                    lineHeight: "20px",
-                    // paddingTop: "15px",
-                    // paddingBottom: "15px",
-                  }}
-                >
-                  <FontAwesomeIcon
-                    icon={faFilePdf}
-                    style={pdfIconStyle}
-                    onClick={handleDownloadFEB}
-                  />
-                  {menuIsHidden ? "   " + lblDownLoadFeb : ""}
-                </a>
-              </li>
+              <OverlayTrigger
+                trigger={menuIsHidden ? ttTriggerOff : ttTriggerOn}
+                placement="bottom"
+                overlay={
+                  <Tooltip style={{ zIndex: 3000000000 }} id="prevtt">
+                    {lblDownLoadFeb}
+                  </Tooltip>
+                }
+              >
+                <li role="presentation">
+                  <a
+                    // href="#"
+                    role="button"
+                    style={{
+                      color: "#9d9d9d",
+                      backgroundColor: "transparent",
+                      position: "relative",
+                      display: "block",
+                      padding: fixLeftPadding,
+                      lineHeight: "20px",
+                      // paddingTop: "15px",
+                      // paddingBottom: "15px",
+                    }}
+                  >
+                    <FontAwesomeIcon
+                      icon={faFilePdf}
+                      style={pdfIconStyle}
+                      onClick={handleDownloadFEB}
+                    />
+                    {menuIsHidden ? "   " + lblDownLoadFeb : ""}
+                  </a>
+                </li>
+              </OverlayTrigger>
               <OverlayTrigger
                 trigger={menuIsHidden ? ttTriggerOff : ttTriggerOn}
                 placement="bottom"
