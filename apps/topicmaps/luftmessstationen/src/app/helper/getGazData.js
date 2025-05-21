@@ -1,7 +1,7 @@
 import { md5FetchText } from "react-cismap/tools/fetching";
 import { getGazDataForTopicIds } from "react-cismap/tools/gazetteerHelper";
-import { host } from "./constants";
 
+const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 export const getGazData = async (setGazData) => {
   const prefix = "GazData";
   const sources = {};

@@ -1,4 +1,4 @@
-import { LOOKUP } from "./constants";
+import { LOOKUP } from "@carma-collab/wuppertal/luftmessstationen/helper";
 const factory = ({ featureCollectionContext }) => {
   const getThemaById = (id) => {
     const result = featureCollectionContext?.items?.find(

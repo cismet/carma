@@ -1,4 +1,4 @@
-import { getStatus } from "./convertItemToFeature";
+import { getStatus } from "@carma-collab/wuppertal/luftmessstationen/helper";
 
 const itemFilterFunction = ({ filterState }) => {
   return (item) => {

@@ -82,6 +82,10 @@
       "@carma-collab/wuppertal/luftmessstationen": [
         "libraries/collaboration/carma-wuppertal-collab/src/luftmessstationen/index.ts"
       ],
+       "@carma-collab/wuppertal/luftmessstationen/*": [
+        "libraries/collaboration/carma-wuppertal-collab/src/luftmessstationen/*"
+      ],
+
       "@carma-collab/wuppertal/potenzialflaechen-online": [
         "libraries/collaboration/carma-wuppertal-collab/src/potenzialflaechen-online/index.ts"
       ],

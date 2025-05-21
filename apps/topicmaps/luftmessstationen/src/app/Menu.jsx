@@ -4,14 +4,12 @@ import {
   FeatureCollectionDispatchContext,
 } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
-import { getSimpleHelpForTM } from "react-cismap/tools/uiHelper";
 import { Link } from "react-scroll";
 import ModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import Section from "react-cismap/topicmaps/menu/Section";
 import FilterPanel from "react-cismap/topicmaps/menu/FilterPanel";
 import DefaultSettingsPanel from "react-cismap/topicmaps/menu/DefaultSettingsPanel";
-import ConfigurableDocBlocks from "react-cismap/topicmaps/ConfigurableDocBlocks";
-import { LOOKUP } from "./helper/constants";
+import { LOOKUP } from "@carma-collab/wuppertal/luftmessstationen/helper";
 import CustomizationContextProvider from "react-cismap/contexts/CustomizationContextProvider";
 import Icon from "react-cismap/commons/Icon";
 import {
@@ -42,21 +40,6 @@ const MyMenu = () => {
   const themen = [];
   const themenValues = [];
   const topicMapTitle = "Luftmessstationskarte Wuppertal";
-
-  // const getFilterHeader = () => {
-  //   const count = filteredItems?.length || 0;
-
-  //   let term;
-  //   if (count === 1) {
-  //     term = "Standort";
-  //   } else {
-  //     term = "Standorte";
-  //   }
-
-  //   return `Messstationen der Luftqualität (${count} ${term} gefunden, davon ${
-  //     shownFeatures?.length || "0"
-  //   } in der Karte)`;
-  // };
 
   const filterConfiguration = {
     mode: "list", // list or tabs

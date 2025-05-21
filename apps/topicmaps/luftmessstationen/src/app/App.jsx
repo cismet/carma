@@ -1,4 +1,4 @@
-import React, { useContext, useEffect } from "react";
+import { useEffect } from "react";
 
 import "./App.css";
 import { useState } from "react";
@@ -7,23 +7,20 @@ import "leaflet/dist/leaflet.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
-import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
-import FeatureCollection from "react-cismap/FeatureCollection";
-import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
 
 import getGTMFeatureStyler from "react-cismap/topicmaps/generic/GTMStyler";
 import ContactButton from "react-cismap/ContactButton";
-import convertItemToFeature, { getStatus } from "./helper/convertItemToFeature";
+import convertItemToFeature from "./helper/convertItemToFeature";
 
 import { getClusterIconCreatorFunction } from "react-cismap/tools/uiHelper";
-import MyMenu from "./Menu";
-import LogSelection from "./helper/LogSelectedFeature";
 import UWZ from "./Umweltzonenlayer";
 import itemFilterFunction from "./helper/filterFunction";
-import { LOOKUP } from "./helper/constants";
+import {
+  LOOKUP,
+  getStatus,
+} from "@carma-collab/wuppertal/luftmessstationen/helper";
 import { getGazData } from "./helper/getGazData";
 import titleFactory from "./helper/titleFactory";
-import InfoPanel from "./SecondaryInfo";
 import { MappingConstants } from "react-cismap";
 import Luftmessstationskarte from "./Luftmessstationskarte";
 
