@@ -31,7 +31,6 @@ import {
 import { getApplicationVersion } from "@carma-commons/utils";
 import versionData from "../../version.json";
 import SIMComponentDictionary from "@carma-collab/wuppertal/secondary-info-modals";
-import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 const SecondaryInfoModal = SIMComponentDictionary["xandRideSIM"];
 const Map = () => {
   const { setClusteringOptions } = useContext<
