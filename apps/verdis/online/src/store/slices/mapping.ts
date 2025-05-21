@@ -90,42 +90,94 @@ export const getMapping = (state) => {
   return state.mapping;
 };
 
+export function boundsToArray(
+  latLngBounds: L.LatLngBounds
+): [[number, number], [number, number]] {
+  const sw = latLngBounds.getSouthWest();
+  const ne = latLngBounds.getNorthEast();
+  return [
+    [sw.lat, sw.lng],
+    [ne.lat, ne.lng],
+  ];
+}
+
+// export function fitFeatureBounds(feature, mode) {
+//   return function (dispatch) {
+//     const featureType = feature.geometry.type === "Point";
+
+//     if (featureType) {
+//       var lonLat = proj4(
+//         "EPSG:25832",
+//         "EPSG:4326",
+//         feature.geometry.coordinates
+//       );
+//       var latLng = [lonLat[1], lonLat[0]];
+
+//       const centerLat = latLng[0];
+//       const centerLng = latLng[1];
+
+//       const delta = 0.00009;
+//       const sw: [number, number] = [centerLat - delta, centerLng - delta];
+//       const ne: [number, number] = [centerLat + delta, centerLng + delta];
+//       const tightBounds: [[number, number], [number, number]] = [sw, ne];
+
+//       dispatch(
+//         setAutoFit({
+//           autofit: true,
+//           bounds: tightBounds,
+//         })
+//       );
+//     } else {
+//       const projectedF = L.Proj.geoJson(feature);
+//       const bounds = projectedF.getBounds();
+//       dispatch(
+//         setAutoFit({
+//           autofit: true,
+//           bounds: getSimpleBounds(bounds),
+//         })
+//       );
+//     }
+//   };
+// }
+
+function padBounds(bounds: L.LatLngBounds, minDelta = 0.0001): L.LatLngBounds {
+  const sw = bounds.getSouthWest();
+  const ne = bounds.getNorthEast();
+
+  let swLat = sw.lat,
+    swLng = sw.lng;
+  let neLat = ne.lat,
+    neLng = ne.lng;
+
+  const latDiff = neLat - swLat;
+  const lngDiff = neLng - swLng;
+
+  if (latDiff < minDelta) {
+    const extra = (minDelta - latDiff) / 2;
+    swLat -= extra;
+    neLat += extra;
+  }
+  if (lngDiff < minDelta) {
+    const extra = (minDelta - lngDiff) / 2;
+    swLng -= extra;
+    neLng += extra;
+  }
+
+  return L.latLngBounds([swLat, swLng], [neLat, neLng]);
+}
+
 export function fitFeatureBounds(feature, mode) {
   return function (dispatch) {
-    const featureType = feature.geometry.type === "Point";
-
-    if (featureType) {
-      var lonLat = proj4(
-        "EPSG:25832",
-        "EPSG:4326",
-        feature.geometry.coordinates
-      );
-      var latLng = [lonLat[1], lonLat[0]];
-
-      const centerLat = latLng[0];
-      const centerLng = latLng[1];
-
-      const delta = 0.00009;
-      const sw: [number, number] = [centerLat - delta, centerLng - delta];
-      const ne: [number, number] = [centerLat + delta, centerLng + delta];
-      const tightBounds: [[number, number], [number, number]] = [sw, ne];
-
-      dispatch(
-        setAutoFit({
-          autofit: true,
-          bounds: tightBounds,
-        })
-      );
-    } else {
-      const projectedF = L.Proj.geoJson(feature);
-      const bounds = projectedF.getBounds();
-      dispatch(
-        setAutoFit({
-          autofit: true,
-          bounds: getSimpleBounds(bounds),
-        })
-      );
-    }
+    const projected = L.Proj.geoJson(feature);
+    let bounds = projected.getBounds();
+    if (!bounds.isValid()) return;
+    bounds = padBounds(bounds);
+    dispatch(
+      setAutoFit({
+        autofit: true,
+        bounds: boundsToArray(bounds),
+      })
+    );
   };
 }
 
