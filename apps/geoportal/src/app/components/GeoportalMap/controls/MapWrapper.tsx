@@ -356,7 +356,8 @@ const MapWrapper = () => {
           </Control>
         </>
       ) : (
-        <>
+        <div className="pt-16">
+          {/* adds padding for topnavbar*/}
           <Control position="topleft" order={10}>
             <div ref={tourRefLabels.zoom} className="flex flex-col">
               <Tooltip title="Maßstab vergrößern (Zoom in)" placement="right">
@@ -445,7 +446,6 @@ const MapWrapper = () => {
               </div>
             </Control>
           )}
-
           <Control position="topleft" order={20}>
             {showFullscreenButton && (
               <Tooltip
@@ -662,25 +662,24 @@ const MapWrapper = () => {
               />
             </div>
           </Control>
-        </>
+        </div>
       )}
       <ControlLayoutCanvas>
-        {!isMode2d && <ObliqueControls />}
-
         <div
           id="mapContainer"
-          className={`${isMobile ? "h-0" : ""} flex flex-1 relative`}
-          style={{
-            height: isMobile ? "100vh" : "100%",
-            minHeight: "256px",
-            overflow: "hidden",
-          }}
+          className={`h-lvh w-lvw flex flex-1 fixed overflow-hidden`}
           ref={wrapperRef}
+          style={{
+            marginTop: zenMode ? "0px" : "-56px",
+          }}
         >
           {showLibreMap && isMode2d ? (
             <LibreGeoportalMap />
           ) : (
-            <GeoportalMap height={height} width={width} allow3d={allow3d} />
+            <>
+              {!isMode2d && <ObliqueControls />}
+              <GeoportalMap height={height} width={width} allow3d={allow3d} />
+            </>
           )}
         </div>
       </ControlLayoutCanvas>

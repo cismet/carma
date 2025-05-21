@@ -58,6 +58,7 @@ export const useWindowSize = (
     resizeObserver.observe(activeRef);
 
     window.addEventListener("resize", updateSize);
+    window.addEventListener("orientationchange", updateSize); // Added orientationchange listener
 
     return () => {
       debouncedSetSize.cancel(); // Cancel any pending debounce calls
@@ -66,6 +67,7 @@ export const useWindowSize = (
       }
       resizeObserver.disconnect();
       window.removeEventListener("resize", updateSize);
+      window.removeEventListener("orientationchange", updateSize); // Removed orientationchange listener
     };
   }, [ref, debouncedSetSize, minSize, threshold]);
 

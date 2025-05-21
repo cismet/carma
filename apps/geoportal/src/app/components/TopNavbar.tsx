@@ -88,9 +88,16 @@ const TopNavbar = () => {
   return (
     <div
       className={
-        "h-16 w-full flex items-center gap-2 xs:gap-3 sm:gap-6 relative justify-between py-2 px-[2px] xs:px-[12px] " +
-        (zenMode && "hidden")
+        "bg-white h-16 top-0 left-0 right-0 items-center gap-2 xs:gap-3 sm:gap-6 fixed justify-between \
+        py-2 \
+        pl-[calc(env(safe-area-inset-left,0px)_+_2px)] xs:pl-[calc(env(safe-area-inset-left,0px)_+_12px)] \
+        pr-[calc(env(safe-area-inset-right,0px)_+_2px)] xs:pr-[calc(env(safe-area-inset-right,0px)_+_12px)] "
       }
+      style={{
+        visibility: zenMode ? "hidden" : undefined,
+        display: zenMode ? "none" : "flex",
+        zIndex: 10000,
+      }}
     >
       <ResourceModal />
 
