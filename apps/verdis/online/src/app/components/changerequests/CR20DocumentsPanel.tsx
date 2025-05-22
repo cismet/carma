@@ -1,11 +1,21 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
 import { useCallback } from "react";
 import Document from "../conversations/Document";
 import { Icon } from "react-fa";
 import { useDropzone } from "react-dropzone";
 import { useDispatch } from "react-redux";
 import InternalMessage from "../conversations/InternalMessage";
+import type { UnknownAction } from "redux";
+
+interface CR20DocumentsPanelProps {
+  documents?: any[];
+  uploadCRDoc?:
+    | ((file: File, cb: (res: string) => void) => void | undefined)
+    | undefined;
+  tmpAttachments?: any[];
+  setTmpAttachments?: (cb: (old: any[]) => any[]) => void;
+  localErrorMessages?: any[];
+  addLocalErrorMessage?: (msg: any) => void;
+}
 
 const CR20DocumentsPanel = ({
   documents = [],
@@ -14,7 +24,7 @@ const CR20DocumentsPanel = ({
   setTmpAttachments = (msga) => {},
   localErrorMessages = [],
   addLocalErrorMessage = () => {},
-}) => {
+}: CR20DocumentsPanelProps) => {
   const dispatch = useDispatch();
 
   let readOnly = false;
@@ -70,46 +80,48 @@ const CR20DocumentsPanel = ({
           nonce: file.nonce,
           inProgress: true,
         });
-        return dispatch(
-          uploadCRDoc(file, (returnedFOString) => {
-            if (returnedFOString) {
-              try {
-                const returnedFO = JSON.parse(returnedFOString);
-                // returnedFO.status = 412;
-                // returnedFO.message = "Parameter FILENAME nicht gesetzt";
-                if (returnedFO.status === 201) {
-                  returnedFO.nonce = file.nonce;
-                  returnedFO.inProgress = false;
-                  updateAttachment(returnedFO);
-                } else {
+        if (uploadCRDoc) {
+          return dispatch(
+            uploadCRDoc(file, (returnedFOString) => {
+              if (returnedFOString) {
+                try {
+                  const returnedFO = JSON.parse(returnedFOString);
+                  // returnedFO.status = 412;
+                  // returnedFO.message = "Parameter FILENAME nicht gesetzt";
+                  if (returnedFO.status === 201) {
+                    returnedFO.nonce = file.nonce;
+                    returnedFO.inProgress = false;
+                    updateAttachment(returnedFO);
+                  } else {
+                    addLocalErrorMessage({
+                      typ: "LOCALERROR",
+                      nachricht:
+                        "Beim Hochladen der Datei hat der Server mit dem unerwarteten Status " +
+                        returnedFO.status +
+                        " geantwortet. (" +
+                        returnedFO.message +
+                        "). Bitte versuchen Sie es später noch einmal. Sollte der Fehler weiter bestehen bleiben, bitten wir Sie Ihren Ansprechpartner in der Stadtverwaltung per Mail zu kontaktieren.",
+                      draft: true,
+                    } as unknown as UnknownAction);
+                    removeAttachment(file);
+                  }
+                } catch (err) {
                   addLocalErrorMessage({
                     typ: "LOCALERROR",
                     nachricht:
-                      "Beim Hochladen der Datei hat der Server mit dem unerwarteten Status " +
-                      returnedFO.status +
-                      " geantwortet. (" +
-                      returnedFO.message +
-                      "). Bitte versuchen Sie es später noch einmal. Sollte der Fehler weiter bestehen bleiben, bitten wir Sie Ihren Ansprechpartner in der Stadtverwaltung per Mail zu kontaktieren.",
+                      "Beim Hochladen der Datei ist ein unerwarteter Fehler passiert: (" +
+                      err +
+                      ")",
                     draft: true,
                   });
                   removeAttachment(file);
                 }
-              } catch (err) {
-                addLocalErrorMessage({
-                  typ: "LOCALERROR",
-                  nachricht:
-                    "Beim Hochladen der Datei ist ein unerwarteter Fehler passiert: (" +
-                    err +
-                    ")",
-                  draft: true,
-                });
+              } else {
                 removeAttachment(file);
               }
-            } else {
-              removeAttachment(file);
-            }
-          })
-        );
+            }) as unknown as UnknownAction
+          );
+        }
       });
     },
     [setTmpAttachments, uploadCRDoc]

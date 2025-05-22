@@ -319,7 +319,11 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
                           anhang: attachments,
                         };
 
-                        dispatch(addChangeRequestMessage(msg));
+                        dispatch(
+                          addChangeRequestMessage(
+                            msg
+                          ) as unknown as UnknownAction
+                        );
                       }}
                       scrollToInput={() => {
                         setTimeout(() => {
