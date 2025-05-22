@@ -1,5 +1,3 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
 import Color from "color";
 import React, { useState } from "react";
 import Section from "react-cismap/topicmaps/menu/Section";
@@ -16,12 +14,28 @@ import {
 import Button from "react-bootstrap/Button";
 import Modal from "react-bootstrap/Modal";
 import Form from "react-bootstrap/Form";
+import { Flaeche } from "../../../store/slices/kassenzeichen";
+import type { CSSProperties } from "react";
+
+interface CR00Props {
+  visible: boolean;
+  height: number;
+  showChangeRequestMenu: (open: boolean) => void;
+  flaeche: Flaeche;
+  flaechenCR: any; // you can tighten this up once you have a CR type
+  setFlaechenCR: (cr: any) => void;
+  documents: any[];
+  uploadCRDoc: (file: File, callback: (res: string) => void) => void;
+  addFiles: (files: any[]) => void;
+  localErrorMessages: any[];
+  addLocalErrorMessage: (msg: any) => void;
+}
 
 const CR00 = ({
   visible,
   height,
   showChangeRequestMenu = (arg: boolean) => {},
-  flaeche = {},
+  flaeche,
   flaechenCR = {},
   setFlaechenCR = (cr: any) => {},
   documents = [],
@@ -29,9 +43,9 @@ const CR00 = ({
   addFiles = (tmpAtt) => {},
   localErrorMessages = [],
   addLocalErrorMessage = (msg: string) => {},
-}) => {
-  const [tmpAttachments, setTmpAttachments] = useState([]);
-  const modalBodyStyle = {
+}: CR00Props) => {
+  const [tmpAttachments, setTmpAttachments] = useState<any[]>([]);
+  const modalBodyStyle: CSSProperties = {
     overflowY: "auto",
     overflowX: "hidden",
     maxHeight: height - 200,

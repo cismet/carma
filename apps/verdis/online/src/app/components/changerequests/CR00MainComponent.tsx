@@ -28,7 +28,6 @@ import "./toggle.css";
 import {
   AnderungswunscheIntroductionAus,
   anderungswunscheSimpleTexts,
-  AnderungswunscheHint,
 } from "@carma-collab/wuppertal/verdis-online";
 import FlaechenPanel from "../FlaechenPanel";
 import {

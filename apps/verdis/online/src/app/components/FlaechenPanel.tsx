@@ -22,7 +22,7 @@ interface FlaechenPanelProps {
   editMode: boolean;
   showEditCRMenu?: () => void;
   display?: string | null;
-  flaechenCR: any;
+  flaechenCR?: any;
   proofNeeded?: boolean;
 }
 
