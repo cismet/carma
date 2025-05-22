@@ -65,7 +65,7 @@ const Comp = ({
   if (remove !== undefined) {
     deleteLink = (
       <a
-        style={{ color, verticalAlign: "middle", cursor: "pointer" }}
+        style={{ color, cursor: "pointer" }}
         onClick={() => {
           remove();
         }}
