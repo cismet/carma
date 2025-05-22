@@ -14,7 +14,12 @@ import {
 } from "../../store/slices/mapping";
 import "react-cismap/topicMaps.css";
 import "leaflet/dist/leaflet.css";
-import { getHeight, getNavbarHeight, getUiState } from "../../store/slices/ui";
+import {
+  getHeight,
+  getNavbarHeight,
+  getUiState,
+  setHintVisible,
+} from "../../store/slices/ui";
 import {
   createFlaechenStyler,
   getMarkerStyleFromFeatureConsideringSelection,
@@ -68,7 +73,6 @@ const Map = ({ children, newHeight }: MapProps) => {
   const kassenzeichen = useSelector(getKassenzeichen);
   const annotationEditable = uiState.changeRequestsEditMode;
   const [featuresInEditMode, setFeaturesInEditMode] = useState(false);
-  const [drawPolygon, setDrawPolygon] = useState(false);
 
   function paramsToObject(entries) {
     const result = {};
@@ -92,6 +96,7 @@ const Map = ({ children, newHeight }: MapProps) => {
   };
 
   const featureClick = (event, feature) => {
+    dispatch(setHintVisible(false));
     if (isFlaecheSelected(feature.properties)) {
       dispatch(
         fitFeatureBounds(
