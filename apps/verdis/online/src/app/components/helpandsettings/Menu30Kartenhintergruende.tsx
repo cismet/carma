@@ -105,7 +105,6 @@ const Menu30Kartenhintergruende = ({
                       label={bg.title}
                       checked={selectedBackgroundIndex === idx}
                       onChange={() => {
-                        console.log("xxx onChange");
                         dispatch(
                           setSelectedBackgroundIndex({
                             selectedBackgroundIndex: idx,

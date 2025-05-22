@@ -5,7 +5,6 @@ import {
   showChangeRequestsMenu,
   showSettings,
 } from "../../../store/slices/ui";
-import ModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import Section from "react-cismap/topicmaps/menu/Section";
 import Introduction from "./CR05Introduction";
 import {
@@ -33,7 +32,9 @@ import {
 } from "@carma-collab/wuppertal/verdis-online";
 import FlaechenPanel from "../FlaechenPanel";
 import {
+  colorNeededProof,
   hasAttachment,
+  nachweisPflichtText,
   needsProof,
   needsProofSingleFlaeche,
 } from "../../../utils/kassenzeichenHelper";
@@ -619,7 +620,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
                                       setCodeVerificationMessage("");
                                     }, 2500);
                                   }
-                                )
+                                ) as unknown as UnknownAction
                               );
                             }}
                           >
