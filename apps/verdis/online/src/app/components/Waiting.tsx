@@ -30,9 +30,6 @@ const Waiting = () => {
       <Modal.Footer />
     );
 
-  // console.log("xxx waitingMessage", waitingMessage);
-  // console.log("xxx waitingVisible", waitingVisible);
-
   return (
     <Modal
       animation={waitingUIAnimation}
