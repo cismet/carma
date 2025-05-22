@@ -4,7 +4,6 @@ interface ContactProps {
 }
 
 const ContactPanel = ({ contact }: ContactProps) => {
-  console.log("xxx contact", contact);
   let _contact;
   if (!contact) {
     _contact = {
