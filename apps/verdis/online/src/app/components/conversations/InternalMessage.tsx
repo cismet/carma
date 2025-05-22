@@ -1,3 +1,15 @@
+interface InternalMessageProps {
+  msg?: string;
+  from?: any;
+  width?: string;
+  background?: string;
+  color?: string;
+  alignment?: string;
+  margin?: string | number;
+  padding?: string | number;
+  fontSizeSender?: number;
+  fontSize?: number;
+}
 const InternalMessage = ({
   msg = "",
   from,
@@ -9,7 +21,7 @@ const InternalMessage = ({
   padding = "15px",
   fontSizeSender = 0.8,
   fontSize = 1,
-}) => {
+}: InternalMessageProps) => {
   let textAlign;
   let flexStyles = {};
   if (alignment === "left") {
