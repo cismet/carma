@@ -1,0 +1,29 @@
+{
+  "tm": {
+    "noFeatureCollection": true,
+    "vectorLayers": [
+      {
+        "name": "P+R-Anlagen",
+        "layer": "pranlagen@https://maps.wuppertal.de/verkehr?service=WMS&request=GetCapabilities&version=1.1.1",
+        "addMetaInfoToHelp": true,
+        "layerType": "vector",
+        "style": "https://tiles.cismet.de/br_pr_anlagen/pr.style.json",
+        "opacity": 1,
+        "infoboxMapping": [
+          "function createInfoBoxInfo(p) { let color = \"#154889\"; let fahrplanauskunft = \"\"; if (p.haltestelle){ fahrplanauskunft = 'https://efa.vrr.de/wswstd/XSLT_TRIP_REQUEST2?language=de&sessionID=0&odvMacro=true&commonMacro=true&lineRestriction=403&SpEncId=0&type_origin=any&type_destination=any&useRealtime=1&nameinfo_origin=invalid&nameInfo_destination=invalid&name_destination=invalid&name_origin='+p.haltestelle+'&name_destination=' } const info = { headerColor: color, foto: p.foto, header: 'P+R Anlagen (' + p.anzahl_plaetze + ' Stellplätze)', genericLinks: [{url: fahrplanauskunft, tooltip:\"Zur Fahrplanauskunft\", iconname: \"bus\"}, {url: p.topicmap, tooltip:\"Zur Topicmap\", iconname: \"trademark\"},], title: 'Name: '+p.name, additionalInfo: 'Nächste Haltestelle: '+p.haltestelle, subtitle: 'Beschreibung: '+p.beschreibung, modal: \"xandRideSIM\" }; return info; }"
+        ]
+      },
+      {
+        "name": "B+R-Anlagen",
+        "layer": "branlagen@https://maps.wuppertal.de/verkehr?service=WMS&request=GetCapabilities&version=1.1.1",
+        "addMetaInfoToHelp": true,
+        "layerType": "vector",
+        "style": "https://tiles.cismet.de/br_pr_anlagen/br.style.json",
+        "opacity": 1,
+        "infoboxMapping": [
+          "function createInfoBoxInfo(p) { let color = \"#009933\"; let fahrplanauskunft = \"\"; if (p.haltestelle){ fahrplanauskunft = 'https://efa.vrr.de/wswstd/XSLT_TRIP_REQUEST2?language=de&sessionID=0&odvMacro=true&commonMacro=true&lineRestriction=403&SpEncId=0&type_origin=any&type_destination=any&useRealtime=1&nameinfo_origin=invalid&nameInfo_destination=invalid&name_destination=invalid&name_origin='+p.haltestelle+'&name_destination=' } const info = { headerColor: color, foto: p.foto, header: 'B+R Anlagen (' + p.anzahl_plaetze + ' Stellplätze)', genericLinks: [{url: fahrplanauskunft, tooltip:\"Zur Fahrplanauskunft\", iconname: \"bus\"}, {url: p.topicmap, tooltip:\"Zur Topicmap\", iconname: \"trademark\"},], title: 'Name: '+p.name, additionalInfo: 'Nächste Haltestelle: '+p.haltestelle, subtitle: 'Beschreibung: '+p.beschreibung, modal: \"xandRideSIM\" }; return info; }"
+        ]
+      }
+    ]
+  }
+}
