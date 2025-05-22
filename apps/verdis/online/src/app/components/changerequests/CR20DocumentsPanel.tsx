@@ -139,7 +139,8 @@ const CR20DocumentsPanel = ({
               wordWrap: "break-word",
               color: "black",
               textAlign: "left",
-              outline: "none", //
+              outline: "none",
+              background: "transparent",
             }}
             className="btn-link"
           >
