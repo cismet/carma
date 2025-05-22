@@ -4,6 +4,7 @@ interface ContactProps {
 }
 
 const ContactPanel = ({ contact }: ContactProps) => {
+  console.log("xxx contact", contact);
   let _contact;
   if (!contact) {
     _contact = {
@@ -50,7 +51,9 @@ const ContactPanel = ({ contact }: ContactProps) => {
           style={{
             width: "100%",
             height: "100%",
-            backgroundImage: `url("${baseUrl}images/contacts/${image}")`,
+            backgroundImage: image
+              ? `url("${baseUrl}images/contacts/${image}")`
+              : "none",
             backgroundRepeat: "no-repeat",
             backgroundSize: "cover",
             backgroundPosition: "center",
