@@ -1,22 +1,32 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
 import Section from "react-cismap/topicmaps/menu/Section";
 import { MappingConstants, getLayersByName } from "react-cismap";
 import PreviewMap from "react-cismap/topicmaps/menu/PreviewMap";
 import Form from "react-bootstrap/Form";
-import { Map } from "react-leaflet";
-import * as L from "leaflet";
+// import { Map } from "react-leaflet";
+// import * as L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import SettingsPanelWithPreviewSection from "./SettingsPanelWithPreviewSection";
 import { useDispatch } from "react-redux";
 import { setSelectedBackgroundIndex } from "../../../store/slices/mapping";
+
+interface Menu30KartenhintergruendeProps {
+  selectedBackgroundIndex: number;
+  backgrounds: Array<{
+    title: string;
+    layerkey: string;
+  }>;
+  width?: number;
+  urlSearch: string;
+  showOpened?: boolean;
+}
+
 const Menu30Kartenhintergruende = ({
   selectedBackgroundIndex,
   backgrounds = [],
   width = 20,
   urlSearch,
   showOpened = false,
-}) => {
+}: Menu30KartenhintergruendeProps) => {
   const dispatch = useDispatch();
   let namedMapStyle =
     new URLSearchParams(urlSearch).get("mapStyle") || "default";
@@ -42,7 +52,8 @@ const Menu30Kartenhintergruende = ({
       minZoom={zoom}
       maxZoom={zoom}
     >
-      {getLayersByName(layers, namedMapStyle)}
+      {/* {getLayersByName(layers, namedMapStyle)} */}
+      {getLayersByName(layers)}
     </PreviewMap>
   );
   const preview = (
