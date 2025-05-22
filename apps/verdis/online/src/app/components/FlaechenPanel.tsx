@@ -20,10 +20,10 @@ interface FlaechenPanelProps {
   flaeche: any;
   selected?: boolean;
   editMode: boolean;
-  showEditCRMenu: () => void;
+  showEditCRMenu?: () => void;
   display?: string | null;
   flaechenCR: any;
-  proofNeeded: boolean;
+  proofNeeded?: boolean;
 }
 
 const FlaechenPanel = ({

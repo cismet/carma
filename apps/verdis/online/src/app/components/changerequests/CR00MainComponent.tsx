@@ -1,5 +1,3 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
 import { useDispatch, useSelector } from "react-redux";
 import {
   addLocalErrorMessage,
@@ -14,6 +12,7 @@ import {
   addChangeRequestMessage,
   addCRDoc,
   completeEmailChange,
+  GeometryFeature,
   getKassenzeichen,
   getNumberOfPendingChanges,
   removeLastChangeRequestMessage,
@@ -42,6 +41,8 @@ import AnnotationPanel from "../AnnotationPanel";
 import { Icon } from "react-fa";
 import Form from "react-bootstrap/Form";
 import CloudLoadingAttributeIcon from "../commons/CloudLoadingAttributeIcon";
+import type { CSSProperties, ReactElement } from "react";
+import type { UnknownAction } from "redux";
 
 const CR00MainComponent = ({ localErrorMessages = [], height }) => {
   const uiState = useSelector(getUiState);
@@ -97,9 +98,9 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
     }
   });
 
-  const origPanels = [];
-  const crPanels = [];
-  const annoPanels = [];
+  const origPanels: ReactElement[] = [];
+  const crPanels: ReactElement[] = [];
+  const annoPanels: ReactElement[] = [];
 
   (changerequestBezeichnungsArray || []).forEach(
     (flaechenbezeichnung, index) => {
@@ -144,7 +145,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
   ) {
     const annos = kassenzeichen.aenderungsanfrage.geometrien;
     if (annos !== undefined) {
-      const annoArr = [];
+      const annoArr: GeometryFeature[] = [];
 
       for (const ak of Object.keys(annos)) {
         annoArr.push(annos[ak]);
@@ -184,7 +185,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
       setLocked(false);
     } else {
       //submit
-      dispatch(submitCR());
+      dispatch(submitCR() as unknown as UnknownAction);
       setLocked(true);
       //then
       //close();
@@ -197,7 +198,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
     marginBottom: "10px",
   };
 
-  const modalBodyStyle = {
+  const modalBodyStyle: CSSProperties = {
     overflowY: "auto",
     overflowX: "hidden",
     maxHeight: height - (emailSettingsShown ? 520 : 350),
@@ -210,10 +211,9 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
   };
 
   const changeEmail = (email) => {
-    dispatch(requestEmailChange(email));
+    dispatch(requestEmailChange(email) as unknown as UnknownAction);
   };
 
-  // dispatch(requestEmailChange());
   return (
     <Modal
       style={{

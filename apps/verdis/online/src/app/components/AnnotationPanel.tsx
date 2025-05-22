@@ -22,9 +22,9 @@ import type { UnknownAction } from "redux";
 
 interface AnnotationPanelProps {
   annotationFeature: any;
-  selected: boolean;
+  selected?: boolean;
   editmode?: boolean;
-  showEditAnnoMenu: () => void;
+  showEditAnnoMenu?: () => void;
   showEverything?: boolean;
 }
 const AnnotationPanel = ({
