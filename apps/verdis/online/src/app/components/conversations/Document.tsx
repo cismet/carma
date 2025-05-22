@@ -1,12 +1,22 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
 import React, { useState, useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSpinner } from "@fortawesome/free-solid-svg-icons";
 import { getLinkForDoc } from "../../../utils/kassenzeichenHelper";
 import DocIcon from "./DocIcon";
 
-const Comp = ({ fileObject, remove, background = "#eeeeee", addComma }) => {
+interface DocumentProps {
+  fileObject: any;
+  remove?: () => void;
+  background?: string;
+  addComma?: boolean;
+}
+
+const Comp = ({
+  fileObject,
+  remove,
+  background = "#eeeeee",
+  addComma,
+}: DocumentProps) => {
   const [verifiedState, setVerifiedState] = useState("unverified");
   useEffect(() => {
     if (fileObject.inProgress !== true && verifiedState === "unverified") {
@@ -55,7 +65,7 @@ const Comp = ({ fileObject, remove, background = "#eeeeee", addComma }) => {
   if (remove !== undefined) {
     deleteLink = (
       <a
-        style={{ color, xverticalAlign: "super", cursor: "pointer" }}
+        style={{ color, verticalAlign: "super", cursor: "pointer" }}
         onClick={() => {
           remove();
         }}

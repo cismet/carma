@@ -1,5 +1,5 @@
 interface InternalMessageProps {
-  msg?: string;
+  msg?: any;
   from?: any;
   width?: string;
   background?: string;

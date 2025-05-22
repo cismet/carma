@@ -1,9 +1,25 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
 import Documents from "./Documents";
 import Message from "./InternalMessage";
 import SystemMessage from "./SystemMessage";
 import InternalMessage from "./InternalMessage";
+
+export type CRMessage =
+  | { typ: "CLERK"; timestamp: number; name: string; nachricht: string }
+  | {
+      typ: "CITIZEN";
+      timestamp: number;
+      nachricht?: string;
+      anhang?: any[];
+      draft?: boolean;
+    }
+  | { typ: "SYSTEM"; timestamp: number; nachrichtenParameter: any }
+  | { typ: "LOCALERROR"; timestamp: number; nachricht: string };
+
+export interface CRConversationProps {
+  messages: CRMessage[];
+  hideSystemMessages?: boolean;
+  userMap?: Record<string, Partial<{ name: string; color: string }>>;
+}
 
 const CRConversation = ({
   messages = [],
@@ -13,10 +29,8 @@ const CRConversation = ({
     citizen: {},
     system: {},
   },
-  width,
-  background,
   hideSystemMessages = false,
-}) => {
+}: CRConversationProps) => {
   const sMsgs = messages.sort((a, b) => a.timestamp - b.timestamp);
 
   const sMsgsWithWelcomeMessage: any = [];
@@ -81,7 +95,6 @@ const CRConversation = ({
                             docs={msg.anhang || []}
                             readOnly={true}
                             embedded={true}
-                            margin="2px"
                           />
                         </div>
                       }
