@@ -1,5 +1,3 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
 import React, { useRef, useEffect } from "react";
 import { getArea25832 } from "../../utils/kassenzeichenMappingTools";
 import {
@@ -19,7 +17,8 @@ import {
   getMapping,
   setSelectedFeatureIndexWithSelector,
 } from "../../store/slices/mapping";
-import scrollIntoViewIfNeeded from "scroll-into-view-if-needed";
+import scrollIntoView from "scroll-into-view-if-needed";
+import type { UnknownAction } from "redux";
 
 interface AnnotationPanelProps {
   annotationFeature: any;
@@ -41,8 +40,9 @@ const AnnotationPanel = ({
   const dispatch = useDispatch();
   useEffect(() => {
     if (selected && panelRef.current) {
-      scrollIntoViewIfNeeded(panelRef.current, false, {
-        duration: 250,
+      scrollIntoView(panelRef.current, {
+        behavior: "smooth",
+        scrollMode: "if-needed",
       });
     }
   }, [selected]);
@@ -66,13 +66,16 @@ const AnnotationPanel = ({
 
     if (isFlaecheSelected(feature.properties)) {
       dispatch(
-        fitFeatureBounds(mapping.featureCollection[mapping.selectedIndex], "")
+        fitFeatureBounds(
+          mapping.featureCollection[mapping.selectedIndex],
+          ""
+        ) as unknown as UnknownAction
       );
     } else {
       dispatch(
         setSelectedFeatureIndexWithSelector((testFeature) => {
           return testFeature.properties.id === feature.properties.id;
-        })
+        }) as unknown as UnknownAction
       );
     }
   };
