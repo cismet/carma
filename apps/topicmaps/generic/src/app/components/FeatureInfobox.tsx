@@ -9,6 +9,9 @@ import { ComponentType, useContext, useState } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { additionalInfoFactory } from "@carma-collab/wuppertal/geoportal";
+import { genericSecondaryInfoFooterFactory } from "@carma-collab/wuppertal/commons";
+import versionData from "../../version.json";
+import { getApplicationVersion } from "@carma-commons/utils";
 
 interface InfoboxProps {
   selectedFeature: any;
@@ -82,12 +85,7 @@ const FeatureInfobox = ({ selectedFeature }: InfoboxProps) => {
 
   const Modal = additionalInfoFactory(
     selectedFeature?.properties?.modal
-  ) as ComponentType<{
-    setOpen: (open: boolean) => void;
-    feature: {
-      properties: any;
-    };
-  }>;
+  ) as React.ComponentType<any> | null;
 
   return (
     <>
@@ -138,12 +136,14 @@ const FeatureInfobox = ({ selectedFeature }: InfoboxProps) => {
         }
         links={links}
       />
-      {openModal && (
+      {openModal && Modal && (
         <Modal
           setOpen={() => setOpenModal(false)}
           feature={{
             properties: selectedFeature.properties.wmsProps,
           }}
+          versionString={getApplicationVersion(versionData)}
+          Footer={genericSecondaryInfoFooterFactory()}
         />
       )}
     </>

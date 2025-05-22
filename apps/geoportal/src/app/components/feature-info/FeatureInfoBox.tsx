@@ -12,6 +12,7 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 
 import { additionalInfoFactory } from "@carma-collab/wuppertal/geoportal";
+import { genericSecondaryInfoFooterFactory } from "@carma-collab/wuppertal/commons";
 
 import {
   setPreferredLayerId,
@@ -32,7 +33,9 @@ import { truncateString, updateUrlWithCoordinates } from "./featureInfoHelper";
 
 import "../infoBox.css";
 import LoadingInfoBox from "./LoadingInfoBox";
-import InfoBox from "./Infobox";
+import InfoBox from "react-cismap/topicmaps/InfoBox";
+import versionData from "../../../version.json";
+import { getApplicationVersion } from "@carma-commons/utils";
 
 interface InfoBoxProps {
   pos?: [number, number];
@@ -250,12 +253,15 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
         }
         links={links}
       />
-      {open && (
+      {open && Modal && (
         <Modal
           setOpen={() => setOpen(false)}
           feature={{
             properties: selectedFeature.properties.wmsProps,
           }}
+          versionString={getApplicationVersion(versionData)}
+          Footer={genericSecondaryInfoFooterFactory({ skipTeilzwilling: true })}
+          skipTeilzwilling={true}
         />
       )}
     </>
