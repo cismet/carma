@@ -1,10 +1,7 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
 import { useDispatch, useSelector } from "react-redux";
 import {
   colorChanged,
   getProcessedFlaechenCR,
-  colorUnchanged,
   colorNeededProof,
 } from "../../utils/kassenzeichenHelper";
 import {
@@ -17,6 +14,7 @@ import scrollIntoView from "scroll-into-view-if-needed";
 import { FontAwesomeIcon as Icon } from "@fortawesome/react-fontawesome";
 import { faEdit } from "@fortawesome/free-solid-svg-icons";
 import { colorDraft } from "../../utils/kassenzeichenHelper";
+import type { UnknownAction } from "redux";
 
 interface FlaechenPanelProps {
   flaeche: any;
@@ -71,13 +69,16 @@ const FlaechenPanel = ({
 
     if (isFlaecheSelected(feature.properties)) {
       dispatch(
-        fitFeatureBounds(mapping.featureCollection[mapping.selectedIndex], "")
+        fitFeatureBounds(
+          mapping.featureCollection[mapping.selectedIndex],
+          ""
+        ) as unknown as UnknownAction
       );
     } else {
       dispatch(
         setSelectedFeatureIndexWithSelector((testFeature) => {
           return testFeature.properties.id === feature.properties.id;
-        })
+        }) as unknown as UnknownAction
       );
     }
   };
