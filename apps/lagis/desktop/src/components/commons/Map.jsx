@@ -383,11 +383,10 @@ const Map = ({
     >
       <>
         <div
-          className="controls-container"
           style={{
             position: "absolute",
-            top: "0px",
-            left: "0px",
+            top: "40px",
+            left: "3px",
             bottom: "0px",
             zIndex: 600,
           }}
