@@ -56,7 +56,7 @@ const VerdisOnlineHelp = () => {
       />
       <Menu40Anleitung showOpened={showOpened} />
       <Menu41Mailservice showOpened={showOpened} />
-      <Menu42Aenderungen />
+      <Menu42Aenderungen showOpened={showOpened} />
       <div id="myMenu" style={modalBodyStyle}>
         <Menu50FAQ showOpened={showOpened} />
       </div>
