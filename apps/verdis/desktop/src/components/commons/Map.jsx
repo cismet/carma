@@ -13,14 +13,8 @@ import {
   TopicMapStylingContext,
   TopicMapStylingDispatchContext,
 } from "react-cismap/contexts/TopicMapStylingContextProvider";
-import GazetteerSearchControl from "react-cismap/GazetteerSearchControl";
-import GazetteerHitDisplay from "react-cismap/GazetteerHitDisplay";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
-import {
-  getBoundsForFeatureArray,
-  getCenterAndZoomForBounds,
-  createQueryGeomFromBB,
-} from "../../tools/mappingTools";
+import { getBoundsForFeatureArray } from "../../tools/mappingTools";
 import Dot from "./Dot";
 import { faImage as regularImage } from "@fortawesome/free-regular-svg-icons";
 import Overlay from "./Overlay";
@@ -28,10 +22,6 @@ import LandParcelChooser from "./LandParcelChooser";
 
 import {
   getIsLoading,
-  getIsLoadingGeofields,
-  getIsLoadingKassenzeichenWithPoint,
-  searchForGeoFields,
-  searchForKassenzeichenWithPoint,
   storeFlaechenId,
   storeFrontenId,
 } from "../../store/slices/search";
@@ -50,21 +40,15 @@ import {
   setLockMap,
   getFitBoundsCounter,
 } from "../../store/slices/mapping";
-import { getArea25832 } from "../../tools/kassenzeichenMappingTools";
 import {
-  faDrawPolygon,
   faExpandArrowsAlt,
   faF,
   faLock,
   faLockOpen,
-  faMagnifyingGlass,
   faPlane,
   faImage as solidImage,
 } from "@fortawesome/free-solid-svg-icons";
 import { useDispatch, useSelector } from "react-redux";
-import { FileImageOutlined, FileImageFilled } from "@ant-design/icons";
-
-// import { getGazData } from "../../store/slices/gazData";
 import BackgroundLayers from "./BackgroundLayers";
 import AdditionalLayers from "./AdditionalLayers";
 import {
@@ -72,7 +56,6 @@ import {
   getActiveBackgroundLayer,
   getAdditionalLayerOpacities,
   getBackgroundLayerOpacities,
-  getHoveredObject,
   isMapLoading,
   setHoveredObject,
 } from "../../store/slices/ui";
@@ -89,10 +72,12 @@ import {
   TopicMapSelectionContent,
   useGazData,
   useSelection,
-  useSelectionTopicMap,
 } from "@carma-apps/portals";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { isAreaType } from "@carma-commons/resources";
+import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
+import { ZoomControl } from "@carma-mapping/components";
+import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 const { ScaleControl } = TransitiveReactLeaflet;
 
@@ -131,9 +116,6 @@ const Map = ({
   const mode = useSelector(getShapeMode);
   const [overlayFeature, setOverlayFeature] = useState(null);
 
-  const searchControlWidth = 500;
-  const gazetteerSearchPlaceholder = undefined;
-
   const data = extractor(dataIn);
   const padding = 5;
   const headHeight = 37;
@@ -153,11 +135,11 @@ const Map = ({
     activeAdditionalLayerKeys,
   } = useContext(TopicMapStylingContext);
 
-  const {
-    setSelectedBackground,
-    setNamedMapStyle,
-    setActiveAdditionalLayerKeys,
-  } = useContext(TopicMapStylingDispatchContext);
+  // const {
+  //   setSelectedBackground,
+  //   setNamedMapStyle,
+  //   setActiveAdditionalLayerKeys,
+  // } = useContext(TopicMapStylingDispatchContext);
   const isMapLoadingValue = useSelector(isMapLoading);
   let backgroundsFromMode;
   const browserlocation = useLocation();
@@ -169,6 +151,8 @@ const Map = ({
     }
     return result;
   }
+  const { setRoutedMapRef } = useContext(TopicMapDispatchContext);
+
   const urlSearchParams = new URLSearchParams(browserlocation.search);
   const urlSearchParamsObject = paramsToObject(urlParams);
 
@@ -243,7 +227,7 @@ const Map = ({
       map.invalidateSize();
     }
   }, [mapWidth, mapHeight]);
-  [,];
+  [];
   const handleShowFIcon = () => {
     setShowFIcon(true);
   };
@@ -253,23 +237,18 @@ const Map = ({
   function fitMapBounds() {
     const map = refRoutedMap?.current?.leafletMap?.leafletElement;
     if (map == undefined) {
-      console.log("xxx map is undefined");
       return;
     } else {
     }
     let bb = undefined;
     if (data?.featureCollection && data?.featureCollection.length > 0) {
-      // console.log("xxx will use featureCollection", data?.featureCollection);
-
       bb = getBoundsForFeatureArray(data?.featureCollection);
     } else if (data?.allFeatures && data?.allFeatures.length > 0) {
-      // console.log("xxx will use allFeatures", data?.allFeatures);
       bb = getBoundsForFeatureArray(data?.allFeatures);
     }
 
     if (map && bb) {
       map.fitBounds(bb);
-      // console.log("xxx fitBounds");
     }
   }
 
@@ -294,7 +273,6 @@ const Map = ({
 
   const { gazData } = useGazData();
   const { setSelection } = useSelection();
-  // useSelectionTopicMap();
 
   const onGazetteerSelection = (selection) => {
     if (!selection) {
@@ -330,6 +308,12 @@ const Map = ({
       setShowFIcon(false);
     }, 0);
   };
+
+  useEffect(() => {
+    if (refRoutedMap.current !== null) {
+      setRoutedMapRef(refRoutedMap.current);
+    }
+  }, [refRoutedMap]);
 
   return (
     <Card
@@ -431,10 +415,26 @@ const Map = ({
       className="overflow-hidden shadow-md"
       ref={cardRef}
     >
+      <div
+        style={{
+          position: "absolute",
+          top: "40px",
+          left: 0,
+          bottom: "0px",
+          zIndex: 600,
+        }}
+      >
+        <ControlLayout ifStorybook={false}>
+          <Control position="topleft" order={10}>
+            <ZoomControl />
+          </Control>
+        </ControlLayout>
+      </div>
       <RoutedMap
         editable={false}
         style={mapStyle}
         key={"leafletRoutedMap"}
+        zoomControlEnabled={false}
         // backgroundlayers={showBackground ? _backgroundLayers : null}
         backgroundlayers={null}
         urlSearchParams={urlSearchParams}
