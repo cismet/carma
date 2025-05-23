@@ -1,5 +1,3 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import "./input.css";
 import {
@@ -8,7 +6,7 @@ import {
   faPaperclip,
 } from "@fortawesome/free-solid-svg-icons";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ChangeEvent, KeyboardEvent } from "react";
+import type { ChangeEvent, KeyboardEvent, ReactNode } from "react";
 import TextareaAutosize from "react-textarea-autosize";
 import { Documents } from "./Documents";
 import { FormGroup, InputGroup } from "react-bootstrap";
@@ -17,6 +15,7 @@ import { split } from "lodash";
 import slugify from "@sindresorhus/slugify";
 import iconv from "iconv-lite";
 import { useDispatch } from "react-redux";
+import type { UnknownAction } from "redux";
 
 type MessageAttachment = {
   name?: string;
@@ -25,6 +24,21 @@ type MessageAttachment = {
   nonce?: string;
   inProgress?: boolean;
 };
+
+export interface ConversationInputProps {
+  setDraft: (draftText: string, attachments: MessageAttachment[]) => void;
+  maxRows?: number;
+  scrollToInput?: () => void;
+  subText?: ReactNode;
+  lastUserMessage?: {
+    nachricht?: string;
+    anhang?: MessageAttachment[];
+    timestamp?: number;
+  };
+  removeLastUserMessage?: () => void;
+  uploadCRDoc?: (file: File, cb: (res: string) => void) => void;
+  addLocalErrorMessage?: (msg: unknown) => void;
+}
 
 const ConversationInput = ({
   setDraft = (a, b) => {},
@@ -42,11 +56,11 @@ const ConversationInput = ({
   },
   uploadCRDoc = (a, b) => {},
   addLocalErrorMessage = (m) => {},
-}) => {
+}: ConversationInputProps) => {
   const textarea = useRef<HTMLTextAreaElement | null>(null);
   const [position, setPosition] = useState(0);
-  const [msgTextValue, setMsgTextValue] = useState("");
-  const [msgAttachments, setMsgAttachments] = useState<MessageAttachment[]>([]);
+  const [msgTextValue, setMsgTextValue] = useState<any>("");
+  const [msgAttachments, setMsgAttachments] = useState<any>([]);
   const [inputBackgroundColor, setInputBackgroundColor] = useState("white");
   const [errorChars, setErrorChars] = useState("");
   const dispatch = useDispatch();
@@ -62,50 +76,52 @@ const ConversationInput = ({
           nonce: file.nonce,
           inProgress: true,
         });
-        return dispatch(
-          uploadCRDoc(file, (returnedFOString) => {
-            if (returnedFOString) {
-              try {
-                const returnedFO = JSON.parse(returnedFOString);
-                // returnedFO.status = 412;
-                // returnedFO.message = "Parameter FILENAME nicht gesetzt";
-                if (returnedFO.status === 201) {
-                  returnedFO.nonce = file.nonce;
-                  returnedFO.inProgress = false;
-                  updateAttachment(returnedFO);
-                } else {
+        if (uploadCRDoc) {
+          return dispatch(
+            uploadCRDoc(file, (returnedFOString) => {
+              if (returnedFOString) {
+                try {
+                  const returnedFO = JSON.parse(returnedFOString);
+                  // returnedFO.status = 412;
+                  // returnedFO.message = "Parameter FILENAME nicht gesetzt";
+                  if (returnedFO.status === 201) {
+                    returnedFO.nonce = file.nonce;
+                    returnedFO.inProgress = false;
+                    updateAttachment(returnedFO);
+                  } else {
+                    dispatch(
+                      addLocalErrorMessage({
+                        typ: "LOCALERROR",
+                        nachricht:
+                          "Beim Hochladen der Datei hat der Server mit dem unerwarteten Status " +
+                          returnedFO.status +
+                          " geantwortet. (" +
+                          returnedFO.message +
+                          "). Bitte versuchen Sie es später noch einmal. Sollte der Fehler weiter bestehen bleiben, bitten wir Sie Ihren Ansprechpartner in der Stadtverwaltung per Mail zu kontaktieren.",
+                        draft: true,
+                      }) as unknown as UnknownAction
+                    );
+                    removeAttachment(file);
+                  }
+                } catch (err) {
                   dispatch(
                     addLocalErrorMessage({
                       typ: "LOCALERROR",
                       nachricht:
-                        "Beim Hochladen der Datei hat der Server mit dem unerwarteten Status " +
-                        returnedFO.status +
-                        " geantwortet. (" +
-                        returnedFO.message +
-                        "). Bitte versuchen Sie es später noch einmal. Sollte der Fehler weiter bestehen bleiben, bitten wir Sie Ihren Ansprechpartner in der Stadtverwaltung per Mail zu kontaktieren.",
+                        "Beim Hochladen der Datei ist ein unerwarteter Fehler passiert: (" +
+                        err +
+                        ")",
                       draft: true,
-                    })
+                    }) as unknown as UnknownAction
                   );
                   removeAttachment(file);
                 }
-              } catch (err) {
-                dispatch(
-                  addLocalErrorMessage({
-                    typ: "LOCALERROR",
-                    nachricht:
-                      "Beim Hochladen der Datei ist ein unerwarteter Fehler passiert: (" +
-                      err +
-                      ")",
-                    draft: true,
-                  })
-                );
+              } else {
                 removeAttachment(file);
               }
-            } else {
-              removeAttachment(file);
-            }
-          })
-        );
+            }) as unknown as UnknownAction
+          );
+        }
       });
     },
     [uploadCRDoc]
@@ -315,7 +331,9 @@ const ConversationInput = ({
                 } else if (e.currentTarget.value === "" && e.keyCode === 38) {
                   // arrow up - should edit the last draft message
                   if (lastUserMessage !== undefined) {
-                    dispatch(removeLastUserMessage());
+                    dispatch(
+                      removeLastUserMessage() as unknown as UnknownAction
+                    );
                     setMsgTextValue(lastUserMessage.nachricht);
                     setMsgAttachments(lastUserMessage.anhang);
                     setTimeout(() => {
