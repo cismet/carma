@@ -1,13 +1,11 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
-
+import type { ReactNode } from "react";
 const SettingsPanelWithPreviewSection = ({
   settingsSections,
   width,
   preview,
 }) => {
-  let widePreviewPlaceholder = null;
-  let narrowPreviewPlaceholder = null;
+  let widePreviewPlaceholder: JSX.Element | null = null;
+  let narrowPreviewPlaceholder: JSX.Element | null = null;
   if (width < 995) {
     narrowPreviewPlaceholder = <div>{preview}</div>;
   } else {
