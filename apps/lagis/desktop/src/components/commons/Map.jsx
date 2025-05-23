@@ -232,6 +232,7 @@ const Map = ({
   const activeAdditionalLayers = useSelector(getActiveAdditionalLayers);
 
   const oldBgRef = useRef(null);
+  const oldAdditionalLayersLengthRef = useRef(null);
 
   useEffect(() => {
     const now = Date.now();
@@ -245,7 +246,8 @@ const Map = ({
       data?.featureCollection &&
       data?.featureCollection.length !== 0 &&
       refRoutedMap?.current &&
-      activeBackgroundLayer === oldBgRef.current
+      activeBackgroundLayer === oldBgRef.current &&
+      oldAdditionalLayersLengthRef.current === activeAdditionalLayers.length
     ) {
       const map = refRoutedMap.current.leafletMap.leafletElement;
       const bb = getBoundsForFeatureArray(data?.featureCollection);
@@ -257,11 +259,18 @@ const Map = ({
     if (activeBackgroundLayer !== oldBgRef.current) {
       oldBgRef.current = activeBackgroundLayer;
     }
+
+    if (
+      oldAdditionalLayersLengthRef.current !== activeAdditionalLayers.length
+    ) {
+      oldAdditionalLayersLengthRef.current = activeAdditionalLayers.length;
+    }
   }, [
     data?.featureCollection,
     refRoutedMap.current,
     isMapLoadingValue,
     activeBackgroundLayer,
+    activeAdditionalLayers,
     mode,
   ]);
 
