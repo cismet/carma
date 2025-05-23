@@ -407,9 +407,10 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
                 sectionContent={<>{annoPanels}</>}
               />,
               <Section
-                key="sectionKey2"
+                key="sectionDokumenteKey"
+                sectionKey="sectionDokumenteKey"
                 setActiveSectionKey={() => {}}
-                sectionKey="sectionKey2"
+                activeSectionKey={"sectionDokumenteKey"}
                 sectionTitle={
                   "Ihre Dokumente" +
                   (documents.length > 0 ? " (" + documents.length + ")" : "")
