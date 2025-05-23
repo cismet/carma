@@ -9,10 +9,7 @@ import {
   RoutedMap,
   TransitiveReactLeaflet,
 } from "react-cismap";
-import {
-  TopicMapStylingContext,
-  TopicMapStylingDispatchContext,
-} from "react-cismap/contexts/TopicMapStylingContextProvider";
+import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { getBoundsForFeatureArray } from "../../tools/mappingTools";
 import Dot from "./Dot";
