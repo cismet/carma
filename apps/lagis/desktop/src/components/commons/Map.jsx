@@ -9,10 +9,7 @@ import {
   RoutedMap,
   TransitiveReactLeaflet,
 } from "react-cismap";
-import {
-  TopicMapStylingContext,
-  TopicMapStylingDispatchContext,
-} from "react-cismap/contexts/TopicMapStylingContextProvider";
+import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import {
   getBoundsForFeatureArray,
@@ -43,7 +40,7 @@ import {
   setHoveredLandparcel,
 } from "../../store/slices/ui";
 import proj4 from "proj4";
-import { proj4crs25832def, proj4crs3857def } from "react-cismap/constants/gis";
+import { proj4crs3857def } from "react-cismap/constants/gis";
 import { getJWT } from "../../store/slices/auth";
 import HoveredLandparcelInfo from "./HoveredLandparcelInfo";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -54,10 +51,12 @@ import {
   TopicMapSelectionContent,
   useGazData,
   useSelection,
-  useSelectionTopicMap,
 } from "@carma-apps/portals";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { isAreaType } from "@carma-commons/resources";
+import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
+import { ZoomControl } from "@carma-mapping/components";
+import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 const { ScaleControl } = TransitiveReactLeaflet;
 
@@ -121,11 +120,14 @@ const Map = ({
     activeAdditionalLayerKeys,
   } = useContext(TopicMapStylingContext);
 
-  const {
-    setSelectedBackground,
-    setNamedMapStyle,
-    setActiveAdditionalLayerKeys,
-  } = useContext(TopicMapStylingDispatchContext);
+  // const {
+  //   setSelectedBackground,
+  //   setNamedMapStyle,
+  //   setActiveAdditionalLayerKeys,
+  // } = useContext(TopicMapStylingDispatchContext);
+
+  const { setRoutedMapRef } = useContext(TopicMapDispatchContext);
+
   const isMapLoadingValue = useSelector(isMapLoading);
   let backgroundsFromMode;
   const browserlocation = useLocation();
@@ -153,8 +155,8 @@ const Map = ({
 
   const lastPointSearchTimeRef = useRef(0);
 
-  const _backgroundLayers = backgroundsFromMode || "rvrGrau@40";
-  const opacities = useSelector(getAdditionalLayerOpacities);
+  // const _backgroundLayers = backgroundsFromMode || "rvrGrau@40";
+  // const opacities = useSelector(getAdditionalLayerOpacities);
   const handleSetShowBackground = () => {
     dispatch(setShowBackground(!showBackground));
   };
@@ -165,9 +167,9 @@ const Map = ({
     dispatch(setShowInspectMode(!showInspectMode));
   };
 
-  const handleSetDonutSearch = (mode = "point") => {
-    dispatch(storeShapeMode(mode));
-  };
+  // const handleSetDonutSearch = (mode = "point") => {
+  //   dispatch(storeShapeMode(mode));
+  // };
 
   const handleSetDonutWithDelay = (mode = "point") => {
     lastPointSearchTimeRef.current = Date.now();
@@ -199,6 +201,7 @@ const Map = ({
     //   }
     // }
   }, [data?.featureCollection, urlParams]);
+
   let refRoutedMap = useRef(null);
   const statusBarHeight = 20;
   const mapStyle = {
@@ -298,6 +301,12 @@ const Map = ({
       }
     }, 0);
   };
+
+  useEffect(() => {
+    if (refRoutedMap.current !== null) {
+      setRoutedMapRef(refRoutedMap.current);
+    }
+  }, [refRoutedMap]);
   return (
     <Card
       size="small"
@@ -373,10 +382,27 @@ const Map = ({
       ref={cardRef}
     >
       <>
+        <div
+          className="controls-container"
+          style={{
+            position: "absolute",
+            top: "0px",
+            left: "0px",
+            bottom: "0px",
+            zIndex: 600,
+          }}
+        >
+          <ControlLayout ifStorybook={false}>
+            <Control position="topleft" order={10}>
+              <ZoomControl />
+            </Control>
+          </ControlLayout>
+        </div>
         <RoutedMap
           editable={false}
           style={mapStyle}
           key={"leafletRoutedMap"}
+          zoomControlEnabled={false}
           // backgroundlayers={showBackground ? _backgroundLayers : null}
           backgroundlayers={null}
           urlSearchParams={urlSearchParams}
