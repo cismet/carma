@@ -34,9 +34,9 @@ import { useAppConfig } from "./hooks/useAppConfig";
 import { useManageLayers } from "./hooks/useManageLayers";
 import { useSyncToken } from "./hooks/useSyncToken";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
-import { useCesiumSearchParams } from "./hooks/useCesiumSearchParams";
 
 import { layerMap } from "./config";
+import { geoportalMapStyleConfig } from "./config/mapStyleConfig";
 import {
   CESIUM_CONFIG,
   CONFIG_BASE_URL,
@@ -60,7 +60,6 @@ function App({ published }: { published?: boolean }) {
 
   const isLoadingConfig = useAppConfig(CONFIG_BASE_URL, layerMap);
   useManageLayers(layerMap);
-  useCesiumSearchParams();
   const syncToken = useSyncToken();
   useKeyboardShortcuts();
 
@@ -72,6 +71,7 @@ function App({ published }: { published?: boolean }) {
           overlayOptions={{
             background: backgroundSettings,
           }}
+          mapStyleConfig={geoportalMapStyleConfig}
         >
           <ObliqueProvider
             config={OBLIQUE_CONFIG}
