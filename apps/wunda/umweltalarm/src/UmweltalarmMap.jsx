@@ -14,7 +14,7 @@ import { md5FetchText } from "react-cismap/tools/fetching";
 import { getGazDataForTopicIds } from "react-cismap/tools/gazetteerHelper";
 import "react-cismap/topicMaps.css";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
-import { TransitiveReactLeafletControl as Control } from "react-cismap";
+import { TransitiveReactLeafletControl as TransitiveControl } from "react-cismap";
 import { daqKeys, db } from "./App";
 import "./App.css";
 import InfoBox, { modes } from "./components/InfoBox";
@@ -37,6 +37,12 @@ import {
   LibFuzzySearch,
 } from "@carma-mapping/fuzzy-search";
 import { isAreaType } from "@carma-commons/resources";
+import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
+import {
+  FullscreenControl,
+  RoutedMapLocateControl,
+  ZoomControl,
+} from "@carma-mapping/components";
 
 const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 
@@ -226,6 +232,33 @@ function UmweltalarmMap({ loggedOut, initialised }) {
   return (
     <div key={initialised != null ? initialised : "init"}>
       <Crosshair />
+      <ControlLayout ifStorybook={false}>
+        <Control position="topleft" order={10}>
+          <ZoomControl />
+        </Control>
+
+        <Control position="topleft" order={50}>
+          <FullscreenControl />
+        </Control>
+        <Control position="topleft" order={60} title="Mein Standort">
+          <RoutedMapLocateControl
+            tourRefLabels={null}
+            disabled={false}
+            nativeTooltip={true}
+          />
+        </Control>
+
+        <Control position="bottomleft" order={10}>
+          <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
+            <LibFuzzySearch
+              gazData={gazData}
+              onSelection={onGazetteerSelection}
+              pixelwidth={pixelwidth}
+              placeholder={searchTextPlaceholder}
+            />
+          </div>
+        </Control>
+      </ControlLayout>
       <TopicMapComponent
         gazData={gazData}
         modalMenu={<MyMenu />}
@@ -236,7 +269,9 @@ function UmweltalarmMap({ loggedOut, initialised }) {
         maxZoom={22}
         applicationMenuTooltipString={tooltipText}
         secondaryInfo={windowSize && <InfoPanel hits={hits} />}
-        locatorControl={true}
+        locatorControl={false}
+        fullScreenControl={false}
+        zoomControls={false}
         mappingBoundsChanged={(boundingBox) => {
           setHits(undefined);
           let bbox = [
@@ -274,7 +309,7 @@ function UmweltalarmMap({ loggedOut, initialised }) {
           />
         )}
 
-        <Control className="leaflet-bar" position={"topleft"}>
+        <TransitiveControl className="leaflet-bar" position={"topleft"}>
           <button
             title="Objekte im Kartenfenster suchen"
             disabled={!searchInWholeWindowEnabled}
@@ -303,16 +338,16 @@ function UmweltalarmMap({ loggedOut, initialised }) {
               />
             </span>
           </button>
-        </Control>
+        </TransitiveControl>
       </TopicMapComponent>
-      <div className="custom-left-control">
+      {/* <div className="custom-left-control">
         <LibFuzzySearch
           gazData={gazData}
           onSelection={onGazetteerSelection}
           pixelwidth={pixelwidth}
           placeholder={searchTextPlaceholder}
         />
-      </div>
+      </div> */}
     </div>
   );
 }
