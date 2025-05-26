@@ -10,11 +10,9 @@ import "react-bootstrap-typeahead/css/Typeahead.css";
 import { FeatureCollectionDisplay } from "react-cismap";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
-import { md5FetchText } from "react-cismap/tools/fetching";
-import { getGazDataForTopicIds } from "react-cismap/tools/gazetteerHelper";
 import "react-cismap/topicMaps.css";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
-import { TransitiveReactLeafletControl as TransitiveControl } from "react-cismap";
+// import { TransitiveReactLeafletControl as TransitiveControl } from "react-cismap";
 import { daqKeys, db } from "./App";
 import "./App.css";
 import InfoBox, { modes } from "./components/InfoBox";
@@ -43,6 +41,7 @@ import {
   RoutedMapLocateControl,
   ZoomControl,
 } from "@carma-mapping/components";
+import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 
 const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 
@@ -252,34 +251,40 @@ function UmweltalarmMap({ loggedOut, initialised }) {
           order={70}
           title="Objekte im Kartenfenster suchen"
         >
-          <button
-            // title="Objekte im Kartenfenster suchen"
-            disabled={!searchInWholeWindowEnabled}
-            onClick={() => {
-              setHits();
-
-              searchForFeatures(db, daqKeys, bbPoly).then((hits) => {
-                setSearchMode(modes.WINDOW);
-
-                setHits(hits);
-              });
-            }}
-            className="easy-button-button leaflet-bar-part leaflet-interactive unnamed-state-active"
-          >
+          <ControlButtonStyler title="Objekte im Kartenfenster suchen">
             <span
-              style={{
-                color: searchInWholeWindowEnabled ? "#444444" : "#bbbbbb",
+              // title="Objekte im Kartenfenster suchen"
+              disabled={!searchInWholeWindowEnabled}
+              onClick={() => {
+                setHits();
+
+                searchForFeatures(db, daqKeys, bbPoly).then((hits) => {
+                  setSearchMode(modes.WINDOW);
+
+                  setHits(hits);
+                });
               }}
-              className="fa-layers fa-fw "
             >
-              <FontAwesomeIcon transform="grow-9" icon={faSearch} size="lg" />
-              <FontAwesomeIcon
-                transform="shrink-8 up-2 left-2.3"
-                icon={faSquare}
-                size="lg"
-              />
+              <span
+                style={{
+                  color: searchInWholeWindowEnabled ? "#444444" : "#bbbbbb",
+                  fontSize: "14px",
+                }}
+                className="fa-layers fa-fw "
+              >
+                <FontAwesomeIcon
+                  transform="grow-9"
+                  icon={faSearch}
+                  // size="lg"
+                />
+                <FontAwesomeIcon
+                  transform="shrink-8 up-2 left-2.3"
+                  icon={faSquare}
+                  // size="lg"
+                />
+              </span>
             </span>
-          </button>
+          </ControlButtonStyler>
         </Control>
 
         <Control position="bottomleft" order={10}>
@@ -374,14 +379,6 @@ function UmweltalarmMap({ loggedOut, initialised }) {
           </button>
         </TransitiveControl> */}
       </TopicMapComponent>
-      {/* <div className="custom-left-control">
-        <LibFuzzySearch
-          gazData={gazData}
-          onSelection={onGazetteerSelection}
-          pixelwidth={pixelwidth}
-          placeholder={searchTextPlaceholder}
-        />
-      </div> */}
     </div>
   );
 }
