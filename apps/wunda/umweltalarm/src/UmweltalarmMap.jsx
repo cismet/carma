@@ -247,6 +247,40 @@ function UmweltalarmMap({ loggedOut, initialised }) {
             nativeTooltip={true}
           />
         </Control>
+        <Control
+          position="topleft"
+          order={70}
+          title="Objekte im Kartenfenster suchen"
+        >
+          <button
+            // title="Objekte im Kartenfenster suchen"
+            disabled={!searchInWholeWindowEnabled}
+            onClick={() => {
+              setHits();
+
+              searchForFeatures(db, daqKeys, bbPoly).then((hits) => {
+                setSearchMode(modes.WINDOW);
+
+                setHits(hits);
+              });
+            }}
+            className="easy-button-button leaflet-bar-part leaflet-interactive unnamed-state-active"
+          >
+            <span
+              style={{
+                color: searchInWholeWindowEnabled ? "#444444" : "#bbbbbb",
+              }}
+              className="fa-layers fa-fw "
+            >
+              <FontAwesomeIcon transform="grow-9" icon={faSearch} size="lg" />
+              <FontAwesomeIcon
+                transform="shrink-8 up-2 left-2.3"
+                icon={faSquare}
+                size="lg"
+              />
+            </span>
+          </button>
+        </Control>
 
         <Control position="bottomleft" order={10}>
           <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
@@ -308,7 +342,7 @@ function UmweltalarmMap({ loggedOut, initialised }) {
             featureCollection={featureCollection}
           />
         )}
-
+        {/* 
         <TransitiveControl className="leaflet-bar" position={"topleft"}>
           <button
             title="Objekte im Kartenfenster suchen"
@@ -338,7 +372,7 @@ function UmweltalarmMap({ loggedOut, initialised }) {
               />
             </span>
           </button>
-        </TransitiveControl>
+        </TransitiveControl> */}
       </TopicMapComponent>
       {/* <div className="custom-left-control">
         <LibFuzzySearch
