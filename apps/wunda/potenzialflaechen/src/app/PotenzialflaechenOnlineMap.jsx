@@ -36,6 +36,12 @@ import {
 } from "@carma-mapping/fuzzy-search";
 import { isAreaType } from "@carma-commons/resources";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
+import {
+  FullscreenControl,
+  RoutedMapLocateControl,
+  ZoomControl,
+} from "@carma-mapping/components";
 
 // import consolere from "console-remote-client";
 
@@ -143,14 +149,90 @@ function PotenzialflaechenOnlineMap({
 
   return (
     <>
+      <div
+        className="controls-container"
+        style={{
+          position: "absolute",
+          top: "0px",
+          left: "0px",
+          bottom: "0px",
+          zIndex: 600,
+        }}
+      >
+        <ControlLayout ifStorybook={false}>
+          <Control position="topleft" order={10}>
+            <ZoomControl />
+          </Control>
+
+          <Control position="topleft" order={50}>
+            <FullscreenControl />
+          </Control>
+          <Control position="topleft" order={60} title="Mein Standort">
+            <RoutedMapLocateControl
+              tourRefLabels={null}
+              disabled={false}
+              nativeTooltip={true}
+            />
+          </Control>
+          <Control position="bottomleft" order={10}>
+            <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
+              <LibFuzzySearch
+                key={"PotenzialflaechenOnlineMap" + allGAazData.length}
+                gazData={allGAazData}
+                onSelection={onGazetteerSelection}
+                pixelwidth={
+                  responsiveState === "normal"
+                    ? "300px"
+                    : windowSize.width - gap
+                }
+                placeholder={searchTextPlaceholder}
+                priorityTypes={[
+                  "gewerbe",
+                  "wohnbau",
+                  "wiedernutzung",
+                  "baulucke",
+                  "brachflache",
+                  "restpot",
+                  "adressen",
+                  "streets",
+                  "bezirke",
+                  "quartiere",
+                  "pois",
+                  "poisAlternativeNames",
+                  "schulen",
+                  "kitas",
+                ]}
+                typeInference={{
+                  ...defaultTypeInference,
+                  potflaechegazdata: (item) => {
+                    if (item.overlay === "G") {
+                      return "gewerbe";
+                    } else if (item.overlay === "W") {
+                      return "wohnbau";
+                    } else if (item.overlay === "N") {
+                      return "wiedernutzung";
+                    } else if (item.overlay === "L") {
+                      return "baulucke";
+                    } else if (item.overlay === "B") {
+                      return "brachflache";
+                    } else {
+                      return "restpot";
+                    }
+                  },
+                }}
+              />
+            </div>
+          </Control>
+        </ControlLayout>
+      </div>
       <TopicMapComponent
         mapStyle={{ backgroundColor: "white" }}
         applicationMenuTooltipString={<MenuTooltip />}
-        // gazData={gazData}
         homeZoom={13}
         maxZoom={22}
-        locatorControl={true}
-        // gazetteerSearchPlaceholder={searchTextPlaceholder}
+        locatorControl={false}
+        fullScreenControl={false}
+        zoomControls={false}
         gazetteerSearchControl={true}
         gazetteerSearchComponent={EmptySearchComponent}
         modalMenu={<MyMenu />}
@@ -172,22 +254,6 @@ function PotenzialflaechenOnlineMap({
           />
         }
         secondaryInfo={<InfoPanel />}
-        // gazetteerHitTrigger={(hits) => {
-        //   if (Array.isArray(hits) && hits[0]?.more?.pid) {
-        //     setSelectedFeatureByPredicate((feature) => {
-        //       try {
-        //         const check =
-        //           parseInt(feature.properties.id) === hits[0].more.pid;
-        //         if (check === true) {
-        //           zoomToFeature(feature);
-        //         }
-        //         return check;
-        //       } catch (e) {
-        //         return false;
-        //       }
-        //     });
-        //   }
-        // }}
       >
         <TopicMapSelectionContent />
         <FeatureCollection
@@ -197,52 +263,6 @@ function PotenzialflaechenOnlineMap({
         />
         {/* <LogSelection /> */}
       </TopicMapComponent>
-
-      <div className="custom-left-control">
-        <LibFuzzySearch
-          key={"PotenzialflaechenOnlineMap" + allGAazData.length}
-          gazData={allGAazData}
-          onSelection={onGazetteerSelection}
-          pixelwidth={
-            responsiveState === "normal" ? "300px" : windowSize.width - gap
-          }
-          placeholder={searchTextPlaceholder}
-          priorityTypes={[
-            "gewerbe",
-            "wohnbau",
-            "wiedernutzung",
-            "baulucke",
-            "brachflache",
-            "restpot",
-            "adressen",
-            "streets",
-            "bezirke",
-            "quartiere",
-            "pois",
-            "poisAlternativeNames",
-            "schulen",
-            "kitas",
-          ]}
-          typeInference={{
-            ...defaultTypeInference,
-            potflaechegazdata: (item) => {
-              if (item.overlay === "G") {
-                return "gewerbe";
-              } else if (item.overlay === "W") {
-                return "wohnbau";
-              } else if (item.overlay === "N") {
-                return "wiedernutzung";
-              } else if (item.overlay === "L") {
-                return "baulucke";
-              } else if (item.overlay === "B") {
-                return "brachflache";
-              } else {
-                return "restpot";
-              }
-            },
-          }}
-        />
-      </div>
     </>
   );
 }
