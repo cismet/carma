@@ -247,7 +247,7 @@ function App({ sync = false }: { sync?: boolean }) {
   }
 
   return (
-    <>
+    <div className="fixed w-full h-full">
       <div
         className="controls-container"
         style={{
@@ -340,16 +340,14 @@ function App({ sync = false }: { sync?: boolean }) {
             {/* </Tooltip> */}
           </Control>
           <Control position="bottomleft" order={10}>
-            <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
-              <LibFuzzySearch
-                gazData={gazData}
-                //referenceSystem={referenceSystem}
-                //referenceSystemDefinition={referenceSystemDefinition}
-                pixelwidth={pixelwidth}
-                onSelection={onGazetteerSelection}
-                placeholder="Stadtteil | Adresse | POI | GEP"
-              />
-            </div>
+            <LibFuzzySearch
+              gazData={gazData}
+              //referenceSystem={referenceSystem}
+              //referenceSystemDefinition={referenceSystemDefinition}
+              pixelwidth={pixelwidth}
+              onSelection={onGazetteerSelection}
+              placeholder="Stadtteil | Adresse | POI | GEP"
+            />
           </Control>
         </ControlLayout>
       </div>
@@ -416,7 +414,7 @@ function App({ sync = false }: { sync?: boolean }) {
           onSceneChange={onCesiumSceneChange}
         ></CustomViewer>
       </div>
-    </>
+    </div>
   );
 }
 
