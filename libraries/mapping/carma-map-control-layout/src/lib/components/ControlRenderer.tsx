@@ -7,15 +7,13 @@ interface ControlRendererProps {
 }
 
 // --- Style Constants ---
-const CONTROL_MARGIN_FROM_SAFE_AREA = "10px";
-const TOOLBAR_HORIZONTAL_OFFSET = "44px";
-const BOTTOM_EXTRA_MARGIN = "0px";
+const MIN_MARGIN = "10px";
 
-// Safe Area Inset CSS variables
-const SAFE_AREA_TOP = "env(safe-area-inset-top, 0px)";
-const SAFE_AREA_RIGHT = "env(safe-area-inset-right, 0px)";
-const SAFE_AREA_BOTTOM = "env(safe-area-inset-bottom, 0px)";
-const SAFE_AREA_LEFT = "env(safe-area-inset-left, 0px)";
+// Safe area inset constants with fallback values (matching Tailwind config logic)
+const SAFE_AREA_TOP = `max(${MIN_MARGIN}, env(safe-area-inset-top))`;
+const SAFE_AREA_BOTTOM = `max(${MIN_MARGIN}, env(safe-area-inset-bottom))`;
+const SAFE_AREA_LEFT = `max(${MIN_MARGIN}, env(safe-area-inset-left))`;
+const SAFE_AREA_RIGHT = `max(${MIN_MARGIN}, env(safe-area-inset-right))`;
 
 const BASE_CONTROL_GROUP_STYLE: CSSProperties = {
   position: "absolute",
@@ -28,9 +26,9 @@ const BASE_CONTROL_GROUP_STYLE: CSSProperties = {
 
 const BOTTOM_CONTROLS_CONTAINER_STYLE: CSSProperties = {
   position: "absolute",
-  bottom: `calc(${SAFE_AREA_BOTTOM} + ${CONTROL_MARGIN_FROM_SAFE_AREA} + ${BOTTOM_EXTRA_MARGIN})`,
-  left: `calc(${SAFE_AREA_LEFT} + ${CONTROL_MARGIN_FROM_SAFE_AREA})`,
-  right: `calc(${SAFE_AREA_RIGHT} + ${CONTROL_MARGIN_FROM_SAFE_AREA})`,
+  bottom: SAFE_AREA_BOTTOM,
+  left: SAFE_AREA_LEFT,
+  right: SAFE_AREA_RIGHT,
   display: "flex",
   flexWrap: "wrap-reverse",
   justifyContent: "space-between",
@@ -72,22 +70,27 @@ function ControlRenderer({ controls }: ControlRendererProps) {
   // --- Specific Style Objects for control groups ---
   const topLeftStyle: CSSProperties = {
     ...BASE_CONTROL_GROUP_STYLE,
-    top: `calc(${SAFE_AREA_TOP} + ${CONTROL_MARGIN_FROM_SAFE_AREA})`,
-    left: `calc(${SAFE_AREA_LEFT} + ${CONTROL_MARGIN_FROM_SAFE_AREA})`,
+    top: SAFE_AREA_TOP,
+    left: SAFE_AREA_LEFT,
+    flexWrap: "wrap",
+    maxHeight: `calc(100svh - 8rem)`,
   };
 
   const topRightStyle: CSSProperties = {
     ...BASE_CONTROL_GROUP_STYLE,
-    top: `calc(${SAFE_AREA_TOP} + ${CONTROL_MARGIN_FROM_SAFE_AREA})`,
-    right: `calc(${SAFE_AREA_RIGHT} + ${CONTROL_MARGIN_FROM_SAFE_AREA})`,
+    top: SAFE_AREA_TOP,
+    right: SAFE_AREA_RIGHT,
+    flexWrap: "wrap",
+    maxHeight: `calc(100svh - 8rem)`,
   };
 
   const topCenterStyle: CSSProperties = {
     ...BASE_CONTROL_GROUP_STYLE,
-    top: `calc(${SAFE_AREA_TOP} + ${CONTROL_MARGIN_FROM_SAFE_AREA})`,
-    left: `calc(${SAFE_AREA_LEFT} + ${TOOLBAR_HORIZONTAL_OFFSET})`,
-    right: `calc(${SAFE_AREA_RIGHT} + ${TOOLBAR_HORIZONTAL_OFFSET})`,
-    alignItems: "center",
+    top: SAFE_AREA_TOP,
+    left: "50%",
+    width: `calc(100svw - 8rem)`, // Centered with respect to safe area
+    transform: "translateX(-50%)",
+    flexDirection: "row",
     display: "flex",
     zIndex: 1000, // Specific zIndex for topCenter
     fontSize: "14px", // Specific fontSize for topCenter
@@ -130,7 +133,15 @@ function ControlRenderer({ controls }: ControlRendererProps) {
       {topCenterControls.length > 0 && (
         <div style={topCenterStyle}>
           {topCenterControls.map((control, index) => (
-            <div style={{ width: "100%" }} key={`topCenter-${index}`}>
+            <div
+              style={{
+                width: "100%",
+                display: "flex",
+                flexDirection: "row",
+                justifyContent: "center",
+              }}
+              key={`topCenter-${index}`}
+            >
               {control.component}
             </div>
           ))}
