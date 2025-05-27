@@ -87,9 +87,11 @@ div.leaflet-top.leaflet-left {
   margin-left: 0px !important;
 }
 
-
-div.envirometricmap-container > div >table {
-  width: calc(100vw - 6.5rem - max(10px, env(safe-area-inset-left)) - max(10px, env(safe-area-inset-right))) !important;
+div.envirometricmap-container > div > table {
+  width: calc(
+    100vw - 6.5rem - max(10px, env(safe-area-inset-left)) -
+      max(10px, env(safe-area-inset-right))
+  ) !important;
   position: fixed !important;
   left: 50% !important;
   transform: translateX(-50%) !important;
