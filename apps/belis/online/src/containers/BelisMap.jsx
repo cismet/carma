@@ -33,6 +33,15 @@ import { isPaleModeActive } from "../core/store/slices/paleMode";
 import { getLoadingState, initIndex } from "../core/store/slices/spatialIndex";
 import { getZoom, setZoom } from "../core/store/slices/zoom";
 import { TopicMapSelectionContent } from "@carma-apps/portals";
+import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
+import {
+  FullscreenControl,
+  RoutedMapLocateControl,
+  ZoomControl,
+} from "@carma-mapping/components";
+import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
+
+//---
 
 //---
 
@@ -48,6 +57,7 @@ const BelisMap = ({ refRoutedMap, width, height, jwt }) => {
   const { selectedBackground, backgroundConfigurations } = useContext(
     TopicMapStylingContext
   );
+  const { setRoutedMapRef } = useContext(TopicMapDispatchContext);
 
   const timeoutHandlerRef = useRef(null);
 
@@ -103,6 +113,12 @@ const BelisMap = ({ refRoutedMap, width, height, jwt }) => {
       return old;
     });
   }, [mapRef, sizeFromMapRef, boundsFromMapRef]);
+
+  useEffect(() => {
+    if (refRoutedMap.current !== null) {
+      setRoutedMapRef(refRoutedMap.current);
+    }
+  }, [refRoutedMap]);
 
   const mapStyle = {
     height,
@@ -242,9 +258,9 @@ const BelisMap = ({ refRoutedMap, width, height, jwt }) => {
 
   return (
     <div className="border-solid border-4 border-red-600">
-      {" "}
       <RoutedMap
         editable={false}
+        zoomControlEnabled={false}
         style={mapStyle}
         key={"leafletRoutedMap"}
         referenceSystem={MappingConstants.crs3857}
@@ -278,8 +294,8 @@ const BelisMap = ({ refRoutedMap, width, height, jwt }) => {
         }
         backgroundlayers={_backgroundLayers}
         urlSearchParams={urlSearchParams}
-        fullScreenControlEnabled={true}
-        locateControlEnabled={true}
+        fullScreenControlEnabled={false}
+        locateControlEnabled={false}
         minZoom={11}
         maxZoom={22}
         zoomSnap={0.5}
@@ -336,6 +352,34 @@ const BelisMap = ({ refRoutedMap, width, height, jwt }) => {
         gazetteerHit={gazetteerHit}
       />
     )} */}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            bottom: "0px",
+            zIndex: 600,
+            width: "100%",
+            pointerEvents: "none",
+          }}
+        >
+          <ControlLayout ifStorybook={false}>
+            <Control position="topleft" order={10}>
+              <ZoomControl />
+            </Control>
+
+            <Control position="topleft" order={50}>
+              <FullscreenControl />
+            </Control>
+            <Control position="topleft" order={60} title="Mein Standort">
+              <RoutedMapLocateControl
+                tourRefLabels={null}
+                disabled={false}
+                nativeTooltip={true}
+              />
+            </Control>
+          </ControlLayout>
+        </div>
       </RoutedMap>
     </div>
   );
