@@ -12,7 +12,7 @@ module.exports = {
   theme: {
     extend: {
       screens: {
-        "xs": "448px",
+        "xs": "320px",
       },
       spacing: {
         // mobile first standard margins
