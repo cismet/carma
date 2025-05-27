@@ -241,100 +241,103 @@ const BelisMap = ({ refRoutedMap, width, height, jwt }) => {
   }
 
   return (
-    <RoutedMap
-      editable={false}
-      style={mapStyle}
-      key={"leafletRoutedMap"}
-      referenceSystem={MappingConstants.crs3857}
-      referenceSystemDefinition={MappingConstants.proj4crs3857def}
-      ref={refRoutedMap}
-      layers=""
-      doubleClickZoom={false}
-      onclick={(e) => {}}
-      ondblclick={(e) => {
-        try {
-          const classesString = e.originalEvent.path[0].getAttribute("class");
+    <div className="border-solid border-4 border-red-600">
+      {" "}
+      <RoutedMap
+        editable={false}
+        style={mapStyle}
+        key={"leafletRoutedMap"}
+        referenceSystem={MappingConstants.crs3857}
+        referenceSystemDefinition={MappingConstants.proj4crs3857def}
+        ref={refRoutedMap}
+        layers=""
+        doubleClickZoom={false}
+        onclick={(e) => {}}
+        ondblclick={(e) => {
+          try {
+            const classesString = e.originalEvent.path[0].getAttribute("class");
 
-          if (classesString) {
-            const classes = classesString.split(" ");
+            if (classesString) {
+              const classes = classesString.split(" ");
 
-            if (
-              classes.includes("leaflet-gl-layer") ||
-              classes.includes("leaflet-container")
-            ) {
-              dispatch(setSelectedFeature(null));
-            } else {
-              // console.log("classes", classesString);
+              if (
+                classes.includes("leaflet-gl-layer") ||
+                classes.includes("leaflet-container")
+              ) {
+                dispatch(setSelectedFeature(null));
+              } else {
+                // console.log("classes", classesString);
+              }
             }
+          } catch (e) {
+            console.log("error in dbl click", e);
           }
-        } catch (e) {
-          console.log("error in dbl click", e);
+        }}
+        autoFitProcessedHandler={() =>
+          this.props.mappingActions.setAutoFit(false)
         }
-      }}
-      autoFitProcessedHandler={() =>
-        this.props.mappingActions.setAutoFit(false)
-      }
-      backgroundlayers={_backgroundLayers}
-      urlSearchParams={urlSearchParams}
-      fullScreenControlEnabled={true}
-      locateControlEnabled={true}
-      minZoom={11}
-      maxZoom={22}
-      zoomSnap={0.5}
-      zoomDelta={0.5}
-      fallbackPosition={{
-        lat: 51.272399,
-        lng: 7.199712,
-      }}
-      fallbackZoom={18}
-      locationChangedHandler={(location) => {
-        navigate(
-          browserlocation.pathname +
-            modifyQueryPart(browserlocation.search, location)
-        );
-      }}
-      boundingBoxChangedHandler={(boundingBox) => {
-        // console.log("xxx boundingBox Changed", boundingBox);
-      }}
-    >
-      <BelisFeatureCollection
-        style={{ zIndex: 600 }}
-        featureCollection={featureCollection}
-        fgColor={symbolColor}
-      ></BelisFeatureCollection>
-      {/* <DebugFeature feature={focusBoundingBox} /> */}
+        backgroundlayers={_backgroundLayers}
+        urlSearchParams={urlSearchParams}
+        fullScreenControlEnabled={true}
+        locateControlEnabled={true}
+        minZoom={11}
+        maxZoom={22}
+        zoomSnap={0.5}
+        zoomDelta={0.5}
+        fallbackPosition={{
+          lat: 51.272399,
+          lng: 7.199712,
+        }}
+        fallbackZoom={18}
+        locationChangedHandler={(location) => {
+          navigate(
+            browserlocation.pathname +
+              modifyQueryPart(browserlocation.search, location)
+          );
+        }}
+        boundingBoxChangedHandler={(boundingBox) => {
+          // console.log("xxx boundingBox Changed", boundingBox);
+        }}
+      >
+        <BelisFeatureCollection
+          style={{ zIndex: 600 }}
+          featureCollection={featureCollection}
+          fgColor={symbolColor}
+        ></BelisFeatureCollection>
+        {/* <DebugFeature feature={focusBoundingBox} /> */}
 
-      <FocusRectangle
-        inFocusMode={inFocusMode && fcMode === MODES.OBJECTS}
-        mapWidth={mapStyle.width}
-        mapHeight={mapStyle.height}
+        <FocusRectangle
+          inFocusMode={inFocusMode && fcMode === MODES.OBJECTS}
+          mapWidth={mapStyle.width}
+          mapHeight={mapStyle.height}
+        />
+
+        {secondaryInfoVisible && <InfoPanel />}
+
+        {selectedFeature !== undefined && selectedFeature !== null && (
+          <InfoBox refRoutedMap={refRoutedMap} />
+        )}
+
+        {inPaleMode && <PaleOverlay opacity={0.8} />}
+        <TopicMapSelectionContent />
+
+        {/* {overlayFeature && (
+      <ProjSingleGeoJson
+        key={JSON.stringify(overlayFeature)}
+        geoJson={overlayFeature}
+        masked={true}
+        mapRef={refRoutedMap}
       />
+    )}
 
-      {secondaryInfoVisible && <InfoPanel />}
-
-      {selectedFeature !== undefined && selectedFeature !== null && (
-        <InfoBox refRoutedMap={refRoutedMap} />
-      )}
-
-      {inPaleMode && <PaleOverlay opacity={0.8} />}
-      <TopicMapSelectionContent />
-
-      {/* {overlayFeature && (
-        <ProjSingleGeoJson
-          key={JSON.stringify(overlayFeature)}
-          geoJson={overlayFeature}
-          masked={true}
-          mapRef={refRoutedMap}
-        />
-      )}
-
-      {gazetteerHit && (
-        <GazetteerHitDisplay
-          key={"gazHit" + JSON.stringify(gazetteerHit)}
-          gazetteerHit={gazetteerHit}
-        />
-      )} */}
-    </RoutedMap>
+    {gazetteerHit && (
+      <GazetteerHitDisplay
+        key={"gazHit" + JSON.stringify(gazetteerHit)}
+        gazetteerHit={gazetteerHit}
+      />
+    )} */}
+      </RoutedMap>
+    </div>
   );
 };
 
