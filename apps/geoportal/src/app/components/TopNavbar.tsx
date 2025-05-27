@@ -88,10 +88,10 @@ const TopNavbar = () => {
   return (
     <div
       className={
-        "bg-white h-16 top-0 left-0 right-0 items-center gap-2 xs:gap-3 sm:gap-6 fixed justify-between \
-        py-2 \
-        pl-[calc(env(safe-area-inset-left,0px)_+_2px)] xs:pl-[calc(env(safe-area-inset-left,0px)_+_12px)] \
-        pr-[calc(env(safe-area-inset-right,0px)_+_2px)] xs:pr-[calc(env(safe-area-inset-right,0px)_+_12px)] "
+        "bg-white h-16 fixed top-0 left-0 right-0 \
+        items-center justify-between gap-2 xs:gap-3 sm:gap-6 \
+        py-2 pt-safe-top pb-safe-bottom \
+        pl-safe-left xs:pl-safe-left-xs pr-safe-right xs:pr-safe-right-xs"
       }
       style={{
         visibility: zenMode ? "hidden" : undefined,
