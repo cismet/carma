@@ -96,21 +96,49 @@ const BelisMap = ({ refRoutedMap, width, height, jwt }) => {
   const sizeFromMapRef = mapRef?.getSize() || null;
 
   useEffect(() => {
+    // setMapBoundsAndSize((old) => {
+    //   const mapBounds = mapRef?.getBounds();
+    //   const mapSize = mapRef?.getSize();
+    //   if (
+    //     old === undefined ||
+    //     JSON.stringify(old.mapBounds) !== JSON.stringify(mapBounds) ||
+    //     JSON.stringify(old.mapSize) !== JSON.stringify(mapSize)
+    //   ) {
+    //     old = {
+    //       mapBounds,
+    //       mapSize,
+    //     };
+    //     dispatch(setBounds(mapBounds));
+    //   }
+    //   return old;
+    // });
+    if (!mapRef) return;
+
     setMapBoundsAndSize((old) => {
-      const mapBounds = mapRef?.getBounds();
-      const mapSize = mapRef?.getSize();
-      if (
-        old === undefined ||
-        JSON.stringify(old.mapBounds) !== JSON.stringify(mapBounds) ||
-        JSON.stringify(old.mapSize) !== JSON.stringify(mapSize)
-      ) {
-        old = {
-          mapBounds,
-          mapSize,
-        };
-        dispatch(setBounds(mapBounds));
+      let next = old;
+
+      try {
+        const pane = mapRef.getPane && mapRef.getPane("mapPane");
+        if (!pane || !pane._leaflet_pos) {
+          return old;
+        }
+
+        const mapBounds = mapRef.getBounds();
+        const mapSize = mapRef.getSize();
+
+        if (
+          old === undefined ||
+          JSON.stringify(old.mapBounds) !== JSON.stringify(mapBounds) ||
+          JSON.stringify(old.mapSize) !== JSON.stringify(mapSize)
+        ) {
+          next = { mapBounds, mapSize };
+          dispatch(setBounds(mapBounds));
+        }
+      } catch (_e) {
+        return old;
       }
-      return old;
+
+      return next;
     });
   }, [mapRef, sizeFromMapRef, boundsFromMapRef]);
 
@@ -133,8 +161,8 @@ const BelisMap = ({ refRoutedMap, width, height, jwt }) => {
   const secondaryInfoVisible = useSelector(isSecondaryInfoVisible);
   const selectedFeature = useSelector(getSelectedFeature);
   const featureCollectionMode = useSelector(getFeatureCollectionMode);
-  const overlayFeature = useSelector(getOverlayFeature);
-  const gazetteerHit = useSelector(getGazetteerHit);
+  // const overlayFeature = useSelector(getOverlayFeature);
+  // const gazetteerHit = useSelector(getGazetteerHit);
   const loadingState = useSelector(getLoadingState);
 
   const connectionMode = useSelector(getConnectionMode);
