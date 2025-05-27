@@ -138,7 +138,7 @@ function ControlRenderer({ controls }: ControlRendererProps) {
                 width: "100%",
                 display: "flex",
                 flexDirection: "column",
-                justifyContent: "center",
+                alignItems: "center",
               }}
               key={`topCenter-${index}`}
             >
