@@ -88,12 +88,12 @@ function ControlRenderer({ controls }: ControlRendererProps) {
     ...BASE_CONTROL_GROUP_STYLE,
     top: SAFE_AREA_TOP,
     left: "50%",
-    width: `calc(100svw - 8rem)`, // Centered with respect to safe area
+    width: `calc(100vw - ${SAFE_AREA_LEFT} - ${SAFE_AREA_RIGHT} - 4rem)`,
     transform: "translateX(-50%)",
     flexDirection: "row",
     display: "flex",
-    zIndex: 1000, // Specific zIndex for topCenter
-    fontSize: "14px", // Specific fontSize for topCenter
+    zIndex: 1600, // should be above map controls on left and right if pressed
+    fontSize: "14px",
   };
 
   const bottomLeftStyle: CSSProperties = {
@@ -137,7 +137,7 @@ function ControlRenderer({ controls }: ControlRendererProps) {
               style={{
                 width: "100%",
                 display: "flex",
-                flexDirection: "row",
+                flexDirection: "column",
                 justifyContent: "center",
               }}
               key={`topCenter-${index}`}
