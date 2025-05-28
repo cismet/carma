@@ -6,7 +6,7 @@ import { getHashParams } from "@carma-commons/utils";
 
 export const useViewModeSearchParams = () => {
   const dispatch = useDispatch();
-  
+
   useEffect(() => {
     const hashParams = getHashParams();
 

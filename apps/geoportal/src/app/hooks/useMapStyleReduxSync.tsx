@@ -23,12 +23,7 @@ export const useMapStyleReduxSync = () => {
   );
 
   useEffect(() => {
-    console.debug("useMapStyleReduxSync - currentStyle:", currentStyle);
-    console.debug("useMapStyleReduxSync - selectedMapLayer:", selectedMapLayer);
-    console.debug("useMapStyleReduxSync - selectedLuftbildLayer:", selectedLuftbildLayer);
-    
     if (currentStyle === MapStyleKeys.TOPO) {
-      console.debug("useMapStyleReduxSync - setting to TOPO style");
       dispatch(
         setBackgroundLayer({
           ...selectedMapLayer,
@@ -38,7 +33,6 @@ export const useMapStyleReduxSync = () => {
       );
       dispatch(setCurrentSceneStyle("secondary"));
     } else if (currentStyle === MapStyleKeys.AERIAL) {
-      console.debug("useMapStyleReduxSync - setting to AERIAL style");
       dispatch(
         setBackgroundLayer({
           ...selectedLuftbildLayer,

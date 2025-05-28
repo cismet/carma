@@ -20,7 +20,10 @@ export { CarmaMapProviderWrapper } from "./lib/components/CarmaMapProviderWrappe
 
 export { GazDataProvider, useGazData } from "./lib/components/GazDataProvider";
 
-export { useMapStyle, type MapStyleConfig } from "./lib/contexts/MapStyleProvider";
+export {
+  useMapStyle,
+  type MapStyleConfig,
+} from "./lib/contexts/MapStyleProvider";
 
 export { MessageOverlay } from "./lib/components/MessageOverlay";
 

@@ -4,7 +4,10 @@ import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextPr
 
 import { GazDataProvider } from "./GazDataProvider";
 import { SelectionProvider } from "./SelectionProvider";
-import { MapStyleProvider, type MapStyleConfig } from "../contexts/MapStyleProvider";
+import {
+  MapStyleProvider,
+  type MapStyleConfig,
+} from "../contexts/MapStyleProvider";
 import { GazDataConfig } from "@carma-commons/utils";
 import { defaultGazDataConfig } from "@carma-commons/resources";
 

@@ -4,8 +4,8 @@ import type { ReactNode } from "react";
 export type MapStyle = string;
 
 export interface MapStyleConfig {
-  initialStyle?: MapStyle;
-  availableStyles?: readonly MapStyle[];
+  initialStyle: MapStyle;
+  availableStyles: readonly MapStyle[];
 }
 
 interface MapStyleContextType {
@@ -22,11 +22,11 @@ interface MapStyleProviderProps {
   config: MapStyleConfig;
 }
 
-export const MapStyleProvider = ({ 
-  children, 
-  config
+export const MapStyleProvider = ({
+  children,
+  config,
 }: MapStyleProviderProps) => {
-  const initialStyle = config.initialStyle ?? "karte";
+  const initialStyle = config.initialStyle;
   const [currentStyle, setCurrentStyle] = useState<MapStyle>(initialStyle);
 
   const value: MapStyleContextType = {

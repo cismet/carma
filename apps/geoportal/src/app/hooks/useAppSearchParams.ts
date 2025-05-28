@@ -25,13 +25,12 @@ export const useAppSearchParams = () => {
       dispatch(setIsMode2d(true));
     }
 
-    // Handle map style parameter
     if (hashParams[VIEWERSTATE_KEYS.mapStyle] !== undefined) {
       const mapStyleParam = hashParams[VIEWERSTATE_KEYS.mapStyle];
       console.debug("useAppSearchParams - mapStyle param:", mapStyleParam);
       // For backward compatibility with cesium engine: "1" = primary (aerial/mesh), "0" = secondary (topo/lod)
       const isPrimaryStyle = mapStyleParam === "1";
-      
+
       // Map URL parameter to actual map style keys:
       // "1" (primary) = aerial/mesh view = AERIAL
       // "0" (secondary) = topo/lod view = TOPO

@@ -32,7 +32,7 @@ import {
 } from "../store/slices/mapping";
 import { getZenMode } from "../store/slices/ui";
 
-import { MapStyleKeys } from '../constants/MapStyleKeys';
+import { MapStyleKeys } from "../constants/MapStyleKeys";
 import { useMapStyle } from "../hooks/useGeoportalMapStyle";
 import { useOblique } from "../oblique/hooks/useOblique";
 
