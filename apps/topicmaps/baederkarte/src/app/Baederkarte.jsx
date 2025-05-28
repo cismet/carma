@@ -49,7 +49,7 @@ const Baederkarte = () => {
   }, [markerSymbolSize]);
 
   return (
-    <>
+    <div className="fixed flex flex-col w-full h-full">
       <div
         className="controls-container"
         style={{
@@ -100,43 +100,45 @@ const Baederkarte = () => {
           </Control>
         </ControlLayout>
       </div>
-      <TopicMapComponent
-        modalMenu={<Menu />}
-        gazetteerSearchControl={true}
-        gazetteerSearchComponent={EmptySearchComponent}
-        applicationMenuTooltipString="Einstellungen | Kompaktanleitung"
-        locatorControl={false}
-        fullScreenControl={false}
-        zoomControls={false}
-        contactButtonEnabled={false}
-        infoBox={
-          <GenericInfoBoxFromFeature
-            pixelwidth={350}
-            config={{
-              displaySecondaryInfoAction: false,
-              city: "Wuppertal",
-              navigator: {
-                noun: {
-                  singular: "Bad",
-                  plural: "Bäder",
+      <div className="topicmap-container">
+        <TopicMapComponent
+          modalMenu={<Menu />}
+          gazetteerSearchControl={true}
+          gazetteerSearchComponent={EmptySearchComponent}
+          applicationMenuTooltipString="Einstellungen | Kompaktanleitung"
+          locatorControl={false}
+          fullScreenControl={false}
+          zoomControls={false}
+          contactButtonEnabled={false}
+          infoBox={
+            <GenericInfoBoxFromFeature
+              pixelwidth={350}
+              config={{
+                displaySecondaryInfoAction: false,
+                city: "Wuppertal",
+                navigator: {
+                  noun: {
+                    singular: "Bad",
+                    plural: "Bäder",
+                  },
                 },
-              },
-              noCurrentFeatureTitle: "Keine Bäder gefunden",
-              noCurrentFeatureContent: (
-                <span>
-                  Für mehr Bäder Ansicht mit verkleinern oder mit dem
-                  untenstehenden Link auf das komplette Stadtgebiet zoomen.
-                </span>
-              ),
-            }}
-          />
-        }
-      >
-        <TopicMapSelectionContent />
+                noCurrentFeatureTitle: "Keine Bäder gefunden",
+                noCurrentFeatureContent: (
+                  <span>
+                    Für mehr Bäder Ansicht mit verkleinern oder mit dem
+                    untenstehenden Link auf das komplette Stadtgebiet zoomen.
+                  </span>
+                ),
+              }}
+            />
+          }
+        >
+          <TopicMapSelectionContent />
 
-        <FeatureCollection></FeatureCollection>
-      </TopicMapComponent>
-    </>
+          <FeatureCollection></FeatureCollection>
+        </TopicMapComponent>
+      </div>
+    </div>
   );
 };
 
