@@ -22,21 +22,18 @@ import {
   useOverlayTourContext,
 } from "@carma-commons/ui/lib-helper-overlay";
 import { cn } from "@carma-commons/utils";
-import {
-  selectViewerIsMode2d,
-  setCurrentSceneStyle,
-} from "@carma-mapping/cesium-engine";
+import { selectViewerIsMode2d } from "@carma-mapping/cesium-engine";
 
 import {
   getBackgroundLayer,
-  getSelectedLayerIndex,
   getSelectedLuftbildLayer,
   getSelectedMapLayer,
-  setBackgroundLayer,
   setSelectedLayerIndex,
 } from "../store/slices/mapping";
 import { getZenMode } from "../store/slices/ui";
 
+import { MapStyleKeys } from "../constants/MapStyleKeys";
+import { useMapStyle } from "../hooks/useGeoportalMapStyle";
 import { useOblique } from "../oblique/hooks/useOblique";
 
 import ActionButtons from "./nav-items/ActionButtons";
@@ -51,6 +48,7 @@ const TopNavbar = () => {
   const [showHelpTooltip, setShowHelpTooltip] = useState(false);
   const { showOverlayHandler } = useOverlayTourContext();
   const { isObliqueMode, toggleObliqueMode } = useOblique();
+  const { setCurrentStyle } = useMapStyle();
 
   const isTouchDevice =
     "ontouchstart" in window || navigator.maxTouchPoints > 0;
@@ -63,7 +61,6 @@ const TopNavbar = () => {
   const selectedMapLayer = useSelector(getSelectedMapLayer);
   const selectedLuftbildLayer = useSelector(getSelectedLuftbildLayer);
   const zenMode = useSelector(getZenMode);
-  const selectedLayerIndex = useSelector(getSelectedLayerIndex);
 
   const hintergrundTourRef = useOverlayHelper(
     getCollabedHelpElementsConfig("HINTERGRUND", geoElements)
@@ -176,24 +173,10 @@ const TopNavbar = () => {
                   e.stopPropagation();
                   if (e.target.value === "openBaseLayerView") {
                     dispatch(setSelectedLayerIndex(-1));
-                  } else if (e.target.value === "karte") {
-                    dispatch(
-                      setBackgroundLayer({
-                        ...selectedMapLayer,
-                        id: "karte",
-                        visible: true,
-                      })
-                    );
-                    dispatch(setCurrentSceneStyle("secondary"));
-                  } else {
-                    dispatch(
-                      setBackgroundLayer({
-                        ...selectedLuftbildLayer,
-                        id: "luftbild",
-                        visible: true,
-                      })
-                    );
-                    dispatch(setCurrentSceneStyle("primary"));
+                  } else if (e.target.value === MapStyleKeys.TOPO) {
+                    setCurrentStyle(MapStyleKeys.TOPO);
+                  } else if (e.target.value === MapStyleKeys.AERIAL) {
+                    setCurrentStyle(MapStyleKeys.AERIAL);
                   }
                 }}
               >
@@ -202,14 +185,16 @@ const TopNavbar = () => {
                     isMode2d ? selectedMapLayer.title : "LoD2-Gebäude (NRW)"
                   }
                 >
-                  <Radio.Button value="karte">Karte</Radio.Button>
+                  <Radio.Button value={MapStyleKeys.TOPO}>Karte</Radio.Button>
                 </Tooltip>
                 <Tooltip
                   title={
                     isMode2d ? selectedLuftbildLayer.title : "3D-Mesh 03/24"
                   }
                 >
-                  <Radio.Button value="luftbild">Luftbild</Radio.Button>
+                  <Radio.Button value={MapStyleKeys.AERIAL}>
+                    Luftbild
+                  </Radio.Button>
                 </Tooltip>
                 <Tooltip title="Hintergrund auswählen">
                   <Radio.Button value="openBaseLayerView" disabled={!isMode2d}>

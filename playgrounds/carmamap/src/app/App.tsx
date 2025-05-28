@@ -30,6 +30,7 @@ import {
 import { getUIAllowChanges } from "./store/slices/ui";
 
 import { CESIUM_CONFIG } from "./config/app.config";
+import { carmaMapStyleConfig } from "./config/mapStyleConfig";
 
 // Side-Effect Imports
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -82,6 +83,7 @@ function App({ published }: { published?: boolean }) {
       overlayOptions={{
         background: backgroundSettings,
       }}
+      mapStyleConfig={carmaMapStyleConfig}
     >
       <ErrorBoundary FallbackComponent={AppErrorFallback}>
         <div className="flex flex-col w-full " style={{ height: "100dvh" }}>

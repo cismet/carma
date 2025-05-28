@@ -4,6 +4,10 @@ import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextPr
 
 import { GazDataProvider } from "./GazDataProvider";
 import { SelectionProvider } from "./SelectionProvider";
+import {
+  MapStyleProvider,
+  type MapStyleConfig,
+} from "../contexts/MapStyleProvider";
 import { GazDataConfig } from "@carma-commons/utils";
 import { defaultGazDataConfig } from "@carma-commons/resources";
 
@@ -12,6 +16,7 @@ type CarmaMapProviderWrapperProps = {
   overlayOptions: { background: { transparency: number; color: string } };
   cesiumOptions: { providerConfig: any; tilesetConfigs: any };
   gazDataConfig?: GazDataConfig;
+  mapStyleConfig: MapStyleConfig;
 };
 
 export const CarmaMapProviderWrapper = ({
@@ -19,6 +24,7 @@ export const CarmaMapProviderWrapper = ({
   overlayOptions,
   cesiumOptions,
   gazDataConfig = defaultGazDataConfig,
+  mapStyleConfig,
 }: CarmaMapProviderWrapperProps) => {
   const { background } = overlayOptions;
   const { transparency, color } = background;
@@ -32,18 +38,20 @@ export const CarmaMapProviderWrapper = ({
   return (
     <GazDataProvider config={gazDataConfig}>
       <SelectionProvider>
-        <TopicMapContextProvider infoBoxPixelWidth={350}>
-          <OverlayTourProvider transparency={transparency} color={color}>
-            <CesiumContextProvider
-              //initialViewerState={defaultCesiumState}
-              // TODO move these to store/slice setup ?
-              providerConfig={cesiumOptions.providerConfig}
-              tilesetConfigs={cesiumOptions.tilesetConfigs}
-            >
-              {children}
-            </CesiumContextProvider>
-          </OverlayTourProvider>
-        </TopicMapContextProvider>
+        <MapStyleProvider config={mapStyleConfig}>
+          <TopicMapContextProvider infoBoxPixelWidth={350}>
+            <OverlayTourProvider transparency={transparency} color={color}>
+              <CesiumContextProvider
+                //initialViewerState={defaultCesiumState}
+                // TODO move these to store/slice setup ?
+                providerConfig={cesiumOptions.providerConfig}
+                tilesetConfigs={cesiumOptions.tilesetConfigs}
+              >
+                {children}
+              </CesiumContextProvider>
+            </OverlayTourProvider>
+          </TopicMapContextProvider>
+        </MapStyleProvider>
       </SelectionProvider>
     </GazDataProvider>
   );
