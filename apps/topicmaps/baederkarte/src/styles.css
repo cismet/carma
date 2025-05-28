@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+html,
+body {
+  overscroll-behavior: contain;
+}
+
 .leaflet-control * img {
   display: initial;
 }
