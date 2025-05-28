@@ -7,7 +7,14 @@ module.exports = {
     path.join("libraries/**/src/**/*.{js,ts,jsx,tsx}"),
   ],
   theme: {
-    extend: {},
+    extend: {
+      spacing: {
+        'safe-top': 'max(5px, env(safe-area-inset-top))',
+        'safe-bottom': 'max(5px, env(safe-area-inset-bottom))',
+        'safe-left': 'max(12px, env(safe-area-inset-left))',
+        'safe-right': 'max(12px, env(safe-area-inset-right))',
+      },
+    },
   },
   plugins: [],
 };
