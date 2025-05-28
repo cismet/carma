@@ -24,6 +24,7 @@ interface FlaechenPanelProps {
   display?: string | null;
   flaechenCR?: any;
   proofNeeded?: boolean;
+  isAllowClick?: boolean;
 }
 
 const FlaechenPanel = ({
@@ -34,6 +35,7 @@ const FlaechenPanel = ({
   display = null,
   flaechenCR,
   proofNeeded = false,
+  isAllowClick = true,
 }: FlaechenPanelProps) => {
   let background = "";
   let groesse,
@@ -63,23 +65,25 @@ const FlaechenPanel = ({
   };
 
   const featureClick = (event) => {
-    const feature = mapping.featureCollection.find((feature) => {
-      return feature.properties.id === flaeche.id;
-    });
+    if (isAllowClick) {
+      const feature = mapping.featureCollection.find((feature) => {
+        return feature.properties.id === flaeche.id;
+      });
 
-    if (isFlaecheSelected(feature.properties)) {
-      dispatch(
-        fitFeatureBounds(
-          mapping.featureCollection[mapping.selectedIndex],
-          ""
-        ) as unknown as UnknownAction
-      );
-    } else {
-      dispatch(
-        setSelectedFeatureIndexWithSelector((testFeature) => {
-          return testFeature.properties.id === feature.properties.id;
-        }) as unknown as UnknownAction
-      );
+      if (isFlaecheSelected(feature.properties)) {
+        dispatch(
+          fitFeatureBounds(
+            mapping.featureCollection[mapping.selectedIndex],
+            ""
+          ) as unknown as UnknownAction
+        );
+      } else {
+        dispatch(
+          setSelectedFeatureIndexWithSelector((testFeature) => {
+            return testFeature.properties.id === feature.properties.id;
+          }) as unknown as UnknownAction
+        );
+      }
     }
   };
 

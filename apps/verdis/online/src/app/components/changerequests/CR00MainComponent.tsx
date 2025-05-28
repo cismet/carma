@@ -119,6 +119,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
             flaeche={flaeche}
             editMode={false}
             flaechenCR={cr ? cr : {}}
+            isAllowClick={false}
           />
         );
         crPanels.push(
@@ -132,6 +133,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
               needsProofSingleFlaeche(cr) &&
               !hasAttachment(kassenzeichen.aenderungsanfrage)
             }
+            isAllowClick={false}
           />
         );
       }
