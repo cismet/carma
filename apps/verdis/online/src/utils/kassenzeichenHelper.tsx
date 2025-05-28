@@ -469,25 +469,31 @@ const isProcessedByClerk = (attr, cr) => {
       cr.pruefung[attr] !== undefined &&
       cr.pruefung[attr].value !== undefined
     ) {
-      const crValue = cr[attr];
-      const checkValue = cr.pruefung[attr].value;
+      // const crValue = cr[attr];
+      // const checkValue = cr.pruefung[attr].value;
 
-      switch (attr) {
-        case "groesse":
-          return crValue === checkValue;
-        case "flaechenart":
-          return (
-            crValue.art_abkuerzung === checkValue.art_abkuerzung &&
-            crValue.art === checkValue.art
-          );
-        case "anschlussgrad":
-          return (
-            crValue.grad_abkuerzung === checkValue.grad_abkuerzung &&
-            crValue.grad === checkValue.grad
-          );
-        default:
-          return false;
-      }
+      return true;
+
+      // switch (attr) {
+      //   case "groesse":
+      //     return crValue === checkValue;
+      //   case "flaechenart":
+      //     console.log("xxx processed crValue", crValue);
+      //     console.log("xxx processed checkValue", checkValue);
+      //     return true;
+      //     return (
+      //       // crValue.art_abkuerzung === checkValue.art_abkuerzung
+      //       //  &&
+      //       crValue.art === checkValue.art
+      //     );
+      //   case "anschlussgrad":
+      //     return (
+      //       crValue.grad_abkuerzung === checkValue.grad_abkuerzung &&
+      //       crValue.grad === checkValue.grad
+      //     );
+      //   default:
+      //     return false;
+      // }
     } else {
       return false;
     }
