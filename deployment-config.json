@@ -893,13 +893,18 @@
           "dev": {
             "pages": {
               "org": "carma-dev-deployments",
-              "prj": "verdis-online"
+              "prj": "verdis-online",
+              "envs": [
+                "VITE_CIDS_SERVICE=https://verdis-cloud.cismet.de/verdis/api/"
+              ]
             }
           },
           "live": {
             "pages": {
-              "org": "carma-dev-deployments",
-              "prj": "verdis-online"
+              "envs": ["VITE_CIDS_SERVICE=https://verdis-api.cismet.de"]
+            },
+            "container": {
+              "image": "cismet/carma-verdis-online:"
             }
           }
         },
@@ -907,7 +912,10 @@
           "dev": {
             "pages": {
               "org": "carma-dev-deployments",
-              "prj": "verdis-online"
+              "prj": "verdis-online",
+              "envs": [
+                "VITE_CIDS_SERVICE=https://verdis-cloud.cismet.de/verdis/api/"
+              ]
             }
           }
         }
