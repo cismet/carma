@@ -34,6 +34,7 @@ import { getApplicationVersion } from "@carma-commons/utils";
 import versionData from "../version.json";
 import SIMComponentDictionary from "@carma-collab/wuppertal/secondary-info-modals";
 const SecondaryInfoModal = SIMComponentDictionary["eMobSIM"];
+import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 
 const EMobiKarte = () => {
   const { setClusteringOptions, setFilterState } = useContext(
@@ -71,7 +72,7 @@ const EMobiKarte = () => {
   return (
     <>
       <div
-        className="controls-container"
+        // className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}
         style={{
           position: "absolute",
           top: "0px",
