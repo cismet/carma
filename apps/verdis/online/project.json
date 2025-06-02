@@ -19,7 +19,11 @@
         "production": {
           "mode": "production"
         }
-      }
+      },
+      "inputs": [
+        "default", 
+        { "env": "VITE_CIDS_SERVICE" }
+      ]  
     },
     "serve": {
       "executor": "@nx/vite:dev-server",
@@ -71,7 +75,11 @@
         "engine": "docker",
         "platforms": ["linux/amd64", "linux/arm64"],
         "push": true
-      }
+      },
+      "inputs": [
+        "default", 
+        { "env": "VITE_CIDS_SERVICE" }
+      ]  
     }
   }
 }
