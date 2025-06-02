@@ -33,7 +33,7 @@ ul {
 }
 
 /* You can add global styles to this file, and also import other style files */
-.custom-left-control {
+/* .custom-left-control {
   position: absolute;
   z-index: 1000;
   left: 0;
@@ -41,50 +41,51 @@ ul {
   margin-left: 4px;
   width: 100%;
   margin-bottom: 5px;
-}
+} */
 
 .modal-content svg,
 .modal-content img {
   display: inline;
 }
 
-.envirometricmap-container {
+/* .envirometricmap-container {
   padding-left: max(0px, env(safe-area-inset-left));
   padding-right: max(0px, env(safe-area-inset-right));
   padding-top: max(0, env(safe-area-inset-top));
-}
+} */
 
 #routedMap {
   position: unset !important;
   background-color: unset !important;
 }
 
+/* Info box */
 div.leaflet-bottom.leaflet-right {
   position: fixed;
-  right: max(10px, env(safe-area-inset-right));
+  right: max(5px, env(safe-area-inset-right));
   bottom: max(10px, env(safe-area-inset-bottom));
   margin-bottom: 0px !important;
 }
 
 div.leaflet-top.leaflet-right {
   position: fixed;
-  right: max(10px, env(safe-area-inset-right));
+  right: max(5px, env(safe-area-inset-right));
 }
 
-div.leaflet-top.leaflet-left {
+/* div.leaflet-top.leaflet-left {
   position: fixed;
   left: max(10px, env(safe-area-inset-left));
-}
+} */
 
-.leaflet-right .leaflet-control {
-  margin-right: 0px !important;
+/* .leaflet-right .leaflet-control {
+  margin-right: 4px !important;
 }
 
 .leaflet-left .leaflet-control {
-  margin-left: 0px !important;
-}
+  margin-left: 4px !important;
+} */
 
-div.topicmap-container > div > table {
+/* div.topicmap-container > div > table {
   width: calc(
     100vw - 6.5rem - max(10px, env(safe-area-inset-left)) -
       max(10px, env(safe-area-inset-right))
@@ -92,4 +93,4 @@ div.topicmap-container > div > table {
   position: fixed !important;
   left: 50% !important;
   transform: translateX(-50%) !important;
-}
+} */
