@@ -35,4 +35,4 @@ export const SERVICE =
 export const STAC_SERVICE =
   cfg.STAC_SERVICE ?? "https://verdis-cloud.cismet.de/verdis/api/";
 
-export const PLAYGROUND = cfg.PLAYGROUND ?? true;
+export const PLAYGROUND = cfg.PLAYGROUND ?? false;
