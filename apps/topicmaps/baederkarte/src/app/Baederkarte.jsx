@@ -51,14 +51,13 @@ const Baederkarte = () => {
   return (
     <div className="fixed flex flex-col w-full h-full">
       <div
-        className="controls-container"
-        style={{
-          position: "absolute",
-          top: "0px",
-          left: "0px",
-          bottom: "0px",
-          zIndex: 600,
-        }}
+      // style={{
+      //   position: "absolute",
+      //   top: "0px",
+      //   left: "0px",
+      //   bottom: "0px",
+      //   zIndex: 600,
+      // }}
       >
         <ControlLayout ifStorybook={false}>
           <Control position="topleft" order={10}>
