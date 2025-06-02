@@ -24,6 +24,7 @@ import {
   RoutedMapLocateControl,
   ZoomControl,
 } from "@carma-mapping/components";
+import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
@@ -49,7 +50,7 @@ const Baederkarte = () => {
   }, [markerSymbolSize]);
 
   return (
-    <div className="fixed flex flex-col w-full h-full">
+    <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
       <div
       // style={{
       //   position: "absolute",
