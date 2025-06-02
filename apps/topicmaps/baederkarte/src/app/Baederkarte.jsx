@@ -100,7 +100,10 @@ const Baederkarte = () => {
           </Control>
         </ControlLayout>
       </div>
-      <div className="topicmap-container">
+      <div
+        className="h-lvh w-lvw flex flex-1 fixed overflow-hidden"
+        // className={`h-lvh w-lvw flex flex-1 fixed overflow-hidden`}
+      >
         <TopicMapComponent
           modalMenu={<Menu />}
           gazetteerSearchControl={true}
