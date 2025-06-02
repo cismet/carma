@@ -11,16 +11,15 @@ import { CrossTabCommunicationContextProvider } from "react-cismap/contexts/Cros
 
 // Monorepo Packages
 import {
-  backgroundSettings,
-  mobileInfo,
-} from "@carma-collab/wuppertal/geoportal";
-
-import { TweakpaneProvider } from "@carma-commons/debug";
-
-import {
   CarmaMapProviderWrapper,
   FeatureFlagProvider,
 } from "@carma-apps/portals";
+import {
+  backgroundSettings,
+  mobileInfo,
+} from "@carma-collab/wuppertal/geoportal";
+import { TweakpaneProvider } from "@carma-commons/debug";
+import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 
 // Local Modules
 import AppErrorFallback from "./components/AppErrorFallback";
@@ -78,7 +77,7 @@ function App({ published }: { published?: boolean }) {
             fallbackDirectionConfig={CAMERA_ID_TO_DIRECTION}
           >
             <ErrorBoundary FallbackComponent={AppErrorFallback}>
-              <div className="fixed flex flex-col w-full h-full">
+              <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
                 {isLoadingConfig && (
                   <div
                     id="loading"
