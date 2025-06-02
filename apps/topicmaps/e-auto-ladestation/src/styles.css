@@ -48,3 +48,16 @@ ul {
 .modal-content img {
   display: inline;
 }
+
+/* Info box */
+div.leaflet-bottom.leaflet-right {
+  position: fixed;
+  right: max(1px, env(safe-area-inset-right));
+  bottom: max(10px, env(safe-area-inset-bottom));
+  margin-bottom: 0px !important;
+}
+
+div.leaflet-top.leaflet-right {
+  position: fixed;
+  right: max(1px, env(safe-area-inset-right));
+}
