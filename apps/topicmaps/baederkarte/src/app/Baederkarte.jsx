@@ -75,7 +75,7 @@ const Baederkarte = () => {
             />
           </Control>
           <Control position="bottomleft" order={10}>
-            <div data-test-id="fuzzy-search">
+            <div data-test-id="fuzzy-search" style={{ marginLeft: "2px" }}>
               <LibFuzzySearch
                 pixelwidth={
                   responsiveState === "normal"

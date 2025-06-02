@@ -62,14 +62,14 @@ ul {
 /* Info box */
 div.leaflet-bottom.leaflet-right {
   position: fixed;
-  right: max(5px, env(safe-area-inset-right));
+  right: max(3px, env(safe-area-inset-right));
   bottom: max(10px, env(safe-area-inset-bottom));
   margin-bottom: 0px !important;
 }
 
 div.leaflet-top.leaflet-right {
   position: fixed;
-  right: max(5px, env(safe-area-inset-right));
+  right: max(3px, env(safe-area-inset-right));
 }
 
 /* div.leaflet-top.leaflet-left {
