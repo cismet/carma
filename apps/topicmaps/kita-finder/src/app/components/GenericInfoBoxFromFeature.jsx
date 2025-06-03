@@ -1,6 +1,7 @@
 import React, { useContext, useEffect } from "react";
 // import InfoBox from "./InfoBox";
-import { getActionLinksForFeature } from "../tools/uiHelper";
+// import { getActionLinksForFeature } from "../tools/uiHelper";
+import { getActionLinksForFeature } from "react-cismap/tools/uiHelper";
 import { InfoBox } from "@carma-apps/portals";
 
 // import Icon from "../commons/Icon";
@@ -26,6 +27,8 @@ import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextPr
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
 // import InfoBoxFotoPreview from "./InfoBoxFotoPreview";
+import InfoBoxFotoPreview from "react-cismap/topicmaps/InfoBoxFotoPreview";
+
 export const getColorForProperties = (props = { color: "#dddddd" }) => {
   return props.color;
 };
@@ -208,21 +211,21 @@ const GenericInfoBoxFromFeature = (props) => {
       }
       hideNavigator={allFeatures?.length === 1}
       fixedRow={true}
-      // secondaryInfoBoxElements={
-      //   secondaryInfoBoxElements || [
-      //     <InfoBoxFotoPreview
-      //       lightBoxDispatchContext={lightBoxDispatchContext}
-      //       getPhotoUrl={getPhotoUrl}
-      //       getPhotoSeriesUrl={getPhotoSeriesUrl}
-      //       getPhotoSeriesArray={getPhotoSeriesArray}
-      //       urlManipulation={photoUrlManipulation}
-      //       captionFactory={captionFactory}
-      //       width={photoPreviewWidth}
-      //       openLightBox={openLightBox}
-      //       currentFeature={currentFeature}
-      //     />,
-      //   ]
-      // }
+      secondaryInfoBoxElements={
+        secondaryInfoBoxElements || [
+          <InfoBoxFotoPreview
+            lightBoxDispatchContext={lightBoxDispatchContext}
+            getPhotoUrl={getPhotoUrl}
+            getPhotoSeriesUrl={getPhotoSeriesUrl}
+            getPhotoSeriesArray={getPhotoSeriesArray}
+            urlManipulation={photoUrlManipulation}
+            captionFactory={captionFactory}
+            width={photoPreviewWidth}
+            openLightBox={openLightBox}
+            currentFeature={currentFeature}
+          />,
+        ]
+      }
     />
   );
 };
