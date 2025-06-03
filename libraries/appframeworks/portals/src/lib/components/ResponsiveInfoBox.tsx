@@ -24,7 +24,7 @@ interface ResponsiveInfoBoxProps {
   mode?: string;
 }
 
-const ResponsiveInfoBox = ({
+export const ResponsiveInfoBox = ({
   panelClick,
   pixelwidth,
   header,

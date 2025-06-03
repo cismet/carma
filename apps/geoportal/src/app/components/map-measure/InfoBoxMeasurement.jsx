@@ -1,4 +1,3 @@
-import ResponsiveInfoBox from "../feature-info/ResponsiveInfoBox";
 import {
   getShapes,
   setActiveShape,
@@ -25,6 +24,7 @@ import { UIContext } from "react-cismap/contexts/UIContextProvider";
 import "../infoBox.css";
 import { Tooltip } from "antd";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+import { ResponsiveInfoBox } from "@carma-apps/portals";
 
 const InfoBoxMeasurement = () => {
   const { routedMapRef } = useContext(TopicMapContext);

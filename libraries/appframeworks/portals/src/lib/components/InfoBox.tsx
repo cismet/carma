@@ -2,10 +2,6 @@ import { useContext } from "react";
 import ResponsiveInfoBox from "./ResponsiveInfoBox";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import {
-  UIContext,
-  UIDispatchContext,
-} from "react-cismap/contexts/UIContextProvider";
-import {
   FeatureCollectionContext,
   FeatureCollectionDispatchContext,
 } from "react-cismap/contexts/FeatureCollectionContextProvider";

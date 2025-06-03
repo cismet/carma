@@ -33,10 +33,10 @@ import { truncateString, updateUrlWithCoordinates } from "./featureInfoHelper";
 
 import "../infoBox.css";
 import LoadingInfoBox from "./LoadingInfoBox";
-import InfoBox from "./InfoBox";
 
 import versionData from "../../../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
+import { InfoBox } from "@carma-apps/portals";
 
 interface InfoBoxProps {
   pos?: [number, number];
