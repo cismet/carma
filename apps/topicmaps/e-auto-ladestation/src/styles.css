@@ -61,3 +61,7 @@ div.leaflet-top.leaflet-right {
   position: fixed;
   right: max(1px, env(safe-area-inset-right));
 }
+
+div.leaflet-control-attribution {
+  display: none;
+}
