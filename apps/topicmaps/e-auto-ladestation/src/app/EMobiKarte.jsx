@@ -34,7 +34,6 @@ import { getApplicationVersion } from "@carma-commons/utils";
 import versionData from "../version.json";
 import SIMComponentDictionary from "@carma-collab/wuppertal/secondary-info-modals";
 const SecondaryInfoModal = SIMComponentDictionary["eMobSIM"];
-import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 
 const EMobiKarte = () => {
   const { setClusteringOptions, setFilterState } = useContext(
@@ -71,44 +70,56 @@ const EMobiKarte = () => {
 
   return (
     <>
-      <ControlLayout ifStorybook={false}>
-        <Control position="topleft" order={10}>
-          <ZoomControl />
-        </Control>
+      <div
+        style={{
+          position: "absolute",
+          top: "0px",
+          left: "0px",
+          bottom: "0px",
+          zIndex: 600,
+        }}
+      >
+        <ControlLayout ifStorybook={false}>
+          <Control position="topleft" order={10}>
+            <ZoomControl />
+          </Control>
 
-        <Control position="topleft" order={50}>
-          <FullscreenControl />
-        </Control>
-        <Control position="topleft" order={60} title="Mein Standort">
-          <RoutedMapLocateControl
-            tourRefLabels={null}
-            disabled={false}
-            nativeTooltip={true}
-          />
-        </Control>
-        <Control position="bottomleft" order={10}>
-          <div data-test-id="fuzzy-search" className="pl-1">
-            <LibFuzzySearch
-              priorityTypes={[
-                "emob",
-                "bezirke",
-                "quartiere",
-                "adressen",
-                "streets",
-                "pois",
-                "poisAlternativeNames",
-                "kitas",
-                "schulen",
-              ]}
-              typeInference={defaultTypeInference}
-              pixelwidth={
-                responsiveState === "normal" ? "300px" : windowSize.width - gap
-              }
-              placeholder="Ladestation | Stadtteil | Adresse | POI"
+          <Control position="topleft" order={50}>
+            <FullscreenControl />
+          </Control>
+          <Control position="topleft" order={60} title="Mein Standort">
+            <RoutedMapLocateControl
+              tourRefLabels={null}
+              disabled={false}
+              nativeTooltip={true}
             />
-          </div>
-        </Control>
-      </ControlLayout>
+          </Control>
+          <Control position="bottomleft" order={10}>
+            <div data-test-id="fuzzy-search" className="pl-1">
+              <LibFuzzySearch
+                priorityTypes={[
+                  "emob",
+                  "bezirke",
+                  "quartiere",
+                  "adressen",
+                  "streets",
+                  "pois",
+                  "poisAlternativeNames",
+                  "kitas",
+                  "schulen",
+                ]}
+                typeInference={defaultTypeInference}
+                pixelwidth={
+                  responsiveState === "normal"
+                    ? "300px"
+                    : windowSize.width - gap
+                }
+                placeholder="Ladestation | Stadtteil | Adresse | POI"
+              />
+            </div>
+          </Control>
+        </ControlLayout>
+      </div>
       <TopicMapComponent
         locatorControl={false}
         fullScreenControl={false}
