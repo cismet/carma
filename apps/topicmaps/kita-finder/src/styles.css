@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+html,
+body {
+  overscroll-behavior: contain;
+}
+
 /* override tailwind base img display: image reset for proper infobox layout */
 .leaflet-control * img {
   display: initial;
@@ -43,3 +48,9 @@ ul {
 .modal-content img {
   display: inline;
 }
+
+/* Menu */
+/* div.leaflet-top.leaflet-right {
+  position: fixed;
+  right: max(1px, env(safe-area-inset-right));
+} */
