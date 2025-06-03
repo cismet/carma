@@ -71,7 +71,7 @@ const Map = () => {
   return (
     <>
       <div
-        className="controls-container"
+        // className="controls-container"
         style={{
           position: "absolute",
           top: "0px",

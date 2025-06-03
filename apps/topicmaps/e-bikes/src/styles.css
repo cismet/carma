@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+html,
+body {
+  overscroll-behavior: contain;
+}
+
 .leaflet-control * img {
   display: initial;
 }
@@ -28,7 +33,7 @@ ul {
 }
 
 /* You can add global styles to this file, and also import other style files */
-.custom-left-control {
+/* .custom-left-control {
   position: absolute;
   z-index: 999;
   left: 0;
@@ -36,7 +41,7 @@ ul {
   margin-left: 4px;
   width: 100%;
   margin-bottom: 5px;
-}
+} */
 
 .modal-content svg,
 .modal-content img {
