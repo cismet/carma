@@ -9,7 +9,7 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useContext } from "react";
 import { getQueryableLayers } from "../GeoportalMap/utils";
 import { getHashParams } from "@carma-commons/utils";
-import InfoBox from "./InfoBoxRenameTemp";
+import InfoBox from "./InfoBox";
 
 const LoadingInfoBox = () => {
   const layers = useSelector(getLayers);

@@ -32,7 +32,7 @@ import { truncateString, updateUrlWithCoordinates } from "./featureInfoHelper";
 
 import "../infoBox.css";
 import LoadingInfoBox from "./LoadingInfoBox";
-import InfoBox from "./InfoBoxRenameTemp";
+import InfoBox from "./InfoBox";
 
 interface InfoBoxProps {
   pos?: [number, number];
