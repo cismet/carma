@@ -45,11 +45,11 @@ const KitaKarte = () => {
   );
   useSelectionTopicMap();
 
-  const { setSelectedFeatureByPredicate, setClusteringOptions } = useContext(
-    FeatureCollectionDispatchContext
-  );
-  const { routedMapRef } = useContext(TopicMapContext);
-  const { clusteringOptions } = useContext(FeatureCollectionContext);
+  // const { setSelectedFeatureByPredicate, setClusteringOptions } = useContext(
+  //   FeatureCollectionDispatchContext
+  // );
+  // const { routedMapRef } = useContext(TopicMapContext);
+  // const { clusteringOptions } = useContext(FeatureCollectionContext);
 
   const { additionalStylingInfo } = useContext(TopicMapStylingContext);
 
@@ -95,14 +95,14 @@ const KitaKarte = () => {
   return (
     <>
       <div
-        className="controls-container"
-        style={{
-          position: "absolute",
-          top: "0px",
-          left: "0px",
-          bottom: "0px",
-          zIndex: 600,
-        }}
+      // className="controls-container"
+      // style={{
+      //   position: "absolute",
+      //   top: "0px",
+      //   left: "0px",
+      //   bottom: "0px",
+      //   zIndex: 600,
+      // }}
       >
         <ControlLayout ifStorybook={false}>
           <Control position="topleft" order={10}>
@@ -120,7 +120,7 @@ const KitaKarte = () => {
             />
           </Control>
           <Control position="bottomleft" order={10}>
-            <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
+            <div data-test-id="fuzzy-search">
               <LibFuzzySearch
                 pixelwidth={
                   responsiveState === "normal"
