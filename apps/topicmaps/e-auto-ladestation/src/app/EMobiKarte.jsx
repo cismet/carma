@@ -71,57 +71,44 @@ const EMobiKarte = () => {
 
   return (
     <>
-      <div
-        // className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}
-        style={{
-          position: "absolute",
-          top: "0px",
-          left: "0px",
-          bottom: "0px",
-          zIndex: 600,
-        }}
-      >
-        <ControlLayout ifStorybook={false}>
-          <Control position="topleft" order={10}>
-            <ZoomControl />
-          </Control>
+      <ControlLayout ifStorybook={false}>
+        <Control position="topleft" order={10}>
+          <ZoomControl />
+        </Control>
 
-          <Control position="topleft" order={50}>
-            <FullscreenControl />
-          </Control>
-          <Control position="topleft" order={60} title="Mein Standort">
-            <RoutedMapLocateControl
-              tourRefLabels={null}
-              disabled={false}
-              nativeTooltip={true}
+        <Control position="topleft" order={50}>
+          <FullscreenControl />
+        </Control>
+        <Control position="topleft" order={60} title="Mein Standort">
+          <RoutedMapLocateControl
+            tourRefLabels={null}
+            disabled={false}
+            nativeTooltip={true}
+          />
+        </Control>
+        <Control position="bottomleft" order={10}>
+          <div data-test-id="fuzzy-search" className="pl-1">
+            <LibFuzzySearch
+              priorityTypes={[
+                "emob",
+                "bezirke",
+                "quartiere",
+                "adressen",
+                "streets",
+                "pois",
+                "poisAlternativeNames",
+                "kitas",
+                "schulen",
+              ]}
+              typeInference={defaultTypeInference}
+              pixelwidth={
+                responsiveState === "normal" ? "300px" : windowSize.width - gap
+              }
+              placeholder="Ladestation | Stadtteil | Adresse | POI"
             />
-          </Control>
-          <Control position="bottomleft" order={10}>
-            <div data-test-id="fuzzy-search" className="pl-1">
-              <LibFuzzySearch
-                priorityTypes={[
-                  "emob",
-                  "bezirke",
-                  "quartiere",
-                  "adressen",
-                  "streets",
-                  "pois",
-                  "poisAlternativeNames",
-                  "kitas",
-                  "schulen",
-                ]}
-                typeInference={defaultTypeInference}
-                pixelwidth={
-                  responsiveState === "normal"
-                    ? "300px"
-                    : windowSize.width - gap
-                }
-                placeholder="Ladestation | Stadtteil | Adresse | POI"
-              />
-            </div>
-          </Control>
-        </ControlLayout>
-      </div>
+          </div>
+        </Control>
+      </ControlLayout>
       <TopicMapComponent
         locatorControl={false}
         fullScreenControl={false}
