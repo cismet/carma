@@ -5,7 +5,7 @@ import {
 } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import FeatureCollection from "react-cismap/FeatureCollection";
-import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
+// import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import Menu from "./Menu";
 import {
@@ -37,6 +37,7 @@ import {
 } from "@carma-mapping/components";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { InfoBox } from "@carma-apps/portals";
+import GenericInfoBoxFromFeature from "./components/GenericInfoBoxFromFeature";
 
 const KitaKarte = () => {
   const { responsiveState, gap, windowSize } = useContext(
@@ -141,29 +142,7 @@ const KitaKarte = () => {
             gazetteerSearchComponent={EmptySearchComponent}
             applicationMenuTooltipString={<MenuTooltip />}
             infoBox={
-              // <GenericInfoBoxFromFeature
-              //   pixelwidth={350}
-              //   headerColorizer={(feature, featureRenderingOption) => {
-              //     return getColorForProperties(
-              //       feature?.properties,
-              //       featureRenderingOption
-              //     );
-              //   }}
-              //   config={{
-              //     displaySecondaryInfoAction: false,
-              //     city: "Wuppertal",
-              //     header: "Kita",
-              //     navigator: {
-              //       noun: {
-              //         singular: "Kita",
-              //         plural: "Kitas",
-              //       },
-              //     },
-              //     noFeatureTitle: <InfoBoxTextTitle />,
-              //     noCurrentFeatureContent: <InfoBoxTextContent />,
-              //   }}
-              // />
-              <InfoBox
+              <GenericInfoBoxFromFeature
                 pixelwidth={350}
                 headerColorizer={(feature, featureRenderingOption) => {
                   return getColorForProperties(
