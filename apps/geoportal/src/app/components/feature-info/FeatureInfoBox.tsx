@@ -33,7 +33,7 @@ import { truncateString, updateUrlWithCoordinates } from "./featureInfoHelper";
 
 import "../infoBox.css";
 import LoadingInfoBox from "./LoadingInfoBox";
-import InfoBox from "./InfoBox";
+import InfoBox from "./InfoBoxRenameTemp";
 
 import versionData from "../../../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
