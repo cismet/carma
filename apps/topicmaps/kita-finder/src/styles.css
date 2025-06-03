@@ -30,14 +30,14 @@ ul {
 }
 
 /* You can add global styles to this file, and also import other style files */
-.custom-left-control {
+/* .custom-left-control {
   position: absolute;
   z-index: 600;
   left: 0;
   bottom: 0;
   margin-left: 4px;
   margin-bottom: 0px;
-}
+} */
 
 .modal-content svg,
 .modal-content img {
