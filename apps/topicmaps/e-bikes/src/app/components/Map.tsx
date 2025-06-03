@@ -96,7 +96,7 @@ const Map = () => {
             />
           </Control>
           <Control position="bottomleft" order={10}>
-            <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
+            <div data-test-id="fuzzy-search" className="h-full w-full pl-1">
               <LibFuzzySearch
                 priorityTypes={[
                   "ebikes",
