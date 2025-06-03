@@ -13,7 +13,7 @@ import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopic
 import Color from "color";
 import parseHtml from "html-react-parser";
 
-interface InfoboxProps {
+interface InfoBoxProps {
   currentFeature: any;
   featureCollection?: any;
   selectedIndex?: any;
@@ -44,7 +44,7 @@ interface InfoboxProps {
   defaultContextValues?: any;
 }
 
-const Infobox = ({
+export const InfoBox = ({
   currentFeature,
   featureCollection,
   selectedIndex,
@@ -74,7 +74,7 @@ const Infobox = ({
 
   colorizer = (props) => ((props || {}).properties || {}).color, //
   defaultContextValues = {},
-}: InfoboxProps) => {
+}: InfoBoxProps) => {
   const featureCollectionContext =
     useContext<typeof FeatureCollectionContext>(FeatureCollectionContext) ||
     defaultContextValues;
@@ -322,4 +322,4 @@ const Infobox = ({
   );
 };
 
-export default Infobox;
+export default InfoBox;

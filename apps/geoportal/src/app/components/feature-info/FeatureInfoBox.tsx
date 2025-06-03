@@ -33,7 +33,8 @@ import { truncateString, updateUrlWithCoordinates } from "./featureInfoHelper";
 
 import "../infoBox.css";
 import LoadingInfoBox from "./LoadingInfoBox";
-import InfoBox from "react-cismap/topicmaps/InfoBox";
+import InfoBox from "./InfoBox";
+
 import versionData from "../../../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
 

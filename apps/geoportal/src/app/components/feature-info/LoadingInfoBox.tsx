@@ -9,7 +9,7 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useContext } from "react";
 import { getQueryableLayers } from "../GeoportalMap/utils";
 import { getHashParams } from "@carma-commons/utils";
-import Infobox from "./Infobox";
+import InfoBox from "./InfoBox";
 
 const LoadingInfoBox = () => {
   const layers = useSelector(getLayers);
@@ -53,7 +53,7 @@ const LoadingInfoBox = () => {
   });
 
   return (
-    <Infobox
+    <InfoBox
       pixelwidth={350}
       currentFeature={{}}
       hideNavigator={true}

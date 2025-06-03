@@ -38,14 +38,3 @@ path.custom-polyline.leaflet-interactive {
 .overlay-helper-ul-class {
   list-style: disc;
 }
-
-.leaflet-bottom.leaflet-right {
-  padding-left: max(10px, env(safe-area-inset-left));
-  padding-bottom: max(10px, env(safe-area-inset-bottom));
-  padding-right: max(10px, env(safe-area-inset-right));
-}
-
-.leaflet-bottom.leaflet-right > div.leaflet-control {
-  margin-right: 0;
-}
-
