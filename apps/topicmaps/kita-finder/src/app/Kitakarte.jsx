@@ -36,6 +36,7 @@ import {
   ZoomControl,
 } from "@carma-mapping/components";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import { InfoBox } from "@carma-apps/portals";
 
 const KitaKarte = () => {
   const { responsiveState, gap, windowSize } = useContext(
@@ -129,49 +130,71 @@ const KitaKarte = () => {
               />
             </div>
           </Control>
+          <TopicMapComponent
+            modalMenu={
+              <Menu previewFeatureCollectionProps={featureCollectionProps} />
+            }
+            locatorControl={false}
+            fullScreenControl={false}
+            zoomControls={false}
+            gazetteerSearchControl={true}
+            gazetteerSearchComponent={EmptySearchComponent}
+            applicationMenuTooltipString={<MenuTooltip />}
+            infoBox={
+              // <GenericInfoBoxFromFeature
+              //   pixelwidth={350}
+              //   headerColorizer={(feature, featureRenderingOption) => {
+              //     return getColorForProperties(
+              //       feature?.properties,
+              //       featureRenderingOption
+              //     );
+              //   }}
+              //   config={{
+              //     displaySecondaryInfoAction: false,
+              //     city: "Wuppertal",
+              //     header: "Kita",
+              //     navigator: {
+              //       noun: {
+              //         singular: "Kita",
+              //         plural: "Kitas",
+              //       },
+              //     },
+              //     noFeatureTitle: <InfoBoxTextTitle />,
+              //     noCurrentFeatureContent: <InfoBoxTextContent />,
+              //   }}
+              // />
+              <InfoBox
+                pixelwidth={350}
+                headerColorizer={(feature, featureRenderingOption) => {
+                  return getColorForProperties(
+                    feature?.properties,
+                    featureRenderingOption
+                  );
+                }}
+                config={{
+                  displaySecondaryInfoAction: false,
+                  city: "Wuppertal",
+                  header: "Kita",
+                  navigator: {
+                    noun: {
+                      singular: "Kita",
+                      plural: "Kitas",
+                    },
+                  },
+                  noFeatureTitle: <InfoBoxTextTitle />,
+                  noCurrentFeatureContent: <InfoBoxTextContent />,
+                }}
+              />
+            }
+          >
+            <TopicMapSelectionContent />
+            <FeatureCollection
+              key={`feature_${additionalStylingInfo.featureRenderingOption}`}
+              {...featureCollectionProps}
+            ></FeatureCollection>
+          </TopicMapComponent>
         </ControlLayout>
       </div>
-      <TopicMapComponent
-        modalMenu={
-          <Menu previewFeatureCollectionProps={featureCollectionProps} />
-        }
-        locatorControl={false}
-        fullScreenControl={false}
-        zoomControls={false}
-        gazetteerSearchControl={true}
-        gazetteerSearchComponent={EmptySearchComponent}
-        applicationMenuTooltipString={<MenuTooltip />}
-        infoBox={
-          <GenericInfoBoxFromFeature
-            pixelwidth={350}
-            headerColorizer={(feature, featureRenderingOption) => {
-              return getColorForProperties(
-                feature?.properties,
-                featureRenderingOption
-              );
-            }}
-            config={{
-              displaySecondaryInfoAction: false,
-              city: "Wuppertal",
-              header: "Kita",
-              navigator: {
-                noun: {
-                  singular: "Kita",
-                  plural: "Kitas",
-                },
-              },
-              noFeatureTitle: <InfoBoxTextTitle />,
-              noCurrentFeatureContent: <InfoBoxTextContent />,
-            }}
-          />
-        }
-      >
-        <TopicMapSelectionContent />
-        <FeatureCollection
-          key={`feature_${additionalStylingInfo.featureRenderingOption}`}
-          {...featureCollectionProps}
-        ></FeatureCollection>
-      </TopicMapComponent>
     </>
   );
 };
