@@ -7,9 +7,8 @@ import {
   FeatureCollectionDispatchContext,
 } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
-
+// @ts-ignore
 import { ResponsiveTopicMapDispatchContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
-// import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 
@@ -133,9 +132,9 @@ export const GenericInfoBoxFromFeature = (props) => {
   return (
     <InfoBox
       isCollapsible={currentFeature !== undefined}
-      items={filteredItems} //?
-      // selectedIndex={selectedIndex} //?
-      showModalMenu={() => {}}
+      //   items={filteredItems}
+      // selectedIndex={selectedIndex}
+      //   showModalMenu={() => {}}
       colorizer={headerColorizer}
       pixelwidth={pixelwidth}
       header={header}
@@ -181,7 +180,7 @@ export const GenericInfoBoxFromFeature = (props) => {
               <p>{config.noCurrentFeatureContent}</p>
             )}
 
-          <div align="center">
+          <div>
             <a
               className="pleaseRenderLikeALinkEvenWithoutAnHrefAttribute"
               onClick={() => {
