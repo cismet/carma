@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+html,
+body {
+  overscroll-behavior: contain;
+}
+
 .nav-tabs {
   border-bottom: 1px solid #dee2e6 !important;
 }
@@ -31,17 +36,14 @@ ul {
   unicode-bidi: isolate;
 }
 
-.custom-left-control {
-  position: absolute;
-  z-index: 999;
-  left: 0;
-  bottom: 0;
-  margin-left: 4px;
-  width: 100%;
-  margin-bottom: 0px;
-}
-
 .modal-content svg,
 .modal-content img {
   display: inline;
+}
+
+/* Menu */
+div.leaflet-top.leaflet-right > .leaflet-control {
+  position: fixed;
+  right: max(10px, env(safe-area-inset-right));
+  margin-right: 0 !important;
 }

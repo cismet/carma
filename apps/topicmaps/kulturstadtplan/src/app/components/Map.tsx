@@ -6,7 +6,6 @@ import {
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import FeatureCollection from "react-cismap/FeatureCollection";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
-import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
 import {
   getAllEinrichtungen,
   getPoiClusterIconCreatorFunction,
@@ -34,6 +33,9 @@ import {
   RoutedMapLocateControl,
   ZoomControl,
 } from "@carma-mapping/components";
+import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
+
+import { GenericInfoBoxFromFeature } from "@carma-apps/portals";
 
 const Map = () => {
   const { setClusteringOptions, setFilterState } = useContext<
@@ -76,81 +78,68 @@ const Map = () => {
   }, [itemsDictionary]);
 
   return (
-    <>
-      <div
-        className="controls-container"
-        style={{
-          position: "absolute",
-          top: "0px",
-          left: "0px",
-          bottom: "0px",
-          zIndex: 600,
-        }}
-      >
-        <ControlLayout ifStorybook={false}>
-          <Control position="topleft" order={10}>
-            <ZoomControl />
-          </Control>
+    <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
+      <ControlLayout ifStorybook={false}>
+        <Control position="topleft" order={10}>
+          <ZoomControl />
+        </Control>
 
-          <Control position="topleft" order={50}>
-            <FullscreenControl />
-          </Control>
-          <Control position="topleft" order={60} title="Mein Standort">
-            <RoutedMapLocateControl
-              tourRefLabels={null}
-              disabled={false}
-              nativeTooltip={true}
-            />
-          </Control>
-          <Control position="bottomleft" order={10}>
-            <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
-              <LibFuzzySearch
-                pixelwidth={
-                  responsiveState === "normal"
-                    ? "300px"
-                    : windowSize.width - gap
-                }
-                placeholder={searchTextPlaceholder}
-              />
-            </div>
-          </Control>
-        </ControlLayout>
-      </div>
-      <TopicMapComponent
-        modalMenu={<Menu />}
-        locatorControl={false}
-        fullScreenControl={false}
-        zoomControls={false}
-        photoLightBox
-        gazetteerSearchControl={true}
-        gazetteerSearchComponent={EmptySearchComponent}
-        applicationMenuTooltipString={<MenuTooltip />}
-        infoBox={
-          <GenericInfoBoxFromFeature
-            pixelwidth={350}
-            config={{
-              city: "Wuppertal",
-              navigator: {
-                noun: {
-                  singular: "POI",
-                  plural: "POIs",
-                },
-              },
-              noFeatureTitle: <InfoBoxTextTitle />,
-              noCurrentFeatureContent: (
-                <InfoBoxTextContent
-                  setAppMenuVisible={setAppMenuVisible}
-                  setAppMenuActiveMenuSection={setAppMenuActiveMenuSection}
-                />
-              ),
-            }}
+        <Control position="topleft" order={50}>
+          <FullscreenControl />
+        </Control>
+        <Control position="topleft" order={60} title="Mein Standort">
+          <RoutedMapLocateControl
+            tourRefLabels={null}
+            disabled={false}
+            nativeTooltip={true}
           />
-        }
-      >
-        <TopicMapSelectionContent />
-        <FeatureCollection></FeatureCollection>
-      </TopicMapComponent>
-    </>
+        </Control>
+        <Control position="bottomleft" order={10}>
+          <div data-test-id="fuzzy-search">
+            <LibFuzzySearch
+              pixelwidth={
+                responsiveState === "normal" ? "300px" : windowSize.width - gap
+              }
+              placeholder={searchTextPlaceholder}
+            />
+          </div>
+        </Control>
+        <TopicMapComponent
+          modalMenu={<Menu />}
+          locatorControl={false}
+          fullScreenControl={false}
+          zoomControls={false}
+          photoLightBox
+          gazetteerSearchControl={true}
+          gazetteerSearchComponent={EmptySearchComponent}
+          applicationMenuTooltipString={<MenuTooltip />}
+          infoBox={
+            <GenericInfoBoxFromFeature
+              pixelwidth={350}
+              config={{
+                city: "Wuppertal",
+                navigator: {
+                  noun: {
+                    singular: "POI",
+                    plural: "POIs",
+                  },
+                },
+                noFeatureTitle: <InfoBoxTextTitle />,
+                noCurrentFeatureContent: (
+                  <InfoBoxTextContent
+                    setAppMenuVisible={setAppMenuVisible}
+                    setAppMenuActiveMenuSection={setAppMenuActiveMenuSection}
+                  />
+                ),
+              }}
+            />
+          }
+        >
+          <TopicMapSelectionContent />
+          <FeatureCollection></FeatureCollection>
+        </TopicMapComponent>
+      </ControlLayout>
+    </div>
   );
 };
 
