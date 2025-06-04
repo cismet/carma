@@ -155,39 +155,62 @@ const useSceneClick = (
 
         // Check for nearby NivP entities within search radius (simplified approach)
         if (nivPEntities && nivPEntities.length > 0) {
-          console.debug(`[SceneClick] Checking ${nivPEntities.length} NivP entities for proximity within ${searchRadius}m`);
-          
+          console.debug(
+            `[SceneClick] Checking ${nivPEntities.length} NivP entities for proximity within ${searchRadius}m`
+          );
+
           // Find the first NivP entity within the search radius
           let foundEntity = false;
+          const startTime = performance.now();
           for (const entity of nivPEntities) {
             if (entity.position) {
-              const entityPosition = entity.position.getValue(viewer.clock.currentTime);
+              const entityPosition = entity.position.getValue(
+                viewer.clock.currentTime
+              );
               if (entityPosition) {
-                const distance = Cartesian3.distance(pickedPosition, entityPosition);
-                console.debug(`[SceneClick] Entity "${entity.name}" distance: ${distance.toFixed(2)}m`);
-                
+                const distance = Cartesian3.distance(
+                  pickedPosition,
+                  entityPosition
+                );
+                //console.debug(`[SceneClick] Entity "${entity.name}" distance: ${distance.toFixed(2)}m`);
+
                 // Use the first entity within range (typically there won't be multiple very close)
                 if (distance <= searchRadius) {
                   viewer.selectedEntity = entity;
                   foundEntity = true;
+                  const searchTime = performance.now() - startTime;
                   console.debug(
-                    `[SceneClick] Found NivP entity "${entity.name}" within ${searchRadius}m radius (${distance.toFixed(2)}m away)`
+                    `[SceneClick] Found NivP entity "${
+                      entity.name
+                    }" within ${searchRadius}m radius (${distance.toFixed(
+                      2
+                    )}m away) in ${searchTime.toFixed(2)}ms`
                   );
                   break; // Stop after finding the first entity within range
                 }
               } else {
-                console.debug(`[SceneClick] Entity "${entity.name}" has no position value`);
+                console.debug(
+                  `[SceneClick] Entity "${entity.name}" has no position value`
+                );
               }
             } else {
-              console.debug(`[SceneClick] Entity "${entity.name}" has no position property`);
+              console.debug(
+                `[SceneClick] Entity "${entity.name}" has no position property`
+              );
             }
           }
-          
+
           if (!foundEntity) {
-            console.debug(`[SceneClick] No NivP entities found within ${searchRadius}m radius`);
+            console.debug(
+              `[SceneClick] No NivP entities found within ${searchRadius}m radius`
+            );
           }
         } else {
-          console.debug(`[SceneClick] No NivP entities provided (${nivPEntities?.length || 0} entities)`);
+          console.debug(
+            `[SceneClick] No NivP entities provided (${
+              nivPEntities?.length || 0
+            } entities)`
+          );
         }
 
         // Schedule a render update after entities are processed
