@@ -3,13 +3,11 @@ import {
   FeatureCollectionContext,
   FeatureCollectionDispatchContext,
 } from "react-cismap/contexts/FeatureCollectionContextProvider";
-import { LightBoxContext } from "react-cismap/contexts/LightBoxContextProvider";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import FeatureCollection from "react-cismap/FeatureCollection";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import Menu from "./Menu";
 import { getPoiClusterIconCreatorFunction } from "./helper/styler";
-import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
 import {
   UIContext,
   UIDispatchContext,
@@ -33,6 +31,9 @@ import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopic
 import { getApplicationVersion } from "@carma-commons/utils";
 import versionData from "../version.json";
 import SIMComponentDictionary from "@carma-collab/wuppertal/secondary-info-modals";
+import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
+import { GenericInfoBoxFromFeature } from "@carma-apps/portals";
+
 const SecondaryInfoModal = SIMComponentDictionary["eMobSIM"];
 
 const EMobiKarte = () => {
@@ -69,99 +70,87 @@ const EMobiKarte = () => {
   }, []);
 
   return (
-    <>
-      <div
-        style={{
-          position: "absolute",
-          top: "0px",
-          left: "0px",
-          bottom: "0px",
-          zIndex: 600,
-        }}
-      >
-        <ControlLayout ifStorybook={false}>
-          <Control position="topleft" order={10}>
-            <ZoomControl />
-          </Control>
+    <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
+      <ControlLayout ifStorybook={false}>
+        <Control position="topleft" order={10}>
+          <ZoomControl />
+        </Control>
 
-          <Control position="topleft" order={50}>
-            <FullscreenControl />
-          </Control>
-          <Control position="topleft" order={60} title="Mein Standort">
-            <RoutedMapLocateControl
-              tourRefLabels={null}
-              disabled={false}
-              nativeTooltip={true}
+        <Control position="topleft" order={50}>
+          <FullscreenControl />
+        </Control>
+        <Control position="topleft" order={60} title="Mein Standort">
+          <RoutedMapLocateControl
+            tourRefLabels={null}
+            disabled={false}
+            nativeTooltip={true}
+          />
+        </Control>
+        <Control position="bottomleft" order={10}>
+          <div data-test-id="fuzzy-search" style={{ marginTop: "4px" }}>
+            <LibFuzzySearch
+              priorityTypes={[
+                "emob",
+                "bezirke",
+                "quartiere",
+                "adressen",
+                "streets",
+                "pois",
+                "poisAlternativeNames",
+                "kitas",
+                "schulen",
+              ]}
+              typeInference={defaultTypeInference}
+              pixelwidth={
+                responsiveState === "normal" ? "300px" : windowSize.width - gap
+              }
+              placeholder="Ladestation | Stadtteil | Adresse | POI"
             />
-          </Control>
-          <Control position="bottomleft" order={10}>
-            <div data-test-id="fuzzy-search" className="pl-1">
-              <LibFuzzySearch
-                priorityTypes={[
-                  "emob",
-                  "bezirke",
-                  "quartiere",
-                  "adressen",
-                  "streets",
-                  "pois",
-                  "poisAlternativeNames",
-                  "kitas",
-                  "schulen",
-                ]}
-                typeInference={defaultTypeInference}
-                pixelwidth={
-                  responsiveState === "normal"
-                    ? "300px"
-                    : windowSize.width - gap
-                }
-                placeholder="Ladestation | Stadtteil | Adresse | POI"
-              />
-            </div>
-          </Control>
-        </ControlLayout>
-      </div>
-      <TopicMapComponent
-        locatorControl={false}
-        fullScreenControl={false}
-        zoomControls={false}
-        modalMenu={<Menu />}
-        gazetteerSearchControl={true}
-        gazetteerSearchComponent={EmptySearchComponent}
-        infoBox={
-          <GenericInfoBoxFromFeature
-            pixelwidth={350}
-            config={{
-              displaySecondaryInfoAction: true,
-              city: "Wuppertal",
-              navigator: {
-                noun: {
-                  singular: "Ladestation",
-                  plural: "Ladestationen",
+          </div>
+        </Control>
+        <TopicMapComponent
+          locatorControl={false}
+          fullScreenControl={false}
+          zoomControls={false}
+          modalMenu={<Menu />}
+          gazetteerSearchControl={true}
+          gazetteerSearchComponent={EmptySearchComponent}
+          infoBox={
+            <GenericInfoBoxFromFeature
+              pixelwidth={350}
+              config={{
+                displaySecondaryInfoAction: true,
+                city: "Wuppertal",
+                navigator: {
+                  noun: {
+                    singular: "Ladestation",
+                    plural: "Ladestationen",
+                  },
                 },
-              },
-              noCurrentFeatureTitle: "Keine Ladestationen gefunden",
-              noCurrentFeatureContent: (
-                <span>
-                  Für mehr Ladestationen Ansicht mit verkleinern oder mit dem
-                  untenstehenden Link auf das komplette Stadtgebiet zoomen.
-                </span>
-              ),
-            }}
-          />
-        }
-      >
-        <TopicMapSelectionContent />
+                noCurrentFeatureTitle: "Keine Ladestationen gefunden",
+                noCurrentFeatureContent: (
+                  <span>
+                    Für mehr Ladestationen Ansicht mit verkleinern oder mit dem
+                    untenstehenden Link auf das komplette Stadtgebiet zoomen.
+                  </span>
+                ),
+              }}
+            />
+          }
+        >
+          <TopicMapSelectionContent />
 
-        <FeatureCollection></FeatureCollection>
-        {secondaryInfoVisible && (
-          <SecondaryInfoModal
-            feature={selectedFeature}
-            setOpen={setSecondaryInfoVisible}
-            versionString={getApplicationVersion(versionData)}
-          />
-        )}
-      </TopicMapComponent>
-    </>
+          <FeatureCollection></FeatureCollection>
+          {secondaryInfoVisible && (
+            <SecondaryInfoModal
+              feature={selectedFeature}
+              setOpen={setSecondaryInfoVisible}
+              versionString={getApplicationVersion(versionData)}
+            />
+          )}
+        </TopicMapComponent>
+      </ControlLayout>
+    </div>
   );
 };
 
