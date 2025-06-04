@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { Cesium3DTilesInspector, Viewer, CesiumWidget } from "cesium";
-import { Slider, Divider } from "antd";
+import { Viewer } from "cesium";
 
 import { FESTPUNKTE_WUPPERTAL, WUPP_MESH_2024 } from "@carma-commons/resources";
 import { CesiumErrorToErrorBoundaryForwarder } from "@carma-mapping/cesium-engine";
@@ -10,7 +9,6 @@ import useTileset from "../hooks/useTileset";
 import { useZoomToTilesetOnReady } from "../hooks/useZoomToTilesetOnReady";
 import useNivPPoints, { type ElevationStandard } from "../hooks/useNivPPoints";
 import useSceneClick from "../hooks/useSceneClick";
-import useCameraElevation from "../hooks/useCameraElevation";
 import UiTopRight from "../components/UiTopRight";
 import PointControls from "../components/PointControls";
 import { cesiumConstructorOptions } from "../config";
@@ -23,12 +21,12 @@ const tilesetConstructorOptions = {
 };
 
 const TestMeshElevations: React.FC = () => {
-  const [showTileInspector, setShowTileInspector] = useState(false);
   const [showNivPPoints, setShowNivPPoints] = useState(true); // Load points by default
   const [elevationStandard, setElevationStandard] =
     useState<ElevationStandard>("nhn"); // Default to NHN
   const [includeHistoric, setIncludeHistoric] = useState(false); // Filter out historic points by default
   const [enableTerrainClick, setEnableTerrainClick] = useState(true); // Enable terrain clicking by default
+
   const [tilesetUrl] = useState<string>(WUPP_MESH_2024.url);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -37,14 +35,7 @@ const TestMeshElevations: React.FC = () => {
   const { tilesetRef, tilesetReady } = useTileset(
     tilesetUrl,
     viewerRef,
-
     tilesetConstructorOptions
-  );
-
-  // Monitor camera elevation for label visibility
-  const { isAboveThreshold: hideLabels } = useCameraElevation(
-    viewerRef.current,
-    1500
   );
 
   // Load NivP points when enabled
@@ -57,12 +48,11 @@ const TestMeshElevations: React.FC = () => {
     showNivPPoints ? viewerRef.current : null,
     elevationStandard,
     FESTPUNKTE_WUPPERTAL,
-    !hideLabels,
     includeHistoric
   );
 
-  // Enable terrain clicking functionality
-  useSceneClick(viewerRef.current, enableTerrainClick, !hideLabels);
+  // Enable terrain clicking functionality with elevation isoline callback
+  useSceneClick(viewerRef.current, enableTerrainClick);
 
   useEffect(() => {
     if (viewerRef.current) {
@@ -99,22 +89,6 @@ const TestMeshElevations: React.FC = () => {
       }
     };
   }, []);
-
-  useEffect(() => {
-    if (uiTopRightRef.current) {
-      uiTopRightRef.current.style.display = "none";
-    }
-
-    if (showTileInspector && viewerRef.current) {
-      new Cesium3DTilesInspector(
-        uiTopRightRef.current,
-        viewerRef.current.scene
-      );
-      if (uiTopRightRef.current) {
-        uiTopRightRef.current.style.display = "block";
-      }
-    }
-  }, [showTileInspector]);
 
   useZoomToTilesetOnReady(viewerRef, tilesetRef, tilesetReady);
 

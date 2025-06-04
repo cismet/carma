@@ -9,15 +9,20 @@ import {
 } from "cesium";
 
 import { create3DCrossGroup } from "../utils/cesium3DCross";
+import { LABEL_FONT, SCALE_BY_DISTANCE } from "./useNivPPoints";
 
-const useSceneClick = (
-  viewer: Viewer | null,
-  enabled: boolean = true,
-  showLabel: boolean = true
-) => {
+const useSceneClick = (viewer: Viewer | null, enabled: boolean = true) => {
   const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
   const terrainEntityRef = useRef<Entity | null>(null);
-  const cross3DRef = useRef<{ entities: Entity[]; cleanup: (viewer: { entities: { remove: (entity: Entity) => void } }) => void; addToViewer: (viewer: { entities: { add: (entity: Entity) => void } }) => void } | null>(null);
+  const cross3DRef = useRef<{
+    entities: Entity[];
+    cleanup: (viewer: {
+      entities: { remove: (entity: Entity) => void };
+    }) => void;
+    addToViewer: (viewer: {
+      entities: { add: (entity: Entity) => void };
+    }) => void;
+  } | null>(null);
 
   useEffect(() => {
     if (!viewer || !enabled) {
@@ -45,12 +50,12 @@ const useSceneClick = (
       // Hide existing cross and terrain entity before picking to avoid interference
       const previousTerrainEntity = terrainEntityRef.current;
       const previousCross3D = cross3DRef.current;
-      
+
       if (previousTerrainEntity) {
         viewer.entities.remove(previousTerrainEntity);
         terrainEntityRef.current = null;
       }
-      
+
       if (previousCross3D) {
         previousCross3D.cleanup(viewer);
         cross3DRef.current = null;
@@ -58,11 +63,11 @@ const useSceneClick = (
 
       // Request render and schedule pick operation after next render
       viewer.scene.requestRender();
-      
+
       // Use postRender event to ensure the removal is processed before picking
       const onPostRender = () => {
         viewer.scene.postRender.removeEventListener(onPostRender);
-        
+
         // Try to pick terrain/mesh position
         const pickedPosition = viewer.scene.pickPosition(event.position);
 
@@ -109,20 +114,18 @@ const useSceneClick = (
           `,
           position: pickedPosition,
           // Remove the simple point - we'll use 3D cross instead
-          label: showLabel
-            ? {
-                text: height.toFixed(2),
-                font: "bold 48px Arial, sans-serif",
-                fillColor: Color.ORANGE,
-                showBackground: true,
-                backgroundColor: Color.BLACK.withAlpha(0.5),
-                backgroundPadding: new Cartesian2(12, 6),
-                style: 0, // FILL_AND_OUTLINE
-                pixelOffset: new Cartesian2(0, 40),
-                scale: 0.5,
-                disableDepthTestDistance: Number.POSITIVE_INFINITY,
-              }
-            : undefined,
+          label: {
+            text: height.toFixed(2),
+            font: LABEL_FONT,
+            fillColor: Color.ORANGE,
+            showBackground: true,
+            backgroundColor: Color.BLACK.withAlpha(0.5),
+            backgroundPadding: new Cartesian2(12, 6),
+            style: 0, // FILL_AND_OUTLINE
+            pixelOffset: new Cartesian2(0, 40),
+            scaleByDistance: SCALE_BY_DISTANCE, // Scale down with distance
+            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          },
         });
 
         // Create 3D cross visualization
@@ -139,7 +142,7 @@ const useSceneClick = (
         // Add entity to viewer and store reference
         viewer.entities.add(terrainEntity);
         terrainEntityRef.current = terrainEntity;
-        
+
         // Add 3D cross to viewer
         cross3D.addToViewer(viewer);
         cross3DRef.current = cross3D;
@@ -151,7 +154,7 @@ const useSceneClick = (
           )}m`
         );
       };
-      
+
       // Add the postRender event listener
       viewer.scene.postRender.addEventListener(onPostRender);
     }, ScreenSpaceEventType.LEFT_CLICK);
@@ -174,7 +177,7 @@ const useSceneClick = (
       }
       console.debug("[SceneClick] Terrain click handler cleaned up");
     };
-  }, [viewer, enabled, showLabel]);
+  }, [viewer, enabled]);
 
   return {
     // Could expose additional functionality here if needed

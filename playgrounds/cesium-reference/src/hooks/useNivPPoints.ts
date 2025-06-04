@@ -1,11 +1,17 @@
 import { useEffect, useState, useRef } from "react";
 import type { Viewer } from "cesium";
-import { Cartesian2, Cartesian3, Color, Entity, HeightReference } from "cesium";
+import {
+  Cartesian2,
+  Cartesian3,
+  Color,
+  Entity,
+  HeightReference,
+  NearFarScalar,
+} from "cesium";
 
 import { PROJ4_CONVERTERS } from "@carma-commons/utils";
 
 export type ElevationStandard = "nhn2016" | "nhn" | "nn";
-
 export interface NivPPoint {
   hoehe_ueber_nn: number;
   festlegungsart: number;
@@ -38,6 +44,11 @@ export interface TransformedNivPPoint extends NivPPoint {
   elevationStandard: ElevationStandard;
   hasValidElevation: boolean;
 }
+
+export const SCALE_BY_DISTANCE = new NearFarScalar(0, 1, 5000, 0.0);
+export const SCALE_BY_DISTANCE_POINTS = new NearFarScalar(0, 1, 5000, 0.5);
+
+export const LABEL_FONT = "bold 24px Arial, sans-serif";
 
 const getElevationValue = (
   point: NivPPoint,
@@ -72,7 +83,6 @@ const useNivPPoints = (
   viewer: Viewer | null,
   elevationStandard: ElevationStandard = "nhn",
   uri: string,
-  showLabels: boolean = true,
   includeHistoric: boolean = false
 ) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -315,6 +325,7 @@ const useNivPPoints = (
         position: point.cartesian,
         point: {
           pixelSize: 5,
+          scaleByDistance: SCALE_BY_DISTANCE_POINTS,
           color: point.hasValidElevation ? Color.WHITE : Color.LIGHTGRAY,
           outlineColor: Color.BLACK.withAlpha(0.8),
           outlineWidth: 1,
@@ -322,25 +333,21 @@ const useNivPPoints = (
           heightReference: point.hasValidElevation
             ? HeightReference.NONE
             : HeightReference.CLAMP_TO_3D_TILE,
-          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          disableDepthTestDistance: 200,
         },
-        label: showLabels
-          ? {
-              text: point.hasValidElevation
-                ? `${point.currentElevation.toFixed(2)}`
-                : "No Data",
-              font: "bold 48px Arial, sans-serif",
-              fillColor: point.hasValidElevation
-                ? Color.WHITE
-                : Color.LIGHTGRAY,
-              showBackground: true,
-              backgroundColor: Color.BLACK.withAlpha(0.5),
-              backgroundPadding: new Cartesian2(12, 6),
-              pixelOffset: new Cartesian2(0, -30),
-              scale: 0.5,
-              disableDepthTestDistance: Number.POSITIVE_INFINITY,
-            }
-          : undefined,
+        label: {
+          text: point.hasValidElevation
+            ? `${point.currentElevation.toFixed(2)}`
+            : "No Data",
+          font: LABEL_FONT,
+          fillColor: point.hasValidElevation ? Color.WHITE : Color.LIGHTGRAY,
+          showBackground: true,
+          backgroundColor: Color.BLACK.withAlpha(0.5),
+          backgroundPadding: new Cartesian2(12, 6),
+          pixelOffset: new Cartesian2(0, -30),
+          scaleByDistance: SCALE_BY_DISTANCE,
+          disableDepthTestDistance: 200,
+        },
       });
 
       return entity;
@@ -377,7 +384,7 @@ const useNivPPoints = (
         console.error("[useNivPPoints] Error during cleanup:", error);
       }
     };
-  }, [viewer, filteredPoints, elevationStandard, showLabels]);
+  }, [viewer, filteredPoints, elevationStandard]);
 
   return {
     isLoading,
