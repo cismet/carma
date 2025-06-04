@@ -1,8 +1,8 @@
 import { useContext } from "react";
-import {
-  FeatureCollectionContext,
-  FeatureCollectionDispatchContext,
-} from "react-cismap/contexts/FeatureCollectionContextProvider";
+// import {
+//   FeatureCollectionContext,
+//   FeatureCollectionDispatchContext,
+// } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import FeatureCollection from "react-cismap/FeatureCollection";
 // import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
@@ -19,7 +19,7 @@ import {
   getColorForProperties,
   getFeatureStyler,
 } from "./helper/styler";
-import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+// import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import {
   TopicMapSelectionContent,
