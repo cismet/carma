@@ -36,7 +36,8 @@ import {
   ZoomControl,
 } from "@carma-mapping/components";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
-import { InfoBox } from "@carma-apps/portals";
+import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
+
 import GenericInfoBoxFromFeature from "./components/GenericInfoBoxFromFeature";
 
 const KitaKarte = () => {
@@ -93,7 +94,7 @@ const KitaKarte = () => {
   };
 
   return (
-    <>
+    <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
       <div
       // className="controls-container"
       // style={{
@@ -174,7 +175,7 @@ const KitaKarte = () => {
           </TopicMapComponent>
         </ControlLayout>
       </div>
-    </>
+    </div>
   );
 };
 
