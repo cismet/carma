@@ -14,6 +14,7 @@ export const parseDescription = (description: string) => {
   // Define the list of possible titles to look for
   const possibleTitles = [
     "Inhalt",
+    "Beschreibung",
     "Sichtbarkeit",
     "Nutzung",
     "Verwendungszweck",
