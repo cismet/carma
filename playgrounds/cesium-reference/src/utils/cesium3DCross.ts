@@ -1,9 +1,20 @@
-import { Cartesian3, Cartesian4, Color, Entity, PolylineGraphics, Transforms, Matrix4 } from "cesium";
+import {
+  Cartesian3,
+  Cartesian4,
+  Color,
+  Entity,
+  PolylineGraphics,
+  Transforms,
+  Matrix4,
+} from "cesium";
 
 export interface Cross3DOptions {
   position: Cartesian3;
   size?: number;
   color?: Color;
+  colorX?: Color;
+  colorY?: Color;
+  colorZ?: Color;
   width?: number;
   id?: string;
 }
@@ -32,7 +43,7 @@ export const create3DCross = (options: Cross3DOptions): Entity[] => {
 
   // Create transformation matrix for the position to get local coordinate system
   const eastNorthUpMatrix = Transforms.eastNorthUpToFixedFrame(position);
-  
+
   // Define half-size for extending in both directions
   const halfSize = size / 2;
 
@@ -59,10 +70,10 @@ export const create3DCross = (options: Cross3DOptions): Entity[] => {
   // Calculate endpoints for each axis
   const xPositive = Cartesian3.add(position, xAxis, new Cartesian3());
   const xNegative = Cartesian3.subtract(position, xAxis, new Cartesian3());
-  
+
   const yPositive = Cartesian3.add(position, yAxis, new Cartesian3());
   const yNegative = Cartesian3.subtract(position, yAxis, new Cartesian3());
-  
+
   const zPositive = Cartesian3.add(position, zAxis, new Cartesian3());
   const zNegative = Cartesian3.subtract(position, zAxis, new Cartesian3());
 
@@ -80,7 +91,7 @@ export const create3DCross = (options: Cross3DOptions): Entity[] => {
 
   const yAxisEntity = new Entity({
     id: `${id}-y-axis`,
-    name: "3D Cross Y-Axis", 
+    name: "3D Cross Y-Axis",
     polyline: new PolylineGraphics({
       positions: [yNegative, yPositive],
       width,
@@ -115,10 +126,10 @@ export const create3DCrossGroup = (options: Cross3DOptions) => {
     id,
     entities: crossEntities,
     cleanup: (viewer: ViewerLike) => {
-      crossEntities.forEach(entity => viewer.entities.remove(entity));
+      crossEntities.forEach((entity) => viewer.entities.remove(entity));
     },
     addToViewer: (viewer: ViewerLike) => {
-      crossEntities.forEach(entity => viewer.entities.add(entity));
-    }
+      crossEntities.forEach((entity) => viewer.entities.add(entity));
+    },
   };
 };
