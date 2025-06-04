@@ -96,86 +96,77 @@ const KitaKarte = () => {
 
   return (
     <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
-      <div
-      // className="controls-container"
-      // style={{
-      //   position: "absolute",
-      //   top: "0px",
-      //   left: "0px",
-      //   bottom: "0px",
-      //   zIndex: 600,
-      // }}
-      >
-        <ControlLayout ifStorybook={false}>
-          <Control position="topleft" order={10}>
-            <ZoomControl />
-          </Control>
+      <ControlLayout ifStorybook={false}>
+        <Control position="topleft" order={10}>
+          <ZoomControl />
+        </Control>
 
-          <Control position="topleft" order={50}>
-            <FullscreenControl />
-          </Control>
-          <Control position="topleft" order={60} title="Mein Standort">
-            <RoutedMapLocateControl
-              tourRefLabels={null}
-              disabled={false}
-              nativeTooltip={true}
-            />
-          </Control>
-          <Control position="bottomleft" order={10}>
-            <div data-test-id="fuzzy-search" className="mt-1">
-              <LibFuzzySearch
-                pixelwidth={
-                  responsiveState === "normal"
-                    ? "300px"
-                    : windowSize.width - gap
-                }
-                placeholder={searchTextPlaceholder}
-              />
-            </div>
-          </Control>
-          <TopicMapComponent
-            modalMenu={
-              <Menu previewFeatureCollectionProps={featureCollectionProps} />
-            }
-            locatorControl={false}
-            fullScreenControl={false}
-            zoomControls={false}
-            gazetteerSearchControl={true}
-            gazetteerSearchComponent={EmptySearchComponent}
-            applicationMenuTooltipString={<MenuTooltip />}
-            infoBox={
-              <GenericInfoBoxFromFeature
-                pixelwidth={350}
-                headerColorizer={(feature, featureRenderingOption) => {
-                  return getColorForProperties(
-                    feature?.properties,
-                    featureRenderingOption
-                  );
-                }}
-                config={{
-                  displaySecondaryInfoAction: false,
-                  city: "Wuppertal",
-                  header: "Kita",
-                  navigator: {
-                    noun: {
-                      singular: "Kita",
-                      plural: "Kitas",
-                    },
-                  },
-                  noFeatureTitle: <InfoBoxTextTitle />,
-                  noCurrentFeatureContent: <InfoBoxTextContent />,
-                }}
-              />
-            }
+        <Control position="topleft" order={50}>
+          <FullscreenControl />
+        </Control>
+        <Control position="topleft" order={60} title="Mein Standort">
+          <RoutedMapLocateControl
+            tourRefLabels={null}
+            disabled={false}
+            nativeTooltip={true}
+          />
+        </Control>
+        <Control position="bottomleft" order={10}>
+          <div
+            data-test-id="fuzzy-search"
+            style={{ marginTop: "4px", marginLeft: "3px" }}
           >
-            <TopicMapSelectionContent />
-            <FeatureCollection
-              key={`feature_${additionalStylingInfo.featureRenderingOption}`}
-              {...featureCollectionProps}
-            ></FeatureCollection>
-          </TopicMapComponent>
-        </ControlLayout>
-      </div>
+            <LibFuzzySearch
+              pixelwidth={
+                responsiveState === "normal" ? "300px" : windowSize.width - gap
+              }
+              placeholder={searchTextPlaceholder}
+            />
+          </div>
+        </Control>
+        <TopicMapComponent
+          modalMenu={
+            <Menu previewFeatureCollectionProps={featureCollectionProps} />
+          }
+          locatorControl={false}
+          fullScreenControl={false}
+          zoomControls={false}
+          gazetteerSearchControl={true}
+          gazetteerSearchComponent={EmptySearchComponent}
+          applicationMenuTooltipString={<MenuTooltip />}
+          infoBox={
+            <GenericInfoBoxFromFeature
+              pixelwidth={350}
+              infoStyle={{ marginLeft: "3px" }}
+              headerColorizer={(feature, featureRenderingOption) => {
+                return getColorForProperties(
+                  feature?.properties,
+                  featureRenderingOption
+                );
+              }}
+              config={{
+                displaySecondaryInfoAction: false,
+                city: "Wuppertal",
+                header: "Kita",
+                navigator: {
+                  noun: {
+                    singular: "Kita",
+                    plural: "Kitas",
+                  },
+                },
+                noFeatureTitle: <InfoBoxTextTitle />,
+                noCurrentFeatureContent: <InfoBoxTextContent />,
+              }}
+            />
+          }
+        >
+          <TopicMapSelectionContent />
+          <FeatureCollection
+            key={`feature_${additionalStylingInfo.featureRenderingOption}`}
+            {...featureCollectionProps}
+          ></FeatureCollection>
+        </TopicMapComponent>
+      </ControlLayout>
     </div>
   );
 };
