@@ -76,10 +76,12 @@ export function LibHelperOverlay({
       data-test-id="overlay-helper-bg"
       style={{
         position: "fixed",
+        display: "flex",
+        flexDirection: "column",
         top: 0,
         zIndex: 1002,
-        width: "100vw",
-        height: "100vh",
+        width: "100%",
+        height: "100%",
         background: color,
         opacity: transparency,
       }}
