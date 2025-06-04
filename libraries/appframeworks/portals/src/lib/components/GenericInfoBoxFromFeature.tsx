@@ -37,7 +37,7 @@ const defaultConfig = {
   getNumberOfShownFeatures: (featureCollection) => featureCollection.length,
 };
 
-const GenericInfoBoxFromFeature = (props) => {
+export const GenericInfoBoxFromFeature = (props) => {
   let {
     config,
     pixelwidth = 300,
