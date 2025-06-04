@@ -34,7 +34,6 @@ import {
   ZoomControl,
 } from "@carma-mapping/components";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
-
 import { GenericInfoBoxFromFeature } from "@carma-apps/portals";
 
 const Map = () => {
