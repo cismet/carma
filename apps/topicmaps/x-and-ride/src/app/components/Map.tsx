@@ -6,7 +6,6 @@ import {
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import FeatureCollection from "react-cismap/FeatureCollection";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
-import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
 import { getPoiClusterIconCreatorFunction } from "../../helper/styler";
 import {
   UIContext,
@@ -31,6 +30,9 @@ import {
 import { getApplicationVersion } from "@carma-commons/utils";
 import versionData from "../../version.json";
 import SIMComponentDictionary from "@carma-collab/wuppertal/secondary-info-modals";
+import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
+import { GenericInfoBoxFromFeature } from "@carma-apps/portals";
+
 const SecondaryInfoModal = SIMComponentDictionary["xandRideSIM"];
 const Map = () => {
   const { setClusteringOptions } = useContext<
@@ -59,7 +61,7 @@ const Map = () => {
   }, [markerSymbolSize]);
 
   return (
-    <>
+    <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
       <div
         className="controls-container"
         style={{
@@ -86,57 +88,57 @@ const Map = () => {
             />
           </Control>
           <Control position="bottomleft" order={10}>
-            <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
+            <div data-test-id="fuzzy-search" style={{ marginTop: "4px" }}>
               <FuzzySearchWrapper
                 searchTextPlaceholder={searchTextPlaceholder}
               />
             </div>
           </Control>
+          <TopicMapComponent
+            modalMenu={<Menu />}
+            locatorControl={false}
+            fullScreenControl={false}
+            zoomControls={false}
+            photoLightBox
+            gazetteerSearchControl={true}
+            gazetteerSearchComponent={EmptySearchComponent}
+            applicationMenuTooltipString={<MenuTooltip />}
+            infoBox={
+              <GenericInfoBoxFromFeature
+                pixelwidth={350}
+                config={{
+                  displaySecondaryInfoAction: true,
+                  city: "Wuppertal",
+                  navigator: {
+                    noun: {
+                      singular: "Anlage",
+                      plural: "Anlagen",
+                    },
+                  },
+                  noFeatureTitle: <InfoBoxTextTitle />,
+                  noCurrentFeatureContent: (
+                    <InfoBoxTextContent
+                      setAppMenuVisible={setAppMenuVisible}
+                      setAppMenuActiveMenuSection={setAppMenuActiveMenuSection}
+                    />
+                  ),
+                }}
+              />
+            }
+          >
+            {secondaryInfoVisible && (
+              <SecondaryInfoModal
+                feature={selectedFeature}
+                setOpen={setSecondaryInfoVisible}
+                versionString={getApplicationVersion(versionData)}
+              />
+            )}
+            <TopicMapSelectionContent />
+            <FeatureCollection></FeatureCollection>
+          </TopicMapComponent>
         </ControlLayout>
       </div>
-      <TopicMapComponent
-        modalMenu={<Menu />}
-        locatorControl={false}
-        fullScreenControl={false}
-        zoomControls={false}
-        photoLightBox
-        gazetteerSearchControl={true}
-        gazetteerSearchComponent={EmptySearchComponent}
-        applicationMenuTooltipString={<MenuTooltip />}
-        infoBox={
-          <GenericInfoBoxFromFeature
-            pixelwidth={350}
-            config={{
-              displaySecondaryInfoAction: true,
-              city: "Wuppertal",
-              navigator: {
-                noun: {
-                  singular: "Anlage",
-                  plural: "Anlagen",
-                },
-              },
-              noFeatureTitle: <InfoBoxTextTitle />,
-              noCurrentFeatureContent: (
-                <InfoBoxTextContent
-                  setAppMenuVisible={setAppMenuVisible}
-                  setAppMenuActiveMenuSection={setAppMenuActiveMenuSection}
-                />
-              ),
-            }}
-          />
-        }
-      >
-        {secondaryInfoVisible && (
-          <SecondaryInfoModal
-            feature={selectedFeature}
-            setOpen={setSecondaryInfoVisible}
-            versionString={getApplicationVersion(versionData)}
-          />
-        )}
-        <TopicMapSelectionContent />
-        <FeatureCollection></FeatureCollection>
-      </TopicMapComponent>
-    </>
+    </div>
   );
 };
 
