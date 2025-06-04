@@ -10,7 +10,7 @@ import Color from "color";
 import parseHtml from "html-react-parser";
 
 interface InfoBoxProps {
-  currentFeature: any;
+  currentFeature?: any;
   featureCollection?: any;
   selectedIndex?: any;
   next?: any;
