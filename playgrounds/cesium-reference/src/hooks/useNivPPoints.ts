@@ -351,7 +351,10 @@ const useNivPPoints = (
 
     // Add entities to viewer
     newEntities.forEach((entity) => {
-      viewer.entities.add(entity);
+      // Add HMR robustness - check if viewer is not destroyed
+      if (viewer && !viewer.isDestroyed()) {
+        viewer.entities.add(entity);
+      }
     });
 
     console.debug(
@@ -361,11 +364,18 @@ const useNivPPoints = (
     // Cleanup function to remove entities when component unmounts
     return () => {
       console.debug("[NIVP] Cleaning up point entities...");
-      // Clean up the entities that were tracked in the ref
-      currentEntitiesRef.current.forEach((entity) => {
-        viewer.entities.remove(entity);
-      });
-      currentEntitiesRef.current = [];
+      try {
+        // Clean up the entities that were tracked in the ref
+        currentEntitiesRef.current.forEach((entity) => {
+          // Add HMR robustness - check if viewer is not destroyed
+          if (viewer && !viewer.isDestroyed()) {
+            viewer.entities.remove(entity);
+          }
+        });
+        currentEntitiesRef.current = [];
+      } catch (error) {
+        console.error("[useNivPPoints] Error during cleanup:", error);
+      }
     };
   }, [viewer, filteredPoints, elevationStandard, showLabels]);
 

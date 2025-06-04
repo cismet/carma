@@ -9,17 +9,29 @@ const useCameraElevation = (viewer: Viewer | null, threshold: number = 1000) => 
     if (!viewer) return;
 
     let frameRequestId: number;
+    let isActive = true; // Flag to track if effect is still active
 
     const updateCameraElevation = () => {
-      const cameraPosition = viewer.camera.positionCartographic;
-      if (cameraPosition) {
-        const elevation = cameraPosition.height;
-        setCameraElevation(elevation);
-        setIsAboveThreshold(elevation > threshold);
+      // Add HMR robustness - check if viewer is not destroyed and effect is still active
+      if (!isActive || !viewer || viewer.isDestroyed()) {
+        return;
       }
-      
-      // Continue monitoring on next frame
-      frameRequestId = requestAnimationFrame(updateCameraElevation);
+
+      try {
+        const cameraPosition = viewer.camera.positionCartographic;
+        if (cameraPosition) {
+          const elevation = cameraPosition.height;
+          setCameraElevation(elevation);
+          setIsAboveThreshold(elevation > threshold);
+        }
+        
+        // Continue monitoring on next frame only if still active
+        if (isActive) {
+          frameRequestId = requestAnimationFrame(updateCameraElevation);
+        }
+      } catch (error) {
+        console.error("[useCameraElevation] Error updating camera elevation:", error);
+      }
     };
 
     // Start monitoring
@@ -27,6 +39,7 @@ const useCameraElevation = (viewer: Viewer | null, threshold: number = 1000) => 
 
     // Cleanup function
     return () => {
+      isActive = false;
       if (frameRequestId) {
         cancelAnimationFrame(frameRequestId);
       }

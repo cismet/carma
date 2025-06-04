@@ -9,36 +9,20 @@ import { CesiumErrorToErrorBoundaryForwarder } from "@carma-mapping/cesium-engin
 import useTileset from "../hooks/useTileset";
 import { useZoomToTilesetOnReady } from "../hooks/useZoomToTilesetOnReady";
 import useNivPPoints, { type ElevationStandard } from "../hooks/useNivPPoints";
-import useTerrainClick from "../hooks/useTerrainClick";
+import useSceneClick from "../hooks/useSceneClick";
 import useCameraElevation from "../hooks/useCameraElevation";
-import UiBottom from "../components/UiBottom";
 import UiTopRight from "../components/UiTopRight";
 import PointControls from "../components/PointControls";
 import { cesiumConstructorOptions } from "../config";
-import { vi } from "vitest";
 
-const DEFAULT_MAX_ERROR = 5;
-const MAX_MAX_ERROR = 32;
-const initialMaxError = (() => {
-  const hash = window.location.hash;
-  const queryStringIndex = hash.indexOf("?");
-  if (queryStringIndex !== -1) {
-    const queryString = hash.substring(queryStringIndex + 1);
-    const hashParams = new URLSearchParams(queryString);
-    const maxErrorParam = parseFloat(
-      hashParams.get("maxerror") || DEFAULT_MAX_ERROR.toString()
-    );
-    return maxErrorParam >= 0.5 && maxErrorParam <= MAX_MAX_ERROR
-      ? maxErrorParam
-      : DEFAULT_MAX_ERROR;
-  }
-  return DEFAULT_MAX_ERROR;
-})();
-console.log("ini", initialMaxError);
+const tilesetConstructorOptions = {
+  skipLevelOfDetail: true,
+  immediatelyLoadDesiredLevelOfDetail: true,
+  maximumScreenSpaceError: 1,
+  show: true,
+};
 
 const TestMeshElevations: React.FC = () => {
-  const [maximumScreenSpaceError, setMaximumScreenSpaceError] =
-    useState<number>(initialMaxError);
   const [showTileInspector, setShowTileInspector] = useState(false);
   const [showNivPPoints, setShowNivPPoints] = useState(true); // Load points by default
   const [elevationStandard, setElevationStandard] =
@@ -53,15 +37,8 @@ const TestMeshElevations: React.FC = () => {
   const { tilesetRef, tilesetReady } = useTileset(
     tilesetUrl,
     viewerRef,
-    useMemo(
-      () => ({
-        skipLevelOfDetail: true,
-        immediatelyLoadDesiredLevelOfDetail: true,
-        maximumScreenSpaceError: maximumScreenSpaceError,
-        show: true,
-      }),
-      [maximumScreenSpaceError] // Fix missing dependency
-    )
+
+    tilesetConstructorOptions
   );
 
   // Monitor camera elevation for label visibility
@@ -85,7 +62,7 @@ const TestMeshElevations: React.FC = () => {
   );
 
   // Enable terrain clicking functionality
-  useTerrainClick(viewerRef.current, enableTerrainClick, !hideLabels);
+  useSceneClick(viewerRef.current, enableTerrainClick, !hideLabels);
 
   useEffect(() => {
     if (viewerRef.current) {
@@ -101,40 +78,27 @@ const TestMeshElevations: React.FC = () => {
             infoBox: true, // Enable InfoBox to show entity details when clicked
           });
           viewerRef.current = viewer;
+          console.debug("[TestMeshElevations] Viewer initialized");
         }
       } catch (error) {
-        console.error("Initialization error:", error);
+        console.error("[TestMeshElevations] Initialization error:", error);
       }
     };
 
     initialize();
 
     return () => {
-      if (viewerRef.current) {
-        console.log("Destroying viewer");
-        viewerRef.current.destroy();
+      try {
+        if (viewerRef.current && !viewerRef.current.isDestroyed()) {
+          console.debug("[TestMeshElevations] Destroying viewer");
+          viewerRef.current.destroy();
+          viewerRef.current = null;
+        }
+      } catch (error) {
+        console.error("[TestMeshElevations] Error destroying viewer:", error);
       }
     };
   }, []);
-
-  useEffect(() => {
-    if (tilesetRef.current) {
-      tilesetRef.current.maximumScreenSpaceError = maximumScreenSpaceError;
-      console.info(
-        "maximumScreenSpaceError",
-        tilesetRef.current.maximumScreenSpaceError
-      );
-    }
-  }, [maximumScreenSpaceError, tilesetRef]);
-
-  useEffect(() => {
-    const hash = window.location.hash.split("?")[0];
-    const hashParams = new URLSearchParams(
-      window.location.hash.slice(hash.length)
-    );
-    hashParams.set("maxerror", maximumScreenSpaceError.toString());
-    window.location.hash = `${hash}?${hashParams.toString()}`;
-  }, [maximumScreenSpaceError]);
 
   useEffect(() => {
     if (uiTopRightRef.current) {
@@ -178,59 +142,6 @@ const TestMeshElevations: React.FC = () => {
         nivPError={nivPError}
         currentElevationStandard={currentElevationStandard}
       />
-
-      <UiBottom>
-        {/* Tileset Controls */}
-        <div
-          style={{ display: "flex", alignItems: "center", marginTop: "10px" }}
-        >
-          <Slider
-            min={0}
-            max={MAX_MAX_ERROR}
-            step={0.1}
-            onChange={setMaximumScreenSpaceError}
-            value={maximumScreenSpaceError}
-            tooltip={{ formatter: (value) => `Mesh maxError: ${value}` }}
-            style={{ flex: 1 }}
-          />
-        </div>
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <button onClick={() => setMaximumScreenSpaceError(0.5)}>
-            Error to 0.5
-          </button>
-          <button onClick={() => setMaximumScreenSpaceError(1)}>
-            Error to 1
-          </button>
-          <button onClick={() => setMaximumScreenSpaceError(2)}>
-            Error to 2
-          </button>
-          <button onClick={() => setMaximumScreenSpaceError(5)}>
-            Error to 5
-          </button>
-          <button onClick={() => setMaximumScreenSpaceError(32)}>
-            Error to 32
-          </button>
-          <button
-            onClick={() => {
-              try {
-                throw new Error("Forced render error");
-              } catch (error) {
-                CesiumWidget.prototype.showErrorPanel(
-                  "Render Error",
-                  "This is a forced render error for testing purposes.",
-                  error
-                );
-              }
-            }}
-          >
-            Force Render Error
-          </button>
-          <Divider type="vertical" />
-          <button onClick={() => setShowTileInspector(true)}>
-            Add Tile Inspector
-          </button>
-        </div>
-      </UiBottom>
     </>
   );
 };

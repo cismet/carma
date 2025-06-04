@@ -10,8 +10,15 @@ export const useZoomToTilesetOnReady = (
   const [hasZoomed, setHasZoomed] = useState(false);
   useEffect(() => {
     if (viewerRef.current && tilesetRef.current && tilesetReady && !hasZoomed) {
-      viewerRef.current.zoomTo(tilesetRef.current);
-      setHasZoomed(true);
+      try {
+        // Add HMR robustness - check if viewer is not destroyed
+        if (!viewerRef.current.isDestroyed()) {
+          viewerRef.current.zoomTo(tilesetRef.current);
+          setHasZoomed(true);
+        }
+      } catch (error) {
+        console.error("[useZoomToTilesetOnReady] Error zooming to tileset:", error);
+      }
     }
   }, [tilesetReady, viewerRef, tilesetRef, hasZoomed]);
 };

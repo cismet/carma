@@ -47,7 +47,17 @@ function useTileset(
 
   useEffect(() => {
     if (viewerRef.current && tilesetRef.current && tilesetReady) {
-      viewerRef.current.scene.primitives.add(tilesetRef.current);
+      // Add additional null checks for HMR robustness
+      try {
+        if (viewerRef.current.scene && !viewerRef.current.isDestroyed() && viewerRef.current.scene.primitives) {
+          viewerRef.current.scene.primitives.add(tilesetRef.current);
+          console.debug("[useTileset] Added tileset to scene");
+        } else {
+          console.warn("[useTileset] Scene or primitives not available, skipping tileset add");
+        }
+      } catch (error) {
+        console.error("[useTileset] Error adding tileset to scene:", error);
+      }
     }
   }, [viewerRef, tilesetReady]);
 

@@ -4,6 +4,8 @@ import {
   Color,
   Entity,
   PolylineGraphics,
+  PolygonGraphics,
+  PolygonHierarchy,
   Transforms,
   Matrix4,
 } from "cesium";
@@ -15,6 +17,8 @@ export interface Cross3DOptions {
   colorX?: Color;
   colorY?: Color;
   colorZ?: Color;
+  xyCirclePlane?: boolean; // If true, creates a circle in the XY plane
+  colorCircle?: Color; // Color for the XY circle plane
   width?: number;
   id?: string;
 }
@@ -37,6 +41,8 @@ export const create3DCross = (options: Cross3DOptions): Entity[] => {
     colorX = Color.RED,
     colorY = Color.GREEN,
     colorZ = Color.BLUE,
+    xyCirclePlane = true,
+    colorCircle = Color.WHITE.withAlpha(0.33), // 33% opacity white
     width = 1,
     id = "3d-cross",
   } = options;
@@ -81,6 +87,9 @@ export const create3DCross = (options: Cross3DOptions): Entity[] => {
   const xAxisEntity = new Entity({
     id: `${id}-x-axis`,
     name: "3D Cross X-Axis",
+    properties: {
+      _drillPickIgnore: true, // Mark to ignore in drill pick operations
+    },
     polyline: new PolylineGraphics({
       positions: [xNegative, xPositive],
       width,
@@ -92,6 +101,9 @@ export const create3DCross = (options: Cross3DOptions): Entity[] => {
   const yAxisEntity = new Entity({
     id: `${id}-y-axis`,
     name: "3D Cross Y-Axis",
+    properties: {
+      _drillPickIgnore: true, // Mark to ignore in drill pick operations
+    },
     polyline: new PolylineGraphics({
       positions: [yNegative, yPositive],
       width,
@@ -103,6 +115,9 @@ export const create3DCross = (options: Cross3DOptions): Entity[] => {
   const zAxisEntity = new Entity({
     id: `${id}-z-axis`,
     name: "3D Cross Z-Axis",
+    properties: {
+      _drillPickIgnore: true, // Mark to ignore in drill pick operations
+    },
     polyline: new PolylineGraphics({
       positions: [zNegative, zPositive],
       width,
@@ -111,7 +126,49 @@ export const create3DCross = (options: Cross3DOptions): Entity[] => {
     }),
   });
 
-  return [xAxisEntity, yAxisEntity, zAxisEntity];
+  const entities = [xAxisEntity, yAxisEntity, zAxisEntity];
+
+  // Add circular plane in XY plane if requested
+  if (xyCirclePlane) {
+    const circleRadius = halfSize;
+    const segments = 64; // Number of segments for smooth circle
+    const circlePositions: Cartesian3[] = [];
+
+    // Create circle points in the XY plane (local coordinate system)
+    for (let i = 0; i < segments; i++) {
+      const angle = (i / segments) * 2 * Math.PI;
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+
+      // Calculate point on circle in local XY plane
+      const xOffset = Cartesian3.multiplyByScalar(xAxis, cos * (circleRadius / halfSize), new Cartesian3());
+      const yOffset = Cartesian3.multiplyByScalar(yAxis, sin * (circleRadius / halfSize), new Cartesian3());
+      
+      // Combine offsets and add to center position
+      const circlePoint = Cartesian3.add(position, xOffset, new Cartesian3());
+      Cartesian3.add(circlePoint, yOffset, circlePoint);
+      
+      circlePositions.push(circlePoint);
+    }
+
+    const circleEntity = new Entity({
+      id: `${id}-xy-circle`,
+      name: "3D Cross XY Circle Plane",
+      properties: {
+        _drillPickIgnore: true, // Mark to ignore in drill pick operations
+      },
+      polygon: new PolygonGraphics({
+        hierarchy: new PolygonHierarchy(circlePositions),
+        material: colorCircle,
+        outline: false,
+        perPositionHeight: true,
+      }),
+    });
+
+    entities.push(circleEntity);
+  }
+
+  return entities;
 };
 
 /**
