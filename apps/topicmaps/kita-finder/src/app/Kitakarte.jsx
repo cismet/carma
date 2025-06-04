@@ -121,7 +121,7 @@ const KitaKarte = () => {
             />
           </Control>
           <Control position="bottomleft" order={10}>
-            <div data-test-id="fuzzy-search">
+            <div data-test-id="fuzzy-search" className="mt-1">
               <LibFuzzySearch
                 pixelwidth={
                   responsiveState === "normal"
