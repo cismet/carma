@@ -53,6 +53,7 @@ export const GenericInfoBoxFromFeature = (props) => {
     overrideFeatureCollectionContext,
     headerColorizer,
     headerColor,
+    infoStyle = {},
   } = props;
   let featureCollectionContext =
     useContext(FeatureCollectionContext) || defaultContextValues;
@@ -135,6 +136,7 @@ export const GenericInfoBoxFromFeature = (props) => {
       //   items={filteredItems}
       // selectedIndex={selectedIndex}
       //   showModalMenu={() => {}}
+      infoStyle={infoStyle}
       colorizer={headerColorizer}
       pixelwidth={pixelwidth}
       header={header}
