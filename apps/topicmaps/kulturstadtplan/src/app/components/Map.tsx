@@ -95,7 +95,7 @@ const Map = () => {
           />
         </Control>
         <Control position="bottomleft" order={10}>
-          <div data-test-id="fuzzy-search">
+          <div data-test-id="fuzzy-search" style={{ marginTop: "4px" }}>
             <LibFuzzySearch
               pixelwidth={
                 responsiveState === "normal" ? "300px" : windowSize.width - gap
