@@ -38,7 +38,8 @@ import {
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 
-import GenericInfoBoxFromFeature from "./components/GenericInfoBoxFromFeature";
+// import GenericInfoBoxFromFeature from "./components/GenericInfoBoxFromFeature";
+import { GenericInfoBoxFromFeature } from "@carma-apps/portals";
 
 const KitaKarte = () => {
   const { responsiveState, gap, windowSize } = useContext(

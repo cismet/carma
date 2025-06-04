@@ -19,6 +19,7 @@ export { Share, useShareUrl, SHORTENER_URL } from "./lib/components/Share.tsx";
 export { CarmaMapProviderWrapper } from "./lib/components/CarmaMapProviderWrapper.tsx";
 export { InfoBox } from "./lib/components/InfoBox.tsx";
 export { ResponsiveInfoBox } from "./lib/components/ResponsiveInfoBox.tsx";
+export { GenericInfoBoxFromFeature } from "./lib/components/GenericInfoBoxFromFeature.tsx";
 
 export { GazDataProvider, useGazData } from "./lib/components/GazDataProvider";
 
