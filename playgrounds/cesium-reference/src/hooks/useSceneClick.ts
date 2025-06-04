@@ -146,7 +146,13 @@ const useSceneClick = (viewer: Viewer | null, enabled: boolean = true) => {
         // Add 3D cross to viewer
         cross3D.addToViewer(viewer);
         cross3DRef.current = cross3D;
-        viewer.scene.requestRender();
+
+        // Schedule a render update after entities are processed
+        const onEntitiesAdded = () => {
+          viewer.scene.postRender.removeEventListener(onEntitiesAdded);
+          viewer.scene.requestRender();
+        };
+        viewer.scene.postRender.addEventListener(onEntitiesAdded);
 
         console.debug(
           `[SceneClick] Created terrain point at elevation: ${height.toFixed(
