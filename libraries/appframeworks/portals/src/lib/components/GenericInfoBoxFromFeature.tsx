@@ -8,8 +8,8 @@ import {
 } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
 
-// import { ResponsiveTopicMapDispatchContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
-import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import { ResponsiveTopicMapDispatchContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+// import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 
@@ -65,7 +65,7 @@ export const GenericInfoBoxFromFeature = (props) => {
   const lightBoxDispatchContext =
     useContext(LightBoxDispatchContext) || defaultContextValues;
   const { setInfoBoxPixelWidth } =
-    useContext(ResponsiveTopicMapContext) || defaultContextValues;
+    useContext(ResponsiveTopicMapDispatchContext) || defaultContextValues;
   const {
     shownFeatures = [],
     selectedFeature,
