@@ -12,7 +12,7 @@ import {
 
 export interface Cross3DOptions {
   position: Cartesian3;
-  size?: number;
+  radius?: number;
   color?: Color;
   colorX?: Color;
   colorY?: Color;
@@ -37,7 +37,7 @@ interface ViewerLike {
 export const create3DCross = (options: Cross3DOptions): Entity[] => {
   const {
     position,
-    size = 0.1, // Size in meters
+    radius = 10,
     colorX = Color.RED,
     colorY = Color.GREEN,
     colorZ = Color.BLUE,
@@ -49,9 +49,6 @@ export const create3DCross = (options: Cross3DOptions): Entity[] => {
 
   // Create transformation matrix for the position to get local coordinate system
   const eastNorthUpMatrix = Transforms.eastNorthUpToFixedFrame(position);
-
-  // Define half-size for extending in both directions
-  const halfSize = size / 2;
 
   // Create vectors for the three axes in local coordinate system
   const xAxis4 = Matrix4.getColumn(eastNorthUpMatrix, 0, new Cartesian4());
@@ -69,9 +66,9 @@ export const create3DCross = (options: Cross3DOptions): Entity[] => {
   Cartesian3.normalize(zAxis, zAxis);
 
   // Scale axes by half size
-  Cartesian3.multiplyByScalar(xAxis, halfSize, xAxis);
-  Cartesian3.multiplyByScalar(yAxis, halfSize, yAxis);
-  Cartesian3.multiplyByScalar(zAxis, halfSize, zAxis);
+  Cartesian3.multiplyByScalar(xAxis, radius, xAxis);
+  Cartesian3.multiplyByScalar(yAxis, radius, yAxis);
+  Cartesian3.multiplyByScalar(zAxis, radius, zAxis);
 
   // Calculate endpoints for each axis
   const xPositive = Cartesian3.add(position, xAxis, new Cartesian3());
@@ -130,7 +127,6 @@ export const create3DCross = (options: Cross3DOptions): Entity[] => {
 
   // Add circular plane in XY plane if requested
   if (xyCirclePlane) {
-    const circleRadius = halfSize;
     const segments = 64; // Number of segments for smooth circle
     const circlePositions: Cartesian3[] = [];
 
@@ -141,13 +137,13 @@ export const create3DCross = (options: Cross3DOptions): Entity[] => {
       const sin = Math.sin(angle);
 
       // Calculate point on circle in local XY plane
-      const xOffset = Cartesian3.multiplyByScalar(xAxis, cos * (circleRadius / halfSize), new Cartesian3());
-      const yOffset = Cartesian3.multiplyByScalar(yAxis, sin * (circleRadius / halfSize), new Cartesian3());
-      
+      const xOffset = Cartesian3.multiplyByScalar(xAxis, cos, new Cartesian3());
+      const yOffset = Cartesian3.multiplyByScalar(yAxis, sin, new Cartesian3());
+
       // Combine offsets and add to center position
       const circlePoint = Cartesian3.add(position, xOffset, new Cartesian3());
       Cartesian3.add(circlePoint, yOffset, circlePoint);
-      
+
       circlePositions.push(circlePoint);
     }
 

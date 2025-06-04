@@ -26,6 +26,7 @@ const TestMeshElevations: React.FC = () => {
     useState<ElevationStandard>("nhn"); // Default to NHN
   const [includeHistoric, setIncludeHistoric] = useState(false); // Filter out historic points by default
   const [enableTerrainClick, setEnableTerrainClick] = useState(true); // Enable terrain clicking by default
+  const [searchRadius, setSearchRadius] = useState(10); // Search radius in meters
 
   const [tilesetUrl] = useState<string>(WUPP_MESH_2024.url);
 
@@ -42,6 +43,7 @@ const TestMeshElevations: React.FC = () => {
   const {
     isLoading: nivPLoading,
     error: nivPError,
+    entities: nivPEntities,
     pointCount,
     elevationStandard: currentElevationStandard,
   } = useNivPPoints(
@@ -52,7 +54,13 @@ const TestMeshElevations: React.FC = () => {
   );
 
   // Enable terrain clicking functionality with elevation isoline callback
-  useSceneClick(viewerRef.current, enableTerrainClick);
+  // Pass nivPEntities to enable InfoBox display for nearby points
+  useSceneClick(
+    viewerRef.current, 
+    enableTerrainClick, 
+    nivPEntities,
+    searchRadius // Use dynamic search radius
+  );
 
   useEffect(() => {
     if (viewerRef.current) {
@@ -111,6 +119,8 @@ const TestMeshElevations: React.FC = () => {
         onIncludeHistoricChange={setIncludeHistoric}
         enableTerrainClick={enableTerrainClick}
         onEnableTerrainClickChange={setEnableTerrainClick}
+        searchRadius={searchRadius}
+        onSearchRadiusChange={setSearchRadius}
         pointCount={pointCount}
         nivPLoading={nivPLoading}
         nivPError={nivPError}

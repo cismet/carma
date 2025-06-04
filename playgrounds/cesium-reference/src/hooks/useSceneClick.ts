@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import type { Viewer } from "cesium";
 import {
   Cartesian2,
+  Cartesian3,
   Color,
   Entity,
   ScreenSpaceEventType,
@@ -11,7 +12,12 @@ import {
 import { create3DCrossGroup } from "../utils/cesium3DCross";
 import { LABEL_FONT, SCALE_BY_DISTANCE } from "./useNivPPoints";
 
-const useSceneClick = (viewer: Viewer | null, enabled: boolean = true) => {
+const useSceneClick = (
+  viewer: Viewer | null,
+  enabled: boolean = true,
+  nivPEntities?: Entity[],
+  searchRadius: number = 10 // Default search radius to 10m, same as cross3D visual
+) => {
   const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
   const terrainEntityRef = useRef<Entity | null>(null);
   const cross3DRef = useRef<{
@@ -25,7 +31,7 @@ const useSceneClick = (viewer: Viewer | null, enabled: boolean = true) => {
   } | null>(null);
 
   useEffect(() => {
-    if (!viewer || !enabled) {
+    if (!viewer || viewer.isDestroyed() || !enabled) {
       // Clean up if disabled
       if (handlerRef.current) {
         handlerRef.current.destroy();
@@ -128,10 +134,10 @@ const useSceneClick = (viewer: Viewer | null, enabled: boolean = true) => {
           },
         });
 
-        // Create 3D cross visualization
+        // Create 3D cross visualization (link size to search radius)
         const cross3D = create3DCrossGroup({
           position: pickedPosition,
-          size: 10, // Size in meters for the cross
+          radius: searchRadius, // Link marker size to search radius
           color: Color.ORANGE,
           width: 2,
           id: "terrain-click-cross-3d",
@@ -146,6 +152,43 @@ const useSceneClick = (viewer: Viewer | null, enabled: boolean = true) => {
         // Add 3D cross to viewer
         cross3D.addToViewer(viewer);
         cross3DRef.current = cross3D;
+
+        // Check for nearby NivP entities within search radius (simplified approach)
+        if (nivPEntities && nivPEntities.length > 0) {
+          console.debug(`[SceneClick] Checking ${nivPEntities.length} NivP entities for proximity within ${searchRadius}m`);
+          
+          // Find the first NivP entity within the search radius
+          let foundEntity = false;
+          for (const entity of nivPEntities) {
+            if (entity.position) {
+              const entityPosition = entity.position.getValue(viewer.clock.currentTime);
+              if (entityPosition) {
+                const distance = Cartesian3.distance(pickedPosition, entityPosition);
+                console.debug(`[SceneClick] Entity "${entity.name}" distance: ${distance.toFixed(2)}m`);
+                
+                // Use the first entity within range (typically there won't be multiple very close)
+                if (distance <= searchRadius) {
+                  viewer.selectedEntity = entity;
+                  foundEntity = true;
+                  console.debug(
+                    `[SceneClick] Found NivP entity "${entity.name}" within ${searchRadius}m radius (${distance.toFixed(2)}m away)`
+                  );
+                  break; // Stop after finding the first entity within range
+                }
+              } else {
+                console.debug(`[SceneClick] Entity "${entity.name}" has no position value`);
+              }
+            } else {
+              console.debug(`[SceneClick] Entity "${entity.name}" has no position property`);
+            }
+          }
+          
+          if (!foundEntity) {
+            console.debug(`[SceneClick] No NivP entities found within ${searchRadius}m radius`);
+          }
+        } else {
+          console.debug(`[SceneClick] No NivP entities provided (${nivPEntities?.length || 0} entities)`);
+        }
 
         // Schedule a render update after entities are processed
         const onEntitiesAdded = () => {
@@ -183,7 +226,7 @@ const useSceneClick = (viewer: Viewer | null, enabled: boolean = true) => {
       }
       console.debug("[SceneClick] Terrain click handler cleaned up");
     };
-  }, [viewer, enabled]);
+  }, [viewer, enabled, nivPEntities, searchRadius]);
 
   return {
     // Could expose additional functionality here if needed

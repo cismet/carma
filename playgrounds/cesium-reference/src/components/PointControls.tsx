@@ -1,4 +1,4 @@
-import { Checkbox, Alert, Radio } from "antd";
+import { Checkbox, Alert, Radio, Slider } from "antd";
 import type { ElevationStandard } from "../hooks/useNivPPoints";
 
 interface PointControlsProps {
@@ -10,6 +10,8 @@ interface PointControlsProps {
   onIncludeHistoricChange: (include: boolean) => void;
   enableTerrainClick: boolean;
   onEnableTerrainClickChange: (enabled: boolean) => void;
+  searchRadius: number;
+  onSearchRadiusChange: (radius: number) => void;
   pointCount: number;
   nivPLoading: boolean;
   nivPError: string | null;
@@ -25,6 +27,8 @@ const PointControls: React.FC<PointControlsProps> = ({
   onIncludeHistoricChange,
   enableTerrainClick,
   onEnableTerrainClickChange,
+  searchRadius,
+  onSearchRadiusChange,
   pointCount,
   nivPLoading,
   nivPError,
@@ -153,10 +157,38 @@ const PointControls: React.FC<PointControlsProps> = ({
           </Checkbox>
         </div>
         {enableTerrainClick && (
-          <div
-            style={{ fontSize: "11px", color: "#bfbfbf", marginLeft: "24px" }}
-          >
-            Click anywhere on the terrain to see elevation.
+          <div style={{ marginLeft: "24px" }}>
+            <div
+              style={{ fontSize: "11px", color: "#bfbfbf", marginBottom: "12px" }}
+            >
+              Click anywhere on the terrain to see elevation.
+            </div>
+            <div style={{ marginBottom: "8px" }}>
+              <div
+                style={{
+                  marginBottom: "8px",
+                  fontWeight: "500",
+                  color: "#e6f7ff",
+                  fontSize: "12px",
+                }}
+              >
+                Search Radius: {searchRadius}m
+              </div>
+              <Slider
+                min={5}
+                max={50}
+                value={searchRadius}
+                onChange={onSearchRadiusChange}
+                step={5}
+                style={{ width: "200px" }}
+                tooltip={{ formatter: (value) => `${value}m` }}
+              />
+              <div
+                style={{ fontSize: "10px", color: "#bfbfbf", marginTop: "4px" }}
+              >
+                Marker size and search range for nearby NivP points
+              </div>
+            </div>
           </div>
         )}
       </div>
