@@ -7,7 +7,7 @@ interface ControlRendererProps {
 }
 
 // --- Style Constants ---
-const MIN_MARGIN = "10px";
+const MIN_MARGIN = "12.5px";
 
 // Safe area inset constants with fallback values (matching Tailwind config logic)
 const SAFE_AREA_TOP = `max(${MIN_MARGIN}, env(safe-area-inset-top))`;
