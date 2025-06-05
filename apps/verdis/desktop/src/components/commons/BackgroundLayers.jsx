@@ -8,13 +8,40 @@ export const inIntranet = window.location.origin.includes("wuppertal-intra.de");
 
 export const configuration = inIntranet
   ? {
+      // trueOrtho2024: {
+      //   title: "True Orthofoto 2024",
+      //   conf: {
+      //     type: "wms",
+      //     url: "http://s10221:7098/orthofotos/services",
+      //     layers: "WTO2024",
+      //     version: "1.1.1",
+      //     tileSize: 256,
+      //     transparent: true,
+      //     pane: "backgroundLayers",
+      //     maxZoom: 26,
+      //     format: "image/png",
+      //   },
+      // },
+      trueOrtho2024slow: {
+        title: "True Orthofoto 2024",
+        conf: {
+          type: "wms",
+          url: "https://maps.wuppertal.de/karten",
+          layers: "R102:trueortho2024",
+          tileSize: 256,
+          transparent: true,
+          pane: "backgroundLayers",
+          maxZoom: 26,
+          format: "image/png",
+        },
+      },
       trueOrtho2024: {
         title: "True Orthofoto 2024",
         conf: {
           type: "wms",
-          url: "http://s10221:7098/orthofotos/services",
-          layers: "WTO2024",
-          version: "1.1.1",
+          url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
+          layers: "GIS-102:trueortho2024",
+
           tileSize: 256,
           transparent: true,
           pane: "backgroundLayers",
@@ -92,12 +119,26 @@ export const configuration = inIntranet
       },
     }
   : {
-      trueOrtho2024: {
+      trueOrtho2024slow: {
         title: "True Orthofoto 2024",
         conf: {
           type: "wms",
           url: "https://maps.wuppertal.de/karten",
           layers: "R102:trueortho2024",
+          tileSize: 256,
+          transparent: true,
+          pane: "backgroundLayers",
+          maxZoom: 26,
+          format: "image/png",
+        },
+      },
+      trueOrtho2024: {
+        title: "True Orthofoto 2024",
+        conf: {
+          type: "wms",
+          url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
+          layers: "GIS-102:trueortho2024",
+
           tileSize: 256,
           transparent: true,
           pane: "backgroundLayers",

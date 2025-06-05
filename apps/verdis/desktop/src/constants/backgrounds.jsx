@@ -84,12 +84,12 @@ export const backgroundConfigurations = {
     title: "Luftbildkarte",
   },
   mix: {
-    layerkey: "trueOrtho2022@70|cismetLight",
+    layerkey: "trueOrtho2024@70|cismetLight",
     src: "/images/rain-hazard-map-bg/ortho.png",
     title: "Luftbildkarte",
   },
   ortho: {
-    layerkey: "trueOrtho2022@95",
+    layerkey: "trueOrtho2024@95",
     src: "/images/rain-hazard-map-bg/ortho.png",
     title: "Luftbild",
   },

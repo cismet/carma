@@ -14,6 +14,17 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import Layout from "./app/components/Layout";
 import VerdisOnlineHelp from "./containers/VerdisOnlineHelpFAQs";
 import { PLAYGROUND } from "./constants/cids";
+import { defaultLayerConf } from "react-cismap/tools/layerFactory";
+
+const baseLayerConf = {
+  ...defaultLayerConf,
+};
+baseLayerConf.namedLayers.trueOrtho2024 = {
+  type: "wms",
+  url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
+  layers: "GIS-102:trueortho2024",
+  transparent: true,
+};
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement
@@ -76,6 +87,7 @@ root.render(
         referenceSystemDefinition={MappingConstants.proj4crs25832def}
         mapEPSGCode="25832"
         referenceSystem={MappingConstants.crs25832}
+        baseLayerConf={baseLayerConf}
       >
         <PersistGate loading={null} persistor={persistor}>
           <Layout>
