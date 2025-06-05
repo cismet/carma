@@ -87,7 +87,7 @@ const Map = () => {
           />
         </Control>
         <Control position="bottomleft" order={10}>
-          <div data-test-id="fuzzy-search" className="h-full w-full pl-1">
+          <div data-test-id="fuzzy-search" style={{ marginTop: "4px" }}>
             <LibFuzzySearch
               priorityTypes={[
                 "ebikes",
