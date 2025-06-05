@@ -1,5 +1,5 @@
 import { Control } from "@carma-mapping/map-controls-layout";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import {
   FullscreenControl,
@@ -10,6 +10,7 @@ import {
   defaultTypeInference,
   LibFuzzySearch,
 } from "@carma-mapping/fuzzy-search";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 interface CarmaMapProps {
   mapEngine?: "leaflet" | "maplibre" | "cesium";
@@ -36,6 +37,10 @@ export const CarmaMap = (props: CarmaMapProps) => {
     gazetteerSearchComponent,
     children,
   } = props;
+
+  const { responsiveState, gap, windowSize } = useContext<
+    typeof ResponsiveTopicMapContext
+  >(ResponsiveTopicMapContext);
   const [map, setMap] = useState(<></>);
 
   useEffect(() => {
@@ -46,6 +51,7 @@ export const CarmaMap = (props: CarmaMapProps) => {
           locatorControl={false}
           fullScreenControl={false}
           zoomControls={false}
+          gazetteerSearchControl={false}
         >
           {children}
         </TopicMapComponent>
@@ -88,7 +94,11 @@ export const CarmaMap = (props: CarmaMapProps) => {
           ) : (
             <div data-test-id="fuzzy-search" style={{ marginTop: "4px" }}>
               <LibFuzzySearch
-                pixelwidth={"300px"}
+                pixelwidth={
+                  responsiveState === "normal"
+                    ? "300px"
+                    : windowSize.width - gap
+                }
                 placeholder="Stadtteil | Adresse | POI"
                 priorityTypes={[
                   "pois",
