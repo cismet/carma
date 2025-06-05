@@ -9,7 +9,6 @@ import {
   UIDispatchContext,
 } from "react-cismap/contexts/UIContextProvider";
 import FeatureCollection from "react-cismap/FeatureCollection";
-import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import { getPoiClusterIconCreatorFunction } from "../../helper/styler";
 import Menu from "./Menu";
@@ -37,6 +36,8 @@ import {
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { getApplicationVersion } from "@carma-commons/utils";
 import versionData from "../../version.json";
+import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
+import { GenericInfoBoxFromFeature } from "@carma-apps/portals";
 
 import SIMComponentDictionary from "@carma-collab/wuppertal/secondary-info-modals";
 const SecondaryInfoModal = SIMComponentDictionary["ebikesSIM"];
@@ -69,97 +70,84 @@ const Map = () => {
   }, [markerSymbolSize]);
 
   return (
-    <>
-      <div
-        // className="controls-container"
-        style={{
-          position: "absolute",
-          top: "0px",
-          left: "0px",
-          bottom: "0px",
-          zIndex: 600,
-        }}
-      >
-        <ControlLayout ifStorybook={false}>
-          <Control position="topleft" order={10}>
-            <ZoomControl />
-          </Control>
+    <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
+      <ControlLayout ifStorybook={false}>
+        <Control position="topleft" order={10}>
+          <ZoomControl />
+        </Control>
 
-          <Control position="topleft" order={50}>
-            <FullscreenControl />
-          </Control>
-          <Control position="topleft" order={60} title="Mein Standort">
-            <RoutedMapLocateControl
-              tourRefLabels={null}
-              disabled={false}
-              nativeTooltip={true}
+        <Control position="topleft" order={50}>
+          <FullscreenControl />
+        </Control>
+        <Control position="topleft" order={60} title="Mein Standort">
+          <RoutedMapLocateControl
+            tourRefLabels={null}
+            disabled={false}
+            nativeTooltip={true}
+          />
+        </Control>
+        <Control position="bottomleft" order={10}>
+          <div data-test-id="fuzzy-search" className="h-full w-full pl-1">
+            <LibFuzzySearch
+              priorityTypes={[
+                "ebikes",
+                "bezirke",
+                "quartiere",
+                "adressen",
+                "streets",
+                "pois",
+                "poisAlternativeNames",
+                "kitas",
+                "schulen",
+              ]}
+              typeInference={defaultTypeInference}
+              // onSelection={()=> {}}
+              pixelwidth={
+                responsiveState === "normal" ? "300px" : windowSize.width - gap
+              }
+              placeholder={searchTextPlaceholder}
             />
-          </Control>
-          <Control position="bottomleft" order={10}>
-            <div data-test-id="fuzzy-search" className="h-full w-full pl-1">
-              <LibFuzzySearch
-                priorityTypes={[
-                  "ebikes",
-                  "bezirke",
-                  "quartiere",
-                  "adressen",
-                  "streets",
-                  "pois",
-                  "poisAlternativeNames",
-                  "kitas",
-                  "schulen",
-                ]}
-                typeInference={defaultTypeInference}
-                // onSelection={()=> {}}
-                pixelwidth={
-                  responsiveState === "normal"
-                    ? "300px"
-                    : windowSize.width - gap
-                }
-                placeholder={searchTextPlaceholder}
-              />
-            </div>
-          </Control>
-        </ControlLayout>
-      </div>
-      <TopicMapComponent
-        modalMenu={<Menu />}
-        locatorControl={false}
-        fullScreenControl={false}
-        zoomControls={false}
-        photoLightBox
-        applicationMenuTooltipString={<MenuTooltip />}
-        gazetteerSearchControl={true}
-        gazetteerSearchComponent={EmptySearchComponent}
-        infoBox={
-          <GenericInfoBoxFromFeature
-            pixelwidth={350}
-            config={{
-              displaySecondaryInfoAction: true,
-              city: "Wuppertal",
-              navigator: {
-                noun: {
-                  singular: "Sation",
-                  plural: "Stationen",
+          </div>
+        </Control>
+        <TopicMapComponent
+          modalMenu={<Menu />}
+          locatorControl={false}
+          fullScreenControl={false}
+          zoomControls={false}
+          photoLightBox
+          applicationMenuTooltipString={<MenuTooltip />}
+          gazetteerSearchControl={true}
+          gazetteerSearchComponent={EmptySearchComponent}
+          infoBox={
+            <GenericInfoBoxFromFeature
+              pixelwidth={350}
+              config={{
+                displaySecondaryInfoAction: true,
+                city: "Wuppertal",
+                navigator: {
+                  noun: {
+                    singular: "Sation",
+                    plural: "Stationen",
+                  },
                 },
-              },
-              noFeatureTitle: <InfoBoxTextTitle />,
-              noCurrentFeatureContent: <InfoBoxTextContent />,
-            }}
-          />
-        }
-      >
-        {secondaryInfoVisible && (
-          <SecondaryInfoModal
-            versionString={getApplicationVersion(versionData)}
-            feature={selectedFeature}
-            setOpen={setSecondaryInfoVisible}
-          />
-        )}
-        <TopicMapSelectionContent />
-        <FeatureCollection></FeatureCollection>
-      </TopicMapComponent>
-    </>
+                noFeatureTitle: <InfoBoxTextTitle />,
+                noCurrentFeatureContent: <InfoBoxTextContent />,
+              }}
+            />
+          }
+        >
+          {secondaryInfoVisible && (
+            <SecondaryInfoModal
+              versionString={getApplicationVersion(versionData)}
+              feature={selectedFeature}
+              setOpen={setSecondaryInfoVisible}
+            />
+          )}
+          <TopicMapSelectionContent />
+          <FeatureCollection></FeatureCollection>
+        </TopicMapComponent>
+      </ControlLayout>
+    </div>
   );
 };
 
