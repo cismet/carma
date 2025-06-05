@@ -40,6 +40,7 @@ import {
 import { TopicMapSelectionContent } from "@carma-apps/portals";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import FuzzySearchWrapper from "./components/FuzzySearchWrapper";
+import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 
 function KlimaorteMap() {
   const { setSelectedFeatureByPredicate } = useContext(
@@ -224,82 +225,69 @@ function KlimaorteMap() {
   }
 
   return (
-    <>
-      <div
-        className="controls-container"
-        style={{
-          position: "absolute",
-          top: "0px",
-          left: "0px",
-          bottom: "0px",
-          zIndex: 600,
-        }}
-      >
-        <ControlLayout ifStorybook={false}>
-          <Control position="topleft" order={10}>
-            <ZoomControl />
-          </Control>
-          <Control position="topleft" order={50}>
-            <FullscreenControl />
-          </Control>
-          <Control position="topleft" order={60} title="Mein Standort">
-            <RoutedMapLocateControl
-              tourRefLabels={null}
-              disabled={false}
-              nativeTooltip={true}
-            />
-          </Control>
-          <Control position="bottomleft" order={10}>
-            <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
-              <FuzzySearchWrapper
-                searchTextPlaceholder={searchTextPlaceholder}
-              />
-            </div>
-          </Control>
-        </ControlLayout>
-      </div>
-      <div>
-        <ModeSwitcher
-          mode={appMode}
-          setMode={(mode) => {
-            window.location.href = getModeUrl(mode);
-            // setModeState(mode);
-            setAppMode(mode);
-          }}
-        />
-        <TopicMapComponent
-          maxZoom={19}
-          minZoom={8}
-          applicationMenuTooltipString={<MenuTooltip appMode={appMode} />}
-          locatorControl={false}
-          fullScreenControl={false}
-          zoomControls={false}
-          modalMenu={<MyMenu mode={appMode} />}
-          gazetteerSearchControl={true}
-          gazetteerSearchComponent={EmptySearchComponent}
-          infoBox={
-            <InfoBox
-              key={JSON.stringify(selectedFeature)}
-              appMode={appMode}
-              pixelwidth={400}
-              secondaryInfoBoxElements={secondaryInfoBoxElements}
-              moreDataAvailable={moreDataAvailable}
-              selectedFeature={selectedFeature}
-              secondarySelection={secondarySelection}
-            />
-          }
-          secondaryInfo={<InfoPanel />}
-        >
-          <TopicMapSelectionContent />
-          <FeatureCollection
-            key={"featureCollection" + appMode}
-            clusteringOptions={{
-              iconCreateFunction,
+    <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
+      <ControlLayout ifStorybook={false}>
+        <Control position="topleft" order={10}>
+          <ZoomControl />
+        </Control>
+        <Control position="topleft" order={50}>
+          <FullscreenControl />
+        </Control>
+        <Control position="topleft" order={60} title="Mein Standort">
+          <RoutedMapLocateControl
+            tourRefLabels={null}
+            disabled={false}
+            nativeTooltip={true}
+          />
+        </Control>
+        <Control position="bottomleft" order={10}>
+          <div data-test-id="fuzzy-search">
+            <FuzzySearchWrapper searchTextPlaceholder={searchTextPlaceholder} />
+          </div>
+        </Control>
+        <div>
+          <ModeSwitcher
+            mode={appMode}
+            setMode={(mode) => {
+              window.location.href = getModeUrl(mode);
+              // setModeState(mode);
+              setAppMode(mode);
             }}
           />
-        </TopicMapComponent>
-      </div>
-    </>
+          <TopicMapComponent
+            maxZoom={19}
+            minZoom={8}
+            applicationMenuTooltipString={<MenuTooltip appMode={appMode} />}
+            locatorControl={false}
+            fullScreenControl={false}
+            zoomControls={false}
+            modalMenu={<MyMenu mode={appMode} />}
+            gazetteerSearchControl={true}
+            gazetteerSearchComponent={EmptySearchComponent}
+            infoBox={
+              <InfoBox
+                key={JSON.stringify(selectedFeature)}
+                appMode={appMode}
+                pixelwidth={400}
+                secondaryInfoBoxElements={secondaryInfoBoxElements}
+                moreDataAvailable={moreDataAvailable}
+                selectedFeature={selectedFeature}
+                secondarySelection={secondarySelection}
+              />
+            }
+            secondaryInfo={<InfoPanel />}
+          >
+            <TopicMapSelectionContent />
+            <FeatureCollection
+              key={"featureCollection" + appMode}
+              clusteringOptions={{
+                iconCreateFunction,
+              }}
+            />
+          </TopicMapComponent>
+        </div>
+      </ControlLayout>
+    </div>
   );
 }
 

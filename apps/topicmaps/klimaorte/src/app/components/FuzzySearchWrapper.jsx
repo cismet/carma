@@ -56,25 +56,23 @@ const FuzzySearchWrapper = ({ searchTextPlaceholder }) => {
   };
 
   return (
-    <div className="custom-left-control">
-      <LibFuzzySearch
-        onSelection={onGazetteerSelection}
-        pixelwidth={pixelwidth}
-        placeholder={searchTextPlaceholder}
-        priorityTypes={[
-          "bpklimastandorte",
-          "pois",
-          "poisAlternativeNames",
-          "schulen",
-          "kitas",
-          "bezirke",
-          "quartiere",
-          "adressen",
-          "streets",
-        ]}
-        typeInference={defaultTypeInference}
-      />
-    </div>
+    <LibFuzzySearch
+      onSelection={onGazetteerSelection}
+      pixelwidth={pixelwidth}
+      placeholder={searchTextPlaceholder}
+      priorityTypes={[
+        "bpklimastandorte",
+        "pois",
+        "poisAlternativeNames",
+        "schulen",
+        "kitas",
+        "bezirke",
+        "quartiere",
+        "adressen",
+        "streets",
+      ]}
+      typeInference={defaultTypeInference}
+    />
   );
 };
 
