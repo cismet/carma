@@ -1,5 +1,19 @@
-import { Checkbox, Alert, Radio, Slider } from "antd";
+import {
+  Checkbox,
+  Radio,
+  Slider,
+  Button,
+  ConfigProvider,
+  theme,
+  Typography,
+  Tabs,
+  Divider,
+  Space,
+} from "antd";
 import type { ElevationStandard } from "../hooks/useNivPPoints";
+import "./PointControls.css";
+
+const { Title, Paragraph } = Typography;
 
 interface PointControlsProps {
   showNivPPoints: boolean;
@@ -13,9 +27,11 @@ interface PointControlsProps {
   searchRadius: number;
   onSearchRadiusChange: (radius: number) => void;
   pointCount: number;
-  nivPLoading: boolean;
-  nivPError: string | null;
-  currentElevationStandard: ElevationStandard;
+  // Measurement props
+  enableMeasurement: boolean;
+  onEnableMeasurementChange: (enabled: boolean) => void;
+  onClearMeasurements: () => void;
+  measurementCount: number;
 }
 
 const PointControls: React.FC<PointControlsProps> = ({
@@ -30,169 +46,148 @@ const PointControls: React.FC<PointControlsProps> = ({
   searchRadius,
   onSearchRadiusChange,
   pointCount,
-  nivPLoading,
-  nivPError,
-  currentElevationStandard,
+  // Measurement props
+  enableMeasurement,
+  onEnableMeasurementChange,
+  onClearMeasurements,
+  measurementCount,
 }) => {
+  // Determine which tab should be active based on enabled modes (only for the two interactive modes)
+  const getActiveTab = () => {
+    if (enableMeasurement) return "measurement";
+    if (enableTerrainClick) return "elevation";
+    return "elevation"; // Default to elevation tab
+  };
+
+  const handleTabChange = (activeKey: string) => {
+    // Disable all interactive modes first
+    onEnableTerrainClickChange(false);
+    onEnableMeasurementChange(false);
+
+    // Enable the selected mode
+    switch (activeKey) {
+      case "elevation":
+        onEnableTerrainClickChange(true);
+        break;
+      case "measurement":
+        onEnableMeasurementChange(true);
+        break;
+    }
+  };
+
+  const interactiveTabItems = [
+    {
+      key: "elevation",
+      label: "3D Point Query",
+      children: (
+        <div className="section-content">
+          <div className="control-item">
+            <Paragraph>
+              Click anywhere on the terrain to see elevation.
+            </Paragraph>
+          </div>
+
+          <div className="control-item">
+            <Paragraph>Search Radius: {searchRadius}m</Paragraph>
+            <Slider
+              min={5}
+              max={50}
+              value={searchRadius}
+              onChange={onSearchRadiusChange}
+              step={5}
+              tooltip={{ formatter: (value) => `${value}m` }}
+            />
+            <Paragraph>
+              Marker size and search range for nearby NivP points
+            </Paragraph>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "measurement",
+      label: "Distance Measurement",
+      children: (
+        <div className="section-content">
+          <div className="control-item">
+            <Paragraph>
+              Left click to add points, right click or double click to finish.
+            </Paragraph>
+          </div>
+
+          <div className="control-item">
+            <Button
+              type="primary"
+              danger
+              size="small"
+              onClick={onClearMeasurements}
+              disabled={measurementCount === 0}
+            >
+              Clear Measurements
+            </Button>
+            {measurementCount > 0 && (
+              <Paragraph style={{ display: "inline", marginLeft: "8px" }}>
+                ({measurementCount} measurement entities)
+              </Paragraph>
+            )}
+          </div>
+        </div>
+      ),
+    },
+  ];
+
   return (
-    <div
-      style={{
-        position: "absolute",
-        top: "10px",
-        left: "10px",
-        backgroundColor: "rgba(48, 48, 48, 0.9)",
-        backdropFilter: "blur(10px)",
-        border: "1px solid rgba(255, 255, 255, 0.2)",
-        borderRadius: "8px",
-        padding: "16px",
-        minWidth: "320px",
-        maxWidth: "fit-content",
-        color: "white",
-        fontSize: "14px",
-        boxShadow: "0 4px 20px rgba(0, 0, 0, 0.3)",
-        zIndex: 1000,
+    <ConfigProvider
+      theme={{
+        algorithm: theme.darkAlgorithm,
       }}
     >
-      {/* NivP Points Section */}
-      <div style={{ marginBottom: "16px" }}>
-        <div
-          style={{ fontWeight: "600", marginBottom: "12px", color: "#ffffff" }}
-        >
-          NivP Points
-        </div>
-        <div style={{ marginBottom: "10px" }}>
+      <div className="point-controls">
+        {/* Elevation Control Points Section - Always visible at top */}
+        <section className="elevation-points-section">
+          <Title level={3}>Elevation Control Points</Title>
+
           <Checkbox
             checked={showNivPPoints}
             onChange={(e) => onShowNivPPointsChange(e.target.checked)}
-            style={{ color: "white" }}
           >
-            <span style={{ color: "white" }}>
-              Show NivP Points ({pointCount > 0 ? pointCount : "Loading..."})
-            </span>
+            Show NivP Points ({pointCount > 0 ? pointCount : "Loading..."})
           </Checkbox>
-        </div>
+          <br />
 
-        {showNivPPoints && (
-          <div style={{ marginBottom: "10px", marginLeft: "24px" }}>
-            <Checkbox
-              checked={includeHistoric}
-              onChange={(e) => onIncludeHistoricChange(e.target.checked)}
-              style={{ color: "white" }}
-            >
-              <span style={{ color: "white" }}>Include Historic Points</span>
-            </Checkbox>
-            <div
-              style={{ marginTop: "2px", fontSize: "11px", color: "#bfbfbf" }}
-            >
-              Historic points are filtered out by default
-            </div>
-          </div>
-        )}
-
-        {showNivPPoints && (
-          <div style={{ marginBottom: "10px", marginLeft: "24px" }}>
-            <div
-              style={{
-                marginBottom: "8px",
-                fontWeight: "500",
-                color: "#e6f7ff",
-              }}
-            >
-              Elevation Standard:
-            </div>
-            <Radio.Group
-              value={elevationStandard}
-              onChange={(e) => onElevationStandardChange(e.target.value)}
-              size="small"
-            >
-              <Radio.Button value="nhn">NHN (default)</Radio.Button>
-              <Radio.Button value="nhn2016">NHN 2016</Radio.Button>
-              <Radio.Button value="nn">NN</Radio.Button>
-            </Radio.Group>
-            <div
-              style={{ marginTop: "5px", fontSize: "11px", color: "#bfbfbf" }}
-            >
-              Current: {currentElevationStandard.toUpperCase()} - Points update
-              automatically
-            </div>
-          </div>
-        )}
-
-        {showNivPPoints && nivPError && (
-          <div style={{ marginLeft: "24px" }}>
-            <Alert
-              message="Error loading NivP points"
-              description={nivPError}
-              type="error"
-              style={{ marginBottom: "8px" }}
-            />
-          </div>
-        )}
-
-        {showNivPPoints && nivPLoading && (
-          <div style={{ marginLeft: "24px" }}>
-            <Alert
-              message="Loading NivP points..."
-              type="info"
-              style={{ marginBottom: "8px" }}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Terrain Click Section */}
-      <div>
-        <div
-          style={{ fontWeight: "600", marginBottom: "12px", color: "#ffffff" }}
-        >
-          Terrain Elevation
-        </div>
-        <div style={{ marginBottom: "8px" }}>
-          <Checkbox
-            checked={enableTerrainClick}
-            onChange={(e) => onEnableTerrainClickChange(e.target.checked)}
-            style={{ color: "white" }}
-          >
-            <span style={{ color: "white" }}>Enable Terrain Click</span>
-          </Checkbox>
-        </div>
-        {enableTerrainClick && (
-          <div style={{ marginLeft: "24px" }}>
-            <div
-              style={{ fontSize: "11px", color: "#bfbfbf", marginBottom: "12px" }}
-            >
-              Click anywhere on the terrain to see elevation.
-            </div>
-            <div style={{ marginBottom: "8px" }}>
-              <div
-                style={{
-                  marginBottom: "8px",
-                  fontWeight: "500",
-                  color: "#e6f7ff",
-                  fontSize: "12px",
-                }}
+          {showNivPPoints && (
+            <Space direction="vertical" size="middle">
+              <Checkbox
+                checked={includeHistoric}
+                onChange={(e) => onIncludeHistoricChange(e.target.checked)}
               >
-                Search Radius: {searchRadius}m
-              </div>
-              <Slider
-                min={5}
-                max={50}
-                value={searchRadius}
-                onChange={onSearchRadiusChange}
-                step={5}
-                style={{ width: "200px" }}
-                tooltip={{ formatter: (value) => `${value}m` }}
-              />
-              <div
-                style={{ fontSize: "10px", color: "#bfbfbf", marginTop: "4px" }}
+                include Historic (no Elevation)
+              </Checkbox>
+
+              <Radio.Group
+                value={elevationStandard}
+                onChange={(e) => onElevationStandardChange(e.target.value)}
               >
-                Marker size and search range for nearby NivP points
-              </div>
-            </div>
-          </div>
-        )}
+                <Radio.Button value="nhn">NHN (default)</Radio.Button>
+                <Radio.Button value="nhn2016">NHN 2016</Radio.Button>
+                <Radio.Button value="nn">NN</Radio.Button>
+              </Radio.Group>
+            </Space>
+          )}
+        </section>
+        <Divider />
+
+        {/* Interactive Tools Section - Tabbed interface */}
+        <section className="interactive-tools-section">
+          <Tabs
+            activeKey={getActiveTab()}
+            onChange={handleTabChange}
+            items={interactiveTabItems}
+            size="small"
+          />
+        </section>
       </div>
-    </div>
+    </ConfigProvider>
   );
 };
 

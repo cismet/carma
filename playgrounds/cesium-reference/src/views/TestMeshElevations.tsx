@@ -9,6 +9,7 @@ import useTileset from "../hooks/useTileset";
 import { useZoomToTilesetOnReady } from "../hooks/useZoomToTilesetOnReady";
 import useNivPPoints, { type ElevationStandard } from "../hooks/useNivPPoints";
 import useSceneClick from "../hooks/useSceneClick";
+import useMeasurement from "../hooks/useMeasurement";
 import UiTopRight from "../components/UiTopRight";
 import PointControls from "../components/PointControls";
 import { cesiumConstructorOptions } from "../config";
@@ -27,6 +28,7 @@ const TestMeshElevations: React.FC = () => {
   const [includeHistoric, setIncludeHistoric] = useState(false); // Filter out historic points by default
   const [enableTerrainClick, setEnableTerrainClick] = useState(true); // Enable terrain clicking by default
   const [searchRadius, setSearchRadius] = useState(10); // Search radius in meters
+  const [enableMeasurement, setEnableMeasurement] = useState(false); // Measurement mode disabled by default
 
   const [tilesetUrl] = useState<string>(WUPP_MESH_2024.url);
 
@@ -41,8 +43,6 @@ const TestMeshElevations: React.FC = () => {
 
   // Load NivP points when enabled
   const {
-    isLoading: nivPLoading,
-    error: nivPError,
     entities: nivPEntities,
     pointCount,
     elevationStandard: currentElevationStandard,
@@ -55,11 +55,19 @@ const TestMeshElevations: React.FC = () => {
 
   // Enable terrain clicking functionality with elevation isoline callback
   // Pass nivPEntities to enable InfoBox display for nearby points
+  // Disable terrain click when measurement mode is active
   useSceneClick(
-    viewerRef.current, 
-    enableTerrainClick, 
+    viewerRef.current,
+    enableTerrainClick && !enableMeasurement,
     nivPEntities,
     searchRadius // Use dynamic search radius
+  );
+
+  // Enable measurement functionality
+  // Disable terrain click when measurement mode is active
+  const { clearMeasurements, measurementCount } = useMeasurement(
+    viewerRef.current,
+    enableMeasurement
   );
 
   useEffect(() => {
@@ -122,9 +130,16 @@ const TestMeshElevations: React.FC = () => {
         searchRadius={searchRadius}
         onSearchRadiusChange={setSearchRadius}
         pointCount={pointCount}
-        nivPLoading={nivPLoading}
-        nivPError={nivPError}
-        currentElevationStandard={currentElevationStandard}
+        enableMeasurement={enableMeasurement}
+        onEnableMeasurementChange={(enabled) => {
+          setEnableMeasurement(enabled);
+          // Auto-disable terrain click when measurement is enabled
+          if (enabled && enableTerrainClick) {
+            setEnableTerrainClick(false);
+          }
+        }}
+        onClearMeasurements={clearMeasurements}
+        measurementCount={measurementCount}
       />
     </>
   );

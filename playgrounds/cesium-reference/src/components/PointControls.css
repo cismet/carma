@@ -1,0 +1,14 @@
+.point-controls {
+  position: absolute;
+  top: 0.8rem;
+  left: 0.8rem;
+  background: rgba(42, 42, 42, 0.9);
+  color: white;
+  padding: 1rem;
+  border-radius: 8px;
+  min-width: 320px;
+  max-width: 600px;
+  font-family: system-ui, -apple-system, sans-serif;
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+}
