@@ -1,0 +1,38 @@
+/* Minimal shared panel styles */
+
+.panel-base {
+  background: rgba(42, 42, 42, 0.9);
+  border-radius: 8px;
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+}
+
+.panel-controls {
+  position: absolute;
+  top: 0.8rem;
+  left: 0.8rem;
+  padding: 1rem;
+  min-width: 320px;
+  max-width: 600px;
+}
+
+.panel-info {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 350px;
+  max-width: 90vw;
+  padding: 1rem;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.info-row-full {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 8px;
+}

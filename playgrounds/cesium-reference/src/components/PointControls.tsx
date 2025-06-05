@@ -7,11 +7,10 @@ import {
   theme,
   Typography,
   Tabs,
-  Divider,
   Space,
 } from "antd";
 import type { ElevationStandard } from "../hooks/useNivPPoints";
-import "./PointControls.css";
+import "./shared-panel-styles.css";
 
 const { Title, Paragraph } = Typography;
 
@@ -34,6 +33,7 @@ interface PointControlsProps {
   measurementCount: number;
 }
 
+/* eslint-disable react/prop-types */
 const PointControls: React.FC<PointControlsProps> = ({
   showNivPPoints,
   onShowNivPPointsChange,
@@ -80,14 +80,14 @@ const PointControls: React.FC<PointControlsProps> = ({
       key: "elevation",
       label: "3D Point Query",
       children: (
-        <div className="section-content">
-          <div className="control-item">
+        <div>
+          <div>
             <Paragraph>
               Click anywhere on the terrain to see elevation.
             </Paragraph>
           </div>
 
-          <div className="control-item">
+          <div>
             <Paragraph>Search Radius: {searchRadius}m</Paragraph>
             <Slider
               min={5}
@@ -108,14 +108,14 @@ const PointControls: React.FC<PointControlsProps> = ({
       key: "measurement",
       label: "Distance Measurement",
       children: (
-        <div className="section-content">
-          <div className="control-item">
+        <div>
+          <div>
             <Paragraph>
               Left click to add points, right click or double click to finish.
             </Paragraph>
           </div>
 
-          <div className="control-item">
+          <div>
             <Button
               type="primary"
               danger
@@ -142,10 +142,22 @@ const PointControls: React.FC<PointControlsProps> = ({
         algorithm: theme.darkAlgorithm,
       }}
     >
-      <div className="point-controls">
+      <div className="panel-base panel-controls">
         {/* Elevation Control Points Section - Always visible at top */}
-        <section className="elevation-points-section">
-          <Title level={3}>Elevation Control Points</Title>
+        <div style={{ marginBottom: "1rem" }}>
+          <Title
+            level={3}
+            style={{
+              fontSize: "11px",
+              fontWeight: 500,
+              color: "rgba(255, 255, 255, 0.7)",
+              textTransform: "uppercase",
+              letterSpacing: "0.5px",
+              marginBottom: "8px",
+            }}
+          >
+            Elevation Control Points
+          </Title>
 
           <Checkbox
             checked={showNivPPoints}
@@ -174,18 +186,24 @@ const PointControls: React.FC<PointControlsProps> = ({
               </Radio.Group>
             </Space>
           )}
-        </section>
-        <Divider />
+        </div>
+
+        <div
+          style={{
+            margin: "8px 0",
+            borderTop: "1px solid rgba(255, 255, 255, 0.15)",
+          }}
+        />
 
         {/* Interactive Tools Section - Tabbed interface */}
-        <section className="interactive-tools-section">
+        <div>
           <Tabs
             activeKey={getActiveTab()}
             onChange={handleTabChange}
             items={interactiveTabItems}
             size="small"
           />
-        </section>
+        </div>
       </div>
     </ConfigProvider>
   );

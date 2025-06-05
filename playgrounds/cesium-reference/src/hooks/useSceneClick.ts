@@ -11,13 +11,14 @@ import {
 
 import { create3DCrossGroup } from "../utils/cesium3DCross";
 import { LABEL_FONT, SCALE_BY_DISTANCE } from "./useNivPPoints";
-import { vi } from "vitest";
+import type { InfoData } from "../components/InfoPanel";
 
 const useSceneClick = (
   viewer: Viewer | null,
   enabled: boolean = true,
   nivPEntities?: Entity[],
-  searchRadius: number = 10 // Default search radius to 10m, same as cross3D visual
+  searchRadius: number = 10, // Default search radius to 10m, same as cross3D visual
+  onShowInfo?: (info: InfoData) => void // Callback to show custom info panel
 ) => {
   const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
   const terrainEntityRef = useRef<Entity | null>(null);
@@ -89,31 +90,11 @@ const useSceneClick = (
       const latitude = cartographic.latitude * (180 / Math.PI);
       const height = cartographic.height;
 
-      // Create new entity at clicked position (for the label and info)
+      // Create new entity at clicked position (for the label only - no description for InfoBox)
       const terrainEntity = new Entity({
         id: "terrain-click-point",
         name: "Terrain Elevation Point",
-        description: `
-            <div style="font-family: Arial, sans-serif; line-height: 1.4;">
-              <h3 style="margin: 0 0 10px 0;">Terrain Elevation</h3>
-              <table style="width: 100%; border-collapse: collapse;">
-                <tr><td><strong>Elevation:</strong></td><td>${height.toFixed(
-                  3
-                )} m</td></tr>
-                <tr><td><strong>Longitude:</strong></td><td>${longitude.toFixed(
-                  6
-                )}°</td></tr>
-                <tr><td><strong>Latitude:</strong></td><td>${latitude.toFixed(
-                  6
-                )}°</td></tr>
-              </table>
-              <div style="margin-top: 10px; font-size: 12px; color: #666;">
-                Click anywhere on the terrain to create a new elevation point.
-              </div>
-            </div>
-          `,
         position: pickedPosition,
-        // Remove the simple point - we'll use 3D cross instead
         label: {
           text: height.toFixed(2),
           font: LABEL_FONT,
@@ -127,6 +108,17 @@ const useSceneClick = (
           disableDepthTestDistance: Number.POSITIVE_INFINITY,
         },
       });
+
+      // Show custom info panel if callback provided
+      if (onShowInfo) {
+        onShowInfo({
+          title: "Terrain Elevation Point",
+          elevation: height,
+          longitude,
+          latitude,
+          type: "terrain",
+        });
+      }
 
       // Create 3D cross visualization (link size to search radius)
       const cross3D = create3DCrossGroup({
@@ -170,7 +162,45 @@ const useSceneClick = (
 
               // Use the first entity within range (typically there won't be multiple very close)
               if (distance <= searchRadius) {
-                viewer.selectedEntity = entity;
+                // Show custom info panel for NivP entity if callback provided
+                if (onShowInfo && entity.properties) {
+                  // Extract position from entity
+                  const position = entity.position?.getValue(
+                    viewer.clock.currentTime
+                  );
+
+                  if (position) {
+                    const cartographic =
+                      viewer.scene.globe.ellipsoid.cartesianToCartographic(
+                        position
+                      );
+                    const longitude = cartographic.longitude * (180 / Math.PI);
+                    const latitude = cartographic.latitude * (180 / Math.PI);
+                    const elevation = cartographic.height;
+
+                    // Get the stored NivP data from entity properties
+                    const nivpData = entity.properties.nivpData?.getValue(
+                      viewer.clock.currentTime
+                    );
+
+                    // Calculate height difference between terrain click point and NivP point
+                    const heightDifference = height - elevation;
+
+                    onShowInfo({
+                      title: entity.name || "NivP Point",
+                      elevation,
+                      longitude,
+                      latitude,
+                      heightDifference,
+                      nivpData,
+                      type: "nivp",
+                    });
+                  }
+                } else {
+                  // Fallback to setting selected entity for InfoBox (if no custom callback)
+                  viewer.selectedEntity = entity;
+                }
+
                 foundEntity = true;
                 const searchTime = performance.now() - startTime;
                 console.debug(
@@ -235,7 +265,7 @@ const useSceneClick = (
       }
       console.debug("[SceneClick] Terrain click handler cleaned up");
     };
-  }, [viewer, enabled, nivPEntities, searchRadius]);
+  }, [viewer, enabled, nivPEntities, searchRadius, onShowInfo]);
 
   return {
     // Could expose additional functionality here if needed

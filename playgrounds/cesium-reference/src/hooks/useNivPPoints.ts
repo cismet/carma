@@ -322,6 +322,10 @@ const useNivPPoints = (
             </tr>
           </table>
         `,
+        // Store the original point data for access in useSceneClick
+        properties: {
+          nivpData: point,
+        },
         position: point.cartesian,
         point: {
           pixelSize: 5,

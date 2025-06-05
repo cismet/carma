@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 
 import { Viewer } from "cesium";
 
@@ -10,8 +10,8 @@ import { useZoomToTilesetOnReady } from "../hooks/useZoomToTilesetOnReady";
 import useNivPPoints, { type ElevationStandard } from "../hooks/useNivPPoints";
 import useSceneClick from "../hooks/useSceneClick";
 import useMeasurement from "../hooks/useMeasurement";
-import UiTopRight from "../components/UiTopRight";
 import PointControls from "../components/PointControls";
+import InfoPanel, { type InfoData } from "../components/InfoPanel";
 import { cesiumConstructorOptions } from "../config";
 
 const tilesetConstructorOptions = {
@@ -29,12 +29,22 @@ const TestMeshElevations: React.FC = () => {
   const [enableTerrainClick, setEnableTerrainClick] = useState(true); // Enable terrain clicking by default
   const [searchRadius, setSearchRadius] = useState(10); // Search radius in meters
   const [enableMeasurement, setEnableMeasurement] = useState(false); // Measurement mode disabled by default
+  const [infoData, setInfoData] = useState<InfoData | null>(null); // Info panel data
 
   const [tilesetUrl] = useState<string>(WUPP_MESH_2024.url);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewerRef = useRef<Viewer | null>(null);
-  const uiTopRightRef = useRef<HTMLDivElement | null>(null);
+
+  // Callback to show info in custom panel
+  const handleShowInfo = useCallback((data: InfoData) => {
+    setInfoData(data);
+  }, []);
+
+  // Callback to close info panel
+  const handleCloseInfo = useCallback(() => {
+    setInfoData(null);
+  }, []);
   const { tilesetRef, tilesetReady } = useTileset(
     tilesetUrl,
     viewerRef,
@@ -42,25 +52,22 @@ const TestMeshElevations: React.FC = () => {
   );
 
   // Load NivP points when enabled
-  const {
-    entities: nivPEntities,
-    pointCount,
-    elevationStandard: currentElevationStandard,
-  } = useNivPPoints(
+  const { entities: nivPEntities, pointCount } = useNivPPoints(
     showNivPPoints ? viewerRef.current : null,
     elevationStandard,
     FESTPUNKTE_WUPPERTAL,
     includeHistoric
   );
 
-  // Enable terrain clicking functionality with elevation isoline callback
-  // Pass nivPEntities to enable InfoBox display for nearby points
+  // Enable terrain clicking functionality with custom info panel callback
+  // Pass nivPEntities to enable custom info display for nearby points
   // Disable terrain click when measurement mode is active
   useSceneClick(
     viewerRef.current,
     enableTerrainClick && !enableMeasurement,
     nivPEntities,
-    searchRadius // Use dynamic search radius
+    searchRadius, // Use dynamic search radius
+    handleShowInfo // Custom info panel callback
   );
 
   // Enable measurement functionality
@@ -81,7 +88,7 @@ const TestMeshElevations: React.FC = () => {
         if (containerRef.current) {
           const viewer = new Viewer(containerRef.current, {
             ...cesiumConstructorOptions,
-            infoBox: true, // Enable InfoBox to show entity details when clicked
+            infoBox: false, // Disable native InfoBox - using custom InfoPanel instead
           });
           viewerRef.current = viewer;
           console.debug("[TestMeshElevations] Viewer initialized");
@@ -112,7 +119,6 @@ const TestMeshElevations: React.FC = () => {
     <>
       <CesiumErrorToErrorBoundaryForwarder />
       <div ref={containerRef} style={{ width: "100%", height: "100vh" }} />
-      <UiTopRight ref={uiTopRightRef} />
 
       {/* Point Controls in top left */}
       <PointControls
@@ -141,6 +147,9 @@ const TestMeshElevations: React.FC = () => {
         onClearMeasurements={clearMeasurements}
         measurementCount={measurementCount}
       />
+
+      {/* Custom Info Panel in top right */}
+      <InfoPanel data={infoData} onClose={handleCloseInfo} />
     </>
   );
 };
