@@ -12,10 +12,7 @@ import {
 
 import { LABEL_FONT, SCALE_BY_DISTANCE } from "./useNivPPoints";
 
-const useMeasurement = (
-  viewer: Viewer | null,
-  enabled: boolean = false
-) => {
+const useMeasurement = (viewer: Viewer | null, enabled: boolean = false) => {
   const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
   const measurementEntitiesRef = useRef<Entity[]>([]);
   const currentPolylineRef = useRef<Entity | null>(null);
@@ -53,54 +50,66 @@ const useMeasurement = (
     }
   }, []);
 
-  const createSegmentLabel = useCallback((
-    startPoint: Cartesian3,
-    endPoint: Cartesian3,
-    segmentDistance: number,
-    totalDistance: number
-  ): Entity => {
-    // Calculate midpoint for label placement
-    const midpoint = Cartesian3.midpoint(startPoint, endPoint, new Cartesian3());
+  const createSegmentLabel = useCallback(
+    (
+      startPoint: Cartesian3,
+      endPoint: Cartesian3,
+      segmentDistance: number,
+      totalDistance: number
+    ): Entity => {
+      // Calculate midpoint for label placement
+      const midpoint = Cartesian3.midpoint(
+        startPoint,
+        endPoint,
+        new Cartesian3()
+      );
 
-    // Format: "10.12m (5.33m)" - total distance (segment distance)
-    const labelText = `${formatDistance(totalDistance)} (${formatDistance(segmentDistance)})`;
+      // Format: "10.12m (5.33m)" - total distance (segment distance)
+      const labelText = `${formatDistance(totalDistance)} (${formatDistance(
+        segmentDistance
+      )})`;
 
-    return new Entity({
-      position: midpoint,
-      label: {
-        text: labelText,
-        font: LABEL_FONT,
-        fillColor: Color.LIGHTYELLOW,
-        showBackground: true,
-        backgroundColor: Color.BLACK.withAlpha(0.7),
-        backgroundPadding: new Cartesian2(8, 4),
-        style: 0, // FILL_AND_OUTLINE
-        pixelOffset: new Cartesian2(0, -20),
-        scaleByDistance: SCALE_BY_DISTANCE,
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
-      },
-    });
-  }, [formatDistance]);
+      return new Entity({
+        position: midpoint,
+        label: {
+          text: labelText,
+          font: LABEL_FONT,
+          fillColor: Color.LIGHTYELLOW,
+          showBackground: true,
+          backgroundColor: Color.BLACK.withAlpha(0.7),
+          backgroundPadding: new Cartesian2(8, 4),
+          style: 0, // FILL_AND_OUTLINE
+          pixelOffset: new Cartesian2(0, -20),
+          scaleByDistance: SCALE_BY_DISTANCE,
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        },
+      });
+    },
+    [formatDistance]
+  );
 
-  const createTotalLabel = useCallback((points: Cartesian3[], totalDistance: number): Entity => {
-    const lastPoint = points[points.length - 1];
-    
-    return new Entity({
-      position: lastPoint,
-      label: {
-        text: `Total: ${formatDistance(totalDistance)}`,
-        font: LABEL_FONT,
-        fillColor: Color.WHITE,
-        showBackground: true,
-        backgroundColor: Color.BLACK.withAlpha(0.8),
-        backgroundPadding: new Cartesian2(12, 6),
-        style: 0, // FILL_AND_OUTLINE
-        pixelOffset: new Cartesian2(0, 30),
-        scaleByDistance: SCALE_BY_DISTANCE,
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
-      },
-    });
-  }, [formatDistance]);
+  const createTotalLabel = useCallback(
+    (points: Cartesian3[], totalDistance: number): Entity => {
+      const lastPoint = points[points.length - 1];
+
+      return new Entity({
+        position: lastPoint,
+        label: {
+          text: `Total: ${formatDistance(totalDistance)}`,
+          font: LABEL_FONT,
+          fillColor: Color.WHITE,
+          showBackground: true,
+          backgroundColor: Color.BLACK.withAlpha(0.8),
+          backgroundPadding: new Cartesian2(12, 6),
+          style: 0, // FILL_AND_OUTLINE
+          pixelOffset: new Cartesian2(0, 30),
+          scaleByDistance: SCALE_BY_DISTANCE,
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        },
+      });
+    },
+    [formatDistance]
+  );
 
   const finishMeasurement = useCallback(() => {
     if (!viewer || currentPointsRef.current.length < 2) return;
@@ -116,7 +125,10 @@ const useMeasurement = (
     }
 
     // Add total distance label
-    const totalLabel = createTotalLabel(currentPointsRef.current, totalDistance);
+    const totalLabel = createTotalLabel(
+      currentPointsRef.current,
+      totalDistance
+    );
     viewer.entities.add(totalLabel);
     measurementEntitiesRef.current.push(totalLabel);
 
@@ -134,7 +146,9 @@ const useMeasurement = (
     isActiveRef.current = false;
 
     viewer.scene.requestRender();
-    console.debug(`[Measurement] Finished measurement: ${formatDistance(totalDistance)}`);
+    console.debug(
+      `[Measurement] Finished measurement: ${formatDistance(totalDistance)}`
+    );
   }, [viewer, createTotalLabel, formatDistance]);
 
   useEffect(() => {
@@ -155,7 +169,7 @@ const useMeasurement = (
     // Left click to add points
     handler.setInputAction((event: { position: Cartesian2 }) => {
       const pickedPosition = viewer.scene.pickPosition(event.position);
-      
+
       if (!pickedPosition) {
         console.debug("[Measurement] No position picked");
         return;
@@ -181,14 +195,20 @@ const useMeasurement = (
       } else {
         // Subsequent points - update polyline and add segment label
         if (currentPolylineRef.current) {
-          currentPolylineRef.current.polyline!.positions = new CallbackProperty(() => {
-            return currentPointsRef.current;
-          }, false);
+          currentPolylineRef.current.polyline!.positions = new CallbackProperty(
+            () => {
+              return currentPointsRef.current;
+            },
+            false
+          );
         }
 
         // Calculate distance for the new segment
         const lastTwoPoints = currentPointsRef.current.slice(-2);
-        const segmentDistance = Cartesian3.distance(lastTwoPoints[0], lastTwoPoints[1]);
+        const segmentDistance = Cartesian3.distance(
+          lastTwoPoints[0],
+          lastTwoPoints[1]
+        );
 
         // Calculate total distance up to this point
         let totalDistance = 0;
@@ -212,7 +232,9 @@ const useMeasurement = (
         setMeasurementCount(measurementEntitiesRef.current.length);
 
         console.debug(
-          `[Measurement] Added segment ${currentPointsRef.current.length - 1}: ${formatDistance(segmentDistance)}`
+          `[Measurement] Added segment ${
+            currentPointsRef.current.length - 1
+          }: ${formatDistance(segmentDistance)}`
         );
       }
 
@@ -243,7 +265,14 @@ const useMeasurement = (
       }
       console.debug("[Measurement] Measurement handler cleaned up");
     };
-  }, [viewer, enabled, clearMeasurements, createSegmentLabel, finishMeasurement, formatDistance]);
+  }, [
+    viewer,
+    enabled,
+    clearMeasurements,
+    createSegmentLabel,
+    finishMeasurement,
+    formatDistance,
+  ]);
 
   return {
     clearMeasurements,

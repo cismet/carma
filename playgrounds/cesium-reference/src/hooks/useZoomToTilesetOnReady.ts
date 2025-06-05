@@ -17,7 +17,10 @@ export const useZoomToTilesetOnReady = (
           setHasZoomed(true);
         }
       } catch (error) {
-        console.error("[useZoomToTilesetOnReady] Error zooming to tileset:", error);
+        console.error(
+          "[useZoomToTilesetOnReady] Error zooming to tileset:",
+          error
+        );
       }
     }
   }, [tilesetReady, viewerRef, tilesetRef, hasZoomed]);

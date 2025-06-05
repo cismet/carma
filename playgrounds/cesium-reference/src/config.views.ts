@@ -24,6 +24,4 @@ export const views = [
   },
   { path: "/test-mesh", name: "Test Mesh", component: TestMesh },
   { path: "/elevation", name: "Elevation", component: TestMeshElevations },
-
-
 ];
