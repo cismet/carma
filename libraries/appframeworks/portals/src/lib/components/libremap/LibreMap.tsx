@@ -1,11 +1,11 @@
 import type { StyleSpecification } from "maplibre-gl";
 import maplibregl from "maplibre-gl";
-// import "maplibre-gl/dist/maplibre-gl.css";
+import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef } from "react";
 import { getHashParams } from "@carma-commons/utils";
 
 import "./map.css";
-const LibreMap = () => {
+export const LibreMap = () => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
 
@@ -35,15 +35,10 @@ const LibreMap = () => {
   };
 
   useEffect(() => {
-    console.log("Map container:", mapContainer.current);
-    if (map.current) {
-      console.log("Map already initialized");
-      return;
-    }
+    // Only initialize if we have a container and no map yet
+    if (mapContainer.current && !map.current) {
+      const hashParams = getHashParams();
 
-    const hashParams = getHashParams();
-
-    if (mapContainer.current) {
       const lng =
         hashParams["lng"] !== undefined
           ? parseFloat(hashParams["lng"])
@@ -53,25 +48,20 @@ const LibreMap = () => {
         hashParams["lat"] !== undefined
           ? parseFloat(hashParams["lat"])
           : defaultLat;
-      map.current = new maplibregl.Map({
+
+      const mapInstance = new maplibregl.Map({
         container: mapContainer.current,
         style: backgroundStyle,
+        center: [lng, lat],
+        zoom: defaultZoom,
       });
-      console.log("Map initialized:", map.current);
-
-      // Add event listener to check when map is loaded
-      map.current.on("load", () => {
-        console.log("Map loaded successfully");
-      });
-
-      map.current.on("error", (e) => {
-        console.error("Map error:", e);
-      });
+      map.current = mapInstance;
     }
 
     return () => {
       if (map.current) {
         map.current.remove();
+        map.current = null;
       }
     };
   }, []);
