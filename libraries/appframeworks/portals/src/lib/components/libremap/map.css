@@ -1,0 +1,71 @@
+.map-wrap {
+  position: relative;
+  width: 100%;
+  height: 100vh; /* Use full viewport height */
+}
+
+.map {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+
+.feature-info-marker {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.marker-inner {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  opacity: 1;
+}
+
+.marker-circle {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border: 2px solid black;
+  border-radius: 50%;
+  /* background-color: rgba(255, 255, 255, 0.5); */
+}
+
+.marker-line {
+  position: absolute;
+  background-color: black;
+  opacity: 0.5;
+}
+
+.horizontal-left {
+  width: 20000px;
+  height: 1px;
+  right: 14px;
+}
+
+.horizontal-right {
+  width: 20000px;
+  height: 1px;
+  left: 14px;
+}
+
+.vertical-top {
+  width: 1px;
+  height: 20000px;
+  top: 14px;
+}
+
+.vertical-bottom {
+  width: 1px;
+  height: 20000px;
+  bottom: 14px;
+}

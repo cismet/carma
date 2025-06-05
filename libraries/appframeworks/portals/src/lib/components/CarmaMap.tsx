@@ -11,6 +11,7 @@ import {
   LibFuzzySearch,
 } from "@carma-mapping/fuzzy-search";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import LibreMap from "./libremap/LibreMap";
 
 interface CarmaMapProps {
   mapEngine?: "leaflet" | "maplibre" | "cesium";
@@ -59,7 +60,7 @@ export const CarmaMap = (props: CarmaMapProps) => {
     }
 
     if (mapEngine === "maplibre") {
-      setMap(<div>Libremap</div>);
+      setMap(<LibreMap />);
     }
   }, [mapEngine]);
 
