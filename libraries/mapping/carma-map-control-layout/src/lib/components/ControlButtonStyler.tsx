@@ -52,7 +52,16 @@ const ControlButtonStyler = forwardRef<Ref, ControlButtonStylerProps>(
         style={iconPadding}
         ref={ref}
       >
-        <div style={{ opacity: disabled ? 0.5 : 1 }}>{children}</div>
+        <div
+          style={{
+            opacity: disabled ? 0.5 : 1,
+            height: "auto",
+            display: "flex",
+            alignItems: "center",
+          }}
+        >
+          {children}
+        </div>
       </button>
     );
   }
