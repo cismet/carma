@@ -8,14 +8,8 @@ import {
 } from "@carma-mapping/components";
 
 interface CarmaMapProps {
-  layers;
-  mapEngine: "leaflet" | "maplibre" | "cesium";
+  mapEngine?: "leaflet" | "maplibre" | "cesium";
   onClick: () => void;
-  onMove;
-  customControls;
-  use3DMap;
-  useFeatureInfo;
-  useImplicitSelection;
   modalMenu?: React.ReactNode;
   gazetteerSearchControl?: boolean;
   gazetteerSearchComponent?: React.ReactNode;
@@ -25,10 +19,17 @@ interface CarmaMapProps {
   zoomControls?: boolean;
   contactButtonEnabled?: boolean;
   infoBox?: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 export const CarmaMap = (props: CarmaMapProps) => {
-  const { mapEngine, locatorControl, fullScreenControl, zoomControls } = props;
+  const {
+    mapEngine = "leaflet",
+    locatorControl = true,
+    fullScreenControl = true,
+    zoomControls = true,
+    children,
+  } = props;
   const [map, setMap] = useState(<></>);
 
   useEffect(() => {
@@ -39,7 +40,9 @@ export const CarmaMap = (props: CarmaMapProps) => {
           locatorControl={false}
           fullScreenControl={false}
           zoomControls={false}
-        />
+        >
+          {children}
+        </TopicMapComponent>
       );
     }
 
