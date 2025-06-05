@@ -3,12 +3,14 @@ import {
   FeatureCollectionContext,
   FeatureCollectionDispatchContext,
 } from "react-cismap/contexts/FeatureCollectionContextProvider";
-import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
+// import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
 import InfoBoxHeader from "react-cismap/topicmaps/InfoBoxHeader";
 import { appModes } from "./helper/modeParser";
 import { getColorConsideringSeondarySelection } from "./helper/styler";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { InfoBoxTextContent } from "@carma-collab/wuppertal/klimaorte";
+import { GenericInfoBoxFromFeature } from "@carma-apps/portals";
+
 const InfoBox = (props) => {
   let boxConfig = null;
   let secondaryInfoBoxElements = [];
