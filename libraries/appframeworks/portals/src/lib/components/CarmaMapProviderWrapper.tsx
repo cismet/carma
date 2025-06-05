@@ -36,16 +36,31 @@ type CarmaMapProviderWrapperProps<TState extends APIRootState = APIRootState> =
     hashCodecs?: HashCodecs;
     /** @deprecated HashStateProvider should be placed higher in the tree. These props are ignored. */
     keyOrder?: string[];
+    topicMapConfig?: {
+      appKey?: string;
+      featureItemsURL?: string;
+      referenceSystemDefinition?: any;
+      mapEPSGCode?: string;
+      referenceSystem?: any;
+      getFeatureStyler?: any;
+      featureTooltipFunction?: any;
+      convertItemToFeature?: any;
+      clusteringOptions?: any;
+    };
   };
 
 export const CarmaMapProviderWrapper = <
   TState extends APIRootState = APIRootState
 >({
   children,
-  overlayOptions,
-  cesiumOptions,
+  overlayOptions = { background: { transparency: 0, color: "#000000" } },
+  cesiumOptions = {
+    providerConfig: { terrainProvider: { url: "" } },
+    tilesetConfigs: {},
+  },
   gazDataConfig = defaultGazDataConfig,
-  mapStyleConfig,
+  mapStyleConfig = { defaultStyle: "", availableStyles: [] },
+  topicMapConfig = {},
   store,
 }: CarmaMapProviderWrapperProps<TState>) => {
   const { background } = overlayOptions;
@@ -63,7 +78,10 @@ export const CarmaMapProviderWrapper = <
         <GazDataProvider config={gazDataConfig}>
           <SelectionProvider>
             <MapStyleProvider config={mapStyleConfig}>
-              <TopicMapContextProvider infoBoxPixelWidth={350}>
+              <TopicMapContextProvider
+                infoBoxPixelWidth={350}
+                {...topicMapConfig}
+              >
                 <OverlayTourProvider transparency={transparency} color={color}>
                   <CesiumContextProvider
                     //initialViewerState={defaultCesiumState}

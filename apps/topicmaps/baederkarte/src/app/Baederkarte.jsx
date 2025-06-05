@@ -29,9 +29,7 @@ import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopic
 import { GenericInfoBoxFromFeature } from "@carma-appframeworks/portals";
 
 const Baederkarte = () => {
-  const { setSelectedFeatureByPredicate, setClusteringOptions } = useContext(
-    FeatureCollectionDispatchContext
-  );
+  const { setClusteringOptions } = useContext(FeatureCollectionDispatchContext);
   const { markerSymbolSize } = useContext(TopicMapStylingContext);
   const { clusteringOptions } = useContext(FeatureCollectionContext);
 
@@ -88,7 +86,11 @@ const Baederkarte = () => {
         <TopicMapComponent
           modalMenu={<Menu />}
           gazetteerSearchControl={true}
+          gazetteerSearchComponent={EmptySearchComponent}
           applicationMenuTooltipString="Einstellungen | Kompaktanleitung"
+          locatorControl={false}
+          fullScreenControl={false}
+          zoomControls={false}
           contactButtonEnabled={false}
           infoBox={
             <GenericInfoBoxFromFeature

@@ -33,26 +33,27 @@ function App() {
   }, []);
 
   return (
-    <TopicMapContextProvider
-      appKey="OnlineBaederkarteWuppertal2022"
-      featureItemsURL={
-        import.meta.env.VITE_WUPP_ASSET_BASEURL + "/data/baeder.data.json"
-      }
-      referenceSystemDefinition={MappingConstants.proj4crs25832def}
-      mapEPSGCode="25832"
-      referenceSystem={MappingConstants.crs25832}
-      getFeatureStyler={getFeatureStyler}
-      featureTooltipFunction={(feature) => feature?.text}
-      convertItemToFeature={convertItemToFeature}
-      clusteringOptions={{
-        iconCreateFunction: getPoiClusterIconCreatorFunction({ svgSize: 24 }),
+    <CarmaMapProviderWrapper
+      topicMapConfig={{
+        appKey: "OnlineBaederkarteWuppertal2022",
+        featureItemsURL:
+          import.meta.env.VITE_WUPP_ASSET_BASEURL + "/data/baeder.data.json",
+        referenceSystemDefinition: MappingConstants.proj4crs25832def,
+        mapEPSGCode: "25832",
+        referenceSystem: MappingConstants.crs25832,
+        getFeatureStyler: getFeatureStyler,
+        featureTooltipFunction: (feature) => feature?.text,
+        convertItemToFeature: convertItemToFeature,
+        clusteringOptions: {
+          iconCreateFunction: getPoiClusterIconCreatorFunction({ svgSize: 24 }),
+        },
       }}
       convertItemToFeatureProgressCallback={handleProgressUpdate}
       backgroundConfigurations={backgroundConfWithFastOrtho2024}
     >
       <ProgressIndicator progress={progress} show={showProgress} />
       <Baederkarte />
-    </TopicMapContextProvider>
+    </CarmaMapProviderWrapper>
   );
 }
 
