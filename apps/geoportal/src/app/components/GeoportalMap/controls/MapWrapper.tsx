@@ -473,8 +473,8 @@ const MapWrapper = () => {
               </Tooltip>
             )}
           </Control>
-          <Control position="topleft" order={30}>
-            {showLocatorButton && isMobile && (
+          {showLocatorButton && isMobile && (
+            <Control position="topleft" order={30}>
               <Tooltip
                 title={
                   isLocationActive
@@ -502,9 +502,9 @@ const MapWrapper = () => {
                   />
                 </ControlButtonStyler>
               </Tooltip>
-            )}
-            <LocateControlComponent isActive={isLocationActive} />
-          </Control>
+              <LocateControlComponent isActive={isLocationActive} />
+            </Control>
+          )}
           <Control position="topleft" order={40}>
             <Tooltip title="Auf Ausgangspunkt positionieren" placement="right">
               <ControlButtonStyler
