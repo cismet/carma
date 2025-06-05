@@ -8,7 +8,6 @@ import FeatureCollection from "react-cismap/FeatureCollection";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import Menu from "./Menu";
 import { getPoiClusterIconCreatorFunction } from "./helper/styler";
-import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
 import {
   TopicMapSelectionContent,
   useSelectionTopicMap,
@@ -25,8 +24,8 @@ import {
   ZoomControl,
 } from "@carma-mapping/components";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
-
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import { GenericInfoBoxFromFeature } from "@carma-apps/portals";
 
 const Baederkarte = () => {
   const { setSelectedFeatureByPredicate, setClusteringOptions } = useContext(
@@ -51,59 +50,42 @@ const Baederkarte = () => {
 
   return (
     <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
-      <div
-      // style={{
-      //   position: "absolute",
-      //   top: "0px",
-      //   left: "0px",
-      //   bottom: "0px",
-      //   zIndex: 600,
-      // }}
-      >
-        <ControlLayout ifStorybook={false}>
-          <Control position="topleft" order={10}>
-            <ZoomControl />
-          </Control>
+      <ControlLayout ifStorybook={false}>
+        <Control position="topleft" order={10}>
+          <ZoomControl />
+        </Control>
 
-          <Control position="topleft" order={50}>
-            <FullscreenControl />
-          </Control>
-          <Control position="topleft" order={60} title="Mein Standort">
-            <RoutedMapLocateControl
-              tourRefLabels={null}
-              disabled={false}
-              nativeTooltip={true}
+        <Control position="topleft" order={50}>
+          <FullscreenControl />
+        </Control>
+        <Control position="topleft" order={60} title="Mein Standort">
+          <RoutedMapLocateControl
+            tourRefLabels={null}
+            disabled={false}
+            nativeTooltip={true}
+          />
+        </Control>
+        <Control position="bottomleft" order={10}>
+          <div data-test-id="fuzzy-search" style={{ marginTop: "4px" }}>
+            <LibFuzzySearch
+              pixelwidth={
+                responsiveState === "normal" ? "300px" : windowSize.width - gap
+              }
+              placeholder="Stadtteil | Adresse | POI"
+              priorityTypes={[
+                "pois",
+                "poisAlternativeNames",
+                "bezirke",
+                "quartiere",
+                "adressen",
+                "streets",
+                "schulen",
+                "kitas",
+              ]}
+              typeInference={defaultTypeInference}
             />
-          </Control>
-          <Control position="bottomleft" order={10}>
-            <div data-test-id="fuzzy-search" style={{ marginLeft: "2px" }}>
-              <LibFuzzySearch
-                pixelwidth={
-                  responsiveState === "normal"
-                    ? "300px"
-                    : windowSize.width - gap
-                }
-                placeholder="Stadtteil | Adresse | POI"
-                priorityTypes={[
-                  "pois",
-                  "poisAlternativeNames",
-                  "bezirke",
-                  "quartiere",
-                  "adressen",
-                  "streets",
-                  "schulen",
-                  "kitas",
-                ]}
-                typeInference={defaultTypeInference}
-              />
-            </div>
-          </Control>
-        </ControlLayout>
-      </div>
-      <div
-        className="h-lvh w-lvw flex flex-1 fixed overflow-hidden"
-        // className={`h-lvh w-lvw flex flex-1 fixed overflow-hidden`}
-      >
+          </div>
+        </Control>
         <TopicMapComponent
           modalMenu={<Menu />}
           gazetteerSearchControl={true}
@@ -140,7 +122,7 @@ const Baederkarte = () => {
 
           <FeatureCollection></FeatureCollection>
         </TopicMapComponent>
-      </div>
+      </ControlLayout>
     </div>
   );
 };
