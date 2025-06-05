@@ -5,10 +5,10 @@ import {
 } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import FeatureCollection from "react-cismap/FeatureCollection";
-import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import Menu from "./Menu";
 import { getPoiClusterIconCreatorFunction } from "./helper/styler";
 import {
+  CarmaMap,
   TopicMapSelectionContent,
   useSelectionTopicMap,
   useUrlFeatureSelection,
@@ -35,9 +35,6 @@ const Baederkarte = () => {
   const { markerSymbolSize } = useContext(TopicMapStylingContext);
   const { clusteringOptions } = useContext(FeatureCollectionContext);
 
-  const { responsiveState, gap, windowSize } = useContext(
-    ResponsiveTopicMapContext
-  );
   useSelectionTopicMap();
   useUrlFeatureSelection();
 
@@ -91,11 +88,7 @@ const Baederkarte = () => {
         <TopicMapComponent
           modalMenu={<Menu />}
           gazetteerSearchControl={true}
-          gazetteerSearchComponent={EmptySearchComponent}
           applicationMenuTooltipString="Einstellungen | Kompaktanleitung"
-          locatorControl={false}
-          fullScreenControl={false}
-          zoomControls={false}
           contactButtonEnabled={false}
           infoBox={
             <GenericInfoBoxFromFeature
