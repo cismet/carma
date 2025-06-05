@@ -6,9 +6,9 @@ import {
 import { LightBoxContext } from "react-cismap/contexts/LightBoxContextProvider";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import FeatureCollection from "react-cismap/FeatureCollection";
-import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import {
+  GenericInfoBoxFromFeature,
   TopicMapSelectionContent,
   useSelectionTopicMap,
 } from "@carma-apps/portals";
@@ -27,6 +27,7 @@ import { RoutedMapLocateControl } from "@carma-mapping/components";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { FullscreenControl, ZoomControl } from "@carma-mapping/components/";
+import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 
 const Stadtplankarte = ({ poiColors }) => {
   const { setClusteringOptions } = useContext(FeatureCollectionDispatchContext);
@@ -53,99 +54,86 @@ const Stadtplankarte = ({ poiColors }) => {
   }, [markerSymbolSize]);
 
   return (
-    <>
-      <div
-        className="controls-container"
-        style={{
-          position: "absolute",
-          top: "0px",
-          left: "0px",
-          bottom: "0px",
-          zIndex: 600,
-        }}
-      >
-        <ControlLayout ifStorybook={false}>
-          <Control position="topleft" order={10}>
-            <ZoomControl />
-          </Control>
+    <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
+      <ControlLayout ifStorybook={false}>
+        <Control position="topleft" order={10}>
+          <ZoomControl />
+        </Control>
 
-          <Control position="topleft" order={50}>
-            <FullscreenControl />
-          </Control>
-          <Control position="topleft" order={60} title="Mein Standort">
-            <RoutedMapLocateControl
-              tourRefLabels={null}
-              disabled={false}
-              nativeTooltip={true}
+        <Control position="topleft" order={50}>
+          <FullscreenControl />
+        </Control>
+        <Control position="topleft" order={60} title="Mein Standort">
+          <RoutedMapLocateControl
+            tourRefLabels={null}
+            disabled={false}
+            nativeTooltip={true}
+          />
+        </Control>
+        <Control position="bottomleft" order={10}>
+          <div data-test-id="fuzzy-search" style={{ marginTop: "4px" }}>
+            <LibFuzzySearch
+              pixelwidth={
+                responsiveState === "normal" ? "300px" : windowSize.width - gap
+              }
+              placeholder={searchTextPlaceholder}
             />
-          </Control>
-          <Control position="bottomleft" order={10}>
-            <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
-              <LibFuzzySearch
-                pixelwidth={
-                  responsiveState === "normal"
-                    ? "300px"
-                    : windowSize.width - gap
-                }
-                placeholder={searchTextPlaceholder}
-              />
-            </div>
-          </Control>
-        </ControlLayout>
-      </div>
-      <TopicMapComponent
-        modalMenu={<Menu />}
-        locatorControl={false}
-        fullScreenControl={false}
-        zoomControls={false}
-        gazetteerSearchControl={true}
-        gazetteerSearchComponent={EmptySearchComponent}
-        applicationMenuTooltipString={<MenuTooltip />}
-        infoBox={
-          filterState === undefined || filterState.positiv.length > 0 ? (
-            <GenericInfoBoxFromFeature
-              pixelwidth={350}
-              config={{
-                displaySecondaryInfoAction: false,
-                city: "Wuppertal",
-                navigator: {
-                  noun: {
-                    singular: "POI",
-                    plural: "POIs",
+          </div>
+        </Control>
+        <TopicMapComponent
+          modalMenu={<Menu />}
+          locatorControl={false}
+          fullScreenControl={false}
+          zoomControls={false}
+          gazetteerSearchControl={true}
+          gazetteerSearchComponent={EmptySearchComponent}
+          applicationMenuTooltipString={<MenuTooltip />}
+          infoBox={
+            filterState === undefined || filterState.positiv.length > 0 ? (
+              <GenericInfoBoxFromFeature
+                pixelwidth={350}
+                config={{
+                  displaySecondaryInfoAction: false,
+                  city: "Wuppertal",
+                  navigator: {
+                    noun: {
+                      singular: "POI",
+                      plural: "POIs",
+                    },
                   },
-                },
-                noFeatureTitle: <InfoBoxTextTitle />,
-                noCurrentFeatureContent: <InfoBoxTextContent />,
-              }}
-              captionFactory={(linkUrl, feature) => {
-                const urheber =
-                  feature?.properties?.urheber_foto || "Stadt Wuppertal";
-                let link = "https://www.wuppertal.de/service/impressum.php";
+                  noFeatureTitle: <InfoBoxTextTitle />,
+                  noCurrentFeatureContent: <InfoBoxTextContent />,
+                }}
+                captionFactory={(linkUrl, feature) => {
+                  const urheber =
+                    feature?.properties?.urheber_foto || "Stadt Wuppertal";
+                  let link = "https://www.wuppertal.de/service/impressum.php";
 
-                if (urheber === "Stadt Wuppertal, Wuppertal Marketing GmbH") {
-                  link =
-                    "https://www.wuppertal.de/microsite/WMG/impressum_431218.php";
-                } else if (urheber === "Stadt Wuppertal, Medienzentrum") {
-                  link =
-                    "https://www.wuppertal.de/kultur-bildung/schule/medienzentrum/index.php";
-                }
+                  if (urheber === "Stadt Wuppertal, Wuppertal Marketing GmbH") {
+                    link =
+                      "https://www.wuppertal.de/microsite/WMG/impressum_431218.php";
+                  } else if (urheber === "Stadt Wuppertal, Medienzentrum") {
+                    link =
+                      "https://www.wuppertal.de/kultur-bildung/schule/medienzentrum/index.php";
+                  }
 
-                return (
-                  <a href={link} target="_fotos">
-                    <IconComp name="copyright" /> {urheber}
-                  </a>
-                );
-              }}
-            />
-          ) : (
-            <div></div>
-          )
-        }
-      >
-        <TopicMapSelectionContent />
-        <FeatureCollection></FeatureCollection>
-      </TopicMapComponent>
-    </>
+                  return (
+                    <a href={link} target="_fotos">
+                      <IconComp name="copyright" /> {urheber}
+                    </a>
+                  );
+                }}
+              />
+            ) : (
+              <div></div>
+            )
+          }
+        >
+          <TopicMapSelectionContent />
+          <FeatureCollection></FeatureCollection>
+        </TopicMapComponent>
+      </ControlLayout>
+    </div>
   );
 };
 

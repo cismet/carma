@@ -2,9 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
-/* .leaflet-control * img {
-  display: initial;
-} */
+html,
+body {
+  overscroll-behavior: contain;
+}
 
 .ant-tooltip-arrow {
   display: none !important;
@@ -26,19 +27,13 @@ ul {
   padding-inline-start: 40px;
   unicode-bidi: isolate;
 }
-
-/* You can add global styles to this file, and also import other style files */
-.custom-left-control {
-  position: absolute;
-  z-index: 1000;
-  left: 0;
-  bottom: 0;
-  margin-left: 4px;
-  width: 100%;
-  margin-bottom: 5px;
-}
-
 .modal-content svg,
 .modal-content img {
   display: inline;
+}
+
+div.leaflet-top.leaflet-right > .leaflet-control {
+  position: fixed;
+  right: max(10px, env(safe-area-inset-right));
+  margin-right: 0 !important;
 }
