@@ -6,6 +6,10 @@ import {
   RoutedMapLocateControl,
   ZoomControl,
 } from "@carma-mapping/components";
+import {
+  defaultTypeInference,
+  LibFuzzySearch,
+} from "@carma-mapping/fuzzy-search";
 
 interface CarmaMapProps {
   mapEngine?: "leaflet" | "maplibre" | "cesium";
@@ -28,6 +32,8 @@ export const CarmaMap = (props: CarmaMapProps) => {
     locatorControl = true,
     fullScreenControl = true,
     zoomControls = true,
+    gazetteerSearchControl = true,
+    gazetteerSearchComponent,
     children,
   } = props;
   const [map, setMap] = useState(<></>);
@@ -72,6 +78,32 @@ export const CarmaMap = (props: CarmaMapProps) => {
             disabled={false}
             nativeTooltip={true}
           />
+        </Control>
+      )}
+
+      {gazetteerSearchControl && (
+        <Control position="bottomleft" order={10}>
+          {gazetteerSearchComponent ? (
+            gazetteerSearchComponent
+          ) : (
+            <div data-test-id="fuzzy-search" style={{ marginTop: "4px" }}>
+              <LibFuzzySearch
+                pixelwidth={"300px"}
+                placeholder="Stadtteil | Adresse | POI"
+                priorityTypes={[
+                  "pois",
+                  "poisAlternativeNames",
+                  "bezirke",
+                  "quartiere",
+                  "adressen",
+                  "streets",
+                  "schulen",
+                  "kitas",
+                ]}
+                typeInference={defaultTypeInference}
+              />
+            </div>
+          )}
         </Control>
       )}
 
