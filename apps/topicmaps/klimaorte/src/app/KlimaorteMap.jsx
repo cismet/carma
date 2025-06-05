@@ -241,11 +241,8 @@ function KlimaorteMap() {
           />
         </Control>
         <Control position="bottomleft" order={10}>
-          <div data-test-id="fuzzy-search">
-            <FuzzySearchWrapper
-              searchTextPlaceholder={searchTextPlaceholder}
-              style={{ marginTop: "4px" }}
-            />
+          <div data-test-id="fuzzy-search" style={{ marginTop: "4px" }}>
+            <FuzzySearchWrapper searchTextPlaceholder={searchTextPlaceholder} />
           </div>
         </Control>
         <div className="mode-container-switcher">
