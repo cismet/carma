@@ -8,6 +8,7 @@ import {
   PolygonHierarchy,
   Transforms,
   Matrix4,
+  Viewer,
 } from "cesium";
 
 export interface Cross3DOptions {
@@ -21,13 +22,6 @@ export interface Cross3DOptions {
   colorCircle?: Color; // Color for the XY circle plane
   width?: number;
   id?: string;
-}
-
-interface ViewerLike {
-  entities: {
-    add: (entity: Entity) => void;
-    remove: (entity: Entity) => void;
-  };
 }
 
 /**
@@ -178,11 +172,17 @@ export const create3DCrossGroup = (options: Cross3DOptions) => {
   return {
     id,
     entities: crossEntities,
-    cleanup: (viewer: ViewerLike) => {
+    cleanup: (viewer: Viewer) => {
       crossEntities.forEach((entity) => viewer.entities.remove(entity));
     },
-    addToViewer: (viewer: ViewerLike) => {
+    addToViewer: (viewer: Viewer) => {
       crossEntities.forEach((entity) => viewer.entities.add(entity));
+      viewer.scene.requestRender(); // Request render to update the scene
+      // Optionally set the viewer's selected entity to the first cross entity
+      setTimeout(() => {
+        viewer.scene.requestRender();
+      }, 200); // Delay to ensure entities are added before selection
+      viewer.selectedEntity = crossEntities[0];
     },
   };
 };

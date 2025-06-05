@@ -11,6 +11,7 @@ import {
 
 import { create3DCrossGroup } from "../utils/cesium3DCross";
 import { LABEL_FONT, SCALE_BY_DISTANCE } from "./useNivPPoints";
+import { vi } from "vitest";
 
 const useSceneClick = (
   viewer: Viewer | null,
@@ -67,39 +68,32 @@ const useSceneClick = (
         cross3DRef.current = null;
       }
 
-      // Request render and schedule pick operation after next render
-      viewer.scene.requestRender();
+      // Try to pick terrain/mesh position
+      const pickedPosition = viewer.scene.pickPosition(event.position);
 
-      // Use postRender event to ensure the removal is processed before picking
-      const onPostRender = () => {
-        viewer.scene.postRender.removeEventListener(onPostRender);
+      if (!pickedPosition) {
+        console.debug("[SceneClick] No position picked");
+        return;
+      }
 
-        // Try to pick terrain/mesh position
-        const pickedPosition = viewer.scene.pickPosition(event.position);
+      // Get cartographic coordinates
+      const cartographic =
+        viewer.scene.globe.ellipsoid.cartesianToCartographic(pickedPosition);
+      if (!cartographic) {
+        console.debug("[SceneClick] Could not convert to cartographic");
+        return;
+      }
 
-        if (!pickedPosition) {
-          console.debug("[SceneClick] No position picked");
-          return;
-        }
+      // Convert to degrees for display
+      const longitude = cartographic.longitude * (180 / Math.PI);
+      const latitude = cartographic.latitude * (180 / Math.PI);
+      const height = cartographic.height;
 
-        // Get cartographic coordinates
-        const cartographic =
-          viewer.scene.globe.ellipsoid.cartesianToCartographic(pickedPosition);
-        if (!cartographic) {
-          console.debug("[SceneClick] Could not convert to cartographic");
-          return;
-        }
-
-        // Convert to degrees for display
-        const longitude = cartographic.longitude * (180 / Math.PI);
-        const latitude = cartographic.latitude * (180 / Math.PI);
-        const height = cartographic.height;
-
-        // Create new entity at clicked position (for the label and info)
-        const terrainEntity = new Entity({
-          id: "terrain-click-point",
-          name: "Terrain Elevation Point",
-          description: `
+      // Create new entity at clicked position (for the label and info)
+      const terrainEntity = new Entity({
+        id: "terrain-click-point",
+        name: "Terrain Elevation Point",
+        description: `
             <div style="font-family: Arial, sans-serif; line-height: 1.4;">
               <h3 style="margin: 0 0 10px 0;">Terrain Elevation</h3>
               <table style="width: 100%; border-collapse: collapse;">
@@ -118,117 +112,109 @@ const useSceneClick = (
               </div>
             </div>
           `,
-          position: pickedPosition,
-          // Remove the simple point - we'll use 3D cross instead
-          label: {
-            text: height.toFixed(2),
-            font: LABEL_FONT,
-            fillColor: Color.ORANGE,
-            showBackground: true,
-            backgroundColor: Color.BLACK.withAlpha(0.5),
-            backgroundPadding: new Cartesian2(12, 6),
-            style: 0, // FILL_AND_OUTLINE
-            pixelOffset: new Cartesian2(0, 40),
-            scaleByDistance: SCALE_BY_DISTANCE, // Scale down with distance
-            disableDepthTestDistance: Number.POSITIVE_INFINITY,
-          },
-        });
+        position: pickedPosition,
+        // Remove the simple point - we'll use 3D cross instead
+        label: {
+          text: height.toFixed(2),
+          font: LABEL_FONT,
+          fillColor: Color.ORANGE,
+          showBackground: true,
+          backgroundColor: Color.BLACK.withAlpha(0.5),
+          backgroundPadding: new Cartesian2(12, 6),
+          style: 0, // FILL_AND_OUTLINE
+          pixelOffset: new Cartesian2(0, 40),
+          scaleByDistance: SCALE_BY_DISTANCE, // Scale down with distance
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        },
+      });
 
-        // Create 3D cross visualization (link size to search radius)
-        const cross3D = create3DCrossGroup({
-          position: pickedPosition,
-          radius: searchRadius, // Link marker size to search radius
-          color: Color.ORANGE,
-          width: 2,
-          id: "terrain-click-cross-3d",
-          xyCirclePlane: true, // Enable the circular plane feature
-          colorCircle: Color.WHITE.withAlpha(0.3), // Semi-transparent white circle
-        });
+      // Create 3D cross visualization (link size to search radius)
+      const cross3D = create3DCrossGroup({
+        position: pickedPosition,
+        radius: searchRadius, // Link marker size to search radius
+        color: Color.ORANGE,
+        width: 2,
+        id: "terrain-click-cross-3d",
+        xyCirclePlane: true, // Enable the circular plane feature
+        colorCircle: Color.WHITE.withAlpha(0.3), // Semi-transparent white circle
+      });
 
-        // Add entity to viewer and store reference
-        viewer.entities.add(terrainEntity);
-        terrainEntityRef.current = terrainEntity;
+      // Add entity to viewer and store reference
+      viewer.entities.add(terrainEntity);
+      terrainEntityRef.current = terrainEntity;
 
-        // Add 3D cross to viewer
-        cross3D.addToViewer(viewer);
-        cross3DRef.current = cross3D;
+      // Add 3D cross to viewer
+      cross3D.addToViewer(viewer);
+      cross3DRef.current = cross3D;
 
-        // Check for nearby NivP entities within search radius (simplified approach)
-        if (nivPEntities && nivPEntities.length > 0) {
-          console.debug(
-            `[SceneClick] Checking ${nivPEntities.length} NivP entities for proximity within ${searchRadius}m`
-          );
+      // Check for nearby NivP entities within search radius (simplified approach)
+      if (nivPEntities && nivPEntities.length > 0) {
+        console.debug(
+          `[SceneClick] Checking ${nivPEntities.length} NivP entities for proximity within ${searchRadius}m`
+        );
 
-          // Find the first NivP entity within the search radius
-          let foundEntity = false;
-          const startTime = performance.now();
-          for (const entity of nivPEntities) {
-            if (entity.position) {
-              const entityPosition = entity.position.getValue(
-                viewer.clock.currentTime
+        // Find the first NivP entity within the search radius
+        let foundEntity = false;
+        const startTime = performance.now();
+        for (const entity of nivPEntities) {
+          if (entity.position) {
+            const entityPosition = entity.position.getValue(
+              viewer.clock.currentTime
+            );
+            if (entityPosition) {
+              const distance = Cartesian3.distance(
+                pickedPosition,
+                entityPosition
               );
-              if (entityPosition) {
-                const distance = Cartesian3.distance(
-                  pickedPosition,
-                  entityPosition
-                );
-                //console.debug(`[SceneClick] Entity "${entity.name}" distance: ${distance.toFixed(2)}m`);
+              //console.debug(`[SceneClick] Entity "${entity.name}" distance: ${distance.toFixed(2)}m`);
 
-                // Use the first entity within range (typically there won't be multiple very close)
-                if (distance <= searchRadius) {
-                  viewer.selectedEntity = entity;
-                  foundEntity = true;
-                  const searchTime = performance.now() - startTime;
-                  console.debug(
-                    `[SceneClick] Found NivP entity "${
-                      entity.name
-                    }" within ${searchRadius}m radius (${distance.toFixed(
-                      2
-                    )}m away) in ${searchTime.toFixed(2)}ms`
-                  );
-                  break; // Stop after finding the first entity within range
-                }
-              } else {
+              // Use the first entity within range (typically there won't be multiple very close)
+              if (distance <= searchRadius) {
+                viewer.selectedEntity = entity;
+                foundEntity = true;
+                const searchTime = performance.now() - startTime;
                 console.debug(
-                  `[SceneClick] Entity "${entity.name}" has no position value`
+                  `[SceneClick] Found NivP entity "${
+                    entity.name
+                  }" within ${searchRadius}m radius (${distance.toFixed(
+                    2
+                  )}m away) in ${searchTime.toFixed(2)}ms`
                 );
+                break; // Stop after finding the first entity within range
               }
             } else {
               console.debug(
-                `[SceneClick] Entity "${entity.name}" has no position property`
+                `[SceneClick] Entity "${entity.name}" has no position value`
               );
             }
-          }
-
-          if (!foundEntity) {
+          } else {
             console.debug(
-              `[SceneClick] No NivP entities found within ${searchRadius}m radius`
+              `[SceneClick] Entity "${entity.name}" has no position property`
             );
           }
-        } else {
-          console.debug(
-            `[SceneClick] No NivP entities provided (${
-              nivPEntities?.length || 0
-            } entities)`
-          );
         }
 
-        // Schedule a render update after entities are processed
-        const onEntitiesAdded = () => {
-          viewer.scene.postRender.removeEventListener(onEntitiesAdded);
-          viewer.scene.requestRender();
-        };
-        viewer.scene.postRender.addEventListener(onEntitiesAdded);
-
+        if (!foundEntity) {
+          console.debug(
+            `[SceneClick] No NivP entities found within ${searchRadius}m radius`
+          );
+        }
+      } else {
         console.debug(
-          `[SceneClick] Created terrain point at elevation: ${height.toFixed(
-            3
-          )}m`
+          `[SceneClick] No NivP entities provided (${
+            nivPEntities?.length || 0
+          } entities)`
         );
-      };
+      }
 
+      console.debug(
+        `[SceneClick] Created terrain point at elevation: ${height.toFixed(3)}m`
+      );
+
+      setTimeout(() => {
+        viewer.scene.requestRender(); // Request render after adding entities
+      }, 200); // Use setTimeout to ensure render happens after all entities are added
       // Add the postRender event listener
-      viewer.scene.postRender.addEventListener(onPostRender);
     }, ScreenSpaceEventType.LEFT_CLICK);
 
     console.debug("[SceneClick] Terrain click handler enabled");
