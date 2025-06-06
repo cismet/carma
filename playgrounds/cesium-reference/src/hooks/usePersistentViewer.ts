@@ -50,7 +50,9 @@ export const useTestMeshViewer = (
     // Check for existing viewer and clean up if needed
     if (viewerRef.current) {
       if (viewerRef.current.isDestroyed()) {
-        console.debug("[useTestMeshViewer] Existing viewer is destroyed, cleaning up reference");
+        console.debug(
+          "[useTestMeshViewer] Existing viewer is destroyed, cleaning up reference"
+        );
         viewerRef.current = null;
         setIsViewerReady(false);
       } else {

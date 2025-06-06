@@ -20,26 +20,67 @@ const useMeasurement = (viewer: Viewer | null, enabled: boolean = false) => {
   const currentPointsRef = useRef<Cartesian3[]>([]);
   const isActiveRef = useRef<boolean>(false);
   const [measurementCount, setMeasurementCount] = useState<number>(0);
+  const completedMeasurementsRef = useRef<number>(0);
+
+  // Update measurement count based on completed measurements only
+  const updateMeasurementCount = useCallback(() => {
+    setMeasurementCount(completedMeasurementsRef.current);
+    console.debug(
+      `[Measurement] Updated measurement count: ${completedMeasurementsRef.current} completed measurements`
+    );
+  }, []);
+
+  // Check if there are any measurement entities (for clear button state)
+  const hasAnyMeasurementEntities = useCallback(() => {
+    return (
+      measurementEntitiesRef.current.length > 0 ||
+      currentPolylineRef.current !== null
+    );
+  }, []);
 
   const clearMeasurements = useCallback(() => {
     if (!viewer || viewer.isDestroyed()) return;
 
+    console.debug(
+      `[Measurement] Clearing ${measurementEntitiesRef.current.length} measurement entities`
+    );
+
+    // Remove all tracked measurement entities
     measurementEntitiesRef.current.forEach((entity) => {
-      viewer.entities.remove(entity);
+      try {
+        viewer.entities.remove(entity);
+        console.debug(
+          `[Measurement] Removed entity: ${entity.id || "unnamed"}`
+        );
+      } catch (error) {
+        console.warn(
+          `[Measurement] Failed to remove entity: ${entity.id || "unnamed"}`,
+          error
+        );
+      }
     });
     measurementEntitiesRef.current = [];
-    setMeasurementCount(0);
 
+    // Remove current active polyline if exists
     if (currentPolylineRef.current) {
-      viewer.entities.remove(currentPolylineRef.current);
+      try {
+        viewer.entities.remove(currentPolylineRef.current);
+        console.debug("[Measurement] Removed current polyline");
+      } catch (error) {
+        console.warn("[Measurement] Failed to remove current polyline", error);
+      }
       currentPolylineRef.current = null;
     }
+
+    // Reset all state
     currentPointsRef.current = [];
     isActiveRef.current = false;
+    completedMeasurementsRef.current = 0;
+    updateMeasurementCount();
 
     cesiumSafeRequestRender(viewer);
-    console.debug("[Measurement] Cleared all measurements");
-  }, [viewer]);
+    console.debug("[Measurement] Cleared all measurements - reset complete");
+  }, [viewer, updateMeasurementCount]);
 
   const formatDistance = useCallback((distance: number): string => {
     if (distance < 1000) {
@@ -49,12 +90,49 @@ const useMeasurement = (viewer: Viewer | null, enabled: boolean = false) => {
     }
   }, []);
 
+  const createPointEntity = useCallback(
+    (
+      position: Cartesian3,
+      pointIndex: number,
+      cumulativeDistance: number
+    ): Entity => {
+      const pointLabelText =
+        pointIndex === 0 // For the first point, don't show distance, just "1"
+          ? "1"
+          : `${pointIndex + 1}\n${formatDistance(cumulativeDistance)}`; // Subsequent points: "Index\nCumulativeDist"
+      return new Entity({
+        id: `measurement-point-${Date.now()}-${pointIndex}`,
+        position: position,
+        point: {
+          pixelSize: 8,
+          color: Color.LIGHTYELLOW,
+          outlineColor: Color.BLACK,
+          outlineWidth: 2,
+          heightReference: 0, // NONE
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        },
+        label: {
+          text: pointLabelText,
+          font: "bold 16px Arial",
+          fillColor: Color.WHITE,
+          showBackground: true,
+          backgroundColor: Color.BLACK.withAlpha(0.7),
+          backgroundPadding: new Cartesian2(4, 4),
+          style: 0,
+          pixelOffset: new Cartesian2(0, -25),
+          scale: 1,
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        },
+      });
+    },
+    [formatDistance]
+  );
+
   const createSegmentLabel = useCallback(
     (
       startPoint: Cartesian3,
       endPoint: Cartesian3,
-      segmentDistance: number,
-      totalDistance: number
+      segmentDistance: number
     ): Entity => {
       const midpoint = Cartesian3.midpoint(
         startPoint,
@@ -62,11 +140,10 @@ const useMeasurement = (viewer: Viewer | null, enabled: boolean = false) => {
         new Cartesian3()
       );
 
-      const labelText = `${formatDistance(totalDistance)} (${formatDistance(
-        segmentDistance
-      )})`;
+      const labelText = formatDistance(segmentDistance); // Only segment distance
 
       return new Entity({
+        id: `measurement-segment-${Date.now()}-${Math.random()}`,
         position: midpoint,
         label: {
           text: labelText,
@@ -90,6 +167,7 @@ const useMeasurement = (viewer: Viewer | null, enabled: boolean = false) => {
       const lastPoint = points[points.length - 1];
 
       return new Entity({
+        id: `measurement-total-${Date.now()}`,
         position: lastPoint,
         label: {
           text: `Total: ${formatDistance(totalDistance)}`,
@@ -109,7 +187,8 @@ const useMeasurement = (viewer: Viewer | null, enabled: boolean = false) => {
   );
 
   const finishMeasurement = useCallback(() => {
-    if (!viewer || viewer.isDestroyed() || currentPointsRef.current.length < 2) return;
+    if (!viewer || viewer.isDestroyed() || currentPointsRef.current.length < 2)
+      return;
 
     // Calculate total distance
     let totalDistance = 0;
@@ -128,15 +207,27 @@ const useMeasurement = (viewer: Viewer | null, enabled: boolean = false) => {
     );
     viewer.entities.add(totalLabel);
     measurementEntitiesRef.current.push(totalLabel);
+    console.debug(
+      `[Measurement] Added total label: ${totalLabel.id}, total entities: ${measurementEntitiesRef.current.length}`
+    );
 
     // Finalize the polyline
     if (currentPolylineRef.current) {
       measurementEntitiesRef.current.push(currentPolylineRef.current);
+      console.debug(
+        `[Measurement] Added polyline to tracking: ${currentPolylineRef.current.id}, total entities: ${measurementEntitiesRef.current.length}`
+      );
       currentPolylineRef.current = null;
     }
 
-    // Update measurement count
-    setMeasurementCount(measurementEntitiesRef.current.length);
+    // Update measurement count - increment completed measurements
+    completedMeasurementsRef.current += 1;
+    updateMeasurementCount();
+    console.debug(
+      `[Measurement] Finished measurement ${
+        completedMeasurementsRef.current
+      }, total distance: ${formatDistance(totalDistance)}`
+    );
 
     // Reset for next measurement
     currentPointsRef.current = [];
@@ -146,7 +237,7 @@ const useMeasurement = (viewer: Viewer | null, enabled: boolean = false) => {
     console.debug(
       `[Measurement] Finished measurement: ${formatDistance(totalDistance)}`
     );
-  }, [viewer, createTotalLabel, formatDistance]);
+  }, [viewer, createTotalLabel, formatDistance, updateMeasurementCount]);
 
   useEffect(() => {
     if (!viewer || viewer.isDestroyed() || !enabled) {
@@ -174,10 +265,34 @@ const useMeasurement = (viewer: Viewer | null, enabled: boolean = false) => {
 
       currentPointsRef.current.push(pickedPosition);
 
+      // Calculate cumulative distance up to this point
+      let currentCumulativeDistance = 0;
+      if (currentPointsRef.current.length > 1) {
+        for (let i = 1; i < currentPointsRef.current.length; i++) {
+          currentCumulativeDistance += Cartesian3.distance(
+            currentPointsRef.current[i - 1],
+            currentPointsRef.current[i]
+          );
+        }
+      }
+
+      // Add point entity for this measurement point
+      const pointEntity = createPointEntity(
+        pickedPosition,
+        currentPointsRef.current.length - 1,
+        currentCumulativeDistance
+      );
+      viewer.entities.add(pointEntity);
+      measurementEntitiesRef.current.push(pointEntity);
+      console.debug(
+        `[Measurement] Added point entity: ${pointEntity.id}, total entities: ${measurementEntitiesRef.current.length}`
+      );
+
       if (currentPointsRef.current.length === 1) {
         // First point - start new polyline
         isActiveRef.current = true;
         currentPolylineRef.current = new Entity({
+          id: `measurement-polyline-${Date.now()}`,
           polyline: {
             positions: new CallbackProperty(() => {
               return currentPointsRef.current;
@@ -207,26 +322,17 @@ const useMeasurement = (viewer: Viewer | null, enabled: boolean = false) => {
           lastTwoPoints[1]
         );
 
-        // Calculate total distance up to this point
-        let totalDistance = 0;
-        for (let i = 1; i < currentPointsRef.current.length; i++) {
-          const distance = Cartesian3.distance(
-            currentPointsRef.current[i - 1],
-            currentPointsRef.current[i]
-          );
-          totalDistance += distance;
-        }
-
-        // Create segment label with total and segment distance
+        // Create segment label with only segment distance
         const segmentLabel = createSegmentLabel(
           lastTwoPoints[0],
           lastTwoPoints[1],
-          segmentDistance,
-          totalDistance
+          segmentDistance
         );
         viewer.entities.add(segmentLabel);
         measurementEntitiesRef.current.push(segmentLabel);
-        setMeasurementCount(measurementEntitiesRef.current.length);
+        console.debug(
+          `[Measurement] Added segment label: ${segmentLabel.id}, total entities: ${measurementEntitiesRef.current.length}`
+        );
 
         console.debug(
           `[Measurement] Added segment ${
@@ -267,14 +373,17 @@ const useMeasurement = (viewer: Viewer | null, enabled: boolean = false) => {
     enabled,
     clearMeasurements,
     createSegmentLabel,
+    createPointEntity,
     finishMeasurement,
     formatDistance,
+    updateMeasurementCount,
   ]);
 
   return {
     clearMeasurements,
     isActive: isActiveRef.current,
     measurementCount,
+    hasAnyMeasurementEntities: hasAnyMeasurementEntities(),
   };
 };
 

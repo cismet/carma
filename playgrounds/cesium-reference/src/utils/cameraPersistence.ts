@@ -22,15 +22,16 @@ const STORAGE_KEY = "cesium-reference-camera-state";
  * Extracts camera state from a Cesium viewer
  */
 export const extractCameraState = (viewer: Viewer): CameraPersistenceState => {
-  // Add HMR robustness - check if viewer is valid
   if (!viewer || viewer.isDestroyed()) {
+    console.warn(
+      "Viewer is not available or has been destroyed during camera state extraction"
+    );
     throw new Error("Viewer is not available or has been destroyed");
   }
 
   const camera = viewer.camera;
   const position = camera.positionCartographic;
 
-  // Only capture FOV if it's a perspective frustum
   const fov =
     camera.frustum instanceof PerspectiveFrustum
       ? camera.frustum.fov
@@ -59,8 +60,10 @@ export const applyCameraState = (
   viewer: Viewer,
   state: CameraPersistenceState
 ): void => {
-  // Add HMR robustness - check if viewer is valid
   if (!viewer || viewer.isDestroyed()) {
+    console.warn(
+      "Viewer is not available or has been destroyed during camera state application"
+    );
     throw new Error("Viewer is not available or has been destroyed");
   }
 
@@ -81,7 +84,6 @@ export const applyCameraState = (
     orientation,
   });
 
-  // Apply FOV if available and camera has a perspective frustum
   if (state.fov && viewer.camera.frustum instanceof PerspectiveFrustum) {
     viewer.camera.frustum.fov = state.fov;
   }
@@ -138,18 +140,8 @@ export const isValidCameraState = (
 ): boolean => {
   if (!state) return false;
 
-  // Basic validation of position values
   const { longitude, latitude, height } = state.position;
-  if (
-    isNaN(longitude) ||
-    isNaN(latitude) ||
-    isNaN(height) ||
-    longitude < -Math.PI ||
-    longitude > Math.PI ||
-    latitude < -Math.PI / 2 ||
-    latitude > Math.PI / 2 ||
-    height < 0
-  ) {
+  if (isNaN(longitude) || isNaN(latitude) || isNaN(height)) {
     console.warn("Invalid camera state values", state);
     return false;
   }

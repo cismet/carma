@@ -1,7 +1,10 @@
 import { useRef, useState, useCallback } from "react";
 
 import { FESTPUNKTE_WUPPERTAL, WUPP_MESH_2024 } from "@carma-commons/resources";
-import { CesiumErrorToErrorBoundaryForwarder, cesiumSafeRequestRender } from "@carma-mapping/cesium-engine";
+import {
+  CesiumErrorToErrorBoundaryForwarder,
+  cesiumSafeRequestRender,
+} from "@carma-mapping/cesium-engine";
 
 import { useTestMeshViewer } from "../hooks/usePersistentViewer";
 import useNivPPoints, { type ElevationStandard } from "../hooks/useNivPPoints";
@@ -64,10 +67,8 @@ const TestMeshElevations: React.FC = () => {
     handleShowInfo
   );
 
-  const { clearMeasurements, measurementCount } = useMeasurement(
-    viewer,
-    enableMeasurement
-  );
+  const { clearMeasurements, measurementCount, hasAnyMeasurementEntities } =
+    useMeasurement(viewer, enableMeasurement);
 
   return (
     <>
@@ -102,6 +103,7 @@ const TestMeshElevations: React.FC = () => {
         }}
         onClearMeasurements={clearMeasurements}
         measurementCount={measurementCount}
+        hasAnyMeasurementEntities={hasAnyMeasurementEntities}
       />
 
       <InfoPanel data={infoData} onClose={handleCloseInfo} />

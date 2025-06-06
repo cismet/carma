@@ -31,6 +31,7 @@ interface PointControlsProps {
   onEnableMeasurementChange: (enabled: boolean) => void;
   onClearMeasurements: () => void;
   measurementCount: number;
+  hasAnyMeasurementEntities: boolean;
 }
 
 /* eslint-disable react/prop-types */
@@ -51,6 +52,7 @@ const PointControls: React.FC<PointControlsProps> = ({
   onEnableMeasurementChange,
   onClearMeasurements,
   measurementCount,
+  hasAnyMeasurementEntities,
 }) => {
   const getActiveTab = () => {
     if (enableMeasurement) return "measurement";
@@ -120,13 +122,14 @@ const PointControls: React.FC<PointControlsProps> = ({
               danger
               size="small"
               onClick={onClearMeasurements}
-              disabled={measurementCount === 0}
+              disabled={!hasAnyMeasurementEntities}
             >
               Clear Measurements
             </Button>
             {measurementCount > 0 && (
               <Paragraph style={{ display: "inline", marginLeft: "8px" }}>
-                ({measurementCount} measurement entities)
+                ({measurementCount} completed measurement
+                {measurementCount !== 1 ? "s" : ""})
               </Paragraph>
             )}
           </div>

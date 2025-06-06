@@ -48,7 +48,7 @@ export interface TransformedNivPPoint extends NivPPoint {
 export const SCALE_BY_DISTANCE = new NearFarScalar(0, 1, 5000, 0.0);
 export const SCALE_BY_DISTANCE_POINTS = new NearFarScalar(0, 1, 5000, 0.5);
 
-export const LABEL_FONT = "bold 24px Arial, sans-serif";
+export const LABEL_FONT = "bold 20px Univers, Verdana Pro, sans-serif";
 
 const getElevationValue = (
   point: NivPPoint,

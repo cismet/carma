@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Viewer } from "cesium";
 
 import {
@@ -29,8 +29,7 @@ export const useCameraPersistence = (
   const { autoSave = true, saveDelay = 1000, autoRestore = true } = options;
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const hasRestoredRef = useRef(false);
-  const wasRestoredRef = useRef(false);
+  const [wasRestored, setWasRestored] = useState(false);
 
   const hasValidSavedState = () => {
     const savedState = loadCameraState();
@@ -39,55 +38,40 @@ export const useCameraPersistence = (
 
   // Auto-restore camera state when viewer is ready
   useEffect(() => {
-    if (!viewer || !autoRestore || hasRestoredRef.current) return;
+    if (!viewer || !autoRestore || viewer.isDestroyed()) return;
 
-    if (viewer.isDestroyed()) {
-      console.debug(
-        "[useCameraPersistence] Viewer is destroyed, skipping restore"
-      );
-      return;
-    }
-
-    try {
-      const savedState = loadCameraState();
-      if (isValidCameraState(savedState)) {
-        applyCameraState(viewer, savedState!);
-        hasRestoredRef.current = true;
-        wasRestoredRef.current = true;
-        console.debug("[useCameraPersistence] Camera state restored");
-      } else {
-        hasRestoredRef.current = true; // Mark as processed even if not restored
-        wasRestoredRef.current = false;
+    const restoreCamera = async () => {
+      try {
+        const savedState = loadCameraState();
+        if (isValidCameraState(savedState)) {
+          applyCameraState(viewer, savedState!);
+          setWasRestored(true);
+          console.debug("[useCameraPersistence] Camera state restored");
+        } else {
+          setWasRestored(false);
+        }
+      } catch (error) {
+        console.warn(
+          "[useCameraPersistence] Failed to restore camera state:",
+          error
+        );
+        setWasRestored(false);
       }
-    } catch (error) {
-      console.warn(
-        "[useCameraPersistence] Failed to restore camera state:",
-        error
-      );
-      hasRestoredRef.current = true;
-      wasRestoredRef.current = false;
-    }
+    };
+
+    restoreCamera();
   }, [viewer, autoRestore]);
 
   // Auto-save camera state on movement
   useEffect(() => {
-    if (!viewer || !autoSave) return;
-
-    if (viewer.isDestroyed()) {
-      console.debug(
-        "[useCameraPersistence] Viewer is destroyed, skipping auto-save setup"
-      );
-      return;
-    }
+    if (!viewer || !autoSave || viewer.isDestroyed()) return;
 
     const handleCameraChange = () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
 
-      // Set new timeout to debounce rapid camera movements
       saveTimeoutRef.current = setTimeout(() => {
-        // Add additional check before saving - viewer might be destroyed during timeout
         if (!viewer || viewer.isDestroyed()) {
           console.debug(
             "[useCameraPersistence] Viewer destroyed during save timeout, skipping save"
@@ -158,6 +142,7 @@ export const useCameraPersistence = (
       const stateToRestore = state || loadCameraState();
       if (isValidCameraState(stateToRestore)) {
         applyCameraState(viewer, stateToRestore!);
+        setWasRestored(true);
         return true;
       }
     } catch (error) {
@@ -166,6 +151,7 @@ export const useCameraPersistence = (
         error
       );
     }
+    setWasRestored(false);
     return false;
   };
 
@@ -186,7 +172,7 @@ export const useCameraPersistence = (
     saveCurrentState,
     restoreState,
     getCurrentState,
-    wasRestored: wasRestoredRef.current,
+    wasRestored,
     hasValidSavedState,
   };
 };
