@@ -34,7 +34,8 @@ const BOTTOM_CONTROLS_CONTAINER_STYLE: CSSProperties = {
   justifyContent: "space-between",
   pointerEvents: "none",
   zIndex: 1500,
-  gap: "4px",
+  gap: "1px",
+  rowGap: "4px",
 };
 
 const BOTTOM_CONTROL_GROUP_STYLE: CSSProperties = {
