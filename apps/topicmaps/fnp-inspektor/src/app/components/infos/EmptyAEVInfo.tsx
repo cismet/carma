@@ -1,9 +1,8 @@
-import ResponsiveInfoBox, {
-  MODES,
-} from "react-cismap/topicmaps/ResponsiveInfoBox";
+import { MODES } from "react-cismap/topicmaps/ResponsiveInfoBox";
 import Icon from "react-cismap/commons/Icon";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 import { useContext } from "react";
+import { ResponsiveInfoBox } from "@carma-apps/portals";
 
 const EmptyAEVInfo = ({ secondaryInfoBoxElements }) => {
   const { setAppMenuVisible } =
@@ -100,7 +99,9 @@ const EmptyAEVInfo = ({ secondaryInfoBoxElements }) => {
   return (
     <ResponsiveInfoBox
       pixelwidth={380}
+      header={<></>}
       //   header={llVis}
+      panelClick={() => {}}
       mode={MODES.AB}
       divWhenLarge={divWhenLarge}
       divWhenCollapsed={divWhenCollapsed}

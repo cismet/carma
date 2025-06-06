@@ -1,6 +1,4 @@
-import ResponsiveInfoBox, {
-  MODES,
-} from "react-cismap/topicmaps/ResponsiveInfoBox";
+import { MODES } from "react-cismap/topicmaps/ResponsiveInfoBox";
 import { useSelector } from "react-redux";
 import {
   getFeatureCollection,
@@ -11,6 +9,7 @@ import {
   getColorForHauptnutzung,
   getLinkFromAEV,
 } from "../../../utils/FnpHelper";
+import { ResponsiveInfoBox } from "@carma-apps/portals";
 
 const HN9999Info = () => {
   const features = useSelector(getFeatureCollection);
@@ -158,6 +157,7 @@ const HN9999Info = () => {
     <ResponsiveInfoBox
       // Thinner border and optional rounding
       pixelwidth={380}
+      panelClick={() => {}}
       header={llVis}
       mode={MODES.AB}
       divWhenLarge={divWhenLarge}

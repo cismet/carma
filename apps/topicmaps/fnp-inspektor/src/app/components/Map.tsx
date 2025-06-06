@@ -378,32 +378,33 @@ const Map = () => {
               </div>
             </div>
           </Control>
-        </ControlLayout>
-      </div>
-      <TopicMapComponent
-        initialLoadingText={loadingText}
-        //   pendingLoader={isLoading ? 1 : 0}
-        locatorControl={false}
-        fullScreenControl={false}
-        zoomControls={false}
-        gazetteerSearchControl={true}
-        gazetteerSearchComponent={EmptySearchComponent}
-        backgroundlayers={"wupp-plan-live"}
-        modalMenu={<Modal />}
-        infoBox={info}
-        applicationMenuTooltipString={<MenuTooltip />}
-        applicationMenuIconname="info"
-        homeZoom={12}
-        mappingBoundsChanged={(bbox) => {
-          setBoundingBox(bbox);
-        }}
-        locationChangedHandler={(location) => {
-          const newParams = { ...paramsToObject(searchParams), ...location };
-          setSearchParams(newParams);
-        }}
-        ondblclick={doubleMapClick}
-      >
-        {/* <ScaleControl
+          <TopicMapComponent
+            initialLoadingText={loadingText}
+            //   pendingLoader={isLoading ? 1 : 0}
+            locatorControl={false}
+            fullScreenControl={false}
+            zoomControls={false}
+            gazetteerSearchControl={true}
+            gazetteerSearchComponent={EmptySearchComponent}
+            backgroundlayers={"wupp-plan-live"}
+            modalMenu={<Modal />}
+            infoBox={info}
+            applicationMenuTooltipString={<MenuTooltip />}
+            applicationMenuIconname="info"
+            homeZoom={12}
+            mappingBoundsChanged={(bbox) => {
+              setBoundingBox(bbox);
+            }}
+            locationChangedHandler={(location) => {
+              const newParams = {
+                ...paramsToObject(searchParams),
+                ...location,
+              };
+              setSearchParams(newParams);
+            }}
+            ondblclick={doubleMapClick}
+          >
+            {/* <ScaleControl
           maxWidth={100}
           metric={true}
           imperial={false}
@@ -411,60 +412,68 @@ const Map = () => {
           position="topleft"
         /> */}
 
-        {(aevVisible || mapMode.mode === "arbeitskarte") && (
-          <FeatureCollectionDisplayWithTooltipLabels
-            appMode={mapMode.mode}
-            key={`map_` + JSON.stringify(features) + "." + selectedFeatureIndex}
-            featureCollection={features}
-            featureClickHandler={featureClick}
-            style={
-              mapMode.mode === "arbeitskarte"
-                ? hnFeatureStyler
-                : aevFeatureStyler
-            }
-            labeler={mapMode.mode === "arbeitskarte" ? hnLabeler : aevLabeler}
-          />
-        )}
-        <TopicMapSelectionContent />
-
-        {aevVisible && mapMode.mode === "rechtsplan" && (
-          <FeatureCollectionDisplayWithTooltipLabels
-            key={`map_` + selectedFeatureIndex + JSON.stringify(aevFeatures)}
-            appMode={mapMode.mode}
-            featureCollection={aevFeatures}
-            featureClickHandler={featureClick}
-            style={(feature) => {
-              const style = {
-                color: "#155317",
-                weight: 3,
-                opacity: 0.8,
-                fillColor: "#ffffff",
-                fillOpacity: 0.6,
-              };
-              if (10 >= searchMinZoom) {
-                if (feature.properties.status === "r") {
-                  style.color = "#155317";
-                } else {
-                  style.color = "#9F111B";
+            {(aevVisible || mapMode.mode === "arbeitskarte") && (
+              <FeatureCollectionDisplayWithTooltipLabels
+                appMode={mapMode.mode}
+                key={
+                  `map_` + JSON.stringify(features) + "." + selectedFeatureIndex
                 }
-              } else {
-                if (feature.properties.status === "r") {
-                  style.color = "#155317";
-                  style.fillColor = "#155317";
-                  style.opacity = 0.0;
-                } else {
-                  style.color = "#9F111B";
-                  style.fillColor = "#9F111B";
-                  style.opacity = 0.0;
+                featureCollection={features}
+                featureClickHandler={featureClick}
+                style={
+                  mapMode.mode === "arbeitskarte"
+                    ? hnFeatureStyler
+                    : aevFeatureStyler
                 }
-              }
+                labeler={
+                  mapMode.mode === "arbeitskarte" ? hnLabeler : aevLabeler
+                }
+              />
+            )}
+            <TopicMapSelectionContent />
 
-              return style;
-            }}
-          />
-        )}
-        {backgrounds}
-      </TopicMapComponent>
+            {aevVisible && mapMode.mode === "rechtsplan" && (
+              <FeatureCollectionDisplayWithTooltipLabels
+                key={
+                  `map_` + selectedFeatureIndex + JSON.stringify(aevFeatures)
+                }
+                appMode={mapMode.mode}
+                featureCollection={aevFeatures}
+                featureClickHandler={featureClick}
+                style={(feature) => {
+                  const style = {
+                    color: "#155317",
+                    weight: 3,
+                    opacity: 0.8,
+                    fillColor: "#ffffff",
+                    fillOpacity: 0.6,
+                  };
+                  if (10 >= searchMinZoom) {
+                    if (feature.properties.status === "r") {
+                      style.color = "#155317";
+                    } else {
+                      style.color = "#9F111B";
+                    }
+                  } else {
+                    if (feature.properties.status === "r") {
+                      style.color = "#155317";
+                      style.fillColor = "#155317";
+                      style.opacity = 0.0;
+                    } else {
+                      style.color = "#9F111B";
+                      style.fillColor = "#9F111B";
+                      style.opacity = 0.0;
+                    }
+                  }
+
+                  return style;
+                }}
+              />
+            )}
+            {backgrounds}
+          </TopicMapComponent>
+        </ControlLayout>
+      </div>
     </div>
   );
 };

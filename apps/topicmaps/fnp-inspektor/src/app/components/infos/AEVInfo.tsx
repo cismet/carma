@@ -1,6 +1,4 @@
-import ResponsiveInfoBox, {
-  MODES,
-} from "react-cismap/topicmaps/ResponsiveInfoBox";
+import { MODES } from "react-cismap/topicmaps/ResponsiveInfoBox";
 import { useDispatch, useSelector } from "react-redux";
 import {
   getFeatureCollection,
@@ -13,6 +11,7 @@ import Icon from "react-cismap/commons/Icon";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useContext } from "react";
 import Color from "color";
+import { ResponsiveInfoBox } from "@carma-apps/portals";
 
 const AEVInfo = ({ secondaryInfoBoxElements }) => {
   const features = useSelector(getFeatureCollection);
@@ -282,6 +281,7 @@ const AEVInfo = ({ secondaryInfoBoxElements }) => {
   return (
     <ResponsiveInfoBox
       pixelwidth={380}
+      panelClick={() => {}}
       header={llVis}
       mode={MODES.AB}
       divWhenLarge={divWhenLarge}

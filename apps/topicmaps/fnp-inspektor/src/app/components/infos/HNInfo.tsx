@@ -1,6 +1,4 @@
-import ResponsiveInfoBox, {
-  MODES,
-} from "react-cismap/topicmaps/ResponsiveInfoBox";
+import { MODES } from "react-cismap/topicmaps/ResponsiveInfoBox";
 import { useSelector } from "react-redux";
 import {
   getFeatureCollection,
@@ -12,6 +10,7 @@ import {
   getLinkFromAEV,
   validFNPIcons,
 } from "../../../utils/FnpHelper";
+import { ResponsiveInfoBox } from "@carma-apps/portals";
 
 const bplanBaseUrl = import.meta.env.VITE_BPLAN_BASEURL || "";
 const baseURL = window.location.origin + window.location.pathname;
@@ -190,6 +189,7 @@ const HNInfo = () => {
   return (
     <ResponsiveInfoBox
       pixelwidth={380}
+      panelClick={() => {}}
       header={llVis}
       mode={MODES.AB}
       divWhenLarge={divWhenLarge}
