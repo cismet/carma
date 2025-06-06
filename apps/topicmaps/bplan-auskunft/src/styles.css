@@ -35,3 +35,10 @@ ul {
 .modal-content img {
   display: inline;
 }
+
+/* Menu */
+div.leaflet-top.leaflet-right > .leaflet-control {
+  position: fixed;
+  right: max(10px, env(safe-area-inset-right));
+  margin-right: 0 !important;
+}
