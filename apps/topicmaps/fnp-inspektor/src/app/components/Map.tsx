@@ -369,7 +369,7 @@ const Map = () => {
                 <FuzzySearchWrapper
                   mapSearchAllowed={
                     mode === "rechtsplan" &&
-                    (zoom === null || Number(zoom) >= 12)
+                    (zoom === null || Number(zoom) >= 7)
                   }
                   mode={mapMode.mode}
                   searchTextPlaceholder={searchTextPlaceholder}
