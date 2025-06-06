@@ -1,8 +1,6 @@
 import { useContext } from "react";
 import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
-import ResponsiveInfoBox, {
-  MODES,
-} from "react-cismap/topicmaps/ResponsiveInfoBox";
+import { MODES } from "react-cismap/topicmaps/ResponsiveInfoBox";
 import InfoBox from "react-cismap/topicmaps/InfoBox";
 import { OverlayTrigger, Tooltip } from "react-bootstrap";
 import Icon from "react-cismap/commons/Icon";
@@ -13,6 +11,7 @@ import L from "leaflet";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 import { InfoBoxText } from "@carma-collab/wuppertal/bplan-auskunft";
+import { ResponsiveInfoBox } from "@carma-apps/portals";
 
 const BPlanInfo = ({
   pixelwidth,

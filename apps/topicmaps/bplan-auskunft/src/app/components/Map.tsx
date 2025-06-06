@@ -18,7 +18,10 @@ import L from "leaflet";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import type { UnknownAction } from "redux";
 import versionData from "../../version.json";
-import { getApplicationVersion } from "@carma-commons/utils";
+import {
+  getApplicationVersion,
+  TAILWIND_CLASSNAMES_FULLSCREEN_FIXED,
+} from "@carma-commons/utils";
 import { Layer } from "leaflet";
 import { TopicMapSelectionContent } from "@carma-apps/portals";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
@@ -159,92 +162,84 @@ const Map = () => {
   }
 
   return (
-    <>
-      <div
-        className="controls-container"
-        style={{
-          position: "absolute",
-          top: "0px",
-          left: "0px",
-          bottom: "0px",
-          zIndex: 600,
-        }}
-      >
-        <ControlLayout ifStorybook={false}>
-          <Control position="topleft" order={10}>
-            <ZoomControl />
-          </Control>
+    <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
+      <ControlLayout ifStorybook={false}>
+        <Control position="topleft" order={10}>
+          <ZoomControl />
+        </Control>
 
-          <Control position="topleft" order={50}>
-            <FullscreenControl />
-          </Control>
-          <Control position="topleft" order={60} title="Mein Standort">
-            <RoutedMapLocateControl
-              tourRefLabels={null}
-              disabled={false}
-              nativeTooltip={true}
-            />
-          </Control>
-          <Control position="bottomleft" order={10}>
-            <div
-              data-test-id="fuzzy-search"
-              title="B-Pläne suchen"
-              className="h-full w-full pl-2"
-            >
-              <FuzzySearchWrapper
-                mapSearchAllowed={zoom === null || Number(zoom) >= 12}
-                setFeatures={setFeatures}
-                setSelectedIndex={setSelectedIndex}
-                onIconClick={bplanSearchButtonHit}
-              />
-            </div>
-          </Control>
-        </ControlLayout>
-      </div>
-      <TopicMapComponent
-        initialLoadingText="Laden der B-Plan-Daten"
-        pendingLoader={isLoading ? 1 : 0}
-        locatorControl={false}
-        fullScreenControl={false}
-        zoomControls={false}
-        ref={refRoutedMap}
-        gazetteerSearchControl={true}
-        gazetteerSearchComponent={EmptySearchComponent}
-        backgroundlayers={"uwBPlan|rvrGrundriss@20"}
-        // backgroundlayers={"bplan_abkg|rvrGrundriss@20"}
-        modalMenu={<Modal version={getApplicationVersion(versionData)} />}
-        locationChangedHandler={(location) => {
-          const newParams = { ...paramsToObject(searchParams), ...location };
-          setSearchParams(newParams);
-        }}
-        infoBox={
-          <BPlanInfo
-            pixelwidth={350}
-            features={features}
-            selectedIndex={selectedIndex}
-            setSelectedIndex={setSelectedIndex}
-            setFeatures={setFeatures}
+        <Control position="topleft" order={50}>
+          <FullscreenControl />
+        </Control>
+        <Control position="topleft" order={60} title="Mein Standort">
+          <RoutedMapLocateControl
+            tourRefLabels={null}
+            disabled={false}
+            nativeTooltip={true}
           />
-        }
-        applicationMenuTooltipString="Kompaktanleitung anzeigen"
-        ondblclick={doubleMapClick}
-        homeZoom={16}
-        applicationMenuIconname="info"
-        mappingBoundsChanged={(bbox) => {
-          setBoundingBox(bbox);
-        }}
-      >
-        <TopicMapSelectionContent />
+        </Control>
+        <Control position="bottomleft" order={10}>
+          <div
+            data-test-id="fuzzy-search"
+            title="B-Pläne suchen"
+            className="h-full w-full pl-2"
+          >
+            <FuzzySearchWrapper
+              mapSearchAllowed={zoom === null || Number(zoom) >= 12}
+              setFeatures={setFeatures}
+              setSelectedIndex={setSelectedIndex}
+              onIconClick={bplanSearchButtonHit}
+            />
+          </div>
+        </Control>
+        <TopicMapComponent
+          initialLoadingText="Laden der B-Plan-Daten"
+          pendingLoader={isLoading ? 1 : 0}
+          locatorControl={false}
+          fullScreenControl={false}
+          zoomControls={false}
+          ref={refRoutedMap}
+          gazetteerSearchControl={true}
+          gazetteerSearchComponent={EmptySearchComponent}
+          backgroundlayers={"uwBPlan|rvrGrundriss@20"}
+          // backgroundlayers={"bplan_abkg|rvrGrundriss@20"}
+          modalMenu={<Modal version={getApplicationVersion(versionData)} />}
+          locationChangedHandler={(location) => {
+            const newParams = {
+              ...paramsToObject(searchParams),
+              ...location,
+            };
+            setSearchParams(newParams);
+          }}
+          infoBox={
+            <BPlanInfo
+              pixelwidth={350}
+              features={features}
+              selectedIndex={selectedIndex}
+              setSelectedIndex={setSelectedIndex}
+              setFeatures={setFeatures}
+            />
+          }
+          applicationMenuTooltipString="Kompaktanleitung anzeigen"
+          ondblclick={doubleMapClick}
+          homeZoom={16}
+          applicationMenuIconname="info"
+          mappingBoundsChanged={(bbox) => {
+            setBoundingBox(bbox);
+          }}
+        >
+          <TopicMapSelectionContent />
 
-        <FeatureCollectionDisplayWithTooltipLabels
-          key={"fc" + selectedIndex}
-          featureCollection={features}
-          style={bplanFeatureStyler}
-          labeler={bplanLabeler}
-          featureClickHandler={featureClick}
-        />
-      </TopicMapComponent>
-    </>
+          <FeatureCollectionDisplayWithTooltipLabels
+            key={"fc" + selectedIndex}
+            featureCollection={features}
+            style={bplanFeatureStyler}
+            labeler={bplanLabeler}
+            featureClickHandler={featureClick}
+          />
+        </TopicMapComponent>
+      </ControlLayout>
+    </div>
   );
 };
 
