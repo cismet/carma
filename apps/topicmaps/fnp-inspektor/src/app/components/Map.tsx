@@ -58,6 +58,7 @@ import {
 } from "@carma-mapping/components";
 import CustomScaleControl from "./CustomScaleControl";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 
 const { ScaleControl } = TransitiveReactLeaflet;
 
@@ -323,18 +324,9 @@ const Map = () => {
   }, [wrapperRef]);
 
   return (
-    <div style={{ position: "relative" }} ref={wrapperRef}>
-      {title}
-      <div
-        className="controls-container"
-        style={{
-          position: "absolute",
-          top: "0px",
-          left: "0px",
-          bottom: "0px",
-          zIndex: 600,
-        }}
-      >
+    <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
+      <div style={{ position: "relative" }} ref={wrapperRef}>
+        {title}
         <ControlLayout ifStorybook={false}>
           <Control position="topleft" order={10}>
             <ZoomControl />
