@@ -179,7 +179,11 @@ const Map = () => {
           />
         </Control>
         <Control position="bottomleft" order={10}>
-          <div data-test-id="fuzzy-search" title="B-Pläne suchen">
+          <div
+            data-test-id="fuzzy-search"
+            title="B-Pläne suchen"
+            style={{ marginTop: "4px" }}
+          >
             <FuzzySearchWrapper
               mapSearchAllowed={zoom === null || Number(zoom) >= 12}
               setFeatures={setFeatures}

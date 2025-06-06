@@ -79,6 +79,7 @@ const BPlanInfo = ({
     return (
       <ResponsiveInfoBox
         pixelwidth={pixelwidth}
+        panelClick={() => {}}
         header={tmpVis}
         isCollapsible={false}
         collapsibleDiv={<></>}
