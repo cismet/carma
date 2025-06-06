@@ -1,7 +1,9 @@
 import CollapsibleWell from "react-cismap/commons/CollapsibleWell";
 import CollapsibleABWell from "react-cismap/commons/CollapsibleABWell";
-import { useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { Control } from "@carma-mapping/map-controls-layout";
+// @ts-ignore
+import { ResponsiveTopicMapDispatchContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 export const MODES = { DEFAULT: "DEFAULT", AB: "AB" };
 
@@ -19,6 +21,7 @@ interface ResponsiveInfoBoxProps {
   collapsibleDiv?: React.ReactNode;
   collapsibleStyle?: React.CSSProperties;
   fixedRow?: boolean;
+  defaultContextValues?: any;
   divWhenCollapsed?: React.ReactNode;
   divWhenLarge?: React.ReactNode;
   mode?: string;
@@ -38,11 +41,15 @@ export const ResponsiveInfoBox = ({
   collapsibleDiv,
   collapsibleStyle,
   fixedRow,
+  defaultContextValues = {},
   divWhenCollapsed,
   divWhenLarge,
   mode = MODES.DEFAULT,
 }: ResponsiveInfoBoxProps) => {
   const [collapsed, setCollapsed] = useState(false);
+
+  const { setInfoBoxPixelWidth } =
+    useContext(ResponsiveTopicMapDispatchContext) || defaultContextValues;
 
   let infoBoxBottomMargin = 0;
   let infoBoxStyle = {
@@ -68,6 +75,10 @@ export const ResponsiveInfoBox = ({
       width: 25,
     };
   }
+
+  useEffect(() => {
+    setInfoBoxPixelWidth(pixelwidth);
+  }, [pixelwidth]);
 
   return (
     <div>
