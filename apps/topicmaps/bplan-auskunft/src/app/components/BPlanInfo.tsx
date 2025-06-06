@@ -282,6 +282,7 @@ const BPlanInfo = ({
   return (
     <ResponsiveInfoBox
       pixelwidth={pixelwidth}
+      panelClick={() => {}}
       header={llVis}
       mode={MODES.AB}
       divWhenLarge={divWhenLarge}

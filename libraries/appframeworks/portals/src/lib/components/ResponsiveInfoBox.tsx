@@ -9,8 +9,8 @@ interface ResponsiveInfoBoxProps {
   panelClick: (event: React.MouseEvent) => void;
   pixelwidth: number;
   header: React.ReactNode;
-  collapsedInfoBox: boolean;
-  setCollapsedInfoBox: (value: boolean) => void;
+  collapsedInfoBox?: boolean;
+  setCollapsedInfoBox?: (value: boolean) => void;
   isCollapsible?: boolean;
   handleResponsiveDesign?: boolean;
   infoStyle?: React.CSSProperties;
