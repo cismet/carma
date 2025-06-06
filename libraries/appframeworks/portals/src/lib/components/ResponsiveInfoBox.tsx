@@ -22,6 +22,7 @@ interface ResponsiveInfoBoxProps {
   divWhenCollapsed?: React.ReactNode;
   divWhenLarge?: React.ReactNode;
   mode?: string;
+  realGap?: number;
 }
 
 export const ResponsiveInfoBox = ({
@@ -41,6 +42,7 @@ export const ResponsiveInfoBox = ({
   divWhenCollapsed,
   divWhenLarge,
   mode = MODES.DEFAULT,
+  realGap = 25,
 }: ResponsiveInfoBoxProps) => {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -49,7 +51,7 @@ export const ResponsiveInfoBox = ({
     opacity: "0.9",
     width:
       typeof window !== "undefined" &&
-      window.innerWidth - 25 - pixelwidth - 300 <= 0
+      window.innerWidth - realGap - pixelwidth - 300 <= 0
         ? window.innerWidth - 25
         : pixelwidth,
     ...infoStyle,

@@ -173,6 +173,16 @@ const Hitzekarte = () => {
     validBackgroundIndex = 0;
   }
 
+  const pixelInfoWidth = 350;
+  let pixelSearchWidth = 300;
+
+  if (
+    typeof window !== "undefined" &&
+    window.innerWidth - 28 - pixelInfoWidth - 300 <= 0
+  ) {
+    pixelSearchWidth = window.innerWidth - 25;
+  }
+
   return (
     <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
       <ControlLayout ifStorybook={false}>
@@ -193,9 +203,7 @@ const Hitzekarte = () => {
         <Control position="bottomleft" order={10}>
           <div data-test-id="fuzzy-search" style={{ marginTop: "4px" }}>
             <LibFuzzySearch
-              pixelwidth={
-                responsiveState === "normal" ? "300px" : windowSize.width - gap
-              }
+              pixelwidth={pixelSearchWidth}
               placeholder={searchTextPlaceholder}
             />
           </div>
@@ -206,7 +214,7 @@ const Hitzekarte = () => {
           // backgroundlayers="empty"
           infoBox={
             <ControlInfoBox
-              pixelwidth={350}
+              pixelwidth={pixelInfoWidth}
               selectedSimulations={selectedSimulations}
               simulations={simulations}
               simulationLabels={simulationLabels}

@@ -212,6 +212,7 @@ const InfoBox = ({
       fixedRow={false}
       alwaysVisibleDiv={alwaysVisibleDiv}
       collapsibleDiv={collapsibleDiv}
+      realGap={28}
     />
   );
 };
