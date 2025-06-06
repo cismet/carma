@@ -171,7 +171,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
             e.stopPropagation();
           }}
           className={cn(
-            "min-w-[280px] max-w-[400px] sm:max-w-[560px] md:max-w-[720px]",
+            "min-w-[280px] max-w-[400px] sm:max-w-[560px] md:max-w-[720px] lg:w-full w-3/4",
             "h-fit bg-white button-shadow rounded-[10px] flex flex-col relative secondary-view gap-2 py-2 transition-all duration-300",
             showInfo ? "h-[600px]" : isBaseLayer ? "h-fit" : "h-12"
           )}
