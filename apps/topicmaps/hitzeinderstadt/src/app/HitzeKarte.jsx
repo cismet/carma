@@ -9,7 +9,10 @@ import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplic
 import ControlInfoBox from "./ControlInfoBox";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import CismapLayer from "react-cismap/CismapLayer";
-import { getApplicationVersion } from "@carma-commons/utils";
+import {
+  getApplicationVersion,
+  TAILWIND_CLASSNAMES_FULLSCREEN_FIXED,
+} from "@carma-commons/utils";
 import versionData from "../version.json";
 // import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/hochwassergefahrenkarte";
 import {
@@ -171,121 +174,108 @@ const Hitzekarte = () => {
   }
 
   return (
-    <div>
-      <div
-        className="controls-container"
-        style={{
-          position: "absolute",
-          top: "0px",
-          left: "0px",
-          bottom: "0px",
-          zIndex: 600,
-        }}
-      >
-        <ControlLayout ifStorybook={false}>
-          <Control position="topleft" order={10}>
-            <ZoomControl />
-          </Control>
+    <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
+      <ControlLayout ifStorybook={false}>
+        <Control position="topleft" order={10}>
+          <ZoomControl />
+        </Control>
 
-          <Control position="topleft" order={50}>
-            <FullscreenControl />
-          </Control>
-          <Control position="topleft" order={60} title="Mein Standort">
-            <RoutedMapLocateControl
-              tourRefLabels={null}
-              disabled={false}
-              nativeTooltip={true}
+        <Control position="topleft" order={50}>
+          <FullscreenControl />
+        </Control>
+        <Control position="topleft" order={60} title="Mein Standort">
+          <RoutedMapLocateControl
+            tourRefLabels={null}
+            disabled={false}
+            nativeTooltip={true}
+          />
+        </Control>
+        <Control position="bottomleft" order={10}>
+          <div data-test-id="fuzzy-search" style={{ marginTop: "4px" }}>
+            <LibFuzzySearch
+              pixelwidth={
+                responsiveState === "normal" ? "300px" : windowSize.width - gap
+              }
+              placeholder={searchTextPlaceholder}
             />
-          </Control>
-          <Control position="bottomleft" order={10}>
-            <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
-              <LibFuzzySearch
-                pixelwidth={
-                  responsiveState === "normal"
-                    ? "300px"
-                    : windowSize.width - gap
-                }
-                placeholder={searchTextPlaceholder}
-              />
-            </div>
-          </Control>
-          <TopicMapComponent
-            backgroundlayers={backgrounds[validBackgroundIndex].layerkey}
-            applicationMenuIconname="info"
-            // backgroundlayers="empty"
-            infoBox={
-              <ControlInfoBox
-                pixelwidth={350}
-                selectedSimulations={selectedSimulations}
-                simulations={simulations}
-                simulationLabels={simulationLabels}
-                backgrounds={backgrounds}
-                selectedBackgroundIndex={selectedBackgroundIndex}
-                setBackgroundIndex={(index) => {
-                  setSelectedBackgroundIndex(index);
+          </div>
+        </Control>
+        <TopicMapComponent
+          backgroundlayers={backgrounds[validBackgroundIndex].layerkey}
+          applicationMenuIconname="info"
+          // backgroundlayers="empty"
+          infoBox={
+            <ControlInfoBox
+              pixelwidth={350}
+              selectedSimulations={selectedSimulations}
+              simulations={simulations}
+              simulationLabels={simulationLabels}
+              backgrounds={backgrounds}
+              selectedBackgroundIndex={selectedBackgroundIndex}
+              setBackgroundIndex={(index) => {
+                setSelectedBackgroundIndex(index);
 
-                  history.push(
-                    modifyQueryPart(history.location.search, { bg: index })
-                  );
-                }}
-                minified={minifiedInfoBox}
-                minify={(minified) => setMinifiedInfoBox(minified)}
-                legendObject={legend}
-                featureInfoModeActivated={false}
-                setFeatureInfoModeActivation={() => {}}
-                featureInfoValue={undefined}
-                showModalMenu={(section) => {
-                  setAppMenuVisible(true);
-                  setAppMenuActiveMenuSection(section);
-                }}
-                mapClickListener={() => {}}
-                mapRef={undefined}
-                mapCursor={undefined}
-              />
-            }
-            modalMenu={
-              <GenericModalApplicationMenu
-                {...getCollabedHelpComponentConfig({
-                  versionString: version,
-                  reactCismapRHMVersion: "",
-                })}
-              />
-            }
-            locatorControl={false}
-            fullScreenControl={false}
-            zoomControls={false}
-            gazetteerSearchControl={true}
-            gazetteerSearchComponent={EmptySearchComponent}
-            applicationMenuTooltipString={tooltipText}
-          >
-            <TopicMapSelectionContent />
+                history.push(
+                  modifyQueryPart(history.location.search, { bg: index })
+                );
+              }}
+              minified={minifiedInfoBox}
+              minify={(minified) => setMinifiedInfoBox(minified)}
+              legendObject={legend}
+              featureInfoModeActivated={false}
+              setFeatureInfoModeActivation={() => {}}
+              featureInfoValue={undefined}
+              showModalMenu={(section) => {
+                setAppMenuVisible(true);
+                setAppMenuActiveMenuSection(section);
+              }}
+              mapClickListener={() => {}}
+              mapRef={undefined}
+              mapCursor={undefined}
+            />
+          }
+          modalMenu={
+            <GenericModalApplicationMenu
+              {...getCollabedHelpComponentConfig({
+                versionString: version,
+                reactCismapRHMVersion: "",
+              })}
+            />
+          }
+          locatorControl={false}
+          fullScreenControl={false}
+          zoomControls={false}
+          gazetteerSearchControl={true}
+          gazetteerSearchComponent={EmptySearchComponent}
+          applicationMenuTooltipString={tooltipText}
+        >
+          <TopicMapSelectionContent />
 
-            {/* <TileLayer
+          {/* <TileLayer
         maxNativeZoom={20}
         maxZoom={22}
         url={`https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}`}
       /> */}
-            {selectedSimulations.map((simulationIndex) => {
-              const selSimString = JSON.stringify(selectedSimulations);
-              return (
-                <CismapLayer
-                  {...{
-                    key: "heatmodellayer." + simulationIndex,
-                    type: "vector",
-                    style: simulations[simulationIndex].layer,
-                    pane: "additionalLayers" + simulationIndex,
-                    opacity: simulations[simulationIndex].opacity,
+          {selectedSimulations.map((simulationIndex) => {
+            const selSimString = JSON.stringify(selectedSimulations);
+            return (
+              <CismapLayer
+                {...{
+                  key: "heatmodellayer." + simulationIndex,
+                  type: "vector",
+                  style: simulations[simulationIndex].layer,
+                  pane: "additionalLayers" + simulationIndex,
+                  opacity: simulations[simulationIndex].opacity,
 
-                    // onLayerClick: (e) => {
-                    //   console.log("xxx onLayerClick", e);
-                    // },
-                  }}
-                />
-              );
-            })}
-          </TopicMapComponent>
-        </ControlLayout>
-      </div>
+                  // onLayerClick: (e) => {
+                  //   console.log("xxx onLayerClick", e);
+                  // },
+                }}
+              />
+            );
+          })}
+        </TopicMapComponent>
+      </ControlLayout>
     </div>
   );
 };
