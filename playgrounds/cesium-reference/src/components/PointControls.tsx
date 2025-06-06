@@ -10,7 +10,7 @@ import {
   Space,
 } from "antd";
 import type { ElevationStandard } from "../hooks/useNivPPoints";
-import "./shared-panel-styles.css";
+import "../styles/cesium-ref-styles.css";
 
 const { Title, Paragraph } = Typography;
 

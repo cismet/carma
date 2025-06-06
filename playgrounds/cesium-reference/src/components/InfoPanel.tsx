@@ -1,6 +1,6 @@
 import { ConfigProvider, theme, Typography, Button } from "antd";
 import { CloseOutlined } from "@ant-design/icons";
-import "./shared-panel-styles.css";
+import "../styles/cesium-ref-styles.css";
 
 const { Title, Text } = Typography;
 

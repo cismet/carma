@@ -1,5 +1,6 @@
-/* Minimal shared panel styles */
+/* Cesium Reference Playground Styles */
 
+/* Panel base styling */
 .panel-base {
   background: rgba(42, 42, 42, 0.9);
   border-radius: 8px;
@@ -35,4 +36,12 @@
   display: flex;
   flex-direction: column;
   margin-bottom: 8px;
+}
+
+/* Home button positioning only */
+.home-button-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
 }

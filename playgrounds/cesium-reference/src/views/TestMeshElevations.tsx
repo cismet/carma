@@ -1,25 +1,16 @@
-import { useEffect, useRef, useState, useCallback } from "react";
-
-import { Viewer } from "cesium";
+import { useRef, useState, useCallback } from "react";
 
 import { FESTPUNKTE_WUPPERTAL, WUPP_MESH_2024 } from "@carma-commons/resources";
 import { CesiumErrorToErrorBoundaryForwarder } from "@carma-mapping/cesium-engine";
 
-import useTileset from "../hooks/useTileset";
-import { useZoomToTilesetOnReady } from "../hooks/useZoomToTilesetOnReady";
+import { useTestMeshViewer } from "../hooks/usePersistentViewer";
 import useNivPPoints, { type ElevationStandard } from "../hooks/useNivPPoints";
 import useSceneClick from "../hooks/useSceneClick";
 import useMeasurement from "../hooks/useMeasurement";
 import PointControls from "../components/PointControls";
 import InfoPanel, { type InfoData } from "../components/InfoPanel";
+import HomeButton from "../components/HomeButton";
 import { cesiumConstructorOptions } from "../config";
-
-const tilesetConstructorOptions = {
-  skipLevelOfDetail: true,
-  immediatelyLoadDesiredLevelOfDetail: true,
-  maximumScreenSpaceError: 1,
-  show: true,
-};
 
 const TestMeshElevations: React.FC = () => {
   const [showNivPPoints, setShowNivPPoints] = useState(true); // Load points by default
@@ -31,10 +22,25 @@ const TestMeshElevations: React.FC = () => {
   const [enableMeasurement, setEnableMeasurement] = useState(false); // Measurement mode disabled by default
   const [infoData, setInfoData] = useState<InfoData | null>(null); // Info panel data
 
-  const [tilesetUrl] = useState<string>(WUPP_MESH_2024.url);
-
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const viewerRef = useRef<Viewer | null>(null);
+
+  // Comprehensive viewer setup with camera persistence and conditional zoom
+  const { viewer, viewerRef, zoomToTileset } = useTestMeshViewer(containerRef, {
+    cesiumOptions: cesiumConstructorOptions,
+    tilesetUrl: WUPP_MESH_2024.url,
+    tilesetOptions: {
+      skipLevelOfDetail: true,
+      immediatelyLoadDesiredLevelOfDetail: true,
+      maximumScreenSpaceError: 1,
+      show: true,
+    },
+    cameraPersistence: {
+      autoSave: true,
+      saveDelay: 1000,
+      autoRestore: true,
+      restoreOptions: { animate: false, duration: 0 },
+    },
+  });
 
   // Callback to show info in custom panel
   const handleShowInfo = useCallback((data: InfoData) => {
@@ -45,15 +51,10 @@ const TestMeshElevations: React.FC = () => {
   const handleCloseInfo = useCallback(() => {
     setInfoData(null);
   }, []);
-  const { tilesetRef, tilesetReady } = useTileset(
-    tilesetUrl,
-    viewerRef,
-    tilesetConstructorOptions
-  );
 
   // Load NivP points when enabled
   const { entities: nivPEntities, pointCount } = useNivPPoints(
-    showNivPPoints ? viewerRef.current : null,
+    showNivPPoints ? viewer : null,
     elevationStandard,
     FESTPUNKTE_WUPPERTAL,
     includeHistoric
@@ -63,7 +64,7 @@ const TestMeshElevations: React.FC = () => {
   // Pass nivPEntities to enable custom info display for nearby points
   // Disable terrain click when measurement mode is active
   useSceneClick(
-    viewerRef.current,
+    viewer,
     enableTerrainClick && !enableMeasurement,
     nivPEntities,
     searchRadius, // Use dynamic search radius
@@ -73,52 +74,21 @@ const TestMeshElevations: React.FC = () => {
   // Enable measurement functionality
   // Disable terrain click when measurement mode is active
   const { clearMeasurements, measurementCount } = useMeasurement(
-    viewerRef.current,
+    viewer,
     enableMeasurement
   );
-
-  useEffect(() => {
-    if (viewerRef.current) {
-      console.log("Viewer is already loaded");
-      return;
-    }
-
-    const initialize = async () => {
-      try {
-        if (containerRef.current) {
-          const viewer = new Viewer(containerRef.current, {
-            ...cesiumConstructorOptions,
-            infoBox: false, // Disable native InfoBox - using custom InfoPanel instead
-          });
-          viewerRef.current = viewer;
-          console.debug("[TestMeshElevations] Viewer initialized");
-        }
-      } catch (error) {
-        console.error("[TestMeshElevations] Initialization error:", error);
-      }
-    };
-
-    initialize();
-
-    return () => {
-      try {
-        if (viewerRef.current && !viewerRef.current.isDestroyed()) {
-          console.debug("[TestMeshElevations] Destroying viewer");
-          viewerRef.current.destroy();
-          viewerRef.current = null;
-        }
-      } catch (error) {
-        console.error("[TestMeshElevations] Error destroying viewer:", error);
-      }
-    };
-  }, []);
-
-  useZoomToTilesetOnReady(viewerRef, tilesetRef, tilesetReady);
 
   return (
     <>
       <CesiumErrorToErrorBoundaryForwarder />
-      <div ref={containerRef} style={{ width: "100%", height: "100vh" }} />
+
+      {/* Map container with relative positioning for absolute children */}
+      <div style={{ position: "relative", width: "100%", height: "100vh" }}>
+        <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
+
+        {/* Home Button with integrated positioning and panel styling */}
+        <HomeButton onHomeClick={zoomToTileset} />
+      </div>
 
       {/* Point Controls in top left */}
       <PointControls
